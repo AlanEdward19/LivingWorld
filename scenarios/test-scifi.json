@@ -1,0 +1,36 @@
+{
+  "_comment": "Cenário deliberadamente alienígena (task 7 da Fase 3): prova que motor não conhece nome de profissão/recurso/tipo-de-local. Piloto=20, técnico=21, plasma=7, liga=8, hangar=1, posto-de-comando=2 — só nomes aqui, nunca em src/.",
+  "Width": 10,
+  "Height": 10,
+  "Seed": 7,
+  "RegionSize": 5,
+  "TerrainIds": [1, 2, 3],
+  "BiomeIds": [1],
+  "ResourceIds": [7, 8],
+  "CostWeights": {
+    "Base": 1.0,
+    "AltitudeWeight": 0.5,
+    "TerrainWeight": { "1": 1.0, "2": 1.5, "3": 3.0 }
+  },
+  "Settlements": [{ "Name": "posto-orbital", "X": 5, "Y": 5 }],
+
+  "InitialPopulation": 100,
+  "Culture": 2,
+  "VillageX": 5,
+  "VillageY": 5,
+  "CultureIds": [2],
+  "ProfessionIds": [20, 21],
+  "LocationTypeIds": [1, 2],
+  "MaxLongevityYears": 150,
+  "LifeTableBrackets": [
+    { "MinAgeYears": 0, "MaxAgeYears": 2, "BaseAnnualMortality": 0.05 },
+    { "MinAgeYears": 3, "MaxAgeYears": 24, "BaseAnnualMortality": 0.006 },
+    { "MinAgeYears": 25, "MaxAgeYears": 69, "BaseAnnualMortality": 0.003 },
+    { "MinAgeYears": 70, "MaxAgeYears": 109, "BaseAnnualMortality": 0.015 },
+    { "MinAgeYears": 110, "MaxAgeYears": 149, "BaseAnnualMortality": 0.12 }
+  ],
+  "FertilityMinAge": 25,
+  "FertilityMaxAge": 80,
+  "AnnualConceptionChance": 0.15,
+  "GestationDays": 300
+}

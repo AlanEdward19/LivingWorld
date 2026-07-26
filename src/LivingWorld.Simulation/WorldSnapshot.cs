@@ -44,12 +44,20 @@ public static class WorldSnapshot
         var currentDate = new WorldDate(calendar, totalHours);
         var seed = node["Seed"]!.GetValue<ulong>();
         var map = node["Map"].Deserialize<WorldMap>(JsonOptions)!;
+        var populationCatalog = node["PopulationCatalog"].Deserialize<PopulationCatalog>(JsonOptions)!;
+        var populationRules = node["PopulationRules"].Deserialize<PopulationRules>(JsonOptions)!;
         var rngStreams = node["RngStreams"].Deserialize<List<RngStreamState>>(JsonOptions)!;
         var pendingEvents = node["PendingEvents"].Deserialize<List<ScheduledEvent>>(JsonOptions)!;
         var nextEventId = node["NextEventId"]!.GetValue<long>();
         var exampleCounts = node["ExampleTickCounts"].Deserialize<Dictionary<TickFrequency, long>>(JsonOptions)!;
+        var npcs = node["Npcs"].Deserialize<List<Npc>>(JsonOptions)!;
+        var households = node["Households"].Deserialize<List<Household>>(JsonOptions)!;
+        var nextNpcId = node["NextNpcId"]!.GetValue<long>();
+        var nextHouseholdId = node["NextHouseholdId"]!.GetValue<long>();
 
-        return new WorldState(calendar, currentDate, seed, map, rngStreams, pendingEvents, nextEventId, exampleCounts);
+        return new WorldState(
+            calendar, currentDate, seed, map, populationCatalog, populationRules,
+            rngStreams, pendingEvents, nextEventId, exampleCounts, npcs, households, nextNpcId, nextHouseholdId);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)

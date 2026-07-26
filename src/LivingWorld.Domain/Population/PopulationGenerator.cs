@@ -1,0 +1,106 @@
+namespace LivingWorld.Domain;
+
+/// <summary>Gerador de população inicial (task 6): pirâmide etária coerente — crianças, jovens,
+/// adultos e idosos, sexo 50/50, casais pareados e crianças distribuídas em households. Nada de
+/// N adultos da mesma idade. Puro: toda aleatoriedade vem do <see cref="WorldRng"/> recebido.</summary>
+public static class PopulationGenerator
+{
+    public sealed record GeneratedPopulation(
+        IReadOnlyList<Npc> Npcs, IReadOnlyList<Household> Households, long NextNpcId, long NextHouseholdId);
+
+    private sealed record AgeBracket(int MinAge, int MaxAge, double Weight);
+
+    // Pesos da pirâmide etária: algoritmo interno, não dado de cenário (task 6 não pede
+    // configuração de pirâmide — só "coerente"). Elder é limitado por MaxLongevityYears abaixo.
+    private static readonly AgeBracket[] Pyramid =
+    [
+        new(0, 14, 0.28),
+        new(15, 17, 0.07),
+        new(18, 59, 0.50),
+        new(60, 200, 0.15), // teto real vem de LifeTable.MaxLongevityYears - 1
+    ];
+
+    public static GeneratedPopulation GenerateInitial(
+        WorldRng rng, WorldDate now, int count, CultureId culture, CellCoord villageLocation,
+        LifeTable lifeTable, long startingNpcId = 0, long startingHouseholdId = 0)
+    {
+        long nextNpcId = startingNpcId;
+        long nextHouseholdId = startingHouseholdId;
+
+        var npcs = new List<Npc>(count);
+        var adults = new List<Npc>();
+        var children = new List<Npc>();
+
+        for (int i = 0; i < count; i++)
+        {
+            int ageYears = RollAge(rng, lifeTable.MaxLongevityYears);
+            var sex = rng.NextDouble() < 0.5 ? Sex.Female : Sex.Male;
+            var birthDate = now.AddYears(-ageYears);
+            int health = ageYears >= 60 ? Math.Clamp(100 - (ageYears - 59) * 2, 40, 100) : 100;
+
+            var npc = new Npc(
+                new NpcId(nextNpcId++), $"npc-{culture.Id}-{npcs.Count}", sex, birthDate, culture, villageLocation,
+                motherId: null, fatherId: null, household: null, health);
+
+            npcs.Add(npc);
+            (ageYears >= 18 ? adults : children).Add(npc);
+        }
+
+        var households = PairIntoHouseholds(adults, children, villageLocation, ref nextHouseholdId);
+
+        return new GeneratedPopulation(npcs, households, nextNpcId, nextHouseholdId);
+    }
+
+    private static int RollAge(WorldRng rng, int maxLongevityYears)
+    {
+        double roll = rng.NextDouble();
+        double cumulative = 0;
+        foreach (var bracket in Pyramid)
+        {
+            cumulative += bracket.Weight;
+            if (roll <= cumulative)
+            {
+                int maxAge = Math.Min(bracket.MaxAge, maxLongevityYears - 1);
+                int minAge = Math.Min(bracket.MinAge, maxAge);
+                double span = rng.NextDouble();
+                return minAge + (int)(span * (maxAge - minAge + 1));
+            }
+        }
+        return Math.Min(Pyramid[^1].MinAge, maxLongevityYears - 1);
+    }
+
+    private static List<Household> PairIntoHouseholds(
+        List<Npc> adults, List<Npc> children, CellCoord location, ref long nextHouseholdId)
+    {
+        var females = new Queue<Npc>(adults.Where(a => a.Sex == Sex.Female));
+        var males = new Queue<Npc>(adults.Where(a => a.Sex == Sex.Male));
+
+        var seeds = new List<List<Npc>>();
+        while (females.Count > 0 && males.Count > 0)
+            seeds.Add([females.Dequeue(), males.Dequeue()]);
+        while (females.Count > 0)
+            seeds.Add([females.Dequeue()]);
+        while (males.Count > 0)
+            seeds.Add([males.Dequeue()]);
+
+        // Sem adulto nenhum (só crianças, caso extremo de contagem pequena): cada criança vira
+        // a própria head — não há como formar um casal fundador nesse caso.
+        if (seeds.Count == 0)
+            foreach (var child in children)
+                seeds.Add([child]);
+        else
+            for (int i = 0; i < children.Count; i++)
+                seeds[i % seeds.Count].Add(children[i]);
+
+        var households = new List<Household>(seeds.Count);
+        foreach (var members in seeds)
+        {
+            var head = members.OrderBy(m => m.Id.Value).First();
+            var household = new Household(new HouseholdId(nextHouseholdId++), location, head.Id, members.Select(m => m.Id).ToList());
+            foreach (var member in members)
+                member.JoinHousehold(household.Id);
+            households.Add(household);
+        }
+        return households;
+    }
+}

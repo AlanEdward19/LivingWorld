@@ -4,24 +4,23 @@ Fonte única de continuidade. Quem entra numa área nova **lê este arquivo prim
 Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
-- **Última coisa concluída**: **Fase 2 (Geografia mínima) fechada** — ver detalhe em git log/
-  AD-023. `WorldMap` (Domain, imutável): `MapCell`/`Region`/`GeographyCatalog`/`CostWeights`/
-  `SettlementAnchor`, todos por id vindo do cenário — motor nunca conhece nome de terreno/
-  bioma/recurso (task 2), só `TerrainType.Unset = 0` como sentinela. `MovementCost` (direcional:
-  subida custa mais que descida) e `MapPathfinder` (Dijkstra 8-vizinhança) sobre a mesma
-  `WorldMap`. `MapGenerator` procedural seeded (`WorldRng`, nunca `System.Random`) e
-  `MapScenarioLoader` (Simulation) carregando JSON autoral ou por seed, validando na borda e
-  nomeando o campo que falhou. `WorldMap` entra em `WorldState` como `[Canonical]` — mudou o
-  hash canônico de todos os cenários golden (`tests/golden/world-hashes.json` atualizado neste
-  commit). 57 testes novos (129 no total), gate verde.
-- **Fase 1 (Motor de tempo) fechada antes dela** — detalhe em git log/AD-020..022. Fase 0
-  (Fundação) fechada antes da 1 — detalhe em git log e ADR-0001..0007.
+- **Última coisa concluída**: **Fase 3A (População básica, tasks 1-7) fechada** — ver AD-024..027
+  e detalhe em git log. `Npc`/`Household` (Domain, mutáveis, reconstrutíveis por 1 construtor —
+  padrão de `WorldMap`), `LifeTable`/`PopulationRules`/`PopulationCatalog` (dado de cenário,
+  padrão de `GeographyCatalog`), `MortalityPlanner`+`PopulationGenerator` (pirâmide etária,
+  morte agendada por antecipação). Simulation: `PopulationSeeder`, `MortalitySystem`,
+  `NatalitySystem`, `PopulationScenarioLoader`+`ScenarioLoader`. `WorldState` ganhou
+  `Npcs`/`Households`/`PopulationCatalog`/`PopulationRules`/contadores de id como `[Canonical]`
+  — golden hashes atualizados. `scenarios/default.json` e `scenarios/test-scifi.json` (piloto/
+  técnico/plasma/liga só como id). Baseline de 20 seeds em `tests/baselines/population.json`.
+  35 testes novos, gate verde.
+- **Próxima unidade**: **Fase 3B (persistência, tasks 8-14)** — EF Core+SQLite, `BranchId` no
+  esquema, snapshot+event log, zero round-trips, sweep referencial, sensor de bytes/NPC/ano,
+  campos monotônicos. Ver [docs/roadmap/phase-03-population.md](docs/roadmap/phase-03-population.md).
+- **Fase 2, Fase 1 e Fase 0 fechadas antes dela** — detalhe em git log, AD-020..023 e ADR-0001..0007.
 - **Escopo extra especificado** (não iniciado): fases 15–26 em status `spec`. **Bloqueado até
   a Fase 8 fechar** (AD-010); cada fase tem `## Questões em aberto` (~60 perguntas de design).
   Injeta só `BranchId` na Fase 3 e o primitivo de resolução na Fase 0.
-- **Próxima unidade**: Fase 3 — População básica
-  ([docs/roadmap/phase-03-population.md](docs/roadmap/phase-03-population.md)). Aguardando
-  comando explícito do usuário para começar a implementar.
 - **Eval gates disponíveis**: `bash scripts/verify.sh` = `check-docs` + `build` + `lint` +
   `test`, todos em 0. `bash scripts/verify-mutation.sh` prova que o gate reprova de
   verdade (3 mutantes do fixture) — não roda no `verify.sh` de rotina por ser caro
@@ -60,6 +59,10 @@ de **processo e escopo** que não justificam um ADR.
 | AD-021 | 2026-07-26 | Tick do motor é sempre 1 hora; granularidade "diária" de um cenário de teste vem de `HoursPerDay = 1` no `WorldCalendar`, não de uma unidade de tick alternativa | Mantém `WorldClock` com uma única noção de tick (simples, sem branch de unidade); o critério "Yearly roda 10x em 3650 ticks diários" é satisfeito configurando o calendário do cenário de teste, não o motor. |
 | AD-022 | 2026-07-26 | Streams de RNG são derivados uma única vez de uma raiz imutável (`WorldRngRegistry`) e persistem por toda a run | Se a chave derivasse de uma raiz que também avança, o resultado dependeria de quantas vezes a raiz foi consumida antes — quebra "adicionar um sistema não desloca os outros" (ADR-0005). |
 | AD-023 | 2026-07-26 | Catálogo de geografia (`GeographyCatalog`) guarda só ids válidos de terreno/bioma/recurso — nenhum campo de nome/apresentação | O motor nunca consome nome, só id e peso de custo; nome e apresentação são dado de cliente (Fase 14). Simplifica o critério "nenhum literal de terreno/bioma em C#" a "nenhum nome existe no modelo", em vez de banir strings que o engine teria que guardar sem usar. |
+| AD-024 | 2026-07-26 | `NpcId`/`HouseholdId` viram wrapper de `long` monotônico (não `Guid`) | `Guid.NewGuid()` é banido em Domain/Simulation; id precisa nascer determinístico, padrão de `NextEventId`. `CityId`/`LocationId` (ainda não usados) seguem `Guid` até a Fase 8 os consumir de verdade. |
+| AD-025 | 2026-07-26 | `PopulationCatalog` ganha `ProfessionType`/`LocationType` desde a Fase 3, mesmo sem `Npc` ter profissão ainda | Mesmo raciocínio de `BranchId` (ADR-0009): pagar agora é um record; retrofitar depois da Fase 5/6 já terem profissão real seria migração de catálogo. `test-scifi` já declara piloto/técnico como id. |
+| AD-026 | 2026-07-26 | Propriedade pública computada (`Household.IsEmpty`, `Npc.IsAlive`) leva `[JsonIgnore]` | Sem isso o snapshot serializa um `bool` solto e o mutador genérico do teste canônico/volátil (só sabe long/int/string) devolve nó já anexado ao pai — `System.Text.Json` reprova. Mesmo motivo de `Npc.AgeYears` ser método, não propriedade. |
+| AD-027 | 2026-07-26 | Cenário (mapa+população) mora num JSON em `scenarios/*.json` via `ScenarioLoader`; o "default" do gate continua hardcoded em `ScenarioRunner` | Padrão da Fase 2: `MapScenarioLoader` existe e é testado sem estar no caminho do golden hash. `test-scifi.json` prova que o motor lê população de arquivo sem o gate pagar I/O a cada seed. |
 
 ## Fases
 Status por fase vive na tabela do [ROADMAP.md](ROADMAP.md). Não replique aqui.
@@ -84,7 +87,7 @@ depois. Onde o mecanismo já virou task, a fase está nomeada.
 ## Riscos ainda sem mecanismo
 | Risco | Por que segue aberto |
 |---|---|
-| Fase 3 ficar grande demais (população + persistência + 6 sensores) | Dividida em 3A/3B com gates separados, mas continua sendo a fase mais pesada do roadmap |
+| Fase 3B (persistência + 6 sensores) ainda pendente | 3A já fechou a metade mais arriscada (população); 3B segue sendo a parte mais pesada do roadmap |
 | Custo e latência de LLM em escala | Só dimensionável com provider real; decisão adiada para ADR-0008 na Fase 10 |
 | Balanceamento do mundo (economia estável, demografia plausível) | Nenhum gate prova que o mundo é *interessante*, só que é *coerente*. Exige julgamento humano |
 | **Escopo extra canibalizar o caminho crítico** | Mitigado por AD-010 (fases 15–18 bloqueadas até a 8), mas o risco é de disciplina, não de mecanismo. Nenhum gate impede alguém de começar a Fase 17 antes da hora |

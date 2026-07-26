@@ -1,0 +1,36 @@
+{
+  "Width": 10,
+  "Height": 10,
+  "Seed": 1,
+  "RegionSize": 5,
+  "TerrainIds": [1, 2, 3],
+  "BiomeIds": [1],
+  "ResourceIds": [],
+  "CostWeights": {
+    "Base": 1.0,
+    "AltitudeWeight": 0.5,
+    "TerrainWeight": { "1": 1.0, "2": 1.5, "3": 3.0 }
+  },
+  "Settlements": [{ "Name": "vila", "X": 5, "Y": 5 }],
+
+  "InitialPopulation": 100,
+  "Culture": 1,
+  "VillageX": 5,
+  "VillageY": 5,
+  "CultureIds": [1],
+  "ProfessionIds": [],
+  "LocationTypeIds": [],
+  "MaxLongevityYears": 90,
+  "LifeTableBrackets": [
+    { "MinAgeYears": 0, "MaxAgeYears": 1, "BaseAnnualMortality": 0.08 },
+    { "MinAgeYears": 2, "MaxAgeYears": 14, "BaseAnnualMortality": 0.01 },
+    { "MinAgeYears": 15, "MaxAgeYears": 39, "BaseAnnualMortality": 0.004 },
+    { "MinAgeYears": 40, "MaxAgeYears": 59, "BaseAnnualMortality": 0.01 },
+    { "MinAgeYears": 60, "MaxAgeYears": 79, "BaseAnnualMortality": 0.04 },
+    { "MinAgeYears": 80, "MaxAgeYears": 89, "BaseAnnualMortality": 0.15 }
+  ],
+  "FertilityMinAge": 16,
+  "FertilityMaxAge": 45,
+  "AnnualConceptionChance": 0.25,
+  "GestationDays": 270
+}
