@@ -4,24 +4,20 @@ Fonte única de continuidade. Quem entra numa área nova **lê este arquivo prim
 Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
-- **Última coisa concluída**: **Fase 0 (Fundação) fechada.** Solution real com 7 projetos,
-  `Directory.Build.props`, tipos-base (IDs, `Money`, `Result<T>`), `WorldRng` (splitmix64),
-  primitivo `Resolver` com perfis Dramático/Agregado/Raro + `VarianceProfileCatalog`,
-  testes de arquitetura (NetArchTest + compilação Roslyn em memória), `BannedApiAnalyzers`
-  com `BannedSymbols.txt` cobrindo os 6 símbolos, `ILlmProvider`/`FakeLlmProvider`
-  (injetivo)/`NullLlmProvider`, infra de baseline (`BaselineFixture` + baseline real do
-  Resolver em `tests/baselines/resolver-sample.json`), harness de mutação
-  (`scripts/verify-mutation.sh`) rodado de verdade com os 3 mutantes pegos, `bash
-  scripts/verify.sh` em 0, `git init` + primeiro commit. 39 testes.
-- **Escopo extra especificado** (não iniciado): fases 15–26 em status `spec` — potência,
-  divindade, tempo, cosmos, trânsito interdimensional, ontogenia, imperfeição, intriga,
-  emergência aberta, jogadores, console/god e motor cinematográfico. ADR-0008 a ADR-0013.
-  **Bloqueado até a Fase 8 fechar** (AD-010). Cada fase tem `## Questões em aberto` — são
-  ~60 perguntas de design que precisam de resposta antes de a fase ser ativada.
-  O escopo extra injeta só duas coisas no caminho crítico: `BranchId` na Fase 3 e o
-  primitivo de resolução na Fase 0.
-- **Próxima unidade**: [Fase 1 — Motor de tempo](docs/roadmap/phase-01-time.md).
-  Aguardando comando explícito do usuário para começar a implementar.
+- **Última coisa concluída**: **Fase 1 (Motor de tempo) fechada** — ver detalhe de
+  implementação em git log/AD-020..022. `WorldCalendar`/`WorldDate` (tick fixo = 1 hora),
+  `WorldRngRegistry` (streams derivados 1x de raiz imutável), `ISimulationSystem`/`WorldClock`
+  (ordem declarada, eventos do próprio tick, teto de iterações), `SimulationHost`
+  (pausa/velocidade fora do snapshot), `WorldSnapshot` (hash canônico/volátil por reflexão
+  sobre `[Canonical]`/`[Volatile]`), `tests/golden/world-hashes.json`. Determinismo entre
+  processos provado via `LivingWorld.Workers` em modo CLI. 70 testes novos, gate verde.
+  Fase 0 (Fundação) fechada antes dela — 39 testes, detalhe em git log e ADR-0001..0007.
+- **Escopo extra especificado** (não iniciado): fases 15–26 em status `spec`. **Bloqueado até
+  a Fase 8 fechar** (AD-010); cada fase tem `## Questões em aberto` (~60 perguntas de design).
+  Injeta só `BranchId` na Fase 3 e o primitivo de resolução na Fase 0.
+- **Próxima unidade**: Fase 2 — Geografia mínima
+  ([docs/roadmap/phase-02-geography.md](docs/roadmap/phase-02-geography.md)). Aguardando
+  comando explícito do usuário para começar a implementar.
 - **Eval gates disponíveis**: `bash scripts/verify.sh` = `check-docs` + `build` + `lint` +
   `test`, todos em 0. `bash scripts/verify-mutation.sh` prova que o gate reprova de
   verdade (3 mutantes do fixture) — não roda no `verify.sh` de rotina por ser caro
@@ -56,6 +52,9 @@ de **processo e escopo** que não justificam um ADR.
 | AD-017 | 2026-07-26 | `NuGet.config` do repo restrito a `nuget.org` | Feed corporativo (`BDS`) do NuGet global exige auth que não está disponível neste ambiente; sem isolar, todo restore falhava com 401. Config global do usuário não foi tocada. |
 | AD-018 | 2026-07-26 | Critério do CS0246 na Fase 0 corrigido para CS0234 (`docs/roadmap/phase-00-foundation.md`) | `LivingWorld` já existe como namespace via `Domain`; falta só o sub-namespace `AI`, que o Roslyn reporta como CS0234, não CS0246. Erro de redação do critério original, não mudança de escopo. |
 | AD-019 | 2026-07-26 | `InMemoryCompiler` de teste filtra assemblies `LivingWorld.*` de `TRUSTED_PLATFORM_ASSEMBLIES` | O host de teste inclui todas as `ProjectReference` de `LivingWorld.Tests` (inclusive `AI`) nos "trusted platform assemblies"; sem filtrar, o fixture de fronteira Simulation↔AI compilava com sucesso mesmo sem a referência explícita, e o teste não media nada. |
+| AD-020 | 2026-07-26 | Teste de determinismo entre 2 processos reaproveita `LivingWorld.Workers` num modo CLI (`hash <seed> <ticks>`) em vez de criar um projeto console novo | `Workers` já referencia `Simulation`/`Domain` e já é permitido referenciar tudo (rules/implementation.md); projeto novo seria decisão de arquitetura sem ganho — o objetivo é só ter um segundo processo real, não um host novo. |
+| AD-021 | 2026-07-26 | Tick do motor é sempre 1 hora; granularidade "diária" de um cenário de teste vem de `HoursPerDay = 1` no `WorldCalendar`, não de uma unidade de tick alternativa | Mantém `WorldClock` com uma única noção de tick (simples, sem branch de unidade); o critério "Yearly roda 10x em 3650 ticks diários" é satisfeito configurando o calendário do cenário de teste, não o motor. |
+| AD-022 | 2026-07-26 | Streams de RNG são derivados uma única vez de uma raiz imutável (`WorldRngRegistry`) e persistem por toda a run | Se a chave derivasse de uma raiz que também avança, o resultado dependeria de quantas vezes a raiz foi consumida antes — quebra "adicionar um sistema não desloca os outros" (ADR-0005). |
 
 ## Fases
 Status por fase vive na tabela do [ROADMAP.md](ROADMAP.md). Não replique aqui.

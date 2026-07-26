@@ -9,6 +9,10 @@ public sealed class WorldRng
 
     public WorldRng(ulong seed) => _state = seed;
 
+    /// <summary>Estado interno atual — usado só para snapshot/rehidratação de streams
+    /// (<see cref="WorldRngRegistry"/>), nunca para decisão de negócio.</summary>
+    public ulong State => _state;
+
     /// <summary>Deriva um stream independente para uma entidade/sistema (ADR-0005):
     /// mesma seed base + mesma stream key = mesma sequência, sem afetar outros streams.</summary>
     public WorldRng Derive(long streamKey)
