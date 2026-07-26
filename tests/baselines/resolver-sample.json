@@ -1,0 +1,82 @@
+{
+  "1": {
+    "DramaticoOutcome": "Success",
+    "AgregadoOutcome": "Success"
+  },
+  "2": {
+    "DramaticoOutcome": "Failure",
+    "AgregadoOutcome": "Success"
+  },
+  "3": {
+    "DramaticoOutcome": "Success",
+    "AgregadoOutcome": "Success"
+  },
+  "4": {
+    "DramaticoOutcome": "Success",
+    "AgregadoOutcome": "Success"
+  },
+  "5": {
+    "DramaticoOutcome": "PartialSuccess",
+    "AgregadoOutcome": "Success"
+  },
+  "6": {
+    "DramaticoOutcome": "Success",
+    "AgregadoOutcome": "Success"
+  },
+  "7": {
+    "DramaticoOutcome": "Success",
+    "AgregadoOutcome": "Success"
+  },
+  "8": {
+    "DramaticoOutcome": "Success",
+    "AgregadoOutcome": "Success"
+  },
+  "9": {
+    "DramaticoOutcome": "Success",
+    "AgregadoOutcome": "PartialSuccess"
+  },
+  "10": {
+    "DramaticoOutcome": "PartialSuccess",
+    "AgregadoOutcome": "Success"
+  },
+  "11": {
+    "DramaticoOutcome": "PartialSuccess",
+    "AgregadoOutcome": "PartialSuccess"
+  },
+  "12": {
+    "DramaticoOutcome": "Success",
+    "AgregadoOutcome": "Success"
+  },
+  "13": {
+    "DramaticoOutcome": "Success",
+    "AgregadoOutcome": "PartialSuccess"
+  },
+  "14": {
+    "DramaticoOutcome": "PartialSuccess",
+    "AgregadoOutcome": "Success"
+  },
+  "15": {
+    "DramaticoOutcome": "PartialSuccess",
+    "AgregadoOutcome": "PartialSuccess"
+  },
+  "16": {
+    "DramaticoOutcome": "Success",
+    "AgregadoOutcome": "Success"
+  },
+  "17": {
+    "DramaticoOutcome": "Success",
+    "AgregadoOutcome": "Success"
+  },
+  "18": {
+    "DramaticoOutcome": "Success",
+    "AgregadoOutcome": "Success"
+  },
+  "19": {
+    "DramaticoOutcome": "Success",
+    "AgregadoOutcome": "Success"
+  },
+  "20": {
+    "DramaticoOutcome": "PartialSuccess",
+    "AgregadoOutcome": "Success"
+  }
+}

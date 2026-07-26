@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-LivingWorld.Workers-6063397e-251f-463b-a038-f8afb3cb224a</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LivingWorld.Domain\LivingWorld.Domain.csproj" />
+    <ProjectReference Include="..\LivingWorld.Simulation\LivingWorld.Simulation.csproj" />
+    <ProjectReference Include="..\LivingWorld.Infrastructure\LivingWorld.Infrastructure.csproj" />
+    <ProjectReference Include="..\LivingWorld.AI\LivingWorld.AI.csproj" />
+  </ItemGroup>
+</Project>

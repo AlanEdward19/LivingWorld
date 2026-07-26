@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NuGetAudit>false</NuGetAudit>
+  </PropertyGroup>
+
+  <!-- Domain e Simulation nunca sorteiam por fora do RNG do mundo nem leem relógio da máquina. -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'LivingWorld.Domain' Or '$(MSBuildProjectName)' == 'LivingWorld.Simulation'">
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="4.14.0" PrivateAssets="all" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" />
+  </ItemGroup>
+</Project>

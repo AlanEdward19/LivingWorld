@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\LivingWorld.Domain\LivingWorld.Domain.csproj" />
+    <ProjectReference Include="..\LivingWorld.Simulation\LivingWorld.Simulation.csproj" />
+    <ProjectReference Include="..\LivingWorld.Infrastructure\LivingWorld.Infrastructure.csproj" />
+    <ProjectReference Include="..\LivingWorld.AI\LivingWorld.AI.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>

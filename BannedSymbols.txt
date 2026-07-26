@@ -1,0 +1,6 @@
+T:System.Random;Não use System.Random — RNG do mundo vem de WorldRng determinístico semeado (rules/simulation-determinism.md)
+P:System.Random.Shared;Não use Random.Shared — mesma razão
+P:System.DateTime.Now;Tempo vem do relógio do mundo (WorldDate), nunca do relógio da máquina
+P:System.DateTime.UtcNow;Tempo vem do relógio do mundo (WorldDate), nunca do relógio da máquina
+M:System.Guid.NewGuid;IDs vêm do mundo/cenário, nunca de Guid aleatório
+P:System.Environment.TickCount;Tempo vem do relógio do mundo (WorldDate), nunca do relógio da máquina

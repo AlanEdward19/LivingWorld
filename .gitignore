@@ -1,0 +1,13 @@
+bin/
+obj/
+node_modules/
+dist/
+*.user
+.vs/
+.idea/
+.env
+*.db
+*.db-shm
+*.db-wal
+worlds/
+TestResults/
