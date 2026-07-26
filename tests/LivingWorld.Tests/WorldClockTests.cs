@@ -10,7 +10,7 @@ public class WorldClockTests
     {
         // Calendário desta cena: 1 hora/dia (tick == dia), 73 dias/mês x 5 meses = 365 dias/ano.
         var calendar = new WorldCalendar(HoursPerDay: 1, DaysPerMonth: 73, MonthsPerYear: 5);
-        var world = new WorldState(calendar, seed: 1);
+        var world = new WorldState(calendar, seed: 1, ScenarioRunner.DefaultMap(1));
         var systems = new ISimulationSystem[]
         {
             new ExampleCounterSystem(TickFrequency.Daily),
@@ -38,7 +38,7 @@ public class WorldClockTests
     {
         var order = new List<string>();
         var calendar = new WorldCalendar(HoursPerDay: 24, DaysPerMonth: 30, MonthsPerYear: 12);
-        var world = new WorldState(calendar, seed: 1);
+        var world = new WorldState(calendar, seed: 1, ScenarioRunner.DefaultMap(1));
         var systems = new ISimulationSystem[]
         {
             new RecordingSystem("second", TickFrequency.Hourly, order),
@@ -55,7 +55,7 @@ public class WorldClockTests
     public void Event_scheduled_for_a_future_tick_fires_exactly_at_that_tick()
     {
         var calendar = new WorldCalendar(HoursPerDay: 24, DaysPerMonth: 30, MonthsPerYear: 12);
-        var world = new WorldState(calendar, seed: 1);
+        var world = new WorldState(calendar, seed: 1, ScenarioRunner.DefaultMap(1));
         var fired = new List<long>();
         var scheduler = new SelfSchedulingSystem(targetTick: 5, fired, rescheduleForever: false);
         var clock = new WorldClock([scheduler]);
@@ -69,7 +69,7 @@ public class WorldClockTests
     public void Tick_that_never_converges_aborts_naming_the_culprit_system()
     {
         var calendar = new WorldCalendar(HoursPerDay: 24, DaysPerMonth: 30, MonthsPerYear: 12);
-        var world = new WorldState(calendar, seed: 1);
+        var world = new WorldState(calendar, seed: 1, ScenarioRunner.DefaultMap(1));
         var fired = new List<long>();
         var system = new SelfSchedulingSystem(targetTick: 1, fired, rescheduleForever: true);
         var clock = new WorldClock([system], maxIterationsPerTick: 10);

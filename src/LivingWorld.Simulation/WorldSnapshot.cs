@@ -18,6 +18,7 @@ public static class WorldSnapshot
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         Converters = { new JsonStringEnumConverter() },
+        PropertyNameCaseInsensitive = true,
     };
 
     private static readonly PropertyInfo[] Properties =
@@ -42,12 +43,13 @@ public static class WorldSnapshot
         var totalHours = node["CurrentDate"]!["TotalHours"]!.GetValue<long>();
         var currentDate = new WorldDate(calendar, totalHours);
         var seed = node["Seed"]!.GetValue<ulong>();
+        var map = node["Map"].Deserialize<WorldMap>(JsonOptions)!;
         var rngStreams = node["RngStreams"].Deserialize<List<RngStreamState>>(JsonOptions)!;
         var pendingEvents = node["PendingEvents"].Deserialize<List<ScheduledEvent>>(JsonOptions)!;
         var nextEventId = node["NextEventId"]!.GetValue<long>();
         var exampleCounts = node["ExampleTickCounts"].Deserialize<Dictionary<TickFrequency, long>>(JsonOptions)!;
 
-        return new WorldState(calendar, currentDate, seed, rngStreams, pendingEvents, nextEventId, exampleCounts);
+        return new WorldState(calendar, currentDate, seed, map, rngStreams, pendingEvents, nextEventId, exampleCounts);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)

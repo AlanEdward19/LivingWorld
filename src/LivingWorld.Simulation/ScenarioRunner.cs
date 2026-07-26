@@ -17,8 +17,19 @@ public static class ScenarioRunner
         new ExampleCounterSystem(TickFrequency.Yearly),
     ];
 
+    private static readonly GeographyCatalog DefaultCatalog = new(
+        TerrainIds: new HashSet<int> { 1, 2, 3 }, BiomeIds: new HashSet<int> { 1 }, ResourceIds: new HashSet<int>());
+
+    private static readonly CostWeights DefaultCostWeights = new(
+        Base: 1.0, AltitudeWeight: 0.5,
+        TerrainWeight: new Dictionary<int, double> { [1] = 1.0, [2] = 1.5, [3] = 3.0 });
+
+    public static WorldMap DefaultMap(ulong seed) =>
+        MapGenerator.Generate(seed, width: 10, height: 10, regionSize: 5, DefaultCatalog, DefaultCostWeights, [])
+            .Value ?? throw new InvalidOperationException("gerador default falhou — bug no gerador, não no cenário");
+
     public static (WorldState World, WorldClock Clock) Create(ulong seed, int maxIterationsPerTick = 1000) =>
-        (new WorldState(DefaultCalendar, seed), new WorldClock(DefaultSystems(), maxIterationsPerTick));
+        (new WorldState(DefaultCalendar, seed, DefaultMap(seed)), new WorldClock(DefaultSystems(), maxIterationsPerTick));
 
     public static (string CanonicalHash, string VolatileHash) RunAndHash(ulong seed, long ticks)
     {

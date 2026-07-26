@@ -25,6 +25,10 @@ public sealed class WorldState
     [Canonical]
     public IReadOnlyList<ScheduledEvent> PendingEvents => _scheduler.Snapshot();
 
+    /// <summary>Geografia do mundo (Fase 2) — grid, regiões, custo de deslocamento. Entra no
+    /// hash canônico: mudar o mapa muda o mundo (task 7).</summary>
+    [Canonical] public WorldMap Map { get; }
+
     /// <summary>Contador do sistema de exemplo (task 11) — descartável na Fase 3. Nenhuma
     /// decisão lê este campo, por isso é volátil.</summary>
     [Volatile]
@@ -38,11 +42,12 @@ public sealed class WorldState
         [TickFrequency.Yearly] = 0,
     };
 
-    public WorldState(WorldCalendar calendar, ulong seed)
+    public WorldState(WorldCalendar calendar, ulong seed, WorldMap map)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
         Seed = seed;
+        Map = map;
         _rng = new WorldRngRegistry(seed);
         _scheduler = new EventScheduler();
     }
@@ -52,6 +57,7 @@ public sealed class WorldState
         WorldCalendar calendar,
         WorldDate currentDate,
         ulong seed,
+        WorldMap map,
         IReadOnlyList<RngStreamState> rngStreams,
         IReadOnlyList<ScheduledEvent> pendingEvents,
         long nextEventId,
@@ -60,6 +66,7 @@ public sealed class WorldState
         Calendar = calendar;
         CurrentDate = currentDate;
         Seed = seed;
+        Map = map;
         _rng = new WorldRngRegistry(seed, rngStreams);
         _scheduler = new EventScheduler(pendingEvents);
         _nextEventId = nextEventId;

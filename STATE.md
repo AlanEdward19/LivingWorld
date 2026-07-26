@@ -4,19 +4,23 @@ Fonte única de continuidade. Quem entra numa área nova **lê este arquivo prim
 Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
-- **Última coisa concluída**: **Fase 1 (Motor de tempo) fechada** — ver detalhe de
-  implementação em git log/AD-020..022. `WorldCalendar`/`WorldDate` (tick fixo = 1 hora),
-  `WorldRngRegistry` (streams derivados 1x de raiz imutável), `ISimulationSystem`/`WorldClock`
-  (ordem declarada, eventos do próprio tick, teto de iterações), `SimulationHost`
-  (pausa/velocidade fora do snapshot), `WorldSnapshot` (hash canônico/volátil por reflexão
-  sobre `[Canonical]`/`[Volatile]`), `tests/golden/world-hashes.json`. Determinismo entre
-  processos provado via `LivingWorld.Workers` em modo CLI. 70 testes novos, gate verde.
-  Fase 0 (Fundação) fechada antes dela — 39 testes, detalhe em git log e ADR-0001..0007.
+- **Última coisa concluída**: **Fase 2 (Geografia mínima) fechada** — ver detalhe em git log/
+  AD-023. `WorldMap` (Domain, imutável): `MapCell`/`Region`/`GeographyCatalog`/`CostWeights`/
+  `SettlementAnchor`, todos por id vindo do cenário — motor nunca conhece nome de terreno/
+  bioma/recurso (task 2), só `TerrainType.Unset = 0` como sentinela. `MovementCost` (direcional:
+  subida custa mais que descida) e `MapPathfinder` (Dijkstra 8-vizinhança) sobre a mesma
+  `WorldMap`. `MapGenerator` procedural seeded (`WorldRng`, nunca `System.Random`) e
+  `MapScenarioLoader` (Simulation) carregando JSON autoral ou por seed, validando na borda e
+  nomeando o campo que falhou. `WorldMap` entra em `WorldState` como `[Canonical]` — mudou o
+  hash canônico de todos os cenários golden (`tests/golden/world-hashes.json` atualizado neste
+  commit). 57 testes novos (129 no total), gate verde.
+- **Fase 1 (Motor de tempo) fechada antes dela** — detalhe em git log/AD-020..022. Fase 0
+  (Fundação) fechada antes da 1 — detalhe em git log e ADR-0001..0007.
 - **Escopo extra especificado** (não iniciado): fases 15–26 em status `spec`. **Bloqueado até
   a Fase 8 fechar** (AD-010); cada fase tem `## Questões em aberto` (~60 perguntas de design).
   Injeta só `BranchId` na Fase 3 e o primitivo de resolução na Fase 0.
-- **Próxima unidade**: Fase 2 — Geografia mínima
-  ([docs/roadmap/phase-02-geography.md](docs/roadmap/phase-02-geography.md)). Aguardando
+- **Próxima unidade**: Fase 3 — População básica
+  ([docs/roadmap/phase-03-population.md](docs/roadmap/phase-03-population.md)). Aguardando
   comando explícito do usuário para começar a implementar.
 - **Eval gates disponíveis**: `bash scripts/verify.sh` = `check-docs` + `build` + `lint` +
   `test`, todos em 0. `bash scripts/verify-mutation.sh` prova que o gate reprova de
@@ -55,6 +59,7 @@ de **processo e escopo** que não justificam um ADR.
 | AD-020 | 2026-07-26 | Teste de determinismo entre 2 processos reaproveita `LivingWorld.Workers` num modo CLI (`hash <seed> <ticks>`) em vez de criar um projeto console novo | `Workers` já referencia `Simulation`/`Domain` e já é permitido referenciar tudo (rules/implementation.md); projeto novo seria decisão de arquitetura sem ganho — o objetivo é só ter um segundo processo real, não um host novo. |
 | AD-021 | 2026-07-26 | Tick do motor é sempre 1 hora; granularidade "diária" de um cenário de teste vem de `HoursPerDay = 1` no `WorldCalendar`, não de uma unidade de tick alternativa | Mantém `WorldClock` com uma única noção de tick (simples, sem branch de unidade); o critério "Yearly roda 10x em 3650 ticks diários" é satisfeito configurando o calendário do cenário de teste, não o motor. |
 | AD-022 | 2026-07-26 | Streams de RNG são derivados uma única vez de uma raiz imutável (`WorldRngRegistry`) e persistem por toda a run | Se a chave derivasse de uma raiz que também avança, o resultado dependeria de quantas vezes a raiz foi consumida antes — quebra "adicionar um sistema não desloca os outros" (ADR-0005). |
+| AD-023 | 2026-07-26 | Catálogo de geografia (`GeographyCatalog`) guarda só ids válidos de terreno/bioma/recurso — nenhum campo de nome/apresentação | O motor nunca consome nome, só id e peso de custo; nome e apresentação são dado de cliente (Fase 14). Simplifica o critério "nenhum literal de terreno/bioma em C#" a "nenhum nome existe no modelo", em vez de banir strings que o engine teria que guardar sem usar. |
 
 ## Fases
 Status por fase vive na tabela do [ROADMAP.md](ROADMAP.md). Não replique aqui.
