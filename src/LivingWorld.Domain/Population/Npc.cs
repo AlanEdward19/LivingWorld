@@ -49,6 +49,13 @@ public sealed class Npc
     public RateGene RateGene { get; }
     public NpcId? Mentor { get; private set; }
 
+    // Fase 7 (T7): genética/ambiente (imutáveis após nascimento, herdados por HeredityService),
+    // cônjuge e cortejo em andamento.
+    public double Vitality { get; }
+    public double Upbringing { get; }
+    public NpcId? Spouse { get; private set; }
+    public NpcId? CourtingWith { get; private set; }
+
     /// <summary>Derivado de <see cref="DeathDate"/> — <see cref="JsonIgnoreAttribute"/> pelo
     /// mesmo motivo de <see cref="Household.IsEmpty"/>: computado, e um bool solto no snapshot
     /// quebraria o mutador genérico de teste.</summary>
@@ -64,7 +71,8 @@ public sealed class Npc
         long? hungerZeroSinceTick = null, WorldDate? homelessSince = null,
         WorldDate? pregnantUntil = null, WorldDate? deathDate = null,
         Money wallet = default, WorkplaceId? employer = null,
-        SkillSet? skills = null, RateGene? rateGene = null, NpcId? mentor = null)
+        SkillSet? skills = null, RateGene? rateGene = null, NpcId? mentor = null,
+        double vitality = 50.0, double upbringing = 50.0, NpcId? spouse = null, NpcId? courtingWith = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -101,6 +109,10 @@ public sealed class Npc
         Skills = skills ?? SkillSet.Initial(0);
         RateGene = rateGene ?? new RateGene(1.0);
         Mentor = mentor;
+        Vitality = Math.Clamp(vitality, 0.0, 100.0);
+        Upbringing = Math.Clamp(upbringing, 0.0, 100.0);
+        Spouse = spouse;
+        CourtingWith = courtingWith;
     }
 
     /// <summary>Idade derivada de <paramref name="now"/> — nunca incrementada por sistema
@@ -210,4 +222,17 @@ public sealed class Npc
     /// <summary>Encerra o vínculo de tutoria — espelha <see cref="LeaveHousehold"/> (Edge Case:
     /// mestre morto no meio da tutoria, sem ponteiro solto).</summary>
     public void ClearMentor() => Mentor = null;
+
+    /// <summary>Casamento (Fase 7, T7, FAM-12) — seta só o próprio lado do vínculo; quem chama
+    /// (<c>MarriageSystem.Marry</c>) é responsável por chamar duas vezes, uma para cada cônjuge.
+    /// Nunca há mutador de "divorciar" (AD-060): viuvez é lida (<see cref="Spouse"/> aponta a
+    /// alguém com <c>IsAlive == false</c>), nunca limpa automaticamente — mesmo espírito de
+    /// <see cref="MotherId"/>/<see cref="FatherId"/> (AD-031, referência histórica válida).</summary>
+    public void Marry(NpcId spouse) => Spouse = spouse;
+
+    /// <summary>Início de cortejo (Fase 7, T7) — espelha <see cref="AssignMentor"/>.</summary>
+    public void StartCourtship(NpcId partner) => CourtingWith = partner;
+
+    /// <summary>Fim de cortejo, com ou sem sucesso — espelha <see cref="ClearMentor"/>.</summary>
+    public void EndCourtship() => CourtingWith = null;
 }
