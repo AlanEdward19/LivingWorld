@@ -72,3 +72,7 @@ O número é **identidade**, não ordem. Só a trilha núcleo é sequencial.
   critério, mas os critérios finais só são escritos sob `rules/eval-criteria.md` quando a
   fase é ativada — e nenhuma delas começa antes da Fase 8 fechar. Ativar uma fase `spec`
   fora de ordem é decisão de escopo: registre em `STATE.md` antes.
+- **Revisitar performance ao fechar a Fase 8** (fim da trilha núcleo): perfilar de novo com
+  população grande (10k+ NPCs) — Fase 4 já achou e corrigiu reflection no caminho quente
+  (`PersonalityWeighting`, AD-038 em `docs/decisions-log.md`); Economia/Habilidades/Família/
+  Cidades (5–8) somam sistemas Hourly/Daily/Monthly novos que também iteram população.
