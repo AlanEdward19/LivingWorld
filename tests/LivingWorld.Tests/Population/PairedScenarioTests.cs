@@ -177,6 +177,91 @@ public class PairedScenarioTests
         Assert.Equal(20, wins);
     }
 
+    // --- T17 (SKILL-09): correlação pai/filho — habilidade não herdada, gene herdado ---
+
+    private const int BirthSampleSize = 200;
+
+    [Fact]
+    [Trait("Category", "Scenario")]
+    public void Skill_correlation_contains_zero_while_rate_gene_correlation_is_entirely_above_zero_across_200_births()
+    {
+        // SPEC_DEVIATION: 200 nascimentos via NatalitySystem/ScenarioRunner.Create de ponta a
+        // ponta não é alcançável no horizonte deste teste — o cenário default (calibrado pra ~100
+        // NPCs, AD-046) colapsa por fome/desemprego muito antes de acumular 200 nascimentos
+        // (achado rodando a simulação real: seed 7, 100 iniciais, extinção completa por volta do
+        // ano 110, só 57 nascimentos acumulados; 1000 iniciais é pior ainda — excesso sem vaga de
+        // emprego morre mais rápido do que repõe). Em vez de inflar população/duração até
+        // encontrar uma combinação frágil que não quebre o gate, o harness constrói as 200
+        // famílias diretamente: mãe com habilidade/gene variados, filho com <see
+        // cref="RateGene.Inherit"/> (mesma função de produção usada por <c>NatalitySystem</c>) e
+        // idade variada, ganho só por <see cref="SkillGainSource.School"/> (não lê a habilidade da
+        // mãe — só a própria criança/gene) — mede exatamente a mesma pergunta causal (habilidade
+        // do pai correlaciona com a do filho? gene do pai correlaciona com o do filho?) sem
+        // depender da sobrevivência de uma população inteira. Toda aleatoriedade via <see
+        // cref="WorldRng"/> (stream próprio, mesmo padrão do resto do projeto).
+        var rules = ScenarioRunner.DefaultSkillsRules;
+        var teaching = new SkillTeachingSystem(rules, ScenarioRunner.DefaultLifeStageRules);
+        var rngWorld = SkillScenarioHarness.CreateWorld(seed: 7); // só hospeda o stream de RNG do harness
+        var rng = rngWorld.Rng.Stream("t17-birth-harness");
+
+        var skillPairs = new List<(double Parent, double Child)>();
+        var genePairs = new List<(double Parent, double Child)>();
+
+        for (int i = 0; i < BirthSampleSize; i++)
+        {
+            double motherSkillLevel = rng.NextDouble() * rules.Cap;
+            var motherGene = RateGene.RollInitial(rng);
+            var fatherGene = RateGene.RollInitial(rng);
+            var childGene = RateGene.Inherit(motherGene, fatherGene, rng);
+            int daysOfSchooling = 1 + (int)(rng.NextDouble() * 14 * DaysPerYear); // criança: 0-14 anos de vida
+
+            // Um mundo isolado de 2 NPCs por família (mesmo princípio de T14-T16) — não acumula
+            // população através das 200 iterações, mantém o teste rápido.
+            var familyWorld = SkillScenarioHarness.CreateWorld(seed: 7);
+            // Locais diferentes: elimina qualquer ganho por SkillGainSource.Observation entre mãe
+            // e filho (sem household compartilhado, Parental também não se aplica) — só School
+            // resta, que lê a própria criança, nunca a mãe (SkillTeachingSystem.GainFromSchool).
+            var mother = SkillScenarioHarness.MakeWorker(
+                familyWorld, new ProfessionType(1), new CellCoord(1, 1), motherGene,
+                skills: SkillSet.Initial(0).WithGain(SkillType.Agriculture, motherSkillLevel, rules.Cap));
+            var child = SkillScenarioHarness.MakeWorker(
+                familyWorld, new ProfessionType(1), new CellCoord(2, 2), childGene, ageYears: 5);
+            var familyCtx = new TickContext(familyWorld, familyWorld.Rng, familyWorld.Scheduler);
+
+            for (int day = 0; day < daysOfSchooling; day++)
+                teaching.Tick(familyWorld, familyCtx);
+
+            skillPairs.Add((mother.Skills.Get(SkillType.Agriculture), child.Skills.Get(SkillType.Agriculture)));
+            genePairs.Add((motherGene.Value, childGene.Value));
+        }
+
+        var (skillLow, skillHigh) = PearsonCi95(skillPairs);
+        Assert.True(skillLow <= 0 && skillHigh >= 0,
+            $"IC95 habilidade pai/filho [{skillLow:F3},{skillHigh:F3}] deveria conter 0 (habilidade nao herdada)");
+
+        var (geneLow, geneHigh) = PearsonCi95(genePairs);
+        Assert.True(geneLow > 0,
+            $"IC95 RateGene pai/filho [{geneLow:F3},{geneHigh:F3}] deveria estar inteiramente acima de 0 (taxa herdada)");
+    }
+
+    /// <summary>IC95 de Pearson via transformação de Fisher (z = atanh(r), erro padrão
+    /// 1/sqrt(n-3)) — padrão estatístico, sem dependência nova (só <c>Math.Atanh</c>/<c>Tanh</c>
+    /// do BCL).</summary>
+    private static (double Low, double High) PearsonCi95(IReadOnlyList<(double Parent, double Child)> pairs)
+    {
+        int n = pairs.Count;
+        double meanParent = pairs.Average(p => p.Parent);
+        double meanChild = pairs.Average(p => p.Child);
+        double sxy = pairs.Sum(p => (p.Parent - meanParent) * (p.Child - meanChild));
+        double sxx = pairs.Sum(p => Math.Pow(p.Parent - meanParent, 2));
+        double syy = pairs.Sum(p => Math.Pow(p.Child - meanChild, 2));
+        double r = sxy / Math.Sqrt(sxx * syy);
+
+        double z = Math.Atanh(Math.Clamp(r, -0.999999, 0.999999));
+        double se = 1.0 / Math.Sqrt(n - 3);
+        return (Math.Tanh(z - 1.96 * se), Math.Tanh(z + 1.96 * se));
+    }
+
     private static string FindRepoRoot()
     {
         var dir = AppContext.BaseDirectory;
