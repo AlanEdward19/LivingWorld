@@ -46,6 +46,8 @@ public static class WorldSnapshot
         var map = node["Map"].Deserialize<WorldMap>(JsonOptions)!;
         var populationCatalog = node["PopulationCatalog"].Deserialize<PopulationCatalog>(JsonOptions)!;
         var populationRules = node["PopulationRules"].Deserialize<PopulationRules>(JsonOptions)!;
+        var needsRules = node["NeedsRules"].Deserialize<NeedsRules>(JsonOptions)!;
+        var actionCatalog = node["ActionCatalog"].Deserialize<ActionCatalog>(JsonOptions)!;
         var rngStreams = node["RngStreams"].Deserialize<List<RngStreamState>>(JsonOptions)!;
         var pendingEvents = node["PendingEvents"].Deserialize<List<ScheduledEvent>>(JsonOptions)!;
         var nextEventId = node["NextEventId"]!.GetValue<long>();
@@ -57,7 +59,7 @@ public static class WorldSnapshot
         var branchId = new BranchId(node["BranchId"]!["Value"]!.GetValue<long>());
 
         return new WorldState(
-            calendar, currentDate, seed, map, populationCatalog, populationRules,
+            calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
             rngStreams, pendingEvents, nextEventId, exampleCounts, npcs, households, nextNpcId, nextHouseholdId,
             branchId);
     }

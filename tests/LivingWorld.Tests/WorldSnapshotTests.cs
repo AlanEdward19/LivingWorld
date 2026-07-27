@@ -103,9 +103,17 @@ public class WorldSnapshotTests
         return clone;
     }
 
+    // Mesma prioridade de sempre (primeiro JsonValue cru, na ordem declarada) — só pula uma
+    // string que bata com o nome de um literal de enum conhecido do código (ex.
+    // ActionCatalog.DefaultAction == "Idle"), porque anexar "_mut" a um enum serializado como
+    // texto (JsonStringEnumConverter) quebra o parse na rehidratação. Nesse caso recorre a um
+    // objeto/array aninhado (ex. ActionCatalog.MaxDurationHours) em vez da string.
     private static JsonObject MutateFirstPrimitiveProperty(JsonObject obj)
     {
-        string targetKey = obj.FirstOrDefault(kv => kv.Value is JsonValue).Key
+        string targetKey = obj.FirstOrDefault(kv => kv.Value is JsonValue v && IsSafeToMutate(v)).Key
+            ?? obj.FirstOrDefault(kv => kv.Value is JsonObject { Count: > 0 }).Key
+            ?? obj.FirstOrDefault(kv => kv.Value is JsonArray { Count: > 0 }).Key
+            ?? obj.FirstOrDefault(kv => kv.Value is JsonValue).Key
             ?? obj.First().Key;
 
         var clone = new JsonObject();
@@ -113,6 +121,17 @@ public class WorldSnapshotTests
             clone[kv.Key] = kv.Key == targetKey ? Mutate(kv.Value!) : kv.Value?.DeepClone();
         return clone;
     }
+
+    private static readonly HashSet<string> KnownEnumLiterals =
+        AppDomain.CurrentDomain.GetAssemblies()
+            .Where(a => (a.GetName().Name ?? "").StartsWith("LivingWorld."))
+            .SelectMany(a => a.GetTypes())
+            .Where(t => t.IsEnum)
+            .SelectMany(Enum.GetNames)
+            .ToHashSet(StringComparer.Ordinal);
+
+    private static bool IsSafeToMutate(JsonValue v) =>
+        !(v.TryGetValue<string>(out var s) && KnownEnumLiterals.Contains(s));
 
     private static JsonArray AppendSentinel(JsonArray arr)
     {

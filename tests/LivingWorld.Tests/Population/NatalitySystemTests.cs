@@ -24,7 +24,8 @@ public class NatalitySystemTests
         PopulationCatalog catalog, ulong seed)
     {
         var map = ScenarioRunner.DefaultMap(seed);
-        var world = new WorldState(Calendar, seed, map, catalog, Rules);
+        var world = new WorldState(
+            Calendar, seed, map, catalog, Rules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog);
         var location = new CellCoord(1, 1);
 
         var mother = new Npc(

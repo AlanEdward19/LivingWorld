@@ -19,9 +19,11 @@ public static class ScenarioLoader
             return Result<(WorldState, WorldClock)>.Fail(populationResult.Error!);
 
         var population = populationResult.Value!;
+        // ponytail: NeedsRules/ActionCatalog do cenário JSON ainda não plugados aqui (BehaviorScenarioLoader
+        // existe mas a integração com ScenarioLoader é escopo de fase futura) — usa os defaults por ora.
         var world = new WorldState(
             ScenarioRunner.DefaultCalendar, mapResult.Value!.Seed, mapResult.Value!,
-            population.Catalog, population.Rules);
+            population.Catalog, population.Rules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog);
 
         if (population.InitialPopulation > 0)
             PopulationSeeder.SeedInitial(world, population.InitialPopulation, population.Culture, population.Village);

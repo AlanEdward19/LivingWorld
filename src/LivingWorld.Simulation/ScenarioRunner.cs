@@ -61,10 +61,33 @@ public static class ScenarioRunner
         DefaultLifeTable, fertilityMinAge: 16, fertilityMaxAge: 45, annualConceptionChance: 0.25, gestationDays: 270)
         .Value ?? throw new InvalidOperationException("population rules default inválida — bug no cenário, não no gerador");
 
+    // Valores mínimos/razoáveis (task 9) — conteúdo real do cenário medieval é escopo da task 15.
+    public static readonly NeedsRules DefaultNeedsRules = NeedsRules.Create(
+        hungerDecayPerHour: 2.0, thirstDecayPerHour: 3.0, sleepDecayPerHour: 1.5, socialDecayPerHour: 1.0,
+        urgencyThreshold: 70, maxActionSelectionSteps: 10, hysteresisEnabled: true,
+        continuityBonus: 5.0, homelessSleepEfficiency: 0.5)
+        .Value ?? throw new InvalidOperationException("needs rules default inválida — bug no cenário, não no gerador");
+
+    public static readonly ActionCatalog DefaultActionCatalog = ActionCatalog.Create(
+        maxDurationHours: new Dictionary<ActionType, int>
+        {
+            [ActionType.Eat] = 2,
+            [ActionType.Sleep] = 8,
+            [ActionType.Work] = 8,
+            [ActionType.Socialize] = 3,
+            [ActionType.Travel] = 4,
+            [ActionType.Idle] = 2,
+        },
+        routineSlots: [],
+        defaultAction: ActionType.Idle)
+        .Value ?? throw new InvalidOperationException("action catalog default inválido — bug no cenário, não no gerador");
+
     public static (WorldState World, WorldClock Clock) Create(
         ulong seed, int maxIterationsPerTick = 1000, int initialPopulation = DefaultInitialPopulation)
     {
-        var world = new WorldState(DefaultCalendar, seed, DefaultMap(seed), DefaultPopulationCatalog, DefaultPopulationRules);
+        var world = new WorldState(
+            DefaultCalendar, seed, DefaultMap(seed), DefaultPopulationCatalog, DefaultPopulationRules,
+            DefaultNeedsRules, DefaultActionCatalog);
         if (initialPopulation > 0)
             PopulationSeeder.SeedInitial(world, initialPopulation, DefaultCulture, DefaultVillageLocation);
 

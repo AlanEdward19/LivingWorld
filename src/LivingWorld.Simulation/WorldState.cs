@@ -41,6 +41,14 @@ public sealed class WorldState
     /// toda decisão de nascimento e morte.</summary>
     [Canonical] public PopulationRules PopulationRules { get; }
 
+    /// <summary>Parâmetros cenário-driven do utility AI/necessidades (Fase 4, task 4/9) —
+    /// decaimento, limiar de urgência, histerese. Entra no hash canônico: desligar/mudar o
+    /// utility AI muda o mundo (NEEDS-04).</summary>
+    [Canonical] public NeedsRules NeedsRules { get; }
+
+    /// <summary>Catálogo de ações e rotina diária do cenário (Fase 4, task 2/9).</summary>
+    [Canonical] public ActionCatalog ActionCatalog { get; }
+
     private readonly List<Npc> _npcs;
     private readonly Dictionary<NpcId, Npc> _npcById;
     private readonly List<Household> _households;
@@ -75,7 +83,8 @@ public sealed class WorldState
 
     public WorldState(
         WorldCalendar calendar, ulong seed, WorldMap map,
-        PopulationCatalog populationCatalog, PopulationRules populationRules, BranchId branchId = default)
+        PopulationCatalog populationCatalog, PopulationRules populationRules,
+        NeedsRules needsRules, ActionCatalog actionCatalog, BranchId branchId = default)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -83,6 +92,8 @@ public sealed class WorldState
         Map = map;
         PopulationCatalog = populationCatalog;
         PopulationRules = populationRules;
+        NeedsRules = needsRules;
+        ActionCatalog = actionCatalog;
         BranchId = branchId;
         _rng = new WorldRngRegistry(seed);
         _scheduler = new EventScheduler();
@@ -100,6 +111,8 @@ public sealed class WorldState
         WorldMap map,
         PopulationCatalog populationCatalog,
         PopulationRules populationRules,
+        NeedsRules needsRules,
+        ActionCatalog actionCatalog,
         IReadOnlyList<RngStreamState> rngStreams,
         IReadOnlyList<ScheduledEvent> pendingEvents,
         long nextEventId,
@@ -116,6 +129,8 @@ public sealed class WorldState
         Map = map;
         PopulationCatalog = populationCatalog;
         PopulationRules = populationRules;
+        NeedsRules = needsRules;
+        ActionCatalog = actionCatalog;
         BranchId = branchId;
         _rng = new WorldRngRegistry(seed, rngStreams);
         _scheduler = new EventScheduler(pendingEvents);
