@@ -132,6 +132,51 @@ public class PairedScenarioTests
         Assert.Equal(20, wins);
     }
 
+    // --- T16 (SKILL-09): gene muda resultado, prática idêntica ---
+
+    private static double SkillAfterPractice(ulong seed, RateGene rateGene, int days)
+    {
+        var world = SkillScenarioHarness.CreateWorld(seed);
+        var npc = SkillScenarioHarness.MakeWorker(world, new ProfessionType(1), SkillScenarioHarness.SomeLocation, rateGene);
+        var workplace = SkillScenarioHarness.MakeWorkplace(world, new LocationType(1), SkillScenarioHarness.SomeLocation);
+        SkillScenarioHarness.Hire(npc, workplace);
+        var system = new SkillPracticeSystem(ScenarioRunner.DefaultSkillsRules);
+        var ctx = new TickContext(world, world.Rng, world.Scheduler);
+
+        for (int day = 0; day < days; day++)
+            system.Tick(world, ctx);
+
+        return npc.Skills.Get(SkillType.Agriculture);
+    }
+
+    [Fact]
+    [Trait("Category", "Scenario")]
+    public void Different_rate_genes_produce_different_skill_under_identical_practice_in_20_of_20_seeds()
+    {
+        int wins = 0;
+        for (ulong seed = 1; seed <= 20; seed++)
+        {
+            double skillA = SkillAfterPractice(seed, new RateGene(1.0), days: DaysPerYear);
+            double skillB = SkillAfterPractice(seed, new RateGene(1.5), days: DaysPerYear);
+            if (skillA != skillB) wins++;
+        }
+        Assert.Equal(20, wins);
+    }
+
+    [Fact]
+    [Trait("Category", "Scenario")]
+    public void Identical_rate_genes_produce_byte_identical_skill_under_identical_practice_in_20_of_20_seeds()
+    {
+        int wins = 0;
+        for (ulong seed = 1; seed <= 20; seed++)
+        {
+            double skillA = SkillAfterPractice(seed, new RateGene(1.0), days: DaysPerYear);
+            double skillB = SkillAfterPractice(seed, new RateGene(1.0), days: DaysPerYear);
+            if (skillA == skillB) wins++;
+        }
+        Assert.Equal(20, wins);
+    }
+
     private static string FindRepoRoot()
     {
         var dir = AppContext.BaseDirectory;
