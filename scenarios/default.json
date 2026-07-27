@@ -18,7 +18,7 @@
   "VillageX": 5,
   "VillageY": 5,
   "CultureIds": [1],
-  "ProfessionIds": [],
+  "ProfessionIds": [1, 2],
   "LocationTypeIds": [],
   "MaxLongevityYears": 90,
   "LifeTableBrackets": [
@@ -33,5 +33,32 @@
   "FertilityMaxAge": 45,
   "AnnualConceptionChance": 0.25,
   "GestationDays": 270,
-  "MaxBytesPerNpcPerYear": 4000
+  "MaxBytesPerNpcPerYear": 4000,
+
+  "_professionComment": "1 = lavrador, 2 = ferreiro — nome só neste comentário, o motor só vê o id (AD-023/AD-025)",
+  "HungerDecayPerHour": 2.0,
+  "ThirstDecayPerHour": 3.0,
+  "SleepDecayPerHour": 1.5,
+  "SocialDecayPerHour": 1.0,
+  "UrgencyThreshold": 70,
+  "MaxActionSelectionSteps": 10,
+  "HysteresisEnabled": true,
+  "ContinuityBonus": 5.0,
+  "HomelessSleepEfficiency": 0.5,
+  "MaxDurationHours": {
+    "Eat": 2, "Sleep": 8, "Work": 8, "Socialize": 3, "Travel": 4, "Idle": 2
+  },
+  "RoutineSlots": [
+    { "ProfessionId": 1, "Stage": "Adult", "HourStart": 6, "HourEnd": 14, "Action": "Work" },
+    { "ProfessionId": 2, "Stage": "Adult", "HourStart": 7, "HourEnd": 15, "Action": "Work" },
+    { "ProfessionId": null, "Stage": "Adult", "HourStart": 8, "HourEnd": 16, "Action": "Work" },
+    { "ProfessionId": null, "Stage": "Adult", "HourStart": 18, "HourEnd": 20, "Action": "Socialize" },
+    { "ProfessionId": null, "Stage": "Adult", "HourStart": 22, "HourEnd": 23, "Action": "Sleep" },
+    { "ProfessionId": null, "Stage": "Adult", "HourStart": 0, "HourEnd": 5, "Action": "Sleep" },
+    { "ProfessionId": null, "Stage": "Child", "HourStart": 20, "HourEnd": 23, "Action": "Sleep" },
+    { "ProfessionId": null, "Stage": "Child", "HourStart": 0, "HourEnd": 6, "Action": "Sleep" },
+    { "ProfessionId": null, "Stage": "Elder", "HourStart": 21, "HourEnd": 23, "Action": "Sleep" },
+    { "ProfessionId": null, "Stage": "Elder", "HourStart": 0, "HourEnd": 6, "Action": "Sleep" }
+  ],
+  "DefaultAction": "Idle"
 }

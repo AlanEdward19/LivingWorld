@@ -33,5 +33,31 @@
   "FertilityMaxAge": 80,
   "AnnualConceptionChance": 0.15,
   "GestationDays": 300,
-  "MaxBytesPerNpcPerYear": 4000
+  "MaxBytesPerNpcPerYear": 4000,
+
+  "HungerDecayPerHour": 1.5,
+  "ThirstDecayPerHour": 2.0,
+  "SleepDecayPerHour": 1.0,
+  "SocialDecayPerHour": 0.5,
+  "UrgencyThreshold": 75,
+  "MaxActionSelectionSteps": 10,
+  "HysteresisEnabled": true,
+  "ContinuityBonus": 5.0,
+  "HomelessSleepEfficiency": 0.6,
+  "MaxDurationHours": {
+    "Eat": 1, "Sleep": 6, "Work": 10, "Socialize": 2, "Travel": 4, "Idle": 2
+  },
+  "RoutineSlots": [
+    { "ProfessionId": 20, "Stage": "Adult", "HourStart": 5, "HourEnd": 15, "Action": "Work" },
+    { "ProfessionId": 21, "Stage": "Adult", "HourStart": 6, "HourEnd": 16, "Action": "Work" },
+    { "ProfessionId": null, "Stage": "Adult", "HourStart": 8, "HourEnd": 18, "Action": "Work" },
+    { "ProfessionId": null, "Stage": "Adult", "HourStart": 19, "HourEnd": 20, "Action": "Socialize" },
+    { "ProfessionId": null, "Stage": "Adult", "HourStart": 21, "HourEnd": 23, "Action": "Sleep" },
+    { "ProfessionId": null, "Stage": "Adult", "HourStart": 0, "HourEnd": 4, "Action": "Sleep" },
+    { "ProfessionId": null, "Stage": "Child", "HourStart": 20, "HourEnd": 23, "Action": "Sleep" },
+    { "ProfessionId": null, "Stage": "Child", "HourStart": 0, "HourEnd": 5, "Action": "Sleep" },
+    { "ProfessionId": null, "Stage": "Elder", "HourStart": 20, "HourEnd": 23, "Action": "Sleep" },
+    { "ProfessionId": null, "Stage": "Elder", "HourStart": 0, "HourEnd": 5, "Action": "Sleep" }
+  ],
+  "DefaultAction": "Idle"
 }

@@ -22,7 +22,12 @@ public class BehaviorScenarioLoaderTests
         ["HomelessSleepEfficiency"] = 0.5,
         ["MaxDurationHours"] = new JsonObject
         {
-            ["Eat"] = 2, ["Sleep"] = 8, ["Work"] = 8, ["Socialize"] = 3, ["Travel"] = 6, ["Idle"] = 4,
+            ["Eat"] = 2,
+            ["Sleep"] = 8,
+            ["Work"] = 8,
+            ["Socialize"] = 3,
+            ["Travel"] = 6,
+            ["Idle"] = 4,
         },
         ["RoutineSlots"] = new JsonArray
         {
@@ -112,7 +117,11 @@ public class BehaviorScenarioLoaderTests
         var root = ValidRoot();
         ((JsonArray)root["RoutineSlots"]!).Add(new JsonObject
         {
-            ["ProfessionId"] = 5, ["Stage"] = "Adult", ["HourStart"] = 8, ["HourEnd"] = 16, ["Action"] = "Eat",
+            ["ProfessionId"] = 5,
+            ["Stage"] = "Adult",
+            ["HourStart"] = 8,
+            ["HourEnd"] = 16,
+            ["Action"] = "Eat",
         });
 
         var result = BehaviorScenarioLoader.Load(root.ToJsonString());
@@ -120,5 +129,54 @@ public class BehaviorScenarioLoaderTests
         Assert.True(result.IsSuccess);
         Assert.Equal(ActionType.Eat, result.Value!.ActionCatalog.RoutineOf(new ProfessionType(5), LifeStage.Adult, 10));
         Assert.Equal(ActionType.Work, result.Value.ActionCatalog.RoutineOf(new ProfessionType(99), LifeStage.Adult, 10));
+    }
+
+    /// <summary>Fase 4, task 15: prova que o loader funciona fim-a-fim contra o dado real de
+    /// <c>scenarios/default.json</c> — não o vazio-mínimo de <c>ScenarioRunner.Default*</c> (que
+    /// só existe pra código compilar/testar em memória, AD-027). O "default" do gate continua
+    /// hardcoded em <see cref="ScenarioRunner"/> (nenhuma mudança de wiring aqui); este teste só
+    /// garante que, se alguém carregar o cenário customizado via arquivo, o parse é real.</summary>
+    [Fact]
+    public void Default_scenario_file_parses_real_needs_rules_and_profession_routine()
+    {
+        string json = File.ReadAllText(Path.Combine(FindRepoRoot(), "scenarios", "default.json"));
+
+        var result = BehaviorScenarioLoader.Load(json);
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Equal(2.0, result.Value!.NeedsRules.HungerDecayPerHour);
+        Assert.Equal(70, result.Value.NeedsRules.UrgencyThreshold);
+        Assert.Equal(ActionType.Idle, result.Value.ActionCatalog.DefaultAction);
+        // Lavrador (profissão 1) trabalha às 10h; ferreiro (profissão 2) também; sem profissão
+        // específica cai no slot "any" — as 3 rotas resolvem a ação real declarada no arquivo.
+        Assert.Equal(ActionType.Work, result.Value.ActionCatalog.RoutineOf(new ProfessionType(1), LifeStage.Adult, 10));
+        Assert.Equal(ActionType.Work, result.Value.ActionCatalog.RoutineOf(new ProfessionType(2), LifeStage.Adult, 10));
+        Assert.Equal(ActionType.Sleep, result.Value.ActionCatalog.RoutineOf(null, LifeStage.Child, 2));
+    }
+
+    /// <summary>Mesmo teste para o cenário alienígena (task 7 da Fase 3): prova que o loader não
+    /// assume nada sobre o formato do dado além do contrato de campos — piloto (20) e técnico
+    /// (21) têm turnos de trabalho distintos, declarados só no JSON.</summary>
+    [Fact]
+    public void Scifi_scenario_file_parses_real_needs_rules_and_profession_routine()
+    {
+        string json = File.ReadAllText(Path.Combine(FindRepoRoot(), "scenarios", "test-scifi.json"));
+
+        var result = BehaviorScenarioLoader.Load(json);
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Equal(1.5, result.Value!.NeedsRules.HungerDecayPerHour);
+        Assert.Equal(75, result.Value.NeedsRules.UrgencyThreshold);
+        Assert.Equal(ActionType.Work, result.Value.ActionCatalog.RoutineOf(new ProfessionType(20), LifeStage.Adult, 10));
+        Assert.Equal(ActionType.Work, result.Value.ActionCatalog.RoutineOf(new ProfessionType(21), LifeStage.Adult, 10));
+        Assert.Equal(ActionType.Sleep, result.Value.ActionCatalog.RoutineOf(null, LifeStage.Elder, 1));
+    }
+
+    private static string FindRepoRoot()
+    {
+        var dir = AppContext.BaseDirectory;
+        while (dir is not null && !File.Exists(Path.Combine(dir, "LivingWorld.sln")))
+            dir = Directory.GetParent(dir)?.FullName;
+        return dir ?? throw new InvalidOperationException("LivingWorld.sln não encontrado a partir de " + AppContext.BaseDirectory);
     }
 }

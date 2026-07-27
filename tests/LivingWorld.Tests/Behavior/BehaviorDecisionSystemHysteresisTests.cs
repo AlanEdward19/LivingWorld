@@ -59,10 +59,26 @@ public class BehaviorDecisionSystemHysteresisTests
     }
 
     [Theory]
-    [InlineData(1u)] [InlineData(2u)] [InlineData(3u)] [InlineData(4u)] [InlineData(5u)]
-    [InlineData(6u)] [InlineData(7u)] [InlineData(8u)] [InlineData(9u)] [InlineData(10u)]
-    [InlineData(11u)] [InlineData(12u)] [InlineData(13u)] [InlineData(14u)] [InlineData(15u)]
-    [InlineData(16u)] [InlineData(17u)] [InlineData(18u)] [InlineData(19u)] [InlineData(20u)]
+    [InlineData(1u)]
+    [InlineData(2u)]
+    [InlineData(3u)]
+    [InlineData(4u)]
+    [InlineData(5u)]
+    [InlineData(6u)]
+    [InlineData(7u)]
+    [InlineData(8u)]
+    [InlineData(9u)]
+    [InlineData(10u)]
+    [InlineData(11u)]
+    [InlineData(12u)]
+    [InlineData(13u)]
+    [InlineData(14u)]
+    [InlineData(15u)]
+    [InlineData(16u)]
+    [InlineData(17u)]
+    [InlineData(18u)]
+    [InlineData(19u)]
+    [InlineData(20u)]
     public void Hysteresis_reduces_action_switches_with_a_control_arm_in_20_of_20_seeds(ulong seed)
     {
         double withHysteresis = SwitchesPerDay(seed, hysteresisEnabled: true);

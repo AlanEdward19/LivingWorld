@@ -41,8 +41,12 @@ public class BehaviorDecisionSystemTravelTests
     private static ActionCatalog MakeCatalog() => ActionCatalog.Create(
         maxDurationHours: new Dictionary<ActionType, int>
         {
-            [ActionType.Eat] = 1, [ActionType.Sleep] = 1, [ActionType.Work] = 1,
-            [ActionType.Socialize] = 1, [ActionType.Travel] = 1, [ActionType.Idle] = 1,
+            [ActionType.Eat] = 1,
+            [ActionType.Sleep] = 1,
+            [ActionType.Work] = 1,
+            [ActionType.Socialize] = 1,
+            [ActionType.Travel] = 1,
+            [ActionType.Idle] = 1,
         },
         routineSlots: [],
         defaultAction: ActionType.Idle).Value!;

@@ -15,6 +15,11 @@ public static class ScenarioRunner
 
     public static WorldCalendar DefaultCalendar { get; } = new(HoursPerDay: 24, DaysPerMonth: 30, MonthsPerYear: 12);
 
+    /// <summary>Ordem (Fase 4, task 15): decaimento de necessidade roda antes da decisão de
+    /// ação no mesmo tick — senão <see cref="BehaviorDecisionSystem"/> decidiria com o dado de
+    /// necessidade do tick anterior. Ambos entram depois de Mortalidade/Natalidade (NPC recém
+    /// nascido/morto neste tick já participa da conta certa: morto não decide, nascido decai a
+    /// partir do próprio nascimento).</summary>
     public static IReadOnlyList<ISimulationSystem> DefaultSystems() =>
     [
         new ExampleCounterSystem(TickFrequency.Hourly),
@@ -23,6 +28,8 @@ public static class ScenarioRunner
         new ExampleCounterSystem(TickFrequency.Yearly),
         new MortalitySystem(),
         new NatalitySystem(),
+        new NeedsDecaySystem(),
+        new BehaviorDecisionSystem(),
     ];
 
     private static readonly GeographyCatalog DefaultCatalog = new(
@@ -40,8 +47,10 @@ public static class ScenarioRunner
 
     public static readonly CellCoord DefaultVillageLocation = new(5, 5);
 
+    // Profissão 1 = lavrador, 2 = ferreiro (nome só neste comentário — o motor só vê o id,
+    // AD-023/AD-025). Sorteadas por peso uniforme na criação do NPC (Fase 4, task 7).
     public static readonly PopulationCatalog DefaultPopulationCatalog = new(
-        CultureIds: new HashSet<int> { 1 }, ProfessionIds: new HashSet<int>(), LocationTypeIds: new HashSet<int>());
+        CultureIds: new HashSet<int> { 1 }, ProfessionIds: new HashSet<int> { 1, 2 }, LocationTypeIds: new HashSet<int>());
 
     // Mortalidade infantil alta (task 5) e longevidade máxima explícita: quem sobrevive à
     // infância tem risco baixo até a velhice, onde sobe de novo.
@@ -61,17 +70,25 @@ public static class ScenarioRunner
         DefaultLifeTable, fertilityMinAge: 16, fertilityMaxAge: 45, annualConceptionChance: 0.25, gestationDays: 270)
         .Value ?? throw new InvalidOperationException("population rules default inválida — bug no cenário, não no gerador");
 
-    // Valores mínimos/razoáveis (task 9) — conteúdo real do cenário medieval é escopo da task 15.
+    // Conteúdo real do cenário medieval (Fase 4, task 15): decaimento por hora tal que sede
+    // (33h) e sono (67h) esgotam antes de fome (50h) sem comer/dormir — pressão de sobrevivência
+    // mensurável em dias, não em minutos.
     public static readonly NeedsRules DefaultNeedsRules = NeedsRules.Create(
         hungerDecayPerHour: 2.0, thirstDecayPerHour: 3.0, sleepDecayPerHour: 1.5, socialDecayPerHour: 1.0,
         urgencyThreshold: 70, maxActionSelectionSteps: 10, hysteresisEnabled: true,
         continuityBonus: 5.0, homelessSleepEfficiency: 0.5)
         .Value ?? throw new InvalidOperationException("needs rules default inválida — bug no cenário, não no gerador");
 
-    // Valores mínimos/razoáveis (task 12) — conteúdo real do cenário medieval é escopo da task 15.
+    // Criança até 14 (mesmo corte de fertilidade mínima não se aplica ainda), adulto até 64,
+    // idoso dali em diante — coerente com DefaultLifeTable (mortalidade sobe de novo aos 60).
     public static readonly LifeStageRules DefaultLifeStageRules = LifeStageRules.Create(childMaxAge: 14, adultMaxAge: 64)
         .Value ?? throw new InvalidOperationException("life stage rules default inválida — bug no cenário, não no gerador");
 
+    // Rotina real do cenário medieval (Fase 4, task 15): lavrador/ferreiro trabalham de dia em
+    // turnos distintos, adulto sem profissão específica (sentinela ProfessionType.None cai no
+    // slot "any") segue o mesmo turno via slot any; todo mundo dorme à noite por estágio de
+    // vida (janela sem wraparound — ActionCatalog.RoutineOf não entende hora que cruza meia-noite,
+    // por isso duas janelas por estágio); fora essas janelas, Idle (DefaultAction).
     public static readonly ActionCatalog DefaultActionCatalog = ActionCatalog.Create(
         maxDurationHours: new Dictionary<ActionType, int>
         {
@@ -82,7 +99,19 @@ public static class ScenarioRunner
             [ActionType.Travel] = 4,
             [ActionType.Idle] = 2,
         },
-        routineSlots: [],
+        routineSlots:
+        [
+            new RoutineSlot(ProfessionId: 1, LifeStage.Adult, HourStart: 6, HourEnd: 14, ActionType.Work),
+            new RoutineSlot(ProfessionId: 2, LifeStage.Adult, HourStart: 7, HourEnd: 15, ActionType.Work),
+            new RoutineSlot(ProfessionId: null, LifeStage.Adult, HourStart: 8, HourEnd: 16, ActionType.Work),
+            new RoutineSlot(ProfessionId: null, LifeStage.Adult, HourStart: 18, HourEnd: 20, ActionType.Socialize),
+            new RoutineSlot(ProfessionId: null, LifeStage.Adult, HourStart: 22, HourEnd: 23, ActionType.Sleep),
+            new RoutineSlot(ProfessionId: null, LifeStage.Adult, HourStart: 0, HourEnd: 5, ActionType.Sleep),
+            new RoutineSlot(ProfessionId: null, LifeStage.Child, HourStart: 20, HourEnd: 23, ActionType.Sleep),
+            new RoutineSlot(ProfessionId: null, LifeStage.Child, HourStart: 0, HourEnd: 6, ActionType.Sleep),
+            new RoutineSlot(ProfessionId: null, LifeStage.Elder, HourStart: 21, HourEnd: 23, ActionType.Sleep),
+            new RoutineSlot(ProfessionId: null, LifeStage.Elder, HourStart: 0, HourEnd: 6, ActionType.Sleep),
+        ],
         defaultAction: ActionType.Idle)
         .Value ?? throw new InvalidOperationException("action catalog default inválido — bug no cenário, não no gerador");
 

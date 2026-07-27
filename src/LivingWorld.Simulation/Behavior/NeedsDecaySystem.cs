@@ -56,9 +56,6 @@ public sealed class NeedsDecaySystem : ISimulationSystem
 
         long survivalTicks = (long)Math.Ceiling(100.0 / rules.HungerDecayPerHour);
         if (now - npc.HungerZeroSinceTick.Value >= survivalTicks)
-        {
-            npc.Die(world.CurrentDate);
-            ctx.LogEvent(WorldEventKind.Starvation, npc.Id.Value.ToString());
-        }
+            NpcDeath.Apply(world, ctx, npc, WorldEventKind.Starvation);
     }
 }

@@ -55,8 +55,12 @@ public class BehaviorDecisionSystemTests
     private static ActionCatalog MakeCatalogWithOpenWorkShift() => ActionCatalog.Create(
         maxDurationHours: new Dictionary<ActionType, int>
         {
-            [ActionType.Eat] = 2, [ActionType.Sleep] = 8, [ActionType.Work] = 8,
-            [ActionType.Socialize] = 3, [ActionType.Travel] = 4, [ActionType.Idle] = 2,
+            [ActionType.Eat] = 2,
+            [ActionType.Sleep] = 8,
+            [ActionType.Work] = 8,
+            [ActionType.Socialize] = 3,
+            [ActionType.Travel] = 4,
+            [ActionType.Idle] = 2,
         },
         routineSlots: [new RoutineSlot(ProfessionId: null, Stage: LifeStage.Adult, HourStart: 0, HourEnd: 23, Action: ActionType.Work)],
         defaultAction: ActionType.Idle).Value!;
@@ -65,11 +69,16 @@ public class BehaviorDecisionSystemTests
     {
         var values = new Dictionary<string, int>
         {
-            [nameof(Personality.Extroversion)] = 50, [nameof(Personality.Agreeableness)] = 50,
-            [nameof(Personality.Conscientiousness)] = 50, [nameof(Personality.EmotionalStability)] = 50,
-            [nameof(Personality.Openness)] = 50, [nameof(Personality.Ambition)] = 50,
-            [nameof(Personality.Loyalty)] = 50, [nameof(Personality.Altruism)] = 50,
-            [nameof(Personality.Impulsivity)] = 50, [nameof(Personality.RiskAversion)] = 50,
+            [nameof(Personality.Extroversion)] = 50,
+            [nameof(Personality.Agreeableness)] = 50,
+            [nameof(Personality.Conscientiousness)] = 50,
+            [nameof(Personality.EmotionalStability)] = 50,
+            [nameof(Personality.Openness)] = 50,
+            [nameof(Personality.Ambition)] = 50,
+            [nameof(Personality.Loyalty)] = 50,
+            [nameof(Personality.Altruism)] = 50,
+            [nameof(Personality.Impulsivity)] = 50,
+            [nameof(Personality.RiskAversion)] = 50,
         };
         values[traitName] = value;
 
@@ -128,8 +137,16 @@ public class BehaviorDecisionSystemTests
     }
 
     [Theory]
-    [InlineData(1u)] [InlineData(2u)] [InlineData(3u)] [InlineData(4u)] [InlineData(5u)]
-    [InlineData(6u)] [InlineData(7u)] [InlineData(8u)] [InlineData(9u)] [InlineData(10u)]
+    [InlineData(1u)]
+    [InlineData(2u)]
+    [InlineData(3u)]
+    [InlineData(4u)]
+    [InlineData(5u)]
+    [InlineData(6u)]
+    [InlineData(7u)]
+    [InlineData(8u)]
+    [InlineData(9u)]
+    [InlineData(10u)]
     public void Hunger_beats_the_open_work_shift_with_a_control_arm_in_10_of_10_seeds(ulong seed)
     {
         var rules = MakeRules(urgencyThreshold: 70);

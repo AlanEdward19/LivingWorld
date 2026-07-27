@@ -32,7 +32,7 @@ O número é **identidade**, não ordem. Só a trilha núcleo é sequencial.
 | 1 | [Motor de tempo](docs/roadmap/phase-01-time.md) | Calendário, ticks, scheduler, pausa/velocidade, snapshot, hash | fechada |
 | 2 | [Geografia mínima](docs/roadmap/phase-02-geography.md) | Regiões, células, terreno, bioma, recursos, custo de deslocamento — só dados | fechada |
 | 3 | [População básica](docs/roadmap/phase-03-population.md) | NPC, idade, sexo, saúde, família, nascimento, morte | fechada |
-| 4 | [Necessidades e rotina](docs/roadmap/phase-04-needs.md) | Fome, sono, trabalho, moradia, deslocamento, utility AI | pendente |
+| 4 | [Necessidades e rotina](docs/roadmap/phase-04-needs.md) | Fome, sono, trabalho, moradia, deslocamento, utility AI | fechada |
 | 5 | [Economia](docs/roadmap/phase-05-economy.md) | Recursos, produção, estoque, consumo, emprego, salário, preço | pendente |
 | 6 | [Habilidades](docs/roadmap/phase-06-skills.md) | Experiência, ensino, profissões, progressão | pendente |
 | 7 | [Relações e famílias](docs/roadmap/phase-07-family.md) | Confiança, atração, casamento, reprodução, hereditariedade | pendente |
