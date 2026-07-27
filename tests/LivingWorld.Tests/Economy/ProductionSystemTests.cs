@@ -107,6 +107,99 @@ public class ProductionSystemTests
         Assert.Equal(0, workplace.Stock.GetValueOrDefault(new ResourceType(1)));
     }
 
+    // --- Fase 6, T10 (SKILL-10/11): multiplicador de habilidade sobre produced ---
+
+    private static SkillsRules MakeSkillsRules(double cap = 100) => SkillsRules.Create(
+        cap, baseRateBySource: new Dictionary<SkillGainSource, double>(),
+        skillByProfession: new Dictionary<int, SkillType> { [1] = SkillType.Agriculture }).Value!;
+
+    private static Npc MakeWorkerWithSkill(WorldState world, CellCoord location, double skillValue)
+    {
+        var npc = new Npc(
+            world.NextNpcIdAndAdvance(), "worker", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30), new CultureId(1),
+            location, motherId: null, fatherId: null, household: null, health: 100,
+            personality: SomePersonality, profession: new ProfessionType(1), currentLocation: location,
+            skills: SkillSet.Initial(0).WithGain(SkillType.Agriculture, skillValue, cap: 100));
+        world.AddNpc(npc);
+        return npc;
+    }
+
+    private static Workplace BuildWorkplaceWithWorker(WorldState world, CellCoord location, double skillValue, out Npc worker)
+    {
+        var workplace = new Workplace(
+            world.NextWorkplaceIdAndAdvance(), new LocationType(1), location, maxVacancies: 3,
+            employees: [], stock: new Dictionary<ResourceType, long>(), treasury: Money.Zero, prices: new Dictionary<ResourceType, long>());
+        world.AddWorkplace(workplace);
+        worker = MakeWorkerWithSkill(world, location, skillValue);
+        workplace.Hire(worker.Id);
+        worker.Hire(workplace.Id);
+        return workplace;
+    }
+
+    [Fact]
+    public void Without_skills_rules_higher_worker_skill_does_not_change_production_baseline()
+    {
+        var recipe = ProductionRecipe.Create(
+            new Dictionary<int, long>(), new Dictionary<int, long> { [1] = 10 }, requiresCellResource: null, maxWorkersPerCycle: 3).Value!;
+        var catalog = new EconomyCatalog(new Dictionary<int, ProductionRecipe> { [1] = recipe }, [], new Dictionary<int, int>());
+        var location = new CellCoord(1, 1);
+        var world = BuildWorld(catalog);
+        var workplace = BuildWorkplaceWithWorker(world, location, skillValue: 90, out _);
+        var ctx = new TickContext(world, world.Rng, world.Scheduler);
+
+        new ProductionSystem(skillsRules: null).Tick(world, ctx);
+
+        Assert.Equal(10, workplace.Stock[new ResourceType(1)]); // mesmo produced da Fase 5, sem multiplicador
+    }
+
+    [Fact]
+    public void With_skills_rules_higher_average_worker_skill_produces_more_than_lower_skill_same_seed_and_input()
+    {
+        var recipe = ProductionRecipe.Create(
+            new Dictionary<int, long>(), new Dictionary<int, long> { [1] = 10 }, requiresCellResource: null, maxWorkersPerCycle: 3).Value!;
+        var catalog = new EconomyCatalog(new Dictionary<int, ProductionRecipe> { [1] = recipe }, [], new Dictionary<int, int>());
+        var location = new CellCoord(1, 1);
+        var skillsRules = MakeSkillsRules();
+
+        var lowWorld = BuildWorld(catalog);
+        BuildWorkplaceWithWorker(lowWorld, location, skillValue: 0, out _);
+        var lowWorkplace = lowWorld.Workplaces.Single();
+        new ProductionSystem(skillsRules).Tick(lowWorld, new TickContext(lowWorld, lowWorld.Rng, lowWorld.Scheduler));
+
+        var highWorld = BuildWorld(catalog);
+        BuildWorkplaceWithWorker(highWorld, location, skillValue: 80, out _);
+        var highWorkplace = highWorld.Workplaces.Single();
+        new ProductionSystem(skillsRules).Tick(highWorld, new TickContext(highWorld, highWorld.Rng, highWorld.Scheduler));
+
+        Assert.True(highWorkplace.Stock[new ResourceType(1)] > lowWorkplace.Stock[new ResourceType(1)]);
+    }
+
+    [Fact]
+    public void Worker_with_unmapped_profession_contributes_neutral_multiplier()
+    {
+        var recipe = ProductionRecipe.Create(
+            new Dictionary<int, long>(), new Dictionary<int, long> { [1] = 10 }, requiresCellResource: null, maxWorkersPerCycle: 3).Value!;
+        var catalog = new EconomyCatalog(new Dictionary<int, ProductionRecipe> { [1] = recipe }, [], new Dictionary<int, int>());
+        var location = new CellCoord(1, 1);
+        var world = BuildWorld(catalog);
+        var workplace = new Workplace(
+            world.NextWorkplaceIdAndAdvance(), new LocationType(1), location, maxVacancies: 3,
+            employees: [], stock: new Dictionary<ResourceType, long>(), treasury: Money.Zero, prices: new Dictionary<ResourceType, long>());
+        world.AddWorkplace(workplace);
+        var npc = new Npc(
+            world.NextNpcIdAndAdvance(), "worker", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30), new CultureId(1),
+            location, motherId: null, fatherId: null, household: null, health: 100,
+            personality: SomePersonality, profession: new ProfessionType(999), currentLocation: location);
+        world.AddNpc(npc);
+        workplace.Hire(npc.Id);
+        npc.Hire(workplace.Id);
+        var ctx = new TickContext(world, world.Rng, world.Scheduler);
+
+        new ProductionSystem(MakeSkillsRules()).Tick(world, ctx);
+
+        Assert.Equal(10, workplace.Stock[new ResourceType(1)]); // sem mapeamento -> multiplicador 1.0
+    }
+
     [Fact]
     public void Spoilage_reduces_stock_by_declared_rate_and_zero_rate_leaves_stock_untouched()
     {
