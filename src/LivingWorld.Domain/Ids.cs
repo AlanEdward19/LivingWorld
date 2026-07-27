@@ -15,6 +15,14 @@ public readonly record struct HouseholdId(long Value)
     public override string ToString() => $"household-{Value}";
 }
 
+/// <summary>Local econômico (produção/estoque/emprego/mercado) da Fase 5 — id determinístico
+/// novo (AD-039), mesmo molde de <see cref="NpcId"/>/<see cref="HouseholdId"/>; não reusa
+/// <see cref="LocationId"/> (Guid, reservado à Fase 8).</summary>
+public readonly record struct WorkplaceId(long Value)
+{
+    public override string ToString() => $"workplace-{Value}";
+}
+
 public readonly record struct CityId(Guid Value)
 {
     public override string ToString() => Value.ToString();
