@@ -131,7 +131,11 @@ public class BehaviorDecisionSystemHysteresisTests
     /// <summary>NEEDS-13: nenhum NPC vivo permanece na mesma ação além da duração máxima
     /// declarada dela — checado a cada tick, 10 anos. A cobertura "toda ação do catálogo declara
     /// duração" já existe em <c>ActionCatalogTests.Create_fails_naming_the_action_missing_a_declared_duration</c>
-    /// (T2); aqui a prova é em cima do sistema rodando de verdade.</summary>
+    /// (T2); aqui a prova é em cima do sistema rodando de verdade.
+    /// NEEDS-09 (cláusula feliz): ao fim de cada tick nenhum NPC vivo fica com
+    /// <see cref="Npc.CurrentAction"/> nulo — o outro lado de NEEDS-09 (abort nomeado em
+    /// utilidade cíclica) já é provado isoladamente em
+    /// <see cref="Cyclic_utility_scenario_aborts_naming_the_npc_and_the_tied_actions_instead_of_looping"/>.</summary>
     [Fact]
     public void No_npc_exceeds_the_catalogs_declared_max_duration_over_10_years()
     {
@@ -146,7 +150,10 @@ public class BehaviorDecisionSystemHysteresisTests
 
             foreach (var npc in world.Npcs.Where(n => n.IsAlive))
             {
-                if (npc.CurrentAction is not { } action) continue;
+                Assert.True(npc.CurrentAction is not null,
+                    $"npc {npc.Id.Value} terminou o tick {world.CurrentDate.TotalHours} sem ação escolhida");
+
+                var action = npc.CurrentAction.Value;
                 int maxDuration = catalog.MaxDurationHours[action];
                 long duration = world.CurrentDate.TotalHours - npc.ActionStartedAtTick;
                 Assert.True(duration <= maxDuration,
