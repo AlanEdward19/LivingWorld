@@ -4,19 +4,31 @@ Fonte única de continuidade. Quem entra numa área nova **lê este arquivo prim
 Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
-- **Última coisa concluída**: **Fase 4 (Necessidades e rotina, T1-T15) fechada** — ver AD-032..037
-  e detalhe em git log. `NeedsDecaySystem` (decaimento das 4 necessidades, morte por fome
-  sustentada) e `BehaviorDecisionSystem` (rotina por profissão/estágio, utility AI = necessidade
-  × personalidade, histerese, teto de passos, deslocamento com custo, sono sem-teto) entram em
-  `ScenarioRunner.DefaultSystems()` depois de Mortalidade/Natalidade, decaimento antes de decisão
-  no mesmo tick. Personalidade e profissão sorteadas no nascimento (`WorldRng`). `NeedsRules`/
-  `ActionCatalog`/`LifeStageRules` cenário-driven; `scenarios/*.json` ganharam rotina real por
-  profissão (`BehaviorScenarioLoader` testado fim-a-fim contra os 2 arquivos — `ScenarioLoader`
-  continua no default hardcoded de `ScenarioRunner`, mesma convenção da AD-027). Golden hashes
-  regenerados; par ligado/desligado do utility AI prova hash diferente (NEEDS-04).
-- **Próxima unidade**: **Fase 5 (Economia)** — recursos, produção, estoque, consumo, emprego,
-  salário, preço. Ver [docs/roadmap/phase-05-economy.md](docs/roadmap/phase-05-economy.md).
-- **Fase 2, Fase 1 e Fase 0 fechadas antes dela** — detalhe em git log, AD-020..023 e ADR-0001..0007.
+- **Última coisa concluída**: **Fase 5 (Economia, T1-T26) fechada** — spec-driven completo
+  (`.specs/features/phase-05-economy/{spec,context,design,tasks,validation}.md`), 29 requisitos
+  ECON-01..29, todos com teste spec-anchored (verificação independente, author≠verifier, PASS —
+  ver `validation.md`). `Workplace` (produção+estoque+mercado, um só tipo, AD-043) com
+  `EmploymentSystem`→`ProductionSystem`→`MarketPricingSystem`→`WagePaymentSystem` depois de
+  `BehaviorDecisionSystem` em `ScenarioRunner.DefaultSystems()`. `MarketTransaction` atômica com
+  fault-injection por passo (ECON-09..13). Conservação de dinheiro e recurso exatas a cada tick
+  em 10 anos (ECON-14/15, `MoneyConservationTests`/`ResourceConservationTests`). Causal com
+  controle 10/10 seeds: escassez→preço (T25) e safra quebrada→fome (T26). `Buy`/`Eat` ligados ao
+  estoque do `Household` (ECON-16/17). Assunções em AD-039..048 (docs/decisions-log.md) — inclui
+  AD-046..048, achados só rodando o cenário default de ponta a ponta (buffer de bootstrap sem o
+  qual a vila morre de fome em semanas; preço inicial 5 não 1, formula multiplicativa absorve
+  sinal em 1; `ScenarioRunner.Create` ganha `economyRules` opcional pro harness base/tratamento).
+  Golden hashes e baseline de população regenerados (2x — uma vez no wiring, outra no ajuste de
+  preço). `bash scripts/verify.sh` limpo: 429 passed, 3 skips esperados.
+- **Próxima unidade**: **Fase 6 (Habilidades)** — experiência, ensino, profissões, progressão.
+  Ver [docs/roadmap/phase-06-skills.md](docs/roadmap/phase-06-skills.md). Ainda não especificada
+  (sem `.specs/features/phase-06-skills/`) — primeiro passo é `tlc-spec-driven` Specify.
+- **Risco de balanceamento (STATE.md "Riscos ainda sem mecanismo") ficou mais concreto na Fase
+  5**: população do cenário default estabiliza em ~40/100 NPCs (não extingue, mas bem abaixo do
+  inicial) depois de calibração manual e empírica de salário/preço/capacidade — nenhum gate
+  automatizado prova que esse patamar é "bom", só que as invariantes de conservação e a direção
+  causal se sustentam nele. Fase 6/7 herdam essa base; se a população cair mais com novos
+  sistemas, é o mesmo tipo de ajuste manual, não um bug de conservação.
+- **Fase 4, Fase 3, Fase 2, Fase 1 e Fase 0 fechadas antes dela** — detalhe em git log, AD-020..037 e ADR-0001..0007.
 - **Escopo extra especificado** (não iniciado): fases 15–26 em status `spec`. **Bloqueado até
   a Fase 8 fechar** (AD-010); cada fase tem `## Questões em aberto` (~60 perguntas de design).
   Injeta só `BranchId` na Fase 3 e o primitivo de resolução na Fase 0.
@@ -25,13 +37,15 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
   verdade (3 mutantes do fixture) — não roda no `verify.sh` de rotina por ser caro
   (recompila o repo inteiro 3x em cópias temporárias); rode manualmente quando mexer no
   próprio gate.
-- **Harness**: `HARNESS.md` ainda não existe. Gerar via `harness-engineering` agora que há
-  código real para sensorear.
+- **Harness**: [`HARNESS.md`](HARNESS.md) gerado — inventário dos 4 componentes, controles por
+  categoria e eval gates disponíveis (`scripts/verify.sh` gate principal, `--filter
+  Category=Scenario` e `verify-mutation.sh` manuais/caros — rodar cenário longo só quando
+  necessário, é lento). Liberado spec-driven + loop para Fase 5.
 - **Budget/limites**: nenhum loop autônomo ativo.
 
 ## Decisões (AD-NNN)
-Log completo em [docs/decisions-log.md](docs/decisions-log.md) — AD-001..037 (não duplique
-aqui; a Fase 4 registrou AD-032..037, ver lá).
+Log completo em [docs/decisions-log.md](docs/decisions-log.md) — AD-001..048 (não duplique
+aqui; a Fase 5 registrou AD-039..048, ver lá).
 
 ## Fases
 Status por fase vive na tabela do [ROADMAP.md](ROADMAP.md). Não replique aqui.
