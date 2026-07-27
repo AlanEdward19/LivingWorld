@@ -19,6 +19,12 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     /// quando nada mais está em jogo.</summary>
     private const double NonNeedBaselineUtility = 50.0;
 
+    /// <summary>Cache de <c>Enum.GetValues&lt;ActionType&gt;()</c> — o método aloca um array novo
+    /// a cada chamada (cópia defensiva do cache interno do runtime); chamado por NPC por tick
+    /// Hourly, isso era a maior fonte de alocação do sistema em população grande. Mesma ordem
+    /// ascendente do valor binário (Eat=0..Idle=5) que o desempate por <c>ActionId</c> exige.</summary>
+    private static readonly ActionType[] AllActions = Enum.GetValues<ActionType>();
+
     public string Name => SystemName;
     public TickFrequency Frequency => TickFrequency.Hourly;
 
@@ -128,7 +134,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         var best = ActionType.Eat;
         double bestScore = double.NegativeInfinity;
 
-        foreach (var action in Enum.GetValues<ActionType>())
+        foreach (var action in AllActions)
         {
             double score = UtilityBaseOf(action, npc) * PersonalityWeighting.WeightOf(npc.Personality, action);
             if (rules.HysteresisEnabled && continuityAction == action)
