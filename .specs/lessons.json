@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "promote_threshold": 2,
+  "window_days": 45,
+  "quarantine_threshold": 2,
+  "next_id": 4,
+  "lessons": [
+    {
+      "id": "L-001",
+      "key": "ac_gap::when an ac has a compound then clause abort path happy path invariant write one assertion per clause an abort only test leaves the happy path guarantee unverified even if every other test incidentally relies on it",
+      "text": "When an AC has a compound THEN clause (abort path + happy-path invariant), write one assertion per clause — an abort-only test leaves the happy-path guarantee unverified even if every other test incidentally relies on it.",
+      "signal": "ac_gap",
+      "scope": "tests/LivingWorld.Tests/Behavior",
+      "status": "candidate",
+      "features": [
+        "phase-04-needs"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "NEEDS-09 (tests/LivingWorld.Tests/Behavior)"
+      ],
+      "created": "2026-07-27T12:18:24Z",
+      "last_seen": "2026-07-27T12:18:24Z"
+    },
+    {
+      "id": "L-002",
+      "key": "spec_precision_gap::when a spec assumption states one multiplier feeds two downstream systems write a test asserting the effect on each downstream system separately a passing test on one does not prove the other was wired",
+      "text": "When a spec assumption states one multiplier feeds two downstream systems (e.g. quantity and price), write a test asserting the effect on each downstream system separately — a passing test on one does not prove the other was wired.",
+      "signal": "spec_precision_gap",
+      "scope": "tests/LivingWorld.Tests/Economy",
+      "status": "candidate",
+      "features": [
+        "phase-06-skills"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "SKILL-11 (tests/LivingWorld.Tests/Economy/ProductionSystemSkillTests.cs, ProductionSystemTests.cs) — only quantity asserted, no price-effect test"
+      ],
+      "created": "2026-07-27T00:00:00Z",
+      "last_seen": "2026-07-27T00:00:00Z"
+    },
+    {
+      "id": "L-003",
+      "key": "spec_deviation::when a scenario test substitutes a production function call in isolation for an end to end system test add a companion test that exercises the real call site inside its actual system or event handler",
+      "text": "When a scenario test substitutes a production function call in isolation for an end-to-end system test (a logged SPEC_DEVIATION), add a companion test that exercises the real call site inside its actual system/event handler — proving the function works is not the same as proving the wiring calls it correctly.",
+      "signal": "spec_deviation",
+      "scope": "tests/LivingWorld.Tests/Population",
+      "status": "candidate",
+      "features": [
+        "phase-06-skills"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "SKILL-09 T17 (tests/LivingWorld.Tests/Population/PairedScenarioTests.cs) — RateGene.Inherit tested in isolation, NatalitySystem.HandleEvent's own call site (src/LivingWorld.Simulation/Population/NatalitySystem.cs:62) never exercised"
+      ],
+      "created": "2026-07-27T00:00:00Z",
+      "last_seen": "2026-07-27T00:00:00Z"
+    }
+  ]
+}
