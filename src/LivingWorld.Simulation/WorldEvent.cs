@@ -12,6 +12,14 @@ public enum WorldEventKind
     /// vez de reusar <see cref="Death"/> com causa no payload: mesmo padrão de "kind carrega o
     /// que aconteceu, payload carrega quem" já usado por Birth/Death.</summary>
     Starvation,
+
+    // Fase 5 (Economia) — ver ECON-02/18/19/22/26 em .specs/features/phase-05-economy/spec.md.
+    Hired,
+    Fired,
+    WageUnpaid,
+    ResourceLost,
+    Minted,
+    Destroyed,
 }
 
 /// <summary>Um evento de história, carimbado com o tick em que ocorreu. Sem <c>BranchId</c> —
