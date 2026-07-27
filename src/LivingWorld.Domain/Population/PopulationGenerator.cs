@@ -45,11 +45,15 @@ public static class PopulationGenerator
             // (NatalitySystem) e geração inicial produzem streams com a mesma convenção.
             var personality = Personality.RollFrom(rng.Derive(WorldRngRegistry.StableHash($"personality-{npcId.Value}")));
             var profession = catalog.RollProfession(rng.Derive(WorldRngRegistry.StableHash($"profession-{npcId.Value}")));
+            // Fase 6 (SKILL-01/09): população seed não tem pais conhecidos — RollInitial em vez
+            // de Inherit, mesmo stream próprio por NPC de personalidade/profissão acima.
+            var rateGene = RateGene.RollInitial(rng.Derive(WorldRngRegistry.StableHash($"rategene-{npcId.Value}")));
 
             var npc = new Npc(
                 npcId, $"npc-{culture.Id}-{npcs.Count}", sex, birthDate, culture, villageLocation,
                 motherId: null, fatherId: null, household: null, health,
-                personality: personality, profession: profession, currentLocation: villageLocation);
+                personality: personality, profession: profession, currentLocation: villageLocation,
+                rateGene: rateGene);
 
             npcs.Add(npc);
             (ageYears >= 18 ? adults : children).Add(npc);

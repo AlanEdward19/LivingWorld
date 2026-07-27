@@ -61,7 +61,15 @@ public sealed class SkillTeachingSystem : ISimulationSystem
         if (StageOf(world, npc) != LifeStage.Adult) return;
         if (npc.CurrentAction != ActionType.Idle) return;
         if (!_rules.SkillByProfession.TryGetValue(npc.Profession.Id, out var skillType)) return;
+        // Sem professor/instituição modelada nesta fase (Assunção A5, deferida) — o custo do
+        // treino vai pro Treasury do próprio empregador (sentido inverso de WagePaymentSystem:
+        // lá Treasury paga Wallet, aqui Wallet paga Treasury), nunca cunha/destrói dinheiro
+        // (ECON-26/27) e nunca some em silêncio. Sem emprego, sem pra onde o custo ir — sem-op,
+        // mesmo padrão de "sem trabalhador presente, produção 0" do ProductionSystem.
+        if (npc.Employer is not { } employerId) return;
+        if (world.FindWorkplace(employerId) is not { } workplace) return;
         if (!npc.TryDebitWallet(new Money(DeliberateTrainingCost)).IsSuccess) return;
+        workplace.CreditTreasury(new Money(DeliberateTrainingCost));
 
         double gain = _rules.Gain(npc.Skills.Get(skillType), SkillGainSource.DeliberateTraining, npc.RateGene.Value);
         npc.GainSkill(skillType, gain, _rules.Cap);

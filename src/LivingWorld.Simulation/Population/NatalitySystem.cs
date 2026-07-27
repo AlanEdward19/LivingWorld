@@ -55,12 +55,18 @@ public sealed class NatalitySystem : ISimulationSystem
         // MortalitySystem.SchedulePlannedDeath ($"mortality-{npc.Id.Value}").
         var personality = Personality.RollFrom(ctx.Rng($"personality-{babyId.Value}"));
         var profession = world.PopulationCatalog.RollProfession(ctx.Rng($"profession-{babyId.Value}"));
+        // Fase 6 (SKILL-09): pais conhecidos — Inherit em vez de RollInitial, mesmo stream
+        // próprio do NPC recém-nascido; pai biológico usado mesmo que não tenha sobrevivido à
+        // gestação (genética não muda com a morte dele), só o vínculo de household (fatherId
+        // acima) reflete quem está vivo.
+        var rateGene = RateGene.Inherit(mother.RateGene, father?.RateGene ?? mother.RateGene, ctx.Rng($"rategene-{babyId.Value}"));
 
         var baby = new Npc(
             babyId, $"npc-{mother.Culture.Id}-child-{evt.Id}", sex, world.CurrentDate,
             mother.Culture, household.Location, motherId, father is { IsAlive: true } ? fatherId : null,
             household.Id, health: 100,
-            personality: personality, profession: profession, currentLocation: household.Location);
+            personality: personality, profession: profession, currentLocation: household.Location,
+            rateGene: rateGene);
 
         world.AddNpc(baby);
         household.AddMember(baby.Id);

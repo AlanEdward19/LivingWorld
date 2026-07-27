@@ -23,7 +23,10 @@ public static class ScenarioRunner
     /// <see cref="BehaviorDecisionSystem"/>, nessa ordem — quem contratou hoje já pode produzir
     /// no mesmo dia (Employment antes de Production); preço reage ao estoque já atualizado
     /// (Production antes de MarketPricing); salário é o último evento do mês sobre o Treasury
-    /// que a produção/venda alimentou o mês inteiro.</summary>
+    /// que a produção/venda alimentou o mês inteiro. Fase 6 (T12): <see
+    /// cref="SkillPracticeSystem"/> e <see cref="SkillTeachingSystem"/> entram entre Employment e
+    /// Production — quem contratou hoje já pratica hoje, e a produção do mesmo dia já lê a
+    /// habilidade atualizada (mesmo raciocínio de Employment-antes-de-Production).</summary>
     public static IReadOnlyList<ISimulationSystem> DefaultSystems() =>
     [
         new ExampleCounterSystem(TickFrequency.Hourly),
@@ -33,9 +36,11 @@ public static class ScenarioRunner
         new MortalitySystem(),
         new NatalitySystem(),
         new NeedsDecaySystem(),
-        new BehaviorDecisionSystem(),
+        new BehaviorDecisionSystem(DefaultSkillsRules),
         new EmploymentSystem(),
-        new ProductionSystem(),
+        new SkillPracticeSystem(DefaultSkillsRules),
+        new SkillTeachingSystem(DefaultSkillsRules, DefaultLifeStageRules),
+        new ProductionSystem(DefaultSkillsRules),
         new MarketPricingSystem(),
         new WagePaymentSystem(),
     ];
@@ -91,6 +96,25 @@ public static class ScenarioRunner
     // idoso dali em diante — coerente com DefaultLifeTable (mortalidade sobe de novo aos 60).
     public static readonly LifeStageRules DefaultLifeStageRules = LifeStageRules.Create(childMaxAge: 14, adultMaxAge: 64)
         .Value ?? throw new InvalidOperationException("life stage rules default inválida — bug no cenário, não no gerador");
+
+    // Fase 6 (T12): teto único (task 1 do roadmap) compartilhado pelas 13 habilidades; taxas-base
+    // por fonte — Tutoring/Parental maiores que Observation (mestre dedicado ensina melhor que
+    // colega de trabalho, mesmo raciocínio de SkillTeachingSystem.GainFromTutoring); lavrador
+    // (profissão 1) pratica Agriculture, ferreiro (profissão 2) pratica Craft, mesmo par de
+    // DefaultEconomyCatalog.LocationTypeByProfession.
+    public static readonly SkillsRules DefaultSkillsRules = SkillsRules.Create(
+        cap: 100,
+        baseRateBySource: new Dictionary<SkillGainSource, double>
+        {
+            [SkillGainSource.Practice] = 0.3,
+            [SkillGainSource.DeliberateTraining] = 0.4,
+            [SkillGainSource.School] = 0.2,
+            [SkillGainSource.Parental] = 0.15,
+            [SkillGainSource.Observation] = 0.05,
+            [SkillGainSource.Tutoring] = 0.25,
+        },
+        skillByProfession: new Dictionary<int, SkillType> { [1] = SkillType.Agriculture, [2] = SkillType.Craft })
+        .Value ?? throw new InvalidOperationException("skills rules default inválida — bug no cenário, não no gerador");
 
     // Rotina real do cenário medieval (Fase 4, task 15): lavrador/ferreiro trabalham de dia em
     // turnos distintos, adulto sem profissão específica (sentinela ProfessionType.None cai no

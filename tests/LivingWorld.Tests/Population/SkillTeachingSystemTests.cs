@@ -52,27 +52,57 @@ public class SkillTeachingSystemTests
 
     // --- DeliberateTraining (SKILL-04) ---
 
+    private static WorkplaceId AddWorkplace(WorldState world)
+    {
+        var id = world.NextWorkplaceIdAndAdvance();
+        world.AddWorkplace(new Workplace(
+            id, new LocationType(1), new CellCoord(1, 1), maxVacancies: 10,
+            employees: [], stock: new Dictionary<ResourceType, long>(), treasury: Money.Zero,
+            prices: new Dictionary<ResourceType, long>()));
+        return id;
+    }
+
     [Fact]
-    public void DeliberateTraining_adult_idle_with_money_gains_skill_and_pays_cost()
+    public void DeliberateTraining_adult_idle_with_money_and_employer_gains_skill_and_pays_treasury()
     {
         var world = BuildWorld();
-        var npc = MakeNpc(world, 30, new ProfessionType(1), new CellCoord(1, 1), ActionType.Idle, wallet: new Money(10));
+        var employer = AddWorkplace(world);
+        var npc = MakeNpc(
+            world, 30, new ProfessionType(1), new CellCoord(1, 1), ActionType.Idle, wallet: new Money(10), employer: employer);
 
         new SkillTeachingSystem(Rules, ScenarioRunner.DefaultLifeStageRules).Tick(world, Ctx(world));
 
         Assert.True(npc.Skills.Get(SkillType.Agriculture) > 0);
         Assert.Equal(9, npc.Wallet.Amount);
+        Assert.Equal(1, world.FindWorkplace(employer)!.Treasury.Amount);
     }
 
     [Fact]
     public void DeliberateTraining_without_money_does_not_grant_skill()
     {
         var world = BuildWorld();
-        var npc = MakeNpc(world, 30, new ProfessionType(1), new CellCoord(1, 1), ActionType.Idle, wallet: Money.Zero);
+        var employer = AddWorkplace(world);
+        var npc = MakeNpc(world, 30, new ProfessionType(1), new CellCoord(1, 1), ActionType.Idle, wallet: Money.Zero, employer: employer);
 
         new SkillTeachingSystem(Rules, ScenarioRunner.DefaultLifeStageRules).Tick(world, Ctx(world));
 
         Assert.Equal(0, npc.Skills.Get(SkillType.Agriculture));
+    }
+
+    /// <summary>Fase 6, T12 (fix de conservação de dinheiro, ECON-26/27): sem vínculo
+    /// empregatício, o custo do treino não tem Treasury pra ir — sem-op, mesmo padrão de "sem
+    /// trabalhador presente, produção 0" do ProductionSystem, nunca dinheiro sumindo em
+    /// silêncio.</summary>
+    [Fact]
+    public void DeliberateTraining_without_employer_does_not_grant_skill_or_charge_money()
+    {
+        var world = BuildWorld();
+        var npc = MakeNpc(world, 30, new ProfessionType(1), new CellCoord(1, 1), ActionType.Idle, wallet: new Money(10));
+
+        new SkillTeachingSystem(Rules, ScenarioRunner.DefaultLifeStageRules).Tick(world, Ctx(world));
+
+        Assert.Equal(0, npc.Skills.Get(SkillType.Agriculture));
+        Assert.Equal(10, npc.Wallet.Amount);
     }
 
     // --- School (SKILL-05) ---
