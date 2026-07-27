@@ -199,6 +199,11 @@ public sealed class Npc
     /// campo novo de "profissão antiga" (Tech Decision do design).</summary>
     public void SwitchProfession(ProfessionType newProfession) => Profession = newProfession;
 
+    /// <summary>Aplica ganho de habilidade (SKILL-01/03..08) — delega o clamp de teto a <see
+    /// cref="SkillSet.WithGain"/>; único ponto que reatribui <see cref="Skills"/> fora do
+    /// construtor (mesmo padrão de mutador dedicado de <see cref="SetHunger"/> etc).</summary>
+    public void GainSkill(SkillType type, double delta, double cap) => Skills = Skills.WithGain(type, delta, cap);
+
     /// <summary>Vínculo de tutoria mestre->aprendiz (SKILL-08) — espelha <see cref="JoinHousehold"/>.</summary>
     public void AssignMentor(NpcId mentor) => Mentor = mentor;
 
