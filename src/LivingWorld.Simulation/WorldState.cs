@@ -61,6 +61,17 @@ public sealed class WorldState
     private long _nextNpcId;
     private long _nextHouseholdId;
 
+    private Money _moneyMinted;
+    private Money _moneyDestroyed;
+
+    /// <summary>Massa monetária cunhada desde a origem do mundo (Fase 5, ECON-26/27) — nunca
+    /// alterada implicitamente por transação/salário, só por <see cref="Mint"/> nomeado.</summary>
+    [Canonical] public Money MoneyMinted => _moneyMinted;
+
+    /// <summary>Massa monetária destruída desde a origem do mundo (Fase 5, ECON-26/27) — a
+    /// invariante de conservação é <c>saldo_total == inicial + MoneyMinted - MoneyDestroyed</c>.</summary>
+    [Canonical] public Money MoneyDestroyed => _moneyDestroyed;
+
     /// <summary>Todo NPC já existiu, vivo ou morto (Fase 3) — referência histórica não pode
     /// virar ponteiro solto (critério "nenhum evento após tick de morte referencia o NPC" exige
     /// que o NPC continue existindo para o sweep referencial provar isso).</summary>
@@ -128,7 +139,9 @@ public sealed class WorldState
         IReadOnlyList<Household> households,
         long nextNpcId,
         long nextHouseholdId,
-        BranchId branchId = default)
+        BranchId branchId = default,
+        Money moneyMinted = default,
+        Money moneyDestroyed = default)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -150,6 +163,8 @@ public sealed class WorldState
         _householdById = ToLookup(_households, h => h.Id);
         _nextNpcId = nextNpcId;
         _nextHouseholdId = nextHouseholdId;
+        _moneyMinted = moneyMinted;
+        _moneyDestroyed = moneyDestroyed;
     }
 
     internal WorldRngRegistry Rng => _rng;
@@ -188,6 +203,29 @@ public sealed class WorldState
 
     internal Npc? FindNpc(NpcId id) => _npcById.GetValueOrDefault(id);
     internal Household? FindHousehold(HouseholdId id) => _householdById.GetValueOrDefault(id);
+
+    /// <summary>Cunhagem explícita e rara (task 10) — nunca chamada implicitamente por
+    /// <see cref="MarketTransaction"/>/salário, só por um evento nomeado (AD-042).</summary>
+    public void Mint(TickContext ctx, Money amount, string reason)
+    {
+        _moneyMinted += amount;
+        ctx.LogEvent(WorldEventKind.Minted, $"{amount.Amount}|{reason}");
+    }
+
+    /// <summary>Destruição explícita e rara — falha (mesmo padrão de <see
+    /// cref="Money.TryDebit"/>) se exceder a massa monetária líquida já cunhada
+    /// (<see cref="MoneyMinted"/> - <see cref="MoneyDestroyed"/>), nunca altera o contador nesse
+    /// caso.</summary>
+    public Result<Unit> Destroy(TickContext ctx, Money amount, string reason)
+    {
+        var netSupply = _moneyMinted.Amount - _moneyDestroyed.Amount;
+        if (amount.Amount > netSupply)
+            return Result<Unit>.Fail("insufficient_money_supply");
+
+        _moneyDestroyed += amount;
+        ctx.LogEvent(WorldEventKind.Destroyed, $"{amount.Amount}|{reason}");
+        return Result<Unit>.Ok(Unit.Value);
+    }
 
     /// <summary>Último-vence em vez de <c>ToDictionary</c> (que reprova em id duplicado) — a
     /// entrada de borda (JSON) já valida unicidade; aqui só reidrata.</summary>
