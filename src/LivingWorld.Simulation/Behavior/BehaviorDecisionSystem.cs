@@ -25,6 +25,14 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     /// ascendente do valor binário (Eat=0..Idle=5) que o desempate por <c>ActionId</c> exige.</summary>
     private static readonly ActionType[] AllActions = Enum.GetValues<ActionType>();
 
+    /// <summary>Fase 6, T11 (SKILL-13/14) — <c>null</c> (default) desliga a escolha/troca de
+    /// profissão inteira, preservando o comportamento da Fase 4 byte-a-byte (nenhum cenário
+    /// existente injeta habilidade ainda, wiring fica pra T12, mesmo padrão de <see
+    /// cref="Economy.ProductionSystem"/>).</summary>
+    private readonly SkillsRules? _skillsRules;
+
+    public BehaviorDecisionSystem(SkillsRules? skillsRules = null) => _skillsRules = skillsRules;
+
     public string Name => SystemName;
     public TickFrequency Frequency => TickFrequency.Hourly;
 
@@ -37,6 +45,8 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         foreach (var npc in world.Npcs)
         {
             if (!npc.IsAlive) continue;
+
+            EvaluateProfessionSwitch(world, npc);
 
             bool justCompleted = TryCompleteAction(world, npc, rules, catalog, now);
             var continuityAction = justCompleted ? null : npc.CurrentAction;
@@ -301,6 +311,65 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     /// <see cref="ActionCatalog.RoutineOf"/> para slot sem profissão específica.</summary>
     private static ProfessionType? NoneIfSentinel(ProfessionType profession) =>
         profession == ProfessionType.None ? null : profession;
+
+    /// <summary>SKILL-13/14: pontua candidatas a profissão (domínio: as profissões com
+    /// <see cref="Workplace"/> declarado, <see cref="EconomyCatalog.LocationTypeByProfession"/> —
+    /// mesmo universo que <see cref="EmploymentSystem"/> de fato contrata) por habilidade atual
+    /// do NPC na profissão candidata, traço de personalidade (mesmo padrão de <see
+    /// cref="PersonalityWeighting"/>) e vagas abertas — todos multiplicativos, nenhum trava
+    /// (design.md). Troca só ocorre pra Adulto e quando a candidata vencedora difere da
+    /// profissão corrente; <see cref="Npc.SwitchProfession"/> preserva a habilidade antiga por
+    /// conta própria (T7), este método não zera nada.</summary>
+    private void EvaluateProfessionSwitch(WorldState world, Npc npc)
+    {
+        if (_skillsRules is not { } rules) return;
+        if (world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate)) != LifeStage.Adult) return;
+
+        var catalog = world.EconomyCatalog;
+        if (catalog.LocationTypeByProfession.Count == 0) return;
+
+        ProfessionType? best = null;
+        double bestScore = double.NegativeInfinity;
+        foreach (var professionId in catalog.LocationTypeByProfession.Keys.OrderBy(id => id))
+        {
+            double score = ProfessionScoreOf(world, npc, rules, catalog, professionId);
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = new ProfessionType(professionId);
+            }
+        }
+
+        if (best is { } candidate && candidate != npc.Profession)
+            npc.SwitchProfession(candidate);
+    }
+
+    private static double ProfessionScoreOf(
+        WorldState world, Npc npc, SkillsRules rules, EconomyCatalog catalog, int professionId)
+    {
+        double skillWeight = rules.SkillByProfession.TryGetValue(professionId, out var skillType)
+            ? 1.0 + npc.Skills.Get(skillType) / rules.Cap
+            : 1.0;
+        double personalityWeight = PersonalityWeighting.WeightOf(npc.Personality, ActionType.Work);
+        double vacancyWeight = VacancyWeightOf(world, catalog, professionId);
+
+        return skillWeight * personalityWeight * vacancyWeight;
+    }
+
+    /// <summary>1.0 (neutro) sem nenhum <see cref="Workplace"/> declarado pra esta profissão;
+    /// senão <c>1 + vagasAbertas/vagasTotais</c> — mais vaga livre, mais atrativa (nunca um
+    /// trava: profissão lotada ainda pontua 1.0, nunca menos).</summary>
+    private static double VacancyWeightOf(WorldState world, EconomyCatalog catalog, int professionId)
+    {
+        if (!catalog.LocationTypeByProfession.TryGetValue(professionId, out var locationTypeId)) return 1.0;
+
+        var workplaces = world.Workplaces.Where(w => w.LocationType.Id == locationTypeId).ToList();
+        int totalSlots = workplaces.Sum(w => w.MaxVacancies);
+        if (totalSlots == 0) return 1.0;
+
+        int openSlots = workplaces.Sum(w => w.MaxVacancies - w.Employees.Count);
+        return 1.0 + (double)openSlots / totalSlots;
+    }
 
     /// <summary>NEEDS-09: reavalia <paramref name="initial"/> por <paramref name="refine"/> até
     /// convergir (mesmo valor duas vezes seguidas) ou estourar <paramref name="maxSteps"/> —
