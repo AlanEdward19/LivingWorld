@@ -103,6 +103,50 @@ public class NatalitySystemTests
     }
 
     [Fact]
+    public void Baby_born_at_runtime_inherits_RateGene_from_the_real_parents_not_the_default_fallback()
+    {
+        // Fase 6 (SKILL-09): NatalitySystem.HandleEvent precisa chamar RateGene.Inherit com o
+        // RateGene real da mãe/pai — se o argumento fosse esquecido (regressão silenciosa), o
+        // construtor de Npc cairia no fallback RateGene(1.0) (Npc.cs) e este teste pegaria isso,
+        // já que os pais aqui têm gene bem longe de 1.0 (5.0), com mutação de meia-largura 0,3
+        // (RateGene.cs) — herdado fica em [4.7, 5.3], fallback ficaria em ~1.0.
+        var catalog = new PopulationCatalog(new HashSet<int>(), new HashSet<int>(), new HashSet<int>());
+        var map = ScenarioRunner.DefaultMap(55);
+        var world = new WorldState(
+            Calendar, 55, map, catalog, Rules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
+            ScenarioRunner.DefaultLifeStageRules);
+        var location = new CellCoord(1, 1);
+
+        var mother = new Npc(
+            new NpcId(1), "mother", Sex.Female, WorldDate.Epoch(Calendar).AddYears(-20), new CultureId(1), location,
+            motherId: null, fatherId: null, household: null, health: 100,
+            personality: SomePersonality, profession: ProfessionType.None, currentLocation: location,
+            rateGene: new RateGene(5.0));
+        var father = new Npc(
+            new NpcId(2), "father", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-22), new CultureId(1), location,
+            motherId: null, fatherId: null, household: null, health: 100,
+            personality: SomePersonality, profession: ProfessionType.None, currentLocation: location,
+            rateGene: new RateGene(5.0));
+
+        var household = new Household(new HouseholdId(1), location, mother.Id, [mother.Id, father.Id]);
+        mother.JoinHousehold(household.Id);
+        father.JoinHousehold(household.Id);
+
+        world.AddNpc(mother);
+        world.AddNpc(father);
+        world.AddHousehold(household);
+        world.AdvanceNpcIdTo(3);
+        world.AdvanceHouseholdIdTo(2);
+        world.CurrentDate = WorldDate.Epoch(Calendar).AddYears(20);
+
+        var ctx = new TickContext(world, world.Rng, world.Scheduler);
+
+        var baby = TriggerBirth(world, ctx, mother.Id, father.Id, household.Id);
+
+        Assert.True(baby.RateGene.Value > 3.0, $"esperado RateGene herdado perto de 5.0 (pais=5.0), veio {baby.RateGene.Value} — parece o fallback default 1.0, não a herança real");
+    }
+
+    [Fact]
     public void Same_seed_produces_the_same_baby_personality_and_profession_twice()
     {
         var catalog = new PopulationCatalog(new HashSet<int>(), new HashSet<int> { 1, 2, 3 }, new HashSet<int>());
