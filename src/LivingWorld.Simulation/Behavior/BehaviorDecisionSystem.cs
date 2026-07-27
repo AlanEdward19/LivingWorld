@@ -2,13 +2,12 @@ using LivingWorld.Domain;
 
 namespace LivingWorld.Simulation;
 
-/// <summary>Escolhe a ação do tick de cada NPC vivo (Fase 4 — NEEDS-05/06/07/08/09/10/11/12/13):
-/// rotina diária por padrão, utility AI só quando alguma necessidade supera o limiar de urgência
-/// do cenário, com bônus de continuidade (histerese) e conclusão de ação ao atingir a duração
-/// máxima declarada. Deslocamento/moradia (T14) ainda não plugam um refinamento real no teto de
-/// passos — <see cref="ResolveWithStepCap"/> já existe e é exercitado hoje com refinamento
-/// identidade (sempre converge no passo 0); T14 troca esse refinamento pela dependência real de
-/// local.</summary>
+/// <summary>Escolhe a ação do tick de cada NPC vivo (Fase 4 — NEEDS-05..16): rotina diária por
+/// padrão, utility AI só quando alguma necessidade supera o limiar de urgência do cenário, com
+/// bônus de continuidade (histerese), conclusão de ação ao atingir a duração máxima declarada, e
+/// deslocamento com custo real quando a ação vencedora exige um local diferente do atual (hoje,
+/// só <c>Sleep</c> tem exigência de local — dormir em <see cref="Household"/>.Location; sem-teto
+/// dorme onde está, NEEDS-15).</summary>
 public sealed class BehaviorDecisionSystem : ISimulationSystem
 {
     public const string SystemName = "behavior-decision";
@@ -33,7 +32,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         {
             if (!npc.IsAlive) continue;
 
-            bool justCompleted = TryCompleteAction(npc, catalog, now);
+            bool justCompleted = TryCompleteAction(world, npc, rules, catalog, now);
             var continuityAction = justCompleted ? null : npc.CurrentAction;
 
             var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
@@ -43,32 +42,46 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                 ? SelectByUtility(npc, rules, continuityAction)
                 : routineAction;
 
-            // T14 substitui esta identidade pela dependência real de local (ação vencedora que
-            // exige outro local vira Travel) — o teto/abort (NEEDS-09) já valem hoje.
-            var chosen = ResolveWithStepCap(npc.Id.Value, candidate, static a => a, rules.MaxActionSelectionSteps);
+            // NEEDS-14: ação vencedora que exige outro local (hoje, só Sleep) vira Travel até lá;
+            // reavaliado em loop com teto MaxActionSelectionSteps (NEEDS-09).
+            var chosen = ResolveWithStepCap(npc.Id.Value, candidate, c => RefineForLocation(world, npc, c), rules.MaxActionSelectionSteps);
 
             if (justCompleted || chosen != npc.CurrentAction)
                 npc.SetCurrentAction(chosen, now);
         }
     }
 
-    /// <summary>NEEDS-13: ao atingir a duração máxima declarada (<see cref="ActionCatalog.MaxDurationHours"/>),
-    /// aplica o efeito da ação e libera o NPC pra nova seleção — nunca deixa a ação corrente
-    /// ultrapassar a duração declarada.</summary>
-    private static bool TryCompleteAction(Npc npc, ActionCatalog catalog, long now)
+    /// <summary>NEEDS-13/14: ao atingir a duração máxima declarada (<see cref="ActionCatalog.MaxDurationHours"/>)
+    /// aplica o efeito da ação e libera o NPC pra nova seleção. <c>Travel</c> rumo ao local de
+    /// sono (<see cref="RefineForLocation"/>) é exceção: sua duração não é a do catálogo, é
+    /// <see cref="TravelResolution.TicksBetween"/> até o destino — chegar move o NPC
+    /// (<see cref="Npc.MoveTo"/>) e libera pra nova seleção, sem aplicar efeito de Sleep no tick
+    /// de chegada (NEEDS-14: ação de destino nunca executa no tick em que decidiu ir).</summary>
+    private static bool TryCompleteAction(WorldState world, Npc npc, NeedsRules rules, ActionCatalog catalog, long now)
     {
         if (npc.CurrentAction is not { } action) return false;
+
+        if (action == ActionType.Travel && SleepDestinationOf(world, npc) is { } destination && destination != npc.CurrentLocation)
+        {
+            long ticksNeeded = TravelResolution.TicksBetween(world.Map, npc.CurrentLocation, destination);
+            if (now - npc.ActionStartedAtTick < ticksNeeded) return false; // ainda em trânsito
+
+            npc.MoveTo(destination, now);
+            return true;
+        }
+
         if (now - npc.ActionStartedAtTick < catalog.MaxDurationHours[action]) return false;
 
-        ApplyActionEffect(npc, action);
+        ApplyActionEffect(npc, rules, action);
         return true;
     }
 
     /// <summary>Eat restaura fome e sede (sem ação de "beber" dedicada, ver <see cref="UtilityBaseOf"/>);
-    /// Socialize restaura o mínimo social. Sleep restaura sono pra 100 aqui — a penalidade de
-    /// sem-teto (<c>HomelessSleepEfficiency</c>) é T14. Work/Travel/Idle não restauram
-    /// necessidade nenhuma, só concluem e liberam o NPC.</summary>
-    private static void ApplyActionEffect(Npc npc, ActionType action)
+    /// Socialize restaura o mínimo social. Sleep restaura sono pra 100, ou, sem-teto
+    /// (<see cref="Npc.HomelessSince"/> não nulo), pra <see cref="NeedsRules.HomelessSleepEfficiency"/>
+    /// × 100 (NEEDS-15) — nunca lança exceção por falta de residência. Work/Travel/Idle não
+    /// restauram necessidade nenhuma, só concluem e liberam o NPC.</summary>
+    private static void ApplyActionEffect(Npc npc, NeedsRules rules, ActionType action)
     {
         switch (action)
         {
@@ -77,13 +90,31 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                 npc.SetThirst(100);
                 break;
             case ActionType.Sleep:
-                npc.SetSleep(100);
+                npc.SetSleep(npc.HomelessSince is null ? 100 : (int)(100 * rules.HomelessSleepEfficiency));
                 break;
             case ActionType.Socialize:
                 npc.SetSocial(100);
                 break;
         }
     }
+
+    /// <summary>NEEDS-14: se a ação candidata for <c>Sleep</c> e exigir um local diferente do
+    /// atual (residência existe e não é onde o NPC está), a ação efetiva do tick vira
+    /// <c>Travel</c> — sem-teto (<see cref="SleepDestinationOf"/> retorna <c>null</c>) nunca
+    /// precisa viajar pra dormir (NEEDS-15).</summary>
+    private static ActionType RefineForLocation(WorldState world, Npc npc, ActionType candidate)
+    {
+        if (candidate != ActionType.Sleep) return candidate;
+        return SleepDestinationOf(world, npc) is { } destination && destination != npc.CurrentLocation
+            ? ActionType.Travel
+            : candidate;
+    }
+
+    /// <summary>Local onde o NPC dorme de fato: <see cref="Household"/>.Location se tiver
+    /// residência; <c>null</c> se sem-teto (dorme onde está, sem viagem — Tech Decision:
+    /// Residence reusa <see cref="Npc.Household"/>, nenhum campo novo).</summary>
+    private static CellCoord? SleepDestinationOf(WorldState world, Npc npc) =>
+        npc.Household is { } householdId ? world.FindHousehold(householdId)?.Location : null;
 
     /// <summary>Ordena as 6 ações candidatas por nota (<c>utilidadeBase × pesoPersonalidade</c>,
     /// NEEDS-06); empate exato desempata por menor <c>ActionId</c> — <c>Enum.GetValues</c> já
