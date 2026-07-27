@@ -75,6 +75,12 @@ public sealed class Npc
 
     public void JoinHousehold(HouseholdId household) => Household = household;
 
+    /// <summary>Limpa a referência quando o household deixa de existir (dissolvido) — nunca
+    /// deixa <see cref="Household"/> apontando para um id removido do mundo (sweep referencial,
+    /// task 12). Enquanto o household ainda existir, a referência do NPC morto permanece: é
+    /// residência histórica válida, não ponteiro solto.</summary>
+    public void LeaveHousehold() => Household = null;
+
     public void SetHealth(int health) => Health = Math.Clamp(health, 0, 100);
 
     public void BecomePregnant(WorldDate dueDate) => PregnantUntil = dueDate;

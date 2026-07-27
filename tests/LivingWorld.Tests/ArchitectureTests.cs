@@ -31,6 +31,21 @@ public class ArchitectureTests
         Assert.True(result.IsSuccessful, string.Join(", ", result.FailingTypeNames ?? []));
     }
 
+    /// <summary>Task 11: prova estrutural de "zero round-trips durante o tick" — o tick não pode
+    /// nem *conseguir* chamar EF Core, porque Simulation não referencia Infrastructure.</summary>
+    [Fact]
+    public void Simulation_never_depends_on_Infrastructure()
+    {
+        var simulationAssembly = System.Reflection.Assembly.Load("LivingWorld.Simulation");
+
+        var result = Types.InAssembly(simulationAssembly)
+            .Should()
+            .NotHaveDependencyOn("LivingWorld.Infrastructure")
+            .GetResult();
+
+        Assert.True(result.IsSuccessful, string.Join(", ", result.FailingTypeNames ?? []));
+    }
+
     [Fact]
     public void Using_LivingWorld_AI_from_Simulation_fails_to_compile()
     {

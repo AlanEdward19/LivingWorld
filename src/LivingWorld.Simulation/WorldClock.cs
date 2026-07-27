@@ -5,7 +5,7 @@ namespace LivingWorld.Simulation;
 /// <summary>Avança o mundo em ticks de 1 hora. Ordem de execução dos sistemas é a ordem
 /// declarada na lista recebida no construtor — nunca ordem de registro acidental ou de
 /// dicionário.</summary>
-public sealed class WorldClock(IReadOnlyList<ISimulationSystem> systems, int maxIterationsPerTick = 1000)
+public sealed class WorldClock(IReadOnlyList<ISimulationSystem> systems, int maxIterationsPerTick = 1000, IWorldEventSink? sink = null)
 {
     private readonly Dictionary<string, ISimulationSystem> _byName = systems.ToDictionary(s => s.Name);
 
@@ -20,7 +20,7 @@ public sealed class WorldClock(IReadOnlyList<ISimulationSystem> systems, int max
     public void Tick(WorldState world)
     {
         world.CurrentDate = world.CurrentDate.AddHours(1);
-        var ctx = new TickContext(world, world.Rng, world.Scheduler);
+        var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
 
         bool isDayBoundary = world.CurrentDate.Hour == 0;
         bool isMonthBoundary = isDayBoundary && world.CurrentDate.Day == 0;

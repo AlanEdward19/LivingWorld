@@ -32,5 +32,6 @@
   "FertilityMinAge": 25,
   "FertilityMaxAge": 80,
   "AnnualConceptionChance": 0.15,
-  "GestationDays": 300
+  "GestationDays": 300,
+  "MaxBytesPerNpcPerYear": 4000
 }

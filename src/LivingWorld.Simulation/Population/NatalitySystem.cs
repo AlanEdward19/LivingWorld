@@ -56,6 +56,7 @@ public sealed class NatalitySystem : ISimulationSystem
 
         world.AddNpc(baby);
         household.AddMember(baby.Id);
+        ctx.LogEvent(WorldEventKind.Birth, $"{baby.Id.Value}|{motherId.Value}|{fatherId.Value}|{household.Id.Value}");
         MortalitySystem.SchedulePlannedDeath(world, ctx, baby);
     }
 

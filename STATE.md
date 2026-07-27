@@ -4,19 +4,16 @@ Fonte única de continuidade. Quem entra numa área nova **lê este arquivo prim
 Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
-- **Última coisa concluída**: **Fase 3A (População básica, tasks 1-7) fechada** — ver AD-024..027
-  e detalhe em git log. `Npc`/`Household` (Domain, mutáveis, reconstrutíveis por 1 construtor —
-  padrão de `WorldMap`), `LifeTable`/`PopulationRules`/`PopulationCatalog` (dado de cenário,
-  padrão de `GeographyCatalog`), `MortalityPlanner`+`PopulationGenerator` (pirâmide etária,
-  morte agendada por antecipação). Simulation: `PopulationSeeder`, `MortalitySystem`,
-  `NatalitySystem`, `PopulationScenarioLoader`+`ScenarioLoader`. `WorldState` ganhou
-  `Npcs`/`Households`/`PopulationCatalog`/`PopulationRules`/contadores de id como `[Canonical]`
-  — golden hashes atualizados. `scenarios/default.json` e `scenarios/test-scifi.json` (piloto/
-  técnico/plasma/liga só como id). Baseline de 20 seeds em `tests/baselines/population.json`.
-  35 testes novos, gate verde.
-- **Próxima unidade**: **Fase 3B (persistência, tasks 8-14)** — EF Core+SQLite, `BranchId` no
-  esquema, snapshot+event log, zero round-trips, sweep referencial, sensor de bytes/NPC/ano,
-  campos monotônicos. Ver [docs/roadmap/phase-03-population.md](docs/roadmap/phase-03-population.md).
+- **Última coisa concluída**: **Fase 3B (persistência, tasks 8-14) fechada** — ver AD-028..031 e
+  detalhe em git log. `BranchId` em `WorldState`/hash (ADR-0009); `IWorldEventSink` loga
+  nascimento/morte sem tocar `WorldState`; `LivingWorld.Infrastructure` ganhou EF Core+SQLite
+  (`WorldDbContext`, `IWorldRepository`/`SqliteWorldRepository`, migração `InitialCreate`,
+  branch sempre explícito); `PersistentWorldRunner` (snapshot+log na fronteira, zero round-trips
+  provado por arquitetura + interceptor); `ReferentialIntegritySweep` por reflexão (achou e
+  corrigiu bug real de `Npc.Household` órfão pós-dissolução, ver AD-031); `MonotonicFields`;
+  sensor de bytes/NPC/ano. Golden hashes regenerados. ~30 testes novos, gate verde.
+- **Próxima unidade**: **Fase 4 (Necessidades e rotina)** — fome, sono, trabalho, moradia,
+  deslocamento, utility AI. Ver [docs/roadmap/phase-04-needs.md](docs/roadmap/phase-04-needs.md).
 - **Fase 2, Fase 1 e Fase 0 fechadas antes dela** — detalhe em git log, AD-020..023 e ADR-0001..0007.
 - **Escopo extra especificado** (não iniciado): fases 15–26 em status `spec`. **Bloqueado até
   a Fase 8 fechar** (AD-010); cada fase tem `## Questões em aberto` (~60 perguntas de design).
@@ -63,6 +60,10 @@ de **processo e escopo** que não justificam um ADR.
 | AD-025 | 2026-07-26 | `PopulationCatalog` ganha `ProfessionType`/`LocationType` desde a Fase 3, mesmo sem `Npc` ter profissão ainda | Mesmo raciocínio de `BranchId` (ADR-0009): pagar agora é um record; retrofitar depois da Fase 5/6 já terem profissão real seria migração de catálogo. `test-scifi` já declara piloto/técnico como id. |
 | AD-026 | 2026-07-26 | Propriedade pública computada (`Household.IsEmpty`, `Npc.IsAlive`) leva `[JsonIgnore]` | Sem isso o snapshot serializa um `bool` solto e o mutador genérico do teste canônico/volátil (só sabe long/int/string) devolve nó já anexado ao pai — `System.Text.Json` reprova. Mesmo motivo de `Npc.AgeYears` ser método, não propriedade. |
 | AD-027 | 2026-07-26 | Cenário (mapa+população) mora num JSON em `scenarios/*.json` via `ScenarioLoader`; o "default" do gate continua hardcoded em `ScenarioRunner` | Padrão da Fase 2: `MapScenarioLoader` existe e é testado sem estar no caminho do golden hash. `test-scifi.json` prova que o motor lê população de arquivo sem o gate pagar I/O a cada seed. |
+| AD-028 | 2026-07-27 | Log de história (Tier A) não vive em `WorldState`/hash — é um buffer em memória (`IWorldEventSink`) drenado só na fronteira de snapshot | Guardar eventos pendentes como campo canônico/volátil de `WorldState` forçaria classificar um buffer que se esvazia a cada save; ficar fora do hash mantém o motor alheio a persistência (Simulation nunca referencia Infrastructure) e prova "zero round-trips" por construção, não só por teste. |
+| AD-029 | 2026-07-27 | `EventLogRecord` usa chave composta `(BranchId, Tick, Sequence)` com `Sequence` atribuído pelo repositório, não `RowId` autoincrementado pelo banco | Migração gerada por EF anotava `Sqlite:Autoincrement` — exatamente o recurso exclusivo de SQLite que ADR-0002 proíbe. Sequence determinística no app é portável para Postgres sem migração nova. |
+| AD-030 | 2026-07-27 | `CityId`/`LocationId` entram no sweep referencial com resolver que devolve conjunto vazio | Ainda não usados (AD-024) — vazio + nenhuma referência passa por vacuidade; quando a Fase 8 os usar de verdade, o resolver troca para o conjunto real e o teste de cobertura já força isso a acontecer (não deixa passar silenciosamente). |
+| AD-031 | 2026-07-27 | `Npc.Household` de um NPC morto é limpo (`LeaveHousehold()`) quando o household dissolve, mas preservado enquanto o household ainda existir | O sweep referencial (task 12) achou o bug: household dissolvido deixava `Npc.Household` de ex-membros mortos apontando para id removido. Preservar a referência enquanto o household existe mantém "onde morava" como dado histórico válido; só limpa no momento exato em que deixa de resolver. |
 
 ## Fases
 Status por fase vive na tabela do [ROADMAP.md](ROADMAP.md). Não replique aqui.
@@ -87,7 +88,6 @@ depois. Onde o mecanismo já virou task, a fase está nomeada.
 ## Riscos ainda sem mecanismo
 | Risco | Por que segue aberto |
 |---|---|
-| Fase 3B (persistência + 6 sensores) ainda pendente | 3A já fechou a metade mais arriscada (população); 3B segue sendo a parte mais pesada do roadmap |
 | Custo e latência de LLM em escala | Só dimensionável com provider real; decisão adiada para ADR-0008 na Fase 10 |
 | Balanceamento do mundo (economia estável, demografia plausível) | Nenhum gate prova que o mundo é *interessante*, só que é *coerente*. Exige julgamento humano |
 | **Escopo extra canibalizar o caminho crítico** | Mitigado por AD-010 (fases 15–18 bloqueadas até a 8), mas o risco é de disciplina, não de mecanismo. Nenhum gate impede alguém de começar a Fase 17 antes da hora |

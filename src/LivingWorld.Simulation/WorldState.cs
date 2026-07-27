@@ -15,6 +15,10 @@ public sealed class WorldState
     [Canonical] public WorldDate CurrentDate { get; internal set; }
     [Canonical] public long NextEventId => _nextEventId;
 
+    /// <summary>Linha temporal deste mundo (ADR-0009). O hash canônico é por branch: dois
+    /// branches com conteúdo idêntico têm hashes distintos.</summary>
+    [Canonical] public BranchId BranchId { get; }
+
     /// <summary>Seed raiz do mundo. Precisa sobreviver ao snapshot: sem ela, um stream de RNG
     /// pedido pela primeira vez depois de uma rehidratação derivaria de uma raiz diferente.</summary>
     [Canonical] public ulong Seed { get; }
@@ -71,7 +75,7 @@ public sealed class WorldState
 
     public WorldState(
         WorldCalendar calendar, ulong seed, WorldMap map,
-        PopulationCatalog populationCatalog, PopulationRules populationRules)
+        PopulationCatalog populationCatalog, PopulationRules populationRules, BranchId branchId = default)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -79,6 +83,7 @@ public sealed class WorldState
         Map = map;
         PopulationCatalog = populationCatalog;
         PopulationRules = populationRules;
+        BranchId = branchId;
         _rng = new WorldRngRegistry(seed);
         _scheduler = new EventScheduler();
         _npcs = [];
@@ -102,7 +107,8 @@ public sealed class WorldState
         IReadOnlyList<Npc> npcs,
         IReadOnlyList<Household> households,
         long nextNpcId,
-        long nextHouseholdId)
+        long nextHouseholdId,
+        BranchId branchId = default)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -110,6 +116,7 @@ public sealed class WorldState
         Map = map;
         PopulationCatalog = populationCatalog;
         PopulationRules = populationRules;
+        BranchId = branchId;
         _rng = new WorldRngRegistry(seed, rngStreams);
         _scheduler = new EventScheduler(pendingEvents);
         _nextEventId = nextEventId;

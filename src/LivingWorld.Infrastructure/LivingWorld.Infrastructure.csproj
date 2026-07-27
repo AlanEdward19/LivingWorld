@@ -2,6 +2,15 @@
 
   <ItemGroup>
     <ProjectReference Include="..\LivingWorld.Domain\LivingWorld.Domain.csproj" />
+    <ProjectReference Include="..\LivingWorld.Simulation\LivingWorld.Simulation.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
   </ItemGroup>
 
   <PropertyGroup>

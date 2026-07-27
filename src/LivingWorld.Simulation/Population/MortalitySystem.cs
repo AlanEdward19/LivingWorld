@@ -23,13 +23,22 @@ public sealed class MortalitySystem : ISimulationSystem
         if (npc is null || !npc.IsAlive) return; // referência já resolvida/perdida — sem-op, não exceção
 
         npc.Die(world.CurrentDate);
+        ctx.LogEvent(WorldEventKind.Death, npc.Id.Value.ToString());
 
         if (npc.Household is { } householdId)
         {
             var household = world.FindHousehold(householdId);
             household?.RemoveMember(npc.Id);
             if (household is { IsEmpty: true })
+            {
                 world.RemoveHousehold(householdId);
+                // Household deixou de existir — nenhuma referência pode sobreviver a ele, nem a
+                // de NPCs mortos anteriormente que já tinham saído da lista de membros
+                // (sweep referencial, task 12).
+                foreach (var member in world.Npcs)
+                    if (member.Household == householdId)
+                        member.LeaveHousehold();
+            }
         }
     }
 

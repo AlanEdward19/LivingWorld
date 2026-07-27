@@ -4,9 +4,13 @@ namespace LivingWorld.Simulation;
 
 /// <summary>Fachada que um sistema recebe a cada tick: RNG por stream, agendamento de eventos
 /// futuros e o tick atual. Nunca o relógio da máquina.</summary>
-public sealed class TickContext(WorldState world, WorldRngRegistry rng, EventScheduler scheduler)
+public sealed class TickContext(WorldState world, WorldRngRegistry rng, EventScheduler scheduler, IWorldEventSink? sink = null)
 {
     public long CurrentTick => world.CurrentDate.TotalHours;
+
+    /// <summary>Registra um evento de história (task 8/10) — sem-op se ninguém persiste
+    /// (nenhum sink fornecido).</summary>
+    public void LogEvent(WorldEventKind kind, string payload) => sink?.Record(new WorldEvent(CurrentTick, kind, payload));
 
     /// <summary>RNG derivado do stream desta chave (ADR-0005). Streams independentes:
     /// consumir um stream novo não desloca a sequência dos outros.</summary>

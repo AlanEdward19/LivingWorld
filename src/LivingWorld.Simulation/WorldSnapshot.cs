@@ -54,10 +54,12 @@ public static class WorldSnapshot
         var households = node["Households"].Deserialize<List<Household>>(JsonOptions)!;
         var nextNpcId = node["NextNpcId"]!.GetValue<long>();
         var nextHouseholdId = node["NextHouseholdId"]!.GetValue<long>();
+        var branchId = new BranchId(node["BranchId"]!["Value"]!.GetValue<long>());
 
         return new WorldState(
             calendar, currentDate, seed, map, populationCatalog, populationRules,
-            rngStreams, pendingEvents, nextEventId, exampleCounts, npcs, households, nextNpcId, nextHouseholdId);
+            rngStreams, pendingEvents, nextEventId, exampleCounts, npcs, households, nextNpcId, nextHouseholdId,
+            branchId);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)

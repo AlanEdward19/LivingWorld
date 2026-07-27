@@ -9,6 +9,10 @@ public static class ScenarioRunner
 {
     public const int DefaultInitialPopulation = 100;
 
+    /// <summary>Teto de bytes/NPC/ano do cenário default (task 13) — mesmo valor declarado em
+    /// scenarios/default.json (AD-027: o "default" do gate continua hardcoded aqui).</summary>
+    public const long DefaultMaxBytesPerNpcPerYear = 4000;
+
     public static WorldCalendar DefaultCalendar { get; } = new(HoursPerDay: 24, DaysPerMonth: 30, MonthsPerYear: 12);
 
     public static IReadOnlyList<ISimulationSystem> DefaultSystems() =>
