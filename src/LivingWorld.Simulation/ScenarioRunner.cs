@@ -19,7 +19,11 @@ public static class ScenarioRunner
     /// ação no mesmo tick — senão <see cref="BehaviorDecisionSystem"/> decidiria com o dado de
     /// necessidade do tick anterior. Ambos entram depois de Mortalidade/Natalidade (NPC recém
     /// nascido/morto neste tick já participa da conta certa: morto não decide, nascido decai a
-    /// partir do próprio nascimento).</summary>
+    /// partir do próprio nascimento). Fase 5 (T20): os 4 sistemas de economia entram depois de
+    /// <see cref="BehaviorDecisionSystem"/>, nessa ordem — quem contratou hoje já pode produzir
+    /// no mesmo dia (Employment antes de Production); preço reage ao estoque já atualizado
+    /// (Production antes de MarketPricing); salário é o último evento do mês sobre o Treasury
+    /// que a produção/venda alimentou o mês inteiro.</summary>
     public static IReadOnlyList<ISimulationSystem> DefaultSystems() =>
     [
         new ExampleCounterSystem(TickFrequency.Hourly),
@@ -30,6 +34,10 @@ public static class ScenarioRunner
         new NatalitySystem(),
         new NeedsDecaySystem(),
         new BehaviorDecisionSystem(),
+        new EmploymentSystem(),
+        new ProductionSystem(),
+        new MarketPricingSystem(),
+        new WagePaymentSystem(),
     ];
 
     private static readonly GeographyCatalog DefaultCatalog = new(
@@ -116,14 +124,106 @@ public static class ScenarioRunner
         defaultAction: ActionType.Idle)
         .Value ?? throw new InvalidOperationException("action catalog default inválido — bug no cenário, não no gerador");
 
+    // Conteúdo real do cenário medieval (Fase 5, T20): trigo (1) e água (2) são o alimento/água
+    // que Eat consome (ECON-16/17); ferro (4) é o produto da ferraria. Fazenda e ferraria são
+    // sua própria loja (AD-043 — um Workplace só, papel de produção+mercado decidido por
+    // MarketLocationTypeIds, não uma classe Market separada) — profissão 1 (lavrador) trabalha
+    // na fazenda, profissão 2 (ferreiro) na ferraria, mesmo par já usado pela rotina (task 15).
+    // Sem recurso de célula exigido: DefaultCatalog (Geografia, Fase 2) não declara recurso
+    // natural nenhum (ResourceIds vazio) — exigir um aqui travaria toda produção em silêncio.
+    public static readonly EconomyRules DefaultEconomyRules = EconomyRules.Create(
+        enabled: true, foodResourceId: 1, waterResourceId: 2,
+        capacityByResourceLocation: new Dictionary<(int ResourceId, int LocationTypeId), long>
+        {
+            [(1, 1)] = 1000, // trigo na fazenda
+            [(2, 1)] = 1000, // água na fazenda (poço da propriedade)
+            [(4, 2)] = 1000, // ferro na ferraria
+        },
+        spoilagePerDayByResource: new Dictionary<int, double> { [1] = 0.01 }, // só trigo estraga
+                                                                              // Salário mensal precisa cobrir consumo diário (Eat gasta ~1 trigo + 1 água por vez,
+                                                                              // aproximadamente 1x/dia por NEEDS-01) a preço de mercado — ~60/mês de custo a preço 1-2,
+                                                                              // wage bem acima disso dá folga real, não só sobrevivência no fio da navalha.
+        wageByProfession: new Dictionary<int, long> { [1] = 90, [2] = 110 },
+        priceFloor: new Dictionary<int, long> { [1] = 1, [2] = 1, [4] = 1 },
+        priceCeiling: new Dictionary<int, long> { [1] = 20, [2] = 15, [4] = 80 },
+        priceSensitivity: 0.2,
+        demandBaselinePerNpc: new Dictionary<int, double> { [1] = 0.5, [2] = 0.3 })
+        .Value ?? throw new InvalidOperationException("economy rules default inválida — bug no cenário, não no gerador");
+
+    public static readonly EconomyCatalog DefaultEconomyCatalog = new(
+        Recipes: new Dictionary<int, ProductionRecipe>
+        {
+            // Fazenda produz trigo e água (poço da propriedade) — sem isso, sede nunca teria
+            // fonte nenhuma no cenário default e a vila se extinguiria por sede em qualquer
+            // horizonte longo, violando o objetivo #1 (100 anos coerente).
+            // MaxWorkersPerCycle acompanha MaxVacancies (SeedDefaultWorkplaces) — teto de vaga
+            // menor que o teto de produção deixaria gente contratada sem contar pra produção
+            // real, um gargalo artificial que a vila inteira sentiria (visto na prática: 100
+            // NPCs, só 15 vagas, população inteira morrendo de fome com celeiro cheio e sem
+            // vender nada).
+            [1] = ProductionRecipe.Create(
+                inputs: new Dictionary<int, long>(), outputs: new Dictionary<int, long> { [1] = 10, [2] = 8 },
+                requiresCellResource: null, maxWorkersPerCycle: 80)
+                .Value ?? throw new InvalidOperationException("recipe fazenda inválida"),
+            [2] = ProductionRecipe.Create(
+                inputs: new Dictionary<int, long>(), outputs: new Dictionary<int, long> { [4] = 5 },
+                requiresCellResource: null, maxWorkersPerCycle: 40)
+                .Value ?? throw new InvalidOperationException("recipe ferraria inválida"),
+        },
+        MarketLocationTypeIds: [1, 2],
+        LocationTypeByProfession: new Dictionary<int, int> { [1] = 1, [2] = 2 });
+
+    /// <summary>Fazenda e ferraria iniciais, sem empregado (contratados pelo <see
+    /// cref="EmploymentSystem"/> no primeiro Daily), sem estoque (produzido pelo <see
+    /// cref="ProductionSystem"/>), preço inicial no piso declarado.</summary>
+    private static void SeedDefaultWorkplaces(WorldState world)
+    {
+        // Treasury inicial grande (capital de giro do dono, estado inicial declarado — não
+        // cunhagem, ECON-26/27 continua íntegro): folha de ~36 empregados a 90-110/mês esgotaria
+        // um treasury pequeno bem antes da receita de venda (compras em lote esporádicas)
+        // acompanhar, gerando WageUnpaid em cascata e, por tabela, fome real generalizada.
+        world.AddWorkplace(new Workplace(
+            world.NextWorkplaceIdAndAdvance(), new LocationType(1), DefaultVillageLocation, maxVacancies: 80,
+            employees: [], stock: new Dictionary<ResourceType, long>(), treasury: new Money(500_000),
+            prices: new Dictionary<ResourceType, long> { [new ResourceType(1)] = 1, [new ResourceType(2)] = 1 }));
+        world.AddWorkplace(new Workplace(
+            world.NextWorkplaceIdAndAdvance(), new LocationType(2), DefaultVillageLocation, maxVacancies: 40,
+            employees: [], stock: new Dictionary<ResourceType, long>(), treasury: new Money(500_000),
+            prices: new Dictionary<ResourceType, long> { [new ResourceType(4)] = 1 }));
+    }
+
+    /// <summary>Trigo/água de despensa + moeda no bolso pra cada NPC/Household inicial —
+    /// ponte pro primeiro salário (<see cref="WagePaymentSystem"/> é Monthly): sem isso, todo
+    /// mundo bate fome/sede zero e morre de fome (NEEDS-03) bem antes do primeiro emprego
+    /// (<see cref="EmploymentSystem"/>, Daily) gerar produção e renda de verdade — o cenário
+    /// default se extinguiria em semanas, não sobreviveria os 100 anos do objetivo #1.
+    /// Quantidade cobre só o mês de bootstrap; da­í em diante o ciclo emprego→produção→salário→
+    /// compra é quem sustenta.</summary>
+    private static void SeedInitialEconomyBuffer(WorldState world)
+    {
+        foreach (var household in world.Households)
+        {
+            household.Deposit(new ResourceType(1), 50); // trigo
+            household.Deposit(new ResourceType(2), 50); // água
+        }
+
+        foreach (var npc in world.Npcs)
+            npc.CreditWallet(new Money(50));
+    }
+
     public static (WorldState World, WorldClock Clock) Create(
         ulong seed, int maxIterationsPerTick = 1000, int initialPopulation = DefaultInitialPopulation)
     {
         var world = new WorldState(
             DefaultCalendar, seed, DefaultMap(seed), DefaultPopulationCatalog, DefaultPopulationRules,
-            DefaultNeedsRules, DefaultActionCatalog, DefaultLifeStageRules);
+            DefaultNeedsRules, DefaultActionCatalog, DefaultLifeStageRules,
+            economyRules: DefaultEconomyRules, economyCatalog: DefaultEconomyCatalog);
         if (initialPopulation > 0)
+        {
             PopulationSeeder.SeedInitial(world, initialPopulation, DefaultCulture, DefaultVillageLocation);
+            SeedInitialEconomyBuffer(world);
+        }
+        SeedDefaultWorkplaces(world);
 
         return (world, new WorldClock(DefaultSystems(), maxIterationsPerTick));
     }

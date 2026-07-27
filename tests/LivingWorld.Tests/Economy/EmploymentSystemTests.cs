@@ -112,7 +112,8 @@ public class EmploymentSystemTests
         var world = BuildWorld(seed: 7);
         PopulationSeeder.SeedInitial(world, 20, ScenarioRunner.DefaultCulture, ScenarioRunner.DefaultVillageLocation);
         world.AddWorkplace(MakeWorkplace(world, maxVacancies: 5));
-        var clock = new WorldClock([.. ScenarioRunner.DefaultSystems(), new EmploymentSystem()]);
+        // ScenarioRunner.DefaultSystems() já inclui EmploymentSystem (T20) — não duplicar.
+        var clock = new WorldClock(ScenarioRunner.DefaultSystems());
         const long tenYears = 10 * 12 * 30 * 24;
 
         for (long tick = 0; tick < tenYears; tick++)

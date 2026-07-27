@@ -150,7 +150,10 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             var resource = new ResourceType(resourceId);
             if (!market.Prices.TryGetValue(resource, out var unitPrice) || unitPrice <= 0) continue;
 
-            const long quantity = 1;
+            // Compra em lote (não 1 unidade por vez) — uma viagem ao mercado abastece a
+            // despensa por vários dias, não só a próxima refeição, reduzindo a frequência de
+            // viagens que a população inteira precisaria fazer pra se sustentar.
+            const long quantity = 10;
             var ctx = new TransactionContext(
                 npc.Wallet, market.Treasury, market.Stock.GetValueOrDefault(resource),
                 household.Stock.GetValueOrDefault(resource), resource, unitPrice, quantity);
@@ -242,13 +245,31 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     /// (despensa cheia) não é mais atrativo que a rotina.</summary>
     private static double UtilityBaseOf(WorldState world, ActionType action, Npc npc) => action switch
     {
-        ActionType.Eat => Math.Max(Deficit(npc.Hunger), Deficit(npc.Thirst)),
+        ActionType.Eat => EatUtilityOf(world, npc),
         ActionType.Sleep => Deficit(npc.Sleep),
         ActionType.Socialize => Deficit(npc.Social),
         ActionType.Buy => BuyUtilityOf(world, npc),
         ActionType.Work or ActionType.Travel or ActionType.Idle => NonNeedBaselineUtility,
         _ => throw new ArgumentOutOfRangeException(nameof(action), action, "ActionType desconhecido"),
     };
+
+    /// <summary>Sem economia habilitada (ou sem <see cref="Household"/>, sem-teto), Eat sempre
+    /// compete pelo déficit puro — comportamento da Fase 4. Com economia e despensa vazia dos
+    /// dois recursos, Eat não teria nada pra restaurar mesmo vencendo a disputa — cai pro
+    /// baseline reduzido, senão empataria sempre com <see cref="BuyUtilityOf"/> (mesma fórmula) e
+    /// venceria por ser o primeiro valor do enum (<see cref="SelectByUtility"/> só troca em
+    /// empate estrito), deixando o NPC preso "tentando comer" pra sempre sem nunca ir comprar.</summary>
+    private static double EatUtilityOf(WorldState world, Npc npc)
+    {
+        double deficit = Math.Max(Deficit(npc.Hunger), Deficit(npc.Thirst));
+        if (!world.EconomyRules.Enabled) return deficit;
+        if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household) return deficit;
+
+        var econ = world.EconomyRules;
+        bool hasFood = household.Stock.GetValueOrDefault(new ResourceType(econ.FoodResourceId)) >= 1;
+        bool hasWater = household.Stock.GetValueOrDefault(new ResourceType(econ.WaterResourceId)) >= 1;
+        return hasFood || hasWater ? deficit : NonNeedBaselineUtility / 2;
+    }
 
     private static double BuyUtilityOf(WorldState world, Npc npc)
     {
