@@ -41,4 +41,18 @@ public class ReferentialIntegritySweepTests
 
         Assert.Contains(violations, v => v.Contains(danglingMember.Value.ToString()) && v.Contains(nameof(NpcId)));
     }
+
+    // Fase 5 (T11): mesmo sensor de mutação, agora sobre Npc.Employer/WorkplaceId.
+    [Fact]
+    public void An_npc_employer_pointing_to_a_nonexistent_workplace_is_flagged()
+    {
+        var (world, _) = ScenarioRunner.Create(seed: 1, initialPopulation: 5);
+        var npc = world.Npcs.First();
+        var danglingWorkplace = new WorkplaceId(999_999);
+        npc.Hire(danglingWorkplace);
+
+        var violations = ReferentialIntegritySweep.Check(world);
+
+        Assert.Contains(violations, v => v.Contains(danglingWorkplace.Value.ToString()) && v.Contains(nameof(WorkplaceId)));
+    }
 }

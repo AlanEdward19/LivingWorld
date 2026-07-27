@@ -23,6 +23,7 @@ public static class ReferentialIntegritySweep
         [typeof(BranchId)] = w => [w.BranchId],
         [typeof(CityId)] = _ => [],
         [typeof(LocationId)] = _ => [],
+        [typeof(WorkplaceId)] = w => w.Workplaces.Select(wp => (object)wp.Id).ToHashSet(),
     };
 
     /// <summary>Todo tipo de id do assembly Domain — o teste de cobertura reprova se algum
