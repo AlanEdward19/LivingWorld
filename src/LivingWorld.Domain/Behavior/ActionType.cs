@@ -12,4 +12,8 @@ public enum ActionType
     Socialize = 3,
     Travel = 4,
     Idle = 5,
+
+    /// <summary>Fase 5 (AD-040): viagem a um <c>Workplace</c> de mercado + execução de uma
+    /// transação de compra.</summary>
+    Buy = 6,
 }

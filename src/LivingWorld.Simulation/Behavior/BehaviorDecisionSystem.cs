@@ -159,7 +159,11 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         ActionType.Eat => Math.Max(Deficit(npc.Hunger), Deficit(npc.Thirst)),
         ActionType.Sleep => Deficit(npc.Sleep),
         ActionType.Socialize => Deficit(npc.Social),
-        ActionType.Work or ActionType.Travel or ActionType.Idle => NonNeedBaselineUtility,
+        // SPEC_DEVIATION: Buy usa a mesma utilidade base fixa de Work/Travel/Idle por enquanto.
+        // Reason: T6 (Fase 5) só introduz o valor do enum; a nota real por déficit de
+        // comida/água (design.md) é responsabilidade de T19, ainda fora do escopo desta fase 1.
+        // Sem este caso, o switch exaustivo lançaria pra todo NPC vivo assim que Buy existisse.
+        ActionType.Work or ActionType.Travel or ActionType.Idle or ActionType.Buy => NonNeedBaselineUtility,
         _ => throw new ArgumentOutOfRangeException(nameof(action), action, "ActionType desconhecido"),
     };
 

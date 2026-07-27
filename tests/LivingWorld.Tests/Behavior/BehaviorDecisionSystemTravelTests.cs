@@ -47,6 +47,7 @@ public class BehaviorDecisionSystemTravelTests
             [ActionType.Socialize] = 1,
             [ActionType.Travel] = 1,
             [ActionType.Idle] = 1,
+            [ActionType.Buy] = 1,
         },
         routineSlots: [],
         defaultAction: ActionType.Idle).Value!;

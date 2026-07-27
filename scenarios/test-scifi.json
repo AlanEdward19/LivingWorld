@@ -45,7 +45,7 @@
   "ContinuityBonus": 5.0,
   "HomelessSleepEfficiency": 0.6,
   "MaxDurationHours": {
-    "Eat": 1, "Sleep": 6, "Work": 10, "Socialize": 2, "Travel": 4, "Idle": 2
+    "Eat": 1, "Sleep": 6, "Work": 10, "Socialize": 2, "Travel": 4, "Idle": 2, "Buy": 1
   },
   "RoutineSlots": [
     { "ProfessionId": 20, "Stage": "Adult", "HourStart": 5, "HourEnd": 15, "Action": "Work" },

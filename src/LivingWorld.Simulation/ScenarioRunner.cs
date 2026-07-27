@@ -98,6 +98,7 @@ public static class ScenarioRunner
             [ActionType.Socialize] = 3,
             [ActionType.Travel] = 4,
             [ActionType.Idle] = 2,
+            [ActionType.Buy] = 2,
         },
         routineSlots:
         [
