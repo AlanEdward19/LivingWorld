@@ -175,7 +175,10 @@ public static class ScenarioRunner
 
     /// <summary>Fazenda e ferraria iniciais, sem empregado (contratados pelo <see
     /// cref="EmploymentSystem"/> no primeiro Daily), sem estoque (produzido pelo <see
-    /// cref="ProductionSystem"/>), preço inicial no piso declarado.</summary>
+    /// cref="ProductionSystem"/>). Preço inicial 5 (não 1, o piso): <see
+    /// cref="MarketPricingSystem"/> é multiplicativo — arredondado pra inteiro, preço 1 nunca sai
+    /// do lugar de verdade (fator 0.8 ou 1.2 sobre 1 arredonda de volta pra 1), escondendo
+    /// qualquer sinal de escassez/fartura (achado escrevendo o teste causal de T25).</summary>
     private static void SeedDefaultWorkplaces(WorldState world)
     {
         // Treasury inicial grande (capital de giro do dono, estado inicial declarado — não
@@ -185,11 +188,11 @@ public static class ScenarioRunner
         world.AddWorkplace(new Workplace(
             world.NextWorkplaceIdAndAdvance(), new LocationType(1), DefaultVillageLocation, maxVacancies: 80,
             employees: [], stock: new Dictionary<ResourceType, long>(), treasury: new Money(500_000),
-            prices: new Dictionary<ResourceType, long> { [new ResourceType(1)] = 1, [new ResourceType(2)] = 1 }));
+            prices: new Dictionary<ResourceType, long> { [new ResourceType(1)] = 5, [new ResourceType(2)] = 5 }));
         world.AddWorkplace(new Workplace(
             world.NextWorkplaceIdAndAdvance(), new LocationType(2), DefaultVillageLocation, maxVacancies: 40,
             employees: [], stock: new Dictionary<ResourceType, long>(), treasury: new Money(500_000),
-            prices: new Dictionary<ResourceType, long> { [new ResourceType(4)] = 1 }));
+            prices: new Dictionary<ResourceType, long> { [new ResourceType(4)] = 5 }));
     }
 
     /// <summary>Trigo/água de despensa + moeda no bolso pra cada NPC/Household inicial —
@@ -211,13 +214,19 @@ public static class ScenarioRunner
             npc.CreditWallet(new Money(50));
     }
 
+    /// <summary><paramref name="economyRules"/> permite ao harness de teste base/tratamento
+    /// (T25/ECON-28) variar só um parâmetro (ex.: capacidade de um recurso) sem duplicar o resto
+    /// da montagem do cenário — default é <see cref="DefaultEconomyRules"/>, ninguém fora de
+    /// teste precisa informar.</summary>
     public static (WorldState World, WorldClock Clock) Create(
-        ulong seed, int maxIterationsPerTick = 1000, int initialPopulation = DefaultInitialPopulation)
+        ulong seed, int maxIterationsPerTick = 1000, int initialPopulation = DefaultInitialPopulation,
+        EconomyRules? economyRules = null)
     {
+        var rules = economyRules ?? DefaultEconomyRules;
         var world = new WorldState(
             DefaultCalendar, seed, DefaultMap(seed), DefaultPopulationCatalog, DefaultPopulationRules,
             DefaultNeedsRules, DefaultActionCatalog, DefaultLifeStageRules,
-            economyRules: DefaultEconomyRules, economyCatalog: DefaultEconomyCatalog);
+            economyRules: rules, economyCatalog: DefaultEconomyCatalog);
         if (initialPopulation > 0)
         {
             PopulationSeeder.SeedInitial(world, initialPopulation, DefaultCulture, DefaultVillageLocation);
