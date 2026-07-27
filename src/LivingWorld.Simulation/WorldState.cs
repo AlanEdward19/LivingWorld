@@ -80,6 +80,28 @@ public sealed class WorldState
     /// invariante de conservação é <c>saldo_total == inicial + MoneyMinted - MoneyDestroyed</c>.</summary>
     [Canonical] public Money MoneyDestroyed => _moneyDestroyed;
 
+    private readonly Dictionary<ResourceType, long> _resourceProduced = [];
+    private readonly Dictionary<ResourceType, long> _resourceConsumed = [];
+
+    /// <summary>Contador auditável de produção bruta por recurso desde a origem do mundo (Fase 5,
+    /// T24, ECON-15) — nunca influencia decisão nenhuma (por isso <see cref="VolatileAttribute"/>,
+    /// não entra no hash canônico), só sustenta a invariante
+    /// <c>produzido == consumido + estocado + perdido</c> que os testes de conservação checam.
+    /// Incrementado por <c>ProductionSystem</c> a cada depósito bem-sucedido.</summary>
+    [Volatile] public IReadOnlyDictionary<ResourceType, long> ResourceProduced => _resourceProduced;
+
+    /// <summary>Contador auditável de consumo (destruição real do recurso, não transferência de
+    /// estoque — <c>Buy</c> move estoque entre Workplace/Household e não conta aqui) desde a
+    /// origem do mundo. Incrementado por <c>BehaviorDecisionSystem.ApplyEat</c> a cada retirada
+    /// bem-sucedida.</summary>
+    [Volatile] public IReadOnlyDictionary<ResourceType, long> ResourceConsumed => _resourceConsumed;
+
+    public void RecordResourceProduced(ResourceType resource, long amount) =>
+        _resourceProduced[resource] = _resourceProduced.GetValueOrDefault(resource) + amount;
+
+    public void RecordResourceConsumed(ResourceType resource, long amount) =>
+        _resourceConsumed[resource] = _resourceConsumed.GetValueOrDefault(resource) + amount;
+
     /// <summary>Todo NPC já existiu, vivo ou morto (Fase 3) — referência histórica não pode
     /// virar ponteiro solto (critério "nenhum evento após tick de morte referencia o NPC" exige
     /// que o NPC continue existindo para o sweep referencial provar isso).</summary>

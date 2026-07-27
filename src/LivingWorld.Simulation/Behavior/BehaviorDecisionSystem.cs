@@ -125,10 +125,19 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
         if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household) return;
 
-        if (household.Withdraw(new ResourceType(econ.FoodResourceId), 1).IsSuccess)
+        var food = new ResourceType(econ.FoodResourceId);
+        if (household.Withdraw(food, 1).IsSuccess)
+        {
             npc.SetHunger(100);
-        if (household.Withdraw(new ResourceType(econ.WaterResourceId), 1).IsSuccess)
+            world.RecordResourceConsumed(food, 1); // ECON-15: destruição real (Buy só transfere estoque, não conta aqui)
+        }
+
+        var water = new ResourceType(econ.WaterResourceId);
+        if (household.Withdraw(water, 1).IsSuccess)
+        {
             npc.SetThirst(100);
+            world.RecordResourceConsumed(water, 1);
+        }
     }
 
     /// <summary>Fase 5, T19 (ECON-09/16/17): compra 1 unidade de comida e 1 de água do mercado

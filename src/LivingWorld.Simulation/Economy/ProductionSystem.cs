@@ -58,7 +58,10 @@ public sealed class ProductionSystem : ISimulationSystem
 
         foreach (var (resourceId, perWorker) in recipe.Outputs)
         {
-            long lost = workplace.Deposit(new ResourceType(resourceId), perWorker * scale, rules);
+            var resource = new ResourceType(resourceId);
+            long produced = perWorker * scale;
+            world.RecordResourceProduced(resource, produced); // ECON-15: conta o bruto, antes do clamp de capacidade
+            long lost = workplace.Deposit(resource, produced, rules);
             if (lost > 0)
                 ctx.LogEvent(WorldEventKind.ResourceLost, $"{workplace.Id.Value}|{resourceId}|{lost}");
         }
