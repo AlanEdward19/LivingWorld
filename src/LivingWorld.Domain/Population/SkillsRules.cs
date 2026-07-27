@@ -5,6 +5,7 @@ namespace LivingWorld.Domain;
 /// único compartilhado pelas 13 habilidades, taxa-base por fonte de ganho, e o mapeamento de
 /// qual habilidade cada profissão pratica.</summary>
 public sealed record SkillsRules(
+    bool Enabled,
     double Cap,
     IReadOnlyDictionary<SkillGainSource, double> BaseRateBySource,
     IReadOnlyDictionary<int, SkillType> SkillByProfession)
@@ -12,7 +13,8 @@ public sealed record SkillsRules(
     public static Result<SkillsRules> Create(
         double cap,
         IReadOnlyDictionary<SkillGainSource, double> baseRateBySource,
-        IReadOnlyDictionary<int, SkillType> skillByProfession)
+        IReadOnlyDictionary<int, SkillType> skillByProfession,
+        bool enabled = true)
     {
         if (cap <= 0) return Result<SkillsRules>.Fail("Cap: deve ser > 0");
 
@@ -23,7 +25,7 @@ public sealed record SkillsRules(
         if (skillByProfession.Count == 0)
             return Result<SkillsRules>.Fail("SkillByProfession: não pode ser vazio");
 
-        return Result<SkillsRules>.Ok(new SkillsRules(cap, baseRateBySource, skillByProfession));
+        return Result<SkillsRules>.Ok(new SkillsRules(enabled, cap, baseRateBySource, skillByProfession));
     }
 
     /// <summary>Ganho de habilidade para a fonte <paramref name="source"/>, combinando a curva

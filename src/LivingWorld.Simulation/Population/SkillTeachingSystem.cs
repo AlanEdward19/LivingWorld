@@ -38,6 +38,8 @@ public sealed class SkillTeachingSystem : ISimulationSystem
 
     public void Tick(WorldState world, TickContext ctx)
     {
+        if (!_rules.Enabled) return; // SKILL-01: flag de teste desliga o sistema (T19)
+
         var living = world.Npcs.Where(n => n.IsAlive).OrderBy(n => n.Id.Value).ToList();
 
         foreach (var npc in living)

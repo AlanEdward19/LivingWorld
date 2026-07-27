@@ -24,6 +24,8 @@ public sealed class SkillPracticeSystem : ISimulationSystem
     /// exceção (mesmo padrão de <see cref="ProductionSystem"/> pulando Workplace sem recipe).</summary>
     public void Tick(WorldState world, TickContext ctx)
     {
+        if (!_rules.Enabled) return; // SKILL-01: flag de teste desliga o sistema (T19)
+
         foreach (var npc in world.Npcs.OrderBy(n => n.Id.Value))
         {
             if (!npc.IsAlive) continue;
