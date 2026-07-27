@@ -12,10 +12,16 @@ public enum Sex
 /// nome, só o id, mesmo padrão de <see cref="TerrainType"/>.</summary>
 public readonly record struct CultureId(int Id);
 
-/// <summary>Profissão, identificada por id vindo do cenário (task 7). Não usada por
-/// <see cref="Npc"/> na Fase 3 (out of scope — ver Fase 5/6): existe desde já para o catálogo
-/// e o teste de arquitetura não retrofitarem depois, mesmo padrão de <c>BranchId</c> (ADR-0009).</summary>
-public readonly record struct ProfessionType(int Id);
+/// <summary>Profissão, identificada por id vindo do cenário (task 7). Usada por
+/// <see cref="Npc"/> desde a Fase 4 (task 6/7) como atributo estático, sem emprego real ainda
+/// (Fase 5).</summary>
+public readonly record struct ProfessionType(int Id)
+{
+    /// <summary>Sentinela "sem profissão" (task 7) — usada quando
+    /// <c>PopulationCatalog.ProfessionIds</c> está vazio no momento do sorteio. Nunca colide
+    /// com um id de catálogo real (ids de cenário são sempre &gt;= 0).</summary>
+    public static readonly ProfessionType None = new(-1);
+}
 
 /// <summary>Tipo de local (casa, oficina...), identificado por id vindo do cenário (task 7).
 /// Mesma razão de existir cedo que <see cref="ProfessionType"/>.</summary>

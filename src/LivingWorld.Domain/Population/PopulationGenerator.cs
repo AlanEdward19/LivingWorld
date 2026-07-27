@@ -10,10 +10,6 @@ public static class PopulationGenerator
 
     private sealed record AgeBracket(int MinAge, int MaxAge, double Weight);
 
-    // SPEC_DEVIATION: placeholder até T7 sortear Personality de verdade por stream de RNG.
-    private static readonly Personality PlaceholderPersonality =
-        Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!;
-
     // Pesos da pirâmide etária: algoritmo interno, não dado de cenário (task 6 não pede
     // configuração de pirâmide — só "coerente"). Elder é limitado por MaxLongevityYears abaixo.
     private static readonly AgeBracket[] Pyramid =
@@ -26,7 +22,7 @@ public static class PopulationGenerator
 
     public static GeneratedPopulation GenerateInitial(
         WorldRng rng, WorldDate now, int count, CultureId culture, CellCoord villageLocation,
-        LifeTable lifeTable, long startingNpcId = 0, long startingHouseholdId = 0)
+        LifeTable lifeTable, PopulationCatalog catalog, long startingNpcId = 0, long startingHouseholdId = 0)
     {
         long nextNpcId = startingNpcId;
         long nextHouseholdId = startingHouseholdId;
@@ -41,13 +37,19 @@ public static class PopulationGenerator
             var sex = rng.NextDouble() < 0.5 ? Sex.Female : Sex.Male;
             var birthDate = now.AddYears(-ageYears);
             int health = ageYears >= 60 ? Math.Clamp(100 - (ageYears - 59) * 2, 40, 100) : 100;
+            var npcId = new NpcId(nextNpcId++);
 
-            // SPEC_DEVIATION: Personality/Profession abaixo são placeholders fixos — o sorteio
-            // real (RNG por stream, ProfessionType do catálogo) é escopo da T7, não desta task.
+            // Streams próprios por NPC (task 7, ADR-0005) — derivados do stream "population-init"
+            // já recebido em rng, nunca um novo WorldRng raiz. WorldRngRegistry.StableHash garante
+            // a mesma chave string→long usada por TickContext.Rng, então nascimento em runtime
+            // (NatalitySystem) e geração inicial produzem streams com a mesma convenção.
+            var personality = Personality.RollFrom(rng.Derive(WorldRngRegistry.StableHash($"personality-{npcId.Value}")));
+            var profession = catalog.RollProfession(rng.Derive(WorldRngRegistry.StableHash($"profession-{npcId.Value}")));
+
             var npc = new Npc(
-                new NpcId(nextNpcId++), $"npc-{culture.Id}-{npcs.Count}", sex, birthDate, culture, villageLocation,
+                npcId, $"npc-{culture.Id}-{npcs.Count}", sex, birthDate, culture, villageLocation,
                 motherId: null, fatherId: null, household: null, health,
-                personality: PlaceholderPersonality, profession: default, currentLocation: villageLocation);
+                personality: personality, profession: profession, currentLocation: villageLocation);
 
             npcs.Add(npc);
             (ageYears >= 18 ? adults : children).Add(npc);

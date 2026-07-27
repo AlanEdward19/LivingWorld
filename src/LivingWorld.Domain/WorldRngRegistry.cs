@@ -33,8 +33,12 @@ public sealed class WorldRngRegistry
         _streams.Select(kv => new RngStreamState(kv.Key, kv.Value.State)).ToList();
 
     /// <summary>Hash FNV-1a de 64 bits: estável entre processos, ao contrário de
-    /// <see cref="string.GetHashCode()"/>, que .NET randomiza por processo.</summary>
-    private static long StableHash(string key)
+    /// <see cref="string.GetHashCode()"/>, que .NET randomiza por processo. Exposto como
+    /// <c>internal</c> (task 7) para código Domain puro sem <see cref="WorldRngRegistry"/> à
+    /// mão (ex.: <c>PopulationGenerator</c>, que só recebe um <see cref="WorldRng"/> já
+    /// derivado) montar sub-streams nomeados a partir dele, mesma convenção de chave usada
+    /// aqui.</summary>
+    internal static long StableHash(string key)
     {
         ulong hash = 14695981039346656037UL;
         foreach (byte b in System.Text.Encoding.UTF8.GetBytes(key))

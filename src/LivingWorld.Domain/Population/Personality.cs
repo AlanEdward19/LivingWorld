@@ -36,5 +36,15 @@ public sealed record Personality(
             ambition, loyalty, altruism, impulsivity, riskAversion));
     }
 
+    /// <summary>Sorteia os 10 traços por 10 rolls independentes do stream de RNG recebido
+    /// (task 7) — cada roll é uma chamada sequencial de <see cref="WorldRng.NextDouble"/>, mesma
+    /// convenção de <c>PopulationGenerator.RollAge</c>. Sempre em faixa válida, então
+    /// <c>Create</c> nunca falha aqui.</summary>
+    public static Personality RollFrom(WorldRng rng) => Create(
+        RollTrait(rng), RollTrait(rng), RollTrait(rng), RollTrait(rng), RollTrait(rng),
+        RollTrait(rng), RollTrait(rng), RollTrait(rng), RollTrait(rng), RollTrait(rng)).Value!;
+
+    private static int RollTrait(WorldRng rng) => Math.Min((int)(rng.NextDouble() * 101), 100);
+
     private static bool IsValidTrait(int value) => value is >= 0 and <= 100;
 }

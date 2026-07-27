@@ -15,4 +15,17 @@ public sealed record PopulationCatalog(
 
     public bool IsValidLocationType(LocationType type) =>
         LocationTypeIds.Count == 0 || LocationTypeIds.Contains(type.Id);
+
+    /// <summary>Sorteio uniforme entre <see cref="ProfessionIds"/> (task 7) — ordenado antes do
+    /// sorteio, nunca por ordem de iteração do <see cref="HashSet{T}"/> (não determinístico entre
+    /// processos). Catálogo vazio retorna <see cref="ProfessionType.None"/>, nunca lança
+    /// exceção.</summary>
+    public ProfessionType RollProfession(WorldRng rng)
+    {
+        if (ProfessionIds.Count == 0) return ProfessionType.None;
+
+        var sorted = ProfessionIds.OrderBy(id => id).ToList();
+        int index = Math.Min((int)(rng.NextDouble() * sorted.Count), sorted.Count - 1);
+        return new ProfessionType(sorted[index]);
+    }
 }

@@ -9,10 +9,6 @@ public sealed class NatalitySystem : ISimulationSystem
 {
     public const string SystemName = "population-natality";
 
-    // SPEC_DEVIATION: placeholder até T7 sortear Personality de verdade por stream de RNG.
-    private static readonly Personality PlaceholderPersonality =
-        Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!;
-
     public string Name => SystemName;
     public TickFrequency Frequency => TickFrequency.Yearly;
 
@@ -53,13 +49,18 @@ public sealed class NatalitySystem : ISimulationSystem
 
         var sex = ctx.Rng($"natality-sex-{motherId.Value}-{evt.Id}").NextDouble() < 0.5 ? Sex.Female : Sex.Male;
         var father = world.FindNpc(fatherId);
-        // SPEC_DEVIATION: Personality/Profession abaixo são placeholders fixos — o sorteio real
-        // (RNG por stream, ProfessionType do catálogo) é escopo da T7, não desta task.
+        var babyId = world.NextNpcIdAndAdvance();
+
+        // Streams próprios por NPC (task 7, ADR-0005), mesma convenção de chave de
+        // MortalitySystem.SchedulePlannedDeath ($"mortality-{npc.Id.Value}").
+        var personality = Personality.RollFrom(ctx.Rng($"personality-{babyId.Value}"));
+        var profession = world.PopulationCatalog.RollProfession(ctx.Rng($"profession-{babyId.Value}"));
+
         var baby = new Npc(
-            world.NextNpcIdAndAdvance(), $"npc-{mother.Culture.Id}-child-{evt.Id}", sex, world.CurrentDate,
+            babyId, $"npc-{mother.Culture.Id}-child-{evt.Id}", sex, world.CurrentDate,
             mother.Culture, household.Location, motherId, father is { IsAlive: true } ? fatherId : null,
             household.Id, health: 100,
-            personality: PlaceholderPersonality, profession: default, currentLocation: household.Location);
+            personality: personality, profession: profession, currentLocation: household.Location);
 
         world.AddNpc(baby);
         household.AddMember(baby.Id);
