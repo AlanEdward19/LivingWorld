@@ -43,6 +43,12 @@ public sealed class Npc
     public Money Wallet { get; private set; }
     public WorkplaceId? Employer { get; private set; }
 
+    // Fase 6 (T7): habilidade, gene de taxa (imutável após nascimento, mesmo padrão de
+    // Personality) e vínculo de tutoria mestre->aprendiz.
+    public SkillSet Skills { get; private set; }
+    public RateGene RateGene { get; }
+    public NpcId? Mentor { get; private set; }
+
     /// <summary>Derivado de <see cref="DeathDate"/> — <see cref="JsonIgnoreAttribute"/> pelo
     /// mesmo motivo de <see cref="Household.IsEmpty"/>: computado, e um bool solto no snapshot
     /// quebraria o mutador genérico de teste.</summary>
@@ -57,7 +63,8 @@ public sealed class Npc
         ActionType? currentAction = null, long actionStartedAtTick = 0,
         long? hungerZeroSinceTick = null, WorldDate? homelessSince = null,
         WorldDate? pregnantUntil = null, WorldDate? deathDate = null,
-        Money wallet = default, WorkplaceId? employer = null)
+        Money wallet = default, WorkplaceId? employer = null,
+        SkillSet? skills = null, RateGene? rateGene = null, NpcId? mentor = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -91,6 +98,9 @@ public sealed class Npc
         DeathDate = deathDate;
         Wallet = wallet;
         Employer = employer;
+        Skills = skills ?? SkillSet.Initial(0);
+        RateGene = rateGene ?? new RateGene(1.0);
+        Mentor = mentor;
     }
 
     /// <summary>Idade derivada de <paramref name="now"/> — nunca incrementada por sistema
@@ -182,4 +192,17 @@ public sealed class Npc
 
     /// <summary>Desliga o vínculo (ECON-19) — espelha <see cref="LeaveHousehold"/>.</summary>
     public void Fire() => Employer = null;
+
+    /// <summary>Troca de profissão (SKILL-14) — muda apenas <see cref="Profession"/>; nunca
+    /// toca <see cref="Skills"/>. Estagnação da habilidade antiga é ausência de ganho (ela só
+    /// para de subir por prática porque deixa de ser a profissão corrente), não um reset nem um
+    /// campo novo de "profissão antiga" (Tech Decision do design).</summary>
+    public void SwitchProfession(ProfessionType newProfession) => Profession = newProfession;
+
+    /// <summary>Vínculo de tutoria mestre->aprendiz (SKILL-08) — espelha <see cref="JoinHousehold"/>.</summary>
+    public void AssignMentor(NpcId mentor) => Mentor = mentor;
+
+    /// <summary>Encerra o vínculo de tutoria — espelha <see cref="LeaveHousehold"/> (Edge Case:
+    /// mestre morto no meio da tutoria, sem ponteiro solto).</summary>
+    public void ClearMentor() => Mentor = null;
 }
