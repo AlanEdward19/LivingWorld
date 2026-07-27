@@ -57,27 +57,15 @@ public sealed class Workplace
     /// <summary>Soma até o limite de <see cref="EconomyRules.CapacityOf"/>; devolve as unidades
     /// perdidas por excesso de capacidade (ECON-02) — nunca descartadas em silêncio, o chamador
     /// é quem decide registrar a perda como evento.</summary>
-    public long Deposit(ResourceType resource, long amount, EconomyRules rules)
-    {
-        long current = _stock.GetValueOrDefault(resource);
-        long capacity = rules.CapacityOf(resource, LocationType);
-        long total = current + amount;
-        long accepted = Math.Min(total, capacity);
-
-        _stock[resource] = accepted;
-        return total - accepted;
-    }
+    public long Deposit(ResourceType resource, long amount, EconomyRules rules) =>
+        ResourceStock.Deposit(_stock, resource, amount, rules.CapacityOf(resource, LocationType));
 
     /// <summary>Falha sem mutar o estoque quando insuficiente — nunca fica negativo.</summary>
-    public Result<long> Withdraw(ResourceType resource, long amount)
-    {
-        long current = _stock.GetValueOrDefault(resource);
-        if (amount > current)
-            return Result<long>.Fail($"Stock[{resource}]: insuficiente");
+    public Result<long> Withdraw(ResourceType resource, long amount) => ResourceStock.Withdraw(_stock, resource, amount);
 
-        _stock[resource] = current - amount;
-        return Result<long>.Ok(amount);
-    }
+    /// <summary>Recalculado pelo <c>MarketPricingSystem</c> (T16) — só relevante quando este
+    /// <see cref="Workplace"/> é mercado (<see cref="EconomyCatalog.MarketLocationTypeIds"/>).</summary>
+    public void SetPrice(ResourceType resource, long price) => _prices[resource] = price;
 
     public void CreditTreasury(Money amount) => Treasury += amount;
 
