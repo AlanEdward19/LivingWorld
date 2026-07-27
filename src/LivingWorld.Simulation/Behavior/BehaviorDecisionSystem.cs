@@ -45,7 +45,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             var routineAction = catalog.RoutineOf(NoneIfSentinel(npc.Profession), stage, world.CurrentDate.Hour);
 
             var candidate = npc.HasUrgentNeed(rules)
-                ? SelectByUtility(npc, rules, continuityAction)
+                ? SelectByUtility(world, npc, rules, continuityAction)
                 : routineAction;
 
             // NEEDS-14: ação vencedora que exige outro local (hoje, só Sleep) vira Travel até lá;
@@ -67,7 +67,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     {
         if (npc.CurrentAction is not { } action) return false;
 
-        if (action == ActionType.Travel && SleepDestinationOf(world, npc) is { } destination && destination != npc.CurrentLocation)
+        if (action == ActionType.Travel && TravelDestinationOf(world, npc) is { } destination && destination != npc.CurrentLocation)
         {
             long ticksNeeded = TravelResolution.TicksBetween(world.Map, npc.CurrentLocation, destination);
             if (now - npc.ActionStartedAtTick < ticksNeeded) return false; // ainda em trânsito
@@ -78,22 +78,24 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
         if (now - npc.ActionStartedAtTick < catalog.MaxDurationHours[action]) return false;
 
-        ApplyActionEffect(npc, rules, action);
+        ApplyActionEffect(world, npc, rules, action);
         return true;
     }
 
-    /// <summary>Eat restaura fome e sede (sem ação de "beber" dedicada, ver <see cref="UtilityBaseOf"/>);
-    /// Socialize restaura o mínimo social. Sleep restaura sono pra 100, ou, sem-teto
-    /// (<see cref="Npc.HomelessSince"/> não nulo), pra <see cref="NeedsRules.HomelessSleepEfficiency"/>
-    /// × 100 (NEEDS-15) — nunca lança exceção por falta de residência. Work/Travel/Idle não
-    /// restauram necessidade nenhuma, só concluem e liberam o NPC.</summary>
-    private static void ApplyActionEffect(Npc npc, NeedsRules rules, ActionType action)
+    /// <summary>Eat retira comida/água do estoque do <see cref="Household"/> antes de restaurar
+    /// (Fase 5, T18/ECON-16/17) — sem economia habilitada (<see cref="EconomyRules.Enabled"/>
+    /// falso, comportamento da Fase 4 preservado) ou sem <see cref="Household"/>/estoque
+    /// suficiente, a necessidade correspondente não é saciada, sem exceção. Socialize restaura o
+    /// mínimo social. Sleep restaura sono pra 100, ou, sem-teto (<see cref="Npc.HomelessSince"/>
+    /// não nulo), pra <see cref="NeedsRules.HomelessSleepEfficiency"/> × 100 (NEEDS-15) — nunca
+    /// lança exceção por falta de residência. Work/Travel/Idle/Buy não restauram necessidade
+    /// nenhuma, só concluem e liberam o NPC.</summary>
+    private static void ApplyActionEffect(WorldState world, Npc npc, NeedsRules rules, ActionType action)
     {
         switch (action)
         {
             case ActionType.Eat:
-                npc.SetHunger(100);
-                npc.SetThirst(100);
+                ApplyEat(world, npc);
                 break;
             case ActionType.Sleep:
                 npc.SetSleep(npc.HomelessSince is null ? 100 : (int)(100 * rules.HomelessSleepEfficiency));
@@ -101,26 +103,107 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             case ActionType.Socialize:
                 npc.SetSocial(100);
                 break;
+            case ActionType.Buy:
+                ApplyBuy(world, npc);
+                break;
         }
     }
 
-    /// <summary>NEEDS-14: se a ação candidata for <c>Sleep</c> e exigir um local diferente do
-    /// atual (residência existe e não é onde o NPC está), a ação efetiva do tick vira
-    /// <c>Travel</c> — sem-teto (<see cref="SleepDestinationOf"/> retorna <c>null</c>) nunca
-    /// precisa viajar pra dormir (NEEDS-15).</summary>
-    private static ActionType RefineForLocation(WorldState world, Npc npc, ActionType candidate)
+    /// <summary>ECON-16/17: sem economia habilitada, restaura ambas (comportamento da Fase 4,
+    /// sem estoque nenhum envolvido). Com economia, cada necessidade só é saciada se o
+    /// <see cref="Household"/> tiver o recurso correspondente — sem residência (sem-teto) ou sem
+    /// estoque, a necessidade fica como estava, sem exceção.</summary>
+    private static void ApplyEat(WorldState world, Npc npc)
     {
-        if (candidate != ActionType.Sleep) return candidate;
-        return SleepDestinationOf(world, npc) is { } destination && destination != npc.CurrentLocation
-            ? ActionType.Travel
-            : candidate;
+        var econ = world.EconomyRules;
+        if (!econ.Enabled)
+        {
+            npc.SetHunger(100);
+            npc.SetThirst(100);
+            return;
+        }
+
+        if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household) return;
+
+        if (household.Withdraw(new ResourceType(econ.FoodResourceId), 1).IsSuccess)
+            npc.SetHunger(100);
+        if (household.Withdraw(new ResourceType(econ.WaterResourceId), 1).IsSuccess)
+            npc.SetThirst(100);
     }
+
+    /// <summary>Fase 5, T19 (ECON-09/16/17): compra 1 unidade de comida e 1 de água do mercado
+    /// mais próximo — computa cada transação sobre <see cref="TransactionContext"/> imutável
+    /// (design.md Tech Decisions) e só então comita nos objetos reais (<see cref="Npc.Wallet"/>,
+    /// <see cref="Workplace.Treasury"/>/estoque, <see cref="Household"/>.Stock), na mesma
+    /// passada que <see cref="MarketTransaction.Execute"/> já validou. Falha de saldo/estoque em
+    /// qualquer um dos dois recursos não afeta o outro — cada compra é sua própria transação.</summary>
+    private static void ApplyBuy(WorldState world, Npc npc)
+    {
+        if (!world.EconomyRules.Enabled) return;
+        var market = NearestMarket(world, npc.CurrentLocation);
+        if (market is null) return;
+        if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household) return;
+
+        var econ = world.EconomyRules;
+        foreach (var resourceId in new[] { econ.FoodResourceId, econ.WaterResourceId })
+        {
+            var resource = new ResourceType(resourceId);
+            if (!market.Prices.TryGetValue(resource, out var unitPrice) || unitPrice <= 0) continue;
+
+            const long quantity = 1;
+            var ctx = new TransactionContext(
+                npc.Wallet, market.Treasury, market.Stock.GetValueOrDefault(resource),
+                household.Stock.GetValueOrDefault(resource), resource, unitPrice, quantity);
+
+            if (!MarketTransaction.Execute(ctx).IsSuccess) continue; // saldo ou estoque insuficiente — sem efeito
+
+            var price = new Money(unitPrice * quantity);
+            npc.TryDebitWallet(price);
+            market.Withdraw(resource, quantity);
+            market.CreditTreasury(price);
+            household.Deposit(resource, quantity);
+        }
+    }
+
+    /// <summary>NEEDS-14 (Sleep) + Fase 5 T19 (Buy): se a ação candidata exige outro local (Sleep
+    /// → residência; Buy → mercado mais próximo), a ação efetiva do tick vira <c>Travel</c> —
+    /// sem-teto/sem mercado (destino <c>null</c>) nunca precisa viajar.</summary>
+    private static ActionType RefineForLocation(WorldState world, Npc npc, ActionType candidate) => candidate switch
+    {
+        ActionType.Sleep when SleepDestinationOf(world, npc) is { } dest && dest != npc.CurrentLocation => ActionType.Travel,
+        ActionType.Buy when BuyDestinationOf(world, npc) is { } dest && dest != npc.CurrentLocation => ActionType.Travel,
+        _ => candidate,
+    };
 
     /// <summary>Local onde o NPC dorme de fato: <see cref="Household"/>.Location se tiver
     /// residência; <c>null</c> se sem-teto (dorme onde está, sem viagem — Tech Decision:
     /// Residence reusa <see cref="Npc.Household"/>, nenhum campo novo).</summary>
     private static CellCoord? SleepDestinationOf(WorldState world, Npc npc) =>
         npc.Household is { } householdId ? world.FindHousehold(householdId)?.Location : null;
+
+    /// <summary>Local do mercado (<see cref="Workplace"/> com <see cref="LocationType"/> em
+    /// <see cref="EconomyCatalog.MarketLocationTypeIds"/>) mais próximo do NPC; <c>null</c> se
+    /// nenhum mercado existe no cenário.</summary>
+    private static CellCoord? BuyDestinationOf(WorldState world, Npc npc) => NearestMarket(world, npc.CurrentLocation)?.Location;
+
+    /// <summary>SPEC_DEVIATION: durante o trânsito (<c>ActionType.Travel</c> em andamento),
+    /// <see cref="TryCompleteAction"/> só sabe re-derivar o destino a partir do estado atual do
+    /// NPC (não guarda "por que" começou a viajar) — checa Sleep primeiro, depois Buy. As duas
+    /// únicas ações com exigência de local nesta fase raramente coincidem no mesmo NPC no mesmo
+    /// tick (uma é rotina noturna, a outra é urgência de fome/sede); se um dia coincidirem, Sleep
+    /// tem prioridade — mesmo compromisso que o design.md aceitou pra não introduzir um campo
+    /// novo só pra lembrar o propósito da viagem.</summary>
+    private static CellCoord? TravelDestinationOf(WorldState world, Npc npc) =>
+        SleepDestinationOf(world, npc) is { } sleepDest && sleepDest != npc.CurrentLocation
+            ? sleepDest
+            : BuyDestinationOf(world, npc);
+
+    private static Workplace? NearestMarket(WorldState world, CellCoord from) =>
+        world.Workplaces
+            .Where(w => world.EconomyCatalog.MarketLocationTypeIds.Contains(w.LocationType.Id))
+            .OrderBy(w => TravelResolution.TicksBetween(world.Map, from, w.Location))
+            .ThenBy(w => w.Id.Value)
+            .FirstOrDefault();
 
     /// <summary>Ordena as 6 ações candidatas por nota (<c>utilidadeBase × pesoPersonalidade</c>,
     /// NEEDS-06); empate exato desempata por menor <c>ActionId</c> — <c>Enum.GetValues</c> já
@@ -129,14 +212,14 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     /// ação corrente ganha <see cref="NeedsRules.ContinuityBonus"/> antes da comparação quando
     /// <see cref="NeedsRules.HysteresisEnabled"/> — só troca se algum desafiante superar essa
     /// nota efetiva.</summary>
-    private static ActionType SelectByUtility(Npc npc, NeedsRules rules, ActionType? continuityAction)
+    private static ActionType SelectByUtility(WorldState world, Npc npc, NeedsRules rules, ActionType? continuityAction)
     {
         var best = ActionType.Eat;
         double bestScore = double.NegativeInfinity;
 
         foreach (var action in AllActions)
         {
-            double score = UtilityBaseOf(action, npc) * PersonalityWeighting.WeightOf(npc.Personality, action);
+            double score = UtilityBaseOf(world, action, npc) * PersonalityWeighting.WeightOf(npc.Personality, action);
             if (rules.HysteresisEnabled && continuityAction == action)
                 score += rules.ContinuityBonus;
 
@@ -153,19 +236,33 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     /// <summary>Eat cobre fome e sede (a fase não tem ação de "beber" dedicada — catálogo
     /// fechado em 6 ações — então o déficit mais urgente entre as duas rege a nota de Eat).
     /// Work/Travel/Idle usam a mesma utilidade base fixa (<see cref="NonNeedBaselineUtility"/>):
-    /// nenhuma necessidade modelada os direciona, só personalidade os distingue entre si.</summary>
-    private static double UtilityBaseOf(ActionType action, Npc npc) => action switch
+    /// nenhuma necessidade modelada os direciona, só personalidade os distingue entre si. Buy
+    /// (Fase 5, T19) cresce com o déficit de fome/sede do próprio NPC, mas só quando o
+    /// <see cref="Household"/> de fato não tem o recurso em estoque — comprar sem necessidade real
+    /// (despensa cheia) não é mais atrativo que a rotina.</summary>
+    private static double UtilityBaseOf(WorldState world, ActionType action, Npc npc) => action switch
     {
         ActionType.Eat => Math.Max(Deficit(npc.Hunger), Deficit(npc.Thirst)),
         ActionType.Sleep => Deficit(npc.Sleep),
         ActionType.Socialize => Deficit(npc.Social),
-        // SPEC_DEVIATION: Buy usa a mesma utilidade base fixa de Work/Travel/Idle por enquanto.
-        // Reason: T6 (Fase 5) só introduz o valor do enum; a nota real por déficit de
-        // comida/água (design.md) é responsabilidade de T19, ainda fora do escopo desta fase 1.
-        // Sem este caso, o switch exaustivo lançaria pra todo NPC vivo assim que Buy existisse.
-        ActionType.Work or ActionType.Travel or ActionType.Idle or ActionType.Buy => NonNeedBaselineUtility,
+        ActionType.Buy => BuyUtilityOf(world, npc),
+        ActionType.Work or ActionType.Travel or ActionType.Idle => NonNeedBaselineUtility,
         _ => throw new ArgumentOutOfRangeException(nameof(action), action, "ActionType desconhecido"),
     };
+
+    private static double BuyUtilityOf(WorldState world, Npc npc)
+    {
+        if (!world.EconomyRules.Enabled) return NonNeedBaselineUtility;
+        if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household)
+            return NonNeedBaselineUtility; // sem-teto: sem despensa pra repor, T19 não cobre compra sem-teto
+
+        var econ = world.EconomyRules;
+        bool needsFood = household.Stock.GetValueOrDefault(new ResourceType(econ.FoodResourceId)) < 1;
+        bool needsWater = household.Stock.GetValueOrDefault(new ResourceType(econ.WaterResourceId)) < 1;
+        if (!needsFood && !needsWater) return NonNeedBaselineUtility;
+
+        return Math.Max(needsFood ? Deficit(npc.Hunger) : 0, needsWater ? Deficit(npc.Thirst) : 0);
+    }
 
     private static int Deficit(int need) => 100 - need;
 

@@ -9,8 +9,13 @@ public class WorldSnapshotTests
     // Fase 5 (T12): EconomyRules/EconomyCatalog/Workplaces não podem ficar vazios na fixture —
     // mesmo motivo do RngStream/PendingEvent forçados abaixo, e do resto do arquivo: uma coleção
     // vazia não tem folha primitiva pro mutador genérico de teste perturbar.
+    // Enabled falso de propósito: ligar a economia nesta fixture genérica (sem estoque de
+    // Household, sem ProductionSystem cablado ainda) faz Eat nunca restaurar e mata a população
+    // inteira em ~50h (HungerDecayPerHour=2.0) — Households acaba vazio, quebra este e outros
+    // testes deste arquivo. As demais fases da economia (T14-T22) usam suas próprias fixtures
+    // pequenas, isoladas; esta aqui só precisa dos campos [Canonical] não-vazios.
     private static readonly EconomyRules SampleEconomyRules = EconomyRules.Create(
-        enabled: true, foodResourceId: 1, waterResourceId: 2,
+        enabled: false, foodResourceId: 1, waterResourceId: 2,
         capacityByResourceLocation: new Dictionary<(int, int), long> { [(1, 1)] = 100 },
         spoilagePerDayByResource: new Dictionary<int, double> { [1] = 0.1 },
         wageByProfession: new Dictionary<int, long> { [1] = 10 },

@@ -21,7 +21,15 @@ public sealed class Household
     [JsonIgnore]
     public bool IsEmpty => _members.Count == 0;
 
-    public Household(HouseholdId id, CellCoord location, NpcId head, IReadOnlyList<NpcId> members)
+    // Fase 5 (T18): estoque de comida/água da residência — de onde Eat retira antes de restaurar
+    // Hunger/Thirst. Sem capacidade declarada (EconomyRules só declara capacidade por
+    // (ResourceType, LocationType) de Workplace, T4) — residência não tem teto nesta fase.
+    private readonly Dictionary<ResourceType, long> _stock;
+    public IReadOnlyDictionary<ResourceType, long> Stock => _stock;
+
+    public Household(
+        HouseholdId id, CellCoord location, NpcId head, IReadOnlyList<NpcId> members,
+        IReadOnlyDictionary<ResourceType, long>? stock = null)
     {
         if (!members.Contains(head))
             throw new ArgumentException("Head precisa estar entre os Members", nameof(head));
@@ -29,7 +37,14 @@ public sealed class Household
         Location = location;
         Head = head;
         _members = members.ToList();
+        _stock = new Dictionary<ResourceType, long>(stock ?? new Dictionary<ResourceType, long>());
     }
+
+    /// <summary>Sem capacidade declarada nesta fase — devolve sempre 0 de perda
+    /// (<see cref="ResourceStock.Deposit"/> com capacidade ilimitada).</summary>
+    public long Deposit(ResourceType resource, long amount) => ResourceStock.Deposit(_stock, resource, amount, long.MaxValue);
+
+    public Result<long> Withdraw(ResourceType resource, long amount) => ResourceStock.Withdraw(_stock, resource, amount);
 
     public void AddMember(NpcId npc)
     {
