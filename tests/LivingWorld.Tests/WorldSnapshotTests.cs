@@ -6,9 +6,40 @@ namespace LivingWorld.Tests;
 
 public class WorldSnapshotTests
 {
+    // Fase 5 (T12): EconomyRules/EconomyCatalog/Workplaces não podem ficar vazios na fixture —
+    // mesmo motivo do RngStream/PendingEvent forçados abaixo, e do resto do arquivo: uma coleção
+    // vazia não tem folha primitiva pro mutador genérico de teste perturbar.
+    private static readonly EconomyRules SampleEconomyRules = EconomyRules.Create(
+        enabled: true, foodResourceId: 1, waterResourceId: 2,
+        capacityByResourceLocation: new Dictionary<(int, int), long> { [(1, 1)] = 100 },
+        spoilagePerDayByResource: new Dictionary<int, double> { [1] = 0.1 },
+        wageByProfession: new Dictionary<int, long> { [1] = 10 },
+        priceFloor: new Dictionary<int, long> { [1] = 1 },
+        priceCeiling: new Dictionary<int, long> { [1] = 100 },
+        priceSensitivity: 0.5,
+        demandBaselinePerNpc: new Dictionary<int, double> { [1] = 1.0 }).Value!;
+
+    private static readonly EconomyCatalog SampleEconomyCatalog = new(
+        new Dictionary<int, ProductionRecipe>
+        {
+            [1] = ProductionRecipe.Create(new Dictionary<int, long>(), new Dictionary<int, long> { [1] = 1 }, null, 1).Value!,
+        },
+        [1],
+        new Dictionary<int, int> { [1] = 1 });
+
     private static WorldState BuiltWorld()
     {
-        var (world, clock) = ScenarioRunner.Create(seed: 42);
+        var world = new WorldState(
+            ScenarioRunner.DefaultCalendar, 42, ScenarioRunner.DefaultMap(42), ScenarioRunner.DefaultPopulationCatalog,
+            ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
+            ScenarioRunner.DefaultLifeStageRules, economyRules: SampleEconomyRules, economyCatalog: SampleEconomyCatalog);
+        PopulationSeeder.SeedInitial(world, ScenarioRunner.DefaultInitialPopulation, ScenarioRunner.DefaultCulture, ScenarioRunner.DefaultVillageLocation);
+        world.AddWorkplace(new Workplace(
+            world.NextWorkplaceIdAndAdvance(), new LocationType(1), ScenarioRunner.DefaultVillageLocation, maxVacancies: 1,
+            employees: [], stock: new Dictionary<ResourceType, long> { [new ResourceType(1)] = 5 }, treasury: new Money(10),
+            prices: new Dictionary<ResourceType, long> { [new ResourceType(1)] = 2 }));
+
+        var clock = new WorldClock(ScenarioRunner.DefaultSystems());
         clock.Run(world, ticks: 400); // atravessa fronteira de dia/mês, gera streams e eventos
         // força ao menos um evento pendente e um stream de RNG usado, para o snapshot não ficar vazio
         var ctx = new TickContext(world, world.Rng, world.Scheduler);
@@ -86,9 +117,11 @@ public class WorldSnapshotTests
     // descartaria sem efeito nenhum sobre o mundo reconstruído.
     private static JsonNode Mutate(JsonNode node) => node switch
     {
+        JsonValue v when v.TryGetValue<bool>(out var b) => JsonValue.Create(!b),
         JsonValue v when v.TryGetValue<long>(out var l) => JsonValue.Create(l + 1),
         JsonValue v when v.TryGetValue<ulong>(out var ul) => JsonValue.Create(ul + 1),
         JsonValue v when v.TryGetValue<int>(out var i) => JsonValue.Create(i + 1),
+        JsonValue v when v.TryGetValue<double>(out var d) => JsonValue.Create(d + 1),
         JsonValue v when v.TryGetValue<string>(out var s) => JsonValue.Create(s + "_mut"),
         JsonArray { Count: > 0 } arr => MutateFirstElement(arr),
         JsonArray arr => AppendSentinel(arr),

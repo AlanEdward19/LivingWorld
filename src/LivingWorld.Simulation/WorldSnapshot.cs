@@ -17,7 +17,7 @@ public static class WorldSnapshot
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
-        Converters = { new JsonStringEnumConverter() },
+        Converters = { new JsonStringEnumConverter(), new ResourceTypeKeyConverter(), new ResourceLocationKeyConverter() },
         PropertyNameCaseInsensitive = true,
     };
 
@@ -58,11 +58,18 @@ public static class WorldSnapshot
         var nextNpcId = node["NextNpcId"]!.GetValue<long>();
         var nextHouseholdId = node["NextHouseholdId"]!.GetValue<long>();
         var branchId = new BranchId(node["BranchId"]!["Value"]!.GetValue<long>());
+        var moneyMinted = new Money(node["MoneyMinted"]!["Amount"]!.GetValue<long>());
+        var moneyDestroyed = new Money(node["MoneyDestroyed"]!["Amount"]!.GetValue<long>());
+        var economyRules = node["EconomyRules"].Deserialize<EconomyRules>(JsonOptions)!;
+        var economyCatalog = node["EconomyCatalog"].Deserialize<EconomyCatalog>(JsonOptions)!;
+        var workplaces = node["Workplaces"].Deserialize<List<Workplace>>(JsonOptions)!;
+        var nextWorkplaceId = node["NextWorkplaceId"]!.GetValue<long>();
 
         return new WorldState(
             calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
             lifeStageRules, rngStreams, pendingEvents, nextEventId, exampleCounts, npcs, households, nextNpcId,
-            nextHouseholdId, branchId);
+            nextHouseholdId, branchId, moneyMinted, moneyDestroyed, economyRules, economyCatalog, workplaces,
+            nextWorkplaceId);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)
