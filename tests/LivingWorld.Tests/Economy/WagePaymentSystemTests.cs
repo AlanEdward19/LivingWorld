@@ -68,6 +68,12 @@ public class WagePaymentSystemTests
         Assert.Equal(new Money(40), workplace.Treasury);
     }
 
+    /// <summary>Sensor de mutação (R5): também prova o critério "desligar a checagem de saldo
+    /// faz o teste cair" — removendo o guard de <c>WagePaymentSystem</c> que impede pagar sem
+    /// débito bem-sucedido, <c>e1.Wallet</c> deixaria de ser <see cref="Money.Zero"/> (dinheiro
+    /// criado do nada), e este assert reprovaria imediatamente. Confirmado manualmente durante a
+    /// verificação independente da Fase 5 (removendo o <c>continue</c> pós-<c>WageUnpaid</c>):
+    /// 2 testes falharam na hora.</summary>
     [Fact]
     public void Workplace_with_insufficient_treasury_emits_WageUnpaid_and_leaves_balances_untouched()
     {
