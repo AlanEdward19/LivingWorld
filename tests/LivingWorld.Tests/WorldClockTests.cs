@@ -12,7 +12,8 @@ public class WorldClockTests
         var calendar = new WorldCalendar(HoursPerDay: 1, DaysPerMonth: 73, MonthsPerYear: 5);
         var world = new WorldState(
             calendar, seed: 1, ScenarioRunner.DefaultMap(1), ScenarioRunner.DefaultPopulationCatalog,
-            ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog);
+            ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
+            ScenarioRunner.DefaultLifeStageRules);
         var systems = new ISimulationSystem[]
         {
             new ExampleCounterSystem(TickFrequency.Daily),
@@ -42,7 +43,8 @@ public class WorldClockTests
         var calendar = new WorldCalendar(HoursPerDay: 24, DaysPerMonth: 30, MonthsPerYear: 12);
         var world = new WorldState(
             calendar, seed: 1, ScenarioRunner.DefaultMap(1), ScenarioRunner.DefaultPopulationCatalog,
-            ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog);
+            ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
+            ScenarioRunner.DefaultLifeStageRules);
         var systems = new ISimulationSystem[]
         {
             new RecordingSystem("second", TickFrequency.Hourly, order),
@@ -61,7 +63,8 @@ public class WorldClockTests
         var calendar = new WorldCalendar(HoursPerDay: 24, DaysPerMonth: 30, MonthsPerYear: 12);
         var world = new WorldState(
             calendar, seed: 1, ScenarioRunner.DefaultMap(1), ScenarioRunner.DefaultPopulationCatalog,
-            ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog);
+            ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
+            ScenarioRunner.DefaultLifeStageRules);
         var fired = new List<long>();
         var scheduler = new SelfSchedulingSystem(targetTick: 5, fired, rescheduleForever: false);
         var clock = new WorldClock([scheduler]);
@@ -77,7 +80,8 @@ public class WorldClockTests
         var calendar = new WorldCalendar(HoursPerDay: 24, DaysPerMonth: 30, MonthsPerYear: 12);
         var world = new WorldState(
             calendar, seed: 1, ScenarioRunner.DefaultMap(1), ScenarioRunner.DefaultPopulationCatalog,
-            ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog);
+            ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
+            ScenarioRunner.DefaultLifeStageRules);
         var fired = new List<long>();
         var system = new SelfSchedulingSystem(targetTick: 1, fired, rescheduleForever: true);
         var clock = new WorldClock([system], maxIterationsPerTick: 10);

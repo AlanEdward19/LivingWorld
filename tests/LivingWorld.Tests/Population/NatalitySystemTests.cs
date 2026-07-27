@@ -25,7 +25,8 @@ public class NatalitySystemTests
     {
         var map = ScenarioRunner.DefaultMap(seed);
         var world = new WorldState(
-            Calendar, seed, map, catalog, Rules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog);
+            Calendar, seed, map, catalog, Rules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
+            ScenarioRunner.DefaultLifeStageRules);
         var location = new CellCoord(1, 1);
 
         var mother = new Npc(

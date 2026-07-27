@@ -23,7 +23,8 @@ public static class ScenarioLoader
         // existe mas a integração com ScenarioLoader é escopo de fase futura) — usa os defaults por ora.
         var world = new WorldState(
             ScenarioRunner.DefaultCalendar, mapResult.Value!.Seed, mapResult.Value!,
-            population.Catalog, population.Rules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog);
+            population.Catalog, population.Rules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
+            ScenarioRunner.DefaultLifeStageRules);
 
         if (population.InitialPopulation > 0)
             PopulationSeeder.SeedInitial(world, population.InitialPopulation, population.Culture, population.Village);

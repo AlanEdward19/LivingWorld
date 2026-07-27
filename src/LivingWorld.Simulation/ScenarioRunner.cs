@@ -68,6 +68,10 @@ public static class ScenarioRunner
         continuityBonus: 5.0, homelessSleepEfficiency: 0.5)
         .Value ?? throw new InvalidOperationException("needs rules default inválida — bug no cenário, não no gerador");
 
+    // Valores mínimos/razoáveis (task 12) — conteúdo real do cenário medieval é escopo da task 15.
+    public static readonly LifeStageRules DefaultLifeStageRules = LifeStageRules.Create(childMaxAge: 14, adultMaxAge: 64)
+        .Value ?? throw new InvalidOperationException("life stage rules default inválida — bug no cenário, não no gerador");
+
     public static readonly ActionCatalog DefaultActionCatalog = ActionCatalog.Create(
         maxDurationHours: new Dictionary<ActionType, int>
         {
@@ -87,7 +91,7 @@ public static class ScenarioRunner
     {
         var world = new WorldState(
             DefaultCalendar, seed, DefaultMap(seed), DefaultPopulationCatalog, DefaultPopulationRules,
-            DefaultNeedsRules, DefaultActionCatalog);
+            DefaultNeedsRules, DefaultActionCatalog, DefaultLifeStageRules);
         if (initialPopulation > 0)
             PopulationSeeder.SeedInitial(world, initialPopulation, DefaultCulture, DefaultVillageLocation);
 

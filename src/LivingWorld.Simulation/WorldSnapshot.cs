@@ -48,6 +48,7 @@ public static class WorldSnapshot
         var populationRules = node["PopulationRules"].Deserialize<PopulationRules>(JsonOptions)!;
         var needsRules = node["NeedsRules"].Deserialize<NeedsRules>(JsonOptions)!;
         var actionCatalog = node["ActionCatalog"].Deserialize<ActionCatalog>(JsonOptions)!;
+        var lifeStageRules = node["LifeStageRules"].Deserialize<LifeStageRules>(JsonOptions)!;
         var rngStreams = node["RngStreams"].Deserialize<List<RngStreamState>>(JsonOptions)!;
         var pendingEvents = node["PendingEvents"].Deserialize<List<ScheduledEvent>>(JsonOptions)!;
         var nextEventId = node["NextEventId"]!.GetValue<long>();
@@ -60,8 +61,8 @@ public static class WorldSnapshot
 
         return new WorldState(
             calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
-            rngStreams, pendingEvents, nextEventId, exampleCounts, npcs, households, nextNpcId, nextHouseholdId,
-            branchId);
+            lifeStageRules, rngStreams, pendingEvents, nextEventId, exampleCounts, npcs, households, nextNpcId,
+            nextHouseholdId, branchId);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)

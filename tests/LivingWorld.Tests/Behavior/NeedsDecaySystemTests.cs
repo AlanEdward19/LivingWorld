@@ -26,7 +26,7 @@ public class NeedsDecaySystemTests
         var map = ScenarioRunner.DefaultMap(seed);
         var world = new WorldState(
             Calendar, seed, map, ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
-            rules, ScenarioRunner.DefaultActionCatalog);
+            rules, ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules);
         var location = new CellCoord(1, 1);
 
         var npc = new Npc(

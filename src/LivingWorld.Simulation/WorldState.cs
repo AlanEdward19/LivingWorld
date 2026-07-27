@@ -49,6 +49,11 @@ public sealed class WorldState
     /// <summary>Catálogo de ações e rotina diária do cenário (Fase 4, task 2/9).</summary>
     [Canonical] public ActionCatalog ActionCatalog { get; }
 
+    /// <summary>Limiares de idade que resolvem <see cref="LifeStage"/> do cenário (Fase 4, task
+    /// 3/12) — nunca hardcoded (R3). Necessário para a rotina diária (<see cref="BehaviorDecisionSystem"/>)
+    /// resolver `(Profession, LifeStage, hora)`.</summary>
+    [Canonical] public LifeStageRules LifeStageRules { get; }
+
     private readonly List<Npc> _npcs;
     private readonly Dictionary<NpcId, Npc> _npcById;
     private readonly List<Household> _households;
@@ -84,7 +89,7 @@ public sealed class WorldState
     public WorldState(
         WorldCalendar calendar, ulong seed, WorldMap map,
         PopulationCatalog populationCatalog, PopulationRules populationRules,
-        NeedsRules needsRules, ActionCatalog actionCatalog, BranchId branchId = default)
+        NeedsRules needsRules, ActionCatalog actionCatalog, LifeStageRules lifeStageRules, BranchId branchId = default)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -94,6 +99,7 @@ public sealed class WorldState
         PopulationRules = populationRules;
         NeedsRules = needsRules;
         ActionCatalog = actionCatalog;
+        LifeStageRules = lifeStageRules;
         BranchId = branchId;
         _rng = new WorldRngRegistry(seed);
         _scheduler = new EventScheduler();
@@ -113,6 +119,7 @@ public sealed class WorldState
         PopulationRules populationRules,
         NeedsRules needsRules,
         ActionCatalog actionCatalog,
+        LifeStageRules lifeStageRules,
         IReadOnlyList<RngStreamState> rngStreams,
         IReadOnlyList<ScheduledEvent> pendingEvents,
         long nextEventId,
@@ -131,6 +138,7 @@ public sealed class WorldState
         PopulationRules = populationRules;
         NeedsRules = needsRules;
         ActionCatalog = actionCatalog;
+        LifeStageRules = lifeStageRules;
         BranchId = branchId;
         _rng = new WorldRngRegistry(seed, rngStreams);
         _scheduler = new EventScheduler(pendingEvents);
