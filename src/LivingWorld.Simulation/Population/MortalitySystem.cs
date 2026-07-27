@@ -37,7 +37,7 @@ public sealed class MortalitySystem : ISimulationSystem
                 // (sweep referencial, task 12).
                 foreach (var member in world.Npcs)
                     if (member.Household == householdId)
-                        member.LeaveHousehold();
+                        member.LeaveHousehold(world.CurrentDate);
             }
         }
     }

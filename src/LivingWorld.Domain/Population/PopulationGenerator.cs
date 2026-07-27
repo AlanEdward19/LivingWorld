@@ -10,6 +10,10 @@ public static class PopulationGenerator
 
     private sealed record AgeBracket(int MinAge, int MaxAge, double Weight);
 
+    // SPEC_DEVIATION: placeholder até T7 sortear Personality de verdade por stream de RNG.
+    private static readonly Personality PlaceholderPersonality =
+        Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!;
+
     // Pesos da pirâmide etária: algoritmo interno, não dado de cenário (task 6 não pede
     // configuração de pirâmide — só "coerente"). Elder é limitado por MaxLongevityYears abaixo.
     private static readonly AgeBracket[] Pyramid =
@@ -38,9 +42,12 @@ public static class PopulationGenerator
             var birthDate = now.AddYears(-ageYears);
             int health = ageYears >= 60 ? Math.Clamp(100 - (ageYears - 59) * 2, 40, 100) : 100;
 
+            // SPEC_DEVIATION: Personality/Profession abaixo são placeholders fixos — o sorteio
+            // real (RNG por stream, ProfessionType do catálogo) é escopo da T7, não desta task.
             var npc = new Npc(
                 new NpcId(nextNpcId++), $"npc-{culture.Id}-{npcs.Count}", sex, birthDate, culture, villageLocation,
-                motherId: null, fatherId: null, household: null, health);
+                motherId: null, fatherId: null, household: null, health,
+                personality: PlaceholderPersonality, profession: default, currentLocation: villageLocation);
 
             npcs.Add(npc);
             (ageYears >= 18 ? adults : children).Add(npc);

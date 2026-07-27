@@ -2,8 +2,8 @@ using System.Text.Json.Serialization;
 
 namespace LivingWorld.Domain;
 
-/// <summary>O indivíduo simulado (task 1): identidade, saúde e localização — sem necessidades
-/// nem profissão (Fase 4/5). Mutável (mesmo padrão de <c>WorldState</c>): idade nunca é campo
+/// <summary>O indivíduo simulado: identidade, saúde, localização, necessidades (Fase 4),
+/// personalidade e profissão. Mutável (mesmo padrão de <c>WorldState</c>): idade nunca é campo
 /// que um sistema incrementa, é derivada de <see cref="AgeYears"/> (task 2). Reconstrutível por
 /// inteiro a partir de um único construtor público — <c>System.Text.Json</c> usa esse
 /// construtor no round-trip do snapshot, então todo campo mutável precisa estar nele.</summary>
@@ -23,6 +23,22 @@ public sealed class Npc
     public WorldDate? PregnantUntil { get; private set; }
     public WorldDate? DeathDate { get; private set; }
 
+    // Fase 4 (task 6): necessidades, personalidade, profissão, localização e ação corrente.
+    public int Hunger { get; private set; }
+    public int Thirst { get; private set; }
+    public int Sleep { get; private set; }
+    public int Social { get; private set; }
+    public Personality Personality { get; }
+    public ProfessionType Profession { get; private set; }
+    public CellCoord CurrentLocation { get; private set; }
+    public ActionType? CurrentAction { get; private set; }
+    public long ActionStartedAtTick { get; private set; }
+    public long? HungerZeroSinceTick { get; private set; }
+
+    /// <summary>Nulo enquanto <see cref="Household"/> existir (NEEDS-16). <see cref="LeaveHousehold"/>
+    /// grava o timestamp quando o household deixa de existir; <see cref="JoinHousehold"/> limpa.</summary>
+    public WorldDate? HomelessSince { get; private set; }
+
     /// <summary>Derivado de <see cref="DeathDate"/> — <see cref="JsonIgnoreAttribute"/> pelo
     /// mesmo motivo de <see cref="Household.IsEmpty"/>: computado, e um bool solto no snapshot
     /// quebraria o mutador genérico de teste.</summary>
@@ -32,6 +48,10 @@ public sealed class Npc
     public Npc(
         NpcId id, string name, Sex sex, WorldDate birthDate, CultureId culture, CellCoord birthLocation,
         NpcId? motherId, NpcId? fatherId, HouseholdId? household, int health,
+        Personality personality, ProfessionType profession, CellCoord currentLocation,
+        int hunger = 100, int thirst = 100, int sleep = 100, int social = 100,
+        ActionType? currentAction = null, long actionStartedAtTick = 0,
+        long? hungerZeroSinceTick = null, WorldDate? homelessSince = null,
         WorldDate? pregnantUntil = null, WorldDate? deathDate = null)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -51,6 +71,17 @@ public sealed class Npc
         FatherId = fatherId;
         Household = household;
         Health = health;
+        Personality = personality;
+        Profession = profession;
+        Hunger = Math.Clamp(hunger, 0, 100);
+        Thirst = Math.Clamp(thirst, 0, 100);
+        Sleep = Math.Clamp(sleep, 0, 100);
+        Social = Math.Clamp(social, 0, 100);
+        CurrentLocation = currentLocation;
+        CurrentAction = currentAction;
+        ActionStartedAtTick = actionStartedAtTick;
+        HungerZeroSinceTick = hungerZeroSinceTick;
+        HomelessSince = homelessSince;
         PregnantUntil = pregnantUntil;
         DeathDate = deathDate;
     }
@@ -73,15 +104,43 @@ public sealed class Npc
         DeathDate = deathDate;
     }
 
-    public void JoinHousehold(HouseholdId household) => Household = household;
+    public void JoinHousehold(HouseholdId household)
+    {
+        Household = household;
+        HomelessSince = null;
+    }
 
     /// <summary>Limpa a referência quando o household deixa de existir (dissolvido) — nunca
     /// deixa <see cref="Household"/> apontando para um id removido do mundo (sweep referencial,
     /// task 12). Enquanto o household ainda existir, a referência do NPC morto permanece: é
-    /// residência histórica válida, não ponteiro solto.</summary>
-    public void LeaveHousehold() => Household = null;
+    /// residência histórica válida, não ponteiro solto. Marca <see cref="HomelessSince"/>
+    /// (NEEDS-16) no momento exato em que a referência é limpa.</summary>
+    public void LeaveHousehold(WorldDate now)
+    {
+        Household = null;
+        HomelessSince = now;
+    }
 
     public void SetHealth(int health) => Health = Math.Clamp(health, 0, 100);
+
+    public void SetHunger(int hunger) => Hunger = Math.Clamp(hunger, 0, 100);
+
+    public void SetThirst(int thirst) => Thirst = Math.Clamp(thirst, 0, 100);
+
+    public void SetSleep(int sleep) => Sleep = Math.Clamp(sleep, 0, 100);
+
+    public void SetSocial(int social) => Social = Math.Clamp(social, 0, 100);
+
+    /// <summary>Atualiza o local corrente do NPC (task 6). <paramref name="tick"/> é aceito para
+    /// manter a assinatura pedida pelo design — nenhum sistema desta task consome esse valor
+    /// ainda (deslocamento com custo é T11/T14).</summary>
+    public void MoveTo(CellCoord destination, long tick) => CurrentLocation = destination;
+
+    public void SetCurrentAction(ActionType action, long tick)
+    {
+        CurrentAction = action;
+        ActionStartedAtTick = tick;
+    }
 
     public void BecomePregnant(WorldDate dueDate) => PregnantUntil = dueDate;
 
