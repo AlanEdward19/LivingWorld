@@ -51,4 +51,17 @@ public sealed record EconomyRules(
         CapacityByResourceLocation.TryGetValue((resource.Id, locationType.Id), out var capacity)
             ? capacity
             : long.MaxValue;
+
+    /// <summary>Default de <see cref="WorldState"/> pra cenário que ainda não declara economia
+    /// (T10) — <see cref="Enabled"/> falso, nenhum recurso/preço/salário. Nunca usado por um
+    /// cenário real (todo cenário econômico chama <see cref="Create"/> com valores dele).</summary>
+    public static readonly EconomyRules Disabled = new(
+        Enabled: false, FoodResourceId: 0, WaterResourceId: 0,
+        CapacityByResourceLocation: new Dictionary<(int, int), long>(),
+        SpoilagePerDayByResource: new Dictionary<int, double>(),
+        WageByProfession: new Dictionary<int, long>(),
+        PriceFloor: new Dictionary<int, long>(),
+        PriceCeiling: new Dictionary<int, long>(),
+        PriceSensitivity: 0,
+        DemandBaselinePerNpc: new Dictionary<int, double>());
 }

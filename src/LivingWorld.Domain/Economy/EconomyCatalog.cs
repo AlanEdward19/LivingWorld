@@ -27,4 +27,10 @@ public sealed record ProductionRecipe(
 public sealed record EconomyCatalog(
     IReadOnlyDictionary<int, ProductionRecipe> Recipes,
     HashSet<int> MarketLocationTypeIds,
-    IReadOnlyDictionary<int, int> LocationTypeByProfession);
+    IReadOnlyDictionary<int, int> LocationTypeByProfession)
+{
+    /// <summary>Default de <see cref="WorldState"/> pra cenário sem economia declarada (T10) —
+    /// nenhuma recipe, nenhum mercado, nenhum vínculo profissão→local.</summary>
+    public static readonly EconomyCatalog Empty = new(
+        new Dictionary<int, ProductionRecipe>(), [], new Dictionary<int, int>());
+}

@@ -54,6 +54,14 @@ public sealed class WorldState
     /// resolver `(Profession, LifeStage, hora)`.</summary>
     [Canonical] public LifeStageRules LifeStageRules { get; }
 
+    /// <summary>Parâmetros cenário-driven da economia (Fase 5, T2) — capacidade, perda, salário,
+    /// preço. <see cref="EconomyRules.Enabled"/> falso equivale a "economia não existe" (ECON-05:
+    /// desligar muda o hash porque as coleções abaixo ficam sempre vazias nesse cenário).</summary>
+    [Canonical] public EconomyRules EconomyRules { get; }
+
+    /// <summary>Recipe de produção por local e vínculo profissão→local do cenário (Fase 5, T3).</summary>
+    [Canonical] public EconomyCatalog EconomyCatalog { get; }
+
     private readonly List<Npc> _npcs;
     private readonly Dictionary<NpcId, Npc> _npcById;
     private readonly List<Household> _households;
@@ -84,6 +92,16 @@ public sealed class WorldState
     [Canonical] public long NextNpcId => _nextNpcId;
     [Canonical] public long NextHouseholdId => _nextHouseholdId;
 
+    private readonly List<Workplace> _workplaces;
+    private readonly Dictionary<WorkplaceId, Workplace> _workplaceById;
+    private long _nextWorkplaceId;
+
+    /// <summary>Local de produção/estoque/mercado (Fase 5, T4) — mesmo molde de <see
+    /// cref="Households"/> (lista + dono canônico).</summary>
+    [Canonical] public IReadOnlyList<Workplace> Workplaces => _workplaces;
+
+    [Canonical] public long NextWorkplaceId => _nextWorkplaceId;
+
     /// <summary>Contador do sistema de exemplo (task 11) — descartável na Fase 3. Nenhuma
     /// decisão lê este campo, por isso é volátil.</summary>
     [Volatile]
@@ -100,7 +118,8 @@ public sealed class WorldState
     public WorldState(
         WorldCalendar calendar, ulong seed, WorldMap map,
         PopulationCatalog populationCatalog, PopulationRules populationRules,
-        NeedsRules needsRules, ActionCatalog actionCatalog, LifeStageRules lifeStageRules, BranchId branchId = default)
+        NeedsRules needsRules, ActionCatalog actionCatalog, LifeStageRules lifeStageRules, BranchId branchId = default,
+        EconomyRules? economyRules = null, EconomyCatalog? economyCatalog = null)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -112,12 +131,16 @@ public sealed class WorldState
         ActionCatalog = actionCatalog;
         LifeStageRules = lifeStageRules;
         BranchId = branchId;
+        EconomyRules = economyRules ?? EconomyRules.Disabled;
+        EconomyCatalog = economyCatalog ?? EconomyCatalog.Empty;
         _rng = new WorldRngRegistry(seed);
         _scheduler = new EventScheduler();
         _npcs = [];
         _npcById = [];
         _households = [];
         _householdById = [];
+        _workplaces = [];
+        _workplaceById = [];
     }
 
     /// <summary>Reconstrói a partir de um snapshot (task 7/8) — rehidratação.</summary>
@@ -141,7 +164,11 @@ public sealed class WorldState
         long nextHouseholdId,
         BranchId branchId = default,
         Money moneyMinted = default,
-        Money moneyDestroyed = default)
+        Money moneyDestroyed = default,
+        EconomyRules? economyRules = null,
+        EconomyCatalog? economyCatalog = null,
+        IReadOnlyList<Workplace>? workplaces = null,
+        long nextWorkplaceId = 0)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -153,6 +180,8 @@ public sealed class WorldState
         ActionCatalog = actionCatalog;
         LifeStageRules = lifeStageRules;
         BranchId = branchId;
+        EconomyRules = economyRules ?? EconomyRules.Disabled;
+        EconomyCatalog = economyCatalog ?? EconomyCatalog.Empty;
         _rng = new WorldRngRegistry(seed, rngStreams);
         _scheduler = new EventScheduler(pendingEvents);
         _nextEventId = nextEventId;
@@ -165,6 +194,9 @@ public sealed class WorldState
         _nextHouseholdId = nextHouseholdId;
         _moneyMinted = moneyMinted;
         _moneyDestroyed = moneyDestroyed;
+        _workplaces = (workplaces ?? []).ToList();
+        _workplaceById = ToLookup(_workplaces, w => w.Id);
+        _nextWorkplaceId = nextWorkplaceId;
     }
 
     internal WorldRngRegistry Rng => _rng;
@@ -203,6 +235,16 @@ public sealed class WorldState
 
     internal Npc? FindNpc(NpcId id) => _npcById.GetValueOrDefault(id);
     internal Household? FindHousehold(HouseholdId id) => _householdById.GetValueOrDefault(id);
+
+    internal WorkplaceId NextWorkplaceIdAndAdvance() => new(_nextWorkplaceId++);
+
+    public void AddWorkplace(Workplace workplace)
+    {
+        _workplaces.Add(workplace);
+        _workplaceById[workplace.Id] = workplace;
+    }
+
+    public Workplace? FindWorkplace(WorkplaceId id) => _workplaceById.GetValueOrDefault(id);
 
     /// <summary>Cunhagem explícita e rara (task 10) — nunca chamada implicitamente por
     /// <see cref="MarketTransaction"/>/salário, só por um evento nomeado (AD-042).</summary>
