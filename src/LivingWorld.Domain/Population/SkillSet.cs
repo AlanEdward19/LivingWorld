@@ -7,38 +7,40 @@ namespace LivingWorld.Domain;
 /// (mesmo padrão de <see cref="PersonalityWeighting"/>).</summary>
 public sealed class SkillSet
 {
-    private readonly double _agriculture;
-    private readonly double _hunting;
-    private readonly double _trade;
-    private readonly double _construction;
-    private readonly double _medicine;
-    private readonly double _combat;
-    private readonly double _teaching;
-    private readonly double _craft;
-    private readonly double _politics;
-    private readonly double _leadership;
-    private readonly double _research;
-    private readonly double _technology;
-    private readonly double _magic;
+    public double Agriculture { get; }
+    public double Hunting { get; }
+    public double Trade { get; }
+    public double Construction { get; }
+    public double Medicine { get; }
+    public double Combat { get; }
+    public double Teaching { get; }
+    public double Craft { get; }
+    public double Politics { get; }
+    public double Leadership { get; }
+    public double Research { get; }
+    public double Technology { get; }
+    public double Magic { get; }
 
-    private SkillSet(
+    /// <summary>Público — permite ao <c>System.Text.Json</c> reidratar via construtor único
+    /// (mesmo padrão de round-trip usado por <see cref="Npc"/>/<see cref="Personality"/>).</summary>
+    public SkillSet(
         double agriculture, double hunting, double trade, double construction, double medicine, double combat,
         double teaching, double craft, double politics, double leadership, double research, double technology,
         double magic)
     {
-        _agriculture = agriculture;
-        _hunting = hunting;
-        _trade = trade;
-        _construction = construction;
-        _medicine = medicine;
-        _combat = combat;
-        _teaching = teaching;
-        _craft = craft;
-        _politics = politics;
-        _leadership = leadership;
-        _research = research;
-        _technology = technology;
-        _magic = magic;
+        Agriculture = agriculture;
+        Hunting = hunting;
+        Trade = trade;
+        Construction = construction;
+        Medicine = medicine;
+        Combat = combat;
+        Teaching = teaching;
+        Craft = craft;
+        Politics = politics;
+        Leadership = leadership;
+        Research = research;
+        Technology = technology;
+        Magic = magic;
     }
 
     /// <summary>Todas as 13 habilidades no mesmo valor inicial declarado pelo cenário (SKILL-01).
@@ -50,19 +52,19 @@ public sealed class SkillSet
 
     public double Get(SkillType type) => type switch
     {
-        SkillType.Agriculture => _agriculture,
-        SkillType.Hunting => _hunting,
-        SkillType.Trade => _trade,
-        SkillType.Construction => _construction,
-        SkillType.Medicine => _medicine,
-        SkillType.Combat => _combat,
-        SkillType.Teaching => _teaching,
-        SkillType.Craft => _craft,
-        SkillType.Politics => _politics,
-        SkillType.Leadership => _leadership,
-        SkillType.Research => _research,
-        SkillType.Technology => _technology,
-        SkillType.Magic => _magic,
+        SkillType.Agriculture => Agriculture,
+        SkillType.Hunting => Hunting,
+        SkillType.Trade => Trade,
+        SkillType.Construction => Construction,
+        SkillType.Medicine => Medicine,
+        SkillType.Combat => Combat,
+        SkillType.Teaching => Teaching,
+        SkillType.Craft => Craft,
+        SkillType.Politics => Politics,
+        SkillType.Leadership => Leadership,
+        SkillType.Research => Research,
+        SkillType.Technology => Technology,
+        SkillType.Magic => Magic,
         _ => throw new ArgumentOutOfRangeException(nameof(type), type, "SkillType sem acesso direto declarado"),
     };
 
@@ -75,19 +77,19 @@ public sealed class SkillSet
 
         return type switch
         {
-            SkillType.Agriculture => new SkillSet(newValue, _hunting, _trade, _construction, _medicine, _combat, _teaching, _craft, _politics, _leadership, _research, _technology, _magic),
-            SkillType.Hunting => new SkillSet(_agriculture, newValue, _trade, _construction, _medicine, _combat, _teaching, _craft, _politics, _leadership, _research, _technology, _magic),
-            SkillType.Trade => new SkillSet(_agriculture, _hunting, newValue, _construction, _medicine, _combat, _teaching, _craft, _politics, _leadership, _research, _technology, _magic),
-            SkillType.Construction => new SkillSet(_agriculture, _hunting, _trade, newValue, _medicine, _combat, _teaching, _craft, _politics, _leadership, _research, _technology, _magic),
-            SkillType.Medicine => new SkillSet(_agriculture, _hunting, _trade, _construction, newValue, _combat, _teaching, _craft, _politics, _leadership, _research, _technology, _magic),
-            SkillType.Combat => new SkillSet(_agriculture, _hunting, _trade, _construction, _medicine, newValue, _teaching, _craft, _politics, _leadership, _research, _technology, _magic),
-            SkillType.Teaching => new SkillSet(_agriculture, _hunting, _trade, _construction, _medicine, _combat, newValue, _craft, _politics, _leadership, _research, _technology, _magic),
-            SkillType.Craft => new SkillSet(_agriculture, _hunting, _trade, _construction, _medicine, _combat, _teaching, newValue, _politics, _leadership, _research, _technology, _magic),
-            SkillType.Politics => new SkillSet(_agriculture, _hunting, _trade, _construction, _medicine, _combat, _teaching, _craft, newValue, _leadership, _research, _technology, _magic),
-            SkillType.Leadership => new SkillSet(_agriculture, _hunting, _trade, _construction, _medicine, _combat, _teaching, _craft, _politics, newValue, _research, _technology, _magic),
-            SkillType.Research => new SkillSet(_agriculture, _hunting, _trade, _construction, _medicine, _combat, _teaching, _craft, _politics, _leadership, newValue, _technology, _magic),
-            SkillType.Technology => new SkillSet(_agriculture, _hunting, _trade, _construction, _medicine, _combat, _teaching, _craft, _politics, _leadership, _research, newValue, _magic),
-            SkillType.Magic => new SkillSet(_agriculture, _hunting, _trade, _construction, _medicine, _combat, _teaching, _craft, _politics, _leadership, _research, _technology, newValue),
+            SkillType.Agriculture => new SkillSet(newValue, Hunting, Trade, Construction, Medicine, Combat, Teaching, Craft, Politics, Leadership, Research, Technology, Magic),
+            SkillType.Hunting => new SkillSet(Agriculture, newValue, Trade, Construction, Medicine, Combat, Teaching, Craft, Politics, Leadership, Research, Technology, Magic),
+            SkillType.Trade => new SkillSet(Agriculture, Hunting, newValue, Construction, Medicine, Combat, Teaching, Craft, Politics, Leadership, Research, Technology, Magic),
+            SkillType.Construction => new SkillSet(Agriculture, Hunting, Trade, newValue, Medicine, Combat, Teaching, Craft, Politics, Leadership, Research, Technology, Magic),
+            SkillType.Medicine => new SkillSet(Agriculture, Hunting, Trade, Construction, newValue, Combat, Teaching, Craft, Politics, Leadership, Research, Technology, Magic),
+            SkillType.Combat => new SkillSet(Agriculture, Hunting, Trade, Construction, Medicine, newValue, Teaching, Craft, Politics, Leadership, Research, Technology, Magic),
+            SkillType.Teaching => new SkillSet(Agriculture, Hunting, Trade, Construction, Medicine, Combat, newValue, Craft, Politics, Leadership, Research, Technology, Magic),
+            SkillType.Craft => new SkillSet(Agriculture, Hunting, Trade, Construction, Medicine, Combat, Teaching, newValue, Politics, Leadership, Research, Technology, Magic),
+            SkillType.Politics => new SkillSet(Agriculture, Hunting, Trade, Construction, Medicine, Combat, Teaching, Craft, newValue, Leadership, Research, Technology, Magic),
+            SkillType.Leadership => new SkillSet(Agriculture, Hunting, Trade, Construction, Medicine, Combat, Teaching, Craft, Politics, newValue, Research, Technology, Magic),
+            SkillType.Research => new SkillSet(Agriculture, Hunting, Trade, Construction, Medicine, Combat, Teaching, Craft, Politics, Leadership, newValue, Technology, Magic),
+            SkillType.Technology => new SkillSet(Agriculture, Hunting, Trade, Construction, Medicine, Combat, Teaching, Craft, Politics, Leadership, Research, newValue, Magic),
+            SkillType.Magic => new SkillSet(Agriculture, Hunting, Trade, Construction, Medicine, Combat, Teaching, Craft, Politics, Leadership, Research, Technology, newValue),
             _ => throw new ArgumentOutOfRangeException(nameof(type), type, "SkillType sem acesso direto declarado"),
         };
     }
