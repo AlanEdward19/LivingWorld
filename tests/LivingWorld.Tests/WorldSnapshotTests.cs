@@ -50,6 +50,10 @@ public class WorldSnapshotTests
         var ctx = new TickContext(world, world.Rng, world.Scheduler);
         ctx.Rng("probe-stream").NextDouble();
         ctx.ScheduleEvent(world.CurrentDate.TotalHours + 100, "nobody");
+        // Fase 7 (T8): força ao menos uma Relationship não-vazia — dict vazio não tem folha
+        // primitiva pro mutador genérico de teste perturbar (mesmo motivo do resto do arquivo).
+        var relationship = world.GetOrCreateRelationship(new RelationshipKey(new NpcId(1), new NpcId(2)), now: 1);
+        relationship.ApplyEvent(RelationshipEventType.Cohabitation, world.FamilyRules);
         return world;
     }
 

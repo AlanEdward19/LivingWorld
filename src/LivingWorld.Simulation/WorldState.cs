@@ -62,6 +62,32 @@ public sealed class WorldState
     /// <summary>Recipe de produção por local e vínculo profissão→local do cenário (Fase 5, T3).</summary>
     [Canonical] public EconomyCatalog EconomyCatalog { get; }
 
+    /// <summary>Todo peso/limiar/duração/flag da Fase 7 (Relações e Famílias, T4) — mesmo grupo de
+    /// <see cref="NeedsRules"/>/<see cref="EconomyRules"/>: cenário-driven, entra no hash canônico
+    /// porque decide todo evento de relação/cortejo/concepção.</summary>
+    [Canonical] public FamilyRules FamilyRules { get; }
+
+    private readonly Dictionary<RelationshipKey, Relationship> _relationships;
+
+    /// <summary>Uma <see cref="Relationship"/> por par ordenado, criada sob demanda (Fase 7, T8,
+    /// AD-052: "quem nunca se encontra nunca se conhece" — FAM-02). Este dicionário **é** a
+    /// coleção canônica, sem lista paralela: não há iteração ordenada por id sequencial fazendo
+    /// sentido para um par (quem precisar de determinismo ordena por
+    /// <c>(From.Value, To.Value)</c> na hora, ex. <c>RelationshipSystem</c>/hash).</summary>
+    [Canonical] public IReadOnlyDictionary<RelationshipKey, Relationship> Relationships => _relationships;
+
+    /// <summary>Único ponto de criação de uma <see cref="Relationship"/> (AD-052) — cria só na
+    /// primeira chamada para a chave; chamadas seguintes devolvem a mesma instância.</summary>
+    internal Relationship GetOrCreateRelationship(RelationshipKey key, long now)
+    {
+        if (!_relationships.TryGetValue(key, out var relationship))
+        {
+            relationship = Relationship.Initial(now);
+            _relationships[key] = relationship;
+        }
+        return relationship;
+    }
+
     private readonly List<Npc> _npcs;
     private readonly Dictionary<NpcId, Npc> _npcById;
     private readonly List<Household> _households;
@@ -141,7 +167,7 @@ public sealed class WorldState
         WorldCalendar calendar, ulong seed, WorldMap map,
         PopulationCatalog populationCatalog, PopulationRules populationRules,
         NeedsRules needsRules, ActionCatalog actionCatalog, LifeStageRules lifeStageRules, BranchId branchId = default,
-        EconomyRules? economyRules = null, EconomyCatalog? economyCatalog = null)
+        EconomyRules? economyRules = null, EconomyCatalog? economyCatalog = null, FamilyRules? familyRules = null)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -155,6 +181,7 @@ public sealed class WorldState
         BranchId = branchId;
         EconomyRules = economyRules ?? EconomyRules.Disabled;
         EconomyCatalog = economyCatalog ?? EconomyCatalog.Empty;
+        FamilyRules = familyRules ?? FamilyRules.Disabled;
         _rng = new WorldRngRegistry(seed);
         _scheduler = new EventScheduler();
         _npcs = [];
@@ -163,6 +190,7 @@ public sealed class WorldState
         _householdById = [];
         _workplaces = [];
         _workplaceById = [];
+        _relationships = [];
     }
 
     /// <summary>Reconstrói a partir de um snapshot (task 7/8) — rehidratação.</summary>
@@ -190,7 +218,9 @@ public sealed class WorldState
         EconomyRules? economyRules = null,
         EconomyCatalog? economyCatalog = null,
         IReadOnlyList<Workplace>? workplaces = null,
-        long nextWorkplaceId = 0)
+        long nextWorkplaceId = 0,
+        FamilyRules? familyRules = null,
+        IReadOnlyDictionary<RelationshipKey, Relationship>? relationships = null)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -219,6 +249,8 @@ public sealed class WorldState
         _workplaces = (workplaces ?? []).ToList();
         _workplaceById = ToLookup(_workplaces, w => w.Id);
         _nextWorkplaceId = nextWorkplaceId;
+        FamilyRules = familyRules ?? FamilyRules.Disabled;
+        _relationships = relationships is null ? [] : new Dictionary<RelationshipKey, Relationship>(relationships);
     }
 
     internal WorldRngRegistry Rng => _rng;

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace LivingWorld.Domain;
 
 /// <summary>Os 4 eixos (Confiança, Afeto, Respeito, Dívida) de A→B — nunca o mesmo objeto usado
@@ -17,6 +19,10 @@ public sealed class Relationship
 
     public long LastContactTick { get; private set; }
 
+    /// <summary>Não-pública, mas anotada para <c>System.Text.Json</c> reidratar o snapshot
+    /// (Fase 7, T8) — nenhum construtor público é exposto de propósito, todo caminho de produção
+    /// passa por <see cref="Initial"/> (o encontro nunca começa em valor alto).</summary>
+    [JsonConstructor]
     private Relationship(double trust, double affection, double respect, double debt, long lastContactTick)
     {
         Trust = trust;

@@ -151,4 +151,34 @@ public sealed record FamilyRules(
         double factor = 1.0 + UpbringingWealthWeight * (clampedUpbringing - MidpointValue) / MidpointValue;
         return wage * Math.Max(factor, 0.0);
     }
+
+    /// <summary>Default de <see cref="WorldState"/> para cenário/teste que ainda não declara
+    /// família (T8) — mesmo espírito de <see cref="EconomyRules.Disabled"/>: todo delta/peso em
+    /// zero, faixas mínimas válidas (satisfazem <see cref="Create"/> sem precisar chamá-lo aqui,
+    /// mesmo atalho de construção direta do record que <c>EconomyRules.Disabled</c> usa). Nunca
+    /// usado por um cenário real (todo cenário de família chama <see cref="Create"/> com valores
+    /// dele).</summary>
+    public static readonly FamilyRules Disabled = new(
+        RelationshipDeltas: Enum.GetValues<RelationshipEventType>()
+            .SelectMany(type => Enum.GetValues<RelationshipAxis>().Select(axis => ((type, axis), 0.0)))
+            .ToDictionary(pair => pair.Item1, pair => pair.Item2),
+        DecayPerDay: 0.0,
+        ContactLossThresholdDays: 1,
+        NeutralAxisValue: MidpointValue,
+        AttractionWeights: new Dictionary<AttractionFactor, double>(),
+        CourtshipThreshold: 0.0,
+        CourtshipDurationDays: 1,
+        MarriageInitialStock: new Dictionary<int, long>(),
+        ConceptionHealthFloor: 0,
+        ConceptionRelationshipFloor: 0.0,
+        ConceptionResourceFloor: new Dictionary<int, long>(),
+        MaternalDeathRisk: 0.0,
+        InfantDeathRisk: 0.0,
+        VitalityMotherWeight: 0.5,
+        VitalityFatherWeight: 0.5,
+        VitalityMutationStdDev: 0.0,
+        VitalityMortalityWeight: 0.0,
+        UpbringingWealthWeight: 0.0,
+        EnvironmentalWealthChannelEnabled: false,
+        NeutralDriftEnabled: false);
 }

@@ -17,7 +17,11 @@ public static class WorldSnapshot
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
-        Converters = { new JsonStringEnumConverter(), new ResourceTypeKeyConverter(), new ResourceLocationKeyConverter() },
+        Converters =
+        {
+            new JsonStringEnumConverter(), new ResourceTypeKeyConverter(), new ResourceLocationKeyConverter(),
+            new RelationshipKeyConverter(), new RelationshipDeltaKeyConverter(),
+        },
         PropertyNameCaseInsensitive = true,
     };
 
@@ -64,12 +68,14 @@ public static class WorldSnapshot
         var economyCatalog = node["EconomyCatalog"].Deserialize<EconomyCatalog>(JsonOptions)!;
         var workplaces = node["Workplaces"].Deserialize<List<Workplace>>(JsonOptions)!;
         var nextWorkplaceId = node["NextWorkplaceId"]!.GetValue<long>();
+        var familyRules = node["FamilyRules"].Deserialize<FamilyRules>(JsonOptions)!;
+        var relationships = node["Relationships"].Deserialize<Dictionary<RelationshipKey, Relationship>>(JsonOptions)!;
 
         return new WorldState(
             calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
             lifeStageRules, rngStreams, pendingEvents, nextEventId, exampleCounts, npcs, households, nextNpcId,
             nextHouseholdId, branchId, moneyMinted, moneyDestroyed, economyRules, economyCatalog, workplaces,
-            nextWorkplaceId);
+            nextWorkplaceId, familyRules, relationships);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)
