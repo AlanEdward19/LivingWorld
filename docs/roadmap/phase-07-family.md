@@ -71,7 +71,7 @@ casais, tendo filhos e produzindo linhagens rastreáveis que não colapsam em cl
 
 ## Fora do escopo
 Migração entre assentamentos, LOD e crescimento urbano: Fase 8. Dinastias e memória
-histórica: Fase 9. Qualquer participação de LLM: Fase 10.
+histórica: Fase 10. Qualquer participação de LLM: Fase 11.
 
 ## Ver também
 [genetics-and-family.md](../domain/genetics-and-family.md) ·

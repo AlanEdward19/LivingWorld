@@ -2,7 +2,7 @@
 
 **Objetivo**: fecha os **objetivos #2 e #4** — cidades viram entidades que crescem,
 encolhem e fundam assentamentos, e qualquer NPC vivo é inspecionável por **API e CLI**
-(o cliente web é a Fase 14; o objetivo #2 não depende dele).
+(o cliente web é a Fase 15; o objetivo #2 não depende dele).
 
 ## Tasks
 1. **Cidade como entidade simulada**: população, governo, economia, recursos, segurança,
@@ -60,7 +60,7 @@ encolhem e fundam assentamentos, e qualquer NPC vivo é inspecionável por **API
 
 ## Fora do escopo
 Guerra entre cidades, tratados e política externa: fora do roadmap atual. Cliente web de
-inspeção: Fase 14. Memória histórica e crença sobre fundações: Fase 9. Diálogo: Fase 10.
+inspeção: Fase 15. Memória histórica e crença sobre fundações: Fase 10. Diálogo: Fase 11.
 
 ## Ver também
 [cities.md](../domain/cities.md) · [simulation-lod.md](../domain/simulation-lod.md) ·

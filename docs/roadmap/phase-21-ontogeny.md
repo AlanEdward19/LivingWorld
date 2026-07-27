@@ -1,4 +1,4 @@
-# Fase 20 — Ontogenia
+# Fase 21 — Ontogenia
 
 **Objetivo**: um recém-nascido não anda, não fala e não se alimenta sozinho — ele chora, e
 o resto é adquirido pelo convívio. Capacidade de agir deixa de ser dada no nascimento e
@@ -70,7 +70,7 @@ de exposição.
 ## Fora do escopo
 Escola como edifício e oferta de vagas: Fase 8. Habilidade de ofício, tutoria e curva de
 retornos decrescentes: Fase 6 — aqui só entra o pré-requisito de marco. Defeito congênito,
-doença e deficiência: Fase 21. Prosa sobre a infância: Fase 11. Qualquer aprendizado por
+doença e deficiência: Fase 22. Prosa sobre a infância: Fase 12. Qualquer aprendizado por
 modelo estatístico treinado em runtime: fora do projeto, por ADR-0005.
 
 ## Questões em aberto

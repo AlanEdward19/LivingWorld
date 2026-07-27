@@ -1,4 +1,4 @@
-# Fase 15 — Potência
+# Fase 16 — Potência
 
 **Objetivo**: mutante, mago, portador de artefato e implantado deixam de ser cinco
 subsistemas e viram **um modificador declarado** sobre sistemas que já existem, com fonte,
@@ -56,21 +56,21 @@ conservando dinheiro e recursos com poderes ligados.
   em 10 anos.
 
 ## Questões em aberto
-- O eixo **tempo** de `powers.md` não tem sistema para modificar antes da Fase 17. Fica
+- O eixo **tempo** de `powers.md` não tem sistema para modificar antes da Fase 18. Fica
   bloqueado até lá, ou entra como modificador de duração sobre o scheduler da Fase 1?
 - Custo em **longevidade** colide com a morte agendada da Fase 3: reagendar o tick de óbito
-  é mutação do scheduler ou um evento compensatório novo, à moda da Fase 9?
+  é mutação do scheduler ou um evento compensatório novo, à moda da Fase 10?
 - A rolagem consome o stream do portador; portador **não materializado** não tem stream
   estável. Materializa na invocação, ou a região ganha stream próprio?
 - "Atenção de algo que era melhor não ter notado você" é custo ou modo de falha? Se a coisa
-  é uma entidade, ela é da Fase 16 e a dependência entre as duas fases inverte.
+  é uma entidade, ela é da Fase 17 e a dependência entre as duas fases inverte.
 - Prevalência é parâmetro sem gate. Que sensor barato avisa que o cenário virou "todo mundo
   voa", já que o próprio ADR-0010 recusa transformar escassez em critério?
 
 ## Fora do escopo
-Divindade e economia de crença: Fase 16. Efeito de poder sobre linha temporal e artefato que
-ramifica: Fase 17. Fontes alienígenas e tecnologia que chega por contato: Fase 18. Prosa
-sobre o extraordinário: Fase 11. Balanceamento de escassez não tem gate (ADR-0010).
+Divindade e economia de crença: Fase 17. Efeito de poder sobre linha temporal e artefato que
+ramifica: Fase 18. Fontes alienígenas e tecnologia que chega por contato: Fase 19. Prosa
+sobre o extraordinário: Fase 12. Balanceamento de escassez não tem gate (ADR-0010).
 
 ## Ver também
 [powers.md](../domain/powers.md) · [npc.md](../domain/npc.md) ·

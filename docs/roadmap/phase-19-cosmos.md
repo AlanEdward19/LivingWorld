@@ -1,4 +1,4 @@
-# Fase 18 — Cosmos e contato
+# Fase 19 — Cosmos e contato
 
 **Objetivo**: o mundo cresce até a escala de sistema estelar sem máquina nova — são
 **degraus de LOD acima do global**. Corpos e órbitas vivem em estatística, o céu entra
@@ -19,12 +19,12 @@ cultura em outro degrau tecnológico chegando por contato.
    cometas e conjunções saem dos mesmos elementos e são previsíveis pelo motor.
 4. **Consequência aterrissa em sistema que já existe**: estação e eclipse entram como
    modificador de produção agrícola (Fase 5) e como presságio na cultura e na legitimidade
-   (Fases 9 e 16). A mesma efeméride, dois usos, conforme o nível tecnológico de quem olha.
+   (Fases 10 e 17). A mesma efeméride, dois usos, conforme o nível tecnológico de quem olha.
 5. **Contato como evento que promove ao detalhe**: uma civilização distante existe só em
    estatística até tocar o planeta principal; aí a região vira detalhe, com cultura,
    liderança e economia coerentes com o agregado de onde veio — igual ao ferreiro da Fase 8.
 6. **Alien e conquistador reusam cultura, tecnologia, economia, guerra e diplomacia**. O
-   degrau tecnológico é módulo de conteúdo da Fase 12 (o pacote "futurista" encostando no
+   degrau tecnológico é módulo de conteúdo da Fase 13 (o pacote "futurista" encostando no
    "medieval"). Nenhuma entidade nova, nenhum handler exclusivo de alien.
 7. **Assimetria tecnológica como pressão, não desfecho**: colapso cultural, culto de carga,
    conquista, tutela, extermínio e adaptação seletiva saem dos valores culturais, da coesão
@@ -52,7 +52,7 @@ cultura em outro degrau tecnológico chegando por contato.
   contato — promover a detalhe e desmaterializar depois deixa `Hash(world)` byte-idêntico,
   totais de população, recurso e produção inclusos.
 - **A colônia decide com o que já chegou**: mesma família do teste de conhecimento limitado
-  da Fase 10 — o cenário planta uma ordem da metrópole cujo tick de entrega ainda não
+  da Fase 11 — o cenário planta uma ordem da metrópole cujo tick de entrega ainda não
   passou, e a decisão da colônia é byte-idêntica à de um braço onde a ordem nunca foi
   enviada. Qualquer divergência é informação viajando mais rápido que o atraso.
 - **Alien não é tipo novo**: enumeração por reflexão dos sistemas que a civilização
@@ -62,14 +62,14 @@ cultura em outro degrau tecnológico chegando por contato.
 
 ## Fora do escopo
 Galáxia e multiverso: não há degrau acima de `sistema` e inventá-lo agora custaria sem pagar
-nada. Trânsito entre linhas temporais: Fase 19; ramificação: Fase 17. Culto de carga como
-economia de crença: Fase 16 (aqui só é um desfecho possível). Tecnologia alienígena como
-fonte de potência: Fase 15. Prosa sobre o primeiro contato: Fase 11.
+nada. Trânsito entre linhas temporais: Fase 20; ramificação: Fase 18. Culto de carga como
+economia de crença: Fase 17 (aqui só é um desfecho possível). Tecnologia alienígena como
+fonte de potência: Fase 16. Prosa sobre o primeiro contato: Fase 12.
 
 ## Questões em aberto
 - Uma civilização distante que nunca toca o planeta precisa existir como agregado desde o
   tick 0, ou nasce no evento de contato? Se nasce, ela tem passado — e de onde ele vem.
-- Previsibilidade do eclipse é propriedade do fenômeno ou conhecimento da cultura (Fase 12)?
+- Previsibilidade do eclipse é propriedade do fenômeno ou conhecimento da cultura (Fase 13)?
   A resposta decide se presságio e ferramenta política são um sistema ou dois.
 - Atraso de comunicação é fila de eventos com tick de entrega ou snapshot defasado do
   conhecimento da colônia? O critério de decisão sem informação depende de qual for.

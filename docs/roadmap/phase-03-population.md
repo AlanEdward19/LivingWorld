@@ -22,7 +22,7 @@ primeiro NPC. **Fase mais pesada do roadmap** — pode fechar em dois commits: *
    arquivo de cenário, nunca de `enum` em código. Entra um segundo cenário deliberadamente
    alienígena, `test-scifi` (profissões piloto/técnico, recursos plasma/liga), que roda no
    gate. Se um cenário de ficção científica roda na Fase 3, conteúdo medieval não calcifica
-   em `src/` — e a Fase 12 deixa de precisar da task de migração.
+   em `src/` — e a Fase 13 deixa de precisar da task de migração.
 8. **Persistência**: EF Core + SQLite, primeira migração, mapeamento das entidades. Nenhum
    recurso exclusivo do SQLite — o esquema atravessa para Postgres (ADR-0002).
 9. **`BranchId` no esquema desde a primeira migração** (ADR-0009): toda entidade persistida

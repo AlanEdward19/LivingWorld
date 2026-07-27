@@ -5,7 +5,7 @@
 - **Decisores**: Alan
 
 ## Contexto
-Duas colisões entre a Fase 24 (jogadores) e a Fase 25 (console e modo god):
+Duas colisões entre a Fase 25 (jogadores) e a Fase 26 (console e modo god):
 
 1. **Pausa por sessão é impossível** num scheduler único. Ou a pausa é global, ou
    multiplayer e modo god não coexistem no mesmo branch.
@@ -54,5 +54,5 @@ comparam mães.
   poder real e precisa de aviso claro e provavelmente de limite de duração; e a auditoria
   passa a viver em dois lugares (store separado para leitura, log do filho para
   intervenção), o que exige juntar os dois para responder "o que o admin X fez".
-- **Follow-ups**: Fases 24 e 25 registram a decisão; limite de duração de pausa fica como
-  questão em aberto da Fase 25.
+- **Follow-ups**: Fases 25 e 26 registram a decisão; limite de duração de pausa fica como
+  questão em aberto da Fase 26.

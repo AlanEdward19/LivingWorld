@@ -1,4 +1,4 @@
-# Fase 12 — Múltiplos períodos
+# Fase 13 — Múltiplos períodos
 
 **Objetivo**: o motor central roda qualquer época sem fork de código. Cada período —
 pré-histórico, medieval, moderno, futurista, criaturas — é um **módulo de conteúdo**
@@ -56,7 +56,7 @@ carregado como dado, não um projeto novo em `src/`.
 nasce com cenário-como-dado e com o cenário `test-scifi` rodando no gate, então a dívida de
 conteúdo hardcoded nunca chega até aqui. Integridade referencial do cenário (profissão que
 aponta recurso inexistente) também é da Fase 3, pelo sweep genérico. Arte e assets por
-período são Fase 13. Nenhum sistema de simulação novo entra aqui — se um período pede
+período são Fase 14. Nenhum sistema de simulação novo entra aqui — se um período pede
 mecânica inédita, ela vira fase própria antes.
 
 ## Ver também

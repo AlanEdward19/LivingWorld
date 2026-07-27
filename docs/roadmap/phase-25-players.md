@@ -1,14 +1,14 @@
-# Fase 24 — Jogadores
+# Fase 25 — Jogadores
 
 **Objetivo**: um jogador é um NPC com controlador externo, nunca um caso especial dentro do
 motor. Pode ser superhumano — desde que a potência lhe cobre o mesmo custo e a mesma rolagem
-que cobra de qualquer um (Fase 15). E o logout **não congela o personagem**: emite um evento
+que cobra de qualquer um (Fase 16). E o logout **não congela o personagem**: emite um evento
 de **desaparecimento**. O mundo segue, e quem convivia com ele dá falta, procura, chora,
 herda e ocupa a vaga que ele deixou.
 
 > **Spec, não gate.** Os critérios abaixo são a intenção; os critérios finais são escritos
 > sob `rules/eval-criteria.md` quando a fase for ativada. Não comece esta fase antes da
-> Fase 10 fechar.
+> Fase 11 fechar.
 
 ## Tasks
 1. **Encarnação**: assumir um NPC existente **ou** entrar como personagem novo. Nos dois
@@ -21,7 +21,7 @@ herda e ocupa a vaga que ele deixou.
    onde estava; o motor continua conduzindo os efeitos, nunca o personagem.
 4. **Reação ao sumiço, por proximidade**: quem tinha vínculo procura, sofre, e depois
    segue — herança pela Fase 7, vaga de trabalho reaberta pela Fase 5, relato do
-   desaparecimento entrando no cânone da Fase 9. A intensidade sai da força do vínculo.
+   desaparecimento entrando no cânone da Fase 10. A intensidade sai da força do vínculo.
 5. **Retorno tardio**: voltar depois de anos significa que você esteve desaparecido esse
    tempo todo. A memória social registra: o luto já foi feito, a herança já foi dividida, o
    cônjuge pode ter recasado, e a reação ao reaparecido é calculada, não roteirizada.
@@ -67,9 +67,9 @@ herda e ocupa a vaga que ele deixou.
 - **Encarnação entrou na conta**: desligar o subsistema de jogador muda o hash em 10 anos.
 
 ## Fora do escopo
-Cliente 3D e voz: Fase 13. Mapa e drill-down: Fase 14. Conversa com NPC via LLM: Fase 10 —
-aqui o jogador age, não conversa. Console, visão de verdade e modo god: Fase 25. Assistir à
-vida de outro NPC: Fase 26. Ramificação em si: Fase 17 (aqui só é consumida). Autenticação e
+Cliente 3D e voz: Fase 14. Mapa e drill-down: Fase 15. Conversa com NPC via LLM: Fase 11 —
+aqui o jogador age, não conversa. Console, visão de verdade e modo god: Fase 26. Assistir à
+vida de outro NPC: Fase 27. Ramificação em si: Fase 18 (aqui só é consumida). Autenticação e
 infraestrutura de sessão não são arquitetura de motor e ficam fora desta spec.
 
 ## Questões em aberto
@@ -84,7 +84,7 @@ infraestrutura de sessão não são arquitetura de motor e ficam fora desta spec
   multiplayer entre linhas só pode ser assíncrono — objeto e relato atravessando, nunca
   presença.
 - Espectador observa a **verdade** ou a **crença** de alguém? Se observa a verdade, ele é
-  admin da Fase 25 com outro nome, e o critério de vazamento da Fase 9 passa a valer aqui.
+  admin da Fase 26 com outro nome, e o critério de vazamento da Fase 10 passa a valer aqui.
 
 ## Ver também
 [npc.md](../domain/npc.md) · [simulation-lod.md](../domain/simulation-lod.md) ·

@@ -1,4 +1,4 @@
-# Fase 17 — Linhas temporais
+# Fase 18 — Linhas temporais
 
 **Objetivo**: viagem no tempo não reescreve nada — ela **ramifica**. Um salto ao tick T é um
 evento anexado que abre uma linha nova a partir do snapshot de T, com seed derivada e
@@ -7,7 +7,7 @@ exatamente isso que o gate desta fase protege acima de qualquer outra coisa.
 
 > **Spec, não gate.** Os critérios abaixo são a intenção; os critérios finais são escritos
 > sob `rules/eval-criteria.md` quando a fase for ativada. Não comece esta fase antes da
-> Fase 9 fechar.
+> Fase 10 fechar.
 
 ## Tasks
 1. **Salto como evento anexado** ao log da linha de origem (ADR-0006): nenhum `UPDATE`,
@@ -20,7 +20,7 @@ exatamente isso que o gate desta fase protege acima de qualquer outra coisa.
    e estável entre processos e versões. Sem ela não há determinismo entre linhas.
 4. **Rolagem contra a inércia histórica** pelo primitivo único (ADR-0011), perfil
    `Dramático`. A dificuldade é `f(significância, testemunhas, densidade de registro
-   escrito, grau causal)` — tudo já calculado pelo modelo da Fase 9. Nenhuma fórmula nova.
+   escrito, grau causal)` — tudo já calculado pelo modelo da Fase 10. Nenhuma fórmula nova.
 5. **Modos de falha com consequência**, nunca no-op: chegada em tick errado, chegada
    danificada, máquina consumida no processo, branch natimorto, viajante preso sem retorno.
    Sucesso parcial é resultado de primeira classe — chegou, mas alguém viu.
@@ -60,10 +60,10 @@ exatamente isso que o gate desta fase protege acima de qualquer outra coisa.
   canônico em 10 anos.
 
 ## Fora do escopo
-Voltar à linha de origem, catch-up e relógio por branch: Fase 19. Fusão de branches não
-existe, por decisão (ADR-0008). Contato e degrau cósmico: Fase 18. A potência que habilita
-o salto: Fase 15. Culto que venera uma linha perdida: Fase 16. Prosa sobre o viajante e
-sobre a linha abandonada: Fase 11.
+Voltar à linha de origem, catch-up e relógio por branch: Fase 20. Fusão de branches não
+existe, por decisão (ADR-0008). Contato e degrau cósmico: Fase 19. A potência que habilita
+o salto: Fase 16. Culto que venera uma linha perdida: Fase 17. Prosa sobre o viajante e
+sobre a linha abandonada: Fase 12.
 
 ## Questões em aberto
 - Existe teto de profundidade? Nada impede ramificar de um branch que já é filho, e a

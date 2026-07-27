@@ -36,5 +36,5 @@ como linhas de NPC (ver `docs/domain/simulation-lod.md`).
 - **Negativas / trade-offs**: duas representações para manter coerentes; o log cresce e
   exige política de retenção desde cedo; retomada perde o que ocorreu entre o último
   snapshot e a parada, a menos que o log seja reaplicado.
-- **Follow-ups**: Fase 1 define formato de snapshot e hash de mundo; Fase 9 define a
+- **Follow-ups**: Fase 1 define formato de snapshot e hash de mundo; Fase 10 define a
   política de compressão histórica.

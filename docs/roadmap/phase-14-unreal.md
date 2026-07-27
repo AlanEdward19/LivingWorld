@@ -1,4 +1,4 @@
-# Fase 13 — Cliente Unreal
+# Fase 14 — Cliente Unreal
 
 **Objetivo**: existe um cliente 3D que mostra o mundo em locais, personagens e voz,
 consumindo **a mesma API** do cliente web. O Unreal é uma janela para o mundo, nunca uma
@@ -27,7 +27,7 @@ segunda fonte da verdade.
    individuais; LOD baixo vira agregado visual. Nem a câmera nem o LOD visual escrevem no
    LOD de simulação — o caminho não existe, e o critério tenta provar que existe.
 9. **Voz via ACE (NVIDIA)**: fala do jogador → texto → **o mesmo** pipeline de conversa da
-   Fase 10 → texto validado → voz e lip sync. Nenhum atalho da voz direto para o provider.
+   Fase 11 → texto validado → voz e lip sync. Nenhum atalho da voz direto para o provider.
 10. **Medição de latência no servidor**: instrumentar tick → delta publicado e gravar o
     baseline por classe de máquina. O fim a fim (servidor → pixel) vira dashboard, não gate.
 
@@ -48,7 +48,7 @@ segunda fonte da verdade.
   (alto → baixo → alto, com a câmera se movendo entre regiões) e, ao final, o campo de LOD
   de simulação e o hash canônico estão inalterados. Câmera parada passaria por construção —
   o teste precisa mexer justamente no acoplamento que a fase teme.
-- Conversa por voz roda o **mesmo corpus de injeção da Fase 10**, com os mesmos asserts
+- Conversa por voz roda o **mesmo corpus de injeção da Fase 11**, com os mesmos asserts
   (`proposedActions ⊆ açõesPermitidas`, hash canônico inalterado, zero campo fora do
   schema). Nenhuma exceção por a fala ter chegado como áudio.
 - Provider de voz fora do ar degrada para texto na tela — a sessão não cai e a simulação
@@ -58,8 +58,8 @@ segunda fonte da verdade.
   fica fora do gate: em CI ele mede o runner, não o código.
 
 ## Fora do escopo
-Nenhuma regra de simulação nova, nenhum período novo (Fase 12) e nenhuma mudança no
-contrato de LLM (Fase 10). Esta fase **depende da Fase 14 (mapa visual) apenas para
+Nenhuma regra de simulação nova, nenhum período novo (Fase 13) e nenhuma mudança no
+contrato de LLM (Fase 11). Esta fase **depende da Fase 15 (mapa visual) apenas para
 paridade de navegação** — sem ela o cliente 3D funciona, só não espelha a navegação do
 mapa web. Se o 3D exigir dado que a API não expõe, é endpoint novo compartilhado com a
 web — nunca um caminho paralelo.

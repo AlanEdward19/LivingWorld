@@ -19,10 +19,27 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
   JSON (fix antes de T7); vazamento de dinheiro em treino deliberado (fix: credita
   `Workplace.Treasury` do empregador). Golden hashes regenerados. `verify.sh` limpo: 501
   passed, 4 skips esperados.
-- **Próxima unidade**: **Fase 7 (Família e Genética)** — hereditariedade completa (`RateGene`
-  desta fase é candidato a expansão, não palavra final). Ver
-  [docs/roadmap/phase-07-family.md](docs/roadmap/phase-07-family.md). Ainda não especificada —
-  primeiro passo é `tlc-spec-driven` Specify.
+- **Próxima unidade**: **Fase 7 (Família e Genética)** — Specify e Design fechados
+  (`.specs/features/phase-07-family/{spec,design}.md`), 36 requisitos FAM-01..36, AD-050..063
+  registrados em `docs/decisions-log.md` (AD-061..063 novos nesta sessão de Design: candidatos
+  de cortejo restritos a quem já tem `Relationship`/AD-052; `Upbringing` afeta salário via
+  `WagePaymentSystem` com flag de canal ambiental desligável; cortejo como evento agendado —
+  `Npc.Spouse`/`CourtingWith`). Componentes: `FamilyRules`, `Relationship`/`RelationshipKey`,
+  `RelationshipSystem` (Daily), `CourtshipSystem` (Yearly, agenda conclusão via
+  `ctx.ScheduleEvent`), `MarriageSystem` (helper estático), `NatalitySystem` reescrito,
+  `HeredityService` (Vitality genético/Upbringing ambiental), `HouseholdRedistribution`
+  (chamado de dentro de `NpcDeath.Apply`). Toca 2 sistemas existentes (`WagePaymentSystem`,
+  `LifeTable.AnnualMortality` ganha parâmetro opcional). **Tasks fechado**
+  (`.specs/features/phase-07-family/tasks.md`): 31 tasks (T1-T31) em 9 fases de dependência —
+  primitivos de domínio → extensões de `Npc`/`WorldState` → sistemas existentes tocados
+  (`LifeTable`/`MortalityPlanner`/`MortalitySystem`, `WagePaymentSystem`) → extração de
+  `HouseholdCleanup`/`HouseholdRedistribution` → sistemas novos (`RelationshipSystem`,
+  `MarriageSystem`, `CourtshipSystem`, `NatalitySystem` reescrito, seed de
+  `Vitality`/`Upbringing`) → wiring (`ScenarioRunner`) → cobertura/regressão + harnesses de
+  controle (deriva neutra, contrafactual de household) → 9 cenários pareados/estatísticos de
+  verificação (FAM-26..36, `Category=Scenario`). Todas as 3 checagens de validação do tasks.md
+  (granularidade, diagrama×dependência, co-locação de teste) passaram sem ❌. Próximo passo:
+  `tlc-spec-driven` Execute (offer de sub-agent por fase — 9 fases, acima do teto de 3).
 - **Fase 9 nova (Escala e armazenamento)** — inserida depois da 8; antigas 9–26 viraram 10–27
   (AD-049, arquivos renomeados). Spec pronta em
   [.specs/features/phase-09-scale/spec.md](.specs/features/phase-09-scale/spec.md) (PERF-01..17,

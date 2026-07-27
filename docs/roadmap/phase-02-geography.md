@@ -2,7 +2,7 @@
 
 **Objetivo**: o mundo tem geografia consultável como **dado** — regiões, células, terreno,
 bioma, altitude, água, recursos — e uma função de custo de deslocamento. É exatamente o que
-as Fases 5 e 8 consomem, e nada além disso. Nenhum pixel: visualização é a Fase 14.
+as Fases 5 e 8 consomem, e nada além disso. Nenhum pixel: visualização é a Fase 15.
 
 ## Tasks
 1. **Grid de células e regiões**: célula com terreno, bioma, altitude, presença de água e
@@ -44,7 +44,7 @@ as Fases 5 e 8 consomem, e nada além disso. Nenhum pixel: visualização é a F
   `src/LivingWorld.Domain` ou `src/LivingWorld.Simulation`.
 
 ## Fora do escopo
-Tudo que é visual ou de cliente foi para a **Fase 14**: React, canvas, camadas de
+Tudo que é visual ou de cliente foi para a **Fase 15**: React, canvas, camadas de
 renderização, drill-down de UI, OpenAPI, geração de tipos TS, endpoint de mapa e extensão
 dos scripts para o ramo web. Cidades que crescem, migram ou se fundam (Fase 8), rotas
 comerciais reais (Fase 5) e clima com efeito na produção (Fase 5+) também ficam fora —
@@ -55,6 +55,6 @@ exige, e é por isso que ela cabe em pouca coisa.
 ## Ver também
 [world-map.md](../domain/world-map.md) ·
 [cities.md](../domain/cities.md) ·
-[phase-14-map-visual.md](phase-14-map-visual.md) ·
+[phase-15-map-visual.md](phase-15-map-visual.md) ·
 [rules/eval-criteria.md](../../rules/eval-criteria.md) ·
 [rules/implementation.md](../../rules/implementation.md)

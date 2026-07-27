@@ -1,4 +1,4 @@
-# Fase 21 — Imperfeição e diversidade
+# Fase 22 — Imperfeição e diversidade
 
 **Objetivo**: o mundo não é justo nem limpo. Defeito congênito, doença, deficiência e gente
 ruim de coração existem — e, contra as probabilidades, também existe quem foi criado num
@@ -21,11 +21,11 @@ improvável e fraco o bastante para não apagar a causalidade que a Fase 7 mediu
    mesma doença, desfechos diferentes.
 3. **Deficiência com consequência funcional**, reusando o pré-requisito de marco da Fase
    20: a condição rebaixa o teto do eixo afetado, e as ações que o exigem saem do alcance.
-4. **A cultura decide a reação, não a condição** — mesma regra da Fase 15. Igualitarismo,
+4. **A cultura decide a reação, não a condição** — mesma regra da Fase 16. Igualitarismo,
    tradição, religiosidade e valorização da ciência escolhem entre acolher, esconder,
    excluir ou descartar. A condição não carrega a reação.
 5. **Moralidade emergente, nunca campo**: comportamento moral é resultado de empatia,
-   altruísmo, impulsividade (Fase 4), criação (Fase 20) e circunstância. "Gente ruim" é um
+   altruísmo, impulsividade (Fase 4), criação (Fase 21) e circunstância. "Gente ruim" é um
    padrão lido do event log, do mesmo jeito que a Fase 7 recusa um score global de aptidão.
 6. **Canal de sorte explícito**: peso declarado no cenário, **stream próprio** no RNG
    (ADR-0005), cauda pelo perfil `Raro` do ADR-0011. Ser um termo nomeado — e não ruído
@@ -34,7 +34,7 @@ improvável e fraco o bastante para não apagar a causalidade que a Fase 7 mediu
    divulgação** (assumido, oculto, negado) que evolui com a tolerância local, com o vínculo
    de quem sabe e com eventos de exposição.
 8. **Divulgação alimenta estresse e risco**, e deixa o gancho de chantagem pronto para a
-   Fase 22 consumir. Aqui existe o estado; a mecânica de segredo é de lá.
+   Fase 23 consumir. Aqui existe o estado; a mecânica de segredo é de lá.
 9. **Compatibilidade de cortejo revista** (Fase 7): valores, temperamento, orientação e
    estado de divulgação entram junto da atração, com **motivo nomeado** na rejeição — o
    mesmo mecanismo do `Incesto`.
@@ -68,9 +68,9 @@ improvável e fraco o bastante para não apagar a causalidade que a Fase 7 mediu
   braço que serve de controle ao primeiro critério.
 
 ## Fora do escopo
-Segredo, chantagem, fofoca e traição como mecânica: Fase 22 — aqui só o estado de
+Segredo, chantagem, fofoca e traição como mecânica: Fase 23 — aqui só o estado de
 divulgação. Medicina como profissão, hospital e cura: Fases 6, 5 e 8. Epidemia como relato
-histórico e prosa: Fases 9 e 11. Poder que cura ou amaldiçoa: Fase 15. Prevalência de
+histórico e prosa: Fases 10 e 12. Poder que cura ou amaldiçoa: Fase 16. Prevalência de
 condições é balanceamento e não tem gate (ADR-0010).
 
 ## Questões em aberto
@@ -81,10 +81,10 @@ condições é balanceamento e não tem gate (ADR-0010).
 - Condição congênita de origem genética e predisposição da Fase 6 são o mesmo mecanismo com
   dois nomes? Se são, um dos dois deve sumir antes de virar código.
 - Imunidade permanente extingue a doença do mundo em poucas gerações. Reintrodução é evento
-  de cenário (como a redescoberta do livro na Fase 9) ou mutação do patógeno com stream
+  de cenário (como a redescoberta do livro na Fase 10) ou mutação do patógeno com stream
   próprio?
 - Divulgação "negado" é crença do próprio NPC ou ação de fingimento? Só a segunda pode ser
-  desmentida por prova, e a primeira mora na camada de crença da Fase 9.
+  desmentida por prova, e a primeira mora na camada de crença da Fase 10.
 
 ## Ver também
 [npc.md](../domain/npc.md) ·

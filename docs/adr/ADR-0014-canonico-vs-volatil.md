@@ -12,7 +12,7 @@ apareceram em fases diferentes e todos eram o mesmo problema:
 - o nome de uma entidade emergente está fora do hash (ADR-0013), mas "que nome esta cultura
   usa" é crença, e crença está dentro;
 - a aparência de sprite derivada da genética entra no hash ou não;
-- memória compactada muda o hash ou não (Fase 10).
+- memória compactada muda o hash ou não (Fase 11).
 
 Classificar caso a caso produz decisões inconsistentes e um hash em que ninguém confia.
 

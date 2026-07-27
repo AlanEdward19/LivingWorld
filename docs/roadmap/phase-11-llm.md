@@ -1,4 +1,4 @@
-# Fase 10 — Interação com LLM
+# Fase 11 — Interação com LLM
 
 **Objetivo**: um jogador seleciona um NPC vivo, conversa com ele por texto e a LLM
 gera só linguagem — o motor valida tudo e é o único que escreve no mundo. Fecha o
@@ -12,11 +12,11 @@ gera só linguagem — o motor valida tudo e é o único que escreve no mundo. F
    + relevância, com pesos declarados no cenário. Empate desempata por ID de memória.
 3. **Montagem de contexto a partir da crença**: o prompt nasce do `NpcKnowledge` —
    memórias recuperadas e relatos que o NPC ouviu **na versão distorcida que ele guarda**
-   (Fase 9), relações conhecidas, local, necessidades. Nunca do `WorldState`, nunca da
+   (Fase 10), relações conhecidas, local, necessidades. Nunca do `WorldState`, nunca da
    consulta de verdade. Verdade e crença são duas consultas e só a crença chega ao prompt.
 4. **Seleção e sessão de conversa**: endpoint para abrir conversa com um NPC, enviar fala
    e encerrar; histórico por sessão. A sessão é presa a um NPC e a um tick — o mundo
-   continua avançando por fora. Cliente visual é a Fase 14; aqui basta o endpoint.
+   continua avançando por fora. Cliente visual é a Fase 15; aqui basta o endpoint.
 5. **Provider real + ADR-0007**: escolher Ollama local e/ou Claude API, medir custo por
    interação e latência p95, e registrar a decisão em `ADR-0007-provider-llm-real.md`.
    `FakeLlmProvider` continua sendo o provider dos testes.
@@ -71,8 +71,8 @@ gera só linguagem — o motor valida tudo e é o único que escreve no mundo. F
   torna a compactação livre; acima do limiar ela é canônica e a compactação não a alcança.
 
 ## Fora do escopo
-Narrativa gerada (crônicas, relatos, rumores) é Fase 11. Voz e conversa 3D são Fase 13.
-Cliente visual é Fase 14. LLM tomando decisão de comportamento de NPC em background não
+Narrativa gerada (crônicas, relatos, rumores) é Fase 12. Voz e conversa 3D são Fase 14.
+Cliente visual é Fase 15. LLM tomando decisão de comportamento de NPC em background não
 entra em fase nenhuma.
 
 ## Ver também

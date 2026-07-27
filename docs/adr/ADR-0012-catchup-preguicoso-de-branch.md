@@ -55,5 +55,5 @@ Determinismo comprou preguiça.
   os dois seguem a mesma escala.
 - **Follow-ups**: teto de branches vivos e política de âncora continuam valendo (ADR-0008);
   a fase de trânsito interdimensional especifica pré-aquecimento e orçamento de catch-up.
-  O critério da Fase 19 passa a ser `preguiçoso == eager` **dado o mesmo registro de
+  O critério da Fase 20 passa a ser `preguiçoso == eager` **dado o mesmo registro de
   presença** — sem essa cláusula ele é falso assim que houver degradação.

@@ -47,7 +47,7 @@ sociedade custa.
 
 Aliens e conquistadores **não são um tipo novo**: são culturas num degrau tecnológico diferente,
 chegando por contato. Reusam cultura, conhecimento, tecnologia, economia, guerra e diplomacia que já
-existem. A Fase 12 (múltiplos períodos) já dá o vocabulário de níveis tecnológicos como módulo de
+existem. A Fase 13 (múltiplos períodos) já dá o vocabulário de níveis tecnológicos como módulo de
 conteúdo — uma frota alienígena é o pacote "futurista" encostando num mundo que roda o "medieval".
 Se um alien exigisse mudar o núcleo, a abstração estaria errada, pela mesma regra dos períodos.
 

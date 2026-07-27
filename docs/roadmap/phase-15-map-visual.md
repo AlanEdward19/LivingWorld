@@ -1,4 +1,4 @@
-# Fase 14 — Mapa visual
+# Fase 15 — Mapa visual
 
 **Objetivo**: um cliente web mostra o mundo que já existe — camadas sobre o grid da Fase 2,
 navegação do mapa-múndi até o NPC, tudo em **leitura**. Recebe o que saiu da Fase 2 para
@@ -40,7 +40,7 @@ O **objetivo #2** (selecionar um NPC vivo e ver identidade, família, profissão
 rotina e memórias) é atendido por CLI/API na **Fase 8** e **não depende desta fase**. Se
 esta fase deslizar indefinidamente, nenhum objetivo técnico fica em aberto.
 Escrita pela UI (a API de mapa é leitura), cliente 3D, personagens, voz e animação são
-Fase 13. Regras de simulação novas não entram aqui: se a visualização revelar uma mecânica
+Fase 14. Regras de simulação novas não entram aqui: se a visualização revelar uma mecânica
 faltando, ela vira task da fase dona da mecânica.
 
 ## Ver também

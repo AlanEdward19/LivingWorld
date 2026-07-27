@@ -1,4 +1,4 @@
-# Fase 26 — Motor cinematográfico
+# Fase 27 — Motor cinematográfico
 
 **Objetivo**: assistir. A rotina de um NPC vivo, um ano da vida dele, ou a vida inteira de
 alguém que morreu há séculos — montadas a partir do event log e dos relatos. Começa em
@@ -13,7 +13,7 @@ espectador qual é o caso e quão confiável é a fonte.
 
 > **Spec, não gate.** Os critérios abaixo são a intenção; os critérios finais são escritos
 > sob `rules/eval-criteria.md` quando a fase for ativada. Não comece esta fase antes das
-> Fases 9 e 11 fecharem.
+> Fases 10 e 12 fecharem.
 
 ## Tasks
 1. **Stream de cena a partir do log**: sequência estruturada de quem, onde, o quê, com quem
@@ -27,7 +27,7 @@ espectador qual é o caso e quão confiável é a fonte.
    rótulo é calculado, nunca escolhido pelo renderizador.
 5. **Divergência visível**: quando duas comunidades sustentam versões incompatíveis, o
    recorte oferece as duas e diz de quem é cada uma.
-6. **Renderizador de texto primeiro**, reusando os templates determinísticos da Fase 11.
+6. **Renderizador de texto primeiro**, reusando os templates determinísticos da Fase 12.
    Caminho padrão e fallback quando o provider de LLM falha.
 7. **Renderizador 2D depois**: sprites composicionais montados dos traços canônicos de
    aparência que vêm no stream. O traço é o dado; o sprite é derivado e volátil (ADR-0014).
@@ -40,7 +40,7 @@ espectador qual é o caso e quão confiável é a fonte.
 - **Nenhuma cena inventada**: toda cena do stream resolve para um `eventId` existente no log
   **ou** para um `relatoId` existente no cânone, e declara qual. Falha se alguma cena ficar
   sem fonte declarada ou apontar para um id inexistente. Mesma família do critério de
-  ancoragem da Fase 11.
+  ancoragem da Fase 12.
 - **A fidelidade declarada bate com a fonte usada**: NPC vivo rende cenas de Tier A+B com
   fidelidade de gravação; NPC morto além da janela de retenção rende cenas de relato com
   fidelidade de dramatização. Par na mesma seed: forçar a coleta do Tier B por flag de teste
@@ -60,9 +60,9 @@ espectador qual é o caso e quão confiável é a fonte.
   stream, o contrato vazou para a apresentação e o 3D custará uma reescrita.
 
 ## Fora do escopo
-Cliente 3D, animação e voz: Fase 13. Prosa de crônica, jornal e biografia: Fase 11 — aqui
-ela é reusada, não reinventada. A distorção em si: Fase 9. Busca, índice de eventos
-marcantes e controles de tempo: Fase 25. Encarnação e sessão de jogador: Fase 24. Arte,
+Cliente 3D, animação e voz: Fase 14. Prosa de crônica, jornal e biografia: Fase 12 — aqui
+ela é reusada, não reinventada. A distorção em si: Fase 10. Busca, índice de eventos
+marcantes e controles de tempo: Fase 26. Encarnação e sessão de jogador: Fase 25. Arte,
 estilo visual e produção de sprites não têm gate.
 
 ## Questões em aberto

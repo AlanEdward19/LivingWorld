@@ -1,4 +1,4 @@
-# Fase 19 — Trânsito interdimensional e catch-up
+# Fase 20 — Trânsito interdimensional e catch-up
 
 **Objetivo**: branch é dimensão. Quem desenvolver artefato, tecnologia ou potência de
 trânsito **volta à linha de origem** — e a linha precisa ter avançado enquanto ninguém
@@ -8,7 +8,7 @@ Preguiça aqui não é aproximação; é o mesmo resultado, mais barato.
 
 > **Spec, não gate.** Os critérios abaixo são a intenção; os critérios finais são escritos
 > sob `rules/eval-criteria.md` quando a fase for ativada. Não comece esta fase antes da
-> Fase 17 fechar.
+> Fase 18 fechar.
 
 ## Tasks
 1. **`simuladoAté` por branch**, persistido junto do `BranchId` e avançado só por catch-up
@@ -27,7 +27,7 @@ Preguiça aqui não é aproximação; é o mesmo resultado, mais barato.
 7. **Orçamento e progresso visíveis**: catch-up longo reporta progresso e respeita o teto de
    trabalho por chamada declarado no cenário. Estourar o orçamento é resultado explícito,
    não travamento silencioso.
-8. **Trânsito como potência (Fase 15), não botão**: custo cobrado no uso, rolagem pelo
+8. **Trânsito como potência (Fase 16), não botão**: custo cobrado no uso, rolagem pelo
    primitivo único (ADR-0011, perfil `Dramático`) e modos de falha com consequência —
    chegada na linha errada, chegada fora do tick pretendido, meio de trânsito consumido.
 9. **Chegada em linha onde o viajante já existe**: regra explícita de identidade e de
@@ -70,9 +70,9 @@ Preguiça aqui não é aproximação; é o mesmo resultado, mais barato.
   canônico em 10 anos.
 
 ## Fora do escopo
-Criação de branch, âncora, coleta e inércia histórica: Fase 17. Fusão de linhas continua não
-existindo (ADR-0008). Contato e escala cósmica: Fase 18. A potência genérica que o trânsito
-instancia: Fase 15. Prosa sobre o retorno: Fase 11. Custo de trânsito não tem gate (ADR-0010).
+Criação de branch, âncora, coleta e inércia histórica: Fase 18. Fusão de linhas continua não
+existindo (ADR-0008). Contato e escala cósmica: Fase 19. A potência genérica que o trânsito
+instancia: Fase 16. Prosa sobre o retorno: Fase 12. Custo de trânsito não tem gate (ADR-0010).
 
 ## Questões em aberto
 - **Se o viajante já existe na linha de destino, o que acontece?** Dois corpos com a mesma

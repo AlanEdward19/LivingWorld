@@ -1,4 +1,4 @@
-# Fase 11 — Narrativa
+# Fase 12 — Narrativa
 
 **Objetivo**: o passado vira texto legível — crônicas, biografias e rumores. A narrativa
 renderiza **relatos** (possivelmente falsos), não fatos: o motor já distorceu, a LLM só
@@ -59,9 +59,9 @@ põe em prosa. Rumor e crônica são o mesmo mecanismo em meios diferentes.
   do registro de sistemas, custo zero. Medir tempo em CI mede o runner, não o código.
 
 ## Fora do escopo
-Voz e leitura falada são Fase 13. Narrativa não propõe nem aplica ação —
-`proposedActions` continua vazio aqui; conversa interativa é Fase 10. A distorção em si é
-Fase 9: aqui ela só é renderizada, nunca decidida.
+Voz e leitura falada são Fase 14. Narrativa não propõe nem aplica ação —
+`proposedActions` continua vazio aqui; conversa interativa é Fase 11. A distorção em si é
+Fase 10: aqui ela só é renderizada, nunca decidida.
 
 ## Ver também
 [historical-memory.md](../domain/historical-memory.md) ·

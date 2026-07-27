@@ -1,4 +1,4 @@
-# Fase 9 — História degradável
+# Fase 10 — História degradável
 
 **Objetivo**: história não é log comprimido, é **relato transmitido e degradado**. Morta a
 última testemunha, o fato deixa de existir como registro fiel e passa a existir como
@@ -71,8 +71,8 @@ esqueleto compacto do fato só para poder comparar.
 - Reidratar um snapshot e reaplicar o log a partir dele reproduz o mesmo `Hash(world)`.
 
 ## Fora do escopo
-Prosa narrativa, jornais e biografias geradas: Fase 11. LLM lendo o passado para narrar:
-Fase 10 em diante — aqui relato e crença são **dado estruturado**, produzido pelo motor.
+Prosa narrativa, jornais e biografias geradas: Fase 12. LLM lendo o passado para narrar:
+Fase 11 em diante — aqui relato e crença são **dado estruturado**, produzido pelo motor.
 
 ## Ver também
 [historical-memory.md](../domain/historical-memory.md) ·

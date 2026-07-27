@@ -10,7 +10,7 @@ com camadas (terreno, biomas, rotas, fronteiras, conflitos) e milhares de entida
 desenhadas ao mesmo tempo. Isso é renderização em canvas/WebGL, não formulário.
 
 Quando este ADR foi escrito, o mapa era a Fase 2. Depois (AD-007) a Fase 2 virou geografia
-só de dados e o cliente visual foi para a **Fase 14**, fora do caminho crítico do objetivo
+só de dados e o cliente visual foi para a **Fase 15**, fora do caminho crítico do objetivo
 #1. A escolha de tecnologia abaixo não muda — só o momento em que ela é exercida.
 
 ## Decisão
@@ -34,5 +34,5 @@ escritos à mão. Contrato duplicado à mão diverge.
 - **Negativas / trade-offs**: segundo toolchain (Node/npm) no repo; `scripts/build.sh` e
   `verify.sh` passam a ter um ramo web; risco de divergência de contrato, mitigado pela
   geração a partir do OpenAPI.
-- **Follow-ups**: na Fase 14, estender `scripts/*.sh` para o ramo web e adicionar a
+- **Follow-ups**: na Fase 15, estender `scripts/*.sh` para o ramo web e adicionar a
   geração de tipos ao gate (`git diff --exit-code` sobre o diretório gerado).

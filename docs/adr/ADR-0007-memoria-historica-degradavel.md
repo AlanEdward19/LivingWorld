@@ -54,5 +54,5 @@ fato. Concretamente:
   ser determinística, o que a torna mais trabalhosa que sortear texto; depurar "por que o
   NPC acredita nisso?" exige ferramenta de proveniência desde o começo.
 - **Follow-ups**: substitui a política de retenção genérica do ADR-0006 — este ADR não o
-  revoga, especializa a parte de retenção. A Fase 9 é reescrita sobre este modelo, e o log
+  revoga, especializa a parte de retenção. A Fase 10 é reescrita sobre este modelo, e o log
   em dois tiers desce para a Fase 3 para que o formato não congele errado.

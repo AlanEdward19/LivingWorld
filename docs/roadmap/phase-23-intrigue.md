@@ -1,6 +1,6 @@
-# Fase 22 — Intriga
+# Fase 23 — Intriga
 
-**Objetivo**: intriga não é subsistema novo — é a camada de crença da Fase 9 e a memória
+**Objetivo**: intriga não é subsistema novo — é a camada de crença da Fase 10 e a memória
 social da Fase 7 usadas **contra as pessoas**. Segredo é fato com propagação restrita;
 chantagem é usar o segredo de outro; traição é agir contra um vínculo de confiança por
 ganho; e a briga sai do primitivo do ADR-0011, não de um roteiro. Ninguém escreve um enredo:
@@ -8,10 +8,10 @@ o mundo passa a produzir rixa, escândalo e conspiração como subproduto do que
 
 > **Spec, não gate.** Os critérios abaixo são a intenção; os critérios finais são escritos
 > sob `rules/eval-criteria.md` quando a fase for ativada. Não comece esta fase antes da
-> Fase 9 fechar.
+> Fase 10 fechar.
 
 ## Tasks
-1. **Segredo = fato do esqueleto (Fase 9) com propagação de crença restrita**: dono,
+1. **Segredo = fato do esqueleto (Fase 10) com propagação de crença restrita**: dono,
    cúmplices, conjunto de quem sabe e risco de vazamento por salto de transmissão. Nenhuma
    tabela paralela de segredos — é atributo de propagação, não entidade nova.
 2. **Motivo e oportunidade** como pré-condição de toda ação hostil: motivo (necessidade,
@@ -29,11 +29,11 @@ o mundo passa a produzir rixa, escândalo e conspiração como subproduto do que
 6. **Rancor de longo prazo**: memória episódica negativa que sobrevive à compactação virando
    crença sobre uma pessoa ou linhagem. Decai, **prescreve** no prazo do cenário e reacende
    com evento novo do mesmo alvo — a rixa cuja origem ninguém lembra direito, à moda do
-   Dwarf Fortress, já sai de graça da distorção da Fase 9.
+   Dwarf Fortress, já sai de graça da distorção da Fase 10.
 7. **Briga e violência pelo primitivo do ADR-0011**, perfil `Dramático`, com **sucesso
    parcial** de primeira classe: "você venceu, mas alguém viu" é o que alimenta a próxima
    intriga.
-8. **Fofoca como transmissão enviesada**: os operadores de distorção da Fase 9, com
+8. **Fofoca como transmissão enviesada**: os operadores de distorção da Fase 10, com
    probabilidade modulada pelos eixos de relação de quem conta com o alvo e com o ouvinte.
    Inimigo infla, aliado omite.
 9. **Reputação por comunidade**: agregado das crenças daquela comunidade sobre um NPC,
@@ -46,7 +46,7 @@ o mundo passa a produzir rixa, escândalo e conspiração como subproduto do que
 - **Ninguém sabe sem caminho**: enumeração por reflexão de **todo** acesso a crença,
   reprovando se algum caminho resolver para o fato direto **ou** se algum handler ficar sem
   cobertura; mais o assert, a cada tick em 10 anos, de que todo NPC que conhece um segredo
-  tem cadeia de transmissão até o dono. Par de mutação igual ao da Fase 9: desligar a
+  tem cadeia de transmissão até o dono. Par de mutação igual ao da Fase 10: desligar a
   checagem por flag de teste tem de **fazer este critério falhar**.
 - **Segredo causa traição**: par base/tratamento na mesma seed, tratamento = densidade de
   segredos maior no cenário. Taxa de traição maior no tratamento em **18/20 seeds**.
@@ -68,13 +68,13 @@ o mundo passa a produzir rixa, escândalo e conspiração como subproduto do que
   nada.
 
 ## Fora do escopo
-Prosa de escândalo, panfleto e crônica: Fase 11. Guerra entre estados e processo político
-formal: Fase 8 e `society.md`. Segredo de culto e doutrina: Fase 16. Orientação e estado de
-divulgação: Fase 21 — aqui só consumidos. Combate tático com ferimento localizado: fora do
+Prosa de escândalo, panfleto e crônica: Fase 12. Guerra entre estados e processo político
+formal: Fase 8 e `society.md`. Segredo de culto e doutrina: Fase 17. Orientação e estado de
+divulgação: Fase 22 — aqui só consumidos. Combate tático com ferimento localizado: fora do
 projeto; a briga resolve numa rolagem do ADR-0011.
 
 ## Questões em aberto
-- Segredo colide com o **cânone limitado** da Fase 9: despejado do cânone, o segredo deixa
+- Segredo colide com o **cânone limitado** da Fase 10: despejado do cânone, o segredo deixa
   de existir ou vira fato que ninguém pode mais revelar — e a chantagem morre com ele?
 - Reputação por comunidade é agregado recalculado por tick (caro) ou estado mantido (uma
   quarta camada de crença para conservar coerente)? Não dá para ter os dois.
