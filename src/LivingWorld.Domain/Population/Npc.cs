@@ -142,6 +142,18 @@ public sealed class Npc
         ActionStartedAtTick = tick;
     }
 
+    public void MarkHungerZeroSince(long tick) => HungerZeroSinceTick = tick;
+
+    public void ClearHungerZeroSince() => HungerZeroSinceTick = null;
+
+    /// <summary>NEEDS-05: objetivo ativo e inspecionável — necessidade zerada dispara sempre
+    /// (NEEDS-02, independente do limiar configurado); necessidade cujo déficit (100 − valor)
+    /// supera <see cref="NeedsRules.UrgencyThreshold"/> também é urgente.</summary>
+    public bool HasUrgentNeed(NeedsRules rules) =>
+        IsUrgent(Hunger, rules) || IsUrgent(Thirst, rules) || IsUrgent(Sleep, rules) || IsUrgent(Social, rules);
+
+    private static bool IsUrgent(int need, NeedsRules rules) => need == 0 || 100 - need > rules.UrgencyThreshold;
+
     public void BecomePregnant(WorldDate dueDate) => PregnantUntil = dueDate;
 
     public void ClearPregnancy() => PregnantUntil = null;

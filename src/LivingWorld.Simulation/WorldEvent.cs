@@ -7,6 +7,11 @@ public enum WorldEventKind
 {
     Birth,
     Death,
+
+    /// <summary>Morte por fome sustentada (Fase 4, task 10/NEEDS-03) — valor de enum próprio em
+    /// vez de reusar <see cref="Death"/> com causa no payload: mesmo padrão de "kind carrega o
+    /// que aconteceu, payload carrega quem" já usado por Birth/Death.</summary>
+    Starvation,
 }
 
 /// <summary>Um evento de história, carimbado com o tick em que ocorreu. Sem <c>BranchId</c> —
