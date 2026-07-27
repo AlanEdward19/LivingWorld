@@ -1,5 +1,13 @@
 namespace LivingWorld.Domain;
 
+/// <summary>Sentinela "sucesso sem valor" para <c>Result&lt;Unit&gt;</c> — operações que só
+/// precisam expressar falha nomeada (ex.: <see cref="Workplace.Hire"/>), sem devolver dado
+/// nenhum no caminho feliz.</summary>
+public readonly record struct Unit
+{
+    public static readonly Unit Value = default;
+}
+
 /// <summary>Erro de negócio explícito em vez de null/exceção.</summary>
 public readonly struct Result<T>
 {
