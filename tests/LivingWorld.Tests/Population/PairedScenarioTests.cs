@@ -91,6 +91,47 @@ public class PairedScenarioTests
                 $"{baseline.AverageRatio:F3} gravado em {BaselinePath} — revisar calibracao do modelo (nao falha o gate).");
     }
 
+    // --- T15 (SKILL-08/16): mestre-topo vs mestre-piso ---
+
+    private static double ApprenticeFinalSkillAfterDays(ulong seed, double masterSkillLevel, int days)
+    {
+        var world = SkillScenarioHarness.CreateWorld(seed);
+        var rateGene = new RateGene(1.0);
+        var masterSkills = SkillSet.Initial(0)
+            .WithGain(SkillType.Agriculture, masterSkillLevel, cap: 100)
+            .WithGain(SkillType.Teaching, 50, cap: 100);
+        var master = SkillScenarioHarness.MakeWorker(
+            world, new ProfessionType(1), SkillScenarioHarness.SomeLocation, rateGene, masterSkills);
+        // ActionType.Idle (não Work): impede que SkillTeachingSystem.GainFromObservation faça o
+        // mestre "observar" o aprendiz (o vínculo de mentor já exclui o inverso) e drifte a
+        // habilidade fixada do mestre durante o teste.
+        var apprentice = SkillScenarioHarness.MakeWorker(
+            world, new ProfessionType(1), SkillScenarioHarness.SomeLocation, rateGene, action: ActionType.Idle);
+        apprentice.AssignMentor(master.Id);
+
+        var system = new SkillTeachingSystem(ScenarioRunner.DefaultSkillsRules, ScenarioRunner.DefaultLifeStageRules);
+        var ctx = new TickContext(world, world.Rng, world.Scheduler);
+        for (int day = 0; day < days; day++)
+            system.Tick(world, ctx);
+
+        return apprentice.Skills.Get(SkillType.Agriculture);
+    }
+
+    [Fact]
+    [Trait("Category", "Scenario")]
+    public void Apprentice_of_top_of_range_master_ends_with_higher_skill_than_apprentice_of_bottom_of_range_master_in_20_of_20_seeds()
+    {
+        double cap = ScenarioRunner.DefaultSkillsRules.Cap;
+        int wins = 0;
+        for (ulong seed = 1; seed <= 20; seed++)
+        {
+            double topApprentice = ApprenticeFinalSkillAfterDays(seed, masterSkillLevel: cap * 0.9, days: 2 * DaysPerYear);
+            double bottomApprentice = ApprenticeFinalSkillAfterDays(seed, masterSkillLevel: cap * 0.1, days: 2 * DaysPerYear);
+            if (topApprentice > bottomApprentice) wins++;
+        }
+        Assert.Equal(20, wins);
+    }
+
     private static string FindRepoRoot()
     {
         var dir = AppContext.BaseDirectory;

@@ -28,14 +28,15 @@ public static class SkillScenarioHarness
     /// decisão roda neste harness, então a ação corrente é um parâmetro fixado por construção, não
     /// uma decisão simulada.</summary>
     public static Npc MakeWorker(
-        WorldState world, ProfessionType profession, CellCoord location, RateGene rateGene, SkillSet? skills = null)
+        WorldState world, ProfessionType profession, CellCoord location, RateGene rateGene, SkillSet? skills = null,
+        ActionType action = ActionType.Work)
     {
         var npc = new Npc(
             world.NextNpcIdAndAdvance(), $"npc-{world.NextNpcId}", Sex.Male,
             WorldDate.Epoch(world.Calendar).AddYears(-30), new CultureId(1), location,
             motherId: null, fatherId: null, household: null, health: 100,
             personality: SomePersonality, profession: profession, currentLocation: location,
-            currentAction: ActionType.Work, rateGene: rateGene, skills: skills);
+            currentAction: action, rateGene: rateGene, skills: skills);
         world.AddNpc(npc);
         return npc;
     }
