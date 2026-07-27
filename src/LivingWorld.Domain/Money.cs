@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace LivingWorld.Domain;
 
 /// <summary>Grandeza monetária inteira (unidades, não centavos flutuantes). Nunca negativa.</summary>
@@ -5,6 +7,10 @@ public readonly record struct Money
 {
     public long Amount { get; }
 
+    /// <summary>Record struct também sintetiza um construtor sem parâmetro (default); sem esta
+    /// anotação, System.Text.Json escolhe o implícito e <see cref="Amount"/> (só getter) nunca
+    /// é preenchido no round-trip — fica sempre 0.</summary>
+    [JsonConstructor]
     public Money(long amount)
     {
         if (amount < 0)

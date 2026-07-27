@@ -164,7 +164,8 @@ public class NpcTests
             personality: personality, profession: new ProfessionType(9),
             hunger: 33, thirst: 44, sleep: 55, social: 66,
             currentLocation: new CellCoord(5, 6), currentAction: ActionType.Socialize, actionStartedAtTick: 12,
-            hungerZeroSinceTick: 8, homelessSince: WorldDate.Epoch(Calendar).AddYears(2));
+            hungerZeroSinceTick: 8, homelessSince: WorldDate.Epoch(Calendar).AddYears(2),
+            wallet: new Money(250), employer: new WorkplaceId(4));
 
         var json = JsonSerializer.Serialize(npc, options);
         var rehydrated = JsonSerializer.Deserialize<Npc>(json, options)!;
@@ -180,5 +181,33 @@ public class NpcTests
         Assert.Equal(npc.ActionStartedAtTick, rehydrated.ActionStartedAtTick);
         Assert.Equal(npc.HungerZeroSinceTick, rehydrated.HungerZeroSinceTick);
         Assert.Equal(npc.HomelessSince, rehydrated.HomelessSince);
+        Assert.Equal(npc.Wallet, rehydrated.Wallet);
+        Assert.Equal(npc.Employer, rehydrated.Employer);
+    }
+
+    // --- Fase 5 (T5): Wallet/Employer ---
+
+    [Fact]
+    public void TryDebitWallet_delegates_to_Money_TryDebit_and_decreases_wallet_on_success()
+    {
+        var npc = MakeNpc(WorldDate.Epoch(Calendar));
+        npc.CreditWallet(new Money(100));
+
+        var result = npc.TryDebitWallet(new Money(40));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(new Money(60), npc.Wallet);
+    }
+
+    [Fact]
+    public void TryDebitWallet_fails_and_never_goes_negative_when_insufficient()
+    {
+        var npc = MakeNpc(WorldDate.Epoch(Calendar));
+        npc.CreditWallet(new Money(10));
+
+        var result = npc.TryDebitWallet(new Money(40));
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(new Money(10), npc.Wallet); // byte-idêntico ao estado anterior à tentativa
     }
 }

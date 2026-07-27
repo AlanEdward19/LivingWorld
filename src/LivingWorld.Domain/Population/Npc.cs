@@ -39,6 +39,10 @@ public sealed class Npc
     /// grava o timestamp quando o household deixa de existir; <see cref="JoinHousehold"/> limpa.</summary>
     public WorldDate? HomelessSince { get; private set; }
 
+    // Fase 5 (T5): saldo pessoal e vínculo empregatício.
+    public Money Wallet { get; private set; }
+    public WorkplaceId? Employer { get; private set; }
+
     /// <summary>Derivado de <see cref="DeathDate"/> — <see cref="JsonIgnoreAttribute"/> pelo
     /// mesmo motivo de <see cref="Household.IsEmpty"/>: computado, e um bool solto no snapshot
     /// quebraria o mutador genérico de teste.</summary>
@@ -52,7 +56,8 @@ public sealed class Npc
         int hunger = 100, int thirst = 100, int sleep = 100, int social = 100,
         ActionType? currentAction = null, long actionStartedAtTick = 0,
         long? hungerZeroSinceTick = null, WorldDate? homelessSince = null,
-        WorldDate? pregnantUntil = null, WorldDate? deathDate = null)
+        WorldDate? pregnantUntil = null, WorldDate? deathDate = null,
+        Money wallet = default, WorkplaceId? employer = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -84,6 +89,8 @@ public sealed class Npc
         HomelessSince = homelessSince;
         PregnantUntil = pregnantUntil;
         DeathDate = deathDate;
+        Wallet = wallet;
+        Employer = employer;
     }
 
     /// <summary>Idade derivada de <paramref name="now"/> — nunca incrementada por sistema
@@ -157,4 +164,22 @@ public sealed class Npc
     public void BecomePregnant(WorldDate dueDate) => PregnantUntil = dueDate;
 
     public void ClearPregnancy() => PregnantUntil = null;
+
+    public void CreditWallet(Money amount) => Wallet += amount;
+
+    /// <summary>Delega a <see cref="Money.TryDebit"/> — nunca deixa <see cref="Wallet"/>
+    /// negativo (mesma garantia usada por <see cref="Workplace.TryDebitTreasury"/>).</summary>
+    public Result<Money> TryDebitWallet(Money amount)
+    {
+        var result = Wallet.TryDebit(amount);
+        if (result.IsSuccess)
+            Wallet = result.Value;
+        return result;
+    }
+
+    /// <summary>Vínculo empregatício (ECON-18) — espelha <see cref="JoinHousehold"/>.</summary>
+    public void Hire(WorkplaceId workplace) => Employer = workplace;
+
+    /// <summary>Desliga o vínculo (ECON-19) — espelha <see cref="LeaveHousehold"/>.</summary>
+    public void Fire() => Employer = null;
 }
