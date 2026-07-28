@@ -4,15 +4,19 @@ Fonte única de continuidade. Quem entra numa área nova **lê este arquivo prim
 Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
-- **Última coisa concluída**: **Fase 7 Execute** — **T16** `CourtshipSystem` (11 testes),
-  **T17** `NatalitySystem` reescrito (14 testes), **T18** `Vitality`/`Upbringing` na seed
-  (+3 testes em `PopulationGeneratorTests`), **T19** wiring (`DefaultFamilyRules`,
-  `RelationshipSystem`, `CourtshipSystem`, `Create(familyRules)`), golden hashes regenerados.
-  `MarriageSystem` passa a `RecordResourceProduced` no estoque inicial (conservação ECON-15).
-  Casais da seed ganham `Spouse` mútuo em `PopulationGenerator`.
-- **Próxima unidade**: **Fase 7, T20** (cobertura `FamilyRules` × catálogo + grep fitness).
-  Depois T21–T29 (harnesses/ invariantes paralelos). Spec/tasks em
-  `.specs/features/phase-07-family/{spec,design,tasks}.md`.
+- **Última coisa concluída**: **Fase 7 Execute** — recalibração de `FamilyRules`/
+  `ScenarioRunner.DefaultFamilyRules` (AD-064) + **T28–T30** em `FamilyPairedScenarioTests`
+  (bootstrap `|r|` canal ambiental, distância ambiente/genoma, contrafactual rico/pobre vs
+  genomas extremos). Golden hashes (`tests/golden/world-hashes.json`) regravados — mudança
+  legítima de regra. Antes: T23–T26 (incesto ±, invariantes de nascimento, contagem FAM-26,
+  baseline população), T20–T22 (coverage, deriva neutra, contrafactual household), T31 (sensor
+  de hash).
+- **T27 (FAM-32) fica BLOQUEADO** — tensão estrutural, não peso errado: ver AD-064 em
+  `docs/decisions-log.md`. Fase 7 fecha com 30/31 tasks; T27 exigiria mudança de produção em
+  `CourtshipSystem` (decompor `NeutralDriftEnabled`), fora do escopo de recalibração.
+- **Próxima unidade**: decidir se Fase 7 fecha com T27 documentado como débito técnico
+  (mesmo padrão de SKILL-11 na Fase 6) ou se abre uma task nova de produção para decompor
+  `NeutralDriftEnabled`. Spec/tasks em `.specs/features/phase-07-family/{spec,design,tasks}.md`.
 - **Gate local**: encerre `LivingWorld.Workers.exe` (PID pode travar build da solution) e rode
   `bash scripts/verify.sh` — nesta sessão o gate foi validado via `dotnet test` com DLLs
   copiadas para `tests/` (26 testes focados + golden OK após baseline novo).

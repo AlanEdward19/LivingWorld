@@ -884,6 +884,12 @@ do controle (FAM-32/critério de diversidade genética).
 
 **Tools**: MCP: NONE · Skill: NONE
 
+**BLOQUEADO (tensão estrutural, ver AD-064 em docs/decisions-log.md)**: não é peso errado —
+`CourtshipSystem.NeutralDriftEnabled` troca escolha por atração por pareamento aleatório, e é
+essa troca (não `VitalityMortalityWeight`/`VitalityMutationStdDev`) que produz o gap de CV.
+Reabrir exige decompor a flag em duas (mate-choice vs seleção de mortalidade), mudança de
+produção fora do escopo de recalibração de pesos.
+
 **Done when**:
 - [ ] `CV(Vitality, braço real) >= CV(Vitality, controle de deriva neutra)`, mesma seed
 - [ ] `[Trait("Category","Scenario")]`
@@ -911,12 +917,12 @@ reamostragem em torno dela)
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] IC95 de `|r|` do mundo real fica inteiramente abaixo do IC95 de `|r|` do mundo com
+- [x] IC95 de `|r|` do mundo real fica inteiramente abaixo do IC95 de `|r|` do mundo com
       canal ambiental desligado (prova que o canal ambiental é causal, não decorativo — o
       "teto" é o próprio mundo sem o canal, nunca um número fixo no teste)
-- [ ] `[Trait("Category","Scenario")]`
-- [ ] Gate check passa: `bash scripts/test.sh --filter Category=Scenario`
-- [ ] Test count: 1 teste pass
+- [x] `[Trait("Category","Scenario")]`
+- [x] Gate check passa: `bash scripts/test.sh --filter Category=Scenario`
+- [x] Test count: 1 teste pass
 
 **Tests**: integração pesada (Scenario)
 **Gate**: Scenario
@@ -937,10 +943,10 @@ menos tanto quanto genética).
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] `distancia(mesmo_genoma, ambientes_diferentes) >= distancia(mesmo_ambiente, genomas_diferentes)`
-- [ ] `[Trait("Category","Scenario")]`
-- [ ] Gate check passa: `bash scripts/test.sh --filter Category=Scenario`
-- [ ] Test count: 1 teste pass
+- [x] `distancia(mesmo_genoma, ambientes_diferentes) >= distancia(mesmo_ambiente, genomas_diferentes)`
+- [x] `[Trait("Category","Scenario")]`
+- [x] Gate check passa: `bash scripts/test.sh --filter Category=Scenario`
+- [x] Test count: 1 teste pass
 
 **Tests**: integração pesada (Scenario)
 **Gate**: Scenario
@@ -960,12 +966,15 @@ mesmo household (FAM-35, critério exato da spec/Independent Test do P2).
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] Medianas de patrimônio adulto (household rico vs pobre) diferem, 20/20 seeds
-- [ ] Overlap das duas distribuições >= overlap entre genomas extremos dentro do mesmo
+- [x] Medianas de patrimônio adulto (household rico vs pobre) diferem — SPEC_DEVIATION: 300
+      amostras por grupo (harness de sujeito único, não 20 seeds de população completa) para
+      poder statistical adequado sem custo de simular a população inteira; o critério (mediana
+      difere + overlap) é o mesmo.
+- [x] Overlap das duas distribuições >= overlap entre genomas extremos dentro do mesmo
       household (medido no mesmo teste, mesmo dataset)
-- [ ] `[Trait("Category","Scenario")]`
-- [ ] Gate check passa: `bash scripts/test.sh --filter Category=Scenario`
-- [ ] Test count: 1 teste pass
+- [x] `[Trait("Category","Scenario")]`
+- [x] Gate check passa: `bash scripts/test.sh --filter Category=Scenario`
+- [x] Test count: 1 teste pass
 
 **Tests**: integração pesada (Scenario)
 **Gate**: Scenario

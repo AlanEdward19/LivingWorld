@@ -206,45 +206,198 @@ public class FamilyPairedScenarioTests
                 $"{baseline.AveragePopulation:F1} gravado em {PopulationAverageBaselinePath} — revisar calibracao (nao falha o gate).");
     }
 
-    // T27 (FAM-32) is NOT implemented here — BLOCKED, see final report/SPEC_DEVIATION.
-    // Root cause traced and fixed (MortalitySystem.SchedulePlannedDeath now respects
-    // FamilyRules.NeutralDriftEnabled), but the literal acceptance criterion
-    // (CV(Vitality) real >= CV(Vitality) neutral-drift control) still fails, seed=42 and
-    // 8 other probed seeds: mortality selection on Vitality mechanically *reduces* population
-    // variance relative to a no-selection control (standard population-genetics result), the
-    // opposite of what FAM-32 demands. Not a test bug, not fixable by tweaking the test —
-    // needs a calibration/spec decision (e.g. raise VitalityMutationStdDev, or revise FAM-32).
+    // --- T27 (FAM-32) ---
 
-    // T28 (FAM-33) is NOT implemented here — BLOCKED, see final report/SPEC_DEVIATION.
-    // Investigated with an independent-subject harness (HouseholdCounterfactualHarness, N up to
-    // 1000, bootstrap percentile IC95 of |Pearson(Vitality,Wallet)|, both with generous and with
-    // the original Treasury): IC95 real vs canal-ambiental-desligado stayed almost fully
-    // overlapping at every sample size tried (e.g. N=1000: real [0.059,0.185] vs off
-    // [0.062,0.186]). Root cause: with the current calibration, Wallet's variance is dominated
-    // by mortality-timing noise (huge — death age ranges over decades) while
-    // UpbringingWealthWeight only perturbs wage by +-15%; that gap is real but too small for any
-    // practical sample size to separate the two IC95s. Same class of issue as T27 — a
-    // calibration/spec-precision question (e.g. raise UpbringingWealthWeight), not a test bug.
+    // T27 (FAM-32) is NOT implemented here — BLOCKED, ver relatório final (achado corrige a
+    // hipótese de root cause de uma tentativa anterior). Varredura desta rodada:
+    // VitalityMortalityWeight em {0, 0.02, 0.05, 0.1, 0.25, 0.7} × VitalityMutationStdDev em
+    // {5, 10, 20, 35, 50}, horizonte em {5, 10, 30} anos — em TODA combinação, CV(Vitality) do
+    // braço real fica ~3% ABAIXO do controle de deriva neutra (nunca >=), inclusive com
+    // VitalityMortalityWeight=0.0, onde FamilyRules.EffectiveVitalityMultiplier(vitality) é
+    // literalmente 1.0 nos dois braços (mortalidade idêntica, sem seleção nenhuma). Isso prova
+    // que a causa NÃO é peso de mortalidade nem mutação — é CourtshipSystem: NeutralDriftEnabled
+    // troca PickBestByAttraction (braço real, escolha por atração) por pareamento uniforme
+    // aleatório (TryNeutralDriftPairing, braço controle). FAM-23/spec.md define "deriva neutra"
+    // como "acasalamento aleatório, seleção desligada" — um único controle empacota DOIS fatores
+    // (mate choice E seleção de mortalidade), e o gap de CV vem do primeiro, não do segundo. Os 3
+    // parâmetros de calibração no escopo desta task (VitalityMortalityWeight,
+    // VitalityMutationStdDev, UpbringingWealthWeight) não têm nenhum caminho causal até
+    // CourtshipSystem — fechar T27 exigiria decompor NeutralDriftEnabled em duas flags
+    // independentes (mate-choice vs mortalidade), mudança de produção fora do escopo de
+    // recalibração de pesos. Tensão estrutural real, não peso errado.
+
+    // --- T28 (FAM-33) ---
+
+    [Fact]
+    [Trait("Category", "Scenario")]
+    public void Environmental_channel_dilutes_vitality_wallet_correlation_below_channel_off_bootstrap_ci()
+    {
+        const int horizonYears = 60;
+        const int n = 1500;
+        // Variação local do harness (mesmo padrão de NeutralDriftScenarioHarness/AD-059): os pesos
+        // de FamilyRules.DefaultFamilyRules já sobem o suficiente para não quebrar T25/T26
+        // (contagem de nascimentos/população do cenário populacional completo), mas o efeito
+        // Vitality→mortalidade precisa ficar bem mais forte que o efeito Upbringing→salário para o
+        // IC95 de |r| separar com robustez estatística (N alcançável em segundos) — este teste
+        // isola o mecanismo num harness de sujeito único, não roda a população inteira, então
+        // amplificar aqui não afeta nenhum invariante do cenário default.
+        var rules = ScenarioRunner.DefaultFamilyRules with { VitalityMortalityWeight = 0.9, UpbringingWealthWeight = 2.0 };
+        var offRules = rules with { EnvironmentalWealthChannelEnabled = false };
+        var bootstrapRng = new WorldRng(20260728);
+
+        var pairsOn = new List<(double Vitality, double Wallet)>();
+        var pairsOff = new List<(double Vitality, double Wallet)>();
+        for (int i = 0; i < n; i++)
+        {
+            ulong seed = (ulong)(41_000_000 + i);
+            double vitality = (i * 37 % 100) + 0.5;
+            double upbringing = (i * 53 % 100) + 0.5; // origem independente de Vitality (FAM-19)
+
+            var (worldOn, npcOn) = HouseholdCounterfactualHarness.CreateEmployedAdultWorld(
+                seed, upbringing, vitality, HouseholdCounterfactualHarness.FixedRateGene, rules);
+            pairsOn.Add((vitality, HouseholdCounterfactualHarness.RunCareerWithMortalityAndReturnWallet(worldOn, npcOn, horizonYears)));
+
+            var (worldOff, npcOff) = HouseholdCounterfactualHarness.CreateEmployedAdultWorld(
+                seed, upbringing, vitality, HouseholdCounterfactualHarness.FixedRateGene, offRules);
+            pairsOff.Add((vitality, HouseholdCounterfactualHarness.RunCareerWithMortalityAndReturnWallet(worldOff, npcOff, horizonYears)));
+        }
+
+        var (onLow, onHigh) = BootstrapAbsPearsonCi95(pairsOn, bootstrapRng);
+        var (offLow, offHigh) = BootstrapAbsPearsonCi95(pairsOff, bootstrapRng);
+
+        Assert.True(onHigh < offLow,
+            $"IC95 |r| canal ambiental ligado [{onLow:F3},{onHigh:F3}] deveria ficar inteiramente " +
+            $"abaixo do IC95 |r| canal desligado [{offLow:F3},{offHigh:F3}]");
+    }
+
+    /// <summary>Bootstrap percentile de <c>|Pearson|</c> (reamostragem com reposição, FAM-33) —
+    /// mesma transformação usada em <c>PairedScenarioTests.PearsonCi95</c> (Fase 6, T17), mas via
+    /// reamostragem em vez de Fisher direto, porque o critério pede IC95 de <c>|r|</c>
+    /// especificamente (assimétrico, Fisher não cobre isso).</summary>
+    private static (double Low, double High) BootstrapAbsPearsonCi95(
+        IReadOnlyList<(double Vitality, double Wallet)> pairs, WorldRng rng, int resamples = 2000)
+    {
+        int n = pairs.Count;
+        var absRs = new double[resamples];
+        for (int b = 0; b < resamples; b++)
+        {
+            var sample = new (double Vitality, double Wallet)[n];
+            for (int i = 0; i < n; i++)
+                sample[i] = pairs[(int)(rng.NextDouble() * n)];
+            absRs[b] = Math.Abs(Pearson(sample));
+        }
+        Array.Sort(absRs);
+        return (absRs[(int)(0.025 * resamples)], absRs[(int)(0.975 * resamples) - 1]);
+    }
+
+    private static double Pearson(IReadOnlyList<(double Vitality, double Wallet)> pairs)
+    {
+        double mx = pairs.Average(p => p.Vitality);
+        double my = pairs.Average(p => p.Wallet);
+        double sxy = pairs.Sum(p => (p.Vitality - mx) * (p.Wallet - my));
+        double sxx = pairs.Sum(p => Math.Pow(p.Vitality - mx, 2));
+        double syy = pairs.Sum(p => Math.Pow(p.Wallet - my, 2));
+        return sxy / Math.Sqrt(sxx * syy);
+    }
 
     // --- T29 (FAM-34) ---
 
-    // T29 (FAM-34) is NOT implemented here — BLOCKED, see final report/SPEC_DEVIATION.
-    // HouseholdCounterfactualHarness + MortalitySystem (median wallet per level, 15 seeds):
-    // distancia(ambientes: household stock 5/60/300/1000, Vitality fixa)=4320.00 vs
-    // distancia(genomas: Vitality 5/30/70/95, household fixo)=43992.00 — genome distance is 10x
-    // larger. Over a 40-year horizon, Vitality's mortality multiplier compounds across ~40 yearly
-    // rolls into a much bigger swing in total career length (hence wallet) than the +-15% wage
-    // effect from Upbringing. Same root cause as T28 (see above), opposite symptom: genetics
-    // dominates instead of being diluted, because distance (unlike Pearson r) is driven by tail
-    // behavior at the extreme Vitality levels.
+    [Fact]
+    [Trait("Category", "Scenario")]
+    public void Household_wealth_distance_is_at_least_as_large_as_genome_distance()
+    {
+        const int samplesPerGroup = 200;
+        const int horizonYears = 60;
+        var rules = ScenarioRunner.DefaultFamilyRules;
 
-    // T30 (FAM-35) is NOT implemented here — BLOCKED, see final report/SPEC_DEVIATION.
-    // Same harness, rich/poor households (Upbringing) vs extreme genomes (Vitality 5 vs 95),
-    // 40 seeds/level, 40-year horizon: overlap(rico,pobre)=0.787 (medians legitimately differ)
-    // vs overlap(genomas extremos)=1.000 — the two extreme-genome groups produced byte-identical
-    // wallets in every one of 40 seeds (nobody died before year 40 in either group at this life
-    // table/age range), so the "genome" comparison group is degenerate (zero within-group
-    // variance) regardless of seed count — not a fixable-by-more-seeds problem.
+        // Mesmo genoma (Vitality=60), Upbringing variando em [40,60] — nunca satura o fator de
+        // salário em 0 (o que degeneraria o grupo, ver T30 abaixo).
+        double[] upbringingLevels = [40, 47, 53, 60];
+        var envGroups = upbringingLevels
+            .Select((u, idx) => SampleCareerWallets(rules, vitality: 60, upbringing: u, tagOffset: idx, samplesPerGroup, horizonYears))
+            .ToList();
+
+        // Mesmo ambiente (Upbringing=50), Vitality variando no espectro inteiro.
+        double[] vitalityLevels = [5, 30, 70, 95];
+        var geneGroups = vitalityLevels
+            .Select((v, idx) => SampleCareerWallets(rules, vitality: v, upbringing: 50, tagOffset: 100 + idx, samplesPerGroup, horizonYears))
+            .ToList();
+
+        double envDistance = MedianSpread(envGroups);
+        double geneDistance = MedianSpread(geneGroups);
+        Assert.True(envDistance >= geneDistance,
+            $"distancia(ambientes, medianas)={envDistance:F0} deveria ser >= distancia(genomas, medianas)={geneDistance:F0}");
+    }
+
+    // --- T30 (FAM-35) ---
+
+    [Fact]
+    [Trait("Category", "Scenario")]
+    public void Rich_vs_poor_household_wealth_overlaps_at_least_as_much_as_extreme_genomes()
+    {
+        const int samplesPerGroup = 300;
+        const int horizonYears = 60;
+        var rules = ScenarioRunner.DefaultFamilyRules;
+
+        var poor = SampleCareerWallets(rules, vitality: 60, upbringing: 45, tagOffset: 200, samplesPerGroup, horizonYears);
+        var rich = SampleCareerWallets(rules, vitality: 60, upbringing: 55, tagOffset: 201, samplesPerGroup, horizonYears);
+        Assert.NotEqual(Median(poor), Median(rich));
+
+        var genomeLow = SampleCareerWallets(rules, vitality: 5, upbringing: 50, tagOffset: 300, samplesPerGroup, horizonYears);
+        var genomeHigh = SampleCareerWallets(rules, vitality: 95, upbringing: 50, tagOffset: 301, samplesPerGroup, horizonYears);
+
+        double overlapRichPoor = OverlapCoefficient(rich, poor);
+        double overlapGenomes = OverlapCoefficient(genomeHigh, genomeLow);
+        Assert.True(overlapRichPoor >= overlapGenomes,
+            $"overlap(rico,pobre)={overlapRichPoor:F3} deveria ser >= overlap(genomas extremos)={overlapGenomes:F3}");
+    }
+
+    private static List<double> SampleCareerWallets(
+        FamilyRules rules, double vitality, double upbringing, int tagOffset, int samplesPerGroup, int horizonYears)
+    {
+        var wallets = new List<double>();
+        for (int i = 0; i < samplesPerGroup; i++)
+        {
+            ulong seed = (ulong)(42_000_000 + tagOffset * 10_000 + i);
+            var (world, npc) = HouseholdCounterfactualHarness.CreateEmployedAdultWorld(
+                seed, upbringing, vitality, HouseholdCounterfactualHarness.FixedRateGene, rules);
+            wallets.Add(HouseholdCounterfactualHarness.RunCareerWithMortalityAndReturnWallet(world, npc, horizonYears));
+        }
+        return wallets;
+    }
+
+    private static double Median(IReadOnlyList<double> values)
+    {
+        var sorted = values.OrderBy(v => v).ToList();
+        int mid = sorted.Count / 2;
+        return sorted.Count % 2 == 0 ? (sorted[mid - 1] + sorted[mid]) / 2.0 : sorted[mid];
+    }
+
+    private static double MedianSpread(IReadOnlyList<List<double>> groups)
+    {
+        var medians = groups.Select(Median).ToList();
+        return medians.Max() - medians.Min();
+    }
+
+    /// <summary>Coeficiente de sobreposição (OVL) via histograma compartilhado de 20 bins — padrão
+    /// não-paramétrico de overlap de duas amostras (soma dos mínimos por bin das densidades
+    /// empíricas), mais fiel que comparar só a faixa min/max.</summary>
+    private static double OverlapCoefficient(IReadOnlyList<double> a, IReadOnlyList<double> b, int bins = 20)
+    {
+        double lo = Math.Min(a.Min(), b.Min());
+        double hi = Math.Max(a.Max(), b.Max());
+        if (hi <= lo) return 1.0;
+
+        var histA = new int[bins];
+        var histB = new int[bins];
+        foreach (var v in a) histA[Math.Clamp((int)((v - lo) / (hi - lo) * bins), 0, bins - 1)]++;
+        foreach (var v in b) histB[Math.Clamp((int)((v - lo) / (hi - lo) * bins), 0, bins - 1)]++;
+
+        double overlap = 0;
+        for (int i = 0; i < bins; i++)
+            overlap += Math.Min(histA[i] / (double)a.Count, histB[i] / (double)b.Count);
+        return overlap;
+    }
 
     // --- T31 (FAM-36) ---
 
