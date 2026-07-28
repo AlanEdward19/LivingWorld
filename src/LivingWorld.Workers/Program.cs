@@ -1,3 +1,4 @@
+using System.Text.Json;
 using LivingWorld.Domain;
 using LivingWorld.Infrastructure;
 using LivingWorld.Simulation;
@@ -12,7 +13,7 @@ if (args.Length == 3 && args[0] == "hash")
     var ticks = long.Parse(args[2]);
     var (canonical, volatileHash) = ScenarioRunner.RunAndHash(seed, ticks);
     Console.WriteLine($"{canonical};{volatileHash}");
-    return;
+    return 0;
 }
 
 // Modo CLI do teste de persistência entre processos (Fase 3, task 10): roda até <ticks>,
@@ -31,7 +32,7 @@ if (args.Length == 4 && args[0] == "persist-save")
     var (world, _) = ScenarioRunner.Create(seed);
     var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink);
     runner.Run(world, clock, sink, ticks);
-    return;
+    return 0;
 }
 
 // Continua do último snapshot salvo em <dbPath> por mais <extraTicks> e imprime o hash
@@ -49,7 +50,25 @@ if (args.Length == 3 && args[0] == "persist-resume")
     var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink);
     runner.Run(world, clock, sink, extraTicks);
     Console.WriteLine(WorldSnapshot.CanonicalHash(world));
-    return;
+    return 0;
+}
+
+// Inspeciona um NPC vivo (Fase 8, T16, CITY-06): mesma NpcInspectionQuery da API, nenhuma
+// lógica duplicada (AC #2 da story P1) — mesmo SPEC_DEVIATION do Api/Program.cs (T15) sobre
+// cenário default no lugar de um snapshot persistido real. `dotnet <dll> inspect-npc <id>`.
+if (args.Length == 2 && args[0] == "inspect-npc")
+{
+    var id = long.Parse(args[1]);
+    var (world, _) = ScenarioRunner.Create(seed: 1);
+    var result = NpcInspectionQuery.Inspect(world, new NpcId(id));
+    if (!result.IsSuccess)
+    {
+        Console.Error.WriteLine(result.Error);
+        return 1;
+    }
+
+    Console.WriteLine(JsonSerializer.Serialize(result.Value));
+    return 0;
 }
 
 static WorldDbContext OpenDb(string dbPath)
@@ -65,3 +84,4 @@ builder.Services.AddHostedService<Worker>();
 
 var host = builder.Build();
 host.Run();
+return 0;
