@@ -19,22 +19,19 @@ public static class NpcDeath
         if (npc.Household is not { } householdId) return;
 
         var household = world.FindHousehold(householdId);
-        household?.RemoveMember(npc.Id);
-        if (household is not { IsEmpty: true }) return;
+        if (household is null) return;
 
-        // Fase 5 (T24, ECON-15): estoque residual do household dissolvido não pode só desaparecer
-        // da conta — mesma disciplina de Workplace.Deposit (excedente é perda registrada, nunca
-        // sumiço silencioso). Sem isso, a invariante de conservação de recurso vaza um pouco a
-        // cada dissolução (achado rodando o cenário default de ponta a ponta em 10 anos).
-        foreach (var (resource, amount) in household.Stock)
-            if (amount > 0)
-                ctx.LogEvent(WorldEventKind.ResourceLost, $"{household.Id.Value}|{resource.Id}|{amount}");
+        household.RemoveMember(npc.Id);
 
-        world.RemoveHousehold(householdId);
-        // Household deixou de existir — nenhuma referência pode sobreviver a ele, nem a de NPCs
-        // mortos anteriormente que já tinham saído da lista de membros (sweep referencial, task 12).
-        foreach (var member in world.Npcs)
-            if (member.Household == householdId)
-                member.LeaveHousehold(world.CurrentDate);
+        if (!household.IsEmpty
+            && !HouseholdRedistribution.HasLivingAdultOrElder(
+                world, household, world.LifeStageRules, world.CurrentDate))
+        {
+            HouseholdRedistribution.HandleOrphaned(
+                world, ctx, household, world.LifeStageRules, world.CurrentDate);
+            return;
+        }
+
+        HouseholdCleanup.DissolveIfEmpty(world, ctx, household);
     }
 }

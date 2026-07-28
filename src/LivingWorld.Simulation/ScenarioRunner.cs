@@ -26,7 +26,11 @@ public static class ScenarioRunner
     /// que a produção/venda alimentou o mês inteiro. Fase 6 (T12): <see
     /// cref="SkillPracticeSystem"/> e <see cref="SkillTeachingSystem"/> entram entre Employment e
     /// Production — quem contratou hoje já pratica hoje, e a produção do mesmo dia já lê a
-    /// habilidade atualizada (mesmo raciocínio de Employment-antes-de-Production).</summary>
+    /// habilidade atualizada (mesmo raciocínio de Employment-antes-de-Production). Fase 7 (T19):
+    /// <see cref="RelationshipSystem"/> entra depois de <see cref="EmploymentSystem"/> (convivência
+    /// em workplace/household alimenta relações antes da prática de habilidade); <see
+    /// cref="CourtshipSystem"/> entra antes de <see cref="NatalitySystem"/> (casal formado no
+    /// cortejo é quem a natalidade consome via <c>Npc.Spouse</c>).</summary>
     public static IReadOnlyList<ISimulationSystem> DefaultSystems() =>
     [
         new ExampleCounterSystem(TickFrequency.Hourly),
@@ -34,10 +38,12 @@ public static class ScenarioRunner
         new ExampleCounterSystem(TickFrequency.Monthly),
         new ExampleCounterSystem(TickFrequency.Yearly),
         new MortalitySystem(),
+        new CourtshipSystem(),
         new NatalitySystem(),
         new NeedsDecaySystem(),
         new BehaviorDecisionSystem(DefaultSkillsRules),
         new EmploymentSystem(),
+        new RelationshipSystem(),
         new SkillPracticeSystem(DefaultSkillsRules),
         new SkillTeachingSystem(DefaultSkillsRules, DefaultLifeStageRules),
         new ProductionSystem(DefaultSkillsRules),
@@ -115,6 +121,40 @@ public static class ScenarioRunner
         },
         skillByProfession: new Dictionary<int, SkillType> { [1] = SkillType.Agriculture, [2] = SkillType.Craft })
         .Value ?? throw new InvalidOperationException("skills rules default inválida — bug no cenário, não no gerador");
+
+    public static readonly FamilyRules DefaultFamilyRules = FamilyRules.Create(
+        relationshipDeltas: BuildDefaultRelationshipDeltas(),
+        decayPerDay: 0.25,
+        contactLossThresholdDays: 30,
+        neutralAxisValue: 50,
+        attractionWeights: Enum.GetValues<AttractionFactor>().ToDictionary(f => f, _ => 1.0),
+        courtshipThreshold: 0.55,
+        courtshipDurationDays: 90,
+        marriageInitialStock: new Dictionary<int, long> { [1] = 50, [2] = 50 },
+        conceptionHealthFloor: 30,
+        conceptionRelationshipFloor: 20,
+        conceptionResourceFloor: new Dictionary<int, long> { [1] = 5, [2] = 5 },
+        maternalDeathRisk: 0.01,
+        infantDeathRisk: 0.03,
+        vitalityMotherWeight: 0.5,
+        vitalityFatherWeight: 0.5,
+        vitalityMutationStdDev: 5,
+        vitalityMortalityWeight: 0.25,
+        upbringingWealthWeight: 0.15,
+        environmentalWealthChannelEnabled: true,
+        neutralDriftEnabled: false).Value
+        ?? throw new InvalidOperationException("family rules default inválida — bug no cenário, não no gerador");
+
+    private static Dictionary<(RelationshipEventType, RelationshipAxis), double> BuildDefaultRelationshipDeltas()
+    {
+        var deltas = new Dictionary<(RelationshipEventType, RelationshipAxis), double>();
+        foreach (var type in Enum.GetValues<RelationshipEventType>())
+            foreach (var axis in Enum.GetValues<RelationshipAxis>())
+                deltas[(type, axis)] = 0;
+        deltas[(RelationshipEventType.Cohabitation, RelationshipAxis.Trust)] = 1.5;
+        deltas[(RelationshipEventType.Cohabitation, RelationshipAxis.Affection)] = 1.0;
+        return deltas;
+    }
 
     // Rotina real do cenário medieval (Fase 4, task 15): lavrador/ferreiro trabalham de dia em
     // turnos distintos, adulto sem profissão específica (sentinela ProfessionType.None cai no
@@ -244,13 +284,14 @@ public static class ScenarioRunner
     /// teste precisa informar.</summary>
     public static (WorldState World, WorldClock Clock) Create(
         ulong seed, int maxIterationsPerTick = 1000, int initialPopulation = DefaultInitialPopulation,
-        EconomyRules? economyRules = null)
+        EconomyRules? economyRules = null, FamilyRules? familyRules = null)
     {
         var rules = economyRules ?? DefaultEconomyRules;
+        var family = familyRules ?? DefaultFamilyRules;
         var world = new WorldState(
             DefaultCalendar, seed, DefaultMap(seed), DefaultPopulationCatalog, DefaultPopulationRules,
             DefaultNeedsRules, DefaultActionCatalog, DefaultLifeStageRules,
-            economyRules: rules, economyCatalog: DefaultEconomyCatalog);
+            economyRules: rules, economyCatalog: DefaultEconomyCatalog, familyRules: family);
         if (initialPopulation > 0)
         {
             PopulationSeeder.SeedInitial(world, initialPopulation, DefaultCulture, DefaultVillageLocation);

@@ -4,42 +4,18 @@ Fonte única de continuidade. Quem entra numa área nova **lê este arquivo prim
 Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
-- **Última coisa concluída**: **Fase 6 (Habilidades, T1-T19) fechada** — spec-driven completo
-  (`.specs/features/phase-06-skills/{spec,design,tasks,validation}.md`), 16 requisitos
-  SKILL-01..16 (15 verificados, 1 débito técnico), Verifier PASS (sensor 3/3 mortos). 13
-  habilidades (`SkillType`/`SkillSet`, teto por cenário), curva de retornos decrescentes pura
-  (`SkillCurve`), `SkillPracticeSystem`→`SkillTeachingSystem` entre `EmploymentSystem` e
-  `ProductionSystem`. `RateGene` — multiplicador de **taxa**, nunca do valor — herdado
-  (`mãe*0,5+pai*0,5+mutação`) e provado por par de correlações (habilidade não herdada IC95∋0;
-  gene herdado IC95>0, T17). `ProductionSystem` escala por habilidade média (SKILL-10, 10/10
-  seeds). `Npc.SwitchProfession`: estagnação por ausência de ganho, não reset. Pareados 20/20
-  seeds: especialista vs trocador, mestre-topo vs mestre-piso. **Débito (SKILL-11)**: preço via
-  `MarketPricingSystem` não reage à qualidade — decisão do usuário, documentado na spec
-  (Assunção A3), candidato à Fase 8/9. Dois bugs achados no Execute: `SkillSet` sem round-trip
-  JSON (fix antes de T7); vazamento de dinheiro em treino deliberado (fix: credita
-  `Workplace.Treasury` do empregador). Golden hashes regenerados. `verify.sh` limpo: 501
-  passed, 4 skips esperados.
-- **Próxima unidade**: **Fase 7 (Família e Genética)** — Specify e Design fechados
-  (`.specs/features/phase-07-family/{spec,design}.md`), 36 requisitos FAM-01..36, AD-050..063
-  registrados em `docs/decisions-log.md` (AD-061..063 novos nesta sessão de Design: candidatos
-  de cortejo restritos a quem já tem `Relationship`/AD-052; `Upbringing` afeta salário via
-  `WagePaymentSystem` com flag de canal ambiental desligável; cortejo como evento agendado —
-  `Npc.Spouse`/`CourtingWith`). Componentes: `FamilyRules`, `Relationship`/`RelationshipKey`,
-  `RelationshipSystem` (Daily), `CourtshipSystem` (Yearly, agenda conclusão via
-  `ctx.ScheduleEvent`), `MarriageSystem` (helper estático), `NatalitySystem` reescrito,
-  `HeredityService` (Vitality genético/Upbringing ambiental), `HouseholdRedistribution`
-  (chamado de dentro de `NpcDeath.Apply`). Toca 2 sistemas existentes (`WagePaymentSystem`,
-  `LifeTable.AnnualMortality` ganha parâmetro opcional). **Tasks fechado**
-  (`.specs/features/phase-07-family/tasks.md`): 31 tasks (T1-T31) em 9 fases de dependência —
-  primitivos de domínio → extensões de `Npc`/`WorldState` → sistemas existentes tocados
-  (`LifeTable`/`MortalityPlanner`/`MortalitySystem`, `WagePaymentSystem`) → extração de
-  `HouseholdCleanup`/`HouseholdRedistribution` → sistemas novos (`RelationshipSystem`,
-  `MarriageSystem`, `CourtshipSystem`, `NatalitySystem` reescrito, seed de
-  `Vitality`/`Upbringing`) → wiring (`ScenarioRunner`) → cobertura/regressão + harnesses de
-  controle (deriva neutra, contrafactual de household) → 9 cenários pareados/estatísticos de
-  verificação (FAM-26..36, `Category=Scenario`). Todas as 3 checagens de validação do tasks.md
-  (granularidade, diagrama×dependência, co-locação de teste) passaram sem ❌. Próximo passo:
-  `tlc-spec-driven` Execute (offer de sub-agent por fase — 9 fases, acima do teto de 3).
+- **Última coisa concluída**: **Fase 7 Execute** — **T16** `CourtshipSystem` (11 testes),
+  **T17** `NatalitySystem` reescrito (14 testes), **T18** `Vitality`/`Upbringing` na seed
+  (+3 testes em `PopulationGeneratorTests`), **T19** wiring (`DefaultFamilyRules`,
+  `RelationshipSystem`, `CourtshipSystem`, `Create(familyRules)`), golden hashes regenerados.
+  `MarriageSystem` passa a `RecordResourceProduced` no estoque inicial (conservação ECON-15).
+  Casais da seed ganham `Spouse` mútuo em `PopulationGenerator`.
+- **Próxima unidade**: **Fase 7, T20** (cobertura `FamilyRules` × catálogo + grep fitness).
+  Depois T21–T29 (harnesses/ invariantes paralelos). Spec/tasks em
+  `.specs/features/phase-07-family/{spec,design,tasks}.md`.
+- **Gate local**: encerre `LivingWorld.Workers.exe` (PID pode travar build da solution) e rode
+  `bash scripts/verify.sh` — nesta sessão o gate foi validado via `dotnet test` com DLLs
+  copiadas para `tests/` (26 testes focados + golden OK após baseline novo).
 - **Fase 9 nova (Escala e armazenamento)** — inserida depois da 8; antigas 9–26 viraram 10–27
   (AD-049, arquivos renomeados). Spec pronta em
   [.specs/features/phase-09-scale/spec.md](.specs/features/phase-09-scale/spec.md) (PERF-01..17,

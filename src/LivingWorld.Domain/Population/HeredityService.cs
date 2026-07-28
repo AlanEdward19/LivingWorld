@@ -56,6 +56,14 @@ public static class HeredityService
     public static double DeriveUpbringing(Household conceptionHousehold, FamilyRules rules)
     {
         double totalStock = conceptionHousehold.Stock.Values.Sum();
+        return DeriveUpbringingFromConceptionStock(totalStock, rules);
+    }
+
+    /// <summary>Deriva <c>Upbringing</c> a partir da riqueza capturada na concepção (Fase 7,
+    /// T17) — mesmo cálculo de <see cref="DeriveUpbringing"/>, sem reler o household no
+    /// nascimento.</summary>
+    public static double DeriveUpbringingFromConceptionStock(double totalStock, FamilyRules rules)
+    {
         double upbringing = totalStock * rules.UpbringingWealthWeight;
         return Math.Clamp(upbringing, 0.0, 100.0);
     }

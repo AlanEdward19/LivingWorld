@@ -12,8 +12,8 @@ public class HeredityServiceTests
     {
         var deltas = new Dictionary<(RelationshipEventType, RelationshipAxis), double>();
         foreach (var type in Enum.GetValues<RelationshipEventType>())
-        foreach (var axis in Enum.GetValues<RelationshipAxis>())
-            deltas[(type, axis)] = 0.0;
+            foreach (var axis in Enum.GetValues<RelationshipAxis>())
+                deltas[(type, axis)] = 0.0;
 
         return FamilyRules.Create(
             relationshipDeltas: deltas,

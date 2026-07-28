@@ -20,6 +20,27 @@ public enum WorldEventKind
     ResourceLost,
     Minted,
     Destroyed,
+
+    /// <summary>Casamento (Fase 7, T15) — payload <c>spouseAId|spouseBId</c>.</summary>
+    Marriage,
+
+    /// <summary>Cortejo iniciado (Fase 7, T16) — payload <c>npcAId|npcBId</c> (IDs ordenados).</summary>
+    CourtshipStarted,
+
+    /// <summary>Cortejo rejeitado (Fase 7, T16) — payload
+    /// <c>motivo|seekerId|candidateId</c> (<see cref="CourtshipRejectionReason"/>).</summary>
+    CourtshipRejected,
+
+    /// <summary>Cortejo concluído (Fase 7, T16, FAM-11) — payload <c>npcAId|npcBId</c>, emitido
+    /// antes de <see cref="Marriage"/>.</summary>
+    CourtshipSucceeded,
+
+    /// <summary>Morte materna no parto (Fase 7, T17) — payload <c>motherId</c>.</summary>
+    MaternalDeath,
+
+    /// <summary>Nascimento morto / sem filho vivo (Fase 7, T17) — payload
+    /// <c>motherId|fatherId</c>.</summary>
+    StillBirth,
 }
 
 /// <summary>Um evento de história, carimbado com o tick em que ocorreu. Sem <c>BranchId</c> —

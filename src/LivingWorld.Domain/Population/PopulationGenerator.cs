@@ -48,12 +48,16 @@ public static class PopulationGenerator
             // Fase 6 (SKILL-01/09): população seed não tem pais conhecidos — RollInitial em vez
             // de Inherit, mesmo stream próprio por NPC de personalidade/profissão acima.
             var rateGene = RateGene.RollInitial(rng.Derive(WorldRngRegistry.StableHash($"rategene-{npcId.Value}")));
+            var vitality = HeredityService.RollInitialVitality(
+                rng.Derive(WorldRngRegistry.StableHash($"vitality-{npcId.Value}")));
+            var upbringing = HeredityService.RollInitialUpbringing(
+                rng.Derive(WorldRngRegistry.StableHash($"upbringing-{npcId.Value}")));
 
             var npc = new Npc(
                 npcId, $"npc-{culture.Id}-{npcs.Count}", sex, birthDate, culture, villageLocation,
                 motherId: null, fatherId: null, household: null, health,
                 personality: personality, profession: profession, currentLocation: villageLocation,
-                rateGene: rateGene);
+                rateGene: rateGene, vitality: vitality, upbringing: upbringing);
 
             npcs.Add(npc);
             (ageYears >= 18 ? adults : children).Add(npc);
@@ -90,7 +94,13 @@ public static class PopulationGenerator
 
         var seeds = new List<List<Npc>>();
         while (females.Count > 0 && males.Count > 0)
-            seeds.Add([females.Dequeue(), males.Dequeue()]);
+        {
+            var female = females.Dequeue();
+            var male = males.Dequeue();
+            female.Marry(male.Id);
+            male.Marry(female.Id);
+            seeds.Add([female, male]);
+        }
         while (females.Count > 0)
             seeds.Add([females.Dequeue()]);
         while (males.Count > 0)

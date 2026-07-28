@@ -10,8 +10,8 @@ public class FamilyRulesTests
     {
         var deltas = new Dictionary<(RelationshipEventType, RelationshipAxis), double>();
         foreach (var type in Enum.GetValues<RelationshipEventType>())
-        foreach (var axis in Enum.GetValues<RelationshipAxis>())
-            deltas[(type, axis)] = 0.0;
+            foreach (var axis in Enum.GetValues<RelationshipAxis>())
+                deltas[(type, axis)] = 0.0;
         deltas[(RelationshipEventType.Cohabitation, RelationshipAxis.Trust)] = 1.0;
         deltas[(RelationshipEventType.Betrayal, RelationshipAxis.Trust)] = -10.0;
         return deltas;

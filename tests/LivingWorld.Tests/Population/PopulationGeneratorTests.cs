@@ -129,4 +129,50 @@ public class PopulationGeneratorTests
         Assert.Single(generated.Households);
         Assert.Equal(generated.Npcs[0].Id, generated.Households[0].Head);
     }
+
+    [Fact]
+    public void Every_seed_npc_has_vitality_and_upbringing_in_range_without_known_parents()
+    {
+        var now = WorldDate.Epoch(Calendar).AddYears(200);
+        var generated = PopulationGenerator.GenerateInitial(
+            new WorldRng(11), now, count: 40, new CultureId(1), new CellCoord(5, 5), Table, EmptyCatalog);
+
+        Assert.All(generated.Npcs, n =>
+        {
+            Assert.InRange(n.Vitality, 0, 100);
+            Assert.InRange(n.Upbringing, 0, 100);
+            Assert.Null(n.MotherId);
+            Assert.Null(n.FatherId);
+        });
+    }
+
+    [Fact]
+    public void Vitality_and_upbringing_are_deterministic_per_npc_id_for_same_seed()
+    {
+        var now = WorldDate.Epoch(Calendar).AddYears(200);
+        var a = PopulationGenerator.GenerateInitial(
+            new WorldRng(77), now, count: 25, new CultureId(1), new CellCoord(5, 5), Table, EmptyCatalog);
+        var b = PopulationGenerator.GenerateInitial(
+            new WorldRng(77), now, count: 25, new CultureId(1), new CellCoord(5, 5), Table, EmptyCatalog);
+
+        Assert.Equal(
+            a.Npcs.Select(n => (n.Id, n.Vitality, n.Upbringing)),
+            b.Npcs.Select(n => (n.Id, n.Vitality, n.Upbringing)));
+    }
+
+    [Fact]
+    public void Paired_adults_in_seed_population_are_marked_as_spouses()
+    {
+        var now = WorldDate.Epoch(Calendar).AddYears(200);
+        var generated = PopulationGenerator.GenerateInitial(
+            new WorldRng(12), now, count: 20, new CultureId(1), new CellCoord(5, 5), Table, EmptyCatalog);
+
+        var withSpouse = generated.Npcs.Where(n => n.Spouse is not null).ToList();
+        Assert.NotEmpty(withSpouse);
+        foreach (var npc in withSpouse)
+        {
+            var spouse = generated.Npcs.Single(n => n.Id == npc.Spouse);
+            Assert.Equal(npc.Id, spouse.Spouse);
+        }
+    }
 }

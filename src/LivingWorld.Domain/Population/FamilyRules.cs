@@ -54,10 +54,10 @@ public sealed record FamilyRules(
         bool neutralDriftEnabled)
     {
         foreach (var type in Enum.GetValues<RelationshipEventType>())
-        foreach (var axis in Enum.GetValues<RelationshipAxis>())
-            if (!relationshipDeltas.ContainsKey((type, axis)))
-                return Result<FamilyRules>.Fail(
-                    $"RelationshipDeltas[{type},{axis}]: ausente — deltas devem cobrir todo (EventType,Axis)");
+            foreach (var axis in Enum.GetValues<RelationshipAxis>())
+                if (!relationshipDeltas.ContainsKey((type, axis)))
+                    return Result<FamilyRules>.Fail(
+                        $"RelationshipDeltas[{type},{axis}]: ausente — deltas devem cobrir todo (EventType,Axis)");
 
         if (decayPerDay < 0)
             return Result<FamilyRules>.Fail("DecayPerDay: deve ser >= 0");

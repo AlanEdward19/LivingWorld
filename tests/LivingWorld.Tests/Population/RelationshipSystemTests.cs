@@ -44,8 +44,8 @@ public class RelationshipSystemTests
     {
         var deltas = new Dictionary<(RelationshipEventType, RelationshipAxis), double>();
         foreach (var type in Enum.GetValues<RelationshipEventType>())
-        foreach (var axis in Enum.GetValues<RelationshipAxis>())
-            deltas[(type, axis)] = 0.0;
+            foreach (var axis in Enum.GetValues<RelationshipAxis>())
+                deltas[(type, axis)] = 0.0;
         deltas[(RelationshipEventType.Cohabitation, RelationshipAxis.Trust)] = delta;
         return deltas;
     }
