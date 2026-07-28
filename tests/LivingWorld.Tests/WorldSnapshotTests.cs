@@ -43,6 +43,13 @@ public class WorldSnapshotTests
             world.NextWorkplaceIdAndAdvance(), new LocationType(1), ScenarioRunner.DefaultVillageLocation, maxVacancies: 1,
             employees: [], stock: new Dictionary<ResourceType, long> { [new ResourceType(1)] = 5 }, treasury: new Money(10),
             prices: new Dictionary<ResourceType, long> { [new ResourceType(1)] = 2 }));
+        // Fase 8 (T5): força ao menos uma City/Building não-vazia — mesmo motivo do Workplace
+        // acima (coleção vazia não tem folha primitiva pro mutador genérico perturbar).
+        var city = new City(
+            world.NextCityId(), ScenarioRunner.DefaultVillageLocation, foundedAtTick: 0, foundedFromCityId: null,
+            aggregatePool: new AggregatePopulationPool(1, 10, 10));
+        world.AddCity(city);
+        world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId: 1, completedAtTick: 0));
 
         var clock = new WorldClock(ScenarioRunner.DefaultSystems());
         clock.Run(world, ticks: 400); // atravessa fronteira de dia/mês, gera streams e eventos

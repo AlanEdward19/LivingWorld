@@ -150,6 +150,25 @@ public sealed class WorldState
 
     [Canonical] public long NextWorkplaceId => _nextWorkplaceId;
 
+    private readonly List<City> _cities;
+    private readonly Dictionary<CityId, City> _cityById;
+    private readonly List<Building> _buildings;
+    private readonly Dictionary<BuildingId, Building> _buildingById;
+    private long _nextBuildingId;
+
+    /// <summary>Cidade (Fase 8, T5) — mesmo molde de <see cref="Households"/>/<see
+    /// cref="Workplaces"/> (lista + dono canônico).</summary>
+    [Canonical] public IReadOnlyList<City> Cities => _cities;
+
+    /// <summary>Edifício concluído (Fase 8, T5) — mesmo molde de <see cref="Cities"/>.</summary>
+    [Canonical] public IReadOnlyList<Building> Buildings => _buildings;
+
+    /// <summary><see cref="BuildingId"/> é monotônico como <see cref="WorkplaceId"/> — só este
+    /// contador precisa sobreviver ao snapshot. <see cref="CityId"/>/<see cref="LocationId"/> não
+    /// têm contador: nascem do stream de RNG dedicado (<see cref="NextCityId"/>), já coberto pelo
+    /// snapshot de <see cref="RngStreams"/>.</summary>
+    [Canonical] public long NextBuildingId => _nextBuildingId;
+
     /// <summary>Contador do sistema de exemplo (task 11) — descartável na Fase 3. Nenhuma
     /// decisão lê este campo, por isso é volátil.</summary>
     [Volatile]
@@ -191,6 +210,10 @@ public sealed class WorldState
         _workplaces = [];
         _workplaceById = [];
         _relationships = [];
+        _cities = [];
+        _cityById = [];
+        _buildings = [];
+        _buildingById = [];
     }
 
     /// <summary>Reconstrói a partir de um snapshot (task 7/8) — rehidratação.</summary>
@@ -220,7 +243,10 @@ public sealed class WorldState
         IReadOnlyList<Workplace>? workplaces = null,
         long nextWorkplaceId = 0,
         FamilyRules? familyRules = null,
-        IReadOnlyDictionary<RelationshipKey, Relationship>? relationships = null)
+        IReadOnlyDictionary<RelationshipKey, Relationship>? relationships = null,
+        IReadOnlyList<City>? cities = null,
+        IReadOnlyList<Building>? buildings = null,
+        long nextBuildingId = 0)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -251,6 +277,11 @@ public sealed class WorldState
         _nextWorkplaceId = nextWorkplaceId;
         FamilyRules = familyRules ?? FamilyRules.Disabled;
         _relationships = relationships is null ? [] : new Dictionary<RelationshipKey, Relationship>(relationships);
+        _cities = (cities ?? []).ToList();
+        _cityById = ToLookup(_cities, c => c.Id);
+        _buildings = (buildings ?? []).ToList();
+        _buildingById = ToLookup(_buildings, b => b.Id);
+        _nextBuildingId = nextBuildingId;
     }
 
     internal WorldRngRegistry Rng => _rng;
@@ -299,6 +330,42 @@ public sealed class WorldState
     }
 
     public Workplace? FindWorkplace(WorkplaceId id) => _workplaceById.GetValueOrDefault(id);
+
+    internal BuildingId NextBuildingIdAndAdvance() => new(_nextBuildingId++);
+
+    public void AddCity(City city)
+    {
+        _cities.Add(city);
+        _cityById[city.Id] = city;
+    }
+
+    public void AddBuilding(Building building)
+    {
+        _buildings.Add(building);
+        _buildingById[building.Id] = building;
+    }
+
+    public City? FindCity(CityId id) => _cityById.GetValueOrDefault(id);
+    public Building? FindBuilding(BuildingId id) => _buildingById.GetValueOrDefault(id);
+
+    /// <summary>Deriva um <see cref="CityId"/> novo a partir do stream de RNG dedicado
+    /// <c>"city-founding"</c> (Fase 8, T5) — <c>Guid.NewGuid()</c> é banido em Domain/Simulation
+    /// (rules/simulation-determinism.md); mesma seed produz sempre o mesmo <see cref="CityId"/>
+    /// na mesma posição do stream.</summary>
+    public CityId NextCityId() => new(NextGuidFromRng());
+
+    /// <summary>Espelha <see cref="NextCityId"/> para <see cref="LocationId"/> — mesmo stream
+    /// dedicado, próximo par de sorteios.</summary>
+    public LocationId NextLocationId() => new(NextGuidFromRng());
+
+    private Guid NextGuidFromRng()
+    {
+        var rng = _rng.Stream("city-founding");
+        var bytes = new byte[16];
+        BitConverter.GetBytes(rng.NextDouble()).CopyTo(bytes, 0);
+        BitConverter.GetBytes(rng.NextDouble()).CopyTo(bytes, 8);
+        return new Guid(bytes);
+    }
 
     /// <summary>Cunhagem explícita e rara (task 10) — nunca chamada implicitamente por
     /// <see cref="MarketTransaction"/>/salário, só por um evento nomeado (AD-042).</summary>
