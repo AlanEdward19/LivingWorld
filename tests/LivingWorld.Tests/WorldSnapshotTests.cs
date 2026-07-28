@@ -32,12 +32,22 @@ public class WorldSnapshotTests
         [1],
         new Dictionary<int, int> { [1] = 1 });
 
+    // Fase 8 (T9): world.CityCatalog precisa de ao menos 1 receita não-vazia — mesmo motivo de
+    // SampleEconomyCatalog acima (CityCatalog.Empty não tem folha primitiva pro mutador genérico
+    // perturbar, o que faria o teste de mutação de campo canônico falhar silenciosamente).
+    private static readonly CityCatalog SampleCityCatalog = new(
+        new Dictionary<int, BuildingRecipe>
+        {
+            [1] = BuildingRecipe.Create(new Dictionary<ResourceType, long> { [new ResourceType(1)] = 10 }, ticksToBuild: 5, housingCapacityProvided: 4).Value!,
+        });
+
     private static WorldState BuiltWorld()
     {
         var world = new WorldState(
             ScenarioRunner.DefaultCalendar, 42, ScenarioRunner.DefaultMap(42), ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
-            ScenarioRunner.DefaultLifeStageRules, economyRules: SampleEconomyRules, economyCatalog: SampleEconomyCatalog);
+            ScenarioRunner.DefaultLifeStageRules, economyRules: SampleEconomyRules, economyCatalog: SampleEconomyCatalog,
+            cityCatalog: SampleCityCatalog);
         PopulationSeeder.SeedInitial(world, ScenarioRunner.DefaultInitialPopulation, ScenarioRunner.DefaultCulture, ScenarioRunner.DefaultVillageLocation);
         world.AddWorkplace(new Workplace(
             world.NextWorkplaceIdAndAdvance(), new LocationType(1), ScenarioRunner.DefaultVillageLocation, maxVacancies: 1,

@@ -60,6 +60,17 @@ public sealed class Npc
     /// (CITY-09: todo NPC vivo tem exatamente uma). Mutável só por <see cref="JoinCity"/>.</summary>
     public CityId City { get; private set; }
 
+    // SPEC_DEVIATION (Fase 8, T9): design.md não declara este campo, mas a elegibilidade de
+    // desmaterialização por ociosidade (CityRules.MaterializationIdleTicksBeforeEligible) exige
+    // saber há quanto tempo o NPC está materializado — sem isso não há "ocioso" mensurável.
+    // Null para todo NPC que nunca passou pelo pool agregado (seed inicial/nascimento): esses
+    // nunca expiram por ociosidade (mesmo espírito de HomelessSince nulo = "nunca ficou sem
+    // teto"). Só MaterializationSystem grava.
+
+    /// <summary>Tick em que este NPC foi materializado a partir do <see
+    /// cref="AggregatePopulationPool"/> da cidade (Fase 8, T9, CITY-05).</summary>
+    public long? MaterializedAtTick { get; private set; }
+
     /// <summary>Derivado de <see cref="DeathDate"/> — <see cref="JsonIgnoreAttribute"/> pelo
     /// mesmo motivo de <see cref="Household.IsEmpty"/>: computado, e um bool solto no snapshot
     /// quebraria o mutador genérico de teste.</summary>
@@ -77,7 +88,7 @@ public sealed class Npc
         Money wallet = default, WorkplaceId? employer = null,
         SkillSet? skills = null, RateGene? rateGene = null, NpcId? mentor = null,
         double vitality = 50.0, double upbringing = 50.0, NpcId? spouse = null, NpcId? courtingWith = null,
-        CityId city = default)
+        CityId city = default, long? materializedAtTick = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -119,6 +130,7 @@ public sealed class Npc
         Spouse = spouse;
         CourtingWith = courtingWith;
         City = city;
+        MaterializedAtTick = materializedAtTick;
     }
 
     /// <summary>Idade derivada de <paramref name="now"/> — nunca incrementada por sistema
@@ -251,4 +263,8 @@ public sealed class Npc
 
     /// <summary>Muda a cidade do NPC (Fase 8, T4, CITY-01/CITY-07) — espelha <see cref="JoinHousehold"/>.</summary>
     public void JoinCity(CityId city) => City = city;
+
+    /// <summary>Registra o tick de materialização (Fase 8, T9, CITY-05) — só
+    /// <c>MaterializationSystem</c> chama, na criação a partir do pool agregado.</summary>
+    public void MarkMaterialized(long tick) => MaterializedAtTick = tick;
 }

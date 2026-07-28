@@ -67,6 +67,19 @@ public sealed class WorldState
     /// porque decide todo evento de relação/cortejo/concepção.</summary>
     [Canonical] public FamilyRules FamilyRules { get; }
 
+    // SPEC_DEVIATION (Fase 8, T9): design.md/tasks.md pressupõem `world.CityRules`/
+    // `world.CityCatalog` (todo sistema da Fase 8 lê threshold/receita por eles), mas T1-T8
+    // (Foundation) nunca os wireou em WorldState — só criaram os tipos e o loader. Sem isso,
+    // nenhum sistema de T9 em diante teria como ler CityRules.Enabled/limiares. Mesmo padrão de
+    // EconomyRules/EconomyCatalog acima.
+
+    /// <summary>Todo limiar/peso/duração de crescimento/migração/fundação/materialização da Fase
+    /// 8 (T2) — cenário-driven, mesmo grupo de <see cref="FamilyRules"/>.</summary>
+    [Canonical] public CityRules CityRules { get; }
+
+    /// <summary>Receita de construção por tipo de edifício da Fase 8 (T3).</summary>
+    [Canonical] public CityCatalog CityCatalog { get; }
+
     private readonly Dictionary<RelationshipKey, Relationship> _relationships;
 
     /// <summary>Uma <see cref="Relationship"/> por par ordenado, criada sob demanda (Fase 7, T8,
@@ -186,7 +199,8 @@ public sealed class WorldState
         WorldCalendar calendar, ulong seed, WorldMap map,
         PopulationCatalog populationCatalog, PopulationRules populationRules,
         NeedsRules needsRules, ActionCatalog actionCatalog, LifeStageRules lifeStageRules, BranchId branchId = default,
-        EconomyRules? economyRules = null, EconomyCatalog? economyCatalog = null, FamilyRules? familyRules = null)
+        EconomyRules? economyRules = null, EconomyCatalog? economyCatalog = null, FamilyRules? familyRules = null,
+        CityRules? cityRules = null, CityCatalog? cityCatalog = null)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -201,6 +215,8 @@ public sealed class WorldState
         EconomyRules = economyRules ?? EconomyRules.Disabled;
         EconomyCatalog = economyCatalog ?? EconomyCatalog.Empty;
         FamilyRules = familyRules ?? FamilyRules.Disabled;
+        CityRules = cityRules ?? CityRules.Disabled;
+        CityCatalog = cityCatalog ?? CityCatalog.Empty;
         _rng = new WorldRngRegistry(seed);
         _scheduler = new EventScheduler();
         _npcs = [];
@@ -246,7 +262,9 @@ public sealed class WorldState
         IReadOnlyDictionary<RelationshipKey, Relationship>? relationships = null,
         IReadOnlyList<City>? cities = null,
         IReadOnlyList<Building>? buildings = null,
-        long nextBuildingId = 0)
+        long nextBuildingId = 0,
+        CityRules? cityRules = null,
+        CityCatalog? cityCatalog = null)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -282,6 +300,8 @@ public sealed class WorldState
         _buildings = (buildings ?? []).ToList();
         _buildingById = ToLookup(_buildings, b => b.Id);
         _nextBuildingId = nextBuildingId;
+        CityRules = cityRules ?? CityRules.Disabled;
+        CityCatalog = cityCatalog ?? CityCatalog.Empty;
     }
 
     internal WorldRngRegistry Rng => _rng;
@@ -316,6 +336,15 @@ public sealed class WorldState
     {
         _households.RemoveAll(h => h.Id == id);
         _householdById.Remove(id);
+    }
+
+    // SPEC_DEVIATION (Fase 8, T9): design.md não previa remover uma linha de Npc — mas
+    // Dematerialize (approach A) exige exatamente isso ("remover a linha do store"). Mirror de
+    // RemoveHousehold; só MaterializationSystem chama.
+    internal void RemoveNpc(NpcId id)
+    {
+        _npcs.RemoveAll(n => n.Id == id);
+        _npcById.Remove(id);
     }
 
     internal Npc? FindNpc(NpcId id) => _npcById.GetValueOrDefault(id);

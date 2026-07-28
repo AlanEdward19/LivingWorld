@@ -73,12 +73,14 @@ public static class WorldSnapshot
         var cities = node["Cities"].Deserialize<List<City>>(JsonOptions)!;
         var buildings = node["Buildings"].Deserialize<List<Building>>(JsonOptions)!;
         var nextBuildingId = node["NextBuildingId"]!.GetValue<long>();
+        var cityRules = node["CityRules"].Deserialize<CityRules>(JsonOptions)!;
+        var cityCatalog = node["CityCatalog"].Deserialize<CityCatalog>(JsonOptions)!;
 
         return new WorldState(
             calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
             lifeStageRules, rngStreams, pendingEvents, nextEventId, exampleCounts, npcs, households, nextNpcId,
             nextHouseholdId, branchId, moneyMinted, moneyDestroyed, economyRules, economyCatalog, workplaces,
-            nextWorkplaceId, familyRules, relationships, cities, buildings, nextBuildingId);
+            nextWorkplaceId, familyRules, relationships, cities, buildings, nextBuildingId, cityRules, cityCatalog);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)
