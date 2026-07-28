@@ -70,4 +70,36 @@ public class CityTests
 
         Assert.Equal(new AggregatePopulationPool(5, 500, 400), city.AggregatePool);
     }
+
+    [Fact]
+    public void Emigrate_removes_headcount_and_its_per_head_average_wealth_and_health()
+    {
+        var city = MakeCity(new AggregatePopulationPool(10, 100, 50));
+
+        var result = city.Emigrate(4);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(new AggregatePopulationPool(6, 60, 30), city.AggregatePool);
+    }
+
+    [Fact]
+    public void Emigrate_fails_and_leaves_pool_unchanged_when_headcount_exceeds_the_pool()
+    {
+        var city = MakeCity(new AggregatePopulationPool(3, 30, 30));
+
+        var result = city.Emigrate(4);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(new AggregatePopulationPool(3, 30, 30), city.AggregatePool);
+    }
+
+    [Fact]
+    public void Emigrate_never_creates_an_npc_unlike_materialize()
+    {
+        var city = MakeCity(new AggregatePopulationPool(5, 500, 400));
+
+        city.Emigrate(2);
+
+        Assert.Equal(3, city.AggregatePool.Count);
+    }
 }

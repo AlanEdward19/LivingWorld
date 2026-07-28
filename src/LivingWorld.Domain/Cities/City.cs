@@ -88,4 +88,25 @@ public sealed class City
             AggregatePool.Count + 1, AggregatePool.WealthSum + wealth, AggregatePool.HealthSum + health);
         return Result<Unit>.Ok(Unit.Value);
     }
+
+    /// <summary>Emigração agregada (Fase 8, T11, CITY-02): reduz <see cref="AggregatePool"/> por
+    /// saída anônima — diferente de <see cref="Materialize"/>, nunca cria um <see cref="Npc"/>
+    /// (ninguém "chega" em lugar nenhum, o grupo só sai da conta). Remove a média per-head de
+    /// riqueza/saúde junto, senão a média do pool subiria artificialmente a cada emigração. Falha
+    /// sem mutar se <paramref name="headcount"/> exceder o que existe no pool.</summary>
+    public Result<Unit> Emigrate(long headcount)
+    {
+        if (headcount < 0) return Result<Unit>.Fail("headcount: deve ser >= 0");
+        if (headcount > AggregatePool.Count) return Result<Unit>.Fail("AggregatePool.Count: emigração excede o pool disponível");
+        if (headcount == 0) return Result<Unit>.Ok(Unit.Value);
+
+        long wealthPerHead = AggregatePool.WealthSum / AggregatePool.Count;
+        long healthPerHead = AggregatePool.HealthSum / AggregatePool.Count;
+
+        AggregatePool = new AggregatePopulationPool(
+            AggregatePool.Count - headcount,
+            AggregatePool.WealthSum - wealthPerHead * headcount,
+            AggregatePool.HealthSum - healthPerHead * headcount);
+        return Result<Unit>.Ok(Unit.Value);
+    }
 }
