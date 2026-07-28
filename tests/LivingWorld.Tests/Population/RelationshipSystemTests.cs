@@ -38,7 +38,8 @@ public class RelationshipSystemTests
             vitalityMortalityWeight: 0.3,
             upbringingWealthWeight: 0.3,
             environmentalWealthChannelEnabled: false,
-            neutralDriftEnabled: false).Value!;
+            neutralDriftEnabled: false,
+            vitalityMortalitySelectionEnabled: true).Value!;
 
     private static Dictionary<(RelationshipEventType, RelationshipAxis), double> CohabitationTrustDelta(double delta)
     {

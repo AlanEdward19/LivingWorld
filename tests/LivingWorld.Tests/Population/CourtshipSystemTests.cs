@@ -46,7 +46,8 @@ public class CourtshipSystemTests
             vitalityMortalityWeight: 0,
             upbringingWealthWeight: 0,
             environmentalWealthChannelEnabled: false,
-            neutralDriftEnabled: neutralDriftEnabled).Value!;
+            neutralDriftEnabled: neutralDriftEnabled,
+            vitalityMortalitySelectionEnabled: true).Value!;
 
     private static Dictionary<(RelationshipEventType, RelationshipAxis), double> ZeroDeltas()
     {

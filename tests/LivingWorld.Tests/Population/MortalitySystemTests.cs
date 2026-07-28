@@ -45,7 +45,8 @@ public class MortalitySystemTests
         vitalityMortalityWeight: 0.6,
         upbringingWealthWeight: 0.3,
         environmentalWealthChannelEnabled: false,
-        neutralDriftEnabled: false).Value!;
+        neutralDriftEnabled: false,
+        vitalityMortalitySelectionEnabled: true).Value!;
 
     private static WorldState BuildWorld(ulong seed) => new(
         Calendar, seed, ScenarioRunner.DefaultMap(1), ScenarioRunner.DefaultPopulationCatalog,

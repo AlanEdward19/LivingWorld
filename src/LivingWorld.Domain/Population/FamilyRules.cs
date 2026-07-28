@@ -23,7 +23,8 @@ public sealed record FamilyRules(
     double VitalityMortalityWeight,
     double UpbringingWealthWeight,
     bool EnvironmentalWealthChannelEnabled,
-    bool NeutralDriftEnabled)
+    bool NeutralDriftEnabled,
+    bool VitalityMortalitySelectionEnabled)
 {
     /// <summary>Ponto médio do eixo de <see cref="Relationship"/>/<c>Vitality</c>/<c>Upbringing</c>
     /// (escala <c>[0,100]</c>) usado como centro das fórmulas de <see cref="EffectiveVitalityMultiplier"/>
@@ -51,7 +52,8 @@ public sealed record FamilyRules(
         double vitalityMortalityWeight,
         double upbringingWealthWeight,
         bool environmentalWealthChannelEnabled,
-        bool neutralDriftEnabled)
+        bool neutralDriftEnabled,
+        bool vitalityMortalitySelectionEnabled)
     {
         foreach (var type in Enum.GetValues<RelationshipEventType>())
             foreach (var axis in Enum.GetValues<RelationshipAxis>())
@@ -112,7 +114,8 @@ public sealed record FamilyRules(
             courtshipThreshold, courtshipDurationDays, marriageInitialStock, conceptionHealthFloor,
             conceptionRelationshipFloor, conceptionResourceFloor, maternalDeathRisk, infantDeathRisk,
             vitalityMotherWeight, vitalityFatherWeight, vitalityMutationStdDev, vitalityMortalityWeight,
-            upbringingWealthWeight, environmentalWealthChannelEnabled, neutralDriftEnabled));
+            upbringingWealthWeight, environmentalWealthChannelEnabled, neutralDriftEnabled,
+            vitalityMortalitySelectionEnabled));
     }
 
     /// <summary>Delta declarado para o par (evento, eixo) — FAM-03. Sem entrada correspondente
@@ -128,8 +131,9 @@ public sealed record FamilyRules(
     /// <summary>Multiplicador de mortalidade a partir de <c>Vitality</c> — <c>Vitality</c> acima
     /// do meio da escala reduz o multiplicador, abaixo aumenta; nunca produz saída negativa
     /// (Error Handling do design). Chamado por <c>MortalityPlanner</c>/<c>MortalitySystem</c>
-    /// (T9) e pelo cenário de deriva neutra, que passa <c>1.0</c> direto sem chamar este método
-    /// (AD-059).</summary>
+    /// (T9) quando <see cref="VitalityMortalitySelectionEnabled"/> é verdadeiro; com a flag
+    /// desligada, <c>MortalitySystem</c> passa <c>1.0</c> direto sem chamar este método (AD-065 —
+    /// split de <see cref="NeutralDriftEnabled"/>, que hoje controla só escolha de parceiro).</summary>
     public double EffectiveVitalityMultiplier(double vitality)
     {
         double centered = (MidpointValue - vitality) / MidpointValue;
@@ -180,5 +184,6 @@ public sealed record FamilyRules(
         VitalityMortalityWeight: 0.0,
         UpbringingWealthWeight: 0.0,
         EnvironmentalWealthChannelEnabled: false,
-        NeutralDriftEnabled: false);
+        NeutralDriftEnabled: false,
+        VitalityMortalitySelectionEnabled: true);
 }

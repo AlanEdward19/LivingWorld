@@ -40,7 +40,8 @@ public class RelationshipTests
             vitalityMortalityWeight: 0.3,
             upbringingWealthWeight: 0.3,
             environmentalWealthChannelEnabled: true,
-            neutralDriftEnabled: false).Value!;
+            neutralDriftEnabled: false,
+            vitalityMortalitySelectionEnabled: true).Value!;
     }
 
     [Fact]

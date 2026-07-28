@@ -34,7 +34,8 @@ public class WorldStateTests
             vitalityMortalityWeight: 0.3,
             upbringingWealthWeight: 0.5,
             environmentalWealthChannelEnabled: true,
-            neutralDriftEnabled: false).Value!;
+            neutralDriftEnabled: false,
+            vitalityMortalitySelectionEnabled: true).Value!;
     }
 
     private static WorldState BuildWorld(FamilyRules? familyRules = null) => new(

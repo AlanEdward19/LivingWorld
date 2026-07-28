@@ -41,7 +41,8 @@ public class NatalitySystemTests
             vitalityMortalityWeight: 0,
             upbringingWealthWeight: 0.2,
             environmentalWealthChannelEnabled: false,
-            neutralDriftEnabled: false).Value!;
+            neutralDriftEnabled: false,
+            vitalityMortalitySelectionEnabled: true).Value!;
 
     private static Dictionary<(RelationshipEventType, RelationshipAxis), double> ZeroDeltas()
     {

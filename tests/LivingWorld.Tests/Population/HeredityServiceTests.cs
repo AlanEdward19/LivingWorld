@@ -35,7 +35,8 @@ public class HeredityServiceTests
             vitalityMortalityWeight: 0.3,
             upbringingWealthWeight: upbringingWealthWeight,
             environmentalWealthChannelEnabled: true,
-            neutralDriftEnabled: false).Value!;
+            neutralDriftEnabled: false,
+            vitalityMortalitySelectionEnabled: true).Value!;
     }
 
     private static Household HouseholdWithStock(long stockAmount) => new(

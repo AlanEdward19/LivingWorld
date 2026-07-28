@@ -54,7 +54,8 @@ public class WagePaymentUpbringingTests
             vitalityMortalityWeight: 0.3,
             upbringingWealthWeight: 0.3,
             environmentalWealthChannelEnabled: environmentalWealthChannelEnabled,
-            neutralDriftEnabled: false).Value!;
+            neutralDriftEnabled: false,
+            vitalityMortalitySelectionEnabled: true).Value!;
 
     private static WorldState BuildWorld(FamilyRules familyRules) =>
         new(

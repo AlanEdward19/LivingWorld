@@ -48,7 +48,8 @@ public class FamilyRulesTests
             vitalityMortalityWeight: 0.3,
             upbringingWealthWeight: 0.3,
             environmentalWealthChannelEnabled: environmentalWealthChannelEnabled,
-            neutralDriftEnabled: false);
+            neutralDriftEnabled: false,
+            vitalityMortalitySelectionEnabled: true);
 
     [Fact]
     public void Create_accepts_valid_parameters()
