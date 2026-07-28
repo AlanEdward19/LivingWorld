@@ -7,9 +7,11 @@ namespace LivingWorld.Domain;
 public sealed class ConstructionProject(
     CityId city, int buildingTypeId, IReadOnlyDictionary<ResourceType, long> consumed, long ticksRemaining)
 {
+    private readonly Dictionary<ResourceType, long> _consumed = new(consumed);
+
     public CityId City { get; } = city;
     public int BuildingTypeId { get; } = buildingTypeId;
-    public IReadOnlyDictionary<ResourceType, long> Consumed { get; } = consumed;
+    public IReadOnlyDictionary<ResourceType, long> Consumed => _consumed;
     public long TicksRemaining { get; private set; } = ticksRemaining;
 
     public void Advance()
@@ -17,4 +19,13 @@ public sealed class ConstructionProject(
         if (TicksRemaining > 0)
             TicksRemaining--;
     }
+
+    // SPEC_DEVIATION (Fase 8, T10): design.md declara Consumed só como dado de construção
+    // (imutável). ConstructionSystem precisa registrar consumo tick a tick (AC "consumido ao
+    // longo dos ticks") — sem mutador, Consumed nunca sairia de vazio.
+
+    /// <summary>Acumula o consumo de <paramref name="resource"/> neste tick (Fase 8, T10,
+    /// CITY-03) — só <see cref="ConstructionSystem"/> chama.</summary>
+    public void RecordConsumption(ResourceType resource, long amount) =>
+        _consumed[resource] = _consumed.GetValueOrDefault(resource) + amount;
 }

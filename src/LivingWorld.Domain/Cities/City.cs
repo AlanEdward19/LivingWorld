@@ -14,16 +14,53 @@ public sealed class City
 
     public AggregatePopulationPool AggregatePool { get; private set; }
 
+    // SPEC_DEVIATION (Fase 8, T10): design.md declara City.ConstructionQueue/BuildingIds, mas T1
+    // (Foundation) não os incluiu. ConstructionSystem precisa de uma fila e de um estoque de
+    // insumo por cidade para existir — BuildingIds não é necessário (world.Buildings já filtra
+    // por Building.City, mesmo padrão de CityPopulationQuery filtrando Npcs por Npc.City).
+
+    private readonly Dictionary<ResourceType, long> _stock;
+
+    /// <summary>Insumo de construção da cidade (Fase 8, T10, CITY-03) — mesmo molde de
+    /// <see cref="Household.Stock"/>, sem capacidade declarada nesta fase.</summary>
+    public IReadOnlyDictionary<ResourceType, long> Stock => _stock;
+
+    private readonly List<ConstructionProject> _constructionQueue;
+
+    /// <summary>Fila FIFO de obras em progresso (Fase 8, T10, CITY-03) — <see
+    /// cref="ConstructionSystem"/> só avança a cabeça da fila.</summary>
+    public IReadOnlyList<ConstructionProject> ConstructionQueue => _constructionQueue;
+
     public City(
         CityId id, CellCoord location, long foundedAtTick, CityId? foundedFromCityId,
-        AggregatePopulationPool aggregatePool)
+        AggregatePopulationPool aggregatePool,
+        IReadOnlyDictionary<ResourceType, long>? stock = null,
+        IReadOnlyList<ConstructionProject>? constructionQueue = null)
     {
         Id = id;
         Location = location;
         FoundedAtTick = foundedAtTick;
         FoundedFromCityId = foundedFromCityId;
         AggregatePool = aggregatePool;
+        _stock = new Dictionary<ResourceType, long>(stock ?? new Dictionary<ResourceType, long>());
+        _constructionQueue = (constructionQueue ?? []).ToList();
     }
+
+    /// <summary>Sem capacidade declarada nesta fase (mesmo espírito de <see
+    /// cref="Household.Deposit"/>).</summary>
+    public long DepositStock(ResourceType resource, long amount) =>
+        ResourceStock.Deposit(_stock, resource, amount, long.MaxValue);
+
+    /// <summary>Falha sem mutar o estoque quando insuficiente (mesmo contrato de <see
+    /// cref="Household.Withdraw"/>).</summary>
+    public Result<long> WithdrawStock(ResourceType resource, long amount) => ResourceStock.Withdraw(_stock, resource, amount);
+
+    public void EnqueueConstruction(ConstructionProject project) => _constructionQueue.Add(project);
+
+    /// <summary>Remove a obra concluída do topo da fila — só o chamador (<see
+    /// cref="ConstructionSystem"/>) sabe quando <see cref="ConstructionProject.TicksRemaining"/>
+    /// chegou a 0.</summary>
+    public void DequeueCompletedConstruction() => _constructionQueue.RemoveAt(0);
 
     // SPEC_DEVIATION: design.md descreve Materialize(NpcId)/Dematerialize(NpcId, ...stats). City
     // não guarda associação por NPC — WorldState.Npcs já resolve "quem está nesta cidade" via
