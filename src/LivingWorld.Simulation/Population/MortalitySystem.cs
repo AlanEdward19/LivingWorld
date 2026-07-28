@@ -30,7 +30,12 @@ public sealed class MortalitySystem : ISimulationSystem
     public static void SchedulePlannedDeath(WorldState world, TickContext ctx, Npc npc)
     {
         var rng = ctx.Rng($"mortality-{npc.Id.Value}");
-        double vitalityMultiplier = world.FamilyRules.EffectiveVitalityMultiplier(npc.Vitality);
+        // FAM-23/A11: deriva neutra desliga Vitality como fator de seleção na mortalidade — passa
+        // 1.0 direto, nunca chama EffectiveVitalityMultiplier (mesmo contrato já documentado no
+        // próprio método, FamilyRules.cs).
+        double vitalityMultiplier = world.FamilyRules.NeutralDriftEnabled
+            ? 1.0
+            : world.FamilyRules.EffectiveVitalityMultiplier(npc.Vitality);
         int deathAge = MortalityPlanner.RollDeathAge(rng, world.PopulationRules.LifeTable, npc.Health, vitalityMultiplier);
         long deathTick = npc.BirthDate.AddYears(deathAge).TotalHours;
         if (deathTick <= world.CurrentDate.TotalHours)
