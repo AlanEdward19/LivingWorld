@@ -3,15 +3,23 @@ using LivingWorld.Simulation;
 
 namespace LivingWorld.Tests.Population;
 
-/// <summary>Fase 7, T21 (FAM-23, FAM-25): braço de deriva neutra sobre o cenário default —
-/// só troca <see cref="FamilyRules.NeutralDriftEnabled"/> via <see cref="ScenarioRunner.Create"/>,
-/// nunca duplica montagem de cenário (AD-059).</summary>
+/// <summary>Fase 7, T21 (FAM-23, FAM-25): braço de deriva neutra sobre o cenário default — troca
+/// <see cref="FamilyRules.NeutralDriftEnabled"/> (escolha de parceiro) e
+/// <see cref="FamilyRules.VitalityMortalitySelectionEnabled"/> (seleção de mortalidade por
+/// Vitality) juntas via <see cref="ScenarioRunner.Create"/>, nunca duplica montagem de cenário
+/// (AD-059). As duas flags eram uma só até AD-065 — deriva neutra "de verdade" precisa desligar
+/// os dois canais de seleção (mate-choice E mortalidade), senão o controle não isola o efeito
+/// certo (FAM-32/AD-064).</summary>
 public static class NeutralDriftScenarioHarness
 {
     public static (WorldState World, WorldClock Clock) Create(
         ulong seed, bool neutralDriftEnabled, int initialPopulation = ScenarioRunner.DefaultInitialPopulation)
     {
-        var familyRules = ScenarioRunner.DefaultFamilyRules with { NeutralDriftEnabled = neutralDriftEnabled };
+        var familyRules = ScenarioRunner.DefaultFamilyRules with
+        {
+            NeutralDriftEnabled = neutralDriftEnabled,
+            VitalityMortalitySelectionEnabled = !neutralDriftEnabled,
+        };
         return ScenarioRunner.Create(seed, initialPopulation: initialPopulation, familyRules: familyRules);
     }
 }

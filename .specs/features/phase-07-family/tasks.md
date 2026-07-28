@@ -884,11 +884,16 @@ do controle (FAM-32/critério de diversidade genética).
 
 **Tools**: MCP: NONE · Skill: NONE
 
-**BLOQUEADO (tensão estrutural, ver AD-064 em docs/decisions-log.md)**: não é peso errado —
-`CourtshipSystem.NeutralDriftEnabled` troca escolha por atração por pareamento aleatório, e é
-essa troca (não `VitalityMortalityWeight`/`VitalityMutationStdDev`) que produz o gap de CV.
-Reabrir exige decompor a flag em duas (mate-choice vs seleção de mortalidade), mudança de
-produção fora do escopo de recalibração de pesos.
+**BLOQUEADO (ver AD-064/AD-065 em docs/decisions-log.md)**: AD-064 achou que o gap vinha só de
+`CourtshipSystem.NeutralDriftEnabled` misturar mate-choice e seleção de mortalidade num único
+booleano. AD-065 decompôs a flag (`NeutralDriftEnabled` = mate-choice, nova
+`VitalityMortalitySelectionEnabled` = seleção de mortalidade por `Vitality`) e
+`NeutralDriftScenarioHarness` agora liga as duas no controle — a "deriva neutra de verdade". O
+viés estrutural de ~3% sempre-na-mesma-direção sumiu (confirma que a causa raiz era essa), mas o
+resultado corrigido é paridade estatística (20 seeds: gapCount=12/20, médias 0.324 real vs 0.329
+neutro, diferença menor que o ruído seed-a-seed) — não uma desigualdade `>=` confiável em seed
+único nem em média. Reabrir de verdade exige decisão de spec (FAM-32 como claim estatístico/CI
+com tolerância explícita, ou reformular/descartar o critério), não mais uma mudança de produção.
 
 **Done when**:
 - [ ] `CV(Vitality, braço real) >= CV(Vitality, controle de deriva neutra)`, mesma seed

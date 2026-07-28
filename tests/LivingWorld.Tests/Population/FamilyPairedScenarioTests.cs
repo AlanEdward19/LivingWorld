@@ -208,23 +208,24 @@ public class FamilyPairedScenarioTests
 
     // --- T27 (FAM-32) ---
 
-    // T27 (FAM-32) is NOT implemented here — BLOCKED, ver relatório final (achado corrige a
-    // hipótese de root cause de uma tentativa anterior). Varredura desta rodada:
-    // VitalityMortalityWeight em {0, 0.02, 0.05, 0.1, 0.25, 0.7} × VitalityMutationStdDev em
-    // {5, 10, 20, 35, 50}, horizonte em {5, 10, 30} anos — em TODA combinação, CV(Vitality) do
-    // braço real fica ~3% ABAIXO do controle de deriva neutra (nunca >=), inclusive com
-    // VitalityMortalityWeight=0.0, onde FamilyRules.EffectiveVitalityMultiplier(vitality) é
-    // literalmente 1.0 nos dois braços (mortalidade idêntica, sem seleção nenhuma). Isso prova
-    // que a causa NÃO é peso de mortalidade nem mutação — é CourtshipSystem: NeutralDriftEnabled
-    // troca PickBestByAttraction (braço real, escolha por atração) por pareamento uniforme
-    // aleatório (TryNeutralDriftPairing, braço controle). FAM-23/spec.md define "deriva neutra"
-    // como "acasalamento aleatório, seleção desligada" — um único controle empacota DOIS fatores
-    // (mate choice E seleção de mortalidade), e o gap de CV vem do primeiro, não do segundo. Os 3
-    // parâmetros de calibração no escopo desta task (VitalityMortalityWeight,
-    // VitalityMutationStdDev, UpbringingWealthWeight) não têm nenhum caminho causal até
-    // CourtshipSystem — fechar T27 exigiria decompor NeutralDriftEnabled em duas flags
-    // independentes (mate-choice vs mortalidade), mudança de produção fora do escopo de
-    // recalibração de pesos. Tensão estrutural real, não peso errado.
+    // T27 (FAM-32) is NOT implemented here — still BLOCKED after AD-065 (split of
+    // NeutralDriftEnabled into itself [mate-choice] and the new VitalityMortalitySelectionEnabled
+    // [mortality-by-Vitality selection], with NeutralDriftScenarioHarness now flipping both for a
+    // genuine "no selection at all" control). AD-064's finding (a structural ~3% gap in ONE
+    // direction on every combination tried) is gone — that was real, and the split fixed it. But
+    // the corrected comparison does not produce the criterion's expected direction either: a
+    // 20-seed sweep (same seeds/horizon as T26) of CV(Vitality, real) vs CV(Vitality, corrected
+    // neutral control) gives gapCount=12/20 (real < neutral in 60% of seeds, real >= neutral in
+    // 40%) with averages 0.324 (real) vs 0.329 (neutral) — a ~1.5% difference dwarfed by the
+    // per-seed noise (individual seeds range roughly 0.28-0.39). This is statistical parity, not
+    // a reliable real >= neutral relationship in either a single fixed seed or an averaged sense.
+    // FAM-32/roadmap's "CV(real) >= CV(neutral)" reads as a deterministic per-run claim; nothing
+    // in scope here (VitalityMortalityWeight/VitalityMutationStdDev/UpbringingWealthWeight, or
+    // the flag split itself) has a causal path to manufacture that inequality reliably — forcing
+    // an assertion to pass would mean either cherry-picking a favorable seed or inventing a
+    // threshold not derived from the spec, both explicitly disallowed. Reopening T27 for real
+    // needs a spec-level decision: accept it as a statistical/CI claim over many seeds (with an
+    // explicit tolerance) rather than a single-seed inequality, or drop/rephrase FAM-32.
 
     // --- T28 (FAM-33) ---
 
