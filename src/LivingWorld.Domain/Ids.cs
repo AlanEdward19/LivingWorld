@@ -33,6 +33,13 @@ public readonly record struct LocationId(Guid Value)
     public override string ToString() => Value.ToString();
 }
 
+/// <summary>Edifício de uma <see cref="City"/> (Fase 8, T3) — id monotônico, mesmo molde de
+/// <see cref="WorkplaceId"/> (nasce de contador do <c>WorldState</c>, nunca de Guid).</summary>
+public readonly record struct BuildingId(long Value)
+{
+    public override string ToString() => $"building-{Value}";
+}
+
 /// <summary>Linha temporal a que uma entidade/evento pertence (ADR-0009). Até a fase temporal
 /// existe só <see cref="Root"/> — nada ramifica ainda, mas todo esquema e toda consulta já
 /// recebem o valor como parâmetro explícito, nunca implícito.</summary>
