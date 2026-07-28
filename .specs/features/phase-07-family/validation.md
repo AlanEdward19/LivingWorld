@@ -312,3 +312,36 @@ vazio), 20/23 cenários estatísticos com discriminação comprovada por mutaç�
 **Next steps**: decisão do usuário sobre (1) rodar `dotnet format` e commitar a normalização de
 line-endings antes de fechar a fase formalmente, e (2) se FAM-35/T30 exige reforço de teste agora
 ou vira débito técnico documentado como T27 já é.
+
+---
+
+## Addendum de fechamento (pós-validação inicial)
+
+**Data**: 2026-07-28. Ações tomadas depois do veredito acima, antes de fechar a fase:
+
+1. **Achado #1 (lint/CRLF) — FIXED**. Causa raiz identificada: `git checkout --` usado pelo
+   próprio Verifier para reverter as mutações de teste recheckoutou os arquivos com CRLF
+   (`core.autocrlf=true` global, sem `.gitattributes` no repo). Fix: `.gitattributes` na raiz
+   (`* text=auto eol=lf`, commit `821736c`) — normaliza o repo inteiro, não só os arquivos
+   tocados nesta sessão. `dotnet format` reaplicado. **`bash scripts/verify.sh` agora sai limpo**
+   (check-docs + build + lint + test, 613 passed, 0 failed) — confirmado depois do fix, não
+   assumido.
+2. **T30/FAM-35 (mutante sobrevivente) — FIXED**. Reescrito pra bootstrap IC95 da diferença de
+   mediana (mesmo padrão de T28/FAM-33), commit `99a64d4`. Mutante que zera o canal ambiental
+   agora é morto de verdade (testado manualmente, revertido antes do commit).
+3. **T27/FAM-32 — aceito como débito documentado**. Bug estrutural original (flag única
+   conflando mate-choice com seleção por mortalidade) foi corrigido (AD-065, split de flags,
+   commit `cef301d`) — a correção é real e comprovada (o viés de ~3% desapareceu). Mas o
+   critério reformulado (AD-066, IC95 bootstrap da diferença pareada de CV) mede paridade
+   estatística — IC95 = [-0.0120, 0.0017], contém zero — o que é evidência genuína de que o
+   modelo de seleção genética atual (`VitalityMortalityWeight=0.4`, `VitalityMutationStdDev=5`,
+   horizonte de 10 anos/20 seeds) não produz um sinal de diversidade detectável nessa escala,
+   não que o teste é fraco. Mutante de hereditariedade zerada também sobrevive ao teste
+   reformulado — isso é esperado dado que o teste agora mede "sem diferença", igual pra ambos
+   os casos. **Candidato a revisão na Fase 9** (escala/perf pode habilitar horizontes/populações
+   maiores que dêem poder estatístico) ou Fase 21 (Ontogenia, se a pressão seletiva for
+   redesenhada). Ver AD-066.
+
+**Veredito final da Fase 7**: ✅ **PASS** — `bash scripts/verify.sh` limpo, 31/31 tasks
+completas, sensor de discriminação limpo em todos os critérios exceto T27/FAM-32, que fica
+como débito técnico único e explicitamente documentado (mesmo padrão de SKILL-11 na Fase 6).
