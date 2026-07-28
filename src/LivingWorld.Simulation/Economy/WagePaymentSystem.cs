@@ -26,7 +26,8 @@ public sealed class WagePaymentSystem : ISimulationSystem
                 if (npc is not { IsAlive: true }) continue;
                 if (!rules.WageByProfession.TryGetValue(npc.Profession.Id, out var wageAmount)) continue;
 
-                var wage = new Money(wageAmount);
+                double adjustedAmount = world.FamilyRules.ApplyUpbringingWeight(wageAmount, npc.Upbringing);
+                var wage = new Money((long)Math.Round(adjustedAmount));
                 var debited = workplace.TryDebitTreasury(wage);
                 if (!debited.IsSuccess)
                 {
