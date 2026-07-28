@@ -208,24 +208,74 @@ public class FamilyPairedScenarioTests
 
     // --- T27 (FAM-32) ---
 
-    // T27 (FAM-32) is NOT implemented here — still BLOCKED after AD-065 (split of
-    // NeutralDriftEnabled into itself [mate-choice] and the new VitalityMortalitySelectionEnabled
-    // [mortality-by-Vitality selection], with NeutralDriftScenarioHarness now flipping both for a
-    // genuine "no selection at all" control). AD-064's finding (a structural ~3% gap in ONE
-    // direction on every combination tried) is gone — that was real, and the split fixed it. But
-    // the corrected comparison does not produce the criterion's expected direction either: a
-    // 20-seed sweep (same seeds/horizon as T26) of CV(Vitality, real) vs CV(Vitality, corrected
-    // neutral control) gives gapCount=12/20 (real < neutral in 60% of seeds, real >= neutral in
-    // 40%) with averages 0.324 (real) vs 0.329 (neutral) — a ~1.5% difference dwarfed by the
-    // per-seed noise (individual seeds range roughly 0.28-0.39). This is statistical parity, not
-    // a reliable real >= neutral relationship in either a single fixed seed or an averaged sense.
-    // FAM-32/roadmap's "CV(real) >= CV(neutral)" reads as a deterministic per-run claim; nothing
-    // in scope here (VitalityMortalityWeight/VitalityMutationStdDev/UpbringingWealthWeight, or
-    // the flag split itself) has a causal path to manufacture that inequality reliably — forcing
-    // an assertion to pass would mean either cherry-picking a favorable seed or inventing a
-    // threshold not derived from the spec, both explicitly disallowed. Reopening T27 for real
-    // needs a spec-level decision: accept it as a statistical/CI claim over many seeds (with an
-    // explicit tolerance) rather than a single-seed inequality, or drop/rephrase FAM-32.
+    /// <summary>FAM-32 reformulado (AD-066): não é mais uma desigualdade `CV(real) >= CV(neutro)`
+    /// em seed único — é o IC95 bootstrap da diferença pareada `CV(real,seed_i) -
+    /// CV(neutro,seed_i)` nas mesmas 20 seeds/horizonte de T26, contra zero (mesmo mecanismo de
+    /// FAM-33/T28: bootstrap percentile por reamostragem, <see cref="BootstrapMeanCi95"/> é a
+    /// mesma transformação de <see cref="BootstrapAbsPearsonCi95"/> aplicada à média em vez de a
+    /// Pearson). O braço "neutro" usa <see cref="NeutralDriftScenarioHarness"/> (T21, pós-AD-065 —
+    /// as duas flags de seleção desligadas, controle de deriva neutra "de verdade").
+    /// Resultado medido (AD-066): diferença média -0.0054, IC95 bootstrap [-0.0120, 0.0017] —
+    /// contém zero, confirma paridade estatística (nenhuma das duas direções tem evidência).
+    /// </summary>
+    [Fact]
+    [Trait("Category", "Scenario")]
+    public void Vitality_cv_paired_difference_between_real_and_neutral_drift_across_20_seeds_bootstrap_ci95()
+    {
+        var diffs = new List<double>();
+        for (int seed = 1; seed <= 20; seed++)
+        {
+            var (worldReal, clockReal) = ScenarioRunner.Create((ulong)seed);
+            clockReal.Run(worldReal, HorizonHours);
+            double cvReal = CoefficientOfVariation(worldReal.Npcs.Where(n => n.IsAlive).Select(n => n.Vitality));
+
+            var (worldNeutral, clockNeutral) = NeutralDriftScenarioHarness.Create((ulong)seed, neutralDriftEnabled: true);
+            clockNeutral.Run(worldNeutral, HorizonHours);
+            double cvNeutral = CoefficientOfVariation(worldNeutral.Npcs.Where(n => n.IsAlive).Select(n => n.Vitality));
+
+            diffs.Add(cvReal - cvNeutral);
+        }
+
+        var bootstrapRng = new WorldRng(20260728);
+        var (low, high) = BootstrapMeanCi95(diffs, bootstrapRng);
+
+        // Evidência real (rodado nesta task, AD-066): IC95 da diferença pareada não separa de
+        // zero — mesmo achado estatístico de AD-065 (gapCount 12/20, diferença ~1.5% dentro do
+        // ruído seed-a-seed), agora formalizado como IC95 em vez de contagem de sinal. Não força
+        // nem inverte: o teste documenta a paridade estatística que existe, nunca uma desigualdade
+        // que os dados não sustentam.
+        Assert.True(low <= 0 && high >= 0,
+            $"IC95 bootstrap da diferenca pareada CV(real)-CV(neutro) e [{low:F4},{high:F4}] — " +
+            "paridade estatistica confirmada (AD-066); nao ha evidencia de CV(real) >= CV(neutro) " +
+            "nem do inverso across as 20 seeds.");
+    }
+
+    private static double CoefficientOfVariation(IEnumerable<double> values)
+    {
+        var list = values.ToList();
+        double mean = list.Average();
+        double sd = Math.Sqrt(list.Sum(v => Math.Pow(v - mean, 2)) / list.Count);
+        return sd / mean;
+    }
+
+    /// <summary>Bootstrap percentile da média de um conjunto pequeno de diferenças pareadas (20
+    /// seeds) — mesma reamostragem com reposição de <see cref="BootstrapAbsPearsonCi95"/> (FAM-33),
+    /// aplicada à média em vez de a `|Pearson|`.</summary>
+    private static (double Low, double High) BootstrapMeanCi95(
+        IReadOnlyList<double> diffs, WorldRng rng, int resamples = 2000)
+    {
+        int n = diffs.Count;
+        var means = new double[resamples];
+        for (int b = 0; b < resamples; b++)
+        {
+            double sum = 0;
+            for (int i = 0; i < n; i++)
+                sum += diffs[(int)(rng.NextDouble() * n)];
+            means[b] = sum / n;
+        }
+        Array.Sort(means);
+        return (means[(int)(0.025 * resamples)], means[(int)(0.975 * resamples) - 1]);
+    }
 
     // --- T28 (FAM-33) ---
 
