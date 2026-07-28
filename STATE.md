@@ -4,22 +4,26 @@ Fonte única de continuidade. Quem entra numa área nova **lê este arquivo prim
 Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
-- **Última coisa concluída**: **Fase 7 Execute** — recalibração de `FamilyRules`/
-  `ScenarioRunner.DefaultFamilyRules` (AD-064) + **T28–T30** em `FamilyPairedScenarioTests`
-  (bootstrap `|r|` canal ambiental, distância ambiente/genoma, contrafactual rico/pobre vs
-  genomas extremos). Golden hashes (`tests/golden/world-hashes.json`) regravados — mudança
-  legítima de regra. Antes: T23–T26 (incesto ±, invariantes de nascimento, contagem FAM-26,
-  baseline população), T20–T22 (coverage, deriva neutra, contrafactual household), T31 (sensor
-  de hash).
-- **T27 (FAM-32) fica BLOQUEADO** — tensão estrutural, não peso errado: ver AD-064 em
-  `docs/decisions-log.md`. Fase 7 fecha com 30/31 tasks; T27 exigiria mudança de produção em
-  `CourtshipSystem` (decompor `NeutralDriftEnabled`), fora do escopo de recalibração.
-- **Próxima unidade**: decidir se Fase 7 fecha com T27 documentado como débito técnico
-  (mesmo padrão de SKILL-11 na Fase 6) ou se abre uma task nova de produção para decompor
-  `NeutralDriftEnabled`. Spec/tasks em `.specs/features/phase-07-family/{spec,design,tasks}.md`.
-- **Gate local**: encerre `LivingWorld.Workers.exe` (PID pode travar build da solution) e rode
-  `bash scripts/verify.sh` — nesta sessão o gate foi validado via `dotnet test` com DLLs
-  copiadas para `tests/` (26 testes focados + golden OK após baseline novo).
+- **Última coisa concluída**: **Fase 7 (Relações e famílias) fechada** — 31/31 tasks
+  (`.specs/features/phase-07-family/{spec,design,tasks,validation}.md`), Verifier PASS
+  (`validation.md` + addendum). `Relationship`/`RelationshipKey` assimétricos, `FamilyRules`
+  cenário-driven, `CourtshipSystem`/`MarriageSystem`/`NatalitySystem` reescrito com
+  hereditariedade genético (`Vitality`) vs ambiental (`Upbringing`) separada
+  (`HeredityService`). `NeutralDriftEnabled` (mate-choice) e
+  `VitalityMortalitySelectionEnabled` (seleção por mortalidade) — duas flags independentes
+  (AD-065), calibração final em AD-064/066. `bash scripts/verify.sh` limpo pela primeira vez
+  nesta fase (causa raiz do lint quebrado: `.gitattributes` ausente + `core.autocrlf`
+  reintroduzindo CRLF em `git checkout --`, fix commit `821736c`).
+- **Único débito técnico**: **T27/FAM-32** (diversidade genética vs controle de deriva
+  neutra) — bug estrutural corrigido (AD-065), mas critério reformulado (AD-066, IC95
+  bootstrap) mede paridade estatística, não um sinal detectável na escala atual (10 anos/20
+  seeds). Candidato a revisão na Fase 9 (escala pode habilitar horizonte/população maiores).
+- **Próxima unidade**: **Fase 8 (Cidades)** — crescimento, edifícios, migração, fundação de
+  assentamentos, inspeção por CLI/API. Fecha os objetivos #2 e #4. Ainda não especificada —
+  primeiro passo é `tlc-spec-driven` Specify. Ver
+  [docs/roadmap/phase-08-cities.md](docs/roadmap/phase-08-cities.md).
+- **Gate local**: `bash scripts/verify.sh` limpo (check-docs + build + lint + test, 613
+  passed) + `bash scripts/test.sh --filter Category=Scenario` limpo (18 passed).
 - **Fase 9 nova (Escala e armazenamento)** — inserida depois da 8; antigas 9–26 viraram 10–27
   (AD-049, arquivos renomeados). Spec pronta em
   [.specs/features/phase-09-scale/spec.md](.specs/features/phase-09-scale/spec.md) (PERF-01..17,

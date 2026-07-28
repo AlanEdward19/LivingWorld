@@ -36,7 +36,7 @@ O número é **identidade**, não ordem. Só a trilha núcleo é sequencial.
 | 4 | [Necessidades e rotina](docs/roadmap/phase-04-needs.md) | Fome, sono, trabalho, moradia, deslocamento, utility AI | fechada |
 | 5 | [Economia](docs/roadmap/phase-05-economy.md) | Recursos, produção, estoque, consumo, emprego, salário, preço | fechada |
 | 6 | [Habilidades](docs/roadmap/phase-06-skills.md) | Experiência, ensino, profissões, progressão | fechada |
-| 7 | [Relações e famílias](docs/roadmap/phase-07-family.md) | Confiança, atração, casamento, reprodução, hereditariedade | pendente |
+| 7 | [Relações e famílias](docs/roadmap/phase-07-family.md) | Confiança, atração, casamento, reprodução, hereditariedade | fechada |
 | 8 | [Cidades](docs/roadmap/phase-08-cities.md) | Crescimento, edifícios, migração, fundação de assentamentos, inspeção por CLI/API | pendente |
 | 9 | [Escala e armazenamento](docs/roadmap/phase-09-scale.md) | Custo por NPC-tick, decisão por evento, decaimento preguiçoso, snapshot delta/binário, arquivo frio de mortos, sensor de escala | pendente |
 | 10 | [História degradável](docs/roadmap/phase-10-history.md) | Fato, relato, distorção por transmissão, cânone limitado, verdade vs crença | pendente |
