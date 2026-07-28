@@ -382,9 +382,25 @@ public class FamilyPairedScenarioTests
 
     // --- T30 (FAM-35) ---
 
+    // SPEC_DEVIATION (achado da validação independente, 2026-07-28): a asserção original
+    // (`Assert.NotEqual(Median(poor), Median(rich))` + `overlapRichPoor >= overlapGenomes`) não
+    // discrimina — sobrevive intacta mesmo com `FamilyRules.ApplyUpbringingWeight` mutado para
+    // sempre devolver `wage` (canal ambiental inteiramente zerado, mesma mutação que mata T29):
+    // `Assert.NotEqual` de medianas passa por ruído estocástico de mortalidade/timing não
+    // relacionado a `Upbringing`; a comparação de overlap fica MAIS fácil de satisfazer (não mais
+    // difícil) quando o canal é removido, porque rico/pobre colapsam para a mesma distribuição
+    // enquanto `overlapGenomes` (canal intocado pela mutação) continua baixo — desigualdade batendo
+    // por acidente estrutural, não porque o canal ambiental produz separação real. Uma primeira
+    // tentativa de piso ("diferença de mediana de um único par rico/rico-com-outras-seeds") também
+    // sobreviveu ao mesmo mutante — comparar UM par de amostras contra OUTRO par de amostras é, em
+    // si, uma variável aleatória com a mesma ordem de grandeza de ruído dos dois lados, então
+    // "efeito > ruído" vira cara-ou-coroa quando o efeito real é zero. Reformulado para bootstrap
+    // percentile IC95 da diferença de mediana (mesmo instrumento estatístico de T27/T28: reamostra
+    // com reposição, muitas vezes, e olha se o IC inteiro fica de um lado de zero) — isso dá poder
+    // de discriminação estável em vez de depender de uma única realização de ruído.
     [Fact]
     [Trait("Category", "Scenario")]
-    public void Rich_vs_poor_household_wealth_overlaps_at_least_as_much_as_extreme_genomes()
+    public void Rich_vs_poor_household_wealth_median_difference_bootstrap_ci95_excludes_zero()
     {
         const int samplesPerGroup = 300;
         const int horizonYears = 60;
@@ -392,15 +408,38 @@ public class FamilyPairedScenarioTests
 
         var poor = SampleCareerWallets(rules, vitality: 60, upbringing: 45, tagOffset: 200, samplesPerGroup, horizonYears);
         var rich = SampleCareerWallets(rules, vitality: 60, upbringing: 55, tagOffset: 201, samplesPerGroup, horizonYears);
-        Assert.NotEqual(Median(poor), Median(rich));
 
-        var genomeLow = SampleCareerWallets(rules, vitality: 5, upbringing: 50, tagOffset: 300, samplesPerGroup, horizonYears);
-        var genomeHigh = SampleCareerWallets(rules, vitality: 95, upbringing: 50, tagOffset: 301, samplesPerGroup, horizonYears);
+        var bootstrapRng = new WorldRng(20260729);
+        var (low, high) = BootstrapMedianDiffCi95(rich, poor, bootstrapRng);
+        Assert.True(low > 0,
+            $"IC95 da diferenca de mediana (rico-pobre) [{low:F0},{high:F0}] deveria ficar " +
+            $"inteiramente acima de zero — senao a diferenca observada e compativel com ruido, " +
+            $"nao com efeito real do canal ambiental");
+    }
 
-        double overlapRichPoor = OverlapCoefficient(rich, poor);
-        double overlapGenomes = OverlapCoefficient(genomeHigh, genomeLow);
-        Assert.True(overlapRichPoor >= overlapGenomes,
-            $"overlap(rico,pobre)={overlapRichPoor:F3} deveria ser >= overlap(genomas extremos)={overlapGenomes:F3}");
+    /// <summary>Bootstrap percentile da diferença de mediana entre dois grupos (reamostragem
+    /// independente com reposição em cada grupo, FAM-35) — mesmo padrão de
+    /// <see cref="BootstrapAbsPearsonCi95"/> (FAM-33/T28), aplicado à mediana em vez de à
+    /// correlação: mede se o efeito observado supera a incerteza de amostragem, em vez de
+    /// depender de uma única realização de ruído (o que sobrevivia ao mutante que zera o canal
+    /// ambiental).</summary>
+    private static (double Low, double High) BootstrapMedianDiffCi95(
+        IReadOnlyList<double> groupA, IReadOnlyList<double> groupB, WorldRng rng, int resamples = 2000)
+    {
+        var diffs = new double[resamples];
+        for (int b = 0; b < resamples; b++)
+            diffs[b] = Median(Resample(groupA, rng)) - Median(Resample(groupB, rng));
+
+        Array.Sort(diffs);
+        return (diffs[(int)(0.025 * resamples)], diffs[(int)(0.975 * resamples) - 1]);
+    }
+
+    private static List<double> Resample(IReadOnlyList<double> values, WorldRng rng)
+    {
+        var sample = new List<double>(values.Count);
+        for (int i = 0; i < values.Count; i++)
+            sample.Add(values[(int)(rng.NextDouble() * values.Count)]);
+        return sample;
     }
 
     private static List<double> SampleCareerWallets(
