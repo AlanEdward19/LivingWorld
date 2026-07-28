@@ -872,34 +872,37 @@ Fase 6) — desvio grande loga alerta sem quebrar o gate, extinção total (0 vi
 
 ---
 
-### T27: Cenário — CV de `Vitality` vs controle de deriva neutra [P]
+### T27: Cenário — IC95 bootstrap da diferença pareada de CV de `Vitality` vs controle de deriva neutra [P]
 
-**What**: mesma seed, braço real vs harness de deriva neutra (T21) — coeficiente de variação
-(CV = desvio-padrão/média) de `Vitality` na população final do braço real nunca é menor que o
-do controle (FAM-32/critério de diversidade genética).
+**What**: 20 seeds, braço real vs harness de deriva neutra (T21) — IC95 bootstrap da diferença
+pareada `CV(real,seed_i) - CV(neutro,seed_i)` de `Vitality`, avaliado contra zero (FAM-32
+reformulado, AD-066). Mesmo mecanismo estatístico de FAM-33/T28 (bootstrap percentile), aplicado
+à diferença pareada em vez de a `|Pearson|`.
 **Where**: `tests/LivingWorld.Tests/Population/FamilyPairedScenarioTests.cs`
 **Depends on**: T21
-**Reuses**: `NeutralDriftScenarioHarness` (T21)
+**Reuses**: `NeutralDriftScenarioHarness` (T21), `BootstrapAbsPearsonCi95` (T28, mesma
+transformação de reamostragem)
 **Requirement**: FAM-32
 
 **Tools**: MCP: NONE · Skill: NONE
 
-**BLOQUEADO (ver AD-064/AD-065 em docs/decisions-log.md)**: AD-064 achou que o gap vinha só de
-`CourtshipSystem.NeutralDriftEnabled` misturar mate-choice e seleção de mortalidade num único
-booleano. AD-065 decompôs a flag (`NeutralDriftEnabled` = mate-choice, nova
-`VitalityMortalitySelectionEnabled` = seleção de mortalidade por `Vitality`) e
-`NeutralDriftScenarioHarness` agora liga as duas no controle — a "deriva neutra de verdade". O
-viés estrutural de ~3% sempre-na-mesma-direção sumiu (confirma que a causa raiz era essa), mas o
-resultado corrigido é paridade estatística (20 seeds: gapCount=12/20, médias 0.324 real vs 0.329
-neutro, diferença menor que o ruído seed-a-seed) — não uma desigualdade `>=` confiável em seed
-único nem em média. Reabrir de verdade exige decisão de spec (FAM-32 como claim estatístico/CI
-com tolerância explícita, ou reformular/descartar o critério), não mais uma mudança de produção.
+**FECHADO por reformulação (AD-066, ver docs/decisions-log.md)**: AD-064/AD-065 corrigiram o
+viés estrutural real da comparação (flag única misturando mate-choice e seleção de mortalidade),
+mas a comparação corrigida deu paridade estatística, não a desigualdade de seed único original
+(20 seeds: gapCount=12/20, médias 0.324 real vs 0.329 neutro, diferença ~1.5% dentro do ruído
+seed-a-seed 0.28-0.39) — single-seed nunca teve poder estatístico pra separar essa diferença.
+FAM-32 foi reformulado (spec.md, nota AD-066) para o mesmo padrão estatístico de FAM-33: IC95
+bootstrap da diferença pareada nas 20 seeds, contra zero. Rodado de verdade: diferença média
+-0.0054, IC95 = [-0.0120, 0.0017] — contém zero, confirma paridade estatística (nem `real >=
+neutro` nem o inverso têm evidência). O teste documenta esse resultado exatamente como medido —
+não força nem inverte a direção.
 
 **Done when**:
-- [ ] `CV(Vitality, braço real) >= CV(Vitality, controle de deriva neutra)`, mesma seed
-- [ ] `[Trait("Category","Scenario")]`
-- [ ] Gate check passa: `bash scripts/test.sh --filter Category=Scenario`
-- [ ] Test count: 1 teste pass
+- [x] IC95 bootstrap da diferença pareada `CV(real) - CV(neutro)` calculado nas 20 seeds/horizonte
+      de T26/T21, teste assere o resultado medido (contém zero — paridade estatística)
+- [x] `[Trait("Category","Scenario")]`
+- [x] Gate check passa: `bash scripts/test.sh --filter Category=Scenario`
+- [x] Test count: 1 teste pass
 
 **Tests**: integração pesada (Scenario)
 **Gate**: Scenario

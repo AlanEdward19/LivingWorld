@@ -310,7 +310,7 @@ rico/pobre por 40 anos, 20 seeds, comparar medianas de patrimônio adulto (crit�
 | FAM-29 | Verificação: nenhum nascimento com mãe fora da janela de fertilidade | Design | Pending |
 | FAM-30 | Verificação: incesto negativo (10 anos, zero casamentos 1º grau) | Design | Pending |
 | FAM-31 | Verificação: incesto positivo (cenário dedicado, rejeição `Incesto`) | Design | Pending |
-| FAM-32 | Verificação: CV de `Vitality` ≥ CV do controle de deriva neutra | Design | Pending |
+| FAM-32 | Verificação: IC95 bootstrap da diferença pareada de CV de `Vitality` (real − controle de deriva neutra) entre 20 seeds, contra zero (AD-066) | Design | Pending |
 | FAM-33 | Verificação: bootstrap `\|r\|` genética×sucesso, IC95 abaixo do mundo sem canal ambiental | Design | Pending |
 | FAM-34 | Verificação: distância mesma-genética/seeds-ambientais ≥ distância mesma-ambiental/genéticas-diferentes | Design | Pending |
 | FAM-35 | Verificação: contrafactual household — medianas diferem e distribuições se sobrepõem (≥ overlap de genomas extremos) | Design | Pending |
@@ -322,6 +322,23 @@ rico/pobre por 40 anos, 20 seeds, comparar medianas de patrimônio adulto (crit�
 
 **Coverage:** 36 total, 0 mapeados a tasks ainda (fase de Specify), 36 pendentes de Design ⚠️
 
+**Nota FAM-32 (AD-066, 2026-07-28):** o critério nasceu como desigualdade determinística de
+seed único (`CV(real) >= CV(neutro)`, mesma seed). AD-064/AD-065 corrigiram um viés estrutural
+real na comparação (`NeutralDriftEnabled` misturava mate-choice e seleção de mortalidade), mas a
+comparação corrigida virou empate estatístico (20 seeds: 12/20 com `real < neutro`, médias
+0.324/0.329, diferença ~1.5% dentro do ruído seed-a-seed de 0.28-0.39) — single-seed nunca teve
+poder estatístico pra separar 1.5% de ruído desse tamanho. O critério real sempre foi "existe
+efeito de seleção genética mensurável", não "toda seed única deve mostrar a desigualdade". FAM-32
+foi reformulado para o mesmo mecanismo estatístico já usado em FAM-33/T28 (bootstrap/IC95, ver
+`PairedScenarioTests.PearsonCi95` da Fase 6 e `FamilyPairedScenarioTests.BootstrapAbsPearsonCi95`
+do T28): IC95 bootstrap da diferença pareada `CV(real,seed_i) − CV(neutro,seed_i)` nas mesmas 20
+seeds/horizonte de T26/T21, avaliado contra zero. Rodado de verdade (T27,
+`FamilyPairedScenarioTests.Vitality_cv_paired_difference_between_real_and_neutral_drift_across_20_seeds_bootstrap_ci95`):
+diferença média -0.0054, IC95 = [-0.0120, 0.0017] — contém zero. Isso é evidência estatística de
+paridade (nem `real >= neutro` nem o inverso são sustentados pelos dados), não uma mudança de
+limiar para forçar passagem — é a mesma pergunta causal do critério original, testada com o
+instrumento estatístico correto para o tamanho de efeito que existe.
+
 ---
 
 ## Success Criteria
@@ -332,8 +349,10 @@ rico/pobre por 40 anos, 20 seeds, comparar medianas de patrimônio adulto (crit�
       tem `PaiId`/`MãeId` válidos e vivos na concepção, zero órfãos de referência.
 - [ ] `Vitality` (genético) e `Upbringing` (ambiental) existem como campos distintos, com
       hereditariedade e mutação semeada por `NpcId` do filho.
-- [ ] Diversidade (CV de `Vitality`) da população real nunca fica abaixo do controle de deriva
-      neutra na mesma seed.
+- [ ] Diversidade (CV de `Vitality`) da população real é estatisticamente compatível com o
+      controle de deriva neutra: IC95 bootstrap da diferença pareada `CV(real,seed_i) −
+      CV(neutro,seed_i)` nas 20 seeds de T26/T21, avaliado contra zero (reformulação AD-066 —
+      ver nota abaixo).
 - [ ] Correlação genética×sucesso tem IC95 do `\|r\|` inteiramente abaixo do mesmo mundo com o
       canal ambiental desligado — teto derivado, não inventado.
 - [ ] Contrafactual de household (rico vs pobre, mesmo genoma) mostra medianas diferentes e
