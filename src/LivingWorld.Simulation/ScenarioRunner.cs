@@ -139,8 +139,8 @@ public static class ScenarioRunner
         vitalityMotherWeight: 0.5,
         vitalityFatherWeight: 0.5,
         vitalityMutationStdDev: 5,
-        vitalityMortalityWeight: 0.25,
-        upbringingWealthWeight: 0.15,
+        vitalityMortalityWeight: 0.4,
+        upbringingWealthWeight: 0.6,
         environmentalWealthChannelEnabled: true,
         neutralDriftEnabled: false).Value
         ?? throw new InvalidOperationException("family rules default inválida — bug no cenário, não no gerador");

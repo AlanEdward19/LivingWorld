@@ -16,7 +16,7 @@ public static class HouseholdCounterfactualHarness
         stock: new Dictionary<ResourceType, long> { [new ResourceType(1)] = stockAmount });
 
     public static (WorldState World, Npc Npc) CreateEmployedAdultWorld(
-        ulong seed, double upbringing, double vitality, RateGene rateGene)
+        ulong seed, double upbringing, double vitality, RateGene rateGene, FamilyRules? familyRules = null)
     {
         var economy = EconomyRules.Create(
             enabled: true, foodResourceId: 1, waterResourceId: 2,
@@ -34,7 +34,7 @@ public static class HouseholdCounterfactualHarness
             ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules, economyRules: economy,
             economyCatalog: new EconomyCatalog(new Dictionary<int, ProductionRecipe>(), [], new Dictionary<int, int>()),
-            familyRules: ScenarioRunner.DefaultFamilyRules);
+            familyRules: familyRules ?? ScenarioRunner.DefaultFamilyRules);
 
         var personality = Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!;
         var npc = new Npc(
@@ -62,6 +62,40 @@ public static class HouseholdCounterfactualHarness
             wageSystem.Tick(world, new TickContext(world, world.Rng, world.Scheduler));
 
         return npc.Wallet.Amount;
+    }
+
+    private const int SubjectStartAgeYears = 30;
+
+    /// <summary>T29/T30 (FAM-34/35): carreira até a morte (ou fim do horizonte) — reusa
+    /// <see cref="FamilyRules.EffectiveVitalityMultiplier"/>/<see cref="LifeTable.AnnualMortality"/>
+    /// (mesmo cálculo de <see cref="MortalitySystem.SchedulePlannedDeath"/>) para decidir quantos
+    /// meses de salário o sujeito recebe antes de morrer — só assim o canal genético (Vitality→
+    /// mortalidade) e o ambiental (Upbringing→salário) competem no mesmo resultado mensurável
+    /// (patrimônio), em vez de o harness de wage-only nunca deixar ninguém morrer (AD-059).
+    ///
+    /// Rola a morte a partir dos <see cref="SubjectStartAgeYears"/> (30), não dos 0 —
+    /// <see cref="MortalityPlanner.RollDeathAge"/> sempre parte do nascimento (certo para
+    /// <c>NatalitySystem</c>), mas incoerente aqui: o sujeito já existe como adulto por
+    /// construção (<see cref="CreateEmployedAdultWorld"/>), então rolar desde o nascimento
+    /// produziria "mortes na infância" que nunca poderiam ter acontecido (ele já sobreviveu até
+    /// os 30), contaminando a distribuição com zeros artificiais.</summary>
+    public static long RunCareerWithMortalityAndReturnWallet(WorldState world, Npc npc, int horizonYears)
+    {
+        var rng = new TickContext(world, world.Rng, world.Scheduler).Rng($"mortality-{npc.Id.Value}");
+        double multiplier = world.FamilyRules.EffectiveVitalityMultiplier(npc.Vitality);
+        var table = world.PopulationRules.LifeTable;
+        int deathAge = table.MaxLongevityYears;
+        for (int age = SubjectStartAgeYears; age < table.MaxLongevityYears; age++)
+        {
+            if (rng.NextDouble() < table.AnnualMortality(age, npc.Health, multiplier))
+            {
+                deathAge = age;
+                break;
+            }
+        }
+
+        int careerYears = Math.Clamp(deathAge - SubjectStartAgeYears, 0, horizonYears);
+        return RunMonthlyWagesAndReturnWallet(world, npc, careerYears * 12);
     }
 }
 
