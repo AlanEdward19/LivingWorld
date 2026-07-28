@@ -30,7 +30,8 @@ public sealed class MortalitySystem : ISimulationSystem
     public static void SchedulePlannedDeath(WorldState world, TickContext ctx, Npc npc)
     {
         var rng = ctx.Rng($"mortality-{npc.Id.Value}");
-        int deathAge = MortalityPlanner.RollDeathAge(rng, world.PopulationRules.LifeTable, npc.Health);
+        double vitalityMultiplier = world.FamilyRules.EffectiveVitalityMultiplier(npc.Vitality);
+        int deathAge = MortalityPlanner.RollDeathAge(rng, world.PopulationRules.LifeTable, npc.Health, vitalityMultiplier);
         long deathTick = npc.BirthDate.AddYears(deathAge).TotalHours;
         if (deathTick <= world.CurrentDate.TotalHours)
             deathTick = world.CurrentDate.TotalHours + 1;

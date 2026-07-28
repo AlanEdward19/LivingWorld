@@ -49,13 +49,16 @@ public sealed class LifeTable
 
     /// <summary>Probabilidade de morte no ano corrente. Saúde pior (menor) aumenta a mortalidade
     /// base; ao atingir <see cref="MaxLongevityYears"/> a morte é certa (100%) — sem isso a
-    /// tabela poderia "truncar cedo" sem nunca garantir o teto de vida do cenário.</summary>
-    public double AnnualMortality(int ageYears, int health)
+    /// tabela poderia "truncar cedo" sem nunca garantir o teto de vida do cenário.
+    /// <paramref name="vitalityMultiplier"/> (Fase 7, T9) escala o resultado — default
+    /// <c>1.0</c> preserva o comportamento anterior a T9 (AD-050); sempre clampado a
+    /// <c>[0,1]</c>, nunca produz probabilidade fora de faixa.</summary>
+    public double AnnualMortality(int ageYears, int health, double vitalityMultiplier = 1.0)
     {
         if (ageYears >= MaxLongevityYears) return 1.0;
 
         var bracket = Brackets.First(b => ageYears >= b.MinAgeYears && ageYears <= b.MaxAgeYears);
         double healthMultiplier = 1.0 + (100 - Math.Clamp(health, 0, 100)) / 100.0;
-        return Math.Min(1.0, bracket.BaseAnnualMortality * healthMultiplier);
+        return Math.Clamp(bracket.BaseAnnualMortality * healthMultiplier * vitalityMultiplier, 0.0, 1.0);
     }
 }

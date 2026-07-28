@@ -39,4 +39,27 @@ public class MortalityPlannerTests
         }
         Assert.True(sicklySum <= healthySum);
     }
+
+    // Fase 7, T9 (FAM-21): RollDeathAge repassa vitalityMultiplier opcional — default 1.0
+    // preserva o comportamento anterior (testes acima, sem o parâmetro, continuam intactos).
+
+    [Fact]
+    public void Default_vitality_multiplier_matches_pre_T9_result()
+    {
+        int a = MortalityPlanner.RollDeathAge(new WorldRng(7), Table, health: 100);
+        int b = MortalityPlanner.RollDeathAge(new WorldRng(7), Table, health: 100, vitalityMultiplier: 1.0);
+        Assert.Equal(a, b);
+    }
+
+    [Fact]
+    public void Worse_vitality_multiplier_does_not_increase_average_death_age_across_seeds()
+    {
+        long favorableSum = 0, unfavorableSum = 0;
+        for (ulong seed = 1; seed <= 200; seed++)
+        {
+            favorableSum += MortalityPlanner.RollDeathAge(new WorldRng(seed), Table, health: 100, vitalityMultiplier: 0.5);
+            unfavorableSum += MortalityPlanner.RollDeathAge(new WorldRng(seed), Table, health: 100, vitalityMultiplier: 2.0);
+        }
+        Assert.True(unfavorableSum <= favorableSum);
+    }
 }

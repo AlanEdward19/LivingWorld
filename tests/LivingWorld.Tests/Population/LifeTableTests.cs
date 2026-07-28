@@ -61,4 +61,40 @@ public class LifeTableTests
         double sickly = table.AnnualMortality(5, health: 20);
         Assert.True(sickly >= healthy);
     }
+
+    // Fase 7, T9 (FAM-21): AnnualMortality ganha vitalityMultiplier opcional — default 1.0
+    // preserva o comportamento anterior (testes acima, sem o parâmetro, continuam intactos).
+
+    [Fact]
+    public void Default_vitality_multiplier_matches_pre_T9_result()
+    {
+        var table = LifeTable.Create(20, ValidBrackets).Value!;
+        Assert.Equal(table.AnnualMortality(5, health: 100), table.AnnualMortality(5, health: 100, vitalityMultiplier: 1.0));
+    }
+
+    [Fact]
+    public void Vitality_multiplier_below_one_reduces_mortality_in_same_bracket()
+    {
+        var table = LifeTable.Create(20, ValidBrackets).Value!;
+        double baseline = table.AnnualMortality(5, health: 100);
+        double reduced = table.AnnualMortality(5, health: 100, vitalityMultiplier: 0.5);
+        Assert.True(reduced < baseline);
+    }
+
+    [Fact]
+    public void Vitality_multiplier_above_one_increases_mortality_in_same_bracket()
+    {
+        var table = LifeTable.Create(20, ValidBrackets).Value!;
+        double baseline = table.AnnualMortality(5, health: 100);
+        double increased = table.AnnualMortality(5, health: 100, vitalityMultiplier: 2.0);
+        Assert.True(increased > baseline);
+    }
+
+    [Fact]
+    public void Large_vitality_multiplier_never_pushes_mortality_above_one()
+    {
+        var table = LifeTable.Create(20, ValidBrackets).Value!;
+        double p = table.AnnualMortality(5, health: 20, vitalityMultiplier: 1000.0);
+        Assert.InRange(p, 0.0, 1.0);
+    }
 }
