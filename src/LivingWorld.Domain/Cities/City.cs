@@ -31,11 +31,21 @@ public sealed class City
     /// cref="ConstructionSystem"/> só avança a cabeça da fila.</summary>
     public IReadOnlyList<ConstructionProject> ConstructionQueue => _constructionQueue;
 
+    // SPEC_DEVIATION (Fase 8, T13): SettlementFoundingSystem agenda um evento único (mesmo padrão
+    // de MortalitySystem.SchedulePlannedDeath) e não pode agendar duas vezes pra mesma cidade
+    // enquanto o primeiro ainda não disparou — sem um marcador, o Monthly Tick reagendaria todo
+    // mês enquanto os limiares continuarem batidos.
+
+    /// <summary>Tick em que a fundação de assentamento foi agendada (Fase 8, T13, CITY-08) —
+    /// null enquanto nenhuma fundação estiver pendente. Impede reagendar a mesma cidade.</summary>
+    public long? FoundingScheduledAtTick { get; private set; }
+
     public City(
         CityId id, CellCoord location, long foundedAtTick, CityId? foundedFromCityId,
         AggregatePopulationPool aggregatePool,
         IReadOnlyDictionary<ResourceType, long>? stock = null,
-        IReadOnlyList<ConstructionProject>? constructionQueue = null)
+        IReadOnlyList<ConstructionProject>? constructionQueue = null,
+        long? foundingScheduledAtTick = null)
     {
         Id = id;
         Location = location;
@@ -44,7 +54,10 @@ public sealed class City
         AggregatePool = aggregatePool;
         _stock = new Dictionary<ResourceType, long>(stock ?? new Dictionary<ResourceType, long>());
         _constructionQueue = (constructionQueue ?? []).ToList();
+        FoundingScheduledAtTick = foundingScheduledAtTick;
     }
+
+    public void MarkFoundingScheduled(long tick) => FoundingScheduledAtTick = tick;
 
     /// <summary>Sem capacidade declarada nesta fase (mesmo espírito de <see
     /// cref="Household.Deposit"/>).</summary>
@@ -108,5 +121,16 @@ public sealed class City
             AggregatePool.WealthSum - wealthPerHead * headcount,
             AggregatePool.HealthSum - healthPerHead * headcount);
         return Result<Unit>.Ok(Unit.Value);
+    }
+
+    /// <summary>Extrai o <see cref="AggregatePool"/> inteiro e zera esta cidade (Fase 8, T13,
+    /// CITY-08) — usado pela fundação de assentamento pra mover toda a massa não-materializada
+    /// pra uma cidade nova sem criar nem destruir nada (quem chama deposita o valor devolvido na
+    /// cidade nova).</summary>
+    public AggregatePopulationPool ExtractEntirePool()
+    {
+        var pool = AggregatePool;
+        AggregatePool = AggregatePopulationPool.Empty;
+        return pool;
     }
 }
