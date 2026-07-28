@@ -206,6 +206,75 @@ public class FamilyPairedScenarioTests
                 $"{baseline.AveragePopulation:F1} gravado em {PopulationAverageBaselinePath} — revisar calibracao (nao falha o gate).");
     }
 
+    // T27 (FAM-32) is NOT implemented here — BLOCKED, see final report/SPEC_DEVIATION.
+    // Root cause traced and fixed (MortalitySystem.SchedulePlannedDeath now respects
+    // FamilyRules.NeutralDriftEnabled), but the literal acceptance criterion
+    // (CV(Vitality) real >= CV(Vitality) neutral-drift control) still fails, seed=42 and
+    // 8 other probed seeds: mortality selection on Vitality mechanically *reduces* population
+    // variance relative to a no-selection control (standard population-genetics result), the
+    // opposite of what FAM-32 demands. Not a test bug, not fixable by tweaking the test —
+    // needs a calibration/spec decision (e.g. raise VitalityMutationStdDev, or revise FAM-32).
+
+    // T28 (FAM-33) is NOT implemented here — BLOCKED, see final report/SPEC_DEVIATION.
+    // Investigated with an independent-subject harness (HouseholdCounterfactualHarness, N up to
+    // 1000, bootstrap percentile IC95 of |Pearson(Vitality,Wallet)|, both with generous and with
+    // the original Treasury): IC95 real vs canal-ambiental-desligado stayed almost fully
+    // overlapping at every sample size tried (e.g. N=1000: real [0.059,0.185] vs off
+    // [0.062,0.186]). Root cause: with the current calibration, Wallet's variance is dominated
+    // by mortality-timing noise (huge — death age ranges over decades) while
+    // UpbringingWealthWeight only perturbs wage by +-15%; that gap is real but too small for any
+    // practical sample size to separate the two IC95s. Same class of issue as T27 — a
+    // calibration/spec-precision question (e.g. raise UpbringingWealthWeight), not a test bug.
+
+    // --- T29 (FAM-34) ---
+
+    // T29 (FAM-34) is NOT implemented here — BLOCKED, see final report/SPEC_DEVIATION.
+    // HouseholdCounterfactualHarness + MortalitySystem (median wallet per level, 15 seeds):
+    // distancia(ambientes: household stock 5/60/300/1000, Vitality fixa)=4320.00 vs
+    // distancia(genomas: Vitality 5/30/70/95, household fixo)=43992.00 — genome distance is 10x
+    // larger. Over a 40-year horizon, Vitality's mortality multiplier compounds across ~40 yearly
+    // rolls into a much bigger swing in total career length (hence wallet) than the +-15% wage
+    // effect from Upbringing. Same root cause as T28 (see above), opposite symptom: genetics
+    // dominates instead of being diluted, because distance (unlike Pearson r) is driven by tail
+    // behavior at the extreme Vitality levels.
+
+    // T30 (FAM-35) is NOT implemented here — BLOCKED, see final report/SPEC_DEVIATION.
+    // Same harness, rich/poor households (Upbringing) vs extreme genomes (Vitality 5 vs 95),
+    // 40 seeds/level, 40-year horizon: overlap(rico,pobre)=0.787 (medians legitimately differ)
+    // vs overlap(genomas extremos)=1.000 — the two extreme-genome groups produced byte-identical
+    // wallets in every one of 40 seeds (nobody died before year 40 in either group at this life
+    // table/age range), so the "genome" comparison group is degenerate (zero within-group
+    // variance) regardless of seed count — not a fixable-by-more-seeds problem.
+
+    // --- T31 (FAM-36) ---
+
+    // SPEC_DEVIATION: tasks.md aponta FamilyHashSensorTests.cs como Where do T31; a instrução de
+    // execução recebida para este lote (T27-T31) consolidou explicitamente os 5 no mesmo arquivo
+    // dos T23-T26 (mesmo padrão de FamilyPairedScenarioTests já usado por T23-T30). Nenhuma
+    // cobertura muda — só a localização do arquivo.
+    [Fact]
+    [Trait("Category", "Scenario")]
+    public void Turning_off_heredity_and_courtship_changes_world_hash_after_ten_years()
+    {
+        // "Fase 7 nunca rodou": cortejo nunca inicia (score normalizado nunca ultrapassa 1.0, um
+        // limiar acima disso é inalcançável por construção) e nem Vitality nem Upbringing
+        // influenciam mortalidade/salário — os dois canais que a Fase 7 acrescentou ao mundo.
+        var phase7OffRules = ScenarioRunner.DefaultFamilyRules with
+        {
+            CourtshipThreshold = 10.0,
+            VitalityMortalityWeight = 0.0,
+            EnvironmentalWealthChannelEnabled = false,
+        };
+
+        var (worldOn, clockOn) = ScenarioRunner.Create(DefaultSeed);
+        clockOn.Run(worldOn, HorizonHours);
+
+        var (worldOff, clockOff) = ScenarioRunner.Create(DefaultSeed, familyRules: phase7OffRules);
+        clockOff.Run(worldOff, HorizonHours);
+
+        Assert.NotEqual(WorldSnapshot.CanonicalHash(worldOn), WorldSnapshot.CanonicalHash(worldOff));
+    }
+
     private static void AssertMotherAndFather(
         Npc child,
         IReadOnlyDictionary<NpcId, Npc> npcById,
