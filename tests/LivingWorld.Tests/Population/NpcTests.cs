@@ -165,7 +165,8 @@ public class NpcTests
             hunger: 33, thirst: 44, sleep: 55, social: 66,
             currentLocation: new CellCoord(5, 6), currentAction: ActionType.Socialize, actionStartedAtTick: 12,
             hungerZeroSinceTick: 8, homelessSince: WorldDate.Epoch(Calendar).AddYears(2),
-            wallet: new Money(250), employer: new WorkplaceId(4));
+            wallet: new Money(250), employer: new WorkplaceId(4),
+            city: new CityId(Guid.Parse("00000000-0000-0000-0000-0000000000aa")));
 
         var json = JsonSerializer.Serialize(npc, options);
         var rehydrated = JsonSerializer.Deserialize<Npc>(json, options)!;
@@ -183,6 +184,20 @@ public class NpcTests
         Assert.Equal(npc.HomelessSince, rehydrated.HomelessSince);
         Assert.Equal(npc.Wallet, rehydrated.Wallet);
         Assert.Equal(npc.Employer, rehydrated.Employer);
+        Assert.Equal(npc.City, rehydrated.City);
+    }
+
+    // --- Fase 8 (T4): CityId ---
+
+    [Fact]
+    public void JoinCity_changes_the_npc_city()
+    {
+        var npc = MakeNpc(WorldDate.Epoch(Calendar));
+        var city = new CityId(Guid.Parse("00000000-0000-0000-0000-0000000000bb"));
+
+        npc.JoinCity(city);
+
+        Assert.Equal(city, npc.City);
     }
 
     // --- Fase 5 (T5): Wallet/Employer ---

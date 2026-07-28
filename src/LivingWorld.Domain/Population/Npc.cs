@@ -56,6 +56,10 @@ public sealed class Npc
     public NpcId? Spouse { get; private set; }
     public NpcId? CourtingWith { get; private set; }
 
+    /// <summary>Cidade onde o NPC vive (Fase 8, T4, CITY-01) — nunca "sem cidade"
+    /// (CITY-09: todo NPC vivo tem exatamente uma). Mutável só por <see cref="JoinCity"/>.</summary>
+    public CityId City { get; private set; }
+
     /// <summary>Derivado de <see cref="DeathDate"/> — <see cref="JsonIgnoreAttribute"/> pelo
     /// mesmo motivo de <see cref="Household.IsEmpty"/>: computado, e um bool solto no snapshot
     /// quebraria o mutador genérico de teste.</summary>
@@ -72,7 +76,8 @@ public sealed class Npc
         WorldDate? pregnantUntil = null, WorldDate? deathDate = null,
         Money wallet = default, WorkplaceId? employer = null,
         SkillSet? skills = null, RateGene? rateGene = null, NpcId? mentor = null,
-        double vitality = 50.0, double upbringing = 50.0, NpcId? spouse = null, NpcId? courtingWith = null)
+        double vitality = 50.0, double upbringing = 50.0, NpcId? spouse = null, NpcId? courtingWith = null,
+        CityId city = default)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -113,6 +118,7 @@ public sealed class Npc
         Upbringing = Math.Clamp(upbringing, 0.0, 100.0);
         Spouse = spouse;
         CourtingWith = courtingWith;
+        City = city;
     }
 
     /// <summary>Idade derivada de <paramref name="now"/> — nunca incrementada por sistema
@@ -235,4 +241,14 @@ public sealed class Npc
 
     /// <summary>Fim de cortejo, com ou sem sucesso — espelha <see cref="ClearMentor"/>.</summary>
     public void EndCourtship() => CourtingWith = null;
+
+    // SPEC_DEVIATION: design.md fala em JoinCity/LeaveCity espelhando JoinHousehold/LeaveHousehold.
+    // Household mantém uma lista de membros (RemoveMember tem o que limpar); City não guarda
+    // nenhuma lista de NPCs — a população é sempre derivada filtrando WorldState.Npcs por City
+    // (CityPopulationQuery, T8). Não há estado de "saída" para limpar, então um único mutador
+    // basta: MigrationSystem chama JoinCity(destino) no mesmo tick em que decide migrar (CITY-07),
+    // nunca deixando o NPC num tick intermediário sem cidade (CityId nunca é nulo).
+
+    /// <summary>Muda a cidade do NPC (Fase 8, T4, CITY-01/CITY-07) — espelha <see cref="JoinHousehold"/>.</summary>
+    public void JoinCity(CityId city) => City = city;
 }

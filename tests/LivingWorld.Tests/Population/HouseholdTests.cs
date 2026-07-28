@@ -38,4 +38,27 @@ public class HouseholdTests
 
         Assert.True(household.IsEmpty);
     }
+
+    // --- Fase 8 (T4): CityId ---
+
+    [Fact]
+    public void Constructor_preserves_the_city_passed_in()
+    {
+        var city = new CityId(Guid.Parse("00000000-0000-0000-0000-0000000000cc"));
+        var household = new Household(
+            new HouseholdId(1), new CellCoord(0, 0), new NpcId(1), [new NpcId(1)], city: city);
+
+        Assert.Equal(city, household.City);
+    }
+
+    [Fact]
+    public void JoinCity_changes_the_household_city()
+    {
+        var household = new Household(new HouseholdId(1), new CellCoord(0, 0), new NpcId(1), [new NpcId(1)]);
+        var city = new CityId(Guid.Parse("00000000-0000-0000-0000-0000000000dd"));
+
+        household.JoinCity(city);
+
+        Assert.Equal(city, household.City);
+    }
 }

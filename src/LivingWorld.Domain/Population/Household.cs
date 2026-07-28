@@ -27,9 +27,13 @@ public sealed class Household
     private readonly Dictionary<ResourceType, long> _stock;
     public IReadOnlyDictionary<ResourceType, long> Stock => _stock;
 
+    /// <summary>Cidade onde o household reside (Fase 8, T4, CITY-01). Mutável só por
+    /// <see cref="JoinCity"/> — mesmo espírito de <see cref="Npc.City"/>.</summary>
+    public CityId City { get; private set; }
+
     public Household(
         HouseholdId id, CellCoord location, NpcId head, IReadOnlyList<NpcId> members,
-        IReadOnlyDictionary<ResourceType, long>? stock = null)
+        IReadOnlyDictionary<ResourceType, long>? stock = null, CityId city = default)
     {
         if (!members.Contains(head))
             throw new ArgumentException("Head precisa estar entre os Members", nameof(head));
@@ -38,6 +42,7 @@ public sealed class Household
         Head = head;
         _members = members.ToList();
         _stock = new Dictionary<ResourceType, long>(stock ?? new Dictionary<ResourceType, long>());
+        City = city;
     }
 
     /// <summary>Sem capacidade declarada nesta fase — devolve sempre 0 de perda
@@ -60,4 +65,8 @@ public sealed class Household
         if (Head == npc && _members.Count > 0)
             Head = _members.OrderBy(m => m.Value).First();
     }
+
+    /// <summary>Muda a cidade do household (Fase 8, T4, CITY-01/CITY-07) — mesmo SPEC_DEVIATION de
+    /// <see cref="Npc.JoinCity"/>: sem lista de membros a limpar, um único mutador basta.</summary>
+    public void JoinCity(CityId city) => City = city;
 }

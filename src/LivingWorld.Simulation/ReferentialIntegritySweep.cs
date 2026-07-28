@@ -12,8 +12,15 @@ namespace LivingWorld.Simulation;
 public static class ReferentialIntegritySweep
 {
     /// <summary>Como obter o conjunto de ids válidos de cada tipo, dado o mundo. Tipo ainda sem
-    /// uso real (ex.: <see cref="CityId"/>/<see cref="LocationId"/> antes da Fase 8) resolve
-    /// para conjunto vazio — vazio e sem-referência passa por vacuidade, o esperado.</summary>
+    /// uso real resolve para conjunto vazio — vazio e sem-referência passa por vacuidade, o
+    /// esperado.</summary>
+    // SPEC_DEVIATION (Fase 8, T4): Npc/Household ganharam CityId real (não mais tipo "sem uso"),
+    // mas WorldState.Cities só nasce em T5 e nenhum sistema atribui cidade de verdade ainda
+    // (Foundation não cria/atribui City — isso é Fase 2/CityScenarioLoader em diante). Até lá,
+    // todo Npc/Household carrega o sentinela default(CityId)/default(LocationId); o resolver
+    // aceita esse sentinela como válido para não quebrar o sweep num campo que nenhum sistema
+    // ainda escreve. T6 troca isto por `w.Cities`/`w.Buildings` reais (mantendo o sentinela até
+    // a atribuição de cidade estar de fato ligada em algum cenário).
     private static readonly Dictionary<Type, Func<WorldState, HashSet<object>>> ValidIdResolvers = new()
     {
         [typeof(NpcId)] = w => w.Npcs.Select(n => (object)n.Id).ToHashSet(),
@@ -21,9 +28,10 @@ public static class ReferentialIntegritySweep
         [typeof(RegionId)] = w => w.Map.Regions.Select(r => (object)r.Id).ToHashSet(),
         [typeof(CultureId)] = w => w.PopulationCatalog.CultureIds.Select(id => (object)new CultureId(id)).ToHashSet(),
         [typeof(BranchId)] = w => [w.BranchId],
-        [typeof(CityId)] = _ => [],
-        [typeof(LocationId)] = _ => [],
+        [typeof(CityId)] = _ => [(object)default(CityId)],
+        [typeof(LocationId)] = _ => [(object)default(LocationId)],
         [typeof(WorkplaceId)] = w => w.Workplaces.Select(wp => (object)wp.Id).ToHashSet(),
+        [typeof(BuildingId)] = _ => [],
     };
 
     /// <summary>Todo tipo de id do assembly Domain — o teste de cobertura reprova se algum
