@@ -14,13 +14,14 @@ public static class ReferentialIntegritySweep
     /// <summary>Como obter o conjunto de ids válidos de cada tipo, dado o mundo. Tipo ainda sem
     /// uso real resolve para conjunto vazio — vazio e sem-referência passa por vacuidade, o
     /// esperado.</summary>
-    // SPEC_DEVIATION (Fase 8, T4): Npc/Household ganharam CityId real (não mais tipo "sem uso"),
-    // mas WorldState.Cities só nasce em T5 e nenhum sistema atribui cidade de verdade ainda
-    // (Foundation não cria/atribui City — isso é Fase 2/CityScenarioLoader em diante). Até lá,
-    // todo Npc/Household carrega o sentinela default(CityId)/default(LocationId); o resolver
-    // aceita esse sentinela como válido para não quebrar o sweep num campo que nenhum sistema
-    // ainda escreve. T6 troca isto por `w.Cities`/`w.Buildings` reais (mantendo o sentinela até
-    // a atribuição de cidade estar de fato ligada em algum cenário).
+    // Fase 8, T6: CityId agora resolve contra world.Cities de verdade. O sentinela
+    // default(CityId) continua aceito além dos ids reais — Foundation (T1-T8) não liga nenhum
+    // sistema que atribua cidade de verdade a Npc/Household ainda (isso entra em fases
+    // seguintes/CityScenarioLoader), então todo Npc/Household do cenário default carrega o
+    // sentinela "ainda sem cidade atribuída", que não é um ponteiro solto — é a ausência
+    // documentada de atribuição, distinta de apontar para uma cidade removida/inexistente.
+    // BuildingId/LocationId seguem sem uso real (nenhum campo do domínio guarda um valor desses
+    // tipos ainda) — vazio por vacuidade, mesmo padrão anterior à Fase 8.
     private static readonly Dictionary<Type, Func<WorldState, HashSet<object>>> ValidIdResolvers = new()
     {
         [typeof(NpcId)] = w => w.Npcs.Select(n => (object)n.Id).ToHashSet(),
@@ -28,10 +29,10 @@ public static class ReferentialIntegritySweep
         [typeof(RegionId)] = w => w.Map.Regions.Select(r => (object)r.Id).ToHashSet(),
         [typeof(CultureId)] = w => w.PopulationCatalog.CultureIds.Select(id => (object)new CultureId(id)).ToHashSet(),
         [typeof(BranchId)] = w => [w.BranchId],
-        [typeof(CityId)] = _ => [(object)default(CityId)],
-        [typeof(LocationId)] = _ => [(object)default(LocationId)],
+        [typeof(CityId)] = w => w.Cities.Select(c => (object)c.Id).Append((object)default(CityId)).ToHashSet(),
+        [typeof(LocationId)] = _ => [],
         [typeof(WorkplaceId)] = w => w.Workplaces.Select(wp => (object)wp.Id).ToHashSet(),
-        [typeof(BuildingId)] = _ => [],
+        [typeof(BuildingId)] = w => w.Buildings.Select(b => (object)b.Id).ToHashSet(),
     };
 
     /// <summary>Todo tipo de id do assembly Domain — o teste de cobertura reprova se algum
