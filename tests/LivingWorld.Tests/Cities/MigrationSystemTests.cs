@@ -160,6 +160,36 @@ public class MigrationSystemTests
     }
 
     [Fact]
+    public void Household_migration_moves_every_member_not_just_the_head()
+    {
+        // Fase 8, fix round 1, gap 3 (CITY-07 AC2): todo teste anterior usava household de 1
+        // membro — nenhum provava que um membro não-chefe também migra junto. Household de 2
+        // membros aqui: se só o chefe migrasse, este teste reprovaria.
+        var world = MakeWorld(MakeRules(foodWeight: 1));
+        var (origin, destination) = MakeTwoCities(world);
+        var head = MakeNpc(world, 1, origin.Id);
+        var otherMember = MakeNpc(world, 2, origin.Id);
+        var destinationHead = MakeNpc(world, 3, destination.Id);
+        world.AddNpc(head);
+        world.AddNpc(otherMember);
+        world.AddNpc(destinationHead);
+
+        var household = new Household(new HouseholdId(1), origin.Location, head.Id, [head.Id, otherMember.Id], city: origin.Id);
+        household.Deposit(Food, 0); // origem sem comida
+        world.AddHousehold(household);
+
+        var destinationHousehold = new Household(new HouseholdId(2), destination.Location, destinationHead.Id, [destinationHead.Id], city: destination.Id);
+        destinationHousehold.Deposit(Food, 1000); // destino farto
+        world.AddHousehold(destinationHousehold);
+
+        new MigrationSystem().Tick(world, MakeCtx(world));
+
+        Assert.Equal(destination.Id, head.City);
+        Assert.Equal(destination.Id, otherMember.City); // membro não-chefe migrou junto
+        Assert.Equal(destination.Id, household.City);
+    }
+
+    [Fact]
     public void Tick_is_a_no_op_when_city_rules_are_disabled()
     {
         var world = MakeWorld(CityRules.Disabled);
