@@ -1,4 +1,5 @@
 using LivingWorld.Domain;
+using LivingWorld.Simulation.Behavior;
 
 namespace LivingWorld.Simulation;
 
@@ -81,13 +82,13 @@ public sealed class NatalitySystem : ISimulationSystem
         var sex = ctx.Rng($"natality-sex-{motherId.Value}-{evt.Id}").NextDouble() < 0.5 ? Sex.Female : Sex.Male;
         var babyId = world.NextNpcIdAndAdvance();
 
-        var personality = Personality.RollFrom(ctx.Rng($"personality-{babyId.Value}"));
-        var profession = world.PopulationCatalog.RollProfession(ctx.Rng($"profession-{babyId.Value}"));
+        var personality = Personality.RollFrom(ctx.StreamFor("personality", babyId.Value));
+        var profession = world.PopulationCatalog.RollProfession(ctx.StreamFor("profession", babyId.Value));
         var rateGene = RateGene.Inherit(
-            mother.RateGene, father?.RateGene ?? mother.RateGene, ctx.Rng($"rategene-{babyId.Value}"));
+            mother.RateGene, father?.RateGene ?? mother.RateGene, ctx.StreamFor("rategene", babyId.Value));
         double vitality = HeredityService.InheritVitality(
             mother.Vitality, father?.Vitality ?? mother.Vitality, familyRules,
-            ctx.Rng($"vitality-{babyId.Value}"));
+            ctx.StreamFor("vitality", babyId.Value));
         double upbringing = HeredityService.DeriveUpbringingFromConceptionStock(conceptionStock, familyRules);
 
         var baby = new Npc(
@@ -98,9 +99,11 @@ public sealed class NatalitySystem : ISimulationSystem
             rateGene: rateGene, vitality: vitality, upbringing: upbringing);
 
         world.AddNpc(baby);
+        baby.ConfigureNeedDecay(world.NeedsRules, world.CurrentDate.TotalHours);
         household.AddMember(baby.Id);
         ctx.LogEvent(WorldEventKind.Birth, $"{baby.Id.Value}|{motherId.Value}|{fatherId.Value}|{household.Id.Value}");
         MortalitySystem.SchedulePlannedDeath(world, ctx, baby);
+        NpcWakeScheduler.ScheduleWake(world, ctx, baby.Id.Value, world.CurrentDate.TotalHours + 1);
     }
 
     internal static bool MeetsConceptionFloors(

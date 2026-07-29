@@ -48,6 +48,7 @@ public class EatAndBuyBehaviorTests
             currentLocation: loc, hunger: 0, thirst: 0,
             currentAction: ActionType.Eat, actionStartedAtTick: 0);
         world.AddNpc(npc);
+        SimulationWakeTestHelper.Wake(world, npc);
         return (npc, household);
     }
 

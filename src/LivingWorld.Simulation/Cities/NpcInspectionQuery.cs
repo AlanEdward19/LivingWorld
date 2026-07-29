@@ -15,15 +15,31 @@ public static class NpcInspectionQuery
     public static Result<NpcInspectionDto> Inspect(WorldState world, NpcId id)
     {
         var ensured = MaterializationSystem.EnsureMaterialized(world, id);
-        if (!ensured.IsSuccess) return Result<NpcInspectionDto>.Fail(ensured.Error!);
+        if (!ensured.IsSuccess)
+        {
+            if (world.ColdArchive.Lookup(id.Value) is { } summary)
+            {
+                var placeholderPersonality = Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!;
+                return Result<NpcInspectionDto>.Ok(new NpcInspectionDto(
+                    summary.Id, summary.Name, summary.Sex, 0, summary.Culture, default,
+                    Household: null, MotherId: null, FatherId: null, Spouse: null,
+                    summary.Profession, Employer: null,
+                    0, 0, 0, 0, 0, placeholderPersonality, SkillSet.Initial(0),
+                    new CellCoord(0, 0), CurrentAction: null, 0,
+                    Memories: []));
+            }
+
+            return Result<NpcInspectionDto>.Fail(ensured.Error!);
+        }
 
         var npc = world.FindNpc(id)!;
 
+        long tick = world.CurrentDate.TotalHours;
         var dto = new NpcInspectionDto(
             npc.Id, npc.Name, npc.Sex, npc.AgeYears(world.CurrentDate), npc.Culture, npc.City,
             npc.Household, npc.MotherId, npc.FatherId, npc.Spouse,
             npc.Profession, npc.Employer,
-            npc.Health, npc.Hunger, npc.Thirst, npc.Sleep, npc.Social, npc.Personality, npc.Skills,
+            npc.Health, npc.HungerAt(tick), npc.ThirstAt(tick), npc.SleepAt(tick), npc.SocialAt(tick), npc.Personality, npc.Skills,
             npc.CurrentLocation, npc.CurrentAction, npc.ActionStartedAtTick,
             Memories: []);
 

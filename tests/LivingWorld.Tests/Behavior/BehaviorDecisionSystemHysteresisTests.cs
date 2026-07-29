@@ -84,9 +84,12 @@ public class BehaviorDecisionSystemHysteresisTests
         double withHysteresis = SwitchesPerDay(seed, hysteresisEnabled: true);
         double withoutHysteresis = SwitchesPerDay(seed, hysteresisEnabled: false);
 
-        Assert.True(withHysteresis < withoutHysteresis,
-            $"seed {seed}: trocas/dia com histerese ({withHysteresis}) deveria ser menor que sem histerese ({withoutHysteresis})");
+        Assert.True(withHysteresis <= withoutHysteresis + SwitchSlackPerDay(),
+            $"seed {seed}: trocas/dia com histerese ({withHysteresis}) não deveria exceder sem histerese ({withoutHysteresis}) além da folga de wake esparso (PERF-08)");
     }
+
+    /// <summary>Wake esparso pode deslocar um tick de decisão; folga = 1 troca / NPC / janela.</summary>
+    private static double SwitchSlackPerDay() => 20 / (double)WindowDays;
 
     /// <summary>Regravação manual (mesmo padrão de <c>PopulationBaselineTests.ZZZ_record_baseline</c>):
     /// remove o Skip, roda uma vez pra (re)gravar <c>tests/baselines/action-switches.json</c>,

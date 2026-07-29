@@ -1,4 +1,5 @@
 using LivingWorld.Domain;
+using LivingWorld.Simulation.Economy;
 
 namespace LivingWorld.Simulation;
 
@@ -25,11 +26,12 @@ public sealed class ProductionSystem : ISimulationSystem
 
         var catalog = world.EconomyCatalog;
         var rules = world.EconomyRules;
+        var vacancyIndex = VacancyIndex.BuildForTick(world);
 
         foreach (var workplace in world.Workplaces.OrderBy(w => w.Id.Value))
         {
             if (catalog.Recipes.TryGetValue(workplace.LocationType.Id, out var recipe))
-                Produce(world, ctx, workplace, recipe, rules, _skillsRules);
+                Produce(world, ctx, workplace, recipe, rules, _skillsRules, vacancyIndex);
 
             // Spoilage é propriedade do estoque, não da recipe — roda em todo Workplace, mesmo
             // um sem produção declarada (mercado, guarda, etc).
@@ -39,13 +41,9 @@ public sealed class ProductionSystem : ISimulationSystem
 
     private static void Produce(
         WorldState world, TickContext ctx, Workplace workplace, ProductionRecipe recipe, EconomyRules rules,
-        SkillsRules? skillsRules)
+        SkillsRules? skillsRules, VacancyIndex vacancyIndex)
     {
-        var presentWorkers = workplace.Employees
-            .Select(world.FindNpc)
-            .Where(npc => npc is { IsAlive: true } && npc.CurrentLocation == workplace.Location)
-            .Select(npc => npc!)
-            .ToList();
+        var presentWorkers = vacancyIndex.PresentWorkersAt(workplace);
         if (presentWorkers.Count == 0) return; // ECON-07: sem trabalhador presente, produção 0
 
         if (recipe.RequiresCellResource is { } requiredResource

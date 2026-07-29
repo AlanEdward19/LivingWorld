@@ -1,5 +1,7 @@
 using LivingWorld.Domain;
 
+using LivingWorld.Simulation.Population;
+
 namespace LivingWorld.Simulation;
 
 /// <summary>Monta o cenário "default" (vila medieval: 24h/dia, 30 dias/mês, 12 meses/ano, 100
@@ -9,9 +11,11 @@ public static class ScenarioRunner
 {
     public const int DefaultInitialPopulation = 100;
 
-    /// <summary>Teto de bytes/NPC/ano do cenário default (task 13) — mesmo valor declarado em
-    /// scenarios/default.json (AD-027: o "default" do gate continua hardcoded aqui).</summary>
-    public const long DefaultMaxBytesPerNpcPerYear = 4000;
+    /// <summary>Teto de bytes/NPC/ano do cenário default (task 13) — delega a
+    /// <see cref="DefaultPerfRules"/> (Fase 9, PERF-03).</summary>
+    public static long DefaultMaxBytesPerNpcPerYear => DefaultPerfRules.MaxBytesPerAliveNpcPerYear;
+
+    public static readonly PerfRules DefaultPerfRules = PerfRules.Default;
 
     public static WorldCalendar DefaultCalendar { get; } = new(HoursPerDay: 24, DaysPerMonth: 30, MonthsPerYear: 12);
 
@@ -38,6 +42,7 @@ public static class ScenarioRunner
         new ExampleCounterSystem(TickFrequency.Monthly),
         new ExampleCounterSystem(TickFrequency.Yearly),
         new MortalitySystem(),
+        new ColdArchiveSystem(),
         new CourtshipSystem(),
         new NatalitySystem(),
         new NeedsDecaySystem(),
@@ -238,24 +243,45 @@ public static class ScenarioRunner
         MarketLocationTypeIds: [1, 2],
         LocationTypeByProfession: new Dictionary<int, int> { [1] = 1, [2] = 2 });
 
+    /// <summary>Receitas com tetos de trabalhadores altos para cenário de escala (PERF-01).</summary>
+    public static EconomyCatalog ScaleEconomyCatalog(int workerCapMultiplier)
+    {
+        int mult = Math.Max(1, workerCapMultiplier);
+        return new EconomyCatalog(
+            Recipes: new Dictionary<int, ProductionRecipe>
+            {
+                [1] = ProductionRecipe.Create(
+                    inputs: new Dictionary<int, long>(), outputs: new Dictionary<int, long> { [1] = 10, [2] = 8 },
+                    requiresCellResource: null, maxWorkersPerCycle: 80 * mult)
+                    .Value ?? throw new InvalidOperationException("recipe fazenda inválida"),
+                [2] = ProductionRecipe.Create(
+                    inputs: new Dictionary<int, long>(), outputs: new Dictionary<int, long> { [4] = 5 },
+                    requiresCellResource: null, maxWorkersPerCycle: 40 * mult)
+                    .Value ?? throw new InvalidOperationException("recipe ferraria inválida"),
+            },
+            MarketLocationTypeIds: DefaultEconomyCatalog.MarketLocationTypeIds,
+            LocationTypeByProfession: DefaultEconomyCatalog.LocationTypeByProfession);
+    }
+
     /// <summary>Fazenda e ferraria iniciais, sem empregado (contratados pelo <see
     /// cref="EmploymentSystem"/> no primeiro Daily), sem estoque (produzido pelo <see
     /// cref="ProductionSystem"/>). Preço inicial 5 (não 1, o piso): <see
     /// cref="MarketPricingSystem"/> é multiplicativo — arredondado pra inteiro, preço 1 nunca sai
     /// do lugar de verdade (fator 0.8 ou 1.2 sobre 1 arredonda de volta pra 1), escondendo
     /// qualquer sinal de escassez/fartura (achado escrevendo o teste causal de T25).</summary>
-    private static void SeedDefaultWorkplaces(WorldState world)
+    private static void SeedDefaultWorkplaces(WorldState world, int vacancyMultiplier = 1)
     {
+        int mult = Math.Max(1, vacancyMultiplier);
         // Treasury inicial grande (capital de giro do dono, estado inicial declarado — não
         // cunhagem, ECON-26/27 continua íntegro): folha de ~36 empregados a 90-110/mês esgotaria
         // um treasury pequeno bem antes da receita de venda (compras em lote esporádicas)
         // acompanhar, gerando WageUnpaid em cascata e, por tabela, fome real generalizada.
         world.AddWorkplace(new Workplace(
-            world.NextWorkplaceIdAndAdvance(), new LocationType(1), DefaultVillageLocation, maxVacancies: 80,
+            world.NextWorkplaceIdAndAdvance(), new LocationType(1), DefaultVillageLocation, maxVacancies: 80 * mult,
             employees: [], stock: new Dictionary<ResourceType, long>(), treasury: new Money(500_000),
             prices: new Dictionary<ResourceType, long> { [new ResourceType(1)] = 5, [new ResourceType(2)] = 5 }));
         world.AddWorkplace(new Workplace(
-            world.NextWorkplaceIdAndAdvance(), new LocationType(2), DefaultVillageLocation, maxVacancies: 40,
+            world.NextWorkplaceIdAndAdvance(), new LocationType(2), DefaultVillageLocation, maxVacancies: 40 * mult,
             employees: [], stock: new Dictionary<ResourceType, long>(), treasury: new Money(500_000),
             prices: new Dictionary<ResourceType, long> { [new ResourceType(4)] = 5 }));
     }
@@ -285,20 +311,25 @@ public static class ScenarioRunner
     /// teste precisa informar.</summary>
     public static (WorldState World, WorldClock Clock) Create(
         ulong seed, int maxIterationsPerTick = 1000, int initialPopulation = DefaultInitialPopulation,
-        EconomyRules? economyRules = null, FamilyRules? familyRules = null)
+        EconomyRules? economyRules = null, FamilyRules? familyRules = null, PerfRules? perfRules = null,
+        PopulationRules? populationRules = null, int workplaceVacancyMultiplier = 1,
+        EconomyCatalog? economyCatalog = null)
     {
         var rules = economyRules ?? DefaultEconomyRules;
         var family = familyRules ?? DefaultFamilyRules;
+        var perf = perfRules ?? DefaultPerfRules;
+        var population = populationRules ?? DefaultPopulationRules;
+        var catalog = economyCatalog ?? DefaultEconomyCatalog;
         var world = new WorldState(
-            DefaultCalendar, seed, DefaultMap(seed), DefaultPopulationCatalog, DefaultPopulationRules,
+            DefaultCalendar, seed, DefaultMap(seed), DefaultPopulationCatalog, population,
             DefaultNeedsRules, DefaultActionCatalog, DefaultLifeStageRules,
-            economyRules: rules, economyCatalog: DefaultEconomyCatalog, familyRules: family);
+            economyRules: rules, economyCatalog: catalog, familyRules: family, perfRules: perf);
         if (initialPopulation > 0)
         {
             PopulationSeeder.SeedInitial(world, initialPopulation, DefaultCulture, DefaultVillageLocation);
             SeedInitialEconomyBuffer(world);
         }
-        SeedDefaultWorkplaces(world);
+        SeedDefaultWorkplaces(world, workplaceVacancyMultiplier);
 
         return (world, new WorldClock(DefaultSystems(), maxIterationsPerTick));
     }

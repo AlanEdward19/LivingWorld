@@ -44,10 +44,10 @@ public class NpcInspectionQueryTests
         Assert.Equal(npc.Profession, dto.Profession);
         Assert.Equal(npc.Employer, dto.Employer);
         Assert.Equal(npc.Health, dto.Health);
-        Assert.Equal(npc.Hunger, dto.Hunger);
-        Assert.Equal(npc.Thirst, dto.Thirst);
-        Assert.Equal(npc.Sleep, dto.Sleep);
-        Assert.Equal(npc.Social, dto.Social);
+        Assert.Equal(npc.HungerAt(world.CurrentDate.TotalHours), dto.Hunger);
+        Assert.Equal(npc.ThirstAt(world.CurrentDate.TotalHours), dto.Thirst);
+        Assert.Equal(npc.SleepAt(world.CurrentDate.TotalHours), dto.Sleep);
+        Assert.Equal(npc.SocialAt(world.CurrentDate.TotalHours), dto.Social);
         Assert.Equal(npc.Personality, dto.Personality);
         Assert.Equal(npc.Skills, dto.Skills);
         Assert.Equal(npc.CurrentLocation, dto.CurrentLocation);

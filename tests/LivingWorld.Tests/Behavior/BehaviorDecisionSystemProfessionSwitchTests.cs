@@ -58,6 +58,7 @@ public class BehaviorDecisionSystemProfessionSwitchTests
             location, motherId: null, fatherId: null, household: null, health: 100,
             personality: Neutral, profession: profession, currentLocation: location, skills: skills);
         world.AddNpc(npc);
+        SimulationWakeTestHelper.Wake(world, npc);
         return npc;
     }
 

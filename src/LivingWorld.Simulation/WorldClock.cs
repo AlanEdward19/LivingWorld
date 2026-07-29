@@ -1,4 +1,5 @@
 using LivingWorld.Domain;
+using LivingWorld.Simulation.Behavior;
 
 namespace LivingWorld.Simulation;
 
@@ -20,6 +21,7 @@ public sealed class WorldClock(IReadOnlyList<ISimulationSystem> systems, int max
     public void Tick(WorldState world)
     {
         world.CurrentDate = world.CurrentDate.AddHours(1);
+        NpcWakeScheduler.PrepareWakeBatch(world, world.CurrentDate.TotalHours);
         var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
 
         bool isDayBoundary = world.CurrentDate.Hour == 0;
@@ -40,14 +42,9 @@ public sealed class WorldClock(IReadOnlyList<ISimulationSystem> systems, int max
                 system.Tick(world, ctx);
         }
 
-        // Eventos agendados pelos sistemas acima para este mesmo tick disparam antes do
-        // próximo tick começar — inclusive reagendamentos em cadeia (teto de iterações abaixo).
         DispatchDueEvents(world, ctx);
     }
 
-    /// <summary>Processa a fila do tick atual em loop: um handler pode agendar outro evento
-    /// para o mesmo tick (re-agendamento imediato). Estourar o teto aborta nomeando o
-    /// sistema do último evento despachado.</summary>
     private void DispatchDueEvents(WorldState world, TickContext ctx)
     {
         long tick = world.CurrentDate.TotalHours;

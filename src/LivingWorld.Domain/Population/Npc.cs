@@ -23,11 +23,11 @@ public sealed class Npc
     public WorldDate? PregnantUntil { get; private set; }
     public WorldDate? DeathDate { get; private set; }
 
-    // Fase 4 (task 6): necessidades, personalidade, profissão, localização e ação corrente.
-    public int Hunger { get; private set; }
-    public int Thirst { get; private set; }
-    public int Sleep { get; private set; }
-    public int Social { get; private set; }
+    // Fase 4 (task 6) / Fase 9 (PERF-09): necessidades lazy — canônicas no snapshot.
+    public LazyNeed HungerNeed { get; private set; }
+    public LazyNeed ThirstNeed { get; private set; }
+    public LazyNeed SleepNeed { get; private set; }
+    public LazyNeed SocialNeed { get; private set; }
     public Personality Personality { get; }
     public ProfessionType Profession { get; private set; }
     public CellCoord CurrentLocation { get; private set; }
@@ -77,11 +77,12 @@ public sealed class Npc
     [JsonIgnore]
     public bool IsAlive => DeathDate is null;
 
+    [JsonConstructor]
     public Npc(
         NpcId id, string name, Sex sex, WorldDate birthDate, CultureId culture, CellCoord birthLocation,
         NpcId? motherId, NpcId? fatherId, HouseholdId? household, int health,
         Personality personality, ProfessionType profession, CellCoord currentLocation,
-        int hunger = 100, int thirst = 100, int sleep = 100, int social = 100,
+        LazyNeed hungerNeed, LazyNeed thirstNeed, LazyNeed sleepNeed, LazyNeed socialNeed,
         ActionType? currentAction = null, long actionStartedAtTick = 0,
         long? hungerZeroSinceTick = null, WorldDate? homelessSince = null,
         WorldDate? pregnantUntil = null, WorldDate? deathDate = null,
@@ -109,10 +110,10 @@ public sealed class Npc
         Health = health;
         Personality = personality;
         Profession = profession;
-        Hunger = Math.Clamp(hunger, 0, 100);
-        Thirst = Math.Clamp(thirst, 0, 100);
-        Sleep = Math.Clamp(sleep, 0, 100);
-        Social = Math.Clamp(social, 0, 100);
+        HungerNeed = hungerNeed;
+        ThirstNeed = thirstNeed;
+        SleepNeed = sleepNeed;
+        SocialNeed = socialNeed;
         CurrentLocation = currentLocation;
         CurrentAction = currentAction;
         ActionStartedAtTick = actionStartedAtTick;
@@ -131,6 +132,27 @@ public sealed class Npc
         CourtingWith = courtingWith;
         City = city;
         MaterializedAtTick = materializedAtTick;
+    }
+
+    public Npc(
+        NpcId id, string name, Sex sex, WorldDate birthDate, CultureId culture, CellCoord birthLocation,
+        NpcId? motherId, NpcId? fatherId, HouseholdId? household, int health,
+        Personality personality, ProfessionType profession, CellCoord currentLocation,
+        int hunger = 100, int thirst = 100, int sleep = 100, int social = 100,
+        ActionType? currentAction = null, long actionStartedAtTick = 0,
+        long? hungerZeroSinceTick = null, WorldDate? homelessSince = null,
+        WorldDate? pregnantUntil = null, WorldDate? deathDate = null,
+        Money wallet = default, WorkplaceId? employer = null,
+        SkillSet? skills = null, RateGene? rateGene = null, NpcId? mentor = null,
+        double vitality = 50.0, double upbringing = 50.0, NpcId? spouse = null, NpcId? courtingWith = null,
+        CityId city = default, long? materializedAtTick = null)
+        : this(
+            id, name, sex, birthDate, culture, birthLocation, motherId, fatherId, household, health,
+            personality, profession, currentLocation,
+            LazyNeed.Initial(hunger, 0, 0), LazyNeed.Initial(thirst, 0, 0), LazyNeed.Initial(sleep, 0, 0), LazyNeed.Initial(social, 0, 0),
+            currentAction, actionStartedAtTick, hungerZeroSinceTick, homelessSince, pregnantUntil, deathDate,
+            wallet, employer, skills, rateGene, mentor, vitality, upbringing, spouse, courtingWith, city, materializedAtTick)
+    {
     }
 
     /// <summary>Idade derivada de <paramref name="now"/> — nunca incrementada por sistema
@@ -168,15 +190,37 @@ public sealed class Npc
         HomelessSince = now;
     }
 
+    public void ConfigureNeedDecay(NeedsRules rules, long tick)
+    {
+        HungerNeed = HungerNeed.WithDecayRate(rules.HungerDecayPerHour, tick);
+        ThirstNeed = ThirstNeed.WithDecayRate(rules.ThirstDecayPerHour, tick);
+        SleepNeed = SleepNeed.WithDecayRate(rules.SleepDecayPerHour, tick);
+        SocialNeed = SocialNeed.WithDecayRate(rules.SocialDecayPerHour, tick);
+    }
+
+    public int HungerAt(long tick) => NeedAsInt(HungerNeed, tick);
+    public int ThirstAt(long tick) => NeedAsInt(ThirstNeed, tick);
+    public int SleepAt(long tick) => NeedAsInt(SleepNeed, tick);
+    public int SocialAt(long tick) => NeedAsInt(SocialNeed, tick);
+
+    /// <summary>Valor materializado no tick da última escrita (compat de testes legados).</summary>
+    [JsonIgnore] public int Hunger => NeedAsInt(HungerNeed, HungerNeed.TickOfLastEvent);
+    [JsonIgnore] public int Thirst => NeedAsInt(ThirstNeed, ThirstNeed.TickOfLastEvent);
+    [JsonIgnore] public int Sleep => NeedAsInt(SleepNeed, SleepNeed.TickOfLastEvent);
+    [JsonIgnore] public int Social => NeedAsInt(SocialNeed, SocialNeed.TickOfLastEvent);
+
+    private static int NeedAsInt(LazyNeed need, long tick) =>
+        (int)Math.Round(need.ValueAt(tick), MidpointRounding.AwayFromZero);
+
     public void SetHealth(int health) => Health = Math.Clamp(health, 0, 100);
 
-    public void SetHunger(int hunger) => Hunger = Math.Clamp(hunger, 0, 100);
+    public void SetHunger(int hunger, long tick = 0) => HungerNeed = HungerNeed.WithValue(hunger, tick);
 
-    public void SetThirst(int thirst) => Thirst = Math.Clamp(thirst, 0, 100);
+    public void SetThirst(int thirst, long tick = 0) => ThirstNeed = ThirstNeed.WithValue(thirst, tick);
 
-    public void SetSleep(int sleep) => Sleep = Math.Clamp(sleep, 0, 100);
+    public void SetSleep(int sleep, long tick = 0) => SleepNeed = SleepNeed.WithValue(sleep, tick);
 
-    public void SetSocial(int social) => Social = Math.Clamp(social, 0, 100);
+    public void SetSocial(int social, long tick = 0) => SocialNeed = SocialNeed.WithValue(social, tick);
 
     /// <summary>Atualiza o local corrente do NPC (task 6). <paramref name="tick"/> é aceito para
     /// manter a assinatura pedida pelo design — nenhum sistema desta task consome esse valor
@@ -196,8 +240,9 @@ public sealed class Npc
     /// <summary>NEEDS-05: objetivo ativo e inspecionável — necessidade zerada dispara sempre
     /// (NEEDS-02, independente do limiar configurado); necessidade cujo déficit (100 − valor)
     /// supera <see cref="NeedsRules.UrgencyThreshold"/> também é urgente.</summary>
-    public bool HasUrgentNeed(NeedsRules rules) =>
-        IsUrgent(Hunger, rules) || IsUrgent(Thirst, rules) || IsUrgent(Sleep, rules) || IsUrgent(Social, rules);
+    public bool HasUrgentNeed(NeedsRules rules, long tick = 0) =>
+        IsUrgent(HungerAt(tick), rules) || IsUrgent(ThirstAt(tick), rules)
+        || IsUrgent(SleepAt(tick), rules) || IsUrgent(SocialAt(tick), rules);
 
     private static bool IsUrgent(int need, NeedsRules rules) => need == 0 || 100 - need > rules.UrgencyThreshold;
 

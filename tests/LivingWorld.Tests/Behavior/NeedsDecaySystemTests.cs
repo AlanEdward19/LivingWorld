@@ -1,6 +1,8 @@
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
 
+using LivingWorld.Simulation.Behavior;
+
 namespace LivingWorld.Tests.Behavior;
 
 /// <summary>Fase 4, task 10: <see cref="NeedsDecaySystem"/> — decaimento das 4 necessidades
@@ -36,8 +38,10 @@ public class NeedsDecaySystemTests
             hunger: initialHunger);
 
         world.AddNpc(npc);
+        npc.ConfigureNeedDecay(rules, world.CurrentDate.TotalHours);
         world.AdvanceNpcIdTo(2);
         var ctx = new TickContext(world, world.Rng, world.Scheduler);
+        NpcWakeScheduler.ScheduleWake(world, ctx, npc.Id.Value, world.CurrentDate.TotalHours + 1);
         return (world, ctx, npc);
     }
 
@@ -48,44 +52,46 @@ public class NeedsDecaySystemTests
     }
 
     [Fact]
-    public void Tick_decays_all_four_needs_by_the_rate_declared_in_NeedsRules_not_a_constant()
+    public void Lazy_need_decays_materialized_value_after_one_hour_without_eager_writes()
     {
         var rules = MakeRules(hungerDecay: 4, thirstDecay: 3, sleepDecay: 2, socialDecay: 1);
-        var (world, ctx, npc) = BuildWorld(seed: 1, rules);
-        var system = new NeedsDecaySystem();
+        var (world, _, npc) = BuildWorld(seed: 1, rules);
+        var clock = new WorldClock([new NeedsDecaySystem()]);
 
-        system.Tick(world, ctx);
+        clock.Tick(world);
+        long tick = world.CurrentDate.TotalHours;
 
-        Assert.Equal(100 - (int)rules.HungerDecayPerHour, npc.Hunger);
-        Assert.Equal(100 - (int)rules.ThirstDecayPerHour, npc.Thirst);
-        Assert.Equal(100 - (int)rules.SleepDecayPerHour, npc.Sleep);
-        Assert.Equal(100 - (int)rules.SocialDecayPerHour, npc.Social);
+        Assert.Equal(100 - (int)rules.HungerDecayPerHour, npc.HungerAt(tick));
+        Assert.Equal(100 - (int)rules.ThirstDecayPerHour, npc.ThirstAt(tick));
+        Assert.Equal(100 - (int)rules.SleepDecayPerHour, npc.SleepAt(tick));
+        Assert.Equal(100 - (int)rules.SocialDecayPerHour, npc.SocialAt(tick));
     }
 
     [Fact]
     public void Need_decrement_below_zero_clamps_to_zero_instead_of_going_negative()
     {
         var rules = MakeRules(hungerDecay: 1000);
-        var (world, ctx, npc) = BuildWorld(seed: 1, rules);
-        var system = new NeedsDecaySystem();
+        var (world, _, npc) = BuildWorld(seed: 1, rules);
+        var clock = new WorldClock([new NeedsDecaySystem()]);
 
-        system.Tick(world, ctx);
+        clock.Tick(world);
 
-        Assert.Equal(0, npc.Hunger);
+        Assert.Equal(0, npc.HungerAt(world.CurrentDate.TotalHours));
     }
 
     [Fact]
     public void HasUrgentNeed_is_true_once_a_need_hits_zero_regardless_of_the_urgency_threshold()
     {
         var rules = MakeRules(hungerDecay: 100, urgencyThreshold: 100);
-        var (world, ctx, npc) = BuildWorld(seed: 1, rules);
-        var system = new NeedsDecaySystem();
+        var (world, _, npc) = BuildWorld(seed: 1, rules);
+        var clock = new WorldClock([new NeedsDecaySystem()]);
 
-        Assert.False(npc.HasUrgentNeed(rules));
-        system.Tick(world, ctx);
+        Assert.False(npc.HasUrgentNeed(rules, world.CurrentDate.TotalHours));
+        clock.Tick(world);
+        long tick = world.CurrentDate.TotalHours;
 
-        Assert.Equal(0, npc.Hunger);
-        Assert.True(npc.HasUrgentNeed(rules));
+        Assert.Equal(0, npc.HungerAt(tick));
+        Assert.True(npc.HasUrgentNeed(rules, tick));
     }
 
     [Fact]
@@ -93,8 +99,9 @@ public class NeedsDecaySystemTests
     {
         var rules = MakeRules(urgencyThreshold: 50);
         var (_, _, npc) = BuildWorld(seed: 1, rules, initialHunger: 100 - rules.UrgencyThreshold - 1);
+        npc.ConfigureNeedDecay(rules, 0);
 
-        Assert.True(npc.HasUrgentNeed(rules));
+        Assert.True(npc.HasUrgentNeed(rules, 0));
     }
 
     [Fact]
@@ -133,7 +140,7 @@ public class NeedsDecaySystemTests
         for (long tick = 1; tick <= survivalTicks * 2 + 5 && deathTick is null; tick++)
         {
             clock.Tick(world);
-            if (hungerZeroTick is null && npc.Hunger == 0) hungerZeroTick = tick;
+            if (hungerZeroTick is null && npc.HungerAt(world.CurrentDate.TotalHours) == 0) hungerZeroTick = tick;
             if (!npc.IsAlive) deathTick = tick;
         }
 

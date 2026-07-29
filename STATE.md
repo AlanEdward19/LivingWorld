@@ -4,42 +4,17 @@ Fonte única de continuidade. Quem entra numa área nova **lê este arquivo prim
 Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
-- **Última coisa concluída**: **Fase 8 (Cidades) fechada** — 22/22 tasks + 3 fix tasks de
-  re-verificação (`.specs/features/phase-08-cities/{spec,design,tasks,validation}.md`),
-  Verifier PASS na rodada 3/3 (`validation.md`, 3 rodadas registradas). `City`/`Building`
-  novos; LOD approach A (pool agregado por contador+somas, `City.Population/Wealth/Health/
-  Inequality` sempre on-demand, nunca cacheado — AD-068); `MaterializationSystem`,
-  `ConstructionSystem`, `CityGrowthSystem`, `MigrationSystem`, `SettlementFoundingSystem`
-  novos; `GET /npcs/{id}` em `LivingWorld.Api` + `inspect-npc <id>` em `LivingWorld.Workers`
-  (mesma consulta, `NpcInspectionQuery`, AD-020). Guerra/tratados/política externa
-  realocados da Fase 8 pra Fase 10 (AD-067, pedido explícito do usuário). `bash
-  scripts/verify.sh` limpo: 743 passed, 0 failed, 5 skipped (baselines pré-existentes).
-- **Débitos técnicos herdados desta fase**: (1) só concentração populacional tem sinal real
-  pros 5 limiares de fundação de assentamento (rota/defensabilidade/liderança/recursos ficam
-  vacuamente satisfeitos — documentado em `validation.md`, candidato a fechar quando Fase 13+
-  der conteúdo real a liderança/rotas); (2) round-trip de materialização prova snapshot
-  idêntico exceto `NextNpcId`/`RngStreams` (nunca revertidos por design, não `Hash(world)`
-  literal — ver SPEC_DEVIATION em `City.cs`); (3) T27/FAM-32 da Fase 7 segue como estava
-  (candidato à Fase 9).
-- **Próxima unidade**: **Fase 9 (Escala e armazenamento)** — não desliza (AD-049), fixa o
-  teto de custo por NPC-tick e por byte antes de qualquer fase nova. Spec pronta em
-  [.specs/features/phase-09-scale/spec.md](.specs/features/phase-09-scale/spec.md)
-  (PERF-01..17, 6 blocos), roadmap em
-  [docs/roadmap/phase-09-scale.md](docs/roadmap/phase-09-scale.md). Falta Design/Tasks/
-  Execute — primeiro passo é `tlc-spec-driven` Design (spec já existe).
-- **Gate local**: `bash scripts/verify.sh` limpo (check-docs + build + lint + test, 743
-  passed, 5 skipped) + `bash scripts/test.sh --filter Category=Scenario` (10/100 anos,
-  nightly — não rodado nesta sessão por escolha de cadência, ver feedback do usuário sobre
-  não rodar cenário pesado por task).
-- **Fase 9 nova (Escala e armazenamento)** — inserida depois da 8; antigas 9–26 viraram 10–27
-  (AD-049, arquivos renomeados). Spec pronta em
-  [.specs/features/phase-09-scale/spec.md](.specs/features/phase-09-scale/spec.md) (PERF-01..17,
-  6 blocos), roadmap em [docs/roadmap/phase-09-scale.md](docs/roadmap/phase-09-scale.md).
-  Medição que a motivou: custo por tick ≈ `0,12 µs × entidades + 0,3 µs × vivos` (paga por NPC
-  morto), 150–320 B alocados por NPC-tick, snapshot JSON ~900 B/NPC com >50% mortos em 2 anos
-  ⇒ 10k NPCs × 100 anos ≈ 1,4 h de CPU e ~35 GB. Falta Design/Tasks/Execute. **Cuidado**: o
-  cenário default colapsa para ~130 vivos saindo de 1.000 ou 5.000 — medir escala nele mede NPC
-  morto; PERF-01 pede cenário de escala com demografia estável.
+- **Última coisa concluída**: **Fase 9 (Escala e armazenamento)** fechada (2026-07-29). Entregue:
+  `LazyNeed`, índices (mercado/vaga/população/vivos), `NpcWakeScheduler`, arquivo frio de mortos,
+  snapshot binário/incremental (stub PERF-12), sensor de escala (`tests/baselines/scale-sensor.json`),
+  goldens regravados. Gate `Category!=Scenario`: **763 passed**, 0 failed, 7 skipped (~31 min).
+  Spec/design em [.specs/features/phase-09-scale/](.specs/features/phase-09-scale/).
+- **Próxima unidade**: **Fase 10 (História degradável)** — spec em
+  [.specs/features/phase-10-history/spec.md](.specs/features/phase-10-history/spec.md).
+- **Dívida conhecida da Fase 9** (não bloqueia fechamento): PERF-12 dirty-path real no hasher;
+  `LongRunScaleTests` (`Category=Scenario`, ~3 h) só nightly; apertar PERF-16 quando estável.
+- **Gate local**: `bash scripts/verify.sh` = check-docs + build + lint + test. No Windows, equivalente
+  manual ou WSL. Cenários longos: `--filter "Category=Scenario"` fora do gate de rotina.
 - **Risco de balanceamento (STATE.md "Riscos ainda sem mecanismo") ficou mais concreto na Fase
   5**: população do cenário default estabiliza em ~40/100 NPCs (não extingue, mas bem abaixo do
   inicial) depois de calibração manual e empírica de salário/preço/capacidade — nenhum gate

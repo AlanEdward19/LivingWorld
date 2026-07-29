@@ -28,6 +28,11 @@ public sealed class WorldRngRegistry
         return derived;
     }
 
+    /// <summary>Stream de rolagem única derivado de <c>(seed, purpose, id)</c> sem persistir no
+    /// snapshot (PERF-13) — mesma sequência inicial que <see cref="Stream"/> produziria.</summary>
+    public WorldRng StreamFor(string purpose, long id) =>
+        _root.Derive(StableHash($"{purpose}-{id}"));
+
     /// <summary>Ordenado por chave — nunca por ordem de inserção/hash de dicionário.</summary>
     public IReadOnlyList<RngStreamState> Snapshot() =>
         _streams.Select(kv => new RngStreamState(kv.Key, kv.Value.State)).ToList();

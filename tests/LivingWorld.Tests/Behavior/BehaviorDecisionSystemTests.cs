@@ -110,6 +110,7 @@ public class BehaviorDecisionSystemTests
         world.AddNpc(npc);
         world.AdvanceNpcIdTo(2);
         var ctx = new TickContext(world, world.Rng, world.Scheduler);
+        SimulationWakeTestHelper.Wake(world, npc);
         return (world, ctx, npc);
     }
 

@@ -16,6 +16,8 @@ public sealed class TickContext(WorldState world, WorldRngRegistry rng, EventSch
     /// consumir um stream novo não desloca a sequência dos outros.</summary>
     public WorldRng Rng(string streamKey) => rng.Stream(streamKey);
 
+    public WorldRng StreamFor(string purpose, long id) => rng.StreamFor(purpose, id);
+
     /// <summary>Agenda um evento futuro para o sistema <paramref name="systemName"/>. O ID é
     /// atribuído pelo <see cref="WorldState"/> — monotônico e determinístico entre processos.</summary>
     public ScheduledEvent ScheduleEvent(long targetTick, string systemName, string? payload = null)

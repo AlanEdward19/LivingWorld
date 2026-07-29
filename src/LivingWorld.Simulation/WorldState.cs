@@ -1,5 +1,7 @@
 using LivingWorld.Domain;
 
+using LivingWorld.Simulation.Population;
+
 namespace LivingWorld.Simulation;
 
 /// <summary>Estado do mundo — tudo que precisa sobreviver a um snapshot (task 7). Controles de
@@ -79,6 +81,19 @@ public sealed class WorldState
 
     /// <summary>Receita de construção por tipo de edifício da Fase 8 (T3).</summary>
     [Canonical] public CityCatalog CityCatalog { get; }
+
+    /// <summary>Tetos de custo e arquivamento frio (Fase 9, PERF-03) — cenário-driven.</summary>
+    [Canonical] public PerfRules PerfRules { get; }
+
+    [Volatile] public AliveNpcIndex AliveNpcIndex { get; private set; }
+
+    private readonly List<Npc> _npcWakeBatch = [];
+    private readonly Dictionary<long, long> _npcWakeEventIdByNpc = [];
+
+    /// <summary>NPCs que acordam neste tick (PERF-08) — derivado, fora do hash canônico.</summary>
+    [Volatile] public IReadOnlyList<Npc> NpcWakeBatch => _npcWakeBatch;
+
+    [Volatile] public ColdTierArchive ColdArchive { get; private set; }
 
     private readonly Dictionary<RelationshipKey, Relationship> _relationships;
 
@@ -200,7 +215,7 @@ public sealed class WorldState
         PopulationCatalog populationCatalog, PopulationRules populationRules,
         NeedsRules needsRules, ActionCatalog actionCatalog, LifeStageRules lifeStageRules, BranchId branchId = default,
         EconomyRules? economyRules = null, EconomyCatalog? economyCatalog = null, FamilyRules? familyRules = null,
-        CityRules? cityRules = null, CityCatalog? cityCatalog = null)
+        CityRules? cityRules = null, CityCatalog? cityCatalog = null, PerfRules? perfRules = null)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -217,6 +232,7 @@ public sealed class WorldState
         FamilyRules = familyRules ?? FamilyRules.Disabled;
         CityRules = cityRules ?? CityRules.Disabled;
         CityCatalog = cityCatalog ?? CityCatalog.Empty;
+        PerfRules = perfRules ?? PerfRules.Default;
         _rng = new WorldRngRegistry(seed);
         _scheduler = new EventScheduler();
         _npcs = [];
@@ -230,6 +246,8 @@ public sealed class WorldState
         _cityById = [];
         _buildings = [];
         _buildingById = [];
+        AliveNpcIndex = AliveNpcIndex.RebuildFrom(this);
+        ColdArchive = new ColdTierArchive();
     }
 
     /// <summary>Reconstrói a partir de um snapshot (task 7/8) — rehidratação.</summary>
@@ -264,7 +282,8 @@ public sealed class WorldState
         IReadOnlyList<Building>? buildings = null,
         long nextBuildingId = 0,
         CityRules? cityRules = null,
-        CityCatalog? cityCatalog = null)
+        CityCatalog? cityCatalog = null,
+        PerfRules? perfRules = null)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -302,6 +321,9 @@ public sealed class WorldState
         _nextBuildingId = nextBuildingId;
         CityRules = cityRules ?? CityRules.Disabled;
         CityCatalog = cityCatalog ?? CityCatalog.Empty;
+        PerfRules = perfRules ?? PerfRules.Default;
+        AliveNpcIndex = AliveNpcIndex.RebuildFrom(this);
+        ColdArchive = new ColdTierArchive();
     }
 
     internal WorldRngRegistry Rng => _rng;
@@ -310,6 +332,21 @@ public sealed class WorldState
     internal long NextEventIdAndAdvance() => _nextEventId++;
 
     internal void IncrementExampleCount(TickFrequency frequency) => _exampleTickCounts[frequency]++;
+
+    internal void ClearNpcWakeBatch() => _npcWakeBatch.Clear();
+
+    internal void AddNpcWake(Npc npc) => _npcWakeBatch.Add(npc);
+
+    internal void ReplaceNpcWake(TickContext ctx, long npcId, long targetTick)
+    {
+        if (_npcWakeEventIdByNpc.TryGetValue(npcId, out var oldId))
+            _scheduler.Cancel(oldId);
+
+        var evt = ctx.ScheduleEvent(targetTick, Behavior.NpcWakeScheduler.SystemName, npcId.ToString());
+        _npcWakeEventIdByNpc[npcId] = evt.Id;
+    }
+
+    internal void ClearNpcWakeEvent(long npcId) => _npcWakeEventIdByNpc.Remove(npcId);
 
     internal NpcId NextNpcIdAndAdvance() => new(_nextNpcId++);
     internal HouseholdId NextHouseholdIdAndAdvance() => new(_nextHouseholdId++);
@@ -323,6 +360,7 @@ public sealed class WorldState
     {
         _npcs.Add(npc);
         _npcById[npc.Id] = npc;
+        AliveNpcIndex.OnBorn(npc);
     }
 
     internal void AddHousehold(Household household)
@@ -343,6 +381,8 @@ public sealed class WorldState
     // RemoveHousehold; só MaterializationSystem chama.
     internal void RemoveNpc(NpcId id)
     {
+        if (_npcById.TryGetValue(id, out var npc) && npc.IsAlive)
+            AliveNpcIndex.OnDied(npc);
         _npcs.RemoveAll(n => n.Id == id);
         _npcById.Remove(id);
     }
@@ -402,6 +442,15 @@ public sealed class WorldState
     {
         _moneyMinted += amount;
         ctx.LogEvent(WorldEventKind.Minted, $"{amount.Amount}|{reason}");
+    }
+
+    /// <summary>Retira massa da circulação (ex.: arquivo frio) — incrementa
+    /// <see cref="MoneyDestroyed"/> sem o teto de <see cref="Destroy"/> (que só desfaz cunhagem).</summary>
+    internal void BurnCirculatingMoney(TickContext ctx, Money amount, string reason)
+    {
+        if (amount.Amount <= 0) return;
+        _moneyDestroyed += amount;
+        ctx.LogEvent(WorldEventKind.Destroyed, $"{amount.Amount}|{reason}");
     }
 
     /// <summary>Destruição explícita e rara — falha (mesmo padrão de <see

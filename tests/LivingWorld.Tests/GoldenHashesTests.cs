@@ -16,6 +16,18 @@ public class GoldenHashesTests
         JsonSerializer.Deserialize<List<GoldenEntry>>(File.ReadAllText(GoldenPath))!
             .Select(e => new object[] { e });
 
+    [Fact(Skip = "Regravar: dotnet test --filter ZZZ_record_golden_hashes")]
+    public void ZZZ_record_golden_hashes()
+    {
+        var entries = new List<GoldenEntry>
+        {
+            new("default", 42, 3650, ScenarioRunner.RunAndHash(42, 3650).Item1),
+            new("default", 43, 3650, ScenarioRunner.RunAndHash(43, 3650).Item1),
+            new("default", 42, 100, ScenarioRunner.RunAndHash(42, 100).Item1),
+        };
+        File.WriteAllText(GoldenPath, JsonSerializer.Serialize(entries, new JsonSerializerOptions { WriteIndented = true }));
+    }
+
     [Theory]
     [MemberData(nameof(Entries))]
     public void Scenario_hash_matches_committed_golden_file(GoldenEntry entry)

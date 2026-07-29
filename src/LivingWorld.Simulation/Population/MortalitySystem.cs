@@ -29,7 +29,7 @@ public sealed class MortalitySystem : ISimulationSystem
     /// passado ou no tick corrente já processado — o scheduler só dispara eventos futuros.</summary>
     public static void SchedulePlannedDeath(WorldState world, TickContext ctx, Npc npc)
     {
-        var rng = ctx.Rng($"mortality-{npc.Id.Value}");
+        var rng = ctx.StreamFor("mortality", npc.Id.Value);
         // FAM-23/A11 (AD-065): VitalityMortalitySelectionEnabled desliga Vitality como fator de
         // seleção na mortalidade — passa 1.0 direto, nunca chama EffectiveVitalityMultiplier
         // (mesmo contrato já documentado no próprio método, FamilyRules.cs). Flag independente de

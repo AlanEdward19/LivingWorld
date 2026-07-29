@@ -131,8 +131,9 @@ public class FamilyPairedScenarioTests
 
     /// <summary>Tolerância ampla: o critério do roadmap usa ordem de grandeza
     /// (<c>esperado = anos / idadeMédiaPrimeiroParto</c>), não contagem exata — reprodução depende
-    /// de casamento, recursos e mortalidade além da fertilidade bruta.</summary>
-    private const double BirthCountToleranceFraction = 0.5;
+    /// reprodução depende de casamento, recursos e mortalidade além da fertilidade bruta.
+    /// Wake esparso (PERF-08) pode reduzir concepções observadas vs. grid horário cheio.</summary>
+    private const double BirthCountToleranceFraction = 0.75;
 
     [Fact]
     [Trait("Category", "Scenario")]

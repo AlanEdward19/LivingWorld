@@ -1,4 +1,5 @@
 using LivingWorld.Domain;
+using LivingWorld.Simulation.Economy;
 
 namespace LivingWorld.Simulation;
 
@@ -17,13 +18,14 @@ public sealed class MarketPricingSystem : ISimulationSystem
 
         var rules = world.EconomyRules;
         var catalog = world.EconomyCatalog;
+        var populationIndex = RegionPopulationIndex.BuildForTick(world);
 
         foreach (var workplace in world.Workplaces.OrderBy(w => w.Id.Value))
         {
             if (!catalog.MarketLocationTypeIds.Contains(workplace.LocationType.Id)) continue;
 
             var region = world.Map.RegionOf(workplace.Location);
-            long populationInRegion = world.Npcs.Count(n => n.IsAlive && world.Map.RegionOf(n.CurrentLocation) == region);
+            long populationInRegion = populationIndex.AliveInRegion(region);
 
             foreach (var (resource, currentPrice) in workplace.Prices.ToList())
             {

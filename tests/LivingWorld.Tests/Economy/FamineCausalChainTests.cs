@@ -23,7 +23,7 @@ public class FamineCausalChainTests
         clock.Run(world, CheckpointHours);
 
         int threshold = world.NeedsRules.UrgencyThreshold;
-        return world.Npcs.Count(n => n.IsAlive && (100 - n.Hunger) >= threshold);
+        return world.Npcs.Count(n => n.IsAlive && (100 - n.HungerAt(world.CurrentDate.TotalHours)) >= threshold);
     }
 
     [Fact]

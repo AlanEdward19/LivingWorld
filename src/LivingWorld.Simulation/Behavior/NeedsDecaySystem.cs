@@ -4,8 +4,8 @@ namespace LivingWorld.Simulation;
 
 /// <summary>Decai as 4 necessidades por tick Hourly, dispara objetivo em 0 (via
 /// <see cref="Npc.HasUrgentNeed"/>) e mata por fome sustentada (Fase 4, task 10 —
-/// NEEDS-01/02/03). Taxas sempre lidas de <see cref="WorldState.NeedsRules"/>, nunca constante
-/// em C# (R3).</summary>
+/// NEEDS-01/02/03). Com <see cref="LazyNeed"/> (Fase 9), decaimento é pull-only — este sistema
+/// só trata fome zero sustentada.</summary>
 public sealed class NeedsDecaySystem : ISimulationSystem
 {
     public const string SystemName = "needs-decay";
@@ -18,20 +18,9 @@ public sealed class NeedsDecaySystem : ISimulationSystem
         var rules = world.NeedsRules;
         long now = ctx.CurrentTick;
 
-        foreach (var npc in world.Npcs)
-        {
-            if (!npc.IsAlive) continue;
-
-            npc.SetHunger(npc.Hunger - DecayAmount(rules.HungerDecayPerHour));
-            npc.SetThirst(npc.Thirst - DecayAmount(rules.ThirstDecayPerHour));
-            npc.SetSleep(npc.Sleep - DecayAmount(rules.SleepDecayPerHour));
-            npc.SetSocial(npc.Social - DecayAmount(rules.SocialDecayPerHour));
-
+        foreach (var npc in world.Npcs.Where(n => n.IsAlive))
             HandleStarvation(world, ctx, npc, rules, now);
-        }
     }
-
-    private static int DecayAmount(double perHour) => (int)Math.Round(perHour, MidpointRounding.AwayFromZero);
 
     /// <summary>NEEDS-03: fome em 0 por <c>X = ceil(100 / HungerDecayPerHour)</c> ticks
     /// consecutivos mata o NPC. <c>HungerDecayPerHour == 0</c> é o edge case declarado no spec
@@ -39,7 +28,7 @@ public sealed class NeedsDecaySystem : ISimulationSystem
     /// para derivar, então a checagem é pulada.</summary>
     private static void HandleStarvation(WorldState world, TickContext ctx, Npc npc, NeedsRules rules, long now)
     {
-        if (npc.Hunger > 0)
+        if (npc.HungerAt(now) > 0)
         {
             if (npc.HungerZeroSinceTick is not null)
                 npc.ClearHungerZeroSince();

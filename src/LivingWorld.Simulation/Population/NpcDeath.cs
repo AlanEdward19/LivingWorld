@@ -14,6 +14,7 @@ public static class NpcDeath
     public static void Apply(WorldState world, TickContext ctx, Npc npc, WorldEventKind kind)
     {
         npc.Die(world.CurrentDate);
+        world.AliveNpcIndex.OnDied(npc);
         ctx.LogEvent(kind, npc.Id.Value.ToString());
 
         if (npc.Household is not { } householdId) return;

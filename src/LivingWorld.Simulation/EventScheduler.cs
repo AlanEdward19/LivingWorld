@@ -5,6 +5,7 @@ namespace LivingWorld.Simulation;
 public sealed class EventScheduler
 {
     private readonly SortedDictionary<long, List<ScheduledEvent>> _byTick = new();
+    private readonly Dictionary<long, (long Tick, int Index)> _indexById = new();
 
     public EventScheduler()
     {
@@ -25,17 +26,29 @@ public sealed class EventScheduler
         }
         bucket.Add(evt);
         bucket.Sort((a, b) => a.Id.CompareTo(b.Id));
+        _indexById[evt.Id] = (evt.TargetTick, bucket.FindIndex(e => e.Id == evt.Id));
     }
 
     /// <summary>True se algum evento agendado com este ID foi removido.</summary>
     public bool Cancel(long id)
     {
-        foreach (var bucket in _byTick.Values)
+        if (!_indexById.TryGetValue(id, out var location)) return false;
+
+        if (!_byTick.TryGetValue(location.Tick, out var bucket)) return false;
+
+        int removed = bucket.RemoveAll(e => e.Id == id);
+        if (removed == 0) return false;
+
+        _indexById.Remove(id);
+        if (bucket.Count == 0)
+            _byTick.Remove(location.Tick);
+        else
         {
-            int removed = bucket.RemoveAll(e => e.Id == id);
-            if (removed > 0) return true;
+            for (int i = 0; i < bucket.Count; i++)
+                _indexById[bucket[i].Id] = (location.Tick, i);
         }
-        return false;
+
+        return true;
     }
 
     /// <summary>Remove e devolve, em ordem de ID, todos os eventos agendados para este tick.
@@ -44,10 +57,15 @@ public sealed class EventScheduler
     {
         if (!_byTick.TryGetValue(tick, out var bucket)) return [];
         _byTick.Remove(tick);
+        foreach (var evt in bucket)
+            _indexById.Remove(evt.Id);
         return bucket;
     }
 
     public bool HasDue(long tick) => _byTick.ContainsKey(tick) && _byTick[tick].Count > 0;
+
+    public IReadOnlyList<ScheduledEvent> PeekDue(long tick) =>
+        _byTick.TryGetValue(tick, out var bucket) ? bucket : [];
 
     /// <summary>Todos os eventos ainda pendentes, ordenados por tick e depois por ID —
     /// para snapshot (task 7).</summary>

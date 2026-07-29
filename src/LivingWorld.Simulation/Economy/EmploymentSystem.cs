@@ -1,4 +1,5 @@
 using LivingWorld.Domain;
+using LivingWorld.Simulation.Economy;
 
 namespace LivingWorld.Simulation;
 
@@ -17,9 +18,11 @@ public sealed class EmploymentSystem : ISimulationSystem
     {
         if (!world.EconomyRules.Enabled) return;
 
+        var vacancyIndex = VacancyIndex.BuildForTick(world);
+
         // Desliga primeiro quem ficou órfão (Workplace sumiu ou o próprio NPC morreu) — nunca um
         // Npc.Employer aponta pra Workplace inexistente ao fim do tick (ECON-20/ECON-04).
-        foreach (var npc in world.Npcs.OrderBy(n => n.Id.Value))
+        foreach (var npc in world.AliveNpcIndex.Alive)
         {
             if (npc.Employer is not { } employerId) continue;
             var workplace = world.FindWorkplace(employerId);
@@ -31,16 +34,13 @@ public sealed class EmploymentSystem : ISimulationSystem
         }
 
         var catalog = world.EconomyCatalog;
-        foreach (var npc in world.Npcs.OrderBy(n => n.Id.Value))
+        foreach (var npc in world.AliveNpcIndex.Alive)
         {
-            if (!npc.IsAlive || npc.Employer is not null) continue;
+            if (npc.Employer is not null) continue;
             if (world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate)) != LifeStage.Adult) continue;
             if (!catalog.LocationTypeByProfession.TryGetValue(npc.Profession.Id, out var locationTypeId)) continue;
 
-            var workplace = world.Workplaces
-                .Where(w => w.LocationType.Id == locationTypeId && w.Employees.Count < w.MaxVacancies)
-                .OrderBy(w => w.Id.Value)
-                .FirstOrDefault();
+            var workplace = vacancyIndex.FirstWorkplaceWithVacancy(locationTypeId);
             if (workplace is null) continue;
 
             if (!workplace.Hire(npc.Id).IsSuccess) continue;

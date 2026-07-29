@@ -1,5 +1,6 @@
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
+using LivingWorld.Simulation.Behavior;
 
 namespace LivingWorld.Tests.Behavior;
 
@@ -71,6 +72,9 @@ public class BehaviorDecisionSystemTravelTests
         world.AdvanceNpcIdTo(2);
         world.AdvanceHouseholdIdTo(2);
 
+        var ctx = new TickContext(world, world.Rng, world.Scheduler);
+        NpcWakeScheduler.ScheduleWake(world, ctx, npc.Id.Value, world.CurrentDate.TotalHours + 1);
+
         return (world, npc);
     }
 
@@ -89,6 +93,8 @@ public class BehaviorDecisionSystemTravelTests
 
         world.AddNpc(npc);
         world.AdvanceNpcIdTo(2);
+        var ctx = new TickContext(world, world.Rng, world.Scheduler);
+        NpcWakeScheduler.ScheduleWake(world, ctx, npc.Id.Value, world.CurrentDate.TotalHours + 1);
         return (world, npc);
     }
 

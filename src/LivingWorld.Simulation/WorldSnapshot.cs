@@ -36,6 +36,11 @@ public static class WorldSnapshot
     public static string CanonicalHash(WorldState world) =>
         Hash(BuildJson(world, static p => p.GetCustomAttribute<CanonicalAttribute>() is not null));
 
+    /// <summary>Mesmo resultado que <see cref="CanonicalHash"/>; caminho reservado para
+    /// recomputar só NPCs sujos antes do <see cref="Hash"/> (PERF-12).</summary>
+    internal static string CanonicalHashFromEntityParts(WorldState world) =>
+        CanonicalHash(world);
+
     public static string VolatileHash(WorldState world) =>
         Hash(BuildJson(world, static p => p.GetCustomAttribute<VolatileAttribute>() is not null));
 
@@ -75,12 +80,16 @@ public static class WorldSnapshot
         var nextBuildingId = node["NextBuildingId"]!.GetValue<long>();
         var cityRules = node["CityRules"].Deserialize<CityRules>(JsonOptions)!;
         var cityCatalog = node["CityCatalog"].Deserialize<CityCatalog>(JsonOptions)!;
+        var perfRules = node.TryGetPropertyValue("PerfRules", out var perfNode) && perfNode is not null
+            ? perfNode.Deserialize<PerfRules>(JsonOptions)!
+            : PerfRules.Default;
 
         return new WorldState(
             calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
             lifeStageRules, rngStreams, pendingEvents, nextEventId, exampleCounts, npcs, households, nextNpcId,
             nextHouseholdId, branchId, moneyMinted, moneyDestroyed, economyRules, economyCatalog, workplaces,
-            nextWorkplaceId, familyRules, relationships, cities, buildings, nextBuildingId, cityRules, cityCatalog);
+            nextWorkplaceId, familyRules, relationships, cities, buildings, nextBuildingId, cityRules, cityCatalog,
+            perfRules);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)

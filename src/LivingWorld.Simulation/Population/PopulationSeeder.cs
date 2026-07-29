@@ -1,4 +1,5 @@
 using LivingWorld.Domain;
+using LivingWorld.Simulation.Behavior;
 
 namespace LivingWorld.Simulation;
 
@@ -15,7 +16,10 @@ public static class PopulationSeeder
             world.PopulationCatalog, world.NextNpcId, world.NextHouseholdId);
 
         foreach (var npc in generated.Npcs)
+        {
+            npc.ConfigureNeedDecay(world.NeedsRules, world.CurrentDate.TotalHours);
             world.AddNpc(npc);
+        }
         foreach (var household in generated.Households)
             world.AddHousehold(household);
 
@@ -24,6 +28,9 @@ public static class PopulationSeeder
 
         var ctx = new TickContext(world, world.Rng, world.Scheduler);
         foreach (var npc in generated.Npcs)
+        {
             MortalitySystem.SchedulePlannedDeath(world, ctx, npc);
+            NpcWakeScheduler.ScheduleWake(world, ctx, npc.Id.Value, world.CurrentDate.TotalHours + 1);
+        }
     }
 }
