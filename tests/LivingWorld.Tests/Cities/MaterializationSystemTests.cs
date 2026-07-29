@@ -215,6 +215,32 @@ public class MaterializationSystemTests
         Assert.Null(world.FindNpc(neverTouchedId));
     }
 
+    [Fact]
+    public void EnsureMaterialized_picks_the_first_city_in_world_order_with_a_non_empty_pool_when_multiple_qualify()
+    {
+        // Rodada 2, gap Minor (CITY-05 AC2): 2+ cidades com pool não-vazio simultâneo não tinham
+        // nenhum teste fixando a escolha — o sensor de mutação (FirstOrDefault -> LastOrDefault)
+        // sobreviveu. Pino aqui o contrato real do código: entre cidades com pool não-vazio, a
+        // materializada é a primeira na ordem de world.Cities (List, sem RNG na escolha).
+        var (world, firstCity) = MakeWorldWithCity(new AggregatePopulationPool(5, 500, 400));
+        var secondCity = new City(
+            world.NextCityId(), ScenarioRunner.DefaultVillageLocation, foundedAtTick: 0, foundedFromCityId: null,
+            aggregatePool: new AggregatePopulationPool(5, 500, 400));
+        world.AddCity(secondCity);
+        var neverTouchedId = new NpcId(world.NextNpcId);
+        long firstPoolBefore = world.FindCity(firstCity.Id)!.AggregatePool.Count;
+        long secondPoolBefore = world.FindCity(secondCity.Id)!.AggregatePool.Count;
+
+        var result = MaterializationSystem.EnsureMaterialized(world, neverTouchedId);
+
+        Assert.True(result.IsSuccess);
+        var materialized = world.FindNpc(neverTouchedId);
+        Assert.NotNull(materialized);
+        Assert.Equal(firstCity.Id, materialized!.City);
+        Assert.Equal(firstPoolBefore - 1, world.FindCity(firstCity.Id)!.AggregatePool.Count);
+        Assert.Equal(secondPoolBefore, world.FindCity(secondCity.Id)!.AggregatePool.Count);
+    }
+
     // CurrentDate tem setter `internal` (mesmo padrão de WorldClock) — visível aqui via
     // InternalsVisibleTo("LivingWorld.Tests"). Ticks de MaterializationSystem são medidos em
     // horas (TickContext.CurrentTick == CurrentDate.TotalHours).
