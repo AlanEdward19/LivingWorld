@@ -36,7 +36,7 @@ public sealed class CityGrowthSystem : ISimulationSystem
             long population = CityPopulationQuery.Population(world, city.Id);
             if (population <= 0 || city.AggregatePool.Count <= 0) continue;
 
-            double housingDeficit = 100.0 - LevelPercent(HousingCapacity(world, city.Id), population);
+            double housingDeficit = 100.0 - LevelPercent(CityPopulationQuery.Housing(world, city.Id), population);
             double foodDeficit = 100.0 - LevelPercent(FoodStock(world, city.Id), population);
             const double securityDeficit = 0.0; // ver SPEC_DEVIATION acima
 
@@ -56,11 +56,6 @@ public sealed class CityGrowthSystem : ISimulationSystem
 
     private static double LevelPercent(long available, long population) =>
         Math.Min(100.0, available * 100.0 / population);
-
-    private static long HousingCapacity(WorldState world, CityId cityId) =>
-        world.Buildings
-            .Where(b => b.City == cityId)
-            .Sum(b => world.CityCatalog.BuildingRecipes.TryGetValue(b.BuildingTypeId, out var recipe) ? recipe.HousingCapacityProvided : 0);
 
     private static long FoodStock(WorldState world, CityId cityId)
     {

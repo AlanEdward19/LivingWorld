@@ -40,6 +40,38 @@ public static class CityPopulationQuery
         return weightedSum / (wallets.Count * total);
     }
 
+    /// <summary>Economia da cidade (Fase 8, fix round 1, gap 1 — CITY-01 AC1). SPEC_DEVIATION:
+    /// nenhum sinal distinto de "economia" existe nesta fase além da riqueza agregada — reusa
+    /// <see cref="Wealth"/> em vez de inventar uma segunda métrica sem dado próprio.</summary>
+    public static long Economy(WorldState world, CityId city) => Wealth(world, city);
+
+    /// <summary>Habitação da cidade (Fase 8, fix round 1, gap 1 — CITY-01 AC1): soma de
+    /// <see cref="BuildingRecipe.HousingCapacityProvided"/> dos <see cref="Building"/> concluídos
+    /// da cidade (mesmo cálculo já usado internamente por <see cref="CityGrowthSystem"/>).</summary>
+    public static long Housing(WorldState world, CityId city) =>
+        world.Buildings.Where(b => b.City == city)
+            .Sum(b => world.CityCatalog.BuildingRecipes.TryGetValue(b.BuildingTypeId, out var recipe) ? recipe.HousingCapacityProvided : 0);
+
+    // SPEC_DEVIATION (Fase 8, fix round 1, gap 1 — CITY-01 AC1): design.md só declara sinal real
+    // pra Habitação (HousingCapacityProvided por receita, AD-023). BuildingRecipe não tem campo
+    // distinto pra "provê segurança"/"provê educação"/"provê infraestrutura" e nenhum critério de
+    // verificação da Fase 8 exige um — inventar um limiar/campo novo aqui seria requisito não
+    // pedido (R3, eval-criteria.md). Os três ficam como a contagem total de Building concluído da
+    // cidade: existe e é derivado (o que a task 1 pede), sem simular comportamento real (isso é
+    // society.md/Fase 13+).
+
+    /// <summary>Segurança da cidade (Fase 8, fix round 1, gap 1 — CITY-01 AC1). Ver SPEC_DEVIATION acima.</summary>
+    public static long Security(WorldState world, CityId city) => BuildingCount(world, city);
+
+    /// <summary>Educação da cidade (Fase 8, fix round 1, gap 1 — CITY-01 AC1). Ver SPEC_DEVIATION acima.</summary>
+    public static long Education(WorldState world, CityId city) => BuildingCount(world, city);
+
+    /// <summary>Infraestrutura da cidade (Fase 8, fix round 1, gap 1 — CITY-01 AC1). Ver SPEC_DEVIATION acima.</summary>
+    public static long Infrastructure(WorldState world, CityId city) => BuildingCount(world, city);
+
+    private static long BuildingCount(WorldState world, CityId city) =>
+        world.Buildings.Count(b => b.City == city);
+
     private static IEnumerable<Npc> MaterializedAlive(WorldState world, CityId city) =>
         world.Npcs.Where(n => n.IsAlive && n.City == city);
 

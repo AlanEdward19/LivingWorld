@@ -14,6 +14,13 @@ public sealed class City
 
     public AggregatePopulationPool AggregatePool { get; private set; }
 
+    // SPEC_DEVIATION (Fase 8, fix round 1, gap 1 — CITY-01 AC1): design.md prometia estes 3
+    // campos como stub vazio (task 1 só pede que "existam"). Sempre a mesma instância singleton
+    // — nenhum estado a carregar, então não afeta round-trip/conservação (CITY-04 AC3).
+    public CityGovernment Government => CityGovernment.Empty;
+    public CityCulture Culture => CityCulture.Empty;
+    public CityTechnology Technology => CityTechnology.Empty;
+
     // SPEC_DEVIATION (Fase 8, T10): design.md declara City.ConstructionQueue/BuildingIds, mas T1
     // (Foundation) não os incluiu. ConstructionSystem precisa de uma fila e de um estoque de
     // insumo por cidade para existir — BuildingIds não é necessário (world.Buildings já filtra

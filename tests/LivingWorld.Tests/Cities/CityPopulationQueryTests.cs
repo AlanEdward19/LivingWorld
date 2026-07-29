@@ -114,6 +114,64 @@ public class CityPopulationQueryTests
     }
 
     [Fact]
+    public void Economy_equals_wealth()
+    {
+        // Fase 8, fix round 1, gap 1 (CITY-01 AC1): "economia" reusa Wealth (SPEC_DEVIATION,
+        // sem sinal distinto nesta fase) — o teste prova o alias, não um comportamento novo.
+        var (world, city, _, _) = MakeWorldWithCity();
+
+        Assert.Equal(CityPopulationQuery.Wealth(world, city.Id), CityPopulationQuery.Economy(world, city.Id));
+    }
+
+    [Fact]
+    public void Housing_equals_sum_of_housing_capacity_of_completed_buildings_for_the_city()
+    {
+        var recipe = BuildingRecipe.Create(new Dictionary<ResourceType, long>(), ticksToBuild: 1, housingCapacityProvided: 4).Value!;
+        var catalog = new CityCatalog(new Dictionary<int, BuildingRecipe> { [1] = recipe });
+        var world = new WorldState(
+            ScenarioRunner.DefaultCalendar, seed: 12, ScenarioRunner.DefaultMap(12),
+            ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
+            ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules,
+            cityCatalog: catalog);
+        var city = new City(world.NextCityId(), ScenarioRunner.DefaultVillageLocation, 0, null, AggregatePopulationPool.Empty);
+        var otherCity = new City(world.NextCityId(), ScenarioRunner.DefaultVillageLocation, 0, null, AggregatePopulationPool.Empty);
+        world.AddCity(city);
+        world.AddCity(otherCity);
+        world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId: 1, completedAtTick: 0));
+        world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId: 1, completedAtTick: 0));
+        world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), otherCity.Id, buildingTypeId: 1, completedAtTick: 0));
+
+        long housing = CityPopulationQuery.Housing(world, city.Id);
+
+        Assert.Equal(8, housing); // 2 buildings da cidade × 4 de capacidade — ignora o building de outra cidade
+    }
+
+    [Fact]
+    public void Security_education_and_infrastructure_equal_the_completed_building_count_for_the_city()
+    {
+        var (world, city, _, outOfCity) = MakeWorldWithCity();
+        world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId: 1, completedAtTick: 0));
+        world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId: 2, completedAtTick: 0));
+        world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), outOfCity.City, buildingTypeId: 1, completedAtTick: 0));
+
+        Assert.Equal(2, CityPopulationQuery.Security(world, city.Id));
+        Assert.Equal(2, CityPopulationQuery.Education(world, city.Id));
+        Assert.Equal(2, CityPopulationQuery.Infrastructure(world, city.Id));
+    }
+
+    [Fact]
+    public void City_exposes_government_culture_and_technology_as_existing_stub_records()
+    {
+        // Fase 8, fix round 1, gap 1 (CITY-01 AC1): task 1 só pede que os campos "existam" —
+        // design.md Tech Decisions: stub vazio, sem comportamento.
+        var (_, city, _, _) = MakeWorldWithCity();
+
+        Assert.NotNull(city.Government);
+        Assert.NotNull(city.Culture);
+        Assert.NotNull(city.Technology);
+    }
+
+    [Fact]
     public void CityPopulationQuery_has_no_mutable_field_backing_the_aggregates()
     {
         // Done-when de T8: "nenhum campo é cacheado" — todo agregado recomputado a cada chamada.
