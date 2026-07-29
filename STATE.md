@@ -4,26 +4,33 @@ Fonte única de continuidade. Quem entra numa área nova **lê este arquivo prim
 Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
-- **Última coisa concluída**: **Fase 7 (Relações e famílias) fechada** — 31/31 tasks
-  (`.specs/features/phase-07-family/{spec,design,tasks,validation}.md`), Verifier PASS
-  (`validation.md` + addendum). `Relationship`/`RelationshipKey` assimétricos, `FamilyRules`
-  cenário-driven, `CourtshipSystem`/`MarriageSystem`/`NatalitySystem` reescrito com
-  hereditariedade genético (`Vitality`) vs ambiental (`Upbringing`) separada
-  (`HeredityService`). `NeutralDriftEnabled` (mate-choice) e
-  `VitalityMortalitySelectionEnabled` (seleção por mortalidade) — duas flags independentes
-  (AD-065), calibração final em AD-064/066. `bash scripts/verify.sh` limpo pela primeira vez
-  nesta fase (causa raiz do lint quebrado: `.gitattributes` ausente + `core.autocrlf`
-  reintroduzindo CRLF em `git checkout --`, fix commit `821736c`).
-- **Único débito técnico**: **T27/FAM-32** (diversidade genética vs controle de deriva
-  neutra) — bug estrutural corrigido (AD-065), mas critério reformulado (AD-066, IC95
-  bootstrap) mede paridade estatística, não um sinal detectável na escala atual (10 anos/20
-  seeds). Candidato a revisão na Fase 9 (escala pode habilitar horizonte/população maiores).
-- **Próxima unidade**: **Fase 8 (Cidades)** — crescimento, edifícios, migração, fundação de
-  assentamentos, inspeção por CLI/API. Fecha os objetivos #2 e #4. Ainda não especificada —
-  primeiro passo é `tlc-spec-driven` Specify. Ver
-  [docs/roadmap/phase-08-cities.md](docs/roadmap/phase-08-cities.md).
-- **Gate local**: `bash scripts/verify.sh` limpo (check-docs + build + lint + test, 613
-  passed) + `bash scripts/test.sh --filter Category=Scenario` limpo (18 passed).
+- **Última coisa concluída**: **Fase 8 (Cidades) fechada** — 22/22 tasks + 3 fix tasks de
+  re-verificação (`.specs/features/phase-08-cities/{spec,design,tasks,validation}.md`),
+  Verifier PASS na rodada 3/3 (`validation.md`, 3 rodadas registradas). `City`/`Building`
+  novos; LOD approach A (pool agregado por contador+somas, `City.Population/Wealth/Health/
+  Inequality` sempre on-demand, nunca cacheado — AD-068); `MaterializationSystem`,
+  `ConstructionSystem`, `CityGrowthSystem`, `MigrationSystem`, `SettlementFoundingSystem`
+  novos; `GET /npcs/{id}` em `LivingWorld.Api` + `inspect-npc <id>` em `LivingWorld.Workers`
+  (mesma consulta, `NpcInspectionQuery`, AD-020). Guerra/tratados/política externa
+  realocados da Fase 8 pra Fase 10 (AD-067, pedido explícito do usuário). `bash
+  scripts/verify.sh` limpo: 743 passed, 0 failed, 5 skipped (baselines pré-existentes).
+- **Débitos técnicos herdados desta fase**: (1) só concentração populacional tem sinal real
+  pros 5 limiares de fundação de assentamento (rota/defensabilidade/liderança/recursos ficam
+  vacuamente satisfeitos — documentado em `validation.md`, candidato a fechar quando Fase 13+
+  der conteúdo real a liderança/rotas); (2) round-trip de materialização prova snapshot
+  idêntico exceto `NextNpcId`/`RngStreams` (nunca revertidos por design, não `Hash(world)`
+  literal — ver SPEC_DEVIATION em `City.cs`); (3) T27/FAM-32 da Fase 7 segue como estava
+  (candidato à Fase 9).
+- **Próxima unidade**: **Fase 9 (Escala e armazenamento)** — não desliza (AD-049), fixa o
+  teto de custo por NPC-tick e por byte antes de qualquer fase nova. Spec pronta em
+  [.specs/features/phase-09-scale/spec.md](.specs/features/phase-09-scale/spec.md)
+  (PERF-01..17, 6 blocos), roadmap em
+  [docs/roadmap/phase-09-scale.md](docs/roadmap/phase-09-scale.md). Falta Design/Tasks/
+  Execute — primeiro passo é `tlc-spec-driven` Design (spec já existe).
+- **Gate local**: `bash scripts/verify.sh` limpo (check-docs + build + lint + test, 743
+  passed, 5 skipped) + `bash scripts/test.sh --filter Category=Scenario` (10/100 anos,
+  nightly — não rodado nesta sessão por escolha de cadência, ver feedback do usuário sobre
+  não rodar cenário pesado por task).
 - **Fase 9 nova (Escala e armazenamento)** — inserida depois da 8; antigas 9–26 viraram 10–27
   (AD-049, arquivos renomeados). Spec pronta em
   [.specs/features/phase-09-scale/spec.md](.specs/features/phase-09-scale/spec.md) (PERF-01..17,

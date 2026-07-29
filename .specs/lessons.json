@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 4,
+  "next_id": 7,
   "lessons": [
     {
       "id": "L-001",
@@ -58,6 +58,60 @@
       ],
       "created": "2026-07-27T00:00:00Z",
       "last_seen": "2026-07-27T00:00:00Z"
+    },
+    {
+      "id": "L-004",
+      "key": "ac_gap::when spec md enumerates specific fields an entity must expose e g city governo economia recursos seguranca educacao infraestrutura habitacao verify each named field has an actual public member query a design md tech decision promising a stub record is not evidence the stub was implemented",
+      "text": "When spec.md enumerates specific fields an entity must expose (e.g. City: governo/economia/recursos/seguranca/educacao/infraestrutura/habitacao), verify each named field has an actual public member/query — a design.md Tech Decision promising a stub record is not evidence the stub was implemented.",
+      "signal": "ac_gap",
+      "scope": "src/LivingWorld.Domain/Cities/City.cs",
+      "status": "candidate",
+      "features": [
+        "phase-08-cities"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "CITY-01 AC1, spec.md:74-76 (src/LivingWorld.Domain/Cities/City.cs)"
+      ],
+      "created": "2026-07-28T23:44:38Z",
+      "last_seen": "2026-07-28T23:44:38Z"
+    },
+    {
+      "id": "L-005",
+      "key": "ac_gap::when an aggregate pool entity has no per member identity approach a pools have no npcid an on demand materialize by id ac may be structurally unimplementable check that the materialize on demand method actually creates the entity not just checks it already exists before trusting the ac is met",
+      "text": "When an aggregate/pool entity has no per-member identity (Approach A pools have no NpcId), an on-demand-materialize-by-id AC may be structurally unimplementable — check that the 'materialize on demand' method actually creates the entity, not just checks it already exists, before trusting the AC is met.",
+      "signal": "ac_gap",
+      "scope": "src/LivingWorld.Simulation/Cities/MaterializationSystem.cs",
+      "status": "candidate",
+      "features": [
+        "phase-08-cities"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "CITY-05 AC2, MaterializationSystem.cs:504-509 (src/LivingWorld.Simulation/Cities/MaterializationSystem.cs)"
+      ],
+      "created": "2026-07-28T23:44:38Z",
+      "last_seen": "2026-07-28T23:44:38Z"
+    },
+    {
+      "id": "L-006",
+      "key": "spec_precision_gap::a hash world byte identical ac involving monotonic counters id sequences rng stream position that legitimately advance during the operation cannot be met literally scope the round trip comparison explicitly snapshot minus the monotonic fields and document why rather than weakening silently",
+      "text": "A 'Hash(world) byte-identical' AC involving monotonic counters (id sequences, RNG stream position) that legitimately advance during the operation cannot be met literally — scope the round-trip comparison explicitly (snapshot minus the monotonic fields) and document why, rather than weakening silently.",
+      "signal": "spec_precision_gap",
+      "scope": "tests/LivingWorld.Tests/Cities",
+      "status": "candidate",
+      "features": [
+        "phase-08-cities"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "CITY-04 AC3, MaterializationRoundTripTests.cs:169-183 (tests/LivingWorld.Tests/Cities)"
+      ],
+      "created": "2026-07-28T23:44:38Z",
+      "last_seen": "2026-07-28T23:44:38Z"
     }
   ]
 }

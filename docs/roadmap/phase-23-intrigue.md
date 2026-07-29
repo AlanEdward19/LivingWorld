@@ -69,9 +69,11 @@ o mundo passa a produzir rixa, escândalo e conspiração como subproduto do que
 
 ## Fora do escopo
 Prosa de escândalo, panfleto e crônica: Fase 12. Guerra entre estados e processo político
-formal: Fase 8 e `society.md`. Segredo de culto e doutrina: Fase 17. Orientação e estado de
-divulgação: Fase 22 — aqui só consumidos. Combate tático com ferimento localizado: fora do
-projeto; a briga resolve numa rolagem do ADR-0011.
+formal: Fase 10 e `society.md`. Segredo de culto e doutrina: Fase 17. Orientação e estado de
+divulgação: Fase 22 — aqui só consumidos. Combate tático: fora do projeto; a briga resolve
+numa rolagem do ADR-0011. O sistema de ferimento localizado (corpo e mente, com vício e
+doença) e sua recuperação **é** parte do projeto — vive como saída da rolagem do ADR-0011,
+não como sub-jogo tático, e é detalhado em fase própria de saúde/corpo, não aqui.
 
 ## Questões em aberto
 - Segredo colide com o **cânone limitado** da Fase 10: despejado do cânone, o segredo deixa

@@ -32,6 +32,24 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: SKILL-09 T17 (tests/LivingWorld.Tests/Population/PairedScenarioTests.cs) — RateGene.Inherit tested in isolation, NatalitySystem.HandleEvent's own call site (src/LivingWorld.Simulation/Population/NatalitySystem.cs:62) never exercised
 - last seen: 2026-07-27T00:00:00Z
 
+### L-004 — When spec.md enumerates specific fields an entity must expose (e.g. City: governo/economia/recursos/seguranca/educacao/infraestrutura/habitacao), verify each named field has an actual public member/query — a design.md Tech Decision promising a stub record is not evidence the stub was implemented.
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `src/LivingWorld.Domain/Cities/City.cs` · harmful: 0
+- features: phase-08-cities
+- evidence: CITY-01 AC1, spec.md:74-76 (src/LivingWorld.Domain/Cities/City.cs)
+- last seen: 2026-07-28T23:44:38Z
+
+### L-005 — When an aggregate/pool entity has no per-member identity (Approach A pools have no NpcId), an on-demand-materialize-by-id AC may be structurally unimplementable — check that the 'materialize on demand' method actually creates the entity, not just checks it already exists, before trusting the AC is met.
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `src/LivingWorld.Simulation/Cities/MaterializationSystem.cs` · harmful: 0
+- features: phase-08-cities
+- evidence: CITY-05 AC2, MaterializationSystem.cs:504-509 (src/LivingWorld.Simulation/Cities/MaterializationSystem.cs)
+- last seen: 2026-07-28T23:44:38Z
+
+### L-006 — A 'Hash(world) byte-identical' AC involving monotonic counters (id sequences, RNG stream position) that legitimately advance during the operation cannot be met literally — scope the round-trip comparison explicitly (snapshot minus the monotonic fields) and document why, rather than weakening silently.
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `tests/LivingWorld.Tests/Cities` · harmful: 0
+- features: phase-08-cities
+- evidence: CITY-04 AC3, MaterializationRoundTripTests.cs:169-183 (tests/LivingWorld.Tests/Cities)
+- last seen: 2026-07-28T23:44:38Z
+
 ## Quarantined (failed when applied — ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

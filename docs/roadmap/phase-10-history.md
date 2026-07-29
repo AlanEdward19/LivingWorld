@@ -70,6 +70,12 @@ esqueleto compacto do fato só para poder comparar.
 - Evento compensatório aparece na consulta com a linha original ainda legível, marcada.
 - Reidratar um snapshot e reaplicar o log a partir dele reproduz o mesmo `Hash(world)`.
 
+## Escopo herdado de outras fases
+Guerra entre cidades, tratados e política externa (apontado por Fase 8 e Fase 23 como "fora
+do roadmap atual") pousa aqui — ainda sem tasks/critérios próprios; entra quando a Fase 10 for
+ativada (status `pendente`, não `spec`, mas o detalhe de guerra/diplomacia precisa de
+levantamento próprio antes de virar task).
+
 ## Fora do escopo
 Prosa narrativa, jornais e biografias geradas: Fase 12. LLM lendo o passado para narrar:
 Fase 11 em diante — aqui relato e crença são **dado estruturado**, produzido pelo motor.

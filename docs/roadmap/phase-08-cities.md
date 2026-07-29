@@ -59,7 +59,7 @@ encolhem e fundam assentamentos, e qualquer NPC vivo é inspecionável por **API
   após 10 anos.
 
 ## Fora do escopo
-Guerra entre cidades, tratados e política externa: fora do roadmap atual. Cliente web de
+Guerra entre cidades, tratados e política externa: Fase 10. Cliente web de
 inspeção: Fase 15. Memória histórica e crença sobre fundações: Fase 10. Diálogo: Fase 11.
 
 ## Ver também
