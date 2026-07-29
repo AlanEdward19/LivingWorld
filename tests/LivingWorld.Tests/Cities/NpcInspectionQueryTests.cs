@@ -67,6 +67,26 @@ public class NpcInspectionQueryTests
     }
 
     [Fact]
+    public void Inspect_materializes_a_never_touched_aggregate_pool_member_on_demand()
+    {
+        // Fase 8, fix round 1, gap 2 (CITY-05 AC2 — Independent Test da spec): consultar um NPC
+        // agregado nunca materializado via API/CLI (aqui, o mesmo caminho: NpcInspectionQuery)
+        // faz o sistema materializá-lo sob demanda antes de responder.
+        var world = MakeWorld();
+        var city = new City(world.NextCityId(), world.Npcs.First().CurrentLocation, 0, null,
+            new AggregatePopulationPool(3, 300, 250));
+        world.AddCity(city);
+        var neverTouchedId = new NpcId(world.NextNpcId);
+        Assert.Null(world.FindNpc(neverTouchedId)); // pré-condição: nunca materializado
+
+        var result = NpcInspectionQuery.Inspect(world, neverTouchedId);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(world.FindNpc(neverTouchedId));
+        Assert.Equal(neverTouchedId, result.Value!.Id);
+    }
+
+    [Fact]
     public void Inspect_fails_for_an_npc_id_that_does_not_exist()
     {
         var world = MakeWorld();

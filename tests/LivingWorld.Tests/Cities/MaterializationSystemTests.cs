@@ -184,6 +184,37 @@ public class MaterializationSystemTests
         Assert.False(result.IsSuccess);
     }
 
+    [Fact]
+    public void EnsureMaterialized_materializes_a_genuine_never_touched_pool_member_addressed_by_its_future_id()
+    {
+        // Fase 8, fix round 1, gap 2 (CITY-05 AC2): id que nunca foi tocado (nunca existiu como
+        // Npc), vindo genuinamente do AggregatePool (Count > 0) — não um Npc já materializado.
+        var (world, city) = MakeWorldWithCity(new AggregatePopulationPool(5, 500, 400));
+        var neverTouchedId = new NpcId(world.NextNpcId);
+        Assert.Null(world.FindNpc(neverTouchedId)); // pré-condição: id genuinamente nunca tocado
+        long poolCountBefore = world.FindCity(city.Id)!.AggregatePool.Count;
+
+        var result = MaterializationSystem.EnsureMaterialized(world, neverTouchedId);
+
+        Assert.True(result.IsSuccess);
+        var materialized = world.FindNpc(neverTouchedId);
+        Assert.NotNull(materialized);
+        Assert.True(materialized!.IsAlive);
+        Assert.Equal(poolCountBefore - 1, world.FindCity(city.Id)!.AggregatePool.Count);
+    }
+
+    [Fact]
+    public void EnsureMaterialized_fails_when_the_future_id_has_no_pool_to_materialize_from()
+    {
+        var (world, _) = MakeWorldWithCity(AggregatePopulationPool.Empty);
+        var neverTouchedId = new NpcId(world.NextNpcId);
+
+        var result = MaterializationSystem.EnsureMaterialized(world, neverTouchedId);
+
+        Assert.False(result.IsSuccess);
+        Assert.Null(world.FindNpc(neverTouchedId));
+    }
+
     // CurrentDate tem setter `internal` (mesmo padrão de WorldClock) — visível aqui via
     // InternalsVisibleTo("LivingWorld.Tests"). Ticks de MaterializationSystem são medidos em
     // horas (TickContext.CurrentTick == CurrentDate.TotalHours).

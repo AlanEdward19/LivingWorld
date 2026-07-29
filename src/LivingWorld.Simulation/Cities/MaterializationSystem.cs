@@ -103,13 +103,40 @@ public sealed class MaterializationSystem : ISimulationSystem
         return Result<Unit>.Ok(Unit.Value);
     }
 
-    /// <summary>Materializa sob demanda (CITY-05) — chamado pela inspeção (T14). Como o pool não
-    /// guarda identidade por NPC, só há o que "garantir" para quem já existe como linha real; um
-    /// id nunca visto não tem entidade a resolver.</summary>
+    // DESIGN (Fase 8, fix round 1, gap 2 — CITY-05 AC2): approach A (design.md) não atribui
+    // NpcId a membro do AggregatePopulationPool — só existe contagem+somas, nunca identidade
+    // individual. Isso tornava "consultar um NPC agregado por id" estruturalmente impossível:
+    // não havia nenhum id nomeável apontando pro pool (gap achado pelo Verifier independente).
+    //
+    // Opção descartada: reservar uma faixa de NpcId por cidade (avançar NextNpcId em lockstep
+    // com todo crescimento de pool: fundação, carga inicial de cenário, desmaterialização) e
+    // guardar [startId, startId+count) na própria City. Rejeitada aqui porque exige (a) mudar a
+    // superfície canônica de City (novo campo persistido, entra no hash — arrisca os testes de
+    // round-trip/conservação de CITY-04, o núcleo mais frágil da fase) e (b) uma faixa compacta
+    // por cidade quebra sob alocação intercalada do contador global entre cidades (reserva da
+    // cidade B entre duas reservas da cidade A perfura o intervalo contíguo assumido pela cidade
+    // A) — precisaria de uma lista de blocos por cidade, não um único range, pra ficar correto.
+    //
+    // Escolha: o único id "endereçável" de um membro do pool nunca materializado é exatamente o
+    // próximo que o contador global (WorldState.NextNpcId) vai emitir — é o mesmo id que
+    // MaterializeOne já atribuiria a esse membro no próximo sorteio. Consultar esse id
+    // específico dispara a materialização real (mesmo MaterializeOne, mesmo sorteio) da primeira
+    // cidade com pool não vazio, na ordem de world.Cities (determinístico, sem RNG na escolha da
+    // cidade). Não adiciona estado novo a City nem ao snapshot — hash/conservação continuam
+    // exatamente como antes.
     public static Result<Unit> EnsureMaterialized(WorldState world, NpcId npcId)
     {
         var npc = world.FindNpc(npcId);
-        if (npc is null || !npc.IsAlive) return Result<Unit>.Fail("Npc: não existe ou está morto");
-        return Result<Unit>.Ok(Unit.Value);
+        if (npc is not null)
+            return npc.IsAlive ? Result<Unit>.Ok(Unit.Value) : Result<Unit>.Fail("Npc: não existe ou está morto");
+
+        if (npcId.Value != world.NextNpcId) return Result<Unit>.Fail("Npc: não existe ou está morto");
+
+        var city = world.Cities.FirstOrDefault(c => c.AggregatePool.Count > 0);
+        if (city is null) return Result<Unit>.Fail("Npc: não existe ou está morto");
+
+        var ctx = new TickContext(world, world.Rng, world.Scheduler);
+        var materialized = MaterializeOne(world, ctx, city.Id);
+        return materialized.IsSuccess ? Result<Unit>.Ok(Unit.Value) : Result<Unit>.Fail(materialized.Error!);
     }
 }
