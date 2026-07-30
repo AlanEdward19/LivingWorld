@@ -51,4 +51,8 @@ public enum WorldEventKind
     /// <summary>Livro perdido redescoberto por evento agendado (Fase 10, HIST-09) — payload
     /// <c>bookId|tick</c>.</summary>
     BookRediscovered,
+
+    /// <summary>Correção compensatória do esqueleto (Fase 10, HIST-24) — payload
+    /// <c>correctsFactId|correctedPayload|reason</c>.</summary>
+    CompensatingCorrection,
 }

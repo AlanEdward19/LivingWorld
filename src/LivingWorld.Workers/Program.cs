@@ -55,6 +55,25 @@ if (args.Length == 2 && args[0] == "history-book-digest")
     return 0;
 }
 
+// Fase 10: digest de índice histórico para teste de dois processos.
+// `dotnet <dll> history-index-digest <seed> <ticks>`.
+if (args.Length == 3 && args[0] == "history-index-digest")
+{
+    var seed = ulong.Parse(args[1]);
+    var ticks = long.Parse(args[2]);
+    Console.WriteLine(HistorySimulationDigest.HistoryIndexDigest(seed, ticks, HistoryRules.Default));
+    return 0;
+}
+
+// Fase 10: digest de correção compensatória para teste de dois processos.
+// `dotnet <dll> history-correction-digest <seed>`.
+if (args.Length == 2 && args[0] == "history-correction-digest")
+{
+    var seed = ulong.Parse(args[1]);
+    Console.WriteLine(HistoryCorrectionDigest.Compute(seed));
+    return 0;
+}
+
 // Modo CLI do teste de persistência entre processos (Fase 3, task 10): roda até <ticks>,
 // salva snapshot+log em <dbPath> e sai — simula o processo terminando de verdade.
 // `dotnet <dll> persist-save <seed> <dbPath> <ticks>`.

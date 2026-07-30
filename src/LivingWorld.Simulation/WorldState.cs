@@ -1,5 +1,6 @@
 using LivingWorld.Domain;
 
+using LivingWorld.Simulation.History;
 using LivingWorld.Simulation.Population;
 
 namespace LivingWorld.Simulation;
@@ -116,6 +117,8 @@ public sealed class WorldState
     [Canonical] public long NextBookId => _nextBookId;
 
     [Volatile] public AliveNpcIndex AliveNpcIndex { get; private set; }
+
+    [Volatile] public HistoryIndex HistoryIndex { get; private set; }
 
     private readonly List<Npc> _npcWakeBatch = [];
     private readonly Dictionary<long, long> _npcWakeEventIdByNpc = [];
@@ -282,6 +285,7 @@ public sealed class WorldState
         _buildings = [];
         _buildingById = [];
         AliveNpcIndex = AliveNpcIndex.RebuildFrom(this);
+        HistoryIndex = HistoryIndex.RebuildFrom(this);
         ColdArchive = new ColdTierArchive();
     }
 
@@ -372,6 +376,7 @@ public sealed class WorldState
         _books = (books ?? []).ToList();
         _nextBookId = nextBookId;
         AliveNpcIndex = AliveNpcIndex.RebuildFrom(this);
+        HistoryIndex = HistoryIndex.RebuildFrom(this);
         ColdArchive = new ColdTierArchive();
     }
 
@@ -472,7 +477,11 @@ public sealed class WorldState
 
     internal BookId NextBookIdAndAdvance() => new(_nextBookId++);
 
-    internal void RegisterReport(ReportState report) => _reports.Add(report);
+    internal void RegisterReport(ReportState report)
+    {
+        _reports.Add(report);
+        HistoryIndex.OnReportAdded(report, this);
+    }
 
     internal ReportState? FindReport(ReportId id)
     {
@@ -508,7 +517,11 @@ public sealed class WorldState
         }
     }
 
-    internal void AddFact(Fact fact) => _facts.Add(fact);
+    internal void AddFact(Fact fact)
+    {
+        _facts.Add(fact);
+        HistoryIndex.OnFactAdded(fact);
+    }
 
     internal Fact? FindFact(FactId id)
     {

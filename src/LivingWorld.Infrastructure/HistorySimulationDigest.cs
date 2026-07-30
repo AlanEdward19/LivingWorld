@@ -50,6 +50,36 @@ public static class HistorySimulationDigest
         return Hash(string.Join('\n', lines));
     }
 
+    public static string HistoryIndexDigest(ulong seed, long ticks, HistoryRules rules)
+    {
+        var sink = new BufferingWorldEventSink();
+        var (world, _) = ScenarioRunner.Create(seed, historyRules: rules);
+        var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink);
+        clock.Run(world, ticks);
+
+        foreach (var evt in sink.DrainAll())
+            SignificanceCalculator.TryRecord(evt, world, rules);
+
+        var index = HistoryIndex.RebuildFrom(world);
+        var lines = new List<string>();
+        for (int year = 0; year <= (int)(ticks / world.Calendar.HoursPerYear); year++)
+        {
+            foreach (var id in index.ByYear(year))
+                lines.Add($"Y{year}:{id.Value}");
+        }
+        foreach (var npc in world.Npcs.OrderBy(n => n.Id.Value))
+        {
+            foreach (var id in index.ByEntity(npc.Id))
+                lines.Add($"E{npc.Id.Value}:{id.Value}");
+        }
+        foreach (var kind in Enum.GetValues<WorldEventKind>().OrderBy(k => k))
+        {
+            foreach (var id in index.ByKind(kind))
+                lines.Add($"K{kind}:{id.Value}");
+        }
+        return Hash(string.Join('\n', lines));
+    }
+
     private static string Hash(string content) =>
         Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(content)));
 }
