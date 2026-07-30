@@ -25,6 +25,9 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 - **Escopo extra especificado** (não iniciado): fases 16–27 em status `spec`. **Bloqueado até
   a Fase 8 fechar** (AD-010); cada fase tem `## Questões em aberto` (~60 perguntas de design).
   Injeta só `BranchId` na Fase 3 e o primitivo de resolução na Fase 0.
+- **Fase 13 reespecificada (2026-07-29)**: períodos agora são startpoints dinâmicos (vieses),
+  com geração/evolução de catálogos em runtime, rota de cadastro de períodos customizados e
+  documentação para autoria por IA externa (fora do projeto), sem runtime de IA interno.
 - **Eval gates disponíveis**: `bash scripts/verify.sh` = `check-docs` + `build` + `lint` +
   `test`, todos em 0. `bash scripts/verify-mutation.sh` prova que o gate reprova de
   verdade (3 mutantes do fixture) — não roda no `verify.sh` de rotina por ser caro
