@@ -102,6 +102,19 @@ public sealed class WorldState
 
     [Canonical] public long NextReportId => _nextReportId;
 
+    private readonly List<ReportState> _reports;
+    private readonly List<Book> _books;
+    private long _nextBookId;
+
+    /// <summary>Relatos registrados no mundo (Fase 10) — inclui relatos fora do cânone vivo
+    /// (ex.: referenciados por <see cref="Books"/> após despejo).</summary>
+    [Canonical] public IReadOnlyList<ReportState> Reports => _reports;
+
+    /// <summary>Livros como objetos do mundo (Fase 10, HIST-09).</summary>
+    [Canonical] public IReadOnlyList<Book> Books => _books;
+
+    [Canonical] public long NextBookId => _nextBookId;
+
     [Volatile] public AliveNpcIndex AliveNpcIndex { get; private set; }
 
     private readonly List<Npc> _npcWakeBatch = [];
@@ -253,6 +266,8 @@ public sealed class WorldState
         PerfRules = perfRules ?? PerfRules.Default;
         HistoryRules = historyRules ?? HistoryRules.Disabled;
         _facts = [];
+        _reports = [];
+        _books = [];
         _rng = new WorldRngRegistry(seed);
         _scheduler = new EventScheduler();
         _npcs = [];
@@ -307,7 +322,10 @@ public sealed class WorldState
         HistoryRules? historyRules = null,
         IReadOnlyList<Fact>? facts = null,
         long nextFactId = 0,
-        long nextReportId = 0)
+        long nextReportId = 0,
+        IReadOnlyList<ReportState>? reports = null,
+        IReadOnlyList<Book>? books = null,
+        long nextBookId = 0)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -350,6 +368,9 @@ public sealed class WorldState
         _facts = (facts ?? []).ToList();
         _nextFactId = nextFactId;
         _nextReportId = nextReportId;
+        _reports = (reports ?? []).ToList();
+        _books = (books ?? []).ToList();
+        _nextBookId = nextBookId;
         AliveNpcIndex = AliveNpcIndex.RebuildFrom(this);
         ColdArchive = new ColdTierArchive();
     }
@@ -448,6 +469,44 @@ public sealed class WorldState
     internal FactId NextFactIdAndAdvance() => new(_nextFactId++);
 
     internal ReportId NextReportIdAndAdvance() => new(_nextReportId++);
+
+    internal BookId NextBookIdAndAdvance() => new(_nextBookId++);
+
+    internal void RegisterReport(ReportState report) => _reports.Add(report);
+
+    internal ReportState? FindReport(ReportId id)
+    {
+        foreach (var report in _reports)
+        {
+            if (report.Id == id)
+                return report;
+        }
+        return null;
+    }
+
+    internal void AddBook(Book book) => _books.Add(book);
+
+    internal Book? FindBook(BookId id)
+    {
+        foreach (var book in _books)
+        {
+            if (book.Id == id)
+                return book;
+        }
+        return null;
+    }
+
+    internal void ReplaceBook(Book updated)
+    {
+        for (int i = 0; i < _books.Count; i++)
+        {
+            if (_books[i].Id == updated.Id)
+            {
+                _books[i] = updated;
+                return;
+            }
+        }
+    }
 
     internal void AddFact(Fact fact) => _facts.Add(fact);
 

@@ -95,13 +95,22 @@ public static class WorldSnapshot
         var nextReportId = node.TryGetPropertyValue("NextReportId", out var nextReportNode) && nextReportNode is not null
             ? nextReportNode.GetValue<long>()
             : 0L;
+        var reports = node.TryGetPropertyValue("Reports", out var reportsNode) && reportsNode is not null
+            ? reportsNode.Deserialize<List<ReportState>>(JsonOptions)!
+            : [];
+        var books = node.TryGetPropertyValue("Books", out var booksNode) && booksNode is not null
+            ? booksNode.Deserialize<List<Book>>(JsonOptions)!
+            : [];
+        var nextBookId = node.TryGetPropertyValue("NextBookId", out var nextBookNode) && nextBookNode is not null
+            ? nextBookNode.GetValue<long>()
+            : 0L;
 
         return new WorldState(
             calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
             lifeStageRules, rngStreams, pendingEvents, nextEventId, exampleCounts, npcs, households, nextNpcId,
             nextHouseholdId, branchId, moneyMinted, moneyDestroyed, economyRules, economyCatalog, workplaces,
             nextWorkplaceId, familyRules, relationships, cities, buildings, nextBuildingId, cityRules, cityCatalog,
-            perfRules, historyRules, facts, nextFactId, nextReportId);
+            perfRules, historyRules, facts, nextFactId, nextReportId, reports, books, nextBookId);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)

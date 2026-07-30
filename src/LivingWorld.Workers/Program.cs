@@ -46,6 +46,15 @@ if (args.Length == 2 && args[0] == "history-distortion-digest")
     return 0;
 }
 
+// Fase 10: digest de livros para teste de dois processos.
+// `dotnet <dll> history-book-digest <seed>`.
+if (args.Length == 2 && args[0] == "history-book-digest")
+{
+    var seed = ulong.Parse(args[1]);
+    Console.WriteLine(HistoryBookDigest.Compute(seed, HistoryRules.Default));
+    return 0;
+}
+
 // Modo CLI do teste de persistência entre processos (Fase 3, task 10): roda até <ticks>,
 // salva snapshot+log em <dbPath> e sai — simula o processo terminando de verdade.
 // `dotnet <dll> persist-save <seed> <dbPath> <ticks>`.

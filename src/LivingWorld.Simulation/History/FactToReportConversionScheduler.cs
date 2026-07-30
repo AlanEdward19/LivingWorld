@@ -61,6 +61,7 @@ public sealed class FactToReportConversionScheduler : ISimulationSystem
             LastHopTick: ctx.CurrentTick);
 
         CanonSlotManager.Admit(city, report, world.HistoryRules, ctx.CurrentTick);
+        world.RegisterReport(report);
         ctx.LogEvent(
             WorldEventKind.ReportConverted,
             $"{report.Id.Value}|{factId.Value}|{communityId.Value}");

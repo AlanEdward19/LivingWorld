@@ -79,6 +79,23 @@ public class WorldSnapshotTests
             world.Npcs[0].City,
             0.85,
             world.Npcs[0].Id.Value.ToString()));
+        var report = new ReportState(
+            world.NextReportIdAndAdvance(),
+            world.Facts[0].Id,
+            world.Npcs[0].City,
+            TransmissionMediumType.OralTradition,
+            HopCount: 0,
+            Weight: 0.85,
+            CreatedAtTick: world.CurrentDate.TotalHours,
+            LastHopTick: world.CurrentDate.TotalHours);
+        world.RegisterReport(report);
+        world.AddBook(new Book(
+            world.NextBookIdAndAdvance(),
+            report.Id,
+            CopyOfBookId: null,
+            Lost: false,
+            LostAtTick: null,
+            RediscoveredAtTick: null));
         return world;
     }
 

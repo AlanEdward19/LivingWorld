@@ -44,6 +44,7 @@ public static class ScenarioRunner
         new ExampleCounterSystem(TickFrequency.Yearly),
         new MortalitySystem(),
         new FactToReportConversionScheduler(),
+        new BookRediscoverySystem(),
         new ColdArchiveSystem(),
         new CourtshipSystem(),
         new NatalitySystem(),

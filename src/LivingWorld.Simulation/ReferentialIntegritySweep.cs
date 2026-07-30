@@ -34,7 +34,10 @@ public static class ReferentialIntegritySweep
         [typeof(WorkplaceId)] = w => w.Workplaces.Select(wp => (object)wp.Id).ToHashSet(),
         [typeof(BuildingId)] = w => w.Buildings.Select(b => (object)b.Id).ToHashSet(),
         [typeof(FactId)] = w => w.Facts.Select(f => (object)f.Id).ToHashSet(),
-        [typeof(ReportId)] = w => w.Cities.SelectMany(c => c.CanonSlots).Select(r => (object)r.Id).ToHashSet(),
+        [typeof(ReportId)] = w => w.Reports.Select(r => (object)r.Id)
+            .Concat(w.Cities.SelectMany(c => c.CanonSlots).Select(r => (object)r.Id))
+            .ToHashSet(),
+        [typeof(BookId)] = w => w.Books.Select(b => (object)b.Id).ToHashSet(),
     };
 
     /// <summary>Todo tipo de id do assembly Domain — o teste de cobertura reprova se algum

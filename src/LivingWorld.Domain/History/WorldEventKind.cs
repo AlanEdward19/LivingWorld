@@ -44,4 +44,11 @@ public enum WorldEventKind
     /// <summary>Fato convertido em relato hop-0 (Fase 10, HIST-03) — payload
     /// <c>reportId|factId|communityId</c>.</summary>
     ReportConverted,
+
+    /// <summary>Livro perdido (Fase 10, HIST-09) — payload <c>bookId|tick</c>.</summary>
+    BookLost,
+
+    /// <summary>Livro perdido redescoberto por evento agendado (Fase 10, HIST-09) — payload
+    /// <c>bookId|tick</c>.</summary>
+    BookRediscovered,
 }

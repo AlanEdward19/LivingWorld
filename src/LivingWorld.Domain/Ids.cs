@@ -63,3 +63,10 @@ public readonly record struct ReportId(long Value)
 {
     public override string ToString() => $"report-{Value}";
 }
+
+/// <summary>Instância física de um relato em meio Livro (Fase 10, HIST-09) — id monotônico,
+/// mesmo molde de <see cref="ReportId"/>.</summary>
+public readonly record struct BookId(long Value)
+{
+    public override string ToString() => $"book-{Value}";
+}
