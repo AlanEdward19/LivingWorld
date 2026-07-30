@@ -9,7 +9,7 @@ Implement these tasks com a skill `tlc-spec-driven` ativa (fluxo Execute complet
 > Generated from codebase + guidelines: `AGENTS.md`, `rules/eval-criteria.md`, `rules/simulation-determinism.md`, `scripts/test.sh`, `scripts/verify.sh`.
 | Code Layer | Required Test Type | Coverage Expectation | Location Pattern | Run Command |
 | --- | --- | --- | --- | --- |
-| Visual contracts/projectors/FOW (`Simulation`/`Api`) | unit + integration | 1:1 com VTT-01..13 + edge cases de foco/FOW/reconexão | `tests/LivingWorld.Tests/Visual/*Tests.cs` | `bash scripts/test.sh --filter Category!=Scenario` |
+| Visual contracts/projectors/FOW (`Simulation`/`Api`) | unit + integration | 1:1 com VTT-01..16 + edge cases de foco/FOW/reconexão/camadas | `tests/LivingWorld.Tests/Visual/*Tests.cs` | `bash scripts/test.sh --filter Category!=Scenario` |
 | Endpoints realtime + input | integration | subscribe/replay/403/400 + no-write hash invariável | `tests/LivingWorld.Tests/Visual/*EndpointTests.cs` | `bash scripts/verify.sh` |
 | Cliente web VTT | unit + integration | render por escopo, drill-down, token e FOW por modo | `web/tests/**/*` | `bash scripts/test.sh --filter Category!=Scenario` |
 | Scripts/OpenAPI/gate | architecture + integration | tipos gerados sem drift + verify falha em mutação | `tests/LivingWorld.Tests/Visual/*Gate*Tests.cs` | `bash scripts/verify.sh` |
@@ -42,23 +42,23 @@ Implement these tasks com a skill `tlc-spec-driven` ativa (fluxo Execute complet
 
 ## Task Breakdown
 ### T1: Criar contratos visuais e catálogo de escopos
-**What**: definir DTOs/schemas para snapshot+deltas por escopo (`world/city/interior`) e modo (`spectator/player`), incluindo cursor de replay. **Where**: `src/LivingWorld.Api/Visual/*.cs`, `src/LivingWorld.Simulation/Visibility/*.cs`. **Depends on**: None. **Requirement**: VTT-01, VTT-07. **Tests**: unit. **Gate**: Quick.
+**What**: definir DTOs/schemas para snapshot+deltas por escopo (`world/city/interior`) e modo (`spectator/player`), incluindo catálogo de camadas derivadas e cursor de replay. **Where**: `src/LivingWorld.Api/Visual/*.cs`, `src/LivingWorld.Simulation/Visibility/*.cs`. **Depends on**: None. **Requirement**: VTT-01, VTT-04. **Tests**: unit. **Gate**: Quick.
 ### T2: Subir host de mundo persistente para API visual
 **What**: trocar world efêmero da API por host canônico compartilhado (snapshot+clock) para stream e endpoints de visualização. **Where**: `src/LivingWorld.Api/Program.cs`, `src/LivingWorld.Infrastructure/*.cs`. **Depends on**: T1. **Requirement**: VTT-01..03. **Tests**: integration. **Gate**: Full.
 ### T3: Implementar gateway realtime com subscribe/replay
 **What**: WebSocket primário + SSE fallback, subscribe por escopo e replay por cursor. **Where**: `src/LivingWorld.Api/Realtime/*.cs`. **Depends on**: T2. **Requirement**: VTT-02, VTT-10. **Tests**: integration. **Gate**: Full.
 ### T4 [P]: Implementar projeção global simplificada (mundi)
-**What**: projector global com cidades, NPCs externos por LOD e eventos visuais resumidos. **Where**: `src/LivingWorld.Api/Visual/Global*.cs`. **Depends on**: T3. **Requirement**: VTT-01..03, VTT-07. **Tests**: integration. **Gate**: Quick.
+**What**: projector global com cidades, NPCs externos por LOD, eventos visuais resumidos e camadas derivadas globais (terreno/bioma/rios/montanhas/recursos/estradas/fronteiras/reinos/clima). **Where**: `src/LivingWorld.Api/Visual/Global*.cs`, `src/LivingWorld.Api/Visual/Layers/*.cs`. **Depends on**: T3. **Requirement**: VTT-01..06, VTT-10. **Tests**: integration. **Gate**: Quick.
 ### T5 [P]: Implementar projeção de cidade/interior (drill-down)
-**What**: projectors de cidade e interior com entidades, atividades e transições por foco. **Where**: `src/LivingWorld.Api/Visual/City*.cs`, `src/LivingWorld.Api/Visual/Interior*.cs`. **Depends on**: T3. **Requirement**: VTT-03, VTT-08, VTT-09. **Tests**: integration. **Gate**: Quick.
+**What**: projectors de cidade e interior com entidades, atividades, transições por foco e camadas locais (cidades/aldeias/rotas/migrações/conflitos + overlays climáticos). **Where**: `src/LivingWorld.Api/Visual/City*.cs`, `src/LivingWorld.Api/Visual/Interior*.cs`, `src/LivingWorld.Api/Visual/Layers/*.cs`. **Depends on**: T3. **Requirement**: VTT-03, VTT-05, VTT-08, VTT-09, VTT-11. **Tests**: integration. **Gate**: Quick.
 ### T6 [P]: Implementar composição de token 2D de NPC
 **What**: catálogo versionado de assets por camadas + `NpcTokenComposer` determinístico por estado canônico. **Where**: `src/LivingWorld.Api/Visual/NpcTokens/*.cs`, `web/src/assets/npc-tokens/*`. **Depends on**: T3. **Requirement**: VTT-11..13. **Tests**: unit + integration. **Gate**: Quick.
 ### T7: Implementar FOW/personagem + validação de intents
 **What**: visibilidade por conhecimento, override admin e endpoints de movimento/interação com validação causal. **Where**: `src/LivingWorld.Simulation/Visibility/*.cs`, `src/LivingWorld.Api/VisualInput/*.cs`. **Depends on**: T4, T5. **Requirement**: VTT-04..06, VTT-10. **Tests**: integration. **Gate**: Full.
 ### T8: Entregar cliente web VTT 2D
-**What**: criar projeto React+TS, renderers por escopo, controle espectador/personagem, FOW, drill-down e consumo realtime. **Where**: `web/*`, `LivingWorld.sln`, `scripts/*.sh`. **Depends on**: T6, T7. **Requirement**: VTT-01..13. **Tests**: unit + integration. **Gate**: Full.
+**What**: criar projeto React+TS, renderers por escopo e por camada, controle espectador/personagem, FOW, drill-down e consumo realtime. **Where**: `web/*`, `LivingWorld.sln`, `scripts/*.sh`. **Depends on**: T6, T7. **Requirement**: VTT-01..16. **Tests**: unit + integration. **Gate**: Full.
 ### T9: Fechar gate de fase (OpenAPI + no-write + mutação)
-**What**: gerar tipos TS via OpenAPI no verify, testes de hash invariável para leitura/subscribe e mutante do ramo web que prova reprovação. **Where**: `scripts/verify.sh`, `tests/LivingWorld.Tests/Visual/*Gate*Tests.cs`. **Depends on**: T8. **Requirement**: VTT-02, VTT-10..13. **Tests**: architecture + integration. **Gate**: Full.
+**What**: gerar tipos TS via OpenAPI no verify, testes de hash invariável para leitura/subscribe, cobertura obrigatória de cada camada do catálogo e mutante do ramo web que prova reprovação. **Where**: `scripts/verify.sh`, `tests/LivingWorld.Tests/Visual/*Gate*Tests.cs`. **Depends on**: T8. **Requirement**: VTT-02, VTT-06, VTT-10..16. **Tests**: architecture + integration. **Gate**: Full.
 
 ## Diagram-Definition Cross-Check
 | Task | Depends On (body) | Diagram | Status |

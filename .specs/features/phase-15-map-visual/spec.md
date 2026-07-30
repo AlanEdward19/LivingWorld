@@ -1,12 +1,13 @@
 # Fase 15 (Mapa visual VTT 2D) Specification
 
 ## Problem Statement
-Hoje o mundo existe só em backend e não há uma visualização viva para acompanhar cidade, NPCs e eventos. Precisamos de um cliente VTT 2D em tempo real com dois modos (espectador/admin e personagem), incluindo fog of war e navegação até interiores, sem criar uma segunda fonte de verdade.
+Hoje o mundo existe só em backend e não há uma visualização viva para acompanhar cidade, NPCs e eventos. Precisamos de um cliente React + TypeScript em VTT 2D, em tempo real e com dois modos (espectador/admin e personagem), incluindo fog of war, navegação até interiores e camadas derivadas (terreno, rios, clima etc.), sem criar uma segunda fonte de verdade.
 
 ## Goals
 - [ ] Visualizar mundo vivo em VTT 2D com sinais claros de atividade (movimento, trabalho, conflito, interação).
 - [ ] Entregar dois modos: espectador global e personagem jogável com visão limitada por conhecimento.
 - [ ] Aplicar resolução por foco de tela: mapa-múndi simplificado, cidade detalhada, interior máximo.
+- [ ] Exibir camadas de visualização derivadas sobre o mesmo grid (geografia, infraestrutura, sociedade e clima).
 - [ ] Garantir aparência inicial de NPC por token 2D composto dinamicamente e de forma determinística.
 - [ ] Manter motor como autoridade: cliente recebe leitura/deltas e envia apenas intenções validadas.
 
@@ -31,6 +32,12 @@ Hoje o mundo existe só em backend e não há uma visualização viva para acomp
 1. WHEN o espectador abre o mapa-múndi THEN sistema SHALL enviar visão simplificada global com cidades e NPCs externos agregados por LOD.
 2. WHEN eventos ativos ocorrem THEN sistema SHALL emitir marcadores/animadores visuais em tempo real no escopo correspondente.
 3. WHEN o espectador faz drill-down THEN sistema SHALL trocar para o escopo detalhado (cidade/interior) sem perder continuidade temporal.
+
+### P1: Camadas derivadas no mesmo grid
+**User Story**: Como espectador/jogador, quero alternar camadas (terreno, bioma, rios, montanhas, recursos, estradas, fronteiras, reinos, cidades, aldeias, rotas, migrações, conflitos, clima) para entender o estado do mundo sem duplicar dados.
+1. WHEN uma camada é selecionada THEN sistema SHALL renderizar a projeção derivada correspondente sobre o mesmo grid base.
+2. WHEN uma camada é adicionada ao catálogo THEN sistema SHALL exigir endpoint/stream e renderer React registrados para essa camada.
+3. WHEN dados canônicos mudam por tick THEN sistema SHALL refletir as camadas derivadas via deltas, sem escrita de volta no domínio.
 
 ### P1: Modo personagem com FOW
 **User Story**: Como jogador, quero controlar meu personagem e ver apenas o que ele conhece.
@@ -60,12 +67,14 @@ Hoje o mundo existe só em backend e não há uma visualização viva para acomp
 | Requirement ID | Story | Status |
 | --- | --- | --- |
 | VTT-01..03 | Modo espectador/admin global | Pending |
-| VTT-04..06 | Modo personagem com FOW | Pending |
-| VTT-07..10 | Resolução por foco | Pending |
-| VTT-11..13 | Aparência inicial de NPC | Pending |
+| VTT-04..06 | Camadas derivadas no mesmo grid | Pending |
+| VTT-07..09 | Modo personagem com FOW | Pending |
+| VTT-10..13 | Resolução por foco | Pending |
+| VTT-14..16 | Aparência inicial de NPC | Pending |
 
 ## Success Criteria
 - [ ] Espectador vê mundo vivo com LOD simplificado no mapa-múndi e drill-down contínuo.
+- [ ] Camadas derivadas (incluindo rios e clima) são alternáveis e consistentes com o mesmo grid.
 - [ ] Jogador controla personagem com visão limitada por descoberta/FOW.
 - [ ] Detalhe de transmissão acompanha foco (global → cidade → interior) com custo controlado.
 - [ ] Tokens de NPC são consistentes, determinísticos e compostos por asset pack versionado.

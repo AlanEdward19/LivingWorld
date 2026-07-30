@@ -9,23 +9,28 @@ criar segunda fonte de verdade: o motor continua dono do estado.
 1. **Read model espacial + eventos visuais**: projetar mundo/cidade/interior para leitura
    (`mundo → região → cidade → distrito → prédio → interior`) e incluir presença/atividade
    de NPC e eventos observáveis (conflito, trabalho, deslocamento, interação).
-2. **Canal realtime**: expor stream por `WebSocket`/SSE com snapshot inicial + deltas
+2. **Camadas de visualização sobre o mesmo grid**: terreno, biomas, rios, montanhas,
+   recursos, estradas, fronteiras, reinos, cidades, aldeias, rotas, migrações, conflitos e
+   clima. Camada é leitura derivada; nunca duplica estado canônico.
+3. **Canal realtime**: expor stream por `WebSocket`/SSE com snapshot inicial + deltas
    ordenados por tick para mapa global, cidade e interior; reconexão recebe catch-up
    determinístico sem reescrever estado do mundo.
-3. **Resolução por foco da tela (freeze de escopo visual)**: no mapa-múndi, transmitir visão
+4. **Resolução por foco da tela (freeze de escopo visual)**: no mapa-múndi, transmitir visão
    simplificada (cidades + NPCs externos por LOD); ao entrar na cidade, subir detalhe da
    cidade focada; ao entrar em prédio/interior, subir detalhe local máximo.
-4. **Modo espectador/admin**: mapa-múndi animado com cidades visíveis, NPCs fora de cidade
+5. **Modo espectador/admin**: mapa-múndi animado com cidades visíveis, NPCs fora de cidade
    como pontos coloridos e marcadores de eventos; drill-down contínuo até interior.
-5. **Modo personagem (jogável)**: movimento point-and-click e W/A/S/D, limitado ao que o
+6. **Modo personagem (jogável)**: movimento point-and-click e W/A/S/D, limitado ao que o
    personagem conhece; fog of war por célula/ambiente visitado, com override administrativo.
-6. **Interiores e atividade**: entrar/sair de casas e prédios, renderizar entidades e
+7. **Interiores e atividade**: entrar/sair de casas e prédios, renderizar entidades e
    atividade em andamento (trabalho, conversa, conflito, deslocamento) com sinais visuais.
-7. **Aparência inicial de NPC (token 2D)**: cada NPC usa um token circular composto
+8. **Aparência inicial de NPC (token 2D)**: cada NPC usa um token circular composto
    dinamicamente (SVG/camadas equivalentes) a partir de biblioteca de partes visuais
    versionada (pele, cabelo, roupa, profissão/acessório, variações por idade/estado), com
    mapeamento determinístico derivado do estado canônico do NPC.
-8. **Contrato cliente-servidor**: comandos de input do jogador viram intenção validada no
+9. **Cliente React + TypeScript**: manter o cliente web da fase em React+TS com renderers por
+   camada e por escopo (mundo/cidade/interior).
+10. **Contrato cliente-servidor**: comandos de input do jogador viram intenção validada no
    servidor; tipos TS seguem OpenAPI gerado; scripts `build/lint/test/verify` cobrem backend
    + web no mesmo gate.
 
@@ -36,6 +41,9 @@ criar segunda fonte de verdade: o motor continua dono do estado.
 - **Realtime cobre atividade real**: para cada atividade/evento declarado no catálogo visual,
   o teste injeta cenário determinístico e exige delta emitido + renderer registrado. Item
   novo no catálogo sem emissão ou render reprova.
+- **Toda camada declarada é navegável**: o teste enumera o catálogo de camadas e exige, para
+  cada uma, endpoint/stream respondendo e renderer React registrado. Camada nova sem ambos
+  reprova.
 - **Modo espectador vê o mundo inteiro**: no mesmo tick, espectador recebe cidades, NPCs
   externos e eventos ativos sem filtro de descoberta.
 - **Modo personagem respeita conhecimento**: com mesma seed e mesma posição, jogador só recebe

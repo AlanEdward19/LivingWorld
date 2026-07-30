@@ -9,7 +9,7 @@ Abordagens avaliadas:
 | --- | --- | --- |
 | Simulação por câmera no motor canônico | Câmera liga/desliga sistemas e materialização canônica | Alto risco de quebrar determinismo e acoplar UX ao estado do mundo |
 | Snapshot polling REST | Cliente pergunta estado por intervalo | Simples, mas perde fluidez e gera custo alto de payload |
-| **Realtime por escopo de foco (recomendada)** | Tick global canônico contínuo + stream de projeções por foco (global/cidade/interior) | Maior trabalho de orquestração, melhor equilíbrio imersão/performance |
+| **Realtime por escopo de foco (recomendada)** | Tick global canônico contínuo + stream de projeções por foco (global/cidade/interior) e por camada derivada | Maior trabalho de orquestração, melhor equilíbrio imersão/performance |
 
 ```mermaid
 graph TD
@@ -41,18 +41,21 @@ graph TD
    - **Purpose**: manter assinaturas por escopo (`world`, `city:{id}`, `interior:{id}`) e modo (`spectator`, `player`).
    - **Interfaces**: `Subscribe(scope, viewer)`, `Unsubscribe(scope, viewer)`, `CurrentScopes(viewerId)`.
 2. **VisualProjectionPipeline** (`src/LivingWorld.Api/Visual/`)  
-   - **Purpose**: transformar tick canônico em deltas visuais por resolução.
+   - **Purpose**: transformar tick canônico em deltas visuais por resolução e por camada.
    - **Interfaces**: `BuildSnapshot(scope, viewer)`, `BuildDelta(scope, tickRange)`.
-3. **RealtimeGateway** (`src/LivingWorld.Api/Realtime/`)  
+3. **LayerProjectionCatalog** (`src/LivingWorld.Api/Visual/Layers/`)  
+   - **Purpose**: registrar camadas derivadas (terreno, bioma, rios, montanhas, recursos, estradas, fronteiras, reinos, cidades, aldeias, rotas, migrações, conflitos, clima) sobre o mesmo grid.
+   - **Interfaces**: `ListLayers()`, `BuildLayer(scope, layerId, world)`.
+4. **RealtimeGateway** (`src/LivingWorld.Api/Realtime/`)  
    - **Purpose**: enviar snapshot+deltas por WebSocket (SSE fallback leitura).
    - **Interfaces**: `Connect(viewer)`, `Push(scope, payload)`, `Recover(cursor)`.
-4. **PlayerVisibilityService** (`src/LivingWorld.Simulation/Visibility/`)  
+5. **PlayerVisibilityService** (`src/LivingWorld.Simulation/Visibility/`)  
    - **Purpose**: aplicar FOW e conhecimento por personagem.
    - **Interfaces**: `CanSee(cell, player)`, `ApplyFog(snapshot, player)`, `AdminOverride(viewerId)`.
-5. **NpcTokenComposer** (`src/LivingWorld.Api/Visual/NpcTokens/`)  
+6. **NpcTokenComposer** (`src/LivingWorld.Api/Visual/NpcTokens/`)  
    - **Purpose**: compor token 2D determinístico via catálogo de assets versionado.
    - **Interfaces**: `Compose(npc, seed)`, `LayerSetFor(npcState)`.
-6. **VisualInputEndpoints** (`src/LivingWorld.Api/Program.cs` + extractions)  
+7. **VisualInputEndpoints** (`src/LivingWorld.Api/Program.cs` + extractions)  
    - **Purpose**: receber intenção de movimento/interação e validar no servidor.
    - **Interfaces**: `POST /visual/player/{id}/move`, `POST /visual/player/{id}/interact`.
 
@@ -60,6 +63,7 @@ graph TD
 ```csharp
 public enum VisualScopeKind { World, City, Interior }
 public enum ViewerMode { Spectator, Player }
+public enum VisualLayerId { Terrain, Biome, Rivers, Mountains, Resources, Roads, Borders, Kingdoms, Cities, Villages, Routes, Migrations, Conflicts, Climate }
 public sealed record VisualScope(VisualScopeKind Kind, string RefId);
 public sealed record VisualCursor(long Tick, string ScopeKey, long Sequence);
 public sealed record NpcTokenDescriptor(string AssetPackVersion, string BaseLayer, string HairLayer, string OutfitLayer, string AccessoryLayer, string AccentColor);
@@ -78,7 +82,7 @@ public sealed record PlayerMoveIntent(long PlayerNpcId, CellCoord Target, string
 | Concern | Location | Impact | Mitigation |
 | --- | --- | --- | --- |
 | API atual usa mundo efêmero fixo (`seed:1`) | `src/LivingWorld.Api/Program.cs:15` | Realtime/estado de sessão ficariam fake | Extrair host de mundo persistente compartilhado para API |
-| Não há cliente web no repo hoje | `LivingWorld.sln` (sem projeto web) | Fase 15 sem superfície visual executável | Adicionar projeto web e integrar scripts de gate |
+| Não há cliente web no repo hoje | `LivingWorld.sln` (sem projeto web) | Fase 15 sem superfície visual executável | Adicionar projeto React+TS e integrar scripts de gate |
 | Materialização atual altera estado canônico | `src/LivingWorld.Simulation/Cities/MaterializationSystem.cs:52` | Câmera poderia virar input do hash se acoplada direto | Foco visual controla stream/projeção; não liga/desliga sistemas canônicos |
 | Ausência de transporte realtime existente | `src/LivingWorld.Api/Program.cs` | Sem atualização viva, UX quebrada | Introduzir gateway WS/SSE com testes de subscribe/replay |
 
@@ -87,4 +91,5 @@ public sealed record PlayerMoveIntent(long PlayerNpcId, CellCoord Target, string
 | --- | --- | --- |
 | "Simular o que está vendo" | Resolução por foco de stream/render, mantendo tick global | Imersão sem destruir determinismo |
 | Realtime | WebSocket primário + SSE fallback espectador | Balanceia interatividade e robustez |
+| Camadas de visualização | Catálogo de projeções derivadas sobre o mesmo grid | Garante rios/clima/etc sem duplicar estado canônico |
 | Aparência de NPC | Token 2D composto por camadas versionadas | Entrega rápida e consistente antes do 3D |
