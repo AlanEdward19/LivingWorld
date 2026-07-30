@@ -85,6 +85,19 @@ public sealed class WorldState
     /// <summary>Tetos de custo e arquivamento frio (Fase 9, PERF-03) — cenário-driven.</summary>
     [Canonical] public PerfRules PerfRules { get; }
 
+    /// <summary>Parâmetros cenário-driven da história degradável (Fase 10, HIST-08) — limiar,
+    /// cânone, meios e distorção. <see cref="HistoryRules.Enabled"/> falso equivale a "história
+    /// desligada".</summary>
+    [Canonical] public HistoryRules HistoryRules { get; }
+
+    private readonly List<Fact> _facts;
+    private long _nextFactId;
+
+    /// <summary>Fatos imutáveis do esqueleto (Fase 10, HIST-01) — append-only na simulação.</summary>
+    [Canonical] public IReadOnlyList<Fact> Facts => _facts;
+
+    [Canonical] public long NextFactId => _nextFactId;
+
     [Volatile] public AliveNpcIndex AliveNpcIndex { get; private set; }
 
     private readonly List<Npc> _npcWakeBatch = [];
@@ -215,7 +228,8 @@ public sealed class WorldState
         PopulationCatalog populationCatalog, PopulationRules populationRules,
         NeedsRules needsRules, ActionCatalog actionCatalog, LifeStageRules lifeStageRules, BranchId branchId = default,
         EconomyRules? economyRules = null, EconomyCatalog? economyCatalog = null, FamilyRules? familyRules = null,
-        CityRules? cityRules = null, CityCatalog? cityCatalog = null, PerfRules? perfRules = null)
+        CityRules? cityRules = null, CityCatalog? cityCatalog = null, PerfRules? perfRules = null,
+        HistoryRules? historyRules = null)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -233,6 +247,8 @@ public sealed class WorldState
         CityRules = cityRules ?? CityRules.Disabled;
         CityCatalog = cityCatalog ?? CityCatalog.Empty;
         PerfRules = perfRules ?? PerfRules.Default;
+        HistoryRules = historyRules ?? HistoryRules.Disabled;
+        _facts = [];
         _rng = new WorldRngRegistry(seed);
         _scheduler = new EventScheduler();
         _npcs = [];
@@ -283,7 +299,10 @@ public sealed class WorldState
         long nextBuildingId = 0,
         CityRules? cityRules = null,
         CityCatalog? cityCatalog = null,
-        PerfRules? perfRules = null)
+        PerfRules? perfRules = null,
+        HistoryRules? historyRules = null,
+        IReadOnlyList<Fact>? facts = null,
+        long nextFactId = 0)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -322,6 +341,9 @@ public sealed class WorldState
         CityRules = cityRules ?? CityRules.Disabled;
         CityCatalog = cityCatalog ?? CityCatalog.Empty;
         PerfRules = perfRules ?? PerfRules.Default;
+        HistoryRules = historyRules ?? HistoryRules.Disabled;
+        _facts = (facts ?? []).ToList();
+        _nextFactId = nextFactId;
         AliveNpcIndex = AliveNpcIndex.RebuildFrom(this);
         ColdArchive = new ColdTierArchive();
     }
@@ -416,6 +438,20 @@ public sealed class WorldState
 
     public City? FindCity(CityId id) => _cityById.GetValueOrDefault(id);
     public Building? FindBuilding(BuildingId id) => _buildingById.GetValueOrDefault(id);
+
+    internal FactId NextFactIdAndAdvance() => new(_nextFactId++);
+
+    internal void AddFact(Fact fact) => _facts.Add(fact);
+
+    internal Fact? FindFact(FactId id)
+    {
+        foreach (var fact in _facts)
+        {
+            if (fact.Id == id)
+                return fact;
+        }
+        return null;
+    }
 
     /// <summary>Deriva um <see cref="CityId"/> novo a partir do stream de RNG dedicado
     /// <c>"city-founding"</c> (Fase 8, T5) — <c>Guid.NewGuid()</c> é banido em Domain/Simulation

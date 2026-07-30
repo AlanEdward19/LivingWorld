@@ -16,6 +16,26 @@ if (args.Length == 3 && args[0] == "hash")
     return 0;
 }
 
+// Fase 10: digest de significância para teste de dois processos.
+// `dotnet <dll> history-significance-digest <seed> <ticks>`.
+if (args.Length == 3 && args[0] == "history-significance-digest")
+{
+    var seed = ulong.Parse(args[1]);
+    var ticks = long.Parse(args[2]);
+    Console.WriteLine(HistorySimulationDigest.SignificanceDigest(seed, ticks, HistoryRules.Default));
+    return 0;
+}
+
+// Fase 10: digest de memória viva para teste de dois processos.
+// `dotnet <dll> history-living-memory-digest <seed> <ticks>`.
+if (args.Length == 3 && args[0] == "history-living-memory-digest")
+{
+    var seed = ulong.Parse(args[1]);
+    var ticks = long.Parse(args[2]);
+    Console.WriteLine(HistorySimulationDigest.LivingMemoryDigest(seed, ticks, HistoryRules.Default));
+    return 0;
+}
+
 // Modo CLI do teste de persistência entre processos (Fase 3, task 10): roda até <ticks>,
 // salva snapshot+log em <dbPath> e sai — simula o processo terminando de verdade.
 // `dotnet <dll> persist-save <seed> <dbPath> <ticks>`.

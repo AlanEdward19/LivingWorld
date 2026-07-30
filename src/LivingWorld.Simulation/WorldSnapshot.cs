@@ -83,13 +83,22 @@ public static class WorldSnapshot
         var perfRules = node.TryGetPropertyValue("PerfRules", out var perfNode) && perfNode is not null
             ? perfNode.Deserialize<PerfRules>(JsonOptions)!
             : PerfRules.Default;
+        var historyRules = node.TryGetPropertyValue("HistoryRules", out var histNode) && histNode is not null
+            ? histNode.Deserialize<HistoryRules>(JsonOptions)!
+            : HistoryRules.Disabled;
+        var facts = node.TryGetPropertyValue("Facts", out var factsNode) && factsNode is not null
+            ? factsNode.Deserialize<List<Fact>>(JsonOptions)!
+            : [];
+        var nextFactId = node.TryGetPropertyValue("NextFactId", out var nextFactNode) && nextFactNode is not null
+            ? nextFactNode.GetValue<long>()
+            : 0L;
 
         return new WorldState(
             calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
             lifeStageRules, rngStreams, pendingEvents, nextEventId, exampleCounts, npcs, households, nextNpcId,
             nextHouseholdId, branchId, moneyMinted, moneyDestroyed, economyRules, economyCatalog, workplaces,
             nextWorkplaceId, familyRules, relationships, cities, buildings, nextBuildingId, cityRules, cityCatalog,
-            perfRules);
+            perfRules, historyRules, facts, nextFactId);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)

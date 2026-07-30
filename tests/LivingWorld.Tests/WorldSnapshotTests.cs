@@ -71,6 +71,14 @@ public class WorldSnapshotTests
         // primitiva pro mutador genérico de teste perturbar (mesmo motivo do resto do arquivo).
         var relationship = world.GetOrCreateRelationship(new RelationshipKey(new NpcId(1), new NpcId(2)), now: 1);
         relationship.ApplyEvent(RelationshipEventType.Cohabitation, world.FamilyRules);
+        world.AddFact(new Fact(
+            world.NextFactIdAndAdvance(),
+            world.CurrentDate.TotalHours,
+            WorldEventKind.Birth,
+            [world.Npcs[0].Id],
+            world.Npcs[0].City,
+            0.85,
+            world.Npcs[0].Id.Value.ToString()));
         return world;
     }
 

@@ -313,17 +313,19 @@ public static class ScenarioRunner
         ulong seed, int maxIterationsPerTick = 1000, int initialPopulation = DefaultInitialPopulation,
         EconomyRules? economyRules = null, FamilyRules? familyRules = null, PerfRules? perfRules = null,
         PopulationRules? populationRules = null, int workplaceVacancyMultiplier = 1,
-        EconomyCatalog? economyCatalog = null)
+        EconomyCatalog? economyCatalog = null, HistoryRules? historyRules = null)
     {
         var rules = economyRules ?? DefaultEconomyRules;
         var family = familyRules ?? DefaultFamilyRules;
         var perf = perfRules ?? DefaultPerfRules;
         var population = populationRules ?? DefaultPopulationRules;
         var catalog = economyCatalog ?? DefaultEconomyCatalog;
+        var history = historyRules ?? HistoryRules.Disabled;
         var world = new WorldState(
             DefaultCalendar, seed, DefaultMap(seed), DefaultPopulationCatalog, population,
             DefaultNeedsRules, DefaultActionCatalog, DefaultLifeStageRules,
-            economyRules: rules, economyCatalog: catalog, familyRules: family, perfRules: perf);
+            economyRules: rules, economyCatalog: catalog, familyRules: family, perfRules: perf,
+            historyRules: history);
         if (initialPopulation > 0)
         {
             PopulationSeeder.SeedInitial(world, initialPopulation, DefaultCulture, DefaultVillageLocation);

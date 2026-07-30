@@ -49,3 +49,10 @@ public readonly record struct BranchId(long Value)
 
     public override string ToString() => $"branch-{Value}";
 }
+
+/// <summary>Fato histórico imutável (Fase 10, HIST-01) — id monotônico, mesmo molde de
+/// <see cref="NpcId"/>/<see cref="WorkplaceId"/>.</summary>
+public readonly record struct FactId(long Value)
+{
+    public override string ToString() => $"fact-{Value}";
+}
