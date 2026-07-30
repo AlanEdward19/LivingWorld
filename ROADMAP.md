@@ -43,8 +43,8 @@ O número é **identidade**, não ordem. Só a trilha núcleo é sequencial.
 | 11 | [Interação com LLM](docs/roadmap/phase-11-llm.md) | Contexto, diálogo, validação, memória, relação | pendente |
 | 12 | [Narrativa](docs/roadmap/phase-12-narrative.md) | Resumos, jornais, rumores, biografias, crônicas | pendente |
 | 13 | [Múltiplos períodos](docs/roadmap/phase-13-periods.md) | Módulos de conteúdo: pré-histórico, moderno, futurista, criaturas | pendente |
-| 14 | [Unreal](docs/roadmap/phase-14-unreal.md) | Cliente 3D, personagens, voz, animação | pendente |
-| 15 | [Mapa visual](docs/roadmap/phase-15-map-visual.md) | Cliente React+TS, camadas, drill-down, tipos gerados do OpenAPI | pendente |
+| 14 | [Unreal](docs/roadmap/phase-14-unreal.md) | Cliente 3D, personagens, voz, animação | adiada (não iniciada) |
+| 15 | [Mapa visual](docs/roadmap/phase-15-map-visual.md) | Cliente React+TS VTT 2D realtime: camadas + espectador + FOW | pendente |
 | 16 | [Potência](docs/roadmap/phase-16-powers.md) | Mutantes, magos, artefatos: modificador unificado com custo e falha | spec |
 | 17 | [Divindade](docs/roadmap/phase-17-divinity.md) | Deuses, culto, economia de crença, cisma, deus falso | spec |
 | 18 | [Linhas temporais](docs/roadmap/phase-18-timelines.md) | Ramificação, inércia histórica, âncora e coleta de branch | spec |

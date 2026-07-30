@@ -11,6 +11,12 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
   Spec/design em [.specs/features/phase-09-scale/](.specs/features/phase-09-scale/).
 - **Próxima unidade**: **Fase 10 (História degradável)** — spec em
   [.specs/features/phase-10-history/spec.md](.specs/features/phase-10-history/spec.md).
+- **Decisão de escopo (2026-07-29)**: **Fase 14 (Unreal) adiada, não iniciada** por decisão
+  explícita; Fase 15 foi reespecificada e priorizada como cliente VTT 2D realtime, incluindo
+  aparência inicial de NPC por token 2D composto dinamicamente.
+- **Fase 15 em andamento (spec/design)**: regra confirmada de "resolução por foco visual" —
+  mapa-múndi simplificado, cidade detalhada ao entrar, interior máximo no local focado; o
+  tick global do mundo continua contínuo e canônico.
 - **Dívida conhecida da Fase 9** (não bloqueia fechamento): PERF-12 dirty-path real no hasher;
   `LongRunScaleTests` (`Category=Scenario`, ~3 h) só nightly; apertar PERF-16 quando estável.
 - **Gate local**: `bash scripts/verify.sh` = check-docs + build + lint + test. No Windows, equivalente

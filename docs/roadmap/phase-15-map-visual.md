@@ -1,51 +1,75 @@
-# Fase 15 — Mapa visual
+# Fase 15 — Mapa visual VTT 2D
 
-**Objetivo**: um cliente web mostra o mundo que já existe — camadas sobre o grid da Fase 2,
-navegação do mapa-múndi até o NPC, tudo em **leitura**. Recebe o que saiu da Fase 2 para
-tirar o React do caminho crítico do objetivo #1. Depende da Fase 8 (cidades e migração).
+**Objetivo**: transformar o mundo já existente em uma visualização 2D estilo VTT com
+**dois modos**: (1) espectador/admin com visão global viva do mundo e (2) jogador em
+personagem com visão limitada por conhecimento e fog of war. Tudo em tempo real, sem
+criar segunda fonte de verdade: o motor continua dono do estado.
 
 ## Tasks
-1. **Endpoints REST de mapa** na `Api`, somente leitura: listar regiões, detalhar região,
-   detalhar nível filho, consultar camada. A API não escreve no mundo.
-2. **Camadas de visualização** como projeções sobre o mesmo grid: terreno, biomas, rios,
-   montanhas, recursos, estradas, fronteiras, reinos, cidades, aldeias, rotas, migrações,
-   conflitos, clima. Camada é leitura derivada — não duplica o estado do mundo.
-3. **Hierarquia de drill-down**: mundo → região → cidade → bairro → local → NPCs presentes.
-   Cada nível conhece o pai e lista os filhos; profundidade fixa e declarada.
-4. **Cliente React+TS**: renderiza o mapa, troca de camada, seleciona célula/local e faz
-   drill-down até a lista de NPCs presentes.
-5. **Geração de tipos TS a partir do OpenAPI** (ADR-0003): os tipos do cliente são artefato
-   gerado, versionado, nunca escrito à mão.
-6. **Estender os scripts** `build.sh`, `lint.sh`, `test.sh` e `verify.sh` para o ramo web:
-   um comando só continua fechando o gate dos dois lados.
+1. **Read model espacial + eventos visuais**: projetar mundo/cidade/interior para leitura
+   (`mundo → região → cidade → distrito → prédio → interior`) e incluir presença/atividade
+   de NPC e eventos observáveis (conflito, trabalho, deslocamento, interação).
+2. **Camadas de visualização sobre o mesmo grid**: terreno, biomas, rios, montanhas,
+   recursos, estradas, fronteiras, reinos, cidades, aldeias, rotas, migrações, conflitos e
+   clima. Camada é leitura derivada; nunca duplica estado canônico.
+3. **Canal realtime**: expor stream por `WebSocket`/SSE com snapshot inicial + deltas
+   ordenados por tick para mapa global, cidade e interior; reconexão recebe catch-up
+   determinístico sem reescrever estado do mundo.
+4. **Resolução por foco da tela (freeze de escopo visual)**: no mapa-múndi, transmitir visão
+   simplificada (cidades + NPCs externos por LOD); ao entrar na cidade, subir detalhe da
+   cidade focada; ao entrar em prédio/interior, subir detalhe local máximo.
+5. **Modo espectador/admin**: mapa-múndi animado com cidades visíveis, NPCs fora de cidade
+   como pontos coloridos e marcadores de eventos; drill-down contínuo até interior.
+6. **Modo personagem (jogável)**: movimento point-and-click e W/A/S/D, limitado ao que o
+   personagem conhece; fog of war por célula/ambiente visitado, com override administrativo.
+7. **Interiores e atividade**: entrar/sair de casas e prédios, renderizar entidades e
+   atividade em andamento (trabalho, conversa, conflito, deslocamento) com sinais visuais.
+8. **Aparência inicial de NPC (token 2D)**: cada NPC usa um token circular composto
+   dinamicamente (SVG/camadas equivalentes) a partir de biblioteca de partes visuais
+   versionada (pele, cabelo, roupa, profissão/acessório, variações por idade/estado), com
+   mapeamento determinístico derivado do estado canônico do NPC.
+9. **Cliente React + TypeScript**: manter o cliente web da fase em React+TS com renderers por
+   camada e por escopo (mundo/cidade/interior).
+10. **Contrato cliente-servidor**: comandos de input do jogador viram intenção validada no
+   servidor; tipos TS seguem OpenAPI gerado; scripts `build/lint/test/verify` cobrem backend
+   + web no mesmo gate.
 
 ## Critérios de verificação
-- **Tipos gerados não divergem do DTO**: `verify.sh` regenera os tipos TS a partir do
-  OpenAPI e roda `git diff --exit-code` sobre o diretório gerado. Alterar um DTO sem
-  regenerar reprova o gate — sem depender de alguém lembrar de rodar o gerador.
-- **Nenhuma rota de mapa altera o mundo**: o teste enumera as rotas via `EndpointDataSource`,
-  chama **cada uma** com payload sintético e compara o hash canônico antes/depois. O teste
-  **falha se alguma rota enumerada não estiver na lista coberta** — rota nova sem cobertura
-  reprova, em vez de passar despercebida.
+- **Sem escrita pelo canal visual**: para todos os endpoints/handlers de visualização e
+  stream enumerados por reflexão, chamadas de leitura e subscribe/unsubscribe mantêm hash
+  canônico idêntico antes/depois.
+- **Realtime cobre atividade real**: para cada atividade/evento declarado no catálogo visual,
+  o teste injeta cenário determinístico e exige delta emitido + renderer registrado. Item
+  novo no catálogo sem emissão ou render reprova.
 - **Toda camada declarada é navegável**: o teste enumera o catálogo de camadas e exige, para
-  cada uma, endpoint respondendo e renderer registrado no cliente. Camada nova sem os dois
+  cada uma, endpoint/stream respondendo e renderer React registrado. Camada nova sem ambos
   reprova.
-- **Drill-down é total**: para **todos** os NPCs vivos do cenário de teste (não amostra),
-  sobe-se local → bairro → cidade → região → mundo sem encontrar pai nulo.
-- **O gate do ramo web sabe reprovar**: os mutantes da Fase 0 ganham um irmão no lado web —
-  um teste de cliente com assert invertido faz `bash scripts/verify.sh` sair ≠ 0.
+- **Modo espectador vê o mundo inteiro**: no mesmo tick, espectador recebe cidades, NPCs
+  externos e eventos ativos sem filtro de descoberta.
+- **Modo personagem respeita conhecimento**: com mesma seed e mesma posição, jogador só recebe
+  células/interiores descobertos; admin override libera visão total sem alterar estado social
+  ou econômico do mundo.
+- **Escopo visual sobe e desce por foco**: quando o cliente muda mapa-múndi → cidade → interior,
+  o stream muda de resolução exatamente nesses níveis; ao sair, rebaixa resolução sem pausar o
+  avanço global do mundo.
+- **Entrada em prédio e interior são navegáveis**: para todos os prédios acessíveis do cenário
+  de teste, fluxo exterior → interior → exterior preserva identidade de entidades e contexto.
+- **Token visual é estável e reprodutível**: com o mesmo snapshot + seed, o mesmo NPC recebe o
+  mesmo token em qualquer cliente; mudança de estado relevante (ex.: faixa etária, profissão,
+  condição física) altera somente as camadas previstas no catálogo visual.
+- **Entrada de movimento é causal e validada**: comandos de movimento inválidos são rejeitados
+  com erro explícito e hash inalterado; comandos válidos produzem mudança espacial observável
+  no stream do próprio personagem.
 
 ## Fora do escopo
-O **objetivo #2** (selecionar um NPC vivo e ver identidade, família, profissão, atributos,
-rotina e memórias) é atendido por CLI/API na **Fase 8** e **não depende desta fase**. Se
-esta fase deslizar indefinidamente, nenhum objetivo técnico fica em aberto.
-Escrita pela UI (a API de mapa é leitura), cliente 3D, personagens, voz e animação são
-Fase 14. Regras de simulação novas não entram aqui: se a visualização revelar uma mecânica
-faltando, ela vira task da fase dona da mecânica.
+Cliente 3D, voz, lip sync e pipeline Unreal continuam na Fase 14 (adiada). Esta fase não
+introduz mecânica social/econômica nova: só expõe visualmente o que o motor já produz.
+Qualquer ausência de mecânica revelada pela UI volta como task da fase dona da mecânica.
 
 ## Ver também
-[phase-02-geography.md](phase-02-geography.md) ·
 [phase-08-cities.md](phase-08-cities.md) ·
+[phase-14-unreal.md](phase-14-unreal.md) ·
 [world-map.md](../domain/world-map.md) ·
-[ADR-0003](../adr/ADR-0003-cliente-web-react-ts.md) ·
+[simulation-lod.md](../domain/simulation-lod.md) ·
+[rules/simulation-determinism.md](../../rules/simulation-determinism.md) ·
 [rules/eval-criteria.md](../../rules/eval-criteria.md)
