@@ -1,4 +1,5 @@
 using LivingWorld.Domain;
+using LivingWorld.Simulation.History;
 
 namespace LivingWorld.Simulation;
 
@@ -16,6 +17,7 @@ public static class NpcDeath
         npc.Die(world.CurrentDate);
         world.AliveNpcIndex.OnDied(npc);
         ctx.LogEvent(kind, npc.Id.Value.ToString());
+        FactToReportConversionScheduler.OnWitnessDied(npc.Id, world, ctx);
 
         if (npc.Household is not { } householdId) return;
 

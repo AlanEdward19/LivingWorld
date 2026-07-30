@@ -98,6 +98,10 @@ public sealed class WorldState
 
     [Canonical] public long NextFactId => _nextFactId;
 
+    private long _nextReportId;
+
+    [Canonical] public long NextReportId => _nextReportId;
+
     [Volatile] public AliveNpcIndex AliveNpcIndex { get; private set; }
 
     private readonly List<Npc> _npcWakeBatch = [];
@@ -302,7 +306,8 @@ public sealed class WorldState
         PerfRules? perfRules = null,
         HistoryRules? historyRules = null,
         IReadOnlyList<Fact>? facts = null,
-        long nextFactId = 0)
+        long nextFactId = 0,
+        long nextReportId = 0)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -344,6 +349,7 @@ public sealed class WorldState
         HistoryRules = historyRules ?? HistoryRules.Disabled;
         _facts = (facts ?? []).ToList();
         _nextFactId = nextFactId;
+        _nextReportId = nextReportId;
         AliveNpcIndex = AliveNpcIndex.RebuildFrom(this);
         ColdArchive = new ColdTierArchive();
     }
@@ -440,6 +446,8 @@ public sealed class WorldState
     public Building? FindBuilding(BuildingId id) => _buildingById.GetValueOrDefault(id);
 
     internal FactId NextFactIdAndAdvance() => new(_nextFactId++);
+
+    internal ReportId NextReportIdAndAdvance() => new(_nextReportId++);
 
     internal void AddFact(Fact fact) => _facts.Add(fact);
 

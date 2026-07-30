@@ -1,5 +1,6 @@
 using LivingWorld.Domain;
 
+using LivingWorld.Simulation.History;
 using LivingWorld.Simulation.Population;
 
 namespace LivingWorld.Simulation;
@@ -42,6 +43,7 @@ public static class ScenarioRunner
         new ExampleCounterSystem(TickFrequency.Monthly),
         new ExampleCounterSystem(TickFrequency.Yearly),
         new MortalitySystem(),
+        new FactToReportConversionScheduler(),
         new ColdArchiveSystem(),
         new CourtshipSystem(),
         new NatalitySystem(),

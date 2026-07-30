@@ -2,6 +2,7 @@ using System.Text.Json;
 using LivingWorld.Domain;
 using LivingWorld.Infrastructure;
 using LivingWorld.Simulation;
+using LivingWorld.Simulation.History;
 using LivingWorld.Workers;
 using Microsoft.EntityFrameworkCore;
 
@@ -33,6 +34,15 @@ if (args.Length == 3 && args[0] == "history-living-memory-digest")
     var seed = ulong.Parse(args[1]);
     var ticks = long.Parse(args[2]);
     Console.WriteLine(HistorySimulationDigest.LivingMemoryDigest(seed, ticks, HistoryRules.Default));
+    return 0;
+}
+
+// Fase 10: digest de distorção para teste de dois processos.
+// `dotnet <dll> history-distortion-digest <seed>`.
+if (args.Length == 2 && args[0] == "history-distortion-digest")
+{
+    var seed = ulong.Parse(args[1]);
+    Console.WriteLine(HistoryDistortionDigest.Compute(seed, HistoryRules.Default));
     return 0;
 }
 

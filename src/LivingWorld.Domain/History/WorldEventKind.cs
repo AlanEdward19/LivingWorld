@@ -40,4 +40,8 @@ public enum WorldEventKind
     /// <summary>Fato registrado no esqueleto (Fase 10, HIST-01) — meta-evento quando o
     /// <see cref="Fact"/> entra na coleção canônica.</summary>
     FactRecorded,
+
+    /// <summary>Fato convertido em relato hop-0 (Fase 10, HIST-03) — payload
+    /// <c>reportId|factId|communityId</c>.</summary>
+    ReportConverted,
 }

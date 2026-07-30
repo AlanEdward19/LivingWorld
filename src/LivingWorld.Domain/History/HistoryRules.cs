@@ -75,7 +75,7 @@ public sealed record HistoryRules(
         new Dictionary<TransmissionMediumType, MediumFidelity>
         {
             [TransmissionMediumType.LivingMemory] = new(0.0, 0, DeathConditionType.WitnessExtinct),
-            [TransmissionMediumType.OralTradition] = new(0.15, 4, DeathConditionType.LineageExtinct),
+            [TransmissionMediumType.OralTradition] = new(0.25, 4, DeathConditionType.LineageExtinct),
             [TransmissionMediumType.Song] = new(0.20, 6, DeathConditionType.Decay),
             [TransmissionMediumType.Book] = new(0.08, 20, DeathConditionType.Decay),
             [TransmissionMediumType.Monument] = new(0.05, 50, DeathConditionType.StateCollapse),

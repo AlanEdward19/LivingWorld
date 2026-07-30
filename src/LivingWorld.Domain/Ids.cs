@@ -56,3 +56,10 @@ public readonly record struct FactId(long Value)
 {
     public override string ToString() => $"fact-{Value}";
 }
+
+/// <summary>Relato histórico canônico (Fase 10, HIST-01 AC4) — id monotônico, mesmo molde de
+/// <see cref="FactId"/>.</summary>
+public readonly record struct ReportId(long Value)
+{
+    public override string ToString() => $"report-{Value}";
+}

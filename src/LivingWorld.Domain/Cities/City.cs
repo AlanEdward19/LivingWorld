@@ -38,6 +38,12 @@ public sealed class City
     /// cref="ConstructionSystem"/> só avança a cabeça da fila.</summary>
     public IReadOnlyList<ConstructionProject> ConstructionQueue => _constructionQueue;
 
+    private readonly List<ReportState> _canonSlots;
+
+    /// <summary>Relatos vivos no cânone desta comunidade (Fase 10, HIST-08) — no máximo
+    /// <see cref="HistoryRules.CanonSizePerCommunity"/>.</summary>
+    public IReadOnlyList<ReportState> CanonSlots => _canonSlots;
+
     // SPEC_DEVIATION (Fase 8, T13): SettlementFoundingSystem agenda um evento único (mesmo padrão
     // de MortalitySystem.SchedulePlannedDeath) e não pode agendar duas vezes pra mesma cidade
     // enquanto o primeiro ainda não disparou — sem um marcador, o Monthly Tick reagendaria todo
@@ -52,7 +58,8 @@ public sealed class City
         AggregatePopulationPool aggregatePool,
         IReadOnlyDictionary<ResourceType, long>? stock = null,
         IReadOnlyList<ConstructionProject>? constructionQueue = null,
-        long? foundingScheduledAtTick = null)
+        long? foundingScheduledAtTick = null,
+        IReadOnlyList<ReportState>? canonSlots = null)
     {
         Id = id;
         Location = location;
@@ -61,7 +68,14 @@ public sealed class City
         AggregatePool = aggregatePool;
         _stock = new Dictionary<ResourceType, long>(stock ?? new Dictionary<ResourceType, long>());
         _constructionQueue = (constructionQueue ?? []).ToList();
+        _canonSlots = (canonSlots ?? []).ToList();
         FoundingScheduledAtTick = foundingScheduledAtTick;
+    }
+
+    public void SetCanonSlots(IReadOnlyList<ReportState> slots)
+    {
+        _canonSlots.Clear();
+        _canonSlots.AddRange(slots);
     }
 
     public void MarkFoundingScheduled(long tick) => FoundingScheduledAtTick = tick;

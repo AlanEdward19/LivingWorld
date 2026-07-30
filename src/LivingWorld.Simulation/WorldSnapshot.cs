@@ -92,13 +92,16 @@ public static class WorldSnapshot
         var nextFactId = node.TryGetPropertyValue("NextFactId", out var nextFactNode) && nextFactNode is not null
             ? nextFactNode.GetValue<long>()
             : 0L;
+        var nextReportId = node.TryGetPropertyValue("NextReportId", out var nextReportNode) && nextReportNode is not null
+            ? nextReportNode.GetValue<long>()
+            : 0L;
 
         return new WorldState(
             calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
             lifeStageRules, rngStreams, pendingEvents, nextEventId, exampleCounts, npcs, households, nextNpcId,
             nextHouseholdId, branchId, moneyMinted, moneyDestroyed, economyRules, economyCatalog, workplaces,
             nextWorkplaceId, familyRules, relationships, cities, buildings, nextBuildingId, cityRules, cityCatalog,
-            perfRules, historyRules, facts, nextFactId);
+            perfRules, historyRules, facts, nextFactId, nextReportId);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)

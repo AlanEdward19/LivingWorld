@@ -25,6 +25,7 @@ public static class SignificanceCalculator
             [WorldEventKind.CourtshipStarted] = 0.20,
             [WorldEventKind.CourtshipRejected] = 0.15,
             [WorldEventKind.FactRecorded] = 1.0,
+            [WorldEventKind.ReportConverted] = 0.5,
         };
 
     /// <summary>Significância determinística a partir do kind, participantes e escopo.</summary>
