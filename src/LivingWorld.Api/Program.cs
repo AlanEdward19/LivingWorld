@@ -1,3 +1,5 @@
+using LivingWorld.AI;
+using LivingWorld.Api;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
 
@@ -20,6 +22,26 @@ app.MapGet("/npcs/{id:long}", (long id) =>
     return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound();
 });
 
+// Fase 11, T7: sessão/efeitos vivem só em memória do processo (mesmo espírito do `world`
+// acima) — nunca fazem parte do snapshot/hash canônico do mundo.
+var sessions = new ConversationSessionStore();
+var effects = new ConversationEffectsApplier();
+var orchestrator = new ConversationOrchestrator(
+    sessions, effects, new FakeLlmProvider(),
+    knownEmotions: ["neutral", "concerned", "happy", "annoyed", "curious", "afraid"],
+    budgetPerInteraction: TimeSpan.FromSeconds(5));
+app.MapConversationEndpoints(world, sessions, orchestrator);
+
+// ponytail: hook só para WebApplicationFactory<Program> em teste (mesmo `Program` parcial já
+// usado por NpcEndpointTests) — sem isso, o teste de integração não tem como forçar um NPC
+// ocupado/morto antes de bater no endpoint, já que `world`/`sessions` são locais de topo.
+Program.TestWorld = world;
+Program.TestSessions = sessions;
+
 app.Run();
 
-public partial class Program;
+public partial class Program
+{
+    public static WorldState? TestWorld;
+    public static ConversationSessionStore? TestSessions;
+}
