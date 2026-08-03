@@ -8,7 +8,18 @@ public sealed class FakeLlmProvider : ILlmProvider
 
     public Task<LlmResponse> GetResponseAsync(LlmContext context, CancellationToken cancellationToken = default)
     {
-        ulong hash = StableHash(context.NpcKnowledgeSummary + "" + context.PlayerUtterance);
+        // Fase 11 (LLM-04/05): os campos novos de LlmContext (crença, memória, ações
+        // permitidas, sessão) entram no hash também — senão dois contextos que só divergem
+        // neles produziriam a mesma saída, quebrando a garantia "entradas distintas dão saídas
+        // distintas" do resumo da classe.
+        string extra = string.Concat(
+            string.Join("", context.BeliefFacts ?? []),
+            string.Join("", (context.RelevantMemories ?? []).Select(m => $"{m.Event}:{m.Importance}")),
+            string.Join("", context.AllowedActions ?? []),
+            context.SessionId?.ToString() ?? "",
+            context.SessionOpenedAtTick?.ToString() ?? "");
+
+        ulong hash = StableHash(context.NpcKnowledgeSummary + "" + context.PlayerUtterance + extra);
 
         var emotion = Emotions[(int)(hash % (ulong)Emotions.Length)];
         var intent = context.AllowedIntents.Count == 0
