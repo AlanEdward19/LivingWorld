@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\LivingWorld.Domain\LivingWorld.Domain.csproj" />
+    <ProjectReference Include="..\LivingWorld.AI\LivingWorld.AI.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
