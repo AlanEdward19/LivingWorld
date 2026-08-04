@@ -41,9 +41,11 @@ Implement these tasks com a skill `tlc-spec-driven` ativa (fluxo Execute complet
 ## Task Breakdown
 ### T1: Criar contratos narrativos estruturados
 **What**: introduzir `NarrativeClaim`, `NarrativeDraft`, `NarrativeDocument` e IDs, sem texto livre fora de claim. **Where**: `src/LivingWorld.Domain/Narrative/*.cs`, `src/LivingWorld.Simulation/Narrative/*.cs`. **Depends on**: None. **Reuses**: padrão `record` + IDs tipados. **Requirement**: NARR-01..04. **Tests**: unit. **Gate**: Quick.
+**Status**: ✅ Complete (commit b990d3b) — `NarrativeId` + `NarrativeClaim`/`NarrativeDraft`/`NarrativeDocument` em `src/LivingWorld.Domain/Narrative/`; NARR-02..04 (validação de ancoragem) seguem para T3 (`ClaimAnchorValidator`). Nenhum arquivo criado em `src/LivingWorld.Simulation/Narrative/` — não havia lógica de simulação a introduzir neste task.
 
 ### T2: Implementar `WindowedHistoryAggregator`
 **What**: agregar eventos por local/período e ordenar por significância (K-top) antes de renderizar. **Where**: `src/LivingWorld.Simulation/Narrative/WindowedHistoryAggregator.cs`. **Depends on**: T1. **Reuses**: consultas/índices de história da fase 10. **Requirement**: NARR-05..07. **Tests**: integration. **Gate**: Quick.
+**Status**: ✅ Complete — `TopFacts(world, location, periodStartTick, periodEndTick, topK)` reusa `HistoryIndex.ByYear` (evita full scan de `WorldState.Facts`), filtra por tick/local e ordena por `Fact.Significance` decrescente (desempate por `FactId`).
 
 ### T3: Implementar `ClaimAnchorValidator`
 **What**: validar `eventIds` não vazios e bloquear nome/número órfão no texto final. **Where**: `src/LivingWorld.Simulation/Narrative/ClaimAnchorValidator.cs`. **Depends on**: T2. **Requirement**: NARR-01..04. **Tests**: unit + integration. **Gate**: Full.
