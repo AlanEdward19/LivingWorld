@@ -77,6 +77,10 @@ Implement these tasks com a skill `tlc-spec-driven` ativa (fluxo Execute complet
 
 ### T10: Fechamento de determinismo e custo
 **What**: provar llm-on/off com mesmos `eventIds`/cadeia de distorção, leitura não altera hash, transmissão altera hash, e sistema narrativo fora do tick diário. **Where**: `tests/LivingWorld.Tests/Narrative/*Scenario*Tests.cs`. **Depends on**: T9. **Requirement**: NARR-05..12 + sucesso da fase. **Tests**: integration + scenario curto + 2-processos quando aplicável. **Gate**: Full.
+**Status**: ✅ Complete (commit cd693c2) — `NarrativeScenarioTests.cs` fecha, ponta a ponta (não só no nível de unidade de `NarrativeRenderer` já coberto em T4): llm-on/off produzem `eventIds`/texto de claim idênticos a partir de fatos agregados reais (NARR-12); mesma seed + mesmos fatos reproduzem crônica, biografia e distância de crença idênticas entre duas instâncias de `WorldState` independentes (NARR-09..11); leitura (crônica/biografia/crença/exposição reprovada) nunca altera `WorldSnapshot.CanonicalHash`, enquanto registrar um novo salto de relato ou assimilar uma crença aceita altera (edge case do spec.md); `ChronicleGenerationSystem` só publica em fronteira de mês ao longo de uma corrida curta de 3 meses, nunca em tick diário (critério de sucesso de custo). Determinismo 2-processos avaliado como não aplicável e documentado no comentário da classe: nenhum código desta fase itera `Dictionary`/`HashSet` para produzir efeito no mundo, e o único risco de RNG entre processos (distorção) já é coberto pelos digests de Fase 10. Gate rodado como `bash scripts/test.sh --filter "FullyQualifiedName~Narrative&Category!=Scenario"` por decisão explícita do usuário nesta sessão (não `scripts/verify.sh`) — 72 passed, 0 failed.
+
+## Fase 12 (Narrativa) — status final
+Todas as tasks T1-T10 completas. Verifier deliberadamente pulado nesta sessão por instrução explícita do usuário (fim de fase e fim da lista de tasks da feature); o usuário roda a regressão completa e decide separadamente se invoca o Verifier.
 
 ## Diagram-Definition Cross-Check
 | Task | Depends On (body) | Diagram | Status |
