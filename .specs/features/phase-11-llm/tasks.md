@@ -40,35 +40,37 @@ Implement these tasks com a skill `tlc-spec-driven` ativa (fluxo Execute complet
 `T8 -> T9 -> T10`
 
 ## Task Breakdown
-### T1: Criar `LlmRules` e política de disponibilidade social
+### T1: Criar `LlmRules` e política de disponibilidade social — ✅ done (1156d9a)
 **What**: regra de aceite/recusa + compatibilidade com ação corrente (não parar automaticamente). **Where**: `src/LivingWorld.Domain/Llm/LlmRules.cs`, `src/LivingWorld.Simulation/Llm/ConversationAvailabilityPolicy.cs`. **Depends on**: None. **Reuses**: `BehaviorDecisionSystem`. **Requirement**: LLM-01, LLM-02. **Tests**: unit. **Gate**: Quick.
 
-### T2: Criar sessão de conversa e ciclo start/send/end
+### T2: Criar sessão de conversa e ciclo start/send/end — ✅ done (8265ae8)
 **What**: `ConversationSession`, store em memória canônica/volátil conforme design, expiração por scheduler. **Where**: `src/LivingWorld.Simulation/Llm/ConversationSession*.cs`. **Depends on**: T1. **Reuses**: `EventScheduler`, `TickContext`. **Requirement**: LLM-03. **Tests**: integration. **Gate**: Quick.
 
-### T3: Expandir contrato de contexto LLM sem quebrar fronteira
+### T3: Expandir contrato de contexto LLM sem quebrar fronteira — ✅ done (d903a99)
 **What**: ampliar `LlmContext`/DTO para crença, memória relevante, allowed actions e metadados de sessão. **Where**: `src/LivingWorld.AI/ILlmProvider.cs`, `FakeLlmProvider.cs`, `NullLlmProvider.cs`. **Depends on**: T2. **Reuses**: contrato `ILlmProvider`. **Requirement**: LLM-04, LLM-05. **Tests**: unit. **Gate**: Quick.
 
-### T4 [P]: Implementar `NpcBeliefQuery` + `LlmContextAssembler`
+### T4 [P]: Implementar `NpcBeliefQuery` + `LlmContextAssembler` — ✅ done (337755c)
 **What**: montar prompt apenas com crença/memória do NPC, nunca verdade global. **Where**: `src/LivingWorld.Simulation/History/NpcBeliefQuery.cs`, `src/LivingWorld.Simulation/Llm/LlmContextAssembler.cs`. **Depends on**: T3. **Requirement**: LLM-05, LLM-06. **Tests**: integration. **Gate**: Quick.
 
-### T5 [P]: Implementar `LlmResponseValidator`
+### T5 [P]: Implementar `LlmResponseValidator` — ✅ done (273d94a) — gap: sem log real de violação, só resultado tipado (sem infra de log ainda)
 **What**: parse DTO -> schema -> `ProposedActions subset AllowedActions`; rejeição total + log + fallback trigger. **Where**: `src/LivingWorld.Simulation/Llm/LlmResponseValidator.cs`. **Depends on**: T3. **Requirement**: LLM-07, LLM-08. **Tests**: unit. **Gate**: Quick.
 
-### T6: Implementar `ConversationOrchestrator` + efeitos válidos
+### T6: Implementar `ConversationOrchestrator` + efeitos válidos — ✅ done (b793009)
 **What**: pipeline start/send/end, aplicação de efeitos permitidos, fallback determinístico sem fato canônico novo. **Where**: `src/LivingWorld.Simulation/Llm/ConversationOrchestrator.cs`, `ConversationEffectsApplier.cs`, `FallbackResponder.cs`. **Depends on**: T4, T5. **Requirement**: LLM-09, LLM-10, LLM-11. **Tests**: integration. **Gate**: Full.
 
-### T7: Expor endpoints de conversa na API
+### T7: Expor endpoints de conversa na API — ✅ done (276dbe9)
 **What**: endpoints `POST /conversations/start|send|end` com respostas de aceite/recusa e erros esperados. **Where**: `src/LivingWorld.Api/Program.cs` (+ handlers). **Depends on**: T6. **Reuses**: padrão endpoint de `NpcInspectionQuery`. **Requirement**: LLM-01..03. **Tests**: integration. **Gate**: Full.
 
-### T8: Segurança Truth vs Belief + corpus de injeção
+### T8: Segurança Truth vs Belief + corpus de injeção — ✅ done (5375949), corpus 22 entradas. Fix pós-hoc: f053296 (Simulation->AI violation corrigida)
 **What**: testes por reflexão cobrindo handlers de jogo + corpus versionado `tests/fixtures/prompt-injection/*.json` com asserts objetivos e par de mutação. **Where**: `tests/LivingWorld.Tests/Llm/*Security*Tests.cs`, `tests/fixtures/prompt-injection/`. **Depends on**: T7. **Requirement**: LLM-12, LLM-14, LLM-15. **Tests**: unit + arquitetura. **Gate**: Full.
 
-### T9: Bloqueio de egress de rede no gate
-**What**: guard de runtime para falhar qualquer saída de rede em testes de verify. **Where**: `tests/LivingWorld.Tests/Llm/NetworkEgressGuardTests.cs` (+ wiring de teste). **Depends on**: T8. **Requirement**: LLM-14. **Tests**: integration. **Gate**: Full.
+### T9: Bloqueio de egress de rede no gate — ✅ done (9fc1492)
+
+### T9b: Modelo de memória do NPC + `Recall` ponderado (gap descoberto na execução — roadmap itens 1-2, não existia task própria)
+**What**: memória por NPC nas 5 categorias (operacional/episódica/semântica/social/cultural), cada registro com importância (0-100), tick de origem, participantes e local. `Recall(npc, query, n)` pontua por importância + recência + relevância (pesos declarados em `LlmRules`, T1) e desempata por ID de memória — determinístico entre execuções do mesmo mundo semeado. Split canônico/volátil (ADR-0014, padrão já usado em `WorldState.cs` com `[Canonical]`/`[Volatile]`): registros com importância >= limiar do cenário são canônicos (entram no hash canônico); abaixo do limiar são voláteis (compactáveis livremente, fora do hash canônico) — é essa separação que torna T10 possível sem tocar hash canônico. Retrofit: `LlmContextAssembler` (T4, já commitado) hoje sempre manda `RelevantMemories: null` — passa a chamar `Recall` de verdade. **Where**: modelo/armazenamento em `src/LivingWorld.Domain/Llm/` ou local que fizer sentido junto ao resto de memória do domínio (decidir olhando padrão de `Fact`/`Relationship` em `WorldState.cs`), `Recall` em `src/LivingWorld.Simulation/Llm/` ou `History/`, retrofit em `src/LivingWorld.Simulation/Llm/LlmContextAssembler.cs`. **Requirement**: LLM-04..06 (spec.md story "Contexto por crença e memória do NPC"). **Tests**: unit + integration — `Recall(npc, query, 5)` devolve as mesmas 5 memórias, mesma ordem, em duas execuções do mesmo mundo semeado (critério de verificação do spec). **Gate**: full (filtrado).
 
 ### T10: Job de compactação de memória
-**What**: compactar baixa importância em batch, preservar IDs >= limiar e hash canônico. **Where**: `src/LivingWorld.Simulation/Llm/MemoryCompactionJob.cs`, `src/LivingWorld.Workers/Program.cs` (wiring). **Depends on**: T9. **Requirement**: LLM-16, LLM-17, LLM-18, LLM-19. **Tests**: integration. **Gate**: Full.
+**What**: compactar baixa importância em batch, preservar IDs >= limiar e hash canônico. Depende do modelo real de memória criado em T9b (não do que T4 tinha antes). **Where**: `src/LivingWorld.Simulation/Llm/MemoryCompactionJob.cs`, `src/LivingWorld.Workers/Program.cs` (wiring). **Depends on**: T9b. **Requirement**: LLM-16, LLM-17, LLM-18, LLM-19. **Tests**: integration. **Gate**: Full.
 
 ## Diagram-Definition Cross-Check
 | Task | Depends On (body) | Diagram | Status |

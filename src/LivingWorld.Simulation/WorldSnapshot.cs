@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using LivingWorld.Domain;
+using LivingWorld.Domain.Llm;
 
 namespace LivingWorld.Simulation;
 
@@ -104,13 +105,23 @@ public static class WorldSnapshot
         var nextBookId = node.TryGetPropertyValue("NextBookId", out var nextBookNode) && nextBookNode is not null
             ? nextBookNode.GetValue<long>()
             : 0L;
+        var canonicalMemories = node.TryGetPropertyValue("CanonicalMemories", out var canonicalMemoriesNode) && canonicalMemoriesNode is not null
+            ? canonicalMemoriesNode.Deserialize<List<NpcMemory>>(JsonOptions)!
+            : [];
+        var volatileMemories = node.TryGetPropertyValue("VolatileMemories", out var volatileMemoriesNode) && volatileMemoriesNode is not null
+            ? volatileMemoriesNode.Deserialize<List<NpcMemory>>(JsonOptions)!
+            : [];
+        var nextMemoryId = node.TryGetPropertyValue("NextMemoryId", out var nextMemoryIdNode) && nextMemoryIdNode is not null
+            ? nextMemoryIdNode.GetValue<long>()
+            : 0L;
 
         return new WorldState(
             calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
             lifeStageRules, rngStreams, pendingEvents, nextEventId, exampleCounts, npcs, households, nextNpcId,
             nextHouseholdId, branchId, moneyMinted, moneyDestroyed, economyRules, economyCatalog, workplaces,
             nextWorkplaceId, familyRules, relationships, cities, buildings, nextBuildingId, cityRules, cityCatalog,
-            perfRules, historyRules, facts, nextFactId, nextReportId, reports, books, nextBookId);
+            perfRules, historyRules, facts, nextFactId, nextReportId, reports, books, nextBookId,
+            canonicalMemories, volatileMemories, nextMemoryId);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)

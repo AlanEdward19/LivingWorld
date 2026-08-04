@@ -1,4 +1,5 @@
 using LivingWorld.Domain;
+using LivingWorld.Domain.Llm;
 
 using LivingWorld.Simulation.History;
 using LivingWorld.Simulation.Population;
@@ -115,6 +116,21 @@ public sealed class WorldState
     [Canonical] public IReadOnlyList<Book> Books => _books;
 
     [Canonical] public long NextBookId => _nextBookId;
+
+    private readonly List<NpcMemory> _canonicalMemories;
+    private readonly List<NpcMemory> _volatileMemories;
+    private long _nextMemoryId;
+
+    /// <summary>Memórias de NPC (Fase 11, roadmap itens 1/2) com importância >= limiar do
+    /// cenário no momento em que foram registradas (ADR-0014) — alimenta <c>Recall</c> e o
+    /// prompt da LLM, por isso decide.</summary>
+    [Canonical] public IReadOnlyList<NpcMemory> CanonicalMemories => _canonicalMemories;
+
+    /// <summary>Memórias abaixo do limiar canônico — compactáveis livremente (T10, futuro) sem
+    /// tocar o hash canônico.</summary>
+    [Volatile] public IReadOnlyList<NpcMemory> VolatileMemories => _volatileMemories;
+
+    [Canonical] public long NextMemoryId => _nextMemoryId;
 
     [Volatile] public AliveNpcIndex AliveNpcIndex { get; private set; }
 
@@ -271,6 +287,8 @@ public sealed class WorldState
         _facts = [];
         _reports = [];
         _books = [];
+        _canonicalMemories = [];
+        _volatileMemories = [];
         _rng = new WorldRngRegistry(seed);
         _scheduler = new EventScheduler();
         _npcs = [];
@@ -329,7 +347,10 @@ public sealed class WorldState
         long nextReportId = 0,
         IReadOnlyList<ReportState>? reports = null,
         IReadOnlyList<Book>? books = null,
-        long nextBookId = 0)
+        long nextBookId = 0,
+        IReadOnlyList<NpcMemory>? canonicalMemories = null,
+        IReadOnlyList<NpcMemory>? volatileMemories = null,
+        long nextMemoryId = 0)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -375,6 +396,9 @@ public sealed class WorldState
         _reports = (reports ?? []).ToList();
         _books = (books ?? []).ToList();
         _nextBookId = nextBookId;
+        _canonicalMemories = (canonicalMemories ?? []).ToList();
+        _volatileMemories = (volatileMemories ?? []).ToList();
+        _nextMemoryId = nextMemoryId;
         AliveNpcIndex = AliveNpcIndex.RebuildFrom(this);
         HistoryIndex = HistoryIndex.RebuildFrom(this);
         ColdArchive = new ColdTierArchive();
@@ -531,6 +555,22 @@ public sealed class WorldState
                 return fact;
         }
         return null;
+    }
+
+    /// <summary>Único ponto de criação de <see cref="NpcMemory"/> (Fase 11, roadmap itens 1/2)
+    /// — a classificação canônico/volátil (ADR-0014) é decidida aqui, uma vez, contra
+    /// <paramref name="canonicalImportanceThreshold"/> (vem de <c>LlmRules</c> do cenário no
+    /// chamador, mesmo padrão de <c>ConversationAvailabilityPolicy</c>: a regra nunca mora em
+    /// <see cref="WorldState"/>, só o efeito de aplicá-la).</summary>
+    internal void AddNpcMemory(
+        NpcId ownerId, MemoryCategory category, string content, int importance, long originTick,
+        IReadOnlyList<NpcId> participants, CellCoord location, int canonicalImportanceThreshold)
+    {
+        var memory = new NpcMemory(_nextMemoryId++, ownerId, category, content, importance, originTick, participants, location);
+        if (importance >= canonicalImportanceThreshold)
+            _canonicalMemories.Add(memory);
+        else
+            _volatileMemories.Add(memory);
     }
 
     /// <summary>Deriva um <see cref="CityId"/> novo a partir do stream de RNG dedicado

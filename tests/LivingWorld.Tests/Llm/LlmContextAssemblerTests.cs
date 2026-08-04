@@ -1,4 +1,5 @@
 using LivingWorld.Domain;
+using LivingWorld.Domain.Llm;
 using LivingWorld.Simulation;
 using LivingWorld.Simulation.History;
 
@@ -52,5 +53,25 @@ public class LlmContextAssemblerTests
         Assert.Single(context.BeliefFacts!);
         Assert.DoesNotContain(fact.Payload, context.BeliefFacts![0]);
         Assert.DoesNotContain(fact.Payload, context.NpcKnowledgeSummary);
+    }
+
+    /// <summary>Fase 11, roadmap item 2: <c>RelevantMemories</c> não é mais sempre nulo — vem de
+    /// <see cref="MemoryRecall"/> sobre a memória real do próprio NPC.</summary>
+    [Fact]
+    public void Assemble_populates_relevant_memories_from_recall_instead_of_always_null()
+    {
+        var (world, _) = ScenarioRunner.Create(3);
+        var npc = world.Npcs[0];
+        world.AddNpcMemory(
+            npc.Id, MemoryCategory.Episodic, "festa da colheita na vila", importance: 70, originTick: 0,
+            participants: [npc.Id], location: npc.CurrentLocation, canonicalImportanceThreshold: 50);
+        var session = new ConversationSession(SessionId: 1, npc.Id, OpenedAtTick: 0, LastTurnTick: 0, IsActive: true);
+
+        var context = LlmContextAssembler.Assemble(
+            world, npc, session, playerUtterance: "colheita",
+            allowedIntents: ["greet"], allowedActions: ["greet"]);
+
+        Assert.NotNull(context.RelevantMemories);
+        Assert.Contains(context.RelevantMemories!, m => m.Event == "festa da colheita na vila" && m.Importance == 70);
     }
 }

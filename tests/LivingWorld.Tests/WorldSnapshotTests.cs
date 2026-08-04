@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using LivingWorld.Domain;
+using LivingWorld.Domain.Llm;
 using LivingWorld.Simulation;
 
 namespace LivingWorld.Tests;
@@ -96,6 +97,15 @@ public class WorldSnapshotTests
             Lost: false,
             LostAtTick: null,
             RediscoveredAtTick: null));
+        // Fase 11 (roadmap itens 1/2): força ao menos uma NpcMemory canônica e uma volátil — mesmo
+        // motivo do resto do arquivo (coleção vazia não tem folha primitiva pro mutador genérico
+        // perturbar sem quebrar a rehidratação tipada).
+        world.AddNpcMemory(
+            world.Npcs[0].Id, MemoryCategory.Episodic, "memoria canonica de teste", importance: 80, originTick: 0,
+            participants: [world.Npcs[0].Id], location: world.Npcs[0].CurrentLocation, canonicalImportanceThreshold: 50);
+        world.AddNpcMemory(
+            world.Npcs[0].Id, MemoryCategory.Operational, "memoria volatil de teste", importance: 10, originTick: 0,
+            participants: [world.Npcs[0].Id], location: world.Npcs[0].CurrentLocation, canonicalImportanceThreshold: 50);
         return world;
     }
 
