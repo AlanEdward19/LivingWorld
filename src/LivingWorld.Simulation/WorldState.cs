@@ -573,6 +573,20 @@ public sealed class WorldState
             _volatileMemories.Add(memory);
     }
 
+    /// <summary>Único ponto de mutação de <see cref="VolatileMemories"/> por compactação (Fase 11,
+    /// roadmap item 10, LLM-17..19, <c>MemoryCompactionJob</c>) — troca um grupo de memórias
+    /// voláteis por um resumo. Não passa por <see cref="AddNpcMemory"/>/<c>_nextMemoryId</c> de
+    /// propósito: <see cref="NextMemoryId"/> é <see cref="CanonicalAttribute"/> e compactação
+    /// precisa deixar o hash canônico intacto (spec.md, "hash canônico permanece idêntico"), por
+    /// isso <paramref name="replacement"/> reaproveita o <see cref="NpcMemory.Id"/> de uma das
+    /// memórias removidas em vez de tirar um id novo do contador compartilhado.</summary>
+    internal void ReplaceVolatileMemories(IReadOnlyList<long> idsToRemove, NpcMemory replacement)
+    {
+        var idSet = idsToRemove.ToHashSet();
+        _volatileMemories.RemoveAll(m => idSet.Contains(m.Id));
+        _volatileMemories.Add(replacement);
+    }
+
     /// <summary>Deriva um <see cref="CityId"/> novo a partir do stream de RNG dedicado
     /// <c>"city-founding"</c> (Fase 8, T5) — <c>Guid.NewGuid()</c> é banido em Domain/Simulation
     /// (rules/simulation-determinism.md); mesma seed produz sempre o mesmo <see cref="CityId"/>

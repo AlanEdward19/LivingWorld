@@ -3,6 +3,7 @@ using LivingWorld.Domain;
 using LivingWorld.Infrastructure;
 using LivingWorld.Simulation;
 using LivingWorld.Simulation.History;
+using LivingWorld.Simulation.Llm;
 using LivingWorld.Workers;
 using Microsoft.EntityFrameworkCore;
 
@@ -126,6 +127,18 @@ if (args.Length == 2 && args[0] == "inspect-npc")
     }
 
     Console.WriteLine(JsonSerializer.Serialize(result.Value));
+    return 0;
+}
+
+// Fase 11, roadmap item 10 (LLM-17..19): job de compactação de memória batch, fora do caminho
+// crítico do tick (`WorldClock`) — CLI separado, mesmo padrão de `hash`/`persist-resume`.
+// `dotnet <dll> compact-memory <seed>`.
+if (args.Length == 2 && args[0] == "compact-memory")
+{
+    var seed = ulong.Parse(args[1]);
+    var (world, _) = ScenarioRunner.Create(seed);
+    MemoryCompactionJob.Compact(world);
+    Console.WriteLine(WorldSnapshot.CanonicalHash(world));
     return 0;
 }
 
