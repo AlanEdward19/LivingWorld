@@ -49,6 +49,7 @@ Implement these tasks com a skill `tlc-spec-driven` ativa (fluxo Execute complet
 
 ### T3: Implementar `ClaimAnchorValidator`
 **What**: validar `eventIds` não vazios e bloquear nome/número órfão no texto final. **Where**: `src/LivingWorld.Simulation/Narrative/ClaimAnchorValidator.cs`. **Depends on**: T2. **Requirement**: NARR-01..04. **Tests**: unit + integration. **Gate**: Full.
+**Status**: ✅ Complete — `ValidateClaims` reprova/registra motivo de claim sem `EventIds` (NARR-02); `ValidateProse` bloqueia numeral/nome próprio no texto final sem origem em algum claim aprovado (NARR-03/04). Gate rodado como `bash scripts/test.sh --filter "FullyQualifiedName~Narrative&Category!=Scenario"` por decisão explícita do usuário nesta sessão (não `scripts/verify.sh`, apesar do nível Full na tabela).
 
 ### T4 [P]: Implementar renderer determinístico + fallback
 **What**: renderer por template como padrão e render LLM opcional sem alterar estrutura de claims. **Where**: `src/LivingWorld.Simulation/Narrative/NarrativeRenderer.cs`. **Depends on**: T3. **Reuses**: `ILlmProvider`, `NullLlmProvider`. **Requirement**: NARR-08, NARR-12. **Tests**: unit + integration. **Gate**: Quick.
