@@ -4,6 +4,7 @@ using LivingWorld.Api;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace LivingWorld.Tests.Llm;
 
@@ -11,20 +12,25 @@ namespace LivingWorld.Tests.Llm;
 /// <c>POST /conversations/start|send|end</c> — mesmo padrão de <c>NpcEndpointTests</c>
 /// (<c>WebApplicationFactory&lt;Program&gt;</c>). Cada teste usa um <c>NpcId</c> distinto (o
 /// mundo é compartilhado entre os testes da classe, via <c>IClassFixture</c>) para não
-/// interferir no estado de outro cenário.</summary>
+/// interferir no estado de outro cenário. <c>WorldState</c>/<c>ConversationSessionStore</c> são
+/// lidos do container de DI desta factory (registrados como singleton em <c>Program.cs</c>) —
+/// nunca de campos <c>static</c>, que seriam compartilhados entre a factory desta classe e a de
+/// <c>NpcEndpointTests</c> quando as duas rodam em paralelo.</summary>
 public class ConversationEndpointTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
+    private readonly WorldState _world;
+    private readonly ConversationSessionStore _sessions;
 
     public ConversationEndpointTests(WebApplicationFactory<Program> factory)
     {
         _factory = factory;
-        // Garante o host (e o hook Program.TestWorld/TestSessions) já inicializado.
-        _factory.CreateClient();
+        _world = factory.Services.GetRequiredService<WorldState>();
+        _sessions = factory.Services.GetRequiredService<ConversationSessionStore>();
     }
 
-    private static Npc NpcById(long id) =>
-        Program.TestWorld!.Npcs.First(n => n.Id == new NpcId(id));
+    private Npc NpcById(long id) =>
+        _world.Npcs.First(n => n.Id == new NpcId(id));
 
     [Fact]
     public async Task Start_accepted_returns_200_with_a_session_id_and_keeps_the_npcs_current_action()
@@ -117,8 +123,8 @@ public class ConversationEndpointTests : IClassFixture<WebApplicationFactory<Pro
         var response = await client.PostAsJsonAsync("/conversations/end", new ConversationEndRequest(session.SessionId.Value));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.False(Program.TestSessions!.Find(session.SessionId.Value)!.IsActive);
-        Assert.Single(Program.TestSessions!.TurnsOf(session.SessionId.Value));
+        Assert.False(_sessions.Find(session.SessionId.Value)!.IsActive);
+        Assert.Single(_sessions.TurnsOf(session.SessionId.Value));
     }
 
     [Fact]
@@ -144,6 +150,6 @@ public class ConversationEndpointTests : IClassFixture<WebApplicationFactory<Pro
         var response = await client.PostAsJsonAsync("/conversations/send", new ConversationSendRequest(session.SessionId!.Value, "oi"));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.False(Program.TestSessions!.Find(session.SessionId.Value)!.IsActive);
+        Assert.False(_sessions.Find(session.SessionId.Value)!.IsActive);
     }
 }

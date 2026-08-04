@@ -5,9 +5,6 @@ using LivingWorld.Domain;
 using LivingWorld.Simulation;
 
 var builder = WebApplication.CreateBuilder(args);
-var app = builder.Build();
-
-app.MapGet("/", () => "Hello World!");
 
 // SPEC_DEVIATION (Fase 8, T15, CITY-06): design.md pede carregar "o snapshot mais recente" via
 // Infrastructure, mas hoje não existe nenhum snapshot persistido acessível a um host da API —
@@ -17,15 +14,27 @@ app.MapGet("/", () => "Hello World!");
 // endpoint; ler o snapshot real de disco é infraestrutura nova, fora do escopo desta task.
 var (world, _) = ScenarioRunner.Create(seed: 1);
 
+// Fase 11, T7: sessão/efeitos vivem só em memória do processo (mesmo espírito do `world`
+// acima) — nunca fazem parte do snapshot/hash canônico do mundo.
+var sessions = new ConversationSessionStore();
+
+// Registrados no DI (em vez de campos `static` em `Program`) para que cada instância de
+// `WebApplicationFactory<Program>` (uma por classe de teste) tenha seu próprio `world`/
+// `sessions` isolado — campos `static` eram compartilhados entre TODAS as factories do
+// processo e colidiam quando classes de teste rodavam em paralelo (xUnit default).
+builder.Services.AddSingleton(world);
+builder.Services.AddSingleton(sessions);
+
+var app = builder.Build();
+
+app.MapGet("/", () => "Hello World!");
+
 app.MapGet("/npcs/{id:long}", (long id) =>
 {
     var result = NpcInspectionQuery.Inspect(world, new NpcId(id));
     return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound();
 });
 
-// Fase 11, T7: sessão/efeitos vivem só em memória do processo (mesmo espírito do `world`
-// acima) — nunca fazem parte do snapshot/hash canônico do mundo.
-var sessions = new ConversationSessionStore();
 var effects = new ConversationEffectsApplier();
 var orchestrator = new ConversationOrchestrator(
     sessions, effects, new FakeLlmProvider(),
@@ -33,16 +42,6 @@ var orchestrator = new ConversationOrchestrator(
     budgetPerInteraction: TimeSpan.FromSeconds(5));
 app.MapConversationEndpoints(world, sessions, orchestrator);
 
-// ponytail: hook só para WebApplicationFactory<Program> em teste (mesmo `Program` parcial já
-// usado por NpcEndpointTests) — sem isso, o teste de integração não tem como forçar um NPC
-// ocupado/morto antes de bater no endpoint, já que `world`/`sessions` são locais de topo.
-Program.TestWorld = world;
-Program.TestSessions = sessions;
-
 app.Run();
 
-public partial class Program
-{
-    public static WorldState? TestWorld;
-    public static ConversationSessionStore? TestSessions;
-}
+public partial class Program;
