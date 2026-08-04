@@ -1,4 +1,4 @@
-using LivingWorld.AI;
+using LivingWorld.Domain.Llm;
 
 namespace LivingWorld.Simulation;
 

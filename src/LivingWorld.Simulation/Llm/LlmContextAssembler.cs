@@ -1,4 +1,4 @@
-using LivingWorld.AI;
+using LivingWorld.Domain.Llm;
 using LivingWorld.Domain;
 using LivingWorld.Simulation.History;
 

@@ -1,3 +1,5 @@
+using LivingWorld.Domain.Llm;
+
 namespace LivingWorld.AI;
 
 /// <summary>Provider determinístico e injetivo para testes e para o gate (ADR-0004): mesma

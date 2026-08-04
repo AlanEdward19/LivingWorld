@@ -1,5 +1,6 @@
 using LivingWorld.AI;
 using LivingWorld.Api;
+using LivingWorld.Domain.Llm;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
 

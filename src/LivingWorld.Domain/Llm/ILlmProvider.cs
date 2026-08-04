@@ -1,4 +1,4 @@
-namespace LivingWorld.AI;
+namespace LivingWorld.Domain.Llm;
 
 /// <summary>Contexto somente-leitura montado a partir do conhecimento do NPC — nunca do
 /// estado global (rules/llm-boundary.md). O provider não tem como escrever no mundo.

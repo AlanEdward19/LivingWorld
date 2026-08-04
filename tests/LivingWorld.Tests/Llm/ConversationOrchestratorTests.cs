@@ -1,5 +1,6 @@
 using LivingWorld.AI;
 using LivingWorld.Domain;
+using LivingWorld.Domain.Llm;
 using LivingWorld.Simulation;
 
 namespace LivingWorld.Tests.Llm;

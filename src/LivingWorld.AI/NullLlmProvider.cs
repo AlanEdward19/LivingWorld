@@ -1,3 +1,5 @@
+using LivingWorld.Domain.Llm;
+
 namespace LivingWorld.AI;
 
 /// <summary>Fallback quando não há provider real (ADR-0004): sempre o mesmo resultado neutro,

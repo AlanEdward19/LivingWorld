@@ -78,7 +78,7 @@ public class TruthVsBeliefBoundarySecurityTests
 
             public class MutatedHandler
             {
-                public object Handle() => new LivingWorld.AI.LlmContext("s", "u", new string[0]);
+                public object Handle() => new LivingWorld.Domain.Llm.LlmContext("s", "u", new string[0]);
             }
             """;
 
