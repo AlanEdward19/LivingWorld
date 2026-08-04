@@ -3,7 +3,7 @@
 Implement these tasks com a skill `tlc-spec-driven` ativa (fluxo Execute completo). Se a skill falhar, parar.
 ---
 **Design**: `.specs/features/phase-11-llm/design.md`  
-**Status**: Implementado (T1-T10 + T9b + fixes de fechamento), aguardando decisão sobre Verifier
+**Status**: Implementado (T1-T10 + T9b + fixes de fechamento + retrofit memória/relação real + OllamaLlmProvider). Regressivo completo verde (963 passed, 0 failed, 10 skipped). Verifier não disparado (decisão do usuário).
 ## Test Coverage Matrix
 > Generated from codebase + guidelines: `AGENTS.md`, `rules/llm-boundary.md`, `scripts/test.sh`, `scripts/verify.sh`.
 | Code Layer | Required Test Type | Coverage Expectation | Location Pattern | Run Command |
