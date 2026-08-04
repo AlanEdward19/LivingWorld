@@ -162,6 +162,12 @@ public static class ScenarioRunner
                 deltas[(type, axis)] = 0;
         deltas[(RelationshipEventType.Cohabitation, RelationshipAxis.Trust)] = 1.5;
         deltas[(RelationshipEventType.Cohabitation, RelationshipAxis.Affection)] = 1.0;
+        // Conversa validada com o jogador (Fase 11, retrofit T6, LLM-09 AC3): ganho leve de
+        // Trust/Affection por turno, menor que Cohabitation (convivência diária pesa mais que um
+        // único turno de diálogo); Respect/Debt ficam no default 0 (conversa não demonstra
+        // competência nem cria obrigação).
+        deltas[(RelationshipEventType.Conversation, RelationshipAxis.Trust)] = 0.5;
+        deltas[(RelationshipEventType.Conversation, RelationshipAxis.Affection)] = 0.5;
         return deltas;
     }
 

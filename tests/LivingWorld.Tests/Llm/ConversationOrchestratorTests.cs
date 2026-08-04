@@ -35,7 +35,7 @@ public class ConversationOrchestratorTests
         var map = ScenarioRunner.DefaultMap(seed: 1);
         var world = new WorldState(
             Calendar, seed: 1, map, ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
-            MakeNeedsRules(), MakeActionCatalog(), Stages);
+            MakeNeedsRules(), MakeActionCatalog(), Stages, familyRules: ScenarioRunner.DefaultFamilyRules);
         var location = new CellCoord(1, 1);
         var npc = new Npc(
             new NpcId(1), "npc", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30), new CultureId(1), location,
@@ -73,8 +73,11 @@ public class ConversationOrchestratorTests
         var turn = await orchestrator.SendMessageAsync(world, npc, session, "oi", ["greet"], [], ctx);
 
         Assert.NotEmpty(turn.Dialogue);
-        Assert.Contains(turn.Dialogue, effects.EpisodicMemoryOf(session.SessionId));
-        Assert.True(effects.PlayerTrustOf(npc.Id) > 0);
+        Assert.Contains(
+            world.CanonicalMemories.Concat(world.VolatileMemories),
+            m => m.OwnerId == npc.Id && m.Content == turn.Dialogue);
+        var relationship = world.Relationships[new RelationshipKey(npc.Id, ConversationEffectsApplier.PlayerNpcId)];
+        Assert.True(relationship.Trust > 0);
     }
 
     [Fact]
@@ -89,8 +92,8 @@ public class ConversationOrchestratorTests
         var turn = await orchestrator.SendMessageAsync(world, npc, session, "oi", ["greet"], [], ctx);
 
         Assert.Contains(npc.Name, turn.Dialogue);
-        Assert.Empty(effects.EpisodicMemoryOf(session.SessionId));
-        Assert.Equal(0, effects.PlayerTrustOf(npc.Id));
+        Assert.Empty(world.CanonicalMemories.Concat(world.VolatileMemories));
+        Assert.DoesNotContain(new RelationshipKey(npc.Id, ConversationEffectsApplier.PlayerNpcId), world.Relationships.Keys);
     }
 
     [Fact]
@@ -104,7 +107,7 @@ public class ConversationOrchestratorTests
         var turn = await orchestrator.SendMessageAsync(world, npc, session, "oi", ["greet"], [], ctx);
 
         Assert.Contains(npc.Name, turn.Dialogue);
-        Assert.Empty(effects.EpisodicMemoryOf(session.SessionId));
+        Assert.Empty(world.CanonicalMemories.Concat(world.VolatileMemories));
     }
 
     [Fact]
@@ -122,7 +125,7 @@ public class ConversationOrchestratorTests
         var turn = await orchestrator.SendMessageAsync(world, npc, session, "oi", ["greet"], [], ctx);
 
         Assert.Contains(npc.Name, turn.Dialogue);
-        Assert.Empty(effects.EpisodicMemoryOf(session.SessionId));
+        Assert.Empty(world.CanonicalMemories.Concat(world.VolatileMemories));
     }
 
     [Fact]

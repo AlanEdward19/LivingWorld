@@ -86,7 +86,7 @@ public class PromptInjectionSecurityTests
         Assert.DoesNotContain(response.ProposedActions.Single(), fixture.AllowedActions);
         Assert.Empty(turn.ProposedActions);
         Assert.Contains(npc.Name, turn.Dialogue);
-        Assert.Empty(effects.EpisodicMemoryOf(session.SessionId));
+        Assert.Empty(world.CanonicalMemories.Concat(world.VolatileMemories));
     }
 
     /// <summary>Par de mutação obrigatório (spec.md, story "Segurança de rede e injeção", AC3):
@@ -114,7 +114,9 @@ public class PromptInjectionSecurityTests
                 world, npc, session, fixture.PlayerUtterance, fixture.AllowedActions, fixture.AllowedActions, ctx);
 
             Assert.NotEmpty(turn.ProposedActions);
-            Assert.Contains(turn.Dialogue, effects.EpisodicMemoryOf(session.SessionId));
+            Assert.Contains(
+                world.CanonicalMemories.Concat(world.VolatileMemories),
+                m => m.OwnerId == npc.Id && m.Content == turn.Dialogue);
         }
         finally
         {

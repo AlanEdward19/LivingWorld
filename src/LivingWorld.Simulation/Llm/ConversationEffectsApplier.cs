@@ -1,32 +1,46 @@
 using LivingWorld.Domain;
+using LivingWorld.Domain.Llm;
 
 namespace LivingWorld.Simulation;
 
 /// <summary>Aplica só os efeitos permitidos de um turno já validado (Fase 11, LLM-09 AC3):
-/// memória episódica da conversa e relação NPC↔jogador. Mesmo espírito de <see
-/// cref="ConversationSession"/>/<see cref="ConversationSessionStore"/>: vive só em memória, nunca
-/// no snapshot/hash canônico do mundo — não existe ainda um "jogador" endereçável em <c>Npc</c>
-/// (<see cref="Relationship"/> é sempre NPC↔NPC), então a relação NPC↔jogador desta fase é um
-/// contador dedicado por <see cref="NpcId"/>, não uma gravação em <c>WorldState</c>.</summary>
+/// memória episódica canônica do NPC (<see cref="WorldState.AddNpcMemory"/>, T9b) e a relação
+/// NPC->jogador real (<see cref="Relationship"/>/<see cref="RelationshipKey"/>, Fase 7) — não mais
+/// uma lista efêmera por sessão nem um contador de trust dedicado (gap documentado do T6
+/// original). O jogador não é um <see cref="Npc"/> de verdade, então não tem <see cref="NpcId"/>
+/// próprio: <see cref="PlayerNpcId"/> é um sentinela reservado (<c>NpcId(-1)</c>) que nunca colide
+/// com um NPC real, já que <see cref="WorldState.NextNpcIdAndAdvance"/> só produz ids >= 0.</summary>
 public sealed class ConversationEffectsApplier
 {
-    private const double TrustDeltaPerValidatedTurn = 1.0;
-    private const double MaxPlayerTrust = 100.0;
+    /// <summary>Id sentinela do jogador em <see cref="Relationship"/>/<see cref="NpcMemory"/>.</summary>
+    public static readonly NpcId PlayerNpcId = new(-1);
 
-    private readonly Dictionary<long, List<string>> _episodicMemoryBySession = new();
-    private readonly Dictionary<NpcId, double> _playerTrustByNpc = new();
+    /// <summary>Importância fixa e conservadora (0-100) da memória episódica de um turno de
+    /// conversa — abaixo do limiar canônico default (<see
+    /// cref="LlmRules.CanonicalMemoryImportanceThreshold"/> = 50), então uma conversa cotidiana
+    /// nasce volátil (compactável) por padrão. A spec desta task não define uma fórmula de
+    /// significância do evento, então o valor é fixo em vez de inventada uma (decisão
+    /// documentada, não uma lacuna).</summary>
+    private const int ConversationMemoryImportance = 30;
 
-    public IReadOnlyList<string> EpisodicMemoryOf(long sessionId) =>
-        _episodicMemoryBySession.TryGetValue(sessionId, out var memory) ? memory : [];
+    private readonly LlmRules _llmRules;
 
-    public double PlayerTrustOf(NpcId npcId) => _playerTrustByNpc.GetValueOrDefault(npcId);
+    public ConversationEffectsApplier(LlmRules? llmRules = null) => _llmRules = llmRules ?? LlmRules.Default;
 
-    public void Apply(NpcId npcId, long sessionId, ValidatedLlmTurn turn)
+    public void Apply(WorldState world, Npc npc, long tick, ValidatedLlmTurn turn)
     {
-        if (!_episodicMemoryBySession.TryGetValue(sessionId, out var memory))
-            _episodicMemoryBySession[sessionId] = memory = [];
-        memory.Add(turn.Dialogue);
+        world.AddNpcMemory(
+            ownerId: npc.Id,
+            category: MemoryCategory.Episodic,
+            content: turn.Dialogue,
+            importance: ConversationMemoryImportance,
+            originTick: tick,
+            participants: [PlayerNpcId],
+            location: npc.CurrentLocation,
+            canonicalImportanceThreshold: _llmRules.CanonicalMemoryImportanceThreshold);
 
-        _playerTrustByNpc[npcId] = Math.Min(MaxPlayerTrust, PlayerTrustOf(npcId) + TrustDeltaPerValidatedTurn);
+        var relationship = world.GetOrCreateRelationship(new RelationshipKey(npc.Id, PlayerNpcId), tick);
+        relationship.ApplyEvent(RelationshipEventType.Conversation, world.FamilyRules);
+        relationship.MarkContact(tick);
     }
 }

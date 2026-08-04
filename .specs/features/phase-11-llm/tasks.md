@@ -3,7 +3,7 @@
 Implement these tasks com a skill `tlc-spec-driven` ativa (fluxo Execute completo). Se a skill falhar, parar.
 ---
 **Design**: `.specs/features/phase-11-llm/design.md`  
-**Status**: Draft
+**Status**: Implementado (T1-T10 + T9b + fixes de fechamento), aguardando decisão sobre Verifier
 ## Test Coverage Matrix
 > Generated from codebase + guidelines: `AGENTS.md`, `rules/llm-boundary.md`, `scripts/test.sh`, `scripts/verify.sh`.
 | Code Layer | Required Test Type | Coverage Expectation | Location Pattern | Run Command |
@@ -66,10 +66,10 @@ Implement these tasks com a skill `tlc-spec-driven` ativa (fluxo Execute complet
 
 ### T9: Bloqueio de egress de rede no gate — ✅ done (9fc1492)
 
-### T9b: Modelo de memória do NPC + `Recall` ponderado (gap descoberto na execução — roadmap itens 1-2, não existia task própria)
+### T9b: Modelo de memória do NPC + `Recall` ponderado (gap descoberto na execução — roadmap itens 1-2, não existia task própria) — ✅ done (de1d03f). Baseline de hash canônico regravado em 3a3548d (mudança legítima, ADR-0014). Gap remanescente: ConversationEffectsApplier (T6) ainda usa lista efêmera própria, não o NpcMemory novo — flag pra fechamento.
 **What**: memória por NPC nas 5 categorias (operacional/episódica/semântica/social/cultural), cada registro com importância (0-100), tick de origem, participantes e local. `Recall(npc, query, n)` pontua por importância + recência + relevância (pesos declarados em `LlmRules`, T1) e desempata por ID de memória — determinístico entre execuções do mesmo mundo semeado. Split canônico/volátil (ADR-0014, padrão já usado em `WorldState.cs` com `[Canonical]`/`[Volatile]`): registros com importância >= limiar do cenário são canônicos (entram no hash canônico); abaixo do limiar são voláteis (compactáveis livremente, fora do hash canônico) — é essa separação que torna T10 possível sem tocar hash canônico. Retrofit: `LlmContextAssembler` (T4, já commitado) hoje sempre manda `RelevantMemories: null` — passa a chamar `Recall` de verdade. **Where**: modelo/armazenamento em `src/LivingWorld.Domain/Llm/` ou local que fizer sentido junto ao resto de memória do domínio (decidir olhando padrão de `Fact`/`Relationship` em `WorldState.cs`), `Recall` em `src/LivingWorld.Simulation/Llm/` ou `History/`, retrofit em `src/LivingWorld.Simulation/Llm/LlmContextAssembler.cs`. **Requirement**: LLM-04..06 (spec.md story "Contexto por crença e memória do NPC"). **Tests**: unit + integration — `Recall(npc, query, 5)` devolve as mesmas 5 memórias, mesma ordem, em duas execuções do mesmo mundo semeado (critério de verificação do spec). **Gate**: full (filtrado).
 
-### T10: Job de compactação de memória
+### T10: Job de compactação de memória — ✅ done (aa2db6b)
 **What**: compactar baixa importância em batch, preservar IDs >= limiar e hash canônico. Depende do modelo real de memória criado em T9b (não do que T4 tinha antes). **Where**: `src/LivingWorld.Simulation/Llm/MemoryCompactionJob.cs`, `src/LivingWorld.Workers/Program.cs` (wiring). **Depends on**: T9b. **Requirement**: LLM-16, LLM-17, LLM-18, LLM-19. **Tests**: integration. **Gate**: Full.
 
 ## Diagram-Definition Cross-Check

@@ -13,13 +13,15 @@ public enum RelationshipAxis
 
 /// <summary>Catálogo fechado dos eventos nomeados que alteram uma <see cref="Relationship"/>
 /// (FAM-03) — cada um mapeia para um delta declarado em <see cref="FamilyRules"/>, nunca um
-/// literal solto em C#.</summary>
+/// literal solto em C#. <see cref="Conversation"/> (Fase 11, retrofit T6, LLM-09 AC3) é o único
+/// evento entre um NPC e o jogador — todos os demais são NPC↔NPC.</summary>
 public enum RelationshipEventType
 {
     Cohabitation,
     Betrayal,
     Help,
     Trade,
+    Conversation,
 }
 
 /// <summary>Os 6 fatores que compõem o score de atração de cortejo (FAM-06) — cada um

@@ -62,7 +62,7 @@ public sealed class ConversationOrchestrator
         if (!validation.IsValid)
             return FallbackResponder.Respond(npc);
 
-        _effects.Apply(npc.Id, session.SessionId, validation.Turn!);
+        _effects.Apply(world, npc, ctx.CurrentTick, validation.Turn!);
         return validation.Turn!;
     }
 }
