@@ -35,10 +35,22 @@ app.MapGet("/npcs/{id:long}", (long id) =>
     return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound();
 });
 
+// LLM_PROVIDER escolhe o provider real de diálogo (ADR-0016); default "fake" para não mudar
+// nenhum comportamento existente (gate/testes seguem sempre em FakeLlmProvider, T9).
+ILlmProvider llmProvider = builder.Configuration["LLM_PROVIDER"] switch
+{
+    "ollama" => new OllamaLlmProvider(new HttpClient()),
+    "null" => new NullLlmProvider(),
+    _ => new FakeLlmProvider(),
+};
+
 var effects = new ConversationEffectsApplier();
 var orchestrator = new ConversationOrchestrator(
-    sessions, effects, new FakeLlmProvider(),
-    knownEmotions: ["neutral", "concerned", "happy", "annoyed", "curious", "afraid"],
+    sessions, effects, llmProvider,
+    // União do vocabulário original (FakeLlmProvider) com o enum do schema Ollama (ADR-0016) —
+    // superset nunca deixa passar uma emoção inválida, só evita rejeitar toda resposta real do
+    // Ollama por causa de um vocabulário pensado só para o fake.
+    knownEmotions: ["neutral", "concerned", "happy", "annoyed", "curious", "afraid", "friendly", "angry", "sad", "suspicious"],
     budgetPerInteraction: TimeSpan.FromSeconds(5));
 app.MapConversationEndpoints(world, sessions, orchestrator);
 
