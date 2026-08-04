@@ -38,6 +38,10 @@ public static class ReferentialIntegritySweep
             .Concat(w.Cities.SelectMany(c => c.CanonSlots).Select(r => (object)r.Id))
             .ToHashSet(),
         [typeof(BookId)] = w => w.Books.Select(b => (object)b.Id).ToHashSet(),
+        // Fase 12: NarrativeDocument.Id vive dentro de ChronicleGenerationSystem (chave
+        // (local, período)), não em WorldState — nenhum campo do domínio hoje guarda uma
+        // referência a NarrativeId, então vazio por vacuidade, mesmo padrão de LocationId.
+        [typeof(NarrativeId)] = _ => [],
     };
 
     /// <summary>Todo tipo de id do assembly Domain — o teste de cobertura reprova se algum

@@ -35,4 +35,13 @@ public static class LlmContextAssembler
             SessionId: session.SessionId,
             SessionOpenedAtTick: session.OpenedAtTick);
     }
+
+    /// <summary>Mesmo funil, para o caso de uso de narrativa (Fase 12, NARR-12) — a LLM só
+    /// reescreve a prosa dos claims já aprovados (ancorados em evento), sem sessão de NPC nem
+    /// crença/memória envolvidas.</summary>
+    public static LlmContext AssembleForNarrative(IReadOnlyList<string> approvedClaimTexts) =>
+        new(
+            NpcKnowledgeSummary: string.Join(" ", approvedClaimTexts),
+            PlayerUtterance: "narrar",
+            AllowedIntents: []);
 }

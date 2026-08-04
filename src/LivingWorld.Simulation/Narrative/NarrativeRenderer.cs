@@ -26,10 +26,8 @@ public static class NarrativeRenderer
         string? llmProse;
         try
         {
-            var context = new LlmContext(
-                NpcKnowledgeSummary: string.Join(" ", outcome.Approved.Select(c => c.Text)),
-                PlayerUtterance: "narrar",
-                AllowedIntents: []);
+            var context = LlmContextAssembler.AssembleForNarrative(
+                outcome.Approved.Select(c => c.Text).ToList());
             var response = await llmProvider.GetResponseAsync(context, cancellationToken);
             llmProse = response.Dialogue;
         }
