@@ -3,6 +3,7 @@ using LivingWorld.Api;
 using LivingWorld.Domain.Llm;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
+using LivingWorld.Simulation.Narrative;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,11 +13,20 @@ var builder = WebApplication.CreateBuilder(args);
 // dbPath explícito passado por argumento de CLI, que a API não recebe. Monta um WorldState de
 // cenário default (mesma seed usada em outros pontos do repo) só para prova de conceito do
 // endpoint; ler o snapshot real de disco é infraestrutura nova, fora do escopo desta task.
-var (world, _) = ScenarioRunner.Create(seed: 1);
+// Fase 12, T7: `historyRules: HistoryRules.Default` liga a separação Crença/Verdade
+// (HistoryBeliefQuery) que GET /narratives/reports precisa para calcular confiança — sem
+// systems de Fase 10 registrados neste host (world nunca tica aqui, mesmo SPEC_DEVIATION
+// acima), ligar a flag não muda nenhum comportamento dos endpoints já existentes.
+var (world, _) = ScenarioRunner.Create(seed: 1, historyRules: HistoryRules.Default);
 
 // Fase 11, T7: sessão/efeitos vivem só em memória do processo (mesmo espírito do `world`
 // acima) — nunca fazem parte do snapshot/hash canônico do mundo.
 var sessions = new ConversationSessionStore();
+
+// Fase 12, T7: crônicas geradas sob demanda pelo endpoint (mesmo padrão de materialização
+// sob demanda de NpcInspectionQuery) — idempotente por chave (local, periodStart, periodEnd),
+// então chamar de fora do Tick automático do WorldClock é seguro.
+var chronicles = new ChronicleGenerationSystem();
 
 // Registrados no DI (em vez de campos `static` em `Program`) para que cada instância de
 // `WebApplicationFactory<Program>` (uma por classe de teste) tenha seu próprio `world`/
@@ -53,6 +63,7 @@ var orchestrator = new ConversationOrchestrator(
     knownEmotions: ["neutral", "concerned", "happy", "annoyed", "curious", "afraid", "friendly", "angry", "sad", "suspicious"],
     budgetPerInteraction: TimeSpan.FromSeconds(5));
 app.MapConversationEndpoints(world, sessions, orchestrator);
+app.MapNarrativeEndpoints(world, chronicles);
 
 app.Run();
 
