@@ -70,3 +70,10 @@ public readonly record struct BookId(long Value)
 {
     public override string ToString() => $"book-{Value}";
 }
+
+/// <summary>Documento narrativo publicado — crônica/biografia/relato (Fase 12, NARR-01) — id
+/// monotônico, mesmo molde de <see cref="ReportId"/>.</summary>
+public readonly record struct NarrativeId(long Value)
+{
+    public override string ToString() => $"narrative-{Value}";
+}
