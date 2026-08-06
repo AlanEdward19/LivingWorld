@@ -277,7 +277,7 @@ public class WorldSnapshotTests
         straightClock.Run(straightWorld, 100);
 
         var (pausedWorld, pausedClock) = ScenarioRunner.Create(seed: 11);
-        var host = new SimulationHost(pausedClock, pausedWorld);
+        var host = new SimulationHost(new WorldHost(pausedWorld, pausedClock));
         host.FastForward(37);
         host.Pause();
         host.SetSpeed(5.0);

@@ -43,15 +43,21 @@ if (world is null)
     worldRunner.Snapshot(world, worldSink);
 }
 
+// Feature ad-hoc "criar mundo": wrapper mutável — antes dele `world` era capturado por
+// closure em vários lugares (gateway realtime, endpoints de conversa/narrativa, GET /npcs/{id})
+// e nada no processo conseguia trocar de instância em runtime. Troca real acontece em
+// `WorldCreateEndpoints` via `host.Replace`.
+var worldHost = new WorldHost(world, worldClock);
+
 // SimulationHost fica pronto no DI para pausa/velocidade/avanço (task 6) e para o gateway
 // realtime (T3) — este host ainda não ticka automaticamente (decisão explícita: T2 troca a
 // origem do mundo por persistência real, tick em tempo real fica para uma task futura).
-var simulationHost = new SimulationHost(worldClock, world);
+var simulationHost = new SimulationHost(worldHost);
 
 // Fase 15, T3 (VTT-02, VTT-10): gateway realtime lê o mesmo relógio do host canônico acima —
 // nunca dirige tick nem escreve no mundo (Publish só é chamado pelos projectors futuros com o
 // resultado de uma leitura já feita).
-var realtimeGateway = new RealtimeGateway(() => world.CurrentDate.TotalHours);
+var realtimeGateway = new RealtimeGateway(() => worldHost.Current.CurrentDate.TotalHours);
 
 // Fase 11, T7: sessão/efeitos vivem só em memória do processo (mesmo espírito do `world`
 // acima) — nunca fazem parte do snapshot/hash canônico do mundo.
@@ -66,10 +72,16 @@ var chronicles = new ChronicleGenerationSystem();
 // `WebApplicationFactory<Program>` (uma por classe de teste) tenha seu próprio `world`/
 // `sessions` isolado — campos `static` eram compartilhados entre TODAS as factories do
 // processo e colidiam quando classes de teste rodavam em paralelo (xUnit default).
-builder.Services.AddSingleton(world);
+builder.Services.AddSingleton(worldHost);
+// Transient (não singleton fixo): lê `host.Current` a cada resolução, então reflete qualquer
+// troca feita por `POST /worlds/create` sem precisar reiniciar o processo. Transient (não
+// Scoped) porque alguns testes resolvem direto de `factory.Services` (root provider), que não
+// consegue instanciar um serviço Scoped fora de um scope.
+builder.Services.AddTransient(sp => sp.GetRequiredService<WorldHost>().Current);
 builder.Services.AddSingleton<IWorldRepository>(worldRepository);
 builder.Services.AddSingleton(worldRunner);
 builder.Services.AddSingleton(worldClock);
+builder.Services.AddSingleton(worldSink);
 builder.Services.AddSingleton(simulationHost);
 builder.Services.AddSingleton(realtimeGateway);
 builder.Services.AddSingleton(sessions);
@@ -85,7 +97,7 @@ app.MapGet("/", () => "Hello World!");
 
 app.MapGet("/npcs/{id:long}", (long id) =>
 {
-    var result = NpcInspectionQuery.Inspect(world, new NpcId(id));
+    var result = NpcInspectionQuery.Inspect(worldHost.Current, new NpcId(id));
     return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound();
 });
 
@@ -106,10 +118,11 @@ var orchestrator = new ConversationOrchestrator(
     // Ollama por causa de um vocabulário pensado só para o fake.
     knownEmotions: ["neutral", "concerned", "happy", "annoyed", "curious", "afraid", "friendly", "angry", "sad", "suspicious"],
     budgetPerInteraction: TimeSpan.FromSeconds(5));
-app.MapConversationEndpoints(world, sessions, orchestrator);
-app.MapNarrativeEndpoints(world, chronicles);
+app.MapConversationEndpoints(worldHost, sessions, orchestrator);
+app.MapNarrativeEndpoints(worldHost, chronicles);
 app.MapPeriodsEndpoints();
 app.MapWorldStartEndpoints();
+app.MapWorldCreateEndpoints(worldHost, worldRunner, worldSink);
 app.MapRealtimeEndpoints();
 app.MapVisualInputEndpoints();
 

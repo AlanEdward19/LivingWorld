@@ -39,10 +39,11 @@ public static class ConversationEndpoints
         actionCompatibility: Enum.GetValues<ActionType>().ToDictionary(
             a => a, a => a == ActionType.Sleep ? ConversationCompatibility.Forbidden : ConversationCompatibility.Compatible)).Value!;
 
-    public static void MapConversationEndpoints(this WebApplication app, WorldState world, ConversationSessionStore sessions, ConversationOrchestrator orchestrator)
+    public static void MapConversationEndpoints(this WebApplication app, WorldHost host, ConversationSessionStore sessions, ConversationOrchestrator orchestrator)
     {
         app.MapPost("/conversations/start", (ConversationStartRequest request) =>
         {
+            var world = host.Current;
             var npc = FindNpc(world, request.NpcId);
             if (npc is null) return Results.NotFound();
 
@@ -54,6 +55,7 @@ public static class ConversationEndpoints
 
         app.MapPost("/conversations/send", async (ConversationSendRequest request) =>
         {
+            var world = host.Current;
             var session = sessions.Find(request.SessionId);
             if (session is null) return Results.NotFound();
 

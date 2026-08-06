@@ -22,7 +22,7 @@ public sealed record ReportResponse(long ReportId, long OriginFactId, string Med
 /// nunca por <see cref="HistoryTruthQuery"/> — jogo só lê crença (NARR-15, rules/llm-boundary.md).</summary>
 public static class NarrativeEndpoints
 {
-    public static void MapNarrativeEndpoints(this WebApplication app, WorldState world, ChronicleGenerationSystem chronicles)
+    public static void MapNarrativeEndpoints(this WebApplication app, WorldHost host, ChronicleGenerationSystem chronicles)
     {
         app.MapGet("/narratives/chronicles", (Guid? location, long? periodStart, long? periodEnd, int? topK) =>
         {
@@ -30,13 +30,13 @@ public static class NarrativeEndpoints
                 return Results.BadRequest("periodStart e periodEnd são obrigatórios");
 
             CityId? cityId = location is { } value ? new CityId(value) : null;
-            var document = chronicles.GenerateChronicle(world, cityId, periodStart.Value, periodEnd.Value, topK ?? 5);
+            var document = chronicles.GenerateChronicle(host.Current, cityId, periodStart.Value, periodEnd.Value, topK ?? 5);
             return Results.Ok(ToChronicleResponse(document));
         });
 
         app.MapGet("/narratives/biographies/{npcId:long}", async (long npcId) =>
         {
-            var timeline = NpcBiographyQuery.Timeline(world, new NpcId(npcId));
+            var timeline = NpcBiographyQuery.Timeline(host.Current, new NpcId(npcId));
             if (!timeline.IsSuccess) return Results.NotFound();
 
             var claims = timeline.Value!
@@ -52,6 +52,7 @@ public static class NarrativeEndpoints
 
         app.MapGet("/narratives/reports", () =>
         {
+            var world = host.Current;
             var responses = world.Reports.Select(report =>
             {
                 var belief = HistoryBeliefQuery.BeliefOf(world, report.CommunityId, report.OriginFactId);
