@@ -18,6 +18,7 @@ export function useRealtimeSnapshot<TPayload>(
   scope: FocusScope,
   mode: ViewerMode,
   playerNpcId?: number,
+  enabled = true,
 ): RealtimeSnapshotState<TPayload> {
   const [envelope, setEnvelope] = useState<VisualSnapshotEnvelope<TPayload> | null>(null);
   const [connected, setConnected] = useState(false);
@@ -25,6 +26,7 @@ export function useRealtimeSnapshot<TPayload>(
   const receivedFirstFrame = useRef(false);
 
   useEffect(() => {
+    if (!enabled) return;
     setEnvelope(null);
     setError(null);
     receivedFirstFrame.current = false;
@@ -47,7 +49,7 @@ export function useRealtimeSnapshot<TPayload>(
 
     return () => socket.close();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusScopeKey(scope), mode, playerNpcId]);
+  }, [focusScopeKey(scope), mode, playerNpcId, enabled]);
 
   return { envelope, connected, error };
 }

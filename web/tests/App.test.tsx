@@ -65,6 +65,8 @@ describe("App", () => {
   it("renders the world map after the first realtime frame, then drills into a city on click", async () => {
     render(<App />);
 
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
     const socket = MockWebSocket.instances[0];
     act(() => socket.onmessage?.({ data: JSON.stringify(worldEnvelope()) }));
 
@@ -78,5 +80,17 @@ describe("App", () => {
     act(() => citySocket.onmessage?.({ data: JSON.stringify(cityEnvelope()) }));
 
     await screen.findByTestId("city-view");
+  });
+
+  it("starts on the start menu and navigates to settings and back", () => {
+    render(<App />);
+
+    expect(screen.getByTestId("start-menu")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Configurações" }));
+    expect(screen.getByTestId("settings-view")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "← menu" }));
+    expect(screen.getByTestId("start-menu")).toBeInTheDocument();
   });
 });

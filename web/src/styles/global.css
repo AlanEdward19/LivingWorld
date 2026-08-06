@@ -1,0 +1,354 @@
+/* Fase 15 (UX pass): tema visual único do cliente — "mundos através do tempo", não preso a uma
+   época (LivingWorld simula qualquer período, não só medieval). Paleta escura + dourado/âmbar
+   (lê como "épico" em qualquer era) sobre fundo estrelado/cósmico (o motivo "passagem do tempo"
+   funciona pra qualquer período simulado, sem iconografia de uma época específica).
+   Estilos aqui são globais por seletor de elemento (não por classe) de propósito: os componentes
+   existentes (WorldMapView, CityView, CreateWorldForm etc.) não tinham nenhum CSS — herdar via
+   cascata evita reescrever centenas de linhas de JSX só pra adicionar className. */
+
+:root {
+  --bg-void: #0a0c14;
+  --bg-panel: #12161f;
+  --bg-panel-raised: #1a1f2c;
+  --border-subtle: #2a3142;
+  --border-glow: #c9a24b;
+  --text-primary: #e8e6df;
+  --text-muted: #9aa1b0;
+  --accent: #d9a94f;
+  --accent-bright: #f0c674;
+  --accent-dim: #8a6a2e;
+  --danger: #e0645a;
+  --radius: 10px;
+  --font-display: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-void);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Cabeçalho / navegação persistente --- */
+
+.app-shell > header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1.25rem;
+  background: linear-gradient(180deg, var(--bg-panel-raised), var(--bg-panel));
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.app-shell > header label {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.app-shell > header [role="alert"] {
+  color: var(--danger);
+}
+
+/* --- Controles de formulário globais --- */
+
+button,
+select,
+input {
+  font-family: inherit;
+  font-size: 0.92rem;
+}
+
+button {
+  background: linear-gradient(180deg, var(--bg-panel-raised), var(--bg-panel));
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(217, 169, 79, 0.25), 0 0 14px rgba(217, 169, 79, 0.15);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input,
+select {
+  background: var(--bg-void);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+  transition: border-color 0.15s ease;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
+label {
+  color: var(--text-primary);
+}
+
+/* --- Painéis de conteúdo (views + formulário) --- */
+
+.app-shell > main {
+  flex: 1;
+  padding: 1.25rem;
+  animation: view-fade-in 0.25s ease both;
+}
+
+@keyframes view-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+[data-testid="world-map-view"],
+[data-testid="city-view"],
+[data-testid="interior-view"] {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+[data-testid="world-map-view"] h2,
+[data-testid="city-view"] h2,
+[data-testid="interior-view"] h2 {
+  font-family: var(--font-display);
+  color: var(--accent-bright);
+  margin-top: 0;
+}
+
+[data-testid="world-map-view"] ul,
+[data-testid="city-view"] ul,
+[data-testid="interior-view"] ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 1rem;
+}
+
+[data-testid="world-map-view"] li,
+[data-testid="city-view"] li,
+[data-testid="interior-view"] li {
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+}
+
+/* --- Formulário "criar mundo" (fieldsets viram painéis-vidro) --- */
+
+form[data-testid="create-world-form"] {
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
+form[data-testid="create-world-form"] h2 {
+  font-family: var(--font-display);
+  color: var(--accent-bright);
+  text-align: center;
+}
+
+form[data-testid="create-world-form"] > fieldset,
+form[data-testid="create-world-form"] fieldset fieldset {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+form[data-testid="create-world-form"] legend {
+  font-family: var(--font-display);
+  color: var(--accent);
+  padding: 0 0.5rem;
+}
+
+form[data-testid="create-world-form"] label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.25rem 0.75rem 0.25rem 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+form[data-testid="create-world-form"] input[type="number"] {
+  width: 6.5rem;
+}
+
+form[data-testid="create-world-form"] input[type="text"] {
+  min-width: 8rem;
+}
+
+form[data-testid="create-world-form"] > button[type="submit"] {
+  display: block;
+  margin: 1.5rem auto 0;
+  padding: 0.7rem 2.5rem;
+  font-size: 1.05rem;
+  color: var(--bg-void);
+  background: linear-gradient(180deg, var(--accent-bright), var(--accent));
+  border: 1px solid var(--accent-dim);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+form[data-testid="create-world-form"] > button[type="submit"]:hover:not(:disabled) {
+  box-shadow: 0 0 0 1px var(--accent), 0 0 22px rgba(217, 169, 79, 0.4);
+}
+
+form[data-testid="create-world-form"] [role="alert"] {
+  color: var(--danger);
+  text-align: center;
+}
+
+/* --- Tela inicial (start menu) --- */
+
+.start-menu {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 30%, #161c2b 0%, var(--bg-void) 70%);
+}
+
+.start-menu-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.start-menu-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: content-rise 0.6s ease both;
+}
+
+@keyframes content-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.start-menu-title {
+  font-family: var(--font-display);
+  font-size: clamp(2.75rem, 7vw, 4.5rem);
+  margin: 0;
+  color: var(--accent-bright);
+  text-shadow: 0 0 28px rgba(240, 198, 116, 0.35);
+  letter-spacing: 0.03em;
+}
+
+.start-menu-subtitle {
+  color: var(--text-muted);
+  margin: 0.5rem 0 2.5rem;
+  font-size: 1.05rem;
+  font-style: italic;
+}
+
+.start-menu-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  width: min(320px, 80vw);
+}
+
+.start-menu-buttons button {
+  padding: 0.85rem 1.5rem;
+  font-size: 1.05rem;
+  border-radius: var(--radius);
+  background: rgba(18, 22, 31, 0.75);
+  backdrop-filter: blur(2px);
+  animation: button-rise 0.5s ease both;
+}
+
+@keyframes button-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.start-menu-buttons button:hover:not(:disabled) {
+  background: rgba(217, 169, 79, 0.12);
+}
+
+/* --- Configurações --- */
+
+[data-testid="settings-view"] {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+[data-testid="settings-view"] h2 {
+  font-family: var(--font-display);
+  color: var(--accent-bright);
+}
+
+[data-testid="settings-view"] code {
+  background: var(--bg-void);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+}

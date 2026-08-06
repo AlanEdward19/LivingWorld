@@ -10,10 +10,18 @@
 - **Date**: 2026-08-06
 - **Status**: active
 
+### AD-002
+- **Decision**: Tela inicial (start menu) estilo jogo — botões centrais (Continuar/Criar mundo/Configurações) sobre fundo animado — com motivo visual deliberadamente atemporal (campo de partículas à deriva), não medieval nem preso a nenhuma época.
+- **Reason**: Usuário pediu estilo "Minecraft" de menu inicial, mas corrigiu que o projeto simula qualquer período de tempo (não só medieval) — iconografia de época específica ficaria errada.
+- **Trade-off**: Sem CSS/design system prévio no cliente (era HTML puro sem estilo); criado `web/src/styles/global.css` com estilos por seletor de elemento (não por classe) pra herdar em todos os componentes existentes sem reescrevê-los.
+- **Scope**: UX geral do cliente web (fase 15) — tema visual, menu inicial, tela de configurações placeholder.
+- **Date**: 2026-08-06
+- **Status**: active
+
 ## Handoff
 
-- **Feature**: "Criar mundo" (ad-hoc, sem spec.md formal ainda — pedido direto do usuário em cima da fase 15 já fechada). Sem pasta em `.specs/features/`; decisões ficam aqui até (se) formalizar.
-- **Phase / Task**: Backend + formulário web fechados e verificados ponta a ponta no browser real. Feature completa (exceto grade 2D, adiada).
+- **Feature**: "Criar mundo" (ad-hoc, AD-001) — completa. "UX/tema visual" (ad-hoc, AD-002) — completa (start menu + tema global + settings placeholder).
+- **Phase / Task**: Ambas as features desta sessão fechadas e verificadas ponta a ponta no browser real. Falta só a grade visual 2D (adiada explicitamente pelo usuário, ver abaixo).
 - **Completed**:
   - Bugfix StrictMode (WS realtime) + `run.cmd`: já commitados em `50ff7f6`.
   - `WorldHost` (`src/LivingWorld.Simulation/WorldHost.cs`): wrapper mutável `{ WorldState Current; WorldClock Clock; void Replace(world, clock) }`, singleton único em `Program.cs`.
@@ -24,8 +32,16 @@
   - `web/vite.config.ts`: proxy `/worlds` adicionado (só tinha `/visual`) — sem isso o dev server nunca alcançava a API real.
   - Verificado no browser real (Vite+API rodando lado a lado): formulário renderiza todas as seções, submit faz `POST /worlds/create` → `200 OK`, mundo troca e a UI volta pro mapa.
   - Testes: `web/tests/CreateWorldForm.test.tsx` (3 casos: JSON PascalCase completo, edição de campo refletida, callback `onCreated`) — `npx vitest run`: **20/20 passed** (7 arquivos). Backend: `dotnet test --filter "Category!=Scenario"` após o fix do upsert: **1178 passed, 0 failed, 11 skipped**, ~24 min.
+  - **Tema visual global** (`web/src/styles/global.css`, importado em `main.tsx`): paleta escura + dourado/âmbar, tipografia serifada pra títulos, painéis translúcidos com borda sutil, botões com glow no hover. Estilizado por seletor de elemento (`button`, `input`, `fieldset`, `[data-testid="world-map-view"]` etc.) — nenhum componente existente precisou de className novo.
+  - **`StartMenu`** (`web/src/components/StartMenu.tsx`): tela inicial com canvas de partículas à deriva (drift + twinkle, `requestAnimationFrame`, sem lib) atrás de título/subtítulo/3 botões com fade-in escalonado (animation-delay por botão).
+  - **`SettingsView`** (`web/src/components/SettingsView.tsx`): placeholder simples (decisão do usuário) — só mostra a URL da API atual + "mais opções em breve".
+  - **`App.tsx`**: estado `screen: "start" | "world" | "settings"`, default `"start"`. "Continuar"/"Criar mundo" vão pra `"world"` (Criar mundo já abre o formulário); "Configurações" vai pra `"settings"`; header ganhou botão "☰ menu" pra voltar ao início.
+  - **`useRealtimeSnapshot`** ganhou parâmetro `enabled` (default `true`) — `App.tsx` só conecta o WebSocket quando `screen === "world"`, não mais assim que o componente monta (evita abrir socket parado na tela inicial).
+  - `web/tests/setup.ts`: stub de `HTMLCanvasElement.prototype.getContext` (jsdom não implementa canvas — sem o stub, todo teste logava "Not implemented" no stderr).
+  - Testes novos: `web/tests/StartMenu.test.tsx` (3 handlers de botão), `web/tests/App.test.tsx` (navegação start→settings→start). `npx tsc --noEmit`: limpo. `npx vitest run`: **22/22 passed** (8 arquivos).
+  - Verificado no browser real: menu inicial renderiza com canvas/animação, paleta/fontes aplicadas (checado via `getComputedStyle`), navegação Continuar→mapa→menu→Configurações funciona, nenhum WS abre antes de "Continuar".
 - **In-progress**: nenhum.
-- **Next step**: Prioridade menor, adiada explicitamente pelo usuário: grade visual 2D de verdade em `WorldMapView` (hoje é lista/texto, não canvas/SVG). Regenerar `web/src/generated/api-types.ts` já foi feito nesta sessão (inclui `/worlds/create`).
+- **Next step**: Único item restante do escopo desta fase: grade visual 2D de verdade em `WorldMapView` (hoje é lista/texto, não canvas/SVG) — adiada explicitamente pelo usuário, prioridade menor.
 - **Blockers**: nenhum.
-- **Uncommitted files**: nenhum pendente de decisão — tudo pronto pra commit (backend WorldHost, fix do upsert, formulário web completo, proxy do vite, testes).
+- **Uncommitted files**: nenhum pendente de decisão — tudo pronto pra commit (tema global, start menu, settings, navegação, testes).
 - **Branch**: main
