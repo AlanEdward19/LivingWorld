@@ -84,6 +84,21 @@ Implement these tasks com a skill `tlc-spec-driven` ativa (fluxo Execute complet
 ### T12: Expor leitura do catálogo ativo (profissão + habilidade) via API
 **What**: rota de leitura que devolve os ids (e nomes, quando declarados) de profissão/habilidade de um período/template registrado — reaproveita o formato de resposta de `GET /periods`. Design exato da rota (estender `GET /periods/{id}` vs. rota nova `GET /periods/{id}/catalog`) fica pra fase de Design desta task, não decidido aqui. **Where**: `src/LivingWorld.Api/*.cs` (endpoint novo ou extensão de `PeriodsEndpoints.cs`). **Depends on**: T11a. **Reuses**: padrão de resposta de `PeriodsEndpoints`. **Requirement**: PERIOD-22..23. **Tests**: integration (endpoint). **Gate**: Full.
 
+## Phase 6 (Sequential — findings do Verificador pós-T12, feedback do usuário)
+`T12 -> T13 -> T14 -> T15 -> T16`
+
+### T13: Executar `PeriodTransformationRule` em runtime (Emerge/Merge/Split/Disappear)
+**What**: novo `PeriodEvolutionSystem` (`ISimulationSystem`) que, a cada tick, verifica `TriggerTick` de cada regra e aplica a transformação em `PopulationCatalog.ProfessionIds` (mutação in-place do `HashSet<int>` — mesmo objeto vive a vida toda do mundo) + reatribui NPCs que ficam com a profissão removida (`Npc.SwitchProfession`): Merge/Split reatribuem pro(s) alvo(s) declarado(s) (Split usa RNG determinístico do mundo pra escolher entre múltiplos alvos); Disappear reatribui pra `ProfessionType.None` (sem alvo declarado, único destino coerente sem novo campo de schema). Idempotência SEM estado novo em `WorldState`: cada aplicação é guardada pela própria pertença ao catálogo (ex.: Merge só aplica se todas as origens ainda estão em `ProfessionIds`) — uma vez aplicada, a checagem natural nunca reaplica. Corrige também um bug do validador (T2): `PeriodDefinitionValidator` hoje exige que **todo** id de `TransformationRules` (fonte E destino) já exista em `ProfessionIds`, o que torna `Emerge` sem sentido (o destino de um Emerge não deveria existir ainda) — vira "só fontes precisam existir; destinos podem ser novos". **Where**: `src/LivingWorld.Simulation/Periods/PeriodEvolutionSystem.cs` (novo), `PeriodDefinitionValidator.cs` (fix da validação de referência), `ScenarioLoaderV2.cs` (registra o sistema no `WorldClock`). **Depends on**: T12. **Reuses**: `Npc.SwitchProfession`, `TickContext.CurrentTick`, mesmo padrão de RNG determinístico de `MaterializationSystem`. **Requirement**: PERIOD-02/03 (Goal #2 da fase), edge cases "alias conflitante"/"regra obrigatória omitida"/"remoção de profissão em uso". **Tests**: unit (validador) + integration/scenario curto (`PeriodEvolutionSystem` roda Emerge/Merge/Split/Disappear num horizonte curto e prova reatribuição + não reaplicação). **Gate**: Full.
+
+### T14: Campo de nome opcional em profissão/habilidade
+**What**: `ProfessionBias`/`SkillBias`/`PeriodCatalogResponse` ganham um campo `Name` opcional (`string?`) — motor nunca decide por ele (só armazena/devolve), preenchido pela IA externa/documentação quando quiser nomear. Cobre a lacuna das ACs "id + nome opcional" (habilidade aberta) e "nomes quando declarados" (leitura de catálogo) que hoje não têm nenhum campo de nome em lugar nenhum. **Where**: `src/LivingWorld.Simulation/Periods/PeriodDynamicsLoader.cs`, `PeriodCatalog.cs`, `src/LivingWorld.Api/PeriodsEndpoints.cs`. **Depends on**: T12. **Requirement**: PERIOD-19, PERIOD-22..23. **Tests**: unit + integration (nome presente/ausente nos dois blocos). **Gate**: Quick.
+
+### T15: Teste de arquitetura pra literal de nome de habilidade
+**What**: mesmo padrão de `PeriodArchitectureTests`/`PopulationArchitectureTests` — reprova qualquer nome de habilidade banido virando literal de decisão em `LivingWorld.Domain`/`LivingWorld.Simulation`. AC explícita da story "Habilidade como catálogo aberto" que não tinha teste. **Where**: `tests/LivingWorld.Tests/Periods/PeriodArchitectureTests.cs` (estender) ou novo `SkillArchitectureTests.cs`. **Depends on**: T12. **Requirement**: PERIOD-20. **Tests**: architecture. **Gate**: Quick.
+
+### T16: Corrigir `period-authoring.md` sobre transformação em runtime
+**What**: o índice (`docs/domain/period-authoring.md`) afirma que regras de transformação agem "ao longo da simulação" — impreciso antes de T13. Depois de T13, revisar a frase pra refletir o comportamento real (`TriggerTick`, reatribuição, idempotência). **Where**: `docs/domain/period-authoring.md`. **Depends on**: T13. **Requirement**: — (qualidade de documentação). **Tests**: none. **Gate**: Build.
+
 ## Diagram-Definition Cross-Check
 | Task | Depends On (body) | Diagram | Status |
 | --- | --- | --- | --- |
@@ -100,6 +115,10 @@ Implement these tasks com a skill `tlc-spec-driven` ativa (fluxo Execute complet
 | T11a | T10 | T10->T11a | ✅ |
 | T11b | T11a | T11a->T11b | ✅ |
 | T12 | T11a | T11a->T12 | ✅ |
+| T13 | T12 | T12->T13 | ✅ |
+| T14 | T12 | T12->T14 | ✅ |
+| T15 | T12 | T12->T15 | ✅ |
+| T16 | T13 | T13->T16 | ✅ |
 
 ## Test Co-location Validation
 | Task | Code Layer | Matrix Requires | Task Says | Status |
@@ -117,3 +136,7 @@ Implement these tasks com a skill `tlc-spec-driven` ativa (fluxo Execute complet
 | T11a | Dynamics.SkillBiases int contract | unit | unit | ✅ |
 | T11b | Open SkillSet/SkillType/SkillsRules | unit+architecture+integration | unit+architecture+integration | ✅ (não iniciada) |
 | T12 | Active catalog read API | integration | integration | ✅ |
+| T13 | Transformation rule runtime | unit+integration/scenario | unit+integration/scenario | ✅ |
+| T14 | Optional name field | unit+integration | unit+integration | ✅ |
+| T15 | Skill-name architecture gate | architecture | architecture | ✅ |
+| T16 | Doc accuracy fix | none | none | ✅ |
