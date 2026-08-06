@@ -10,8 +10,8 @@ profissão).
     { "ProfessionId": 1, "Weight": 2.0 }       // Weight > 0
   ],
   "SkillBiases": [
-    { "Skill": "Agriculture", "Weight": 1.5 }  // Skill é um dos 13 nomes fechados do motor —
-                                                // ver lista abaixo, nunca invente um nome novo
+    { "SkillId": 0, "Weight": 1.5 }  // SkillId é um int aberto — mesmo contrato de ProfessionId,
+                                      // sem nome fechado (ver nota abaixo)
   ],
   "TransformationRules": [
     { "Kind": "Emerge", "TargetProfessionIds": [5], "TriggerTick": 1000 },
@@ -44,10 +44,10 @@ regra).
 `ProfessionIds` esteja vazio (sem restrição, qualquer id passa). Id fora do catálogo é
 rejeitado, nomeando o id no erro.
 
-## Habilidades — catálogo fechado
+## Habilidades — `SkillId` aberto (ainda sem efeito em runtime)
 
-`SkillBiases[].Skill` só aceita um destes 13 nomes (habilidade ainda não é catálogo aberto por
-dado, só o peso inicial é):
-
-`Agriculture`, `Hunting`, `Trade`, `Construction`, `Medicine`, `Combat`, `Teaching`, `Craft`,
-`Politics`, `Leadership`, `Research`, `Technology`, `Magic`.
+`SkillBiases[].SkillId` é um id inteiro qualquer, sem lista fechada de nomes — mesmo contrato
+de `ProfessionId`. Nome (se houver) é dado de fora do motor, não deste contrato. Nota: o motor
+ainda mapeia habilidade internamente por um enum fechado de 13 valores (Fase 6) — declarar um
+`SkillId` aqui é aceito e persistido, mas ainda não influencia o sorteio/ganho de habilidade em
+runtime (mesmo status de antes, só o contrato de entrada deixou de exigir nome fechado).

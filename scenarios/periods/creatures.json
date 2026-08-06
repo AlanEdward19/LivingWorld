@@ -204,7 +204,7 @@
   "Dynamics": {
     "SkillBiases": [
       {
-        "Skill": "Combat",
+        "SkillId": 5,
         "Weight": 2.0
       }
     ],

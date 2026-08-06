@@ -13,11 +13,12 @@ public enum PeriodTransformationKind { Emerge, Merge, Split, Disappear }
 /// viés — o motor só vê o id, nunca um nome (mesmo contrato de <see cref="ProfessionType"/>).</summary>
 public sealed record ProfessionBias(int ProfessionId, double Weight);
 
-/// <summary>Peso inicial de uma habilidade no startpoint do período (PERIOD-01). <see
-/// cref="SkillType"/> continua o catálogo fechado do motor (Fase 6) — o período só influencia a
-/// distribuição inicial, não pode declarar habilidade nova (ver
-/// <see cref="PeriodTransformationRule"/>).</summary>
-public sealed record SkillBias(SkillType Skill, double Weight);
+/// <summary>Peso inicial de uma habilidade no startpoint do período (PERIOD-01/PERIOD-19). Mesmo
+/// contrato de <see cref="ProfessionBias"/> — id inteiro aberto, nenhum nome fechado no motor
+/// (Fase 13, T11a). <see cref="SkillType"/> em <c>src/</c> continua o enum fechado de 13 valores
+/// da Fase 6 até T11b abrir o catálogo de verdade (ver tasks.md) — este bloco só solta a
+/// exigência de nome no contrato de entrada do período, ainda não aplica o viés em runtime.</summary>
+public sealed record SkillBias(int SkillId, double Weight);
 
 /// <summary>Regra declarada de evolução de profissão em runtime (PERIOD-02/03): cardinalidade de
 /// origem/destino varia por <see cref="Kind"/> e é validada em <see cref="PeriodDynamicsLoader"/>.
@@ -123,15 +124,14 @@ public static class PeriodDynamicsLoader
         {
             if (node is not JsonObject item)
                 return Result<IReadOnlyList<SkillBias>>.Fail("Dynamics.SkillBiases[]: item inválido");
-            if (item["Skill"] is not JsonValue skillNode || !skillNode.TryGetValue<string>(out var skillText)
-                || !Enum.TryParse<SkillType>(skillText, out var skill))
-                return Result<IReadOnlyList<SkillBias>>.Fail("Dynamics.SkillBiases[].Skill: campo obrigatório ausente ou inválido");
+            if (!TryGetInt(item, "SkillId", out var skillId))
+                return Result<IReadOnlyList<SkillBias>>.Fail("Dynamics.SkillBiases[].SkillId: campo obrigatório ausente ou inválido");
             if (!TryGetDouble(item, "Weight", out var weight))
                 return Result<IReadOnlyList<SkillBias>>.Fail("Dynamics.SkillBiases[].Weight: campo obrigatório ausente ou inválido");
             if (weight <= 0)
                 return Result<IReadOnlyList<SkillBias>>.Fail("Dynamics.SkillBiases[].Weight: deve ser maior que zero");
 
-            biases.Add(new SkillBias(skill, weight));
+            biases.Add(new SkillBias(skillId, weight));
         }
 
         return Result<IReadOnlyList<SkillBias>>.Ok(biases);

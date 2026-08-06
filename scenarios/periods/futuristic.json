@@ -205,7 +205,7 @@
   "Dynamics": {
     "SkillBiases": [
       {
-        "Skill": "Research",
+        "SkillId": 10,
         "Weight": 2.0
       }
     ],

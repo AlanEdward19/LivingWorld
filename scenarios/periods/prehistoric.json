@@ -210,7 +210,7 @@
     ],
     "SkillBiases": [
       {
-        "Skill": "Hunting",
+        "SkillId": 1,
         "Weight": 2.0
       }
     ]

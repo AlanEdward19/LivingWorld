@@ -1,5 +1,4 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain;
 using LivingWorld.Simulation.Periods;
 
 namespace LivingWorld.Tests.Periods;
@@ -11,7 +10,7 @@ public class PeriodDynamicsLoaderTests
     private static JsonObject ValidDynamics() => new()
     {
         ["ProfessionBiases"] = new JsonArray(new JsonObject { ["ProfessionId"] = 1, ["Weight"] = 2.0 }),
-        ["SkillBiases"] = new JsonArray(new JsonObject { ["Skill"] = "Agriculture", ["Weight"] = 1.5 }),
+        ["SkillBiases"] = new JsonArray(new JsonObject { ["SkillId"] = 0, ["Weight"] = 1.5 }),
         ["TransformationRules"] = new JsonArray(
             new JsonObject
             {
@@ -46,7 +45,7 @@ public class PeriodDynamicsLoaderTests
         Assert.Equal(2.0, data.ProfessionBiases[0].Weight);
 
         Assert.Single(data.SkillBiases);
-        Assert.Equal(SkillType.Agriculture, data.SkillBiases[0].Skill);
+        Assert.Equal(0, data.SkillBiases[0].SkillId);
         Assert.Equal(1.5, data.SkillBiases[0].Weight);
 
         Assert.Single(data.TransformationRules);
@@ -94,17 +93,33 @@ public class PeriodDynamicsLoaderTests
     }
 
     [Fact]
-    public void Unknown_skill_name_in_skill_bias_fails_naming_the_field()
+    public void Missing_SkillId_in_skill_bias_fails_naming_the_field()
     {
         var dynamics = new JsonObject
         {
-            ["SkillBiases"] = new JsonArray(new JsonObject { ["Skill"] = "Sorcery", ["Weight"] = 1.0 }),
+            ["SkillBiases"] = new JsonArray(new JsonObject { ["Weight"] = 1.0 }),
         };
 
         var result = PeriodDynamicsLoader.Load(RootWithDynamics(dynamics).ToJsonString());
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("Dynamics.SkillBiases[].Skill", result.Error);
+        Assert.Contains("Dynamics.SkillBiases[].SkillId", result.Error);
+    }
+
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(-1.0)]
+    public void Non_positive_skill_bias_weight_fails_naming_the_field(double weight)
+    {
+        var dynamics = new JsonObject
+        {
+            ["SkillBiases"] = new JsonArray(new JsonObject { ["SkillId"] = 0, ["Weight"] = weight }),
+        };
+
+        var result = PeriodDynamicsLoader.Load(RootWithDynamics(dynamics).ToJsonString());
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("Dynamics.SkillBiases[].Weight", result.Error);
     }
 
     [Fact]
