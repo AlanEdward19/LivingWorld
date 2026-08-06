@@ -22,9 +22,19 @@ public static class ScenarioLoaderV2
         var definition = definitionResult.Value!;
         var population = definition.Population;
 
+        // Fase 13, T10: viés declarado em Dynamics.ProfessionBiases vira peso real de sorteio
+        // (PopulationCatalog.RollProfession) — sem bias declarado, catálogo original passa
+        // adiante sem cópia, sorteio continua uniforme.
+        var catalog = definition.Dynamics.ProfessionBiases.Count == 0
+            ? population.Catalog
+            : population.Catalog with
+            {
+                ProfessionWeights = definition.Dynamics.ProfessionBiases.ToDictionary(b => b.ProfessionId, b => b.Weight),
+            };
+
         var world = new WorldState(
             ScenarioRunner.DefaultCalendar, definition.Map.Seed, definition.Map,
-            population.Catalog, population.Rules,
+            catalog, population.Rules,
             definition.Behavior.NeedsRules, definition.Behavior.ActionCatalog,
             ScenarioRunner.DefaultLifeStageRules,
             economyRules: definition.Economy.Rules, economyCatalog: definition.Economy.Catalog,
