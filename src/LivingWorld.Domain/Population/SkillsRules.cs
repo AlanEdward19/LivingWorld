@@ -2,18 +2,23 @@ namespace LivingWorld.Domain;
 
 /// <summary>Todo parâmetro numérico de habilidade (Fase 6), cenário-driven (R3) — nenhum
 /// literal em C#, mesmo padrão de <see cref="NeedsRules"/>/<see cref="EconomyRules"/>: teto
-/// único compartilhado pelas 13 habilidades, taxa-base por fonte de ganho, e o mapeamento de
-/// qual habilidade cada profissão pratica.</summary>
+/// compartilhado por todas as habilidades, taxa-base por fonte de ganho, o mapeamento de qual
+/// habilidade cada profissão pratica, e (Fase 13, T11b) qual id de habilidade conta como
+/// "ensino" pro multiplicador de tutoria — antes um literal (<c>SkillType.Teaching</c>) em
+/// <see cref="SkillTeachingSystem"/>, agora declarado aqui, mesmo padrão de
+/// <see cref="SkillByProfession"/>.</summary>
 public sealed record SkillsRules(
     bool Enabled,
     double Cap,
     IReadOnlyDictionary<SkillGainSource, double> BaseRateBySource,
-    IReadOnlyDictionary<int, SkillType> SkillByProfession)
+    IReadOnlyDictionary<int, SkillType> SkillByProfession,
+    SkillType TeachingSkill)
 {
     public static Result<SkillsRules> Create(
         double cap,
         IReadOnlyDictionary<SkillGainSource, double> baseRateBySource,
         IReadOnlyDictionary<int, SkillType> skillByProfession,
+        SkillType teachingSkill,
         bool enabled = true)
     {
         if (cap <= 0) return Result<SkillsRules>.Fail("Cap: deve ser > 0");
@@ -25,7 +30,7 @@ public sealed record SkillsRules(
         if (skillByProfession.Count == 0)
             return Result<SkillsRules>.Fail("SkillByProfession: não pode ser vazio");
 
-        return Result<SkillsRules>.Ok(new SkillsRules(enabled, cap, baseRateBySource, skillByProfession));
+        return Result<SkillsRules>.Ok(new SkillsRules(enabled, cap, baseRateBySource, skillByProfession, teachingSkill));
     }
 
     /// <summary>Ganho de habilidade para a fonte <paramref name="source"/>, combinando a curva

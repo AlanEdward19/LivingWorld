@@ -111,7 +111,8 @@ public class ProductionSystemTests
 
     private static SkillsRules MakeSkillsRules(double cap = 100) => SkillsRules.Create(
         cap, baseRateBySource: new Dictionary<SkillGainSource, double>(),
-        skillByProfession: new Dictionary<int, SkillType> { [1] = SkillType.Agriculture }).Value!;
+        skillByProfession: new Dictionary<int, SkillType> { [1] = new SkillType(0) },
+        teachingSkill: new SkillType(6)).Value!;
 
     private static Npc MakeWorkerWithSkill(WorldState world, CellCoord location, double skillValue)
     {
@@ -119,7 +120,7 @@ public class ProductionSystemTests
             world.NextNpcIdAndAdvance(), "worker", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30), new CultureId(1),
             location, motherId: null, fatherId: null, household: null, health: 100,
             personality: SomePersonality, profession: new ProfessionType(1), currentLocation: location,
-            skills: SkillSet.Initial(0).WithGain(SkillType.Agriculture, skillValue, cap: 100));
+            skills: SkillSet.Empty.WithGain(new SkillType(0), skillValue, cap: 100));
         world.AddNpc(npc);
         return npc;
     }

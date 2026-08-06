@@ -24,7 +24,7 @@ public static class NpcInspectionQuery
                     summary.Id, summary.Name, summary.Sex, 0, summary.Culture, default,
                     Household: null, MotherId: null, FatherId: null, Spouse: null,
                     summary.Profession, Employer: null,
-                    0, 0, 0, 0, 0, placeholderPersonality, SkillSet.Initial(0),
+                    0, 0, 0, 0, 0, placeholderPersonality, SkillSet.Empty,
                     new CellCoord(0, 0), CurrentAction: null, 0,
                     Memories: []));
             }

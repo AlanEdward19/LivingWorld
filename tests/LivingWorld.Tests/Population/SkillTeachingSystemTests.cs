@@ -23,7 +23,8 @@ public class SkillTeachingSystemTests
             [SkillGainSource.Observation] = 0.5,
             [SkillGainSource.Tutoring] = 4.0,
         },
-        skillByProfession: new Dictionary<int, SkillType> { [1] = SkillType.Agriculture }).Value!;
+        skillByProfession: new Dictionary<int, SkillType> { [1] = new SkillType(0) },
+        teachingSkill: new SkillType(6)).Value!;
 
     private static WorldState BuildWorld()
     {
@@ -72,7 +73,7 @@ public class SkillTeachingSystemTests
 
         new SkillTeachingSystem(Rules, ScenarioRunner.DefaultLifeStageRules).Tick(world, Ctx(world));
 
-        Assert.True(npc.Skills.Get(SkillType.Agriculture) > 0);
+        Assert.True(npc.Skills.Get(new SkillType(0)) > 0);
         Assert.Equal(9, npc.Wallet.Amount);
         Assert.Equal(1, world.FindWorkplace(employer)!.Treasury.Amount);
     }
@@ -86,7 +87,7 @@ public class SkillTeachingSystemTests
 
         new SkillTeachingSystem(Rules, ScenarioRunner.DefaultLifeStageRules).Tick(world, Ctx(world));
 
-        Assert.Equal(0, npc.Skills.Get(SkillType.Agriculture));
+        Assert.Equal(0, npc.Skills.Get(new SkillType(0)));
     }
 
     /// <summary>Fase 6, T12 (fix de conservação de dinheiro, ECON-26/27): sem vínculo
@@ -101,7 +102,7 @@ public class SkillTeachingSystemTests
 
         new SkillTeachingSystem(Rules, ScenarioRunner.DefaultLifeStageRules).Tick(world, Ctx(world));
 
-        Assert.Equal(0, npc.Skills.Get(SkillType.Agriculture));
+        Assert.Equal(0, npc.Skills.Get(new SkillType(0)));
         Assert.Equal(10, npc.Wallet.Amount);
     }
 
@@ -115,7 +116,7 @@ public class SkillTeachingSystemTests
 
         new SkillTeachingSystem(Rules, ScenarioRunner.DefaultLifeStageRules).Tick(world, Ctx(world));
 
-        Assert.True(npc.Skills.Get(SkillType.Agriculture) > 0);
+        Assert.True(npc.Skills.Get(new SkillType(0)) > 0);
     }
 
     [Fact]
@@ -126,7 +127,7 @@ public class SkillTeachingSystemTests
 
         new SkillTeachingSystem(Rules, ScenarioRunner.DefaultLifeStageRules).Tick(world, Ctx(world));
 
-        Assert.Equal(0, npc.Skills.Get(SkillType.Agriculture));
+        Assert.Equal(0, npc.Skills.Get(new SkillType(0)));
     }
 
     // --- Parental (SKILL-06) ---
@@ -144,7 +145,7 @@ public class SkillTeachingSystemTests
 
         new SkillTeachingSystem(Rules, ScenarioRunner.DefaultLifeStageRules).Tick(world, Ctx(world));
 
-        Assert.True(child.Skills.Get(SkillType.Agriculture) > 0);
+        Assert.True(child.Skills.Get(new SkillType(0)) > 0);
     }
 
     [Fact]
@@ -161,7 +162,7 @@ public class SkillTeachingSystemTests
 
         new SkillTeachingSystem(Rules, ScenarioRunner.DefaultLifeStageRules).Tick(world, Ctx(world));
 
-        Assert.Equal(0, child.Skills.Get(SkillType.Agriculture));
+        Assert.Equal(0, child.Skills.Get(new SkillType(0)));
     }
 
     // --- Observation (SKILL-07) ---
@@ -175,14 +176,14 @@ public class SkillTeachingSystemTests
         var worker = MakeNpc(observationWorld, 30, new ProfessionType(1), location, ActionType.Work);
         var observer = MakeNpc(observationWorld, 30, ProfessionType.None, location, ActionType.Idle);
         new SkillTeachingSystem(Rules, ScenarioRunner.DefaultLifeStageRules).Tick(observationWorld, Ctx(observationWorld));
-        double observationGain = observer.Skills.Get(SkillType.Agriculture);
+        double observationGain = observer.Skills.Get(new SkillType(0));
 
         var tutoringWorld = BuildWorld();
         var master = MakeNpc(tutoringWorld, 30, new ProfessionType(1), location, ActionType.Work);
-        master.GainSkill(SkillType.Agriculture, 50, Rules.Cap);
+        master.GainSkill(new SkillType(0), 50, Rules.Cap);
         var apprentice = MakeNpc(tutoringWorld, 30, ProfessionType.None, location, ActionType.Idle, mentor: master.Id);
         new SkillTeachingSystem(Rules, ScenarioRunner.DefaultLifeStageRules).Tick(tutoringWorld, Ctx(tutoringWorld));
-        double tutoringGain = apprentice.Skills.Get(SkillType.Agriculture);
+        double tutoringGain = apprentice.Skills.Get(new SkillType(0));
 
         Assert.True(observationGain > 0);
         Assert.True(tutoringGain > observationGain);
@@ -194,7 +195,7 @@ public class SkillTeachingSystemTests
         var world = BuildWorld();
         var location = new CellCoord(1, 1);
         var master = MakeNpc(world, 30, new ProfessionType(1), location, ActionType.Work);
-        master.GainSkill(SkillType.Agriculture, 40, Rules.Cap);
+        master.GainSkill(new SkillType(0), 40, Rules.Cap);
         var apprentice = MakeNpc(world, 30, ProfessionType.None, location, ActionType.Idle, mentor: master.Id);
 
         new SkillTeachingSystem(Rules, ScenarioRunner.DefaultLifeStageRules).Tick(world, Ctx(world));
@@ -203,13 +204,13 @@ public class SkillTeachingSystemTests
         // Observation contasse o mestre (mesmo sendo o Mentor), o ganho final excederia esta
         // fórmula — a igualdade exata prova a exclusão.
         // masterFactor = (min(masterSkill,cap)/cap) * (1 + masterTeaching/cap); baseGain via curva.
-        double masterSkill = Math.Min(master.Skills.Get(SkillType.Agriculture), Rules.Cap);
-        double masterTeaching = master.Skills.Get(SkillType.Teaching);
+        double masterSkill = Math.Min(master.Skills.Get(new SkillType(0)), Rules.Cap);
+        double masterTeaching = master.Skills.Get(new SkillType(6));
         double masterFactor = (masterSkill / Rules.Cap) * (1.0 + masterTeaching / Rules.Cap);
         double baseGain = Rules.Gain(0, SkillGainSource.Tutoring, apprentice.RateGene.Value);
         double expected = baseGain * masterFactor;
 
-        Assert.Equal(expected, apprentice.Skills.Get(SkillType.Agriculture), precision: 10);
+        Assert.Equal(expected, apprentice.Skills.Get(new SkillType(0)), precision: 10);
     }
 
     // --- Tutoring (SKILL-08) ---
@@ -221,18 +222,18 @@ public class SkillTeachingSystemTests
 
         var lowWorld = BuildWorld();
         var lowMaster = MakeNpc(lowWorld, 30, new ProfessionType(1), location, ActionType.Work);
-        lowMaster.GainSkill(SkillType.Agriculture, 5, Rules.Cap);
+        lowMaster.GainSkill(new SkillType(0), 5, Rules.Cap);
         var lowApprentice = MakeNpc(lowWorld, 10, ProfessionType.None, location, ActionType.Idle, mentor: lowMaster.Id);
         new SkillTeachingSystem(Rules, ScenarioRunner.DefaultLifeStageRules).Tick(lowWorld, Ctx(lowWorld));
 
         var highWorld = BuildWorld();
         var highMaster = MakeNpc(highWorld, 30, new ProfessionType(1), location, ActionType.Work);
-        highMaster.GainSkill(SkillType.Agriculture, 90, Rules.Cap);
-        highMaster.GainSkill(SkillType.Teaching, 90, Rules.Cap);
+        highMaster.GainSkill(new SkillType(0), 90, Rules.Cap);
+        highMaster.GainSkill(new SkillType(6), 90, Rules.Cap);
         var highApprentice = MakeNpc(highWorld, 10, ProfessionType.None, location, ActionType.Idle, mentor: highMaster.Id);
         new SkillTeachingSystem(Rules, ScenarioRunner.DefaultLifeStageRules).Tick(highWorld, Ctx(highWorld));
 
-        Assert.True(highApprentice.Skills.Get(SkillType.Agriculture) > lowApprentice.Skills.Get(SkillType.Agriculture));
+        Assert.True(highApprentice.Skills.Get(new SkillType(0)) > lowApprentice.Skills.Get(new SkillType(0)));
     }
 
     [Fact]
@@ -248,6 +249,6 @@ public class SkillTeachingSystemTests
 
         Assert.Null(exception);
         Assert.Null(apprentice.Mentor);
-        Assert.Equal(0, apprentice.Skills.Get(SkillType.Agriculture));
+        Assert.Equal(0, apprentice.Skills.Get(new SkillType(0)));
     }
 }

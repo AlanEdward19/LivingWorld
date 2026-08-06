@@ -333,17 +333,22 @@ public sealed class CourtshipSystem : ISimulationSystem
         return (wealth + profession) / 2.0;
     }
 
+    // ponytail: normaliza sobre os mesmos 13 ids fixos da Fase 6 (0..12) — teto histórico
+    // preservado como constante de normalização, não decisão sobre quais habilidades existem
+    // (Fase 13 abriu SkillType/SkillSet pra id livre, mas nenhum período hoje declara catálogo
+    // de habilidades maior/menor que esse). Se um período vier a declarar mais/menos
+    // habilidades relevantes pro score de atração, virar contagem data-driven (ex.: via
+    // SkillsRules) é o upgrade natural.
+    private static readonly SkillType[] KnownSkillTypesForScoring =
+        Enumerable.Range(0, 13).Select(id => new SkillType(id)).ToArray();
+
     private static double SkillFactor(Npc npc)
     {
         double sum = 0;
-        int count = 0;
-        foreach (var skill in Enum.GetValues<SkillType>())
-        {
+        foreach (var skill in KnownSkillTypesForScoring)
             sum += npc.Skills.Get(skill) / HundredScale;
-            count++;
-        }
 
-        return count == 0 ? 0 : sum / count;
+        return sum / KnownSkillTypesForScoring.Length;
     }
 
     private static double ExistingRelationshipFactor(Relationship? aToB, Relationship? bToA)

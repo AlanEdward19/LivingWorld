@@ -127,7 +127,8 @@ public static class ScenarioRunner
             [SkillGainSource.Observation] = 0.05,
             [SkillGainSource.Tutoring] = 0.25,
         },
-        skillByProfession: new Dictionary<int, SkillType> { [1] = SkillType.Agriculture, [2] = SkillType.Craft })
+        skillByProfession: new Dictionary<int, SkillType> { [1] = new SkillType(0), [2] = new SkillType(7) },
+        teachingSkill: new SkillType(6))
         .Value ?? throw new InvalidOperationException("skills rules default inválida — bug no cenário, não no gerador");
 
     public static readonly FamilyRules DefaultFamilyRules = FamilyRules.Create(

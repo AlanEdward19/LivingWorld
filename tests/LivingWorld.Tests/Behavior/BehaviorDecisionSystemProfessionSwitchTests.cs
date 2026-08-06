@@ -40,7 +40,8 @@ public class BehaviorDecisionSystemProfessionSwitchTests
 
     private static SkillsRules MakeSkillsRules() => SkillsRules.Create(
         cap: 100, baseRateBySource: new Dictionary<SkillGainSource, double>(),
-        skillByProfession: new Dictionary<int, SkillType> { [1] = SkillType.Agriculture, [2] = SkillType.Craft }).Value!;
+        skillByProfession: new Dictionary<int, SkillType> { [1] = new SkillType(0), [2] = new SkillType(7) },
+        teachingSkill: new SkillType(6)).Value!;
 
     private static WorldState BuildWorld(EconomyCatalog? catalog = null)
     {
@@ -86,7 +87,7 @@ public class BehaviorDecisionSystemProfessionSwitchTests
         var world = BuildWorld();
         MakeWorkplace(world, locationTypeId: 1, maxVacancies: 5, hiredCount: 0);
         MakeWorkplace(world, locationTypeId: 2, maxVacancies: 5, hiredCount: 0);
-        var npc = MakeAdult(world, new ProfessionType(1), SkillSet.Initial(0).WithGain(SkillType.Craft, 90, cap: 100));
+        var npc = MakeAdult(world, new ProfessionType(1), SkillSet.Empty.WithGain(new SkillType(7), 90, cap: 100));
 
         new BehaviorDecisionSystem(skillsRules: null).Tick(world, Ctx(world));
 
@@ -101,7 +102,7 @@ public class BehaviorDecisionSystemProfessionSwitchTests
         MakeWorkplace(world, locationTypeId: 2, maxVacancies: 5, hiredCount: 0);
         // Craft (profissão 2) muito mais alto que Agriculture (profissão 1, corrente) — vagas
         // iguais nos dois lados, então só a habilidade decide.
-        var npc = MakeAdult(world, new ProfessionType(1), SkillSet.Initial(0).WithGain(SkillType.Craft, 90, cap: 100));
+        var npc = MakeAdult(world, new ProfessionType(1), SkillSet.Empty.WithGain(new SkillType(7), 90, cap: 100));
 
         new BehaviorDecisionSystem(MakeSkillsRules()).Tick(world, Ctx(world));
 
@@ -114,13 +115,13 @@ public class BehaviorDecisionSystemProfessionSwitchTests
         var world = BuildWorld();
         MakeWorkplace(world, locationTypeId: 1, maxVacancies: 5, hiredCount: 0);
         MakeWorkplace(world, locationTypeId: 2, maxVacancies: 5, hiredCount: 0);
-        var skills = SkillSet.Initial(0).WithGain(SkillType.Agriculture, 30, cap: 100).WithGain(SkillType.Craft, 90, cap: 100);
+        var skills = SkillSet.Empty.WithGain(new SkillType(0), 30, cap: 100).WithGain(new SkillType(7), 90, cap: 100);
         var npc = MakeAdult(world, new ProfessionType(1), skills);
 
         new BehaviorDecisionSystem(MakeSkillsRules()).Tick(world, Ctx(world));
 
         Assert.Equal(new ProfessionType(2), npc.Profession);
-        Assert.Equal(30, npc.Skills.Get(SkillType.Agriculture)); // estagnação, não reset (T7)
+        Assert.Equal(30, npc.Skills.Get(new SkillType(0))); // estagnação, não reset (T7)
     }
 
     [Fact]
@@ -134,7 +135,7 @@ public class BehaviorDecisionSystemProfessionSwitchTests
             world.NextNpcIdAndAdvance(), "child", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-5), new CultureId(1),
             location, motherId: null, fatherId: null, household: null, health: 100,
             personality: Neutral, profession: new ProfessionType(1), currentLocation: location,
-            skills: SkillSet.Initial(0).WithGain(SkillType.Craft, 90, cap: 100));
+            skills: SkillSet.Empty.WithGain(new SkillType(7), 90, cap: 100));
         world.AddNpc(child);
 
         new BehaviorDecisionSystem(MakeSkillsRules()).Tick(world, Ctx(world));

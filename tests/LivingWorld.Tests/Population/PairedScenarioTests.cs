@@ -97,9 +97,9 @@ public class PairedScenarioTests
     {
         var world = SkillScenarioHarness.CreateWorld(seed);
         var rateGene = new RateGene(1.0);
-        var masterSkills = SkillSet.Initial(0)
-            .WithGain(SkillType.Agriculture, masterSkillLevel, cap: 100)
-            .WithGain(SkillType.Teaching, 50, cap: 100);
+        var masterSkills = SkillSet.Empty
+            .WithGain(new SkillType(0), masterSkillLevel, cap: 100)
+            .WithGain(new SkillType(6), 50, cap: 100);
         var master = SkillScenarioHarness.MakeWorker(
             world, new ProfessionType(1), SkillScenarioHarness.SomeLocation, rateGene, masterSkills);
         // ActionType.Idle (não Work): impede que SkillTeachingSystem.GainFromObservation faça o
@@ -114,7 +114,7 @@ public class PairedScenarioTests
         for (int day = 0; day < days; day++)
             system.Tick(world, ctx);
 
-        return apprentice.Skills.Get(SkillType.Agriculture);
+        return apprentice.Skills.Get(new SkillType(0));
     }
 
     [Fact]
@@ -146,7 +146,7 @@ public class PairedScenarioTests
         for (int day = 0; day < days; day++)
             system.Tick(world, ctx);
 
-        return npc.Skills.Get(SkillType.Agriculture);
+        return npc.Skills.Get(new SkillType(0));
     }
 
     [Fact]
@@ -223,7 +223,7 @@ public class PairedScenarioTests
             // resta, que lê a própria criança, nunca a mãe (SkillTeachingSystem.GainFromSchool).
             var mother = SkillScenarioHarness.MakeWorker(
                 familyWorld, new ProfessionType(1), new CellCoord(1, 1), motherGene,
-                skills: SkillSet.Initial(0).WithGain(SkillType.Agriculture, motherSkillLevel, rules.Cap));
+                skills: SkillSet.Empty.WithGain(new SkillType(0), motherSkillLevel, rules.Cap));
             var child = SkillScenarioHarness.MakeWorker(
                 familyWorld, new ProfessionType(1), new CellCoord(2, 2), childGene, ageYears: 5);
             var familyCtx = new TickContext(familyWorld, familyWorld.Rng, familyWorld.Scheduler);
@@ -231,7 +231,7 @@ public class PairedScenarioTests
             for (int day = 0; day < daysOfSchooling; day++)
                 teaching.Tick(familyWorld, familyCtx);
 
-            skillPairs.Add((mother.Skills.Get(SkillType.Agriculture), child.Skills.Get(SkillType.Agriculture)));
+            skillPairs.Add((mother.Skills.Get(new SkillType(0)), child.Skills.Get(new SkillType(0))));
             genePairs.Add((motherGene.Value, childGene.Value));
         }
 

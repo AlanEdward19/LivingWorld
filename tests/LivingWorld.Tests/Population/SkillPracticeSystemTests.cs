@@ -16,7 +16,8 @@ public class SkillPracticeSystemTests
     private static readonly SkillsRules Rules = SkillsRules.Create(
         cap: 100,
         baseRateBySource: new Dictionary<SkillGainSource, double> { [SkillGainSource.Practice] = 2.0 },
-        skillByProfession: new Dictionary<int, SkillType> { [1] = SkillType.Agriculture }).Value!;
+        skillByProfession: new Dictionary<int, SkillType> { [1] = new SkillType(0) },
+        teachingSkill: new SkillType(6)).Value!;
 
     private static WorldState BuildWorld()
     {
@@ -57,7 +58,7 @@ public class SkillPracticeSystemTests
 
         new SkillPracticeSystem(Rules).Tick(world, ctx);
 
-        Assert.True(npc.Skills.Get(SkillType.Agriculture) > 0);
+        Assert.True(npc.Skills.Get(new SkillType(0)) > 0);
     }
 
     [Fact]
@@ -75,7 +76,7 @@ public class SkillPracticeSystemTests
         var exception = Record.Exception(() => new SkillPracticeSystem(Rules).Tick(world, ctx));
 
         Assert.Null(exception);
-        Assert.Equal(0, npc.Skills.Get(SkillType.Agriculture));
+        Assert.Equal(0, npc.Skills.Get(new SkillType(0)));
     }
 
     [Fact]
@@ -91,7 +92,7 @@ public class SkillPracticeSystemTests
 
         new SkillPracticeSystem(Rules).Tick(world, ctx);
 
-        Assert.Equal(0, npc.Skills.Get(SkillType.Agriculture));
+        Assert.Equal(0, npc.Skills.Get(new SkillType(0)));
     }
 
     [Fact]
@@ -108,7 +109,7 @@ public class SkillPracticeSystemTests
 
         new SkillPracticeSystem(Rules).Tick(world, ctx);
 
-        Assert.Equal(0, npc.Skills.Get(SkillType.Agriculture));
+        Assert.Equal(0, npc.Skills.Get(new SkillType(0)));
     }
 
     [Fact]
@@ -126,7 +127,7 @@ public class SkillPracticeSystemTests
             var ctx = new TickContext(world, world.Rng, world.Scheduler);
 
             new SkillPracticeSystem(Rules).Tick(world, ctx);
-            return npc.Skills.Get(SkillType.Agriculture);
+            return npc.Skills.Get(new SkillType(0));
         }
 
         Assert.Equal(GainOnce(), GainOnce());

@@ -45,7 +45,7 @@ public class ProductionSystemSkillTests
                 world.NextNpcIdAndAdvance(), $"worker-{i}", Sex.Male, WorldDate.Epoch(world.Calendar).AddYears(-30),
                 new CultureId(1), location, motherId: null, fatherId: null, household: null, health: 100,
                 personality: SomePersonality, profession: new ProfessionType(1), currentLocation: location,
-                skills: SkillSet.Initial(0).WithGain(SkillType.Agriculture, workerSkill, cap: 100));
+                skills: SkillSet.Empty.WithGain(new SkillType(0), workerSkill, cap: 100));
             world.AddNpc(npc);
             workplace.Hire(npc.Id);
             npc.Hire(workplace.Id);

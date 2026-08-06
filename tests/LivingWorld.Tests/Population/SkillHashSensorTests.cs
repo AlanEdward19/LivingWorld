@@ -18,7 +18,7 @@ public class SkillHashSensorTests
         var world = SkillScenarioHarness.CreateWorld(seed: 1);
         var npc = SkillScenarioHarness.MakeWorker(
             world, new ProfessionType(1), SkillScenarioHarness.SomeLocation, new RateGene(1.0),
-            skills: SkillSet.Initial(0).WithGain(SkillType.Agriculture, rules.Cap, rules.Cap));
+            skills: SkillSet.Empty.WithGain(new SkillType(0), rules.Cap, rules.Cap));
         var workplace = SkillScenarioHarness.MakeWorkplace(world, new LocationType(1), SkillScenarioHarness.SomeLocation);
         SkillScenarioHarness.Hire(npc, workplace);
         var ctx = new TickContext(world, world.Rng, world.Scheduler);

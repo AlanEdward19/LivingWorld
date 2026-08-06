@@ -139,10 +139,10 @@ public sealed class SkillTeachingSystem : ISimulationSystem
 
     /// <summary>SKILL-08: aprendiz (<see cref="Npc.Mentor"/> aponta pro mestre) ganha a
     /// habilidade que o mestre pratica; a taxa depende de <c>min(habilidade do mestre, cap)</c> e
-    /// da habilidade de <see cref="SkillType.Teaching"/> do mestre — mestre melhor (nas duas
-    /// dimensões) produz ganho maior, mesma seed (SKILL-16). Mestre morto ou removido: <see
-    /// cref="Npc.ClearMentor"/> é chamado no próprio tick, sem exceção (Edge Case da spec) e sem
-    /// ganho nesse tick.</summary>
+    /// da habilidade declarada em <see cref="SkillsRules.TeachingSkill"/> do mestre — mestre
+    /// melhor (nas duas dimensões) produz ganho maior, mesma seed (SKILL-16). Mestre morto ou
+    /// removido: <see cref="Npc.ClearMentor"/> é chamado no próprio tick, sem exceção (Edge Case
+    /// da spec) e sem ganho nesse tick.</summary>
     private void GainFromTutoring(WorldState world, Npc apprentice)
     {
         if (apprentice.Mentor is not { } mentorId) return;
@@ -157,7 +157,7 @@ public sealed class SkillTeachingSystem : ISimulationSystem
         if (!_rules.SkillByProfession.TryGetValue(master.Profession.Id, out var skillType)) return;
 
         double masterSkill = Math.Min(master.Skills.Get(skillType), _rules.Cap);
-        double masterTeaching = master.Skills.Get(SkillType.Teaching);
+        double masterTeaching = master.Skills.Get(_rules.TeachingSkill);
         double masterFactor = (masterSkill / _rules.Cap) * (1.0 + masterTeaching / _rules.Cap);
 
         double baseGain = _rules.Gain(apprentice.Skills.Get(skillType), SkillGainSource.Tutoring, apprentice.RateGene.Value);

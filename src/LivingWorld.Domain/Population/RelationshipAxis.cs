@@ -2,7 +2,8 @@ namespace LivingWorld.Domain;
 
 /// <summary>Os 4 eixos numéricos de uma <see cref="Relationship"/> (Fase 7, T1) — nunca uma
 /// flag booleana de "amizade" (FAM-01). Modelo de decisão do motor, não conteúdo de cenário
-/// (mesmo motivo de <see cref="SkillType"/>).</summary>
+/// (mesmo motivo de <see cref="ActionType"/> — <see cref="SkillType"/> deixou de ser fechado
+/// na Fase 13, T11b).</summary>
 public enum RelationshipAxis
 {
     Trust,

@@ -123,7 +123,7 @@ public sealed class Npc
         DeathDate = deathDate;
         Wallet = wallet;
         Employer = employer;
-        Skills = skills ?? SkillSet.Initial(0);
+        Skills = skills ?? SkillSet.Empty;
         RateGene = rateGene ?? new RateGene(1.0);
         Mentor = mentor;
         Vitality = Math.Clamp(vitality, 0.0, 100.0);

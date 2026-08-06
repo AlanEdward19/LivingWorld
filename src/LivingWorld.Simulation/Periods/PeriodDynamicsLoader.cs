@@ -15,16 +15,15 @@ public sealed record ProfessionBias(int ProfessionId, double Weight);
 
 /// <summary>Peso inicial de uma habilidade no startpoint do período (PERIOD-01/PERIOD-19). Mesmo
 /// contrato de <see cref="ProfessionBias"/> — id inteiro aberto, nenhum nome fechado no motor
-/// (Fase 13, T11a). <see cref="SkillType"/> em <c>src/</c> continua o enum fechado de 13 valores
-/// da Fase 6 até T11b abrir o catálogo de verdade (ver tasks.md) — este bloco só solta a
-/// exigência de nome no contrato de entrada do período, ainda não aplica o viés em runtime.</summary>
+/// (Fase 13, T11a/T11b — <see cref="SkillType"/> deixou de ser enum fechado). Ainda não aplicado
+/// em runtime — só <see cref="ProfessionBias"/> influencia o sorteio hoje (T10).</summary>
 public sealed record SkillBias(int SkillId, double Weight);
 
 /// <summary>Regra declarada de evolução de profissão em runtime (PERIOD-02/03): cardinalidade de
 /// origem/destino varia por <see cref="Kind"/> e é validada em <see cref="PeriodDynamicsLoader"/>.
-/// SPEC_DEVIATION (Fase 13, T1): habilidades não entram aqui — <see cref="SkillType"/> é enum
-/// fechado do motor (Fase 6); transformação dinâmica de habilidade exigiria abrir esse catálogo,
-/// fora do escopo de T1. Ver spec.md Success Criteria — reavaliar em fase futura se necessário.</summary>
+/// Habilidades não entram aqui — <see cref="PeriodTransformationRule"/> só cobre profissão; uma
+/// regra de transformação de habilidade seria a mesma forma com ids de habilidade em vez de
+/// profissão, fora do escopo levantado até agora.</summary>
 public sealed record PeriodTransformationRule(
     PeriodTransformationKind Kind,
     IReadOnlyList<int> SourceProfessionIds,

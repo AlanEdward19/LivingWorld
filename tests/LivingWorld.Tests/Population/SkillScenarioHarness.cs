@@ -65,6 +65,7 @@ public static class SkillScenarioHarness
     public static SkillsRules MakePracticeOnlyRules(double practiceRate, double cap = 100) => SkillsRules.Create(
         cap,
         baseRateBySource: new Dictionary<SkillGainSource, double> { [SkillGainSource.Practice] = practiceRate },
-        skillByProfession: new Dictionary<int, SkillType> { [1] = SkillType.Agriculture, [2] = SkillType.Craft })
+        skillByProfession: new Dictionary<int, SkillType> { [1] = new SkillType(0), [2] = new SkillType(7) },
+        teachingSkill: new SkillType(6))
         .Value ?? throw new InvalidOperationException("skills rules de teste inválida");
 }

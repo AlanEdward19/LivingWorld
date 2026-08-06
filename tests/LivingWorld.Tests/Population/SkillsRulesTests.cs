@@ -13,13 +13,13 @@ public class SkillsRulesTests
 
     private static IReadOnlyDictionary<int, SkillType> ValidProfessionMap => new Dictionary<int, SkillType>
     {
-        [1] = SkillType.Agriculture,
+        [1] = new SkillType(0),
     };
 
     [Fact]
     public void Create_rejects_cap_less_than_or_equal_zero()
     {
-        var result = SkillsRules.Create(0, ValidRates, ValidProfessionMap);
+        var result = SkillsRules.Create(0, ValidRates, ValidProfessionMap, new SkillType(6));
 
         Assert.False(result.IsSuccess);
     }
@@ -29,7 +29,7 @@ public class SkillsRulesTests
     {
         var rates = new Dictionary<SkillGainSource, double> { [SkillGainSource.Practice] = -0.1 };
 
-        var result = SkillsRules.Create(100, rates, ValidProfessionMap);
+        var result = SkillsRules.Create(100, rates, ValidProfessionMap, new SkillType(6));
 
         Assert.False(result.IsSuccess);
     }
@@ -37,7 +37,7 @@ public class SkillsRulesTests
     [Fact]
     public void Create_rejects_empty_skill_by_profession()
     {
-        var result = SkillsRules.Create(100, ValidRates, new Dictionary<int, SkillType>());
+        var result = SkillsRules.Create(100, ValidRates, new Dictionary<int, SkillType>(), new SkillType(6));
 
         Assert.False(result.IsSuccess);
     }
@@ -45,7 +45,7 @@ public class SkillsRulesTests
     [Fact]
     public void Create_accepts_valid_parameters()
     {
-        var result = SkillsRules.Create(100, ValidRates, ValidProfessionMap);
+        var result = SkillsRules.Create(100, ValidRates, ValidProfessionMap, new SkillType(6));
 
         Assert.True(result.IsSuccess);
         Assert.Equal(100, result.Value!.Cap);
@@ -54,7 +54,7 @@ public class SkillsRulesTests
     [Fact]
     public void Gain_multiplies_curve_result_by_rate_gene()
     {
-        var rules = SkillsRules.Create(100, ValidRates, ValidProfessionMap).Value!;
+        var rules = SkillsRules.Create(100, ValidRates, ValidProfessionMap, new SkillType(6)).Value!;
 
         double gainWithGeneOne = rules.Gain(currentSkill: 0, SkillGainSource.Practice, rateGene: 1.0);
         double gainWithGeneTwo = rules.Gain(currentSkill: 0, SkillGainSource.Practice, rateGene: 2.0);
@@ -65,7 +65,7 @@ public class SkillsRulesTests
     [Fact]
     public void Gain_for_source_without_declared_rate_is_zero()
     {
-        var rules = SkillsRules.Create(100, ValidRates, ValidProfessionMap).Value!;
+        var rules = SkillsRules.Create(100, ValidRates, ValidProfessionMap, new SkillType(6)).Value!;
 
         double gain = rules.Gain(currentSkill: 0, SkillGainSource.School, rateGene: 1.0);
 

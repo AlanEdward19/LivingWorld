@@ -21,15 +21,15 @@ public class NpcSkillMutatorsTests
     [Fact]
     public void SwitchProfession_changes_profession_and_leaves_skills_byte_identical()
     {
-        var skills = SkillSet.Initial(10).WithGain(SkillType.Agriculture, 5, cap: 100);
+        var skills = SkillSet.Empty.WithGain(new SkillType(0), 5, cap: 100);
         var npc = MakeNpc(profession: new ProfessionType(1), skills: skills);
 
         npc.SwitchProfession(new ProfessionType(2));
 
         Assert.Equal(new ProfessionType(2), npc.Profession);
-        Assert.Equal(skills.Get(SkillType.Agriculture), npc.Skills.Get(SkillType.Agriculture));
-        Assert.Equal(skills.Get(SkillType.Craft), npc.Skills.Get(SkillType.Craft));
-        Assert.Equal(skills.Get(SkillType.Magic), npc.Skills.Get(SkillType.Magic));
+        Assert.Equal(skills.Get(new SkillType(0)), npc.Skills.Get(new SkillType(0)));
+        Assert.Equal(skills.Get(new SkillType(7)), npc.Skills.Get(new SkillType(7)));
+        Assert.Equal(skills.Get(new SkillType(12)), npc.Skills.Get(new SkillType(12)));
     }
 
     [Fact]
@@ -60,12 +60,12 @@ public class NpcSkillMutatorsTests
     [Fact]
     public void Constructor_round_trip_exposes_skills_rategene_and_mentor_unchanged()
     {
-        var skills = SkillSet.Initial(20).WithGain(SkillType.Craft, 15, cap: 100);
+        var skills = SkillSet.Empty.WithGain(new SkillType(7), 15, cap: 100);
         var rateGene = new RateGene(1.4);
         var npc = MakeNpc(skills: skills, rateGene: rateGene, mentor: new NpcId(9));
 
-        Assert.Equal(skills.Get(SkillType.Craft), npc.Skills.Get(SkillType.Craft));
-        Assert.Equal(skills.Get(SkillType.Agriculture), npc.Skills.Get(SkillType.Agriculture));
+        Assert.Equal(skills.Get(new SkillType(7)), npc.Skills.Get(new SkillType(7)));
+        Assert.Equal(skills.Get(new SkillType(0)), npc.Skills.Get(new SkillType(0)));
         Assert.Equal(rateGene, npc.RateGene);
         Assert.Equal(new NpcId(9), npc.Mentor);
     }
@@ -76,7 +76,7 @@ public class NpcSkillMutatorsTests
     public void Round_trip_via_json_preserves_skills_rategene_and_mentor()
     {
         var options = new JsonSerializerOptions { Converters = { new JsonStringEnumConverter() } };
-        var skills = SkillSet.Initial(30).WithGain(SkillType.Medicine, 7, cap: 100);
+        var skills = SkillSet.Empty.WithGain(new SkillType(4), 7, cap: 100);
         var npc = new Npc(
             new NpcId(7), "round-trip", Sex.Male, WorldDate.Epoch(Calendar), new CultureId(2), new CellCoord(1, 1),
             motherId: null, fatherId: null, household: null, health: 80,
@@ -87,7 +87,7 @@ public class NpcSkillMutatorsTests
         var json = JsonSerializer.Serialize(npc, options);
         var rehydrated = JsonSerializer.Deserialize<Npc>(json, options)!;
 
-        Assert.Equal(npc.Skills.Get(SkillType.Medicine), rehydrated.Skills.Get(SkillType.Medicine));
+        Assert.Equal(npc.Skills.Get(new SkillType(4)), rehydrated.Skills.Get(new SkillType(4)));
         Assert.Equal(npc.RateGene, rehydrated.RateGene);
         Assert.Equal(npc.Mentor, rehydrated.Mentor);
     }
