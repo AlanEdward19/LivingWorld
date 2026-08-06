@@ -40,6 +40,37 @@ describe("CreateWorldForm", () => {
       SkillBiases: [],
       TransformationRules: [],
     });
+    expect(scenario.Cells).toBeUndefined();
+  });
+
+  it("emits an exhaustive Cells array once a cell is painted in the map editor", async () => {
+    render(<CreateWorldForm />);
+
+    const canvas = screen.getByTestId("grid-canvas") as HTMLCanvasElement;
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      top: 0,
+      width: canvas.width,
+      height: canvas.height,
+      right: canvas.width,
+      bottom: canvas.height,
+      x: 0,
+      y: 0,
+      toJSON: () => "",
+    });
+    fireEvent.click(canvas, { clientX: 3.5 * 16, clientY: 4.5 * 16 }); // paints (3,4) with default terrain 1
+
+    fireEvent.click(screen.getByRole("button", { name: "Criar mundo" }));
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+
+    const [, init] = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+    const scenario = JSON.parse(JSON.parse((init as RequestInit).body as string).scenarioJson);
+
+    expect(scenario.Cells).toHaveLength(100); // default form is 10x10
+    const painted = scenario.Cells.find((c: { X: number; Y: number }) => c.X === 3 && c.Y === 4);
+    expect(painted).toMatchObject({ Terrain: 1, Biome: 1, Water: false, Altitude: 0 });
+    const unpainted = scenario.Cells.find((c: { X: number; Y: number }) => c.X === 0 && c.Y === 0);
+    expect(unpainted).toMatchObject({ Terrain: 1, Biome: 1 });
   });
 
   it("reflects an edited field (seed) in the submitted JSON", async () => {

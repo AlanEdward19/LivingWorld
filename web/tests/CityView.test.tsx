@@ -1,7 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { CityView } from "../src/components/CityView";
 import type { CitySnapshot } from "../src/types";
+
+const ZOOM = 20;
 
 function makeSnapshot(): CitySnapshot {
   return {
@@ -14,18 +16,42 @@ function makeSnapshot(): CitySnapshot {
   };
 }
 
+function clickCell(canvas: HTMLCanvasElement, x: number, y: number) {
+  vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+    left: 0,
+    top: 0,
+    width: canvas.width,
+    height: canvas.height,
+    right: canvas.width,
+    bottom: canvas.height,
+    x: 0,
+    y: 0,
+    toJSON: () => "",
+  });
+  fireEvent.click(canvas, { clientX: (x + 0.5) * ZOOM, clientY: (y + 0.5) * ZOOM });
+}
+
 describe("CityView", () => {
-  it("renders visible residents", () => {
+  beforeEach(() => {
+    HTMLCanvasElement.prototype.getContext = () => null;
+  });
+
+  it("opens the side panel for a resident clicked at its relative grid position", () => {
     render(<CityView snapshot={makeSnapshot()} onSelectBuilding={() => {}} onBack={() => {}} />);
 
-    expect(screen.getByText(/npc 3 em/)).toBeInTheDocument();
+    // resident at (1,1), city at (0,0), local grid centers on 10 -> local (11,11)
+    clickCell(screen.getByTestId("grid-canvas") as HTMLCanvasElement, 11, 11);
+
+    expect(screen.getByText("NPC 3")).toBeInTheDocument();
   });
 
   it("calls onSelectBuilding with the clicked building id (drill-down to interior)", () => {
     const onSelectBuilding = vi.fn();
     render(<CityView snapshot={makeSnapshot()} onSelectBuilding={onSelectBuilding} onBack={() => {}} />);
 
-    fireEvent.click(screen.getByText(/prédio 8/));
+    // single building sits on the ring at angle 0 -> local (14,10)
+    clickCell(screen.getByTestId("grid-canvas") as HTMLCanvasElement, 14, 10);
+    fireEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
     expect(onSelectBuilding).toHaveBeenCalledWith("8");
   });

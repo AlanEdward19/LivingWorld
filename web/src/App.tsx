@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRealtimeSnapshot } from "./hooks/useRealtimeSnapshot";
 import { WorldMapView } from "./components/WorldMapView";
 import { CityView } from "./components/CityView";
@@ -7,6 +7,7 @@ import { PlayerMoveControls } from "./components/PlayerMoveControls";
 import { CreateWorldForm } from "./components/CreateWorldForm";
 import { StartMenu } from "./components/StartMenu";
 import { SettingsView } from "./components/SettingsView";
+import { MapOverlay } from "./components/MapOverlay";
 import { ViewerMode, focusScopeKey } from "./types";
 import type { CitySnapshot, FocusScope, GlobalSnapshot, InteriorSnapshot } from "./types";
 
@@ -22,6 +23,20 @@ export function App() {
   const [mode, setMode] = useState<ViewerMode>(ViewerMode.Spectator);
   const [playerNpcId, setPlayerNpcId] = useState<number | undefined>(undefined);
   const [creatingWorld, setCreatingWorld] = useState(false);
+  const [showMapOverlay, setShowMapOverlay] = useState(false);
+
+  // T15 (fase 15, UX pass 2): M abre o mapa view-only enquanto o jogador está dentro de uma
+  // cidade/interior — "igual em um RPG", sem mexer no escopo/estado atual.
+  const canOpenMapOverlay =
+    screen === "world" && mode === ViewerMode.Player && focus.kind !== "World" && !creatingWorld;
+  useEffect(() => {
+    if (!canOpenMapOverlay) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key.toLowerCase() === "m") setShowMapOverlay((v) => !v);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [canOpenMapOverlay]);
 
   const { envelope, connected, error } = useRealtimeSnapshot<
     GlobalSnapshot | CitySnapshot | InteriorSnapshot
@@ -130,6 +145,8 @@ export function App() {
           />
         )}
       </main>
+
+      {showMapOverlay && <MapOverlay onClose={() => setShowMapOverlay(false)} />}
     </div>
   );
 }

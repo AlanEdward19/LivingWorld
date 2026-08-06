@@ -60,6 +60,20 @@ Implement these tasks com a skill `tlc-spec-driven` ativa (fluxo Execute complet
 ### T9: Fechar gate de fase (OpenAPI + no-write + mutação)
 **What**: gerar tipos TS via OpenAPI no verify, testes de hash invariável para leitura/subscribe, cobertura obrigatória de cada camada do catálogo e mutante do ramo web que prova reprovação. **Where**: `scripts/verify.sh`, `tests/LivingWorld.Tests/Visual/*Gate*Tests.cs`. **Depends on**: T8. **Requirement**: VTT-02, VTT-06, VTT-10..16. **Tests**: architecture + integration. **Gate**: Full.
 
+## UX Pass 2 Tasks (2026-08-06) — Status: Done (todas T10-T15, verificado no browser real + gate completo 2026-08-06)
+### T10: Expor dimensões do mapa no snapshot global — Done
+**What**: adicionar `Width`/`Height` a `GlobalSnapshot` (de `world.Map`), regenerar tipos TS. **Where**: `src/LivingWorld.Api/Visual/GlobalProjector.cs`, `web/src/generated/api-types.ts`. **Depends on**: None. **Requirement**: UX Pass 2 "Grid 2D real". **Tests**: integration (`GlobalProjectionEndpointTests`). **Gate**: Quick.
+### T11: Componente `GridCanvas` genérico + `colorById` — Done
+**What**: canvas reusável (célula colorida opcional, marcadores com LOD dot/token, click de célula/marcador) e paleta determinística por id. **Where**: `web/src/components/GridCanvas.tsx`, `web/src/colorById.ts`. **Depends on**: T10. **Requirement**: UX Pass 2 "Grid 2D real", "Zoom com LOD". **Tests**: unit (seleção de marcador, LOD threshold) — `web/tests/GridCanvas.test.tsx`. **Gate**: Quick.
+### T12: Reescrever `WorldMapView`/`CityView` sobre `GridCanvas` — Done
+**What**: substituir listas/botões por grid real (terreno + cidades/NPCs no mundo; residentes + layout aproximado de prédios na cidade). **Where**: `web/src/components/WorldMapView.tsx`, `CityView.tsx`, `web/src/worldMapData.ts`. **Depends on**: T11. **Requirement**: UX Pass 2 "Grid 2D real". **Tests**: unit+integration (render, click) — `web/tests/WorldMapView.test.tsx`, `CityView.test.tsx`. **Gate**: Quick.
+### T13: `SidePanel` + seleção por clique — Done
+**What**: painel lateral de cidade/NPC ao clicar marcador, com ação "Entrar" pra cidade. **Where**: `web/src/components/SidePanel.tsx`, wiring em `WorldMapView`/`CityView`. **Depends on**: T12. **Requirement**: UX Pass 2 "Seleção por clique → painel lateral". **Tests**: unit (coberto por `WorldMapView.test.tsx`/`CityView.test.tsx`). **Gate**: Quick.
+### T14: Editor de mapa por clique em "criar mundo" — Done
+**What**: trocar autoria numérica do bloco `Map` por `GridCanvas` interativo (pintura de terreno/bioma + assentamento por clique), mantendo o mesmo JSON de saída. **Where**: `web/src/components/CreateWorldForm.tsx`, `web/src/components/MapGridEditor.tsx`, `web/src/scenarioDefaults.ts`. **Depends on**: T11. **Requirement**: UX Pass 2 "Editor de mapa por clique". **Tests**: unit — `web/tests/MapGridEditor.test.tsx`, caso `Cells` exaustivo em `CreateWorldForm.test.tsx`. **Gate**: Quick.
+### T15: Overlay de mapa (tecla M) em modo jogador — Done
+**What**: `MapOverlay` somente-leitura acionado por M enquanto dentro de cidade/interior em modo Player; Esc/M fecha. **Where**: `web/src/components/MapOverlay.tsx`, `App.tsx`. **Depends on**: T12. **Requirement**: UX Pass 2 "Overlay de mapa (tecla M)". **Tests**: unit (wiring simples, verificado por leitura de código + typecheck; sem teste dedicado — ponytail: `useEffect`+`fetchSnapshot` já cobertos nos padrões existentes). **Gate**: Quick.
+
 ## Diagram-Definition Cross-Check
 | Task | Depends On (body) | Diagram | Status |
 | --- | --- | --- | --- |

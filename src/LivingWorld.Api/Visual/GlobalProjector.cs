@@ -18,6 +18,8 @@ public sealed record GlobalNpcMarker(NpcId Id, CellCoord Location);
 /// <c>Facts</c>/event log), então resumir isso aqui seria inventar semântica sem lastro; fica
 /// deferido até essa leitura existir no domínio.</summary>
 public sealed record GlobalSnapshot(
+    int Width,
+    int Height,
     IReadOnlyList<GlobalCityMarker> Cities,
     IReadOnlyList<GlobalNpcMarker> ExternalNpcs,
     IReadOnlyList<object> ActiveEvents,
@@ -43,6 +45,6 @@ public static class GlobalProjector
         var layers = GlobalLayerBuilder.SupportedLayers
             .ToDictionary(id => id, id => GlobalLayerBuilder.Build(id, world));
 
-        return new GlobalSnapshot(cities, externalNpcs, [], layers);
+        return new GlobalSnapshot(world.Map.Width, world.Map.Height, cities, externalNpcs, [], layers);
     }
 }

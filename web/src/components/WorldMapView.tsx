@@ -1,3 +1,7 @@
+import { useMemo, useState } from "react";
+import { GridCanvas } from "./GridCanvas";
+import { SidePanel } from "./SidePanel";
+import { riverOverlayPoints, terrainColorLookup, worldMarkers } from "../worldMapData";
 import type { GlobalSnapshot } from "../types";
 
 export interface WorldMapViewProps {
@@ -5,31 +9,66 @@ export interface WorldMapViewProps {
   onSelectCity: (cityId: string) => void;
 }
 
-/// Fase 15, T8 (VTT-01, VTT-04, VTT-06): mapa-múndi simplificado — cidades clicáveis (drill-down
-/// pra T5), NPCs externos como marcadores, e legenda de camadas mostrando o que já é dado real
-/// vs ainda não modelado (T4's LayerBuildResult.NotYetModeled).
+type Selection = { kind: "city"; id: string } | { kind: "npc"; id: string } | null;
+
+/// T12 (fase 15, UX pass 2): mapa-múndi como grid 2D de verdade — terreno colorido por id (camada
+/// Terrain), rios como overlay, cidades e NPCs externos como marcadores reais na posição
+/// (CellCoord), não mais lista/botão. Clique num marcador abre o SidePanel (T13); clique numa
+/// célula vazia não faz nada (spec.md P1 "Grid 2D real").
 export function WorldMapView({ snapshot, onSelectCity }: WorldMapViewProps) {
+  const [zoom, setZoom] = useState(16);
+  const [selection, setSelection] = useState<Selection>(null);
+
+  const terrainColor = useMemo(() => terrainColorLookup(snapshot), [snapshot.layers.Terrain]);
+  const riverPoints = useMemo(() => riverOverlayPoints(snapshot), [snapshot.layers.Rivers]);
+  const markers = useMemo(() => worldMarkers(snapshot), [snapshot.cities, snapshot.externalNpcs]);
+
+  const selectedCity = selection?.kind === "city"
+    ? snapshot.cities.find((c) => c.id.value === selection.id)
+    : undefined;
+  const selectedNpc = selection?.kind === "npc"
+    ? snapshot.externalNpcs.find((n) => String(n.id.value) === selection.id)
+    : undefined;
+
   return (
     <div data-testid="world-map-view">
       <h2>Mapa-múndi</h2>
-      <ul aria-label="cidades">
-        {snapshot.cities.map((city) => (
-          <li key={city.id.value}>
-            <button type="button" onClick={() => onSelectCity(city.id.value)}>
-              cidade {city.id.value.slice(0, 8)} — pop. {city.population} — ({city.location.x},{city.location.y})
-            </button>
-          </li>
-        ))}
-      </ul>
+      <div className="map-view-body">
+        <GridCanvas
+          width={snapshot.width}
+          height={snapshot.height}
+          cellColor={terrainColor}
+          overlayPoints={riverPoints}
+          markers={markers}
+          zoom={zoom}
+          onZoomChange={setZoom}
+          onMarkerClick={(id) => {
+            const [kind, refId] = id.split(":");
+            setSelection(kind === "city" ? { kind: "city", id: refId } : { kind: "npc", id: refId });
+          }}
+        />
 
-      <h3>NPCs externos ({snapshot.externalNpcs.length})</h3>
-      <ul aria-label="npcs-externos">
-        {snapshot.externalNpcs.map((npc) => (
-          <li key={npc.id.value}>
-            npc {npc.id.value} em ({npc.location.x},{npc.location.y})
-          </li>
-        ))}
-      </ul>
+        {selectedCity && (
+          <SidePanel
+            title={`Cidade ${selectedCity.id.value.slice(0, 8)}`}
+            onClose={() => setSelection(null)}
+            action={{ label: "Entrar", onClick: () => onSelectCity(selectedCity.id.value) }}
+          >
+            <p>População: {selectedCity.population}</p>
+            <p>
+              Posição: ({selectedCity.location.x}, {selectedCity.location.y})
+            </p>
+          </SidePanel>
+        )}
+
+        {selectedNpc && (
+          <SidePanel title={`NPC ${selectedNpc.id.value}`} onClose={() => setSelection(null)}>
+            <p>
+              Posição: ({selectedNpc.location.x}, {selectedNpc.location.y})
+            </p>
+          </SidePanel>
+        )}
+      </div>
 
       <h3>Camadas</h3>
       <ul aria-label="camadas-globais">

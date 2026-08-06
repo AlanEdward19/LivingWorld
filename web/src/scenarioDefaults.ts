@@ -95,6 +95,13 @@ export interface TransformationRuleRow {
   triggerTick: number | null;
 }
 
+export interface PaintedCell {
+  terrain: number;
+  biome: number;
+  altitude: number;
+  water: boolean;
+}
+
 export interface ScenarioFormState {
   // Map
   width: number;
@@ -108,6 +115,9 @@ export interface ScenarioFormState {
   costWeightsAltitude: number;
   terrainWeight: KeyNumberRow[];
   settlements: SettlementRow[];
+  // T14 (fase 15, UX pass 2): células pintadas no editor de grid, chave "x,y". Vazio == mapa
+  // 100% procedural a partir de Seed (comportamento anterior, sem quebrar quem não usa o editor).
+  cells: Record<string, PaintedCell>;
 
   // Population
   initialPopulation: number;
@@ -198,6 +208,7 @@ export function defaultScenarioForm(): ScenarioFormState {
       { key: "3", value: 3.0 },
     ],
     settlements: [{ name: "vila", x: 5, y: 5 }],
+    cells: {},
 
     initialPopulation: 100,
     culture: 1,
@@ -285,7 +296,7 @@ export function defaultScenarioForm(): ScenarioFormState {
   };
 }
 
-function parseCsvInts(csv: string): number[] {
+export function parseCsvInts(csv: string): number[] {
   return csv
     .split(",")
     .map((s) => s.trim())
@@ -312,7 +323,36 @@ function parseCompactDict(text: string): Record<string, number> {
 /// Monta o body de `POST /worlds/create` no mesmo shape PascalCase que
 /// `PeriodDefinitionValidator`/`ScenarioLoaderV2.LoadWorld` espera (ver
 /// tests/LivingWorld.Tests/Periods/ScenarioLoaderV2Tests.cs `FullValidRoot()`).
+// T14 (fase 15, UX pass 2): se o usuário pintou pelo menos uma célula no editor de grid,
+// `WorldMap.Create` exige o array `Cells` EXAUSTIVO sobre Width*Height (não dá pra mandar só as
+// células pintadas) — as não pintadas viram o primeiro TerrainId/BiomeId declarado, altitude 0,
+// sem água. Sem nenhuma célula pintada, `Cells` fica de fora e o mapa continua 100% procedural
+// (mesmo comportamento de antes do editor existir).
+function buildCells(form: ScenarioFormState): object[] | undefined {
+  if (Object.keys(form.cells).length === 0) return undefined;
+
+  const defaultTerrain = parseCsvInts(form.terrainIds)[0] ?? 1;
+  const defaultBiome = parseCsvInts(form.biomeIds)[0] ?? 0;
+  const cells: object[] = [];
+  for (let y = 0; y < form.height; y++) {
+    for (let x = 0; x < form.width; x++) {
+      const painted = form.cells[`${x},${y}`];
+      cells.push({
+        X: x,
+        Y: y,
+        Terrain: painted?.terrain ?? defaultTerrain,
+        Altitude: painted?.altitude ?? 0,
+        Biome: painted?.biome ?? defaultBiome,
+        Water: painted?.water ?? false,
+        Resources: [],
+      });
+    }
+  }
+  return cells;
+}
+
 export function scenarioFormToJson(form: ScenarioFormState): string {
+  const cells = buildCells(form);
   const root = {
     Width: form.width,
     Height: form.height,
@@ -327,6 +367,7 @@ export function scenarioFormToJson(form: ScenarioFormState): string {
       TerrainWeight: rowsToDict(form.terrainWeight),
     },
     Settlements: form.settlements.map((s) => ({ Name: s.name, X: s.x, Y: s.y })),
+    ...(cells ? { Cells: cells } : {}),
 
     InitialPopulation: form.initialPopulation,
     Culture: form.culture,

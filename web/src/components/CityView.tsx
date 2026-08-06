@@ -1,3 +1,7 @@
+import { useMemo, useState } from "react";
+import { GridCanvas, type GridMarker } from "./GridCanvas";
+import { SidePanel } from "./SidePanel";
+import { colorById } from "../colorById";
 import type { CitySnapshot } from "../types";
 
 export interface CityViewProps {
@@ -6,10 +10,49 @@ export interface CityViewProps {
   onBack: () => void;
 }
 
-/// Fase 15, T8 (VTT-03, VTT-05, VTT-11): foco de cidade — moradores materializados com
-/// posição/atividade (FOW já aplicado pelo servidor em T7, o cliente só renderiza o que recebeu),
-/// prédios clicáveis (drill-down pra interior) e pool agregado como resumo do resto da população.
+const LOCAL_SIZE = 21;
+const CENTER = Math.floor(LOCAL_SIZE / 2);
+const BUILDING_RING_RADIUS = 4;
+
+type Selection = { kind: "resident"; id: string } | { kind: "building"; id: string } | null;
+
+/// T12 (fase 15, UX pass 2): grid local da cidade — moradores plotados na posição real
+/// (CellCoord relativo ao centro da cidade), prédios num layout de anel calculado no cliente
+/// (domínio não guarda CellCoord de prédio hoje, ver design.md "Limitação conhecida"). O anel é
+/// só disposição visual, não posição real — por isso o marcador de prédio usa um traço tracejado
+/// em vez do preenchimento sólido dos moradores.
 export function CityView({ snapshot, onSelectBuilding, onBack }: CityViewProps) {
+  const [zoom, setZoom] = useState(20);
+  const [selection, setSelection] = useState<Selection>(null);
+
+  const residentMarkers: GridMarker[] = snapshot.residents.map((r) => ({
+    id: `resident:${r.id.value}`,
+    x: clampLocal(r.location.x - snapshot.location.x + CENTER),
+    y: clampLocal(r.location.y - snapshot.location.y + CENTER),
+    color: colorById(r.id.value),
+  }));
+
+  const buildingMarkers: GridMarker[] = useMemo(
+    () =>
+      snapshot.buildings.map((b, i) => {
+        const angle = (i / Math.max(1, snapshot.buildings.length)) * Math.PI * 2;
+        return {
+          id: `building:${b.id.value}`,
+          x: clampLocal(Math.round(CENTER + Math.cos(angle) * BUILDING_RING_RADIUS)),
+          y: clampLocal(Math.round(CENTER + Math.sin(angle) * BUILDING_RING_RADIUS)),
+          color: colorById(b.buildingTypeId, 40, 55),
+        };
+      }),
+    [snapshot.buildings],
+  );
+
+  const selectedResident = selection?.kind === "resident"
+    ? snapshot.residents.find((r) => String(r.id.value) === selection.id)
+    : undefined;
+  const selectedBuilding = selection?.kind === "building"
+    ? snapshot.buildings.find((b) => String(b.id.value) === selection.id)
+    : undefined;
+
   return (
     <div data-testid="city-view">
       <button type="button" onClick={onBack}>
@@ -21,26 +64,46 @@ export function CityView({ snapshot, onSelectBuilding, onBack }: CityViewProps) 
         {snapshot.aggregatePool.wealthSum}, saúde {snapshot.aggregatePool.healthSum})
       </p>
 
-      <h3>Moradores visíveis ({snapshot.residents.length})</h3>
-      <ul aria-label="moradores">
-        {snapshot.residents.map((resident) => (
-          <li key={resident.id.value}>
-            npc {resident.id.value} em ({resident.location.x},{resident.location.y})
-            {resident.currentAction !== null && ` — ação ${resident.currentAction}`}
-          </li>
-        ))}
-      </ul>
+      <div className="map-view-body">
+        <GridCanvas
+          width={LOCAL_SIZE}
+          height={LOCAL_SIZE}
+          markers={[...residentMarkers, ...buildingMarkers]}
+          zoom={zoom}
+          onZoomChange={setZoom}
+          onMarkerClick={(id) => {
+            const [kind, refId] = id.split(":");
+            setSelection(kind === "resident" ? { kind: "resident", id: refId } : { kind: "building", id: refId });
+          }}
+        />
 
-      <h3>Prédios ({snapshot.buildings.length})</h3>
-      <ul aria-label="predios">
-        {snapshot.buildings.map((building) => (
-          <li key={building.id.value}>
-            <button type="button" onClick={() => onSelectBuilding(String(building.id.value))}>
-              prédio {building.id.value} (tipo {building.buildingTypeId})
-            </button>
-          </li>
-        ))}
-      </ul>
+        {selectedResident && (
+          <SidePanel title={`NPC ${selectedResident.id.value}`} onClose={() => setSelection(null)}>
+            <p>
+              Posição: ({selectedResident.location.x}, {selectedResident.location.y})
+            </p>
+            {selectedResident.currentAction !== null && <p>Ação: {selectedResident.currentAction}</p>}
+          </SidePanel>
+        )}
+
+        {selectedBuilding && (
+          <SidePanel
+            title={`Prédio ${selectedBuilding.id.value}`}
+            onClose={() => setSelection(null)}
+            action={{
+              label: "Entrar",
+              onClick: () => onSelectBuilding(String(selectedBuilding.id.value)),
+            }}
+          >
+            <p>Tipo: {selectedBuilding.buildingTypeId}</p>
+            <p className="approximate-note">posição no mapa é layout aproximado (sem dado real)</p>
+          </SidePanel>
+        )}
+      </div>
     </div>
   );
+}
+
+function clampLocal(v: number): number {
+  return Math.min(LOCAL_SIZE - 1, Math.max(0, v));
 }

@@ -17,6 +17,46 @@ Hoje o mundo existe só em backend e não há uma visualização viva para acomp
 | Cliente 3D, voz, lip sync, Unreal | Fase 14 (adiada) |
 | Mecânicas novas de economia/sociedade/família | Pertencem às fases donas da mecânica |
 | LLM escrevendo estado do mundo | Violação de fronteira do motor |
+| Arte pixel-art/pintada à mão (tiles, tokens, ícones ilustrados) | Sem pipeline de assets de arte no projeto; token/terreno são procedurais (cor determinística por id/hash), não arte curada (decisão 2026-08-06) |
+| Movimento de personagem em escala mundo-múndi ("andar até a saída da cidade" pra trocar de escopo) | Domínio só valida movimento dentro do escopo de cidade hoje (`VisualInputEndpoints`); trocar de escopo por movimento real exige um sistema de movimento em escala de mapa-múndi que não existe — ver "Open Questions" abaixo |
+
+## UX Pass 2 (2026-08-06) — grid real, tokens, painel lateral, mapa in-game
+Escopo adicional pedido pelo usuário depois do T8 original entregar só listas/botões (não um grid de verdade). Cobre: renderização 2D real do mapa-múndi e da cidade, NPCs como token/dot por LOD de zoom, seleção por clique com painel lateral de informações/ações, editor de mapa por clique na tela "criar mundo" (em vez de só campos numéricos), e overlay de mapa (tecla M) em modo jogador.
+
+### P1: Grid 2D real no mapa-múndi e na cidade
+**User Story**: Como espectador/jogador, quero ver um grid 2D de verdade (não lista/botão) com terreno colorido por camada, cidades e NPCs plotados na posição real.
+1. WHEN o mapa-múndi é aberto THEN sistema SHALL renderizar um canvas com uma célula por `(x,y)` do grid, colorida pela camada `Terrain` ativa (determinístico por id, sem arte).
+2. WHEN uma cidade/NPC externo existe no snapshot THEN sistema SHALL plotar um marcador na coordenada real (`CellCoord`) sobre o grid, não numa lista separada.
+3. WHEN o usuário clica numa célula vazia THEN sistema SHALL não fazer nada (só marcador/cidade são clicáveis).
+
+### P1: Zoom com LOD dot↔token
+**User Story**: Como espectador, quero que NPCs virem pontos brilhantes simples quando eu der zoom out (economia de recurso/legibilidade) e tokens maiores quando eu der zoom in.
+1. WHEN o nível de zoom está abaixo de um limiar THEN sistema SHALL renderizar cada NPC como um dot (círculo pequeno, cor única).
+2. WHEN o nível de zoom está no ou acima do limiar THEN sistema SHALL renderizar cada NPC como um token maior (círculo com anel/cor derivada do id do NPC — sem aparência ilustrada, ver Out of Scope).
+3. WHEN o usuário aumenta/diminui o zoom THEN sistema SHALL re-renderizar sem nova requisição ao servidor (é decisão só de cliente sobre o mesmo snapshot).
+
+### P1: Seleção por clique → painel lateral
+**User Story**: Como espectador/jogador, quero clicar numa cidade ou NPC e ver as informações dela num painel lateral, sem trocar de tela.
+1. WHEN o usuário clica numa cidade no mapa-múndi THEN sistema SHALL abrir um painel lateral direito com nome/id, população e um botão "Entrar" que faz o drill-down existente (troca de escopo).
+2. WHEN o usuário clica num NPC (externo no mapa-múndi, ou morador na cidade) THEN sistema SHALL abrir o painel lateral com id/posição/ação atual.
+3. WHEN o painel lateral está aberto e o usuário clica fora ou no X THEN sistema SHALL fechar o painel sem side-effect no mundo.
+
+### P2: Editor de mapa por clique em "criar mundo"
+**User Story**: Como usuário criando um mundo, quero pintar terreno/bioma e posicionar assentamentos clicando num grid, em vez de digitar arrays de números.
+1. WHEN o usuário seleciona um id de terreno/bioma e clica numa célula do grid do formulário THEN sistema SHALL pintar aquela célula com o id escolhido.
+2. WHEN o usuário ativa o modo "assentamento" e clica numa célula THEN sistema SHALL adicionar um assentamento naquela coordenada.
+3. WHEN o formulário é submetido THEN sistema SHALL enviar o array `Cells` já preenchido com o que foi pintado (autoria explícita), não mais depender só de geração procedural por seed.
+
+### P2: Overlay de mapa em modo jogador (tecla M)
+**User Story**: Como jogador dentro de uma cidade/interior, quero apertar M e ver o mapa (só visualização, como em um RPG) sem perder meu estado atual.
+1. WHEN o jogador aperta M dentro do escopo cidade/interior THEN sistema SHALL abrir um overlay com o mapa-múndi em modo somente-leitura (sem clique/drill-down).
+2. WHEN o jogador aperta M novamente ou Esc THEN sistema SHALL fechar o overlay e manter o escopo/estado anterior intacto.
+
+## Open Questions (UX Pass 2)
+| Question | Status |
+| --- | --- |
+| Jogador deve "andar até a saída" pra sair da cidade (em vez de um botão de voltar) — isso exige movimento validado em escala mapa-múndi, que não existe hoje. Construir agora ou manter botão de drill-down/volta por enquanto? | Deferred — mantido botão de volta/painel por enquanto; movimento mundo-múndi fica registrado como melhoria futura, não bloqueia esta fase |
+| Prédios não têm `CellCoord` no domínio (`Building` não guarda posição) — como plotá-los no grid da cidade? | Resolvido nesta passada: layout calculado no cliente (não é posição real do domínio), marcado visualmente como aproximado |
 
 ## Assumptions & Open Questions
 | Assumption / decision | Chosen default | Rationale | Confirmed? |

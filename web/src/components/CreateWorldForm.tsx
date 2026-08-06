@@ -3,10 +3,12 @@ import { createWorld } from "../api";
 import {
   ACTION_TYPES,
   defaultScenarioForm,
+  parseCsvInts,
   scenarioFormToJson,
   type ScenarioFormState,
 } from "../scenarioDefaults";
 import { KeyNumberListEditor, ObjectListEditor, type FieldSpec } from "./formFields";
+import { MapGridEditor } from "./MapGridEditor";
 
 export interface CreateWorldFormProps {
   onCreated?: (npcCount: number) => void;
@@ -139,8 +141,22 @@ export function CreateWorldForm({ onCreated }: CreateWorldFormProps) {
           onChange={(rows) => set("terrainWeight", rows)}
         />
 
+        <fieldset>
+          <legend>Editor de mapa (clique para pintar/posicionar)</legend>
+          <MapGridEditor
+            width={form.width}
+            height={form.height}
+            terrainIds={parseCsvInts(form.terrainIds)}
+            biomeIds={parseCsvInts(form.biomeIds)}
+            cells={form.cells}
+            onCellsChange={(cells) => set("cells", cells)}
+            settlements={form.settlements}
+            onSettlementsChange={(rows) => set("settlements", rows)}
+          />
+        </fieldset>
+
         <ObjectListEditor
-          label="Assentamentos"
+          label="Assentamentos (mesma lista do editor acima — edição fina por número)"
           fields={[
             { name: "name", label: "nome", type: "text" },
             { name: "x", label: "x", type: "number" },

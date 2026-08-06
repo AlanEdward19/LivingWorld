@@ -93,3 +93,24 @@ public sealed record PlayerMoveIntent(long PlayerNpcId, CellCoord Target, string
 | Realtime | WebSocket primário + SSE fallback espectador | Balanceia interatividade e robustez |
 | Camadas de visualização | Catálogo de projeções derivadas sobre o mesmo grid | Garante rios/clima/etc sem duplicar estado canônico |
 | Aparência de NPC | Token 2D composto por camadas versionadas | Entrega rápida e consistente antes do 3D |
+
+## UX Pass 2 (2026-08-06) — grid real / tokens / painel lateral
+
+### Motivação
+T8 original entregou o cliente web, mas como listas/botões HTML — nenhum grid 2D de verdade era renderizado (spec.md pedia "VTT 2D", a entrega ficou textual). Usuário pediu correção: grid real, NPCs como token/dot por LOD, seleção por clique com painel lateral, editor de mapa por clique, overlay de mapa por tecla M.
+
+### Novos componentes (cliente, `web/src/`)
+1. **`GridCanvas`** (`web/src/components/GridCanvas.tsx`) — canvas genérico reusado por mapa-múndi, cidade e editor de "criar mundo": recebe dimensões, uma função opcional `cellColor(x,y)` (pintura de terreno), uma lista de marcadores `{x,y,color,id,radius}`, nível de zoom e limiar de LOD (abaixo = dot, acima = token com anel), e emite `onMarkerClick(id)`/`onCellClick(x,y)`. Não é o dono do estado — cada view decide o que os marcadores/cores significam.
+2. **`colorById.ts`** (`web/src/colorById.ts`) — cor determinística por id inteiro (HSL a partir de um hash simples), usada tanto pra terreno/bioma (sem semântica de "grama"/"deserto" — o domínio só tem ids) quanto pra token de NPC. Reforça a decisão de não fingir arte curada.
+3. **`SidePanel`** (`web/src/components/SidePanel.tsx`) — painel deslizante à direita, genérico (título + conteúdo + ação opcional + fechar). Usado por `WorldMapView`/`CityView` ao clicar cidade/NPC.
+4. **`MapOverlay`** (`web/src/components/MapOverlay.tsx`) — reusa `WorldMapView`/`GridCanvas` em modo somente-leitura sobre um `<dialog>`/overlay, acionado por tecla M enquanto `focus.kind !== "World"` e `mode === Player`.
+5. **Editor de mapa em `CreateWorldForm`**: substitui a autoria de `Cells`/`Settlements` puramente numérica por um `GridCanvas` interativo — clique pinta terreno/bioma (id selecionado num seletor), modo "assentamento" adiciona `SettlementRow`. O formulário ainda monta o mesmo JSON (`scenarioFormToJson`), só a UI de autoria do bloco `Map` muda.
+
+### Mudança de contrato (backend)
+`GlobalSnapshot` (`src/LivingWorld.Api/Visual/GlobalProjector.cs`) ganhou `Width`/`Height` (de `world.Map.Width/Height`) — sem isso o cliente não sabia os limites do grid pra desenhar (só tinha a lista de células da camada `Terrain`, que dá pra inferir bounds mas é frágil). Campo puramente de projeção (API), não estado canônico/hash — sem impacto em golden hashes.
+
+### Limitação conhecida: prédios sem posição
+`Building` (`src/LivingWorld.Domain/Cities/Building.cs`) não tem `CellCoord` — não há posição real de prédio no domínio. Em vez de adicionar um campo canônico novo (mudaria hash/goldens, escopo maior que esta passada), o cliente calcula um layout (anel ao redor do centro da cidade) só pra fins de exibição, marcado visualmente como aproximado (não é dado do servidor). Se/quando o domínio ganhar posição real de prédio, o layout client-side deve ser removido.
+
+### Limitação conhecida: movimento mundo-múndi
+"Andar até a saída" pra trocar de escopo cidade→mundo exigiria um sistema de movimento validado em escala de mapa-múndi (hoje `VisualInputEndpoints`/`RealtimeGateway` só validam movimento dentro do escopo de uma cidade). Não construído nesta passada — mantido o botão/painel de drill-down existente. Registrado em spec.md "Open Questions".

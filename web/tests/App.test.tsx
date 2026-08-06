@@ -27,6 +27,8 @@ function worldEnvelope(): VisualSnapshotEnvelope<GlobalSnapshot> {
     cursor: { tick: 0, scopeKey: "world", sequence: 0 },
     activeLayers: [],
     payload: {
+      width: 10,
+      height: 10,
       cities: [{ id: { value: "city-1" }, location: { x: 0, y: 0 }, population: 10 }],
       externalNpcs: [],
       activeEvents: [],
@@ -71,9 +73,22 @@ describe("App", () => {
     act(() => socket.onmessage?.({ data: JSON.stringify(worldEnvelope()) }));
 
     await screen.findByTestId("world-map-view");
-    expect(screen.getByText(/pop\. 10/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText(/pop\. 10/));
+    const canvas = screen.getByTestId("grid-canvas") as HTMLCanvasElement;
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      top: 0,
+      width: canvas.width,
+      height: canvas.height,
+      right: canvas.width,
+      bottom: canvas.height,
+      x: 0,
+      y: 0,
+      toJSON: () => "",
+    });
+    fireEvent.click(canvas, { clientX: 8, clientY: 8 }); // city at (0,0), zoom 16 -> center (8,8)
+    expect(screen.getByText(/População: 10/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
     await waitFor(() => expect(MockWebSocket.instances.length).toBe(2));
     const citySocket = MockWebSocket.instances[1];

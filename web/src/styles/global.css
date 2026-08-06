@@ -352,3 +352,114 @@ form[data-testid="create-world-form"] [role="alert"] {
   border-radius: 4px;
   padding: 0.1rem 0.4rem;
 }
+
+/* --- Grid 2D (mapa-múndi / cidade) + painel lateral (T11-T13, UX pass 2) --- */
+
+.map-view-body {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  margin: 1rem 0;
+  position: relative;
+}
+
+.grid-canvas-wrap {
+  position: relative;
+  flex: 1;
+  overflow: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  line-height: 0;
+}
+
+.grid-canvas-zoom {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 2;
+  display: flex;
+  gap: 0.25rem;
+}
+
+.grid-canvas-zoom button {
+  padding: 0.2rem 0.6rem;
+  line-height: 1;
+}
+
+.side-panel {
+  flex: 0 0 260px;
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius);
+  padding: 1rem;
+  position: relative;
+  animation: side-panel-in 0.18s ease both;
+}
+
+@keyframes side-panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.side-panel h3 {
+  margin-top: 0;
+  color: var(--accent-bright);
+  font-family: var(--font-display);
+}
+
+.side-panel-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  line-height: 1;
+}
+
+.approximate-note {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+/* --- Overlay de mapa (tecla M) --- */
+
+.map-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 12, 20, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.map-overlay-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  max-width: min(90vw, 900px);
+  max-height: 85vh;
+  overflow: auto;
+}
+
+.map-overlay-panel h2 {
+  font-family: var(--font-display);
+  color: var(--accent-bright);
+}
+
+/* --- Editor de mapa por clique (T14, UX pass 2) --- */
+
+.map-grid-editor-toolbar {
+  margin-bottom: 0.5rem;
+}
+
+.map-grid-editor .grid-canvas-wrap {
+  max-width: 100%;
+}

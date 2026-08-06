@@ -47,6 +47,17 @@ export interface LayerBuildResult {
   payload: unknown;
 }
 
+// Shapes reais de payload por camada (GlobalLayerBuilder.cs) — só as que carregam dado
+// per-célula que o cliente efetivamente renderiza (T12); as demais (Mountains/Roads/Borders/
+// Kingdoms/Climate/Cities/Villages/Routes/Migrations/Conflicts) ficam NotYetModeled hoje.
+export interface TerrainCellEntry {
+  key: CellCoord;
+  value: { id: number };
+}
+export type TerrainLayerPayload = TerrainCellEntry[];
+export type BiomeLayerPayload = TerrainCellEntry[];
+export type RiversLayerPayload = CellCoord[];
+
 export interface VisualSnapshotEnvelope<TPayload> {
   scope: VisualScope;
   mode: ViewerMode;
@@ -72,6 +83,8 @@ export interface GlobalNpcMarker {
 }
 
 export interface GlobalSnapshot {
+  width: number;
+  height: number;
   cities: GlobalCityMarker[];
   externalNpcs: GlobalNpcMarker[];
   activeEvents: unknown[];
