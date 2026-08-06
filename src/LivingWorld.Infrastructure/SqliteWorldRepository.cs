@@ -12,14 +12,29 @@ public sealed class SqliteWorldRepository(WorldDbContext context) : IWorldReposi
         BranchId branch, long tick, string json, string canonicalHash, string volatileHash,
         IReadOnlyList<WorldEvent> events)
     {
-        context.Snapshots.Add(new WorldSnapshotRecord
+        // Upsert por (BranchId, Tick): `worldRepository` é um único DbContext de vida longa
+        // (Program.cs), então re-salvar o mesmo tick — ex.: tick 0 de um mundo novo criado via
+        // POST /worlds/create, mesma chave do snapshot inicial de bootstrap — colide na
+        // identity map do EF antes mesmo de chegar no banco se sempre inserirmos. `Find` olha o
+        // set rastreado em memória e o banco, então cobre os dois casos.
+        var existing = context.Snapshots.Find(branch.Value, tick);
+        if (existing is not null)
         {
-            BranchId = branch.Value,
-            Tick = tick,
-            Json = json,
-            CanonicalHash = canonicalHash,
-            VolatileHash = volatileHash,
-        });
+            existing.Json = json;
+            existing.CanonicalHash = canonicalHash;
+            existing.VolatileHash = volatileHash;
+        }
+        else
+        {
+            context.Snapshots.Add(new WorldSnapshotRecord
+            {
+                BranchId = branch.Value,
+                Tick = tick,
+                Json = json,
+                CanonicalHash = canonicalHash,
+                VolatileHash = volatileHash,
+            });
+        }
 
         var sequenceByTick = new Dictionary<long, int>();
         foreach (var evt in events)
