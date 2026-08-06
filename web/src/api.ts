@@ -66,3 +66,13 @@ export async function moveNpc(npcId: number, request: MoveNpcRequest): Promise<R
     body: JSON.stringify(request),
   });
 }
+
+/// Feature ad-hoc "criar mundo" (AD-001): `scenarioJson` já vem pronto (montado por
+/// `scenarioFormToJson`) — este helper só faz a chamada HTTP, mesmo padrão de `moveNpc`.
+export async function createWorld(scenarioJson: string): Promise<Response> {
+  return fetch(`${apiBaseUrl()}/worlds/create`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ scenarioJson }),
+  });
+}

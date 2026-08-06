@@ -452,6 +452,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/worlds/create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateWorldRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/visual/subscribe": {
         parameters: {
             query?: never;
@@ -667,6 +704,9 @@ export interface components {
             version: number | string;
             periodDefinition: components["schemas"]["JsonElement"];
             source: string;
+        };
+        CreateWorldRequest: {
+            scenarioJson: string;
         };
         JsonElement: unknown;
         PlayerMoveRequest: {

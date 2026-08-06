@@ -4,6 +4,7 @@ import { WorldMapView } from "./components/WorldMapView";
 import { CityView } from "./components/CityView";
 import { InteriorView } from "./components/InteriorView";
 import { PlayerMoveControls } from "./components/PlayerMoveControls";
+import { CreateWorldForm } from "./components/CreateWorldForm";
 import { ViewerMode, focusScopeKey } from "./types";
 import type { CitySnapshot, FocusScope, GlobalSnapshot, InteriorSnapshot } from "./types";
 
@@ -14,6 +15,7 @@ export function App() {
   const [focus, setFocus] = useState<FocusScope>({ kind: "World" });
   const [mode, setMode] = useState<ViewerMode>(ViewerMode.Spectator);
   const [playerNpcId, setPlayerNpcId] = useState<number | undefined>(undefined);
+  const [creatingWorld, setCreatingWorld] = useState(false);
 
   const { envelope, connected, error } = useRealtimeSnapshot<
     GlobalSnapshot | CitySnapshot | InteriorSnapshot
@@ -50,19 +52,31 @@ export function App() {
               }
             />
           </label>
-        )}
+        )}{" "}
+        <button type="button" onClick={() => setCreatingWorld((v) => !v)}>
+          {creatingWorld ? "Cancelar" : "Criar mundo"}
+        </button>
         {!connected && <span> reconectando…</span>}
         {error && <span role="alert"> {error}</span>}
       </header>
 
-      {focus.kind === "World" && payload && (
+      {creatingWorld && (
+        <CreateWorldForm
+          onCreated={() => {
+            setCreatingWorld(false);
+            setFocus({ kind: "World" });
+          }}
+        />
+      )}
+
+      {!creatingWorld && focus.kind === "World" && payload && (
         <WorldMapView
           snapshot={payload as GlobalSnapshot}
           onSelectCity={(cityId) => setFocus({ kind: "City", cityId })}
         />
       )}
 
-      {focus.kind === "City" && payload && (
+      {!creatingWorld && focus.kind === "City" && payload && (
         <>
           <CityView
             snapshot={payload as CitySnapshot}
@@ -77,7 +91,7 @@ export function App() {
         </>
       )}
 
-      {focus.kind === "Interior" && payload && (
+      {!creatingWorld && focus.kind === "Interior" && payload && (
         <InteriorView
           snapshot={payload as InteriorSnapshot}
           onBack={() => setFocus({ kind: "City", cityId: focus.cityId })}

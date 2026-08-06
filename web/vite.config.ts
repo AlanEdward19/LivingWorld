@@ -8,6 +8,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/visual": { target: "http://localhost:5289", ws: true },
+      "/worlds": { target: "http://localhost:5289" },
     },
   },
   test: {
