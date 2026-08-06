@@ -2,6 +2,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using LivingWorld.Api.Visual;
+using LivingWorld.Simulation;
 
 namespace LivingWorld.Api.Realtime;
 
@@ -16,10 +17,12 @@ public static class RealtimeEndpoints
     {
         app.UseWebSockets();
 
-        app.MapGet("/visual/subscribe", (VisualScopeKind scope, string? refId, ViewerMode mode, RealtimeGateway gateway) =>
+        app.MapGet("/visual/subscribe", (VisualScopeKind scope, string? refId, ViewerMode mode, RealtimeGateway gateway, WorldState world) =>
         {
             var result = gateway.Snapshot(new VisualScope(scope, refId ?? ""), mode);
-            return result.IsSuccess ? Results.Ok(result.Value) : Results.StatusCode(StatusCodes.Status403Forbidden);
+            if (!result.IsSuccess) return Results.StatusCode(StatusCodes.Status403Forbidden);
+
+            return Results.Ok(WithProjectedPayload(result.Value!, world));
         });
 
         app.MapGet("/visual/replay", (VisualScopeKind scope, string? refId, ViewerMode mode, long sinceTick, long sinceSequence, RealtimeGateway gateway) =>
@@ -30,7 +33,7 @@ public static class RealtimeEndpoints
             return result.IsSuccess ? Results.Ok(result.Value) : Results.StatusCode(StatusCodes.Status403Forbidden);
         });
 
-        app.MapGet("/visual/sse", async (HttpContext http, VisualScopeKind scope, string? refId, ViewerMode mode, RealtimeGateway gateway) =>
+        app.MapGet("/visual/sse", async (HttpContext http, VisualScopeKind scope, string? refId, ViewerMode mode, RealtimeGateway gateway, WorldState world) =>
         {
             var visualScope = new VisualScope(scope, refId ?? "");
             var snapshot = gateway.Snapshot(visualScope, mode);
@@ -41,7 +44,7 @@ public static class RealtimeEndpoints
             }
 
             http.Response.Headers.ContentType = "text/event-stream";
-            await WriteEventAsync(http.Response, snapshot.Value!);
+            await WriteEventAsync(http.Response, WithProjectedPayload(snapshot.Value!, world));
 
             var (reader, unsubscribe) = gateway.SubscribeChannel(visualScope);
             try
@@ -56,7 +59,7 @@ public static class RealtimeEndpoints
             }
         });
 
-        app.Map("/visual/ws", async (HttpContext http, VisualScopeKind scope, string? refId, ViewerMode mode, RealtimeGateway gateway) =>
+        app.Map("/visual/ws", async (HttpContext http, VisualScopeKind scope, string? refId, ViewerMode mode, RealtimeGateway gateway, WorldState world) =>
         {
             var visualScope = new VisualScope(scope, refId ?? "");
             var snapshot = gateway.Snapshot(visualScope, mode);
@@ -73,7 +76,7 @@ public static class RealtimeEndpoints
             }
 
             using var socket = await http.WebSockets.AcceptWebSocketAsync();
-            await SendJsonAsync(socket, snapshot.Value!, http.RequestAborted);
+            await SendJsonAsync(socket, WithProjectedPayload(snapshot.Value!, world), http.RequestAborted);
 
             var (reader, unsubscribe) = gateway.SubscribeChannel(visualScope);
             try
@@ -90,6 +93,15 @@ public static class RealtimeEndpoints
             }
         });
     }
+
+    /// <summary>Fase 15, T4 (VTT-01): o snapshot inicial do escopo world carrega a projeção global
+    /// (cidades, NPCs externos, camadas) — montada sob demanda no subscribe, mesmo padrão de
+    /// materialização sob demanda de <c>NpcInspectionQuery</c>. Outros escopos ainda não têm
+    /// projector (T5) e mantêm <c>Payload</c> nulo.</summary>
+    private static VisualSnapshotEnvelope<object?> WithProjectedPayload(VisualSnapshotEnvelope<object?> envelope, WorldState world) =>
+        envelope.Scope.Kind == VisualScopeKind.World
+            ? envelope with { Payload = GlobalProjector.Build(world) }
+            : envelope;
 
     private static async Task WriteEventAsync(HttpResponse response, object payload)
     {
