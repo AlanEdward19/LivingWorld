@@ -2,6 +2,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using LivingWorld.Api.Visual;
+using LivingWorld.Domain;
 using LivingWorld.Simulation;
 
 namespace LivingWorld.Api.Realtime;
@@ -94,14 +95,25 @@ public static class RealtimeEndpoints
         });
     }
 
-    /// <summary>Fase 15, T4 (VTT-01): o snapshot inicial do escopo world carrega a projeção global
-    /// (cidades, NPCs externos, camadas) — montada sob demanda no subscribe, mesmo padrão de
-    /// materialização sob demanda de <c>NpcInspectionQuery</c>. Outros escopos ainda não têm
-    /// projector (T5) e mantêm <c>Payload</c> nulo.</summary>
-    private static VisualSnapshotEnvelope<object?> WithProjectedPayload(VisualSnapshotEnvelope<object?> envelope, WorldState world) =>
-        envelope.Scope.Kind == VisualScopeKind.World
-            ? envelope with { Payload = GlobalProjector.Build(world) }
-            : envelope;
+    /// <summary>Fase 15, T4/T5 (VTT-01, VTT-03, VTT-11): o snapshot inicial carrega a projeção do
+    /// escopo — montada sob demanda no subscribe, mesmo padrão de materialização sob demanda de
+    /// <c>NpcInspectionQuery</c>. RefId inválido/inexistente (parse falho, cidade/prédio não
+    /// encontrado) mantém <c>Payload</c> nulo em vez de forçar um novo código de erro — T5 não
+    /// pede um contrato de 404 por refId, só a projeção quando o escopo resolve.</summary>
+    private static VisualSnapshotEnvelope<object?> WithProjectedPayload(VisualSnapshotEnvelope<object?> envelope, WorldState world)
+    {
+        object? payload = envelope.Scope.Kind switch
+        {
+            VisualScopeKind.World => GlobalProjector.Build(world),
+            VisualScopeKind.City when Guid.TryParse(envelope.Scope.RefId, out var cityGuid) =>
+                CityProjector.Build(world, new CityId(cityGuid)) is { IsSuccess: true } result ? result.Value : null,
+            VisualScopeKind.Interior when long.TryParse(envelope.Scope.RefId, out var buildingIdValue) =>
+                InteriorProjector.Build(world, new BuildingId(buildingIdValue)) is { IsSuccess: true } result ? result.Value : null,
+            _ => null,
+        };
+
+        return envelope with { Payload = payload };
+    }
 
     private static async Task WriteEventAsync(HttpResponse response, object payload)
     {
