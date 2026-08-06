@@ -134,15 +134,20 @@ public static class RealtimeEndpoints
         return CityVisibilityFilter.ApplyFog(result.Value!, player.CurrentLocation, adminOverride: false);
     }
 
+    // Fase 15, T8: mesma convenção de naming do HTTP /visual/subscribe (ASP.NET Web defaults =
+    // camelCase) — sem isso, WS/SSE serializavam PascalCase por padrão do JsonSerializer.Serialize
+    // sem opções, e o cliente (que só entende camelCase) não conseguia ler os frames.
+    private static readonly JsonSerializerOptions WireOptions = new(JsonSerializerDefaults.Web);
+
     private static async Task WriteEventAsync(HttpResponse response, object payload)
     {
-        await response.WriteAsync($"data: {JsonSerializer.Serialize(payload)}\n\n");
+        await response.WriteAsync($"data: {JsonSerializer.Serialize(payload, WireOptions)}\n\n");
         await response.Body.FlushAsync();
     }
 
     private static Task SendJsonAsync(WebSocket socket, object payload, CancellationToken ct)
     {
-        var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload));
+        var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload, WireOptions));
         return socket.SendAsync(bytes, WebSocketMessageType.Text, endOfMessage: true, ct);
     }
 }

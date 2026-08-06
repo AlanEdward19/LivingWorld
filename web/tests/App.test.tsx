@@ -1,0 +1,82 @@
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { App } from "../src/App";
+import type { GlobalSnapshot, VisualSnapshotEnvelope } from "../src/types";
+import { VisualScopeKind, ViewerMode } from "../src/types";
+
+class MockWebSocket {
+  static instances: MockWebSocket[] = [];
+  onopen: (() => void) | null = null;
+  onmessage: ((event: { data: string }) => void) | null = null;
+  onerror: (() => void) | null = null;
+  onclose: (() => void) | null = null;
+  url: string;
+
+  constructor(url: string) {
+    this.url = url;
+    MockWebSocket.instances.push(this);
+  }
+
+  close() {}
+}
+
+function worldEnvelope(): VisualSnapshotEnvelope<GlobalSnapshot> {
+  return {
+    scope: { kind: VisualScopeKind.World, refId: "", scopeKey: "world" },
+    mode: ViewerMode.Spectator,
+    cursor: { tick: 0, scopeKey: "world", sequence: 0 },
+    activeLayers: [],
+    payload: {
+      cities: [{ id: { value: "city-1" }, location: { x: 0, y: 0 }, population: 10 }],
+      externalNpcs: [],
+      activeEvents: [],
+      layers: {} as GlobalSnapshot["layers"],
+    },
+  };
+}
+
+function cityEnvelope(): VisualSnapshotEnvelope<Record<string, unknown>> {
+  return {
+    scope: { kind: VisualScopeKind.City, refId: "city-1", scopeKey: "city:city-1" },
+    mode: ViewerMode.Spectator,
+    cursor: { tick: 0, scopeKey: "city:city-1", sequence: 0 },
+    activeLayers: [],
+    payload: {
+      id: { value: "city-1" },
+      location: { x: 0, y: 0 },
+      aggregatePool: { count: 0, wealthSum: 0, healthSum: 0 },
+      residents: [],
+      buildings: [],
+      layers: {},
+    },
+  };
+}
+
+describe("App", () => {
+  beforeEach(() => {
+    MockWebSocket.instances = [];
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("renders the world map after the first realtime frame, then drills into a city on click", async () => {
+    render(<App />);
+
+    const socket = MockWebSocket.instances[0];
+    act(() => socket.onmessage?.({ data: JSON.stringify(worldEnvelope()) }));
+
+    await screen.findByTestId("world-map-view");
+    expect(screen.getByText(/pop\. 10/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText(/pop\. 10/));
+
+    await waitFor(() => expect(MockWebSocket.instances.length).toBe(2));
+    const citySocket = MockWebSocket.instances[1];
+    act(() => citySocket.onmessage?.({ data: JSON.stringify(cityEnvelope()) }));
+
+    await screen.findByTestId("city-view");
+  });
+});

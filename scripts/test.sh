@@ -17,3 +17,7 @@ if [ "$WATCH" = 1 ]; then
   exec dotnet watch --project tests/LivingWorld.Tests test "${ARGS[@]}"
 fi
 dotnet test LivingWorld.sln "${ARGS[@]}"
+
+# Fase 15, T8: cliente web tem sua própria suíte (Vitest) — sem filtro/watch por ora, o dotnet
+# test acima já cobre esses casos pro lado .NET.
+[ -f web/package.json ] && npm --prefix web test

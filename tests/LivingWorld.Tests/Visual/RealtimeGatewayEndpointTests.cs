@@ -106,6 +106,6 @@ public class RealtimeGatewayEndpointTests : IClassFixture<WebApplicationFactory<
         var result = await socket.ReceiveAsync(buffer, CancellationToken.None);
         var json = Encoding.UTF8.GetString(buffer, 0, result.Count);
 
-        Assert.Contains("\"ScopeKey\":\"world\"", json);
+        Assert.Contains("\"scopeKey\":\"world\"", json);
     }
 }
