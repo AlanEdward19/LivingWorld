@@ -79,6 +79,7 @@ var orchestrator = new ConversationOrchestrator(
 app.MapConversationEndpoints(world, sessions, orchestrator);
 app.MapNarrativeEndpoints(world, chronicles);
 app.MapPeriodsEndpoints();
+app.MapWorldStartEndpoints();
 
 app.Run();
 
