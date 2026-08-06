@@ -13,8 +13,10 @@ Leia [`society.md`](society.md), [`economy.md`](economy.md) e
 Um período **não é um catálogo fixo de conteúdo** ("idade medieval tem ferreiro e lavrador").
 É um *startpoint*: mapa inicial, população inicial, regras de comportamento/economia/cidade, e
 opcionalmente **vieses e regras de evolução** que dizem como profissões podem nascer, se fundir,
-se dividir ou desaparecer ao longo da simulação. O motor nunca vê um nome de profissão/época —
-só ids inteiros que este período declara.
+se dividir ou desaparecer: cada regra dispara uma única vez, no primeiro tick em que o clock
+alcança seu `TriggerTick` (ausência de `TriggerTick` = dispara desde o tick 0), reatribui os NPCs
+afetados e nunca reaplica (idempotente por pertença ao catálogo, sem estado extra no mundo). O
+motor nunca vê um nome de profissão/época — só ids inteiros que este período declara.
 
 ## Documentos
 
