@@ -3,6 +3,7 @@ import { useRealtimeSnapshot } from "./hooks/useRealtimeSnapshot";
 import { WorldMapView } from "./components/WorldMapView";
 import { CityView } from "./components/CityView";
 import { InteriorView } from "./components/InteriorView";
+import { PlayerMoveControls } from "./components/PlayerMoveControls";
 import { ViewerMode, focusScopeKey } from "./types";
 import type { CitySnapshot, FocusScope, GlobalSnapshot, InteriorSnapshot } from "./types";
 
@@ -62,13 +63,18 @@ export function App() {
       )}
 
       {focus.kind === "City" && payload && (
-        <CityView
-          snapshot={payload as CitySnapshot}
-          onSelectBuilding={(buildingId) =>
-            setFocus({ kind: "Interior", buildingId, cityId: focus.cityId })
-          }
-          onBack={() => setFocus({ kind: "World" })}
-        />
+        <>
+          <CityView
+            snapshot={payload as CitySnapshot}
+            onSelectBuilding={(buildingId) =>
+              setFocus({ kind: "Interior", buildingId, cityId: focus.cityId })
+            }
+            onBack={() => setFocus({ kind: "World" })}
+          />
+          {mode === ViewerMode.Player && playerNpcId !== undefined && (
+            <PlayerMoveControls snapshot={payload as CitySnapshot} playerNpcId={playerNpcId} />
+          )}
+        </>
       )}
 
       {focus.kind === "Interior" && payload && (

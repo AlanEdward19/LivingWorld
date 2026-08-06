@@ -30,9 +30,17 @@ public class PlayerMovementValidatorTests
     public void Validate_fails_for_a_cell_more_than_one_step_away()
     {
         var (world, npc) = MakeWorldWithNpc();
-        var farAway = new CellCoord(npc.CurrentLocation.X + 5, npc.CurrentLocation.Y);
 
-        var result = PlayerMovementValidator.Validate(world, npc, farAway);
+        // Fase 15, Verifier fix (sensor: mutante > 1 -> > 5 sobreviveu porque X+5 caía fora do
+        // mapa e o check de bounds mascarava o de distância): alvo a exatamente 2 passos, sempre
+        // dentro do grid — isola a regra de distância do check de bounds.
+        int width = world.Map.Width;
+        int targetX = npc.CurrentLocation.X <= width / 2 ? npc.CurrentLocation.X + 2 : npc.CurrentLocation.X - 2;
+        targetX = Math.Clamp(targetX, 0, width - 1);
+        var twoStepsAway = new CellCoord(targetX, npc.CurrentLocation.Y);
+        Assert.True(world.Map.TryGetCell(twoStepsAway, out _), "alvo do teste precisa existir no mapa");
+
+        var result = PlayerMovementValidator.Validate(world, npc, twoStepsAway);
 
         Assert.False(result.IsSuccess);
     }
