@@ -166,6 +166,30 @@ public class PeriodsEndpointTests : IClassFixture<WebApplicationFactory<Program>
         Assert.Equal([7], body.SkillIds);
     }
 
+    // Fase 13, T14 (PERIOD-19, PERIOD-22..23): nome opcional de profissão/habilidade no catálogo.
+
+    [Fact]
+    public async Task Get_periods_catalog_returns_declared_names_and_omits_undeclared_ones()
+    {
+        var client = _factory.CreateClient();
+        var definition = FullValidPeriodDefinition();
+        definition["Dynamics"] = new JsonObject
+        {
+            ["ProfessionBiases"] = new JsonArray(new JsonObject { ["ProfessionId"] = 1, ["Weight"] = 1.0, ["Name"] = "Ferreiro" }),
+            ["SkillBiases"] = new JsonArray(new JsonObject { ["SkillId"] = 7, ["Weight"] = 1.0, ["Name"] = "Culinaria" }),
+        };
+        await client.PostAsync("/periods", JsonBody(Envelope("catalog-named-period", 1, definition)));
+
+        var response = await client.GetAsync("/periods/catalog-named-period/catalog");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<PeriodCatalogResponse>();
+        Assert.NotNull(body);
+        Assert.Equal("Ferreiro", body!.ProfessionNames[1]);
+        Assert.False(body.ProfessionNames.ContainsKey(2)); // ProfessionId 2 existe no catálogo mas não tem Name declarado
+        Assert.Equal("Culinaria", body.SkillNames[7]);
+    }
+
     [Fact]
     public async Task Get_periods_catalog_returns_404_for_an_unregistered_id()
     {

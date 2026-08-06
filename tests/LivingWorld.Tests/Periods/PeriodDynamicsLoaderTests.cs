@@ -93,6 +93,90 @@ public class PeriodDynamicsLoaderTests
     }
 
     [Fact]
+    public void Profession_bias_without_Name_leaves_it_null()
+    {
+        var dynamics = new JsonObject
+        {
+            ["ProfessionBiases"] = new JsonArray(new JsonObject { ["ProfessionId"] = 1, ["Weight"] = 2.0 }),
+        };
+
+        var result = PeriodDynamicsLoader.Load(RootWithDynamics(dynamics).ToJsonString());
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Null(result.Value!.ProfessionBiases[0].Name);
+    }
+
+    [Fact]
+    public void Profession_bias_with_Name_parses_it()
+    {
+        var dynamics = new JsonObject
+        {
+            ["ProfessionBiases"] = new JsonArray(new JsonObject { ["ProfessionId"] = 1, ["Weight"] = 2.0, ["Name"] = "Ferreiro" }),
+        };
+
+        var result = PeriodDynamicsLoader.Load(RootWithDynamics(dynamics).ToJsonString());
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Equal("Ferreiro", result.Value!.ProfessionBiases[0].Name);
+    }
+
+    [Fact]
+    public void Profession_bias_with_non_string_Name_fails_naming_the_field()
+    {
+        var dynamics = new JsonObject
+        {
+            ["ProfessionBiases"] = new JsonArray(new JsonObject { ["ProfessionId"] = 1, ["Weight"] = 2.0, ["Name"] = 5 }),
+        };
+
+        var result = PeriodDynamicsLoader.Load(RootWithDynamics(dynamics).ToJsonString());
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("Dynamics.ProfessionBiases[].Name", result.Error);
+    }
+
+    [Fact]
+    public void Skill_bias_without_Name_leaves_it_null()
+    {
+        var dynamics = new JsonObject
+        {
+            ["SkillBiases"] = new JsonArray(new JsonObject { ["SkillId"] = 0, ["Weight"] = 1.0 }),
+        };
+
+        var result = PeriodDynamicsLoader.Load(RootWithDynamics(dynamics).ToJsonString());
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Null(result.Value!.SkillBiases[0].Name);
+    }
+
+    [Fact]
+    public void Skill_bias_with_Name_parses_it()
+    {
+        var dynamics = new JsonObject
+        {
+            ["SkillBiases"] = new JsonArray(new JsonObject { ["SkillId"] = 0, ["Weight"] = 1.0, ["Name"] = "Culinaria" }),
+        };
+
+        var result = PeriodDynamicsLoader.Load(RootWithDynamics(dynamics).ToJsonString());
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Equal("Culinaria", result.Value!.SkillBiases[0].Name);
+    }
+
+    [Fact]
+    public void Skill_bias_with_non_string_Name_fails_naming_the_field()
+    {
+        var dynamics = new JsonObject
+        {
+            ["SkillBiases"] = new JsonArray(new JsonObject { ["SkillId"] = 0, ["Weight"] = 1.0, ["Name"] = 5 }),
+        };
+
+        var result = PeriodDynamicsLoader.Load(RootWithDynamics(dynamics).ToJsonString());
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("Dynamics.SkillBiases[].Name", result.Error);
+    }
+
+    [Fact]
     public void Missing_SkillId_in_skill_bias_fails_naming_the_field()
     {
         var dynamics = new JsonObject

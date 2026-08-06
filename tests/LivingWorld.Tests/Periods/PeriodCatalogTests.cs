@@ -90,6 +90,53 @@ public class PeriodCatalogTests
         Assert.Empty(catalog.SkillIds);
     }
 
+    [Fact]
+    public void From_exposes_skill_name_only_when_declared()
+    {
+        var root = FullValidRoot();
+        root["Dynamics"] = new JsonObject
+        {
+            ["SkillBiases"] = new JsonArray(
+                new JsonObject { ["SkillId"] = 7, ["Weight"] = 1.0, ["Name"] = "Culinaria" },
+                new JsonObject { ["SkillId"] = 0, ["Weight"] = 2.0 }),
+        };
+
+        var definition = PeriodDefinitionValidator.Validate(root.ToJsonString()).Value!;
+        var catalog = PeriodCatalog.From(definition);
+
+        Assert.Equal("Culinaria", catalog.SkillNames[7]);
+        Assert.False(catalog.SkillNames.ContainsKey(0));
+    }
+
+    [Fact]
+    public void From_exposes_profession_name_only_when_declared()
+    {
+        var root = FullValidRoot();
+        root["Dynamics"] = new JsonObject
+        {
+            ["ProfessionBiases"] = new JsonArray(
+                new JsonObject { ["ProfessionId"] = 1, ["Weight"] = 1.0, ["Name"] = "Ferreiro" }),
+        };
+
+        var definition = PeriodDefinitionValidator.Validate(root.ToJsonString()).Value!;
+        var catalog = PeriodCatalog.From(definition);
+
+        Assert.Equal("Ferreiro", catalog.ProfessionNames[1]);
+        Assert.False(catalog.ProfessionNames.ContainsKey(2));
+    }
+
+    [Fact]
+    public void From_returns_empty_name_dictionaries_when_Dynamics_is_absent()
+    {
+        var root = FullValidRoot();
+
+        var definition = PeriodDefinitionValidator.Validate(root.ToJsonString()).Value!;
+        var catalog = PeriodCatalog.From(definition);
+
+        Assert.Empty(catalog.ProfessionNames);
+        Assert.Empty(catalog.SkillNames);
+    }
+
     private static string FindRepoRoot()
     {
         var dir = AppContext.BaseDirectory;

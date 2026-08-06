@@ -10,10 +10,16 @@ public sealed record PeriodSummaryResponse(string PeriodId, int Version, string 
 
 public sealed record PeriodDetailResponse(string PeriodId, int Version, string Source, DateTime CreatedAtUtc, JsonElement PeriodDefinition);
 
-/// <summary>Fase 13, T12 (PERIOD-22..23): catálogo de ids ativos de um período registrado —
-/// nunca nome, só id (AD-023/AD-025).</summary>
+/// <summary>Fase 13, T12/T14 (PERIOD-22..23): catálogo de ids ativos de um período registrado —
+/// o motor decide só por id (AD-023/AD-025); <see cref="ProfessionNames"/>/<see cref="SkillNames"/>
+/// devolvem o nome (id → nome) só pros ids que o período declarou com nome.</summary>
 public sealed record PeriodCatalogResponse(
-    string PeriodId, int Version, IReadOnlyList<int> ProfessionIds, IReadOnlyList<int> SkillIds);
+    string PeriodId,
+    int Version,
+    IReadOnlyList<int> ProfessionIds,
+    IReadOnlyList<int> SkillIds,
+    IReadOnlyDictionary<int, string> ProfessionNames,
+    IReadOnlyDictionary<int, string> SkillNames);
 
 /// <summary>Fase 13, T5 (PERIOD-07..10, story "Cadastro de período personalizado"): <c>POST
 /// /periods</c> valida (<see cref="PeriodDefinitionValidator"/>) e persiste (<see
@@ -75,7 +81,8 @@ public static class PeriodsEndpoints
             var catalog = PeriodCatalog.From(definition);
 
             return Results.Ok(new PeriodCatalogResponse(
-                template.PeriodId, template.Version, catalog.ProfessionIds, catalog.SkillIds));
+                template.PeriodId, template.Version, catalog.ProfessionIds, catalog.SkillIds,
+                catalog.ProfessionNames, catalog.SkillNames));
         });
     }
 }

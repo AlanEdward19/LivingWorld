@@ -10,14 +10,18 @@ public enum PeriodTransformationKind { Emerge, Merge, Split, Disappear }
 
 /// <summary>Peso inicial de uma profissão no startpoint do período (PERIOD-01). Substitui o
 /// sorteio uniforme de <see cref="PopulationCatalog.RollProfession"/> quando o período declara
-/// viés — o motor só vê o id, nunca um nome (mesmo contrato de <see cref="ProfessionType"/>).</summary>
-public sealed record ProfessionBias(int ProfessionId, double Weight);
+/// viés — o motor só vê o id, nunca um nome (mesmo contrato de <see cref="ProfessionType"/>).
+/// <see cref="Name"/> (Fase 13, T14/PERIOD-19/PERIOD-22..23) é opcional e puramente descritivo —
+/// o motor nunca decide por ele, só armazena/devolve pra quem cadastrou o período nomear.</summary>
+public sealed record ProfessionBias(int ProfessionId, double Weight, string? Name = null);
 
 /// <summary>Peso inicial de uma habilidade no startpoint do período (PERIOD-01/PERIOD-19). Mesmo
 /// contrato de <see cref="ProfessionBias"/> — id inteiro aberto, nenhum nome fechado no motor
 /// (Fase 13, T11a/T11b — <see cref="SkillType"/> deixou de ser enum fechado). Ainda não aplicado
-/// em runtime — só <see cref="ProfessionBias"/> influencia o sorteio hoje (T10).</summary>
-public sealed record SkillBias(int SkillId, double Weight);
+/// em runtime — só <see cref="ProfessionBias"/> influencia o sorteio hoje (T10). <see
+/// cref="Name"/> (T14) é opcional e puramente descritivo, mesma regra de <see
+/// cref="ProfessionBias.Name"/>.</summary>
+public sealed record SkillBias(int SkillId, double Weight, string? Name = null);
 
 /// <summary>Regra declarada de evolução de profissão em runtime (PERIOD-02/03): cardinalidade de
 /// origem/destino varia por <see cref="Kind"/> e é validada em <see cref="PeriodDynamicsLoader"/>.
@@ -103,8 +107,10 @@ public static class PeriodDynamicsLoader
                 return Result<IReadOnlyList<ProfessionBias>>.Fail("Dynamics.ProfessionBiases[].Weight: campo obrigatório ausente ou inválido");
             if (weight <= 0)
                 return Result<IReadOnlyList<ProfessionBias>>.Fail("Dynamics.ProfessionBiases[].Weight: deve ser maior que zero");
+            if (!TryGetOptionalString(item, "Name", out var name))
+                return Result<IReadOnlyList<ProfessionBias>>.Fail("Dynamics.ProfessionBiases[].Name: campo inválido");
 
-            biases.Add(new ProfessionBias(professionId, weight));
+            biases.Add(new ProfessionBias(professionId, weight, name));
         }
 
         return Result<IReadOnlyList<ProfessionBias>>.Ok(biases);
@@ -129,8 +135,10 @@ public static class PeriodDynamicsLoader
                 return Result<IReadOnlyList<SkillBias>>.Fail("Dynamics.SkillBiases[].Weight: campo obrigatório ausente ou inválido");
             if (weight <= 0)
                 return Result<IReadOnlyList<SkillBias>>.Fail("Dynamics.SkillBiases[].Weight: deve ser maior que zero");
+            if (!TryGetOptionalString(item, "Name", out var name))
+                return Result<IReadOnlyList<SkillBias>>.Fail("Dynamics.SkillBiases[].Name: campo inválido");
 
-            biases.Add(new SkillBias(skillId, weight));
+            biases.Add(new SkillBias(skillId, weight, name));
         }
 
         return Result<IReadOnlyList<SkillBias>>.Ok(biases);
@@ -200,6 +208,13 @@ public static class PeriodDynamicsLoader
     private static bool TryGetDouble(JsonObject root, string field, out double value)
     {
         value = 0;
+        return root[field] is JsonValue v && v.TryGetValue(out value);
+    }
+
+    private static bool TryGetOptionalString(JsonObject root, string field, out string? value)
+    {
+        value = null;
+        if (root[field] is null) return true;
         return root[field] is JsonValue v && v.TryGetValue(out value);
     }
 
