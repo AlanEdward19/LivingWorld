@@ -9,17 +9,38 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// SPEC_DEVIATION (Fase 8, T15, CITY-06): design.md pede carregar "o snapshot mais recente" via
-// Infrastructure, mas hoje não existe nenhum snapshot persistido acessível a um host da API —
-// a única persistência real (`persist-save`/`persist-resume` da Workers) fica atrás de um
-// dbPath explícito passado por argumento de CLI, que a API não recebe. Monta um WorldState de
-// cenário default (mesma seed usada em outros pontos do repo) só para prova de conceito do
-// endpoint; ler o snapshot real de disco é infraestrutura nova, fora do escopo desta task.
-// Fase 12, T7: `historyRules: HistoryRules.Default` liga a separação Crença/Verdade
-// (HistoryBeliefQuery) que GET /narratives/reports precisa para calcular confiança — sem
-// systems de Fase 10 registrados neste host (world nunca tica aqui, mesmo SPEC_DEVIATION
-// acima), ligar a flag não muda nenhum comportamento dos endpoints já existentes.
-var (world, _) = ScenarioRunner.Create(seed: 1, historyRules: HistoryRules.Default);
+// Fase 15, T2: mesma conexão sqlite `:memory:` mantida aberta pela vida do processo/factory
+// guarda tanto os templates de período (Fase 13, T5) quanto o snapshot canônico do mundo
+// (abaixo) — persistência real em disco fica para quando a API ganhar configuração de
+// storage, fora do escopo desta task.
+var worldDbConnection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
+worldDbConnection.Open();
+var worldDbOptions = new DbContextOptionsBuilder<WorldDbContext>().UseSqlite(worldDbConnection).Options;
+using (var migrationContext = new WorldDbContext(worldDbOptions))
+    migrationContext.Database.Migrate();
+
+// Fase 15, T2 (VTT-01..03): host canônico compartilhado — resolve o SPEC_DEVIATION de Fase 8,
+// T15 (mundo efêmero recriado a cada start) carregando o snapshot mais recente de um
+// IWorldRepository real; sem snapshot salvo ainda (primeiro start), cria o cenário default e
+// já persiste, para o host nunca ficar sem lastro no repositório. `historyRules:
+// HistoryRules.Default` liga a separação Crença/Verdade (Fase 12, T7) que GET
+// /narratives/reports precisa para calcular confiança.
+var worldRepository = new SqliteWorldRepository(new WorldDbContext(worldDbOptions));
+var worldRunner = new PersistentWorldRunner(worldRepository, BranchId.Root, snapshotIntervalTicks: 24);
+var worldSink = new BufferingWorldEventSink();
+var worldClock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: worldSink);
+
+var world = worldRunner.LoadLatest();
+if (world is null)
+{
+    (world, _) = ScenarioRunner.Create(seed: 1, historyRules: HistoryRules.Default);
+    worldRunner.Snapshot(world, worldSink);
+}
+
+// SimulationHost fica pronto no DI para pausa/velocidade/avanço (task 6) e para o gateway
+// realtime (T3) — este host ainda não ticka automaticamente (decisão explícita: T2 troca a
+// origem do mundo por persistência real, tick em tempo real fica para uma task futura).
+var simulationHost = new SimulationHost(worldClock, world);
 
 // Fase 11, T7: sessão/efeitos vivem só em memória do processo (mesmo espírito do `world`
 // acima) — nunca fazem parte do snapshot/hash canônico do mundo.
@@ -35,21 +56,16 @@ var chronicles = new ChronicleGenerationSystem();
 // `sessions` isolado — campos `static` eram compartilhados entre TODAS as factories do
 // processo e colidiam quando classes de teste rodavam em paralelo (xUnit default).
 builder.Services.AddSingleton(world);
+builder.Services.AddSingleton<IWorldRepository>(worldRepository);
+builder.Services.AddSingleton(worldRunner);
+builder.Services.AddSingleton(worldClock);
+builder.Services.AddSingleton(simulationHost);
 builder.Services.AddSingleton(sessions);
 
-// Fase 13, T5: mesmo espírito do `world` acima — este host ainda não tem um dbPath real de
-// disco (SPEC_DEVIATION de cima). Uma conexão sqlite `:memory:` mantida aberta pela vida do
-// processo/factory guarda os templates de período enquanto o host roda; persistência real em
-// disco fica para quando a API ganhar configuração de storage, fora do escopo desta task.
-var periodTemplatesConnection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
-periodTemplatesConnection.Open();
-builder.Services.AddDbContext<WorldDbContext>(o => o.UseSqlite(periodTemplatesConnection));
+builder.Services.AddDbContext<WorldDbContext>(o => o.UseSqlite(worldDbConnection));
 builder.Services.AddScoped<IPeriodTemplateRepository, SqlitePeriodTemplateRepository>();
 
 var app = builder.Build();
-
-using (var scope = app.Services.CreateScope())
-    scope.ServiceProvider.GetRequiredService<WorldDbContext>().Database.Migrate();
 
 app.MapGet("/", () => "Hello World!");
 
