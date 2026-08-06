@@ -52,6 +52,12 @@ public static class ScenarioLoaderV2
             world.AddCity(new City(
                 world.NextCityId(), city.Location, city.FoundedAtTick, foundedFromCityId: null, city.AggregatePool));
 
-        return Result<(WorldState, WorldClock)>.Ok((world, new WorldClock(ScenarioRunner.DefaultSystems(), maxIterationsPerTick)));
+        // Fase 13, T13: PeriodEvolutionSystem primeiro na lista — regra de transformação muda o
+        // catálogo antes de qualquer sistema do mesmo tick sortear profissão por ele
+        // (NatalitySystem/MaterializationSystem/PopulationSeeder).
+        IReadOnlyList<ISimulationSystem> systems =
+            [new PeriodEvolutionSystem(definition.Dynamics.TransformationRules), .. ScenarioRunner.DefaultSystems()];
+
+        return Result<(WorldState, WorldClock)>.Ok((world, new WorldClock(systems, maxIterationsPerTick)));
     }
 }

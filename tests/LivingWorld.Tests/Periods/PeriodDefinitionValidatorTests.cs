@@ -155,9 +155,31 @@ public class PeriodDefinitionValidatorTests
     }
 
     [Fact]
-    public void Transformation_rule_referencing_profession_id_outside_ProfessionIds_is_rejected()
+    public void Transformation_rule_referencing_source_profession_id_outside_ProfessionIds_is_rejected()
     {
         var root = FullValidRoot();
+        root["Dynamics"] = new JsonObject
+        {
+            ["TransformationRules"] = new JsonArray(new JsonObject
+            {
+                ["Kind"] = "Disappear",
+                ["SourceProfessionIds"] = new JsonArray(999),
+            }),
+        };
+
+        var result = PeriodDefinitionValidator.Validate(root.ToJsonString());
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("Dynamics.TransformationRules[]: ProfessionId 999", result.Error);
+    }
+
+    [Fact]
+    public void Transformation_rule_target_profession_id_does_not_need_to_pre_exist_in_ProfessionIds()
+    {
+        // Fase 13, T13: Emerge introduz uma profissão nova — exigir que o alvo já exista em
+        // ProfessionIds tornaria a regra sem sentido (ela já estaria disponível pro sorteio
+        // antes de "emergir").
+        var root = FullValidRoot(); // ProfessionIds = [1, 2]
         root["Dynamics"] = new JsonObject
         {
             ["TransformationRules"] = new JsonArray(new JsonObject
@@ -169,8 +191,7 @@ public class PeriodDefinitionValidatorTests
 
         var result = PeriodDefinitionValidator.Validate(root.ToJsonString());
 
-        Assert.False(result.IsSuccess);
-        Assert.Contains("Dynamics.TransformationRules[]: ProfessionId 999", result.Error);
+        Assert.True(result.IsSuccess, result.Error);
     }
 
     [Fact]

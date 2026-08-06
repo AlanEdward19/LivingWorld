@@ -19,8 +19,10 @@ public sealed record PeriodDefinition(
 /// <see cref="BehaviorScenarioLoader"/>, <see cref="EconomyScenarioLoader"/>,
 /// <see cref="CityScenarioLoader"/> e <see cref="PeriodDynamicsLoader"/> — cada um já valida sua
 /// própria forma — e então checa referências cruzadas entre <see cref="PeriodDynamicsData"/> e o
-/// <see cref="PopulationCatalog"/> resolvido (PERIOD-07..10: id de profissão citado numa regra ou
-/// viés precisa existir no catálogo do período, senão erro determinístico nomeia o campo).
+/// <see cref="PopulationCatalog"/> resolvido (PERIOD-07..10: id de profissão citado num viés, ou
+/// toda <c>SourceProfessionIds</c> de uma regra de transformação, precisa existir no catálogo do
+/// período — <c>TargetProfessionIds</c> fica de fora dessa checagem de propósito, Fase 13 T13:
+/// o alvo de Emerge/Merge/Split pode ser justamente uma profissão que ainda não existe).
 /// Falha em qualquer etapa interrompe a cadeia — nunca produz uma <see cref="PeriodDefinition"/>
 /// parcial.</summary>
 public static class PeriodDefinitionValidator
@@ -68,8 +70,12 @@ public static class PeriodDefinitionValidator
             if (!catalog.IsValidProfession(new ProfessionType(bias.ProfessionId)))
                 return $"Dynamics.ProfessionBiases[]: ProfessionId {bias.ProfessionId} não existe em ProfessionIds";
 
+        // Fase 13, T13: só SourceProfessionIds precisa já existir no catálogo — o destino de
+        // Emerge/Merge/Split é o ponto de virar profissão nova (ou reaproveitar uma já existente),
+        // exigir que já exista tornaria "Emerge" sem sentido (o alvo já estaria disponível pro
+        // sorteio antes da regra disparar).
         foreach (var rule in dynamics.TransformationRules)
-            foreach (var professionId in rule.SourceProfessionIds.Concat(rule.TargetProfessionIds))
+            foreach (var professionId in rule.SourceProfessionIds)
                 if (!catalog.IsValidProfession(new ProfessionType(professionId)))
                     return $"Dynamics.TransformationRules[]: ProfessionId {professionId} não existe em ProfessionIds";
 
