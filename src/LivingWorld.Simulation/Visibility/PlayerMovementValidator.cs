@@ -1,5 +1,4 @@
 using LivingWorld.Domain;
-using LivingWorld.Simulation;
 
 namespace LivingWorld.Simulation.Visibility;
 

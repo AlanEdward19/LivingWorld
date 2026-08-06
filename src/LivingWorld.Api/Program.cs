@@ -11,6 +11,10 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Fase 15, T9: documento OpenAPI (/openapi/v1.json) — fonte pros tipos TS do cliente web,
+// gerados por scripts/generate-web-types.sh a partir deste endpoint.
+builder.Services.AddOpenApi();
+
 // Fase 15, T2: mesma conexão sqlite `:memory:` mantida aberta pela vida do processo/factory
 // guarda tanto os templates de período (Fase 13, T5) quanto o snapshot canônico do mundo
 // (abaixo) — persistência real em disco fica para quando a API ganhar configuração de
@@ -74,6 +78,8 @@ builder.Services.AddDbContext<WorldDbContext>(o => o.UseSqlite(worldDbConnection
 builder.Services.AddScoped<IPeriodTemplateRepository, SqlitePeriodTemplateRepository>();
 
 var app = builder.Build();
+
+app.MapOpenApi();
 
 app.MapGet("/", () => "Hello World!");
 

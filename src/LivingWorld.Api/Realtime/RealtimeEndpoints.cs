@@ -4,7 +4,6 @@ using System.Text.Json;
 using LivingWorld.Api.Visual;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
-using LivingWorld.Simulation.Visibility;
 
 namespace LivingWorld.Api.Realtime;
 
@@ -61,7 +60,10 @@ public static class RealtimeEndpoints
             }
         });
 
-        app.Map("/visual/ws", async (HttpContext http, VisualScopeKind scope, string? refId, ViewerMode mode, long? playerNpcId, RealtimeGateway gateway, WorldState world) =>
+        // Fase 15, T9: MapGet (não Map genérico) — o handshake de WebSocket é uma requisição GET
+        // com header Upgrade; MapGet é o verbo correto E o único que o gerador de OpenAPI
+        // consegue documentar (Map genérico fica sem verbo, invisível pro doc).
+        app.MapGet("/visual/ws", async (HttpContext http, VisualScopeKind scope, string? refId, ViewerMode mode, long? playerNpcId, RealtimeGateway gateway, WorldState world) =>
         {
             var visualScope = new VisualScope(scope, refId ?? "");
             var snapshot = gateway.Snapshot(visualScope, mode);

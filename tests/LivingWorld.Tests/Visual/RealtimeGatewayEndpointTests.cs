@@ -4,7 +4,6 @@ using System.Text;
 using LivingWorld.Api.Visual;
 using LivingWorld.Simulation;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LivingWorld.Tests.Visual;
