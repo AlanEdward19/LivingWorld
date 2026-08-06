@@ -2,8 +2,10 @@ using LivingWorld.AI;
 using LivingWorld.Api;
 using LivingWorld.Domain.Llm;
 using LivingWorld.Domain;
+using LivingWorld.Infrastructure;
 using LivingWorld.Simulation;
 using LivingWorld.Simulation.Narrative;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,7 +37,19 @@ var chronicles = new ChronicleGenerationSystem();
 builder.Services.AddSingleton(world);
 builder.Services.AddSingleton(sessions);
 
+// Fase 13, T5: mesmo espírito do `world` acima — este host ainda não tem um dbPath real de
+// disco (SPEC_DEVIATION de cima). Uma conexão sqlite `:memory:` mantida aberta pela vida do
+// processo/factory guarda os templates de período enquanto o host roda; persistência real em
+// disco fica para quando a API ganhar configuração de storage, fora do escopo desta task.
+var periodTemplatesConnection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
+periodTemplatesConnection.Open();
+builder.Services.AddDbContext<WorldDbContext>(o => o.UseSqlite(periodTemplatesConnection));
+builder.Services.AddScoped<IPeriodTemplateRepository, SqlitePeriodTemplateRepository>();
+
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+    scope.ServiceProvider.GetRequiredService<WorldDbContext>().Database.Migrate();
 
 app.MapGet("/", () => "Hello World!");
 
@@ -64,6 +78,7 @@ var orchestrator = new ConversationOrchestrator(
     budgetPerInteraction: TimeSpan.FromSeconds(5));
 app.MapConversationEndpoints(world, sessions, orchestrator);
 app.MapNarrativeEndpoints(world, chronicles);
+app.MapPeriodsEndpoints();
 
 app.Run();
 
