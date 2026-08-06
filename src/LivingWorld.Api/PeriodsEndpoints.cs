@@ -10,6 +10,11 @@ public sealed record PeriodSummaryResponse(string PeriodId, int Version, string 
 
 public sealed record PeriodDetailResponse(string PeriodId, int Version, string Source, DateTime CreatedAtUtc, JsonElement PeriodDefinition);
 
+/// <summary>Fase 13, T12 (PERIOD-22..23): catálogo de ids ativos de um período registrado —
+/// nunca nome, só id (AD-023/AD-025).</summary>
+public sealed record PeriodCatalogResponse(
+    string PeriodId, int Version, IReadOnlyList<int> ProfessionIds, IReadOnlyList<int> SkillIds);
+
 /// <summary>Fase 13, T5 (PERIOD-07..10, story "Cadastro de período personalizado"): <c>POST
 /// /periods</c> valida (<see cref="PeriodDefinitionValidator"/>) e persiste (<see
 /// cref="IPeriodTemplateRepository"/>) um período; <c>GET /periods</c>/<c>GET /periods/{id}</c>
@@ -57,6 +62,20 @@ public static class PeriodsEndpoints
             return Results.Ok(new PeriodDetailResponse(
                 template.PeriodId, template.Version, template.Source, template.CreatedAtUtc,
                 JsonDocument.Parse(template.PayloadJson).RootElement));
+        });
+
+        app.MapGet("/periods/{id}/catalog", (string id, IPeriodTemplateRepository repository) =>
+        {
+            var template = repository.FindLatestVersion(id);
+            if (template is null) return Results.NotFound();
+
+            // Já validado no cadastro (POST /periods) — Validate aqui só reconstrói o
+            // PeriodDefinition a partir do payload persistido, nunca deveria falhar.
+            var definition = PeriodDefinitionValidator.Validate(template.PayloadJson).Value!;
+            var catalog = PeriodCatalog.From(definition);
+
+            return Results.Ok(new PeriodCatalogResponse(
+                template.PeriodId, template.Version, catalog.ProfessionIds, catalog.SkillIds));
         });
     }
 }

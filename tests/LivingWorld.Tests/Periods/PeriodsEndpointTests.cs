@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json.Nodes;
 using LivingWorld.Api;
@@ -138,6 +139,39 @@ public class PeriodsEndpointTests : IClassFixture<WebApplicationFactory<Program>
         var client = _factory.CreateClient();
 
         var response = await client.GetAsync("/periods/does-not-exist");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    // Fase 13, T12 (PERIOD-22..23): catálogo ativo de ids de um período registrado.
+
+    [Fact]
+    public async Task Get_periods_catalog_returns_200_with_profession_and_skill_ids()
+    {
+        var client = _factory.CreateClient();
+        var definition = FullValidPeriodDefinition();
+        definition["Dynamics"] = new JsonObject
+        {
+            ["SkillBiases"] = new JsonArray(new JsonObject { ["SkillId"] = 7, ["Weight"] = 1.0 }),
+        };
+        await client.PostAsync("/periods", JsonBody(Envelope("catalog-endpoint-period", 1, definition)));
+
+        var response = await client.GetAsync("/periods/catalog-endpoint-period/catalog");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<PeriodCatalogResponse>();
+        Assert.NotNull(body);
+        Assert.Equal("catalog-endpoint-period", body!.PeriodId);
+        Assert.Equal([1, 2], body.ProfessionIds); // scenarios/default.json declara ProfessionIds = [1, 2]
+        Assert.Equal([7], body.SkillIds);
+    }
+
+    [Fact]
+    public async Task Get_periods_catalog_returns_404_for_an_unregistered_id()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.GetAsync("/periods/does-not-exist/catalog");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
