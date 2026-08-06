@@ -10,6 +10,7 @@ public sealed class WorldDbContext(DbContextOptions<WorldDbContext> options) : D
     public DbSet<WorldSnapshotRecord> Snapshots => Set<WorldSnapshotRecord>();
     public DbSet<EventLogRecord> EventLog => Set<EventLogRecord>();
     public DbSet<FactLogRecord> FactLog => Set<FactLogRecord>();
+    public DbSet<PeriodTemplateRecord> PeriodTemplates => Set<PeriodTemplateRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -29,6 +30,12 @@ public sealed class WorldDbContext(DbContextOptions<WorldDbContext> options) : D
         {
             e.HasKey(f => new { f.BranchId, f.FactId });
             e.HasIndex(f => f.BranchId);
+        });
+
+        modelBuilder.Entity<PeriodTemplateRecord>(e =>
+        {
+            e.HasKey(t => new { t.PeriodId, t.Version });
+            e.HasIndex(t => t.PeriodId);
         });
     }
 }
