@@ -4,6 +4,7 @@ using System.Text.Json;
 using LivingWorld.Api.Visual;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
+using LivingWorld.Simulation.Visibility;
 
 namespace LivingWorld.Api.Realtime;
 
@@ -18,12 +19,12 @@ public static class RealtimeEndpoints
     {
         app.UseWebSockets();
 
-        app.MapGet("/visual/subscribe", (VisualScopeKind scope, string? refId, ViewerMode mode, RealtimeGateway gateway, WorldState world) =>
+        app.MapGet("/visual/subscribe", (VisualScopeKind scope, string? refId, ViewerMode mode, long? playerNpcId, RealtimeGateway gateway, WorldState world) =>
         {
             var result = gateway.Snapshot(new VisualScope(scope, refId ?? ""), mode);
             if (!result.IsSuccess) return Results.StatusCode(StatusCodes.Status403Forbidden);
 
-            return Results.Ok(WithProjectedPayload(result.Value!, world));
+            return Results.Ok(WithProjectedPayload(result.Value!, world, playerNpcId));
         });
 
         app.MapGet("/visual/replay", (VisualScopeKind scope, string? refId, ViewerMode mode, long sinceTick, long sinceSequence, RealtimeGateway gateway) =>
@@ -34,7 +35,7 @@ public static class RealtimeEndpoints
             return result.IsSuccess ? Results.Ok(result.Value) : Results.StatusCode(StatusCodes.Status403Forbidden);
         });
 
-        app.MapGet("/visual/sse", async (HttpContext http, VisualScopeKind scope, string? refId, ViewerMode mode, RealtimeGateway gateway, WorldState world) =>
+        app.MapGet("/visual/sse", async (HttpContext http, VisualScopeKind scope, string? refId, ViewerMode mode, long? playerNpcId, RealtimeGateway gateway, WorldState world) =>
         {
             var visualScope = new VisualScope(scope, refId ?? "");
             var snapshot = gateway.Snapshot(visualScope, mode);
@@ -45,7 +46,7 @@ public static class RealtimeEndpoints
             }
 
             http.Response.Headers.ContentType = "text/event-stream";
-            await WriteEventAsync(http.Response, WithProjectedPayload(snapshot.Value!, world));
+            await WriteEventAsync(http.Response, WithProjectedPayload(snapshot.Value!, world, playerNpcId));
 
             var (reader, unsubscribe) = gateway.SubscribeChannel(visualScope);
             try
@@ -60,7 +61,7 @@ public static class RealtimeEndpoints
             }
         });
 
-        app.Map("/visual/ws", async (HttpContext http, VisualScopeKind scope, string? refId, ViewerMode mode, RealtimeGateway gateway, WorldState world) =>
+        app.Map("/visual/ws", async (HttpContext http, VisualScopeKind scope, string? refId, ViewerMode mode, long? playerNpcId, RealtimeGateway gateway, WorldState world) =>
         {
             var visualScope = new VisualScope(scope, refId ?? "");
             var snapshot = gateway.Snapshot(visualScope, mode);
@@ -77,7 +78,7 @@ public static class RealtimeEndpoints
             }
 
             using var socket = await http.WebSockets.AcceptWebSocketAsync();
-            await SendJsonAsync(socket, WithProjectedPayload(snapshot.Value!, world), http.RequestAborted);
+            await SendJsonAsync(socket, WithProjectedPayload(snapshot.Value!, world, playerNpcId), http.RequestAborted);
 
             var (reader, unsubscribe) = gateway.SubscribeChannel(visualScope);
             try
@@ -95,24 +96,42 @@ public static class RealtimeEndpoints
         });
     }
 
-    /// <summary>Fase 15, T4/T5 (VTT-01, VTT-03, VTT-11): o snapshot inicial carrega a projeção do
-    /// escopo — montada sob demanda no subscribe, mesmo padrão de materialização sob demanda de
-    /// <c>NpcInspectionQuery</c>. RefId inválido/inexistente (parse falho, cidade/prédio não
-    /// encontrado) mantém <c>Payload</c> nulo em vez de forçar um novo código de erro — T5 não
-    /// pede um contrato de 404 por refId, só a projeção quando o escopo resolve.</summary>
-    private static VisualSnapshotEnvelope<object?> WithProjectedPayload(VisualSnapshotEnvelope<object?> envelope, WorldState world)
+    /// <summary>Fase 15, T4/T5/T7 (VTT-01, VTT-03, VTT-08, VTT-09, VTT-11): o snapshot inicial
+    /// carrega a projeção do escopo — montada sob demanda no subscribe, mesmo padrão de
+    /// materialização sob demanda de <c>NpcInspectionQuery</c>. RefId inválido/inexistente (parse
+    /// falho, cidade/prédio não encontrado) mantém <c>Payload</c> nulo em vez de forçar um novo
+    /// código de erro — T5 não pede um contrato de 404 por refId, só a projeção quando o escopo
+    /// resolve. Escopo city em modo Player aplica FOW (T7) centrado em <paramref
+    /// name="playerNpcId"/>; Spectator/admin sempre vê sem filtro (VTT-09).</summary>
+    private static VisualSnapshotEnvelope<object?> WithProjectedPayload(
+        VisualSnapshotEnvelope<object?> envelope, WorldState world, long? playerNpcId)
     {
         object? payload = envelope.Scope.Kind switch
         {
             VisualScopeKind.World => GlobalProjector.Build(world),
             VisualScopeKind.City when Guid.TryParse(envelope.Scope.RefId, out var cityGuid) =>
-                CityProjector.Build(world, new CityId(cityGuid)) is { IsSuccess: true } result ? result.Value : null,
+                BuildCityPayload(world, new CityId(cityGuid), envelope.Mode, playerNpcId),
             VisualScopeKind.Interior when long.TryParse(envelope.Scope.RefId, out var buildingIdValue) =>
                 InteriorProjector.Build(world, new BuildingId(buildingIdValue)) is { IsSuccess: true } result ? result.Value : null,
             _ => null,
         };
 
         return envelope with { Payload = payload };
+    }
+
+    /// <summary>Fase 15, T7 (VTT-08, VTT-09): espectador/admin sempre recebe o snapshot completo
+    /// (override). Personagem sem <paramref name="playerNpcId"/> identificado não recebe nenhum
+    /// morador — "área não descoberta" por padrão é mais seguro do que vazar tudo por engano.</summary>
+    private static object? BuildCityPayload(WorldState world, CityId cityId, ViewerMode mode, long? playerNpcId)
+    {
+        var result = CityProjector.Build(world, cityId);
+        if (!result.IsSuccess) return null;
+        if (mode != ViewerMode.Player) return result.Value;
+
+        var player = playerNpcId is { } id ? world.Npcs.FirstOrDefault(n => n.Id == new NpcId(id)) : null;
+        if (player is null) return result.Value! with { Residents = [] };
+
+        return CityVisibilityFilter.ApplyFog(result.Value!, player.CurrentLocation, adminOverride: false);
     }
 
     private static async Task WriteEventAsync(HttpResponse response, object payload)

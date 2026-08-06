@@ -1,6 +1,7 @@
 using LivingWorld.AI;
 using LivingWorld.Api;
 using LivingWorld.Api.Realtime;
+using LivingWorld.Api.VisualInput;
 using LivingWorld.Domain.Llm;
 using LivingWorld.Domain;
 using LivingWorld.Infrastructure;
@@ -104,6 +105,7 @@ app.MapNarrativeEndpoints(world, chronicles);
 app.MapPeriodsEndpoints();
 app.MapWorldStartEndpoints();
 app.MapRealtimeEndpoints();
+app.MapVisualInputEndpoints();
 
 app.Run();
 
