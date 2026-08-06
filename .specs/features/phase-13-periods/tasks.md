@@ -41,6 +41,8 @@ Implement these tasks com a skill `tlc-spec-driven` ativa (fluxo Execute complet
 `T5 -> { T6 [P], T7 [P] } -> T8`
 ### Phase 4 (Sequential)
 `T8 -> T9 -> T10`
+### Phase 5 (Sequential — adicionada pós-T10, feedback do usuário)
+`T10 -> T11 -> T12`
 
 ## Task Breakdown
 ### T1: Definir contrato dinâmico de período no cenário
@@ -73,6 +75,12 @@ Implement these tasks com a skill `tlc-spec-driven` ativa (fluxo Execute complet
 ### T10: Causalidade de vieses com braço de controle
 **What**: harness de controle/tratamento com mesma seed para validar direção de viés declarado e baseline de horizonte mínimo em `tests/baselines/`. **Where**: `tests/LivingWorld.Tests/Periods/*Causal*Tests.cs`, `tests/baselines/period-evolution-horizon.json`. **Depends on**: T9. **Requirement**: PERIOD-14..16. **Tests**: scenario curto (+ nightly quando necessário). **Gate**: Full.
 
+### T11: Abrir catálogo de habilidade (`SkillType`) como dado dinâmico do período
+**What**: substituir o enum fechado `SkillType`/os 13 campos fixos de `SkillSet` por um catálogo aberto por id — mesmo padrão de `ProfessionType`/`PopulationCatalog` (motor só vê id; nome é dado externo do período/IA, nunca literal em `src/`, ver AD-023/AD-025). `PeriodDynamicsLoader.SkillBias`/futuras regras de transformação de habilidade passam a referenciar esse id aberto em vez de `Enum.TryParse<SkillType>`. Resolve o único ponto onde o motor hoje decide por identidade de habilidade específica: `SkillTeachingSystem.GainFromTutoring` lê `SkillType.Teaching` como literal (multiplicador de tutoria) — vira id declarado por regra, mesmo padrão de `SkillsRules.SkillByProfession`. **Where**: `src/LivingWorld.Domain/Population/SkillSet.cs`, `SkillType.cs` (remover), `SkillsRules.cs`, `src/LivingWorld.Simulation/Population/SkillTeachingSystem.cs`, `src/LivingWorld.Simulation/Periods/PeriodDynamicsLoader.cs`, `docs/domain/period-authoring-dynamics.md` (atualizar seção "catálogo fechado"). **Depends on**: T10. **Reuses**: `ProfessionType`/`PopulationCatalog` como precedente direto. **Requirement**: PERIOD-19..21. **Tests**: unit (SkillSet/SkillsRules com id aberto) + architecture (nenhum nome de habilidade vira literal de decisão, mesmo padrão de `PeriodArchitectureTests`) + integration (`SkillTeachingSystem` com skill-de-tutoria declarada por regra, não mais enum fixo). **Gate**: Full.
+
+### T12: Expor leitura do catálogo ativo (profissão + habilidade) via API
+**What**: rota de leitura que devolve os ids (e nomes, quando declarados) de profissão/habilidade de um período/template registrado — reaproveita o formato de resposta de `GET /periods`. Design exato da rota (estender `GET /periods/{id}` vs. rota nova `GET /periods/{id}/catalog`) fica pra fase de Design desta task, não decidido aqui. **Where**: `src/LivingWorld.Api/*.cs` (endpoint novo ou extensão de `PeriodsEndpoints.cs`). **Depends on**: T11. **Reuses**: padrão de resposta de `PeriodsEndpoints`. **Requirement**: PERIOD-22..23. **Tests**: integration (endpoint). **Gate**: Full.
+
 ## Diagram-Definition Cross-Check
 | Task | Depends On (body) | Diagram | Status |
 | --- | --- | --- | --- |
@@ -86,6 +94,8 @@ Implement these tasks com a skill `tlc-spec-driven` ativa (fluxo Execute complet
 | T8 | T6,T7 | {T6,T7}->T8 | ✅ |
 | T9 | T8 | T8->T9 | ✅ |
 | T10 | T9 | T9->T10 | ✅ |
+| T11 | T10 | T10->T11 | ✅ |
+| T12 | T11 | T11->T12 | ✅ |
 
 ## Test Co-location Validation
 | Task | Code Layer | Matrix Requires | Task Says | Status |
@@ -100,3 +110,5 @@ Implement these tasks com a skill `tlc-spec-driven` ativa (fluxo Execute complet
 | T8 | Reference templates | integration+scenario | integration+scenario | ✅ |
 | T9 | Architecture/determinism | architecture+scenario | architecture+scenario | ✅ |
 | T10 | Causal control harness | scenario | scenario | ✅ |
+| T11 | Open skill catalog | unit+architecture+integration | unit+architecture+integration | ✅ |
+| T12 | Active catalog read API | integration | integration | ✅ |

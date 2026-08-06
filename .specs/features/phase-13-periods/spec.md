@@ -69,6 +69,19 @@ A Fase 3 já permite cenário como dado, mas o conceito de "período" ainda corr
 1. WHEN pacotes de referência são executados THEN o sistema SHALL mantê-los verdes como baseline de compatibilidade.
 2. WHEN período fora dos pacotes é executado THEN o sistema SHALL tratar com o mesmo pipeline de validação e execução.
 
+### P1: Habilidade como catálogo aberto (adicionada pós-T10, feedback do usuário)
+**User Story**: Como designer do mundo, quero que habilidade seja catálogo aberto por dado — igual profissão — para que novas habilidades surjam/desapareçam por período sem editar `src/`.  
+**Acceptance Criteria**:
+1. WHEN um período declara uma habilidade nova (id + nome opcional) THEN o sistema SHALL aceitá-la sem exigir alteração em `LivingWorld.Domain`/`LivingWorld.Simulation`.
+2. WHEN testes de arquitetura rodam THEN o sistema SHALL reprovar nome de habilidade usado como literal de decisão no motor (mesmo padrão de `PeriodArchitectureTests`/`PopulationArchitectureTests`).
+3. WHEN uma regra do motor hoje depende de uma habilidade específica por identidade (ex.: multiplicador de tutoria por `Teaching`) THEN o sistema SHALL expressá-la como id declarado por regra de cenário, nunca enum fixo.
+
+### P1: Leitura do catálogo ativo (adicionada pós-T10, feedback do usuário)
+**User Story**: Como operador, quero ler quais profissões/habilidades estão ativas num período/mundo para inspecionar o que a simulação gerou.  
+**Acceptance Criteria**:
+1. WHEN o catálogo de um período é consultado THEN o sistema SHALL expor os ids (e nomes, quando declarados) de profissão e habilidade daquele período.
+2. WHEN a consulta ocorre por API THEN o sistema SHALL responder num formato reaproveitando o padrão de resposta já usado por `GET /periods`.
+
 ## Edge Cases
 - WHEN dois períodos definem aliases iguais para entidades semânticas diferentes THEN sistema SHALL rejeitar conflito no registro.
 - WHEN período personalizado omite regra obrigatória de transformação THEN sistema SHALL falhar no validador antes da criação do mundo.
@@ -84,6 +97,8 @@ A Fase 3 já permite cenário como dado, mas o conceito de "período" ainda corr
 | PERIOD-11..13 | Documentação para IA externa | Pending |
 | PERIOD-14..16 | Determinismo e causalidade de vieses | Pending |
 | PERIOD-17..18 | Pacotes de referência como regressão | Pending |
+| PERIOD-19..21 | Habilidade como catálogo aberto | Pending |
+| PERIOD-22..23 | Leitura do catálogo ativo | Pending |
 
 ## Success Criteria
 - [ ] Qualquer período novo pode ser adicionado como dados sem alteração de código de domínio/simulação.
