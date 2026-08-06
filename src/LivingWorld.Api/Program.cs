@@ -1,5 +1,6 @@
 using LivingWorld.AI;
 using LivingWorld.Api;
+using LivingWorld.Api.Realtime;
 using LivingWorld.Domain.Llm;
 using LivingWorld.Domain;
 using LivingWorld.Infrastructure;
@@ -42,6 +43,11 @@ if (world is null)
 // origem do mundo por persistência real, tick em tempo real fica para uma task futura).
 var simulationHost = new SimulationHost(worldClock, world);
 
+// Fase 15, T3 (VTT-02, VTT-10): gateway realtime lê o mesmo relógio do host canônico acima —
+// nunca dirige tick nem escreve no mundo (Publish só é chamado pelos projectors futuros com o
+// resultado de uma leitura já feita).
+var realtimeGateway = new RealtimeGateway(() => world.CurrentDate.TotalHours);
+
 // Fase 11, T7: sessão/efeitos vivem só em memória do processo (mesmo espírito do `world`
 // acima) — nunca fazem parte do snapshot/hash canônico do mundo.
 var sessions = new ConversationSessionStore();
@@ -60,6 +66,7 @@ builder.Services.AddSingleton<IWorldRepository>(worldRepository);
 builder.Services.AddSingleton(worldRunner);
 builder.Services.AddSingleton(worldClock);
 builder.Services.AddSingleton(simulationHost);
+builder.Services.AddSingleton(realtimeGateway);
 builder.Services.AddSingleton(sessions);
 
 builder.Services.AddDbContext<WorldDbContext>(o => o.UseSqlite(worldDbConnection));
@@ -96,6 +103,7 @@ app.MapConversationEndpoints(world, sessions, orchestrator);
 app.MapNarrativeEndpoints(world, chronicles);
 app.MapPeriodsEndpoints();
 app.MapWorldStartEndpoints();
+app.MapRealtimeEndpoints();
 
 app.Run();
 
