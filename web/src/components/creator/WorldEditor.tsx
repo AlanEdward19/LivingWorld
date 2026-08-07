@@ -12,11 +12,12 @@ import { MapView } from "../MapView";
 import { EntityInspector } from "../inspector/EntityInspector";
 import { createWorld } from "../../api";
 import { colorById } from "../../colorById";
-import { scenarioFormToJson, type ScenarioFormState } from "../../scenarioDefaults";
+import { parseCsvInts, scenarioFormToJson, type ScenarioFormState } from "../../scenarioDefaults";
 import { SimulationStore } from "../../state/simulationStore";
 import { ViewStore } from "../../state/viewStore";
 import { SelectionStore } from "../../state/selectionStore";
 import { CATEGORY_COLOR } from "../../map-engine/categoryColors";
+import { addSettlement, eraseCell, paintTerrainCell, paintWaterCell, type PaintTool } from "./tools/paint";
 import type { CellSource } from "../../map-engine/renderer";
 import type { AuthoritativeEntity, SpaceId } from "../../map-engine/types";
 import type { PortalSource, SnapshotSource, TickStreamSource } from "../../data/sources";
@@ -44,11 +45,19 @@ function noPortalSource(): PortalSource {
 }
 
 export function WorldEditor({ initialForm, onCreated, viewport = DEFAULT_VIEWPORT }: WorldEditorProps) {
-  // ponytail: sem edição de campo ainda — T25/T26 trazem as ferramentas que mutam isto; até
-  // então é só o que `PresetStart` decidiu, read-only.
-  const form = initialForm;
+  const [form, setForm] = useState(initialForm);
   const [status, setStatus] = useState<"idle" | "submitting" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+  // T25: ferramenta ativa no mapa — "select" (default) deixa clique cair no hit-test/seleção
+  // normal do MapView; qualquer outra pinta/adiciona assentamento em vez de selecionar.
+  const [tool, setTool] = useState<PaintTool>("select");
+  const terrainIds = useMemo(() => parseCsvInts(form.terrainIds), [form.terrainIds]);
+  const biomeIds = useMemo(() => parseCsvInts(form.biomeIds), [form.biomeIds]);
+  const [selectedTerrain, setSelectedTerrain] = useState(terrainIds[0] ?? 1);
+  const [selectedBiome, setSelectedBiome] = useState(biomeIds[0] ?? 0);
+  // Última célula tocada por uma ferramenta — leitura, nunca a forma primária de posicionar
+  // (a ferramenta + clique é; o campo aqui só mostra onde o último clique caiu).
+  const [lastCell, setLastCell] = useState<{ x: number; y: number } | null>(null);
 
   const stores = useMemo(
     () => ({
@@ -81,8 +90,8 @@ export function WorldEditor({ initialForm, onCreated, viewport = DEFAULT_VIEWPOR
   );
 
   // Assentamento = a cidade que o motor funda no tick 0 (mesma lista de `Settlements` no
-  // scenario JSON) — selecioná-lo aqui já funciona de graça via o hit-test/click do MapView;
-  // ferramentas dedicadas de pintura por clique chegam na T25.
+  // scenario JSON) — selecionável via o hit-test padrão do MapView quando a ferramenta ativa é
+  // "selecionar" (T25 intercepta o clique só quando outra ferramenta está ativa).
   const settlementEntities: AuthoritativeEntity[] = useMemo(
     () =>
       form.settlements.map((s, i) => ({
@@ -94,6 +103,26 @@ export function WorldEditor({ initialForm, onCreated, viewport = DEFAULT_VIEWPOR
       })),
     [form.settlements],
   );
+
+  function handlePaintClick(cell: { x: number; y: number }): boolean {
+    if (tool === "select") {
+      return false;
+    }
+    setLastCell(cell);
+    setForm((f) => {
+      if (tool === "settlement") {
+        return { ...f, settlements: addSettlement(f.settlements, cell.x, cell.y) };
+      }
+      if (tool === "erase") {
+        return { ...f, cells: eraseCell(f.cells, cell.x, cell.y) };
+      }
+      if (tool === "water") {
+        return { ...f, cells: paintWaterCell(f.cells, cell.x, cell.y, selectedTerrain, selectedBiome) };
+      }
+      return { ...f, cells: paintTerrainCell(f.cells, cell.x, cell.y, selectedTerrain, selectedBiome) };
+    });
+    return true;
+  }
 
   async function handleCreate() {
     setStatus("submitting");
@@ -117,7 +146,51 @@ export function WorldEditor({ initialForm, onCreated, viewport = DEFAULT_VIEWPOR
   return (
     <div className="world-editor" data-testid="world-editor">
       <div className="world-editor-toolbar" data-testid="world-editor-toolbar">
-        <span>Editor de mundo — ferramentas de mapa chegam na próxima etapa</span>
+        <label>
+          Ferramenta:{" "}
+          <select aria-label="tool-select" value={tool} onChange={(e) => setTool(e.target.value as PaintTool)}>
+            <option value="select">selecionar</option>
+            <option value="terrain">pintar terreno</option>
+            <option value="water">pintar água</option>
+            <option value="erase">apagar célula</option>
+            <option value="settlement">assentamento</option>
+          </select>
+        </label>{" "}
+        {tool === "terrain" && (
+          <>
+            <label>
+              Terreno:{" "}
+              <select
+                aria-label="tool-terrain"
+                value={selectedTerrain}
+                onChange={(e) => setSelectedTerrain(Number(e.target.value))}
+              >
+                {terrainIds.map((id) => (
+                  <option key={id} value={id}>
+                    {id}
+                  </option>
+                ))}
+              </select>
+            </label>{" "}
+            <label>
+              Bioma:{" "}
+              <select
+                aria-label="tool-biome"
+                value={selectedBiome}
+                onChange={(e) => setSelectedBiome(Number(e.target.value))}
+              >
+                {biomeIds.map((id) => (
+                  <option key={id} value={id}>
+                    {id}
+                  </option>
+                ))}
+              </select>
+            </label>{" "}
+          </>
+        )}
+        <span aria-label="tool-last-cell">
+          {lastCell ? `Célula: (${lastCell.x}, ${lastCell.y})` : "Célula: —"}
+        </span>
       </div>
 
       <div className="world-editor-body">
@@ -132,6 +205,7 @@ export function WorldEditor({ initialForm, onCreated, viewport = DEFAULT_VIEWPOR
           selectionStore={stores.selectionStore}
           staticEntities={settlementEntities}
           initialCamera={{ center: { x: cells.width / 2, y: cells.height / 2 }, scale: 10 }}
+          onPaintClick={handlePaintClick}
         />
 
         {selection ? (

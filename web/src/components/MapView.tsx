@@ -56,6 +56,13 @@ export interface MapViewProps {
    * padrão) em vez do valor em cache — quem chama decide o que conta como "mudou de conteúdo".
    */
   resetCameraKey?: unknown;
+  /**
+   * T25: quando presente, todo clique passa por aqui ANTES do hit-test/seleção padrão, com a
+   * célula de mundo sob o cursor. Retornar `true` consome o clique (ferramenta de pintura do
+   * World Creator) — o `MapView` não roda hit-test nem toca `SelectionStore` nesse clique.
+   * Retornar `false` (ex.: ferramenta "selecionar") deixa o clique cair no comportamento normal.
+   */
+  onPaintClick?: (cell: { x: number; y: number }) => boolean;
 }
 
 const DEFAULT_HIT_RADIUS_PX = 10;
@@ -75,6 +82,7 @@ export function MapView({
   staticEntities = EMPTY_STATIC_ENTITIES,
   initialCamera,
   resetCameraKey,
+  onPaintClick,
 }: MapViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cameraRef = useRef<Camera | null>(null);
@@ -220,6 +228,12 @@ export function MapView({
     const camera = cameraRef.current;
     if (!camera) {
       return;
+    }
+    if (onPaintClick) {
+      const world = camera.screenToWorld(screenPoint(e));
+      if (onPaintClick({ x: Math.floor(world.x), y: Math.floor(world.y) })) {
+        return;
+      }
     }
     const hit = hitTest(screenPoint(e), camera, entitiesRef.current, effectiveHitRadiusPx(camera));
     if (hit) {

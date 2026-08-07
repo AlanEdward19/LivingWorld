@@ -86,4 +86,76 @@ describe("WorldEditor", () => {
     const body = JSON.parse((call[1] as RequestInit).body as string) as { scenarioJson: string };
     expect(JSON.parse(body.scenarioJson).Width).toBe(10);
   });
+
+  // worldToScreen((2.5,2.5)) com center(5,5), scale 10, viewport 200x200 -> (75,75).
+  const EMPTY_CELL_SCREEN_POINT = { clientX: 75, clientY: 75 };
+
+  it("positions a settlement by tool + click, not by typing coordinates, and shows the cell as read-only", () => {
+    const form = defaultScenarioForm();
+    render(<WorldEditor initialForm={form} viewport={VIEWPORT} />);
+    const canvas = screen.getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
+
+    fireEvent.change(screen.getByLabelText("tool-select"), { target: { value: "settlement" } });
+    fireEvent.click(canvas, EMPTY_CELL_SCREEN_POINT);
+
+    expect(screen.getByLabelText("tool-last-cell")).toHaveTextContent("Célula: (2, 2)");
+    // clicar em modo ferramenta nunca abre o inspector — não é seleção, é autoria.
+    expect(screen.queryByTestId("entity-inspector")).not.toBeInTheDocument();
+    expect(screen.getByTestId("world-general-config")).toHaveTextContent(`${form.settlements.length + 1}`);
+  });
+
+  it("paints terrain by tool + click and submits it as an exhaustive Cells array, matching buildCells", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) =>
+        url === "/worlds/create"
+          ? Promise.resolve(new Response(JSON.stringify({ npcCount: 0 }), { status: 200 }))
+          : Promise.resolve(new Response("[]", { status: 200 })),
+      ),
+    );
+    render(<WorldEditor initialForm={defaultScenarioForm()} viewport={VIEWPORT} />);
+    const canvas = screen.getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
+
+    fireEvent.change(screen.getByLabelText("tool-select"), { target: { value: "terrain" } });
+    fireEvent.change(screen.getByLabelText("tool-terrain"), { target: { value: "2" } });
+    fireEvent.click(canvas, EMPTY_CELL_SCREEN_POINT);
+
+    fireEvent.click(screen.getByRole("button", { name: "Criar mundo" }));
+    await waitFor(() =>
+      expect((fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => url === "/worlds/create")).toBe(
+        true,
+      ),
+    );
+
+    const call = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.find(([url]) => url === "/worlds/create")!;
+    const scenario = JSON.parse(JSON.parse((call[1] as RequestInit).body as string).scenarioJson);
+    expect(scenario.Cells).toHaveLength(100); // default form é 10x10, Cells é exaustivo
+    const painted = scenario.Cells.find((c: { X: number; Y: number }) => c.X === 2 && c.Y === 2);
+    expect(painted).toMatchObject({ Terrain: 2, Water: false });
+  });
+
+  it("leaves Cells out of the submitted JSON when no cell was painted (100% procedural by seed)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) =>
+        url === "/worlds/create"
+          ? Promise.resolve(new Response(JSON.stringify({ npcCount: 0 }), { status: 200 }))
+          : Promise.resolve(new Response("[]", { status: 200 })),
+      ),
+    );
+    render(<WorldEditor initialForm={defaultScenarioForm()} viewport={VIEWPORT} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Criar mundo" }));
+    await waitFor(() =>
+      expect((fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => url === "/worlds/create")).toBe(
+        true,
+      ),
+    );
+
+    const call = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.find(([url]) => url === "/worlds/create")!;
+    const scenario = JSON.parse(JSON.parse((call[1] as RequestInit).body as string).scenarioJson);
+    expect(scenario.Cells).toBeUndefined();
+  });
 });

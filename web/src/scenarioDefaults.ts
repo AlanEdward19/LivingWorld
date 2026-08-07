@@ -328,7 +328,7 @@ function parseCompactDict(text: string): Record<string, number> {
 // células pintadas) — as não pintadas viram o primeiro TerrainId/BiomeId declarado, altitude 0,
 // sem água. Sem nenhuma célula pintada, `Cells` fica de fora e o mapa continua 100% procedural
 // (mesmo comportamento de antes do editor existir).
-function buildCells(form: ScenarioFormState): object[] | undefined {
+export function buildCells(form: ScenarioFormState): object[] | undefined {
   if (Object.keys(form.cells).length === 0) return undefined;
 
   const defaultTerrain = parseCsvInts(form.terrainIds)[0] ?? 1;

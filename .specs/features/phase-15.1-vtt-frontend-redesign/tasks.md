@@ -928,7 +928,7 @@ que já lista `CreateWorldForm.tsx (desmontado)` no seu próprio Where-clause.
 
 ---
 
-### T25: Ferramentas espaciais por clique no mapa [P]
+### T25: Ferramentas espaciais por clique no mapa [P] — ✅ Done
 
 **What**: ferramentas de escala WORLD (pintar terreno/bioma, adicionar assentamento) operando por
 seleção de ferramenta + clique no `MapView`, com as coordenadas visíveis no inspector como leitura.
@@ -941,11 +941,18 @@ seleção de ferramenta + clique no `MapView`, com as coordenadas visíveis no i
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] Posicionar um assentamento é feito por ferramenta + clique; o campo x/y aparece no inspector como leitura, não como forma primária de entrada
-- [ ] O `Cells` emitido é idêntico ao que o `MapGridEditor` atual produziria para a mesma sequência de cliques (teste de paridade)
-- [ ] Sem nenhuma célula pintada, o mapa continua 100% procedural por seed (comportamento atual de `buildCells`)
-- [ ] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit`
-- [ ] Contagem de testes: ≥ 5 novos passando (inclui o caso exaustivo de `Cells` já existente em `web/tests/MapGridEditor.test.tsx`, migrado)
+- [x] Posicionar um assentamento é feito por ferramenta + clique; o campo x/y aparece no inspector como leitura, não como forma primária de entrada — `WorldEditor` toolbar (`tool-select`) + `MapView.onPaintClick` (novo hook, aditivo — nenhuma view existente passa essa prop, comportamento delas inalterado) + `tool-last-cell` read-only
+- [x] O `Cells` emitido é idêntico ao que o `MapGridEditor` atual produziria para a mesma sequência de cliques — `paintTerrainCell`/`paintWaterCell`/`eraseCell`/`addSettlement` (`creator/tools/paint.ts`) são a MESMA lógica de `MapGridEditor.paintCell` portada pura, com os 3 casos de `MapGridEditor.test.tsx` recriados 1:1 em `tests/creator/tools/paint.test.ts` (+ 2 casos de água, não cobertos antes) — mesma entrada, mesma saída
+- [x] Sem nenhuma célula pintada, o mapa continua 100% procedural por seed — `buildCells` (agora exportado) inalterado; teste dedicado em `WorldEditor.test.tsx` prova `Cells` ausente do JSON submetido sem nenhum clique de pintura
+- [x] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit` — 204 passed, tsc limpo
+- [x] Contagem de testes: `tests/creator/tools/paint.test.ts` (6) + 3 novos em `tests/creator/WorldEditor.test.tsx` — 9 novos
+
+**Desvio explícito (mesma razão da T24)**: `MapGridEditor.tsx`/`GridCanvas`-based **não** foi
+removido — `CreateWorldForm.tsx` continua sendo o caminho vivo em `App.tsx` (o `WorldEditor`
+ainda não está montado nele) e depende dele. `web/tests/MapGridEditor.test.tsx` continua existindo
+e passando (não migrado/removido ainda) pela mesma razão — remover o componente agora quebraria
+a build de `CreateWorldForm`. A migração e a remoção de ambos ficam pra T26, que dismonta
+`CreateWorldForm.tsx` e é quem de fato libera `MapGridEditor` do seu último consumidor.
 
 **Tests**: unit · **Gate**: Quick-web
 **Commit**: `feat(web): spatial-first world editing tools`
