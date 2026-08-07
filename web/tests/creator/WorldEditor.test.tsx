@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { WorldEditor } from "../../src/components/creator/WorldEditor";
-import { defaultScenarioForm } from "../../src/scenarioDefaults";
+import { defaultScenarioForm, scenarioFormToJson } from "../../src/scenarioDefaults";
 
 const VIEWPORT = { width: 200, height: 200 };
 
@@ -41,6 +41,9 @@ describe("WorldEditor", () => {
     expect(panel).toHaveTextContent(`${form.width} × ${form.height}`);
     expect(panel).toHaveTextContent(String(form.seed));
     expect(screen.queryByTestId("entity-inspector")).not.toBeInTheDocument();
+    const sections = panel.querySelectorAll(":scope > .world-editor-panels > details");
+    expect(sections).toHaveLength(6);
+    expect([...sections].every((section) => !section.hasAttribute("open"))).toBe(true);
   });
 
   it("selecting the settlement marker on the map swaps the config panel for the entity inspector", () => {
@@ -84,7 +87,34 @@ describe("WorldEditor", () => {
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith(20));
     const call = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.find(([url]) => url === "/worlds/create")!;
     const body = JSON.parse((call[1] as RequestInit).body as string) as { scenarioJson: string };
-    expect(JSON.parse(body.scenarioJson).Width).toBe(10);
+    expect(body.scenarioJson).toBe(scenarioFormToJson(defaultScenarioForm()));
+  });
+
+  it("loads readable profession labels only when the preset has a period catalog", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) =>
+        url === "/periods/cidade-media/catalog"
+          ? Promise.resolve(
+              new Response(JSON.stringify({ professionNames: { 1: "Ferreiro" }, skillNames: {} }), {
+                status: 200,
+              }),
+            )
+          : Promise.resolve(new Response("[]", { status: 200 })),
+      ),
+    );
+    render(
+      <WorldEditor
+        initialForm={defaultScenarioForm()}
+        catalogPeriodId="cidade-media"
+        viewport={VIEWPORT}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Comportamento"));
+    fireEvent.click(screen.getByText(/Avançado \(limiares de seleção/));
+
+    expect(await screen.findAllByRole("option", { name: "Ferreiro (#1)" })).not.toHaveLength(0);
   });
 
   // worldToScreen((2.5,2.5)) com center(5,5), scale 10, viewport 200x200 -> (75,75).

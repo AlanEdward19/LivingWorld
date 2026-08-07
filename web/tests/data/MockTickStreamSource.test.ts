@@ -29,6 +29,18 @@ describe("MockTickStreamSource", () => {
     expect(clock.tick).toBe(1);
   });
 
+  it("accumulates movement across successive ticks instead of repeating the first position", () => {
+    const clock = new MockClock();
+    clock.setSpeed(1);
+    const source = new MockTickStreamSource(clock, NPCS, 20);
+    const deltas: ScopeTickDelta[] = [];
+
+    source.subscribe({ kind: "World" }, (d) => deltas.push(d));
+    vi.advanceTimersByTime(2000);
+
+    expect(deltas[1].moved[0].location).toEqual({ x: 2, y: 0 });
+  });
+
   it("stops emitting once the clock is paused", () => {
     const clock = new MockClock();
     clock.setSpeed(1);

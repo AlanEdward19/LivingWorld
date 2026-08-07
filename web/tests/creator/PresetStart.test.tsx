@@ -54,10 +54,11 @@ describe("PresetStart", () => {
     fireEvent.click(screen.getByRole("button", { name: "Criar" }));
 
     await waitFor(() => expect(onStart).toHaveBeenCalled());
-    const [form] = onStart.mock.calls[0];
+    const [form, , periodId] = onStart.mock.calls[0];
     expect(form.width).toBe(20);
     expect(form.height).toBe(20);
     expect(form.initialPopulation).toBe(150);
+    expect(periodId).toBe("cidade-media");
   });
 
   it("disables the size preset once a starting-point template is selected", async () => {

@@ -307,7 +307,7 @@ form[data-testid="create-world-form"] > div:not([hidden]) {
   margin-bottom: 1rem;
 }
 
-form[data-testid="create-world-form"] fieldset {
+.world-editor-panels fieldset {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius);
@@ -315,34 +315,34 @@ form[data-testid="create-world-form"] fieldset {
   margin-bottom: 1rem;
 }
 
-form[data-testid="create-world-form"] legend {
+.world-editor-panels legend {
   font-family: var(--font-display);
   color: var(--accent);
   padding: 0 0.5rem;
 }
 
-form[data-testid="create-world-form"] details {
+.world-editor-panels details {
   margin-top: 0.75rem;
   border-top: 1px solid var(--border-subtle);
   padding-top: 0.75rem;
 }
 
-form[data-testid="create-world-form"] summary {
+.world-editor-panels summary {
   cursor: pointer;
   color: var(--accent);
   font-size: 0.85rem;
   padding: 0.2rem 0;
 }
 
-form[data-testid="create-world-form"] summary:hover {
+.world-editor-panels summary:hover {
   color: var(--accent-bright);
 }
 
-form[data-testid="create-world-form"] details[open] summary {
+.world-editor-panels details[open] summary {
   margin-bottom: 0.5rem;
 }
 
-form[data-testid="create-world-form"] label {
+.world-editor-panels label {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -351,33 +351,12 @@ form[data-testid="create-world-form"] label {
   font-size: 0.85rem;
 }
 
-form[data-testid="create-world-form"] input[type="number"] {
+.world-editor-panels input[type="number"] {
   width: 6.5rem;
 }
 
-form[data-testid="create-world-form"] input[type="text"] {
+.world-editor-panels input[type="text"] {
   min-width: 8rem;
-}
-
-form[data-testid="create-world-form"] > button[type="submit"] {
-  display: block;
-  margin: 1.5rem auto 0;
-  padding: 0.7rem 2.5rem;
-  font-size: 1.05rem;
-  color: var(--bg-void);
-  background: linear-gradient(180deg, var(--accent-bright), var(--accent));
-  border: 1px solid var(--accent-dim);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-form[data-testid="create-world-form"] > button[type="submit"]:hover:not(:disabled) {
-  box-shadow: 0 0 0 1px var(--accent), 0 0 22px rgba(217, 169, 79, 0.4);
-}
-
-form[data-testid="create-world-form"] [role="alert"] {
-  color: var(--danger);
-  text-align: center;
 }
 
 /* --- Tela inicial (start menu) --- */
@@ -668,32 +647,6 @@ form[data-testid="create-world-form"] [role="alert"] {
   letter-spacing: 0.03em;
 }
 
-.grid-canvas-wrap {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: auto;
-  line-height: 0;
-}
-
-.grid-canvas-wrap-fill canvas {
-  max-width: none;
-}
-
-.grid-canvas-zoom {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  z-index: 20;
-  display: flex;
-  gap: 0.25rem;
-}
-
-.grid-canvas-zoom button {
-  padding: 0.2rem 0.6rem;
-  line-height: 1;
-}
-
 .side-panel {
   position: absolute;
   top: calc(var(--hud-bar-height) + 0.5rem);
@@ -779,6 +732,18 @@ form[data-testid="create-world-form"] [role="alert"] {
   font-family: var(--font-display);
 }
 
+.world-editor-panels > details {
+  padding-bottom: 0.55rem;
+}
+
+.world-editor-panels > details > summary {
+  font-weight: 700;
+}
+
+.world-editor .side-panel {
+  width: min(42vw, 520px);
+}
+
 .side-panel-close {
   position: absolute;
   top: 0.5rem;
@@ -832,24 +797,4 @@ form[data-testid="create-world-form"] [role="alert"] {
 .map-overlay-panel h2 {
   font-family: var(--font-display);
   color: var(--accent-bright);
-}
-
-/* --- Editor de mapa por clique (T14, UX pass 2) --- */
-
-.map-grid-editor {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius);
-  padding: 1rem;
-}
-
-.map-grid-editor-toolbar {
-  margin-bottom: 0.75rem;
-}
-
-.map-grid-editor .grid-canvas-wrap {
-  max-width: 100%;
-  display: inline-block;
-  border: 1px solid var(--border-subtle);
-  border-radius: 6px;
 }

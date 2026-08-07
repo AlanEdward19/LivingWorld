@@ -3,12 +3,6 @@
 // loop de `requestAnimationFrame` lendo os três stores diretamente — nenhum estado de tick vira
 // `useState`: um delta do `SimulationStore` só atualiza refs e o próximo frame do canvas, nunca
 // dispara um re-render do componente React (VTT2-32).
-//
-// SPEC_DEVIATION: a task original previa remover `GridCanvas.tsx` neste commit. Ele continua em
-// uso por `MapGridEditor.tsx` (editor do World Creator, migrado só em T25) — removê-lo agora
-// quebraria a build. Segue o mesmo padrão já registrado em T8 ("extração e depois remoção"):
-// `GridCanvas.tsx` só é apagado quando o último consumidor migrar (T14 tirou WorldMapView/
-// CityView e MapOverlay.tsx foi removido em T17; só falta T25 tirar MapGridEditor).
 import { useEffect, useRef } from "react";
 import { Camera, type Viewport } from "../map-engine/Camera";
 import { InterpolationBuffer } from "../map-engine/interpolation";
@@ -166,8 +160,8 @@ export function MapView({
   }, [selectionStore]);
 
   // Escala clientX/Y para pixels de canvas: o box CSS do canvas pode divergir dos atributos
-  // width/height (scrollbar, layout do container) — mesmo ajuste que GridCanvas.tsx:138-139 já
-  // fazia, sem ele o hit-test desalinha em qualquer tela onde os dois não coincidam 1:1.
+  // width/height (scrollbar, layout do container); sem ele o hit-test desalinha quando os dois
+  // não coincidem 1:1.
   function screenPoint(e: { clientX: number; clientY: number }): { x: number; y: number } {
     const canvas = canvasRef.current!;
     const rect = canvas.getBoundingClientRect();

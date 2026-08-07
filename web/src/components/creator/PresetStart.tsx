@@ -3,7 +3,7 @@ import { fetchPeriodTemplate, listPeriodTemplates, type PeriodSummary } from "..
 import { defaultScenarioForm, jsonToScenarioForm, type ScenarioFormState } from "../../scenarioDefaults";
 
 export interface PresetStartProps {
-  onStart: (form: ScenarioFormState, name: string) => void;
+  onStart: (form: ScenarioFormState, name: string, periodId?: string) => void;
 }
 
 type SizePresetKey = "pequeno" | "medio" | "grande";
@@ -61,7 +61,7 @@ export function PresetStart({ onStart }: PresetStartProps) {
       } else {
         form = jsonToScenarioForm(await fetchPeriodTemplate(startingPoint));
       }
-      onStart({ ...form, seed }, name);
+      onStart({ ...form, seed }, name, startingPoint === BLANK ? undefined : startingPoint);
     } catch (err) {
       setError(String(err));
     } finally {

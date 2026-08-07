@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { buildSubscribeUrl, buildWebSocketUrl, moveNpc } from "../src/api";
+import { buildSubscribeUrl, buildWebSocketUrl, fetchPeriodCatalog, moveNpc } from "../src/api";
 import { ViewerMode } from "../src/types";
 
 describe("buildSubscribeUrl", () => {
@@ -57,5 +57,24 @@ describe("moveNpc", () => {
         body: JSON.stringify({ targetX: 1, targetY: 2, inputMode: "click" }),
       }),
     );
+  });
+});
+
+describe("fetchPeriodCatalog", () => {
+  it("loads the readable profession and skill labels for one period", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ professionNames: { 1: "Ferreiro" }, skillNames: { 2: "Forja" } }), {
+          status: 200,
+        }),
+      ),
+    );
+
+    await expect(fetchPeriodCatalog("cidade média")).resolves.toEqual({
+      professionNames: { 1: "Ferreiro" },
+      skillNames: { 2: "Forja" },
+    });
+    expect(fetch).toHaveBeenCalledWith("/periods/cidade%20m%C3%A9dia/catalog");
   });
 });

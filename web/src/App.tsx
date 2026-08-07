@@ -2,8 +2,8 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { WorldMapView } from "./components/WorldMapView";
 import { CityView } from "./components/CityView";
 import { InteriorView } from "./components/InteriorView";
-import { CreateWorldForm } from "./components/CreateWorldForm";
 import { PresetStart } from "./components/creator/PresetStart";
+import { WorldEditor } from "./components/creator/WorldEditor";
 import { StartMenu } from "./components/StartMenu";
 import { SettingsView } from "./components/SettingsView";
 import { Breadcrumb } from "./components/Breadcrumb";
@@ -41,6 +41,7 @@ export function App({ simulationStore, viewStore, selectionStore, timeControlSou
   // T23: PresetStart decide o ponto de partida antes do wizard de 6 abas abrir; `creatorForm`
   // null = ainda em PresetStart, preenchido = wizard aberto com esse estado inicial.
   const [creatorForm, setCreatorForm] = useState<ScenarioFormState | null>(null);
+  const [catalogPeriodId, setCatalogPeriodId] = useState<string | undefined>();
   const [worldName, setWorldName] = useState("");
 
   const space = useSyncExternalStore(
@@ -97,6 +98,7 @@ export function App({ simulationStore, viewStore, selectionStore, timeControlSou
           onClick={() => {
             setCreatingWorld((v) => !v);
             setCreatorForm(null);
+            setCatalogPeriodId(undefined);
           }}
         >
           {creatingWorld ? "Cancelar" : "Criar mundo"}
@@ -108,19 +110,22 @@ export function App({ simulationStore, viewStore, selectionStore, timeControlSou
       <main className={creatingWorld ? "" : "fullbleed"}>
         {creatingWorld && !creatorForm && (
           <PresetStart
-            onStart={(form, name) => {
+            onStart={(form, name, periodId) => {
               setCreatorForm(form);
               setWorldName(name);
+              setCatalogPeriodId(periodId);
             }}
           />
         )}
 
         {creatingWorld && creatorForm && (
-          <CreateWorldForm
+          <WorldEditor
             initialForm={creatorForm}
+            catalogPeriodId={catalogPeriodId}
             onCreated={() => {
               setCreatingWorld(false);
               setCreatorForm(null);
+              setCatalogPeriodId(undefined);
               viewStore.goToAncestor(WORLD);
             }}
           />

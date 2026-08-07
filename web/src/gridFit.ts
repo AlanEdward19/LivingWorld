@@ -9,8 +9,8 @@ export function maxSafeZoom(gridWidth: number, gridHeight: number, min = 4): num
 }
 
 /// UX pass 3: zoom inicial que preenche a tela em vez de renderizar um quadrado minúsculo
-/// (feedback do usuário — "o mapa deveria ser a tela toda"). Só o cálculo do primeiro zoom;
-/// +/- continua controlado pelo estado normal do GridCanvas depois disso.
+/// (feedback do usuário — "o mapa deveria ser a tela toda"). Só calcula o zoom inicial;
+/// a câmera assume o controle depois disso.
 export function computeFitZoom(
   gridWidth: number,
   gridHeight: number,

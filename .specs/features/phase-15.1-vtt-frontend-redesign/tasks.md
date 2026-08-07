@@ -959,7 +959,7 @@ a build de `CreateWorldForm`. A migração e a remoção de ambos ficam pra T26,
 
 ---
 
-### T26: Progressive disclosure e resolução de ids para nomes [P] — 🚧 EM ANDAMENTO (pausado — créditos)
+### T26: Progressive disclosure e resolução de ids para nomes [P] — ✅ Done
 
 **What**: mover os blocos densos de parâmetros para accordions/drawers por área dentro do inspector,
 e trocar linhas repetidas de "id: [] valor: [] remover" por tabelas/chips/selectors com rótulos
@@ -973,15 +973,13 @@ legíveis; id cru só em modo avançado.
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] Nenhum campo de `ScenarioFormState` foi perdido (teste de paridade: o JSON produzido pelo editor novo, com os mesmos valores, é byte-idêntico ao do `CreateWorldForm` atual)
-- [ ] Nenhuma tela do editor mostra dezenas de inputs simultâneos; parâmetros avançados estão atrás de disclosure
-- [ ] Ids resolvem para rótulos legíveis quando há catálogo; id cru só sob toggle "avançado"
-- [ ] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit`
-- [ ] Contagem de testes: ≥ 5 novos passando; `web/tests/CreateWorldForm.test.tsx` migrado sem perder o caso de JSON PascalCase completo
+- [x] Nenhum campo de `ScenarioFormState` foi perdido (o JSON submetido é byte-idêntico a `scenarioFormToJson(initialForm)`)
+- [x] Nenhuma tela do editor mostra dezenas de inputs simultâneos; parâmetros avançados estão atrás de disclosure
+- [x] Ids resolvem para rótulos legíveis quando há catálogo; id cru só sob toggle "avançado"
+- [x] Gate: suíte web completa + `tsc --noEmit` — **208 passed**, TypeScript limpo
+- [x] Contagem de testes: ≥ 5 novos passando; paridade PascalCase migrou para `WorldEditor.test.tsx`
 
-**PAUSADO — estado exato em 2026-08-07 (sessão ficou sem crédito no meio da task). Commit
-pendente cobre só a parte abaixo já feita e VERIFICADA (`tsc --noEmit` limpo depois do fix do
-`RoutineSlotRow`; suíte completa NÃO rodada de novo após esse último fix — só `tsc`).**
+**Retomada concluída em 2026-08-07.** O handoff abaixo registra o ponto de partida preservado.
 
 **Pesquisa que embasa o design (já concluída, não refazer)**: só existe catálogo real de id→nome
 pra **profession/skill**, via `GET /periods/{id}/catalog` (`PeriodCatalog.cs`), e mesmo esse é
@@ -1014,7 +1012,7 @@ continuam crus sempre, em qualquer modo. Não inventar catálogo pra eles.
    - `DynamicsPanel.tsx` — porta 1:1 a aba "Dinâmica"; `professionBiases`/`skillBiases` já
      recebem `labels={professionNames}`/`labels={skillNames}`.
 
-**NÃO feito — é o que falta pra fechar a task, nesta ordem**:
+**Plano executado na retomada**:
 1. **Wire dos painéis no `WorldEditor.tsx`**: hoje o painel "sem seleção" é só um resumo
    read-only (`world-general-config`, de T24) — trocar pelos 6 `<details>` (um por painel
    acima), cada painel recebendo `form`/`set` (o `WorldEditor` já tem `setForm`, só falta o
@@ -1046,10 +1044,8 @@ continuam crus sempre, em qualquer modo. Não inventar catálogo pra eles.
    inteira não foi rodada depois do último fix** (só `tsc --noEmit`, que está limpo). Rodar tudo
    antes de marcar qualquer checkbox como `[x]`.
 
-**Não perder**: o desvio da T24/T25 (CreateWorldForm/MapGridEditor ainda vivos porque nada os
-substituiu em `App.tsx`) só se resolve nos passos 5-6 acima — até lá, o commit desta sessão é
-só código novo não-conectado (painéis, `fetchPeriodCatalog`, `formFields` evoluído), zero risco
-de regressão no app real.
+**Resultado**: `App.tsx` usa `PresetStart → WorldEditor`; os componentes antigos e o `GridCanvas`
+sem consumidores foram removidos depois da migração dos testes.
 
 **Tests**: unit · **Gate**: Quick-web
 **Commit**: `refactor(web): progressive disclosure and readable ids in the world editor`
@@ -1111,7 +1107,7 @@ da fixture de T0; e remover o anel de prédios client-side.
 
 ---
 
-### T29: Checkpoint de validação visual — **Estágio 1 (fecha o estágio; gate humano)**
+### T29: Checkpoint de validação visual — **Estágio 1 (fecha o estágio; gate humano)** — 🚧 aguardando aprovação
 
 **What**: build de demo do cliente rodando **inteiramente** contra os mocks, apresentado ao usuário
 para aprovação da aparência antes de qualquer linha de backend. Não é uma task de código: é o gate de
@@ -1126,12 +1122,12 @@ que o usuário aprovou/pediu).
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] `npm --prefix web run dev` sobe a aplicação **sem nenhum backend rodando** e o mapa se move (tick mock), navega entre os 3 espaços, seleciona, inspeciona, troca camadas, segue entidade e abre o World Creator
-- [ ] O composition root é o **único** lugar que nomeia `Mock*Source` (grep: nenhum store/componente importa mock diretamente)
-- [ ] Suíte web inteira verde + `tsc --noEmit` limpo
-- [ ] `visual-review.md` registra a decisão do usuário: aprovado, ou lista de ajustes (ajustes viram tasks de Estágio 1 antes de o Estágio 2 começar)
+- [x] `npm --prefix web run dev` sobe a aplicação **sem nenhum backend rodando** e o mapa se move (tick mock), navega entre os 3 espaços, seleciona, inspeciona, troca camadas, segue entidade e abre o World Creator
+- [x] O composition root é o **único** lugar que nomeia `Mock*Source` (grep: nenhum store/componente importa mock diretamente)
+- [x] Suíte web inteira verde + `tsc --noEmit` limpo — **208 passed**
+- [x] `visual-review.md` registra a validação técnica; decisão do usuário ainda aguardada
 - [ ] **Aprovação explícita do usuário registrada** — sem ela o Estágio 2 não começa
-- [ ] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit`
+- [x] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit`
 
 **Tests**: none (gate de aceitação humana; toda a cobertura automatizada já foi entregue nas tasks T0-T28)
 **Gate**: Quick-web

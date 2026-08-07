@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { addSettlement, eraseCell, paintTerrainCell, paintWaterCell } from "../../../src/components/creator/tools/paint";
 
-// Casos migrados de tests/MapGridEditor.test.tsx (comportamento portado 1:1 de
-// MapGridEditor.paintCell) — mesma entrada, mesma saída, agora como funções puras.
+// Comportamento de autoria espacial como funções puras: mesma entrada, mesma saída.
 describe("paint tools", () => {
   it("paints a cell with the selected terrain id, defaulting altitude/water", () => {
     expect(paintTerrainCell({}, 3, 4, 2, 1)).toEqual({

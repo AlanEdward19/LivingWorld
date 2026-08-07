@@ -31,6 +31,7 @@ export class MockTickStreamSource implements TickStreamSource {
     }
 
     let cursor = 0;
+    const positions = new Map(npcs.map((npc) => [npc.npcId, npc.location]));
     const timer = setInterval(() => {
       if (this.clock.isPaused) {
         return;
@@ -46,7 +47,10 @@ export class MockTickStreamSource implements TickStreamSource {
         this.clock.advanceOneTick();
         const moving = npcs[cursor];
         cursor = (cursor + 1) % npcs.length;
-        moved.push({ npcId: moving.npcId, location: { x: moving.location.x + 1, y: moving.location.y } });
+        const current = positions.get(moving.npcId)!;
+        const location = { x: current.x + 1, y: current.y };
+        positions.set(moving.npcId, location);
+        moved.push({ npcId: moving.npcId, location });
       }
 
       this.accumulatedMsByScope.set(key, remaining);

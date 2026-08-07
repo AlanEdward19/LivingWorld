@@ -139,4 +139,24 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "← menu" }));
     expect(screen.getByTestId("start-menu")).toBeInTheDocument();
   });
+
+  it("opens the visual WorldEditor after choosing a creation preset", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("[]", { status: 200 })));
+    const { simulationStore, viewStore, selectionStore, timeControlSource } = buildStores();
+    render(
+      <App
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+        timeControlSource={timeControlSource}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Criar mundo" }));
+    expect(screen.getByTestId("preset-start")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Criar" }));
+
+    expect(await screen.findByTestId("world-editor")).toBeInTheDocument();
+    expect(screen.queryByTestId("create-world-form")).not.toBeInTheDocument();
+  });
 });

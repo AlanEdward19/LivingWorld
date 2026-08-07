@@ -5,12 +5,11 @@
 // existem depois de um mundo estar de pé — alimentadas por fontes "nulas" (nunca resolvem,
 // porque nada aqui assina stream nenhum: `entitiesOf`/`currentPayload` sempre vazios, e todo o
 // conteúdo visível vem de `staticEntities`/`cells`, como `WorldMapView` já faz pra cidade/prédio
-// derivados). Terreno pintado usa a MESMA função de cor de `MapGridEditor.tsx:122-126` — célula
-// sem pintura fica sem cor (mapa é procedural por Seed só no servidor, nada é inventado aqui).
-import { useMemo, useState, useSyncExternalStore } from "react";
+// derivados). Célula sem pintura fica sem cor: o mapa procedural por Seed só existe no servidor.
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { MapView } from "../MapView";
 import { EntityInspector } from "../inspector/EntityInspector";
-import { createWorld } from "../../api";
+import { createWorld, fetchPeriodCatalog, type PeriodCatalog } from "../../api";
 import { colorById } from "../../colorById";
 import { parseCsvInts, scenarioFormToJson, type ScenarioFormState } from "../../scenarioDefaults";
 import { SimulationStore } from "../../state/simulationStore";
@@ -21,9 +20,16 @@ import { addSettlement, eraseCell, paintTerrainCell, paintWaterCell, type PaintT
 import type { CellSource } from "../../map-engine/renderer";
 import type { AuthoritativeEntity, SpaceId } from "../../map-engine/types";
 import type { PortalSource, SnapshotSource, TickStreamSource } from "../../data/sources";
+import { BehaviorPanel } from "./panels/BehaviorPanel";
+import { CitiesPanel } from "./panels/CitiesPanel";
+import { DynamicsPanel } from "./panels/DynamicsPanel";
+import { EconomyPanel } from "./panels/EconomyPanel";
+import { MapPanel } from "./panels/MapPanel";
+import { PopulationPanel } from "./panels/PopulationPanel";
 
 export interface WorldEditorProps {
   initialForm: ScenarioFormState;
+  catalogPeriodId?: string;
   onCreated?: (npcCount: number) => void;
   viewport?: { width: number; height: number };
 }
@@ -44,8 +50,14 @@ function noPortalSource(): PortalSource {
   return { portalsOf: () => [] };
 }
 
-export function WorldEditor({ initialForm, onCreated, viewport = DEFAULT_VIEWPORT }: WorldEditorProps) {
+export function WorldEditor({
+  initialForm,
+  catalogPeriodId,
+  onCreated,
+  viewport = DEFAULT_VIEWPORT,
+}: WorldEditorProps) {
   const [form, setForm] = useState(initialForm);
+  const [catalog, setCatalog] = useState<PeriodCatalog | null>(null);
   const [status, setStatus] = useState<"idle" | "submitting" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   // T25: ferramenta ativa no mapa — "select" (default) deixa clique cair no hit-test/seleção
@@ -58,6 +70,24 @@ export function WorldEditor({ initialForm, onCreated, viewport = DEFAULT_VIEWPOR
   // Última célula tocada por uma ferramenta — leitura, nunca a forma primária de posicionar
   // (a ferramenta + clique é; o campo aqui só mostra onde o último clique caiu).
   const [lastCell, setLastCell] = useState<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!catalogPeriodId) {
+      setCatalog(null);
+      return;
+    }
+    let active = true;
+    fetchPeriodCatalog(catalogPeriodId)
+      .then((next) => active && setCatalog(next))
+      .catch(() => active && setCatalog(null));
+    return () => {
+      active = false;
+    };
+  }, [catalogPeriodId]);
+
+  function set<K extends keyof ScenarioFormState>(key: K, value: ScenarioFormState[K]) {
+    setForm((current) => ({ ...current, [key]: value }));
+  }
 
   const stores = useMemo(
     () => ({
@@ -233,6 +263,37 @@ export function WorldEditor({ initialForm, onCreated, viewport = DEFAULT_VIEWPOR
               <dt>Cidades</dt>
               <dd>{form.citiesEnabled ? "habilitadas" : "desabilitadas"}</dd>
             </dl>
+            <div className="world-editor-panels">
+              <details>
+                <summary>Mapa</summary>
+                <MapPanel form={form} set={set} />
+              </details>
+              <details>
+                <summary>População</summary>
+                <PopulationPanel form={form} set={set} />
+              </details>
+              <details>
+                <summary>Comportamento</summary>
+                <BehaviorPanel form={form} set={set} professionNames={catalog?.professionNames} />
+              </details>
+              <details>
+                <summary>Economia</summary>
+                <EconomyPanel form={form} set={set} professionNames={catalog?.professionNames} />
+              </details>
+              <details>
+                <summary>Cidades</summary>
+                <CitiesPanel form={form} set={set} />
+              </details>
+              <details>
+                <summary>Dinâmica</summary>
+                <DynamicsPanel
+                  form={form}
+                  set={set}
+                  professionNames={catalog?.professionNames}
+                  skillNames={catalog?.skillNames}
+                />
+              </details>
+            </div>
             <button type="button" onClick={handleCreate} disabled={status === "submitting"}>
               {status === "submitting" ? "Criando…" : "Criar mundo"}
             </button>
@@ -243,4 +304,3 @@ export function WorldEditor({ initialForm, onCreated, viewport = DEFAULT_VIEWPOR
     </div>
   );
 }
-

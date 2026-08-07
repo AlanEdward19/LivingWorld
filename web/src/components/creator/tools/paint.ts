@@ -1,6 +1,4 @@
-// Fase 15.1, T25: ferramentas de escala WORLD por clique no `MapView`, portadas 1:1 da lógica de
-// `MapGridEditor.paintCell` (`web/src/components/MapGridEditor.tsx:43-65`) — mesmo comportamento,
-// só que puro (sem `GridCanvas`) pra operar sobre o clique real do map engine em `WorldEditor`.
+// Fase 15.1, T25: ferramentas puras de escala WORLD por clique no `MapView`.
 import type { PaintedCell, SettlementRow } from "../../../scenarioDefaults";
 
 export type PaintTool = "select" | "terrain" | "water" | "erase" | "settlement";
