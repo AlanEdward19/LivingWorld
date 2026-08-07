@@ -11,7 +11,12 @@ export interface SnapshotSource {
 }
 
 export interface TickStreamSource {
-  subscribe(space: SpaceId, onDelta: (delta: ScopeTickDelta) => void): () => void;
+  /**
+   * `onDrop` (T10, VTT2-11/36): sinaliza perda de conexão do stream para este escopo — a
+   * contraparte real (T31) chama isto do `onclose`/`onerror` do WebSocket. Opcional porque nem
+   * toda fonte tem noção de "queda" (ex.: um replay finito de fixture nunca cai).
+   */
+  subscribe(space: SpaceId, onDelta: (delta: ScopeTickDelta) => void, onDrop?: () => void): () => void;
 }
 
 export interface TimeControlSource {

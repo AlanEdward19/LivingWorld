@@ -8,8 +8,14 @@ import type { SpaceId } from "../../map-engine/types";
 import type { MockClock } from "./MockClock";
 import { mockScopeKey } from "./mockScopeKey";
 
+interface ActiveSubscription {
+  timer: ReturnType<typeof setInterval>;
+  onDrop?: () => void;
+}
+
 export class MockTickStreamSource implements TickStreamSource {
   private readonly accumulatedMsByScope = new Map<string, number>();
+  private readonly activeByScope = new Map<string, ActiveSubscription>();
 
   constructor(
     private readonly clock: MockClock,
@@ -17,7 +23,7 @@ export class MockTickStreamSource implements TickStreamSource {
     private readonly checkIntervalMs = 20,
   ) {}
 
-  subscribe(space: SpaceId, onDelta: (delta: ScopeTickDelta) => void): () => void {
+  subscribe(space: SpaceId, onDelta: (delta: ScopeTickDelta) => void, onDrop?: () => void): () => void {
     const key = mockScopeKey(space);
     const npcs = this.npcsByScope[key] ?? [];
     if (npcs.length === 0) {
@@ -50,6 +56,23 @@ export class MockTickStreamSource implements TickStreamSource {
       }
     }, this.checkIntervalMs);
 
-    return () => clearInterval(timer);
+    this.activeByScope.set(key, { timer, onDrop });
+
+    return () => {
+      clearInterval(timer);
+      this.activeByScope.delete(key);
+    };
+  }
+
+  /** Simula queda de conexão do stream deste escopo — dispara o `onDrop` registrado, se houver. */
+  simulateDrop(space: SpaceId): void {
+    const key = mockScopeKey(space);
+    const active = this.activeByScope.get(key);
+    if (!active) {
+      return;
+    }
+    clearInterval(active.timer);
+    this.activeByScope.delete(key);
+    active.onDrop?.();
   }
 }
