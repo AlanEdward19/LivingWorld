@@ -64,3 +64,43 @@ export function generateBuildingFootprint(buildingId: string, buildingTypeId: nu
 
   return cells;
 }
+
+/**
+ * Feedback do usuário (2026-08-07): cidade no mapa-múndi também não pode ser só um retângulo —
+ * mesma técnica do prédio (anel de parede + um portão), escala do tamanho real da cidade
+ * (`bounds`). Sem preenchimento de piso (cidade é grande, o interior é onde os prédios da
+ * `CityView` aparecem) — só o contorno.
+ *
+ * `floor` (2026-08-07, segunda rodada — "o Z não é só em prédio, é em tudo") participa da seed
+ * igual `generateBuildingFootprint`: cada nível (subsolo/superfície/acima) tem seu próprio
+ * portão determinístico, mesmo espírito de placeholder honesto client-side.
+ */
+export function generateCityWallFootprint(cityId: string, width: number, height: number, floor = 0): FootprintCell[] {
+  const seed = hashString(`${cityId}:${floor}`);
+  const cells: FootprintCell[] = [];
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const onEdge = x === 0 || x === width - 1 || y === 0 || y === height - 1;
+      if (onEdge) {
+        cells.push({ x, y, material: "stoneWall" });
+      }
+    }
+  }
+
+  // Portão: uma célula da parede vira abertura, no meio de um dos 4 lados (determinístico por cidade).
+  const gateSide = seed % 4;
+  const gate =
+    gateSide === 0
+      ? { x: Math.floor(width / 2), y: 0 }
+      : gateSide === 1
+        ? { x: width - 1, y: Math.floor(height / 2) }
+        : gateSide === 2
+          ? { x: Math.floor(width / 2), y: height - 1 }
+          : { x: 0, y: Math.floor(height / 2) };
+  const gateIndex = cells.findIndex((c) => c.x === gate.x && c.y === gate.y);
+  if (gateIndex >= 0) {
+    cells[gateIndex] = { ...gate, material: "door" };
+  }
+
+  return cells;
+}

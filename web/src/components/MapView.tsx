@@ -47,6 +47,15 @@ export interface MapViewProps {
    * Se omitido, cai no `Camera.initial(cells.width, cells.height, viewport)` de sempre.
    */
   initialCamera?: CameraState;
+  /**
+   * Feedback do usuário (2026-08-07): trocar de andar dentro de um prédio não tinha efeito
+   * visível na câmera — `viewStore.cameraFor` cacheia por `space` (buildingId+cityId), sem
+   * andar (andar é estado só do componente, não do `SpaceId` — decisão documentada em
+   * `InteriorView.tsx`), então a câmera gravada de um andar "vazava" pros outros. Quando este
+   * valor muda de identidade entre renders, a câmera é forçada pro `initialCamera` (ou o fit
+   * padrão) em vez do valor em cache — quem chama decide o que conta como "mudou de conteúdo".
+   */
+  resetCameraKey?: unknown;
 }
 
 const DEFAULT_HIT_RADIUS_PX = 10;
@@ -65,6 +74,7 @@ export function MapView({
   hitRadiusPx = DEFAULT_HIT_RADIUS_PX,
   staticEntities = EMPTY_STATIC_ENTITIES,
   initialCamera,
+  resetCameraKey,
 }: MapViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cameraRef = useRef<Camera | null>(null);
@@ -75,9 +85,12 @@ export function MapView({
   // Câmera do espaço: restaura a guardada no ViewStore, ou o fit inicial se nunca visitado.
   useEffect(() => {
     const fallback = initialCamera ?? Camera.initial(cells.width, cells.height, viewport);
-    const initialState = viewStore.cameraFor(space, fallback);
+    const initialState = resetCameraKey !== undefined ? fallback : viewStore.cameraFor(space, fallback);
     cameraRef.current = new Camera(initialState, viewport);
-  }, [space, viewport.width, viewport.height, cells.width, cells.height, viewStore, initialCamera]);
+    if (resetCameraKey !== undefined) {
+      viewStore.recordCamera(space, initialState);
+    }
+  }, [space, viewport.width, viewport.height, cells.width, cells.height, viewStore, initialCamera, resetCameraKey]);
 
   // Estado autoritativo: lê `entitiesOf` no mount e a cada notificação do SimulationStore —
   // nunca via `useState`, então uma notificação não re-renderiza este componente.

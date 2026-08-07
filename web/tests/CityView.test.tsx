@@ -80,9 +80,10 @@ describe("CityView", () => {
     const canvas = screen.getByTestId("map-view-canvas") as HTMLCanvasElement;
     stubRect(canvas);
 
-    // câmera inicial: center = snapshot.location (0,0), scale 16; resident em (1,1) projeta em
-    // ((1-0)*16+100, (1-0)*16+100) = (116,116)
-    fireEvent.click(canvas, { clientX: 116, clientY: 116 });
+    // câmera inicial: center = snapshot.location (0,0), scale 16; resident em (1,1) tem centro
+    // de token em (1.5,1.5) -> ((1.5-0)*16+100, (1.5-0)*16+100) = (124,124) (hitTest.ts mira o
+    // centro da célula, igual ao renderer — não o canto cru)
+    fireEvent.click(canvas, { clientX: 124, clientY: 124 });
 
     expect(selectionStore.current()).toEqual({
       kind: "npc",

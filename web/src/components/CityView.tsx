@@ -4,9 +4,10 @@
 // têm posição real (`Building` sem `CellCoord` — context.md gap 5), então continuam com o
 // layout de anel aproximado calculado aqui, marcado `sizeIsDerived: true` (traço tracejado no
 // renderer em vez do preenchimento sólido de um morador).
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { MapView } from "./MapView";
 import { EntityLegend } from "./EntityLegend";
+import { FloorSelector } from "./FloorSelector";
 import { CATEGORY_COLOR } from "../map-engine/categoryColors";
 import { generateBuildingFootprint, MATERIAL_COLOR } from "../map-engine/buildingFootprint";
 import type { Viewport } from "../map-engine/Camera";
@@ -35,7 +36,19 @@ function resolveNavigationTarget(cityId: string): (ref: EntityRef) => SpaceId | 
   return (ref) => (ref.kind === "building" ? { kind: "Building", buildingId: ref.id, cityId } : null);
 }
 
+// Feedback do usuário (2026-08-07, segunda rodada): "o Z não é só em prédio, é em tudo" — mesmo
+// gap 5 do context.md (nenhum dado de camada/subsolo de cidade no motor), mesmo espírito
+// honesto: nível vira estado local, reseed determinístico do footprint dos prédios (não
+// fabrica prédio novo, só reformula a MESMA planta pra parecer outro nível).
+function cityFloorLabel(floor: number): string {
+  if (floor === 0) {
+    return "Superfície";
+  }
+  return floor > 0 ? `${floor}º nível elevado` : `${Math.abs(floor)}º subsolo`;
+}
+
 export function CityView({ snapshot, viewport, simulationStore, viewStore, selectionStore }: CityViewProps) {
+  const [floor, setFloor] = useState(0);
   const space: SpaceId = useMemo(() => ({ kind: "City", cityId: snapshot.id.value }), [snapshot.id.value]);
 
   // Sem terreno/grid local próprio de cidade ainda — cobre uma janela ampla em torno da cidade
@@ -61,7 +74,7 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
           y: snapshot.location.y + Math.sin(angle) * BUILDING_RING_RADIUS,
         };
         const buildingId = String(building.id.value);
-        const footprintCells = generateBuildingFootprint(buildingId, building.buildingTypeId);
+        const footprintCells = generateBuildingFootprint(buildingId, building.buildingTypeId, floor);
         const width = Math.max(...footprintCells.map((c) => c.x)) + 1;
         const height = Math.max(...footprintCells.map((c) => c.y)) + 1;
 
@@ -76,7 +89,7 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
           footprintCells: footprintCells.map((c) => ({ x: c.x, y: c.y, color: MATERIAL_COLOR[c.material] })),
         };
       }),
-    [snapshot.buildings, snapshot.location, space],
+    [snapshot.buildings, snapshot.location, space, floor],
   );
 
   return (
@@ -87,8 +100,11 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
           Pool agregado: {snapshot.aggregatePool.count} habitantes não materializados (riqueza{" "}
           {snapshot.aggregatePool.wealthSum}, saúde {snapshot.aggregatePool.healthSum})
         </p>
+        <FloorSelector floor={floor} label={cityFloorLabel(floor)} onChange={setFloor} />
         <EntityLegend />
       </div>
+
+      {floor !== 0 && <div className={`z-layer-tint ${floor < 0 ? "z-layer-tint-below" : "z-layer-tint-above"}`} />}
 
       <MapView
         space={space}

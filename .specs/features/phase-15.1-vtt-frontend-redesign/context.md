@@ -233,6 +233,91 @@ do `BuildingSpace` — não existe dado de andar no motor, então não há nada 
 um dia modelar andar como estado real, isso sobe pra `SpaceId` — hoje seria estado inventado no
 lugar errado.
 
+## Terceira rodada — bugs reais achados testando ao vivo (2026-08-07)
+
+Cinco itens reportados pelo usuário depois de usar as duas rodadas anteriores; todos eram bugs
+reais no código, não só percepção:
+
+1. **Clique em NPC só "pegava" zoomado pra fora**: `hitTest.ts` mirava o canto cru da célula
+   (`entity.position`), mas `renderer.ts` desenha o NPC no CENTRO (`position + 0.5`). Erro de
+   meia-célula cresce com o zoom — em telas mais zoomadas passava o raio de acerto. Corrigido
+   hitTest.ts para mirar o mesmo centro do renderer.
+2. **Cidade era só retângulo**: agora tem muralha com portão (`generateCityWallFootprint` em
+   `buildingFootprint.ts`), mesma técnica do prédio, escala do `bounds` real da cidade.
+3. **"Alguns prédios não carregam"**: `fixtures.ts` só tinha snapshot de interior pro prédio
+   "2000" — qualquer outro prédio (2001+, e os da cidade B) dava throw no `MockSnapshotSource` e
+   ficava preso em "Carregando…" pra sempre. Causa raiz composta: (a) faltava fixture por
+   prédio — corrigido gerando um interior por prédio de cada cidade; (b) ids de prédio mock
+   reusavam a mesma faixa (2000+) em toda cidade — `cityBuildingMarkers` agora recebe um
+   `idOffset` por cidade; (c) ao corrigir, o `scopeKey` do envelope de interior tinha ficado no
+   formato do índice interno do mock (`interior:{cityId}:{id}`) em vez do formato real de
+   `toScopeKey` (`interior:{id}`, sem cityId — mesmo contrato do servidor, ver nota logo acima) —
+   `SimulationStore.applySnapshot` descarta em silêncio qualquer envelope cujo `scopeKey` não
+   bata com o escopo observado, então o snapshot chegava e sumia sem erro nenhum no console.
+   Verificado ao vivo entrando nos prédios 2001/2003 (cidade A) e 2101 (cidade B, ids agora
+   1xx0+ em vez de colidir com A).
+4. **Andar (Z) sem efeito na câmera**: `viewStore.cameraFor` cacheia por `SpaceId`
+   (buildingId+cityId), sem andar — trocar de andar não resetava a câmera porque o cache "vazava"
+   entre andares (andar é estado só do componente, não do `SpaceId` — decisão da rodada 2 continua
+   valendo). `MapView` ganhou `resetCameraKey?: unknown` — quando muda de identidade, força a
+   câmera pro `initialCamera` em vez do cache; `InteriorView` passa `floor` nesse prop.
+5. **NPC token estilo VTT**: sem lib de ícone/asset no projeto (decisão: nada de dependência nova
+   pra um glifo simples), o círculo liso virou disco com sombra + anel + silhueta (cabeça+ombros)
+   desenhada em canvas 2D puro (`drawTokenGlyph` em `renderer.ts`).
+
+**Interior do prédio: só contorno, sem "planta" sólida (pedido explícito do usuário, três
+tentativas até acertar, 2026-08-07)**. `AuthoritativeEntity` ganhou um campo `decorative?:
+boolean` (usado pela versão final) que `hitTest.ts` pula inteiramente e o renderer não desenha
+stroke por célula nem rótulo — decorativo nunca rouba clique/seleção.
+
+1. Réplica da casca externa (`generateBuildingFootprint` com `floor: 0` fixo) ampliada 3x atrás
+   da planta sólida. Bugs: material "floor" quase idêntico ao fundo do canvas (só a porta
+   ficava visível, parecendo bloco solto); `cells.width/height` cobria a área ampliada inteira
+   (grid aparecia no vazio ao redor, não só dentro do contorno real); no térreo (padrão ao
+   entrar) a réplica usa a MESMA seed da planta atual — ficam literalmente idênticas, lendo
+   como "prédio duplicado".
+2. Margem fina (2 tiles, tom único) ao redor do retângulo da planta + `cells` de volta ao
+   tamanho da planta (grid confinado ao contorno). Resolvia os bugs de (1), mas o usuário
+   esclareceu que o problema nunca foi a margem/contorno — sempre foi a PLANTA SÓLIDA em si (o
+   bloco de parede/piso/porta com rótulo "cell X" no meio): "já estou dentro do prédio", então
+   ver ali dentro algo com a mesma cara de "prédio visto de fora" (mesmo desenho da CityView) lê
+   como "tem outro prédio aqui dentro", não como "estou dentro dele".
+3. **Versão final**: a planta sólida (piso preenchido + rótulo) foi removida por completo. Só
+   sobra o CONTORNO das paredes reais (`footprintCells` filtrando fora só o material "floor"),
+   transparente (`CONTOUR_ALPHA_HEX`), sem preenchimento de piso, sem rótulo, `decorative: true`
+   (não seleciona nada — não há mais "planta" pra inspecionar). `cells.width/height` cobre a
+   área da planta, então o grid de linhas aparece por dentro do contorno, marcando o espaço
+   andável. Móveis/escada/etc citados pelo usuário ficam para quando isso for modelado — hoje é
+   só o contorno vazio.
+
+**Escala do interior (pedido explícito do usuário, quarta leva — "não necessariamente 2x4 de um
+prédio na visão da cidade vão ser os mesmos 2x4 dentro da casa... precisamos de uma escala")**:
+`generateBuildingFootprint` gera em tile de CIDADE (4-6 tiles, o que `CityView` desenha do lado de
+fora) — resolução baixa demais pra caber móvel/escada/etc por dentro. `space.ts` já declarava
+exatamente essa razão faz tempo (`SCALE.cityTilesPerBuildingTile = 6`, "quantos tiles de
+BuildingSpace cabem em 1 tile de CitySpace") só que nenhum consumidor usava. `InteriorView` agora
+usa essa constante: cada tile do footprint de cidade vira um bloco `6x6` de tiles de interior —
+parede/porta mantêm a MESMA forma vista de fora, só que com espessura de vários tiles de interior
+em vez de 1, abrindo espaço real pro chão andável entre as paredes. `FLOOR_PLAN_SCALE` (px/tile)
+caiu de 32 pra 14 pra caber a área ~6x maior na tela (mantendo >= 10, limiar que `renderer.ts`
+usa pra decidir se desenha linha de grid). `SCALE.worldTilesPerCityTile` (Mundo→Cidade) não foi
+tocada nessa rodada — o pedido do usuário era especificamente sobre resolução dentro do prédio;
+`CityView` já posiciona prédios em coordenadas absolutas de cidade/mundo (não é sobre resolução
+de grid, é sobre POSIÇÃO), gap separado se algum dia precisar.
+
+**Z em todo lugar, não só prédio (pedido explícito do usuário, segunda leva)**: o seletor de
+andar saiu de `InteriorView` pra um componente compartilhado (`FloorSelector.tsx` — só
+botões+rótulo, cada view decide o texto e o efeito) e `CityView`/`WorldMapView` ganharam o mesmo
+controle, com estado 100% local (mesmo gap 5 do context.md — nenhum dos três níveis tem dado real
+de camada/Z no motor). Efeito por nível, sempre honesto (nunca fabrica dado de domínio):
+- **Prédio**: reseed do footprint (já existia).
+- **Cidade**: reseed do footprint de CADA prédio do anel (`generateBuildingFootprint(..., floor)`)
+  — muda a forma real desenhada, não só um filtro.
+- **Mundo**: reseed da muralha de cada cidade (`generateCityWallFootprint(..., floor)`, também
+  ganhou parâmetro `floor`) + tint translúcido sobre o terreno REAL (`.z-layer-tint`, CSS puro,
+  `pointer-events: none`) — terreno é dado de simulação de verdade, não dá pra "reformular" como
+  o footprint client-side de prédio/cidade, então o efeito fica só visual, nunca inventa bioma.
+
 **Bug real pego em teste manual, não em teste automatizado**: selecionar um prédio na cidade e
 depois abri-lo derrubava o app (`BuildingInspector` assumia que `entityRef.space` de um prédio é
 sempre a cidade onde ele está — a entidade decorativa da planta, vista de dentro, violava isso

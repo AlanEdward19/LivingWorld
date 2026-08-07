@@ -3,11 +3,13 @@
 // `staticEntities` (não têm delta de tick — `SimulationStore.entitiesOf` só extrai NPC externo,
 // que já vem dinamicamente); double-click numa cidade resolve `{kind:"City"}` e o próprio
 // `MapView` chama `ViewStore.enter`.
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { MapView } from "./MapView";
 import { LayerLegend } from "./LayerLegend";
 import { EntityLegend } from "./EntityLegend";
+import { FloorSelector } from "./FloorSelector";
 import { terrainColorLookup, riverOverlayPoints } from "../worldMapData";
+import { generateCityWallFootprint, MATERIAL_COLOR } from "../map-engine/buildingFootprint";
 import type { Viewport } from "../map-engine/Camera";
 import type { ActiveLayer } from "../map-engine/renderer";
 import type { LodThresholds } from "../map-engine/lod";
@@ -33,7 +35,20 @@ function resolveNavigationTarget(ref: EntityRef): SpaceId | null {
   return ref.kind === "city" ? { kind: "City", cityId: ref.id } : null;
 }
 
+// Feedback do usuário (2026-08-07, segunda rodada): "o Z não é só em prédio, é em tudo" — mundo
+// não tem nenhum dado de camada subterrânea/aérea (context.md gap 5), e ao contrário de
+// prédio/cidade não dá pra "reformular" o terreno real sem fabricar dado de simulação que não
+// existe. Efeito honesto aqui: tint visual sobre o terreno de verdade + reseed da muralha das
+// cidades (mesmo padrão de `CityView`/`buildingFootprint.ts`) — nunca finge um bioma novo.
+function worldFloorLabel(floor: number): string {
+  if (floor === 0) {
+    return "Superfície";
+  }
+  return floor > 0 ? `${floor}º nível aéreo` : `${Math.abs(floor)}º nível subterrâneo`;
+}
+
 export function WorldMapView({ snapshot, viewport, simulationStore, viewStore, selectionStore }: WorldMapViewProps) {
+  const [floor, setFloor] = useState(0);
   const cells = useMemo(
     () => ({ width: snapshot.width, height: snapshot.height, colorAt: terrainColorLookup(snapshot) }),
     [snapshot],
@@ -48,25 +63,34 @@ export function WorldMapView({ snapshot, viewport, simulationStore, viewStore, s
   // real do footprint (`bounds`) no grid, como o master prompt §6 sempre pediu. `position` é o
   // canto superior-esquerdo do footprint, `size` são as dimensões reais — o renderer desenha
   // qualquer entidade com `size.w>1 || size.h>1` como área, não como marcador circular.
+  // Feedback do usuário (2026-08-07, rodada 2): cidade também não pode ficar só um retângulo —
+  // mesma técnica do prédio (buildingFootprint.ts): muralha com portão em vez de preenchimento.
   const cityEntities: AuthoritativeEntity[] = useMemo(
     () =>
-      snapshot.cities.map((city) => ({
-        ref: { kind: "city" as const, id: city.id.value, space: WORLD },
-        position: { x: city.bounds.x, y: city.bounds.y },
-        size: { w: city.bounds.width, h: city.bounds.height },
-        sizeIsDerived: city.boundsAreDerived,
-        color: CATEGORY_COLOR.city,
-      })),
-    [snapshot.cities],
+      snapshot.cities.map((city) => {
+        const wallCells = generateCityWallFootprint(city.id.value, city.bounds.width, city.bounds.height, floor);
+        return {
+          ref: { kind: "city" as const, id: city.id.value, space: WORLD },
+          position: { x: city.bounds.x, y: city.bounds.y },
+          size: { w: city.bounds.width, h: city.bounds.height },
+          sizeIsDerived: city.boundsAreDerived,
+          color: CATEGORY_COLOR.city,
+          footprintCells: wallCells.map((c) => ({ x: c.x, y: c.y, color: MATERIAL_COLOR[c.material] })),
+        };
+      }),
+    [snapshot.cities, floor],
   );
 
   return (
     <div className="map-fullscreen" data-testid="world-map-view">
       <div className="map-hud map-hud-top-left">
         <h2>Mapa-múndi</h2>
+        <FloorSelector floor={floor} label={worldFloorLabel(floor)} onChange={setFloor} />
         <LayerLegend layers={snapshot.layers} />
         <EntityLegend />
       </div>
+
+      {floor !== 0 && <div className={`z-layer-tint ${floor < 0 ? "z-layer-tint-below" : "z-layer-tint-above"}`} />}
 
       <MapView
         space={WORLD}

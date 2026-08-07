@@ -110,8 +110,9 @@ describe("renderer.draw", () => {
 
     draw(ctx, baseFrame(camera, [inView, farAway]));
 
-    // 1 arc só pela entidade visível (dot, sem token/anel nesse zoom => 1 arc por entidade)
-    expect(ctx.arc.mock.calls.length).toBe(1);
+    // token (scale 10 >= threshold): disco + glifo (cabeça + ombros) da entidade visível = 3
+    // arcs; a distante é cullada antes de chegar em drawPointEntity.
+    expect(ctx.arc.mock.calls.length).toBe(3);
   });
 
   it("aggregates entities into clusters below the aggregate threshold instead of drawing each one", () => {

@@ -33,6 +33,9 @@ export function hitTest(
   let closest: { ref: EntityRef; distance: number } | null = null;
 
   for (const entity of entities) {
+    if (entity.decorative) {
+      continue;
+    }
     if (isAreaEntity(entity)) {
       const withinX = worldPoint.x >= entity.position.x && worldPoint.x <= entity.position.x + entity.size.w;
       const withinY = worldPoint.y >= entity.position.y && worldPoint.y <= entity.position.y + entity.size.h;
@@ -47,7 +50,11 @@ export function hitTest(
       continue;
     }
 
-    const entityScreenPoint = camera.worldToScreen(entity.position);
+    // BUG real corrigido (2026-08-07): renderer.ts desenha ponto no CENTRO da célula
+    // (`position + 0.5`), mas aqui usava o canto cru — erro de meia-célula que cresce com o
+    // zoom (0.5*scale px), passando o raio de acerto (~0.4*scale) em telas mais zoomadas.
+    // Efeito visto pelo usuário: clique só "pegava" o NPC zoomado bem pra fora.
+    const entityScreenPoint = camera.worldToScreen({ x: entity.position.x + 0.5, y: entity.position.y + 0.5 });
     const distance = screenDistance(screenPoint, entityScreenPoint);
     if (distance <= hitRadiusPx && (!closest || distance < closest.distance)) {
       closest = { ref: entity.ref, distance };

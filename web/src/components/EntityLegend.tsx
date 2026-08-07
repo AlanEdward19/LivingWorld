@@ -7,7 +7,7 @@ import { CATEGORY_COLOR } from "../map-engine/categoryColors";
 import { MATERIAL_COLOR } from "../map-engine/buildingFootprint";
 
 const CATEGORY_ROWS: { kind: keyof typeof CATEGORY_COLOR; label: string; shape: string }[] = [
-  { kind: "city", label: "Cidade", shape: "área (retângulo real)" },
+  { kind: "city", label: "Cidade", shape: "muralha com portão (footprint gerado)" },
   { kind: "building", label: "Prédio", shape: "footprint gerado (posição aproximada)" },
   { kind: "npc", label: "NPC", shape: "ponto/token" },
 ];

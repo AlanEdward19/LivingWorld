@@ -145,11 +145,12 @@ describe("WorldMapView", () => {
     const canvas = screen.getByTestId("map-view-canvas") as HTMLCanvasElement;
     stubRect(canvas);
 
-    // npc em (1,1) -> ((1-5)*20+100, (1-5)*20+100) = (20,20)
-    fireEvent.click(canvas, { clientX: 20, clientY: 20 });
+    // npc em (1,1) -> centro do token em (1.5,1.5) -> ((1.5-5)*20+100, (1.5-5)*20+100) = (30,30)
+    // (hitTest.ts mira o centro da célula, igual ao renderer — não o canto cru)
+    fireEvent.click(canvas, { clientX: 30, clientY: 30 });
     expect(selectionStore.current()).toEqual({ kind: "npc", id: "9", space: { kind: "World" } });
 
-    fireEvent.doubleClick(canvas, { clientX: 20, clientY: 20 });
+    fireEvent.doubleClick(canvas, { clientX: 30, clientY: 30 });
     expect(enterSpy).not.toHaveBeenCalled();
   });
 

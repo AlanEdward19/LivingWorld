@@ -603,6 +603,25 @@ form[data-testid="create-world-form"] [role="alert"] {
   line-height: 1;
 }
 
+/* Feedback do usuário (2026-08-07, segunda rodada): "o Z não é só em prédio, é em tudo" — Mundo
+   e Cidade também têm andar/nível agora, mas sem dado real de camada abaixo/acima (context.md
+   gap 5), o efeito visual honesto é um tint sobre o mapa real (não inventa terreno/prédio
+   novo) — abaixo do nível 0 fica mais frio/escuro, acima mais claro/quente. */
+.z-layer-tint {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.z-layer-tint-below {
+  background: rgba(10, 14, 28, 0.35);
+}
+
+.z-layer-tint-above {
+  background: rgba(255, 244, 214, 0.08);
+}
+
 .entity-legend {
   margin-top: 0.4rem;
 }

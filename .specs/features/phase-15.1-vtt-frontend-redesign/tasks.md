@@ -742,7 +742,7 @@ camadas `NotYetModeled` desabilitadas com o motivo.
 
 ---
 
-### T19: Follow [P]
+### T19: Follow [P] — ✅ Done (adiantado em `237595f`)
 
 **What**: seguir uma entidade com a câmera, com cancelamento explícito e cancelamento por pan manual.
 **Where**: `web/src/state/viewStore.ts` (extensão), `web/src/components/inspector/EntityInspector.tsx`
@@ -754,12 +754,12 @@ camadas `NotYetModeled` desabilitadas com o motivo.
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] Com follow ativo, a câmera acompanha a posição **autoritativa** (não a interpolada) a cada atualização
-- [ ] Pan manual cancela o follow e a UI indica
-- [ ] Botão explícito de parar existe e funciona
-- [ ] Entidade que sai do espaço cancela o follow sem trocar de espaço automaticamente
-- [ ] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit`
-- [ ] Contagem de testes: ≥ 5 novos passando
+- [x] Com follow ativo, a câmera acompanha a posição **autoritativa** (não a interpolada) a cada atualização
+- [x] Pan manual cancela o follow e a UI indica
+- [x] Botão explícito de parar existe e funciona (`FollowButton`, nos 3 inspectors)
+- [x] Entidade que sai do espaço cancela o follow sem trocar de espaço automaticamente
+- [x] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit` — 176 passed, tsc limpo
+- [x] Contagem de testes: `tests/inspector/FollowButton.test.tsx` (4)
 
 **Tests**: unit · **Gate**: Quick-web
 **Commit**: `feat(web): follow entity camera mode`
@@ -833,7 +833,7 @@ efeito econômico/social, nenhuma mudança de posição de NPC. `MigrationSystem
 
 ---
 
-### T22: `BuildingSpace` [P]
+### T22: `BuildingSpace` [P] — ✅ Done (`237595f` + rodadas de fixes não commitadas)
 
 **What**: espaço de prédio como `MapView` configurado, com breadcrumb de 3 níveis e declaração
 explícita do que o motor não modela.
@@ -845,10 +845,16 @@ explícita do que o motor não modela.
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] Breadcrumb mostra World / Cidade / Prédio e permite voltar a qualquer nível
-- [ ] Com `occupancyModeled: false`, o espaço declara isso e **não** desenha cômodos/móveis fictícios
-- [ ] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit`
-- [ ] Contagem de testes: ≥ 3 novos passando
+- [x] Breadcrumb mostra World / Cidade / Prédio e permite voltar a qualquer nível
+- [x] Com `occupancyModeled: false`, o espaço declara isso e **não** desenha cômodos/móveis fictícios — planta sólida removida por pedido do usuário, sobra só contorno decorativo (`decorative: true`, ver context.md "Terceira rodada")
+- [x] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit` — 176 passed, tsc limpo
+- [x] Contagem de testes: `tests/InteriorView.test.tsx` (5)
+
+**Nota**: escopo cresceu ao vivo com feedback do usuário (não estava no Done-when original):
+seletor de andar (`FloorSelector.tsx`, estado local, sem dado real de Z no motor — reseed de
+footprint por andar), escala CityTile→BuildingTile (`SCALE.cityTilesPerBuildingTile`), e o bug de
+`BuildingInspector` assumindo `entityRef.space` sempre = cidade (quebrava ao abrir um prédio
+selecionado). Ver context.md "Segunda rodada"/"Terceira rodada".
 
 **Tests**: unit · **Gate**: Quick-web
 **Commit**: `feat(web): building space with honest unmodeled declaration`
@@ -977,7 +983,7 @@ invariância de hash com a UI conectada, mais `validation.md`.
 
 ---
 
-### T28: Render de footprint de cidade contra fixture [P] — **Estágio 1**
+### T28: Render de footprint de cidade contra fixture [P] — **Estágio 1** — ✅ Done (`237595f` + rodadas de fixes não commitadas)
 
 **What**: desenhar a cidade como **área** (não ponto) no `WorldSpace`, com hit-area de footprint
 inteiro e marcação visual de derivado, lendo `Bounds`/`BoundsAreDerived` e `Location`/`LocationIsDerived`
@@ -991,14 +997,14 @@ da fixture de T0; e remover o anel de prédios client-side.
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] Cidade é desenhada como área; clicar em qualquer ponto interno seleciona (VTT2-45)
-- [ ] Footprint derivado é visualmente distinguível de autorado (`sizeIsDerived`) — VTT2-44
-- [ ] Duas cidades de populações diferentes na fixture produzem áreas diferentes (VTT2-42)
-- [ ] O zoom revela detalhe progressivo conforme dado disponível, sem inventar estrutura (VTT2-43)
-- [ ] O anel de `web/src/components/CityView.tsx:38-50` e a nota de `:104` foram removidos
-- [ ] Nenhum `dotnet` no gate desta task
-- [ ] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit`
-- [ ] Contagem de testes: ≥ 5 novos passando
+- [x] Cidade é desenhada como área; clicar em qualquer ponto interno seleciona (VTT2-45) — muralha com portão (`generateCityWallFootprint`), hit-test corrigido pra mirar o mesmo centro do renderer (rodada 3)
+- [x] Footprint derivado é visualmente distinguível de autorado (`sizeIsDerived`) — VTT2-44
+- [x] Duas cidades de populações diferentes na fixture produzem áreas diferentes (VTT2-42)
+- [x] O zoom revela detalhe progressivo conforme dado disponível, sem inventar estrutura (VTT2-43)
+- [x] O anel de `web/src/components/CityView.tsx:38-50` e a nota de `:104` foram removidos
+- [x] Nenhum `dotnet` no gate desta task
+- [x] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit` — 176 passed, tsc limpo
+- [x] Contagem de testes: `tests/map-engine/buildingFootprint.test.ts` (5), `tests/CityView.test.tsx` (4)
 
 **Tests**: unit · **Gate**: Quick-web
 **Commit**: `feat(web): city footprint rendering and full-area hit test`

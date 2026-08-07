@@ -100,9 +100,13 @@ export const worldSnapshotEnvelope: VisualSnapshotEnvelope<FutureGlobalSnapshot>
   payload: worldPayload,
 };
 
-function cityBuildingMarkers(cityBoundsX: number, cityBoundsY: number, count: number): FutureCityBuildingMarker[] {
+// BUG real corrigido (2026-08-07): todo prédio começava em 2000, então cidade B tinha os
+// MESMOS ids que cidade A — `toScopeKey` (space.ts) mapeia prédio só por `interior:${buildingId}`
+// (sem cityId, contrato do servidor real), então os dois prédios "2000" colidiam no mesmo
+// escopo. `idOffset` dá a cada cidade sua própria faixa de ids, como um motor real faria.
+function cityBuildingMarkers(cityBoundsX: number, cityBoundsY: number, count: number, idOffset: number): FutureCityBuildingMarker[] {
   return Array.from({ length: count }, (_, i) => ({
-    id: { value: 2000 + i },
+    id: { value: idOffset + i },
     buildingTypeId: i % 3,
     location: cell(cityBoundsX + i, cityBoundsY + 1),
     locationIsDerived: true,
@@ -123,6 +127,7 @@ function citySnapshot(
   boundsY: number,
   residentCount: number,
   buildingCount: number,
+  buildingIdOffset: number,
   indicators: CityIndicators,
 ): FutureCitySnapshot {
   return {
@@ -130,13 +135,13 @@ function citySnapshot(
     location: cell(boundsX, boundsY),
     aggregatePool: { count: 0, wealthSum: 0, healthSum: 0 },
     residents: cityResidentMarkers(residentCount, boundsX + 1, boundsY + 1),
-    buildings: cityBuildingMarkers(boundsX, boundsY, buildingCount),
+    buildings: cityBuildingMarkers(boundsX, boundsY, buildingCount, buildingIdOffset),
     layers: buildLayers(),
     indicators,
   };
 }
 
-const cityAPayload = citySnapshot("city-a", CITY_A_BOUNDS.bounds.x, CITY_A_BOUNDS.bounds.y, 10, 4, {
+const cityAPayload = citySnapshot("city-a", CITY_A_BOUNDS.bounds.x, CITY_A_BOUNDS.bounds.y, 10, 4, 2000, {
   population: 340,
   wealth: 62,
   health: 71,
@@ -144,7 +149,7 @@ const cityAPayload = citySnapshot("city-a", CITY_A_BOUNDS.bounds.x, CITY_A_BOUND
   economy: 58,
   housing: 44,
 });
-const cityBPayload = citySnapshot("city-b", CITY_B_BOUNDS.bounds.x, CITY_B_BOUNDS.bounds.y, 6, 2, {
+const cityBPayload = citySnapshot("city-b", CITY_B_BOUNDS.bounds.x, CITY_B_BOUNDS.bounds.y, 6, 2, 2100, {
   population: 120,
   wealth: 40,
   health: 66,
@@ -169,27 +174,53 @@ export const cityBSnapshotEnvelope: VisualSnapshotEnvelope<FutureCitySnapshot> =
   payload: cityBPayload,
 };
 
-const interiorPayload: InteriorSnapshot = {
-  id: { value: 2000 },
-  city: { value: "city-a" },
-  buildingTypeId: 0,
-  occupancyModeled: false,
-};
-
-export const interiorSnapshotEnvelope: VisualSnapshotEnvelope<InteriorSnapshot> = {
-  scope: { kind: VisualScopeKind.Interior, refId: "2000", scopeKey: "interior:2000" },
-  mode: ViewerMode.Spectator,
-  cursor: { tick: 0, scopeKey: "interior:2000", sequence: 0 },
-  activeLayers: [],
-  payload: interiorPayload,
-};
+/**
+ * BUG real corrigido (2026-08-07): só existia fixture de interior pro prédio "2000" — qualquer
+ * outro prédio da cidade (ids 2001+, e todos os da cidade B) não tinha entrada em
+ * `snapshotsByScope`, então `MockSnapshotSource.load` dava throw e o prédio nunca carregava
+ * ("Carregando…" para sempre). Gera um interior por prédio de cada cidade, não só o primeiro.
+ *
+ * `scopeKey` aqui precisa bater com `toScopeKey` real (`map-engine/space.ts`), não com o índice
+ * interno do mock (`mockScopeKey`) — são coisas diferentes. `toScopeKey` de `Building` é só
+ * `interior:${buildingId}` (sem cityId, mesmo contrato do servidor), e `SimulationStore.applySnapshot`
+ * descarta qualquer envelope cujo `scope.scopeKey` não bata com o escopo observado — usar um
+ * formato diferente aqui fazia o snapshot chegar e ser descartado em silêncio (mesmo sintoma:
+ * preso em "Carregando…", só que sem nem chegar a dar throw).
+ */
+function interiorEnvelopeFor(cityId: string, building: FutureCityBuildingMarker): VisualSnapshotEnvelope<InteriorSnapshot> {
+  const refId = String(building.id.value);
+  const scopeKey = `interior:${refId}`;
+  return {
+    scope: { kind: VisualScopeKind.Interior, refId, scopeKey },
+    mode: ViewerMode.Spectator,
+    cursor: { tick: 0, scopeKey, sequence: 0 },
+    activeLayers: [],
+    payload: {
+      id: { value: building.id.value },
+      city: { value: cityId },
+      buildingTypeId: building.buildingTypeId,
+      occupancyModeled: false,
+    },
+  };
+}
 
 /** Indexado pela mesma chave que `MockTickStreamSource`/`MockPortalSource` usam (`mockScopeKey`). */
 export const snapshotsByScope: Record<string, VisualSnapshotEnvelope<unknown>> = {
   [mockScopeKey({ kind: "World" })]: worldSnapshotEnvelope,
   [mockScopeKey({ kind: "City", cityId: "city-a" })]: cityASnapshotEnvelope,
   [mockScopeKey({ kind: "City", cityId: "city-b" })]: cityBSnapshotEnvelope,
-  [mockScopeKey({ kind: "Building", buildingId: "2000", cityId: "city-a" })]: interiorSnapshotEnvelope,
+  ...Object.fromEntries(
+    cityAPayload.buildings.map((b) => [
+      mockScopeKey({ kind: "Building", buildingId: String(b.id.value), cityId: "city-a" }),
+      interiorEnvelopeFor("city-a", b),
+    ]),
+  ),
+  ...Object.fromEntries(
+    cityBPayload.buildings.map((b) => [
+      mockScopeKey({ kind: "Building", buildingId: String(b.id.value), cityId: "city-b" }),
+      interiorEnvelopeFor("city-b", b),
+    ]),
+  ),
 };
 
 function npcPositions(startId: number, count: number, startX: number, startY: number): NpcPositionDelta[] {

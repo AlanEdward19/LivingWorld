@@ -166,9 +166,16 @@ function drawAreaEntity(
       const topLeft = camera.worldToScreen({ x: entity.position.x + cell.x, y: entity.position.y + cell.y });
       ctx.fillStyle = cell.color;
       ctx.fillRect(topLeft.x, topLeft.y, scale, scale);
-      ctx.strokeStyle = "rgba(0,0,0,0.3)";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(topLeft.x, topLeft.y, scale, scale);
+      if (!entity.decorative) {
+        ctx.strokeStyle = "rgba(0,0,0,0.3)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(topLeft.x, topLeft.y, scale, scale);
+      }
+    }
+    // Entidade decorativa (fundo ambiente, feedback do usuário) nunca ganha realce de seleção
+    // nem rótulo — não é selecionável (hitTest.ts pula `decorative`), rótulo só confundiria.
+    if (entity.decorative) {
+      return;
     }
     if (isHighlighted) {
       const topLeft = camera.worldToScreen(entity.position);
@@ -206,6 +213,17 @@ function drawLabel(ctx: CanvasRenderingContext2D, entity: AuthoritativeEntity, a
   ctx.fillText(`${entity.ref.kind} ${entity.ref.id.slice(0, 8)}`, at.x, at.y);
 }
 
+/** Silhueta simples (cabeça + ombros) dentro do disco do token — sem asset/lib, só canvas 2D. */
+function drawTokenGlyph(ctx: CanvasRenderingContext2D, center: Vec2, r: number): void {
+  ctx.fillStyle = "rgba(20,24,32,0.55)";
+  ctx.beginPath();
+  ctx.arc(center.x, center.y - r * 0.32, r * 0.26, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(center.x, center.y + r * 0.3, r * 0.5, Math.PI, 0, true);
+  ctx.fill();
+}
+
 function drawPointEntity(
   ctx: CanvasRenderingContext2D,
   camera: Camera,
@@ -218,17 +236,26 @@ function drawPointEntity(
 
   if (isToken) {
     const r = Math.max(4, scale * 0.35);
+    // Feedback do usuário (2026-08-07): NPC só era um círculo liso — sem lib de ícone/asset no
+    // projeto (ponytail: nada de dependência nova pra um glifo simples), o "token estilo VTT"
+    // vira disco com sombra + anel + silhueta desenhada na própria célula 2D (`drawTokenGlyph`).
+    ctx.shadowColor = "rgba(0,0,0,0.5)";
+    ctx.shadowBlur = r * 0.5;
+    ctx.shadowOffsetY = r * 0.12;
     ctx.beginPath();
     ctx.arc(center.x, center.y, r, 0, Math.PI * 2);
     ctx.fillStyle = entity.color;
     ctx.fill();
-    ctx.lineWidth = Math.max(1, r * 0.18);
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.lineWidth = Math.max(1.5, r * 0.2);
     ctx.strokeStyle = "#e8e6df";
     // Entidade com footprint/posição derivada (não autorada no domínio) ganha traço
     // tracejado, nunca o mesmo anel sólido de uma entidade real (Done-when de T8).
     ctx.setLineDash(entity.sizeIsDerived ? [r * 0.3, r * 0.25] : []);
     ctx.stroke();
     ctx.setLineDash([]);
+    drawTokenGlyph(ctx, center, r);
     // Rótulo só a partir do nível "token" (master prompt §4: dot fica só com a forma; rótulo é
     // "informação adicional" do zoom próximo) — feedback do usuário pedia identificar o NPC.
     drawLabel(ctx, entity, { x: center.x, y: center.y + r + 12 }, "center");

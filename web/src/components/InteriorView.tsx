@@ -14,7 +14,9 @@
 import { useMemo, useState } from "react";
 import { MapView } from "./MapView";
 import { EntityLegend } from "./EntityLegend";
+import { FloorSelector } from "./FloorSelector";
 import { generateBuildingFootprint, MATERIAL_COLOR } from "../map-engine/buildingFootprint";
+import { SCALE } from "../map-engine/space";
 import type { Viewport } from "../map-engine/Camera";
 import type { LodThresholds } from "../map-engine/lod";
 import type { AuthoritativeEntity, SpaceId } from "../map-engine/types";
@@ -32,7 +34,27 @@ export interface InteriorViewProps {
 }
 
 const LOD_THRESHOLDS: LodThresholds = { aggregate: 4, token: 10, detail: 18 };
-const FLOOR_PLAN_SCALE = 32; // px/tile — a planta é pequena (4-6 tiles), zoom fixo generoso
+// Feedback do usuário (2026-08-07, quarta leva — "não necessariamente 2x4 de um prédio na visão
+// da cidade vão ser os mesmos 2x4 dentro da casa... precisamos de uma escala"): o footprint de
+// `generateBuildingFootprint` é em tile de CIDADE (o que `CityView` desenha), mas o interior
+// precisa de resolução mais fina pra caber móvel/escada/etc — exatamente a razão que `space.ts`
+// já declara (`SCALE.cityTilesPerBuildingTile`, "quantos tiles de BuildingSpace cabem em 1 tile
+// de CitySpace") e nunca tinha sido usada por nenhum consumidor até agora. Cada tile do
+// footprint (visto de fora) vira um bloco `SCALE.cityTilesPerBuildingTile²` aqui dentro.
+const INTERIOR_SCALE = SCALE.cityTilesPerBuildingTile;
+// px/tile — grid agora ~6x mais denso; reduzido pra caber na tela, mas >= 10 (renderer.ts só
+// desenha linha de grid a partir desse zoom).
+const FLOOR_PLAN_SCALE = 14;
+// Feedback do usuário (2026-08-07, terceira leva — "não preciso da planta no mapa, eu só quero
+// o contorno transparente e o grid dentro deste contorno; ao entrar num prédio eu quero ver só
+// os móveis, escada etc, não uma cópia do prédio"): as duas tentativas anteriores (réplica em
+// escala; depois margem ao redor + planta sólida no meio) ainda desenhavam a planta como um
+// bloco opaco de parede/piso/porta com rótulo "cell X" — igual a como um prédio aparece visto de
+// FORA (CityView) — e por dentro isso lê como "tem outro prédio aqui dentro", não como "estou
+// dentro dele". Removida a planta sólida por completo: só o CONTORNO das paredes (transparente,
+// sem preencher piso, sem rótulo) marca onde ficam as paredes reais, e o grid de linhas cobre o
+// espaço andável inteiro dentro dele — sem inventar móvel/escada ainda (não modelado, gap 5).
+const CONTOUR_ALPHA_HEX = "55"; // ~33% opacidade (#RRGGBBAA)
 
 function floorLabel(floor: number): string {
   if (floor === 0) {
@@ -49,12 +71,18 @@ export function InteriorView({ snapshot, viewport, simulationStore, viewStore, s
     [buildingId, snapshot.city.value],
   );
 
-  const footprintCells = useMemo(
+  // Footprint em tile de CIDADE (o mesmo que `CityView` desenha visto de fora) — pequeno de
+  // propósito lá (4-6 tiles). O grid do interior usa `INTERIOR_SCALE` mais fino (ver comentário
+  // acima), então `cityFootprintCells` só serve pra saber onde ficam as paredes/porta; não é
+  // desenhado nessa resolução.
+  const cityFootprintCells = useMemo(
     () => generateBuildingFootprint(buildingId, snapshot.buildingTypeId, floor),
     [buildingId, snapshot.buildingTypeId, floor],
   );
-  const width = Math.max(...footprintCells.map((c) => c.x)) + 1;
-  const height = Math.max(...footprintCells.map((c) => c.y)) + 1;
+  const cityWidth = Math.max(...cityFootprintCells.map((c) => c.x)) + 1;
+  const cityHeight = Math.max(...cityFootprintCells.map((c) => c.y)) + 1;
+  const width = cityWidth * INTERIOR_SCALE;
+  const height = cityHeight * INTERIOR_SCALE;
 
   const cells = useMemo(() => ({ width, height, colorAt: () => undefined }), [width, height]);
   const initialCamera = useMemo(
@@ -62,22 +90,32 @@ export function InteriorView({ snapshot, viewport, simulationStore, viewStore, s
     [width, height],
   );
 
-  // BUG real corrigido ao vivo (2026-08-07): a planta não pode usar `kind: "building"` — esse
-  // kind é reservado pra "o prédio visto de fora" (`BuildingInspector` assume
-  // `entityRef.space.kind === "City"`, o prédio-onde-ele-está). Aqui dentro o `space` já É o
-  // Building, o que quebrava essa suposição e derrubava o app ao entrar. `"cell"` evita a
-  // ambiguidade — clicar na própria planta não abre um inspector de "prédio".
-  const floorPlanEntity: AuthoritativeEntity = useMemo(
-    () => ({
-      ref: { kind: "cell" as const, id: buildingId, space },
+  // Só o contorno das paredes reais (sem piso preenchido, sem porta em destaque, sem rótulo) —
+  // marca onde ficam as paredes, transparente, puramente decorativo (não é clicável/selecionável:
+  // não há "planta" pra inspecionar, só o espaço andável que o grid acima já cobre). Cada tile
+  // de cidade vira um bloco `INTERIOR_SCALE x INTERIOR_SCALE` aqui, então a parede continua com
+  // a espessura de 1 tile de cidade — várias células de interior de largura, não 1.
+  const contourEntity: AuthoritativeEntity = useMemo(() => {
+    const wallCells = cityFootprintCells.filter((c) => c.material !== "floor");
+    const cells: { x: number; y: number; color: string }[] = [];
+    for (const c of wallCells) {
+      const color = `${MATERIAL_COLOR[c.material]}${CONTOUR_ALPHA_HEX}`;
+      for (let dy = 0; dy < INTERIOR_SCALE; dy++) {
+        for (let dx = 0; dx < INTERIOR_SCALE; dx++) {
+          cells.push({ x: c.x * INTERIOR_SCALE + dx, y: c.y * INTERIOR_SCALE + dy, color });
+        }
+      }
+    }
+    return {
+      ref: { kind: "cell" as const, id: `${buildingId}-contour`, space },
       position: { x: 0, y: 0 },
       size: { w: width, h: height },
       sizeIsDerived: true,
-      color: "#8a8f9c",
-      footprintCells: footprintCells.map((c) => ({ x: c.x, y: c.y, color: MATERIAL_COLOR[c.material] })),
-    }),
-    [buildingId, space, width, height, footprintCells],
-  );
+      color: "#00000000",
+      footprintCells: cells,
+      decorative: true,
+    };
+  }, [buildingId, space, width, height, cityFootprintCells]);
 
   return (
     <div className="map-fullscreen" data-testid="interior-view">
@@ -86,15 +124,7 @@ export function InteriorView({ snapshot, viewport, simulationStore, viewStore, s
         <p>Tipo: {snapshot.buildingTypeId}</p>
         {!snapshot.occupancyModeled && <p role="note">Ocupação por interior ainda não é modelada.</p>}
 
-        <div className="floor-selector">
-          <button type="button" aria-label="andar-abaixo" onClick={() => setFloor((f) => f - 1)}>
-            ▼
-          </button>
-          <span data-testid="floor-label">{floorLabel(floor)}</span>
-          <button type="button" aria-label="andar-acima" onClick={() => setFloor((f) => f + 1)}>
-            ▲
-          </button>
-        </div>
+        <FloorSelector floor={floor} label={floorLabel(floor)} onChange={setFloor} />
 
         <EntityLegend />
       </div>
@@ -108,8 +138,9 @@ export function InteriorView({ snapshot, viewport, simulationStore, viewStore, s
         simulationStore={simulationStore}
         viewStore={viewStore}
         selectionStore={selectionStore}
-        staticEntities={[floorPlanEntity]}
+        staticEntities={[contourEntity]}
         initialCamera={initialCamera}
+        resetCameraKey={floor}
       />
     </div>
   );

@@ -55,4 +55,10 @@ export interface AuthoritativeEntity {
    * célula pelo seu próprio material em vez do retângulo único de `size`.
    */
   footprintCells?: { x: number; y: number; color: string }[];
+  /**
+   * Puramente visual — desenha mas nunca participa de hit-test/seleção (feedback do usuário:
+   * fundo "ambiente" ao redor do grid do interior de um prédio, mesma aparência de fora,
+   * transparente escura — não pode roubar clique do piso real por ficar concêntrica com ele).
+   */
+  decorative?: boolean;
 }

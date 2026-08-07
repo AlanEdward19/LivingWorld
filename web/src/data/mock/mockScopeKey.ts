@@ -11,6 +11,8 @@ export function mockScopeKey(space: SpaceId): string {
     case "City":
       return `city:${space.cityId}`;
     case "Building":
+      // Ids de prédio agora são únicos entre cidades (`fixtures.ts` dá uma faixa de id por
+      // cidade), então não precisa de cityId aqui pra desambiguar — só o índice interno do mock.
       return `building:${space.buildingId}`;
   }
 }
