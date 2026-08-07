@@ -6,7 +6,8 @@
 // renderer em vez do preenchimento sólido de um morador).
 import { useMemo } from "react";
 import { MapView } from "./MapView";
-import { colorById } from "../colorById";
+import { EntityLegend } from "./EntityLegend";
+import { CATEGORY_COLOR } from "../map-engine/categoryColors";
 import type { Viewport } from "../map-engine/Camera";
 import type { LodThresholds } from "../map-engine/lod";
 import type { AuthoritativeEntity, EntityRef, SpaceId } from "../map-engine/types";
@@ -24,6 +25,11 @@ export interface CityViewProps {
 }
 
 const BUILDING_RING_RADIUS = 6;
+// Feedback do usuário (2026-08-07): prédio não pode ser um ponto/círculo colorido — precisa
+// cobrir área do grid, "como um wireframe" (formato real exigiria CellCoord por prédio, que o
+// domínio não tem — context.md gap 5; este é um footprint placeholder honesto, do mesmo jeito
+// que o anel já era, só que agora desenhado como área em vez de ponto).
+const BUILDING_FOOTPRINT = { w: 3, h: 2 };
 const LOD_THRESHOLDS: LodThresholds = { aggregate: 4, token: 10, detail: 18 };
 /** Sem um "tamanho de grid local" mais (coordenadas de cidade agora são absolutas, iguais às
  * do mundo) — 16px/tile é o equivalente ao zoom antigo de fit-to-screen num grid local de 21x21. */
@@ -49,15 +55,19 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
     () =>
       snapshot.buildings.map((building, i) => {
         const angle = (i / Math.max(1, snapshot.buildings.length)) * Math.PI * 2;
+        const ringCenter = {
+          x: snapshot.location.x + Math.cos(angle) * BUILDING_RING_RADIUS,
+          y: snapshot.location.y + Math.sin(angle) * BUILDING_RING_RADIUS,
+        };
         return {
           ref: { kind: "building" as const, id: String(building.id.value), space },
-          position: {
-            x: snapshot.location.x + Math.cos(angle) * BUILDING_RING_RADIUS,
-            y: snapshot.location.y + Math.sin(angle) * BUILDING_RING_RADIUS,
-          },
-          size: { w: 1, h: 1 },
+          // `position` é o canto superior-esquerdo do footprint — desloca do centro do anel
+          // pra o footprint placeholder ficar centrado no ponto calculado, não crescer só pra
+          // um lado.
+          position: { x: ringCenter.x - BUILDING_FOOTPRINT.w / 2, y: ringCenter.y - BUILDING_FOOTPRINT.h / 2 },
+          size: BUILDING_FOOTPRINT,
           sizeIsDerived: true, // layout de anel client-side, não posição real (context.md gap 5)
-          color: colorById(building.buildingTypeId, 40, 55),
+          color: CATEGORY_COLOR.building,
         };
       }),
     [snapshot.buildings, snapshot.location, space],
@@ -71,6 +81,7 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
           Pool agregado: {snapshot.aggregatePool.count} habitantes não materializados (riqueza{" "}
           {snapshot.aggregatePool.wealthSum}, saúde {snapshot.aggregatePool.healthSum})
         </p>
+        <EntityLegend />
       </div>
 
       <MapView

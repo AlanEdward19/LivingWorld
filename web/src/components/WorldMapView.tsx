@@ -6,6 +6,7 @@
 import { useMemo } from "react";
 import { MapView } from "./MapView";
 import { LayerLegend } from "./LayerLegend";
+import { EntityLegend } from "./EntityLegend";
 import { terrainColorLookup, riverOverlayPoints } from "../worldMapData";
 import type { Viewport } from "../map-engine/Camera";
 import type { ActiveLayer } from "../map-engine/renderer";
@@ -14,10 +15,11 @@ import type { AuthoritativeEntity, EntityRef, SpaceId } from "../map-engine/type
 import type { SimulationStore } from "../state/simulationStore";
 import type { ViewStore } from "../state/viewStore";
 import type { SelectionStore } from "../state/selectionStore";
-import type { GlobalSnapshot } from "../types";
+import type { FutureGlobalSnapshot } from "../data/contracts";
+import { CATEGORY_COLOR } from "../map-engine/categoryColors";
 
 export interface WorldMapViewProps {
-  snapshot: GlobalSnapshot;
+  snapshot: FutureGlobalSnapshot;
   viewport: Viewport;
   simulationStore: SimulationStore;
   viewStore: ViewStore;
@@ -42,14 +44,18 @@ export function WorldMapView({ snapshot, viewport, simulationStore, viewStore, s
     [snapshot],
   );
 
+  // Feedback do usuário (2026-08-07): cidade não pode ser um círculo num ponto — ocupa a área
+  // real do footprint (`bounds`) no grid, como o master prompt §6 sempre pediu. `position` é o
+  // canto superior-esquerdo do footprint, `size` são as dimensões reais — o renderer desenha
+  // qualquer entidade com `size.w>1 || size.h>1` como área, não como marcador circular.
   const cityEntities: AuthoritativeEntity[] = useMemo(
     () =>
       snapshot.cities.map((city) => ({
         ref: { kind: "city" as const, id: city.id.value, space: WORLD },
-        position: city.location,
-        size: { w: 1, h: 1 },
-        sizeIsDerived: false,
-        color: "#d9a94f",
+        position: { x: city.bounds.x, y: city.bounds.y },
+        size: { w: city.bounds.width, h: city.bounds.height },
+        sizeIsDerived: city.boundsAreDerived,
+        color: CATEGORY_COLOR.city,
       })),
     [snapshot.cities],
   );
@@ -59,6 +65,7 @@ export function WorldMapView({ snapshot, viewport, simulationStore, viewStore, s
       <div className="map-hud map-hud-top-left">
         <h2>Mapa-múndi</h2>
         <LayerLegend layers={snapshot.layers} />
+        <EntityLegend />
       </div>
 
       <MapView

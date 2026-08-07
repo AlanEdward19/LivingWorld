@@ -5,10 +5,15 @@
 // em vez do binário antigo; (c) nunca redimensionar o canvas — o tamanho é do container, quem
 // decide isso é quem monta o `<canvas>` (T13), não o renderer (VTT2-35, substitui
 // `MAX_CANVAS_PX` de `web/src/gridFit.ts:5`).
+//
+// Feedback do usuário (2026-08-07): entidade com footprint real (`size.w>1 || size.h>1` —
+// cidade/prédio) desenha como ÁREA do grid (retângulo wireframe), nunca como círculo num ponto
+// (master prompt §6/§7 — "cidade não deve ser só um marcador"). Círculo continua reservado a
+// entidade de ponto (NPC).
 import { Camera } from "./Camera";
 import { aggregate, levelFor, type LodThresholds } from "./lod";
-import { colorById } from "../colorById";
-import type { AuthoritativeEntity, CameraState } from "./types";
+import { SELECTION_HIGHLIGHT_COLOR } from "./categoryColors";
+import type { AuthoritativeEntity, CameraState, Vec2 } from "./types";
 
 export interface CellSource {
   width: number;
@@ -32,6 +37,18 @@ export interface RenderFrame {
 
 function clampRange(min: number, max: number, lo: number, hi: number): [number, number] {
   return [Math.max(lo, Math.floor(min)), Math.min(hi, Math.ceil(max))];
+}
+
+function isAreaEntity(entity: AuthoritativeEntity): boolean {
+  return entity.size.w > 1 || entity.size.h > 1;
+}
+
+function intersectsRect(entity: AuthoritativeEntity, visible: { x: number; y: number; width: number; height: number }): boolean {
+  const left = entity.position.x;
+  const top = entity.position.y;
+  const right = left + (isAreaEntity(entity) ? entity.size.w : 0);
+  const bottom = top + (isAreaEntity(entity) ? entity.size.h : 0);
+  return right >= visible.x && left <= visible.x + visible.width && bottom >= visible.y && top <= visible.y + visible.height;
 }
 
 /** Desenha um frame no contexto — nada além de leitura de `frame`; nunca toca `canvas.width/height`. */
@@ -97,17 +114,21 @@ export function draw(ctx: CanvasRenderingContext2D | null, frame: RenderFrame): 
     }
   }
 
-  const visibleEntities = frame.entities.filter(
-    (e) => e.position.x >= visible.x && e.position.x <= visible.x + visible.width &&
-      e.position.y >= visible.y && e.position.y <= visible.y + visible.height,
-  );
+  const visibleEntities = frame.entities.filter((e) => intersectsRect(e, visible));
   const level = levelFor(scale, frame.lodThresholds);
+  const areaEntities = visibleEntities.filter(isAreaEntity);
+  const pointEntities = visibleEntities.filter((e) => !isAreaEntity(e));
+
+  // Áreas (cidade/prédio) sempre desenham como footprint real — LOD só afeta entidade de ponto.
+  for (const entity of areaEntities) {
+    drawAreaEntity(ctx, camera, entity, entity.ref.id === frame.highlightId);
+  }
 
   if (level === "aggregate") {
-    drawClusters(ctx, camera, visibleEntities, scale);
+    drawClusters(ctx, camera, pointEntities, scale);
   } else {
-    for (const entity of visibleEntities) {
-      drawEntity(ctx, camera, entity, scale, level !== "dot", entity.ref.id === frame.highlightId);
+    for (const entity of pointEntities) {
+      drawPointEntity(ctx, camera, entity, scale, level !== "dot", entity.ref.id === frame.highlightId);
     }
   }
 }
@@ -128,7 +149,39 @@ function drawClusters(
   }
 }
 
-function drawEntity(
+/** Cidade/prédio: retângulo do footprint real, nunca um círculo num ponto (feedback do usuário). */
+function drawAreaEntity(
+  ctx: CanvasRenderingContext2D,
+  camera: Camera,
+  entity: AuthoritativeEntity,
+  isHighlighted: boolean,
+): void {
+  const topLeft = camera.worldToScreen(entity.position);
+  const bottomRight = camera.worldToScreen({ x: entity.position.x + entity.size.w, y: entity.position.y + entity.size.h });
+  const width = bottomRight.x - topLeft.x;
+  const height = bottomRight.y - topLeft.y;
+
+  ctx.fillStyle = `${entity.color}26`; // preenchimento bem sutil — a borda é o dado, não o fill
+  ctx.fillRect(topLeft.x, topLeft.y, width, height);
+
+  ctx.lineWidth = isHighlighted ? 3 : 2;
+  ctx.strokeStyle = isHighlighted ? SELECTION_HIGHLIGHT_COLOR : entity.color;
+  // Footprint derivado (não autorado no domínio) ganha traço tracejado — mesma regra de T8.
+  ctx.setLineDash(entity.sizeIsDerived ? [6, 4] : []);
+  ctx.strokeRect(topLeft.x, topLeft.y, width, height);
+  ctx.setLineDash([]);
+
+  drawLabel(ctx, entity, { x: topLeft.x + 4, y: topLeft.y + 12 }, "left");
+}
+
+function drawLabel(ctx: CanvasRenderingContext2D, entity: AuthoritativeEntity, at: Vec2, align: CanvasTextAlign): void {
+  ctx.font = "11px sans-serif";
+  ctx.textAlign = align;
+  ctx.fillStyle = "#e8e6df";
+  ctx.fillText(`${entity.ref.kind} ${entity.ref.id.slice(0, 8)}`, at.x, at.y);
+}
+
+function drawPointEntity(
   ctx: CanvasRenderingContext2D,
   camera: Camera,
   entity: AuthoritativeEntity,
@@ -151,6 +204,9 @@ function drawEntity(
     ctx.setLineDash(entity.sizeIsDerived ? [r * 0.3, r * 0.25] : []);
     ctx.stroke();
     ctx.setLineDash([]);
+    // Rótulo só a partir do nível "token" (master prompt §4: dot fica só com a forma; rótulo é
+    // "informação adicional" do zoom próximo) — feedback do usuário pedia identificar o NPC.
+    drawLabel(ctx, entity, { x: center.x, y: center.y + r + 12 }, "center");
   } else {
     const r = Math.max(1.5, scale * 0.15);
     ctx.beginPath();
@@ -172,7 +228,7 @@ function drawEntity(
   if (isHighlighted) {
     ctx.beginPath();
     ctx.arc(center.x, center.y, Math.max(6, scale * 0.5), 0, Math.PI * 2);
-    ctx.strokeStyle = colorById(1, 80, 70);
+    ctx.strokeStyle = SELECTION_HIGHLIGHT_COLOR;
     ctx.lineWidth = 2;
     ctx.stroke();
   }

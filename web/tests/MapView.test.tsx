@@ -197,6 +197,32 @@ describe("MapView", () => {
     expect(selectionStore.current()).toBeNull();
   });
 
+  // Feedback do usuário (2026-08-07): clicar em espaço vazio precisa DESSELECIONAR — antes
+  // disto o único jeito de fechar o inspector era o botão X (que ficava embaixo da hud-bar).
+  it("clicking empty space clears an existing selection", async () => {
+    const { simulationStore, viewStore, selectionStore } = await buildStores();
+    selectionStore.select({ kind: "npc", id: "1", space: CITY_A });
+
+    const { getByTestId } = render(
+      <MapView
+        space={CITY_A}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+    const canvas = getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
+
+    fireEvent.click(canvas, { clientX: 5, clientY: 5 }); // longe da entidade em (100,100)
+
+    expect(selectionStore.current()).toBeNull();
+  });
+
   it("Esc clears the current selection", async () => {
     const { simulationStore, viewStore, selectionStore } = await buildStores();
     selectionStore.select({ kind: "npc", id: "1", space: CITY_A });

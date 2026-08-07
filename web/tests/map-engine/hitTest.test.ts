@@ -15,6 +15,16 @@ function npc(id: string, x: number, y: number): AuthoritativeEntity {
   };
 }
 
+function city(id: string, x: number, y: number, w: number, h: number): AuthoritativeEntity {
+  return {
+    ref: { kind: "city", id, space: { kind: "World" } },
+    position: { x, y },
+    size: { w, h },
+    sizeIsDerived: true,
+    color: "#d9a94f",
+  };
+}
+
 describe("hitTest", () => {
   it("hits the entity under the cursor at a low zoom level (scale=2)", () => {
     const camera = new Camera({ center: { x: 50, y: 50 }, scale: 2 }, VIEWPORT);
@@ -53,5 +63,24 @@ describe("hitTest", () => {
     const hit = hitTest(camera.worldToScreen({ x: 50, y: 50 }), camera, [far, near], 20);
 
     expect(hit).toEqual(near.ref);
+  });
+
+  // Feedback do usuário (2026-08-07): cidade virou área real — clicar em QUALQUER ponto do
+  // footprint precisa acertar, não só perto do canto (`position`).
+  it("hits an area entity (city footprint) anywhere inside its bounds, not just near its corner", () => {
+    const camera = new Camera({ center: { x: 50, y: 50 }, scale: 4 }, VIEWPORT);
+    const footprint = city("city-a", 40, 40, 6, 6); // ocupa (40,40) a (46,46)
+
+    // clique no CENTRO do footprint, longe do canto em (40,40)
+    const centerScreenPoint = camera.worldToScreen({ x: 43, y: 43 });
+    expect(hitTest(centerScreenPoint, camera, [footprint], 8)).toEqual(footprint.ref);
+  });
+
+  it("does not hit an area entity when the click falls outside its footprint", () => {
+    const camera = new Camera({ center: { x: 50, y: 50 }, scale: 4 }, VIEWPORT);
+    const footprint = city("city-a", 40, 40, 6, 6);
+
+    const outsideScreenPoint = camera.worldToScreen({ x: 100, y: 100 });
+    expect(hitTest(outsideScreenPoint, camera, [footprint], 8)).toBeNull();
   });
 });

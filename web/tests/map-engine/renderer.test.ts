@@ -13,18 +13,24 @@ function fakeCtx(canvas: { width: number; height: number }) {
     lineWidth: 1,
     shadowColor: "",
     shadowBlur: 0,
+    font: "",
+    textAlign: "left",
     fillRect: vi.fn(),
+    strokeRect: vi.fn(),
     beginPath: vi.fn(),
     moveTo: vi.fn(),
     lineTo: vi.fn(),
     arc: vi.fn(),
     fill: vi.fn(),
     stroke: vi.fn(),
+    fillText: vi.fn(),
     setLineDash: vi.fn(),
   } as unknown as CanvasRenderingContext2D & {
     fillRect: ReturnType<typeof vi.fn>;
+    strokeRect: ReturnType<typeof vi.fn>;
     arc: ReturnType<typeof vi.fn>;
     setLineDash: ReturnType<typeof vi.fn>;
+    fillText: ReturnType<typeof vi.fn>;
   };
 }
 

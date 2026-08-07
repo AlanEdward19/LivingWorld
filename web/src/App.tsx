@@ -15,7 +15,8 @@ import type { SimulationStore } from "./state/simulationStore";
 import type { ViewStore } from "./state/viewStore";
 import type { SelectionStore } from "./state/selectionStore";
 import type { TimeControlSource } from "./data/sources";
-import type { CitySnapshot, GlobalSnapshot, InteriorSnapshot } from "./types";
+import type { FutureGlobalSnapshot } from "./data/contracts";
+import type { CitySnapshot, InteriorSnapshot } from "./types";
 
 type Screen = "start" | "world" | "settings";
 
@@ -42,7 +43,7 @@ export function App({ simulationStore, viewStore, selectionStore, timeControlSou
   );
   const payload = useSyncExternalStore(
     (onStoreChange) => simulationStore.subscribe(onStoreChange),
-    () => simulationStore.currentPayload<GlobalSnapshot | CitySnapshot | InteriorSnapshot>(space),
+    () => simulationStore.currentPayload<FutureGlobalSnapshot | CitySnapshot | InteriorSnapshot>(space),
   );
 
   useEffect(() => {
@@ -109,7 +110,7 @@ export function App({ simulationStore, viewStore, selectionStore, timeControlSou
 
               {payload && space.kind === "World" && (
                 <WorldMapView
-                  snapshot={payload as GlobalSnapshot}
+                  snapshot={payload as FutureGlobalSnapshot}
                   viewport={viewport}
                   simulationStore={simulationStore}
                   viewStore={viewStore}

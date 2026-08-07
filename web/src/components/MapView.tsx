@@ -182,6 +182,10 @@ export function MapView({
     const hit = hitTest(screenPoint(e), camera, entitiesRef.current, hitRadiusPx);
     if (hit) {
       selectionStore.select(hit);
+    } else {
+      // feedback do usuário (2026-08-07): clicar em espaço vazio precisa desselecionar —
+      // master prompt §14 ("clicar em espaço vazio pode remover seleção").
+      selectionStore.clear();
     }
   }
 

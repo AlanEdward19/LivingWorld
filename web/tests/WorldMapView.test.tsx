@@ -6,17 +6,25 @@ import { ViewStore } from "../src/state/viewStore";
 import { SelectionStore } from "../src/state/selectionStore";
 import { MockPortalSource } from "../src/data/mock/MockPortalSource";
 import { VisualScopeKind, ViewerMode } from "../src/types";
-import type { GlobalSnapshot } from "../src/types";
+import type { FutureGlobalSnapshot } from "../src/data/contracts";
 import type { SnapshotSource, TickStreamSource } from "../src/data/sources";
 
 const VIEWPORT = { width: 200, height: 200 };
 const WORLD_KEY = "world";
 
-function makeSnapshot(): GlobalSnapshot {
+function makeSnapshot(): FutureGlobalSnapshot {
   return {
     width: 10,
     height: 10,
-    cities: [{ id: { value: "city-1" }, location: { x: 3, y: 4 }, population: 42 }],
+    cities: [
+      {
+        id: { value: "city-1" },
+        location: { x: 3, y: 4 },
+        population: 42,
+        bounds: { x: 3, y: 4, width: 2, height: 2 },
+        boundsAreDerived: true,
+      },
+    ],
     externalNpcs: [{ id: { value: 9 }, location: { x: 1, y: 1 } }],
     activeEvents: [],
     layers: {
@@ -52,7 +60,7 @@ function stubRect(canvas: HTMLCanvasElement) {
   });
 }
 
-function worldSnapshotSource(snapshot: GlobalSnapshot): SnapshotSource {
+function worldSnapshotSource(snapshot: FutureGlobalSnapshot): SnapshotSource {
   return {
     load: async () => ({
       scope: { kind: VisualScopeKind.World, refId: "", scopeKey: WORLD_KEY },
@@ -68,7 +76,7 @@ function neverStreamingTickSource(): TickStreamSource {
   return { subscribe: () => () => {} };
 }
 
-async function buildStores(snapshot: GlobalSnapshot) {
+async function buildStores(snapshot: FutureGlobalSnapshot) {
   const simulationStore = new SimulationStore(worldSnapshotSource(snapshot), neverStreamingTickSource());
   const viewStore = new ViewStore(new MockPortalSource([]));
   const selectionStore = new SelectionStore();

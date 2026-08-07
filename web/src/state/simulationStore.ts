@@ -9,7 +9,7 @@ import type { NpcPositionDelta, ScopeTickDelta } from "../data/contracts";
 import type { AuthoritativeEntity, SpaceId } from "../map-engine/types";
 import type { VisualSnapshotEnvelope } from "../types";
 import { toScopeKey } from "../map-engine/space";
-import { colorById } from "../colorById";
+import { CATEGORY_COLOR } from "../map-engine/categoryColors";
 
 const RECONNECT_BACKOFF_MS = 500;
 
@@ -140,7 +140,7 @@ export class SimulationStore {
         position: this.positionOverrides.get(marker.id.value) ?? marker.location,
         size: { w: 1, h: 1 },
         sizeIsDerived: false,
-        color: colorById(marker.id.value),
+        color: CATEGORY_COLOR.npc,
       }));
   }
 

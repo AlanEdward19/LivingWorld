@@ -21,7 +21,15 @@ function worldEnvelope() {
     payload: {
       width: 10,
       height: 10,
-      cities: [{ id: { value: "city-1" }, location: { x: 3, y: 4 }, population: 10 }],
+      cities: [
+        {
+          id: { value: "city-1" },
+          location: { x: 3, y: 4 },
+          population: 10,
+          bounds: { x: 3, y: 4, width: 2, height: 2 },
+          boundsAreDerived: true,
+        },
+      ],
       externalNpcs: [],
       activeEvents: [],
       layers: {} as GlobalSnapshot["layers"],
