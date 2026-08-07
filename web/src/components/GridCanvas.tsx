@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { maxSafeZoom } from "../gridFit";
 
 export interface GridMarker {
   id: string;
@@ -27,11 +28,13 @@ export interface GridCanvasProps {
   readOnly?: boolean;
   minZoom?: number;
   maxZoom?: number;
+  /** UX pass 3: o wrap ocupa 100% do container pai (posicionado absoluto) em vez do tamanho
+   * natural do canvas — usado pelas telas em tela cheia (mapa-múndi/cidade). */
+  fillContainer?: boolean;
 }
 
 const DEFAULT_LOD_THRESHOLD = 18;
 const DEFAULT_MIN_ZOOM = 4;
-const DEFAULT_MAX_ZOOM = 48;
 
 /// T11 (fase 15, UX pass 2): grid 2D genérico reusado pelo mapa-múndi, cidade e editor de "criar
 /// mundo" — não sabe o que os marcadores/cores significam, só desenha células + marcadores com
@@ -49,7 +52,8 @@ export function GridCanvas({
   onCellClick,
   readOnly = false,
   minZoom = DEFAULT_MIN_ZOOM,
-  maxZoom = DEFAULT_MAX_ZOOM,
+  maxZoom = maxSafeZoom(width, height, DEFAULT_MIN_ZOOM),
+  fillContainer = false,
 }: GridCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isToken = zoom >= lodTokenThreshold;
@@ -153,7 +157,7 @@ export function GridCanvas({
   }
 
   return (
-    <div className="grid-canvas-wrap">
+    <div className={fillContainer ? "grid-canvas-wrap grid-canvas-wrap-fill" : "grid-canvas-wrap"}>
       {onZoomChange && (
         <div className="grid-canvas-zoom">
           <button

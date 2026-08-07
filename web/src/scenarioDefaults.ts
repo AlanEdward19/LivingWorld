@@ -495,3 +495,159 @@ export function scenarioFormToJson(form: ScenarioFormState): string {
 
   return JSON.stringify(root);
 }
+
+function dictToRows(dict: Record<string, number> | undefined): KeyNumberRow[] {
+  return Object.entries(dict ?? {}).map(([key, value]) => ({ key, value }));
+}
+
+function compactDictText(dict: Record<string, number> | undefined): string {
+  return Object.entries(dict ?? {})
+    .map(([k, v]) => `${k}:${v}`)
+    .join(",");
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Raw = Record<string, any>;
+
+/// UX pass 3 (feedback do usuário: "permitir usar algum dos templates que temos"): inverso de
+/// `scenarioFormToJson` — carrega um `PeriodDefinition` (de `GET /periods/{id}`, mesmo shape que
+/// o backend valida) de volta no estado do formulário, pra editar em cima de um template em vez
+/// de sempre começar do zero. `Cells` autorado no template (se houver) não é reconstruído pro
+/// editor de pintura — o mapa carrega como procedural a partir da Seed, e o usuário pode pintar
+/// por cima; templates seedados (DefaultPeriodSeeder.cs) nunca autoram Cells mesmo.
+export function jsonToScenarioForm(json: Raw): ScenarioFormState {
+  const base = defaultScenarioForm();
+  const dynamics = json.Dynamics ?? {};
+
+  return {
+    ...base,
+    width: json.Width ?? base.width,
+    height: json.Height ?? base.height,
+    seed: json.Seed ?? base.seed,
+    regionSize: json.RegionSize ?? base.regionSize,
+    terrainIds: (json.TerrainIds ?? []).join(", "),
+    biomeIds: (json.BiomeIds ?? []).join(", "),
+    resourceIds: (json.ResourceIds ?? []).join(", "),
+    costWeightsBase: json.CostWeights?.Base ?? base.costWeightsBase,
+    costWeightsAltitude: json.CostWeights?.AltitudeWeight ?? base.costWeightsAltitude,
+    terrainWeight: dictToRows(json.CostWeights?.TerrainWeight),
+    settlements: (json.Settlements ?? []).map((s: Raw) => ({ name: s.Name, x: s.X, y: s.Y })),
+    cells: {},
+
+    initialPopulation: json.InitialPopulation ?? base.initialPopulation,
+    culture: json.Culture ?? base.culture,
+    villageX: json.VillageX ?? base.villageX,
+    villageY: json.VillageY ?? base.villageY,
+    cultureIds: (json.CultureIds ?? []).join(", "),
+    professionIds: (json.ProfessionIds ?? []).join(", "),
+    locationTypeIds: (json.LocationTypeIds ?? []).join(", "),
+    maxLongevityYears: json.MaxLongevityYears ?? base.maxLongevityYears,
+    lifeTableBrackets: (json.LifeTableBrackets ?? []).map((b: Raw) => ({
+      minAgeYears: b.MinAgeYears,
+      maxAgeYears: b.MaxAgeYears,
+      baseAnnualMortality: b.BaseAnnualMortality,
+    })),
+    fertilityMinAge: json.FertilityMinAge ?? base.fertilityMinAge,
+    fertilityMaxAge: json.FertilityMaxAge ?? base.fertilityMaxAge,
+    annualConceptionChance: json.AnnualConceptionChance ?? base.annualConceptionChance,
+    gestationDays: json.GestationDays ?? base.gestationDays,
+    maxBytesPerNpcPerYear: json.MaxBytesPerNpcPerYear ?? base.maxBytesPerNpcPerYear,
+
+    hungerDecayPerHour: json.HungerDecayPerHour ?? base.hungerDecayPerHour,
+    thirstDecayPerHour: json.ThirstDecayPerHour ?? base.thirstDecayPerHour,
+    sleepDecayPerHour: json.SleepDecayPerHour ?? base.sleepDecayPerHour,
+    socialDecayPerHour: json.SocialDecayPerHour ?? base.socialDecayPerHour,
+    urgencyThreshold: json.UrgencyThreshold ?? base.urgencyThreshold,
+    maxActionSelectionSteps: json.MaxActionSelectionSteps ?? base.maxActionSelectionSteps,
+    hysteresisEnabled: json.HysteresisEnabled ?? base.hysteresisEnabled,
+    continuityBonus: json.ContinuityBonus ?? base.continuityBonus,
+    homelessSleepEfficiency: json.HomelessSleepEfficiency ?? base.homelessSleepEfficiency,
+    maxDurationHours: json.MaxDurationHours ?? base.maxDurationHours,
+    routineSlots: (json.RoutineSlots ?? []).map((r: Raw) => ({
+      professionId: r.ProfessionId ?? null,
+      stage: r.Stage,
+      hourStart: r.HourStart,
+      hourEnd: r.HourEnd,
+      action: r.Action,
+    })),
+    defaultAction: json.DefaultAction ?? base.defaultAction,
+
+    economyEnabled: json.EconomyEnabled ?? base.economyEnabled,
+    foodResourceId: json.FoodResourceId ?? base.foodResourceId,
+    waterResourceId: json.WaterResourceId ?? base.waterResourceId,
+    priceSensitivity: json.PriceSensitivity ?? base.priceSensitivity,
+    capacityByResourceLocation: dictToRows(json.CapacityByResourceLocation),
+    spoilagePerDayByResource: dictToRows(json.SpoilagePerDayByResource),
+    wageByProfession: dictToRows(json.WageByProfession),
+    priceFloor: dictToRows(json.PriceFloor),
+    priceCeiling: dictToRows(json.PriceCeiling),
+    demandBaselinePerNpc: dictToRows(json.DemandBaselinePerNpc),
+    recipes: Object.entries(json.Recipes ?? {}).map(([locationTypeId, r]) => ({
+      locationTypeId: Number(locationTypeId),
+      inputs: compactDictText((r as Raw).Inputs),
+      outputs: compactDictText((r as Raw).Outputs),
+      maxWorkersPerCycle: (r as Raw).MaxWorkersPerCycle,
+      requiresCellResource: (r as Raw).RequiresCellResource ?? null,
+    })),
+    marketLocationTypeIds: (json.MarketLocationTypeIds ?? []).join(", "),
+    locationTypeByProfession: dictToRows(json.LocationTypeByProfession),
+    workplaces: (json.Workplaces ?? []).map((w: Raw) => ({
+      locationTypeId: w.LocationTypeId,
+      x: w.X,
+      y: w.Y,
+      maxVacancies: w.MaxVacancies,
+      treasury: w.Treasury,
+      stock: compactDictText(w.Stock),
+      prices: compactDictText(w.Prices),
+    })),
+
+    citiesEnabled: json.CitiesEnabled ?? base.citiesEnabled,
+    foodShortageThreshold: json.FoodShortageThreshold ?? base.foodShortageThreshold,
+    housingShortageThreshold: json.HousingShortageThreshold ?? base.housingShortageThreshold,
+    securityShortageThreshold: json.SecurityShortageThreshold ?? base.securityShortageThreshold,
+    emigrationRatePerDeficitUnit: json.EmigrationRatePerDeficitUnit ?? base.emigrationRatePerDeficitUnit,
+    migrationEmploymentWeight: json.MigrationEmploymentWeight ?? base.migrationEmploymentWeight,
+    migrationFoodWeight: json.MigrationFoodWeight ?? base.migrationFoodWeight,
+    migrationSecurityWeight: json.MigrationSecurityWeight ?? base.migrationSecurityWeight,
+    migrationFamilyTiesWeight: json.MigrationFamilyTiesWeight ?? base.migrationFamilyTiesWeight,
+    foundingConcentrationThreshold: json.FoundingConcentrationThreshold ?? base.foundingConcentrationThreshold,
+    foundingResourceThreshold: json.FoundingResourceThreshold ?? base.foundingResourceThreshold,
+    foundingRouteThreshold: json.FoundingRouteThreshold ?? base.foundingRouteThreshold,
+    foundingDefensibilityThreshold: json.FoundingDefensibilityThreshold ?? base.foundingDefensibilityThreshold,
+    foundingLeadershipThreshold: json.FoundingLeadershipThreshold ?? base.foundingLeadershipThreshold,
+    organizationTicks: json.OrganizationTicks ?? base.organizationTicks,
+    materializationIdleTicksBeforeEligible:
+      json.MaterializationIdleTicksBeforeEligible ?? base.materializationIdleTicksBeforeEligible,
+    buildingRecipes: Object.entries(json.BuildingRecipes ?? {}).map(([buildingTypeId, b]) => ({
+      buildingTypeId: Number(buildingTypeId),
+      inputs: compactDictText((b as Raw).Inputs),
+      ticksToBuild: (b as Raw).TicksToBuild,
+      housingCapacityProvided: (b as Raw).HousingCapacityProvided,
+    })),
+    cities: (json.Cities ?? []).map((c: Raw) => ({
+      x: c.X,
+      y: c.Y,
+      foundedAtTick: c.FoundedAtTick,
+      count: c.AggregatePool?.Count ?? 0,
+      wealthSum: c.AggregatePool?.WealthSum ?? 0,
+      healthSum: c.AggregatePool?.HealthSum ?? 0,
+    })),
+
+    professionBiases: (dynamics.ProfessionBiases ?? []).map((p: Raw) => ({
+      professionId: p.ProfessionId,
+      weight: p.Weight,
+      name: p.Name ?? "",
+    })),
+    skillBiases: (dynamics.SkillBiases ?? []).map((s: Raw) => ({
+      skillId: s.SkillId,
+      weight: s.Weight,
+      name: s.Name ?? "",
+    })),
+    transformationRules: (dynamics.TransformationRules ?? []).map((t: Raw) => ({
+      kind: t.Kind,
+      sourceProfessionIds: (t.SourceProfessionIds ?? []).join(", "),
+      targetProfessionIds: (t.TargetProfessionIds ?? []).join(", "),
+      triggerTick: t.TriggerTick ?? null,
+    })),
+  };
+}

@@ -41,19 +41,29 @@ body {
 }
 
 .app-shell {
+  position: relative;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-/* --- Cabeçalho / navegação persistente --- */
+/* --- Cabeçalho / navegação persistente ---
+   UX pass 3 (feedback: "o mapa deveria ser a tela toda"): a header vira uma barra HUD flutuante
+   por cima do conteúdo em vez de empurrar o mapa pra baixo no fluxo normal — o mapa (main.fullbleed)
+   ocupa o viewport inteiro por trás dela. */
 
-.app-shell > header {
+.app-shell > header.hud-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.85rem 1.25rem;
-  background: linear-gradient(180deg, var(--bg-panel-raised), var(--bg-panel));
+  padding: 0.6rem 1rem;
+  background: linear-gradient(180deg, rgba(18, 22, 31, 0.92), rgba(18, 22, 31, 0.55));
+  backdrop-filter: blur(3px);
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -127,8 +137,18 @@ label {
 
 .app-shell > main {
   flex: 1;
-  padding: 1.25rem;
+  padding: 4.5rem 1.25rem 1.25rem;
   animation: view-fade-in 0.25s ease both;
+  overflow-y: auto;
+}
+
+/* UX pass 3: modo "mapa" ocupa o viewport inteiro, por baixo da hud-bar (position absolute, sem
+   reservar espaço no fluxo) — sem padding, sem scroll do próprio main (o grid rola sozinho). */
+.app-shell > main.fullbleed {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
 @keyframes view-fade-in {
@@ -142,8 +162,6 @@ label {
   }
 }
 
-[data-testid="world-map-view"],
-[data-testid="city-view"],
 [data-testid="interior-view"] {
   background: var(--bg-panel);
   border: 1px solid var(--border-subtle);
@@ -153,8 +171,6 @@ label {
   margin: 0 auto;
 }
 
-[data-testid="world-map-view"] h2,
-[data-testid="city-view"] h2,
 [data-testid="interior-view"] h2 {
   font-family: var(--font-display);
   color: var(--accent-bright);
@@ -162,36 +178,120 @@ label {
 }
 
 [data-testid="world-map-view"] ul,
-[data-testid="city-view"] ul,
-[data-testid="interior-view"] ul {
+[data-testid="city-view"] ul {
   list-style: none;
   padding: 0;
-  margin: 0.5rem 0 1rem;
+  margin: 0.4rem 0 0;
 }
 
 [data-testid="world-map-view"] li,
-[data-testid="city-view"] li,
-[data-testid="interior-view"] li {
-  padding: 0.3rem 0;
-  border-bottom: 1px solid var(--border-subtle);
+[data-testid="city-view"] li {
+  padding: 0.2rem 0;
   color: var(--text-muted);
+  font-size: 0.85rem;
 }
 
-/* --- Formulário "criar mundo" (fieldsets viram painéis-vidro) --- */
+[data-testid="world-map-view"] li.layer-not-modeled {
+  opacity: 0.5;
+}
+
+/* --- Formulário "criar mundo": wizard por abas (UX pass 3) --- */
 
 form[data-testid="create-world-form"] {
-  max-width: 1040px;
+  max-width: 1100px;
   margin: 0 auto;
 }
 
-form[data-testid="create-world-form"] h2 {
+form[data-testid="create-world-form"] > h2 {
   font-family: var(--font-display);
   color: var(--accent-bright);
   text-align: center;
+  font-size: 1.8rem;
+  margin-bottom: 0.5rem;
 }
 
-form[data-testid="create-world-form"] > fieldset,
-form[data-testid="create-world-form"] fieldset fieldset {
+/* Seletor de template: sempre a primeira decisão, antes de qualquer aba. */
+.template-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: center;
+  margin: 0 0 1.25rem;
+  padding: 0.75rem;
+  background: rgba(217, 169, 79, 0.05);
+  border: 1px dashed var(--accent-dim);
+  border-radius: var(--radius);
+}
+
+.template-picker span {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-right: 0.25rem;
+}
+
+.template-picker button {
+  font-size: 0.85rem;
+}
+
+/* Barra de abas — indicador de aba ativa com transição suave em vez de só trocar cor. */
+.form-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 0.6rem;
+}
+
+.form-tabs button {
+  background: none;
+  border: 1px solid transparent;
+  font-size: 0.95rem;
+  padding: 0.5rem 1rem;
+  color: var(--text-muted);
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.form-tabs button:hover:not(:disabled) {
+  color: var(--text-primary);
+  box-shadow: none;
+}
+
+.form-tabs button.active {
+  color: var(--accent-bright);
+  border-color: var(--accent-dim);
+  background: rgba(217, 169, 79, 0.08);
+}
+
+form[data-testid="create-world-form"] > div:not([hidden]) {
+  animation: tab-fade-in 0.22s ease both;
+}
+
+@keyframes tab-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.map-editor-primary {
+  margin-bottom: 1rem;
+}
+
+form[data-testid="create-world-form"] fieldset {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius);
@@ -203,6 +303,27 @@ form[data-testid="create-world-form"] legend {
   font-family: var(--font-display);
   color: var(--accent);
   padding: 0 0.5rem;
+}
+
+form[data-testid="create-world-form"] details {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 0.75rem;
+}
+
+form[data-testid="create-world-form"] summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 0.85rem;
+  padding: 0.2rem 0;
+}
+
+form[data-testid="create-world-form"] summary:hover {
+  color: var(--accent-bright);
+}
+
+form[data-testid="create-world-form"] details[open] summary {
+  margin-bottom: 0.5rem;
 }
 
 form[data-testid="create-world-form"] label {
@@ -353,30 +474,72 @@ form[data-testid="create-world-form"] [role="alert"] {
   padding: 0.1rem 0.4rem;
 }
 
-/* --- Grid 2D (mapa-múndi / cidade) + painel lateral (T11-T13, UX pass 2) --- */
+/* --- Grid 2D em tela cheia (mapa-múndi / cidade) + HUD flutuante (UX pass 3) ---
+   Feedback do usuário: "o mapa deveria ser a tela toda, tipo Civilization/Skyrim" — o grid ocupa
+   100% do espaço disponível, título/camadas/painel lateral flutuam por cima dele (position
+   absolute), não disputam espaço em layout de flexbox como antes. */
 
-.map-view-body {
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
-  margin: 1rem 0;
+.map-fullscreen {
   position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.map-hud {
+  position: absolute;
+  z-index: 10;
+  background: rgba(18, 22, 31, 0.8);
+  backdrop-filter: blur(3px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.9rem;
+  max-width: min(360px, 70vw);
+}
+
+.map-hud-top-left {
+  top: 0.75rem;
+  left: 0.75rem;
+}
+
+.map-hud h2 {
+  font-family: var(--font-display);
+  color: var(--accent-bright);
+  margin: 0 0 0.3rem;
+  font-size: 1.2rem;
+}
+
+.map-hud p {
+  margin: 0.2rem 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.layer-legend {
+  margin-top: 0.4rem;
+}
+
+.layer-legend button {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
 }
 
 .grid-canvas-wrap {
   position: relative;
-  flex: 1;
+  width: 100%;
+  height: 100%;
   overflow: auto;
-  border: 1px solid var(--border-subtle);
-  border-radius: 6px;
   line-height: 0;
+}
+
+.grid-canvas-wrap-fill canvas {
+  max-width: none;
 }
 
 .grid-canvas-zoom {
   position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  z-index: 2;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 20;
   display: flex;
   gap: 0.25rem;
 }
@@ -387,12 +550,18 @@ form[data-testid="create-world-form"] [role="alert"] {
 }
 
 .side-panel {
-  flex: 0 0 260px;
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 25;
+  width: 280px;
+  overflow-y: auto;
   background: var(--bg-panel-raised);
   border: 1px solid var(--accent-dim);
   border-radius: var(--radius);
   padding: 1rem;
-  position: relative;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.4);
   animation: side-panel-in 0.18s ease both;
 }
 
@@ -419,6 +588,20 @@ form[data-testid="create-world-form"] [role="alert"] {
   right: 0.5rem;
   padding: 0.1rem 0.5rem;
   line-height: 1;
+}
+
+[data-testid="player-move-controls"] {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  background: rgba(18, 22, 31, 0.85);
+  backdrop-filter: blur(3px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  text-align: center;
 }
 
 .approximate-note {
@@ -456,10 +639,20 @@ form[data-testid="create-world-form"] [role="alert"] {
 
 /* --- Editor de mapa por clique (T14, UX pass 2) --- */
 
+.map-grid-editor {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+
 .map-grid-editor-toolbar {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .map-grid-editor .grid-canvas-wrap {
   max-width: 100%;
+  display: inline-block;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
 }

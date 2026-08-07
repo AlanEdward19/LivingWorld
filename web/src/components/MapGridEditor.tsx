@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { GridCanvas, type GridMarker } from "./GridCanvas";
 import { colorById } from "../colorById";
+import { maxSafeZoom } from "../gridFit";
 import type { PaintedCell, SettlementRow } from "../scenarioDefaults";
 
 export interface MapGridEditorProps {
@@ -34,8 +35,10 @@ export function MapGridEditor({
   const [selectedTerrain, setSelectedTerrain] = useState(terrainIds[0] ?? 1);
   const [selectedBiome, setSelectedBiome] = useState(biomeIds[0] ?? 0);
 
-  const boundedWidth = Math.max(1, Math.min(width, 200));
-  const boundedHeight = Math.max(1, Math.min(height, 200));
+  // Sem teto de produto no tamanho do mapa (feedback do usuário) — só a garantia mínima de 1
+  // célula; o limite técnico real de canvas fica todo dentro do GridCanvas (maxSafeZoom).
+  const boundedWidth = Math.max(1, width);
+  const boundedHeight = Math.max(1, height);
 
   function paintCell(x: number, y: number) {
     const key = `${x},${y}`;
@@ -122,7 +125,7 @@ export function MapGridEditor({
           return painted.water ? "#3a7bd5" : colorById(painted.terrain);
         }}
         markers={markers}
-        zoom={16}
+        zoom={Math.min(16, maxSafeZoom(boundedWidth, boundedHeight))}
         lodTokenThreshold={0}
         onCellClick={paintCell}
         onMarkerClick={(id) => {

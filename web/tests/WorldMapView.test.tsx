@@ -3,8 +3,6 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { WorldMapView } from "../src/components/WorldMapView";
 import type { GlobalSnapshot } from "../src/types";
 
-const ZOOM = 16;
-
 function makeSnapshot(): GlobalSnapshot {
   return {
     width: 10,
@@ -32,8 +30,10 @@ function makeSnapshot(): GlobalSnapshot {
 }
 
 // jsdom não faz layout — getBoundingClientRect finge o canvas ocupar exatamente width x height
-// em pixels de tela (escala 1:1), pra clique em coordenada de célula bater com o hit-test real.
-function clickCell(canvas: HTMLCanvasElement, x: number, y: number) {
+// em pixels de tela (escala 1:1). Clica no centro da célula (x,y) usando o tamanho REAL do
+// canvas (width/height já setados pelo GridCanvas em width*zoom) dividido pelas dimensões do
+// grid — não depende de conhecer o zoom (que agora é calculado por fit-to-screen, não fixo).
+function clickCell(canvas: HTMLCanvasElement, gridWidth: number, gridHeight: number, x: number, y: number) {
   vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
     left: 0,
     top: 0,
@@ -45,7 +45,9 @@ function clickCell(canvas: HTMLCanvasElement, x: number, y: number) {
     y: 0,
     toJSON: () => "",
   });
-  fireEvent.click(canvas, { clientX: (x + 0.5) * ZOOM, clientY: (y + 0.5) * ZOOM });
+  const cellW = canvas.width / gridWidth;
+  const cellH = canvas.height / gridHeight;
+  fireEvent.click(canvas, { clientX: (x + 0.5) * cellW, clientY: (y + 0.5) * cellH });
 }
 
 describe("WorldMapView", () => {
@@ -56,7 +58,7 @@ describe("WorldMapView", () => {
   it("opens the side panel with population when a city marker is clicked", () => {
     render(<WorldMapView snapshot={makeSnapshot()} onSelectCity={() => {}} />);
 
-    clickCell(screen.getByTestId("grid-canvas") as HTMLCanvasElement, 3, 4);
+    clickCell(screen.getByTestId("grid-canvas") as HTMLCanvasElement, 10, 10, 3, 4);
 
     expect(screen.getByTestId("side-panel")).toBeInTheDocument();
     expect(screen.getByText(/População: 42/)).toBeInTheDocument();
@@ -66,7 +68,7 @@ describe("WorldMapView", () => {
     const onSelectCity = vi.fn();
     render(<WorldMapView snapshot={makeSnapshot()} onSelectCity={onSelectCity} />);
 
-    clickCell(screen.getByTestId("grid-canvas") as HTMLCanvasElement, 3, 4);
+    clickCell(screen.getByTestId("grid-canvas") as HTMLCanvasElement, 10, 10, 3, 4);
     fireEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
     expect(onSelectCity).toHaveBeenCalledWith("city-1");
@@ -75,13 +77,16 @@ describe("WorldMapView", () => {
   it("opens the side panel with position when an external npc marker is clicked", () => {
     render(<WorldMapView snapshot={makeSnapshot()} onSelectCity={() => {}} />);
 
-    clickCell(screen.getByTestId("grid-canvas") as HTMLCanvasElement, 1, 1);
+    clickCell(screen.getByTestId("grid-canvas") as HTMLCanvasElement, 10, 10, 1, 1);
 
     expect(screen.getByText("NPC 9")).toBeInTheDocument();
   });
 
-  it("labels not-yet-modeled layers distinctly from available ones", () => {
+  it("labels not-yet-modeled layers distinctly from available ones, behind the collapsible legend", () => {
     render(<WorldMapView snapshot={makeSnapshot()} onSelectCity={() => {}} />);
+
+    expect(screen.queryByText(/Terrain: dispon/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Camadas/ }));
 
     expect(screen.getByText(/Terrain: dispon/)).toBeInTheDocument();
     expect(screen.getByText(/Roads: ainda não modelada/)).toBeInTheDocument();

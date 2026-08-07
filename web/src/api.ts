@@ -76,3 +76,26 @@ export async function createWorld(scenarioJson: string): Promise<Response> {
     body: JSON.stringify({ scenarioJson }),
   });
 }
+
+export interface PeriodSummary {
+  periodId: string;
+  version: number;
+  source: string;
+  createdAtUtc: string;
+}
+
+/// UX pass 3: templates pra pré-popular o wizard de "criar mundo" (`DefaultPeriodSeeder.cs`
+/// garante que sempre existe pelo menos um). `GET /periods` lista, `GET /periods/{id}` traz o
+/// `PeriodDefinition` completo que `jsonToScenarioForm` sabe ler.
+export async function listPeriodTemplates(): Promise<PeriodSummary[]> {
+  const response = await fetch(`${apiBaseUrl()}/periods`);
+  if (!response.ok) throw new Error(`listar templates falhou: ${response.status}`);
+  return (await response.json()) as PeriodSummary[];
+}
+
+export async function fetchPeriodTemplate(id: string): Promise<Record<string, unknown>> {
+  const response = await fetch(`${apiBaseUrl()}/periods/${encodeURIComponent(id)}`);
+  if (!response.ok) throw new Error(`carregar template falhou: ${response.status}`);
+  const body = (await response.json()) as { periodDefinition: Record<string, unknown> };
+  return body.periodDefinition;
+}

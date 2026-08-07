@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { CityView } from "../src/components/CityView";
 import type { CitySnapshot } from "../src/types";
 
-const ZOOM = 20;
+const LOCAL_SIZE = 21; // mesmo valor de CityView.tsx
 
 function makeSnapshot(): CitySnapshot {
   return {
@@ -28,7 +28,9 @@ function clickCell(canvas: HTMLCanvasElement, x: number, y: number) {
     y: 0,
     toJSON: () => "",
   });
-  fireEvent.click(canvas, { clientX: (x + 0.5) * ZOOM, clientY: (y + 0.5) * ZOOM });
+  const cellW = canvas.width / LOCAL_SIZE;
+  const cellH = canvas.height / LOCAL_SIZE;
+  fireEvent.click(canvas, { clientX: (x + 0.5) * cellW, clientY: (y + 0.5) * cellH });
 }
 
 describe("CityView", () => {

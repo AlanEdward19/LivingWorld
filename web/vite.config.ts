@@ -9,6 +9,7 @@ export default defineConfig({
     proxy: {
       "/visual": { target: "http://localhost:5289", ws: true },
       "/worlds": { target: "http://localhost:5289" },
+      "/periods": { target: "http://localhost:5289" },
     },
   },
   test: {

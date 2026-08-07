@@ -86,7 +86,9 @@ describe("App", () => {
       y: 0,
       toJSON: () => "",
     });
-    fireEvent.click(canvas, { clientX: 8, clientY: 8 }); // city at (0,0), zoom 16 -> center (8,8)
+    // city is at grid (0,0); world snapshot is 10x10 -> click the center of that cell using the
+    // canvas's actual pixel size (zoom is fit-to-screen now, not a fixed constant).
+    fireEvent.click(canvas, { clientX: 0.5 * (canvas.width / 10), clientY: 0.5 * (canvas.height / 10) });
     expect(screen.getByText(/População: 10/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Entrar" }));
 

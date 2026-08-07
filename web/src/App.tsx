@@ -38,9 +38,13 @@ export function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [canOpenMapOverlay]);
 
+  // Escopo World nunca aceita modo Player (RealtimeGateway.Authorize, VTT-01) — trocar pra
+  // "Personagem" enquanto ainda no mapa-múndi não deve quebrar a conexão, só não aplica FOW até
+  // o jogador entrar numa cidade.
+  const effectiveMode = focus.kind === "World" ? ViewerMode.Spectator : mode;
   const { envelope, connected, error } = useRealtimeSnapshot<
     GlobalSnapshot | CitySnapshot | InteriorSnapshot
-  >(focus, mode, mode === ViewerMode.Player ? playerNpcId : undefined, screen === "world");
+  >(focus, effectiveMode, effectiveMode === ViewerMode.Player ? playerNpcId : undefined, screen === "world");
 
   // Guarda contra a corrida entre trocar de escopo (setFocus) e o novo WebSocket ainda não ter
   // respondido: sem isso, o payload antigo (de outro escopo) rende no componente errado por um
@@ -74,7 +78,7 @@ export function App() {
 
   return (
     <div className="app-shell">
-      <header>
+      <header className="hud-bar">
         <button type="button" onClick={() => setScreen("start")}>
           ☰ menu
         </button>
@@ -106,7 +110,7 @@ export function App() {
         {error && <span role="alert"> {error}</span>}
       </header>
 
-      <main>
+      <main className={creatingWorld ? "" : "fullbleed"}>
         {creatingWorld && (
           <CreateWorldForm
             onCreated={() => {

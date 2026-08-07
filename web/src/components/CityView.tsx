@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { GridCanvas, type GridMarker } from "./GridCanvas";
 import { SidePanel } from "./SidePanel";
 import { colorById } from "../colorById";
+import { computeFitZoom } from "../gridFit";
 import type { CitySnapshot } from "../types";
 
 export interface CityViewProps {
@@ -22,7 +23,9 @@ type Selection = { kind: "resident"; id: string } | { kind: "building"; id: stri
 /// só disposição visual, não posição real — por isso o marcador de prédio usa um traço tracejado
 /// em vez do preenchimento sólido dos moradores.
 export function CityView({ snapshot, onSelectBuilding, onBack }: CityViewProps) {
-  const [zoom, setZoom] = useState(20);
+  const [zoom, setZoom] = useState(() =>
+    computeFitZoom(LOCAL_SIZE, LOCAL_SIZE, window.innerWidth - 40, window.innerHeight - 60),
+  );
   const [selection, setSelection] = useState<Selection>(null);
 
   const residentMarkers: GridMarker[] = snapshot.residents.map((r) => ({
@@ -54,52 +57,53 @@ export function CityView({ snapshot, onSelectBuilding, onBack }: CityViewProps) 
     : undefined;
 
   return (
-    <div data-testid="city-view">
-      <button type="button" onClick={onBack}>
-        ← mapa-múndi
-      </button>
-      <h2>Cidade {snapshot.id.value.slice(0, 8)}</h2>
-      <p>
-        Pool agregado: {snapshot.aggregatePool.count} habitantes não materializados (riqueza{" "}
-        {snapshot.aggregatePool.wealthSum}, saúde {snapshot.aggregatePool.healthSum})
-      </p>
-
-      <div className="map-view-body">
-        <GridCanvas
-          width={LOCAL_SIZE}
-          height={LOCAL_SIZE}
-          markers={[...residentMarkers, ...buildingMarkers]}
-          zoom={zoom}
-          onZoomChange={setZoom}
-          onMarkerClick={(id) => {
-            const [kind, refId] = id.split(":");
-            setSelection(kind === "resident" ? { kind: "resident", id: refId } : { kind: "building", id: refId });
-          }}
-        />
-
-        {selectedResident && (
-          <SidePanel title={`NPC ${selectedResident.id.value}`} onClose={() => setSelection(null)}>
-            <p>
-              Posição: ({selectedResident.location.x}, {selectedResident.location.y})
-            </p>
-            {selectedResident.currentAction !== null && <p>Ação: {selectedResident.currentAction}</p>}
-          </SidePanel>
-        )}
-
-        {selectedBuilding && (
-          <SidePanel
-            title={`Prédio ${selectedBuilding.id.value}`}
-            onClose={() => setSelection(null)}
-            action={{
-              label: "Entrar",
-              onClick: () => onSelectBuilding(String(selectedBuilding.id.value)),
-            }}
-          >
-            <p>Tipo: {selectedBuilding.buildingTypeId}</p>
-            <p className="approximate-note">posição no mapa é layout aproximado (sem dado real)</p>
-          </SidePanel>
-        )}
+    <div className="map-fullscreen" data-testid="city-view">
+      <div className="map-hud map-hud-top-left">
+        <button type="button" onClick={onBack}>
+          ← mapa-múndi
+        </button>
+        <h2>Cidade {snapshot.id.value.slice(0, 8)}</h2>
+        <p>
+          Pool agregado: {snapshot.aggregatePool.count} habitantes não materializados (riqueza{" "}
+          {snapshot.aggregatePool.wealthSum}, saúde {snapshot.aggregatePool.healthSum})
+        </p>
       </div>
+
+      <GridCanvas
+        width={LOCAL_SIZE}
+        height={LOCAL_SIZE}
+        markers={[...residentMarkers, ...buildingMarkers]}
+        zoom={zoom}
+        onZoomChange={setZoom}
+        fillContainer
+        onMarkerClick={(id) => {
+          const [kind, refId] = id.split(":");
+          setSelection(kind === "resident" ? { kind: "resident", id: refId } : { kind: "building", id: refId });
+        }}
+      />
+
+      {selectedResident && (
+        <SidePanel title={`NPC ${selectedResident.id.value}`} onClose={() => setSelection(null)}>
+          <p>
+            Posição: ({selectedResident.location.x}, {selectedResident.location.y})
+          </p>
+          {selectedResident.currentAction !== null && <p>Ação: {selectedResident.currentAction}</p>}
+        </SidePanel>
+      )}
+
+      {selectedBuilding && (
+        <SidePanel
+          title={`Prédio ${selectedBuilding.id.value}`}
+          onClose={() => setSelection(null)}
+          action={{
+            label: "Entrar",
+            onClick: () => onSelectBuilding(String(selectedBuilding.id.value)),
+          }}
+        >
+          <p>Tipo: {selectedBuilding.buildingTypeId}</p>
+          <p className="approximate-note">posição no mapa é layout aproximado (sem dado real)</p>
+        </SidePanel>
+      )}
     </div>
   );
 }

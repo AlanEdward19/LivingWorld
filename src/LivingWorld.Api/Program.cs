@@ -91,6 +91,11 @@ builder.Services.AddScoped<IPeriodTemplateRepository, SqlitePeriodTemplateReposi
 
 var app = builder.Build();
 
+// UX pass 3: repositório de períodos começa vazio em todo processo novo — sem isso, o wizard de
+// "criar mundo" não teria nenhum template real pra oferecer (ver DefaultPeriodSeeder.cs).
+using (var seedScope = app.Services.CreateScope())
+    DefaultPeriodSeeder.SeedIfEmpty(seedScope.ServiceProvider.GetRequiredService<IPeriodTemplateRepository>());
+
 app.MapOpenApi();
 
 app.MapGet("/", () => "Hello World!");
