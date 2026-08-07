@@ -67,6 +67,19 @@ body {
   border-bottom: 1px solid var(--border-subtle);
 }
 
+/* T16: HUD de tempo — empurrada pra direita da hud-bar, mesma barra dos outros controles. */
+.time-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.time-controls button[aria-pressed="true"] {
+  color: var(--accent-bright);
+  border-color: var(--accent-bright);
+}
+
 .app-shell > header label {
   color: var(--text-muted);
   font-size: 0.9rem;

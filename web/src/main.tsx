@@ -6,6 +6,7 @@ import { SelectionStore } from "./state/selectionStore";
 import { MockClock } from "./data/mock/MockClock";
 import { MockSnapshotSource } from "./data/mock/MockSnapshotSource";
 import { MockTickStreamSource } from "./data/mock/MockTickStreamSource";
+import { MockTimeControlSource } from "./data/mock/MockTimeControlSource";
 import { MockPortalSource } from "./data/mock/MockPortalSource";
 import { npcsByScope, portalFixtures, snapshotsByScope } from "./data/mock/fixtures";
 import "./styles/global.css";
@@ -23,10 +24,16 @@ const simulationStore = new SimulationStore(
 );
 const viewStore = new ViewStore(new MockPortalSource(portalFixtures));
 const selectionStore = new SelectionStore();
+const timeControlSource = new MockTimeControlSource(clock);
 
 // Sem StrictMode: efeitos duplo-invocados em dev chamariam `observeSpace` duas vezes quase
 // juntas — inofensivo hoje (fontes mock são idempotentes), mas evita reintroduzir o problema
 // real que a Fase 15 teve com WebSocket duplicado quando T31 trocar pela fonte real.
 createRoot(document.getElementById("root")!).render(
-  <App simulationStore={simulationStore} viewStore={viewStore} selectionStore={selectionStore} />,
+  <App
+    simulationStore={simulationStore}
+    viewStore={viewStore}
+    selectionStore={selectionStore}
+    timeControlSource={timeControlSource}
+  />,
 );

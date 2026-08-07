@@ -5,6 +5,8 @@ import { SimulationStore } from "../src/state/simulationStore";
 import { ViewStore } from "../src/state/viewStore";
 import { SelectionStore } from "../src/state/selectionStore";
 import { MockPortalSource } from "../src/data/mock/MockPortalSource";
+import { MockClock } from "../src/data/mock/MockClock";
+import { MockTimeControlSource } from "../src/data/mock/MockTimeControlSource";
 import { VisualScopeKind, ViewerMode } from "../src/types";
 import type { GlobalSnapshot, CitySnapshot } from "../src/types";
 import type { SnapshotSource, TickStreamSource } from "../src/data/sources";
@@ -72,7 +74,8 @@ function buildStores() {
   const simulationStore = new SimulationStore(multiScopeSnapshotSource(), neverStreamingTickSource());
   const viewStore = new ViewStore(new MockPortalSource([]));
   const selectionStore = new SelectionStore();
-  return { simulationStore, viewStore, selectionStore };
+  const timeControlSource = new MockTimeControlSource(new MockClock());
+  return { simulationStore, viewStore, selectionStore, timeControlSource };
 }
 
 describe("App", () => {
@@ -81,8 +84,8 @@ describe("App", () => {
   });
 
   it("renders the world map after the mock snapshot resolves, then drills into a city on double click", async () => {
-    const { simulationStore, viewStore, selectionStore } = buildStores();
-    render(<App simulationStore={simulationStore} viewStore={viewStore} selectionStore={selectionStore} />);
+    const { simulationStore, viewStore, selectionStore, timeControlSource } = buildStores();
+    render(<App simulationStore={simulationStore} viewStore={viewStore} selectionStore={selectionStore} timeControlSource={timeControlSource} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
@@ -103,9 +106,9 @@ describe("App", () => {
   });
 
   it("shows a breadcrumb that navigates back to World from a City", async () => {
-    const { simulationStore, viewStore, selectionStore } = buildStores();
+    const { simulationStore, viewStore, selectionStore, timeControlSource } = buildStores();
     viewStore.enter({ kind: "City", cityId: "city-1" });
-    render(<App simulationStore={simulationStore} viewStore={viewStore} selectionStore={selectionStore} />);
+    render(<App simulationStore={simulationStore} viewStore={viewStore} selectionStore={selectionStore} timeControlSource={timeControlSource} />);
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
     await screen.findByTestId("city-view");
@@ -117,8 +120,8 @@ describe("App", () => {
   });
 
   it("starts on the start menu and navigates to settings and back", () => {
-    const { simulationStore, viewStore, selectionStore } = buildStores();
-    render(<App simulationStore={simulationStore} viewStore={viewStore} selectionStore={selectionStore} />);
+    const { simulationStore, viewStore, selectionStore, timeControlSource } = buildStores();
+    render(<App simulationStore={simulationStore} viewStore={viewStore} selectionStore={selectionStore} timeControlSource={timeControlSource} />);
 
     expect(screen.getByTestId("start-menu")).toBeInTheDocument();
 
