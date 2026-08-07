@@ -1,0 +1,268 @@
+import { Profiler } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { render, fireEvent } from "@testing-library/react";
+import { MapView } from "../src/components/MapView";
+import { SimulationStore } from "../src/state/simulationStore";
+import { ViewStore } from "../src/state/viewStore";
+import { SelectionStore } from "../src/state/selectionStore";
+import { MockPortalSource } from "../src/data/mock/MockPortalSource";
+import { VisualScopeKind, ViewerMode } from "../src/types";
+import type { SnapshotSource, TickStreamSource } from "../src/data/sources";
+import type { SpaceId } from "../src/map-engine/types";
+
+const VIEWPORT = { width: 200, height: 200 };
+const CITY_A: SpaceId = { kind: "City", cityId: "city-a" };
+const WORLD: SpaceId = { kind: "World" };
+const CELLS = { width: 100, height: 100, colorAt: () => undefined };
+
+function stubRect(canvas: HTMLCanvasElement) {
+  vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+    left: 0,
+    top: 0,
+    width: canvas.width,
+    height: canvas.height,
+    right: canvas.width,
+    bottom: canvas.height,
+    x: 0,
+    y: 0,
+    toJSON: () => "",
+  });
+}
+
+function cityASnapshotSource(): SnapshotSource {
+  return {
+    load: async () => ({
+      scope: { kind: VisualScopeKind.City, refId: "city-a", scopeKey: "city:city-a" },
+      mode: ViewerMode.Spectator,
+      cursor: { tick: 0, scopeKey: "city:city-a", sequence: 0 },
+      activeLayers: [],
+      payload: { residents: [{ id: { value: 1 }, location: { x: 50, y: 50 }, currentAction: null }] },
+    }),
+  };
+}
+
+function neverStreamingTickSource(): TickStreamSource {
+  return { subscribe: () => () => {} };
+}
+
+async function buildStores() {
+  const simulationStore = new SimulationStore(cityASnapshotSource(), neverStreamingTickSource());
+  const viewStore = new ViewStore(new MockPortalSource([]));
+  viewStore.recordCamera(CITY_A, { center: { x: 50, y: 50 }, scale: 10 }); // câmera determinística
+  const selectionStore = new SelectionStore();
+  await simulationStore.observeSpace(CITY_A);
+  return { simulationStore, viewStore, selectionStore };
+}
+
+describe("MapView", () => {
+  beforeEach(() => {
+    HTMLCanvasElement.prototype.getContext = () => null;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("wheel zooms without issuing any HTTP request", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    const { simulationStore, viewStore, selectionStore } = await buildStores();
+
+    const { getByTestId } = render(
+      <MapView
+        space={CITY_A}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+    const canvas = getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
+
+    fireEvent.wheel(canvas, { deltaY: -100, clientX: 100, clientY: 100 });
+
+    const after = viewStore.cameraFor(CITY_A, { center: { x: 0, y: 0 }, scale: 1 });
+    expect(after.scale).toBeGreaterThan(10);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it("dragging on empty space pans the camera without issuing any HTTP request", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    const { simulationStore, viewStore, selectionStore } = await buildStores();
+
+    const { getByTestId } = render(
+      <MapView
+        space={CITY_A}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+    const canvas = getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
+
+    fireEvent.mouseDown(canvas, { clientX: 10, clientY: 10 });
+    fireEvent.mouseMove(canvas, { clientX: 40, clientY: 10 });
+    fireEvent.mouseUp(canvas, { clientX: 40, clientY: 10 });
+
+    const after = viewStore.cameraFor(CITY_A, { center: { x: 0, y: 0 }, scale: 1 });
+    expect(after.center.x).not.toBe(50);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it("a single click on an entity selects it without navigating", async () => {
+    const { simulationStore, viewStore, selectionStore } = await buildStores();
+    const enterSpy = vi.spyOn(viewStore, "enter");
+
+    const { getByTestId } = render(
+      <MapView
+        space={CITY_A}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+        resolveNavigationTarget={() => WORLD}
+      />,
+    );
+    const canvas = getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
+
+    fireEvent.click(canvas, { clientX: 100, clientY: 100 }); // entidade projeta no centro (câmera em 50,50)
+
+    expect(selectionStore.current()).toEqual({ kind: "npc", id: "1", space: CITY_A });
+    expect(enterSpy).not.toHaveBeenCalled();
+  });
+
+  it("a double click on a navigable entity calls ViewStore.enter with the resolved target", async () => {
+    const { simulationStore, viewStore, selectionStore } = await buildStores();
+    const enterSpy = vi.spyOn(viewStore, "enter");
+    const resolveNavigationTarget = vi.fn(() => WORLD);
+
+    const { getByTestId } = render(
+      <MapView
+        space={CITY_A}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+        resolveNavigationTarget={resolveNavigationTarget}
+      />,
+    );
+    const canvas = getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
+
+    fireEvent.doubleClick(canvas, { clientX: 100, clientY: 100 });
+
+    expect(resolveNavigationTarget).toHaveBeenCalledWith({ kind: "npc", id: "1", space: CITY_A });
+    expect(enterSpy).toHaveBeenCalledWith(WORLD);
+  });
+
+  it("clicking empty space (no entity under the cursor) selects nothing", async () => {
+    const { simulationStore, viewStore, selectionStore } = await buildStores();
+
+    const { getByTestId } = render(
+      <MapView
+        space={CITY_A}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+    const canvas = getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
+
+    fireEvent.click(canvas, { clientX: 5, clientY: 5 }); // longe da entidade em (100,100)
+
+    expect(selectionStore.current()).toBeNull();
+  });
+
+  it("Esc clears the current selection", async () => {
+    const { simulationStore, viewStore, selectionStore } = await buildStores();
+    selectionStore.select({ kind: "npc", id: "1", space: CITY_A });
+
+    render(
+      <MapView
+        space={CITY_A}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(selectionStore.current()).toBeNull();
+  });
+
+  it("renders no DOM node per entity — the canvas is the only child", async () => {
+    const { simulationStore, viewStore, selectionStore } = await buildStores();
+
+    const { container } = render(
+      <MapView
+        space={CITY_A}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+
+    expect(container.children).toHaveLength(1);
+    expect(container.firstElementChild?.tagName).toBe("CANVAS");
+  });
+
+  it("does not re-render when the SimulationStore notifies a tick", async () => {
+    const { simulationStore, viewStore, selectionStore } = await buildStores();
+    const onRender = vi.fn();
+
+    render(
+      <Profiler id="mapview-test" onRender={onRender}>
+        <MapView
+          space={CITY_A}
+          viewport={VIEWPORT}
+          cells={CELLS}
+          layers={[]}
+          lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+          simulationStore={simulationStore}
+          viewStore={viewStore}
+          selectionStore={selectionStore}
+        />
+      </Profiler>,
+    );
+
+    expect(onRender).toHaveBeenCalledTimes(1); // só o commit do mount
+
+    simulationStore.applyDelta({ tick: 1, moved: [{ npcId: 1, location: { x: 51, y: 50 } }], removed: [] });
+    simulationStore.applyDelta({ tick: 2, moved: [{ npcId: 1, location: { x: 52, y: 50 } }], removed: [] });
+
+    expect(onRender).toHaveBeenCalledTimes(1); // nenhum commit novo por causa dos deltas
+  });
+});
