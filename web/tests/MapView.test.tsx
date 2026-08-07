@@ -291,4 +291,55 @@ describe("MapView", () => {
 
     expect(onRender).toHaveBeenCalledTimes(1); // nenhum commit novo por causa dos deltas
   });
+
+  it("tracks the followed entity's authoritative position every frame", async () => {
+    const { simulationStore, viewStore, selectionStore } = await buildStores();
+    viewStore.startFollow({ kind: "npc", id: "1", space: CITY_A });
+
+    render(
+      <MapView
+        space={CITY_A}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+
+    // move o NPC seguido para bem longe do centro de câmera semeado em buildStores (50,50)
+    simulationStore.applyDelta({ tick: 1, moved: [{ npcId: 1, location: { x: 900, y: 900 } }], removed: [] });
+
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+    const camera = viewStore.cameraFor(CITY_A, { center: { x: 0, y: 0 }, scale: 1 });
+    expect(camera.center).toEqual({ x: 900, y: 900 });
+  });
+
+  it("dragging cancels an active follow instead of fighting the pan", async () => {
+    const { simulationStore, viewStore, selectionStore } = await buildStores();
+    viewStore.startFollow({ kind: "npc", id: "1", space: CITY_A });
+
+    const { getByTestId } = render(
+      <MapView
+        space={CITY_A}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+    const canvas = getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
+
+    fireEvent.mouseDown(canvas, { clientX: 10, clientY: 10 });
+    fireEvent.mouseMove(canvas, { clientX: 40, clientY: 10 });
+
+    expect(viewStore.followedEntity()).toBeNull();
+  });
 });

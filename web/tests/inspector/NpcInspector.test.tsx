@@ -2,6 +2,8 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { NpcInspector } from "../../src/components/inspector/NpcInspector";
 import { SimulationStore } from "../../src/state/simulationStore";
+import { ViewStore } from "../../src/state/viewStore";
+import { MockPortalSource } from "../../src/data/mock/MockPortalSource";
 import { VisualScopeKind, ViewerMode } from "../../src/types";
 import type { SnapshotSource, TickStreamSource } from "../../src/data/sources";
 import type { EntityRef } from "../../src/map-engine/types";
@@ -70,7 +72,7 @@ describe("NpcInspector", () => {
     await simulationStore.observeSpace(CITY_SPACE);
     const ref: EntityRef = { kind: "npc", id: "3", space: CITY_SPACE };
 
-    render(<NpcInspector entityRef={ref} simulationStore={simulationStore} />);
+    render(<NpcInspector entityRef={ref} simulationStore={simulationStore} viewStore={new ViewStore(new MockPortalSource([]))} />);
 
     expect(screen.getByText("(1, 1)")).toBeInTheDocument();
     expect(screen.getByText("5")).toBeInTheDocument();
@@ -81,7 +83,7 @@ describe("NpcInspector", () => {
     await simulationStore.observeSpace(WORLD_SPACE);
     const ref: EntityRef = { kind: "npc", id: "9", space: WORLD_SPACE };
 
-    render(<NpcInspector entityRef={ref} simulationStore={simulationStore} />);
+    render(<NpcInspector entityRef={ref} simulationStore={simulationStore} viewStore={new ViewStore(new MockPortalSource([]))} />);
 
     expect(screen.getByText("(2, 2)")).toBeInTheDocument();
     expect(screen.queryByText("Ação atual")).not.toBeInTheDocument();
@@ -92,7 +94,7 @@ describe("NpcInspector", () => {
     await simulationStore.observeSpace(CITY_SPACE);
     const ref: EntityRef = { kind: "npc", id: "3", space: CITY_SPACE };
 
-    render(<NpcInspector entityRef={ref} simulationStore={simulationStore} />);
+    render(<NpcInspector entityRef={ref} simulationStore={simulationStore} viewStore={new ViewStore(new MockPortalSource([]))} />);
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Ver detalhes" }));
@@ -105,7 +107,7 @@ describe("NpcInspector", () => {
     await simulationStore.observeSpace(CITY_SPACE);
     const ref: EntityRef = { kind: "npc", id: "3", space: CITY_SPACE };
 
-    render(<NpcInspector entityRef={ref} simulationStore={simulationStore} />);
+    render(<NpcInspector entityRef={ref} simulationStore={simulationStore} viewStore={new ViewStore(new MockPortalSource([]))} />);
     fireEvent.click(screen.getByRole("button", { name: "Ver detalhes" }));
 
     expect(fetch).not.toHaveBeenCalled();
@@ -116,7 +118,7 @@ describe("NpcInspector", () => {
     await simulationStore.observeSpace(CITY_SPACE);
     const ref: EntityRef = { kind: "npc", id: "3", space: CITY_SPACE };
 
-    render(<NpcInspector entityRef={ref} simulationStore={simulationStore} />);
+    render(<NpcInspector entityRef={ref} simulationStore={simulationStore} viewStore={new ViewStore(new MockPortalSource([]))} />);
 
     expect(screen.queryByRole("button", { name: "Abrir" })).not.toBeInTheDocument();
   });

@@ -645,14 +645,66 @@ form[data-testid="create-world-form"] [role="alert"] {
   right: 0.75rem;
   bottom: 0.75rem;
   z-index: 25;
-  width: 280px;
+  width: 300px;
   overflow-y: auto;
   background: var(--bg-panel-raised);
   border: 1px solid var(--accent-dim);
   border-radius: var(--radius);
-  padding: 1rem;
+  padding: 1.1rem;
   box-shadow: -8px 0 24px rgba(0, 0, 0, 0.4);
   animation: side-panel-in 0.18s ease both;
+}
+
+/* Feedback do usuário (2026-08-07): inspector "feio e sem interações" — dl/dt/dd em grid
+   legível em vez de texto solto empilhado, e a faixa de ações vira botões reais lado a lado. */
+.side-panel-content dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 0.75rem;
+  margin: 0 0 0.9rem;
+}
+
+.side-panel-content dt {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.side-panel-content dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.side-panel-content p[role="note"] {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-style: italic;
+  margin: 0 0 0.9rem;
+}
+
+.entity-inspector-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.entity-inspector-actions button {
+  flex: 1;
+  padding: 0.45rem 0.6rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.entity-inspector-actions button:hover {
+  border-color: var(--accent-bright);
+  color: var(--accent-bright);
 }
 
 @keyframes side-panel-in {

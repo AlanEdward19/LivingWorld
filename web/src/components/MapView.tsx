@@ -101,6 +101,19 @@ export function MapView({
     function frame() {
       const camera = cameraRef.current;
       if (camera) {
+        // T19: com Follow ativo, a câmera acompanha a posição AUTORITATIVA (nunca a
+        // interpolada) da entidade seguida, todo frame — sobrescreve qualquer pan manual até o
+        // usuário arrastar de novo (o que cancela o follow em `handleMouseMove`).
+        const followed = viewStore.followedEntity();
+        if (followed) {
+          const target = entitiesRef.current.find(
+            (e) => e.ref.kind === followed.kind && e.ref.id === followed.id,
+          );
+          if (target) {
+            camera.restore({ center: { ...target.position }, scale: camera.snapshot().scale });
+            viewStore.recordCamera(space, camera.snapshot());
+          }
+        }
         const now = performance.now();
         const visualEntities = entitiesRef.current.map((entity) => ({
           ...entity,
@@ -119,7 +132,7 @@ export function MapView({
     }
     animationId = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(animationId);
-  }, [cells, layers, lodThresholds, selectionStore]);
+  }, [cells, layers, lodThresholds, selectionStore, viewStore]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -163,6 +176,12 @@ export function MapView({
     if (!drag || !camera) {
       return;
     }
+    // T19: pan manual cancela o Follow — master prompt §19 ("mover a câmera pode
+    // opcionalmente cancelar Follow"); sem isso o próximo frame do rAF puxaria a câmera de
+    // volta pra entidade seguida, e o arrasto do usuário nunca teria efeito visível.
+    if (viewStore.followedEntity()) {
+      viewStore.stopFollow();
+    }
     const dx = e.clientX - drag.x;
     const dy = e.clientY - drag.y;
     camera.panBy({ x: dx, y: dy });
@@ -174,12 +193,22 @@ export function MapView({
     dragRef.current = null;
   }
 
+  // Feedback do usuário (2026-08-07): clique em NPC só "pegava" bem quando zoomed-out. Causa
+  // real: `hitRadiusPx` era uma constante fixa em pixels de tela, mas o token visível cresce
+  // com o zoom (`renderer.ts` desenha `r = max(4, scale*0.35)`) — a partir de scale~17 o raio
+  // visível já passa o raio de acerto fixo (10px), então clicar na borda do círculo visto na
+  // tela erra. O raio de acerto agora acompanha o mesmo cálculo do raio visível (com folga),
+  // nunca menor que `hitRadiusPx`.
+  function effectiveHitRadiusPx(camera: Camera): number {
+    return Math.max(hitRadiusPx, camera.snapshot().scale * 0.4);
+  }
+
   function handleClick(e: React.MouseEvent<HTMLCanvasElement>) {
     const camera = cameraRef.current;
     if (!camera) {
       return;
     }
-    const hit = hitTest(screenPoint(e), camera, entitiesRef.current, hitRadiusPx);
+    const hit = hitTest(screenPoint(e), camera, entitiesRef.current, effectiveHitRadiusPx(camera));
     if (hit) {
       selectionStore.select(hit);
     } else {
@@ -194,7 +223,7 @@ export function MapView({
     if (!camera) {
       return;
     }
-    const hit = hitTest(screenPoint(e), camera, entitiesRef.current, hitRadiusPx);
+    const hit = hitTest(screenPoint(e), camera, entitiesRef.current, effectiveHitRadiusPx(camera));
     const target = hit && resolveNavigationTarget?.(hit);
     if (target) {
       viewStore.enter(target);

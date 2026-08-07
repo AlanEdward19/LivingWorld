@@ -40,7 +40,9 @@ export function EntityInspector({ selectionStore, simulationStore, viewStore }: 
         {selection.kind === "city" && (
           <CityInspector cityId={selection.id} simulationStore={simulationStore} viewStore={viewStore} />
         )}
-        {selection.kind === "npc" && <NpcInspector entityRef={selection} simulationStore={simulationStore} />}
+        {selection.kind === "npc" && (
+          <NpcInspector entityRef={selection} simulationStore={simulationStore} viewStore={viewStore} />
+        )}
         {selection.kind === "building" && (
           <BuildingInspector entityRef={selection} simulationStore={simulationStore} viewStore={viewStore} />
         )}

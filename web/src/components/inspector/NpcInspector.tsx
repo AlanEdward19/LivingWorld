@@ -5,13 +5,16 @@
 // automaticamente ao selecionar. Aqui esse detalhe ainda não existe (nenhuma fonte mock o
 // modela) — "Ver detalhes" existe e é testado, mas revela um aviso honesto, não dado inventado.
 import { useState } from "react";
+import { FollowButton } from "./FollowButton";
 import type { SimulationStore } from "../../state/simulationStore";
+import type { ViewStore } from "../../state/viewStore";
 import type { EntityRef } from "../../map-engine/types";
 import type { CityResidentMarker, GlobalNpcMarker } from "../../types";
 
 export interface NpcInspectorProps {
   entityRef: EntityRef;
   simulationStore: SimulationStore;
+  viewStore: ViewStore;
 }
 
 interface NpcPayloadShape {
@@ -24,7 +27,7 @@ function findMarker(payload: unknown, npcId: number): CityResidentMarker | Globa
   return (candidate?.residents ?? candidate?.externalNpcs)?.find((m) => m.id.value === npcId);
 }
 
-export function NpcInspector({ entityRef, simulationStore }: NpcInspectorProps) {
+export function NpcInspector({ entityRef, simulationStore, viewStore }: NpcInspectorProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const npcId = Number(entityRef.id);
   const payload = simulationStore.currentPayload<unknown>(entityRef.space);
@@ -49,9 +52,12 @@ export function NpcInspector({ entityRef, simulationStore }: NpcInspectorProps) 
         )}
       </dl>
 
-      <button type="button" onClick={() => setDetailsOpen((v) => !v)}>
-        {detailsOpen ? "Ocultar detalhes" : "Ver detalhes"}
-      </button>
+      <div className="entity-inspector-actions">
+        <FollowButton entityRef={entityRef} viewStore={viewStore} />
+        <button type="button" onClick={() => setDetailsOpen((v) => !v)}>
+          {detailsOpen ? "Ocultar detalhes" : "Ver detalhes"}
+        </button>
+      </div>
 
       {detailsOpen && (
         <p role="note">

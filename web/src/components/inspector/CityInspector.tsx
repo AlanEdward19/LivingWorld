@@ -9,6 +9,7 @@
 // própria cidade como entidade dentro de si mesma), só `population` está disponível, porque é
 // o único campo que `GlobalCityMarker` carrega. É um gap real de arquitetura (contexto.md),
 // não uma escolha de UI: mostrar os outros 5 inventados seria pior que omiti-los.
+import { FollowButton } from "./FollowButton";
 import type { SimulationStore } from "../../state/simulationStore";
 import type { ViewStore } from "../../state/viewStore";
 import type { FutureCitySnapshot, FutureGlobalSnapshot } from "../../data/contracts";
@@ -55,9 +56,12 @@ export function CityInspector({ cityId, simulationStore, viewStore }: CityInspec
         )}
       </dl>
 
-      <button type="button" onClick={() => viewStore.enter({ kind: "City", cityId })}>
-        Abrir
-      </button>
+      <div className="entity-inspector-actions">
+        <FollowButton entityRef={{ kind: "city", id: cityId, space: WORLD }} viewStore={viewStore} />
+        <button type="button" onClick={() => viewStore.enter({ kind: "City", cityId })}>
+          Abrir
+        </button>
+      </div>
     </div>
   );
 }

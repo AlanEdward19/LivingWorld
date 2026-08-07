@@ -89,10 +89,12 @@ export class ViewStore {
 
   startFollow(entity: EntityRef): void {
     this.followed = entity;
+    this.notify();
   }
 
   stopFollow(): void {
     this.followed = null;
+    this.notify();
   }
 
   followedEntity(): EntityRef | null {
@@ -100,9 +102,9 @@ export class ViewStore {
   }
 
   /**
-   * Registro de listener (T14) — quem monta React (`useSyncExternalStore`) reage só quando
-   * `currentSpace()` de fato muda de referência; `recordCamera`/`setLayerActive`/follow não
-   * chamam `notify()`, então não geram re-render nenhum (nada os lê via este canal hoje).
+   * Registro de listener (T14) — quem monta React (`useSyncExternalStore`) reage só quando o
+   * valor lido de fato muda de referência: `currentSpace()`/`followedEntity()` chamam
+   * `notify()`, `recordCamera`/`setLayerActive` não (nada os lê via este canal hoje).
    */
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
