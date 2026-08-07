@@ -69,6 +69,22 @@ export interface FutureGlobalSnapshot extends Omit<GlobalSnapshot, "cities"> {
   cities: FutureGlobalCityMarker[];
 }
 
+/**
+ * Campo que T30 adiciona a `CitySnapshot` — os 6 indicadores que `CityPopulationQuery` já
+ * calcula no motor (`src/LivingWorld.Simulation/Cities/CityPopulationQuery.cs:16-53`), hoje
+ * inacessíveis ao cliente (só `aggregatePool.wealthSum/healthSum` chegam, sem população real
+ * nem desigualdade/economia/habitação — spec.md story "Inspector de NPC e Cidade" AC1).
+ */
+export interface CityIndicators {
+  population: number;
+  wealth: number;
+  health: number;
+  inequality: number;
+  economy: number;
+  housing: number;
+}
+
 export interface FutureCitySnapshot extends Omit<CitySnapshot, "buildings"> {
   buildings: FutureCityBuildingMarker[];
+  indicators: CityIndicators;
 }

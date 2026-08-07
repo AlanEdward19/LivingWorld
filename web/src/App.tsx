@@ -7,6 +7,7 @@ import { StartMenu } from "./components/StartMenu";
 import { SettingsView } from "./components/SettingsView";
 import { Breadcrumb } from "./components/Breadcrumb";
 import { SpaceTransition } from "./components/SpaceTransition";
+import { EntityInspector } from "./components/inspector/EntityInspector";
 import { toScopeKey } from "./map-engine/space";
 import type { SpaceId } from "./map-engine/types";
 import type { SimulationStore } from "./state/simulationStore";
@@ -129,6 +130,11 @@ export function App({ simulationStore, viewStore, selectionStore }: AppProps) {
                 />
               )}
             </SpaceTransition>
+            <EntityInspector
+              selectionStore={selectionStore}
+              simulationStore={simulationStore}
+              viewStore={viewStore}
+            />
           </>
         )}
       </main>

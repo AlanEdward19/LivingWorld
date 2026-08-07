@@ -15,6 +15,7 @@ import {
 } from "../../types";
 import type {
   CityFootprintFields,
+  CityIndicators,
   FutureCityBuildingMarker,
   FutureCitySnapshot,
   FutureGlobalCityMarker,
@@ -122,6 +123,7 @@ function citySnapshot(
   boundsY: number,
   residentCount: number,
   buildingCount: number,
+  indicators: CityIndicators,
 ): FutureCitySnapshot {
   return {
     id: { value: id },
@@ -130,11 +132,26 @@ function citySnapshot(
     residents: cityResidentMarkers(residentCount, boundsX + 1, boundsY + 1),
     buildings: cityBuildingMarkers(boundsX, boundsY, buildingCount),
     layers: buildLayers(),
+    indicators,
   };
 }
 
-const cityAPayload = citySnapshot("city-a", CITY_A_BOUNDS.bounds.x, CITY_A_BOUNDS.bounds.y, 10, 4);
-const cityBPayload = citySnapshot("city-b", CITY_B_BOUNDS.bounds.x, CITY_B_BOUNDS.bounds.y, 6, 2);
+const cityAPayload = citySnapshot("city-a", CITY_A_BOUNDS.bounds.x, CITY_A_BOUNDS.bounds.y, 10, 4, {
+  population: 340,
+  wealth: 62,
+  health: 71,
+  inequality: 0.34,
+  economy: 58,
+  housing: 44,
+});
+const cityBPayload = citySnapshot("city-b", CITY_B_BOUNDS.bounds.x, CITY_B_BOUNDS.bounds.y, 6, 2, {
+  population: 120,
+  wealth: 40,
+  health: 66,
+  inequality: 0.28,
+  economy: 35,
+  housing: 60,
+});
 
 export const cityASnapshotEnvelope: VisualSnapshotEnvelope<FutureCitySnapshot> = {
   scope: { kind: VisualScopeKind.City, refId: "city-a", scopeKey: "city:city-a" },
