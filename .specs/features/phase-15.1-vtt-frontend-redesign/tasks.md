@@ -895,7 +895,7 @@ decide qual dos dois passos renderizar.
 
 ---
 
-### T24: Casca do editor visual — toolbar + mapa + inspector
+### T24: Casca do editor visual — toolbar + mapa + inspector — ✅ Done
 
 **What**: layout do editor (toolbar no topo, `MapView` ocupando o centro, `EntityInspector` à
 direita), com o inspector mostrando config geral do mundo quando nada está selecionado.
@@ -907,11 +907,21 @@ direita), com o inspector mostrando config geral do mundo quando nada está sele
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] O mapa ocupa a maior parte da tela; toolbar e inspector são HUD, não empurram o layout
-- [ ] Sem seleção, o inspector mostra a configuração geral do mundo; com terreno/cidade/prédio selecionado, mostra as propriedades daquela entidade
-- [ ] O editor e o Observer usam a **mesma** instância de `MapView` (nenhuma segunda implementação de mapa — o `MapGridEditor.tsx` paralelo é removido)
-- [ ] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit`
-- [ ] Contagem de testes: ≥ 5 novos passando
+- [x] O mapa ocupa a maior parte da tela; toolbar e inspector são HUD, não empurram o layout
+- [x] Sem seleção, o inspector mostra a configuração geral do mundo; com terreno/cidade/prédio selecionado, mostra as propriedades daquela entidade — assentamento (`kind: "city"`) selecionável hoje via o hit-test padrão do `MapView`; terreno/prédio ficam pra T25 (nenhuma ferramenta de clique ainda)
+- [x] O editor e o Observer usam a **mesma** instância de `MapView` (nenhuma segunda implementação de mapa)
+- [x] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit` — 195 passed, tsc limpo
+- [x] Contagem de testes: `tests/creator/WorldEditor.test.tsx` (5 novos)
+
+**Desvio explícito**: `MapGridEditor.tsx` (`GridCanvas`-based) **não** foi removido aqui —
+`CreateWorldForm.tsx` (ainda o caminho vivo em `App.tsx`, o `WorldEditor` não está montado nele
+ainda) continua dependendo dele pra pintura de terreno. A remoção é o próprio Where-clause da
+T25 (`MapGridEditor.tsx (removido)`); marcá-la aqui como feita seria falso — o consumidor real
+só migra quando a T25 substitui a pintura por ferramenta+clique no `MapView`. `WorldEditor` hoje
+é construído e testado isoladamente (sem stores do `App`: monta `SimulationStore`/`ViewStore`/
+`SelectionStore` próprios com fontes nulas, já que nenhum mundo existe antes do submit) — o
+swap em `App.tsx` (`PresetStart` → `WorldEditor` no lugar de `CreateWorldForm`) fica pra T26,
+que já lista `CreateWorldForm.tsx (desmontado)` no seu próprio Where-clause.
 
 **Tests**: unit + integration · **Gate**: Quick-web
 **Commit**: `feat(web): visual world editor shell reusing the map engine`
