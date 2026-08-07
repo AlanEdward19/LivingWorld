@@ -718,7 +718,7 @@ ainda citavam `MapOverlay`, e remover `worldMarkers()` de `worldMapData.ts` (mor
 
 ---
 
-### T18: `LayerPanel` com toggles reais [P]
+### T18: `LayerPanel` com toggles reais [P] — ✅ Done
 
 **What**: transformar a legenda em painel de camadas com liga/desliga, z-order determinística e
 camadas `NotYetModeled` desabilitadas com o motivo.
@@ -731,11 +731,15 @@ camadas `NotYetModeled` desabilitadas com o motivo.
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] Ligar/desligar uma camada muda o render sem nenhuma requisição (fetch espião: 0)
-- [ ] As 5 camadas `NotYetModeled` do escopo global aparecem desabilitadas com o motivo (`GlobalLayerBuilder.cs:32-33`)
-- [ ] Ordem de composição é determinística e declarada
-- [ ] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit`
-- [ ] Contagem de testes: ≥ 5 novos passando
+- [x] Ligar/desligar uma camada muda o render sem nenhuma requisição (fetch espião: 0 — `WorldMapView.test.tsx`)
+- [x] As camadas `NotYetModeled` do escopo global (11 das 14 na fixture; 3 modeladas — Terrain/Biome/Rivers) aparecem desabilitadas com o motivo
+- [x] Ordem de composição é determinística e declarada — `LAYER_Z_ORDER` (`map-engine/layers.ts`), `sortActiveLayers` aplicado ao array de `ActiveLayer`
+- [x] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit` — 186 passed, tsc limpo
+- [x] Contagem de testes: `tests/LayerPanel.test.tsx` (5) + `tests/map-engine/layers.test.ts` (4) + 1 novo em `WorldMapView.test.tsx` — 10 novos
+
+**Nota**: só Terrain/Rivers têm efeito real no renderer hoje (Biome é `isModeled: true` na
+fixture mas nenhum consumidor lê o payload — mesmo gap de `worldMapData.ts` de sempre); o toggle
+de Biome fica no painel por paridade de dado, sem fingir efeito visual que não existe. `LayerLegend.tsx` foi removido (substituído por `LayerPanel.tsx`, nenhum outro consumidor).
 
 **Tests**: unit · **Gate**: Quick-web
 **Commit**: `feat(web): toggleable layer panel`

@@ -579,13 +579,24 @@ form[data-testid="create-world-form"] [role="alert"] {
   color: var(--text-muted);
 }
 
-.layer-legend {
+.layer-panel {
   margin-top: 0.4rem;
 }
 
-.layer-legend button {
+.layer-panel button {
   padding: 0.25rem 0.6rem;
   font-size: 0.8rem;
+}
+
+.layer-panel label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+}
+
+.layer-panel li.layer-not-modeled label {
+  cursor: default;
 }
 
 /* Feedback do usuário (2026-08-07): "mapas terem dimensões Z, andares" — estado local do

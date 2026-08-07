@@ -5,11 +5,12 @@
 // `MapView` chama `ViewStore.enter`.
 import { useMemo, useState } from "react";
 import { MapView } from "./MapView";
-import { LayerLegend } from "./LayerLegend";
+import { LayerPanel } from "./LayerPanel";
 import { EntityLegend } from "./EntityLegend";
 import { FloorSelector } from "./FloorSelector";
 import { terrainColorLookup, riverOverlayPoints } from "../worldMapData";
 import { generateCityWallFootprint, MATERIAL_COLOR } from "../map-engine/buildingFootprint";
+import { sortActiveLayers } from "../map-engine/layers";
 import type { Viewport } from "../map-engine/Camera";
 import type { ActiveLayer } from "../map-engine/renderer";
 import type { LodThresholds } from "../map-engine/lod";
@@ -18,6 +19,7 @@ import type { SimulationStore } from "../state/simulationStore";
 import type { ViewStore } from "../state/viewStore";
 import type { SelectionStore } from "../state/selectionStore";
 import type { FutureGlobalSnapshot } from "../data/contracts";
+import type { VisualLayerName } from "../types";
 import { CATEGORY_COLOR } from "../map-engine/categoryColors";
 
 export interface WorldMapViewProps {
@@ -47,17 +49,47 @@ function worldFloorLabel(floor: number): string {
   return floor > 0 ? `${floor}º nível aéreo` : `${Math.abs(floor)}º nível subterrâneo`;
 }
 
+// T18: só as camadas que o cliente sabe desenhar entram no toggle real — Terrain é a base
+// (`cells`), Rivers é overlay de pontos. As demais aparecem no painel só como NotYetModeled
+// (`LayerPanel`), mesmo com `isModeled` verdadeiro na fixture (ex.: Biome — modelado no motor,
+// mas sem consumidor no renderer ainda; toggle dela seria um checkbox que não muda nada).
+const DEFAULT_ACTIVE_LAYERS: VisualLayerName[] = ["Terrain", "Rivers"];
+
 export function WorldMapView({ snapshot, viewport, simulationStore, viewStore, selectionStore }: WorldMapViewProps) {
   const [floor, setFloor] = useState(0);
-  const cells = useMemo(
-    () => ({ width: snapshot.width, height: snapshot.height, colorAt: terrainColorLookup(snapshot) }),
-    [snapshot],
+  const [activeLayers, setActiveLayers] = useState<ReadonlySet<VisualLayerName>>(
+    () => new Set(DEFAULT_ACTIVE_LAYERS),
   );
 
-  const layers: ActiveLayer[] = useMemo(
-    () => [{ id: "Rivers", overlayPoints: riverOverlayPoints(snapshot) }],
-    [snapshot],
+  function toggleLayer(name: VisualLayerName): void {
+    setActiveLayers((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) {
+        next.delete(name);
+      } else {
+        next.add(name);
+      }
+      return next;
+    });
+  }
+
+  const terrainLookup = useMemo(() => terrainColorLookup(snapshot), [snapshot]);
+  const cells = useMemo(
+    () => ({
+      width: snapshot.width,
+      height: snapshot.height,
+      colorAt: activeLayers.has("Terrain") ? terrainLookup : () => undefined,
+    }),
+    [snapshot.width, snapshot.height, terrainLookup, activeLayers],
   );
+
+  const layers: ActiveLayer[] = useMemo(() => {
+    const active: ActiveLayer[] = [];
+    if (activeLayers.has("Rivers")) {
+      active.push({ id: "Rivers", overlayPoints: riverOverlayPoints(snapshot) });
+    }
+    return sortActiveLayers(active);
+  }, [snapshot, activeLayers]);
 
   // Feedback do usuário (2026-08-07): cidade não pode ser um círculo num ponto — ocupa a área
   // real do footprint (`bounds`) no grid, como o master prompt §6 sempre pediu. `position` é o
@@ -86,7 +118,7 @@ export function WorldMapView({ snapshot, viewport, simulationStore, viewStore, s
       <div className="map-hud map-hud-top-left">
         <h2>Mapa-múndi</h2>
         <FloorSelector floor={floor} label={worldFloorLabel(floor)} onChange={setFloor} />
-        <LayerLegend layers={snapshot.layers} />
+        <LayerPanel layers={snapshot.layers} active={activeLayers} onToggle={toggleLayer} />
         <EntityLegend />
       </div>
 

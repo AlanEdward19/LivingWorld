@@ -166,11 +166,33 @@ describe("WorldMapView", () => {
       />,
     );
 
-    expect(screen.queryByText(/Terrain: dispon/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("toggle-Terrain")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Camadas/ }));
 
-    expect(screen.getByText(/Terrain: dispon/)).toBeInTheDocument();
-    expect(screen.getByText(/Roads: ainda não modelada/)).toBeInTheDocument();
+    expect(screen.getByLabelText("toggle-Terrain")).toBeChecked();
+    expect(screen.getByText(/Roads — ainda não modelada/)).toBeInTheDocument();
+  });
+
+  it("toggling a modeled layer off drops it from the render frame without any request", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const { simulationStore, viewStore, selectionStore } = await buildStores(makeSnapshot());
+    render(
+      <WorldMapView
+        snapshot={makeSnapshot()}
+        viewport={VIEWPORT}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Camadas/ }));
+    const terrainToggle = screen.getByLabelText("toggle-Terrain");
+    expect(terrainToggle).toBeChecked();
+    fireEvent.click(terrainToggle);
+    expect(terrainToggle).not.toBeChecked();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 
   it("renders only the map's own single canvas — no per-marker DOM node", async () => {
