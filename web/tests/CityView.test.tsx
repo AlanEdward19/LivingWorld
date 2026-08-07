@@ -1,9 +1,16 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { CityView } from "../src/components/CityView";
+import { SimulationStore } from "../src/state/simulationStore";
+import { ViewStore } from "../src/state/viewStore";
+import { SelectionStore } from "../src/state/selectionStore";
+import { MockPortalSource } from "../src/data/mock/MockPortalSource";
+import { VisualScopeKind, ViewerMode } from "../src/types";
 import type { CitySnapshot } from "../src/types";
+import type { SnapshotSource, TickStreamSource } from "../src/data/sources";
 
-const LOCAL_SIZE = 21; // mesmo valor de CityView.tsx
+const VIEWPORT = { width: 200, height: 200 };
+const CITY_SCOPE_KEY = "city:city-1";
 
 function makeSnapshot(): CitySnapshot {
   return {
@@ -16,7 +23,7 @@ function makeSnapshot(): CitySnapshot {
   };
 }
 
-function clickCell(canvas: HTMLCanvasElement, x: number, y: number) {
+function stubRect(canvas: HTMLCanvasElement) {
   vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
     left: 0,
     top: 0,
@@ -28,9 +35,30 @@ function clickCell(canvas: HTMLCanvasElement, x: number, y: number) {
     y: 0,
     toJSON: () => "",
   });
-  const cellW = canvas.width / LOCAL_SIZE;
-  const cellH = canvas.height / LOCAL_SIZE;
-  fireEvent.click(canvas, { clientX: (x + 0.5) * cellW, clientY: (y + 0.5) * cellH });
+}
+
+function citySnapshotSource(snapshot: CitySnapshot): SnapshotSource {
+  return {
+    load: async () => ({
+      scope: { kind: VisualScopeKind.City, refId: "city-1", scopeKey: CITY_SCOPE_KEY },
+      mode: ViewerMode.Spectator,
+      cursor: { tick: 0, scopeKey: CITY_SCOPE_KEY, sequence: 0 },
+      activeLayers: [],
+      payload: snapshot,
+    }),
+  };
+}
+
+function neverStreamingTickSource(): TickStreamSource {
+  return { subscribe: () => () => {} };
+}
+
+async function buildStores(snapshot: CitySnapshot) {
+  const simulationStore = new SimulationStore(citySnapshotSource(snapshot), neverStreamingTickSource());
+  const viewStore = new ViewStore(new MockPortalSource([]));
+  const selectionStore = new SelectionStore();
+  await simulationStore.observeSpace({ kind: "City", cityId: "city-1" });
+  return { simulationStore, viewStore, selectionStore };
 }
 
 describe("CityView", () => {
@@ -38,32 +66,72 @@ describe("CityView", () => {
     HTMLCanvasElement.prototype.getContext = () => null;
   });
 
-  it("opens the side panel for a resident clicked at its relative grid position", () => {
-    render(<CityView snapshot={makeSnapshot()} onSelectBuilding={() => {}} onBack={() => {}} />);
+  it("selects a resident on click, at its real absolute position", async () => {
+    const { simulationStore, viewStore, selectionStore } = await buildStores(makeSnapshot());
+    render(
+      <CityView
+        snapshot={makeSnapshot()}
+        viewport={VIEWPORT}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+    const canvas = screen.getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
 
-    // resident at (1,1), city at (0,0), local grid centers on 10 -> local (11,11)
-    clickCell(screen.getByTestId("grid-canvas") as HTMLCanvasElement, 11, 11);
+    // câmera inicial: center = snapshot.location (0,0), scale 16; resident em (1,1) projeta em
+    // ((1-0)*16+100, (1-0)*16+100) = (116,116)
+    fireEvent.click(canvas, { clientX: 116, clientY: 116 });
 
-    expect(screen.getByText("NPC 3")).toBeInTheDocument();
+    expect(selectionStore.current()).toEqual({
+      kind: "npc",
+      id: "3",
+      space: { kind: "City", cityId: "city-1" },
+    });
   });
 
-  it("calls onSelectBuilding with the clicked building id (drill-down to interior)", () => {
-    const onSelectBuilding = vi.fn();
-    render(<CityView snapshot={makeSnapshot()} onSelectBuilding={onSelectBuilding} onBack={() => {}} />);
+  it("navigates into the building on double click (drill-down to interior)", async () => {
+    const { simulationStore, viewStore, selectionStore } = await buildStores(makeSnapshot());
+    const enterSpy = vi.spyOn(viewStore, "enter");
+    render(
+      <CityView
+        snapshot={makeSnapshot()}
+        viewport={VIEWPORT}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+    const canvas = screen.getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
 
-    // single building sits on the ring at angle 0 -> local (14,10)
-    clickCell(screen.getByTestId("grid-canvas") as HTMLCanvasElement, 14, 10);
-    fireEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    // único prédio, ângulo 0, raio 6, centro (0,0) -> local (6,0) -> tela (0*... deixa o hitTest
+    // achar: worldToScreen((6,0)) com center(0,0) scale16 = (6*16+100, 0*16+100) = (196,100)
+    fireEvent.doubleClick(canvas, { clientX: 196, clientY: 100 });
 
-    expect(onSelectBuilding).toHaveBeenCalledWith("8");
+    expect(enterSpy).toHaveBeenCalledWith({ kind: "Building", buildingId: "8", cityId: "city-1" });
   });
 
-  it("calls onBack when the back button is clicked", () => {
-    const onBack = vi.fn();
-    render(<CityView snapshot={makeSnapshot()} onSelectBuilding={() => {}} onBack={onBack} />);
+  it("marks the building as a derived (approximate) position, unlike a resident's real one", async () => {
+    const { simulationStore } = await buildStores(makeSnapshot());
+    const entities = simulationStore.entitiesOf({ kind: "City", cityId: "city-1" });
 
-    fireEvent.click(screen.getByText(/mapa-múndi/));
+    expect(entities.find((e) => e.ref.id === "3")?.sizeIsDerived).toBe(false);
+  });
 
-    expect(onBack).toHaveBeenCalled();
+  it("shows the aggregate pool indicators in the HUD", async () => {
+    const { simulationStore, viewStore, selectionStore } = await buildStores(makeSnapshot());
+    render(
+      <CityView
+        snapshot={makeSnapshot()}
+        viewport={VIEWPORT}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+
+    expect(screen.getByText(/500/)).toBeInTheDocument();
   });
 });

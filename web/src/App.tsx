@@ -1,55 +1,54 @@
-import { useEffect, useState } from "react";
-import { useRealtimeSnapshot } from "./hooks/useRealtimeSnapshot";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { WorldMapView } from "./components/WorldMapView";
 import { CityView } from "./components/CityView";
 import { InteriorView } from "./components/InteriorView";
-import { PlayerMoveControls } from "./components/PlayerMoveControls";
 import { CreateWorldForm } from "./components/CreateWorldForm";
 import { StartMenu } from "./components/StartMenu";
 import { SettingsView } from "./components/SettingsView";
-import { MapOverlay } from "./components/MapOverlay";
-import { ViewerMode, focusScopeKey } from "./types";
-import type { CitySnapshot, FocusScope, GlobalSnapshot, InteriorSnapshot } from "./types";
+import { Breadcrumb } from "./components/Breadcrumb";
+import { SpaceTransition } from "./components/SpaceTransition";
+import { toScopeKey } from "./map-engine/space";
+import type { SpaceId } from "./map-engine/types";
+import type { SimulationStore } from "./state/simulationStore";
+import type { ViewStore } from "./state/viewStore";
+import type { SelectionStore } from "./state/selectionStore";
+import type { CitySnapshot, GlobalSnapshot, InteriorSnapshot } from "./types";
 
 type Screen = "start" | "world" | "settings";
 
-/// Fase 15, T8 (VTT-01..16) + UX pass: menu inicial (estilo start screen de jogo) na frente do
-/// fluxo espectador/personagem original — "Continuar" e "Criar mundo" só trocam pra tela de
-/// mundo (que já existia), "Configurações" é uma tela própria. Nenhuma lógica de FOW/validação
-/// muda aqui, só a navegação de tela.
-export function App() {
+const WORLD: SpaceId = { kind: "World" };
+
+export interface AppProps {
+  simulationStore: SimulationStore;
+  viewStore: ViewStore;
+  selectionStore: SelectionStore;
+}
+
+/// Fase 15.1, T14: `App` deixa de gerenciar `focus`/conexão realtime própria — o espaço
+/// observado vem do `ViewStore` (`useSyncExternalStore`, só re-renderiza quando o espaço de
+/// fato muda de referência) e os dados do `SimulationStore`, ambos injetados pelo composition
+/// root (`main.tsx`). Nenhum store/componente daqui em diante importa `Mock*Source`.
+export function App({ simulationStore, viewStore, selectionStore }: AppProps) {
   const [screen, setScreen] = useState<Screen>("start");
-  const [focus, setFocus] = useState<FocusScope>({ kind: "World" });
-  const [mode, setMode] = useState<ViewerMode>(ViewerMode.Spectator);
-  const [playerNpcId, setPlayerNpcId] = useState<number | undefined>(undefined);
   const [creatingWorld, setCreatingWorld] = useState(false);
-  const [showMapOverlay, setShowMapOverlay] = useState(false);
 
-  // T15 (fase 15, UX pass 2): M abre o mapa view-only enquanto o jogador está dentro de uma
-  // cidade/interior — "igual em um RPG", sem mexer no escopo/estado atual.
-  const canOpenMapOverlay =
-    screen === "world" && mode === ViewerMode.Player && focus.kind !== "World" && !creatingWorld;
+  const space = useSyncExternalStore(
+    (onStoreChange) => viewStore.subscribe(onStoreChange),
+    () => viewStore.currentSpace(),
+  );
+  const payload = useSyncExternalStore(
+    (onStoreChange) => simulationStore.subscribe(onStoreChange),
+    () => simulationStore.currentPayload<GlobalSnapshot | CitySnapshot | InteriorSnapshot>(space),
+  );
+
   useEffect(() => {
-    if (!canOpenMapOverlay) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key.toLowerCase() === "m") setShowMapOverlay((v) => !v);
+    if (screen !== "world" || creatingWorld) {
+      return;
     }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [canOpenMapOverlay]);
+    void simulationStore.observeSpace(space);
+  }, [screen, creatingWorld, space, simulationStore]);
 
-  // Escopo World nunca aceita modo Player (RealtimeGateway.Authorize, VTT-01) — trocar pra
-  // "Personagem" enquanto ainda no mapa-múndi não deve quebrar a conexão, só não aplica FOW até
-  // o jogador entrar numa cidade.
-  const effectiveMode = focus.kind === "World" ? ViewerMode.Spectator : mode;
-  const { envelope, connected, error } = useRealtimeSnapshot<
-    GlobalSnapshot | CitySnapshot | InteriorSnapshot
-  >(focus, effectiveMode, effectiveMode === ViewerMode.Player ? playerNpcId : undefined, screen === "world");
-
-  // Guarda contra a corrida entre trocar de escopo (setFocus) e o novo WebSocket ainda não ter
-  // respondido: sem isso, o payload antigo (de outro escopo) rende no componente errado por um
-  // ciclo — CityView recebendo um GlobalSnapshot, por exemplo.
-  const payload = envelope?.scope?.scopeKey === focusScopeKey(focus) ? envelope.payload : null;
+  const viewport = { width: window.innerWidth, height: window.innerHeight - 40 };
 
   if (screen === "start") {
     return (
@@ -82,32 +81,9 @@ export function App() {
         <button type="button" onClick={() => setScreen("start")}>
           ☰ menu
         </button>
-        <label>
-          Modo:{" "}
-          <select value={mode} onChange={(e) => setMode(Number(e.target.value) as ViewerMode)}>
-            <option value={ViewerMode.Spectator}>Espectador</option>
-            <option value={ViewerMode.Player}>Personagem</option>
-          </select>
-        </label>
-        {mode === ViewerMode.Player && (
-          <label>
-            {" "}
-            NPC:{" "}
-            <input
-              type="number"
-              aria-label="player-npc-id"
-              value={playerNpcId ?? ""}
-              onChange={(e) =>
-                setPlayerNpcId(e.target.value === "" ? undefined : Number(e.target.value))
-              }
-            />
-          </label>
-        )}{" "}
         <button type="button" onClick={() => setCreatingWorld((v) => !v)}>
           {creatingWorld ? "Cancelar" : "Criar mundo"}
         </button>
-        {!connected && <span> reconectando…</span>}
-        {error && <span role="alert"> {error}</span>}
       </header>
 
       <main className={creatingWorld ? "" : "fullbleed"}>
@@ -115,42 +91,47 @@ export function App() {
           <CreateWorldForm
             onCreated={() => {
               setCreatingWorld(false);
-              setFocus({ kind: "World" });
+              viewStore.goToAncestor(WORLD);
             }}
           />
         )}
 
-        {!creatingWorld && focus.kind === "World" && payload && (
-          <WorldMapView
-            snapshot={payload as GlobalSnapshot}
-            onSelectCity={(cityId) => setFocus({ kind: "City", cityId })}
-          />
-        )}
-
-        {!creatingWorld && focus.kind === "City" && payload && (
+        {!creatingWorld && (
           <>
-            <CityView
-              snapshot={payload as CitySnapshot}
-              onSelectBuilding={(buildingId) =>
-                setFocus({ kind: "Interior", buildingId, cityId: focus.cityId })
-              }
-              onBack={() => setFocus({ kind: "World" })}
-            />
-            {mode === ViewerMode.Player && playerNpcId !== undefined && (
-              <PlayerMoveControls snapshot={payload as CitySnapshot} playerNpcId={playerNpcId} />
-            )}
+            <Breadcrumb space={space} onNavigate={(target) => viewStore.goToAncestor(target)} />
+            <SpaceTransition spaceKey={toScopeKey(space)}>
+              {!payload && <p className="map-hud map-hud-top-left">Carregando…</p>}
+
+              {payload && space.kind === "World" && (
+                <WorldMapView
+                  snapshot={payload as GlobalSnapshot}
+                  viewport={viewport}
+                  simulationStore={simulationStore}
+                  viewStore={viewStore}
+                  selectionStore={selectionStore}
+                />
+              )}
+
+              {payload && space.kind === "City" && (
+                <CityView
+                  snapshot={payload as CitySnapshot}
+                  viewport={viewport}
+                  simulationStore={simulationStore}
+                  viewStore={viewStore}
+                  selectionStore={selectionStore}
+                />
+              )}
+
+              {payload && space.kind === "Building" && (
+                <InteriorView
+                  snapshot={payload as InteriorSnapshot}
+                  onBack={() => viewStore.goToAncestor({ kind: "City", cityId: space.cityId })}
+                />
+              )}
+            </SpaceTransition>
           </>
         )}
-
-        {!creatingWorld && focus.kind === "Interior" && payload && (
-          <InteriorView
-            snapshot={payload as InteriorSnapshot}
-            onBack={() => setFocus({ kind: "City", cityId: focus.cityId })}
-          />
-        )}
       </main>
-
-      {showMapOverlay && <MapOverlay onClose={() => setShowMapOverlay(false)} />}
     </div>
   );
 }

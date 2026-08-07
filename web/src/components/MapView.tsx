@@ -15,7 +15,7 @@ import { InterpolationBuffer } from "../map-engine/interpolation";
 import { hitTest } from "../map-engine/hitTest";
 import { draw, type ActiveLayer, type CellSource } from "../map-engine/renderer";
 import type { LodThresholds } from "../map-engine/lod";
-import type { AuthoritativeEntity, EntityRef, SpaceId } from "../map-engine/types";
+import type { AuthoritativeEntity, CameraState, EntityRef, SpaceId } from "../map-engine/types";
 import type { SimulationStore } from "../state/simulationStore";
 import type { ViewStore } from "../state/viewStore";
 import type { SelectionStore } from "../state/selectionStore";
@@ -32,9 +32,25 @@ export interface MapViewProps {
   /** Resolve o espaço de destino de um double-click numa entidade, ou `null` se não navegável. */
   resolveNavigationTarget?: (ref: EntityRef) => SpaceId | null;
   hitRadiusPx?: number;
+  /**
+   * Entidades que não vêm do `SimulationStore` (T14, gap real encontrado ao ligar cidades e
+   * prédios ao mesmo pipeline de render/hit-test/seleção): cidades/prédios não têm delta de
+   * tick — `SimulationStore.entitiesOf` só extrai NPC. A view (WorldMapView/CityView) computa
+   * a posição delas (real ou aproximada) e entra aqui; MapView as trata como qualquer outra
+   * entidade pro resto do pipeline (LOD, culling, hit-test, seleção, navegação).
+   */
+  staticEntities?: AuthoritativeEntity[];
+  /**
+   * Câmera de fit inicial para um espaço nunca visitado (T14, gap real: `Camera.initial`
+   * assume grid começando em (0,0), o que serve WorldSpace mas não CitySpace — cidade usa
+   * coordenadas absolutas de mundo centradas em `snapshot.location`, não em `cells.width/2`).
+   * Se omitido, cai no `Camera.initial(cells.width, cells.height, viewport)` de sempre.
+   */
+  initialCamera?: CameraState;
 }
 
 const DEFAULT_HIT_RADIUS_PX = 10;
+const EMPTY_STATIC_ENTITIES: AuthoritativeEntity[] = [];
 
 export function MapView({
   space,
@@ -47,6 +63,8 @@ export function MapView({
   selectionStore,
   resolveNavigationTarget,
   hitRadiusPx = DEFAULT_HIT_RADIUS_PX,
+  staticEntities = EMPTY_STATIC_ENTITIES,
+  initialCamera,
 }: MapViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cameraRef = useRef<Camera | null>(null);
@@ -56,16 +74,16 @@ export function MapView({
 
   // Câmera do espaço: restaura a guardada no ViewStore, ou o fit inicial se nunca visitado.
   useEffect(() => {
-    const fallback = Camera.initial(cells.width, cells.height, viewport);
+    const fallback = initialCamera ?? Camera.initial(cells.width, cells.height, viewport);
     const initialState = viewStore.cameraFor(space, fallback);
     cameraRef.current = new Camera(initialState, viewport);
-  }, [space, viewport.width, viewport.height, cells.width, cells.height, viewStore]);
+  }, [space, viewport.width, viewport.height, cells.width, cells.height, viewStore, initialCamera]);
 
   // Estado autoritativo: lê `entitiesOf` no mount e a cada notificação do SimulationStore —
   // nunca via `useState`, então uma notificação não re-renderiza este componente.
   useEffect(() => {
     function refreshEntities() {
-      const latest = simulationStore.entitiesOf(space);
+      const latest = [...staticEntities, ...simulationStore.entitiesOf(space)];
       const now = performance.now();
       entitiesRef.current = latest;
       for (const entity of latest) {
@@ -75,7 +93,7 @@ export function MapView({
     }
     refreshEntities();
     return simulationStore.subscribe(refreshEntities);
-  }, [space, simulationStore, selectionStore]);
+  }, [space, simulationStore, selectionStore, staticEntities]);
 
   // Loop de desenho — lê os refs acima a cada frame, nunca espera por um re-render do React.
   useEffect(() => {
@@ -113,9 +131,16 @@ export function MapView({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectionStore]);
 
+  // Escala clientX/Y para pixels de canvas: o box CSS do canvas pode divergir dos atributos
+  // width/height (scrollbar, layout do container) — mesmo ajuste que GridCanvas.tsx:138-139 já
+  // fazia, sem ele o hit-test desalinha em qualquer tela onde os dois não coincidam 1:1.
   function screenPoint(e: { clientX: number; clientY: number }): { x: number; y: number } {
-    const rect = canvasRef.current!.getBoundingClientRect();
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * canvas.width,
+      y: ((e.clientY - rect.top) / rect.height) * canvas.height,
+    };
   }
 
   function handleWheel(e: React.WheelEvent<HTMLCanvasElement>) {

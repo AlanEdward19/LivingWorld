@@ -1,26 +1,16 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { App } from "../src/App";
-import type { GlobalSnapshot, VisualSnapshotEnvelope } from "../src/types";
+import { SimulationStore } from "../src/state/simulationStore";
+import { ViewStore } from "../src/state/viewStore";
+import { SelectionStore } from "../src/state/selectionStore";
+import { MockPortalSource } from "../src/data/mock/MockPortalSource";
 import { VisualScopeKind, ViewerMode } from "../src/types";
+import type { GlobalSnapshot, CitySnapshot } from "../src/types";
+import type { SnapshotSource, TickStreamSource } from "../src/data/sources";
+import type { SpaceId } from "../src/map-engine/types";
 
-class MockWebSocket {
-  static instances: MockWebSocket[] = [];
-  onopen: (() => void) | null = null;
-  onmessage: ((event: { data: string }) => void) | null = null;
-  onerror: (() => void) | null = null;
-  onclose: (() => void) | null = null;
-  url: string;
-
-  constructor(url: string) {
-    this.url = url;
-    MockWebSocket.instances.push(this);
-  }
-
-  close() {}
-}
-
-function worldEnvelope(): VisualSnapshotEnvelope<GlobalSnapshot> {
+function worldEnvelope() {
   return {
     scope: { kind: VisualScopeKind.World, refId: "", scopeKey: "world" },
     mode: ViewerMode.Spectator,
@@ -29,7 +19,7 @@ function worldEnvelope(): VisualSnapshotEnvelope<GlobalSnapshot> {
     payload: {
       width: 10,
       height: 10,
-      cities: [{ id: { value: "city-1" }, location: { x: 0, y: 0 }, population: 10 }],
+      cities: [{ id: { value: "city-1" }, location: { x: 3, y: 4 }, population: 10 }],
       externalNpcs: [],
       activeEvents: [],
       layers: {} as GlobalSnapshot["layers"],
@@ -37,7 +27,7 @@ function worldEnvelope(): VisualSnapshotEnvelope<GlobalSnapshot> {
   };
 }
 
-function cityEnvelope(): VisualSnapshotEnvelope<Record<string, unknown>> {
+function cityEnvelope() {
   return {
     scope: { kind: VisualScopeKind.City, refId: "city-1", scopeKey: "city:city-1" },
     mode: ViewerMode.Spectator,
@@ -49,58 +39,86 @@ function cityEnvelope(): VisualSnapshotEnvelope<Record<string, unknown>> {
       aggregatePool: { count: 0, wealthSum: 0, healthSum: 0 },
       residents: [],
       buildings: [],
-      layers: {},
+      layers: {} as CitySnapshot["layers"],
     },
   };
 }
 
+function multiScopeSnapshotSource(): SnapshotSource {
+  return {
+    load: async (space: SpaceId) => (space.kind === "World" ? worldEnvelope() : cityEnvelope()),
+  };
+}
+
+function neverStreamingTickSource(): TickStreamSource {
+  return { subscribe: () => () => {} };
+}
+
+function stubRect(canvas: HTMLCanvasElement) {
+  vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+    left: 0,
+    top: 0,
+    width: canvas.width,
+    height: canvas.height,
+    right: canvas.width,
+    bottom: canvas.height,
+    x: 0,
+    y: 0,
+    toJSON: () => "",
+  });
+}
+
+function buildStores() {
+  const simulationStore = new SimulationStore(multiScopeSnapshotSource(), neverStreamingTickSource());
+  const viewStore = new ViewStore(new MockPortalSource([]));
+  const selectionStore = new SelectionStore();
+  return { simulationStore, viewStore, selectionStore };
+}
+
 describe("App", () => {
   beforeEach(() => {
-    MockWebSocket.instances = [];
-    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+    HTMLCanvasElement.prototype.getContext = () => null;
   });
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it("renders the world map after the first realtime frame, then drills into a city on click", async () => {
-    render(<App />);
+  it("renders the world map after the mock snapshot resolves, then drills into a city on double click", async () => {
+    const { simulationStore, viewStore, selectionStore } = buildStores();
+    render(<App simulationStore={simulationStore} viewStore={viewStore} selectionStore={selectionStore} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
-    const socket = MockWebSocket.instances[0];
-    act(() => socket.onmessage?.({ data: JSON.stringify(worldEnvelope()) }));
-
     await screen.findByTestId("world-map-view");
+    const canvas = screen.getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
 
-    const canvas = screen.getByTestId("grid-canvas") as HTMLCanvasElement;
-    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
-      left: 0,
-      top: 0,
-      width: canvas.width,
-      height: canvas.height,
-      right: canvas.width,
-      bottom: canvas.height,
-      x: 0,
-      y: 0,
-      toJSON: () => "",
-    });
-    // city is at grid (0,0); world snapshot is 10x10 -> click the center of that cell using the
-    // canvas's actual pixel size (zoom is fit-to-screen now, not a fixed constant).
-    fireEvent.click(canvas, { clientX: 0.5 * (canvas.width / 10), clientY: 0.5 * (canvas.height / 10) });
-    expect(screen.getByText(/População: 10/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Entrar" }));
-
-    await waitFor(() => expect(MockWebSocket.instances.length).toBe(2));
-    const citySocket = MockWebSocket.instances[1];
-    act(() => citySocket.onmessage?.({ data: JSON.stringify(cityEnvelope()) }));
+    // fit-to-screen: mundo 10x10, viewport = innerWidth x (innerHeight-40) do jsdom (1024x728),
+    // scale = min(1024/10,728/10) piso = 72; centro do grid (5,5); cidade em (3,4) ->
+    // ((3-5)*72 + 1024/2, (4-5)*72 + 728/2)
+    const scale = Math.floor(Math.min(1024 / 10, 728 / 10));
+    const x = (3 - 5) * scale + 1024 / 2;
+    const y = (4 - 5) * scale + 728 / 2;
+    fireEvent.doubleClick(canvas, { clientX: x, clientY: y });
 
     await screen.findByTestId("city-view");
+    await waitFor(() => expect(viewStore.currentSpace()).toEqual({ kind: "City", cityId: "city-1" }));
+  });
+
+  it("shows a breadcrumb that navigates back to World from a City", async () => {
+    const { simulationStore, viewStore, selectionStore } = buildStores();
+    viewStore.enter({ kind: "City", cityId: "city-1" });
+    render(<App simulationStore={simulationStore} viewStore={viewStore} selectionStore={selectionStore} />);
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+    await screen.findByTestId("city-view");
+    expect(screen.getByRole("navigation", { name: "breadcrumb" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Mundo" }));
+
+    await screen.findByTestId("world-map-view");
   });
 
   it("starts on the start menu and navigates to settings and back", () => {
-    render(<App />);
+    const { simulationStore, viewStore, selectionStore } = buildStores();
+    render(<App simulationStore={simulationStore} viewStore={viewStore} selectionStore={selectionStore} />);
 
     expect(screen.getByTestId("start-menu")).toBeInTheDocument();
 

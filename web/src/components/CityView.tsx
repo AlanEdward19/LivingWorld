@@ -1,67 +1,71 @@
-import { useMemo, useState } from "react";
-import { GridCanvas, type GridMarker } from "./GridCanvas";
-import { SidePanel } from "./SidePanel";
+// Fase 15.1, T14: cidade como configuração de `MapView` — mesmo componente de mapa do
+// mapa-múndi, tools/fonte de entidades diferentes. Moradores vêm dinamicamente de
+// `SimulationStore.entitiesOf` (o payload usa `residents`, já reconhecido por lá); prédios não
+// têm posição real (`Building` sem `CellCoord` — context.md gap 5), então continuam com o
+// layout de anel aproximado calculado aqui, marcado `sizeIsDerived: true` (traço tracejado no
+// renderer em vez do preenchimento sólido de um morador).
+import { useMemo } from "react";
+import { MapView } from "./MapView";
 import { colorById } from "../colorById";
-import { computeFitZoom } from "../gridFit";
+import type { Viewport } from "../map-engine/Camera";
+import type { LodThresholds } from "../map-engine/lod";
+import type { AuthoritativeEntity, EntityRef, SpaceId } from "../map-engine/types";
+import type { SimulationStore } from "../state/simulationStore";
+import type { ViewStore } from "../state/viewStore";
+import type { SelectionStore } from "../state/selectionStore";
 import type { CitySnapshot } from "../types";
 
 export interface CityViewProps {
   snapshot: CitySnapshot;
-  onSelectBuilding: (buildingId: string) => void;
-  onBack: () => void;
+  viewport: Viewport;
+  simulationStore: SimulationStore;
+  viewStore: ViewStore;
+  selectionStore: SelectionStore;
 }
 
-const LOCAL_SIZE = 21;
-const CENTER = Math.floor(LOCAL_SIZE / 2);
-const BUILDING_RING_RADIUS = 4;
+const BUILDING_RING_RADIUS = 6;
+const LOD_THRESHOLDS: LodThresholds = { aggregate: 4, token: 10, detail: 18 };
+/** Sem um "tamanho de grid local" mais (coordenadas de cidade agora são absolutas, iguais às
+ * do mundo) — 16px/tile é o equivalente ao zoom antigo de fit-to-screen num grid local de 21x21. */
+const DEFAULT_CITY_ZOOM_SCALE = 16;
 
-type Selection = { kind: "resident"; id: string } | { kind: "building"; id: string } | null;
+function resolveNavigationTarget(cityId: string): (ref: EntityRef) => SpaceId | null {
+  return (ref) => (ref.kind === "building" ? { kind: "Building", buildingId: ref.id, cityId } : null);
+}
 
-/// T12 (fase 15, UX pass 2): grid local da cidade — moradores plotados na posição real
-/// (CellCoord relativo ao centro da cidade), prédios num layout de anel calculado no cliente
-/// (domínio não guarda CellCoord de prédio hoje, ver design.md "Limitação conhecida"). O anel é
-/// só disposição visual, não posição real — por isso o marcador de prédio usa um traço tracejado
-/// em vez do preenchimento sólido dos moradores.
-export function CityView({ snapshot, onSelectBuilding, onBack }: CityViewProps) {
-  const [zoom, setZoom] = useState(() =>
-    computeFitZoom(LOCAL_SIZE, LOCAL_SIZE, window.innerWidth - 40, window.innerHeight - 60),
+export function CityView({ snapshot, viewport, simulationStore, viewStore, selectionStore }: CityViewProps) {
+  const space: SpaceId = useMemo(() => ({ kind: "City", cityId: snapshot.id.value }), [snapshot.id.value]);
+
+  // Sem terreno/grid local próprio de cidade ainda — cobre uma janela ampla em torno da cidade
+  // pra `visibleWorldRect` não colidir com um grid degenerado de 0x0.
+  const cells = useMemo(() => ({ width: 100000, height: 100000, colorAt: () => undefined }), []);
+
+  const initialCamera = useMemo(
+    () => ({ center: { ...snapshot.location }, scale: DEFAULT_CITY_ZOOM_SCALE }),
+    [snapshot.location],
   );
-  const [selection, setSelection] = useState<Selection>(null);
 
-  const residentMarkers: GridMarker[] = snapshot.residents.map((r) => ({
-    id: `resident:${r.id.value}`,
-    x: clampLocal(r.location.x - snapshot.location.x + CENTER),
-    y: clampLocal(r.location.y - snapshot.location.y + CENTER),
-    color: colorById(r.id.value),
-  }));
-
-  const buildingMarkers: GridMarker[] = useMemo(
+  const buildingEntities: AuthoritativeEntity[] = useMemo(
     () =>
-      snapshot.buildings.map((b, i) => {
+      snapshot.buildings.map((building, i) => {
         const angle = (i / Math.max(1, snapshot.buildings.length)) * Math.PI * 2;
         return {
-          id: `building:${b.id.value}`,
-          x: clampLocal(Math.round(CENTER + Math.cos(angle) * BUILDING_RING_RADIUS)),
-          y: clampLocal(Math.round(CENTER + Math.sin(angle) * BUILDING_RING_RADIUS)),
-          color: colorById(b.buildingTypeId, 40, 55),
+          ref: { kind: "building" as const, id: String(building.id.value), space },
+          position: {
+            x: snapshot.location.x + Math.cos(angle) * BUILDING_RING_RADIUS,
+            y: snapshot.location.y + Math.sin(angle) * BUILDING_RING_RADIUS,
+          },
+          size: { w: 1, h: 1 },
+          sizeIsDerived: true, // layout de anel client-side, não posição real (context.md gap 5)
+          color: colorById(building.buildingTypeId, 40, 55),
         };
       }),
-    [snapshot.buildings],
+    [snapshot.buildings, snapshot.location, space],
   );
-
-  const selectedResident = selection?.kind === "resident"
-    ? snapshot.residents.find((r) => String(r.id.value) === selection.id)
-    : undefined;
-  const selectedBuilding = selection?.kind === "building"
-    ? snapshot.buildings.find((b) => String(b.id.value) === selection.id)
-    : undefined;
 
   return (
     <div className="map-fullscreen" data-testid="city-view">
       <div className="map-hud map-hud-top-left">
-        <button type="button" onClick={onBack}>
-          ← mapa-múndi
-        </button>
         <h2>Cidade {snapshot.id.value.slice(0, 8)}</h2>
         <p>
           Pool agregado: {snapshot.aggregatePool.count} habitantes não materializados (riqueza{" "}
@@ -69,45 +73,19 @@ export function CityView({ snapshot, onSelectBuilding, onBack }: CityViewProps) 
         </p>
       </div>
 
-      <GridCanvas
-        width={LOCAL_SIZE}
-        height={LOCAL_SIZE}
-        markers={[...residentMarkers, ...buildingMarkers]}
-        zoom={zoom}
-        onZoomChange={setZoom}
-        fillContainer
-        onMarkerClick={(id) => {
-          const [kind, refId] = id.split(":");
-          setSelection(kind === "resident" ? { kind: "resident", id: refId } : { kind: "building", id: refId });
-        }}
+      <MapView
+        space={space}
+        viewport={viewport}
+        cells={cells}
+        layers={[]}
+        lodThresholds={LOD_THRESHOLDS}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+        staticEntities={buildingEntities}
+        resolveNavigationTarget={resolveNavigationTarget(snapshot.id.value)}
+        initialCamera={initialCamera}
       />
-
-      {selectedResident && (
-        <SidePanel title={`NPC ${selectedResident.id.value}`} onClose={() => setSelection(null)}>
-          <p>
-            Posição: ({selectedResident.location.x}, {selectedResident.location.y})
-          </p>
-          {selectedResident.currentAction !== null && <p>Ação: {selectedResident.currentAction}</p>}
-        </SidePanel>
-      )}
-
-      {selectedBuilding && (
-        <SidePanel
-          title={`Prédio ${selectedBuilding.id.value}`}
-          onClose={() => setSelection(null)}
-          action={{
-            label: "Entrar",
-            onClick: () => onSelectBuilding(String(selectedBuilding.id.value)),
-          }}
-        >
-          <p>Tipo: {selectedBuilding.buildingTypeId}</p>
-          <p className="approximate-note">posição no mapa é layout aproximado (sem dado real)</p>
-        </SidePanel>
-      )}
     </div>
   );
-}
-
-function clampLocal(v: number): number {
-  return Math.min(LOCAL_SIZE - 1, Math.max(0, v));
 }

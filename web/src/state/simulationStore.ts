@@ -116,6 +116,19 @@ export class SimulationStore {
     this.notify();
   }
 
+  /**
+   * Payload bruto do snapshot corrente, tipado por quem chama — usado por views (T14) que
+   * precisam de dados que `entitiesOf` não expõe (cidades, prédios, camadas). Referência
+   * estável entre chamadas até o próximo `applySnapshot`, então um consumidor via
+   * `useSyncExternalStore` não re-renderiza a cada delta — só quando o snapshot de fato muda.
+   */
+  currentPayload<TPayload>(space: SpaceId): TPayload | null {
+    if (!this.envelope || toScopeKey(space) !== this.observedScopeKey) {
+      return null;
+    }
+    return this.envelope.payload as TPayload;
+  }
+
   entitiesOf(space: SpaceId): AuthoritativeEntity[] {
     if (!this.envelope || toScopeKey(space) !== this.observedScopeKey) {
       return [];

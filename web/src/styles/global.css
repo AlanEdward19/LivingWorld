@@ -485,6 +485,55 @@ form[data-testid="create-world-form"] [role="alert"] {
   height: 100%;
 }
 
+/* T14: transição contínua entre espaços (VTT2-09) — cada troca de `key` remonta este wrapper e
+   reinicia a animação, em vez de uma troca abrupta de tela. */
+.space-transition {
+  width: 100%;
+  height: 100%;
+  animation: space-fade-zoom 220ms ease-out;
+}
+
+@keyframes space-fade-zoom {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.breadcrumb {
+  position: absolute;
+  top: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  background: rgba(18, 22, 31, 0.8);
+  backdrop-filter: blur(3px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 0.35rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+.breadcrumb button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 0.15rem;
+}
+
+.breadcrumb button:disabled {
+  color: var(--accent-bright);
+  cursor: default;
+}
+
 .map-hud {
   position: absolute;
   z-index: 10;

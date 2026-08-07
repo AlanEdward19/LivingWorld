@@ -1,7 +1,16 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { WorldMapView } from "../src/components/WorldMapView";
+import { SimulationStore } from "../src/state/simulationStore";
+import { ViewStore } from "../src/state/viewStore";
+import { SelectionStore } from "../src/state/selectionStore";
+import { MockPortalSource } from "../src/data/mock/MockPortalSource";
+import { VisualScopeKind, ViewerMode } from "../src/types";
 import type { GlobalSnapshot } from "../src/types";
+import type { SnapshotSource, TickStreamSource } from "../src/data/sources";
+
+const VIEWPORT = { width: 200, height: 200 };
+const WORLD_KEY = "world";
 
 function makeSnapshot(): GlobalSnapshot {
   return {
@@ -29,11 +38,7 @@ function makeSnapshot(): GlobalSnapshot {
   };
 }
 
-// jsdom não faz layout — getBoundingClientRect finge o canvas ocupar exatamente width x height
-// em pixels de tela (escala 1:1). Clica no centro da célula (x,y) usando o tamanho REAL do
-// canvas (width/height já setados pelo GridCanvas em width*zoom) dividido pelas dimensões do
-// grid — não depende de conhecer o zoom (que agora é calculado por fit-to-screen, não fixo).
-function clickCell(canvas: HTMLCanvasElement, gridWidth: number, gridHeight: number, x: number, y: number) {
+function stubRect(canvas: HTMLCanvasElement) {
   vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
     left: 0,
     top: 0,
@@ -45,9 +50,30 @@ function clickCell(canvas: HTMLCanvasElement, gridWidth: number, gridHeight: num
     y: 0,
     toJSON: () => "",
   });
-  const cellW = canvas.width / gridWidth;
-  const cellH = canvas.height / gridHeight;
-  fireEvent.click(canvas, { clientX: (x + 0.5) * cellW, clientY: (y + 0.5) * cellH });
+}
+
+function worldSnapshotSource(snapshot: GlobalSnapshot): SnapshotSource {
+  return {
+    load: async () => ({
+      scope: { kind: VisualScopeKind.World, refId: "", scopeKey: WORLD_KEY },
+      mode: ViewerMode.Spectator,
+      cursor: { tick: 0, scopeKey: WORLD_KEY, sequence: 0 },
+      activeLayers: [],
+      payload: snapshot,
+    }),
+  };
+}
+
+function neverStreamingTickSource(): TickStreamSource {
+  return { subscribe: () => () => {} };
+}
+
+async function buildStores(snapshot: GlobalSnapshot) {
+  const simulationStore = new SimulationStore(worldSnapshotSource(snapshot), neverStreamingTickSource());
+  const viewStore = new ViewStore(new MockPortalSource([]));
+  const selectionStore = new SelectionStore();
+  await simulationStore.observeSpace({ kind: "World" });
+  return { simulationStore, viewStore, selectionStore };
 }
 
 describe("WorldMapView", () => {
@@ -55,40 +81,101 @@ describe("WorldMapView", () => {
     HTMLCanvasElement.prototype.getContext = () => null;
   });
 
-  it("opens the side panel with population when a city marker is clicked", () => {
-    render(<WorldMapView snapshot={makeSnapshot()} onSelectCity={() => {}} />);
+  it("selects a city on click, using its real world coordinates", async () => {
+    const { simulationStore, viewStore, selectionStore } = await buildStores(makeSnapshot());
+    render(
+      <WorldMapView
+        snapshot={makeSnapshot()}
+        viewport={VIEWPORT}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+    const canvas = screen.getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
 
-    clickCell(screen.getByTestId("grid-canvas") as HTMLCanvasElement, 10, 10, 3, 4);
+    // câmera de fit inicial: mundo 10x10 num viewport 200x200 -> scale 20; cidade em (3,4)
+    // projeta em ((3-5)*20+100, (4-5)*20+100) = (60,80)
+    fireEvent.click(canvas, { clientX: 60, clientY: 80 });
 
-    expect(screen.getByTestId("side-panel")).toBeInTheDocument();
-    expect(screen.getByText(/População: 42/)).toBeInTheDocument();
+    expect(selectionStore.current()).toEqual({ kind: "city", id: "city-1", space: { kind: "World" } });
   });
 
-  it("calls onSelectCity when 'Entrar' is clicked on the city side panel", () => {
-    const onSelectCity = vi.fn();
-    render(<WorldMapView snapshot={makeSnapshot()} onSelectCity={onSelectCity} />);
+  it("navigates into the city on double click", async () => {
+    const { simulationStore, viewStore, selectionStore } = await buildStores(makeSnapshot());
+    const enterSpy = vi.spyOn(viewStore, "enter");
+    render(
+      <WorldMapView
+        snapshot={makeSnapshot()}
+        viewport={VIEWPORT}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+    const canvas = screen.getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
 
-    clickCell(screen.getByTestId("grid-canvas") as HTMLCanvasElement, 10, 10, 3, 4);
-    fireEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    fireEvent.doubleClick(canvas, { clientX: 60, clientY: 80 });
 
-    expect(onSelectCity).toHaveBeenCalledWith("city-1");
+    expect(enterSpy).toHaveBeenCalledWith({ kind: "City", cityId: "city-1" });
   });
 
-  it("opens the side panel with position when an external npc marker is clicked", () => {
-    render(<WorldMapView snapshot={makeSnapshot()} onSelectCity={() => {}} />);
+  it("selects an external NPC on click, and it does not navigate on double click", async () => {
+    const { simulationStore, viewStore, selectionStore } = await buildStores(makeSnapshot());
+    const enterSpy = vi.spyOn(viewStore, "enter");
+    render(
+      <WorldMapView
+        snapshot={makeSnapshot()}
+        viewport={VIEWPORT}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+    const canvas = screen.getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
 
-    clickCell(screen.getByTestId("grid-canvas") as HTMLCanvasElement, 10, 10, 1, 1);
+    // npc em (1,1) -> ((1-5)*20+100, (1-5)*20+100) = (20,20)
+    fireEvent.click(canvas, { clientX: 20, clientY: 20 });
+    expect(selectionStore.current()).toEqual({ kind: "npc", id: "9", space: { kind: "World" } });
 
-    expect(screen.getByText("NPC 9")).toBeInTheDocument();
+    fireEvent.doubleClick(canvas, { clientX: 20, clientY: 20 });
+    expect(enterSpy).not.toHaveBeenCalled();
   });
 
-  it("labels not-yet-modeled layers distinctly from available ones, behind the collapsible legend", () => {
-    render(<WorldMapView snapshot={makeSnapshot()} onSelectCity={() => {}} />);
+  it("labels not-yet-modeled layers distinctly from available ones, behind the collapsible legend", async () => {
+    const { simulationStore, viewStore, selectionStore } = await buildStores(makeSnapshot());
+    render(
+      <WorldMapView
+        snapshot={makeSnapshot()}
+        viewport={VIEWPORT}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
 
     expect(screen.queryByText(/Terrain: dispon/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Camadas/ }));
 
     expect(screen.getByText(/Terrain: dispon/)).toBeInTheDocument();
     expect(screen.getByText(/Roads: ainda não modelada/)).toBeInTheDocument();
+  });
+
+  it("renders only the map's own single canvas — no per-marker DOM node", async () => {
+    const { simulationStore, viewStore, selectionStore } = await buildStores(makeSnapshot());
+    render(
+      <WorldMapView
+        snapshot={makeSnapshot()}
+        viewport={VIEWPORT}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+
+    expect(screen.getAllByTestId("map-view-canvas")).toHaveLength(1);
   });
 });

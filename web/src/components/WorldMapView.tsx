@@ -1,37 +1,58 @@
-import { useMemo, useState } from "react";
-import { GridCanvas } from "./GridCanvas";
-import { SidePanel } from "./SidePanel";
+// Fase 15.1, T14: mapa-múndi como configuração de `MapView` (design.md; master prompt §30-32) —
+// não instancia canvas próprio, não guarda seleção local nem zoom local. Cidades entram como
+// `staticEntities` (não têm delta de tick — `SimulationStore.entitiesOf` só extrai NPC externo,
+// que já vem dinamicamente); double-click numa cidade resolve `{kind:"City"}` e o próprio
+// `MapView` chama `ViewStore.enter`.
+import { useMemo } from "react";
+import { MapView } from "./MapView";
 import { LayerLegend } from "./LayerLegend";
-import { riverOverlayPoints, terrainColorLookup, worldMarkers } from "../worldMapData";
-import { computeFitZoom } from "../gridFit";
+import { terrainColorLookup, riverOverlayPoints } from "../worldMapData";
+import type { Viewport } from "../map-engine/Camera";
+import type { ActiveLayer } from "../map-engine/renderer";
+import type { LodThresholds } from "../map-engine/lod";
+import type { AuthoritativeEntity, EntityRef, SpaceId } from "../map-engine/types";
+import type { SimulationStore } from "../state/simulationStore";
+import type { ViewStore } from "../state/viewStore";
+import type { SelectionStore } from "../state/selectionStore";
 import type { GlobalSnapshot } from "../types";
 
 export interface WorldMapViewProps {
   snapshot: GlobalSnapshot;
-  onSelectCity: (cityId: string) => void;
+  viewport: Viewport;
+  simulationStore: SimulationStore;
+  viewStore: ViewStore;
+  selectionStore: SelectionStore;
 }
 
-type Selection = { kind: "city"; id: string } | { kind: "npc"; id: string } | null;
+const WORLD: SpaceId = { kind: "World" };
+const LOD_THRESHOLDS: LodThresholds = { aggregate: 4, token: 10, detail: 18 };
 
-/// T12 (fase 15, UX pass 2) + UX pass 3: mapa-múndi em tela cheia (feedback: "o mapa deveria
-/// ser a tela toda, tipo Civilization/Skyrim") — título e camadas viram HUD flutuante por cima
-/// do grid em vez de texto empilhado abaixo dele; zoom inicial preenche o viewport disponível.
-export function WorldMapView({ snapshot, onSelectCity }: WorldMapViewProps) {
-  const [zoom, setZoom] = useState(() =>
-    computeFitZoom(snapshot.width, snapshot.height, window.innerWidth - 40, window.innerHeight - 60),
+function resolveNavigationTarget(ref: EntityRef): SpaceId | null {
+  return ref.kind === "city" ? { kind: "City", cityId: ref.id } : null;
+}
+
+export function WorldMapView({ snapshot, viewport, simulationStore, viewStore, selectionStore }: WorldMapViewProps) {
+  const cells = useMemo(
+    () => ({ width: snapshot.width, height: snapshot.height, colorAt: terrainColorLookup(snapshot) }),
+    [snapshot],
   );
-  const [selection, setSelection] = useState<Selection>(null);
 
-  const terrainColor = useMemo(() => terrainColorLookup(snapshot), [snapshot.layers.Terrain]);
-  const riverPoints = useMemo(() => riverOverlayPoints(snapshot), [snapshot.layers.Rivers]);
-  const markers = useMemo(() => worldMarkers(snapshot), [snapshot.cities, snapshot.externalNpcs]);
+  const layers: ActiveLayer[] = useMemo(
+    () => [{ id: "Rivers", overlayPoints: riverOverlayPoints(snapshot) }],
+    [snapshot],
+  );
 
-  const selectedCity = selection?.kind === "city"
-    ? snapshot.cities.find((c) => c.id.value === selection.id)
-    : undefined;
-  const selectedNpc = selection?.kind === "npc"
-    ? snapshot.externalNpcs.find((n) => String(n.id.value) === selection.id)
-    : undefined;
+  const cityEntities: AuthoritativeEntity[] = useMemo(
+    () =>
+      snapshot.cities.map((city) => ({
+        ref: { kind: "city" as const, id: city.id.value, space: WORLD },
+        position: city.location,
+        size: { w: 1, h: 1 },
+        sizeIsDerived: false,
+        color: "#d9a94f",
+      })),
+    [snapshot.cities],
+  );
 
   return (
     <div className="map-fullscreen" data-testid="world-map-view">
@@ -40,41 +61,18 @@ export function WorldMapView({ snapshot, onSelectCity }: WorldMapViewProps) {
         <LayerLegend layers={snapshot.layers} />
       </div>
 
-      <GridCanvas
-        width={snapshot.width}
-        height={snapshot.height}
-        cellColor={terrainColor}
-        overlayPoints={riverPoints}
-        markers={markers}
-        zoom={zoom}
-        onZoomChange={setZoom}
-        fillContainer
-        onMarkerClick={(id) => {
-          const [kind, refId] = id.split(":");
-          setSelection(kind === "city" ? { kind: "city", id: refId } : { kind: "npc", id: refId });
-        }}
+      <MapView
+        space={WORLD}
+        viewport={viewport}
+        cells={cells}
+        layers={layers}
+        lodThresholds={LOD_THRESHOLDS}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+        staticEntities={cityEntities}
+        resolveNavigationTarget={resolveNavigationTarget}
       />
-
-      {selectedCity && (
-        <SidePanel
-          title={`Cidade ${selectedCity.id.value.slice(0, 8)}`}
-          onClose={() => setSelection(null)}
-          action={{ label: "Entrar", onClick: () => onSelectCity(selectedCity.id.value) }}
-        >
-          <p>População: {selectedCity.population}</p>
-          <p>
-            Posição: ({selectedCity.location.x}, {selectedCity.location.y})
-          </p>
-        </SidePanel>
-      )}
-
-      {selectedNpc && (
-        <SidePanel title={`NPC ${selectedNpc.id.value}`} onClose={() => setSelection(null)}>
-          <p>
-            Posição: ({selectedNpc.location.x}, {selectedNpc.location.y})
-          </p>
-        </SidePanel>
-      )}
     </div>
   );
 }

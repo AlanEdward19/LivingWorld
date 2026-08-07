@@ -27,6 +27,7 @@ export class ViewStore {
   private readonly cameraByScope = new Map<string, CameraState>();
   private readonly activeLayerIds = new Set<string>();
   private followed: EntityRef | null = null;
+  private readonly listeners = new Set<() => void>();
 
   constructor(private readonly portalSource: PortalSource) {}
 
@@ -37,10 +38,12 @@ export class ViewStore {
   /** Navegação direta (clique numa cidade/prédio, botão Open, breadcrumb) — sem portal específico. */
   enter(target: SpaceId): void {
     this.current = target;
+    this.notify();
   }
 
   goToAncestor(target: SpaceId): void {
     this.current = target;
+    this.notify();
   }
 
   /**
@@ -94,5 +97,21 @@ export class ViewStore {
 
   followedEntity(): EntityRef | null {
     return this.followed;
+  }
+
+  /**
+   * Registro de listener (T14) — quem monta React (`useSyncExternalStore`) reage só quando
+   * `currentSpace()` de fato muda de referência; `recordCamera`/`setLayerActive`/follow não
+   * chamam `notify()`, então não geram re-render nenhum (nada os lê via este canal hoje).
+   */
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private notify(): void {
+    for (const listener of this.listeners) {
+      listener();
+    }
   }
 }
