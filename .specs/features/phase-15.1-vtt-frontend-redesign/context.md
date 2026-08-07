@@ -197,3 +197,18 @@ fechamento da fase**, depois da última task.
   sem colisão hoje porque nada ainda liga os mocks de T0 ao `SpatialContext` de T9 (essa fiação é
   T10-T14). Quando algum desses tasks passar `SpaceId` para os mocks de T0, trocar
   `mockScopeKey` por `toScopeKey` (eliminar o helper duplicado) em vez de manter os dois formatos.
+
+---
+
+## Correções de UX pós-E1.3 (feedback do usuário, 2026-08-07)
+
+Depois de T13-T17 no ar, o usuário testou ao vivo e reportou: hud-bar cobrindo texto/botões
+(overlap de z-index real, `--hud-bar-height` corrigiu), clique em espaço vazio não desselecionava
+(só o X, que estava embaixo da hud-bar), cidade/prédio como círculo colorido em vez de área do
+grid, cor por id sem significado (NPC e cidade indistinguíveis), e NPC sem rótulo. Todos corrigidos
+no commit `aa52fe9` — ver esse commit para o detalhe técnico de cada um.
+
+**Limitação que permanece, agora mais visível**: prédio ganhou footprint (retângulo 3x2 fixo em
+vez de ponto), mas continua sem posição real (`Building` sem `CellCoord` — gap 5 acima). Formato
+não-rectangular (o exemplo do usuário: prédio em "U") exigiria footprint por célula, dado que o
+domínio não tem — fica fora de escopo até uma fase que modele isso.
