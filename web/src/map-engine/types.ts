@@ -3,6 +3,24 @@
 // distinto de FocusScope (types.ts) só por nomear "Building" em vez de "Interior" — a
 // conciliação dos dois vive em T9 (SpatialContext), fora do escopo desta task.
 
+export interface Vec2 {
+  x: number;
+  y: number;
+}
+
+export interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** Tamanho do espaço em tiles, origem em (0,0) — usado por `Camera.clampTo`. */
+export interface SpaceBounds {
+  width: number;
+  height: number;
+}
+
 export type SpaceId =
   | { kind: "World" }
   | { kind: "City"; cityId: string }
