@@ -212,3 +212,30 @@ no commit `aa52fe9` — ver esse commit para o detalhe técnico de cada um.
 vez de ponto), mas continua sem posição real (`Building` sem `CellCoord` — gap 5 acima). Formato
 não-rectangular (o exemplo do usuário: prédio em "U") exigiria footprint por célula, dado que o
 domínio não tem — fica fora de escopo até uma fase que modele isso.
+
+## Segunda rodada — resolvida no frontend agora, motor depois (2026-08-07, commit `237595f`)
+
+O usuário pediu explicitamente para resolver o gap de formato de prédio **inteiramente no
+cliente** ("qualquer ajuste no motor pode ser feito quando for a hora de mexer nele") — a
+limitação acima (retângulo uniforme 3x2) foi substituída por `buildingFootprint.ts`: planta
+determinística por prédio (retângulo ou L, parede pedra/madeira por `buildingTypeId`, uma porta),
+a mesma forma usada tanto no footprint visto de fora (`CityView`) quanto dentro do prédio
+(`InteriorView`, que virou T22 de fato — `BuildingSpace`). Isso **não** é o gap fechado pelo
+motor — é um placeholder honesto mais rico, no mesmo espírito de `sizeIsDerived`. Quando o motor
+modelar footprint/material real de prédio, só `buildingFootprint.ts` muda.
+
+Também nesta rodada: hit-test do clique era um raio fixo em pixels de tela, mas o token visível
+cresce com o zoom — corrigido para acompanhar a mesma fórmula do renderer (bug real, não só
+percepção do usuário). Follow (T19) foi adiantado (botão real nos 3 inspectors, câmera
+acompanhando a posição autoritativa, pan cancela). E "andares" (Z) entraram como estado **local**
+do `BuildingSpace` — não existe dado de andar no motor, então não há nada pra `SpaceId`/
+`SimulationStore` observarem por andar; cada andar é a mesma planta com seed diferente. Se o motor
+um dia modelar andar como estado real, isso sobe pra `SpaceId` — hoje seria estado inventado no
+lugar errado.
+
+**Bug real pego em teste manual, não em teste automatizado**: selecionar um prédio na cidade e
+depois abri-lo derrubava o app (`BuildingInspector` assumia que `entityRef.space` de um prédio é
+sempre a cidade onde ele está — a entidade decorativa da planta, vista de dentro, violava isso
+usando `kind:"building"` com `space` apontando pra si mesma). Nenhum teste unitário pegou porque
+nenhum deles renderizava `InteriorView` e `EntityInspector` juntos, como o `App.tsx` real faz —
+teste de regressão adicionado faz exatamente essa combinação agora.
