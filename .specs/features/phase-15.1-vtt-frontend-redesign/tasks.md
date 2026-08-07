@@ -959,7 +959,7 @@ a build de `CreateWorldForm`. A migração e a remoção de ambos ficam pra T26,
 
 ---
 
-### T26: Progressive disclosure e resolução de ids para nomes [P]
+### T26: Progressive disclosure e resolução de ids para nomes [P] — 🚧 EM ANDAMENTO (pausado — créditos)
 
 **What**: mover os blocos densos de parâmetros para accordions/drawers por área dentro do inspector,
 e trocar linhas repetidas de "id: [] valor: [] remover" por tabelas/chips/selectors com rótulos
@@ -978,6 +978,78 @@ legíveis; id cru só em modo avançado.
 - [ ] Ids resolvem para rótulos legíveis quando há catálogo; id cru só sob toggle "avançado"
 - [ ] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit`
 - [ ] Contagem de testes: ≥ 5 novos passando; `web/tests/CreateWorldForm.test.tsx` migrado sem perder o caso de JSON PascalCase completo
+
+**PAUSADO — estado exato em 2026-08-07 (sessão ficou sem crédito no meio da task). Commit
+pendente cobre só a parte abaixo já feita e VERIFICADA (`tsc --noEmit` limpo depois do fix do
+`RoutineSlotRow`; suíte completa NÃO rodada de novo após esse último fix — só `tsc`).**
+
+**Pesquisa que embasa o design (já concluída, não refazer)**: só existe catálogo real de id→nome
+pra **profession/skill**, via `GET /periods/{id}/catalog` (`PeriodCatalog.cs`), e mesmo esse é
+condicional por período (só entra no dict o id que aquele período declarou com `Name` num bias).
+Terreno/bioma/recurso/cultura/tipo-de-local/prédio **não têm catálogo em lugar nenhum do domínio**
+(`GeographyIds.cs`/`PopulationIds.cs` documentam "o motor nunca conhece o nome") — esses ids
+continuam crus sempre, em qualquer modo. Não inventar catálogo pra eles.
+
+**Feito e funcionando**:
+1. `web/src/components/formFields.tsx` — `FieldSpec`/`KeyNumberListEditor` ganharam `labels?:
+   Record<number,string>` opcional. Quando presente, o campo numérico (`"number"` e
+   `"nullable-number"`) renderiza `<select>` com nome+id em vez de input numérico cru; toggle
+   "IDs crus" por editor força input numérico mesmo com catálogo. Sem `labels`, comportamento
+   idêntico a antes (aditivo, não quebra nenhum consumidor existente). **Testado**:
+   `web/tests/formFields.test.tsx` (7 testes, todos passando na última rodada).
+2. `web/src/scenarioDefaults.ts` — `buildCells` exportado (já feito na T25).
+3. `web/src/api.ts` — `fetchPeriodCatalog(id)` novo, chama `GET /periods/{id}/catalog`. **Ainda
+   não testado** (sem teste próprio, sem uso em lugar nenhum ainda).
+4. `web/src/components/creator/panels/*.tsx` (6 arquivos novos, todos criados, `tsc --noEmit`
+   limpo, **nenhum ainda importado/renderizado em lugar nenhum** — código morto por enquanto):
+   - `types.ts` — `PanelProps` compartilhada (`form`, `set`, `professionNames?`, `skillNames?`).
+   - `MapPanel.tsx` — largura/altura/seed/região/ids csv + avançado (custo, peso por terreno,
+     assentamentos por número). Porta 1:1 a aba "Mapa" do `CreateWorldForm` atual.
+   - `PopulationPanel.tsx` — porta 1:1 a aba "População".
+   - `BehaviorPanel.tsx` — porta 1:1 a aba "Comportamento"; `routineSlots.professionId` já
+     recebe `labels={professionNames}`.
+   - `EconomyPanel.tsx` — porta 1:1 a aba "Economia"; `wageByProfession`/`locationTypeByProfession`
+     já recebem `labels={professionNames}`.
+   - `CitiesPanel.tsx` — porta 1:1 a aba "Cidades".
+   - `DynamicsPanel.tsx` — porta 1:1 a aba "Dinâmica"; `professionBiases`/`skillBiases` já
+     recebem `labels={professionNames}`/`labels={skillNames}`.
+
+**NÃO feito — é o que falta pra fechar a task, nesta ordem**:
+1. **Wire dos painéis no `WorldEditor.tsx`**: hoje o painel "sem seleção" é só um resumo
+   read-only (`world-general-config`, de T24) — trocar pelos 6 `<details>` (um por painel
+   acima), cada painel recebendo `form`/`set` (o `WorldEditor` já tem `setForm`, só falta o
+   helper `set(key,value)` — o `CreateWorldForm` atual tem o padrão exato em
+   `CreateWorldForm.tsx:64-66`, copiar) e manter o botão "Criar mundo" + resumo compacto no topo.
+2. **Buscar o catálogo**: `WorldEditor` precisa saber o `periodId` de origem (só existe quando
+   `PresetStart` carregou um template, não no caminho "em branco") — `PresetStart.tsx` (T23)
+   precisa passar esse id pra cima (`onStart(form, name, periodId?)`), `App.tsx` guarda e passa
+   pro `WorldEditor` como prop nova (`catalogPeriodId?`), que faz `fetchPeriodCatalog` num
+   `useEffect` e guarda `professionNames`/`skillNames` em estado (vazio = sem catálogo = tudo
+   cru, comportamento honesto de fallback).
+3. **Teste de paridade byte-idêntica** (o item mais importante do Done-when): montar
+   `WorldEditor`, preencher os mesmos valores que `CreateWorldForm.test.tsx` usa no caso "posts
+   the default scenario as a full PascalCase JSON body", chamar `scenarioFormToJson` nos dois
+   caminhos e comparar string a string. Como os painéis usam o MESMO `form`/`scenarioFormToJson`
+   que o wizard antigo, isso deve só funcionar — mas precisa ser escrito e rodado.
+4. **Testes dos painéis novos** (≥5 exigido pelo Done-when — os 7 de `formFields.test.tsx` já
+   escritos contam, mas não substituem testar os painéis renderizando de fato): pelo menos um
+   teste por painel confirmando que o `<details>` esconde o bloco avançado por padrão e que um
+   campo simples chama `set` corretamente.
+5. **Swap final em `App.tsx`**: trocar a montagem de `CreateWorldForm` por `PresetStart` →
+   `WorldEditor` (hoje `App.tsx` ainda monta `CreateWorldForm`, ver `creatorForm`/`setCreatorForm`
+   de T23 — só falta apontar pro `WorldEditor` em vez do form antigo).
+6. **Remoção**: só DEPOIS do passo 5 funcionar de ponta a ponta —
+   `web/src/components/CreateWorldForm.tsx`, `web/src/components/MapGridEditor.tsx`,
+   `web/tests/CreateWorldForm.test.tsx`, `web/tests/MapGridEditor.test.tsx` somem (o caso de JSON
+   PascalCase completo migra pro teste de paridade do passo 3 antes de apagar o arquivo antigo).
+7. **Gate completo** (`npm --prefix web test && npx --prefix web tsc --noEmit`) — **a suíte
+   inteira não foi rodada depois do último fix** (só `tsc --noEmit`, que está limpo). Rodar tudo
+   antes de marcar qualquer checkbox como `[x]`.
+
+**Não perder**: o desvio da T24/T25 (CreateWorldForm/MapGridEditor ainda vivos porque nada os
+substituiu em `App.tsx`) só se resolve nos passos 5-6 acima — até lá, o commit desta sessão é
+só código novo não-conectado (painéis, `fetchPeriodCatalog`, `formFields` evoluído), zero risco
+de regressão no app real.
 
 **Tests**: unit · **Gate**: Quick-web
 **Commit**: `refactor(web): progressive disclosure and readable ids in the world editor`

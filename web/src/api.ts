@@ -99,3 +99,19 @@ export async function fetchPeriodTemplate(id: string): Promise<Record<string, un
   const body = (await response.json()) as { periodDefinition: Record<string, unknown> };
   return body.periodDefinition;
 }
+
+export interface PeriodCatalog {
+  professionNames: Record<number, string>;
+  skillNames: Record<number, string>;
+}
+
+/// T26: único catálogo real de id->nome no domínio (`PeriodCatalog.cs`) — condicional por
+/// período (só ids com viés nomeado nesse período entram no dict). Terreno/bioma/recurso/
+/// cultura/tipo-de-local/prédio não têm catálogo em lugar nenhum — não existe um endpoint
+/// equivalente pra eles, então o cliente nunca finge um.
+export async function fetchPeriodCatalog(id: string): Promise<PeriodCatalog> {
+  const response = await fetch(`${apiBaseUrl()}/periods/${encodeURIComponent(id)}/catalog`);
+  if (!response.ok) throw new Error(`carregar catálogo falhou: ${response.status}`);
+  const body = (await response.json()) as { professionNames: Record<number, string>; skillNames: Record<number, string> };
+  return { professionNames: body.professionNames, skillNames: body.skillNames };
+}
