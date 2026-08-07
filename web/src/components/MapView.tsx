@@ -7,8 +7,8 @@
 // SPEC_DEVIATION: a task original previa remover `GridCanvas.tsx` neste commit. Ele continua em
 // uso por `MapGridEditor.tsx` (editor do World Creator, migrado só em T25) — removê-lo agora
 // quebraria a build. Segue o mesmo padrão já registrado em T8 ("extração e depois remoção"):
-// `GridCanvas.tsx` só é apagado quando o último consumidor migrar (T14 tira WorldMapView/
-// CityView, T17 tira MapOverlay, T25 tira MapGridEditor).
+// `GridCanvas.tsx` só é apagado quando o último consumidor migrar (T14 tirou WorldMapView/
+// CityView e MapOverlay.tsx foi removido em T17; só falta T25 tirar MapGridEditor).
 import { useEffect, useRef } from "react";
 import { Camera, type Viewport } from "../map-engine/Camera";
 import { InterpolationBuffer } from "../map-engine/interpolation";
