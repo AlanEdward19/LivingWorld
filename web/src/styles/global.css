@@ -588,6 +588,21 @@ form[data-testid="create-world-form"] [role="alert"] {
   font-size: 0.8rem;
 }
 
+/* Feedback do usuário (2026-08-07): "mapas terem dimensões Z, andares" — estado local do
+   BuildingSpace (InteriorView.tsx), não do motor. */
+.floor-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.floor-selector button {
+  padding: 0.15rem 0.5rem;
+  line-height: 1;
+}
+
 .entity-legend {
   margin-top: 0.4rem;
 }
@@ -611,6 +626,16 @@ form[data-testid="create-world-form"] [role="alert"] {
   border-radius: 2px;
   margin-right: 0.4rem;
   vertical-align: middle;
+}
+
+.entity-legend-separator {
+  margin-top: 0.4rem;
+  padding-top: 0.3rem;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .grid-canvas-wrap {

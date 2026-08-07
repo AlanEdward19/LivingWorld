@@ -131,7 +131,10 @@ export function App({ simulationStore, viewStore, selectionStore, timeControlSou
               {payload && space.kind === "Building" && (
                 <InteriorView
                   snapshot={payload as InteriorSnapshot}
-                  onBack={() => viewStore.goToAncestor({ kind: "City", cityId: space.cityId })}
+                  viewport={viewport}
+                  simulationStore={simulationStore}
+                  viewStore={viewStore}
+                  selectionStore={selectionStore}
                 />
               )}
             </SpaceTransition>

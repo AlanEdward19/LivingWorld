@@ -8,6 +8,7 @@ import { useMemo } from "react";
 import { MapView } from "./MapView";
 import { EntityLegend } from "./EntityLegend";
 import { CATEGORY_COLOR } from "../map-engine/categoryColors";
+import { generateBuildingFootprint, MATERIAL_COLOR } from "../map-engine/buildingFootprint";
 import type { Viewport } from "../map-engine/Camera";
 import type { LodThresholds } from "../map-engine/lod";
 import type { AuthoritativeEntity, EntityRef, SpaceId } from "../map-engine/types";
@@ -25,11 +26,6 @@ export interface CityViewProps {
 }
 
 const BUILDING_RING_RADIUS = 6;
-// Feedback do usuário (2026-08-07): prédio não pode ser um ponto/círculo colorido — precisa
-// cobrir área do grid, "como um wireframe" (formato real exigiria CellCoord por prédio, que o
-// domínio não tem — context.md gap 5; este é um footprint placeholder honesto, do mesmo jeito
-// que o anel já era, só que agora desenhado como área em vez de ponto).
-const BUILDING_FOOTPRINT = { w: 3, h: 2 };
 const LOD_THRESHOLDS: LodThresholds = { aggregate: 4, token: 10, detail: 18 };
 /** Sem um "tamanho de grid local" mais (coordenadas de cidade agora são absolutas, iguais às
  * do mundo) — 16px/tile é o equivalente ao zoom antigo de fit-to-screen num grid local de 21x21. */
@@ -51,6 +47,11 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
     [snapshot.location],
   );
 
+  // Feedback do usuário (2026-08-07): prédio precisa de forma real, não círculo/retângulo
+  // uniforme — `generateBuildingFootprint` dá a cada prédio uma planta determinística
+  // (retângulo ou L) com parede/porta por material. Continua `sizeIsDerived: true`: é
+  // client-side (domínio não tem `CellCoord` de prédio — context.md gap 5), só que agora é
+  // uma forma real em vez de um placeholder uniforme.
   const buildingEntities: AuthoritativeEntity[] = useMemo(
     () =>
       snapshot.buildings.map((building, i) => {
@@ -59,15 +60,20 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
           x: snapshot.location.x + Math.cos(angle) * BUILDING_RING_RADIUS,
           y: snapshot.location.y + Math.sin(angle) * BUILDING_RING_RADIUS,
         };
+        const buildingId = String(building.id.value);
+        const footprintCells = generateBuildingFootprint(buildingId, building.buildingTypeId);
+        const width = Math.max(...footprintCells.map((c) => c.x)) + 1;
+        const height = Math.max(...footprintCells.map((c) => c.y)) + 1;
+
         return {
-          ref: { kind: "building" as const, id: String(building.id.value), space },
+          ref: { kind: "building" as const, id: buildingId, space },
           // `position` é o canto superior-esquerdo do footprint — desloca do centro do anel
-          // pra o footprint placeholder ficar centrado no ponto calculado, não crescer só pra
-          // um lado.
-          position: { x: ringCenter.x - BUILDING_FOOTPRINT.w / 2, y: ringCenter.y - BUILDING_FOOTPRINT.h / 2 },
-          size: BUILDING_FOOTPRINT,
+          // pro footprint ficar centrado no ponto calculado, não crescer só pra um lado.
+          position: { x: ringCenter.x - width / 2, y: ringCenter.y - height / 2 },
+          size: { w: width, h: height },
           sizeIsDerived: true, // layout de anel client-side, não posição real (context.md gap 5)
           color: CATEGORY_COLOR.building,
+          footprintCells: footprintCells.map((c) => ({ x: c.x, y: c.y, color: MATERIAL_COLOR[c.material] })),
         };
       }),
     [snapshot.buildings, snapshot.location, space],

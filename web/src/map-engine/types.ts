@@ -48,4 +48,11 @@ export interface AuthoritativeEntity {
   /** true quando `size` é derivado/aproximado e não autorado no domínio */
   sizeIsDerived: boolean;
   color: string;
+  /**
+   * Forma real do footprint por célula, relativa a `position` (feedback do usuário — cidade/
+   * prédio não são um retângulo uniforme, "igual wireframe" com material por célula:
+   * `web/src/map-engine/buildingFootprint.ts`). Quando presente, o renderer desenha cada
+   * célula pelo seu próprio material em vez do retângulo único de `size`.
+   */
+  footprintCells?: { x: number; y: number; color: string }[];
 }

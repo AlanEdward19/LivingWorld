@@ -121,7 +121,7 @@ export function draw(ctx: CanvasRenderingContext2D | null, frame: RenderFrame): 
 
   // Áreas (cidade/prédio) sempre desenham como footprint real — LOD só afeta entidade de ponto.
   for (const entity of areaEntities) {
-    drawAreaEntity(ctx, camera, entity, entity.ref.id === frame.highlightId);
+    drawAreaEntity(ctx, camera, entity, scale, entity.ref.id === frame.highlightId);
   }
 
   if (level === "aggregate") {
@@ -149,13 +149,38 @@ function drawClusters(
   }
 }
 
-/** Cidade/prédio: retângulo do footprint real, nunca um círculo num ponto (feedback do usuário). */
+/**
+ * Cidade/prédio: footprint real, nunca um círculo num ponto (feedback do usuário). Com
+ * `footprintCells` (planta por material — `buildingFootprint.ts`), desenha célula a célula em
+ * vez do retângulo único de `size` — é assim que formas em L/wireframe aparecem.
+ */
 function drawAreaEntity(
   ctx: CanvasRenderingContext2D,
   camera: Camera,
   entity: AuthoritativeEntity,
+  scale: number,
   isHighlighted: boolean,
 ): void {
+  if (entity.footprintCells) {
+    for (const cell of entity.footprintCells) {
+      const topLeft = camera.worldToScreen({ x: entity.position.x + cell.x, y: entity.position.y + cell.y });
+      ctx.fillStyle = cell.color;
+      ctx.fillRect(topLeft.x, topLeft.y, scale, scale);
+      ctx.strokeStyle = "rgba(0,0,0,0.3)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(topLeft.x, topLeft.y, scale, scale);
+    }
+    if (isHighlighted) {
+      const topLeft = camera.worldToScreen(entity.position);
+      const bottomRight = camera.worldToScreen({ x: entity.position.x + entity.size.w, y: entity.position.y + entity.size.h });
+      ctx.strokeStyle = SELECTION_HIGHLIGHT_COLOR;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+    }
+    drawLabel(ctx, entity, { x: camera.worldToScreen(entity.position).x + 4, y: camera.worldToScreen(entity.position).y - 4 }, "left");
+    return;
+  }
+
   const topLeft = camera.worldToScreen(entity.position);
   const bottomRight = camera.worldToScreen({ x: entity.position.x + entity.size.w, y: entity.position.y + entity.size.h });
   const width = bottomRight.x - topLeft.x;
