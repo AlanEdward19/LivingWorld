@@ -3,6 +3,7 @@ import { WorldMapView } from "./components/WorldMapView";
 import { CityView } from "./components/CityView";
 import { InteriorView } from "./components/InteriorView";
 import { CreateWorldForm } from "./components/CreateWorldForm";
+import { PresetStart } from "./components/creator/PresetStart";
 import { StartMenu } from "./components/StartMenu";
 import { SettingsView } from "./components/SettingsView";
 import { Breadcrumb } from "./components/Breadcrumb";
@@ -17,6 +18,7 @@ import type { SelectionStore } from "./state/selectionStore";
 import type { TimeControlSource } from "./data/sources";
 import type { FutureGlobalSnapshot } from "./data/contracts";
 import type { CitySnapshot, InteriorSnapshot } from "./types";
+import type { ScenarioFormState } from "./scenarioDefaults";
 
 type Screen = "start" | "world" | "settings";
 
@@ -36,6 +38,10 @@ export interface AppProps {
 export function App({ simulationStore, viewStore, selectionStore, timeControlSource }: AppProps) {
   const [screen, setScreen] = useState<Screen>("start");
   const [creatingWorld, setCreatingWorld] = useState(false);
+  // T23: PresetStart decide o ponto de partida antes do wizard de 6 abas abrir; `creatorForm`
+  // null = ainda em PresetStart, preenchido = wizard aberto com esse estado inicial.
+  const [creatorForm, setCreatorForm] = useState<ScenarioFormState | null>(null);
+  const [worldName, setWorldName] = useState("");
 
   const space = useSyncExternalStore(
     (onStoreChange) => viewStore.subscribe(onStoreChange),
@@ -86,17 +92,35 @@ export function App({ simulationStore, viewStore, selectionStore, timeControlSou
         <button type="button" onClick={() => setScreen("start")}>
           ☰ menu
         </button>
-        <button type="button" onClick={() => setCreatingWorld((v) => !v)}>
+        <button
+          type="button"
+          onClick={() => {
+            setCreatingWorld((v) => !v);
+            setCreatorForm(null);
+          }}
+        >
           {creatingWorld ? "Cancelar" : "Criar mundo"}
         </button>
+        {!creatingWorld && worldName && <span className="world-name">{worldName}</span>}
         {!creatingWorld && <TimeControls timeControlSource={timeControlSource} />}
       </header>
 
       <main className={creatingWorld ? "" : "fullbleed"}>
-        {creatingWorld && (
+        {creatingWorld && !creatorForm && (
+          <PresetStart
+            onStart={(form, name) => {
+              setCreatorForm(form);
+              setWorldName(name);
+            }}
+          />
+        )}
+
+        {creatingWorld && creatorForm && (
           <CreateWorldForm
+            initialForm={creatorForm}
             onCreated={() => {
               setCreatingWorld(false);
+              setCreatorForm(null);
               viewStore.goToAncestor(WORLD);
             }}
           />

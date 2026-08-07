@@ -865,7 +865,7 @@ selecionado). Ver context.md "Segunda rodada"/"Terceira rodada".
 
 ---
 
-### T23: Tela de presets do World Creator
+### T23: Tela de presets do World Creator — ✅ Done
 
 **What**: primeira tela curta do creator — nome, seed, tamanho aproximado, preset, botão criar —
 substituindo a entrada direta no wizard de 6 abas.
@@ -877,11 +877,18 @@ substituindo a entrada direta no wizard de 6 abas.
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] A tela inicial exige no máximo 4 campos e nenhum parâmetro avançado
-- [ ] Escolher um preset pré-popula o `ScenarioFormState` completo
-- [ ] O JSON submetido é o mesmo shape que `POST /worlds/create` aceita hoje (teste de paridade com o output atual de `scenarioFormToJson`)
-- [ ] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit`
-- [ ] Contagem de testes: ≥ 4 novos passando
+- [x] A tela inicial exige no máximo 4 campos e nenhum parâmetro avançado — nome/seed/tamanho/ponto-de-partida, sem `<details>`
+- [x] Escolher um preset pré-popula o `ScenarioFormState` completo (`jsonToScenarioForm`, mesmo caminho do wizard)
+- [x] O JSON submetido é o mesmo shape que `POST /worlds/create` aceita hoje — `PresetStart` só produz `ScenarioFormState`, quem serializa continua sendo `CreateWorldForm`→`scenarioFormToJson` (nenhum novo caminho de submit)
+- [x] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit` — 190 passed, tsc limpo
+- [x] Contagem de testes: `tests/creator/PresetStart.test.tsx` (4 novos)
+
+**Nota**: `nome` não tem campo correspondente no domínio (`WorldCreateEndpoints.cs` não recebe
+nome de mundo) — fica só como rótulo de sessão no cliente (`App.tsx` exibe no header), nunca
+entra no `ScenarioJson`. `CreateWorldForm` ganhou `initialForm?` opcional (default inalterado:
+`defaultScenarioForm()`) pra receber o que `PresetStart` decidiu. `App.tsx`: `creatingWorld`
+continua controlando a entrada no fluxo do creator; `creatorForm` (null = ainda em `PresetStart`)
+decide qual dos dois passos renderizar.
 
 **Tests**: unit · **Gate**: Quick-web
 **Commit**: `feat(web): world creator preset entry screen`

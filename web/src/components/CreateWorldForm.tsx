@@ -13,6 +13,8 @@ import { MapGridEditor } from "./MapGridEditor";
 
 export interface CreateWorldFormProps {
   onCreated?: (npcCount: number) => void;
+  /** T23: PresetStart pré-popula o form (preset/tamanho/seed) antes do wizard abrir. */
+  initialForm?: ScenarioFormState;
 }
 
 const TABS = [
@@ -32,8 +34,8 @@ type TabKey = (typeof TABS)[number]["key"];
 /// densos em números (recipes/wages/workplaces/tabela de mortalidade/etc.) ficam atrás de
 /// <details> "Avançado" em vez de sempre visíveis. Mesmo estado/JSON de saída de antes — só a
 /// apresentação mudou.
-export function CreateWorldForm({ onCreated }: CreateWorldFormProps) {
-  const [form, setForm] = useState<ScenarioFormState>(defaultScenarioForm);
+export function CreateWorldForm({ onCreated, initialForm }: CreateWorldFormProps) {
+  const [form, setForm] = useState<ScenarioFormState>(() => initialForm ?? defaultScenarioForm());
   const [tab, setTab] = useState<TabKey>("mapa");
   const [status, setStatus] = useState<"idle" | "submitting" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
