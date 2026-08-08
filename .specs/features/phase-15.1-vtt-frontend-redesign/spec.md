@@ -117,6 +117,43 @@ Toda ambiguidade está resolvida ou registrada aqui.
 
 ---
 
+### P1: NPC como pawn visual determinístico em SVG ⭐ MVP
+
+**User Story**: Como observador, quero reconhecer os NPCs como personagens de jogo, e não como
+círculos genéricos, preservando a leitura rápida de um mapa top-down.
+
+**Acceptance Criteria**:
+
+1. WHEN o mesmo NPC é renderizado com o mesmo estado visual THEN o SVG SHALL ser idêntico e composto por sombra, corpo/roupa, cabeça e cabelo.
+2. WHEN o mapa está em LOD token THEN o NPC SHALL usar o pawn em camadas; dot e agregado SHALL permanecer leves.
+3. WHEN somente a ação atual muda THEN apenas o indicador de estado SHALL mudar; identidade, pele, cabelo e roupa SHALL permanecer estáveis.
+4. WHEN o NPC é selecionado THEN o destaque SHALL ser uma camada externa e não alterar sua aparência-base.
+5. WHEN idade, profissão ou condição não estão na projeção THEN o cliente SHALL usar aparência neutra, sem inventar rótulo ou estado canônico.
+
+**Independent Test**: comparar os SVGs de um mesmo ID com ações diferentes, confirmar que só o
+indicador muda e observar no mapa e no inspector que o mesmo pawn é reconhecível.
+
+---
+
+### P1: Mundo e cidades como paisagem top-down viva ⭐ MVP
+
+**User Story**: Como observador, quero ler terreno, água, atmosfera e arquitetura diretamente no
+mapa, sem uma grade cinza nem prédios reduzidos a blocos de cor.
+
+**Acceptance Criteria**:
+
+1. WHEN a superfície é exibida THEN células SHALL ter variação determinística de solo/grama e rios SHALL ocupar tiles com leitura de água.
+2. WHEN mundo ou cidade são exibidos THEN nuvens cosméticas SHALL ser estáveis para a mesma câmera e identidade do espaço.
+3. WHEN um prédio é desenhado na cidade THEN telhado, paredes e porta SHALL ter detalhes top-down distintos, não apenas preenchimentos sólidos.
+4. WHEN uma cidade é desenhada no mapa-múndi THEN muralha e portão SHALL permanecer reconhecíveis sobre o terreno vivo.
+5. WHEN o observador muda Z THEN footprint e posição de porta/portão SHALL permanecer idênticos; somente a atmosfera SHALL mudar.
+6. WHEN a mesma seed visual, espaço e coordenada são renderizados novamente THEN o resultado cosmético SHALL ser reproduzível e não alterar o estado canônico.
+
+**Independent Test**: capturar mundo e cidade na superfície, subir/descer Z e comparar footprint e
+porta antes/depois; somente o tint atmosférico pode mudar.
+
+---
+
 ### P1: Selecionar ≠ navegar ≠ agir, com inspector flutuante ⭐ MVP
 
 **User Story**: Como observador, quero clicar em qualquer entidade e ver um painel flutuante à direita com os dados dela, mantendo o mapa visível e interativo atrás — sem que o clique me jogue para outro contexto espacial.
@@ -273,6 +310,20 @@ Toda ambiguidade está resolvida ou registrada aqui.
 5. WHEN parâmetros avançados são necessários THEN o sistema SHALL apresentá-los por progressive disclosure (accordion/drawer por área), nunca dezenas de inputs simultâneos na tela principal.
 6. WHEN listas de pares id→valor são editadas THEN o sistema SHALL usar tabelas/chips/selectors com nomes legíveis em vez de linhas repetidas de "id: [] valor: [] remover".
 7. WHEN o mundo é submetido THEN o sistema SHALL enviar o mesmo contrato de cenário que `POST /worlds/create` já aceita hoje (`src/LivingWorld.Api/WorldCreateEndpoints.cs`), sem novo formato.
+8. WHEN escala ou seed mudam THEN a prévia SHALL reagir visualmente e a mesma paisagem SHALL abrir no editor.
+9. WHEN o editor abre THEN o mapa SHALL ocupar o palco disponível, sem canvas fixo menor que a tela.
+10. WHEN uma ferramenta de pintura está ativa THEN arrastar SHALL pintar todas as células atravessadas.
+11. WHEN um assentamento está selecionado THEN o usuário SHALL poder renomeá-lo e movê-lo no mapa.
+12. WHEN o usuário abre um assentamento THEN SHALL entrar num editor local de cidade e poder posicionar/mover construções.
+13. WHEN configurações gerais aparecem THEN apenas uma área temática SHALL ficar exposta por vez, com transição visual.
+14. WHEN o preset avança ao editor THEN a ação SHALL dizer "Começar"; só o envio final SHALL dizer "Dar vida ao mundo".
+15. WHEN uma cidade ou construção está selecionada THEN Apagar, Delete ou Backspace SHALL removê-la, sem apagar enquanto o foco está num campo de texto.
+16. WHEN a ferramenta Apagar toca uma cidade ou construção THEN a entidade SHALL ser removida antes de qualquer pintura sob ela.
+17. WHEN terreno ou água são pintados THEN a aparência SHALL usar a mesma paleta procedural do mundo original naquela seed.
+18. WHEN a miniatura mostra uma escala THEN sua proporção, dimensões e células SHALL representar o mesmo mapa aberto no editor.
+19. WHEN o usuário edita o mapa ou a cidade THEN Ctrl+Z e Ctrl+Y SHALL desfazer e refazer as alterações locais.
+20. WHEN um capítulo avançado abre THEN SHALL primeiro explicar a decisão, seu efeito e uma direção recomendada; os valores técnicos ficam num segundo nível com ajuda contextual.
+21. WHEN um assentamento ou construção está selecionado no World Creator THEN botão Rotacionar ou tecla R SHALL girá-lo 90° no sentido horário, sem disparar enquanto um campo de edição tem foco.
 
 **Independent Test**: criar um mundo em menos de 30 segundos partindo de um preset, depois posicionar um assentamento clicando no mapa e conferir que o JSON enviado é o mesmo shape que o wizard atual produz.
 
@@ -331,6 +382,8 @@ Toda ambiguidade está resolvida ou registrada aqui.
 | VTT2-01..05 | P1: Map Engine com câmera de verdade | Design | Pending |
 | VTT2-06..10 | P1: Espaços hierárquicos e navegação Observer | Design | Pending |
 | VTT2-11..15 | P1: NPCs em movimento com interpolação visual | Design | Pending |
+| VTT2-68..72 | P1: NPC como pawn visual determinístico em SVG | Ajuste visual | Pending |
+| VTT2-73..78 | P1: Mundo e cidades como paisagem top-down viva | Ajuste visual | Pending |
 | VTT2-16..21 | P1: Selecionar ≠ navegar ≠ agir + inspector flutuante | Design | Pending |
 | VTT2-22..25 | P1: Inspector de NPC e Cidade com dados reais | Design | Pending |
 | VTT2-26..31 | P1: Controles de tempo | Design | Pending |
@@ -349,7 +402,7 @@ Toda ambiguidade está resolvida ou registrada aqui.
 
 **Nota de numeração:** `VTT2-62..67` continuam sendo os ids do SpatialPortal (agora 6 ACs, não 3) mesmo com a story promovida a P1 — os ids não foram renumerados de propósito, para não invalidar referências já feitas em `design.md`/`context.md`.
 
-**Coverage:** 67 requisitos totais; mapeamento para tasks é feito em `tasks.md` (Test Co-location Validation).
+**Coverage:** 78 requisitos totais; mapeamento para tasks é feito em `tasks.md` (Test Co-location Validation).
 
 ---
 

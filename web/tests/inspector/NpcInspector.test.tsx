@@ -76,6 +76,7 @@ describe("NpcInspector", () => {
 
     expect(screen.getByText("(1, 1)")).toBeInTheDocument();
     expect(screen.getByText("5")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Aparência visual do NPC 3" })).toHaveAttribute("src", expect.stringContaining("data:image/svg+xml"));
   });
 
   it("omits 'Ação atual' for an external NPC that has no such field", async () => {

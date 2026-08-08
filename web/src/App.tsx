@@ -107,7 +107,7 @@ export function App({ simulationStore, viewStore, selectionStore, timeControlSou
         {!creatingWorld && <TimeControls timeControlSource={timeControlSource} />}
       </header>
 
-      <main className={creatingWorld ? "" : "fullbleed"}>
+      <main className={!creatingWorld || creatorForm ? "fullbleed" : ""}>
         {creatingWorld && !creatorForm && (
           <PresetStart
             onStart={(form, name, periodId) => {
@@ -122,6 +122,7 @@ export function App({ simulationStore, viewStore, selectionStore, timeControlSou
           <WorldEditor
             initialForm={creatorForm}
             catalogPeriodId={catalogPeriodId}
+            viewport={viewport}
             onCreated={() => {
               setCreatingWorld(false);
               setCreatorForm(null);

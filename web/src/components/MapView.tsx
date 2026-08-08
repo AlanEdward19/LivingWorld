@@ -57,6 +57,10 @@ export interface MapViewProps {
    * Retornar `false` (ex.: ferramenta "selecionar") deixa o clique cair no comportamento normal.
    */
   onPaintClick?: (cell: { x: number; y: number }) => boolean;
+  /** Ferramenta contínua: chamada para cada célula cruzada enquanto o ponteiro está pressionado. */
+  onPaintDrag?: (cell: { x: number; y: number }) => boolean;
+  /** Autoria espacial: permite ao editor mover uma entidade existente por arraste. */
+  onEntityMove?: (ref: EntityRef, cell: { x: number; y: number }) => boolean;
 }
 
 const DEFAULT_HIT_RADIUS_PX = 10;
@@ -77,12 +81,17 @@ export function MapView({
   initialCamera,
   resetCameraKey,
   onPaintClick,
+  onPaintDrag,
+  onEntityMove,
 }: MapViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cameraRef = useRef<Camera | null>(null);
   const interpolationRef = useRef(new InterpolationBuffer());
   const entitiesRef = useRef<AuthoritativeEntity[]>([]);
   const dragRef = useRef<{ x: number; y: number } | null>(null);
+  const paintDragRef = useRef<{ x: number; y: number } | null>(null);
+  const entityDragRef = useRef<{ ref: EntityRef; cell: { x: number; y: number } } | null>(null);
+  const consumedPointerRef = useRef(false);
 
   // Câmera do espaço: restaura a guardada no ViewStore, ou o fit inicial se nunca visitado.
   useEffect(() => {
@@ -182,15 +191,48 @@ export function MapView({
   }
 
   function handleMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
+    const camera = cameraRef.current;
+    if (!camera) return;
+    const point = screenPoint(e);
+    const world = camera.screenToWorld(point);
+    const cell = { x: Math.floor(world.x), y: Math.floor(world.y) };
+    if (onPaintDrag?.(cell)) {
+      consumedPointerRef.current = true;
+      paintDragRef.current = cell;
+      return;
+    }
+    if (onEntityMove) {
+      const hit = hitTest(point, camera, entitiesRef.current, effectiveHitRadiusPx(camera));
+      if (hit) {
+        selectionStore.select(hit);
+        entityDragRef.current = { ref: hit, cell };
+        return;
+      }
+    }
     dragRef.current = { x: e.clientX, y: e.clientY };
   }
 
   function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
-    const drag = dragRef.current;
     const camera = cameraRef.current;
-    if (!drag || !camera) {
+    if (!camera) {
       return;
     }
+    const world = camera.screenToWorld(screenPoint(e));
+    const cell = { x: Math.floor(world.x), y: Math.floor(world.y) };
+    if (paintDragRef.current && onPaintDrag) {
+      for (const crossed of cellsOnLine(paintDragRef.current, cell).slice(1)) onPaintDrag(crossed);
+      paintDragRef.current = cell;
+      return;
+    }
+    if (entityDragRef.current && onEntityMove) {
+      if (cell.x !== entityDragRef.current.cell.x || cell.y !== entityDragRef.current.cell.y) {
+        onEntityMove(entityDragRef.current.ref, cell);
+        entityDragRef.current = { ...entityDragRef.current, cell };
+      }
+      return;
+    }
+    const drag = dragRef.current;
+    if (!drag) return;
     // T19: pan manual cancela o Follow — master prompt §19 ("mover a câmera pode
     // opcionalmente cancelar Follow"); sem isso o próximo frame do rAF puxaria a câmera de
     // volta pra entidade seguida, e o arrasto do usuário nunca teria efeito visível.
@@ -206,6 +248,8 @@ export function MapView({
 
   function handleMouseUp() {
     dragRef.current = null;
+    paintDragRef.current = null;
+    entityDragRef.current = null;
   }
 
   // Feedback do usuário (2026-08-07): clique em NPC só "pegava" bem quando zoomed-out. Causa
@@ -221,6 +265,10 @@ export function MapView({
   function handleClick(e: React.MouseEvent<HTMLCanvasElement>) {
     const camera = cameraRef.current;
     if (!camera) {
+      return;
+    }
+    if (consumedPointerRef.current) {
+      consumedPointerRef.current = false;
       return;
     }
     if (onPaintClick) {
@@ -261,9 +309,28 @@ export function MapView({
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       style={{ cursor: "pointer" }}
     />
   );
+}
+
+function cellsOnLine(from: { x: number; y: number }, to: { x: number; y: number }): { x: number; y: number }[] {
+  const cells: { x: number; y: number }[] = [];
+  const dx = Math.abs(to.x - from.x);
+  const dy = Math.abs(to.y - from.y);
+  const sx = from.x < to.x ? 1 : -1;
+  const sy = from.y < to.y ? 1 : -1;
+  let x = from.x;
+  let y = from.y;
+  let error = dx - dy;
+  while (true) {
+    cells.push({ x, y });
+    if (x === to.x && y === to.y) return cells;
+    const twice = error * 2;
+    if (twice > -dy) { error -= dy; x += sx; }
+    if (twice < dx) { error += dx; y += sy; }
+  }
 }

@@ -8,8 +8,8 @@ import { MapView } from "./MapView";
 import { LayerPanel } from "./LayerPanel";
 import { EntityLegend } from "./EntityLegend";
 import { FloorSelector } from "./FloorSelector";
-import { terrainColorLookup, riverOverlayPoints } from "../worldMapData";
-import { generateCityWallFootprint, MATERIAL_COLOR } from "../map-engine/buildingFootprint";
+import { terrainColorLookup, terrainDetailLookup, riverOverlayPoints } from "../worldMapData";
+import { generateCityWallFootprint, MATERIAL_COLOR, roofColorFor } from "../map-engine/buildingFootprint";
 import { sortActiveLayers } from "../map-engine/layers";
 import type { Viewport } from "../map-engine/Camera";
 import type { ActiveLayer } from "../map-engine/renderer";
@@ -40,8 +40,8 @@ function resolveNavigationTarget(ref: EntityRef): SpaceId | null {
 // Feedback do usuário (2026-08-07, segunda rodada): "o Z não é só em prédio, é em tudo" — mundo
 // não tem nenhum dado de camada subterrânea/aérea (context.md gap 5), e ao contrário de
 // prédio/cidade não dá pra "reformular" o terreno real sem fabricar dado de simulação que não
-// existe. Efeito honesto aqui: tint visual sobre o terreno de verdade + reseed da muralha das
-// cidades (mesmo padrão de `CityView`/`buildingFootprint.ts`) — nunca finge um bioma novo.
+// existe. Efeito honesto aqui: tint visual sobre o terreno de verdade; muralha e portão mantêm
+// identidade estável em qualquer Z — nunca finge um bioma ou uma construção nova.
 function worldFloorLabel(floor: number): string {
   if (floor === 0) {
     return "Superfície";
@@ -74,13 +74,17 @@ export function WorldMapView({ snapshot, viewport, simulationStore, viewStore, s
   }
 
   const terrainLookup = useMemo(() => terrainColorLookup(snapshot), [snapshot]);
+  const terrainDetail = useMemo(() => terrainDetailLookup(snapshot), [snapshot]);
   const cells = useMemo(
     () => ({
       width: snapshot.width,
       height: snapshot.height,
+      backgroundColor: "#7fa8b2",
+      atmosphereSeed: "world",
       colorAt: activeLayers.has("Terrain") ? terrainLookup : () => undefined,
+      detailAt: activeLayers.has("Terrain") ? terrainDetail : undefined,
     }),
-    [snapshot.width, snapshot.height, terrainLookup, activeLayers],
+    [snapshot.width, snapshot.height, terrainLookup, terrainDetail, activeLayers],
   );
 
   const layers: ActiveLayer[] = useMemo(() => {
@@ -107,7 +111,12 @@ export function WorldMapView({ snapshot, viewport, simulationStore, viewStore, s
           size: { w: city.bounds.width, h: city.bounds.height },
           sizeIsDerived: city.boundsAreDerived,
           color: CATEGORY_COLOR.city,
-          footprintCells: wallCells.map((c) => ({ x: c.x, y: c.y, color: MATERIAL_COLOR[c.material] })),
+          footprintCells: wallCells.map((c) => ({
+            x: c.x,
+            y: c.y,
+            color: c.material === "floor" ? roofColorFor(`${city.id.value}:${Math.floor(c.x / 2)}:${Math.floor(c.y / 2)}`) : MATERIAL_COLOR[c.material],
+            material: c.material === "floor" ? "roof" as const : c.material,
+          })),
         };
       }),
     [snapshot.cities, floor],

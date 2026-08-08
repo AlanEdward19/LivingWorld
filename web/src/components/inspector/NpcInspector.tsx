@@ -10,6 +10,7 @@ import type { SimulationStore } from "../../state/simulationStore";
 import type { ViewStore } from "../../state/viewStore";
 import type { EntityRef } from "../../map-engine/types";
 import type { CityResidentMarker, GlobalNpcMarker } from "../../types";
+import { NpcTokenSvg } from "../NpcTokenSvg";
 
 export interface NpcInspectorProps {
   entityRef: EntityRef;
@@ -33,10 +34,17 @@ export function NpcInspector({ entityRef, simulationStore, viewStore }: NpcInspe
   const payload = simulationStore.currentPayload<unknown>(entityRef.space);
   const marker = findMarker(payload, npcId);
   const entity = simulationStore.entitiesOf(entityRef.space).find((e) => e.ref.id === entityRef.id);
+  const currentAction = marker && "currentAction" in marker ? marker.currentAction : null;
 
   return (
     <div>
-      <h3>NPC {entityRef.id}</h3>
+      <div className="npc-inspector-identity">
+        <NpcTokenSvg npcId={entityRef.id} currentAction={currentAction} className="npc-inspector-pawn" />
+        <div>
+          <small>Personagem observado</small>
+          <h3>NPC {entityRef.id}</h3>
+        </div>
+      </div>
 
       <dl>
         <dt>Posição</dt>
@@ -44,10 +52,10 @@ export function NpcInspector({ entityRef, simulationStore, viewStore }: NpcInspe
           {entity ? `(${entity.position.x}, ${entity.position.y})` : "—"}
         </dd>
 
-        {marker && "currentAction" in marker && marker.currentAction !== null && (
+        {currentAction !== null && currentAction !== undefined && (
           <>
             <dt>Ação atual</dt>
-            <dd>{marker.currentAction}</dd>
+            <dd>{currentAction}</dd>
           </>
         )}
       </dl>

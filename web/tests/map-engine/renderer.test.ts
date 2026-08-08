@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { draw, type RenderFrame } from "../../src/map-engine/renderer";
 import type { AuthoritativeEntity, CameraState } from "../../src/map-engine/types";
 import type { LodThresholds } from "../../src/map-engine/lod";
@@ -20,17 +20,25 @@ function fakeCtx(canvas: { width: number; height: number }) {
     beginPath: vi.fn(),
     moveTo: vi.fn(),
     lineTo: vi.fn(),
+    closePath: vi.fn(),
     arc: vi.fn(),
     fill: vi.fn(),
     stroke: vi.fn(),
     fillText: vi.fn(),
+    drawImage: vi.fn(),
     setLineDash: vi.fn(),
+    save: vi.fn(),
+    restore: vi.fn(),
+    translate: vi.fn(),
+    rotate: vi.fn(),
   } as unknown as CanvasRenderingContext2D & {
     fillRect: ReturnType<typeof vi.fn>;
     strokeRect: ReturnType<typeof vi.fn>;
     arc: ReturnType<typeof vi.fn>;
     setLineDash: ReturnType<typeof vi.fn>;
     fillText: ReturnType<typeof vi.fn>;
+    drawImage: ReturnType<typeof vi.fn>;
+    rotate: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -55,6 +63,116 @@ function baseFrame(camera: CameraState, entities: AuthoritativeEntity[] = []): R
 }
 
 describe("renderer.draw", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("draws the deterministic SVG pawn at token LOD when its cached image is ready", () => {
+    class ReadyImage {
+      complete = true;
+      naturalWidth = 100;
+      src = "";
+    }
+    vi.stubGlobal("Image", ReadyImage);
+    const ctx = fakeCtx({ width: 100, height: 100 });
+
+    draw(ctx, baseFrame({ center: { x: 2, y: 2 }, scale: 12 }, [npc("npc-svg-ready", 2, 2)]));
+
+    expect(ctx.drawImage).toHaveBeenCalledOnce();
+  });
+
+  it("renders a river as a water tile instead of a tiny point", () => {
+    const ctx = fakeCtx({ width: 100, height: 100 });
+    const frame = baseFrame({ center: { x: 2, y: 2 }, scale: 10 });
+    frame.cells = { width: 5, height: 5, colorAt: () => undefined };
+    frame.layers = [{ id: "Rivers", overlayPoints: [{ x: 2, y: 2, color: "#3a7bd5" }] }];
+
+    draw(ctx, frame);
+
+    expect(ctx.fillRect.mock.calls.some(([, , width, height]) => width === 10 && height === 10)).toBe(true);
+  });
+
+  it("draws stable cloud puffs when the space enables atmosphere", () => {
+    const ctx = fakeCtx({ width: 100, height: 100 });
+    const frame = baseFrame({ center: { x: 2, y: 2 }, scale: 10 });
+    frame.cells = { width: 5, height: 5, atmosphereSeed: "world", colorAt: () => undefined };
+
+    draw(ctx, frame);
+
+    expect(ctx.arc).toHaveBeenCalledTimes(15);
+  });
+
+  it("does not draw cell grid lines when the current space disables its grid", () => {
+    const ctx = fakeCtx({ width: 100, height: 100 });
+    const frame = baseFrame({ center: { x: 2, y: 2 }, scale: 12 });
+    frame.cells = { width: 5, height: 5, showGrid: false, colorAt: () => "#567" };
+
+    draw(ctx, frame);
+
+    expect((ctx.stroke as unknown as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+  });
+
+  it("adds distinct top-down details to roof and door materials", () => {
+    const ctx = fakeCtx({ width: 100, height: 100 });
+    const building: AuthoritativeEntity = {
+      ref: { kind: "building", id: "house", space: { kind: "City", cityId: "a" } },
+      position: { x: 1, y: 1 },
+      size: { w: 2, h: 1 },
+      sizeIsDerived: true,
+      color: "#765",
+      footprintCells: [
+        { x: 0, y: 0, color: "#765", material: "roof" },
+        { x: 1, y: 0, color: "#432", material: "door" },
+      ],
+    };
+
+    draw(ctx, baseFrame({ center: { x: 2, y: 2 }, scale: 12 }, [building]));
+
+    expect(ctx.fillRect.mock.calls.length).toBeGreaterThanOrEqual(5);
+    expect(ctx.arc).toHaveBeenCalledOnce();
+  });
+
+  it("renders a city as a composed settlement instead of outlining every footprint tile", () => {
+    const ctx = fakeCtx({ width: 300, height: 300 });
+    const city: AuthoritativeEntity = {
+      ref: { kind: "city", id: "city-a", space: { kind: "World" } },
+      position: { x: 1, y: 1 }, size: { w: 10, h: 8 }, sizeIsDerived: false, color: "#999",
+      footprintCells: Array.from({ length: 80 }, (_, index) => ({
+        x: index % 10, y: Math.floor(index / 10), color: "#765", material: "roof" as const,
+      })),
+    };
+
+    draw(ctx, baseFrame({ center: { x: 6, y: 5 }, scale: 12 }, [city]));
+
+    expect(ctx.strokeRect.mock.calls.length).toBe(0);
+    expect(ctx.arc.mock.calls.length).toBe(4);
+  });
+
+  it("renders an authoring settlement without the outer wall markers", () => {
+    const ctx = fakeCtx({ width: 300, height: 300 });
+    const city: AuthoritativeEntity = {
+      ref: { kind: "city", id: "draft-city", space: { kind: "World" } },
+      position: { x: 1, y: 1 }, size: { w: 4, h: 4 }, sizeIsDerived: false, color: "#999",
+      showBoundary: false,
+    };
+
+    draw(ctx, baseFrame({ center: { x: 3, y: 3 }, scale: 24 }, [city]));
+
+    expect(ctx.arc).not.toHaveBeenCalled();
+    expect(ctx.strokeRect).not.toHaveBeenCalled();
+  });
+
+  it("rotates creator architecture around its visual center", () => {
+    const ctx = fakeCtx({ width: 300, height: 300 });
+    const city: AuthoritativeEntity = {
+      ref: { kind: "city", id: "rotated-city", space: { kind: "World" } },
+      position: { x: 1, y: 1 }, size: { w: 4, h: 4 }, sizeIsDerived: false, color: "#999",
+      showBoundary: false, rotation: 90,
+    };
+
+    draw(ctx, baseFrame({ center: { x: 3, y: 3 }, scale: 24 }, [city]));
+
+    expect(ctx.rotate).toHaveBeenCalledWith(Math.PI / 2);
+  });
+
   it("only fills the cells covered by the camera's visible rect, not the whole 1000x1000 grid", () => {
     // scale=10 px/tile, viewport 100x100px -> visible world rect é ~10x10 tiles -> ~100 fillRect
     const camera: CameraState = { center: { x: 500, y: 500 }, scale: 10 };

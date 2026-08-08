@@ -33,6 +33,8 @@ export interface CameraState {
   scale: number;
 }
 
+export type EntityRotation = 0 | 90 | 180 | 270;
+
 export interface EntityRef {
   kind: "npc" | "city" | "building" | "cell";
   id: string;
@@ -48,17 +50,30 @@ export interface AuthoritativeEntity {
   /** true quando `size` é derivado/aproximado e não autorado no domínio */
   sizeIsDerived: boolean;
   color: string;
+  /** Rótulo visual opcional fornecido pela projeção/editor; fallback é kind + id. */
+  label?: string;
+  /** Estado visual observado; não participa de movimento, hit-test ou identidade. */
+  currentAction?: number | null;
   /**
    * Forma real do footprint por célula, relativa a `position` (feedback do usuário — cidade/
    * prédio não são um retângulo uniforme, "igual wireframe" com material por célula:
    * `web/src/map-engine/buildingFootprint.ts`). Quando presente, o renderer desenha cada
    * célula pelo seu próprio material em vez do retângulo único de `size`.
    */
-  footprintCells?: { x: number; y: number; color: string }[];
+  footprintCells?: {
+    x: number;
+    y: number;
+    color: string;
+    material?: "stoneWall" | "woodWall" | "door" | "floor" | "roof";
+  }[];
   /**
    * Puramente visual — desenha mas nunca participa de hit-test/seleção (feedback do usuário:
    * fundo "ambiente" ao redor do grid do interior de um prédio, mesma aparência de fora,
    * transparente escura — não pode roubar clique do piso real por ficar concêntrica com ele).
    */
   decorative?: boolean;
+  /** O editor pode mostrar o conjunto de telhados sem a muralha/caixa externa do mapa observado. */
+  showBoundary?: boolean;
+  /** Orientação visual horária usada pela autoria antes de existir contrato canônico na API. */
+  rotation?: EntityRotation;
 }

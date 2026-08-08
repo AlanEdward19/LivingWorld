@@ -13,11 +13,13 @@ export interface FootprintCell {
 }
 
 export const MATERIAL_COLOR: Record<BuildingMaterial, string> = {
-  stoneWall: "#8a8f9c",
-  woodWall: "#a97c50",
-  door: "#e0645a",
-  floor: "#2a3142",
+  stoneWall: "#8f8a7a",
+  woodWall: "#93653e",
+  door: "#5c3826",
+  floor: "#6f3f35",
 };
+
+const ROOF_COLORS = ["#7f4038", "#8f4b3e", "#6f4740", "#8a583c", "#735246"] as const;
 
 function hashString(s: string): number {
   let h = 0;
@@ -27,14 +29,18 @@ function hashString(s: string): number {
   return Math.abs(h);
 }
 
+export function roofColorFor(identity: string): string {
+  return ROOF_COLORS[hashString(identity) % ROOF_COLORS.length];
+}
+
 /**
  * Planta determinística por prédio: retângulo ou L (nunca aleatório de verdade — mesmo
- * `buildingId`+`floor` sempre gera a mesma forma), com anel de parede (material por
- * `buildingTypeId` par/ímpar) e uma porta na borda inferior. `floor` participa da seed — cada
- * andar (feedback "quero andares, Z") tem uma planta ligeiramente diferente, determinística.
+ * `buildingId` sempre gera a mesma forma), com anel de parede (material por
+ * `buildingTypeId` par/ímpar) e uma porta na borda inferior. O andar observado não participa
+ * da identidade física: trocar Z nunca move parede ou porta.
  */
-export function generateBuildingFootprint(buildingId: string, buildingTypeId: number, floor = 0): FootprintCell[] {
-  const seed = hashString(`${buildingId}:${floor}`);
+export function generateBuildingFootprint(buildingId: string, buildingTypeId: number, _floor = 0): FootprintCell[] {
+  const seed = hashString(buildingId);
   const wallMaterial: BuildingMaterial = buildingTypeId % 2 === 0 ? "stoneWall" : "woodWall";
   const width = 4 + (seed % 3); // 4..6
   const height = 3 + ((seed >> 3) % 3); // 3..5
@@ -71,18 +77,25 @@ export function generateBuildingFootprint(buildingId: string, buildingTypeId: nu
  * (`bounds`). Sem preenchimento de piso (cidade é grande, o interior é onde os prédios da
  * `CityView` aparecem) — só o contorno.
  *
- * `floor` (2026-08-07, segunda rodada — "o Z não é só em prédio, é em tudo") participa da seed
- * igual `generateBuildingFootprint`: cada nível (subsolo/superfície/acima) tem seu próprio
- * portão determinístico, mesmo espírito de placeholder honesto client-side.
+ * O nível Z é somente a camada observada. Ele nunca participa da seed da muralha ou do portão.
  */
-export function generateCityWallFootprint(cityId: string, width: number, height: number, floor = 0): FootprintCell[] {
-  const seed = hashString(`${cityId}:${floor}`);
+export function generateCityWallFootprint(cityId: string, width: number, height: number, _floor = 0): FootprintCell[] {
+  const seed = hashString(cityId);
   const cells: FootprintCell[] = [];
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const onEdge = x === 0 || x === width - 1 || y === 0 || y === height - 1;
-      if (onEdge) {
+      const clippedCorner =
+        width >= 6 && height >= 6 &&
+        ((x + y < 2) || (width - 1 - x + y < 2) || (x + height - 1 - y < 2) || (width - 1 - x + height - 1 - y < 2));
+      if (onEdge && !clippedCorner) {
         cells.push({ x, y, material: "stoneWall" });
+      } else if (!clippedCorner) {
+        const street = x === Math.floor(width / 2) || y === Math.floor(height / 2);
+        const courtyard = hashString(`${cityId}:${x}:${y}`) % 11 === 0;
+        if (!street && !courtyard) {
+          cells.push({ x, y, material: "floor" });
+        }
       }
     }
   }

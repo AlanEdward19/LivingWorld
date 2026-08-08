@@ -154,7 +154,7 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Criar mundo" }));
     expect(screen.getByTestId("preset-start")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Criar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Começar" }));
 
     expect(await screen.findByTestId("world-editor")).toBeInTheDocument();
     expect(screen.queryByTestId("create-world-form")).not.toBeInTheDocument();

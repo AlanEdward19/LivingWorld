@@ -8,8 +8,8 @@
 //
 // Andar (Z): estado local deste componente, não do `SpaceId`/`ViewStore` — não existe dado de
 // andar no motor (nem CellCoord de prédio — context.md gap 5), então não há nada pra
-// `SimulationStore` observar por andar; cada andar é a MESMA planta gerada com uma seed
-// diferente (buildingId+floor), puramente client-side. Se o motor um dia modelar andares como
+// `SimulationStore` observar por andar; cada andar mantém a MESMA planta e porta, com diferença
+// apenas atmosférica no cliente. Se o motor um dia modelar andares como
 // dado real, isso sobe pra `SpaceId`/fonte de snapshot — hoje seria estado inventado.
 import { useMemo, useState } from "react";
 import { MapView } from "./MapView";
@@ -54,7 +54,8 @@ const FLOOR_PLAN_SCALE = 14;
 // dentro dele". Removida a planta sólida por completo: só o CONTORNO das paredes (transparente,
 // sem preencher piso, sem rótulo) marca onde ficam as paredes reais, e o grid de linhas cobre o
 // espaço andável inteiro dentro dele — sem inventar móvel/escada ainda (não modelado, gap 5).
-const CONTOUR_ALPHA_HEX = "55"; // ~33% opacidade (#RRGGBBAA)
+const CONTOUR_ALPHA_HEX = "cc"; // contorno legível sobre o piso interno
+const INTERIOR_FLOOR_COLOR = "#3d382d";
 
 function floorLabel(floor: number): string {
   if (floor === 0) {
@@ -84,7 +85,12 @@ export function InteriorView({ snapshot, viewport, simulationStore, viewStore, s
   const width = cityWidth * INTERIOR_SCALE;
   const height = cityHeight * INTERIOR_SCALE;
 
-  const cells = useMemo(() => ({ width, height, colorAt: () => undefined }), [width, height]);
+  const cells = useMemo(() => ({
+    width,
+    height,
+    backgroundColor: INTERIOR_FLOOR_COLOR,
+    colorAt: () => INTERIOR_FLOOR_COLOR,
+  }), [width, height]);
   const initialCamera = useMemo(
     () => ({ center: { x: width / 2, y: height / 2 }, scale: FLOOR_PLAN_SCALE }),
     [width, height],

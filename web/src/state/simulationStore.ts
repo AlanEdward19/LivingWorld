@@ -16,6 +16,7 @@ const RECONNECT_BACKOFF_MS = 500;
 interface NpcMarkerLike {
   id: { value: number };
   location: { x: number; y: number };
+  currentAction?: number | null;
 }
 
 /**
@@ -141,6 +142,7 @@ export class SimulationStore {
         size: { w: 1, h: 1 },
         sizeIsDerived: false,
         color: CATEGORY_COLOR.npc,
+        currentAction: marker.currentAction,
       }));
   }
 

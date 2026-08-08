@@ -56,8 +56,9 @@ Isso **re-sequencia** as tasks; não muda o escopo de nenhuma:
    controls, layer panel, follow, building space, World Creator, breadcrumb, render de footprint,
    remoção de Player Mode) roda contra **fixtures estáticas**, sem API e sem WebSocket. Fecha com um
    checkpoint de aprovação visual do usuário (T29).
-2. **Estágio 2 — Backend.** Tick loop, endpoints de controle, delta tipado, poda do gateway,
-   `SpatialPortal`, campos de projeção. **Zero arquivos em `web/src`**, testado só com `dotnet test`.
+2. **Estágio 2 — Backend.** Primeiro fecha os gaps de contrato inventariados em
+   `backend-gaps.md`; depois entrega tick loop, controles, delta, poda, `SpatialPortal` e projeções.
+   **Zero arquivos em `web/src`**, testado só com `dotnet test`.
 3. **Estágio 3 — Integração.** Troca o adapter mock pelo real em cada seam, mais os testes
    end-to-end que só fazem sentido com os dois lados reais, e o fechamento da fase (T27).
 
@@ -113,7 +114,7 @@ muda é **qual suíte roda quando**, não se o comportamento novo é testado.
 | Gate Level | When to Use | Command |
 | --- | --- | --- |
 | **Quick-web** | Gate padrão de **todo o Estágio 1** (T0, T5-T19, T22-T26, T28) e das tasks de Estágio 3 que só trocam a fonte de dado (T31-T33) | `npm --prefix web test && npx --prefix web tsc --noEmit` |
-| **Quick-api** | Gate padrão de **todo o Estágio 2** (T1-T4, T20, T21, T30) — só a classe de teste nova/alterada | `dotnet test tests/LivingWorld.Tests --nologo --filter "FullyQualifiedName~<ClasseDeTesteDaTask>"` |
+| **Quick-api** | Gate padrão de **todo o Estágio 2** (T42-T49, T1-T4, T20, T21, T30) — só a classe de teste nova/alterada | `dotnet test tests/LivingWorld.Tests --nologo --filter "FullyQualifiedName~<ClasseDeTesteDaTask>"` |
 | **Quick-web + Quick-api** | Só na T34, que consome campos de projeção reais no cliente | os dois comandos acima |
 | **Build** | Após tasks que mexem em `.csproj`/`package.json`/config de build, ou que só tocam tipos | `bash scripts/build.sh && bash scripts/lint.sh` |
 | **Phase-close (full)** | **Só na T27**, uma vez, no fechamento da fase | `bash scripts/verify.sh` |
@@ -138,7 +139,7 @@ minutos.
 | Estágio | Tasks |
 | --- | --- |
 | **1 — Frontend contra mock** | T0, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T22, T23, T24, T25, T26, T28, T29 |
-| **2 — Backend** | T1, T2, T3, T4, T20, T21, T30 |
+| **2 — Backend** | T42, T43, T44, T45, T46, T47, T48, T49, T1, T2, T3, T4, T20, T21, T30 |
 | **3 — Integração** | T31, T32, T33, T34, T27 |
 
 ### Estágio 1 — Frontend contra mock (nada de backend)
@@ -199,16 +200,24 @@ A dependência em T29 é **de ordem de entrega**, não técnica: nenhuma destas 
 linha de frontend para ser escrita ou testada. Ela existe só porque o usuário quer aprovar a
 aparência antes de o backend começar.
 
+#### E2.0: Contratos ausentes para integração (primeiro bloco)
+
+O inventário, escopo e critérios das tasks T42-T49 estão em `backend-gaps.md`.
+
+```
+T29 → T42 → T43 → T44 → T45 → T46 → T47 → T48 → T49
+```
+
 #### E2.1: Fundação engine-facing (Sequential) — OQ-3
 
 ```
-T29 → T1 → T2 → T3 → T4
+T49 → T1 → T2 → T3 → T4
 ```
 
 #### E2.2: Dado de domínio e campos de projeção (paralelo com E2.1)
 
 ```
-T29 ─┬→ T21        ← SpatialPortal (NÃO [P]: regrava goldens, roda sozinha)
+T49 ─┬→ T21        ← SpatialPortal (NÃO [P]: regrava goldens, roda sozinha)
      ├→ T20 [P]    ← só os campos de footprint na API (metade de frontend virou T28/T34)
      └→ T30 [P]    ← indicadores de cidade na projeção (extraído da T15)
 ```
@@ -276,7 +285,7 @@ contra estas fontes no Estágio 1 e contra as reais no Estágio 3)
 fina sobre `SimulationHost`, mais a entrada `/simulation` no proxy do Vite.
 **Where**: `src/LivingWorld.Api/Simulation/SimulationControlEndpoints.cs` (novo),
 `src/LivingWorld.Api/Program.cs` (uma linha de `Map*`), `web/vite.config.ts`.
-**Depends on**: T29 (gate de estágio: o backend só começa depois da aprovação visual do Estágio 1; tecnicamente esta task não depende de nenhuma linha de frontend).
+**Depends on**: T49 (E2.0 completo; tecnicamente esta task não depende de frontend).
 **Reuses**: `SimulationHost.Pause/Resume/SetSpeed/FastForward` (`src/LivingWorld.Simulation/SimulationHost.cs:10-22`) — validação de velocidade `<= 0` já existe em `:15-17`, não duplicar. Padrão de endpoint de `src/LivingWorld.Api/WorldStartEndpoints.cs:16-29`.
 **Requirement**: VTT2-27, VTT2-28, VTT2-29, VTT2-30
 
@@ -772,11 +781,11 @@ de Biome fica no painel por paridade de dado, sem fingir efeito visual que não 
 
 ### T20: Campos de footprint na projeção [P] — **Estágio 2 · Engine-facing (read-model/API only)** · OQ-1 resolvida
 
-**What**: expor bounds de cidade em `GlobalCityMarker` e posição estável de prédio em
-`CityBuildingMarker`. **Só a API** — nenhum arquivo de `web/src` é tocado.
+**What**: expor em `GlobalCityMarker`/`CityBuildingMarker` os bounds e posições canônicos entregues
+por T45, mantendo fallback derivado e explicitamente marcado para mundos legados. **Só a API.**
 **Where**: `src/LivingWorld.Api/Visual/GlobalProjector.cs`, `src/LivingWorld.Api/Visual/CityProjector.cs`.
-**Depends on**: T29 (gate de estágio).
-**Reuses**: precedente exato de `GlobalSnapshot.Width/Height` — campo de projeção API adicionado na Fase 15 sem impacto em hash/goldens (`src/LivingWorld.Api/Visual/GlobalProjector.cs:20-26`).
+**Depends on**: T49 (E2.0 completo; T45 fornece a geometria canônica).
+**Reuses**: geometria de T45 e precedente de `GlobalSnapshot.Width/Height` para projeção sem mutação.
 **Requirement**: VTT2-42, VTT2-43, VTT2-44, VTT2-45 (habilitador de dado — os ACs de renderização/hit-area são verificados em T28 contra a fixture e em T34 contra este campo)
 
 **Tools**: MCP: NONE · Skill: NONE
@@ -787,9 +796,9 @@ de Biome fica no painel por paridade de dado, sem fingir efeito visual que não 
 
 **Done when**:
 - [ ] `GlobalCityMarker` traz `Bounds`/`BoundsAreDerived`; `CityBuildingMarker` traz `Location`/`LocationIsDerived`
-- [ ] A posição de prédio é estável por `BuildingId` — reordenar/aumentar a lista de prédios não move nenhum já existente (corrige o defeito do anel por índice de iteração, `CityView.tsx:41`; context.md lacuna 5)
+- [ ] Autoria canônica tem precedência; fallback legado é estável por `BuildingId` e nunca move um prédio ao reordenar a coleção
 - [ ] Os campos batem, campo a campo, com o shape que a fixture de T0 já usa (se divergirem, a T34 deixa de ser mecânica — verificar antes de fechar)
-- [ ] Teste prova que o hash canônico é idêntico antes/depois (OQ-1 resolvida como projeção derivada na API; `LivingWorld.Domain` não é tocado, então nenhum golden muda por esta task)
+- [ ] Teste prova que projetar os campos não altera o hash; a mudança canônica pertence exclusivamente à T45
 - [ ] `git diff --name-only` não lista nenhum arquivo sob `web/`
 - [ ] Gate: `dotnet test tests/LivingWorld.Tests --nologo --filter "FullyQualifiedName~Visual"`
 - [ ] Contagem de testes: ≥ 4 novos passando
@@ -814,7 +823,7 @@ efeito econômico/social, nenhuma mudança de posição de NPC. `MigrationSystem
 - `src/LivingWorld.Simulation/ScenarioLoaderV2.cs` — autoria de portais por cenário, mesmo caminho declarativo de `SettlementAnchor` (`src/LivingWorld.Domain/Geography/MapCell.cs:16-18`).
 - `src/LivingWorld.Api/Visual/GlobalProjector.cs`, `CityProjector.cs` — campo `Portals` em `GlobalSnapshot`/`CitySnapshot`, listando os portais cuja origem pertence ao escopo.
 - `tests/LivingWorld.Tests/GoldenHashesTests.cs` — regravação do baseline em commit separado.
-**Depends on**: T29 (gate de estágio). *(Histórico: era T18/T19/T20/T22, depois T4/Phase 0.5 por causa de T11. Com o re-sequenciamento em 3 estágios, T11 resolve portal contra `MockPortalSource` no Estágio 1, então T21 volta a ser uma task de backend puro, sem dependência de frontend nem do tick loop. A AC5 continua verificada: em T11 contra o mock, em T33 contra este campo.)*
+**Depends on**: T49 (E2.0 completo; usa o endereço espacial/andares definido em T46).
 **Reuses**: molde de value object declarativo de `SettlementAnchor` (`MapCell.cs:16-18`); padrão de coleção canônica de `WorldState.Cities`/`Buildings` (`WorldState.cs:238-241`); padrão de campo de projeção de `CityFootprintProjection` (T20).
 **Requirement**: VTT2-62, VTT2-63, VTT2-64, VTT2-65, VTT2-66, VTT2-67 (spec.md AC1-6 da story "SpatialPortal como conceito canônico de domínio")
 
@@ -1107,7 +1116,116 @@ da fixture de T0; e remover o anel de prédios client-side.
 
 ---
 
-### T29: Checkpoint de validação visual — **Estágio 1 (fecha o estágio; gate humano)** — 🚧 aguardando aprovação
+### T35: Pawn visual determinístico dos NPCs — **Estágio 1 · ajuste após review** — ✅ Done
+
+**What**: substituir o token circular genérico por um pawn top-down original, composto em SVG e
+derivado deterministicamente do ID; compartilhar a mesma aparência entre mapa e inspector.
+**Where**: `web/src/npcAppearance.ts`, `web/src/components/NpcTokenSvg.tsx`,
+`web/src/map-engine/renderer.ts`, `web/src/components/inspector/NpcInspector.tsx`.
+**Depends on**: T15, T18.
+**Requirement**: VTT2-68..72
+
+**Done when**:
+- [x] Mesmo ID + mesmo estado produz SVG idêntico em mapa e inspector
+- [x] Mudança de ação preserva as camadas de identidade e muda só o indicador de estado
+- [x] Token LOD usa o pawn; dot/agregado e o canvas único permanecem inalterados
+- [x] Gate: 39 arquivos, 212 testes; `tsc --noEmit` limpo
+
+**Tests**: unit + integration · **Gate**: Quick-web
+**Commit**: `feat(web): deterministic layered npc pawns`
+
+---
+
+### T36: World Builder visual como configuração de jogo — **Estágio 1 · ajuste após review** — ✅ Done
+
+**What**: reduzir a carga de botões/formulários e tornar escolhas, mapa e efeitos dos parâmetros
+visuais e dinâmicos. O detalhamento começa depois da aprovação dos personagens.
+**Depends on**: T35.
+**Requirement**: VTT2-53..59
+
+**Done when**:
+- [x] Entrada usa cartões de escala/origem e preview vivo no lugar de quatro campos soltos
+- [x] Editor usa dock visual contextual sem criar outro mapa ou alterar o contrato do cenário
+- [x] Resumo do cenário mostra mapa, população e assentamentos de forma escaneável
+- [x] Layout visual validado no navegador; dock não invade o painel lateral
+- [x] Gate Quick-web: 39 arquivos, 214 testes; `tsc --noEmit` limpo
+
+---
+
+### T37: Paisagem top-down viva — **Estágio 1 · ajuste após review** — ✅ Done
+
+**What**: renderizar variação determinística de grama/solo, rios em tile e nuvens cosméticas no
+mapa-múndi e na cidade, sem adicionar estado ao motor.
+**Depends on**: T14, T18.
+**Requirement**: VTT2-73, VTT2-74, VTT2-76, VTT2-78
+**Tests**: unit + integration · **Gate**: Quick-web
+
+**Done when**:
+- [x] Mundo e cidade usam solo/grama determinísticos; rios ocupam tiles visuais
+- [x] Nuvens são cosméticas, estáveis por espaço e não entram no estado do motor
+- [x] Microtextura aparece só no zoom próximo; mapa-múndi mantém leitura ampla
+
+---
+
+### T38: Arquitetura top-down e estabilidade em Z — **Estágio 1 · ajuste após review** — ✅ Done
+
+**What**: detalhar telhado/parede/porta e tornar footprint/portão independentes do Z observado.
+**Depends on**: T37.
+**Requirement**: VTT2-75, VTT2-76, VTT2-77
+**Tests**: unit + integration · **Gate**: Quick-web
+
+**Done when**:
+- [x] Renderer distingue telhado, pedra, madeira e porta com detalhes top-down
+- [x] Footprint/porta de prédio são idênticos entre níveis Z
+- [x] Muralha/portão de cidade são idênticos entre níveis Z
+- [x] Gate: 40 arquivos, 220 testes; `tsc --noEmit` limpo
+
+---
+
+### T39: Correções de escala e leitura arquitetônica — **Estágio 1 · ajuste após review** — ✅ Done
+
+**What**: substituir plantas ocas por massas de telhado, dar quarteirões/ruas à cidade no mapa,
+reduzir o zoom inicial da cidade e restaurar piso/contorno do interior.
+**Depends on**: T38.
+**Requirement**: VTT2-75, VTT2-76
+
+**Done when**:
+- [x] Cidade no mapa tem silhueta com cantos cortados, muralha, quarteirões e ruas
+- [x] Prédios na cidade exibem cobertura contínua e porta, não a planta interna
+- [x] Zoom inicial da cidade passa de 16 para 8 px/tile
+- [x] Interior usa piso terroso e contorno de parede opaco, sem fundo de céu azul
+- [x] Gate Quick-web: 40 arquivos, 221 testes; `tsc --noEmit` limpo
+
+**Tests**: unit + integration · **Gate**: Quick-web
+
+---
+
+### T41: World Builder espacial e cinematográfico — **Estágio 1 · ajuste após review** — ✅ Review 2 implementado
+
+**What**: tornar preset e editor uma experiência espacial contínua: preview por seed/escala,
+mapa full-screen, pintura por arraste, assentamento editável/móvel e editor local de cidade.
+**Depends on**: T36, T39.
+**Requirement**: VTT2-53..59, World Creator AC8..21
+**Tests**: unit + integration · **Gate**: Quick-web
+
+**Done when**:
+- [x] Preview anima escala e compartilha paisagem determinística por seed com o editor
+- [x] Editor preenche o viewport e pintura cobre a trajetória do arraste
+- [x] Assentamento pode ser selecionado, renomeado, movido e aberto
+- [x] Editor local de cidade permite posicionar e mover construções
+- [x] Configuração revela uma seção temática por vez e usa ações "Começar"/"Dar vida ao mundo"
+- [x] Gate web: 42 arquivos, 233 testes; TypeScript e build Vite limpos
+- [x] Cidade/prédio podem ser apagados por ferramenta, botão e Delete/Backspace
+- [x] Preview e editor compartilham dimensões, proporção e paleta de seed/pintura
+- [x] Ctrl+Z/Ctrl+Y desfazem/refazem autoria no mundo e dentro da cidade
+- [x] Capítulos explicam efeitos e recomendação antes de revelar os valores técnicos
+- [x] Gate web da review 2: 42 arquivos, 239 testes; TypeScript e build Vite limpos
+- [x] Assentamentos e construções selecionados rotacionam 90° por botão ou tecla R
+- [x] Gate web da rotação: 42 arquivos, 241 testes; TypeScript e build Vite limpos
+
+---
+
+### T29: Checkpoint de validação visual — **Estágio 1 (fecha o estágio; gate humano)** — ✅ aprovado
 
 **What**: build de demo do cliente rodando **inteiramente** contra os mocks, apresentado ao usuário
 para aprovação da aparência antes de qualquer linha de backend. Não é uma task de código: é o gate de
@@ -1115,7 +1233,7 @@ entrega que motivou o re-sequenciamento.
 **Where**: `web/src/main.tsx` (composition root escolhendo as fontes mock),
 `.specs/features/phase-15.1-vtt-frontend-redesign/visual-review.md` (novo — o que foi mostrado e o
 que o usuário aprovou/pediu).
-**Depends on**: T15, T16, T17, T18, T19, T22, T23, T24, T25, T26, T28.
+**Depends on**: T15, T16, T17, T18, T19, T22, T23, T24, T25, T26, T28, T35, T36, T37, T38, T39, T41.
 **Reuses**: tudo do Estágio 1; `npm --prefix web run dev`.
 **Requirement**: nenhum AC novo — é verificação de aceitação visual das stories já entregues
 
@@ -1124,9 +1242,9 @@ que o usuário aprovou/pediu).
 **Done when**:
 - [x] `npm --prefix web run dev` sobe a aplicação **sem nenhum backend rodando** e o mapa se move (tick mock), navega entre os 3 espaços, seleciona, inspeciona, troca camadas, segue entidade e abre o World Creator
 - [x] O composition root é o **único** lugar que nomeia `Mock*Source` (grep: nenhum store/componente importa mock diretamente)
-- [x] Suíte web inteira verde + `tsc --noEmit` limpo — **208 passed**
-- [x] `visual-review.md` registra a validação técnica; decisão do usuário ainda aguardada
-- [ ] **Aprovação explícita do usuário registrada** — sem ela o Estágio 2 não começa
+- [x] Suíte web inteira verde + `tsc --noEmit` limpo — **241 passed**
+- [x] `visual-review.md` registra a validação técnica, as iterações visuais e a decisão final de 2026-08-07
+- [x] **Aprovação explícita do usuário registrada** em 2026-08-07 após rotação por botão/tecla R
 - [x] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit`
 
 **Tests**: none (gate de aceitação humana; toda a cobertura automatizada já foi entregue nas tasks T0-T28)
@@ -1140,7 +1258,7 @@ que o usuário aprovou/pediu).
 **What**: expor os 6 indicadores que `CityPopulationQuery` já calcula (população, riqueza, saúde,
 desigualdade/Gini, economia, habitação) no snapshot de cidade. **Só a API.**
 **Where**: `src/LivingWorld.Api/Visual/CityProjector.cs` (campo novo em `CitySnapshot`).
-**Depends on**: T29 (gate de estágio). *(Metade de backend da antiga T15.)*
+**Depends on**: T49 (E2.0 completo). *(Metade de backend da antiga T15.)*
 **Reuses**: `CityPopulationQuery` (`src/LivingWorld.Simulation/Cities/CityPopulationQuery.cs:16-53`) — chamado, não reimplementado; mesmo padrão de campo de projeção de T20.
 **Requirement**: VTT2-22 (habilitador de dado — o AC de exibição é verificado em T15 contra a fixture e em T34 contra este campo)
 
@@ -1300,10 +1418,13 @@ E1.6:
 
 ESTÁGIO 2 — BACKEND (gate Quick-api puro; nenhum arquivo em web/src)
 
-E2.1 (Sequential, após T29):
+E2.0 (primeiro bloco, após T29; detalhes em backend-gaps.md):
+  T42 ──→ T43 ──→ T44 ──→ T45 ──→ T46 ──→ T47 ──→ T48 ──→ T49
+
+E2.1 (Sequential, após E2.0):
   T1 ──→ T2 ──→ T3 ──→ T4
 
-E2.2 (após T29, em paralelo com E2.1):
+E2.2 (após E2.0, em paralelo com E2.1):
     ├── T21       ← NÃO [P]: regrava tests/golden/world-hashes.json, roda sozinha
     ├── T20 [P]   ← só os campos de footprint na API
     └── T30 [P]   ← indicadores de cidade na projeção (metade BE da antiga T15)
@@ -1373,6 +1494,7 @@ Confirmação do usuário é obrigatória antes de dispatch.
 | T27 | fechamento | ✅ Granular |
 | T28 | render de footprint + hit area (metade FE da antiga T20) | ✅ Granular |
 | T29 | checkpoint de aprovação visual | ✅ Granular — sem código de produção além do composition root |
+| T42-T49 | 1 contrato ausente por task; ver `backend-gaps.md` | ✅ Granulares; sequência evita contratos provisórios |
 | T30 | 1 campo de projeção (metade BE da antiga T15) | ✅ Granular |
 | T31 | 2 implementações reais de fonte + troca no root | ✅ Granular — mesmo transporte, duas interfaces irmãs |
 | T32 | 1 implementação real de fonte + funções de api | ✅ Granular |
@@ -1408,13 +1530,14 @@ Confirmação do usuário é obrigatória antes de dispatch.
 | T25 | 1 | T24 | T24→{T25,T26} | ✅ |
 | T26 | 1 | T24 | T24→{T25,T26} | ✅ |
 | T29 | 1 | T15..T19, T22..T26, T28 | {…}→T29 (E1.6) | ✅ |
-| T1 | 2 | T29 (gate de estágio) | T29→T1, raiz de E2.1 | ✅ |
+| T42-T49 | 2 | T29, em sequência | T29→T42→…→T49 (E2.0) | ✅ |
+| T1 | 2 | T49 (E2.0 completo) | T49→T1, raiz de E2.1 | ✅ |
 | T2 | 2 | T1 | T1→T2 | ✅ |
 | T3 | 2 | T2 | T2→T3 | ✅ |
 | T4 | 2 | T3 | T3→T4 | ✅ |
-| T20 | 2 | T29 (gate de estágio) | T29→T20 (E2.2) | ✅ |
-| T21 | 2 | T29 (gate de estágio) | T29→T21 (E2.2) | ✅ |
-| T30 | 2 | T29 (gate de estágio) | T29→T30 (E2.2) | ✅ |
+| T20 | 2 | T49 (E2.0 completo) | T49→T20 (E2.2) | ✅ |
+| T21 | 2 | T49 (E2.0 completo) | T49→T21 (E2.2) | ✅ |
+| T30 | 2 | T49 (E2.0 completo) | T49→T30 (E2.2) | ✅ |
 | T31 | 3 | T4, T10 | {T4,T10}→T31 | ✅ |
 | T32 | 3 | T1, T16 | {T1,T16}→T32 | ✅ |
 | T33 | 3 | T21, T11 | {T21,T11}→T33 | ✅ |
@@ -1456,12 +1579,15 @@ Confirmação do usuário é obrigatória antes de dispatch.
 | T26 | Componente React | unit | unit | ✅ |
 | T27 | Gate/OpenAPI/cenário | integration + architecture + scenario | integration + architecture + scenario | ✅ |
 | T28 | Map engine (renderer/hitTest) + componente React | unit | unit | ✅ |
-| T29 | Composition root (nenhuma camada de lógica nova) | — (gate de aceitação humana) | none, justificado | ⚠️ OK |
+| T29 | Composition root (nenhuma camada de lógica nova) | — (gate de aceitação humana) | none, justificado | ✅ aprovado |
+| T42-T49 | Domínio/API de integração; uma lacuna por task | unit + integration; golden/ADR onde indicado | unit + integration | ✅ |
 | T30 | Contrato de projeção | integration | integration | ✅ |
 | T31 | Fontes de dado reais + store | unit | unit + integration | ✅ |
 | T32 | Fonte de dado real + `api.ts` | unit | unit | ✅ |
 | T33 | Fonte de dado real | unit | unit | ✅ |
 | T34 | Fonte de dado real + componente + contrato de projeção | unit + integration | unit + integration | ✅ |
+| T40 | Renderer arquitetônico + terreno finito | unit | unit | ✅ |
+| T41 | Creator procedural + interação espacial + componentes React | unit + integration | unit + integration | ✅ |
 
 **Um único `Tests: none`** nesta fase: a **T29**, que é o checkpoint de aprovação visual do usuário —
 ela não cria nem modifica camada de lógica (só o composition root escolhe qual fonte injetar), e toda

@@ -9,7 +9,7 @@ import { MapView } from "./MapView";
 import { EntityLegend } from "./EntityLegend";
 import { FloorSelector } from "./FloorSelector";
 import { CATEGORY_COLOR } from "../map-engine/categoryColors";
-import { generateBuildingFootprint, MATERIAL_COLOR } from "../map-engine/buildingFootprint";
+import { generateBuildingFootprint, MATERIAL_COLOR, roofColorFor } from "../map-engine/buildingFootprint";
 import type { Viewport } from "../map-engine/Camera";
 import type { LodThresholds } from "../map-engine/lod";
 import type { AuthoritativeEntity, EntityRef, SpaceId } from "../map-engine/types";
@@ -17,6 +17,7 @@ import type { SimulationStore } from "../state/simulationStore";
 import type { ViewStore } from "../state/viewStore";
 import type { SelectionStore } from "../state/selectionStore";
 import type { CitySnapshot } from "../types";
+import { cityGroundAt, cityGroundBounds } from "../map-engine/worldVisuals";
 
 export interface CityViewProps {
   snapshot: CitySnapshot;
@@ -30,7 +31,7 @@ const BUILDING_RING_RADIUS = 6;
 const LOD_THRESHOLDS: LodThresholds = { aggregate: 4, token: 10, detail: 18 };
 /** Sem um "tamanho de grid local" mais (coordenadas de cidade agora são absolutas, iguais às
  * do mundo) — 16px/tile é o equivalente ao zoom antigo de fit-to-screen num grid local de 21x21. */
-const DEFAULT_CITY_ZOOM_SCALE = 16;
+const DEFAULT_CITY_ZOOM_SCALE = 8;
 
 function resolveNavigationTarget(cityId: string): (ref: EntityRef) => SpaceId | null {
   return (ref) => (ref.kind === "building" ? { kind: "Building", buildingId: ref.id, cityId } : null);
@@ -38,8 +39,8 @@ function resolveNavigationTarget(cityId: string): (ref: EntityRef) => SpaceId | 
 
 // Feedback do usuário (2026-08-07, segunda rodada): "o Z não é só em prédio, é em tudo" — mesmo
 // gap 5 do context.md (nenhum dado de camada/subsolo de cidade no motor), mesmo espírito
-// honesto: nível vira estado local, reseed determinístico do footprint dos prédios (não
-// fabrica prédio novo, só reformula a MESMA planta pra parecer outro nível).
+// honesto: nível vira estado local e tint atmosférico. Footprint e porta não mudam, porque Z
+// observado não pode reformular a identidade física da construção.
 function cityFloorLabel(floor: number): string {
   if (floor === 0) {
     return "Superfície";
@@ -51,9 +52,17 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
   const [floor, setFloor] = useState(0);
   const space: SpaceId = useMemo(() => ({ kind: "City", cityId: snapshot.id.value }), [snapshot.id.value]);
 
-  // Sem terreno/grid local próprio de cidade ainda — cobre uma janela ampla em torno da cidade
-  // pra `visibleWorldRect` não colidir com um grid degenerado de 0x0.
-  const cells = useMemo(() => ({ width: 100000, height: 100000, colorAt: () => undefined }), []);
+  const cells = useMemo(() => {
+    const bounds = cityGroundBounds(snapshot.location);
+    return {
+      ...bounds,
+      showGrid: false,
+      backgroundColor: "#7fa8b2",
+      atmosphereSeed: `city:${snapshot.id.value}`,
+      colorAt: (x: number, y: number) => cityGroundAt(snapshot.id.value, x, y).color,
+      detailAt: (x: number, y: number) => cityGroundAt(snapshot.id.value, x, y),
+    };
+  }, [snapshot.id.value, snapshot.location]);
 
   const initialCamera = useMemo(
     () => ({ center: { ...snapshot.location }, scale: DEFAULT_CITY_ZOOM_SCALE }),
@@ -86,7 +95,12 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
           size: { w: width, h: height },
           sizeIsDerived: true, // layout de anel client-side, não posição real (context.md gap 5)
           color: CATEGORY_COLOR.building,
-          footprintCells: footprintCells.map((c) => ({ x: c.x, y: c.y, color: MATERIAL_COLOR[c.material] })),
+          footprintCells: footprintCells.map((c) => ({
+            x: c.x,
+            y: c.y,
+            color: c.material === "door" ? MATERIAL_COLOR.door : roofColorFor(`${buildingId}:${building.buildingTypeId}`),
+            material: c.material === "door" ? "door" as const : "roof" as const,
+          })),
         };
       }),
     [snapshot.buildings, snapshot.location, space, floor],

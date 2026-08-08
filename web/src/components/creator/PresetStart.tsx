@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchPeriodTemplate, listPeriodTemplates, type PeriodSummary } from "../../api";
 import { defaultScenarioForm, jsonToScenarioForm, type ScenarioFormState } from "../../scenarioDefaults";
+import { creatorGroundAt } from "./creatorWorldVisuals";
 
 export interface PresetStartProps {
   onStart: (form: ScenarioFormState, name: string, periodId?: string) => void;
@@ -22,6 +23,7 @@ const SIZE_PRESETS: Record<SizePresetKey, SizePreset> = {
 };
 
 const BLANK = "__blank__";
+const PREVIEW_SCALE: Record<SizePresetKey, number> = { pequeno: 0.52, medio: 0.72, grande: 0.94 };
 
 /// Fase 15.1, T23: primeira tela do creator — no máximo 4 campos, nenhum parâmetro avançado. A
 /// autoria campo-a-campo completa continua existindo no wizard de 6 abas (T26 evolui a
@@ -71,25 +73,37 @@ export function PresetStart({ onStart }: PresetStartProps) {
 
   return (
     <div className="preset-start" data-testid="preset-start">
-      <h2>Criar mundo</h2>
+      <header className="preset-start-heading">
+        <span>Novo jogo</span>
+        <h2>Que mundo vai nascer?</h2>
+        <p>Escolha a escala e veja o ponto de partida antes de entrar no mapa.</p>
+      </header>
 
-      <label>
-        Nome:{" "}
-        <input aria-label="preset-name" type="text" value={name} onChange={(e) => setName(e.target.value)} />
-      </label>
+      <div className="preset-start-layout">
+        <section className="preset-choices">
+          <div className="preset-inline-fields">
+            <label>
+              Nome do mundo
+              <input aria-label="preset-name" type="text" value={name} placeholder="Ex.: Vale de Aster" onChange={(e) => setName(e.target.value)} />
+            </label>
+            <label>
+              Seed
+              <input aria-label="preset-seed" type="number" value={seed} onChange={(e) => setSeed(Number(e.target.value))} />
+            </label>
+          </div>
 
-      <label>
-        Seed:{" "}
-        <input
-          aria-label="preset-seed"
-          type="number"
-          value={seed}
-          onChange={(e) => setSeed(Number(e.target.value))}
-        />
-      </label>
-
-      <label>
-        Tamanho aproximado:{" "}
+          <h3>Escala da simulação</h3>
+          <div className="size-preset-cards">
+            {Object.entries(SIZE_PRESETS).map(([key, preset]) => (
+              <button key={key} type="button" className={size === key ? "selected" : ""} aria-pressed={size === key} disabled={startingPoint !== BLANK} onClick={() => setSize(key as SizePresetKey)}>
+                <span className="size-preset-map" aria-hidden="true">{key === "pequeno" ? "▦" : key === "medio" ? "▦▦" : "▦▦▦"}</span>
+                <strong>{preset.label}</strong>
+                <small>{preset.width}×{preset.height} · {preset.initialPopulation} habitantes</small>
+              </button>
+            ))}
+          </div>
+          <label className="visually-hidden">
+            Tamanho aproximado
         <select
           aria-label="preset-size"
           value={size}
@@ -102,10 +116,21 @@ export function PresetStart({ onStart }: PresetStartProps) {
             </option>
           ))}
         </select>
-      </label>
+          </label>
 
-      <label>
-        Começar de:{" "}
+          <h3>Ponto de partida</h3>
+          <div className="origin-cards">
+            <button type="button" className={startingPoint === BLANK ? "selected" : ""} aria-pressed={startingPoint === BLANK} onClick={() => setStartingPoint(BLANK)}>
+              <span aria-hidden="true">✦</span><strong>Folha em branco</strong><small>Construa do zero no mapa</small>
+            </button>
+            {templates.map((template) => (
+              <button key={template.periodId} type="button" className={startingPoint === template.periodId ? "selected" : ""} aria-pressed={startingPoint === template.periodId} onClick={() => setStartingPoint(template.periodId)}>
+                <span aria-hidden="true">◫</span><strong>{template.source}</strong><small>Cenário preparado</small>
+              </button>
+            ))}
+          </div>
+          <label className="visually-hidden">
+            Começar de
         <select
           aria-label="preset-starting-point"
           value={startingPoint}
@@ -118,12 +143,43 @@ export function PresetStart({ onStart }: PresetStartProps) {
             </option>
           ))}
         </select>
-      </label>
+          </label>
+        </section>
 
-      <button type="button" onClick={handleCreate} disabled={loading}>
-        {loading ? "Carregando…" : "Criar"}
-      </button>
-      {error && <p role="alert">{error}</p>}
+        <aside className="world-seed-preview" aria-label="Prévia do mundo">
+          <div className="preview-map" aria-hidden="true">
+            <div
+              key={size}
+              className="preview-map-world"
+              data-testid="preview-map-world"
+              style={{
+                transform: `scale(${PREVIEW_SCALE[size]})`,
+                aspectRatio: `${SIZE_PRESETS[size].width} / ${SIZE_PRESETS[size].height}`,
+                gridTemplateColumns: `repeat(${SIZE_PRESETS[size].width}, 1fr)`,
+              }}
+            >
+              {Array.from({ length: SIZE_PRESETS[size].width * SIZE_PRESETS[size].height }, (_, index) => {
+                const x = index % SIZE_PRESETS[size].width;
+                const y = Math.floor(index / SIZE_PRESETS[size].width);
+                const ground = creatorGroundAt(seed, x, y);
+                return <i key={index} data-ground={ground.kind} style={{ background: ground.color }} />;
+              })}
+              <b style={{ left: `${(5.5 / SIZE_PRESETS[size].width) * 100}%`, top: `${(5.5 / SIZE_PRESETS[size].height) * 100}%` }}>⌂</b>
+            </div>
+          </div>
+          <span>Prévia conceitual</span>
+          <h3>{name.trim() || "Mundo sem nome"}</h3>
+          <dl>
+            <div><dt>Território</dt><dd>{SIZE_PRESETS[size].width} × {SIZE_PRESETS[size].height}</dd></div>
+            <div><dt>População</dt><dd>{SIZE_PRESETS[size].initialPopulation}</dd></div>
+            <div><dt>Seed</dt><dd>{seed}</dd></div>
+          </dl>
+          <button className="create-world-cta" type="button" onClick={handleCreate} disabled={loading}>
+            {loading ? "Abrindo o mapa…" : "Começar"}
+          </button>
+          {error && <p role="alert">{error}</p>}
+        </aside>
+      </div>
     </div>
   );
 }

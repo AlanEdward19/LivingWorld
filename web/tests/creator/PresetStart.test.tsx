@@ -15,6 +15,22 @@ function stubFetch(templates: unknown[] = [], periodBody: unknown = {}) {
 }
 
 describe("PresetStart", () => {
+  it("updates the visual preview when a size card is chosen", () => {
+    stubFetch();
+    render(<PresetStart onStart={() => {}} />);
+
+    const preview = screen.getByTestId("preview-map-world");
+    const before = preview.style.transform;
+    fireEvent.click(screen.getByRole("button", { name: /Grande 40×40/ }));
+
+    expect(screen.getByLabelText("preset-size")).toHaveValue("grande");
+    expect(screen.getByRole("complementary", { name: "Prévia do mundo" })).toHaveTextContent("40 × 40");
+    expect(screen.getByRole("complementary", { name: "Prévia do mundo" })).toHaveTextContent("150");
+    expect(screen.getByTestId("preview-map-world").style.transform).not.toBe(before);
+    expect(screen.getByTestId("preview-map-world").querySelectorAll("i")).toHaveLength(1600);
+    expect(screen.getByTestId("preview-map-world")).toHaveStyle({ gridTemplateColumns: "repeat(40, 1fr)" });
+  });
+
   it("exposes at most 4 fields and no advanced parameter", () => {
     stubFetch();
     render(<PresetStart onStart={() => {}} />);
@@ -30,7 +46,7 @@ describe("PresetStart", () => {
     fireEvent.change(screen.getByLabelText("preset-name"), { target: { value: "Aldeia" } });
     fireEvent.change(screen.getByLabelText("preset-seed"), { target: { value: "7" } });
     fireEvent.change(screen.getByLabelText("preset-size"), { target: { value: "grande" } });
-    fireEvent.click(screen.getByRole("button", { name: "Criar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Começar" }));
 
     await waitFor(() => expect(onStart).toHaveBeenCalled());
     const [form, name] = onStart.mock.calls[0];
@@ -51,7 +67,7 @@ describe("PresetStart", () => {
 
     await screen.findByRole("option", { name: "Cidade média" });
     fireEvent.change(screen.getByLabelText("preset-starting-point"), { target: { value: "cidade-media" } });
-    fireEvent.click(screen.getByRole("button", { name: "Criar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Começar" }));
 
     await waitFor(() => expect(onStart).toHaveBeenCalled());
     const [form, , periodId] = onStart.mock.calls[0];
@@ -68,5 +84,16 @@ describe("PresetStart", () => {
     await screen.findByRole("option", { name: "Cidade média" });
     fireEvent.change(screen.getByLabelText("preset-starting-point"), { target: { value: "cidade-media" } });
     expect(screen.getByLabelText("preset-size")).toBeDisabled();
+  });
+
+  it("changes the visible landscape when seed changes", () => {
+    stubFetch();
+    render(<PresetStart onStart={() => {}} />);
+    const colorsBefore = [...screen.getByTestId("preview-map-world").querySelectorAll("i")].map((cell) => cell.getAttribute("style"));
+
+    fireEvent.change(screen.getByLabelText("preset-seed"), { target: { value: "91" } });
+
+    const colorsAfter = [...screen.getByTestId("preview-map-world").querySelectorAll("i")].map((cell) => cell.getAttribute("style"));
+    expect(colorsAfter).not.toEqual(colorsBefore);
   });
 });

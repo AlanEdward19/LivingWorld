@@ -80,10 +80,10 @@ describe("CityView", () => {
     const canvas = screen.getByTestId("map-view-canvas") as HTMLCanvasElement;
     stubRect(canvas);
 
-    // câmera inicial: center = snapshot.location (0,0), scale 16; resident em (1,1) tem centro
-    // de token em (1.5,1.5) -> ((1.5-0)*16+100, (1.5-0)*16+100) = (124,124) (hitTest.ts mira o
+    // câmera inicial: center = snapshot.location (0,0), scale 8; resident em (1,1) tem centro
+    // de token em (1.5,1.5) -> ((1.5-0)*8+100, (1.5-0)*8+100) = (112,112) (hitTest.ts mira o
     // centro da célula, igual ao renderer — não o canto cru)
-    fireEvent.click(canvas, { clientX: 124, clientY: 124 });
+    fireEvent.click(canvas, { clientX: 112, clientY: 112 });
 
     expect(selectionStore.current()).toEqual({
       kind: "npc",
@@ -108,8 +108,8 @@ describe("CityView", () => {
     stubRect(canvas);
 
     // único prédio, ângulo 0, raio 6, centro (0,0) -> local (6,0) -> tela (0*... deixa o hitTest
-    // achar: worldToScreen((6,0)) com center(0,0) scale16 = (6*16+100, 0*16+100) = (196,100)
-    fireEvent.doubleClick(canvas, { clientX: 196, clientY: 100 });
+    // achar: worldToScreen((6,0)) com center(0,0) scale8 = (6*8+100, 0*8+100) = (148,100)
+    fireEvent.doubleClick(canvas, { clientX: 148, clientY: 100 });
 
     expect(enterSpy).toHaveBeenCalledWith({ kind: "Building", buildingId: "8", cityId: "city-1" });
   });

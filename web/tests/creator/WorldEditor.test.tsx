@@ -19,11 +19,20 @@ function stubRect(canvas: HTMLCanvasElement) {
   });
 }
 
-// Câmera determinística de WorldEditor: center=(width/2,height/2), scale=10 (ver WorldEditor.tsx).
-// Assentamento default fica em (5,5); worldToScreen((5.5,5.5)) com center(5,5) e viewport 200x200.
+// Câmera fit-to-screen: grid 10x10 em viewport 200x200 -> scale=20.
+// Assentamento default ocupa (4,4)..(6,6), então o centro continua em (100,100).
 const SETTLEMENT_SCREEN_POINT = { clientX: 105, clientY: 105 };
 
 describe("WorldEditor", () => {
+  it("changes map tool through the visual dock", () => {
+    render(<WorldEditor initialForm={defaultScenarioForm()} viewport={VIEWPORT} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Terreno" }));
+
+    expect(screen.getByLabelText("tool-select")).toHaveValue("terrain");
+    expect(screen.getByLabelText("tool-terrain")).toBeInTheDocument();
+  });
+
   beforeEach(() => {
     HTMLCanvasElement.prototype.getContext = () => null;
   });
@@ -41,9 +50,8 @@ describe("WorldEditor", () => {
     expect(panel).toHaveTextContent(`${form.width} × ${form.height}`);
     expect(panel).toHaveTextContent(String(form.seed));
     expect(screen.queryByTestId("entity-inspector")).not.toBeInTheDocument();
-    const sections = panel.querySelectorAll(":scope > .world-editor-panels > details");
-    expect(sections).toHaveLength(6);
-    expect([...sections].every((section) => !section.hasAttribute("open"))).toBe(true);
+    expect(screen.getByRole("navigation", { name: "Capítulos da configuração" }).querySelectorAll("button")).toHaveLength(7);
+    expect(screen.getAllByTestId("active-config-chapter")).toHaveLength(1);
   });
 
   it("selecting the settlement marker on the map swaps the config panel for the entity inspector", () => {
@@ -82,7 +90,7 @@ describe("WorldEditor", () => {
     const onCreated = vi.fn();
     render(<WorldEditor initialForm={defaultScenarioForm()} onCreated={onCreated} viewport={VIEWPORT} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Criar mundo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Dar vida ao mundo" }));
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith(20));
     const call = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.find(([url]) => url === "/worlds/create")!;
@@ -111,14 +119,15 @@ describe("WorldEditor", () => {
       />,
     );
 
-    fireEvent.click(screen.getByText("Comportamento"));
+    fireEvent.click(screen.getByRole("button", { name: /Ritmos/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Ajustar regras de Ritmos" }));
     fireEvent.click(screen.getByText(/Avançado \(limiares de seleção/));
 
     expect(await screen.findAllByRole("option", { name: "Ferreiro (#1)" })).not.toHaveLength(0);
   });
 
-  // worldToScreen((2.5,2.5)) com center(5,5), scale 10, viewport 200x200 -> (75,75).
-  const EMPTY_CELL_SCREEN_POINT = { clientX: 75, clientY: 75 };
+  // worldToScreen((2.5,2.5)) com center(5,5), scale 20, viewport 200x200 -> (50,50).
+  const EMPTY_CELL_SCREEN_POINT = { clientX: 50, clientY: 50 };
 
   it("positions a settlement by tool + click, not by typing coordinates, and shows the cell as read-only", () => {
     const form = defaultScenarioForm();
@@ -152,7 +161,7 @@ describe("WorldEditor", () => {
     fireEvent.change(screen.getByLabelText("tool-terrain"), { target: { value: "2" } });
     fireEvent.click(canvas, EMPTY_CELL_SCREEN_POINT);
 
-    fireEvent.click(screen.getByRole("button", { name: "Criar mundo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Dar vida ao mundo" }));
     await waitFor(() =>
       expect((fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => url === "/worlds/create")).toBe(
         true,
@@ -177,7 +186,7 @@ describe("WorldEditor", () => {
     );
     render(<WorldEditor initialForm={defaultScenarioForm()} viewport={VIEWPORT} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Criar mundo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Dar vida ao mundo" }));
     await waitFor(() =>
       expect((fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => url === "/worlds/create")).toBe(
         true,
@@ -187,5 +196,139 @@ describe("WorldEditor", () => {
     const call = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.find(([url]) => url === "/worlds/create")!;
     const scenario = JSON.parse(JSON.parse((call[1] as RequestInit).body as string).scenarioJson);
     expect(scenario.Cells).toBeUndefined();
+  });
+
+  it("paints multiple terrain cells in one pointer drag", async () => {
+    vi.stubGlobal("fetch", vi.fn((url: string) => url === "/worlds/create"
+      ? Promise.resolve(new Response(JSON.stringify({ npcCount: 0 }), { status: 200 }))
+      : Promise.resolve(new Response("[]", { status: 200 }))));
+    render(<WorldEditor initialForm={defaultScenarioForm()} viewport={VIEWPORT} />);
+    const canvas = screen.getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
+    fireEvent.change(screen.getByLabelText("tool-select"), { target: { value: "terrain" } });
+
+    fireEvent.mouseDown(canvas, { clientX: 50, clientY: 50 });
+    fireEvent.mouseMove(canvas, { clientX: 90, clientY: 50 });
+    fireEvent.mouseUp(canvas);
+    fireEvent.click(screen.getByRole("button", { name: "Dar vida ao mundo" }));
+
+    await waitFor(() => expect((fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => url === "/worlds/create")).toBe(true));
+    const call = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.find(([url]) => url === "/worlds/create")!;
+    const scenario = JSON.parse(JSON.parse((call[1] as RequestInit).body as string).scenarioJson);
+    expect(scenario.Cells.filter((cell: { X: number; Y: number; Terrain: number }) => cell.Y === 2 && cell.X >= 2 && cell.X <= 4 && cell.Terrain === 1)).toHaveLength(3);
+  });
+
+  it("renames and drags a selected settlement", () => {
+    render(<WorldEditor initialForm={defaultScenarioForm()} viewport={VIEWPORT} />);
+    const canvas = screen.getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
+
+    fireEvent.click(canvas, SETTLEMENT_SCREEN_POINT);
+    fireEvent.change(screen.getByLabelText("settlement-name"), { target: { value: "Porto Âmbar" } });
+    expect(screen.getByLabelText("settlement-name")).toHaveValue("Porto Âmbar");
+
+    fireEvent.mouseDown(canvas, SETTLEMENT_SCREEN_POINT);
+    fireEvent.mouseMove(canvas, { clientX: 145, clientY: 105 });
+    fireEvent.mouseUp(canvas);
+    expect(screen.getByTestId("settlement-position")).toHaveTextContent("7, 5");
+  });
+
+  it("deletes a selected settlement with the inspector action and supports undo/redo", () => {
+    render(<WorldEditor initialForm={defaultScenarioForm()} viewport={VIEWPORT} />);
+    const canvas = screen.getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
+    fireEvent.click(canvas, SETTLEMENT_SCREEN_POINT);
+    fireEvent.click(screen.getByRole("button", { name: "Apagar assentamento" }));
+    expect(screen.getByTestId("world-general-config")).toHaveTextContent("0");
+
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+    expect(screen.getByTestId("world-general-config")).toHaveTextContent("1");
+    fireEvent.keyDown(window, { key: "y", ctrlKey: true });
+    expect(screen.getByTestId("world-general-config")).toHaveTextContent("0");
+  });
+
+  it("deletes a selected settlement with Delete but not while editing its name", () => {
+    render(<WorldEditor initialForm={defaultScenarioForm()} viewport={VIEWPORT} />);
+    const canvas = screen.getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
+    fireEvent.click(canvas, SETTLEMENT_SCREEN_POINT);
+    const name = screen.getByLabelText("settlement-name");
+    fireEvent.keyDown(name, { key: "Backspace" });
+    expect(screen.getByTestId("entity-inspector")).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "Delete" });
+    expect(screen.queryByTestId("entity-inspector")).not.toBeInTheDocument();
+  });
+
+  it("rotates a selected settlement by button or R, but not while editing its name", () => {
+    render(<WorldEditor initialForm={defaultScenarioForm()} viewport={VIEWPORT} />);
+    const canvas = screen.getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
+    fireEvent.click(canvas, SETTLEMENT_SCREEN_POINT);
+    expect(screen.getByTestId("settlement-rotation")).toHaveTextContent("0°");
+
+    fireEvent.keyDown(window, { key: "r" });
+    expect(screen.getByTestId("settlement-rotation")).toHaveTextContent("90°");
+    fireEvent.click(screen.getByRole("button", { name: "Rotacionar assentamento" }));
+    expect(screen.getByTestId("settlement-rotation")).toHaveTextContent("180°");
+    fireEvent.keyDown(screen.getByLabelText("settlement-name"), { key: "r" });
+    expect(screen.getByTestId("settlement-rotation")).toHaveTextContent("180°");
+  });
+
+  it("uses the erase tool to remove a settlement under the pointer", () => {
+    render(<WorldEditor initialForm={defaultScenarioForm()} viewport={VIEWPORT} />);
+    const canvas = screen.getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
+    fireEvent.click(screen.getByRole("button", { name: "Apagar" }));
+    fireEvent.click(canvas, SETTLEMENT_SCREEN_POINT);
+    expect(screen.getByTestId("world-general-config")).toHaveTextContent("0");
+  });
+
+  it("explains an advanced chapter before revealing technical values", () => {
+    render(<WorldEditor initialForm={defaultScenarioForm()} viewport={VIEWPORT} />);
+    const chapter = screen.getByRole("button", { name: /Povos/ });
+    expect(chapter).toHaveAttribute("title", expect.stringContaining("história"));
+    fireEvent.click(chapter);
+    expect(screen.getByTestId("chapter-guide")).toHaveTextContent("Por onde começar");
+    expect(screen.getByRole("button", { name: "Ajustar regras de Povos" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("population-initial")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ajustar regras de Povos" }));
+    const population = screen.getByLabelText("population-initial");
+    expect(population).toBeInTheDocument();
+    expect(population.closest("label")).toHaveAttribute("title", expect.stringContaining("Ajuste fino"));
+  });
+
+  it("opens the selected settlement in a local city editor", () => {
+    render(<WorldEditor initialForm={defaultScenarioForm()} viewport={VIEWPORT} />);
+    const canvas = screen.getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
+    fireEvent.click(canvas, SETTLEMENT_SCREEN_POINT);
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar por dentro" }));
+
+    expect(screen.getByTestId("creator-city-editor")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "vila" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Voltar ao mapa-múndi" })).toBeInTheDocument();
+    expect(screen.getByText(/3 construções/)).toBeInTheDocument();
+
+    const cityCanvas = screen.getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(cityCanvas);
+    fireEvent.click(screen.getByRole("button", { name: "Construção" }));
+    fireEvent.click(cityCanvas, { clientX: 100, clientY: 100 });
+    expect(screen.getByText(/4 construções/)).toBeInTheDocument();
+
+    fireEvent.mouseDown(cityCanvas, { clientX: 105, clientY: 105 });
+    fireEvent.mouseMove(cityCanvas, { clientX: 121, clientY: 105 });
+    fireEvent.mouseUp(cityCanvas);
+    expect(screen.getByTestId("creator-building-inspector")).toHaveTextContent("14, 9");
+
+    fireEvent.keyDown(window, { key: "r" });
+    expect(screen.getByTestId("building-rotation")).toHaveTextContent("90°");
+    fireEvent.click(screen.getByRole("button", { name: "Rotacionar construção" }));
+    expect(screen.getByTestId("building-rotation")).toHaveTextContent("180°");
+
+    fireEvent.keyDown(window, { key: "Delete" });
+    expect(screen.getByText(/3 construções/)).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+    expect(screen.getByText(/4 construções/)).toBeInTheDocument();
   });
 });

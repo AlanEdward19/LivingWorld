@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateBuildingFootprint } from "../../src/map-engine/buildingFootprint";
+import { generateBuildingFootprint, generateCityWallFootprint } from "../../src/map-engine/buildingFootprint";
 
 describe("generateBuildingFootprint", () => {
   it("is deterministic — same buildingId+floor always produces the same footprint", () => {
@@ -8,10 +8,22 @@ describe("generateBuildingFootprint", () => {
     expect(a).toEqual(b);
   });
 
-  it("produces a different footprint for a different floor of the same building", () => {
+  it("keeps footprint and door fixed when only the observed Z level changes", () => {
     const groundFloor = generateBuildingFootprint("building-8", 2, 0);
     const secondFloor = generateBuildingFootprint("building-8", 2, 1);
-    expect(secondFloor).not.toEqual(groundFloor);
+    expect(secondFloor).toEqual(groundFloor);
+  });
+
+  it("keeps a city's wall and gate fixed when only the observed Z level changes", () => {
+    expect(generateCityWallFootprint("city-a", 8, 6, -1)).toEqual(generateCityWallFootprint("city-a", 8, 6, 2));
+  });
+
+  it("fills a city with roof blocks while preserving streets through the center", () => {
+    const city = generateCityWallFootprint("city-a", 10, 8);
+
+    expect(city.some((cell) => cell.material === "floor")).toBe(true);
+    expect(city.some((cell) => cell.x === 5 && cell.y === 3)).toBe(false);
+    expect(city.some((cell) => cell.x === 0 && cell.y === 0)).toBe(false);
   });
 
   it("always includes exactly one door cell", () => {

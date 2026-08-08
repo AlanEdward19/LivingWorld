@@ -342,4 +342,45 @@ describe("MapView", () => {
 
     expect(viewStore.followedEntity()).toBeNull();
   });
+
+  it("paints every crossed cell while the pointer is dragged instead of panning", async () => {
+    const { simulationStore, viewStore, selectionStore } = await buildStores();
+    const onPaintDrag = vi.fn((_cell: { x: number; y: number }) => true);
+    const { getByTestId } = render(
+      <MapView space={CITY_A} viewport={VIEWPORT} cells={CELLS} layers={[]} lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore} viewStore={viewStore} selectionStore={selectionStore} onPaintDrag={onPaintDrag} />,
+    );
+    const canvas = getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
+
+    fireEvent.mouseDown(canvas, { clientX: 100, clientY: 100 });
+    fireEvent.mouseMove(canvas, { clientX: 120, clientY: 100 });
+    fireEvent.mouseUp(canvas);
+
+    expect(onPaintDrag.mock.calls.map(([cell]) => cell)).toEqual([
+      { x: 50, y: 50 }, { x: 51, y: 50 }, { x: 52, y: 50 },
+    ]);
+    expect(viewStore.cameraFor(CITY_A, { center: { x: 0, y: 0 }, scale: 1 }).center).toEqual({ x: 50, y: 50 });
+  });
+
+  it("drags an existing entity to a new world cell when an entity mover is supplied", async () => {
+    const { simulationStore, viewStore, selectionStore } = await buildStores();
+    const onEntityMove = vi.fn((_ref: unknown, _cell: { x: number; y: number }) => true);
+    const { getByTestId } = render(
+      <MapView space={CITY_A} viewport={VIEWPORT} cells={CELLS} layers={[]} lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore} viewStore={viewStore} selectionStore={selectionStore} onEntityMove={onEntityMove} />,
+    );
+    const canvas = getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
+
+    fireEvent.mouseDown(canvas, { clientX: 105, clientY: 105 });
+    fireEvent.mouseMove(canvas, { clientX: 125, clientY: 105 });
+    fireEvent.mouseUp(canvas);
+
+    expect(onEntityMove).toHaveBeenLastCalledWith(
+      { kind: "npc", id: "1", space: CITY_A },
+      { x: 52, y: 50 },
+    );
+    expect(selectionStore.current()).toEqual({ kind: "npc", id: "1", space: CITY_A });
+  });
 });
