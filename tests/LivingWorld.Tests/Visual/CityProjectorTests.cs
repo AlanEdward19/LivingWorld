@@ -113,6 +113,34 @@ public class CityProjectorTests
         Assert.Equal(city.AggregatePool, result.Value!.AggregatePool);
     }
 
+    // --- Fase 15.1, T30: campo Indicators (os 6 indicadores de CityPopulationQuery) ---
+
+    [Fact]
+    public void Build_includes_the_six_indicators_matching_CityPopulationQuery()
+    {
+        var (world, city, _) = MakeWorldWithCity();
+
+        var indicators = CityProjector.Build(world, city.Id).Value!.Indicators;
+
+        Assert.Equal(CityPopulationQuery.Population(world, city.Id), indicators.Population);
+        Assert.Equal(CityPopulationQuery.Wealth(world, city.Id), indicators.Wealth);
+        Assert.Equal(CityPopulationQuery.Health(world, city.Id), indicators.Health);
+        Assert.Equal(CityPopulationQuery.Inequality(world, city.Id), indicators.Inequality);
+        Assert.Equal(CityPopulationQuery.Economy(world, city.Id), indicators.Economy);
+        Assert.Equal(CityPopulationQuery.Housing(world, city.Id), indicators.Housing);
+    }
+
+    [Fact]
+    public void Build_does_not_change_the_canonical_hash_by_projecting_city_indicators()
+    {
+        var (world, city, _) = MakeWorldWithCity();
+        var hashBefore = WorldSnapshot.CanonicalHash(world);
+
+        CityProjector.Build(world, city.Id);
+
+        Assert.Equal(hashBefore, WorldSnapshot.CanonicalHash(world));
+    }
+
     [Theory]
     [InlineData(VisualLayerId.Cities)]
     [InlineData(VisualLayerId.Villages)]

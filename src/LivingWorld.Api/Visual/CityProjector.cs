@@ -15,6 +15,11 @@ public sealed record CityResidentMarker(NpcId Id, CellCoord Location, ActionType
 /// iteração que o anel client-side usa hoje.</summary>
 public sealed record CityBuildingMarker(BuildingId Id, int BuildingTypeId, CellCoord Location, bool LocationIsDerived);
 
+/// <summary>Fase 15.1, T30 (spec.md "Inspector de NPC e Cidade" AC1): os 6 indicadores que <see
+/// cref="CityPopulationQuery"/> já calcula, hoje inacessíveis ao cliente. <see
+/// cref="CityPopulationQuery"/> é a única fonte — nenhum indicador é recomputado aqui.</summary>
+public sealed record CityIndicators(long Population, long Wealth, long Health, double Inequality, long Economy, long Housing);
+
 public sealed record CitySnapshot(
     CityId Id,
     CellCoord Location,
@@ -22,7 +27,8 @@ public sealed record CitySnapshot(
     IReadOnlyList<CityResidentMarker> Residents,
     IReadOnlyList<CityBuildingMarker> Buildings,
     IReadOnlyDictionary<VisualLayerId, LayerBuildResult> Layers,
-    IReadOnlyList<SpatialPortal> Portals);
+    IReadOnlyList<SpatialPortal> Portals,
+    CityIndicators Indicators);
 
 public static class CityProjector
 {
@@ -55,7 +61,15 @@ public static class CityProjector
             .Where(p => TouchesCity(p.From, cityRefId) || TouchesCity(p.To, cityRefId))
             .ToList();
 
-        return Result<CitySnapshot>.Ok(new CitySnapshot(city.Id, city.Location, city.AggregatePool, residents, buildings, layers, portals));
+        var indicators = new CityIndicators(
+            CityPopulationQuery.Population(world, cityId),
+            CityPopulationQuery.Wealth(world, cityId),
+            CityPopulationQuery.Health(world, cityId),
+            CityPopulationQuery.Inequality(world, cityId),
+            CityPopulationQuery.Economy(world, cityId),
+            CityPopulationQuery.Housing(world, cityId));
+
+        return Result<CitySnapshot>.Ok(new CitySnapshot(city.Id, city.Location, city.AggregatePool, residents, buildings, layers, portals, indicators));
     }
 
     private static bool TouchesCity(PortalEndpoint endpoint, string cityRefId) =>
