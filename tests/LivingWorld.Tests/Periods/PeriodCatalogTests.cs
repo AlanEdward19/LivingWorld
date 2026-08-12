@@ -126,6 +126,33 @@ public class PeriodCatalogTests
     }
 
     [Fact]
+    public void From_exposes_descriptors_declared_in_the_scenario()
+    {
+        var root = FullValidRoot();
+        root["Descriptors"] = new JsonObject
+        {
+            ["Terrain"] = new JsonArray(new JsonObject { ["Id"] = 1, ["Name"] = "Grama" }),
+        };
+
+        var definition = PeriodDefinitionValidator.Validate(root.ToJsonString()).Value!;
+        var catalog = PeriodCatalog.From(definition);
+
+        Assert.Equal("Grama", Assert.Single(catalog.Descriptors.Terrain).Name);
+    }
+
+    [Fact]
+    public void From_returns_empty_descriptors_when_Descriptors_is_absent()
+    {
+        var root = FullValidRoot();
+
+        var definition = PeriodDefinitionValidator.Validate(root.ToJsonString()).Value!;
+        var catalog = PeriodCatalog.From(definition);
+
+        Assert.Empty(catalog.Descriptors.Terrain);
+        Assert.Empty(catalog.Descriptors.Action);
+    }
+
+    [Fact]
     public void From_returns_empty_name_dictionaries_when_Dynamics_is_absent()
     {
         var root = FullValidRoot();

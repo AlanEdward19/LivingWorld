@@ -11,13 +11,15 @@ public sealed record PeriodCatalog(
     IReadOnlyList<int> ProfessionIds,
     IReadOnlyList<int> SkillIds,
     IReadOnlyDictionary<int, string> ProfessionNames,
-    IReadOnlyDictionary<int, string> SkillNames)
+    IReadOnlyDictionary<int, string> SkillNames,
+    PeriodDescriptors Descriptors)
 {
     public static PeriodCatalog From(PeriodDefinition definition) => new(
         definition.Population.Catalog.ProfessionIds.OrderBy(id => id).ToList(),
         definition.Dynamics.SkillBiases.Select(b => b.SkillId).Distinct().OrderBy(id => id).ToList(),
         NamesById(definition.Dynamics.ProfessionBiases.Select(b => (b.ProfessionId, b.Name))),
-        NamesById(definition.Dynamics.SkillBiases.Select(b => (b.SkillId, b.Name))));
+        NamesById(definition.Dynamics.SkillBiases.Select(b => (b.SkillId, b.Name))),
+        definition.Descriptors);
 
     private static IReadOnlyDictionary<int, string> NamesById(IEnumerable<(int Id, string? Name)> entries) =>
         entries.Where(e => e.Name is not null).ToDictionary(e => e.Id, e => e.Name!);

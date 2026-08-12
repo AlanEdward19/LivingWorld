@@ -19,7 +19,8 @@ public sealed record PeriodCatalogResponse(
     IReadOnlyList<int> ProfessionIds,
     IReadOnlyList<int> SkillIds,
     IReadOnlyDictionary<int, string> ProfessionNames,
-    IReadOnlyDictionary<int, string> SkillNames);
+    IReadOnlyDictionary<int, string> SkillNames,
+    PeriodDescriptors Descriptors);
 
 /// <summary>Fase 13, T5 (PERIOD-07..10, story "Cadastro de período personalizado"): <c>POST
 /// /periods</c> valida (<see cref="PeriodDefinitionValidator"/>) e persiste (<see
@@ -82,7 +83,7 @@ public static class PeriodsEndpoints
 
             return Results.Ok(new PeriodCatalogResponse(
                 template.PeriodId, template.Version, catalog.ProfessionIds, catalog.SkillIds,
-                catalog.ProfessionNames, catalog.SkillNames));
+                catalog.ProfessionNames, catalog.SkillNames, catalog.Descriptors));
         });
     }
 }

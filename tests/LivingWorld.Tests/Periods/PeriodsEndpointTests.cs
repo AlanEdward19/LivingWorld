@@ -190,6 +190,33 @@ public class PeriodsEndpointTests : IClassFixture<WebApplicationFactory<Program>
         Assert.Equal("Culinaria", body.SkillNames[7]);
     }
 
+    // Fase 15.1, T48 (backend-gaps.md G8): descritores legíveis por categoria no catálogo.
+
+    [Fact]
+    public async Task Get_periods_catalog_returns_declared_descriptors()
+    {
+        var client = _factory.CreateClient();
+        var definition = FullValidPeriodDefinition();
+        definition["Descriptors"] = new JsonObject
+        {
+            ["Terrain"] = new JsonArray(new JsonObject
+            {
+                ["Id"] = 1, ["Name"] = "Grama", ["Explanation"] = "Terreno fértil comum",
+            }),
+        };
+        await client.PostAsync("/periods", JsonBody(Envelope("catalog-descriptors-period", 1, definition)));
+
+        var response = await client.GetAsync("/periods/catalog-descriptors-period/catalog");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<PeriodCatalogResponse>();
+        Assert.NotNull(body);
+        var terrain = Assert.Single(body!.Descriptors.Terrain);
+        Assert.Equal("Grama", terrain.Name);
+        Assert.Equal("Terreno fértil comum", terrain.Explanation);
+        Assert.Empty(body.Descriptors.Biome); // não declarado, não inventado
+    }
+
     [Fact]
     public async Task Get_periods_catalog_returns_404_for_an_unregistered_id()
     {

@@ -12,13 +12,15 @@ public sealed record PeriodDefinition(
     BehaviorScenarioData Behavior,
     EconomyScenarioData Economy,
     CityScenarioData City,
-    PeriodDynamicsData Dynamics);
+    PeriodDynamicsData Dynamics,
+    PeriodDescriptors Descriptors);
 
 /// <summary>Orquestra a validação de um <c>periodDefinition</c> (Fase 13, T2): encadeia
 /// <see cref="MapScenarioLoader"/>, <see cref="PopulationScenarioLoader"/>,
 /// <see cref="BehaviorScenarioLoader"/>, <see cref="EconomyScenarioLoader"/>,
-/// <see cref="CityScenarioLoader"/> e <see cref="PeriodDynamicsLoader"/> — cada um já valida sua
-/// própria forma — e então checa referências cruzadas entre <see cref="PeriodDynamicsData"/> e o
+/// <see cref="CityScenarioLoader"/>, <see cref="PeriodDynamicsLoader"/> e <see
+/// cref="PeriodDescriptorsLoader"/> — cada um já valida sua própria forma — e então checa
+/// referências cruzadas entre <see cref="PeriodDynamicsData"/> e o
 /// <see cref="PopulationCatalog"/> resolvido (PERIOD-07..10: id de profissão citado num viés, ou
 /// toda <c>SourceProfessionIds</c> de uma regra de transformação, precisa existir no catálogo do
 /// período — <c>TargetProfessionIds</c> fica de fora dessa checagem de propósito, Fase 13 T13:
@@ -53,6 +55,10 @@ public static class PeriodDefinitionValidator
         if (!dynamicsResult.IsSuccess)
             return Result<PeriodDefinition>.Fail(dynamicsResult.Error!);
 
+        var descriptorsResult = PeriodDescriptorsLoader.Load(json);
+        if (!descriptorsResult.IsSuccess)
+            return Result<PeriodDefinition>.Fail(descriptorsResult.Error!);
+
         var population = populationResult.Value!;
         var dynamics = dynamicsResult.Value!;
 
@@ -61,7 +67,8 @@ public static class PeriodDefinitionValidator
             return Result<PeriodDefinition>.Fail(referenceError);
 
         return Result<PeriodDefinition>.Ok(new PeriodDefinition(
-            mapResult.Value!, population, behaviorResult.Value!, economyResult.Value!, cityResult.Value!, dynamics));
+            mapResult.Value!, population, behaviorResult.Value!, economyResult.Value!, cityResult.Value!, dynamics,
+            descriptorsResult.Value!));
     }
 
     private static string? ValidateProfessionReferences(PopulationCatalog catalog, PeriodDynamicsData dynamics)
