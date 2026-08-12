@@ -106,6 +106,15 @@ app.MapGet("/npcs/{id:long}", (long id) =>
     return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound();
 });
 
+// Fase 15.1, T49 (backend-gaps.md G9): comando explícito e nomeado — o GET acima nunca
+// materializa; quem precisa do detalhe completo de um id ainda anônimo no pool agregado chama
+// esta rota de propósito.
+app.MapPost("/npcs/{id:long}/materialize", (long id) =>
+{
+    var result = NpcInspectionQuery.MaterializeAndInspect(worldHost.Current, new NpcId(id));
+    return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound();
+});
+
 // LLM_PROVIDER escolhe o provider real de diálogo (ADR-0016); default "fake" para não mudar
 // nenhum comportamento existente (gate/testes seguem sempre em FakeLlmProvider, T9).
 ILlmProvider llmProvider = builder.Configuration["LLM_PROVIDER"] switch

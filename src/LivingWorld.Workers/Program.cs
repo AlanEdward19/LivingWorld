@@ -112,14 +112,16 @@ if (args.Length == 3 && args[0] == "persist-resume")
     return 0;
 }
 
-// Inspeciona um NPC vivo (Fase 8, T16, CITY-06): mesma NpcInspectionQuery da API, nenhuma
-// lógica duplicada (AC #2 da story P1) — mesmo SPEC_DEVIATION do Api/Program.cs (T15) sobre
-// cenário default no lugar de um snapshot persistido real. `dotnet <dll> inspect-npc <id>`.
+// Inspeciona um NPC (Fase 8, T16, CITY-06): mesma NpcInspectionQuery da API, nenhuma lógica
+// duplicada (AC #2 da story P1) — mesmo SPEC_DEVIATION do Api/Program.cs (T15) sobre cenário
+// default no lugar de um snapshot persistido real. `dotnet <dll> inspect-npc <id>`. Chama o
+// comando explícito (T49/G9), não o GET puro: ferramenta de debug ad-hoc de processo único, sem
+// concorrência de leitores — materializar sob demanda continua o comportamento útil aqui.
 if (args.Length == 2 && args[0] == "inspect-npc")
 {
     var id = long.Parse(args[1]);
     var (world, _) = ScenarioRunner.Create(seed: 1);
-    var result = NpcInspectionQuery.Inspect(world, new NpcId(id));
+    var result = NpcInspectionQuery.MaterializeAndInspect(world, new NpcId(id));
     if (!result.IsSuccess)
     {
         Console.Error.WriteLine(result.Error);

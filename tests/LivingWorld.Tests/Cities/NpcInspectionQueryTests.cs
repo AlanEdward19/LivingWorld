@@ -12,7 +12,7 @@ public class NpcInspectionQueryTests
         ScenarioRunner.Create(seed: 7, initialPopulation: population).World;
 
     [Fact]
-    public void Inspect_succeeds_and_ensures_materialization_for_a_living_npc()
+    public void Inspect_succeeds_for_a_living_npc()
     {
         var world = MakeWorld();
         var npc = world.Npcs.First();
@@ -67,11 +67,11 @@ public class NpcInspectionQueryTests
     }
 
     [Fact]
-    public void Inspect_materializes_a_never_touched_aggregate_pool_member_on_demand()
+    public void MaterializeAndInspect_materializes_a_never_touched_aggregate_pool_member_on_demand()
     {
         // Fase 8, fix round 1, gap 2 (CITY-05 AC2 — Independent Test da spec): consultar um NPC
-        // agregado nunca materializado via API/CLI (aqui, o mesmo caminho: NpcInspectionQuery)
-        // faz o sistema materializá-lo sob demanda antes de responder.
+        // agregado nunca materializado via o comando explícito faz o sistema materializá-lo sob
+        // demanda antes de responder — mesma invariante de sempre, agora fora do GET (T49).
         var world = MakeWorld();
         var city = new City(world.NextCityId(), world.Npcs.First().CurrentLocation, 0, null,
             new AggregatePopulationPool(3, 300, 250));
@@ -79,11 +79,48 @@ public class NpcInspectionQueryTests
         var neverTouchedId = new NpcId(world.NextNpcId);
         Assert.Null(world.FindNpc(neverTouchedId)); // pré-condição: nunca materializado
 
-        var result = NpcInspectionQuery.Inspect(world, neverTouchedId);
+        var result = NpcInspectionQuery.MaterializeAndInspect(world, neverTouchedId);
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(world.FindNpc(neverTouchedId));
         Assert.Equal(neverTouchedId, result.Value!.Id);
+    }
+
+    // --- Fase 15.1, T49 (backend-gaps.md G9): Inspect é leitura pura ---
+
+    [Fact]
+    public void Inspect_fails_without_materializing_a_never_touched_aggregate_pool_member()
+    {
+        var world = MakeWorld();
+        var city = new City(world.NextCityId(), world.Npcs.First().CurrentLocation, 0, null,
+            new AggregatePopulationPool(3, 300, 250));
+        world.AddCity(city);
+        var neverTouchedId = new NpcId(world.NextNpcId);
+        var canonicalHashBefore = WorldSnapshot.CanonicalHash(world);
+        var nextNpcIdBefore = world.NextNpcId;
+        var pendingEventCountBefore = world.PendingEvents.Count;
+
+        var result = NpcInspectionQuery.Inspect(world, neverTouchedId);
+
+        Assert.False(result.IsSuccess);
+        Assert.Null(world.FindNpc(neverTouchedId)); // nunca materializou
+        Assert.Equal(canonicalHashBefore, WorldSnapshot.CanonicalHash(world)); // hash intocado
+        Assert.Equal(nextNpcIdBefore, world.NextNpcId); // pool intocado
+        Assert.Equal(pendingEventCountBefore, world.PendingEvents.Count); // nenhum evento novo agendado
+    }
+
+    [Fact]
+    public void Repeated_Inspect_calls_on_the_same_living_npc_are_idempotent()
+    {
+        var world = MakeWorld();
+        var npc = world.Npcs.First();
+
+        var first = NpcInspectionQuery.Inspect(world, npc.Id).Value!;
+        var second = NpcInspectionQuery.Inspect(world, npc.Id).Value!;
+        var third = NpcInspectionQuery.Inspect(world, npc.Id).Value!;
+
+        Assert.Equal(first, second);
+        Assert.Equal(second, third);
     }
 
     [Fact]
