@@ -128,6 +128,7 @@ app.MapNarrativeEndpoints(worldHost, chronicles);
 app.MapPeriodsEndpoints();
 app.MapWorldStartEndpoints();
 app.MapWorldCreateEndpoints(worldHost, worldRunner, worldSink);
+app.MapWorldPreviewEndpoints();
 app.MapRealtimeEndpoints();
 app.MapVisualInputEndpoints();
 
