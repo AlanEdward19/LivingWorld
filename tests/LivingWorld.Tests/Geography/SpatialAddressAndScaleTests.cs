@@ -3,7 +3,7 @@ using LivingWorld.Simulation;
 
 namespace LivingWorld.Tests.Geography;
 
-/// <summary>Fase 15.1, T46 (ADR-0017): escala World/City/Building como dado de domínio,
+/// <summary>Fase 15.1, T46 (ADR-0018): escala World/City/Building como dado de domínio,
 /// navegação vertical reversível e contrato de caminhabilidade.</summary>
 public class SpatialAddressAndScaleTests
 {

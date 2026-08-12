@@ -9,7 +9,7 @@ public enum BuildingMaterial
     Door,
     Floor,
 
-    /// <summary>Célula que conecta andares (Fase 15.1, T46/ADR-0017) — contrato de
+    /// <summary>Célula que conecta andares (Fase 15.1, T46/ADR-0018) — contrato de
     /// caminhabilidade (<see cref="InteriorWalkability"/>), sem geração real de planta por
     /// andar ainda (nenhum <see cref="BuildingFootprintGenerator"/> a emite hoje).</summary>
     Stair,

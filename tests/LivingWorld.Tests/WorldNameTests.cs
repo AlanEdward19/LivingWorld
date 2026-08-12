@@ -2,7 +2,7 @@ using LivingWorld.Simulation;
 
 namespace LivingWorld.Tests;
 
-/// <summary>Fase 15.1, T42 (ADR-0016): <c>WorldState.Name</c> é volátil (cosmético, ADR-0014) e
+/// <summary>Fase 15.1, T42 (ADR-0017): <c>WorldState.Name</c> é volátil (cosmético, ADR-0014) e
 /// precisa sobreviver a snapshot/reidratação, mas nunca ao hash canônico.</summary>
 public class WorldNameTests
 {

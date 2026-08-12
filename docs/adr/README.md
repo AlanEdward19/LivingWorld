@@ -23,5 +23,6 @@ conteúdo de ADR para dentro dele.
 | [0013](ADR-0013-emergencia-aberta-motor-estrutura-llm-nome.md) | Emergência aberta: o motor cria a estrutura, a LLM só nomeia | aceito |
 | [0014](ADR-0014-canonico-vs-volatil.md) | Canônico se alimenta uma decisão; volátil se é recomputável ou cosmético | aceito |
 | [0015](ADR-0015-pausa-global-e-auditoria-de-admin.md) | Pausa global de admin; auditoria de leitura separada da intervenção | aceito |
-| [0016](ADR-0016-identidade-publica-do-mundo.md) | `WorldId` como hash puro da seed (nunca persistido); nome do mundo como campo volátil novo | aceito |
-| [0017](ADR-0017-endereco-espacial-com-andar-e-escala-de-dominio.md) | Endereço espacial (`SpaceKind`+`FloorLevel`+`CellCoord`) e escala World/City/Building como dado de domínio, não do cliente | aceito |
+| [0016](ADR-0016-provider-llm-real.md) | Ollama `qwen3.5:4b` como provider LLM real | aceito |
+| [0017](ADR-0017-identidade-publica-do-mundo.md) | `WorldId` como hash puro da seed (nunca persistido); nome do mundo como campo volátil novo | aceito |
+| [0018](ADR-0018-endereco-espacial-com-andar-e-escala-de-dominio.md) | Endereço espacial (`SpaceKind`+`FloorLevel`+`CellCoord`) e escala World/City/Building como dado de domínio, não do cliente | aceito |

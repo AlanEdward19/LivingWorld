@@ -1,4 +1,4 @@
-# ADR-0017: Endereço espacial com andar, e escala World/City/Building como dado de domínio
+# ADR-0018: Endereço espacial com andar, e escala World/City/Building como dado de domínio
 
 - **Status**: aceito
 - **Data**: 2026-08-12

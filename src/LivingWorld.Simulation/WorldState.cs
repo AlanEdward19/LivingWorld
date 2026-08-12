@@ -92,7 +92,7 @@ public sealed class WorldState
     /// desligada".</summary>
     [Canonical] public HistoryRules HistoryRules { get; }
 
-    /// <summary>Nome escolhido pelo usuário na criação (Fase 15.1, T42/ADR-0016) — cosmético,
+    /// <summary>Nome escolhido pelo usuário na criação (Fase 15.1, T42/ADR-0017) — cosmético,
     /// nenhuma decisão de sistema lê nome de mundo (ADR-0014), por isso volátil.</summary>
     [Volatile] public string Name { get; private set; }
 

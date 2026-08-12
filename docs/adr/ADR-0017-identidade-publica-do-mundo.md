@@ -1,4 +1,4 @@
-# ADR-0016: Identidade pública do mundo (WorldId) e nome persistido
+# ADR-0017: Identidade pública do mundo (WorldId) e nome persistido
 
 - **Status**: aceito
 - **Data**: 2026-08-12

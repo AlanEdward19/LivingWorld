@@ -8,7 +8,7 @@ public sealed record CreateWorldRequest(string ScenarioJson, string Name);
 
 public sealed record CreateWorldResponse(int NpcCount, Guid WorldId, string Name, long Tick, string InitialScope);
 
-/// <summary>Feature ad-hoc "criar mundo" (AD-001 em .specs/STATE.md; identidade em T42/ADR-0016):
+/// <summary>Feature ad-hoc "criar mundo" (AD-001 em .specs/STATE.md; identidade em T42/ADR-0017):
 /// aceita um scenario JSON completo (mesmo formato de <see cref="ScenarioLoaderV2.LoadWorld"/>)
 /// mais o nome escolhido pelo usuário, troca a instância canônica em <see cref="WorldHost"/> e
 /// persiste imediatamente — sem isso o host nunca fica sem lastro no repositório entre o create

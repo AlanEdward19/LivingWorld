@@ -1,6 +1,6 @@
 namespace LivingWorld.Domain;
 
-/// <summary>Contrato de caminhabilidade de uma célula de footprint (Fase 15.1, T46/ADR-0017):
+/// <summary>Contrato de caminhabilidade de uma célula de footprint (Fase 15.1, T46/ADR-0018):
 /// piso, porta e escada são caminháveis; parede não é.</summary>
 public static class InteriorWalkability
 {

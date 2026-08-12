@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace LivingWorld.Tests;
 
-/// <summary>Fase 15.1, T42 (ADR-0016): <c>POST /worlds/create</c> passa a aceitar e persistir o
+/// <summary>Fase 15.1, T42 (ADR-0017): <c>POST /worlds/create</c> passa a aceitar e persistir o
 /// nome do mundo e a devolver identidade (<c>WorldId</c>, <c>Tick</c>, <c>InitialScope</c>) além
 /// da contagem de NPCs já existente.</summary>
 public class WorldCreateEndpointsTests : IClassFixture<WebApplicationFactory<Program>>

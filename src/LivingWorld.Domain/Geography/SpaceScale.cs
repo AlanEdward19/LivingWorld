@@ -1,6 +1,6 @@
 namespace LivingWorld.Domain;
 
-/// <summary>Escala entre níveis de espaço como dado de domínio (Fase 15.1, T46/ADR-0017) — porta
+/// <summary>Escala entre níveis de espaço como dado de domínio (Fase 15.1, T46/ADR-0018) — porta
 /// `SCALE`/`localToParent`/`parentToLocal` de `web/src/map-engine/space.ts:20-48` pro servidor;
 /// mesmos valores, para não mudar nada visualmente quando o cliente trocar a fonte. Nenhuma
 /// unidade física real por trás (mesmo motivo do comentário original): valores de produto.</summary>
