@@ -48,9 +48,19 @@ public static class ScenarioLoaderV2
                 world.NextWorkplaceIdAndAdvance(), workplace.LocationType, workplace.Location, workplace.MaxVacancies,
                 employees: [], workplace.Stock, workplace.Treasury, workplace.Prices));
 
+        var createdCityIds = new List<CityId>(definition.City.Cities.Count);
         foreach (var city in definition.City.Cities)
-            world.AddCity(new City(
-                world.NextCityId(), city.Location, city.FoundedAtTick, foundedFromCityId: null, city.AggregatePool));
+        {
+            string name = string.IsNullOrEmpty(city.Name) ? CityNameGenerator.Generate(world) : city.Name;
+            var createdCity = new City(world.NextCityId(), city.Location, city.FoundedAtTick, foundedFromCityId: null, city.AggregatePool, name: name);
+            world.AddCity(createdCity);
+            createdCityIds.Add(createdCity.Id);
+        }
+
+        foreach (var building in definition.City.Buildings)
+            world.AddBuilding(new Building(
+                world.NextBuildingIdAndAdvance(), createdCityIds[building.CityIndex], building.BuildingTypeId,
+                completedAtTick: 0, position: building.Position, orientation: building.Orientation));
 
         // Fase 13, T13: PeriodEvolutionSystem primeiro na lista — regra de transformação muda o
         // catálogo antes de qualquer sistema do mesmo tick sortear profissão por ele

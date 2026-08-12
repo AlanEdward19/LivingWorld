@@ -56,7 +56,23 @@ public static class MapScenarioLoader
                 if (node is not JsonObject s || s["Name"]?.GetValue<string>() is not { } name
                     || s["X"]?.GetValue<int>() is not { } x || s["Y"]?.GetValue<int>() is not { } y)
                     return Result<WorldMap>.Fail("Settlements: item precisa de Name, X e Y");
-                settlements.Add(new SettlementAnchor(name, new CellCoord(x, y)));
+
+                string id = s["Id"]?.GetValue<string>() ?? "";
+                int orientation = s["Orientation"]?.GetValue<int>() ?? 0;
+
+                var streets = new List<CellCoord>();
+                if (s["Streets"] is JsonArray streetsNode)
+                {
+                    foreach (var streetNode in streetsNode)
+                    {
+                        if (streetNode is not JsonObject street
+                            || street["X"]?.GetValue<int>() is not { } sx || street["Y"]?.GetValue<int>() is not { } sy)
+                            return Result<WorldMap>.Fail($"Settlements[{name}].Streets: item precisa de X e Y");
+                        streets.Add(new CellCoord(sx, sy));
+                    }
+                }
+
+                settlements.Add(new SettlementAnchor(name, new CellCoord(x, y), id, orientation, streets));
             }
         }
 

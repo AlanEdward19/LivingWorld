@@ -100,8 +100,13 @@ public sealed class WorldMap
             return Result<WorldMap>.Fail("Regions: nem toda célula do grid pertence a exatamente uma região");
 
         foreach (var settlement in settlements)
+        {
             if (!expected.Contains(settlement.Cell))
                 return Result<WorldMap>.Fail($"Settlements[{settlement.Name}]: célula {settlement.Cell} fora do grid {width}x{height}");
+            foreach (var street in settlement.Streets)
+                if (!expected.Contains(street))
+                    return Result<WorldMap>.Fail($"Settlements[{settlement.Name}].Streets: célula {street} fora do grid {width}x{height}");
+        }
 
         return Result<WorldMap>.Ok(new WorldMap(width, height, seed, catalog, cost, cells, regions, settlements));
     }

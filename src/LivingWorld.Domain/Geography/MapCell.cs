@@ -13,6 +13,12 @@ public sealed record MapCell(
 /// <summary>Região: agrupa células e é a unidade de consulta (task 1/4).</summary>
 public sealed record Region(RegionId Id, IReadOnlyList<CellCoord> Cells);
 
-/// <summary>Âncora de assentamento (task 6): só a referência para uma célula do grid —
-/// crescer, migrar e fundar é Fase 8.</summary>
-public sealed record SettlementAnchor(string Name, CellCoord Cell);
+/// <summary>Âncora de assentamento (task 6): referência a uma célula do grid — crescer, migrar
+/// e fundar é Fase 8. <see cref="Id"/>/<see cref="Orientation"/>/<see cref="Streets"/> (Fase
+/// 15.1, T44) são autoria opcional do World Creator: sem eles, o assentamento ainda funciona
+/// como âncora simples (id vazio, sem rotação, sem rua declarada).</summary>
+public sealed record SettlementAnchor(
+    string Name, CellCoord Cell, string Id = "", int Orientation = 0, IReadOnlyList<CellCoord>? Streets = null)
+{
+    public IReadOnlyList<CellCoord> Streets { get; init; } = Streets ?? [];
+}

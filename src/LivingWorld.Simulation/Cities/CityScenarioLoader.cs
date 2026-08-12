@@ -7,11 +7,20 @@ namespace LivingWorld.Simulation;
 /// <see cref="CityCatalog"/> e as <see cref="City"/> iniciais (sem id atribuído ainda — quem
 /// consome chama <see cref="WorldState.NextCityId"/> ao adicionar cada uma, mesmo padrão de
 /// <see cref="EconomyScenarioLoader"/> pra Workplace).</summary>
-public sealed record CityScenarioData(CityRules Rules, CityCatalog Catalog, IReadOnlyList<InitialCity> Cities);
+public sealed record CityScenarioData(
+    CityRules Rules, CityCatalog Catalog, IReadOnlyList<InitialCity> Cities, IReadOnlyList<AuthoredBuilding> Buildings);
 
 /// <summary>Uma <see cref="City"/> ainda sem <see cref="CityId"/> — o cenário declara o
-/// conteúdo, o mundo atribui o id na hora de adicionar.</summary>
-public sealed record InitialCity(CellCoord Location, long FoundedAtTick, AggregatePopulationPool AggregatePool);
+/// conteúdo, o mundo atribui o id na hora de adicionar. <see cref="Name"/> vazio significa "o
+/// cenário não autorou um nome" (Fase 15.1, T44) — quem consome resolve o fallback
+/// determinístico (<see cref="CityNameGenerator"/>), o loader nunca sorteia nada.</summary>
+public sealed record InitialCity(CellCoord Location, long FoundedAtTick, AggregatePopulationPool AggregatePool, string Name = "");
+
+/// <summary>Prédio autorado no World Creator (Fase 15.1, T44) — ainda sem <see
+/// cref="BuildingId"/>/<see cref="CityId"/> reais: <see cref="CityIndex"/> referencia a posição
+/// do prédio dentro de <see cref="CityScenarioData.Cities"/>, já validada em bounds por
+/// <see cref="CityScenarioLoader.Load"/>.</summary>
+public sealed record AuthoredBuilding(int CityIndex, int BuildingTypeId, CellCoord Position, int Orientation);
 
 /// <summary>Carrega <see cref="CityRules"/>/<see cref="CityCatalog"/>/<see cref="City"/> iniciais
 /// de um cenário (Fase 8, T7): nenhum parâmetro de cidade hardcoded em C# (R3). Mesmo padrão
@@ -19,7 +28,7 @@ public sealed record InitialCity(CellCoord Location, long FoundedAtTick, Aggrega
 /// obrigatório ausente nomeia o campo no erro.</summary>
 public static class CityScenarioLoader
 {
-    public static Result<CityScenarioData> Load(string json)
+    public static Result<CityScenarioData> Load(string json, int mapWidth = int.MaxValue, int mapHeight = int.MaxValue)
     {
         JsonObject root;
         try
@@ -43,7 +52,12 @@ public static class CityScenarioLoader
         if (!citiesResult.IsSuccess)
             return Result<CityScenarioData>.Fail(citiesResult.Error!);
 
-        return Result<CityScenarioData>.Ok(new CityScenarioData(rulesResult.Value!, catalogResult.Value!, citiesResult.Value!));
+        var buildingsResult = ParseBuildings(root, mapWidth, mapHeight, citiesResult.Value!.Count);
+        if (!buildingsResult.IsSuccess)
+            return Result<CityScenarioData>.Fail(buildingsResult.Error!);
+
+        return Result<CityScenarioData>.Ok(
+            new CityScenarioData(rulesResult.Value!, catalogResult.Value!, citiesResult.Value!, buildingsResult.Value!));
     }
 
     private static Result<CityRules> ParseRules(JsonObject root)
@@ -145,10 +159,51 @@ public static class CityScenarioLoader
             if (!TryGetLong(poolNode, "HealthSum", out var healthSum))
                 return Result<IReadOnlyList<InitialCity>>.Fail("Cities[].AggregatePool.HealthSum: campo obrigatório ausente ou inválido");
 
-            cities.Add(new InitialCity(new CellCoord(x, y), foundedAtTick, new AggregatePopulationPool(count, wealthSum, healthSum)));
+            string name = city["Name"]?.GetValue<string>() ?? "";
+
+            cities.Add(new InitialCity(new CellCoord(x, y), foundedAtTick, new AggregatePopulationPool(count, wealthSum, healthSum), name));
         }
 
         return Result<IReadOnlyList<InitialCity>>.Ok(cities);
+    }
+
+    /// <summary>Prédios autorados (Fase 15.1, T44): valida bounds (célula dentro do mapa),
+    /// overlap (duas células iguais entre prédios) e referência (índice de cidade existente) —
+    /// falha na borda, nomeando o campo, nunca ao adicionar o prédio ao mundo.</summary>
+    private static Result<IReadOnlyList<AuthoredBuilding>> ParseBuildings(JsonObject root, int mapWidth, int mapHeight, int cityCount)
+    {
+        var buildings = new List<AuthoredBuilding>();
+        if (root["Buildings"] is not JsonArray buildingsNode)
+            return Result<IReadOnlyList<AuthoredBuilding>>.Ok(buildings);
+
+        var occupied = new HashSet<CellCoord>();
+        foreach (var node in buildingsNode)
+        {
+            if (node is not JsonObject b)
+                return Result<IReadOnlyList<AuthoredBuilding>>.Fail("Buildings: item inválido");
+            if (!TryGetInt(b, "CityIndex", out var cityIndex))
+                return Result<IReadOnlyList<AuthoredBuilding>>.Fail("Buildings[].CityIndex: campo obrigatório ausente ou inválido");
+            if (!TryGetInt(b, "BuildingTypeId", out var buildingTypeId))
+                return Result<IReadOnlyList<AuthoredBuilding>>.Fail("Buildings[].BuildingTypeId: campo obrigatório ausente ou inválido");
+            if (!TryGetInt(b, "X", out var x))
+                return Result<IReadOnlyList<AuthoredBuilding>>.Fail("Buildings[].X: campo obrigatório ausente ou inválido");
+            if (!TryGetInt(b, "Y", out var y))
+                return Result<IReadOnlyList<AuthoredBuilding>>.Fail("Buildings[].Y: campo obrigatório ausente ou inválido");
+            int orientation = b["Orientation"]?.GetValue<int>() ?? 0;
+
+            if (cityIndex < 0 || cityIndex >= cityCount)
+                return Result<IReadOnlyList<AuthoredBuilding>>.Fail($"Buildings[].CityIndex: {cityIndex} não referencia nenhuma cidade autorada (0..{cityCount - 1})");
+            if (x < 0 || x >= mapWidth || y < 0 || y >= mapHeight)
+                return Result<IReadOnlyList<AuthoredBuilding>>.Fail($"Buildings[].Position: célula ({x},{y}) fora do grid {mapWidth}x{mapHeight}");
+
+            var position = new CellCoord(x, y);
+            if (!occupied.Add(position))
+                return Result<IReadOnlyList<AuthoredBuilding>>.Fail($"Buildings[].Position: célula ({x},{y}) ocupada por outro prédio autorado");
+
+            buildings.Add(new AuthoredBuilding(cityIndex, buildingTypeId, position, orientation));
+        }
+
+        return Result<IReadOnlyList<AuthoredBuilding>>.Ok(buildings);
     }
 
     private static bool TryGetInt(JsonObject root, string field, out int value)

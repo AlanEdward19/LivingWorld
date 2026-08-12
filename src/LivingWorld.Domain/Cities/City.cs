@@ -12,6 +12,11 @@ public sealed class City
     public long FoundedAtTick { get; }
     public CityId? FoundedFromCityId { get; }
 
+    /// <summary>Nome canônico (Fase 15.1, T44): autorado no World Creator, ou composto por
+    /// <c>CityNameGenerator</c> (ADR-0013, gramática procedural) quando a simulação funda a
+    /// cidade (SettlementFoundingSystem) ou quando o cenário não declara um.</summary>
+    public string Name { get; }
+
     public AggregatePopulationPool AggregatePool { get; private set; }
 
     // SPEC_DEVIATION (Fase 8, fix round 1, gap 1 — CITY-01 AC1): design.md prometia estes 3
@@ -59,13 +64,15 @@ public sealed class City
         IReadOnlyDictionary<ResourceType, long>? stock = null,
         IReadOnlyList<ConstructionProject>? constructionQueue = null,
         long? foundingScheduledAtTick = null,
-        IReadOnlyList<ReportState>? canonSlots = null)
+        IReadOnlyList<ReportState>? canonSlots = null,
+        string name = "")
     {
         Id = id;
         Location = location;
         FoundedAtTick = foundedAtTick;
         FoundedFromCityId = foundedFromCityId;
         AggregatePool = aggregatePool;
+        Name = name;
         _stock = new Dictionary<ResourceType, long>(stock ?? new Dictionary<ResourceType, long>());
         _constructionQueue = (constructionQueue ?? []).ToList();
         _canonSlots = (canonSlots ?? []).ToList();

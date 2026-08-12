@@ -45,7 +45,7 @@ public static class PeriodDefinitionValidator
         if (!economyResult.IsSuccess)
             return Result<PeriodDefinition>.Fail(economyResult.Error!);
 
-        var cityResult = CityScenarioLoader.Load(json);
+        var cityResult = CityScenarioLoader.Load(json, mapResult.Value!.Width, mapResult.Value!.Height);
         if (!cityResult.IsSuccess)
             return Result<PeriodDefinition>.Fail(cityResult.Error!);
 
