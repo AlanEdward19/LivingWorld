@@ -71,6 +71,11 @@ public sealed class Npc
     /// cref="AggregatePopulationPool"/> da cidade (Fase 8, T9, CITY-05).</summary>
     public long? MaterializedAtTick { get; private set; }
 
+    /// <summary>Ocupação de interior (Fase 15.1, T47) — <c>null</c> quando o NPC está em
+    /// escopo World/City. Nunca substitui <see cref="CurrentLocation"/>/<see cref="City"/>: a
+    /// localização global continua a mesma independente de estar dentro de um prédio.</summary>
+    public InteriorOccupancy? Interior { get; private set; }
+
     /// <summary>Derivado de <see cref="DeathDate"/> — <see cref="JsonIgnoreAttribute"/> pelo
     /// mesmo motivo de <see cref="Household.IsEmpty"/>: computado, e um bool solto no snapshot
     /// quebraria o mutador genérico de teste.</summary>
@@ -89,7 +94,7 @@ public sealed class Npc
         Money wallet = default, WorkplaceId? employer = null,
         SkillSet? skills = null, RateGene? rateGene = null, NpcId? mentor = null,
         double vitality = 50.0, double upbringing = 50.0, NpcId? spouse = null, NpcId? courtingWith = null,
-        CityId city = default, long? materializedAtTick = null)
+        CityId city = default, long? materializedAtTick = null, InteriorOccupancy? interior = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -132,6 +137,7 @@ public sealed class Npc
         CourtingWith = courtingWith;
         City = city;
         MaterializedAtTick = materializedAtTick;
+        Interior = interior;
     }
 
     public Npc(
@@ -145,13 +151,13 @@ public sealed class Npc
         Money wallet = default, WorkplaceId? employer = null,
         SkillSet? skills = null, RateGene? rateGene = null, NpcId? mentor = null,
         double vitality = 50.0, double upbringing = 50.0, NpcId? spouse = null, NpcId? courtingWith = null,
-        CityId city = default, long? materializedAtTick = null)
+        CityId city = default, long? materializedAtTick = null, InteriorOccupancy? interior = null)
         : this(
             id, name, sex, birthDate, culture, birthLocation, motherId, fatherId, household, health,
             personality, profession, currentLocation,
             LazyNeed.Initial(hunger, 0, 0), LazyNeed.Initial(thirst, 0, 0), LazyNeed.Initial(sleep, 0, 0), LazyNeed.Initial(social, 0, 0),
             currentAction, actionStartedAtTick, hungerZeroSinceTick, homelessSince, pregnantUntil, deathDate,
-            wallet, employer, skills, rateGene, mentor, vitality, upbringing, spouse, courtingWith, city, materializedAtTick)
+            wallet, employer, skills, rateGene, mentor, vitality, upbringing, spouse, courtingWith, city, materializedAtTick, interior)
     {
     }
 
@@ -312,4 +318,35 @@ public sealed class Npc
     /// <summary>Registra o tick de materialização (Fase 8, T9, CITY-05) — só
     /// <c>MaterializationSystem</c> chama, na criação a partir do pool agregado.</summary>
     public void MarkMaterialized(long tick) => MaterializedAtTick = tick;
+
+    /// <summary>Entra num prédio (Fase 15.1, T47) — nunca toca <see cref="CurrentLocation"/>/<see
+    /// cref="City"/> (localização global preservada). Chamável de fora ou de dentro de outro
+    /// prédio (troca direta, sem passar por <see cref="ExitBuilding"/> — mesmo espírito de <see
+    /// cref="JoinCity"/>, nunca um tick intermediário "sem escopo").</summary>
+    public void EnterBuilding(BuildingId building, FloorLevel floor, CellCoord localCell) =>
+        Interior = new InteriorOccupancy(building, floor, localCell);
+
+    /// <summary>Move dentro do mesmo prédio, mesmo andar (Fase 15.1, T47) — exige estar dentro
+    /// de um prédio (exclusividade de escopo: não existe "mover" sem "estar dentro").</summary>
+    public void MoveWithinBuilding(CellCoord localCell)
+    {
+        if (Interior is not { } current)
+            throw new InvalidOperationException($"NPC {Id} não está dentro de um prédio");
+        Interior = current with { LocalCell = localCell };
+    }
+
+    /// <summary>Troca de andar dentro do mesmo prédio (Fase 15.1, T47) — exige estar dentro de
+    /// um prédio; navegação em si é <see cref="FloorNavigator"/> (reversível), aqui só grava o
+    /// resultado.</summary>
+    public void ChangeFloor(FloorLevel floor, CellCoord localCell)
+    {
+        if (Interior is not { } current)
+            throw new InvalidOperationException($"NPC {Id} não está dentro de um prédio");
+        Interior = current with { Floor = floor, LocalCell = localCell };
+    }
+
+    /// <summary>Sai do prédio, volta a escopo World/City (Fase 15.1, T47) — <see
+    /// cref="CurrentLocation"/>/<see cref="City"/> continuam intocados: nunca dependeram do
+    /// interior pra existir.</summary>
+    public void ExitBuilding() => Interior = null;
 }

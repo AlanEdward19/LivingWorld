@@ -4,10 +4,9 @@ using LivingWorld.Simulation;
 
 namespace LivingWorld.Tests.Visual;
 
-/// <summary>Fase 15, T5 (VTT-03): <see cref="InteriorProjector"/> — identidade do prédio é real
-/// (cidade/tipo), mas ocupação por interior não existe no domínio (<c>Building</c> não tem
-/// <c>CellCoord</c> própria, nenhum <c>Npc</c> referencia "dentro de qual prédio"), então
-/// <c>OccupancyModeled</c> fica sempre falso em vez de inventar quem está dentro.</summary>
+/// <summary>Fase 15, T5 (VTT-03); ocupação real desde Fase 15.1, T47 (G7): identidade do prédio
+/// é real (cidade/tipo) e <c>Occupants</c> lista todo NPC vivo cujo <c>Npc.Interior</c> aponta
+/// para este prédio.</summary>
 public class InteriorProjectorTests
 {
     [Fact]
@@ -21,7 +20,7 @@ public class InteriorProjectorTests
     }
 
     [Fact]
-    public void Build_returns_the_buildings_identity_with_occupancy_unmodeled()
+    public void Build_returns_the_buildings_identity_with_occupancy_modeled_and_no_occupants()
     {
         var world = ScenarioRunner.Create(seed: 13, initialPopulation: 0).World;
         var city = new City(world.NextCityId(), new CellCoord(0, 0), foundedAtTick: 0, foundedFromCityId: null,
@@ -36,6 +35,7 @@ public class InteriorProjectorTests
         Assert.Equal(building.Id, result.Value!.Id);
         Assert.Equal(city.Id, result.Value!.City);
         Assert.Equal(7, result.Value!.BuildingTypeId);
-        Assert.False(result.Value!.OccupancyModeled);
+        Assert.True(result.Value!.OccupancyModeled);
+        Assert.Empty(result.Value!.Occupants);
     }
 }
