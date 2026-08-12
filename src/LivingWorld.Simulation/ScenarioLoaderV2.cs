@@ -57,10 +57,24 @@ public static class ScenarioLoaderV2
             createdCityIds.Add(createdCity.Id);
         }
 
+        var createdBuildingIds = new List<BuildingId>(definition.City.Buildings.Count);
         foreach (var building in definition.City.Buildings)
-            world.AddBuilding(new Building(
+        {
+            var createdBuilding = new Building(
                 world.NextBuildingIdAndAdvance(), createdCityIds[building.CityIndex], building.BuildingTypeId,
-                completedAtTick: 0, position: building.Position, orientation: building.Orientation));
+                completedAtTick: 0, position: building.Position, orientation: building.Orientation);
+            world.AddBuilding(createdBuilding);
+            createdBuildingIds.Add(createdBuilding.Id);
+        }
+
+        // Fase 15.1, T21: portal é dado descritivo — resolve RefIndex autorado pro RefId real
+        // (mesmo padrão de createdCityIds[building.CityIndex] acima) depois que cidades/prédios
+        // já têm id, e autora via AddPortal, único ponto de mutação da coleção.
+        foreach (var portal in definition.City.Portals)
+            world.AddPortal(new SpatialPortal(
+                portal.Id, portal.Label,
+                ResolvePortalEndpoint(portal.From, createdCityIds, createdBuildingIds),
+                ResolvePortalEndpoint(portal.To, createdCityIds, createdBuildingIds)));
 
         // Fase 13, T13: PeriodEvolutionSystem primeiro na lista — regra de transformação muda o
         // catálogo antes de qualquer sistema do mesmo tick sortear profissão por ele
@@ -70,4 +84,14 @@ public static class ScenarioLoaderV2
 
         return Result<(WorldState, WorldClock)>.Ok((world, new WorldClock(systems, maxIterationsPerTick)));
     }
+
+    private static PortalEndpoint ResolvePortalEndpoint(
+        AuthoredPortalEndpoint endpoint, IReadOnlyList<CityId> createdCityIds, IReadOnlyList<BuildingId> createdBuildingIds) =>
+        endpoint.Space switch
+        {
+            PortalSpaceKind.World => new PortalEndpoint(PortalSpaceKind.World, "", endpoint.Cell),
+            PortalSpaceKind.City => new PortalEndpoint(PortalSpaceKind.City, createdCityIds[endpoint.RefIndex].ToString(), endpoint.Cell),
+            PortalSpaceKind.Building => new PortalEndpoint(PortalSpaceKind.Building, createdBuildingIds[endpoint.RefIndex].ToString(), endpoint.Cell),
+            _ => throw new ArgumentOutOfRangeException(nameof(endpoint)),
+        };
 }

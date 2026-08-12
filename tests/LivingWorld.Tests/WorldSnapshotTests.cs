@@ -106,6 +106,12 @@ public class WorldSnapshotTests
         world.AddNpcMemory(
             world.Npcs[0].Id, MemoryCategory.Operational, "memoria volatil de teste", importance: 10, originTick: 0,
             participants: [world.Npcs[0].Id], location: world.Npcs[0].CurrentLocation, canonicalImportanceThreshold: 50);
+        // Fase 15.1 (T21): força ao menos um SpatialPortal — mesmo motivo do resto do arquivo
+        // (coleção vazia não tem folha primitiva pro mutador genérico perturbar).
+        world.AddPortal(new SpatialPortal(
+            "portal-test", "Portão de Teste",
+            new PortalEndpoint(PortalSpaceKind.World, "", new CellCoord(1, 1)),
+            new PortalEndpoint(PortalSpaceKind.City, city.Id.ToString(), new CellCoord(2, 2))));
         return world;
     }
 
@@ -266,6 +272,39 @@ public class WorldSnapshotTests
 
         new WorldClock(ScenarioRunner.DefaultSystems()).Run(rehydrated, 50);
         Assert.NotEqual(beforeHash, WorldSnapshot.CanonicalHash(rehydrated)); // mas o mundo seguiu andando de verdade
+    }
+
+    // --- Fase 15.1, T21: SpatialPortal — round-trip preserva a coleção e o hash canônico ---
+
+    [Fact]
+    public void Round_tripping_a_world_with_portals_preserves_them_with_an_identical_canonical_hash()
+    {
+        var world = BuiltWorld();
+        var hashBefore = WorldSnapshot.CanonicalHash(world);
+
+        var rehydrated = WorldSnapshot.Deserialize(WorldSnapshot.Serialize(world));
+
+        Assert.Equal(world.Portals, rehydrated.Portals);
+        Assert.Equal(hashBefore, WorldSnapshot.CanonicalHash(rehydrated));
+    }
+
+    // Isola a mudança de hash à coleção Portals, não a um efeito colateral (spec.md AC6): duas
+    // cargas idênticas do mesmo cenário sem portal declarado hasheiam igual entre si; declarar
+    // um portal extra na segunda é a única diferença que muda o hash.
+    [Fact]
+    public void Adding_a_portal_is_the_only_source_of_divergence_between_two_otherwise_identical_worlds()
+    {
+        var (worldWithoutPortal, _) = ScenarioRunner.Create(seed: 77);
+        var (worldWithPortal, _) = ScenarioRunner.Create(seed: 77);
+
+        Assert.Equal(WorldSnapshot.CanonicalHash(worldWithoutPortal), WorldSnapshot.CanonicalHash(worldWithPortal));
+
+        worldWithPortal.AddPortal(new SpatialPortal(
+            "portal-isolation", "Portão",
+            new PortalEndpoint(PortalSpaceKind.World, "", new CellCoord(0, 0)),
+            new PortalEndpoint(PortalSpaceKind.World, "", new CellCoord(1, 1))));
+
+        Assert.NotEqual(WorldSnapshot.CanonicalHash(worldWithoutPortal), WorldSnapshot.CanonicalHash(worldWithPortal));
     }
 
     // --- Pausa não é estado do mundo ---

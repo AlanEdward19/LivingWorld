@@ -95,6 +95,38 @@ public class GlobalProjectorTests
         Assert.Empty(snapshot.ActiveEvents);
     }
 
+    // --- Fase 15.1, T21: campo Portals (SpatialPortal como conceito canônico) ---
+
+    [Fact]
+    public void Build_includes_a_portal_whose_origin_is_the_World_scope()
+    {
+        var (world, city, _, _) = MakeWorldWithCity();
+        var portal = new SpatialPortal(
+            "portal-north", "Portão Norte",
+            new PortalEndpoint(PortalSpaceKind.World, "", new CellCoord(0, 0)),
+            new PortalEndpoint(PortalSpaceKind.City, city.Id.ToString(), new CellCoord(1, 1)));
+        world.AddPortal(portal);
+
+        var snapshot = GlobalProjector.Build(world);
+
+        Assert.Equal(portal, Assert.Single(snapshot.Portals));
+    }
+
+    [Fact]
+    public void Build_excludes_a_portal_that_never_touches_the_World_scope()
+    {
+        var (world, city, _, _) = MakeWorldWithCity();
+        var otherCityId = world.NextCityId();
+        world.AddPortal(new SpatialPortal(
+            "portal-city-to-city", "Passagem Interna",
+            new PortalEndpoint(PortalSpaceKind.City, city.Id.ToString(), new CellCoord(0, 0)),
+            new PortalEndpoint(PortalSpaceKind.City, otherCityId.ToString(), new CellCoord(1, 1))));
+
+        var snapshot = GlobalProjector.Build(world);
+
+        Assert.Empty(snapshot.Portals);
+    }
+
     private static long CityPopulationQuery(WorldState world, CityId cityId) =>
         LivingWorld.Simulation.CityPopulationQuery.Population(world, cityId);
 }

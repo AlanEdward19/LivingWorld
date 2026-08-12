@@ -250,6 +250,14 @@ public sealed class WorldState
     /// snapshot de <see cref="RngStreams"/>.</summary>
     [Canonical] public long NextBuildingId => _nextBuildingId;
 
+    private readonly List<SpatialPortal> _portals;
+
+    /// <summary>Entradas/saídas nomeadas de espaço (Fase 15.1, T21, OQ-2) — dado descritivo, sem
+    /// contador próprio: <see cref="SpatialPortal.Id"/> é autorado pelo cenário, mesmo molde de
+    /// <see cref="SettlementAnchor.Id"/>. Nenhum sistema de simulação lê esta coleção nesta fase
+    /// (fronteira estrita de spec.md); só <c>ScenarioLoaderV2</c> autora e a projeção da API lê.</summary>
+    [Canonical] public IReadOnlyList<SpatialPortal> Portals => _portals;
+
     /// <summary>Contador do sistema de exemplo (task 11) — descartável na Fase 3. Nenhuma
     /// decisão lê este campo, por isso é volátil.</summary>
     [Volatile]
@@ -269,7 +277,7 @@ public sealed class WorldState
         NeedsRules needsRules, ActionCatalog actionCatalog, LifeStageRules lifeStageRules, BranchId branchId = default,
         EconomyRules? economyRules = null, EconomyCatalog? economyCatalog = null, FamilyRules? familyRules = null,
         CityRules? cityRules = null, CityCatalog? cityCatalog = null, PerfRules? perfRules = null,
-        HistoryRules? historyRules = null, string name = "")
+        HistoryRules? historyRules = null, string name = "", IReadOnlyList<SpatialPortal>? portals = null)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -307,6 +315,7 @@ public sealed class WorldState
         _cityById = [];
         _buildings = [];
         _buildingById = [];
+        _portals = (portals ?? []).ToList();
         AliveNpcIndex = AliveNpcIndex.RebuildFrom(this);
         HistoryIndex = HistoryIndex.RebuildFrom(this);
         ColdArchive = new ColdTierArchive();
@@ -356,7 +365,8 @@ public sealed class WorldState
         IReadOnlyList<NpcMemory>? canonicalMemories = null,
         IReadOnlyList<NpcMemory>? volatileMemories = null,
         long nextMemoryId = 0,
-        string name = "")
+        string name = "",
+        IReadOnlyList<SpatialPortal>? portals = null)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -393,6 +403,7 @@ public sealed class WorldState
         _buildings = (buildings ?? []).ToList();
         _buildingById = ToLookup(_buildings, b => b.Id);
         _nextBuildingId = nextBuildingId;
+        _portals = (portals ?? []).ToList();
         CityRules = cityRules ?? CityRules.Disabled;
         CityCatalog = cityCatalog ?? CityCatalog.Empty;
         PerfRules = perfRules ?? PerfRules.Default;
@@ -506,6 +517,12 @@ public sealed class WorldState
 
     public City? FindCity(CityId id) => _cityById.GetValueOrDefault(id);
     public Building? FindBuilding(BuildingId id) => _buildingById.GetValueOrDefault(id);
+
+    /// <summary>Único ponto de autoria de <see cref="SpatialPortal"/> (Fase 15.1, T21) — só
+    /// <c>ScenarioLoaderV2</c> chama, no mesmo momento em que autora <see cref="City"/>/
+    /// <see cref="Building"/>. Sem <c>FindPortal</c>/remoção: portal é dado descritivo estático do
+    /// cenário, nenhum sistema desta fase o edita depois de carregado.</summary>
+    public void AddPortal(SpatialPortal portal) => _portals.Add(portal);
 
     internal FactId NextFactIdAndAdvance() => new(_nextFactId++);
 

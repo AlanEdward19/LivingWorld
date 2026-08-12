@@ -86,4 +86,58 @@ public class CityProjectorTests
 
         Assert.False(result.Value!.Layers[layerId].IsModeled);
     }
+
+    // --- Fase 15.1, T21: campo Portals (SpatialPortal como conceito canônico) ---
+
+    [Fact]
+    public void Build_includes_a_portal_that_references_this_city_by_RefId()
+    {
+        var (world, city, _) = MakeWorldWithCity();
+        var portal = new SpatialPortal(
+            "portal-south", "Portão Sul",
+            new PortalEndpoint(PortalSpaceKind.World, "", new CellCoord(0, 0)),
+            new PortalEndpoint(PortalSpaceKind.City, city.Id.ToString(), new CellCoord(1, 1)));
+        world.AddPortal(portal);
+
+        var result = CityProjector.Build(world, city.Id);
+
+        Assert.Equal(portal, Assert.Single(result.Value!.Portals));
+    }
+
+    [Fact]
+    public void Two_portals_to_the_same_city_are_both_listed_distinguishable_only_by_label()
+    {
+        var (world, city, _) = MakeWorldWithCity();
+        var north = new SpatialPortal(
+            "portal-north", "Portão Norte",
+            new PortalEndpoint(PortalSpaceKind.World, "", new CellCoord(0, 0)),
+            new PortalEndpoint(PortalSpaceKind.City, city.Id.ToString(), new CellCoord(1, 1)));
+        var south = new SpatialPortal(
+            "portal-south", "Portão Sul",
+            new PortalEndpoint(PortalSpaceKind.World, "", new CellCoord(2, 2)),
+            new PortalEndpoint(PortalSpaceKind.City, city.Id.ToString(), new CellCoord(3, 3)));
+        world.AddPortal(north);
+        world.AddPortal(south);
+
+        var result = CityProjector.Build(world, city.Id);
+
+        Assert.Equal(2, result.Value!.Portals.Count);
+        Assert.Contains(north, result.Value!.Portals);
+        Assert.Contains(south, result.Value!.Portals);
+    }
+
+    [Fact]
+    public void Build_excludes_a_portal_that_references_a_different_city()
+    {
+        var (world, city, _) = MakeWorldWithCity();
+        var otherCityId = world.NextCityId();
+        world.AddPortal(new SpatialPortal(
+            "portal-elsewhere", "Portão de Outra Cidade",
+            new PortalEndpoint(PortalSpaceKind.World, "", new CellCoord(0, 0)),
+            new PortalEndpoint(PortalSpaceKind.City, otherCityId.ToString(), new CellCoord(1, 1))));
+
+        var result = CityProjector.Build(world, city.Id);
+
+        Assert.Empty(result.Value!.Portals);
+    }
 }

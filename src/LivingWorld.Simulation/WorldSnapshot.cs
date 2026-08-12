@@ -117,6 +117,9 @@ public static class WorldSnapshot
         var name = node.TryGetPropertyValue("Name", out var nameNode) && nameNode is not null
             ? nameNode.GetValue<string>()
             : "";
+        var portals = node.TryGetPropertyValue("Portals", out var portalsNode) && portalsNode is not null
+            ? portalsNode.Deserialize<List<SpatialPortal>>(JsonOptions)!
+            : [];
 
         return new WorldState(
             calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
@@ -124,7 +127,7 @@ public static class WorldSnapshot
             nextHouseholdId, branchId, moneyMinted, moneyDestroyed, economyRules, economyCatalog, workplaces,
             nextWorkplaceId, familyRules, relationships, cities, buildings, nextBuildingId, cityRules, cityCatalog,
             perfRules, historyRules, facts, nextFactId, nextReportId, reports, books, nextBookId,
-            canonicalMemories, volatileMemories, nextMemoryId, name);
+            canonicalMemories, volatileMemories, nextMemoryId, name, portals);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)

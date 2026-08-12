@@ -17,7 +17,8 @@ public sealed record CitySnapshot(
     AggregatePopulationPool AggregatePool,
     IReadOnlyList<CityResidentMarker> Residents,
     IReadOnlyList<CityBuildingMarker> Buildings,
-    IReadOnlyDictionary<VisualLayerId, LayerBuildResult> Layers);
+    IReadOnlyDictionary<VisualLayerId, LayerBuildResult> Layers,
+    IReadOnlyList<SpatialPortal> Portals);
 
 public static class CityProjector
 {
@@ -39,6 +40,16 @@ public static class CityProjector
         var layers = CityLayerBuilder.SupportedLayers.ToDictionary(id => id, CityLayerBuilder.Build);
         layers[VisualLayerId.Climate] = GlobalLayerBuilder.Build(VisualLayerId.Climate, world);
 
-        return Result<CitySnapshot>.Ok(new CitySnapshot(city.Id, city.Location, city.AggregatePool, residents, buildings, layers));
+        // Fase 15.1, T21: portal cujo From ou To referencia esta cidade — mesma semântica de
+        // MockPortalSource.portalsOf (web/src/data/mock/MockPortalSource.ts).
+        string cityRefId = city.Id.ToString();
+        var portals = world.Portals
+            .Where(p => TouchesCity(p.From, cityRefId) || TouchesCity(p.To, cityRefId))
+            .ToList();
+
+        return Result<CitySnapshot>.Ok(new CitySnapshot(city.Id, city.Location, city.AggregatePool, residents, buildings, layers, portals));
     }
+
+    private static bool TouchesCity(PortalEndpoint endpoint, string cityRefId) =>
+        endpoint.Space == PortalSpaceKind.City && endpoint.RefId == cityRefId;
 }

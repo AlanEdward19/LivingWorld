@@ -23,7 +23,8 @@ public sealed record GlobalSnapshot(
     IReadOnlyList<GlobalCityMarker> Cities,
     IReadOnlyList<GlobalNpcMarker> ExternalNpcs,
     IReadOnlyList<object> ActiveEvents,
-    IReadOnlyDictionary<VisualLayerId, LayerBuildResult> Layers);
+    IReadOnlyDictionary<VisualLayerId, LayerBuildResult> Layers,
+    IReadOnlyList<SpatialPortal> Portals);
 
 public static class GlobalProjector
 {
@@ -45,6 +46,13 @@ public static class GlobalProjector
         var layers = GlobalLayerBuilder.SupportedLayers
             .ToDictionary(id => id, id => GlobalLayerBuilder.Build(id, world));
 
-        return new GlobalSnapshot(world.Map.Width, world.Map.Height, cities, externalNpcs, [], layers);
+        // Fase 15.1, T21: portal cujo From ou To toca o escopo World — mesma semântica de
+        // MockPortalSource.portalsOf (web/src/data/mock/MockPortalSource.ts), pra T33 trocar a
+        // fonte sem mudar comportamento.
+        var portals = world.Portals
+            .Where(p => p.From.Space == PortalSpaceKind.World || p.To.Space == PortalSpaceKind.World)
+            .ToList();
+
+        return new GlobalSnapshot(world.Map.Width, world.Map.Height, cities, externalNpcs, [], layers, portals);
     }
 }

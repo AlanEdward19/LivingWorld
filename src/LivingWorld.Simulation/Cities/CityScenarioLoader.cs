@@ -8,7 +8,8 @@ namespace LivingWorld.Simulation;
 /// consome chama <see cref="WorldState.NextCityId"/> ao adicionar cada uma, mesmo padrão de
 /// <see cref="EconomyScenarioLoader"/> pra Workplace).</summary>
 public sealed record CityScenarioData(
-    CityRules Rules, CityCatalog Catalog, IReadOnlyList<InitialCity> Cities, IReadOnlyList<AuthoredBuilding> Buildings);
+    CityRules Rules, CityCatalog Catalog, IReadOnlyList<InitialCity> Cities, IReadOnlyList<AuthoredBuilding> Buildings,
+    IReadOnlyList<AuthoredPortal> Portals);
 
 /// <summary>Uma <see cref="City"/> ainda sem <see cref="CityId"/> — o cenário declara o
 /// conteúdo, o mundo atribui o id na hora de adicionar. <see cref="Name"/> vazio significa "o
@@ -21,6 +22,19 @@ public sealed record InitialCity(CellCoord Location, long FoundedAtTick, Aggrega
 /// do prédio dentro de <see cref="CityScenarioData.Cities"/>, já validada em bounds por
 /// <see cref="CityScenarioLoader.Load"/>.</summary>
 public sealed record AuthoredBuilding(int CityIndex, int BuildingTypeId, CellCoord Position, int Orientation);
+
+/// <summary>Um lado de um <see cref="AuthoredPortal"/> (Fase 15.1, T21) — <see cref="RefIndex"/>
+/// referencia a posição do endpoint dentro de <see cref="CityScenarioData.Cities"/> (quando
+/// <see cref="Space"/> é <see cref="PortalSpaceKind.City"/>) ou <see
+/// cref="CityScenarioData.Buildings"/> (quando <see cref="PortalSpaceKind.Building"/>); ignorado
+/// para <see cref="PortalSpaceKind.World"/>, que é único e não precisa de índice. Mesmo papel de
+/// <see cref="AuthoredBuilding.CityIndex"/>: id real só existe depois que o mundo atribui.</summary>
+public sealed record AuthoredPortalEndpoint(PortalSpaceKind Space, int RefIndex, CellCoord Cell);
+
+/// <summary>Portal autorado no cenário (Fase 15.1, T21, OQ-2) — mesmo papel de <see
+/// cref="AuthoredBuilding"/>: ainda sem <see cref="PortalEndpoint.RefId"/> real, resolvido por
+/// <c>ScenarioLoaderV2</c> depois que cidades/prédios ganham id.</summary>
+public sealed record AuthoredPortal(string Id, string Label, AuthoredPortalEndpoint From, AuthoredPortalEndpoint To);
 
 /// <summary>Carrega <see cref="CityRules"/>/<see cref="CityCatalog"/>/<see cref="City"/> iniciais
 /// de um cenário (Fase 8, T7): nenhum parâmetro de cidade hardcoded em C# (R3). Mesmo padrão
@@ -56,8 +70,13 @@ public static class CityScenarioLoader
         if (!buildingsResult.IsSuccess)
             return Result<CityScenarioData>.Fail(buildingsResult.Error!);
 
+        var portalsResult = ParsePortals(root, citiesResult.Value!.Count, buildingsResult.Value!.Count);
+        if (!portalsResult.IsSuccess)
+            return Result<CityScenarioData>.Fail(portalsResult.Error!);
+
         return Result<CityScenarioData>.Ok(
-            new CityScenarioData(rulesResult.Value!, catalogResult.Value!, citiesResult.Value!, buildingsResult.Value!));
+            new CityScenarioData(
+                rulesResult.Value!, catalogResult.Value!, citiesResult.Value!, buildingsResult.Value!, portalsResult.Value!));
     }
 
     private static Result<CityRules> ParseRules(JsonObject root)
@@ -204,6 +223,61 @@ public static class CityScenarioLoader
         }
 
         return Result<IReadOnlyList<AuthoredBuilding>>.Ok(buildings);
+    }
+
+    /// <summary>Portais autorados (Fase 15.1, T21): campo opcional — cenário sem <c>Portals</c>
+    /// declarado continua válido (spec.md AC4), mesmo padrão de <see cref="ParseBuildings"/> pra
+    /// "Buildings" ausente. Cada endpoint referencia índice de cidade/prédio já parseado (mesma
+    /// validação de referência de <see cref="AuthoredBuilding.CityIndex"/>).</summary>
+    private static Result<IReadOnlyList<AuthoredPortal>> ParsePortals(JsonObject root, int cityCount, int buildingCount)
+    {
+        var portals = new List<AuthoredPortal>();
+        if (root["Portals"] is not JsonArray portalsNode)
+            return Result<IReadOnlyList<AuthoredPortal>>.Ok(portals);
+
+        foreach (var node in portalsNode)
+        {
+            if (node is not JsonObject p)
+                return Result<IReadOnlyList<AuthoredPortal>>.Fail("Portals: item inválido");
+            if (p["Id"] is not JsonValue idValue || !idValue.TryGetValue<string>(out var id) || string.IsNullOrEmpty(id))
+                return Result<IReadOnlyList<AuthoredPortal>>.Fail("Portals[].Id: campo obrigatório ausente ou inválido");
+            string label = p["Label"]?.GetValue<string>() ?? "";
+
+            if (p["From"] is not JsonObject fromNode)
+                return Result<IReadOnlyList<AuthoredPortal>>.Fail("Portals[].From: campo obrigatório ausente");
+            var fromResult = ParsePortalEndpoint(fromNode, "Portals[].From", cityCount, buildingCount);
+            if (!fromResult.IsSuccess)
+                return Result<IReadOnlyList<AuthoredPortal>>.Fail(fromResult.Error!);
+
+            if (p["To"] is not JsonObject toNode)
+                return Result<IReadOnlyList<AuthoredPortal>>.Fail("Portals[].To: campo obrigatório ausente");
+            var toResult = ParsePortalEndpoint(toNode, "Portals[].To", cityCount, buildingCount);
+            if (!toResult.IsSuccess)
+                return Result<IReadOnlyList<AuthoredPortal>>.Fail(toResult.Error!);
+
+            portals.Add(new AuthoredPortal(id, label, fromResult.Value!, toResult.Value!));
+        }
+
+        return Result<IReadOnlyList<AuthoredPortal>>.Ok(portals);
+    }
+
+    private static Result<AuthoredPortalEndpoint> ParsePortalEndpoint(JsonObject node, string fieldPrefix, int cityCount, int buildingCount)
+    {
+        if (node["Space"] is not JsonValue spaceValue || !spaceValue.TryGetValue<string>(out var spaceText)
+            || !Enum.TryParse<PortalSpaceKind>(spaceText, out var space))
+            return Result<AuthoredPortalEndpoint>.Fail($"{fieldPrefix}.Space: campo obrigatório ausente ou inválido");
+        if (!TryGetInt(node, "X", out var x))
+            return Result<AuthoredPortalEndpoint>.Fail($"{fieldPrefix}.X: campo obrigatório ausente ou inválido");
+        if (!TryGetInt(node, "Y", out var y))
+            return Result<AuthoredPortalEndpoint>.Fail($"{fieldPrefix}.Y: campo obrigatório ausente ou inválido");
+        int refIndex = node["RefIndex"]?.GetValue<int>() ?? 0;
+
+        if (space == PortalSpaceKind.City && (refIndex < 0 || refIndex >= cityCount))
+            return Result<AuthoredPortalEndpoint>.Fail($"{fieldPrefix}.RefIndex: {refIndex} não referencia nenhuma cidade autorada (0..{cityCount - 1})");
+        if (space == PortalSpaceKind.Building && (refIndex < 0 || refIndex >= buildingCount))
+            return Result<AuthoredPortalEndpoint>.Fail($"{fieldPrefix}.RefIndex: {refIndex} não referencia nenhum prédio autorado (0..{buildingCount - 1})");
+
+        return Result<AuthoredPortalEndpoint>.Ok(new AuthoredPortalEndpoint(space, refIndex, new CellCoord(x, y)));
     }
 
     private static bool TryGetInt(JsonObject root, string field, out int value)

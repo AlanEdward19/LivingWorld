@@ -236,15 +236,134 @@ public class CityAndBuildingAuthoringTests
         Assert.Equal(180, building.Orientation);
     }
 
+    // --- Portais autorados (Fase 15.1, T21) ---
+
+    [Fact]
+    public void Authored_portal_is_parsed_with_id_label_and_both_endpoints()
+    {
+        var root = ValidRoot();
+        root["Portals"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["Id"] = "portal-north",
+                ["Label"] = "Portão Norte",
+                ["From"] = new JsonObject { ["Space"] = "World", ["X"] = 3, ["Y"] = 1 },
+                ["To"] = new JsonObject { ["Space"] = "City", ["RefIndex"] = 0, ["X"] = 3, ["Y"] = 4 },
+            },
+        };
+
+        var result = CityScenarioLoader.Load(root.ToJsonString());
+
+        Assert.True(result.IsSuccess);
+        var portal = Assert.Single(result.Value!.Portals);
+        Assert.Equal("portal-north", portal.Id);
+        Assert.Equal("Portão Norte", portal.Label);
+        Assert.Equal(PortalSpaceKind.World, portal.From.Space);
+        Assert.Equal(new CellCoord(3, 1), portal.From.Cell);
+        Assert.Equal(PortalSpaceKind.City, portal.To.Space);
+        Assert.Equal(0, portal.To.RefIndex);
+        Assert.Equal(new CellCoord(3, 4), portal.To.Cell);
+    }
+
+    [Fact]
+    public void A_scenario_without_a_Portals_field_still_parses_with_an_empty_portal_list()
+    {
+        var result = CityScenarioLoader.Load(ValidRoot().ToJsonString());
+
+        Assert.True(result.IsSuccess);
+        Assert.Empty(result.Value!.Portals);
+    }
+
+    [Fact]
+    public void Authored_portal_referencing_a_non_existent_city_index_fails()
+    {
+        var root = ValidRoot();
+        root["Portals"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["Id"] = "portal-north",
+                ["Label"] = "Portão Norte",
+                ["From"] = new JsonObject { ["Space"] = "World", ["X"] = 3, ["Y"] = 1 },
+                ["To"] = new JsonObject { ["Space"] = "City", ["RefIndex"] = 7, ["X"] = 3, ["Y"] = 4 },
+            },
+        };
+
+        var result = CityScenarioLoader.Load(root.ToJsonString());
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("RefIndex", result.Error);
+    }
+
+    [Fact]
+    public void Two_authored_portals_for_the_same_city_are_distinguishable_only_by_label()
+    {
+        var root = ValidRoot();
+        root["Portals"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["Id"] = "portal-north",
+                ["Label"] = "Portão Norte",
+                ["From"] = new JsonObject { ["Space"] = "World", ["X"] = 3, ["Y"] = 1 },
+                ["To"] = new JsonObject { ["Space"] = "City", ["RefIndex"] = 0, ["X"] = 3, ["Y"] = 4 },
+            },
+            new JsonObject
+            {
+                ["Id"] = "portal-south",
+                ["Label"] = "Portão Sul",
+                ["From"] = new JsonObject { ["Space"] = "World", ["X"] = 3, ["Y"] = 8 },
+                ["To"] = new JsonObject { ["Space"] = "City", ["RefIndex"] = 0, ["X"] = 3, ["Y"] = 5 },
+            },
+        };
+
+        var result = CityScenarioLoader.Load(root.ToJsonString());
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, result.Value!.Portals.Count);
+        Assert.Equal(["portal-north", "portal-south"], result.Value!.Portals.Select(p => p.Id));
+    }
+
+    [Fact]
+    public void ScenarioLoaderV2_resolves_the_authored_portal_endpoint_to_the_real_city_id()
+    {
+        var scenario = FullScenarioWithCityAndPortal();
+
+        var result = ScenarioLoaderV2.LoadWorld(scenario);
+
+        Assert.True(result.IsSuccess);
+        var world = result.Value!.World;
+        var portal = Assert.Single(world.Portals);
+        Assert.Equal(PortalSpaceKind.World, portal.From.Space);
+        Assert.Equal("", portal.From.RefId);
+        Assert.Equal(PortalSpaceKind.City, portal.To.Space);
+        Assert.Equal(world.Cities[0].Id.ToString(), portal.To.RefId);
+    }
+
+    [Fact]
+    public void ScenarioLoaderV2_loads_a_scenario_without_any_declared_portal()
+    {
+        var scenario = FullScenarioWithCity(cityName: "Vale de Aster");
+
+        var result = ScenarioLoaderV2.LoadWorld(scenario);
+
+        Assert.True(result.IsSuccess);
+        Assert.Empty(result.Value!.World.Portals);
+    }
+
     // --- fixtures completas (Map + Population + Behavior + Economy + City) ---
 
     private static string FullScenarioWithCity(string? cityName) =>
-        FullScenario(cityName, includeBuilding: false);
+        FullScenario(cityName, includeBuilding: false, includePortal: false);
 
     private static string FullScenarioWithCityAndBuilding() =>
-        FullScenario("Vale de Aster", includeBuilding: true);
+        FullScenario("Vale de Aster", includeBuilding: true, includePortal: false);
 
-    private static string FullScenario(string? cityName, bool includeBuilding)
+    private static string FullScenarioWithCityAndPortal() =>
+        FullScenario("Vale de Aster", includeBuilding: false, includePortal: true);
+
+    private static string FullScenario(string? cityName, bool includeBuilding, bool includePortal)
     {
         string defaultJson = File.ReadAllText(Path.Combine(FindRepoRoot(), "scenarios", "default.json"));
         var root = JsonNode.Parse(defaultJson)!.AsObject();
@@ -297,6 +416,20 @@ public class CityAndBuildingAuthoringTests
             root["Buildings"] = new JsonArray
             {
                 new JsonObject { ["CityIndex"] = 0, ["BuildingTypeId"] = 1, ["X"] = 6, ["Y"] = 6, ["Orientation"] = 180 },
+            };
+        }
+
+        if (includePortal)
+        {
+            root["Portals"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["Id"] = "portal-north",
+                    ["Label"] = "Portão Norte",
+                    ["From"] = new JsonObject { ["Space"] = "World", ["X"] = 1, ["Y"] = 1 },
+                    ["To"] = new JsonObject { ["Space"] = "City", ["RefIndex"] = 0, ["X"] = 2, ["Y"] = 2 },
+                },
             };
         }
 
