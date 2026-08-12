@@ -43,6 +43,35 @@ public class GlobalProjectorTests
         Assert.Equal(CityPopulationQuery(world, city.Id), marker.Population);
     }
 
+    // --- Fase 15.1, T20: campos de footprint (Bounds/BoundsAreDerived) ---
+
+    [Fact]
+    public void Build_includes_the_citys_derived_bounds_matching_SpatialBoundsResolver()
+    {
+        var (world, city, _, _) = MakeWorldWithCity();
+
+        var marker = Assert.Single(GlobalProjector.Build(world).Cities);
+
+        var (expectedBounds, expectedIsDerived) = SpatialBoundsResolver.ResolveCity(city);
+        Assert.True(expectedIsDerived);
+        Assert.True(marker.BoundsAreDerived);
+        Assert.Equal(expectedBounds.Origin.X, marker.Bounds.X);
+        Assert.Equal(expectedBounds.Origin.Y, marker.Bounds.Y);
+        Assert.Equal(expectedBounds.Width, marker.Bounds.Width);
+        Assert.Equal(expectedBounds.Height, marker.Bounds.Height);
+    }
+
+    [Fact]
+    public void Build_does_not_change_the_canonical_hash_by_projecting_city_bounds()
+    {
+        var (world, _, _, _) = MakeWorldWithCity();
+        var hashBefore = WorldSnapshot.CanonicalHash(world);
+
+        GlobalProjector.Build(world);
+
+        Assert.Equal(hashBefore, WorldSnapshot.CanonicalHash(world));
+    }
+
     [Fact]
     public void Build_marks_a_materialized_npc_away_from_its_city_location_as_external()
     {

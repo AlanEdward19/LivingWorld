@@ -61,6 +61,48 @@ public class CityProjectorTests
         Assert.Single(result.Value!.Buildings);
     }
 
+    // --- Fase 15.1, T20: campos de posição de prédio (Location/LocationIsDerived) ---
+
+    [Fact]
+    public void Build_resolves_an_unauthored_buildings_location_as_derived_and_stable()
+    {
+        var (world, city, _) = MakeWorldWithCity();
+        var engineBuilding = world.Buildings.Single();
+
+        var marker = Assert.Single(CityProjector.Build(world, city.Id).Value!.Buildings);
+
+        var (expectedPosition, _, expectedIsDerived) = BuildingPlacementResolver.Resolve(engineBuilding, city);
+        Assert.True(expectedIsDerived);
+        Assert.True(marker.LocationIsDerived);
+        Assert.Equal(expectedPosition, marker.Location);
+    }
+
+    [Fact]
+    public void Build_prefers_an_authored_buildings_real_position_and_marks_it_not_derived()
+    {
+        var (world, city, _) = MakeWorldWithCity();
+        var authored = new Building(
+            world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId: 2, completedAtTick: 0,
+            position: new CellCoord(city.Location.X + 9, city.Location.Y + 9), orientation: 90);
+        world.AddBuilding(authored);
+
+        var marker = CityProjector.Build(world, city.Id).Value!.Buildings.Single(b => b.Id == authored.Id);
+
+        Assert.False(marker.LocationIsDerived);
+        Assert.Equal(new CellCoord(city.Location.X + 9, city.Location.Y + 9), marker.Location);
+    }
+
+    [Fact]
+    public void Build_does_not_change_the_canonical_hash_by_projecting_building_locations()
+    {
+        var (world, city, _) = MakeWorldWithCity();
+        var hashBefore = WorldSnapshot.CanonicalHash(world);
+
+        CityProjector.Build(world, city.Id);
+
+        Assert.Equal(hashBefore, WorldSnapshot.CanonicalHash(world));
+    }
+
     [Fact]
     public void Build_includes_the_aggregate_pool_as_is()
     {

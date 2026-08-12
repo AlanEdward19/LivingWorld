@@ -9,7 +9,11 @@ namespace LivingWorld.Api.Visual;
 /// resto do detalhe de inspeção individual.</summary>
 public sealed record CityResidentMarker(NpcId Id, CellCoord Location, ActionType? CurrentAction);
 
-public sealed record CityBuildingMarker(BuildingId Id, int BuildingTypeId);
+/// <summary><see cref="Location"/>/<see cref="LocationIsDerived"/> (Fase 15.1, T20, OQ-1) vêm de
+/// <see cref="BuildingPlacementResolver.Resolve"/> — autoria tem precedência; sem ela, fallback
+/// determinístico e estável por <see cref="BuildingId"/>, nunca a posição derivada do índice de
+/// iteração que o anel client-side usa hoje.</summary>
+public sealed record CityBuildingMarker(BuildingId Id, int BuildingTypeId, CellCoord Location, bool LocationIsDerived);
 
 public sealed record CitySnapshot(
     CityId Id,
@@ -34,7 +38,11 @@ public static class CityProjector
 
         var buildings = world.Buildings
             .Where(b => b.City == cityId)
-            .Select(b => new CityBuildingMarker(b.Id, b.BuildingTypeId))
+            .Select(b =>
+            {
+                var (position, _, isDerived) = BuildingPlacementResolver.Resolve(b, city);
+                return new CityBuildingMarker(b.Id, b.BuildingTypeId, position, isDerived);
+            })
             .ToList();
 
         var layers = CityLayerBuilder.SupportedLayers.ToDictionary(id => id, CityLayerBuilder.Build);
