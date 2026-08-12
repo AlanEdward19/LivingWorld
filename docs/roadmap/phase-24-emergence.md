@@ -18,8 +18,17 @@ Nomear é etiquetar o que o motor já instanciou — nunca criar fato.
    consultáveis por reflexão — é o registro que sustenta o critério de pré-requisito.
 3. **Ideologia e religião**: mutação no vetor de valores culturais (`society.md`) + evento
    fundador + transmissão. Se pegar, vira doutrina consumível pela Fase 17.
-4. **Potência nova por combinação dos eixos do ADR-0010** (fonte, efeito, custo,
-   probabilidade, modo de falha, consequência social). Nenhum eixo é reescrito aqui.
+4. **Potência nova por combinação dos eixos de `powers.md`** (fonte, efeito, modo, custo
+   opcional, confiabilidade, modo de falha, vulnerabilidade opcional, assinatura). Nenhum
+   eixo é reescrito aqui.
+4b. **Amplificador e supressor** como potência com alvo = outro poder: efeito nomeia o
+   descritor-alvo em vez de mortalidade/produção/relação, mesma cadeia de resolução do
+   poder comum. Um supressor não edita o descritor suprimido — aplica modificador por cima.
+4c. **Contramedida inventada** por composição: `observação → hipótese → pesquisa →
+   experimento → tecnologia/técnica`, nascendo de motivo nomeado (medo, vingança, proteção,
+   curiosidade, ideologia), nunca de uma classe `ArchNemesis`. Ataca efeito, fonte, custo,
+   condição, equipamento, percepção, identidade ou reputação de um portador — nunca reescreve
+   a vulnerabilidade intrínseca original dele, que (se existir) já nasceu com o fenômeno.
 5. **Doença nova por mutação sobre eixos de patógeno** (transmissão, letalidade, incubação,
    vetor), sorteada pelo perfil `Raro` do primitivo do ADR-0011.
 6. **Limiar de novidade**: regra única que decide entre *entidade nova* e *variação de uma

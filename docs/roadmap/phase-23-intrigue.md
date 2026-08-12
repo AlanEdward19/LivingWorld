@@ -41,57 +41,60 @@ o mundo passa a produzir rixa, escândalo e conspiração como subproduto do que
 10. **Facção e conspiração**: organização com objetivo oculto (segredo de múltiplos donos),
     recrutamento por afinidade e rancor comum, e exposição pública como evento com
     consequência.
+11. **Persona do portador de potência** (Fase 16): `PersonaDescriptor` (dono = `NpcId` único,
+    nomes por cultura) é verdade; associação persona↔dono é **crença por observador**
+    (`IdentityAttributionBelief`: observador, candidato, confiança, evidências) — nunca
+    `bool SecretIdentityKnown` global. Falsa atribuição funciona igual à verdadeira. Ver o
+    efeito não é ver o dono: associação nasce de evidência (rosto, voz, assinatura
+    observável, testemunho) e a exposição é gradual (testemunha → grupo → rumor →
+    comunidade), nunca um booleano que liga de uma vez.
+12. **Publicar é ação de agente, não renderização**: jornalista forma crença, avalia risco/
+    interesse/ganho, decide ignorar/investigar/publicar/suprimir — produz `PublicationEvent`
+    que a Fase 12 só transforma em texto depois. Apelido de imprensa é rótulo negociado (o
+    portador aceita ou rejeita). Reação ao extraordinário (medo, culto, fascínio) é a mesma
+    reputação-por-comunidade da task 9, aplicada a portadores — nunca `if target.HasPower`.
 
 ## Critérios de verificação
-- **Ninguém sabe sem caminho**: enumeração por reflexão de **todo** acesso a crença,
-  reprovando se algum caminho resolver para o fato direto **ou** se algum handler ficar sem
-  cobertura; mais o assert, a cada tick em 10 anos, de que todo NPC que conhece um segredo
-  tem cadeia de transmissão até o dono. Par de mutação igual ao da Fase 10: desligar a
-  checagem por flag de teste tem de **fazer este critério falhar**.
-- **Segredo causa traição**: par base/tratamento na mesma seed, tratamento = densidade de
-  segredos maior no cenário. Taxa de traição maior no tratamento em **18/20 seeds**.
-  Direção, não magnitude.
+- **Ninguém sabe sem caminho**: reflexão sobre **todo** acesso a crença reprova se algum
+  caminho resolver para o fato direto **ou** ficar sem cobertura; assert a cada tick em 10
+  anos de que todo NPC que conhece um segredo tem cadeia de transmissão até o dono. Par de
+  mutação igual à Fase 10: desligar a checagem por flag tem de **fazer isto falhar**.
+- **Segredo causa traição**: par base/tratamento, densidade de segredos maior no tratamento.
+  Taxa de traição maior em **18/20 seeds**. Direção, não magnitude.
 - **O chantagista acredita no que usa**: a cada tick em 10 anos, toda chantagem tem o
-  segredo no conjunto de crenças do chantagista naquele tick. Uma única chantagem com
-  segredo desconhecido reprova — é o mesmo vazamento de estado global que `memory.md`
-  proíbe.
-- **Rancor decai, prescreve e só reacende por evento**: sem evento novo do mesmo alvo,
-  `rancor(t+1) ≤ rancor(t)` a cada tick, chegando a zero no prazo do cenário. A única
-  subida permitida é no tick de um evento atribuído ao alvo; qualquer outra reprova.
-- **Humor entrou na conta e diversificou a ação** — as duas metades, porque a primeira
-  sozinha passa com uma pilha que só embaralha números: desligar a pilha por flag muda o
-  hash canônico em 10 anos **e** reduz a contagem de ações distintas escolhidas na janela,
-  par na mesma seed, em 18/20 seeds.
-- **Reputação não é verdade**: no cenário pareado existe ao menos um NPC cuja reputação
-  diverge entre duas comunidades **e** ambas divergem do fato, com cada comunidade agindo
-  de forma coerente com a própria versão. Se nunca diverge, a fofoca não está enviesando
-  nada.
+  segredo nas crenças do chantagista naquele tick. Segredo desconhecido reprova.
+- **Rancor decai, prescreve, só reacende por evento**: sem evento novo do alvo,
+  `rancor(t+1) ≤ rancor(t)` a cada tick, chegando a zero no prazo do cenário.
+- **Humor entrou na conta e diversificou a ação**: desligar a pilha por flag muda o hash
+  canônico em 10 anos **e** reduz ações distintas escolhidas, par na seed, em 18/20 seeds.
+- **Reputação não é verdade**: existe ≥1 NPC cuja reputação diverge entre duas comunidades
+  **e** ambas divergem do fato, cada uma agindo coerente com sua versão.
 
 ## Fora do escopo
-Prosa de escândalo, panfleto e crônica: Fase 12. Guerra entre estados e processo político
-formal: Fase 10 e `society.md`. Segredo de culto e doutrina: Fase 17. Orientação e estado de
-divulgação: Fase 22 — aqui só consumidos. Combate tático: fora do projeto; a briga resolve
-numa rolagem do ADR-0011. O sistema de ferimento localizado (corpo e mente, com vício e
-doença) e sua recuperação **é** parte do projeto — vive como saída da rolagem do ADR-0011,
-não como sub-jogo tático, e é detalhado em fase própria de saúde/corpo, não aqui.
+Prosa de escândalo e crônica: Fase 12. Guerra entre estados: Fase 10/`society.md`. Segredo de
+culto: Fase 17. Orientação/divulgação: Fase 22 (só consumidos). Combate tático: fora do
+projeto, a briga resolve numa rolagem do ADR-0011. Ferimento localizado e recuperação **é**
+parte do projeto, saída da rolagem, fase própria de saúde/corpo.
 
 ## Questões em aberto
-- Segredo colide com o **cânone limitado** da Fase 10: despejado do cânone, o segredo deixa
-  de existir ou vira fato que ninguém pode mais revelar — e a chantagem morre com ele?
-- Reputação por comunidade é agregado recalculado por tick (caro) ou estado mantido (uma
-  quarta camada de crença para conservar coerente)? Não dá para ter os dois.
-- "Ausência de testemunha" obriga a saber quem vê quem a cada tick. Isso cabe no LOD
-  agregado da Fase 8, ou intriga só existe em região materializada?
-- Rancor que prescreve contradiz a rixa de linhagem que atravessa gerações. A prescrição é
-  por indivíduo e a transmissão familiar reinicia o prazo, ou a linhagem tem prazo próprio?
-- A utility da Fase 4 já soma necessidade × contexto × personalidade. Onde a pilha de humor
-  entra sem virar o fator dominante, e que sensor barato avisa quando ela virou?
+- Segredo colide com o **cânone limitado** da Fase 10: despejado, deixa de existir ou vira
+  fato irrevelável, matando a chantagem junto?
+- Reputação por comunidade é recalculada por tick (caro) ou estado mantido (quarta camada de
+  crença)? Não dá pros dois.
+- "Ausência de testemunha" exige saber quem vê quem por tick — cabe no LOD agregado da Fase
+  8, ou intriga só existe em região materializada?
+- Rancor que prescreve contradiz rixa de linhagem multi-geracional: prescrição por indivíduo
+  com prazo de linhagem à parte, ou linhagem tem prazo próprio?
+- Onde a pilha de humor entra sem virar fator dominante na utility da Fase 4, e que sensor
+  barato avisa quando virou?
 
 ## Ver também
-[memory.md](../domain/memory.md) ·
-[historical-memory.md](../domain/historical-memory.md) ·
+[memory.md](../domain/memory.md) · [historical-memory.md](../domain/historical-memory.md) ·
 [genetics-and-family.md](../domain/genetics-and-family.md) ·
 [behavior.md](../domain/behavior.md) · [society.md](../domain/society.md) ·
+[powers.md](../domain/powers.md) · [phase-16-powers.md](phase-16-powers.md) ·
+[phase-12-narrative.md](phase-12-narrative.md) ·
 [ADR-0011](../adr/ADR-0011-primitivo-unico-de-resolucao.md) ·
 [ADR-0007](../adr/ADR-0007-memoria-historica-degradavel.md) ·
+[ADR-0010](../adr/ADR-0010-potencia-como-modificador-unificado.md) ·
 [rules/eval-criteria.md](../../rules/eval-criteria.md)

@@ -27,6 +27,9 @@ improvável e fraco o bastante para não apagar a causalidade que a Fase 7 mediu
 5. **Moralidade emergente, nunca campo**: comportamento moral é resultado de empatia,
    altruísmo, impulsividade (Fase 4), criação (Fase 21) e circunstância. "Gente ruim" é um
    padrão lido do event log, do mesmo jeito que a Fase 7 recusa um score global de aptidão.
+   Vale igual para **influência de origem** de um poder (Fase 16): corrupção por artefato ou
+   entidade modifica sistemas concretos (agressividade, paranoia, dependência, percepção) —
+   nunca um `Corruption` que implica `IsEvil`. O que a pessoa faz depois é que vira história.
 6. **Canal de sorte explícito**: peso declarado no cenário, **stream próprio** no RNG
    (ADR-0005), cauda pelo perfil `Raro` do ADR-0011. Ser um termo nomeado — e não ruído
    espalhado por dez sistemas — é o que torna o improvável auditável e desligável.

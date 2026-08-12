@@ -67,7 +67,7 @@ cultos, perseguição, sincretismo e guerra religiosa saem daí — disputa por 
 política e economia por trás, nunca roteiro.
 
 ## Ver também
-- [powers.md](powers.md) — os seis eixos, custo e rolagem que a divindade reusa
+- [powers.md](powers.md) — eixos, custo e rolagem opcionais que a divindade reusa
 - [historical-memory.md](historical-memory.md) — operadores de distorção e cânone limitado
 - [society.md](society.md) — religiosidade, instituições, cisma como divergência
 - [economy.md](economy.md) — templo, dízimo, renda do culto

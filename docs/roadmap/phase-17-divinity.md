@@ -24,12 +24,20 @@ mundo ninguém distingue deus real de deus falso.
    transmitido, cisma é divergência cultural.
 6. **Panteão com pool disputado**: vários deuses partilham a mesma população; crescer é
    tirar do vizinho. Perseguição, sincretismo e guerra santa saem daí, sem roteiro.
-7. **Intervenção divina = invocação de potência**: custo em pool, rolagem, modo de falha com
-   consequência (presságio ambíguo, milagre no fiel errado, sinal caro e inútil).
+7. **Intervenção divina = invocação de potência**, mesmos eixos opcionais da Fase 16: custo
+   em pool quando declarado, `Guaranteed` ou `ResolutionCheck` conforme o cenário — nem toda
+   intervenção precisa rolar ou custar, mas quando rola, modo de falha com consequência
+   (presságio ambíguo, milagre no fiel errado, sinal caro e inútil).
 8. **Realidade do deus só na consulta de Verdade** da Fase 10. Nenhum handler de jogo a
    resolve; nenhum caminho responde "esse deus é real?".
+8b. **Ser considerado divino ≠ receber potência da crença**: `Worshipped` (atribuição social,
+   crença de comunidade) e `FaithPowered` (o vínculo mecânico fiéis→poder desta fase) são
+   campos independentes. Um super-humano cultuado por décadas pode nunca ter `FaithPowered`
+   ligado — aceitar, rejeitar, explorar ou nem saber do culto são escolhas dele, não
+   consequência automática de ser adorado.
 9. **Cenários pareados**: culto perseguido vs. culto em paz; deus real vs. mito com a mesma
-   trajetória de fiéis; doutrina com e sem operadores de distorção ligados.
+   trajetória de fiéis; doutrina com e sem operadores de distorção ligados; `test-worship-
+   without-faith-power` — NPC cultuado sem qualquer ganho mecânico.
 
 ## Critérios de verificação
 - **Deus sem fiéis decai, e só até o piso**: cortada a retransmissão, `poder(t+1) ≤ poder(t)`

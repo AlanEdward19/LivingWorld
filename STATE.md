@@ -11,6 +11,15 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
   Spec/design em [.specs/features/phase-09-scale/](.specs/features/phase-09-scale/).
 - **Próxima unidade**: **Fase 10 (História degradável)** — spec em
   [.specs/features/phase-10-history/spec.md](.specs/features/phase-10-history/spec.md).
+- **Integração do extraordinário (2026-08-12)**: decisão **mista**, sem fase numerada nova
+  para "super-heróis"/"identidade secreta" — distribuída entre Fases 16, 17, 23, 24, 25, com
+  toques em 10, 12, 22. Atualizado: ADR-0010 (amendment: custo/rolagem/transformação/fraqueza
+  opcionais, aquisição declarativa, contramedida ≠ fraqueza, herói/vilão fora da ontologia),
+  `docs/domain/powers.md` (eixos generalizados, modo Passive/Active/Triggered/Conditional,
+  aquisição, manifestação), fases 16/17/23/24/25/12/10/22. Ver `ROADMAP.md` linhas 16/23.
+  **Gap-check nas fases fechadas 0–9** (pré-requisito do doc de integração): `BranchId` desde
+  a Fase 3 (ADR-0009) e primitivo único de resolução na Fase 0 (ADR-0011) **já existem** —
+  nenhum gap encontrado, nenhuma fase fechada precisou ser tocada.
 - **Decisão de escopo (2026-07-29)**: **Fase 14 (Unreal) adiada, não iniciada** por decisão
   explícita; Fase 15 foi reespecificada e priorizada como cliente VTT 2D realtime, incluindo
   aparência inicial de NPC por token 2D composto dinamicamente.

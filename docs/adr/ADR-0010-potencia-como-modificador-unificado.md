@@ -43,3 +43,33 @@ Duas regras herdadas valem sem exceção: a rolagem usa o **RNG semeado** do mun
   balde de modificadores sem coerência — mitigado por exigir os cinco eixos declarados.
 - **Follow-ups**: escassez é decisão de balanceamento, não de arquitetura — se todo NPC
   voa, voar é caminhar. Fica para o cenário e para o julgamento humano, sem gate.
+
+## Atualização (2026-08-12) — generalização, sem mudar a decisão
+A decisão continua a mesma: potência é modificador unificado, não subsistema paralelo. O
+que muda é que os cinco eixos deixavam a decisão mais rígida do que o problema pede — custo
+e rolagem eram tratados como obrigatórios em todo poder, o que não é verdade para uma
+invulnerabilidade passiva ou uma força inata. Generalizando:
+
+- **Extraordinário é opcional por mundo**: `Extraordinary.Enabled = false` significa zero
+  portadores, zero aquisição, zero manifestação, zero custo de sistema no caminho quente —
+  não um `if realisticWorld` espalhado pelo motor.
+- **Custo é opcional**, não um eixo fixo. `Costs = []` é um poder válido.
+- **Rolagem é opcional**: `ReliabilityMode.Guaranteed` executa determinístico sem consumir
+  RNG de resolução; `ResolutionCheck` usa o primitivo do ADR-0011. Ambos são o mesmo
+  modificador, só muda o modo.
+- **Transformação (manifestação em estado) é opcional**, nunca fundamento de potência —
+  super-humano permanente não precisa de estado alternativo.
+- **Vulnerabilidade intrínseca é opcional.** Quando existe, é dado do fenômeno, distinta de
+  **contramedida** — que é criada, descoberta ou inventada por alguém, não uma fraqueza
+  secreta plantada de origem.
+- **Aquisição de potência é regra declarativa de primeira classe** (`PowerAcquisitionRule`):
+  nascimento, trauma, quase-morte, item, ritual, exposição — o motor não conhece "cristal
+  que dá poder", só a regra que qualquer cenário pode declarar.
+- **Herói/vilão/monstro/divindade continuam fora da ontologia física do NPC.** São
+  interpretação social (crença, cultura, história), nunca campo do personagem — o ADR já
+  recusava isso implicitamente ao não modelar alinhamento; agora fica explícito.
+
+Não é uma nova decisão arquitetural — é o mesmo modificador unificado, com os eixos que
+antes pareciam obrigatórios reclassificados como configuráveis por poder e por mundo. Ver
+[powers.md](../domain/powers.md) para o modelo atualizado e Fase 16/23/24 para onde cada
+peça entra no roadmap.

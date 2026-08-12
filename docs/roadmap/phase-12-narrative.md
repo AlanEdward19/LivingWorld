@@ -27,6 +27,9 @@ põe em prosa. Rumor e crônica são o mesmo mecanismo em meios diferentes.
    no motor, a crença fica no NPC, e as duas consultas nunca se misturam.
 8. **Endpoint de leitura**: listar crônicas por local e período, ler biografia, ver relatos
    em circulação. A verdade de origem só aparece na consulta de motor, nunca na de jogo.
+9. **Publicar não é decisão desta fase**: a Fase 23 decide se um agente (jornalista, cronista)
+   publica, suprime ou investiga, emitindo `PublicationEvent`. A Fase 12 só recebe o relato já
+   autorizado e o transforma em prosa — não escolhe se algo "merece" virar texto.
 
 ## Critérios de verificação
 - **Ancoragem estruturada**: para cada `claim`, `eventIds` é não vazio e todo id existe no

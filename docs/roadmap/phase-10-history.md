@@ -70,6 +70,12 @@ esqueleto compacto do fato só para poder comparar.
 - Evento compensatório aparece na consulta com a linha original ainda legível, marcada.
 - Reidratar um snapshot e reaplicar o log a partir dele reproduz o mesmo `Hash(world)`.
 
+## Integração com o extraordinário (Fase 16/23)
+A camada Verdade vs. Crença desta fase é o que sustenta: possuir potência sem saber que se
+possui; observadores com hipóteses divergentes sobre a fraqueza de um portador; e atribuição
+de identidade (`IdentityAttributionBelief` da Fase 23) como crença por observador, nunca
+fato global. Nenhuma task nova aqui — a Fase 16/23 consome esta API, não estende o esqueleto.
+
 ## Escopo herdado de outras fases
 Guerra entre cidades, tratados e política externa (apontado por Fase 8 e Fase 23 como "fora
 do roadmap atual") pousa aqui — ainda sem tasks/critérios próprios; entra quando a Fase 10 for

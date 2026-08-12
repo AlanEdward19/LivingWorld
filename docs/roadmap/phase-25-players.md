@@ -1,10 +1,10 @@
 # Fase 25 — Jogadores
 
 **Objetivo**: um jogador é um NPC com controlador externo, nunca um caso especial dentro do
-motor. Pode ser superhumano — desde que a potência lhe cobre o mesmo custo e a mesma rolagem
-que cobra de qualquer um (Fase 16). E o logout **não congela o personagem**: emite um evento
-de **desaparecimento**. O mundo segue, e quem convivia com ele dá falta, procura, chora,
-herda e ocupa a vaga que ele deixou.
+motor. Pode ser superhumano — passando pela **mesma cadeia declarada de resolução** que a
+Fase 16 define para qualquer portador, sem exceção baseada em quem controla o NPC. E o
+logout **não congela o personagem**: emite um evento de **desaparecimento**. O mundo segue,
+e quem convivia com ele dá falta, procura, chora, herda e ocupa a vaga que ele deixou.
 
 > **Spec, não gate.** Os critérios abaixo são a intenção; os critérios finais são escritos
 > sob `rules/eval-criteria.md` quando a fase for ativada. Não comece esta fase antes da
@@ -16,7 +16,9 @@ herda e ocupa a vaga que ele deixou.
    profissão e histórico coerentes com o agregado de onde a pessoa veio. Entrar não cria
    gente do nada: materializar move, nunca cria.
 2. **Mesmas regras, sem exceção**: fome, sono, envelhecimento, doença, ferimento e morte
-   valem igual. Invocar potência passa pelo primitivo do ADR-0011 e paga o custo no uso.
+   valem igual. Invocar potência passa pela mesma cadeia declarada da Fase 16 — mesmo
+   descritor, mesma confiabilidade, mesmo custo quando existe. Nenhum sistema paralelo
+   "modo jogador" para potência: trocar AI por controlador externo não altera a resolução.
 3. **Logout emite desaparecimento** no Tier A, não congelamento. O personagem some do lugar
    onde estava; o motor continua conduzindo os efeitos, nunca o personagem.
 4. **Reação ao sumiço, por proximidade**: quem tinha vínculo procura, sofre, e depois
@@ -34,7 +36,8 @@ herda e ocupa a vaga que ele deixou.
    jogador nunca volta — segue desaparecido, é declarado morto após a janela declarada, ou
    volta ao pool agregado. É dado de cenário, não regra escondida em código.
 9. **Cenário `test-players` pareado**: o mesmo mundo conduzido só pelo motor e conduzido com
-   encarnação, para servir de braço de controle.
+   encarnação, para servir de braço de controle. Inclui `test-player-parity`: mesmo NPC passa
+   de AI para controlador externo sem alterar a resolução mecânica de potência.
 10. **Aviso de pausa na interface do jogador** (ADR-0015): pausa e velocidade são **globais
     por branch e exclusivas do administrador** — todo jogador conectado para junto e vê na
     tela quem pausou e desde quando. Branches diferentes pausam independentes, cada um com

@@ -5,65 +5,88 @@ cinco motores paralelos.
 
 ## Um modelo, não cinco subsistemas
 
-Mutação genética, magia arcana, dádiva divina, implante tecnológico e artefato alienígena **não são
-cinco sistemas**. São a mesma coisa com fontes diferentes. Um poder é sempre um **modificador sobre
-um sistema que já existe** — mortalidade, produção, relação, aprendizado, deslocamento, tempo —,
-nunca um caso especial dentro do motor. O porquê é custo: cinco subsistemas paralelos multiplicam por cinco o trabalho de toda fase
-futura — economia nova teria que saber de magia *e* de tecnologia alienígena *e* de milagre.
-Com um modelo só, um poder novo é dado, não código. **Potência** = a capacidade de violar uma
-regra padrão do mundo, com preço.
+Mutação genética, magia arcana, dádiva divina, implante tecnológico e artefato alienígena
+**não são cinco sistemas** — são a mesma coisa com fontes diferentes. Um poder é sempre um
+**modificador sobre um sistema que já existe** (mortalidade, produção, relação, aprendizado,
+deslocamento, tempo), nunca um caso especial dentro do motor: cinco subsistemas paralelos
+multiplicariam por cinco o trabalho de toda fase futura. Com um modelo só, poder novo é dado,
+não código. **Potência** = capacidade de violar uma regra padrão do mundo, com preço opcional.
 
-## Os seis eixos de um poder
+## Extraordinário é opcional por mundo
 
-| Eixo | O que descreve |
-|---|---|
-| Fonte | genética/mutação, divina, arcana, tecnológica, alienígena, artefato |
-| Efeito | qual sistema existente ele modifica, e em quanto |
-| Custo | o que é debitado por uso, com ou sem sucesso |
-| Probabilidade | dificuldade contra capacidade do portador |
-| Modo de falha | o que acontece quando não dá certo — nunca "nada" |
-| Consequência social | como quem viu reage |
+Criação de mundo decide se o fenômeno existe: `Extraordinary.Enabled = false` significa zero
+portadores, zero aquisição, zero manifestação, zero scheduler de potência, zero placeholder
+obrigatório no NPC — o resto do LivingWorld funciona igual. Prevalência (raro a cotidiano) é
+conteúdo de cenário, não arquitetura: nunca `if realisticWorld` espalhado pelo motor.
 
-A fonte quase não importa para o motor: importa para a cultura, que reage diferente a um milagre e
-a uma máquina. Curar alguém é o mesmo efeito sobre saúde; ser queimado por bruxaria depende de quem
-contou a história. **Moedas de custo:** fadiga, saúde, longevidade, sanidade, recurso raro
-consumido, dívida com uma entidade, e **atenção de algo que era melhor não ter notado você**.
+## Os eixos de um poder
 
-## Tudo calculado, nada garantido
+| Eixo | O que descreve | Obrigatório? |
+|---|---|---|
+| Fonte | genética, divina, arcana, tecnológica, alienígena, artefato — string livre de cenário, nunca enum fechado | sim |
+| Efeito | qual sistema existente ele modifica, e em quanto | sim |
+| Modo | `Passive` (sempre ligado) / `Active` (acionado) / `Triggered` (dispara por condição) / `Conditional` (exige objeto/estado/horário) | sim |
+| Custo | debitado por uso, com ou sem sucesso | **não** — `Costs = []` é válido |
+| Confiabilidade | `Guaranteed` (determinístico) ou `ResolutionCheck` (rolagem) | sim, mas pode ser `Guaranteed` |
+| Modo de falha | o que acontece quando `ResolutionCheck` não dá certo | só se houver `ResolutionCheck` |
+| Vulnerabilidade intrínseca | fraqueza que já vem com o fenômeno | **não** — `[]` é válido; ver contramedida abaixo |
+| Assinatura observável | evidência que o uso deixa (luz, som, resíduo, alteração fisiológica) | não |
+| Consequência social | como quem viu reage | sai da cultura, nunca do descritor |
 
-Nenhum poder é um "sim" automático. Toda invocação é uma rolagem contra o RNG semeado do mundo —
-determinismo vale para potência como vale para clima e para parto. O custo é cobrado no uso, não
-no sucesso: tentar e falhar continua caro.
+A fonte quase não importa para o motor, importa para a cultura: curar é o mesmo efeito sobre
+saúde seja milagre ou tecnologia, mas quem conta a história reage diferente. **Moedas de
+custo, quando existem:** fadiga, saúde, longevidade, sanidade, recurso raro, dívida com uma
+entidade, atenção de algo que era melhor não ter notado você. Um ser naturalmente forte não
+perde energia extraordinária só para o motor balanceá-lo.
+
+## Rolagem é opcional, custo é opcional
+
+`Guaranteed` executa sem tocar RNG de resolução — invulnerabilidade passiva não precisa rolar
+para existir. `ResolutionCheck` usa o RNG semeado do mundo (determinismo vale para potência
+como vale para clima e parto):
 
 ```
-custo cobrado sempre
+custo cobrado sempre, se declarado
 chance = capacidade(portador, poder) - dificuldade(efeito, alvo, contexto)
 roll   = ctx.Rng(NpcId).Next()       // stream do portador
 resultado: sucesso | parcial | falha -> aplica efeito e/ou modo de falha
 ```
 
-Modos de falha que valem a pena existir: efeito parcial, efeito no alvo errado, custo cobrado sem
-resultado nenhum, exposição pública do portador, dano permanente a ele, atração de atenção hostil.
-Falha que não muda o mundo é falha que não devia ter sido simulada.
+Falha e consequência são coisas diferentes: um poder `Guaranteed` sem modo de falha pode ainda
+ser visto, destruir algo ou revelar uma assinatura — nada disso exige rolagem. Com
+`ResolutionCheck`, modos de falha que valem a pena: efeito parcial, alvo errado, custo sem
+resultado, exposição pública, dano permanente ao portador, atenção hostil. Falha que não muda
+o mundo é falha que não devia ter sido simulada.
 
-## Consequência social
+## Aquisição, desenvolvimento e manifestação
 
-Quem vê reage: medo, culto, perseguição, recrutamento, poder político. A reação **sai da
-cultura**, não do poder — uma vila medieval religiosa queima o que uma república moderna regula e
-um império tecnológico recruta. Religiosidade, abertura, valorização da magia e autoritarismo de
-`society.md` decidem qual delas acontece.
+Como uma pessoa passa a ter poder é regra declarativa de cenário (`PowerAcquisitionRule`),
+nunca código: nascimento, predisposição, treinamento, quase-morte, trauma, exposição, item,
+ritual, evento histórico — o motor não conhece "cristal que dá poderes", só o cenário declara
+item e gatilho; toda aleatoriedade sai de cadeia causal, nunca de `RandomlyGivePower(npc)`.
+Desenvolvimento pode ser gradual (`Dormant → Manifesting → Developing → Stable → Mastered`,
+estágios de cenário, não enum universal), e **possuir não implica saber** (verdade vs. crença
+da Fase 10). Transformação (`ManifestationStateDescriptor`) é **opcional**, nunca fundamento
+de potência — super-humano permanente roda com `RequiredState = none`.
 
-## Herança, escassez e materialização
+## Fraqueza é opcional; contramedida é outra coisa
 
-Potência segue a regra do projeto: **habilidade nunca é herdada, só predisposição**. O filho do
-mago nasce com potencial; sem mestre, sem tempo e sem material, morre sabendo nada — linhagem
-importa sem virar garantia.
+Vulnerabilidade intrínseca (quando existe) já vem com o fenômeno desde a origem.
+**Contramedida é criada, descoberta ou inventada depois** — não é fraqueza secreta esperando
+ser achada. Um portador sem `IntrinsicVulnerabilities` continua válido; décadas depois alguém
+pode inventar contramedida que reduz sua vantagem sem reescrever o descritor original. Mira
+efeito, fonte, custo, condição, equipamento, percepção, identidade ou reputação. Conhecimento
+sobre fraqueza ou contramedida é sempre crença: hipótese errada também precisa funcionar.
 
-Escassez é decisão de design, não balanceamento: **se todo NPC voa, voar é caminhar**. Potência só
-significa algo enquanto for rara o bastante para reorganizar uma sociedade ao aparecer. Um portador
-é candidato natural a NPC detalhado no Simulation LOD — ocupa posição de impacto histórico por
-definição —, mas no agregado ele ainda existe: uma região pode reportar "3 portadores conhecidos"
-sem que nenhum tenha nome.
+## Herói e vilão não são campos do NPC; escassez é design
+
+Não existe `IsHero`/`IsVillain`/`Alignment`. Depois de adquirir potência, o NPC escolhe:
+esconder, revelar, criar persona, investigar a própria origem — ações no event log. "Herói" e
+"vilão" são interpretação social posterior (Fase 23); a reação de quem vê sai da religiosidade,
+abertura e autoritarismo de `society.md`, nunca do poder em si. Habilidade nunca é herdada, só
+predisposição; e **se todo NPC voa, voar é caminhar** — escassez é design, não balanceamento.
+Um portador é candidato natural a NPC detalhado no Simulation LOD; no agregado, uma região
+pode reportar "3 portadores conhecidos" sem que nenhum tenha nome.
 
 ## Ver também
 - [npc.md](npc.md) — atributos e habilidades que a capacidade consulta
