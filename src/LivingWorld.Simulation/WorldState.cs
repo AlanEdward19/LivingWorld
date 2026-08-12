@@ -92,6 +92,10 @@ public sealed class WorldState
     /// desligada".</summary>
     [Canonical] public HistoryRules HistoryRules { get; }
 
+    /// <summary>Nome escolhido pelo usuário na criação (Fase 15.1, T42/ADR-0016) — cosmético,
+    /// nenhuma decisão de sistema lê nome de mundo (ADR-0014), por isso volátil.</summary>
+    [Volatile] public string Name { get; private set; }
+
     private readonly List<Fact> _facts;
     private long _nextFactId;
 
@@ -265,7 +269,7 @@ public sealed class WorldState
         NeedsRules needsRules, ActionCatalog actionCatalog, LifeStageRules lifeStageRules, BranchId branchId = default,
         EconomyRules? economyRules = null, EconomyCatalog? economyCatalog = null, FamilyRules? familyRules = null,
         CityRules? cityRules = null, CityCatalog? cityCatalog = null, PerfRules? perfRules = null,
-        HistoryRules? historyRules = null)
+        HistoryRules? historyRules = null, string name = "")
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -284,6 +288,7 @@ public sealed class WorldState
         CityCatalog = cityCatalog ?? CityCatalog.Empty;
         PerfRules = perfRules ?? PerfRules.Default;
         HistoryRules = historyRules ?? HistoryRules.Disabled;
+        Name = name;
         _facts = [];
         _reports = [];
         _books = [];
@@ -350,7 +355,8 @@ public sealed class WorldState
         long nextBookId = 0,
         IReadOnlyList<NpcMemory>? canonicalMemories = null,
         IReadOnlyList<NpcMemory>? volatileMemories = null,
-        long nextMemoryId = 0)
+        long nextMemoryId = 0,
+        string name = "")
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -364,6 +370,7 @@ public sealed class WorldState
         BranchId = branchId;
         EconomyRules = economyRules ?? EconomyRules.Disabled;
         EconomyCatalog = economyCatalog ?? EconomyCatalog.Empty;
+        Name = name;
         _rng = new WorldRngRegistry(seed, rngStreams);
         _scheduler = new EventScheduler(pendingEvents);
         _nextEventId = nextEventId;
@@ -406,6 +413,11 @@ public sealed class WorldState
 
     internal WorldRngRegistry Rng => _rng;
     internal EventScheduler Scheduler => _scheduler;
+
+    /// <summary>Único ponto de mutação de <see cref="Name"/> (T42) — separado do construtor
+    /// porque <see cref="ScenarioLoaderV2.LoadWorld"/> monta o mundo a partir do cenário e não
+    /// conhece o nome escolhido na borda; quem chama (o endpoint de create) atribui depois.</summary>
+    public void Rename(string name) => Name = name;
 
     internal long NextEventIdAndAdvance() => _nextEventId++;
 

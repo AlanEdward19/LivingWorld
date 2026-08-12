@@ -114,6 +114,9 @@ public static class WorldSnapshot
         var nextMemoryId = node.TryGetPropertyValue("NextMemoryId", out var nextMemoryIdNode) && nextMemoryIdNode is not null
             ? nextMemoryIdNode.GetValue<long>()
             : 0L;
+        var name = node.TryGetPropertyValue("Name", out var nameNode) && nameNode is not null
+            ? nameNode.GetValue<string>()
+            : "";
 
         return new WorldState(
             calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
@@ -121,7 +124,7 @@ public static class WorldSnapshot
             nextHouseholdId, branchId, moneyMinted, moneyDestroyed, economyRules, economyCatalog, workplaces,
             nextWorkplaceId, familyRules, relationships, cities, buildings, nextBuildingId, cityRules, cityCatalog,
             perfRules, historyRules, facts, nextFactId, nextReportId, reports, books, nextBookId,
-            canonicalMemories, volatileMemories, nextMemoryId);
+            canonicalMemories, volatileMemories, nextMemoryId, name);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)
