@@ -70,6 +70,18 @@ public sealed class RealtimeGateway(Func<long> currentTick)
         }
     }
 
+    /// <summary>Fase 15.1, T3: escopos com pelo menos um assinante conectado agora — usado pelo
+    /// loop de tick (T3) pra publicar delta só onde alguém está ouvindo, nunca em todo escopo
+    /// existente no mundo.</summary>
+    public IReadOnlyCollection<string> SubscribedScopeKeys
+    {
+        get
+        {
+            lock (_gate)
+                return _subscribers.Where(kv => kv.Value.Count > 0).Select(kv => kv.Key).ToList();
+        }
+    }
+
     /// <summary>Abre um canal de push para o escopo; o chamador deve invocar o <c>Unsubscribe</c>
     /// devolvido ao encerrar a conexão, ou o canal continua recebendo escritas indefinidamente.</summary>
     public (ChannelReader<VisualDeltaEnvelope<object?>> Reader, Action Unsubscribe) SubscribeChannel(VisualScope scope)

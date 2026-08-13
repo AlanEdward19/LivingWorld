@@ -87,6 +87,14 @@ builder.Services.AddSingleton(simulationHost);
 builder.Services.AddSingleton(realtimeGateway);
 builder.Services.AddSingleton(sessions);
 
+// Fase 15.1, T3 (VTT2-26): registrado sempre (resolvível/testável direto via TickLoopService),
+// mas só roda sozinho como IHostedService com TICK_LOOP_ENABLED=true — desabilitado por default
+// pra nenhuma WebApplicationFactory de teste existente ganhar um mundo mudando sozinho embaixo
+// dela (mesmo motivo documentado em WorldHost/Program.cs:71-74).
+builder.Services.AddSingleton<TickLoopService>();
+if (builder.Configuration["TICK_LOOP_ENABLED"] == "true")
+    builder.Services.AddHostedService(sp => sp.GetRequiredService<TickLoopService>());
+
 builder.Services.AddDbContext<WorldDbContext>(o => o.UseSqlite(worldDbConnection));
 builder.Services.AddScoped<IPeriodTemplateRepository, SqlitePeriodTemplateRepository>();
 
