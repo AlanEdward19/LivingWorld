@@ -88,14 +88,22 @@ describe("WorldEditor", () => {
       ),
     );
     const onCreated = vi.fn();
-    render(<WorldEditor initialForm={defaultScenarioForm()} onCreated={onCreated} viewport={VIEWPORT} />);
+    render(
+      <WorldEditor
+        initialForm={defaultScenarioForm()}
+        worldName="Vale de Aster"
+        onCreated={onCreated}
+        viewport={VIEWPORT}
+      />,
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Dar vida ao mundo" }));
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith(20));
     const call = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.find(([url]) => url === "/worlds/create")!;
-    const body = JSON.parse((call[1] as RequestInit).body as string) as { scenarioJson: string };
+    const body = JSON.parse((call[1] as RequestInit).body as string) as { scenarioJson: string; name: string };
     expect(body.scenarioJson).toBe(scenarioFormToJson(defaultScenarioForm()));
+    expect(body.name).toBe("Vale de Aster");
   });
 
   it("loads readable profession labels only when the preset has a period catalog", async () => {

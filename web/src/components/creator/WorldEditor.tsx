@@ -30,6 +30,7 @@ import { useEditorHistory } from "./useEditorHistory";
 
 export interface WorldEditorProps {
   initialForm: ScenarioFormState;
+  worldName?: string;
   catalogPeriodId?: string;
   onCreated?: (npcCount: number) => void;
   viewport?: { width: number; height: number };
@@ -71,6 +72,7 @@ function noPortalSource(): PortalSource {
 
 export function WorldEditor({
   initialForm,
+  worldName = "",
   catalogPeriodId,
   onCreated,
   viewport = DEFAULT_VIEWPORT,
@@ -239,7 +241,7 @@ export function WorldEditor({
     setStatus("submitting");
     setError(null);
     try {
-      const response = await createWorld(scenarioFormToJson(form));
+      const response = await createWorld(scenarioFormToJson(form), worldName);
       if (!response.ok) {
         setError(`criar mundo falhou: ${response.status} ${await response.text()}`);
         setStatus("error");

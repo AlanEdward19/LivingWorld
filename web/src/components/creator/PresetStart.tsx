@@ -5,6 +5,7 @@ import { creatorGroundAt } from "./creatorWorldVisuals";
 
 export interface PresetStartProps {
   onStart: (form: ScenarioFormState, name: string, periodId?: string) => void;
+  onBack: () => void;
 }
 
 type SizePresetKey = "pequeno" | "medio" | "grande";
@@ -32,8 +33,9 @@ const PREVIEW_SCALE: Record<SizePresetKey, number> = { pequeno: 0.52, medio: 0.7
 /// `nome` é rótulo de sessão local, exibido pelo cliente enquanto o mundo está aberto — o
 /// domínio não tem conceito de "nome de mundo" (`WorldCreateEndpoints.cs` não recebe esse campo),
 /// então ele nunca entra no `ScenarioJson` submetido, só sobe pro `App` via `onStart`.
-export function PresetStart({ onStart }: PresetStartProps) {
+export function PresetStart({ onStart, onBack }: PresetStartProps) {
   const [name, setName] = useState("");
+  const nameIsValid = name.trim().length > 0;
   const [seed, setSeed] = useState(1);
   const [size, setSize] = useState<SizePresetKey>("medio");
   const [startingPoint, setStartingPoint] = useState<string>(BLANK);
@@ -74,6 +76,9 @@ export function PresetStart({ onStart }: PresetStartProps) {
   return (
     <div className="preset-start" data-testid="preset-start">
       <header className="preset-start-heading">
+        <button type="button" className="preset-start-back" onClick={onBack}>
+          ← Voltar
+        </button>
         <span>Novo jogo</span>
         <h2>Que mundo vai nascer?</h2>
         <p>Escolha a escala e veja o ponto de partida antes de entrar no mapa.</p>
@@ -174,9 +179,10 @@ export function PresetStart({ onStart }: PresetStartProps) {
             <div><dt>População</dt><dd>{SIZE_PRESETS[size].initialPopulation}</dd></div>
             <div><dt>Seed</dt><dd>{seed}</dd></div>
           </dl>
-          <button className="create-world-cta" type="button" onClick={handleCreate} disabled={loading}>
+          <button className="create-world-cta" type="button" onClick={handleCreate} disabled={loading || !nameIsValid}>
             {loading ? "Abrindo o mapa…" : "Começar"}
           </button>
+          {!nameIsValid && <p role="alert">Dê um nome ao mundo para continuar.</p>}
           {error && <p role="alert">{error}</p>}
         </aside>
       </div>

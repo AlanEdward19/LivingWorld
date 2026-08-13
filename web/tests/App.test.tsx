@@ -154,9 +154,51 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Criar mundo" }));
     expect(screen.getByTestId("preset-start")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("preset-name"), { target: { value: "Aldeia" } });
     fireEvent.click(screen.getByRole("button", { name: "Começar" }));
 
     expect(await screen.findByTestId("world-editor")).toBeInTheDocument();
     expect(screen.queryByTestId("create-world-form")).not.toBeInTheDocument();
+  });
+
+  it("cancelling world creation from the start menu returns to the start menu, not the map", () => {
+    const { simulationStore, viewStore, selectionStore, timeControlSource } = buildStores();
+    render(
+      <App
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+        timeControlSource={timeControlSource}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Criar mundo" }));
+    expect(screen.getByTestId("preset-start")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    expect(screen.getByTestId("start-menu")).toBeInTheDocument();
+  });
+
+  it("cancelling a new-world creation started mid-game returns to the running map, not the start menu", async () => {
+    const { simulationStore, viewStore, selectionStore, timeControlSource } = buildStores();
+    render(
+      <App
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+        timeControlSource={timeControlSource}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    await screen.findByTestId("world-map-view");
+
+    fireEvent.click(screen.getByRole("button", { name: "Criar mundo" }));
+    expect(screen.getByTestId("preset-start")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    expect(await screen.findByTestId("world-map-view")).toBeInTheDocument();
   });
 });

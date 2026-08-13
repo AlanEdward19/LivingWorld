@@ -376,6 +376,7 @@ form[data-testid="create-world-form"] > div:not([hidden]) {
 .preset-start-heading > span, .world-config-kicker { color: var(--accent-bright); text-transform: uppercase; letter-spacing: .14em; font-size: .72rem; }
 .preset-start-heading h2 { margin: .25rem 0; font-size: clamp(2rem, 4vw, 3.5rem); }
 .preset-start-heading p { color: var(--text-muted); margin: 0; }
+.preset-start-back { display: block; margin-bottom: .75rem; padding: .35rem .8rem; font-size: .8rem; width: auto; }
 .preset-start-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr); gap: 1.5rem; }
 .preset-choices, .world-seed-preview { background: rgba(19, 24, 34, .92); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 1.25rem; }
 .preset-inline-fields { display: grid; grid-template-columns: 1fr 120px; gap: .75rem; }

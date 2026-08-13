@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { WorldMapView } from "./components/WorldMapView";
 import { CityView } from "./components/CityView";
 import { InteriorView } from "./components/InteriorView";
@@ -43,6 +43,13 @@ export function App({ simulationStore, viewStore, selectionStore, timeControlSou
   const [creatorForm, setCreatorForm] = useState<ScenarioFormState | null>(null);
   const [catalogPeriodId, setCatalogPeriodId] = useState<string | undefined>();
   const [worldName, setWorldName] = useState("");
+  // Bug real (relatado pelo usuário): cancelar a criação de mundo a partir do menu inicial
+  // "iniciava o mundo" em vez de voltar ao menu — o botão só desligava `creatingWorld`, e como
+  // `screen` já estava em "world" (setado no mesmo clique que abriu o creator), o efeito abaixo
+  // disparava `observeSpace` normalmente. Este ref rastreia se um mundo já foi de fato observado
+  // nesta sessão (via "Continuar" ou por já estar jogando antes de abrir o creator de novo) —
+  // só nesse caso cancelar deve permanecer no mapa; caso contrário volta pro menu inicial.
+  const hasEnteredWorldRef = useRef(false);
 
   const space = useSyncExternalStore(
     (onStoreChange) => viewStore.subscribe(onStoreChange),
@@ -57,8 +64,18 @@ export function App({ simulationStore, viewStore, selectionStore, timeControlSou
     if (screen !== "world" || creatingWorld) {
       return;
     }
+    hasEnteredWorldRef.current = true;
     void simulationStore.observeSpace(space);
   }, [screen, creatingWorld, space, simulationStore]);
+
+  function cancelCreatingWorld() {
+    setCreatingWorld(false);
+    setCreatorForm(null);
+    setCatalogPeriodId(undefined);
+    if (!hasEnteredWorldRef.current) {
+      setScreen("start");
+    }
+  }
 
   const viewport = { width: window.innerWidth, height: window.innerHeight - 40 };
 
@@ -93,14 +110,7 @@ export function App({ simulationStore, viewStore, selectionStore, timeControlSou
         <button type="button" onClick={() => setScreen("start")}>
           ☰ menu
         </button>
-        <button
-          type="button"
-          onClick={() => {
-            setCreatingWorld((v) => !v);
-            setCreatorForm(null);
-            setCatalogPeriodId(undefined);
-          }}
-        >
+        <button type="button" onClick={() => (creatingWorld ? cancelCreatingWorld() : setCreatingWorld(true))}>
           {creatingWorld ? "Cancelar" : "Criar mundo"}
         </button>
         {!creatingWorld && worldName && <span className="world-name">{worldName}</span>}
@@ -115,12 +125,14 @@ export function App({ simulationStore, viewStore, selectionStore, timeControlSou
               setWorldName(name);
               setCatalogPeriodId(periodId);
             }}
+            onBack={cancelCreatingWorld}
           />
         )}
 
         {creatingWorld && creatorForm && (
           <WorldEditor
             initialForm={creatorForm}
+            worldName={worldName}
             catalogPeriodId={catalogPeriodId}
             viewport={viewport}
             onCreated={() => {

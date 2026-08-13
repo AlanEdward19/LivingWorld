@@ -17,7 +17,7 @@ function stubFetch(templates: unknown[] = [], periodBody: unknown = {}) {
 describe("PresetStart", () => {
   it("updates the visual preview when a size card is chosen", () => {
     stubFetch();
-    render(<PresetStart onStart={() => {}} />);
+    render(<PresetStart onStart={() => {}} onBack={() => {}} />);
 
     const preview = screen.getByTestId("preview-map-world");
     const before = preview.style.transform;
@@ -33,7 +33,7 @@ describe("PresetStart", () => {
 
   it("exposes at most 4 fields and no advanced parameter", () => {
     stubFetch();
-    render(<PresetStart onStart={() => {}} />);
+    render(<PresetStart onStart={() => {}} onBack={() => {}} />);
     expect(screen.getAllByRole("textbox").length + screen.getAllByRole("spinbutton").length + screen.getAllByRole("combobox").length).toBe(4);
     expect(screen.queryByText(/avançado/i)).not.toBeInTheDocument();
   });
@@ -41,7 +41,7 @@ describe("PresetStart", () => {
   it("starts a blank world from the chosen size preset, with the typed seed applied", async () => {
     stubFetch();
     const onStart = vi.fn();
-    render(<PresetStart onStart={onStart} />);
+    render(<PresetStart onStart={onStart} onBack={() => {}} />);
 
     fireEvent.change(screen.getByLabelText("preset-name"), { target: { value: "Aldeia" } });
     fireEvent.change(screen.getByLabelText("preset-seed"), { target: { value: "7" } });
@@ -63,9 +63,10 @@ describe("PresetStart", () => {
       { Width: 20, Height: 20, Seed: 2, InitialPopulation: 150 },
     );
     const onStart = vi.fn();
-    render(<PresetStart onStart={onStart} />);
+    render(<PresetStart onStart={onStart} onBack={() => {}} />);
 
     await screen.findByRole("option", { name: "Cidade média" });
+    fireEvent.change(screen.getByLabelText("preset-name"), { target: { value: "Cidade média" } });
     fireEvent.change(screen.getByLabelText("preset-starting-point"), { target: { value: "cidade-media" } });
     fireEvent.click(screen.getByRole("button", { name: "Começar" }));
 
@@ -79,16 +80,42 @@ describe("PresetStart", () => {
 
   it("disables the size preset once a starting-point template is selected", async () => {
     stubFetch([{ periodId: "cidade-media", version: 1, source: "Cidade média", createdAtUtc: "" }]);
-    render(<PresetStart onStart={() => {}} />);
+    render(<PresetStart onStart={() => {}} onBack={() => {}} />);
 
     await screen.findByRole("option", { name: "Cidade média" });
     fireEvent.change(screen.getByLabelText("preset-starting-point"), { target: { value: "cidade-media" } });
     expect(screen.getByLabelText("preset-size")).toBeDisabled();
   });
 
+  it("calls onBack when the back button is clicked", () => {
+    stubFetch();
+    const onBack = vi.fn();
+    render(<PresetStart onStart={() => {}} onBack={onBack} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "← Voltar" }));
+
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables Começar until a name is typed, and never calls onStart without one", () => {
+    stubFetch();
+    const onStart = vi.fn();
+    render(<PresetStart onStart={onStart} onBack={() => {}} />);
+
+    expect(screen.getByRole("button", { name: "Começar" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Começar" }));
+    expect(onStart).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText("preset-name"), { target: { value: "   " } });
+    expect(screen.getByRole("button", { name: "Começar" })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("preset-name"), { target: { value: "Aldeia" } });
+    expect(screen.getByRole("button", { name: "Começar" })).toBeEnabled();
+  });
+
   it("changes the visible landscape when seed changes", () => {
     stubFetch();
-    render(<PresetStart onStart={() => {}} />);
+    render(<PresetStart onStart={() => {}} onBack={() => {}} />);
     const colorsBefore = [...screen.getByTestId("preview-map-world").querySelectorAll("i")].map((cell) => cell.getAttribute("style"));
 
     fireEvent.change(screen.getByLabelText("preset-seed"), { target: { value: "91" } });

@@ -69,11 +69,14 @@ export async function moveNpc(npcId: number, request: MoveNpcRequest): Promise<R
 
 /// Feature ad-hoc "criar mundo" (AD-001): `scenarioJson` já vem pronto (montado por
 /// `scenarioFormToJson`) — este helper só faz a chamada HTTP, mesmo padrão de `moveNpc`.
-export async function createWorld(scenarioJson: string): Promise<Response> {
+/// `name` é obrigatório no backend (`WorldCreateEndpoints.cs`: `Name é obrigatório.` em 400
+/// sem ele) — bug real corrigido aqui: este helper nunca enviava o campo, então todo create
+/// falhava com 400 independente do que o usuário digitasse na tela de criação.
+export async function createWorld(scenarioJson: string, name: string): Promise<Response> {
   return fetch(`${apiBaseUrl()}/worlds/create`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ scenarioJson }),
+    body: JSON.stringify({ scenarioJson, name }),
   });
 }
 
