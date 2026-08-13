@@ -1316,7 +1316,7 @@ composition root. Nenhuma linha do `SimulationStore` muda.
 
 ---
 
-### T32: `TimeControls` contra `/simulation/*` real — **Estágio 3** [P]
+### T32: `TimeControls` contra `/simulation/*` real — **Estágio 3** [P] — ✅ Done
 
 **What**: implementar `RealTimeControlSource` chamando `POST /simulation/{pause,resume,speed,step}` e
 `GET /simulation/status`, e trocar a fonte no composition root.
@@ -1329,13 +1329,17 @@ composition root. Nenhuma linha do `SimulationStore` muda.
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] Cada botão dispara exatamente um `POST` para a rota correspondente (teste com fetch espião)
-- [ ] `+1 tick` fora de pausa não é clicável; se for forçado, o 409 do endpoint é tratado sem quebrar a UI
-- [ ] `speed` inválido devolve 400 e a UI mantém a velocidade anterior
-- [ ] Zero linhas alteradas em `TimeControls.tsx` além do tipo da prop (verificado no diff)
-- [ ] `/simulation` está no `server.proxy` de `web/vite.config.ts` (já entregue na T1 — reconferir aqui, é o bug recorrente do STATE.md)
-- [ ] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit`
-- [ ] Contagem de testes: ≥ 4 novos passando
+- [x] Cada botão dispara exatamente um `POST` para a rota correspondente (teste com fetch espião)
+- [x] `+1 tick` fora de pausa não é clicável (já garantido por `TimeControls.tsx`, inalterado); se for forçado, o 409 do endpoint é tratado sem quebrar a UI — `RealTimeControlSource.step()` não lança em resposta não-ok
+- [x] `speed` inválido devolve 400 e a UI mantém a velocidade anterior — `setSpeed` não lança; `status()` chamado em seguida reflete o que o servidor manteve
+- [x] Zero linhas alteradas em `TimeControls.tsx` (verificado no diff — só `main.tsx`/`api.ts`/arquivo novo)
+- [x] `/simulation` está no `server.proxy` de `web/vite.config.ts` (já entregue na T1 — reconferido, presente)
+- [x] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit` — 256 passed (7 novos), tsc limpo
+- [x] Contagem de testes: ≥ 4 novos passando — 7 novos
+
+**Nota**: `SimulationStatus.tick` virou opcional (`data/contracts.ts`) — `SimulationStatusResponse`
+real (`SimulationControlEndpoints.cs`) nunca teve contagem de tick e nenhum consumidor de
+`TimeControls.tsx` lê o campo; `MockClock` continua preenchendo. SPEC_DEVIATION documentado inline.
 
 **Tests**: unit · **Gate**: Quick-web
 **Commit**: `feat(web): wire time controls to the real simulation endpoints`

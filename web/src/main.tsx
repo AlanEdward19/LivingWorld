@@ -10,6 +10,7 @@ import { MockTimeControlSource } from "./data/mock/MockTimeControlSource";
 import { MockPortalSource } from "./data/mock/MockPortalSource";
 import { RealSnapshotSource } from "./data/real/snapshotSource";
 import { RealTickStreamSource } from "./data/real/tickStreamSource";
+import { RealTimeControlSource } from "./data/real/timeControlSource";
 import { npcsByScope, portalFixtures, snapshotsByScope } from "./data/mock/fixtures";
 import "./styles/global.css";
 
@@ -28,7 +29,7 @@ const simulationStore = new SimulationStore(
 );
 const viewStore = new ViewStore(new MockPortalSource(portalFixtures));
 const selectionStore = new SelectionStore();
-const timeControlSource = new MockTimeControlSource(clock);
+const timeControlSource = demoMode ? new MockTimeControlSource(clock) : new RealTimeControlSource();
 
 // Sem StrictMode: efeitos duplo-invocados em dev chamariam `observeSpace` duas vezes quase
 // juntas — inofensivo hoje (fontes mock são idempotentes), mas evita reintroduzir o problema

@@ -100,6 +100,41 @@ export async function fetchPeriodTemplate(id: string): Promise<Record<string, un
   return body.periodDefinition;
 }
 
+/// Fase 15.1, T32: tradução HTTP fina de `TimeControlSource` sobre `SimulationControlEndpoints`
+/// (`/simulation/{pause,resume,speed,step}` + `/simulation/status`). Erros (400 velocidade
+/// inválida, 409 step fora de pausa) não lançam — o botão simplesmente não teve efeito, e o
+/// `status()` chamado em seguida por `TimeControls` reflete o que o servidor de fato manteve.
+export async function pauseSimulation(): Promise<void> {
+  await fetch(`${apiBaseUrl()}/simulation/pause`, { method: "POST" });
+}
+
+export async function resumeSimulation(): Promise<void> {
+  await fetch(`${apiBaseUrl()}/simulation/resume`, { method: "POST" });
+}
+
+export async function setSimulationSpeed(ticksPerSecond: number): Promise<void> {
+  await fetch(`${apiBaseUrl()}/simulation/speed`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ticksPerSecond }),
+  });
+}
+
+export async function stepSimulation(): Promise<void> {
+  await fetch(`${apiBaseUrl()}/simulation/step`, { method: "POST" });
+}
+
+export interface SimulationStatusDto {
+  isPaused: boolean;
+  ticksPerSecond: number;
+}
+
+export async function fetchSimulationStatus(): Promise<SimulationStatusDto> {
+  const response = await fetch(`${apiBaseUrl()}/simulation/status`);
+  if (!response.ok) throw new Error(`status da simulação falhou: ${response.status}`);
+  return (await response.json()) as SimulationStatusDto;
+}
+
 export interface PeriodCatalog {
   professionNames: Record<number, string>;
   skillNames: Record<number, string>;

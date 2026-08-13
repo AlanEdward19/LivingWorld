@@ -25,7 +25,10 @@ export interface ScopeTickDelta {
 export interface SimulationStatus {
   isPaused: boolean;
   ticksPerSecond: number;
-  tick: number;
+  // SPEC_DEVIATION (T32): `SimulationStatusResponse` real (`SimulationControlEndpoints.cs`) não
+  // expõe contagem de tick — nenhum consumidor de `TimeControls.tsx` lê este campo hoje, então
+  // opcional em vez de inventado; o mock (`MockClock`) continua preenchendo.
+  tick?: number;
 }
 
 export type PortalSpaceKind = "World" | "City" | "Building";
