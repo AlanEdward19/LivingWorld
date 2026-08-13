@@ -297,6 +297,29 @@ public class CityAndBuildingAuthoringTests
     }
 
     [Fact]
+    public void Authored_portal_referencing_a_city_index_exactly_at_the_upper_bound_fails()
+    {
+        // ValidRoot() autora exatamente 1 cidade (índice válido único: 0) — RefIndex == cityCount
+        // é a fronteira exata de "não referencia nenhuma cidade autorada" (>=), não "além dela".
+        var root = ValidRoot();
+        root["Portals"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["Id"] = "portal-north",
+                ["Label"] = "Portão Norte",
+                ["From"] = new JsonObject { ["Space"] = "World", ["X"] = 3, ["Y"] = 1 },
+                ["To"] = new JsonObject { ["Space"] = "City", ["RefIndex"] = 1, ["X"] = 3, ["Y"] = 4 },
+            },
+        };
+
+        var result = CityScenarioLoader.Load(root.ToJsonString());
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("RefIndex", result.Error);
+    }
+
+    [Fact]
     public void Two_authored_portals_for_the_same_city_are_distinguishable_only_by_label()
     {
         var root = ValidRoot();
