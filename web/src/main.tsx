@@ -8,19 +8,23 @@ import { MockSnapshotSource } from "./data/mock/MockSnapshotSource";
 import { MockTickStreamSource } from "./data/mock/MockTickStreamSource";
 import { MockTimeControlSource } from "./data/mock/MockTimeControlSource";
 import { MockPortalSource } from "./data/mock/MockPortalSource";
+import { RealSnapshotSource } from "./data/real/snapshotSource";
+import { RealTickStreamSource } from "./data/real/tickStreamSource";
 import { npcsByScope, portalFixtures, snapshotsByScope } from "./data/mock/fixtures";
 import "./styles/global.css";
 
-// Fase 15.1, Estágio 1 (T14): composition root — o ÚNICO arquivo autorizado a nomear
-// `Mock*Source` (design.md "Mock Adapter / Validação offline do frontend"). Todo o app corre
-// contra fixtures estáticas, sem WebSocket/fetch — a troca por `Real*Source` é T31/T32/T33,
-// e é só isto: mudar os argumentos abaixo, nenhuma linha de store/componente muda.
+// Fase 15.1, Estágio 1 (T14) + T31: composition root — o ÚNICO arquivo autorizado a nomear
+// `Mock*Source`/`Real*Source` (design.md "Mock Adapter / Validação offline do frontend"). Por
+// padrão o app fala com o backend real; `VITE_DEMO_MODE=true` liga os mocks para o modo de demo
+// offline (spec.md T27) sem nenhum arquivo de store/componente mudar.
+const demoMode = import.meta.env.VITE_DEMO_MODE === "true";
+
 const clock = new MockClock();
 clock.setSpeed(2);
 
 const simulationStore = new SimulationStore(
-  new MockSnapshotSource(snapshotsByScope),
-  new MockTickStreamSource(clock, npcsByScope),
+  demoMode ? new MockSnapshotSource(snapshotsByScope) : new RealSnapshotSource(),
+  demoMode ? new MockTickStreamSource(clock, npcsByScope) : new RealTickStreamSource(),
 );
 const viewStore = new ViewStore(new MockPortalSource(portalFixtures));
 const selectionStore = new SelectionStore();

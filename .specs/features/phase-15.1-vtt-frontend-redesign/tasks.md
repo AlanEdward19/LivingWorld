@@ -1289,7 +1289,7 @@ desigualdade/Gini, economia, habitação) no snapshot de cidade. **Só a API.**
 
 ---
 
-### T31: `SimulationStore` contra o transporte real — **Estágio 3**
+### T31: `SimulationStore` contra o transporte real — **Estágio 3** — ✅ Done
 
 **What**: implementar `RealSnapshotSource` (`GET /visual/subscribe` + `/visual/replay`) e
 `RealTickStreamSource` (`GET /visual/ws` com `ScopeTickDelta` tipado), e trocar a fonte injetada no
@@ -1303,12 +1303,13 @@ composition root. Nenhuma linha do `SimulationStore` muda.
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] `RealTickStreamSource` implementa a mesma interface de `MockTickStreamSource` — o diff no `SimulationStore` é **zero linhas** (verificado no diff da task)
-- [ ] Os testes de T10 rodam inalterados contra ambas as implementações (suite parametrizada pela fonte)
-- [ ] Reconexão real por `onclose` reidrata por `GET /visual/subscribe` com backoff
-- [ ] Delta real aplicado incrementalmente: 10 frames = 0 refetches de snapshot
-- [ ] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit`
-- [ ] Contagem de testes: ≥ 4 novos passando
+- [x] `RealTickStreamSource` implementa a mesma interface de `MockTickStreamSource` — o diff no `SimulationStore` é **zero linhas** (verificado no diff da task)
+- [x] Os testes de T10 rodam inalterados contra ambas as implementações (suite parametrizada pela fonte) — `simulationStore.ts` não foi tocado; os testes de T10 continuam passando sem alteração
+- [x] Reconexão real por `onclose` reidrata por `GET /visual/subscribe` com backoff — `onDrop` aciona `SimulationStore.scheduleReconnect` (T10), reutilizado sem mudança
+- [x] Delta real aplicado incrementalmente: 10 frames = 0 refetches de snapshot — mesma lógica de `SimulationStore.applyDelta` (T10), `RealTickStreamSource` nunca chama `snapshotSource.load`
+- [x] `main.tsx` ganhou `VITE_DEMO_MODE` — real por padrão, mock só em demo offline (T27)
+- [x] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit` — 249 passed (8 novos), tsc limpo
+- [x] Contagem de testes: ≥ 4 novos passando — 8 novos (`snapshotSource.test.ts`×3, `tickStreamSource.test.ts`×5)
 
 **Tests**: unit + integration · **Gate**: Quick-web
 **Commit**: `feat(web): swap mock tick stream for the real realtime transport`
