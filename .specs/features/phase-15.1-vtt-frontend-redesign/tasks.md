@@ -1374,7 +1374,7 @@ opcionais — as fixtures do Estágio 1 continuam servindo portais via `MockPort
 
 ---
 
-### T34: Footprint e indicadores de cidade contra os campos reais — **Estágio 3**
+### T34: Footprint e indicadores de cidade contra os campos reais — **Estágio 3** — ✅ Done
 
 **What**: trocar as fixtures de footprint e de indicadores de cidade pelos campos reais de projeção
 (T20, T30) no renderer e no inspector.
@@ -1387,13 +1387,13 @@ opcionais — as fixtures do Estágio 1 continuam servindo portais via `MockPort
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] O footprint desenhado vem de `Bounds` da API; `BoundsAreDerived` alimenta `sizeIsDerived` sem tradução ad-hoc
-- [ ] Os 6 indicadores do inspector vêm do campo de `CitySnapshot`, não da fixture
-- [ ] Nenhuma fixture mock permanece no caminho de produção destes dois consumidores (grep)
-- [ ] Os testes de T15 e T28 continuam passando sem alteração de assert (só a fonte muda)
-- [ ] `scripts/generate-web-types.sh --check` limpo — sem drift entre a projeção e `web/src/generated/api-types.ts`
-- [ ] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit` **e** `dotnet test tests/LivingWorld.Tests --nologo --filter "FullyQualifiedName~Visual"`
-- [ ] Contagem de testes: ≥ 3 novos passando
+- [x] O footprint desenhado vem de `Bounds` da API; `BoundsAreDerived` alimenta `sizeIsDerived` sem tradução ad-hoc — comprovado por teste dedicado: `RealSnapshotSource` + `SimulationStore.currentPayload<FutureGlobalSnapshot>` preservam `bounds`/`boundsAreDerived` byte-a-byte; `WorldMapView` (T28) já consome `city.bounds`/`city.boundsAreDerived` genericamente, sem mudança
+- [x] Os 6 indicadores do inspector vêm do campo de `CitySnapshot`, não da fixture — mesmo teste dedicado prova `indicators` intacto; `CityInspector` (T15) já lê `citySnapshot.indicators.*` genericamente
+- [x] Nenhuma fixture mock permanece no caminho de produção destes dois consumidores (grep) — `main.tsx` só nomeia `Mock*Source` sob `VITE_DEMO_MODE`
+- [x] Os testes de T15 e T28 continuam passando sem alteração de assert (só a fonte muda) — suíte web inteira (263) verde, nenhum teste de T15/T28 tocado
+- [x] `scripts/generate-web-types.sh --check` limpo — sem drift entre a projeção e `web/src/generated/api-types.ts` — arquivo estava desatualizado (pré-T1..T49), regenerado (734→983 linhas) e recomitado; `--check` confirma zero drift
+- [x] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit` — 263 passed (3 novos), tsc limpo **e** `dotnet test tests/LivingWorld.Tests --nologo --filter "FullyQualifiedName~Visual"` — 90 passed
+- [x] Contagem de testes: ≥ 3 novos passando — 3 novos (`footprintAndIndicators.test.ts`)
 
 **Tests**: unit (web) + integration (api) · **Gate**: Quick-web + Quick-api
 **Commit**: `feat: consume real footprint and city indicator projections`
