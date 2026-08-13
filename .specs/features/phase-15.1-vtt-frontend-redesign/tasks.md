@@ -1346,7 +1346,7 @@ real (`SimulationControlEndpoints.cs`) nunca teve contagem de tick e nenhum cons
 
 ---
 
-### T33: `ViewStore` contra o campo `Portals` real — **Estágio 3** [P]
+### T33: `ViewStore` contra o campo `Portals` real — **Estágio 3** [P] — ✅ Done
 
 **What**: implementar `RealPortalSource` lendo o campo `Portals` de `GlobalSnapshot`/`CitySnapshot`
 (T21) e trocar a fonte no composition root.
@@ -1358,12 +1358,16 @@ real (`SimulationControlEndpoints.cs`) nunca teve contagem de tick e nenhum cons
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] `enter(target)` resolve pela lista real de portais; dois portais reais para o mesmo par de espaços navegam sem nenhum ramo por entrada (AC3/AC5, agora contra dado canônico)
-- [ ] Zero linhas alteradas em `viewStore.ts` (verificado no diff)
-- [ ] `RealPortalSource` não dispara request própria — lê do snapshot corrente (fetch espião: 0)
-- [ ] Escopo sem portais declarados não quebra a navegação (fallback declarado, não silencioso)
-- [ ] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit`
-- [ ] Contagem de testes: ≥ 4 novos passando
+- [x] `enter(target)` resolve pela lista real de portais; dois portais reais para o mesmo par de espaços navegam sem nenhum ramo por entrada (AC3/AC5, agora contra dado canônico) — mesmo `enterViaPortal` de T11, inalterado, agora alimentado pelo campo real
+- [x] Zero linhas alteradas em `viewStore.ts` (verificado no diff)
+- [x] `RealPortalSource` não dispara request própria — lê do snapshot corrente (fetch espião: 0)
+- [x] Escopo sem portais declarados não quebra a navegação (fallback declarado, não silencioso) — devolve `[]`, e `enterViaPortal` já lança erro explícito quando não encontra o portal (T11, comportamento existente)
+- [x] Gate: `npm --prefix web test && npx --prefix web tsc --noEmit` — 260 passed (4 novos), tsc limpo
+- [x] Contagem de testes: ≥ 4 novos passando — 4 novos
+
+**Nota**: `FutureGlobalSnapshot.portals`/`FutureCitySnapshot.portals` (`data/contracts.ts`) viraram
+opcionais — as fixtures do Estágio 1 continuam servindo portais via `MockPortalSource` separado
+(T0/T11), não embutidos no snapshot; só o payload real (T21) carrega o campo.
 
 **Tests**: unit · **Gate**: Quick-web
 **Commit**: `feat(web): resolve space transitions through the real portal projection`

@@ -70,6 +70,10 @@ export type FutureCityBuildingMarker = CityBuildingMarker & BuildingPositionFiel
 
 export interface FutureGlobalSnapshot extends Omit<GlobalSnapshot, "cities"> {
   cities: FutureGlobalCityMarker[];
+  // Opcional: as fixtures do Estágio 1 continuam servindo portais via `MockPortalSource`
+  // separado (T0/T11), não embutidos no snapshot — só o payload real (T21) carrega este campo.
+  /** `SpatialPortal` (T21) — portais que tocam o escopo World. */
+  portals?: SpatialPortalDto[];
 }
 
 /**
@@ -90,4 +94,6 @@ export interface CityIndicators {
 export interface FutureCitySnapshot extends Omit<CitySnapshot, "buildings"> {
   buildings: FutureCityBuildingMarker[];
   indicators: CityIndicators;
+  /** `SpatialPortal` (T21) — portais que tocam esta cidade. */
+  portals?: SpatialPortalDto[];
 }

@@ -11,6 +11,7 @@ import { MockPortalSource } from "./data/mock/MockPortalSource";
 import { RealSnapshotSource } from "./data/real/snapshotSource";
 import { RealTickStreamSource } from "./data/real/tickStreamSource";
 import { RealTimeControlSource } from "./data/real/timeControlSource";
+import { RealPortalSource } from "./data/real/portalSource";
 import { npcsByScope, portalFixtures, snapshotsByScope } from "./data/mock/fixtures";
 import "./styles/global.css";
 
@@ -27,7 +28,7 @@ const simulationStore = new SimulationStore(
   demoMode ? new MockSnapshotSource(snapshotsByScope) : new RealSnapshotSource(),
   demoMode ? new MockTickStreamSource(clock, npcsByScope) : new RealTickStreamSource(),
 );
-const viewStore = new ViewStore(new MockPortalSource(portalFixtures));
+const viewStore = new ViewStore(demoMode ? new MockPortalSource(portalFixtures) : new RealPortalSource(simulationStore));
 const selectionStore = new SelectionStore();
 const timeControlSource = demoMode ? new MockTimeControlSource(clock) : new RealTimeControlSource();
 
