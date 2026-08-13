@@ -279,7 +279,7 @@ contra estas fontes no Estágio 1 e contra as reais no Estágio 3)
 
 ---
 
-### T1: Expor controle de simulação por HTTP — **Estágio 2 · Engine-facing (read-model/API only)**
+### T1: Expor controle de simulação por HTTP — **Estágio 2 · Engine-facing (read-model/API only)** — ✅ Done (`cbca11a`)
 
 **What**: mapear `POST /simulation/pause|resume|speed|step` e `GET /simulation/status` como tradução
 fina sobre `SimulationHost`, mais a entrada `/simulation` no proxy do Vite.
@@ -292,19 +292,19 @@ fina sobre `SimulationHost`, mais a entrada `/simulation` no proxy do Vite.
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] As 5 rotas respondem; `speed` com valor `<= 0` devolve 400 sem alterar `TicksPerSecond`
-- [ ] `step` com o loop rodando devolve 409 (só faz sentido pausado)
-- [ ] Teste prova que N chamadas de pause/resume/speed **não alteram o hash canônico** (mesmo padrão de `tests/LivingWorld.Tests/Visual/VisualGateTests.cs`)
-- [ ] `/simulation` está no `server.proxy` de `web/vite.config.ts` **neste mesmo commit** (bug recorrente — `.specs/STATE.md` Handoff registra o mesmo esquecimento em `/worlds` e `/periods`)
-- [ ] Gate: `dotnet test tests/LivingWorld.Tests --nologo --filter "FullyQualifiedName~SimulationControl"`
-- [ ] Contagem de testes: ≥ 6 novos passando
+- [x] As 5 rotas respondem; `speed` com valor `<= 0` devolve 400 sem alterar `TicksPerSecond`
+- [x] `step` com o loop rodando devolve 409 (só faz sentido pausado)
+- [x] Teste prova que N chamadas de pause/resume/speed **não alteram o hash canônico** (mesmo padrão de `tests/LivingWorld.Tests/Visual/VisualGateTests.cs`)
+- [x] `/simulation` está no `server.proxy` de `web/vite.config.ts` **neste mesmo commit** (bug recorrente — `.specs/STATE.md` Handoff registra o mesmo esquecimento em `/worlds` e `/periods`)
+- [x] Gate: `dotnet test tests/LivingWorld.Tests --nologo --filter "FullyQualifiedName~SimulationControl"` — 7 passed
+- [x] Contagem de testes: ≥ 6 novos passando — 7 novos
 
 **Tests**: integration · **Gate**: Quick-api
 **Commit**: `feat(api): expose simulation host controls over http`
 
 ---
 
-### T2: Definir e produzir o delta tipado de tick por escopo — **Estágio 2 · Engine-facing (read-model/API only)**
+### T2: Definir e produzir o delta tipado de tick por escopo — **Estágio 2 · Engine-facing (read-model/API only)** — ✅ Done (`9b56137`)
 
 **What**: criar `ScopeTickDelta`/`NpcPositionDelta` e a função que diffa o estado projetado de um
 escopo entre dois ticks, para publicar só o que mudou.
@@ -317,18 +317,18 @@ escopo entre dois ticks, para publicar só o que mudou.
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] Diff entre dois estados devolve só NPCs que mudaram de célula e ids removidos
-- [ ] Estado idêntico produz delta vazio (não publicar frame vazio é decisão do T3)
-- [ ] Nenhuma camada é recomputada no caminho de delta (só o snapshot inicial monta camadas)
-- [ ] Gate: `dotnet test tests/LivingWorld.Tests --nologo --filter "FullyQualifiedName~ScopeDelta"`
-- [ ] Contagem de testes: ≥ 5 novos passando
+- [x] Diff entre dois estados devolve só NPCs que mudaram de célula e ids removidos
+- [x] Estado idêntico produz delta vazio (não publicar frame vazio é decisão do T3)
+- [x] Nenhuma camada é recomputada no caminho de delta (só o snapshot inicial monta camadas) — `Diff` não recebe `WorldState`, testado por reflexão
+- [x] Gate: `dotnet test tests/LivingWorld.Tests --nologo --filter "FullyQualifiedName~ScopeDelta"` — 6 passed
+- [x] Contagem de testes: ≥ 5 novos passando — 6 novos
 
 **Tests**: unit · **Gate**: Quick-api
 **Commit**: `feat(api): typed per-tick scope delta`
 
 ---
 
-### T3: Loop de tick em tempo real — **Estágio 2 · Engine-facing (read-model/API only)**
+### T3: Loop de tick em tempo real — **Estágio 2 · Engine-facing (read-model/API only)** — ✅ Done (`bed254d`)
 
 **What**: `IHostedService` que avança `WorldClock.Tick` no ritmo de `SimulationHost.TicksPerSecond`
 enquanto não pausado, e publica o `ScopeTickDelta` de cada escopo com assinante.
@@ -341,20 +341,23 @@ enquanto não pausado, e publica o `ScopeTickDelta` de cada escopo com assinante
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] Com o loop ativo e não pausado, `world.CurrentDate.TotalHours` avança
-- [ ] Pausado, não avança nenhum tick
-- [ ] Publica delta só nos escopos com assinante ativo
-- [ ] Desabilitado por default em ambiente de teste (senão toda `WebApplicationFactory` existente passa a ter um mundo mudando embaixo dela — risco de flake em suítes de outras fases)
-- [ ] Comentário no código declara a fronteira: o loop decide *quando* chamar `Tick`, nunca *o que* o tick faz (`rules/simulation-determinism.md`)
-- [ ] Gate: `dotnet test tests/LivingWorld.Tests --nologo --filter "FullyQualifiedName~TickLoop"`
-- [ ] Contagem de testes: ≥ 4 novos passando
+- [x] Com o loop ativo e não pausado, `world.CurrentDate.TotalHours` avança
+- [x] Pausado, não avança nenhum tick
+- [x] Publica delta só nos escopos com assinante ativo
+- [x] Desabilitado por default em ambiente de teste (senão toda `WebApplicationFactory` existente passa a ter um mundo mudando embaixo dela — risco de flake em suítes de outras fases) — gated por `TICK_LOOP_ENABLED`, ausente em todo processo de teste
+- [x] Comentário no código declara a fronteira: o loop decide *quando* chamar `Tick`, nunca *o que* o tick faz (`rules/simulation-determinism.md`)
+- [x] Gate: `dotnet test tests/LivingWorld.Tests --nologo --filter "FullyQualifiedName~TickLoop"` — 4 passed
+- [x] Contagem de testes: ≥ 4 novos passando — 4 novos
+
+**Nota**: `RealtimeGateway` ganhou `SubscribedScopeKeys` (gap real — sem ele o loop não tem como
+saber quais escopos publicar, e o `Where` desta task não listava esse arquivo).
 
 **Tests**: integration · **Gate**: Quick-api
 **Commit**: `feat(api): real-time tick loop publishing scope deltas`
 
 ---
 
-### T4: Podar o log de replay do gateway — **Estágio 2 · Engine-facing (read-model/API only)**
+### T4: Podar o log de replay do gateway — **Estágio 2 · Engine-facing (read-model/API only)** — ✅ Done (`b2f207c`)
 
 **What**: janela de retenção por escopo em `RealtimeGateway._log`, descartando entradas abaixo do
 menor cursor de assinante ativo.
@@ -366,11 +369,11 @@ menor cursor de assinante ativo.
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] Após N publishes com um assinante, o log do escopo não cresce indefinidamente
-- [ ] `Replay` de um assinante ativo continua devolvendo tudo que ele ainda não viu (`RealtimeGateway.cs:39-53` intacto no comportamento)
-- [ ] Escopo sem assinante nenhum não acumula histórico
-- [ ] Gate: `dotnet test tests/LivingWorld.Tests --nologo --filter "FullyQualifiedName~RealtimeGateway"`
-- [ ] Contagem de testes: ≥ 3 novos passando, testes existentes de `RealtimeGatewayEndpointTests` intactos
+- [x] Após N publishes com um assinante, o log do escopo não cresce indefinidamente
+- [x] `Replay` de um assinante ativo continua devolvendo tudo que ele ainda não viu (`RealtimeGateway.cs:39-53` intacto no comportamento)
+- [x] Escopo sem assinante nenhum não acumula histórico
+- [x] Gate: `dotnet test tests/LivingWorld.Tests --nologo --filter "FullyQualifiedName~RealtimeGateway"` — 10 passed
+- [x] Contagem de testes: ≥ 3 novos passando, testes existentes de `RealtimeGatewayEndpointTests` intactos — 3 novos + 7 existentes intactos
 
 **Tests**: unit · **Gate**: Quick-api
 **Commit**: `fix(api): bound realtime replay log growth`
