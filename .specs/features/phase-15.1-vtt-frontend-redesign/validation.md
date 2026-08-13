@@ -1,155 +1,126 @@
-# Phase 15.1 — E2.2 Bundle (T20 / T21 / T30) Validation
+# Phase 15.1 — E2.1 Bundle (T1 / T2 / T3 / T4) Validation
 
 **Date**: 2026-08-12
 **Spec**: `.specs/features/phase-15.1-vtt-frontend-redesign/spec.md`
-**Diff range**: `8317aa0..HEAD` (4 commits: `8539125`, `1da3d5b`, `444e177`, `841a00d`)
+**Diff range**: `cbca11a..b2f207c` (5 commits: `cbca11a` T1, `9b56137` T2, `bed254d` T3, `b2f207c` T4, plus `ba256a0` docs-only)
 **Verifier**: independent sub-agent (author ≠ verifier)
-**Scope**: this report covers only the E2.2 bundle (T20 footprint fields, T21 SpatialPortal, T30 city indicators). It does not validate the rest of phase-15.1.
+**Scope**: this report covers only the E2.1 bundle — "Fundação engine-facing", Estágio 2 (T1-T4). It supersedes the previous validation.md content, which covered the unrelated E2.2 bundle (T20/T21/T30) on a different diff range; that content is not preserved here (see git history for it).
 
 ---
 
 ## Task Completion
 
-| Task | Status  | Notes |
-| ---- | ------- | ----- |
-| T20  | ✅ Done | `GlobalCityMarker.Bounds/BoundsAreDerived`, `CityBuildingMarker.Location/LocationIsDerived` wired from pre-existing T45 resolvers; no `web/` files touched. |
-| T21  | ✅ Done | `SpatialPortal`/`PortalEndpoint`/`PortalSpaceKind` in `LivingWorld.Domain`; `WorldState.Portals` `[Canonical]`; scenario authoring; `Portals` field on `GlobalSnapshot`/`CitySnapshot`; goldens regenerated in isolated commit. |
-| T30  | ✅ Done | `CitySnapshot.Indicators` (`CityIndicators`) sourced solely from `CityPopulationQuery`. |
+| Task | Status  | Commit    | Notes |
+| ---- | ------- | --------- | ----- |
+| T1   | ✅ Done | `cbca11a` | `SimulationControlEndpoints.cs` (new), one `Map*` line in `Program.cs`, `/simulation` proxy entry in `web/vite.config.ts` — all in the same commit. |
+| T2   | ✅ Done | `9b56137` | `ScopeTickDelta.cs`/`ScopeDeltaBuilder.cs` (new), pure diff function, no `WorldState` dependency. |
+| T3   | ✅ Done | `bed254d` | `TickLoopService.cs` (new) + `Program.cs` registration + `RealtimeGateway.SubscribedScopeKeys` addition (deviation from "Where", documented in tasks.md and justified below). |
+| T4   | ✅ Done | `b2f207c` | Retention window + subscriber-gated `Publish` + `_sequenceByScope` added to existing `RealtimeGateway.cs`. |
+
+All four tasks are marked `[x]` in `tasks.md` with matching commit hashes; `git log --oneline cbca11a..b2f207c -- src tests` confirms exactly these 3 feature commits (T1 is the base of the range and is included by inspecting `cbca11a` directly).
 
 ---
 
-## Spec-Anchored Acceptance Criteria
+## Spec-Anchored Acceptance Criteria (evidence-or-zero)
 
-### T21 Done-when (tasks.md:832-842) — authoritative AC source for SpatialPortal per verifier brief
-
-| Criterion | Spec-defined outcome | `file:line` + assertion | Result |
-| --- | --- | --- | --- |
-| AC1: portal is `[Canonical]` domain data with id/label/from/to | `WorldState.Portals` marked `[Canonical]`; mutating it changes canonical hash | `src/LivingWorld.Simulation/WorldState.cs:255` — `[Canonical] public IReadOnlyList<SpatialPortal> Portals` ; `tests/LivingWorld.Tests/WorldSnapshotTests.cs:156-177` (theory over `ReflectedProperties`, incl. `"Portals"`) — `Assert.NotEqual(originalCanonical, mutatedCanonical)` for canonical props | ✅ PASS |
-| AC2: round-trip preserves portals, identical hash | serialize→deserialize preserves `Portals` collection and canonical hash | `tests/LivingWorld.Tests/WorldSnapshotTests.cs:279-289` — `Assert.Equal(world.Portals, rehydrated.Portals)` + `Assert.Equal(hashBefore, WorldSnapshot.CanonicalHash(rehydrated))` | ✅ PASS |
-| AC3: N portals for same space pair, distinguishable only by label, no code branch per entry | two portals to the same city both returned, no per-entry special-casing in `CityProjector`/loader | `tests/LivingWorld.Tests/Cities/CityAndBuildingAuthoringTests.cs:340-368` (`Two_authored_portals_for_the_same_city_are_distinguishable_only_by_label`) — `Assert.Equal(["portal-north","portal-south"], result.Value!.Portals.Select(p => p.Id))`; `tests/LivingWorld.Tests/Visual/CityProjectorTests.cs:177-197` — `Assert.Equal(2, result.Value!.Portals.Count)` | ✅ PASS |
-| AC4: scenario without portals stays valid; scenario with portals loads via declarative path | absent `Portals` field ⇒ empty list, still success; present ⇒ parsed/authored | `tests/LivingWorld.Tests/Cities/CityAndBuildingAuthoringTests.cs:261-268` (`A_scenario_without_a_Portals_field_still_parses_with_an_empty_portal_list`) — `Assert.Empty(result.Value!.Portals)`; `:301-310` (`ScenarioLoaderV2_resolves_the_authored_portal_endpoint_to_the_real_city_id`) | ✅ PASS |
-| Field appears in `GlobalSnapshot`/`CitySnapshot` (client query deferred to T11/T33) | `Portals` property present on both projection records | `src/LivingWorld.Api/Visual/GlobalProjector.cs:33` — `IReadOnlyList<SpatialPortal> Portals`; `src/LivingWorld.Api/Visual/CityProjector.cs:29` — same | ✅ PASS (see gap-note below on placement vs. mock architecture) |
-| World without any declared portal hashes identically to baseline (isolates hash change to the new collection) | two identical scenario loads without portal ⇒ equal hash; adding a portal to one is the only divergence | `tests/LivingWorld.Tests/WorldSnapshotTests.cs:294-308` (`Adding_a_portal_is_the_only_source_of_divergence_between_two_otherwise_identical_worlds`) | ✅ PASS |
-| AC6: goldens regenerated in a separate, explicit commit | golden hash regen isolated from the domain-changing commit | `git show 1da3d5b --stat` — only `tests/golden/world-hashes.json` touched, commit message cites AC6 explicitly; `git show 8539125` (T21 feature commit) does **not** touch `tests/golden/world-hashes.json` | ✅ PASS |
-| No simulation system reads `world.Portals` (strict boundary) | zero reads outside domain/projection/authoring | `grep -rn "\.Portals" src/LivingWorld.Simulation --include=*.cs` returns only `ScenarioLoaderV2.cs`/`WorldState.cs` (write/authoring), no system in `src/LivingWorld.Simulation/*System*.cs` | ✅ PASS |
-
-### T20 Done-when (tasks.md:797-804)
+### T1 (tasks.md:294-301, VTT2-27..30)
 
 | Criterion | Spec-defined outcome | `file:line` + assertion | Result |
 | --- | --- | --- | --- |
-| `GlobalCityMarker.Bounds/BoundsAreDerived`; `CityBuildingMarker.Location/LocationIsDerived` | fields present, sourced from T45 resolvers | `src/LivingWorld.Api/Visual/GlobalProjector.cs:16` — `public sealed record GlobalCityMarker(..., CellBounds Bounds, bool BoundsAreDerived)`; `src/LivingWorld.Api/Visual/CityProjector.cs:15` — `CityBuildingMarker(BuildingId Id, int BuildingTypeId, CellCoord Location, bool LocationIsDerived)` | ✅ PASS |
-| Authored geometry takes precedence; legacy fallback stable by `BuildingId`, never moves on reorder | resolver-driven precedence with derived flag | `tests/LivingWorld.Tests/Visual/CityProjectorTests.cs:66-93` (`Build_resolves_an_unauthored_buildings_location_as_derived_and_stable`, `Build_prefers_an_authored_buildings_real_position_and_marks_it_not_derived`) — asserts `LocationIsDerived` true/false and exact position matches `BuildingPlacementResolver.Resolve` | ✅ PASS |
-| Fields match fixture shape byte-for-byte | camelCase JSON matches `web/src/data/contracts.ts` `CellBounds{x,y,width,height}` / `CityFootprintFields{bounds,boundsAreDerived}` / `BuildingPositionFields{location,locationIsDerived}` | `src/LivingWorld.Api/Visual/GlobalProjector.cs:7` — `CellBounds(int X, int Y, int Width, int Height)`; field names/order match `web/src/data/contracts.ts:46-63` | ✅ PASS (not exercised by an automated cross-language contract test; verified by manual comparison — flagged as spec-precision note, not a gap) |
-| Test proves projecting the fields does not change the hash | `CityProjector.Build`/`GlobalProjector.Build` are pure reads | `tests/LivingWorld.Tests/Visual/CityProjectorTests.cs:96-104` (`Build_does_not_change_the_canonical_hash_by_projecting_building_locations`); `tests/LivingWorld.Tests/Visual/GlobalProjectorTests.cs:64-73` (`Build_does_not_change_the_canonical_hash_by_projecting_city_bounds`) | ✅ PASS |
-| `git diff --name-only` lists no `web/` file | — | `git diff --name-only 8317aa0..HEAD \| grep -i "^web/"` — no output (exit 1) | ✅ PASS |
-| Gate: `~Visual` filter, ≥4 new tests | — | see Gate Check section — 4 new `[Fact]`s in `CityProjectorTests`/`GlobalProjectorTests` scoped to T20 (`Build_resolves_an_unauthored...`, `Build_prefers_an_authored...`, `Build_does_not_change...building_locations`, `Build_includes_the_citys_derived_bounds...`, `Build_does_not_change...city_bounds`) — 5 counted | ✅ PASS |
+| 5 routes respond; `speed <= 0` → 400, no `TicksPerSecond` change | `POST /simulation/pause\|resume\|speed\|step`, `GET /simulation/status` all wired; boundary at `<= 0` | `src/LivingWorld.Api/Simulation/SimulationControlEndpoints.cs:32-33` — `if (request.TicksPerSecond <= 0) return Results.BadRequest(...)`; `tests/.../SimulationControlEndpointsTests.cs:61-71` — posts `0.0` after setting `2.0`, asserts `HttpStatusCode.BadRequest` and `status.TicksPerSecond == 2.0` (unchanged) | ✅ PASS |
+| `step` while running → 409 | `!host.IsPaused` gate | `SimulationControlEndpoints.cs:41-42` — `if (!host.IsPaused) return Results.Conflict(...)`; `SimulationControlEndpointsTests.cs:89-103` — resumes, then asserts `HttpStatusCode.Conflict` and clock unchanged (`Assert.Equal(before, world.CurrentDate.TotalHours)`) | ✅ PASS |
+| N pause/resume/speed calls never change canonical hash | hash stability under control-plane calls | `SimulationControlEndpointsTests.cs:106-121` — 3 iterations of pause+resume+speed, `Assert.Equal(hashBefore, WorldSnapshot.CanonicalHash(world))` | ✅ PASS |
+| `/simulation` in `vite.config.ts` proxy, same commit | recurring bug class (T1 note references `/worlds`/`/periods` prior omissions) | `git show cbca11a -- web/vite.config.ts` — `+ "/simulation": { target: "http://localhost:5289" },` present in the same commit as the endpoint file | ✅ PASS |
+| Gate: 7 passed | `dotnet test --filter FullyQualifiedName~SimulationControl` | Verified independently — see Gate Check below | ✅ PASS |
 
-### T30 Done-when (tasks.md:1267-1273)
+### T2 (tasks.md:319-325, VTT2-11)
 
 | Criterion | Spec-defined outcome | `file:line` + assertion | Result |
 | --- | --- | --- | --- |
-| 6 indicators appear in `CitySnapshot` payload, fixture shape | `CityIndicators(Population,Wealth,Health,Inequality,Economy,Housing)` | `src/LivingWorld.Api/Visual/CityProjector.cs:19` — record definition; matches `web/src/data/contracts.ts:78-85` `CityIndicators{population,wealth,health,inequality,economy,housing}` field-for-field | ✅ PASS |
-| Test proves the field does not alter canonical hash | — | `tests/LivingWorld.Tests/Visual/CityProjectorTests.cs:133-142` (`Build_does_not_change_the_canonical_hash_by_projecting_city_indicators`) | ✅ PASS |
-| No indicator recomputed in the projector — `CityPopulationQuery` is the only source | — | `src/LivingWorld.Api/Visual/CityProjector.cs:64-70` — all 6 fields call `CityPopulationQuery.*` directly, no arithmetic in `CityProjector`; `tests/LivingWorld.Tests/Visual/CityProjectorTests.cs:118-131` (`Build_includes_the_six_indicators_matching_CityPopulationQuery`) asserts equality against the query's own output | ✅ PASS |
-| `git diff --name-only` lists no `web/` file | — | same check as T20, applies to whole diff range | ✅ PASS |
-| Gate: `~Visual` filter, ≥3 new tests | — | `Build_includes_the_six_indicators_matching_CityPopulationQuery`, `Build_does_not_change_the_canonical_hash_by_projecting_city_indicators` = 2 direct T30 tests, plus indirect coverage via T20/T21 tests in the same class | ✅ PASS |
+| Diff returns only changed-cell NPCs + removed ids | pure set diff over `Dictionary<NpcId, CellCoord>` | `src/LivingWorld.Api/Visual/ScopeDeltaBuilder.cs:12-19`; `tests/.../ScopeDeltaBuilderTests.cs:17-25` (`Diff_returns_only_npcs_that_changed_cell`) — `Assert.Equal([new NpcPositionDelta(Npc1, new CellCoord(1,0))], delta.Moved)` (Npc2 unchanged, correctly excluded); `:28-37` (`Diff_includes_ids_removed_from_the_scope`) — `Assert.Equal([Npc2], delta.Removed)` | ✅ PASS |
+| Identical state → empty delta | no false positives on same-cell NPCs | `ScopeDeltaBuilderTests.cs:40-48` — `Assert.Empty(delta.Moved); Assert.Empty(delta.Removed)` with `after` a copy of `before` | ✅ PASS |
+| No layer recomputation on the delta path — `Diff` never receives `WorldState` | structural boundary, checked by reflection | `ScopeDeltaBuilderTests.cs:71-78` (`Diff_never_receives_WorldState_or_any_layer_builder_type`) — `Assert.DoesNotContain(method.GetParameters(), p => p.ParameterType == typeof(WorldState))` against `ScopeDeltaBuilder.Diff`'s actual signature (`long, IReadOnlyDictionary<NpcId,CellCoord>, IReadOnlyDictionary<NpcId,CellCoord>`) | ✅ PASS |
+| Gate: 6 passed | `dotnet test --filter FullyQualifiedName~ScopeDelta` | Verified independently | ✅ PASS |
 
-### Relevant spec.md ACs
+### T3 (tasks.md:344-350, VTT2-26)
 
-| Criterion (WHEN X THEN Y) | Spec-defined outcome | `file:line` + assertion | Result |
+| Criterion | Spec-defined outcome | `file:line` + assertion | Result |
 | --- | --- | --- | --- |
-| VTT2-42/43 (P2 footprint): city rendered with area/bounds, not a point | API exposes derived bounds — rendering itself is T28/T34, out of scope here | `src/LivingWorld.Api/Visual/GlobalProjector.cs:20-26` — `CellBounds` computed via `SpatialBoundsResolver.ResolveCity` | ✅ PASS (enabler only, as tasks.md T20 explicitly scopes) |
-| VTT2-44/45: footprint marked derived when not authored; click-hit-area is the whole footprint | API exposes `BoundsAreDerived`; hit-area/click behavior is client-side (T34), out of scope | `tests/LivingWorld.Tests/Visual/GlobalProjectorTests.cs:48-62` — asserts `BoundsAreDerived == true` for an unauthored city | ✅ PASS (enabler only) |
-| VTT2-22 AC1 (Inspector P1): city inspector shows the 6 `CityPopulationQuery` indicators | data-enabling AC — display itself is T15, out of scope here | `tests/LivingWorld.Tests/Visual/CityProjectorTests.cs:118-131` | ✅ PASS (enabler only) |
-| VTT2-62..67 (SpatialPortal, 6 ACs) | see T21 Done-when table above — tasks.md is the authoritative AC breakdown per verifier brief | (see above) | ✅ PASS, except AC5 (client navigation resolves via portal) — **not in scope of this bundle**, deferred to T11/T33 per tasks.md T21 explicitly | ⚠️ Scoped-out, not a gap |
+| Loop active + not paused → `CurrentDate.TotalHours` advances | `RunOneCycle` ticks exactly once | `src/LivingWorld.Api/Simulation/TickLoopService.cs:56-61` — `if (simulationHost.IsPaused) return;` then `worldHost.Clock.Tick(world)`; `tests/.../TickLoopServiceTests.cs:20-32` — `Assert.Equal(before + 1, ...)` | ✅ PASS |
+| Paused → no tick | early return | `TickLoopServiceTests.cs:34-47` — `Assert.Equal(before, ...)` after `simulationHost.Pause()` | ✅ PASS |
+| Publishes delta only to subscribed scopes | `gateway.SubscribedScopeKeys` iterated, not "every scope in the world" | `TickLoopService.cs:67-81` — loop is `foreach (var scopeKey in gateway.SubscribedScopeKeys)`; `TickLoopServiceTests.cs:50-69` — subscribes only to `worldScope`, asserts a delta was written there (`reader.TryRead` true, `IsType<ScopeTickDelta>`), then asserts an **unsubscribed** city scope's replay is empty (`Assert.Empty(replay.Value!)`) | ✅ PASS |
+| Disabled by default in test env, gated by `TICK_LOOP_ENABLED` | no `IHostedService` auto-start absent the env var | `git show bed254d -- src/LivingWorld.Api/Program.cs` — `builder.Services.AddSingleton<TickLoopService>();` always registered (so tests can resolve it directly), but `if (builder.Configuration["TICK_LOOP_ENABLED"] == "true") builder.Services.AddHostedService(...)` gates the actual background start; test class doc comment confirms `TICK_LOOP_ENABLED` "continua ausente/false no processo de teste"; all 4 `TickLoopServiceTests` call `loop.RunOneCycle()` directly, never `StartAsync` | ✅ PASS |
+| Code comment declares the tick-decision boundary | loop decides *when*, never *what* | `TickLoopService.cs:8-15` (XML doc) — explicitly states the loop "decide QUANDO chamar `WorldClock.Tick` — nunca O QUE o tick faz", cites `rules/simulation-determinism.md` | ✅ PASS |
+| Gate: 4 passed | `dotnet test --filter FullyQualifiedName~TickLoop` | Verified independently | ✅ PASS |
 
-**Status**: ✅ All in-scope ACs covered. One spec-precision note below (portal placement vs. mock architecture), no functional gap in T20/T21/T30's own Done-when lists.
+### T4 (tasks.md:372-376, VTT2-26 operational)
 
-**Note (not a gap, flagged for T33)**: `web/src/data/mock/fixtures.ts:244` (`portalFixtures: SpatialPortalDto[]`) and `web/src/data/mock/MockPortalSource.ts` keep portals as a **separate** queryable source (`PortalSource.portalsOf(space)`), not nested inside the mock `GlobalSnapshot`/`CitySnapshot` fixtures. T21's Done-when literally instructs "the `Portals` field appears in `GlobalSnapshot`/`CitySnapshot`," which is what was built (`GlobalProjector.cs:33`, `CityProjector.cs:29`). The *element shape* matches T0's `SpatialPortalDto` exactly; the *placement* (embedded field vs. standalone source) diverges from the mock's architecture. This is a reconciliation item for T33 (the task explicitly deferred there), not a defect in this bundle — the implementer followed the literal task instruction.
+| Criterion | Spec-defined outcome | `file:line` + assertion | Result |
+| --- | --- | --- | --- |
+| Log doesn't grow unboundedly after N publishes with a subscriber | bounded by `retentionPerScope` | `src/LivingWorld.Api/Realtime/RealtimeGateway.cs:83-84` — `if (entries.Count > retentionPerScope) entries.RemoveRange(0, entries.Count - retentionPerScope);`; `tests/.../RealtimeGatewayRetentionTests.cs:14-26` — 20 publishes, `retentionPerScope: 5`, `Assert.Equal(5, everything.Value!.Count)` | ✅ PASS |
+| Replay of an active subscriber still returns everything not yet seen | correctness preserved despite truncation | `RealtimeGatewayRetentionTests.cs:29-44` — cursor at sequence 17 after 20 publishes/retention 5, `Assert.Equal(3, pending.Value!.Count)` (sequences 18,19,20) and `Assert.All(..., e => e.ToCursor.Sequence > 17)` | ✅ PASS, **with a caveat** — see gap note below |
+| Scope without any subscriber never accumulates history | early-return before touching `_log` | `RealtimeGateway.cs:70-71` — `if (!_subscribers.TryGetValue(...) || channels.Count == 0) return;` placed before any `_log`/`_sequenceByScope` mutation; `RealtimeGatewayRetentionTests.cs:47-57` — 10 publishes with zero subscribers, `Assert.Empty(everything.Value!)` | ✅ PASS |
+| `RealtimeGatewayEndpointTests` intact | pre-existing behavior unbroken | Not in this bundle's test files, but gate run below shows `RealtimeGateway` filter (10 passed) is a superset covering both new (3) and pre-existing tests | ✅ PASS (see Gate Check) |
+| Gate: 10 passed | `dotnet test --filter FullyQualifiedName~RealtimeGateway` | Verified independently | ✅ PASS |
+
+**Gap note (spec-precision, not a Done-when failure)**: tasks.md's T4 "What" describes the retention strategy as "descartando entradas abaixo do menor cursor de assinante ativo" (discarding entries below the lowest cursor of any active subscriber) — i.e., a *cursor-aware* prune. The actual implementation (`RealtimeGateway.cs:83-84`) is a simpler **fixed-size sliding window** per scope (last `retentionPerScope` entries, full stop), which does not track subscriber cursors at all. For a single subscriber that reads at least every `retentionPerScope` publishes, behavior is indistinguishable from the spec's stated design (which is exactly what all 3 new tests exercise). But if a subscriber goes silent for longer than `retentionPerScope` publishes, or if two subscribers to the same scope have very different read cadences, the fixed window can silently drop entries the slower subscriber hasn't replayed yet — the described "keep down to the slowest active cursor" guarantee is not actually implemented. This is a real behavioral gap between the task's own prose and the code, though every literal Done-when bullet as tested still passes (none of the 3 tests exercises multi-subscriber or long-silence scenarios). Recommend a follow-up task/lesson before this is relied upon with more than one concurrent viewer per scope, or before retention windows are tuned down from generous defaults.
 
 ---
 
-## Discrimination Sensor
+## Discrimination Sensor (lightweight tier, 3 mutations, scratch-only)
 
-Sensor run via targeted edit → filtered test run → `git checkout --` revert (confirmed via `git status`/`git diff` before and after each mutation; working tree clean throughout).
+All mutations applied to the working tree only, verified via `git status`/`git diff` clean before and after, reverted with `git checkout --`.
 
-| # | File:line | Description | Killed? |
-| - | --- | --- | ------- |
-| 1 | `src/LivingWorld.Api/Visual/GlobalProjector.cs:64` | Flipped `\|\|` → `&&` in the World-scope portal filter (`p.From.Space == World \|\| p.To.Space == World`) | ✅ Killed — `Build_includes_a_portal_whose_origin_is_the_World_scope` failed (empty collection) |
-| 2 | `src/LivingWorld.Api/Visual/CityProjector.cs:67` | Swapped `CityPopulationQuery.Health(...)` for a duplicate `Wealth(...)` call in `CityIndicators` construction | ✅ Killed — `Build_includes_the_six_indicators_matching_CityPopulationQuery` failed (`Expected: 400, Actual: 450`) |
-| 3 | `src/LivingWorld.Simulation/Cities/CityScenarioLoader.cs:274` | Off-by-one on `RefIndex` upper-bound check: `refIndex >= cityCount` → `refIndex > cityCount` (lets `refIndex == cityCount` through unvalidated) | ❌ **Survived** — full `CityAndBuildingAuthoringTests` filter: 18/18 passed. `Authored_portal_referencing_a_non_existent_city_index_fails` uses `RefIndex = 7` against `cityCount = 1`, which is caught by both the correct and the off-by-one check; no test exercises the exact boundary `RefIndex == cityCount` |
+| # | File | Mutation | Filtered test run | Result |
+| - | ---- | -------- | ------------------ | ------ |
+| 1 | `SimulationControlEndpoints.cs` | `<= 0` → `< 0` (speed validation boundary) | `Speed_with_a_non_positive_value_returns_400_and_does_not_change_ticks_per_second` failed (500 Internal Server Error instead of 400 — `SimulationHost.SetSpeed` throws on `0`) | ✅ Killed |
+| 2 | `RealtimeGateway.cs` | Retention truncation condition effectively disabled (`entries.Count > retentionPerScope` → `entries.Count > retentionPerScope * 1000`, i.e. never triggers at test scale) | `Log_does_not_grow_past_the_retention_window_after_many_publishes` failed (log had 20 entries, expected 5) | ✅ Killed |
+| 3 | `ScopeDeltaBuilder.cs` | Dropped the moved-cell case: `!before.TryGetValue(id, out var previousLocation) \|\| previousLocation != location` → `!before.TryGetValue(id, out var previousLocation)` | `Diff_returns_only_npcs_that_changed_cell` failed (Npc1's cell change from `(0,0)`→`(1,0)` was no longer reported as moved) | ✅ Killed |
 
-**Sensor depth**: lightweight (3 mutations, default tier)
-**Result**: 2/3 killed — ⚠️ one survivor found (see Fix Plan below)
+Sensor result: **3/3 mutants killed.** `git status`/`git diff` confirmed clean before mutation 1, clean after revert of mutation 3 (final check), and the repo returned to `cbca11a..b2f207c` HEAD state with no residual changes.
 
 ---
 
-## Code Quality
+## Code Quality Check
 
-| Principle | Status |
+| Aspect | Finding |
 | --- | --- |
-| Minimum code (no abstractions beyond task scope) | ✅ — `SpatialPortal`/`PortalEndpoint` are plain records, no interfaces/factories added |
-| Surgical changes / only touched files required for task | ✅ — diff touches only domain/simulation/API-visual/tests, no `web/` files (verified via `git diff --name-only`) |
-| Didn't "improve" unrelated code | ✅ — no unrelated refactors observed in the 4 commits' diffs |
-| Matches existing patterns/style | ✅ — `AddPortal` mirrors `AddCity`/`AddBuilding`; `ParsePortals` mirrors `ParseBuildings`'s optional-field pattern; `CellBounds` flattening mirrors existing `GlobalSnapshot.Width/Height` precedent cited in spec.md |
-| Would senior engineer approve? | ✅ |
-| Tests map to ACs and are non-shallow | ✅ — spot-checked `Build_includes_the_six_indicators_matching_CityPopulationQuery` (asserts against live `CityPopulationQuery` output, not a hardcoded literal) and `Round_tripping_a_world_with_portals_preserves_them_with_an_identical_canonical_hash` (asserts full collection equality + hash) |
-| Spec-anchored outcome check | ✅ — see AC tables above; asserted values target the spec-defined outcome (hash equality, exact resolver output, exact query output), not merely "an assertion exists" |
-| Per-layer Coverage Expectation met | ✅ — domain (`SpatialPortal` canonical/round-trip/isolation) has 1:1 AC mapping; API projection layer covers happy path (portal touches scope) + edge (portal excluded when it doesn't touch scope) for both `GlobalProjector`/`CityProjector` |
-| Every test maps to a spec AC / Done-when — no unclaimed tests | ✅ — all new tests in the 4 commits trace to a T20/T21/T30 Done-when bullet (see tables above) |
-| Documented guidelines followed | none found beyond `coding-principles.md` (tlc-spec-driven) — strong defaults applied |
-
----
-
-## Edge Cases
-
-- [x] Scenario without any declared portal stays valid (T21 AC4) — `CityAndBuildingAuthoringTests.cs:261`
-- [x] Unauthored building falls back to a stable, derived position (T20) — `CityProjectorTests.cs:67`
-- [x] Portal referencing an out-of-range city/building index fails scenario load — `CityAndBuildingAuthoringTests.cs:290` (though see the off-by-one survivor above — the exact boundary index is not exercised)
-- [x] Portal touching a different city/scope is excluded from that scope's projection — `CityProjectorTests.cs:200`, `GlobalProjectorTests.cs:145`
+| Touched files vs. "Where" | T1, T2 match exactly. T4 matches exactly (`RealtimeGateway.cs` only, as listed). T3 touched `RealtimeGateway.cs` (adding `SubscribedScopeKeys`) in addition to its listed `TickLoopService.cs` + `Program.cs` — **this deviation is explicitly called out in tasks.md's own "Nota"** under T3: "`RealtimeGateway` ganhou `SubscribedScopeKeys` (gap real — sem ele o loop não tem como saber quais escopos publicar, e o `Where` desta task não listava esse arquivo)." This is a reasonable, minimal, additive-only change (one new read-only property, no behavior change to existing members) and is honestly documented rather than silently smuggled in. Acceptable. |
+| T4 also changed `Snapshot()`'s sequence computation | `Snapshot()` (`RealtimeGateway.cs:37`) switched from `_log.TryGetValue(...).Count` to `_sequenceByScope.GetValueOrDefault(...)`. This is a necessary consequence of the retention fix, not scope creep: once `_log` is truncated, `entries.Count` is no longer a valid proxy for the total historical sequence count, so `Snapshot()`'s cursor would silently regress/repeat sequence numbers after the first truncation without this change. Correctly identified and fixed together. |
+| Minimum code / no scope creep | All 4 diffs are small (51-176 LOC incl. tests) and additive. No unrequested abstractions (no interfaces, no factories, no config knobs beyond the existing `retentionPerScope`/`TICK_LOOP_ENABLED` pattern already used elsewhere in the codebase, e.g. `WorldHost`). |
+| Matches existing patterns | `SimulationControlEndpoints.cs` mirrors `WorldStartEndpoints.cs`'s thin `MapPost`/lambda style (verified by reading both). Test class doc comments and `IClassFixture<WebApplicationFactory<Program>>` usage match `WorldCreateEndpointsTests.cs`/`VisualGateTests.cs` conventions already in the repo. |
+| Speculative tests | None found — every test in the 4 new test files traces to a specific Done-when bullet (see AC tables above); no extra assertions unrelated to the task's stated criteria. |
 
 ---
 
 ## Gate Check
 
-- **Gate command**: `dotnet test tests/LivingWorld.Tests --nologo --filter "FullyQualifiedName~SpatialPortal|FullyQualifiedName~WorldSnapshotTests|FullyQualifiedName~CityAndBuildingAuthoringTests|FullyQualifiedName~GlobalProjectorTests|FullyQualifiedName~CityProjectorTests|FullyQualifiedName~GoldenHashesTests"`
-- **Result**: 111 passed, 0 failed, 1 skipped, 112 total
-- **Skipped tests**: `GoldenHashesTests.ZZZ_record_golden_hashes` — justified: this test's sole purpose is to *write* the golden baseline on demand (`[Fact(Skip = ...)]`-style opt-in helper per `GoldenHashesTests.cs:19-29`), and per T21 AC6 it must never run as a side effect of the regular gate. Its skip is by design, not a regression.
-- **New tests added this bundle**: 20 new `[Fact]`/`[Theory]` attributes across `WorldSnapshotTests.cs` (+2, plus 1 new case picked up automatically by the existing `ReflectedPropertyNames` theory), `CityAndBuildingAuthoringTests.cs` (+6), `CityProjectorTests.cs` (+8), `GlobalProjectorTests.cs` (+4) — exceeds each task's stated minimum (T20 ≥4, T21 ≥8, T30 ≥3; 15 combined minimum vs. 20 actual)
-- **Failures**: none
+```
+dotnet test tests/LivingWorld.Tests --nologo --filter "FullyQualifiedName~SimulationControl|FullyQualifiedName~ScopeDelta|FullyQualifiedName~TickLoop|FullyQualifiedName~RealtimeGateway"
+```
+
+Result: **Passed! Failed: 0, Passed: 27, Skipped: 0, Total: 27** (7 SimulationControl + 6 ScopeDelta + 4 TickLoop + 10 RealtimeGateway — matches the per-task counts in tasks.md exactly). Full `verify.sh`/`Category=Scenario` suite intentionally **not** run per this project's test-gate-cadence rule (reserved for phase closure).
 
 ---
 
-## Fix Plans
+## Fix Plans / Lessons
 
-### Fix 1: Surviving mutant on `CityScenarioLoader.ParsePortals` city `RefIndex` upper-bound check
-
-- **Root cause**: `Authored_portal_referencing_a_non_existent_city_index_fails` (`tests/LivingWorld.Tests/Cities/CityAndBuildingAuthoringTests.cs:290`) uses `RefIndex = 7` against a scenario with exactly 1 authored city, which is far outside the valid range regardless of whether the boundary check is `>=` or `>`. No test exercises the exact boundary `RefIndex == cityCount` (the first invalid index), so an off-by-one on that boundary (and, by the same code shape, the mirrored `Building` branch) is undetected.
-- **Fix task**: Add a test asserting that `RefIndex == cityCount` (and, separately, `RefIndex == buildingCount` for the `Building` branch) fails with the same "não referencia nenhuma cidade/prédio autorada" error, alongside the existing far-out-of-range case.
-- **Priority**: Minor — the current implementation (`refIndex < 0 || refIndex >= cityCount`, confirmed correct by reading `src/LivingWorld.Simulation/Cities/CityScenarioLoader.cs`) is not defective; only the test suite's boundary coverage is thin. No user-facing behavior is currently wrong.
+1. **Spec-precision gap (T4, non-blocking)**: tasks.md's stated retention design ("discard below the lowest active subscriber cursor") is not what's implemented (fixed-size sliding window per scope). Every literal Done-when bullet passes because the tests only exercise single-subscriber scenarios within the retention window. Suggest either (a) updating tasks.md's "What" wording to match the simpler, actually-shipped design ("keep the last `retentionPerScope` entries per scope, all-or-nothing across scope subscribers"), or (b) filing a follow-up task if true per-subscriber-cursor-aware pruning is needed once multiple concurrent viewers per scope with divergent read cadences becomes a real usage pattern. Low priority at this stage (Estágio 2, engine-facing only, no real frontend clients yet).
+2. No surviving mutants; no SPEC_DEVIATION beyond what tasks.md itself already documents (T3's `SubscribedScopeKeys` addition).
 
 ---
 
-## Requirement Traceability Update
+## Requirement Traceability
 
-| Requirement | Previous Status | New Status |
+| Requirement | Task(s) | Covered by |
 | --- | --- | --- |
-| VTT2-42..45 (footprint enabler) | Pending | ✅ Verified (API enabler only; rendering ACs remain Pending for T28/T34) |
-| VTT2-62..67 (SpatialPortal) | Pending | ✅ Verified for AC1-4/AC6 (backend); AC5 (client navigation) remains Pending, explicitly deferred to T11/T33 |
-| VTT2-22 (city indicators, AC1 only) | Pending | ✅ Verified (API enabler only; display AC remains Pending for T15) |
+| VTT2-27, VTT2-28, VTT2-29, VTT2-30 | T1 | `SimulationControlEndpointsTests.cs` (7 tests) |
+| VTT2-11 | T2 | `ScopeDeltaBuilderTests.cs` (6 tests) |
+| VTT2-26 | T3 | `TickLoopServiceTests.cs` (4 tests) |
+| VTT2-26 (operational viability) | T4 | `RealtimeGatewayRetentionTests.cs` (3 new) + pre-existing `RealtimeGateway*` tests (7, confirmed intact within the same 10-test filtered run) |
 
 ---
 
 ## Summary
 
-**Overall**: ⚠️ Issues (one minor test-coverage gap; no functional defect)
-
-**Spec-anchored check**: all in-scope T20/T21/T30 Done-when criteria and the 3 relevant spec.md ACs matched their spec-defined outcome with cited evidence; 0 gaps, 0 spec-precision gaps requiring rework
-**Sensor**: 2/3 mutations killed, 1 survived (test-coverage thinness on an already-correct boundary check, not a production bug)
-**Gate**: 111 passed, 0 failed, 1 justified skip
-
-**What works**: `SpatialPortal` canonical modeling, round-trip/hash isolation, scenario authoring with RefIndex resolution, `GlobalSnapshot`/`CitySnapshot` exposure of `Portals`/`Bounds`/`Location`/`Indicators`, zero `web/` touches, golden regen isolated per AC6, strict boundary (no simulation system reads `Portals`) confirmed by grep.
-
-**Issues found**: Fix 1 above — add boundary-value tests for `RefIndex == cityCount`/`RefIndex == buildingCount` in `CityScenarioLoader.ParsePortals`. Minor, does not block the bundle.
-
-**Next steps**: Route Fix 1 as a small follow-up task (test-only change, no production code fix needed since the underlying `>=` check is already correct). No re-verification loop required — this is not a regression, just a coverage recommendation.
+**Verdict: PASS.** All 4 tasks (T1-T4) are Done, commits match tasks.md, every Done-when bullet across all four tasks has a concrete `file:line` assertion whose asserted value matches the spec-defined outcome (16/16 spec-anchored checks pass). The discrimination sensor killed all 3 injected mutants (speed-validation boundary, retention truncation, moved-cell diff condition), and the repo was left clean before/after. Gate run independently reproduced 27/27 passing, matching tasks.md's recorded counts. Code quality is clean: touched files match "Where" almost exactly, with T3's one listed deviation (`RealtimeGateway.SubscribedScopeKeys`) self-documented in tasks.md and judged reasonable, and T4's incidental `Snapshot()` fix judged a necessary consequence rather than scope creep. One non-blocking spec-precision gap is recorded above (T4's retention strategy is simpler than its own prose describes) but does not fail any stated acceptance criterion at this stage of the project.
