@@ -50,6 +50,12 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: CITY-04 AC3, MaterializationRoundTripTests.cs:169-183 (tests/LivingWorld.Tests/Cities)
 - last seen: 2026-07-28T23:44:38Z
 
+### L-007 — When a test validates a scenario-authoring index/reference bound (e.g. RefIndex/CityIndex against a parsed collection count), assert the exact boundary value (index == count) as its own case, not just a far-out-of-range value — a far-out-of-range assertion passes identically whether the bound check is `>=` or the off-by-one `>`.
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `src/LivingWorld.Simulation/Cities/CityScenarioLoader.cs` · harmful: 0
+- features: phase-15.1-vtt-frontend-redesign
+- evidence: mutation #3, validation.md (E2.2 bundle) — CityScenarioLoader.ParsePortals RefIndex upper-bound check mutated `>=` → `>`; Authored_portal_referencing_a_non_existent_city_index_fails (RefIndex=7, cityCount=1) still passed
+- last seen: 2026-08-12T00:00:00Z
+
 ## Quarantined (failed when applied — ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.
