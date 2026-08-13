@@ -1092,7 +1092,7 @@ invariância de hash com a UI conectada, mais `validation.md`.
 - [x] `bash scripts/test.sh --filter Category=Scenario` — decisão do usuário: não rodar nesta sessão (~horas), roda manualmente depois; comando registrado no chat
 - [x] Sensor de discriminação: 3/3 mutações injetadas e mortas — `Camera.zoomAt` sem ancoragem no cursor (killed), `InterpolationBuffer.observe` sem substituir `to` (killed), `TickLoopService` com `IsPaused` invertido (killed); todas revertidas, árvore limpa
 - [x] Nenhuma `Mock*Source` é referenciada no caminho de produção (grep em `web/src/main.tsx`/`App.tsx`: zero) — composition root dividido em `main.tsx` (só `Real*Source`) e `demo.tsx`/`demo.html` (só `Mock*Source`, fora do build de produção — confirmado ausente de `dist/` e do bundle)
-- [ ] `validation.md` escrito por um verificador que não implementou as tasks — dispatch em andamento (Verifier sub-agent independente, após este commit)
+- [x] `validation.md` escrito por um verificador que não implementou as tasks — Verifier sub-agent independente, veredito **PASS**, sensor próprio (3 mutações distintas das do autor, 3/3 mortas)
 - [x] Contagem de testes registrada (dotnet + vitest) sem deleções silenciosas — dotnet: 1304 passed/11 skipped (era 1178 antes da fase); vitest: 263 passed (era ~241 no fim do Estágio 1)
 
 **Nota (lint, débito pré-existente)**: `dotnet format --verify-no-changes` nunca tinha rodado de fato num
