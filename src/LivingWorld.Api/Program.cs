@@ -1,6 +1,7 @@
 using LivingWorld.AI;
 using LivingWorld.Api;
 using LivingWorld.Api.Realtime;
+using LivingWorld.Api.Simulation;
 using LivingWorld.Api.VisualInput;
 using LivingWorld.Domain.Llm;
 using LivingWorld.Domain;
@@ -138,6 +139,7 @@ app.MapPeriodsEndpoints();
 app.MapWorldStartEndpoints();
 app.MapWorldCreateEndpoints(worldHost, worldRunner, worldSink);
 app.MapWorldPreviewEndpoints();
+app.MapSimulationControlEndpoints();
 app.MapRealtimeEndpoints();
 app.MapVisualInputEndpoints();
 

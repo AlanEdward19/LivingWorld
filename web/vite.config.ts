@@ -10,6 +10,7 @@ export default defineConfig({
       "/visual": { target: "http://localhost:5289", ws: true },
       "/worlds": { target: "http://localhost:5289" },
       "/periods": { target: "http://localhost:5289" },
+      "/simulation": { target: "http://localhost:5289" },
     },
   },
   test: {
