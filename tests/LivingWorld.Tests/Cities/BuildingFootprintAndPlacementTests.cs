@@ -65,8 +65,8 @@ public class BuildingFootprintAndPlacementTests
     {
         var city = new City(new CityId(Guid.NewGuid()), new CellCoord(50, 60), 0, null, new AggregatePopulationPool(0, 0, 0));
 
-        var (emptyBounds, isDerived) = CityBoundsResolver.Resolve(city, population: 0);
-        var (bigBounds, _) = CityBoundsResolver.Resolve(city, population: 10_000);
+        var (emptyBounds, isDerived) = CityBoundsResolver.Resolve(city, population: 0, mapWidth: 1000, mapHeight: 1000);
+        var (bigBounds, _) = CityBoundsResolver.Resolve(city, population: 10_000, mapWidth: 1000, mapHeight: 1000);
 
         Assert.True(isDerived);
         // Piso: população zero nunca produz um footprint maior que o mapa de um mundo Pequeno
@@ -75,9 +75,23 @@ public class BuildingFootprintAndPlacementTests
         Assert.Equal(4, emptyBounds.Width);
         Assert.Equal(4, emptyBounds.Height);
         Assert.Equal(new CellCoord(50 - 2, 60 - 2), emptyBounds.Origin);
-        // Teto: nunca maior que o antigo tamanho fixo, mesmo para população muito grande.
+        // Teto: nunca maior que o antigo tamanho fixo, mesmo para população muito grande (num
+        // mapa grande o bastante pra o teto por população ser o fator limitante, não o mapa).
         Assert.Equal(34, bigBounds.Width);
         Assert.Equal(34, bigBounds.Height);
+    }
+
+    [Fact]
+    public void City_bounds_never_exceed_the_smaller_map_dimension_even_when_population_asks_for_more()
+    {
+        // Bugfix real (usuário, 2026-08-13, rodada 2): confirmado ao vivo — template "Cidade
+        // média" (mapa 20x20, população 150) ainda produzia lado 25, maior que o próprio mapa.
+        var city = new City(new CityId(Guid.NewGuid()), new CellCoord(10, 10), 0, null, new AggregatePopulationPool(0, 0, 0));
+
+        var (bounds, _) = CityBoundsResolver.Resolve(city, population: 150, mapWidth: 20, mapHeight: 20);
+
+        Assert.True(bounds.Width <= 20);
+        Assert.True(bounds.Height <= 20);
     }
 
     // --- BuildingPlacementResolver ---

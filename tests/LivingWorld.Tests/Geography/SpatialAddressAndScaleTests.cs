@@ -99,8 +99,8 @@ public class SpatialAddressAndScaleTests
     {
         var city = new City(new CityId(Guid.NewGuid()), new CellCoord(10, 10), 0, null, new AggregatePopulationPool(20, 0, 0));
 
-        var (bounds, isDerived) = SpatialBoundsResolver.ResolveCity(city, population: 20);
-        var (expectedBounds, expectedIsDerived) = CityBoundsResolver.Resolve(city, population: 20);
+        var (bounds, isDerived) = SpatialBoundsResolver.ResolveCity(city, population: 20, mapWidth: 100, mapHeight: 100);
+        var (expectedBounds, expectedIsDerived) = CityBoundsResolver.Resolve(city, population: 20, mapWidth: 100, mapHeight: 100);
 
         Assert.Equal(expectedBounds, bounds);
         Assert.Equal(expectedIsDerived, isDerived);

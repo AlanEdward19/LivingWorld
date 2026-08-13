@@ -41,7 +41,7 @@ public static class GlobalProjector
             .Select(c =>
             {
                 long population = CityPopulationQuery.Population(world, c.Id);
-                var (bounds, isDerived) = SpatialBoundsResolver.ResolveCity(c, population);
+                var (bounds, isDerived) = SpatialBoundsResolver.ResolveCity(c, population, world.Map.Width, world.Map.Height);
                 var cellBounds = new CellBounds(bounds.Origin.X, bounds.Origin.Y, bounds.Width, bounds.Height);
                 return new GlobalCityMarker(c.Id, c.Location, population, cellBounds, isDerived);
             })

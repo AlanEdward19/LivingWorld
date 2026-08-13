@@ -8,8 +8,8 @@ public static class SpatialBoundsResolver
 {
     public static CityBounds ResolveWorld(WorldMap map) => new(new CellCoord(0, 0), map.Width, map.Height);
 
-    public static (CityBounds Bounds, bool IsDerived) ResolveCity(City city, long population) =>
-        CityBoundsResolver.Resolve(city, population);
+    public static (CityBounds Bounds, bool IsDerived) ResolveCity(City city, long population, int mapWidth, int mapHeight) =>
+        CityBoundsResolver.Resolve(city, population, mapWidth, mapHeight);
 
     public static CityBounds ResolveBuilding(Building building)
     {
