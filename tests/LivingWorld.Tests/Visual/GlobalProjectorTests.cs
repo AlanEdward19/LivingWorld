@@ -52,7 +52,7 @@ public class GlobalProjectorTests
 
         var marker = Assert.Single(GlobalProjector.Build(world).Cities);
 
-        var (expectedBounds, expectedIsDerived) = SpatialBoundsResolver.ResolveCity(city);
+        var (expectedBounds, expectedIsDerived) = SpatialBoundsResolver.ResolveCity(city, CityPopulationQuery(world, city.Id));
         Assert.True(expectedIsDerived);
         Assert.True(marker.BoundsAreDerived);
         Assert.Equal(expectedBounds.Origin.X, marker.Bounds.X);

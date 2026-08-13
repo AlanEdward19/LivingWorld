@@ -77,7 +77,15 @@ public class ScenarioLoaderV2Tests
         Assert.True(world.EconomyRules.Enabled);
         Assert.True(world.CityRules.Enabled);
         Assert.Single(world.Workplaces);
-        Assert.Single(world.Cities);
+        // Bugfix real (usuário, 2026-08-13): a vila inicial (VillageX/Y = 5,5 em default.json)
+        // não coincide com a cidade autorada (X/Y = 2,2, população 0) — antes desta correção a
+        // população inicial nunca era vinculada a nenhuma cidade (Npc.City ficava default),
+        // então sumia de toda projeção. Agora uma segunda cidade é fundada na própria vila,
+        // e é ela que carrega a população real.
+        Assert.Equal(2, world.Cities.Count);
+        var homeCity = Assert.Single(world.Cities, c => c.Location == new CellCoord(5, 5));
+        Assert.All(world.Npcs, npc => Assert.Equal(homeCity.Id, npc.City));
+        Assert.All(world.Households, household => Assert.Equal(homeCity.Id, household.City));
     }
 
     [Fact]

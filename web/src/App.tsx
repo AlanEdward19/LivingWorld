@@ -110,9 +110,11 @@ export function App({ simulationStore, viewStore, selectionStore, timeControlSou
         <button type="button" onClick={() => setScreen("start")}>
           ☰ menu
         </button>
-        <button type="button" onClick={() => (creatingWorld ? cancelCreatingWorld() : setCreatingWorld(true))}>
-          {creatingWorld ? "Cancelar" : "Criar mundo"}
-        </button>
+        {creatingWorld && (
+          <button type="button" onClick={cancelCreatingWorld}>
+            Cancelar
+          </button>
+        )}
         {!creatingWorld && worldName && <span className="world-name">{worldName}</span>}
         {!creatingWorld && <TimeControls timeControlSource={timeControlSource} />}
       </header>

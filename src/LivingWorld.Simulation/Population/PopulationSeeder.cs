@@ -8,12 +8,12 @@ namespace LivingWorld.Simulation;
 /// nasce sem um evento de óbito já na fila (task 4).</summary>
 public static class PopulationSeeder
 {
-    public static void SeedInitial(WorldState world, int count, CultureId culture, CellCoord villageLocation)
+    public static void SeedInitial(WorldState world, int count, CultureId culture, CellCoord villageLocation, CityId city = default)
     {
         var rng = world.Rng.Stream("population-init");
         var generated = PopulationGenerator.GenerateInitial(
             rng, world.CurrentDate, count, culture, villageLocation, world.PopulationRules.LifeTable,
-            world.PopulationCatalog, world.NextNpcId, world.NextHouseholdId);
+            world.PopulationCatalog, world.NextNpcId, world.NextHouseholdId, city);
 
         foreach (var npc in generated.Npcs)
         {

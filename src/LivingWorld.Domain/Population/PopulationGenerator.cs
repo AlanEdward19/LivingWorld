@@ -22,7 +22,8 @@ public static class PopulationGenerator
 
     public static GeneratedPopulation GenerateInitial(
         WorldRng rng, WorldDate now, int count, CultureId culture, CellCoord villageLocation,
-        LifeTable lifeTable, PopulationCatalog catalog, long startingNpcId = 0, long startingHouseholdId = 0)
+        LifeTable lifeTable, PopulationCatalog catalog, long startingNpcId = 0, long startingHouseholdId = 0,
+        CityId city = default)
     {
         long nextNpcId = startingNpcId;
         long nextHouseholdId = startingHouseholdId;
@@ -57,13 +58,13 @@ public static class PopulationGenerator
                 npcId, $"npc-{culture.Id}-{npcs.Count}", sex, birthDate, culture, villageLocation,
                 motherId: null, fatherId: null, household: null, health,
                 personality: personality, profession: profession, currentLocation: villageLocation,
-                rateGene: rateGene, vitality: vitality, upbringing: upbringing);
+                rateGene: rateGene, vitality: vitality, upbringing: upbringing, city: city);
 
             npcs.Add(npc);
             (ageYears >= 18 ? adults : children).Add(npc);
         }
 
-        var households = PairIntoHouseholds(adults, children, villageLocation, ref nextHouseholdId);
+        var households = PairIntoHouseholds(adults, children, villageLocation, ref nextHouseholdId, city);
 
         return new GeneratedPopulation(npcs, households, nextNpcId, nextHouseholdId);
     }
@@ -87,7 +88,7 @@ public static class PopulationGenerator
     }
 
     private static List<Household> PairIntoHouseholds(
-        List<Npc> adults, List<Npc> children, CellCoord location, ref long nextHouseholdId)
+        List<Npc> adults, List<Npc> children, CellCoord location, ref long nextHouseholdId, CityId city)
     {
         var females = new Queue<Npc>(adults.Where(a => a.Sex == Sex.Female));
         var males = new Queue<Npc>(adults.Where(a => a.Sex == Sex.Male));
@@ -119,7 +120,7 @@ public static class PopulationGenerator
         foreach (var members in seeds)
         {
             var head = members.OrderBy(m => m.Id.Value).First();
-            var household = new Household(new HouseholdId(nextHouseholdId++), location, head.Id, members.Select(m => m.Id).ToList());
+            var household = new Household(new HouseholdId(nextHouseholdId++), location, head.Id, members.Select(m => m.Id).ToList(), city: city);
             foreach (var member in members)
                 member.JoinHousehold(household.Id);
             households.Add(household);

@@ -180,7 +180,7 @@ describe("App", () => {
     expect(screen.getByTestId("start-menu")).toBeInTheDocument();
   });
 
-  it("cancelling a new-world creation started mid-game returns to the running map, not the start menu", async () => {
+  it("does not offer a 'Criar mundo' button while already playing a world — only the menu button", async () => {
     const { simulationStore, viewStore, selectionStore, timeControlSource } = buildStores();
     render(
       <App
@@ -194,11 +194,8 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
     await screen.findByTestId("world-map-view");
 
-    fireEvent.click(screen.getByRole("button", { name: "Criar mundo" }));
-    expect(screen.getByTestId("preset-start")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
-
-    expect(await screen.findByTestId("world-map-view")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Criar mundo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancelar" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "☰ menu" })).toBeInTheDocument();
   });
 });

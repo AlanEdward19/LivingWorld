@@ -40,9 +40,10 @@ public static class GlobalProjector
         var cities = world.Cities
             .Select(c =>
             {
-                var (bounds, isDerived) = SpatialBoundsResolver.ResolveCity(c);
+                long population = CityPopulationQuery.Population(world, c.Id);
+                var (bounds, isDerived) = SpatialBoundsResolver.ResolveCity(c, population);
                 var cellBounds = new CellBounds(bounds.Origin.X, bounds.Origin.Y, bounds.Width, bounds.Height);
-                return new GlobalCityMarker(c.Id, c.Location, CityPopulationQuery.Population(world, c.Id), cellBounds, isDerived);
+                return new GlobalCityMarker(c.Id, c.Location, population, cellBounds, isDerived);
             })
             .ToList();
 

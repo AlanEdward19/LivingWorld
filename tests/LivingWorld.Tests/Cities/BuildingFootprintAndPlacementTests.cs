@@ -61,16 +61,23 @@ public class BuildingFootprintAndPlacementTests
     // --- CityBoundsResolver ---
 
     [Fact]
-    public void City_bounds_are_always_derived_today_using_the_fixed_client_side_formula()
+    public void City_bounds_are_always_derived_today_and_scale_with_population_within_a_floor_and_cap()
     {
         var city = new City(new CityId(Guid.NewGuid()), new CellCoord(50, 60), 0, null, new AggregatePopulationPool(0, 0, 0));
 
-        var (bounds, isDerived) = CityBoundsResolver.Resolve(city);
+        var (emptyBounds, isDerived) = CityBoundsResolver.Resolve(city, population: 0);
+        var (bigBounds, _) = CityBoundsResolver.Resolve(city, population: 10_000);
 
         Assert.True(isDerived);
-        Assert.Equal(34, bounds.Width);
-        Assert.Equal(24, bounds.Height);
-        Assert.Equal(new CellCoord(50 - 17, 60 - 12), bounds.Origin);
+        // Piso: população zero nunca produz um footprint maior que o mapa de um mundo Pequeno
+        // (10x10) — bug real reportado pelo usuário, a fórmula antiga sempre desenhava 34x24
+        // fixo, estourando qualquer mundo menor que isso.
+        Assert.Equal(4, emptyBounds.Width);
+        Assert.Equal(4, emptyBounds.Height);
+        Assert.Equal(new CellCoord(50 - 2, 60 - 2), emptyBounds.Origin);
+        // Teto: nunca maior que o antigo tamanho fixo, mesmo para população muito grande.
+        Assert.Equal(34, bigBounds.Width);
+        Assert.Equal(34, bigBounds.Height);
     }
 
     // --- BuildingPlacementResolver ---

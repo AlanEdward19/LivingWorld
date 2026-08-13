@@ -40,9 +40,6 @@ public static class ScenarioLoaderV2
             economyRules: definition.Economy.Rules, economyCatalog: definition.Economy.Catalog,
             cityRules: definition.City.Rules, cityCatalog: definition.City.Catalog);
 
-        if (population.InitialPopulation > 0)
-            PopulationSeeder.SeedInitial(world, population.InitialPopulation, population.Culture, population.Village);
-
         foreach (var workplace in definition.Economy.Workplaces)
             world.AddWorkplace(new Workplace(
                 world.NextWorkplaceIdAndAdvance(), workplace.LocationType, workplace.Location, workplace.MaxVacancies,
@@ -55,6 +52,39 @@ public static class ScenarioLoaderV2
             var createdCity = new City(world.NextCityId(), city.Location, city.FoundedAtTick, foundedFromCityId: null, city.AggregatePool, name: name);
             world.AddCity(createdCity);
             createdCityIds.Add(createdCity.Id);
+        }
+
+        // Bugfix real (usuário, 2026-08-13): a população inicial nunca era vinculada a nenhuma
+        // cidade (Npc.City/Household.City ficavam no CityId default) — sumia de toda projeção
+        // (World filtra NPC externo por cidade conhecida, City filtra por Npc.City == cityId),
+        // então todo mundo criado (em branco ou por template) parecia sempre vazio, com a mesma
+        // única cidade fixa do formulário (population 0) e nenhum morador visível em lugar
+        // nenhum. Reusa a cidade autorada na mesma célula da vila inicial, se existir; senão
+        // funda uma nova ali — mesmo nome de fallback de SettlementFoundingSystem.
+        if (population.InitialPopulation > 0)
+        {
+            int homeCityIndex = definition.City.Cities
+                .Select((c, index) => (c.Location, index))
+                .Where(c => c.Location == population.Village)
+                .Select(c => c.index)
+                .DefaultIfEmpty(-1)
+                .First();
+
+            CityId homeCityId;
+            if (homeCityIndex >= 0)
+            {
+                homeCityId = createdCityIds[homeCityIndex];
+            }
+            else
+            {
+                var homeCity = new City(
+                    world.NextCityId(), population.Village, foundedAtTick: 0, foundedFromCityId: null,
+                    new AggregatePopulationPool(0, 0, 0), name: CityNameGenerator.Generate(world));
+                world.AddCity(homeCity);
+                homeCityId = homeCity.Id;
+            }
+
+            PopulationSeeder.SeedInitial(world, population.InitialPopulation, population.Culture, population.Village, homeCityId);
         }
 
         var createdBuildingIds = new List<BuildingId>(definition.City.Buildings.Count);
