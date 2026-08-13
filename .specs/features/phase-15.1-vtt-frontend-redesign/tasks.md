@@ -1073,7 +1073,7 @@ sem consumidores foram removidos depois da migração dos testes.
 
 ---
 
-### T27: Fechamento de fase — regressivo completo — **Estágio 3 (última task da fase)**
+### T27: Fechamento de fase — regressivo completo — **Estágio 3 (última task da fase)** — ✅ Done (parcial, ver notas)
 
 **What**: única execução do gate completo da fase, mais os testes de cenário, mais o teste de
 invariância de hash com a UI conectada, mais `validation.md`.
@@ -1086,14 +1086,21 @@ invariância de hash com a UI conectada, mais `validation.md`.
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] Teste novo: N ticks com sessão de observação ativa navegando produzem o mesmo hash canônico que N ticks sem sessão
-- [ ] Teste novo: nenhum endpoint de `/simulation` altera o hash canônico
-- [ ] `bash scripts/verify.sh` passa até o fim (primeira e única execução completa da fase)
-- [ ] `bash scripts/test.sh --filter Category=Scenario` passa até o fim
-- [ ] Sensor de discriminação: ≥ 3 mutações injetadas e mortas (sugestões: `Camera.zoomAt` sem ancoragem no cursor; `InterpolationBuffer.observe` enfileirando em vez de substituir; `TickLoopService` ignorando `IsPaused`)
-- [ ] Nenhuma `Mock*Source` é referenciada no caminho de produção (grep em `web/src/main.tsx`/`App.tsx`: zero); os mocks continuam existindo e usados **só** por testes e pelo modo de demo offline
-- [ ] `validation.md` escrito por um verificador que não implementou as tasks
-- [ ] Contagem de testes registrada (dotnet + vitest) sem deleções silenciosas
+- [x] Teste novo: N ticks com sessão de observação ativa navegando produzem o mesmo hash canônico que N ticks sem sessão — `tests/LivingWorld.Tests/Simulation/TickLoopHashInvarianceTests.cs`
+- [x] Teste novo: nenhum endpoint de `/simulation` altera o hash canônico — já coberto por `SimulationControlEndpointsTests.Pause_resume_and_speed_calls_never_change_the_canonical_hash` (T1); não duplicado
+- [x] `bash scripts/verify.sh` — `check-docs`/`build`/`test.sh` (1304 passed, 0 failed, 11 skipped) passam; `generate-web-types.sh --check` limpo. **`lint.sh` (`dotnet format --verify-no-changes`) reprova com 1725 violações pré-existentes em todo o repo** (todas as fases anteriores, nenhuma nos arquivos desta fase exceto um `using` já presente no padrão de arquivos-irmãos como `TickLoopServiceTests.cs`) — decisão do usuário: pular o lint neste fechamento, tratar como débito técnico separado (ver nota abaixo)
+- [x] `bash scripts/test.sh --filter Category=Scenario` — decisão do usuário: não rodar nesta sessão (~horas), roda manualmente depois; comando registrado no chat
+- [x] Sensor de discriminação: 3/3 mutações injetadas e mortas — `Camera.zoomAt` sem ancoragem no cursor (killed), `InterpolationBuffer.observe` sem substituir `to` (killed), `TickLoopService` com `IsPaused` invertido (killed); todas revertidas, árvore limpa
+- [x] Nenhuma `Mock*Source` é referenciada no caminho de produção (grep em `web/src/main.tsx`/`App.tsx`: zero) — composition root dividido em `main.tsx` (só `Real*Source`) e `demo.tsx`/`demo.html` (só `Mock*Source`, fora do build de produção — confirmado ausente de `dist/` e do bundle)
+- [ ] `validation.md` escrito por um verificador que não implementou as tasks — dispatch em andamento (Verifier sub-agent independente, após este commit)
+- [x] Contagem de testes registrada (dotnet + vitest) sem deleções silenciosas — dotnet: 1304 passed/11 skipped (era 1178 antes da fase); vitest: 263 passed (era ~241 no fim do Estágio 1)
+
+**Nota (lint, débito pré-existente)**: `dotnet format --verify-no-changes` nunca tinha rodado de fato num
+fechamento de fase — a T1-T4 validation.md desta mesma feature já registra que o `verify.sh` completo
+"intencionalmente não foi rodado" antes de agora, reservado à T27 pela cadência de testes. As 1725
+violações (ENDOFLINE/CHARSET/IMPORTS/IDE0005) abrangem arquivos de todas as fases anteriores — não é
+uma regressão desta fase. Usuário decidiu explicitamente pular o lint neste fechamento em vez de rodar
+`dotnet format` (autofix) no repo inteiro numa única task; fica como débito técnico separado.
 
 **Tests**: integration + architecture + scenario · **Gate**: Phase-close (full) + Phase-close (scenario)
 **Commit**: `chore: phase 15.1 close — full regression and validation report`
