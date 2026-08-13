@@ -288,7 +288,14 @@ export function defaultScenarioForm(): ScenarioFormState {
     organizationTicks: 1,
     materializationIdleTicksBeforeEligible: 1,
     buildingRecipes: [],
-    cities: [{ x: 2, y: 2, foundedAtTick: 0, count: 0, wealthSum: 0, healthSum: 0 }],
+    // Bugfix real (usuário, 2026-08-13): uma cidade fantasma aqui — em (2,2), sem nenhuma
+    // relação com `settlements`/`villageX/Y` (5,5) acima, nunca movida pelo editor visual —
+    // sempre resultava numa segunda cidade real fundada pelo backend em (5,5) pra abrigar a
+    // população de verdade (`ScenarioLoaderV2.LoadWorld`), confundindo quem só clicou "1
+    // assentamento" no mapa e via 2 cidades ao criar o mundo. Igual aos 3 templates reais do
+    // `DefaultPeriodSeeder` (`Cities: []`) — sem cidade pré-autorada, o backend funda exatamente
+    // uma, no lugar onde a população nasce de verdade.
+    cities: [],
 
     professionBiases: [],
     skillBiases: [],
