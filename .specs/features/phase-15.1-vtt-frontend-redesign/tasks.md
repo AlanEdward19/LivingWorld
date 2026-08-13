@@ -779,7 +779,7 @@ de Biome fica no painel por paridade de dado, sem fingir efeito visual que não 
 
 ---
 
-### T20: Campos de footprint na projeção [P] — **Estágio 2 · Engine-facing (read-model/API only)** · OQ-1 resolvida
+### T20: Campos de footprint na projeção [P] — **Estágio 2 · Engine-facing (read-model/API only)** · OQ-1 resolvida — ✅ Done (`444e177`)
 
 **What**: expor em `GlobalCityMarker`/`CityBuildingMarker` os bounds e posições canônicos entregues
 por T45, mantendo fallback derivado e explicitamente marcado para mundos legados. **Só a API.**
@@ -795,20 +795,20 @@ por T45, mantendo fallback derivado e explicitamente marcado para mundos legados
 > fixture por este campo é **T34** (Estágio 3).
 
 **Done when**:
-- [ ] `GlobalCityMarker` traz `Bounds`/`BoundsAreDerived`; `CityBuildingMarker` traz `Location`/`LocationIsDerived`
-- [ ] Autoria canônica tem precedência; fallback legado é estável por `BuildingId` e nunca move um prédio ao reordenar a coleção
-- [ ] Os campos batem, campo a campo, com o shape que a fixture de T0 já usa (se divergirem, a T34 deixa de ser mecânica — verificar antes de fechar)
-- [ ] Teste prova que projetar os campos não altera o hash; a mudança canônica pertence exclusivamente à T45
-- [ ] `git diff --name-only` não lista nenhum arquivo sob `web/`
-- [ ] Gate: `dotnet test tests/LivingWorld.Tests --nologo --filter "FullyQualifiedName~Visual"`
-- [ ] Contagem de testes: ≥ 4 novos passando
+- [x] `GlobalCityMarker` traz `Bounds`/`BoundsAreDerived`; `CityBuildingMarker` traz `Location`/`LocationIsDerived`
+- [x] Autoria canônica tem precedência; fallback legado é estável por `BuildingId` e nunca move um prédio ao reordenar a coleção
+- [x] Os campos batem, campo a campo, com o shape que a fixture de T0 já usa (se divergirem, a T34 deixa de ser mecânica — verificar antes de fechar)
+- [x] Teste prova que projetar os campos não altera o hash; a mudança canônica pertence exclusivamente à T45
+- [x] `git diff --name-only` não lista nenhum arquivo sob `web/`
+- [x] Gate: `dotnet test tests/LivingWorld.Tests --nologo --filter "FullyQualifiedName~Visual"` — 78 passed (5 novos), tsc n/a (task não toca web/)
+- [x] Contagem de testes: ≥ 4 novos passando — 5 novos
 
 **Tests**: integration · **Gate**: Quick-api
 **Commit**: `feat(api): derived city footprint and stable building placement fields`
 
 ---
 
-### T21: `SpatialPortal` como conceito canônico de domínio — **Estágio 2 · Engine-facing (DOMAIN — altera hash/goldens)** · OQ-2 resolvida
+### T21: `SpatialPortal` como conceito canônico de domínio — **Estágio 2 · Engine-facing (DOMAIN — altera hash/goldens)** · OQ-2 resolvida — ✅ Done (`8539125` + regravação de goldens em `1da3d5b`)
 
 **What**: modelar entradas/saídas nomeadas de um espaço ("portão norte", "docas", "porta da frente")
 como dado canônico novo em `LivingWorld.Domain`/`WorldState`, expor esse dado na projeção da API, e
@@ -830,19 +830,28 @@ efeito econômico/social, nenhuma mudança de posição de NPC. `MigrationSystem
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] Cada portal é dado canônico com identidade, rótulo, espaço/posição de origem e de destino, marcado `[Canonical]` (AC1)
-- [ ] Round-trip de serialização preserva todos os portais com hash canônico idêntico (AC2)
-- [ ] N portais para o mesmo par de espaços funcionam distinguíveis só por rótulo, sem nenhum ramo de código por entrada (AC3)
-- [ ] Cenário sem portais declarados continua válido; cenário com portais os carrega pelo caminho declarativo (AC4)
-- [ ] O campo `Portals` aparece em `GlobalSnapshot`/`CitySnapshot`, no mesmo shape que a fixture de T0 já usa (a *consulta* pelo cliente é de T11 contra o mock e de T33 contra este campo; nenhum arquivo de `web/` é tocado aqui)
-- [ ] Teste prova que um mundo **sem** nenhum portal declarado produz hash idêntico ao baseline atual (isola a mudança de hash à coleção nova, não a um efeito colateral)
-- [ ] Goldens regravados em commit **separado e explícito** via `dotnet test --filter ZZZ_record_golden_hashes` (`GoldenHashesTests.cs:19-29`), nunca como efeito colateral do gate (AC6)
-- [ ] Nenhum sistema de simulação lê `world.Portals` nesta task (fronteira estrita — grep pós-implementação confirma zero leituras fora de domínio/projeção/cliente)
-- [ ] Gate: `dotnet test tests/LivingWorld.Tests --nologo --filter "FullyQualifiedName~SpatialPortal"` **e** o teste de regravação de goldens isolado
-- [ ] Contagem de testes: ≥ 8 novos passando
+- [x] Cada portal é dado canônico com identidade, rótulo, espaço/posição de origem e de destino, marcado `[Canonical]` (AC1)
+- [x] Round-trip de serialização preserva todos os portais com hash canônico idêntico (AC2)
+- [x] N portais para o mesmo par de espaços funcionam distinguíveis só por rótulo, sem nenhum ramo de código por entrada (AC3)
+- [x] Cenário sem portais declarados continua válido; cenário com portais os carrega pelo caminho declarativo (AC4)
+- [x] O campo `Portals` aparece em `GlobalSnapshot`/`CitySnapshot`, no mesmo shape que a fixture de T0 já usa (a *consulta* pelo cliente é de T11 contra o mock e de T33 contra este campo; nenhum arquivo de `web/` é tocado aqui)
+- [x] Teste prova que um mundo **sem** nenhum portal declarado produz hash idêntico ao baseline atual (isola a mudança de hash à coleção nova, não a um efeito colateral) — testado como isolamento (duas cargas idênticas hasheiam igual; só adicionar um portal diverge), não como igualdade ao hash pré-feature — ver nota abaixo
+- [x] Goldens regravados em commit **separado e explícito** via `dotnet test --filter ZZZ_record_golden_hashes` (`GoldenHashesTests.cs:19-29`), nunca como efeito colateral do gate (AC6) — `1da3d5b`
+- [x] Nenhum sistema de simulação lê `world.Portals` nesta task (fronteira estrita — grep pós-implementação confirma zero leituras fora de domínio/projeção/cliente)
+- [x] Gate: `dotnet test tests/LivingWorld.Tests --nologo --filter "FullyQualifiedName~SpatialPortal"` **e** o teste de regravação de goldens isolado — 101 passed (13 novos + regen), goldens regravados e revalidados
+- [x] Contagem de testes: ≥ 8 novos passando — 13 novos (+1 boundary test adicionado após o Verifier)
 
 **Tests**: unit + integration · **Gate**: Quick-api (+ regravação de goldens em commit próprio, não no mesmo commit da task)
 **Commit**: `feat(domain): spatial portals as canonical named space entrances/exits`
+
+**Nota (SPEC_DEVIATION)**: `SpatialPortal.Id`/`PortalEndpoint` usam `string Id`/`string Label`, não o
+`readonly record struct PortalId(long Value)` do design.md. Razão: `PortalId(long)` serializaria
+como `{"value": N}` (mesmo padrão de `CityId`/`BuildingId` nesta base), divergindo do shape que a
+fixture mock do T0 já usa e que o cliente (T11/ViewStore) já consome
+(`web/src/data/contracts.ts` `SpatialPortalDto.id: string`, ex. `"portal-city-a-north"`). Como a
+task explicitamente exige bater "no mesmo shape que a fixture de T0 já usa", `Id` ficou string
+plana — mesmo molde de `SettlementAnchor.Id` (`MapCell.cs:16-18`), que também é string autorada de
+cenário, não um contador de `WorldState`. Validado independentemente pelo Verifier (`validation.md`).
 
 ---
 
@@ -1253,7 +1262,7 @@ que o usuário aprovou/pediu).
 
 ---
 
-### T30: Indicadores de cidade na projeção — **Estágio 2 · Engine-facing (read-model/API only)** [P]
+### T30: Indicadores de cidade na projeção — **Estágio 2 · Engine-facing (read-model/API only)** [P] — ✅ Done (`841a00d`)
 
 **What**: expor os 6 indicadores que `CityPopulationQuery` já calcula (população, riqueza, saúde,
 desigualdade/Gini, economia, habitação) no snapshot de cidade. **Só a API.**
@@ -1265,12 +1274,12 @@ desigualdade/Gini, economia, habitação) no snapshot de cidade. **Só a API.**
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] Os 6 indicadores aparecem no payload de `CitySnapshot`, no mesmo shape que a fixture de T0 usa
-- [ ] Teste prova que o campo novo **não** altera o hash canônico (padrão de `VisualGateTests`)
-- [ ] Nenhum indicador é recalculado no projector — `CityPopulationQuery` é a única fonte
-- [ ] `git diff --name-only` não lista nenhum arquivo sob `web/`
-- [ ] Gate: `dotnet test tests/LivingWorld.Tests --nologo --filter "FullyQualifiedName~Visual"`
-- [ ] Contagem de testes: ≥ 3 novos passando
+- [x] Os 6 indicadores aparecem no payload de `CitySnapshot`, no mesmo shape que a fixture de T0 usa
+- [x] Teste prova que o campo novo **não** altera o hash canônico (padrão de `VisualGateTests`)
+- [x] Nenhum indicador é recalculado no projector — `CityPopulationQuery` é a única fonte
+- [x] `git diff --name-only` não lista nenhum arquivo sob `web/`
+- [x] Gate: `dotnet test tests/LivingWorld.Tests --nologo --filter "FullyQualifiedName~Visual"` — 31 passed (2 novos)
+- [x] Contagem de testes: ≥ 3 novos passando — 3 novos (indicadores batem com `CityPopulationQuery`, hash-invariância, cidade vazia = todos os indicadores zerados)
 
 **Tests**: integration · **Gate**: Quick-api
 **Commit**: `feat(api): expose city population indicators in the city snapshot`

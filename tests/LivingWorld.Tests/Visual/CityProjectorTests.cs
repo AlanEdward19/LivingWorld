@@ -141,6 +141,25 @@ public class CityProjectorTests
         Assert.Equal(hashBefore, WorldSnapshot.CanonicalHash(world));
     }
 
+    [Fact]
+    public void Build_reports_zero_indicators_for_a_city_with_no_residents_or_buildings()
+    {
+        var world = ScenarioRunner.Create(seed: 11, initialPopulation: 0).World;
+        var emptyCity = new City(
+            world.NextCityId(), new CellCoord(0, 0), foundedAtTick: 0, foundedFromCityId: null,
+            aggregatePool: new AggregatePopulationPool(0, 0, 0));
+        world.AddCity(emptyCity);
+
+        var indicators = CityProjector.Build(world, emptyCity.Id).Value!.Indicators;
+
+        Assert.Equal(0, indicators.Population);
+        Assert.Equal(0, indicators.Wealth);
+        Assert.Equal(0, indicators.Health);
+        Assert.Equal(0.0, indicators.Inequality);
+        Assert.Equal(0, indicators.Economy);
+        Assert.Equal(0, indicators.Housing);
+    }
+
     [Theory]
     [InlineData(VisualLayerId.Cities)]
     [InlineData(VisualLayerId.Villages)]
