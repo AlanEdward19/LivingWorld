@@ -11,6 +11,8 @@ public sealed class BufferingWorldEventSink : IWorldEventSink
 
     public void Record(WorldEvent evt) => _buffer.Add(evt);
 
+    public IReadOnlyList<WorldEvent> EventsAt(long tick) => _buffer.Where(evt => evt.Tick == tick).ToList();
+
     /// <summary>Devolve e esvazia o buffer — chamado só na fronteira de snapshot.</summary>
     public IReadOnlyList<WorldEvent> DrainAll()
     {

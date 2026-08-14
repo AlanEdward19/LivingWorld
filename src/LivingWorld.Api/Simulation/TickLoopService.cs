@@ -1,6 +1,7 @@
 using LivingWorld.Api.Realtime;
 using LivingWorld.Api.Visual;
 using LivingWorld.Domain;
+using LivingWorld.Infrastructure;
 using LivingWorld.Simulation;
 
 namespace LivingWorld.Api.Simulation;
@@ -13,9 +14,14 @@ namespace LivingWorld.Api.Simulation;
 /// ativo (nunca de todo escopo existente no mundo — ver <see cref="RealtimeGateway.SubscribedScopeKeys"/>).
 /// <see cref="RunOneCycle"/> fica público para os testes acionarem um ciclo deterministicamente,
 /// sem depender do agendamento de tempo real.</summary>
-public sealed class TickLoopService(WorldHost worldHost, SimulationHost simulationHost, RealtimeGateway gateway) : IHostedService
+public sealed class TickLoopService(
+    WorldHost worldHost,
+    SimulationHost simulationHost,
+    RealtimeGateway gateway,
+    PersistentWorldRunner runner,
+    BufferingWorldEventSink sink) : IHostedService
 {
-    private readonly Dictionary<string, IReadOnlyDictionary<NpcId, CellCoord>> _lastPositions = new();
+    private readonly Dictionary<string, LivingScopeState> _lastStates = new();
     private CancellationTokenSource? _cts;
     private Task? _loopTask;
 
@@ -58,6 +64,8 @@ public sealed class TickLoopService(WorldHost worldHost, SimulationHost simulati
         var world = worldHost.Current;
         worldHost.Clock.Tick(world);
         PublishDeltas(world);
+        if (world.CurrentDate.TotalHours % 24 == 0)
+            runner.Snapshot(world, sink);
     }
 
     private void PublishDeltas(WorldState world)
@@ -70,13 +78,13 @@ public sealed class TickLoopService(WorldHost worldHost, SimulationHost simulati
                 continue; // T3 cobre World/City; escopos Interior ficam fora do escopo desta task.
 
             var scope = ParseScope(scopeKey);
-            var positions = PositionsOf(world, scope);
-            var before = _lastPositions.TryGetValue(scopeKey, out var previous)
+            var state = LivingScopeProjector.Build(world, scope, sink.EventsAt(tick));
+            var before = _lastStates.TryGetValue(scopeKey, out var previous)
                 ? previous
-                : new Dictionary<NpcId, CellCoord>();
+                : LivingScopeState.Empty;
 
-            var delta = ScopeDeltaBuilder.Diff(tick, before, positions);
-            _lastPositions[scopeKey] = positions;
+            var delta = ScopeDeltaBuilder.Diff(tick, before, state);
+            _lastStates[scopeKey] = state;
             gateway.Publish(scope, delta);
         }
     }
@@ -86,21 +94,4 @@ public sealed class TickLoopService(WorldHost worldHost, SimulationHost simulati
             ? new VisualScope(VisualScopeKind.World, "")
             : new VisualScope(VisualScopeKind.City, scopeKey["city:".Length..]);
 
-    private static IReadOnlyDictionary<NpcId, CellCoord> PositionsOf(WorldState world, VisualScope scope)
-    {
-        if (scope.Kind == VisualScopeKind.City)
-        {
-            var cityId = new CityId(Guid.Parse(scope.RefId));
-            return world.Npcs
-                .Where(n => n.IsAlive && n.City == cityId)
-                .ToDictionary(n => n.Id, n => n.CurrentLocation);
-        }
-
-        // World: mesma semântica de GlobalProjector.ExternalNpcs (NPC fora da célula da própria
-        // cidade) — sem invocar GlobalProjector.Build, que também monta camadas.
-        var cityLocationById = world.Cities.ToDictionary(c => c.Id, c => c.Location);
-        return world.Npcs
-            .Where(n => n.IsAlive && cityLocationById.TryGetValue(n.City, out var home) && n.CurrentLocation != home)
-            .ToDictionary(n => n.Id, n => n.CurrentLocation);
-    }
 }

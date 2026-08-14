@@ -253,13 +253,10 @@ export function MapView({
   }
 
   // Feedback do usuário (2026-08-07): clique em NPC só "pegava" bem quando zoomed-out. Causa
-  // real: `hitRadiusPx` era uma constante fixa em pixels de tela, mas o token visível cresce
-  // com o zoom (`renderer.ts` desenha `r = max(4, scale*0.35)`) — a partir de scale~17 o raio
-  // visível já passa o raio de acerto fixo (10px), então clicar na borda do círculo visto na
-  // tela erra. O raio de acerto agora acompanha o mesmo cálculo do raio visível (com folga),
-  // nunca menor que `hitRadiusPx`.
+  // real: o raio de acerto precisa acompanhar o token, mas ambos têm limite absoluto para um
+  // NPC nunca crescer até a escala visual de uma cidade.
   function effectiveHitRadiusPx(camera: Camera): number {
-    return Math.max(hitRadiusPx, camera.snapshot().scale * 0.4);
+    return Math.max(hitRadiusPx, Math.min(12, camera.snapshot().scale * 0.25));
   }
 
   function handleClick(e: React.MouseEvent<HTMLCanvasElement>) {

@@ -78,6 +78,56 @@ describe("TimeControls", () => {
     await waitFor(() => expect(screen.getByTestId("time-controls-status")).toHaveTextContent("Pausado"));
   });
 
+  it("shows the authoritative tick and calendar year", async () => {
+    const source = {
+      pause: vi.fn(async () => {}), resume: vi.fn(async () => {}),
+      setSpeed: vi.fn(async () => {}), step: vi.fn(async () => {}),
+      status: vi.fn(async () => ({ isPaused: false, ticksPerSecond: 2, tick: 8641, year: 1 })),
+    };
+
+    render(<TimeControls timeControlSource={source} />);
+
+    await waitFor(() => expect(screen.getByTestId("time-controls-clock")).toHaveTextContent("Tick 8641 · Ano 1"));
+  });
+
+  it("refreshes the authoritative clock while the HUD remains mounted", async () => {
+    let tick = 20;
+    const source = {
+      pause: vi.fn(async () => {}), resume: vi.fn(async () => {}),
+      setSpeed: vi.fn(async () => {}), step: vi.fn(async () => {}),
+      status: vi.fn(async () => ({ isPaused: false, ticksPerSecond: 1, tick: tick++, year: 0 })),
+    };
+
+    render(<TimeControls timeControlSource={source} />);
+
+    await waitFor(() => expect(screen.getByTestId("time-controls-clock")).toHaveTextContent("Tick 20 · Ano 0"));
+    await waitFor(() => expect(screen.getByTestId("time-controls-clock")).toHaveTextContent("Tick 21 · Ano 0"), { timeout: 900 });
+  });
+
+  it("shows the refreshed authoritative clock after time-control commands", async () => {
+    let paused = false;
+    let tick = 10;
+    let speed = 1;
+    const source = {
+      pause: vi.fn(async () => { paused = true; tick = 11; }),
+      resume: vi.fn(async () => { paused = false; tick = 12; }),
+      setSpeed: vi.fn(async (next: number) => { speed = next; tick = 13; }),
+      step: vi.fn(async () => { tick = 14; }),
+      status: vi.fn(async () => ({ isPaused: paused, ticksPerSecond: speed, tick, year: 0 })),
+    };
+    render(<TimeControls timeControlSource={source} />);
+    await waitFor(() => expect(screen.getByTestId("time-controls-clock")).toHaveTextContent("Tick 10"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+    await waitFor(() => expect(screen.getByTestId("time-controls-clock")).toHaveTextContent("Tick 11"));
+    fireEvent.click(screen.getByRole("button", { name: "+1 tick" }));
+    await waitFor(() => expect(screen.getByTestId("time-controls-clock")).toHaveTextContent("Tick 14"));
+    fireEvent.click(screen.getByRole("button", { name: "Resume" }));
+    await waitFor(() => expect(screen.getByTestId("time-controls-clock")).toHaveTextContent("Tick 12"));
+    fireEvent.click(screen.getByRole("button", { name: "4x" }));
+    await waitFor(() => expect(screen.getByTestId("time-controls-clock")).toHaveTextContent("Tick 13"));
+  });
+
   it("never constructs fetch", async () => {
     const fetchSpy = vi.fn(() => {
       throw new Error("TimeControls must never call fetch");

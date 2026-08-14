@@ -1,15 +1,9 @@
-// Fase 15.1, T15: inspector de NPC — campos do snapshot já carregado, sem disparar nenhuma
-// fonte de detalhe extra na seleção. No motor real, `NpcInspectionQuery.Inspect` materializa o
-// NPC (`NpcInspectionQuery.cs:17`) — é mutação, não leitura pura (context.md gap 10) — então o
-// detalhe completo (idade, profissão, família, needs) só pode vir de uma ação EXPLÍCITA, nunca
-// automaticamente ao selecionar. Aqui esse detalhe ainda não existe (nenhuma fonte mock o
-// modela) — "Ver detalhes" existe e é testado, mas revela um aviso honesto, não dado inventado.
-import { useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { FollowButton } from "./FollowButton";
 import type { SimulationStore } from "../../state/simulationStore";
 import type { ViewStore } from "../../state/viewStore";
 import type { EntityRef } from "../../map-engine/types";
-import type { CityResidentMarker, GlobalNpcMarker } from "../../types";
+import type { NpcInspection } from "../../data/contracts";
 import { NpcTokenSvg } from "../NpcTokenSvg";
 
 export interface NpcInspectorProps {
@@ -18,60 +12,130 @@ export interface NpcInspectorProps {
   viewStore: ViewStore;
 }
 
-interface NpcPayloadShape {
-  residents?: CityResidentMarker[];
-  externalNpcs?: GlobalNpcMarker[];
+const ACTION_LABELS: Record<number, string> = {
+  0: "Comendo", 1: "Dormindo", 2: "Trabalhando", 3: "Socializando",
+  4: "Viajando", 5: "Descansando", 6: "Comprando",
+};
+
+const TARGET_LABELS: Record<string, string> = {
+  workplace: "Local de trabalho",
+  household: "Domicílio",
+  npc: "Pessoa",
+};
+
+function idValue(value: { value: number } | null): string {
+  return value ? String(value.value) : "—";
 }
 
-function findMarker(payload: unknown, npcId: number): CityResidentMarker | GlobalNpcMarker | undefined {
-  const candidate = payload as NpcPayloadShape | null;
-  return (candidate?.residents ?? candidate?.externalNpcs)?.find((m) => m.id.value === npcId);
+function targetLabel(target: NpcInspection["actionTarget"]): string {
+  if (!target) return "Sem alvo definido";
+  return `${TARGET_LABELS[target.kind] ?? target.kind} ${target.id}`;
+}
+
+function NeedMeter({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="npc-need">
+      <span>{label}</span>
+      <progress aria-label={label} max={100} value={value} />
+      <strong>{value}</strong>
+    </div>
+  );
 }
 
 export function NpcInspector({ entityRef, simulationStore, viewStore }: NpcInspectorProps) {
-  const [detailsOpen, setDetailsOpen] = useState(false);
   const npcId = Number(entityRef.id);
-  const payload = simulationStore.currentPayload<unknown>(entityRef.space);
-  const marker = findMarker(payload, npcId);
-  const entity = simulationStore.entitiesOf(entityRef.space).find((e) => e.ref.id === entityRef.id);
-  const currentAction = marker && "currentAction" in marker ? marker.currentAction : null;
+  const inspection = useSyncExternalStore(
+    (onStoreChange) => simulationStore.subscribe(onStoreChange),
+    () => simulationStore.npcInspectionOf(npcId),
+  );
+
+  useEffect(() => {
+    void simulationStore.inspectNpc(npcId);
+  }, [npcId, simulationStore]);
+
+  if (inspection === undefined) {
+    return (
+      <div className="npc-living-inspector">
+        <h3>NPC {entityRef.id}</h3>
+        <p role="status">Carregando vida…</p>
+      </div>
+    );
+  }
+  if (inspection === null) {
+    return <p role="note">Este habitante não está materializado ou não pôde ser inspecionado.</p>;
+  }
+
+  const action = inspection.currentAction === null
+    ? "Sem ação atual"
+    : ACTION_LABELS[inspection.currentAction] ?? `Atividade ${inspection.currentAction}`;
+  const skills = Object.entries(inspection.skills.values);
 
   return (
-    <div>
+    <div className="npc-living-inspector">
       <div className="npc-inspector-identity">
-        <NpcTokenSvg npcId={entityRef.id} currentAction={currentAction} className="npc-inspector-pawn" />
+        <NpcTokenSvg npcId={entityRef.id} currentAction={inspection.currentAction} className="npc-inspector-pawn" />
         <div>
-          <small>Personagem observado</small>
-          <h3>NPC {entityRef.id}</h3>
+          <small>{inspection.lod === 0 ? "Pessoa materializada" : "Registro histórico"}</small>
+          <h3>{inspection.name}</h3>
+          <span>{inspection.ageYears} anos · cultura {inspection.culture.id}</span>
         </div>
       </div>
 
-      <dl>
-        <dt>Posição</dt>
-        <dd>
-          {entity ? `(${entity.position.x}, ${entity.position.y})` : "—"}
-        </dd>
+      <section aria-labelledby="npc-activity-title">
+        <h4 id="npc-activity-title">Agora</h4>
+        <dl>
+          <dt>Ação</dt><dd>{action}</dd>
+          <dt>Alvo</dt><dd>{targetLabel(inspection.actionTarget)}</dd>
+          <dt>Desde o tick</dt><dd>{inspection.actionStartedAtTick}</dd>
+          <dt>Posição</dt><dd>({inspection.currentLocation.x}, {inspection.currentLocation.y})</dd>
+          <dt>LOD</dt><dd>{inspection.lod === 0 ? "Materializado" : "Arquivado"}</dd>
+        </dl>
+      </section>
 
-        {currentAction !== null && currentAction !== undefined && (
-          <>
-            <dt>Ação atual</dt>
-            <dd>{currentAction}</dd>
-          </>
-        )}
-      </dl>
+      <section aria-labelledby="npc-needs-title">
+        <h4 id="npc-needs-title">Bem-estar</h4>
+        <NeedMeter label="Saúde" value={inspection.health} />
+        <NeedMeter label="Fome" value={inspection.hunger} />
+        <NeedMeter label="Sede" value={inspection.thirst} />
+        <NeedMeter label="Sono" value={inspection.sleep} />
+        <NeedMeter label="Social" value={inspection.social} />
+      </section>
+
+      <section aria-labelledby="npc-family-title">
+        <h4 id="npc-family-title">Família</h4>
+        <dl>
+          <dt>Domicílio</dt><dd>{idValue(inspection.household)}</dd>
+          <dt>Mãe</dt><dd>{idValue(inspection.motherId)}</dd>
+          <dt>Pai</dt><dd>{idValue(inspection.fatherId)}</dd>
+          <dt>Cônjuge</dt><dd>{idValue(inspection.spouse)}</dd>
+        </dl>
+      </section>
+
+      <section aria-labelledby="npc-work-title">
+        <h4 id="npc-work-title">Trabalho e habilidades</h4>
+        <dl>
+          <dt>Profissão</dt><dd>{inspection.profession.id}</dd>
+          <dt>Empregador</dt><dd>{idValue(inspection.employer)}</dd>
+        </dl>
+        {skills.length > 0 ? (
+          <ul className="npc-skills">
+            {skills.map(([skillId, value]) => <li key={skillId}>Habilidade {skillId}: {value.toFixed(1)}</li>)}
+          </ul>
+        ) : <p>Nenhuma habilidade desenvolvida.</p>}
+      </section>
+
+      <section aria-labelledby="npc-knowledge-title">
+        <h4 id="npc-knowledge-title">O que esta pessoa acredita</h4>
+        {inspection.beliefs.length > 0 ? (
+          <ul className="npc-beliefs">
+            {inspection.beliefs.map((belief, index) => <li key={`${index}:${belief}`}>{belief}</li>)}
+          </ul>
+        ) : <p>Nenhum relato conhecido.</p>}
+      </section>
 
       <div className="entity-inspector-actions">
         <FollowButton entityRef={entityRef} viewStore={viewStore} />
-        <button type="button" onClick={() => setDetailsOpen((v) => !v)}>
-          {detailsOpen ? "Ocultar detalhes" : "Ver detalhes"}
-        </button>
       </div>
-
-      {detailsOpen && (
-        <p role="note">
-          Detalhe completo (idade, profissão, família, needs) ainda não modelado no cliente.
-        </p>
-      )}
     </div>
   );
 }

@@ -72,13 +72,13 @@ public class BuildingFootprintAndPlacementTests
         // Piso: população zero nunca produz um footprint maior que o mapa de um mundo Pequeno
         // (10x10) — bug real reportado pelo usuário, a fórmula antiga sempre desenhava 34x24
         // fixo, estourando qualquer mundo menor que isso.
-        Assert.Equal(4, emptyBounds.Width);
-        Assert.Equal(4, emptyBounds.Height);
-        Assert.Equal(new CellCoord(50 - 2, 60 - 2), emptyBounds.Origin);
-        // Teto: nunca maior que o antigo tamanho fixo, mesmo para população muito grande (num
-        // mapa grande o bastante pra o teto por população ser o fator limitante, não o mapa).
-        Assert.Equal(34, bigBounds.Width);
-        Assert.Equal(34, bigBounds.Height);
+        Assert.Equal(3, emptyBounds.Width);
+        Assert.Equal(3, emptyBounds.Height);
+        Assert.Equal(new CellCoord(50 - 1, 60 - 1), emptyBounds.Origin);
+        // Teto visual compacto, mesmo para população muito grande (num mapa grande o bastante
+        // para o teto por população ser o fator limitante, não o mapa).
+        Assert.Equal(12, bigBounds.Width);
+        Assert.Equal(12, bigBounds.Height);
     }
 
     [Fact]
@@ -90,8 +90,8 @@ public class BuildingFootprintAndPlacementTests
 
         var (bounds, _) = CityBoundsResolver.Resolve(city, population: 150, mapWidth: 20, mapHeight: 20);
 
-        Assert.True(bounds.Width <= 20);
-        Assert.True(bounds.Height <= 20);
+        Assert.True(bounds.Width <= 10);
+        Assert.True(bounds.Height <= 10);
     }
 
     // --- BuildingPlacementResolver ---

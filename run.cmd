@@ -8,12 +8,16 @@ if not exist "web\node_modules" (
     call npm --prefix web install
 )
 
+if not exist "worlds" mkdir "worlds"
+set "ConnectionStrings__World=Data Source=%CD%\worlds\livingworld.db"
+set "TICK_LOOP_ENABLED=true"
+
 echo [api] abrindo janela...
 REM Bugfix real (usuario, 2026-08-13): sem TICK_LOOP_ENABLED=true o relogio da simulacao nunca
 REM avanca sozinho fora dos testes (Fase 15.1, T3 desabilita por padrao pra nenhuma
 REM WebApplicationFactory de teste ganhar um mundo mudando sozinho embaixo dela) - Play/Resume
 REM no cliente nao tinha efeito nenhum, NPCs ficavam sempre parados no lugar onde nasceram.
-start "LivingWorld API" cmd /k "set TICK_LOOP_ENABLED=true&& dotnet run --project src\LivingWorld.Api --urls http://localhost:5289"
+start "LivingWorld API" cmd /k "dotnet run --project src\LivingWorld.Api --urls http://localhost:5289"
 
 echo [web] abrindo janela...
 start "LivingWorld Web" cmd /k "npm --prefix web run dev"

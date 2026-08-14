@@ -256,7 +256,10 @@ export function defaultScenarioForm(): ScenarioFormState {
     ],
     defaultAction: "Idle",
 
-    economyEnabled: true,
+    // O cenário em branco não possui cadeia produtiva/estoque inicial suficiente para sustentar
+    // a população. Economia ligada aqui fazia todos morrerem de fome enquanto o usuário apenas
+    // observava o mapa; presets econômicos continuam podendo habilitá-la explicitamente.
+    economyEnabled: false,
     foodResourceId: 1,
     waterResourceId: 2,
     priceSensitivity: 0.1,
@@ -269,7 +272,7 @@ export function defaultScenarioForm(): ScenarioFormState {
     recipes: [],
     marketLocationTypeIds: "",
     locationTypeByProfession: [],
-    workplaces: [{ locationTypeId: 1, x: 1, y: 1, maxVacancies: 3, treasury: 0, stock: "", prices: "" }],
+    workplaces: [],
 
     citiesEnabled: true,
     foodShortageThreshold: 0.1,
@@ -360,6 +363,31 @@ export function buildCells(form: ScenarioFormState): object[] | undefined {
 
 export function scenarioFormToJson(form: ScenarioFormState): string {
   const cells = buildCells(form);
+  const village = form.settlements[0] ?? { x: form.villageX, y: form.villageY };
+  const authoredCities = [
+    ...form.settlements.map((settlement) => {
+      const configured = form.cities.find((city) => city.x === settlement.x && city.y === settlement.y);
+      return {
+        X: settlement.x,
+        Y: settlement.y,
+        Name: settlement.name,
+        FoundedAtTick: configured?.foundedAtTick ?? 0,
+        AggregatePool: {
+          Count: configured?.count ?? 0,
+          WealthSum: configured?.wealthSum ?? 0,
+          HealthSum: configured?.healthSum ?? 0,
+        },
+      };
+    }),
+    ...form.cities
+      .filter((city) => !form.settlements.some((settlement) => settlement.x === city.x && settlement.y === city.y))
+      .map((city) => ({
+        X: city.x,
+        Y: city.y,
+        FoundedAtTick: city.foundedAtTick,
+        AggregatePool: { Count: city.count, WealthSum: city.wealthSum, HealthSum: city.healthSum },
+      })),
+  ];
   const root = {
     Width: form.width,
     Height: form.height,
@@ -378,8 +406,8 @@ export function scenarioFormToJson(form: ScenarioFormState): string {
 
     InitialPopulation: form.initialPopulation,
     Culture: form.culture,
-    VillageX: form.villageX,
-    VillageY: form.villageY,
+    VillageX: village.x,
+    VillageY: village.y,
     CultureIds: parseCsvInts(form.cultureIds),
     ProfessionIds: parseCsvInts(form.professionIds),
     LocationTypeIds: parseCsvInts(form.locationTypeIds),
@@ -473,12 +501,7 @@ export function scenarioFormToJson(form: ScenarioFormState): string {
         },
       ]),
     ),
-    Cities: form.cities.map((c) => ({
-      X: c.x,
-      Y: c.y,
-      FoundedAtTick: c.foundedAtTick,
-      AggregatePool: { Count: c.count, WealthSum: c.wealthSum, HealthSum: c.healthSum },
-    })),
+    Cities: authoredCities,
 
     Dynamics: {
       ProfessionBiases: form.professionBiases.map((p) => ({

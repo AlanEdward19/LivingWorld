@@ -16,11 +16,10 @@ var builder = WebApplication.CreateBuilder(args);
 // gerados por scripts/generate-web-types.sh a partir deste endpoint.
 builder.Services.AddOpenApi();
 
-// Fase 15, T2: mesma conexão sqlite `:memory:` mantida aberta pela vida do processo/factory
-// guarda tanto os templates de período (Fase 13, T5) quanto o snapshot canônico do mundo
-// (abaixo) — persistência real em disco fica para quando a API ganhar configuração de
-// storage, fora do escopo desta task.
-var worldDbConnection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
+// Testes continuam isolados em memória quando não configuram conexão. O app iniciado por
+// run.cmd injeta um SQLite em disco, portanto o último mundo sobrevive ao restart da API.
+var worldConnectionString = builder.Configuration.GetConnectionString("World") ?? "Data Source=:memory:";
+var worldDbConnection = new Microsoft.Data.Sqlite.SqliteConnection(worldConnectionString);
 worldDbConnection.Open();
 var worldDbOptions = new DbContextOptionsBuilder<WorldDbContext>().UseSqlite(worldDbConnection).Options;
 using (var migrationContext = new WorldDbContext(worldDbOptions))
@@ -35,13 +34,19 @@ using (var migrationContext = new WorldDbContext(worldDbOptions))
 var worldRepository = new SqliteWorldRepository(new WorldDbContext(worldDbOptions));
 var worldRunner = new PersistentWorldRunner(worldRepository, BranchId.Root, snapshotIntervalTicks: 24);
 var worldSink = new BufferingWorldEventSink();
-var worldClock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: worldSink);
+
+// Sessões e crônicas vivem em memória, mas a instância consultada pelos endpoints precisa ser
+// a mesma dirigida pelo relógio para eventos agendados e publicações ficarem observáveis.
+var sessions = new ConversationSessionStore();
+var chronicles = new ChronicleGenerationSystem();
+var worldClock = new WorldClock(
+    ScenarioRunner.DefaultSystems(conversationSessions: sessions, chronicles: chronicles),
+    sink: worldSink);
 
 var world = worldRunner.LoadLatest();
 if (world is null)
 {
     (world, _) = ScenarioRunner.Create(seed: 1, historyRules: HistoryRules.Default);
-    worldRunner.Snapshot(world, worldSink);
 }
 
 // Feature ad-hoc "criar mundo": wrapper mutável — antes dele `world` era capturado por
@@ -60,15 +65,6 @@ var simulationHost = new SimulationHost(worldHost);
 // resultado de uma leitura já feita).
 var realtimeGateway = new RealtimeGateway(() => worldHost.Current.CurrentDate.TotalHours);
 
-// Fase 11, T7: sessão/efeitos vivem só em memória do processo (mesmo espírito do `world`
-// acima) — nunca fazem parte do snapshot/hash canônico do mundo.
-var sessions = new ConversationSessionStore();
-
-// Fase 12, T7: crônicas geradas sob demanda pelo endpoint (mesmo padrão de materialização
-// sob demanda de NpcInspectionQuery) — idempotente por chave (local, periodStart, periodEnd),
-// então chamar de fora do Tick automático do WorldClock é seguro.
-var chronicles = new ChronicleGenerationSystem();
-
 // Registrados no DI (em vez de campos `static` em `Program`) para que cada instância de
 // `WebApplicationFactory<Program>` (uma por classe de teste) tenha seu próprio `world`/
 // `sessions` isolado — campos `static` eram compartilhados entre TODAS as factories do
@@ -86,6 +82,7 @@ builder.Services.AddSingleton(worldSink);
 builder.Services.AddSingleton(simulationHost);
 builder.Services.AddSingleton(realtimeGateway);
 builder.Services.AddSingleton(sessions);
+builder.Services.AddSingleton(chronicles);
 
 // Fase 15.1, T3 (VTT2-26): registrado sempre (resolvível/testável direto via TickLoopService),
 // mas só roda sozinho como IHostedService com TICK_LOOP_ENABLED=true — desabilitado por default

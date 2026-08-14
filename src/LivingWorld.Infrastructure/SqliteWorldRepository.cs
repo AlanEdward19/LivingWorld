@@ -12,6 +12,17 @@ public sealed class SqliteWorldRepository(WorldDbContext context) : IWorldReposi
         BranchId branch, long tick, string json, string canonicalHash, string volatileHash,
         IReadOnlyList<WorldEvent> events)
     {
+        // Tick zero representa a criação de um novo mundo no slot único. Snapshots mais altos
+        // pertencem ao mundo anterior e, se sobreviverem, LoadLatest() os escolherá no próximo
+        // boot em vez do mundo recém-criado.
+        if (tick == 0)
+        {
+            context.Snapshots.RemoveRange(
+                context.Snapshots.Where(s => s.BranchId == branch.Value && s.Tick > 0));
+            context.EventLog.RemoveRange(
+                context.EventLog.Where(e => e.BranchId == branch.Value));
+        }
+
         // Upsert por (BranchId, Tick): `worldRepository` é um único DbContext de vida longa
         // (Program.cs), então re-salvar o mesmo tick — ex.: tick 0 de um mundo novo criado via
         // POST /worlds/create, mesma chave do snapshot inicial de bootstrap — colide na

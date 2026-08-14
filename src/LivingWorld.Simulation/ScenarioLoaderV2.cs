@@ -110,7 +110,7 @@ public static class ScenarioLoaderV2
         // catálogo antes de qualquer sistema do mesmo tick sortear profissão por ele
         // (NatalitySystem/MaterializationSystem/PopulationSeeder).
         IReadOnlyList<ISimulationSystem> systems =
-            [new PeriodEvolutionSystem(definition.Dynamics.TransformationRules), .. ScenarioRunner.DefaultSystems()];
+            ScenarioRunner.DefaultSystems(definition.Dynamics.TransformationRules);
 
         return Result<(WorldState, WorldClock)>.Ok((world, new WorldClock(systems, maxIterationsPerTick)));
     }

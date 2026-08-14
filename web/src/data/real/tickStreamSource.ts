@@ -13,7 +13,8 @@ import { buildWebSocketUrl } from "../../api";
 import { spaceIdToFocusScope } from "./focusScope";
 
 interface DeltaEnvelopeWire {
-  toCursor: unknown;
+  fromCursor: { sequence: number };
+  toCursor: { sequence: number };
   payload: ScopeTickDelta;
 }
 
@@ -28,6 +29,12 @@ export class RealTickStreamSource implements TickStreamSource {
     socket.onmessage = (event) => {
       const message: unknown = JSON.parse(event.data as string);
       if (isDeltaEnvelope(message)) {
+        // Metadados não enumeráveis preservam o payload legado para consumidores existentes,
+        // mas permitem ao store rejeitar duplicatas e detectar lacunas.
+        Object.defineProperties(message.payload, {
+          fromSequence: { value: message.fromCursor.sequence, enumerable: false },
+          sequence: { value: message.toCursor.sequence, enumerable: false },
+        });
         onDelta(message.payload);
       }
     };

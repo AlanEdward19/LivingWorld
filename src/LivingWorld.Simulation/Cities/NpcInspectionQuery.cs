@@ -1,5 +1,6 @@
 using LivingWorld.Domain;
 using LivingWorld.Simulation.Population;
+using LivingWorld.Simulation.History;
 
 namespace LivingWorld.Simulation;
 
@@ -56,6 +57,8 @@ public static class NpcInspectionQuery
             npc.Profession, npc.Employer,
             npc.Health, npc.HungerAt(tick), npc.ThirstAt(tick), npc.SleepAt(tick), npc.SocialAt(tick), npc.Personality, npc.Skills,
             npc.CurrentLocation, npc.CurrentAction, npc.ActionStartedAtTick,
+            TargetOf(npc), NpcInspectionLod.Materialized,
+            Beliefs: NpcBeliefQuery.BeliefsOf(world, npc.Id),
             Memories: []);
     }
 
@@ -68,6 +71,16 @@ public static class NpcInspectionQuery
             summary.Profession, Employer: null,
             0, 0, 0, 0, 0, placeholderPersonality, SkillSet.Empty,
             new CellCoord(0, 0), CurrentAction: null, 0,
+            ActionTarget: null, Lod: NpcInspectionLod.Archived,
+            Beliefs: [],
             Memories: []);
     }
+
+    private static NpcActionTargetDto? TargetOf(Npc npc) => npc.CurrentAction switch
+    {
+        ActionType.Work when npc.Employer is { } workplace => new("workplace", workplace.Value.ToString()),
+        ActionType.Sleep when npc.Household is { } household => new("household", household.Value.ToString()),
+        ActionType.Socialize when npc.Spouse is { } spouse => new("npc", spouse.Value.ToString()),
+        _ => null,
+    };
 }

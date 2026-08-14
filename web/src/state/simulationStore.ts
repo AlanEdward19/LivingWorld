@@ -4,12 +4,20 @@
 // a troca mock->real (T31) uma troca de argumento, não uma reescrita. `subscribe` é um registro
 // simples de listener, fora do ciclo de render do React (VTT2-32) — quem monta React decide
 // quando reagir, o store não sabe que React existe.
-import type { SnapshotSource, TickStreamSource } from "../data/sources";
-import type { NpcPositionDelta, ScopeTickDelta } from "../data/contracts";
+import type { NpcInspectionSource, SnapshotSource, TickStreamSource } from "../data/sources";
+import type { ScopeTickDelta } from "../data/contracts";
 import type { AuthoritativeEntity, SpaceId } from "../map-engine/types";
 import type { VisualSnapshotEnvelope } from "../types";
 import { toScopeKey } from "../map-engine/space";
 import { CATEGORY_COLOR } from "../map-engine/categoryColors";
+import {
+  applyLivingDelta,
+  emptyLivingViewState,
+  livingViewStateFromWire,
+  type LivingViewState,
+} from "./frontendCapabilityConsumers";
+import type { LivingScopeStateWire } from "../data/contracts";
+import type { NpcInspection } from "../data/contracts";
 
 const RECONNECT_BACKOFF_MS = 500;
 
@@ -36,15 +44,19 @@ function extractNpcMarkers(payload: unknown): NpcMarkerLike[] {
 export class SimulationStore {
   private envelope: VisualSnapshotEnvelope<unknown> | null = null;
   private observedScopeKey: string | null = null;
-  private readonly positionOverrides = new Map<number, NpcPositionDelta["location"]>();
-  private readonly removedIds = new Set<number>();
+  private observedSpace: SpaceId | null = null;
+  private livingState: LivingViewState = emptyLivingViewState();
+  private lastSequence = 0;
   private readonly listeners = new Set<() => void>();
   private stopTickStream: (() => void) | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly npcInspections = new Map<number, NpcInspection | null>();
+  private readonly inspectionLoads = new Map<number, Promise<NpcInspection | null>>();
 
   constructor(
     private readonly snapshotSource: SnapshotSource,
     private readonly tickStreamSource: TickStreamSource,
+    private readonly npcInspectionSource?: NpcInspectionSource,
   ) {}
 
   /** Começa a observar `space`: carrega o snapshot inicial e assina o stream de deltas dele. */
@@ -58,8 +70,9 @@ export class SimulationStore {
 
     const key = toScopeKey(space);
     this.observedScopeKey = key;
-    this.positionOverrides.clear();
-    this.removedIds.clear();
+    this.observedSpace = space;
+    this.livingState = emptyLivingViewState();
+    this.lastSequence = 0;
 
     await this.loadSnapshot(space, key);
 
@@ -99,22 +112,60 @@ export class SimulationStore {
       return;
     }
     this.envelope = envelope;
-    this.positionOverrides.clear();
-    this.removedIds.clear();
+    this.lastSequence = envelope.cursor.sequence;
+    this.livingState = livingStateFromSnapshot(envelope.payload);
     this.notify();
   }
 
   /** Aplica um delta incremental sobre o snapshot corrente — nunca refaz um `load()`. */
   applyDelta(delta: ScopeTickDelta): void {
-    for (const moved of delta.moved) {
-      this.positionOverrides.set(moved.npcId, moved.location);
-      this.removedIds.delete(moved.npcId);
+    if (delta.sequence !== undefined) {
+      if (delta.sequence <= this.lastSequence) return;
+      if (delta.fromSequence !== this.lastSequence) {
+        if (this.observedSpace && this.observedScopeKey)
+          void this.loadSnapshot(this.observedSpace, this.observedScopeKey);
+        return;
+      }
+      this.lastSequence = delta.sequence;
     }
-    for (const removedId of delta.removed) {
-      this.removedIds.add(removedId);
-      this.positionOverrides.delete(removedId);
-    }
+    this.livingState = applyLivingDelta(this.livingState, delta);
     this.notify();
+    for (const npcId of this.npcInspections.keys()) void this.refreshNpcInspection(npcId);
+  }
+
+  npcInspectionOf(npcId: number): NpcInspection | null | undefined {
+    return this.npcInspections.get(npcId);
+  }
+
+  inspectNpc(npcId: number): Promise<NpcInspection | null> {
+    return this.refreshNpcInspection(npcId);
+  }
+
+  private refreshNpcInspection(npcId: number): Promise<NpcInspection | null> {
+    if (!this.npcInspectionSource) return Promise.resolve(null);
+    const active = this.inspectionLoads.get(npcId);
+    if (active) return active;
+
+    const load = this.npcInspectionSource.load(npcId)
+      .then((inspection) => {
+        this.npcInspections.set(npcId, inspection);
+        this.notify();
+        return inspection;
+      })
+      .catch(() => {
+        this.npcInspections.set(npcId, null);
+        this.notify();
+        return null;
+      })
+      .finally(() => this.inspectionLoads.delete(npcId));
+    this.inspectionLoads.set(npcId, load);
+    return load;
+  }
+
+  livingStateOf(space: SpaceId): LivingViewState {
+    return this.envelope && toScopeKey(space) === this.observedScopeKey
+      ? this.livingState
+      : emptyLivingViewState();
   }
 
   /**
@@ -134,11 +185,10 @@ export class SimulationStore {
     if (!this.envelope || toScopeKey(space) !== this.observedScopeKey) {
       return [];
     }
-    return extractNpcMarkers(this.envelope.payload)
-      .filter((marker) => !this.removedIds.has(marker.id.value))
+    return [...this.livingState.npcs.values()]
       .map((marker) => ({
         ref: { kind: "npc" as const, id: String(marker.id.value), space },
-        position: this.positionOverrides.get(marker.id.value) ?? marker.location,
+        position: marker.location,
         size: { w: 1, h: 1 },
         sizeIsDerived: false,
         color: CATEGORY_COLOR.npc,
@@ -157,4 +207,16 @@ export class SimulationStore {
       listener();
     }
   }
+}
+
+function livingStateFromSnapshot(payload: unknown): LivingViewState {
+  if (payload && typeof payload === "object" && "livingState" in payload) {
+    return livingViewStateFromWire((payload as { livingState?: LivingScopeStateWire }).livingState);
+  }
+  const npcs = extractNpcMarkers(payload).map((marker) => ({
+    id: marker.id,
+    location: marker.location,
+    currentAction: marker.currentAction ?? null,
+  }));
+  return livingViewStateFromWire({ npcs, cities: [], buildings: [], processes: [], indicators: [], events: [] });
 }

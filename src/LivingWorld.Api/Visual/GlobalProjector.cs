@@ -31,7 +31,8 @@ public sealed record GlobalSnapshot(
     IReadOnlyList<GlobalNpcMarker> ExternalNpcs,
     IReadOnlyList<object> ActiveEvents,
     IReadOnlyDictionary<VisualLayerId, LayerBuildResult> Layers,
-    IReadOnlyList<SpatialPortal> Portals);
+    IReadOnlyList<SpatialPortal> Portals,
+    LivingScopeState LivingState);
 
 public static class GlobalProjector
 {
@@ -50,9 +51,12 @@ public static class GlobalProjector
         // NPCs cuja CityId ainda não tem um City real em world.Cities (cidade não fundada/
         // seedada ainda) não têm "casa" conhecida — não dá pra julgar "fora do lugar" sem uma
         // referência, então ficam de fora do marcador (não é um bug do NPC, é ausência de dado).
-        var cityLocationById = world.Cities.ToDictionary(c => c.Id, c => c.Location);
+        var cityBoundsById = world.Cities.ToDictionary(
+            c => c.Id,
+            c => SpatialBoundsResolver.ResolveCity(
+                c, CityPopulationQuery.Population(world, c.Id), world.Map.Width, world.Map.Height).Bounds);
         var externalNpcs = world.Npcs
-            .Where(n => n.IsAlive && cityLocationById.TryGetValue(n.City, out var home) && n.CurrentLocation != home)
+            .Where(n => n.IsAlive && cityBoundsById.TryGetValue(n.City, out var home) && !home.Contains(n.CurrentLocation))
             .Select(n => new GlobalNpcMarker(n.Id, n.CurrentLocation))
             .ToList();
 
@@ -66,6 +70,7 @@ public static class GlobalProjector
             .Where(p => p.From.Space == PortalSpaceKind.World || p.To.Space == PortalSpaceKind.World)
             .ToList();
 
-        return new GlobalSnapshot(world.Map.Width, world.Map.Height, cities, externalNpcs, [], layers, portals);
+        var livingState = LivingScopeProjector.Build(world, new VisualScope(VisualScopeKind.World, ""));
+        return new GlobalSnapshot(world.Map.Width, world.Map.Height, cities, externalNpcs, [], layers, portals, livingState);
     }
 }

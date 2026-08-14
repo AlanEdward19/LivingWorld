@@ -28,7 +28,8 @@ export interface CityViewProps {
 }
 
 const BUILDING_RING_RADIUS = 6;
-const LOD_THRESHOLDS: LodThresholds = { aggregate: 4, token: 10, detail: 18 };
+// No zoom inicial da cidade o morador já deve ser um pawn legível, não um ponto de mapa-múndi.
+const LOD_THRESHOLDS: LodThresholds = { aggregate: 4, token: 6, detail: 18 };
 /** Sem um "tamanho de grid local" mais (coordenadas de cidade agora são absolutas, iguais às
  * do mundo) — 16px/tile é o equivalente ao zoom antigo de fit-to-screen num grid local de 21x21. */
 const DEFAULT_CITY_ZOOM_SCALE = 8;

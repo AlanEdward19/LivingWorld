@@ -30,6 +30,8 @@ public class SimulationControlEndpointsTests : IClassFixture<WebApplicationFacto
 
         var status = await client.GetFromJsonAsync<SimulationStatusResponse>("/simulation/status");
         Assert.True(status!.IsPaused);
+        Assert.Equal(_factory.Services.GetRequiredService<WorldHost>().Current.CurrentDate.TotalHours, status.Tick);
+        Assert.Equal(_factory.Services.GetRequiredService<WorldHost>().Current.CurrentDate.Year, status.Year);
     }
 
     [Fact]
@@ -84,6 +86,9 @@ public class SimulationControlEndpointsTests : IClassFixture<WebApplicationFacto
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(before + 1, world.CurrentDate.TotalHours);
+        var status = await client.GetFromJsonAsync<SimulationStatusResponse>("/simulation/status");
+        Assert.Equal(before + 1, status!.Tick);
+        Assert.Equal(world.CurrentDate.Year, status.Year);
     }
 
     [Fact]

@@ -517,6 +517,18 @@ function drawNpcPawn(ctx: CanvasRenderingContext2D, entity: AuthoritativeEntity,
   return true;
 }
 
+/**
+ * Um tile representa distâncias físicas diferentes em cada nível espacial. O pawn acompanha
+ * essa semântica só no desenho: mundo mantém a escala compacta; cidade aproxima a pessoa; o
+ * interior aproxima mais uma vez. O footprint autoritativo continua 1x1 e o hit-test não muda.
+ */
+function pointVisualScale(entity: AuthoritativeEntity): number {
+  if (entity.ref.kind !== "npc") return 1;
+  if (entity.ref.space.kind === "Building") return 2.2;
+  if (entity.ref.space.kind === "City") return 1.65;
+  return 1;
+}
+
 function drawPointEntity(
   ctx: CanvasRenderingContext2D,
   camera: Camera,
@@ -526,9 +538,12 @@ function drawPointEntity(
   isHighlighted: boolean,
 ): void {
   const center = camera.worldToScreen({ x: entity.position.x + 0.5, y: entity.position.y + 0.5 });
+  const visualScale = pointVisualScale(entity);
+  const r = isToken
+    ? Math.min(10 * visualScale, Math.max(5, scale * 0.22) * visualScale)
+    : Math.min(4 * visualScale, Math.max(1.5, scale * 0.12) * visualScale);
 
   if (isToken) {
-    const r = Math.max(6, scale * 0.46);
     // T35: pawn SVG original e determinístico, carregado uma vez por identidade/ação e desenhado
     // no canvas. O glifo simples permanece como fallback enquanto a imagem termina de carregar.
     if (!drawNpcPawn(ctx, entity, center, r)) {
@@ -547,7 +562,6 @@ function drawPointEntity(
     // "informação adicional" do zoom próximo) — feedback do usuário pedia identificar o NPC.
     drawLabel(ctx, entity, { x: center.x, y: center.y + r + 12 }, "center");
   } else {
-    const r = Math.max(1.5, scale * 0.15);
     ctx.beginPath();
     ctx.arc(center.x, center.y, r, 0, Math.PI * 2);
     ctx.fillStyle = entity.color;
@@ -566,7 +580,7 @@ function drawPointEntity(
 
   if (isHighlighted) {
     ctx.beginPath();
-    ctx.arc(center.x, center.y, Math.max(6, scale * 0.5), 0, Math.PI * 2);
+    ctx.arc(center.x, center.y, r + Math.max(2, r * 0.25), 0, Math.PI * 2);
     ctx.strokeStyle = SELECTION_HIGHLIGHT_COLOR;
     ctx.lineWidth = 2;
     ctx.stroke();

@@ -2,6 +2,14 @@ using LivingWorld.Domain;
 
 namespace LivingWorld.Simulation;
 
+public enum NpcInspectionLod
+{
+    Materialized = 0,
+    Archived = 1,
+}
+
+public sealed record NpcActionTargetDto(string Kind, string Id);
+
 /// <summary>Retrato somente-leitura de um NPC vivo para inspeção (Fase 8, T14, CITY-06) —
 /// identidade, família, profissão, atributos e rotina. "Memórias" é sempre lista vazia nesta
 /// fase: sistema de memória individual é Fase 10/11 (AD-068, design.md Tech Decisions); o campo
@@ -29,4 +37,7 @@ public sealed record NpcInspectionDto(
     CellCoord CurrentLocation,
     ActionType? CurrentAction,
     long ActionStartedAtTick,
+    NpcActionTargetDto? ActionTarget,
+    NpcInspectionLod Lod,
+    IReadOnlyList<string> Beliefs,
     IReadOnlyList<string> Memories);

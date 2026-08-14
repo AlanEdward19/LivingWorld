@@ -25,7 +25,7 @@ public class GlobalProjectorTests
 
         resident.JoinCity(city.Id);
         traveler.JoinCity(city.Id);
-        traveler.MoveTo(new CellCoord(city.Location.X + 1, city.Location.Y + 1), tick: 0);
+        traveler.MoveTo(new CellCoord(city.Location.X + 2, city.Location.Y + 2), tick: 0);
 
         return (world, city, resident, traveler);
     }
@@ -84,6 +84,17 @@ public class GlobalProjectorTests
         Assert.Equal(traveler.Id, marker.Id);
         Assert.Equal(traveler.CurrentLocation, marker.Location);
         Assert.DoesNotContain(snapshot.ExternalNpcs, m => m.Id == resident.Id);
+    }
+
+    [Fact]
+    public void Build_keeps_a_resident_inside_the_city_footprint_off_the_world_map()
+    {
+        var (world, city, _, traveler) = MakeWorldWithCity();
+        traveler.MoveTo(new CellCoord(city.Location.X + 1, city.Location.Y + 1), tick: 1);
+
+        var snapshot = GlobalProjector.Build(world);
+
+        Assert.DoesNotContain(snapshot.ExternalNpcs, marker => marker.Id == traveler.Id);
     }
 
     [Fact]

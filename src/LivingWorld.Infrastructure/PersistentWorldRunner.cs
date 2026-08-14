@@ -8,6 +8,7 @@ namespace LivingWorld.Infrastructure;
 /// 11, ADR-0006).</summary>
 public sealed class PersistentWorldRunner(IWorldRepository repository, BranchId branch, long snapshotIntervalTicks)
 {
+    private readonly object _repositoryGate = new();
     /// <summary>Roda <paramref name="ticks"/> ticks, salvando a cada <c>snapshotIntervalTicks</c>.
     /// <paramref name="clock"/> precisa ter sido construído com <paramref name="sink"/> para os
     /// eventos de história chegarem ao buffer certo.</summary>
@@ -24,25 +25,34 @@ public sealed class PersistentWorldRunner(IWorldRepository repository, BranchId 
     /// <summary>Salva o estado atual e drena o buffer de eventos — uma transação (task 8/10).</summary>
     public void Snapshot(WorldState world, BufferingWorldEventSink sink)
     {
-        var events = sink.DrainAll();
-        repository.SaveSnapshotWithEvents(
-            branch, world.CurrentDate.TotalHours,
-            WorldSnapshot.Serialize(world), WorldSnapshot.CanonicalHash(world), WorldSnapshot.VolatileHash(world),
-            events);
+        lock (_repositoryGate)
+        {
+            var events = sink.DrainAll();
+            repository.SaveSnapshotWithEvents(
+                branch, world.CurrentDate.TotalHours,
+                WorldSnapshot.Serialize(world), WorldSnapshot.CanonicalHash(world), WorldSnapshot.VolatileHash(world),
+                events);
+        }
     }
 
     /// <summary>Reidrata o mundo do snapshot mais recente do branch, ou <c>null</c> se nunca
     /// houve um salvo (mundo novo).</summary>
     public WorldState? LoadLatest()
     {
-        var record = repository.LoadLatestSnapshot(branch);
-        return record is null ? null : WorldSnapshot.Deserialize(record.Json);
+        lock (_repositoryGate)
+        {
+            var record = repository.LoadLatestSnapshot(branch);
+            return record is null ? null : WorldSnapshot.Deserialize(record.Json);
+        }
     }
 
     /// <summary>Reidrata o mundo de um tick específico já salvo (idempotência de replay, task 10).</summary>
     public WorldState? LoadAt(long tick)
     {
-        var record = repository.LoadSnapshotAt(branch, tick);
-        return record is null ? null : WorldSnapshot.Deserialize(record.Json);
+        lock (_repositoryGate)
+        {
+            var record = repository.LoadSnapshotAt(branch, tick);
+            return record is null ? null : WorldSnapshot.Deserialize(record.Json);
+        }
     }
 }

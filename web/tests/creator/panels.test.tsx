@@ -44,7 +44,7 @@ describe("World Creator panels", () => {
     const panel = props();
     render(<EconomyPanel {...panel} />);
     fireEvent.click(screen.getByLabelText(/Habilitada/));
-    expect(panel.set).toHaveBeenCalledWith("economyEnabled", false);
+    expect(panel.set).toHaveBeenCalledWith("economyEnabled", true);
     expect(screen.getByText(/Avançado \(capacidade/).closest("details")).not.toHaveAttribute("open");
   });
 

@@ -1,5 +1,6 @@
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
+using LivingWorld.Simulation.History;
 
 namespace LivingWorld.Tests.Cities;
 
@@ -41,9 +42,20 @@ public class NpcInspectionDtoCoverageTests
         [nameof(NpcInspectionDto.CurrentLocation)] = (dto, npc, _) => dto.CurrentLocation.Equals(npc.CurrentLocation),
         [nameof(NpcInspectionDto.CurrentAction)] = (dto, npc, _) => dto.CurrentAction == npc.CurrentAction,
         [nameof(NpcInspectionDto.ActionStartedAtTick)] = (dto, npc, _) => dto.ActionStartedAtTick == npc.ActionStartedAtTick,
+        [nameof(NpcInspectionDto.ActionTarget)] = (dto, npc, _) => dto.ActionTarget == ExpectedTarget(npc),
+        [nameof(NpcInspectionDto.Lod)] = (dto, _, _) => dto.Lod == NpcInspectionLod.Materialized,
+        [nameof(NpcInspectionDto.Beliefs)] = (dto, npc, world) => dto.Beliefs.SequenceEqual(NpcBeliefQuery.BeliefsOf(world, npc.Id)),
         // Memórias é sempre lista vazia nesta fase (SPEC_DEVIATION do próprio DTO, Fase 10/11) —
         // não há campo de motor pra comparar contra; a checagem é o próprio contrato ("vazio").
         [nameof(NpcInspectionDto.Memories)] = (dto, _, _) => dto.Memories.Count == 0,
+    };
+
+    private static NpcActionTargetDto? ExpectedTarget(Npc npc) => npc.CurrentAction switch
+    {
+        ActionType.Work when npc.Employer is { } workplace => new("workplace", workplace.Value.ToString()),
+        ActionType.Sleep when npc.Household is { } household => new("household", household.Value.ToString()),
+        ActionType.Socialize when npc.Spouse is { } spouse => new("npc", spouse.Value.ToString()),
+        _ => null,
     };
 
     private static WorldState BuildWorldWith100Npcs()

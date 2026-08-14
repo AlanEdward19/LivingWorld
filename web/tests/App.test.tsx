@@ -180,6 +180,27 @@ describe("App", () => {
     expect(screen.getByTestId("start-menu")).toBeInTheDocument();
   });
 
+  it("cancelling a new creator after visiting an existing world still returns to the start menu", async () => {
+    const { simulationStore, viewStore, selectionStore, timeControlSource } = buildStores();
+    render(
+      <App
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+        timeControlSource={timeControlSource}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    await screen.findByTestId("world-map-view");
+    fireEvent.click(screen.getByRole("button", { name: "☰ menu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Criar mundo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    expect(screen.getByTestId("start-menu")).toBeInTheDocument();
+    expect(screen.queryByTestId("world-map-view")).not.toBeInTheDocument();
+  });
+
   it("does not offer a 'Criar mundo' button while already playing a world — only the menu button", async () => {
     const { simulationStore, viewStore, selectionStore, timeControlSource } = buildStores();
     render(

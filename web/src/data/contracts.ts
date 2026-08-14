@@ -18,17 +18,99 @@ export interface NpcPositionDelta {
 
 export interface ScopeTickDelta {
   tick: number;
+  sequence?: number;
+  fromSequence?: number;
   moved: NpcPositionDelta[];
   removed: number[];
+  npcUpserts?: NpcVisual[];
+  npcRemoved?: NumericId[];
+  cityUpserts?: CityVisual[];
+  cityRemoved?: StringId[];
+  buildingUpserts?: BuildingVisual[];
+  buildingRemoved?: NumericId[];
+  processUpserts?: ProcessVisual[];
+  processRemoved?: number[];
+  indicators?: IndicatorUpdate[];
+  events?: NotableVisualEvent[];
+}
+
+export interface NumericId { value: number }
+export interface StringId { value: string }
+
+export interface NpcVisual {
+  id: NumericId;
+  location: CellCoord;
+  currentAction: number | null;
+}
+
+export interface NpcInspection {
+  id: NumericId;
+  name: string;
+  sex: number;
+  ageYears: number;
+  culture: { id: number };
+  city: StringId;
+  household: NumericId | null;
+  motherId: NumericId | null;
+  fatherId: NumericId | null;
+  spouse: NumericId | null;
+  profession: { id: number };
+  employer: NumericId | null;
+  health: number;
+  hunger: number;
+  thirst: number;
+  sleep: number;
+  social: number;
+  personality: unknown;
+  skills: { values: Record<string, number> };
+  currentLocation: CellCoord;
+  currentAction: number | null;
+  actionStartedAtTick: number;
+  actionTarget: { kind: string; id: string } | null;
+  lod: number;
+  beliefs: string[];
+  memories: string[];
+}
+
+export interface CityVisual {
+  id: StringId;
+  location: CellCoord;
+  population: number;
+  bounds: CellBounds;
+}
+
+export interface BuildingVisual {
+  id: NumericId;
+  cityId: StringId;
+  buildingTypeId: number;
+  location: CellCoord;
+}
+
+export interface ProcessVisual {
+  id: number;
+  kind: string;
+  targetId: number;
+  progress: number;
+  descriptorKey: string;
+}
+
+export interface IndicatorUpdate { key: string; value: number }
+export interface NotableVisualEvent { tick: number; kind: number; label: string }
+
+export interface LivingScopeStateWire {
+  npcs: NpcVisual[];
+  cities: CityVisual[];
+  buildings: BuildingVisual[];
+  processes: ProcessVisual[];
+  indicators: IndicatorUpdate[];
+  events: NotableVisualEvent[];
 }
 
 export interface SimulationStatus {
   isPaused: boolean;
   ticksPerSecond: number;
-  // SPEC_DEVIATION (T32): `SimulationStatusResponse` real (`SimulationControlEndpoints.cs`) não
-  // expõe contagem de tick — nenhum consumidor de `TimeControls.tsx` lê este campo hoje, então
-  // opcional em vez de inventado; o mock (`MockClock`) continua preenchendo.
   tick?: number;
+  year?: number;
 }
 
 export type PortalSpaceKind = "World" | "City" | "Building";

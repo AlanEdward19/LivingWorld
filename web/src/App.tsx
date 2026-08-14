@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { WorldMapView } from "./components/WorldMapView";
 import { CityView } from "./components/CityView";
 import { InteriorView } from "./components/InteriorView";
@@ -10,6 +10,7 @@ import { Breadcrumb } from "./components/Breadcrumb";
 import { SpaceTransition } from "./components/SpaceTransition";
 import { EntityInspector } from "./components/inspector/EntityInspector";
 import { TimeControls } from "./components/TimeControls";
+import { LivingTimeline } from "./components/LivingTimeline";
 import { toScopeKey } from "./map-engine/space";
 import type { SpaceId } from "./map-engine/types";
 import type { SimulationStore } from "./state/simulationStore";
@@ -43,14 +44,6 @@ export function App({ simulationStore, viewStore, selectionStore, timeControlSou
   const [creatorForm, setCreatorForm] = useState<ScenarioFormState | null>(null);
   const [catalogPeriodId, setCatalogPeriodId] = useState<string | undefined>();
   const [worldName, setWorldName] = useState("");
-  // Bug real (relatado pelo usuário): cancelar a criação de mundo a partir do menu inicial
-  // "iniciava o mundo" em vez de voltar ao menu — o botão só desligava `creatingWorld`, e como
-  // `screen` já estava em "world" (setado no mesmo clique que abriu o creator), o efeito abaixo
-  // disparava `observeSpace` normalmente. Este ref rastreia se um mundo já foi de fato observado
-  // nesta sessão (via "Continuar" ou por já estar jogando antes de abrir o creator de novo) —
-  // só nesse caso cancelar deve permanecer no mapa; caso contrário volta pro menu inicial.
-  const hasEnteredWorldRef = useRef(false);
-
   const space = useSyncExternalStore(
     (onStoreChange) => viewStore.subscribe(onStoreChange),
     () => viewStore.currentSpace(),
@@ -64,7 +57,6 @@ export function App({ simulationStore, viewStore, selectionStore, timeControlSou
     if (screen !== "world" || creatingWorld) {
       return;
     }
-    hasEnteredWorldRef.current = true;
     void simulationStore.observeSpace(space);
   }, [screen, creatingWorld, space, simulationStore]);
 
@@ -72,9 +64,7 @@ export function App({ simulationStore, viewStore, selectionStore, timeControlSou
     setCreatingWorld(false);
     setCreatorForm(null);
     setCatalogPeriodId(undefined);
-    if (!hasEnteredWorldRef.current) {
-      setScreen("start");
-    }
+    setScreen("start");
   }
 
   const viewport = { width: window.innerWidth, height: window.innerHeight - 40 };
@@ -187,6 +177,7 @@ export function App({ simulationStore, viewStore, selectionStore, timeControlSou
               simulationStore={simulationStore}
               viewStore={viewStore}
             />
+            <LivingTimeline space={space} simulationStore={simulationStore} />
           </>
         )}
       </main>

@@ -50,11 +50,73 @@ public class PersistentWorldRunnerTests
         Assert.Null(runner.LoadLatest());
     }
 
+    [Fact]
+    public void Saving_a_new_world_at_tick_zero_replaces_higher_tick_snapshots_from_the_previous_world()
+    {
+        using var context = OpenInMemoryDb();
+        var runner = new PersistentWorldRunner(
+            new SqliteWorldRepository(context), BranchId.Root, snapshotIntervalTicks: 24);
+        var sink = new BufferingWorldEventSink();
+
+        var (oldWorld, oldClock) = ScenarioRunner.Create(seed: 1);
+        oldClock.Run(oldWorld, 48);
+        runner.Snapshot(oldWorld, sink);
+
+        var (newWorld, _) = ScenarioRunner.Create(seed: 999);
+        runner.Snapshot(newWorld, sink);
+
+        var resumed = runner.LoadLatest();
+        Assert.Equal((ulong)999, resumed!.Seed);
+        Assert.Equal(0, resumed.CurrentDate.TotalHours);
+    }
+
+    [Fact]
+    public void Disk_database_reopened_by_a_new_runner_resumes_the_last_saved_world()
+    {
+        string dbPath = Path.Combine(Path.GetTempPath(), $"livingworld-continue-{Guid.NewGuid():N}.db");
+        try
+        {
+            using (var first = OpenFileDb(dbPath))
+            {
+                var runner = new PersistentWorldRunner(
+                    new SqliteWorldRepository(first), BranchId.Root, snapshotIntervalTicks: 24);
+                var (created, clock) = ScenarioRunner.Create(seed: 8128);
+                created.Rename("Vale persistido");
+                clock.Run(created, 24);
+                runner.Snapshot(created, new BufferingWorldEventSink());
+            }
+
+            using (var reopened = OpenFileDb(dbPath))
+            {
+                var continued = new PersistentWorldRunner(
+                    new SqliteWorldRepository(reopened), BranchId.Root, snapshotIntervalTicks: 24).LoadLatest();
+
+                Assert.Equal((ulong)8128, continued!.Seed);
+                Assert.Equal("Vale persistido", continued.Name);
+                Assert.Equal(24, continued.CurrentDate.TotalHours);
+            }
+        }
+        finally
+        {
+            File.Delete(dbPath);
+        }
+    }
+
     private static WorldDbContext OpenInMemoryDb()
     {
         var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
         connection.Open();
         var options = new DbContextOptionsBuilder<WorldDbContext>().UseSqlite(connection).Options;
+        var context = new WorldDbContext(options);
+        context.Database.Migrate();
+        return context;
+    }
+
+    private static WorldDbContext OpenFileDb(string path)
+    {
+        var options = new DbContextOptionsBuilder<WorldDbContext>()
+            .UseSqlite($"Data Source={path};Pooling=False")
+            .Options;
         var context = new WorldDbContext(options);
         context.Database.Migrate();
         return context;

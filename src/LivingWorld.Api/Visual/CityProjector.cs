@@ -28,7 +28,8 @@ public sealed record CitySnapshot(
     IReadOnlyList<CityBuildingMarker> Buildings,
     IReadOnlyDictionary<VisualLayerId, LayerBuildResult> Layers,
     IReadOnlyList<SpatialPortal> Portals,
-    CityIndicators Indicators);
+    CityIndicators Indicators,
+    LivingScopeState LivingState);
 
 public static class CityProjector
 {
@@ -69,7 +70,8 @@ public static class CityProjector
             CityPopulationQuery.Economy(world, cityId),
             CityPopulationQuery.Housing(world, cityId));
 
-        return Result<CitySnapshot>.Ok(new CitySnapshot(city.Id, city.Location, city.AggregatePool, residents, buildings, layers, portals, indicators));
+        var livingState = LivingScopeProjector.Build(world, new VisualScope(VisualScopeKind.City, city.Id.ToString()));
+        return Result<CitySnapshot>.Ok(new CitySnapshot(city.Id, city.Location, city.AggregatePool, residents, buildings, layers, portals, indicators, livingState));
     }
 
     private static bool TouchesCity(PortalEndpoint endpoint, string cityRefId) =>

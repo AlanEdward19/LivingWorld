@@ -107,7 +107,9 @@ public static class DefaultPeriodSeeder
                 new JsonObject { ["ProfessionId"] = null, ["Stage"] = "Elder", ["HourStart"] = 0, ["HourEnd"] = 6, ["Action"] = "Sleep" }),
             ["DefaultAction"] = "Idle",
 
-            ["EconomyEnabled"] = true,
+            // Estes presets não autoram cadeia produtiva, estoque ou preços. Mantê-los com a
+            // economia ligada fazia a população morrer de fome durante a simples observação.
+            ["EconomyEnabled"] = false,
             ["FoodResourceId"] = 1,
             ["WaterResourceId"] = 2,
             ["PriceSensitivity"] = 0.1,
@@ -120,16 +122,7 @@ public static class DefaultPeriodSeeder
             ["Recipes"] = new JsonObject(),
             ["MarketLocationTypeIds"] = new JsonArray(),
             ["LocationTypeByProfession"] = new JsonObject(),
-            ["Workplaces"] = new JsonArray(new JsonObject
-            {
-                ["LocationTypeId"] = 1,
-                ["X"] = 1,
-                ["Y"] = 1,
-                ["MaxVacancies"] = 3,
-                ["Treasury"] = 0,
-                ["Stock"] = new JsonObject(),
-                ["Prices"] = new JsonObject(),
-            }),
+            ["Workplaces"] = new JsonArray(),
 
             ["CitiesEnabled"] = true,
             ["FoodShortageThreshold"] = 0.1,

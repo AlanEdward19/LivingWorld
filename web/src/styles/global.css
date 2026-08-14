@@ -693,6 +693,24 @@ form[data-testid="create-world-form"] > div:not([hidden]) {
   color: var(--text-muted);
 }
 
+.npc-living-inspector section { margin-top: .85rem; padding-top: .65rem; border-top: 1px solid var(--border-subtle); }
+.npc-living-inspector h4 { margin: 0 0 .5rem; color: var(--accent-bright); font-family: var(--font-display); }
+.npc-living-inspector dl { display: grid; grid-template-columns: minmax(78px, auto) 1fr; gap: .3rem .65rem; margin: 0; }
+.npc-living-inspector dt { color: var(--text-muted); }
+.npc-living-inspector dd { margin: 0; overflow-wrap: anywhere; }
+.npc-need { display: grid; grid-template-columns: 54px 1fr 28px; align-items: center; gap: .45rem; margin: .28rem 0; }
+.npc-need progress { width: 100%; accent-color: var(--accent); }
+.npc-need strong { text-align: right; font-size: .78rem; }
+.npc-skills { margin: .45rem 0 0; padding-left: 1.2rem; color: var(--text-muted); }
+.npc-beliefs { margin: .45rem 0 0; padding-left: 1.2rem; color: var(--text-muted); }
+.living-timeline { position: absolute; z-index: 10; right: .75rem; bottom: .75rem; width: min(320px, 36vw); max-height: 34vh; overflow: auto; padding: .7rem .85rem; background: rgba(18,22,31,.88); border: 1px solid var(--border-subtle); border-radius: var(--radius); backdrop-filter: blur(4px); }
+.living-timeline h3 { margin: 0 0 .45rem; color: var(--accent-bright); font-family: var(--font-display); font-size: 1rem; }
+.living-timeline p { margin: 0; color: var(--text-muted); font-size: .8rem; }
+.living-timeline ol { display: grid; gap: .45rem; margin: 0; padding: 0; list-style: none; }
+.living-timeline li { display: grid; gap: .08rem; padding-left: .55rem; border-left: 2px solid rgba(217,169,79,.5); }
+.living-timeline time { color: var(--text-muted); font-size: .68rem; }
+.living-timeline span { font-size: .82rem; }
+
 .layer-panel {
   margin-top: 0.4rem;
 }

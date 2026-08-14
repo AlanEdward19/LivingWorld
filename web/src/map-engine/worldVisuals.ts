@@ -42,8 +42,8 @@ export function cityGroundAt(spaceId: string, x: number, y: number): GroundVisua
 
 /** Envelope visual finito da cidade; fora dele volta a aparecer o céu do mapa. */
 export function cityGroundBounds(location: { x: number; y: number }): CityGroundBounds {
-  const width = 34;
-  const height = 24;
+  const width = 16;
+  const height = 16;
   return {
     width,
     height,

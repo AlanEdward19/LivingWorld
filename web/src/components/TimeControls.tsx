@@ -19,13 +19,14 @@ export function TimeControls({ timeControlSource }: TimeControlsProps) {
 
   useEffect(() => {
     let cancelled = false;
-    timeControlSource.status().then((s) => {
-      if (!cancelled) {
-        setStatus(s);
-      }
+    const load = () => timeControlSource.status().then((s) => {
+      if (!cancelled) setStatus(s);
     });
+    void load();
+    const timer = window.setInterval(() => void load(), 500);
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
     };
   }, [timeControlSource]);
 
@@ -82,6 +83,9 @@ export function TimeControls({ timeControlSource }: TimeControlsProps) {
       </button>
       <span data-testid="time-controls-status">
         {isPaused ? "Pausado" : `${status?.ticksPerSecond ?? "…"}x`}
+      </span>
+      <span data-testid="time-controls-clock">
+        Tick {status?.tick ?? "…"}{status?.year === undefined ? "" : ` · Ano ${status.year}`}
       </span>
     </div>
   );

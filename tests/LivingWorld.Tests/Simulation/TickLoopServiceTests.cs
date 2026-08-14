@@ -2,6 +2,7 @@ using LivingWorld.Api;
 using LivingWorld.Api.Realtime;
 using LivingWorld.Api.Simulation;
 using LivingWorld.Api.Visual;
+using LivingWorld.Domain;
 using LivingWorld.Simulation;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -86,5 +87,32 @@ public class TickLoopServiceTests
         Assert.True(reader.TryRead(out var envelope));
         var delta = Assert.IsType<ScopeTickDelta>(envelope!.Payload);
         Assert.Equal(worldHost.Current.CurrentDate.TotalHours, delta.Tick);
+    }
+
+    [Fact]
+    public void World_delta_does_not_publish_a_resident_inside_the_city_footprint()
+    {
+        using var factory = new WebApplicationFactory<Program>();
+        var worldHost = factory.Services.GetRequiredService<WorldHost>();
+        var simulationHost = factory.Services.GetRequiredService<SimulationHost>();
+        var gateway = factory.Services.GetRequiredService<RealtimeGateway>();
+        var loop = factory.Services.GetRequiredService<TickLoopService>();
+        var (world, _) = ScenarioRunner.Create(seed: 17, initialPopulation: 1);
+        var resident = Assert.Single(world.Npcs);
+        var city = new City(
+            world.NextCityId(), resident.CurrentLocation, 0, null, AggregatePopulationPool.Empty);
+        world.AddCity(city);
+        resident.JoinCity(city.Id);
+        resident.MoveTo(new CellCoord(city.Location.X + 1, city.Location.Y + 1), tick: 0);
+        worldHost.Replace(world, new WorldClock([]));
+        simulationHost.Resume();
+        var (reader, _) = gateway.SubscribeChannel(new VisualScope(VisualScopeKind.World, ""));
+
+        loop.RunOneCycle();
+
+        Assert.True(reader.TryRead(out var envelope));
+        var delta = Assert.IsType<ScopeTickDelta>(envelope!.Payload);
+        Assert.Empty(delta.Moved);
+        Assert.Empty(delta.Removed);
     }
 }

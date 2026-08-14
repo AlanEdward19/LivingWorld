@@ -1,4 +1,5 @@
 using LivingWorld.Domain;
+using LivingWorld.Simulation;
 
 namespace LivingWorld.Tests.Population;
 
@@ -174,5 +175,44 @@ public class PopulationGeneratorTests
             var spouse = generated.Npcs.Single(n => n.Id == npc.Spouse);
             Assert.Equal(npc.Id, spouse.Spouse);
         }
+    }
+
+    [Fact]
+    public void Initial_households_are_distributed_deterministically_across_supplied_spawn_cells()
+    {
+        var now = WorldDate.Epoch(Calendar).AddYears(200);
+        CellCoord[] spawnCells = [new(4, 4), new(5, 4), new(6, 4), new(4, 5)];
+
+        var a = PopulationGenerator.GenerateInitial(
+            new WorldRng(21), now, 30, new CultureId(1), new CellCoord(5, 5), Table, EmptyCatalog,
+            householdSpawnCells: spawnCells);
+        var b = PopulationGenerator.GenerateInitial(
+            new WorldRng(21), now, 30, new CultureId(1), new CellCoord(5, 5), Table, EmptyCatalog,
+            householdSpawnCells: spawnCells);
+
+        Assert.True(a.Npcs.Select(n => n.CurrentLocation).Distinct().Count() > 1);
+        Assert.Equal(a.Npcs.Select(n => n.CurrentLocation), b.Npcs.Select(n => n.CurrentLocation));
+        Assert.All(a.Households, household => Assert.Contains(household.Location, spawnCells));
+    }
+
+    [Fact]
+    public void Population_seeder_places_households_on_valid_cells_near_the_village()
+    {
+        var map = ScenarioRunner.DefaultMap(seed: 31);
+        var world = new WorldState(
+            Calendar, 31, map, ScenarioRunner.DefaultPopulationCatalog,
+            ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules,
+            ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules);
+        var village = new CellCoord(5, 5);
+
+        PopulationSeeder.SeedInitial(world, 30, new CultureId(1), village);
+
+        Assert.True(world.Npcs.Select(n => n.CurrentLocation).Distinct().Count() > 1);
+        Assert.All(world.Npcs, npc =>
+        {
+            Assert.True(map.TryGetCell(npc.CurrentLocation, out _));
+            Assert.InRange(Math.Abs(npc.CurrentLocation.X - village.X), 0, 2);
+            Assert.InRange(Math.Abs(npc.CurrentLocation.Y - village.Y), 0, 2);
+        });
     }
 }

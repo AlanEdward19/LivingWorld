@@ -4,7 +4,7 @@
 // implementam a mesma interface; nada além do composition root (`main.tsx`) sabe qual está viva.
 import type { SpaceId } from "../map-engine/types";
 import type { VisualSnapshotEnvelope } from "../types";
-import type { ScopeTickDelta, SimulationStatus, SpatialPortalDto } from "./contracts";
+import type { NpcInspection, ScopeTickDelta, SimulationStatus, SpatialPortalDto } from "./contracts";
 
 export interface SnapshotSource {
   load(space: SpaceId): Promise<VisualSnapshotEnvelope<unknown>>;
@@ -29,4 +29,8 @@ export interface TimeControlSource {
 
 export interface PortalSource {
   portalsOf(space: SpaceId): SpatialPortalDto[];
+}
+
+export interface NpcInspectionSource {
+  load(npcId: number): Promise<NpcInspection | null>;
 }

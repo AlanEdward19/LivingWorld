@@ -4,7 +4,7 @@ namespace LivingWorld.Api.Simulation;
 
 public sealed record SetSpeedRequest(double TicksPerSecond);
 
-public sealed record SimulationStatusResponse(bool IsPaused, double TicksPerSecond);
+public sealed record SimulationStatusResponse(bool IsPaused, double TicksPerSecond, long Tick, long Year);
 
 /// <summary>Fase 15.1, T1 (VTT2-27..30): tradução fina de <see cref="SimulationHost"/> sobre HTTP
 /// — nenhuma regra nova aqui, a validação de velocidade já existe em
@@ -45,7 +45,11 @@ public static class SimulationControlEndpoints
             return Results.Ok();
         });
 
-        app.MapGet("/simulation/status", (SimulationHost host) =>
-            Results.Ok(new SimulationStatusResponse(host.IsPaused, host.TicksPerSecond)));
+        app.MapGet("/simulation/status", (SimulationHost host, WorldHost worldHost) =>
+            Results.Ok(new SimulationStatusResponse(
+                host.IsPaused,
+                host.TicksPerSecond,
+                worldHost.Current.CurrentDate.TotalHours,
+                worldHost.Current.CurrentDate.Year)));
     }
 }

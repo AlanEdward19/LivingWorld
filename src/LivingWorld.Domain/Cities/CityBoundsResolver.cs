@@ -1,7 +1,12 @@
 namespace LivingWorld.Domain;
 
 /// <summary>Extensão de uma cidade no grid do mundo (Fase 15.1, T45).</summary>
-public readonly record struct CityBounds(CellCoord Origin, int Width, int Height);
+public readonly record struct CityBounds(CellCoord Origin, int Width, int Height)
+{
+    public bool Contains(CellCoord cell) =>
+        cell.X >= Origin.X && cell.X < Origin.X + Width &&
+        cell.Y >= Origin.Y && cell.Y < Origin.Y + Height;
+}
 
 /// <summary>Resolve os bounds de uma cidade (Fase 15.1, T45; G4/backend-gaps.md). Nenhum cenário
 /// autora tamanho de cidade hoje — <see cref="IsDerived"/> é sempre <c>true</c> por ora.
@@ -15,19 +20,19 @@ public readonly record struct CityBounds(CellCoord Origin, int Width, int Height
 /// Bugfix real (usuário, 2026-08-13, rodada 2 — a rodada 1 ainda estourava): escalar só por
 /// <see cref="population"/> não basta — um template "Cidade média" (mapa 20×20, população 150)
 /// ainda produzia lado 25 num mapa de 20, confirmado ao vivo via `/visual/subscribe`. O lado
-/// agora nunca excede a menor dimensão do mapa (<paramref name="mapWidth"/>/<paramref
-/// name="mapHeight"/>), e o multiplicador de escala caiu de ×2 para ×1 (o teto por mapa já é a
-/// proteção real; o antigo ×2/teto-34 sobrevive só como piso/teto absoluto para mapas grandes o
-/// bastante pra não bater no teto do próprio mapa).</summary>
+/// agora nunca excede metade da menor dimensão do mapa (<paramref name="mapWidth"/>/<paramref
+/// name="mapHeight"/>). A raiz da população é dividida por dois e limitada a 12 células para a
+/// cidade permanecer um marcador compacto no mapa-múndi, não dominar a paisagem inteira.</summary>
 public static class CityBoundsResolver
 {
-    private const int MinSize = 4;
-    private const int MaxSize = 34;
+    private const int MinSize = 3;
+    private const int MaxSize = 12;
 
     public static (CityBounds Bounds, bool IsDerived) Resolve(City city, long population, int mapWidth, int mapHeight)
     {
-        int populationSide = Math.Clamp((int)Math.Ceiling(Math.Sqrt(Math.Max(population, 0))), MinSize, MaxSize);
-        int side = Math.Min(populationSide, Math.Min(mapWidth, mapHeight));
+        int populationSide = Math.Clamp((int)Math.Ceiling(Math.Sqrt(Math.Max(population, 0)) / 2.0), MinSize, MaxSize);
+        int mapLimit = Math.Max(1, Math.Min(mapWidth, mapHeight) / 2);
+        int side = Math.Min(populationSide, mapLimit);
         var origin = new CellCoord(city.Location.X - side / 2, city.Location.Y - side / 2);
         return (new CityBounds(origin, side, side), true);
     }

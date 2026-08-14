@@ -42,9 +42,15 @@ function fakeCtx(canvas: { width: number; height: number }) {
   };
 }
 
-function npc(id: string, x: number, y: number, sizeIsDerived = false): AuthoritativeEntity {
+function npc(
+  id: string,
+  x: number,
+  y: number,
+  sizeIsDerived = false,
+  space: AuthoritativeEntity["ref"]["space"] = { kind: "World" },
+): AuthoritativeEntity {
   return {
-    ref: { kind: "npc", id, space: { kind: "World" } },
+    ref: { kind: "npc", id, space },
     position: { x, y },
     size: { w: 1, h: 1 },
     sizeIsDerived,
@@ -218,6 +224,45 @@ describe("renderer.draw", () => {
     const dashCalls = ctx.setLineDash.mock.calls.map((args: unknown[]) => args[0] as number[]);
     expect(dashCalls.some((pattern) => pattern.length > 0)).toBe(true); // o derivado usou tracejado
     expect(dashCalls.some((pattern) => pattern.length === 0)).toBe(true); // o autorado usou traço sólido
+  });
+
+  it("caps an NPC token at ten screen pixels even under extreme zoom", () => {
+    class PendingImage {
+      complete = false;
+      naturalWidth = 0;
+      src = "";
+    }
+    vi.stubGlobal("Image", PendingImage);
+    const ctx = fakeCtx({ width: 400, height: 400 });
+
+    draw(ctx, baseFrame({ center: { x: 5.5, y: 5.5 }, scale: 100 }, [npc("tiny-person", 5, 5)]));
+
+    expect(ctx.arc.mock.calls[0]?.[2]).toBe(10);
+  });
+
+  it("renders NPCs progressively larger in city and building spaces without changing world scale", () => {
+    class PendingImage {
+      complete = false;
+      naturalWidth = 0;
+      src = "";
+    }
+    vi.stubGlobal("Image", PendingImage);
+
+    const radiusFor = (entity: AuthoritativeEntity) => {
+      const ctx = fakeCtx({ width: 400, height: 400 });
+      draw(ctx, baseFrame({ center: { x: 5.5, y: 5.5 }, scale: 20 }, [entity]));
+      return ctx.arc.mock.calls[0]?.[2] as number;
+    };
+
+    const worldRadius = radiusFor(npc("world-person", 5, 5));
+    const cityRadius = radiusFor(npc("city-person", 5, 5, false, { kind: "City", cityId: "city-a" }));
+    const buildingRadius = radiusFor(npc("home-person", 5, 5, false, {
+      kind: "Building", buildingId: "home-a", cityId: "city-a",
+    }));
+
+    expect(worldRadius).toBe(5);
+    expect(cityRadius).toBeGreaterThan(worldRadius);
+    expect(buildingRadius).toBeGreaterThan(cityRadius);
   });
 
   it("culls entities outside the visible rect from drawing", () => {

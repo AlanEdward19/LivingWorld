@@ -127,6 +127,85 @@ public class BehaviorDecisionSystemTests
     }
 
     [Fact]
+    public void Completing_idle_moves_one_valid_step_and_same_seed_reproduces_the_destination()
+    {
+        static CellCoord RunOnce()
+        {
+            var rules = MakeRules(urgencyThreshold: 70);
+            var catalog = ActionCatalog.Create(
+                new Dictionary<ActionType, int>
+                {
+                    [ActionType.Eat] = 2, [ActionType.Sleep] = 8, [ActionType.Work] = 8,
+                    [ActionType.Socialize] = 3, [ActionType.Travel] = 4,
+                    [ActionType.Idle] = 2, [ActionType.Buy] = 2,
+                }, [], ActionType.Idle).Value!;
+            var (world, ctx, npc) = BuildWorld(seed: 44, rules, catalog, Neutral);
+            var before = npc.CurrentLocation;
+            npc.SetCurrentAction(ActionType.Idle, tick: -2);
+
+            new BehaviorDecisionSystem().Tick(world, ctx);
+
+            Assert.NotEqual(before, npc.CurrentLocation);
+            Assert.True(world.Map.TryGetCell(npc.CurrentLocation, out _));
+            return npc.CurrentLocation;
+        }
+
+        Assert.Equal(RunOnce(), RunOnce());
+    }
+
+    [Fact]
+    public void Completing_work_moves_one_valid_step_and_same_seed_reproduces_the_destination()
+    {
+        static CellCoord RunOnce()
+        {
+            var rules = MakeRules(urgencyThreshold: 70);
+            var catalog = MakeCatalogWithOpenWorkShift();
+            var (world, ctx, npc) = BuildWorld(seed: 81, rules, catalog, Neutral);
+            var before = npc.CurrentLocation;
+            npc.SetCurrentAction(ActionType.Work, tick: -8);
+
+            new BehaviorDecisionSystem().Tick(world, ctx);
+
+            Assert.NotEqual(before, npc.CurrentLocation);
+            Assert.True(world.Map.TryGetCell(npc.CurrentLocation, out _));
+            return npc.CurrentLocation;
+        }
+
+        Assert.Equal(RunOnce(), RunOnce());
+    }
+
+    [Theory]
+    [InlineData(ActionType.Idle, 2)]
+    [InlineData(ActionType.Work, 8)]
+    [InlineData(ActionType.Socialize, 3)]
+    public void Completing_an_ambient_action_stays_inside_the_home_city_footprint(
+        ActionType action, int duration)
+    {
+        static CellCoord RunOnce(ActionType action, int duration)
+        {
+            var rules = MakeRules(urgencyThreshold: 70);
+            var catalog = MakeCatalogWithOpenWorkShift();
+            var (world, ctx, npc) = BuildWorld(seed: 91, rules, catalog, Neutral);
+            var city = new City(
+                world.NextCityId(), npc.CurrentLocation, 0, null, AggregatePopulationPool.Empty);
+            world.AddCity(city);
+            npc.JoinCity(city.Id);
+            npc.SetCurrentAction(action, tick: -duration);
+            var before = npc.CurrentLocation;
+
+            new BehaviorDecisionSystem().Tick(world, ctx);
+
+            var bounds = SpatialBoundsResolver.ResolveCity(
+                city, CityPopulationQuery.Population(world, city.Id), world.Map.Width, world.Map.Height).Bounds;
+            Assert.NotEqual(before, npc.CurrentLocation);
+            Assert.True(bounds.Contains(npc.CurrentLocation));
+            return npc.CurrentLocation;
+        }
+
+        Assert.Equal(RunOnce(action, duration), RunOnce(action, duration));
+    }
+
+    [Fact]
     public void A_need_above_the_urgency_threshold_overrides_the_routine()
     {
         var rules = MakeRules(urgencyThreshold: 70);

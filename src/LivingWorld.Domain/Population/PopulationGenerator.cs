@@ -23,7 +23,7 @@ public static class PopulationGenerator
     public static GeneratedPopulation GenerateInitial(
         WorldRng rng, WorldDate now, int count, CultureId culture, CellCoord villageLocation,
         LifeTable lifeTable, PopulationCatalog catalog, long startingNpcId = 0, long startingHouseholdId = 0,
-        CityId city = default)
+        CityId city = default, IReadOnlyList<CellCoord>? householdSpawnCells = null)
     {
         long nextNpcId = startingNpcId;
         long nextHouseholdId = startingHouseholdId;
@@ -64,7 +64,8 @@ public static class PopulationGenerator
             (ageYears >= 18 ? adults : children).Add(npc);
         }
 
-        var households = PairIntoHouseholds(adults, children, villageLocation, ref nextHouseholdId, city);
+        var households = PairIntoHouseholds(
+            adults, children, villageLocation, ref nextHouseholdId, city, householdSpawnCells);
 
         return new GeneratedPopulation(npcs, households, nextNpcId, nextHouseholdId);
     }
@@ -88,7 +89,8 @@ public static class PopulationGenerator
     }
 
     private static List<Household> PairIntoHouseholds(
-        List<Npc> adults, List<Npc> children, CellCoord location, ref long nextHouseholdId, CityId city)
+        List<Npc> adults, List<Npc> children, CellCoord location, ref long nextHouseholdId, CityId city,
+        IReadOnlyList<CellCoord>? householdSpawnCells)
     {
         var females = new Queue<Npc>(adults.Where(a => a.Sex == Sex.Female));
         var males = new Queue<Npc>(adults.Where(a => a.Sex == Sex.Male));
@@ -117,12 +119,19 @@ public static class PopulationGenerator
                 seeds[i % seeds.Count].Add(children[i]);
 
         var households = new List<Household>(seeds.Count);
-        foreach (var members in seeds)
+        for (int householdIndex = 0; householdIndex < seeds.Count; householdIndex++)
         {
+            var members = seeds[householdIndex];
+            var householdLocation = householdSpawnCells is { Count: > 0 }
+                ? householdSpawnCells[householdIndex % householdSpawnCells.Count]
+                : location;
             var head = members.OrderBy(m => m.Id.Value).First();
-            var household = new Household(new HouseholdId(nextHouseholdId++), location, head.Id, members.Select(m => m.Id).ToList(), city: city);
+            var household = new Household(new HouseholdId(nextHouseholdId++), householdLocation, head.Id, members.Select(m => m.Id).ToList(), city: city);
             foreach (var member in members)
+            {
                 member.JoinHousehold(household.Id);
+                member.MoveTo(householdLocation, member.ActionStartedAtTick);
+            }
             households.Add(household);
         }
         return households;

@@ -38,7 +38,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         {
             EvaluateProfessionSwitch(world, npc, vacancyIndex);
 
-            bool justCompleted = TryCompleteAction(world, npc, rules, catalog, now, marketIndex);
+            bool justCompleted = TryCompleteAction(world, npc, rules, catalog, now, marketIndex, ctx);
             var continuityAction = justCompleted ? null : npc.CurrentAction;
 
             var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
@@ -60,7 +60,8 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     internal static IEnumerable<Npc> TargetsForTick(WorldState world) => world.NpcWakeBatch;
 
     private static bool TryCompleteAction(
-        WorldState world, Npc npc, NeedsRules rules, ActionCatalog catalog, long now, MarketIndex marketIndex)
+        WorldState world, Npc npc, NeedsRules rules, ActionCatalog catalog, long now,
+        MarketIndex marketIndex, TickContext ctx)
     {
         if (npc.CurrentAction is not { } action) return false;
 
@@ -75,8 +76,34 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
         if (now - npc.ActionStartedAtTick < catalog.MaxDurationHours[action]) return false;
 
+        if (action is ActionType.Idle or ActionType.Work or ActionType.Socialize)
+            MoveOneAmbientStep(world, npc, ctx, now, action);
+
         ApplyActionEffect(world, npc, rules, action, marketIndex, now);
         return true;
+    }
+
+    private static void MoveOneAmbientStep(
+        WorldState world, Npc npc, TickContext ctx, long tick, ActionType action)
+    {
+        CityBounds? homeBounds = world.FindCity(npc.City) is { } city
+            ? SpatialBoundsResolver.ResolveCity(
+                city, CityPopulationQuery.Population(world, city.Id), world.Map.Width, world.Map.Height).Bounds
+            : null;
+        var candidates = Enumerable.Range(-1, 3)
+            .SelectMany(dy => Enumerable.Range(-1, 3).Select(dx => new CellCoord(
+                npc.CurrentLocation.X + dx,
+                npc.CurrentLocation.Y + dy)))
+            .Where(cell => cell != npc.CurrentLocation && world.Map.TryGetCell(cell, out _))
+            .Where(cell => homeBounds is null || homeBounds.Value.Contains(cell))
+            .OrderBy(cell => cell.Y)
+            .ThenBy(cell => cell.X)
+            .ToList();
+        if (candidates.Count == 0) return;
+
+        var rng = ctx.Rng($"ambient-{action}-{npc.Id.Value}");
+        int index = Math.Min((int)(rng.NextDouble() * candidates.Count), candidates.Count - 1);
+        npc.MoveTo(candidates[index], tick);
     }
 
     private static void ApplyActionEffect(WorldState world, Npc npc, NeedsRules rules, ActionType action, MarketIndex marketIndex, long tick)

@@ -10,6 +10,7 @@ public sealed class WorldClock(IReadOnlyList<ISimulationSystem> systems, int max
 {
     private readonly Dictionary<string, ISimulationSystem> _byName = systems.ToDictionary(s => s.Name);
 
+    public IReadOnlyList<ISimulationSystem> Systems => systems;
     public int MaxIterationsPerTick => maxIterationsPerTick;
 
     public void Run(WorldState world, long ticks)

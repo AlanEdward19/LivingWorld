@@ -13,7 +13,8 @@ public static class PopulationSeeder
         var rng = world.Rng.Stream("population-init");
         var generated = PopulationGenerator.GenerateInitial(
             rng, world.CurrentDate, count, culture, villageLocation, world.PopulationRules.LifeTable,
-            world.PopulationCatalog, world.NextNpcId, world.NextHouseholdId, city);
+            world.PopulationCatalog, world.NextNpcId, world.NextHouseholdId, city,
+            HouseholdSpawnCells(world.Map, villageLocation));
 
         foreach (var npc in generated.Npcs)
         {
@@ -33,4 +34,17 @@ public static class PopulationSeeder
             NpcWakeScheduler.ScheduleWake(world, ctx, npc.Id.Value, world.CurrentDate.TotalHours + 1);
         }
     }
+
+    private static IReadOnlyList<CellCoord> HouseholdSpawnCells(WorldMap map, CellCoord villageLocation) =>
+        map.Cells
+            .Where(cell => Math.Max(
+                Math.Abs(cell.Coord.X - villageLocation.X),
+                Math.Abs(cell.Coord.Y - villageLocation.Y)) <= 2)
+            .OrderBy(cell => Math.Max(
+                Math.Abs(cell.Coord.X - villageLocation.X),
+                Math.Abs(cell.Coord.Y - villageLocation.Y)))
+            .ThenBy(cell => cell.Coord.Y)
+            .ThenBy(cell => cell.Coord.X)
+            .Select(cell => cell.Coord)
+            .ToList();
 }

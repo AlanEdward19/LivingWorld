@@ -7,6 +7,7 @@ import { MockTickStreamSource } from "./data/mock/MockTickStreamSource";
 import { MockTimeControlSource } from "./data/mock/MockTimeControlSource";
 import { MockPortalSource } from "./data/mock/MockPortalSource";
 import { npcsByScope, portalFixtures, snapshotsByScope } from "./data/mock/fixtures";
+import { MockNpcInspectionSource } from "./data/mock/MockNpcInspectionSource";
 import { mountApp } from "./bootstrap";
 import "./styles/global.css";
 
@@ -20,6 +21,7 @@ clock.setSpeed(2);
 const simulationStore = new SimulationStore(
   new MockSnapshotSource(snapshotsByScope),
   new MockTickStreamSource(clock, npcsByScope),
+  new MockNpcInspectionSource(new Map()),
 );
 const viewStore = new ViewStore(new MockPortalSource(portalFixtures));
 const selectionStore = new SelectionStore();

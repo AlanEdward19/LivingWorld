@@ -1,6 +1,8 @@
 using LivingWorld.Domain;
 
 using LivingWorld.Simulation.History;
+using LivingWorld.Simulation.Narrative;
+using LivingWorld.Simulation.Periods;
 using LivingWorld.Simulation.Population;
 
 namespace LivingWorld.Simulation;
@@ -36,8 +38,12 @@ public static class ScenarioRunner
     /// em workplace/household alimenta relações antes da prática de habilidade); <see
     /// cref="CourtshipSystem"/> entra antes de <see cref="NatalitySystem"/> (casal formado no
     /// cortejo é quem a natalidade consome via <c>Npc.Spouse</c>).</summary>
-    public static IReadOnlyList<ISimulationSystem> DefaultSystems() =>
+    public static IReadOnlyList<ISimulationSystem> DefaultSystems(
+        IReadOnlyList<PeriodTransformationRule>? periodTransformationRules = null,
+        ConversationSessionStore? conversationSessions = null,
+        ChronicleGenerationSystem? chronicles = null) =>
     [
+        new PeriodEvolutionSystem(periodTransformationRules ?? []),
         new ExampleCounterSystem(TickFrequency.Hourly),
         new ExampleCounterSystem(TickFrequency.Daily),
         new ExampleCounterSystem(TickFrequency.Monthly),
@@ -57,6 +63,13 @@ public static class ScenarioRunner
         new ProductionSystem(DefaultSkillsRules),
         new MarketPricingSystem(),
         new WagePaymentSystem(),
+        new CityGrowthSystem(),
+        new ConstructionSystem(),
+        new MigrationSystem(),
+        new MaterializationSystem(),
+        new SettlementFoundingSystem(),
+        chronicles ?? new ChronicleGenerationSystem(),
+        conversationSessions ?? new ConversationSessionStore(),
     ];
 
     private static readonly GeographyCatalog DefaultCatalog = new(

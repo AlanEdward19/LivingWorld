@@ -1,4 +1,5 @@
 import type { FocusScope, VisualSnapshotEnvelope, ViewerMode } from "./types";
+import type { NpcInspection } from "./data/contracts";
 
 // Fase 15, T8: base URL da API — em dev via proxy do Vite (mesma origem), em outros ambientes
 // via VITE_API_BASE_URL. Vazio == mesma origem do host que serve o cliente.
@@ -51,6 +52,13 @@ export async function fetchSnapshot<TPayload>(
   const response = await fetch(buildSubscribeUrl(scope, mode, playerNpcId));
   if (!response.ok) throw new Error(`subscribe falhou: ${response.status}`);
   return (await response.json()) as VisualSnapshotEnvelope<TPayload>;
+}
+
+export async function fetchNpcInspection(npcId: number): Promise<NpcInspection | null> {
+  const response = await fetch(`${apiBaseUrl()}/npcs/${npcId}`);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`inspeção de NPC falhou: ${response.status}`);
+  return (await response.json()) as NpcInspection;
 }
 
 export interface MoveNpcRequest {
@@ -130,6 +138,8 @@ export async function stepSimulation(): Promise<void> {
 export interface SimulationStatusDto {
   isPaused: boolean;
   ticksPerSecond: number;
+  tick: number;
+  year: number;
 }
 
 export async function fetchSimulationStatus(): Promise<SimulationStatusDto> {

@@ -57,6 +57,23 @@ public sealed class RealtimeGateway(Func<long> currentTick, int retentionPerScop
         }
     }
 
+    public Result<VisualReplayState> ReplayState(VisualScope scope, ViewerMode mode, VisualCursor since)
+    {
+        var auth = Authorize(scope, mode);
+        if (!auth.IsSuccess) return Result<VisualReplayState>.Fail(auth.Error!);
+
+        lock (_gate)
+        {
+            if (!_log.TryGetValue(scope.ScopeKey, out var entries) || entries.Count == 0)
+                return Result<VisualReplayState>.Ok(new VisualReplayState(false, []));
+
+            var pending = entries.Where(entry => entry.ToCursor.Sequence > since.Sequence).ToList();
+            bool hasGap = pending.Count > 0 && pending[0].FromCursor.Sequence > since.Sequence;
+            return Result<VisualReplayState>.Ok(
+                hasGap ? new VisualReplayState(true, []) : new VisualReplayState(false, pending));
+        }
+    }
+
     /// <summary>Anexa uma entrada ao log do escopo e distribui para assinantes conectados
     /// (T4/T5 chamam isso após montar a projeção de um tick). Fase 15.1, T4: escopo sem nenhum
     /// assinante conectado agora não acumula histórico (early return); com assinante, o log é
@@ -122,3 +139,7 @@ public sealed class RealtimeGateway(Func<long> currentTick, int retentionPerScop
         return (channel.Reader, Unsubscribe);
     }
 }
+
+public sealed record VisualReplayState(
+    bool RequiresSnapshot,
+    IReadOnlyList<VisualDeltaEnvelope<object?>> Deltas);
