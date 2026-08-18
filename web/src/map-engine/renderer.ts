@@ -155,10 +155,43 @@ export function draw(ctx: CanvasRenderingContext2D | null, frame: RenderFrame): 
   if (level === "aggregate") {
     drawClusters(ctx, camera, pointEntities, scale);
   } else {
+    // Vários residentes de um mesmo domicílio legitimamente compartilham 1 tile (é a mesma casa
+    // física) — sem isso os sprites desenham exatamente empilhados e viram um rótulo ilegível
+    // (LIVE-POLISH). O deslocamento é só de desenho: nunca toca a posição autoritativa.
+    const fanOut = fanOutOffsets(pointEntities);
     for (const entity of pointEntities) {
-      drawPointEntity(ctx, camera, entity, scale, level !== "dot", entity.ref.id === frame.highlightId);
+      const offset = fanOut.get(entity.ref.id);
+      const drawEntity = offset
+        ? { ...entity, position: { x: entity.position.x + offset.x, y: entity.position.y + offset.y } }
+        : entity;
+      drawPointEntity(ctx, camera, drawEntity, scale, level !== "dot", entity.ref.id === frame.highlightId);
     }
   }
+}
+
+/** Só entidades que dividem exatamente a mesma célula ganham deslocamento — sorteio determinístico
+ * (ordenado por id) num pequeno círculo, então o mesmo grupo sempre se organiza igual entre
+ * frames/replays. */
+function fanOutOffsets(entities: AuthoritativeEntity[]): Map<string, Vec2> {
+  const byCell = new Map<string, AuthoritativeEntity[]>();
+  for (const entity of entities) {
+    const key = `${Math.floor(entity.position.x)}:${Math.floor(entity.position.y)}`;
+    const group = byCell.get(key);
+    if (group) group.push(entity);
+    else byCell.set(key, [entity]);
+  }
+
+  const offsets = new Map<string, Vec2>();
+  const radius = 0.34;
+  for (const group of byCell.values()) {
+    if (group.length <= 1) continue;
+    const sorted = [...group].sort((a, b) => a.ref.id.localeCompare(b.ref.id));
+    sorted.forEach((entity, index) => {
+      const angle = (2 * Math.PI * index) / sorted.length;
+      offsets.set(entity.ref.id, { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius });
+    });
+  }
+  return offsets;
 }
 
 function drawGroundDetail(ctx: CanvasRenderingContext2D, topLeft: Vec2, scale: number, detail: GroundVisual): void {
@@ -539,9 +572,9 @@ function drawPointEntity(
 ): void {
   const center = camera.worldToScreen({ x: entity.position.x + 0.5, y: entity.position.y + 0.5 });
   const visualScale = pointVisualScale(entity);
-  const r = isToken
-    ? Math.min(10 * visualScale, Math.max(5, scale * 0.22) * visualScale)
-    : Math.min(4 * visualScale, Math.max(1.5, scale * 0.12) * visualScale);
+  // Tamanho em pixels de tela fixo por nível de LOD (não acompanha `scale`/zoom) — só o nível
+  // muda (dot -> token) quando o zoom cruza o threshold, o token em si não "respira".
+  const r = (isToken ? 8 : 3) * visualScale;
 
   if (isToken) {
     // T35: pawn SVG original e determinístico, carregado uma vez por identidade/ação e desenhado

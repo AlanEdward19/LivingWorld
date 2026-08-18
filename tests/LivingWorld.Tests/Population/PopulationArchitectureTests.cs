@@ -65,7 +65,7 @@ public class PopulationArchitectureTests
         string json = File.ReadAllText(Path.Combine(FindRepoRoot(), "scenarios", "default.json"));
         var result = ScenarioLoader.LoadWorld(json);
         Assert.True(result.IsSuccess, result.Error);
-        Assert.Equal(100, result.Value.World.Npcs.Count);
+        Assert.Equal(20, result.Value.World.Npcs.Count);
     }
 
     private static IEnumerable<string> SourceFiles()

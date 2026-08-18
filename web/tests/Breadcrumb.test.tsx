@@ -30,4 +30,19 @@ describe("Breadcrumb", () => {
     expect(screen.getByRole("button", { name: "Cidade city-1" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Mundo" })).toBeEnabled();
   });
+
+  it("shows the authored city name instead of the raw id once it's known", () => {
+    const city: SpaceId = { kind: "City", cityId: "city-1" };
+    render(<Breadcrumb space={city} onNavigate={() => {}} cityName="Vale Dourado" />);
+
+    expect(screen.getByRole("button", { name: "Cidade Vale Dourado" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cidade city-1" })).not.toBeInTheDocument();
+  });
+
+  it("still falls back to the id slice while the city name hasn't loaded yet", () => {
+    const building: SpaceId = { kind: "Building", buildingId: "42", cityId: "city-1" };
+    render(<Breadcrumb space={building} onNavigate={() => {}} />);
+
+    expect(screen.getByRole("button", { name: "Cidade city-1" })).toBeInTheDocument();
+  });
 });

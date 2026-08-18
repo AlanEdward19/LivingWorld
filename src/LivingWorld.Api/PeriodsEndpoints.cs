@@ -6,7 +6,10 @@ namespace LivingWorld.Api;
 
 public sealed record CreatePeriodRequest(string PeriodId, int Version, JsonElement PeriodDefinition, string Source);
 
-public sealed record PeriodSummaryResponse(string PeriodId, int Version, string Source, DateTime CreatedAtUtc);
+/// <summary>T44b: <see cref="Width"/>/<see cref="Height"/> do mapa desse template — sem isso o
+/// World Creator não sabia que tamanho de mundo cada template gera antes de escolhê-lo (só
+/// depois de já ter carregado o `PeriodDefinition` inteiro via `GET /periods/{id}`).</summary>
+public sealed record PeriodSummaryResponse(string PeriodId, int Version, string Source, DateTime CreatedAtUtc, int Width, int Height);
 
 public sealed record PeriodDetailResponse(string PeriodId, int Version, string Source, DateTime CreatedAtUtc, JsonElement PeriodDefinition);
 
@@ -51,13 +54,22 @@ public static class PeriodsEndpoints
 
             return Results.Created(
                 $"/periods/{request.PeriodId}",
-                new PeriodSummaryResponse(request.PeriodId, request.Version, request.Source, createdAtUtc));
+                new PeriodSummaryResponse(
+                    request.PeriodId, request.Version, request.Source, createdAtUtc,
+                    request.PeriodDefinition.GetProperty("Width").GetInt32(),
+                    request.PeriodDefinition.GetProperty("Height").GetInt32()));
         });
 
         app.MapGet("/periods", (IPeriodTemplateRepository repository) =>
         {
             var catalog = repository.ListLatestPerPeriod()
-                .Select(t => new PeriodSummaryResponse(t.PeriodId, t.Version, t.Source, t.CreatedAtUtc));
+                .Select(t =>
+                {
+                    var root = JsonDocument.Parse(t.PayloadJson).RootElement;
+                    return new PeriodSummaryResponse(
+                        t.PeriodId, t.Version, t.Source, t.CreatedAtUtc,
+                        root.GetProperty("Width").GetInt32(), root.GetProperty("Height").GetInt32());
+                });
             return Results.Ok(catalog);
         });
 

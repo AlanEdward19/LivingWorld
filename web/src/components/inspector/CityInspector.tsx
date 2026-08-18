@@ -29,10 +29,11 @@ export function CityInspector({ cityId, simulationStore, viewStore }: CityInspec
 
   const worldSnapshot = simulationStore.currentPayload<FutureGlobalSnapshot>(WORLD);
   const worldMarker = worldSnapshot?.cities.find((c) => c.id.value === cityId);
+  const name = (hasFullIndicators ? citySnapshot!.name : undefined) || worldMarker?.name;
 
   return (
     <div>
-      <h3>Cidade {cityId.slice(0, 8)}</h3>
+      <h3>Cidade {name || cityId.slice(0, 8)}</h3>
 
       <dl>
         <dt>População</dt>

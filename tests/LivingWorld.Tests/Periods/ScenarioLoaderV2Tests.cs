@@ -73,19 +73,25 @@ public class ScenarioLoaderV2Tests
         Assert.True(result.IsSuccess, result.Error);
         var (world, _) = result.Value;
 
-        Assert.Equal(100, world.Npcs.Count);
+        Assert.Equal(20, world.Npcs.Count);
         Assert.True(world.EconomyRules.Enabled);
         Assert.True(world.CityRules.Enabled);
         Assert.Single(world.Workplaces);
         // Bugfix real (usuário, 2026-08-13): a vila inicial (VillageX/Y = 5,5 em default.json)
         // não coincide com a cidade autorada (X/Y = 2,2, população 0) — antes desta correção a
         // população inicial nunca era vinculada a nenhuma cidade (Npc.City ficava default),
-        // então sumia de toda projeção. Agora uma segunda cidade é fundada na própria vila,
-        // e é ela que carrega a população real.
+        // então sumia de toda projeção. Agora uma segunda cidade é fundada na própria vila.
         Assert.Equal(2, world.Cities.Count);
         var homeCity = Assert.Single(world.Cities, c => c.Location == new CellCoord(5, 5));
-        Assert.All(world.Npcs, npc => Assert.Equal(homeCity.Id, npc.City));
-        Assert.All(world.Households, household => Assert.Equal(homeCity.Id, household.City));
+        var otherCity = Assert.Single(world.Cities, c => c.Location == new CellCoord(2, 2));
+
+        // Bugfix real (usuário, 2026-08-14): com 2+ cidades autoradas, só a vila inicial ganhava
+        // população — a outra nascia sempre com 0 moradores. Agora InitialPopulation se
+        // distribui por todas (resto pra vila inicial), nenhuma cidade autorada fica vazia à toa.
+        Assert.All(world.Npcs, npc => Assert.True(npc.City == homeCity.Id || npc.City == otherCity.Id));
+        Assert.Contains(world.Npcs, npc => npc.City == homeCity.Id);
+        Assert.Contains(world.Npcs, npc => npc.City == otherCity.Id);
+        Assert.All(world.Households, household => Assert.True(household.City == homeCity.Id || household.City == otherCity.Id));
     }
 
     [Fact]
@@ -117,6 +123,71 @@ public class ScenarioLoaderV2Tests
             clock.Tick(world);
 
         Assert.True(world.Npcs.Count > 0);
+    }
+
+    [Fact]
+    public void Initial_population_splits_across_every_authored_city_none_stays_empty()
+    {
+        var root = FullValidRoot();
+        root["InitialPopulation"] = 21;
+        root["Cities"] = new JsonArray(
+            new JsonObject
+            {
+                ["X"] = 2, ["Y"] = 2, ["FoundedAtTick"] = 0,
+                ["AggregatePool"] = new JsonObject { ["Count"] = 0, ["WealthSum"] = 0, ["HealthSum"] = 0 },
+            },
+            new JsonObject
+            {
+                ["X"] = 8, ["Y"] = 8, ["FoundedAtTick"] = 0,
+                ["AggregatePool"] = new JsonObject { ["Count"] = 0, ["WealthSum"] = 0, ["HealthSum"] = 0 },
+            });
+
+        var result = ScenarioLoaderV2.LoadWorld(root.ToJsonString());
+
+        Assert.True(result.IsSuccess, result.Error);
+        var (world, _) = result.Value;
+
+        // 3 cidades (2 autoradas + a vila fundada em 5,5, que não coincide com nenhuma) — 21
+        // dividido em 3 dá 7 exatos, então essa combinação não exercita o resto; ver o teste
+        // Happy_path acima pra caso com resto.
+        Assert.Equal(3, world.Cities.Count);
+        foreach (var city in world.Cities)
+            Assert.Contains(world.Npcs, npc => npc.City == city.Id);
+        Assert.Equal(21, world.Npcs.Count);
+    }
+
+    [Fact]
+    public void Explicit_initial_population_per_city_is_respected_remainder_split_among_the_rest()
+    {
+        var root = FullValidRoot();
+        root["InitialPopulation"] = 21;
+        root["Cities"] = new JsonArray(
+            new JsonObject
+            {
+                ["X"] = 2, ["Y"] = 2, ["FoundedAtTick"] = 0,
+                ["AggregatePool"] = new JsonObject { ["Count"] = 0, ["WealthSum"] = 0, ["HealthSum"] = 0 },
+                ["InitialPopulation"] = 15,
+            },
+            new JsonObject
+            {
+                ["X"] = 8, ["Y"] = 8, ["FoundedAtTick"] = 0,
+                ["AggregatePool"] = new JsonObject { ["Count"] = 0, ["WealthSum"] = 0, ["HealthSum"] = 0 },
+            });
+
+        var result = ScenarioLoaderV2.LoadWorld(root.ToJsonString());
+
+        Assert.True(result.IsSuccess, result.Error);
+        var (world, _) = result.Value;
+
+        // (2,2) fixa 15 moradores; o resto (21-15=6) divide igual entre (8,8) e a vila fundada em
+        // (5,5) — 3 cada, sem mexer na fórmula de footprint (CityBoundsResolver continua
+        // derivando o tamanho da população atual, T44b não trava crescimento nenhum).
+        Assert.Equal(3, world.Cities.Count);
+        Assert.Equal(21, world.Npcs.Count);
+        var explicitCity = Assert.Single(world.Cities, c => c.Location == new CellCoord(2, 2));
+        Assert.Equal(15, world.Npcs.Count(npc => npc.City == explicitCity.Id));
+        foreach (var city in world.Cities.Where(c => c.Id != explicitCity.Id))
+            Assert.Equal(3, world.Npcs.Count(npc => npc.City == city.Id));
     }
 
     private static string FindRepoRoot()

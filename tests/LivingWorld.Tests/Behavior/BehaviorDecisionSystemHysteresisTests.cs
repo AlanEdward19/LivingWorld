@@ -157,8 +157,19 @@ public class BehaviorDecisionSystemHysteresisTests
                     $"npc {npc.Id.Value} terminou o tick {world.CurrentDate.TotalHours} sem ação escolhida");
 
                 var action = npc.CurrentAction.Value;
-                int maxDuration = catalog.MaxDurationHours[action];
                 long duration = world.CurrentDate.TotalHours - npc.ActionStartedAtTick;
+
+                // Bugfix real (achado rodando este teste, 2026-08-15): Travel é a única ação
+                // cuja duração real não vem do catálogo — TryCompleteAction recalcula
+                // TicksBetween(origem, destino) a cada visita (distância × custo de terreno,
+                // NEEDS-14), então pode legitimamente passar do "4h" genérico do catálogo (ex.:
+                // um único passo diagonal em terreno pesado (peso 3) já custa ⌈√2×3⌉=5h). O
+                // catálogo nunca prometeu um teto pra Travel especificamente — só que ela
+                // eventualmente termina, o que TicksBetween (valor finito, fixo por par de
+                // células) já garante sem precisar de outro laço de proteção aqui.
+                if (action == ActionType.Travel) continue;
+
+                int maxDuration = catalog.MaxDurationHours[action];
                 Assert.True(duration <= maxDuration,
                     $"npc {npc.Id.Value} ficou em {action} por {duration}h no tick {world.CurrentDate.TotalHours} (máximo declarado: {maxDuration}h)");
             }

@@ -120,6 +120,27 @@ public class PeriodsEndpointTests : IClassFixture<WebApplicationFactory<Program>
         Assert.Contains("catalog-period", body);
     }
 
+    // T44b: World Creator precisa saber o tamanho do mapa de um template antes de escolhê-lo, sem
+    // baixar o `PeriodDefinition` inteiro primeiro (GET /periods/{id}).
+
+    [Fact]
+    public async Task Get_periods_includes_the_map_width_and_height_of_each_template()
+    {
+        var client = _factory.CreateClient();
+        var definition = FullValidPeriodDefinition();
+        definition["Width"] = 17;
+        definition["Height"] = 23;
+        await client.PostAsync("/periods", JsonBody(Envelope("sized-period", 1, definition)));
+
+        var response = await client.GetAsync("/periods");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<List<PeriodSummaryResponse>>();
+        var summary = Assert.Single(body!, p => p.PeriodId == "sized-period");
+        Assert.Equal(17, summary.Width);
+        Assert.Equal(23, summary.Height);
+    }
+
     [Fact]
     public async Task Get_periods_by_id_returns_200_with_the_registered_definition()
     {

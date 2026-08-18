@@ -7,10 +7,17 @@ namespace LivingWorld.Tests.Cities;
 /// de forma simétrica.</summary>
 public class CityTests
 {
-    private static City MakeCity(AggregatePopulationPool? pool = null) => new(
-        new CityId(Guid.Parse("00000000-0000-0000-0000-000000000001")),
-        new CellCoord(1, 2), foundedAtTick: 10, foundedFromCityId: null,
-        aggregatePool: pool ?? new AggregatePopulationPool(5, 500, 400));
+    // T50: PoolNpcIds.Count precisa sempre bater com AggregatePool.Count — gera ids sequenciais
+    // pra manter a invariante nos cenários de teste que não se importam com QUAIS ids são.
+    private static City MakeCity(AggregatePopulationPool? pool = null)
+    {
+        var resolvedPool = pool ?? new AggregatePopulationPool(5, 500, 400);
+        var poolNpcIds = Enumerable.Range(1, (int)resolvedPool.Count).Select(i => new NpcId(i)).ToList();
+        return new(
+            new CityId(Guid.Parse("00000000-0000-0000-0000-000000000001")),
+            new CellCoord(1, 2), foundedAtTick: 10, foundedFromCityId: null,
+            aggregatePool: resolvedPool, poolNpcIds: poolNpcIds);
+    }
 
     [Fact]
     public void Constructor_round_trips_every_field()
@@ -31,11 +38,13 @@ public class CityTests
     public void Materialize_decrements_count_and_subtracts_wealth_and_health_sums()
     {
         var city = MakeCity(new AggregatePopulationPool(5, 500, 400));
+        var id = city.PoolNpcIds[0];
 
-        var result = city.Materialize(wealth: 100, health: 80);
+        var result = city.Materialize(id, wealth: 100, health: 80);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(new AggregatePopulationPool(4, 400, 320), city.AggregatePool);
+        Assert.DoesNotContain(id, city.PoolNpcIds);
     }
 
     [Fact]
@@ -43,32 +52,48 @@ public class CityTests
     {
         var city = MakeCity(AggregatePopulationPool.Empty);
 
-        var result = city.Materialize(wealth: 10, health: 10);
+        var result = city.Materialize(new NpcId(1), wealth: 10, health: 10);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(AggregatePopulationPool.Empty, city.AggregatePool);
     }
 
     [Fact]
-    public void Dematerialize_increments_count_and_adds_wealth_and_health_sums()
+    public void Materialize_fails_and_leaves_pool_unchanged_when_id_is_not_reserved_in_this_pool()
     {
-        var city = MakeCity(new AggregatePopulationPool(4, 400, 320));
+        var city = MakeCity(new AggregatePopulationPool(5, 500, 400));
 
-        var result = city.Dematerialize(wealth: 100, health: 80);
+        var result = city.Materialize(new NpcId(9999), wealth: 10, health: 10);
 
-        Assert.True(result.IsSuccess);
+        Assert.False(result.IsSuccess);
         Assert.Equal(new AggregatePopulationPool(5, 500, 400), city.AggregatePool);
     }
 
     [Fact]
-    public void Materialize_then_dematerialize_round_trips_pool_to_original_state()
+    public void Dematerialize_increments_count_and_adds_wealth_and_health_sums()
+    {
+        var city = MakeCity(new AggregatePopulationPool(4, 400, 320));
+        var returningId = new NpcId(999);
+
+        var result = city.Dematerialize(returningId, wealth: 100, health: 80);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(new AggregatePopulationPool(5, 500, 400), city.AggregatePool);
+        Assert.Contains(returningId, city.PoolNpcIds);
+    }
+
+    [Fact]
+    public void Materialize_then_dematerialize_round_trips_pool_and_ids_to_original_state()
     {
         var city = MakeCity(new AggregatePopulationPool(5, 500, 400));
+        var originalIds = city.PoolNpcIds.ToList();
+        var id = city.PoolNpcIds[^1];
 
-        city.Materialize(wealth: 100, health: 80);
-        city.Dematerialize(wealth: 100, health: 80);
+        city.Materialize(id, wealth: 100, health: 80);
+        city.Dematerialize(id, wealth: 100, health: 80);
 
         Assert.Equal(new AggregatePopulationPool(5, 500, 400), city.AggregatePool);
+        Assert.Equal(originalIds, city.PoolNpcIds);
     }
 
     [Fact]

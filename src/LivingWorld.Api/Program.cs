@@ -46,7 +46,19 @@ var worldClock = new WorldClock(
 var world = worldRunner.LoadLatest();
 if (world is null)
 {
-    (world, _) = ScenarioRunner.Create(seed: 1, historyRules: HistoryRules.Default);
+    // 20, não `DefaultInitialPopulation` (100, usado pelos testes) — no mapa 10x10 padrão do
+    // bootstrap, 100 residentes todos materializados excede o footprint de cidade compacto
+    // (CityBoundsResolver trava em metade do mapa = 5x5 = 25 células aqui), empilhando várias
+    // famílias na mesma célula (LIVE-POLISH). 20 casa com o preset "Pequeno" do World Creator
+    // pro mesmo tamanho de mapa.
+    (world, _) = ScenarioRunner.Create(seed: 1, initialPopulation: 20, historyRules: HistoryRules.Default);
+
+    // Bugfix real (usuário, 2026-08-15): o comentário acima sempre disse "já persiste", mas
+    // nada chamava Snapshot aqui — só `PersistentWorldRunner.Run` salva, e só a cada 24 ticks
+    // (`snapshotIntervalTicks`). Um mundo recém-criado, reiniciado antes do tick 24 (ou nunca
+    // tickado, TICK_LOOP_ENABLED=false), perdia o "canônico compartilhado" que T2 prometia —
+    // reiniciar sorteava outro mundo do zero. Salva o snapshot inicial imediatamente.
+    worldRunner.Snapshot(world, worldSink);
 }
 
 // Feature ad-hoc "criar mundo": wrapper mutável — antes dele `world` era capturado por

@@ -22,6 +22,7 @@ const BASE_INSPECTION: NpcInspection = {
   currentAction: 2, actionStartedAtTick: 9,
   actionTarget: { kind: "workplace", id: "52" }, lod: 0, memories: [],
   beliefs: ["Dizem que a colheita trouxe esperança"],
+  currentScope: { kind: 1, cityId: { value: "city-a" } },
 };
 
 function snapshotSource(): SnapshotSource {

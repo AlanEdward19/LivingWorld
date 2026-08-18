@@ -452,6 +452,18 @@ public sealed class WorldState
     internal NpcId NextNpcIdAndAdvance() => new(_nextNpcId++);
     internal HouseholdId NextHouseholdIdAndAdvance() => new(_nextHouseholdId++);
 
+    /// <summary>Reserva <paramref name="count"/> ids em lote (T50) — usado só na carga de
+    /// cenário, pra dar a cada membro do <see cref="AggregatePopulationPool"/> autorado um
+    /// <see cref="NpcId"/> estável antes de qualquer materialização. Mesmo contador de
+    /// <see cref="NextNpcIdAndAdvance"/>, só avançado de uma vez em vez de um por vez.</summary>
+    internal IReadOnlyList<NpcId> ReserveNpcIdBlock(long count)
+    {
+        var ids = new List<NpcId>();
+        for (long i = 0; i < count; i++)
+            ids.Add(NextNpcIdAndAdvance());
+        return ids;
+    }
+
     /// <summary>Sincroniza o contador depois de um lote gerado fora do tick (seed inicial),
     /// que consome ids diretamente do <see cref="PopulationGenerator"/> em vez de um por vez.</summary>
     internal void AdvanceNpcIdTo(long value) => _nextNpcId = Math.Max(_nextNpcId, value);

@@ -107,6 +107,7 @@ export function WorldMapView({ snapshot, viewport, simulationStore, viewStore, s
         const wallCells = generateCityWallFootprint(city.id.value, city.bounds.width, city.bounds.height, floor);
         return {
           ref: { kind: "city" as const, id: city.id.value, space: WORLD },
+          label: city.name,
           position: { x: city.bounds.x, y: city.bounds.y },
           size: { w: city.bounds.width, h: city.bounds.height },
           sizeIsDerived: city.boundsAreDerived,

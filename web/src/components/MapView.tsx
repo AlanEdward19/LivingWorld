@@ -10,9 +10,18 @@ import { hitTest } from "../map-engine/hitTest";
 import { draw, type ActiveLayer, type CellSource } from "../map-engine/renderer";
 import type { LodThresholds } from "../map-engine/lod";
 import type { AuthoritativeEntity, CameraState, EntityRef, SpaceId } from "../map-engine/types";
+import { toScopeKey } from "../map-engine/space";
 import type { SimulationStore } from "../state/simulationStore";
 import type { ViewStore } from "../state/viewStore";
 import type { SelectionStore } from "../state/selectionStore";
+
+/** T50 (bug "seguir NPC entre escopos"): mesmo `NpcScope` que o backend devolve em
+ * `NpcInspection.currentScope` (kind 0 = World, 1 = City) — traduzido pro `SpaceId` do cliente. */
+function spaceFromScope(scope: { kind: number; cityId: { value: string } | null }): SpaceId | null {
+  if (scope.kind === 1 && scope.cityId) return { kind: "City", cityId: scope.cityId.value };
+  if (scope.kind === 0) return { kind: "World" };
+  return null;
+}
 
 export interface MapViewProps {
   space: SpaceId;
@@ -92,6 +101,9 @@ export function MapView({
   const paintDragRef = useRef<{ x: number; y: number } | null>(null);
   const entityDragRef = useRef<{ ref: EntityRef; cell: { x: number; y: number } } | null>(null);
   const consumedPointerRef = useRef(false);
+  // T50: evita 1 fetch de inspeção por frame (~60/s) enquanto o alvo seguido está fora do
+  // espaço observado — só 1 em voo por vez, resetado quando o alvo volta a aparecer.
+  const followResolvingRef = useRef(false);
 
   // Câmera do espaço: restaura a guardada no ViewStore, ou o fit inicial se nunca visitado.
   useEffect(() => {
@@ -119,6 +131,30 @@ export function MapView({
     return simulationStore.subscribe(refreshEntities);
   }, [space, simulationStore, selectionStore, staticEntities]);
 
+  // T50: alvo seguido saiu do espaço observado (cruzou de cidade pro mundo ou vice-versa) — a
+  // câmera parava de mover silenciosamente (comportamento de antes) porque não tinha pra onde
+  // ir. Consulta a inspeção (mesma fonte que o inspector já usa) só pra ler o escopo atual real
+  // do NPC, e troca de espaço via `viewStore.enter` — a mesma troca que a navegação manual já usa
+  // (App.tsx reage a `currentSpace()` sozinho, nenhuma mudança necessária lá).
+  async function resolveFollowedSpaceIfLost(followed: EntityRef) {
+    if (followResolvingRef.current || followed.kind !== "npc") return;
+    followResolvingRef.current = true;
+    try {
+      const inspection = await simulationStore.inspectNpc(Number(followed.id));
+      if (viewStore.followedEntity()?.id !== followed.id) return; // usuário já seguiu outra coisa
+      if (!inspection) {
+        viewStore.stopFollow(); // morreu/não pôde ser inspecionado — não faz sentido continuar
+        return;
+      }
+      const newSpace = spaceFromScope(inspection.currentScope);
+      if (newSpace && toScopeKey(newSpace) !== toScopeKey(space)) {
+        viewStore.enter(newSpace);
+      }
+    } finally {
+      followResolvingRef.current = false;
+    }
+  }
+
   // Loop de desenho — lê os refs acima a cada frame, nunca espera por um re-render do React.
   useEffect(() => {
     let animationId: number;
@@ -136,6 +172,8 @@ export function MapView({
           if (target) {
             camera.restore({ center: { ...target.position }, scale: camera.snapshot().scale });
             viewStore.recordCamera(space, camera.snapshot());
+          } else {
+            void resolveFollowedSpaceIfLost(followed);
           }
         }
         const now = performance.now();
@@ -156,7 +194,7 @@ export function MapView({
     }
     animationId = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(animationId);
-  }, [cells, layers, lodThresholds, selectionStore, viewStore]);
+  }, [cells, layers, lodThresholds, selectionStore, viewStore, simulationStore, space]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {

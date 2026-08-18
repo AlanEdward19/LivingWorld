@@ -10,13 +10,6 @@ export interface CloudPuff {
   radius: number;
 }
 
-export interface CityGroundBounds {
-  width: number;
-  height: number;
-  minX: number;
-  minY: number;
-}
-
 function hash(value: string): number {
   let result = 2166136261;
   for (let index = 0; index < value.length; index += 1) {
@@ -37,18 +30,6 @@ export function cityGroundAt(spaceId: string, x: number, y: number): GroundVisua
     color: isSoil ? SOIL[value % SOIL.length] : GRASS[value % GRASS.length],
     detail: isSoil ? "soil" : "grass",
     variant: value,
-  };
-}
-
-/** Envelope visual finito da cidade; fora dele volta a aparecer o céu do mapa. */
-export function cityGroundBounds(location: { x: number; y: number }): CityGroundBounds {
-  const width = 16;
-  const height = 16;
-  return {
-    width,
-    height,
-    minX: Math.floor(location.x - width / 2),
-    minY: Math.floor(location.y - height / 2),
   };
 }
 

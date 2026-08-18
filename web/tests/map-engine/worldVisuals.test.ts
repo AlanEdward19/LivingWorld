@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cityGroundAt, cityGroundBounds, cloudPuffs } from "../../src/map-engine/worldVisuals";
+import { cityGroundAt, cloudPuffs } from "../../src/map-engine/worldVisuals";
 import { naturalTerrainColor, riverOverlayPoints } from "../../src/worldMapData";
 
 describe("worldVisuals", () => {
@@ -13,10 +13,6 @@ describe("worldVisuals", () => {
     expect(cloudPuffs("world", 800, 600)).toEqual(first);
     expect(cloudPuffs("city-a", 800, 600)).not.toEqual(first);
     expect(first.length).toBeGreaterThan(2);
-  });
-
-  it("limits a city to a finite visual envelope", () => {
-    expect(cityGroundBounds({ x: 10, y: 20 })).toEqual({ width: 16, height: 16, minX: 2, minY: 12 });
   });
 
   it("uses a varied natural terrain palette without arbitrary purple tiles", () => {

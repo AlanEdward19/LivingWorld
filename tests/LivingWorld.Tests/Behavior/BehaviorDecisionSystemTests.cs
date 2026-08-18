@@ -206,6 +206,40 @@ public class BehaviorDecisionSystemTests
     }
 
     [Fact]
+    public void Ambient_step_never_lands_on_a_cell_already_occupied_by_another_living_npc()
+    {
+        var rules = MakeRules(urgencyThreshold: 70);
+        var catalog = MakeCatalogWithOpenWorkShift();
+        var (world, ctx, npc) = BuildWorld(seed: 91, rules, catalog, Neutral);
+        var freeCell = new CellCoord(2, 2);
+
+        var occupiedCells = new HashSet<CellCoord>();
+        var blockerId = 2L;
+        foreach (var dy in new[] { -1, 0, 1 })
+        foreach (var dx in new[] { -1, 0, 1 })
+        {
+            var cell = new CellCoord(npc.CurrentLocation.X + dx, npc.CurrentLocation.Y + dy);
+            if (cell == npc.CurrentLocation || cell == freeCell) continue;
+
+            var blocker = new Npc(
+                new NpcId(blockerId++), "blocker", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30),
+                new CultureId(1), cell, motherId: null, fatherId: null, household: null, health: 100,
+                personality: Neutral, profession: ProfessionType.None, currentLocation: cell,
+                hunger: 100, thirst: 100, sleep: 100, social: 100);
+            world.AddNpc(blocker);
+            occupiedCells.Add(cell);
+        }
+        world.AdvanceNpcIdTo(blockerId);
+
+        npc.SetCurrentAction(ActionType.Idle, tick: -2);
+
+        new BehaviorDecisionSystem().Tick(world, ctx);
+
+        Assert.Equal(freeCell, npc.CurrentLocation);
+        Assert.DoesNotContain(npc.CurrentLocation, occupiedCells);
+    }
+
+    [Fact]
     public void A_need_above_the_urgency_threshold_overrides_the_routine()
     {
         var rules = MakeRules(urgencyThreshold: 70);

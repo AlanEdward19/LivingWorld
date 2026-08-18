@@ -12,15 +12,33 @@ import { useEditorHistory } from "./useEditorHistory";
 export interface CreatorBuildingDraft { id: string; x: number; y: number; rotation?: EntityRotation }
 export interface CreatorCityDraft { roads: Record<string, true>; buildings: CreatorBuildingDraft[] }
 
-export function initialCreatorCityDraft(seed: number, settlementIndex: number): CreatorCityDraft {
+/** `size` deve vir da mesma fórmula que o jogo usa pro footprint real da cidade (`citySide`,
+ * LIVE-POLISH) — um canvas maior que isso só criaria construções que nunca vão caber quando o
+ * mundo for de fato criado. */
+export function initialCreatorCityDraft(
+  seed: number,
+  settlementIndex: number,
+  size: { width: number; height: number },
+): CreatorCityDraft {
   const offset = (seed + settlementIndex) % 3;
+  const maxX = Math.max(0, size.width - 2);
+  const maxY = Math.max(0, size.height - 2);
+  const clampX = (x: number) => Math.max(0, Math.min(Math.round(x), maxX));
+  const clampY = (y: number) => Math.max(0, Math.min(Math.round(y), maxY));
+  // Posições como frações do tamanho real da vila (não literais) — vilas pequenas (3x3) não
+  // tinham espaço pros 3 prédios fixos em x=13/y=11 e eles ficavam fora dos limites.
+  const spots = [
+    { x: size.width * 0.25 + offset, y: size.height * 0.25 },
+    { x: size.width * 0.75, y: size.height * 0.25 + offset },
+    { x: size.width * 0.3, y: size.height * 0.75 },
+  ];
+  // Vilas minúsculas não têm espaço pra 3 construções sem sobrepor — nasce só com 1.
+  const count = size.width < 6 || size.height < 6 ? 1 : spots.length;
   return {
     roads: {},
-    buildings: [
-      { id: `draft-${settlementIndex}-1`, x: 4 + offset, y: 4, rotation: 0 },
-      { id: `draft-${settlementIndex}-2`, x: 13, y: 4 + offset, rotation: 0 },
-      { id: `draft-${settlementIndex}-3`, x: 5, y: 11, rotation: 0 },
-    ],
+    buildings: spots.slice(0, count).map((spot, i) => (
+      { id: `draft-${settlementIndex}-${i + 1}`, x: clampX(spot.x), y: clampY(spot.y), rotation: 0 }
+    )),
   };
 }
 
@@ -28,6 +46,9 @@ interface CreatorCityEditorProps {
   cityId: string;
   name: string;
   seed: number;
+  /** Mesmo footprint (`citySide`) que o mundo criado vai ter de verdade — sem isso o editor
+   * desenhava um canvas fixo 24x18 sempre maior que a cidade real (LIVE-POLISH). */
+  citySize: { width: number; height: number };
   viewport: { width: number; height: number };
   draft: CreatorCityDraft;
   onDraftChange: (update: (draft: CreatorCityDraft) => CreatorCityDraft) => void;
@@ -38,10 +59,9 @@ interface CreatorCityEditorProps {
 }
 
 type CityTool = "select" | "road" | "building" | "erase";
-const CITY_SIZE = { width: 24, height: 18 };
 
 export function CreatorCityEditor(props: CreatorCityEditorProps) {
-  const { cityId, name, seed, viewport, draft: initialDraft, onDraftChange, onBack, simulationStore, viewStore, selectionStore } = props;
+  const { cityId, name, seed, citySize, viewport, draft: initialDraft, onDraftChange, onBack, simulationStore, viewStore, selectionStore } = props;
   const { value: draft, commit, undo, redo, canUndo, canRedo } = useEditorHistory(initialDraft);
   const onDraftChangeRef = useRef(onDraftChange);
   const [tool, setTool] = useState<CityTool>("select");
@@ -70,7 +90,7 @@ export function CreatorCityEditor(props: CreatorCityEditorProps) {
 
   function paintRoad(cell: { x: number; y: number }): boolean {
     if (tool !== "road") return false;
-    if (cell.x < 0 || cell.y < 0 || cell.x >= CITY_SIZE.width || cell.y >= CITY_SIZE.height) return true;
+    if (cell.x < 0 || cell.y < 0 || cell.x >= citySize.width || cell.y >= citySize.height) return true;
     commit((current) => ({ ...current, roads: { ...current.roads, [`${cell.x},${cell.y}`]: true } }));
     return true;
   }
@@ -145,7 +165,7 @@ export function CreatorCityEditor(props: CreatorCityEditorProps) {
       <MapView
         space={space} viewport={viewport}
         cells={{
-          ...CITY_SIZE, showGrid: true, backgroundColor: "#789eaa",
+          ...citySize, showGrid: true, backgroundColor: "#789eaa",
           colorAt: (x, y) => draft.roads[`${x},${y}`] ? "#9b8b6c" : creatorGroundAt(seed, x, y).color,
         }}
         layers={[]} lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}

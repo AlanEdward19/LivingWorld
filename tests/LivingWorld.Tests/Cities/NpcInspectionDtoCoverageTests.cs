@@ -48,7 +48,19 @@ public class NpcInspectionDtoCoverageTests
         // Memórias é sempre lista vazia nesta fase (SPEC_DEVIATION do próprio DTO, Fase 10/11) —
         // não há campo de motor pra comparar contra; a checagem é o próprio contrato ("vazio").
         [nameof(NpcInspectionDto.Memories)] = (dto, _, _) => dto.Memories.Count == 0,
+        // T50: mesmo critério geométrico de NpcScopeResolver — deriva independente do DTO, igual
+        // a todo campo acima.
+        [nameof(NpcInspectionDto.CurrentScope)] = (dto, npc, world) => dto.CurrentScope.Equals(ExpectedScope(npc, world)),
     };
+
+    private static NpcScope ExpectedScope(Npc npc, WorldState world)
+    {
+        var city = world.FindCity(npc.City);
+        if (city is null) return new NpcScope(NpcScopeKind.World, null);
+        var bounds = SpatialBoundsResolver.ResolveCity(
+            city, CityPopulationQuery.Population(world, npc.City), world.Map.Width, world.Map.Height).Bounds;
+        return NpcScopeResolver.Resolve(npc, bounds);
+    }
 
     private static NpcActionTargetDto? ExpectedTarget(Npc npc) => npc.CurrentAction switch
     {

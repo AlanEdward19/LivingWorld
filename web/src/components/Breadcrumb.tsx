@@ -7,20 +7,23 @@ import type { SpaceId } from "../map-engine/types";
 export interface BreadcrumbProps {
   space: SpaceId;
   onNavigate: (target: SpaceId) => void;
+  /** Nome real da cidade atualmente em foco (CitySnapshot.name) — sem ele (ainda carregando,
+   * ou espaço não é City), cai no fallback determinístico do próprio id. */
+  cityName?: string;
 }
 
-function labelFor(space: SpaceId): string {
+function labelFor(space: SpaceId, cityName?: string): string {
   switch (space.kind) {
     case "World":
       return "Mundo";
     case "City":
-      return `Cidade ${space.cityId.slice(0, 8)}`;
+      return cityName ? `Cidade ${cityName}` : `Cidade ${space.cityId.slice(0, 8)}`;
     case "Building":
       return `Prédio ${space.buildingId}`;
   }
 }
 
-export function Breadcrumb({ space, onNavigate }: BreadcrumbProps) {
+export function Breadcrumb({ space, onNavigate, cityName }: BreadcrumbProps) {
   const chain = ancestors(space);
 
   return (
@@ -31,7 +34,7 @@ export function Breadcrumb({ space, onNavigate }: BreadcrumbProps) {
           <span key={toScopeKey(ancestor)}>
             {index > 0 && <span aria-hidden="true"> / </span>}
             <button type="button" disabled={isCurrent} onClick={() => onNavigate(ancestor)}>
-              {labelFor(ancestor)}
+              {labelFor(ancestor, ancestor.kind === "City" ? cityName : undefined)}
             </button>
           </span>
         );

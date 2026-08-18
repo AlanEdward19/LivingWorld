@@ -49,7 +49,12 @@ public static class ScenarioLoaderV2
         foreach (var city in definition.City.Cities)
         {
             string name = string.IsNullOrEmpty(city.Name) ? CityNameGenerator.Generate(world) : city.Name;
-            var createdCity = new City(world.NextCityId(), city.Location, city.FoundedAtTick, foundedFromCityId: null, city.AggregatePool, name: name);
+            // T50: cidade autorada com pool não-vazio reserva um NpcId estável por membro,
+            // clicável/materializável individualmente (antes só existia contagem+somas).
+            var poolNpcIds = world.ReserveNpcIdBlock(city.AggregatePool.Count);
+            var createdCity = new City(
+                world.NextCityId(), city.Location, city.FoundedAtTick, foundedFromCityId: null, city.AggregatePool,
+                name: name, poolNpcIds: poolNpcIds);
             world.AddCity(createdCity);
             createdCityIds.Add(createdCity.Id);
         }
@@ -61,6 +66,11 @@ public static class ScenarioLoaderV2
         // única cidade fixa do formulário (population 0) e nenhum morador visível em lugar
         // nenhum. Reusa a cidade autorada na mesma célula da vila inicial, se existir; senão
         // funda uma nova ali — mesmo nome de fallback de SettlementFoundingSystem.
+        //
+        // Bugfix real (usuário, 2026-08-14): com 2+ assentamentos autorados, só a vila inicial
+        // (population.Village) ganhava população — as demais nasciam sempre com 0 moradores.
+        // Distribui population.InitialPopulation por TODAS as cidades autoradas (resto pra vila
+        // inicial), não precisa ser exatamente igual entre elas, só nenhuma ficar zerada à toa.
         if (population.InitialPopulation > 0)
         {
             int homeCityIndex = definition.City.Cities
@@ -70,21 +80,44 @@ public static class ScenarioLoaderV2
                 .DefaultIfEmpty(-1)
                 .First();
 
-            CityId homeCityId;
-            if (homeCityIndex >= 0)
-            {
-                homeCityId = createdCityIds[homeCityIndex];
-            }
-            else
+            var seedTargets = new List<(CellCoord Location, CityId Id)>();
+            for (int i = 0; i < definition.City.Cities.Count; i++)
+                seedTargets.Add((definition.City.Cities[i].Location, createdCityIds[i]));
+
+            if (homeCityIndex < 0)
             {
                 var homeCity = new City(
                     world.NextCityId(), population.Village, foundedAtTick: 0, foundedFromCityId: null,
                     new AggregatePopulationPool(0, 0, 0), name: CityNameGenerator.Generate(world));
                 world.AddCity(homeCity);
-                homeCityId = homeCity.Id;
+                homeCityIndex = seedTargets.Count;
+                seedTargets.Add((homeCity.Location, homeCity.Id));
             }
 
-            PopulationSeeder.SeedInitial(world, population.InitialPopulation, population.Culture, population.Village, homeCityId);
+            // Cidade autorada com `InitialPopulation` explícito nasce com esse valor; o resto do
+            // total continua dividido igualmente entre as demais (resto da divisão pra vila-sede,
+            // como sempre) — dá controle de tamanho inicial por assentamento sem mexer na fórmula
+            // de crescimento (CityBoundsResolver deriva o footprint da população atual, sempre).
+            var explicitShares = new Dictionary<int, int>();
+            for (int i = 0; i < definition.City.Cities.Count; i++)
+            {
+                var explicitPopulation = definition.City.Cities[i].InitialPopulation;
+                if (explicitPopulation is int share) explicitShares[i] = share;
+            }
+            long explicitTotal = explicitShares.Values.Sum();
+            var remainingTargets = Enumerable.Range(0, seedTargets.Count).Where(i => !explicitShares.ContainsKey(i)).ToList();
+            long remainingPopulation = Math.Max(0, population.InitialPopulation - explicitTotal);
+            int perCity = remainingTargets.Count > 0 ? (int)(remainingPopulation / remainingTargets.Count) : 0;
+            int remainder = remainingTargets.Count > 0 ? (int)(remainingPopulation % remainingTargets.Count) : 0;
+            int remainderTargetIndex = remainingTargets.Contains(homeCityIndex) ? homeCityIndex : remainingTargets.FirstOrDefault(-1);
+            for (int i = 0; i < seedTargets.Count; i++)
+            {
+                int share = explicitShares.TryGetValue(i, out var explicitShare)
+                    ? explicitShare
+                    : perCity + (i == remainderTargetIndex ? remainder : 0);
+                if (share <= 0) continue;
+                PopulationSeeder.SeedInitial(world, share, population.Culture, seedTargets[i].Location, seedTargets[i].Id);
+            }
         }
 
         var createdBuildingIds = new List<BuildingId>(definition.City.Buildings.Count);

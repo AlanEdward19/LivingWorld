@@ -316,18 +316,22 @@ describe("WorldEditor", () => {
     expect(screen.getByTestId("creator-city-editor")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "vila" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Voltar ao mapa-múndi" })).toBeInTheDocument();
-    expect(screen.getByText(/3 construções/)).toBeInTheDocument();
+    // citySide(20, 10, 10) = 3 (footprint mínimo) — vila nesse tamanho nasce só com 1 construção
+    // (T44b: 3 posições fixas saíam dos limites de uma vila 3x3).
+    expect(screen.getByText(/1 construções/)).toBeInTheDocument();
 
     const cityCanvas = screen.getByTestId("map-view-canvas") as HTMLCanvasElement;
     stubRect(cityCanvas);
     fireEvent.click(screen.getByRole("button", { name: "Construção" }));
     fireEvent.click(cityCanvas, { clientX: 100, clientY: 100 });
-    expect(screen.getByText(/4 construções/)).toBeInTheDocument();
+    expect(screen.getByText(/2 construções/)).toBeInTheDocument();
 
     fireEvent.mouseDown(cityCanvas, { clientX: 105, clientY: 105 });
     fireEvent.mouseMove(cityCanvas, { clientX: 121, clientY: 105 });
     fireEvent.mouseUp(cityCanvas);
-    expect(screen.getByTestId("creator-building-inspector")).toHaveTextContent("14, 9");
+    // Canvas local agora usa o footprint real (citySide), bem menor que o antigo 24x18 fixo —
+    // o mesmo arrasto de pixels aterrissa numa célula bem mais próxima do centro.
+    expect(screen.getByTestId("creator-building-inspector")).toHaveTextContent("1, 1");
 
     fireEvent.keyDown(window, { key: "r" });
     expect(screen.getByTestId("building-rotation")).toHaveTextContent("90°");
@@ -335,8 +339,8 @@ describe("WorldEditor", () => {
     expect(screen.getByTestId("building-rotation")).toHaveTextContent("180°");
 
     fireEvent.keyDown(window, { key: "Delete" });
-    expect(screen.getByText(/3 construções/)).toBeInTheDocument();
+    expect(screen.getByText(/1 construções/)).toBeInTheDocument();
     fireEvent.keyDown(window, { key: "z", ctrlKey: true });
-    expect(screen.getByText(/4 construções/)).toBeInTheDocument();
+    expect(screen.getByText(/2 construções/)).toBeInTheDocument();
   });
 });

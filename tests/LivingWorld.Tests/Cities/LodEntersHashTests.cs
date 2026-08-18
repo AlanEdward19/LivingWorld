@@ -61,8 +61,13 @@ public class LodEntersHashTests
             ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules,
             economyRules: MakeEconomyRules(), cityRules: rules);
 
-        var cityA = new City(world.NextCityId(), new CellCoord(0, 0), 0, null, new AggregatePopulationPool(20, 200, 1000));
-        var cityB = new City(world.NextCityId(), new CellCoord(1, 1), 0, null, new AggregatePopulationPool(15, 150, 750));
+        // T50: afasta o contador dos ids manuais (1, 2) ANTES de reservar o pool — senão a
+        // reserva em lote colidiria com head/destinationAnchor abaixo.
+        world.AdvanceNpcIdTo(100);
+        var cityAPoolIds = world.ReserveNpcIdBlock(20);
+        var cityBPoolIds = world.ReserveNpcIdBlock(15);
+        var cityA = new City(world.NextCityId(), new CellCoord(0, 0), 0, null, new AggregatePopulationPool(20, 200, 1000), poolNpcIds: cityAPoolIds);
+        var cityB = new City(world.NextCityId(), new CellCoord(1, 1), 0, null, new AggregatePopulationPool(15, 150, 750), poolNpcIds: cityBPoolIds);
         world.AddCity(cityA);
         world.AddCity(cityB);
 
@@ -70,7 +75,6 @@ public class LodEntersHashTests
         var destinationAnchor = MakeNpc(world, 2, cityB.Id);
         world.AddNpc(head);
         world.AddNpc(destinationAnchor);
-        world.AdvanceNpcIdTo(100);
 
         var household = new Household(new HouseholdId(1), cityA.Location, head.Id, [head.Id], city: cityA.Id);
         household.Deposit(Food, 0);

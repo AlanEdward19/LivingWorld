@@ -61,6 +61,16 @@ export async function fetchNpcInspection(npcId: number): Promise<NpcInspection |
   return (await response.json()) as NpcInspection;
 }
 
+/** GET /npcs/{id} nunca materializa (por design — G9); a maioria dos NPCs clicados no mapa ainda
+ * está só no pool agregado da cidade, então o clique precisa desta rota explícita pra virar um
+ * registro individual inspecionável. */
+export async function materializeNpc(npcId: number): Promise<NpcInspection | null> {
+  const response = await fetch(`${apiBaseUrl()}/npcs/${npcId}/materialize`, { method: "POST" });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`materialização de NPC falhou: ${response.status}`);
+  return (await response.json()) as NpcInspection;
+}
+
 export interface MoveNpcRequest {
   targetX: number;
   targetY: number;
@@ -93,6 +103,8 @@ export interface PeriodSummary {
   version: number;
   source: string;
   createdAtUtc: string;
+  width: number;
+  height: number;
 }
 
 /// UX pass 3: templates pra pré-popular o wizard de "criar mundo" (`DefaultPeriodSeeder.cs`

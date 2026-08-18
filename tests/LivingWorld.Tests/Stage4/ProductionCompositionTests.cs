@@ -126,7 +126,8 @@ public sealed class ProductionCompositionTests
             cityRules: cityRules);
         world.AddCity(new City(
             new CityId(Guid.Parse("00000000-0000-0000-0000-000000000091")),
-            ScenarioRunner.DefaultVillageLocation, 0, null, new AggregatePopulationPool(10, 100, 100)));
+            ScenarioRunner.DefaultVillageLocation, 0, null, new AggregatePopulationPool(10, 100, 100),
+            poolNpcIds: world.ReserveNpcIdBlock(10)));
         return world;
     }
 }

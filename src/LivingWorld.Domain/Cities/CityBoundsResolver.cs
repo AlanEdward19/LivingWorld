@@ -28,11 +28,21 @@ public static class CityBoundsResolver
     private const int MinSize = 3;
     private const int MaxSize = 12;
 
-    public static (CityBounds Bounds, bool IsDerived) Resolve(City city, long population, int mapWidth, int mapHeight)
+    /// <summary>Só o cálculo do lado (sem depender de uma <see cref="City"/> já existir) — usado
+    /// também por <see cref="LivingWorld.Simulation.PopulationSeeder"/> pra decidir o raio de
+    /// espalhamento das famílias na semeadura inicial; sem isso o raio era fixo (2 células) e
+    /// descasava do footprint real assim que a população era pequena o bastante pra produzir um
+    /// lado menor que 5 — famílias nasciam fora dos próprios limites da cidade (LIVE-POLISH).</summary>
+    public static int SideFor(long population, int mapWidth, int mapHeight)
     {
         int populationSide = Math.Clamp((int)Math.Ceiling(Math.Sqrt(Math.Max(population, 0)) / 2.0), MinSize, MaxSize);
         int mapLimit = Math.Max(1, Math.Min(mapWidth, mapHeight) / 2);
-        int side = Math.Min(populationSide, mapLimit);
+        return Math.Min(populationSide, mapLimit);
+    }
+
+    public static (CityBounds Bounds, bool IsDerived) Resolve(City city, long population, int mapWidth, int mapHeight)
+    {
+        int side = SideFor(population, mapWidth, mapHeight);
         var origin = new CellCoord(city.Location.X - side / 2, city.Location.Y - side / 2);
         return (new CityBounds(origin, side, side), true);
     }

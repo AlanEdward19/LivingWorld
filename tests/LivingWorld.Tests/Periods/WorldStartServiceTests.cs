@@ -66,7 +66,7 @@ public class WorldStartServiceTests
         Assert.True(result.IsSuccess, result.Error);
         var (world, _) = result.Value;
         Assert.Equal(999UL, world.Seed);
-        Assert.Equal(100, world.Npcs.Count);
+        Assert.Equal(20, world.Npcs.Count);
     }
 
     private static string FindRepoRoot()

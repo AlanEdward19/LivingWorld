@@ -70,6 +70,9 @@ export interface NpcInspection {
   lod: number;
   beliefs: string[];
   memories: string[];
+  /** T50 (bug "seguir NPC entre escopos"): 0 = World, 1 = City — mesmo critério geométrico que
+   * já decide o que aparece no mapa-múndi vs. dentro da cidade (NpcScopeResolver, backend). */
+  currentScope: { kind: number; cityId: StringId | null };
 }
 
 export interface CityVisual {

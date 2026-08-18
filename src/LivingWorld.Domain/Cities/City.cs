@@ -58,6 +58,16 @@ public sealed class City
     /// null enquanto nenhuma fundação estiver pendente. Impede reagendar a mesma cidade.</summary>
     public long? FoundingScheduledAtTick { get; private set; }
 
+    private readonly List<NpcId> _poolNpcIds;
+
+    /// <summary>Ids reservados e ainda não materializados de <see cref="AggregatePool"/> (T50,
+    /// reabre CITY-05 AC2) — sempre <c>_poolNpcIds.Count == AggregatePool.Count</c>. Cada membro
+    /// do pool passa a ter identidade estável clicável antes de materializar, mantida em lockstep
+    /// pelos mesmos métodos que já mexem em <see cref="AggregatePool"/> (nenhum ponto de
+    /// crescimento/encolhimento novo, só os que já existiam: carga de cenário, materializar,
+    /// desmaterializar, emigrar, extrair pool inteiro na fundação).</summary>
+    public IReadOnlyList<NpcId> PoolNpcIds => _poolNpcIds;
+
     public City(
         CityId id, CellCoord location, long foundedAtTick, CityId? foundedFromCityId,
         AggregatePopulationPool aggregatePool,
@@ -65,7 +75,8 @@ public sealed class City
         IReadOnlyList<ConstructionProject>? constructionQueue = null,
         long? foundingScheduledAtTick = null,
         IReadOnlyList<ReportState>? canonSlots = null,
-        string name = "")
+        string name = "",
+        IReadOnlyList<NpcId>? poolNpcIds = null)
     {
         Id = id;
         Location = location;
@@ -77,6 +88,7 @@ public sealed class City
         _constructionQueue = (constructionQueue ?? []).ToList();
         _canonSlots = (canonSlots ?? []).ToList();
         FoundingScheduledAtTick = foundingScheduledAtTick;
+        _poolNpcIds = (poolNpcIds ?? []).ToList();
     }
 
     public void SetCanonSlots(IReadOnlyList<ReportState> slots)
@@ -103,28 +115,27 @@ public sealed class City
     /// chegou a 0.</summary>
     public void DequeueCompletedConstruction() => _constructionQueue.RemoveAt(0);
 
-    // SPEC_DEVIATION: design.md descreve Materialize(NpcId)/Dematerialize(NpcId, ...stats). City
-    // não guarda associação por NPC — WorldState.Npcs já resolve "quem está nesta cidade" via
-    // Npc.CityId (T4), então um NpcId aqui seria estado morto sem leitor. Os métodos abaixo movem
-    // só as massas (riqueza/saúde), suficiente para a garantia exigida pelo Done-when de T1
-    // (decremento/incremento simétrico do pool).
-
-    /// <summary>Materializar debita exatamente 1 do <see cref="AggregatePool"/> e as massas
-    /// informadas — falha sem mutar quando não há ninguém agregado para tirar do pool.</summary>
-    public Result<Unit> Materialize(long wealth, long health)
+    /// <summary>Materializar debita exatamente 1 do <see cref="AggregatePool"/>, as massas
+    /// informadas, e remove <paramref name="id"/> de <see cref="PoolNpcIds"/> — falha sem mutar
+    /// quando <paramref name="id"/> não está reservado neste pool (T50: id precisa ser um dos
+    /// reservados, não um <see cref="NpcId"/> qualquer).</summary>
+    public Result<Unit> Materialize(NpcId id, long wealth, long health)
     {
-        if (AggregatePool.Count <= 0)
-            return Result<Unit>.Fail("AggregatePool.Count: nenhum NPC agregado disponível para materializar");
+        if (AggregatePool.Count <= 0 || !_poolNpcIds.Remove(id))
+            return Result<Unit>.Fail("AggregatePool: id não está reservado neste pool agregado");
 
         AggregatePool = new AggregatePopulationPool(
             AggregatePool.Count - 1, AggregatePool.WealthSum - wealth, AggregatePool.HealthSum - health);
         return Result<Unit>.Ok(Unit.Value);
     }
 
-    /// <summary>Desmaterializar devolve exatamente 1 ao <see cref="AggregatePool"/> e as massas
-    /// informadas — sempre sucesso (o inverso de <see cref="Materialize"/> nunca esvazia nada).</summary>
-    public Result<Unit> Dematerialize(long wealth, long health)
+    /// <summary>Desmaterializar devolve exatamente 1 ao <see cref="AggregatePool"/>, as massas
+    /// informadas, e devolve o próprio <paramref name="id"/> do NPC que está saindo pra <see
+    /// cref="PoolNpcIds"/> (mesmo id, nunca um novo — T50) — sempre sucesso (o inverso de
+    /// <see cref="Materialize"/> nunca esvazia nada).</summary>
+    public Result<Unit> Dematerialize(NpcId id, long wealth, long health)
     {
+        _poolNpcIds.Add(id);
         AggregatePool = new AggregatePopulationPool(
             AggregatePool.Count + 1, AggregatePool.WealthSum + wealth, AggregatePool.HealthSum + health);
         return Result<Unit>.Ok(Unit.Value);
@@ -132,7 +143,8 @@ public sealed class City
 
     /// <summary>Emigração agregada (Fase 8, T11, CITY-02): reduz <see cref="AggregatePool"/> por
     /// saída anônima — diferente de <see cref="Materialize"/>, nunca cria um <see cref="Npc"/>
-    /// (ninguém "chega" em lugar nenhum, o grupo só sai da conta). Remove a média per-head de
+    /// (ninguém "chega" em lugar nenhum, o grupo só sai da conta, incluindo os ids reservados dos
+    /// que saíram — T50: descartados, nunca reaproveitados). Remove a média per-head de
     /// riqueza/saúde junto, senão a média do pool subiria artificialmente a cada emigração. Falha
     /// sem mutar se <paramref name="headcount"/> exceder o que existe no pool.</summary>
     public Result<Unit> Emigrate(long headcount)
@@ -144,6 +156,7 @@ public sealed class City
         long wealthPerHead = AggregatePool.WealthSum / AggregatePool.Count;
         long healthPerHead = AggregatePool.HealthSum / AggregatePool.Count;
 
+        _poolNpcIds.RemoveRange(_poolNpcIds.Count - (int)headcount, (int)headcount);
         AggregatePool = new AggregatePopulationPool(
             AggregatePool.Count - headcount,
             AggregatePool.WealthSum - wealthPerHead * headcount,
@@ -151,14 +164,16 @@ public sealed class City
         return Result<Unit>.Ok(Unit.Value);
     }
 
-    /// <summary>Extrai o <see cref="AggregatePool"/> inteiro e zera esta cidade (Fase 8, T13,
-    /// CITY-08) — usado pela fundação de assentamento pra mover toda a massa não-materializada
-    /// pra uma cidade nova sem criar nem destruir nada (quem chama deposita o valor devolvido na
-    /// cidade nova).</summary>
-    public AggregatePopulationPool ExtractEntirePool()
+    /// <summary>Extrai o <see cref="AggregatePool"/> inteiro (e os ids reservados de <see
+    /// cref="PoolNpcIds"/>) e zera esta cidade (Fase 8, T13, CITY-08) — usado pela fundação de
+    /// assentamento pra mover toda a massa não-materializada pra uma cidade nova sem criar nem
+    /// destruir nada (quem chama deposita os valores devolvidos na cidade nova).</summary>
+    public (AggregatePopulationPool Pool, IReadOnlyList<NpcId> PoolNpcIds) ExtractEntirePool()
     {
         var pool = AggregatePool;
+        var ids = _poolNpcIds.ToList();
         AggregatePool = AggregatePopulationPool.Empty;
-        return pool;
+        _poolNpcIds.Clear();
+        return (pool, ids);
     }
 }

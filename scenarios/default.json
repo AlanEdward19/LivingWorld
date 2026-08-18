@@ -13,7 +13,7 @@
   },
   "Settlements": [{ "Name": "vila", "X": 5, "Y": 5 }],
 
-  "InitialPopulation": 100,
+  "InitialPopulation": 20,
   "Culture": 1,
   "VillageX": 5,
   "VillageY": 5,

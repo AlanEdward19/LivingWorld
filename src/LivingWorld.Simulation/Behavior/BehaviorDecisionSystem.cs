@@ -34,11 +34,20 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         var vacancyIndex = VacancyIndex.BuildForTick(world);
         var targets = TargetsForTick(world);
 
+        // Índice de ocupação construído uma vez por tick (O(população)), não por NPC — a versão
+        // anterior escaneava todo mundo dentro de cada passeio ambiente e virava O(n²), inviável
+        // acima de ~1000 NPCs (LIVE-POLISH: perf sensor). Mantido atualizado a cada `MoveTo` desta
+        // função pra ordem dentro do próprio tick continuar correta.
+        var occupancy = new HashSet<CellCoord>();
+        foreach (var other in world.Npcs)
+            if (other.IsAlive)
+                occupancy.Add(other.CurrentLocation);
+
         foreach (var npc in targets)
         {
             EvaluateProfessionSwitch(world, npc, vacancyIndex);
 
-            bool justCompleted = TryCompleteAction(world, npc, rules, catalog, now, marketIndex, ctx);
+            bool justCompleted = TryCompleteAction(world, npc, rules, catalog, now, marketIndex, ctx, occupancy);
             var continuityAction = justCompleted ? null : npc.CurrentAction;
 
             var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
@@ -61,7 +70,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
     private static bool TryCompleteAction(
         WorldState world, Npc npc, NeedsRules rules, ActionCatalog catalog, long now,
-        MarketIndex marketIndex, TickContext ctx)
+        MarketIndex marketIndex, TickContext ctx, HashSet<CellCoord> occupancy)
     {
         if (npc.CurrentAction is not { } action) return false;
 
@@ -70,27 +79,38 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             long ticksNeeded = TravelResolution.TicksBetween(world.Map, npc.CurrentLocation, destination);
             if (now - npc.ActionStartedAtTick < ticksNeeded) return false;
 
-            npc.MoveTo(destination, now);
+            MoveTracked(npc, destination, now, occupancy);
             return true;
         }
 
         if (now - npc.ActionStartedAtTick < catalog.MaxDurationHours[action]) return false;
 
         if (action is ActionType.Idle or ActionType.Work or ActionType.Socialize)
-            MoveOneAmbientStep(world, npc, ctx, now, action);
+            MoveOneAmbientStep(world, npc, ctx, now, action, occupancy);
 
         ApplyActionEffect(world, npc, rules, action, marketIndex, now);
         return true;
     }
 
+    /// <summary>Move e mantém `occupancy` coerente com a posição real dentro do mesmo tick — sem
+    /// isso, um NPC que já andou nesta rodada continuaria "fantasma" na célula antiga pros
+    /// próximos NPCs avaliados no mesmo `Tick` (ou "preso" na nova, bloqueando a si mesmo).</summary>
+    private static void MoveTracked(Npc npc, CellCoord destination, long tick, HashSet<CellCoord> occupancy)
+    {
+        occupancy.Remove(npc.CurrentLocation);
+        npc.MoveTo(destination, tick);
+        occupancy.Add(destination);
+    }
+
     private static void MoveOneAmbientStep(
-        WorldState world, Npc npc, TickContext ctx, long tick, ActionType action)
+        WorldState world, Npc npc, TickContext ctx, long tick, ActionType action, HashSet<CellCoord> occupancy)
     {
         CityBounds? homeBounds = world.FindCity(npc.City) is { } city
             ? SpatialBoundsResolver.ResolveCity(
                 city, CityPopulationQuery.Population(world, city.Id), world.Map.Width, world.Map.Height).Bounds
             : null;
-        var candidates = Enumerable.Range(-1, 3)
+
+        var allNeighbors = Enumerable.Range(-1, 3)
             .SelectMany(dy => Enumerable.Range(-1, 3).Select(dx => new CellCoord(
                 npc.CurrentLocation.X + dx,
                 npc.CurrentLocation.Y + dy)))
@@ -99,11 +119,20 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             .OrderBy(cell => cell.Y)
             .ThenBy(cell => cell.X)
             .ToList();
+
+        // Passeio ambiente é a única fonte de posições "livres" (sem destino declarado como
+        // household/workplace, que legitimamente hospedam vários NPCs na mesma célula) — por
+        // isso preferimos vizinhos desocupados aqui (LIVE-POLISH: NPCs se empilhando
+        // visualmente). Em população densa isso pode esvaziar TODOS os 8 vizinhos de uma vez —
+        // o NPC precisa continuar andando em vez de travar, então cai pra "qualquer vizinho
+        // válido" quando não sobra nenhum livre.
+        var candidates = allNeighbors.Where(cell => !occupancy.Contains(cell)).ToList();
+        if (candidates.Count == 0) candidates = allNeighbors;
         if (candidates.Count == 0) return;
 
         var rng = ctx.Rng($"ambient-{action}-{npc.Id.Value}");
         int index = Math.Min((int)(rng.NextDouble() * candidates.Count), candidates.Count - 1);
-        npc.MoveTo(candidates[index], tick);
+        MoveTracked(npc, candidates[index], tick, occupancy);
     }
 
     private static void ApplyActionEffect(WorldState world, Npc npc, NeedsRules rules, ActionType action, MarketIndex marketIndex, long tick)
@@ -183,9 +212,16 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     private static ActionType RefineForLocation(WorldState world, Npc npc, ActionType candidate, MarketIndex marketIndex) => candidate switch
     {
         ActionType.Sleep when SleepDestinationOf(world, npc) is { } dest && dest != npc.CurrentLocation => ActionType.Travel,
+        // LIVE-POLISH: única exigência de local que faltava — sem isso, Work nunca vira Travel,
+        // o NPC "trabalha" onde já está e jamais visita o próprio emprego (T9 do plano de
+        // stage 4, achado enquanto o usuário reportava NPCs presos num raio de 3x3 pra sempre).
+        ActionType.Work when WorkDestinationOf(world, npc) is { } dest && dest != npc.CurrentLocation => ActionType.Travel,
         ActionType.Buy when BuyDestinationOf(world, npc, marketIndex) is { } dest && dest != npc.CurrentLocation => ActionType.Travel,
         _ => candidate,
     };
+
+    private static CellCoord? WorkDestinationOf(WorldState world, Npc npc) =>
+        npc.Employer is { } workplaceId ? world.FindWorkplace(workplaceId)?.Location : null;
 
     private static CellCoord? SleepDestinationOf(WorldState world, Npc npc) =>
         npc.Household is { } householdId ? world.FindHousehold(householdId)?.Location : null;
@@ -196,7 +232,9 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     private static CellCoord? TravelDestinationOf(WorldState world, Npc npc, MarketIndex marketIndex) =>
         SleepDestinationOf(world, npc) is { } sleepDest && sleepDest != npc.CurrentLocation
             ? sleepDest
-            : BuyDestinationOf(world, npc, marketIndex);
+            : WorkDestinationOf(world, npc) is { } workDest && workDest != npc.CurrentLocation
+                ? workDest
+                : BuyDestinationOf(world, npc, marketIndex);
 
     private static ActionType SelectByUtility(WorldState world, Npc npc, NeedsRules rules, ActionType? continuityAction, long tick)
     {

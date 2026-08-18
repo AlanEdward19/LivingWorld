@@ -42,7 +42,10 @@ public class MaterializationRoundTripTests
             ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
             ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules,
             cityRules: MakeRules());
-        var city = new City(world.NextCityId(), ScenarioRunner.DefaultVillageLocation, 0, null, pool);
+        // T50: NextNpcId na verdade não muda mais nesse round-trip (id vem de PoolNpcIds, já
+        // reservado aqui) — a exclusão abaixo continua inofensiva, só deixou de ser necessária
+        // pra essa chave especificamente (RngStreams ainda avança de verdade).
+        var city = new City(world.NextCityId(), ScenarioRunner.DefaultVillageLocation, 0, null, pool, poolNpcIds: world.ReserveNpcIdBlock(pool.Count));
         world.AddCity(city);
         return (world, city);
     }

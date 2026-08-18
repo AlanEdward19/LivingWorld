@@ -2,6 +2,7 @@
 // espelha scenarios/default.json (map/population/behavior) + os blocos economy/city/dynamics
 // usados em ScenarioLoaderV2Tests.FullValidRoot() — mesmos defaults que já passam no backend,
 // só editáveis campo a campo em vez de vir só de um arquivo fixo.
+import { citySide } from "./map-engine/citySizing";
 
 export interface KeyNumberRow {
   key: string;
@@ -72,6 +73,10 @@ export interface CityRow {
   count: number;
   wealthSum: number;
   healthSum: number;
+  // 0 = sem override, população inicial (T44b) segue o split automático de sempre entre as
+  // cidades autoradas. Valor > 0 fixa quantos NPCs essa cidade nasce com (o footprint dela ainda
+  // é derivado dessa população pela mesma fórmula de sempre — CityBoundsResolver não muda).
+  initialPopulation: number;
 }
 
 export interface ProfessionBiasRow {
@@ -210,7 +215,7 @@ export function defaultScenarioForm(): ScenarioFormState {
     settlements: [{ name: "vila", x: 5, y: 5 }],
     cells: {},
 
-    initialPopulation: 100,
+    initialPopulation: 20,
     culture: 1,
     villageX: 5,
     villageY: 5,
@@ -361,9 +366,97 @@ export function buildCells(form: ScenarioFormState): object[] | undefined {
   return cells;
 }
 
-export function scenarioFormToJson(form: ScenarioFormState): string {
+/** Formato mínimo de <c>CreatorCityDraft</c> (definido em CreatorCityEditor.tsx) — duck-typed
+ * aqui pra não criar import circular entre o módulo de dados e o de componentes do criador. */
+export interface CreatorCityDraftLike {
+  buildings: { x: number; y: number; rotation?: number }[];
+}
+
+/** Converte os rascunhos de cidade (Fase 15.1, T44) de coordenada local do canvas da cidade pra
+ * coordenada absoluta do mundo, ancorada na posição real do assentamento — mesmo esquema de
+ * <c>CityScenarioLoader.ParseBuildings</c> (X/Y absolutos, valida contra mapWidth/mapHeight). O
+ * canvas local usa <c>citySide</c> (mesma fórmula de <c>CityBoundsResolver</c>, LIVE-POLISH) —
+ * antes era um tamanho fixo (24x18) sempre maior que o footprint real. Descarta (não falha)
+ * construção que caia fora do mapa ou colida com outra já aceita — <c>ParseBuildings</c> rejeita
+ * a criação do mundo INTEIRA nesses dois casos; melhor perder a construção sobressalente do que
+ * quebrar a criação do mundo todo. */
+function authoredBuildingsFromDrafts(
+  form: ScenarioFormState,
+  cityDrafts: Record<number, CreatorCityDraftLike> | undefined,
+): { CityIndex: number; BuildingTypeId: number; X: number; Y: number; Orientation: number }[] {
+  if (!cityDrafts) return [];
+  const occupied = new Set<string>();
+  const result: { CityIndex: number; BuildingTypeId: number; X: number; Y: number; Orientation: number }[] = [];
+
+  form.settlements.forEach((settlement, cityIndex) => {
+    const draft = cityDrafts[cityIndex];
+    if (!draft) return;
+
+    const side = citySide(estimatedSettlementPopulation(form, cityIndex), form.width, form.height);
+    for (const building of draft.buildings) {
+      const x = Math.min(Math.max(Math.round(settlement.x + (building.x - side / 2)), 0), form.width - 1);
+      const y = Math.min(Math.max(Math.round(settlement.y + (building.y - side / 2)), 0), form.height - 1);
+      const key = `${x},${y}`;
+      if (occupied.has(key)) continue;
+      occupied.add(key);
+      result.push({ CityIndex: cityIndex, BuildingTypeId: 1, X: x, Y: y, Orientation: building.rotation ?? 0 });
+    }
+  });
+
+  return result;
+}
+
+/** Quantas cidades autoradas vão de fato existir no mundo criado (assentamentos + cidades extras
+ * que não coincidem com um assentamento) — mesma contagem que `ScenarioLoaderV2` usa pra
+ * distribuir `InitialPopulation` entre elas (LIVE-POLISH: nem toda cidade autorada nascia com
+ * gente). Usado tanto pelo payload quanto pelo World Creator pra estimar o tamanho real de cada
+ * assentamento antes de criar o mundo. */
+export function authoredCityCount(form: ScenarioFormState): number {
+  const extra = form.cities.filter(
+    (city) => !form.settlements.some((settlement) => settlement.x === city.x && settlement.y === city.y),
+  ).length;
+  return form.settlements.length + extra;
+}
+
+/** Override de população explícito por cidade autorada (T44b), na mesma ordem que
+ * `scenarioFormToJson` monta `Cities` (assentamentos primeiro, extras depois) — `null` quando o
+ * usuário não fixou um valor (segue o split automático). */
+function authoredPopulationOverrides(form: ScenarioFormState): (number | null)[] {
+  const settlementOverrides = form.settlements.map((settlement) => {
+    const configured = form.cities.find((city) => city.x === settlement.x && city.y === settlement.y);
+    return configured?.initialPopulation ? configured.initialPopulation : null;
+  });
+  const extraOverrides = form.cities
+    .filter((city) => !form.settlements.some((settlement) => settlement.x === city.x && settlement.y === city.y))
+    .map((city) => (city.initialPopulation > 0 ? city.initialPopulation : null));
+  return [...settlementOverrides, ...extraOverrides];
+}
+
+/** Estimativa da população que um assentamento (por índice em `form.settlements`) vai receber
+ * ao criar o mundo — mesmo split de `ScenarioLoaderV2`: cidade com `initialPopulation` explícito
+ * (T44b) usa esse valor, o resto do total é dividido igualmente entre as demais (resto da divisão
+ * pra vila-sede). Só uma estimativa pro World Creator dimensionar o canvas de edição; a fonte de
+ * verdade é sempre o backend. */
+export function estimatedSettlementPopulation(form: ScenarioFormState, settlementIndex: number): number {
+  const overrides = authoredPopulationOverrides(form);
+  if (overrides[settlementIndex]) return overrides[settlementIndex]!;
+
+  const remainingTargets = overrides.flatMap((value, index) => (value === null ? [index] : []));
+  const explicitTotal = overrides.reduce<number>((sum, value) => sum + (value ?? 0), 0);
+  const remainingPopulation = Math.max(0, form.initialPopulation - explicitTotal);
+  const remainderIndex = remainingTargets.includes(0) ? 0 : (remainingTargets[0] ?? -1);
+  const perCity = remainingTargets.length > 0 ? Math.floor(remainingPopulation / remainingTargets.length) : 0;
+  const remainder = remainingTargets.length > 0 ? remainingPopulation % remainingTargets.length : 0;
+  return perCity + (settlementIndex === remainderIndex ? remainder : 0);
+}
+
+export function scenarioFormToJson(
+  form: ScenarioFormState,
+  cityDrafts?: Record<number, CreatorCityDraftLike>,
+): string {
   const cells = buildCells(form);
   const village = form.settlements[0] ?? { x: form.villageX, y: form.villageY };
+  const authoredBuildings = authoredBuildingsFromDrafts(form, cityDrafts);
   const authoredCities = [
     ...form.settlements.map((settlement) => {
       const configured = form.cities.find((city) => city.x === settlement.x && city.y === settlement.y);
@@ -377,6 +470,7 @@ export function scenarioFormToJson(form: ScenarioFormState): string {
           WealthSum: configured?.wealthSum ?? 0,
           HealthSum: configured?.healthSum ?? 0,
         },
+        ...(configured?.initialPopulation ? { InitialPopulation: configured.initialPopulation } : {}),
       };
     }),
     ...form.cities
@@ -386,6 +480,7 @@ export function scenarioFormToJson(form: ScenarioFormState): string {
         Y: city.y,
         FoundedAtTick: city.foundedAtTick,
         AggregatePool: { Count: city.count, WealthSum: city.wealthSum, HealthSum: city.healthSum },
+        ...(city.initialPopulation ? { InitialPopulation: city.initialPopulation } : {}),
       })),
   ];
   const root = {
@@ -502,6 +597,7 @@ export function scenarioFormToJson(form: ScenarioFormState): string {
       ]),
     ),
     Cities: authoredCities,
+    Buildings: authoredBuildings,
 
     Dynamics: {
       ProfessionBiases: form.professionBiases.map((p) => ({
@@ -661,6 +757,7 @@ export function jsonToScenarioForm(json: Raw): ScenarioFormState {
       count: c.AggregatePool?.Count ?? 0,
       wealthSum: c.AggregatePool?.WealthSum ?? 0,
       healthSum: c.AggregatePool?.HealthSum ?? 0,
+      initialPopulation: c.InitialPopulation ?? 0,
     })),
 
     professionBiases: (dynamics.ProfessionBiases ?? []).map((p: Raw) => ({

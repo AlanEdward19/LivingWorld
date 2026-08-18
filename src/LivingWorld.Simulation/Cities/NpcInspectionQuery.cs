@@ -27,6 +27,13 @@ public static class NpcInspectionQuery
         if (world.ColdArchive.Lookup(id.Value) is { } summary)
             return Result<NpcInspectionDto>.Ok(FromNpcSummary(summary));
 
+        // T50: id reservado num AggregatePopulationPool (City.PoolNpcIds) — leitura pura, nunca
+        // materializa (isso é MaterializeAndInspect); antes disso existir, qualquer id de pool
+        // clicado caía sempre no Fail genérico abaixo.
+        var pooledCity = world.Cities.FirstOrDefault(c => c.PoolNpcIds.Contains(id));
+        if (pooledCity is not null)
+            return Result<NpcInspectionDto>.Ok(FromPooledMember(id, pooledCity));
+
         return Result<NpcInspectionDto>.Fail("Npc: não existe, está morto sem registro arquivado, ou ainda não foi materializado");
     }
 
@@ -59,7 +66,21 @@ public static class NpcInspectionQuery
             npc.CurrentLocation, npc.CurrentAction, npc.ActionStartedAtTick,
             TargetOf(npc), NpcInspectionLod.Materialized,
             Beliefs: NpcBeliefQuery.BeliefsOf(world, npc.Id),
-            Memories: []);
+            Memories: [],
+            CurrentScope: ResolveScope(world, npc));
+    }
+
+    /// <summary>Mesmo critério geométrico de <c>GlobalProjector</c>/<c>LivingScopeProjector</c>
+    /// (T50, via <see cref="NpcScopeResolver"/>) — cidade não encontrada (não deveria acontecer
+    /// pra um NPC vivo) cai em World, nunca lança.</summary>
+    private static NpcScope ResolveScope(WorldState world, Npc npc)
+    {
+        var city = world.FindCity(npc.City);
+        if (city is null) return new NpcScope(NpcScopeKind.World, null);
+
+        var bounds = SpatialBoundsResolver.ResolveCity(
+            city, CityPopulationQuery.Population(world, npc.City), world.Map.Width, world.Map.Height).Bounds;
+        return NpcScopeResolver.Resolve(npc, bounds);
     }
 
     private static NpcInspectionDto FromNpcSummary(ColdTierArchive.NpcSummary summary)
@@ -73,7 +94,27 @@ public static class NpcInspectionQuery
             new CellCoord(0, 0), CurrentAction: null, 0,
             ActionTarget: null, Lod: NpcInspectionLod.Archived,
             Beliefs: [],
-            Memories: []);
+            Memories: [],
+            CurrentScope: new NpcScope(NpcScopeKind.World, null));
+    }
+
+    /// <summary>DTO mínimo pra um id ainda no pool agregado (T50) — mesmo espírito de placeholder
+    /// de <see cref="FromNpcSummary"/>: atributos reais não existem até materializar, então vêm
+    /// com valor neutro; só <see cref="NpcInspectionDto.Id"/>/<see cref="NpcInspectionDto.City"/>/
+    /// <see cref="NpcInspectionDto.Lod"/> são de verdade.</summary>
+    private static NpcInspectionDto FromPooledMember(NpcId id, City city)
+    {
+        var placeholderPersonality = Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!;
+        return new NpcInspectionDto(
+            id, Name: "", Sex.Female, AgeYears: 0, Culture: default, city.Id,
+            Household: null, MotherId: null, FatherId: null, Spouse: null,
+            Profession: default, Employer: null,
+            0, 0, 0, 0, 0, placeholderPersonality, SkillSet.Empty,
+            city.Location, CurrentAction: null, 0,
+            ActionTarget: null, Lod: NpcInspectionLod.Pooled,
+            Beliefs: [],
+            Memories: [],
+            CurrentScope: new NpcScope(NpcScopeKind.City, city.Id));
     }
 
     private static NpcActionTargetDto? TargetOf(Npc npc) => npc.CurrentAction switch

@@ -40,7 +40,7 @@ public class CityGrowthSystemTests
 
     private static City MakeCity(WorldState world, AggregatePopulationPool pool) =>
         new(world.NextCityId(), ScenarioRunner.DefaultVillageLocation, foundedAtTick: 0, foundedFromCityId: null,
-            aggregatePool: pool);
+            aggregatePool: pool, poolNpcIds: world.ReserveNpcIdBlock(pool.Count));
 
     private static TickContext MakeCtx(WorldState world) => new(world, world.Rng, world.Scheduler);
 

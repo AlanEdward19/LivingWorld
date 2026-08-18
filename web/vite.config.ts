@@ -11,6 +11,9 @@ export default defineConfig({
       "/worlds": { target: "http://localhost:5289" },
       "/periods": { target: "http://localhost:5289" },
       "/simulation": { target: "http://localhost:5289" },
+      "/npcs": { target: "http://localhost:5289" },
+      "/narratives": { target: "http://localhost:5289" },
+      "/conversations": { target: "http://localhost:5289" },
     },
   },
   test: {

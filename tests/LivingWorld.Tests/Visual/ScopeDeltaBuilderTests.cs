@@ -70,10 +70,15 @@ public class ScopeDeltaBuilderTests
     [Fact]
     public void Diff_never_receives_WorldState_or_any_layer_builder_type()
     {
-        // Estrutural: garante que o caminho de delta não pode recomputar camadas porque o
-        // método sequer aceita WorldState (única fonte de dado que os *LayerBuilder consomem).
-        var method = typeof(ScopeDeltaBuilder).GetMethod(nameof(ScopeDeltaBuilder.Diff), BindingFlags.Public | BindingFlags.Static)!;
+        // Estrutural: garante que o caminho de delta não pode recomputar camadas porque NENHUM
+        // overload de Diff aceita WorldState (única fonte de dado que os *LayerBuilder
+        // consomem) — GetMethod (singular) passou a lançar AmbiguousMatchException assim que um
+        // segundo overload apareceu (LivingScopeState, T3); GetMethods cobre todos de uma vez.
+        var methods = typeof(ScopeDeltaBuilder).GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .Where(m => m.Name == nameof(ScopeDeltaBuilder.Diff));
 
-        Assert.DoesNotContain(method.GetParameters(), p => p.ParameterType == typeof(WorldState));
+        Assert.NotEmpty(methods);
+        Assert.All(methods, method =>
+            Assert.DoesNotContain(method.GetParameters(), p => p.ParameterType == typeof(WorldState)));
     }
 }

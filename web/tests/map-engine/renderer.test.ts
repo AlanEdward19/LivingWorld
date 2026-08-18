@@ -226,18 +226,21 @@ describe("renderer.draw", () => {
     expect(dashCalls.some((pattern) => pattern.length === 0)).toBe(true); // o autorado usou traço sólido
   });
 
-  it("caps an NPC token at ten screen pixels even under extreme zoom", () => {
+  it("keeps an NPC token at a fixed screen size regardless of zoom scale", () => {
     class PendingImage {
       complete = false;
       naturalWidth = 0;
       src = "";
     }
     vi.stubGlobal("Image", PendingImage);
-    const ctx = fakeCtx({ width: 400, height: 400 });
 
-    draw(ctx, baseFrame({ center: { x: 5.5, y: 5.5 }, scale: 100 }, [npc("tiny-person", 5, 5)]));
+    const radiusAtScale = (scale: number) => {
+      const ctx = fakeCtx({ width: 400, height: 400 });
+      draw(ctx, baseFrame({ center: { x: 5.5, y: 5.5 }, scale }, [npc("tiny-person", 5, 5)]));
+      return ctx.arc.mock.calls[0]?.[2] as number;
+    };
 
-    expect(ctx.arc.mock.calls[0]?.[2]).toBe(10);
+    expect(radiusAtScale(100)).toBe(radiusAtScale(20));
   });
 
   it("renders NPCs progressively larger in city and building spaces without changing world scale", () => {
@@ -260,7 +263,7 @@ describe("renderer.draw", () => {
       kind: "Building", buildingId: "home-a", cityId: "city-a",
     }));
 
-    expect(worldRadius).toBe(5);
+    expect(worldRadius).toBe(8);
     expect(cityRadius).toBeGreaterThan(worldRadius);
     expect(buildingRadius).toBeGreaterThan(cityRadius);
   });
@@ -288,5 +291,40 @@ describe("renderer.draw", () => {
     // 3 entidades agregadas em no máximo 2 buckets -> bem menos arcs que 3 desenhos individuais
     expect(ctx.arc.mock.calls.length).toBeLessThan(entities.length);
     expect(ctx.arc.mock.calls.length).toBeGreaterThan(0);
+  });
+
+  it("fans out household-mates sharing the exact same cell instead of drawing them stacked", () => {
+    class PendingImage {
+      complete = false;
+      naturalWidth = 0;
+      src = "";
+    }
+    vi.stubGlobal("Image", PendingImage);
+    const camera: CameraState = { center: { x: 5, y: 5 }, scale: 20 };
+    const same = [npc("household-a", 5, 5), npc("household-b", 5, 5)];
+    const ctx = fakeCtx({ width: 400, height: 400 });
+
+    draw(ctx, baseFrame(camera, same));
+
+    const centers = ctx.arc.mock.calls.map((args: unknown[]) => [args[0], args[1]]);
+    // token com fallback de glifo desenha 2 arcs (disco + glifo) por NPC — o primeiro arc de
+    // cada um é o disco; os dois discos não podem cair no mesmo centro de tela.
+    expect(centers[0]).not.toEqual(centers[2]);
+  });
+
+  it("draws a single NPC alone in its cell at its true, unshifted position", () => {
+    class PendingImage {
+      complete = false;
+      naturalWidth = 0;
+      src = "";
+    }
+    vi.stubGlobal("Image", PendingImage);
+    const camera: CameraState = { center: { x: 5.5, y: 5.5 }, scale: 20 };
+    const ctx = fakeCtx({ width: 400, height: 400 });
+
+    draw(ctx, baseFrame(camera, [npc("alone", 5, 5)]));
+
+    expect(ctx.arc.mock.calls[0]?.[0]).toBeCloseTo(200);
+    expect(ctx.arc.mock.calls[0]?.[1]).toBeCloseTo(200);
   });
 });

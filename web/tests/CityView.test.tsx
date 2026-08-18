@@ -15,11 +15,15 @@ const CITY_SCOPE_KEY = "city:city-1";
 function makeSnapshot(): CitySnapshot {
   return {
     id: { value: "city-1" },
+    name: "Cidade Um",
     location: { x: 0, y: 0 },
     aggregatePool: { count: 5, wealthSum: 500, healthSum: 400 },
     residents: [{ id: { value: 3 }, location: { x: 1, y: 1 }, currentAction: null }],
+    pendingResidentIds: [42, 43],
     buildings: [{ id: { value: 8 }, buildingTypeId: 2 }],
     layers: {} as CitySnapshot["layers"],
+    bounds: { x: -8, y: -8, width: 16, height: 16 },
+    boundsAreDerived: true,
   };
 }
 
@@ -134,5 +138,20 @@ describe("CityView", () => {
     );
 
     expect(screen.getByText(/500/)).toBeInTheDocument();
+  });
+
+  it("shows the authored city name in its heading instead of the raw id", async () => {
+    const { simulationStore, viewStore, selectionStore } = await buildStores(makeSnapshot());
+    render(
+      <CityView
+        snapshot={makeSnapshot()}
+        viewport={VIEWPORT}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+
+    expect(screen.getByText("Cidade Cidade Um")).toBeInTheDocument();
   });
 });

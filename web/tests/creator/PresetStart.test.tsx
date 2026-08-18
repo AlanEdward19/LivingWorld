@@ -21,14 +21,14 @@ describe("PresetStart", () => {
 
     const preview = screen.getByTestId("preview-map-world");
     const before = preview.style.transform;
-    fireEvent.click(screen.getByRole("button", { name: /Grande 40×40/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Grande 50×50/ }));
 
     expect(screen.getByLabelText("preset-size")).toHaveValue("grande");
-    expect(screen.getByRole("complementary", { name: "Prévia do mundo" })).toHaveTextContent("40 × 40");
-    expect(screen.getByRole("complementary", { name: "Prévia do mundo" })).toHaveTextContent("150");
+    expect(screen.getByRole("complementary", { name: "Prévia do mundo" })).toHaveTextContent("50 × 50");
+    expect(screen.getByRole("complementary", { name: "Prévia do mundo" })).toHaveTextContent("180");
     expect(screen.getByTestId("preview-map-world").style.transform).not.toBe(before);
-    expect(screen.getByTestId("preview-map-world").querySelectorAll("i")).toHaveLength(1600);
-    expect(screen.getByTestId("preview-map-world")).toHaveStyle({ gridTemplateColumns: "repeat(40, 1fr)" });
+    expect(screen.getByTestId("preview-map-world").querySelectorAll("i")).toHaveLength(2500);
+    expect(screen.getByTestId("preview-map-world")).toHaveStyle({ gridTemplateColumns: "repeat(50, 1fr)" });
   });
 
   it("exposes at most 4 fields and no advanced parameter", () => {
@@ -50,9 +50,9 @@ describe("PresetStart", () => {
 
     await waitFor(() => expect(onStart).toHaveBeenCalled());
     const [form, name] = onStart.mock.calls[0];
-    expect(form.width).toBe(40);
-    expect(form.height).toBe(40);
-    expect(form.initialPopulation).toBe(150);
+    expect(form.width).toBe(50);
+    expect(form.height).toBe(50);
+    expect(form.initialPopulation).toBe(180);
     expect(form.seed).toBe(7);
     expect(name).toBe("Aldeia");
   });

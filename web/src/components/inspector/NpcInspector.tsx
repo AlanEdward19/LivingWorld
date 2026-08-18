@@ -1,10 +1,13 @@
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { FollowButton } from "./FollowButton";
 import type { SimulationStore } from "../../state/simulationStore";
 import type { ViewStore } from "../../state/viewStore";
 import type { EntityRef } from "../../map-engine/types";
 import type { NpcInspection } from "../../data/contracts";
+import { materializeNpc } from "../../api";
 import { NpcTokenSvg } from "../NpcTokenSvg";
+
+const POOLED_LOD = 2;
 
 export interface NpcInspectorProps {
   entityRef: EntityRef;
@@ -44,6 +47,7 @@ function NeedMeter({ label, value }: { label: string; value: number }) {
 
 export function NpcInspector({ entityRef, simulationStore, viewStore }: NpcInspectorProps) {
   const npcId = Number(entityRef.id);
+  const [materializing, setMaterializing] = useState(false);
   const inspection = useSyncExternalStore(
     (onStoreChange) => simulationStore.subscribe(onStoreChange),
     () => simulationStore.npcInspectionOf(npcId),
@@ -52,6 +56,16 @@ export function NpcInspector({ entityRef, simulationStore, viewStore }: NpcInspe
   useEffect(() => {
     void simulationStore.inspectNpc(npcId);
   }, [npcId, simulationStore]);
+
+  async function handleMaterialize() {
+    setMaterializing(true);
+    try {
+      await materializeNpc(npcId);
+    } finally {
+      await simulationStore.inspectNpc(npcId);
+      setMaterializing(false);
+    }
+  }
 
   if (inspection === undefined) {
     return (
@@ -63,6 +77,19 @@ export function NpcInspector({ entityRef, simulationStore, viewStore }: NpcInspe
   }
   if (inspection === null) {
     return <p role="note">Este habitante não está materializado ou não pôde ser inspecionado.</p>;
+  }
+  // T50: id reservado num pool agregado (City.PoolNpcIds) — sem atributos reais ainda (não
+  // existem até sortear), só oferece a ação explícita de materializar.
+  if (inspection.lod === POOLED_LOD) {
+    return (
+      <div className="npc-living-inspector" data-testid="npc-pooled-inspector">
+        <h3>NPC {entityRef.id}</h3>
+        <p role="note">Ainda não materializado — faz parte do pool agregado desta cidade.</p>
+        <button type="button" onClick={handleMaterialize} disabled={materializing}>
+          {materializing ? "Materializando…" : "Materializar"}
+        </button>
+      </div>
+    );
   }
 
   const action = inspection.currentAction === null

@@ -46,10 +46,10 @@ public sealed class SettlementFoundingSystem : ISimulationSystem
         var motherCity = world.FindCity(motherCityId);
         if (motherCity is null) return; // referência perdida — sem-op, não exceção
 
-        var extractedPool = motherCity.ExtractEntirePool();
+        var (extractedPool, extractedPoolNpcIds) = motherCity.ExtractEntirePool();
         var newCity = new City(
             world.NextCityId(), motherCity.Location, ctx.CurrentTick, motherCityId, extractedPool,
-            name: CityNameGenerator.Generate(world));
+            name: CityNameGenerator.Generate(world), poolNpcIds: extractedPoolNpcIds);
         world.AddCity(newCity);
     }
 

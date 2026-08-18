@@ -45,11 +45,15 @@ function cityEnvelope() {
     activeLayers: [],
     payload: {
       id: { value: "city-1" },
+      name: "Cidade Um",
       location: { x: 0, y: 0 },
       aggregatePool: { count: 0, wealthSum: 0, healthSum: 0 },
       residents: [],
+      pendingResidentIds: [],
       buildings: [],
       layers: {} as CitySnapshot["layers"],
+      bounds: { x: -1, y: -1, width: 2, height: 2 },
+      boundsAreDerived: true,
     },
   };
 }

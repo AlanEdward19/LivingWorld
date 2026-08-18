@@ -73,10 +73,11 @@ public class NpcInspectionQueryTests
         // agregado nunca materializado via o comando explícito faz o sistema materializá-lo sob
         // demanda antes de responder — mesma invariante de sempre, agora fora do GET (T49).
         var world = MakeWorld();
+        var poolNpcIds = world.ReserveNpcIdBlock(3);
         var city = new City(world.NextCityId(), world.Npcs.First().CurrentLocation, 0, null,
-            new AggregatePopulationPool(3, 300, 250));
+            new AggregatePopulationPool(3, 300, 250), poolNpcIds: poolNpcIds);
         world.AddCity(city);
-        var neverTouchedId = new NpcId(world.NextNpcId);
+        var neverTouchedId = poolNpcIds[0];
         Assert.Null(world.FindNpc(neverTouchedId)); // pré-condição: nunca materializado
 
         var result = NpcInspectionQuery.MaterializeAndInspect(world, neverTouchedId);
@@ -89,24 +90,39 @@ public class NpcInspectionQueryTests
     // --- Fase 15.1, T49 (backend-gaps.md G9): Inspect é leitura pura ---
 
     [Fact]
-    public void Inspect_fails_without_materializing_a_never_touched_aggregate_pool_member()
+    public void Inspect_returns_pooled_lod_without_materializing_a_never_touched_aggregate_pool_member()
     {
+        // T50: antes, todo id de pool caía no Fail genérico (a UI mostrava sempre "não
+        // materializado" sem opção nenhuma). Agora um id reservado de verdade (City.PoolNpcIds)
+        // devolve um DTO mínimo com Lod.Pooled — Inspect continua puro (nunca materializa).
         var world = MakeWorld();
+        var poolNpcIds = world.ReserveNpcIdBlock(3);
         var city = new City(world.NextCityId(), world.Npcs.First().CurrentLocation, 0, null,
-            new AggregatePopulationPool(3, 300, 250));
+            new AggregatePopulationPool(3, 300, 250), poolNpcIds: poolNpcIds);
         world.AddCity(city);
-        var neverTouchedId = new NpcId(world.NextNpcId);
+        var neverTouchedId = poolNpcIds[0];
         var canonicalHashBefore = WorldSnapshot.CanonicalHash(world);
-        var nextNpcIdBefore = world.NextNpcId;
         var pendingEventCountBefore = world.PendingEvents.Count;
 
         var result = NpcInspectionQuery.Inspect(world, neverTouchedId);
 
-        Assert.False(result.IsSuccess);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(NpcInspectionLod.Pooled, result.Value!.Lod);
+        Assert.Equal(neverTouchedId, result.Value!.Id);
         Assert.Null(world.FindNpc(neverTouchedId)); // nunca materializou
         Assert.Equal(canonicalHashBefore, WorldSnapshot.CanonicalHash(world)); // hash intocado
-        Assert.Equal(nextNpcIdBefore, world.NextNpcId); // pool intocado
         Assert.Equal(pendingEventCountBefore, world.PendingEvents.Count); // nenhum evento novo agendado
+    }
+
+    [Fact]
+    public void Inspect_fails_for_an_id_reserved_by_no_city_and_never_materialized()
+    {
+        var world = MakeWorld();
+        var neverReservedId = new NpcId(world.NextNpcId);
+
+        var result = NpcInspectionQuery.Inspect(world, neverReservedId);
+
+        Assert.False(result.IsSuccess);
     }
 
     [Fact]

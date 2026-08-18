@@ -22,14 +22,20 @@ public sealed record CityIndicators(long Population, long Wealth, long Health, d
 
 public sealed record CitySnapshot(
     CityId Id,
+    string Name,
     CellCoord Location,
     AggregatePopulationPool AggregatePool,
     IReadOnlyList<CityResidentMarker> Residents,
+    // T50: ids reservados (City.PoolNpcIds) de membros do pool agregado ainda não materializados
+    // — cliente desenha um token clicável por id, clique dispara MaterializeAndInspect.
+    IReadOnlyList<NpcId> PendingResidentIds,
     IReadOnlyList<CityBuildingMarker> Buildings,
     IReadOnlyDictionary<VisualLayerId, LayerBuildResult> Layers,
     IReadOnlyList<SpatialPortal> Portals,
     CityIndicators Indicators,
-    LivingScopeState LivingState);
+    LivingScopeState LivingState,
+    CellBounds Bounds,
+    bool BoundsAreDerived);
 
 public static class CityProjector
 {
@@ -70,8 +76,18 @@ public static class CityProjector
             CityPopulationQuery.Economy(world, cityId),
             CityPopulationQuery.Housing(world, cityId));
 
+        // Mesma fonte do marcador no mapa-múndi (GlobalProjector) — sem isso o envelope visual
+        // de dentro da cidade (CityView) usava um tamanho fixo (16x16, cityGroundBounds.ts)
+        // desconectado do footprint real, que já cresce com a população (LIVE-POLISH: usuário
+        // reportou cidade "3x3" no mundo mas outro tamanho dentro dela).
+        var (bounds, boundsAreDerived) = SpatialBoundsResolver.ResolveCity(
+            city, indicators.Population, world.Map.Width, world.Map.Height);
+        var cellBounds = new CellBounds(bounds.Origin.X, bounds.Origin.Y, bounds.Width, bounds.Height);
+
         var livingState = LivingScopeProjector.Build(world, new VisualScope(VisualScopeKind.City, city.Id.ToString()));
-        return Result<CitySnapshot>.Ok(new CitySnapshot(city.Id, city.Location, city.AggregatePool, residents, buildings, layers, portals, indicators, livingState));
+        return Result<CitySnapshot>.Ok(new CitySnapshot(
+            city.Id, city.Name, city.Location, city.AggregatePool, residents, city.PoolNpcIds.ToList(), buildings,
+            layers, portals, indicators, livingState, cellBounds, boundsAreDerived));
     }
 
     private static bool TouchesCity(PortalEndpoint endpoint, string cityRefId) =>

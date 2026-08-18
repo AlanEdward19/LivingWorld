@@ -138,7 +138,11 @@ export function App({ simulationStore, viewStore, selectionStore, timeControlSou
 
         {!creatingWorld && (
           <>
-            <Breadcrumb space={space} onNavigate={(target) => viewStore.goToAncestor(target)} />
+            <Breadcrumb
+              space={space}
+              onNavigate={(target) => viewStore.goToAncestor(target)}
+              cityName={space.kind === "City" ? (payload as CitySnapshot | null)?.name : undefined}
+            />
             <SpaceTransition spaceKey={toScopeKey(space)}>
               {!payload && <p className="map-hud map-hud-top-left">Carregando…</p>}
 

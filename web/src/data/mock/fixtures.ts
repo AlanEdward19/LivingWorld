@@ -64,6 +64,7 @@ const CITY_B_BOUNDS: CityFootprintFields = { bounds: { x: 80, y: 60, width: 8, h
 
 const cityAMarker: FutureGlobalCityMarker = {
   id: { value: "city-a" },
+  name: "Cidade A",
   location: cell(46, 24),
   population: 340,
   ...CITY_A_BOUNDS,
@@ -71,6 +72,7 @@ const cityAMarker: FutureGlobalCityMarker = {
 
 const cityBMarker: FutureGlobalCityMarker = {
   id: { value: "city-b" },
+  name: "Cidade B",
   location: cell(84, 64),
   population: 120,
   ...CITY_B_BOUNDS,
@@ -132,11 +134,15 @@ function citySnapshot(
 ): FutureCitySnapshot {
   return {
     id: { value: id },
+    name: id,
     location: cell(boundsX, boundsY),
     aggregatePool: { count: 0, wealthSum: 0, healthSum: 0 },
+    pendingResidentIds: [],
     residents: cityResidentMarkers(residentCount, boundsX + 1, boundsY + 1),
     buildings: cityBuildingMarkers(boundsX, boundsY, buildingCount, buildingIdOffset),
     layers: buildLayers(),
+    bounds: { x: boundsX, y: boundsY, width: 16, height: 16 },
+    boundsAreDerived: true,
     indicators,
   };
 }

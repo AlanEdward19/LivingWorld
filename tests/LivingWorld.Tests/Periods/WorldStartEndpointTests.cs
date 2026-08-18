@@ -77,7 +77,7 @@ public class WorldStartEndpointTests : IClassFixture<WebApplicationFactory<Progr
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<StartWorldResponse>();
         Assert.NotNull(body);
-        Assert.Equal(100, body!.NpcCount);
+        Assert.Equal(20, body!.NpcCount);
         Assert.Equal(999UL, body.Seed);
     }
 

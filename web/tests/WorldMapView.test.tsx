@@ -19,6 +19,7 @@ function makeSnapshot(): FutureGlobalSnapshot {
     cities: [
       {
         id: { value: "city-1" },
+        name: "Cidade Um",
         location: { x: 3, y: 4 },
         population: 42,
         bounds: { x: 3, y: 4, width: 2, height: 2 },

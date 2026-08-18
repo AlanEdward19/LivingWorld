@@ -36,7 +36,7 @@ public sealed class LivingDeltaContractTests
     public void Delta_contains_typed_final_state_upserts_and_removals()
     {
         var npc = new NpcVisual(new NpcId(2), new CellCoord(3, 4), ActionType.Work);
-        var city = new CityVisual(new CityId(Guid.Parse("00000000-0000-0000-0000-000000000032")), new CellCoord(5, 5), 8, new CellBounds(3, 3, 5, 5));
+        var city = new CityVisual(new CityId(Guid.Parse("00000000-0000-0000-0000-000000000032")), "Cidade Teste", new CellCoord(5, 5), 8, new CellBounds(3, 3, 5, 5));
         var before = LivingScopeState.Empty with { Npcs = [new NpcVisual(new NpcId(1), new CellCoord(0, 0), null)] };
         var after = LivingScopeState.Empty with { Npcs = [npc], Cities = [city] };
 

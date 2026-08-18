@@ -27,9 +27,13 @@ public class MaterializationSystemTests
 
         PopulationSeeder.SeedInitial(world, count: 1, ScenarioRunner.DefaultCulture, ScenarioRunner.DefaultVillageLocation);
 
+        // T50: mesma reserva em lote que ScenarioLoaderV2 faz pra cidade autorada com pool
+        // não-vazio — sem isso PoolNpcIds ficaria vazio e Materialize/Emigrate falhariam.
+        var resolvedPool = pool ?? new AggregatePopulationPool(5, 500, 400);
+        var poolNpcIds = world.ReserveNpcIdBlock(resolvedPool.Count);
         var city = new City(
             world.NextCityId(), ScenarioRunner.DefaultVillageLocation, foundedAtTick: 0, foundedFromCityId: null,
-            aggregatePool: pool ?? new AggregatePopulationPool(5, 500, 400));
+            aggregatePool: resolvedPool, poolNpcIds: poolNpcIds);
         world.AddCity(city);
         return (world, city);
     }
@@ -185,12 +189,13 @@ public class MaterializationSystemTests
     }
 
     [Fact]
-    public void EnsureMaterialized_materializes_a_genuine_never_touched_pool_member_addressed_by_its_future_id()
+    public void EnsureMaterialized_materializes_a_genuine_never_touched_pool_member_addressed_by_its_reserved_id()
     {
-        // Fase 8, fix round 1, gap 2 (CITY-05 AC2): id que nunca foi tocado (nunca existiu como
-        // Npc), vindo genuinamente do AggregatePool (Count > 0) — não um Npc já materializado.
+        // T50 (reabre CITY-05 AC2): id nunca tocado (nunca existiu como Npc), reservado no
+        // próprio PoolNpcIds da cidade — não mais "o próximo NextNpcId" (esse endereçamento foi
+        // substituído por identidade estável por membro do pool).
         var (world, city) = MakeWorldWithCity(new AggregatePopulationPool(5, 500, 400));
-        var neverTouchedId = new NpcId(world.NextNpcId);
+        var neverTouchedId = city.PoolNpcIds[0];
         Assert.Null(world.FindNpc(neverTouchedId)); // pré-condição: id genuinamente nunca tocado
         long poolCountBefore = world.FindCity(city.Id)!.AggregatePool.Count;
 
@@ -204,41 +209,41 @@ public class MaterializationSystemTests
     }
 
     [Fact]
-    public void EnsureMaterialized_fails_when_the_future_id_has_no_pool_to_materialize_from()
+    public void EnsureMaterialized_fails_for_an_id_reserved_by_no_city()
     {
         var (world, _) = MakeWorldWithCity(AggregatePopulationPool.Empty);
-        var neverTouchedId = new NpcId(world.NextNpcId);
+        var unreservedId = new NpcId(world.NextNpcId);
 
-        var result = MaterializationSystem.EnsureMaterialized(world, neverTouchedId);
+        var result = MaterializationSystem.EnsureMaterialized(world, unreservedId);
 
         Assert.False(result.IsSuccess);
-        Assert.Null(world.FindNpc(neverTouchedId));
+        Assert.Null(world.FindNpc(unreservedId));
     }
 
     [Fact]
-    public void EnsureMaterialized_picks_the_first_city_in_world_order_with_a_non_empty_pool_when_multiple_qualify()
+    public void EnsureMaterialized_only_touches_the_city_that_actually_reserved_the_id()
     {
-        // Rodada 2, gap Minor (CITY-05 AC2): 2+ cidades com pool não-vazio simultâneo não tinham
-        // nenhum teste fixando a escolha — o sensor de mutação (FirstOrDefault -> LastOrDefault)
-        // sobreviveu. Pino aqui o contrato real do código: entre cidades com pool não-vazio, a
-        // materializada é a primeira na ordem de world.Cities (List, sem RNG na escolha).
+        // T50: cada id de pool pertence a exatamente 1 cidade (sem ambiguidade/tie-break entre
+        // cidades com pool não-vazio, diferente do endereçamento antigo por NextNpcId) —
+        // materializar um id da segunda cidade nunca deveria mexer na primeira.
         var (world, firstCity) = MakeWorldWithCity(new AggregatePopulationPool(5, 500, 400));
+        var secondCityPoolIds = world.ReserveNpcIdBlock(5);
         var secondCity = new City(
             world.NextCityId(), ScenarioRunner.DefaultVillageLocation, foundedAtTick: 0, foundedFromCityId: null,
-            aggregatePool: new AggregatePopulationPool(5, 500, 400));
+            aggregatePool: new AggregatePopulationPool(5, 500, 400), poolNpcIds: secondCityPoolIds);
         world.AddCity(secondCity);
-        var neverTouchedId = new NpcId(world.NextNpcId);
+        var idFromSecondCity = secondCity.PoolNpcIds[0];
         long firstPoolBefore = world.FindCity(firstCity.Id)!.AggregatePool.Count;
         long secondPoolBefore = world.FindCity(secondCity.Id)!.AggregatePool.Count;
 
-        var result = MaterializationSystem.EnsureMaterialized(world, neverTouchedId);
+        var result = MaterializationSystem.EnsureMaterialized(world, idFromSecondCity);
 
         Assert.True(result.IsSuccess);
-        var materialized = world.FindNpc(neverTouchedId);
+        var materialized = world.FindNpc(idFromSecondCity);
         Assert.NotNull(materialized);
-        Assert.Equal(firstCity.Id, materialized!.City);
-        Assert.Equal(firstPoolBefore - 1, world.FindCity(firstCity.Id)!.AggregatePool.Count);
-        Assert.Equal(secondPoolBefore, world.FindCity(secondCity.Id)!.AggregatePool.Count);
+        Assert.Equal(secondCity.Id, materialized!.City);
+        Assert.Equal(firstPoolBefore, world.FindCity(firstCity.Id)!.AggregatePool.Count);
+        Assert.Equal(secondPoolBefore - 1, world.FindCity(secondCity.Id)!.AggregatePool.Count);
     }
 
     // CurrentDate tem setter `internal` (mesmo padrão de WorldClock) — visível aqui via

@@ -48,21 +48,26 @@ public sealed class MaterializationSystem : ISimulationSystem
     /// <summary>Materializa 1 NPC do pool agregado de <paramref name="cityId"/>: debita
     /// exatamente 1 do <see cref="AggregatePopulationPool"/> e cria exatamente 1 linha de <see
     /// cref="Npc"/> (CITY-04). Atributos sorteados a partir das médias agregadas da cidade
-    /// (Assumption confirmada: "sorteio livre a partir das faixas/estatísticas agregadas").</summary>
-    public static Result<Npc> MaterializeOne(WorldState world, TickContext ctx, CityId cityId)
+    /// (Assumption confirmada: "sorteio livre a partir das faixas/estatísticas agregadas").
+    /// <paramref name="specificId"/> materializa exatamente aquele id reservado (T50, clique do
+    /// usuário num membro específico do pool); omitido, materializa qualquer um (o último
+    /// reservado) — comportamento de sempre pra quem só quer "materialize alguém desta cidade".</summary>
+    public static Result<Npc> MaterializeOne(WorldState world, TickContext ctx, CityId cityId, NpcId? specificId = null)
     {
         var city = world.FindCity(cityId);
         if (city is null) return Result<Npc>.Fail("City: não existe");
+        if (city.PoolNpcIds.Count == 0) return Result<Npc>.Fail("AggregatePool: nenhum NPC agregado disponível para materializar");
+
+        var id = specificId ?? city.PoolNpcIds[^1];
 
         long wealthPerHead = city.AggregatePool.Count > 0 ? city.AggregatePool.WealthSum / city.AggregatePool.Count : 0;
         long healthPerHead = city.AggregatePool.Count > 0
             ? Math.Clamp(city.AggregatePool.HealthSum / city.AggregatePool.Count, 0, 100)
             : 50;
 
-        var materialized = city.Materialize(wealthPerHead, healthPerHead);
+        var materialized = city.Materialize(id, wealthPerHead, healthPerHead);
         if (!materialized.IsSuccess) return Result<Npc>.Fail(materialized.Error!);
 
-        var id = world.NextNpcIdAndAdvance();
         var sex = ctx.Rng($"materialize-sex-{id.Value}").NextDouble() < 0.5 ? Sex.Female : Sex.Male;
         int maxAge = Math.Max(19, world.PopulationRules.LifeTable.MaxLongevityYears - 1);
         int ageYears = 18 + (int)(ctx.Rng($"materialize-age-{id.Value}").NextDouble() * (maxAge - 18));
@@ -98,45 +103,35 @@ public sealed class MaterializationSystem : ISimulationSystem
         var city = world.FindCity(npc.City);
         if (city is null) return Result<Unit>.Fail("City: não existe");
 
-        city.Dematerialize(npc.Wallet.Amount, npc.Health);
+        city.Dematerialize(npcId, npc.Wallet.Amount, npc.Health);
         world.RemoveNpc(npcId);
         return Result<Unit>.Ok(Unit.Value);
     }
 
-    // DESIGN (Fase 8, fix round 1, gap 2 — CITY-05 AC2): approach A (design.md) não atribui
-    // NpcId a membro do AggregatePopulationPool — só existe contagem+somas, nunca identidade
-    // individual. Isso tornava "consultar um NPC agregado por id" estruturalmente impossível:
-    // não havia nenhum id nomeável apontando pro pool (gap achado pelo Verifier independente).
+    // DESIGN (Fase 8, fix round 1, gap 2 — CITY-05 AC2; T50 reabre e resolve de verdade):
+    // approach A (design.md) não atribuía NpcId a membro do AggregatePopulationPool — só existia
+    // contagem+somas, nunca identidade individual, tornando "consultar um NPC agregado por id"
+    // estruturalmente impossível.
     //
-    // Opção descartada: reservar uma faixa de NpcId por cidade (avançar NextNpcId em lockstep
-    // com todo crescimento de pool: fundação, carga inicial de cenário, desmaterialização) e
-    // guardar [startId, startId+count) na própria City. Rejeitada aqui porque exige (a) mudar a
-    // superfície canônica de City (novo campo persistido, entra no hash — arrisca os testes de
-    // round-trip/conservação de CITY-04, o núcleo mais frágil da fase) e (b) uma faixa compacta
-    // por cidade quebra sob alocação intercalada do contador global entre cidades (reserva da
-    // cidade B entre duas reservas da cidade A perfura o intervalo contíguo assumido pela cidade
-    // A) — precisaria de uma lista de blocos por cidade, não um único range, pra ficar correto.
-    //
-    // Escolha: o único id "endereçável" de um membro do pool nunca materializado é exatamente o
-    // próximo que o contador global (WorldState.NextNpcId) vai emitir — é o mesmo id que
-    // MaterializeOne já atribuiria a esse membro no próximo sorteio. Consultar esse id
-    // específico dispara a materialização real (mesmo MaterializeOne, mesmo sorteio) da primeira
-    // cidade com pool não vazio, na ordem de world.Cities (determinístico, sem RNG na escolha da
-    // cidade). Não adiciona estado novo a City nem ao snapshot — hash/conservação continuam
-    // exatamente como antes.
+    // Uma primeira tentativa (rejeitada, comentário histórico removido em T50) tentou uma FAIXA
+    // contígua de NpcId por cidade — quebra porque o contador global é consumido por dois fluxos
+    // intercalados (nascimentos a cada tick, materialização sob demanda), então um range simples
+    // não fecha. Escolha final (T50): cada cidade guarda uma LISTA de ids já reservados (<see
+    // cref="City.PoolNpcIds"/>, não um range) — cresce só nos 3 pontos que já mexiam no pool
+    // (carga de cenário em lote, desmaterialização devolvendo o próprio id de quem saiu, fundação
+    // de assentamento transferindo a lista inteira) e encolhe nos que já existiam (materializar,
+    // emigrar). Nenhum range pra "fechar", intercalação não importa mais.
     public static Result<Unit> EnsureMaterialized(WorldState world, NpcId npcId)
     {
         var npc = world.FindNpc(npcId);
         if (npc is not null)
             return npc.IsAlive ? Result<Unit>.Ok(Unit.Value) : Result<Unit>.Fail("Npc: não existe ou está morto");
 
-        if (npcId.Value != world.NextNpcId) return Result<Unit>.Fail("Npc: não existe ou está morto");
-
-        var city = world.Cities.FirstOrDefault(c => c.AggregatePool.Count > 0);
+        var city = world.Cities.FirstOrDefault(c => c.PoolNpcIds.Contains(npcId));
         if (city is null) return Result<Unit>.Fail("Npc: não existe ou está morto");
 
         var ctx = new TickContext(world, world.Rng, world.Scheduler);
-        var materialized = MaterializeOne(world, ctx, city.Id);
+        var materialized = MaterializeOne(world, ctx, city.Id, npcId);
         return materialized.IsSuccess ? Result<Unit>.Ok(Unit.Value) : Result<Unit>.Fail(materialized.Error!);
     }
 }

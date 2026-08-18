@@ -14,8 +14,12 @@ public sealed record CityScenarioData(
 /// <summary>Uma <see cref="City"/> ainda sem <see cref="CityId"/> — o cenário declara o
 /// conteúdo, o mundo atribui o id na hora de adicionar. <see cref="Name"/> vazio significa "o
 /// cenário não autorou um nome" (Fase 15.1, T44) — quem consome resolve o fallback
-/// determinístico (<see cref="CityNameGenerator"/>), o loader nunca sorteia nada.</summary>
-public sealed record InitialCity(CellCoord Location, long FoundedAtTick, AggregatePopulationPool AggregatePool, string Name = "");
+/// determinístico (<see cref="CityNameGenerator"/>), o loader nunca sorteia nada.
+/// <see cref="InitialPopulation"/> nulo significa "sem valor autorado" — <c>ScenarioLoaderV2</c>
+/// divide o restante de <c>Population.InitialPopulation</c> igualmente entre as cidades sem
+/// valor explícito, exatamente como fazia antes desse campo existir (não muda a fórmula de
+/// crescimento de <see cref="CityBoundsResolver"/>, só a população com que cada cidade nasce).</summary>
+public sealed record InitialCity(CellCoord Location, long FoundedAtTick, AggregatePopulationPool AggregatePool, string Name = "", int? InitialPopulation = null);
 
 /// <summary>Prédio autorado no World Creator (Fase 15.1, T44) — ainda sem <see
 /// cref="BuildingId"/>/<see cref="CityId"/> reais: <see cref="CityIndex"/> referencia a posição
@@ -179,8 +183,11 @@ public static class CityScenarioLoader
                 return Result<IReadOnlyList<InitialCity>>.Fail("Cities[].AggregatePool.HealthSum: campo obrigatório ausente ou inválido");
 
             string name = city["Name"]?.GetValue<string>() ?? "";
+            int? initialPopulation = TryGetInt(city, "InitialPopulation", out var explicitPopulation) ? explicitPopulation : null;
+            if (initialPopulation is < 0)
+                return Result<IReadOnlyList<InitialCity>>.Fail("Cities[].InitialPopulation: não pode ser negativo");
 
-            cities.Add(new InitialCity(new CellCoord(x, y), foundedAtTick, new AggregatePopulationPool(count, wealthSum, healthSum), name));
+            cities.Add(new InitialCity(new CellCoord(x, y), foundedAtTick, new AggregatePopulationPool(count, wealthSum, healthSum), name, initialPopulation));
         }
 
         return Result<IReadOnlyList<InitialCity>>.Ok(cities);

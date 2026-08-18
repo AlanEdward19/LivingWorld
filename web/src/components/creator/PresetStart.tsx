@@ -8,7 +8,7 @@ export interface PresetStartProps {
   onBack: () => void;
 }
 
-type SizePresetKey = "pequeno" | "medio" | "grande";
+type SizePresetKey = "pequeno" | "medio" | "grande" | "imenso";
 
 interface SizePreset {
   label: string;
@@ -17,14 +17,19 @@ interface SizePreset {
   initialPopulation: number;
 }
 
+// Feedback do usuário (T44b): 10x10 ("Pequeno" original) deixava pouco espaço pra uma vila de
+// verdade — footprint de cidade vai até 12x12 (CityBoundsResolver), então uma vila nesse mapa
+// dominava o território. Presets sobem o mínimo e ganham um degrau extra.
 const SIZE_PRESETS: Record<SizePresetKey, SizePreset> = {
-  pequeno: { label: "Pequeno", width: 10, height: 10, initialPopulation: 20 },
-  medio: { label: "Médio", width: 20, height: 20, initialPopulation: 60 },
-  grande: { label: "Grande", width: 40, height: 40, initialPopulation: 150 },
+  pequeno: { label: "Pequeno", width: 16, height: 16, initialPopulation: 30 },
+  medio: { label: "Médio", width: 30, height: 30, initialPopulation: 80 },
+  grande: { label: "Grande", width: 50, height: 50, initialPopulation: 180 },
+  imenso: { label: "Imenso", width: 80, height: 80, initialPopulation: 400 },
 };
+const SIZE_PRESET_KEYS = Object.keys(SIZE_PRESETS) as SizePresetKey[];
 
 const BLANK = "__blank__";
-const PREVIEW_SCALE: Record<SizePresetKey, number> = { pequeno: 0.52, medio: 0.72, grande: 0.94 };
+const PREVIEW_SCALE: Record<SizePresetKey, number> = { pequeno: 0.46, medio: 0.62, grande: 0.78, imenso: 0.94 };
 
 /// Fase 15.1, T23: primeira tela do creator — no máximo 4 campos, nenhum parâmetro avançado. A
 /// autoria campo-a-campo completa continua existindo no wizard de 6 abas (T26 evolui a
@@ -48,6 +53,17 @@ export function PresetStart({ onStart, onBack }: PresetStartProps) {
       .then(setTemplates)
       .catch(() => setTemplates([]));
   }, []);
+
+  // T44b: prévia (tamanho + animação) segue o template real quando um está selecionado, não só
+  // o preset manual — trocar de template antes disso deixava a prévia congelada no último
+  // tamanho escolhido, mesmo o template gerando um mundo bem diferente.
+  const selectedTemplate = startingPoint === BLANK ? null : templates.find((t) => t.periodId === startingPoint);
+  const previewDims = selectedTemplate ?? SIZE_PRESETS[size];
+  const previewKey = selectedTemplate ? selectedTemplate.periodId : size;
+  const previewScale = selectedTemplate
+    ? Math.min(0.94, Math.max(0.4, Math.max(selectedTemplate.width, selectedTemplate.height) / 90))
+    : PREVIEW_SCALE[size];
+  const previewPopulation = selectedTemplate ? undefined : SIZE_PRESETS[size].initialPopulation;
 
   async function handleCreate() {
     setLoading(true);
@@ -99,13 +115,16 @@ export function PresetStart({ onStart, onBack }: PresetStartProps) {
 
           <h3>Escala da simulação</h3>
           <div className="size-preset-cards">
-            {Object.entries(SIZE_PRESETS).map(([key, preset]) => (
-              <button key={key} type="button" className={size === key ? "selected" : ""} aria-pressed={size === key} disabled={startingPoint !== BLANK} onClick={() => setSize(key as SizePresetKey)}>
-                <span className="size-preset-map" aria-hidden="true">{key === "pequeno" ? "▦" : key === "medio" ? "▦▦" : "▦▦▦"}</span>
-                <strong>{preset.label}</strong>
-                <small>{preset.width}×{preset.height} · {preset.initialPopulation} habitantes</small>
-              </button>
-            ))}
+            {SIZE_PRESET_KEYS.map((key, index) => {
+              const preset = SIZE_PRESETS[key];
+              return (
+                <button key={key} type="button" className={size === key ? "selected" : ""} aria-pressed={size === key} disabled={startingPoint !== BLANK} onClick={() => setSize(key)}>
+                  <span className="size-preset-map" aria-hidden="true">{"▦".repeat(index + 1)}</span>
+                  <strong>{preset.label}</strong>
+                  <small>{preset.width}×{preset.height} · {preset.initialPopulation} habitantes</small>
+                </button>
+              );
+            })}
           </div>
           <label className="visually-hidden">
             Tamanho aproximado
@@ -130,7 +149,7 @@ export function PresetStart({ onStart, onBack }: PresetStartProps) {
             </button>
             {templates.map((template) => (
               <button key={template.periodId} type="button" className={startingPoint === template.periodId ? "selected" : ""} aria-pressed={startingPoint === template.periodId} onClick={() => setStartingPoint(template.periodId)}>
-                <span aria-hidden="true">◫</span><strong>{template.source}</strong><small>Cenário preparado</small>
+                <span aria-hidden="true">◫</span><strong>{template.source}</strong><small>{template.width}×{template.height} · cenário preparado</small>
               </button>
             ))}
           </div>
@@ -154,29 +173,29 @@ export function PresetStart({ onStart, onBack }: PresetStartProps) {
         <aside className="world-seed-preview" aria-label="Prévia do mundo">
           <div className="preview-map" aria-hidden="true">
             <div
-              key={size}
+              key={previewKey}
               className="preview-map-world"
               data-testid="preview-map-world"
               style={{
-                transform: `scale(${PREVIEW_SCALE[size]})`,
-                aspectRatio: `${SIZE_PRESETS[size].width} / ${SIZE_PRESETS[size].height}`,
-                gridTemplateColumns: `repeat(${SIZE_PRESETS[size].width}, 1fr)`,
+                transform: `scale(${previewScale})`,
+                aspectRatio: `${previewDims.width} / ${previewDims.height}`,
+                gridTemplateColumns: `repeat(${previewDims.width}, 1fr)`,
               }}
             >
-              {Array.from({ length: SIZE_PRESETS[size].width * SIZE_PRESETS[size].height }, (_, index) => {
-                const x = index % SIZE_PRESETS[size].width;
-                const y = Math.floor(index / SIZE_PRESETS[size].width);
+              {Array.from({ length: previewDims.width * previewDims.height }, (_, index) => {
+                const x = index % previewDims.width;
+                const y = Math.floor(index / previewDims.width);
                 const ground = creatorGroundAt(seed, x, y);
                 return <i key={index} data-ground={ground.kind} style={{ background: ground.color }} />;
               })}
-              <b style={{ left: `${(5.5 / SIZE_PRESETS[size].width) * 100}%`, top: `${(5.5 / SIZE_PRESETS[size].height) * 100}%` }}>⌂</b>
+              <b style={{ left: `${(5.5 / previewDims.width) * 100}%`, top: `${(5.5 / previewDims.height) * 100}%` }}>⌂</b>
             </div>
           </div>
           <span>Prévia conceitual</span>
           <h3>{name.trim() || "Mundo sem nome"}</h3>
           <dl>
-            <div><dt>Território</dt><dd>{SIZE_PRESETS[size].width} × {SIZE_PRESETS[size].height}</dd></div>
-            <div><dt>População</dt><dd>{SIZE_PRESETS[size].initialPopulation}</dd></div>
+            <div><dt>Território</dt><dd>{previewDims.width} × {previewDims.height}</dd></div>
+            <div><dt>População</dt><dd>{previewPopulation ?? "definida pelo cenário"}</dd></div>
             <div><dt>Seed</dt><dd>{seed}</dd></div>
           </dl>
           <button className="create-world-cta" type="button" onClick={handleCreate} disabled={loading || !nameIsValid}>

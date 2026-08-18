@@ -4,7 +4,7 @@ using LivingWorld.Simulation;
 namespace LivingWorld.Api.Visual;
 
 public sealed record NpcVisual(NpcId Id, CellCoord Location, ActionType? CurrentAction);
-public sealed record CityVisual(CityId Id, CellCoord Location, long Population, CellBounds Bounds);
+public sealed record CityVisual(CityId Id, string Name, CellCoord Location, long Population, CellBounds Bounds);
 public sealed record BuildingVisual(BuildingId Id, CityId CityId, int BuildingTypeId, CellCoord Location);
 public sealed record ProcessVisual(long Id, string Kind, long TargetId, double Progress, string DescriptorKey);
 public sealed record IndicatorUpdate(string Key, double Value);
@@ -71,7 +71,7 @@ public static class LivingScopeProjector
             {
                 var bounds = cityBounds[city.Id];
                 return new CityVisual(
-                    city.Id, city.Location, CityPopulationQuery.Population(world, city.Id),
+                    city.Id, city.Name, city.Location, CityPopulationQuery.Population(world, city.Id),
                     new CellBounds(bounds.Origin.X, bounds.Origin.Y, bounds.Width, bounds.Height));
             }).ToList()
             : [];
@@ -100,6 +100,8 @@ public static class LivingScopeProjector
         return new LivingScopeState(npcs, cities, buildings, [], indicators, visibleEvents);
     }
 
+    // T50: mesmo critério geométrico de NpcScopeResolver (Domain) — cidade não encontrada nunca
+    // deveria acontecer pra um NPC vivo, mas cai em "fora" (World) em vez de lançar.
     private static bool IsNpcInScope(
         Npc npc,
         VisualScope scope,
@@ -109,8 +111,10 @@ public static class LivingScopeProjector
             VisualScopeKind.City when Guid.TryParse(scope.RefId, out var cityGuid) =>
                 npc.City == new CityId(cityGuid)
                 && cityBounds.TryGetValue(npc.City, out var bounds)
-                && bounds.Contains(npc.CurrentLocation),
-            VisualScopeKind.World => cityBounds.TryGetValue(npc.City, out var bounds) && !bounds.Contains(npc.CurrentLocation),
+                && NpcScopeResolver.Resolve(npc, bounds).Kind == NpcScopeKind.City,
+            VisualScopeKind.World =>
+                cityBounds.TryGetValue(npc.City, out var bounds)
+                && NpcScopeResolver.Resolve(npc, bounds).Kind == NpcScopeKind.World,
             _ => false,
         };
 

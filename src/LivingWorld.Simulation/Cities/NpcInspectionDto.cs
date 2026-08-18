@@ -6,6 +6,12 @@ public enum NpcInspectionLod
 {
     Materialized = 0,
     Archived = 1,
+    // T50: membro do pool agregado com NpcId reservado (City.PoolNpcIds) mas ainda não
+    // materializado — sem atributos reais pra devolver (não existem até sortear), o DTO só
+    // carrega id/cidade de verdade; o resto vem com valor placeholder (mesmo espírito de
+    // FromNpcSummary pra Archived). Cliente usa este Lod pra oferecer "Materializar" em vez de
+    // mostrar um erro genérico de "não encontrado".
+    Pooled = 2,
 }
 
 public sealed record NpcActionTargetDto(string Kind, string Id);
@@ -40,4 +46,8 @@ public sealed record NpcInspectionDto(
     NpcActionTargetDto? ActionTarget,
     NpcInspectionLod Lod,
     IReadOnlyList<string> Beliefs,
-    IReadOnlyList<string> Memories);
+    IReadOnlyList<string> Memories,
+    // T50 (bug "seguir NPC entre escopos"): mesmo critério geométrico de
+    // GlobalProjector/LivingScopeProjector (NpcScopeResolver), agora também aqui — cliente usa
+    // pra saber que o NPC seguido cruzou de cidade pro mundo (ou vice-versa) e trocar de tela.
+    NpcScope CurrentScope);

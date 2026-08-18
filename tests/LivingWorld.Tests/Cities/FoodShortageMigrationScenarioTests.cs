@@ -58,7 +58,8 @@ public class FoodShortageMigrationScenarioTests
 
         var city = new City(
             world.NextCityId(), ScenarioRunner.DefaultVillageLocation, foundedAtTick: 0, foundedFromCityId: null,
-            aggregatePool: new AggregatePopulationPool(PoolCount, PoolCount * 50, PoolCount * 50));
+            aggregatePool: new AggregatePopulationPool(PoolCount, PoolCount * 50, PoolCount * 50),
+            poolNpcIds: world.ReserveNpcIdBlock(PoolCount));
         world.AddCity(city);
 
         foreach (var npc in world.Npcs) npc.JoinCity(city.Id);

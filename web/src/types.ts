@@ -73,6 +73,7 @@ export interface CellCoord {
 
 export interface GlobalCityMarker {
   id: { value: string };
+  name: string;
   location: CellCoord;
   population: number;
 }
@@ -110,11 +111,20 @@ export interface AggregatePopulationPool {
 
 export interface CitySnapshot {
   id: { value: string };
+  name: string;
   location: CellCoord;
   aggregatePool: AggregatePopulationPool;
   residents: CityResidentMarker[];
+  /** Ids reservados (T50, `City.PoolNpcIds`) de membros do pool agregado ainda não
+   * materializados — cada um clicável/inspecionável (backend devolve `Lod.Pooled` com opção de
+   * materializar), diferente de `aggregatePool.count`, que é só a contagem. */
+  pendingResidentIds: number[];
   buildings: CityBuildingMarker[];
   layers: Record<VisualLayerName, LayerBuildResult>;
+  /** Mesmo footprint que o marcador da cidade desenha no mapa-múndi (SpatialBoundsResolver) —
+   * cresce com a população, nunca um envelope visual fixo. */
+  bounds: { x: number; y: number; width: number; height: number };
+  boundsAreDerived: boolean;
 }
 
 export interface InteriorSnapshot {

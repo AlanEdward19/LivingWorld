@@ -185,11 +185,17 @@ export function CitiesPanel({ form, set }: PanelProps) {
             { name: "count", label: "população", type: "number" },
             { name: "wealthSum", label: "riqueza total", type: "number" },
             { name: "healthSum", label: "saúde total", type: "number" },
+            { name: "initialPopulation", label: "moradores ao criar (0 = automático)", type: "number" },
           ]}
           rows={form.cities}
-          emptyRow={{ x: 0, y: 0, foundedAtTick: 0, count: 0, wealthSum: 0, healthSum: 0 }}
+          emptyRow={{ x: 0, y: 0, foundedAtTick: 0, count: 0, wealthSum: 0, healthSum: 0, initialPopulation: 0 }}
           onChange={(rows) => set("cities", rows)}
         />
+        <p className="field-hint">
+          Pra fixar quantos moradores um assentamento já pintado no mapa nasce com, adicione uma
+          linha aqui com o mesmo x/y dele e preencha "moradores ao criar" — sem isso, a população
+          inicial continua dividida igualmente entre todos os assentamentos.
+        </p>
       </details>
     </div>
   );

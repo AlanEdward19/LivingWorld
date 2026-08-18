@@ -59,7 +59,7 @@ public class PeriodDefinitionValidatorTests
         var result = PeriodDefinitionValidator.Validate(root.ToJsonString());
 
         Assert.True(result.IsSuccess, result.Error);
-        Assert.Equal(100, result.Value!.Population.InitialPopulation);
+        Assert.Equal(20, result.Value!.Population.InitialPopulation);
         Assert.Single(result.Value!.Dynamics.ProfessionBiases);
     }
 

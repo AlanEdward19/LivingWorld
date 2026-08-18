@@ -9,7 +9,10 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { MapView } from "../MapView";
 import { createWorld, fetchPeriodCatalog, type PeriodCatalog } from "../../api";
-import { parseCsvInts, scenarioFormToJson, type ScenarioFormState } from "../../scenarioDefaults";
+import {
+  estimatedSettlementPopulation, parseCsvInts, scenarioFormToJson, type ScenarioFormState,
+} from "../../scenarioDefaults";
+import { citySide } from "../../map-engine/citySizing";
 import { SimulationStore } from "../../state/simulationStore";
 import { ViewStore } from "../../state/viewStore";
 import { SelectionStore } from "../../state/selectionStore";
@@ -227,21 +230,28 @@ export function WorldEditor({
     setSettlementRotations((current) => ({ ...current, [index]: nextRotation(current[index] ?? 0) }));
   }
 
+  // Mesmo footprint que o mundo criado vai ter de verdade (CityBoundsResolver, via citySide) —
+  // sem isso o editor desenhava um canvas fixo bem maior que a cidade real (LIVE-POLISH).
+  function citySizeFor(index: number) {
+    const side = citySide(estimatedSettlementPopulation(form, index), form.width, form.height);
+    return { width: side, height: side };
+  }
+
   function openSettlement(index: number) {
-    setCityDrafts((current) => current[index] ? current : { ...current, [index]: initialCreatorCityDraft(form.seed, index) });
+    setCityDrafts((current) => current[index] ? current : { ...current, [index]: initialCreatorCityDraft(form.seed, index, citySizeFor(index)) });
     stores.selectionStore.clear();
     setEditingSettlement(index);
   }
 
   function updateCityDraft(index: number, update: (draft: CreatorCityDraft) => CreatorCityDraft) {
-    setCityDrafts((current) => ({ ...current, [index]: update(current[index] ?? initialCreatorCityDraft(form.seed, index)) }));
+    setCityDrafts((current) => ({ ...current, [index]: update(current[index] ?? initialCreatorCityDraft(form.seed, index, citySizeFor(index))) }));
   }
 
   async function handleCreate() {
     setStatus("submitting");
     setError(null);
     try {
-      const response = await createWorld(scenarioFormToJson(form), worldName);
+      const response = await createWorld(scenarioFormToJson(form, cityDrafts), worldName);
       if (!response.ok) {
         setError(`criar mundo falhou: ${response.status} ${await response.text()}`);
         setStatus("error");
@@ -301,10 +311,11 @@ export function WorldEditor({
 
   if (editingSettlement !== null) {
     const settlement = form.settlements[editingSettlement];
-    const draft = cityDrafts[editingSettlement] ?? initialCreatorCityDraft(form.seed, editingSettlement);
+    const citySize = citySizeFor(editingSettlement);
+    const draft = cityDrafts[editingSettlement] ?? initialCreatorCityDraft(form.seed, editingSettlement, citySize);
     return (
       <CreatorCityEditor
-        cityId={`settlement:${editingSettlement}`} name={settlement.name} seed={form.seed}
+        cityId={`settlement:${editingSettlement}`} name={settlement.name} seed={form.seed} citySize={citySize}
         viewport={viewport} draft={draft} onDraftChange={(next) => updateCityDraft(editingSettlement, next)}
         onBack={() => setEditingSettlement(null)} simulationStore={stores.simulationStore}
         viewStore={stores.viewStore} selectionStore={stores.selectionStore}

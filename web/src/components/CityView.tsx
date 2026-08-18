@@ -17,7 +17,8 @@ import type { SimulationStore } from "../state/simulationStore";
 import type { ViewStore } from "../state/viewStore";
 import type { SelectionStore } from "../state/selectionStore";
 import type { CitySnapshot } from "../types";
-import { cityGroundAt, cityGroundBounds } from "../map-engine/worldVisuals";
+import { cityGroundAt } from "../map-engine/worldVisuals";
+import { computeFitZoom } from "../gridFit";
 
 export interface CityViewProps {
   snapshot: CitySnapshot;
@@ -28,11 +29,12 @@ export interface CityViewProps {
 }
 
 const BUILDING_RING_RADIUS = 6;
+// T50: anel próprio (raio menor, mais perto do centro) pros tokens do pool agregado — não
+// competem visualmente com o anel de prédios, e o traço tracejado (sizeIsDerived) já sinaliza
+// "posição sintética, ainda não materializado".
+const PENDING_RESIDENT_RING_RADIUS = 3;
 // No zoom inicial da cidade o morador já deve ser um pawn legível, não um ponto de mapa-múndi.
 const LOD_THRESHOLDS: LodThresholds = { aggregate: 4, token: 6, detail: 18 };
-/** Sem um "tamanho de grid local" mais (coordenadas de cidade agora são absolutas, iguais às
- * do mundo) — 16px/tile é o equivalente ao zoom antigo de fit-to-screen num grid local de 21x21. */
-const DEFAULT_CITY_ZOOM_SCALE = 8;
 
 function resolveNavigationTarget(cityId: string): (ref: EntityRef) => SpaceId | null {
   return (ref) => (ref.kind === "building" ? { kind: "Building", buildingId: ref.id, cityId } : null);
@@ -53,21 +55,33 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
   const [floor, setFloor] = useState(0);
   const space: SpaceId = useMemo(() => ({ kind: "City", cityId: snapshot.id.value }), [snapshot.id.value]);
 
-  const cells = useMemo(() => {
-    const bounds = cityGroundBounds(snapshot.location);
-    return {
-      ...bounds,
+  // Mesmo footprint que o marcador do mapa-múndi desenha (SpatialBoundsResolver, cresce com a
+  // população) — não um envelope fixo desconectado (LIVE-POLISH: usuário via um tamanho de
+  // cidade lá fora e outro, sempre igual, aqui dentro).
+  const cells = useMemo(
+    () => ({
+      width: snapshot.bounds.width,
+      height: snapshot.bounds.height,
+      minX: snapshot.bounds.x,
+      minY: snapshot.bounds.y,
       showGrid: false,
       backgroundColor: "#7fa8b2",
       atmosphereSeed: `city:${snapshot.id.value}`,
       colorAt: (x: number, y: number) => cityGroundAt(snapshot.id.value, x, y).color,
       detailAt: (x: number, y: number) => cityGroundAt(snapshot.id.value, x, y),
-    };
-  }, [snapshot.id.value, snapshot.location]);
+    }),
+    [snapshot.id.value, snapshot.bounds],
+  );
 
+  // Fit-to-screen no footprint real (mesma função que o mapa-múndi usa via `Camera.initial`,
+  // T44b) — sem isso a cidade sempre abria em 8px/tile fixo, então uma cidade pequena (footprint
+  // mínimo 3x3) ficava minúscula/vazia no centro da tela em vez de preencher o espaço.
   const initialCamera = useMemo(
-    () => ({ center: { ...snapshot.location }, scale: DEFAULT_CITY_ZOOM_SCALE }),
-    [snapshot.location],
+    () => ({
+      center: { ...snapshot.location },
+      scale: computeFitZoom(snapshot.bounds.width, snapshot.bounds.height, viewport.width, viewport.height),
+    }),
+    [snapshot.location, snapshot.bounds, viewport.width, viewport.height],
   );
 
   // Feedback do usuário (2026-08-07): prédio precisa de forma real, não círculo/retângulo
@@ -107,10 +121,34 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
     [snapshot.buildings, snapshot.location, space, floor],
   );
 
+  // T50: membro do pool agregado com id reservado (City.PoolNpcIds) — clicável, sem posição real
+  // (não existe até materializar), então anel client-side igual ao dos prédios. Clique seleciona
+  // -> NpcInspector chama inspectNpc -> backend devolve Lod.Pooled com opção de materializar.
+  const pendingResidentEntities: AuthoritativeEntity[] = useMemo(
+    () => {
+      const pendingResidentIds = snapshot.pendingResidentIds ?? [];
+      return pendingResidentIds.map((id, i) => {
+        const angle = (i / Math.max(1, pendingResidentIds.length)) * Math.PI * 2;
+        return {
+          ref: { kind: "npc" as const, id: String(id), space },
+          position: {
+            x: snapshot.location.x + Math.cos(angle) * PENDING_RESIDENT_RING_RADIUS - 0.5,
+            y: snapshot.location.y + Math.sin(angle) * PENDING_RESIDENT_RING_RADIUS - 0.5,
+          },
+          size: { w: 1, h: 1 },
+          sizeIsDerived: true,
+          color: CATEGORY_COLOR.npc,
+        };
+      });
+    },
+    [snapshot.pendingResidentIds, snapshot.location, space],
+  );
+
   return (
     <div className="map-fullscreen" data-testid="city-view">
       <div className="map-hud map-hud-top-left">
-        <h2>Cidade {snapshot.id.value.slice(0, 8)}</h2>
+        <h2>Cidade {snapshot.name || snapshot.id.value.slice(0, 8)}</h2>
+        <p>{snapshot.residents.length} habitantes materializados</p>
         <p>
           Pool agregado: {snapshot.aggregatePool.count} habitantes não materializados (riqueza{" "}
           {snapshot.aggregatePool.wealthSum}, saúde {snapshot.aggregatePool.healthSum})
@@ -130,7 +168,7 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
         simulationStore={simulationStore}
         viewStore={viewStore}
         selectionStore={selectionStore}
-        staticEntities={buildingEntities}
+        staticEntities={[...buildingEntities, ...pendingResidentEntities]}
         resolveNavigationTarget={resolveNavigationTarget(snapshot.id.value)}
         initialCamera={initialCamera}
       />

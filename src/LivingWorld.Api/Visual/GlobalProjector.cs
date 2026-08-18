@@ -13,7 +13,7 @@ public sealed record CellBounds(int X, int Y, int Width, int Height);
 /// e população agregada (<see cref="CityPopulationQuery"/>), sem detalhe de residente. <see
 /// cref="Bounds"/>/<see cref="BoundsAreDerived"/> (Fase 15.1, T20, OQ-1) vêm de <see
 /// cref="SpatialBoundsResolver.ResolveCity"/> — projeção derivada, não toca o domínio.</summary>
-public sealed record GlobalCityMarker(CityId Id, CellCoord Location, long Population, CellBounds Bounds, bool BoundsAreDerived);
+public sealed record GlobalCityMarker(CityId Id, string Name, CellCoord Location, long Population, CellBounds Bounds, bool BoundsAreDerived);
 
 /// <summary>Fase 15, T4 (VTT-01, VTT-06): NPC materializado fora da célula da própria cidade —
 /// "externo" no sentido do espectador global (spec.md: "NPCs externos agregados por LOD"),
@@ -44,7 +44,7 @@ public static class GlobalProjector
                 long population = CityPopulationQuery.Population(world, c.Id);
                 var (bounds, isDerived) = SpatialBoundsResolver.ResolveCity(c, population, world.Map.Width, world.Map.Height);
                 var cellBounds = new CellBounds(bounds.Origin.X, bounds.Origin.Y, bounds.Width, bounds.Height);
-                return new GlobalCityMarker(c.Id, c.Location, population, cellBounds, isDerived);
+                return new GlobalCityMarker(c.Id, c.Name, c.Location, population, cellBounds, isDerived);
             })
             .ToList();
 
@@ -55,8 +55,11 @@ public static class GlobalProjector
             c => c.Id,
             c => SpatialBoundsResolver.ResolveCity(
                 c, CityPopulationQuery.Population(world, c.Id), world.Map.Width, world.Map.Height).Bounds);
+        // T50: mesmo critério geométrico de NpcScopeResolver (Domain), agora compartilhado com
+        // LivingScopeProjector.IsNpcInScope e NpcInspectionQuery.ResolveScope.
         var externalNpcs = world.Npcs
-            .Where(n => n.IsAlive && cityBoundsById.TryGetValue(n.City, out var home) && !home.Contains(n.CurrentLocation))
+            .Where(n => n.IsAlive && cityBoundsById.TryGetValue(n.City, out var home)
+                && NpcScopeResolver.Resolve(n, home).Kind == NpcScopeKind.World)
             .Select(n => new GlobalNpcMarker(n.Id, n.CurrentLocation))
             .ToList();
 

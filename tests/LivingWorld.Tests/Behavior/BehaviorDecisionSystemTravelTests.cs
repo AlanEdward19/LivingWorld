@@ -134,7 +134,18 @@ public class BehaviorDecisionSystemTravelTests
         var map = MakeTwoCellMap();
         var location = new CellCoord(0, 0);
         var rules = MakeRules(homelessSleepEfficiency: 0.4);
-        var catalog = MakeCatalog();
+        // MakeCatalog()'s Idle dura 1h: satisfeito o sono (deixa de ser urgente), a rotina cai
+        // pro default Idle, que completa no tick seguinte e aciona passeio ambiente — legítimo
+        // (mesmo comportamento de qualquer NPC ocioso), só que não é o que este teste quer
+        // provar (design.md NEEDS-15: só a viagem PARA DORMIR sem residência). Idle bem mais
+        // longo que a janela do teste isola a garantia de sem-teto sem o confundir com passeio.
+        var catalog = ActionCatalog.Create(
+            maxDurationHours: new Dictionary<ActionType, int>
+            {
+                [ActionType.Eat] = 1, [ActionType.Sleep] = 1, [ActionType.Work] = 1,
+                [ActionType.Socialize] = 1, [ActionType.Travel] = 1, [ActionType.Idle] = 100, [ActionType.Buy] = 1,
+            },
+            routineSlots: [], defaultAction: ActionType.Idle).Value!;
         var (world, npc) = BuildHomelessWorld(map, rules, catalog, location, sleep: 0);
         var clock = new WorldClock([new BehaviorDecisionSystem()]);
 
