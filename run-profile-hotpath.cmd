@@ -23,16 +23,17 @@ echo Aguardando 45s pro testhost subir e o JIT aquecer...
 timeout /T 45 /NOBREAK >nul
 
 echo Procurando o processo testhost.exe...
-for /f "tokens=2 delims=," %%P in ('powershell -NoProfile -Command "Get-Process testhost -ErrorAction SilentlyContinue | Sort-Object CPU -Descending | Select-Object -First 1 | ConvertTo-Csv -NoTypeInformation | Select-Object -Skip 1"') do set "PID=%%~P"
+for /f "usebackq delims=" %%P in (`powershell -NoProfile -Command "(Get-Process testhost -ErrorAction SilentlyContinue | Sort-Object CPU -Descending | Select-Object -First 1).Id"`) do set "PID=%%P"
 
-if "%PID%"=="" (
-    echo NAO achei testhost.exe rodando. O teste pode ja ter passado da fase de setup
-    echo ou nao subiu a tempo. Feche as janelas manualmente e me avise.
+echo %PID%| findstr /r "^[0-9][0-9]*$" >nul
+if errorlevel 1 (
+    echo NAO achei testhost.exe rodando (PID invalido: "%PID%"^). O teste pode ja ter
+    echo passado da fase de setup ou nao subiu a tempo. Feche as janelas manualmente e me avise.
     goto :end
 )
 
-echo Testhost PID=%PID%. Coletando 2 minutos de CPU sampling...
-"%DOTNET_TRACE%" collect --process-id %PID% --duration 00:00:02:00 --profile cpu-sampling -o longrun_trace.nettrace
+echo Testhost PID=%PID%. Coletando 2 minutos de CPU sampling (perfil default = cpu-sampling)...
+"%DOTNET_TRACE%" collect --process-id %PID% --duration 00:00:02:00 -o longrun_trace.nettrace
 
 echo Convertendo para speedscope (JSON legivel)...
 "%DOTNET_TRACE%" convert --format speedscope longrun_trace.nettrace

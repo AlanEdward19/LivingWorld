@@ -134,11 +134,19 @@ the doc). CPU avg 31.2%, only 1.1% of samples ≥80% → not saturated.
 - Skill: NONE
 
 **Done when**:
-- [ ] `Ten_k_population_ten_years_within_perf_budget`'s hot-method breakdown (top methods by self-time) is in `baseline-timings.md`
-- [ ] Breakdown states whether the hot path is engine code (`src/LivingWorld.Simulation/**`) or test-side — T1 already found a ~388× per-tick slowdown for a 20× population increase (500→10,000), consistent with an O(n²)+ system, so this is expected to land on a specific per-NPC system, not test-side overhead
+- [x] `Ten_k_population_ten_years_within_perf_budget`'s hot-method breakdown (top methods by self-time) is in `baseline-timings.md`
+- [x] Breakdown states whether the hot path is engine code (`src/LivingWorld.Simulation/**`) or test-side — T1 already found a ~388× per-tick slowdown for a 20× population increase (500→10,000), consistent with an O(n²)+ system, so this is expected to land on a specific per-NPC system, not test-side overhead
 
 **Tests**: none (measurement artifact)
 **Gate**: build
+
+**Status**: ✅ Done — `dotnet-trace` output was unusable (unresolved stacks);
+used direct per-system Stopwatch instrumentation instead (temporary, reverted
+before commit — see baseline-timings.md for the full trail). Found:
+`BehaviorDecisionSystem` = 98.4% of per-tick cost at 10k population, root
+cause = `CityPopulationQuery.Population()` (full O(population) NPC scan)
+called once per NPC per tick inside `MoveOneAmbientStep`. Single, well-scoped
+target — T6/T7 not expected to be needed.
 
 ---
 

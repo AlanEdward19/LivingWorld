@@ -81,6 +81,69 @@ These are functional/statistical test failures, not performance-tuning
 targets — out of scope for this perf feature per spec.md, but flagged here
 since T1's full run is what surfaced them (the filtered gate never runs them).
 
+## T2: Hot-method profile
+
+**Attempt 1 — `dotnet-trace` (cpu-sampling) on `Ten_k_population_ten_years_within_perf_budget`,
+2-minute slice.** Result: mostly unusable. The converted speedscope JSON's stacks
+resolved to PerfView-style synthetic buckets (`UNMANAGED_CODE_TIME`,
+`CPU_TIME`) covering ~99% of aggregate time, with only trace amounts
+attributed to actual method frames — not enough resolution to rank hot
+methods. Documenting the limitation rather than fabricating numbers from it,
+per design.md's instruction.
+
+**Attempt 2 — direct per-system Stopwatch instrumentation (used instead).**
+Temporarily instrumented `WorldClock.Tick`'s per-system loop with a
+`Stopwatch` accumulating wall-clock by `system.Name`, ran 500 ticks at
+10,000 population (`ScaleScenarioFixture.CreateWorld(seed: 42, 10_000)`),
+wrote the per-system total to a scratch file, then **reverted the
+instrumentation via `git checkout`** — this was diagnostic-only, never
+shipped, no production behavior touched. Result (500 ticks, descending):
+
+| System | Total (ms) | Per-tick (ms) | Share |
+| --- | --- | --- | --- |
+| `behavior-decision` | 396,649.5 | 793.3 | **~98.4%** |
+| `population-relationship` | 6,259.1 | 12.5 | 1.6% |
+| `population-skill-teaching` | 4,236.8 | 8.5 | 1.1% |
+| `needs-decay` | 332.6 | 0.7 | 0.1% |
+| everything else (16 systems) | <100 combined | <0.2 combined | <0.1% |
+
+`behavior-decision` (`BehaviorDecisionSystem`) is not just the largest
+contributor — it **is** the bottleneck. Every other system combined is noise
+by comparison.
+
+**Root cause, found by reading the code this points to**
+(`src/LivingWorld.Simulation/Behavior/BehaviorDecisionSystem.cs`):
+
+- `Tick(...)` already avoids the *obvious* trap — `occupancy`, `marketIndex`,
+  and `vacancyIndex` are all built **once per tick**, not once per NPC (a
+  comment at line 37-40 documents an earlier O(n²) fix along exactly this
+  pattern).
+- But `MoveOneAmbientStep` (called once per NPC per tick, whenever an Idle/
+  Work/Socialize action completes — line 89) computes city bounds via:
+  ```csharp
+  CityBounds? homeBounds = world.FindCity(npc.City) is { } city
+      ? SpatialBoundsResolver.ResolveCity(
+          city, CityPopulationQuery.Population(world, city.Id), ...).Bounds
+      : null;
+  ```
+  (`BehaviorDecisionSystem.cs:108-111`)
+- `CityPopulationQuery.Population(world, cityId)` (`src/LivingWorld.Simulation/Cities/CityPopulationQuery.cs:16-17`)
+  is `world.Npcs.Where(n => n.IsAlive && n.City == city).LongCount()` — **a
+  full linear scan of every NPC in the world**, by design ("sempre on-demand
+  a partir de `WorldState.Npcs`... nenhum campo é cacheado", per the type's
+  own doc comment — a deliberate no-caching choice made when this was fine
+  at smaller population, now the bottleneck at scale).
+
+Net effect: **O(NPCs completing an ambient action this tick × total
+population)**, paid every hour, for 87,600 hours. At 500 population this is
+negligible; at 10,000 population, with a meaningful fraction of the wake
+batch moving every hour, this reproduces exactly the ~388× per-tick blowup
+T1 measured for a 20× population increase — a linear-scan-inside-a-per-NPC-loop
+pattern is quadratic in population, not linear.
+
+**This is now the single, concrete, well-scoped optimization target for T5**
+— no other system comes close, so no T6/T7 are expected to be needed.
+
 ## Implication for the rest of this feature
 
 - **P2 (parallelism tuning): downgraded to N/A**, per spec.md PERF-04's own
