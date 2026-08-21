@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { draw, type RenderFrame } from "../../src/map-engine/renderer";
+import { tokenRadiusPx } from "../../src/map-engine/tokenSize";
 import type { AuthoritativeEntity, CameraState } from "../../src/map-engine/types";
 import type { LodThresholds } from "../../src/map-engine/lod";
 
@@ -226,7 +227,10 @@ describe("renderer.draw", () => {
     expect(dashCalls.some((pattern) => pattern.length === 0)).toBe(true); // o autorado usou traço sólido
   });
 
-  it("keeps an NPC token at a fixed screen size regardless of zoom scale", () => {
+  // Feedback do usuário (2026-08-21): o token ficava do mesmo tamanho de tela em qualquer zoom
+  // ("dar zoom pra ver de perto não muda nada") — agora o raio de token acompanha `scale`
+  // (`tokenRadiusPx`), com piso/teto só pra não sumir ou virar um círculo absurdo.
+  it("grows the NPC token's screen size as the user zooms in, within tokenRadiusPx's bounds", () => {
     class PendingImage {
       complete = false;
       naturalWidth = 0;
@@ -240,7 +244,8 @@ describe("renderer.draw", () => {
       return ctx.arc.mock.calls[0]?.[2] as number;
     };
 
-    expect(radiusAtScale(100)).toBe(radiusAtScale(20));
+    expect(radiusAtScale(100)).toBeGreaterThan(radiusAtScale(20));
+    expect(radiusAtScale(20)).toBe(tokenRadiusPx(20));
   });
 
   it("renders NPCs progressively larger in city and building spaces without changing world scale", () => {
@@ -263,7 +268,7 @@ describe("renderer.draw", () => {
       kind: "Building", buildingId: "home-a", cityId: "city-a",
     }));
 
-    expect(worldRadius).toBe(8);
+    expect(worldRadius).toBe(tokenRadiusPx(20));
     expect(cityRadius).toBeGreaterThan(worldRadius);
     expect(buildingRadius).toBeGreaterThan(cityRadius);
   });

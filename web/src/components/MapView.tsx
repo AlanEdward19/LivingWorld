@@ -8,6 +8,7 @@ import { Camera, type Viewport } from "../map-engine/Camera";
 import { InterpolationBuffer } from "../map-engine/interpolation";
 import { hitTest } from "../map-engine/hitTest";
 import { draw, type ActiveLayer, type CellSource } from "../map-engine/renderer";
+import { tokenRadiusPx } from "../map-engine/tokenSize";
 import type { LodThresholds } from "../map-engine/lod";
 import type { AuthoritativeEntity, CameraState, EntityRef, SpaceId } from "../map-engine/types";
 import { toScopeKey } from "../map-engine/space";
@@ -291,10 +292,12 @@ export function MapView({
   }
 
   // Feedback do usuário (2026-08-07): clique em NPC só "pegava" bem quando zoomed-out. Causa
-  // real: o raio de acerto precisa acompanhar o token, mas ambos têm limite absoluto para um
-  // NPC nunca crescer até a escala visual de uma cidade.
+  // real: o raio de acerto precisa acompanhar o token. Reusa a MESMA fórmula do desenho do
+  // token (`tokenRadiusPx`, 2026-08-21) — antes tinha uma fórmula própria com teto de 12px que
+  // desalinhou quando o token passou a crescer com o zoom; um fator de folga cobre a variação
+  // de `visualScale` (cidade/interior aproximam o pawn) sem precisar saber qual entidade.
   function effectiveHitRadiusPx(camera: Camera): number {
-    return Math.max(hitRadiusPx, Math.min(12, camera.snapshot().scale * 0.25));
+    return Math.max(hitRadiusPx, tokenRadiusPx(camera.snapshot().scale) * 1.3);
   }
 
   function handleClick(e: React.MouseEvent<HTMLCanvasElement>) {

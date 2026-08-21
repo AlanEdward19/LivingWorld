@@ -17,6 +17,7 @@ import type { AuthoritativeEntity, CameraState, Vec2 } from "./types";
 import { npcPawnDataUrl } from "../npcAppearance";
 import { cloudPuffs, type GroundVisual } from "./worldVisuals";
 import { architectureHash, architecturePalette, cityRoofPalette } from "./architectureAppearance";
+import { tokenRadiusPx } from "./tokenSize";
 
 const npcPawnImages = new Map<string, HTMLImageElement>();
 
@@ -575,12 +576,14 @@ function drawPointEntity(
 ): void {
   const center = camera.worldToScreen({ x: entity.position.x + 0.5, y: entity.position.y + 0.5 });
   const visualScale = pointVisualScale(entity);
-  // Tamanho em pixels de tela fixo por nível de LOD (não acompanha `scale`/zoom) — só o nível
-  // muda (dot -> token) quando o zoom cruza o threshold, o token em si não "respira".
-  const r = (isToken ? 8 : 3) * visualScale;
+  // Feedback do usuário (2026-08-21): o token tinha raio fixo por nível de LOD, então dar zoom
+  // pra ver o NPC de perto não mudava nada — agora o raio de token acompanha `scale` (piso/teto
+  // em `tokenRadiusPx`). Dot continua fixo: é o marcador de "zoom afastado", nunca o alvo do
+  // "quero ver de perto".
+  const r = (isToken ? tokenRadiusPx(scale) : 3) * visualScale;
 
   if (isToken) {
-    // T35: pawn SVG original e determinístico, carregado uma vez por identidade/ação e desenhado
+    // T35: pawn SVG original e determinístico, carregado uma vez por identidade e desenhado
     // no canvas. O glifo simples permanece como fallback enquanto a imagem termina de carregar.
     if (!drawNpcPawn(ctx, entity, center, r)) {
       ctx.beginPath();
