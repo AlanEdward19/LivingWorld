@@ -24,7 +24,8 @@ public sealed record FamilyRules(
     double UpbringingWealthWeight,
     bool EnvironmentalWealthChannelEnabled,
     bool NeutralDriftEnabled,
-    bool VitalityMortalitySelectionEnabled)
+    bool VitalityMortalitySelectionEnabled,
+    int MaxCohabitationGroupSize = int.MaxValue)
 {
     /// <summary>Ponto médio do eixo de <see cref="Relationship"/>/<c>Vitality</c>/<c>Upbringing</c>
     /// (escala <c>[0,100]</c>) usado como centro das fórmulas de <see cref="EffectiveVitalityMultiplier"/>
@@ -53,7 +54,8 @@ public sealed record FamilyRules(
         double upbringingWealthWeight,
         bool environmentalWealthChannelEnabled,
         bool neutralDriftEnabled,
-        bool vitalityMortalitySelectionEnabled)
+        bool vitalityMortalitySelectionEnabled,
+        int maxCohabitationGroupSize = int.MaxValue)
     {
         foreach (var type in Enum.GetValues<RelationshipEventType>())
             foreach (var axis in Enum.GetValues<RelationshipAxis>())
@@ -108,6 +110,8 @@ public sealed record FamilyRules(
             return Result<FamilyRules>.Fail("VitalityMortalityWeight: deve ser >= 0");
         if (upbringingWealthWeight < 0)
             return Result<FamilyRules>.Fail("UpbringingWealthWeight: deve ser >= 0");
+        if (maxCohabitationGroupSize <= 0)
+            return Result<FamilyRules>.Fail("MaxCohabitationGroupSize: deve ser > 0");
 
         return Result<FamilyRules>.Ok(new FamilyRules(
             relationshipDeltas, decayPerDay, contactLossThresholdDays, neutralAxisValue, attractionWeights,
@@ -115,7 +119,7 @@ public sealed record FamilyRules(
             conceptionRelationshipFloor, conceptionResourceFloor, maternalDeathRisk, infantDeathRisk,
             vitalityMotherWeight, vitalityFatherWeight, vitalityMutationStdDev, vitalityMortalityWeight,
             upbringingWealthWeight, environmentalWealthChannelEnabled, neutralDriftEnabled,
-            vitalityMortalitySelectionEnabled));
+            vitalityMortalitySelectionEnabled, maxCohabitationGroupSize));
     }
 
     /// <summary>Delta declarado para o par (evento, eixo) — FAM-03. Sem entrada correspondente

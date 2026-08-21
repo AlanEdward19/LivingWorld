@@ -27,7 +27,8 @@ public class FamilyRulesTests
         double infantDeathRisk = 0.05,
         double vitalityMotherWeight = 0.5,
         double vitalityFatherWeight = 0.5,
-        bool environmentalWealthChannelEnabled = true) =>
+        bool environmentalWealthChannelEnabled = true,
+        int maxCohabitationGroupSize = int.MaxValue) =>
         FamilyRules.Create(
             relationshipDeltas: deltas ?? FullDeltas(),
             decayPerDay: 0.5,
@@ -49,7 +50,8 @@ public class FamilyRulesTests
             upbringingWealthWeight: 0.3,
             environmentalWealthChannelEnabled: environmentalWealthChannelEnabled,
             neutralDriftEnabled: false,
-            vitalityMortalitySelectionEnabled: true);
+            vitalityMortalitySelectionEnabled: true,
+            maxCohabitationGroupSize: maxCohabitationGroupSize);
 
     [Fact]
     public void Create_accepts_valid_parameters()
@@ -123,6 +125,27 @@ public class FamilyRulesTests
         var result = CreateValid(vitalityMotherWeight: 0.6, vitalityFatherWeight: 0.6);
 
         Assert.True(result.IsSuccess);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Create_rejects_max_cohabitation_group_size_not_positive(int maxGroupSize)
+    {
+        var result = CreateValid(maxCohabitationGroupSize: maxGroupSize);
+
+        Assert.False(result.IsSuccess);
+    }
+
+    [Fact]
+    public void Create_defaults_max_cohabitation_group_size_to_unbounded_when_not_declared()
+    {
+        // PERF-06 (fase 16): cenário que não declara o teto (todo cenário pré-existente a esta
+        // mudança) precisa continuar sem teto — zero mudança de comportamento pra quem não pediu.
+        var result = CreateValid();
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(int.MaxValue, result.Value!.MaxCohabitationGroupSize);
     }
 
     [Theory]

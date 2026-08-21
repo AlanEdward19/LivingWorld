@@ -68,7 +68,14 @@ public static class ScaleScenarioFixture
         upbringingWealthWeight: 0.6,
         environmentalWealthChannelEnabled: true,
         neutralDriftEnabled: false,
-        vitalityMortalitySelectionEnabled: true).Value
+        vitalityMortalitySelectionEnabled: true,
+        // Sem teto, um workplace de escala (ScaleEconomyCatalog permite milhares de trabalhadores
+        // simultâneos) faz RelationshipSystem formar par-a-par O(k²) — 8.000² = 64M pares/dia num
+        // único workplace, achado real que tornava LongRunScaleTests impraticável (baseline-
+        // timings.md, fase 16 T5). 30 é "círculo social" plausível (mais que qualquer household,
+        // bem menos que centenas de colegas) — não afeta nenhum household/workplace pequeno
+        // (default de outros cenários nem declara este campo, cai no int.MaxValue sem teto).
+        maxCohabitationGroupSize: 30).Value
         ?? throw new InvalidOperationException("scale family rules inválida");
 
     public static (WorldState World, WorldClock Clock) CreateWorld(ulong seed, int initialPopulation)

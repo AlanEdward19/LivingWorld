@@ -17,7 +17,8 @@ public class RelationshipSystemTests
         double cohabitationTrustDelta = 3,
         double decayPerDay = 2,
         int contactLossThresholdDays = 1,
-        double neutralAxisValue = 50) =>
+        double neutralAxisValue = 50,
+        int maxCohabitationGroupSize = int.MaxValue) =>
         FamilyRules.Create(
             relationshipDeltas: CohabitationTrustDelta(cohabitationTrustDelta),
             decayPerDay: decayPerDay,
@@ -39,7 +40,8 @@ public class RelationshipSystemTests
             upbringingWealthWeight: 0.3,
             environmentalWealthChannelEnabled: false,
             neutralDriftEnabled: false,
-            vitalityMortalitySelectionEnabled: true).Value!;
+            vitalityMortalitySelectionEnabled: true,
+            maxCohabitationGroupSize: maxCohabitationGroupSize).Value!;
 
     private static Dictionary<(RelationshipEventType, RelationshipAxis), double> CohabitationTrustDelta(double delta)
     {
@@ -225,5 +227,93 @@ public class RelationshipSystemTests
         TickRelationships(world);
 
         Assert.Equal(55, world.Relationships[key].Get(RelationshipAxis.Trust));
+    }
+
+    private static List<Npc> MakeWorkplaceWithEmployees(WorldState world, int count)
+    {
+        var loc = new CellCoord(4, 4);
+        var employees = new List<Npc>();
+        for (int i = 0; i < count; i++)
+            employees.Add(MakeNpc(world, loc));
+
+        var workplace = new Workplace(
+            world.NextWorkplaceIdAndAdvance(), new LocationType(1), loc, maxVacancies: count,
+            employees: employees.Select(e => e.Id).ToList(), stock: new Dictionary<ResourceType, long>(),
+            treasury: Money.Zero, prices: new Dictionary<ResourceType, long>());
+        world.AddWorkplace(workplace);
+        foreach (var e in employees)
+            e.Hire(workplace.Id);
+
+        return employees;
+    }
+
+    [Fact]
+    public void Group_at_or_under_the_cap_still_gets_full_all_pairs_relationships()
+    {
+        // PERF-06 (fase 16): grupo de 4 com teto 10 (bem acima do tamanho do grupo) precisa
+        // continuar formando TODO par ordenado, exatamente como antes do teto existir —
+        // nenhum household/workplace normal pode perder relações por causa da otimização de
+        // escala.
+        var rules = RulesWith(cohabitationTrustDelta: 2, maxCohabitationGroupSize: 10);
+        var world = BuildWorld(rules);
+        var employees = MakeWorkplaceWithEmployees(world, count: 4);
+
+        TickRelationships(world);
+
+        Assert.Equal(4 * 3, world.Relationships.Count); // todo par ordenado (i,j), i != j
+        foreach (var a in employees)
+            foreach (var b in employees)
+            {
+                if (a.Id == b.Id) continue;
+                Assert.True(world.Relationships.ContainsKey(new RelationshipKey(a.Id, b.Id)),
+                    $"par ({a.Id.Value},{b.Id.Value}) deveria existir — grupo de {employees.Count} está sob o teto de 10");
+            }
+    }
+
+    [Fact]
+    public void Group_over_the_cap_forms_bounded_relationships_not_full_pairwise()
+    {
+        // PERF-06 (fase 16): grupo de 10 com teto 3 — sem teto seriam 10*9=90 relações; com
+        // teto, cada membro só forma laço com uma janela de 3 vizinhos (ambas direções),
+        // O(k x teto) em vez de O(k²). Achado real: workplace de escala permite milhares de
+        // presentes simultâneos (ScenarioRunner.ScaleEconomyCatalog), tornando o par-a-par
+        // completo impraticável (baseline-timings.md, T5).
+        const int groupSize = 10;
+        const int cap = 3;
+        var rules = RulesWith(cohabitationTrustDelta: 2, maxCohabitationGroupSize: cap);
+        var world = BuildWorld(rules);
+        MakeWorkplaceWithEmployees(world, count: groupSize);
+
+        TickRelationships(world);
+
+        int fullPairwiseCount = groupSize * (groupSize - 1);
+        int expectedCappedCount = groupSize * cap * 2;
+        Assert.True(world.Relationships.Count < fullPairwiseCount,
+            $"esperava menos que o par-a-par completo ({fullPairwiseCount}), achou {world.Relationships.Count}");
+        Assert.Equal(expectedCappedCount, world.Relationships.Count);
+    }
+
+    [Fact]
+    public void Same_seed_produces_identical_relationship_state_for_capped_group()
+    {
+        // Determinismo do teto: mesma seed, mesmo grupo -> mesmo conjunto de relações, mesmo
+        // valor por relação (sem RNG na janela, só offset por Id ordenado).
+        var rules = RulesWith(cohabitationTrustDelta: 2, maxCohabitationGroupSize: 3);
+
+        var worldA = BuildWorld(rules, seed: 7);
+        var employeesA = MakeWorkplaceWithEmployees(worldA, count: 8);
+        TickRelationships(worldA);
+
+        var worldB = BuildWorld(rules, seed: 7);
+        var employeesB = MakeWorkplaceWithEmployees(worldB, count: 8);
+        TickRelationships(worldB);
+
+        Assert.Equal(worldA.Relationships.Count, worldB.Relationships.Count);
+        for (int i = 0; i < employeesA.Count; i++)
+        {
+            var keyA = new RelationshipKey(employeesA[i].Id, employeesA[(i + 1) % employeesA.Count].Id);
+            var keyB = new RelationshipKey(employeesB[i].Id, employeesB[(i + 1) % employeesB.Count].Id);
+            Assert.Equal(worldA.Relationships[keyA].Get(RelationshipAxis.Trust), worldB.Relationships[keyB].Get(RelationshipAxis.Trust));
+        }
     }
 }
