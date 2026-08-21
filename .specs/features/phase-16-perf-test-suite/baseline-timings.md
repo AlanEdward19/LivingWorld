@@ -144,6 +144,93 @@ pattern is quadratic in population, not linear.
 **This is now the single, concrete, well-scoped optimization target for T5**
 — no other system comes close, so no T6/T7 are expected to be needed.
 
+## T5: Hot-path fixes (zero behavior change)
+
+Three fixes applied, all preserving exact simulation output (existing
+hash-invariance tests pass unmodified):
+
+1. **`BehaviorDecisionSystem.cs`** — `CityPopulationQuery.Population()` (full
+   O(population) NPC scan) was called once per NPC per tick inside
+   `MoveOneAmbientStep`. Now memoized in a per-tick `Dictionary<CityId, long>`
+   (population doesn't change within a tick from ambient movement, so the
+   cached value is identical to the recomputed one). Measured impact alone:
+   the 10-year target test went from 7h45m12s → 6h43m17s (~13% faster) —
+   smaller than expected, because this wasn't actually the dominant cost.
+
+2. **`EventScheduler.cs`** — `Schedule()` did `bucket.Add(evt);
+   bucket.Sort(...)` (full re-sort of every event sharing a target tick, on
+   *every* insertion — O(k log k), k = events at that tick) purely to feed a
+   `(Tick, Index)` tuple into `_indexById` whose `Index` field was **never
+   read anywhere in the file** (confirmed by grep) — dead computation.
+   Replaced with a binary-search insert that keeps the same sorted-by-Id
+   invariant at O(k) instead of O(k log k), and dropped the unused `Index`
+   tracking entirely (now just `Dictionary<long, long>` id→tick). This was
+   the dominant cost: a 500-tick / 10k-population sample went from
+   793ms/tick (98.4% of tick cost in `behavior-decision`, found via direct
+   per-system Stopwatch instrumentation, `dotnet-trace`'s output having been
+   unusable — see above) down to **98.7ms/tick — an 8× improvement** for
+   early-simulation ticks. Full quick gate (`Category!=Scenario`) dropped
+   from 50m24s → 19m32s with fix 1 alone still active, confirming the win
+   isn't isolated to one test class.
+
+3. **`Population/RelationshipSystem.cs`** — the daily decay loop did
+   `world.Relationships.OrderBy(...).ThenBy(...)` over the **entire**
+   relationships collection before applying `DecayTowardNeutral` to each
+   entry. Confirmed `DecayTowardNeutral` reads/writes only its own
+   `Relationship` instance (no RNG, no cross-entry dependency), so the final
+   state is provably order-independent — removed the sort entirely (was
+   O(R log R) per day for no observable effect, R = relationship count).
+
+Final quick gate with all three fixes: **16m30s** (down from an unmeasured-
+but-clearly-much-larger baseline; the original full run never completed a
+`Category!=Scenario`-only timing in isolation, only the full 8h03m
+unfiltered run).
+
+## New finding: a fourth, much larger issue — out of scope for this feature
+
+While chasing why the 10-year target test *still* didn't finish in a
+reasonable time after fixes 1-2 (a user-run instrumented try was stopped
+after 7h39m, well past the ~2h24m fix 1+2 alone would predict from the
+500-tick sample), a **checkpointed growth diagnostic** (advancing
+`ScaleScenarioFixture.CreateWorld(seed:42, pop:10_000)` in stages, sampling
+ms/tick and collection sizes at each stage — no disk caching, single
+in-process run) found the per-tick cost is **not constant over simulated
+time** — it grows, because `world.Relationships` grows explosively:
+
+| Checkpoint (tick) | ms/tick (next window) | `world.Relationships.Count` | alive NPCs |
+| --- | --- | --- | --- |
+| 0 | 41.7 | 1,507,264 | 7,342 |
+| 2,000 | 172.0 | 14,267,888 | 5,093 |
+| 6,000 | 172.5 | 16,536,060 | 2,141 |
+
+**Root cause**: `RelationshipSystem.ApplyCohabitationForMembers` creates one
+relationship per **ordered pair** of NPCs present in the same household or
+workplace, every day (`O(k²)`, k = group size). `ScenarioRunner.ScaleEconomyCatalog`
+(line ~278) sets `maxWorkersPerCycle: 80 * mult` with
+`mult = population / 100` — at population 10,000, a single workplace can
+hold **8,000 simultaneous workers**, so cohabitation alone can evaluate up
+to 8,000² = 64,000,000 pairs *in one workplace, in one day*. This produced
+16.5M relationship entries and ~5GB of `testhost.exe` memory within roughly
+6,000 ticks (~8 months simulated).
+
+This is very likely an unintended interaction between two independently
+reasonable decisions from different phases — phase 7's household-scale
+(2-8 members) pairwise relationship model, and phase 9's workplace
+vacancy-multiplier scaling for large populations — not a deliberate design
+choice. **Fixing it requires bounding which pairs get evaluated, which
+changes simulation output** (fewer relationships tracked at scale) — it
+fails this feature's "zero behavior change" constraint (spec.md), so it is
+**out of scope here**. Spawned as a separate decision/task (see chat) rather
+than folded into this perf-only feature.
+
+**Practical consequence for T5/T8**: the full 10-year, 10,000-population
+`Ten_k_population_ten_years_within_perf_budget` test remains impractically
+slow (multi-hour) until that separate fix lands, *despite* the three
+zero-behavior-change fixes above being real, measured, substantial wins
+(8× on early ticks, ~3× on the quick gate). The <1h full-suite goal for
+*this specific test* is blocked on the spawned-out task, not on further work
+within this feature's scope.
+
 ## Implication for the rest of this feature
 
 - **P2 (parallelism tuning): downgraded to N/A**, per spec.md PERF-04's own

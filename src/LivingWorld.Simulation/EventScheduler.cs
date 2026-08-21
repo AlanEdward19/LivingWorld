@@ -5,7 +5,14 @@ namespace LivingWorld.Simulation;
 public sealed class EventScheduler
 {
     private readonly SortedDictionary<long, List<ScheduledEvent>> _byTick = new();
-    private readonly Dictionary<long, (long Tick, int Index)> _indexById = new();
+
+    // Só o tick é necessário pra achar o bucket em Cancel — o índice dentro do bucket nunca era
+    // lido em lugar nenhum (só escrito), então recalculá-lo com Sort()+FindIndex() a cada
+    // Schedule (e reindexar o bucket inteiro a cada Cancel) era trabalho puro sem consumidor.
+    // Achado no profiling do PERF-06/07 (baseline-timings.md T2 revisado): com população grande,
+    // muitos NPCs reagendam por hora e o bucket do mesmo tick cresce — o Sort() completo por
+    // inserção dominava o custo do tick (O(k log k) por chamada, k = eventos nesse tick).
+    private readonly Dictionary<long, long> _tickById = new();
 
     public EventScheduler()
     {
@@ -24,29 +31,42 @@ public sealed class EventScheduler
             bucket = [];
             _byTick[evt.TargetTick] = bucket;
         }
-        bucket.Add(evt);
-        bucket.Sort((a, b) => a.Id.CompareTo(b.Id));
-        _indexById[evt.Id] = (evt.TargetTick, bucket.FindIndex(e => e.Id == evt.Id));
+
+        // Insere na posição ordenada por Id via busca binária em vez de Add+Sort — mesmo
+        // resultado final (bucket sempre ordenado por Id, mesmo contrato de desempate documentado
+        // na classe), custo O(k) em vez de O(k log k) por inserção.
+        int pos = BinarySearchById(bucket, evt.Id);
+        bucket.Insert(pos, evt);
+        _tickById[evt.Id] = evt.TargetTick;
+    }
+
+    private static int BinarySearchById(List<ScheduledEvent> bucket, long id)
+    {
+        int lo = 0, hi = bucket.Count - 1;
+        while (lo <= hi)
+        {
+            int mid = lo + (hi - lo) / 2;
+            long midId = bucket[mid].Id;
+            if (midId == id) return mid;
+            if (midId < id) lo = mid + 1;
+            else hi = mid - 1;
+        }
+        return lo;
     }
 
     /// <summary>True se algum evento agendado com este ID foi removido.</summary>
     public bool Cancel(long id)
     {
-        if (!_indexById.TryGetValue(id, out var location)) return false;
+        if (!_tickById.TryGetValue(id, out var tick)) return false;
+        if (!_byTick.TryGetValue(tick, out var bucket)) return false;
 
-        if (!_byTick.TryGetValue(location.Tick, out var bucket)) return false;
+        int pos = BinarySearchById(bucket, id);
+        if (pos >= bucket.Count || bucket[pos].Id != id) return false;
 
-        int removed = bucket.RemoveAll(e => e.Id == id);
-        if (removed == 0) return false;
-
-        _indexById.Remove(id);
+        bucket.RemoveAt(pos);
+        _tickById.Remove(id);
         if (bucket.Count == 0)
-            _byTick.Remove(location.Tick);
-        else
-        {
-            for (int i = 0; i < bucket.Count; i++)
-                _indexById[bucket[i].Id] = (location.Tick, i);
-        }
+            _byTick.Remove(tick);
 
         return true;
     }
@@ -58,7 +78,7 @@ public sealed class EventScheduler
         if (!_byTick.TryGetValue(tick, out var bucket)) return [];
         _byTick.Remove(tick);
         foreach (var evt in bucket)
-            _indexById.Remove(evt.Id);
+            _tickById.Remove(evt.Id);
         return bucket;
     }
 

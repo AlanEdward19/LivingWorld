@@ -43,11 +43,19 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             if (other.IsAlive)
                 occupancy.Add(other.CurrentLocation);
 
+        // Cache de população por cidade, uma entrada calculada na primeira vez que a cidade é
+        // consultada neste tick (não todas de uma vez — nem toda cidade tem NPC completando ação
+        // ambiente na mesma hora). Sem isso, CityPopulationQuery.Population (O(população)) era
+        // chamada a cada NPC dentro de MoveOneAmbientStep. A contagem não muda dentro do próprio
+        // tick por causa de passeio ambiente (só afeta CurrentLocation, não City), então o
+        // resultado é idêntico ao recalculado por chamada (PERF-06/07).
+        var cityPopulationCache = new Dictionary<CityId, long>();
+
         foreach (var npc in targets)
         {
             EvaluateProfessionSwitch(world, npc, vacancyIndex);
 
-            bool justCompleted = TryCompleteAction(world, npc, rules, catalog, now, marketIndex, ctx, occupancy);
+            bool justCompleted = TryCompleteAction(world, npc, rules, catalog, now, marketIndex, ctx, occupancy, cityPopulationCache);
             var continuityAction = justCompleted ? null : npc.CurrentAction;
 
             var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
@@ -70,7 +78,8 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
     private static bool TryCompleteAction(
         WorldState world, Npc npc, NeedsRules rules, ActionCatalog catalog, long now,
-        MarketIndex marketIndex, TickContext ctx, HashSet<CellCoord> occupancy)
+        MarketIndex marketIndex, TickContext ctx, HashSet<CellCoord> occupancy,
+        Dictionary<CityId, long> cityPopulationCache)
     {
         if (npc.CurrentAction is not { } action) return false;
 
@@ -86,7 +95,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         if (now - npc.ActionStartedAtTick < catalog.MaxDurationHours[action]) return false;
 
         if (action is ActionType.Idle or ActionType.Work or ActionType.Socialize)
-            MoveOneAmbientStep(world, npc, ctx, now, action, occupancy);
+            MoveOneAmbientStep(world, npc, ctx, now, action, occupancy, cityPopulationCache);
 
         ApplyActionEffect(world, npc, rules, action, marketIndex, now);
         return true;
@@ -95,6 +104,15 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     /// <summary>Move e mantém `occupancy` coerente com a posição real dentro do mesmo tick — sem
     /// isso, um NPC que já andou nesta rodada continuaria "fantasma" na célula antiga pros
     /// próximos NPCs avaliados no mesmo `Tick` (ou "preso" na nova, bloqueando a si mesmo).</summary>
+    /// <summary>População da cidade memoizada por tick — ver comentário no início de
+    /// <see cref="Tick"/> (PERF-06/07).</summary>
+    private static long PopulationOf(WorldState world, CityId city, Dictionary<CityId, long> cache)
+    {
+        if (!cache.TryGetValue(city, out var population))
+            cache[city] = population = CityPopulationQuery.Population(world, city);
+        return population;
+    }
+
     private static void MoveTracked(Npc npc, CellCoord destination, long tick, HashSet<CellCoord> occupancy)
     {
         occupancy.Remove(npc.CurrentLocation);
@@ -103,11 +121,12 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     }
 
     private static void MoveOneAmbientStep(
-        WorldState world, Npc npc, TickContext ctx, long tick, ActionType action, HashSet<CellCoord> occupancy)
+        WorldState world, Npc npc, TickContext ctx, long tick, ActionType action, HashSet<CellCoord> occupancy,
+        Dictionary<CityId, long> cityPopulationCache)
     {
         CityBounds? homeBounds = world.FindCity(npc.City) is { } city
             ? SpatialBoundsResolver.ResolveCity(
-                city, CityPopulationQuery.Population(world, city.Id), world.Map.Width, world.Map.Height).Bounds
+                city, PopulationOf(world, city.Id, cityPopulationCache), world.Map.Width, world.Map.Height).Bounds
             : null;
 
         var allNeighbors = Enumerable.Range(-1, 3)

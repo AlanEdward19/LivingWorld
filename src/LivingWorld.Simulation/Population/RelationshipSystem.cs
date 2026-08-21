@@ -29,10 +29,13 @@ public sealed class RelationshipSystem : ISimulationSystem
             ApplyCohabitationForMembers(world, rules, now, present);
         }
 
+        // Sem OrderBy aqui de propósito: DecayTowardNeutral só lê/escreve o próprio Relationship
+        // (sem RNG, sem side effect cruzado com outras entradas), então o estado final não
+        // depende da ordem de iteração — só o resultado de Hash(world) importa, e ele é idêntico
+        // com ou sem ordenação. Ordenar 16M+ relações por dia (achado real em cenários de 10k
+        // pop, baseline-timings.md T2 revisado) era custo puro sem efeito observável.
         long lossThresholdHours = (long)rules.ContactLossThresholdDays * world.CurrentDate.Calendar.HoursPerDay;
-        foreach (var (key, relationship) in world.Relationships
-                     .OrderBy(pair => pair.Key.From.Value)
-                     .ThenBy(pair => pair.Key.To.Value))
+        foreach (var (_, relationship) in world.Relationships)
         {
             if (now - relationship.LastContactTick <= lossThresholdHours)
                 continue;
