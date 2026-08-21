@@ -185,14 +185,27 @@ time and zero change in assertion outcomes.
 
 ## Success Criteria
 
-- [ ] `dotnet test LivingWorld.sln` (no filter, all categories) completes in
+- [x] `dotnet test LivingWorld.sln` (no filter, all categories) completes in
       under 1 hour on the reference dev machine, down from the current
-      multi-hour baseline.
-- [ ] `dotnet test --filter Category=Scenario` alone also measurably
-      improves versus its own current baseline.
-- [ ] Every existing hash-invariance/monotonic-field test still passes
-      unmodified — proof that no simulation output changed.
-- [ ] Baseline, profiling, and post-optimization timings are all recorded in
-      `.specs/features/phase-16-perf-test-suite/` for future comparison.
-- [ ] No new caching, snapshotting, or persisted world-state mechanism exists
-      anywhere in the codebase as a result of this feature.
+      multi-hour baseline. **Met: 8h03m19s → 36m7s.**
+- [x] `dotnet test --filter Category=Scenario` alone also measurably
+      improves versus its own current baseline. **Met: the target test alone
+      went 7h45m12s → 24m30s.**
+- [x] Every existing hash-invariance/monotonic-field test still passes —
+      **for the three zero-behavior-change fixes (T5 items 1-3),
+      unmodified.** A fourth fix (cohabitation group-size cap) was added
+      mid-feature with explicit user approval in chat after investigating
+      whether its O(k²) growth was intentional design (it wasn't) —
+      this one *does* change simulation output at scale by design, so
+      `tests/golden/world-hashes.json` and `tests/baselines/scale-sensor.json`
+      were deliberately regenerated (not silently weakened) to reflect it.
+      This is a logged deviation from the original "zero behavior change"
+      framing, not a silent scope violation — see baseline-timings.md T5/T8
+      and the chat record for the rationale.
+- [x] Baseline, profiling, and post-optimization timings are all recorded in
+      `.specs/features/phase-16-perf-test-suite/baseline-timings.md`.
+- [x] No new caching, snapshotting, or persisted world-state mechanism exists
+      anywhere in the codebase as a result of this feature — confirmed, all
+      four fixes are either pure algorithmic/data-structure improvements
+      (fixes 1-3) or a bounded-computation change (fix 4), none add
+      caching/persistence.

@@ -231,6 +231,46 @@ zero-behavior-change fixes above being real, measured, substantial wins
 *this specific test* is blocked on the spawned-out task, not on further work
 within this feature's scope.
 
+## T8: Final full-suite re-measurement — goal met
+
+After the cohabitation cap (approved by the user in chat, implemented as
+`FamilyRules.MaxCohabitationGroupSize`):
+
+| Measurement | Before any fix | After all fixes |
+| --- | --- | --- |
+| `Ten_k_population_ten_years_within_perf_budget` alone | 7h45m12s | **24m30s** (19×) |
+| Full suite, no filter (`dotnet test LivingWorld.sln`) | 8h03m19s | **36m7s** (13.4×) |
+| Quick gate (`Category!=Scenario`) | not isolated in original baseline | 6m10s (from 50m24s after fix 1 only) |
+
+**Goal met: full suite (including all `Category=Scenario` tests) now runs in
+36m7s, under the 1-hour target.**
+
+Full-suite result: 1385 passed, 11 skipped, **2 failed** — both are the
+*same* pre-existing failures identified in T1's original baseline
+(`FamilyPairedScenarioTests.Vitality_cv_paired_difference_...` and
+`LongRunScaleTests.Storage_cost_per_alive_npc_stable_across_horizons` — a
+different `[Fact]` in the same class than the one this feature optimized).
+Neither is new; neither is a performance concern — they're pre-existing
+functional/statistical test failures, explicitly out of scope (see T1
+section above). Zero regressions from any of this feature's four fixes.
+
+## Summary of all fixes (T5)
+
+1. `BehaviorDecisionSystem`: memoize city population once per tick (PERF-06/07).
+2. `EventScheduler`: binary-search insert instead of full re-sort feeding a dead index.
+3. `RelationshipSystem`: drop a pointless full sort in the daily decay loop.
+4. `RelationshipSystem` + `FamilyRules.MaxCohabitationGroupSize`: bound the
+   O(k²) cohabitation pairing at scale (behavior-changing, user-approved in
+   chat after investigating whether the O(k²) growth was intentional design
+   — it wasn't).
+
+All four are committed (see git log: `perf(simulation): fix real hot path`,
+`feat(family): cap cohabitation group size...`). Fixes 1-3 are zero-behavior-
+change (existing hash tests pass unmodified). Fix 4 intentionally changes
+simulation output at scale (fewer relationships tracked in large groups) —
+`tests/golden/world-hashes.json` and `tests/baselines/scale-sensor.json`
+were regenerated in the same commit as a deliberate, documented consequence.
+
 ## Implication for the rest of this feature
 
 - **P2 (parallelism tuning): downgraded to N/A**, per spec.md PERF-04's own

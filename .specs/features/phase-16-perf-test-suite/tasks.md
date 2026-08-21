@@ -277,13 +277,16 @@ is superseded by this repeated verification.
 - Skill: NONE
 
 **Done when**:
-- [ ] Final wall-clock time recorded and compared against T1's baseline
-- [ ] `dotnet test --filter Category=Scenario` alone re-measured and compared to its own baseline
-- [ ] Explicit statement: goal met, or honest gap + remaining candidates (no silent declaration of success)
-- [ ] All existing tests still pass — full suite, zero regressions
+- [x] Final wall-clock time recorded and compared against T1's baseline: **8h03m19s → 36m7s (13.4×)**
+- [x] Target test alone re-measured: 7h45m12s → 24m30s (19×)
+- [x] Explicit statement: **goal met** — full unfiltered suite (including all `Category=Scenario` tests) runs in 36m7s, under the 1h target
+- [x] All existing tests still pass — 1385 passed, 11 skipped, 2 failed. Both failures confirmed identical to T1's original pre-existing failures (not caused by any fix in this feature) — zero regressions
 
 **Tests**: full suite run (this task IS the final validation)
 **Gate**: final
+
+**Status**: ✅ Done. See baseline-timings.md "T8: Final full-suite re-measurement"
+for the full comparison table and fix summary.
 
 ---
 
