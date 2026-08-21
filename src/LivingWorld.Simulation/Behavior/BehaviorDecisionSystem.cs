@@ -94,7 +94,9 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
         if (now - npc.ActionStartedAtTick < catalog.MaxDurationHours[action]) return false;
 
-        if (action is ActionType.Idle or ActionType.Work or ActionType.Socialize)
+        // LWV-02.3 (T9): sem workplace real (Employer nulo), Work nunca fabrica deslocamento —
+        // NPC bloqueado fica onde está em vez de "trabalhar" andando à toa sem destino nenhum.
+        if (action is ActionType.Idle or ActionType.Socialize || (action == ActionType.Work && npc.Employer is not null))
             MoveOneAmbientStep(world, npc, ctx, now, action, occupancy, cityPopulationCache);
 
         ApplyActionEffect(world, npc, rules, action, marketIndex, now);

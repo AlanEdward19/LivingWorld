@@ -91,6 +91,19 @@ public class BehaviorDecisionSystemTests
             values[nameof(Personality.Impulsivity)], values[nameof(Personality.RiskAversion)]).Value!;
     }
 
+    /// <summary>T9 (LWV-02.3): passeio ambiente de Work só é legítimo com workplace real —
+    /// dá ao NPC um employer no próprio local corrente, sem exigir viagem, pra testes que só
+    /// querem exercitar o passeio ambiente em si (não o deslocamento até o trabalho).</summary>
+    private static void Employ(WorldState world, Npc npc)
+    {
+        var workplace = new Workplace(
+            world.NextWorkplaceIdAndAdvance(), new LocationType(1), npc.CurrentLocation, maxVacancies: 1,
+            employees: [npc.Id], stock: new Dictionary<ResourceType, long>(), treasury: Money.Zero,
+            prices: new Dictionary<ResourceType, long>());
+        world.AddWorkplace(workplace);
+        npc.Hire(workplace.Id);
+    }
+
     private static (WorldState World, TickContext Ctx, Npc Npc) BuildWorld(
         ulong seed, NeedsRules rules, ActionCatalog catalog, Personality personality,
         int hunger = 100, int thirst = 100, int sleep = 100, int social = 100)
@@ -161,6 +174,7 @@ public class BehaviorDecisionSystemTests
             var rules = MakeRules(urgencyThreshold: 70);
             var catalog = MakeCatalogWithOpenWorkShift();
             var (world, ctx, npc) = BuildWorld(seed: 81, rules, catalog, Neutral);
+            Employ(world, npc); // T9 (LWV-02.3): sem employer, Work nunca fabrica passeio ambiente
             var before = npc.CurrentLocation;
             npc.SetCurrentAction(ActionType.Work, tick: -8);
 
@@ -190,6 +204,7 @@ public class BehaviorDecisionSystemTests
                 world.NextCityId(), npc.CurrentLocation, 0, null, AggregatePopulationPool.Empty);
             world.AddCity(city);
             npc.JoinCity(city.Id);
+            if (action == ActionType.Work) Employ(world, npc); // T9 (LWV-02.3): idem, Work exige employer real
             npc.SetCurrentAction(action, tick: -duration);
             var before = npc.CurrentLocation;
 
