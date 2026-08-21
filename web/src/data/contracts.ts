@@ -182,3 +182,24 @@ export interface FutureCitySnapshot extends Omit<CitySnapshot, "buildings"> {
   /** `SpatialPortal` (T21) — portais que tocam esta cidade. */
   portals?: SpatialPortalDto[];
 }
+
+/** Fase 15.1, T7 (LWV-05): prosa narrada por `NarrativeRenderer` sobre um `NarrativeDraft`
+ * (crônica de uma cidade ou biografia de um NPC) — mesmo shape em `ChronicleResponse` e
+ * `BiographyResponse` no backend (`NarrativeEndpoints.cs`). */
+export interface NarrativeProse {
+  prose: string;
+}
+
+export type ConversationStartOutcome =
+  | { accepted: true; sessionId: number }
+  | { accepted: false; reason: string };
+
+export interface ConversationTurn {
+  dialogue: string;
+  emotion: string;
+  intent: string;
+}
+
+export type ConversationSendOutcome =
+  | { ok: true; turn: ConversationTurn }
+  | { ok: false; reason: "session-not-found" | "npc-dead" | "session-ended" };

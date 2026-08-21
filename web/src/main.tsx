@@ -6,6 +6,9 @@ import { RealTickStreamSource } from "./data/real/tickStreamSource";
 import { RealTimeControlSource } from "./data/real/timeControlSource";
 import { RealPortalSource } from "./data/real/portalSource";
 import { RealNpcInspectionSource } from "./data/real/npcInspectionSource";
+import { RealBiographySource } from "./data/real/biographySource";
+import { RealChronicleSource } from "./data/real/chronicleSource";
+import { RealConversationSource } from "./data/real/conversationSource";
 import { mountApp } from "./bootstrap";
 import "./styles/global.css";
 
@@ -20,5 +23,10 @@ const simulationStore = new SimulationStore(
 const viewStore = new ViewStore(new RealPortalSource(simulationStore));
 const selectionStore = new SelectionStore();
 const timeControlSource = new RealTimeControlSource();
+const narrativeSources = {
+  biography: new RealBiographySource(),
+  chronicle: new RealChronicleSource(),
+  conversation: new RealConversationSource(),
+};
 
-mountApp({ simulationStore, viewStore, selectionStore, timeControlSource });
+mountApp({ simulationStore, viewStore, selectionStore, timeControlSource, narrativeSources });

@@ -4,7 +4,15 @@
 // implementam a mesma interface; nada além do composition root (`main.tsx`) sabe qual está viva.
 import type { SpaceId } from "../map-engine/types";
 import type { VisualSnapshotEnvelope } from "../types";
-import type { NpcInspection, ScopeTickDelta, SimulationStatus, SpatialPortalDto } from "./contracts";
+import type {
+  ConversationSendOutcome,
+  ConversationStartOutcome,
+  NarrativeProse,
+  NpcInspection,
+  ScopeTickDelta,
+  SimulationStatus,
+  SpatialPortalDto,
+} from "./contracts";
 
 export interface SnapshotSource {
   load(space: SpaceId): Promise<VisualSnapshotEnvelope<unknown>>;
@@ -33,4 +41,32 @@ export interface PortalSource {
 
 export interface NpcInspectionSource {
   load(npcId: number): Promise<NpcInspection | null>;
+}
+
+/** Fase 15.1, T7 (LWV-05): biografia narrada de um NPC — reusa `GET /narratives/biographies/{id}`
+ * já pronto (Fase 12, T7); `null` quando o NPC não existe/não tem timeline (404). */
+export interface BiographySource {
+  load(npcId: number): Promise<NarrativeProse | null>;
+}
+
+/** Crônica narrada de uma cidade para uma janela de ticks — reusa `GET /narratives/chronicles`. */
+export interface ChronicleSource {
+  load(cityId: string, periodStart: number, periodEnd: number): Promise<NarrativeProse>;
+}
+
+/** Sessão de conversa segura com um NPC — reusa `POST /conversations/{start,send,end}`
+ * (Fase 11, T7). Nenhuma decisão nova aqui: o provider/validador já roda inteiramente no
+ * servidor (`ConversationOrchestrator`); este seam só traduz request/response. */
+export interface ConversationSource {
+  start(npcId: number): Promise<ConversationStartOutcome>;
+  send(sessionId: number, message: string): Promise<ConversationSendOutcome>;
+  end(sessionId: number): Promise<void>;
+}
+
+/** Agrupa as três fontes de T7 num único prop opcional — evita perfurar `EntityInspector`/`App`
+ * com três props separados para algo que sempre viaja junto (inspetores narrativos). */
+export interface NarrativeSources {
+  biography: BiographySource;
+  chronicle: ChronicleSource;
+  conversation: ConversationSource;
 }

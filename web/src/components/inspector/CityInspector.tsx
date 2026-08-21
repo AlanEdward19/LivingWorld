@@ -9,20 +9,46 @@
 // própria cidade como entidade dentro de si mesma), só `population` está disponível, porque é
 // o único campo que `GlobalCityMarker` carrega. É um gap real de arquitetura (contexto.md),
 // não uma escolha de UI: mostrar os outros 5 inventados seria pior que omiti-los.
+import { useEffect, useState } from "react";
 import { FollowButton } from "./FollowButton";
 import type { SimulationStore } from "../../state/simulationStore";
 import type { ViewStore } from "../../state/viewStore";
 import type { FutureCitySnapshot, FutureGlobalSnapshot } from "../../data/contracts";
+import type { NarrativeSources } from "../../data/sources";
 
 export interface CityInspectorProps {
   cityId: string;
   simulationStore: SimulationStore;
   viewStore: ViewStore;
+  /** T7 (LWV-05): crônica da cidade. Opcional — ausente em contextos que ainda não têm essa fonte. */
+  narrativeSources?: NarrativeSources;
 }
 
 const WORLD = { kind: "World" as const };
 
-export function CityInspector({ cityId, simulationStore, viewStore }: CityInspectorProps) {
+function CityChronicle({ cityId, currentTick, source }: {
+  cityId: string; currentTick: number; source: NarrativeSources["chronicle"];
+}) {
+  const [prose, setProse] = useState<string | undefined>();
+
+  useEffect(() => {
+    setProse(undefined);
+    let cancelled = false;
+    void source.load(cityId, 0, currentTick).then((result) => {
+      if (!cancelled) setProse(result.prose);
+    });
+    return () => { cancelled = true; };
+  }, [cityId, currentTick, source]);
+
+  return (
+    <section aria-labelledby="city-chronicle-title">
+      <h4 id="city-chronicle-title">Crônica</h4>
+      {prose === undefined ? <p role="status">Carregando crônica…</p> : <p>{prose}</p>}
+    </section>
+  );
+}
+
+export function CityInspector({ cityId, simulationStore, viewStore, narrativeSources }: CityInspectorProps) {
   const citySpace = { kind: "City" as const, cityId };
   const citySnapshot = simulationStore.currentPayload<FutureCitySnapshot>(citySpace);
   const hasFullIndicators = citySnapshot?.id.value === cityId;
@@ -30,6 +56,7 @@ export function CityInspector({ cityId, simulationStore, viewStore }: CityInspec
   const worldSnapshot = simulationStore.currentPayload<FutureGlobalSnapshot>(WORLD);
   const worldMarker = worldSnapshot?.cities.find((c) => c.id.value === cityId);
   const name = (hasFullIndicators ? citySnapshot!.name : undefined) || worldMarker?.name;
+  const currentTick = simulationStore.livingStateOf(WORLD).tick;
 
   return (
     <div>
@@ -56,6 +83,10 @@ export function CityInspector({ cityId, simulationStore, viewStore }: CityInspec
           <p role="note">Indicadores completos disponíveis ao abrir a cidade.</p>
         )}
       </dl>
+
+      {narrativeSources && (
+        <CityChronicle cityId={cityId} currentTick={currentTick} source={narrativeSources.chronicle} />
+      )}
 
       <div className="entity-inspector-actions">
         <FollowButton entityRef={{ kind: "city", id: cityId, space: WORLD }} viewStore={viewStore} />

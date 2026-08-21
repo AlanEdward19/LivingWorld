@@ -3,7 +3,8 @@ import { FollowButton } from "./FollowButton";
 import type { SimulationStore } from "../../state/simulationStore";
 import type { ViewStore } from "../../state/viewStore";
 import type { EntityRef } from "../../map-engine/types";
-import type { NpcInspection } from "../../data/contracts";
+import type { ConversationTurn, NpcInspection } from "../../data/contracts";
+import type { NarrativeSources } from "../../data/sources";
 import { materializeNpc } from "../../api";
 import { NpcTokenSvg } from "../NpcTokenSvg";
 
@@ -13,6 +14,107 @@ export interface NpcInspectorProps {
   entityRef: EntityRef;
   simulationStore: SimulationStore;
   viewStore: ViewStore;
+  /** T7 (LWV-05): biografia + conversa. Opcional — ausente em contextos que ainda não têm essas
+   * fontes (ex.: testes de T5/T6 focados só em identidade/vida). */
+  narrativeSources?: NarrativeSources;
+}
+
+const CONVERSATION_REJECTION_LABELS: Record<string, string> = {
+  "npc-dead": "Esta pessoa já morreu — a conversa foi encerrada.",
+  "session-not-found": "Sessão de conversa não encontrada.",
+  "session-ended": "Esta conversa já terminou.",
+};
+
+function NpcBiography({ npcId, source }: { npcId: number; source: NarrativeSources["biography"] }) {
+  const [prose, setProse] = useState<string | null>();
+
+  useEffect(() => {
+    setProse(undefined);
+    let cancelled = false;
+    void source.load(npcId).then((result) => {
+      if (!cancelled) setProse(result?.prose ?? null);
+    });
+    return () => { cancelled = true; };
+  }, [npcId, source]);
+
+  return (
+    <section aria-labelledby="npc-biography-title">
+      <h4 id="npc-biography-title">Biografia</h4>
+      {prose === undefined && <p role="status">Carregando biografia…</p>}
+      {prose === null && <p>Nenhum evento registrado ainda.</p>}
+      {typeof prose === "string" && <p>{prose}</p>}
+    </section>
+  );
+}
+
+function NpcConversation({ npcId, source }: { npcId: number; source: NarrativeSources["conversation"] }) {
+  const [sessionId, setSessionId] = useState<number | null>(null);
+  const [rejection, setRejection] = useState<string | null>(null);
+  const [turns, setTurns] = useState<ConversationTurn[]>([]);
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function handleStart() {
+    setBusy(true);
+    try {
+      const outcome = await source.start(npcId);
+      if (outcome.accepted) {
+        setSessionId(outcome.sessionId);
+        setRejection(null);
+        setTurns([]);
+      } else {
+        setRejection(outcome.reason);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleSend() {
+    if (sessionId === null || !message.trim()) return;
+    setBusy(true);
+    try {
+      const outcome = await source.send(sessionId, message);
+      if (outcome.ok) {
+        setTurns((previous) => [...previous, outcome.turn]);
+        setMessage("");
+      } else {
+        setRejection(outcome.reason);
+        setSessionId(null);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleEnd() {
+    if (sessionId === null) return;
+    await source.end(sessionId);
+    setSessionId(null);
+  }
+
+  return (
+    <section aria-labelledby="npc-conversation-title">
+      <h4 id="npc-conversation-title">Conversa</h4>
+      {rejection && <p role="note">{CONVERSATION_REJECTION_LABELS[rejection] ?? "Conversa indisponível."}</p>}
+      {sessionId === null ? (
+        <button type="button" onClick={handleStart} disabled={busy}>Iniciar conversa</button>
+      ) : (
+        <>
+          <ul className="npc-conversation-turns">
+            {turns.map((turn, index) => <li key={index}>{turn.dialogue}</li>)}
+          </ul>
+          <input
+            aria-label="Mensagem"
+            value={message}
+            onChange={(event) => setMessage(event.target.value)}
+          />
+          <button type="button" onClick={handleSend} disabled={busy || !message.trim()}>Enviar</button>
+          <button type="button" onClick={handleEnd} disabled={busy}>Encerrar</button>
+        </>
+      )}
+    </section>
+  );
 }
 
 const ACTION_LABELS: Record<number, string> = {
@@ -45,7 +147,7 @@ function NeedMeter({ label, value }: { label: string; value: number }) {
   );
 }
 
-export function NpcInspector({ entityRef, simulationStore, viewStore }: NpcInspectorProps) {
+export function NpcInspector({ entityRef, simulationStore, viewStore, narrativeSources }: NpcInspectorProps) {
   const npcId = Number(entityRef.id);
   const [materializing, setMaterializing] = useState(false);
   const inspection = useSyncExternalStore(
@@ -159,6 +261,9 @@ export function NpcInspector({ entityRef, simulationStore, viewStore }: NpcInspe
           </ul>
         ) : <p>Nenhum relato conhecido.</p>}
       </section>
+
+      {narrativeSources && <NpcBiography npcId={npcId} source={narrativeSources.biography} />}
+      {narrativeSources && <NpcConversation npcId={npcId} source={narrativeSources.conversation} />}
 
       <div className="entity-inspector-actions">
         <FollowButton entityRef={entityRef} viewStore={viewStore} />

@@ -1,5 +1,11 @@
 import type { FocusScope, VisualSnapshotEnvelope, ViewerMode } from "./types";
-import type { NpcInspection } from "./data/contracts";
+import type {
+  ConversationSendOutcome,
+  ConversationStartOutcome,
+  ConversationTurn,
+  NarrativeProse,
+  NpcInspection,
+} from "./data/contracts";
 
 // Fase 15, T8: base URL da API — em dev via proxy do Vite (mesma origem), em outros ambientes
 // via VITE_API_BASE_URL. Vazio == mesma origem do host que serve o cliente.
@@ -174,4 +180,65 @@ export async function fetchPeriodCatalog(id: string): Promise<PeriodCatalog> {
   if (!response.ok) throw new Error(`carregar catálogo falhou: ${response.status}`);
   const body = (await response.json()) as { professionNames: Record<number, string>; skillNames: Record<number, string> };
   return { professionNames: body.professionNames, skillNames: body.skillNames };
+}
+
+/// Fase 15.1, T7 (LWV-05): `GET /narratives/biographies/{npcId}` já pronto (Fase 12, T7) — este
+/// helper só traduz request/response, mesmo padrão de `fetchNpcInspection`. 404 == sem timeline
+/// ainda (NPC sem fatos registrados), nunca um erro.
+export async function fetchBiography(npcId: number): Promise<NarrativeProse | null> {
+  const response = await fetch(`${apiBaseUrl()}/narratives/biographies/${npcId}`);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`biografia falhou: ${response.status}`);
+  return (await response.json()) as NarrativeProse;
+}
+
+export async function fetchChronicle(
+  cityId: string, periodStart: number, periodEnd: number,
+): Promise<NarrativeProse> {
+  const params = new URLSearchParams({
+    location: cityId, periodStart: String(periodStart), periodEnd: String(periodEnd),
+  });
+  const response = await fetch(`${apiBaseUrl()}/narratives/chronicles?${params.toString()}`);
+  if (!response.ok) throw new Error(`crônica falhou: ${response.status}`);
+  return (await response.json()) as NarrativeProse;
+}
+
+/// `POST /conversations/start|send|end` já prontos (Fase 11, T7) — validação/fallback rodam
+/// inteiramente no servidor (`ConversationOrchestrator`); estes helpers só traduzem
+/// request/response, sem lógica de decisão nova.
+export async function startConversation(npcId: number): Promise<ConversationStartOutcome> {
+  const response = await fetch(`${apiBaseUrl()}/conversations/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ npcId }),
+  });
+  if (response.status === 404) return { accepted: false, reason: "npc-not-found" };
+  if (!response.ok) throw new Error(`iniciar conversa falhou: ${response.status}`);
+  const body = (await response.json()) as { decision: string; sessionId: number | null };
+  return body.sessionId === null
+    ? { accepted: false, reason: body.decision }
+    : { accepted: true, sessionId: body.sessionId };
+}
+
+export async function sendConversationMessage(sessionId: number, message: string): Promise<ConversationSendOutcome> {
+  const response = await fetch(`${apiBaseUrl()}/conversations/send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId, message }),
+  });
+  if (response.status === 404) return { ok: false, reason: "session-not-found" };
+  if (response.status === 409) {
+    const reason = await response.text();
+    return { ok: false, reason: reason.includes("npc-dead") ? "npc-dead" : "session-ended" };
+  }
+  if (!response.ok) throw new Error(`enviar mensagem falhou: ${response.status}`);
+  return { ok: true, turn: (await response.json()) as ConversationTurn };
+}
+
+export async function endConversation(sessionId: number): Promise<void> {
+  await fetch(`${apiBaseUrl()}/conversations/end`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId }),
+  });
 }

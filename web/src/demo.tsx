@@ -8,6 +8,9 @@ import { MockTimeControlSource } from "./data/mock/MockTimeControlSource";
 import { MockPortalSource } from "./data/mock/MockPortalSource";
 import { npcsByScope, portalFixtures, snapshotsByScope } from "./data/mock/fixtures";
 import { MockNpcInspectionSource } from "./data/mock/MockNpcInspectionSource";
+import { MockBiographySource } from "./data/mock/MockBiographySource";
+import { MockChronicleSource } from "./data/mock/MockChronicleSource";
+import { MockConversationSource } from "./data/mock/MockConversationSource";
 import { mountApp } from "./bootstrap";
 import "./styles/global.css";
 
@@ -26,5 +29,10 @@ const simulationStore = new SimulationStore(
 const viewStore = new ViewStore(new MockPortalSource(portalFixtures));
 const selectionStore = new SelectionStore();
 const timeControlSource = new MockTimeControlSource(clock);
+const narrativeSources = {
+  biography: new MockBiographySource(new Map()),
+  chronicle: new MockChronicleSource(new Map()),
+  conversation: new MockConversationSource(),
+};
 
-mountApp({ simulationStore, viewStore, selectionStore, timeControlSource });
+mountApp({ simulationStore, viewStore, selectionStore, timeControlSource, narrativeSources });

@@ -9,14 +9,16 @@ import { BuildingInspector } from "./BuildingInspector";
 import type { SelectionStore } from "../../state/selectionStore";
 import type { SimulationStore } from "../../state/simulationStore";
 import type { ViewStore } from "../../state/viewStore";
+import type { NarrativeSources } from "../../data/sources";
 
 export interface EntityInspectorProps {
   selectionStore: SelectionStore;
   simulationStore: SimulationStore;
   viewStore: ViewStore;
+  narrativeSources?: NarrativeSources;
 }
 
-export function EntityInspector({ selectionStore, simulationStore, viewStore }: EntityInspectorProps) {
+export function EntityInspector({ selectionStore, simulationStore, viewStore, narrativeSources }: EntityInspectorProps) {
   const selection = useSyncExternalStore(
     (onStoreChange) => selectionStore.subscribe(onStoreChange),
     () => selectionStore.current(),
@@ -38,10 +40,20 @@ export function EntityInspector({ selectionStore, simulationStore, viewStore }: 
       </button>
       <div className="side-panel-content">
         {selection.kind === "city" && (
-          <CityInspector cityId={selection.id} simulationStore={simulationStore} viewStore={viewStore} />
+          <CityInspector
+            cityId={selection.id}
+            simulationStore={simulationStore}
+            viewStore={viewStore}
+            narrativeSources={narrativeSources}
+          />
         )}
         {selection.kind === "npc" && (
-          <NpcInspector entityRef={selection} simulationStore={simulationStore} viewStore={viewStore} />
+          <NpcInspector
+            entityRef={selection}
+            simulationStore={simulationStore}
+            viewStore={viewStore}
+            narrativeSources={narrativeSources}
+          />
         )}
         {selection.kind === "building" && (
           <BuildingInspector entityRef={selection} simulationStore={simulationStore} viewStore={viewStore} />
