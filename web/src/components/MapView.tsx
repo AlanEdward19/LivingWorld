@@ -132,6 +132,22 @@ export function MapView({
     return simulationStore.subscribe(refreshEntities);
   }, [space, simulationStore, selectionStore, staticEntities]);
 
+  // Feedback do usuário (2026-08-21, 4ª rodada): o bug de clique voltava assim que o tempo
+  // andava (acelerar tick, ou só deixar correr) e desaparecia parado em 1x sem tocar em nada.
+  // Causa real: o loop de desenho (`frame`, abaixo) desenha a posição INTERPOLADA (visual,
+  // suavizada) de cada NPC, mas os cliques comparavam contra `entitiesRef.current` — a posição
+  // AUTORITATIVA crua, sem interpolação. Enquanto a interpolação está "em trânsito" entre a
+  // posição antiga e a nova (qualquer tick recente), o pawn desenhado e o ponto que o hit-test
+  // usa divergem — clicar onde o NPC está desenhado erra o alvo real. Parado (sem tick novo há
+  // tempo), a interpolação já convergiu pro valor autoritativo e os dois batem, escondendo o bug.
+  function visualEntitiesNow(): AuthoritativeEntity[] {
+    const now = performance.now();
+    return entitiesRef.current.map((entity) => ({
+      ...entity,
+      position: interpolationRef.current.visualPositionOf(entity.ref.id, now),
+    }));
+  }
+
   // T50: alvo seguido saiu do espaço observado (cruzou de cidade pro mundo ou vice-versa) — a
   // câmera parava de mover silenciosamente (comportamento de antes) porque não tinha pra onde
   // ir. Consulta a inspeção (mesma fonte que o inspector já usa) só pra ler o escopo atual real
@@ -177,16 +193,11 @@ export function MapView({
             void resolveFollowedSpaceIfLost(followed);
           }
         }
-        const now = performance.now();
-        const visualEntities = entitiesRef.current.map((entity) => ({
-          ...entity,
-          position: interpolationRef.current.visualPositionOf(entity.ref.id, now),
-        }));
         draw(canvasRef.current?.getContext("2d") ?? null, {
           camera: camera.snapshot(),
           cells,
           layers,
-          entities: visualEntities,
+          entities: visualEntitiesNow(),
           lodThresholds,
           highlightId: selectionStore.current()?.id,
         });
@@ -241,7 +252,7 @@ export function MapView({
       return;
     }
     if (onEntityMove) {
-      const hit = hitTest(point, camera, entitiesRef.current, effectiveHitRadiusPx(camera));
+      const hit = hitTest(point, camera, visualEntitiesNow(), effectiveHitRadiusPx(camera));
       if (hit) {
         selectionStore.select(hit);
         entityDragRef.current = { ref: hit, cell };
@@ -325,7 +336,7 @@ export function MapView({
         return;
       }
     }
-    const hit = hitTest(screenPoint(e), camera, entitiesRef.current, effectiveHitRadiusPx(camera));
+    const hit = hitTest(screenPoint(e), camera, visualEntitiesNow(), effectiveHitRadiusPx(camera));
     if (hit) {
       selectionStore.select(hit);
     } else {
@@ -340,7 +351,7 @@ export function MapView({
     if (!camera) {
       return;
     }
-    const hit = hitTest(screenPoint(e), camera, entitiesRef.current, effectiveHitRadiusPx(camera));
+    const hit = hitTest(screenPoint(e), camera, visualEntitiesNow(), effectiveHitRadiusPx(camera));
     const target = hit && resolveNavigationTarget?.(hit);
     if (target) {
       viewStore.enter(target);

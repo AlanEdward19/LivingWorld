@@ -204,6 +204,52 @@ describe("MapView", () => {
     expect(selectionStore.current()).toEqual({ kind: "npc", id: "1", space: CITY_A });
   });
 
+  // Feedback do usuário (2026-08-21, 4ª rodada, verificado ao vivo no browser): o bug de clique
+  // voltava assim que o tempo andava (acelerar tick) e desaparecia parado em 1x sem tocar em
+  // nada. Causa real: o loop de desenho usa a posição INTERPOLADA (visual) do NPC, mas o clique
+  // comparava contra `entitiesRef.current` — a posição AUTORITATIVA crua. Em trânsito (qualquer
+  // tick recente), o pawn desenhado e o ponto do hit-test divergiam. Aqui o NPC salta de (50,50)
+  // pra (60,50) e o clique chega no meio da transição (t=0.1 de 1000ms) — tem que acertar onde
+  // ele está DESENHADO (perto de 50,50 ainda), não onde a posição autoritativa mais recente diz.
+  it("hits the NPC at its visually-interpolated position mid-transition, not its raw authoritative position", async () => {
+    // performance.now() também é usado pelo scheduler interno do React (commits/effects) —
+    // não dá pra fixar valores por ÍNDICE de chamada (varia entre versões/ambientes). Em vez
+    // disso, cada chamada avança um pouco (jitter irrelevante frente às janelas de 1000ms/100ms
+    // abaixo) e um "salto" explícito (`advanceBy`) entre as fases simula o tempo real decorrido.
+    const nowSpy = vi.spyOn(performance, "now");
+    let base = 0;
+    let offset = 0;
+    nowSpy.mockImplementation(() => { base += 1; return base + offset; });
+    function advanceBy(ms: number) { offset += ms; }
+
+    const { simulationStore, viewStore, selectionStore } = await buildStores();
+
+    const { getByTestId } = render(
+      <MapView
+        space={CITY_A}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+    const canvas = getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
+
+    advanceBy(1000); // 1s até o próximo tick autoritativo -> duração da transição (50,50)->(60,50)
+    simulationStore.applyDelta({ tick: 1, moved: [{ npcId: 1, location: { x: 60, y: 50 } }], removed: [] });
+
+    advanceBy(100); // clique 100ms depois -> t ~= 0.1 de 1000ms, visual ainda perto de (50,50)
+    // ancora visual esperada: from(50.5,50.5) + 0.1*(to(60.5,50.5)-from) = (51.5,50.5) -> tela (115,105)
+    fireEvent.click(canvas, { clientX: 115, clientY: 105 });
+
+    expect(selectionStore.current()).toEqual({ kind: "npc", id: "1", space: CITY_A });
+    nowSpy.mockRestore();
+  });
+
   it("a double click on a navigable entity calls ViewStore.enter with the resolved target", async () => {
     const { simulationStore, viewStore, selectionStore } = await buildStores();
     const enterSpy = vi.spyOn(viewStore, "enter");
