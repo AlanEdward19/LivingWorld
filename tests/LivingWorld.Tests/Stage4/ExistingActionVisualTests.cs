@@ -12,7 +12,6 @@ public sealed class ExistingActionVisualTests
 {
     private static readonly string RepoRoot = FindRepoRoot();
     private static readonly string CatalogPath = Path.Combine(RepoRoot, "web", "src", "map-engine", "actionVisuals.ts");
-    private static readonly string AppearancePath = Path.Combine(RepoRoot, "web", "src", "npcAppearance.ts");
 
     [Fact]
     public void Every_action_type_has_exactly_one_visual_descriptor_in_the_catalog()
@@ -46,15 +45,6 @@ public sealed class ExistingActionVisualTests
     }
 
     [Fact]
-    public void Animated_cue_declares_a_reduced_motion_fallback_that_stops_the_animation_not_the_cue()
-    {
-        string source = File.ReadAllText(AppearancePath);
-
-        Assert.Contains("prefers-reduced-motion", source, StringComparison.Ordinal);
-        Assert.Contains(".action-glyph-pulse{animation:none}", source, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void Every_known_action_visual_declares_a_non_empty_label_and_glyph()
     {
         string source = File.ReadAllText(CatalogPath);
@@ -75,6 +65,20 @@ public sealed class ExistingActionVisualTests
 
         Assert.Contains("actionVisualFor", tokenSource, StringComparison.Ordinal);
         Assert.Contains("alt=", tokenSource, StringComparison.Ordinal);
+    }
+
+    /// <summary>Feedback do usuário (2026-08-21, travada real): a versão original cacheava a
+    /// imagem do pawn por `id:action` — toda troca de ação recriava/decodificava uma `Image`
+    /// nova, sem nunca liberar a antiga. Prova estrutural (não só comportamental, coberta em
+    /// `renderer.test.ts`) de que o cache voltou a ser só por identidade.</summary>
+    [Fact]
+    public void Pawn_image_cache_key_is_identity_only_never_the_action()
+    {
+        string source = File.ReadAllText(Path.Combine(RepoRoot, "web", "src", "map-engine", "renderer.ts"));
+
+        Assert.Contains("npcPawnImages.get(entity.ref.id)", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("npcPawnImages.get(`", source, StringComparison.Ordinal);
+        Assert.Contains("npcPawnDataUrl({ id: entity.ref.id })", source, StringComparison.Ordinal);
     }
 
     private static IReadOnlyList<int> CatalogKeys()

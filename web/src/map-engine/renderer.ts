@@ -530,17 +530,20 @@ function drawTokenGlyph(ctx: CanvasRenderingContext2D, center: Vec2, r: number):
   ctx.fill();
 }
 
+// Feedback do usuário (2026-08-21): a chave incluía a ação (`id:action`) — toda troca de ação
+// criava e decodificava uma `Image` NOVA por NPC, sem nunca liberar as antigas (suspeito real da
+// travada). Aparência é só identidade agora (`npcPawnSvg`), então a chave é só o id — no máximo
+// 1 imagem cacheada por NPC, reusada pra sempre.
 function drawNpcPawn(ctx: CanvasRenderingContext2D, entity: AuthoritativeEntity, center: Vec2, r: number): boolean {
   if (entity.ref.kind !== "npc" || typeof Image === "undefined") {
     return false;
   }
 
-  const key = `${entity.ref.id}:${entity.currentAction ?? "idle"}`;
-  let image = npcPawnImages.get(key);
+  let image = npcPawnImages.get(entity.ref.id);
   if (!image) {
     image = new Image();
-    image.src = npcPawnDataUrl({ id: entity.ref.id, currentAction: entity.currentAction });
-    npcPawnImages.set(key, image);
+    image.src = npcPawnDataUrl({ id: entity.ref.id });
+    npcPawnImages.set(entity.ref.id, image);
   }
   if (!image.complete || image.naturalWidth === 0) {
     return false;

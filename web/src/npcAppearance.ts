@@ -1,5 +1,3 @@
-import { actionVisualFor } from "./map-engine/actionVisuals";
-
 export interface NpcAppearance {
   skin: string;
   hair: string;
@@ -10,6 +8,10 @@ export interface NpcAppearance {
 
 export interface NpcPawnState {
   id: string;
+  // Feedback do usuário (2026-08-21): a aparência não varia mais por ação (ver nota abaixo) —
+  // este campo já não é lido aqui, só continua aceito porque os chamadores (`NpcTokenSvg.tsx`)
+  // ainda o repassam; a próxima etapa desta correção move o badge pra um overlay e remove o
+  // campo dos dois lados de uma vez.
   currentAction?: number | null;
 }
 
@@ -60,32 +62,24 @@ function escapeAttribute(value: string): string {
   return value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]!);
 }
 
+// Feedback do usuário (2026-08-21): a versão anterior (T8) desenhava a pista de ação DENTRO
+// deste SVG (baked na imagem cacheada pelo canvas) com uma animação CSS por `currentAction` —
+// dois problemas reais: (1) a chave do cache de imagem (`renderer.ts`) incluía a ação, então
+// toda troca de ação recriava/decodificava uma `Image` nova por NPC, sem nunca liberar as
+// antigas; (2) uma `<img>` com `@keyframes` sendo redesenhada a 60fps via `drawImage` força o
+// navegador a re-rasterizar a animação a cada frame — provável causa da travada relatada. A
+// pista de ação virou um overlay desenhado separadamente (`map-engine/actionIcon.ts`, canvas;
+// `NpcTokenSvg.tsx`, DOM) — este SVG volta a ser só identidade, estável e cacheável por NPC.
 /** SVG original em camadas, pronto tanto para React quanto para o cache de imagem do canvas. */
-// Fase 15.1, T8 (LWV-02): a pulsação do glifo "Zzz" é só CSS embutido no próprio SVG — nunca
-// SMIL/JS decidindo estado — e recolhe sob `prefers-reduced-motion` (design.md: "CSS/canvas
-// animation never advances or decides canonical state"; reduzido nunca esconde a pista, só
-// para de animá-la).
-const ACTION_STYLE_DEFS = `<defs><style>@keyframes action-glyph-pulse{0%,100%{opacity:1}50%{opacity:.3}}.action-glyph-pulse{animation:action-glyph-pulse 1.6s ease-in-out infinite}@media (prefers-reduced-motion: reduce){.action-glyph-pulse{animation:none}}</style></defs>`;
-
-function actionStateLayer(currentAction: number | null | undefined): string {
-  if (currentAction == null) return "";
-  const visual = actionVisualFor(currentAction);
-  const classAttr = visual.animated ? ` class="action-glyph-pulse"` : "";
-  return `<g data-layer="state"><circle cx="78" cy="26" r="12" fill="#171b20" stroke="#f0c96a" stroke-width="3"/><text x="78" y="29" font-size="9" text-anchor="middle" fill="#f0c96a"${classAttr}>${escapeAttribute(visual.glyph)}</text></g>`;
-}
-
 export function npcPawnSvg(state: NpcPawnState): string {
   const appearance = appearanceForNpc(state.id);
   const safeId = escapeAttribute(state.id);
-  const stateLayer = actionStateLayer(state.currentAction);
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="120" viewBox="0 0 100 120" data-npc-id="${safeId}">
-  ${ACTION_STYLE_DEFS}
   <g data-layer="shadow"><ellipse cx="50" cy="103" rx="34" ry="11" fill="#050608" opacity=".48"/></g>
   <g data-layer="body"><path d="M18 91c2-26 14-42 32-42s30 16 32 42c-8 9-19 14-32 14S26 100 18 91Z" fill="${appearance.clothing}" stroke="#171b20" stroke-width="4"/><path d="M26 81c7 5 15 7 24 7s17-2 24-7" fill="none" stroke="${appearance.clothingAccent}" stroke-width="6" stroke-linecap="round"/></g>
   <g data-layer="head"><circle cx="50" cy="45" r="25" fill="${appearance.skin}" stroke="#171b20" stroke-width="4"/><circle cx="39" cy="48" r="2.2" fill="#28231f"/><circle cx="61" cy="48" r="2.2" fill="#28231f"/><path d="M44 60c4 2 8 2 12 0" fill="none" stroke="#714738" stroke-width="2" stroke-linecap="round"/></g>
   <g data-layer="hair">${hairMarkup(appearance)}</g>
-  ${stateLayer}
 </svg>`;
 }
 
