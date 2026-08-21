@@ -4,7 +4,21 @@ Fonte única de continuidade. Quem entra numa área nova **lê este arquivo prim
 Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
-- **Última coisa concluída**: **Fase 9 (Escala e armazenamento)** fechada (2026-07-29). Entregue:
+- **Última coisa concluída (2026-08-21)**: Fase 15.1, Stage 4 (`phase-15.1-stage-4-living-world`)
+  T7 — crônica/biografia/conversa no contexto selecionado (LWV-05). `NpcInspector` ganhou seções
+  de biografia + conversa (start/send/end); `CityInspector` ganhou crônica. Novo seam
+  `BiographySource`/`ChronicleSource`/`ConversationSource` (+ `Real*`/`Mock*`) reusa os endpoints
+  já existentes (`/narratives/*`, `/conversations/*`, Fase 11/12). `LivingInteractionSurfaceTests`
+  (5 .NET) + 7 web tests provam isolamento de biografia, fallback honesto de crônica vazia e hash
+  canônico inalterado numa proposta de conversa rejeitada. T6 também foi corrigido no `tasks.md`
+  (tinha sido entregue em `cc136e0` mas ficou sem o `✅`). **Gap aberto, não fase-bloqueante**:
+  LWV-05.4 (HUD/catálogo de período reage à evolução do período) foi deixado de fora — o motor
+  não tem hoje um conceito canônico de "período atual" em `WorldState` (`PeriodEvolutionSystem`
+  só muta o catálogo de profissões); adicionar isso seria estado novo, fora do "reusa endpoints
+  existentes" que T7 pede. Próxima unidade: **T8** (pistas visuais data-driven para ações
+  existentes, incluindo `Zzz` animado acessível) — mesmo spec/tasks.md, Fase 2 do plano de
+  execução (Estágio 2, "comportamento existente fica visível").
+- **Última coisa concluída antes disso**: **Fase 9 (Escala e armazenamento)** fechada (2026-07-29). Entregue:
   `LazyNeed`, índices (mercado/vaga/população/vivos), `NpcWakeScheduler`, arquivo frio de mortos,
   snapshot binário/incremental (stub PERF-12), sensor de escala (`tests/baselines/scale-sensor.json`),
   goldens regravados. Gate `Category!=Scenario`: **763 passed**, 0 failed, 7 skipped (~31 min).
