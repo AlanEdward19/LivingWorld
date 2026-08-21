@@ -42,19 +42,33 @@
 - **Date**: 2026-08-20
 - **Status**: active
 
+### AD-006
+- **Decision**: `BehaviorDecisionSystem`'s ambient wander for `ActionType.Work` now requires a real `Employer` — an adult NPC with no employer (unemployed, or no vacancy) stays put ("blocked") instead of wandering aimlessly while marked `Work`.
+- **Reason**: LWV-02.3 (Fase 15.1, Stage 4, T9) requires NPCs to commute to a real workplace and work only there, and forbids faking work absent real capacity. `ProductionSystem`/`SkillPracticeSystem` already gated the economic effect on `Employer` + physical presence; the ambient-wander gate was the one remaining path that faked movement for unemployed "working" adults. Confirmed with the user before implementing (AskUserQuestion) given the foreseeable blast radius on determinism.
+- **Trade-off**: Since `DefaultEconomyRules.Enabled = true` and vacancies are capacity-limited, many adults are legitimately unemployed during "Work" routine hours — freezing their movement is a real, broad behavior change. It rippled into `tests/baselines/action-switches.json` (deterministic: occupancy available to other NPCs' own ambient steps in the same tick changes) — regenerated deliberately in the same commit (`6dbfb02`), same class as AD-005. Two pre-existing unit tests (`BehaviorDecisionSystemTests.cs`) that exercised Work's ambient step without an employer were updated to employ the NPC first (same intent, spec-correct precondition) rather than left asserting the now-forbidden fake-work behavior.
+- **Scope**: `.specs/features/phase-15.1-stage-4-living-world/` (T9) — commit `6dbfb02`.
+- **Date**: 2026-08-21
+- **Status**: active
+
 ## Handoff
 
-- **Feature**: Fase 16 (perf da suíte de testes) **fechada e validada** — `.specs/features/phase-16-perf-test-suite/validation.md`, PASS. Suite completa (sem filtro, todos os `Category=Scenario` inclusos): **8h03m19s → 36m7s** (13.4×). Teste-alvo isolado (`Ten_k_population_ten_years_within_perf_budget`): **7h45m12s → 24m30s** (19×). Meta de <1h batida.
-- **Fixes commitados** (`e275931`..`5609944`): (1) `BehaviorDecisionSystem` memoiza população de cidade 1x/tick; (2) `EventScheduler.Schedule` trocou Add+Sort completo por inserção via busca binária (alimentava um índice que nunca era lido — achado real, ~95% do custo); (3) `RelationshipSystem` removeu um `.OrderBy` inútil no loop de decay diário; (4) `FamilyRules.MaxCohabitationGroupSize` (AD-005) — teto no par-a-par O(k²) de cohabitation, decisão de produto aprovada pelo usuário em chat (muda resultado só em grupos grandes/escala industrial; golden hashes e baseline de scale-sensor regravados deliberadamente).
-- **2 falhas remanescentes na suite completa** (`FamilyPairedScenarioTests.Vitality_cv_...`, `LongRunScaleTests.Storage_cost_per_alive_npc_stable_across_horizons`) são as MESMAS falhas pré-existentes já presentes no baseline original (T1) — confirmadas idênticas, fora de escopo desta fase, não são regressão.
-- **Achado incidental, não investigado a fundo** (mesma classe do "mass die-off" já registrado em fases anteriores nesta seção): `ScaleScenarioFixture.CreateWorld(seed:42, pop:10_000)` crashou de 7.342 pra 447 vivos em ~4,5 anos simulados durante os diagnósticos desta fase — população cai muito rápido mesmo no cenário de escala calibrado (`ScaleEconomyCatalog`/`ScaleFamilyRules`). Não é objetivo desta fase (perf, não balanceamento), mas é sinal de que o problema de balanceamento já suspeitado antes (fome/economia em cenários grandes) continua real.
-- **In-progress**: nenhum. Fase 16 fechada.
-- **Next step**: nenhum pendente desta fase. Backlog antigo ainda aberto (rodadas anteriores, ver histórico abaixo): decisão sobre "Continuar"/save (slot único vs. slots múltiplos) e balanceamento de fome/economia em população grande — nenhum dos dois foi tocado nesta sessão.
+- **Feature**: Fase 15.1, Stage 4 (Living World Integration) — `.specs/features/phase-15.1-stage-4-living-world/tasks.md`, **Phase 2 em andamento**: T1-T9 done, T10 next.
+- **Phase / Task**: T9 (comuta de propósito pro trabalho, LWV-02.3/LWV-06) implementado via `tlc-spec-driven` Execute — commit `6dbfb02`. Fix: `BehaviorDecisionSystem`'s ambient wander pra `Work` agora exige `Employer` real (sem ele, NPC fica bloqueado em vez de fingir trabalhar) — ver AD-006 acima pro raciocínio completo e o trade-off de determinismo. `tests/LivingWorld.Tests/Stage4/PurposefulCommuteTests.cs` novo (6 testes); `tests/baselines/action-switches.json` regravado deliberadamente no mesmo commit.
+- **In-progress**: nenhum — T9 commitado, gate (`PurposefulCommuteTests` + safety sweep de `Behavior|Economy|Population|Stage4`) verde.
+- **Next step**: T10 (Demand-driven construction — cidade sem capacidade de trabalho enfileira construção real, não fabrica trabalho). Verifier de feature só dispara depois da última task do stage (T17) — não antes.
 - **Blockers**: nenhum.
 - **Uncommitted files**: nenhum (só `resultado.txt`, pré-existente, não relacionado a nenhuma sessão de trabalho).
 - **Branch**: main.
 
 ---
+
+### Histórico anterior (fase 16, pré-stage-4) — mantido como referência
+
+- **Feature**: Fase 16 (perf da suíte de testes) **fechada e validada** — `.specs/features/phase-16-perf-test-suite/validation.md`, PASS. Suite completa (sem filtro, todos os `Category=Scenario` inclusos): **8h03m19s → 36m7s** (13.4×). Teste-alvo isolado (`Ten_k_population_ten_years_within_perf_budget`): **7h45m12s → 24m30s** (19×). Meta de <1h batida.
+- **Fixes commitados** (`e275931`..`5609944`): (1) `BehaviorDecisionSystem` memoiza população de cidade 1x/tick; (2) `EventScheduler.Schedule` trocou Add+Sort completo por inserção via busca binária (alimentava um índice que nunca era lido — achado real, ~95% do custo); (3) `RelationshipSystem` removeu um `.OrderBy` inútil no loop de decay diário; (4) `FamilyRules.MaxCohabitationGroupSize` (AD-005) — teto no par-a-par O(k²) de cohabitation, decisão de produto aprovada pelo usuário em chat (muda resultado só em grupos grandes/escala industrial; golden hashes e baseline de scale-sensor regravados deliberadamente).
+- **2 falhas remanescentes na suite completa** (`FamilyPairedScenarioTests.Vitality_cv_...`, `LongRunScaleTests.Storage_cost_per_alive_npc_stable_across_horizons`) são as MESMAS falhas pré-existentes já presentes no baseline original (T1) — confirmadas idênticas, fora de escopo desta fase, não são regressão.
+- **Achado incidental, não investigado a fundo** (mesma classe do "mass die-off" já registrado em fases anteriores nesta seção): `ScaleScenarioFixture.CreateWorld(seed:42, pop:10_000)` crashou de 7.342 pra 447 vivos em ~4,5 anos simulados durante os diagnósticos desta fase — população cai muito rápido mesmo no cenário de escala calibrado (`ScaleEconomyCatalog`/`ScaleFamilyRules`). Não é objetivo desta fase (perf, não balanceamento), mas é sinal de que o problema de balanceamento já suspeitado antes (fome/economia em cenários grandes) continua real.
+- **Next step**: backlog antigo ainda aberto: decisão sobre "Continuar"/save (slot único vs. slots múltiplos) e balanceamento de fome/economia em população grande — nenhum dos dois foi tocado desde então.
 
 ### Histórico anterior (fase 15.1 bugfix, pré-fase-16) — mantido como referência
 
