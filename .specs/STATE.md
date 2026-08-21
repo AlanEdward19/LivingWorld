@@ -34,7 +34,29 @@
 - **Date**: 2026-08-06
 - **Status**: active
 
+### AD-005
+- **Decision**: `RelationshipSystem.ApplyCohabitationForMembers` (convivência diária FAM-01..05) agora respeita `FamilyRules.MaxCohabitationGroupSize` — grupo até o teto forma par-a-par completo (comportamento de sempre); grupo acima do teto forma laço só com uma janela fixa de vizinhos por Id (determinístico, sem RNG), O(k×teto) em vez de O(k²). Default `int.MaxValue` (sem teto) — só `ScaleScenarioFixture` (testes de escala) declara um valor real (30).
+- **Reason**: `ScenarioRunner.ScaleEconomyCatalog` permite até 8.000 trabalhadores simultâneos num workplace em população 10k — sem teto, isso é 8.000²=64M pares/dia só ali, e gerou 16,5M+ relações (5GB de RAM) em ~8 meses simulados, tornando `LongRunScaleTests.Ten_k_population_ten_years_within_perf_budget` impraticável (7h45min). Investigado e confirmado: NÃO é design intencional — o modelo par-a-par foi desenhado na fase 7 pensando em household pequeno (2-8 membros), antes do multiplicador de vagas da fase 9 existir. Decisão tomada em chat com o usuário (perguntei implicações, ele aprovou explicitamente: "Se vai deixar realista e tambem melhorar nosso tempo é totalmente valido").
+- **Trade-off**: Muda resultado de simulação em grupos grandes (menos relações rastreadas) — `tests/golden/world-hashes.json` e `tests/baselines/scale-sensor.json` foram regravados deliberadamente no mesmo commit. Household/workplace normal (abaixo do teto) fica byte-idêntico a antes — só cenários de escala industrial (milhares no mesmo local) são afetados. Janela usada em grupos "teto+1 a ~2×teto" pode contar alguns pares duas vezes (documentado inline em `RelationshipSystem.cs`) — não corrigido, não há cenário real nessa faixa intermediária hoje.
+- **Scope**: `.specs/features/phase-16-perf-test-suite/` — commit `17b0a2e`.
+- **Date**: 2026-08-20
+- **Status**: active
+
 ## Handoff
+
+- **Feature**: Fase 16 (perf da suíte de testes) **fechada e validada** — `.specs/features/phase-16-perf-test-suite/validation.md`, PASS. Suite completa (sem filtro, todos os `Category=Scenario` inclusos): **8h03m19s → 36m7s** (13.4×). Teste-alvo isolado (`Ten_k_population_ten_years_within_perf_budget`): **7h45m12s → 24m30s** (19×). Meta de <1h batida.
+- **Fixes commitados** (`e275931`..`5609944`): (1) `BehaviorDecisionSystem` memoiza população de cidade 1x/tick; (2) `EventScheduler.Schedule` trocou Add+Sort completo por inserção via busca binária (alimentava um índice que nunca era lido — achado real, ~95% do custo); (3) `RelationshipSystem` removeu um `.OrderBy` inútil no loop de decay diário; (4) `FamilyRules.MaxCohabitationGroupSize` (AD-005) — teto no par-a-par O(k²) de cohabitation, decisão de produto aprovada pelo usuário em chat (muda resultado só em grupos grandes/escala industrial; golden hashes e baseline de scale-sensor regravados deliberadamente).
+- **2 falhas remanescentes na suite completa** (`FamilyPairedScenarioTests.Vitality_cv_...`, `LongRunScaleTests.Storage_cost_per_alive_npc_stable_across_horizons`) são as MESMAS falhas pré-existentes já presentes no baseline original (T1) — confirmadas idênticas, fora de escopo desta fase, não são regressão.
+- **Achado incidental, não investigado a fundo** (mesma classe do "mass die-off" já registrado em fases anteriores nesta seção): `ScaleScenarioFixture.CreateWorld(seed:42, pop:10_000)` crashou de 7.342 pra 447 vivos em ~4,5 anos simulados durante os diagnósticos desta fase — população cai muito rápido mesmo no cenário de escala calibrado (`ScaleEconomyCatalog`/`ScaleFamilyRules`). Não é objetivo desta fase (perf, não balanceamento), mas é sinal de que o problema de balanceamento já suspeitado antes (fome/economia em cenários grandes) continua real.
+- **In-progress**: nenhum. Fase 16 fechada.
+- **Next step**: nenhum pendente desta fase. Backlog antigo ainda aberto (rodadas anteriores, ver histórico abaixo): decisão sobre "Continuar"/save (slot único vs. slots múltiplos) e balanceamento de fome/economia em população grande — nenhum dos dois foi tocado nesta sessão.
+- **Blockers**: nenhum.
+- **Uncommitted files**: nenhum (só `resultado.txt`, pré-existente, não relacionado a nenhuma sessão de trabalho).
+- **Branch**: main.
+
+---
+
+### Histórico anterior (fase 15.1 bugfix, pré-fase-16) — mantido como referência
 
 - **Feature**: Fase 15.1 (VTT frontend redesign) fechada e validada (`.specs/features/phase-15.1-vtt-frontend-redesign/validation.md`, PASS). Sessão atual: bugfix pós-fechamento no fluxo de "criar mundo"/simulação ao vivo, relatado pelo usuário em 2 rodadas. **Fase ainda NÃO fechada de novo pelo usuário** — ele mesmo vai testar e rodar o gate de cenário antes disso.
 - **Phase / Task**: Fora do fluxo `tlc-spec-driven` normal — bugfix direto, sem tasks.md próprio. Investigação com API+web reais rodando (curl direto + `preview_start`/`Claude_Browser`), não só leitura de código — 2 dos 3 root causes desta sessão só apareceram testando ao vivo.
