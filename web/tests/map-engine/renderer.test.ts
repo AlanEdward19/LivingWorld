@@ -273,6 +273,39 @@ describe("renderer.draw", () => {
     expect(buildingRadius).toBeGreaterThan(cityRadius);
   });
 
+  // Feedback do usuário (2026-08-21): texto ilegível no badge -> ícone; e desenhado por cima do
+  // pawn já carregado, nunca dentro da imagem cacheada (perf: ver `drawNpcPawn`).
+  it("draws an action icon overlay next to a token whose action is known and not hidden", () => {
+    class ReadyImage {
+      complete = true;
+      naturalWidth = 100;
+      src = "";
+    }
+    vi.stubGlobal("Image", ReadyImage);
+    const ctx = fakeCtx({ width: 400, height: 400 });
+    const entity = { ...npc("sleepy", 5, 5), currentAction: 1 };
+
+    draw(ctx, baseFrame({ center: { x: 5.5, y: 5.5 }, scale: 20 }, [entity]));
+
+    // pawn pronto: só o badge de ação desenha arcs (círculo do badge + lua) — >= 2.
+    expect(ctx.arc.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("never draws an action icon for Travel (ActionType=4) — walking around isn't worth a badge", () => {
+    class ReadyImage {
+      complete = true;
+      naturalWidth = 100;
+      src = "";
+    }
+    vi.stubGlobal("Image", ReadyImage);
+    const ctx = fakeCtx({ width: 400, height: 400 });
+    const entity = { ...npc("walker", 5, 5), currentAction: 4 };
+
+    draw(ctx, baseFrame({ center: { x: 5.5, y: 5.5 }, scale: 20 }, [entity]));
+
+    expect(ctx.arc).not.toHaveBeenCalled();
+  });
+
   it("culls entities outside the visible rect from drawing", () => {
     const camera: CameraState = { center: { x: 5, y: 5 }, scale: 10 };
     const inView = npc("in", 5, 5);

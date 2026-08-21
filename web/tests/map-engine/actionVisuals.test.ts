@@ -2,13 +2,15 @@ import { describe, expect, it } from "vitest";
 import { ACTION_LABELS, actionVisualFor } from "../../src/map-engine/actionVisuals";
 
 // Fase 15.1, T8 (LWV-02): catálogo data-driven de pistas visuais por ação existente.
+// Feedback do usuário (2026-08-21): texto ("Trab"/"Soc") ilegível -> ícone; Travel (andar pela
+// vila) não precisa de destaque -> catálogo ganhou `hidden`.
 describe("actionVisuals", () => {
-  it("declares a distinct visual for every known ActionType (0-6, LivingWorld.Domain)", () => {
+  it("declares a distinct icon for every known ActionType (0-6, LivingWorld.Domain)", () => {
     for (const id of [0, 1, 2, 3, 4, 5, 6]) {
       const visual = actionVisualFor(id);
       expect(visual.key).not.toBe("unknown");
       expect(visual.label.length).toBeGreaterThan(0);
-      expect(visual.glyph.length).toBeGreaterThan(0);
+      expect(visual.icon).not.toBe("");
     }
   });
 
@@ -18,12 +20,19 @@ describe("actionVisuals", () => {
     expect(visual.key).toBe("unknown");
     expect(visual.label).toBe("Atividade 42");
     expect(visual.animated).toBe(false);
+    expect(visual.hidden).toBe(false);
   });
 
   it("marks sleep as the only animated known action", () => {
     const animated = [0, 1, 2, 3, 4, 5, 6].filter((id) => actionVisualFor(id).animated);
 
     expect(animated).toEqual([1]);
+  });
+
+  it("hides the cue only for travel — walking around is not worth a badge", () => {
+    const hidden = [0, 1, 2, 3, 4, 5, 6].filter((id) => actionVisualFor(id).hidden);
+
+    expect(hidden).toEqual([4]);
   });
 
   it("exposes ACTION_LABELS consistent with the catalog, for NpcInspector to reuse", () => {

@@ -18,6 +18,9 @@ import { npcPawnDataUrl } from "../npcAppearance";
 import { cloudPuffs, type GroundVisual } from "./worldVisuals";
 import { architectureHash, architecturePalette, cityRoofPalette } from "./architectureAppearance";
 import { tokenRadiusPx } from "./tokenSize";
+import { actionVisualFor } from "./actionVisuals";
+import { drawActionIcon } from "./actionIcon";
+import { prefersReducedMotion } from "../reducedMotion";
 
 const npcPawnImages = new Map<string, HTMLImageElement>();
 
@@ -554,6 +557,13 @@ function drawNpcPawn(ctx: CanvasRenderingContext2D, entity: AuthoritativeEntity,
   return true;
 }
 
+/** Alfa do badge de ação: pulsa só quando `animated` e o usuário não pediu `prefers-reduced-motion`
+ * — cálculo puro por `Date.now()`, nunca uma imagem redesenhada (custo desprezível a 60fps). */
+function actionBadgeOpacity(animated: boolean): number {
+  if (!animated || prefersReducedMotion()) return 1;
+  return 0.55 + 0.45 * Math.sin(Date.now() / 450);
+}
+
 /**
  * Um tile representa distâncias físicas diferentes em cada nível espacial. O pawn acompanha
  * essa semântica só no desenho: mundo mantém a escala compacta; cidade aproxima a pessoa; o
@@ -596,6 +606,15 @@ function drawPointEntity(
       ctx.stroke();
       ctx.setLineDash([]);
       drawTokenGlyph(ctx, center, r);
+    }
+    if (entity.ref.kind === "npc" && entity.currentAction != null) {
+      const visual = actionVisualFor(entity.currentAction);
+      if (!visual.hidden) {
+        drawActionIcon(
+          ctx, center.x + r * 0.62, center.y - r * 0.72, Math.max(4, r * 0.42),
+          visual.icon, actionBadgeOpacity(visual.animated),
+        );
+      }
     }
     // Rótulo só a partir do nível "token" (master prompt §4: dot fica só com a forma; rótulo é
     // "informação adicional" do zoom próximo) — feedback do usuário pedia identificar o NPC.

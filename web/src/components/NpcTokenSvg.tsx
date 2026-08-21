@@ -1,5 +1,6 @@
 import { npcPawnDataUrl } from "../npcAppearance";
 import { actionVisualFor } from "../map-engine/actionVisuals";
+import { ActionBadge } from "./ActionBadge";
 
 export interface NpcTokenSvgProps {
   npcId: string;
@@ -8,15 +9,20 @@ export interface NpcTokenSvgProps {
 }
 
 export function NpcTokenSvg({ npcId, currentAction, className }: NpcTokenSvgProps) {
-  // T8 (LWV-02): equivalente textual/ARIA da pista visual — a mesma ação que o glifo mostra no
-  // canvas do mapa também vira texto aqui, para quem usa leitor de tela.
-  const actionSuffix = currentAction == null ? "" : ` — ${actionVisualFor(currentAction).label}`;
+  // Feedback do usuário (2026-08-21): a pista de ação deixou de ser desenhada DENTRO do SVG da
+  // aparência (fonte de uma travada real no canvas) — aqui ela é um badge sobreposto ao token,
+  // igual em espírito ao ícone que `renderer.ts` desenha no mapa.
+  const visual = currentAction == null ? null : actionVisualFor(currentAction);
+  const actionSuffix = visual ? ` — ${visual.label}` : "";
   return (
-    <img
-      className={className}
-      src={npcPawnDataUrl({ id: npcId, currentAction })}
-      alt={`Aparência visual do NPC ${npcId}${actionSuffix}`}
-      draggable={false}
-    />
+    <span className="npc-token-wrap">
+      <img
+        className={className}
+        src={npcPawnDataUrl({ id: npcId })}
+        alt={`Aparência visual do NPC ${npcId}${actionSuffix}`}
+        draggable={false}
+      />
+      {visual && !visual.hidden && <ActionBadge visual={visual} />}
+    </span>
   );
 }

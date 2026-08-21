@@ -874,6 +874,30 @@ form[data-testid="create-world-form"] > div:not([hidden]) {
   filter: drop-shadow(0 8px 8px rgba(0, 0, 0, 0.35));
 }
 
+.npc-token-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.npc-action-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+}
+
+@keyframes npc-action-badge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .35; }
+}
+
+.npc-action-badge-pulse {
+  animation: npc-action-badge-pulse 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .npc-action-badge-pulse { animation: none; }
+}
+
 .entity-inspector-actions {
   display: flex;
   gap: 0.5rem;

@@ -12,6 +12,7 @@ public sealed class ExistingActionVisualTests
 {
     private static readonly string RepoRoot = FindRepoRoot();
     private static readonly string CatalogPath = Path.Combine(RepoRoot, "web", "src", "map-engine", "actionVisuals.ts");
+    private static readonly string GlobalCssPath = Path.Combine(RepoRoot, "web", "src", "styles", "global.css");
 
     [Fact]
     public void Every_action_type_has_exactly_one_visual_descriptor_in_the_catalog()
@@ -32,12 +33,12 @@ public sealed class ExistingActionVisualTests
     }
 
     [Fact]
-    public void Sleep_is_the_only_animated_action_and_renders_the_accessible_zzz_glyph()
+    public void Sleep_is_the_only_animated_action_and_renders_the_moon_icon()
     {
         string source = File.ReadAllText(CatalogPath);
         var sleepEntry = Regex.Match(source, @"1:\s*\{[^}]*\}");
         Assert.True(sleepEntry.Success, "entrada da ação Sleep (ActionType = 1) não encontrada no catálogo");
-        Assert.Contains("\"Zzz\"", sleepEntry.Value, StringComparison.Ordinal);
+        Assert.Contains("\"moon\"", sleepEntry.Value, StringComparison.Ordinal);
         Assert.Contains("animated: true", sleepEntry.Value, StringComparison.Ordinal);
 
         int animatedCount = Regex.Matches(source, "animated: true").Count;
@@ -45,7 +46,28 @@ public sealed class ExistingActionVisualTests
     }
 
     [Fact]
-    public void Every_known_action_visual_declares_a_non_empty_label_and_glyph()
+    public void Travel_is_the_only_action_hidden_from_the_cue_walking_around_is_not_worth_a_badge()
+    {
+        string source = File.ReadAllText(CatalogPath);
+        var travelEntry = Regex.Match(source, @"4:\s*\{[^}]*\}");
+        Assert.True(travelEntry.Success, "entrada da ação Travel (ActionType = 4) não encontrada no catálogo");
+        Assert.Contains("hidden: true", travelEntry.Value, StringComparison.Ordinal);
+
+        int hiddenCount = Regex.Matches(source, "hidden: true").Count;
+        Assert.Equal(1, hiddenCount);
+    }
+
+    [Fact]
+    public void Animated_cue_declares_a_reduced_motion_fallback_that_stops_the_animation_not_the_cue()
+    {
+        string source = File.ReadAllText(GlobalCssPath);
+
+        Assert.Contains("prefers-reduced-motion", source, StringComparison.Ordinal);
+        Assert.Contains(".npc-action-badge-pulse { animation: none; }", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Every_known_action_visual_declares_a_non_empty_label_and_icon()
     {
         string source = File.ReadAllText(CatalogPath);
         var entries = Regex.Matches(source, @"(\d+):\s*\{([^}]*)\}");
@@ -54,7 +76,7 @@ public sealed class ExistingActionVisualTests
         foreach (Match entry in entries)
         {
             Assert.Matches("label:\\s*\"[^\"]+\"", entry.Groups[2].Value);
-            Assert.Matches("glyph:\\s*\"[^\"]+\"", entry.Groups[2].Value);
+            Assert.Matches("icon:\\s*\"[^\"]+\"", entry.Groups[2].Value);
         }
     }
 

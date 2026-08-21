@@ -8,11 +8,6 @@ export interface NpcAppearance {
 
 export interface NpcPawnState {
   id: string;
-  // Feedback do usuário (2026-08-21): a aparência não varia mais por ação (ver nota abaixo) —
-  // este campo já não é lido aqui, só continua aceito porque os chamadores (`NpcTokenSvg.tsx`)
-  // ainda o repassam; a próxima etapa desta correção move o badge pra um overlay e remove o
-  // campo dos dois lados de uma vez.
-  currentAction?: number | null;
 }
 
 const SKINS = ["#f2c49b", "#d99a6c", "#ad6848", "#754331"] as const;
