@@ -31,4 +31,31 @@ describe("npcAppearance", () => {
 
     expect(svg).not.toMatch(/age|profession|condition/i);
   });
+
+  // Fase 15.1, T8 (LWV-02): pista visual data-driven por ação existente.
+  it("renders a distinct readable glyph per known action, not a fixed generic marker", () => {
+    const sleeping = npcPawnSvg({ id: "9", currentAction: 1 });
+    const working = npcPawnSvg({ id: "9", currentAction: 2 });
+
+    expect(sleeping).toContain(">Zzz<");
+    expect(working).toContain(">Trab<");
+    expect(sleeping).not.toContain(">Trab<");
+  });
+
+  it("shows a readable generic glyph for an unknown action id, never the raw number", () => {
+    const svg = npcPawnSvg({ id: "9", currentAction: 99 });
+
+    expect(svg).toContain(">?<");
+    expect(svg).not.toContain(">99<");
+  });
+
+  it("animates only the sleep glyph, and declares a reduced-motion fallback that stops it without hiding it", () => {
+    const sleeping = npcPawnSvg({ id: "9", currentAction: 1 });
+    const eating = npcPawnSvg({ id: "9", currentAction: 0 });
+
+    expect(sleeping).toContain('class="action-glyph-pulse"');
+    expect(eating).not.toContain("action-glyph-pulse\"");
+    expect(sleeping).toMatch(/prefers-reduced-motion:\s*reduce/);
+    expect(sleeping).toMatch(/\.action-glyph-pulse\{animation:none\}/);
+  });
 });

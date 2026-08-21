@@ -6,6 +6,7 @@ import type { EntityRef } from "../../map-engine/types";
 import type { ConversationTurn, NpcInspection } from "../../data/contracts";
 import type { NarrativeSources } from "../../data/sources";
 import { materializeNpc } from "../../api";
+import { ACTION_LABELS } from "../../map-engine/actionVisuals";
 import { NpcTokenSvg } from "../NpcTokenSvg";
 
 const POOLED_LOD = 2;
@@ -116,11 +117,6 @@ function NpcConversation({ npcId, source }: { npcId: number; source: NarrativeSo
     </section>
   );
 }
-
-const ACTION_LABELS: Record<number, string> = {
-  0: "Comendo", 1: "Dormindo", 2: "Trabalhando", 3: "Socializando",
-  4: "Viajando", 5: "Descansando", 6: "Comprando",
-};
 
 const TARGET_LABELS: Record<string, string> = {
   workplace: "Local de trabalho",
