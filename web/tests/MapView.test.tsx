@@ -175,6 +175,35 @@ describe("MapView", () => {
     expect(selectionStore.current()).toEqual({ kind: "npc", id: "1", space: CITY_A });
   });
 
+  // Feedback do usuário (2026-08-21, 3ª rodada, verificado ao vivo no browser): mesmo com o raio
+  // de acerto igualando o raio de DESENHO, clicar no NPC ainda falhava — o pawn desenha um
+  // retângulo alto (topo a 1.25r acima do centro), não um círculo de raio r. Entidade em (50,50)
+  // ancora em tela (105,105) (posição + 0.5 de meia-célula, câmera centrada em 50,50 escala 10).
+  // Clique 12px acima disso (fora do raio antigo de 9.9px, dentro da cobertura correta de
+  // ~15.85px) simula clicar na cabeça/torso visível do personagem, não só no pé.
+  it("hits an NPC when clicking its visible head/torso, above the tile-center anchor", async () => {
+    const { simulationStore, viewStore, selectionStore } = await buildStores();
+
+    const { getByTestId } = render(
+      <MapView
+        space={CITY_A}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+    const canvas = getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
+
+    fireEvent.click(canvas, { clientX: 105, clientY: 93 }); // 12px acima do ponto de ancoragem (105,105)
+
+    expect(selectionStore.current()).toEqual({ kind: "npc", id: "1", space: CITY_A });
+  });
+
   it("a double click on a navigable entity calls ViewStore.enter with the resolved target", async () => {
     const { simulationStore, viewStore, selectionStore } = await buildStores();
     const enterSpy = vi.spyOn(viewStore, "enter");

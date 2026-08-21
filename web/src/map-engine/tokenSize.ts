@@ -28,3 +28,22 @@ export function npcVisualScale(spaceKind: SpaceId["kind"]): number {
   if (spaceKind === "City") return 1.65;
   return 1;
 }
+
+// Feedback do usuário (2026-08-21, 3ª rodada): mesmo com o raio de acerto igualando o raio de
+// desenho, clicar no NPC "não pegava" e às vezes selecionava outro NPC "aleatório". Causa real:
+// o pawn (`drawNpcPawn`, renderer.ts) desenha um RETÂNGULO alto (largura 2r, altura 2.4r, topo em
+// -1.25r) centrado no pé/tile, não um círculo — o hit-test comparava distância até esse mesmo
+// centro com raio = r, então clicar na cabeça/torso visível (que fica ACIMA do centro, fora do
+// raio pequeno) sempre errava; e se outro NPC estivesse perto, a menor distância "vencia" o
+// clique, parecendo escolha aleatória. O raio de acerto precisa cobrir o retângulo inteiro, não
+// só metade da largura dele.
+const PAWN_HALF_WIDTH_FACTOR = 1; // metade de 2r
+const PAWN_TOP_OFFSET_FACTOR = 1.25;
+const PAWN_BOTTOM_OFFSET_FACTOR = 2.4 - 1.25; // = 1.15
+
+/** Raio do menor círculo (centrado no ponto de ancoragem do pawn) que cobre o retângulo inteiro
+ * que `drawNpcPawn` desenha para um dado raio-base `r`. */
+export function pawnHitCoverageRadius(r: number): number {
+  const maxVertical = Math.max(PAWN_TOP_OFFSET_FACTOR, PAWN_BOTTOM_OFFSET_FACTOR);
+  return Math.hypot(PAWN_HALF_WIDTH_FACTOR, maxVertical) * r;
+}

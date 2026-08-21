@@ -8,7 +8,7 @@ import { Camera, type Viewport } from "../map-engine/Camera";
 import { InterpolationBuffer } from "../map-engine/interpolation";
 import { hitTest } from "../map-engine/hitTest";
 import { draw, type ActiveLayer, type CellSource } from "../map-engine/renderer";
-import { npcVisualScale, tokenRadiusPx } from "../map-engine/tokenSize";
+import { npcVisualScale, pawnHitCoverageRadius, tokenRadiusPx } from "../map-engine/tokenSize";
 import type { LodThresholds } from "../map-engine/lod";
 import type { AuthoritativeEntity, CameraState, EntityRef, SpaceId } from "../map-engine/types";
 import { toScopeKey } from "../map-engine/space";
@@ -298,10 +298,16 @@ export function MapView({
   // Feedback do usuário (2026-08-21, 2ª rodada): um fator de folga fixo (1.3x) não bastava —
   // dentro de uma cidade/prédio o pawn desenha 1.65x/2.2x maior (`npcVisualScale`), então o
   // círculo de clique ficava bem menor que o token visível e o clique falhava quase sempre.
-  // Todo NPC observado por este `MapView` está no MESMO espaço (`space.kind`), então o
-  // multiplicador exato (não uma folga aproximada) é conhecido aqui.
+  //
+  // Feedback do usuário (2026-08-21, 3ª rodada): igualar o raio ainda não bastava — o pawn é um
+  // retângulo alto (não um círculo), então clicar na cabeça/torso visível (acima do centro)
+  // continuava fora do raio pequeno, e às vezes "pegava" outro NPC próximo (menor distância
+  // vencia). `pawnHitCoverageRadius` cobre o retângulo inteiro a partir do mesmo ponto de
+  // ancoragem que `drawNpcPawn` desenha. Todo NPC observado por este `MapView` está no MESMO
+  // espaço (`space.kind`), então o multiplicador exato (não uma folga aproximada) é conhecido aqui.
   function effectiveHitRadiusPx(camera: Camera): number {
-    return Math.max(hitRadiusPx, tokenRadiusPx(camera.snapshot().scale) * npcVisualScale(space.kind));
+    const baseRadius = tokenRadiusPx(camera.snapshot().scale) * npcVisualScale(space.kind);
+    return Math.max(hitRadiusPx, pawnHitCoverageRadius(baseRadius));
   }
 
   function handleClick(e: React.MouseEvent<HTMLCanvasElement>) {

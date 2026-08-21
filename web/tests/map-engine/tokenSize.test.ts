@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { npcVisualScale, tokenRadiusPx } from "../../src/map-engine/tokenSize";
+import { npcVisualScale, pawnHitCoverageRadius, tokenRadiusPx } from "../../src/map-engine/tokenSize";
 
 // Feedback do usuário (2026-08-21, 2ª rodada): fator/teto originais (0.35 / 60) deixavam o token
 // GIGANTE já no zoom padrão de uma cidade pequena numa tela grande (computeFitZoom facilmente
@@ -34,5 +34,25 @@ describe("npcVisualScale", () => {
     expect(npcVisualScale("World")).toBe(1);
     expect(npcVisualScale("City")).toBe(1.65);
     expect(npcVisualScale("Building")).toBe(2.2);
+  });
+});
+
+// Feedback do usuário (2026-08-21, 3ª rodada, verificado ao vivo no browser): igualar o raio de
+// acerto ao raio de desenho ainda não bastava — o pawn (`drawNpcPawn`, renderer.ts) desenha um
+// RETÂNGULO alto (largura 2r, altura 2.4r, topo em -1.25r a partir do centro), não um círculo.
+// Clicar na cabeça/torso visível (que fica ACIMA do centro) caía fora de um círculo de raio r,
+// e o clique "pegava" outro NPC próximo por menor distância — parecia escolha aleatória.
+describe("pawnHitCoverageRadius", () => {
+  it("covers the full drawn rectangle (width 2r, height 2.4r, top offset 1.25r), not just r", () => {
+    const r = 10;
+    const covered = pawnHitCoverageRadius(r);
+
+    expect(covered).toBeGreaterThan(r);
+    // maior extensão vertical é o topo (1.25r) -> raio = hipotenusa(1r, 1.25r)
+    expect(covered).toBeCloseTo(Math.hypot(1, 1.25) * r, 5);
+  });
+
+  it("scales linearly with the base radius", () => {
+    expect(pawnHitCoverageRadius(20)).toBeCloseTo(pawnHitCoverageRadius(10) * 2, 5);
   });
 });
