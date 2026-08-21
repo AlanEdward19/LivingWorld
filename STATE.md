@@ -5,19 +5,30 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
 - **Última coisa concluída (2026-08-21)**: Fase 15.1, Stage 4 (`phase-15.1-stage-4-living-world`)
-  T7 — crônica/biografia/conversa no contexto selecionado (LWV-05). `NpcInspector` ganhou seções
-  de biografia + conversa (start/send/end); `CityInspector` ganhou crônica. Novo seam
-  `BiographySource`/`ChronicleSource`/`ConversationSource` (+ `Real*`/`Mock*`) reusa os endpoints
-  já existentes (`/narratives/*`, `/conversations/*`, Fase 11/12). `LivingInteractionSurfaceTests`
-  (5 .NET) + 7 web tests provam isolamento de biografia, fallback honesto de crônica vazia e hash
-  canônico inalterado numa proposta de conversa rejeitada. T6 também foi corrigido no `tasks.md`
-  (tinha sido entregue em `cc136e0` mas ficou sem o `✅`). **Gap aberto, não fase-bloqueante**:
-  LWV-05.4 (HUD/catálogo de período reage à evolução do período) foi deixado de fora — o motor
-  não tem hoje um conceito canônico de "período atual" em `WorldState` (`PeriodEvolutionSystem`
-  só muta o catálogo de profissões); adicionar isso seria estado novo, fora do "reusa endpoints
-  existentes" que T7 pede. Próxima unidade: **T8** (pistas visuais data-driven para ações
-  existentes, incluindo `Zzz` animado acessível) — mesmo spec/tasks.md, Fase 2 do plano de
-  execução (Estágio 2, "comportamento existente fica visível").
+  T8 — pistas visuais data-driven por ação existente (LWV-02). Novo `web/src/map-engine/actionVisuals.ts`
+  é a fonte única id→label/glyph (`NpcInspector` deixou de duplicar a tabela); `npcAppearance.ts`
+  usa isso na camada de estado do pawn (mapa em canvas + token do inspector), cada ação conhecida
+  com glifo distinto em vez do ponto fixo genérico de antes. Sleep anima "Zzz" via CSS embutido no
+  SVG, com fallback `prefers-reduced-motion` que para a animação sem esconder a pista; id
+  desconhecido cai num "?" genérico com label legível, nunca o enum bruto; `NpcTokenSvg.alt` carrega
+  o mesmo label como equivalente textual/ARIA. `ExistingActionVisualTests` prova completude via
+  source-grep sobre o enum `ActionType` real (mesmo padrão de `FrontendCapabilityContractTests`,
+  já que o catálogo vive em TS). Gate: 6 .NET + 7 web tests novos, `Stage4` 47/47, web 312/312,
+  `build.sh` limpo.
+- **Concluído antes disso (2026-08-21)**: T7 — crônica/biografia/conversa no contexto selecionado
+  (LWV-05). `NpcInspector` ganhou seções de biografia + conversa (start/send/end); `CityInspector`
+  ganhou crônica. Novo seam `BiographySource`/`ChronicleSource`/`ConversationSource` (+
+  `Real*`/`Mock*`) reusa os endpoints já existentes (`/narratives/*`, `/conversations/*`, Fase
+  11/12). `LivingInteractionSurfaceTests` (5 .NET) + 7 web tests provam isolamento de biografia,
+  fallback honesto de crônica vazia e hash canônico inalterado numa proposta de conversa rejeitada.
+  T6 também foi corrigido no `tasks.md` (tinha sido entregue em `cc136e0` mas ficou sem o `✅`).
+  **Gap aberto, não fase-bloqueante**: LWV-05.4 (HUD/catálogo de período reage à evolução do
+  período) foi deixado de fora — o motor não tem hoje um conceito canônico de "período atual" em
+  `WorldState` (`PeriodEvolutionSystem` só muta o catálogo de profissões); adicionar isso seria
+  estado novo, fora do "reusa endpoints existentes" que T7 pede.
+- **Próxima unidade**: **T9** (comute canônico com propósito para trabalho/casa, com estado
+  bloqueado) — mesmo spec/tasks.md, ainda Fase 2 do plano de execução (Estágio 2, "comportamento
+  existente fica visível").
 - **Última coisa concluída antes disso**: **Fase 9 (Escala e armazenamento)** fechada (2026-07-29). Entregue:
   `LazyNeed`, índices (mercado/vaga/população/vivos), `NpcWakeScheduler`, arquivo frio de mortos,
   snapshot binário/incremental (stub PERF-12), sensor de escala (`tests/baselines/scale-sensor.json`),
