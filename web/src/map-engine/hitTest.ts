@@ -9,6 +9,7 @@
 // (`position`). Entidades de ponto (NPC, `size` 1x1) continuam pelo raio em pixels de tela.
 import type { Camera } from "./Camera";
 import type { AuthoritativeEntity, EntityRef, Vec2 } from "./types";
+import { fanOutOffsets } from "./fanOut";
 
 function screenDistance(a: Vec2, b: Vec2): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
@@ -31,6 +32,11 @@ export function hitTest(
 ): EntityRef | null {
   const worldPoint = camera.screenToWorld(screenPoint);
   let closest: { ref: EntityRef; distance: number } | null = null;
+  // Feedback do usuário (2026-08-21): NPCs que dividem tile são desenhados espalhados
+  // (`renderer.ts`, `fanOutOffsets`) — sem aplicar o MESMO deslocamento aqui, o clique comparava
+  // contra a posição autoritativa crua (o centro do tile), então todos colidiam no mesmo ponto e
+  // só o primeiro iterado era clicável.
+  const fanOut = fanOutOffsets(entities.filter((entity) => !isAreaEntity(entity)));
 
   for (const entity of entities) {
     if (entity.decorative) {
@@ -54,7 +60,11 @@ export function hitTest(
     // (`position + 0.5`), mas aqui usava o canto cru — erro de meia-célula que cresce com o
     // zoom (0.5*scale px), passando o raio de acerto (~0.4*scale) em telas mais zoomadas.
     // Efeito visto pelo usuário: clique só "pegava" o NPC zoomado bem pra fora.
-    const entityScreenPoint = camera.worldToScreen({ x: entity.position.x + 0.5, y: entity.position.y + 0.5 });
+    const offset = fanOut.get(entity.ref.id);
+    const entityScreenPoint = camera.worldToScreen({
+      x: entity.position.x + 0.5 + (offset?.x ?? 0),
+      y: entity.position.y + 0.5 + (offset?.y ?? 0),
+    });
     const distance = screenDistance(screenPoint, entityScreenPoint);
     if (distance <= hitRadiusPx && (!closest || distance < closest.distance)) {
       closest = { ref: entity.ref, distance };

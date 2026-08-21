@@ -83,4 +83,21 @@ describe("hitTest", () => {
     const outsideScreenPoint = camera.worldToScreen({ x: 100, y: 100 });
     expect(hitTest(outsideScreenPoint, camera, [footprint], 8)).toBeNull();
   });
+
+  // Feedback do usuário (2026-08-21): dois NPCs no mesmo tile são desenhados espalhados
+  // (`fanOutOffsets`, renderer.ts) mas o hit-test comparava contra a posição crua — todos
+  // colidiam no mesmo ponto e só o primeiro era clicável. hitTest precisa do MESMO deslocamento.
+  it("hits each of two household-mates sharing the exact same tile at their own fanned-out spot", () => {
+    const camera = new Camera({ center: { x: 50, y: 50 }, scale: 20 }, VIEWPORT);
+    const a = npc("household-a", 50, 50);
+    const b = npc("household-b", 50, 50);
+
+    // Mesmo cálculo de `fanOutOffsets` (radius 0.34, 2 entidades por ordem de id): "household-a"
+    // fica em +0.34 no eixo x, "household-b" em -0.34 — ambos a partir do centro da célula (+0.5).
+    const hitA = hitTest(camera.worldToScreen({ x: 50.84, y: 50.5 }), camera, [a, b], 4);
+    const hitB = hitTest(camera.worldToScreen({ x: 50.16, y: 50.5 }), camera, [a, b], 4);
+
+    expect(hitA).toEqual(a.ref);
+    expect(hitB).toEqual(b.ref);
+  });
 });

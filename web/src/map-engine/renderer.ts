@@ -17,6 +17,7 @@ import type { AuthoritativeEntity, CameraState, Vec2 } from "./types";
 import { npcPawnDataUrl } from "../npcAppearance";
 import { cloudPuffs, type GroundVisual } from "./worldVisuals";
 import { architectureHash, architecturePalette, cityRoofPalette } from "./architectureAppearance";
+import { fanOutOffsets } from "./fanOut";
 import { tokenRadiusPx } from "./tokenSize";
 import { actionVisualFor } from "./actionVisuals";
 import { drawActionIcon } from "./actionIcon";
@@ -171,31 +172,6 @@ export function draw(ctx: CanvasRenderingContext2D | null, frame: RenderFrame): 
       drawPointEntity(ctx, camera, drawEntity, scale, level !== "dot", entity.ref.id === frame.highlightId);
     }
   }
-}
-
-/** Só entidades que dividem exatamente a mesma célula ganham deslocamento — sorteio determinístico
- * (ordenado por id) num pequeno círculo, então o mesmo grupo sempre se organiza igual entre
- * frames/replays. */
-function fanOutOffsets(entities: AuthoritativeEntity[]): Map<string, Vec2> {
-  const byCell = new Map<string, AuthoritativeEntity[]>();
-  for (const entity of entities) {
-    const key = `${Math.floor(entity.position.x)}:${Math.floor(entity.position.y)}`;
-    const group = byCell.get(key);
-    if (group) group.push(entity);
-    else byCell.set(key, [entity]);
-  }
-
-  const offsets = new Map<string, Vec2>();
-  const radius = 0.34;
-  for (const group of byCell.values()) {
-    if (group.length <= 1) continue;
-    const sorted = [...group].sort((a, b) => a.ref.id.localeCompare(b.ref.id));
-    sorted.forEach((entity, index) => {
-      const angle = (2 * Math.PI * index) / sorted.length;
-      offsets.set(entity.ref.id, { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius });
-    });
-  }
-  return offsets;
 }
 
 function drawGroundDetail(ctx: CanvasRenderingContext2D, topLeft: Vec2, scale: number, detail: GroundVisual): void {
