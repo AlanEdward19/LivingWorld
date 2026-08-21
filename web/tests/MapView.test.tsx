@@ -147,6 +147,34 @@ describe("MapView", () => {
     expect(enterSpy).not.toHaveBeenCalled();
   });
 
+  // Feedback do usuário (2026-08-21, 2ª rodada): clicar num NPC dentro de uma cidade quase nunca
+  // "pegava" — o raio de acerto usava uma folga fixa (1.3x) que não cobria o quanto o pawn
+  // realmente cresce em espaço de cidade (`npcVisualScale`: 1.65x). Clique a 9px do centro (fora
+  // do raio antigo de 7.8px, dentro do raio correto de 9.9px) prova que o raio de acerto agora
+  // usa o multiplicador exato do espaço observado, não uma aproximação.
+  it("hits an NPC near the edge of its city-scaled token, not just dead-center", async () => {
+    const { simulationStore, viewStore, selectionStore } = await buildStores();
+
+    const { getByTestId } = render(
+      <MapView
+        space={CITY_A}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+    const canvas = getByTestId("map-view-canvas") as HTMLCanvasElement;
+    stubRect(canvas);
+
+    fireEvent.click(canvas, { clientX: 109, clientY: 100 }); // 9px do centro (100,100)
+
+    expect(selectionStore.current()).toEqual({ kind: "npc", id: "1", space: CITY_A });
+  });
+
   it("a double click on a navigable entity calls ViewStore.enter with the resolved target", async () => {
     const { simulationStore, viewStore, selectionStore } = await buildStores();
     const enterSpy = vi.spyOn(viewStore, "enter");

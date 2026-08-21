@@ -8,7 +8,7 @@ import { Camera, type Viewport } from "../map-engine/Camera";
 import { InterpolationBuffer } from "../map-engine/interpolation";
 import { hitTest } from "../map-engine/hitTest";
 import { draw, type ActiveLayer, type CellSource } from "../map-engine/renderer";
-import { tokenRadiusPx } from "../map-engine/tokenSize";
+import { npcVisualScale, tokenRadiusPx } from "../map-engine/tokenSize";
 import type { LodThresholds } from "../map-engine/lod";
 import type { AuthoritativeEntity, CameraState, EntityRef, SpaceId } from "../map-engine/types";
 import { toScopeKey } from "../map-engine/space";
@@ -293,11 +293,15 @@ export function MapView({
 
   // Feedback do usuário (2026-08-07): clique em NPC só "pegava" bem quando zoomed-out. Causa
   // real: o raio de acerto precisa acompanhar o token. Reusa a MESMA fórmula do desenho do
-  // token (`tokenRadiusPx`, 2026-08-21) — antes tinha uma fórmula própria com teto de 12px que
-  // desalinhou quando o token passou a crescer com o zoom; um fator de folga cobre a variação
-  // de `visualScale` (cidade/interior aproximam o pawn) sem precisar saber qual entidade.
+  // token (`tokenRadiusPx`, 2026-08-21).
+  //
+  // Feedback do usuário (2026-08-21, 2ª rodada): um fator de folga fixo (1.3x) não bastava —
+  // dentro de uma cidade/prédio o pawn desenha 1.65x/2.2x maior (`npcVisualScale`), então o
+  // círculo de clique ficava bem menor que o token visível e o clique falhava quase sempre.
+  // Todo NPC observado por este `MapView` está no MESMO espaço (`space.kind`), então o
+  // multiplicador exato (não uma folga aproximada) é conhecido aqui.
   function effectiveHitRadiusPx(camera: Camera): number {
-    return Math.max(hitRadiusPx, tokenRadiusPx(camera.snapshot().scale) * 1.3);
+    return Math.max(hitRadiusPx, tokenRadiusPx(camera.snapshot().scale) * npcVisualScale(space.kind));
   }
 
   function handleClick(e: React.MouseEvent<HTMLCanvasElement>) {

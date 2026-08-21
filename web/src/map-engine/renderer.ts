@@ -18,7 +18,7 @@ import { npcPawnDataUrl } from "../npcAppearance";
 import { cloudPuffs, type GroundVisual } from "./worldVisuals";
 import { architectureHash, architecturePalette, cityRoofPalette } from "./architectureAppearance";
 import { fanOutOffsets } from "./fanOut";
-import { tokenRadiusPx } from "./tokenSize";
+import { npcVisualScale, tokenRadiusPx } from "./tokenSize";
 import { actionVisualFor } from "./actionVisuals";
 import { drawActionIcon } from "./actionIcon";
 import { prefersReducedMotion } from "../reducedMotion";
@@ -547,9 +547,7 @@ function actionBadgeOpacity(animated: boolean): number {
  */
 function pointVisualScale(entity: AuthoritativeEntity): number {
   if (entity.ref.kind !== "npc") return 1;
-  if (entity.ref.space.kind === "Building") return 2.2;
-  if (entity.ref.space.kind === "City") return 1.65;
-  return 1;
+  return npcVisualScale(entity.ref.space.kind);
 }
 
 function drawPointEntity(
