@@ -234,7 +234,7 @@ T4b, T5, T7 → T8
 
 ---
 
-### T4b: wire live overflow-footprint boxes into every `SpatialBoundsResolver.ResolveCity` call site — ✅ Done (commit `PENDING`)
+### T4b: wire live overflow-footprint boxes into every `SpatialBoundsResolver.ResolveCity` call site — ✅ Done (commit `7400416`)
 
 > SPEC_DEVIATION: 4 of the 6 listed call sites
 > (`src/LivingWorld.Api/Visual/LivingScopeState.cs`, `src/LivingWorld.Simulation/Cities/ConstructionSystem.cs`,
