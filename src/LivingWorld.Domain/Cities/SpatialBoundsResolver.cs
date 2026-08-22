@@ -8,8 +8,13 @@ public static class SpatialBoundsResolver
 {
     public static CityBounds ResolveWorld(WorldMap map) => new(new CellCoord(0, 0), map.Width, map.Height);
 
-    public static (CityBounds Bounds, bool IsDerived) ResolveCity(City city, long population, int mapWidth, int mapHeight) =>
-        CityBoundsResolver.Resolve(city, population, mapWidth, mapHeight);
+    // dynamic-city-growth, T4b: repassa os dois parâmetros opcionais que CityBoundsResolver.Resolve
+    // já define (T4) — sem eles aqui, todo call site real ficava travado no comportamento
+    // "sem overflow" de sempre, mesmo depois de T4 tornar Resolve capaz de crescer.
+    public static (CityBounds Bounds, bool IsDerived) ResolveCity(
+        City city, long population, int mapWidth, int mapHeight,
+        IReadOnlyList<CityBounds>? ownedBuildingFootprintBoxes = null, int absorptionRingCells = 3) =>
+        CityBoundsResolver.Resolve(city, population, mapWidth, mapHeight, ownedBuildingFootprintBoxes, absorptionRingCells);
 
     public static CityBounds ResolveBuilding(Building building)
     {

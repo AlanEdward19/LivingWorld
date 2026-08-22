@@ -49,12 +49,12 @@ public static class CityProjector
             .Select(n => new CityResidentMarker(n.Id, n.CurrentLocation, n.CurrentAction))
             .ToList();
 
-        // dynamic-city-growth, T3: bounds resolvidos antes dos marcadores de prédio -- Resolve
+        // dynamic-city-growth, T3/T4b: bounds resolvidos antes dos marcadores de prédio -- Resolve
         // agora precisa deles pra tentar uma célula livre dentro dos bounds antes de cair no
-        // overflow (CITYGROW-01/02).
+        // overflow (CITYGROW-01/02); ResolveGrownBounds (T4b) já alimenta os boxes de overflow
+        // de volta pra que os bounds realmente cresçam (CITYGROW-03/05), não só no teste unitário.
         long populationForBounds = CityPopulationQuery.Population(world, cityId);
-        var (boundsForPlacement, boundsAreDerived) = SpatialBoundsResolver.ResolveCity(
-            city, populationForBounds, world.Map.Width, world.Map.Height);
+        var (boundsForPlacement, boundsAreDerived) = CityOccupancy.ResolveGrownBounds(world, city, populationForBounds);
 
         var buildings = world.Buildings
             .Where(b => b.City == cityId)

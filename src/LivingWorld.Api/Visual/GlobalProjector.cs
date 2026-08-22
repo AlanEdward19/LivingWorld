@@ -42,7 +42,10 @@ public static class GlobalProjector
             .Select(c =>
             {
                 long population = CityPopulationQuery.Population(world, c.Id);
-                var (bounds, isDerived) = SpatialBoundsResolver.ResolveCity(c, population, world.Map.Width, world.Map.Height);
+                // dynamic-city-growth, T4b: ResolveGrownBounds alimenta os boxes de overflow das
+                // próprias buildings da cidade de volta pra Resolve, fazendo os bounds crescerem
+                // de verdade no marcador do mapa-múndi (CITYGROW-03/05).
+                var (bounds, isDerived) = CityOccupancy.ResolveGrownBounds(world, c, population);
                 var cellBounds = new CellBounds(bounds.Origin.X, bounds.Origin.Y, bounds.Width, bounds.Height);
                 return new GlobalCityMarker(c.Id, c.Name, c.Location, population, cellBounds, isDerived);
             })
@@ -53,8 +56,7 @@ public static class GlobalProjector
         // referência, então ficam de fora do marcador (não é um bug do NPC, é ausência de dado).
         var cityBoundsById = world.Cities.ToDictionary(
             c => c.Id,
-            c => SpatialBoundsResolver.ResolveCity(
-                c, CityPopulationQuery.Population(world, c.Id), world.Map.Width, world.Map.Height).Bounds);
+            c => CityOccupancy.ResolveGrownBounds(world, c, CityPopulationQuery.Population(world, c.Id)).Bounds);
         // T50: mesmo critério geométrico de NpcScopeResolver (Domain), agora compartilhado com
         // LivingScopeProjector.IsNpcInScope e NpcInspectionQuery.ResolveScope.
         var externalNpcs = world.Npcs

@@ -62,7 +62,7 @@ T1 → T2 → T3
 ### Phase 2: Bounds Growth (Sequential, depends on Phase 1)
 
 ```
-T3 → T4
+T3 → T4 → T4b
 ```
 
 ### Phase 3: Land Scarcity → Migration (depends on Phase 1)
@@ -74,13 +74,13 @@ T3 → T5
 ### Phase 4: Spatial Founding (Sequential, depends on Phase 2)
 
 ```
-T4 → T6 → T7
+T4b → T6 → T7
 ```
 
 ### Phase 5: Full Gate (Sequential, depends on all above)
 
 ```
-T4, T5, T7 → T8
+T4b, T5, T7 → T8
 ```
 
 ---
@@ -234,6 +234,73 @@ T4, T5, T7 → T8
 
 ---
 
+### T4b: wire live overflow-footprint boxes into every `SpatialBoundsResolver.ResolveCity` call site — ✅ Done (commit `PENDING`)
+
+> SPEC_DEVIATION: 4 of the 6 listed call sites
+> (`src/LivingWorld.Api/Visual/LivingScopeState.cs`, `src/LivingWorld.Simulation/Cities/ConstructionSystem.cs`,
+> `src/LivingWorld.Simulation/Cities/NpcInspectionQuery.cs`,
+> `src/LivingWorld.Simulation/Behavior/BehaviorDecisionSystem.cs`) already carried substantial
+> unrelated uncommitted work predating this session (same situation T3 already documented for two
+> of these same files). The required `CityOccupancy.ResolveGrownBounds` wiring is applied and
+> compiles/passes in the working tree for all 6 call sites, but only the 2 clean files
+> (`src/LivingWorld.Api/Visual/CityProjector.cs`, `src/LivingWorld.Api/Visual/GlobalProjector.cs`)
+> plus the new helper (`CityOccupancy.cs`), `SpatialBoundsResolver.cs`, and the new test file are
+> included in this task's git commit — the other 4 files' unrelated pre-existing hunks are left
+> out of the commit to avoid bundling in that other work, per the same precedent T3 set.
+
+**What**: T4 made `CityBoundsResolver.Resolve` growth-capable, but every real production caller
+still calls it with zero overflow boxes (identical-to-before output) — bounds cannot visibly grow
+in the running sim/API until this is wired. Add a `WorldState`-aware helper (in
+`LivingWorld.Simulation`, alongside `CityOccupancy` from T1) that, given a city and its
+population-derived box, resolves each of that city's own buildings' absolute footprint box
+(`Building.Position` when authored, else re-derived via `BuildingPlacementResolver.Resolve` per
+`Building.cs`'s "always re-derived, never persisted" convention) and returns the list of boxes to
+pass as `ownedBuildingFootprintBoxes`. Thread that helper's output through
+`SpatialBoundsResolver.ResolveCity` (give it the same two optional trailing parameters as
+`CityBoundsResolver.Resolve`, forwarded) and every one of its real call sites that has a
+`WorldState` in scope: `src/LivingWorld.Api/Visual/CityProjector.cs`,
+`src/LivingWorld.Api/Visual/GlobalProjector.cs`, `src/LivingWorld.Api/Visual/LivingScopeState.cs`,
+`src/LivingWorld.Simulation/Cities/ConstructionSystem.cs`,
+`src/LivingWorld.Simulation/Cities/NpcInspectionQuery.cs`,
+`src/LivingWorld.Simulation/Behavior/BehaviorDecisionSystem.cs`. `PopulationSeeder.cs` calls
+`CityBoundsResolver.SideFor` directly (not `Resolve`/`ResolveCity`) for its spread radius — out of
+scope, unaffected, do not touch it.
+**Where**: new helper in `src/LivingWorld.Simulation/Cities/CityOccupancy.cs` (or a sibling file in
+the same directory), `src/LivingWorld.Domain/Cities/SpatialBoundsResolver.cs`, and the 6 call
+sites listed above
+**Depends on**: T4
+**Reuses**: `BuildingPlacementResolver.Resolve` (already `WorldState`-aware per T3),
+`BuildingFootprintGenerator`, the exact `ownedBuildingFootprintBoxes`/`absorptionRingCells`
+parameter shape T4 already defined
+**Requirement**: CITYGROW-03, CITYGROW-05 (made actually observable, not just resolver-level)
+
+**Tools**:
+- MCP: NONE
+- Skill: NONE
+
+**Done when**:
+- [x] New helper returns one `CityBounds` box per building in the city (via real/derived
+      position + `BuildingFootprintGenerator`), verified against a `WorldState` with a mix of
+      authored and engine-placed buildings
+- [x] `SpatialBoundsResolver.ResolveCity` forwards the two optional parameters through to
+      `CityBoundsResolver.Resolve` unchanged in meaning
+- [x] Each of the 6 listed call sites passes the helper's live boxes instead of omitting the
+      parameter — an end-to-end test (build a `WorldState` with an overflow building placed via
+      `OverflowPlacer`, then call the projector/system path a real caller uses) shows the
+      resolved bounds actually grew, not just the unit-level `CityBoundsResolver.Resolve` test from T4
+- [x] All 6 call sites still compile and their existing tests stay green (no behavior change for
+      cities with zero overflow buildings)
+- [x] Gate check passes: `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"`
+- [x] Test count: ≥3 new tests pass (helper returns correct boxes; at least one real call site
+      demonstrably grows bounds end-to-end; zero-overflow case unchanged), no silent deletions — 3 new tests added
+
+**Tests**: unit/integration
+**Gate**: quick
+
+**Commit**: `feat(cities): wire live overflow-building footprint boxes into city bounds resolution`
+
+---
+
 ### T5: `MigrationSystem.ScoreOf` — land-scarcity term [P]
 
 **What**: Add a land-scarcity term to `MigrationSystem.ScoreOf`'s existing weighted score: when `CityOccupancy.IsLandScarce` is true for the household's current city (whole map has no free cell for a house-sized footprint), force that city's "stay" score to the theoretical minimum so any other city with room scores higher. No change when `world.Cities.Count < 2` (existing guard already no-ops).
@@ -264,8 +331,8 @@ T4, T5, T7 → T8
 
 **What**: Add the nullable `ClusterFoundingScheduledAtTick` field + `MarkClusterFoundingScheduled(tick)` to `Building` (mirrors `City.FoundingScheduledAtTick`). Add a pure helper (e.g. `OverflowClusterFinder`) that groups a city's overflow buildings by mutual distance ≤ `AbsorptionRingCells` (chain/transitive), excludes buildings already within absorption range of any existing city, and computes each cluster's materialized-resident population (`Npc.Location` inside the cluster's bounding box).
 **Where**: `src/LivingWorld.Domain/Cities/Building.cs`, `src/LivingWorld.Domain/Cities/OverflowClusterFinder.cs` (new)
-**Depends on**: T4 (needs `AbsorptionRingCells` + absorption-range check)
-**Reuses**: `NpcScopeResolver`'s geometric-membership pattern (`bounds.Contains(location)`)
+**Depends on**: T4b (needs `AbsorptionRingCells` + absorption-range check, and T4b's real-position-resolving helper for each building's actual footprint box — a cluster's own buildings need real positions the same way T4b's callers do)
+**Reuses**: `NpcScopeResolver`'s geometric-membership pattern (`bounds.Contains(location)`), T4b's footprint-box-resolving helper
 **Requirement**: CITYGROW-04
 
 **Tools**:
@@ -301,7 +368,7 @@ T4, T5, T7 → T8
 **Done when**:
 - [ ] A cluster with enough materialized residents to clear the concentration threshold schedules a founding event on the same monthly/`OrganizationTicks` cadence as `SettlementFoundingSystem`
 - [ ] A cluster with buildings but too few/zero residents (1 house, 1 person) never schedules — concentration formula stays below threshold (reuses existing math, no separate building-count check)
-- [ ] A cluster already within an existing city's absorption range (per T4) is skipped — absorption takes precedence over founding, per spec Edge Cases
+- [ ] A cluster already within an existing city's absorption range (per T4/T4b) is skipped — absorption takes precedence over founding, per spec Edge Cases
 - [ ] The same cluster is never scheduled twice (`ClusterFoundingScheduledAtTick` guard)
 - [ ] At fire time, a cluster that thinned out below threshold during the wait is silently dropped (no city forced into existence)
 - [ ] On success: new `City` exists, cluster's buildings reassigned to it, households geometrically inside its bounds reassigned (`Household.City` + member `Npc.City`)
@@ -317,9 +384,9 @@ T4, T5, T7 → T8
 
 ### T8: Full-suite gate (no code change)
 
-**What**: Run the full backend suite (no filter, `Category=Scenario` still excluded by `test.sh`'s default) to confirm no cross-feature regression from the signature changes in T3/T4 and the new sibling system in T7.
+**What**: Run the full backend suite (no filter, `Category=Scenario` still excluded by `test.sh`'s default) to confirm no cross-feature regression from the signature/call-site changes in T3/T4/T4b and the new sibling system in T7.
 **Where**: n/a
-**Depends on**: T4, T5, T7
+**Depends on**: T4b, T5, T7
 **Reuses**: n/a
 **Requirement**: n/a (project-wide safety net, not a spec AC)
 
@@ -346,14 +413,14 @@ Phase 1 (Sequential):
 
 Phase 2/3 (Parallel, both depend only on Phase 1):
   T3 complete, then:
-    ├── T4 [P] (bounds growth)
+    ├── T4 ──→ T4b [P vs. T5] (bounds growth, then live wiring)
     └── T5 [P] (migration land-scarcity term, only needs T1)
 
-Phase 4 (Sequential, depends on T4):
-  T4 ──→ T6 ──→ T7
+Phase 4 (Sequential, depends on T4b):
+  T4b ──→ T6 ──→ T7
 
 Phase 5 (Sequential, depends on everything):
-  T4, T5, T7 ──→ T8
+  T4b, T5, T7 ──→ T8
 ```
 
 `[P]` = order-free relative to each other (T4 and T5 touch different files, no shared mutable
@@ -373,6 +440,7 @@ Delegation rule, the orchestrator will offer one worker per phase before Execute
 | T2: `OverflowPlacer` | 1 file, 1 method | ✅ Granular |
 | T3: Wire placement | 1 file + call-site updates (mechanical, same concept) | ✅ Granular |
 | T4: Bounds growth | 2 files (resolver + rules field it consumes), 1 concept | ✅ Granular |
+| T4b: Wire live footprint boxes | 1 new helper + `SpatialBoundsResolver` + 6 call sites, all one concept (threading real data through an already-defined parameter) | ✅ Granular |
 | T5: Migration scarcity term | 1 file, 1 method modified | ✅ Granular |
 | T6: Cluster finder + marker | 2 files, 1 concept (cluster membership + its guard field) | ✅ Granular |
 | T7: `SpatialSettlementFoundingSystem` | 1 new file, mirrors an existing single-file system | ✅ Granular |
@@ -386,10 +454,11 @@ Delegation rule, the orchestrator will offer one worker per phase before Execute
 | T2 | T1 | T1 → T2 | ✅ Match |
 | T3 | T1, T2 | T2 → T3 (T1 transitively via T2) | ✅ Match |
 | T4 | T3 | T3 → T4 | ✅ Match |
+| T4b | T4 | T4 → T4b | ✅ Match |
 | T5 | T1 | T3 → T5 (T5 only truly needs T1; shown after T3 since Phase 1 completes as a unit) | ✅ Match |
-| T6 | T4 | T4 → T6 | ✅ Match |
+| T6 | T4b | T4b → T6 | ✅ Match |
 | T7 | T6 | T6 → T7 | ✅ Match |
-| T8 | T4, T5, T7 | T4, T5, T7 → T8 | ✅ Match |
+| T8 | T4b, T5, T7 | T4b, T5, T7 → T8 | ✅ Match |
 
 ## Test Co-location Validation
 
@@ -399,6 +468,7 @@ Delegation rule, the orchestrator will offer one worker per phase before Execute
 | T2 | Domain (`OverflowPlacer`) | unit | unit | ✅ OK |
 | T3 | Domain (`BuildingPlacementResolver`) | unit | unit | ✅ OK |
 | T4 | Domain (`CityBoundsResolver`, `CityRules`) | unit | unit | ✅ OK |
+| T4b | Simulation (new helper) + Domain (`SpatialBoundsResolver`) + 6 call sites | unit/integration | unit/integration | ✅ OK |
 | T5 | Simulation (`MigrationSystem`) | unit/integration | unit | ✅ OK |
 | T6 | Domain (`Building`, `OverflowClusterFinder`) | unit | unit | ✅ OK |
 | T7 | Simulation (`SpatialSettlementFoundingSystem`) | unit/integration | unit | ✅ OK |

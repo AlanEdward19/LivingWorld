@@ -75,6 +75,45 @@ public static class CityOccupancy
     internal static List<CellCoord> Translate(IReadOnlyList<CellCoord> shape, CellCoord origin) =>
         shape.Select(c => new CellCoord(c.X + origin.X, c.Y + origin.Y)).ToList();
 
+    /// <summary>dynamic-city-growth, T4b (CITYGROW-03/05): uma <see cref="CityBounds"/> por
+    /// prédio da cidade — sua posição real (<see cref="Building.Position"/>) quando autorada,
+    /// senão re-derivada via <see cref="BuildingPlacementResolver.Resolve"/> (nunca persistida,
+    /// mesma convenção de <see cref="Building"/>). É o insumo que <see cref="CityBoundsResolver.Resolve"/>
+    /// precisa em <paramref name="populationBounds"/>'s caller pra crescer os bounds pra além do
+    /// teto de população — sem isso, T4's parâmetro `ownedBuildingFootprintBoxes` só era exercitado
+    /// por teste unitário, nunca pelo tick/API reais.</summary>
+    public static IReadOnlyList<CityBounds> OwnedBuildingFootprintBoxes(WorldState world, City city, CityBounds populationBounds)
+    {
+        var boxes = new List<CityBounds>();
+        foreach (var building in world.Buildings.Where(b => b.City == city.Id))
+        {
+            var position = building.Position
+                ?? BuildingPlacementResolver.Resolve(building, city, world, populationBounds).Position;
+            var shape = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId).Select(c => c.Cell).ToList();
+            var cells = Translate(shape, position);
+            if (cells.Count == 0) continue;
+
+            int minX = cells.Min(c => c.X), minY = cells.Min(c => c.Y);
+            int maxX = cells.Max(c => c.X), maxY = cells.Max(c => c.Y);
+            boxes.Add(new CityBounds(new CellCoord(minX, minY), maxX - minX + 1, maxY - minY + 1));
+        }
+        return boxes;
+    }
+
+    /// <summary>dynamic-city-growth, T4b: o padrão de duas chamadas que todo call site real de
+    /// <see cref="SpatialBoundsResolver.ResolveCity"/> precisa agora — primeiro os bounds
+    /// puramente por população (pra dar às buildings ainda sem posição autorada uma área de
+    /// busca de célula livre), depois os boxes de <see cref="OwnedBuildingFootprintBoxes"/>
+    /// alimentados de volta pra resolução final (potencialmente maior). Um único lugar em vez de
+    /// duplicar as duas chamadas nos 6 call sites (mesmo conceito, per tasks.md).</summary>
+    public static (CityBounds Bounds, bool IsDerived) ResolveGrownBounds(WorldState world, City city, long population)
+    {
+        var (populationBounds, _) = SpatialBoundsResolver.ResolveCity(city, population, world.Map.Width, world.Map.Height);
+        var boxes = OwnedBuildingFootprintBoxes(world, city, populationBounds);
+        return SpatialBoundsResolver.ResolveCity(
+            city, population, world.Map.Width, world.Map.Height, boxes, world.CityRules.AbsorptionRingCells);
+    }
+
     /// <summary>Posição de um prédio sem posição autorada, para fins só de cálculo de ocupação —
     /// mesma fórmula de anel/hash que existia sozinha em
     /// <c>BuildingPlacementResolver.DerivedPosition</c> antes desta feature. Único fallback
