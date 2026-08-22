@@ -49,11 +49,18 @@ public static class CityProjector
             .Select(n => new CityResidentMarker(n.Id, n.CurrentLocation, n.CurrentAction))
             .ToList();
 
+        // dynamic-city-growth, T3: bounds resolvidos antes dos marcadores de prédio -- Resolve
+        // agora precisa deles pra tentar uma célula livre dentro dos bounds antes de cair no
+        // overflow (CITYGROW-01/02).
+        long populationForBounds = CityPopulationQuery.Population(world, cityId);
+        var (boundsForPlacement, boundsAreDerived) = SpatialBoundsResolver.ResolveCity(
+            city, populationForBounds, world.Map.Width, world.Map.Height);
+
         var buildings = world.Buildings
             .Where(b => b.City == cityId)
             .Select(b =>
             {
-                var (position, _, isDerived) = BuildingPlacementResolver.Resolve(b, city);
+                var (position, _, isDerived) = BuildingPlacementResolver.Resolve(b, city, world, boundsForPlacement);
                 return new CityBuildingMarker(b.Id, b.BuildingTypeId, position, isDerived);
             })
             .ToList();
@@ -69,7 +76,7 @@ public static class CityProjector
             .ToList();
 
         var indicators = new CityIndicators(
-            CityPopulationQuery.Population(world, cityId),
+            populationForBounds,
             CityPopulationQuery.Wealth(world, cityId),
             CityPopulationQuery.Health(world, cityId),
             CityPopulationQuery.Inequality(world, cityId),
@@ -79,10 +86,10 @@ public static class CityProjector
         // Mesma fonte do marcador no mapa-múndi (GlobalProjector) — sem isso o envelope visual
         // de dentro da cidade (CityView) usava um tamanho fixo (16x16, cityGroundBounds.ts)
         // desconectado do footprint real, que já cresce com a população (LIVE-POLISH: usuário
-        // reportou cidade "3x3" no mundo mas outro tamanho dentro dela).
-        var (bounds, boundsAreDerived) = SpatialBoundsResolver.ResolveCity(
-            city, indicators.Population, world.Map.Width, world.Map.Height);
-        var cellBounds = new CellBounds(bounds.Origin.X, bounds.Origin.Y, bounds.Width, bounds.Height);
+        // reportou cidade "3x3" no mundo mas outro tamanho dentro dela). Mesmos bounds já
+        // resolvidos acima para os marcadores de prédio (T3) — nunca recalculado duas vezes.
+        var cellBounds = new CellBounds(
+            boundsForPlacement.Origin.X, boundsForPlacement.Origin.Y, boundsForPlacement.Width, boundsForPlacement.Height);
 
         var livingState = LivingScopeProjector.Build(world, new VisualScope(VisualScopeKind.City, city.Id.ToString()));
         return Result<CitySnapshot>.Ok(new CitySnapshot(

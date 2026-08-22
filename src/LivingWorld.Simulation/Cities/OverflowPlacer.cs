@@ -31,7 +31,7 @@ public static class OverflowPlacer
             {
                 var origin = ring[(offset + i) % ring.Count];
                 var candidate = CityOccupancy.Translate(footprintShape, origin);
-                if (CityOccupancy.IsFree(world, city, candidate))
+                if (CityOccupancy.IsFree(world, city, bounds, candidate, id))
                     return origin;
             }
         }

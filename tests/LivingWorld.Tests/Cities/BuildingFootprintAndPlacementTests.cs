@@ -94,17 +94,36 @@ public class BuildingFootprintAndPlacementTests
         Assert.True(bounds.Height <= 10);
     }
 
-    // --- BuildingPlacementResolver ---
+    // --- BuildingPlacementResolver (dynamic-city-growth, T3: occupancy/overflow-aware) ---
+
+    /// <summary>Mesmo truque de <see cref="CityOccupancyTests"/>: procura um footprint sem o
+    /// entalhe do formato L, pra poder ocupar exatamente uma bounding box conhecida.</summary>
+    private static (BuildingId Id, IReadOnlyList<CellCoord> Shape, int Width, int Height) FindRectangularFootprint(int typeId)
+    {
+        for (long i = 1; i < 200; i++)
+        {
+            var id = new BuildingId(i);
+            var cells = BuildingFootprintGenerator.Generate(id, typeId);
+            int width = cells.Max(c => c.Cell.X) + 1;
+            int height = cells.Max(c => c.Cell.Y) + 1;
+            if (cells.Count == width * height)
+                return (id, cells.Select(c => c.Cell).ToList(), width, height);
+        }
+        throw new InvalidOperationException("nenhum footprint rectangular encontrado no intervalo testado");
+    }
 
     [Fact]
     public void Authored_building_position_and_orientation_take_precedence_and_are_marked_not_derived()
     {
-        var city = new City(new CityId(Guid.NewGuid()), new CellCoord(0, 0), 0, null, new AggregatePopulationPool(0, 0, 0));
+        var world = ScenarioRunner.Create(seed: 41, initialPopulation: 0).World;
+        var city = new City(world.NextCityId(), new CellCoord(0, 0), 0, null, new AggregatePopulationPool(0, 0, 0));
+        world.AddCity(city);
+        var bounds = new CityBounds(new CellCoord(0, 0), 12, 12);
         var authored = new Building(
             new BuildingId(1), city.Id, buildingTypeId: 1, completedAtTick: 0,
             position: new CellCoord(9, 9), orientation: 180);
 
-        var (position, orientation, isDerived) = BuildingPlacementResolver.Resolve(authored, city);
+        var (position, orientation, isDerived) = BuildingPlacementResolver.Resolve(authored, city, world, bounds);
 
         Assert.False(isDerived);
         Assert.Equal(new CellCoord(9, 9), position);
@@ -114,11 +133,14 @@ public class BuildingFootprintAndPlacementTests
     [Fact]
     public void Engine_built_building_without_authored_position_gets_a_deterministic_derived_fallback()
     {
-        var city = new City(new CityId(Guid.NewGuid()), new CellCoord(20, 20), 0, null, new AggregatePopulationPool(0, 0, 0));
+        var world = ScenarioRunner.Create(seed: 42, initialPopulation: 0).World;
+        var city = new City(world.NextCityId(), new CellCoord(20, 20), 0, null, new AggregatePopulationPool(0, 0, 0));
+        world.AddCity(city);
+        var bounds = new CityBounds(new CellCoord(10, 10), 20, 20);
         var legacy = new Building(new BuildingId(42), city.Id, buildingTypeId: 1, completedAtTick: 0);
 
-        var first = BuildingPlacementResolver.Resolve(legacy, city);
-        var second = BuildingPlacementResolver.Resolve(legacy, city);
+        var first = BuildingPlacementResolver.Resolve(legacy, city, world, bounds);
+        var second = BuildingPlacementResolver.Resolve(legacy, city, world, bounds);
 
         Assert.True(first.IsDerived);
         Assert.Equal(first.Position, second.Position); // determinístico, não sorteia
@@ -128,13 +150,53 @@ public class BuildingFootprintAndPlacementTests
     [Fact]
     public void Derived_positions_for_two_different_buildings_in_the_same_city_do_not_collide()
     {
-        var city = new City(new CityId(Guid.NewGuid()), new CellCoord(0, 0), 0, null, new AggregatePopulationPool(0, 0, 0));
+        var world = ScenarioRunner.Create(seed: 44, initialPopulation: 0).World;
+        var city = new City(world.NextCityId(), new CellCoord(0, 0), 0, null, new AggregatePopulationPool(0, 0, 0));
+        world.AddCity(city);
+        var bounds = new CityBounds(new CellCoord(-20, -20), 40, 40);
         var buildingA = new Building(new BuildingId(1), city.Id, buildingTypeId: 1, completedAtTick: 0);
         var buildingB = new Building(new BuildingId(2), city.Id, buildingTypeId: 1, completedAtTick: 0);
 
-        var (positionA, _, _) = BuildingPlacementResolver.Resolve(buildingA, city);
-        var (positionB, _, _) = BuildingPlacementResolver.Resolve(buildingB, city);
+        var (positionA, _, _) = BuildingPlacementResolver.Resolve(buildingA, city, world, bounds);
+        world.AddBuilding(buildingA); // agora ocupa de verdade — B precisa desviar dela
+        var (positionB, _, _) = BuildingPlacementResolver.Resolve(buildingB, city, world, bounds);
 
         Assert.NotEqual(positionA, positionB);
+    }
+
+    [Fact]
+    public void Resolve_places_inside_the_citys_current_bounds_when_a_free_cell_exists_there()
+    {
+        var world = ScenarioRunner.Create(seed: 45, initialPopulation: 0).World;
+        var city = new City(world.NextCityId(), new CellCoord(0, 0), 0, null, new AggregatePopulationPool(0, 0, 0));
+        world.AddCity(city);
+        var bounds = new CityBounds(new CellCoord(0, 0), 12, 12); // vazia -- sempre há célula livre
+        var building = new Building(new BuildingId(1), city.Id, buildingTypeId: 1, completedAtTick: 0);
+
+        var (position, _, isDerived) = BuildingPlacementResolver.Resolve(building, city, world, bounds);
+
+        Assert.True(isDerived);
+        var shape = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId).Select(c => c.Cell).ToList();
+        Assert.True(CityOccupancy.Translate(shape, position).All(bounds.Contains));
+    }
+
+    [Fact]
+    public void Resolve_falls_back_to_the_overflow_ring_when_the_citys_bounds_are_fully_occupied()
+    {
+        var (rectId, _, w, h) = FindRectangularFootprint(typeId: 9);
+        var world = ScenarioRunner.Create(seed: 46, initialPopulation: 0).World;
+        var city = new City(world.NextCityId(), new CellCoord(0, 0), 0, null, new AggregatePopulationPool(0, 0, 0));
+        world.AddCity(city);
+        var bounds = new CityBounds(new CellCoord(0, 0), w, h);
+        world.AddBuilding(new Building(rectId, city.Id, buildingTypeId: 9, completedAtTick: 0, position: new CellCoord(0, 0), orientation: 0));
+
+        var newBuilding = new Building(new BuildingId(500), city.Id, buildingTypeId: 9, completedAtTick: 0);
+        var (position, _, isDerived) = BuildingPlacementResolver.Resolve(newBuilding, city, world, bounds);
+
+        Assert.True(isDerived);
+        var newShape = BuildingFootprintGenerator.Generate(newBuilding.Id, newBuilding.BuildingTypeId).Select(c => c.Cell).ToList();
+        var translated = CityOccupancy.Translate(newShape, position);
+        Assert.False(translated.All(bounds.Contains)); // desbordou dos bounds, que estão 100% ocupados
+        Assert.True(CityOccupancy.IsFree(world, city, bounds, translated));
     }
 }

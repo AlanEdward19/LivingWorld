@@ -71,7 +71,11 @@ public class CityProjectorTests
 
         var marker = Assert.Single(CityProjector.Build(world, city.Id).Value!.Buildings);
 
-        var (expectedPosition, _, expectedIsDerived) = BuildingPlacementResolver.Resolve(engineBuilding, city);
+        // dynamic-city-growth, T3: mesmos bounds que CityProjector.Build resolve internamente,
+        // pra comparar com o mesmo contexto de ocupação.
+        long population = CityPopulationQuery.Population(world, city.Id);
+        var bounds = SpatialBoundsResolver.ResolveCity(city, population, world.Map.Width, world.Map.Height).Bounds;
+        var (expectedPosition, _, expectedIsDerived) = BuildingPlacementResolver.Resolve(engineBuilding, city, world, bounds);
         Assert.True(expectedIsDerived);
         Assert.True(marker.LocationIsDerived);
         Assert.Equal(expectedPosition, marker.Location);

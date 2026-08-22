@@ -2,12 +2,12 @@ using LivingWorld.Domain;
 
 namespace LivingWorld.Simulation;
 
-// SPEC_DEVIATION (dynamic-city-growth, T1): design.md declara este tipo em
+// SPEC_DEVIATION (dynamic-city-growth, T1/T3): design.md declara este tipo em
 // src/LivingWorld.Domain/Cities/ — mas LivingWorld.Domain não referencia LivingWorld.Simulation
 // (é o inverso: Simulation -> Domain, ver os .csproj), e WorldState só existe em Simulation.
 // Mesmo motivo/precedente já documentado em CityPopulationQuery.cs. Vive aqui, mesmo pacote.
 
-/// <summary>Ocupação real de uma cidade (dynamic-city-growth, T1): responde "esta célula/este
+/// <summary>Ocupação real de uma cidade (dynamic-city-growth, T1/T3): responde "esta célula/este
 /// footprint está livre?" varrendo <see cref="WorldState.Buildings"/> filtrado por
 /// <see cref="Building.City"/> — nenhum grid próprio persistido, mesma filosofia "bounds/posição
 /// são sempre derivados" de <see cref="CityBoundsResolver"/>.</summary>
@@ -16,10 +16,16 @@ public static class CityOccupancy
     private const int LegacyRingRadius = 3;
 
     /// <summary>True quando nenhum prédio já existente na mesma cidade ocupa alguma célula do
-    /// footprint candidato (já traduzido para coordenadas absolutas).</summary>
-    public static bool IsFree(WorldState world, City city, IReadOnlyList<CellCoord> candidateFootprint)
+    /// footprint candidato (já traduzido para coordenadas absolutas). <paramref name="placingId"/>
+    /// é o <see cref="BuildingId"/> do prédio sendo posicionado agora, se houver um — T3/CITYGROW-01:
+    /// sem ele, um vizinho ainda sem posição autorada seria contado pelo anel-hash legado em vez
+    /// da posição real que <see cref="BuildingPlacementResolver.Resolve"/> escolheria pra ele,
+    /// deixando dois prédios "derivados" na mesma cidade livres pra colidir entre si (bug real,
+    /// pego pelo teste de não-colisão de T3).</summary>
+    public static bool IsFree(
+        WorldState world, City city, CityBounds bounds, IReadOnlyList<CellCoord> candidateFootprint, BuildingId? placingId = null)
     {
-        var occupied = OccupiedCellsOf(world.Buildings.Where(b => b.City == city.Id), world);
+        var occupied = OccupiedCellsOfCity(world, city, bounds, placingId);
         return candidateFootprint.All(cell => !occupied.Contains(cell));
     }
 
@@ -28,19 +34,23 @@ public static class CityOccupancy
     /// do mundo sempre produzem a mesma origem. <c>null</c> quando os bounds estão totalmente
     /// ocupados.</summary>
     public static CellCoord? FindFreeCellInBounds(
-        WorldState world, City city, CityBounds bounds, IReadOnlyList<CellCoord> footprintShape)
+        WorldState world, City city, CityBounds bounds, IReadOnlyList<CellCoord> footprintShape, BuildingId? placingId = null)
     {
-        var occupied = OccupiedCellsOf(world.Buildings.Where(b => b.City == city.Id), world);
+        var occupied = OccupiedCellsOfCity(world, city, bounds, placingId);
         return ScanForFreeOrigin(occupied, bounds, footprintShape);
     }
 
     /// <summary>True somente quando uma varredura do mapa inteiro (não só desta cidade — um
     /// prédio de outra cidade também ocupa a célula pra qualquer um) não encontra nenhuma célula
-    /// livre para o footprint informado.</summary>
+    /// livre para o footprint informado. Sem contexto de "quem está sendo posicionado" (não há um
+    /// prédio específico aqui, é uma pergunta ambiental sobre o mapa) — usa o anel-hash legado
+    /// pra vizinhos sem posição autorada, uma aproximação aceitável pra um sinal booleano de
+    /// escassez (ao contrário de <see cref="IsFree"/>/<see cref="FindFreeCellInBounds"/>, que
+    /// decidem a posição real de um prédio e por isso precisam de precisão).</summary>
     public static bool IsLandScarce(WorldState world, City city, IReadOnlyList<CellCoord> footprintShape)
     {
         var mapBounds = new CityBounds(new CellCoord(0, 0), world.Map.Width, world.Map.Height);
-        var occupied = OccupiedCellsOf(world.Buildings, world);
+        var occupied = OccupiedCellsLegacy(world.Buildings, world);
         return ScanForFreeOrigin(occupied, mapBounds, footprintShape) is null;
     }
 
@@ -65,13 +75,11 @@ public static class CityOccupancy
     internal static List<CellCoord> Translate(IReadOnlyList<CellCoord> shape, CellCoord origin) =>
         shape.Select(c => new CellCoord(c.X + origin.X, c.Y + origin.Y)).ToList();
 
-    /// <summary>Posição de um prédio sem posição autorada, para fins só de cálculo de ocupação de
-    /// vizinho — mesma fórmula de anel/hash que existia sozinha em
-    /// <c>BuildingPlacementResolver.DerivedPosition</c> antes desta feature. T1 não depende de T3
-    /// (tasks.md) e por isso não pode chamar o resolver occupancy-aware (que só nasce em T3, e
-    /// que por sua vez chama <see cref="FindFreeCellInBounds"/>) — chamar de volta criaria
-    /// recursão mútua sem base de parada. Isso é só o "onde esse vizinho já estaria" para marcar
-    /// células ocupadas, nunca reexecuta busca por célula livre para o vizinho.</summary>
+    /// <summary>Posição de um prédio sem posição autorada, para fins só de cálculo de ocupação —
+    /// mesma fórmula de anel/hash que existia sozinha em
+    /// <c>BuildingPlacementResolver.DerivedPosition</c> antes desta feature. Único fallback
+    /// disponível quando não há um <paramref name="placingId"/> de contexto (<see
+    /// cref="IsLandScarce"/>) — sem isso, "onde esse vizinho estaria" ficaria indefinido.</summary>
     internal static CellCoord LegacyRingFallback(BuildingId id, CellCoord cityLocation)
     {
         ulong h = StableHash.Mix(id.Value);
@@ -81,7 +89,44 @@ public static class CityOccupancy
         return new CellCoord(cityLocation.X + dx, cityLocation.Y + dy);
     }
 
-    private static HashSet<CellCoord> OccupiedCellsOf(IEnumerable<Building> buildings, WorldState world)
+    /// <summary>Ocupação de uma única cidade, coerente com a decisão real de posicionamento
+    /// (T3): cada vizinho sem posição autorada é resolvido recursivamente pelo mesmo <see
+    /// cref="BuildingPlacementResolver.Resolve"/> que decidiria a posição dele se fosse
+    /// perguntado diretamente — nunca o anel-hash legado sozinho, que ignoraria a busca por
+    /// célula livre e deixaria dois prédios derivados colidirem.
+    ///
+    /// A recursão é bem fundada por ordem de <see cref="BuildingId"/> (causal: um prédio só pode
+    /// ter sido posicionado depois de prédios com id menor já existirem): ao resolver
+    /// <paramref name="placingId"/>, só prédios com id estritamente menor entram na conta —
+    /// exclui o próprio prédio sendo posicionado (evitaria recursão infinita nele mesmo, comum
+    /// quando o prédio já está em <c>world.Buildings</c>, ex. <c>CityProjector</c> iterando a
+    /// própria lista) e ignora prédios "futuros" (id maior, que não existiam ainda quando
+    /// <paramref name="placingId"/> foi posicionado). Sem <paramref name="placingId"/> (chamada
+    /// fora de uma resolução em curso), cai no anel-hash legado pra todos.</summary>
+    private static HashSet<CellCoord> OccupiedCellsOfCity(WorldState world, City city, CityBounds bounds, BuildingId? placingId)
+    {
+        var occupied = new HashSet<CellCoord>();
+        foreach (var building in world.Buildings.Where(b => b.City == city.Id))
+        {
+            if (placingId is { } selfId)
+            {
+                if (building.Id.Value == selfId.Value) continue; // nunca o próprio prédio sendo posicionado
+                if (building.Position is null && building.Id.Value >= selfId.Value) continue; // "futuro" sem posição autorada
+            }
+
+            var position = building.Position
+                ?? (placingId is not null
+                    ? BuildingPlacementResolver.Resolve(building, city, world, bounds).Position
+                    : LegacyRingFallback(building.Id, city.Location));
+
+            var shape = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId).Select(c => c.Cell).ToList();
+            foreach (var cell in Translate(shape, position))
+                occupied.Add(cell);
+        }
+        return occupied;
+    }
+
+    private static HashSet<CellCoord> OccupiedCellsLegacy(IEnumerable<Building> buildings, WorldState world)
     {
         var occupied = new HashSet<CellCoord>();
         foreach (var building in buildings)

@@ -44,7 +44,7 @@ public class OverflowPlacerTests
         var found = OverflowPlacer.ResolveOverflowPosition(world, city, bounds, new BuildingId(9001), rectShape);
 
         var translated = CityOccupancy.Translate(rectShape, found);
-        Assert.True(CityOccupancy.IsFree(world, city, translated));
+        Assert.True(CityOccupancy.IsFree(world, city, bounds, translated));
         // Os bounds originais estão 100% ocupados (Done-when 1) -- a célula resolvida tem que
         // desbordar deles, nunca ficar inteiramente dentro.
         Assert.False(translated.All(bounds.Contains));
@@ -78,7 +78,7 @@ public class OverflowPlacerTests
 
         Assert.NotEqual(withoutBlocker, withBlocker);
         var translated = CityOccupancy.Translate(rectShape, withBlocker);
-        Assert.True(CityOccupancy.IsFree(world, city, translated));
+        Assert.True(CityOccupancy.IsFree(world, city, bounds, translated));
     }
 
     [Fact]
@@ -110,6 +110,6 @@ public class OverflowPlacerTests
 
         var translated = CityOccupancy.Translate(rectShape, found);
         Assert.True(translated.All(cell => !InsideAnyTile(cell)));
-        Assert.True(CityOccupancy.IsFree(world, city, translated));
+        Assert.True(CityOccupancy.IsFree(world, city, bounds, translated));
     }
 }

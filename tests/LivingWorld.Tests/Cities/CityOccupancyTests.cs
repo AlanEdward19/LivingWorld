@@ -54,10 +54,11 @@ public class CityOccupancyTests
             position: new CellCoord(2, 2), orientation: 0);
         world.AddBuilding(existing);
         var existingShape = BuildingFootprintGenerator.Generate(existing.Id, existing.BuildingTypeId).Select(c => c.Cell).ToList();
+        var bounds = new CityBounds(new CellCoord(0, 0), 20, 20);
 
         var sameCells = CityOccupancy.Translate(existingShape, existing.Position!.Value);
 
-        Assert.False(CityOccupancy.IsFree(world, city, sameCells));
+        Assert.False(CityOccupancy.IsFree(world, city, bounds, sameCells));
     }
 
     [Fact]
@@ -71,10 +72,11 @@ public class CityOccupancyTests
             position: new CellCoord(2, 2), orientation: 0);
         world.AddBuilding(existing);
         var existingShape = BuildingFootprintGenerator.Generate(existing.Id, existing.BuildingTypeId).Select(c => c.Cell).ToList();
+        var bounds = new CityBounds(new CellCoord(0, 0), 20, 20);
 
         var farCells = CityOccupancy.Translate(existingShape, new CellCoord(500, 500));
 
-        Assert.True(CityOccupancy.IsFree(world, city, farCells));
+        Assert.True(CityOccupancy.IsFree(world, city, bounds, farCells));
     }
 
     // --- FindFreeCellInBounds ---
@@ -98,7 +100,7 @@ public class CityOccupancyTests
         Assert.NotNull(first);
         Assert.Equal(first, second); // mesmo id/shape, mesmo estado do mundo -> mesmo resultado, sem RNG
         var translated = CityOccupancy.Translate(newShape, first!.Value);
-        Assert.True(CityOccupancy.IsFree(world, city, translated));
+        Assert.True(CityOccupancy.IsFree(world, city, bounds, translated));
     }
 
     [Fact]
@@ -133,7 +135,7 @@ public class CityOccupancyTests
         Assert.NotNull(found);
         var translated = CityOccupancy.Translate(rectShape, found!.Value);
         Assert.True(translated.All(bounds.Contains));
-        Assert.True(CityOccupancy.IsFree(world, city, translated));
+        Assert.True(CityOccupancy.IsFree(world, city, bounds, translated));
     }
 
     // --- IsLandScarce ---
