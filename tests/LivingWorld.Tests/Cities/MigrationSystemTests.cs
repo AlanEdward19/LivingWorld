@@ -1,5 +1,6 @@
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
+using LivingWorld.Simulation.Behavior;
 
 namespace LivingWorld.Tests.Cities;
 
@@ -38,6 +39,55 @@ public class MigrationSystemTests
 
     private static TickContext MakeCtx(WorldState world) => new(world, world.Rng, world.Scheduler);
 
+    // dynamic-city-growth, T5: mesma sonda de "casa" usada por MigrationSystem
+    // (BuildingId(1)/buildingTypeId 1) — reproduzida aqui só pra dimensionar o mapa de teste
+    // exatamente igual à bounding box do footprint, garantindo escassez real e determinística.
+    private static readonly IReadOnlyList<CellCoord> ScarcityProbeShape =
+        BuildingFootprintGenerator.Generate(new BuildingId(1), buildingTypeId: 1).Select(c => c.Cell).ToList();
+
+    private static readonly GeographyCatalog TinyCatalog = new(
+        TerrainIds: new HashSet<int> { 1 }, BiomeIds: new HashSet<int> { 1 }, ResourceIds: new HashSet<int>());
+
+    private static readonly CostWeights TinyCostWeights = new(
+        Base: 1.0, AltitudeWeight: 0.5, TerrainWeight: new Dictionary<int, double> { [1] = 1.0 });
+
+    /// <summary>Mundo com mapa minúsculo (não o <see cref="ScenarioRunner.DefaultMap"/> 10x10,
+    /// grande demais pra ficar escasso sem centenas de prédios) — <paramref name="width"/>/<paramref
+    /// name="height"/> controlam se o mapa fica totalmente ocupado (== bounding box do footprint)
+    /// ou com margem livre (maior que a bounding box).</summary>
+    private static WorldState MakeWorldWithTinyMap(CityRules rules, int width, int height, ulong seed)
+    {
+        var economyRules = EconomyRules.Create(
+            enabled: false, foodResourceId: 1, waterResourceId: 2,
+            capacityByResourceLocation: new Dictionary<(int, int), long>(),
+            spoilagePerDayByResource: new Dictionary<int, double>(),
+            wageByProfession: new Dictionary<int, long>(),
+            priceFloor: new Dictionary<int, long>(), priceCeiling: new Dictionary<int, long>(),
+            priceSensitivity: 0.1, demandBaselinePerNpc: new Dictionary<int, double>()).Value!;
+        var map = MapGenerator.Generate(seed, width, height, Math.Max(width, height), TinyCatalog, TinyCostWeights, [])
+            .Value ?? throw new InvalidOperationException("mapa de teste inválido — bug no teste, não no gerador");
+
+        return new WorldState(
+            ScenarioRunner.DefaultCalendar, seed, map,
+            ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
+            ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules,
+            economyRules: economyRules, cityRules: rules);
+    }
+
+    private static void CompletePendingMigrations(WorldState world, int maxHours = 300)
+    {
+        var clock = new WorldClock([new BehaviorDecisionSystem(), new RelocationArrivalSystem()]);
+        var ctx = MakeCtx(world);
+        for (int i = 0; i < maxHours; i++)
+        {
+            clock.Tick(world);
+            foreach (var npc in world.Npcs.Where(n => n.IsAlive))
+                NpcWakeScheduler.ScheduleWake(world, ctx, npc.Id.Value, world.CurrentDate.TotalHours + 1);
+            if (world.Households.All(h => h.PendingRelocationCity is null))
+                return;
+        }
+    }
+
     private static (City Origin, City Destination) MakeTwoCities(WorldState world)
     {
         var origin = new City(world.NextCityId(), new CellCoord(0, 0), 0, null, AggregatePopulationPool.Empty);
@@ -52,11 +102,15 @@ public class MigrationSystemTests
 
     /// <summary>Npc "cru" (sem passar por PopulationSeeder — que casa adultos automaticamente em
     /// households próprios e poluiria a lista que <see cref="MigrationSystem"/> itera).</summary>
-    private static Npc MakeNpc(WorldState world, long id, CityId city) => new(
-        new NpcId(id), $"npc-{id}", Sex.Male, world.CurrentDate.AddYears(-30), ScenarioRunner.DefaultCulture,
-        ScenarioRunner.DefaultVillageLocation, motherId: null, fatherId: null, household: null, health: 80,
-        personality: NeutralPersonality, profession: ProfessionType.None, currentLocation: ScenarioRunner.DefaultVillageLocation,
-        city: city);
+    private static Npc MakeNpc(WorldState world, long id, CityId city, CellCoord? location = null)
+    {
+        var resolved = location ?? world.FindCity(city)?.Location ?? ScenarioRunner.DefaultVillageLocation;
+        return new(
+            new NpcId(id), $"npc-{id}", Sex.Male, world.CurrentDate.AddYears(-30), ScenarioRunner.DefaultCulture,
+            resolved, motherId: null, fatherId: null, household: null, health: 80,
+            personality: NeutralPersonality, profession: ProfessionType.None, currentLocation: resolved,
+            city: city);
+    }
 
     /// <summary>Duas populações separadas, uma por cidade — a origem é quem o teste observa; a
     /// do destino só existe pra dar ao candidato um estoque/nível real (nunca o mesmo Npc nas
@@ -69,11 +123,13 @@ public class MigrationSystemTests
         world.AddNpc(originHead);
         world.AddNpc(destinationHead);
 
-        var originHousehold = new Household(new HouseholdId(1), ScenarioRunner.DefaultVillageLocation, originHead.Id, [originHead.Id], city: originCityId);
+        var originLocation = world.FindCity(originCityId)!.Location;
+        var originHousehold = new Household(new HouseholdId(1), originLocation, originHead.Id, [originHead.Id], city: originCityId);
+        originHead.JoinHousehold(originHousehold.Id);
         originHousehold.Deposit(Food, originFood);
         world.AddHousehold(originHousehold);
 
-        var destinationHousehold = new Household(new HouseholdId(2), ScenarioRunner.DefaultVillageLocation, destinationHead.Id, [destinationHead.Id], city: destinationCityId);
+        var destinationHousehold = new Household(new HouseholdId(2), world.FindCity(destinationCityId)!.Location, destinationHead.Id, [destinationHead.Id], city: destinationCityId);
         destinationHousehold.Deposit(Food, destinationFood);
         world.AddHousehold(destinationHousehold);
 
@@ -88,6 +144,7 @@ public class MigrationSystemTests
         var (npc, household) = SeedTwoOneNpcHouseholds(world, origin.Id, destination.Id, originFood: 0, destinationFood: 1000);
 
         new MigrationSystem().Tick(world, MakeCtx(world));
+        CompletePendingMigrations(world);
 
         Assert.Equal(destination.Id, npc.City);
         Assert.Equal(destination.Id, household.City);
@@ -103,6 +160,8 @@ public class MigrationSystemTests
         new MigrationSystem().Tick(world, MakeCtx(world));
 
         Assert.NotEqual(default, npc.City);
+        Assert.Equal(origin.Id, npc.City);
+        CompletePendingMigrations(world);
         Assert.Equal(destination.Id, npc.City);
     }
 
@@ -175,6 +234,8 @@ public class MigrationSystemTests
         world.AddNpc(destinationHead);
 
         var household = new Household(new HouseholdId(1), origin.Location, head.Id, [head.Id, otherMember.Id], city: origin.Id);
+        head.JoinHousehold(household.Id);
+        otherMember.JoinHousehold(household.Id);
         household.Deposit(Food, 0); // origem sem comida
         world.AddHousehold(household);
 
@@ -183,6 +244,7 @@ public class MigrationSystemTests
         world.AddHousehold(destinationHousehold);
 
         new MigrationSystem().Tick(world, MakeCtx(world));
+        CompletePendingMigrations(world);
 
         Assert.Equal(destination.Id, head.City);
         Assert.Equal(destination.Id, otherMember.City); // membro não-chefe migrou junto
@@ -199,5 +261,70 @@ public class MigrationSystemTests
         new MigrationSystem().Tick(world, MakeCtx(world));
 
         Assert.Equal(origin.Id, npc.City);
+    }
+
+    // --- T5 (CITYGROW, Edge Case "mapa sem célula livre em lugar nenhum") ---
+
+    [Fact]
+    public void Household_relocates_out_of_a_land_scarce_city_even_though_it_would_normally_score_best_on_food()
+    {
+        int w = ScarcityProbeShape.Max(c => c.X) + 1, h = ScarcityProbeShape.Max(c => c.Y) + 1;
+        var world = MakeWorldWithTinyMap(MakeRules(foodWeight: 1), width: w, height: h, seed: 701);
+        var (origin, destination) = MakeTwoCities(world);
+        // Prédio idêntico à sonda de escassez (mesmo BuildingId/typeId), ocupando o mapa inteiro
+        // (== bounding box do footprint): CityOccupancy.IsLandScarce vira true pro mundo inteiro.
+        world.AddBuilding(new Building(
+            new BuildingId(1), origin.Id, buildingTypeId: 1, completedAtTick: 0,
+            position: new CellCoord(0, 0), orientation: 0));
+        // Comida melhor na origem (destino sem comida): sem a escassez, a origem venceria o score.
+        var (npc, household) = SeedTwoOneNpcHouseholds(world, origin.Id, destination.Id, originFood: 1000, destinationFood: 0);
+
+        new MigrationSystem().Tick(world, MakeCtx(world));
+
+        // O score de "ficar" na origem foi forçado ao mínimo teórico -> destino (score normal,
+        // não escasso) vence mesmo com comida pior, provando que a escassez de terra decide.
+        Assert.Equal(destination.Id, household.PendingRelocationCity);
+        CompletePendingMigrations(world);
+        Assert.Equal(destination.Id, npc.City);
+    }
+
+    [Fact]
+    public void Land_scarce_single_city_world_does_not_crash_or_force_relocation_with_no_candidate()
+    {
+        int w = ScarcityProbeShape.Max(c => c.X) + 1, h = ScarcityProbeShape.Max(c => c.Y) + 1;
+        var world = MakeWorldWithTinyMap(MakeRules(foodWeight: 1), width: w, height: h, seed: 702);
+        var origin = new City(world.NextCityId(), new CellCoord(0, 0), 0, null, AggregatePopulationPool.Empty);
+        world.AddCity(origin);
+        world.AddBuilding(new Building(
+            new BuildingId(1), origin.Id, buildingTypeId: 1, completedAtTick: 0,
+            position: new CellCoord(0, 0), orientation: 0));
+        var npc = MakeNpc(world, 1, origin.Id);
+        world.AddNpc(npc);
+        var household = new Household(new HouseholdId(1), origin.Location, npc.Id, [npc.Id], city: origin.Id);
+        npc.JoinHousehold(household.Id);
+        world.AddHousehold(household);
+
+        new MigrationSystem().Tick(world, MakeCtx(world)); // world.Cities.Count < 2 -> guard existente no-opa
+
+        Assert.Equal(origin.Id, npc.City);
+        Assert.Null(household.PendingRelocationCity);
+    }
+
+    [Fact]
+    public void Household_stays_when_its_city_is_not_land_scarce_even_with_a_building_present()
+    {
+        // Mapa 10x10 default (bem maior que a bounding box de um único prédio) -> sempre há
+        // célula livre em algum lugar do mapa -> CityOccupancy.IsLandScarce falso.
+        var world = MakeWorld(MakeRules(foodWeight: 1));
+        var (origin, destination) = MakeTwoCities(world);
+        world.AddBuilding(new Building(
+            new BuildingId(1), origin.Id, buildingTypeId: 1, completedAtTick: 0,
+            position: new CellCoord(0, 0), orientation: 0));
+        var (npc, household) = SeedTwoOneNpcHouseholds(world, origin.Id, destination.Id, originFood: 1000, destinationFood: 0);
+
+        new MigrationSystem().Tick(world, MakeCtx(world));
+
+        Assert.Equal(origin.Id, npc.City);
+        Assert.Null(household.PendingRelocationCity);
     }
 }

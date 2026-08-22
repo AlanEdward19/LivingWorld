@@ -15,8 +15,9 @@ namespace LivingWorld.Simulation;
 // score que a atual (empate mantém — sem margem extra inventada).
 
 /// <summary>Household/NPC materializado decide migrar pesando emprego/comida/segurança/laços
-/// familiares (Fase 8, T12, CITY-07) — move <see cref="CityId"/> do NPC e de todo o household no
-/// mesmo tick, nunca deixando ninguém um tick sem cidade.</summary>
+/// familiares (Fase 8, T12, CITY-07) — inicia deslocamento para o destino; <see
+/// cref="RelocationArrivalSystem"/> só muda <see cref="CityId"/> na chegada (Fase 15.1, T11,
+/// LWV-04.2).</summary>
 public sealed class MigrationSystem : ISimulationSystem
 {
     public const string SystemName = "cities-migration";
@@ -24,10 +25,27 @@ public sealed class MigrationSystem : ISimulationSystem
     public string Name => SystemName;
     public TickFrequency Frequency => TickFrequency.Daily;
 
+    // dynamic-city-growth, T5 (Edge Case: mapa sem célula livre em lugar nenhum): footprint
+    // representativo de "casa" só pra sondar escassez de terra via CityOccupancy.IsLandScarce —
+    // não corresponde a nenhum prédio real, é só uma sonda de tamanho plausível.
+    private static readonly IReadOnlyList<CellCoord> LandScarcityProbeShape =
+        BuildingFootprintGenerator.Generate(new BuildingId(1), buildingTypeId: 1).Select(c => c.Cell).ToList();
+
     public void Tick(WorldState world, TickContext ctx)
     {
         if (!world.CityRules.Enabled || world.Cities.Count < 2) return;
         var rules = world.CityRules;
+        // ponytail: cache por CityId dentro do Tick (não por household) — households da mesma
+        // cidade não repetem o scan de mapa inteiro; cachear entre ticks só se aparecer no profiling.
+        var scarcityCache = new Dictionary<CityId, bool>();
+        bool IsLandScarce(CityId cityId)
+        {
+            if (scarcityCache.TryGetValue(cityId, out var cached)) return cached;
+            var city = world.FindCity(cityId);
+            bool scarce = city is not null && CityOccupancy.IsLandScarce(world, city, LandScarcityProbeShape);
+            scarcityCache[cityId] = scarce;
+            return scarce;
+        }
 
         foreach (var household in world.Households.OrderBy(h => h.Id.Value).ToList())
         {
@@ -36,7 +54,9 @@ public sealed class MigrationSystem : ISimulationSystem
 
             var currentCity = head.City;
             City? bestCity = null;
-            double bestScore = ScoreOf(world, rules, household, currentCity);
+            // T5/CITYGROW edge case: mapa sem célula livre em lugar nenhum força o score de
+            // "ficar" pro mínimo teórico, sem afetar o score de nenhuma cidade candidata.
+            double bestScore = IsLandScarce(currentCity) ? double.NegativeInfinity : ScoreOf(world, rules, household, currentCity);
 
             foreach (var candidate in world.Cities)
             {
@@ -51,13 +71,14 @@ public sealed class MigrationSystem : ISimulationSystem
 
             if (bestCity is null) continue;
 
+            household.BeginRelocation(bestCity.Id);
             foreach (var memberId in household.Members)
             {
                 var member = world.FindNpc(memberId);
                 if (member is not { IsAlive: true } || member.City != currentCity) continue;
-                member.JoinCity(bestCity.Id); // mesmo tick: sai de A e entra em B, nunca "sem cidade"
+                member.JoinHousehold(household.Id);
+                member.SetCurrentAction(ActionType.Travel, ctx.CurrentTick);
             }
-            household.JoinCity(bestCity.Id);
         }
     }
 
