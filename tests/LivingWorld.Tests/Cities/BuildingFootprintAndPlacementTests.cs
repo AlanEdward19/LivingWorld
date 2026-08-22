@@ -94,6 +94,74 @@ public class BuildingFootprintAndPlacementTests
         Assert.True(bounds.Height <= 10);
     }
 
+    // --- CityBoundsResolver (dynamic-city-growth, T4: absorption growth, CITYGROW-03/05) ---
+
+    [Fact]
+    public void Resolve_grows_bounds_to_include_an_overflow_building_within_the_absorption_ring()
+    {
+        var city = new City(new CityId(Guid.NewGuid()), new CellCoord(50, 50), 0, null, new AggregatePopulationPool(0, 0, 0));
+        var (baseBounds, _) = CityBoundsResolver.Resolve(city, population: 0, mapWidth: 1000, mapHeight: 1000);
+        // 1 célula de distância da borda direita, dentro do AbsorptionRingCells default (3).
+        int overflowX = baseBounds.Origin.X + baseBounds.Width - 1 + 1;
+        var overflowBox = new CityBounds(new CellCoord(overflowX, baseBounds.Origin.Y), 2, 2);
+
+        var (grown, isDerived) = CityBoundsResolver.Resolve(
+            city, population: 0, mapWidth: 1000, mapHeight: 1000, ownedBuildingFootprintBoxes: [overflowBox]);
+
+        Assert.True(isDerived);
+        // O footprint inteiro do prédio de overflow (não só a célula mais próxima) precisa caber
+        // no box resolvido (AC3: "expand to include that building's full footprint").
+        Assert.True(grown.Contains(new CellCoord(overflowBox.Origin.X, overflowBox.Origin.Y)));
+        Assert.True(grown.Contains(new CellCoord(overflowBox.Origin.X + 1, overflowBox.Origin.Y + 1)));
+        Assert.True(grown.Width > baseBounds.Width || grown.Height > baseBounds.Height);
+    }
+
+    [Fact]
+    public void Resolve_ignores_an_overflow_building_farther_than_the_absorption_ring()
+    {
+        var city = new City(new CityId(Guid.NewGuid()), new CellCoord(50, 50), 0, null, new AggregatePopulationPool(0, 0, 0));
+        var (baseBounds, _) = CityBoundsResolver.Resolve(city, population: 0, mapWidth: 1000, mapHeight: 1000);
+        // Bem além do AbsorptionRingCells default (3) — não deve alterar os bounds.
+        var farBox = new CityBounds(new CellCoord(baseBounds.Origin.X + baseBounds.Width + 50, baseBounds.Origin.Y), 1, 1);
+
+        var (grown, _) = CityBoundsResolver.Resolve(
+            city, population: 0, mapWidth: 1000, mapHeight: 1000, ownedBuildingFootprintBoxes: [farBox]);
+
+        Assert.Equal(baseBounds, grown);
+    }
+
+    [Fact]
+    public void Absorption_growth_still_never_exceeds_the_hard_map_dimension_cap()
+    {
+        // Mesmo cenário de teste do bugfix real (mapa 20x20) que já garante o teto por população
+        // — aqui um prédio de overflow longe o bastante (mas dentro do anel) tentaria empurrar o
+        // box além do mapa; o teto de Math.Min(mapWidth, mapHeight)/2 continua valendo.
+        var city = new City(new CityId(Guid.NewGuid()), new CellCoord(10, 10), 0, null, new AggregatePopulationPool(0, 0, 0));
+        var hugeOverflowBox = new CityBounds(new CellCoord(-100, -100), 300, 300);
+
+        var (grown, _) = CityBoundsResolver.Resolve(
+            city, population: 150, mapWidth: 20, mapHeight: 20, ownedBuildingFootprintBoxes: [hugeOverflowBox]);
+
+        Assert.True(grown.Width <= 10);
+        Assert.True(grown.Height <= 10);
+    }
+
+    [Fact]
+    public void Absorption_growth_never_mutates_the_positions_of_existing_buildings()
+    {
+        var city = new City(new CityId(Guid.NewGuid()), new CellCoord(50, 50), 0, null, new AggregatePopulationPool(0, 0, 0));
+        var authored = new Building(
+            new BuildingId(1), city.Id, buildingTypeId: 1, completedAtTick: 0,
+            position: new CellCoord(52, 52), orientation: 0);
+        var overflowBox = new CityBounds(authored.Position!.Value, 1, 1);
+
+        CityBoundsResolver.Resolve(city, population: 0, mapWidth: 1000, mapHeight: 1000, ownedBuildingFootprintBoxes: [overflowBox]);
+
+        // Resolve é uma função pura sobre dados de entrada -- nunca escreve de volta em Building.
+        Assert.Equal(new CellCoord(52, 52), authored.Position);
+        Assert.Equal(0, authored.Orientation);
+    }
+
     // --- BuildingPlacementResolver (dynamic-city-growth, T3: occupancy/overflow-aware) ---
 
     /// <summary>Mesmo truque de <see cref="CityOccupancyTests"/>: procura um footprint sem o

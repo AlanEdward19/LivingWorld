@@ -40,10 +40,57 @@ public static class CityBoundsResolver
         return Math.Min(populationSide, mapLimit);
     }
 
-    public static (CityBounds Bounds, bool IsDerived) Resolve(City city, long population, int mapWidth, int mapHeight)
+    // SPEC_DEVIATION (dynamic-city-growth, T4): design.md suggested this method take a
+    // WorldState (or IReadOnlyList<Building>) to inspect overflow buildings directly — but
+    // unlike CityOccupancy/OverflowPlacer/BuildingPlacementResolver (T1-T3), that would force
+    // this file to move to LivingWorld.Simulation (WorldState only exists there). Resolving an
+    // engine-built building's actual position already requires WorldState (Building.Position
+    // stays null for those, per Building.cs's own doc comment — position is always re-derived on
+    // demand via BuildingPlacementResolver, never persisted). Rather than repeat that ripple here,
+    // this stays a pure Domain function: the caller (which does have WorldState) resolves each
+    // candidate overflow building's own absolute footprint box first, and passes plain
+    // <see cref="CityBounds"/> boxes in. No behavior change for the many existing callers, since
+    // both new parameters are optional and default to "no overflow buildings" (identical output).
+    public static (CityBounds Bounds, bool IsDerived) Resolve(
+        City city, long population, int mapWidth, int mapHeight,
+        IReadOnlyList<CityBounds>? ownedBuildingFootprintBoxes = null, int absorptionRingCells = 3)
     {
         int side = SideFor(population, mapWidth, mapHeight);
         var origin = new CellCoord(city.Location.X - side / 2, city.Location.Y - side / 2);
-        return (new CityBounds(origin, side, side), true);
+        var populationBox = new CityBounds(origin, side, side);
+
+        if (ownedBuildingFootprintBoxes is null || ownedBuildingFootprintBoxes.Count == 0)
+            return (populationBox, true);
+
+        int minX = populationBox.Origin.X, minY = populationBox.Origin.Y;
+        int maxX = populationBox.Origin.X + populationBox.Width - 1;
+        int maxY = populationBox.Origin.Y + populationBox.Height - 1;
+
+        foreach (var box in ownedBuildingFootprintBoxes)
+        {
+            if (ChebyshevGap(populationBox, box) > absorptionRingCells) continue;
+
+            minX = Math.Min(minX, box.Origin.X);
+            minY = Math.Min(minY, box.Origin.Y);
+            maxX = Math.Max(maxX, box.Origin.X + box.Width - 1);
+            maxY = Math.Max(maxY, box.Origin.Y + box.Height - 1);
+        }
+
+        int mapLimit = Math.Max(1, Math.Min(mapWidth, mapHeight) / 2);
+        int width = Math.Min(maxX - minX + 1, mapLimit);
+        int height = Math.Min(maxY - minY + 1, mapLimit);
+        return (new CityBounds(new CellCoord(minX, minY), width, height), true);
+    }
+
+    /// <summary>Distância de Chebyshev (mesma métrica em anel de <c>OverflowPlacer</c>) entre as
+    /// bordas de dois retângulos — 0 quando se sobrepõem ou se tocam.</summary>
+    private static int ChebyshevGap(CityBounds a, CityBounds b)
+    {
+        int aRight = a.Origin.X + a.Width - 1, aBottom = a.Origin.Y + a.Height - 1;
+        int bRight = b.Origin.X + b.Width - 1, bBottom = b.Origin.Y + b.Height - 1;
+
+        int dx = Math.Max(0, Math.Max(a.Origin.X - bRight, b.Origin.X - aRight));
+        int dy = Math.Max(0, Math.Max(a.Origin.Y - bBottom, b.Origin.Y - aBottom));
+        return Math.Max(dx, dy);
     }
 }

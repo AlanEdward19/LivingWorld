@@ -19,7 +19,8 @@ public sealed record CityRules(
     double FoundingDefensibilityThreshold,
     double FoundingLeadershipThreshold,
     long OrganizationTicks,
-    long MaterializationIdleTicksBeforeEligible)
+    long MaterializationIdleTicksBeforeEligible,
+    int AbsorptionRingCells = 3)
 {
     public static Result<CityRules> Create(
         bool enabled,
@@ -37,7 +38,8 @@ public sealed record CityRules(
         double foundingDefensibilityThreshold,
         double foundingLeadershipThreshold,
         long organizationTicks,
-        long materializationIdleTicksBeforeEligible)
+        long materializationIdleTicksBeforeEligible,
+        int absorptionRingCells = 3)
     {
         if (foodShortageThreshold is < 0 or > 100)
             return Result<CityRules>.Fail("FoodShortageThreshold: fora de [0,100]");
@@ -72,13 +74,16 @@ public sealed record CityRules(
             return Result<CityRules>.Fail("OrganizationTicks: deve ser > 0");
         if (materializationIdleTicksBeforeEligible <= 0)
             return Result<CityRules>.Fail("MaterializationIdleTicksBeforeEligible: deve ser > 0");
+        if (absorptionRingCells < 0)
+            return Result<CityRules>.Fail("AbsorptionRingCells: deve ser >= 0");
 
         return Result<CityRules>.Ok(new CityRules(
             enabled, foodShortageThreshold, housingShortageThreshold, securityShortageThreshold,
             emigrationRatePerDeficitUnit, migrationEmploymentWeight, migrationFoodWeight,
             migrationSecurityWeight, migrationFamilyTiesWeight, foundingConcentrationThreshold,
             foundingResourceThreshold, foundingRouteThreshold, foundingDefensibilityThreshold,
-            foundingLeadershipThreshold, organizationTicks, materializationIdleTicksBeforeEligible));
+            foundingLeadershipThreshold, organizationTicks, materializationIdleTicksBeforeEligible,
+            absorptionRingCells));
     }
 
     /// <summary>Default de <see cref="WorldState"/> para cenário que ainda não declara cidades —

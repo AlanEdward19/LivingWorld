@@ -14,13 +14,15 @@ public class CityRulesTests
         double foundingConcentrationThreshold = 0.5, double foundingResourceThreshold = 0.5,
         double foundingRouteThreshold = 0.5, double foundingDefensibilityThreshold = 0.5,
         double foundingLeadershipThreshold = 0.5,
-        long organizationTicks = 10, long materializationIdleTicksBeforeEligible = 5) =>
+        long organizationTicks = 10, long materializationIdleTicksBeforeEligible = 5,
+        int absorptionRingCells = 3) =>
         CityRules.Create(
             enabled: true, foodShortageThreshold, housingShortageThreshold, securityShortageThreshold,
             emigrationRatePerDeficitUnit, migrationEmploymentWeight, migrationFoodWeight,
             migrationSecurityWeight, migrationFamilyTiesWeight, foundingConcentrationThreshold,
             foundingResourceThreshold, foundingRouteThreshold, foundingDefensibilityThreshold,
-            foundingLeadershipThreshold, organizationTicks, materializationIdleTicksBeforeEligible);
+            foundingLeadershipThreshold, organizationTicks, materializationIdleTicksBeforeEligible,
+            absorptionRingCells);
 
     [Fact]
     public void Create_succeeds_with_valid_ranges()
@@ -118,6 +120,24 @@ public class CityRulesTests
 
         Assert.False(result.IsSuccess);
         Assert.Contains("MaterializationIdleTicksBeforeEligible", result.Error);
+    }
+
+    [Fact]
+    public void Create_rejects_negative_absorption_ring_cells()
+    {
+        var result = CreateWith(absorptionRingCells: -1);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("AbsorptionRingCells", result.Error);
+    }
+
+    [Fact]
+    public void Absorption_ring_cells_defaults_to_three_when_not_specified()
+    {
+        var result = CreateWith();
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(3, result.Value!.AbsorptionRingCells);
     }
 
     [Fact]
