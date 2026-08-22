@@ -68,6 +68,7 @@ public static class ScenarioRunner
         new MigrationSystem(),
         new MaterializationSystem(),
         new SettlementFoundingSystem(),
+        new SpatialSettlementFoundingSystem(),
         chronicles ?? new ChronicleGenerationSystem(),
         conversationSessions ?? new ConversationSessionStore(),
     ];

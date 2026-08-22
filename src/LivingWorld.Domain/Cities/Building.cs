@@ -10,7 +10,7 @@ public sealed class Building(
     CellCoord? position = null, int? orientation = null, long? clusterFoundingScheduledAtTick = null)
 {
     public BuildingId Id { get; } = id;
-    public CityId City { get; } = city;
+    public CityId City { get; private set; } = city;
     public int BuildingTypeId { get; } = buildingTypeId;
     public long CompletedAtTick { get; } = completedAtTick;
     public CellCoord? Position { get; } = position;
@@ -23,4 +23,9 @@ public sealed class Building(
     public long? ClusterFoundingScheduledAtTick { get; private set; } = clusterFoundingScheduledAtTick;
 
     public void MarkClusterFoundingScheduled(long tick) => ClusterFoundingScheduledAtTick = tick;
+
+    /// <summary>Muda a cidade proprietária do prédio (dynamic-city-growth, T7, CITYGROW-04) —
+    /// espelha <see cref="Npc.JoinCity"/>/<see cref="Household.JoinCity"/>: usado quando um cluster
+    /// de overflow funda uma cidade nova e este prédio é reatribuído a ela.</summary>
+    public void JoinCity(CityId newCity) => City = newCity;
 }
