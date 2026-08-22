@@ -82,9 +82,16 @@ public static class CityOccupancy
     /// precisa em <paramref name="populationBounds"/>'s caller pra crescer os bounds pra além do
     /// teto de população — sem isso, T4's parâmetro `ownedBuildingFootprintBoxes` só era exercitado
     /// por teste unitário, nunca pelo tick/API reais.</summary>
-    public static IReadOnlyList<CityBounds> OwnedBuildingFootprintBoxes(WorldState world, City city, CityBounds populationBounds)
+    public static IReadOnlyList<CityBounds> OwnedBuildingFootprintBoxes(WorldState world, City city, CityBounds populationBounds) =>
+        OwnedBuildingFootprintBoxesWithOwners(world, city, populationBounds).Select(p => p.Box).ToList();
+
+    /// <summary>dynamic-city-growth, T6: mesma coisa que <see cref="OwnedBuildingFootprintBoxes"/>,
+    /// mas emparelhada com o <see cref="Building"/> de origem — <see cref="OverflowClusterFinder"/>
+    /// precisa do prédio em si (pra marcar/reatribuir), não só do box.</summary>
+    public static IReadOnlyList<(Building Building, CityBounds Box)> OwnedBuildingFootprintBoxesWithOwners(
+        WorldState world, City city, CityBounds populationBounds)
     {
-        var boxes = new List<CityBounds>();
+        var result = new List<(Building Building, CityBounds Box)>();
         foreach (var building in world.Buildings.Where(b => b.City == city.Id))
         {
             var position = building.Position
@@ -95,9 +102,9 @@ public static class CityOccupancy
 
             int minX = cells.Min(c => c.X), minY = cells.Min(c => c.Y);
             int maxX = cells.Max(c => c.X), maxY = cells.Max(c => c.Y);
-            boxes.Add(new CityBounds(new CellCoord(minX, minY), maxX - minX + 1, maxY - minY + 1));
+            result.Add((building, new CityBounds(new CellCoord(minX, minY), maxX - minX + 1, maxY - minY + 1)));
         }
-        return boxes;
+        return result;
     }
 
     /// <summary>dynamic-city-growth, T4b: o padrão de duas chamadas que todo call site real de
