@@ -191,7 +191,22 @@ T4, T5, T7 → T8
 
 ---
 
-### T4: `CityBoundsResolver.Resolve` — grow bounds to absorb overflow buildings
+### T4: `CityBoundsResolver.Resolve` — grow bounds to absorb overflow buildings — ✅ Done (commit `76940f6`)
+
+> SPEC_DEVIATION: unlike T1/T2/T3, this stayed in `src/LivingWorld.Domain/Cities/CityBoundsResolver.cs`
+> instead of moving to `LivingWorld.Simulation`. Design.md's suggested `WorldState`/
+> `IReadOnlyList<Building>` parameter would have forced the same Domain→Simulation move (an
+> engine-built `Building.Position` is always null — it's only ever derived on demand via
+> `BuildingPlacementResolver`, which needs `WorldState`). Instead, `Resolve` gained two optional
+> trailing parameters (`ownedBuildingFootprintBoxes: IReadOnlyList<CityBounds>?`,
+> `absorptionRingCells: int = 3`): the caller (which does have `WorldState`) resolves each
+> candidate overflow building's absolute footprint box first and passes plain `CityBounds` values
+> in. Both existing behavior and every one of the ~15 existing call sites
+> (`SpatialBoundsResolver.ResolveCity`, `GlobalProjector`, `LivingScopeState`, `ConstructionSystem`,
+> `NpcInspectionQuery`, `BehaviorDecisionSystem`, `PopulationSeeder`, tests, etc.) are untouched —
+> both new parameters default to "no overflow buildings" (identical output to before). Wiring an
+> actual `WorldState`-backed footprint-box resolution into the live tick loop is NOT part of this
+> task (not listed in its "Where"); this task only adds the growth-capable primitive.
 
 **What**: Add `AbsorptionRingCells` to `CityRules` (default 3). Extend `CityBoundsResolver.Resolve` to union the population-derived box with the bounding box of the city's own buildings positioned within `AbsorptionRingCells` of that box's edge, still capped only by the existing hard map-edge limit (population-only `MaxSize` no longer applies once overflow buildings are present).
 **Where**: `src/LivingWorld.Domain/Cities/CityBoundsResolver.cs`, `src/LivingWorld.Domain/Cities/CityRules.cs` (or wherever `CityRules` is defined)
@@ -205,12 +220,12 @@ T4, T5, T7 → T8
 - Skill: NONE
 
 **Done when**:
-- [ ] A city with an overflow building within `AbsorptionRingCells` of its population-derived bounds resolves to a larger box including that building's full footprint
-- [ ] Growth never exceeds the existing hard map-dimension cap (`Math.Min(mapWidth, mapHeight)/2`) — reuse/extend the existing `City_bounds_never_exceed_the_smaller_map_dimension...` test
-- [ ] Existing residents'/buildings' positions are unchanged by a bounds-growth resolution (spec AC5) — only the bounds rectangle grows
-- [ ] `CityRulesTests.cs` (existing) covers the new `AbsorptionRingCells` field's validation
-- [ ] Gate check passes: `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"`
-- [ ] Test count: ≥4 new tests pass (absorbed growth, map-edge cap still holds, positions unchanged, field validation), no silent deletions
+- [x] A city with an overflow building within `AbsorptionRingCells` of its population-derived bounds resolves to a larger box including that building's full footprint
+- [x] Growth never exceeds the existing hard map-dimension cap (`Math.Min(mapWidth, mapHeight)/2`) — reuse/extend the existing `City_bounds_never_exceed_the_smaller_map_dimension...` test
+- [x] Existing residents'/buildings' positions are unchanged by a bounds-growth resolution (spec AC5) — only the bounds rectangle grows
+- [x] `CityRulesTests.cs` (existing) covers the new `AbsorptionRingCells` field's validation
+- [x] Gate check passes: `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"`
+- [x] Test count: ≥4 new tests pass (absorbed growth, map-edge cap still holds, positions unchanged, field validation), no silent deletions — 6 new tests added
 
 **Tests**: unit
 **Gate**: quick
