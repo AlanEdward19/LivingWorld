@@ -1,15 +1,11 @@
-// Fase 15.1, T14: cidade como configuração de `MapView` — mesmo componente de mapa do
-// mapa-múndi, tools/fonte de entidades diferentes. Moradores vêm dinamicamente de
-// `SimulationStore.entitiesOf` (o payload usa `residents`, já reconhecido por lá); prédios não
-// têm posição real (`Building` sem `CellCoord` — context.md gap 5), então continuam com o
-// layout de anel aproximado calculado aqui, marcado `sizeIsDerived: true` (traço tracejado no
-// renderer em vez do preenchimento sólido de um morador).
-import { useMemo, useState } from "react";
+// Fase 15.1, T14 + T18: cidade como configuração de `MapView`. Moradores vêm de
+// `SimulationStore.entitiesOf`; prédios concluídos usam `location` da API (origem do footprint).
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { MapView } from "./MapView";
 import { EntityLegend } from "./EntityLegend";
 import { FloorSelector } from "./FloorSelector";
 import { CATEGORY_COLOR } from "../map-engine/categoryColors";
-import { generateBuildingFootprint, MATERIAL_COLOR, roofColorFor } from "../map-engine/buildingFootprint";
+import { mergeCityBuildingMarkers } from "../map-engine/cityBuildingPlacement";
 import type { Viewport } from "../map-engine/Camera";
 import type { LodThresholds } from "../map-engine/lod";
 import type { AuthoritativeEntity, EntityRef, SpaceId } from "../map-engine/types";
@@ -19,6 +15,8 @@ import type { SelectionStore } from "../state/selectionStore";
 import type { CitySnapshot } from "../types";
 import { cityGroundAt } from "../map-engine/worldVisuals";
 import { computeFitZoom } from "../gridFit";
+import { constructionSitesFromProcesses } from "../map-engine/constructionSite";
+import { ConstructionProgressHud } from "./ConstructionProgressHud";
 
 export interface CityViewProps {
   snapshot: CitySnapshot;
@@ -28,9 +26,8 @@ export interface CityViewProps {
   selectionStore: SelectionStore;
 }
 
-const BUILDING_RING_RADIUS = 6;
 // T50: anel próprio (raio menor, mais perto do centro) pros tokens do pool agregado — não
-// competem visualmente com o anel de prédios, e o traço tracejado (sizeIsDerived) já sinaliza
+// competem visualmente com prédios autoritativos, e o traço tracejado (sizeIsDerived) já sinaliza
 // "posição sintética, ainda não materializado".
 const PENDING_RESIDENT_RING_RADIUS = 3;
 // No zoom inicial da cidade o morador já deve ser um pawn legível, não um ponto de mapa-múndi.
@@ -84,41 +81,17 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
     [snapshot.location, snapshot.bounds, viewport.width, viewport.height],
   );
 
-  // Feedback do usuário (2026-08-07): prédio precisa de forma real, não círculo/retângulo
-  // uniforme — `generateBuildingFootprint` dá a cada prédio uma planta determinística
-  // (retângulo ou L) com parede/porta por material. Continua `sizeIsDerived: true`: é
-  // client-side (domínio não tem `CellCoord` de prédio — context.md gap 5), só que agora é
-  // uma forma real em vez de um placeholder uniforme.
-  const buildingEntities: AuthoritativeEntity[] = useMemo(
-    () =>
-      snapshot.buildings.map((building, i) => {
-        const angle = (i / Math.max(1, snapshot.buildings.length)) * Math.PI * 2;
-        const ringCenter = {
-          x: snapshot.location.x + Math.cos(angle) * BUILDING_RING_RADIUS,
-          y: snapshot.location.y + Math.sin(angle) * BUILDING_RING_RADIUS,
-        };
-        const buildingId = String(building.id.value);
-        const footprintCells = generateBuildingFootprint(buildingId, building.buildingTypeId, floor);
-        const width = Math.max(...footprintCells.map((c) => c.x)) + 1;
-        const height = Math.max(...footprintCells.map((c) => c.y)) + 1;
+  // Casas/locais de trabalho concluídos após o snapshot inicial chegam via `buildingUpserts`
+  // no delta de tick, não em `snapshot.buildings` (estático) — assinatura própria igual à do
+  // mapa-múndi para `livingCities` (WorldMapView.tsx), senão o prédio nunca aparece.
+  const livingBuildings = useSyncExternalStore(
+    (onStoreChange) => simulationStore.subscribe(onStoreChange),
+    () => simulationStore.livingStateOf(space).buildings,
+  );
 
-        return {
-          ref: { kind: "building" as const, id: buildingId, space },
-          // `position` é o canto superior-esquerdo do footprint — desloca do centro do anel
-          // pro footprint ficar centrado no ponto calculado, não crescer só pra um lado.
-          position: { x: ringCenter.x - width / 2, y: ringCenter.y - height / 2 },
-          size: { w: width, h: height },
-          sizeIsDerived: true, // layout de anel client-side, não posição real (context.md gap 5)
-          color: CATEGORY_COLOR.building,
-          footprintCells: footprintCells.map((c) => ({
-            x: c.x,
-            y: c.y,
-            color: c.material === "door" ? MATERIAL_COLOR.door : roofColorFor(`${buildingId}:${building.buildingTypeId}`),
-            material: c.material === "door" ? "door" as const : "roof" as const,
-          })),
-        };
-      }),
-    [snapshot.buildings, snapshot.location, space, floor],
+  const buildingEntities: AuthoritativeEntity[] = useMemo(
+    () => mergeCityBuildingMarkers(snapshot.buildings, livingBuildings.values(), space, floor),
+    [snapshot.buildings, livingBuildings, space, floor],
   );
 
   // T50: membro do pool agregado com id reservado (City.PoolNpcIds) — clicável, sem posição real
@@ -144,6 +117,12 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
     [snapshot.pendingResidentIds, snapshot.location, space],
   );
 
+  const constructionProcesses = simulationStore.livingStateOf(space).processes;
+  const constructionSites = useMemo(
+    () => constructionSitesFromProcesses(constructionProcesses.values(), space),
+    [constructionProcesses, space],
+  );
+
   return (
     <div className="map-fullscreen" data-testid="city-view">
       <div className="map-hud map-hud-top-left">
@@ -153,6 +132,7 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
           Pool agregado: {snapshot.aggregatePool.count} habitantes não materializados (riqueza{" "}
           {snapshot.aggregatePool.wealthSum}, saúde {snapshot.aggregatePool.healthSum})
         </p>
+        <ConstructionProgressHud processes={constructionProcesses.values()} />
         <FloorSelector floor={floor} label={cityFloorLabel(floor)} onChange={setFloor} />
         <EntityLegend />
       </div>
@@ -168,7 +148,7 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
         simulationStore={simulationStore}
         viewStore={viewStore}
         selectionStore={selectionStore}
-        staticEntities={[...buildingEntities, ...pendingResidentEntities]}
+        staticEntities={[...buildingEntities, ...pendingResidentEntities, ...constructionSites]}
         resolveNavigationTarget={resolveNavigationTarget(snapshot.id.value)}
         initialCamera={initialCamera}
       />
