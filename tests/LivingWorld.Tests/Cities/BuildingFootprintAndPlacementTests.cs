@@ -166,6 +166,31 @@ public class BuildingFootprintAndPlacementTests
         Assert.True(grown.Height <= 10);
     }
 
+    /// <summary>dynamic-city-growth, round-3 fix F (spec.md AC3/AC5): a absorção só é limitada
+    /// pelo mapa (<c>Math.Min(mapWidth, mapHeight) / 2</c>), nunca por <see
+    /// cref="CityBoundsResolver"/>'s teto por população (MaxSize=12) -- o teste de população já
+    /// confirma o teto SEM overflow; este confirma que overflow suficiente ainda cresce PASSADO
+    /// ele.</summary>
+    [Fact]
+    public void Absorption_growth_can_exceed_the_population_based_max_size_of_12()
+    {
+        var city = new City(new CityId(Guid.NewGuid()), new CellCoord(500, 500), 0, null, new AggregatePopulationPool(0, 0, 0));
+        // População grande o bastante pra bater no teto por população (12) num mapa gigante
+        // (o teto por mapa não é o fator limitante aqui).
+        var (baseBounds, _) = CityBoundsResolver.Resolve(city, population: 10_000, mapWidth: 10_000, mapHeight: 10_000);
+        Assert.Equal(12, baseBounds.Width); // confirma que já está no teto por população antes do overflow
+
+        // Prédio de overflow dentro do anel de absorção (default 3), mas longe o bastante da
+        // borda pra empurrar a bounding box além de 12.
+        int overflowX = baseBounds.Origin.X + baseBounds.Width - 1 + 2; // 2 células fora da borda direita
+        var overflowBox = new CityBounds(new CellCoord(overflowX, baseBounds.Origin.Y), 3, 3);
+
+        var (grown, _) = CityBoundsResolver.Resolve(
+            city, population: 10_000, mapWidth: 10_000, mapHeight: 10_000, ownedBuildingFootprintBoxes: [overflowBox]);
+
+        Assert.True(grown.Width > 12); // cresceu passado o teto por população -- só o mapa (5000) limita
+    }
+
     [Fact]
     public void Absorption_growth_never_mutates_the_positions_of_existing_buildings()
     {

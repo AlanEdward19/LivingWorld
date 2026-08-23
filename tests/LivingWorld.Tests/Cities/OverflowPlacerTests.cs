@@ -140,4 +140,34 @@ public class OverflowPlacerTests
         Assert.True(translated.All(cell => !InsideAnyTile(cell)));
         Assert.True(CityOccupancy.IsFree(world, city, bounds, translated));
     }
+
+    /// <summary>dynamic-city-growth, round-3 fix F, item 3: o loop de <see
+    /// cref="OverflowPlacer.ResolveOverflowPositionGiven"/> cresce o raio a partir de 1 e retorna
+    /// no PRIMEIRO raio com célula livre -- mas nenhum teste existente prova que é o raio MÍNIMO,
+    /// só que "alguma" célula fora dos bounds foi encontrada. Aqui o anel de raio 1 é
+    /// completamente ocupado e o de raio 2 fica inteiramente livre -- se o método devolvesse
+    /// qualquer célula livre (não necessariamente a mais próxima), nada o impediria de "pular"
+    /// pro raio 2 mesmo se o 1 tivesse uma vaga; este teste também garante que o raio 1 realmente
+    /// não tinha nenhuma (só assim a distância observada prova "mais próxima", não "a única").</summary>
+    [Fact]
+    public void ResolveOverflowPositionGiven_picks_the_nearest_free_ring_when_a_closer_one_is_fully_blocked()
+    {
+        var bounds = new CityBounds(new CellCoord(0, 0), 4, 4);
+        var shape = new List<CellCoord> { new CellCoord(0, 0) }; // footprint de 1 célula só -- simplifica o cálculo do raio exato
+        var id = new BuildingId(1);
+
+        // Ocupa TODO o anel de raio 1 (perímetro imediatamente fora dos bounds) -- só o anel de
+        // raio 2 (e além) tem células livres.
+        var occupied = new HashSet<CellCoord>();
+        for (int x = -1; x <= 4; x++) { occupied.Add(new CellCoord(x, -1)); occupied.Add(new CellCoord(x, 4)); }
+        for (int y = -1; y <= 4; y++) { occupied.Add(new CellCoord(-1, y)); occupied.Add(new CellCoord(4, y)); }
+
+        var found = OverflowPlacer.ResolveOverflowPositionGiven(occupied, bounds, id, shape, mapWidth: 100, mapHeight: 100);
+
+        Assert.NotNull(found);
+        int gap = Math.Max(
+            Math.Max(bounds.Origin.X - found!.Value.X, found.Value.X - (bounds.Origin.X + bounds.Width - 1)),
+            Math.Max(bounds.Origin.Y - found.Value.Y, found.Value.Y - (bounds.Origin.Y + bounds.Height - 1)));
+        Assert.Equal(2, gap); // o anel de raio 1 estava 100% bloqueado -- o raio 2 é o mais próximo livre
+    }
 }

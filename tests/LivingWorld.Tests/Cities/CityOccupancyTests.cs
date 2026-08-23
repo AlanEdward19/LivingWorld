@@ -228,6 +228,46 @@ public class CityOccupancyTests
         });
     }
 
+    // --- absorção só na própria cidade (dynamic-city-growth, round-3 fix F, item 1) ---
+
+    /// <summary>spec.md, Edge Cases: um prédio de overflow absorve nos bounds da SUA PRÓPRIA
+    /// cidade (via <see cref="Building.City"/>), mesmo quando outra cidade está geometricamente
+    /// mais próxima dele -- o filtro de posse em <see
+    /// cref="OwnedBuildingFootprintBoxesWithOwners"/> exclui o prédio da lista de qualquer cidade
+    /// que não seja a dona, antes mesmo do cálculo de distância/anel de absorção rodar pra essa
+    /// outra cidade.</summary>
+    [Fact]
+    public void ResolveGrownBounds_absorbs_an_overflow_building_only_into_its_own_city_even_when_another_city_is_geometrically_closer()
+    {
+        var world = BuildWorldWithMap(200, 200, seed: 611);
+        var cityA = new City(world.NextCityId(), new CellCoord(100, 100), 0, null, AggregatePopulationPool.Empty);
+        world.AddCity(cityA);
+
+        // Prédio autorado (posição fixa, sem depender de Resolve) de A: dentro do anel de
+        // absorção de A (distância 3, exatamente o teto default). baseA (população 0) é sempre
+        // 3x3 com origem (99,99) -- independente do footprint w/h do prédio.
+        var (rectId, _, w, _) = FindRectangularFootprint(typeId: 5);
+        var overflowBuilding = new Building(
+            rectId, cityA.Id, buildingTypeId: 5, completedAtTick: 0, position: new CellCoord(104, 99), orientation: 0);
+        world.AddBuilding(overflowBuilding);
+
+        // B posicionada de forma que o MESMO prédio fique geometricamente mais perto de B
+        // (distância 1) que de A (distância 3) -- 105+w garante isso pra qualquer w gerado
+        // (ver cálculo do gap na doc comment do teste).
+        var cityB = new City(world.NextCityId(), new CellCoord(105 + w, 100), 0, null, AggregatePopulationPool.Empty);
+        world.AddCity(cityB);
+
+        var (grownA, _) = CityOccupancy.ResolveGrownBounds(world, cityA, population: 0);
+        var (grownB, _) = CityOccupancy.ResolveGrownBounds(world, cityB, population: 0);
+
+        var buildingCells = CityOccupancy.Translate(
+            BuildingFootprintGenerator.Generate(rectId, 5).Select(c => c.Cell).ToList(), overflowBuilding.Position!.Value);
+        Assert.All(buildingCells, cell => Assert.True(grownA.Contains(cell))); // absorvido por A, seu dono
+        Assert.All(buildingCells, cell => Assert.False(grownB.Contains(cell))); // nunca por B, mesmo mais perto
+        var (baseB, _) = CityBoundsResolver.Resolve(cityB, population: 0, mapWidth: world.Map.Width, mapHeight: world.Map.Height);
+        Assert.Equal(baseB, grownB); // B intocado -- o prédio nem entra na lista de posse de B
+    }
+
     // --- ordem causal ascendente (dynamic-city-growth, round-3 fix A / Gap D) ---
 
     /// <summary>O doc comment de <see cref="CityOccupancy.OccupiedCellsOfCity"/> chama a ordem
