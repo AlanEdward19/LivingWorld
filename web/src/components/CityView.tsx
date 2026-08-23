@@ -15,8 +15,6 @@ import type { SelectionStore } from "../state/selectionStore";
 import type { CitySnapshot } from "../types";
 import { cityGroundAt } from "../map-engine/worldVisuals";
 import { computeFitZoom } from "../gridFit";
-import { constructionSitesFromProcesses } from "../map-engine/constructionSite";
-import { ConstructionProgressHud } from "./ConstructionProgressHud";
 
 export interface CityViewProps {
   snapshot: CitySnapshot;
@@ -117,12 +115,6 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
     [snapshot.pendingResidentIds, snapshot.location, space],
   );
 
-  const constructionProcesses = simulationStore.livingStateOf(space).processes;
-  const constructionSites = useMemo(
-    () => constructionSitesFromProcesses(constructionProcesses.values(), space),
-    [constructionProcesses, space],
-  );
-
   return (
     <div className="map-fullscreen" data-testid="city-view">
       <div className="map-hud map-hud-top-left">
@@ -132,7 +124,6 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
           Pool agregado: {snapshot.aggregatePool.count} habitantes não materializados (riqueza{" "}
           {snapshot.aggregatePool.wealthSum}, saúde {snapshot.aggregatePool.healthSum})
         </p>
-        <ConstructionProgressHud processes={constructionProcesses.values()} />
         <FloorSelector floor={floor} label={cityFloorLabel(floor)} onChange={setFloor} />
         <EntityLegend />
       </div>
@@ -148,7 +139,7 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
         simulationStore={simulationStore}
         viewStore={viewStore}
         selectionStore={selectionStore}
-        staticEntities={[...buildingEntities, ...pendingResidentEntities, ...constructionSites]}
+        staticEntities={[...buildingEntities, ...pendingResidentEntities]}
         resolveNavigationTarget={resolveNavigationTarget(snapshot.id.value)}
         initialCamera={initialCamera}
       />
