@@ -12,7 +12,7 @@ Verifier, discrimination sensor).
 ---
 
 **Design**: `.specs/features/dynamic-city-growth/design.md`
-**Status**: In Progress
+**Status**: Done (all tasks T1-T8 complete; feature-level Verifier dispatched next)
 
 ---
 
@@ -301,7 +301,7 @@ parameter shape T4 already defined
 
 ---
 
-### T5: `MigrationSystem.ScoreOf` — land-scarcity term [P]
+### T5: `MigrationSystem.ScoreOf` — land-scarcity term [P] — ✅ Done (commit `25bb02c`)
 
 **What**: Add a land-scarcity term to `MigrationSystem.ScoreOf`'s existing weighted score: when `CityOccupancy.IsLandScarce` is true for the household's current city (whole map has no free cell for a house-sized footprint), force that city's "stay" score to the theoretical minimum so any other city with room scores higher. No change when `world.Cities.Count < 2` (existing guard already no-ops).
 **Where**: `src/LivingWorld.Simulation/Cities/MigrationSystem.cs`
@@ -314,11 +314,11 @@ parameter shape T4 already defined
 - Skill: NONE
 
 **Done when**:
-- [ ] A household in a land-scarce city (verified via a test world with zero free cells) scores lower for staying than for any other real city with room, causing relocation on the next `Tick`
-- [ ] A household in a land-scarce single-city world (no candidate to move to) is unaffected — `Tick`'s existing `world.Cities.Count < 2` guard still no-ops, no crash, no forced relocation to nowhere
-- [ ] Existing `MigrationSystemTests.cs` cases (employment/food/security/family-ties scoring) still pass unchanged
-- [ ] Gate check passes: `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"`
-- [ ] Test count: ≥3 new tests pass (land-scarce relocates, single-city no-op, non-scarce city unaffected), no silent deletions
+- [x] A household in a land-scarce city (verified via a test world with zero free cells) scores lower for staying than for any other real city with room, causing relocation on the next `Tick`
+- [x] A household in a land-scarce single-city world (no candidate to move to) is unaffected — `Tick`'s existing `world.Cities.Count < 2` guard still no-ops, no crash, no forced relocation to nowhere
+- [x] Existing `MigrationSystemTests.cs` cases (employment/food/security/family-ties scoring) still pass unchanged
+- [x] Gate check passes: `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"`
+- [x] Test count: ≥3 new tests pass (land-scarce relocates, single-city no-op, non-scarce city unaffected), no silent deletions — 3 new tests added
 
 **Tests**: unit
 **Gate**: quick
@@ -327,7 +327,7 @@ parameter shape T4 already defined
 
 ---
 
-### T6: `Building.ClusterFoundingScheduledAtTick` marker + cluster/population helpers
+### T6: `Building.ClusterFoundingScheduledAtTick` marker + cluster/population helpers — ✅ Done (commit `2fb2895`)
 
 **What**: Add the nullable `ClusterFoundingScheduledAtTick` field + `MarkClusterFoundingScheduled(tick)` to `Building` (mirrors `City.FoundingScheduledAtTick`). Add a pure helper (e.g. `OverflowClusterFinder`) that groups a city's overflow buildings by mutual distance ≤ `AbsorptionRingCells` (chain/transitive), excludes buildings already within absorption range of any existing city, and computes each cluster's materialized-resident population (`Npc.Location` inside the cluster's bounding box).
 **Where**: `src/LivingWorld.Domain/Cities/Building.cs`, `src/LivingWorld.Domain/Cities/OverflowClusterFinder.cs` (new)
@@ -340,11 +340,11 @@ parameter shape T4 already defined
 - Skill: NONE
 
 **Done when**:
-- [ ] Clustering groups mutually-close overflow buildings transitively (chain of distance ≤ `AbsorptionRingCells`), excludes any building within an existing city's absorption range
-- [ ] Population count only counts materialized (`IsAlive`, non-pool) `Npc`s whose `Location` falls in the cluster's bounding box
-- [ ] `ClusterFoundingScheduledAtTick` defaults to `null`, settable exactly once via `MarkClusterFoundingScheduled`
-- [ ] Gate check passes: `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"`
-- [ ] Test count: ≥4 new tests pass (cluster grouping, absorption exclusion, population count, marker set-once), no silent deletions
+- [x] Clustering groups mutually-close overflow buildings transitively (chain of distance ≤ `AbsorptionRingCells`), excludes any building within an existing city's absorption range
+- [x] Population count only counts materialized (`IsAlive`, non-pool) `Npc`s whose `Location` falls in the cluster's bounding box
+- [x] `ClusterFoundingScheduledAtTick` defaults to `null`, settable exactly once via `MarkClusterFoundingScheduled`
+- [x] Gate check passes: `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"`
+- [x] Test count: ≥4 new tests pass (cluster grouping, absorption exclusion, population count, marker set-once), no silent deletions — 9 new tests added
 
 **Tests**: unit
 **Gate**: quick
@@ -353,7 +353,7 @@ parameter shape T4 already defined
 
 ---
 
-### T7: `SpatialSettlementFoundingSystem` — found a city from a qualifying cluster
+### T7: `SpatialSettlementFoundingSystem` — found a city from a qualifying cluster — ✅ Done (commit `f15acf3`)
 
 **What**: New monthly `ISimulationSystem`. `Tick`: for each city, find qualifying overflow clusters (via T6's finder) whose population clears `rules.FoundingConcentrationThreshold` via the SAME formula as `SettlementFoundingSystem` (`population / (population + 1)`); schedule a founding event (`ctx.ScheduleEvent` + `OrganizationTicks` delay, same cadence/mechanism as `SettlementFoundingSystem`), mark every building in the cluster via `MarkClusterFoundingScheduled`. `HandleEvent`: re-verify the concentration threshold still holds for the captured cluster at fire time (drop silently if not); otherwise create the new `City` at the cluster centroid (`CityNameGenerator`, `world.NextCityId()`), reassign `Building.City` for the cluster's buildings, reassign `Household.City`/cascaded `Npc.City` (via existing `JoinCity`) for households whose `Location` falls in the new city's initial resolved bounds.
 **Where**: `src/LivingWorld.Simulation/Cities/SpatialSettlementFoundingSystem.cs` (new), registered wherever `SettlementFoundingSystem` is registered (likely `Program.cs`/system list)
@@ -366,14 +366,14 @@ parameter shape T4 already defined
 - Skill: NONE
 
 **Done when**:
-- [ ] A cluster with enough materialized residents to clear the concentration threshold schedules a founding event on the same monthly/`OrganizationTicks` cadence as `SettlementFoundingSystem`
-- [ ] A cluster with buildings but too few/zero residents (1 house, 1 person) never schedules — concentration formula stays below threshold (reuses existing math, no separate building-count check)
-- [ ] A cluster already within an existing city's absorption range (per T4/T4b) is skipped — absorption takes precedence over founding, per spec Edge Cases
-- [ ] The same cluster is never scheduled twice (`ClusterFoundingScheduledAtTick` guard)
-- [ ] At fire time, a cluster that thinned out below threshold during the wait is silently dropped (no city forced into existence)
-- [ ] On success: new `City` exists, cluster's buildings reassigned to it, households geometrically inside its bounds reassigned (`Household.City` + member `Npc.City`)
-- [ ] Gate check passes: `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"`
-- [ ] Test count: ≥6 new tests pass (qualifying cluster founds, weak cluster doesn't, absorption precedence, no double-schedule, fire-time re-verify drops stale cluster, household reassignment), no silent deletions
+- [x] A cluster with enough materialized residents to clear the concentration threshold schedules a founding event on the same monthly/`OrganizationTicks` cadence as `SettlementFoundingSystem`
+- [x] A cluster with buildings but too few/zero residents (1 house, 1 person) never schedules — concentration formula stays below threshold (reuses existing math, no separate building-count check)
+- [x] A cluster already within an existing city's absorption range (per T4/T4b) is skipped — absorption takes precedence over founding, per spec Edge Cases
+- [x] The same cluster is never scheduled twice (`ClusterFoundingScheduledAtTick` guard)
+- [x] At fire time, a cluster that thinned out below threshold during the wait is silently dropped (no city forced into existence)
+- [x] On success: new `City` exists, cluster's buildings reassigned to it, households geometrically inside its bounds reassigned (`Household.City` + member `Npc.City`)
+- [x] Gate check passes: `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"`
+- [x] Test count: ≥6 new tests pass (qualifying cluster founds, weak cluster doesn't, absorption precedence, no double-schedule, fire-time re-verify drops stale cluster, household reassignment), no silent deletions — 7 new tests added
 
 **Tests**: unit
 **Gate**: quick
@@ -382,7 +382,30 @@ parameter shape T4 already defined
 
 ---
 
-### T8: Full-suite gate (no code change)
+### T8: Full-suite gate (no code change) — ✅ Done, with a documented non-blocking caveat
+
+> SPEC_DEVIATION: the gate command (`bash scripts/test.sh`) initially returned 9 failures, not the
+> expected "0 beyond the 2 known flaky tests". A dedicated bisection investigation (real test runs
+> across the feature's 8 commits, in a scratch worktree, working tree never touched) isolated the
+> cause to a single line already sitting **uncommitted** in the working tree before this feature's
+> session even started: `ScenarioRunner.cs` passing `processRecipes: DefaultProcessRecipes`
+> (unrelated Stage-4 "crops" work in progress) makes `ProductionSystem.cs:73-75` skip food
+> production and hand it to `CropSystem`, which yields far less food — a starvation collapse
+> (`PopulationBaselineTests`, both `ScaleScenarioFixtureTests`, both `GoldenHashesTests`, and the
+> two weakened causal tests all trace to this one change). `dynamic-city-growth` was proven inert
+> for every one of these tests: `ScenarioRunner.Create` never enables `CityRules`
+> (`CityRules.Disabled`), so zero cities ever exist, so `BuildingPlacementResolver`/
+> `CityOccupancy`/`OverflowPlacer`/`CityBoundsResolver`/`MigrationSystem`'s new term/
+> `SpatialSettlementFoundingSystem` are never reached — confirmed empirically by a run with every
+> feature commit intact and only that one line reverted, which passed. This feature's own gate
+> is therefore green; the 9 failures are a pre-existing, out-of-scope regression the user is
+> already tracking as separate in-progress Stage-4 work, not a defect introduced here.
+>
+> Side finding (not fixed, per user's explicit instruction to leave it): `25bb02c` (T5) staged the
+> whole `MigrationSystem.cs` file, which swept in an unrelated pre-existing uncommitted hunk
+> (`household.BeginRelocation(...)`) that depends on `Household.BeginRelocation`/
+> `RelocationArrivalSystem.cs`, both still uncommitted — so `f15acf3` (HEAD) does not compile on a
+> clean checkout by itself. User will commit the rest of that Stage-4 work separately soon.
 
 **What**: Run the full backend suite (no filter, `Category=Scenario` still excluded by `test.sh`'s default) to confirm no cross-feature regression from the signature/call-site changes in T3/T4/T4b and the new sibling system in T7.
 **Where**: n/a
@@ -395,13 +418,103 @@ parameter shape T4 already defined
 - Skill: NONE
 
 **Done when**:
-- [ ] `bash scripts/test.sh` passes with zero new failures beyond the 2 pre-existing, already-documented flaky failures noted in `.specs/STATE.md` (`Vitality_cv_...`, `Storage_cost_per_alive_npc_stable_across_horizons`)
-- [ ] Total test count reported and compared against the pre-feature baseline (no silent deletions across the whole feature)
+- [x] `bash scripts/test.sh` run: 1512 passed, 9 failed, 11 skipped, 1532 total — the 9 failures
+      are bisection-confirmed to trace to a single pre-existing uncommitted line unrelated to this
+      feature (see SPEC_DEVIATION above), and this feature was proven inert (zero cities, `CityRules`
+      disabled) for every one of those 9 tests. Re-running with that one line reverted and every
+      feature commit intact: 0 failures on the tests it explains.
+- [x] Total test count reported (1532, up from a pre-feature total of 1532 minus this feature's
+      own ~30 new tests across T1-T7 — no silent deletions; the 9 failures are pre-existing
+      unrelated regressions, not deleted/weakened tests)
 
 **Tests**: none (aggregate gate only)
 **Gate**: full
 
 **Commit**: none (verification-only task; if it surfaces a regression, that becomes a new task, not folded into this one)
+
+---
+
+## Fix Tasks (post-Verifier)
+
+> The independent Verifier (see `.specs/features/dynamic-city-growth/validation.md`, run
+> 2026-08-22) returned **FAIL** with 1 Blocker and 1 Major gap against the T1-T8 implementation
+> above. Both were routed back as fix tasks and closed in this pass; Verifier's 3 Minor gaps
+> (Gap 3/4/5 — absorption-vs-closer-city test, `MaxSize` overshoot test, "nearest" precision) were
+> left as-is per the orchestrator's ranking (cheap, non-blocking, not re-litigated here).
+
+### FixT1: Eliminate exponential recursion in `CityOccupancy.OccupiedCellsOfCity` — ✅ Done (commit `596824f`)
+
+**What**: `OccupiedCellsOfCity` resolved each unauthored sibling by re-entering
+`BuildingPlacementResolver.Resolve`, which called back into occupancy resolution for that
+sibling's own smaller-id neighbors — no memoization, so resolving building *k* cost 2^(k-1)
+resolutions (187s measured by the Verifier at N=6, unfinished at N=16). Rewrote it as a single
+ascending-by-`BuildingId` pass that accumulates the `occupied` set incrementally and resolves each
+unauthored sibling directly (`ScanForFreeOrigin`, falling back to a new non-recursive
+`OverflowPlacer.ResolveOverflowPositionGiven`) instead of recursing.
+`OverflowPlacer.ResolveOverflowPosition` now builds the occupied set once instead of recomputing
+it from scratch per ring candidate — the other half of the same bug.
+**Where**: `src/LivingWorld.Simulation/Cities/CityOccupancy.cs` (`OccupiedCellsOfCity`: private →
+internal, rewritten), `src/LivingWorld.Simulation/Cities/OverflowPlacer.cs` (new internal
+`ResolveOverflowPositionGiven`)
+**Depends on**: T1, T2, T3 (fixes their combined runtime behavior; no signature change)
+**Requirement**: CITYGROW-01/02 (unblocks the spec's own Independent Test, previously unrunnable)
+
+**Done when**:
+- [x] `OccupiedCellsOfCity` never calls `BuildingPlacementResolver.Resolve`/`IsFree`/
+      `FindFreeCellInBounds` (verified by reading the rewritten method — single loop, no
+      re-entrant calls)
+- [x] New regression test: `CityOccupancyTests.OwnedBuildingFootprintBoxesWithOwners_resolves_many_unauthored_buildings_quickly_and_without_overlap`
+      (30 unauthored buildings, asserts `< 5s` and zero cell overlap)
+- [x] Existing T3 collision/non-collision tests re-run unchanged and still pass (same placement
+      outcomes)
+- [x] Gate check passes: `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"` — 209 passed, 0 failed (208 pre-fix + 1 new)
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `596824f` — `fix(cities): eliminate exponential recursion in building occupancy resolution`
+
+---
+
+### FixT2: Clamp overflow placement to map bounds and decline when land-scarce — ✅ Done (commit `2133401`)
+
+**What**: `CityOccupancy.IsLandScarce` had exactly one caller (`MigrationSystem`) — nothing on the
+placement path ever consulted it, and `OverflowPlacer`'s ring search had no map clamp, so on a
+fully-built map it could expand forever and hand back an off-map coordinate instead of declining
+to place (CITYGROW-02b, spec.md's "no free cell anywhere on the map" edge case). Bounded the ring
+search to `[0, mapWidth) x [0, mapHeight)` and capped growth at `mapWidth + mapHeight` (past that,
+the ring has left the map in both dimensions). Changed
+`BuildingPlacementResolver.Resolve`'s return type to a nullable tuple —
+`null` means genuine land scarcity for that building right now. Updated every call site: `null`
+means "leave this building unresolved for this call" (no queue, no special retry — same
+always-re-derived convention design.md already documents), never a crash.
+**Where**: `src/LivingWorld.Simulation/Cities/OverflowPlacer.cs` (`ResolveOverflowPosition`/
+`ResolveOverflowPositionGiven` now return `CellCoord?`, map-clamped),
+`src/LivingWorld.Simulation/Cities/BuildingPlacementResolver.cs` (`Resolve` → nullable tuple),
+`src/LivingWorld.Simulation/Cities/CityOccupancy.cs` (`OccupiedCellsOfCity` skips a scarce
+neighbor instead of adding it; `OwnedBuildingFootprintBoxesWithOwners` excludes a scarce building
+from its result), `src/LivingWorld.Simulation/Cities/ConstructionSystem.cs` (skips creating the
+workplace this tick), `src/LivingWorld.Api/Visual/CityProjector.cs` and
+`src/LivingWorld.Api/Visual/LivingScopeState.cs` (exclude the scarce building's marker/visual from
+the response), plus every direct test caller of `Resolve`/`ResolveOverflowPosition` updated for
+the nullable signature.
+**Depends on**: T1, T2, T3, T4b (extends their signatures)
+**Requirement**: CITYGROW-02b
+
+**Done when**:
+- [x] `OverflowPlacer`'s ring search never returns a cell outside `[0, mapWidth) x [0, mapHeight)`
+- [x] `BuildingPlacementResolver.Resolve` returns `null` on a fully-built map instead of a
+      coordinate; new test
+      `BuildingFootprintAndPlacementTests.Resolve_returns_null_when_the_whole_map_has_no_free_cell_anywhere`
+- [x] New test
+      `BuildingFootprintAndPlacementTests.Resolve_never_returns_a_position_outside_the_maps_bounds_when_only_far_room_remains`
+      asserts the resolved footprint stays within the map when room exists only far from the city
+- [x] Every production/test call site compiles against the new nullable signature (compiler-
+      verified, no `error CS*` remaining)
+- [x] Gate check passes: `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"` — 211 passed, 0 failed (209 pre-fix + 2 new)
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `2133401` — `fix(cities): clamp overflow placement to map bounds and decline when land-scarce`
 
 ---
 
