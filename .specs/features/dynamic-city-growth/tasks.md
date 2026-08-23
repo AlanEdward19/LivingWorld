@@ -518,6 +518,143 @@ the nullable signature.
 
 ---
 
+> Round 2 Verifier (`.specs/features/dynamic-city-growth/validation.md`, run 2026-08-22) returned
+> **FAIL on the letter of the sensor rule only** (1 surviving mutant, Minor) — zero Blocker/Major
+> remained. Round-3 fixes below close the surviving mutant (FixT3), the loose perf guard (FixT4/
+> FixT5), the real land-scarcity bug (FixT6), and the 3 round-1 Minor test-coverage gaps (FixT7).
+
+### FixT3: Assert the ascending-`BuildingId` resolution order is load-bearing — ✅ Done (commit `9a517bf`)
+
+**What**: `CityOccupancy.OccupiedCellsOfCity`'s own doc comment calls the ascending
+`OrderBy(b => b.Id.Value)` pass mandatory (a building's resolved position depends only on
+causally-earlier, smaller-id buildings), but no test caught an `OrderByDescending` swap — the
+round-2 Verifier's discrimination sensor mutated it and 211 tests stayed green. Added a test
+comparing each building's batch-resolved position (`OwnedBuildingFootprintBoxesWithOwners`)
+against the ground truth obtained by resolving buildings one at a time, in ascending id order,
+recording each real position before resolving the next.
+**Where**: `tests/LivingWorld.Tests/Cities/CityOccupancyTests.cs` (new test only, no `src/` change)
+**Requirement**: CITYGROW-01 (the causal ordering `OccupiedCellsOfCity` depends on)
+
+**Done when**:
+- [x] New test manually verified against an `OrderByDescending` mutation of the ordering line —
+      fails (position mismatch), mutation reverted, `git diff` empty
+- [x] Gate check passes: `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"` — 212 passed, 0 failed (211 pre-fix + 1 new)
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `9a517bf` — `test(cities): assert ascending building-id ordering is load-bearing`
+
+---
+
+### FixT4: Force the perf-guard test through the overflow ring path — ✅ Done (commit `7fcfb61`)
+
+**What**: The blocker-regression test committed in FixT1 used 200×200 bounds, so all 30 test
+buildings fit inside bounds and `OverflowPlacer`'s O(N²)-ish fallback — the path the guard exists
+to protect — never triggered. Shrunk bounds to 12×12 (`CityBoundsResolver.MaxSize`, the real
+population-based cap for a city) on a real 500×500 map, and added an assertion that at least one
+resolved box lands outside bounds (proving the overflow path was genuinely exercised).
+**Where**: `tests/LivingWorld.Tests/Cities/CityOccupancyTests.cs`
+**Requirement**: CITYGROW-01/02 (performance characteristic of the T1 fix)
+
+**Done when**:
+- [x] Test asserts `Assert.Contains(boxes, b => ...)` that at least one box falls outside the
+      12×12 bounds
+- [x] Gate check passes — 212 passed, 0 failed (bounds/map change only, no new test count)
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `7fcfb61` — `test(cities): force the perf-guard test through the overflow ring path`
+
+---
+
+### FixT5: Fail the perf-guard test fast instead of hanging — ✅ Done (commit `3fe4c18`)
+
+**What**: xUnit 2.9.3's `[Fact(Timeout = ...)]` is silently ignored on synchronous test methods
+("Tests marked with Timeout are only supported for async tests", confirmed by running it) — so a
+reintroduced exponential regression hangs the gate for 300+s instead of failing fast. Converted
+the perf-guard test to `async Task` with its body wrapped in `Task.Run`, so the 10s timeout is
+actually enforced by xUnit.
+**Where**: `tests/LivingWorld.Tests/Cities/CityOccupancyTests.cs`
+**Requirement**: CITYGROW-01/02 (test-infrastructure hardening for the T1 fix's guard)
+
+**Done when**:
+- [x] Manually reintroduced the pre-T1 recursive shape in `CityOccupancy.OccupiedCellsOfCity` —
+      test fails in 10s ("Test execution timed out after 10000 milliseconds") instead of hanging;
+      mutation reverted, `git diff` empty
+- [x] Gate check passes — 212 passed, 0 failed (same test, no new count)
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `3fe4c18` — `test(cities): fail the perf-guard test fast instead of hanging`
+
+---
+
+### FixT6: Retry land-scarce construction projects instead of dropping them — ✅ Done (commit `42e4305`)
+
+**What**: Real bug (round-2 Verifier, Gap B). `ConstructionSystem.Tick` unconditionally dequeued a
+completing project even when `CompleteProject` failed to resolve a position for a workplace
+recipe (land scarcity) — the project, and the resources already spent on it, silently vanished
+with no workplace and no retry, contradicting design.md's Error Handling Strategy ("stays
+queued/unresolved, retried whenever this gets called again"). Fixed by resolving placement with a
+disposable candidate `Building` (id peeked via `world.NextBuildingId`, never advanced on failure)
+*before* adding anything to the world, and only dequeuing when `CompleteProject` reports success —
+a failed placement now leaves the project at the head of the queue, retried on a later tick.
+**Where**: `src/LivingWorld.Simulation/Cities/ConstructionSystem.cs`,
+`tests/LivingWorld.Tests/Cities/ConstructionSystemTests.cs`
+**Requirement**: CITYGROW-02b (design.md Error Handling Strategy)
+
+**Done when**:
+- [x] New test `Completing_project_leaves_a_land_scarce_workplace_queued_and_completes_once_land_is_available`:
+      on a map exactly the size of one blocking building, the project stays in `ConstructionQueue`
+      after its completion tick, no `Workplace` and no orphan `Building` are created; the same
+      recipe on a map with real room completes normally and creates the `Workplace`
+- [x] Verified against the pre-fix code (stashed the fix): test fails (`Assert.Single` — queue was
+      empty, project vanished); fix restored, `git diff` clean before restaging
+- [x] Gate check passes: 213 passed, 0 failed (212 pre-fix + 1 new)
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `42e4305` — `fix(cities): retry land-scarce construction projects instead of dropping them`
+
+---
+
+### FixT7: Cover the 3 remaining round-1 edge-case gaps — ✅ Done (commit `142dd08`)
+
+**What**: Round-1 Gaps 3/4/5 — behavior already confirmed correct by manual Verifier probes across
+two rounds, but never had a committed assertion. Added one test each: (1) an overflow building
+absorbs into its own city's bounds even when a different city is geometrically closer (the
+ownership filter in `OwnedBuildingFootprintBoxesWithOwners` excludes it from any other city's list
+before distance is ever considered); (2) absorption growth can exceed
+`CityBoundsResolver`'s population-based `MaxSize`=12, capped only by the map-edge limit; (3)
+`OverflowPlacer.ResolveOverflowPositionGiven` picks the nearest free ring radius (radius 1 fully
+blocked, radius 2 free — result's Chebyshev gap from bounds is exactly 2), not just any free cell
+farther out.
+**Where**: `tests/LivingWorld.Tests/Cities/CityOccupancyTests.cs`,
+`tests/LivingWorld.Tests/Cities/BuildingFootprintAndPlacementTests.cs`,
+`tests/LivingWorld.Tests/Cities/OverflowPlacerTests.cs`
+**Requirement**: spec.md Edge Cases; CITYGROW-03/AC3/AC5; CITYGROW-02
+
+**Done when**:
+- [x] All 3 new tests pass independently and as part of the full Cities gate
+- [x] Gate check passes: 216 passed, 0 failed (213 pre-fix + 3 new)
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `142dd08` — `test(cities): cover the 3 remaining round-1 edge-case gaps`
+
+---
+
+### Process note (no code change): commit `2133401` bundled unrelated Stage-4 work
+
+Round-2 Verifier flagged that `2133401` (FixT2) swept ~150 lines of pre-existing, unrelated
+in-progress Stage-4 work into `LivingScopeState.cs`/`ConstructionSystem.cs` (process-projection
+pipeline, `NpcVisual.City`/`RelocationDestination`, founding-event synthesis) alongside the actual
+fix, plus a new Stage-4 test file. This is the same class of issue already accepted for round-1's
+T5/`25bb02c` (see Known Limitation 1 above) — documented here as an accepted limitation per the
+user's standing acceptance of that pattern; no action taken.
+
+---
+
 ## Parallel Execution Map
 
 ```
