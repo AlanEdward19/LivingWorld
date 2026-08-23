@@ -21,6 +21,22 @@ public static class OverflowPlacer
     public static CellCoord ResolveOverflowPosition(
         WorldState world, City city, CityBounds bounds, BuildingId id, IReadOnlyList<CellCoord> footprintShape)
     {
+        // dynamic-city-growth, fix (blocker): antes, cada célula do anel chamava
+        // CityOccupancy.IsFree, que recomputava a ocupação da cidade inteira do zero -- em cima da
+        // recursão de OccupiedCellsOfCity, isso tornava o overflow O(anel * 2^N). O conjunto
+        // ocupado é o mesmo pra toda a busca do anel, então computa uma vez só.
+        var occupied = CityOccupancy.OccupiedCellsOfCity(world, city, bounds, id);
+        return ResolveOverflowPositionGiven(occupied, bounds, id, footprintShape);
+    }
+
+    /// <summary>Mesma busca em anéis crescentes de <see cref="ResolveOverflowPosition"/>, mas
+    /// contra um conjunto de células já ocupadas conhecido -- não recomputa ocupação e não
+    /// chama de volta em <see cref="CityOccupancy"/>. Usada pelo próprio
+    /// <see cref="CityOccupancy.OccupiedCellsOfCity"/> ao resolver a posição de vizinhos ainda
+    /// sem posição autorada, sem reentrar em nenhum caminho recursivo.</summary>
+    internal static CellCoord ResolveOverflowPositionGiven(
+        HashSet<CellCoord> occupied, CityBounds bounds, BuildingId id, IReadOnlyList<CellCoord> footprintShape)
+    {
         ulong hash = StableHash.Mix(id.Value);
 
         for (int radius = 1; ; radius++)
@@ -31,7 +47,7 @@ public static class OverflowPlacer
             {
                 var origin = ring[(offset + i) % ring.Count];
                 var candidate = CityOccupancy.Translate(footprintShape, origin);
-                if (CityOccupancy.IsFree(world, city, bounds, candidate, id))
+                if (candidate.All(cell => !occupied.Contains(cell)))
                     return origin;
             }
         }

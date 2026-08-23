@@ -136,36 +136,56 @@ public static class CityOccupancy
     }
 
     /// <summary>Ocupação de uma única cidade, coerente com a decisão real de posicionamento
-    /// (T3): cada vizinho sem posição autorada é resolvido recursivamente pelo mesmo <see
-    /// cref="BuildingPlacementResolver.Resolve"/> que decidiria a posição dele se fosse
-    /// perguntado diretamente — nunca o anel-hash legado sozinho, que ignoraria a busca por
-    /// célula livre e deixaria dois prédios derivados colidirem.
+    /// (T3): cada vizinho sem posição autorada é resolvido na mesma ordem causal que <see
+    /// cref="BuildingPlacementResolver.Resolve"/> usaria (livre nos bounds, senão anel de
+    /// overflow) — nunca o anel-hash legado sozinho, que ignoraria a busca por célula livre e
+    /// deixaria dois prédios derivados colidirem.
     ///
-    /// A recursão é bem fundada por ordem de <see cref="BuildingId"/> (causal: um prédio só pode
-    /// ter sido posicionado depois de prédios com id menor já existirem): ao resolver
-    /// <paramref name="placingId"/>, só prédios com id estritamente menor entram na conta —
-    /// exclui o próprio prédio sendo posicionado (evitaria recursão infinita nele mesmo, comum
-    /// quando o prédio já está em <c>world.Buildings</c>, ex. <c>CityProjector</c> iterando a
-    /// própria lista) e ignora prédios "futuros" (id maior, que não existiam ainda quando
-    /// <paramref name="placingId"/> foi posicionado). Sem <paramref name="placingId"/> (chamada
-    /// fora de uma resolução em curso), cai no anel-hash legado pra todos.</summary>
-    private static HashSet<CellCoord> OccupiedCellsOfCity(WorldState world, City city, CityBounds bounds, BuildingId? placingId)
+    /// dynamic-city-growth, fix (blocker): antes, cada vizinho era resolvido chamando de volta
+    /// <see cref="BuildingPlacementResolver.Resolve"/>, que por sua vez chamava este método outra
+    /// vez pra CADA vizinho menor -- T(k) = soma de T(1..k-1), ou seja 2^(k-1) resoluções sem
+    /// nenhuma memoização (187s medidos com 6 prédios). Agora é um único passe ascendente por
+    /// <see cref="BuildingId"/>: o conjunto <c>occupied</c> é construído incrementalmente, e cada
+    /// vizinho sem posição autorada é resolvido direto contra ele (nunca reentrando em
+    /// <see cref="BuildingPlacementResolver.Resolve"/> nem em <see cref="IsFree"/>/<see
+    /// cref="FindFreeCellInBounds"/>) -- por isso a ordem ascendente é obrigatória: ao chegar no
+    /// prédio k, <c>occupied</c> já contém exatamente as células dos prédios com id menor, a
+    /// mesma causalidade que a versão recursiva original pretendia.
+    ///
+    /// O filtro por <paramref name="placingId"/> é preservado exatamente como antes: exclui o
+    /// próprio prédio sendo posicionado (evitaria recursão infinita nele mesmo, comum quando o
+    /// prédio já está em <c>world.Buildings</c>, ex. <c>CityProjector</c> iterando a própria
+    /// lista) e ignora prédios "futuros" sem posição autorada (id maior, que não existiam ainda
+    /// quando <paramref name="placingId"/> foi posicionado). Sem <paramref name="placingId"/>
+    /// (chamada fora de uma resolução em curso), cai no anel-hash legado pra todos.
+    ///
+    /// <c>internal</c> (era <c>private</c>) só pra <see cref="OverflowPlacer.ResolveOverflowPosition"/>
+    /// poder computar o conjunto ocupado uma única vez em vez de reconstruí-lo por candidato de
+    /// anel (a outra metade do mesmo bug).</summary>
+    internal static HashSet<CellCoord> OccupiedCellsOfCity(WorldState world, City city, CityBounds bounds, BuildingId? placingId)
     {
         var occupied = new HashSet<CellCoord>();
-        foreach (var building in world.Buildings.Where(b => b.City == city.Id))
+        var siblings = world.Buildings.Where(b => b.City == city.Id);
+        if (placingId is { } selfId)
         {
-            if (placingId is { } selfId)
-            {
-                if (building.Id.Value == selfId.Value) continue; // nunca o próprio prédio sendo posicionado
-                if (building.Position is null && building.Id.Value >= selfId.Value) continue; // "futuro" sem posição autorada
-            }
+            siblings = siblings
+                .Where(b => b.Id.Value != selfId.Value) // nunca o próprio prédio sendo posicionado
+                .Where(b => b.Position is not null || b.Id.Value < selfId.Value); // exclui "futuro" sem posição autorada
+        }
 
-            var position = building.Position
-                ?? (placingId is not null
-                    ? BuildingPlacementResolver.Resolve(building, city, world, bounds).Position
-                    : LegacyRingFallback(building.Id, city.Location));
-
+        foreach (var building in siblings.OrderBy(b => b.Id.Value))
+        {
             var shape = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId).Select(c => c.Cell).ToList();
+
+            CellCoord position;
+            if (building.Position is { } authored)
+                position = authored;
+            else if (placingId is not null)
+                position = ScanForFreeOrigin(occupied, bounds, shape)
+                    ?? OverflowPlacer.ResolveOverflowPositionGiven(occupied, bounds, building.Id, shape);
+            else
+                position = LegacyRingFallback(building.Id, city.Location);
+
             foreach (var cell in Translate(shape, position))
                 occupied.Add(cell);
         }

@@ -169,4 +169,36 @@ public class CityOccupancyTests
 
         Assert.False(scarce);
     }
+
+    // --- performance regression (dynamic-city-growth, fix/blocker) ---
+
+    /// <summary>Antes do fix, cada vizinho sem posição autorada reentrava em
+    /// <see cref="BuildingPlacementResolver.Resolve"/> -&gt; <see cref="CityOccupancy"/> outra
+    /// vez, custando 2^(N-1) resoluções (187s medidos pelo Verifier com N=6). Este teste é o
+    /// guarda de performance: N=30 prédios não-autorados tem que resolver bem dentro de um
+    /// timeout normal de teste, e o resultado ainda precisa ser não-sobreposto.</summary>
+    [Fact]
+    public void OwnedBuildingFootprintBoxesWithOwners_resolves_many_unauthored_buildings_quickly_and_without_overlap()
+    {
+        var world = ScenarioRunner.Create(seed: 608, initialPopulation: 0).World;
+        var city = new City(world.NextCityId(), new CellCoord(500, 500), 0, null, AggregatePopulationPool.Empty);
+        world.AddCity(city);
+        for (int i = 0; i < 30; i++)
+            world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId: 1, completedAtTick: 0));
+        var bounds = new CityBounds(new CellCoord(400, 400), 200, 200);
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var boxes = CityOccupancy.OwnedBuildingFootprintBoxesWithOwners(world, city, bounds);
+        stopwatch.Stop();
+
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(5), $"levou {stopwatch.Elapsed} -- recursão exponencial voltou?");
+        Assert.Equal(30, boxes.Count);
+
+        var allCells = boxes.SelectMany(b =>
+        {
+            var shape = BuildingFootprintGenerator.Generate(b.Building.Id, b.Building.BuildingTypeId).Select(c => c.Cell).ToList();
+            return CityOccupancy.Translate(shape, b.Box.Origin);
+        }).ToList();
+        Assert.Equal(allCells.Count, allCells.Distinct().Count()); // nenhum prédio derivado sobrepõe outro
+    }
 }
