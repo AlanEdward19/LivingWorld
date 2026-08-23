@@ -12,7 +12,7 @@ Verifier, discrimination sensor).
 ---
 
 **Design**: `.specs/features/dynamic-city-growth/design.md`
-**Status**: Done (all tasks T1-T8 complete; feature-level Verifier dispatched next)
+**Status**: Done — Verified PASS (round 4, AD-007 follow-up). See `validation.md` for the full round 1-4 history.
 
 ---
 
@@ -641,6 +641,132 @@ farther out.
 **Tests**: unit
 **Gate**: quick
 **Commit**: `142dd08` — `test(cities): cover the 3 remaining round-1 edge-case gaps`
+
+---
+
+## Round 3 follow-up (AD-007)
+
+### AD-007a: Stop a land-scarce project from blocking the rest of its city's queue — ✅ Done (commit `f2219bc`)
+
+**What**: FixT6 (`42e4305`) correctly stopped dropping a fully-paid, unplaceable project, but left
+it strictly at `ConstructionQueue[0]`, which blocked every other project queued behind it in the
+same city indefinitely (measured 20+ ticks). `ConstructionSystem.Tick` now walks the whole queue:
+a stuck (fully-paid, unplaceable) project is retried for free every tick without blocking later
+projects; the first not-yet-fully-paid project receives that tick's one-project resource budget
+and, if it completes this same tick, its placement is attempted immediately too. `City`'s
+`DequeueCompletedConstruction` (always index 0) became `RemoveConstructionProject(project)`
+(reference-equality removal from any position).
+**Where**: `src/LivingWorld.Simulation/Cities/ConstructionSystem.cs`,
+`src/LivingWorld.Domain/Cities/City.cs`
+**Requirement**: AD-007; spec.md Edge Cases (`ConstructionSystem` amendment); design.md Error
+Handling Strategy (`ConstructionSystem` row)
+
+**Done when**:
+- [x] A land-scarce workplace project no longer starves a house project queued behind it in the
+      same city
+- [x] The stuck project itself eventually completes once land frees up, with `Consumed` unchanged
+      (no double charge) and exactly one `Building`/`Workplace` created
+- [x] The one-resource-consuming-project-per-tick throttle still holds — only which project
+      qualifies changed
+- [x] Pre-existing strict-FIFO behavior (no land scarcity) is unaffected
+- [x] Gate check passes: 220 passed, 0 failed (216 pre-fix + 4 new)
+
+**Tests**: unit — `Stuck_workplace_project_does_not_block_a_house_project_queued_behind_it`,
+`Stuck_project_retries_without_double_charging_and_eventually_completes_exactly_once_when_land_is_free`,
+`Throttle_keeps_advancing_the_paying_project_at_its_normal_per_tick_rate_while_a_stuck_project_is_retried_for_free`
+(`tests/LivingWorld.Tests/Cities/ConstructionSystemTests.cs`)
+**Gate**: quick
+**Commit**: `f2219bc` — `fix(cities): let construction queue skip a land-scarce project instead of blocking behind it`
+
+### AD-007b: Strengthen the overflow "nearest free cell" test — ✅ Done (commit `e48b15a`)
+
+**What**: FixT7's nearest-ring test fully blocks radius 1, so it only proves the search grows the
+radius when it must — it never exercises "a nearer AND a farther free cell both exist, does the
+nearer one win." Added a case with exactly one free radius-1 cell alongside an entirely free
+radius-2 ring; asserts the radius-1 cell is returned.
+**Where**: `tests/LivingWorld.Tests/Cities/OverflowPlacerTests.cs`
+**Requirement**: CITYGROW-02 (same requirement as FixT7's item 3)
+
+**Done when**:
+- [x] New test passes independently and as part of the full Cities gate
+- [x] Gate check passes: 220 passed, 0 failed (same run as AD-007a)
+
+**Tests**: unit — `ResolveOverflowPositionGiven_prefers_the_one_free_radius_1_cell_over_an_entirely_free_radius_2_ring`
+**Gate**: quick
+**Commit**: `e48b15a` — `test(cities): assert overflow placement picks the truly nearest cell, not just any farther one`
+
+---
+
+## Post-ship fix (found by user in production, 2026-08-23)
+
+User ran their live world and saw a newly-founded city ("UrVal") with its walls literally
+touching/overlapping an existing city's walls — no gap at all.
+
+### FixT8: Cross-city bounds clamp — ✅ Done (commit `a6584ad`)
+
+**What**: `CityBoundsResolver.Resolve` grew a city's bounds purely from its own overflow
+buildings, capped only by the map-edge limit — nothing anywhere checked a city's growing bounds
+against any OTHER city's bounds. Two cities founded at a safe distance could each independently
+grow toward each other, tick after tick, until they touched or overlapped.
+**Fix**: `CityBoundsResolver.Resolve`/`SpatialBoundsResolver.ResolveCity` gained an optional
+`otherCityBoundsToAvoid` parameter (default `null`, no behavior change for every existing
+single-city caller/test) — any owned building box that would pull the resulting bounds within
+`AbsorptionRingCells` of one of these boxes is simply not merged in; growth stops at the gap
+boundary instead of overlapping. `CityOccupancy.ResolveGrownBounds` gathers this avoid-list from
+each other city's OWN un-clamped growth (population box ∪ its own overflow boxes, via a new
+private `OwnGrowthBoundsIgnoringOtherCities` helper) — deliberately one non-recursive level, never
+calling back into another city's full cross-clamped `ResolveGrownBounds`, to avoid reintroducing
+the exact O(2^N) recursive blocker already fixed once in this feature (FixT1).
+**Where**: `src/LivingWorld.Domain/Cities/CityBoundsResolver.cs`,
+`src/LivingWorld.Domain/Cities/SpatialBoundsResolver.cs`,
+`src/LivingWorld.Simulation/Cities/CityOccupancy.cs`
+**Requirement**: CITYGROW-03/05 (bounds growth), new edge case (cross-city gap)
+
+**Done when**:
+- [x] Two cities placed close enough that OLD behavior would eventually touch/overlap now never
+      come within `AbsorptionRingCells` of each other, across many rounds of both absorbing
+      overflow buildings
+- [x] A single city with no other city nearby still grows normally (unaffected, regression)
+- [x] Existing test whose premise (a building closer to a foreign city than the absorption ring)
+      is mathematically incompatible with the new invariant rewritten with the correct expectation
+- [x] Gate check passes: 222 passed, 0 failed (220 baseline + the cross-city test + the regression
+      test; the third new test — fire-time re-check — lands in FixT9 below)
+
+**Tests**: unit —
+`ResolveGrownBounds_never_lets_two_citys_grown_bounds_come_within_the_absorption_ring_of_each_other`,
+`ResolveGrownBounds_still_absorbs_an_overflow_building_when_there_is_no_other_city_nearby`,
+`ResolveGrownBounds_never_absorbs_an_overflow_building_into_a_city_that_is_not_its_owner` (rewrite)
+**Gate**: quick
+**Commit**: `a6584ad` — `fix(cities): clamp city bounds growth to never overlap another city`
+
+---
+
+### FixT9: Re-verify absorption distance at spatial-founding fire time — ✅ Done (commit `822ba4a`)
+
+**What**: `SpatialSettlementFoundingSystem.HandleEvent` re-verified the population concentration
+threshold before founding (after the `OrganizationTicks` delay) but never re-verified the "beyond
+absorption range of any existing city" distance check that was only checked once at SCHEDULE time
+(`Tick`, via `OverflowClusterFinder`). If other cities grew closer during the wait, founding
+proceeded anyway.
+**Fix**: `OverflowClusterFinder.IsWithinAbsorptionRangeOfAnyOtherCity` (was `private`, keyed off a
+`City`) is now `internal`, keyed off a `CityId` so `HandleEvent` can reuse it without needing the
+excluded city's object. `HandleEvent` calls it right after the existing concentration re-check and
+silently drops the founding when it now holds — same "don't force an unjustified city into
+existence" pattern already used for the concentration threshold.
+**Where**: `src/LivingWorld.Simulation/Cities/OverflowClusterFinder.cs`,
+`src/LivingWorld.Simulation/Cities/SpatialSettlementFoundingSystem.cs`
+**Requirement**: CITYGROW-04, spec Edge Cases ("absorption takes precedence over founding")
+
+**Done when**:
+- [x] A cluster beyond absorption range at schedule time but within range of some city by fire
+      time (simulated by growing that city's population during the `OrganizationTicks` wait) has
+      its founding silently dropped, no city created
+- [x] Gate check passes: 223 passed, 0 failed (222 from FixT8 + this test)
+
+**Tests**: unit —
+`HandleEvent_drops_silently_when_another_city_grew_within_absorption_range_during_the_wait`
+**Gate**: quick
+**Commit**: `822ba4a` — `fix(cities): re-verify absorption distance at spatial-founding fire time`
 
 ---
 
