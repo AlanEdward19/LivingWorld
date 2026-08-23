@@ -90,6 +90,59 @@ public class FoundingSitePickerTests
         Assert.True(ChebyshevGap(new CityBounds(site.Value, 1, 1), otherGrownBounds) > rules.AbsorptionRingCells);
     }
 
+    /// <summary>Overlap de área — mesma checagem que <c>FoundingSitePicker.Overlaps</c> faz
+    /// internamente, duplicada aqui (4 linhas) só pra o teste poder verificar a garantia sem
+    /// depender de tipos internal.</summary>
+    private static bool Overlaps(CityBounds a, CityBounds b) =>
+        a.Origin.X < b.Origin.X + b.Width && b.Origin.X < a.Origin.X + a.Width &&
+        a.Origin.Y < b.Origin.Y + b.Height && b.Origin.Y < a.Origin.Y + a.Height;
+
+    /// <summary>ROOT-CAUSE regression test (user-reported, 2026-08-23, "cidades coladas" round 2):
+    /// reproduz o cenário exato confirmado — mãe sozinha no mapa, sem nenhuma outra cidade por
+    /// perto pra disparar o espaçamento mínimo existente — e prova que a filha ainda assim nunca
+    /// acaba com bounds sobrepostos aos da mãe. Antes deste fix, a mãe era excluída de QUALQUER
+    /// checagem e o anel 1 aceitava o primeiro candidato, produzindo mãe Origin(4,4) 3x3 / filha
+    /// Origin(3,3) 3x3 (4 células compartilhadas) para uma mãe em (5,5).</summary>
+    [Fact]
+    public void Pick_never_overlaps_the_mothers_own_bounds_even_with_no_other_city_on_the_map()
+    {
+        var rules = MakeRules();
+        var world = MakeWorld(rules);
+        var mother = MakeCity(world, new CellCoord(5, 5));
+        world.AddCity(mother);
+
+        var site = FoundingSitePicker.Pick(world, mother.Id);
+
+        Assert.NotNull(site);
+        var (motherBounds, _) = CityOccupancy.ResolveGrownBounds(world, mother, population: 0);
+        int daughterSide = CityBoundsResolver.SideFor(0, world.Map.Width, world.Map.Height);
+        var daughterBounds = new CityBounds(
+            new CellCoord(site!.Value.X - daughterSide / 2, site.Value.Y - daughterSide / 2), daughterSide, daughterSide);
+        Assert.False(Overlaps(daughterBounds, motherBounds));
+    }
+
+    /// <summary>The other half of "close but never overlapping": avoiding overlap must NOT push
+    /// the daughter out to the full <c>AbsorptionRingCells</c>-scale gap that unrelated cities
+    /// require — she should land just outside the mother's edge.</summary>
+    [Fact]
+    public void Pick_still_lands_close_to_the_mother_not_pushed_out_to_AbsorptionRingCells_scale()
+    {
+        var rules = MakeRules();
+        var world = MakeWorld(rules);
+        var mother = MakeCity(world, new CellCoord(5, 5));
+        world.AddCity(mother);
+
+        var site = FoundingSitePicker.Pick(world, mother.Id);
+
+        Assert.NotNull(site);
+        int chebyshevFromMother = Math.Max(Math.Abs(site!.Value.X - mother.Location.X), Math.Abs(site.Value.Y - mother.Location.Y));
+        // Não-overlap de dois lados-3 exige só 3 células de distância entre origens (mesma
+        // magnitude de MinSize) -- bem abaixo do que o AbsorptionRingCells (3) exigiria SOMADO ao
+        // próprio lado das duas caixas (~6+) se a mãe fosse tratada como qualquer outra cidade.
+        Assert.True(chebyshevFromMother > 0);
+        Assert.True(chebyshevFromMother <= 4);
+    }
+
     [Fact]
     public void Pick_returns_null_when_no_cell_on_the_map_clears_the_minimum_distance_from_every_other_city()
     {
