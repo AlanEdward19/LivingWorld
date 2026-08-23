@@ -10,6 +10,7 @@ import type { AuthoritativeEntity, SpaceId } from "../map-engine/types";
 import type { VisualSnapshotEnvelope } from "../types";
 import { toScopeKey } from "../map-engine/space";
 import { CATEGORY_COLOR } from "../map-engine/categoryColors";
+import { overlayProcessOnNpc } from "../map-engine/cityNpcOverlay";
 import {
   applyLivingDelta,
   emptyLivingViewState,
@@ -45,6 +46,13 @@ export class SimulationStore {
   private envelope: VisualSnapshotEnvelope<unknown> | null = null;
   private observedScopeKey: string | null = null;
   private observedSpace: SpaceId | null = null;
+  // T50 fix (bug "seguir NPC entre escopos"): `entitiesOf`/`currentPayload` já ficam vazios
+  // entre o `observeSpace(newSpace)` síncrono e o `loadSnapshot` assíncrono resolver (o
+  // `envelope` antigo só é substituído quando `applySnapshot` bate o `scopeKey` novo) — sem
+  // sinal explícito disso, quem consome `entitiesOf` (SelectionStore.syncWithSpace via MapView)
+  // não sabia distinguir "ainda carregando o novo escopo" de "escopo carregado e genuinamente
+  // vazio", e limpava a seleção/follow numa troca de escopo por engano.
+  private snapshotReady = false;
   private livingState: LivingViewState = emptyLivingViewState();
   private lastSequence = 0;
   private readonly listeners = new Set<() => void>();
@@ -73,6 +81,7 @@ export class SimulationStore {
     this.observedSpace = space;
     this.livingState = emptyLivingViewState();
     this.lastSequence = 0;
+    this.snapshotReady = false;
 
     await this.loadSnapshot(space, key);
 
@@ -114,7 +123,15 @@ export class SimulationStore {
     this.envelope = envelope;
     this.lastSequence = envelope.cursor.sequence;
     this.livingState = livingStateFromSnapshot(envelope.payload);
+    this.snapshotReady = true;
     this.notify();
+  }
+
+  /** T50 fix: `true` só depois que o snapshot do escopo observado ATUAL terminou de carregar —
+   * o sinal que faltava pra distinguir "escopo trocou e ainda não chegou nada" de "chegou e não
+   * tem nada mesmo". */
+  isSpaceReady(space: SpaceId): boolean {
+    return this.snapshotReady && toScopeKey(space) === this.observedScopeKey;
   }
 
   /** Aplica um delta incremental sobre o snapshot corrente — nunca refaz um `load()`. */
@@ -185,15 +202,18 @@ export class SimulationStore {
     if (!this.envelope || toScopeKey(space) !== this.observedScopeKey) {
       return [];
     }
+    const processes = [...this.livingState.processes.values()];
     return [...this.livingState.npcs.values()]
-      .map((marker) => ({
+      .map((marker) => overlayProcessOnNpc({
         ref: { kind: "npc" as const, id: String(marker.id.value), space },
         position: marker.location,
         size: { w: 1, h: 1 },
         sizeIsDerived: false,
         color: CATEGORY_COLOR.npc,
         currentAction: marker.currentAction,
-      }));
+        cityId: marker.city?.value,
+        travelDestination: marker.relocationDestination ?? undefined,
+      }, processes));
   }
 
   /** Registro de listener puro — nenhuma dependência de React, notificação síncrona. */

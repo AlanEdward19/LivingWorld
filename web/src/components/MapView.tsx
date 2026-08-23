@@ -126,7 +126,14 @@ export function MapView({
       for (const entity of latest) {
         interpolationRef.current.observe(entity.ref.id, entity.position, now);
       }
-      selectionStore.syncWithSpace(space, latest.map((entity) => entity.ref));
+      // T50 fix: enquanto o snapshot do NOVO espaço ainda não chegou (troca de escopo em
+      // voo), `entitiesOf(space)` devolve vazio só por falta de dados — sincronizar a
+      // seleção agora limparia (e derrubaria o follow) uma entidade que só ainda não foi
+      // confirmada como ausente. Pula esta rodada; a próxima notificação (snapshot real
+      // aplicado) chama `refreshEntities` de novo com a lista de verdade.
+      if (simulationStore.isSpaceReady(space)) {
+        selectionStore.syncWithSpace(space, latest.map((entity) => entity.ref));
+      }
     }
     refreshEntities();
     return simulationStore.subscribe(refreshEntities);
@@ -198,6 +205,7 @@ export function MapView({
           cells,
           layers,
           entities: visualEntitiesNow(),
+          events: simulationStore.livingStateOf(space).events,
           lodThresholds,
           highlightId: selectionStore.current()?.id,
         });

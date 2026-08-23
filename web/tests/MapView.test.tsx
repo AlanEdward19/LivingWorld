@@ -486,4 +486,141 @@ describe("MapView", () => {
     );
     expect(selectionStore.current()).toEqual({ kind: "npc", id: "1", space: CITY_A });
   });
+
+  // T50 bug report (usuário, ao vivo): seguir um NPC que cruza de escopo (cidade -> mundo)
+  // fazia a câmera continuar seguindo, mas o anel de seleção e o inspector desapareciam. Causa
+  // real: `syncWithSpace` via `refreshEntities` disparava com a lista do NOVO espaço ainda
+  // vazia (snapshot em voo), via de regra chamado no MESMO commit em que `space` muda —
+  // limpando a seleção antes do snapshot de verdade chegar.
+  it("keeps a followed selection alive through a scope transition until the new space's snapshot loads", async () => {
+    let resolveWorldLoad!: (envelope: Awaited<ReturnType<SnapshotSource["load"]>>) => void;
+    const source: SnapshotSource = {
+      load: (space) => {
+        if (space.kind === "City") {
+          return Promise.resolve({
+            scope: { kind: VisualScopeKind.City, refId: "city-a", scopeKey: "city:city-a" },
+            mode: ViewerMode.Spectator,
+            cursor: { tick: 0, scopeKey: "city:city-a", sequence: 0 },
+            activeLayers: [],
+            payload: { residents: [{ id: { value: 1 }, location: { x: 50, y: 50 }, currentAction: null }] },
+          });
+        }
+        return new Promise((resolve) => { resolveWorldLoad = resolve; });
+      },
+    };
+    const simulationStore = new SimulationStore(source, neverStreamingTickSource());
+    const viewStore = new ViewStore(new MockPortalSource([]));
+    viewStore.recordCamera(CITY_A, { center: { x: 50, y: 50 }, scale: 10 });
+    const selectionStore = new SelectionStore();
+    await simulationStore.observeSpace(CITY_A);
+    selectionStore.select({ kind: "npc", id: "1", space: CITY_A });
+
+    const { rerender } = render(
+      <MapView
+        space={CITY_A}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+
+    // Cruza de escopo: WORLD ainda não carregou (load fica pendurado em `resolveWorldLoad`).
+    const worldObserved = simulationStore.observeSpace(WORLD);
+    rerender(
+      <MapView
+        space={WORLD}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+
+    // Snapshot do WORLD ainda em voo — a seleção não pode ter sido apagada.
+    expect(selectionStore.current()).toEqual({ kind: "npc", id: "1", space: CITY_A });
+
+    // Snapshot real chega, com o NPC presente no WORLD também.
+    resolveWorldLoad({
+      scope: { kind: VisualScopeKind.World, refId: "", scopeKey: "world" },
+      mode: ViewerMode.Spectator,
+      cursor: { tick: 0, scopeKey: "world", sequence: 0 },
+      activeLayers: [],
+      payload: { externalNpcs: [{ id: { value: 1 }, location: { x: 10, y: 10 }, currentAction: null }] },
+    });
+    await worldObserved;
+
+    expect(selectionStore.current()).toEqual({ kind: "npc", id: "1", space: WORLD });
+  });
+
+  // Mesma transição de escopo, mas o NPC de fato não existe no novo espaço (morreu, ou nunca
+  // esteve lá) — depois que o snapshot real do novo espaço chega, a seleção deve continuar
+  // sendo limpa normalmente. O fix acima só atrasa o `syncWithSpace`, nunca o pula de vez.
+  it("still clears the selection once the new space's snapshot confirms the entity is really gone", async () => {
+    let resolveWorldLoad!: (envelope: Awaited<ReturnType<SnapshotSource["load"]>>) => void;
+    const source: SnapshotSource = {
+      load: (space) => {
+        if (space.kind === "City") {
+          return Promise.resolve({
+            scope: { kind: VisualScopeKind.City, refId: "city-a", scopeKey: "city:city-a" },
+            mode: ViewerMode.Spectator,
+            cursor: { tick: 0, scopeKey: "city:city-a", sequence: 0 },
+            activeLayers: [],
+            payload: { residents: [{ id: { value: 1 }, location: { x: 50, y: 50 }, currentAction: null }] },
+          });
+        }
+        return new Promise((resolve) => { resolveWorldLoad = resolve; });
+      },
+    };
+    const simulationStore = new SimulationStore(source, neverStreamingTickSource());
+    const viewStore = new ViewStore(new MockPortalSource([]));
+    viewStore.recordCamera(CITY_A, { center: { x: 50, y: 50 }, scale: 10 });
+    const selectionStore = new SelectionStore();
+    await simulationStore.observeSpace(CITY_A);
+    selectionStore.select({ kind: "npc", id: "1", space: CITY_A });
+
+    const { rerender } = render(
+      <MapView
+        space={CITY_A}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+
+    const worldObserved = simulationStore.observeSpace(WORLD);
+    rerender(
+      <MapView
+        space={WORLD}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+
+    resolveWorldLoad({
+      scope: { kind: VisualScopeKind.World, refId: "", scopeKey: "world" },
+      mode: ViewerMode.Spectator,
+      cursor: { tick: 0, scopeKey: "world", sequence: 0 },
+      activeLayers: [],
+      payload: { externalNpcs: [] }, // o NPC 1 não existe no WORLD
+    });
+    await worldObserved;
+
+    expect(selectionStore.current()).toBeNull();
+  });
 });
