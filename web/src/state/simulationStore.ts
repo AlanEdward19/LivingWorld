@@ -166,6 +166,14 @@ export class SimulationStore {
       this.npcInspections.set(npcId, null);
       return Promise.resolve(null);
     }
+    // T50 round 4 (bug "retry storm de 404"): um NPC confirmado ausente (cache com `null`, não
+    // `undefined`) nunca vai "voltar a existir" -- refazer o fetch pra sempre é desperdício de
+    // rede sem ganho algum. Um NPC materializado (cache com objeto real), ao contrário, tem
+    // stats que mudam com o tempo (fome, sede, sono...) e o painel do Inspector depende de
+    // refetch repetido pra mostrá-los ao vivo -- só o `null` é cache permanente.
+    if (this.npcInspections.get(npcId) === null) {
+      return Promise.resolve(null);
+    }
     const active = this.inspectionLoads.get(npcId);
     if (active) return active;
 

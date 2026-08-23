@@ -3,7 +3,22 @@ import { SimulationStore } from "../../src/state/simulationStore";
 import { MockClock } from "../../src/data/mock/MockClock";
 import { MockSnapshotSource } from "../../src/data/mock/MockSnapshotSource";
 import { MockTickStreamSource } from "../../src/data/mock/MockTickStreamSource";
+import { MockNpcInspectionSource } from "../../src/data/mock/MockNpcInspectionSource";
 import { cityASnapshotEnvelope, npcsByScope, snapshotsByScope, worldSnapshotEnvelope } from "../../src/data/mock/fixtures";
+import type { NpcInspection } from "../../src/data/contracts";
+
+// Mesma forma mínima usada pelos testes do NpcInspector -- só os campos que o tipo exige.
+const MATERIALIZED_INSPECTION: NpcInspection = {
+  id: { value: 3000 }, name: "Lina", sex: 1, ageYears: 27,
+  culture: { id: 2 }, city: { value: "city-a" }, household: null,
+  motherId: null, fatherId: null, spouse: null,
+  profession: { id: 0 }, employer: null, health: 0,
+  hunger: 0, thirst: 0, sleep: 0, social: 0, personality: {},
+  skills: { values: {} }, currentLocation: { x: 0, y: 0 },
+  currentAction: null, actionStartedAtTick: 0,
+  actionTarget: null, lod: 0, memories: [], beliefs: [],
+  currentScope: { kind: 1, cityId: { value: "city-a" } },
+};
 
 const CITY_A = { kind: "City" as const, cityId: "city-a" };
 const WORLD = { kind: "World" as const };
@@ -120,5 +135,48 @@ describe("SimulationStore", () => {
     store.applyDelta({ tick: 1, moved: [], removed: [3000] });
 
     expect(store.entitiesOf(CITY_A).some((e) => e.ref.id === "3000")).toBe(false);
+  });
+
+  // T50 round 4 (bug "retry storm de 404"): um NPC confirmado ausente nunca vai "voltar a
+  // existir" -- refazer o fetch pra sempre, a cada tick/frame, é desperdício de rede sem ganho.
+  it("never re-fetches a confirmed-gone NPC's inspection once it has 404'd", async () => {
+    const clock = new MockClock();
+    const npcInspectionSource = new MockNpcInspectionSource(new Map()); // sempre resolve null
+    const loadSpy = vi.spyOn(npcInspectionSource, "load");
+    const store = new SimulationStore(
+      new MockSnapshotSource(snapshotsByScope),
+      new MockTickStreamSource(clock, npcsByScope, 20),
+      npcInspectionSource,
+    );
+
+    const first = await store.inspectNpc(9999);
+    expect(first).toBeNull();
+    expect(loadSpy).toHaveBeenCalledTimes(1);
+
+    const second = await store.inspectNpc(9999);
+    expect(second).toBeNull();
+    expect(loadSpy).toHaveBeenCalledTimes(1); // não refez o fetch pro id já confirmado ausente
+  });
+
+  // Contraste do teste acima: um NPC MATERIALIZADO (objeto real, não null) tem stats que mudam
+  // com o tempo (fome, sede, sono...) -- o painel do Inspector depende de refetch repetido pra
+  // mostrá-los ao vivo, então este caso NUNCA pode virar um cache permanente.
+  it("keeps re-fetching a materialized NPC's inspection so live-changing stats stay current", async () => {
+    const clock = new MockClock();
+    const npcInspectionSource = new MockNpcInspectionSource(new Map([[3000, MATERIALIZED_INSPECTION]]));
+    const loadSpy = vi.spyOn(npcInspectionSource, "load");
+    const store = new SimulationStore(
+      new MockSnapshotSource(snapshotsByScope),
+      new MockTickStreamSource(clock, npcsByScope, 20),
+      npcInspectionSource,
+    );
+
+    const first = await store.inspectNpc(3000);
+    expect(first).toEqual(MATERIALIZED_INSPECTION);
+    expect(loadSpy).toHaveBeenCalledTimes(1);
+
+    const second = await store.inspectNpc(3000);
+    expect(second).toEqual(MATERIALIZED_INSPECTION);
+    expect(loadSpy).toHaveBeenCalledTimes(2); // refetch continua -- stats podem ter mudado
   });
 });
