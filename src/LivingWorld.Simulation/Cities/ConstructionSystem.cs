@@ -42,36 +42,49 @@ public sealed class ConstructionSystem : ISimulationSystem
             project.Advance();
             if (project.TicksRemaining == 0)
             {
-                CompleteProject(world, city, project, ctx);
-                city.DequeueCompletedConstruction();
+                // dynamic-city-growth, round-3 fix D (CITYGROW-02b): só desenfileira quando o
+                // projeto realmente completou -- escassez de terra deixa o projeto na fila pra
+                // tentar de novo num tick futuro (design.md, Error Handling Strategy), nunca
+                // desaparece sem criar nada.
+                if (CompleteProject(world, city, project, ctx))
+                    city.DequeueCompletedConstruction();
             }
         }
     }
 
-    private static void CompleteProject(WorldState world, City city, ConstructionProject project, TickContext ctx)
+    /// <returns>false somente quando um workplace-recipe não conseguiu resolver posição agora
+    /// (escassez de terra) -- o chamador mantém o projeto na fila pra tentar de novo depois.</returns>
+    private static bool CompleteProject(WorldState world, City city, ConstructionProject project, TickContext ctx)
     {
-        if (!world.CityCatalog.BuildingRecipes.TryGetValue(project.BuildingTypeId, out var recipe)) return;
-
-        var building = new Building(world.NextBuildingIdAndAdvance(), city.Id, project.BuildingTypeId, ctx.CurrentTick);
-        world.AddBuilding(building);
+        if (!world.CityCatalog.BuildingRecipes.TryGetValue(project.BuildingTypeId, out var recipe)) return true;
 
         if (recipe.Workplace is { } workplaceRecipe)
         {
+            // dynamic-city-growth, round-3 fix D: resolve a posição ANTES de criar/adicionar o
+            // Building -- com um candidato descartável (id só espiado via world.NextBuildingId,
+            // nunca avançado se a resolução falhar) -- pra não deixar um Building órfão sem
+            // Workplace acumulando a cada retry.
+            var candidate = new Building(new BuildingId(world.NextBuildingId), city.Id, project.BuildingTypeId, ctx.CurrentTick);
             // dynamic-city-growth, T3/T4b: Resolve agora precisa dos bounds atuais da cidade pra
             // tentar uma célula livre antes de cair no overflow (CITYGROW-01/02);
             // ResolveGrownBounds já realimenta os boxes de overflow das próprias buildings pra
             // que os bounds cresçam de verdade (CITYGROW-03/05).
             long population = CityPopulationQuery.Population(world, city.Id);
             var bounds = CityOccupancy.ResolveGrownBounds(world, city, population).Bounds;
-            // CITYGROW-02b: null = escassez de terra pra este prédio agora -- sem fila/retry
-            // especial, o workplace simplesmente não é criado nesta chamada (mesmo padrão do
-            // resto da posição de prédios, nunca persistida).
-            if (BuildingPlacementResolver.Resolve(building, city, world, bounds) is not { } resolved) return;
+            if (BuildingPlacementResolver.Resolve(candidate, city, world, bounds) is not { } resolved) return false;
+
+            var building = new Building(world.NextBuildingIdAndAdvance(), city.Id, project.BuildingTypeId, ctx.CurrentTick);
+            world.AddBuilding(building);
             world.AddWorkplace(new Workplace(
                 world.NextWorkplaceIdAndAdvance(), new LocationType(workplaceRecipe.LocationTypeId), resolved.Position,
                 workplaceRecipe.MaxVacancies, employees: [], stock: new Dictionary<ResourceType, long>(),
                 treasury: Money.Zero, prices: CopyPricesFromExisting(world, workplaceRecipe.LocationTypeId)));
         }
+        else
+        {
+            world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, project.BuildingTypeId, ctx.CurrentTick));
+        }
+        return true;
     }
 
     private static Dictionary<ResourceType, long> CopyPricesFromExisting(WorldState world, int locationTypeId)
