@@ -15,6 +15,8 @@ import type { SelectionStore } from "../state/selectionStore";
 import type { CitySnapshot } from "../types";
 import { cityGroundAt } from "../map-engine/worldVisuals";
 import { computeFitZoom } from "../gridFit";
+import { constructionSitesFromProcesses } from "../map-engine/constructionSite";
+import { ConstructionProgressHud } from "./ConstructionProgressHud";
 
 export interface CityViewProps {
   snapshot: CitySnapshot;
@@ -52,20 +54,28 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
 
   // Mesmo footprint que o marcador do mapa-múndi desenha (SpatialBoundsResolver, cresce com a
   // população) — não um envelope fixo desconectado (LIVE-POLISH: usuário via um tamanho de
-  // cidade lá fora e outro, sempre igual, aqui dentro).
+  // cidade lá fora e outro, sempre igual, aqui dentro). Bounds vêm do `livingState.cities` (ao
+  // vivo, via `cityUpserts` no delta de tick) com fallback pro snapshot estático — senão a
+  // cidade cresce lá fora (mapa-múndi) mas o grid aqui dentro fica travado no tamanho do
+  // primeiro load, mesmo padrão já corrigido para `livingBuildings`/`constructionProcesses`.
+  const livingCities = useSyncExternalStore(
+    (onStoreChange) => simulationStore.subscribe(onStoreChange),
+    () => simulationStore.livingStateOf(space).cities,
+  );
+  const bounds = livingCities.get(snapshot.id.value)?.bounds ?? snapshot.bounds;
   const cells = useMemo(
     () => ({
-      width: snapshot.bounds.width,
-      height: snapshot.bounds.height,
-      minX: snapshot.bounds.x,
-      minY: snapshot.bounds.y,
+      width: bounds.width,
+      height: bounds.height,
+      minX: bounds.x,
+      minY: bounds.y,
       showGrid: false,
       backgroundColor: "#7fa8b2",
       atmosphereSeed: `city:${snapshot.id.value}`,
       colorAt: (x: number, y: number) => cityGroundAt(snapshot.id.value, x, y).color,
       detailAt: (x: number, y: number) => cityGroundAt(snapshot.id.value, x, y),
     }),
-    [snapshot.id.value, snapshot.bounds],
+    [snapshot.id.value, bounds],
   );
 
   // Fit-to-screen no footprint real (mesma função que o mapa-múndi usa via `Camera.initial`,
@@ -115,6 +125,12 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
     [snapshot.pendingResidentIds, snapshot.location, space],
   );
 
+  const constructionProcesses = simulationStore.livingStateOf(space).processes;
+  const constructionSites = useMemo(
+    () => constructionSitesFromProcesses(constructionProcesses.values(), space),
+    [constructionProcesses, space],
+  );
+
   return (
     <div className="map-fullscreen" data-testid="city-view">
       <div className="map-hud map-hud-top-left">
@@ -124,6 +140,7 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
           Pool agregado: {snapshot.aggregatePool.count} habitantes não materializados (riqueza{" "}
           {snapshot.aggregatePool.wealthSum}, saúde {snapshot.aggregatePool.healthSum})
         </p>
+        <ConstructionProgressHud processes={constructionProcesses.values()} />
         <FloorSelector floor={floor} label={cityFloorLabel(floor)} onChange={setFloor} />
         <EntityLegend />
       </div>
@@ -139,7 +156,7 @@ export function CityView({ snapshot, viewport, simulationStore, viewStore, selec
         simulationStore={simulationStore}
         viewStore={viewStore}
         selectionStore={selectionStore}
-        staticEntities={[...buildingEntities, ...pendingResidentEntities]}
+        staticEntities={[...buildingEntities, ...pendingResidentEntities, ...constructionSites]}
         resolveNavigationTarget={resolveNavigationTarget(snapshot.id.value)}
         initialCamera={initialCamera}
       />
