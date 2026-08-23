@@ -1,19 +1,36 @@
 import { Profiler } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, fireEvent } from "@testing-library/react";
+import { render, fireEvent, waitFor } from "@testing-library/react";
 import { MapView } from "../src/components/MapView";
 import { SimulationStore } from "../src/state/simulationStore";
 import { ViewStore } from "../src/state/viewStore";
 import { SelectionStore } from "../src/state/selectionStore";
 import { MockPortalSource } from "../src/data/mock/MockPortalSource";
+import { MockNpcInspectionSource } from "../src/data/mock/MockNpcInspectionSource";
 import { VisualScopeKind, ViewerMode } from "../src/types";
 import type { SnapshotSource, TickStreamSource } from "../src/data/sources";
 import type { SpaceId } from "../src/map-engine/types";
+import { POOLED_LOD, type NpcInspection } from "../src/data/contracts";
 
 const VIEWPORT = { width: 200, height: 200 };
 const CITY_A: SpaceId = { kind: "City", cityId: "city-a" };
+const CITY_B: SpaceId = { kind: "City", cityId: "city-b" };
 const WORLD: SpaceId = { kind: "World" };
 const CELLS = { width: 100, height: 100, colorAt: () => undefined };
+
+// Mesma forma mínima usada pelos testes do NpcInspector (tests/inspector/NpcInspector.test.tsx)
+// — só os campos que o próprio tipo exige, sem nenhum dado que este teste não vá checar.
+const POOLED_INSPECTION: NpcInspection = {
+  id: { value: 1 }, name: "Lina", sex: 1, ageYears: 27,
+  culture: { id: 2 }, city: { value: "city-b" }, household: null,
+  motherId: null, fatherId: null, spouse: null,
+  profession: { id: 0 }, employer: null, health: 0,
+  hunger: 0, thirst: 0, sleep: 0, social: 0, personality: {},
+  skills: { values: {} }, currentLocation: { x: 0, y: 0 },
+  currentAction: null, actionStartedAtTick: 0,
+  actionTarget: null, lod: POOLED_LOD, memories: [], beliefs: [],
+  currentScope: { kind: 1, cityId: { value: "city-b" } },
+};
 
 function stubRect(canvas: HTMLCanvasElement) {
   vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
@@ -622,5 +639,143 @@ describe("MapView", () => {
     await worldObserved;
 
     expect(selectionStore.current()).toBeNull();
+  });
+
+  // T50 round 3 (bug ao vivo): seguir um NPC pra uma cidade onde ele é um id reservado do pool
+  // agregado (City.PoolNpcIds, ainda não materializado) limpava a seleção/follow assim que o
+  // snapshot da cidade nova chegava -- `entitiesOf`/`staticEntities` nunca desenham um marcador
+  // pra um pooled (não existe até materializar), então `syncWithSpace` via `refreshEntities`
+  // via de regra tratava "sem marcador" como "não existe mais". Causa real: pooled não é
+  // "gone" -- é o mesmo estado que o NpcInspector já trata (Lod.Pooled, com botão de
+  // materializar). O fix consulta a mesma inspeção antes de decidir limpar.
+  it("keeps a followed selection alive when the new scope's snapshot shows the NPC as pooled instead of materialized", async () => {
+    const source: SnapshotSource = {
+      load: async (space) => {
+        if (space.kind === "City" && space.cityId === "city-a") {
+          return {
+            scope: { kind: VisualScopeKind.City, refId: "city-a", scopeKey: "city:city-a" },
+            mode: ViewerMode.Spectator,
+            cursor: { tick: 0, scopeKey: "city:city-a", sequence: 0 },
+            activeLayers: [],
+            payload: { residents: [{ id: { value: 1 }, location: { x: 50, y: 50 }, currentAction: null }] },
+          };
+        }
+        // city-b: NPC 1 não tem marcador nenhum aqui -- é um id reservado no pool, não um resident.
+        return {
+          scope: { kind: VisualScopeKind.City, refId: "city-b", scopeKey: "city:city-b" },
+          mode: ViewerMode.Spectator,
+          cursor: { tick: 0, scopeKey: "city:city-b", sequence: 0 },
+          activeLayers: [],
+          payload: { residents: [] },
+        };
+      },
+    };
+    const npcInspectionSource = new MockNpcInspectionSource(new Map([[1, POOLED_INSPECTION]]));
+    const simulationStore = new SimulationStore(source, neverStreamingTickSource(), npcInspectionSource);
+    const viewStore = new ViewStore(new MockPortalSource([]));
+    viewStore.recordCamera(CITY_A, { center: { x: 50, y: 50 }, scale: 10 });
+    const selectionStore = new SelectionStore();
+    await simulationStore.observeSpace(CITY_A);
+    selectionStore.select({ kind: "npc", id: "1", space: CITY_A });
+
+    const { rerender } = render(
+      <MapView
+        space={CITY_A}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+
+    await simulationStore.observeSpace(CITY_B);
+    rerender(
+      <MapView
+        space={CITY_B}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+
+    // A inspeção que confirma "pooled" é assíncrona -- espera ela resolver e o efeito reagir.
+    await waitFor(() => {
+      expect(selectionStore.current()).not.toBeNull();
+    });
+
+    expect(selectionStore.current()).toEqual({ kind: "npc", id: "1", space: CITY_B });
+  });
+
+  // Mesma transição pra uma cidade onde o NPC não é materializado NEM pooled (morreu, ou nunca
+  // esteve lá) -- a consulta de inspeção que evita a limpeza precoce no teste acima não pode virar
+  // um jeito de nunca mais limpar a seleção quando a entidade de fato se foi.
+  it("still clears the selection when the new scope's inspection confirms the NPC is neither materialized nor pooled", async () => {
+    const source: SnapshotSource = {
+      load: async (space) => {
+        if (space.kind === "City" && space.cityId === "city-a") {
+          return {
+            scope: { kind: VisualScopeKind.City, refId: "city-a", scopeKey: "city:city-a" },
+            mode: ViewerMode.Spectator,
+            cursor: { tick: 0, scopeKey: "city:city-a", sequence: 0 },
+            activeLayers: [],
+            payload: { residents: [{ id: { value: 1 }, location: { x: 50, y: 50 }, currentAction: null }] },
+          };
+        }
+        return {
+          scope: { kind: VisualScopeKind.City, refId: "city-b", scopeKey: "city:city-b" },
+          mode: ViewerMode.Spectator,
+          cursor: { tick: 0, scopeKey: "city:city-b", sequence: 0 },
+          activeLayers: [],
+          payload: { residents: [] },
+        };
+      },
+    };
+    // Mapa vazio: `MockNpcInspectionSource.load` devolve `null` pro NPC 1 -- nem materializado
+    // nem pooled, o mesmo "genuinamente sumiu" que o NpcInspector já mostra como tal.
+    const npcInspectionSource = new MockNpcInspectionSource(new Map());
+    const simulationStore = new SimulationStore(source, neverStreamingTickSource(), npcInspectionSource);
+    const viewStore = new ViewStore(new MockPortalSource([]));
+    viewStore.recordCamera(CITY_A, { center: { x: 50, y: 50 }, scale: 10 });
+    const selectionStore = new SelectionStore();
+    await simulationStore.observeSpace(CITY_A);
+    selectionStore.select({ kind: "npc", id: "1", space: CITY_A });
+
+    const { rerender } = render(
+      <MapView
+        space={CITY_A}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+
+    await simulationStore.observeSpace(CITY_B);
+    rerender(
+      <MapView
+        space={CITY_B}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(selectionStore.current()).toBeNull();
+    });
   });
 });

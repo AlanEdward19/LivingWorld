@@ -15,6 +15,7 @@ import { toScopeKey } from "../map-engine/space";
 import type { SimulationStore } from "../state/simulationStore";
 import type { ViewStore } from "../state/viewStore";
 import type { SelectionStore } from "../state/selectionStore";
+import { POOLED_LOD } from "../data/contracts";
 
 /** T50 (bug "seguir NPC entre escopos"): mesmo `NpcScope` que o backend devolve em
  * `NpcInspection.currentScope` (kind 0 = World, 1 = City) — traduzido pro `SpaceId` do cliente. */
@@ -132,7 +133,26 @@ export function MapView({
       // confirmada como ausente. Pula esta rodada; a próxima notificação (snapshot real
       // aplicado) chama `refreshEntities` de novo com a lista de verdade.
       if (simulationStore.isSpaceReady(space)) {
-        selectionStore.syncWithSpace(space, latest.map((entity) => entity.ref));
+        const entityRefs = latest.map((entity) => entity.ref);
+        const selected = selectionStore.current();
+        // T50 (round 3): a entidade selecionada some de `entitiesOf`/`staticEntities` tanto
+        // quando morreu/saiu de verdade quanto quando um residente virou id reservado no pool
+        // agregado da cidade (City.PoolNpcIds) — pooled não tem NpcVisual/marcador nenhum, mas
+        // não é "gone" (NpcInspector já trata esse estado, com botão de materializar). Antes de
+        // limpar, consulta a mesma inspeção que o Inspector já usa pra distinguir os dois casos.
+        if (selected?.kind === "npc" && !entityRefs.some((ref) => ref.kind === "npc" && ref.id === selected.id)) {
+          const npcId = Number(selected.id);
+          let inspection = simulationStore.npcInspectionOf(npcId);
+          if (inspection === undefined) {
+            void simulationStore.inspectNpc(npcId);
+            inspection = simulationStore.npcInspectionOf(npcId); // pode já ter resolvido em sync
+            if (inspection === undefined) return; // ainda em voo -- não decide com informação incompleta
+          }
+          if (inspection?.lod === POOLED_LOD) {
+            entityRefs.push({ ...selected, space }); // pooled: ainda existe, só sem marcador visual
+          }
+        }
+        selectionStore.syncWithSpace(space, entityRefs);
       }
     }
     refreshEntities();

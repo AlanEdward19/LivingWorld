@@ -159,7 +159,13 @@ export class SimulationStore {
   }
 
   private refreshNpcInspection(npcId: number): Promise<NpcInspection | null> {
-    if (!this.npcInspectionSource) return Promise.resolve(null);
+    if (!this.npcInspectionSource) {
+      // Sem fonte configurada: cacheia `null` já síncrono em vez de deixar `npcInspectionOf`
+      // indefinido pra sempre — quem consulta o cache pra decidir "ainda não sei" vs. "não
+      // existe" (MapView.refreshEntities, T50 round 3) precisa desse veredito imediato.
+      this.npcInspections.set(npcId, null);
+      return Promise.resolve(null);
+    }
     const active = this.inspectionLoads.get(npcId);
     if (active) return active;
 

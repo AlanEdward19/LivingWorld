@@ -43,6 +43,10 @@ export interface NpcVisual {
   currentAction: number | null;
 }
 
+/** T50: valor de `NpcInspection.lod` para um id reservado num pool agregado (City.PoolNpcIds)
+ * ainda não materializado — existe (não é "gone"), só não tem atributos reais até sortear. */
+export const POOLED_LOD = 2;
+
 export interface NpcInspection {
   id: NumericId;
   name: string;
