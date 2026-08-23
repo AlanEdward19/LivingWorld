@@ -1,6 +1,6 @@
 using System.Text.Json;
-using LivingWorld.Domain.Llm;
 using LivingWorld.Domain;
+using LivingWorld.Domain.Llm;
 using LivingWorld.Simulation;
 
 namespace LivingWorld.Tests.Llm;

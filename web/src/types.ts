@@ -101,6 +101,10 @@ export interface CityResidentMarker {
 export interface CityBuildingMarker {
   id: { value: number };
   buildingTypeId: number;
+  /** Motor cell from CityProjector / BuildingPlacementResolver — footprint origin. */
+  location: CellCoord;
+  /** True when the resolver derived the cell (dashed); false when authored (solid). */
+  locationIsDerived: boolean;
 }
 
 export interface AggregatePopulationPool {

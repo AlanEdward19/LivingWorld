@@ -70,6 +70,10 @@ public sealed class ProductionSystem : ISimulationSystem
 
         foreach (var (resourceId, perWorker) in recipe.Outputs)
         {
+            if (resourceId == rules.FoodResourceId
+                && world.ProcessRecipes.Any(item => item.Kind == ProcessKind.Plant))
+                continue;
+
             var resource = new ResourceType(resourceId);
             long produced = (long)(perWorker * scale * skillMultiplier);
             world.RecordResourceProduced(resource, produced); // ECON-15: conta o bruto, antes do clamp de capacidade

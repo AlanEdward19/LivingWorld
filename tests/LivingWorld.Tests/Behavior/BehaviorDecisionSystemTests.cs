@@ -148,9 +148,13 @@ public class BehaviorDecisionSystemTests
             var catalog = ActionCatalog.Create(
                 new Dictionary<ActionType, int>
                 {
-                    [ActionType.Eat] = 2, [ActionType.Sleep] = 8, [ActionType.Work] = 8,
-                    [ActionType.Socialize] = 3, [ActionType.Travel] = 4,
-                    [ActionType.Idle] = 2, [ActionType.Buy] = 2,
+                    [ActionType.Eat] = 2,
+                    [ActionType.Sleep] = 8,
+                    [ActionType.Work] = 8,
+                    [ActionType.Socialize] = 3,
+                    [ActionType.Travel] = 4,
+                    [ActionType.Idle] = 2,
+                    [ActionType.Buy] = 2,
                 }, [], ActionType.Idle).Value!;
             var (world, ctx, npc) = BuildWorld(seed: 44, rules, catalog, Neutral);
             var before = npc.CurrentLocation;
@@ -231,19 +235,19 @@ public class BehaviorDecisionSystemTests
         var occupiedCells = new HashSet<CellCoord>();
         var blockerId = 2L;
         foreach (var dy in new[] { -1, 0, 1 })
-        foreach (var dx in new[] { -1, 0, 1 })
-        {
-            var cell = new CellCoord(npc.CurrentLocation.X + dx, npc.CurrentLocation.Y + dy);
-            if (cell == npc.CurrentLocation || cell == freeCell) continue;
+            foreach (var dx in new[] { -1, 0, 1 })
+            {
+                var cell = new CellCoord(npc.CurrentLocation.X + dx, npc.CurrentLocation.Y + dy);
+                if (cell == npc.CurrentLocation || cell == freeCell) continue;
 
-            var blocker = new Npc(
-                new NpcId(blockerId++), "blocker", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30),
-                new CultureId(1), cell, motherId: null, fatherId: null, household: null, health: 100,
-                personality: Neutral, profession: ProfessionType.None, currentLocation: cell,
-                hunger: 100, thirst: 100, sleep: 100, social: 100);
-            world.AddNpc(blocker);
-            occupiedCells.Add(cell);
-        }
+                var blocker = new Npc(
+                    new NpcId(blockerId++), "blocker", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30),
+                    new CultureId(1), cell, motherId: null, fatherId: null, household: null, health: 100,
+                    personality: Neutral, profession: ProfessionType.None, currentLocation: cell,
+                    hunger: 100, thirst: 100, sleep: 100, social: 100);
+                world.AddNpc(blocker);
+                occupiedCells.Add(cell);
+            }
         world.AdvanceNpcIdTo(blockerId);
 
         npc.SetCurrentAction(ActionType.Idle, tick: -2);

@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using LivingWorld.Api;
 using LivingWorld.Api.Simulation;
 using LivingWorld.Simulation;
 using Microsoft.AspNetCore.Mvc.Testing;

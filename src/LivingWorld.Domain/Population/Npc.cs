@@ -94,7 +94,8 @@ public sealed class Npc
         Money wallet = default, WorkplaceId? employer = null,
         SkillSet? skills = null, RateGene? rateGene = null, NpcId? mentor = null,
         double vitality = 50.0, double upbringing = 50.0, NpcId? spouse = null, NpcId? courtingWith = null,
-        CityId city = default, long? materializedAtTick = null, InteriorOccupancy? interior = null)
+        CityId city = default, long? materializedAtTick = null, InteriorOccupancy? interior = null,
+        int carriedResourceId = 0, long carriedQuantity = 0)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -138,6 +139,8 @@ public sealed class Npc
         City = city;
         MaterializedAtTick = materializedAtTick;
         Interior = interior;
+        CarriedResourceId = carriedResourceId;
+        CarriedQuantity = carriedQuantity;
     }
 
     public Npc(
@@ -151,14 +154,41 @@ public sealed class Npc
         Money wallet = default, WorkplaceId? employer = null,
         SkillSet? skills = null, RateGene? rateGene = null, NpcId? mentor = null,
         double vitality = 50.0, double upbringing = 50.0, NpcId? spouse = null, NpcId? courtingWith = null,
-        CityId city = default, long? materializedAtTick = null, InteriorOccupancy? interior = null)
+        CityId city = default, long? materializedAtTick = null, InteriorOccupancy? interior = null,
+        int carriedResourceId = 0, long carriedQuantity = 0)
         : this(
             id, name, sex, birthDate, culture, birthLocation, motherId, fatherId, household, health,
             personality, profession, currentLocation,
             LazyNeed.Initial(hunger, 0, 0), LazyNeed.Initial(thirst, 0, 0), LazyNeed.Initial(sleep, 0, 0), LazyNeed.Initial(social, 0, 0),
             currentAction, actionStartedAtTick, hungerZeroSinceTick, homelessSince, pregnantUntil, deathDate,
-            wallet, employer, skills, rateGene, mentor, vitality, upbringing, spouse, courtingWith, city, materializedAtTick, interior)
+            wallet, employer, skills, rateGene, mentor, vitality, upbringing, spouse, courtingWith, city, materializedAtTick, interior,
+            carriedResourceId, carriedQuantity)
     {
+    }
+
+    /// <summary>Recurso carregado em trânsito (Fase 15.1, Stage 4, T15). Zero significa as mãos
+    /// vazias — água/comida só entram no estoque alvo depois da entrega.</summary>
+    public int CarriedResourceId { get; private set; }
+    public long CarriedQuantity { get; private set; }
+
+    public bool IsCarrying => CarriedQuantity > 0;
+
+    public Result<Unit> PickUp(ResourceType resource, long quantity)
+    {
+        if (quantity <= 0) return Result<Unit>.Fail("CarriedQuantity: deve ser > 0");
+        if (IsCarrying) return Result<Unit>.Fail("carry: NPC já transporta um recurso");
+        CarriedResourceId = resource.Id;
+        CarriedQuantity = quantity;
+        return Result<Unit>.Ok(Unit.Value);
+    }
+
+    public Result<Unit> GiveCarriedTo(Household household)
+    {
+        if (!IsCarrying) return Result<Unit>.Fail("carry: nada em trânsito");
+        household.Deposit(new ResourceType(CarriedResourceId), CarriedQuantity);
+        CarriedResourceId = 0;
+        CarriedQuantity = 0;
+        return Result<Unit>.Ok(Unit.Value);
     }
 
     /// <summary>Idade derivada de <paramref name="now"/> — nunca incrementada por sistema

@@ -38,7 +38,10 @@ public static class ScenarioLoaderV2
             definition.Behavior.NeedsRules, definition.Behavior.ActionCatalog,
             ScenarioRunner.DefaultLifeStageRules,
             economyRules: definition.Economy.Rules, economyCatalog: definition.Economy.Catalog,
-            cityRules: definition.City.Rules, cityCatalog: definition.City.Catalog);
+            cityRules: definition.City.Rules, cityCatalog: definition.City.Catalog,
+            restPlaceCatalog: definition.Behavior.RestPlaceCatalog,
+            resourceCatalog: definition.ResourceCatalog,
+            processRecipes: definition.ProcessRecipes);
 
         foreach (var workplace in definition.Economy.Workplaces)
             world.AddWorkplace(new Workplace(

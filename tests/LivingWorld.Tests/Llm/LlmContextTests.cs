@@ -70,8 +70,11 @@ public class LlmContextTests
         var plain = BaseContext("oi");
         var full = plain with
         {
-            BeliefFacts = ["segredo"], RelevantMemories = [new MemoryCandidate("evento", 50)],
-            AllowedActions = ["greet"], SessionId = 7, SessionOpenedAtTick = 3,
+            BeliefFacts = ["segredo"],
+            RelevantMemories = [new MemoryCandidate("evento", 50)],
+            AllowedActions = ["greet"],
+            SessionId = 7,
+            SessionOpenedAtTick = 3,
         };
 
         var a = await provider.GetResponseAsync(plain);

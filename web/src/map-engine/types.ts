@@ -76,4 +76,9 @@ export interface AuthoritativeEntity {
   showBoundary?: boolean;
   /** Orientação visual horária usada pela autoria antes de existir contrato canônico na API. */
   rotation?: EntityRotation;
+  /** Stage 4 process overlay (construction scaffold, later crop/water). */
+  process?: { kind: string; progress: number; accessibleLabel: string; descriptorKey?: string };
+  /** Inter-city household relocation target (world map route). Absent for intra-city commute. */
+  travelDestination?: { x: number; y: number };
+  cityId?: string;
 }

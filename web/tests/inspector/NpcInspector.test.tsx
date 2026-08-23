@@ -113,6 +113,82 @@ describe("NpcInspector living view", () => {
     expect(screen.getByText("Nenhuma habilidade desenvolvida.")).toBeInTheDocument();
   });
 
+  it("shows rest quality, location, remaining duration and an accessible Zzz cue", async () => {
+    await renderInspector(new MockNpcInspectionSource(new Map([[3, {
+      ...BASE_INSPECTION,
+      currentAction: 1,
+      actionTarget: { kind: "household", id: "41" },
+      rest: { kind: 2, quality: 1, location: { x: 4, y: 5 }, remainingHours: 3, blocked: false },
+    }]])));
+
+    expect(screen.getByRole("heading", { name: "Descanso" })).toBeInTheDocument();
+    expect(screen.getByText("Cama")).toBeInTheDocument();
+    expect(screen.getByText("100%")).toBeInTheDocument();
+    expect(screen.getByText("(4, 5)")).toBeInTheDocument();
+    expect(screen.getByText("3 h")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Dormindo em Cama, qualidade 100%, 3 h restantes/)).toHaveTextContent("Zzz");
+    expect(screen.getByRole("img")).toHaveAttribute(
+      "alt",
+      "Aparência visual do NPC 3 — Dormindo em Cama, qualidade 100%, 3 h restantes",
+    );
+  });
+
+  it("shows blocked rest without applying a finished effect", async () => {
+    await renderInspector(new MockNpcInspectionSource(new Map([[3, {
+      ...BASE_INSPECTION,
+      currentAction: 1,
+      rest: { kind: 1, quality: 0.7, location: { x: 9, y: 9 }, remainingHours: 8, blocked: true },
+    }]])));
+
+    expect(screen.getByRole("status")).toHaveTextContent("Descanso bloqueado — o lugar não é alcançável.");
+    expect(screen.getByLabelText(/bloqueado/)).toBeInTheDocument();
+  });
+
+  it("shows food resource, raw vs prepared, and remaining duration while eating", async () => {
+    await renderInspector(new MockNpcInspectionSource(new Map([[3, {
+      ...BASE_INSPECTION,
+      currentAction: 0,
+      food: { resourceId: 3, preparation: 1, remainingHours: 2, blocked: false },
+    }]])));
+
+    expect(screen.getByRole("heading", { name: "Alimentação" })).toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
+    expect(screen.getByText("Preparado")).toBeInTheDocument();
+    expect(screen.getByText("2 h")).toBeInTheDocument();
+    expect(screen.getByRole("img")).toHaveAttribute(
+      "alt",
+      "Aparência visual do NPC 3 — Comendo recurso 3 (Preparado), 2 h restantes",
+    );
+  });
+
+  it("names raw food distinctly from prepared food in the inspector", async () => {
+    await renderInspector(new MockNpcInspectionSource(new Map([[3, {
+      ...BASE_INSPECTION,
+      currentAction: 0,
+      food: { resourceId: 8, preparation: 0, remainingHours: 1, blocked: false },
+    }]])));
+
+    expect(screen.getByText("Cru")).toBeInTheDocument();
+    expect(screen.queryByText("Preparado")).not.toBeInTheDocument();
+    expect(screen.getByRole("img")).toHaveAttribute(
+      "alt",
+      "Aparência visual do NPC 3 — Comendo recurso 8 (Cru), 1 h restantes",
+    );
+  });
+
+
+  it("announces blocked food when only raw stock is available", async () => {
+    await renderInspector(new MockNpcInspectionSource(new Map([[3, {
+      ...BASE_INSPECTION,
+      currentAction: 0,
+      food: { resourceId: 0, preparation: 0, remainingHours: 2, blocked: true },
+    }]])));
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Refeição bloqueada — nenhum alimento comestível disponível.",
+    );
+  });
+
   it("retains follow but never offers spatial navigation for an NPC", async () => {
     await renderInspector(new MockNpcInspectionSource(new Map([[3, BASE_INSPECTION]])));
 

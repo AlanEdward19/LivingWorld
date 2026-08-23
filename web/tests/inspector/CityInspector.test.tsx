@@ -39,6 +39,23 @@ function cityEnvelope() {
       buildings: [],
       layers: {},
       indicators: { population: 340, wealth: 62, health: 71, inequality: 0.34, economy: 58, housing: 44 },
+      livingState: {
+        npcs: [],
+        cities: [],
+        buildings: [],
+        processes: [
+          {
+            id: 0,
+            kind: "construction",
+            targetId: 1,
+            progress: 0.4,
+            descriptorKey: "construction",
+            location: { x: 4, y: 5 },
+          },
+        ],
+        indicators: [],
+        events: [],
+      },
     },
   };
 }
@@ -89,5 +106,15 @@ describe("CityInspector", () => {
     fireEvent.click(screen.getByRole("button", { name: "Abrir" }));
 
     expect(enterSpy).toHaveBeenCalledWith({ kind: "City", cityId: "city-a" });
+  });
+
+  it("shows queued construction progress in the city inspector before completion", async () => {
+    const simulationStore = new SimulationStore(multiScopeSource(), neverStreamingTickSource());
+    const viewStore = new ViewStore(new MockPortalSource([]));
+    await simulationStore.observeSpace({ kind: "City", cityId: "city-a" });
+
+    render(<CityInspector cityId="city-a" simulationStore={simulationStore} viewStore={viewStore} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("Construção em andamento, 40%");
   });
 });

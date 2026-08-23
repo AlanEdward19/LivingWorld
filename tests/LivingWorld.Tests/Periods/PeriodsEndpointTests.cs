@@ -222,7 +222,9 @@ public class PeriodsEndpointTests : IClassFixture<WebApplicationFactory<Program>
         {
             ["Terrain"] = new JsonArray(new JsonObject
             {
-                ["Id"] = 1, ["Name"] = "Grama", ["Explanation"] = "Terreno fértil comum",
+                ["Id"] = 1,
+                ["Name"] = "Grama",
+                ["Explanation"] = "Terreno fértil comum",
             }),
         };
         await client.PostAsync("/periods", JsonBody(Envelope("catalog-descriptors-period", 1, definition)));

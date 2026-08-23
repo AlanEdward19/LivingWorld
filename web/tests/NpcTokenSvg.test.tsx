@@ -26,11 +26,11 @@ describe("NpcTokenSvg", () => {
     expect(screen.getByRole("img")).toHaveAttribute("alt", "Aparência visual do NPC 7");
   });
 
-  it("only animates the sleep badge", () => {
-    render(<NpcTokenSvg npcId="7" currentAction={1} />);
-    expect(document.querySelector(".npc-action-badge-pulse")).not.toBeNull();
-
-    render(<NpcTokenSvg npcId="7" currentAction={2} />);
-    expect(document.querySelectorAll(".npc-action-badge-pulse")).toHaveLength(1); // só a instância acima
+  it("pulses catalog-animated badges including eat, sleep, work, socialize, rest, and buy", () => {
+    for (const action of [0, 1, 2, 3, 5, 6]) {
+      const { unmount } = render(<NpcTokenSvg npcId={String(action)} currentAction={action} />);
+      expect(document.querySelector(".npc-action-badge-pulse")).not.toBeNull();
+      unmount();
+    }
   });
 });

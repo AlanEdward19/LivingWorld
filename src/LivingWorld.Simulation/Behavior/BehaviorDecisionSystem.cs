@@ -7,9 +7,9 @@ namespace LivingWorld.Simulation;
 /// <summary>Escolhe a ação do tick de cada NPC vivo (Fase 4 — NEEDS-05..16): rotina diária por
 /// padrão, utility AI só quando alguma necessidade supera o limiar de urgência do cenário, com
 /// bônus de continuidade (histerese), conclusão de ação ao atingir a duração máxima declarada, e
-/// deslocamento com custo real quando a ação vencedora exige um local diferente do atual (hoje,
-/// só <c>Sleep</c> tem exigência de local — dormir em <see cref="Household"/>.Location; sem-teto
-/// dorme onde está, NEEDS-15).</summary>
+/// deslocamento com custo real quando a ação vencedora exige um local diferente do atual.
+/// <c>Sleep</c> usa um lugar de descanso alcançável (chão/moradia/cama, T12); sem caminho o NPC
+/// bloqueia no local atual em vez de teleportar.</summary>
 public sealed class BehaviorDecisionSystem : ISimulationSystem
 {
     public const string SystemName = "behavior-decision";
@@ -99,7 +99,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         if (action is ActionType.Idle or ActionType.Socialize || (action == ActionType.Work && npc.Employer is not null))
             MoveOneAmbientStep(world, npc, ctx, now, action, occupancy, cityPopulationCache);
 
-        ApplyActionEffect(world, npc, rules, action, marketIndex, now);
+        ApplyActionEffect(world, npc, action, marketIndex, now);
         return true;
     }
 
@@ -126,9 +126,11 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         WorldState world, Npc npc, TickContext ctx, long tick, ActionType action, HashSet<CellCoord> occupancy,
         Dictionary<CityId, long> cityPopulationCache)
     {
+        // dynamic-city-growth, T4b: ResolveGrownBounds realimenta os boxes de overflow das
+        // próprias buildings da cidade, então o passeio ambiente já respeita os bounds crescidos
+        // (CITYGROW-03/05) em vez do teto só-população de antes.
         CityBounds? homeBounds = world.FindCity(npc.City) is { } city
-            ? SpatialBoundsResolver.ResolveCity(
-                city, PopulationOf(world, city.Id, cityPopulationCache), world.Map.Width, world.Map.Height).Bounds
+            ? CityOccupancy.ResolveGrownBounds(world, city, PopulationOf(world, city.Id, cityPopulationCache)).Bounds
             : null;
 
         var allNeighbors = Enumerable.Range(-1, 3)
@@ -156,7 +158,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         MoveTracked(npc, candidates[index], tick, occupancy);
     }
 
-    private static void ApplyActionEffect(WorldState world, Npc npc, NeedsRules rules, ActionType action, MarketIndex marketIndex, long tick)
+    private static void ApplyActionEffect(WorldState world, Npc npc, ActionType action, MarketIndex marketIndex, long tick)
     {
         switch (action)
         {
@@ -164,7 +166,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                 ApplyEat(world, npc, tick);
                 break;
             case ActionType.Sleep:
-                npc.SetSleep(npc.HomelessSince is null ? 100 : (int)(100 * rules.HomelessSleepEfficiency), tick);
+                ApplySleep(world, npc, tick);
                 break;
             case ActionType.Socialize:
                 npc.SetSocial(100, tick);
@@ -173,6 +175,14 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                 ApplyBuy(world, npc, marketIndex);
                 break;
         }
+    }
+
+    private static void ApplySleep(WorldState world, Npc npc, long tick)
+    {
+        var rest = RestPlaceResolver.Resolve(world, npc);
+        if (rest.Location != npc.CurrentLocation) return;
+
+        npc.SetSleep((int)(100 * rest.RecoveryEfficiency), tick);
     }
 
     private static void ApplyEat(WorldState world, Npc npc, long tick)
@@ -187,11 +197,11 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
         if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household) return;
 
-        var food = new ResourceType(econ.FoodResourceId);
-        if (household.Withdraw(food, 1).IsSuccess)
+        var meal = FoodResolver.ResolveMeal(world, household);
+        if (meal.Id > 0 && household.Withdraw(meal, 1).IsSuccess)
         {
             npc.SetHunger(100, tick);
-            world.RecordResourceConsumed(food, 1);
+            world.RecordResourceConsumed(meal, 1);
         }
 
         var water = new ResourceType(econ.WaterResourceId);
@@ -233,29 +243,40 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     private static ActionType RefineForLocation(WorldState world, Npc npc, ActionType candidate, MarketIndex marketIndex) => candidate switch
     {
         ActionType.Sleep when SleepDestinationOf(world, npc) is { } dest && dest != npc.CurrentLocation => ActionType.Travel,
-        // LIVE-POLISH: única exigência de local que faltava — sem isso, Work nunca vira Travel,
-        // o NPC "trabalha" onde já está e jamais visita o próprio emprego (T9 do plano de
-        // stage 4, achado enquanto o usuário reportava NPCs presos num raio de 3x3 pra sempre).
         ActionType.Work when WorkDestinationOf(world, npc) is { } dest && dest != npc.CurrentLocation => ActionType.Travel,
         ActionType.Buy when BuyDestinationOf(world, npc, marketIndex) is { } dest && dest != npc.CurrentLocation => ActionType.Travel,
+        _ when RelocationDestinationOf(world, npc) is { } relocation && relocation != npc.CurrentLocation => ActionType.Travel,
         _ => candidate,
     };
 
     private static CellCoord? WorkDestinationOf(WorldState world, Npc npc) =>
         npc.Employer is { } workplaceId ? world.FindWorkplace(workplaceId)?.Location : null;
 
-    private static CellCoord? SleepDestinationOf(WorldState world, Npc npc) =>
-        npc.Household is { } householdId ? world.FindHousehold(householdId)?.Location : null;
+    private static CellCoord? SleepDestinationOf(WorldState world, Npc npc)
+    {
+        var rest = RestPlaceResolver.Resolve(world, npc);
+        if (rest.Location == npc.CurrentLocation) return null;
+        return RestPlaceResolver.IsReachable(world.Map, npc.CurrentLocation, rest.Location) ? rest.Location : null;
+    }
 
     private static CellCoord? BuyDestinationOf(WorldState world, Npc npc, MarketIndex marketIndex) =>
         marketIndex.NearestTo(npc.CurrentLocation)?.Location;
 
     private static CellCoord? TravelDestinationOf(WorldState world, Npc npc, MarketIndex marketIndex) =>
-        SleepDestinationOf(world, npc) is { } sleepDest && sleepDest != npc.CurrentLocation
-            ? sleepDest
-            : WorkDestinationOf(world, npc) is { } workDest && workDest != npc.CurrentLocation
-                ? workDest
-                : BuyDestinationOf(world, npc, marketIndex);
+        RelocationDestinationOf(world, npc) is { } relocationDest
+            ? relocationDest
+            : SleepDestinationOf(world, npc) is { } sleepDest && sleepDest != npc.CurrentLocation
+                ? sleepDest
+                : WorkDestinationOf(world, npc) is { } workDest && workDest != npc.CurrentLocation
+                    ? workDest
+                    : BuyDestinationOf(world, npc, marketIndex);
+
+    private static CellCoord? RelocationDestinationOf(WorldState world, Npc npc) =>
+        npc.Household is { } householdId
+        && world.FindHousehold(householdId) is { PendingRelocationCity: { } cityId }
+        && world.FindCity(cityId) is { } city
+            ? city.Location
+            : null;
 
     private static ActionType SelectByUtility(WorldState world, Npc npc, NeedsRules rules, ActionType? continuityAction, long tick)
     {

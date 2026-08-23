@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using LivingWorld.Domain;
-using LivingWorld.Infrastructure;
 using LivingWorld.Simulation;
 using LivingWorld.Simulation.History;
 using LivingWorld.Tests.Baselines;

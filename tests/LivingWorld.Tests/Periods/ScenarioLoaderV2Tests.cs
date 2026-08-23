@@ -133,12 +133,16 @@ public class ScenarioLoaderV2Tests
         root["Cities"] = new JsonArray(
             new JsonObject
             {
-                ["X"] = 2, ["Y"] = 2, ["FoundedAtTick"] = 0,
+                ["X"] = 2,
+                ["Y"] = 2,
+                ["FoundedAtTick"] = 0,
                 ["AggregatePool"] = new JsonObject { ["Count"] = 0, ["WealthSum"] = 0, ["HealthSum"] = 0 },
             },
             new JsonObject
             {
-                ["X"] = 8, ["Y"] = 8, ["FoundedAtTick"] = 0,
+                ["X"] = 8,
+                ["Y"] = 8,
+                ["FoundedAtTick"] = 0,
                 ["AggregatePool"] = new JsonObject { ["Count"] = 0, ["WealthSum"] = 0, ["HealthSum"] = 0 },
             });
 
@@ -164,13 +168,17 @@ public class ScenarioLoaderV2Tests
         root["Cities"] = new JsonArray(
             new JsonObject
             {
-                ["X"] = 2, ["Y"] = 2, ["FoundedAtTick"] = 0,
+                ["X"] = 2,
+                ["Y"] = 2,
+                ["FoundedAtTick"] = 0,
                 ["AggregatePool"] = new JsonObject { ["Count"] = 0, ["WealthSum"] = 0, ["HealthSum"] = 0 },
                 ["InitialPopulation"] = 15,
             },
             new JsonObject
             {
-                ["X"] = 8, ["Y"] = 8, ["FoundedAtTick"] = 0,
+                ["X"] = 8,
+                ["Y"] = 8,
+                ["FoundedAtTick"] = 0,
                 ["AggregatePool"] = new JsonObject { ["Count"] = 0, ["WealthSum"] = 0, ["HealthSum"] = 0 },
             });
 

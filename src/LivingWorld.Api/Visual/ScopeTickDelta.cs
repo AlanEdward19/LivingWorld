@@ -31,7 +31,8 @@ public sealed record ScopeTickDelta(
 
     public ScopeTickDelta(long tick, IReadOnlyList<NpcPositionDelta> moved, IReadOnlyList<NpcId> removed)
         : this(tick, moved.Select(item => new NpcVisual(item.NpcId, item.Location, null)).ToList(), removed,
-            [], [], [], [], [], [], [], []) { }
+            [], [], [], [], [], [], [], [])
+    { }
 
     public static ScopeTickDelta Empty(long tick) => new(tick, [], [], [], [], [], [], [], [], [], []);
 }

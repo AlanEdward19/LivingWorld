@@ -1,6 +1,7 @@
 using LivingWorld.Api.Visual;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
+using LivingWorld.Simulation.Economy;
 using LivingWorld.Simulation.History;
 using LivingWorld.Simulation.Narrative;
 using LivingWorld.Simulation.Periods;
@@ -23,16 +24,20 @@ public sealed class ProductionCompositionTests
         typeof(NatalitySystem),
         typeof(NeedsDecaySystem),
         typeof(BehaviorDecisionSystem),
+        typeof(ResourceProcessSystem),
         typeof(EmploymentSystem),
         typeof(RelationshipSystem),
         typeof(SkillPracticeSystem),
         typeof(SkillTeachingSystem),
         typeof(ProductionSystem),
+        typeof(CropSystem),
         typeof(MarketPricingSystem),
         typeof(WagePaymentSystem),
         typeof(CityGrowthSystem),
+        typeof(ConstructionDemandSystem),
         typeof(ConstructionSystem),
         typeof(MigrationSystem),
+        typeof(RelocationArrivalSystem),
         typeof(MaterializationSystem),
         typeof(SettlementFoundingSystem),
         typeof(ChronicleGenerationSystem),
@@ -95,8 +100,8 @@ public sealed class ProductionCompositionTests
         var disabled = CreateCityPressureWorld();
         var cityTypes = new HashSet<Type>
         {
-            typeof(CityGrowthSystem), typeof(ConstructionSystem), typeof(MigrationSystem),
-            typeof(MaterializationSystem), typeof(SettlementFoundingSystem),
+            typeof(CityGrowthSystem), typeof(ConstructionDemandSystem), typeof(ConstructionSystem),
+            typeof(MigrationSystem), typeof(RelocationArrivalSystem), typeof(MaterializationSystem), typeof(SettlementFoundingSystem),
         };
         var systemsWithoutCities = ScenarioRunner.DefaultSystems()
             .Where(system => !cityTypes.Contains(system.GetType()))

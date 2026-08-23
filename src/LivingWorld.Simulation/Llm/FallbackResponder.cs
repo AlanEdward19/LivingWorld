@@ -1,4 +1,3 @@
-using LivingWorld.Domain.Llm;
 using LivingWorld.Domain;
 
 namespace LivingWorld.Simulation;

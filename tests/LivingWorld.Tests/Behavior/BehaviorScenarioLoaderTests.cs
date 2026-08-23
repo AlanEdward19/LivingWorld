@@ -47,6 +47,8 @@ public class BehaviorScenarioLoaderTests
         Assert.Equal(10, result.Value.NeedsRules.MaxActionSelectionSteps);
         Assert.True(result.Value.NeedsRules.HysteresisEnabled);
         Assert.Equal(0.5, result.Value.NeedsRules.HomelessSleepEfficiency);
+        Assert.Equal(0.5, result.Value.RestPlaceCatalog.GroundEfficiency);
+        Assert.Equal(1.0, result.Value.RestPlaceCatalog.DwellingEfficiency);
         Assert.Equal(ActionType.Idle, result.Value.ActionCatalog.DefaultAction);
         Assert.Equal(8, result.Value.ActionCatalog.MaxDurationHours[ActionType.Sleep]);
         Assert.Equal(ActionType.Work, result.Value.ActionCatalog.RoutineOf(null, LifeStage.Adult, 10));

@@ -33,6 +33,7 @@
 | NARRATIVE | `ChronicleGenerationSystem`, chronicles, biographies | Engine-grounded world/city/NPC narration | Timeline, inspectors |
 | CONVERSATION | conversation session system/API | Talk to selected NPC; show validated outcome | NPC interaction |
 | PERIOD | `PeriodEvolutionSystem`, period catalog | Current period, labels and transformation | HUD, timeline |
+| NPC_ANIM | `ActionType`, process visuals, lifecycle `WorldEventKind` | Animated 2D cues on map token + inspector | Map, NPC inspector |
 | EXAMPLE_COUNTER | `ExampleCounterSystem` | Explicitly excluded: scheduler diagnostics only | DiagnosticOnly |
 
 ## Completeness Rules

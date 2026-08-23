@@ -1,6 +1,6 @@
 using LivingWorld.Domain;
-using LivingWorld.Domain.Narrative;
 using LivingWorld.Domain.Llm;
+using LivingWorld.Domain.Narrative;
 
 namespace LivingWorld.Simulation.Narrative;
 

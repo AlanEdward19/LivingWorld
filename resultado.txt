@@ -1,0 +1,207 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+C:\Program Files\dotnet\sdk\10.0.400-preview.0.26322.102\Sdks\Microsoft.NET.Sdk\targets\Microsoft.NET.RuntimeIdentifierInference.targets(383,5): message NETSDK1057: You are using a preview version of .NET. See: https://aka.ms/dotnet-support-policy [C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\tests\LivingWorld.Tests\LivingWorld.Tests.csproj]
+C:\Program Files\dotnet\sdk\10.0.400-preview.0.26322.102\Sdks\Microsoft.NET.Sdk\targets\Microsoft.NET.RuntimeIdentifierInference.targets(383,5): message NETSDK1057: You are using a preview version of .NET. See: https://aka.ms/dotnet-support-policy [C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\src\LivingWorld.Workers\LivingWorld.Workers.csproj]
+C:\Program Files\dotnet\sdk\10.0.400-preview.0.26322.102\Sdks\Microsoft.NET.Sdk\targets\Microsoft.NET.RuntimeIdentifierInference.targets(383,5): message NETSDK1057: You are using a preview version of .NET. See: https://aka.ms/dotnet-support-policy [C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\src\LivingWorld.Domain\LivingWorld.Domain.csproj]
+C:\Program Files\dotnet\sdk\10.0.400-preview.0.26322.102\Sdks\Microsoft.NET.Sdk\targets\Microsoft.NET.RuntimeIdentifierInference.targets(383,5): message NETSDK1057: You are using a preview version of .NET. See: https://aka.ms/dotnet-support-policy [C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\src\LivingWorld.Simulation\LivingWorld.Simulation.csproj]
+C:\Program Files\dotnet\sdk\10.0.400-preview.0.26322.102\Sdks\Microsoft.NET.Sdk\targets\Microsoft.NET.RuntimeIdentifierInference.targets(383,5): message NETSDK1057: You are using a preview version of .NET. See: https://aka.ms/dotnet-support-policy [C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\src\LivingWorld.Infrastructure\LivingWorld.Infrastructure.csproj]
+C:\Program Files\dotnet\sdk\10.0.400-preview.0.26322.102\Sdks\Microsoft.NET.Sdk\targets\Microsoft.NET.RuntimeIdentifierInference.targets(383,5): message NETSDK1057: You are using a preview version of .NET. See: https://aka.ms/dotnet-support-policy [C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\src\LivingWorld.AI\LivingWorld.AI.csproj]
+  LivingWorld.Domain -> C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\src\LivingWorld.Domain\bin\Debug\net10.0\LivingWorld.Domain.dll
+  LivingWorld.AI -> C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\src\LivingWorld.AI\bin\Debug\net10.0\LivingWorld.AI.dll
+  LivingWorld.Simulation -> C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\src\LivingWorld.Simulation\bin\Debug\net10.0\LivingWorld.Simulation.dll
+  LivingWorld.Infrastructure -> C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\src\LivingWorld.Infrastructure\bin\Debug\net10.0\LivingWorld.Infrastructure.dll
+  LivingWorld.Workers -> C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\src\LivingWorld.Workers\bin\Debug\net10.0\LivingWorld.Workers.dll
+  LivingWorld.Api -> C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\src\LivingWorld.Api\bin\Debug\net10.0\LivingWorld.Api.dll
+  LivingWorld.Tests -> C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\tests\LivingWorld.Tests\bin\Debug\net10.0\LivingWorld.Tests.dll
+Test run for C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\tests\LivingWorld.Tests\bin\Debug\net10.0\LivingWorld.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:01.00]     LivingWorld.Tests.Behavior.BehaviorDecisionSystemTravelTests.Homeless_npc_sleeps_at_its_current_location_with_reduced_efficiency_without_throwing [FAIL]
+  Failed LivingWorld.Tests.Behavior.BehaviorDecisionSystemTravelTests.Homeless_npc_sleeps_at_its_current_location_with_reduced_efficiency_without_throwing [10 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: CellCoord { X = 0, Y = 0 }
+Actual:   CellCoord { X = 1, Y = 0 }
+  Stack Trace:
+     at LivingWorld.Tests.Behavior.BehaviorDecisionSystemTravelTests.Homeless_npc_sleeps_at_its_current_location_with_reduced_efficiency_without_throwing() in C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\tests\LivingWorld.Tests\Behavior\BehaviorDecisionSystemTravelTests.cs:line 148
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:01.32]     LivingWorld.Tests.Visual.ScopeDeltaBuilderTests.Diff_never_receives_WorldState_or_any_layer_builder_type [FAIL]
+  Failed LivingWorld.Tests.Visual.ScopeDeltaBuilderTests.Diff_never_receives_WorldState_or_any_layer_builder_type [4 ms]
+  Error Message:
+   System.Reflection.AmbiguousMatchException : Ambiguous match found for 'LivingWorld.Api.Visual.ScopeDeltaBuilder LivingWorld.Api.Visual.ScopeTickDelta Diff(Int64, LivingWorld.Api.Visual.LivingScopeState, LivingWorld.Api.Visual.LivingScopeState)'.
+  Stack Trace:
+     at System.RuntimeType.GetMethodImplCommon(String name, Int32 genericParameterCount, BindingFlags bindingAttr, Binder binder, CallingConventions callConv, Type[] types, ParameterModifier[] modifiers)
+   at System.Type.GetMethod(String name, BindingFlags bindingAttr)
+   at LivingWorld.Tests.Visual.ScopeDeltaBuilderTests.Diff_never_receives_WorldState_or_any_layer_builder_type() in C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\tests\LivingWorld.Tests\Visual\ScopeDeltaBuilderTests.cs:line 75
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:01.63]     LivingWorld.Tests.Population.FamilyPairedScenarioTests.ZZZ_record_family_population_average_baseline [SKIP]
+  Skipped LivingWorld.Tests.Population.FamilyPairedScenarioTests.ZZZ_record_family_population_average_baseline [1 ms]
+[xUnit.net 00:00:02.97]     LivingWorld.Tests.Llm.ConversationEndpointTests.Send_on_an_accepted_session_returns_200_with_a_validated_turn [FAIL]
+  Failed LivingWorld.Tests.Llm.ConversationEndpointTests.Send_on_an_accepted_session_returns_200_with_a_validated_turn [1 s]
+  Error Message:
+   System.InvalidOperationException : Nullable object must have a value.
+  Stack Trace:
+     at System.Nullable`1.get_Value()
+   at LivingWorld.Tests.Llm.ConversationEndpointTests.Send_on_an_accepted_session_returns_200_with_a_validated_turn() in C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\tests\LivingWorld.Tests\Llm\ConversationEndpointTests.cs:line 84
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:03.08]     LivingWorld.Tests.Llm.ConversationEndpointTests.Send_on_an_ended_session_returns_409 [FAIL]
+  Failed LivingWorld.Tests.Llm.ConversationEndpointTests.Send_on_an_ended_session_returns_409 [31 ms]
+  Error Message:
+   System.InvalidOperationException : Nullable object must have a value.
+  Stack Trace:
+     at System.Nullable`1.get_Value()
+   at LivingWorld.Tests.Llm.ConversationEndpointTests.Send_on_an_ended_session_returns_409() in C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\tests\LivingWorld.Tests\Llm\ConversationEndpointTests.cs:line 108
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:03.12]     LivingWorld.Tests.Llm.ConversationEndpointTests.Start_accepted_returns_200_with_a_session_id_and_keeps_the_npcs_current_action [FAIL]
+  Failed LivingWorld.Tests.Llm.ConversationEndpointTests.Start_accepted_returns_200_with_a_session_id_and_keeps_the_npcs_current_action [37 ms]
+  Error Message:
+   Assert.Equal() Failure: Strings differ
+           ↓ (pos 0)
+Expected: "Accepted"
+Actual:   "RejectedBusy"
+           ↑ (pos 0)
+  Stack Trace:
+     at LivingWorld.Tests.Llm.ConversationEndpointTests.Start_accepted_returns_200_with_a_session_id_and_keeps_the_npcs_current_action() in C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\tests\LivingWorld.Tests\Llm\ConversationEndpointTests.cs:line 46
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:03.23]     LivingWorld.Tests.Visual.PersistentWorldHostTests.Existing_npc_inspection_endpoint_keeps_working_against_the_persistent_host [FAIL]
+  Failed LivingWorld.Tests.Visual.PersistentWorldHostTests.Existing_npc_inspection_endpoint_keeps_working_against_the_persistent_host [1 s]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: OK
+Actual:   NotFound
+  Stack Trace:
+     at LivingWorld.Tests.Visual.PersistentWorldHostTests.Existing_npc_inspection_endpoint_keeps_working_against_the_persistent_host() in C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\tests\LivingWorld.Tests\Visual\PersistentWorldHostTests.cs:line 49
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:03.25]     LivingWorld.Tests.Llm.ConversationEndpointTests.Npc_dying_during_an_open_session_ends_it_and_blocks_new_turns [FAIL]
+  Failed LivingWorld.Tests.Llm.ConversationEndpointTests.Npc_dying_during_an_open_session_ends_it_and_blocks_new_turns [31 ms]
+  Error Message:
+   System.InvalidOperationException : Nullable object must have a value.
+  Stack Trace:
+     at System.Nullable`1.get_Value()
+   at LivingWorld.Tests.Llm.ConversationEndpointTests.Npc_dying_during_an_open_session_ends_it_and_blocks_new_turns() in C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\tests\LivingWorld.Tests\Llm\ConversationEndpointTests.cs:line 150
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:03.32]     LivingWorld.Tests.History.CanonBoundedOverTimeTests.Record_canon_bytes_per_report_baseline [SKIP]
+[xUnit.net 00:00:03.34]     LivingWorld.Tests.ResolverBaselineTests.ZZZ_record_baseline [SKIP]
+  Skipped LivingWorld.Tests.History.CanonBoundedOverTimeTests.Record_canon_bytes_per_report_baseline [1 ms]
+  Skipped LivingWorld.Tests.ResolverBaselineTests.ZZZ_record_baseline [1 ms]
+[xUnit.net 00:00:03.49]     LivingWorld.Tests.Visual.CityFowSubscribeEndpointTests.Player_mode_only_sees_residents_within_sight_radius_of_their_own_npc [FAIL]
+  Failed LivingWorld.Tests.Visual.CityFowSubscribeEndpointTests.Player_mode_only_sees_residents_within_sight_radius_of_their_own_npc [59 ms]
+  Error Message:
+   Assert.Contains() Failure: Item not found in collection
+Collection: []
+Not found:  0
+  Stack Trace:
+     at LivingWorld.Tests.Visual.CityFowSubscribeEndpointTests.Player_mode_only_sees_residents_within_sight_radius_of_their_own_npc() in C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\tests\LivingWorld.Tests\Visual\CityFowSubscribeEndpointTests.cs:line 48
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:03.53]     LivingWorld.Tests.Visual.CityFowSubscribeEndpointTests.Spectator_mode_sees_every_resident_regardless_of_distance [FAIL]
+  Failed LivingWorld.Tests.Visual.CityFowSubscribeEndpointTests.Spectator_mode_sees_every_resident_regardless_of_distance [27 ms]
+  Error Message:
+   Assert.Contains() Failure: Item not found in collection
+Collection: []
+Not found:  0
+  Stack Trace:
+     at LivingWorld.Tests.Visual.CityFowSubscribeEndpointTests.Spectator_mode_sees_every_resident_regardless_of_distance() in C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\tests\LivingWorld.Tests\Visual\CityFowSubscribeEndpointTests.cs:line 63
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:03.66]     LivingWorld.Tests.Narrative.NarrativeEndpointTests.Biographies_endpoint_returns_narrative_timeline_referencing_the_npcs_events [FAIL]
+[xUnit.net 00:00:03.72]     LivingWorld.Tests.Visual.VisualInputEndpointTests.Move_to_an_adjacent_cell_succeeds_and_actually_moves_the_npc [FAIL]
+  Failed LivingWorld.Tests.Narrative.NarrativeEndpointTests.Biographies_endpoint_returns_narrative_timeline_referencing_the_npcs_events [54 ms]
+  Error Message:
+   Assert.Contains() Failure: Item not found in collection
+Collection: []
+Not found:  1
+  Stack Trace:
+     at LivingWorld.Tests.Narrative.NarrativeEndpointTests.Biographies_endpoint_returns_narrative_timeline_referencing_the_npcs_events() in C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\tests\LivingWorld.Tests\Narrative\NarrativeEndpointTests.cs:line 76
+--- End of stack trace from previous location ---
+  Failed LivingWorld.Tests.Visual.VisualInputEndpointTests.Move_to_an_adjacent_cell_succeeds_and_actually_moves_the_npc [11 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: OK
+Actual:   BadRequest
+  Stack Trace:
+     at LivingWorld.Tests.Visual.VisualInputEndpointTests.Move_to_an_adjacent_cell_succeeds_and_actually_moves_the_npc() in C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\tests\LivingWorld.Tests\Visual\VisualInputEndpointTests.cs:line 27
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:03.81]     LivingWorld.Tests.Cities.NpcEndpointTests.GetNpc_returns_200_with_the_inspection_dto_for_a_living_npc [FAIL]
+  Failed LivingWorld.Tests.Cities.NpcEndpointTests.GetNpc_returns_200_with_the_inspection_dto_for_a_living_npc [232 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: OK
+Actual:   NotFound
+  Stack Trace:
+     at LivingWorld.Tests.Cities.NpcEndpointTests.GetNpc_returns_200_with_the_inspection_dto_for_a_living_npc() in C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\tests\LivingWorld.Tests\Cities\NpcEndpointTests.cs:line 23
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:11.30]     LivingWorld.Tests.Population.PairedScenarioTests.ZZZ_record_specialization_baseline [SKIP]
+  Skipped LivingWorld.Tests.Population.PairedScenarioTests.ZZZ_record_specialization_baseline [1 ms]
+[xUnit.net 00:00:11.30]     LivingWorld.Tests.Periods.PeriodEvolutionHorizonBaselineTests.ZZZ_record_baseline [SKIP]
+  Skipped LivingWorld.Tests.Periods.PeriodEvolutionHorizonBaselineTests.ZZZ_record_baseline [1 ms]
+[xUnit.net 00:00:11.52]     LivingWorld.Tests.Periods.PeriodEvolutionHorizonBaselineTests.Biased_profession_fraction_after_a_short_horizon_matches_the_recorded_baseline_within_tolerance [FAIL]
+  Failed LivingWorld.Tests.Periods.PeriodEvolutionHorizonBaselineTests.Biased_profession_fraction_after_a_short_horizon_matches_the_recorded_baseline_within_tolerance [210 ms]
+  Error Message:
+   Assert.InRange() Failure: Value not in range
+Range:  (0.73050847457627122 - 0.93050847457627117)
+Actual: 0.7142857142857143
+  Stack Trace:
+     at LivingWorld.Tests.Periods.PeriodEvolutionHorizonBaselineTests.Biased_profession_fraction_after_a_short_horizon_matches_the_recorded_baseline_within_tolerance() in C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\tests\LivingWorld.Tests\Periods\PeriodEvolutionHorizonBaselineTests.cs:line 102
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+[xUnit.net 00:00:13.07]     LivingWorld.Tests.History.SignificanceCalculatorTests.Record_history_collapse_baseline [SKIP]
+  Skipped LivingWorld.Tests.History.SignificanceCalculatorTests.Record_history_collapse_baseline [1 ms]
+[xUnit.net 00:00:15.49]     LivingWorld.Tests.Cities.NpcEndpointsTests.Materialize_command_returns_200_with_the_same_dto_shape_for_a_living_npc_id [FAIL]
+  Failed LivingWorld.Tests.Cities.NpcEndpointsTests.Materialize_command_returns_200_with_the_same_dto_shape_for_a_living_npc_id [286 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: OK
+Actual:   NotFound
+  Stack Trace:
+     at LivingWorld.Tests.Cities.NpcEndpointsTests.Materialize_command_returns_200_with_the_same_dto_shape_for_a_living_npc_id() in C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\tests\LivingWorld.Tests\Cities\NpcEndpointsTests.cs:line 42
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:15.65]     LivingWorld.Tests.Cities.NpcEndpointsTests.Get_npc_returns_200_for_a_living_npc_id [FAIL]
+  Failed LivingWorld.Tests.Cities.NpcEndpointsTests.Get_npc_returns_200_for_a_living_npc_id [59 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: OK
+Actual:   NotFound
+  Stack Trace:
+     at LivingWorld.Tests.Cities.NpcEndpointsTests.Get_npc_returns_200_for_a_living_npc_id() in C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\tests\LivingWorld.Tests\Cities\NpcEndpointsTests.cs:line 22
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:15.80]     LivingWorld.Tests.GoldenHashesTests.ZZZ_record_golden_hashes [SKIP]
+  Skipped LivingWorld.Tests.GoldenHashesTests.ZZZ_record_golden_hashes [1 ms]
+[xUnit.net 00:00:15.88]     LivingWorld.Tests.History.HistoryIndexTests.Record_history_index_baseline [SKIP]
+  Skipped LivingWorld.Tests.History.HistoryIndexTests.Record_history_index_baseline [1 ms]
+[xUnit.net 00:00:16.16]     LivingWorld.Tests.Economy.ScarcityPriceCausalTests.Halving_wheat_production_raises_its_price_every_day_of_the_window_in_10_of_10_seeds [FAIL]
+  Failed LivingWorld.Tests.Economy.ScarcityPriceCausalTests.Halving_wheat_production_raises_its_price_every_day_of_the_window_in_10_of_10_seeds [15 s]
+  Error Message:
+   0/10 seeds tiveram preço do tratamento estritamente maior em toda a janela
+  Stack Trace:
+     at LivingWorld.Tests.Economy.ScarcityPriceCausalTests.Halving_wheat_production_raises_its_price_every_day_of_the_window_in_10_of_10_seeds() in C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\tests\LivingWorld.Tests\Economy\ScarcityPriceCausalTests.cs:line 58
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:20.70]     LivingWorld.Tests.Behavior.BehaviorDecisionSystemHysteresisTests.No_npc_exceeds_the_catalogs_declared_max_duration_over_10_years [FAIL]
+[xUnit.net 00:00:20.70]     LivingWorld.Tests.Behavior.BehaviorDecisionSystemHysteresisTests.ZZZ_record_action_switches_baseline [SKIP]
+  Failed LivingWorld.Tests.Behavior.BehaviorDecisionSystemHysteresisTests.No_npc_exceeds_the_catalogs_declared_max_duration_over_10_years [10 ms]
+  Error Message:
+   npc 13 ficou em Travel por 5h no tick 49 (máximo declarado: 4h)
+  Stack Trace:
+     at LivingWorld.Tests.Behavior.BehaviorDecisionSystemHysteresisTests.No_npc_exceeds_the_catalogs_declared_max_duration_over_10_years() in C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\tests\LivingWorld.Tests\Behavior\BehaviorDecisionSystemHysteresisTests.cs:line 162
+   at System.RuntimeMethodHandle.InvokeMethod(ObjectHandleOnStack target, Void** arguments, ObjectHandleOnStack sig, BOOL isConstructor, ObjectHandleOnStack result)
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+  Skipped LivingWorld.Tests.Behavior.BehaviorDecisionSystemHysteresisTests.ZZZ_record_action_switches_baseline [1 ms]
+[xUnit.net 00:00:22.55]     LivingWorld.Tests.Behavior.BehaviorDecisionSystemHysteresisTests.Action_switches_per_day_with_hysteresis_matches_the_recorded_baseline_and_stays_at_or_under_its_99th_percentile [FAIL]
+  Failed LivingWorld.Tests.Behavior.BehaviorDecisionSystemHysteresisTests.Action_switches_per_day_with_hysteresis_matches_the_recorded_baseline_and_stays_at_or_under_its_99th_percentile [1 s]
+  Error Message:
+   LivingWorld.Tests.Baselines.BaselineMismatchException : baseline 'action-switches' diverge:
+seed 15: esperado 85.1, obtido 85.63333333333334
+seed 9: esperado 83.46666666666667, obtido 82.8
+  Stack Trace:
+     at LivingWorld.Tests.Baselines.BaselineFixture.AssertMatches[T](String baselinesDir, String name, IReadOnlyDictionary`2 actualBySeed) in C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\tests\LivingWorld.Tests\Baselines\BaselineFixture.cs:line 24
+   at LivingWorld.Tests.Behavior.BehaviorDecisionSystemHysteresisTests.Action_switches_per_day_with_hysteresis_matches_the_recorded_baseline_and_stays_at_or_under_its_99th_percentile() in C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld\tests\LivingWorld.Tests\Behavior\BehaviorDecisionSystemHysteresisTests.cs:line 109
+   at System.RuntimeMethodHandle.InvokeMethod(ObjectHandleOnStack target, Void** arguments, ObjectHandleOnStack sig, BOOL isConstructor, ObjectHandleOnStack result)
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+[xUnit.net 00:07:41.51]     LivingWorld.Tests.Performance.ScaleScenarioSensorTests.ZZZ_record_scale_sensor_baseline [SKIP]
+  Skipped LivingWorld.Tests.Performance.ScaleScenarioSensorTests.ZZZ_record_scale_sensor_baseline [1 ms]
+[xUnit.net 00:08:02.50]     LivingWorld.Tests.Population.PopulationBaselineTests.ZZZ_record_baseline [SKIP]
+  Skipped LivingWorld.Tests.Population.PopulationBaselineTests.ZZZ_record_baseline [1 ms]
+
+Failed!  - Failed:    18, Passed:  1338, Skipped:    11, Total:  1367, Duration: 39 m 37 s - LivingWorld.Tests.dll (net10.0)

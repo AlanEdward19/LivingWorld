@@ -40,6 +40,25 @@ public readonly record struct BuildingId(long Value)
     public override string ToString() => $"building-{Value}";
 }
 
+/// <summary>Móvel/lugar de descanso no mundo (Fase 15.1, Stage 4, T12) — id monotônico, mesmo
+/// molde de <see cref="BuildingId"/>.</summary>
+public readonly record struct RestPlaceId(long Value)
+{
+    public override string ToString() => $"rest-{Value}";
+}
+
+/// <summary>Processo material estagiado (Fase 15.1, Stage 4, T14) — id monotônico.</summary>
+public readonly record struct ResourceProcessId(long Value)
+{
+    public override string ToString() => $"process-{Value}";
+}
+
+/// <summary>Lote de cultivo (Fase 15.1, Stage 4, T17) — id monotônico.</summary>
+public readonly record struct CropBatchId(long Value)
+{
+    public override string ToString() => $"crop-{Value}";
+}
+
 /// <summary>Linha temporal a que uma entidade/evento pertence (ADR-0009). Até a fase temporal
 /// existe só <see cref="Root"/> — nada ramifica ainda, mas todo esquema e toda consulta já
 /// recebem o valor como parâmetro explícito, nunca implícito.</summary>

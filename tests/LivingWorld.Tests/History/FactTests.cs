@@ -1,6 +1,6 @@
+using System.Reflection;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
-using System.Reflection;
 
 namespace LivingWorld.Tests.History;
 

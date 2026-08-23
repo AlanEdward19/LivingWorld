@@ -38,6 +38,24 @@ describe("LivingTimeline", () => {
     expect(await screen.findByText("Um novo habitante nasceu")).toBeInTheDocument();
   });
 
+  it("keeps audience-safe labels for the birth and death family", async () => {
+    const events = [
+      { tick: 1, kind: 0, label: "Um novo habitante nasceu" },
+      { tick: 2, kind: 1, label: "Um habitante faleceu" },
+      { tick: 3, kind: 2, label: "A fome causou uma morte" },
+      { tick: 4, kind: 13, label: "Uma mãe faleceu durante o parto" },
+      { tick: 5, kind: 14, label: "Uma gestação terminou sem nascimento vivo" },
+    ];
+    const store = new SimulationStore(source(events), ticks);
+    await store.observeSpace(WORLD);
+    render(<LivingTimeline space={WORLD} simulationStore={store} />);
+
+    for (const event of events) {
+      expect(screen.getByText(event.label)).toBeInTheDocument();
+    }
+    expect(screen.queryByText(/sangue|gore|cadáver/i)).not.toBeInTheDocument();
+  });
+
   it("shows an honest empty state when there are no recent events", async () => {
     const store = new SimulationStore(source(), ticks);
     await store.observeSpace(WORLD);

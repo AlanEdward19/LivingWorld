@@ -1,5 +1,5 @@
-using LivingWorld.Domain.Llm;
 using LivingWorld.Domain;
+using LivingWorld.Domain.Llm;
 using LivingWorld.Simulation.History;
 
 namespace LivingWorld.Simulation;

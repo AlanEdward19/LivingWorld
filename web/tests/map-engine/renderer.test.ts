@@ -27,6 +27,7 @@ function fakeCtx(canvas: { width: number; height: number }) {
     stroke: vi.fn(),
     fillText: vi.fn(),
     drawImage: vi.fn(),
+    quadraticCurveTo: vi.fn(),
     setLineDash: vi.fn(),
     save: vi.fn(),
     restore: vi.fn(),
@@ -364,5 +365,115 @@ describe("renderer.draw", () => {
 
     expect(ctx.arc.mock.calls[0]?.[0]).toBeCloseTo(200);
     expect(ctx.arc.mock.calls[0]?.[1]).toBeCloseTo(200);
+  });
+
+  it("draws a construction scaffold with a progress cue at the site cell", () => {
+    const ctx = fakeCtx({ width: 400, height: 400 });
+    const site: AuthoritativeEntity = {
+      ref: { kind: "building", id: "construction:0", space: { kind: "City", cityId: "a" } },
+      position: { x: 5, y: 5 },
+      size: { w: 2, h: 2 },
+      sizeIsDerived: true,
+      color: "#8a6a3a",
+      label: "Obra 40%",
+      process: { kind: "construction", progress: 0.4, accessibleLabel: "Construção em andamento, 40%" },
+    };
+
+    draw(ctx, baseFrame({ center: { x: 6, y: 6 }, scale: 20 }, [site]));
+
+    expect(ctx.setLineDash.mock.calls.some((args) => (args[0] as number[]).length > 0)).toBe(true);
+    expect(ctx.fillText.mock.calls.some((args) => String(args[0]).includes("40%"))).toBe(true);
+  });
+
+  it("draws a queued construction site even at zero progress", () => {
+    const ctx = fakeCtx({ width: 400, height: 400 });
+    const site: AuthoritativeEntity = {
+      ref: { kind: "building", id: "construction:1", space: { kind: "City", cityId: "a" } },
+      position: { x: 5, y: 5 },
+      size: { w: 2, h: 2 },
+      sizeIsDerived: true,
+      color: "#8a6a3a",
+      process: { kind: "construction", progress: 0, accessibleLabel: "Construção em andamento, 0%" },
+    };
+
+    draw(ctx, baseFrame({ center: { x: 6, y: 6 }, scale: 20 }, [site]));
+
+    expect(ctx.strokeRect).toHaveBeenCalled();
+    expect(ctx.fillText.mock.calls.some((args) => String(args[0]).includes("0%"))).toBe(true);
+  });
+
+  it("draws the NPC pawn at city token-detail LOD instead of a blank tile", () => {
+    class ReadyImage {
+      complete = true;
+      naturalWidth = 100;
+      src = "";
+    }
+    vi.stubGlobal("Image", ReadyImage);
+    const ctx = fakeCtx({ width: 400, height: 400 });
+    const cityNpc = npc("city-pawn", 5, 5, false, { kind: "City", cityId: "city-a" });
+    const cityLod: LodThresholds = { aggregate: 4, token: 6, detail: 18 };
+
+    draw(ctx, { ...baseFrame({ center: { x: 5.5, y: 5.5 }, scale: 20 }, [cityNpc]), lodThresholds: cityLod });
+
+    expect(ctx.drawImage).toHaveBeenCalledOnce();
+  });
+
+  it("overlays work, rest, food, water, and crop cues on the NPC at city detail LOD", () => {
+    class ReadyImage {
+      complete = true;
+      naturalWidth = 100;
+      src = "";
+    }
+    vi.stubGlobal("Image", ReadyImage);
+    const cityLod: LodThresholds = { aggregate: 4, token: 6, detail: 18 };
+    const kinds = ["rest", "food", "water", "crop"] as const;
+    for (const kind of kinds) {
+      const ctx = fakeCtx({ width: 400, height: 400 });
+      const entity = {
+        ...npc("cue-npc", 5, 5, false, { kind: "City" as const, cityId: "city-a" }),
+        currentAction: 4,
+        process: { kind, progress: 0.5, accessibleLabel: kind },
+      };
+      draw(ctx, { ...baseFrame({ center: { x: 5.5, y: 5.5 }, scale: 20 }, [entity]), lodThresholds: cityLod });
+      expect(ctx.arc.mock.calls.length, kind).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it("falls back to a static unknown-action icon, never a blank token", () => {
+    class ReadyImage {
+      complete = true;
+      naturalWidth = 100;
+      src = "";
+    }
+    vi.stubGlobal("Image", ReadyImage);
+    const ctx = fakeCtx({ width: 400, height: 400 });
+    const entity = { ...npc("mystery", 5, 5, false, { kind: "City", cityId: "city-a" }), currentAction: 99 };
+
+    draw(ctx, baseFrame({ center: { x: 5.5, y: 5.5 }, scale: 20 }, [entity]));
+
+    expect(ctx.drawImage).toHaveBeenCalledOnce();
+    expect(ctx.arc.mock.calls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("keeps the action cue when reduced motion is preferred, without pulsing", () => {
+    class ReadyImage {
+      complete = true;
+      naturalWidth = 100;
+      src = "";
+    }
+    vi.stubGlobal("Image", ReadyImage);
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query.includes("prefers-reduced-motion"),
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+    const ctx = fakeCtx({ width: 400, height: 400 });
+    const entity = { ...npc("sleeper", 5, 5, false, { kind: "City", cityId: "city-a" }), currentAction: 1 };
+
+    draw(ctx, baseFrame({ center: { x: 5.5, y: 5.5 }, scale: 20 }, [entity]));
+
+    expect(ctx.drawImage).toHaveBeenCalledOnce();
+    expect(ctx.arc.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 });

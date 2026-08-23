@@ -1,6 +1,5 @@
 using LivingWorld.Api.Realtime;
 using LivingWorld.Api.Visual;
-using LivingWorld.Domain;
 using LivingWorld.Infrastructure;
 using LivingWorld.Simulation;
 

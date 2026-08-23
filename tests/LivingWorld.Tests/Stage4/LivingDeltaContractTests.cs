@@ -26,10 +26,12 @@ public sealed class LivingDeltaContractTests
 
         var state = LivingScopeProjector.Build(world, new VisualScope(VisualScopeKind.City, city.Id.ToString()), [evt]);
 
-        Assert.Equal(new NpcVisual(npc.Id, npc.CurrentLocation, npc.CurrentAction), Assert.Single(state.Npcs));
+        Assert.Equal(new NpcVisual(npc.Id, npc.CurrentLocation, npc.CurrentAction, npc.City), Assert.Single(state.Npcs));
         Assert.Equal(new BuildingVisual(building.Id, city.Id, 7, new CellCoord(6, 6)), Assert.Single(state.Buildings));
         Assert.Equal(6, state.Indicators.Count);
-        Assert.Equal(new NotableVisualEvent(4, WorldEventKind.Hired, "Um habitante começou um novo trabalho"), Assert.Single(state.Events));
+        Assert.Equal(
+            new NotableVisualEvent(4, WorldEventKind.Hired, "Um habitante começou um novo trabalho", npc.CurrentLocation),
+            Assert.Single(state.Events));
     }
 
     [Fact]
@@ -142,7 +144,7 @@ public sealed class LivingDeltaContractTests
         Assert.Equal(22, origin.Tick);
         Assert.Equal(22, destination.Tick);
         Assert.Equal([npc.Id], origin.NpcRemoved);
-        Assert.Equal([new NpcVisual(npc.Id, new CellCoord(9, 9), npc.CurrentAction)], destination.NpcUpserts);
+        Assert.Equal([new NpcVisual(npc.Id, new CellCoord(9, 9), npc.CurrentAction, npc.City)], destination.NpcUpserts);
     }
 
     [Fact]
@@ -168,7 +170,7 @@ public sealed class LivingDeltaContractTests
 
         Assert.True(reader.TryRead(out var envelope));
         var delta = Assert.IsType<ScopeTickDelta>(envelope!.Payload);
-        Assert.Equal(new NpcVisual(npc.Id, npc.CurrentLocation, npc.CurrentAction), Assert.Single(delta.NpcUpserts));
+        Assert.Equal(new NpcVisual(npc.Id, npc.CurrentLocation, npc.CurrentAction, npc.City), Assert.Single(delta.NpcUpserts));
         Assert.Equal(6, delta.Indicators.Count);
         unsubscribe();
     }

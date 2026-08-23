@@ -4,80 +4,42 @@ Fonte única de continuidade. Quem entra numa área nova **lê este arquivo prim
 Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
-- **Última coisa concluída (2026-08-21)**: Fase 15.1, Stage 4 (`phase-15.1-stage-4-living-world`)
-  T8 — pistas visuais data-driven por ação existente (LWV-02). Novo `web/src/map-engine/actionVisuals.ts`
-  é a fonte única id→label/glyph (`NpcInspector` deixou de duplicar a tabela); `npcAppearance.ts`
-  usa isso na camada de estado do pawn (mapa em canvas + token do inspector), cada ação conhecida
-  com glifo distinto em vez do ponto fixo genérico de antes. Sleep anima "Zzz" via CSS embutido no
-  SVG, com fallback `prefers-reduced-motion` que para a animação sem esconder a pista; id
-  desconhecido cai num "?" genérico com label legível, nunca o enum bruto; `NpcTokenSvg.alt` carrega
-  o mesmo label como equivalente textual/ARIA. `ExistingActionVisualTests` prova completude via
-  source-grep sobre o enum `ActionType` real (mesmo padrão de `FrontendCapabilityContractTests`,
-  já que o catálogo vive em TS). Gate: 6 .NET + 7 web tests novos, `Stage4` 47/47, web 312/312,
-  `build.sh` limpo.
-- **Concluído antes disso (2026-08-21)**: T7 — crônica/biografia/conversa no contexto selecionado
-  (LWV-05). `NpcInspector` ganhou seções de biografia + conversa (start/send/end); `CityInspector`
-  ganhou crônica. Novo seam `BiographySource`/`ChronicleSource`/`ConversationSource` (+
-  `Real*`/`Mock*`) reusa os endpoints já existentes (`/narratives/*`, `/conversations/*`, Fase
-  11/12). `LivingInteractionSurfaceTests` (5 .NET) + 7 web tests provam isolamento de biografia,
-  fallback honesto de crônica vazia e hash canônico inalterado numa proposta de conversa rejeitada.
-  T6 também foi corrigido no `tasks.md` (tinha sido entregue em `cc136e0` mas ficou sem o `✅`).
-  **Gap aberto, não fase-bloqueante**: LWV-05.4 (HUD/catálogo de período reage à evolução do
-  período) foi deixado de fora — o motor não tem hoje um conceito canônico de "período atual" em
-  `WorldState` (`PeriodEvolutionSystem` só muta o catálogo de profissões); adicionar isso seria
-  estado novo, fora do "reusa endpoints existentes" que T7 pede.
-- **Próxima unidade**: **T9** (comute canônico com propósito para trabalho/casa, com estado
-  bloqueado) — mesmo spec/tasks.md, ainda Fase 2 do plano de execução (Estágio 2, "comportamento
-  existente fica visível").
-- **Última coisa concluída antes disso**: **Fase 9 (Escala e armazenamento)** fechada (2026-07-29). Entregue:
-  `LazyNeed`, índices (mercado/vaga/população/vivos), `NpcWakeScheduler`, arquivo frio de mortos,
-  snapshot binário/incremental (stub PERF-12), sensor de escala (`tests/baselines/scale-sensor.json`),
-  goldens regravados. Gate `Category!=Scenario`: **763 passed**, 0 failed, 7 skipped (~31 min).
-  Spec/design em [.specs/features/phase-09-scale/](.specs/features/phase-09-scale/).
-- **Próxima unidade**: **Fase 10 (História degradável)** — spec em
-  [.specs/features/phase-10-history/spec.md](.specs/features/phase-10-history/spec.md).
+- **Última coisa concluída (2026-08-23)**: `dynamic-city-growth` FixT17 — causa raiz real da saga
+  de hoje "cidades coladas/muralhas sobrepostas/população oscilando". `FoundingSitePicker.Pick`
+  excluía a cidade-mãe de QUALQUER checagem de espaçamento (não só do gap `AbsorptionRingCells`) —
+  como a mãe é quase sempre a única cidade próxima no instante da fundação, isso deixava o anel 1
+  aceitar o primeiro candidato, produzindo bounds literalmente sobrepostos (confirmado ao vivo:
+  mãe `Origin(4,4) 3x3`, filha `Origin(3,3) 3x3`). FixT8–FixT16 (mesmo dia) corrigiram sintomas
+  reais mas secundários (clamp entre cidades, re-check no disparo, decline fora do mapa, guarda
+  anti-poaching, histerese de migração, piso de tamanho mínimo) sem tocar essa causa raiz. Fix:
+  mãe continua isenta do gap `AbsorptionRingCells`, mas não mais isenta de overlap de área — `Pick`
+  agora rejeita qualquer candidato cujos bounds de fundação (população 0) sobreponham os bounds
+  atuais da mãe. `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"` —
+  238 passed, 0 failed. Commit `6c335fa`. Detalhes:
+  `.specs/features/dynamic-city-growth/tasks.md` (FixT17).
+- **Última coisa concluída (2026-08-22)**: Fase 15.1 Stage 4 **T18–T28** (mapa + animações)
+  + re-verify **PASS**. Prédios nas coords da API; andaime; pawn+overlays; rotas de
+  migração; fundação visível; `NpcAnimationCatalog` + gate. Validação:
+  `.specs/features/phase-15.1-stage-4-living-world/validation.md` (142 .NET + 402 Vitest
+  Stage4; 3/3 sensores mortos). **Sem commit.** `verify.sh` não rodou (agente paralelo
+  em testes History/Llm/etc.). UAT visual adiado (usuário ausente).
+- **Adiado (T7)**: LWV-05.4 HUD de período — sem período canônico em `WorldState`.
+- **Antes**: T12–T17 rest/água/comida/cultivo; T9–T11 commute/construção/migração.
+- **Próxima unidade**: `bash scripts/verify.sh` quando o reparo de testes paralelo
+  terminar; commit da stage; nightly `Category=Scenario` com o usuário.
 - **Integração do extraordinário (2026-08-12)**: decisão **mista**, sem fase numerada nova
   para "super-heróis"/"identidade secreta" — distribuída entre Fases 16, 17, 23, 24, 25, com
-  toques em 10, 12, 22. Atualizado: ADR-0010 (amendment: custo/rolagem/transformação/fraqueza
-  opcionais, aquisição declarativa, contramedida ≠ fraqueza, herói/vilão fora da ontologia),
-  `docs/domain/powers.md` (eixos generalizados, modo Passive/Active/Triggered/Conditional,
-  aquisição, manifestação), fases 16/17/23/24/25/12/10/22. Ver `ROADMAP.md` linhas 16/23.
-  **Gap-check nas fases fechadas 0–9** (pré-requisito do doc de integração): `BranchId` desde
-  a Fase 3 (ADR-0009) e primitivo único de resolução na Fase 0 (ADR-0011) **já existem** —
-  nenhum gap encontrado, nenhuma fase fechada precisou ser tocada.
-- **Decisão de escopo (2026-07-29)**: **Fase 14 (Unreal) adiada, não iniciada** por decisão
-  explícita; Fase 15 foi reespecificada e priorizada como cliente VTT 2D realtime, incluindo
-  aparência inicial de NPC por token 2D composto dinamicamente.
-- **Fase 15 em andamento (spec/design)**: regra confirmada de "resolução por foco visual" —
-  mapa-múndi simplificado, cidade detalhada ao entrar, interior máximo no local focado; o
-  tick global do mundo continua contínuo e canônico.
-- **Dívida conhecida da Fase 9** (não bloqueia fechamento): PERF-12 dirty-path real no hasher;
-  `LongRunScaleTests` (`Category=Scenario`, ~3 h) só nightly; apertar PERF-16 quando estável.
-- **Gate local**: `bash scripts/verify.sh` = check-docs + build + lint + test. No Windows, equivalente
-  manual ou WSL. Cenários longos: `--filter "Category=Scenario"` fora do gate de rotina.
-- **Risco de balanceamento (STATE.md "Riscos ainda sem mecanismo") ficou mais concreto na Fase
-  5**: população do cenário default estabiliza em ~40/100 NPCs (não extingue, mas bem abaixo do
-  inicial) depois de calibração manual e empírica de salário/preço/capacidade — nenhum gate
-  automatizado prova que esse patamar é "bom", só que as invariantes de conservação e a direção
-  causal se sustentam nele. Fase 6/7 herdam essa base; se a população cair mais com novos
-  sistemas, é o mesmo tipo de ajuste manual, não um bug de conservação.
-- **Fase 4, Fase 3, Fase 2, Fase 1 e Fase 0 fechadas antes dela** — detalhe em git log, AD-020..037 e ADR-0001..0007.
-- **Escopo extra especificado** (não iniciado): fases 16–27 em status `spec`. **Bloqueado até
-  a Fase 8 fechar** (AD-010); cada fase tem `## Questões em aberto` (~60 perguntas de design).
-  Injeta só `BranchId` na Fase 3 e o primitivo de resolução na Fase 0.
-- **Fase 13 reespecificada (2026-07-29)**: períodos agora são startpoints dinâmicos (vieses),
-  com geração/evolução de catálogos em runtime, rota de cadastro de períodos customizados e
-  documentação para autoria por IA externa (fora do projeto), sem runtime de IA interno.
-- **Eval gates disponíveis**: `bash scripts/verify.sh` = `check-docs` + `build` + `lint` +
-  `test`, todos em 0. `bash scripts/verify-mutation.sh` prova que o gate reprova de
-  verdade (3 mutantes do fixture) — não roda no `verify.sh` de rotina por ser caro
-  (recompila o repo inteiro 3x em cópias temporárias); rode manualmente quando mexer no
-  próprio gate.
-- **Harness**: [`HARNESS.md`](HARNESS.md) gerado — inventário dos 4 componentes, controles por
-  categoria e eval gates disponíveis (`scripts/verify.sh` gate principal, `--filter
-  Category=Scenario` e `verify-mutation.sh` manuais/caros — rodar cenário longo só quando
-  necessário, é lento). Liberado spec-driven + loop para Fase 5.
-- **Budget/limites**: nenhum loop autônomo ativo.
+  toques em 10, 12, 22. ADR-0010 + `docs/domain/powers.md`. Ver `ROADMAP.md` linhas 16/23.
+  Gap-check fases 0–9: `BranchId` (Fase 3) e primitivo de resolução (Fase 0) já existiam.
+- **Decisão de escopo (2026-07-29)**: **Fase 14 (Unreal) adiada**; Fase 15 é VTT 2D
+  realtime (resolução por foco visual; tick global contínuo).
+- **Dívida Fase 9**: PERF-12 hasher; `LongRunScaleTests` só nightly.
+- **Gate**: `bash scripts/verify.sh`. No Windows, Git bash. Sem `Category=Scenario` no rotina.
+- **População default ~40/100** após calibração econômica (Fase 5) — coerência, não "interessante".
+- Fases 0–8 fechadas (git log, AD-020..048, ADR-0001..0007). Fases 16–27 em `spec` (AD-010).
+- **Fase 13**: períodos = startpoints dinâmicos; autoria de catálogo sem runtime de IA interno.
+- **Eval**: `verify.sh`; `verify-mutation.sh` manual. Harness: [`HARNESS.md`](HARNESS.md).
+- **Budget**: nenhum loop autônomo ativo.
 
 ## Decisões (AD-NNN)
 Log completo em [docs/decisions-log.md](docs/decisions-log.md) — AD-001..048 (não duplique

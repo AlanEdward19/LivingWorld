@@ -43,8 +43,13 @@ public class PurposefulCommuteTests
     private static ActionCatalog MakeWorkAllDayCatalog() => ActionCatalog.Create(
         maxDurationHours: new Dictionary<ActionType, int>
         {
-            [ActionType.Eat] = 1, [ActionType.Sleep] = 1, [ActionType.Work] = 8,
-            [ActionType.Socialize] = 1, [ActionType.Travel] = 1, [ActionType.Idle] = 1, [ActionType.Buy] = 1,
+            [ActionType.Eat] = 1,
+            [ActionType.Sleep] = 1,
+            [ActionType.Work] = 8,
+            [ActionType.Socialize] = 1,
+            [ActionType.Travel] = 1,
+            [ActionType.Idle] = 1,
+            [ActionType.Buy] = 1,
         },
         routineSlots: [new RoutineSlot(ProfessionId: null, LifeStage.Adult, HourStart: 0, HourEnd: 23, ActionType.Work)],
         defaultAction: ActionType.Idle).Value!;
@@ -55,8 +60,13 @@ public class PurposefulCommuteTests
     private static ActionCatalog MakeWorkThenSleepCatalog() => ActionCatalog.Create(
         maxDurationHours: new Dictionary<ActionType, int>
         {
-            [ActionType.Eat] = 1, [ActionType.Sleep] = 1, [ActionType.Work] = 100,
-            [ActionType.Socialize] = 1, [ActionType.Travel] = 1, [ActionType.Idle] = 1, [ActionType.Buy] = 1,
+            [ActionType.Eat] = 1,
+            [ActionType.Sleep] = 1,
+            [ActionType.Work] = 100,
+            [ActionType.Socialize] = 1,
+            [ActionType.Travel] = 1,
+            [ActionType.Idle] = 1,
+            [ActionType.Buy] = 1,
         },
         routineSlots:
         [

@@ -145,7 +145,17 @@ public static class CityScenarioLoader
             if (!TryGetLong(recipeNode, "HousingCapacityProvided", out var housingCapacity))
                 return Result<CityCatalog>.Fail($"BuildingRecipes[{key}].HousingCapacityProvided: campo obrigatório ausente ou inválido");
 
-            var recipeResult = BuildingRecipe.Create(inputs, ticksToBuild, housingCapacity);
+            WorkplaceProvision? workplace = null;
+            if (recipeNode["Workplace"] is JsonObject workplaceNode)
+            {
+                if (!TryGetInt(workplaceNode, "LocationTypeId", out var locationTypeId))
+                    return Result<CityCatalog>.Fail($"BuildingRecipes[{key}].Workplace.LocationTypeId: campo obrigatório ausente ou inválido");
+                if (!TryGetInt(workplaceNode, "MaxVacancies", out var maxVacancies))
+                    return Result<CityCatalog>.Fail($"BuildingRecipes[{key}].Workplace.MaxVacancies: campo obrigatório ausente ou inválido");
+                workplace = new WorkplaceProvision(locationTypeId, maxVacancies);
+            }
+
+            var recipeResult = BuildingRecipe.Create(inputs, ticksToBuild, housingCapacity, workplace);
             if (!recipeResult.IsSuccess)
                 return Result<CityCatalog>.Fail($"BuildingRecipes[{key}]: {recipeResult.Error}");
 

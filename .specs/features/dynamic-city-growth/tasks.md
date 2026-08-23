@@ -1107,6 +1107,32 @@ tick-loop pattern) are not reused elsewhere since the integration test was skipp
 
 ---
 
+### FixT18: two adjacent cities (mother + spatially-founded daughter) never merge back — ❌ NOT fixed, recorded only
+
+**Reported**: 2026-08-23, same live-test session as FixT17, AFTER FixT17 landed (overlap is
+confirmed gone — user verified UrVal and its mother no longer cross into each other). This is a
+**different, still-open bug**: population keeps trading between the two cities in batches (e.g.
+40/0 at one tick, then drifting 5-10 at a time back and forth) indefinitely, never settling. FixT16
+(migration hysteresis, `703ffaa`) reduced the flip-flop rate but did not stop it, because the
+underlying design question is unaddressed: `UrVal` is literally a spatial extension of its mother
+(founded from her own overflow cluster, sitting right at her edge) — two separate `City` records
+that behave, in every practical/realistic sense, like they should be ONE city, not two
+independently-scored settlements competing for the same population via `MigrationSystem`.
+**User's own diagnosis** (verbatim intent): a daughter city founded this close to its mother
+should eventually **merge back into her** instead of persisting as a second city that perpetually
+trades residents with her — matches the project's own design principle (`AD-007`-adjacent:
+"absorption takes precedence over founding" for overflow *buildings* already exists in
+`dynamic-city-growth`'s spec; this bug is that same principle never having been extended to
+already-founded *cities* that end up geometrically adjacent).
+**Not fixed. Recorded only, per user's explicit request** ("me diga o nome, nao resolva agora").
+**Where a fix would likely live**: some new merge condition/system checking whether a
+spatially-founded daughter's bounds sit within absorption range of her own mother's bounds for a
+sustained period, and if so, folding her back in (reverse of `SpatialSettlementFoundingSystem`'s
+founding — reassign her buildings/households back to the mother, remove the daughter `City`) —
+exact design not worked out, this entry only names and scopes the bug.
+
+---
+
 ### Process note (no code change): commit `2133401` bundled unrelated Stage-4 work
 
 Round-2 Verifier flagged that `2133401` (FixT2) swept ~150 lines of pre-existing, unrelated

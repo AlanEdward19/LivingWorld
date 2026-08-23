@@ -16,6 +16,19 @@ public enum NpcInspectionLod
 
 public sealed record NpcActionTargetDto(string Kind, string Id);
 
+public sealed record NpcRestStatusDto(
+    RestPlaceKind Kind,
+    double Quality,
+    CellCoord Location,
+    long RemainingHours,
+    bool Blocked);
+
+public sealed record NpcFoodStatusDto(
+    int ResourceId,
+    PreparationState Preparation,
+    long RemainingHours,
+    bool Blocked);
+
 /// <summary>Retrato somente-leitura de um NPC vivo para inspeção (Fase 8, T14, CITY-06) —
 /// identidade, família, profissão, atributos e rotina. "Memórias" é sempre lista vazia nesta
 /// fase: sistema de memória individual é Fase 10/11 (AD-068, design.md Tech Decisions); o campo
@@ -50,4 +63,6 @@ public sealed record NpcInspectionDto(
     // T50 (bug "seguir NPC entre escopos"): mesmo critério geométrico de
     // GlobalProjector/LivingScopeProjector (NpcScopeResolver), agora também aqui — cliente usa
     // pra saber que o NPC seguido cruzou de cidade pro mundo (ou vice-versa) e trocar de tela.
-    NpcScope CurrentScope);
+    NpcScope CurrentScope,
+    NpcRestStatusDto? Rest = null,
+    NpcFoodStatusDto? Food = null);

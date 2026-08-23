@@ -9,12 +9,13 @@
 // própria cidade como entidade dentro de si mesma), só `population` está disponível, porque é
 // o único campo que `GlobalCityMarker` carrega. É um gap real de arquitetura (contexto.md),
 // não uma escolha de UI: mostrar os outros 5 inventados seria pior que omiti-los.
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { FollowButton } from "./FollowButton";
 import type { SimulationStore } from "../../state/simulationStore";
 import type { ViewStore } from "../../state/viewStore";
 import type { FutureCitySnapshot, FutureGlobalSnapshot } from "../../data/contracts";
 import type { NarrativeSources } from "../../data/sources";
+import { ConstructionProgressHud } from "../ConstructionProgressHud";
 
 export interface CityInspectorProps {
   cityId: string;
@@ -55,7 +56,14 @@ export function CityInspector({ cityId, simulationStore, viewStore, narrativeSou
 
   const worldSnapshot = simulationStore.currentPayload<FutureGlobalSnapshot>(WORLD);
   const worldMarker = worldSnapshot?.cities.find((c) => c.id.value === cityId);
-  const name = (hasFullIndicators ? citySnapshot!.name : undefined) || worldMarker?.name;
+  const livingCity = useSyncExternalStore(
+    (onStoreChange) => simulationStore.subscribe(onStoreChange),
+    () => simulationStore.livingStateOf(WORLD).cities.get(cityId) ?? null,
+  );
+  const name = (hasFullIndicators ? citySnapshot!.name : undefined) || livingCity?.name || worldMarker?.name;
+  const population = hasFullIndicators
+    ? citySnapshot!.indicators.population
+    : livingCity?.population ?? worldMarker?.population ?? "—";
   const currentTick = simulationStore.livingStateOf(WORLD).tick;
 
   return (
@@ -64,7 +72,13 @@ export function CityInspector({ cityId, simulationStore, viewStore, narrativeSou
 
       <dl>
         <dt>População</dt>
-        <dd>{hasFullIndicators ? citySnapshot!.indicators.population : worldMarker?.population ?? "—"}</dd>
+        <dd>{population}</dd>
+        {livingCity?.foundedFromCityId && (
+          <>
+            <dt>Origem</dt>
+            <dd>Assentamento fundado a partir de outra cidade; a população agregada mudou de sítio.</dd>
+          </>
+        )}
 
         {hasFullIndicators ? (
           <>
@@ -83,6 +97,8 @@ export function CityInspector({ cityId, simulationStore, viewStore, narrativeSou
           <p role="note">Indicadores completos disponíveis ao abrir a cidade.</p>
         )}
       </dl>
+
+      <ConstructionProgressHud processes={simulationStore.livingStateOf(citySpace).processes.values()} />
 
       {narrativeSources && (
         <CityChronicle cityId={cityId} currentTick={currentTick} source={narrativeSources.chronicle} />

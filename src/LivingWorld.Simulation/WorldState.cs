@@ -50,6 +50,11 @@ public sealed class WorldState
     /// utility AI muda o mundo (NEEDS-04).</summary>
     [Canonical] public NeedsRules NeedsRules { get; }
 
+    /// <summary>Eficiência de recuperação por tipo de lugar de descanso (Fase 15.1, Stage 4,
+    /// T12, LWV-03.1). <see cref="RestPlaceCatalog.GroundEfficiency"/> é o destino in-place de
+    /// <see cref="NeedsRules.HomelessSleepEfficiency"/>.</summary>
+    [Canonical] public RestPlaceCatalog RestPlaceCatalog { get; }
+
     /// <summary>Catálogo de ações e rotina diária do cenário (Fase 4, task 2/9).</summary>
     [Canonical] public ActionCatalog ActionCatalog { get; }
 
@@ -258,6 +263,30 @@ public sealed class WorldState
     /// (fronteira estrita de spec.md); só <c>ScenarioLoaderV2</c> autora e a projeção da API lê.</summary>
     [Canonical] public IReadOnlyList<SpatialPortal> Portals => _portals;
 
+    private readonly List<RestPlace> _restPlaces;
+    private long _nextRestPlaceId;
+
+    /// <summary>Camas/móveis de descanso no mundo (Fase 15.1, Stage 4, T12). Chão e moradia não
+    /// entram aqui: são derivados do NPC sem household e de <see cref="Household.Location"/>.</summary>
+    [Canonical] public IReadOnlyList<RestPlace> RestPlaces => _restPlaces;
+
+    [Canonical] public long NextRestPlaceId => _nextRestPlaceId;
+
+    [Canonical] public ResourceCatalog ResourceCatalog { get; }
+    [Canonical] public IReadOnlyList<ProcessRecipe> ProcessRecipes { get; }
+
+    private readonly List<ResourceProcess> _resourceProcesses;
+    private long _nextResourceProcessId;
+
+    [Canonical] public IReadOnlyList<ResourceProcess> ResourceProcesses => _resourceProcesses;
+    [Canonical] public long NextResourceProcessId => _nextResourceProcessId;
+
+    private readonly List<CropBatch> _cropBatches;
+    private long _nextCropBatchId;
+
+    [Canonical] public IReadOnlyList<CropBatch> CropBatches => _cropBatches;
+    [Canonical] public long NextCropBatchId => _nextCropBatchId;
+
     /// <summary>Contador do sistema de exemplo (task 11) — descartável na Fase 3. Nenhuma
     /// decisão lê este campo, por isso é volátil.</summary>
     [Volatile]
@@ -277,7 +306,10 @@ public sealed class WorldState
         NeedsRules needsRules, ActionCatalog actionCatalog, LifeStageRules lifeStageRules, BranchId branchId = default,
         EconomyRules? economyRules = null, EconomyCatalog? economyCatalog = null, FamilyRules? familyRules = null,
         CityRules? cityRules = null, CityCatalog? cityCatalog = null, PerfRules? perfRules = null,
-        HistoryRules? historyRules = null, string name = "", IReadOnlyList<SpatialPortal>? portals = null)
+        HistoryRules? historyRules = null, string name = "", IReadOnlyList<SpatialPortal>? portals = null,
+        RestPlaceCatalog? restPlaceCatalog = null, IReadOnlyList<RestPlace>? restPlaces = null,
+        ResourceCatalog? resourceCatalog = null, IReadOnlyList<ProcessRecipe>? processRecipes = null,
+        IReadOnlyList<ResourceProcess>? resourceProcesses = null, IReadOnlyList<CropBatch>? cropBatches = null)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -286,6 +318,7 @@ public sealed class WorldState
         PopulationCatalog = populationCatalog;
         PopulationRules = populationRules;
         NeedsRules = needsRules;
+        RestPlaceCatalog = restPlaceCatalog ?? RestPlaceCatalog.FromGround(needsRules.HomelessSleepEfficiency);
         ActionCatalog = actionCatalog;
         LifeStageRules = lifeStageRules;
         BranchId = branchId;
@@ -316,6 +349,14 @@ public sealed class WorldState
         _buildings = [];
         _buildingById = [];
         _portals = (portals ?? []).ToList();
+        _restPlaces = (restPlaces ?? []).ToList();
+        _nextRestPlaceId = _restPlaces.Count == 0 ? 0 : _restPlaces.Max(place => place.Id.Value) + 1;
+        ResourceCatalog = resourceCatalog ?? ResourceCatalog.Empty;
+        ProcessRecipes = processRecipes ?? [];
+        _resourceProcesses = (resourceProcesses ?? []).ToList();
+        _nextResourceProcessId = _resourceProcesses.Count == 0 ? 0 : _resourceProcesses.Max(process => process.Id.Value) + 1;
+        _cropBatches = (cropBatches ?? []).ToList();
+        _nextCropBatchId = _cropBatches.Count == 0 ? 0 : _cropBatches.Max(crop => crop.Id.Value) + 1;
         AliveNpcIndex = AliveNpcIndex.RebuildFrom(this);
         HistoryIndex = HistoryIndex.RebuildFrom(this);
         ColdArchive = new ColdTierArchive();
@@ -366,7 +407,16 @@ public sealed class WorldState
         IReadOnlyList<NpcMemory>? volatileMemories = null,
         long nextMemoryId = 0,
         string name = "",
-        IReadOnlyList<SpatialPortal>? portals = null)
+        IReadOnlyList<SpatialPortal>? portals = null,
+        RestPlaceCatalog? restPlaceCatalog = null,
+        IReadOnlyList<RestPlace>? restPlaces = null,
+        long nextRestPlaceId = 0,
+        ResourceCatalog? resourceCatalog = null,
+        IReadOnlyList<ProcessRecipe>? processRecipes = null,
+        IReadOnlyList<ResourceProcess>? resourceProcesses = null,
+        long nextResourceProcessId = 0,
+        IReadOnlyList<CropBatch>? cropBatches = null,
+        long nextCropBatchId = 0)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -375,6 +425,7 @@ public sealed class WorldState
         PopulationCatalog = populationCatalog;
         PopulationRules = populationRules;
         NeedsRules = needsRules;
+        RestPlaceCatalog = restPlaceCatalog ?? RestPlaceCatalog.FromGround(needsRules.HomelessSleepEfficiency);
         ActionCatalog = actionCatalog;
         LifeStageRules = lifeStageRules;
         BranchId = branchId;
@@ -404,6 +455,14 @@ public sealed class WorldState
         _buildingById = ToLookup(_buildings, b => b.Id);
         _nextBuildingId = nextBuildingId;
         _portals = (portals ?? []).ToList();
+        _restPlaces = (restPlaces ?? []).ToList();
+        _nextRestPlaceId = nextRestPlaceId;
+        ResourceCatalog = resourceCatalog ?? ResourceCatalog.Empty;
+        ProcessRecipes = processRecipes ?? [];
+        _resourceProcesses = (resourceProcesses ?? []).ToList();
+        _nextResourceProcessId = nextResourceProcessId;
+        _cropBatches = (cropBatches ?? []).ToList();
+        _nextCropBatchId = nextCropBatchId;
         CityRules = cityRules ?? CityRules.Disabled;
         CityCatalog = cityCatalog ?? CityCatalog.Empty;
         PerfRules = perfRules ?? PerfRules.Default;
@@ -535,6 +594,33 @@ public sealed class WorldState
     /// <see cref="Building"/>. Sem <c>FindPortal</c>/remoção: portal é dado descritivo estático do
     /// cenário, nenhum sistema desta fase o edita depois de carregado.</summary>
     public void AddPortal(SpatialPortal portal) => _portals.Add(portal);
+
+    internal RestPlaceId NextRestPlaceIdAndAdvance() => new(_nextRestPlaceId++);
+
+    public void AddRestPlace(RestPlace place)
+    {
+        _restPlaces.Add(place);
+        _nextRestPlaceId = Math.Max(_nextRestPlaceId, place.Id.Value + 1);
+    }
+
+    internal ResourceProcessId NextResourceProcessIdAndAdvance() => new(_nextResourceProcessId++);
+
+    public void AddResourceProcess(ResourceProcess process)
+    {
+        _resourceProcesses.Add(process);
+        _nextResourceProcessId = Math.Max(_nextResourceProcessId, process.Id.Value + 1);
+    }
+
+    internal CropBatchId NextCropBatchIdAndAdvance() => new(_nextCropBatchId++);
+
+    public void AddCropBatch(CropBatch crop)
+    {
+        _cropBatches.Add(crop);
+        _nextCropBatchId = Math.Max(_nextCropBatchId, crop.Id.Value + 1);
+    }
+
+    public CropBatch? FindCropAt(CellCoord plot) =>
+        _cropBatches.FirstOrDefault(crop => crop.Plot == plot && crop.Status != CropStatus.Harvested);
 
     internal FactId NextFactIdAndAdvance() => new(_nextFactId++);
 

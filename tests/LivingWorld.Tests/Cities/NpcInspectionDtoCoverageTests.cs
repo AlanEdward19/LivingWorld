@@ -1,5 +1,6 @@
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
+using LivingWorld.Simulation.Behavior;
 using LivingWorld.Simulation.History;
 
 namespace LivingWorld.Tests.Cities;
@@ -51,6 +52,8 @@ public class NpcInspectionDtoCoverageTests
         // T50: mesmo critério geométrico de NpcScopeResolver — deriva independente do DTO, igual
         // a todo campo acima.
         [nameof(NpcInspectionDto.CurrentScope)] = (dto, npc, world) => dto.CurrentScope.Equals(ExpectedScope(npc, world)),
+        [nameof(NpcInspectionDto.Rest)] = (dto, npc, world) => Equals(dto.Rest, RestPresentation.Of(world, npc)),
+        [nameof(NpcInspectionDto.Food)] = (dto, npc, world) => Equals(dto.Food, FoodPresentation.Of(world, npc)),
     };
 
     private static NpcScope ExpectedScope(Npc npc, WorldState world)

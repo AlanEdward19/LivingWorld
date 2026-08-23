@@ -1,7 +1,5 @@
-// Fase 15.1, T15: inspector de prédio — id/tipo reais, posição marcada como aproximada (layout
-// de anel client-side, `CityView.tsx` — `Building` não tem `CellCoord` no domínio, context.md
-// gap 5). Sem catálogo de tipo de prédio no projeto: o id cru é o único rótulo disponível hoje
-// (spec.md AC4 — "id cru apenas em modo avançado" só se aplica quando existe catálogo).
+// Fase 15.1, T15/T18: inspector de prédio — id/tipo reais. `locationIsDerived` decides the
+// honesty note (derived ring vs authored motor cell). Sem catálogo de tipo de prédio.
 import { FollowButton } from "./FollowButton";
 import type { SimulationStore } from "../../state/simulationStore";
 import type { ViewStore } from "../../state/viewStore";
@@ -35,9 +33,11 @@ export function BuildingInspector({ entityRef, simulationStore, viewStore }: Bui
         <dd>{marker ? marker.buildingTypeId : "—"}</dd>
       </dl>
 
-      <p role="note" className="approximate-note">
-        posição no mapa é layout aproximado (sem dado real)
-      </p>
+      {(!marker || marker.locationIsDerived !== false) && (
+        <p role="note" className="approximate-note">
+          posição no mapa é layout aproximado (sem dado real)
+        </p>
+      )}
 
       <div className="entity-inspector-actions">
         <FollowButton entityRef={entityRef} viewStore={viewStore} />

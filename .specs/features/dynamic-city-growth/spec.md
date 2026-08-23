@@ -108,10 +108,27 @@ event pipeline.
 ## Edge Cases
 
 - WHEN the map itself has no free cell anywhere reachable (fully built world) THEN the system
-  SHALL treat this as real land scarcity and route the household/workplace need into the existing
-  `MigrationSystem` (the household emigrates to found/join a city elsewhere) instead of queuing
-  the building indefinitely for space that will never appear — matches how real land scarcity
-  drives emigration, not a synthetic backlog.
+  SHALL treat this as real land scarcity and feed it into the existing `MigrationSystem`'s daily
+  scoring (the household is pulled toward emigrating to a city elsewhere) — matches how real land
+  scarcity drives emigration, not a synthetic backlog.
+- WHEN a `ConstructionSystem` project completes payment but `BuildingPlacementResolver.Resolve`
+  returns "no placement possible" for it (the same whole-map land-scarcity condition above) THEN
+  the project SHALL remain queued for retry on a later tick — its resources are never lost and no
+  orphan `Building` is ever created — AND it SHALL NOT block any other project in the same city's
+  `ConstructionQueue` from advancing behind it (a stuck project is skipped for resource-consumption
+  purposes every tick until placement succeeds, retried again next tick, while the next
+  not-yet-stuck project in the queue receives that tick's resource budget instead).
+  **(Amendment, 2026-08-23, AD-007):** this replaces an earlier "no queue, no persisted queue, no
+  special-cased retry logic" wording for this exact condition — that wording described the
+  *building-placement* decision correctly (`BuildingPlacementResolver` itself never queues or
+  retries anything, it either resolves a position or returns null, immediately, every call), but
+  did not anticipate that `ConstructionSystem`'s **pre-existing** (Fase 8) FIFO queue would need to
+  keep a completed-but-unplaceable project around rather than silently discarding its `Building`
+  and consumed resources. Dropping it silently was tried first and rejected — it destroyed
+  resources with no recovery path. A plain retry-in-place was tried second and rejected — it let
+  one stuck project starve every other project queued behind it in the same city (measured: 20+
+  ticks). This skip-ahead behavior is the resolution: never lose resources, never block unrelated
+  projects.
 - WHEN two overflow buildings from different mother cities are mutually within
   `AbsorptionRingCells` of each other and of two different cities' absorption ranges THEN the
   building SHALL absorb into its own city (`Building.City`), never a different one, even if
@@ -131,15 +148,19 @@ event pipeline.
 
 | Requirement ID | Story                  | Phase  | Status  |
 | --------------- | ----------------------- | ------ | ------- |
-| CITYGROW-01     | P1: Overflow placement + city growth | Design | Pending |
-| CITYGROW-02     | P1: Overflow placement + city growth | Design | Pending |
-| CITYGROW-03     | P1: Overflow placement + city growth | Design | Pending |
-| CITYGROW-04     | P1: Overflow placement + city growth | Design | Pending |
-| CITYGROW-05     | P1: Overflow placement + city growth | Design | Pending |
+| CITYGROW-01     | P1: Overflow placement + city growth | Verified | ✅ Verified |
+| CITYGROW-02     | P1: Overflow placement + city growth | Verified | ✅ Verified |
+| CITYGROW-03     | P1: Overflow placement + city growth | Verified | ✅ Verified |
+| CITYGROW-04     | P1: Overflow placement + city growth | Verified | ✅ Verified |
+| CITYGROW-05     | P1: Overflow placement + city growth | Verified | ✅ Verified |
 
 **ID format:** `CITYGROW-NN`, one per acceptance criterion above (in order).
 
 **Status values:** Pending → In Design → In Tasks → Implementing → Verified
+
+**Coverage:** 5 total, 5 mapped to tasks, 0 unmapped — see `validation.md` for the full round 1-4
+Verifier history and `.specs/STATE.md`'s AD-007 for the one deliberate spec amendment made along
+the way.
 
 **Coverage:** 5 total, 0 mapped to tasks, 5 unmapped ⚠️ (Design/Tasks not yet run)
 

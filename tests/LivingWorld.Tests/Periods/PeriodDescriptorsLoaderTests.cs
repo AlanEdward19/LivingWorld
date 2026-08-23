@@ -52,8 +52,12 @@ public class PeriodDescriptorsLoaderTests
         {
             ["Resource"] = new JsonArray(new JsonObject
             {
-                ["Id"] = 1, ["Name"] = "Grão", ["Explanation"] = "Alimento básico",
-                ["RangeMin"] = 0, ["RangeMax"] = 1000, ["Unit"] = "kg",
+                ["Id"] = 1,
+                ["Name"] = "Grão",
+                ["Explanation"] = "Alimento básico",
+                ["RangeMin"] = 0,
+                ["RangeMax"] = 1000,
+                ["Unit"] = "kg",
             }),
         };
 
@@ -114,7 +118,10 @@ public class PeriodDescriptorsLoaderTests
         {
             ["Resource"] = new JsonArray(new JsonObject
             {
-                ["Id"] = 1, ["Name"] = "Grão", ["RangeMin"] = 100, ["RangeMax"] = 10,
+                ["Id"] = 1,
+                ["Name"] = "Grão",
+                ["RangeMin"] = 100,
+                ["RangeMax"] = 10,
             }),
         };
 

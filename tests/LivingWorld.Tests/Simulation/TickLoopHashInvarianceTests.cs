@@ -1,4 +1,3 @@
-using LivingWorld.Api;
 using LivingWorld.Api.Realtime;
 using LivingWorld.Api.Simulation;
 using LivingWorld.Api.Visual;

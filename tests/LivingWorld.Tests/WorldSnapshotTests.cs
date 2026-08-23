@@ -48,7 +48,15 @@ public class WorldSnapshotTests
             ScenarioRunner.DefaultCalendar, 42, ScenarioRunner.DefaultMap(42), ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules, economyRules: SampleEconomyRules, economyCatalog: SampleEconomyCatalog,
-            cityCatalog: SampleCityCatalog);
+            cityCatalog: SampleCityCatalog,
+            resourceCatalog: new ResourceCatalog(new Dictionary<int, ResourceSpec>
+            {
+                [1] = ResourceSpec.Create(1, PreparationState.Raw, edible: false).Value!,
+            }),
+            processRecipes:
+            [
+                ProcessRecipe.Create(ProcessKind.Cook, new Dictionary<int, long> { [1] = 1 }, 3, 1, 1, 2).Value!,
+            ]);
         PopulationSeeder.SeedInitial(world, ScenarioRunner.DefaultInitialPopulation, ScenarioRunner.DefaultCulture, ScenarioRunner.DefaultVillageLocation);
         world.AddWorkplace(new Workplace(
             world.NextWorkplaceIdAndAdvance(), new LocationType(1), ScenarioRunner.DefaultVillageLocation, maxVacancies: 1,
@@ -61,6 +69,17 @@ public class WorldSnapshotTests
             aggregatePool: new AggregatePopulationPool(1, 10, 10));
         world.AddCity(city);
         world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId: 1, completedAtTick: 0));
+        // Fase 15.1 T12: RestPlaces vazio não tem folha primitiva pro mutador genérico.
+        var restHousehold = world.Households[0];
+        world.AddRestPlace(new RestPlace(
+            world.NextRestPlaceIdAndAdvance(), RestPlaceKind.Bed, restHousehold.Location, restHousehold.Id));
+        world.AddResourceProcess(new ResourceProcess(
+            world.NextResourceProcessIdAndAdvance(), ProcessKind.Cook, world.Npcs[0].Id, restHousehold.Id,
+            new Dictionary<ResourceType, long> { [new ResourceType(1)] = 1 }, new ResourceType(3), 1,
+            startedAtTick: 0, completesAtTick: 2, ProcessStatus.Completed));
+        world.AddCropBatch(new CropBatch(
+            world.NextCropBatchIdAndAdvance(), cropResourceId: 1, restHousehold.Location,
+            plantedAtTick: 0, matureAtTick: 24, waterRequired: 1, waterDelivered: 1, CropStatus.Mature));
 
         var clock = new WorldClock(ScenarioRunner.DefaultSystems());
         clock.Run(world, ticks: 400); // atravessa fronteira de dia/mês, gera streams e eventos

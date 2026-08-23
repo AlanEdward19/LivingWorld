@@ -1,6 +1,7 @@
 using LivingWorld.Domain;
-using LivingWorld.Simulation.Population;
+using LivingWorld.Simulation.Behavior;
 using LivingWorld.Simulation.History;
+using LivingWorld.Simulation.Population;
 
 namespace LivingWorld.Simulation;
 
@@ -67,7 +68,9 @@ public static class NpcInspectionQuery
             TargetOf(npc), NpcInspectionLod.Materialized,
             Beliefs: NpcBeliefQuery.BeliefsOf(world, npc.Id),
             Memories: [],
-            CurrentScope: ResolveScope(world, npc));
+            CurrentScope: ResolveScope(world, npc),
+            Rest: RestPresentation.Of(world, npc),
+            Food: FoodPresentation.Of(world, npc));
     }
 
     /// <summary>Mesmo critério geométrico de <c>GlobalProjector</c>/<c>LivingScopeProjector</c>
@@ -78,8 +81,10 @@ public static class NpcInspectionQuery
         var city = world.FindCity(npc.City);
         if (city is null) return new NpcScope(NpcScopeKind.World, null);
 
-        var bounds = SpatialBoundsResolver.ResolveCity(
-            city, CityPopulationQuery.Population(world, npc.City), world.Map.Width, world.Map.Height).Bounds;
+        // dynamic-city-growth, T4b: ResolveGrownBounds realimenta os boxes de overflow das
+        // próprias buildings da cidade pra que os bounds usados aqui reflitam o crescimento real
+        // (CITYGROW-03/05), mesma fonte que GlobalProjector/LivingScopeProjector já usam.
+        var bounds = CityOccupancy.ResolveGrownBounds(world, city, CityPopulationQuery.Population(world, npc.City)).Bounds;
         return NpcScopeResolver.Resolve(npc, bounds);
     }
 

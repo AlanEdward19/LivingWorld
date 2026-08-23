@@ -55,4 +55,7 @@ public enum WorldEventKind
     /// <summary>Correção compensatória do esqueleto (Fase 10, HIST-24) — payload
     /// <c>correctsFactId|correctedPayload|reason</c>.</summary>
     CompensatingCorrection,
+
+    /// <summary>Fundação de assentamento (Fase 15.1, LWV-04.6) — cidade nova a partir da mãe.</summary>
+    SettlementFounded,
 }

@@ -23,10 +23,10 @@ describe("actionVisuals", () => {
     expect(visual.hidden).toBe(false);
   });
 
-  it("marks sleep as the only animated known action", () => {
+  it("marks every ActionType except hidden travel as animated", () => {
     const animated = [0, 1, 2, 3, 4, 5, 6].filter((id) => actionVisualFor(id).animated);
 
-    expect(animated).toEqual([1]);
+    expect(animated).toEqual([0, 1, 2, 3, 5, 6]);
   });
 
   it("hides the cue only for travel — walking around is not worth a badge", () => {

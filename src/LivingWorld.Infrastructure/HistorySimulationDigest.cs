@@ -1,7 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
 using LivingWorld.Domain;
-using LivingWorld.Infrastructure;
 using LivingWorld.Simulation;
 using LivingWorld.Simulation.History;
 

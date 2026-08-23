@@ -3,14 +3,14 @@
 // `staticEntities` (não têm delta de tick — `SimulationStore.entitiesOf` só extrai NPC externo,
 // que já vem dinamicamente); double-click numa cidade resolve `{kind:"City"}` e o próprio
 // `MapView` chama `ViewStore.enter`.
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { MapView } from "./MapView";
 import { LayerPanel } from "./LayerPanel";
 import { EntityLegend } from "./EntityLegend";
 import { FloorSelector } from "./FloorSelector";
 import { terrainColorLookup, terrainDetailLookup, riverOverlayPoints } from "../worldMapData";
-import { generateCityWallFootprint, MATERIAL_COLOR, roofColorFor } from "../map-engine/buildingFootprint";
 import { sortActiveLayers } from "../map-engine/layers";
+import { mergeWorldCityMarkers } from "../map-engine/worldCityMarkers";
 import type { Viewport } from "../map-engine/Camera";
 import type { ActiveLayer } from "../map-engine/renderer";
 import type { LodThresholds } from "../map-engine/lod";
@@ -20,7 +20,6 @@ import type { ViewStore } from "../state/viewStore";
 import type { SelectionStore } from "../state/selectionStore";
 import type { FutureGlobalSnapshot } from "../data/contracts";
 import type { VisualLayerName } from "../types";
-import { CATEGORY_COLOR } from "../map-engine/categoryColors";
 
 export interface WorldMapViewProps {
   snapshot: FutureGlobalSnapshot;
@@ -101,26 +100,14 @@ export function WorldMapView({ snapshot, viewport, simulationStore, viewStore, s
   // qualquer entidade com `size.w>1 || size.h>1` como área, não como marcador circular.
   // Feedback do usuário (2026-08-07, rodada 2): cidade também não pode ficar só um retângulo —
   // mesma técnica do prédio (buildingFootprint.ts): muralha com portão em vez de preenchimento.
+  const livingCities = useSyncExternalStore(
+    (onStoreChange) => simulationStore.subscribe(onStoreChange),
+    () => simulationStore.livingStateOf(WORLD).cities,
+  );
+
   const cityEntities: AuthoritativeEntity[] = useMemo(
-    () =>
-      snapshot.cities.map((city) => {
-        const wallCells = generateCityWallFootprint(city.id.value, city.bounds.width, city.bounds.height, floor);
-        return {
-          ref: { kind: "city" as const, id: city.id.value, space: WORLD },
-          label: city.name,
-          position: { x: city.bounds.x, y: city.bounds.y },
-          size: { w: city.bounds.width, h: city.bounds.height },
-          sizeIsDerived: city.boundsAreDerived,
-          color: CATEGORY_COLOR.city,
-          footprintCells: wallCells.map((c) => ({
-            x: c.x,
-            y: c.y,
-            color: c.material === "floor" ? roofColorFor(`${city.id.value}:${Math.floor(c.x / 2)}:${Math.floor(c.y / 2)}`) : MATERIAL_COLOR[c.material],
-            material: c.material === "floor" ? "roof" as const : c.material,
-          })),
-        };
-      }),
-    [snapshot.cities, floor],
+    () => mergeWorldCityMarkers(snapshot.cities, livingCities.values(), floor),
+    [snapshot.cities, livingCities, floor],
   );
 
   return (

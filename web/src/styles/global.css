@@ -701,6 +701,130 @@ form[data-testid="create-world-form"] > div:not([hidden]) {
 .npc-need { display: grid; grid-template-columns: 54px 1fr 28px; align-items: center; gap: .45rem; margin: .28rem 0; }
 .npc-need progress { width: 100%; accent-color: var(--accent); }
 .npc-need strong { text-align: right; font-size: .78rem; }
+.npc-rest-cue {
+  margin: 0 0 .45rem;
+  font-family: var(--font-display);
+  letter-spacing: .22em;
+  color: var(--accent-bright);
+  animation: npc-rest-zzz 1.8s ease-in-out infinite;
+}
+@keyframes npc-rest-zzz {
+  0%, 100% { opacity: .55; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-2px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .npc-rest-cue { animation: none; }
+}
+
+@keyframes npc-work-hammer {
+  0%, 100% { transform: rotate(-8deg); }
+  50% { transform: rotate(12deg); }
+}
+@keyframes npc-cook-steam {
+  0%, 100% { opacity: .55; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-3px); }
+}
+@keyframes npc-build-scaffold {
+  0%, 100% { opacity: .7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+@keyframes npc-water-collect {
+  0%, 100% { opacity: .6; transform: translateY(1px); }
+  50% { opacity: 1; transform: translateY(-2px); }
+}
+@keyframes npc-water-carry {
+  0%, 100% { transform: translateX(-1px); }
+  50% { transform: translateX(1px); }
+}
+@keyframes npc-water-deliver {
+  0%, 100% { opacity: .65; transform: scale(0.96); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+.npc-anim-work { animation: npc-work-hammer 1.4s ease-in-out infinite; transform-origin: center; }
+.npc-anim-cook { animation: npc-cook-steam 1.6s ease-in-out infinite; }
+.npc-anim-build { animation: npc-build-scaffold 1.4s ease-in-out infinite; }
+.npc-anim-water-collect { animation: npc-water-collect 1.2s ease-in-out infinite; }
+.npc-anim-water-carry { animation: npc-water-carry 1.2s ease-in-out infinite; }
+.npc-anim-water-deliver { animation: npc-water-deliver 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .npc-anim-work,
+  .npc-anim-cook,
+  .npc-anim-build,
+  .npc-anim-water-collect,
+  .npc-anim-water-carry,
+  .npc-anim-water-deliver { animation: none; }
+}
+
+@keyframes npc-social-chat {
+  0%, 100% { transform: translateY(0); opacity: .7; }
+  50% { transform: translateY(-2px); opacity: 1; }
+}
+@keyframes npc-courtship-spark {
+  0%, 100% { transform: scale(0.92); opacity: .65; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+@keyframes npc-marriage-ribbon {
+  0%, 100% { transform: rotate(-4deg); opacity: .75; }
+  50% { transform: rotate(4deg); opacity: 1; }
+}
+.npc-anim-social { animation: npc-social-chat 1.4s ease-in-out infinite; }
+.npc-anim-courtship { animation: npc-courtship-spark 1.2s ease-in-out infinite; }
+.npc-anim-marriage { animation: npc-marriage-ribbon 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .npc-anim-social,
+  .npc-anim-courtship,
+  .npc-anim-marriage { animation: none; }
+}
+
+@keyframes npc-life-birth {
+  0%, 100% { transform: scale(0.9); opacity: .7; }
+  50% { transform: scale(1.12); opacity: 1; }
+}
+@keyframes npc-life-farewell {
+  0%, 100% { opacity: .85; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-2px); }
+}
+.npc-anim-birth { animation: npc-life-birth 1.1s ease-out 1; }
+.npc-anim-farewell { animation: npc-life-farewell 1.4s ease-in-out 1; }
+@media (prefers-reduced-motion: reduce) {
+  .npc-anim-birth,
+  .npc-anim-farewell { animation: none; }
+}
+
+@keyframes npc-eat-bite {
+  0%, 100% { transform: scale(0.94); opacity: .7; }
+  50% { transform: scale(1.06); opacity: 1; }
+}
+@keyframes npc-crop-plant {
+  0%, 100% { transform: translateY(1px); opacity: .7; }
+  50% { transform: translateY(-2px); opacity: 1; }
+}
+@keyframes npc-crop-water {
+  0%, 100% { transform: translateY(1px); opacity: .65; }
+  50% { transform: translateY(-2px); opacity: 1; }
+}
+@keyframes npc-crop-harvest {
+  0%, 100% { transform: rotate(-6deg); opacity: .75; }
+  50% { transform: rotate(6deg); opacity: 1; }
+}
+@keyframes npc-buy-coin {
+  0%, 100% { transform: rotate(-8deg) scale(0.96); opacity: .75; }
+  50% { transform: rotate(8deg) scale(1.06); opacity: 1; }
+}
+.npc-anim-eat { animation: npc-eat-bite 1.4s ease-in-out infinite; }
+.npc-anim-rest { animation: npc-rest-zzz 1.8s ease-in-out infinite; }
+.npc-anim-buy { animation: npc-buy-coin 1.4s ease-in-out infinite; }
+.npc-anim-crop-plant { animation: npc-crop-plant 1.4s ease-in-out infinite; }
+.npc-anim-crop-water { animation: npc-crop-water 1.2s ease-in-out infinite; }
+.npc-anim-crop-harvest { animation: npc-crop-harvest 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .npc-anim-eat,
+  .npc-anim-rest,
+  .npc-anim-buy,
+  .npc-anim-crop-plant,
+  .npc-anim-crop-water,
+  .npc-anim-crop-harvest { animation: none; }
+}
 .npc-skills { margin: .45rem 0 0; padding-left: 1.2rem; color: var(--text-muted); }
 .npc-beliefs { margin: .45rem 0 0; padding-left: 1.2rem; color: var(--text-muted); }
 .living-timeline { position: absolute; z-index: 10; right: .75rem; bottom: .75rem; width: min(320px, 36vw); max-height: 34vh; overflow: auto; padding: .7rem .85rem; background: rgba(18,22,31,.88); border: 1px solid var(--border-subtle); border-radius: var(--radius); backdrop-filter: blur(4px); }

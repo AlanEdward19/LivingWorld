@@ -93,7 +93,13 @@ public static class DefaultPeriodSeeder
             ["HomelessSleepEfficiency"] = 0.5,
             ["MaxDurationHours"] = new JsonObject
             {
-                ["Eat"] = 2, ["Sleep"] = 8, ["Work"] = 8, ["Socialize"] = 3, ["Travel"] = 4, ["Idle"] = 2, ["Buy"] = 2,
+                ["Eat"] = 2,
+                ["Sleep"] = 8,
+                ["Work"] = 8,
+                ["Socialize"] = 3,
+                ["Travel"] = 4,
+                ["Idle"] = 2,
+                ["Buy"] = 2,
             },
             ["RoutineSlots"] = new JsonArray(
                 new JsonObject { ["ProfessionId"] = 1, ["Stage"] = "Adult", ["HourStart"] = 6, ["HourEnd"] = 14, ["Action"] = "Work" },

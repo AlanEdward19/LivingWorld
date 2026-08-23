@@ -20,8 +20,13 @@ import { architectureHash, architecturePalette, cityRoofPalette } from "./archit
 import { fanOutOffsets } from "./fanOut";
 import { npcVisualScale, tokenRadiusPx } from "./tokenSize";
 import { actionVisualFor } from "./actionVisuals";
+import { processCueVisual } from "./cityNpcOverlay";
 import { drawActionIcon } from "./actionIcon";
 import { prefersReducedMotion } from "../reducedMotion";
+import { animationSpecForAction, animationSpecForEvent, animationSpecForProcess } from "./npcAnimationCatalog";
+import { cueFromSpec, PROGRESS_RING_START, progressRingEndAngle } from "./npcAnimationCue";
+import { resolveSocialLinks, SOCIAL_EVENT_KINDS } from "./socialRomance";
+import { resolveLifecycleMoments } from "./lifecycleMoments";
 
 const npcPawnImages = new Map<string, HTMLImageElement>();
 
@@ -49,6 +54,8 @@ export interface RenderFrame {
   entities: AuthoritativeEntity[];
   lodThresholds: LodThresholds;
   highlightId?: string;
+  /** Living timeline events for this tick — cosmetic overlays only. */
+  events?: readonly { kind: number; location?: { x: number; y: number } | null }[];
 }
 
 function clampRange(min: number, max: number, lo: number, hi: number): [number, number] {
@@ -59,12 +66,19 @@ function isAreaEntity(entity: AuthoritativeEntity): boolean {
   return entity.size.w > 1 || entity.size.h > 1;
 }
 
+function cellInRect(x: number, y: number, visible: { x: number; y: number; width: number; height: number }): boolean {
+  return x + 1 >= visible.x && x <= visible.x + visible.width && y + 1 >= visible.y && y <= visible.y + visible.height;
+}
+
 function intersectsRect(entity: AuthoritativeEntity, visible: { x: number; y: number; width: number; height: number }): boolean {
   const left = entity.position.x;
   const top = entity.position.y;
   const right = left + (isAreaEntity(entity) ? entity.size.w : 0);
   const bottom = top + (isAreaEntity(entity) ? entity.size.h : 0);
-  return right >= visible.x && left <= visible.x + visible.width && bottom >= visible.y && top <= visible.y + visible.height;
+  if (right >= visible.x && left <= visible.x + visible.width && bottom >= visible.y && top <= visible.y + visible.height) {
+    return true;
+  }
+  return !!entity.travelDestination && cellInRect(entity.travelDestination.x, entity.travelDestination.y, visible);
 }
 
 /** Desenha um frame no contexto — nada além de leitura de `frame`; nunca toca `canvas.width/height`. */
@@ -152,6 +166,10 @@ export function draw(ctx: CanvasRenderingContext2D | null, frame: RenderFrame): 
   const areaEntities = visibleEntities.filter(isAreaEntity);
   const pointEntities = visibleEntities.filter((e) => !isAreaEntity(e));
 
+  for (const entity of pointEntities) {
+    drawRelocationRoute(ctx, camera, entity);
+  }
+
   // Áreas (cidade/prédio) sempre desenham como footprint real — LOD só afeta entidade de ponto.
   for (const entity of areaEntities) {
     drawAreaEntity(ctx, camera, entity, scale, entity.ref.id === frame.highlightId);
@@ -171,6 +189,8 @@ export function draw(ctx: CanvasRenderingContext2D | null, frame: RenderFrame): 
         : entity;
       drawPointEntity(ctx, camera, drawEntity, scale, level !== "dot", entity.ref.id === frame.highlightId);
     }
+    drawSocialOverlays(ctx, camera, pointEntities, frame.events ?? []);
+    drawLifecycleBursts(ctx, camera, frame.entities, frame.events ?? []);
   }
 }
 
@@ -231,6 +251,10 @@ function drawAreaEntity(
   scale: number,
   isHighlighted: boolean,
 ): void {
+  if (entity.process?.kind === "construction") {
+    drawConstructionScaffold(ctx, camera, entity, scale, isHighlighted);
+    return;
+  }
   if (entity.ref.kind === "city") {
     drawCityArchitecture(ctx, camera, entity, scale, isHighlighted);
     return;
@@ -283,6 +307,59 @@ function drawAreaEntity(
   ctx.setLineDash([]);
 
   drawLabel(ctx, entity, { x: topLeft.x + 4, y: topLeft.y + 12 }, "left");
+}
+
+function drawConstructionScaffold(
+  ctx: CanvasRenderingContext2D,
+  camera: Camera,
+  entity: AuthoritativeEntity,
+  scale: number,
+  isHighlighted: boolean,
+): void {
+  const topLeft = camera.worldToScreen(entity.position);
+  const width = entity.size.w * scale;
+  const height = entity.size.h * scale;
+  const timber = entity.color || "#8a6a3a";
+
+  ctx.setLineDash([6, 4]);
+  ctx.strokeStyle = timber;
+  ctx.lineWidth = Math.max(2, scale * 0.12);
+  ctx.strokeRect(topLeft.x, topLeft.y, width, height);
+  ctx.setLineDash([]);
+
+  ctx.strokeStyle = timber;
+  ctx.lineWidth = Math.max(1.5, scale * 0.1);
+  ctx.beginPath();
+  ctx.moveTo(topLeft.x + scale * 0.2, topLeft.y + height);
+  ctx.lineTo(topLeft.x + scale * 0.2, topLeft.y + scale * 0.25);
+  ctx.lineTo(topLeft.x + scale * 0.55, topLeft.y + scale * 0.45);
+  ctx.moveTo(topLeft.x + width - scale * 0.2, topLeft.y + height);
+  ctx.lineTo(topLeft.x + width - scale * 0.2, topLeft.y + scale * 0.25);
+  ctx.lineTo(topLeft.x + width - scale * 0.55, topLeft.y + scale * 0.45);
+  ctx.stroke();
+
+  const progress = Math.max(0, Math.min(1, entity.process?.progress ?? 0));
+  const constructionCue = cueFromSpec(animationSpecForProcess("construction"), {
+    progress,
+    reducedMotion: prefersReducedMotion(),
+  });
+  const barY = topLeft.y + height - scale * 0.28;
+  ctx.fillStyle = "rgba(40, 32, 24, 0.55)";
+  ctx.fillRect(topLeft.x + scale * 0.15, barY, width - scale * 0.3, scale * 0.16);
+  ctx.fillStyle = "#c4a15a";
+  ctx.fillRect(topLeft.x + scale * 0.15, barY, (width - scale * 0.3) * constructionCue.ringProgress, scale * 0.16);
+
+  const label = entity.label ?? entity.process?.accessibleLabel ?? "Obra";
+  ctx.fillStyle = "#f0e6d2";
+  ctx.font = `${Math.max(10, scale * 0.35)}px "Iowan Old Style", "Palatino Linotype", serif`;
+  ctx.textAlign = "left";
+  ctx.fillText(label, topLeft.x + 4, topLeft.y - 4);
+
+  if (isHighlighted) {
+    ctx.strokeStyle = SELECTION_HIGHLIGHT_COLOR;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(topLeft.x, topLeft.y, width, height);
+  }
 }
 
 function drawBuildingArchitecture(
@@ -540,6 +617,24 @@ function actionBadgeOpacity(animated: boolean): number {
   return 0.55 + 0.45 * Math.sin(Date.now() / 450);
 }
 
+function drawProgressRing(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  radius: number,
+  progress: number,
+  opacity: number,
+): void {
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  ctx.strokeStyle = "#c4a15a";
+  ctx.lineWidth = Math.max(1.5, radius * 0.22);
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, PROGRESS_RING_START, progressRingEndAngle(progress));
+  ctx.stroke();
+  ctx.restore();
+}
+
 /**
  * Um tile representa distâncias físicas diferentes em cada nível espacial. O pawn acompanha
  * essa semântica só no desenho: mundo mantém a escala compacta; cidade aproxima a pessoa; o
@@ -548,6 +643,100 @@ function actionBadgeOpacity(animated: boolean): number {
 function pointVisualScale(entity: AuthoritativeEntity): number {
   if (entity.ref.kind !== "npc") return 1;
   return npcVisualScale(entity.ref.space.kind);
+}
+
+const RELOCATION_ROUTE_COLOR = "#c4a574";
+
+const SOCIAL_LINK_COLOR = "#c9899a";
+const SOCIAL_LINK_DASH: [number, number] = [4, 6];
+
+function drawSocialOverlays(
+  ctx: CanvasRenderingContext2D,
+  camera: Camera,
+  entities: readonly AuthoritativeEntity[],
+  events: readonly { kind: number }[],
+): void {
+  const byId = new Map(entities.filter((entity) => entity.ref.kind === "npc").map((entity) => [entity.ref.id, entity]));
+  const links = resolveSocialLinks(entities, events);
+  for (const link of links) {
+    const from = byId.get(link.fromId);
+    const to = byId.get(link.toId);
+    if (!from || !to) continue;
+    const a = camera.worldToScreen({ x: from.position.x + 0.5, y: from.position.y + 0.5 });
+    const b = camera.worldToScreen({ x: to.position.x + 0.5, y: to.position.y + 0.5 });
+    ctx.save();
+    ctx.strokeStyle = SOCIAL_LINK_COLOR;
+    ctx.lineWidth = 2;
+    ctx.setLineDash(SOCIAL_LINK_DASH);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  const socialEvents = events.filter((event) => (SOCIAL_EVENT_KINDS as readonly number[]).includes(event.kind));
+  if (socialEvents.length === 0) return;
+  const reduced = prefersReducedMotion();
+  const anchor = links[0]
+    ? midpointOf(byId.get(links[0].fromId), byId.get(links[0].toId))
+    : entities.find((entity) => entity.ref.kind === "npc")?.position;
+  if (!anchor) return;
+  const at = camera.worldToScreen({ x: anchor.x + 0.5, y: anchor.y + 0.5 });
+  for (const event of socialEvents) {
+    const spec = animationSpecForEvent(event.kind);
+    const cue = cueFromSpec(spec, { reducedMotion: reduced });
+    drawActionIcon(ctx, at.x, at.y - 14, 6 * cue.scale, spec.icon, cue.opacity);
+  }
+}
+
+function drawLifecycleBursts(
+  ctx: CanvasRenderingContext2D,
+  camera: Camera,
+  entities: readonly AuthoritativeEntity[],
+  events: readonly { kind: number; location?: { x: number; y: number } | null }[],
+): void {
+  const reduced = prefersReducedMotion();
+  for (const moment of resolveLifecycleMoments(events, entities)) {
+    const spec = animationSpecForEvent(moment.kind);
+    const cue = cueFromSpec(spec, { reducedMotion: reduced });
+    const at = camera.worldToScreen({ x: moment.position.x + 0.5, y: moment.position.y + 0.5 });
+    const slate = moment.kind === 0 ? "#7eb8a2" : "#8a8f9a";
+    ctx.save();
+    ctx.globalAlpha = cue.opacity;
+    ctx.strokeStyle = slate;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(at.x, at.y, 10 * cue.scale, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    drawActionIcon(ctx, at.x, at.y, 6 * cue.scale, spec.icon, cue.opacity);
+  }
+}
+
+function midpointOf(
+  a: AuthoritativeEntity | undefined,
+  b: AuthoritativeEntity | undefined,
+): { x: number; y: number } | undefined {
+  if (!a || !b) return undefined;
+  return { x: (a.position.x + b.position.x) / 2, y: (a.position.y + b.position.y) / 2 };
+}
+
+function drawRelocationRoute(ctx: CanvasRenderingContext2D, camera: Camera, entity: AuthoritativeEntity): void {
+  if (entity.ref.kind !== "npc" || !entity.travelDestination) return;
+  const from = camera.worldToScreen({ x: entity.position.x + 0.5, y: entity.position.y + 0.5 });
+  const to = camera.worldToScreen({ x: entity.travelDestination.x + 0.5, y: entity.travelDestination.y + 0.5 });
+  ctx.save();
+  ctx.strokeStyle = RELOCATION_ROUTE_COLOR;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([7, 5]);
+  ctx.beginPath();
+  ctx.moveTo(from.x, from.y);
+  ctx.lineTo(to.x, to.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
 }
 
 function drawPointEntity(
@@ -584,10 +773,32 @@ function drawPointEntity(
     if (entity.ref.kind === "npc" && entity.currentAction != null) {
       const visual = actionVisualFor(entity.currentAction);
       if (!visual.hidden) {
+        const actionSpec = animationSpecForAction(entity.currentAction);
+        const reduced = prefersReducedMotion();
+        const opacity = actionSpec.key === "sleep"
+          ? actionBadgeOpacity(visual.animated)
+          : cueFromSpec(actionSpec, { reducedMotion: reduced, nowMs: Date.now() }).opacity;
         drawActionIcon(
           ctx, center.x + r * 0.62, center.y - r * 0.72, Math.max(4, r * 0.42),
-          visual.icon, actionBadgeOpacity(visual.animated),
+          visual.icon, opacity,
         );
+      }
+    }
+    if (entity.ref.kind === "npc" && entity.process && entity.process.kind !== "construction") {
+      const descriptor = entity.process.descriptorKey ?? entity.process.kind;
+      const cue = processCueVisual(entity.process.kind, descriptor);
+      if (!cue.hidden) {
+        const spec = animationSpecForProcess(descriptor);
+        const resolved = spec.key === "unknown" ? animationSpecForProcess(cue.key) : spec;
+        const drawCue = cueFromSpec(resolved, {
+          progress: entity.process.progress,
+          reducedMotion: prefersReducedMotion(),
+        });
+        const iconR = Math.max(4, r * 0.42) * drawCue.scale;
+        const iconX = center.x - r * 0.62;
+        const iconY = center.y - r * 0.72;
+        drawActionIcon(ctx, iconX, iconY, iconR, cue.icon, drawCue.opacity);
+        drawProgressRing(ctx, iconX, iconY, iconR * 1.28, drawCue.ringProgress, drawCue.opacity);
       }
     }
     // Rótulo só a partir do nível "token" (master prompt §4: dot fica só com a forma; rótulo é

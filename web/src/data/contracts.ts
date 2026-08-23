@@ -41,6 +41,8 @@ export interface NpcVisual {
   id: NumericId;
   location: CellCoord;
   currentAction: number | null;
+  city?: StringId | null;
+  relocationDestination?: CellCoord | null;
 }
 
 /** T50: valor de `NpcInspection.lod` para um id reservado num pool agregado (City.PoolNpcIds)
@@ -77,13 +79,30 @@ export interface NpcInspection {
   /** T50 (bug "seguir NPC entre escopos"): 0 = World, 1 = City — mesmo critério geométrico que
    * já decide o que aparece no mapa-múndi vs. dentro da cidade (NpcScopeResolver, backend). */
   currentScope: { kind: number; cityId: StringId | null };
+  /** T13 (LWV-03.1): descanso ativo — qualidade, lugar, duração restante. Ausente se não dorme. */
+  rest?: {
+    kind: number;
+    quality: number;
+    location: CellCoord;
+    remainingHours: number;
+    blocked: boolean;
+  } | null;
+  /** T16 (LWV-03.2): refeição ativa — recurso, cru vs preparado, duração restante. Ausente se não come. */
+  food?: {
+    resourceId: number;
+    preparation: number;
+    remainingHours: number;
+    blocked: boolean;
+  } | null;
 }
 
 export interface CityVisual {
   id: StringId;
+  name?: string;
   location: CellCoord;
   population: number;
   bounds: CellBounds;
+  foundedFromCityId?: StringId | null;
 }
 
 export interface BuildingVisual {
@@ -99,10 +118,19 @@ export interface ProcessVisual {
   targetId: number;
   progress: number;
   descriptorKey: string;
+  quality?: number | null;
+  remainingHours?: number | null;
+  location?: CellCoord | null;
 }
 
 export interface IndicatorUpdate { key: string; value: number }
-export interface NotableVisualEvent { tick: number; kind: number; label: string }
+export interface NotableVisualEvent {
+  tick: number;
+  kind: number;
+  label: string;
+  /** Motor cell when known (LWV-07.3). Absent → client may fall back. */
+  location?: CellCoord | null;
+}
 
 export interface LivingScopeStateWire {
   npcs: NpcVisual[];
@@ -148,7 +176,7 @@ export interface CityFootprintFields {
   boundsAreDerived: boolean;
 }
 
-/** Campos que T20 adiciona a `CityBuildingMarker` (mesma decisão OQ-1). */
+/** Stage 4 T18 / LWV-04.5 — campos já embutidos em `CityBuildingMarker`. */
 export interface BuildingPositionFields {
   location: CellCoord;
   locationIsDerived: boolean;

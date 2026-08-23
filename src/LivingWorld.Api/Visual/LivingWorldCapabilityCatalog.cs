@@ -1,5 +1,6 @@
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
+using LivingWorld.Simulation.Economy;
 using LivingWorld.Simulation.History;
 using LivingWorld.Simulation.Narrative;
 using LivingWorld.Simulation.Periods;
@@ -31,10 +32,10 @@ public static class LivingWorldCapabilityCatalog
         Living("BEHAVIOR", systems: [typeof(BehaviorDecisionSystem)], consumers: ["map.npc.action"]),
         Living("REST", consumers: ["map.npc.rest"]),
         Living("FOOD", consumers: ["inspector.npc.food"]),
-        Living("CROPS", consumers: ["map.crop"]),
+        Living("CROPS", systems: [typeof(CropSystem)], consumers: ["map.crop"]),
         Living("WATER", consumers: ["map.water"]),
         Living("EMPLOYMENT", [typeof(EmploymentSystem)], [WorldEventKind.Hired, WorldEventKind.Fired], ["inspector.employment"]),
-        Living("PRODUCTION", [typeof(ProductionSystem)], [WorldEventKind.ResourceLost], ["inspector.production"]),
+        Living("PRODUCTION", [typeof(ProductionSystem), typeof(ResourceProcessSystem)], [WorldEventKind.ResourceLost], ["inspector.production"]),
         Living("MARKET", systems: [typeof(MarketPricingSystem)], consumers: ["inspector.market"]),
         Living("WAGES", [typeof(WagePaymentSystem)], [WorldEventKind.WageUnpaid], ["timeline.wages"]),
         Living("MONEY", events: [WorldEventKind.Minted, WorldEventKind.Destroyed], consumers: ["timeline.money"]),
@@ -47,10 +48,11 @@ public static class LivingWorldCapabilityCatalog
         Living("DEATH", [typeof(MortalitySystem)], [WorldEventKind.Death, WorldEventKind.Starvation], ["timeline.death"]),
         Living("ARCHIVE", systems: [typeof(ColdArchiveSystem)], consumers: ["inspector.history.archive"]),
         Living("CITY_GROWTH", systems: [typeof(CityGrowthSystem)], consumers: ["inspector.city.growth"]),
-        Living("CONSTRUCTION", systems: [typeof(ConstructionSystem)], consumers: ["inspector.city.construction"]),
-        Living("MIGRATION", systems: [typeof(MigrationSystem)], consumers: ["map.migration"]),
+        Living("CONSTRUCTION", systems: [typeof(ConstructionDemandSystem), typeof(ConstructionSystem)], consumers: ["inspector.city.construction"]),
+        Living("MIGRATION", systems: [typeof(MigrationSystem), typeof(RelocationArrivalSystem)], consumers: ["map.migration"]),
         Living("MATERIALIZATION", systems: [typeof(MaterializationSystem)], consumers: ["hud.materialization"]),
-        Living("FOUNDING", systems: [typeof(SettlementFoundingSystem)], consumers: ["map.founding"]),
+        Living("FOUNDING", [typeof(SettlementFoundingSystem), typeof(SpatialSettlementFoundingSystem)],
+            [WorldEventKind.SettlementFounded], ["map.founding"]),
         Living("HISTORY_FACT", [typeof(FactToReportConversionScheduler)],
             [WorldEventKind.FactRecorded, WorldEventKind.ReportConverted, WorldEventKind.CompensatingCorrection],
             ["timeline.knowledge"]),

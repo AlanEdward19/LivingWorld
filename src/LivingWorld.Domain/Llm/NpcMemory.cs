@@ -1,5 +1,3 @@
-using LivingWorld.Domain;
-
 namespace LivingWorld.Domain.Llm;
 
 /// <summary>As cinco categorias de memória do NPC (Fase 11, roadmap item 1): operacional (estado

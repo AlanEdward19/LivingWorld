@@ -23,22 +23,23 @@ the product promise requires—the causal steps. `capability-matrix.md` is the c
 | Feature | Reason |
 | --- | --- |
 | Combat, roads, trade vehicles, politics | Integrate the current living-world scope first |
+| New art pipeline or 3D/skeletal animation | Existing 2D visual language is extended (LWV-07) |
 | Advanced agriculture, cuisine, logistics, or item crafting | Stage 4 implements the minimum causal chain only |
 | Cell identity for aggregate population | Only materialized NPCs have identity and position |
 | Omniscient truth or engine debug data for players | UI exposes meaningful permitted knowledge |
-| New art pipeline or 3D animation | Existing 2D visual language is extended |
 
 ## Assumptions & Open Questions
 | Decision | Chosen default | Rationale | Confirmed? |
 | --- | --- | --- | --- |
 | Coverage | All `ISimulationSystem`, `WorldEventKind`, and living APIs are classified | Makes “everything” executable | Yes |
 | Presentation | Map, inspector, HUD, timeline, visual cue, or interaction count | Not every mechanic belongs on map | Yes |
-| Rest quality | Ground/house/furniture are catalogued rest places with different recovery efficiency | Generalizes current homeless penalty | No |
-| Food | Resources declare raw-edibility; recipes create edible meals; wheat is not edible by default | Prevents generic “food id” fiction | No |
-| Crops | Planting creates a seeded batch with maturity tick and declared water demand | Makes farming temporal and visible | No |
-| Water | Materialized NPC fetches from a valid source and carries it to a target stock | No remote water generation | No |
+| Rest quality | Ground/house/furniture are catalogued rest places with different recovery efficiency | Generalizes current homeless penalty | Yes |
+| Food | Resources declare raw-edibility; recipes create edible meals; wheat is not edible by default | Prevents generic “food id” fiction | Yes |
+| Crops | Planting creates a seeded batch with maturity tick and declared water demand | Makes farming temporal and visible | Yes |
+| Water | Materialized NPC fetches from a valid source and carries it to a target stock | No remote water generation | Yes |
 | Realtime | Typed state/event deltas extend the existing channel | Replay without polling | No |
 | Knowledge | Player receives beliefs; truth stays in authorized diagnostics | Preserves LLM/history boundary | No |
+| Settlement mobility | Emigration between cities needs ≥2 cities; **founding can create a 2nd city from one**; commute stays intra-footprint | Matches `MigrationSystem` + `SettlementFoundingSystem` | Yes |
 
 This changes the authored scenario/API catalog in place after approval; no parallel v2 is required.
 Existing spectator auth remains unchanged; realtime retry/order and transitions are specified below.
@@ -78,6 +79,14 @@ Existing spectator auth remains unchanged; realtime retry/order and transitions 
 2. WHEN households migrate or found a settlement THEN members SHALL travel and change membership only
    on arrival; founders choose a distinct seeded valid location and population is conserved each tick.
 3. WHEN city indicators or construction change THEN city/building inspectors SHALL update without reload.
+4. WHEN construction is queued or in progress THEN the city map SHALL show a visible site/scaffold and
+   progress cue until the authoritative building exists.
+5. WHEN a completed building exists THEN the city map SHALL place it at the API-projected coordinate,
+   not only at a client-side ring approximation.
+6. WHEN settlement founding completes THEN the world map SHALL show the new city at its seeded site and
+   the timeline SHALL name the founding; the client SHALL not require a pre-existing second city.
+7. WHEN a household migrates between two existing cities THEN the world map SHALL show travel and apply
+   membership only after arrival.
 
 ### LWV-05 — History, periods, narrative, and conversation are used
 1. WHEN facts/reports/books/corrections change THEN permitted knowledge SHALL be browsable without truth leaks.
@@ -91,8 +100,21 @@ Existing spectator auth remains unchanged; realtime retry/order and transitions 
 2. WHEN deltas replay THEN React state SHALL equal a fresh projection; duplicates are idempotent, gaps resnapshot.
 3. WHEN an entity crosses scope THEN origin removal and destination upsert SHALL share the tick.
 
+### LWV-07 — NPC actions and life events have animated 2D cues
+1. WHEN a materialized NPC performs a declared `ActionType` or active process THEN the map token
+   SHALL show a data-driven animated cue (CSS/canvas) with an accessible non-visual label; unknown
+   actions SHALL fall back to a static icon, never a blank tile.
+2. WHEN work, cooking, construction, water, crop, eat, sleep, or socialize processes run THEN progress
+   SHALL drive a visible animation or staged cue until completion or cancellation.
+3. WHEN birth, death, courtship, marriage, or related `WorldEventKind` values fire for a materialized
+   actor THEN a short audience-safe moment animation SHALL appear at the event location and the timeline
+   SHALL retain its human-readable label.
+4. WHEN `prefers-reduced-motion` is set THEN motion SHALL stop but the cue icon/label SHALL remain visible.
+5. WHEN CI enumerates `ActionType`, Stage 4 process descriptors, and LWV-07 event kinds THEN each SHALL
+   map to exactly one animation spec in the unified catalog or the coverage test SHALL fail.
+
 ## Edge Cases, Verification, and Traceability
 - Blocked/cancelled/dead actors never teleport, consume remotely, or apply unfinished effects.
 - Action cues are cosmetic projections; only seeded motor state decides completion and outcomes.
 - Focused bounded scenarios assert each tick; the 100-year suite remains nightly only.
-- Traceability: LWV-01..06 are **In Design**; success requires 6/6 plus complete capability coverage.
+- Traceability: LWV-01..07 are **In Design**; success requires 7/7 plus complete capability coverage.

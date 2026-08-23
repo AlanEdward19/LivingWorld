@@ -3,13 +3,11 @@ import { FollowButton } from "./FollowButton";
 import type { SimulationStore } from "../../state/simulationStore";
 import type { ViewStore } from "../../state/viewStore";
 import type { EntityRef } from "../../map-engine/types";
-import type { ConversationTurn, NpcInspection } from "../../data/contracts";
+import { POOLED_LOD, type ConversationTurn, type NpcInspection } from "../../data/contracts";
 import type { NarrativeSources } from "../../data/sources";
 import { materializeNpc } from "../../api";
 import { ACTION_LABELS } from "../../map-engine/actionVisuals";
 import { NpcTokenSvg } from "../NpcTokenSvg";
-
-const POOLED_LOD = 2;
 
 export interface NpcInspectorProps {
   entityRef: EntityRef;
@@ -124,6 +122,30 @@ const TARGET_LABELS: Record<string, string> = {
   npc: "Pessoa",
 };
 
+const REST_KIND_LABELS: Record<number, string> = {
+  0: "Chão",
+  1: "Moradia",
+  2: "Cama",
+};
+
+const PREPARATION_LABELS: Record<number, string> = {
+  0: "Cru",
+  1: "Preparado",
+};
+
+function restSummary(rest: NonNullable<NpcInspection["rest"]>): string {
+  const place = REST_KIND_LABELS[rest.kind] ?? `lugar ${rest.kind}`;
+  const quality = `${Math.round(rest.quality * 100)}%`;
+  const blocked = rest.blocked ? ", bloqueado" : "";
+  return `Dormindo em ${place}, qualidade ${quality}, ${rest.remainingHours} h restantes${blocked}`;
+}
+
+function foodSummary(food: NonNullable<NpcInspection["food"]>): string {
+  const prep = PREPARATION_LABELS[food.preparation] ?? `preparo ${food.preparation}`;
+  const blocked = food.blocked ? ", bloqueado" : "";
+  return `Comendo recurso ${food.resourceId} (${prep}), ${food.remainingHours} h restantes${blocked}`;
+}
+
 function idValue(value: { value: number } | null): string {
   return value ? String(value.value) : "—";
 }
@@ -198,7 +220,12 @@ export function NpcInspector({ entityRef, simulationStore, viewStore, narrativeS
   return (
     <div className="npc-living-inspector">
       <div className="npc-inspector-identity">
-        <NpcTokenSvg npcId={entityRef.id} currentAction={inspection.currentAction} className="npc-inspector-pawn" />
+        <NpcTokenSvg
+          npcId={entityRef.id}
+          currentAction={inspection.currentAction}
+          className="npc-inspector-pawn"
+          accessibleDetail={inspection.rest ? restSummary(inspection.rest) : inspection.food ? foodSummary(inspection.food) : undefined}
+        />
         <div>
           <small>{inspection.lod === 0 ? "Pessoa materializada" : "Registro histórico"}</small>
           <h3>{inspection.name}</h3>
@@ -216,6 +243,36 @@ export function NpcInspector({ entityRef, simulationStore, viewStore, narrativeS
           <dt>LOD</dt><dd>{inspection.lod === 0 ? "Materializado" : "Arquivado"}</dd>
         </dl>
       </section>
+
+      {inspection.rest && (
+        <section aria-labelledby="npc-rest-title">
+          <h4 id="npc-rest-title">Descanso</h4>
+          <p className="npc-rest-cue" aria-label={restSummary(inspection.rest)}>Zzz</p>
+          <dl>
+            <dt>Lugar</dt><dd>{REST_KIND_LABELS[inspection.rest.kind] ?? `lugar ${inspection.rest.kind}`}</dd>
+            <dt>Qualidade</dt><dd>{Math.round(inspection.rest.quality * 100)}%</dd>
+            <dt>Onde</dt><dd>({inspection.rest.location.x}, {inspection.rest.location.y})</dd>
+            <dt>Tempo restante</dt><dd>{inspection.rest.remainingHours} h</dd>
+          </dl>
+          {inspection.rest.blocked && (
+            <p role="status">Descanso bloqueado — o lugar não é alcançável.</p>
+          )}
+        </section>
+      )}
+
+      {inspection.food && (
+        <section aria-labelledby="npc-food-title">
+          <h4 id="npc-food-title">Alimentação</h4>
+          <dl>
+            <dt>Recurso</dt><dd>{inspection.food.resourceId}</dd>
+            <dt>Preparo</dt><dd>{PREPARATION_LABELS[inspection.food.preparation] ?? `preparo ${inspection.food.preparation}`}</dd>
+            <dt>Tempo restante</dt><dd>{inspection.food.remainingHours} h</dd>
+          </dl>
+          {inspection.food.blocked && (
+            <p role="status">Refeição bloqueada — nenhum alimento comestível disponível.</p>
+          )}
+        </section>
+      )}
 
       <section aria-labelledby="npc-needs-title">
         <h4 id="npc-needs-title">Bem-estar</h4>

@@ -120,6 +120,33 @@ public static class WorldSnapshot
         var portals = node.TryGetPropertyValue("Portals", out var portalsNode) && portalsNode is not null
             ? portalsNode.Deserialize<List<SpatialPortal>>(JsonOptions)!
             : [];
+        var restPlaceCatalog = node.TryGetPropertyValue("RestPlaceCatalog", out var restCatalogNode) && restCatalogNode is not null
+            ? restCatalogNode.Deserialize<RestPlaceCatalog>(JsonOptions)!
+            : RestPlaceCatalog.FromGround(needsRules.HomelessSleepEfficiency);
+        var restPlaces = node.TryGetPropertyValue("RestPlaces", out var restPlacesNode) && restPlacesNode is not null
+            ? restPlacesNode.Deserialize<List<RestPlace>>(JsonOptions)!
+            : [];
+        var nextRestPlaceId = node.TryGetPropertyValue("NextRestPlaceId", out var nextRestPlaceNode) && nextRestPlaceNode is not null
+            ? nextRestPlaceNode.GetValue<long>()
+            : 0L;
+        var resourceCatalog = node.TryGetPropertyValue("ResourceCatalog", out var resourceCatalogNode) && resourceCatalogNode is not null
+            ? resourceCatalogNode.Deserialize<ResourceCatalog>(JsonOptions)!
+            : ResourceCatalog.Empty;
+        var processRecipes = node.TryGetPropertyValue("ProcessRecipes", out var processRecipesNode) && processRecipesNode is not null
+            ? processRecipesNode.Deserialize<List<ProcessRecipe>>(JsonOptions)!
+            : [];
+        var resourceProcesses = node.TryGetPropertyValue("ResourceProcesses", out var resourceProcessesNode) && resourceProcessesNode is not null
+            ? resourceProcessesNode.Deserialize<List<ResourceProcess>>(JsonOptions)!
+            : [];
+        var nextResourceProcessId = node.TryGetPropertyValue("NextResourceProcessId", out var nextProcessNode) && nextProcessNode is not null
+            ? nextProcessNode.GetValue<long>()
+            : 0L;
+        var cropBatches = node.TryGetPropertyValue("CropBatches", out var cropBatchesNode) && cropBatchesNode is not null
+            ? cropBatchesNode.Deserialize<List<CropBatch>>(JsonOptions)!
+            : [];
+        var nextCropBatchId = node.TryGetPropertyValue("NextCropBatchId", out var nextCropNode) && nextCropNode is not null
+            ? nextCropNode.GetValue<long>()
+            : 0L;
 
         return new WorldState(
             calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
@@ -127,7 +154,10 @@ public static class WorldSnapshot
             nextHouseholdId, branchId, moneyMinted, moneyDestroyed, economyRules, economyCatalog, workplaces,
             nextWorkplaceId, familyRules, relationships, cities, buildings, nextBuildingId, cityRules, cityCatalog,
             perfRules, historyRules, facts, nextFactId, nextReportId, reports, books, nextBookId,
-            canonicalMemories, volatileMemories, nextMemoryId, name, portals);
+            canonicalMemories, volatileMemories, nextMemoryId, name, portals,
+            restPlaceCatalog, restPlaces, nextRestPlaceId,
+            resourceCatalog, processRecipes, resourceProcesses, nextResourceProcessId,
+            cropBatches, nextCropBatchId);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)

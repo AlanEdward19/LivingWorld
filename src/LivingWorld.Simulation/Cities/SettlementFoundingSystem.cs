@@ -46,9 +46,17 @@ public sealed class SettlementFoundingSystem : ISimulationSystem
         var motherCity = world.FindCity(motherCityId);
         if (motherCity is null) return; // referência perdida — sem-op, não exceção
 
+        // Post-ship fix (user-reported, 2026-08-23, "cidades coladas"): o sítio é escolhido ANTES
+        // de extrair o pool da cidade-mãe agora -- FoundingSitePicker pode devolver null (mapa
+        // cheio, nenhum sítio respeita o espaçamento mínimo de toda cidade existente), e nesse caso
+        // a fundação é recusada sem tocar no pool da mãe (nunca perde população, mesmo espírito de
+        // "recursos nunca perdidos" já estabelecido pra land scarcity em ConstructionSystem).
+        var foundingSite = FoundingSitePicker.Pick(world, motherCityId);
+        if (foundingSite is null) return; // mapa cheio -- recusa honesta, sem cidade colada forçada
+
         var (extractedPool, extractedPoolNpcIds) = motherCity.ExtractEntirePool();
         var newCity = new City(
-            world.NextCityId(), motherCity.Location, ctx.CurrentTick, motherCityId, extractedPool,
+            world.NextCityId(), foundingSite.Value, ctx.CurrentTick, motherCityId, extractedPool,
             name: CityNameGenerator.Generate(world), poolNpcIds: extractedPoolNpcIds);
         world.AddCity(newCity);
     }

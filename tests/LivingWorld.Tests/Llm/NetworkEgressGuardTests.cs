@@ -1,5 +1,3 @@
-using System.Net.Http;
-
 namespace LivingWorld.Tests.Llm;
 
 /// <summary>Fase 11, T9 (LLM-14, story "Segurança de rede e injeção", AC1): guard de runtime que

@@ -1,5 +1,6 @@
 using LivingWorld.Domain;
 
+using LivingWorld.Simulation.Economy;
 using LivingWorld.Simulation.History;
 using LivingWorld.Simulation.Narrative;
 using LivingWorld.Simulation.Periods;
@@ -56,16 +57,20 @@ public static class ScenarioRunner
         new NatalitySystem(),
         new NeedsDecaySystem(),
         new BehaviorDecisionSystem(DefaultSkillsRules),
+        new ResourceProcessSystem(),
         new EmploymentSystem(),
         new RelationshipSystem(),
         new SkillPracticeSystem(DefaultSkillsRules),
         new SkillTeachingSystem(DefaultSkillsRules, DefaultLifeStageRules),
         new ProductionSystem(DefaultSkillsRules),
+        new CropSystem(),
         new MarketPricingSystem(),
         new WagePaymentSystem(),
         new CityGrowthSystem(),
+        new ConstructionDemandSystem(),
         new ConstructionSystem(),
         new MigrationSystem(),
+        new RelocationArrivalSystem(),
         new MaterializationSystem(),
         new SettlementFoundingSystem(),
         new SpatialSettlementFoundingSystem(),
@@ -267,6 +272,11 @@ public static class ScenarioRunner
         MarketLocationTypeIds: [1, 2],
         LocationTypeByProfession: new Dictionary<int, int> { [1] = 1, [2] = 2 });
 
+    public static readonly IReadOnlyList<ProcessRecipe> DefaultProcessRecipes =
+    [
+        ProcessRecipe.Create(ProcessKind.Plant, new Dictionary<int, long>(), 1, 1, null, 1).Value!,
+    ];
+
     /// <summary>Receitas com tetos de trabalhadores altos para cenário de escala (PERF-01).</summary>
     public static EconomyCatalog ScaleEconomyCatalog(int workerCapMultiplier)
     {
@@ -349,7 +359,7 @@ public static class ScenarioRunner
             DefaultCalendar, seed, DefaultMap(seed), DefaultPopulationCatalog, population,
             DefaultNeedsRules, DefaultActionCatalog, DefaultLifeStageRules,
             economyRules: rules, economyCatalog: catalog, familyRules: family, perfRules: perf,
-            historyRules: history);
+            historyRules: history, processRecipes: DefaultProcessRecipes);
         if (initialPopulation > 0)
         {
             PopulationSeeder.SeedInitial(world, initialPopulation, DefaultCulture, DefaultVillageLocation);

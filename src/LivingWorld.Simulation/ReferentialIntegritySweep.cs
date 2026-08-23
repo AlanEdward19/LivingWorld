@@ -33,6 +33,9 @@ public static class ReferentialIntegritySweep
         [typeof(LocationId)] = _ => [],
         [typeof(WorkplaceId)] = w => w.Workplaces.Select(wp => (object)wp.Id).ToHashSet(),
         [typeof(BuildingId)] = w => w.Buildings.Select(b => (object)b.Id).ToHashSet(),
+        [typeof(RestPlaceId)] = w => w.RestPlaces.Select(place => (object)place.Id).ToHashSet(),
+        [typeof(ResourceProcessId)] = w => w.ResourceProcesses.Select(process => (object)process.Id).ToHashSet(),
+        [typeof(CropBatchId)] = w => w.CropBatches.Select(crop => (object)crop.Id).ToHashSet(),
         [typeof(FactId)] = w => w.Facts.Select(f => (object)f.Id).ToHashSet(),
         [typeof(ReportId)] = w => w.Reports.Select(r => (object)r.Id)
             .Concat(w.Cities.SelectMany(c => c.CanonSlots).Select(r => (object)r.Id))

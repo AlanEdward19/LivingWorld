@@ -13,7 +13,9 @@ public sealed record PeriodDefinition(
     EconomyScenarioData Economy,
     CityScenarioData City,
     PeriodDynamicsData Dynamics,
-    PeriodDescriptors Descriptors);
+    PeriodDescriptors Descriptors,
+    ResourceCatalog ResourceCatalog,
+    IReadOnlyList<ProcessRecipe> ProcessRecipes);
 
 /// <summary>Orquestra a validação de um <c>periodDefinition</c> (Fase 13, T2): encadeia
 /// <see cref="MapScenarioLoader"/>, <see cref="PopulationScenarioLoader"/>,
@@ -59,6 +61,10 @@ public static class PeriodDefinitionValidator
         if (!descriptorsResult.IsSuccess)
             return Result<PeriodDefinition>.Fail(descriptorsResult.Error!);
 
+        var resourcesResult = ResourceProcessCatalogLoader.Load(json);
+        if (!resourcesResult.IsSuccess)
+            return Result<PeriodDefinition>.Fail(resourcesResult.Error!);
+
         var population = populationResult.Value!;
         var dynamics = dynamicsResult.Value!;
 
@@ -68,7 +74,7 @@ public static class PeriodDefinitionValidator
 
         return Result<PeriodDefinition>.Ok(new PeriodDefinition(
             mapResult.Value!, population, behaviorResult.Value!, economyResult.Value!, cityResult.Value!, dynamics,
-            descriptorsResult.Value!));
+            descriptorsResult.Value!, resourcesResult.Value!.Catalog, resourcesResult.Value!.Recipes));
     }
 
     private static string? ValidateProfessionReferences(PopulationCatalog catalog, PeriodDynamicsData dynamics)

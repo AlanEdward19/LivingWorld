@@ -5,7 +5,7 @@ namespace LivingWorld.Simulation;
 
 /// <summary>Dado de comportamento resolvido de um cenário (task 8): parâmetros do utility AI
 /// (<see cref="NeedsRules"/>) e o catálogo de ações/rotina (<see cref="ActionCatalog"/>).</summary>
-public sealed record BehaviorScenarioData(NeedsRules NeedsRules, ActionCatalog ActionCatalog);
+public sealed record BehaviorScenarioData(NeedsRules NeedsRules, ActionCatalog ActionCatalog, RestPlaceCatalog RestPlaceCatalog);
 
 /// <summary>Carrega <see cref="NeedsRules"/> e <see cref="ActionCatalog"/> de um cenário (task
 /// 8): nenhum parâmetro do utility AI hardcoded em C# (R3). Mesmo padrão de
@@ -33,7 +33,12 @@ public static class BehaviorScenarioLoader
         if (!actionCatalogResult.IsSuccess)
             return Result<BehaviorScenarioData>.Fail(actionCatalogResult.Error!);
 
-        return Result<BehaviorScenarioData>.Ok(new BehaviorScenarioData(needsRulesResult.Value!, actionCatalogResult.Value!));
+        var restPlaceCatalogResult = ParseRestPlaceCatalog(root, needsRulesResult.Value!.HomelessSleepEfficiency);
+        if (!restPlaceCatalogResult.IsSuccess)
+            return Result<BehaviorScenarioData>.Fail(restPlaceCatalogResult.Error!);
+
+        return Result<BehaviorScenarioData>.Ok(new BehaviorScenarioData(
+            needsRulesResult.Value!, actionCatalogResult.Value!, restPlaceCatalogResult.Value!));
     }
 
     private static Result<NeedsRules> ParseNeedsRules(JsonObject root)
@@ -60,6 +65,27 @@ public static class BehaviorScenarioLoader
         return NeedsRules.Create(
             hungerDecay, thirstDecay, sleepDecay, socialDecay,
             urgencyThreshold, maxActionSelectionSteps, hysteresisEnabled, continuityBonus, homelessSleepEfficiency);
+    }
+
+    private static Result<RestPlaceCatalog> ParseRestPlaceCatalog(JsonObject root, double groundEfficiency)
+    {
+        if (root["RestPlaces"] is not JsonObject restPlaces)
+            return Result<RestPlaceCatalog>.Ok(RestPlaceCatalog.FromGround(groundEfficiency));
+
+        double dwelling = 1.0;
+        double bed = 1.0;
+        if (restPlaces.ContainsKey("Ground"))
+        {
+            if (!TryGetDouble(restPlaces, "Ground", out groundEfficiency))
+                return Result<RestPlaceCatalog>.Fail("RestPlaces.Ground: campo obrigatório ausente ou inválido");
+        }
+
+        if (restPlaces.ContainsKey("Dwelling") && !TryGetDouble(restPlaces, "Dwelling", out dwelling))
+            return Result<RestPlaceCatalog>.Fail("RestPlaces.Dwelling: campo obrigatório ausente ou inválido");
+        if (restPlaces.ContainsKey("Bed") && !TryGetDouble(restPlaces, "Bed", out bed))
+            return Result<RestPlaceCatalog>.Fail("RestPlaces.Bed: campo obrigatório ausente ou inválido");
+
+        return RestPlaceCatalog.Create(groundEfficiency, dwelling, bed);
     }
 
     private static Result<ActionCatalog> ParseActionCatalog(JsonObject root)

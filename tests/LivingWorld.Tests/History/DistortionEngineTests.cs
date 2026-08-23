@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Reflection;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
 using LivingWorld.Simulation.History;

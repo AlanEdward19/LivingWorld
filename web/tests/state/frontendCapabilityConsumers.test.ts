@@ -22,7 +22,10 @@ const comprehensiveDelta: ScopeTickDelta = {
   cityRemoved: [],
   buildingUpserts: [{ id: { value: 7 }, cityId: { value: "city-a" }, buildingTypeId: 2, location: { x: 5, y: 5 } }],
   buildingRemoved: [],
-  processUpserts: [{ id: 3, kind: "rest", targetId: 7, progress: 0.5, descriptorKey: "sleep" }],
+  processUpserts: [{
+    id: 3, kind: "rest", targetId: 7, progress: 0.5, descriptorKey: "sleep-bed",
+    quality: 1, remainingHours: 4, location: { x: 2, y: 3 },
+  }],
   processRemoved: [],
   indicators: [{ key: "population", value: 10 }],
   events: [{ tick: 8, kind: 0, label: "Um novo habitante nasceu" }],

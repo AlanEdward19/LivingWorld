@@ -22,7 +22,7 @@ function citySnapshotSource(): SnapshotSource {
         location: { x: 0, y: 0 },
         aggregatePool: { count: 0, wealthSum: 0, healthSum: 0 },
         residents: [],
-        buildings: [{ id: { value: 8 }, buildingTypeId: 2 }],
+        buildings: [{ id: { value: 8 }, buildingTypeId: 2, location: { x: 2, y: 3 }, locationIsDerived: true }],
         layers: {},
       },
     }),
@@ -54,6 +54,35 @@ describe("BuildingInspector", () => {
     render(<BuildingInspector entityRef={ref} simulationStore={simulationStore} viewStore={viewStore} />);
 
     expect(screen.getByRole("note")).toHaveTextContent("layout aproximado");
+  });
+
+  it("does not mark an authored motor coordinate as approximate", async () => {
+    const simulationStore = new SimulationStore(
+      {
+        load: async () => ({
+          scope: { kind: VisualScopeKind.City, refId: "city-a", scopeKey: "city:city-a" },
+          mode: ViewerMode.Spectator,
+          cursor: { tick: 0, scopeKey: "city:city-a", sequence: 0 },
+          activeLayers: [],
+          payload: {
+            id: { value: "city-a" },
+            location: { x: 0, y: 0 },
+            aggregatePool: { count: 0, wealthSum: 0, healthSum: 0 },
+            residents: [],
+            buildings: [{ id: { value: 8 }, buildingTypeId: 2, location: { x: 4, y: 5 }, locationIsDerived: false }],
+            layers: {},
+          },
+        }),
+      },
+      neverStreamingTickSource(),
+    );
+    await simulationStore.observeSpace(CITY_SPACE);
+    const ref: EntityRef = { kind: "building", id: "8", space: CITY_SPACE };
+    const viewStore = new ViewStore(new MockPortalSource([]));
+
+    render(<BuildingInspector entityRef={ref} simulationStore={simulationStore} viewStore={viewStore} />);
+
+    expect(screen.queryByRole("note")).toBeNull();
   });
 
   it("'Abrir' calls ViewStore.enter with the Building space", async () => {

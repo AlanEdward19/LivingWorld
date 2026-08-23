@@ -32,39 +32,39 @@ public sealed class PeriodEvolutionSystem(IReadOnlyList<PeriodTransformationRule
         switch (rule.Kind)
         {
             case PeriodTransformationKind.Emerge:
-            {
-                int target = rule.TargetProfessionIds[0];
-                professionIds.Add(target); // idempotente: HashSet.Add é no-op se já presente
-                break;
-            }
-            case PeriodTransformationKind.Disappear:
-            {
-                int source = rule.SourceProfessionIds[0];
-                if (!professionIds.Remove(source)) return; // já aplicada (ou nunca esteve presente)
-                ReassignHolders(world, source, ProfessionType.None);
-                break;
-            }
-            case PeriodTransformationKind.Merge:
-            {
-                if (!rule.SourceProfessionIds.All(professionIds.Contains)) return; // já aplicada
-                int target = rule.TargetProfessionIds[0];
-                foreach (int source in rule.SourceProfessionIds)
                 {
-                    professionIds.Remove(source);
-                    ReassignHolders(world, source, new ProfessionType(target));
+                    int target = rule.TargetProfessionIds[0];
+                    professionIds.Add(target); // idempotente: HashSet.Add é no-op se já presente
+                    break;
                 }
-                professionIds.Add(target);
-                break;
-            }
-            case PeriodTransformationKind.Split:
-            {
-                int source = rule.SourceProfessionIds[0];
-                if (!professionIds.Remove(source)) return; // já aplicada
-                foreach (int target in rule.TargetProfessionIds)
+            case PeriodTransformationKind.Disappear:
+                {
+                    int source = rule.SourceProfessionIds[0];
+                    if (!professionIds.Remove(source)) return; // já aplicada (ou nunca esteve presente)
+                    ReassignHolders(world, source, ProfessionType.None);
+                    break;
+                }
+            case PeriodTransformationKind.Merge:
+                {
+                    if (!rule.SourceProfessionIds.All(professionIds.Contains)) return; // já aplicada
+                    int target = rule.TargetProfessionIds[0];
+                    foreach (int source in rule.SourceProfessionIds)
+                    {
+                        professionIds.Remove(source);
+                        ReassignHolders(world, source, new ProfessionType(target));
+                    }
                     professionIds.Add(target);
-                ReassignHoldersAmongTargets(world, ctx, source, rule.TargetProfessionIds);
-                break;
-            }
+                    break;
+                }
+            case PeriodTransformationKind.Split:
+                {
+                    int source = rule.SourceProfessionIds[0];
+                    if (!professionIds.Remove(source)) return; // já aplicada
+                    foreach (int target in rule.TargetProfessionIds)
+                        professionIds.Add(target);
+                    ReassignHoldersAmongTargets(world, ctx, source, rule.TargetProfessionIds);
+                    break;
+                }
         }
     }
 

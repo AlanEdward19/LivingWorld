@@ -1,5 +1,3 @@
-using LivingWorld.Simulation.History;
-
 namespace LivingWorld.Tests.History;
 
 /// <summary>Fase 10, T16: separação estrutural Verdade/Crença (HIST-17).</summary>
