@@ -869,6 +869,41 @@ containment)
 
 ---
 
+### FixT12: Reassign households by current NPC location, not stale household coordinates — ✅ Done (commit `aeeb29a`)
+
+**What**: user reported newly-founded cities stay ghost towns even after founding —
+`SpatialSettlementFoundingSystem.HandleEvent`'s household-reassignment check tested
+`clusterBounds.Contains(household.Location)`, but `Household.Location` is written once at
+creation (seeding, marriage, household split) and never updated afterward. It has no
+relationship to where an overflow cluster later forms, so the check almost never fired for
+real play — confirmed by inspection that the one existing passing test only worked because it
+artificially constructed the household AT the overflow building's exact position.
+
+**Fix**: swapped the criterion for the household head's live `Npc.CurrentLocation` (resolved
+via `world.FindNpc(household.Head)`), mirroring the population/concentration check two lines
+above in the same method that already uses `npc.CurrentLocation` for the identical reason.
+`Household.Location`/`Household.cs` itself is untouched (its mutation semantics are shared
+with a separate, uncommitted, in-progress relocation feature — `RelocationArrivalSystem.cs`).
+
+**Where**: `src/LivingWorld.Simulation/Cities/SpatialSettlementFoundingSystem.cs`
+
+**Requirement**: CITYGROW-04 (spatial founding household reassignment)
+
+**Done when**:
+- [x] A household whose stale `Location` is nowhere near the cluster, but whose head's
+      `Npc.CurrentLocation` IS inside `clusterBounds` at founding time, gets reassigned
+- [x] Regression: the existing test (household constructed at the overflow position) still passes
+- [x] Gate check passes: `bash scripts/test.sh --filter "Category!=Scenario&(FullyQualifiedName~Cities|FullyQualifiedName~Economy)"`
+      — 296 passed, 2 failed (both pre-existing/unrelated: `ScarcityPriceCausalTests`,
+      `FamineCausalChainTests` — confirmed failing identically before this fix)
+
+**Tests**: unit —
+`SpatialSettlementFoundingSystemTests.HandleEvent_reassigns_a_household_by_its_heads_current_location_even_when_household_location_is_stale`
+**Gate**: quick
+**Commit**: `aeeb29a` — `fix(cities): reassign households by current NPC location, not stale household coordinates`
+
+---
+
 ### Process note (no code change): commit `2133401` bundled unrelated Stage-4 work
 
 Round-2 Verifier flagged that `2133401` (FixT2) swept ~150 lines of pre-existing, unrelated

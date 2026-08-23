@@ -60,6 +60,28 @@
 
 ## Handoff
 
+- **Ghost-town fixes (2026-08-23)** — usuário relatou que cidades recém-fundadas continuam
+  virando cidade-fantasma (NPCs "vão trabalhar" numa cidade vizinha e voltam). Duas causas raiz
+  reais, sem relação uma com a outra, ambas commitadas:
+  1. `EmploymentSystem.Tick`/`VacancyIndex` contratavam o primeiro workplace com vaga livre NO
+     MUNDO INTEIRO, sem checar `Workplace`/`Npc.City` — causa DIRETA do relato ("vai trabalhar,
+     volta"). Fix: `Workplace` ganhou `CityId City` (setado por `ConstructionSystem` na
+     construção), `VacancyIndex.FirstWorkplaceWithVacancy` ganhou overload escopado por cidade,
+     `EmploymentSystem` usa o overload. Commit `27e9fcc` —
+     `fix(economy): scope hiring to the NPC's own city`.
+  2. `SpatialSettlementFoundingSystem.HandleEvent`'s reassignment de household pra cidade nova
+     testava `household.Location` — campo gravado uma única vez na criação e nunca atualizado,
+     então quase nunca refletia onde a família de fato morava no momento da fundação. Fix: troca
+     o critério pra `Npc.CurrentLocation` do chefe do household (mesmo padrão já usado 2 linhas
+     acima, pro limiar de concentração). `Household.cs` intocado (mutação compartilhada com o
+     trabalho de relocation em progresso, não commitado). Commit `aeeb29a` —
+     `fix(cities): reassign households by current NPC location, not stale household coordinates`.
+  - Gate: `bash scripts/test.sh --filter "Category!=Scenario&(FullyQualifiedName~Cities|FullyQualifiedName~Economy)"`
+    — 296 passed, 2 failed (`ScarcityPriceCausalTests`/`FamineCausalChainTests`, pré-existentes e
+    já documentados abaixo, confirmados falhando idênticos antes destes 2 fixes).
+  - Detalhe completo do Fix 2 em `.specs/features/dynamic-city-growth/tasks.md` (FixT12). Fix 1
+    não pertence a nenhuma feature commitada nesta pasta (é `EmploymentSystem`, Fase 5).
+
 - **RETOMADO (2026-08-23) — os 2 fixes que estavam em background quando a sessão pausou foram
   revisados e commitados**: ver detalhe abaixo. Ainda pendente: 1 feature nova
   (`real-household-workplace-buildings`) com Design aprovado mas Tasks/Execute ainda não iniciada.
