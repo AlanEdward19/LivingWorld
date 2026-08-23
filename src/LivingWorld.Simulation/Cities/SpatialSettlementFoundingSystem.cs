@@ -106,8 +106,19 @@ public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
         // (não um box só-população, que pode ficar menor que o cluster que a fundou e nem conter
         // os prédios/households que a fundaram) — mesmo espírito de bounds.Contains(location) de
         // NpcScopeResolver, aplicado aqui à geometria real que já existe.
-        foreach (var household in world.Households.Where(h => clusterBounds.Contains(h.Location)))
+        //
+        // Post-ship fix (Fix 2, 2026-08-23, ghost-town report): Household.Location é gravado uma
+        // única vez na criação (seed/casamento/split) e nunca atualizado depois — checar contra
+        // ele aqui quase nunca reatribui um household de verdade, porque ele não guarda relação
+        // alguma com onde o overflow realmente aconteceu. O critério que reflete onde a família
+        // está de fato agora é a posição corrente do chefe (Npc.CurrentLocation, atualizado a
+        // cada movimento) — mesmo padrão de "population" duas linhas acima, que já usa
+        // npc.CurrentLocation em vez de Household.Location pro limiar de concentração.
+        foreach (var household in world.Households)
         {
+            if (world.FindNpc(household.Head) is not { IsAlive: true } head) continue;
+            if (!clusterBounds.Contains(head.CurrentLocation)) continue;
+
             household.JoinCity(newCity.Id);
             foreach (var memberId in household.Members)
                 world.Npcs.FirstOrDefault(n => n.Id == memberId)?.JoinCity(newCity.Id);

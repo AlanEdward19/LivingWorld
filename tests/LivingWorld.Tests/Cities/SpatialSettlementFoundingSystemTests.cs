@@ -252,4 +252,34 @@ public class SpatialSettlementFoundingSystemTests
         Assert.Equal(newCity.Id, household.City);
         Assert.Equal(newCity.Id, head.City);
     }
+
+    /// <summary>Post-ship fix (Fix 2, 2026-08-23, ghost-town report): Household.Location é gravado
+    /// uma única vez na criação e nunca atualizado depois -- checar contra ele (o comportamento
+    /// antigo) quase nunca reatribui um household de verdade, porque ele nunca reflete pra onde a
+    /// família se mudou desde então. Este é o repro real do bug: Location autorada longe de
+    /// qualquer cluster, mas o chefe está fisicamente (Npc.CurrentLocation) dentro do cluster de
+    /// overflow no momento da fundação -- o household DEVE ser reatribuído mesmo assim.</summary>
+    [Fact]
+    public void HandleEvent_reassigns_a_household_by_its_heads_current_location_even_when_household_location_is_stale()
+    {
+        var rules = MakeRules(foundingConcentrationThreshold: 0.5, organizationTicks: 10);
+        var world = MakeWorld(rules, seed: 910);
+        var (motherCity, overflow) = SeedOneOverflowBuilding(world);
+        var head = MakeNpc(world, 1, overflow.Position!.Value); // CurrentLocation dentro do cluster
+        world.AddNpc(head);
+        // Location autorada em (0,0) -- bem longe do cluster em (200,200) -- nunca atualizada
+        // depois da criação, mesmo que o chefe já esteja de fato morando junto ao overflow.
+        var household = new Household(
+            new HouseholdId(1), new CellCoord(0, 0), head.Id, [head.Id], city: motherCity.Id);
+        world.AddHousehold(household);
+        var system = new SpatialSettlementFoundingSystem();
+        system.Tick(world, MakeCtx(world));
+        var evt = Assert.Single(world.PendingEvents);
+
+        system.HandleEvent(world, MakeCtx(world), evt);
+
+        var newCity = world.Cities.Single(c => c.Id != motherCity.Id);
+        Assert.Equal(newCity.Id, household.City);
+        Assert.Equal(newCity.Id, head.City);
+    }
 }
