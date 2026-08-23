@@ -778,4 +778,77 @@ describe("MapView", () => {
       expect(selectionStore.current()).toBeNull();
     });
   });
+
+  // T50 round 4: cruzar de uma cidade pro World não é "sumiu" -- um residente comum (não
+  // viajante) nunca é desenhado em World por design (`entitiesOf` ali só lista viajantes/pontos
+  // de migração), então a inspeção confirma que o NPC existe (materializado, lod != POOLED_LOD)
+  // mesmo sem marcador algum neste escopo -- a mesma regra "só limpa se a inspeção resolver
+  // null" do teste acima cobre este caso, não só o pooled.
+  it("keeps a followed selection alive when it transitions into World scope, where ordinary residents are never drawn", async () => {
+    const source: SnapshotSource = {
+      load: async (space) => {
+        if (space.kind === "City") {
+          return {
+            scope: { kind: VisualScopeKind.City, refId: "city-a", scopeKey: "city:city-a" },
+            mode: ViewerMode.Spectator,
+            cursor: { tick: 0, scopeKey: "city:city-a", sequence: 0 },
+            activeLayers: [],
+            payload: { residents: [{ id: { value: 1 }, location: { x: 50, y: 50 }, currentAction: null }] },
+          };
+        }
+        return {
+          scope: { kind: VisualScopeKind.World, refId: "", scopeKey: "world" },
+          mode: ViewerMode.Spectator,
+          cursor: { tick: 0, scopeKey: "world", sequence: 0 },
+          activeLayers: [],
+          payload: { externalNpcs: [] }, // NPC 1 é residente comum -- World nunca desenha ele
+        };
+      },
+    };
+    const materializedInspection: NpcInspection = {
+      ...POOLED_INSPECTION,
+      lod: 0,
+      currentScope: { kind: 0, cityId: null },
+    };
+    const npcInspectionSource = new MockNpcInspectionSource(new Map([[1, materializedInspection]]));
+    const simulationStore = new SimulationStore(source, neverStreamingTickSource(), npcInspectionSource);
+    const viewStore = new ViewStore(new MockPortalSource([]));
+    viewStore.recordCamera(CITY_A, { center: { x: 50, y: 50 }, scale: 10 });
+    const selectionStore = new SelectionStore();
+    await simulationStore.observeSpace(CITY_A);
+    selectionStore.select({ kind: "npc", id: "1", space: CITY_A });
+
+    const { rerender } = render(
+      <MapView
+        space={CITY_A}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+
+    await simulationStore.observeSpace(WORLD);
+    rerender(
+      <MapView
+        space={WORLD}
+        viewport={VIEWPORT}
+        cells={CELLS}
+        layers={[]}
+        lodThresholds={{ aggregate: 4, token: 10, detail: 18 }}
+        simulationStore={simulationStore}
+        viewStore={viewStore}
+        selectionStore={selectionStore}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(selectionStore.current()).not.toBeNull();
+    });
+
+    expect(selectionStore.current()).toEqual({ kind: "npc", id: "1", space: WORLD });
+  });
 });

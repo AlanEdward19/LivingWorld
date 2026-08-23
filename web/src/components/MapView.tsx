@@ -15,7 +15,6 @@ import { toScopeKey } from "../map-engine/space";
 import type { SimulationStore } from "../state/simulationStore";
 import type { ViewStore } from "../state/viewStore";
 import type { SelectionStore } from "../state/selectionStore";
-import { POOLED_LOD } from "../data/contracts";
 
 /** T50 (bug "seguir NPC entre escopos"): mesmo `NpcScope` que o backend devolve em
  * `NpcInspection.currentScope` (kind 0 = World, 1 = City) — traduzido pro `SpaceId` do cliente. */
@@ -135,11 +134,15 @@ export function MapView({
       if (simulationStore.isSpaceReady(space)) {
         const entityRefs = latest.map((entity) => entity.ref);
         const selected = selectionStore.current();
-        // T50 (round 3): a entidade selecionada some de `entitiesOf`/`staticEntities` tanto
-        // quando morreu/saiu de verdade quanto quando um residente virou id reservado no pool
-        // agregado da cidade (City.PoolNpcIds) — pooled não tem NpcVisual/marcador nenhum, mas
-        // não é "gone" (NpcInspector já trata esse estado, com botão de materializar). Antes de
-        // limpar, consulta a mesma inspeção que o Inspector já usa pra distinguir os dois casos.
+        // T50 (round 3+4): a entidade selecionada some de `entitiesOf`/`staticEntities` por
+        // vários motivos legítimos além de ter morrido/saído de verdade -- virou id reservado no
+        // pool agregado da cidade (City.PoolNpcIds, sem NpcVisual/marcador), ou o escopo atual é
+        // World, que por design só desenha viajantes/pontos de migração e nunca um residente
+        // comum (`entitiesOf` pra World nem tenta listar residentes de cidade). A regra que
+        // unifica os dois casos: só limpar quando a inspeção CONFIRMA que a entidade não existe
+        // mais (`null`, o mesmo "genuinamente sumiu" que o NpcInspector mostra) -- qualquer outro
+        // resultado resolvido (materializado, pooled, ou só "não desenhável neste escopo") mantém
+        // a seleção/follow viva.
         if (selected?.kind === "npc" && !entityRefs.some((ref) => ref.kind === "npc" && ref.id === selected.id)) {
           const npcId = Number(selected.id);
           let inspection = simulationStore.npcInspectionOf(npcId);
@@ -148,8 +151,8 @@ export function MapView({
             inspection = simulationStore.npcInspectionOf(npcId); // pode já ter resolvido em sync
             if (inspection === undefined) return; // ainda em voo -- não decide com informação incompleta
           }
-          if (inspection?.lod === POOLED_LOD) {
-            entityRefs.push({ ...selected, space }); // pooled: ainda existe, só sem marcador visual
+          if (inspection !== null) {
+            entityRefs.push({ ...selected, space }); // existe (materializado, pooled, ou só fora deste escopo)
           }
         }
         selectionStore.syncWithSpace(space, entityRefs);
