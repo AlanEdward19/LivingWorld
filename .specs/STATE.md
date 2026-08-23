@@ -60,6 +60,41 @@
 
 ## Handoff
 
+- **Round-4 post-ship fixes (2026-08-23) — wall-marker regression + migration hysteresis**: user
+  reported cities rendering as tiny circular markers instead of walled footprints, right after the
+  round-3 fixes above landed. Two real root causes, one a direct regression from round-3's own fix,
+  one a pre-existing latent instability in a much older system that round-3 simply made reachable
+  for the first time:
+  1. **Regression from `433a219` (FixT13)**: `CityBoundsResolver.ClampSideAgainstOtherCities`'s
+     shrink loop floored the candidate side at `1` (1x1) instead of the existing `MinSize` (3) that
+     every other sizing path in the file already respects (`SideFor`). A 1x1/2x2 result flips the
+     frontend's own size check (`renderer.ts`/`hitTest.ts`: `size.w > 1 || size.h > 1`) from "draw
+     walled footprint" to "draw as a small marker" — exactly the reported circles. Fix: floor
+     changed to `MinSize`; if even `MinSize` can't reach the required gap (two cities founded
+     pathologically close), the gap is allowed to fall short rather than ever violating the map's
+     own minimum-viable-city-size invariant (same "decline over degenerate result" philosophy as
+     AD-007/`BuildingPlacementResolver`, adapted since this resolver has no `null` to return).
+     Commit `015cabf` — `fix(cities): never shrink a city below its minimum viable size when
+     avoiding a neighbor`.
+  2. **Pre-existing latent instability, exposed (not introduced) by `dynamic-city-growth`**:
+     `MigrationSystem` (Fase 8, T12 — predates this feature entirely) scored households against
+     every city daily using live-recomputed `EmploymentLevel`/`FoodLevel` and relocated on a strict
+     `score > bestScore`, no margin. Two cities close together is now a real, supported state
+     (round-3's own fixes), and that made the daily re-scoring self-reinforcingly oscillate:
+     relocating a household shifts the very population/food counts that feed tomorrow's score for
+     the city it left. Fix: candidate must now beat the current score by `HysteresisMargin` (15%
+     relative — `score > bestScore * 1.15`); relative because `ScoreOf`'s scale is weight-dependent
+     (`CityRules` weights aren't normalized to sum to 1), so a fixed additive margin would be
+     meaningless at one scale and overpowering at another. No cooldown/timer added — the margin
+     alone stops the oscillation (proven by a 5-tick stabilization test) and every other rule in
+     the file is already timer-free. Commit `703ffaa` — `fix(cities): add migration hysteresis so
+     households don't flip-flop between close cities`.
+  - Gate: `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"` — 236
+    passed, 0 failed (232 baseline + 1 new test for fix 1 + 3 new tests for fix 2).
+  - Both discrimination-checked: temporarily reverting each fix's core change made its own new
+    test(s) fail (mutants killed) before the real fix was restored and committed.
+  - Detail in `.specs/features/dynamic-city-growth/tasks.md` (FixT15, FixT16).
+
 - **Round-3 post-ship fixes (2026-08-23) — population-box cross-city clamp + household poaching**:
   user reported cities' walls touching again AND population "jumping" between two adjacent
   cities, both after FixT8-FixT12 already landed. Two more real root causes, both in

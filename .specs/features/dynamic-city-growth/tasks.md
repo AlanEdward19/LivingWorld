@@ -980,6 +980,81 @@ touched regardless of where its head happens to be standing.
 
 ---
 
+### FixT15: Never shrink a city below its minimum viable size when avoiding a neighbor — ✅ Done (commit `015cabf`)
+
+**What**: user reported cities rendering as tiny circular markers instead of walled footprints —
+a regression from FixT13 (`433a219`). `CityBoundsResolver.ClampSideAgainstOtherCities`'s shrink
+loop had a forced floor of `1` (1x1), not `MinSize` (3) — the same constant every other sizing path
+in the file already respects (`SideFor`). A 1x1/2x2 result flips the frontend's own size check
+(`web/src/map-engine/renderer.ts`, `hitTest.ts`: `size.w > 1 || size.h > 1`) from "draw walled
+footprint" to "draw as a small marker" — the direct cause of the reported circles.
+**Fix**: loop floor changed from `1` to `MinSize`. Trade-off decided: floor the shrink at `MinSize`
+and accept the resulting gap to the neighbor may fall below `AbsorptionRingCells` in the
+pathological case where even `MinSize` can't achieve it, rather than ever returning a box smaller
+than the map's own minimum-viable-city-size invariant — same "decline over degenerate result"
+philosophy as AD-007/`BuildingPlacementResolver`, adapted since a city bounds resolver has no
+`null` to return (every city needs *some* box, so the size floor is the non-negotiable invariant,
+not the neighbor gap).
+**Where**: `src/LivingWorld.Domain/Cities/CityBoundsResolver.cs`,
+`tests/LivingWorld.Tests/Cities/CityOccupancyTests.cs`
+**Requirement**: CITYGROW-03/05 (bounds growth), amends the FixT13 edge case
+
+**Done when**:
+- [x] Two cities close enough that the pre-fix code would have collapsed one to 1x1/2x2 now
+      resolve to a box whose side is never below `MinSize` (3)
+- [x] Gate check passes: `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"`
+- [x] Discrimination check: reverting the loop floor to `1` makes the new test fail (mutant
+      killed), confirming the test actually exercises the fix
+
+**Tests**: unit —
+`CityOccupancyTests.Resolve_never_shrinks_a_citys_bounds_below_the_minimum_viable_size_even_when_a_neighbor_sits_on_top_of_it`
+**Gate**: quick
+**Commit**: `015cabf` — `fix(cities): never shrink a city below its minimum viable size when avoiding a neighbor`
+
+---
+
+### FixT16: Add migration hysteresis so households don't flip-flop between close cities — ✅ Done (commit `703ffaa`)
+
+**What**: `MigrationSystem` predates `dynamic-city-growth` (Fase 8, T12) but its instability was
+only exposed by this feature: two cities close enough to legitimately coexist (now a real,
+supported state after FixT13/FixT14/FixT15) made households flip-flop daily. `Tick` scored every
+household against every city using `EmploymentLevel`/`FoodLevel` (both recomputed live from
+current population/stock) and relocated on a strict `score > bestScore` with no margin — moving a
+household shifts the very counts that feed tomorrow's score for the city it left, so the
+comparison self-reinforcingly ping-pongs.
+**Fix**: candidate score must now exceed the current city's score by `HysteresisMargin` (15%,
+relative — `score > bestScore * 1.15`). Relative, not additive, because `ScoreOf`'s scale is
+weight-dependent (`CityRules` configures each of the 4 weights independently, not normalized to
+sum to 1) — a fixed additive margin would be meaningless at one weight scale and overpowering at
+another. No cooldown/timer added: the margin alone stops the oscillation (proven by the new
+stabilization test), and every other rule in this file is already timer-free. The land-scarcity
+forced `double.NegativeInfinity` "stay" score is unaffected — any finite candidate score still
+exceeds it unconditionally, so relocation out of a land-scarce city is never gated by the margin.
+**Where**: `src/LivingWorld.Simulation/Cities/MigrationSystem.cs`,
+`tests/LivingWorld.Tests/Cities/MigrationSystemTests.cs`
+**Requirement**: CITY-07 (Fase 8) hysteresis amendment, exposed by CITYGROW-03/05 (cities can now
+sit close together)
+
+**Done when**:
+- [x] Two cities with nearly-identical scores (within the 15% margin) — household does not migrate
+- [x] A city with a genuinely, substantially worse score (beyond the margin) — household still
+      migrates (regression: real disparities still trigger migration)
+- [x] Several simulated ticks of two adjacent cities whose scores would have flip-flopped under the
+      old strict `>` rule — population settles instead of oscillating
+- [x] Gate check passes: `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"`
+      — 236 passed, 0 failed (232 baseline + 1 from FixT15 + 3 new)
+- [x] Discrimination check: reverting to the strict `>` comparison makes 2 of the 3 new tests fail
+      (mutants killed), confirming the tests actually exercise the fix
+
+**Tests**: unit —
+`MigrationSystemTests.Household_does_not_migrate_for_a_marginal_score_improvement_within_the_hysteresis_margin`,
+`MigrationSystemTests.Household_still_migrates_when_the_score_gap_is_substantially_beyond_the_hysteresis_margin`,
+`MigrationSystemTests.Population_settles_instead_of_oscillating_across_several_ticks_between_two_close_scoring_cities`
+**Gate**: quick
+**Commit**: `703ffaa` — `fix(cities): add migration hysteresis so households don't flip-flop between close cities`
+
+---
+
 ### Process note (no code change): commit `2133401` bundled unrelated Stage-4 work
 
 Round-2 Verifier flagged that `2133401` (FixT2) swept ~150 lines of pre-existing, unrelated
