@@ -114,6 +114,44 @@ public class BuildingFootprintAndPlacementTests
         Assert.True(bounds.Height <= 10);
     }
 
+    /// <summary>Post-ship fix (user-reported, 2026-08-23, "MorNorHol" fundada fora do mapa):
+    /// Resolve já clampava WIDTH/HEIGHT ao mapa mas nunca a ORIGEM -- uma cidade encostada na borda
+    /// (0,0) reportava dimensões dentro do mapa enquanto a caixa inteira ficava parcialmente fora
+    /// dele (origem em -1,-1). A caixa inteira precisa caber em [0,mapWidth) x [0,mapHeight), não
+    /// só o tamanho.</summary>
+    [Fact]
+    public void City_bounds_origin_stays_on_map_when_the_city_sits_right_at_the_map_edge()
+    {
+        var city = new City(new CityId(Guid.NewGuid()), new CellCoord(0, 0), 0, null, new AggregatePopulationPool(0, 0, 0));
+
+        var (bounds, _) = CityBoundsResolver.Resolve(city, population: 0, mapWidth: 1000, mapHeight: 1000);
+
+        Assert.True(bounds.Origin.X >= 0);
+        Assert.True(bounds.Origin.Y >= 0);
+        Assert.True(bounds.Origin.X + bounds.Width <= 1000);
+        Assert.True(bounds.Origin.Y + bounds.Height <= 1000);
+    }
+
+    /// <summary>Mesmo gap, mas via o caminho de CRESCIMENTO (overflow) -- absorver um prédio de
+    /// overflow perto da borda (0,0) empurra minX/minY negativos antes do fix; a caixa resultante
+    /// precisa continuar inteiramente dentro do mapa depois de crescer.</summary>
+    [Fact]
+    public void Absorption_growth_near_the_map_edge_keeps_the_grown_box_fully_on_map()
+    {
+        var city = new City(new CityId(Guid.NewGuid()), new CellCoord(0, 0), 0, null, new AggregatePopulationPool(0, 0, 0));
+        // Prédio de overflow ainda mais perto da borda que a própria cidade -- empurraria a
+        // origem pra (-2,-2) sem o clamp.
+        var overflowBox = new CityBounds(new CellCoord(-2, -2), 1, 1);
+
+        var (grown, _) = CityBoundsResolver.Resolve(
+            city, population: 0, mapWidth: 1000, mapHeight: 1000, ownedBuildingFootprintBoxes: [overflowBox]);
+
+        Assert.True(grown.Origin.X >= 0);
+        Assert.True(grown.Origin.Y >= 0);
+        Assert.True(grown.Origin.X + grown.Width <= 1000);
+        Assert.True(grown.Origin.Y + grown.Height <= 1000);
+    }
+
     // --- CityBoundsResolver (dynamic-city-growth, T4: absorption growth, CITYGROW-03/05) ---
 
     [Fact]

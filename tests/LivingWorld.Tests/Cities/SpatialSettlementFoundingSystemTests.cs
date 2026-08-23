@@ -182,6 +182,36 @@ public class SpatialSettlementFoundingSystemTests
         Assert.Equal(motherCity.Id, overflow.City); // prédio nunca reatribuído (fundação não ocorreu)
     }
 
+    /// <summary>Post-ship fix (user-reported, 2026-08-23, "MorNorHol" fundada fora do mapa): a
+    /// cidade-mãe fica encostada na borda (0,0) e o único prédio do cluster de overflow tem
+    /// posição AUTORADA negativa (gap pré-existente e fora de escopo desta correção --
+    /// <c>BuildingPlacementResolver</c> nunca valida uma <c>Position</c> autorada -- mas usado aqui
+    /// só pra reproduzir determinística e minimamente um centroide fora do mapa, sem depender
+    /// desse gap ser corrigido). O centroide resultante cai fora de <c>world.Map</c>; a fundação
+    /// deve ser dropada silenciosamente, mesmo padrão dos dois outros re-checks de HandleEvent.</summary>
+    [Fact]
+    public void HandleEvent_drops_silently_when_the_computed_centroid_would_land_outside_the_map()
+    {
+        var rules = MakeRules(foundingConcentrationThreshold: 0.5, organizationTicks: 10);
+        var world = MakeWorld(rules, seed: 909);
+        var motherCity = new City(world.NextCityId(), new CellCoord(0, 0), 0, null, AggregatePopulationPool.Empty);
+        world.AddCity(motherCity);
+        var offMapOverflow = new Building(world.NextBuildingIdAndAdvance(), motherCity.Id, buildingTypeId: 1,
+            completedAtTick: 0, position: new CellCoord(-20, -20), orientation: 0);
+        world.AddBuilding(offMapOverflow);
+        world.AddNpc(MakeNpc(world, 1, offMapOverflow.Position!.Value)); // 1/(1+1)=0.5 >= 0.5
+
+        var system = new SpatialSettlementFoundingSystem();
+        system.Tick(world, MakeCtx(world));
+        var evt = Assert.Single(world.PendingEvents);
+
+        int citiesBefore = world.Cities.Count;
+        system.HandleEvent(world, MakeCtx(world), evt);
+
+        Assert.Equal(citiesBefore, world.Cities.Count); // nenhuma cidade fora do mapa foi fundada
+        Assert.Equal(motherCity.Id, offMapOverflow.City); // prédio nunca reatribuído (fundação não ocorreu)
+    }
+
     [Fact]
     public void HandleEvent_founds_a_new_city_at_the_cluster_centroid_and_reassigns_the_clusters_buildings()
     {

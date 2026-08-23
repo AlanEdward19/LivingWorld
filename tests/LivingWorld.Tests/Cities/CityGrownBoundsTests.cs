@@ -80,16 +80,21 @@ public class CityGrownBoundsTests
     [Fact]
     public void CityProjector_Build_reports_bounds_grown_to_include_a_real_overflow_building()
     {
+        // Post-ship fix (2026-08-23, off-map city clamp): a cidade precisa nascer DENTRO do mapa
+        // 10x10 default de ScenarioRunner.Create -- (50,50) (usado antes do fix) já nascia fora do
+        // próprio mapa, e o fix de CityBoundsResolver.Resolve (clamp de origem) corretamente deixa
+        // de deixar a caixa resolvida fora do mapa nesse caso, o que quebrava este teste por um
+        // motivo alheio ao que ele verifica (crescimento por overflow).
         var world = ScenarioRunner.Create(seed: 702, initialPopulation: 0).World;
-        var city = new City(world.NextCityId(), new CellCoord(50, 50), 0, null, AggregatePopulationPool.Empty);
+        var city = new City(world.NextCityId(), new CellCoord(4, 4), 0, null, AggregatePopulationPool.Empty);
         world.AddCity(city);
 
-        // population = 0 -> bounds populacionais são 3x3 centrados em (50,50): origem (49,49),
-        // borda direita/inferior em x=51/y=51. Um prédio autorado 1 célula fora dessa borda está
+        // population = 0 -> bounds populacionais são 3x3 centrados em (4,4): origem (3,3),
+        // borda direita/inferior em x=5/y=5. Um prédio autorado 1 célula fora dessa borda está
         // dentro do AbsorptionRingCells default (3) e deve ser absorvido.
         var overflow = new Building(
             world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId: 1, completedAtTick: 0,
-            position: new CellCoord(52, 49), orientation: 0);
+            position: new CellCoord(6, 3), orientation: 0);
         world.AddBuilding(overflow);
 
         var snapshot = CityProjector.Build(world, city.Id).Value!;

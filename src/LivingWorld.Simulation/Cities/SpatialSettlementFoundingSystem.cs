@@ -82,6 +82,18 @@ public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
         var centroid = new CellCoord(
             clusterBounds.Origin.X + clusterBounds.Width / 2,
             clusterBounds.Origin.Y + clusterBounds.Height / 2);
+
+        // Post-ship fix (user-reported, 2026-08-23, "MorNorHol" founded off-map): unlike
+        // FoundingSitePicker.Pick (which validates every candidate against world.Map.Width/Height
+        // before returning it), this centroid came straight from OverflowClusterFinder.UnionBounds
+        // with no map-bounds check at all -- an authored building placed off-map (separate,
+        // pre-existing gap, not fixed here) could feed an off-map cluster into a real founding.
+        // Same silent-drop convention as the two checks above: an overflow cluster that only
+        // exists because of an off-map building is a symptom of THAT gap, not something to paper
+        // over by clamping a nonsensical centroid into a random on-map cell.
+        if (centroid.X < 0 || centroid.Y < 0 || centroid.X >= world.Map.Width || centroid.Y >= world.Map.Height)
+            return; // centroide fora do mapa -- dropado silenciosamente, nunca força uma cidade fora do mundo
+
         var newCity = new City(
             world.NextCityId(), centroid, ctx.CurrentTick, motherCityId, AggregatePopulationPool.Empty,
             name: CityNameGenerator.Generate(world));

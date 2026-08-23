@@ -51,6 +51,12 @@ public static class CityBoundsResolver
     // candidate overflow building's own absolute footprint box first, and passes plain
     // <see cref="CityBounds"/> boxes in. No behavior change for the many existing callers, since
     // both new parameters are optional and default to "no overflow buildings" (identical output).
+    // Post-ship fix (user-reported, 2026-08-23, "MorNorHol" founded off-map): this method clamped
+    // WIDTH/HEIGHT to the map (mapLimit above) but never the ORIGIN -- a city near a map edge (or
+    // one whose overflow-driven growth pushed it there) could report in-range dimensions while its
+    // box was still entirely or partially off-map, because city.Location - side/2 (and the
+    // growth-widened minX/minY below) were never re-clamped into [0, mapWidth) x [0, mapHeight).
+    // ClampOrigin fixes both the population-only box and the grown box the same way.
     // Post-ship fix (user-reported, 2026-08-23): growth from a city's own overflow buildings had
     // no relationship at all to any OTHER city's bounds -- two cities founded at a safe distance
     // could each grow toward each other, tick after tick, until their walls touched/overlapped.
@@ -69,7 +75,7 @@ public static class CityBoundsResolver
         var populationBox = new CityBounds(origin, side, side);
 
         if (ownedBuildingFootprintBoxes is null || ownedBuildingFootprintBoxes.Count == 0)
-            return (populationBox, true);
+            return (new CityBounds(ClampOrigin(origin, side, side, mapWidth, mapHeight), side, side), true);
 
         int minX = populationBox.Origin.X, minY = populationBox.Origin.Y;
         int maxX = populationBox.Origin.X + populationBox.Width - 1;
@@ -99,7 +105,17 @@ public static class CityBoundsResolver
         int mapLimit = Math.Max(1, Math.Min(mapWidth, mapHeight) / 2);
         int width = Math.Min(maxX - minX + 1, mapLimit);
         int height = Math.Min(maxY - minY + 1, mapLimit);
-        return (new CityBounds(new CellCoord(minX, minY), width, height), true);
+        var grownOrigin = ClampOrigin(new CellCoord(minX, minY), width, height, mapWidth, mapHeight);
+        return (new CityBounds(grownOrigin, width, height), true);
+    }
+
+    /// <summary>Empurra a origem de volta pra dentro de <c>[0, mapWidth) x [0, mapHeight)</c> sem
+    /// alterar width/height -- a caixa inteira fica no mapa, não só o tamanho dela.</summary>
+    private static CellCoord ClampOrigin(CellCoord origin, int width, int height, int mapWidth, int mapHeight)
+    {
+        int maxX = Math.Max(0, mapWidth - width);
+        int maxY = Math.Max(0, mapHeight - height);
+        return new CellCoord(Math.Clamp(origin.X, 0, maxX), Math.Clamp(origin.Y, 0, maxY));
     }
 
     /// <summary>Distância de Chebyshev (mesma métrica em anel de <c>OverflowPlacer</c>) entre as
