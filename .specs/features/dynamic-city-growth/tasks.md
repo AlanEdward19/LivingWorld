@@ -770,6 +770,105 @@ existence" pattern already used for the concentration threshold.
 
 ---
 
+### FixT10: Minimum-distance check on the legacy `FoundingSitePicker` — ✅ Done (commit `077ed50`)
+
+**What**: FixT8/FixT9 above only cover `SpatialSettlementFoundingSystem` (the new overflow-cluster
+path). Since households still lack real `Building` placement (`real-household-workplace-buildings`,
+not started), population growth today routes almost entirely through the OLD, pre-existing
+`SettlementFoundingSystem` + `FoundingSitePicker`, which never had any minimum-distance check (only
+excluded the exact cell of another city) — the actual cause of a live "UrVal colada" report after
+FixT8/FixT9 landed.
+**Fix**: `FoundingSitePicker.Pick` now rejects any candidate within `AbsorptionRingCells` (Chebyshev
+distance) of any OTHER existing city, reusing
+`OverflowClusterFinder.IsWithinAbsorptionRangeOfAnyOtherCity` — same constant/metric as the overflow
+path, no new threshold. Returns `null` (honest failure) when no cell on the map clears that distance
+from every other city, instead of forcing a colliding city into existence.
+**Where**: `src/LivingWorld.Simulation/Cities/FoundingSitePicker.cs` (was already untracked/new
+before this session; the distance-check edit itself was the uncommitted part)
+
+**Done when**:
+- [x] Never lands within `AbsorptionRingCells` of either of two existing cities
+- [x] Rejects a cell the old exact-cell-only check would have accepted
+- [x] Returns `null` (no city forced) when no cell on the map clears the minimum distance from every
+      other city
+- [x] Gate check passes: `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"`
+      — 226 passed, 0 failed (223 baseline + 3 new tests)
+
+**Tests**: unit — `tests/LivingWorld.Tests/Cities/FoundingSitePickerTests.cs` (new):
+`Pick_never_lands_within_AbsorptionRingCells_of_either_of_two_existing_cities`,
+`Pick_rejects_the_cell_the_old_exact_cell_only_check_would_have_accepted`,
+`Pick_returns_null_when_no_cell_on_the_map_clears_the_minimum_distance_from_every_other_city`
+**Gate**: quick
+**Commit**: `077ed50` — `fix(cities): keep newly-founded cities a minimum distance from existing ones`
+
+**Full-suite note**: the full (unfiltered) suite run alongside this fix shows 6 failures
+(1527 passed) — 2 are the already-documented/accepted `ScarcityPriceCausalTests`/
+`FamineCausalChainTests` pre-existing shock-threshold drift; the other 4
+(`ProductionCompositionTests.Production_living_system_order_is_explicit_and_stable` + 3
+`GoldenHashesTests`) are caused by other pre-existing UNCOMMITTED wiring already in the tree
+(`SpatialSettlementFoundingSystem`/`RelocationArrivalSystem` registered in the already-dirty
+`Program.cs`, from `dynamic-city-growth`/`real-household-workplace-buildings` work not part of this
+fix) — confirmed unrelated to this fix's own change, since `FixT10` touches no system registration
+and the golden hashes were never recorded against this uncommitted layer in the first place. Not a
+regression introduced by this commit.
+
+---
+
+### FixT11: Keep a newly-founded city and its grown bounds inside the map — ✅ Done
+
+**What**: user saw a city ("MorNorHol") founded partially/fully outside the world map's actual
+bounds. Two gaps, both in this feature's own code:
+1. `SpatialSettlementFoundingSystem.HandleEvent` computed the new city's centroid from
+   `OverflowClusterFinder.UnionBounds` with no `world.Map.Width/Height` check at all — unlike the
+   legacy `FoundingSitePicker.Pick` (FixT10 above), which validates every candidate against the map
+   before returning it.
+2. `CityBoundsResolver.Resolve` clamped a resolved box's WIDTH/HEIGHT to the map but never its
+   ORIGIN — a city could report in-range dimensions while its box was still partially or entirely
+   off-map, either from `city.Location` sitting near an edge or from overflow-driven growth pushing
+   `minX`/`minY` negative (the exact mechanism `dynamic-city-growth`'s own growth logic in this
+   method can trigger).
+**Fix**:
+1. `HandleEvent` now declines founding (same silent-drop convention as the two re-checks already in
+   this method, FixT9) when the computed centroid falls outside `[0, mapWidth) x [0, mapHeight)`,
+   rather than clamping it into an arbitrary on-map cell — an off-map centroid is a symptom of an
+   off-map building feeding the cluster (see flagged gap below), not something to paper over.
+2. `CityBoundsResolver.Resolve` gained a private `ClampOrigin` helper applied to both the
+   population-only box and the grown box, pushing the origin back into `[0, mapWidth - width] x
+   [0, mapHeight - height]` without altering width/height — the whole box stays on-map, not just
+   its size.
+**Where**: `src/LivingWorld.Simulation/Cities/SpatialSettlementFoundingSystem.cs`,
+`src/LivingWorld.Domain/Cities/CityBoundsResolver.cs`
+**Requirement**: CITYGROW-03/04/05 (bounds growth, cluster founding), new edge case (map-bounds
+containment)
+
+**Flagged, not fixed (pre-existing, out of scope for this fix)**:
+- `BuildingPlacementResolver.Resolve` returns an AUTHORED `building.Position` as-is with no
+  `WithinMap` check (only the derived/overflow path checks it) — an off-map authored building can
+  feed an off-map overflow cluster into gap 1 above. Pre-existing, affects `ScenarioLoaderV2`-authored
+  content generally, not specific to `dynamic-city-growth`.
+- `WorldState.AddCity` performs zero validation of any kind on the city it's given — the last
+  possible choke point, currently wide open. Pre-existing, broader than this feature.
+
+**Done when**:
+- [x] A cluster whose buildings would produce an off-map centroid is not founded as a new city
+- [x] A city near a map edge whose overflow-driven growth would push its bounds origin off-map
+      stays fully on-map after the fix
+- [x] Existing normal (well-inside-the-map) founding/growth tests still pass; one pre-existing test
+      fixture (`CityProjector_Build_reports_bounds_grown_to_include_a_real_overflow_building`) placed
+      its city at `(50,50)` on the 10x10 default map — already off-map by construction, unrelated to
+      what the test verifies — repositioned on-map, assertions unchanged
+- [x] Gate check passes: `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"`
+      — 229 passed, 0 failed (225 baseline + 4 new tests)
+
+**Tests**: unit —
+`SpatialSettlementFoundingSystemTests.HandleEvent_drops_silently_when_the_computed_centroid_would_land_outside_the_map`,
+`BuildingFootprintAndPlacementTests.City_bounds_origin_stays_on_map_when_the_city_sits_right_at_the_map_edge`,
+`BuildingFootprintAndPlacementTests.Absorption_growth_near_the_map_edge_keeps_the_grown_box_fully_on_map`
+**Gate**: quick
+**Commit**: `fix(cities): keep newly-founded cities and grown bounds inside the map` (see git log for hash)
+
+---
+
 ### Process note (no code change): commit `2133401` bundled unrelated Stage-4 work
 
 Round-2 Verifier flagged that `2133401` (FixT2) swept ~150 lines of pre-existing, unrelated
