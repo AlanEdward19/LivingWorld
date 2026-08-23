@@ -327,4 +327,100 @@ public class MigrationSystemTests
         Assert.Equal(origin.Id, npc.City);
         Assert.Null(household.PendingRelocationCity);
     }
+
+    // --- post-ship fix (user-reported, 2026-08-23): migration hysteresis ---
+
+    /// <summary>Sobe a população materializada de uma cidade pra <paramref name="count"/>
+    /// (dummies sem household, só pra CityPopulationQuery.Population contar) -- necessário pra
+    /// dar granularidade fracionária ao FoodLevel (comida/população), já que com população 1 o
+    /// nível satura em 0 ou 1 sem meio-termo.</summary>
+    private static void AddFillerPopulation(WorldState world, CityId city, int count, ref long nextNpcId)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            var filler = MakeNpc(world, nextNpcId++, city);
+            world.AddNpc(filler);
+        }
+    }
+
+    [Fact]
+    public void Household_does_not_migrate_for_a_marginal_score_improvement_within_the_hysteresis_margin()
+    {
+        // foodWeight=1 -> score == FoodLevel == min(1, food/population). População 20 em cada
+        // cidade dá granularidade de 0.05 por unidade de comida. Origem: 10/20 = 0.5. Destino:
+        // 11/20 = 0.55 -> 10% de melhora, dentro da margem de 15% (HysteresisMargin) -> não migra.
+        var world = MakeWorld(MakeRules(foodWeight: 1));
+        var (origin, destination) = MakeTwoCities(world);
+        var (npc, household) = SeedTwoOneNpcHouseholds(world, origin.Id, destination.Id, originFood: 10, destinationFood: 11);
+        long nextId = 100;
+        AddFillerPopulation(world, origin.Id, 19, ref nextId); // +1 do head da própria household = 20
+        AddFillerPopulation(world, destination.Id, 19, ref nextId);
+
+        new MigrationSystem().Tick(world, MakeCtx(world));
+
+        Assert.Equal(origin.Id, npc.City);
+        Assert.Null(household.PendingRelocationCity);
+    }
+
+    [Fact]
+    public void Household_still_migrates_when_the_score_gap_is_substantially_beyond_the_hysteresis_margin()
+    {
+        // Mesma população/fórmula do teste anterior, mas destino com comida farta: 20/20 = 1.0
+        // contra 10/20 = 0.5 na origem -> 100% de melhora, muito além dos 15% de margem -> migra
+        // normalmente (regressão: a margem não pode quebrar migração por disparidade real).
+        var world = MakeWorld(MakeRules(foodWeight: 1));
+        var (origin, destination) = MakeTwoCities(world);
+        var (npc, household) = SeedTwoOneNpcHouseholds(world, origin.Id, destination.Id, originFood: 10, destinationFood: 20);
+        long nextId = 100;
+        AddFillerPopulation(world, origin.Id, 19, ref nextId);
+        AddFillerPopulation(world, destination.Id, 19, ref nextId);
+
+        new MigrationSystem().Tick(world, MakeCtx(world));
+        CompletePendingMigrations(world);
+
+        Assert.Equal(destination.Id, npc.City);
+        Assert.Equal(destination.Id, household.City);
+    }
+
+    [Fact]
+    public void Population_settles_instead_of_oscillating_across_several_ticks_between_two_close_scoring_cities()
+    {
+        // Repro do bug relatado: sem a margem, um household cuja cidade atual perde por ~11% no
+        // score (abaixo dos 15% de margem, mas seria suficiente pra vencer sob o `>` estrito
+        // antigo) migraria -- e, ao chegar, a mesma conta se inverteria (a cidade que ele deixou
+        // fica com 1 npc a menos -> comida por capita sobe -> ele voltaria no dia seguinte).
+        // Filler households fixos garantem a mesma comida total (9) nas duas cidades; o household
+        // "móvel" nunca deposita comida própria (0), então só a contagem de população (que MUDA
+        // se ele migrar) altera o nível de comida de cada cidade -- exatamente o feedback loop
+        // relatado. Origem, com o household: 9/(9+1)=0.9. Destino, sem ele: 9/9=1.0 (~11% melhor,
+        // abaixo da margem de 15%) -> não deveria migrar em nenhum dos "dias" simulados.
+        var world = MakeWorld(MakeRules(foodWeight: 1));
+        var (origin, destination) = MakeTwoCities(world);
+        long nextId = 100;
+        AddFillerPopulation(world, origin.Id, 9, ref nextId);
+        AddFillerPopulation(world, destination.Id, 9, ref nextId);
+
+        var head = MakeNpc(world, 1, origin.Id);
+        world.AddNpc(head);
+        var household = new Household(new HouseholdId(1), origin.Location, head.Id, [head.Id], city: origin.Id);
+        head.JoinHousehold(household.Id);
+        household.Deposit(Food, 0); // household móvel nunca contribui com comida própria
+        world.AddHousehold(household);
+
+        var fillerHouseholdOrigin = new Household(new HouseholdId(2), origin.Location, new NpcId(998), [new NpcId(998)], city: origin.Id);
+        fillerHouseholdOrigin.Deposit(Food, 9);
+        world.AddHousehold(fillerHouseholdOrigin);
+        var fillerHouseholdDestination = new Household(new HouseholdId(3), destination.Location, new NpcId(999), [new NpcId(999)], city: destination.Id);
+        fillerHouseholdDestination.Deposit(Food, 9);
+        world.AddHousehold(fillerHouseholdDestination);
+
+        for (int day = 0; day < 5; day++)
+        {
+            new MigrationSystem().Tick(world, MakeCtx(world));
+            CompletePendingMigrations(world);
+        }
+
+        Assert.Equal(origin.Id, head.City); // estabilizou -- nunca migrou, então nunca oscilou de volta
+        Assert.Equal(origin.Id, household.City);
+    }
 }

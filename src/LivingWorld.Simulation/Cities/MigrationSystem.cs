@@ -22,6 +22,20 @@ public sealed class MigrationSystem : ISimulationSystem
 {
     public const string SystemName = "cities-migration";
 
+    // dynamic-city-growth post-ship fix (user-reported, 2026-08-23): two cities close enough to
+    // legitimately coexist (now supported after the CityBoundsResolver/MigrationSystem-adjacent
+    // fixes that day) made households flip-flop daily -- moving a household shifts the very
+    // population/food counts (EmploymentLevel/FoodLevel, both recomputed live) that feed
+    // tomorrow's score for the OTHER city, so a strict `score > bestScore` self-reinforcingly
+    // ping-pongs. ScoreOf's scale is weight-dependent (CityRules configures each weight freely,
+    // not normalized to sum to 1), so a relative margin -- not a fixed additive one -- is the
+    // only choice that stays proportionate to whatever weights a scenario configures. 15% chosen
+    // as a "meaningful, not marginal" improvement threshold, matching the real-world intuition a
+    // household relocates for a substantial gain, not a rounding-error one; no cooldown/timer
+    // added since a plain margin is enough to stop the oscillation this file's own tests reproduce
+    // (see MigrationSystemTests) and every other rule in this file is already timer-free.
+    private const double HysteresisMargin = 0.15;
+
     public string Name => SystemName;
     public TickFrequency Frequency => TickFrequency.Daily;
 
@@ -62,7 +76,12 @@ public sealed class MigrationSystem : ISimulationSystem
             {
                 if (candidate.Id == currentCity) continue;
                 double score = ScoreOf(world, rules, household, candidate.Id);
-                if (score > bestScore)
+                // Hysteresis: a candidate must beat bestScore by more than HysteresisMargin
+                // (relative) to be worth relocating for -- see HysteresisMargin doc above. When
+                // bestScore is double.NegativeInfinity (land-scarce "ficar" case above), the
+                // margin stays NegativeInfinity too, so any finite score still wins unconditionally
+                // (land scarcity must always force relocation, never gated by the margin).
+                if (score > bestScore * (1 + HysteresisMargin))
                 {
                     bestScore = score;
                     bestCity = candidate;
