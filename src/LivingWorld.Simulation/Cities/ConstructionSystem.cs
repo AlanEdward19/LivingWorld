@@ -18,36 +18,49 @@ public sealed class ConstructionSystem : ISimulationSystem
 
         foreach (var city in world.Cities)
         {
-            // FIFO (Done-when 3): só a cabeça da fila avança por tick — nunca por ordem de
-            // dicionário/hash.
-            if (city.ConstructionQueue.Count == 0) continue;
-            var project = city.ConstructionQueue[0];
-            if (!world.CityCatalog.BuildingRecipes.TryGetValue(project.BuildingTypeId, out var recipe)) continue;
-
-            long tickIndex = recipe.TicksToBuild - project.TicksRemaining + 1;
-            var due = DueThisTick(recipe, project, tickIndex);
-
-            // Transacional: só consome se TODO recurso devido estiver disponível — insumo
-            // insuficiente por consumidor concorrente pausa a obra sem reverter o já pago
-            // (Edge Case da spec), nunca deixa a fila avançar parcialmente.
-            bool allAvailable = due.All(kv => city.Stock.GetValueOrDefault(kv.Key) >= kv.Value);
-            if (!allAvailable) continue;
-
-            foreach (var (resource, amount) in due)
+            // dynamic-city-growth AD-007: FIFO entre projetos não-travados, mas um projeto já
+            // pago (TicksRemaining == 0) cujo placement falhou por escassez de terra fica
+            // "travado" na sua posição e é tentado de novo a custo zero todo tick, sem bloquear
+            // quem vem depois dele -- só o PRIMEIRO projeto ainda não totalmente pago recebe o
+            // orçamento de recursos deste tick (mesmo teto de "um projeto por cidade por tick" da
+            // Fase 8, só mudou qual projeto se qualifica).
+            foreach (var project in city.ConstructionQueue.ToList())
             {
-                city.WithdrawStock(resource, amount);
-                project.RecordConsumption(resource, amount);
-            }
+                if (!world.CityCatalog.BuildingRecipes.TryGetValue(project.BuildingTypeId, out var recipe)) continue;
 
-            project.Advance();
-            if (project.TicksRemaining == 0)
-            {
-                // dynamic-city-growth, round-3 fix D (CITYGROW-02b): só desenfileira quando o
-                // projeto realmente completou -- escassez de terra deixa o projeto na fila pra
-                // tentar de novo num tick futuro (design.md, Error Handling Strategy), nunca
-                // desaparece sem criar nada.
-                if (CompleteProject(world, city, project, ctx))
-                    city.DequeueCompletedConstruction();
+                if (project.TicksRemaining == 0)
+                {
+                    // Travado (já pago, placement tinha falhado antes): retry de graça, sem
+                    // consumir orçamento de recursos, e sem impedir os próximos projetos da fila
+                    // de serem examinados neste mesmo tick.
+                    if (CompleteProject(world, city, project, ctx))
+                        city.RemoveConstructionProject(project);
+                    continue;
+                }
+
+                long tickIndex = recipe.TicksToBuild - project.TicksRemaining + 1;
+                var due = DueThisTick(recipe, project, tickIndex);
+
+                // Transacional: só consome se TODO recurso devido estiver disponível — insumo
+                // insuficiente por consumidor concorrente pausa a obra sem reverter o já pago
+                // (Edge Case da spec), nunca deixa a fila avançar parcialmente.
+                bool allAvailable = due.All(kv => city.Stock.GetValueOrDefault(kv.Key) >= kv.Value);
+                if (allAvailable)
+                {
+                    foreach (var (resource, amount) in due)
+                    {
+                        city.WithdrawStock(resource, amount);
+                        project.RecordConsumption(resource, amount);
+                    }
+
+                    project.Advance();
+                    if (project.TicksRemaining == 0 && CompleteProject(world, city, project, ctx))
+                        city.RemoveConstructionProject(project);
+                }
+
+                // Só um projeto consome (ou tenta consumir) o orçamento de recursos por cidade
+                // por tick — pra a fila inteira, mesmo os travados retentados de graça acima.
+                break;
             }
         }
     }

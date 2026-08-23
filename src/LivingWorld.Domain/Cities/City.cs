@@ -110,10 +110,12 @@ public sealed class City
 
     public void EnqueueConstruction(ConstructionProject project) => _constructionQueue.Add(project);
 
-    /// <summary>Remove a obra concluída do topo da fila — só o chamador (<see
-    /// cref="ConstructionSystem"/>) sabe quando <see cref="ConstructionProject.TicksRemaining"/>
-    /// chegou a 0.</summary>
-    public void DequeueCompletedConstruction() => _constructionQueue.RemoveAt(0);
+    /// <summary>Remove uma obra concluída da fila — dynamic-city-growth AD-007: uma obra
+    /// travada por escassez de terra pode ficar presa em qualquer posição da fila (não só a
+    /// cabeça), então o chamador (<see cref="ConstructionSystem"/>) precisa remover a instância
+    /// específica, não sempre o índice 0. Igualdade por referência (<see cref="ConstructionProject"/>
+    /// não sobrescreve <c>Equals</c>) já basta pra identificar a instância certa.</summary>
+    public void RemoveConstructionProject(ConstructionProject project) => _constructionQueue.Remove(project);
 
     /// <summary>Materializar debita exatamente 1 do <see cref="AggregatePool"/>, as massas
     /// informadas, e remove <paramref name="id"/> de <see cref="PoolNpcIds"/> — falha sem mutar

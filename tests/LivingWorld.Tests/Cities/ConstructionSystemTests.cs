@@ -242,4 +242,145 @@ public class ConstructionSystemTests
         var workplace = Assert.Single(freeWorld.Workplaces);
         Assert.Equal(1, workplace.MaxVacancies);
     }
+
+    // --- dynamic-city-growth, AD-007: um projeto travado (escassez de terra) não pode mais
+    // bloquear os outros da mesma cidade indefinidamente ---
+
+    private static readonly GeographyCatalog AdSevenTinyCatalog = new(
+        TerrainIds: new HashSet<int> { 1 }, BiomeIds: new HashSet<int> { 1 }, ResourceIds: new HashSet<int>());
+
+    private static readonly CostWeights AdSevenTinyCostWeights = new(
+        Base: 1.0, AltitudeWeight: 0.5, TerrainWeight: new Dictionary<int, double> { [1] = 1.0 });
+
+    /// <summary>Catálogo com dois tipos: [1] workplace (pode ficar travado por escassez de terra)
+    /// e [2] casa (recipe sem <see cref="WorkplaceProvision"/>, cujo <see cref="CompleteProject"/>
+    /// nunca chama <see cref="BuildingPlacementResolver.Resolve"/> — nunca falha por posição).</summary>
+    private static CityCatalog MakeAdSevenCatalog(int workplaceTicks, int houseTicks) => new(new Dictionary<int, BuildingRecipe>
+    {
+        [1] = BuildingRecipe.Create(
+            new Dictionary<ResourceType, long> { [Timber] = 10 }, workplaceTicks, housingCapacityProvided: 0,
+            workplace: new WorkplaceProvision(LocationTypeId: 1, MaxVacancies: 1)).Value!,
+        [2] = BuildingRecipe.Create(
+            new Dictionary<ResourceType, long> { [Timber] = 10 }, houseTicks, housingCapacityProvided: 4).Value!,
+    });
+
+    /// <summary>Mundo com mapa do tamanho exato de um footprint retangular -- escassez de terra
+    /// genuína pro tipo 1 (o único prédio existente já ocupa o mapa inteiro), enquanto o tipo 2
+    /// (casa) não usa placement nenhum, então nunca é afetado pela escassez.</summary>
+    private static (WorldState World, City City, BuildingId RectId) MakeAdSevenScarceWorld(CityCatalog catalog)
+    {
+        var (rectId, w, h) = FindRectangularFootprint(typeId: 1);
+        var rules = CityRules.Create(
+            enabled: true, foodShortageThreshold: 20, housingShortageThreshold: 20, securityShortageThreshold: 20,
+            emigrationRatePerDeficitUnit: 0.1, migrationEmploymentWeight: 1, migrationFoodWeight: 1,
+            migrationSecurityWeight: 1, migrationFamilyTiesWeight: 1, foundingConcentrationThreshold: 0.5,
+            foundingResourceThreshold: 0.5, foundingRouteThreshold: 0.5, foundingDefensibilityThreshold: 0.5,
+            foundingLeadershipThreshold: 0.5, organizationTicks: 10, materializationIdleTicksBeforeEligible: 5)
+            .Value!;
+        var map = MapGenerator.Generate(seed: 13, w, h, Math.Max(w, h), AdSevenTinyCatalog, AdSevenTinyCostWeights, [])
+            .Value ?? throw new InvalidOperationException("mapa de teste inválido — bug no teste, não no gerador");
+        var world = new WorldState(
+            ScenarioRunner.DefaultCalendar, seed: 13, map, ScenarioRunner.DefaultPopulationCatalog,
+            ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
+            ScenarioRunner.DefaultLifeStageRules, cityRules: rules, cityCatalog: catalog);
+        var city = new City(world.NextCityId(), new CellCoord(w / 2, h / 2), 0, null, AggregatePopulationPool.Empty);
+        world.AddCity(city);
+        world.AddBuilding(new Building(rectId, city.Id, buildingTypeId: 1, completedAtTick: 0, position: new CellCoord(0, 0), orientation: 0));
+        return (world, city, rectId);
+    }
+
+    [Fact]
+    public void Stuck_workplace_project_does_not_block_a_house_project_queued_behind_it()
+    {
+        var catalog = MakeAdSevenCatalog(workplaceTicks: 1, houseTicks: 3);
+        var (world, city, _) = MakeAdSevenScarceWorld(catalog);
+        city.DepositStock(Timber, 1000);
+        ConstructionSystem.StartConstruction(world, city.Id, buildingTypeId: 1); // A: workplace, trava
+        ConstructionSystem.StartConstruction(world, city.Id, buildingTypeId: 2); // B: casa, atrás de A
+        var system = new ConstructionSystem();
+
+        // Tick 1: A paga o único tick da sua receita e trava (escassez de terra); antes deste fix
+        // isso bloquearia B indefinidamente. Ticks 2-4: B precisa dos 3 ticks da própria receita.
+        for (int i = 0; i < 4; i++)
+            system.Tick(world, MakeCtx(world));
+
+        // A ainda travado (não desapareceu, não completou -- mapa sem espaço nenhum pra ele).
+        var stuckA = Assert.Single(city.ConstructionQueue);
+        Assert.Equal(1, stuckA.BuildingTypeId);
+        Assert.Equal(0, stuckA.TicksRemaining);
+        Assert.Empty(world.Workplaces);
+
+        // B completou dentro do próprio prazo da receita (3 ticks), não travado atrás de A.
+        var house = Assert.Single(world.Buildings, b => b.BuildingTypeId == 2);
+        Assert.Equal(city.Id, house.City);
+    }
+
+    [Fact]
+    public void Stuck_project_retries_without_double_charging_and_eventually_completes_exactly_once_when_land_is_free()
+    {
+        var catalog = MakeAdSevenCatalog(workplaceTicks: 1, houseTicks: 3);
+
+        // Ponta 1: no mundo sem espaço nenhum, A paga a receita inteira, trava, e repetidos
+        // retries de graça NÃO cobram de novo (WorldState não tem "remover Building" -- a
+        // ausência de mutação em `Consumed` através de múltiplos ticks já prova a idempotência,
+        // mesmo padrão do teste "Completing_project_leaves_a_land_scarce_workplace_queued...").
+        var (scarceWorld, scarceCity, _) = MakeAdSevenScarceWorld(catalog);
+        scarceCity.DepositStock(Timber, 1000);
+        ConstructionSystem.StartConstruction(scarceWorld, scarceCity.Id, buildingTypeId: 1);
+        var scarceSystem = new ConstructionSystem();
+
+        scarceSystem.Tick(scarceWorld, MakeCtx(scarceWorld)); // paga e trava
+        var stuckBefore = Assert.Single(scarceCity.ConstructionQueue);
+        long consumedBefore = stuckBefore.Consumed.GetValueOrDefault(Timber);
+        Assert.Equal(10, consumedBefore); // receita inteira já paga (workplaceTicks: 1)
+
+        scarceSystem.Tick(scarceWorld, MakeCtx(scarceWorld)); // retry de graça, ainda travado
+        scarceSystem.Tick(scarceWorld, MakeCtx(scarceWorld)); // outro retry de graça, ainda travado
+        var stillStuck = Assert.Single(scarceCity.ConstructionQueue);
+        Assert.Equal(consumedBefore, stillStuck.Consumed.GetValueOrDefault(Timber)); // sem cobrança dobrada
+        Assert.Empty(scarceWorld.Workplaces);
+
+        // Ponta 2: o MESMO projeto/receita, mas com espaço real de sobra -- completa e cria
+        // exatamente um Building/Workplace, com Consumed idêntico ao valor travado acima (mesmo
+        // total, cobrado exatamente uma vez).
+        var freeMapWorld = MakeWorldWithMap(200, 200, catalog);
+        var freeCityReal = new City(freeMapWorld.NextCityId(), new CellCoord(100, 100), 0, null, AggregatePopulationPool.Empty);
+        freeMapWorld.AddCity(freeCityReal);
+        freeCityReal.DepositStock(Timber, 1000);
+        ConstructionSystem.StartConstruction(freeMapWorld, freeCityReal.Id, buildingTypeId: 1);
+        var freeSystem = new ConstructionSystem();
+
+        freeSystem.Tick(freeMapWorld, MakeCtx(freeMapWorld));
+
+        Assert.Empty(freeCityReal.ConstructionQueue); // completou e desenfileirou
+        var workplace = Assert.Single(freeMapWorld.Workplaces);
+        Assert.Equal(1, workplace.MaxVacancies);
+        var completedBuilding = Assert.Single(freeMapWorld.Buildings, b => b.BuildingTypeId == 1);
+        Assert.Equal(freeCityReal.Id, completedBuilding.City);
+    }
+
+    [Fact]
+    public void Throttle_keeps_advancing_the_paying_project_at_its_normal_per_tick_rate_while_a_stuck_project_is_retried_for_free()
+    {
+        var catalog = MakeAdSevenCatalog(workplaceTicks: 1, houseTicks: 5);
+        var (world, city, _) = MakeAdSevenScarceWorld(catalog);
+        city.DepositStock(Timber, 1000);
+        ConstructionSystem.StartConstruction(world, city.Id, buildingTypeId: 1); // A: trava no tick 1
+        ConstructionSystem.StartConstruction(world, city.Id, buildingTypeId: 2); // B: 5 ticks pra pagar 10 de Timber
+        var system = new ConstructionSystem();
+
+        system.Tick(world, MakeCtx(world)); // tick 1: A trava (não consome orçamento de B ainda)
+        var houseProject1 = city.ConstructionQueue.Single(p => p.BuildingTypeId == 2);
+        Assert.Equal(5, houseProject1.TicksRemaining); // B ainda não avançou neste tick (A ocupou o slot)
+
+        system.Tick(world, MakeCtx(world)); // tick 2: A travado retry de graça, B recebe o slot
+        var houseProject2 = city.ConstructionQueue.Single(p => p.BuildingTypeId == 2);
+        Assert.Equal(4, houseProject2.TicksRemaining); // avançou exatamente 1 tick, taxa normal
+        Assert.Equal(2, houseProject2.Consumed.GetValueOrDefault(Timber)); // 10/5 por tick == 2
+
+        system.Tick(world, MakeCtx(world)); // tick 3: mesma taxa, não acelerado por A estar parado
+        var houseProject3 = city.ConstructionQueue.Single(p => p.BuildingTypeId == 2);
+        Assert.Equal(3, houseProject3.TicksRemaining);
+        Assert.Equal(4, houseProject3.Consumed.GetValueOrDefault(Timber));
+    }
 }
