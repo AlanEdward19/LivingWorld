@@ -245,6 +245,44 @@ public class BuildingFootprintAndPlacementTests
         Assert.Equal(0, authored.Orientation);
     }
 
+    /// <summary>Post-ship fix (round 2, 2026-08-23): the base population-only box (no overflow
+    /// buildings at all) used to skip the <c>otherCityBoundsToAvoid</c> clamp entirely -- the
+    /// clamp only ever applied to the MERGED overflow boxes. Since households don't have real
+    /// building positions yet, this population box is what's actually rendered/dominant on the
+    /// map, so two cities' population boxes could grow into contact purely from population
+    /// increase, with zero overflow buildings involved. Reproduces exactly that: no
+    /// <c>ownedBuildingFootprintBoxes</c> passed anywhere, just population growth toward a
+    /// neighbor.</summary>
+    [Fact]
+    public void Resolve_clamps_the_population_only_box_against_other_cities_even_with_no_overflow_buildings()
+    {
+        // Longe da borda do mapa (500,500 num mapa 1000x1000) -- o clamp de borda de mapa
+        // (ClampOrigin) não pode interferir, só o clamp entre cidades sob teste aqui.
+        var cityA = new City(new CityId(Guid.NewGuid()), new CellCoord(500, 500), 0, null, new AggregatePopulationPool(0, 0, 0));
+        var cityB = new City(new CityId(Guid.NewGuid()), new CellCoord(510, 500), 0, null, new AggregatePopulationPool(0, 0, 0));
+        const int absorptionRingCells = 3;
+
+        var (boundsB, _) = CityBoundsResolver.Resolve(cityB, population: 10_000, mapWidth: 1000, mapHeight: 1000);
+
+        var (boundsA, _) = CityBoundsResolver.Resolve(
+            cityA, population: 10_000, mapWidth: 1000, mapHeight: 1000,
+            otherCityBoundsToAvoid: [boundsB]);
+
+        Assert.True(ChebyshevGapForTest(boundsA, boundsB) >= absorptionRingCells);
+    }
+
+    /// <summary>Mesma fórmula de <c>CityBoundsResolver.ChebyshevGap</c> (privada) -- duplicada aqui
+    /// só pra afirmar o comportamento observável (o gap real entre as duas caixas resolvidas),
+    /// não detalhe de implementação.</summary>
+    private static int ChebyshevGapForTest(CityBounds a, CityBounds b)
+    {
+        int aRight = a.Origin.X + a.Width - 1, aBottom = a.Origin.Y + a.Height - 1;
+        int bRight = b.Origin.X + b.Width - 1, bBottom = b.Origin.Y + b.Height - 1;
+        int dx = Math.Max(0, Math.Max(a.Origin.X - bRight, b.Origin.X - aRight));
+        int dy = Math.Max(0, Math.Max(a.Origin.Y - bBottom, b.Origin.Y - aBottom));
+        return Math.Max(dx, dy);
+    }
+
     // --- BuildingPlacementResolver (dynamic-city-growth, T3: occupancy/overflow-aware) ---
 
     /// <summary>Mesmo truque de <see cref="CityOccupancyTests"/>: procura um footprint sem o

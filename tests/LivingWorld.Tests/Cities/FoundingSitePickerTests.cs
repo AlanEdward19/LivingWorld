@@ -81,7 +81,13 @@ public class FoundingSitePickerTests
 
         Assert.NotNull(site);
         Assert.NotEqual(oldLogicPick, site!.Value);
-        Assert.True(ChebyshevGap(new CityBounds(site.Value, 1, 1), otherBounds) > rules.AbsorptionRingCells);
+        // Post-ship fix (round 2, population-box cross-city clamp): `Pick` checks distance against
+        // `CityOccupancy.ResolveGrownBounds` (the same box `IsWithinAbsorptionRangeOfAnyOtherCity`
+        // uses internally) -- with `mother` sitting close to `other`, `other`'s OWN resolved bounds
+        // now correctly shrink too (round 2 of this fix), so the real check must use that box, not
+        // the raw/unclamped one above (which stays useful only for the adjacency illustration).
+        var (otherGrownBounds, _) = CityOccupancy.ResolveGrownBounds(world, other, population: 0);
+        Assert.True(ChebyshevGap(new CityBounds(site.Value, 1, 1), otherGrownBounds) > rules.AbsorptionRingCells);
     }
 
     [Fact]

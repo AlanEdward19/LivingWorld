@@ -276,7 +276,12 @@ public class CityOccupancyTests
         Assert.All(buildingCells, cell => Assert.False(grownB.Contains(cell))); // nunca por B, que nem é a dona
         Assert.Equal(cityA.Id, overflowBuilding.City); // posse (Building.City) nunca muda, só os bounds renderizados
         var (baseB, _) = CityBoundsResolver.Resolve(cityB, population: 0, mapWidth: world.Map.Width, mapHeight: world.Map.Height);
-        Assert.Equal(baseB, grownB); // B intocado -- o prédio nem entra na lista de posse de B
+        // Post-ship fix (round 2, population-box cross-city clamp): grownB is no longer guaranteed
+        // to equal baseB exactly -- A's own unclamped growth (population box union its own
+        // overflow building, the one that put the building near B in the first place) sits close
+        // enough to B that B's OWN population-only box now correctly shrinks too (round 2 of this
+        // fix); it can only ever shrink relative to baseB, never grow past it.
+        Assert.True(grownB.Width <= baseB.Width && grownB.Height <= baseB.Height);
     }
 
     // --- ordem causal ascendente (dynamic-city-growth, round-3 fix A / Gap D) ---

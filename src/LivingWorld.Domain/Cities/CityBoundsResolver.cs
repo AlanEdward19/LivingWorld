@@ -65,13 +65,21 @@ public static class CityBoundsResolver
     // simply not merged in -- bounds stop growing toward that neighbor at the gap boundary, they
     // never jump/warp/overlap. Defaults to null (no other cities to avoid) so every existing
     // single-city caller/test is unaffected.
+    // Post-ship fix (round 2, 2026-08-23): the clamp above only ever applied to the MERGED
+    // overflow boxes -- the base populationBox itself (population-only, no overflow buildings
+    // involved) was returned as-is, unclamped, whenever there were no owned boxes to merge (or
+    // none within absorptionRingCells). Since households don't have real building positions yet,
+    // this population box is what's actually rendered/dominant on the map -- two cities' population
+    // boxes could grow into each other purely from population increase, with zero clamp. Same
+    // ClampSideAgainstOtherCities shrink now applies to populationBox itself before it's used as
+    // the union base, mirroring the existing map-edge (ClampOrigin) treatment it already got.
     public static (CityBounds Bounds, bool IsDerived) Resolve(
         City city, long population, int mapWidth, int mapHeight,
         IReadOnlyList<CityBounds>? ownedBuildingFootprintBoxes = null, int absorptionRingCells = 3,
         IReadOnlyList<CityBounds>? otherCityBoundsToAvoid = null)
     {
-        int side = SideFor(population, mapWidth, mapHeight);
-        var origin = new CellCoord(city.Location.X - side / 2, city.Location.Y - side / 2);
+        int rawSide = SideFor(population, mapWidth, mapHeight);
+        var (origin, side) = ClampSideAgainstOtherCities(city.Location, rawSide, otherCityBoundsToAvoid, absorptionRingCells);
         var populationBox = new CityBounds(origin, side, side);
 
         if (ownedBuildingFootprintBoxes is null || ownedBuildingFootprintBoxes.Count == 0)
@@ -116,6 +124,32 @@ public static class CityBoundsResolver
         int maxX = Math.Max(0, mapWidth - width);
         int maxY = Math.Max(0, mapHeight - height);
         return new CellCoord(Math.Clamp(origin.X, 0, maxX), Math.Clamp(origin.Y, 0, maxY));
+    }
+
+    /// <summary>Encolhe <paramref name="side"/> (mantendo a caixa centrada em <paramref
+    /// name="center"/>) até que sua distância pra CADA caixa de <paramref
+    /// name="otherCityBoundsToAvoid"/> seja pelo menos <paramref name="absorptionRingCells"/> --
+    /// mesmo propósito do skip de merge já existente em <see cref="Resolve"/>, mas aplicado à
+    /// caixa só-população em si (post-ship fix round 2: essa caixa nunca respeitava o outras-
+    /// cidades, só o limite de mapa). Nunca encolhe abaixo de 1x1 -- se nem isso resolver, devolve
+    /// a melhor tentativa (mesma filosofia "nunca crashar/travar" do resto do arquivo).</summary>
+    private static (CellCoord Origin, int Side) ClampSideAgainstOtherCities(
+        CellCoord center, int side, IReadOnlyList<CityBounds>? otherCityBoundsToAvoid, int absorptionRingCells)
+    {
+        if (otherCityBoundsToAvoid is null || otherCityBoundsToAvoid.Count == 0)
+            return (new CellCoord(center.X - side / 2, center.Y - side / 2), side);
+
+        for (int candidateSide = side; candidateSide >= 1; candidateSide--)
+        {
+            var candidateOrigin = new CellCoord(center.X - candidateSide / 2, center.Y - candidateSide / 2);
+            var candidateBox = new CityBounds(candidateOrigin, candidateSide, candidateSide);
+            if (candidateSide == 1 ||
+                otherCityBoundsToAvoid.All(other => ChebyshevGap(candidateBox, other) >= absorptionRingCells))
+                return (candidateOrigin, candidateSide);
+        }
+
+        // Unreachable (loop above always returns by candidateSide == 1), kept only to satisfy the compiler.
+        return (new CellCoord(center.X, center.Y), 1);
     }
 
     /// <summary>Distância de Chebyshev (mesma métrica em anel de <c>OverflowPlacer</c>) entre as
