@@ -33,7 +33,7 @@ public static class OverflowClusterFinder
 
         var overflow = owned
             .Where(p => !ContainsBox(ownGrownBounds, p.Box))
-            .Where(p => !IsWithinAbsorptionRangeOfAnyOtherCity(world, city, p.Box, ring))
+            .Where(p => !IsWithinAbsorptionRangeOfAnyOtherCity(world, city.Id, p.Box, ring))
             .ToList();
 
         return BuildClusters(overflow, ring, world);
@@ -73,11 +73,16 @@ public static class OverflowClusterFinder
             .ToList();
     }
 
-    private static bool IsWithinAbsorptionRangeOfAnyOtherCity(WorldState world, City ownCity, CityBounds box, int ring)
+    // internal (era private) — dynamic-city-growth post-ship fix, T7b/CITYGROW-04: reusado por
+    // SpatialSettlementFoundingSystem.HandleEvent pra reverificar, no disparo do evento (não só no
+    // agendamento), que o cluster ainda está fora do alcance de absorção de toda cidade existente
+    // -- mesmo motivo que já reverifica o limiar de concentração ali: outras cidades podem ter
+    // crescido durante a espera de OrganizationTicks.
+    internal static bool IsWithinAbsorptionRangeOfAnyOtherCity(WorldState world, CityId excludeCityId, CityBounds box, int ring)
     {
         foreach (var other in world.Cities)
         {
-            if (other.Id == ownCity.Id) continue;
+            if (other.Id == excludeCityId) continue;
             long otherPopulation = CityPopulationQuery.Population(world, other.Id);
             var (otherGrownBounds, _) = CityOccupancy.ResolveGrownBounds(world, other, otherPopulation);
             if (ChebyshevGap(otherGrownBounds, box) <= ring) return true;

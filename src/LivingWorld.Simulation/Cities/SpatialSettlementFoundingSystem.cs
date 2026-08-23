@@ -70,6 +70,15 @@ public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
         if (!ClearsConcentrationThreshold(population, world.CityRules))
             return; // cluster esvaziou durante a espera — dropado silenciosamente, nunca força uma cidade injustificada
 
+        // Post-ship fix (Fix 2, 2026-08-23): a distância de absorção só era checada no AGENDAMENTO
+        // (Tick, via OverflowClusterFinder), nunca reverificada aqui no disparo -- se outra cidade
+        // cresceu (absorveu mais overflow) durante a espera de OrganizationTicks e passou a ficar
+        // dentro do alcance de absorção deste cluster, fundar mesmo assim produziria uma cidade
+        // nova colada na vizinha (o próprio bug relatado). Mesmo padrão da reverificação de
+        // concentração acima: dropa silenciosamente em vez de forçar uma fundação injustificada.
+        if (OverflowClusterFinder.IsWithinAbsorptionRangeOfAnyOtherCity(world, motherCityId, clusterBounds, world.CityRules.AbsorptionRingCells))
+            return; // absorção por uma cidade vizinha tem precedência sobre fundar uma nova (spec Edge Cases)
+
         var centroid = new CellCoord(
             clusterBounds.Origin.X + clusterBounds.Width / 2,
             clusterBounds.Origin.Y + clusterBounds.Height / 2);

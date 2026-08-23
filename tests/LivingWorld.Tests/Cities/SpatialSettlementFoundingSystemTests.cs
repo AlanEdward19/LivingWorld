@@ -146,6 +146,42 @@ public class SpatialSettlementFoundingSystemTests
         Assert.Equal(citiesBefore, world.Cities.Count); // nenhuma cidade forçada a existir
     }
 
+    /// <summary>Post-ship fix (Fix 2, 2026-08-23): a distância de absorção só era reverificada no
+    /// AGENDAMENTO (Tick) -- se outra cidade cresce e passa a ficar dentro do alcance de absorção
+    /// do cluster durante a espera de OrganizationTicks, fundar mesmo assim colaria a cidade nova
+    /// na vizinha (o próprio bug relatado). Simula o crescimento chamando <see
+    /// cref="City.Dematerialize"/> repetidamente numa segunda cidade posicionada perto o bastante
+    /// do cluster (mesma coluna X do prédio de overflow, 6 células de distância em Y -- longe o
+    /// bastante pra NÃO absorver no agendamento com população 0/lado 3, perto o bastante pra
+    /// absorver depois que o lado cresce até o teto de 12) -- sem precisar tocar em nenhum prédio.
+    /// Assere que a fundação é dropada silenciosamente, nenhuma cidade nova criada.</summary>
+    [Fact]
+    public void HandleEvent_drops_silently_when_another_city_grew_within_absorption_range_during_the_wait()
+    {
+        var rules = MakeRules(foundingConcentrationThreshold: 0.5, organizationTicks: 10);
+        var world = MakeWorld(rules, seed: 908);
+        var (motherCity, overflow) = SeedOneOverflowBuilding(world); // overflow em (200,200)
+        world.AddNpc(MakeNpc(world, 1, overflow.Position!.Value)); // 1/(1+1)=0.5 >= 0.5
+
+        // Lado 3 (pop 0): bounds y193-195, gap=5 pra y=200 (>3, não absorve ainda no agendamento).
+        // Lado 12 (pop alta): bounds y188-199, gap=1 (<=3, absorve depois de crescer).
+        var growingCity = new City(world.NextCityId(), new CellCoord(200, 194), 0, null, AggregatePopulationPool.Empty);
+        world.AddCity(growingCity);
+
+        var system = new SpatialSettlementFoundingSystem();
+        system.Tick(world, MakeCtx(world));
+        var evt = Assert.Single(world.PendingEvents); // growingCity ainda não absorve -> agendou
+
+        for (int i = 0; i < 600; i++)
+            growingCity.Dematerialize(new NpcId(10_000 + i), wealth: 0, health: 0); // população sobe, lado cresce até 12
+
+        int citiesBefore = world.Cities.Count;
+        system.HandleEvent(world, MakeCtx(world), evt);
+
+        Assert.Equal(citiesBefore, world.Cities.Count); // fundação dropada -- absorção por growingCity tem precedência
+        Assert.Equal(motherCity.Id, overflow.City); // prédio nunca reatribuído (fundação não ocorreu)
+    }
+
     [Fact]
     public void HandleEvent_founds_a_new_city_at_the_cluster_centroid_and_reassigns_the_clusters_buildings()
     {
