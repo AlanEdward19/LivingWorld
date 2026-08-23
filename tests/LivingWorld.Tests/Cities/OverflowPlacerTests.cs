@@ -170,4 +170,34 @@ public class OverflowPlacerTests
             Math.Max(bounds.Origin.Y - found.Value.Y, found.Value.Y - (bounds.Origin.Y + bounds.Height - 1)));
         Assert.Equal(2, gap); // o anel de raio 1 estava 100% bloqueado -- o raio 2 é o mais próximo livre
     }
+
+    /// <summary>Complemento do teste acima: lá o anel de raio 1 fica 100% bloqueado, então nunca
+    /// prova que o método prefere um raio 1 livre sobre um raio 2 também livre quando os DOIS
+    /// existem -- só prova que ele cresce o raio quando precisa. Aqui o raio 1 tem exatamente UMA
+    /// célula livre e o raio 2 está inteiramente livre também; se o método ignorasse a ordem de
+    /// raio crescente (ex.: bug que varre um raio maior primeiro, ou credita erroneamente uma
+    /// distância a mais/a menos), poderia devolver uma célula do raio 2 mesmo com uma vaga mais
+    /// próxima disponível. A diferença de apenas 1 célula de raio prova que é a distância mínima
+    /// real, não uma "qualquer célula livre fora dos bounds".</summary>
+    [Fact]
+    public void ResolveOverflowPositionGiven_prefers_the_one_free_radius_1_cell_over_an_entirely_free_radius_2_ring()
+    {
+        var bounds = new CityBounds(new CellCoord(0, 0), 4, 4);
+        var shape = new List<CellCoord> { new CellCoord(0, 0) };
+        var id = new BuildingId(1);
+
+        // Bloqueia todo o anel de raio 1 (perímetro em x=-1,4 e y=-1,4) EXCETO uma célula --
+        // o anel de raio 2 fica inteiramente livre (não ocupado). A célula livre escolhida tem
+        // coordenadas não-negativas (dentro do mapa 100x100) -- uma célula fora do mapa nunca
+        // venceria de qualquer forma (WithinMap a rejeitaria antes de checar ocupação).
+        var freeRadius1Cell = new CellCoord(4, 0);
+        var occupied = new HashSet<CellCoord>();
+        for (int x = -1; x <= 4; x++) { occupied.Add(new CellCoord(x, -1)); occupied.Add(new CellCoord(x, 4)); }
+        for (int y = -1; y <= 4; y++) { occupied.Add(new CellCoord(-1, y)); occupied.Add(new CellCoord(4, y)); }
+        occupied.Remove(freeRadius1Cell);
+
+        var found = OverflowPlacer.ResolveOverflowPositionGiven(occupied, bounds, id, shape, mapWidth: 100, mapHeight: 100);
+
+        Assert.Equal(freeRadius1Cell, found); // a única vaga de raio 1 vence, não uma célula de raio 2
+    }
 }
