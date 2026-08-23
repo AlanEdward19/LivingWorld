@@ -282,4 +282,47 @@ public class SpatialSettlementFoundingSystemTests
         Assert.Equal(newCity.Id, household.City);
         Assert.Equal(newCity.Id, head.City);
     }
+
+    /// <summary>Post-ship fix (round 2, 2026-08-23, "population jumping between two adjacent
+    /// cities"): the reassignment loop had no check that a household actually belonged to the
+    /// founding cluster's own mother city -- it swept up ANY household whose head stood inside
+    /// clusterBounds, including one that already properly belongs to a DIFFERENT, neighboring
+    /// city. Repro: a household genuinely settled in `neighborCity` has its head standing inside
+    /// the cluster's footprint (spawned from `motherCity`'s own overflow) at founding time -- it
+    /// must NOT be poached into the brand-new city.</summary>
+    [Fact]
+    public void HandleEvent_never_reassigns_a_household_that_already_belongs_to_a_different_city()
+    {
+        var rules = MakeRules(foundingConcentrationThreshold: 0.5, organizationTicks: 10);
+        var world = MakeWorld(rules, seed: 911);
+        var (motherCity, overflow) = SeedOneOverflowBuilding(world); // overflow em (200,200)
+        var founderHead = MakeNpc(world, 1, overflow.Position!.Value);
+        world.AddNpc(founderHead); // 1/(1+1)=0.5 >= 0.5, funda a cidade nova de verdade
+
+        // Cidade vizinha, já existente, sem relação nenhuma com este cluster -- longe o bastante
+        // (dentro do mapa 300x300) pra nunca entrar no alcance de absorção do cluster.
+        var neighborCity = new City(world.NextCityId(), new CellCoord(250, 250), 0, null, AggregatePopulationPool.Empty);
+        world.AddCity(neighborCity);
+
+        // Household que já pertence de fato à cidade vizinha -- mas seu chefe, por acaso, está
+        // fisicamente parado dentro do footprint do cluster de overflow no momento exato da
+        // fundação (ex.: NPC comutando/visitando). O household NÃO fundou nada e não tem relação
+        // com motherCity -- reatribuí-lo seria o próprio bug relatado.
+        var neighborHead = MakeNpc(world, 2, overflow.Position!.Value);
+        neighborHead.JoinCity(neighborCity.Id); // já pertence de fato à cidade vizinha
+        world.AddNpc(neighborHead);
+        var neighborHousehold = new Household(
+            new HouseholdId(1), new CellCoord(250, 250), neighborHead.Id, [neighborHead.Id], city: neighborCity.Id);
+        world.AddHousehold(neighborHousehold);
+
+        var system = new SpatialSettlementFoundingSystem();
+        system.Tick(world, MakeCtx(world));
+        var evt = Assert.Single(world.PendingEvents);
+
+        system.HandleEvent(world, MakeCtx(world), evt);
+
+        Assert.Equal(3, world.Cities.Count); // motherCity + neighborCity + a nova cidade fundada
+        Assert.Equal(neighborCity.Id, neighborHousehold.City); // nunca poached
+        Assert.Equal(neighborCity.Id, neighborHead.City);
+    }
 }

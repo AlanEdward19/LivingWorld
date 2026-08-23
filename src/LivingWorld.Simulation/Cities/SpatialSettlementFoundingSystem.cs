@@ -114,8 +114,18 @@ public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
         // está de fato agora é a posição corrente do chefe (Npc.CurrentLocation, atualizado a
         // cada movimento) — mesmo padrão de "population" duas linhas acima, que já usa
         // npc.CurrentLocation em vez de Household.Location pro limiar de concentração.
+        // Post-ship fix (round 2, 2026-08-23, "population jumping between two adjacent cities"):
+        // this loop swept up ANY household in the world whose head currently stands inside
+        // clusterBounds, with no check that the household actually belonged to the founding
+        // cluster's own mother city -- a household already settled in a NEIGHBORING city (which
+        // is expected to be geometrically close, since it took Fix 1's cross-city bounds clamp to
+        // even let two cities coexist this near each other) got poached back and forth every
+        // monthly re-scan just because its head happened to be standing in this cluster's
+        // footprint at this exact tick. Only households that were genuinely part of motherCityId
+        // (the cluster's real origin) may be reassigned.
         foreach (var household in world.Households)
         {
+            if (household.City != motherCityId) continue;
             if (world.FindNpc(household.Head) is not { IsAlive: true } head) continue;
             if (!clusterBounds.Contains(head.CurrentLocation)) continue;
 
