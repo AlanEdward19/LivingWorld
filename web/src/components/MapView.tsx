@@ -166,6 +166,13 @@ export function MapView({
     try {
       const inspection = await simulationStore.inspectNpc(Number(followed.id));
       if (viewStore.followedEntity()?.id !== followed.id) return; // usuário já seguiu outra coisa
+      // Bug ao vivo (pós-T50): esta função é chamada de dentro do loop de `requestAnimationFrame`
+      // e sobrevive ao unmount deste MapView (é uma promise solta, ninguém cancela) -- sem este
+      // guard, uma resolução iniciada ANTES do usuário navegar manualmente (breadcrumb, por
+      // exemplo) que só termina DEPOIS forçava `viewStore.enter` de volta pro escopo antigo,
+      // desfazendo silenciosamente o clique do usuário. `followed.id` sozinho não basta (o
+      // usuário pode continuar seguindo o MESMO NPC e ainda assim ter mudado de espaço na mão).
+      if (toScopeKey(viewStore.currentSpace()) !== toScopeKey(space)) return;
       if (!inspection) {
         viewStore.stopFollow(); // morreu/não pôde ser inspecionado — não faz sentido continuar
         return;
