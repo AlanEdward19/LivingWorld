@@ -1055,6 +1055,58 @@ sit close together)
 
 ---
 
+### FixT17: Stop a founding daughter city from overlapping its mother's bounds — ✅ Done (commit `6c335fa`)
+
+**ROOT CAUSE of the whole 2026-08-23 "cidades coladas" saga.** FixT8–FixT16 above each fixed a
+real but secondary symptom (cross-city clamp, fire-time re-check, off-map decline, poaching guard,
+migration hysteresis, min-size floor) — none of them touched this. An empirical repro (blank
+world, medium map 30x30, seed 1, pop 80) confirmed a mother city at bounds `Origin(4,4) 3x3` and a
+daughter founded at `Origin(3,3) 3x3` — 4 cells literally shared — followed by 805 household
+city-reassignment events over ~4000 ticks (continuous oscillation, not a one-time event).
+**What**: `FoundingSitePicker.Pick`'s ring search excluded the mother city from its
+`AbsorptionRingCells` minimum-spacing check entirely (intentional — staying close to the mother is
+expected). But the mother is, almost by definition, the only nearby city at the moment of
+founding, so this exemption meant the spacing check did nothing at all on the single most common
+founding path: ring=1 accepted the very first candidate, which could be directly inside the
+mother's own bounds.
+**Fix**: the mother stays exempt from the full `AbsorptionRingCells` gap, but is no longer exempt
+from a plain area-overlap check. `Pick` now computes the mother's current resolved bounds
+(`CityOccupancy.ResolveGrownBounds`) once, and for each ring candidate computes the bounds the
+daughter would actually have at founding (population 0, same `CityBoundsResolver.SideFor` +
+map-edge clamp `CityBoundsResolver.Resolve` itself uses) and rejects the candidate if that box
+overlaps the mother's — same "grow the ring until something doesn't collide" pattern
+`OverflowPlacer.ResolveOverflowPositionGiven` already uses for building placement, just with an
+area-overlap test instead of a same-cell test.
+**Where**: `src/LivingWorld.Simulation/Cities/FoundingSitePicker.cs`
+**Requirement**: CITYGROW-04-derived (founding-site selection), the actual root cause behind the
+edge cases FixT8–FixT16 patched around
+
+**Done when**:
+- [x] Exact confirmed repro shape (mother alone on the map) — picked daughter's bounds never
+      overlap the mother's current bounds
+- [x] Daughter still lands close to the mother (Chebyshev distance in the single digits, not
+      pushed out to `AbsorptionRingCells`-plus-both-sides scale)
+- [x] Regression: minimum-distance-from-an-unrelated-city behavior (FixT10, `077ed50`) unchanged
+- [x] Regression: existing `FoundingSitePickerTests.cs` cases (plenty-of-room / null-when-map-full)
+      still pass
+- [x] Gate check passes: `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"`
+      — 238 passed, 0 failed (236 baseline + 2 new)
+
+**Tests**: unit —
+`FoundingSitePickerTests.Pick_never_overlaps_the_mothers_own_bounds_even_with_no_other_city_on_the_map`,
+`FoundingSitePickerTests.Pick_still_lands_close_to_the_mother_not_pushed_out_to_AbsorptionRingCells_scale`
+**Gate**: quick
+**Commit**: `6c335fa` — `fix(cities): stop a founding daughter city from overlapping its mother's bounds`
+**Deviation**: the integration-level test (run a scenario until the first founding event, assert
+bounds never overlap and reassignments settle) was not added — the unit tests above directly
+reproduce the confirmed repro shape and are cheap; a multi-thousand-tick scenario run was judged
+not worth the added suite runtime for this fix (per standing guidance to avoid long sim runs
+outside phase-closing gates). The scratch diagnostic file used to find this bug
+(`ScratchDiagnosticCidadeMediaTests.cs`) was deleted, its useful pieces (blank-world JSON builder,
+tick-loop pattern) are not reused elsewhere since the integration test was skipped.
+
+---
+
 ### Process note (no code change): commit `2133401` bundled unrelated Stage-4 work
 
 Round-2 Verifier flagged that `2133401` (FixT2) swept ~150 lines of pre-existing, unrelated
