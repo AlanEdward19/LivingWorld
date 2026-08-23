@@ -131,25 +131,39 @@ public static class CityBoundsResolver
     /// name="otherCityBoundsToAvoid"/> seja pelo menos <paramref name="absorptionRingCells"/> --
     /// mesmo propósito do skip de merge já existente em <see cref="Resolve"/>, mas aplicado à
     /// caixa só-população em si (post-ship fix round 2: essa caixa nunca respeitava o outras-
-    /// cidades, só o limite de mapa). Nunca encolhe abaixo de 1x1 -- se nem isso resolver, devolve
-    /// a melhor tentativa (mesma filosofia "nunca crashar/travar" do resto do arquivo).</summary>
+    /// cidades, só o limite de mapa).
+    ///
+    /// Bugfix real (usuário, 2026-08-23, regressão da rodada acima): o piso do encolhimento era
+    /// <c>1</c> (1x1), não <see cref="MinSize"/> -- toda cidade nasce/cresce com <c>SideFor</c>
+    /// já garantindo lado >= <see cref="MinSize"/> (linha ~38), e o frontend (`renderer.ts`,
+    /// `hitTest.ts`) usa exatamente esse invariante pra decidir "desenha muralha" vs "desenha
+    /// marcador pontual" -- um resultado 1x1/2x2 aqui colapsava a cidade num marcador mesmo
+    /// quando nada além desta função jamais produziria algo menor que <see cref="MinSize"/>.
+    /// Nunca encolhe abaixo de <see cref="MinSize"/>; se mesmo nesse piso a distância mínima não
+    /// for alcançada, devolve a caixa de <see cref="MinSize"/> mesmo assim (aceita um gap menor
+    /// que <paramref name="absorptionRingCells"/> só neste caso extremo -- duas cidades fundadas
+    /// patologicamente perto uma da outra) em vez de violar o tamanho mínimo viável que todo outro
+    /// caminho deste arquivo já garante (mesma filosofia "declinar em vez de forçar resultado
+    /// degenerado" de <c>BuildingPlacementResolver</c>/AD-007: aqui não há um "null" pra devolver
+    /// -- toda cidade PRECISA de uma caixa --, então o menos degenerado é o piso de tamanho, não o
+    /// gap).</summary>
     private static (CellCoord Origin, int Side) ClampSideAgainstOtherCities(
         CellCoord center, int side, IReadOnlyList<CityBounds>? otherCityBoundsToAvoid, int absorptionRingCells)
     {
         if (otherCityBoundsToAvoid is null || otherCityBoundsToAvoid.Count == 0)
             return (new CellCoord(center.X - side / 2, center.Y - side / 2), side);
 
-        for (int candidateSide = side; candidateSide >= 1; candidateSide--)
+        for (int candidateSide = side; candidateSide >= MinSize; candidateSide--)
         {
             var candidateOrigin = new CellCoord(center.X - candidateSide / 2, center.Y - candidateSide / 2);
             var candidateBox = new CityBounds(candidateOrigin, candidateSide, candidateSide);
-            if (candidateSide == 1 ||
+            if (candidateSide == MinSize ||
                 otherCityBoundsToAvoid.All(other => ChebyshevGap(candidateBox, other) >= absorptionRingCells))
                 return (candidateOrigin, candidateSide);
         }
 
         // Unreachable (loop above always returns by candidateSide == 1), kept only to satisfy the compiler.
-        return (new CellCoord(center.X, center.Y), 1);
+        return (new CellCoord(center.X - MinSize / 2, center.Y - MinSize / 2), MinSize);
     }
 
     /// <summary>Distância de Chebyshev (mesma métrica em anel de <c>OverflowPlacer</c>) entre as

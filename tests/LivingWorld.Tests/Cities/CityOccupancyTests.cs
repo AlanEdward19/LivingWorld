@@ -421,4 +421,29 @@ public class CityOccupancyTests
             BuildingFootprintGenerator.Generate(rectId, 5).Select(c => c.Cell).ToList(), overflowBuilding.Position!.Value);
         Assert.All(buildingCells, cell => Assert.True(grown.Contains(cell))); // absorvido normalmente, sem clamp pra aplicar
     }
+
+    /// <summary>Bugfix real (usuário, 2026-08-23, regressão da rodada acima -- commit `433a219`):
+    /// o encolhimento em <c>CityBoundsResolver.ClampSideAgainstOtherCities</c> tinha piso `1`
+    /// (1x1), não o `MinSize` (3) que toda outra rota de tamanho no arquivo já respeita
+    /// (`SideFor`). Um 1x1/2x2 vira exatamente o gatilho que o frontend (`renderer.ts`,
+    /// `hitTest.ts`) usa pra desenhar um marcador pontual em vez da muralha -- daí o usuário ver
+    /// círculos minúsculos no lugar da cidade. Vizinho colocado literalmente sobre o centro da
+    /// cidade (nenhum encolhimento zera o gap com o `AbsorptionRingCells` padrão) prova o piso:
+    /// mesmo no pior caso, o lado nunca cai abaixo de `MinSize` -- o trade-off aceito é o gap
+    /// real ficar menor que `AbsorptionRingCells` só neste extremo, nunca o tamanho mínimo
+    /// viável da cidade.</summary>
+    [Fact]
+    public void Resolve_never_shrinks_a_citys_bounds_below_the_minimum_viable_size_even_when_a_neighbor_sits_on_top_of_it()
+    {
+        const int minSize = 3; // mirrors CityBoundsResolver.MinSize (private const)
+        var city = new City(new CityId(Guid.NewGuid()), new CellCoord(50, 50), 0, null, AggregatePopulationPool.Empty);
+        var neighborOnTop = new CityBounds(new CellCoord(49, 49), 3, 3);
+
+        var (bounds, _) = CityBoundsResolver.Resolve(
+            city, population: 1000, mapWidth: 200, mapHeight: 200,
+            otherCityBoundsToAvoid: new[] { neighborOnTop });
+
+        Assert.True(bounds.Width >= minSize, $"Width {bounds.Width} caiu abaixo do MinSize ({minSize})");
+        Assert.True(bounds.Height >= minSize, $"Height {bounds.Height} caiu abaixo do MinSize ({minSize})");
+    }
 }
