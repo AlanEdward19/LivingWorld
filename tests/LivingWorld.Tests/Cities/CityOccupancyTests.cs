@@ -176,16 +176,26 @@ public class CityOccupancyTests
     /// <see cref="BuildingPlacementResolver.Resolve"/> -&gt; <see cref="CityOccupancy"/> outra
     /// vez, custando 2^(N-1) resoluções (187s medidos pelo Verifier com N=6). Este teste é o
     /// guarda de performance: N=30 prédios não-autorados tem que resolver bem dentro de um
-    /// timeout normal de teste, e o resultado ainda precisa ser não-sobreposto.</summary>
+    /// timeout normal de teste, e o resultado ainda precisa ser não-sobreposto.
+    ///
+    /// dynamic-city-growth, round-3 fix B: os bounds usados aqui eram 200x200 -- todo prédio
+    /// cabia dentro deles, então o anel de <see cref="OverflowPlacer"/> (o caminho O(N²)-ish mais
+    /// custoso que este guarda existe pra proteger) nunca era exercitado. Bounds agora em
+    /// <see cref="CityBoundsResolver.MaxSize"/> (12x12) -- o teto real de tamanho de cidade por
+    /// população -- pra que boa parte dos 30 prédios genuinamente precise do overflow.</summary>
     [Fact]
     public void OwnedBuildingFootprintBoxesWithOwners_resolves_many_unauthored_buildings_quickly_and_without_overlap()
     {
-        var world = ScenarioRunner.Create(seed: 608, initialPopulation: 0).World;
-        var city = new City(world.NextCityId(), new CellCoord(500, 500), 0, null, AggregatePopulationPool.Empty);
+        // Mapa real e grande o bastante ao redor da cidade (não o mapa padrão 10x10 de
+        // ScenarioRunner.Create) -- bounds 12x12 é bem menor que o mapa, então o overflow que
+        // este teste força tem espaço real pra onde crescer, em vez de ficar bloqueado pela
+        // borda do mapa (o que testaria escassez de terra, não performance).
+        var world = BuildWorldWithMap(500, 500, seed: 608);
+        var city = new City(world.NextCityId(), new CellCoord(250, 250), 0, null, AggregatePopulationPool.Empty);
         world.AddCity(city);
         for (int i = 0; i < 30; i++)
             world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId: 1, completedAtTick: 0));
-        var bounds = new CityBounds(new CellCoord(400, 400), 200, 200);
+        var bounds = new CityBounds(new CellCoord(244, 244), 12, 12);
 
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var boxes = CityOccupancy.OwnedBuildingFootprintBoxesWithOwners(world, city, bounds);
@@ -200,6 +210,12 @@ public class CityOccupancyTests
             return CityOccupancy.Translate(shape, b.Box.Origin);
         }).ToList();
         Assert.Equal(allCells.Count, allCells.Distinct().Count()); // nenhum prédio derivado sobrepõe outro
+
+        // Prova de que o overflow foi genuinamente exercitado (round-3 fix B) -- pelo menos um
+        // prédio precisou desbordar dos bounds 12x12, não só caber tranquilo dentro deles.
+        Assert.Contains(boxes, b => !(b.Box.Origin.X >= bounds.Origin.X && b.Box.Origin.Y >= bounds.Origin.Y
+            && b.Box.Origin.X + b.Box.Width <= bounds.Origin.X + bounds.Width
+            && b.Box.Origin.Y + b.Box.Height <= bounds.Origin.Y + bounds.Height));
     }
 
     // --- ordem causal ascendente (dynamic-city-growth, round-3 fix A / Gap D) ---
