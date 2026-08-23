@@ -182,10 +182,19 @@ public class CityOccupancyTests
     /// cabia dentro deles, então o anel de <see cref="OverflowPlacer"/> (o caminho O(N²)-ish mais
     /// custoso que este guarda existe pra proteger) nunca era exercitado. Bounds agora em
     /// <see cref="CityBoundsResolver.MaxSize"/> (12x12) -- o teto real de tamanho de cidade por
-    /// população -- pra que boa parte dos 30 prédios genuinamente precise do overflow.</summary>
-    [Fact]
-    public void OwnedBuildingFootprintBoxesWithOwners_resolves_many_unauthored_buildings_quickly_and_without_overlap()
+    /// população -- pra que boa parte dos 30 prédios genuinamente precise do overflow.
+    ///
+    /// dynamic-city-growth, round-3 fix C: <c>Timeout</c> (xUnit 2.9.3) só é respeitado em testes
+    /// assíncronos ("Tests marked with Timeout are only supported for async tests", confirmado
+    /// rodando o teste) -- por isso o corpo roda num <see cref="Task.Run"/> e o método passa a ser
+    /// <c>async Task</c>. Sem isso, a reintrodução da recursão original trava o gate por 300+s em
+    /// vez de falhar em segundos (o `Assert.True(stopwatch...)` só roda DEPOIS da chamada
+    /// retornar, que nunca acontece sob a regressão).</summary>
+    [Fact(Timeout = 10_000)]
+    public async Task OwnedBuildingFootprintBoxesWithOwners_resolves_many_unauthored_buildings_quickly_and_without_overlap()
     {
+        await Task.Run(() =>
+        {
         // Mapa real e grande o bastante ao redor da cidade (não o mapa padrão 10x10 de
         // ScenarioRunner.Create) -- bounds 12x12 é bem menor que o mapa, então o overflow que
         // este teste força tem espaço real pra onde crescer, em vez de ficar bloqueado pela
@@ -216,6 +225,7 @@ public class CityOccupancyTests
         Assert.Contains(boxes, b => !(b.Box.Origin.X >= bounds.Origin.X && b.Box.Origin.Y >= bounds.Origin.Y
             && b.Box.Origin.X + b.Box.Width <= bounds.Origin.X + bounds.Width
             && b.Box.Origin.Y + b.Box.Height <= bounds.Origin.Y + bounds.Height));
+        });
     }
 
     // --- ordem causal ascendente (dynamic-city-growth, round-3 fix A / Gap D) ---
