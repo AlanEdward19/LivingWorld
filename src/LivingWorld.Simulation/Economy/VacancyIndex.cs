@@ -7,20 +7,28 @@ public sealed class VacancyIndex
 {
     private readonly Dictionary<int, (int Open, int Total)> _slotsByLocationType;
     private readonly Dictionary<int, Workplace?> _firstOpenByLocationType;
+    private readonly Dictionary<(int LocationTypeId, CityId City), Workplace?> _firstOpenByLocationTypeAndCity;
     private readonly Dictionary<WorkplaceId, List<Npc>> _employeesByWorkplace;
 
     private VacancyIndex(
         Dictionary<int, (int Open, int Total)> slotsByLocationType,
         Dictionary<int, Workplace?> firstOpenByLocationType,
+        Dictionary<(int LocationTypeId, CityId City), Workplace?> firstOpenByLocationTypeAndCity,
         Dictionary<WorkplaceId, List<Npc>> employeesByWorkplace)
     {
         _slotsByLocationType = slotsByLocationType;
         _firstOpenByLocationType = firstOpenByLocationType;
+        _firstOpenByLocationTypeAndCity = firstOpenByLocationTypeAndCity;
         _employeesByWorkplace = employeesByWorkplace;
     }
 
     public Workplace? FirstWorkplaceWithVacancy(int locationTypeId) =>
         _firstOpenByLocationType.TryGetValue(locationTypeId, out var wp) ? wp : null;
+
+    /// <summary>Mesma busca acima, mas restrita a workplaces de <paramref name="city"/> — usado
+    /// pela contratação (ghost-town fix) pra nunca contratar um NPC pra fora da própria cidade.</summary>
+    public Workplace? FirstWorkplaceWithVacancy(int locationTypeId, CityId city) =>
+        _firstOpenByLocationTypeAndCity.TryGetValue((locationTypeId, city), out var wp) ? wp : null;
 
     public double VacancyWeightForLocationType(int locationTypeId)
     {
@@ -47,6 +55,7 @@ public sealed class VacancyIndex
     {
         var slotsByType = new Dictionary<int, (int Open, int Total)>();
         var firstByType = new Dictionary<int, Workplace?>();
+        var firstByTypeAndCity = new Dictionary<(int LocationTypeId, CityId City), Workplace?>();
         var employeesByWorkplace = new Dictionary<WorkplaceId, List<Npc>>();
 
         foreach (var wp in world.Workplaces.OrderBy(w => w.Id.Value))
@@ -59,7 +68,10 @@ public sealed class VacancyIndex
                 slotsByType[typeId] = (open, wp.MaxVacancies);
 
             if (open > 0)
+            {
                 firstByType.TryAdd(typeId, wp);
+                firstByTypeAndCity.TryAdd((typeId, wp.City), wp);
+            }
 
             var list = new List<Npc>(wp.Employees.Count);
             foreach (var empId in wp.Employees)
@@ -70,6 +82,6 @@ public sealed class VacancyIndex
             employeesByWorkplace[wp.Id] = list;
         }
 
-        return new VacancyIndex(slotsByType, firstByType, employeesByWorkplace);
+        return new VacancyIndex(slotsByType, firstByType, firstByTypeAndCity, employeesByWorkplace);
     }
 }

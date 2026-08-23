@@ -34,20 +34,20 @@ public class EmploymentSystemTests
             economyRules: EnabledRules, economyCatalog: CatalogWithMapping);
     }
 
-    private static Npc MakeAdult(WorldState world, NpcId id, ProfessionType profession, CellCoord location)
+    private static Npc MakeAdult(WorldState world, NpcId id, ProfessionType profession, CellCoord location, CityId city = default)
     {
         var npc = new Npc(
             id, $"npc-{id.Value}", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30), new CultureId(1), location,
             motherId: null, fatherId: null, household: null, health: 100,
-            personality: SomePersonality, profession: profession, currentLocation: location);
+            personality: SomePersonality, profession: profession, currentLocation: location, city: city);
         world.AddNpc(npc);
         return npc;
     }
 
-    private static Workplace MakeWorkplace(WorldState world, int maxVacancies = 1) =>
+    private static Workplace MakeWorkplace(WorldState world, int maxVacancies = 1, CityId city = default) =>
         new(world.NextWorkplaceIdAndAdvance(), new LocationType(1), new CellCoord(1, 1), maxVacancies,
             employees: [], stock: new Dictionary<ResourceType, long>(), treasury: Money.Zero,
-            prices: new Dictionary<ResourceType, long>());
+            prices: new Dictionary<ResourceType, long>(), city: city);
 
     [Fact]
     public void Unemployed_adult_with_matching_profession_gets_hired_within_one_tick()
@@ -127,6 +127,48 @@ public class EmploymentSystemTests
             foreach (var npc in world.Npcs.Where(n => n.Employer is not null))
                 Assert.NotNull(world.FindWorkplace(npc.Employer!.Value));
         }
+    }
+
+    /// <summary>Ghost-town fix: um workplace com vaga que pertence a outra cidade não pode
+    /// contratar um NPC desempregado de fora dela — sem isso, NPCs "trabalhavam" numa cidade
+    /// vizinha e nunca ficavam de fato na cidade recém-fundada.</summary>
+    [Fact]
+    public void Unemployed_adult_in_city_A_is_not_hired_by_vacancy_in_city_B()
+    {
+        var world = BuildWorld();
+        var cityA = new CityId(Guid.NewGuid());
+        var cityB = new CityId(Guid.NewGuid());
+        var npc = MakeAdult(world, new NpcId(1), new ProfessionType(1), new CellCoord(1, 1), city: cityA);
+        var workplaceInCityB = MakeWorkplace(world, city: cityB);
+        world.AddWorkplace(workplaceInCityB);
+        var sink = new RecordingSink();
+        var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
+
+        new EmploymentSystem().Tick(world, ctx);
+
+        Assert.Null(npc.Employer);
+        Assert.Empty(workplaceInCityB.Employees);
+        Assert.DoesNotContain(sink.Events, e => e.Kind == WorldEventKind.Hired);
+    }
+
+    /// <summary>Regression companion to the same-city guard above: a vacancy in the NPC's own
+    /// city still hires normally.</summary>
+    [Fact]
+    public void Unemployed_adult_in_city_A_is_hired_by_vacancy_in_city_A()
+    {
+        var world = BuildWorld();
+        var cityA = new CityId(Guid.NewGuid());
+        var npc = MakeAdult(world, new NpcId(1), new ProfessionType(1), new CellCoord(1, 1), city: cityA);
+        var workplaceInCityA = MakeWorkplace(world, city: cityA);
+        world.AddWorkplace(workplaceInCityA);
+        var sink = new RecordingSink();
+        var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
+
+        new EmploymentSystem().Tick(world, ctx);
+
+        Assert.Equal(workplaceInCityA.Id, npc.Employer);
+        Assert.Contains(npc.Id, workplaceInCityA.Employees);
+        Assert.Contains(sink.Events, e => e.Kind == WorldEventKind.Hired);
     }
 
     private sealed class RecordingSink : IWorldEventSink

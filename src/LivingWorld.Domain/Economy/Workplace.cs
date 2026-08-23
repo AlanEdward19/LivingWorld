@@ -11,6 +11,12 @@ public sealed class Workplace
     public CellCoord Location { get; }
     public int MaxVacancies { get; }
 
+    /// <summary>Cidade proprietária deste workplace (dynamic-city-growth, ghost-town fix) — mesmo
+    /// molde de <see cref="Building.City"/>/<see cref="Npc.City"/>. Default (Guid vazio) para
+    /// workplaces autorados em cenário sem cidade associada, mesmo comportamento de antes desta
+    /// mudança.</summary>
+    public CityId City { get; }
+
     private readonly List<NpcId> _employees;
     public IReadOnlyList<NpcId> Employees => _employees;
 
@@ -28,7 +34,7 @@ public sealed class Workplace
     public Workplace(
         WorkplaceId id, LocationType locationType, CellCoord location, int maxVacancies,
         IReadOnlyList<NpcId> employees, IReadOnlyDictionary<ResourceType, long> stock, Money treasury,
-        IReadOnlyDictionary<ResourceType, long> prices)
+        IReadOnlyDictionary<ResourceType, long> prices, CityId city = default)
     {
         Id = id;
         LocationType = locationType;
@@ -38,6 +44,7 @@ public sealed class Workplace
         _stock = new Dictionary<ResourceType, long>(stock);
         Treasury = treasury;
         _prices = new Dictionary<ResourceType, long>(prices);
+        City = city;
     }
 
     /// <summary>Falha (ECON-20) quando <see cref="Employees"/> já está no teto de

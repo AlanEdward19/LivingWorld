@@ -40,7 +40,7 @@ public sealed class EmploymentSystem : ISimulationSystem
             if (world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate)) != LifeStage.Adult) continue;
             if (!catalog.LocationTypeByProfession.TryGetValue(npc.Profession.Id, out var locationTypeId)) continue;
 
-            var workplace = vacancyIndex.FirstWorkplaceWithVacancy(locationTypeId);
+            var workplace = vacancyIndex.FirstWorkplaceWithVacancy(locationTypeId, npc.City);
             if (workplace is null) continue;
 
             if (!workplace.Hire(npc.Id).IsSuccess) continue;
