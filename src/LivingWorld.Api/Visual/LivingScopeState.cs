@@ -1,14 +1,24 @@
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
+using LivingWorld.Simulation.Behavior;
 
 namespace LivingWorld.Api.Visual;
 
-public sealed record NpcVisual(NpcId Id, CellCoord Location, ActionType? CurrentAction);
-public sealed record CityVisual(CityId Id, string Name, CellCoord Location, long Population, CellBounds Bounds);
+public sealed record NpcVisual(
+    NpcId Id,
+    CellCoord Location,
+    ActionType? CurrentAction,
+    CityId? City = null,
+    CellCoord? RelocationDestination = null);
+public sealed record CityVisual(
+    CityId Id, string Name, CellCoord Location, long Population, CellBounds Bounds,
+    CityId? FoundedFromCityId = null);
 public sealed record BuildingVisual(BuildingId Id, CityId CityId, int BuildingTypeId, CellCoord Location);
-public sealed record ProcessVisual(long Id, string Kind, long TargetId, double Progress, string DescriptorKey);
+public sealed record ProcessVisual(
+    long Id, string Kind, long TargetId, double Progress, string DescriptorKey,
+    double? Quality = null, long? RemainingHours = null, CellCoord? Location = null);
 public sealed record IndicatorUpdate(string Key, double Value);
-public sealed record NotableVisualEvent(long Tick, WorldEventKind Kind, string Label);
+public sealed record NotableVisualEvent(long Tick, WorldEventKind Kind, string Label, CellCoord? Location = null);
 
 public sealed record LivingScopeState(
     IReadOnlyList<NpcVisual> Npcs,
@@ -55,15 +65,18 @@ public static class LivingScopeProjector
         VisualScope scope,
         IReadOnlyList<WorldEvent>? events = null)
     {
+        // dynamic-city-growth, T4b: ResolveGrownBounds alimenta os boxes de overflow das próprias
+        // buildings da cidade de volta pra Resolve, fazendo os bounds realmente crescerem
+        // (CITYGROW-03/05), não só no teste unitário de T4.
         var cityBounds = world.Cities.ToDictionary(
             city => city.Id,
-            city => SpatialBoundsResolver.ResolveCity(
-                city, CityPopulationQuery.Population(world, city.Id), world.Map.Width, world.Map.Height).Bounds);
+            city => CityOccupancy.ResolveGrownBounds(world, city, CityPopulationQuery.Population(world, city.Id)).Bounds);
 
         var npcs = world.Npcs
-            .Where(npc => npc.IsAlive && IsNpcInScope(npc, scope, cityBounds))
+            .Where(npc => npc.IsAlive && IsNpcInScope(world, npc, scope, cityBounds))
             .OrderBy(npc => npc.Id.Value)
-            .Select(npc => new NpcVisual(npc.Id, npc.CurrentLocation, npc.CurrentAction))
+            .Select(npc => new NpcVisual(
+                npc.Id, npc.CurrentLocation, npc.CurrentAction, npc.City, RelocationDestinationOf(world, npc)))
             .ToList();
 
         var cities = scope.Kind == VisualScopeKind.World
@@ -72,7 +85,8 @@ public static class LivingScopeProjector
                 var bounds = cityBounds[city.Id];
                 return new CityVisual(
                     city.Id, city.Name, city.Location, CityPopulationQuery.Population(world, city.Id),
-                    new CellBounds(bounds.Origin.X, bounds.Origin.Y, bounds.Width, bounds.Height));
+                    new CellBounds(bounds.Origin.X, bounds.Origin.Y, bounds.Width, bounds.Height),
+                    city.FoundedFromCityId);
             }).ToList()
             : [];
 
@@ -84,25 +98,124 @@ public static class LivingScopeProjector
                 .Select(building =>
                 {
                     var city = world.Cities.Single(candidate => candidate.Id == cityId);
-                    var (location, _, _) = BuildingPlacementResolver.Resolve(building, city);
-                    return new BuildingVisual(building.Id, building.City, building.BuildingTypeId, location);
-                }).ToList()
+                    // dynamic-city-growth, T3: mesmos bounds já resolvidos acima (cityBounds) —
+                    // Resolve precisa deles pra tentar uma célula livre antes do overflow.
+                    // CITYGROW-02b: null = escassez de terra pra este prédio agora — excluído
+                    // desta resposta em vez de derrubar o escopo inteiro; nunca persistido.
+                    return BuildingPlacementResolver.Resolve(building, city, world, cityBounds[cityId]) is { } resolved
+                        ? new BuildingVisual(building.Id, building.City, building.BuildingTypeId, resolved.Position)
+                        : null;
+                })
+                .OfType<BuildingVisual>()
+                .ToList()
             : [];
+
+        var restProcesses = world.Npcs
+            .Where(npc => npc.IsAlive && npc.CurrentAction == ActionType.Sleep && IsNpcInScope(world, npc, scope, cityBounds))
+            .OrderBy(npc => npc.Id.Value)
+            .Select(npc =>
+            {
+                var snapshot = RestPresentation.ToProcess(world, npc);
+                return new ProcessVisual(
+                    snapshot.Id, "rest", snapshot.ActorId, snapshot.Progress, snapshot.DescriptorKey,
+                    snapshot.Status.Quality, snapshot.Status.RemainingHours, snapshot.Status.Location);
+            });
+
+        var eatProcesses = world.Npcs
+            .Where(npc => npc.IsAlive && npc.CurrentAction == ActionType.Eat && IsNpcInScope(world, npc, scope, cityBounds))
+            .OrderBy(npc => npc.Id.Value)
+            .Select(npc =>
+            {
+                var snapshot = FoodPresentation.ToProcess(world, npc);
+                return new ProcessVisual(
+                    snapshot.Id, "food", snapshot.ActorId, snapshot.Progress, snapshot.DescriptorKey,
+                    Quality: null, snapshot.Status.RemainingHours, npc.CurrentLocation);
+            });
+
+        var resourceProcesses = world.ResourceProcesses
+            .Where(process => process.Status == ProcessStatus.InProgress)
+            .OrderBy(process => process.Id.Value)
+            .Select(process =>
+            {
+                var snapshot = ResourceProcessPresentation.ToProcess(world, process);
+                return new ProcessVisual(
+                    snapshot.Id, snapshot.Kind, snapshot.TargetId, snapshot.Progress, snapshot.DescriptorKey,
+                    Quality: null, snapshot.RemainingHours, snapshot.Location);
+            });
+
+        var carryProcesses = world.Npcs
+            .Where(npc => npc.IsAlive && npc.IsCarrying && IsNpcInScope(world, npc, scope, cityBounds)
+                && !world.ResourceProcesses.Any(process =>
+                    process.ActorId == npc.Id && process.Status == ProcessStatus.InProgress && process.Kind == ProcessKind.DeliverWater))
+            .OrderBy(npc => npc.Id.Value)
+            .Select(npc =>
+            {
+                var snapshot = ResourceProcessPresentation.CarryOf(npc)!;
+                return new ProcessVisual(
+                    snapshot.Id, snapshot.Kind, snapshot.TargetId, snapshot.Progress, snapshot.DescriptorKey,
+                    Quality: null, snapshot.RemainingHours, snapshot.Location);
+            });
+
+        var cropProcesses = world.CropBatches
+            .Where(crop => crop.Status != CropStatus.Harvested)
+            .OrderBy(crop => crop.Id.Value)
+            .Select(crop =>
+            {
+                var snapshot = ResourceProcessPresentation.ToCrop(world, crop);
+                return new ProcessVisual(
+                    snapshot.Id, snapshot.Kind, snapshot.TargetId, snapshot.Progress, snapshot.DescriptorKey,
+                    Quality: null, snapshot.RemainingHours, snapshot.Location);
+            });
+
+        var constructionProcesses = focusedCity is { } processCityId && world.FindCity(processCityId) is { } processCity
+            ? processCity.ConstructionQueue
+                .Select((project, index) =>
+                {
+                    long totalTicks = world.CityCatalog.BuildingRecipes.TryGetValue(project.BuildingTypeId, out var recipe)
+                        ? recipe.TicksToBuild
+                        : Math.Max(1, project.TicksRemaining);
+                    double progress = 1.0 - project.TicksRemaining / (double)totalTicks;
+                    var site = BuildingPlacementResolver.ResolveQueuedSite(processCity, index);
+                    return new ProcessVisual(index, "construction", project.BuildingTypeId, progress, "construction",
+                        Location: site);
+                })
+            : [];
+
+        var processes = restProcesses
+            .Concat(eatProcesses)
+            .Concat(resourceProcesses)
+            .Concat(carryProcesses)
+            .Concat(cropProcesses)
+            .Concat(constructionProcesses)
+            .ToList();
 
         IReadOnlyList<IndicatorUpdate> indicators = focusedCity is { } indicatorCity
             ? BuildIndicators(world, indicatorCity)
             : [];
-        var visibleEvents = (events ?? [])
+        var loggedEvents = (events ?? [])
             .OrderBy(evt => evt.Tick).ThenBy(evt => evt.Kind).ThenBy(evt => evt.Payload, StringComparer.Ordinal)
-            .Select(evt => new NotableVisualEvent(evt.Tick, evt.Kind, LivingEventPresentationCatalog.Describe(evt.Kind)))
+            .Select(evt => new NotableVisualEvent(
+                evt.Tick, evt.Kind, LivingEventPresentationCatalog.Describe(evt.Kind), LocationOf(world, evt)));
+        var foundingEvents = world.Cities
+            .Where(city => city.FoundedFromCityId is not null)
+            .Select(city => new NotableVisualEvent(
+                city.FoundedAtTick,
+                WorldEventKind.SettlementFounded,
+                LivingEventPresentationCatalog.Describe(WorldEventKind.SettlementFounded),
+                city.Location));
+        var visibleEvents = loggedEvents
+            .Concat(foundingEvents)
+            .DistinctBy(evt => (evt.Tick, evt.Kind, evt.Label))
+            .OrderBy(evt => evt.Tick).ThenBy(evt => evt.Kind)
             .ToList();
 
-        return new LivingScopeState(npcs, cities, buildings, [], indicators, visibleEvents);
+        return new LivingScopeState(npcs, cities, buildings, processes, indicators, visibleEvents);
     }
 
     // T50: mesmo critério geométrico de NpcScopeResolver (Domain) — cidade não encontrada nunca
     // deveria acontecer pra um NPC vivo, mas cai em "fora" (World) em vez de lançar.
     private static bool IsNpcInScope(
+        WorldState world,
         Npc npc,
         VisualScope scope,
         IReadOnlyDictionary<CityId, CityBounds> cityBounds) =>
@@ -113,10 +226,26 @@ public static class LivingScopeProjector
                 && cityBounds.TryGetValue(npc.City, out var bounds)
                 && NpcScopeResolver.Resolve(npc, bounds).Kind == NpcScopeKind.City,
             VisualScopeKind.World =>
-                cityBounds.TryGetValue(npc.City, out var bounds)
-                && NpcScopeResolver.Resolve(npc, bounds).Kind == NpcScopeKind.World,
+                RelocationDestinationOf(world, npc) is not null
+                || (cityBounds.TryGetValue(npc.City, out var bounds)
+                    && NpcScopeResolver.Resolve(npc, bounds).Kind == NpcScopeKind.World),
             _ => false,
         };
+
+    private static CellCoord? LocationOf(WorldState world, WorldEvent evt)
+    {
+        var first = evt.Payload.Split('|')[0];
+        if (!long.TryParse(first, out var npcValue)) return null;
+        return world.Npcs.FirstOrDefault(npc => npc.Id.Value == npcValue)?.CurrentLocation;
+    }
+
+    private static CellCoord? RelocationDestinationOf(WorldState world, Npc npc)
+    {
+        if (npc.Household is not { } householdId) return null;
+        if (world.Households.FirstOrDefault(h => h.Id == householdId) is not { PendingRelocationCity: { } destinationId })
+            return null;
+        return world.FindCity(destinationId)?.Location;
+    }
 
     private static IReadOnlyList<IndicatorUpdate> BuildIndicators(WorldState world, CityId cityId) =>
     [

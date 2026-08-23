@@ -94,10 +94,14 @@ public static class CityOccupancy
         var result = new List<(Building Building, CityBounds Box)>();
         foreach (var building in world.Buildings.Where(b => b.City == city.Id))
         {
-            var position = building.Position
-                ?? BuildingPlacementResolver.Resolve(building, city, world, populationBounds).Position;
+            // CITYGROW-02b: null = escassez de terra pra este prédio -- excluído da lista de
+            // footprints em vez de derrubar a resolução inteira dos outros prédios da cidade.
+            CellCoord? position = building.Position
+                ?? BuildingPlacementResolver.Resolve(building, city, world, populationBounds)?.Position;
+            if (position is null) continue;
+
             var shape = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId).Select(c => c.Cell).ToList();
-            var cells = Translate(shape, position);
+            var cells = Translate(shape, position.Value);
             if (cells.Count == 0) continue;
 
             int minX = cells.Min(c => c.X), minY = cells.Min(c => c.Y);
@@ -177,16 +181,21 @@ public static class CityOccupancy
         {
             var shape = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId).Select(c => c.Cell).ToList();
 
-            CellCoord position;
+            CellCoord? position;
             if (building.Position is { } authored)
                 position = authored;
             else if (placingId is not null)
                 position = ScanForFreeOrigin(occupied, bounds, shape)
-                    ?? OverflowPlacer.ResolveOverflowPositionGiven(occupied, bounds, building.Id, shape);
+                    ?? OverflowPlacer.ResolveOverflowPositionGiven(occupied, bounds, building.Id, shape, world.Map.Width, world.Map.Height);
             else
                 position = LegacyRingFallback(building.Id, city.Location);
 
-            foreach (var cell in Translate(shape, position))
+            // CITYGROW-02b: escassez de terra pra este vizinho -- não há onde contá-lo como
+            // ocupado, então ele simplesmente não entra no conjunto (mesmo "fica sem posição
+            // por esta chamada" do resto do fix, nunca um crash).
+            if (position is null) continue;
+
+            foreach (var cell in Translate(shape, position.Value))
                 occupied.Add(cell);
         }
         return occupied;

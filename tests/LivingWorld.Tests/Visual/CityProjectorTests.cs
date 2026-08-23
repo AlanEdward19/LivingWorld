@@ -75,10 +75,11 @@ public class CityProjectorTests
         // pra comparar com o mesmo contexto de ocupação.
         long population = CityPopulationQuery.Population(world, city.Id);
         var bounds = SpatialBoundsResolver.ResolveCity(city, population, world.Map.Width, world.Map.Height).Bounds;
-        var (expectedPosition, _, expectedIsDerived) = BuildingPlacementResolver.Resolve(engineBuilding, city, world, bounds);
-        Assert.True(expectedIsDerived);
+        var expectedResolved = BuildingPlacementResolver.Resolve(engineBuilding, city, world, bounds);
+        Assert.NotNull(expectedResolved);
+        Assert.True(expectedResolved!.Value.IsDerived);
         Assert.True(marker.LocationIsDerived);
-        Assert.Equal(expectedPosition, marker.Location);
+        Assert.Equal(expectedResolved.Value.Position, marker.Location);
     }
 
     [Fact]

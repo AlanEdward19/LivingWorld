@@ -16,10 +16,16 @@ namespace LivingWorld.Simulation;
 /// (<see cref="CityOccupancy.FindFreeCellInBounds"/> — nunca mais sobrepõe silenciosamente outro
 /// prédio, CITYGROW-01) e só cai no anel de overflow (<see
 /// cref="OverflowPlacer.ResolveOverflowPosition"/>, CITYGROW-02) quando os bounds estão
-/// totalmente ocupados.</summary>
+/// totalmente ocupados.
+///
+/// dynamic-city-growth, fix (major, CITYGROW-02b): <c>null</c> quando nem os bounds nem o anel de
+/// overflow acham uma célula livre em lugar nenhum do mapa -- escassez de terra real. Chamadores
+/// tratam isso deixando o prédio sem posição resolvida por esta chamada (sem fila, sem retry
+/// especial -- tenta de novo na próxima vez que alguém pedir, mesmo espírito de "sempre re-derivado,
+/// nunca persistido" que o resto deste tipo já segue), nunca um crash.</summary>
 public static class BuildingPlacementResolver
 {
-    public static (CellCoord Position, int Orientation, bool IsDerived) Resolve(
+    public static (CellCoord Position, int Orientation, bool IsDerived)? Resolve(
         Building building, City city, WorldState world, CityBounds bounds)
     {
         if (building.Position is { } position)
@@ -29,7 +35,7 @@ public static class BuildingPlacementResolver
         var origin = CityOccupancy.FindFreeCellInBounds(world, city, bounds, shape, building.Id)
             ?? OverflowPlacer.ResolveOverflowPosition(world, city, bounds, building.Id, shape);
 
-        return (origin, 0, true);
+        return origin is { } resolved ? (resolved, 0, true) : null;
     }
 
     /// <summary>Canteiro de obra ainda sem <see cref="BuildingId"/> — estável por índice da fila

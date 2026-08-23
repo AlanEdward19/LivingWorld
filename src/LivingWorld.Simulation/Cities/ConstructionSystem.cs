@@ -42,10 +42,44 @@ public sealed class ConstructionSystem : ISimulationSystem
             project.Advance();
             if (project.TicksRemaining == 0)
             {
-                world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, project.BuildingTypeId, ctx.CurrentTick));
+                CompleteProject(world, city, project, ctx);
                 city.DequeueCompletedConstruction();
             }
         }
+    }
+
+    private static void CompleteProject(WorldState world, City city, ConstructionProject project, TickContext ctx)
+    {
+        if (!world.CityCatalog.BuildingRecipes.TryGetValue(project.BuildingTypeId, out var recipe)) return;
+
+        var building = new Building(world.NextBuildingIdAndAdvance(), city.Id, project.BuildingTypeId, ctx.CurrentTick);
+        world.AddBuilding(building);
+
+        if (recipe.Workplace is { } workplaceRecipe)
+        {
+            // dynamic-city-growth, T3/T4b: Resolve agora precisa dos bounds atuais da cidade pra
+            // tentar uma célula livre antes de cair no overflow (CITYGROW-01/02);
+            // ResolveGrownBounds já realimenta os boxes de overflow das próprias buildings pra
+            // que os bounds cresçam de verdade (CITYGROW-03/05).
+            long population = CityPopulationQuery.Population(world, city.Id);
+            var bounds = CityOccupancy.ResolveGrownBounds(world, city, population).Bounds;
+            // CITYGROW-02b: null = escassez de terra pra este prédio agora -- sem fila/retry
+            // especial, o workplace simplesmente não é criado nesta chamada (mesmo padrão do
+            // resto da posição de prédios, nunca persistida).
+            if (BuildingPlacementResolver.Resolve(building, city, world, bounds) is not { } resolved) return;
+            world.AddWorkplace(new Workplace(
+                world.NextWorkplaceIdAndAdvance(), new LocationType(workplaceRecipe.LocationTypeId), resolved.Position,
+                workplaceRecipe.MaxVacancies, employees: [], stock: new Dictionary<ResourceType, long>(),
+                treasury: Money.Zero, prices: CopyPricesFromExisting(world, workplaceRecipe.LocationTypeId)));
+        }
+    }
+
+    private static Dictionary<ResourceType, long> CopyPricesFromExisting(WorldState world, int locationTypeId)
+    {
+        var existing = world.Workplaces.FirstOrDefault(wp => wp.LocationType.Id == locationTypeId);
+        return existing is null
+            ? new Dictionary<ResourceType, long>()
+            : new Dictionary<ResourceType, long>(existing.Prices);
     }
 
     private static Dictionary<ResourceType, long> DueThisTick(BuildingRecipe recipe, ConstructionProject project, long tickIndex)

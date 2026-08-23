@@ -8,6 +8,28 @@ namespace LivingWorld.Tests.Cities;
 /// cref="CityOccupancy.FindFreeCellInBounds"/> não acha vaga dentro deles.</summary>
 public class OverflowPlacerTests
 {
+    private static readonly GeographyCatalog TinyCatalog = new(
+        TerrainIds: new HashSet<int> { 1 }, BiomeIds: new HashSet<int> { 1 }, ResourceIds: new HashSet<int>());
+
+    private static readonly CostWeights TinyCostWeights = new(
+        Base: 1.0, AltitudeWeight: 0.5, TerrainWeight: new Dictionary<int, double> { [1] = 1.0 });
+
+    /// <summary>dynamic-city-growth, fix (major, CITYGROW-02b): o anel de overflow agora é
+    /// amarrado ao mapa real (<see cref="OverflowPlacer.ResolveOverflowPosition"/> nunca devolve
+    /// uma célula fora de <c>world.Map</c>) -- estes testes de "near"/"far" overflow precisam de
+    /// espaço real de sobra fora do fosso/bounds ocupados, não do mapa 10x10 minúsculo de
+    /// <see cref="ScenarioRunner.DefaultMap"/>, senão a busca corretamente devolveria escassez em
+    /// vez do overflow que estes testes querem exercitar.</summary>
+    private static WorldState BuildWorldWithMap(int width, int height, ulong seed)
+    {
+        var map = MapGenerator.Generate(seed, width, height, Math.Max(width, height), TinyCatalog, TinyCostWeights, [])
+            .Value ?? throw new InvalidOperationException("mapa de teste inválido — bug no teste, não no gerador");
+        return new WorldState(
+            ScenarioRunner.DefaultCalendar, seed, map, ScenarioRunner.DefaultPopulationCatalog,
+            ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules,
+            ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules);
+    }
+
     /// <summary>Mesmo truque de <see cref="CityOccupancyTests"/>: procura um footprint sem o
     /// entalhe do formato L, pra poder ocupar exatamente uma bounding box conhecida.</summary>
     private static (BuildingId Id, IReadOnlyList<CellCoord> Shape, int Width, int Height) FindRectangularFootprint(int typeId)
@@ -28,7 +50,7 @@ public class OverflowPlacerTests
         MakeFullyOccupiedCity(ulong seed, int typeId)
     {
         var (rectId, rectShape, w, h) = FindRectangularFootprint(typeId);
-        var world = ScenarioRunner.Create(seed: seed, initialPopulation: 0).World;
+        var world = BuildWorldWithMap(200, 200, seed);
         var city = new City(world.NextCityId(), new CellCoord(0, 0), 0, null, AggregatePopulationPool.Empty);
         world.AddCity(city);
         var bounds = new CityBounds(new CellCoord(0, 0), w, h);
@@ -43,7 +65,8 @@ public class OverflowPlacerTests
 
         var found = OverflowPlacer.ResolveOverflowPosition(world, city, bounds, new BuildingId(9001), rectShape);
 
-        var translated = CityOccupancy.Translate(rectShape, found);
+        Assert.NotNull(found);
+        var translated = CityOccupancy.Translate(rectShape, found!.Value);
         Assert.True(CityOccupancy.IsFree(world, city, bounds, translated));
         // Os bounds originais estão 100% ocupados (Done-when 1) -- a célula resolvida tem que
         // desbordar deles, nunca ficar inteiramente dentro.
@@ -69,15 +92,17 @@ public class OverflowPlacerTests
         var id = new BuildingId(9003);
 
         var withoutBlocker = OverflowPlacer.ResolveOverflowPosition(world, city, bounds, id, rectShape);
+        Assert.NotNull(withoutBlocker);
 
         // Ocupa exatamente a célula que seria escolhida sem bloqueio -- a próxima chamada não
         // pode devolver a mesma posição nem sobrepor o prédio recém-adicionado.
-        world.AddBuilding(new Building(rectId, city.Id, buildingTypeId: 7, completedAtTick: 0, position: withoutBlocker, orientation: 0));
+        world.AddBuilding(new Building(rectId, city.Id, buildingTypeId: 7, completedAtTick: 0, position: withoutBlocker.Value, orientation: 0));
 
         var withBlocker = OverflowPlacer.ResolveOverflowPosition(world, city, bounds, id, rectShape);
 
+        Assert.NotNull(withBlocker);
         Assert.NotEqual(withoutBlocker, withBlocker);
-        var translated = CityOccupancy.Translate(rectShape, withBlocker);
+        var translated = CityOccupancy.Translate(rectShape, withBlocker!.Value);
         Assert.True(CityOccupancy.IsFree(world, city, bounds, translated));
     }
 
@@ -85,20 +110,22 @@ public class OverflowPlacerTests
     public void ResolveOverflowPosition_keeps_growing_the_radius_until_it_clears_a_wide_occupied_moat()
     {
         var (rectId, rectShape, w, h) = FindRectangularFootprint(typeId: 8);
-        var world = ScenarioRunner.Create(seed: 704, initialPopulation: 0).World;
-        var city = new City(world.NextCityId(), new CellCoord(0, 0), 0, null, AggregatePopulationPool.Empty);
+        var world = BuildWorldWithMap(200, 200, seed: 704);
+        var city = new City(world.NextCityId(), new CellCoord(100, 100), 0, null, AggregatePopulationPool.Empty);
         world.AddCity(city);
-        var bounds = new CityBounds(new CellCoord(0, 0), w, h);
+        var bounds = new CityBounds(new CellCoord(100, 100), w, h);
 
         // "Fosso" de blocos w x h ladrilhando uma área bem maior que os bounds em torno deles --
         // qualquer anel de busca com raio pequeno cai inteiro dentro do fosso (ocupado), forçando
         // o método a crescer o raio várias vezes antes de achar uma célula livre de verdade (o
-        // caso "far from city" do spec, ao lado do "near" já coberto pelo teste acima).
+        // caso "far from city" do spec, ao lado do "near" já coberto pelo teste acima). Centrado
+        // em (100,100) num mapa 200x200 pra ter espaço real de sobra fora do fosso nas quatro
+        // direções (fix CITYGROW-02b amarra o anel ao mapa real).
         const int moatLayers = 2;
         var tilePositions = new List<CellCoord>();
         for (int tx = -moatLayers; tx <= moatLayers; tx++)
             for (int ty = -moatLayers; ty <= moatLayers; ty++)
-                tilePositions.Add(new CellCoord(tx * w, ty * h));
+                tilePositions.Add(new CellCoord(100 + tx * w, 100 + ty * h));
 
         foreach (var pos in tilePositions)
             world.AddBuilding(new Building(rectId, city.Id, buildingTypeId: 8, completedAtTick: 0, position: pos, orientation: 0));
@@ -108,7 +135,8 @@ public class OverflowPlacerTests
         bool InsideAnyTile(CellCoord cell) =>
             tilePositions.Any(pos => cell.X >= pos.X && cell.X < pos.X + w && cell.Y >= pos.Y && cell.Y < pos.Y + h);
 
-        var translated = CityOccupancy.Translate(rectShape, found);
+        Assert.NotNull(found);
+        var translated = CityOccupancy.Translate(rectShape, found!.Value);
         Assert.True(translated.All(cell => !InsideAnyTile(cell)));
         Assert.True(CityOccupancy.IsFree(world, city, bounds, translated));
     }

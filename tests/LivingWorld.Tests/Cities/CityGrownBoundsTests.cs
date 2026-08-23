@@ -11,12 +11,33 @@ namespace LivingWorld.Tests.Cities;
 /// unitário.</summary>
 public class CityGrownBoundsTests
 {
+    private static readonly GeographyCatalog TinyCatalog = new(
+        TerrainIds: new HashSet<int> { 1 }, BiomeIds: new HashSet<int> { 1 }, ResourceIds: new HashSet<int>());
+
+    private static readonly CostWeights TinyCostWeights = new(
+        Base: 1.0, AltitudeWeight: 0.5, TerrainWeight: new Dictionary<int, double> { [1] = 1.0 });
+
+    /// <summary>dynamic-city-growth, fix (major, CITYGROW-02b): o overflow agora respeita
+    /// <c>world.Map.Width/Height</c> de verdade -- este teste posiciona a cidade em (50,50), que
+    /// não existe no mapa 10x10 padrão de <see cref="ScenarioRunner.Create"/> (usado só de boa fé
+    /// antes do fix, quando o mapa era irrelevante pra ocupação); precisa de um mapa real grande
+    /// o bastante pra conter a cidade e sobrar espaço de verdade.</summary>
+    private static WorldState BuildWorldWithMap(int width, int height, ulong seed)
+    {
+        var map = MapGenerator.Generate(seed, width, height, Math.Max(width, height), TinyCatalog, TinyCostWeights, [])
+            .Value ?? throw new InvalidOperationException("mapa de teste inválido — bug no teste, não no gerador");
+        return new WorldState(
+            ScenarioRunner.DefaultCalendar, seed, map, ScenarioRunner.DefaultPopulationCatalog,
+            ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules,
+            ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules);
+    }
+
     // --- OwnedBuildingFootprintBoxes ---
 
     [Fact]
     public void OwnedBuildingFootprintBoxes_returns_one_box_per_building_for_a_mix_of_authored_and_engine_placed()
     {
-        var world = ScenarioRunner.Create(seed: 701, initialPopulation: 0).World;
+        var world = BuildWorldWithMap(200, 200, seed: 701);
         var city = new City(world.NextCityId(), new CellCoord(50, 50), 0, null, AggregatePopulationPool.Empty);
         world.AddCity(city);
 
@@ -43,9 +64,10 @@ public class CityGrownBoundsTests
 
         // O prédio sem posição autorada precisa aparecer como a mesma posição derivada que
         // BuildingPlacementResolver.Resolve escolheria pra ele — nunca um valor inventado aqui.
-        var (engineBuiltPosition, _, _) = BuildingPlacementResolver.Resolve(engineBuilt, city, world, populationBounds);
+        var engineBuiltResolved = BuildingPlacementResolver.Resolve(engineBuilt, city, world, populationBounds);
+        Assert.NotNull(engineBuiltResolved);
         var engineShape = BuildingFootprintGenerator.Generate(engineBuilt.Id, engineBuilt.BuildingTypeId).Select(c => c.Cell).ToList();
-        var engineCells = CityOccupancy.Translate(engineShape, engineBuiltPosition);
+        var engineCells = CityOccupancy.Translate(engineShape, engineBuiltResolved!.Value.Position);
         var expectedEngineBox = new CityBounds(
             new CellCoord(engineCells.Min(c => c.X), engineCells.Min(c => c.Y)),
             engineCells.Max(c => c.X) - engineCells.Min(c => c.X) + 1,

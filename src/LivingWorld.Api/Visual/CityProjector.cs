@@ -56,13 +56,15 @@ public static class CityProjector
         long populationForBounds = CityPopulationQuery.Population(world, cityId);
         var (boundsForPlacement, boundsAreDerived) = CityOccupancy.ResolveGrownBounds(world, city, populationForBounds);
 
+        // CITYGROW-02b: null = escassez de terra pra este prédio agora -- excluído dos
+        // marcadores desta resposta em vez de derrubar a projeção inteira da cidade; nunca
+        // persistido, então volta a aparecer assim que houver espaço de novo.
         var buildings = world.Buildings
             .Where(b => b.City == cityId)
-            .Select(b =>
-            {
-                var (position, _, isDerived) = BuildingPlacementResolver.Resolve(b, city, world, boundsForPlacement);
-                return new CityBuildingMarker(b.Id, b.BuildingTypeId, position, isDerived);
-            })
+            .Select(b => BuildingPlacementResolver.Resolve(b, city, world, boundsForPlacement) is { } resolved
+                ? new CityBuildingMarker(b.Id, b.BuildingTypeId, resolved.Position, resolved.IsDerived)
+                : null)
+            .OfType<CityBuildingMarker>()
             .ToList();
 
         var layers = CityLayerBuilder.SupportedLayers.ToDictionary(id => id, CityLayerBuilder.Build);
