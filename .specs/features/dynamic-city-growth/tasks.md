@@ -865,7 +865,7 @@ containment)
 `BuildingFootprintAndPlacementTests.City_bounds_origin_stays_on_map_when_the_city_sits_right_at_the_map_edge`,
 `BuildingFootprintAndPlacementTests.Absorption_growth_near_the_map_edge_keeps_the_grown_box_fully_on_map`
 **Gate**: quick
-**Commit**: `fix(cities): keep newly-founded cities and grown bounds inside the map` (see git log for hash)
+**Commit**: `a214d5a` — `fix(cities): keep newly-founded cities and grown bounds inside the map`
 
 ---
 
