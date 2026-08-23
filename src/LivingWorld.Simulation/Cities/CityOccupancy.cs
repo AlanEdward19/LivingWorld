@@ -121,6 +121,35 @@ public static class CityOccupancy
     {
         var (populationBounds, _) = SpatialBoundsResolver.ResolveCity(city, population, world.Map.Width, world.Map.Height);
         var boxes = OwnedBuildingFootprintBoxes(world, city, populationBounds);
+
+        // Post-ship fix (cross-city bounds clamp): each other city's OWN un-clamped growth
+        // (population box unioned with ITS OWN overflow boxes only, via OwnGrowthBoundsIgnoringOtherCities
+        // below) -- deliberately NOT this same ResolveGrownBounds for the other city, which would
+        // recurse into every OTHER other city's ResolveGrownBounds and reintroduce the exact
+        // O(2^N) recursive blocker already fixed once in this feature (see the "blocker" doc
+        // comment on OccupiedCellsOfCity above). One level of "how far has this neighbor grown
+        // from its own buildings" is a cheap, non-recursive, still-correct-enough approximation to
+        // stop THIS city's growth at the gap boundary -- it doesn't need to also know whether that
+        // neighbor is itself being clamped by a third city.
+        var otherCityBounds = world.Cities
+            .Where(c => c.Id != city.Id)
+            .Select(other => OwnGrowthBoundsIgnoringOtherCities(world, other).Bounds)
+            .ToList();
+
+        return SpatialBoundsResolver.ResolveCity(
+            city, population, world.Map.Width, world.Map.Height, boxes, world.CityRules.AbsorptionRingCells, otherCityBounds);
+    }
+
+    /// <summary>dynamic-city-growth post-ship fix: one non-recursive level of a city's own growth
+    /// (population box ∪ its own overflow boxes), with no cross-city clamp applied -- the building
+    /// block <see cref="ResolveGrownBounds"/> uses to approximate a NEIGHBOR's extent without
+    /// calling back into the full cross-clamped resolution (which would recurse across every
+    /// city).</summary>
+    private static (CityBounds Bounds, bool IsDerived) OwnGrowthBoundsIgnoringOtherCities(WorldState world, City city)
+    {
+        long population = CityPopulationQuery.Population(world, city.Id);
+        var (populationBounds, _) = SpatialBoundsResolver.ResolveCity(city, population, world.Map.Width, world.Map.Height);
+        var boxes = OwnedBuildingFootprintBoxes(world, city, populationBounds);
         return SpatialBoundsResolver.ResolveCity(
             city, population, world.Map.Width, world.Map.Height, boxes, world.CityRules.AbsorptionRingCells);
     }

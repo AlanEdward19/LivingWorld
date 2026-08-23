@@ -51,9 +51,18 @@ public static class CityBoundsResolver
     // candidate overflow building's own absolute footprint box first, and passes plain
     // <see cref="CityBounds"/> boxes in. No behavior change for the many existing callers, since
     // both new parameters are optional and default to "no overflow buildings" (identical output).
+    // Post-ship fix (user-reported, 2026-08-23): growth from a city's own overflow buildings had
+    // no relationship at all to any OTHER city's bounds -- two cities founded at a safe distance
+    // could each grow toward each other, tick after tick, until their walls touched/overlapped.
+    // <paramref name="otherCityBoundsToAvoid"/> is the fix: any owned building box that would pull
+    // the resulting bounds within <paramref name="absorptionRingCells"/> of one of these boxes is
+    // simply not merged in -- bounds stop growing toward that neighbor at the gap boundary, they
+    // never jump/warp/overlap. Defaults to null (no other cities to avoid) so every existing
+    // single-city caller/test is unaffected.
     public static (CityBounds Bounds, bool IsDerived) Resolve(
         City city, long population, int mapWidth, int mapHeight,
-        IReadOnlyList<CityBounds>? ownedBuildingFootprintBoxes = null, int absorptionRingCells = 3)
+        IReadOnlyList<CityBounds>? ownedBuildingFootprintBoxes = null, int absorptionRingCells = 3,
+        IReadOnlyList<CityBounds>? otherCityBoundsToAvoid = null)
     {
         int side = SideFor(population, mapWidth, mapHeight);
         var origin = new CellCoord(city.Location.X - side / 2, city.Location.Y - side / 2);
@@ -70,10 +79,21 @@ public static class CityBoundsResolver
         {
             if (ChebyshevGap(populationBox, box) > absorptionRingCells) continue;
 
-            minX = Math.Min(minX, box.Origin.X);
-            minY = Math.Min(minY, box.Origin.Y);
-            maxX = Math.Max(maxX, box.Origin.X + box.Width - 1);
-            maxY = Math.Max(maxY, box.Origin.Y + box.Height - 1);
+            int candidateMinX = Math.Min(minX, box.Origin.X);
+            int candidateMinY = Math.Min(minY, box.Origin.Y);
+            int candidateMaxX = Math.Max(maxX, box.Origin.X + box.Width - 1);
+            int candidateMaxY = Math.Max(maxY, box.Origin.Y + box.Height - 1);
+
+            if (otherCityBoundsToAvoid is { Count: > 0 })
+            {
+                var candidateBounds = new CityBounds(
+                    new CellCoord(candidateMinX, candidateMinY),
+                    candidateMaxX - candidateMinX + 1, candidateMaxY - candidateMinY + 1);
+                if (otherCityBoundsToAvoid.Any(other => ChebyshevGap(candidateBounds, other) < absorptionRingCells))
+                    continue; // growing to include this box would close the gap to another city -- skip it
+            }
+
+            minX = candidateMinX; minY = candidateMinY; maxX = candidateMaxX; maxY = candidateMaxY;
         }
 
         int mapLimit = Math.Max(1, Math.Min(mapWidth, mapHeight) / 2);

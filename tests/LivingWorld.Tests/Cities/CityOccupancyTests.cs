@@ -230,14 +230,23 @@ public class CityOccupancyTests
 
     // --- absorção só na própria cidade (dynamic-city-growth, round-3 fix F, item 1) ---
 
-    /// <summary>spec.md, Edge Cases: um prédio de overflow absorve nos bounds da SUA PRÓPRIA
-    /// cidade (via <see cref="Building.City"/>), mesmo quando outra cidade está geometricamente
-    /// mais próxima dele -- o filtro de posse em <see
-    /// cref="OwnedBuildingFootprintBoxesWithOwners"/> exclui o prédio da lista de qualquer cidade
-    /// que não seja a dona, antes mesmo do cálculo de distância/anel de absorção rodar pra essa
-    /// outra cidade.</summary>
+    /// <summary>spec.md, Edge Cases: um prédio de overflow nunca é absorvido pelos bounds
+    /// RENDERIZADOS de uma cidade que não é a sua dona (via <see cref="Building.City"/>) -- o
+    /// filtro de posse em <see cref="OwnedBuildingFootprintBoxesWithOwners"/> exclui o prédio da
+    /// lista de qualquer cidade que não seja a dona, antes mesmo do cálculo de distância/anel de
+    /// absorção rodar pra essa outra cidade.
+    ///
+    /// Post-ship fix (2026-08-23, cross-city bounds clamp): esta era originalmente
+    /// "...mesmo quando outra cidade está geometricamente mais próxima dele" e afirmava que A
+    /// absorvia o prédio mesmo assim. Isso é matematicamente incompatível com o fix — se o prédio
+    /// já está mais perto de B do que a distância mínima exigida entre cidades
+    /// (AbsorptionRingCells), então absorvê-lo em A necessariamente puxaria os bounds de A pra
+    /// dentro do mesmo raio de B (o prédio se torna a borda de A mais próxima de B), violando
+    /// exatamente a garantia que o fix existe pra proteger. O comportamento correto agora: nem A
+    /// nem B crescem pra incluí-lo — ele fica overflow (ainda pertencente a A via Building.City,
+    /// só não faz parte dos bounds renderizados de ninguém) até deixar de estar tão perto de B.</summary>
     [Fact]
-    public void ResolveGrownBounds_absorbs_an_overflow_building_only_into_its_own_city_even_when_another_city_is_geometrically_closer()
+    public void ResolveGrownBounds_never_absorbs_an_overflow_building_into_a_city_that_is_not_its_owner()
     {
         var world = BuildWorldWithMap(200, 200, seed: 611);
         var cityA = new City(world.NextCityId(), new CellCoord(100, 100), 0, null, AggregatePopulationPool.Empty);
@@ -253,7 +262,8 @@ public class CityOccupancyTests
 
         // B posicionada de forma que o MESMO prédio fique geometricamente mais perto de B
         // (distância 1) que de A (distância 3) -- 105+w garante isso pra qualquer w gerado
-        // (ver cálculo do gap na doc comment do teste).
+        // (ver cálculo do gap na doc comment do teste). Sob o cross-city clamp, isso bloqueia a
+        // absorção do prédio por A (absorvê-lo fecharia o gap com B), não só a absorção por B.
         var cityB = new City(world.NextCityId(), new CellCoord(105 + w, 100), 0, null, AggregatePopulationPool.Empty);
         world.AddCity(cityB);
 
@@ -262,8 +272,9 @@ public class CityOccupancyTests
 
         var buildingCells = CityOccupancy.Translate(
             BuildingFootprintGenerator.Generate(rectId, 5).Select(c => c.Cell).ToList(), overflowBuilding.Position!.Value);
-        Assert.All(buildingCells, cell => Assert.True(grownA.Contains(cell))); // absorvido por A, seu dono
-        Assert.All(buildingCells, cell => Assert.False(grownB.Contains(cell))); // nunca por B, mesmo mais perto
+        Assert.All(buildingCells, cell => Assert.False(grownA.Contains(cell))); // bloqueado: absorver fecharia o gap com B
+        Assert.All(buildingCells, cell => Assert.False(grownB.Contains(cell))); // nunca por B, que nem é a dona
+        Assert.Equal(cityA.Id, overflowBuilding.City); // posse (Building.City) nunca muda, só os bounds renderizados
         var (baseB, _) = CityBoundsResolver.Resolve(cityB, population: 0, mapWidth: world.Map.Width, mapHeight: world.Map.Height);
         Assert.Equal(baseB, grownB); // B intocado -- o prédio nem entra na lista de posse de B
     }
@@ -327,5 +338,82 @@ public class CityOccupancyTests
             // então a origem do box coincide exatamente com a posição resolvida.
             Assert.Equal(truthPosition[id], box.Origin);
         }
+    }
+
+    // --- cross-city bounds clamp (post-ship fix, 2026-08-23) ---
+
+    private static int ChebyshevGapForTest(CityBounds a, CityBounds b)
+    {
+        int aRight = a.Origin.X + a.Width - 1, aBottom = a.Origin.Y + a.Height - 1;
+        int bRight = b.Origin.X + b.Width - 1, bBottom = b.Origin.Y + b.Height - 1;
+        int dx = Math.Max(0, Math.Max(a.Origin.X - bRight, b.Origin.X - aRight));
+        int dy = Math.Max(0, Math.Max(a.Origin.Y - bBottom, b.Origin.Y - aBottom));
+        return Math.Max(dx, dy);
+    }
+
+    /// <summary>Bug relatado em produção: duas cidades fundadas a uma distância segura, cada uma
+    /// crescendo por overflow tick após tick sem NUNCA se checar contra a outra -- eventualmente
+    /// seus bounds encostavam/se sobrepunham (paredes literalmente coladas). Reproduz o cenário:
+    /// A e B têm population boxes separadas por exatamente 2x <c>AbsorptionRingCells</c> (6
+    /// células, ring=3) -- geometria em que, isoladamente, cada uma pode absorver um prédio até
+    /// `ring` células em direção à outra (regra existente antes do fix), o que faria seus bounds
+    /// se tocarem ou sobrepor (gap 0 ou negativo) SEM o cross-city clamp. Simula várias "rodadas"
+    /// de absorção (um novo prédio de overflow mais próximo em cada uma, como novos ticks de
+    /// construção trariam) e assere que o gap real entre os bounds crescidos nunca cai abaixo de
+    /// <c>AbsorptionRingCells</c> em nenhuma rodada.</summary>
+    [Fact]
+    public void ResolveGrownBounds_never_lets_two_citys_grown_bounds_come_within_the_absorption_ring_of_each_other()
+    {
+        var world = BuildWorldWithMap(200, 200, seed: 612);
+        int ring = world.CityRules.AbsorptionRingCells; // 3, default
+
+        var cityA = new City(world.NextCityId(), new CellCoord(100, 100), 0, null, AggregatePopulationPool.Empty);
+        world.AddCity(cityA);
+        var cityB = new City(world.NextCityId(), new CellCoord(100, 108), 0, null, AggregatePopulationPool.Empty);
+        world.AddCity(cityB);
+        // popBoxA (pop 0) = (99,99)-(101,101); popBoxB = (99,107)-(101,109) -- 6 células de gap
+        // (2x ring) entre elas.
+
+        var (_, _, _, h) = FindRectangularFootprint(typeId: 5);
+        long nextId = 1;
+
+        for (int offset = 0; offset <= ring; offset++)
+        {
+            // Prédio de A avançando pra baixo, em direção a B; sempre dentro do próprio anel de
+            // absorção de A (distância `offset` <= ring da própria population box).
+            world.AddBuilding(new Building(new BuildingId(nextId++), cityA.Id, buildingTypeId: 5, completedAtTick: 0,
+                position: new CellCoord(100, 101 + offset), orientation: 0));
+            // Prédio de B avançando pra cima, em direção a A; mesma lógica, do outro lado.
+            world.AddBuilding(new Building(new BuildingId(nextId++), cityB.Id, buildingTypeId: 5, completedAtTick: 0,
+                position: new CellCoord(100, 108 - offset - h), orientation: 0));
+
+            var (grownA, _) = CityOccupancy.ResolveGrownBounds(world, cityA, population: 0);
+            var (grownB, _) = CityOccupancy.ResolveGrownBounds(world, cityB, population: 0);
+
+            int gap = ChebyshevGapForTest(grownA, grownB);
+            Assert.True(gap >= ring, $"offset={offset}: gap real entre A e B = {gap}, violou AbsorptionRingCells={ring}");
+        }
+    }
+
+    /// <summary>Regressão (spec.md, Success Criteria): uma cidade sem nenhuma outra por perto
+    /// continua crescendo normalmente -- o cross-city clamp não afeta o caso de uma única cidade
+    /// (mesmo comportamento de antes do fix, `otherCityBoundsToAvoid` vazio/nulo).</summary>
+    [Fact]
+    public void ResolveGrownBounds_still_absorbs_an_overflow_building_when_there_is_no_other_city_nearby()
+    {
+        var world = BuildWorldWithMap(200, 200, seed: 613);
+        var city = new City(world.NextCityId(), new CellCoord(100, 100), 0, null, AggregatePopulationPool.Empty);
+        world.AddCity(city);
+
+        var (rectId, _, _, _) = FindRectangularFootprint(typeId: 5);
+        var overflowBuilding = new Building(
+            rectId, city.Id, buildingTypeId: 5, completedAtTick: 0, position: new CellCoord(104, 99), orientation: 0);
+        world.AddBuilding(overflowBuilding);
+
+        var (grown, _) = CityOccupancy.ResolveGrownBounds(world, city, population: 0);
+
+        var buildingCells = CityOccupancy.Translate(
+            BuildingFootprintGenerator.Generate(rectId, 5).Select(c => c.Cell).ToList(), overflowBuilding.Position!.Value);
+        Assert.All(buildingCells, cell => Assert.True(grown.Contains(cell))); // absorvido normalmente, sem clamp pra aplicar
     }
 }
