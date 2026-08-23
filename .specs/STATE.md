@@ -60,6 +60,33 @@
 
 ## Handoff
 
+- **Round-3 post-ship fixes (2026-08-23) — population-box cross-city clamp + household poaching**:
+  user reported cities' walls touching again AND population "jumping" between two adjacent
+  cities, both after FixT8-FixT12 already landed. Two more real root causes, both in
+  `dynamic-city-growth`'s own code, both committed:
+  1. `CityBoundsResolver.Resolve`'s `otherCityBoundsToAvoid` clamp (FixT8) only ever applied to
+     the MERGED overflow boxes — the base population-only `populationBox` was returned unclamped
+     whenever there were no owned boxes to merge. Since households don't have real building
+     positions yet, this population box is what's actually rendered/dominant on the map, so two
+     cities could grow into each other purely from population increase. Fix: new private
+     `ClampSideAgainstOtherCities` helper shrinks `populationBox` the same way `ClampOrigin`
+     already shrinks it for the map edge. Two existing tests whose assertions assumed the
+     population box was immune to cross-city clamping were rewritten against the production code
+     path's own (now correctly shrunk) bounds — same precedent as FixT8's own test rewrite.
+     Commit `433a219` — `fix(cities): clamp the population-derived bounds box against neighboring
+     cities too`.
+  2. `SpatialSettlementFoundingSystem.HandleEvent`'s household-reassignment loop had no check that
+     a household belonged to the founding cluster's own mother city — it swept up ANY household
+     whose head stood inside `clusterBounds`, including households already properly settled in a
+     NEIGHBORING city. Combined with fix 1 above (cities can now legitimately sit closer
+     together), this repeatedly poached already-settled households back and forth every monthly
+     re-scan. Fix: `if (household.City != motherCityId) continue;` guard before the existing
+     geometric check. Commit `499d6d1` — `fix(cities): stop spatial founding from poaching
+     households that already belong elsewhere`.
+  - Gate: `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"` — 232
+    passed, 0 failed (230 baseline + 2 new tests).
+  - Detail in `.specs/features/dynamic-city-growth/tasks.md` (FixT13, FixT14).
+
 - **Ghost-town fixes (2026-08-23)** — usuário relatou que cidades recém-fundadas continuam
   virando cidade-fantasma (NPCs "vão trabalhar" numa cidade vizinha e voltam). Duas causas raiz
   reais, sem relação uma com a outra, ambas commitadas:

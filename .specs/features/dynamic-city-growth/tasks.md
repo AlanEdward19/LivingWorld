@@ -904,6 +904,82 @@ with a separate, uncommitted, in-progress relocation feature — `RelocationArri
 
 ---
 
+### FixT13: Clamp the population-only bounds box against other cities too — ✅ Done (commit `433a219`)
+
+**What**: user reported cities' walls touching/overlapping again after FixT8-FixT12. Root cause:
+`CityBoundsResolver.Resolve`'s `otherCityBoundsToAvoid` clamp (FixT8) only ever applied to the
+MERGED overflow boxes — the base `populationBox` (built purely from `city.Location` + population,
+via `SideFor`) was returned as-is, unclamped, whenever there were no owned boxes to merge (or none
+within `absorptionRingCells`). Since households don't have real building positions yet
+(`real-household-workplace-buildings` not started), this population box is what's actually
+rendered/dominant on the map — two cities' population boxes could grow into each other with zero
+clamp, purely from population increase, no overflow buildings involved at all.
+**Fix**: a new private `ClampSideAgainstOtherCities` helper shrinks `populationBox`'s side (keeping
+it centered on `city.Location`) until its gap to every box in `otherCityBoundsToAvoid` is at least
+`absorptionRingCells`, applied before `populationBox` is used as the union base — same treatment
+`ClampOrigin` (FixT11) already gave it for the map edge. Two existing tests
+(`FoundingSitePickerTests.Pick_rejects_the_cell_the_old_exact_cell_only_check_would_have_accepted`,
+`CityOccupancyTests.ResolveGrownBounds_never_absorbs_an_overflow_building_into_a_city_that_is_not_its_owner`)
+had assertions built on the population box never shrinking from cross-city proximity — now
+mathematically incompatible with the corrected invariant — rewritten to check against the
+production code path's own (now correctly shrunk) bounds instead, same precedent as FixT8's test
+rewrite.
+**Where**: `src/LivingWorld.Domain/Cities/CityBoundsResolver.cs`,
+`tests/LivingWorld.Tests/Cities/BuildingFootprintAndPlacementTests.cs`,
+`tests/LivingWorld.Tests/Cities/FoundingSitePickerTests.cs` (assertion rewrite),
+`tests/LivingWorld.Tests/Cities/CityOccupancyTests.cs` (assertion rewrite)
+**Requirement**: CITYGROW-03/05 (bounds growth), new edge case (cross-city gap, population-only path)
+
+**Done when**:
+- [x] Two cities close enough that their population-only boxes (no overflow buildings involved at
+      all) would otherwise grow into contact as population increases never come within
+      `absorptionRingCells` of each other
+- [x] Existing tests whose premise assumed the population box was immune to cross-city clamping
+      rewritten against the actual (now correctly clamped) production bounds
+- [x] Gate check passes: `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"`
+      — 232 passed, 0 failed (230 baseline + 1 new test + 1 from FixT14 below)
+
+**Tests**: unit —
+`BuildingFootprintAndPlacementTests.Resolve_clamps_the_population_only_box_against_other_cities_even_with_no_overflow_buildings`
+**Gate**: quick
+**Commit**: `433a219` — `fix(cities): clamp the population-derived bounds box against neighboring cities too`
+
+---
+
+### FixT14: Stop spatial founding from poaching households that already belong elsewhere — ✅ Done (commit `499d6d1`)
+
+**What**: user reported population "jumping" back and forth between two adjacent cities.
+`SpatialSettlementFoundingSystem.HandleEvent`'s household-reassignment loop had no check that a
+household actually belonged to the founding cluster's own mother city — it swept up ANY household
+in the world whose head currently stood inside `clusterBounds`, including households that already
+properly belonged to a NEIGHBORING city. Combined with FixT13 (two cities can now legitimately
+coexist within a small gap of each other), this repeatedly poached already-settled households back
+and forth every monthly re-scan just because a head happened to be standing in the cluster's
+footprint at that exact tick.
+**Fix**: added `if (household.City != motherCityId) continue;` before the existing
+`Npc.CurrentLocation`-based geometric check — only households whose current `City` matches the
+cluster's real mother city can be reassigned; a household already settled elsewhere is never
+touched regardless of where its head happens to be standing.
+**Where**: `src/LivingWorld.Simulation/Cities/SpatialSettlementFoundingSystem.cs`
+**Requirement**: CITYGROW-04 (spatial founding household reassignment)
+
+**Done when**:
+- [x] A household already belonging to a neighboring city, whose head happens to be standing
+      inside a newly-founding cluster's `clusterBounds`, is NOT reassigned to the new city
+- [x] Regression: households that genuinely belong to the cluster's mother city still get
+      reassigned (existing tests FixT12/T7 continue to pass)
+- [x] Gate check passes: `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"`
+      — 232 passed, 0 failed
+- [x] Discrimination check: temporarily removing the new guard makes the new test fail (mutant
+      killed), confirming the test actually exercises the fix
+
+**Tests**: unit —
+`SpatialSettlementFoundingSystemTests.HandleEvent_never_reassigns_a_household_that_already_belongs_to_a_different_city`
+**Gate**: quick
+**Commit**: `499d6d1` — `fix(cities): stop spatial founding from poaching households that already belong elsewhere`
+
+---
+
 ### Process note (no code change): commit `2133401` bundled unrelated Stage-4 work
 
 Round-2 Verifier flagged that `2133401` (FixT2) swept ~150 lines of pre-existing, unrelated
