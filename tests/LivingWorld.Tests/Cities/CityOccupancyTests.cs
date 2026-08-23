@@ -201,4 +201,65 @@ public class CityOccupancyTests
         }).ToList();
         Assert.Equal(allCells.Count, allCells.Distinct().Count()); // nenhum prédio derivado sobrepõe outro
     }
+
+    // --- ordem causal ascendente (dynamic-city-growth, round-3 fix A / Gap D) ---
+
+    /// <summary>O doc comment de <see cref="CityOccupancy.OccupiedCellsOfCity"/> chama a ordem
+    /// ascendente por <see cref="BuildingId"/> de "obrigatória": ao resolver o prédio k, o conjunto
+    /// já ocupado precisa conter exatamente as células dos prédios de id MENOR, a mesma
+    /// causalidade que a versão recursiva original tinha. Nenhum teste existente pega uma troca
+    /// para <c>OrderByDescending</c> -- o resultado em lote continua internamente consistente
+    /// (sem sobreposição) mesmo invertido, só discorda da posição real que cada prédio teria se
+    /// resolvido sozinho na ordem causal correta. Este teste compara exatamente isso: a posição
+    /// que <see cref="OwnedBuildingFootprintBoxesWithOwners"/> (lote) atribui a cada prédio contra
+    /// a posição "verdade fundamental" obtida resolvendo cada um sozinho, em ordem ascendente,
+    /// adicionando sua posição real ao mundo antes do próximo -- exatamente a causalidade que o
+    /// comentário chama de obrigatória.</summary>
+    [Fact]
+    public void OwnedBuildingFootprintBoxesWithOwners_places_each_building_using_the_causal_ascending_id_order()
+    {
+        const int buildingType = 1;
+        var ids = new long[] { 10, 11, 12, 13 };
+        // Bounds pequenos o bastante pra que a posição do prédio k dependa de verdade das
+        // células já ocupadas pelos prédios de id menor (sem isso, todo mundo caberia livre em
+        // qualquer ordem e o teste não pegaria a inversão). Mapa grande o bastante em volta
+        // (igual ao teste de perf abaixo) pra que um eventual overflow tenha pra onde crescer,
+        // nunca escassez de terra por causa do MAPA (o que testaria outra coisa).
+        var bounds = new CityBounds(new CellCoord(100, 100), 6, 6);
+
+        // Verdade fundamental: resolve cada prédio na ordem causal ascendente, uma chamada por
+        // vez, gravando a posição real no mundo antes de resolver o próximo.
+        var truthWorld = BuildWorldWithMap(200, 200, seed: 609);
+        var truthCity = new City(truthWorld.NextCityId(), new CellCoord(100, 100), 0, null, AggregatePopulationPool.Empty);
+        truthWorld.AddCity(truthCity);
+        var truthPosition = new Dictionary<long, CellCoord>();
+        foreach (var id in ids)
+        {
+            var building = new Building(new BuildingId(id), truthCity.Id, buildingType, completedAtTick: 0);
+            var resolved = BuildingPlacementResolver.Resolve(building, truthCity, truthWorld, bounds);
+            Assert.NotNull(resolved);
+            truthPosition[id] = resolved!.Value.Position;
+            truthWorld.AddBuilding(new Building(
+                building.Id, truthCity.Id, buildingType, completedAtTick: 0,
+                position: resolved.Value.Position, orientation: resolved.Value.Orientation));
+        }
+
+        // Lote: os mesmos ids/tipo, todos sem posição autorada, resolvidos de uma vez pelo
+        // método sob teste.
+        var batchWorld = BuildWorldWithMap(200, 200, seed: 609);
+        var batchCity = new City(batchWorld.NextCityId(), new CellCoord(100, 100), 0, null, AggregatePopulationPool.Empty);
+        batchWorld.AddCity(batchCity);
+        foreach (var id in ids)
+            batchWorld.AddBuilding(new Building(new BuildingId(id), batchCity.Id, buildingType, completedAtTick: 0));
+
+        var boxes = CityOccupancy.OwnedBuildingFootprintBoxesWithOwners(batchWorld, batchCity, bounds);
+
+        foreach (var id in ids)
+        {
+            var box = boxes.Single(b => b.Building.Id.Value == id).Box;
+            // Formato do footprint sempre inclui a célula local (0,0) (BuildingFootprintGenerator),
+            // então a origem do box coincide exatamente com a posição resolvida.
+            Assert.Equal(truthPosition[id], box.Origin);
+        }
+    }
 }
