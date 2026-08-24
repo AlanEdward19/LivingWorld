@@ -311,6 +311,57 @@ the map-resize removal), `Cities` namespace: 0 failures reported.
 
 ---
 
+### Fix: house token glides along with a walking NPC (interpolation key collision)
+
+**Bug (user-reported, "casa gruda no NPC")**: `web/src/map-engine/interpolation.ts`'s
+`InterpolationBuffer.byEntity` was keyed by a bare `entity.ref.id` string — building ids and NPC
+ids are independent backend counters that can collide in a small world (both starting near 0/1).
+When a building and an NPC shared the same numeric id, they shared one animation record; the
+NPC's `observe()` call (every tick) kept re-arming that shared record, so the building's rendered
+position visually "glided" along with the NPC even though it never moves.
+
+**Fix**: added `key(ref: EntityRef): string` (`` `${ref.kind}:${ref.id}` ``) in
+`web/src/map-engine/interpolation.ts`, used at both call sites in `web/src/components/MapView.tsx`
+(`observe`/`visualPositionOf`) instead of the bare id. No other call site keys
+`InterpolationBuffer` (only these two, verified by grep).
+
+**Tests added**: `web/tests/map-engine/interpolation.test.ts` —
+`keeps a building and an NPC with the same numeric id from colliding in the same record`.
+
+**Verified**: `npx vitest run` (web/) — 67 files, 428 tests, 0 failed.
+
+**Commit**: `c606c11`
+
+---
+
+### Fix: household placement scatter — clarified test boundary (companion to `9bfc23b`)
+
+Confirmed root cause matches the "map-auto-resize removal" fix above:
+`PopulationSeeder.PlaceHouseholdBuildings` now resolves every household's building through
+`BuildingPlacementResolver.Resolve` (bounds-first, then ring-search-from-edge overflow) instead of
+a custom map-wide scan, so households land near the city instead of scattered arbitrarily far.
+
+The `PopulationSeederTests` failure noted above (1/14) was this session's own new test asserting
+too strong a guarantee: it required every household's location to end up literally *inside*
+`CityOccupancy.ResolveGrownBounds`'s final box. That box's absorption
+(`CityBoundsResolver.Resolve`) checks each overflow footprint's distance against the *original*
+population-only box, not the box as already grown by other absorbed buildings — so a household
+placed correctly (1 cell from the final edge, well within `AbsorptionRingCells`) can still be
+excluded from the box itself. That's a separate, pre-existing `dynamic-city-growth` limitation
+(non-transitive absorption), out of scope here — flagged separately, not fixed in this pass.
+
+Relaxed the test to assert what this fix actually guarantees: every household's Chebyshev distance
+to the final grown bounds is `<= CityRules.AbsorptionRingCells` (i.e., placed near the city edge,
+never scattered map-wide) — renamed to
+`SeedInitial_places_houses_that_do_not_fit_the_initial_bounds_near_the_city_edge_not_scattered_map_wide`.
+Full backend gate (`Category!=Scenario&(FullyQualifiedName~Population|FullyQualifiedName~Cities)`):
+494 passed, 0 failed, 2 skipped.
+
+**Commits**: `9bfc23b`, `37be7e0` (test fix landed as part of the shared working tree during this
+session; no separate commit was possible since the file already matched HEAD).
+
+---
+
 ## Parallel Execution Map
 
 ```
