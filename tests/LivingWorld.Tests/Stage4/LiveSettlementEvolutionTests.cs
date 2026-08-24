@@ -71,7 +71,7 @@ public class LiveSettlementEvolutionTests
 
         var head = MakeNpc(world, 1, origin.Id, origin.Location);
         world.AddNpc(head);
-        var household = new Household(new HouseholdId(1), origin.Location, head.Id, [head.Id], city: origin.Id);
+        var household = new Household(new HouseholdId(1), new CellCoord(9, 9), head.Id, [head.Id], city: origin.Id);
         head.JoinHousehold(household.Id);
         household.Deposit(Food, 0);
         world.AddHousehold(household);
@@ -101,7 +101,7 @@ public class LiveSettlementEvolutionTests
         var member = MakeNpc(world, 2, origin.Id, origin.Location);
         world.AddNpc(head);
         world.AddNpc(member);
-        var household = new Household(new HouseholdId(1), origin.Location, head.Id, [head.Id, member.Id], city: origin.Id);
+        var household = new Household(new HouseholdId(1), new CellCoord(9, 9), head.Id, [head.Id, member.Id], city: origin.Id);
         head.JoinHousehold(household.Id);
         member.JoinHousehold(household.Id);
         household.Deposit(Food, 0);

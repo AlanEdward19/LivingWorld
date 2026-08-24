@@ -100,7 +100,7 @@ public static class CityOccupancy
                 ?? BuildingPlacementResolver.Resolve(building, city, world, populationBounds)?.Position;
             if (position is null) continue;
 
-            var shape = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId).Select(c => c.Cell).ToList();
+            var shape = BuildingFootprintGenerator.Generate(building).Select(c => c.Cell).ToList();
             var cells = Translate(shape, position.Value);
             if (cells.Count == 0) continue;
 
@@ -131,7 +131,7 @@ public static class CityOccupancy
         // from its own buildings" is a cheap, non-recursive, still-correct-enough approximation to
         // stop THIS city's growth at the gap boundary -- it doesn't need to also know whether that
         // neighbor is itself being clamped by a third city.
-        var otherCityBounds = world.Cities
+        var otherCityBounds = world.ActiveCities()
             .Where(c => c.Id != city.Id)
             .Select(other => OwnGrowthBoundsIgnoringOtherCities(world, other).Bounds)
             .ToList();
@@ -208,7 +208,7 @@ public static class CityOccupancy
 
         foreach (var building in siblings.OrderBy(b => b.Id.Value))
         {
-            var shape = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId).Select(c => c.Cell).ToList();
+            var shape = BuildingFootprintGenerator.Generate(building).Select(c => c.Cell).ToList();
 
             CellCoord? position;
             if (building.Position is { } authored)
@@ -239,7 +239,7 @@ public static class CityOccupancy
             if (ownerCity is null) continue;
 
             var position = building.Position ?? LegacyRingFallback(building.Id, ownerCity.Location);
-            var shape = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId).Select(c => c.Cell).ToList();
+            var shape = BuildingFootprintGenerator.Generate(building).Select(c => c.Cell).ToList();
             foreach (var cell in Translate(shape, position))
                 occupied.Add(cell);
         }

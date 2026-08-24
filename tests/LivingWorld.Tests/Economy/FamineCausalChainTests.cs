@@ -10,36 +10,44 @@ public class FamineCausalChainTests
     private static readonly ResourceType Trigo = new(1);
     private const long T0 = 0;
 
-    // Dia 20: cedo o bastante pra nenhum braço ter colapsado por morte em massa ainda (o corte a
-    // zero, mult=0, mata gente de verdade depois de ~dia 40 — contagem de "fome acima do limiar"
-    // sobre só quem está vivo esconderia o efeito num horizonte mais longo, os famintos já
-    // teriam morrido); tarde o bastante pro buffer inicial de bootstrap (T20, 50 unidades por
-    // Household) já ter esgotado nas casas mais desfavorecidas (achado rodando dia a dia).
-    private const long CheckpointHours = 20 * 24;
+    // Uma fotografia tardia volta a zero quando os famintos já morreram; uma fotografia cedo
+    // demais depende do horário da última refeição. A carga horária de fome soma quantos NPCs
+    // permanecem acima do limiar a cada hora: distingue o cruzamento normal antes de comer de uma
+    // privação sustentada. Mortes não somem da coorte (fome extrema é estado absorvente para esta
+    // medida causal). O harness mantém moradia/mercado/mão de obra iguais nos dois braços.
+    private const long ObservationHours = 30 * 24;
 
-    private static int HungryCount(ulong seed, double productionMultiplier)
+    private static long HungryNpcHoursDuringWindow(ulong seed, double productionMultiplier)
     {
-        var (world, clock) = EconomyScenarioHarness.Create(seed, Trigo, productionMultiplier, T0, initialPopulation: 150);
-        clock.Run(world, CheckpointHours);
-
+        var (world, clock) = EconomyScenarioHarness.CreateControlledFamineScenario(
+            seed, Trigo, productionMultiplier, T0, initialPopulation: 150);
         int threshold = world.NeedsRules.UrgencyThreshold;
-        return world.Npcs.Count(n => n.IsAlive && (100 - n.HungerAt(world.CurrentDate.TotalHours)) >= threshold);
+        long hungryNpcHours = 0;
+        for (long hour = 0; hour < ObservationHours; hour++)
+        {
+            clock.Run(world, 1);
+            hungryNpcHours += world.Npcs.Count(
+                npc => (100 - npc.HungerAt(world.CurrentDate.TotalHours)) >= threshold);
+        }
+        return hungryNpcHours;
     }
 
     [Fact]
     public void Famine_raises_the_hungry_count_above_the_scenarios_threshold_in_10_of_10_seeds()
     {
         int seedsWhereTreatmentHigher = 0;
+        var evidence = new List<string>();
 
         for (ulong seed = 1; seed <= 10; seed++)
         {
-            int baseHungry = HungryCount(seed, productionMultiplier: 1.0);
-            int treatmentHungry = HungryCount(seed, productionMultiplier: 0.0);
+            long baseHungry = HungryNpcHoursDuringWindow(seed, productionMultiplier: 1.0);
+            long treatmentHungry = HungryNpcHoursDuringWindow(seed, productionMultiplier: 0.0);
 
             if (treatmentHungry > baseHungry) seedsWhereTreatmentHigher++;
+            evidence.Add($"{seed}:base={baseHungry},trat={treatmentHungry}");
         }
 
         Assert.True(seedsWhereTreatmentHigher == 10,
-            $"{seedsWhereTreatmentHigher}/10 seeds tiveram mais NPCs com fome acima do limiar no braço de tratamento (quebra de safra)");
+            $"{seedsWhereTreatmentHigher}/10 seeds tiveram mais NPCs com fome acima do limiar no braço de tratamento (quebra de safra); {string.Join("; ", evidence)}");
     }
 }

@@ -3,7 +3,14 @@
 // componente muda, só o argumento no composition root (main.tsx).
 import type { TimeControlSource } from "../sources";
 import type { SimulationStatus } from "../contracts";
-import { pauseSimulation, resumeSimulation, setSimulationSpeed, stepSimulation, fetchSimulationStatus } from "../../api";
+import {
+  advanceSimulationYear,
+  fetchSimulationStatus,
+  pauseSimulation,
+  resumeSimulation,
+  setSimulationSpeed,
+  stepSimulation,
+} from "../../api";
 
 export class RealTimeControlSource implements TimeControlSource {
   async pause(): Promise<void> {
@@ -20,6 +27,10 @@ export class RealTimeControlSource implements TimeControlSource {
 
   async step(): Promise<void> {
     await stepSimulation();
+  }
+
+  async advanceYear(): Promise<void> {
+    await advanceSimulationYear();
   }
 
   async status(): Promise<SimulationStatus> {

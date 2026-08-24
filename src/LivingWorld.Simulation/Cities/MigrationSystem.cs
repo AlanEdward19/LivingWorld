@@ -11,8 +11,9 @@ namespace LivingWorld.Simulation;
 //   - Segurança: nenhuma fonte de dado existe em Foundation — nível sempre neutro 0.5.
 //   - Laços familiares: fração de MotherId/FatherId/Spouse vivos do household que já residem na
 //     cidade candidata.
-// Só household materializado decide (o Head precisa ter Npc real); migra pra cidade com maior
-// score que a atual (empate mantém — sem margem extra inventada).
+// Só household materializado e sob uma necessidade real decide (falta de emprego/comida,
+// residência fora dos bounds ou escassez total de terra). O score escolhe o destino; ele não é,
+// sozinho, motivo para abandonar uma vida estável.
 
 /// <summary>Household/NPC materializado decide migrar pesando emprego/comida/segurança/laços
 /// familiares (Fase 8, T12, CITY-07) — inicia deslocamento para o destino; <see
@@ -47,7 +48,8 @@ public sealed class MigrationSystem : ISimulationSystem
 
     public void Tick(WorldState world, TickContext ctx)
     {
-        if (!world.CityRules.Enabled || world.Cities.Count < 2) return;
+        var activeCities = world.ActiveCities().OrderBy(city => city.Id.Value).ToList();
+        if (!world.CityRules.Enabled || activeCities.Count < 2) return;
         var rules = world.CityRules;
         // ponytail: cache por CityId dentro do Tick (não por household) — households da mesma
         // cidade não repetem o scan de mapa inteiro; cachear entre ticks só se aparecer no profiling.
@@ -55,7 +57,7 @@ public sealed class MigrationSystem : ISimulationSystem
         bool IsLandScarce(CityId cityId)
         {
             if (scarcityCache.TryGetValue(cityId, out var cached)) return cached;
-            var city = world.FindCity(cityId);
+            var city = world.FindActiveCity(cityId);
             bool scarce = city is not null && CityOccupancy.IsLandScarce(world, city, LandScarcityProbeShape);
             scarcityCache[cityId] = scarce;
             return scarce;
@@ -63,16 +65,20 @@ public sealed class MigrationSystem : ISimulationSystem
 
         foreach (var household in world.Households.OrderBy(h => h.Id.Value).ToList())
         {
+            if (household.PendingRelocationCity is not null) continue;
             var head = world.FindNpc(household.Head);
             if (head is not { IsAlive: true }) continue; // só household materializado decide
 
             var currentCity = head.City;
+            bool landScarce = IsLandScarce(currentCity);
+            if (!NeedsMigration(world, rules, household, head, landScarce, activeCities)) continue;
+
             City? bestCity = null;
             // T5/CITYGROW edge case: mapa sem célula livre em lugar nenhum força o score de
             // "ficar" pro mínimo teórico, sem afetar o score de nenhuma cidade candidata.
-            double bestScore = IsLandScarce(currentCity) ? double.NegativeInfinity : ScoreOf(world, rules, household, currentCity);
+            double bestScore = landScarce ? double.NegativeInfinity : ScoreOf(world, rules, household, currentCity);
 
-            foreach (var candidate in world.Cities)
+            foreach (var candidate in activeCities)
             {
                 if (candidate.Id == currentCity) continue;
                 double score = ScoreOf(world, rules, household, candidate.Id);
@@ -99,6 +105,47 @@ public sealed class MigrationSystem : ISimulationSystem
                 member.SetCurrentAction(ActionType.Travel, ctx.CurrentTick);
             }
         }
+    }
+
+    private static bool NeedsMigration(
+        WorldState world, CityRules rules, Household household, Npc head, bool landScarce,
+        IReadOnlyList<City> activeCities)
+    {
+        if (landScarce)
+            return true;
+
+        long aliveMembers = household.Members.Count(id => world.FindNpc(id) is { IsAlive: true });
+        var foodResource = new ResourceType(world.EconomyRules.FoodResourceId);
+        double minimumFood = aliveMembers * (1.0 - rules.FoodShortageThreshold / 100.0);
+        bool householdLacksFood = household.Stock.GetValueOrDefault(foodResource) < minimumFood;
+        bool cityLacksFood = FoodLevel(world, head.City) < 1.0 - rules.FoodShortageThreshold / 100.0;
+        if (householdLacksFood && cityLacksFood)
+            return true;
+
+        if (world.EconomyRules.Enabled && head.Employer is null
+            && activeCities.Any(city => city.Id != head.City && HasVacancyFor(world, head, city.Id)))
+            return true;
+
+        var city = world.FindActiveCity(head.City);
+        if (city is null)
+            return true;
+
+        long population = CityPopulationQuery.Population(world, city.Id);
+        var (bounds, _) = CityOccupancy.ResolveGrownBounds(world, city, population);
+        // A posição corrente pode estar fora da cidade por trabalho, visita ou deslocamento.
+        // Só a residência estável fora dos bounds representa falta real de moradia local.
+        return !bounds.Contains(household.Location);
+    }
+
+    private static bool HasVacancyFor(WorldState world, Npc npc, CityId cityId)
+    {
+        if (!world.EconomyCatalog.LocationTypeByProfession.TryGetValue(npc.Profession.Id, out int locationTypeId))
+            return false;
+
+        return world.Workplaces.Any(workplace =>
+            workplace.City == cityId
+            && workplace.LocationType.Id == locationTypeId
+            && workplace.Employees.Count < workplace.MaxVacancies);
     }
 
     private static double ScoreOf(WorldState world, CityRules rules, Household household, CityId cityId) =>

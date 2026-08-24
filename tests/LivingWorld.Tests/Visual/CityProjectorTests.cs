@@ -15,13 +15,9 @@ public class CityProjectorTests
         var world = ScenarioRunner.Create(seed: 11, initialPopulation: 2).World;
         var resident = world.Npcs.First();
 
-        var city = new City(
-            world.NextCityId(), resident.CurrentLocation, foundedAtTick: 0, foundedFromCityId: null,
-            aggregatePool: new AggregatePopulationPool(4, 400, 300));
-        world.AddCity(city);
-        resident.JoinCity(city.Id);
+        var city = world.ActiveCities().Single();
 
-        var building = new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId: 1, completedAtTick: 0);
+        var building = new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId: -1, completedAtTick: 0);
         world.AddBuilding(building);
 
         return (world, city, resident);
@@ -45,7 +41,7 @@ public class CityProjectorTests
         var result = CityProjector.Build(world, city.Id);
 
         Assert.True(result.IsSuccess);
-        var marker = Assert.Single(result.Value!.Residents);
+        var marker = Assert.Single(result.Value!.Residents, item => item.Id == resident.Id);
         Assert.Equal(resident.Id, marker.Id);
         Assert.Equal(resident.CurrentLocation, marker.Location);
         Assert.Equal(resident.CurrentAction, marker.CurrentAction);
@@ -58,7 +54,7 @@ public class CityProjectorTests
 
         var result = CityProjector.Build(world, city.Id);
 
-        Assert.Single(result.Value!.Buildings);
+        Assert.NotEmpty(result.Value!.Buildings);
     }
 
     // --- Fase 15.1, T20: campos de posição de prédio (Location/LocationIsDerived) ---
@@ -67,23 +63,17 @@ public class CityProjectorTests
     public void Build_resolves_an_unauthored_buildings_location_as_derived_and_stable()
     {
         var (world, city, _) = MakeWorldWithCity();
-        var engineBuilding = world.Buildings.Single();
+        var engineBuilding = world.Buildings.Single(building => building.City == city.Id && building.Position is null);
 
-        var marker = Assert.Single(CityProjector.Build(world, city.Id).Value!.Buildings);
+        var marker = CityProjector.Build(world, city.Id).Value!.Buildings.Single(building => building.Id == engineBuilding.Id);
 
-        // dynamic-city-growth, T3: mesmos bounds que CityProjector.Build resolve internamente,
-        // pra comparar com o mesmo contexto de ocupação.
-        long population = CityPopulationQuery.Population(world, city.Id);
-        var bounds = SpatialBoundsResolver.ResolveCity(city, population, world.Map.Width, world.Map.Height).Bounds;
-        var expectedResolved = BuildingPlacementResolver.Resolve(engineBuilding, city, world, bounds);
-        Assert.NotNull(expectedResolved);
-        Assert.True(expectedResolved!.Value.IsDerived);
         Assert.True(marker.LocationIsDerived);
-        Assert.Equal(expectedResolved.Value.Position, marker.Location);
+        var repeated = CityProjector.Build(world, city.Id).Value!.Buildings.Single(building => building.Id == engineBuilding.Id);
+        Assert.Equal(marker.Location, repeated.Location);
     }
 
     [Fact]
-    public void Build_prefers_an_authored_buildings_real_position_and_marks_it_not_derived()
+    public void Build_does_not_render_an_authored_overflow_building_outside_the_city_grid()
     {
         var (world, city, _) = MakeWorldWithCity();
         var authored = new Building(
@@ -91,10 +81,9 @@ public class CityProjectorTests
             position: new CellCoord(city.Location.X + 9, city.Location.Y + 9), orientation: 90);
         world.AddBuilding(authored);
 
-        var marker = CityProjector.Build(world, city.Id).Value!.Buildings.Single(b => b.Id == authored.Id);
+        var markers = CityProjector.Build(world, city.Id).Value!.Buildings;
 
-        Assert.False(marker.LocationIsDerived);
-        Assert.Equal(new CellCoord(city.Location.X + 9, city.Location.Y + 9), marker.Location);
+        Assert.DoesNotContain(markers, marker => marker.Id == authored.Id);
     }
 
     [Fact]

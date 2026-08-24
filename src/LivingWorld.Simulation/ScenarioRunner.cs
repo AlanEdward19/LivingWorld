@@ -42,8 +42,11 @@ public static class ScenarioRunner
     public static IReadOnlyList<ISimulationSystem> DefaultSystems(
         IReadOnlyList<PeriodTransformationRule>? periodTransformationRules = null,
         ConversationSessionStore? conversationSessions = null,
-        ChronicleGenerationSystem? chronicles = null) =>
-    [
+        ChronicleGenerationSystem? chronicles = null,
+        ExtraordinaryScenarioData? extraordinary = null)
+    {
+        var systems = new List<ISimulationSystem>
+        {
         new PeriodEvolutionSystem(periodTransformationRules ?? []),
         new ExampleCounterSystem(TickFrequency.Hourly),
         new ExampleCounterSystem(TickFrequency.Daily),
@@ -76,18 +79,41 @@ public static class ScenarioRunner
         new SpatialSettlementFoundingSystem(),
         chronicles ?? new ChronicleGenerationSystem(),
         conversationSessions ?? new ConversationSessionStore(),
-    ];
+        };
+        if (extraordinary?.Enabled == true)
+            systems.Add(new ExtraordinaryStateSystem());
+        return systems;
+    }
 
     private static readonly GeographyCatalog DefaultCatalog = new(
         TerrainIds: new HashSet<int> { 1, 2, 3 }, BiomeIds: new HashSet<int> { 1 }, ResourceIds: new HashSet<int>());
 
     private static readonly CostWeights DefaultCostWeights = new(
-        Base: 1.0, AltitudeWeight: 0.5,
+        // O grid procedural cresceu para materializar casas/workplaces; 1h por célula fazia uma
+        // travessia urbana ocupar dias. Cada célula default representa 30 minutos de caminhada.
+        Base: 0.5, AltitudeWeight: 0.05,
         TerrainWeight: new Dictionary<int, double> { [1] = 1.0, [2] = 1.5, [3] = 3.0 });
 
     public static WorldMap DefaultMap(ulong seed) =>
         MapGenerator.Generate(seed, width: 10, height: 10, regionSize: 5, DefaultCatalog, DefaultCostWeights, [])
             .Value ?? throw new InvalidOperationException("gerador default falhou — bug no gerador, não no cenário");
+
+    internal static int InitialMapSideForPopulation(int initialPopulation)
+    {
+        const int regionSize = 5;
+        const int maxBuildingFootprintCells = 6 * 5;
+        long buildingSlots = Math.Max(0, (long)initialPopulation) + 2;
+        int requiredSide = (int)Math.Ceiling(Math.Sqrt(buildingSlots * maxBuildingFootprintCells));
+        int roundedSide = ((requiredSide + regionSize - 1) / regionSize) * regionSize;
+        return Math.Max(10, roundedSide);
+    }
+
+    internal static WorldMap InitialMap(ulong seed, int initialPopulation)
+    {
+        int side = InitialMapSideForPopulation(initialPopulation);
+        return MapGenerator.Generate(seed, side, side, regionSize: 5, DefaultCatalog, DefaultCostWeights, [])
+            .Value ?? throw new InvalidOperationException("gerador de mapa inicial falhou — bug no gerador, não no cenário");
+    }
 
     public static readonly CultureId DefaultCulture = new(1);
 
@@ -303,21 +329,39 @@ public static class ScenarioRunner
     /// cref="MarketPricingSystem"/> é multiplicativo — arredondado pra inteiro, preço 1 nunca sai
     /// do lugar de verdade (fator 0.8 ou 1.2 sobre 1 arredonda de volta pra 1), escondendo
     /// qualquer sinal de escassez/fartura (achado escrevendo o teste causal de T25).</summary>
-    private static void SeedDefaultWorkplaces(WorldState world, int vacancyMultiplier = 1)
+    private static void SeedDefaultWorkplaces(WorldState world, City city, int vacancyMultiplier = 1)
     {
         int mult = Math.Max(1, vacancyMultiplier);
         // Treasury inicial grande (capital de giro do dono, estado inicial declarado — não
         // cunhagem, ECON-26/27 continua íntegro): folha de ~36 empregados a 90-110/mês esgotaria
         // um treasury pequeno bem antes da receita de venda (compras em lote esporádicas)
         // acompanhar, gerando WageUnpaid em cascata e, por tabela, fome real generalizada.
+        var farmLocation = PlaceDefaultWorkplaceBuilding(world, city, buildingTypeId: 1);
         world.AddWorkplace(new Workplace(
-            world.NextWorkplaceIdAndAdvance(), new LocationType(1), DefaultVillageLocation, maxVacancies: 80 * mult,
+            world.NextWorkplaceIdAndAdvance(), new LocationType(1), farmLocation, maxVacancies: 80 * mult,
             employees: [], stock: new Dictionary<ResourceType, long>(), treasury: new Money(500_000),
-            prices: new Dictionary<ResourceType, long> { [new ResourceType(1)] = 5, [new ResourceType(2)] = 5 }));
+            prices: new Dictionary<ResourceType, long> { [new ResourceType(1)] = 5, [new ResourceType(2)] = 5 },
+            city: city.Id));
+        var forgeLocation = PlaceDefaultWorkplaceBuilding(world, city, buildingTypeId: 2);
         world.AddWorkplace(new Workplace(
-            world.NextWorkplaceIdAndAdvance(), new LocationType(2), DefaultVillageLocation, maxVacancies: 40 * mult,
+            world.NextWorkplaceIdAndAdvance(), new LocationType(2), forgeLocation, maxVacancies: 40 * mult,
             employees: [], stock: new Dictionary<ResourceType, long>(), treasury: new Money(500_000),
-            prices: new Dictionary<ResourceType, long> { [new ResourceType(4)] = 5 }));
+            prices: new Dictionary<ResourceType, long> { [new ResourceType(4)] = 5 }, city: city.Id));
+    }
+
+    private static CellCoord PlaceDefaultWorkplaceBuilding(WorldState world, City city, int buildingTypeId)
+    {
+        var candidate = new Building(
+            new BuildingId(world.NextBuildingId), city.Id, buildingTypeId, world.CurrentDate.TotalHours);
+        long population = CityPopulationQuery.Population(world, city.Id);
+        var bounds = CityOccupancy.ResolveGrownBounds(world, city, population).Bounds;
+        var resolved = BuildingPlacementResolver.Resolve(candidate, city, world, bounds)
+            ?? throw new InvalidOperationException("No free cell is available for a default workplace building.");
+
+        world.AddBuilding(new Building(
+            world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId, world.CurrentDate.TotalHours,
+            resolved.Position, resolved.Orientation));
+        return resolved.Position;
     }
 
     /// <summary>Trigo/água de despensa + moeda no bolso pra cada NPC/Household inicial —
@@ -331,8 +375,9 @@ public static class ScenarioRunner
     {
         foreach (var household in world.Households)
         {
-            household.Deposit(new ResourceType(1), 50); // trigo
-            household.Deposit(new ResourceType(2), 50); // água
+            long bootstrapUnits = 50L * household.Members.Count;
+            household.Deposit(new ResourceType(1), bootstrapUnits); // trigo
+            household.Deposit(new ResourceType(2), bootstrapUnits); // água
         }
 
         foreach (var npc in world.Npcs)
@@ -356,16 +401,24 @@ public static class ScenarioRunner
         var catalog = economyCatalog ?? DefaultEconomyCatalog;
         var history = historyRules ?? HistoryRules.Disabled;
         var world = new WorldState(
-            DefaultCalendar, seed, DefaultMap(seed), DefaultPopulationCatalog, population,
+            DefaultCalendar, seed, InitialMap(seed, initialPopulation), DefaultPopulationCatalog, population,
             DefaultNeedsRules, DefaultActionCatalog, DefaultLifeStageRules,
             economyRules: rules, economyCatalog: catalog, familyRules: family, perfRules: perf,
             historyRules: history, processRecipes: DefaultProcessRecipes);
+        var initialCity = new City(
+            world.NextCityId(), DefaultVillageLocation, world.CurrentDate.TotalHours,
+            foundedFromCityId: null, AggregatePopulationPool.Empty);
+        world.AddCity(initialCity);
+        // A infraestrutura fundadora ocupa primeiro o núcleo urbano. Com residências físicas,
+        // criar milhares de casas antes empurrava fazenda/mercado e forja para a periferia,
+        // tornando o deslocamento longo demais para sustentar a produção da vila.
+        SeedDefaultWorkplaces(world, initialCity, workplaceVacancyMultiplier);
         if (initialPopulation > 0)
         {
-            PopulationSeeder.SeedInitial(world, initialPopulation, DefaultCulture, DefaultVillageLocation);
+            PopulationSeeder.SeedInitial(
+                world, initialPopulation, DefaultCulture, DefaultVillageLocation, initialCity.Id);
             SeedInitialEconomyBuffer(world);
         }
-        SeedDefaultWorkplaces(world, workplaceVacancyMultiplier);
 
         return (world, new WorldClock(DefaultSystems(), maxIterationsPerTick));
     }

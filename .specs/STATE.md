@@ -58,6 +58,14 @@
 - **Date**: 2026-08-23
 - **Status**: active
 
+### AD-008
+- **Decision**: Potência é conteúdo composicional de cenário — fonte, efeito, modo, custo, confiabilidade, falha, vulnerabilidade, manifestação e aquisição — sem enum/caso nominal por poder ou arquétipo.
+- **Reason**: Permite expressar artefatos responsivos à vontade, transformações predatórias/noturnas e transformações cíclicas no mesmo motor, sem nomes ou subsistemas de franquia.
+- **Trade-off**: Tags livres exigem validação semântica na borda de cada sistema-alvo; o primeiro corte valida forma/invariantes e recusa runtime ligado ainda não implementado.
+- **Scope**: Fase 16 e qualquer feature futura que declare ou consuma potência extraordinária.
+- **Date**: 2026-08-23
+- **Status**: active
+
 ## Handoff
 
 - **Round-4 post-ship fixes (2026-08-23) — wall-marker regression + migration hysteresis**: user

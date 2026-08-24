@@ -96,6 +96,22 @@ export interface CityResidentMarker {
   id: { value: number };
   location: CellCoord;
   currentAction: number | null;
+  extraordinary?: ExtraordinaryNpcVisual | null;
+}
+
+export interface ExtraordinaryNpcVisual {
+  powerIds: string[];
+  isManifested: boolean;
+  manifestationState: string;
+  scaleMultiplier: number;
+  skinTint: string;
+  movementTrail: string;
+  needSubstitution: {
+    replacesNeed: string;
+    resourceId: number;
+    unitsPerUse: number;
+  } | null;
+  senescenceRateMultiplier: number;
 }
 
 export interface CityBuildingMarker {
@@ -105,6 +121,8 @@ export interface CityBuildingMarker {
   location: CellCoord;
   /** True when the resolver derived the cell (dashed); false when authored (solid). */
   locationIsDerived: boolean;
+  /** Rotação canônica do footprint, em graus horários. Campo aditivo para snapshots antigos. */
+  orientation?: 0 | 90 | 180 | 270;
 }
 
 export interface AggregatePopulationPool {

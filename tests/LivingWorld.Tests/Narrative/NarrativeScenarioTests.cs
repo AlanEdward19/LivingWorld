@@ -148,8 +148,7 @@ public class NarrativeScenarioTests
     public void Chronicle_system_publishes_only_at_month_boundaries_across_a_short_multi_month_run_never_daily()
     {
         var (world, _) = ScenarioRunner.Create(1, initialPopulation: 0, historyRules: HistoryRules.Default);
-        var city = new CityId(Guid.NewGuid());
-        world.AddCity(new City(city, new CellCoord(0, 0), foundedAtTick: 0, foundedFromCityId: null, AggregatePopulationPool.Empty));
+        var city = world.ActiveCities().Single().Id;
         world.AddFact(new Fact(world.NextFactIdAndAdvance(), 10, WorldEventKind.Death, [], city, 0.7, "relevant"));
         var system = new ChronicleGenerationSystem();
         var clock = new WorldClock([system]);

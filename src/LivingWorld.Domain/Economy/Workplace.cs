@@ -15,7 +15,7 @@ public sealed class Workplace
     /// molde de <see cref="Building.City"/>/<see cref="Npc.City"/>. Default (Guid vazio) para
     /// workplaces autorados em cenário sem cidade associada, mesmo comportamento de antes desta
     /// mudança.</summary>
-    public CityId City { get; }
+    public CityId City { get; private set; }
 
     private readonly List<NpcId> _employees;
     public IReadOnlyList<NpcId> Employees => _employees;
@@ -60,6 +60,8 @@ public sealed class Workplace
     }
 
     public void Fire(NpcId npc) => _employees.Remove(npc);
+
+    public void JoinCity(CityId city) => City = city;
 
     /// <summary>Soma até o limite de <see cref="EconomyRules.CapacityOf"/>; devolve as unidades
     /// perdidas por excesso de capacidade (ECON-02) — nunca descartadas em silêncio, o chamador

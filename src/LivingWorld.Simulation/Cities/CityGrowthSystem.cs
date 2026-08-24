@@ -31,7 +31,7 @@ public sealed class CityGrowthSystem : ISimulationSystem
         if (!world.CityRules.Enabled) return;
         var rules = world.CityRules;
 
-        foreach (var city in world.Cities)
+        foreach (var city in world.ActiveCities())
         {
             long population = CityPopulationQuery.Population(world, city.Id);
             if (population <= 0 || city.AggregatePool.Count <= 0) continue;

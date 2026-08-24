@@ -22,7 +22,7 @@ public static class SpatialBoundsResolver
 
     public static CityBounds ResolveBuilding(Building building)
     {
-        var footprint = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId);
+        var footprint = BuildingFootprintGenerator.Generate(building);
         int width = footprint.Count == 0 ? 0 : footprint.Max(c => c.Cell.X) + 1;
         int height = footprint.Count == 0 ? 0 : footprint.Max(c => c.Cell.Y) + 1;
         return new CityBounds(new CellCoord(0, 0), width, height);

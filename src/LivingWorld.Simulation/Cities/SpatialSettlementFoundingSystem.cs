@@ -25,7 +25,9 @@ public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
         if (!world.CityRules.Enabled) return;
         var rules = world.CityRules;
 
-        foreach (var city in world.Cities)
+        ScheduleAdjacentDaughterMerges(world, ctx, rules);
+
+        foreach (var city in world.ActiveCities().OrderBy(city => city.Id.Value))
         {
             foreach (var cluster in OverflowClusterFinder.FindClusters(world, city))
             {
@@ -44,12 +46,18 @@ public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
 
     public void HandleEvent(WorldState world, TickContext ctx, ScheduledEvent evt)
     {
+        if (evt.Payload!.StartsWith("merge|", StringComparison.Ordinal))
+        {
+            HandleMergeEvent(world, ctx, evt.Payload);
+            return;
+        }
+
         var parts = evt.Payload!.Split('|');
         var motherCityId = new CityId(Guid.Parse(parts[0]));
         var capturedBuildingIds = parts[1].Split(',').Select(long.Parse).ToHashSet();
 
         var motherCity = world.FindCity(motherCityId);
-        if (motherCity is null) return; // referência perdida — sem-op, mesmo espírito de SettlementFoundingSystem
+        if (motherCity is null || motherCity.MergedIntoCityId is not null) return;
 
         var buildings = world.Buildings
             .Where(b => capturedBuildingIds.Contains(b.Id.Value) && b.City == motherCityId)
@@ -102,18 +110,23 @@ public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
         foreach (var building in buildings)
             building.JoinCity(newCity.Id);
 
+        // Locais de trabalho fisicamente contidos no cluster passam a pertencer ao novo
+        // assentamento junto com seus prédios. Sem isto, fundadores continuavam empregados na
+        // cidade-mãe e atravessavam o mapa de volta no próximo turno de trabalho.
+        foreach (var workplace in world.Workplaces
+                     .Where(workplace => (workplace.City == motherCityId || workplace.City == default)
+                                           && clusterBounds.Contains(workplace.Location))
+                     .OrderBy(workplace => workplace.Id.Value))
+            workplace.JoinCity(newCity.Id);
+
         // dynamic-city-growth, T7: "bounds iniciais da cidade nova" = a própria caixa do cluster
         // (não um box só-população, que pode ficar menor que o cluster que a fundou e nem conter
         // os prédios/households que a fundaram) — mesmo espírito de bounds.Contains(location) de
         // NpcScopeResolver, aplicado aqui à geometria real que já existe.
         //
-        // Post-ship fix (Fix 2, 2026-08-23, ghost-town report): Household.Location é gravado uma
-        // única vez na criação (seed/casamento/split) e nunca atualizado depois — checar contra
-        // ele aqui quase nunca reatribui um household de verdade, porque ele não guarda relação
-        // alguma com onde o overflow realmente aconteceu. O critério que reflete onde a família
-        // está de fato agora é a posição corrente do chefe (Npc.CurrentLocation, atualizado a
-        // cada movimento) — mesmo padrão de "population" duas linhas acima, que já usa
-        // npc.CurrentLocation em vez de Household.Location pro limiar de concentração.
+        // Household.Location representa a residência estável anterior; para descobrir quem
+        // realmente formou um cluster novo, usamos a posição corrente do chefe no instante da
+        // fundação. Depois da reatribuição, essa posição passa a ser a nova residência estável.
         // Post-ship fix (round 2, 2026-08-23, "population jumping between two adjacent cities"):
         // this loop swept up ANY household in the world whose head currently stands inside
         // clusterBounds, with no check that the household actually belonged to the founding
@@ -123,18 +136,69 @@ public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
         // monthly re-scan just because its head happened to be standing in this cluster's
         // footprint at this exact tick. Only households that were genuinely part of motherCityId
         // (the cluster's real origin) may be reassigned.
-        foreach (var household in world.Households)
+        foreach (var household in world.Households.OrderBy(household => household.Id.Value))
         {
             if (household.City != motherCityId) continue;
             if (world.FindNpc(household.Head) is not { IsAlive: true } head) continue;
             if (!clusterBounds.Contains(head.CurrentLocation)) continue;
 
-            household.JoinCity(newCity.Id);
-            foreach (var memberId in household.Members)
-                world.Npcs.FirstOrDefault(n => n.Id == memberId)?.JoinCity(newCity.Id);
+            // CurrentLocation identifica quem fundou o cluster; a partir daqui ela se torna a
+            // residência estável usada por sono e pelas próximas avaliações de migração.
+            household.JoinCity(newCity.Id, head.CurrentLocation);
+            foreach (var memberId in household.Members.OrderBy(id => id.Value))
+            {
+                var member = world.FindNpc(memberId);
+                if (member is null) continue;
+                member.JoinCity(newCity.Id);
+            }
         }
     }
 
     private static bool ClearsConcentrationThreshold(long population, CityRules rules) =>
         population / (population + 1.0) >= rules.FoundingConcentrationThreshold;
+
+    private static void ScheduleAdjacentDaughterMerges(WorldState world, TickContext ctx, CityRules rules)
+    {
+        foreach (var daughter in world.ActiveCities()
+                     .Where(city => city.FoundedFromCityId is not null)
+                     .OrderBy(city => city.Id.Value))
+        {
+            if (daughter.MergeScheduledAtTick is not null) continue;
+            var mother = world.FindActiveCity(daughter.FoundedFromCityId!.Value);
+            if (mother is null || mother.Id == daughter.Id || !AreAdjacent(world, mother, daughter, rules.AbsorptionRingCells))
+                continue;
+
+            ctx.ScheduleEvent(
+                ctx.CurrentTick + rules.OrganizationTicks,
+                SystemName,
+                $"merge|{daughter.Id.Value}|{mother.Id.Value}");
+            daughter.MarkMergeScheduled(ctx.CurrentTick);
+        }
+    }
+
+    private static void HandleMergeEvent(WorldState world, TickContext ctx, string payload)
+    {
+        var parts = payload.Split('|');
+        var daughter = world.FindCity(new CityId(Guid.Parse(parts[1])));
+        if (daughter is null || daughter.MergedIntoCityId is not null) return;
+
+        var mother = world.FindActiveCity(new CityId(Guid.Parse(parts[2])));
+        if (mother is null || !AreAdjacent(world, mother, daughter, world.CityRules.AbsorptionRingCells))
+        {
+            daughter.ClearMergeScheduled();
+            return;
+        }
+
+        world.MergeCityInto(daughter, mother);
+        ctx.LogEvent(WorldEventKind.CityMerged, $"{daughter.Id.Value}|{mother.Id.Value}");
+    }
+
+    private static bool AreAdjacent(WorldState world, City mother, City daughter, int ring)
+    {
+        var motherBounds = CityOccupancy.ResolveGrownBounds(
+            world, mother, CityPopulationQuery.Population(world, mother.Id)).Bounds;
+        var daughterBounds = CityOccupancy.ResolveGrownBounds(
+            world, daughter, CityPopulationQuery.Population(world, daughter.Id)).Bounds;
+        return OverflowClusterFinder.ChebyshevGap(motherBounds, daughterBounds) <= ring;
+    }
 }

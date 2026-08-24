@@ -97,6 +97,14 @@ public sealed class WorldState
     /// desligada".</summary>
     [Canonical] public HistoryRules HistoryRules { get; }
 
+    /// <summary>Descritores extraordinários do cenário; desligado continua estado explícito vazio.</summary>
+    [Canonical] public ExtraordinaryScenarioData Extraordinary { get; }
+
+    private readonly List<ExtraordinaryCarrierState> _extraordinaryCarriers;
+
+    /// <summary>Estado resolvido consultável por sistemas e projeções, ordenado por portador.</summary>
+    [Canonical] public IReadOnlyList<ExtraordinaryCarrierState> ExtraordinaryCarriers => _extraordinaryCarriers;
+
     /// <summary>Nome escolhido pelo usuário na criação (Fase 15.1, T42/ADR-0017) — cosmético,
     /// nenhuma decisão de sistema lê nome de mundo (ADR-0014), por isso volátil.</summary>
     [Volatile] public string Name { get; private set; }
@@ -246,6 +254,10 @@ public sealed class WorldState
     /// cref="Workplaces"/> (lista + dono canônico).</summary>
     [Canonical] public IReadOnlyList<City> Cities => _cities;
 
+    /// <summary>Cidades que ainda participam de decisões e projeções. Tombstones continuam em
+    /// <see cref="Cities"/> para preservar referências históricas.</summary>
+    public IEnumerable<City> ActiveCities() => _cities.Where(city => city.MergedIntoCityId is null);
+
     /// <summary>Edifício concluído (Fase 8, T5) — mesmo molde de <see cref="Cities"/>.</summary>
     [Canonical] public IReadOnlyList<Building> Buildings => _buildings;
 
@@ -309,7 +321,9 @@ public sealed class WorldState
         HistoryRules? historyRules = null, string name = "", IReadOnlyList<SpatialPortal>? portals = null,
         RestPlaceCatalog? restPlaceCatalog = null, IReadOnlyList<RestPlace>? restPlaces = null,
         ResourceCatalog? resourceCatalog = null, IReadOnlyList<ProcessRecipe>? processRecipes = null,
-        IReadOnlyList<ResourceProcess>? resourceProcesses = null, IReadOnlyList<CropBatch>? cropBatches = null)
+        IReadOnlyList<ResourceProcess>? resourceProcesses = null, IReadOnlyList<CropBatch>? cropBatches = null,
+        ExtraordinaryScenarioData? extraordinary = null,
+        IReadOnlyList<ExtraordinaryCarrierState>? extraordinaryCarriers = null)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -329,6 +343,8 @@ public sealed class WorldState
         CityCatalog = cityCatalog ?? CityCatalog.Empty;
         PerfRules = perfRules ?? PerfRules.Default;
         HistoryRules = historyRules ?? HistoryRules.Disabled;
+        Extraordinary = extraordinary ?? ExtraordinaryScenarioData.Disabled;
+        _extraordinaryCarriers = (extraordinaryCarriers ?? []).OrderBy(carrier => carrier.CarrierId.Value).ToList();
         Name = name;
         _facts = [];
         _reports = [];
@@ -416,7 +432,9 @@ public sealed class WorldState
         IReadOnlyList<ResourceProcess>? resourceProcesses = null,
         long nextResourceProcessId = 0,
         IReadOnlyList<CropBatch>? cropBatches = null,
-        long nextCropBatchId = 0)
+        long nextCropBatchId = 0,
+        ExtraordinaryScenarioData? extraordinary = null,
+        IReadOnlyList<ExtraordinaryCarrierState>? extraordinaryCarriers = null)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -467,6 +485,8 @@ public sealed class WorldState
         CityCatalog = cityCatalog ?? CityCatalog.Empty;
         PerfRules = perfRules ?? PerfRules.Default;
         HistoryRules = historyRules ?? HistoryRules.Disabled;
+        Extraordinary = extraordinary ?? ExtraordinaryScenarioData.Disabled;
+        _extraordinaryCarriers = (extraordinaryCarriers ?? []).OrderBy(carrier => carrier.CarrierId.Value).ToList();
         _facts = (facts ?? []).ToList();
         _nextFactId = nextFactId;
         _nextReportId = nextReportId;
@@ -587,6 +607,40 @@ public sealed class WorldState
     }
 
     public City? FindCity(CityId id) => _cityById.GetValueOrDefault(id);
+    public City? FindActiveCity(CityId id)
+    {
+        var city = FindCity(id);
+        var visited = new HashSet<CityId>();
+        while (city?.MergedIntoCityId is { } target && visited.Add(city.Id))
+            city = FindCity(target);
+        return city is { MergedIntoCityId: null } ? city : null;
+    }
+
+    internal void MergeCityInto(City daughter, City mother)
+    {
+        foreach (var building in _buildings.Where(building => building.City == daughter.Id).OrderBy(building => building.Id.Value))
+            building.JoinCity(mother.Id);
+        foreach (var workplace in _workplaces.Where(workplace => workplace.City == daughter.Id).OrderBy(workplace => workplace.Id.Value))
+            workplace.JoinCity(mother.Id);
+        foreach (var household in _households.OrderBy(household => household.Id.Value))
+            household.ReplaceCityReference(daughter.Id, mother.Id);
+        foreach (var npc in _npcs.Where(npc => npc.City == daughter.Id).OrderBy(npc => npc.Id.Value))
+            npc.JoinCity(mother.Id);
+
+        foreach (var stock in daughter.ExtractEntireStock().OrderBy(entry => entry.Key.Id))
+            mother.DepositStock(stock.Key, stock.Value);
+
+        foreach (var project in daughter.ConstructionQueue.ToList())
+        {
+            daughter.RemoveConstructionProject(project);
+            project.JoinCity(mother.Id);
+            mother.EnqueueConstruction(project);
+        }
+
+        var (pool, poolNpcIds) = daughter.ExtractEntirePool();
+        mother.AbsorbPool(pool, poolNpcIds);
+        daughter.MarkMergedInto(mother.Id);
+    }
     public Building? FindBuilding(BuildingId id) => _buildingById.GetValueOrDefault(id);
 
     /// <summary>Único ponto de autoria de <see cref="SpatialPortal"/> (Fase 15.1, T21) — só

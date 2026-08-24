@@ -45,6 +45,15 @@ public static class SimulationControlEndpoints
             return Results.Ok();
         });
 
+        app.MapPost("/simulation/advance-year", (SimulationHost host) =>
+        {
+            if (!host.IsPaused)
+                return Results.Conflict("Avanço anual só é permitido com a simulação pausada.");
+
+            host.FastForwardOneYear();
+            return Results.Ok();
+        });
+
         app.MapGet("/simulation/status", (SimulationHost host, WorldHost worldHost) =>
             Results.Ok(new SimulationStatusResponse(
                 host.IsPaused,

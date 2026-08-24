@@ -8,7 +8,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LivingWorld.Tests.Performance;
 
+[CollectionDefinition(Name, DisableParallelization = true)]
+public sealed class ScalePerformanceCollection
+{
+    public const string Name = "Scale performance";
+}
+
 /// <summary>PERF-02: sensor de escala no gate — 1 mês-sim, duas populações estáveis.</summary>
+[Collection(ScalePerformanceCollection.Name)]
 public class ScaleScenarioSensorTests
 {
     private const long OneMonthTicks = 30 * 24;

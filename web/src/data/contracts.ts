@@ -7,6 +7,7 @@ import type {
   CellCoord,
   CitySnapshot,
   CityBuildingMarker,
+  ExtraordinaryNpcVisual,
   GlobalCityMarker,
   GlobalSnapshot,
 } from "../types";
@@ -43,6 +44,7 @@ export interface NpcVisual {
   currentAction: number | null;
   city?: StringId | null;
   relocationDestination?: CellCoord | null;
+  extraordinary?: ExtraordinaryNpcVisual | null;
 }
 
 /** T50: valor de `NpcInspection.lod` para um id reservado num pool agregado (City.PoolNpcIds)
@@ -110,6 +112,7 @@ export interface BuildingVisual {
   cityId: StringId;
   buildingTypeId: number;
   location: CellCoord;
+  orientation?: 0 | 90 | 180 | 270;
 }
 
 export interface ProcessVisual {

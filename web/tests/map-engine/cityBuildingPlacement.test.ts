@@ -12,6 +12,7 @@ function marker(overrides: Partial<CityBuildingMarker> = {}): CityBuildingMarker
     buildingTypeId: 2,
     location: { x: 4, y: -2 },
     locationIsDerived: true,
+    orientation: 0,
     ...overrides,
   };
 }
@@ -48,6 +49,16 @@ describe("cityBuildingEntityFromMarker (T18 / LWV-04.5)", () => {
     expect(entity.size.h).toBe(Math.max(...footprint.map((c) => c.y)) + 1);
   });
 
+  it("applies the authoritative orientation to the rendered footprint", () => {
+    const building = marker({ buildingTypeId: -1, orientation: 90 });
+    const entity = cityBuildingEntityFromMarker(building, SPACE, 0);
+
+    expect(entity.footprintCells?.map(({ x, y }) => ({ x, y }))).toEqual(
+      generateBuildingFootprint(String(building.id.value), -1, 0, 90).map(({ x, y }) => ({ x, y })),
+    );
+    expect(entity.size).toEqual({ w: 3, h: 3 });
+  });
+
   it("marks sizeIsDerived when the API location is derived", () => {
     const entity = cityBuildingEntityFromMarker(marker({ locationIsDerived: true }), SPACE, 0);
 
@@ -58,5 +69,12 @@ describe("cityBuildingEntityFromMarker (T18 / LWV-04.5)", () => {
     const entity = cityBuildingEntityFromMarker(marker({ locationIsDerived: false }), SPACE, 0);
 
     expect(entity.sizeIsDerived).toBe(false);
+  });
+
+  it.each([-1, 1, 2, 77])("preserves building type %i for type-aware rendering", (buildingTypeId) => {
+    const entity = cityBuildingEntityFromMarker(marker({ buildingTypeId }), SPACE, 0);
+
+    expect(entity.buildingTypeId).toBe(buildingTypeId);
+    expect(entity.footprintCells?.length).toBeGreaterThan(0);
   });
 });

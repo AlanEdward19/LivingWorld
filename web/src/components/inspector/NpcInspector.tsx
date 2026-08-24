@@ -133,6 +133,27 @@ const PREPARATION_LABELS: Record<number, string> = {
   1: "Preparado",
 };
 
+interface ExtraordinaryNpcState {
+  powerIds: string[];
+  isManifested: boolean;
+  manifestationState: string;
+  appearance: {
+    scaleMultiplier: number;
+    skinTint: string;
+    movementTrail: string;
+  };
+  needSubstitution?: {
+    replacesNeed: string;
+    resourceId: number;
+    unitsPerUse: number;
+  };
+  senescenceRateMultiplier: number;
+}
+
+function extraordinaryStateOf(inspection: NpcInspection): ExtraordinaryNpcState | undefined {
+  return (inspection as NpcInspection & { extraordinary?: ExtraordinaryNpcState }).extraordinary;
+}
+
 function restSummary(rest: NonNullable<NpcInspection["rest"]>): string {
   const place = REST_KIND_LABELS[rest.kind] ?? `lugar ${rest.kind}`;
   const quality = `${Math.round(rest.quality * 100)}%`;
@@ -216,6 +237,7 @@ export function NpcInspector({ entityRef, simulationStore, viewStore, narrativeS
     ? "Sem ação atual"
     : ACTION_LABELS[inspection.currentAction] ?? `Atividade ${inspection.currentAction}`;
   const skills = Object.entries(inspection.skills.values);
+  const extraordinary = extraordinaryStateOf(inspection);
 
   return (
     <div className="npc-living-inspector">
@@ -243,6 +265,23 @@ export function NpcInspector({ entityRef, simulationStore, viewStore, narrativeS
           <dt>LOD</dt><dd>{inspection.lod === 0 ? "Materializado" : "Arquivado"}</dd>
         </dl>
       </section>
+
+      {extraordinary && (
+        <section aria-labelledby="npc-extraordinary-title">
+          <h4 id="npc-extraordinary-title">Extraordinário</h4>
+          <dl>
+            <dt>Descritores</dt><dd>{extraordinary.powerIds.join(", ") || "—"}</dd>
+            <dt>Estado</dt><dd>{extraordinary.isManifested ? "Manifestado" : "Latente"} · {extraordinary.manifestationState}</dd>
+            <dt>Escala</dt><dd>{extraordinary.appearance.scaleMultiplier}×</dd>
+            <dt>Tint</dt><dd>{extraordinary.appearance.skinTint || "—"}</dd>
+            <dt>Trail</dt><dd>{extraordinary.appearance.movementTrail || "—"}</dd>
+            <dt>Senescência</dt><dd>{extraordinary.senescenceRateMultiplier}×</dd>
+            {extraordinary.needSubstitution && (
+              <><dt>Necessidade substituída</dt><dd>{extraordinary.needSubstitution.replacesNeed} → recurso {extraordinary.needSubstitution.resourceId} ({extraordinary.needSubstitution.unitsPerUse}/unidade)</dd></>
+            )}
+          </dl>
+        </section>
+      )}
 
       {inspection.rest && (
         <section aria-labelledby="npc-rest-title">

@@ -52,7 +52,7 @@ public static class LivingWorldCapabilityCatalog
         Living("MIGRATION", systems: [typeof(MigrationSystem), typeof(RelocationArrivalSystem)], consumers: ["map.migration"]),
         Living("MATERIALIZATION", systems: [typeof(MaterializationSystem)], consumers: ["hud.materialization"]),
         Living("FOUNDING", [typeof(SettlementFoundingSystem), typeof(SpatialSettlementFoundingSystem)],
-            [WorldEventKind.SettlementFounded], ["map.founding"]),
+            [WorldEventKind.SettlementFounded, WorldEventKind.CityMerged], ["map.founding"]),
         Living("HISTORY_FACT", [typeof(FactToReportConversionScheduler)],
             [WorldEventKind.FactRecorded, WorldEventKind.ReportConverted, WorldEventKind.CompensatingCorrection],
             ["timeline.knowledge"]),
@@ -61,6 +61,8 @@ public static class LivingWorldCapabilityCatalog
         Living("NARRATIVE", systems: [typeof(ChronicleGenerationSystem)], consumers: ["inspector.narrative"]),
         Living("CONVERSATION", systems: [typeof(ConversationSessionStore)], consumers: ["interaction.conversation"]),
         Living("PERIOD", systems: [typeof(PeriodEvolutionSystem)], consumers: ["hud.period"]),
+        Living("EXTRAORDINARY", systems: [typeof(ExtraordinaryStateSystem)],
+            consumers: ["inspector.npc.extraordinary"]),
         new("EXAMPLE_COUNTER", CapabilityKind.DiagnosticOnly, [typeof(ExampleCounterSystem)], [], [],
             "Scheduler instrumentation; it neither describes nor changes the simulated world."),
     ];

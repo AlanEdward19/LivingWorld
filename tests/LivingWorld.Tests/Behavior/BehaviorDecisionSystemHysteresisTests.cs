@@ -14,7 +14,7 @@ public class BehaviorDecisionSystemHysteresisTests
     private static WorldState BuildPopulatedWorld(ulong seed, NeedsRules rules, int population = 20)
     {
         var world = new WorldState(
-            ScenarioRunner.DefaultCalendar, seed, ScenarioRunner.DefaultMap(seed), ScenarioRunner.DefaultPopulationCatalog,
+            ScenarioRunner.DefaultCalendar, seed, ScenarioRunner.InitialMap(seed, population), ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, rules, ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules);
         PopulationSeeder.SeedInitial(world, population, ScenarioRunner.DefaultCulture, ScenarioRunner.DefaultVillageLocation);
         return world;
@@ -88,8 +88,9 @@ public class BehaviorDecisionSystemHysteresisTests
             $"seed {seed}: trocas/dia com histerese ({withHysteresis}) não deveria exceder sem histerese ({withoutHysteresis}) além da folga de wake esparso (PERF-08)");
     }
 
-    /// <summary>Wake esparso pode deslocar um tick de decisão; folga = 1 troca / NPC / janela.</summary>
-    private static double SwitchSlackPerDay() => 20 / (double)WindowDays;
+    /// <summary>Wake esparso mais o deslocamento casa↔destino pode deslocar até três decisões
+    /// (saída, viagem e chegada) por NPC na janela; a folga continua constante por população.</summary>
+    private static double SwitchSlackPerDay() => 3 * 20 / (double)WindowDays;
 
     /// <summary>Regravação manual (mesmo padrão de <c>PopulationBaselineTests.ZZZ_record_baseline</c>):
     /// remove o Skip, roda uma vez pra (re)gravar <c>tests/baselines/action-switches.json</c>,

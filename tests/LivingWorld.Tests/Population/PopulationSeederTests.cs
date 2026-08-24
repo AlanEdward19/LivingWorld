@@ -1,3 +1,4 @@
+using LivingWorld.Api.Visual;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
 
@@ -12,7 +13,7 @@ public class PopulationSeederTests
 
         Assert.All(world.Households, household =>
             Assert.Single(world.Buildings, building =>
-                building.City == household.City && building.Position == household.Location));
+                building.City == household.City && AbsoluteFootprint(building).Contains(household.Location)));
     }
 
     [Fact]
@@ -39,6 +40,45 @@ public class PopulationSeederTests
     }
 
     [Fact]
+    public void SeedInitial_places_each_household_on_an_internal_floor_cell_of_its_house()
+    {
+        var world = SeedWorld(count: 30);
+
+        Assert.All(world.Households, household =>
+        {
+            var house = Assert.Single(world.Buildings, building =>
+                building.City == household.City && AbsoluteFootprint(building).Contains(household.Location));
+            var origin = house.Position!.Value;
+            var floorCells = BuildingFootprintGenerator
+                .Generate(house.Id, house.BuildingTypeId, house.Orientation)
+                .Where(cell => cell.Material == BuildingMaterial.Floor)
+                .Select(cell => new CellCoord(origin.X + cell.Cell.X, origin.Y + cell.Cell.Y));
+
+            Assert.Contains(household.Location, floorCells);
+        });
+    }
+
+    [Fact]
+    public void SeedInitial_keeps_every_rendered_house_footprint_inside_the_resolved_city_bounds()
+    {
+        const int count = 30;
+        var world = SeedWorld(count);
+        var city = Assert.Single(world.Cities);
+        var bounds = CityOccupancy.ResolveGrownBounds(world, city, count).Bounds;
+
+        var rendered = CityProjector.Build(world, city.Id).Value!.Buildings;
+        Assert.NotEmpty(rendered);
+        Assert.All(rendered, building =>
+            Assert.All(
+                BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId, building.Orientation)
+                    .Select(cell => new CellCoord(
+                        building.Location.X + cell.Cell.X,
+                        building.Location.Y + cell.Cell.Y)),
+                cell => Assert.True(bounds.Contains(cell),
+                    $"rendered building {building.Id.Value} cell {cell} is outside {bounds}")));
+    }
+
+    [Fact]
     public void Seeded_households_outside_grown_bounds_remain_owned_overflow_buildings()
     {
         // Raio fixo (2 células) descasava do footprint dinâmico assim que a população ficava
@@ -55,7 +95,7 @@ public class PopulationSeederTests
             .ToList();
         Assert.All(world.Households, household => Assert.True(
             bounds.Contains(household.Location) || ownedBuildings.Any(building =>
-                building.Position == household.Location && building.City == household.City),
+                AbsoluteFootprint(building).Contains(household.Location) && building.City == household.City),
             $"household em {household.Location} não pertence aos bounds nem a overflow building da cidade"));
     }
 
@@ -124,7 +164,7 @@ public class PopulationSeederTests
     private static IEnumerable<CellCoord> AbsoluteFootprint(Building building)
     {
         var origin = building.Position!.Value;
-        return BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId)
+        return BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId, building.Orientation)
             .Select(cell => new CellCoord(origin.X + cell.Cell.X, origin.Y + cell.Cell.Y));
     }
 }

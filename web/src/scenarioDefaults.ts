@@ -100,6 +100,27 @@ export interface TransformationRuleRow {
   triggerTick: number | null;
 }
 
+export interface ExtraordinaryDescriptorRow {
+  id: string;
+  source: string;
+  effects: string; // csv de "alvo:magnitude"
+  mode: string;
+  costs: string;
+  reliability: string;
+  failureModes: string;
+  intrinsicVulnerabilities: string;
+  manifestations: string;
+  acquisitionRules: string;
+  appearanceScaleMultiplier: number;
+  appearanceSkinTint: string;
+  appearanceMovementTrail: string;
+  needSubstitutionReplacesNeed: string;
+  needSubstitutionResourceId: number | null;
+  needSubstitutionUnitsPerUse: number;
+  senescenceRateMultiplier: number;
+  manifestationCondition: string;
+}
+
 export interface PaintedCell {
   terrain: number;
   biome: number;
@@ -194,6 +215,10 @@ export interface ScenarioFormState {
   professionBiases: ProfessionBiasRow[];
   skillBiases: SkillBiasRow[];
   transformationRules: TransformationRuleRow[];
+
+  // Extraordinário é opcional e composicional; nenhum campo representa arquétipo nominal.
+  extraordinaryEnabled: boolean;
+  extraordinaryDescriptors: ExtraordinaryDescriptorRow[];
 }
 
 export function defaultScenarioForm(): ScenarioFormState {
@@ -308,6 +333,8 @@ export function defaultScenarioForm(): ScenarioFormState {
     professionBiases: [],
     skillBiases: [],
     transformationRules: [],
+    extraordinaryEnabled: false,
+    extraordinaryDescriptors: [],
   };
 }
 
@@ -317,6 +344,10 @@ export function parseCsvInts(csv: string): number[] {
     .map((s) => s.trim())
     .filter((s) => s.length > 0)
     .map(Number);
+}
+
+function parseCsvText(csv: string): string[] {
+  return csv.split(",").map((value) => value.trim()).filter(Boolean);
 }
 
 function rowsToDict(rows: KeyNumberRow[]): Record<string, number> {
@@ -617,6 +648,41 @@ export function scenarioFormToJson(
         TriggerTick: t.triggerTick,
       })),
     },
+    Extraordinary: {
+      Enabled: form.extraordinaryEnabled,
+      Descriptors: form.extraordinaryDescriptors.map((descriptor) => {
+        const hasAppearance = descriptor.appearanceScaleMultiplier !== 1
+          || descriptor.appearanceSkinTint.trim() !== ""
+          || descriptor.appearanceMovementTrail.trim() !== "";
+        const hasNeedSubstitution = descriptor.needSubstitutionReplacesNeed.trim() !== ""
+          && descriptor.needSubstitutionResourceId !== null
+          && descriptor.needSubstitutionUnitsPerUse > 0;
+        return {
+          Id: descriptor.id,
+          Source: descriptor.source,
+          Effects: parseCsvText(descriptor.effects),
+          Mode: descriptor.mode,
+          Costs: parseCsvText(descriptor.costs),
+          Reliability: descriptor.reliability,
+          FailureModes: parseCsvText(descriptor.failureModes),
+          IntrinsicVulnerabilities: parseCsvText(descriptor.intrinsicVulnerabilities),
+          Manifestations: parseCsvText(descriptor.manifestations),
+          AcquisitionRules: parseCsvText(descriptor.acquisitionRules),
+          Appearance: hasAppearance ? {
+            ScaleMultiplier: descriptor.appearanceScaleMultiplier,
+            SkinTint: descriptor.appearanceSkinTint,
+            MovementTrail: descriptor.appearanceMovementTrail,
+          } : undefined,
+          NeedSubstitution: hasNeedSubstitution ? {
+            ReplacesNeed: descriptor.needSubstitutionReplacesNeed,
+            ResourceId: descriptor.needSubstitutionResourceId,
+            UnitsPerUse: descriptor.needSubstitutionUnitsPerUse,
+          } : undefined,
+          SenescenceRateMultiplier: descriptor.senescenceRateMultiplier,
+          ManifestationCondition: descriptor.manifestationCondition.trim() || undefined,
+        };
+      }),
+    },
   };
 
   return JSON.stringify(root);
@@ -644,6 +710,7 @@ type Raw = Record<string, any>;
 export function jsonToScenarioForm(json: Raw): ScenarioFormState {
   const base = defaultScenarioForm();
   const dynamics = json.Dynamics ?? {};
+  const extraordinary = json.Extraordinary ?? {};
 
   return {
     ...base,
@@ -775,6 +842,27 @@ export function jsonToScenarioForm(json: Raw): ScenarioFormState {
       sourceProfessionIds: (t.SourceProfessionIds ?? []).join(", "),
       targetProfessionIds: (t.TargetProfessionIds ?? []).join(", "),
       triggerTick: t.TriggerTick ?? null,
+    })),
+    extraordinaryEnabled: extraordinary.Enabled ?? base.extraordinaryEnabled,
+    extraordinaryDescriptors: (extraordinary.Descriptors ?? []).map((descriptor: Raw) => ({
+      id: descriptor.Id ?? "",
+      source: descriptor.Source ?? "",
+      effects: (descriptor.Effects ?? []).join(", "),
+      mode: descriptor.Mode ?? "",
+      costs: (descriptor.Costs ?? []).join(", "),
+      reliability: descriptor.Reliability ?? "",
+      failureModes: (descriptor.FailureModes ?? []).join(", "),
+      intrinsicVulnerabilities: (descriptor.IntrinsicVulnerabilities ?? []).join(", "),
+      manifestations: (descriptor.Manifestations ?? []).join(", "),
+      acquisitionRules: (descriptor.AcquisitionRules ?? []).join(", "),
+      appearanceScaleMultiplier: descriptor.Appearance?.ScaleMultiplier ?? 1,
+      appearanceSkinTint: descriptor.Appearance?.SkinTint ?? "",
+      appearanceMovementTrail: descriptor.Appearance?.MovementTrail ?? "",
+      needSubstitutionReplacesNeed: descriptor.NeedSubstitution?.ReplacesNeed ?? "",
+      needSubstitutionResourceId: descriptor.NeedSubstitution?.ResourceId ?? null,
+      needSubstitutionUnitsPerUse: descriptor.NeedSubstitution?.UnitsPerUse ?? 1,
+      senescenceRateMultiplier: descriptor.SenescenceRateMultiplier ?? 1,
+      manifestationCondition: descriptor.ManifestationCondition ?? "",
     })),
   };
 }

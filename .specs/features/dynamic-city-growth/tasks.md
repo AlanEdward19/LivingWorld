@@ -1107,7 +1107,7 @@ tick-loop pattern) are not reused elsewhere since the integration test was skipp
 
 ---
 
-### FixT18: two adjacent cities (mother + spatially-founded daughter) never merge back — ❌ NOT fixed, recorded only
+### FixT18: two adjacent cities (mother + spatially-founded daughter) never merge back — ✅ fixed
 
 **Reported**: 2026-08-23, same live-test session as FixT17, AFTER FixT17 landed (overlap is
 confirmed gone — user verified UrVal and its mother no longer cross into each other). This is a
@@ -1124,12 +1124,43 @@ trades residents with her — matches the project's own design principle (`AD-00
 "absorption takes precedence over founding" for overflow *buildings* already exists in
 `dynamic-city-growth`'s spec; this bug is that same principle never having been extended to
 already-founded *cities* that end up geometrically adjacent).
-**Not fixed. Recorded only, per user's explicit request** ("me diga o nome, nao resolva agora").
-**Where a fix would likely live**: some new merge condition/system checking whether a
-spatially-founded daughter's bounds sit within absorption range of her own mother's bounds for a
-sustained period, and if so, folding her back in (reverse of `SpatialSettlementFoundingSystem`'s
-founding — reassign her buildings/households back to the mother, remove the daughter `City`) —
-exact design not worked out, this entry only names and scopes the bug.
+**Resolution (2026-08-23)**: `SpatialSettlementFoundingSystem` now schedules a merge after
+`OrganizationTicks` when a daughter's grown bounds remain within `AbsorptionRingCells` of her
+active mother. Fire-time revalidation cancels transient adjacency. A confirmed merge transfers
+buildings, workplaces, households/NPCs, pending relocation references, stock, construction queue
+and aggregate population to the mother. The daughter becomes a canonical tombstone via
+`MergedIntoCityId`: historical references remain valid, while `ActiveCities()` excludes it from
+migration, growth, construction, founding and visual projections. The merge emits `CityMerged`.
+Architecture rationale: `docs/adr/ADR-0019-cidade-fundida-como-tombstone-historico.md`.
+
+**Tests**: `SpatialSettlementFoundingSystemTests` proves single scheduling/retry, fire-time
+cancellation, exact causal conservation, third-city migration redirection, chained aliases,
+snapshot round-trip, active/visual disappearance and event emission. Independent FixT18 Verifier:
+PASS, 16/16 focused .NET, 413/413 web, 3/3 mutation sensors killed. Evidence:
+`validation-fixt18.md`.
+
+---
+
+### FixT19: `SettlementFoundingSystem` founds a new city with zero awareness of whether the mother has room to just grow — ❌ NOT fixed, recorded only
+
+**Reported**: 2026-08-23, same session, after `real-household-workplace-buildings` shipped and
+`FixT18` (mother/daughter merge) landed. User observed a new city founding at a fixed tick
+(~721) and another around tick ~1400 on every run of the same scenario — deterministic per seed,
+but user's real point is architectural, not about determinism: **`SettlementFoundingSystem`'s
+trigger is pure population concentration (`FoundingConcentrationThreshold`), with no check at all
+for whether the mother city could instead just grow into open space** (the same
+occupancy-aware growth `dynamic-city-growth` already built for buildings). Verbatim intent: "se os
+NPCs precisam de mais espaço na cidade, eles deveriam construir em volta (e isso causar a cidade a
+crescer) e não fundar sempre a mesma cidade" — founding should be a last resort when growth is
+genuinely blocked (map edge, neighbor too close), not a population-percentage timer running
+independently of whether there's room to expand.
+**User's explicit decision on scope** (2026-08-23): record as a bug for now, do not spec or fix
+it in this session — a proper fix likely means `SettlementFoundingSystem`'s threshold check should
+also confirm the mother's `CityOccupancy.ResolveGrownBounds` is actually near its growth ceiling
+(map edge or neighbor-clamped) before scheduling a founding event, deferring to growth otherwise.
+Related but distinct from `FixT18` (which stopped an already-founded daughter from persisting
+glued to her mother) and from the `directional-city-bounds-growth` spec (which is about growth
+SHAPE, not the founding trigger itself) — this bug is about WHETHER to found at all.
 
 ---
 

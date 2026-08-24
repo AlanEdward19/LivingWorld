@@ -61,7 +61,7 @@ public class OverflowPlacerTests
     [Fact]
     public void ResolveOverflowPosition_returns_a_free_cell_outside_fully_occupied_bounds()
     {
-        var (world, city, bounds, _, rectShape) = MakeFullyOccupiedCity(seed: 701, typeId: 7);
+        var (world, city, bounds, _, rectShape) = MakeFullyOccupiedCity(seed: 701, typeId: 8);
 
         var found = OverflowPlacer.ResolveOverflowPosition(world, city, bounds, new BuildingId(9001), rectShape);
 
@@ -76,7 +76,7 @@ public class OverflowPlacerTests
     [Fact]
     public void ResolveOverflowPosition_is_deterministic_for_the_same_building_id_and_world_state()
     {
-        var (world, city, bounds, _, rectShape) = MakeFullyOccupiedCity(seed: 702, typeId: 7);
+        var (world, city, bounds, _, rectShape) = MakeFullyOccupiedCity(seed: 702, typeId: 8);
         var id = new BuildingId(9002);
 
         var first = OverflowPlacer.ResolveOverflowPosition(world, city, bounds, id, rectShape);
@@ -88,7 +88,7 @@ public class OverflowPlacerTests
     [Fact]
     public void ResolveOverflowPosition_skips_a_ring_cell_that_another_building_already_occupies()
     {
-        var (world, city, bounds, rectId, rectShape) = MakeFullyOccupiedCity(seed: 703, typeId: 7);
+        var (world, city, bounds, rectId, rectShape) = MakeFullyOccupiedCity(seed: 703, typeId: 8);
         var id = new BuildingId(9003);
 
         var withoutBlocker = OverflowPlacer.ResolveOverflowPosition(world, city, bounds, id, rectShape);
@@ -96,7 +96,7 @@ public class OverflowPlacerTests
 
         // Ocupa exatamente a célula que seria escolhida sem bloqueio -- a próxima chamada não
         // pode devolver a mesma posição nem sobrepor o prédio recém-adicionado.
-        world.AddBuilding(new Building(rectId, city.Id, buildingTypeId: 7, completedAtTick: 0, position: withoutBlocker.Value, orientation: 0));
+        world.AddBuilding(new Building(rectId, city.Id, buildingTypeId: 8, completedAtTick: 0, position: withoutBlocker.Value, orientation: 0));
 
         var withBlocker = OverflowPlacer.ResolveOverflowPosition(world, city, bounds, id, rectShape);
 

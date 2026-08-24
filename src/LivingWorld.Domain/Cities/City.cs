@@ -11,6 +11,8 @@ public sealed class City
     public CellCoord Location { get; }
     public long FoundedAtTick { get; }
     public CityId? FoundedFromCityId { get; }
+    public CityId? MergedIntoCityId { get; private set; }
+    public long? MergeScheduledAtTick { get; private set; }
 
     /// <summary>Nome canônico (Fase 15.1, T44): autorado no World Creator, ou composto por
     /// <c>CityNameGenerator</c> (ADR-0013, gramática procedural) quando a simulação funda a
@@ -76,7 +78,9 @@ public sealed class City
         long? foundingScheduledAtTick = null,
         IReadOnlyList<ReportState>? canonSlots = null,
         string name = "",
-        IReadOnlyList<NpcId>? poolNpcIds = null)
+        IReadOnlyList<NpcId>? poolNpcIds = null,
+        CityId? mergedIntoCityId = null,
+        long? mergeScheduledAtTick = null)
     {
         Id = id;
         Location = location;
@@ -89,6 +93,8 @@ public sealed class City
         _canonSlots = (canonSlots ?? []).ToList();
         FoundingScheduledAtTick = foundingScheduledAtTick;
         _poolNpcIds = (poolNpcIds ?? []).ToList();
+        MergedIntoCityId = mergedIntoCityId;
+        MergeScheduledAtTick = mergeScheduledAtTick;
     }
 
     public void SetCanonSlots(IReadOnlyList<ReportState> slots)
@@ -99,6 +105,14 @@ public sealed class City
 
     public void MarkFoundingScheduled(long tick) => FoundingScheduledAtTick = tick;
 
+    public void MarkMergeScheduled(long tick) => MergeScheduledAtTick = tick;
+    public void ClearMergeScheduled() => MergeScheduledAtTick = null;
+    public void MarkMergedInto(CityId city)
+    {
+        MergedIntoCityId = city;
+        MergeScheduledAtTick = null;
+    }
+
     /// <summary>Sem capacidade declarada nesta fase (mesmo espírito de <see
     /// cref="Household.Deposit"/>).</summary>
     public long DepositStock(ResourceType resource, long amount) =>
@@ -107,6 +121,13 @@ public sealed class City
     /// <summary>Falha sem mutar o estoque quando insuficiente (mesmo contrato de <see
     /// cref="Household.Withdraw"/>).</summary>
     public Result<long> WithdrawStock(ResourceType resource, long amount) => ResourceStock.Withdraw(_stock, resource, amount);
+
+    public IReadOnlyDictionary<ResourceType, long> ExtractEntireStock()
+    {
+        var stock = new Dictionary<ResourceType, long>(_stock);
+        _stock.Clear();
+        return stock;
+    }
 
     public void EnqueueConstruction(ConstructionProject project) => _constructionQueue.Add(project);
 
@@ -177,5 +198,15 @@ public sealed class City
         AggregatePool = AggregatePopulationPool.Empty;
         _poolNpcIds.Clear();
         return (pool, ids);
+    }
+
+    /// <summary>Recebe massa agregada já extraída de outra cidade sem criar ou destruir pessoas.</summary>
+    public void AbsorbPool(AggregatePopulationPool pool, IReadOnlyList<NpcId> poolNpcIds)
+    {
+        AggregatePool = new AggregatePopulationPool(
+            AggregatePool.Count + pool.Count,
+            AggregatePool.WealthSum + pool.WealthSum,
+            AggregatePool.HealthSum + pool.HealthSum);
+        _poolNpcIds.AddRange(poolNpcIds);
     }
 }

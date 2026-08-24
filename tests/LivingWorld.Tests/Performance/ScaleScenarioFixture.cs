@@ -81,7 +81,7 @@ public static class ScaleScenarioFixture
     public static (WorldState World, WorldClock Clock) CreateWorld(ulong seed, int initialPopulation)
     {
         int vacancyMult = Math.Max(1, initialPopulation / 100);
-        return ScenarioRunner.Create(
+        var scenario = ScenarioRunner.Create(
             seed,
             initialPopulation: initialPopulation,
             economyRules: ScaleEconomyRules,
@@ -90,5 +90,20 @@ public static class ScaleScenarioFixture
             perfRules: PerfRules.ScaleSensorInitial,
             workplaceVacancyMultiplier: vacancyMult,
             economyCatalog: ScenarioRunner.ScaleEconomyCatalog(vacancyMult));
+
+        // PERF-01 mede custo e estabilidade demográfica, não a capacidade de um único mercado
+        // central alimentar uma metrópole. Depois que cada household ganhou residência física,
+        // os moradores mais distantes passaram a consumir o buffer default antes de completar
+        // o primeiro deslocamento. Uma reserva anual mantém o fixture causalmente estável sem
+        // alterar a economia dos mundos reais nem esconder fome nos respectivos testes.
+        const long annualReservePerMember = 400;
+        foreach (var household in scenario.World.Households)
+        {
+            long reserve = annualReservePerMember * household.Members.Count;
+            household.Deposit(new ResourceType(1), reserve);
+            household.Deposit(new ResourceType(2), reserve);
+        }
+
+        return scenario;
     }
 }

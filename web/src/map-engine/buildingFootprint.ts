@@ -39,12 +39,17 @@ export function roofColorFor(identity: string): string {
  * `buildingTypeId` par/ímpar) e uma porta na borda inferior. O andar observado não participa
  * da identidade física: trocar Z nunca move parede ou porta.
  */
-export function generateBuildingFootprint(buildingId: string, buildingTypeId: number, _floor = 0): FootprintCell[] {
-  const seed = hashString(buildingId);
+export function generateBuildingFootprint(
+  _buildingId: string,
+  buildingTypeId: number,
+  _floor = 0,
+  orientation = 0,
+): FootprintCell[] {
   const wallMaterial: BuildingMaterial = buildingTypeId % 2 === 0 ? "stoneWall" : "woodWall";
-  const width = 4 + (seed % 3); // 4..6
-  const height = 3 + ((seed >> 3) % 3); // 3..5
-  const isLShape = seed % 5 === 0;
+  const typeVariant = Math.abs(buildingTypeId);
+  const width = buildingTypeId === -1 ? 3 : 3 + (typeVariant % 2);
+  const height = width;
+  const isLShape = buildingTypeId !== -1 && typeVariant > 0 && typeVariant % 7 === 0 && width === 4;
 
   const inBase = (x: number, y: number) => x >= 0 && x < width && y >= 0 && y < height;
   const inNotch = (x: number, y: number) => isLShape && x >= Math.floor(width / 2) && y >= Math.floor(height / 2);
@@ -68,7 +73,13 @@ export function generateBuildingFootprint(buildingId: string, buildingTypeId: nu
     cells[doorIndex] = { x: doorX, y: height - 1, material: "door" };
   }
 
-  return cells;
+  const normalizedOrientation = ((orientation % 360) + 360) % 360;
+  return cells.map((cell) => {
+    if (normalizedOrientation === 90) return { ...cell, x: height - 1 - cell.y, y: cell.x };
+    if (normalizedOrientation === 180) return { ...cell, x: width - 1 - cell.x, y: height - 1 - cell.y };
+    if (normalizedOrientation === 270) return { ...cell, x: cell.y, y: width - 1 - cell.x };
+    return cell;
+  });
 }
 
 /**

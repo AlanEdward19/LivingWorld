@@ -32,6 +32,7 @@ export interface TimeControlSource {
   resume(): Promise<void>;
   setSpeed(ticksPerSecond: number): Promise<void>;
   step(): Promise<void>;
+  advanceYear(): Promise<void>;
   status(): Promise<SimulationStatus>;
 }
 

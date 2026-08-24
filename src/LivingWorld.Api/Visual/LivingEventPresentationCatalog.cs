@@ -30,6 +30,7 @@ public static class LivingEventPresentationCatalog
             [WorldEventKind.BookRediscovered] = "Um livro perdido foi reencontrado",
             [WorldEventKind.CompensatingCorrection] = "Uma versão da história foi corrigida",
             [WorldEventKind.SettlementFounded] = "Um novo assentamento foi fundado",
+            [WorldEventKind.CityMerged] = "Dois assentamentos adjacentes se unificaram",
         };
 
     public static string Describe(WorldEventKind kind) =>

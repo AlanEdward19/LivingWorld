@@ -237,7 +237,7 @@ describe("CityView", () => {
           },
         },
       ) as unknown as CanvasRenderingContext2D;
-    } as typeof HTMLCanvasElement.prototype.getContext;
+    } as unknown as typeof HTMLCanvasElement.prototype.getContext;
 
     // Câmera inicial dá fit-to-tela nos bounds ORIGINAIS (16x16, scale 12) -- zoom out até a
     // janela visível cobrir também os bounds NOVOS (32x32, precisa scale <= 200/32 = 6.25),
@@ -257,6 +257,8 @@ describe("CityView", () => {
     act(() => {
       simulationStore.applyDelta({
         tick: 1,
+        moved: [],
+        removed: [],
         cityUpserts: [
           {
             id: { value: "city-1" },

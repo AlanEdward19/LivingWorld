@@ -1,12 +1,12 @@
 {
   "1000": {
-    "MicrosPerAliveNpcTick": 13.19721413774029,
-    "BytesAllocPerTick": 2505670.0555555555,
-    "BytesPerAliveNpcPerYear": 139214.47568988174
+    "MicrosPerAliveNpcTick": 32.91840900727463,
+    "BytesAllocPerTick": 2679375.9555555554,
+    "BytesPerAliveNpcPerYear": 114580.86315789474
   },
   "5000": {
-    "MicrosPerAliveNpcTick": 9.578315324256451,
-    "BytesAllocPerTick": 7076357.077777778,
-    "BytesPerAliveNpcPerYear": 143554.21075502445
+    "MicrosPerAliveNpcTick": 10.7215690632334,
+    "BytesAllocPerTick": 6185969.944444444,
+    "BytesPerAliveNpcPerYear": 116751.58759521219
   }
 }

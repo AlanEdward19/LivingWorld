@@ -80,7 +80,7 @@ public static class OverflowClusterFinder
     // crescido durante a espera de OrganizationTicks.
     internal static bool IsWithinAbsorptionRangeOfAnyOtherCity(WorldState world, CityId excludeCityId, CityBounds box, int ring)
     {
-        foreach (var other in world.Cities)
+        foreach (var other in world.ActiveCities())
         {
             if (other.Id == excludeCityId) continue;
             long otherPopulation = CityPopulationQuery.Population(world, other.Id);
@@ -110,7 +110,7 @@ public static class OverflowClusterFinder
     /// <c>CityBoundsResolver.ChebyshevGap</c>/<c>OverflowPlacer</c>'s anéis) — 0 quando se sobrepõem
     /// ou se tocam. Duplicada aqui (função pura de 6 linhas) em vez de expor a privada de
     /// <c>CityBoundsResolver</c> só pra este único uso cross-file.</summary>
-    private static int ChebyshevGap(CityBounds a, CityBounds b)
+    internal static int ChebyshevGap(CityBounds a, CityBounds b)
     {
         int aRight = a.Origin.X + a.Width - 1, aBottom = a.Origin.Y + a.Height - 1;
         int bRight = b.Origin.X + b.Width - 1, bBottom = b.Origin.Y + b.Height - 1;

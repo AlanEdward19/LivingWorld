@@ -20,4 +20,7 @@ public sealed class SimulationHost(WorldHost host)
     /// <summary>Avanço rápido: roda N ticks imediatamente, sem esperar tempo real e
     /// independente de pausa — é uma ação explícita do host, não o loop de tempo real.</summary>
     public void FastForward(long ticks) => host.Clock.Run(host.Current, ticks);
+
+    /// <summary>Avança exatamente a duração de um ano do calendário do mundo atual.</summary>
+    public void FastForwardOneYear() => FastForward(host.Current.Calendar.HoursPerYear);
 }

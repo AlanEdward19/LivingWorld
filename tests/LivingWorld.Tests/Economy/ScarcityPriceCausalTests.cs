@@ -23,7 +23,8 @@ public class ScarcityPriceCausalTests
 
     private static long[] PriceSeriesAtWheatFarm(ulong seed, double productionMultiplier)
     {
-        var (world, clock) = EconomyScenarioHarness.Create(seed, Trigo, productionMultiplier, T0, initialPopulation: 150);
+        var (world, clock) = EconomyScenarioHarness.CreateControlledPriceScenario(
+            seed, Trigo, productionMultiplier, T0, initialPopulation: 150);
         var farm = world.Workplaces.First(w => w.LocationType.Id == 1);
 
         // Dia 0 (estado antes de qualquer tick) é idêntico nos dois braços por construção — a
@@ -50,6 +51,7 @@ public class ScarcityPriceCausalTests
         // em pelo menos um dia — prova a direção sem exigir imunidade a empate por
         // arredondamento inteiro ou por saturação de piso.
         int seedsWithCorrectDirection = 0;
+        var evidence = new List<string>();
 
         for (ulong seed = 1; seed <= 10; seed++)
         {
@@ -65,9 +67,10 @@ public class ScarcityPriceCausalTests
             }
 
             if (neverLower && higherSomeDay) seedsWithCorrectDirection++;
+            evidence.Add($"{seed}:base=[{string.Join(',', basePrices)}],trat=[{string.Join(',', treatmentPrices)}]");
         }
 
         Assert.True(seedsWithCorrectDirection == 10,
-            $"{seedsWithCorrectDirection}/10 seeds tiveram o tratamento nunca abaixo da base e acima em algum dia da janela");
+            $"{seedsWithCorrectDirection}/10 seeds tiveram o tratamento nunca abaixo da base e acima em algum dia da janela; {string.Join("; ", evidence)}");
     }
 }

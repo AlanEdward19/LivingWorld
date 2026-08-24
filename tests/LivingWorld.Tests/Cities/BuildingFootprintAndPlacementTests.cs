@@ -78,6 +78,56 @@ public class BuildingFootprintAndPlacementTests
         Assert.Equal(before, after);
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(99)]
+    public void Initial_house_is_always_compact_3_by_3_with_an_internal_floor_cell(long buildingId)
+    {
+        var footprint = BuildingFootprintGenerator.Generate(new BuildingId(buildingId), buildingTypeId: -1);
+
+        Assert.Equal((3, 3, 1), (
+            footprint.Max(cell => cell.Cell.X) + 1,
+            footprint.Max(cell => cell.Cell.Y) + 1,
+            footprint.Count(cell => cell.Material == BuildingMaterial.Floor)));
+    }
+
+    [Fact]
+    public void Derived_building_orientations_are_deterministic_and_vary_between_identities()
+    {
+        var orientations = Enumerable.Range(1, 16)
+            .Select(id => BuildingFootprintGenerator.DerivedOrientation(new BuildingId(id), buildingTypeId: -1))
+            .ToList();
+
+        Assert.All(orientations, orientation => Assert.Contains(orientation, new[] { 0, 90, 180, 270 }));
+        Assert.True(orientations.Distinct().Count() > 1);
+        Assert.Equal(orientations, Enumerable.Range(1, 16)
+            .Select(id => BuildingFootprintGenerator.DerivedOrientation(new BuildingId(id), buildingTypeId: -1)));
+    }
+
+    [Theory]
+    [InlineData(90)]
+    [InlineData(270)]
+    public void Generate_building_honors_persisted_orientation_for_an_asymmetric_L_shape(int orientation)
+    {
+        var building = new Building(
+            new BuildingId(77), new CityId(Guid.Empty), buildingTypeId: 7, completedAtTick: 0,
+            position: new CellCoord(10, 10), orientation: orientation);
+
+        var actual = BuildingFootprintGenerator.Generate(building);
+        var expected = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId, orientation);
+        var unrotated = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId, orientation: 0);
+        static string Signature(IEnumerable<FootprintCell> cells) => string.Join(
+            "|", cells.OrderBy(cell => cell.Cell.Y).ThenBy(cell => cell.Cell.X)
+                .Select(cell => $"{cell.Cell.X},{cell.Cell.Y}:{cell.Material}"));
+
+        Assert.Equal(Signature(expected), Signature(actual));
+        Assert.NotEqual(Signature(unrotated), Signature(actual));
+        Assert.Single(actual, cell => cell.Material == BuildingMaterial.Door);
+        Assert.All(actual.Where(cell => cell.Material != BuildingMaterial.Door), cell =>
+            Assert.Contains(cell.Material, new[] { BuildingMaterial.WoodWall, BuildingMaterial.Floor }));
+    }
+
     // --- CityBoundsResolver ---
 
     [Fact]
@@ -336,7 +386,7 @@ public class BuildingFootprintAndPlacementTests
         Assert.NotNull(second);
         Assert.True(first!.Value.IsDerived);
         Assert.Equal(first.Value.Position, second!.Value.Position); // determinístico, não sorteia
-        Assert.Equal(0, first.Value.Orientation);
+        Assert.Contains(first.Value.Orientation, new[] { 0, 90, 180, 270 });
     }
 
     [Fact]

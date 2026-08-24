@@ -60,8 +60,8 @@ public class NpcInspectionDtoCoverageTests
     {
         var city = world.FindCity(npc.City);
         if (city is null) return new NpcScope(NpcScopeKind.World, null);
-        var bounds = SpatialBoundsResolver.ResolveCity(
-            city, CityPopulationQuery.Population(world, npc.City), world.Map.Width, world.Map.Height).Bounds;
+        var bounds = CityOccupancy.ResolveGrownBounds(
+            world, city, CityPopulationQuery.Population(world, npc.City)).Bounds;
         return NpcScopeResolver.Resolve(npc, bounds);
     }
 
@@ -76,7 +76,7 @@ public class NpcInspectionDtoCoverageTests
     private static WorldState BuildWorldWith100Npcs()
     {
         var world = new WorldState(
-            ScenarioRunner.DefaultCalendar, seed: 21, ScenarioRunner.DefaultMap(21),
+            ScenarioRunner.DefaultCalendar, seed: 21, ScenarioRunner.InitialMap(21, PopulationCount),
             ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
             ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules);
         PopulationSeeder.SeedInitial(world, PopulationCount, ScenarioRunner.DefaultCulture, ScenarioRunner.DefaultVillageLocation);

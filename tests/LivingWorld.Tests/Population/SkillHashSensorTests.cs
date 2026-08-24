@@ -47,7 +47,7 @@ public class SkillHashSensorTests
     private static string RunAndHash(ulong seed, SkillsRules skillsRules)
     {
         var world = new WorldState(
-            ScenarioRunner.DefaultCalendar, seed, ScenarioRunner.DefaultMap(seed), ScenarioRunner.DefaultPopulationCatalog,
+            ScenarioRunner.DefaultCalendar, seed, ScenarioRunner.InitialMap(seed, 20), ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules, economyRules: ScenarioRunner.DefaultEconomyRules,
             economyCatalog: ScenarioRunner.DefaultEconomyCatalog);

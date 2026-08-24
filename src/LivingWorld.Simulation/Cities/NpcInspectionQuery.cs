@@ -31,7 +31,7 @@ public static class NpcInspectionQuery
         // T50: id reservado num AggregatePopulationPool (City.PoolNpcIds) — leitura pura, nunca
         // materializa (isso é MaterializeAndInspect); antes disso existir, qualquer id de pool
         // clicado caía sempre no Fail genérico abaixo.
-        var pooledCity = world.Cities.FirstOrDefault(c => c.PoolNpcIds.Contains(id));
+        var pooledCity = world.ActiveCities().FirstOrDefault(c => c.PoolNpcIds.Contains(id));
         if (pooledCity is not null)
             return Result<NpcInspectionDto>.Ok(FromPooledMember(id, pooledCity));
 

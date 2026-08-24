@@ -18,14 +18,11 @@ public class GlobalProjectorTests
         var resident = npcs[0];
         var traveler = npcs[1];
 
-        var city = new City(
-            world.NextCityId(), resident.CurrentLocation, foundedAtTick: 0, foundedFromCityId: null,
-            aggregatePool: new AggregatePopulationPool(3, 300, 200));
-        world.AddCity(city);
-
-        resident.JoinCity(city.Id);
-        traveler.JoinCity(city.Id);
-        traveler.MoveTo(new CellCoord(city.Location.X + 2, city.Location.Y + 2), tick: 0);
+        var city = world.ActiveCities().Single();
+        var bounds = CityOccupancy.ResolveGrownBounds(
+            world, city, CityPopulationQuery(world, city.Id)).Bounds;
+        var outside = world.Map.Cells.Select(cell => cell.Coord).First(cell => !bounds.Contains(cell));
+        traveler.MoveTo(outside, tick: 0);
 
         return (world, city, resident, traveler);
     }
@@ -52,8 +49,8 @@ public class GlobalProjectorTests
 
         var marker = Assert.Single(GlobalProjector.Build(world).Cities);
 
-        var (expectedBounds, expectedIsDerived) = SpatialBoundsResolver.ResolveCity(
-            city, CityPopulationQuery(world, city.Id), world.Map.Width, world.Map.Height);
+        var (expectedBounds, expectedIsDerived) = CityOccupancy.ResolveGrownBounds(
+            world, city, CityPopulationQuery(world, city.Id));
         Assert.True(expectedIsDerived);
         Assert.True(marker.BoundsAreDerived);
         Assert.Equal(expectedBounds.Origin.X, marker.Bounds.X);

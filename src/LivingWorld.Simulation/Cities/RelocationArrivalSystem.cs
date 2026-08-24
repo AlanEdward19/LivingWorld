@@ -32,16 +32,16 @@ public sealed class RelocationArrivalSystem : ISimulationSystem
                 .ToList();
             if (aliveMembers.Count == 0)
             {
-                household.CompleteRelocation(destinationCityId);
+                household.CompleteRelocation(destinationCityId, destination.Location);
                 continue;
             }
 
             if (!aliveMembers.All(npc => npc!.CurrentLocation == destination.Location))
                 continue;
 
-            foreach (var npc in aliveMembers)
+            foreach (var npc in aliveMembers.OrderBy(npc => npc!.Id.Value))
                 npc!.JoinCity(destinationCityId);
-            household.CompleteRelocation(destinationCityId);
+            household.CompleteRelocation(destinationCityId, destination.Location);
         }
     }
 }

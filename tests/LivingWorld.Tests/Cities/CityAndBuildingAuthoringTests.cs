@@ -229,8 +229,8 @@ public class CityAndBuildingAuthoringTests
 
         Assert.True(result.IsSuccess);
         var world = result.Value!.World;
-        Assert.Single(world.Buildings);
-        var building = world.Buildings[0];
+        var building = Assert.Single(world.Buildings,
+            candidate => candidate.Position == new CellCoord(6, 6) && candidate.Orientation == 180);
         Assert.Equal(world.Cities[0].Id, building.City);
         Assert.Equal(new CellCoord(6, 6), building.Position);
         Assert.Equal(180, building.Orientation);

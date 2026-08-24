@@ -9,7 +9,7 @@ namespace LivingWorld.Domain;
 public sealed class Household
 {
     public HouseholdId Id { get; }
-    public CellCoord Location { get; }
+    public CellCoord Location { get; private set; }
 
     private readonly List<NpcId> _members;
     public IReadOnlyList<NpcId> Members => _members;
@@ -75,6 +75,21 @@ public sealed class Household
     /// <see cref="Npc.JoinCity"/>: sem lista de membros a limpar, um único mutador basta.</summary>
     public void JoinCity(CityId city) => City = city;
 
+    /// <summary>Muda a cidade e fixa a residência estável do household no novo assentamento.</summary>
+    public void JoinCity(CityId city, CellCoord residence)
+    {
+        City = city;
+        Location = residence;
+    }
+
+    /// <summary>Redireciona origem/destino de migração quando uma cidade é absorvida.</summary>
+    public void ReplaceCityReference(CityId from, CityId to)
+    {
+        if (City == from) City = to;
+        if (PendingRelocationCity == from) PendingRelocationCity = to;
+        if (PendingRelocationCity == City) PendingRelocationCity = null;
+    }
+
     /// <summary>Inicia migração para <paramref name="destination"/> sem mudar <see cref="City"/>
     /// até a chegada (Fase 15.1, Stage 4, T11).</summary>
     public void BeginRelocation(CityId destination) => PendingRelocationCity = destination;
@@ -83,6 +98,14 @@ public sealed class Household
     public void CompleteRelocation(CityId destination)
     {
         City = destination;
+        PendingRelocationCity = null;
+    }
+
+    /// <summary>Conclui migração e atualiza a residência usada por sono, água e decisões futuras.</summary>
+    public void CompleteRelocation(CityId destination, CellCoord residence)
+    {
+        City = destination;
+        Location = residence;
         PendingRelocationCity = null;
     }
 }

@@ -1,5 +1,7 @@
+using LivingWorld.Api.Visual;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
+using LivingWorld.Simulation.Behavior;
 
 namespace LivingWorld.Tests.Cities;
 
@@ -11,6 +13,12 @@ namespace LivingWorld.Tests.Cities;
 /// diretos).</summary>
 public class SpatialSettlementFoundingSystemTests
 {
+    private sealed class RecordingSink : IWorldEventSink
+    {
+        public List<WorldEvent> Events { get; } = [];
+        public void Record(WorldEvent evt) => Events.Add(evt);
+    }
+
     private static readonly GeographyCatalog TinyCatalog = new(
         TerrainIds: new HashSet<int> { 1 }, BiomeIds: new HashSet<int> { 1 }, ResourceIds: new HashSet<int>());
 
@@ -253,12 +261,9 @@ public class SpatialSettlementFoundingSystemTests
         Assert.Equal(newCity.Id, head.City);
     }
 
-    /// <summary>Post-ship fix (Fix 2, 2026-08-23, ghost-town report): Household.Location é gravado
-    /// uma única vez na criação e nunca atualizado depois -- checar contra ele (o comportamento
-    /// antigo) quase nunca reatribui um household de verdade, porque ele nunca reflete pra onde a
-    /// família se mudou desde então. Este é o repro real do bug: Location autorada longe de
-    /// qualquer cluster, mas o chefe está fisicamente (Npc.CurrentLocation) dentro do cluster de
-    /// overflow no momento da fundação -- o household DEVE ser reatribuído mesmo assim.</summary>
+    /// <summary>Repro da fundação a partir de overflow: a posição corrente identifica a família
+    /// fundadora mesmo quando sua residência ainda aponta para a cidade-mãe. Ao fundar, residência
+    /// e workplace contidos no cluster precisam acompanhar a família para não puxá-la de volta.</summary>
     [Fact]
     public void HandleEvent_reassigns_a_household_by_its_heads_current_location_even_when_household_location_is_stale()
     {
@@ -267,11 +272,16 @@ public class SpatialSettlementFoundingSystemTests
         var (motherCity, overflow) = SeedOneOverflowBuilding(world);
         var head = MakeNpc(world, 1, overflow.Position!.Value); // CurrentLocation dentro do cluster
         world.AddNpc(head);
-        // Location autorada em (0,0) -- bem longe do cluster em (200,200) -- nunca atualizada
-        // depois da criação, mesmo que o chefe já esteja de fato morando junto ao overflow.
+        // Residência ainda registrada em (0,0), longe do cluster onde a família se estabeleceu.
         var household = new Household(
             new HouseholdId(1), new CellCoord(0, 0), head.Id, [head.Id], city: motherCity.Id);
+        household.Deposit(new ResourceType(world.EconomyRules.FoodResourceId), 1000);
         world.AddHousehold(household);
+        var workplace = new Workplace(
+            new WorkplaceId(1), new LocationType(1), overflow.Position.Value, 1, [head.Id],
+            new Dictionary<ResourceType, long>(), Money.Zero, new Dictionary<ResourceType, long>());
+        world.AddWorkplace(workplace);
+        head.Hire(workplace.Id);
         var system = new SpatialSettlementFoundingSystem();
         system.Tick(world, MakeCtx(world));
         var evt = Assert.Single(world.PendingEvents);
@@ -281,6 +291,26 @@ public class SpatialSettlementFoundingSystemTests
         var newCity = world.Cities.Single(c => c.Id != motherCity.Id);
         Assert.Equal(newCity.Id, household.City);
         Assert.Equal(newCity.Id, head.City);
+        Assert.Equal(overflow.Position.Value, household.Location);
+        Assert.Equal(newCity.Id, workplace.City);
+        Assert.Equal(workplace.Id, head.Employer);
+
+        var clock = new WorldClock([new BehaviorDecisionSystem(), new RelocationArrivalSystem()]);
+        var ctx = MakeCtx(world);
+        for (int hour = 0; hour < 2 * 24; hour++)
+        {
+            NpcWakeScheduler.ScheduleWake(world, ctx, head.Id.Value, world.CurrentDate.TotalHours + 1);
+            clock.Tick(world);
+            if ((hour + 1) % 24 == 0)
+                new MigrationSystem().Tick(world, MakeCtx(world));
+        }
+
+        var newCityBounds = CityOccupancy.ResolveGrownBounds(
+            world, newCity, CityPopulationQuery.Population(world, newCity.Id)).Bounds;
+        Assert.Equal(newCity.Id, head.City);
+        Assert.Null(household.PendingRelocationCity);
+        Assert.True(newCityBounds.Contains(head.CurrentLocation));
+        Assert.NotEqual(motherCity.Location, head.CurrentLocation);
     }
 
     /// <summary>Post-ship fix (round 2, 2026-08-23, "population jumping between two adjacent
@@ -324,5 +354,180 @@ public class SpatialSettlementFoundingSystemTests
         Assert.Equal(3, world.Cities.Count); // motherCity + neighborCity + a nova cidade fundada
         Assert.Equal(neighborCity.Id, neighborHousehold.City); // nunca poached
         Assert.Equal(neighborCity.Id, neighborHead.City);
+    }
+
+    // --- FixT18: cidade-filha espacial adjacente volta a integrar a cidade-mãe ---
+
+    [Fact]
+    public void Tick_schedules_exactly_one_merge_after_OrganizationTicks_for_an_adjacent_daughter()
+    {
+        var rules = MakeRules(organizationTicks: 10);
+        var world = MakeWorld(rules, seed: 912);
+        var mother = new City(world.NextCityId(), new CellCoord(100, 100), 0, null, AggregatePopulationPool.Empty);
+        var daughter = new City(world.NextCityId(), new CellCoord(105, 100), 1, mother.Id, AggregatePopulationPool.Empty);
+        world.AddCity(mother);
+        world.AddCity(daughter); // bounds 3x3 separados por gap 3 == AbsorptionRingCells
+        var system = new SpatialSettlementFoundingSystem();
+
+        system.Tick(world, MakeCtx(world));
+        system.Tick(world, MakeCtx(world));
+
+        var pending = Assert.Single(world.PendingEvents);
+        Assert.Equal(world.CurrentDate.TotalHours + rules.OrganizationTicks, pending.TargetTick);
+        Assert.StartsWith("merge|", pending.Payload);
+        Assert.NotNull(daughter.MergeScheduledAtTick);
+    }
+
+    [Fact]
+    public void HandleEvent_cancels_merge_when_the_cities_are_no_longer_adjacent_at_fire_time()
+    {
+        var rules = MakeRules(organizationTicks: 10);
+        var world = MakeWorld(rules, seed: 913);
+        var poolIds = Enumerable.Range(10_000, 600).Select(id => new NpcId(id)).ToList();
+        var mother = new City(
+            world.NextCityId(), new CellCoord(100, 100), 0, null,
+            new AggregatePopulationPool(600, 0, 0), poolNpcIds: poolIds);
+        var daughter = new City(world.NextCityId(), new CellCoord(109, 100), 1, mother.Id, AggregatePopulationPool.Empty);
+        world.AddCity(mother);
+        world.AddCity(daughter); // mãe com lado 12: gap 3, adjacente
+        var system = new SpatialSettlementFoundingSystem();
+        system.Tick(world, MakeCtx(world));
+        var pending = Assert.Single(world.PendingEvents);
+
+        var extracted = mother.ExtractEntirePool(); // mãe volta a lado 3: gap 7, não adjacente
+        system.HandleEvent(world, MakeCtx(world), pending);
+
+        Assert.Null(daughter.MergedIntoCityId);
+        Assert.Null(daughter.MergeScheduledAtTick);
+        Assert.Equal(2, world.ActiveCities().Count());
+
+        mother.AbsorbPool(extracted.Pool, extracted.PoolNpcIds); // adjacência volta a existir
+        system.Tick(world, MakeCtx(world));
+        Assert.NotNull(daughter.MergeScheduledAtTick);
+        Assert.Equal(2, world.PendingEvents.Count); // evento antigo + nova tentativa após cancelamento
+    }
+
+    [Fact]
+    public void HandleEvent_merges_all_causal_state_and_keeps_only_the_mother_active_and_visible()
+    {
+        var rules = MakeRules(organizationTicks: 10);
+        var world = MakeWorld(rules, seed: 914);
+        var pooledNpc = new NpcId(99);
+        var mother = new City(
+            world.NextCityId(), new CellCoord(100, 100), 0, null,
+            new AggregatePopulationPool(2, 10, 40), poolNpcIds: [new NpcId(97), new NpcId(98)]);
+        var daughter = new City(
+            world.NextCityId(), new CellCoord(105, 100), 1, mother.Id,
+            new AggregatePopulationPool(1, 20, 80), poolNpcIds: [pooledNpc]);
+        world.AddCity(mother);
+        world.AddCity(daughter);
+        mother.DepositStock(new ResourceType(1), 5);
+        daughter.DepositStock(new ResourceType(1), 7);
+        var project = new ConstructionProject(daughter.Id, 1, new Dictionary<ResourceType, long>(), 3);
+        daughter.EnqueueConstruction(project);
+        var building = new Building(
+            world.NextBuildingIdAndAdvance(), daughter.Id, 1, 1, new CellCoord(105, 100), 0);
+        world.AddBuilding(building);
+        var head = MakeNpc(world, 1, daughter.Location);
+        head.JoinCity(daughter.Id);
+        world.AddNpc(head);
+        var household = new Household(new HouseholdId(1), daughter.Location, head.Id, [head.Id], city: daughter.Id);
+        household.BeginRelocation(daughter.Id);
+        world.AddHousehold(household);
+        var thirdCity = new City(world.NextCityId(), new CellCoord(250, 250), 0, null, AggregatePopulationPool.Empty);
+        world.AddCity(thirdCity);
+        var arrivingHead = MakeNpc(world, 2, thirdCity.Location);
+        arrivingHead.JoinCity(thirdCity.Id);
+        world.AddNpc(arrivingHead);
+        var arrivingHousehold = new Household(
+            new HouseholdId(2), thirdCity.Location, arrivingHead.Id, [arrivingHead.Id], city: thirdCity.Id);
+        arrivingHousehold.BeginRelocation(daughter.Id);
+        world.AddHousehold(arrivingHousehold);
+        var workplace = new Workplace(
+            new WorkplaceId(1), new LocationType(1), daughter.Location, 2, [],
+            new Dictionary<ResourceType, long>(), Money.Zero, new Dictionary<ResourceType, long>(), daughter.Id);
+        world.AddWorkplace(workplace);
+        var system = new SpatialSettlementFoundingSystem();
+        system.Tick(world, MakeCtx(world));
+        var pending = Assert.Single(world.PendingEvents);
+        var sink = new RecordingSink();
+
+        system.HandleEvent(world, new TickContext(world, world.Rng, world.Scheduler, sink), pending);
+
+        Assert.Equal(mother.Id, daughter.MergedIntoCityId);
+        Assert.Contains(daughter, world.Cities);
+        Assert.Equal(mother.Id, building.City);
+        Assert.Equal(mother.Id, household.City);
+        Assert.Null(household.PendingRelocationCity);
+        Assert.Equal(thirdCity.Id, arrivingHousehold.City);
+        Assert.Equal(mother.Id, arrivingHousehold.PendingRelocationCity);
+        Assert.Equal(mother.Id, head.City);
+        Assert.Equal(mother.Id, workplace.City);
+        Assert.Equal(mother.Id, project.City);
+        Assert.Contains(project, mother.ConstructionQueue);
+        Assert.Empty(daughter.ConstructionQueue);
+        Assert.Equal(12, mother.Stock[new ResourceType(1)]);
+        Assert.Empty(daughter.Stock);
+        Assert.Equal(new AggregatePopulationPool(3, 30, 120), mother.AggregatePool);
+        Assert.Equal(AggregatePopulationPool.Empty, daughter.AggregatePool);
+        Assert.Equal(3, mother.PoolNpcIds.Count);
+        Assert.Empty(daughter.PoolNpcIds);
+        Assert.Contains(pooledNpc, mother.PoolNpcIds);
+        Assert.Equal(2, world.ActiveCities().Count());
+        Assert.DoesNotContain(daughter, world.ActiveCities());
+        Assert.False(CityProjector.Build(world, daughter.Id).IsSuccess);
+        Assert.DoesNotContain(GlobalProjector.Build(world).Cities, city => city.Id == daughter.Id);
+        new MigrationSystem().Tick(world, MakeCtx(world));
+        Assert.Null(household.PendingRelocationCity);
+        Assert.Equal(mother.Id, arrivingHousehold.PendingRelocationCity);
+        var merged = Assert.Single(sink.Events);
+        Assert.Equal(WorldEventKind.CityMerged, merged.Kind);
+        Assert.Equal(world.CurrentDate.TotalHours, merged.Tick);
+        Assert.Equal($"{daughter.Id.Value}|{mother.Id.Value}", merged.Payload);
+    }
+
+    [Fact]
+    public void Merge_state_survives_snapshot_round_trip_before_and_after_confirmation()
+    {
+        var world = MakeWorld(MakeRules(organizationTicks: 10), seed: 915);
+        var mother = new City(world.NextCityId(), new CellCoord(100, 100), 0, null, AggregatePopulationPool.Empty);
+        var daughter = new City(world.NextCityId(), new CellCoord(105, 100), 1, mother.Id, AggregatePopulationPool.Empty);
+        world.AddCity(mother);
+        world.AddCity(daughter);
+        var system = new SpatialSettlementFoundingSystem();
+        system.Tick(world, MakeCtx(world));
+
+        var scheduledHash = WorldSnapshot.CanonicalHash(world);
+        var scheduledWorld = WorldSnapshot.Deserialize(WorldSnapshot.Serialize(world));
+        Assert.Equal(scheduledHash, WorldSnapshot.CanonicalHash(scheduledWorld));
+        var scheduledDaughter = scheduledWorld.FindCity(daughter.Id)!;
+        Assert.Equal(world.CurrentDate.TotalHours, scheduledDaughter.MergeScheduledAtTick);
+
+        system.HandleEvent(scheduledWorld, MakeCtx(scheduledWorld), Assert.Single(scheduledWorld.PendingEvents));
+        var mergedHash = WorldSnapshot.CanonicalHash(scheduledWorld);
+        var mergedWorld = WorldSnapshot.Deserialize(WorldSnapshot.Serialize(scheduledWorld));
+
+        Assert.Equal(mergedHash, WorldSnapshot.CanonicalHash(mergedWorld));
+        Assert.Equal(mother.Id, mergedWorld.FindCity(daughter.Id)!.MergedIntoCityId);
+        Assert.Equal(mother.Id, mergedWorld.FindActiveCity(daughter.Id)!.Id);
+        Assert.Equal(2, mergedWorld.Cities.Count);
+        Assert.Single(mergedWorld.ActiveCities());
+    }
+
+    [Fact]
+    public void FindActiveCity_resolves_a_chain_of_merged_city_ids_to_the_final_active_city()
+    {
+        var world = MakeWorld(MakeRules(), seed: 916);
+        var root = new City(world.NextCityId(), new CellCoord(100, 100), 0, null, AggregatePopulationPool.Empty);
+        var middle = new City(world.NextCityId(), new CellCoord(105, 100), 1, root.Id, AggregatePopulationPool.Empty);
+        var leaf = new City(world.NextCityId(), new CellCoord(110, 100), 2, middle.Id, AggregatePopulationPool.Empty);
+        world.AddCity(root);
+        world.AddCity(middle);
+        world.AddCity(leaf);
+        middle.MarkMergedInto(root.Id);
+        leaf.MarkMergedInto(middle.Id);
+
+        Assert.Equal(root, world.FindActiveCity(leaf.Id));
+        Assert.Equal(root, Assert.Single(world.ActiveCities()));
     }
 }

@@ -81,10 +81,10 @@ public class WorldStateCitiesTests
         var after = WorldSnapshot.CanonicalHash(rehydrated);
 
         Assert.Equal(before, after);
-        var rehydratedCity = Assert.Single(rehydrated.Cities);
+        var rehydratedCity = Assert.Single(rehydrated.Cities, candidate => candidate.Id == city.Id);
         Assert.Equal(city.Id, rehydratedCity.Id);
         Assert.Equal(new AggregatePopulationPool(10, 100, 90), rehydratedCity.AggregatePool);
-        var rehydratedBuilding = Assert.Single(rehydrated.Buildings);
+        var rehydratedBuilding = Assert.Single(rehydrated.Buildings, candidate => candidate.Id == building.Id);
         Assert.Equal(building.Id, rehydratedBuilding.Id);
         Assert.Equal(city.Id, rehydratedBuilding.City);
     }

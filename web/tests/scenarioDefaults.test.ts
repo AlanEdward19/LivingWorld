@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultScenarioForm, scenarioFormToJson } from "../src/scenarioDefaults";
+import { defaultScenarioForm, jsonToScenarioForm, scenarioFormToJson } from "../src/scenarioDefaults";
 
 describe("scenarioFormToJson", () => {
   it("turns every settlement painted on the map into a founded city at the same coordinate", () => {
@@ -27,6 +27,72 @@ describe("scenarioFormToJson", () => {
 
     expect(scenario.EconomyEnabled).toBe(false);
     expect(scenario.Workplaces).toEqual([]);
+  });
+
+  it("keeps extraordinary disabled and empty by default", () => {
+    const form = defaultScenarioForm();
+    const scenario = JSON.parse(scenarioFormToJson(form));
+
+    expect(form.extraordinaryEnabled).toBe(false);
+    expect(scenario.Extraordinary).toEqual({ Enabled: false, Descriptors: [] });
+  });
+
+  it("serializes and reloads every extraordinary descriptor axis as generic scenario data", () => {
+    const form = defaultScenarioForm();
+    form.extraordinaryEnabled = true;
+    form.extraordinaryDescriptors = [{
+      id: "descriptor-1", source: "source-tag", effects: "movement:1, health:-2",
+      mode: "Active", costs: "fatigue:2", reliability: "ResolutionCheck",
+      failureModes: "loss-of-control", intrinsicVulnerabilities: "source-disruption",
+      manifestations: "state:visible", appearanceScaleMultiplier: 1.4,
+      appearanceSkinTint: "#88ccff", appearanceMovementTrail: "dust",
+      needSubstitutionReplacesNeed: "hunger", needSubstitutionResourceId: 9,
+      needSubstitutionUnitsPerUse: 2, senescenceRateMultiplier: 0,
+      manifestationCondition: "world:is-night",
+      acquisitionRules: "condition-tag",
+    }];
+
+    const scenario = JSON.parse(scenarioFormToJson(form));
+    expect(scenario.Extraordinary).toEqual({
+      Enabled: true,
+      Descriptors: [{
+        Id: "descriptor-1", Source: "source-tag", Effects: ["movement:1", "health:-2"],
+        Mode: "Active", Costs: ["fatigue:2"], Reliability: "ResolutionCheck",
+        FailureModes: ["loss-of-control"], IntrinsicVulnerabilities: ["source-disruption"],
+        Manifestations: ["state:visible"],
+        AcquisitionRules: ["condition-tag"],
+        Appearance: { ScaleMultiplier: 1.4, SkinTint: "#88ccff", MovementTrail: "dust" },
+        NeedSubstitution: { ReplacesNeed: "hunger", ResourceId: 9, UnitsPerUse: 2 },
+        SenescenceRateMultiplier: 0,
+        ManifestationCondition: "world:is-night",
+      }],
+    });
+    expect(jsonToScenarioForm(scenario).extraordinaryDescriptors).toEqual(form.extraordinaryDescriptors);
+  });
+
+  it("omits unconfigured extraordinary optional objects and restores their exact defaults", () => {
+    const form = defaultScenarioForm();
+    form.extraordinaryDescriptors = [{
+      id: "plain", source: "source", effects: "health:1", mode: "Passive", costs: "",
+      reliability: "Guaranteed", failureModes: "", intrinsicVulnerabilities: "",
+      manifestations: "", acquisitionRules: "", appearanceScaleMultiplier: 1,
+      appearanceSkinTint: "", appearanceMovementTrail: "", needSubstitutionReplacesNeed: "",
+      needSubstitutionResourceId: null, needSubstitutionUnitsPerUse: 1,
+      senescenceRateMultiplier: 1, manifestationCondition: "",
+    }];
+
+    const descriptor = JSON.parse(scenarioFormToJson(form)).Extraordinary.Descriptors[0];
+    expect(descriptor).toEqual({
+      Id: "plain", Source: "source", Effects: ["health:1"], Mode: "Passive", Costs: [],
+      Reliability: "Guaranteed", FailureModes: [], IntrinsicVulnerabilities: [],
+      Manifestations: [], AcquisitionRules: [], SenescenceRateMultiplier: 1,
+    });
+    expect(jsonToScenarioForm({ Extraordinary: { Enabled: true, Descriptors: [descriptor] } })
+      .extraordinaryDescriptors[0]).toMatchObject({
+        appearanceScaleMultiplier: 1, appearanceSkinTint: "", appearanceMovementTrail: "",
+        needSubstitutionReplacesNeed: "", needSubstitutionResourceId: null,
+        needSubstitutionUnitsPerUse: 1, senescenceRateMultiplier: 1, manifestationCondition: "",
+      });
   });
 
   it("converts a city draft's buildings from the local canvas into world-absolute coordinates", () => {

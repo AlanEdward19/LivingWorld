@@ -45,6 +45,12 @@ describe("RealTimeControlSource", () => {
     expect(fetchSpy).toHaveBeenCalledWith("/simulation/step", expect.objectContaining({ method: "POST" }));
   });
 
+  it("advanceYear() POSTs to /simulation/advance-year exactly once", async () => {
+    await new RealTimeControlSource().advanceYear();
+
+    expect(fetchSpy).toHaveBeenCalledWith("/simulation/advance-year", expect.objectContaining({ method: "POST" }));
+  });
+
   it("a 409 from step() does not throw — the UI is left to reflect the unchanged status", async () => {
     fetchSpy.mockResolvedValueOnce(new Response("Step só é permitido com a simulação pausada.", { status: 409 }));
 

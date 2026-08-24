@@ -7,13 +7,15 @@ namespace LivingWorld.Api.Visual;
 /// <summary>Fase 15, T5 (VTT-03, VTT-11): morador materializado no foco de cidade — posição e
 /// atividade atual, mesmo par de campos de <c>NpcInspectionDto</c> relevante pro mapa, sem o
 /// resto do detalhe de inspeção individual.</summary>
-public sealed record CityResidentMarker(NpcId Id, CellCoord Location, ActionType? CurrentAction);
+public sealed record CityResidentMarker(
+    NpcId Id, CellCoord Location, ActionType? CurrentAction, ExtraordinaryNpcVisual? Extraordinary = null);
 
 /// <summary><see cref="Location"/>/<see cref="LocationIsDerived"/> (Fase 15.1, T20, OQ-1) vêm de
 /// <see cref="BuildingPlacementResolver.Resolve"/> — autoria tem precedência; sem ela, fallback
 /// determinístico e estável por <see cref="BuildingId"/>, nunca a posição derivada do índice de
 /// iteração que o anel client-side usa hoje.</summary>
-public sealed record CityBuildingMarker(BuildingId Id, int BuildingTypeId, CellCoord Location, bool LocationIsDerived);
+public sealed record CityBuildingMarker(
+    BuildingId Id, int BuildingTypeId, CellCoord Location, bool LocationIsDerived, int Orientation = 0);
 
 /// <summary>Fase 15.1, T30 (spec.md "Inspector de NPC e Cidade" AC1): os 6 indicadores que <see
 /// cref="CityPopulationQuery"/> já calcula, hoje inacessíveis ao cliente. <see
@@ -41,12 +43,14 @@ public static class CityProjector
 {
     public static Result<CitySnapshot> Build(WorldState world, CityId cityId)
     {
-        var city = world.Cities.FirstOrDefault(c => c.Id == cityId);
-        if (city is null) return Result<CitySnapshot>.Fail($"cidade {cityId} não encontrada");
+        var city = world.FindCity(cityId);
+        if (city is null || city.MergedIntoCityId is not null)
+            return Result<CitySnapshot>.Fail($"cidade {cityId} não encontrada");
 
         var residents = world.Npcs
             .Where(n => n.IsAlive && n.City == cityId)
-            .Select(n => new CityResidentMarker(n.Id, n.CurrentLocation, n.CurrentAction))
+            .Select(n => new CityResidentMarker(
+                n.Id, n.CurrentLocation, n.CurrentAction, ExtraordinaryNpcVisualProjector.Build(world, n.Id)))
             .ToList();
 
         // dynamic-city-growth, T3/T4b: bounds resolvidos antes dos marcadores de prédio -- Resolve
@@ -61,9 +65,21 @@ public static class CityProjector
         // persistido, então volta a aparecer assim que houver espaço de novo.
         var buildings = world.Buildings
             .Where(b => b.City == cityId)
-            .Select(b => BuildingPlacementResolver.Resolve(b, city, world, boundsForPlacement) is { } resolved
-                ? new CityBuildingMarker(b.Id, b.BuildingTypeId, resolved.Position, resolved.IsDerived)
-                : null)
+            .Select(b =>
+            {
+                if (BuildingPlacementResolver.Resolve(b, city, world, boundsForPlacement) is not { } resolved)
+                    return null;
+                var footprint = BuildingFootprintGenerator
+                    .Generate(b.Id, b.BuildingTypeId, resolved.Orientation)
+                    .Select(cell => new CellCoord(
+                        resolved.Position.X + cell.Cell.X,
+                        resolved.Position.Y + cell.Cell.Y));
+                // Overflow continua existindo no mundo e pode fundar/ser absorvido; apenas não é
+                // desenhado como se estivesse dentro do grid desta cidade antes disso.
+                if (!footprint.All(boundsForPlacement.Contains)) return null;
+                return new CityBuildingMarker(
+                    b.Id, b.BuildingTypeId, resolved.Position, resolved.IsDerived, resolved.Orientation);
+            })
             .OfType<CityBuildingMarker>()
             .ToList();
 

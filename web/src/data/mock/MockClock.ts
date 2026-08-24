@@ -40,6 +40,11 @@ export class MockClock {
     this.currentTick += 1;
   }
 
+  /** Calendário padrão das fixtures: 12 meses de 30 dias, 24 ticks-hora por dia. */
+  advanceOneYear(): void {
+    this.currentTick += 8640;
+  }
+
   status(): SimulationStatus {
     return { isPaused: this.paused, ticksPerSecond: this.tps, tick: this.currentTick };
   }

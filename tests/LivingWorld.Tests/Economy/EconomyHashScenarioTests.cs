@@ -24,7 +24,7 @@ public class EconomyHashScenarioTests
     private static string RunAndHash(ulong seed, EconomyRules economyRules)
     {
         var world = new WorldState(
-            ScenarioRunner.DefaultCalendar, seed, ScenarioRunner.DefaultMap(seed), ScenarioRunner.DefaultPopulationCatalog,
+            ScenarioRunner.DefaultCalendar, seed, ScenarioRunner.InitialMap(seed, 20), ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules, economyRules: economyRules, economyCatalog: ScenarioRunner.DefaultEconomyCatalog);
         PopulationSeeder.SeedInitial(world, 20, ScenarioRunner.DefaultCulture, ScenarioRunner.DefaultVillageLocation);

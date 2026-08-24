@@ -58,4 +58,7 @@ public enum WorldEventKind
 
     /// <summary>Fundação de assentamento (Fase 15.1, LWV-04.6) — cidade nova a partir da mãe.</summary>
     SettlementFounded,
+
+    /// <summary>Uma cidade-filha adjacente foi absorvida pela cidade-mãe (FixT18).</summary>
+    CityMerged,
 }

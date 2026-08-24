@@ -195,36 +195,36 @@ public class CityOccupancyTests
     {
         await Task.Run(() =>
         {
-        // Mapa real e grande o bastante ao redor da cidade (não o mapa padrão 10x10 de
-        // ScenarioRunner.Create) -- bounds 12x12 é bem menor que o mapa, então o overflow que
-        // este teste força tem espaço real pra onde crescer, em vez de ficar bloqueado pela
-        // borda do mapa (o que testaria escassez de terra, não performance).
-        var world = BuildWorldWithMap(500, 500, seed: 608);
-        var city = new City(world.NextCityId(), new CellCoord(250, 250), 0, null, AggregatePopulationPool.Empty);
-        world.AddCity(city);
-        for (int i = 0; i < 30; i++)
-            world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId: 1, completedAtTick: 0));
-        var bounds = new CityBounds(new CellCoord(244, 244), 12, 12);
+            // Mapa real e grande o bastante ao redor da cidade (não o mapa padrão 10x10 de
+            // ScenarioRunner.Create) -- bounds 12x12 é bem menor que o mapa, então o overflow que
+            // este teste força tem espaço real pra onde crescer, em vez de ficar bloqueado pela
+            // borda do mapa (o que testaria escassez de terra, não performance).
+            var world = BuildWorldWithMap(500, 500, seed: 608);
+            var city = new City(world.NextCityId(), new CellCoord(250, 250), 0, null, AggregatePopulationPool.Empty);
+            world.AddCity(city);
+            for (int i = 0; i < 30; i++)
+                world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId: 1, completedAtTick: 0));
+            var bounds = new CityBounds(new CellCoord(244, 244), 12, 12);
 
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var boxes = CityOccupancy.OwnedBuildingFootprintBoxesWithOwners(world, city, bounds);
-        stopwatch.Stop();
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var boxes = CityOccupancy.OwnedBuildingFootprintBoxesWithOwners(world, city, bounds);
+            stopwatch.Stop();
 
-        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(5), $"levou {stopwatch.Elapsed} -- recursão exponencial voltou?");
-        Assert.Equal(30, boxes.Count);
+            Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(5), $"levou {stopwatch.Elapsed} -- recursão exponencial voltou?");
+            Assert.Equal(30, boxes.Count);
 
-        var allCells = boxes.SelectMany(b =>
-        {
-            var shape = BuildingFootprintGenerator.Generate(b.Building.Id, b.Building.BuildingTypeId).Select(c => c.Cell).ToList();
-            return CityOccupancy.Translate(shape, b.Box.Origin);
-        }).ToList();
-        Assert.Equal(allCells.Count, allCells.Distinct().Count()); // nenhum prédio derivado sobrepõe outro
+            var allCells = boxes.SelectMany(b =>
+            {
+                var shape = BuildingFootprintGenerator.Generate(b.Building.Id, b.Building.BuildingTypeId).Select(c => c.Cell).ToList();
+                return CityOccupancy.Translate(shape, b.Box.Origin);
+            }).ToList();
+            Assert.Equal(allCells.Count, allCells.Distinct().Count()); // nenhum prédio derivado sobrepõe outro
 
-        // Prova de que o overflow foi genuinamente exercitado (round-3 fix B) -- pelo menos um
-        // prédio precisou desbordar dos bounds 12x12, não só caber tranquilo dentro deles.
-        Assert.Contains(boxes, b => !(b.Box.Origin.X >= bounds.Origin.X && b.Box.Origin.Y >= bounds.Origin.Y
-            && b.Box.Origin.X + b.Box.Width <= bounds.Origin.X + bounds.Width
-            && b.Box.Origin.Y + b.Box.Height <= bounds.Origin.Y + bounds.Height));
+            // Prova de que o overflow foi genuinamente exercitado (round-3 fix B) -- pelo menos um
+            // prédio precisou desbordar dos bounds 12x12, não só caber tranquilo dentro deles.
+            Assert.Contains(boxes, b => !(b.Box.Origin.X >= bounds.Origin.X && b.Box.Origin.Y >= bounds.Origin.Y
+                && b.Box.Origin.X + b.Box.Width <= bounds.Origin.X + bounds.Width
+                && b.Box.Origin.Y + b.Box.Height <= bounds.Origin.Y + bounds.Height));
         });
     }
 

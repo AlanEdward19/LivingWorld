@@ -39,10 +39,6 @@ var worldSink = new BufferingWorldEventSink();
 // a mesma dirigida pelo relógio para eventos agendados e publicações ficarem observáveis.
 var sessions = new ConversationSessionStore();
 var chronicles = new ChronicleGenerationSystem();
-var worldClock = new WorldClock(
-    ScenarioRunner.DefaultSystems(conversationSessions: sessions, chronicles: chronicles),
-    sink: worldSink);
-
 var world = worldRunner.LoadLatest();
 if (world is null)
 {
@@ -60,6 +56,13 @@ if (world is null)
     // reiniciar sorteava outro mundo do zero. Salva o snapshot inicial imediatamente.
     worldRunner.Snapshot(world, worldSink);
 }
+
+// Fase 16, T2: snapshot extraordinário ligado precisa reconstruir o mesmo registro seletivo;
+// o relógio não pode ser composto antes de sabermos qual mundo persistido foi carregado.
+var worldClock = new WorldClock(
+    ScenarioRunner.DefaultSystems(
+        conversationSessions: sessions, chronicles: chronicles, extraordinary: world.Extraordinary),
+    sink: worldSink);
 
 // Feature ad-hoc "criar mundo": wrapper mutável — antes dele `world` era capturado por
 // closure em vários lugares (gateway realtime, endpoints de conversa/narrativa, GET /npcs/{id})

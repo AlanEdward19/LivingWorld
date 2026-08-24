@@ -1,5 +1,6 @@
 namespace LivingWorld.Tests.Performance;
 
+[Collection(ScalePerformanceCollection.Name)]
 public class ScaleScenarioFixtureTests
 {
     private const long OneYearTicks = 12 * 30 * 24;

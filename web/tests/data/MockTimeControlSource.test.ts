@@ -36,4 +36,14 @@ describe("MockTimeControlSource", () => {
     const source = new MockTimeControlSource(new MockClock());
     await expect(source.step()).rejects.toThrow();
   });
+
+  it("advances exactly one mock calendar year while paused", async () => {
+    const clock = new MockClock();
+    const source = new MockTimeControlSource(clock);
+
+    await source.pause();
+    await source.advanceYear();
+
+    expect((await source.status()).tick).toBe(8640);
+  });
 });

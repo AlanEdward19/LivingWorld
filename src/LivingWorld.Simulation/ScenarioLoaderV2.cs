@@ -51,7 +51,8 @@ public static class ScenarioLoaderV2
             cityRules: definition.City.Rules, cityCatalog: definition.City.Catalog,
             restPlaceCatalog: definition.Behavior.RestPlaceCatalog,
             resourceCatalog: definition.ResourceCatalog,
-            processRecipes: definition.ProcessRecipes);
+            processRecipes: definition.ProcessRecipes,
+            extraordinary: definition.Extraordinary);
 
         var createdCityIds = new List<CityId>(definition.City.Cities.Count);
         foreach (var city in definition.City.Cities)
@@ -162,7 +163,7 @@ public static class ScenarioLoaderV2
             var city = NearestCity(world.ActiveCities(), workplace.Location);
             int buildingTypeId = workplace.LocationType.Id;
             var candidateId = new BuildingId(world.NextBuildingId);
-            var candidateShape = BuildingFootprintGenerator.Generate(candidateId, buildingTypeId)
+            var candidateShape = BuildingFootprintGenerator.Generate(candidateId, buildingTypeId, orientation: 0)
                 .Select(cell => cell.Cell)
                 .ToList();
             long cityPopulation = CityPopulationQuery.Population(world, city.Id);
@@ -210,7 +211,8 @@ public static class ScenarioLoaderV2
         // catálogo antes de qualquer sistema do mesmo tick sortear profissão por ele
         // (NatalitySystem/MaterializationSystem/PopulationSeeder).
         IReadOnlyList<ISimulationSystem> systems =
-            ScenarioRunner.DefaultSystems(definition.Dynamics.TransformationRules);
+            ScenarioRunner.DefaultSystems(
+                definition.Dynamics.TransformationRules, extraordinary: definition.Extraordinary);
 
         return Result<(WorldState, WorldClock)>.Ok((world, new WorldClock(systems, maxIterationsPerTick)));
     }

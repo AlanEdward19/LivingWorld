@@ -25,6 +25,7 @@ import { BehaviorPanel } from "./panels/BehaviorPanel";
 import { CitiesPanel } from "./panels/CitiesPanel";
 import { DynamicsPanel } from "./panels/DynamicsPanel";
 import { EconomyPanel } from "./panels/EconomyPanel";
+import { ExtraordinaryPanel } from "./panels/ExtraordinaryPanel";
 import { MapPanel } from "./panels/MapPanel";
 import { PopulationPanel } from "./panels/PopulationPanel";
 import { creatorGroundAt, creatorPaintColor } from "./creatorWorldVisuals";
@@ -42,7 +43,7 @@ export interface WorldEditorProps {
 const WORLD: SpaceId = { kind: "World" };
 const LOD_THRESHOLDS = { aggregate: 4, token: 10, detail: 18 };
 const DEFAULT_VIEWPORT = { width: 900, height: 600 };
-type ConfigChapter = "overview" | "map" | "population" | "behavior" | "economy" | "cities" | "dynamics";
+type ConfigChapter = "overview" | "map" | "population" | "behavior" | "economy" | "cities" | "dynamics" | "extraordinary";
 const CONFIG_CHAPTERS: readonly { id: ConfigChapter; icon: string; label: string; description: string }[] = [
   { id: "overview", icon: "✦", label: "Visão", description: "O pulso inicial do mundo" },
   { id: "map", icon: "▦", label: "Território", description: "Escala, relevo e recursos" },
@@ -51,6 +52,7 @@ const CONFIG_CHAPTERS: readonly { id: ConfigChapter; icon: string; label: string
   { id: "economy", icon: "◇", label: "Trocas", description: "Produção e mercados" },
   { id: "cities", icon: "⌂", label: "Assentamentos", description: "Fundação e migração" },
   { id: "dynamics", icon: "↟", label: "Evolução", description: "Mudanças através do tempo" },
+  { id: "extraordinary", icon: "✧", label: "Extraordinário", description: "Capacidades opcionais por dados" },
 ];
 const CHAPTER_GUIDES: Record<Exclude<ConfigChapter, "overview">, { question: string; effect: string; recommendation: string; tooltip: string }> = {
   map: { question: "Que território sustenta esta história?", effect: "Escala e deslocamento mudam encontros, rotas e acesso a recursos.", recommendation: "Comece pelo mapa e só ajuste os custos se quiser uma geografia mais hostil.", tooltip: "Custos maiores fazem personagens evitarem certos terrenos e altitudes." },
@@ -59,6 +61,7 @@ const CHAPTER_GUIDES: Record<Exclude<ConfigChapter, "overview">, { question: str
   economy: { question: "O que mantém as comunidades vivas?", effect: "Produção, estoque, salários e preços formam as trocas do mundo.", recommendation: "Deixe a economia ativa e personalize receitas somente quando definir recursos próprios.", tooltip: "Sensibilidade determina o quanto escassez e abundância movimentam preços." },
   cities: { question: "Por que as pessoas ficam ou partem?", effect: "Escassez e oportunidade orientam migração, fundação e crescimento.", recommendation: "Posicione assentamentos no mapa; use limiares apenas para dirigir expansão futura.", tooltip: "Os limiares indicam quando falta de comida, moradia ou segurança vira pressão migratória." },
   dynamics: { question: "O mundo pode reinventar suas profissões?", effect: "Vieses e transformações mudam papéis disponíveis ao longo do tempo.", recommendation: "Esta etapa é opcional. Deixe vazia para uma primeira simulação previsível.", tooltip: "Regras de transformação emergem, unem, dividem ou removem profissões em ticks definidos." },
+  extraordinary: { question: "O extraordinário faz parte deste mundo?", effect: "Descritores opcionais combinam fonte, efeitos, custos, riscos e manifestações sem arquétipos fixos.", recommendation: "Mantenha desligado para um mundo comum; ligue apenas ao autorar descritores completos.", tooltip: "Manifestações visuais são tags de dados como scale, tint, pallor e trail." },
 };
 
 // Nada aqui assina snapshot/stream/portal de verdade — o editor nunca chama `observeSpace`, e
@@ -332,6 +335,7 @@ export function WorldEditor({
       case "economy": panel = <EconomyPanel form={form} set={set} professionNames={catalog?.professionNames} />; break;
       case "cities": panel = <CitiesPanel form={form} set={set} />; break;
       case "dynamics": panel = <DynamicsPanel form={form} set={set} professionNames={catalog?.professionNames} skillNames={catalog?.skillNames} />; break;
+      case "extraordinary": panel = <ExtraordinaryPanel form={form} set={set} />; break;
       default: return (
         <div className="world-overview-chapter">
           <span>A primeira página ainda está em branco.</span>

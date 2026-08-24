@@ -33,6 +33,26 @@ describe("generateBuildingFootprint", () => {
     }
   });
 
+  it.each([0, 90, 180, 270] as const)("keeps a house compact and internal when rotated %i degrees", (orientation) => {
+    const cells = generateBuildingFootprint("house-12", -1, 0, orientation);
+
+    expect(Math.max(...cells.map((cell) => cell.x)) + 1).toBe(3);
+    expect(Math.max(...cells.map((cell) => cell.y)) + 1).toBe(3);
+    expect(cells.filter((cell) => cell.material === "floor")).toHaveLength(1);
+  });
+
+  it("rotates the door while preserving the same occupied cells", () => {
+    const south = generateBuildingFootprint("house-12", -1, 0, 0);
+    const east = generateBuildingFootprint("house-12", -1, 0, 90);
+
+    expect(south.find((cell) => cell.material === "door")).not.toEqual(
+      east.find((cell) => cell.material === "door"),
+    );
+    expect(new Set(south.map((cell) => `${cell.x},${cell.y}`))).toEqual(
+      new Set(east.map((cell) => `${cell.x},${cell.y}`)),
+    );
+  });
+
   it("uses stone walls for an even buildingTypeId and wood for an odd one", () => {
     const stone = generateBuildingFootprint("same-id", 2);
     const wood = generateBuildingFootprint("same-id", 3);

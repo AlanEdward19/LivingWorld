@@ -20,14 +20,15 @@ public sealed class LivingDeltaContractTests
         var city = new City(world.NextCityId(), npc.CurrentLocation, 0, null, AggregatePopulationPool.Empty);
         world.AddCity(city);
         npc.JoinCity(city.Id);
-        var building = new Building(world.NextBuildingIdAndAdvance(), city.Id, 7, 0, position: new CellCoord(6, 6));
+        var buildingPosition = new CellCoord(npc.CurrentLocation.X - 1, npc.CurrentLocation.Y - 1);
+        var building = new Building(world.NextBuildingIdAndAdvance(), city.Id, -1, 0, position: buildingPosition, orientation: 0);
         world.AddBuilding(building);
         var evt = new WorldEvent(4, WorldEventKind.Hired, $"{npc.Id.Value}|1");
 
         var state = LivingScopeProjector.Build(world, new VisualScope(VisualScopeKind.City, city.Id.ToString()), [evt]);
 
         Assert.Equal(new NpcVisual(npc.Id, npc.CurrentLocation, npc.CurrentAction, npc.City), Assert.Single(state.Npcs));
-        Assert.Equal(new BuildingVisual(building.Id, city.Id, 7, new CellCoord(6, 6)), Assert.Single(state.Buildings));
+        Assert.Equal(new BuildingVisual(building.Id, city.Id, -1, buildingPosition), Assert.Single(state.Buildings));
         Assert.Equal(6, state.Indicators.Count);
         Assert.Equal(
             new NotableVisualEvent(4, WorldEventKind.Hired, "Um habitante começou um novo trabalho", npc.CurrentLocation),

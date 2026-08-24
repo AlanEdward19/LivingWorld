@@ -147,6 +147,12 @@ public static class WorldSnapshot
         var nextCropBatchId = node.TryGetPropertyValue("NextCropBatchId", out var nextCropNode) && nextCropNode is not null
             ? nextCropNode.GetValue<long>()
             : 0L;
+        var extraordinary = node.TryGetPropertyValue("Extraordinary", out var extraordinaryNode) && extraordinaryNode is not null
+            ? extraordinaryNode.Deserialize<ExtraordinaryScenarioData>(JsonOptions)!
+            : ExtraordinaryScenarioData.Disabled;
+        var extraordinaryCarriers = node.TryGetPropertyValue("ExtraordinaryCarriers", out var carriersNode) && carriersNode is not null
+            ? carriersNode.Deserialize<List<ExtraordinaryCarrierState>>(JsonOptions)!
+            : [];
 
         return new WorldState(
             calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
@@ -157,7 +163,7 @@ public static class WorldSnapshot
             canonicalMemories, volatileMemories, nextMemoryId, name, portals,
             restPlaceCatalog, restPlaces, nextRestPlaceId,
             resourceCatalog, processRecipes, resourceProcesses, nextResourceProcessId,
-            cropBatches, nextCropBatchId);
+            cropBatches, nextCropBatchId, extraordinary, extraordinaryCarriers);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)

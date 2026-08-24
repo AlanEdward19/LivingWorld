@@ -53,7 +53,9 @@ public class InterCityMigrationVisibilityTests
 
         var head = MakeNpc(world, 1, origin.Id, origin.Location);
         world.AddNpc(head);
-        var household = new Household(new HouseholdId(1), origin.Location, head.Id, [head.Id], city: origin.Id);
+        // Residência estável fora dos bounds representa overflow real; a posição transitória do
+        // NPC, sozinha, não deve mais disparar migração.
+        var household = new Household(new HouseholdId(1), new CellCoord(9, 9), head.Id, [head.Id], city: origin.Id);
         head.JoinHousehold(household.Id);
         household.Deposit(Food, 0);
         world.AddHousehold(household);

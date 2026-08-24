@@ -25,8 +25,7 @@ public class ChronicleGenerationSystemTests
         // NARR-05/06: agrega e ordena por significância antes de renderizar; a crônica publicada
         // referencia pelo menos um eventId entre os K mais significativos da janela.
         var (world, _) = ScenarioRunner.Create(1, initialPopulation: 0, historyRules: HistoryRules.Default);
-        var city = new CityId(Guid.NewGuid());
-        world.AddCity(MakeCity(city));
+        var city = world.ActiveCities().Single().Id;
         var lowFact = new Fact(world.NextFactIdAndAdvance(), 10, WorldEventKind.CourtshipRejected, [], city, 0.2, "low");
         var highFact = new Fact(world.NextFactIdAndAdvance(), 20, WorldEventKind.Death, [], city, 0.9, "high");
         world.AddFact(lowFact);
@@ -103,8 +102,7 @@ public class ChronicleGenerationSystemTests
         // fecha (nunca em fronteira diária), uma crônica por cidade conhecida (NARR-05..08 +
         // "nunca no tick diário").
         var (world, _) = ScenarioRunner.Create(1, initialPopulation: 0, historyRules: HistoryRules.Default);
-        var city = new CityId(Guid.NewGuid());
-        world.AddCity(MakeCity(city));
+        var city = world.ActiveCities().Single().Id;
         world.AddFact(new Fact(world.NextFactIdAndAdvance(), 10, WorldEventKind.Death, [], city, 0.7, "relevant"));
         var system = new ChronicleGenerationSystem();
         var clock = new WorldClock([system]);
@@ -113,7 +111,8 @@ public class ChronicleGenerationSystemTests
         Assert.Empty(system.Chronicles);
 
         clock.Tick(world); // fecha o mês (HoursPerMonth-ésimo tick)
-        Assert.Single(system.Chronicles);
+        Assert.Equal(world.ActiveCities().Count(), system.Chronicles.Count);
+        Assert.Single(system.Chronicles, chronicle => chronicle.Prose.Contains("relevant", StringComparison.Ordinal));
     }
 
     private static City MakeCity(CityId id) =>

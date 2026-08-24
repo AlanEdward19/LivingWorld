@@ -26,6 +26,13 @@ export class MockTimeControlSource implements TimeControlSource {
     this.clock.advanceOneTick();
   }
 
+  async advanceYear(): Promise<void> {
+    if (!this.clock.isPaused) {
+      throw new Error("advanceYear requires the simulation to be paused");
+    }
+    this.clock.advanceOneYear();
+  }
+
   async status(): Promise<SimulationStatus> {
     return this.clock.status();
   }

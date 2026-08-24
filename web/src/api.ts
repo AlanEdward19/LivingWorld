@@ -153,6 +153,10 @@ export async function stepSimulation(): Promise<void> {
   await fetch(`${apiBaseUrl()}/simulation/step`, { method: "POST" });
 }
 
+export async function advanceSimulationYear(): Promise<void> {
+  await fetch(`${apiBaseUrl()}/simulation/advance-year`, { method: "POST" });
+}
+
 export interface SimulationStatusDto {
   isPaused: boolean;
   ticksPerSecond: number;

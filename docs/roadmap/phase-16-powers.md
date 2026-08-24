@@ -1,13 +1,13 @@
 # Fase 16 — Potência
 
+**Status**: ativa — spec/design/tasks em `.specs/features/phase-16-powers/`.
+
 **Objetivo**: mutante, mago, portador de artefato e implantado deixam de ser cinco
 subsistemas e viram **um modificador declarado** sobre sistemas que já existem, com fonte,
 efeito, custo, probabilidade, modo de falha e consequência social. O motor continua
 conservando dinheiro e recursos com poderes ligados.
 
-> **Spec, não gate.** Os critérios abaixo são a intenção; os critérios finais são escritos
-> sob `rules/eval-criteria.md` quando a fase for ativada. Não comece esta fase antes da
-> Fase 8 fechar.
+> Critérios finais seguem `rules/eval-criteria.md`; decisões e rastreabilidade vivem na spec.
 
 ## Tasks
 1. **`Extraordinary.Enabled` por mundo**: desligado, zero portadores, zero aquisição, zero
@@ -68,23 +68,20 @@ conservando dinheiro e recursos com poderes ligados.
 - **Conservação sobrevive a poderes**: com potência ligada, massa monetária e estoque só
   mudam por transação, cunhagem ou destruição registrada, assert a cada tick em 10 anos;
   100 em nightly. Nenhum poder cria valor fora dos campos monotônicos da Fase 3.
-- **Habilidade não atravessa o nascimento, predisposição sim**: em 200 nascimentos de
+- **Habilidade não atravessa o nascimento, predisposição sim**: até `BirthSampleTarget`
+  nascimentos (parâmetro do cenário),
   portadores, IC95 de `poder(pai) ↔ poder(filho)` **contém 0**; IC95 de
   `predisposição(pai) ↔ predisposição(filho)` **acima de 0**.
 - **A cultura decide a reação, não o poder**: mesmo poder, mesma seed, duas culturas com
   religiosidade oposta → reações de sinal contrário em 10/10 seeds.
 - **Potência entrou na conta**: desligar o sistema por flag muda o hash canônico em 10 anos.
 
-## Questões em aberto
-- O eixo **tempo** não tem sistema para modificar antes da Fase 18: bloqueado até lá, ou
-  modificador de duração sobre o scheduler da Fase 1?
-- Custo em **longevidade** colide com a morte agendada da Fase 3: reagenda o tick de óbito
-  ou é evento compensatório novo (Fase 10)?
-- A rolagem consome o stream do portador; portador **não materializado** não tem stream
-  estável — materializa na invocação, ou a região ganha stream próprio?
-- "Atenção de algo que era melhor não ter notado você" é custo ou modo de falha? Se a coisa
-  é entidade, é Fase 17 e a dependência entre fases inverte.
-- Prevalência não tem gate. Que sensor barato avisa "todo mundo voa" sem virar critério?
+## Resoluções de ativação
+- **Tempo** fica bloqueado até a Fase 18; não altera o scheduler nesta fase.
+- **Longevidade** reagenda a morte e registra a cadeia causal, sem relógio compensatório.
+- Portador agregado usa stream estável da região; não materializa só para rolar.
+- **Atenção hostil** é evento genérico; entidade concreta pertence à Fase 17.
+- Prevalência continua parâmetro/baseline observável, não gate arquitetural.
 
 ## Fora do escopo
 Divindade e economia de crença: Fase 17. Poder sobre linha temporal/artefato ramificado:

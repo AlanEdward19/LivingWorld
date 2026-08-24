@@ -40,7 +40,7 @@ public sealed class ChronicleGenerationSystem : ISimulationSystem
         if (periodStart < 0)
             return;
 
-        foreach (var city in world.Cities.OrderBy(c => c.Id.Value))
+        foreach (var city in world.ActiveCities().OrderBy(c => c.Id.Value))
             GenerateChronicle(world, city.Id, periodStart, periodEnd);
     }
 

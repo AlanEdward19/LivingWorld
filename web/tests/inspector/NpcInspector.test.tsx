@@ -63,6 +63,31 @@ describe("NpcInspector living view", () => {
     expect(screen.getByText("Dizem que a colheita trouxe esperança")).toBeInTheDocument();
   });
 
+  it("shows generic extraordinary carrier state and active appearance descriptors when supplied", async () => {
+    const inspection = {
+      ...BASE_INSPECTION,
+      extraordinary: {
+        powerIds: ["descriptor-1", "descriptor-2"],
+        isManifested: true,
+        manifestationState: "conditional-active",
+        appearance: { scaleMultiplier: 1.4, skinTint: "#88ccff", movementTrail: "dust" },
+        needSubstitution: { replacesNeed: "hunger", resourceId: 9, unitsPerUse: 2 },
+        senescenceRateMultiplier: 0.5,
+      },
+    };
+
+    await renderInspector(new MockNpcInspectionSource(new Map([[3, inspection]])));
+
+    expect(screen.getByRole("heading", { name: "Extraordinário" })).toBeInTheDocument();
+    expect(screen.getByText("descriptor-1, descriptor-2")).toBeInTheDocument();
+    expect(screen.getByText("Manifestado · conditional-active")).toBeInTheDocument();
+    expect(screen.getByText("1.4×")).toBeInTheDocument();
+    expect(screen.getByText("#88ccff")).toBeInTheDocument();
+    expect(screen.getByText("dust")).toBeInTheDocument();
+    expect(screen.getByText("hunger → recurso 9 (2/unidade)")).toBeInTheDocument();
+    expect(screen.getByText("0.5×")).toBeInTheDocument();
+  });
+
   it("loads details only for the selected materialized identity without direct fetch", async () => {
     const source = new MockNpcInspectionSource(new Map([[3, BASE_INSPECTION]]));
     const load = vi.spyOn(source, "load");

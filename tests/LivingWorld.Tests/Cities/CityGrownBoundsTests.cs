@@ -85,7 +85,7 @@ public class CityGrownBoundsTests
         // próprio mapa, e o fix de CityBoundsResolver.Resolve (clamp de origem) corretamente deixa
         // de deixar a caixa resolvida fora do mapa nesse caso, o que quebrava este teste por um
         // motivo alheio ao que ele verifica (crescimento por overflow).
-        var world = ScenarioRunner.Create(seed: 702, initialPopulation: 0).World;
+        var world = EmptyWorld(seed: 702);
         var city = new City(world.NextCityId(), new CellCoord(4, 4), 0, null, AggregatePopulationPool.Empty);
         world.AddCity(city);
 
@@ -108,7 +108,7 @@ public class CityGrownBoundsTests
     [Fact]
     public void CityProjector_Build_bounds_are_unchanged_from_population_only_when_the_city_has_no_buildings()
     {
-        var world = ScenarioRunner.Create(seed: 703, initialPopulation: 0).World;
+        var world = EmptyWorld(seed: 703);
         var city = new City(world.NextCityId(), new CellCoord(50, 50), 0, null, AggregatePopulationPool.Empty);
         world.AddCity(city);
 
@@ -120,4 +120,10 @@ public class CityGrownBoundsTests
         Assert.Equal(populationBounds.Origin.X, snapshot.Bounds.X);
         Assert.Equal(populationBounds.Origin.Y, snapshot.Bounds.Y);
     }
+
+    private static WorldState EmptyWorld(ulong seed) => new(
+        ScenarioRunner.DefaultCalendar, seed, ScenarioRunner.DefaultMap(seed),
+        ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
+        ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
+        ScenarioRunner.DefaultLifeStageRules);
 }

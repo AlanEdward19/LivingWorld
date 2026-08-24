@@ -109,7 +109,10 @@ public class EmploymentSystemTests
     [Fact]
     public void No_workplace_exceeds_max_vacancies_and_every_employer_resolves_over_10_years()
     {
-        var world = BuildWorld(seed: 7);
+        var world = new WorldState(
+            Calendar, 7, ScenarioRunner.InitialMap(7, 20), ScenarioRunner.DefaultPopulationCatalog,
+            ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules,
+            ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules);
         PopulationSeeder.SeedInitial(world, 20, ScenarioRunner.DefaultCulture, ScenarioRunner.DefaultVillageLocation);
         world.AddWorkplace(MakeWorkplace(world, maxVacancies: 5));
         // ScenarioRunner.DefaultSystems() já inclui EmploymentSystem (T20) — não duplicar.

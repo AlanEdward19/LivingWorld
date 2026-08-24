@@ -344,6 +344,155 @@ public class MigrationSystemTests
     }
 
     [Fact]
+    public void Employed_housed_and_fed_household_does_not_migrate_even_when_another_city_scores_much_higher()
+    {
+        var world = MakeWorld(MakeRules(foodWeight: 1));
+        var (origin, destination) = MakeTwoCities(world);
+        var (head, household) = SeedTwoOneNpcHouseholds(
+            world, origin.Id, destination.Id, originFood: 1, destinationFood: 1000);
+        head.Hire(new WorkplaceId(1));
+        long nextId = 100;
+        AddFillerPopulation(world, origin.Id, 19, ref nextId);
+
+        new MigrationSystem().Tick(world, MakeCtx(world));
+
+        Assert.Equal(origin.Id, head.City);
+        Assert.Null(household.PendingRelocationCity);
+    }
+
+    [Fact]
+    public void Employed_housed_and_fed_household_does_not_migrate_while_temporarily_outside_its_city()
+    {
+        var world = MakeWorld(MakeRules(foodWeight: 1));
+        var (origin, destination) = MakeTwoCities(world);
+        var (head, household) = SeedTwoOneNpcHouseholds(
+            world, origin.Id, destination.Id, originFood: 1, destinationFood: 1000);
+        head.Hire(new WorkplaceId(1));
+        head.MoveTo(new CellCoord(9, 9), world.CurrentDate.TotalHours);
+        long nextId = 100;
+        AddFillerPopulation(world, origin.Id, 19, ref nextId);
+
+        new MigrationSystem().Tick(world, MakeCtx(world));
+
+        Assert.Equal(origin.Id, head.City);
+        Assert.Null(household.PendingRelocationCity);
+    }
+
+    [Fact]
+    public void Household_already_relocating_is_not_retargeted_on_a_later_migration_tick()
+    {
+        var world = MakeWorld(MakeRules(foodWeight: 1));
+        var (origin, destination) = MakeTwoCities(world);
+        var third = new City(world.NextCityId(), new CellCoord(2, 2), 0, null, AggregatePopulationPool.Empty);
+        world.AddCity(third);
+        var (_, household) = SeedTwoOneNpcHouseholds(
+            world, origin.Id, destination.Id, originFood: 0, destinationFood: 1);
+        household.BeginRelocation(destination.Id);
+        long nextId = 100;
+        AddFillerPopulation(world, destination.Id, 9, ref nextId); // destino pendente: FoodLevel 1/10
+        var thirdHead = MakeNpc(world, 3, third.Id);
+        world.AddNpc(thirdHead);
+        var thirdHousehold = new Household(new HouseholdId(3), third.Location, thirdHead.Id, [thirdHead.Id], city: third.Id);
+        thirdHousehold.Deposit(Food, 1000);
+        world.AddHousehold(thirdHousehold);
+
+        new MigrationSystem().Tick(world, MakeCtx(world));
+
+        Assert.Equal(destination.Id, household.PendingRelocationCity);
+    }
+
+    [Fact]
+    public void Household_that_arrives_in_a_fed_city_does_not_return_to_the_now_empty_origin()
+    {
+        var world = MakeWorld(MakeRules(foodWeight: 1));
+        var (origin, destination) = MakeTwoCities(world);
+        var (head, household) = SeedTwoOneNpcHouseholds(
+            world, origin.Id, destination.Id, originFood: 0, destinationFood: 1000);
+
+        new MigrationSystem().Tick(world, MakeCtx(world));
+        CompletePendingMigrations(world);
+        Assert.Equal(destination.Id, head.City);
+        Assert.Equal(destination.Location, household.Location);
+
+        for (int day = 0; day < 10; day++)
+        {
+            new MigrationSystem().Tick(world, MakeCtx(world));
+            CompletePendingMigrations(world);
+        }
+
+        Assert.Equal(destination.Id, head.City);
+        Assert.Equal(destination.Id, household.City);
+        Assert.Null(household.PendingRelocationCity);
+    }
+
+    [Fact]
+    public void Arrival_updates_residence_and_preserves_employment_in_another_city()
+    {
+        var world = MakeWorld(MakeRules(foodWeight: 1));
+        var origin = new City(world.NextCityId(), new CellCoord(0, 0), 0, null, AggregatePopulationPool.Empty);
+        var destination = new City(world.NextCityId(), new CellCoord(8, 8), 0, null, AggregatePopulationPool.Empty);
+        world.AddCity(origin);
+        world.AddCity(destination);
+        var (head, household) = SeedTwoOneNpcHouseholds(
+            world, origin.Id, destination.Id, originFood: 0, destinationFood: 1000);
+        var workplace = new Workplace(
+            new WorkplaceId(1), new LocationType(1), origin.Location, 1, [head.Id],
+            new Dictionary<ResourceType, long>(), Money.Zero, new Dictionary<ResourceType, long>(), origin.Id);
+        world.AddWorkplace(workplace);
+        head.Hire(workplace.Id);
+
+        new MigrationSystem().Tick(world, MakeCtx(world));
+        CompletePendingMigrations(world);
+
+        Assert.Equal(destination.Id, head.City);
+        Assert.Equal(destination.Id, household.City);
+        Assert.Equal(destination.Location, household.Location);
+        Assert.Equal(workplace.Id, head.Employer);
+        Assert.Contains(head.Id, workplace.Employees);
+
+        // O trabalho intermunicipal pode levá-lo fisicamente à origem, mas avaliações diárias
+        // não confundem esse commute com uma nova mudança de residência.
+        var clock = new WorldClock([new BehaviorDecisionSystem(), new RelocationArrivalSystem()]);
+        var ctx = MakeCtx(world);
+        for (int hour = 0; hour < 5 * 24; hour++)
+        {
+            NpcWakeScheduler.ScheduleWake(world, ctx, head.Id.Value, world.CurrentDate.TotalHours + 1);
+            clock.Tick(world);
+            if ((hour + 1) % 24 == 0)
+                new MigrationSystem().Tick(world, MakeCtx(world));
+        }
+
+        Assert.Equal(destination.Id, head.City);
+        Assert.Null(household.PendingRelocationCity);
+        Assert.Equal(destination.Location, household.Location);
+        Assert.Equal(workplace.Id, head.Employer);
+    }
+
+    [Fact]
+    public void Arrival_preserves_an_unscoped_authored_job_in_another_city()
+    {
+        var world = MakeWorld(MakeRules());
+        var (origin, destination) = MakeTwoCities(world);
+        var head = MakeNpc(world, 1, origin.Id, destination.Location);
+        world.AddNpc(head);
+        var household = new Household(new HouseholdId(1), origin.Location, head.Id, [head.Id], city: origin.Id);
+        household.BeginRelocation(destination.Id);
+        world.AddHousehold(household);
+        var authoredWorkplace = new Workplace(
+            new WorkplaceId(1), new LocationType(1), origin.Location, 1, [head.Id],
+            new Dictionary<ResourceType, long>(), Money.Zero, new Dictionary<ResourceType, long>());
+        world.AddWorkplace(authoredWorkplace);
+        head.Hire(authoredWorkplace.Id);
+
+        new RelocationArrivalSystem().Tick(world, MakeCtx(world));
+
+        Assert.Equal(destination.Id, head.City);
+        Assert.Equal(destination.Location, household.Location);
+        Assert.Equal(authoredWorkplace.Id, head.Employer);
+        Assert.Contains(head.Id, authoredWorkplace.Employees);
+    }
+
+    [Fact]
     public void Household_does_not_migrate_for_a_marginal_score_improvement_within_the_hysteresis_margin()
     {
         // foodWeight=1 -> score == FoodLevel == min(1, food/population). População 20 em cada
@@ -365,12 +514,11 @@ public class MigrationSystemTests
     [Fact]
     public void Household_still_migrates_when_the_score_gap_is_substantially_beyond_the_hysteresis_margin()
     {
-        // Mesma população/fórmula do teste anterior, mas destino com comida farta: 20/20 = 1.0
-        // contra 10/20 = 0.5 na origem -> 100% de melhora, muito além dos 15% de margem -> migra
-        // normalmente (regressão: a margem não pode quebrar migração por disparidade real).
+        // Destino com comida farta: 20/20 = 1.0 contra 0/20 na origem. Há necessidade real e a
+        // diferença está muito além dos 15% de margem, então a migração continua permitida.
         var world = MakeWorld(MakeRules(foodWeight: 1));
         var (origin, destination) = MakeTwoCities(world);
-        var (npc, household) = SeedTwoOneNpcHouseholds(world, origin.Id, destination.Id, originFood: 10, destinationFood: 20);
+        var (npc, household) = SeedTwoOneNpcHouseholds(world, origin.Id, destination.Id, originFood: 0, destinationFood: 20);
         long nextId = 100;
         AddFillerPopulation(world, origin.Id, 19, ref nextId);
         AddFillerPopulation(world, destination.Id, 19, ref nextId);

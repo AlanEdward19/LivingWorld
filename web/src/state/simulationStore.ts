@@ -26,6 +26,7 @@ interface NpcMarkerLike {
   id: { value: number };
   location: { x: number; y: number };
   currentAction?: number | null;
+  extraordinary?: import("../types").ExtraordinaryNpcVisual | null;
 }
 
 /**
@@ -225,6 +226,7 @@ export class SimulationStore {
         sizeIsDerived: false,
         color: CATEGORY_COLOR.npc,
         currentAction: marker.currentAction,
+        extraordinary: marker.extraordinary,
         cityId: marker.city?.value,
         travelDestination: marker.relocationDestination ?? undefined,
       }, processes));
@@ -251,6 +253,7 @@ function livingStateFromSnapshot(payload: unknown): LivingViewState {
     id: marker.id,
     location: marker.location,
     currentAction: marker.currentAction ?? null,
+    extraordinary: marker.extraordinary,
   }));
   return livingViewStateFromWire({ npcs, cities: [], buildings: [], processes: [], indicators: [], events: [] });
 }

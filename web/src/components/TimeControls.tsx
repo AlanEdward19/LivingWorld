@@ -12,7 +12,7 @@ export interface TimeControlsProps {
   timeControlSource: TimeControlSource;
 }
 
-const SPEEDS = [1, 2, 4, 8];
+const SPEEDS = [1, 2, 4, 8, 16];
 
 export function TimeControls({ timeControlSource }: TimeControlsProps) {
   const [status, setStatus] = useState<SimulationStatus | null>(null);
@@ -80,6 +80,16 @@ export function TimeControls({ timeControlSource }: TimeControlsProps) {
         disabled={!isPaused}
       >
         +1 tick
+      </button>
+      <button
+        type="button"
+        onClick={async () => {
+          await timeControlSource.advanceYear();
+          await refresh();
+        }}
+        disabled={!isPaused}
+      >
+        +1 ano
       </button>
       <span data-testid="time-controls-status">
         {isPaused ? "Pausado" : `${status?.ticksPerSecond ?? "…"}x`}

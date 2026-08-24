@@ -16,7 +16,7 @@ public sealed class ConstructionSystem : ISimulationSystem
     {
         if (!world.CityRules.Enabled) return;
 
-        foreach (var city in world.Cities)
+        foreach (var city in world.ActiveCities())
         {
             // dynamic-city-growth AD-007: FIFO entre projetos não-travados, mas um projeto já
             // pago (TicksRemaining == 0) cujo placement falhou por escassez de terra fica
@@ -128,7 +128,7 @@ public sealed class ConstructionSystem : ISimulationSystem
     /// ticks pelo <see cref="Tick"/>, não aqui.</summary>
     public static Result<Unit> StartConstruction(WorldState world, CityId cityId, int buildingTypeId)
     {
-        var city = world.FindCity(cityId);
+        var city = world.FindActiveCity(cityId);
         if (city is null) return Result<Unit>.Fail("City: não existe");
         if (!world.CityCatalog.BuildingRecipes.TryGetValue(buildingTypeId, out var recipe))
             return Result<Unit>.Fail("BuildingTypeId: receita não existe no catálogo");
@@ -138,7 +138,7 @@ public sealed class ConstructionSystem : ISimulationSystem
                 return Result<Unit>.Fail($"Stock[{resource}]: insumo insuficiente para iniciar a obra");
 
         city.EnqueueConstruction(new ConstructionProject(
-            cityId, buildingTypeId, new Dictionary<ResourceType, long>(), recipe.TicksToBuild));
+            city.Id, buildingTypeId, new Dictionary<ResourceType, long>(), recipe.TicksToBuild));
         return Result<Unit>.Ok(Unit.Value);
     }
 }

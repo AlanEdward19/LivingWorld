@@ -31,11 +31,12 @@ public static class BuildingPlacementResolver
         if (building.Position is { } position)
             return (position, building.Orientation ?? 0, false);
 
-        var shape = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId).Select(c => c.Cell).ToList();
+        int orientation = BuildingFootprintGenerator.DerivedOrientation(building.Id, building.BuildingTypeId);
+        var shape = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId, orientation).Select(c => c.Cell).ToList();
         var origin = CityOccupancy.FindFreeCellInBounds(world, city, bounds, shape, building.Id)
             ?? OverflowPlacer.ResolveOverflowPosition(world, city, bounds, building.Id, shape);
 
-        return origin is { } resolved ? (resolved, 0, true) : null;
+        return origin is { } resolved ? (resolved, orientation, true) : null;
     }
 
     /// <summary>Canteiro de obra ainda sem <see cref="BuildingId"/> — estável por índice da fila

@@ -9,7 +9,7 @@ public sealed class ConstructionProject(
 {
     private readonly Dictionary<ResourceType, long> _consumed = new(consumed);
 
-    public CityId City { get; } = city;
+    public CityId City { get; private set; } = city;
     public int BuildingTypeId { get; } = buildingTypeId;
     public IReadOnlyDictionary<ResourceType, long> Consumed => _consumed;
     public long TicksRemaining { get; private set; } = ticksRemaining;
@@ -19,6 +19,8 @@ public sealed class ConstructionProject(
         if (TicksRemaining > 0)
             TicksRemaining--;
     }
+
+    public void JoinCity(CityId city) => City = city;
 
     // SPEC_DEVIATION (Fase 8, T10): design.md declara Consumed só como dado de construção
     // (imutável). ConstructionSystem precisa registrar consumo tick a tick (AC "consumido ao

@@ -16,7 +16,12 @@ import { SELECTION_HIGHLIGHT_COLOR } from "./categoryColors";
 import type { AuthoritativeEntity, CameraState, Vec2 } from "./types";
 import { npcPawnDataUrl } from "../npcAppearance";
 import { cloudPuffs, type GroundVisual } from "./worldVisuals";
-import { architectureHash, architecturePalette, cityRoofPalette } from "./architectureAppearance";
+import {
+  architectureHash,
+  buildingAppearanceForType,
+  cityRoofPalette,
+  type ArchitecturePalette,
+} from "./architectureAppearance";
 import { fanOutOffsets } from "./fanOut";
 import { npcVisualScale, tokenRadiusPx } from "./tokenSize";
 import { actionVisualFor } from "./actionVisuals";
@@ -369,8 +374,27 @@ function drawBuildingArchitecture(
   scale: number,
   isHighlighted: boolean,
 ): void {
+  const appearance = buildingAppearanceForType(entity.buildingTypeId, entity.ref.id);
+  if (appearance.kind === "agriculture") {
+    drawAgriculturalArchitecture(ctx, camera, entity, scale, isHighlighted, appearance.palette);
+    return;
+  }
+
+  drawRoofedArchitecture(ctx, camera, entity, scale, isHighlighted, appearance.palette);
+  if (appearance.kind === "forge") {
+    drawForgeDetails(ctx, camera, entity, scale);
+  }
+}
+
+function drawRoofedArchitecture(
+  ctx: CanvasRenderingContext2D,
+  camera: Camera,
+  entity: AuthoritativeEntity,
+  scale: number,
+  isHighlighted: boolean,
+  palette: ArchitecturePalette,
+): void {
   const cells = entity.footprintCells ?? [];
-  const palette = architecturePalette(entity.ref.id);
   const split = Math.floor(entity.size.w / 2);
   const topLeft = camera.worldToScreen(entity.position);
   const bottomRight = camera.worldToScreen({ x: entity.position.x + entity.size.w, y: entity.position.y + entity.size.h });
@@ -423,6 +447,68 @@ function drawBuildingArchitecture(
   }
   if (rotated) ctx.restore();
   drawLabel(ctx, entity, { x: topLeft.x + 4, y: topLeft.y - 4 }, "left");
+}
+
+function drawAgriculturalArchitecture(
+  ctx: CanvasRenderingContext2D,
+  camera: Camera,
+  entity: AuthoritativeEntity,
+  scale: number,
+  isHighlighted: boolean,
+  palette: ArchitecturePalette,
+): void {
+  const topLeft = camera.worldToScreen(entity.position);
+  const bottomRight = camera.worldToScreen({ x: entity.position.x + entity.size.w, y: entity.position.y + entity.size.h });
+  const width = bottomRight.x - topLeft.x;
+  const height = bottomRight.y - topLeft.y;
+  const rotated = beginEntityRotation(ctx, entity, topLeft, bottomRight);
+
+  ctx.fillStyle = "#6b5130";
+  ctx.fillRect(topLeft.x, topLeft.y, width, height);
+  ctx.strokeStyle = palette.roofLight;
+  ctx.lineWidth = Math.max(1.5, scale * 0.12);
+  for (let row = 1; row <= 4; row += 1) {
+    const y = topLeft.y + (height * row) / 5;
+    ctx.beginPath();
+    ctx.moveTo(topLeft.x + scale * 0.25, y);
+    ctx.lineTo(bottomRight.x - scale * 0.25, y);
+    ctx.stroke();
+  }
+
+  // Pequeno galpão deixa a leitura inequívoca mesmo em zoom reduzido.
+  ctx.fillStyle = palette.wall;
+  ctx.fillRect(topLeft.x + width * 0.62, topLeft.y + height * 0.12, width * 0.25, height * 0.28);
+  ctx.fillStyle = palette.roof;
+  ctx.fillRect(topLeft.x + width * 0.59, topLeft.y + height * 0.08, width * 0.31, height * 0.1);
+
+  if (isHighlighted) {
+    ctx.strokeStyle = SELECTION_HIGHLIGHT_COLOR;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(topLeft.x, topLeft.y, width, height);
+  }
+  if (rotated) ctx.restore();
+  drawLabel(ctx, entity, { x: topLeft.x + 4, y: topLeft.y - 4 }, "left");
+}
+
+function drawForgeDetails(
+  ctx: CanvasRenderingContext2D,
+  camera: Camera,
+  entity: AuthoritativeEntity,
+  scale: number,
+): void {
+  const topLeft = camera.worldToScreen(entity.position);
+  const furnace = {
+    x: topLeft.x + entity.size.w * scale * 0.72,
+    y: topLeft.y + entity.size.h * scale * 0.68,
+  };
+  ctx.fillStyle = "#302a27";
+  ctx.beginPath();
+  ctx.arc(furnace.x, furnace.y, Math.max(2, scale * 0.34), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#e56d32";
+  ctx.beginPath();
+  ctx.arc(furnace.x, furnace.y, Math.max(1, scale * 0.16), 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function drawCityArchitecture(
@@ -642,7 +728,10 @@ function drawProgressRing(
  */
 function pointVisualScale(entity: AuthoritativeEntity): number {
   if (entity.ref.kind !== "npc") return 1;
-  return npcVisualScale(entity.ref.space.kind);
+  const manifestationScale = entity.extraordinary?.isManifested
+    ? entity.extraordinary.scaleMultiplier
+    : 1;
+  return npcVisualScale(entity.ref.space.kind) * manifestationScale;
 }
 
 const RELOCATION_ROUTE_COLOR = "#c4a574";
@@ -754,6 +843,7 @@ function drawPointEntity(
   // em `tokenRadiusPx`). Dot continua fixo: é o marcador de "zoom afastado", nunca o alvo do
   // "quero ver de perto".
   const r = (isToken ? tokenRadiusPx(scale) : 3) * visualScale;
+  drawExtraordinaryTrail(ctx, entity, center, r);
 
   if (isToken) {
     // T35: pawn SVG original e determinístico, carregado uma vez por identidade e desenhado
@@ -770,6 +860,7 @@ function drawPointEntity(
       ctx.setLineDash([]);
       drawTokenGlyph(ctx, center, r);
     }
+    drawExtraordinaryTint(ctx, entity, center, r);
     if (entity.ref.kind === "npc" && entity.currentAction != null) {
       const visual = actionVisualFor(entity.currentAction);
       if (!visual.hidden) {
@@ -819,6 +910,7 @@ function drawPointEntity(
       ctx.stroke();
       ctx.setLineDash([]);
     }
+    drawExtraordinaryTint(ctx, entity, center, r);
   }
 
   if (isHighlighted) {
@@ -828,4 +920,58 @@ function drawPointEntity(
     ctx.lineWidth = 2;
     ctx.stroke();
   }
+}
+
+function extraordinaryColor(token: string, alpha: number): string {
+  let hash = 0;
+  for (let index = 0; index < token.length; index += 1) {
+    hash = (hash * 31 + token.charCodeAt(index)) | 0;
+  }
+  return `hsla(${Math.abs(hash) % 360}, 72%, 62%, ${alpha})`;
+}
+
+function drawExtraordinaryTint(
+  ctx: CanvasRenderingContext2D,
+  entity: AuthoritativeEntity,
+  center: Vec2,
+  radius: number,
+): void {
+  const appearance = entity.extraordinary;
+  if (!appearance?.isManifested || !appearance.skinTint) return;
+  ctx.save();
+  ctx.fillStyle = extraordinaryColor(appearance.skinTint, 0.3);
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, radius * 0.9, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawExtraordinaryTrail(
+  ctx: CanvasRenderingContext2D,
+  entity: AuthoritativeEntity,
+  center: Vec2,
+  radius: number,
+): void {
+  const appearance = entity.extraordinary;
+  if (!appearance?.isManifested || !appearance.movementTrail || entity.currentAction !== 4) return;
+  let hash = 0;
+  const identity = `${entity.ref.id}:${appearance.movementTrail}`;
+  for (let index = 0; index < identity.length; index += 1) {
+    hash = (hash * 31 + identity.charCodeAt(index)) | 0;
+  }
+  const angle = (Math.abs(hash) % 360) * Math.PI / 180;
+  const dx = Math.cos(angle);
+  const dy = Math.sin(angle);
+  ctx.save();
+  ctx.strokeStyle = extraordinaryColor(appearance.movementTrail, 0.55);
+  ctx.lineWidth = Math.max(1.5, radius * 0.2);
+  for (let streak = 0; streak < 3; streak += 1) {
+    const near = radius * (0.8 + streak * 0.45);
+    const far = radius * (1.5 + streak * 0.65);
+    ctx.beginPath();
+    ctx.moveTo(center.x - dx * near, center.y - dy * near);
+    ctx.lineTo(center.x - dx * far, center.y - dy * far);
+    ctx.stroke();
+  }
+  ctx.restore();
 }

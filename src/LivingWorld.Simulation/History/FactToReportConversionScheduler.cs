@@ -69,7 +69,8 @@ public sealed class FactToReportConversionScheduler : ISimulationSystem
 
     private static IEnumerable<CityId> ResolveCommunities(Fact fact, WorldState world)
     {
-        var communities = new SortedSet<CityId>();
+        var communities = new SortedSet<CityId>(
+            Comparer<CityId>.Create((left, right) => left.Value.CompareTo(right.Value)));
         if (fact.Location is { } location)
             communities.Add(location);
 

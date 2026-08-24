@@ -4,6 +4,13 @@ Fonte única de continuidade. Quem entra numa área nova **lê este arquivo prim
 Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
+- **Última coisa concluída (2026-08-23)**: `dynamic-city-growth` FixT18 — filha fundada junto da
+  mãe agenda fusão por `OrganizationTicks`, revalida adjacência e transfere todo estado causal.
+  A filha permanece como tombstone histórico (`MergedIntoCityId`), mas sai de migração,
+  crescimento, construção, fundação e projeções via `ActiveCities()`. ADR-0019; detalhes em
+  `.specs/features/dynamic-city-growth/tasks.md`. Verifier independente: PASS, 3/3 mutantes
+  mortos; `.specs/features/dynamic-city-growth/validation-fixt18.md`. Sem commit: `verify.sh`
+  segue vermelho somente nas duas instabilidades causais preexistentes de economia já registradas.
 - **Última coisa concluída (2026-08-23)**: `dynamic-city-growth` FixT17 — causa raiz real da saga
   de hoje "cidades coladas/muralhas sobrepostas/população oscilando". `FoundingSitePicker.Pick`
   excluía a cidade-mãe de QUALQUER checagem de espaçamento (não só do gap `AbsorptionRingCells`) —

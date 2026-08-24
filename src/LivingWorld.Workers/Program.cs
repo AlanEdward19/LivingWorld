@@ -89,7 +89,7 @@ if (args.Length == 4 && args[0] == "persist-save")
     var runner = new PersistentWorldRunner(repository, BranchId.Root, snapshotIntervalTicks: ticks);
     var sink = new BufferingWorldEventSink();
     var (world, _) = ScenarioRunner.Create(seed);
-    var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink);
+    var clock = new WorldClock(ScenarioRunner.DefaultSystems(extraordinary: world.Extraordinary), sink: sink);
     runner.Run(world, clock, sink, ticks);
     return 0;
 }

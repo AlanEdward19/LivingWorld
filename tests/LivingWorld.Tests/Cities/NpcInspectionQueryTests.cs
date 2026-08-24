@@ -135,8 +135,8 @@ public class NpcInspectionQueryTests
         var second = NpcInspectionQuery.Inspect(world, npc.Id).Value!;
         var third = NpcInspectionQuery.Inspect(world, npc.Id).Value!;
 
-        Assert.Equal(first, second);
-        Assert.Equal(second, third);
+        Assert.Equivalent(first, second, strict: true);
+        Assert.Equivalent(second, third, strict: true);
     }
 
     [Fact]

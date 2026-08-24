@@ -30,7 +30,7 @@ public sealed class SettlementFoundingSystem : ISimulationSystem
         if (!world.CityRules.Enabled) return;
         var rules = world.CityRules;
 
-        foreach (var city in world.Cities)
+        foreach (var city in world.ActiveCities())
         {
             if (city.FoundingScheduledAtTick is not null) continue; // já agendado, não reagenda
             if (!AllThresholdsMet(world, rules, city)) continue;
@@ -44,7 +44,7 @@ public sealed class SettlementFoundingSystem : ISimulationSystem
     {
         var motherCityId = new CityId(Guid.Parse(evt.Payload!));
         var motherCity = world.FindCity(motherCityId);
-        if (motherCity is null) return; // referência perdida — sem-op, não exceção
+        if (motherCity is null || motherCity.MergedIntoCityId is not null) return;
 
         // Post-ship fix (user-reported, 2026-08-23, "cidades coladas"): o sítio é escolhido ANTES
         // de extrair o pool da cidade-mãe agora -- FoundingSitePicker pode devolver null (mapa

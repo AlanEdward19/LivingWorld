@@ -1,3 +1,5 @@
+import type { ExtraordinaryNpcVisual } from "../types";
+
 // Fase 15.1, T0: tipos centrais do map engine (design.md "Data Models").
 // SpaceId modela a hierarquia WorldSpace > CitySpace > BuildingSpace (master prompt §9);
 // distinto de FocusScope (types.ts) só por nomear "Building" em vez de "Interior" — a
@@ -50,10 +52,14 @@ export interface AuthoritativeEntity {
   /** true quando `size` é derivado/aproximado e não autorado no domínio */
   sizeIsDerived: boolean;
   color: string;
+  /** Tipo autoritativo usado somente para escolher a aparência arquitetônica no cliente. */
+  buildingTypeId?: number;
   /** Rótulo visual opcional fornecido pela projeção/editor; fallback é kind + id. */
   label?: string;
   /** Estado visual observado; não participa de movimento, hit-test ou identidade. */
   currentAction?: number | null;
+  /** Estado extraordinário projetado; renderer só o consome durante manifestação ativa. */
+  extraordinary?: ExtraordinaryNpcVisual | null;
   /**
    * Forma real do footprint por célula, relativa a `position` (feedback do usuário — cidade/
    * prédio não são um retângulo uniforme, "igual wireframe" com material por célula:

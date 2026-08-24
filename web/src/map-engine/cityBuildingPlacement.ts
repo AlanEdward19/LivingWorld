@@ -15,7 +15,12 @@ export function cityBuildingEntityFromMarker(
   floor: number,
 ): AuthoritativeEntity {
   const buildingId = String(building.id.value);
-  const footprintCells = generateBuildingFootprint(buildingId, building.buildingTypeId, floor);
+  const footprintCells = generateBuildingFootprint(
+    buildingId,
+    building.buildingTypeId,
+    floor,
+    building.orientation ?? 0,
+  );
   const width = Math.max(...footprintCells.map((c) => c.x)) + 1;
   const height = Math.max(...footprintCells.map((c) => c.y)) + 1;
 
@@ -25,6 +30,7 @@ export function cityBuildingEntityFromMarker(
     size: { w: width, h: height },
     sizeIsDerived: building.locationIsDerived,
     color: CATEGORY_COLOR.building,
+    buildingTypeId: building.buildingTypeId,
     footprintCells: footprintCells.map((c) => ({
       x: c.x,
       y: c.y,
@@ -40,6 +46,7 @@ function toBuildingMarker(building: CityBuildingMarker | BuildingVisual): CityBu
     buildingTypeId: building.buildingTypeId,
     location: building.location,
     locationIsDerived: "locationIsDerived" in building ? building.locationIsDerived : false,
+    orientation: building.orientation ?? 0,
   };
 }
 

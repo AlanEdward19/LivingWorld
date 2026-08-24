@@ -15,7 +15,8 @@ public class CityBuildingMarkerContractTests
     [Fact]
     public void Marker_json_exposes_camelCase_location_and_locationIsDerived()
     {
-        var marker = new CityBuildingMarker(new BuildingId(8), 2, new CellCoord(4, -2), LocationIsDerived: true);
+        var marker = new CityBuildingMarker(
+            new BuildingId(8), 2, new CellCoord(4, -2), LocationIsDerived: true, Orientation: 270);
 
         using var doc = JsonDocument.Parse(JsonSerializer.Serialize(marker, Wire));
         var root = doc.RootElement;
@@ -24,6 +25,7 @@ public class CityBuildingMarkerContractTests
         Assert.Equal(-2, root.GetProperty("location").GetProperty("y").GetInt32());
         Assert.True(root.GetProperty("locationIsDerived").GetBoolean());
         Assert.Equal(2, root.GetProperty("buildingTypeId").GetInt32());
+        Assert.Equal(270, root.GetProperty("orientation").GetInt32());
     }
 
     [Fact]
@@ -45,7 +47,7 @@ public class CityBuildingMarkerContractTests
         var npc = world.Npcs.First();
         var city = new City(world.NextCityId(), npc.CurrentLocation, 0, null, AggregatePopulationPool.Empty);
         world.AddCity(city);
-        var building = new Building(world.NextBuildingIdAndAdvance(), city.Id, 2, 0);
+        var building = new Building(world.NextBuildingIdAndAdvance(), city.Id, -1, 0);
         world.AddBuilding(building);
 
         var marker = Assert.Single(CityProjector.Build(world, city.Id).Value!.Buildings);
@@ -58,5 +60,6 @@ public class CityBuildingMarkerContractTests
         Assert.NotNull(resolved);
         Assert.Equal(resolved!.Value.Position, marker.Location);
         Assert.Equal(resolved.Value.IsDerived, marker.LocationIsDerived);
+        Assert.Equal(resolved.Value.Orientation, marker.Orientation);
     }
 }

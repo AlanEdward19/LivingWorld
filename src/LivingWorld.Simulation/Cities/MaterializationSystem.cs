@@ -54,7 +54,7 @@ public sealed class MaterializationSystem : ISimulationSystem
     /// reservado) — comportamento de sempre pra quem só quer "materialize alguém desta cidade".</summary>
     public static Result<Npc> MaterializeOne(WorldState world, TickContext ctx, CityId cityId, NpcId? specificId = null)
     {
-        var city = world.FindCity(cityId);
+        var city = world.FindActiveCity(cityId);
         if (city is null) return Result<Npc>.Fail("City: não existe");
         if (city.PoolNpcIds.Count == 0) return Result<Npc>.Fail("AggregatePool: nenhum NPC agregado disponível para materializar");
 
@@ -82,7 +82,7 @@ public sealed class MaterializationSystem : ISimulationSystem
             id, $"npc-materialized-{id.Value}", sex, birthDate, culture, city.Location,
             motherId: null, fatherId: null, household: null, health: (int)healthPerHead,
             personality: personality, profession: profession, currentLocation: city.Location,
-            wallet: new Money(wealthPerHead), city: cityId, materializedAtTick: ctx.CurrentTick);
+            wallet: new Money(wealthPerHead), city: city.Id, materializedAtTick: ctx.CurrentTick);
 
         world.AddNpc(npc);
         return Result<Npc>.Ok(npc);
@@ -127,7 +127,7 @@ public sealed class MaterializationSystem : ISimulationSystem
         if (npc is not null)
             return npc.IsAlive ? Result<Unit>.Ok(Unit.Value) : Result<Unit>.Fail("Npc: não existe ou está morto");
 
-        var city = world.Cities.FirstOrDefault(c => c.PoolNpcIds.Contains(npcId));
+        var city = world.ActiveCities().FirstOrDefault(c => c.PoolNpcIds.Contains(npcId));
         if (city is null) return Result<Unit>.Fail("Npc: não existe ou está morto");
 
         var ctx = new TickContext(world, world.Rng, world.Scheduler);

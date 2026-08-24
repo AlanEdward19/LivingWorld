@@ -89,7 +89,17 @@ public static class PopulationSeeder
             world.AddBuilding(new Building(
                 world.NextBuildingIdAndAdvance(), city.Id, InitialHouseBuildingTypeId,
                 world.CurrentDate.TotalHours, position, orientation));
-            locations.Add(position);
+            // Household.Location é o destino real de sono/retorno. A origem do footprint é uma
+            // célula de parede; guardar essa origem fazia o NPC parar "na casa", mas nunca entrar.
+            // Casas 3x3 sempre têm exatamente uma célula Floor, rotacionada junto com a planta.
+            var interior = BuildingFootprintGenerator
+                .Generate(candidate.Id, InitialHouseBuildingTypeId, orientation)
+                .Where(cell => cell.Material == BuildingMaterial.Floor)
+                .OrderBy(cell => cell.Cell.Y)
+                .ThenBy(cell => cell.Cell.X)
+                .Select(cell => new CellCoord(position.X + cell.Cell.X, position.Y + cell.Cell.Y))
+                .First();
+            locations.Add(interior);
         }
         return locations;
     }

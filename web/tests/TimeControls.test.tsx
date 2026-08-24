@@ -38,6 +38,7 @@ describe("TimeControls", () => {
         ticksPerSecond = tps;
       }),
       step: vi.fn(async () => {}),
+      advanceYear: vi.fn(async () => {}),
       status: vi.fn(async () => ({ isPaused, ticksPerSecond, tick: 0 })),
     };
 
@@ -56,6 +57,12 @@ describe("TimeControls", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "+1 tick" }));
     await waitFor(() => expect(source.step).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole("button", { name: "+1 ano" }));
+    await waitFor(() => expect(source.advanceYear).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole("button", { name: "16x" }));
+    await waitFor(() => expect(source.setSpeed).toHaveBeenCalledWith(16));
   });
 
   it("shows the current speed, reflecting status()", async () => {
@@ -82,6 +89,7 @@ describe("TimeControls", () => {
     const source = {
       pause: vi.fn(async () => {}), resume: vi.fn(async () => {}),
       setSpeed: vi.fn(async () => {}), step: vi.fn(async () => {}),
+      advanceYear: vi.fn(async () => {}),
       status: vi.fn(async () => ({ isPaused: false, ticksPerSecond: 2, tick: 8641, year: 1 })),
     };
 
@@ -95,6 +103,7 @@ describe("TimeControls", () => {
     const source = {
       pause: vi.fn(async () => {}), resume: vi.fn(async () => {}),
       setSpeed: vi.fn(async () => {}), step: vi.fn(async () => {}),
+      advanceYear: vi.fn(async () => {}),
       status: vi.fn(async () => ({ isPaused: false, ticksPerSecond: 1, tick: tick++, year: 0 })),
     };
 
@@ -113,6 +122,7 @@ describe("TimeControls", () => {
       resume: vi.fn(async () => { paused = false; tick = 12; }),
       setSpeed: vi.fn(async (next: number) => { speed = next; tick = 13; }),
       step: vi.fn(async () => { tick = 14; }),
+      advanceYear: vi.fn(async () => { tick = 8654; }),
       status: vi.fn(async () => ({ isPaused: paused, ticksPerSecond: speed, tick, year: 0 })),
     };
     render(<TimeControls timeControlSource={source} />);
@@ -122,6 +132,8 @@ describe("TimeControls", () => {
     await waitFor(() => expect(screen.getByTestId("time-controls-clock")).toHaveTextContent("Tick 11"));
     fireEvent.click(screen.getByRole("button", { name: "+1 tick" }));
     await waitFor(() => expect(screen.getByTestId("time-controls-clock")).toHaveTextContent("Tick 14"));
+    fireEvent.click(screen.getByRole("button", { name: "+1 ano" }));
+    await waitFor(() => expect(screen.getByTestId("time-controls-clock")).toHaveTextContent("Tick 8654"));
     fireEvent.click(screen.getByRole("button", { name: "Resume" }));
     await waitFor(() => expect(screen.getByTestId("time-controls-clock")).toHaveTextContent("Tick 12"));
     fireEvent.click(screen.getByRole("button", { name: "4x" }));
@@ -146,16 +158,18 @@ describe("TimeControls", () => {
     vi.unstubAllGlobals();
   });
 
-  it("enables '+1 tick' only while paused", async () => {
+  it("enables single-tick and single-year advances only while paused", async () => {
     const clock = new MockClock();
     const source = new MockTimeControlSource(clock);
 
     render(<TimeControls timeControlSource={source} />);
     await waitFor(() => expect(screen.getByRole("button", { name: "+1 tick" })).toBeDisabled());
+    expect(screen.getByRole("button", { name: "+1 ano" })).toBeDisabled();
 
     fireEvent.click(screen.getByRole("button", { name: "Pause" }));
 
     await waitFor(() => expect(screen.getByRole("button", { name: "+1 tick" })).toBeEnabled());
+    expect(screen.getByRole("button", { name: "+1 ano" })).toBeEnabled();
   });
 
   it("changing speed neither re-subscribes the tick stream nor clears the current selection", async () => {

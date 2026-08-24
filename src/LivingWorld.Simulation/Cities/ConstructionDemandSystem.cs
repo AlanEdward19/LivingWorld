@@ -19,7 +19,7 @@ public sealed class ConstructionDemandSystem : ISimulationSystem
 
         var vacancyIndex = VacancyIndex.BuildForTick(world);
 
-        foreach (var city in world.Cities.OrderBy(c => c.Id.Value))
+        foreach (var city in world.ActiveCities().OrderBy(c => c.Id.Value))
         {
             TryRequestHousing(world, city);
             TryRequestWorkplace(world, city, vacancyIndex);

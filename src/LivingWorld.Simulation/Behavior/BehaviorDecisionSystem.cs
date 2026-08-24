@@ -50,12 +50,15 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         // tick por causa de passeio ambiente (só afeta CurrentLocation, não City), então o
         // resultado é idêntico ao recalculado por chamada (PERF-06/07).
         var cityPopulationCache = new Dictionary<CityId, long>();
+        var cityBoundsCache = new Dictionary<CityId, CityBounds>();
 
         foreach (var npc in targets)
         {
             EvaluateProfessionSwitch(world, npc, vacancyIndex);
 
-            bool justCompleted = TryCompleteAction(world, npc, rules, catalog, now, marketIndex, ctx, occupancy, cityPopulationCache);
+            bool justCompleted = TryCompleteAction(
+                world, npc, rules, catalog, now, marketIndex, ctx, occupancy,
+                cityPopulationCache, cityBoundsCache);
             var continuityAction = justCompleted ? null : npc.CurrentAction;
 
             var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
@@ -79,7 +82,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     private static bool TryCompleteAction(
         WorldState world, Npc npc, NeedsRules rules, ActionCatalog catalog, long now,
         MarketIndex marketIndex, TickContext ctx, HashSet<CellCoord> occupancy,
-        Dictionary<CityId, long> cityPopulationCache)
+        Dictionary<CityId, long> cityPopulationCache, Dictionary<CityId, CityBounds> cityBoundsCache)
     {
         if (npc.CurrentAction is not { } action) return false;
 
@@ -97,7 +100,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         // LWV-02.3 (T9): sem workplace real (Employer nulo), Work nunca fabrica deslocamento —
         // NPC bloqueado fica onde está em vez de "trabalhar" andando à toa sem destino nenhum.
         if (action is ActionType.Idle or ActionType.Socialize || (action == ActionType.Work && npc.Employer is not null))
-            MoveOneAmbientStep(world, npc, ctx, now, action, occupancy, cityPopulationCache);
+            MoveOneAmbientStep(world, npc, ctx, now, action, occupancy, cityPopulationCache, cityBoundsCache);
 
         ApplyActionEffect(world, npc, action, marketIndex, now);
         return true;
@@ -124,14 +127,22 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
     private static void MoveOneAmbientStep(
         WorldState world, Npc npc, TickContext ctx, long tick, ActionType action, HashSet<CellCoord> occupancy,
-        Dictionary<CityId, long> cityPopulationCache)
+        Dictionary<CityId, long> cityPopulationCache, Dictionary<CityId, CityBounds> cityBoundsCache)
     {
         // dynamic-city-growth, T4b: ResolveGrownBounds realimenta os boxes de overflow das
         // próprias buildings da cidade, então o passeio ambiente já respeita os bounds crescidos
         // (CITYGROW-03/05) em vez do teto só-população de antes.
-        CityBounds? homeBounds = world.FindCity(npc.City) is { } city
-            ? CityOccupancy.ResolveGrownBounds(world, city, PopulationOf(world, city.Id, cityPopulationCache)).Bounds
-            : null;
+        CityBounds? homeBounds = null;
+        if (world.FindCity(npc.City) is { } city)
+        {
+            if (!cityBoundsCache.TryGetValue(city.Id, out var cached))
+            {
+                cached = CityOccupancy.ResolveGrownBounds(
+                    world, city, PopulationOf(world, city.Id, cityPopulationCache)).Bounds;
+                cityBoundsCache[city.Id] = cached;
+            }
+            homeBounds = cached;
+        }
 
         var allNeighbors = Enumerable.Range(-1, 3)
             .SelectMany(dy => Enumerable.Range(-1, 3).Select(dx => new CellCoord(

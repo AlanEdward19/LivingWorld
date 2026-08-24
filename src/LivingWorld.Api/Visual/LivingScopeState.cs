@@ -9,11 +9,13 @@ public sealed record NpcVisual(
     CellCoord Location,
     ActionType? CurrentAction,
     CityId? City = null,
-    CellCoord? RelocationDestination = null);
+    CellCoord? RelocationDestination = null,
+    ExtraordinaryNpcVisual? Extraordinary = null);
 public sealed record CityVisual(
     CityId Id, string Name, CellCoord Location, long Population, CellBounds Bounds,
     CityId? FoundedFromCityId = null);
-public sealed record BuildingVisual(BuildingId Id, CityId CityId, int BuildingTypeId, CellCoord Location);
+public sealed record BuildingVisual(
+    BuildingId Id, CityId CityId, int BuildingTypeId, CellCoord Location, int Orientation = 0);
 public sealed record ProcessVisual(
     long Id, string Kind, long TargetId, double Progress, string DescriptorKey,
     double? Quality = null, long? RemainingHours = null, CellCoord? Location = null);
@@ -68,7 +70,7 @@ public static class LivingScopeProjector
         // dynamic-city-growth, T4b: ResolveGrownBounds alimenta os boxes de overflow das próprias
         // buildings da cidade de volta pra Resolve, fazendo os bounds realmente crescerem
         // (CITYGROW-03/05), não só no teste unitário de T4.
-        var cityBounds = world.Cities.ToDictionary(
+        var cityBounds = world.ActiveCities().ToDictionary(
             city => city.Id,
             city => CityOccupancy.ResolveGrownBounds(world, city, CityPopulationQuery.Population(world, city.Id)).Bounds);
 
@@ -76,11 +78,12 @@ public static class LivingScopeProjector
             .Where(npc => npc.IsAlive && IsNpcInScope(world, npc, scope, cityBounds))
             .OrderBy(npc => npc.Id.Value)
             .Select(npc => new NpcVisual(
-                npc.Id, npc.CurrentLocation, npc.CurrentAction, npc.City, RelocationDestinationOf(world, npc)))
+                npc.Id, npc.CurrentLocation, npc.CurrentAction, npc.City, RelocationDestinationOf(world, npc),
+                ExtraordinaryNpcVisualProjector.Build(world, npc.Id)))
             .ToList();
 
         var cities = scope.Kind == VisualScopeKind.World
-            ? world.Cities.OrderBy(city => city.Id.Value).Select(city =>
+            ? world.ActiveCities().OrderBy(city => city.Id.Value).Select(city =>
             {
                 var bounds = cityBounds[city.Id];
                 return new CityVisual(
@@ -97,14 +100,21 @@ public static class LivingScopeProjector
             ? world.Buildings.Where(building => building.City == cityId).OrderBy(building => building.Id.Value)
                 .Select(building =>
                 {
-                    var city = world.Cities.Single(candidate => candidate.Id == cityId);
+                    var city = world.FindActiveCity(cityId)!;
                     // dynamic-city-growth, T3: mesmos bounds já resolvidos acima (cityBounds) —
                     // Resolve precisa deles pra tentar uma célula livre antes do overflow.
                     // CITYGROW-02b: null = escassez de terra pra este prédio agora — excluído
                     // desta resposta em vez de derrubar o escopo inteiro; nunca persistido.
-                    return BuildingPlacementResolver.Resolve(building, city, world, cityBounds[cityId]) is { } resolved
-                        ? new BuildingVisual(building.Id, building.City, building.BuildingTypeId, resolved.Position)
-                        : null;
+                    if (BuildingPlacementResolver.Resolve(building, city, world, cityBounds[cityId]) is not { } resolved)
+                        return null;
+                    var footprint = BuildingFootprintGenerator
+                        .Generate(building.Id, building.BuildingTypeId, resolved.Orientation)
+                        .Select(cell => new CellCoord(
+                            resolved.Position.X + cell.Cell.X,
+                            resolved.Position.Y + cell.Cell.Y));
+                    if (!footprint.All(cityBounds[cityId].Contains)) return null;
+                    return new BuildingVisual(
+                        building.Id, building.City, building.BuildingTypeId, resolved.Position, resolved.Orientation);
                 })
                 .OfType<BuildingVisual>()
                 .ToList()
@@ -196,7 +206,7 @@ public static class LivingScopeProjector
             .OrderBy(evt => evt.Tick).ThenBy(evt => evt.Kind).ThenBy(evt => evt.Payload, StringComparer.Ordinal)
             .Select(evt => new NotableVisualEvent(
                 evt.Tick, evt.Kind, LivingEventPresentationCatalog.Describe(evt.Kind), LocationOf(world, evt)));
-        var foundingEvents = world.Cities
+        var foundingEvents = world.ActiveCities()
             .Where(city => city.FoundedFromCityId is not null)
             .Select(city => new NotableVisualEvent(
                 city.FoundedAtTick,

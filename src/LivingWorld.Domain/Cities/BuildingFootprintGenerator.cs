@@ -11,14 +11,26 @@ namespace LivingWorld.Domain;
 /// de ser pura.</summary>
 public static class BuildingFootprintGenerator
 {
-    public static IReadOnlyList<FootprintCell> Generate(BuildingId buildingId, int buildingTypeId)
+    public static int DerivedOrientation(BuildingId buildingId, int buildingTypeId)
     {
         ulong h = StableHash.Mix(buildingId.Value ^ ((long)buildingTypeId << 32));
+        return (int)(h % 4) * 90;
+    }
+
+    public static IReadOnlyList<FootprintCell> Generate(
+        BuildingId buildingId, int buildingTypeId, int? orientation = null)
+    {
+        int normalizedOrientation = NormalizeOrientation(orientation ?? 0);
 
         var wallMaterial = buildingTypeId % 2 == 0 ? BuildingMaterial.StoneWall : BuildingMaterial.WoodWall;
-        int width = 4 + (int)(h % 3);
-        int height = 3 + (int)((h >> 3) % 3);
-        bool isLShape = h % 5 == 0;
+        // A casa inicial precisa de uma célula interna real, mas não pode dominar visualmente a
+        // cidade: 3x3 é o menor footprint que satisfaz ambos. Outros prédios variam apenas entre
+        // 3 e 4 células por eixo; a forma depende do tipo (compartilhável byte-a-byte com o web),
+        // enquanto a orientação varia por identidade.
+        long typeVariant = Math.Abs((long)buildingTypeId);
+        int width = buildingTypeId == -1 ? 3 : 3 + (int)(typeVariant % 2);
+        int height = width;
+        bool isLShape = buildingTypeId != -1 && typeVariant > 0 && typeVariant % 7 == 0 && width == 4;
 
         bool InBase(int x, int y) => x >= 0 && x < width && y >= 0 && y < height;
         bool InNotch(int x, int y) => isLShape && x >= width / 2 && y >= height / 2;
@@ -51,8 +63,30 @@ public static class BuildingFootprintGenerator
         {
             var (x, y, isWall) = cells[i];
             var material = i == doorIndex ? BuildingMaterial.Door : isWall ? wallMaterial : BuildingMaterial.Floor;
-            result[i] = new FootprintCell(new CellCoord(x, y), material);
+            result[i] = new FootprintCell(Rotate(x, y, width, height, normalizedOrientation), material);
         }
         return result;
     }
+
+    /// <summary>Geometria efetiva de uma entidade: autoria vence; prédios sem orientação
+    /// persistida recebem a rotação determinística derivada da identidade.</summary>
+    public static IReadOnlyList<FootprintCell> Generate(Building building) =>
+        Generate(
+            building.Id,
+            building.BuildingTypeId,
+            building.Orientation ?? DerivedOrientation(building.Id, building.BuildingTypeId));
+
+    private static int NormalizeOrientation(int orientation)
+    {
+        int normalized = (orientation % 360 + 360) % 360;
+        return normalized is 0 or 90 or 180 or 270 ? normalized : 0;
+    }
+
+    private static CellCoord Rotate(int x, int y, int width, int height, int orientation) => orientation switch
+    {
+        90 => new CellCoord(height - 1 - y, x),
+        180 => new CellCoord(width - 1 - x, height - 1 - y),
+        270 => new CellCoord(y, width - 1 - x),
+        _ => new CellCoord(x, y),
+    };
 }

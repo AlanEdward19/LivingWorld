@@ -50,7 +50,7 @@ describe("WorldEditor", () => {
     expect(panel).toHaveTextContent(`${form.width} × ${form.height}`);
     expect(panel).toHaveTextContent(String(form.seed));
     expect(screen.queryByTestId("entity-inspector")).not.toBeInTheDocument();
-    expect(screen.getByRole("navigation", { name: "Capítulos da configuração" }).querySelectorAll("button")).toHaveLength(7);
+    expect(screen.getByRole("navigation", { name: "Capítulos da configuração" }).querySelectorAll("button")).toHaveLength(8);
     expect(screen.getAllByTestId("active-config-chapter")).toHaveLength(1);
   });
 
@@ -303,6 +303,22 @@ describe("WorldEditor", () => {
     const population = screen.getByLabelText("population-initial");
     expect(population).toBeInTheDocument();
     expect(population.closest("label")).toHaveAttribute("title", expect.stringContaining("Ajuste fino"));
+  });
+
+  it("authors extraordinary options as generic descriptors without named archetypes", () => {
+    render(<WorldEditor initialForm={defaultScenarioForm()} viewport={VIEWPORT} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Extraordinário/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Ajustar regras de Extraordinário" }));
+
+    const toggle = screen.getByLabelText("Ativar extraordinário");
+    expect(toggle).not.toBeChecked();
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole("button", { name: "+ Descritores extraordinários" }));
+
+    expect(screen.getByLabelText("Descritores extraordinários-identificador-0")).toBeInTheDocument();
+    expect(screen.getByLabelText("Descritores extraordinários-manifestações (csv)-0")).toBeInTheDocument();
+    expect(screen.queryByText(/vampiro|lobisomem|lanterna/i)).not.toBeInTheDocument();
   });
 
   it("opens the selected settlement in a local city editor", () => {

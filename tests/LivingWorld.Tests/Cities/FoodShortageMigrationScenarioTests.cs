@@ -49,18 +49,20 @@ public class FoodShortageMigrationScenarioTests
     private static long RunArm(ulong seed, long foodStock)
     {
         var world = new WorldState(
-            ScenarioRunner.DefaultCalendar, seed, ScenarioRunner.DefaultMap(seed),
+            ScenarioRunner.DefaultCalendar, seed, ScenarioRunner.InitialMap(seed, InitialPopulation),
             ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
             ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules,
             economyRules: MakeEconomyRules(), cityRules: MakeRules());
-
-        PopulationSeeder.SeedInitial(world, InitialPopulation, ScenarioRunner.DefaultCulture, ScenarioRunner.DefaultVillageLocation);
 
         var city = new City(
             world.NextCityId(), ScenarioRunner.DefaultVillageLocation, foundedAtTick: 0, foundedFromCityId: null,
             aggregatePool: new AggregatePopulationPool(PoolCount, PoolCount * 50, PoolCount * 50),
             poolNpcIds: world.ReserveNpcIdBlock(PoolCount));
         world.AddCity(city);
+
+        PopulationSeeder.SeedInitial(
+            world, InitialPopulation, ScenarioRunner.DefaultCulture,
+            ScenarioRunner.DefaultVillageLocation, city.Id);
 
         foreach (var npc in world.Npcs) npc.JoinCity(city.Id);
         foreach (var household in world.Households) household.JoinCity(city.Id);

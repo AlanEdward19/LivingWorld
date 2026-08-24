@@ -36,6 +36,7 @@ function fakeCtx(canvas: { width: number; height: number }) {
   } as unknown as CanvasRenderingContext2D & {
     fillRect: ReturnType<typeof vi.fn>;
     strokeRect: ReturnType<typeof vi.fn>;
+    lineTo: ReturnType<typeof vi.fn>;
     arc: ReturnType<typeof vi.fn>;
     setLineDash: ReturnType<typeof vi.fn>;
     fillText: ReturnType<typeof vi.fn>;
@@ -136,6 +137,41 @@ describe("renderer.draw", () => {
 
     expect(ctx.fillRect.mock.calls.length).toBeGreaterThanOrEqual(5);
     expect(ctx.arc).toHaveBeenCalledOnce();
+  });
+
+  it("renders agricultural buildings as cultivated rows instead of a house", () => {
+    const ctx = fakeCtx({ width: 160, height: 120 });
+    const farm: AuthoritativeEntity = {
+      ref: { kind: "building", id: "farm", space: { kind: "City", cityId: "a" } },
+      position: { x: 1, y: 1 }, size: { w: 4, h: 3 }, sizeIsDerived: false, color: "#765",
+      buildingTypeId: 1,
+      footprintCells: [{ x: 0, y: 0, color: "#765", material: "roof" }],
+    };
+
+    draw(ctx, baseFrame({ center: { x: 3, y: 2.5 }, scale: 12 }, [farm]));
+
+    expect(ctx.lineTo.mock.calls.length).toBeGreaterThanOrEqual(3);
+    expect(ctx.arc).not.toHaveBeenCalled();
+  });
+
+  it("renders forge buildings with a furnace cue distinct from the generic fallback", () => {
+    const forgeCtx = fakeCtx({ width: 160, height: 120 });
+    const genericCtx = fakeCtx({ width: 160, height: 120 });
+    const building = (id: string, buildingTypeId: number): AuthoritativeEntity => ({
+      ref: { kind: "building", id, space: { kind: "City", cityId: "a" } },
+      position: { x: 1, y: 1 }, size: { w: 4, h: 3 }, sizeIsDerived: false, color: "#765",
+      buildingTypeId,
+      footprintCells: [
+        { x: 0, y: 0, color: "#765", material: "roof" },
+        { x: 1, y: 0, color: "#432", material: "door" },
+      ],
+    });
+
+    draw(forgeCtx, baseFrame({ center: { x: 3, y: 2.5 }, scale: 12 }, [building("forge", 2)]));
+    draw(genericCtx, baseFrame({ center: { x: 3, y: 2.5 }, scale: 12 }, [building("future", 77)]));
+
+    expect(forgeCtx.arc.mock.calls.length).toBeGreaterThan(genericCtx.arc.mock.calls.length);
+    expect(genericCtx.fillRect.mock.calls.length).toBeGreaterThan(1);
   });
 
   it("renders a city as a composed settlement instead of outlining every footprint tile", () => {
@@ -305,6 +341,82 @@ describe("renderer.draw", () => {
     draw(ctx, baseFrame({ center: { x: 5.5, y: 5.5 }, scale: 20 }, [entity]));
 
     expect(ctx.arc).not.toHaveBeenCalled();
+  });
+
+  it("applies manifested extraordinary scale and tint to the NPC pawn", () => {
+    class ReadyImage {
+      complete = true;
+      naturalWidth = 100;
+      src = "";
+    }
+    vi.stubGlobal("Image", ReadyImage);
+    const ctx = fakeCtx({ width: 400, height: 400 });
+    const entity = {
+      ...npc("manifested", 5, 5),
+      extraordinary: {
+        powerIds: ["power-a"], isManifested: true, manifestationState: "active",
+        scaleMultiplier: 1.5, skinTint: "tint-token", movementTrail: "trail-token",
+        needSubstitution: null, senescenceRateMultiplier: 1,
+      },
+    } satisfies AuthoritativeEntity;
+
+    draw(ctx, baseFrame({ center: { x: 5.5, y: 5.5 }, scale: 20 }, [entity]));
+
+    expect(ctx.drawImage.mock.calls[0]?.[3]).toBe(tokenRadiusPx(20) * 2 * 1.5);
+    expect(ctx.arc).toHaveBeenCalledOnce();
+  });
+
+  it("draws a manifestation trail only while the manifested NPC is travelling", () => {
+    class ReadyImage {
+      complete = true;
+      naturalWidth = 100;
+      src = "";
+    }
+    vi.stubGlobal("Image", ReadyImage);
+    const make = (isManifested: boolean, currentAction: number) => ({
+      ...npc(`trail-${isManifested}-${currentAction}`, 5, 5), currentAction,
+      extraordinary: {
+        powerIds: ["power-a"], isManifested, manifestationState: "active",
+        scaleMultiplier: 1, skinTint: "tint-token", movementTrail: "trail-token",
+        needSubstitution: null, senescenceRateMultiplier: 1,
+      },
+    } satisfies AuthoritativeEntity);
+    const moving = fakeCtx({ width: 400, height: 400 });
+    const idle = fakeCtx({ width: 400, height: 400 });
+    const hidden = fakeCtx({ width: 400, height: 400 });
+
+    draw(moving, baseFrame({ center: { x: 5.5, y: 5.5 }, scale: 20 }, [make(true, 4)]));
+    draw(idle, baseFrame({ center: { x: 5.5, y: 5.5 }, scale: 20 }, [make(true, 5)]));
+    draw(hidden, baseFrame({ center: { x: 5.5, y: 5.5 }, scale: 20 }, [make(false, 4)]));
+
+    expect(moving.lineTo.mock.calls.length).toBeGreaterThan(idle.lineTo.mock.calls.length);
+    expect(hidden.lineTo.mock.calls.length).toBe(idle.lineTo.mock.calls.length);
+  });
+
+  it("keeps a non-manifested carrier visually identical to an ordinary NPC", () => {
+    class ReadyImage {
+      complete = true;
+      naturalWidth = 100;
+      src = "";
+    }
+    vi.stubGlobal("Image", ReadyImage);
+    const ordinary = fakeCtx({ width: 400, height: 400 });
+    const hidden = fakeCtx({ width: 400, height: 400 });
+    const hiddenCarrier = {
+      ...npc("hidden-carrier", 5, 5),
+      extraordinary: {
+        powerIds: ["power-a"], isManifested: false, manifestationState: "dormant",
+        scaleMultiplier: 2, skinTint: "tint-token", movementTrail: "trail-token",
+        needSubstitution: null, senescenceRateMultiplier: 0,
+      },
+    } satisfies AuthoritativeEntity;
+
+    draw(ordinary, baseFrame({ center: { x: 5.5, y: 5.5 }, scale: 20 }, [npc("ordinary", 5, 5)]));
+    draw(hidden, baseFrame({ center: { x: 5.5, y: 5.5 }, scale: 20 }, [hiddenCarrier]));
+
+    expect(hidden.drawImage.mock.calls[0]?.slice(1)).toEqual(ordinary.drawImage.mock.calls[0]?.slice(1));
+    expect(hidden.arc).not.toHaveBeenCalled();
+    expect(hidden.lineTo.mock.calls.length).toBe(ordinary.lineTo.mock.calls.length);
   });
 
   it("culls entities outside the visible rect from drawing", () => {

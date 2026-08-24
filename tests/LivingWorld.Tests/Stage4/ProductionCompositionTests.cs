@@ -40,6 +40,7 @@ public sealed class ProductionCompositionTests
         typeof(RelocationArrivalSystem),
         typeof(MaterializationSystem),
         typeof(SettlementFoundingSystem),
+        typeof(SpatialSettlementFoundingSystem),
         typeof(ChronicleGenerationSystem),
         typeof(ConversationSessionStore),
     ];
@@ -48,10 +49,12 @@ public sealed class ProductionCompositionTests
     public void Api_world_clock_contains_every_living_system_exactly_once()
     {
         using var factory = new WebApplicationFactory<Program>();
-        var clock = factory.Services.GetRequiredService<WorldHost>().Clock;
+        var host = factory.Services.GetRequiredService<WorldHost>();
+        var clock = host.Clock;
         var expected = LivingWorldCapabilityCatalog.All
             .Where(capability => capability.Kind == CapabilityKind.LivingWorld)
             .SelectMany(capability => capability.Systems)
+            .Where(type => type != typeof(ExtraordinaryStateSystem) || host.Current.Extraordinary.Enabled)
             .OrderBy(type => type.FullName, StringComparer.Ordinal);
         var actual = clock.Systems
             .Where(system => system is not ExampleCounterSystem)
@@ -101,7 +104,8 @@ public sealed class ProductionCompositionTests
         var cityTypes = new HashSet<Type>
         {
             typeof(CityGrowthSystem), typeof(ConstructionDemandSystem), typeof(ConstructionSystem),
-            typeof(MigrationSystem), typeof(RelocationArrivalSystem), typeof(MaterializationSystem), typeof(SettlementFoundingSystem),
+            typeof(MigrationSystem), typeof(RelocationArrivalSystem), typeof(MaterializationSystem),
+            typeof(SettlementFoundingSystem), typeof(SpatialSettlementFoundingSystem),
         };
         var systemsWithoutCities = ScenarioRunner.DefaultSystems()
             .Where(system => !cityTypes.Contains(system.GetType()))

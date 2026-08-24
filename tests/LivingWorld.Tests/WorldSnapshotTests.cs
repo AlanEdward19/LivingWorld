@@ -42,10 +42,26 @@ public class WorldSnapshotTests
             [1] = BuildingRecipe.Create(new Dictionary<ResourceType, long> { [new ResourceType(1)] = 10 }, ticksToBuild: 5, housingCapacityProvided: 4).Value!,
         });
 
+    private static readonly ExtraordinaryScenarioData SampleExtraordinary = new(true,
+    [
+        new PowerDescriptor(
+            "sample-power", "sample-source", ["movement:trail"], "Conditional", [], "Guaranteed",
+            [], [], [], [], new ExtraordinaryAppearanceDescriptor(1.2, "pallor", "mist"),
+            new NeedSubstitutionDescriptor("hunger", new ResourceType(1), 1), 0, "world:is-night"),
+    ]);
+
+    private static readonly IReadOnlyList<ExtraordinaryCarrierState> SampleExtraordinaryCarriers =
+    [
+        new(
+            new NpcId(1), ["sample-power"], true, "night-active",
+            new ExtraordinaryAppearanceState(1.2, "pallor", "mist"),
+            new NeedSubstitutionDescriptor("hunger", new ResourceType(1), 1), 0),
+    ];
+
     private static WorldState BuiltWorld()
     {
         var world = new WorldState(
-            ScenarioRunner.DefaultCalendar, 42, ScenarioRunner.DefaultMap(42), ScenarioRunner.DefaultPopulationCatalog,
+            ScenarioRunner.DefaultCalendar, 42, ScenarioRunner.InitialMap(42, ScenarioRunner.DefaultInitialPopulation), ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules, economyRules: SampleEconomyRules, economyCatalog: SampleEconomyCatalog,
             cityCatalog: SampleCityCatalog,
@@ -56,7 +72,9 @@ public class WorldSnapshotTests
             processRecipes:
             [
                 ProcessRecipe.Create(ProcessKind.Cook, new Dictionary<int, long> { [1] = 1 }, 3, 1, 1, 2).Value!,
-            ]);
+            ],
+            extraordinary: SampleExtraordinary,
+            extraordinaryCarriers: SampleExtraordinaryCarriers);
         PopulationSeeder.SeedInitial(world, ScenarioRunner.DefaultInitialPopulation, ScenarioRunner.DefaultCulture, ScenarioRunner.DefaultVillageLocation);
         world.AddWorkplace(new Workplace(
             world.NextWorkplaceIdAndAdvance(), new LocationType(1), ScenarioRunner.DefaultVillageLocation, maxVacancies: 1,
@@ -64,10 +82,7 @@ public class WorldSnapshotTests
             prices: new Dictionary<ResourceType, long> { [new ResourceType(1)] = 2 }));
         // Fase 8 (T5): força ao menos uma City/Building não-vazia — mesmo motivo do Workplace
         // acima (coleção vazia não tem folha primitiva pro mutador genérico perturbar).
-        var city = new City(
-            world.NextCityId(), ScenarioRunner.DefaultVillageLocation, foundedAtTick: 0, foundedFromCityId: null,
-            aggregatePool: new AggregatePopulationPool(1, 10, 10));
-        world.AddCity(city);
+        var city = world.ActiveCities().Single();
         world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId: 1, completedAtTick: 0));
         // Fase 15.1 T12: RestPlaces vazio não tem folha primitiva pro mutador genérico.
         var restHousehold = world.Households[0];

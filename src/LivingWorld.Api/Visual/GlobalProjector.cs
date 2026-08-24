@@ -38,7 +38,7 @@ public static class GlobalProjector
 {
     public static GlobalSnapshot Build(WorldState world)
     {
-        var cities = world.Cities
+        var cities = world.ActiveCities()
             .Select(c =>
             {
                 long population = CityPopulationQuery.Population(world, c.Id);
@@ -54,7 +54,7 @@ public static class GlobalProjector
         // NPCs cuja CityId ainda não tem um City real em world.Cities (cidade não fundada/
         // seedada ainda) não têm "casa" conhecida — não dá pra julgar "fora do lugar" sem uma
         // referência, então ficam de fora do marcador (não é um bug do NPC, é ausência de dado).
-        var cityBoundsById = world.Cities.ToDictionary(
+        var cityBoundsById = world.ActiveCities().ToDictionary(
             c => c.Id,
             c => CityOccupancy.ResolveGrownBounds(world, c, CityPopulationQuery.Population(world, c.Id)).Bounds);
         // T50: mesmo critério geométrico de NpcScopeResolver (Domain), agora compartilhado com

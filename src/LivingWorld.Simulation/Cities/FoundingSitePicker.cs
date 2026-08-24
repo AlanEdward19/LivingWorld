@@ -44,7 +44,7 @@ public static class FoundingSitePicker
     {
         var mother = world.FindCity(motherCityId)
             ?? throw new InvalidOperationException("cidade-mãe inexistente ao escolher sítio de fundação");
-        var occupied = world.Cities.Select(city => city.Location).ToHashSet();
+        var occupied = world.ActiveCities().Select(city => city.Location).ToHashSet();
         int absorptionRingCells = world.CityRules.AbsorptionRingCells;
 
         long motherPopulation = CityPopulationQuery.Population(world, motherCityId);

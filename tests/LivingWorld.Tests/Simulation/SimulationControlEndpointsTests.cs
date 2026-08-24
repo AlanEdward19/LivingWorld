@@ -107,6 +107,38 @@ public class SimulationControlEndpointsTests : IClassFixture<WebApplicationFacto
     }
 
     [Fact]
+    public async Task Advance_year_while_paused_runs_exactly_one_calendar_year()
+    {
+        var client = _factory.CreateClient();
+        await client.PostAsync("/simulation/pause", null);
+
+        using var scope = _factory.Services.CreateScope();
+        var world = scope.ServiceProvider.GetRequiredService<WorldState>();
+        var before = world.CurrentDate.TotalHours;
+
+        var response = await client.PostAsync("/simulation/advance-year", null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(before + world.Calendar.HoursPerYear, world.CurrentDate.TotalHours);
+    }
+
+    [Fact]
+    public async Task Advance_year_while_running_returns_409_without_advancing_the_clock()
+    {
+        var client = _factory.CreateClient();
+        await client.PostAsync("/simulation/resume", null);
+
+        using var scope = _factory.Services.CreateScope();
+        var world = scope.ServiceProvider.GetRequiredService<WorldState>();
+        var before = world.CurrentDate.TotalHours;
+
+        var response = await client.PostAsync("/simulation/advance-year", null);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(before, world.CurrentDate.TotalHours);
+    }
+
+    [Fact]
     public async Task Pause_resume_and_speed_calls_never_change_the_canonical_hash()
     {
         using var scope = _factory.Services.CreateScope();
