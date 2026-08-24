@@ -328,7 +328,7 @@ position visually "glided" along with the NPC even though it never moves.
 **Tests added**: `web/tests/map-engine/interpolation.test.ts` —
 `keeps a building and an NPC with the same numeric id from colliding in the same record`.
 
-**Verified**: `npx vitest run` (web/) — 67 files, 428 tests, 0 failed.
+**Verified**: `npx vitest run` (web/) — 67 files, 427 tests, 0 failed.
 
 **Commit**: `c606c11`
 
