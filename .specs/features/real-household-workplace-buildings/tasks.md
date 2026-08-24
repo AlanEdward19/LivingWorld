@@ -57,16 +57,17 @@ T3 [P]  (default-scenario workplace placement)
 T4 [P]  (authored-scenario workplace placement + reorder)
 ```
 
-### Phase 2: Household placement (depends on T1)
+### Phase 2: Household placement and web appearance
 
 ```
 T1 → T2
+T3, T4 → T4b
 ```
 
 ### Phase 3: Full Gate (depends on all above)
 
 ```
-T2, T3, T4 → T5
+T2, T3, T4, T4b → T5
 ```
 
 ---
@@ -91,11 +92,14 @@ addition if genuinely missing)
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] The house `BuildingTypeId` to use for this feature is identified and documented in this
-      task's notes (either "reused existing id N" or "added new recipe, id N")
-- [ ] If added: `CityCatalogTests.cs` covers the new recipe's validation same as existing recipes
-- [ ] Gate check passes
-- [ ] Test count: existing count unchanged if reusing, +N if adding (documented)
+- [x] Placement id identified as engine-reserved `-1`, distinct from the existing default farm
+      (`1`) and forge (`2`) building types.
+      No recipe was added: production period catalogs intentionally have empty scenario-driven
+      `BuildingRecipes`, and populating `CityCatalog.Empty` would change construction capacity in
+      every world. T2 keeps this identifier private to initial physical house placement.
+- [x] No recipe added, so no catalog validation test is required.
+- [x] Focused official gate passes (`CityCatalogTests`: 8/8; web: 415/415).
+- [x] Test count unchanged (8 focused backend tests).
 
 **Tests**: unit (only if a recipe is added; none if purely confirming an existing one)
 **Gate**: quick
@@ -129,16 +133,16 @@ value, from the same list).
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] Every household `PopulationSeeder.SeedInitial` creates has a matching `Building` in
+- [x] Every household `PopulationSeeder.SeedInitial` creates has a matching `Building` in
       `world.Buildings` whose position equals that household's `Location` exactly
-- [ ] No two households ever resolve to the same `Building`/position (assert directly)
-- [ ] `PopulationGeneratorTests.cs` (existing) updated to pass in explicit locations instead of
+- [x] No two households ever resolve to the same `Building`/position (assert directly)
+- [x] `PopulationGeneratorTests.cs` (existing) updated to pass in explicit locations instead of
       relying on whatever internal scatter it exercised before — same test intent preserved, not
       weakened (if a test specifically asserted the OLD scatter behavior, either adapt it to
       assert the new location-list-consuming behavior or, if it tested something now
       structurally impossible, note why in the commit — do not silently delete)
-- [ ] Gate check passes
-- [ ] Test count: ≥3 new tests (household-gets-real-building, no-two-households-share-a-building,
+- [x] Focused official gate passes (23/23 backend; 415/415 web)
+- [x] Test count: 3 new tests (household-gets-real-building, no-two-households-share-a-building,
       location-equals-building-position), existing `PopulationGeneratorTests.cs` tests still pass
       (possibly adapted, not deleted)
 
@@ -163,11 +167,11 @@ a real resolved position via `BuildingPlacementResolver.Resolve` (same pattern a
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] Both default workplaces (farm, forge) each get a real `Building` whose position equals the
+- [x] Both default workplaces (farm, forge) each get a real `Building` whose position equals the
       workplace's `Location`
-- [ ] The two workplaces never resolve to the same position
-- [ ] Gate check passes
-- [ ] Test count: ≥2 new tests (each default workplace has a matching building; the two don't
+- [x] The two workplaces never resolve to the same position
+- [x] Focused gate passes (2/2 backend; 415/415 web)
+- [x] Test count: 2 new tests (each default workplace has a matching building; the two don't
       collide), no silent deletions
 
 **Tests**: unit
@@ -198,18 +202,18 @@ distance metric (reuse or mirror `CityBoundsResolver`'s existing one, don't rein
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] Cities are created before workplaces are placed (verify by reading the reordered code, and
+- [x] Cities are created before workplaces are placed (verify by reading the reordered code, and
       by a test that would have failed under the old order — e.g. a workplace whose nearest-city
       assignment requires the city to already exist)
-- [ ] An authored workplace at a genuinely free location gets a `Building` at that EXACT authored
+- [x] An authored workplace at a genuinely free location gets a `Building` at that EXACT authored
       position (not moved)
-- [ ] An authored workplace whose location collides with something else gets a `Building` at a
+- [x] An authored workplace whose location collides with something else gets a `Building` at a
       different, real, occupancy-checked position instead (never silently overlapping)
-- [ ] Each authored workplace is assigned to its nearest city by distance — test with 2+ cities at
+- [x] Each authored workplace is assigned to its nearest city by distance — test with 2+ cities at
       different distances from one workplace, assert the nearer one is chosen
-- [ ] Zero-city degenerate case doesn't crash — explicit test, documented fallback behavior
-- [ ] Gate check passes
-- [ ] Test count: ≥4 new tests (reorder-matters, authored-location-preferred-when-free,
+- [x] Zero-city degenerate case doesn't crash — explicit legacy bare-location fallback documented
+- [x] Focused gate passes (10/10 backend; 415/415 web)
+- [x] Test count: 5 new tests (reorder-matters, authored-location-preferred-when-free,
       fallback-on-collision, nearest-city-wins, zero-city-doesn't-crash — 5 total), no silent
       deletions
 
@@ -219,12 +223,30 @@ distance metric (reuse or mirror `CityBoundsResolver`'s existing one, don't rein
 
 ---
 
+### T4b: Type-aware web appearance for every building
+
+**What**: Preserve `buildingTypeId` in the map entity and render deterministic appearances for
+residences, agricultural buildings (farm/plantation), forge/workshop, plus a generic fallback so
+every authored or future building type remains visible.
+**Where**: `web/src/map-engine/types.ts`, `cityBuildingPlacement.ts`,
+`architectureAppearance.ts`, `renderer.ts` and co-located tests
+**Depends on**: T3, T4
+**Requirement**: User addendum — every building type must have a web appearance
+
+**Done when**:
+- [x] `buildingTypeId` reaches the renderer through the shared snapshot/live-delta conversion
+- [x] House, agricultural and forge types have distinct deterministic appearances
+- [x] Unknown types use a visible deterministic generic appearance
+- [x] Official focused gate passes (5/5 backend; 426/426 web, including 11 new cases)
+
+---
+
 ### T5: Full-suite gate (no code change)
 
 **What**: Run the full backend suite to confirm no cross-feature regression from the seeding/
 loading changes in T2/T3/T4.
 **Where**: n/a
-**Depends on**: T2, T3, T4
+**Depends on**: T2, T3, T4, T4b
 **Reuses**: n/a
 **Requirement**: n/a (project-wide safety net)
 
@@ -242,6 +264,53 @@ loading changes in T2/T3/T4.
 
 ---
 
+## Post-ship fixes
+
+### Fix: stop silently resizing the map to fit population
+
+**Bug (user-reported)**: same seed, different world — `ScenarioLoaderV2.LoadWorld` (and the
+legacy `ScenarioLoader`/`/worlds/preview`, sharing `InitialMapForPopulation`) silently regenerated
+the whole authored map at a bigger size whenever the declared population didn't guarantee room
+for every household/workplace footprint (even a default 10x10 map with a modest population
+tripped this). `MapGenerator.Generate` drives one `WorldRng(seed)` sequentially over the grid, so
+changing width/height for the same seed produces a completely different terrain everywhere, not
+just the new edges — the user's authored village sat on unrecognizable, silently-regenerated
+terrain.
+
+**Fix**: removed `ScenarioLoaderV2.InitialMapForPopulation` and its three call sites (`LoadWorld`,
+`ScenarioLoader.LoadWorld`, `WorldPreviewEndpoints`) — the authored map (`definition.Map`/
+`mapResult.Value`) is now used exactly as declared. `ScenarioRunner.InitialMapSideForPopulation`/
+`InitialMap` were left untouched (still used by `ScenarioRunner.Create` and by several tests that
+build a map from scratch for a given population — not an authored-map case, no bug there).
+Discovered along the way: `PopulationSeeder.PlaceHouseholdBuildings` threw
+`InvalidOperationException` when a household ran out of room on a small map — previously masked
+by the now-removed auto-resize, but now the common case since maps are never preemptively grown.
+Fixed to fall back to the same last-resort ring/hash position `BuildingPlacementResolver
+.ResolveQueuedSite` already uses (never fails, may overlap) instead of crashing world loading.
+
+**Tests added**: `tests/LivingWorld.Tests/Periods/ScenarioLoaderV2Tests.cs` —
+`Authored_map_dimensions_are_never_resized_regardless_of_population`,
+`Small_authored_map_with_population_too_large_to_fit_does_not_crash`,
+`Identical_scenario_produces_byte_identical_map_terrain_for_the_same_seed`. `FullValidRoot()`'s
+fixture now declares a 40x40 map (was implicitly relying on the removed auto-resize to get enough
+room for its population/workplace fixtures); `WorldPreviewEndpointsTests.cs`'s dimension
+assertion no longer references the removed resize formula.
+
+**Verified** (targeted runs, isolated from a resource-contended shared box mid-run —
+`bash scripts/test.sh`'s full filtered gate hit environment-level MSBuild child-process crashes
+unrelated to this fix, see commit for detail): `ScenarioLoaderV2Tests` 13/13,
+`PopulationArchitectureTests` 4/4 (includes the 100-NPC/10x10-map `test-scifi.json` 10-year run
+through the legacy loader), `WorldPreviewEndpointsTests` + `ScenarioRunnerWorkplaceBuildingTests`
++ `PopulationSeederTests` 13/14 (1 failure, pre-existing and unrelated — reproduced identically
+with this fix reverted; `PopulationSeederTests.SeedInitial_places_houses_that_do_not_fit_the_
+initial_bounds_near_the_city_edge_so_grown_bounds_absorb_them` is a land-scarce-fallback-scatter
+issue in the household-placement code the other post-ship fix agent shipped in parallel, not in
+the map-resize removal), `Cities` namespace: 0 failures reported.
+
+**Commit**: `9bfc23b`
+
+---
+
 ## Parallel Execution Map
 
 ```
@@ -252,9 +321,10 @@ Phase 1 (Parallel):
 
 Phase 2 (depends on T1):
   T1 ──→ T2
+  T3, T4 ──→ T4b
 
 Phase 3 (depends on everything):
-  T2, T3, T4 ──→ T5
+  T2, T3, T4, T4b ──→ T5
 ```
 
 `[P]` = order-free relative to each other (T1/T3/T4 touch different files, no shared mutable
@@ -273,6 +343,7 @@ still be used operationally if the user prefers it.
 | T2: Household placement | 2 files, 1 concept (feed resolved locations into pairing) | ✅ Granular |
 | T3: Default workplace placement | 1 file, 1 concept | ✅ Granular |
 | T4: Authored workplace placement | 1 file, 1 concept (reorder + nearest-city + prefer-authored-when-free) | ✅ Granular |
+| T4b: Web building appearances | 4 source files, 1 visual dispatch concept | ✅ Granular |
 | T5: Full-suite gate | 0 files, verification only | ✅ Granular |
 
 ## Diagram-Definition Cross-Check
@@ -283,7 +354,8 @@ still be used operationally if the user prefers it.
 | T2 | T1 | T1 → T2 | ✅ Match |
 | T3 | None | None | ✅ Match |
 | T4 | None | None | ✅ Match |
-| T5 | T2, T3, T4 | T2, T3, T4 → T5 | ✅ Match |
+| T4b | T3, T4 | T3, T4 → T4b | ✅ Match |
+| T5 | T2, T3, T4, T4b | T2, T3, T4, T4b → T5 | ✅ Match |
 
 ## Test Co-location Validation
 
@@ -293,4 +365,5 @@ still be used operationally if the user prefers it.
 | T2 | Domain (`PopulationGenerator`) + Simulation (`PopulationSeeder`) | unit | unit | ✅ OK |
 | T3 | Simulation (`ScenarioRunner`) | unit | unit | ✅ OK |
 | T4 | Simulation (`ScenarioLoaderV2`) | unit | unit | ✅ OK |
+| T4b | Web map engine | unit/render contract | unit/render contract | ✅ OK |
 | T5 | none (aggregate) | full suite | none/full | ✅ OK |
