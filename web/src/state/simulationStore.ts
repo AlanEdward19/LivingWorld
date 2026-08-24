@@ -11,6 +11,7 @@ import type { VisualSnapshotEnvelope } from "../types";
 import { toScopeKey } from "../map-engine/space";
 import { CATEGORY_COLOR } from "../map-engine/categoryColors";
 import { overlayProcessOnNpc } from "../map-engine/cityNpcOverlay";
+import { extraordinaryConstructEntities } from "../map-engine/extraordinaryConstruct";
 import {
   applyLivingDelta,
   emptyLivingViewState,
@@ -218,7 +219,7 @@ export class SimulationStore {
       return [];
     }
     const processes = [...this.livingState.processes.values()];
-    return [...this.livingState.npcs.values()]
+    const npcs = [...this.livingState.npcs.values()]
       .map((marker) => overlayProcessOnNpc({
         ref: { kind: "npc" as const, id: String(marker.id.value), space },
         position: marker.location,
@@ -230,6 +231,7 @@ export class SimulationStore {
         cityId: marker.city?.value,
         travelDestination: marker.relocationDestination ?? undefined,
       }, processes));
+    return [...npcs, ...extraordinaryConstructEntities(processes, space)];
   }
 
   /** Registro de listener puro — nenhuma dependência de React, notificação síncrona. */

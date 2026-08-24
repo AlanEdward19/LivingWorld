@@ -34,12 +34,16 @@ describe("scenarioFormToJson", () => {
     const scenario = JSON.parse(scenarioFormToJson(form));
 
     expect(form.extraordinaryEnabled).toBe(false);
-    expect(scenario.Extraordinary).toEqual({ Enabled: false, Descriptors: [] });
+    expect(scenario.Extraordinary).toEqual({ Enabled: false, Prevalence: 0, Descriptors: [], CulturalResponses: [] });
   });
 
   it("serializes and reloads every extraordinary descriptor axis as generic scenario data", () => {
     const form = defaultScenarioForm();
     form.extraordinaryEnabled = true;
+    form.extraordinaryPrevalence = 0.25;
+    form.extraordinaryCulturalResponses = [
+      { cultureId: 2, manifestation: "state:visible", response: "fear" },
+    ];
     form.extraordinaryDescriptors = [{
       id: "descriptor-1", source: "source-tag", effects: "movement:1, health:-2",
       mode: "Active", costs: "fatigue:2", reliability: "ResolutionCheck",
@@ -55,6 +59,7 @@ describe("scenarioFormToJson", () => {
     const scenario = JSON.parse(scenarioFormToJson(form));
     expect(scenario.Extraordinary).toEqual({
       Enabled: true,
+      Prevalence: 0.25,
       Descriptors: [{
         Id: "descriptor-1", Source: "source-tag", Effects: ["movement:1", "health:-2"],
         Mode: "Active", Costs: ["fatigue:2"], Reliability: "ResolutionCheck",
@@ -66,8 +71,12 @@ describe("scenarioFormToJson", () => {
         SenescenceRateMultiplier: 0,
         ManifestationCondition: "world:is-night",
       }],
+      CulturalResponses: [{ CultureId: 2, Manifestation: "state:visible", Response: "fear" }],
     });
     expect(jsonToScenarioForm(scenario).extraordinaryDescriptors).toEqual(form.extraordinaryDescriptors);
+    expect(jsonToScenarioForm(scenario).extraordinaryCulturalResponses)
+      .toEqual(form.extraordinaryCulturalResponses);
+    expect(jsonToScenarioForm(scenario).extraordinaryPrevalence).toBe(0.25);
   });
 
   it("omits unconfigured extraordinary optional objects and restores their exact defaults", () => {

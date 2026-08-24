@@ -61,4 +61,52 @@ public enum WorldEventKind
 
     /// <summary>Uma cidade-filha adjacente foi absorvida pela cidade-mãe (FixT18).</summary>
     CityMerged,
+
+    /// <summary>Tentativa de uso extraordinário; inicia uma cadeia pelo invocation id.</summary>
+    ExtraordinaryUseAttempted,
+
+    /// <summary>Custo efetivamente debitado por um uso extraordinário.</summary>
+    ExtraordinaryCostPaid,
+
+    /// <summary>Efeito extraordinário aplicado a um alvo declarado.</summary>
+    ExtraordinaryEffectApplied,
+
+    /// <summary>Uso extraordinário recusado ou resolvido como falha.</summary>
+    ExtraordinaryUseFailed,
+
+    /// <summary>Uma regra autorada concedeu uma potência a um NPC.</summary>
+    ExtraordinaryAcquired,
+
+    /// <summary>Uma aquisição foi recusada porque o gatilho não casava com o cenário.</summary>
+    ExtraordinaryAcquisitionFailed,
+
+    /// <summary>Condição autorada tornou uma manifestação ativa.</summary>
+    ExtraordinaryManifested,
+
+    /// <summary>Condição autorada deixou de valer e a manifestação ficou dormente.</summary>
+    ExtraordinaryDormant,
+
+    /// <summary>Uma cultura interpretou a manifestação segundo regra própria do cenário.</summary>
+    ExtraordinaryCulturalReaction,
+
+    /// <summary>Um uso extraordinário materializou ocupação temporária no mapa.</summary>
+    ExtraordinaryConstructCreated,
+
+    /// <summary>Um construto perdeu durabilidade sem criar ou destruir recursos econômicos.</summary>
+    ExtraordinaryConstructDamaged,
+
+    /// <summary>Um construto deixou o mundo por dano ou expiração.</summary>
+    ExtraordinaryConstructRemoved,
+
+    /// <summary>Uma intervenção explícita removeu uma potência de um portador.</summary>
+    ExtraordinaryRevoked,
+
+    /// <summary>Uma intervenção explícita alterou personalidade, relação ou ação.</summary>
+    AuthoringCommandApplied,
+
+    /// <summary>Uma intervenção explícita foi recusada sem mutar o estado canônico.</summary>
+    AuthoringCommandRejected,
+
+    /// <summary>Consequência declarada de uma resolução extraordinária não plena.</summary>
+    ExtraordinaryFailureApplied,
 }

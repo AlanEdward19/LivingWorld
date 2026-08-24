@@ -1,9 +1,9 @@
 namespace LivingWorld.Domain;
 
 /// <summary>Personalidade do NPC (Fase 4, task 1): os 10 traços de <c>docs/domain/npc.md</c>,
-/// cada um em <c>[0,100]</c>, imutáveis após o nascimento (sem herança genética ainda —
-/// Fase 7). Modula profissão, relações e decisão momento a momento sempre como peso, nunca
-/// como trava.</summary>
+/// cada um em <c>[0,100]</c>. Sistemas ordinários não a alteram após o nascimento; a única
+/// exceção é uma intervenção explícita de autoria que substitui o conjunto validado inteiro.
+/// Modula profissão, relações e decisão momento a momento sempre como peso, nunca como trava.</summary>
 public sealed record Personality(
     int Extroversion,
     int Agreeableness,

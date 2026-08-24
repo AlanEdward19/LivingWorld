@@ -1,61 +1,62 @@
-# Phase 16 Powers — Validation T1/T2 + web/visual
+# Phase 16 Powers Closeout Validation — Final
 
-**Date**: 2026-08-24  
-**Verifier**: independent sub-agent (author != verifier)  
-**Scope**: POW-01..04 and POW-07; POW-05/06 explicitly deferred  
-**Verdict**: ✅ PASS — 5/5 selected ACs evidenced.
+**Date**: 2026-08-24
+**Spec**: `spec.md` + `spec-closeout.md`
+**Diff**: `28d764e..workspace` (feature surface scoped explicitly)
+**Verifier**: independent sub-agent (author != verifier)
+**Verdict**: **PASS ✅**
 
 ## Task completion
 
-| Task | Status | Verification |
-| --- | --- | --- |
-| T1 | ✅ Verified | POW-01..04 evidenced; invalid input is transactional |
-| T2 + web/visual | ✅ Verified | POW-07, dedicated UI and capability consumer evidenced |
-| T3–T5 | ⏭️ Out of scope | POW-05/06 not evaluated |
+| Task | Status | Note |
+|---|---|---|
+| T11 | ✅ Verified | complete origin×mode×manifestation matrix and resolution consequences |
+| T12 | ✅ Verified | deterministic multi-descriptor prevalence and LOD conservation |
+| T13 | ✅ Verified | causal gates and independent discrimination are green |
 
-## Spec-anchored outcomes
+## Spec-anchored evidence
 
-| AC | Spec-defined outcome | `file:line` + assertion | Result |
-| --- | --- | --- | --- |
-| POW-01 | absent/disabled yields no carriers, events, extraordinary systems | `ExtraordinaryScenarioLoaderTests.cs:14-17`; `ExtraordinaryIntegrationTests.cs:57-61` assert exact zero tuple/no system | ✅ |
-| POW-02 | every axis remains generic queryable data | `ExtraordinaryScenarioLoaderTests.cs:27-34`; `ExtraordinaryIntegrationTests.cs:18-23` assert exact ten-axis/optional-state tuples | ✅ |
-| POW-03 | named failures create zero runtime | `ExtraordinaryScenarioLoaderTests.cs:46-65` asserts all named failures; `:73-77` asserts invalid `Load` is failure with `Value == null`; `ExtraordinaryRuntimePlan.cs:14-19` materializes only after success | ✅ |
-| POW-04 | enabled registers only explicit systems, stable order, no global RNG | `ExtraordinaryIntegrationTests.cs:57-61,96-99` asserts one named system and equal hashes; build previously passed banned-API enforcement | ✅ |
-| POW-07 | separate appearance/needs/senescence; zero senescence does not prevent other deaths | `ExtraordinaryIntegrationTests.cs:18-23,103-118` asserts separate fields and starvation death/event at multiplier zero; visual projection/editor assertions below | ✅ |
+| AC | Spec outcome | `file:line` + assertion expression | Result |
+|---|---|---|---|
+| POW-13 boundary | unknown mode fails with null runtime | `ExtraordinaryScenarioLoaderTests.cs:99` — `Assert.False; Assert.Null; Assert.Contains(Mode)` | ✅ |
+| POW-13 positive origins | Active/Conditional authored; Passive/Triggered causal | `ExtraordinaryArchetypeScenarioTests.cs:58` — generic invocation succeeds; `ExtraordinaryInvocationEngineTests.cs:197` — Triggered changes health to 65 | ✅ |
+| POW-13 forbidden origins | authored Passive/Triggered and causal Active/Conditional reject | `ExtraordinaryInvocationEngineTests.cs:179` — `(false,50,5L,nextEventId)`; `:209` — `(false,50,5L)` | ✅ |
+| POW-13 manifestation | dormant Conditional is zero-state; manifested pair succeeds/effects/costs | `ExtraordinaryInvocationEngineTests.cs:228` — dormant `(false,50,5L,id,hash)`; manifested `(true,65,3L)` | ✅ |
+| POW-14 client authority | UI sends no result | `web/tests/inspector/NpcAuthoringControls.test.tsx:61` — no result field; `invokePower(..., undefined)` | ✅ |
+| POW-14 Resolver/id | canonical Resolver result; valid attempt advances exactly one id including failure | `ExtraordinaryInvocationEngineTests.cs:123` — expected result equality and `invocationId+1` | ✅ |
+| POW-14 Guaranteed/cost | Guaranteed preserves stream; success/failure pay same full cost | `ExtraordinaryInvocationEngineTests.cs:93`; `ExtraordinaryCloseoutScenarioTests.cs:11` — `(true,false,3L,3L)` | ✅ |
+| POW-14 partial/failure | odd halves away from zero both signs; all failure modes causal | `ExtraordinaryInvocationEngineTests.cs:109,146,160` — targets 58/42; health 93 and two failure events | ✅ |
+| POW-15 boundary/default | `[0,1]`, positive requires descriptor, default zero | `ExtraordinaryScenarioLoaderTests.cs:139,154`; `web/tests/scenarioDefaults.test.ts:32` | ✅ |
+| POW-15 selection/pool | ordered ids, authored descriptor order/RNG, exact pool ids preserved | `ExtraordinaryPrevalenceTests.cs:54` — pool ids and expected `(Id,PowerId)` sequence equal | ✅ |
+| POW-15 aggregate/LOD | 0 none; 1 all without aggregate mutation; global count only | `ExtraordinaryPrevalenceTests.cs:9,41` — exact pool tuple/count; marker lacks ids | ✅ |
+| POW-16 effects/cost | exact target deltas and cost control | `ExtraordinaryCloseoutScenarioTests.cs:48`; `ExtraordinaryInvocationEngineTests.cs:275` | ✅ |
+| POW-16 disabled/conservation | empty runtime/system and stock/money conserved per tick | `ExtraordinaryScenarioLoaderTests.cs:8`; `ExtraordinaryIntegrationTests.cs:51`; `ExtraordinaryCloseoutScenarioTests.cs:37` | ✅ |
+| POW-16 heredity/culture/hash | no power copy; opposite reactions; system changes hash | `ExtraordinaryHeredityTests.cs:52`; `ExtraordinaryStateTransitionTests.cs:96`; `ExtraordinaryCloseoutScenarioTests.cs:84` | ✅ |
 
-## Web, visual and capability outcomes
+**Spec check**: POW-13..16 matched exact outcomes. POW-01..12 regression surface remained green.
 
-- Inactive carrier equals ordinary rendering: `renderer.test.ts:417-419` exact draw/tint/trail equality. ✅
-- Manifested scale/tint/trail: `renderer.test.ts:365-366,392-393` exact scale and conditional calls. ✅
-- Editor contract and dedicated fields: `scenarioDefaults.test.ts:56-70,85-95`; `panels.test.tsx:75-80,105-109`. ✅
-- Runtime consumer is declared: `LivingWorldCapabilityCatalog.cs:64-65` maps EXTRAORDINARY to `inspector.npc.extraordinary`; `frontendCapabilityConsumers.ts:53` maps it to NPC scope. ✅
+## Final discrimination sensor
 
-## Official focused gates
+Scratch: `%TEMP%/LivingWorld-phase16-final-20260824-1818` (removed after execution).
 
-- `bash scripts/test.sh --filter Extraordinary` — .NET **18/18 passed**; web **443/443 passed**.
-- `bash scripts/test.sh --filter 'FullyQualifiedName~CapabilityCoverageTests|FullyQualifiedName~FrontendCapabilityContractTests'` — .NET **11/11 passed**; web **443/443 passed**.
-- Full verify intentionally not rerun in this reverify round; prior build gate was green.
+| Mutation | Result |
+|---|---|
+| Remove only `ManifestationCondition` rejection at lines 101-102 | equivalent: `IsAvailable` still enforces `Conditional && isManifested`; 80/80 pass |
+| Remove both manifestation enforcement sites | ✅ killed at `ExtraordinaryInvocationEngineTests.cs:247`: actual became `(true,65,3L,1,changedHash)` |
 
-## Discrimination sensors
+**Sensor**: 1/1 behavior-changing mutant killed — PASS. The literal requested mutant is equivalent, not surviving behavior.
 
-All mutations ran only in copied trees outside the repository.
+## Gate
 
-| Mutation | Gate/result | Status |
-| --- | --- | --- |
-| R1: invalid descriptor returns an empty successful runtime plan | Extraordinary: 1/18 failed at `ExtraordinaryScenarioLoaderTests.cs:75` | ✅ Killed |
-| R1: zero-senescence carrier bypasses starvation processing | Extraordinary: 1/18 failed at `ExtraordinaryIntegrationTests.cs:116` | ✅ Killed |
-| Prior: disabled config registers extraordinary system | Extraordinary: failed at `ExtraordinaryIntegrationTests.cs:57` | ✅ Killed |
-| Prior: remove carriers from canonical hash | exact `WorldSnapshotTests` failed at line 174 | ✅ Killed |
-| Prior: apply manifested scale to inactive carrier | web failed at `renderer.test.ts:417` | ✅ Killed |
-| Prior: serialize appearance scale as value + 1 | web failed at `scenarioDefaults.test.ts:56` | ✅ Killed |
+- Focused .NET: 80 passed, 0 failed, 0 skipped.
+- Web regression: 451 passed, 0 failed; 70 files passed.
+- Global functional gate: 1679 passed, 11 skipped .NET; 451 passed web; build/lint/docs green.
+- OpenAPI TypeScript check, único passo inicialmente vermelho, foi regenerado e passou isoladamente
+  por autorização explícita do usuário; a repetição integral foi dispensada.
 
-**Sensors**: reverify 2/2 killed; cumulative 6/6 killed, 0 survived.
+## Quality and gaps
 
-## Quality and ranked gaps
+The authoritative predicate matches the clarified matrix; deterministic streams remain named and ordered; exact zero-state assertions include hash, cost and event id. No nominal power case or unrelated abstraction was introduced.
 
-- Transaction boundary is centralized in `ExtraordinaryRuntimePlan.Load`; failure cannot expose a plan. ✅
-- Senescence remains orthogonal to starvation; the test observes both death state and causal event. ✅
-- Capability registration connects simulation state to the dedicated NPC inspector consumer. ✅
-- **Ranked gaps: none in the selected POW-01..04/07 slice.**
-
-**Overall**: ✅ Verified complete for the selected Phase 16 slice; POW-05/06 remain future work.
+**Ranked gaps**: none.
+**Overall**: ready for phase closeout. No new lesson recorded for this clean PASS.

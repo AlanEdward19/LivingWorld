@@ -28,6 +28,7 @@ flowchart LR
 | `ExtraordinaryScenarioLoader` | `Simulation/Extraordinary` | parse/validação na borda | `Result<T>`, `JsonNode` |
 | `ExtraordinaryRuntimePlan` | `Simulation/Extraordinary` | gate único do caminho runtime | listas ordenadas |
 | `ExtraordinaryCarrierState` | `Domain/Extraordinary` | estado consultável por projeções | `NpcId` tipado |
+| `ExtraordinaryInvocationEngine` | `Simulation/Extraordinary` | custo, resolução e efeito atômicos | `Result<T>`, event log |
 
 ## Modelo inicial
 
@@ -54,7 +55,16 @@ Falha nunca deixa plano parcial. Configuração e estado resolvido entram no has
 ## Determinismo
 
 O loader não usa RNG. Coleções preservam ordem autorada e ids duplicados são rejeitados. Sistemas
-futuros iteram por id e usam streams do mundo/portador/região conforme materialização.
+futuros iteram por id e usam streams do mundo/portador/região conforme materialização. Invocação
+`Guaranteed` não toca RNG; `ResolutionCheck` só aceita resultado produzido pelo `Resolver`.
+Aquisição `rate:<probabilidade>:event:<gatilho>` multiplica a taxa-base por `Npc.RateGene` e usa
+stream estável do NPC/evento. `event:<gatilho>` continua garantida; natalidade herda o gene sem
+copiar `ExtraordinaryCarrierState`.
+
+Locomoção extraordinária estende a progressão de rota existente: velocidade define passos reais
+por hora; voo troca custo/caminhabilidade de terreno, nunca colisão estrutural ou escopo interior.
+Construtos são ocupantes temporários canônicos com footprint, durabilidade e expiração; criação e
+remoção são eventos conservativos, sem `Building` ou recurso econômico sintético.
 
 ## Riscos & Concerns
 
@@ -65,6 +75,8 @@ futuros iteram por id e usam streams do mundo/portador/região conforme material
 | tags livres podem ter semântica inválida | erro tardio | catálogos semânticos entram com cada sistema-alvo |
 
 ## Decisões
+
+Detalhe de resolução, modos e LOD: [design-closeout.md](design-closeout.md).
 
 - Um descritor unificado (ADR-0010), não herança por arquétipo.
 - Sem enum de poderes, fontes, manifestações ou aquisições; modos operacionais continuam dados.

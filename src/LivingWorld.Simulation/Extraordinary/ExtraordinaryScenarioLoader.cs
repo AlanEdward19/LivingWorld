@@ -26,6 +26,11 @@ public static class ExtraordinaryScenarioLoader
             return Result<ExtraordinaryScenarioData>.Fail("Extraordinary.Enabled: campo obrigatório ausente ou inválido");
         if (block["Descriptors"] is not JsonArray descriptorsNode)
             return Result<ExtraordinaryScenarioData>.Fail("Extraordinary.Descriptors: campo obrigatório ausente ou inválido");
+        double prevalence = 0;
+        if (block["Prevalence"] is not null
+            && (!TryDouble(block, "Prevalence", out prevalence) || prevalence is < 0 or > 1))
+            return Result<ExtraordinaryScenarioData>.Fail(
+                "Extraordinary.Prevalence: deve estar em [0,1]");
 
         var descriptors = new List<PowerDescriptor>();
         var ids = new HashSet<string>(StringComparer.Ordinal);
@@ -41,8 +46,42 @@ public static class ExtraordinaryScenarioLoader
                 return Fail($"Extraordinary.Descriptors[].Id: duplicado '{parsed.Value.Id}'");
             descriptors.Add(parsed.Value);
         }
+        if (prevalence > 0 && descriptors.Count == 0)
+            return Result<ExtraordinaryScenarioData>.Fail(
+                "Extraordinary.Prevalence: exige ao menos um descritor");
 
-        return Result<ExtraordinaryScenarioData>.Ok(new ExtraordinaryScenarioData(enabled, descriptors));
+        var culturalResponses = ParseCulturalResponses(block);
+        if (!culturalResponses.IsSuccess)
+            return Result<ExtraordinaryScenarioData>.Fail(culturalResponses.Error!);
+
+        return Result<ExtraordinaryScenarioData>.Ok(
+            new ExtraordinaryScenarioData(enabled, descriptors, culturalResponses.Value, prevalence));
+    }
+
+    private static Result<IReadOnlyList<ExtraordinaryCulturalResponseRule>> ParseCulturalResponses(JsonObject block)
+    {
+        if (block["CulturalResponses"] is null)
+            return Result<IReadOnlyList<ExtraordinaryCulturalResponseRule>>.Ok([]);
+        if (block["CulturalResponses"] is not JsonArray array)
+            return Result<IReadOnlyList<ExtraordinaryCulturalResponseRule>>.Fail(
+                "Extraordinary.CulturalResponses: array inválido");
+
+        var responses = new List<ExtraordinaryCulturalResponseRule>();
+        foreach (var node in array)
+        {
+            if (node is not JsonObject item || item["CultureId"] is not JsonValue cultureValue
+                || !cultureValue.TryGetValue<int>(out int cultureId) || cultureId < 0)
+                return Result<IReadOnlyList<ExtraordinaryCulturalResponseRule>>.Fail(
+                    "Extraordinary.CulturalResponses[].CultureId: deve ser não negativo");
+            var manifestation = RequiredNestedText(item, "CulturalResponses", "Manifestation");
+            if (!manifestation.IsSuccess)
+                return Result<IReadOnlyList<ExtraordinaryCulturalResponseRule>>.Fail(manifestation.Error!);
+            var response = RequiredNestedText(item, "CulturalResponses", "Response");
+            if (!response.IsSuccess)
+                return Result<IReadOnlyList<ExtraordinaryCulturalResponseRule>>.Fail(response.Error!);
+            responses.Add(new ExtraordinaryCulturalResponseRule(cultureId, manifestation.Value!, response.Value!));
+        }
+        return Result<IReadOnlyList<ExtraordinaryCulturalResponseRule>>.Ok(responses);
     }
 
     private static Result<PowerDescriptor> ParseDescriptor(JsonObject item)
@@ -57,8 +96,14 @@ public static class ExtraordinaryScenarioLoader
             return Result<PowerDescriptor>.Fail("Extraordinary.Descriptors[].Effects: use 'alvo:magnitude'");
         var mode = RequiredText(item, "Mode");
         if (!mode.IsSuccess) return Result<PowerDescriptor>.Fail(mode.Error!);
+        if (mode.Value is not ("Passive" or "Active" or "Triggered" or "Conditional"))
+            return Result<PowerDescriptor>.Fail(
+                "Extraordinary.Descriptors[].Mode: use Passive, Active, Triggered ou Conditional");
         var reliability = RequiredText(item, "Reliability");
         if (!reliability.IsSuccess) return Result<PowerDescriptor>.Fail(reliability.Error!);
+        if (reliability.Value is not ("Guaranteed" or "ResolutionCheck"))
+            return Result<PowerDescriptor>.Fail(
+                "Extraordinary.Descriptors[].Reliability: use Guaranteed ou ResolutionCheck");
 
         var costs = TextList(item, "Costs");
         var failures = TextList(item, "FailureModes");

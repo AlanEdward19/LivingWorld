@@ -147,6 +147,8 @@ public static class ScenarioLoaderV2
             }
         }
 
+        ExtraordinaryPrevalenceSeeder.Seed(world);
+
         foreach (var workplace in definition.Economy.Workplaces)
         {
             if (!world.ActiveCities().Any())

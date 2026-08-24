@@ -42,6 +42,8 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         foreach (var other in world.Npcs)
             if (other.IsAlive)
                 occupancy.Add(other.CurrentLocation);
+        foreach (var constructCell in world.ExtraordinaryConstructs.SelectMany(construct => construct.Footprint))
+            occupancy.Add(constructCell);
 
         // Cache de população por cidade, uma entrada calculada na primeira vez que a cidade é
         // consultada neste tick (não todas de uma vez — nem toda cidade tem NPC completando ação
@@ -88,8 +90,17 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
         if (action == ActionType.Travel && TravelDestinationOf(world, npc, marketIndex) is { } destination && destination != npc.CurrentLocation)
         {
+            var extraordinary = ExtraordinaryLocomotion.Resolve(world, npc);
+            if (extraordinary.HasModifier)
+            {
+                var advance = ExtraordinaryLocomotion.Advance(
+                    world, npc, destination, now, occupancy, extraordinary, ctx);
+                return advance.Reached;
+            }
+
             long ticksNeeded = TravelResolution.TicksBetween(world.Map, npc.CurrentLocation, destination);
             if (now - npc.ActionStartedAtTick < ticksNeeded) return false;
+            if (world.IsExtraordinaryConstructCell(destination)) return false;
 
             MoveTracked(npc, destination, now, occupancy);
             return true;
@@ -149,6 +160,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                 npc.CurrentLocation.X + dx,
                 npc.CurrentLocation.Y + dy)))
             .Where(cell => cell != npc.CurrentLocation && world.Map.TryGetCell(cell, out _))
+            .Where(cell => !world.IsExtraordinaryConstructCell(cell))
             .Where(cell => homeBounds is null || homeBounds.Value.Contains(cell))
             .OrderBy(cell => cell.Y)
             .ThenBy(cell => cell.X)

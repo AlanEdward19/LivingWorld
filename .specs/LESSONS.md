@@ -50,17 +50,23 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: CITY-04 AC3, MaterializationRoundTripTests.cs:169-183 (tests/LivingWorld.Tests/Cities)
 - last seen: 2026-07-28T23:44:38Z
 
-### L-007 — When a test validates a scenario-authoring index/reference bound (e.g. RefIndex/CityIndex against a parsed collection count), assert the exact boundary value (index == count) as its own case, not just a far-out-of-range value — a far-out-of-range assertion passes identically whether the bound check is `>=` or the off-by-one `>`.
-- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `src/LivingWorld.Simulation/Cities/CityScenarioLoader.cs` · harmful: 0
-- features: phase-15.1-vtt-frontend-redesign
-- evidence: mutation #3, validation.md (E2.2 bundle) — CityScenarioLoader.ParsePortals RefIndex upper-bound check mutated `>=` → `>`; Authored_portal_referencing_a_non_existent_city_index_fails (RefIndex=7, cityCount=1) still passed
-- last seen: 2026-08-12T00:00:00Z
+### L-007 — Test every invocation origin and mode combination at the authoritative boundary.
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `simulation/extraordinary` · harmful: 0
+- features: phase-16-powers
+- evidence: validation.md:23|POW-13 (simulation/extraordinary)
+- last seen: 2026-08-24T21:02:21Z
 
 ### L-008 — When a helper's own doc comment declares a precondition as "checked by the caller before reaching here", grep for the actual callers before trusting that edge case is handled — a documented contract with zero enforcing callers is an unimplemented AC branch, not a handled one.
 - signal: `ac_gap` · recurrence: 1 feature(s) · scope: `src/LivingWorld.Simulation/Cities` · harmful: 0
 - features: dynamic-city-growth
-- evidence: CITYGROW-02, spec.md:80-83 — OverflowPlacer.cs:18-20 declares the "no free cell anywhere on the map" case to be CityOccupancy.IsLandScarce's job "checado pelo chamador antes de cair aqui"; IsLandScarce's only production caller is MigrationSystem.cs:45, never the placement path, and RingCells has no map clamp
+- evidence: CITYGROW-02, spec.md:80-83 — OverflowPlacer.cs:18-20 declares the 'no free cell anywhere on the map' case to be CityOccupancy.IsLandScarce's job 'checado pelo chamador antes de cair aqui'; IsLandScarce's only production caller is MigrationSystem.cs:45, never the placement path, and RingCells has no map clamp
 - last seen: 2026-08-22T00:00:00Z
+
+### L-008 — Assert deterministic resolver output against the resolver contract, not only against a twin run.
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `simulation/extraordinary` · harmful: 0
+- features: phase-16-powers
+- evidence: validation.md:27|POW-14 (simulation/extraordinary)
+- last seen: 2026-08-24T21:02:22Z
 
 ### L-009 — When a resolver derives an entity's position/state by recursively re-resolving its siblings through the same public entry point, the cost is exponential unless the pass memoizes — resolve the whole collection once in dependency order, and leave a perf-guard test at realistic N, because unit tests with 1-2 fixtures cannot see the cliff.
 - signal: `ac_gap` · recurrence: 1 feature(s) · scope: `src/LivingWorld.Simulation/Cities/CityOccupancy.cs` · harmful: 0
@@ -68,11 +74,29 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: CityOccupancy.cs:163-166 re-enters BuildingPlacementResolver.Resolve per unauthored sibling, giving T(k)=sum T(j)=2^(k-1); measured ResolveGrownBounds 10ms at N=2, 77ms at N=4, 187215ms at N=6; all 208 gate tests pass because every fixture uses 1-2 buildings
 - last seen: 2026-08-22T00:00:00Z
 
+### L-009 — Conservation tests must snapshot every protected aggregate and identity field before and after the operation.
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `simulation/extraordinary` · harmful: 0
+- features: phase-16-powers
+- evidence: validation.md:29|POW-15 (simulation/extraordinary)
+- last seen: 2026-08-24T21:02:22Z
+
 ### L-010 — When an AC specifies a superlative or distance qualifier ("nearest free cell", "closest", "first"), assert the measured distance/index, not just membership in the valid set — an "is outside and is free" assertion passes identically whether the search starts at radius 1 or radius 5.
 - signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `tests/LivingWorld.Tests/Cities` · harmful: 0
 - features: dynamic-city-growth
-- evidence: CITYGROW-02 "nearest free cell found by outward ring-search" — OverflowPlacerTests.cs:47-50 asserts only IsFree + not-all-inside-bounds; no test asserts the minimal ring radius
+- evidence: CITYGROW-02 'nearest free cell found by outward ring-search' — OverflowPlacerTests.cs:47-50 asserts only IsFree + not-all-inside-bounds; no test asserts the minimal ring radius
 - last seen: 2026-08-22T00:00:00Z
+
+### L-010 — Repository gate scripts must select tool executables available on supported Windows hosts.
+- signal: `gate_fail` · recurrence: 1 feature(s) · scope: `harness` · harmful: 0
+- features: phase-16-powers
+- evidence: validation.md:52 (harness)
+- last seen: 2026-08-24T21:02:22Z
+
+### L-011 — Test every availability predicate across both its caller origin and carrier state dimensions.
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `simulation/extraordinary` · harmful: 0
+- features: phase-16-powers
+- evidence: validation.md:48|mutant-4|POW-13 (simulation/extraordinary)
+- last seen: 2026-08-24T21:14:22Z
 
 ## Quarantined (failed when applied — ignore)
 

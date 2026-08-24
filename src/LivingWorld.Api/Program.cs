@@ -94,6 +94,7 @@ builder.Services.AddSingleton<IWorldRepository>(worldRepository);
 builder.Services.AddSingleton(worldRunner);
 builder.Services.AddSingleton(worldClock);
 builder.Services.AddSingleton(worldSink);
+builder.Services.AddSingleton(new WorldAuthoringService(worldSink));
 builder.Services.AddSingleton(simulationHost);
 builder.Services.AddSingleton(realtimeGateway);
 builder.Services.AddSingleton(sessions);
@@ -162,6 +163,7 @@ app.MapWorldPreviewEndpoints();
 app.MapSimulationControlEndpoints();
 app.MapRealtimeEndpoints();
 app.MapVisualInputEndpoints();
+app.MapAuthoringEndpoints();
 
 app.Run();
 

@@ -955,10 +955,288 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/authoring/extraordinary/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/authoring/npcs/{id}/extraordinary/grant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PowerCommandRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/authoring/npcs/{id}/extraordinary/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PowerCommandRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/authoring/npcs/{id}/extraordinary/invoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["InvokePowerRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/authoring/npcs/{id}/personality": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PersonalityValues"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/authoring/npcs/{id}/relationships/break": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BreakRelationshipsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/authoring/npcs/{id}/action": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ForceActionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ActionType: number;
+        BreakRelationshipsRequest: {
+            /** Format: int64 */
+            otherNpcId: number | string;
+        };
+        CellCoord: {
+            /** Format: int32 */
+            x?: number | string;
+            /** Format: int32 */
+            y?: number | string;
+        };
         ConversationEndRequest: {
             /** Format: int64 */
             sessionId: number | string;
@@ -983,7 +1261,39 @@ export interface components {
             scenarioJson: string;
             name: string;
         };
+        ForceActionRequest: {
+            action: components["schemas"]["ActionType"];
+        };
+        InvokePowerRequest: {
+            powerId: string;
+            /** Format: int64 */
+            targetNpcId?: null | number | string;
+            targetCell?: null | components["schemas"]["CellCoord"];
+            resolution?: null | components["schemas"]["ResolutionResult"];
+        };
         JsonElement: unknown;
+        PersonalityValues: {
+            /** Format: int32 */
+            extroversion: number | string;
+            /** Format: int32 */
+            agreeableness: number | string;
+            /** Format: int32 */
+            conscientiousness: number | string;
+            /** Format: int32 */
+            emotionalStability: number | string;
+            /** Format: int32 */
+            openness: number | string;
+            /** Format: int32 */
+            ambition: number | string;
+            /** Format: int32 */
+            loyalty: number | string;
+            /** Format: int32 */
+            altruism: number | string;
+            /** Format: int32 */
+            impulsivity: number | string;
+            /** Format: int32 */
+            riskAversion: number | string;
+        };
         PlayerMoveRequest: {
             /** Format: int32 */
             targetX: number | string;
@@ -991,9 +1301,13 @@ export interface components {
             targetY: number | string;
             inputMode: string;
         };
+        PowerCommandRequest: {
+            powerId: string;
+        };
         PreviewWorldRequest: {
             scenarioJson: string;
         };
+        ResolutionResult: number;
         SetSpeedRequest: {
             /** Format: double */
             ticksPerSecond: number | string;

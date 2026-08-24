@@ -6,6 +6,7 @@ import type {
   NarrativeProse,
   NpcInspection,
 } from "./data/contracts";
+import type { PersonalityValues, PowerCatalogItem } from "./data/sources";
 
 // Fase 15, T8: base URL da API — em dev via proxy do Vite (mesma origem), em outros ambientes
 // via VITE_API_BASE_URL. Vazio == mesma origem do host que serve o cliente.
@@ -76,6 +77,38 @@ export async function materializeNpc(npcId: number): Promise<NpcInspection | nul
   if (!response.ok) throw new Error(`materialização de NPC falhou: ${response.status}`);
   return (await response.json()) as NpcInspection;
 }
+
+async function authoringRequest(path: string, method: string, body?: unknown): Promise<void> {
+  const response = await fetch(`${apiBaseUrl()}${path}`, {
+    method,
+    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({})) as { error?: string };
+    throw new Error(payload.error ?? `comando de autoria falhou: ${response.status}`);
+  }
+}
+
+export async function fetchPowerCatalog(): Promise<PowerCatalogItem[]> {
+  const response = await fetch(`${apiBaseUrl()}/authoring/extraordinary/catalog`);
+  if (!response.ok) throw new Error(`catálogo extraordinário falhou: ${response.status}`);
+  return (await response.json()) as PowerCatalogItem[];
+}
+
+export const grantNpcPower = (npcId: number, powerId: string) =>
+  authoringRequest(`/authoring/npcs/${npcId}/extraordinary/grant`, "POST", { powerId });
+export const revokeNpcPower = (npcId: number, powerId: string) =>
+  authoringRequest(`/authoring/npcs/${npcId}/extraordinary/revoke`, "POST", { powerId });
+export const invokeNpcPower = (
+  npcId: number, powerId: string, targetNpcId: number, targetCell?: { x: number; y: number }, resolution?: number,
+) => authoringRequest(`/authoring/npcs/${npcId}/extraordinary/invoke`, "POST", { powerId, targetNpcId, targetCell, resolution });
+export const rewriteNpcPersonality = (npcId: number, personality: PersonalityValues) =>
+  authoringRequest(`/authoring/npcs/${npcId}/personality`, "PUT", personality);
+export const breakNpcRelationships = (npcId: number, otherNpcId: number) =>
+  authoringRequest(`/authoring/npcs/${npcId}/relationships/break`, "POST", { otherNpcId });
+export const forceNpcAction = (npcId: number, action: number) =>
+  authoringRequest(`/authoring/npcs/${npcId}/action`, "POST", { action });
 
 export interface MoveNpcRequest {
   targetX: number;

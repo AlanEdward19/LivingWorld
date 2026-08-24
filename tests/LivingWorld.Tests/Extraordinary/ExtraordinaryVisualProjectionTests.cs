@@ -17,14 +17,16 @@ public sealed class ExtraordinaryVisualProjectionTests
 
         Assert.Equal(
             ("power-a|power-b", true, "conditional-active", 1.4, "tint-token", "trail-token",
-                "hunger", 9, 3L, 0.25),
+                "hunger", 9, 3L, 0.25, true, 3d),
             (string.Join('|', snapshotMarker.Extraordinary!.PowerIds), snapshotMarker.Extraordinary.IsManifested,
                 snapshotMarker.Extraordinary.ManifestationState, snapshotMarker.Extraordinary.ScaleMultiplier,
                 snapshotMarker.Extraordinary.SkinTint, snapshotMarker.Extraordinary.MovementTrail,
                 snapshotMarker.Extraordinary.NeedSubstitution!.ReplacesNeed,
                 snapshotMarker.Extraordinary.NeedSubstitution.ResourceId,
                 snapshotMarker.Extraordinary.NeedSubstitution.UnitsPerUse,
-                snapshotMarker.Extraordinary.SenescenceRateMultiplier));
+                snapshotMarker.Extraordinary.SenescenceRateMultiplier,
+                snapshotMarker.Extraordinary.CanFly,
+                snapshotMarker.Extraordinary.SpeedMultiplier));
         Assert.Equal(snapshotMarker.Extraordinary, liveMarker.Extraordinary);
         Assert.Equal(npc.Id, liveMarker.Id);
     }
@@ -43,18 +45,48 @@ public sealed class ExtraordinaryVisualProjectionTests
         Assert.Null(marker.Extraordinary);
     }
 
-    private static (WorldState World, City City, Npc Npc) WorldWithCarrier(bool isManifested)
+    [Fact]
+    public void Temporary_construct_is_projected_as_a_physical_process_with_footprint()
+    {
+        var (world, city, _) = WorldWithCarrier(isManifested: true, withConstruct: true);
+
+        var process = Assert.Single(
+            LivingScopeProjector.Build(world, new VisualScope(VisualScopeKind.City, city.Id.ToString())).Processes,
+            item => item.Kind == "extraordinary-construct");
+
+        Assert.Equal((-8L, 0.5, 10L, city.Location, "green-energy"),
+            (process.Id, process.Progress, process.RemainingHours, process.Location, process.AppearanceToken));
+        Assert.Equal([city.Location, new CellCoord(city.Location.X + 1, city.Location.Y)], process.Footprint);
+    }
+
+    private static (WorldState World, City City, Npc Npc) WorldWithCarrier(
+        bool isManifested, bool withConstruct = false)
     {
         var carrier = new ExtraordinaryCarrierState(
             new NpcId(1), ["power-a", "power-b"], isManifested, "conditional-active",
             new ExtraordinaryAppearanceState(1.4, "tint-token", "trail-token"),
             new NeedSubstitutionDescriptor("hunger", new ResourceType(9), 3), 0.25);
+        var descriptors = new[]
+        {
+            new PowerDescriptor(
+                "power-a", "test", ["movement.flight:1"], "Passive", [], "Guaranteed", [], [], [], []),
+            new PowerDescriptor(
+                "power-b", "test", ["movement.speed-multiplier:3"], "Passive", [], "Guaranteed", [], [], [], []),
+        };
+        var origin = ScenarioRunner.DefaultVillageLocation;
+        var constructs = withConstruct
+            ? new[] { new ExtraordinaryConstruct(
+                7, carrier.CarrierId, "power-a", 99, origin,
+                [origin, new CellCoord(origin.X + 1, origin.Y)],
+                20, 40, 0, 10, "green-energy") }
+            : [];
         var world = new WorldState(
             ScenarioRunner.DefaultCalendar, 77, ScenarioRunner.DefaultMap(77),
             ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
             ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules,
-            extraordinary: new ExtraordinaryScenarioData(true, []), extraordinaryCarriers: [carrier]);
+            extraordinary: new ExtraordinaryScenarioData(true, descriptors), extraordinaryCarriers: [carrier],
+            extraordinaryConstructs: constructs, nextExtraordinaryConstructId: withConstruct ? 8 : 0);
         var city = new City(
             world.NextCityId(), ScenarioRunner.DefaultVillageLocation, 0, null, AggregatePopulationPool.Empty);
         world.AddCity(city);

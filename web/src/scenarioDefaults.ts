@@ -121,6 +121,12 @@ export interface ExtraordinaryDescriptorRow {
   manifestationCondition: string;
 }
 
+export interface ExtraordinaryCulturalResponseRow {
+  cultureId: number;
+  manifestation: string;
+  response: string;
+}
+
 export interface PaintedCell {
   terrain: number;
   biome: number;
@@ -218,7 +224,9 @@ export interface ScenarioFormState {
 
   // Extraordinário é opcional e composicional; nenhum campo representa arquétipo nominal.
   extraordinaryEnabled: boolean;
+  extraordinaryPrevalence: number;
   extraordinaryDescriptors: ExtraordinaryDescriptorRow[];
+  extraordinaryCulturalResponses: ExtraordinaryCulturalResponseRow[];
 }
 
 export function defaultScenarioForm(): ScenarioFormState {
@@ -334,7 +342,9 @@ export function defaultScenarioForm(): ScenarioFormState {
     skillBiases: [],
     transformationRules: [],
     extraordinaryEnabled: false,
+    extraordinaryPrevalence: 0,
     extraordinaryDescriptors: [],
+    extraordinaryCulturalResponses: [],
   };
 }
 
@@ -650,6 +660,7 @@ export function scenarioFormToJson(
     },
     Extraordinary: {
       Enabled: form.extraordinaryEnabled,
+      Prevalence: form.extraordinaryPrevalence,
       Descriptors: form.extraordinaryDescriptors.map((descriptor) => {
         const hasAppearance = descriptor.appearanceScaleMultiplier !== 1
           || descriptor.appearanceSkinTint.trim() !== ""
@@ -682,6 +693,11 @@ export function scenarioFormToJson(
           ManifestationCondition: descriptor.manifestationCondition.trim() || undefined,
         };
       }),
+      CulturalResponses: form.extraordinaryCulturalResponses.map((response) => ({
+        CultureId: response.cultureId,
+        Manifestation: response.manifestation,
+        Response: response.response,
+      })),
     },
   };
 
@@ -844,6 +860,7 @@ export function jsonToScenarioForm(json: Raw): ScenarioFormState {
       triggerTick: t.TriggerTick ?? null,
     })),
     extraordinaryEnabled: extraordinary.Enabled ?? base.extraordinaryEnabled,
+    extraordinaryPrevalence: extraordinary.Prevalence ?? base.extraordinaryPrevalence,
     extraordinaryDescriptors: (extraordinary.Descriptors ?? []).map((descriptor: Raw) => ({
       id: descriptor.Id ?? "",
       source: descriptor.Source ?? "",
@@ -863,6 +880,11 @@ export function jsonToScenarioForm(json: Raw): ScenarioFormState {
       needSubstitutionUnitsPerUse: descriptor.NeedSubstitution?.UnitsPerUse ?? 1,
       senescenceRateMultiplier: descriptor.SenescenceRateMultiplier ?? 1,
       manifestationCondition: descriptor.ManifestationCondition ?? "",
+    })),
+    extraordinaryCulturalResponses: (extraordinary.CulturalResponses ?? []).map((response: Raw) => ({
+      cultureId: response.CultureId ?? 0,
+      manifestation: response.Manifestation ?? "",
+      response: response.Response ?? "",
     })),
   };
 }

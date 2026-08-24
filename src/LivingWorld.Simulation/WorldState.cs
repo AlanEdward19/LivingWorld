@@ -105,6 +105,12 @@ public sealed class WorldState
     /// <summary>Estado resolvido consultável por sistemas e projeções, ordenado por portador.</summary>
     [Canonical] public IReadOnlyList<ExtraordinaryCarrierState> ExtraordinaryCarriers => _extraordinaryCarriers;
 
+    private readonly List<ExtraordinaryConstruct> _extraordinaryConstructs;
+    private long _nextExtraordinaryConstructId;
+
+    [Canonical] public IReadOnlyList<ExtraordinaryConstruct> ExtraordinaryConstructs => _extraordinaryConstructs;
+    [Canonical] public long NextExtraordinaryConstructId => _nextExtraordinaryConstructId;
+
     /// <summary>Nome escolhido pelo usuário na criação (Fase 15.1, T42/ADR-0017) — cosmético,
     /// nenhuma decisão de sistema lê nome de mundo (ADR-0014), por isso volátil.</summary>
     [Volatile] public string Name { get; private set; }
@@ -323,7 +329,9 @@ public sealed class WorldState
         ResourceCatalog? resourceCatalog = null, IReadOnlyList<ProcessRecipe>? processRecipes = null,
         IReadOnlyList<ResourceProcess>? resourceProcesses = null, IReadOnlyList<CropBatch>? cropBatches = null,
         ExtraordinaryScenarioData? extraordinary = null,
-        IReadOnlyList<ExtraordinaryCarrierState>? extraordinaryCarriers = null)
+        IReadOnlyList<ExtraordinaryCarrierState>? extraordinaryCarriers = null,
+        IReadOnlyList<ExtraordinaryConstruct>? extraordinaryConstructs = null,
+        long nextExtraordinaryConstructId = 0)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -345,6 +353,8 @@ public sealed class WorldState
         HistoryRules = historyRules ?? HistoryRules.Disabled;
         Extraordinary = extraordinary ?? ExtraordinaryScenarioData.Disabled;
         _extraordinaryCarriers = (extraordinaryCarriers ?? []).OrderBy(carrier => carrier.CarrierId.Value).ToList();
+        _extraordinaryConstructs = (extraordinaryConstructs ?? []).OrderBy(construct => construct.Id).ToList();
+        _nextExtraordinaryConstructId = nextExtraordinaryConstructId;
         Name = name;
         _facts = [];
         _reports = [];
@@ -434,7 +444,9 @@ public sealed class WorldState
         IReadOnlyList<CropBatch>? cropBatches = null,
         long nextCropBatchId = 0,
         ExtraordinaryScenarioData? extraordinary = null,
-        IReadOnlyList<ExtraordinaryCarrierState>? extraordinaryCarriers = null)
+        IReadOnlyList<ExtraordinaryCarrierState>? extraordinaryCarriers = null,
+        IReadOnlyList<ExtraordinaryConstruct>? extraordinaryConstructs = null,
+        long nextExtraordinaryConstructId = 0)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -487,6 +499,8 @@ public sealed class WorldState
         HistoryRules = historyRules ?? HistoryRules.Disabled;
         Extraordinary = extraordinary ?? ExtraordinaryScenarioData.Disabled;
         _extraordinaryCarriers = (extraordinaryCarriers ?? []).OrderBy(carrier => carrier.CarrierId.Value).ToList();
+        _extraordinaryConstructs = (extraordinaryConstructs ?? []).OrderBy(construct => construct.Id).ToList();
+        _nextExtraordinaryConstructId = nextExtraordinaryConstructId;
         _facts = (facts ?? []).ToList();
         _nextFactId = nextFactId;
         _nextReportId = nextReportId;
@@ -581,6 +595,44 @@ public sealed class WorldState
 
     internal Npc? FindNpc(NpcId id) => _npcById.GetValueOrDefault(id);
     internal Household? FindHousehold(HouseholdId id) => _householdById.GetValueOrDefault(id);
+
+    internal void UpsertExtraordinaryCarrier(ExtraordinaryCarrierState carrier)
+    {
+        _extraordinaryCarriers.RemoveAll(existing => existing.CarrierId == carrier.CarrierId);
+        _extraordinaryCarriers.Add(carrier);
+        _extraordinaryCarriers.Sort((left, right) => left.CarrierId.Value.CompareTo(right.CarrierId.Value));
+    }
+
+    internal bool RemoveExtraordinaryCarrier(NpcId carrierId) =>
+        _extraordinaryCarriers.RemoveAll(existing => existing.CarrierId == carrierId) > 0;
+
+    internal int RemoveRelationshipsBetween(NpcId first, NpcId second)
+    {
+        int removed = 0;
+        if (_relationships.Remove(new RelationshipKey(first, second))) removed++;
+        if (_relationships.Remove(new RelationshipKey(second, first))) removed++;
+        return removed;
+    }
+
+    internal long NextExtraordinaryConstructIdAndAdvance() => _nextExtraordinaryConstructId++;
+
+    internal void AddExtraordinaryConstruct(ExtraordinaryConstruct construct)
+    {
+        _extraordinaryConstructs.Add(construct);
+        _extraordinaryConstructs.Sort((left, right) => left.Id.CompareTo(right.Id));
+    }
+
+    internal bool RemoveExtraordinaryConstruct(long id) =>
+        _extraordinaryConstructs.RemoveAll(construct => construct.Id == id) > 0;
+
+    internal void ReplaceExtraordinaryConstruct(ExtraordinaryConstruct construct)
+    {
+        RemoveExtraordinaryConstruct(construct.Id);
+        AddExtraordinaryConstruct(construct);
+    }
+
+    public bool IsExtraordinaryConstructCell(CellCoord cell) =>
+        _extraordinaryConstructs.Any(construct => construct.Footprint.Contains(cell));
 
     internal WorkplaceId NextWorkplaceIdAndAdvance() => new(_nextWorkplaceId++);
 

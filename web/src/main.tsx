@@ -9,6 +9,7 @@ import { RealNpcInspectionSource } from "./data/real/npcInspectionSource";
 import { RealBiographySource } from "./data/real/biographySource";
 import { RealChronicleSource } from "./data/real/chronicleSource";
 import { RealConversationSource } from "./data/real/conversationSource";
+import { RealAuthoringSource } from "./data/real/authoringSource";
 import { mountApp } from "./bootstrap";
 import "./styles/global.css";
 
@@ -29,4 +30,4 @@ const narrativeSources = {
   conversation: new RealConversationSource(),
 };
 
-mountApp({ simulationStore, viewStore, selectionStore, timeControlSource, narrativeSources });
+mountApp({ simulationStore, viewStore, selectionStore, timeControlSource, narrativeSources, authoringSource: new RealAuthoringSource() });

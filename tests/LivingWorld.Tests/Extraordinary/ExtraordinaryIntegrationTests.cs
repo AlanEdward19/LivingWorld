@@ -100,6 +100,23 @@ public sealed class ExtraordinaryIntegrationTests
     }
 
     [Fact]
+    public void Cultural_response_round_trips_and_participates_in_the_canonical_hash()
+    {
+        var baseline = ScenarioData();
+        var configured = new ExtraordinaryScenarioData(
+            true, baseline.Descriptors,
+            [new ExtraordinaryCulturalResponseRule(2, "visible-change", "fear")]);
+        var world = World(configured);
+
+        var restored = WorldSnapshot.Deserialize(WorldSnapshot.Serialize(world));
+
+        var response = Assert.Single(restored.Extraordinary.CulturalResponses);
+        Assert.Equal((2, "visible-change", "fear"),
+            (response.CultureId, response.Manifestation, response.Response));
+        Assert.NotEqual(WorldSnapshot.CanonicalHash(World(baseline)), WorldSnapshot.CanonicalHash(restored));
+    }
+
+    [Fact]
     public void Zero_senescence_carrier_still_dies_from_sustained_starvation()
     {
         var carrier = new ExtraordinaryCarrierState(

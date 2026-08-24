@@ -38,6 +38,20 @@ O extraordinário precisa alterar regras existentes sem criar um motor por fanta
 - **POW-07** — WHEN um descritor declarar aparência, necessidade substituta ou senescência THEN
   SHALL expor escala/tom/trilha, recurso consumido e multiplicador de idade separadamente;
   multiplicador zero não concede imunidade a outras causas de morte.
+- **POW-08** — WHEN uma aquisição declarar taxa-base THEN a chance efetiva SHALL ser
+  `taxa-base × RateGene` limitada a `[0,1]`; nascimento herda esse multiplicador pela Fase 6,
+  mas SHALL iniciar sem copiar poderes ou domínio dos pais.
+- **POW-09** — WHEN os fixtures Vampiro, Lobisomem, Lanterna Verde, Kryptoniano e Velocista
+  forem executados THEN todos SHALL adquirir, manifestar e aplicar efeito pelo mesmo motor
+  genérico; nomes nominais SHALL existir somente no código de teste.
+- **POW-10** — WHEN potência manifestada modificar locomoção THEN velocidade SHALL mudar células
+  efetivamente percorridas por hora e voo SHALL atravessar terreno sem teleportar nem atravessar
+  paredes/interiores; pouso, colisão, custo e posição autoritativa permanecem válidos.
+- **POW-11** — WHEN `construct.create` for aplicado THEN forma, células, durabilidade e expiração
+  declaradas SHALL criar ocupação canônica temporária, causal e sem criar recursos ou dinheiro.
+- **POW-12** — WHEN o operador selecionar um NPC THEN a web SHALL listar o catálogo do cenário e
+  enviar concessão, revogação e invocação ao motor autoritativo; construtos SHALL aceitar uma
+  célula escolhida, e nenhum comando inválido SHALL produzir mutação parcial.
 
 ## Assumptions & Open Questions
 
@@ -54,16 +68,23 @@ o motor é single-thread determinístico e não há I/O externo neste escopo.
 
 ## Fora do escopo
 
-Nomes/franquias, alinhamento herói/vilão, divindades, viagem temporal, contato alienígena,
+Casos nominais no motor, alinhamento herói/vilão, divindades, viagem temporal, contato alienígena,
 contramedidas inventadas e balanceamento de prevalência.
 
 ## Rastreabilidade
+
+Critérios de fechamento do roadmap: [spec-closeout.md](spec-closeout.md).
 
 | ID | Design | Task | Status |
 |---|---|---|---|
 | POW-01, POW-03 | borda + plano vazio | T1 | Verified |
 | POW-02 | modelo composicional | T1 | Verified |
 | POW-04 | registro runtime | T2 | Verified |
-| POW-05 | aplicação/custos | T3 | Pendente |
-| POW-06 | aquisição/manifestação | T4 | Pendente |
+| POW-05 | aplicação/custos | T3 | Implemented |
+| POW-06 | aquisição/manifestação | T4 | Implemented |
 | POW-07 | estado consultável | T2 | Verified |
+| POW-08 | predisposição herdável, poder não herdado | T6 | Verified |
+| POW-09 | cinco fixtures nominais de regressão | T7 | Implemented |
+| POW-10 | locomoção física e projeção visual | T8 | Implemented |
+| POW-11 | ocupação temporária e conservação | T9 | Implemented |
+| POW-12 | comandos de autoria e UX operacional | T10 | Verified |

@@ -8,6 +8,8 @@ import type { NarrativeSources } from "../../data/sources";
 import { materializeNpc } from "../../api";
 import { ACTION_LABELS } from "../../map-engine/actionVisuals";
 import { NpcTokenSvg } from "../NpcTokenSvg";
+import type { AuthoringSource } from "../../data/sources";
+import { NpcAuthoringControls } from "./NpcAuthoringControls";
 
 export interface NpcInspectorProps {
   entityRef: EntityRef;
@@ -16,6 +18,7 @@ export interface NpcInspectorProps {
   /** T7 (LWV-05): biografia + conversa. Opcional — ausente em contextos que ainda não têm essas
    * fontes (ex.: testes de T5/T6 focados só em identidade/vida). */
   narrativeSources?: NarrativeSources;
+  authoringSource?: AuthoringSource;
 }
 
 const CONVERSATION_REJECTION_LABELS: Record<string, string> = {
@@ -186,7 +189,7 @@ function NeedMeter({ label, value }: { label: string; value: number }) {
   );
 }
 
-export function NpcInspector({ entityRef, simulationStore, viewStore, narrativeSources }: NpcInspectorProps) {
+export function NpcInspector({ entityRef, simulationStore, viewStore, narrativeSources, authoringSource }: NpcInspectorProps) {
   const npcId = Number(entityRef.id);
   const [materializing, setMaterializing] = useState(false);
   const inspection = useSyncExternalStore(
@@ -356,6 +359,16 @@ export function NpcInspector({ entityRef, simulationStore, viewStore, narrativeS
 
       {narrativeSources && <NpcBiography npcId={npcId} source={narrativeSources.biography} />}
       {narrativeSources && <NpcConversation npcId={npcId} source={narrativeSources.conversation} />}
+      {authoringSource && (
+        <NpcAuthoringControls
+          npcId={npcId}
+          source={authoringSource}
+          powerIds={extraordinary?.powerIds ?? []}
+          personality={inspection.personality}
+          location={inspection.currentLocation}
+          onRefresh={() => simulationStore.inspectNpc(npcId).then(() => undefined)}
+        />
+      )}
 
       <div className="entity-inspector-actions">
         <FollowButton entityRef={entityRef} viewStore={viewStore} />

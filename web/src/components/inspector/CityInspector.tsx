@@ -73,6 +73,12 @@ export function CityInspector({ cityId, simulationStore, viewStore, narrativeSou
       <dl>
         <dt>População</dt>
         <dd>{population}</dd>
+        {worldMarker?.knownCarrierCount !== undefined && (
+          <>
+            <dt>Portadores extraordinários conhecidos</dt>
+            <dd>{worldMarker.knownCarrierCount}</dd>
+          </>
+        )}
         {livingCity?.foundedFromCityId && (
           <>
             <dt>Origem</dt>

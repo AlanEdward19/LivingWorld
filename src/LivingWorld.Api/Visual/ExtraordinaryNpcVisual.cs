@@ -15,7 +15,9 @@ public sealed record ExtraordinaryNpcVisual(
     string SkinTint,
     string MovementTrail,
     ExtraordinaryNeedSubstitutionVisual? NeedSubstitution,
-    double SenescenceRateMultiplier);
+    double SenescenceRateMultiplier,
+    bool CanFly,
+    double SpeedMultiplier);
 
 public static class ExtraordinaryNpcVisualProjector
 {
@@ -23,6 +25,10 @@ public static class ExtraordinaryNpcVisualProjector
     {
         var carrier = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npcId);
         if (carrier is null) return null;
+        var npc = world.FindNpc(npcId);
+        var locomotion = npc is null
+            ? new ExtraordinaryLocomotionProfile(false, false, 1)
+            : ExtraordinaryLocomotion.Resolve(world, npc);
 
         var need = carrier.NeedSubstitution is { } substitution
             ? new ExtraordinaryNeedSubstitutionVisual(
@@ -31,6 +37,6 @@ public static class ExtraordinaryNpcVisualProjector
         return new ExtraordinaryNpcVisual(
             carrier.PowerIds, carrier.IsManifested, carrier.ManifestationState,
             carrier.Appearance.ScaleMultiplier, carrier.Appearance.SkinTint, carrier.Appearance.MovementTrail,
-            need, carrier.SenescenceRateMultiplier);
+            need, carrier.SenescenceRateMultiplier, locomotion.CanFly, locomotion.SpeedMultiplier);
     }
 }

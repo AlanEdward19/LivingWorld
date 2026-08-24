@@ -305,7 +305,7 @@ describe("WorldEditor", () => {
     expect(population.closest("label")).toHaveAttribute("title", expect.stringContaining("Ajuste fino"));
   });
 
-  it("authors extraordinary options as generic descriptors without named archetypes", () => {
+  it("offers editable archetype templates while preserving the generic descriptor editor", () => {
     render(<WorldEditor initialForm={defaultScenarioForm()} viewport={VIEWPORT} />);
 
     fireEvent.click(screen.getByRole("button", { name: /Extraordinário/ }));
@@ -313,12 +313,14 @@ describe("WorldEditor", () => {
 
     const toggle = screen.getByLabelText("Ativar extraordinário");
     expect(toggle).not.toBeChecked();
-    fireEvent.click(toggle);
-    fireEvent.click(screen.getByRole("button", { name: "+ Descritores extraordinários" }));
+    expect(screen.getByRole("option", { name: "Vampiro" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Template de poder"), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar e personalizar" }));
 
     expect(screen.getByLabelText("Descritores extraordinários-identificador-0")).toBeInTheDocument();
     expect(screen.getByLabelText("Descritores extraordinários-manifestações (csv)-0")).toBeInTheDocument();
-    expect(screen.queryByText(/vampiro|lobisomem|lanterna/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Descritores extraordinários-identificador-0")).toHaveValue("lanterna-verde");
+    expect(toggle).toBeChecked();
   });
 
   it("opens the selected settlement in a local city editor", () => {

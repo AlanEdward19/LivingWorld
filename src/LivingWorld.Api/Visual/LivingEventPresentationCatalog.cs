@@ -31,6 +31,22 @@ public static class LivingEventPresentationCatalog
             [WorldEventKind.CompensatingCorrection] = "Uma versão da história foi corrigida",
             [WorldEventKind.SettlementFounded] = "Um novo assentamento foi fundado",
             [WorldEventKind.CityMerged] = "Dois assentamentos adjacentes se unificaram",
+            [WorldEventKind.ExtraordinaryUseAttempted] = "Uma capacidade extraordinária foi acionada",
+            [WorldEventKind.ExtraordinaryCostPaid] = "O uso extraordinário cobrou seu custo",
+            [WorldEventKind.ExtraordinaryEffectApplied] = "Um efeito extraordinário alterou o mundo",
+            [WorldEventKind.ExtraordinaryUseFailed] = "Um uso extraordinário falhou",
+            [WorldEventKind.ExtraordinaryAcquired] = "Um habitante adquiriu uma capacidade extraordinária",
+            [WorldEventKind.ExtraordinaryAcquisitionFailed] = "Uma aquisição extraordinária não ocorreu",
+            [WorldEventKind.ExtraordinaryManifested] = "Uma manifestação extraordinária surgiu",
+            [WorldEventKind.ExtraordinaryDormant] = "Uma manifestação extraordinária ficou dormente",
+            [WorldEventKind.ExtraordinaryCulturalReaction] = "Uma cultura reagiu ao extraordinário",
+            [WorldEventKind.ExtraordinaryConstructCreated] = "Um construto extraordinário surgiu",
+            [WorldEventKind.ExtraordinaryConstructDamaged] = "Um construto extraordinário foi danificado",
+            [WorldEventKind.ExtraordinaryConstructRemoved] = "Um construto extraordinário se desfez",
+            [WorldEventKind.ExtraordinaryRevoked] = "Uma capacidade extraordinária foi revogada",
+            [WorldEventKind.AuthoringCommandApplied] = "O operador interveio no mundo",
+            [WorldEventKind.AuthoringCommandRejected] = "Uma intervenção do operador foi recusada",
+            [WorldEventKind.ExtraordinaryFailureApplied] = "Uma capacidade extraordinária produziu uma consequência adversa",
         };
 
     public static string Describe(WorldEventKind kind) =>

@@ -13,7 +13,9 @@ public sealed record CellBounds(int X, int Y, int Width, int Height);
 /// e população agregada (<see cref="CityPopulationQuery"/>), sem detalhe de residente. <see
 /// cref="Bounds"/>/<see cref="BoundsAreDerived"/> (Fase 15.1, T20, OQ-1) vêm de <see
 /// cref="SpatialBoundsResolver.ResolveCity"/> — projeção derivada, não toca o domínio.</summary>
-public sealed record GlobalCityMarker(CityId Id, string Name, CellCoord Location, long Population, CellBounds Bounds, bool BoundsAreDerived);
+public sealed record GlobalCityMarker(
+    CityId Id, string Name, CellCoord Location, long Population, CellBounds Bounds,
+    bool BoundsAreDerived, long KnownCarrierCount = 0);
 
 /// <summary>Fase 15, T4 (VTT-01, VTT-06): NPC materializado fora da célula da própria cidade —
 /// "externo" no sentido do espectador global (spec.md: "NPCs externos agregados por LOD"),
@@ -47,7 +49,10 @@ public static class GlobalProjector
                 // de verdade no marcador do mapa-múndi (CITYGROW-03/05).
                 var (bounds, isDerived) = CityOccupancy.ResolveGrownBounds(world, c, population);
                 var cellBounds = new CellBounds(bounds.Origin.X, bounds.Origin.Y, bounds.Width, bounds.Height);
-                return new GlobalCityMarker(c.Id, c.Name, c.Location, population, cellBounds, isDerived);
+                long knownCarrierCount = world.ExtraordinaryCarriers.LongCount(carrier =>
+                    CityOwnsCarrier(world, c, carrier.CarrierId));
+                return new GlobalCityMarker(
+                    c.Id, c.Name, c.Location, population, cellBounds, isDerived, knownCarrierCount);
             })
             .ToList();
 
@@ -78,4 +83,9 @@ public static class GlobalProjector
         var livingState = LivingScopeProjector.Build(world, new VisualScope(VisualScopeKind.World, ""));
         return new GlobalSnapshot(world.Map.Width, world.Map.Height, cities, externalNpcs, [], layers, portals, livingState);
     }
+
+    private static bool CityOwnsCarrier(WorldState world, City city, NpcId carrierId) =>
+        world.FindNpc(carrierId) is { IsAlive: true } npc
+            ? npc.City == city.Id
+            : city.PoolNpcIds.Contains(carrierId);
 }

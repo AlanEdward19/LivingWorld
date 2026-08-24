@@ -124,6 +124,8 @@ export interface ProcessVisual {
   quality?: number | null;
   remainingHours?: number | null;
   location?: CellCoord | null;
+  footprint?: CellCoord[] | null;
+  appearanceToken?: string | null;
 }
 
 export interface IndicatorUpdate { key: string; value: number }

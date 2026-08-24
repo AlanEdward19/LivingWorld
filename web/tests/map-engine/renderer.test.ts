@@ -23,6 +23,7 @@ function fakeCtx(canvas: { width: number; height: number }) {
     lineTo: vi.fn(),
     closePath: vi.fn(),
     arc: vi.fn(),
+    ellipse: vi.fn(),
     fill: vi.fn(),
     stroke: vi.fn(),
     fillText: vi.fn(),
@@ -38,6 +39,7 @@ function fakeCtx(canvas: { width: number; height: number }) {
     strokeRect: ReturnType<typeof vi.fn>;
     lineTo: ReturnType<typeof vi.fn>;
     arc: ReturnType<typeof vi.fn>;
+    ellipse: ReturnType<typeof vi.fn>;
     setLineDash: ReturnType<typeof vi.fn>;
     fillText: ReturnType<typeof vi.fn>;
     drawImage: ReturnType<typeof vi.fn>;
@@ -391,6 +393,32 @@ describe("renderer.draw", () => {
 
     expect(moving.lineTo.mock.calls.length).toBeGreaterThan(idle.lineTo.mock.calls.length);
     expect(hidden.lineTo.mock.calls.length).toBe(idle.lineTo.mock.calls.length);
+  });
+
+  it("draws an airborne shadow only for manifested physical flight", () => {
+    class ReadyImage {
+      complete = true;
+      naturalWidth = 100;
+      src = "";
+    }
+    vi.stubGlobal("Image", ReadyImage);
+    const flying = fakeCtx({ width: 400, height: 400 });
+    const dormant = fakeCtx({ width: 400, height: 400 });
+    const make = (isManifested: boolean) => ({
+      ...npc(`flight-${isManifested}`, 5, 5),
+      extraordinary: {
+        powerIds: ["flight"], isManifested, manifestationState: "active",
+        scaleMultiplier: 1, skinTint: "", movementTrail: "",
+        needSubstitution: null, senescenceRateMultiplier: 1,
+        canFly: true, speedMultiplier: 1,
+      },
+    } satisfies AuthoritativeEntity);
+
+    draw(flying, baseFrame({ center: { x: 5.5, y: 5.5 }, scale: 20 }, [make(true)]));
+    draw(dormant, baseFrame({ center: { x: 5.5, y: 5.5 }, scale: 20 }, [make(false)]));
+
+    expect(flying.ellipse).toHaveBeenCalledOnce();
+    expect(dormant.ellipse).not.toHaveBeenCalled();
   });
 
   it("keeps a non-manifested carrier visually identical to an ordinary NPC", () => {

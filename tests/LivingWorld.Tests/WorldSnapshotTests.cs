@@ -58,6 +58,13 @@ public class WorldSnapshotTests
             new NeedSubstitutionDescriptor("hunger", new ResourceType(1), 1), 0),
     ];
 
+    private static readonly IReadOnlyList<ExtraordinaryConstruct> SampleExtraordinaryConstructs =
+    [
+        new(
+            0, new NpcId(1), "sample-power", 1, ScenarioRunner.DefaultVillageLocation,
+            [ScenarioRunner.DefaultVillageLocation], 10, 10, 0, 10_000, "sample-aura"),
+    ];
+
     private static WorldState BuiltWorld()
     {
         var world = new WorldState(
@@ -74,7 +81,9 @@ public class WorldSnapshotTests
                 ProcessRecipe.Create(ProcessKind.Cook, new Dictionary<int, long> { [1] = 1 }, 3, 1, 1, 2).Value!,
             ],
             extraordinary: SampleExtraordinary,
-            extraordinaryCarriers: SampleExtraordinaryCarriers);
+            extraordinaryCarriers: SampleExtraordinaryCarriers,
+            extraordinaryConstructs: SampleExtraordinaryConstructs,
+            nextExtraordinaryConstructId: 1);
         PopulationSeeder.SeedInitial(world, ScenarioRunner.DefaultInitialPopulation, ScenarioRunner.DefaultCulture, ScenarioRunner.DefaultVillageLocation);
         world.AddWorkplace(new Workplace(
             world.NextWorkplaceIdAndAdvance(), new LocationType(1), ScenarioRunner.DefaultVillageLocation, maxVacancies: 1,

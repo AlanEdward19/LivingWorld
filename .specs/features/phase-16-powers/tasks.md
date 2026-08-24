@@ -6,7 +6,7 @@ Executar com `tlc-spec-driven`; cada tarefa inclui testes e gate. Não commitar 
 até o gate global já pendente voltar a passar.
 
 **Design**: `.specs/features/phase-16-powers/design.md`  
-**Status**: In Progress
+**Status**: Complete
 
 ## Test Coverage Matrix
 
@@ -36,7 +36,7 @@ até o gate global já pendente voltar a passar.
 ## Execution Plan
 
 ```text
-T1 -> T2 -> T3 -> T4 -> T5
+T1 -> T2 -> T3 -> T4 -> T5 -> T6 -> advanced
 ```
 
 ## Task Breakdown
@@ -66,7 +66,7 @@ round-trip/hash cobertos.
 **Depends on**: T2 · **Requirements**: POW-05  
 **Done when**: alvo declarado é a única mutação; custo é debitado no uso; resultado e causalidade
 entram no event log; controle pareado preserva conservação.  
-**Tests**: unit/scenario · **Gate**: Build · **Status**: Pending
+**Tests**: unit/scenario · **Gate**: Build · **Status**: Complete (23/23 + 443/443 web)
 
 ### T4 — Aquisição e manifestação
 
@@ -74,7 +74,7 @@ entram no event log; controle pareado preserva conservação.
 **Depends on**: T3 · **Requirements**: POW-06  
 **Done when**: regras autoradas dirigem transições e exemplos de artefato responsivo,
 transformação noturna e transformação cíclica usam o mesmo motor.  
-**Tests**: unit/determinism · **Gate**: Build · **Status**: Pending
+**Tests**: unit/determinism · **Gate**: Build · **Status**: Complete (26/26 + 443/443 web)
 
 ### T5 — Integração social, LOD e web
 
@@ -82,14 +82,16 @@ transformação noturna e transformação cíclica usam o mesmo motor.
 **Depends on**: T4 · **Requirements**: POW-04..06  
 **Done when**: portadores conhecidos aparecem por LOD, reação vem da cultura, formulário autora
 descritores e o gate Final passa.  
-**Tests**: integration/web · **Gate**: Final · **Status**: Pending
+**Tests**: integration/web · **Gate**: Final · **Status**: Complete (revalidado)
 
-## Cross-checks
+### T6 — Predisposição herdável sem poder herdado
 
-| Task | Depends | Diagrama | Teste co-localizado |
-|---|---|---|---|
-| T1 | none | início | sim |
-| T2 | T1 | T1→T2 | sim |
-| T3 | T2 | T2→T3 | sim |
-| T4 | T3 | T3→T4 | sim |
-| T5 | T4 | T4→T5 | sim |
+**Where**: `Simulation/Extraordinary`, integração com natalidade existente
+**Depends on**: T5 · **Requirements**: POW-08
+**Done when**: aquisição com taxa usa `RateGene` como multiplicador determinístico; recém-nascido
+herda a taxa pela Fase 6 e não recebe poder/maestria dos pais.
+**Tests**: unit/determinism/integration · **Gate**: Quick · **Status**: Complete (33/33 + 443/443 web)
+
+## Continuações
+
+T7-T10: [tasks-advanced.md](tasks-advanced.md) · T11-T13: [tasks-closeout.md](tasks-closeout.md).

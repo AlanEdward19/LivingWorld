@@ -43,7 +43,9 @@ public sealed class MaterializationSystem : ISimulationSystem
     /// <summary>Papel formal (Fase 8, T9, CITY-05) — ver SPEC_DEVIATION acima sobre liderança de
     /// cidade não modelada.</summary>
     public static bool HasFormalRole(WorldState world, NpcId npcId) =>
-        world.Households.Any(h => h.Head == npcId) || world.Npcs.Any(n => n.Mentor == npcId);
+        world.Households.Any(h => h.Head == npcId)
+        || world.Npcs.Any(n => n.Mentor == npcId)
+        || world.ExtraordinaryCarriers.Any(carrier => carrier.CarrierId == npcId);
 
     /// <summary>Materializa 1 NPC do pool agregado de <paramref name="cityId"/>: debita
     /// exatamente 1 do <see cref="AggregatePopulationPool"/> e cria exatamente 1 linha de <see

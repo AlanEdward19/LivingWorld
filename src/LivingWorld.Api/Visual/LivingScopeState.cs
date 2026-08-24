@@ -18,7 +18,8 @@ public sealed record BuildingVisual(
     BuildingId Id, CityId CityId, int BuildingTypeId, CellCoord Location, int Orientation = 0);
 public sealed record ProcessVisual(
     long Id, string Kind, long TargetId, double Progress, string DescriptorKey,
-    double? Quality = null, long? RemainingHours = null, CellCoord? Location = null);
+    double? Quality = null, long? RemainingHours = null, CellCoord? Location = null,
+    IReadOnlyList<CellCoord>? Footprint = null, string? AppearanceToken = null);
 public sealed record IndicatorUpdate(string Key, double Value);
 public sealed record NotableVisualEvent(long Tick, WorldEventKind Kind, string Label, CellCoord? Location = null);
 
@@ -191,12 +192,28 @@ public static class LivingScopeProjector
                 })
             : [];
 
+        var extraordinaryConstructProcesses = world.ExtraordinaryConstructs
+            .Where(construct => IsCellInScope(construct.Origin, scope, cityBounds))
+            .OrderBy(construct => construct.Id)
+            .Select(construct => new ProcessVisual(
+                -construct.Id - 1,
+                "extraordinary-construct",
+                construct.CreatorId.Value,
+                construct.Durability / (double)construct.MaxDurability,
+                construct.AppearanceToken,
+                Quality: construct.Durability / (double)construct.MaxDurability,
+                RemainingHours: Math.Max(0, construct.ExpiresAtTick - world.CurrentDate.TotalHours),
+                Location: construct.Origin,
+                Footprint: construct.Footprint,
+                AppearanceToken: construct.AppearanceToken));
+
         var processes = restProcesses
             .Concat(eatProcesses)
             .Concat(resourceProcesses)
             .Concat(carryProcesses)
             .Concat(cropProcesses)
             .Concat(constructionProcesses)
+            .Concat(extraordinaryConstructProcesses)
             .ToList();
 
         IReadOnlyList<IndicatorUpdate> indicators = focusedCity is { } indicatorCity
@@ -221,6 +238,17 @@ public static class LivingScopeProjector
 
         return new LivingScopeState(npcs, cities, buildings, processes, indicators, visibleEvents);
     }
+
+    private static bool IsCellInScope(
+        CellCoord cell,
+        VisualScope scope,
+        IReadOnlyDictionary<CityId, CityBounds> cityBounds) => scope.Kind switch
+        {
+            VisualScopeKind.City when Guid.TryParse(scope.RefId, out var cityGuid) =>
+                cityBounds.TryGetValue(new CityId(cityGuid), out var bounds) && bounds.Contains(cell),
+            VisualScopeKind.World => !cityBounds.Values.Any(bounds => bounds.Contains(cell)),
+            _ => false,
+        };
 
     // T50: mesmo critério geométrico de NpcScopeResolver (Domain) — cidade não encontrada nunca
     // deveria acontecer pra um NPC vivo, mas cai em "fora" (World) em vez de lançar.

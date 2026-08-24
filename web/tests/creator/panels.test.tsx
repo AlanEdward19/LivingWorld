@@ -70,6 +70,9 @@ describe("World Creator panels", () => {
     const panel = props();
     render(<ExtraordinaryPanel {...panel} />);
 
+    fireEvent.change(screen.getByLabelText("Prevalência extraordinária"), { target: { value: "0.25" } });
+    expect(panel.set).toHaveBeenCalledWith("extraordinaryPrevalence", 0.25);
+
     fireEvent.click(screen.getByRole("button", { name: "+ Descritores extraordinários" }));
 
     expect(panel.set).toHaveBeenCalledWith("extraordinaryDescriptors", [{
@@ -78,6 +81,11 @@ describe("World Creator panels", () => {
       appearanceScaleMultiplier: 1, appearanceSkinTint: "", appearanceMovementTrail: "",
       needSubstitutionReplacesNeed: "", needSubstitutionResourceId: null,
       needSubstitutionUnitsPerUse: 1, senescenceRateMultiplier: 1, manifestationCondition: "",
+    }]);
+
+    fireEvent.click(screen.getByRole("button", { name: "+ Respostas culturais" }));
+    expect(panel.set).toHaveBeenCalledWith("extraordinaryCulturalResponses", [{
+      cultureId: 0, manifestation: "", response: "",
     }]);
   });
 

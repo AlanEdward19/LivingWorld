@@ -844,6 +844,7 @@ function drawPointEntity(
   // "quero ver de perto".
   const r = (isToken ? tokenRadiusPx(scale) : 3) * visualScale;
   drawExtraordinaryTrail(ctx, entity, center, r);
+  drawExtraordinaryFlightCue(ctx, entity, center, r);
 
   if (isToken) {
     // T35: pawn SVG original e determinístico, carregado uma vez por identidade e desenhado
@@ -942,6 +943,22 @@ function drawExtraordinaryTint(
   ctx.fillStyle = extraordinaryColor(appearance.skinTint, 0.3);
   ctx.beginPath();
   ctx.arc(center.x, center.y, radius * 0.9, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawExtraordinaryFlightCue(
+  ctx: CanvasRenderingContext2D,
+  entity: AuthoritativeEntity,
+  center: Vec2,
+  radius: number,
+): void {
+  const extraordinary = entity.extraordinary;
+  if (!extraordinary?.isManifested || !extraordinary.canFly) return;
+  ctx.save();
+  ctx.fillStyle = "rgba(18, 24, 38, 0.28)";
+  ctx.beginPath();
+  ctx.ellipse(center.x, center.y + radius * 1.25, radius * 0.7, radius * 0.24, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }

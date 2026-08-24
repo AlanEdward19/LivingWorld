@@ -17,7 +17,7 @@ function worldEnvelope() {
     payload: {
       width: 10,
       height: 10,
-      cities: [{ id: { value: "city-a" }, location: { x: 3, y: 4 }, population: 340 }],
+      cities: [{ id: { value: "city-a" }, location: { x: 3, y: 4 }, population: 340, knownCarrierCount: 3 }],
       externalNpcs: [],
       activeEvents: [],
       layers: {},
@@ -77,6 +77,8 @@ describe("CityInspector", () => {
     render(<CityInspector cityId="city-a" simulationStore={simulationStore} viewStore={viewStore} />);
 
     expect(screen.getByText("340")).toBeInTheDocument(); // população
+    expect(screen.getByText("Portadores extraordinários conhecidos")).toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByRole("note")).toHaveTextContent("ao abrir a cidade");
     expect(screen.queryByText("Riqueza")).not.toBeInTheDocument();
   });

@@ -3,7 +3,7 @@ import { App } from "./App";
 import type { SimulationStore } from "./state/simulationStore";
 import type { ViewStore } from "./state/viewStore";
 import type { SelectionStore } from "./state/selectionStore";
-import type { NarrativeSources, TimeControlSource } from "./data/sources";
+import type { AuthoringSource, NarrativeSources, TimeControlSource } from "./data/sources";
 
 export interface AppDependencies {
   simulationStore: SimulationStore;
@@ -11,6 +11,7 @@ export interface AppDependencies {
   selectionStore: SelectionStore;
   timeControlSource: TimeControlSource;
   narrativeSources?: NarrativeSources;
+  authoringSource?: AuthoringSource;
 }
 
 // Fase 15.1, T27: montagem de React compartilhada entre `main.tsx` (produção, `Real*Source`) e
@@ -26,6 +27,7 @@ export function mountApp(deps: AppDependencies): void {
       selectionStore={deps.selectionStore}
       timeControlSource={deps.timeControlSource}
       narrativeSources={deps.narrativeSources}
+      authoringSource={deps.authoringSource}
     />,
   );
 }

@@ -51,6 +51,8 @@ export const frontendCapabilityConsumers: Record<string, ConsumerSlice> = {
   "interaction.conversation": "events",
   "hud.period": "events",
   "inspector.npc.extraordinary": "npcs",
+  "map.extraordinary.construct": "processes",
+  "inspector.npc.authoring": "events",
 };
 
 // Instância única e imutável: `useSyncExternalStore` (LivingTimeline) exige que getSnapshot

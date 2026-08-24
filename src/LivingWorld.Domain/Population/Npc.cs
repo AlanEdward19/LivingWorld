@@ -28,7 +28,7 @@ public sealed class Npc
     public LazyNeed ThirstNeed { get; private set; }
     public LazyNeed SleepNeed { get; private set; }
     public LazyNeed SocialNeed { get; private set; }
-    public Personality Personality { get; }
+    public Personality Personality { get; private set; }
     public ProfessionType Profession { get; private set; }
     public CellCoord CurrentLocation { get; private set; }
     public ActionType? CurrentAction { get; private set; }
@@ -43,8 +43,8 @@ public sealed class Npc
     public Money Wallet { get; private set; }
     public WorkplaceId? Employer { get; private set; }
 
-    // Fase 6 (T7): habilidade, gene de taxa (imutável após nascimento, mesmo padrão de
-    // Personality) e vínculo de tutoria mestre->aprendiz.
+    // Fase 6 (T7): habilidade, gene de taxa (imutável após nascimento; Personality só tem a
+    // exceção explícita de autoria) e vínculo de tutoria mestre->aprendiz.
     public SkillSet Skills { get; private set; }
     public RateGene RateGene { get; }
     public NpcId? Mentor { get; private set; }
@@ -268,6 +268,10 @@ public sealed class Npc
         CurrentAction = action;
         ActionStartedAtTick = tick;
     }
+
+    /// <summary>Intervenção explícita de autoria. A personalidade continua mudando somente como
+    /// conjunto completo e já validado; sistemas ordinários nunca chamam este método.</summary>
+    public void RewritePersonality(Personality personality) => Personality = personality;
 
     public void MarkHungerZeroSince(long tick) => HungerZeroSinceTick = tick;
 

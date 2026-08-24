@@ -71,3 +71,28 @@ export interface NarrativeSources {
   chronicle: ChronicleSource;
   conversation: ConversationSource;
 }
+
+export interface PowerCatalogItem {
+  id: string;
+  source: string;
+  effects: string[];
+  mode: string;
+  reliability: string;
+}
+
+export interface PersonalityValues {
+  extroversion: number; agreeableness: number; conscientiousness: number;
+  emotionalStability: number; openness: number; ambition: number; loyalty: number;
+  altruism: number; impulsivity: number; riskAversion: number;
+}
+
+/** Comandos de autoria sempre voltam ao servidor; implementações não podem editar o store. */
+export interface AuthoringSource {
+  powerCatalog(): Promise<PowerCatalogItem[]>;
+  grantPower(npcId: number, powerId: string): Promise<void>;
+  revokePower(npcId: number, powerId: string): Promise<void>;
+  invokePower(npcId: number, powerId: string, targetNpcId: number, targetCell?: { x: number; y: number }, resolution?: number): Promise<void>;
+  rewritePersonality(npcId: number, personality: PersonalityValues): Promise<void>;
+  breakRelationships(npcId: number, otherNpcId: number): Promise<void>;
+  forceAction(npcId: number, action: number): Promise<void>;
+}

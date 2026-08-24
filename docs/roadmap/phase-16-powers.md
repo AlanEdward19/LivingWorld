@@ -1,6 +1,6 @@
 # Fase 16 — Potência
 
-**Status**: ativa — spec/design/tasks em `.specs/features/phase-16-powers/`.
+**Status**: concluída — spec/design/tasks e validação em `.specs/features/phase-16-powers/`.
 
 **Objetivo**: mutante, mago, portador de artefato e implantado deixam de ser cinco
 subsistemas e viram **um modificador declarado** sobre sistemas que já existem, com fonte,

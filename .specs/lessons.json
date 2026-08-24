@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 7,
+  "next_id": 12,
   "lessons": [
     {
       "id": "L-001",
@@ -166,6 +166,96 @@
       ],
       "created": "2026-08-22T00:00:00Z",
       "last_seen": "2026-08-22T00:00:00Z"
+    },
+    {
+      "id": "L-007",
+      "key": "ac_gap::test every invocation origin and mode combination at the authoritative boundary",
+      "text": "Test every invocation origin and mode combination at the authoritative boundary.",
+      "signal": "ac_gap",
+      "scope": "simulation/extraordinary",
+      "status": "candidate",
+      "features": [
+        "phase-16-powers"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md:23|POW-13 (simulation/extraordinary)"
+      ],
+      "created": "2026-08-24T21:02:21Z",
+      "last_seen": "2026-08-24T21:02:21Z"
+    },
+    {
+      "id": "L-008",
+      "key": "ac_gap::assert deterministic resolver output against the resolver contract not only against a twin run",
+      "text": "Assert deterministic resolver output against the resolver contract, not only against a twin run.",
+      "signal": "ac_gap",
+      "scope": "simulation/extraordinary",
+      "status": "candidate",
+      "features": [
+        "phase-16-powers"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md:27|POW-14 (simulation/extraordinary)"
+      ],
+      "created": "2026-08-24T21:02:22Z",
+      "last_seen": "2026-08-24T21:02:22Z"
+    },
+    {
+      "id": "L-009",
+      "key": "ac_gap::conservation tests must snapshot every protected aggregate and identity field before and after the operation",
+      "text": "Conservation tests must snapshot every protected aggregate and identity field before and after the operation.",
+      "signal": "ac_gap",
+      "scope": "simulation/extraordinary",
+      "status": "candidate",
+      "features": [
+        "phase-16-powers"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md:29|POW-15 (simulation/extraordinary)"
+      ],
+      "created": "2026-08-24T21:02:22Z",
+      "last_seen": "2026-08-24T21:02:22Z"
+    },
+    {
+      "id": "L-010",
+      "key": "gate_fail::repository gate scripts must select tool executables available on supported windows hosts",
+      "text": "Repository gate scripts must select tool executables available on supported Windows hosts.",
+      "signal": "gate_fail",
+      "scope": "harness",
+      "status": "candidate",
+      "features": [
+        "phase-16-powers"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md:52 (harness)"
+      ],
+      "created": "2026-08-24T21:02:22Z",
+      "last_seen": "2026-08-24T21:02:22Z"
+    },
+    {
+      "id": "L-011",
+      "key": "surviving_mutant::test every availability predicate across both its caller origin and carrier state dimensions",
+      "text": "Test every availability predicate across both its caller origin and carrier state dimensions.",
+      "signal": "surviving_mutant",
+      "scope": "simulation/extraordinary",
+      "status": "candidate",
+      "features": [
+        "phase-16-powers"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md:48|mutant-4|POW-13 (simulation/extraordinary)"
+      ],
+      "created": "2026-08-24T21:14:22Z",
+      "last_seen": "2026-08-24T21:14:22Z"
     }
   ]
 }

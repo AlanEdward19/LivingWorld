@@ -9,16 +9,17 @@ import { BuildingInspector } from "./BuildingInspector";
 import type { SelectionStore } from "../../state/selectionStore";
 import type { SimulationStore } from "../../state/simulationStore";
 import type { ViewStore } from "../../state/viewStore";
-import type { NarrativeSources } from "../../data/sources";
+import type { AuthoringSource, NarrativeSources } from "../../data/sources";
 
 export interface EntityInspectorProps {
   selectionStore: SelectionStore;
   simulationStore: SimulationStore;
   viewStore: ViewStore;
   narrativeSources?: NarrativeSources;
+  authoringSource?: AuthoringSource;
 }
 
-export function EntityInspector({ selectionStore, simulationStore, viewStore, narrativeSources }: EntityInspectorProps) {
+export function EntityInspector({ selectionStore, simulationStore, viewStore, narrativeSources, authoringSource }: EntityInspectorProps) {
   const selection = useSyncExternalStore(
     (onStoreChange) => selectionStore.subscribe(onStoreChange),
     () => selectionStore.current(),
@@ -53,6 +54,7 @@ export function EntityInspector({ selectionStore, simulationStore, viewStore, na
             simulationStore={simulationStore}
             viewStore={viewStore}
             narrativeSources={narrativeSources}
+            authoringSource={authoringSource}
           />
         )}
         {selection.kind === "building" && (

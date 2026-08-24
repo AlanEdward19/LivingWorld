@@ -76,6 +76,8 @@ export interface GlobalCityMarker {
   name: string;
   location: CellCoord;
   population: number;
+  /** LOD global: contagem conhecida, sem identidade nem catálogo individual. */
+  knownCarrierCount?: number;
 }
 
 export interface GlobalNpcMarker {
@@ -112,6 +114,8 @@ export interface ExtraordinaryNpcVisual {
     unitsPerUse: number;
   } | null;
   senescenceRateMultiplier: number;
+  canFly?: boolean;
+  speedMultiplier?: number;
 }
 
 export interface CityBuildingMarker {

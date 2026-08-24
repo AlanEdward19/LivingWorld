@@ -49,6 +49,23 @@ public class MapPathfinderTests
         Assert.Contains("start", result.Error);
     }
 
+    [Fact]
+    public void Shortest_path_returns_each_deterministic_adjacent_step_around_expensive_terrain()
+    {
+        var map = BuildMap(3, 3, coord => coord.X == 1 && coord.Y < 2 ? 2 : 1);
+
+        var first = MapPathfinder.ShortestPath(map, new CellCoord(0, 0), new CellCoord(2, 0));
+        var second = MapPathfinder.ShortestPath(map, new CellCoord(0, 0), new CellCoord(2, 0));
+
+        Assert.True(first.IsSuccess, first.Error);
+        Assert.Equal(first.Value, second.Value);
+        Assert.Equal(new CellCoord(0, 0), first.Value![0]);
+        Assert.Equal(new CellCoord(2, 0), first.Value[^1]);
+        Assert.All(first.Value.Zip(first.Value.Skip(1)), pair =>
+            Assert.InRange(Math.Max(Math.Abs(pair.First.X - pair.Second.X), Math.Abs(pair.First.Y - pair.Second.Y)), 1, 1));
+        Assert.DoesNotContain(new CellCoord(1, 0), first.Value);
+    }
+
     private static WorldMap FlatMap(int width, int height, int terrainId) => BuildMap(width, height, _ => terrainId);
 
     private static WorldMap BuildMap(int width, int height, Func<CellCoord, int> terrainOf)

@@ -28,3 +28,4 @@ conteúdo de ADR para dentro dele.
 | [0018](ADR-0018-endereco-espacial-com-andar-e-escala-de-dominio.md) | Endereço espacial (`SpaceKind`+`FloorLevel`+`CellCoord`) e escala World/City/Building como dado de domínio, não do cliente | aceito |
 | [0019](ADR-0019-cidade-fundida-como-tombstone-historico.md) | Cidade fundida sai da simulação ativa, mas permanece como tombstone histórico | aceito |
 | [0020](ADR-0020-mapa-inicial-dimensionado-pela-populacao.md) | Mapa procedural inicial reserva espaço físico conforme a população | aceito |
+| [0021](ADR-0021-locomocao-e-construtos-extraordinarios.md) | Potência estende movimento e ocupação existentes | aceito |
