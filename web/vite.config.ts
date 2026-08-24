@@ -14,6 +14,7 @@ export default defineConfig({
       "/npcs": { target: "http://localhost:5289" },
       "/narratives": { target: "http://localhost:5289" },
       "/conversations": { target: "http://localhost:5289" },
+      "/authoring": { target: "http://localhost:5289" },
     },
   },
   test: {

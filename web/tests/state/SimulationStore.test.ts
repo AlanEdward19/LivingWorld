@@ -16,7 +16,7 @@ const MATERIALIZED_INSPECTION: NpcInspection = {
   hunger: 0, thirst: 0, sleep: 0, social: 0, personality: {},
   skills: { values: {} }, currentLocation: { x: 0, y: 0 },
   currentAction: null, actionStartedAtTick: 0,
-  actionTarget: null, lod: 0, memories: [], beliefs: [],
+  actionTarget: null, lod: 0, memories: [], beliefs: [], powerIds: [],
   currentScope: { kind: 1, cityId: { value: "city-a" } },
 };
 

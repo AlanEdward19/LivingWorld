@@ -26,7 +26,7 @@ const BASE_INSPECTION: NpcInspection = {
   skills: { values: {} }, currentLocation: { x: 1, y: 1 },
   currentAction: 2, actionStartedAtTick: 9,
   actionTarget: { kind: "workplace", id: "52" }, lod: 0, memories: [],
-  beliefs: [], currentScope: { kind: 1, cityId: { value: "city-a" } },
+  beliefs: [], powerIds: [], currentScope: { kind: 1, cityId: { value: "city-a" } },
 };
 
 function snapshotSource(): SnapshotSource {

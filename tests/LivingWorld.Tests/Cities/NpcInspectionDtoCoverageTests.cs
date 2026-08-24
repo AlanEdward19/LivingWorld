@@ -49,6 +49,8 @@ public class NpcInspectionDtoCoverageTests
         // Memórias é sempre lista vazia nesta fase (SPEC_DEVIATION do próprio DTO, Fase 10/11) —
         // não há campo de motor pra comparar contra; a checagem é o próprio contrato ("vazio").
         [nameof(NpcInspectionDto.Memories)] = (dto, _, _) => dto.Memories.Count == 0,
+        [nameof(NpcInspectionDto.PowerIds)] = (dto, npc, world) => dto.PowerIds.SequenceEqual(
+            world.ExtraordinaryCarriers.FirstOrDefault(carrier => carrier.CarrierId == npc.Id)?.PowerIds ?? []),
         // T50: mesmo critério geométrico de NpcScopeResolver — deriva independente do DTO, igual
         // a todo campo acima.
         [nameof(NpcInspectionDto.CurrentScope)] = (dto, npc, world) => dto.CurrentScope.Equals(ExpectedScope(npc, world)),

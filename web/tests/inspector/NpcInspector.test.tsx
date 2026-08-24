@@ -22,6 +22,7 @@ const BASE_INSPECTION: NpcInspection = {
   currentAction: 2, actionStartedAtTick: 9,
   actionTarget: { kind: "workplace", id: "52" }, lod: 0, memories: [],
   beliefs: ["Dizem que a colheita trouxe esperança"],
+  powerIds: [],
   currentScope: { kind: 1, cityId: { value: "city-a" } },
 };
 
@@ -66,6 +67,7 @@ describe("NpcInspector living view", () => {
   it("shows generic extraordinary carrier state and active appearance descriptors when supplied", async () => {
     const inspection = {
       ...BASE_INSPECTION,
+      powerIds: ["descriptor-1", "custom:storm-glass"],
       extraordinary: {
         powerIds: ["descriptor-1", "descriptor-2"],
         isManifested: true,
@@ -79,6 +81,8 @@ describe("NpcInspector living view", () => {
     await renderInspector(new MockNpcInspectionSource(new Map([[3, inspection]])));
 
     expect(screen.getByRole("heading", { name: "Extraordinário" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Poderes" })).toBeInTheDocument();
+    expect(screen.getByText("custom:storm-glass")).toBeInTheDocument();
     expect(screen.getByText("descriptor-1, descriptor-2")).toBeInTheDocument();
     expect(screen.getByText("Manifestado · conditional-active")).toBeInTheDocument();
     expect(screen.getByText("1.4×")).toBeInTheDocument();

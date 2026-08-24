@@ -26,14 +26,14 @@ public static class NpcInspectionQuery
             return Result<NpcInspectionDto>.Ok(FromLiveNpc(world, npc));
 
         if (world.ColdArchive.Lookup(id.Value) is { } summary)
-            return Result<NpcInspectionDto>.Ok(FromNpcSummary(summary));
+            return Result<NpcInspectionDto>.Ok(FromNpcSummary(world, summary));
 
         // T50: id reservado num AggregatePopulationPool (City.PoolNpcIds) — leitura pura, nunca
         // materializa (isso é MaterializeAndInspect); antes disso existir, qualquer id de pool
         // clicado caía sempre no Fail genérico abaixo.
         var pooledCity = world.ActiveCities().FirstOrDefault(c => c.PoolNpcIds.Contains(id));
         if (pooledCity is not null)
-            return Result<NpcInspectionDto>.Ok(FromPooledMember(id, pooledCity));
+            return Result<NpcInspectionDto>.Ok(FromPooledMember(world, id, pooledCity));
 
         return Result<NpcInspectionDto>.Fail("Npc: não existe, está morto sem registro arquivado, ou ainda não foi materializado");
     }
@@ -48,7 +48,7 @@ public static class NpcInspectionQuery
         if (!ensured.IsSuccess)
         {
             if (world.ColdArchive.Lookup(id.Value) is { } summary)
-                return Result<NpcInspectionDto>.Ok(FromNpcSummary(summary));
+                return Result<NpcInspectionDto>.Ok(FromNpcSummary(world, summary));
 
             return Result<NpcInspectionDto>.Fail(ensured.Error!);
         }
@@ -68,6 +68,7 @@ public static class NpcInspectionQuery
             TargetOf(npc), NpcInspectionLod.Materialized,
             Beliefs: NpcBeliefQuery.BeliefsOf(world, npc.Id),
             Memories: [],
+            PowerIds: PowerIdsOf(world, npc.Id),
             CurrentScope: ResolveScope(world, npc),
             Rest: RestPresentation.Of(world, npc),
             Food: FoodPresentation.Of(world, npc));
@@ -88,7 +89,7 @@ public static class NpcInspectionQuery
         return NpcScopeResolver.Resolve(npc, bounds);
     }
 
-    private static NpcInspectionDto FromNpcSummary(ColdTierArchive.NpcSummary summary)
+    private static NpcInspectionDto FromNpcSummary(WorldState world, ColdTierArchive.NpcSummary summary)
     {
         var placeholderPersonality = Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!;
         return new NpcInspectionDto(
@@ -100,6 +101,7 @@ public static class NpcInspectionQuery
             ActionTarget: null, Lod: NpcInspectionLod.Archived,
             Beliefs: [],
             Memories: [],
+            PowerIds: PowerIdsOf(world, summary.Id),
             CurrentScope: new NpcScope(NpcScopeKind.World, null));
     }
 
@@ -107,7 +109,7 @@ public static class NpcInspectionQuery
     /// de <see cref="FromNpcSummary"/>: atributos reais não existem até materializar, então vêm
     /// com valor neutro; só <see cref="NpcInspectionDto.Id"/>/<see cref="NpcInspectionDto.City"/>/
     /// <see cref="NpcInspectionDto.Lod"/> são de verdade.</summary>
-    private static NpcInspectionDto FromPooledMember(NpcId id, City city)
+    private static NpcInspectionDto FromPooledMember(WorldState world, NpcId id, City city)
     {
         var placeholderPersonality = Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!;
         return new NpcInspectionDto(
@@ -119,8 +121,13 @@ public static class NpcInspectionQuery
             ActionTarget: null, Lod: NpcInspectionLod.Pooled,
             Beliefs: [],
             Memories: [],
+            PowerIds: PowerIdsOf(world, id),
             CurrentScope: new NpcScope(NpcScopeKind.City, city.Id));
     }
+
+    private static IReadOnlyList<string> PowerIdsOf(WorldState world, NpcId id) =>
+        world.ExtraordinaryCarriers.FirstOrDefault(carrier => carrier.CarrierId == id)?.PowerIds
+        ?? [];
 
     private static NpcActionTargetDto? TargetOf(Npc npc) => npc.CurrentAction switch
     {

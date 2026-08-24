@@ -172,7 +172,7 @@ describe("App", () => {
       hunger: 63, thirst: 72, sleep: 81, social: 54, personality: {},
       skills: { values: {} }, currentLocation: { x: 1, y: 1 },
       currentAction: null, actionStartedAtTick: 0,
-      actionTarget: null, lod: 0, memories: [], beliefs: [],
+      actionTarget: null, lod: 0, memories: [], beliefs: [], powerIds: [],
       currentScope: { kind: 1, cityId: { value: "city-b" } },
     };
     // city-b's own load is held open on purpose (`resolveCityB`) so the breadcrumb click below
@@ -283,7 +283,7 @@ describe("App", () => {
       hunger: 63, thirst: 72, sleep: 81, social: 54, personality: {},
       skills: { values: {} }, currentLocation: { x: 1, y: 1 },
       currentAction: null, actionStartedAtTick: 0,
-      actionTarget: null, lod: 0, memories: [], beliefs: [],
+      actionTarget: null, lod: 0, memories: [], beliefs: [], powerIds: [],
       currentScope: { kind: 1, cityId: { value: "city-b" } },
     });
 

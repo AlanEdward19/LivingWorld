@@ -67,6 +67,21 @@ public class NpcInspectionQueryTests
     }
 
     [Fact]
+    public void Inspect_returns_every_power_id_including_custom_descriptors()
+    {
+        var world = MakeWorld();
+        var npc = world.Npcs.First();
+        string[] expected = ["template.named", "custom:storm-glass"];
+        world.UpsertExtraordinaryCarrier(new ExtraordinaryCarrierState(
+            npc.Id, expected, true, "manifested",
+            new ExtraordinaryAppearanceState(1, "", ""), null, 1));
+
+        var dto = NpcInspectionQuery.Inspect(world, npc.Id).Value!;
+
+        Assert.Equal(expected, dto.PowerIds);
+    }
+
+    [Fact]
     public void MaterializeAndInspect_materializes_a_never_touched_aggregate_pool_member_on_demand()
     {
         // Fase 8, fix round 1, gap 2 (CITY-05 AC2 — Independent Test da spec): consultar um NPC

@@ -60,6 +60,7 @@ public sealed record NpcInspectionDto(
     NpcInspectionLod Lod,
     IReadOnlyList<string> Beliefs,
     IReadOnlyList<string> Memories,
+    IReadOnlyList<string> PowerIds,
     // T50 (bug "seguir NPC entre escopos"): mesmo critério geométrico de
     // GlobalProjector/LivingScopeProjector (NpcScopeResolver), agora também aqui — cliente usa
     // pra saber que o NPC seguido cruzou de cidade pro mundo (ou vice-versa) e trocar de tela.

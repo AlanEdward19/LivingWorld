@@ -269,6 +269,15 @@ export function NpcInspector({ entityRef, simulationStore, viewStore, narrativeS
         </dl>
       </section>
 
+      {inspection.powerIds.length > 0 && (
+        <section aria-labelledby="npc-powers-title">
+          <h4 id="npc-powers-title">Poderes</h4>
+          <ul className="npc-powers">
+            {inspection.powerIds.map((powerId) => <li key={powerId}>{powerId}</li>)}
+          </ul>
+        </section>
+      )}
+
       {extraordinary && (
         <section aria-labelledby="npc-extraordinary-title">
           <h4 id="npc-extraordinary-title">Extraordinário</h4>
@@ -363,7 +372,7 @@ export function NpcInspector({ entityRef, simulationStore, viewStore, narrativeS
         <NpcAuthoringControls
           npcId={npcId}
           source={authoringSource}
-          powerIds={extraordinary?.powerIds ?? []}
+          powerIds={inspection.powerIds}
           personality={inspection.personality}
           location={inspection.currentLocation}
           onRefresh={() => simulationStore.inspectNpc(npcId).then(() => undefined)}
