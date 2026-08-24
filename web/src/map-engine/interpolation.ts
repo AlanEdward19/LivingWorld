@@ -2,7 +2,16 @@
 // `InterpolationBuffer`; master prompt §5/§21). A posição autoritativa nunca é escrita por
 // interpolação — só `observe` a atualiza, e `authoritativePositionOf` sempre devolve o último
 // valor observado, mesmo com a animação visual em curso.
-import type { Vec2 } from "./types";
+import type { EntityRef, Vec2 } from "./types";
+
+/**
+ * Fix (bug "casa desliza atrás do NPC"): building/npc ids são contadores independentes no
+ * backend e podem colidir (ambos baixos em mundos pequenos) — `byEntity` precisa da identidade
+ * completa (`kind` + `id`), nunca só o id numérico, senão os dois compartilham um registro só.
+ */
+export function key(ref: EntityRef): string {
+  return `${ref.kind}:${ref.id}`;
+}
 
 interface EntityAnimation {
   from: Vec2;

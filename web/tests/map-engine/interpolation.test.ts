@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { InterpolationBuffer } from "../../src/map-engine/interpolation";
+import { InterpolationBuffer, key } from "../../src/map-engine/interpolation";
 
 describe("InterpolationBuffer", () => {
   it("snaps to the authoritative position on the very first observe (nothing to interpolate from)", () => {
@@ -76,6 +76,24 @@ describe("InterpolationBuffer", () => {
     // (a animação começa no instante do 2º observe, não em 0 — daí 1000+500 e 200+100)
     expect(slow.visualPositionOf("npc-1", 1500)).toEqual({ x: 5, y: 0 });
     expect(fast.visualPositionOf("npc-1", 300)).toEqual({ x: 5, y: 0 });
+  });
+
+  // Bug real (casa "deslizando" atrás de um NPC): building ids e npc ids são contadores
+  // independentes no backend e podem colidir num mundo pequeno. Keying só pelo id numérico faz
+  // os dois compartilharem UM registro -- o `observe` do NPC (que roda todo tick) re-arma a
+  // animação e a casa "anda" junto. `key()` combina kind+id para que o mesmo número nunca colida.
+  it("keeps a building and an NPC with the same numeric id from colliding in the same record", () => {
+    const buffer = new InterpolationBuffer();
+    const building = key({ kind: "building", id: "1", space: { kind: "World" } });
+    const npc = key({ kind: "npc", id: "1", space: { kind: "World" } });
+
+    buffer.observe(building, { x: 20, y: 20 }, 0); // casa: nunca se move
+    buffer.observe(npc, { x: 0, y: 0 }, 0);
+    buffer.observe(npc, { x: 10, y: 0 }, 1000); // NPC anda; casa não deve ser afetada
+
+    expect(buffer.visualPositionOf(building, 1500)).toEqual({ x: 20, y: 20 });
+    expect(buffer.visualPositionOf(npc, 1500)).toEqual({ x: 5, y: 0 });
+    expect(buffer.authoritativePositionOf(building)).toEqual({ x: 20, y: 20 });
   });
 
   it("throws for an entity that was never observed", () => {

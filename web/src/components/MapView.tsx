@@ -5,7 +5,7 @@
 // dispara um re-render do componente React (VTT2-32).
 import { useEffect, useRef } from "react";
 import { Camera, type Viewport } from "../map-engine/Camera";
-import { InterpolationBuffer } from "../map-engine/interpolation";
+import { InterpolationBuffer, key as interpolationKey } from "../map-engine/interpolation";
 import { hitTest } from "../map-engine/hitTest";
 import { draw, type ActiveLayer, type CellSource } from "../map-engine/renderer";
 import { npcVisualScale, pawnHitCoverageRadius, tokenRadiusPx } from "../map-engine/tokenSize";
@@ -124,7 +124,7 @@ export function MapView({
       const now = performance.now();
       entitiesRef.current = latest;
       for (const entity of latest) {
-        interpolationRef.current.observe(entity.ref.id, entity.position, now);
+        interpolationRef.current.observe(interpolationKey(entity.ref), entity.position, now);
       }
       // T50 fix: enquanto o snapshot do NOVO espaço ainda não chegou (troca de escopo em
       // voo), `entitiesOf(space)` devolve vazio só por falta de dados — sincronizar a
@@ -174,7 +174,7 @@ export function MapView({
     const now = performance.now();
     return entitiesRef.current.map((entity) => ({
       ...entity,
-      position: interpolationRef.current.visualPositionOf(entity.ref.id, now),
+      position: interpolationRef.current.visualPositionOf(interpolationKey(entity.ref), now),
     }));
   }
 
