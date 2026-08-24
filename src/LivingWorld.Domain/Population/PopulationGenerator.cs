@@ -23,7 +23,8 @@ public static class PopulationGenerator
     public static GeneratedPopulation GenerateInitial(
         WorldRng rng, WorldDate now, int count, CultureId culture, CellCoord villageLocation,
         LifeTable lifeTable, PopulationCatalog catalog, long startingNpcId = 0, long startingHouseholdId = 0,
-        CityId city = default, IReadOnlyList<CellCoord>? householdSpawnCells = null)
+        CityId city = default,
+        Func<int, IReadOnlyList<CellCoord>>? householdLocationsFactory = null)
     {
         long nextNpcId = startingNpcId;
         long nextHouseholdId = startingHouseholdId;
@@ -65,7 +66,7 @@ public static class PopulationGenerator
         }
 
         var households = PairIntoHouseholds(
-            adults, children, villageLocation, ref nextHouseholdId, city, householdSpawnCells);
+            adults, children, villageLocation, ref nextHouseholdId, city, householdLocationsFactory);
 
         return new GeneratedPopulation(npcs, households, nextNpcId, nextHouseholdId);
     }
@@ -90,7 +91,7 @@ public static class PopulationGenerator
 
     private static List<Household> PairIntoHouseholds(
         List<Npc> adults, List<Npc> children, CellCoord location, ref long nextHouseholdId, CityId city,
-        IReadOnlyList<CellCoord>? householdSpawnCells)
+        Func<int, IReadOnlyList<CellCoord>>? householdLocationsFactory)
     {
         var females = new Queue<Npc>(adults.Where(a => a.Sex == Sex.Female));
         var males = new Queue<Npc>(adults.Where(a => a.Sex == Sex.Male));
@@ -118,13 +119,18 @@ public static class PopulationGenerator
             for (int i = 0; i < children.Count; i++)
                 seeds[i % seeds.Count].Add(children[i]);
 
+        var householdLocations = householdLocationsFactory?.Invoke(seeds.Count)
+            ?? Enumerable.Repeat(location, seeds.Count).ToArray();
+        if (householdLocations.Count != seeds.Count)
+            throw new ArgumentException(
+                "Household location count must equal the generated household count.",
+                nameof(householdLocationsFactory));
+
         var households = new List<Household>(seeds.Count);
         for (int householdIndex = 0; householdIndex < seeds.Count; householdIndex++)
         {
             var members = seeds[householdIndex];
-            var householdLocation = householdSpawnCells is { Count: > 0 }
-                ? householdSpawnCells[householdIndex % householdSpawnCells.Count]
-                : location;
+            var householdLocation = householdLocations[householdIndex];
             var head = members.OrderBy(m => m.Id.Value).First();
             var household = new Household(new HouseholdId(nextHouseholdId++), householdLocation, head.Id, members.Select(m => m.Id).ToList(), city: city);
             foreach (var member in members)

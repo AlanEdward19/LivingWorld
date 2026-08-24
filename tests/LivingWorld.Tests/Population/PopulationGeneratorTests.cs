@@ -181,24 +181,24 @@ public class PopulationGeneratorTests
     public void Initial_households_are_distributed_deterministically_across_supplied_spawn_cells()
     {
         var now = WorldDate.Epoch(Calendar).AddYears(200);
-        CellCoord[] spawnCells = [new(4, 4), new(5, 4), new(6, 4), new(4, 5)];
+        CellCoord[] spawnCells = Enumerable.Range(0, 30).Select(x => new CellCoord(x, 4)).ToArray();
 
         var a = PopulationGenerator.GenerateInitial(
             new WorldRng(21), now, 30, new CultureId(1), new CellCoord(5, 5), Table, EmptyCatalog,
-            householdSpawnCells: spawnCells);
+            householdLocationsFactory: count => spawnCells.Take(count).ToArray());
         var b = PopulationGenerator.GenerateInitial(
             new WorldRng(21), now, 30, new CultureId(1), new CellCoord(5, 5), Table, EmptyCatalog,
-            householdSpawnCells: spawnCells);
+            householdLocationsFactory: count => spawnCells.Take(count).ToArray());
 
-        Assert.True(a.Npcs.Select(n => n.CurrentLocation).Distinct().Count() > 1);
+        Assert.Equal(a.Households.Count, a.Households.Select(h => h.Location).Distinct().Count());
         Assert.Equal(a.Npcs.Select(n => n.CurrentLocation), b.Npcs.Select(n => n.CurrentLocation));
         Assert.All(a.Households, household => Assert.Contains(household.Location, spawnCells));
     }
 
     [Fact]
-    public void Population_seeder_places_households_on_valid_cells_near_the_village()
+    public void Population_seeder_places_every_house_footprint_on_valid_map_cells()
     {
-        var map = ScenarioRunner.DefaultMap(seed: 31);
+        var map = ScenarioRunner.InitialMap(seed: 31, initialPopulation: 30);
         var world = new WorldState(
             Calendar, 31, map, ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules,
@@ -207,12 +207,11 @@ public class PopulationGeneratorTests
 
         PopulationSeeder.SeedInitial(world, 30, new CultureId(1), village);
 
-        Assert.True(world.Npcs.Select(n => n.CurrentLocation).Distinct().Count() > 1);
-        Assert.All(world.Npcs, npc =>
+        Assert.All(world.Buildings.SelectMany(building =>
         {
-            Assert.True(map.TryGetCell(npc.CurrentLocation, out _));
-            Assert.InRange(Math.Abs(npc.CurrentLocation.X - village.X), 0, 2);
-            Assert.InRange(Math.Abs(npc.CurrentLocation.Y - village.Y), 0, 2);
-        });
+            var origin = building.Position!.Value;
+            return BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId)
+                .Select(cell => new CellCoord(origin.X + cell.Cell.X, origin.Y + cell.Cell.Y));
+        }), cell => Assert.True(map.TryGetCell(cell, out _)));
     }
 }
