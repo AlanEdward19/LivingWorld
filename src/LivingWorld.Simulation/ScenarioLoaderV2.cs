@@ -32,6 +32,16 @@ public static class ScenarioLoaderV2
                 ProfessionWeights = definition.Dynamics.ProfessionBiases.ToDictionary(b => b.ProfessionId, b => b.Weight),
             };
 
+        // Post-ship fix (bug real, "mesma seed, mundo diferente"): usava InitialMapForPopulation
+        // pra silenciosamente REGERAR o mapa inteiro num tamanho maior sempre que a população
+        // autorada não garantia espaço de sobra pra cada household+workplace (mesmo num mapa
+        // 10x10 default com população modesta). MapGenerator consome um WorldRng(seed) sequencial
+        // célula a célula -- mudar width/height pra mesma seed produz um terreno totalmente
+        // diferente em toda célula, não só nas bordas novas, então a cidade autorada pelo usuário
+        // acabava sobre um terreno que ele nunca viu/escolheu. O mapa autorado (definition.Map)
+        // agora é usado exatamente como veio do JSON; escassez de espaço é responsabilidade do
+        // placement (BuildingPlacementResolver/OverflowPlacer), que já resolve isso sem regerar
+        // nada (célula livre nos bounds, senão anel de overflow, senão recusa/decline).
         var world = new WorldState(
             ScenarioRunner.DefaultCalendar, definition.Map.Seed, definition.Map,
             catalog, population.Rules,
@@ -42,11 +52,6 @@ public static class ScenarioLoaderV2
             restPlaceCatalog: definition.Behavior.RestPlaceCatalog,
             resourceCatalog: definition.ResourceCatalog,
             processRecipes: definition.ProcessRecipes);
-
-        foreach (var workplace in definition.Economy.Workplaces)
-            world.AddWorkplace(new Workplace(
-                world.NextWorkplaceIdAndAdvance(), workplace.LocationType, workplace.Location, workplace.MaxVacancies,
-                employees: [], workplace.Stock, workplace.Treasury, workplace.Prices));
 
         var createdCityIds = new List<CityId>(definition.City.Cities.Count);
         foreach (var city in definition.City.Cities)
@@ -60,6 +65,16 @@ public static class ScenarioLoaderV2
                 name: name, poolNpcIds: poolNpcIds);
             world.AddCity(createdCity);
             createdCityIds.Add(createdCity.Id);
+        }
+
+        var createdBuildingIds = new List<BuildingId>(definition.City.Buildings.Count);
+        foreach (var building in definition.City.Buildings)
+        {
+            var createdBuilding = new Building(
+                world.NextBuildingIdAndAdvance(), createdCityIds[building.CityIndex], building.BuildingTypeId,
+                completedAtTick: 0, position: building.Position, orientation: building.Orientation);
+            world.AddBuilding(createdBuilding);
+            createdBuildingIds.Add(createdBuilding.Id);
         }
 
         // Bugfix real (usuário, 2026-08-13): a população inicial nunca era vinculada a nenhuma
@@ -119,18 +134,67 @@ public static class ScenarioLoaderV2
                     ? explicitShare
                     : perCity + (i == remainderTargetIndex ? remainder : 0);
                 if (share <= 0) continue;
-                PopulationSeeder.SeedInitial(world, share, population.Culture, seedTargets[i].Location, seedTargets[i].Id);
+                try
+                {
+                    PopulationSeeder.SeedInitial(
+                        world, share, population.Culture, seedTargets[i].Location, seedTargets[i].Id);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return Result<(WorldState, WorldClock)>.Fail($"Population: {ex.Message}");
+                }
             }
         }
 
-        var createdBuildingIds = new List<BuildingId>(definition.City.Buildings.Count);
-        foreach (var building in definition.City.Buildings)
+        foreach (var workplace in definition.Economy.Workplaces)
         {
-            var createdBuilding = new Building(
-                world.NextBuildingIdAndAdvance(), createdCityIds[building.CityIndex], building.BuildingTypeId,
-                completedAtTick: 0, position: building.Position, orientation: building.Orientation);
-            world.AddBuilding(createdBuilding);
-            createdBuildingIds.Add(createdBuilding.Id);
+            if (!world.ActiveCities().Any())
+            {
+                // SPEC_DEVIATION: um cenário autorado sem nenhuma cidade não oferece a entidade
+                // proprietária exigida pelo placement. Mantém o workplace legado sem Building,
+                // em vez de inventar uma cidade que o JSON não declarou.
+                world.AddWorkplace(new Workplace(
+                    world.NextWorkplaceIdAndAdvance(), workplace.LocationType, workplace.Location,
+                    workplace.MaxVacancies, employees: [], workplace.Stock, workplace.Treasury, workplace.Prices));
+                continue;
+            }
+
+            var city = NearestCity(world.ActiveCities(), workplace.Location);
+            int buildingTypeId = workplace.LocationType.Id;
+            var candidateId = new BuildingId(world.NextBuildingId);
+            var candidateShape = BuildingFootprintGenerator.Generate(candidateId, buildingTypeId)
+                .Select(cell => cell.Cell)
+                .ToList();
+            long cityPopulation = CityPopulationQuery.Population(world, city.Id);
+            var bounds = CityOccupancy.ResolveGrownBounds(world, city, cityPopulation).Bounds;
+            var authoredFootprint = candidateShape
+                .Select(cell => new CellCoord(workplace.Location.X + cell.X, workplace.Location.Y + cell.Y))
+                .ToList();
+
+            CellCoord position;
+            int orientation;
+            if (CityOccupancy.IsFree(world, city, bounds, authoredFootprint, candidateId))
+            {
+                position = workplace.Location;
+                orientation = 0;
+            }
+            else
+            {
+                var candidate = new Building(candidateId, city.Id, buildingTypeId, completedAtTick: 0);
+                var resolved = BuildingPlacementResolver.Resolve(candidate, city, world, bounds);
+                if (resolved is null)
+                    return Result<(WorldState, WorldClock)>.Fail(
+                        "Workplaces: nenhuma célula livre para posicionar o edifício autorado");
+                position = resolved.Value.Position;
+                orientation = resolved.Value.Orientation;
+            }
+
+            world.AddBuilding(new Building(
+                world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId, completedAtTick: 0,
+                position, orientation));
+            world.AddWorkplace(new Workplace(
+                world.NextWorkplaceIdAndAdvance(), workplace.LocationType, position, workplace.MaxVacancies,
+                employees: [], workplace.Stock, workplace.Treasury, workplace.Prices, city.Id));
         }
 
         // Fase 15.1, T21: portal é dado descritivo — resolve RefIndex autorado pro RefId real
@@ -150,6 +214,14 @@ public static class ScenarioLoaderV2
 
         return Result<(WorldState, WorldClock)>.Ok((world, new WorldClock(systems, maxIterationsPerTick)));
     }
+
+    private static City NearestCity(IEnumerable<City> cities, CellCoord location) =>
+        cities
+            .OrderBy(city => Math.Max(
+                Math.Abs(city.Location.X - location.X),
+                Math.Abs(city.Location.Y - location.Y)))
+            .ThenBy(city => city.Id.Value)
+            .First();
 
     private static PortalEndpoint ResolvePortalEndpoint(
         AuthoredPortalEndpoint endpoint, IReadOnlyList<CityId> createdCityIds, IReadOnlyList<BuildingId> createdBuildingIds) =>

@@ -8,19 +8,18 @@ namespace LivingWorld.Simulation;
 /// nasce sem um evento de óbito já na fila (task 4).</summary>
 public static class PopulationSeeder
 {
+    internal const int InitialHouseBuildingTypeId = -1;
+
     public static void SeedInitial(WorldState world, int count, CultureId culture, CellCoord villageLocation, CityId city = default)
     {
-        // Mesmo lado que CityBoundsResolver vai calcular pra essa população (LIVE-POLISH: raio
-        // fixo de 2 células espalhava família pra fora do footprint real assim que a cidade
-        // ficava menor que 5x5 — família nascia "em cima" da cidade no mapa-múndi e não dava
-        // pra clicar nela, porque IsNpcInScope só mostra externo quem está fora dos bounds).
-        int radius = CityBoundsResolver.SideFor(count, world.Map.Width, world.Map.Height) / 2;
+        var placementCity = ResolvePlacementCity(world, city, villageLocation);
 
         var rng = world.Rng.Stream("population-init");
         var generated = PopulationGenerator.GenerateInitial(
             rng, world.CurrentDate, count, culture, villageLocation, world.PopulationRules.LifeTable,
-            world.PopulationCatalog, world.NextNpcId, world.NextHouseholdId, city,
-            HouseholdSpawnCells(world.Map, villageLocation, radius));
+            world.PopulationCatalog, world.NextNpcId, world.NextHouseholdId, placementCity.Id,
+            householdLocationsFactory: householdCount => PlaceHouseholdBuildings(
+                world, placementCity, count, householdCount));
 
         foreach (var npc in generated.Npcs)
         {
@@ -41,16 +40,57 @@ public static class PopulationSeeder
         }
     }
 
-    private static IReadOnlyList<CellCoord> HouseholdSpawnCells(WorldMap map, CellCoord villageLocation, int radius) =>
-        map.Cells
-            .Where(cell => Math.Max(
-                Math.Abs(cell.Coord.X - villageLocation.X),
-                Math.Abs(cell.Coord.Y - villageLocation.Y)) <= radius)
-            .OrderBy(cell => Math.Max(
-                Math.Abs(cell.Coord.X - villageLocation.X),
-                Math.Abs(cell.Coord.Y - villageLocation.Y)))
-            .ThenBy(cell => cell.Coord.Y)
-            .ThenBy(cell => cell.Coord.X)
-            .Select(cell => cell.Coord)
-            .ToList();
+    private static City ResolvePlacementCity(WorldState world, CityId requestedCity, CellCoord villageLocation)
+    {
+        if (requestedCity != default)
+            return world.FindActiveCity(requestedCity)
+                ?? throw new InvalidOperationException("Population city must exist before household placement.");
+
+        var existing = world.ActiveCities().FirstOrDefault(candidate => candidate.Location == villageLocation);
+        if (existing is not null) return existing;
+
+        var created = new City(
+            world.NextCityId(), villageLocation, world.CurrentDate.TotalHours,
+            foundedFromCityId: null, AggregatePopulationPool.Empty);
+        world.AddCity(created);
+        return created;
+    }
+
+    // Post-ship fix (bug real "casas gigantes, ultrapassam o limite da cidade"): usava um scan
+    // dedicado (ResolveInitialBatch) que caía num fallback varrendo o MAPA INTEIRO sempre que uma
+    // casa não cabia nos bounds ainda pequenos (population-derived) de uma cidade recém-fundada —
+    // espalhando casas arbitrariamente longe da cidade, fora do alcance de
+    // CityOccupancy.ResolveGrownBounds's AbsorptionRingCells (que só absorve overflow PRÓXIMO da
+    // borda). Reusa exatamente o mesmo caminho que todo outro prédio já usa
+    // (BuildingPlacementResolver.Resolve: célula livre nos bounds, senão anel de overflow a partir
+    // da borda) — mesmo padrão de peek-id/adicionar-incremental de ConstructionSystem.CompleteProject,
+    // pra que Resolve veja as casas já colocadas neste lote como ocupadas.
+    private static IReadOnlyList<CellCoord> PlaceHouseholdBuildings(
+        WorldState world, City city, int population, int householdCount)
+    {
+        var locations = new List<CellCoord>(householdCount);
+        for (int i = 0; i < householdCount; i++)
+        {
+            var bounds = CityOccupancy.ResolveGrownBounds(world, city, population).Bounds;
+            var candidate = new Building(new BuildingId(world.NextBuildingId), city.Id, InitialHouseBuildingTypeId, world.CurrentDate.TotalHours);
+            // Post-ship fix (real-household-workplace-buildings, map-auto-resize removal): a
+            // small authored map can run out of free rectangular room for every household before
+            // this loop is done -- now common, since the map is never silently regenerated bigger
+            // to make room anymore (that was the actual bug: same seed, different world). Same
+            // last-resort ring/hash position BuildingPlacementResolver.ResolveQueuedSite already
+            // uses for a building with nowhere else to go (never fails, may overlap): a household
+            // still needs SOME location to exist (unlike a workplace, it can't just be skipped),
+            // and land scarcity should degrade its exact position, never crash world loading.
+            var (position, orientation) = BuildingPlacementResolver.Resolve(candidate, city, world, bounds)
+                is { } resolved
+                ? (resolved.Position, resolved.Orientation)
+                : (CityOccupancy.LegacyRingFallback(candidate.Id, city.Location), 0);
+
+            world.AddBuilding(new Building(
+                world.NextBuildingIdAndAdvance(), city.Id, InitialHouseBuildingTypeId,
+                world.CurrentDate.TotalHours, position, orientation));
+            locations.Add(position);
+        }
+        return locations;
+    }
 }
