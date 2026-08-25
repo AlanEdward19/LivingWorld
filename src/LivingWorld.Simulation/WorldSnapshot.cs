@@ -180,6 +180,19 @@ public static class WorldSnapshot
             && temperatureNode is not null
                 ? temperatureNode.Deserialize<List<EnvironmentTemperatureAdjustment>>(JsonOptions)!
                 : [];
+        var animalSpeciesRules = node.TryGetPropertyValue("AnimalSpeciesRules", out var animalRulesNode)
+            && animalRulesNode is not null
+                ? animalRulesNode.Deserialize<List<AnimalSpeciesRules>>(JsonOptions)!
+                : [];
+        var plantSpeciesRules = node.TryGetPropertyValue("PlantSpeciesRules", out var plantRulesNode)
+            && plantRulesNode is not null
+                ? plantRulesNode.Deserialize<List<PlantSpeciesRules>>(JsonOptions)!
+                : [];
+        var biomeSeasonTemperatureRules =
+            node.TryGetPropertyValue("BiomeSeasonTemperatureRules", out var biomeSeasonNode)
+            && biomeSeasonNode is not null
+                ? biomeSeasonNode.Deserialize<List<BiomeSeasonTemperatureRules>>(JsonOptions)!
+                : [];
 
         return new WorldState(
             calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
@@ -192,7 +205,8 @@ public static class WorldSnapshot
             resourceCatalog, processRecipes, resourceProcesses, nextResourceProcessId,
             cropBatches, nextCropBatchId, extraordinary, extraordinaryCarriers,
             extraordinaryConstructs, nextExtraordinaryConstructId,
-            fauna, nextAnimalId, flora, nextPlantId, environmentTemperatureAdjustments);
+            fauna, nextAnimalId, flora, nextPlantId, environmentTemperatureAdjustments,
+            animalSpeciesRules, plantSpeciesRules, biomeSeasonTemperatureRules);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)
