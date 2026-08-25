@@ -62,7 +62,9 @@ public sealed record ExtraordinaryCarrierState(
     PendingReincarnationPayload? PendingReincarnation = null,
     NpcId? PossessedBy = null,
     NpcId? BodySwapPartner = null,
-    NpcId? ImpersonatingId = null);
+    NpcId? ImpersonatingId = null,
+    int UseCount = 0,
+    int CurrentStageIndex = 0);
 
 /// <summary>Fração de skills/traços a aplicar no próximo nascimento natural (PWR-106).</summary>
 public sealed record PendingReincarnationPayload(
