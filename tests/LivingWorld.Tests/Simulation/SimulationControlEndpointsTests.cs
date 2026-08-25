@@ -8,16 +8,14 @@ using Microsoft.Extensions.DependencyInjection;
 namespace LivingWorld.Tests.Simulation;
 
 /// <summary>Fase 15.1, T1 (VTT2-27..30): <c>POST /simulation/pause|resume|speed|step</c> e
-/// <c>GET /simulation/status</c> como tradução fina sobre <see cref="SimulationHost"/>. Cada
-/// teste força suas próprias precondições (pause/resume explícitos) porque o
-/// <see cref="WebApplicationFactory{TEntryPoint}"/> é compartilhado (via
-/// <see cref="IClassFixture{TFixture}"/>) entre todos os métodos desta classe, e
-/// <see cref="SimulationHost"/> é um singleton com estado mutável.</summary>
-public class SimulationControlEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
+/// <c>GET /simulation/status</c> como tradução fina sobre <see cref="SimulationHost"/>. Factory
+/// própria — <c>advance-year</c> / step mutam o relógio e o mundo; não pode compartilhar a
+/// coleção de endpoints.</summary>
+public class SimulationControlEndpointsTests : IClassFixture<LivingWorldApiFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly LivingWorldApiFactory _factory;
 
-    public SimulationControlEndpointsTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public SimulationControlEndpointsTests(LivingWorldApiFactory factory) => _factory = factory;
 
     [Fact]
     public async Task Pause_marks_status_as_paused()

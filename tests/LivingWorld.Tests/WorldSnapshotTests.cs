@@ -155,6 +155,12 @@ public class WorldSnapshotTests
             "portal-test", "Portão de Teste",
             new PortalEndpoint(PortalSpaceKind.World, "", new CellCoord(1, 1)),
             new PortalEndpoint(PortalSpaceKind.City, city.Id.ToString(), new CellCoord(2, 2))));
+        world.AddAnimal(new Animal(
+            world.NextAnimalIdAndAdvance(), "probe-wolf", new CellCoord(0, 0), true));
+        world.AddPlant(new Plant(
+            world.NextPlantIdAndAdvance(), "probe-oak", new CellCoord(0, 0), 1));
+        world.AddEnvironmentTemperatureAdjustment(new EnvironmentTemperatureAdjustment(
+            world.Map.Regions[0].Id, 1.5f, world.CurrentDate.TotalHours + 24));
         return world;
     }
 

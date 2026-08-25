@@ -6,6 +6,8 @@ import type {
 import type { PanelProps } from "./types";
 import { useState } from "react";
 import { EXTRAORDINARY_TEMPLATES } from "../../../extraordinaryTemplates";
+import { PowerBuilder } from "./PowerBuilder";
+import { parseEffects, STAT_KEYS, STAT_LABELS } from "./powerBuilderVocab";
 
 const EMPTY_DESCRIPTOR: ExtraordinaryDescriptorRow = {
   id: "",
@@ -28,27 +30,6 @@ const EMPTY_DESCRIPTOR: ExtraordinaryDescriptorRow = {
   manifestationCondition: "",
 };
 
-const DESCRIPTOR_FIELDS: readonly FieldSpec<ExtraordinaryDescriptorRow>[] = [
-  { name: "id", label: "identificador", type: "text" },
-  { name: "source", label: "fonte", type: "text" },
-  { name: "effects", label: "efeitos alvo:magnitude (csv)", type: "text" },
-  { name: "mode", label: "modo", type: "select", options: ["Active", "Passive", "Triggered", "Conditional"] },
-  { name: "costs", label: "custos (csv)", type: "text" },
-  { name: "reliability", label: "confiabilidade", type: "select", options: ["Guaranteed", "ResolutionCheck"] },
-  { name: "failureModes", label: "falhas (csv)", type: "text" },
-  { name: "intrinsicVulnerabilities", label: "vulnerabilidades (csv)", type: "text" },
-  { name: "manifestations", label: "manifestações (csv)", type: "text" },
-  { name: "acquisitionRules", label: "aquisição (csv)", type: "text" },
-  { name: "appearanceScaleMultiplier", label: "escala visual", type: "number" },
-  { name: "appearanceSkinTint", label: "tom/palidez", type: "text" },
-  { name: "appearanceMovementTrail", label: "trilha de movimento", type: "text" },
-  { name: "needSubstitutionReplacesNeed", label: "necessidade substituída", type: "text" },
-  { name: "needSubstitutionResourceId", label: "recurso metabólico", type: "nullable-number" },
-  { name: "needSubstitutionUnitsPerUse", label: "unidades por uso", type: "number" },
-  { name: "senescenceRateMultiplier", label: "multiplicador de senescência", type: "number" },
-  { name: "manifestationCondition", label: "condição de manifestação", type: "text" },
-];
-
 const EMPTY_CULTURAL_RESPONSE: ExtraordinaryCulturalResponseRow = {
   cultureId: 0,
   manifestation: "",
@@ -61,9 +42,44 @@ const CULTURAL_RESPONSE_FIELDS: readonly FieldSpec<ExtraordinaryCulturalResponse
   { name: "response", label: "resposta cultural", type: "text" },
 ];
 
+function descriptorSummary(row: ExtraordinaryDescriptorRow): string {
+  const { stats, flight, speed, construct } = parseEffects(row.effects);
+  const bits: string[] = [];
+  for (const key of STAT_KEYS) {
+    const value = stats[key];
+    if (value !== undefined) bits.push(`${value > 0 ? "+" : ""}${value} ${STAT_LABELS[key].toLowerCase()}`);
+  }
+  if (flight) bits.push("voo");
+  if (speed !== null) bits.push(`${speed}× vel.`);
+  if (construct) bits.push("constructos");
+  return bits.length ? bits.join(", ") : "sem efeitos definidos ainda";
+}
+
 export function ExtraordinaryPanel({ form, set }: PanelProps) {
   const [templateIndex, setTemplateIndex] = useState(0);
+  const [editingIndex, setEditingIndex] = useState<number | "new" | null>(null);
+  const [newRowSeed, setNewRowSeed] = useState<ExtraordinaryDescriptorRow>(EMPTY_DESCRIPTOR);
   const template = EXTRAORDINARY_TEMPLATES[templateIndex];
+
+  function saveDescriptor(row: ExtraordinaryDescriptorRow) {
+    if (editingIndex === "new") {
+      set("extraordinaryEnabled", true);
+      set("extraordinaryDescriptors", [...form.extraordinaryDescriptors, row]);
+    } else if (typeof editingIndex === "number") {
+      set("extraordinaryDescriptors", form.extraordinaryDescriptors.map((r, i) => (i === editingIndex ? row : r)));
+    }
+    setEditingIndex(null);
+  }
+
+  function removeDescriptor(index: number) {
+    set("extraordinaryDescriptors", form.extraordinaryDescriptors.filter((_, i) => i !== index));
+  }
+
+  if (editingIndex !== null) {
+    const row = editingIndex === "new" ? newRowSeed : form.extraordinaryDescriptors[editingIndex];
+    return <PowerBuilder row={row} onSave={saveDescriptor} onCancel={() => setEditingIndex(null)} />;
+  }
+
   return (
     <div>
       <label>
@@ -87,10 +103,7 @@ export function ExtraordinaryPanel({ form, set }: PanelProps) {
           onChange={(event) => set("extraordinaryPrevalence", Number(event.target.value))}
         />
       </label>
-      <p className="approximate-note">
-        Cada capacidade usa dados livres. Aparência, metabolismo, senescência e condição de
-        manifestação têm campos próprios, sem criar um tipo nominal por capacidade.
-      </p>
+
       <fieldset className="extraordinary-template-picker">
         <legend>Começar por um template</legend>
         <label>
@@ -100,18 +113,44 @@ export function ExtraordinaryPanel({ form, set }: PanelProps) {
           </select>
         </label>
         <p>{template.description}</p>
-        <button type="button" onClick={() => {
-          set("extraordinaryEnabled", true);
-          set("extraordinaryDescriptors", [...form.extraordinaryDescriptors, { ...template.descriptor }]);
-        }}>Adicionar e personalizar</button>
+        <button
+          type="button"
+          className="ui-btn ui-btn--primary"
+          onClick={() => {
+            set("extraordinaryEnabled", true);
+            setNewRowSeed({ ...template.descriptor });
+            setEditingIndex("new");
+          }}
+        >
+          Adicionar e personalizar
+        </button>
       </fieldset>
-      <ObjectListEditor
-        label="Descritores extraordinários"
-        fields={DESCRIPTOR_FIELDS}
-        rows={form.extraordinaryDescriptors}
-        emptyRow={EMPTY_DESCRIPTOR}
-        onChange={(rows) => set("extraordinaryDescriptors", rows)}
-      />
+
+      <div className="power-list">
+        <div className="power-list-header">
+          <h4>Poderes deste mundo</h4>
+          <button type="button" className="ui-btn ui-btn--primary" onClick={() => { setNewRowSeed(EMPTY_DESCRIPTOR); setEditingIndex("new"); }}>+ Adicionar poder</button>
+        </div>
+        {form.extraordinaryDescriptors.length === 0 ? (
+          <p className="npc-command-empty">Nenhum poder criado ainda.</p>
+        ) : (
+          <ul className="power-list-items">
+            {form.extraordinaryDescriptors.map((row, index) => (
+              <li key={index} className="power-list-card">
+                <div>
+                  <strong>{row.id || "(sem identificador)"}</strong>
+                  <small>{descriptorSummary(row)}</small>
+                </div>
+                <div className="power-list-actions">
+                  <button type="button" className="ui-btn" onClick={() => setEditingIndex(index)}>Editar</button>
+                  <button type="button" className="ui-btn ui-btn--danger" onClick={() => removeDescriptor(index)}>Remover</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       <ObjectListEditor
         label="Respostas culturais"
         fields={CULTURAL_RESPONSE_FIELDS}

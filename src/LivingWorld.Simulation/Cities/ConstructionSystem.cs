@@ -38,15 +38,19 @@ public sealed class ConstructionSystem : ISimulationSystem
                     continue;
                 }
 
-                long tickIndex = recipe.TicksToBuild - project.TicksRemaining + 1;
-                var due = DueThisTick(recipe, project, tickIndex);
-
-                // Transacional: só consome se TODO recurso devido estiver disponível — insumo
-                // insuficiente por consumidor concorrente pausa a obra sem reverter o já pago
-                // (Edge Case da spec), nunca deixa a fila avançar parcialmente.
-                bool allAvailable = due.All(kv => city.Stock.GetValueOrDefault(kv.Key) >= kv.Value);
-                if (allAvailable)
+                int workSteps = ConstructionWorkSteps(world, city);
+                for (int step = 0; step < workSteps && project.TicksRemaining > 0; step++)
                 {
+                    long tickIndex = recipe.TicksToBuild - project.TicksRemaining + 1;
+                    var due = DueThisTick(recipe, project, tickIndex);
+
+                    // Transacional: só consome se TODO recurso devido estiver disponível — insumo
+                    // insuficiente por consumidor concorrente pausa a obra sem reverter o já pago
+                    // (Edge Case da spec), nunca deixa a fila avançar parcialmente.
+                    bool allAvailable = due.All(kv => city.Stock.GetValueOrDefault(kv.Key) >= kv.Value);
+                    if (!allAvailable)
+                        break;
+
                     foreach (var (resource, amount) in due)
                     {
                         city.WithdrawStock(resource, amount);
@@ -55,7 +59,10 @@ public sealed class ConstructionSystem : ISimulationSystem
 
                     project.Advance();
                     if (project.TicksRemaining == 0 && CompleteProject(world, city, project, ctx))
+                    {
                         city.RemoveConstructionProject(project);
+                        break;
+                    }
                 }
 
                 // Só um projeto consome (ou tenta consumir) o orçamento de recursos por cidade
@@ -107,6 +114,24 @@ public sealed class ConstructionSystem : ISimulationSystem
         return existing is null
             ? new Dictionary<ResourceType, long>()
             : new Dictionary<ResourceType, long>(existing.Prices);
+    }
+
+    /// <summary>PWR-53: portador com <c>attribute.strength</c> em Work na cidade acelera o
+    /// consumo de insumo (passos inteiros; 1.0 = um tick de obra, como hoje).</summary>
+    private static int ConstructionWorkSteps(WorldState world, City city)
+    {
+        double speed = 1;
+        bool found = false;
+        foreach (var npc in world.Npcs.OrderBy(item => item.Id.Value))
+        {
+            if (!npc.IsAlive || npc.City != city.Id || npc.CurrentAction != ActionType.Work)
+                continue;
+            double multiplier = AttributeMechanic.StrengthMultiplier(world, npc);
+            speed = found ? Math.Max(speed, multiplier) : multiplier;
+            found = true;
+        }
+
+        return Math.Max(1, (int)Math.Round(speed, MidpointRounding.AwayFromZero));
     }
 
     private static Dictionary<ResourceType, long> DueThisTick(BuildingRecipe recipe, ConstructionProject project, long tickIndex)

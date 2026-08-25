@@ -13,15 +13,19 @@ namespace LivingWorld.Tests.Narrative;
 /// — mesmo padrão de <c>NpcEndpointTests</c>/<c>ConversationEndpointTests</c>
 /// (<c>WebApplicationFactory&lt;Program&gt;</c>), nenhuma lógica de decisão nova, só tradução
 /// request/response sobre o pipeline já pronto (T2/T4/T5/T6).</summary>
-public class NarrativeEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection(ApiEndpointCollection.Name)]
+public class NarrativeEndpointTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
-    private readonly WorldState _world;
+    private readonly LivingWorldApiFactory _factory;
 
-    public NarrativeEndpointTests(WebApplicationFactory<Program> factory)
+    public NarrativeEndpointTests(LivingWorldApiFactory factory) => _factory = factory;
+
+    /// <summary>Resolve <see cref="WorldHost.Current"/> no momento do teste — não cacheia no
+    /// construtor (Transient DI + possível <c>Replace</c> deixariam um ponteiro velho).</summary>
+    private WorldState CurrentWorld()
     {
-        _factory = factory;
-        _world = factory.Services.GetRequiredService<WorldState>();
+        using var scope = _factory.Services.CreateScope();
+        return scope.ServiceProvider.GetRequiredService<WorldHost>().Current;
     }
 
     private static City MakeCity(CityId id) =>
@@ -32,10 +36,11 @@ public class NarrativeEndpointTests : IClassFixture<WebApplicationFactory<Progra
     [Fact]
     public async Task Chronicles_endpoint_returns_prose_and_anchoring_metadata_for_location_and_period()
     {
+        var world = CurrentWorld();
         var city = new CityId(Guid.NewGuid());
-        _world.AddCity(MakeCity(city));
-        var fact = new Fact(_world.NextFactIdAndAdvance(), 10, WorldEventKind.Death, [], city, 0.9, "some-death");
-        _world.AddFact(fact);
+        world.AddCity(MakeCity(city));
+        var fact = new Fact(world.NextFactIdAndAdvance(), 10, WorldEventKind.Death, [], city, 0.9, "some-death");
+        world.AddFact(fact);
         var client = _factory.CreateClient();
 
         var response = await client.GetAsync($"/narratives/chronicles?location={city.Value}&periodStart=0&periodEnd=100");
@@ -63,9 +68,10 @@ public class NarrativeEndpointTests : IClassFixture<WebApplicationFactory<Progra
     [Fact]
     public async Task Biographies_endpoint_returns_narrative_timeline_referencing_the_npcs_events()
     {
-        var npc = _world.Npcs[6];
-        var fact = new Fact(_world.NextFactIdAndAdvance(), 5, WorldEventKind.Marriage, [npc.Id], null, 0.6, "married");
-        _world.AddFact(fact);
+        var world = CurrentWorld();
+        var npc = world.Npcs.First(n => n.IsAlive);
+        var fact = new Fact(world.NextFactIdAndAdvance(), 5, WorldEventKind.Marriage, [npc.Id], null, 0.6, "married");
+        world.AddFact(fact);
         var client = _factory.CreateClient();
 
         var response = await client.GetAsync($"/narratives/biographies/{npc.Id.Value}");
@@ -91,15 +97,16 @@ public class NarrativeEndpointTests : IClassFixture<WebApplicationFactory<Progra
     [Fact]
     public async Task Reports_endpoint_returns_items_with_confidence_and_transmission_medium()
     {
+        var world = CurrentWorld();
         var city = new CityId(Guid.NewGuid());
-        _world.AddCity(MakeCity(city));
-        var fact = new Fact(_world.NextFactIdAndAdvance(), 10, WorldEventKind.Death, [], city, 0.8, "cause");
-        _world.AddFact(fact);
+        world.AddCity(MakeCity(city));
+        var fact = new Fact(world.NextFactIdAndAdvance(), 10, WorldEventKind.Death, [], city, 0.8, "cause");
+        world.AddFact(fact);
         var report = new ReportState(
-            _world.NextReportIdAndAdvance(), fact.Id, city, TransmissionMediumType.Song,
+            world.NextReportIdAndAdvance(), fact.Id, city, TransmissionMediumType.Song,
             HopCount: 1, Weight: fact.Significance, CreatedAtTick: 10, LastHopTick: 10);
-        _world.RegisterReport(report);
-        CanonSlotManager.Admit(_world.FindCity(city)!, report, HistoryRules.Default, nowTick: 20);
+        world.RegisterReport(report);
+        CanonSlotManager.Admit(world.FindCity(city)!, report, HistoryRules.Default, nowTick: 20);
         var client = _factory.CreateClient();
 
         var response = await client.GetAsync("/narratives/reports");

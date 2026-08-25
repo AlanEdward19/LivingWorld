@@ -92,4 +92,20 @@ export class InterpolationBuffer {
     }
     return animation.authoritative;
   }
+
+  /**
+   * Direção do deslocamento em curso (`to - from` do último `observe`), pra animação de
+   * andar/virar (fase 17: "andar é uma animação"). `null` parado ou sem observação — nunca
+   * inventa direção quando o motor não moveu a entidade.
+   */
+  directionOf(entityId: string, nowMs: number): Vec2 | null {
+    const animation = this.byEntity.get(entityId);
+    if (!animation || animation.durationMs <= 0) return null;
+    const elapsed = nowMs - animation.startedAt;
+    if (elapsed < 0 || elapsed > animation.durationMs) return null;
+    const dx = animation.to.x - animation.from.x;
+    const dy = animation.to.y - animation.from.y;
+    if (dx === 0 && dy === 0) return null;
+    return { x: dx, y: dy };
+  }
 }

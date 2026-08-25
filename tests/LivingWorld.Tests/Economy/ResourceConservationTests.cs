@@ -12,7 +12,8 @@ namespace LivingWorld.Tests.Economy;
 /// <see cref="BehaviorDecisionSystem.ApplyEat"/>), então não perturba a conta.</summary>
 public class ResourceConservationTests
 {
-    private const long TenYearsInHours = 10 * 12 * 30 * 24;
+    private const long OneYearInHours = 12 * 30 * 24;
+    private const long TenYearsInHours = 10 * OneYearInHours;
 
     private sealed class LossTrackingSink : IWorldEventSink
     {
@@ -33,7 +34,19 @@ public class ResourceConservationTests
         world.Households.Sum(h => h.Stock.GetValueOrDefault(resource));
 
     [Fact]
+    public void Produced_equals_consumed_plus_stocked_plus_lost_every_tick_over_1_year_for_every_resource()
+    {
+        AssertResourceConservation(OneYearInHours);
+    }
+
+    [Trait("Category", "Scenario")]
+    [Fact]
     public void Produced_equals_consumed_plus_stocked_plus_lost_every_tick_over_10_years_for_every_resource()
+    {
+        AssertResourceConservation(TenYearsInHours);
+    }
+
+    private static void AssertResourceConservation(long ticks)
     {
         var sink = new LossTrackingSink();
         var (world, clock) = ScenarioRunner.Create(seed: 42, initialPopulation: 20);
@@ -42,7 +55,7 @@ public class ResourceConservationTests
         var resources = new[] { new ResourceType(1), new ResourceType(2), new ResourceType(4) };
         var initialStock = resources.ToDictionary(r => r, r => TotalStocked(world, r));
 
-        for (long tick = 0; tick < TenYearsInHours; tick++)
+        for (long tick = 0; tick < ticks; tick++)
         {
             clock.Tick(world);
 

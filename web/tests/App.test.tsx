@@ -318,7 +318,7 @@ describe("App", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Criar mundo" }));
-    expect(screen.getByTestId("preset-start")).toBeInTheDocument();
+    expect(await screen.findByTestId("preset-start", {}, { timeout: 2000 })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("preset-name"), { target: { value: "Aldeia" } });
     fireEvent.click(screen.getByRole("button", { name: "Começar" }));
 
@@ -326,7 +326,7 @@ describe("App", () => {
     expect(screen.queryByTestId("create-world-form")).not.toBeInTheDocument();
   });
 
-  it("cancelling world creation from the start menu returns to the start menu, not the map", () => {
+  it("cancelling world creation from the start menu returns to the start menu, not the map", async () => {
     const { simulationStore, viewStore, selectionStore, timeControlSource } = buildStores();
     render(
       <App
@@ -338,9 +338,9 @@ describe("App", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Criar mundo" }));
-    expect(screen.getByTestId("preset-start")).toBeInTheDocument();
+    expect(await screen.findByTestId("preset-start", {}, { timeout: 2000 })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    fireEvent.click(screen.getByRole("button", { name: "← Voltar" }));
 
     expect(screen.getByTestId("start-menu")).toBeInTheDocument();
   });
@@ -360,7 +360,8 @@ describe("App", () => {
     await screen.findByTestId("world-map-view");
     fireEvent.click(screen.getByRole("button", { name: "☰ menu" }));
     fireEvent.click(screen.getByRole("button", { name: "Criar mundo" }));
-    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    await screen.findByTestId("preset-start", {}, { timeout: 2000 });
+    fireEvent.click(screen.getByRole("button", { name: "← Voltar" }));
 
     expect(screen.getByTestId("start-menu")).toBeInTheDocument();
     expect(screen.queryByTestId("world-map-view")).not.toBeInTheDocument();

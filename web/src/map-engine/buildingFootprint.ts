@@ -38,18 +38,26 @@ export function roofColorFor(identity: string): string {
  * `buildingId` sempre gera a mesma forma), com anel de parede (material por
  * `buildingTypeId` par/ímpar) e uma porta na borda inferior. O andar observado não participa
  * da identidade física: trocar Z nunca move parede ou porta.
+ *
+ * Feedback do usuário (fase 17, "vilas só tem 1 aparência"): antes a forma/material variavam só
+ * por `buildingTypeId` — como toda residência compartilha o mesmo typeId (-1), toda casa saía
+ * com a MESMA planta 3x3 em madeira, só a cor do telhado mudava (via `architecturePalette`, que
+ * já usava o id do prédio). Agora forma e material variam pelo hash do `buildingId` (identidade
+ * de cada prédio), então casas vizinhas de fato diferem — footprint máximo continua 4x4 pra não
+ * arriscar sobreposição com o espaçamento assumido pelo posicionamento (client-side, sem dado
+ * real de footprint do motor ainda).
  */
 export function generateBuildingFootprint(
-  _buildingId: string,
+  buildingId: string,
   buildingTypeId: number,
   _floor = 0,
   orientation = 0,
 ): FootprintCell[] {
-  const wallMaterial: BuildingMaterial = buildingTypeId % 2 === 0 ? "stoneWall" : "woodWall";
-  const typeVariant = Math.abs(buildingTypeId);
-  const width = buildingTypeId === -1 ? 3 : 3 + (typeVariant % 2);
-  const height = width;
-  const isLShape = buildingTypeId !== -1 && typeVariant > 0 && typeVariant % 7 === 0 && width === 4;
+  const shapeSeed = hashString(`${buildingId}:${buildingTypeId}`);
+  const wallMaterial: BuildingMaterial = shapeSeed % 2 === 0 ? "stoneWall" : "woodWall";
+  const width = 3 + (shapeSeed % 2);
+  const height = 3 + (Math.floor(shapeSeed / 2) % 2);
+  const isLShape = width === 4 && height === 4 && shapeSeed % 3 === 0;
 
   const inBase = (x: number, y: number) => x >= 0 && x < width && y >= 0 && y < height;
   const inNotch = (x: number, y: number) => isLShape && x >= Math.floor(width / 2) && y >= Math.floor(height / 2);

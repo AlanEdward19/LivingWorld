@@ -3,26 +3,27 @@ using LivingWorld.Api.Simulation;
 using LivingWorld.Api.Visual;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LivingWorld.Tests.Simulation;
 
-/// <summary>Fase 15.1, T3 (VTT2-26). Cada teste cria sua própria <see cref="WebApplicationFactory{TEntryPoint}"/>
-/// (nunca <see cref="IClassFixture{TFixture}"/>) — o Parallelism Assessment de tasks.md marca
-/// "integração de tick loop" como NÃO paralelo-seguro numa factory compartilhada, já que o loop
-/// muta o <see cref="WorldHost"/> singleton em background. <see cref="TickLoopService.RunOneCycle"/>
-/// é chamado direto (nunca <c>StartAsync</c>) — <c>TICK_LOOP_ENABLED</c> continua ausente/false
-/// no processo de teste, então o loop de tempo real nunca dispara sozinho.</summary>
-public class TickLoopServiceTests
+/// <summary>Fase 15.1, T3 (VTT2-26). Uma <see cref="LivingWorldApiFactory"/> por classe (não por
+/// teste): o Parallelism Assessment original temia factory compartilhada com loop em background,
+/// mas aqui só chamamos <see cref="TickLoopService.RunOneCycle"/> — <c>TICK_LOOP_ENABLED</c> fica
+/// false. <see cref="LivingWorldApiFactory.ResetCanonicalWorld"/> isola mutações entre casos.</summary>
+public class TickLoopServiceTests : IClassFixture<LivingWorldApiFactory>
 {
+    private readonly LivingWorldApiFactory _factory;
+
+    public TickLoopServiceTests(LivingWorldApiFactory factory) => _factory = factory;
+
     [Fact]
     public void RunOneCycle_advances_the_world_clock_when_not_paused()
     {
-        using var factory = new WebApplicationFactory<Program>();
-        var worldHost = factory.Services.GetRequiredService<WorldHost>();
-        var simulationHost = factory.Services.GetRequiredService<SimulationHost>();
-        var loop = factory.Services.GetRequiredService<TickLoopService>();
+        _factory.ResetCanonicalWorld();
+        var worldHost = _factory.Services.GetRequiredService<WorldHost>();
+        var simulationHost = _factory.Services.GetRequiredService<SimulationHost>();
+        var loop = _factory.Services.GetRequiredService<TickLoopService>();
         simulationHost.Resume();
         var before = worldHost.Current.CurrentDate.TotalHours;
 
@@ -34,10 +35,10 @@ public class TickLoopServiceTests
     [Fact]
     public void RunOneCycle_does_not_advance_the_clock_when_paused()
     {
-        using var factory = new WebApplicationFactory<Program>();
-        var worldHost = factory.Services.GetRequiredService<WorldHost>();
-        var simulationHost = factory.Services.GetRequiredService<SimulationHost>();
-        var loop = factory.Services.GetRequiredService<TickLoopService>();
+        _factory.ResetCanonicalWorld();
+        var worldHost = _factory.Services.GetRequiredService<WorldHost>();
+        var simulationHost = _factory.Services.GetRequiredService<SimulationHost>();
+        var loop = _factory.Services.GetRequiredService<TickLoopService>();
         simulationHost.Pause();
         var before = worldHost.Current.CurrentDate.TotalHours;
 
@@ -49,10 +50,10 @@ public class TickLoopServiceTests
     [Fact]
     public void RunOneCycle_publishes_a_delta_only_to_the_scope_with_an_active_subscriber()
     {
-        using var factory = new WebApplicationFactory<Program>();
-        var simulationHost = factory.Services.GetRequiredService<SimulationHost>();
-        var gateway = factory.Services.GetRequiredService<RealtimeGateway>();
-        var loop = factory.Services.GetRequiredService<TickLoopService>();
+        _factory.ResetCanonicalWorld();
+        var simulationHost = _factory.Services.GetRequiredService<SimulationHost>();
+        var gateway = _factory.Services.GetRequiredService<RealtimeGateway>();
+        var loop = _factory.Services.GetRequiredService<TickLoopService>();
         simulationHost.Resume();
 
         var worldScope = new VisualScope(VisualScopeKind.World, "");
@@ -71,11 +72,11 @@ public class TickLoopServiceTests
     [Fact]
     public void The_published_delta_carries_the_tick_it_was_just_computed_for()
     {
-        using var factory = new WebApplicationFactory<Program>();
-        var worldHost = factory.Services.GetRequiredService<WorldHost>();
-        var simulationHost = factory.Services.GetRequiredService<SimulationHost>();
-        var gateway = factory.Services.GetRequiredService<RealtimeGateway>();
-        var loop = factory.Services.GetRequiredService<TickLoopService>();
+        _factory.ResetCanonicalWorld();
+        var worldHost = _factory.Services.GetRequiredService<WorldHost>();
+        var simulationHost = _factory.Services.GetRequiredService<SimulationHost>();
+        var gateway = _factory.Services.GetRequiredService<RealtimeGateway>();
+        var loop = _factory.Services.GetRequiredService<TickLoopService>();
         simulationHost.Resume();
 
         var worldScope = new VisualScope(VisualScopeKind.World, "");
@@ -91,11 +92,11 @@ public class TickLoopServiceTests
     [Fact]
     public void World_delta_does_not_publish_a_resident_inside_the_city_footprint()
     {
-        using var factory = new WebApplicationFactory<Program>();
-        var worldHost = factory.Services.GetRequiredService<WorldHost>();
-        var simulationHost = factory.Services.GetRequiredService<SimulationHost>();
-        var gateway = factory.Services.GetRequiredService<RealtimeGateway>();
-        var loop = factory.Services.GetRequiredService<TickLoopService>();
+        _factory.ResetCanonicalWorld();
+        var worldHost = _factory.Services.GetRequiredService<WorldHost>();
+        var simulationHost = _factory.Services.GetRequiredService<SimulationHost>();
+        var gateway = _factory.Services.GetRequiredService<RealtimeGateway>();
+        var loop = _factory.Services.GetRequiredService<TickLoopService>();
         var (world, _) = ScenarioRunner.Create(seed: 17, initialPopulation: 1);
         var resident = Assert.Single(world.Npcs);
         var city = new City(

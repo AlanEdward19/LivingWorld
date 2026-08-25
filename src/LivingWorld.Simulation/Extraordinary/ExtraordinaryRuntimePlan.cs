@@ -21,5 +21,16 @@ public sealed record ExtraordinaryRuntimePlan(
 
     public static Result<ExtraordinaryRuntimePlan> Create(ExtraordinaryScenarioData scenario) =>
         Result<ExtraordinaryRuntimePlan>.Ok(
-            new ExtraordinaryRuntimePlan([], [], scenario.Enabled ? [ExtraordinaryStateSystem.SystemName] : []));
+            new ExtraordinaryRuntimePlan(
+                [],
+                [],
+                scenario.Enabled
+                    ? [
+                        ExtraordinaryStateSystem.SystemName,
+                        ExtraordinaryPassiveTickSystem.SystemName,
+                        DimensionPortalSystem.SystemName,
+                        FaunaDominateSystem.SystemName,
+                        FloraGrowthSystem.SystemName,
+                    ]
+                    : []));
 }

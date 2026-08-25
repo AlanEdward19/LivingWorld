@@ -22,6 +22,7 @@ public static class WorldSnapshot
         {
             new JsonStringEnumConverter(), new ResourceTypeKeyConverter(), new ResourceLocationKeyConverter(),
             new RelationshipKeyConverter(), new RelationshipDeltaKeyConverter(),
+            new MapCellJsonConverter(),
         },
         PropertyNameCaseInsensitive = true,
     };
@@ -160,6 +161,23 @@ public static class WorldSnapshot
             "NextExtraordinaryConstructId", out var nextConstructNode) && nextConstructNode is not null
             ? nextConstructNode.GetValue<long>()
             : 0L;
+        var fauna = node.TryGetPropertyValue("Fauna", out var faunaNode) && faunaNode is not null
+            ? faunaNode.Deserialize<List<Animal>>(JsonOptions)!
+            : [];
+        var nextAnimalId = node.TryGetPropertyValue("NextAnimalId", out var nextAnimalNode) && nextAnimalNode is not null
+            ? nextAnimalNode.GetValue<long>()
+            : 0L;
+        var flora = node.TryGetPropertyValue("Flora", out var floraNode) && floraNode is not null
+            ? floraNode.Deserialize<List<Plant>>(JsonOptions)!
+            : [];
+        var nextPlantId = node.TryGetPropertyValue("NextPlantId", out var nextPlantNode) && nextPlantNode is not null
+            ? nextPlantNode.GetValue<long>()
+            : 0L;
+        var environmentTemperatureAdjustments =
+            node.TryGetPropertyValue("EnvironmentTemperatureAdjustments", out var temperatureNode)
+            && temperatureNode is not null
+                ? temperatureNode.Deserialize<List<EnvironmentTemperatureAdjustment>>(JsonOptions)!
+                : [];
 
         return new WorldState(
             calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
@@ -171,7 +189,8 @@ public static class WorldSnapshot
             restPlaceCatalog, restPlaces, nextRestPlaceId,
             resourceCatalog, processRecipes, resourceProcesses, nextResourceProcessId,
             cropBatches, nextCropBatchId, extraordinary, extraordinaryCarriers,
-            extraordinaryConstructs, nextExtraordinaryConstructId);
+            extraordinaryConstructs, nextExtraordinaryConstructId,
+            fauna, nextAnimalId, flora, nextPlantId, environmentTemperatureAdjustments);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)

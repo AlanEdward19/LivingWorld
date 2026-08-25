@@ -187,14 +187,25 @@ export function draw(ctx: CanvasRenderingContext2D | null, frame: RenderFrame): 
     // física) — sem isso os sprites desenham exatamente empilhados e viram um rótulo ilegível
     // (LIVE-POLISH). O deslocamento é só de desenho: nunca toca a posição autoritativa.
     const fanOut = fanOutOffsets(pointEntities);
+    // LOD gate (fase 17, milestone 5): ocupação e pose de andar já só desenham dentro do bloco
+    // `isToken` (drawPointEntity) — "dot" nunca chega lá. O trabalho evitável aqui é o cálculo em
+    // si: não vale a pena percorrer `buildings` por NPC quando o resultado nem é usado (dot).
+    const isTokenLevel = level !== "dot";
+    const buildings = isTokenLevel ? areaEntities.filter((e) => e.ref.kind === "building") : [];
     for (const entity of pointEntities) {
       const offset = fanOut.get(entity.ref.id);
       const drawEntity = offset
         ? { ...entity, position: { x: entity.position.x + offset.x, y: entity.position.y + offset.y } }
         : entity;
-      drawPointEntity(ctx, camera, drawEntity, scale, level !== "dot", entity.ref.id === frame.highlightId);
+      const opacity = isTokenLevel ? occupancyOpacity(entity, buildings) : 1;
+      drawPointEntity(ctx, camera, drawEntity, scale, isTokenLevel, entity.ref.id === frame.highlightId, opacity);
     }
-    drawSocialOverlays(ctx, camera, pointEntities, frame.events ?? []);
+    // Balão de conversa só no zoom mais próximo ("token-detail") — em "token" já tem bastante
+    // coisa por pawn (badge de ação/processo); duplicar o traço+ícone social em zoom médio, com
+    // muitos NPCs, lê como poluição visual, não como detalhe (feedback implícito: gating por LOD).
+    if (level === "token-detail") {
+      drawSocialOverlays(ctx, camera, pointEntities, frame.events ?? []);
+    }
     drawLifecycleBursts(ctx, camera, frame.entities, frame.events ?? []);
   }
 }
@@ -677,6 +688,16 @@ function drawTokenGlyph(ctx: CanvasRenderingContext2D, center: Vec2, r: number):
 // criava e decodificava uma `Image` NOVA por NPC, sem nunca liberar as antigas (suspeito real da
 // travada). Aparência é só identidade agora (`npcPawnSvg`), então a chave é só o id — no máximo
 // 1 imagem cacheada por NPC, reusada pra sempre.
+// Fase 17 ("andar é uma animação"): sem sprite-sheet por NPC (o pawn já é único por seed SVG —
+// cachear N frames por NPC multiplicaria memória por NPC×frame). Em vez disso, o pawn estático
+// espelha horizontalmente conforme a direção real do deslocamento (`InterpolationBuffer`, nunca
+// inventada) e balança verticalmente enquanto anda — cálculo puro por `Date.now()`, mesmo padrão
+// de `actionBadgeOpacity`, custo desprezível.
+function walkBobOffset(entity: AuthoritativeEntity, r: number): number {
+  if (!entity.facing || prefersReducedMotion()) return 0;
+  return Math.sin(Date.now() / 130) * r * 0.06;
+}
+
 function drawNpcPawn(ctx: CanvasRenderingContext2D, entity: AuthoritativeEntity, center: Vec2, r: number): boolean {
   if (entity.ref.kind !== "npc" || typeof Image === "undefined") {
     return false;
@@ -692,7 +713,16 @@ function drawNpcPawn(ctx: CanvasRenderingContext2D, entity: AuthoritativeEntity,
     return false;
   }
 
-  ctx.drawImage(image, center.x - r, center.y - r * 1.25, r * 2, r * 2.4);
+  const bob = walkBobOffset(entity, r);
+  const mirrored = (entity.facing?.x ?? 0) < 0;
+  ctx.save();
+  if (mirrored) {
+    ctx.translate(center.x, 0);
+    ctx.scale(-1, 1);
+    ctx.translate(-center.x, 0);
+  }
+  ctx.drawImage(image, center.x - r, center.y - r * 1.25 + bob, r * 2, r * 2.4);
+  ctx.restore();
   return true;
 }
 
@@ -828,6 +858,39 @@ function drawRelocationRoute(ctx: CanvasRenderingContext2D, camera: Camera, enti
   ctx.restore();
 }
 
+// Ações associadas a estar dentro de um prédio (Comer/Dormir/Trabalhar — `ACTION_TYPE_IDS`
+// 0/1/2). Socializar/Viajar/Descansar/Comprar não implicam interior o bastante pra esconder o
+// pawn.
+const INDOOR_ACTIONS = new Set([0, 1, 2]);
+
+function tileInsideFootprint(building: AuthoritativeEntity, tileX: number, tileY: number): boolean {
+  if (building.footprintCells && building.footprintCells.length > 0) {
+    return building.footprintCells.some(
+      (cell) => cell.material !== "door" &&
+        building.position.x + cell.x === tileX && building.position.y + cell.y === tileY,
+    );
+  }
+  return tileX >= building.position.x && tileX < building.position.x + building.size.w &&
+    tileY >= building.position.y && tileY < building.position.y + building.size.h;
+}
+
+/**
+ * Fase 17 ("NPC entra em casa"): heurística puramente visual — sem dado de "dentro do prédio X"
+ * no motor ainda (`NpcVisual` só tem posição/ação, não household/employer). Some com o pawn
+ * quando a ação é de interior (comer/dormir/trabalhar) E a posição autoritativa cai dentro do
+ * footprint de algum prédio, e SÓ depois que a caminhada terminou (`facing` nulo) — assim o
+ * jogador vê o NPC andar até a porta antes de desaparecer, sem timer novo (reusa a própria
+ * interpolação de chegada). Nunca afeta hit-test/seleção, que continuam pela posição real.
+ */
+function occupancyOpacity(entity: AuthoritativeEntity, buildings: readonly AuthoritativeEntity[]): number {
+  if (entity.ref.kind !== "npc" || entity.facing || !INDOOR_ACTIONS.has(entity.currentAction ?? -1)) {
+    return 1;
+  }
+  const tileX = Math.floor(entity.position.x);
+  const tileY = Math.floor(entity.position.y);
+  return buildings.some((building) => tileInsideFootprint(building, tileX, tileY)) ? 0.12 : 1;
+}
+
 function drawPointEntity(
   ctx: CanvasRenderingContext2D,
   camera: Camera,
@@ -835,7 +898,10 @@ function drawPointEntity(
   scale: number,
   isToken: boolean,
   isHighlighted: boolean,
+  visibility = 1,
 ): void {
+  ctx.save();
+  ctx.globalAlpha = visibility;
   const center = camera.worldToScreen({ x: entity.position.x + 0.5, y: entity.position.y + 0.5 });
   const visualScale = pointVisualScale(entity);
   // Feedback do usuário (2026-08-21): o token tinha raio fixo por nível de LOD, então dar zoom
@@ -921,6 +987,7 @@ function drawPointEntity(
     ctx.lineWidth = 2;
     ctx.stroke();
   }
+  ctx.restore();
 }
 
 function extraordinaryColor(token: string, alpha: number): string {

@@ -16,13 +16,14 @@ namespace LivingWorld.Tests.Llm;
 /// lidos do container de DI desta factory (registrados como singleton em <c>Program.cs</c>) —
 /// nunca de campos <c>static</c>, que seriam compartilhados entre a factory desta classe e a de
 /// <c>NpcEndpointTests</c> quando as duas rodam em paralelo.</summary>
-public class ConversationEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection(ApiEndpointCollection.Name)]
+public class ConversationEndpointTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly LivingWorldApiFactory _factory;
     private readonly WorldState _world;
     private readonly ConversationSessionStore _sessions;
 
-    public ConversationEndpointTests(WebApplicationFactory<Program> factory)
+    public ConversationEndpointTests(LivingWorldApiFactory factory)
     {
         _factory = factory;
         _world = factory.Services.GetRequiredService<WorldState>();

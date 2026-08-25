@@ -2,13 +2,28 @@ using LivingWorld.Simulation;
 
 namespace LivingWorld.Tests.Population;
 
-/// <summary>Critérios de verificação da Fase 3A sobre o cenário default: 10 anos com 100 NPCs
-/// iniciais, invariantes a cada tick (R2: horizonte curto no gate, 100 anos fica para nightly
-/// em <see cref="LifeTable100YearScenarioTests"/>).</summary>
+/// <summary>Critérios de verificação da Fase 3A sobre o cenário default: 1 ano no gate
+/// (invariantes a cada tick); 10 anos e 10k×10 anos ficam em <c>Category=Scenario</c>.
+/// 100 anos: <see cref="LifeTable100YearScenarioTests"/>.</summary>
 public class PopulationScenarioTests
 {
-    private const long TenYearsInHours = 10 * 12 * 30 * 24;
+    private const long OneYearInHours = 12 * 30 * 24;
+    private const long TenYearsInHours = 10 * OneYearInHours;
 
+    [Fact]
+    public void One_year_with_100_initial_npcs_never_breaks_invariants_at_any_tick()
+    {
+        var (world, clock) = ScenarioRunner.Create(seed: 42);
+        Assert.Equal(100, world.Npcs.Count);
+
+        for (long tick = 0; tick < OneYearInHours; tick++)
+        {
+            clock.Tick(world);
+            AssertInvariants(world);
+        }
+    }
+
+    [Trait("Category", "Scenario")]
     [Fact]
     public void Ten_years_with_100_initial_npcs_never_breaks_invariants_at_any_tick()
     {
@@ -66,11 +81,12 @@ public class PopulationScenarioTests
     public void Single_npc_world_never_produces_a_child()
     {
         var (world, clock) = ScenarioRunner.Create(seed: 1, initialPopulation: 1);
-        clock.Run(world, TenYearsInHours);
+        clock.Run(world, OneYearInHours);
 
         Assert.Single(world.Npcs); // ninguém nasce sem parceiro
     }
 
+    [Trait("Category", "Scenario")]
     [Fact]
     public void Population_100x_the_initial_size_does_not_exceed_the_tick_iteration_budget()
     {
@@ -80,14 +96,14 @@ public class PopulationScenarioTests
     }
 
     [Fact]
-    public void Disabling_natality_changes_the_10_year_canonical_hash()
+    public void Disabling_natality_changes_the_1_year_canonical_hash()
     {
         var (withNatality, clockWith) = ScenarioRunner.Create(seed: 42);
-        clockWith.Run(withNatality, TenYearsInHours);
+        clockWith.Run(withNatality, OneYearInHours);
 
         var systemsWithoutNatality = ScenarioRunner.DefaultSystems().Where(s => s.Name != NatalitySystem.SystemName).ToList();
         var (withoutNatality, _) = ScenarioRunner.Create(seed: 42);
-        new WorldClock(systemsWithoutNatality).Run(withoutNatality, TenYearsInHours);
+        new WorldClock(systemsWithoutNatality).Run(withoutNatality, OneYearInHours);
 
         Assert.NotEqual(WorldSnapshot.CanonicalHash(withNatality), WorldSnapshot.CanonicalHash(withoutNatality));
     }

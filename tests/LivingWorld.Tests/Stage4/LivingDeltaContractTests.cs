@@ -3,7 +3,6 @@ using LivingWorld.Api.Simulation;
 using LivingWorld.Api.Visual;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LivingWorld.Tests.Stage4;
@@ -151,7 +150,7 @@ public sealed class LivingDeltaContractTests
     [Fact]
     public void Tick_loop_publishes_the_typed_final_state_delta()
     {
-        using var factory = new WebApplicationFactory<Program>();
+        using var factory = new LivingWorldApiFactory();
         var services = factory.Services;
         var worldHost = services.GetRequiredService<WorldHost>();
         var simulationHost = services.GetRequiredService<SimulationHost>();

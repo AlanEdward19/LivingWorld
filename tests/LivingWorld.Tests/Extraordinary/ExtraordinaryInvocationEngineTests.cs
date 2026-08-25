@@ -29,6 +29,20 @@ public sealed class ExtraordinaryInvocationEngineTests
     }
 
     [Fact]
+    public void Unregistered_effect_token_fails_with_the_contract_message()
+    {
+        var (world, carrier, target, home) = WorldWithPower(["unknown.token:1"], []);
+
+        var result = ExtraordinaryInvocationEngine.Invoke(
+            world, new TickContext(world, world.Rng, world.Scheduler),
+            new ExtraordinaryInvocation(40, carrier.Id, "test-power", target.Id));
+
+        Assert.Equal(
+            (false, "Effects: alvo não suportado 'unknown.token'", 100, 50, 5L),
+            (result.IsSuccess, result.Error, carrier.Health, target.Health, home.Stock[new ResourceType(9)]));
+    }
+
+    [Fact]
     public void Invalid_or_unfunded_use_is_atomic_and_never_applies_the_effect()
     {
         var (world, carrier, target, home) = WorldWithPower(
@@ -290,6 +304,97 @@ public sealed class ExtraordinaryInvocationEngineTests
         Assert.Equal(controlHome.Stock[new ResourceType(9)],
             treatedHome.Stock[new ResourceType(9)] + declaredCost);
         Assert.Equal(controlTarget.Health + 15, target.Health);
+    }
+
+    // Fase 16 (reabertura, "criar qualquer tipo de poder — teleporte/controle"): novos alvos de
+    // efeito além do que os templates originais cobriam (npc.health/hunger/thirst/sleep/social,
+    // movement.flight/speed-multiplier, construct.create).
+
+    [Fact]
+    public void Teleport_relocates_the_target_to_the_declared_cell_within_range()
+    {
+        var (world, carrier, target, _) = WorldWithPower(effects: ["npc.teleport:5"], costs: []);
+
+        var result = ExtraordinaryInvocationEngine.Invoke(
+            world, new TickContext(world, world.Rng, world.Scheduler),
+            new ExtraordinaryInvocation(60, carrier.Id, "test-power", target.Id, TargetCell: new CellCoord(3, 3)));
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Equal(new CellCoord(3, 3), target.CurrentLocation);
+    }
+
+    [Fact]
+    public void Teleport_beyond_the_declared_range_fails_and_never_moves_the_target()
+    {
+        var (world, carrier, target, _) = WorldWithPower(effects: ["npc.teleport:5"], costs: []);
+        var before = target.CurrentLocation;
+
+        // ScenarioRunner.DefaultMap é 10x10 (0..9) — (8,8) fica dentro do mapa mas fora do
+        // alcance de 5, então o teste exercita o guard de alcance, não o de limite do mapa.
+        var result = ExtraordinaryInvocationEngine.Invoke(
+            world, new TickContext(world, world.Rng, world.Scheduler),
+            new ExtraordinaryInvocation(61, carrier.Id, "test-power", target.Id, TargetCell: new CellCoord(8, 8)));
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("alcance", result.Error, StringComparison.Ordinal);
+        Assert.Equal(before, target.CurrentLocation);
+    }
+
+    [Fact]
+    public void Teleport_without_a_target_cell_fails_explicitly()
+    {
+        var (world, carrier, target, _) = WorldWithPower(effects: ["npc.teleport:5"], costs: []);
+
+        var result = ExtraordinaryInvocationEngine.Invoke(
+            world, new TickContext(world, world.Rng, world.Scheduler),
+            new ExtraordinaryInvocation(62, carrier.Id, "test-power", target.Id));
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("TargetCell", result.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Teleport_onto_a_cell_occupied_by_another_living_npc_fails()
+    {
+        var (world, carrier, target, _) = WorldWithPower(effects: ["npc.teleport:5"], costs: []);
+        var bystander = Npc(new NpcId(3), "bystander", 100);
+        bystander.MoveTo(new CellCoord(2, 2), 0);
+        world.AddNpc(bystander);
+
+        var result = ExtraordinaryInvocationEngine.Invoke(
+            world, new TickContext(world, world.Rng, world.Scheduler),
+            new ExtraordinaryInvocation(63, carrier.Id, "test-power", target.Id, TargetCell: new CellCoord(2, 2)));
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("ocupada", result.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Force_action_sets_the_target_current_action_to_the_declared_action_type()
+    {
+        var (world, carrier, target, _) = WorldWithPower(effects: [$"npc.force-action:{(int)ActionType.Sleep}"], costs: []);
+
+        var result = ExtraordinaryInvocationEngine.Invoke(
+            world, new TickContext(world, world.Rng, world.Scheduler),
+            new ExtraordinaryInvocation(64, carrier.Id, "test-power", target.Id));
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Equal(ActionType.Sleep, target.CurrentAction);
+    }
+
+    [Fact]
+    public void Force_action_with_an_id_outside_the_catalog_fails_before_any_mutation()
+    {
+        var (world, carrier, target, _) = WorldWithPower(effects: ["npc.force-action:99"], costs: []);
+        var before = target.CurrentAction;
+
+        var result = ExtraordinaryInvocationEngine.Invoke(
+            world, new TickContext(world, world.Rng, world.Scheduler),
+            new ExtraordinaryInvocation(65, carrier.Id, "test-power", target.Id));
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("ActionType", result.Error, StringComparison.Ordinal);
+        Assert.Equal(before, target.CurrentAction);
     }
 
     private static (WorldState World, Npc Carrier, Npc Target, Household Home) WorldWithPower(

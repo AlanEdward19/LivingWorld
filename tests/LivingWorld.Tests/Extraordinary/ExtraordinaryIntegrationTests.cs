@@ -54,11 +54,13 @@ public sealed class ExtraordinaryIntegrationTests
         var enabled = ScenarioRunner.DefaultSystems(extraordinary: ScenarioData());
         var disabled = ScenarioRunner.DefaultSystems(extraordinary: ExtraordinaryScenarioData.Disabled);
 
+        Assert.DoesNotContain(
+            disabled,
+            system => system is ExtraordinaryStateSystem or ExtraordinaryPassiveTickSystem);
         Assert.Equal(
-            (false, 1, ExtraordinaryStateSystem.SystemName),
-            (disabled.Any(system => system.Name == ExtraordinaryStateSystem.SystemName),
-                enabled.Count(system => system.Name == ExtraordinaryStateSystem.SystemName),
-                Assert.Single(enabled, system => system.Name == ExtraordinaryStateSystem.SystemName).Name));
+            [ExtraordinaryStateSystem.SystemName, ExtraordinaryPassiveTickSystem.SystemName],
+            enabled.Where(system => system is ExtraordinaryStateSystem or ExtraordinaryPassiveTickSystem)
+                .Select(system => system.Name));
     }
 
     [Fact]

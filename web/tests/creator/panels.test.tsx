@@ -66,30 +66,34 @@ describe("World Creator panels", () => {
     ]);
   });
 
-  it("ExtraordinaryPanel adds a descriptor with dedicated visual metabolism and aging defaults", () => {
+  it("ExtraordinaryPanel adds a descriptor through the guided power builder and a cultural response through the list editor", () => {
     const panel = props();
     render(<ExtraordinaryPanel {...panel} />);
 
     fireEvent.change(screen.getByLabelText("Prevalência extraordinária"), { target: { value: "0.25" } });
     expect(panel.set).toHaveBeenCalledWith("extraordinaryPrevalence", 0.25);
 
-    fireEvent.click(screen.getByRole("button", { name: "+ Descritores extraordinários" }));
+    fireEvent.click(screen.getByRole("button", { name: "+ Respostas culturais" }));
+    expect(panel.set).toHaveBeenCalledWith("extraordinaryCulturalResponses", [
+      { cultureId: 0, manifestation: "", response: "" },
+    ]);
 
+    fireEvent.click(screen.getByRole("button", { name: "+ Adicionar poder" }));
+    expect(screen.getByTestId("power-builder")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Identificador do poder"), { target: { value: "novo-poder" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar poder" }));
+
+    expect(panel.set).toHaveBeenCalledWith("extraordinaryEnabled", true);
     expect(panel.set).toHaveBeenCalledWith("extraordinaryDescriptors", [{
-      id: "", source: "", effects: "", mode: "Active", costs: "", reliability: "Guaranteed",
+      id: "novo-poder", source: "", effects: "", mode: "Active", costs: "", reliability: "Guaranteed",
       failureModes: "", intrinsicVulnerabilities: "", manifestations: "", acquisitionRules: "",
       appearanceScaleMultiplier: 1, appearanceSkinTint: "", appearanceMovementTrail: "",
       needSubstitutionReplacesNeed: "", needSubstitutionResourceId: null,
       needSubstitutionUnitsPerUse: 1, senescenceRateMultiplier: 1, manifestationCondition: "",
     }]);
-
-    fireEvent.click(screen.getByRole("button", { name: "+ Respostas culturais" }));
-    expect(panel.set).toHaveBeenCalledWith("extraordinaryCulturalResponses", [{
-      cultureId: 0, manifestation: "", response: "",
-    }]);
   });
 
-  it("ExtraordinaryPanel edits each dedicated state field without encoding it in manifestations", () => {
+  it("ExtraordinaryPanel edits an existing descriptor's advanced fields through the guided builder, preserving unrecognized effects, and saves them together", () => {
     const panel = props();
     panel.form.extraordinaryDescriptors = [{
       id: "p", source: "s", effects: "movement:1", mode: "Conditional", costs: "",
@@ -101,19 +105,27 @@ describe("World Creator panels", () => {
     }];
     render(<ExtraordinaryPanel {...panel} />);
 
-    fireEvent.change(screen.getByLabelText("Descritores extraordinários-escala visual-0"), { target: { value: "1.5" } });
-    fireEvent.change(screen.getByLabelText("Descritores extraordinários-tom/palidez-0"), { target: { value: "pale" } });
-    fireEvent.change(screen.getByLabelText("Descritores extraordinários-trilha de movimento-0"), { target: { value: "mist" } });
-    fireEvent.change(screen.getByLabelText("Descritores extraordinários-necessidade substituída-0"), { target: { value: "hunger" } });
-    fireEvent.change(screen.getByLabelText("Descritores extraordinários-recurso metabólico-0"), { target: { value: "9" } });
-    fireEvent.change(screen.getByLabelText("Descritores extraordinários-unidades por uso-0"), { target: { value: "2" } });
-    fireEvent.change(screen.getByLabelText("Descritores extraordinários-multiplicador de senescência-0"), { target: { value: "0" } });
-    fireEvent.change(screen.getByLabelText("Descritores extraordinários-condição de manifestação-0"), { target: { value: "world:is-night" } });
+    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+    expect(screen.getByTestId("power-builder")).toBeInTheDocument();
 
-    expect(panel.set).toHaveBeenCalledTimes(8);
-    expect(panel.set).toHaveBeenNthCalledWith(1, "extraordinaryDescriptors", [expect.objectContaining({ appearanceScaleMultiplier: 1.5 })]);
-    expect(panel.set).toHaveBeenNthCalledWith(5, "extraordinaryDescriptors", [expect.objectContaining({ needSubstitutionResourceId: 9 })]);
-    expect(panel.set).toHaveBeenNthCalledWith(7, "extraordinaryDescriptors", [expect.objectContaining({ senescenceRateMultiplier: 0 })]);
-    expect(panel.set).toHaveBeenNthCalledWith(8, "extraordinaryDescriptors", [expect.objectContaining({ manifestationCondition: "world:is-night" })]);
+    fireEvent.change(screen.getByLabelText("Escala visual"), { target: { value: "1.5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Tom de pele: Pálido" }));
+    fireEvent.click(screen.getByRole("button", { name: "Névoa" }));
+    fireEvent.click(screen.getByRole("button", { name: /Só à noite/ }));
+
+    fireEvent.click(screen.getByRole("button", { name: /Ajustes avançados/ }));
+    fireEvent.click(screen.getByLabelText("Substitui uma necessidade por um recurso"));
+    fireEvent.change(screen.getByLabelText("Recurso metabólico"), { target: { value: "9" } });
+    fireEvent.change(screen.getByLabelText("Unidades por uso"), { target: { value: "2" } });
+    fireEvent.change(screen.getByLabelText("Multiplicador de senescência"), { target: { value: "0" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Salvar poder" }));
+
+    expect(panel.set).toHaveBeenCalledWith("extraordinaryDescriptors", [expect.objectContaining({
+      effects: "movement:1", // token que não reconhecemos — preservado, nunca descartado
+      appearanceScaleMultiplier: 1.5, appearanceSkinTint: "pale", appearanceMovementTrail: "mist",
+      manifestationCondition: "world:is-night", needSubstitutionReplacesNeed: "hunger",
+      needSubstitutionResourceId: 9, needSubstitutionUnitsPerUse: 2, senescenceRateMultiplier: 0,
+    })]);
   });
 });

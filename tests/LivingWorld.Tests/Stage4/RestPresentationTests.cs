@@ -36,7 +36,8 @@ public class RestPresentationTests
     private static WorldMap OneCellMap()
     {
         var cost = new CostWeights(Base: 1, AltitudeWeight: 0, TerrainWeight: new Dictionary<int, double> { [1] = 1.0 });
-        var cell = new MapCell(new CellCoord(0, 0), new TerrainType(1), new BiomeType(1), 0, false, []);
+        var cell = MapCell.WithDerivedTemperature(
+            new CellCoord(0, 0), new TerrainType(1), new BiomeType(1), 0, false, []);
         var regions = RegionGrid.Partition(width: 1, height: 1, regionSize: 1);
         return WorldMap.Create(1, 1, seed: 1, GeoCatalog, cost, [cell], regions, []).Value!;
     }

@@ -52,7 +52,7 @@ public class ScaleScenarioSensorTests
             $"BytesPerAliveNpcPerYear={sample.BytesPerAliveNpcPerYear:F0} excede teto {rules.MaxBytesPerAliveNpcPerYear}");
     }
 
-    [Fact(Skip = "Regravar baseline: dotnet test --filter ZZZ_record_scale_sensor_baseline")]
+    [Fact(Skip = "Regravar: dotnet test --filter ZZZ_record_scale_sensor_baseline")]
     public void ZZZ_record_scale_sensor_baseline()
     {
         var actual = new Dictionary<int, ScaleSensorSample>

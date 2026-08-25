@@ -102,12 +102,24 @@ public class EmploymentSystemTests
         Assert.Null(npc.Employer);
     }
 
-    /// <summary>ECON-20, checado a cada tick por 10 anos — vaga nunca excede o teto, todo
-    /// Employer resolve pra um Workplace existente (mesmo idioma de
-    /// BehaviorDecisionSystemHysteresisTests: <c>clock.Tick</c> por hora, não <c>clock.Run</c> em
-    /// lote).</summary>
+    /// <summary>ECON-20, checado a cada tick — vaga nunca excede o teto, todo Employer resolve
+    /// pra um Workplace existente (mesmo idioma de BehaviorDecisionSystemHysteresisTests:
+    /// <c>clock.Tick</c> por hora, não <c>clock.Run</c> em lote). Gate: 1 ano; 10 anos em
+    /// Category=Scenario.</summary>
+    [Fact]
+    public void No_workplace_exceeds_max_vacancies_and_every_employer_resolves_over_1_year()
+    {
+        AssertVacanciesAndEmployers(12 * 30 * 24);
+    }
+
+    [Trait("Category", "Scenario")]
     [Fact]
     public void No_workplace_exceeds_max_vacancies_and_every_employer_resolves_over_10_years()
+    {
+        AssertVacanciesAndEmployers(10 * 12 * 30 * 24);
+    }
+
+    private void AssertVacanciesAndEmployers(long ticks)
     {
         var world = new WorldState(
             Calendar, 7, ScenarioRunner.InitialMap(7, 20), ScenarioRunner.DefaultPopulationCatalog,
@@ -117,9 +129,8 @@ public class EmploymentSystemTests
         world.AddWorkplace(MakeWorkplace(world, maxVacancies: 5));
         // ScenarioRunner.DefaultSystems() já inclui EmploymentSystem (T20) — não duplicar.
         var clock = new WorldClock(ScenarioRunner.DefaultSystems());
-        const long tenYears = 10 * 12 * 30 * 24;
 
-        for (long tick = 0; tick < tenYears; tick++)
+        for (long tick = 0; tick < ticks; tick++)
         {
             clock.Tick(world);
 

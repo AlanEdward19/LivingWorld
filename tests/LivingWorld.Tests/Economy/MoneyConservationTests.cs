@@ -9,11 +9,32 @@ namespace LivingWorld.Tests.Economy;
 /// hora, não <c>clock.Run</c> em lote, pra poder afirmar a cada tick).</summary>
 public class MoneyConservationTests
 {
-    private const long TenYearsInHours = 10 * 12 * 30 * 24;
+    private const long OneYearInHours = 12 * 30 * 24;
+    private const long TenYearsInHours = 10 * OneYearInHours;
 
     private static long TotalMoney(WorldState world) =>
         world.Npcs.Sum(n => n.Wallet.Amount) + world.Workplaces.Sum(w => w.Treasury.Amount);
 
+    [Fact]
+    public void Total_money_is_conserved_every_tick_over_1_year()
+    {
+        var (world, clock) = ScenarioRunner.Create(seed: 42, initialPopulation: 20);
+        long initial = TotalMoney(world);
+
+        for (long tick = 0; tick < OneYearInHours; tick++)
+        {
+            clock.Tick(world);
+
+            long expected = initial + world.MoneyMinted.Amount - world.MoneyDestroyed.Amount;
+            long actual = TotalMoney(world);
+            Assert.True(expected == actual,
+                $"tick {world.CurrentDate.TotalHours}: total de dinheiro {actual} != esperado {expected} (inicial {initial} + cunhado {world.MoneyMinted.Amount} - destruído {world.MoneyDestroyed.Amount})");
+        }
+    }
+
+    /// <summary>Variante de 10 anos (nightly, Category=Scenario) — mesma asserção, horizonte
+    /// maior. Fora do gate padrão (<c>Category!=Scenario</c>).</summary>
+    [Trait("Category", "Scenario")]
     [Fact]
     public void Total_money_is_conserved_every_tick_over_10_years()
     {
@@ -27,7 +48,7 @@ public class MoneyConservationTests
             long expected = initial + world.MoneyMinted.Amount - world.MoneyDestroyed.Amount;
             long actual = TotalMoney(world);
             Assert.True(expected == actual,
-                $"tick {world.CurrentDate.TotalHours}: total de dinheiro {actual} != esperado {expected} (inicial {initial} + cunhado {world.MoneyMinted.Amount} - destruído {world.MoneyDestroyed.Amount})");
+                $"tick {world.CurrentDate.TotalHours}: total de dinheiro {actual} != esperado {expected}");
         }
     }
 

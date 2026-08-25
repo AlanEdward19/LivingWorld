@@ -37,6 +37,7 @@ export interface WorldEditorProps {
   worldName?: string;
   catalogPeriodId?: string;
   onCreated?: (npcCount: number) => void;
+  onCancel?: () => void;
   viewport?: { width: number; height: number };
 }
 
@@ -81,6 +82,7 @@ export function WorldEditor({
   worldName = "",
   catalogPeriodId,
   onCreated,
+  onCancel,
   viewport = DEFAULT_VIEWPORT,
 }: WorldEditorProps) {
   const { value: form, commit: setForm, undo, redo, canUndo, canRedo } = useEditorHistory(initialForm);
@@ -362,6 +364,11 @@ export function WorldEditor({
   return (
     <div className="world-editor" data-testid="world-editor">
       <div className="world-editor-toolbar" data-testid="world-editor-toolbar">
+        {onCancel && (
+          <button type="button" className="ui-btn ui-btn--ghost world-editor-exit" aria-label="Cancelar criação de mundo" onClick={onCancel}>
+            ✕ Sair
+          </button>
+        )}
         <div className="world-tool-dock" aria-label="Ferramentas do mapa">
           {([
             ["select", "◇", "Selecionar"], ["terrain", "▲", "Terreno"], ["water", "≋", "Água"],

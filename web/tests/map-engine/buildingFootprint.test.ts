@@ -33,12 +33,16 @@ describe("generateBuildingFootprint", () => {
     }
   });
 
-  it.each([0, 90, 180, 270] as const)("keeps a house compact and internal when rotated %i degrees", (orientation) => {
+  it.each([0, 90, 180, 270] as const)("keeps a house compact (3x3 to 4x4) and internal when rotated %i degrees", (orientation) => {
     const cells = generateBuildingFootprint("house-12", -1, 0, orientation);
+    const width = Math.max(...cells.map((cell) => cell.x)) + 1;
+    const height = Math.max(...cells.map((cell) => cell.y)) + 1;
 
-    expect(Math.max(...cells.map((cell) => cell.x)) + 1).toBe(3);
-    expect(Math.max(...cells.map((cell) => cell.y)) + 1).toBe(3);
-    expect(cells.filter((cell) => cell.material === "floor")).toHaveLength(1);
+    expect(width).toBeGreaterThanOrEqual(3);
+    expect(width).toBeLessThanOrEqual(4);
+    expect(height).toBeGreaterThanOrEqual(3);
+    expect(height).toBeLessThanOrEqual(4);
+    expect(cells.some((cell) => cell.material === "floor")).toBe(true);
   });
 
   it("rotates the door while preserving the same occupied cells", () => {
@@ -53,14 +57,20 @@ describe("generateBuildingFootprint", () => {
     );
   });
 
-  it("uses stone walls for an even buildingTypeId and wood for an odd one", () => {
-    const stone = generateBuildingFootprint("same-id", 2);
-    const wood = generateBuildingFootprint("same-id", 3);
+  it("varies wall material by building identity, not just by type — so houses of the same type actually differ", () => {
+    // Feedback do usuário ("vilas só tem 1 aparência"): toda residência compartilha o mesmo
+    // buildingTypeId (-1), então variar só por tipo dava a mesma parede pra toda casa da vila.
+    // Materiais agora vêm do hash do buildingId, então ids diferentes do MESMO tipo divergem.
+    const materials = ["house-1", "house-2", "house-3", "house-4", "house-5", "house-6"].map((id) => {
+      const cells = generateBuildingFootprint(id, -1);
+      return cells.find((c) => c.material === "stoneWall" || c.material === "woodWall")?.material;
+    });
 
-    expect(stone.some((c) => c.material === "stoneWall")).toBe(true);
-    expect(stone.some((c) => c.material === "woodWall")).toBe(false);
-    expect(wood.some((c) => c.material === "woodWall")).toBe(true);
-    expect(wood.some((c) => c.material === "stoneWall")).toBe(false);
+    expect(new Set(materials).size).toBeGreaterThan(1);
+    // continua determinístico e continua só as duas opções válidas
+    for (const id of ["house-1", "house-2"]) {
+      expect(generateBuildingFootprint(id, -1)).toEqual(generateBuildingFootprint(id, -1));
+    }
   });
 
   it("marks only boundary cells as wall — interior cells are floor", () => {

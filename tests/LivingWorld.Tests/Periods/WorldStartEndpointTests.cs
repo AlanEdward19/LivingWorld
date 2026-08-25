@@ -3,17 +3,17 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json.Nodes;
 using LivingWorld.Api;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace LivingWorld.Tests.Periods;
 
 /// <summary>Fase 13, T6 (PERIOD-04..06, PERIOD-07..10): <c>POST /worlds/start</c> resolve um
 /// template já cadastrado por <c>POST /periods</c> e inicializa mundo com a seed pedida.</summary>
-public class WorldStartEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection(ApiEndpointCollection.Name)]
+public class WorldStartEndpointTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly LivingWorldApiFactory _factory;
 
-    public WorldStartEndpointTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public WorldStartEndpointTests(LivingWorldApiFactory factory) => _factory = factory;
 
     private static JsonObject FullValidPeriodDefinition()
     {

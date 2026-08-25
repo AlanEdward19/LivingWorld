@@ -30,7 +30,7 @@ public static class NpcWakeScheduler
         world.ReplaceNpcWake(ctx, npcId, targetTick);
 
     public static long ComputeNextWakeTick(
-        Npc npc, NeedsRules needsRules, ActionCatalog catalog, long now)
+        Npc npc, NeedsRules needsRules, ActionCatalog catalog, long now, WorldState world)
     {
         long next = long.MaxValue;
         next = Math.Min(next, NextThresholdCrossing(npc.HungerNeed, now, needsRules.UrgencyThreshold));
@@ -46,12 +46,20 @@ public static class NpcWakeScheduler
 
         if (next == long.MaxValue) next = now + 1;
         if (next <= now) next = now + 1;
+
+        double reaction = AttributeMechanic.ReactionSpeedMultiplier(world, npc);
+        if (reaction > 1)
+        {
+            long span = next - now;
+            next = now + Math.Max(1L, (long)Math.Ceiling(span / reaction));
+        }
+
         return next;
     }
 
     public static void RescheduleAfterHour(
         WorldState world, TickContext ctx, Npc npc, NeedsRules needsRules, ActionCatalog catalog, long now) =>
-        ScheduleWake(world, ctx, npc.Id.Value, ComputeNextWakeTick(npc, needsRules, catalog, now));
+        ScheduleWake(world, ctx, npc.Id.Value, ComputeNextWakeTick(npc, needsRules, catalog, now, world));
 
     public static long NextThresholdCrossing(LazyNeed need, long nowTick, double urgencyThreshold)
     {
@@ -79,7 +87,7 @@ public static class NpcWakeScheduler
 
         var nextTicks = new long[list.Count];
         Parallel.For(0, list.Count, i =>
-            nextTicks[i] = ComputeNextWakeTick(list[i], needsRules, catalog, now));
+            nextTicks[i] = ComputeNextWakeTick(list[i], needsRules, catalog, now, world));
 
         foreach (var (npc, index) in list.Select((npc, index) => (npc, index)).OrderBy(t => t.npc.Id.Value))
             ScheduleWake(world, ctx, npc.Id.Value, nextTicks[index]);

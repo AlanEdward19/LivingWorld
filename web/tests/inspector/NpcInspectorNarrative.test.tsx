@@ -63,6 +63,8 @@ describe("NpcInspector narrative and conversation surfaces (T7)", () => {
       chronicle: { load: async () => ({ prose: "" }) },
       conversation: new MockConversationSource(),
     });
+    // Biografia vive na aba Crenças (fase 17: sidebar reorganizada em abas).
+    fireEvent.click(screen.getByRole("button", { name: /Crenças/ }));
 
     expect(await screen.findByText("Lina cresceu na vila e aprendeu a colher trigo.")).toBeInTheDocument();
   });
@@ -73,6 +75,7 @@ describe("NpcInspector narrative and conversation surfaces (T7)", () => {
       chronicle: { load: async () => ({ prose: "" }) },
       conversation: new MockConversationSource(),
     });
+    fireEvent.click(screen.getByRole("button", { name: /Crenças/ }));
 
     expect(await screen.findByText("Nenhum evento registrado ainda.")).toBeInTheDocument();
   });

@@ -4,7 +4,6 @@ using System.Text.Json.Nodes;
 using LivingWorld.Api;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LivingWorld.Tests;
@@ -12,12 +11,13 @@ namespace LivingWorld.Tests;
 /// <summary>Fase 15.1, T43 (backend-gaps.md G2): <c>POST /worlds/preview</c> usa o mesmo
 /// <see cref="MapScenarioLoader"/> que o create, sem tocar <see cref="WorldHost"/> nem persistir
 /// nada, e produz exatamente a mesma geografia (hash espacial) que <c>POST /worlds/create</c>
-/// produziria para a mesma seed.</summary>
-public class WorldPreviewEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
+/// produziria para a mesma seed. Factory própria: um dos testes chama create e faz
+/// <c>WorldHost.Replace</c> — não pode compartilhar a coleção de endpoints.</summary>
+public class WorldPreviewEndpointsTests : IClassFixture<LivingWorldApiFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly LivingWorldApiFactory _factory;
 
-    public WorldPreviewEndpointsTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public WorldPreviewEndpointsTests(LivingWorldApiFactory factory) => _factory = factory;
 
     private static JsonObject FullValidScenario(ulong seed)
     {

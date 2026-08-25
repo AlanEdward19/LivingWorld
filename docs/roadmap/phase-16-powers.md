@@ -2,6 +2,18 @@
 
 **Status**: concluída — spec/design/tasks e validação em `.specs/features/phase-16-powers/`.
 
+> **Reabertura pendente (2026-08-24, pedido do usuário via reforma da web)**: a validação PASS
+> cobriu a ARQUITETURA (modo/custo/confiabilidade/herança/cultura/conservação), mas o vocabulário
+> de `effects`/`costs` continua um switch C# fechado em
+> `src/LivingWorld.Simulation/Extraordinary/ExtraordinaryInvocationEngine.cs` +
+> `ExtraordinaryLocomotion.cs` (8 chaves: `npc.{health,hunger,thirst,sleep,social}`,
+> `movement.flight`, `movement.speed-multiplier`, `construct.create`) — não "consultável por
+> reflexão" como a task 2 promete. Teleporte, visão de calor, controle mental/necessidades,
+> alteração de ambiente e dano não existem hoje. Usuário quer revisitar depois um motor de
+> efeito/condição/aquisição genuinamente dinâmico, mais um catálogo de poderes prontos na web.
+> Não é tarefa só de frontend — precisa de trabalho de motor (C#) antes de reabrir de verdade.
+> Detalhe em memória do agente: `project_phase16_powers_reopen.md`.
+
 **Objetivo**: mutante, mago, portador de artefato e implantado deixam de ser cinco
 subsistemas e viram **um modificador declarado** sobre sistemas que já existem, com fonte,
 efeito, custo, probabilidade, modo de falha e consequência social. O motor continua

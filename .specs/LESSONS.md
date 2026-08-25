@@ -98,6 +98,42 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: validation.md:48|mutant-4|POW-13 (simulation/extraordinary)
 - last seen: 2026-08-24T21:14:22Z
 
+### L-012 — When adding a constructor or required field to a persisted value object, keep a single JsonConstructor (or parameterless) path so snapshot round-trip tests still deserialize.
+- signal: `gate_fail` · recurrence: 1 feature(s) · scope: `snapshot` · harmful: 0
+- features: phase-16-1-power-engine
+- evidence: WorldSnapshotTests MapCell deserialize (snapshot)
+- last seen: 2026-08-25T12:12:32Z
+
+### L-013 — Assert multi-segment effect tokens (amount plus duration) by the parsed fields, not a single trailing number.
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `extraordinary` · harmful: 0
+- features: phase-16-1-power-engine
+- evidence: PWR-25 LuckMechanicTests.cs:56 (extraordinary)
+- last seen: 2026-08-25T12:12:32Z
+
+### L-014 — When a new concept replaces legacy flags, assert composed public outputs for combined legacy tokens, not each token in isolation.
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `extraordinary` · harmful: 0
+- features: phase-16-1-power-engine
+- evidence: PWR-70 ExtraordinaryArchetypeScenarioTests.cs:54 (extraordinary)
+- last seen: 2026-08-25T12:12:33Z
+
+### L-015 — A genericity goal that requires a representative scenario sample must ship that many descriptors as data, not only engine unit tests.
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `extraordinary` · harmful: 0
+- features: phase-16-1-power-engine
+- evidence: spec Success Criteria sample 15-20 (extraordinary)
+- last seen: 2026-08-25T12:12:33Z
+
+### L-016 — If the spec requires a causal preview log that is not a Fact, name the event kind; otherwise tests will reuse a generic applied-effect kind.
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `extraordinary` · harmful: 0
+- features: phase-16-1-power-engine
+- evidence: PWR-120 ForesightMechanicTests.cs:99-101 (extraordinary)
+- last seen: 2026-08-25T12:12:33Z
+
+### L-017 — Contract error strings must be asserted on the public entry point (Invoke), not only that a registry lookup returns null.
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `extraordinary` · harmful: 0
+- features: phase-16-1-power-engine
+- evidence: PWR-03 ExtraordinaryMechanicRegistryTests.cs:29 (extraordinary)
+- last seen: 2026-08-25T12:12:33Z
+
 ## Quarantined (failed when applied — ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

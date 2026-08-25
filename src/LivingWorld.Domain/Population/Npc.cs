@@ -34,6 +34,7 @@ public sealed class Npc
     public ActionType? CurrentAction { get; private set; }
     public long ActionStartedAtTick { get; private set; }
     public long? HungerZeroSinceTick { get; private set; }
+    public bool IsGhost { get; private set; }
 
     /// <summary>Nulo enquanto <see cref="Household"/> existir (NEEDS-16). <see cref="LeaveHousehold"/>
     /// grava o timestamp quando o household deixa de existir; <see cref="JoinHousehold"/> limpa.</summary>
@@ -95,7 +96,8 @@ public sealed class Npc
         SkillSet? skills = null, RateGene? rateGene = null, NpcId? mentor = null,
         double vitality = 50.0, double upbringing = 50.0, NpcId? spouse = null, NpcId? courtingWith = null,
         CityId city = default, long? materializedAtTick = null, InteriorOccupancy? interior = null,
-        int carriedResourceId = 0, long carriedQuantity = 0)
+        int carriedResourceId = 0, long carriedQuantity = 0, long carryCapacity = DefaultCarryCapacity,
+        bool isGhost = false)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -124,6 +126,7 @@ public sealed class Npc
         CurrentAction = currentAction;
         ActionStartedAtTick = actionStartedAtTick;
         HungerZeroSinceTick = hungerZeroSinceTick;
+        IsGhost = isGhost;
         HomelessSince = homelessSince;
         PregnantUntil = pregnantUntil;
         DeathDate = deathDate;
@@ -141,6 +144,7 @@ public sealed class Npc
         Interior = interior;
         CarriedResourceId = carriedResourceId;
         CarriedQuantity = carriedQuantity;
+        CarryCapacity = carryCapacity > 0 ? carryCapacity : DefaultCarryCapacity;
     }
 
     public Npc(
@@ -155,14 +159,15 @@ public sealed class Npc
         SkillSet? skills = null, RateGene? rateGene = null, NpcId? mentor = null,
         double vitality = 50.0, double upbringing = 50.0, NpcId? spouse = null, NpcId? courtingWith = null,
         CityId city = default, long? materializedAtTick = null, InteriorOccupancy? interior = null,
-        int carriedResourceId = 0, long carriedQuantity = 0)
+        int carriedResourceId = 0, long carriedQuantity = 0, long carryCapacity = DefaultCarryCapacity,
+        bool isGhost = false)
         : this(
             id, name, sex, birthDate, culture, birthLocation, motherId, fatherId, household, health,
             personality, profession, currentLocation,
             LazyNeed.Initial(hunger, 0, 0), LazyNeed.Initial(thirst, 0, 0), LazyNeed.Initial(sleep, 0, 0), LazyNeed.Initial(social, 0, 0),
             currentAction, actionStartedAtTick, hungerZeroSinceTick, homelessSince, pregnantUntil, deathDate,
             wallet, employer, skills, rateGene, mentor, vitality, upbringing, spouse, courtingWith, city, materializedAtTick, interior,
-            carriedResourceId, carriedQuantity)
+            carriedResourceId, carriedQuantity, carryCapacity, isGhost)
     {
     }
 
@@ -171,12 +176,20 @@ public sealed class Npc
     public int CarriedResourceId { get; private set; }
     public long CarriedQuantity { get; private set; }
 
+    /// <summary>Teto base de carga (Fase 16.1). Poder <c>attribute.strength</c> multiplica na simulação, sem gravar o produto no NPC.</summary>
+    public const long DefaultCarryCapacity = 10;
+    public long CarryCapacity { get; private set; }
+
     public bool IsCarrying => CarriedQuantity > 0;
 
-    public Result<Unit> PickUp(ResourceType resource, long quantity)
+    public Result<Unit> PickUp(ResourceType resource, long quantity) =>
+        PickUp(resource, quantity, CarryCapacity);
+
+    public Result<Unit> PickUp(ResourceType resource, long quantity, long capacity)
     {
         if (quantity <= 0) return Result<Unit>.Fail("CarriedQuantity: deve ser > 0");
         if (IsCarrying) return Result<Unit>.Fail("carry: NPC já transporta um recurso");
+        if (quantity > capacity) return Result<Unit>.Fail("carry: excede capacidade");
         CarriedResourceId = resource.Id;
         CarriedQuantity = quantity;
         return Result<Unit>.Ok(Unit.Value);
@@ -208,6 +221,8 @@ public sealed class Npc
             throw new ArgumentOutOfRangeException(nameof(deathDate), deathDate, "DeathDate não pode ser anterior a BirthDate");
         DeathDate = deathDate;
     }
+
+    public void BecomeGhost() => IsGhost = true;
 
     public void JoinHousehold(HouseholdId household)
     {

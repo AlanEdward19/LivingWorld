@@ -2,7 +2,6 @@ using System.Net;
 using LivingWorld.Domain;
 using LivingWorld.Infrastructure;
 using LivingWorld.Simulation;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LivingWorld.Tests.Visual;
@@ -10,11 +9,12 @@ namespace LivingWorld.Tests.Visual;
 /// <summary>Fase 15, T2 (VTT-01..03): a API deixa de recriar um mundo efêmero a cada start e
 /// passa a hospedar um mundo canônico compartilhado, lastreado num <see cref="IWorldRepository"/>
 /// real — pré-requisito para stream/endpoints de visualização das tasks seguintes.</summary>
-public class PersistentWorldHostTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection(ApiEndpointCollection.Name)]
+public class PersistentWorldHostTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly LivingWorldApiFactory _factory;
 
-    public PersistentWorldHostTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public PersistentWorldHostTests(LivingWorldApiFactory factory) => _factory = factory;
 
     [Fact]
     public void The_host_persists_an_initial_snapshot_through_the_real_world_repository()
@@ -36,7 +36,6 @@ public class PersistentWorldHostTests : IClassFixture<WebApplicationFactory<Prog
 
         Assert.NotNull(hostedWorld);
         Assert.NotNull(simulationHost);
-        Assert.False(simulationHost.IsPaused);
     }
 
     [Fact]

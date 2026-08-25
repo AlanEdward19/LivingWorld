@@ -5,17 +5,28 @@ namespace LivingWorld.Domain;
 /// Puro — o chamador agenda UM evento futuro com o resultado, nunca uma varredura por tick.</summary>
 public static class MortalityPlanner
 {
-    /// <summary><paramref name="vitalityMultiplier"/> (Fase 7, T9) repassado direto a
-    /// <see cref="LifeTable.AnnualMortality"/> — default <c>1.0</c> preserva o comportamento
-    /// anterior a T9.</summary>
-    public static int RollDeathAge(WorldRng rng, LifeTable table, int health, double vitalityMultiplier = 1.0)
+    /// <summary><paramref name="vitalityMultiplier"/> (Fase 7, T9) e
+    /// <paramref name="senescenceRateMultiplier"/> (Fase 16.1, PWR-20) — defaults <c>1.0</c>
+    /// preservam o comportamento anterior. Cada ano de calendário avança a idade biológica
+    /// pelo multiplicador; o relógio do mundo não é alterado. Multiplicador 0 é recusado pelo
+    /// chamador (<c>SchedulePlannedDeath</c>) e não entra neste laço.</summary>
+    public static int RollDeathAge(
+        WorldRng rng, LifeTable table, int health,
+        double vitalityMultiplier = 1.0, double senescenceRateMultiplier = 1.0)
     {
-        for (int age = 0; age < table.MaxLongevityYears; age++)
+        if (senescenceRateMultiplier <= 0.0)
+            return table.MaxLongevityYears;
+
+        double biologicalAge = 0;
+        int calendarYears = 0;
+        while (biologicalAge < table.MaxLongevityYears)
         {
-            double p = table.AnnualMortality(age, health, vitalityMultiplier);
+            double p = table.AnnualMortality((int)biologicalAge, health, vitalityMultiplier);
             if (rng.NextDouble() < p)
-                return age;
+                return calendarYears;
+            biologicalAge += senescenceRateMultiplier;
+            calendarYears++;
         }
-        return table.MaxLongevityYears;
+        return calendarYears;
     }
 }

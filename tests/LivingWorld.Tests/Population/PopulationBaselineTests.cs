@@ -14,6 +14,7 @@ public sealed class PopulationBaselineCollection
 /// reprova fora de [min × 0.8, max × 1.2] do que está gravado — tolerância, não igualdade
 /// exata, porque ajuste fino da tabela de vida não deveria quebrar o gate por 1 NPC.</summary>
 [Collection(PopulationBaselineCollection.Name)]
+[Trait("Category", "Scenario")]
 public class PopulationBaselineTests
 {
     private const long TenYearsInHours = 10 * 12 * 30 * 24;

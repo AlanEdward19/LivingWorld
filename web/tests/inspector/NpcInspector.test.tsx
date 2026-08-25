@@ -3,10 +3,11 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NpcInspector } from "../../src/components/inspector/NpcInspector";
 import { SimulationStore } from "../../src/state/simulationStore";
 import { ViewStore } from "../../src/state/viewStore";
+import { SelectionStore } from "../../src/state/selectionStore";
 import { MockPortalSource } from "../../src/data/mock/MockPortalSource";
 import { MockNpcInspectionSource } from "../../src/data/mock/MockNpcInspectionSource";
 import type { NpcInspection } from "../../src/data/contracts";
-import type { NpcInspectionSource, SnapshotSource, TickStreamSource } from "../../src/data/sources";
+import type { AuthoringSource, NpcInspectionSource, SnapshotSource, TickStreamSource } from "../../src/data/sources";
 import type { EntityRef } from "../../src/map-engine/types";
 
 const CITY_SPACE = { kind: "City" as const, cityId: "city-a" };
@@ -50,17 +51,27 @@ describe("NpcInspector living view", () => {
   beforeEach(() => vi.stubGlobal("fetch", vi.fn(() => { throw new Error("component must not fetch directly"); })));
   afterEach(() => vi.unstubAllGlobals());
 
-  it("renders identity, family, needs, health, job, skill, action, target and materialized LOD", async () => {
+  it("renders identity, family, needs, health, job, skill, action, target and materialized LOD across their tabs", async () => {
     await renderInspector(new MockNpcInspectionSource(new Map([[3, BASE_INSPECTION]])));
 
+    // Visão geral (aba padrão): identidade, ação, alvo, LOD, necessidades.
     expect(screen.getByText("27 anos · cultura 2")).toBeInTheDocument();
     expect(screen.getByText("Trabalhando")).toBeInTheDocument();
     expect(screen.getByText("Local de trabalho 52")).toBeInTheDocument();
     expect(screen.getByText("Materializado")).toBeInTheDocument();
     expect(screen.getByLabelText("Saúde")).toHaveAttribute("value", "91");
     expect(screen.getByLabelText("Fome")).toHaveAttribute("value", "63");
+
+    // Aba Trabalho: habilidades.
+    fireEvent.click(screen.getByRole("button", { name: /Trabalho/ }));
     expect(screen.getByText("Habilidade 7: 12.5")).toBeInTheDocument();
+
+    // Aba Relações: domicílio.
+    fireEvent.click(screen.getByRole("button", { name: /Relações/ }));
     expect(screen.getAllByText("41").length).toBeGreaterThan(0);
+
+    // Aba Crenças: biografia narrada.
+    fireEvent.click(screen.getByRole("button", { name: /Crenças/ }));
     expect(screen.getByText("Dizem que a colheita trouxe esperança")).toBeInTheDocument();
   });
 
@@ -79,6 +90,7 @@ describe("NpcInspector living view", () => {
     };
 
     await renderInspector(new MockNpcInspectionSource(new Map([[3, inspection]])));
+    fireEvent.click(screen.getByRole("button", { name: /Poderes/ }));
 
     expect(screen.getByRole("heading", { name: "Extraordinário" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Poderes" })).toBeInTheDocument();
@@ -139,6 +151,7 @@ describe("NpcInspector living view", () => {
       ...BASE_INSPECTION, skills: { values: {} },
     }]])));
 
+    fireEvent.click(screen.getByRole("button", { name: /Trabalho/ }));
     expect(screen.getByText("Nenhuma habilidade desenvolvida.")).toBeInTheDocument();
   });
 
@@ -224,5 +237,102 @@ describe("NpcInspector living view", () => {
     fireEvent.click(screen.getByRole("button", { name: "Seguir" }));
     expect(screen.getByRole("button", { name: "Parar de seguir" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Abrir" })).not.toBeInTheDocument();
+  });
+});
+
+function authoringSource(): AuthoringSource {
+  return {
+    powerCatalog: vi.fn().mockResolvedValue([]),
+    grantPower: vi.fn().mockResolvedValue(undefined),
+    revokePower: vi.fn().mockResolvedValue(undefined),
+    invokePower: vi.fn().mockResolvedValue(undefined),
+    rewritePersonality: vi.fn().mockResolvedValue(undefined),
+    breakRelationships: vi.fn().mockResolvedValue(undefined),
+    forceAction: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
+describe("NpcInspector admin tab and relation actions (fase 17)", () => {
+  beforeEach(() => vi.stubGlobal("fetch", vi.fn(() => { throw new Error("component must not fetch directly"); })));
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("only shows the Administração tab when an authoring source is supplied", async () => {
+    const store = new SimulationStore(snapshotSource(), ticks, new MockNpcInspectionSource(new Map([[3, BASE_INSPECTION]])));
+    await store.observeSpace(CITY_SPACE);
+    const viewStore = new ViewStore(new MockPortalSource([]));
+    const view = render(<NpcInspector entityRef={REF} simulationStore={store} viewStore={viewStore} />);
+    await screen.findByText("Lina");
+    expect(screen.queryByRole("button", { name: /Administração/ })).not.toBeInTheDocument();
+
+    view.rerender(
+      <NpcInspector
+        entityRef={REF}
+        simulationStore={store}
+        viewStore={viewStore}
+        authoringSource={authoringSource()}
+      />,
+    );
+    expect(await screen.findByRole("button", { name: /Administração/ })).toBeInTheDocument();
+  });
+
+  it("lets the Domicílio card jump to its building (not a nonexistent NPC) via Focar", async () => {
+    const store = new SimulationStore(snapshotSource(), ticks, new MockNpcInspectionSource(new Map([[3, BASE_INSPECTION]])));
+    await store.observeSpace(CITY_SPACE);
+    const selectionStore = new SelectionStore();
+    render(
+      <NpcInspector
+        entityRef={REF}
+        simulationStore={store}
+        viewStore={new ViewStore(new MockPortalSource([]))}
+        selectionStore={selectionStore}
+      />,
+    );
+    await screen.findByText("Lina");
+    fireEvent.click(screen.getByRole("button", { name: /Relações/ }));
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Focar/ })[0]);
+
+    expect(selectionStore.current()).toEqual({ kind: "building", id: "41", space: CITY_SPACE });
+  });
+
+  it("lets a person-relation card (Mãe/Pai/Cônjuge) jump to that NPC via Focar", async () => {
+    const store = new SimulationStore(snapshotSource(), ticks, new MockNpcInspectionSource(new Map([[3, BASE_INSPECTION]])));
+    await store.observeSpace(CITY_SPACE);
+    const selectionStore = new SelectionStore();
+    render(
+      <NpcInspector
+        entityRef={REF}
+        simulationStore={store}
+        viewStore={new ViewStore(new MockPortalSource([]))}
+        selectionStore={selectionStore}
+      />,
+    );
+    await screen.findByText("Lina");
+    fireEvent.click(screen.getByRole("button", { name: /Relações/ }));
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Focar/ })[1]);
+
+    expect(selectionStore.current()).toEqual({ kind: "npc", id: "1", space: CITY_SPACE });
+  });
+
+  it("breaks a relationship straight from its relation card through the authoring source", async () => {
+    const store = new SimulationStore(snapshotSource(), ticks, new MockNpcInspectionSource(new Map([[3, BASE_INSPECTION]])));
+    await store.observeSpace(CITY_SPACE);
+    const commands = authoringSource();
+    render(
+      <NpcInspector
+        entityRef={REF}
+        simulationStore={store}
+        viewStore={new ViewStore(new MockPortalSource([]))}
+        authoringSource={commands}
+      />,
+    );
+    await screen.findByText("Lina");
+    fireEvent.click(screen.getByRole("button", { name: /Relações/ }));
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Romper/ })[0]);
+
+    await waitFor(() => expect(commands.breakRelationships).toHaveBeenCalledWith(3, 1));
+    expect(await screen.findByText("Relação rompida.")).toBeInTheDocument();
   });
 });

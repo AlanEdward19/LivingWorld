@@ -102,4 +102,42 @@ describe("InterpolationBuffer", () => {
     expect(() => buffer.visualPositionOf("ghost", 0)).toThrow();
     expect(() => buffer.authoritativePositionOf("ghost")).toThrow();
   });
+
+  describe("directionOf", () => {
+    it("returns the to-from delta while a move animation is in flight", () => {
+      const buffer = new InterpolationBuffer();
+      buffer.observe("npc-1", { x: 0, y: 0 }, 1000);
+      buffer.observe("npc-1", { x: -10, y: 5 }, 1200);
+
+      expect(buffer.directionOf("npc-1", 1300)).toEqual({ x: -10, y: 5 });
+    });
+
+    it("is null once the animation finished — never invents a direction while standing still", () => {
+      const buffer = new InterpolationBuffer();
+      buffer.observe("npc-1", { x: 0, y: 0 }, 1000);
+      buffer.observe("npc-1", { x: 10, y: 0 }, 1200);
+
+      expect(buffer.directionOf("npc-1", 5000)).toBeNull();
+    });
+
+    it("is null on the very first observe (nothing moved yet)", () => {
+      const buffer = new InterpolationBuffer();
+      buffer.observe("npc-1", { x: 5, y: 5 }, 0);
+
+      expect(buffer.directionOf("npc-1", 0)).toBeNull();
+    });
+
+    it("is null when the authoritative position repeats (observed but not actually moving)", () => {
+      const buffer = new InterpolationBuffer();
+      buffer.observe("npc-1", { x: 5, y: 5 }, 1000);
+      buffer.observe("npc-1", { x: 5, y: 5 }, 1200);
+
+      expect(buffer.directionOf("npc-1", 1250)).toBeNull();
+    });
+
+    it("is null for an entity that was never observed", () => {
+      const buffer = new InterpolationBuffer();
+      expect(buffer.directionOf("ghost", 0)).toBeNull();
+    });
+  });
 });

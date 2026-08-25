@@ -6,13 +6,17 @@ using LivingWorld.Simulation.History;
 using LivingWorld.Simulation.Narrative;
 using LivingWorld.Simulation.Periods;
 using LivingWorld.Simulation.Population;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LivingWorld.Tests.Stage4;
 
+[Collection(ApiEndpointCollection.Name)]
 public sealed class ProductionCompositionTests
 {
+    private readonly LivingWorldApiFactory _factory;
+
+    public ProductionCompositionTests(LivingWorldApiFactory factory) => _factory = factory;
+
     private static readonly Type[] ExpectedLivingOrder =
     [
         typeof(PeriodEvolutionSystem),
@@ -48,13 +52,15 @@ public sealed class ProductionCompositionTests
     [Fact]
     public void Api_world_clock_contains_every_living_system_exactly_once()
     {
-        using var factory = new WebApplicationFactory<Program>();
-        var host = factory.Services.GetRequiredService<WorldHost>();
+        var host = _factory.Services.GetRequiredService<WorldHost>();
         var clock = host.Clock;
         var expected = LivingWorldCapabilityCatalog.All
             .Where(capability => capability.Kind == CapabilityKind.LivingWorld)
             .SelectMany(capability => capability.Systems)
-            .Where(type => type != typeof(ExtraordinaryStateSystem) || host.Current.Extraordinary.Enabled)
+            .Where(type => !LivingWorldCapabilityCatalog.All
+                    .Single(capability => capability.Id == "EXTRAORDINARY")
+                    .Systems.Contains(type)
+                || host.Current.Extraordinary.Enabled)
             .OrderBy(type => type.FullName, StringComparer.Ordinal);
         var actual = clock.Systems
             .Where(system => system is not ExampleCounterSystem)
@@ -77,8 +83,7 @@ public sealed class ProductionCompositionTests
     [Fact]
     public void Api_clock_uses_the_conversation_store_registered_for_endpoints()
     {
-        using var factory = new WebApplicationFactory<Program>();
-        var services = factory.Services;
+        var services = _factory.Services;
         var registered = services.GetRequiredService<ConversationSessionStore>();
         var clockStore = services.GetRequiredService<WorldHost>().Clock.Systems.OfType<ConversationSessionStore>().Single();
 
@@ -88,8 +93,7 @@ public sealed class ProductionCompositionTests
     [Fact]
     public void Api_clock_uses_the_chronicle_system_registered_for_endpoints()
     {
-        using var factory = new WebApplicationFactory<Program>();
-        var services = factory.Services;
+        var services = _factory.Services;
         var registered = services.GetRequiredService<ChronicleGenerationSystem>();
         var clockSystem = services.GetRequiredService<WorldHost>().Clock.Systems.OfType<ChronicleGenerationSystem>().Single();
 

@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LivingWorld.Tests.Visual;
@@ -10,11 +9,12 @@ namespace LivingWorld.Tests.Visual;
 /// <summary>Fase 15, T5 (VTT-03): <c>GET /visual/subscribe</c> no escopo city entrega a projeção
 /// de cidade — drill-down do mapa-múndi (T4) pra dentro de uma cidade específica pela mesma rota
 /// genérica de subscribe (T3), sem endpoint dedicado por escopo.</summary>
-public class CityProjectionEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection(ApiEndpointCollection.Name)]
+public class CityProjectionEndpointTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly LivingWorldApiFactory _factory;
 
-    public CityProjectionEndpointTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public CityProjectionEndpointTests(LivingWorldApiFactory factory) => _factory = factory;
 
     [Fact]
     public async Task Subscribing_to_an_existing_city_scope_returns_its_projection()

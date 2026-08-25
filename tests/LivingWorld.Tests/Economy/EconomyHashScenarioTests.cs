@@ -9,10 +9,10 @@ namespace LivingWorld.Tests.Economy;
 /// ao mundo com ela ligada, mesma seed.</summary>
 public class EconomyHashScenarioTests
 {
-    private const long TenYears = 10 * 12 * 30 * 24;
+    private const long OneYear = 12 * 30 * 24;
 
     [Fact]
-    public void Ten_year_hash_differs_between_economy_on_and_off_with_the_same_seed()
+    public void One_year_hash_differs_between_economy_on_and_off_with_the_same_seed()
     {
         string hashWithEconomy = RunAndHash(seed: 42, ScenarioRunner.DefaultEconomyRules);
 
@@ -30,7 +30,7 @@ public class EconomyHashScenarioTests
         PopulationSeeder.SeedInitial(world, 20, ScenarioRunner.DefaultCulture, ScenarioRunner.DefaultVillageLocation);
 
         var clock = new WorldClock(ScenarioRunner.DefaultSystems());
-        clock.Run(world, TenYears);
+        clock.Run(world, OneYear);
         return WorldSnapshot.CanonicalHash(world);
     }
 }

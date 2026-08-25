@@ -133,22 +133,34 @@ public class BehaviorDecisionSystemHysteresisTests
     }
 
     /// <summary>NEEDS-13: nenhum NPC vivo permanece na mesma ação além da duração máxima
-    /// declarada dela — checado a cada tick, 10 anos. A cobertura "toda ação do catálogo declara
-    /// duração" já existe em <c>ActionCatalogTests.Create_fails_naming_the_action_missing_a_declared_duration</c>
+    /// declarada dela — checado a cada tick. Gate: 1 ano; 10 anos em Category=Scenario.
+    /// A cobertura "toda ação do catálogo declara duração" já existe em
+    /// <c>ActionCatalogTests.Create_fails_naming_the_action_missing_a_declared_duration</c>
     /// (T2); aqui a prova é em cima do sistema rodando de verdade.
     /// NEEDS-09 (cláusula feliz): ao fim de cada tick nenhum NPC vivo fica com
     /// <see cref="Npc.CurrentAction"/> nulo — o outro lado de NEEDS-09 (abort nomeado em
     /// utilidade cíclica) já é provado isoladamente em
     /// <see cref="Cyclic_utility_scenario_aborts_naming_the_npc_and_the_tied_actions_instead_of_looping"/>.</summary>
     [Fact]
+    public void No_npc_exceeds_the_catalogs_declared_max_duration_over_1_year()
+    {
+        AssertNoNpcExceedsMaxDuration(12 * 30 * 24);
+    }
+
+    [Trait("Category", "Scenario")]
+    [Fact]
     public void No_npc_exceeds_the_catalogs_declared_max_duration_over_10_years()
+    {
+        AssertNoNpcExceedsMaxDuration(10 * 12 * 30 * 24);
+    }
+
+    private static void AssertNoNpcExceedsMaxDuration(long ticks)
     {
         var world = BuildPopulatedWorld(seed: 7, ScenarioRunner.DefaultNeedsRules, population: 30);
         var clock = new WorldClock([new NeedsDecaySystem(), new BehaviorDecisionSystem()]);
         var catalog = world.ActionCatalog;
-        const long tenYears = 10 * 12 * 30 * 24;
 
-        for (long tick = 0; tick < tenYears; tick++)
+        for (long tick = 0; tick < ticks; tick++)
         {
             clock.Tick(world);
 

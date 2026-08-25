@@ -56,24 +56,44 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
         foreach (var npc in targets)
         {
-            EvaluateProfessionSwitch(world, npc, vacancyIndex);
+            bool possessed = ControlMechanic.IsPossessed(world, npc);
+            if (!possessed)
+                EvaluateProfessionSwitch(world, npc, vacancyIndex);
 
             bool justCompleted = TryCompleteAction(
                 world, npc, rules, catalog, now, marketIndex, ctx, occupancy,
                 cityPopulationCache, cityBoundsCache);
-            var continuityAction = justCompleted ? null : npc.CurrentAction;
 
-            var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
-            var routineAction = catalog.RoutineOf(NoneIfSentinel(npc.Profession), stage, world.CurrentDate.Hour);
+            ActionType chosen;
+            if (possessed && ControlMechanic.TryDelegatedAction(world, npc, justCompleted, out var delegated))
+            {
+                chosen = delegated;
+                if (justCompleted || chosen != npc.CurrentAction)
+                {
+                    npc.SetCurrentAction(chosen, now);
+                    ctx.LogEvent(
+                        WorldEventKind.ExtraordinaryEffectApplied,
+                        $"{npc.Id.Value}|possessed-action|{chosen}");
+                }
+            }
+            else
+            {
+                var continuityAction = justCompleted ? null : npc.CurrentAction;
 
-            var candidate = npc.HasUrgentNeed(rules, now)
-                ? SelectByUtility(world, npc, rules, continuityAction, now)
-                : routineAction;
+                var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
+                var routineAction = catalog.RoutineOf(NoneIfSentinel(npc.Profession), stage, world.CurrentDate.Hour);
 
-            var chosen = ResolveWithStepCap(npc.Id.Value, candidate, world, npc, marketIndex, rules.MaxActionSelectionSteps);
+                var candidate = npc.HasUrgentNeed(rules, now)
+                    ? SelectByUtility(world, npc, rules, continuityAction, now)
+                    : routineAction;
 
-            if (justCompleted || chosen != npc.CurrentAction)
-                npc.SetCurrentAction(chosen, now);
+                candidate = ApplyPerception(world, npc, candidate);
+
+                chosen = ResolveWithStepCap(npc.Id.Value, candidate, world, npc, marketIndex, rules.MaxActionSelectionSteps);
+
+                if (justCompleted || chosen != npc.CurrentAction)
+                    npc.SetCurrentAction(chosen, now);
+            }
 
             NpcWakeScheduler.RescheduleAfterHour(world, ctx, npc, rules, catalog, now);
         }
@@ -321,6 +341,30 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
         return best;
     }
+
+    /// <summary>PWR-56..58: considera NPCs/perigo no raio Chebyshev do portador (1 = adjacência
+    /// sem poder). Perigo observável = saúde ≤ 1; percepção &gt; 1 aproxima socialmente.</summary>
+    private static ActionType ApplyPerception(WorldState world, Npc npc, ActionType candidate)
+    {
+        int radius = AttributeMechanic.PerceptionRadius(world, npc);
+        bool threat = false;
+        bool otherNpc = false;
+        foreach (var other in world.Npcs)
+        {
+            if (!other.IsAlive || other.Id == npc.Id) continue;
+            if (Chebyshev(npc.CurrentLocation, other.CurrentLocation) > radius) continue;
+            otherNpc = true;
+            if (other.Health <= 1)
+                threat = true;
+        }
+
+        if (threat) return ActionType.Travel;
+        if (otherNpc && radius > 1) return ActionType.Socialize;
+        return candidate;
+    }
+
+    private static int Chebyshev(CellCoord a, CellCoord b) =>
+        Math.Max(Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y));
 
     private static double UtilityBaseOf(WorldState world, ActionType action, Npc npc, long tick) => action switch
     {

@@ -2,6 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { FollowButton } from "./FollowButton";
 import type { SimulationStore } from "../../state/simulationStore";
 import type { ViewStore } from "../../state/viewStore";
+import type { SelectionStore } from "../../state/selectionStore";
 import type { EntityRef } from "../../map-engine/types";
 import { POOLED_LOD, type ConversationTurn, type NpcInspection } from "../../data/contracts";
 import type { NarrativeSources } from "../../data/sources";
@@ -19,6 +20,9 @@ export interface NpcInspectorProps {
    * fontes (ex.: testes de T5/T6 focados só em identidade/vida). */
   narrativeSources?: NarrativeSources;
   authoringSource?: AuthoringSource;
+  /** Fase 17: permite "Focar" num parente direto do cartão de relação, sem digitar id. Opcional —
+   * ausente em testes que não exercitam navegação entre NPCs. */
+  selectionStore?: SelectionStore;
 }
 
 const CONVERSATION_REJECTION_LABELS: Record<string, string> = {
@@ -174,6 +178,10 @@ function idValue(value: { value: number } | null): string {
   return value ? String(value.value) : "—";
 }
 
+function rawId(value: { value: number } | null): number | null {
+  return value ? value.value : null;
+}
+
 function targetLabel(target: NpcInspection["actionTarget"]): string {
   if (!target) return "Sem alvo definido";
   return `${TARGET_LABELS[target.kind] ?? target.kind} ${target.id}`;
@@ -189,9 +197,62 @@ function NeedMeter({ label, value }: { label: string; value: number }) {
   );
 }
 
-export function NpcInspector({ entityRef, simulationStore, viewStore, narrativeSources, authoringSource }: NpcInspectorProps) {
+// Estilo "cartão de relação" (feedback: quer algo mais parecido com The Sims) — sem dado de
+// afinidade/pontos de relacionamento no domínio hoje (só o id do parente), então o cartão mostra
+// papel + id de forma legível, e as ações (Focar/Romper) trabalham sobre esse id: o jogador nunca
+// precisa saber ou digitar o número de outro NPC, só clicar no cartão de quem já apareceu aqui.
+function RelationCard({
+  icon, role, id, onFocus, onBreak, busy,
+}: {
+  icon: string;
+  role: string;
+  id: number | null;
+  onFocus?: (id: number) => void;
+  onBreak?: (id: number) => void;
+  busy?: boolean;
+}) {
+  const empty = id === null;
+  return (
+    <div className={`npc-relation-card${empty ? " npc-relation-card--empty" : ""}`}>
+      <span className="npc-relation-icon" aria-hidden="true">{icon}</span>
+      <small>{role}</small>
+      <strong>{empty ? "—" : id}</strong>
+      {!empty && (onFocus || onBreak) && (
+        <div className="npc-relation-actions">
+          {onFocus && (
+            <button type="button" className="ui-btn ui-btn--ghost" disabled={busy} onClick={() => onFocus(id)}>
+              🔍 Focar
+            </button>
+          )}
+          {onBreak && (
+            <button type="button" className="ui-btn ui-btn--ghost npc-relation-break" disabled={busy} onClick={() => onBreak(id)}>
+              ✂ Romper
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+type NpcTab = "overview" | "powers" | "family" | "work" | "beliefs" | "admin";
+
+const NPC_TABS: ReadonlyArray<{ id: NpcTab; icon: string; label: string }> = [
+  { id: "overview", icon: "◎", label: "Visão geral" },
+  { id: "powers", icon: "✧", label: "Poderes" },
+  { id: "family", icon: "⌂", label: "Relações" },
+  { id: "work", icon: "⚒", label: "Trabalho" },
+  { id: "beliefs", icon: "✎", label: "Crenças" },
+];
+
+const ADMIN_TAB = { id: "admin" as const, icon: "🛠", label: "Administração" };
+
+export function NpcInspector({ entityRef, simulationStore, viewStore, narrativeSources, authoringSource, selectionStore }: NpcInspectorProps) {
   const npcId = Number(entityRef.id);
   const [materializing, setMaterializing] = useState(false);
+  const [activeTab, setActiveTab] = useState<NpcTab>("overview");
+  const [relationBusy, setRelationBusy] = useState(false);
+  const [relationStatus, setRelationStatus] = useState("");
   const inspection = useSyncExternalStore(
     (onStoreChange) => simulationStore.subscribe(onStoreChange),
     () => simulationStore.npcInspectionOf(npcId),
@@ -200,6 +261,32 @@ export function NpcInspector({ entityRef, simulationStore, viewStore, narrativeS
   useEffect(() => {
     void simulationStore.inspectNpc(npcId);
   }, [npcId, simulationStore]);
+
+  function handleFocusRelation(otherId: number) {
+    selectionStore?.select({ kind: "npc", id: String(otherId), space: entityRef.space });
+  }
+
+  // Domicílio é um prédio, não uma pessoa — "Focar" nele tem que abrir o BuildingInspector, senão
+  // o inspector tenta (e falha) achar um NPC com esse id (bug: "focar no domicílio não faz nada").
+  function handleFocusHousehold(householdId: number) {
+    if (entityRef.space.kind !== "City") return;
+    selectionStore?.select({ kind: "building", id: String(householdId), space: entityRef.space });
+  }
+
+  async function handleBreakRelation(otherId: number) {
+    if (!authoringSource) return;
+    setRelationBusy(true);
+    setRelationStatus("");
+    try {
+      await authoringSource.breakRelationships(npcId, otherId);
+      await simulationStore.inspectNpc(npcId);
+      setRelationStatus("Relação rompida.");
+    } catch (error) {
+      setRelationStatus(error instanceof Error ? error.message : "Rompimento recusado.");
+    } finally {
+      setRelationBusy(false);
+    }
+  }
 
   async function handleMaterialize() {
     setMaterializing(true);
@@ -241,6 +328,7 @@ export function NpcInspector({ entityRef, simulationStore, viewStore, narrativeS
     : ACTION_LABELS[inspection.currentAction] ?? `Atividade ${inspection.currentAction}`;
   const skills = Object.entries(inspection.skills.values);
   const extraordinary = extraordinaryStateOf(inspection);
+  const tabs = authoringSource ? [...NPC_TABS, ADMIN_TAB] : NPC_TABS;
 
   return (
     <div className="npc-living-inspector">
@@ -258,129 +346,166 @@ export function NpcInspector({ entityRef, simulationStore, viewStore, narrativeS
         </div>
       </div>
 
-      <section aria-labelledby="npc-activity-title">
-        <h4 id="npc-activity-title">Agora</h4>
-        <dl>
-          <dt>Ação</dt><dd>{action}</dd>
-          <dt>Alvo</dt><dd>{targetLabel(inspection.actionTarget)}</dd>
-          <dt>Desde o tick</dt><dd>{inspection.actionStartedAtTick}</dd>
-          <dt>Posição</dt><dd>({inspection.currentLocation.x}, {inspection.currentLocation.y})</dd>
-          <dt>LOD</dt><dd>{inspection.lod === 0 ? "Materializado" : "Arquivado"}</dd>
-        </dl>
-      </section>
+      <nav className="npc-inspector-tabs" aria-label="Seções do NPC">
+        {tabs.map((tabDef) => (
+          <button
+            key={tabDef.id}
+            type="button"
+            aria-pressed={activeTab === tabDef.id}
+            onClick={() => setActiveTab(tabDef.id)}
+          >
+            <span aria-hidden="true">{tabDef.icon}</span> {tabDef.label}
+          </button>
+        ))}
+      </nav>
 
-      {inspection.powerIds.length > 0 && (
-        <section aria-labelledby="npc-powers-title">
-          <h4 id="npc-powers-title">Poderes</h4>
-          <ul className="npc-powers">
-            {inspection.powerIds.map((powerId) => <li key={powerId}>{powerId}</li>)}
-          </ul>
-        </section>
-      )}
+      <div key={activeTab} className="npc-inspector-tabpanel">
+        {activeTab === "overview" && (
+          <>
+            <div className="entity-inspector-actions">
+              <FollowButton entityRef={entityRef} viewStore={viewStore} />
+            </div>
 
-      {extraordinary && (
-        <section aria-labelledby="npc-extraordinary-title">
-          <h4 id="npc-extraordinary-title">Extraordinário</h4>
-          <dl>
-            <dt>Descritores</dt><dd>{extraordinary.powerIds.join(", ") || "—"}</dd>
-            <dt>Estado</dt><dd>{extraordinary.isManifested ? "Manifestado" : "Latente"} · {extraordinary.manifestationState}</dd>
-            <dt>Escala</dt><dd>{extraordinary.appearance.scaleMultiplier}×</dd>
-            <dt>Tint</dt><dd>{extraordinary.appearance.skinTint || "—"}</dd>
-            <dt>Trail</dt><dd>{extraordinary.appearance.movementTrail || "—"}</dd>
-            <dt>Senescência</dt><dd>{extraordinary.senescenceRateMultiplier}×</dd>
-            {extraordinary.needSubstitution && (
-              <><dt>Necessidade substituída</dt><dd>{extraordinary.needSubstitution.replacesNeed} → recurso {extraordinary.needSubstitution.resourceId} ({extraordinary.needSubstitution.unitsPerUse}/unidade)</dd></>
+            {narrativeSources && <NpcConversation npcId={npcId} source={narrativeSources.conversation} />}
+
+            <section aria-labelledby="npc-activity-title">
+              <h4 id="npc-activity-title">Agora</h4>
+              <dl>
+                <dt>Ação</dt><dd>{action}</dd>
+                <dt>Alvo</dt><dd>{targetLabel(inspection.actionTarget)}</dd>
+                <dt>Desde o tick</dt><dd>{inspection.actionStartedAtTick}</dd>
+                <dt>Posição</dt><dd>({inspection.currentLocation.x}, {inspection.currentLocation.y})</dd>
+                <dt>LOD</dt><dd>{inspection.lod === 0 ? "Materializado" : "Arquivado"}</dd>
+              </dl>
+            </section>
+
+            {inspection.rest && (
+              <section aria-labelledby="npc-rest-title">
+                <h4 id="npc-rest-title">Descanso</h4>
+                <p className="npc-rest-cue" aria-label={restSummary(inspection.rest)}>Zzz</p>
+                <dl>
+                  <dt>Lugar</dt><dd>{REST_KIND_LABELS[inspection.rest.kind] ?? `lugar ${inspection.rest.kind}`}</dd>
+                  <dt>Qualidade</dt><dd>{Math.round(inspection.rest.quality * 100)}%</dd>
+                  <dt>Onde</dt><dd>({inspection.rest.location.x}, {inspection.rest.location.y})</dd>
+                  <dt>Tempo restante</dt><dd>{inspection.rest.remainingHours} h</dd>
+                </dl>
+                {inspection.rest.blocked && (
+                  <p role="status">Descanso bloqueado — o lugar não é alcançável.</p>
+                )}
+              </section>
             )}
-          </dl>
-        </section>
-      )}
 
-      {inspection.rest && (
-        <section aria-labelledby="npc-rest-title">
-          <h4 id="npc-rest-title">Descanso</h4>
-          <p className="npc-rest-cue" aria-label={restSummary(inspection.rest)}>Zzz</p>
-          <dl>
-            <dt>Lugar</dt><dd>{REST_KIND_LABELS[inspection.rest.kind] ?? `lugar ${inspection.rest.kind}`}</dd>
-            <dt>Qualidade</dt><dd>{Math.round(inspection.rest.quality * 100)}%</dd>
-            <dt>Onde</dt><dd>({inspection.rest.location.x}, {inspection.rest.location.y})</dd>
-            <dt>Tempo restante</dt><dd>{inspection.rest.remainingHours} h</dd>
-          </dl>
-          {inspection.rest.blocked && (
-            <p role="status">Descanso bloqueado — o lugar não é alcançável.</p>
-          )}
-        </section>
-      )}
+            {inspection.food && (
+              <section aria-labelledby="npc-food-title">
+                <h4 id="npc-food-title">Alimentação</h4>
+                <dl>
+                  <dt>Recurso</dt><dd>{inspection.food.resourceId}</dd>
+                  <dt>Preparo</dt><dd>{PREPARATION_LABELS[inspection.food.preparation] ?? `preparo ${inspection.food.preparation}`}</dd>
+                  <dt>Tempo restante</dt><dd>{inspection.food.remainingHours} h</dd>
+                </dl>
+                {inspection.food.blocked && (
+                  <p role="status">Refeição bloqueada — nenhum alimento comestível disponível.</p>
+                )}
+              </section>
+            )}
 
-      {inspection.food && (
-        <section aria-labelledby="npc-food-title">
-          <h4 id="npc-food-title">Alimentação</h4>
-          <dl>
-            <dt>Recurso</dt><dd>{inspection.food.resourceId}</dd>
-            <dt>Preparo</dt><dd>{PREPARATION_LABELS[inspection.food.preparation] ?? `preparo ${inspection.food.preparation}`}</dd>
-            <dt>Tempo restante</dt><dd>{inspection.food.remainingHours} h</dd>
-          </dl>
-          {inspection.food.blocked && (
-            <p role="status">Refeição bloqueada — nenhum alimento comestível disponível.</p>
-          )}
-        </section>
-      )}
+            <section aria-labelledby="npc-needs-title">
+              <h4 id="npc-needs-title">Bem-estar</h4>
+              <NeedMeter label="Saúde" value={inspection.health} />
+              <NeedMeter label="Fome" value={inspection.hunger} />
+              <NeedMeter label="Sede" value={inspection.thirst} />
+              <NeedMeter label="Sono" value={inspection.sleep} />
+              <NeedMeter label="Social" value={inspection.social} />
+            </section>
+          </>
+        )}
 
-      <section aria-labelledby="npc-needs-title">
-        <h4 id="npc-needs-title">Bem-estar</h4>
-        <NeedMeter label="Saúde" value={inspection.health} />
-        <NeedMeter label="Fome" value={inspection.hunger} />
-        <NeedMeter label="Sede" value={inspection.thirst} />
-        <NeedMeter label="Sono" value={inspection.sleep} />
-        <NeedMeter label="Social" value={inspection.social} />
-      </section>
+        {activeTab === "powers" && (
+          <>
+            {inspection.powerIds.length > 0 && (
+              <section aria-labelledby="npc-powers-title">
+                <h4 id="npc-powers-title">Poderes</h4>
+                <ul className="npc-powers">
+                  {inspection.powerIds.map((powerId) => <li key={powerId}>{powerId}</li>)}
+                </ul>
+              </section>
+            )}
 
-      <section aria-labelledby="npc-family-title">
-        <h4 id="npc-family-title">Família</h4>
-        <dl>
-          <dt>Domicílio</dt><dd>{idValue(inspection.household)}</dd>
-          <dt>Mãe</dt><dd>{idValue(inspection.motherId)}</dd>
-          <dt>Pai</dt><dd>{idValue(inspection.fatherId)}</dd>
-          <dt>Cônjuge</dt><dd>{idValue(inspection.spouse)}</dd>
-        </dl>
-      </section>
+            {extraordinary && (
+              <section aria-labelledby="npc-extraordinary-title">
+                <h4 id="npc-extraordinary-title">Extraordinário</h4>
+                <dl>
+                  <dt>Descritores</dt><dd>{extraordinary.powerIds.join(", ") || "—"}</dd>
+                  <dt>Estado</dt><dd>{extraordinary.isManifested ? "Manifestado" : "Latente"} · {extraordinary.manifestationState}</dd>
+                  <dt>Escala</dt><dd>{extraordinary.appearance.scaleMultiplier}×</dd>
+                  <dt>Tint</dt><dd>{extraordinary.appearance.skinTint || "—"}</dd>
+                  <dt>Trail</dt><dd>{extraordinary.appearance.movementTrail || "—"}</dd>
+                  <dt>Senescência</dt><dd>{extraordinary.senescenceRateMultiplier}×</dd>
+                  {extraordinary.needSubstitution && (
+                    <><dt>Necessidade substituída</dt><dd>{extraordinary.needSubstitution.replacesNeed} → recurso {extraordinary.needSubstitution.resourceId} ({extraordinary.needSubstitution.unitsPerUse}/unidade)</dd></>
+                  )}
+                </dl>
+              </section>
+            )}
 
-      <section aria-labelledby="npc-work-title">
-        <h4 id="npc-work-title">Trabalho e habilidades</h4>
-        <dl>
-          <dt>Profissão</dt><dd>{inspection.profession.id}</dd>
-          <dt>Empregador</dt><dd>{idValue(inspection.employer)}</dd>
-        </dl>
-        {skills.length > 0 ? (
-          <ul className="npc-skills">
-            {skills.map(([skillId, value]) => <li key={skillId}>Habilidade {skillId}: {value.toFixed(1)}</li>)}
-          </ul>
-        ) : <p>Nenhuma habilidade desenvolvida.</p>}
-      </section>
+            {inspection.powerIds.length === 0 && !extraordinary && <p>Nenhum poder registrado.</p>}
+          </>
+        )}
 
-      <section aria-labelledby="npc-knowledge-title">
-        <h4 id="npc-knowledge-title">O que esta pessoa acredita</h4>
-        {inspection.beliefs.length > 0 ? (
-          <ul className="npc-beliefs">
-            {inspection.beliefs.map((belief, index) => <li key={`${index}:${belief}`}>{belief}</li>)}
-          </ul>
-        ) : <p>Nenhum relato conhecido.</p>}
-      </section>
+        {activeTab === "family" && (
+          <section aria-labelledby="npc-family-title">
+            <h4 id="npc-family-title">Relações</h4>
+            <p className="approximate-note">Quem esta pessoa conhece. Clique em Focar pra abrir o cartão dessa pessoa.</p>
+            {relationStatus && <p role="status" className="npc-authoring-status">{relationStatus}</p>}
+            <div className="npc-relations-grid">
+              <RelationCard icon="⌂" role="Domicílio" id={rawId(inspection.household)} onFocus={selectionStore && handleFocusHousehold} />
+              <RelationCard icon="♀" role="Mãe" id={rawId(inspection.motherId)} onFocus={selectionStore && handleFocusRelation} onBreak={authoringSource && handleBreakRelation} busy={relationBusy} />
+              <RelationCard icon="♂" role="Pai" id={rawId(inspection.fatherId)} onFocus={selectionStore && handleFocusRelation} onBreak={authoringSource && handleBreakRelation} busy={relationBusy} />
+              <RelationCard icon="♥" role="Cônjuge" id={rawId(inspection.spouse)} onFocus={selectionStore && handleFocusRelation} onBreak={authoringSource && handleBreakRelation} busy={relationBusy} />
+            </div>
+          </section>
+        )}
 
-      {narrativeSources && <NpcBiography npcId={npcId} source={narrativeSources.biography} />}
-      {narrativeSources && <NpcConversation npcId={npcId} source={narrativeSources.conversation} />}
-      {authoringSource && (
-        <NpcAuthoringControls
-          npcId={npcId}
-          source={authoringSource}
-          powerIds={inspection.powerIds}
-          personality={inspection.personality}
-          location={inspection.currentLocation}
-          onRefresh={() => simulationStore.inspectNpc(npcId).then(() => undefined)}
-        />
-      )}
+        {activeTab === "work" && (
+          <section aria-labelledby="npc-work-title">
+            <h4 id="npc-work-title">Trabalho e habilidades</h4>
+            <dl>
+              <dt>Profissão</dt><dd>{inspection.profession.id}</dd>
+              <dt>Empregador</dt><dd>{idValue(inspection.employer)}</dd>
+            </dl>
+            {skills.length > 0 ? (
+              <ul className="npc-skills">
+                {skills.map(([skillId, value]) => <li key={skillId}>Habilidade {skillId}: {value.toFixed(1)}</li>)}
+              </ul>
+            ) : <p>Nenhuma habilidade desenvolvida.</p>}
+          </section>
+        )}
 
-      <div className="entity-inspector-actions">
-        <FollowButton entityRef={entityRef} viewStore={viewStore} />
+        {activeTab === "beliefs" && (
+          <>
+            <section aria-labelledby="npc-knowledge-title">
+              <h4 id="npc-knowledge-title">O que esta pessoa acredita</h4>
+              {inspection.beliefs.length > 0 ? (
+                <ul className="npc-beliefs">
+                  {inspection.beliefs.map((belief, index) => <li key={`${index}:${belief}`}>{belief}</li>)}
+                </ul>
+              ) : <p>Nenhum relato conhecido.</p>}
+            </section>
+
+            {narrativeSources && <NpcBiography npcId={npcId} source={narrativeSources.biography} />}
+          </>
+        )}
+
+        {activeTab === "admin" && authoringSource && (
+          <NpcAuthoringControls
+            npcId={npcId}
+            source={authoringSource}
+            powerIds={inspection.powerIds}
+            personality={inspection.personality}
+            location={inspection.currentLocation}
+            onRefresh={() => simulationStore.inspectNpc(npcId).then(() => undefined)}
+          />
+        )}
       </div>
     </div>
   );

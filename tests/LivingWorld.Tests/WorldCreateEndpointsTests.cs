@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 using LivingWorld.Api;
 using LivingWorld.Simulation;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LivingWorld.Tests;
@@ -11,11 +10,11 @@ namespace LivingWorld.Tests;
 /// <summary>Fase 15.1, T42 (ADR-0017): <c>POST /worlds/create</c> passa a aceitar e persistir o
 /// nome do mundo e a devolver identidade (<c>WorldId</c>, <c>Tick</c>, <c>InitialScope</c>) além
 /// da contagem de NPCs já existente.</summary>
-public class WorldCreateEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
+public class WorldCreateEndpointsTests : IClassFixture<LivingWorldApiFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly LivingWorldApiFactory _factory;
 
-    public WorldCreateEndpointsTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public WorldCreateEndpointsTests(LivingWorldApiFactory factory) => _factory = factory;
 
     private static JsonObject FullValidScenario(ulong seed)
     {

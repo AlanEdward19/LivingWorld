@@ -14,7 +14,9 @@ public static class NpcDeath
 {
     public static void Apply(WorldState world, TickContext ctx, Npc npc, WorldEventKind kind)
     {
+        NpcInstantiationMechanic.OnCarrierDeath(world, ctx, npc);
         npc.Die(world.CurrentDate);
+        SoulMechanic.OnCarrierDeath(world, npc);
         world.AliveNpcIndex.OnDied(npc);
         ctx.LogEvent(kind, npc.Id.Value.ToString());
         FactToReportConversionScheduler.OnWitnessDied(npc.Id, world, ctx);

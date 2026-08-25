@@ -111,6 +111,30 @@ public sealed class WorldState
     [Canonical] public IReadOnlyList<ExtraordinaryConstruct> ExtraordinaryConstructs => _extraordinaryConstructs;
     [Canonical] public long NextExtraordinaryConstructId => _nextExtraordinaryConstructId;
 
+    private readonly List<Animal> _fauna;
+    private readonly Dictionary<AnimalId, Animal> _faunaById;
+    private long _nextAnimalId;
+
+    /// <summary>Animais simulados mínimos (PWR-77). Não herdam IA de <see cref="Npc"/>.</summary>
+    [Canonical] public IReadOnlyList<Animal> Fauna => _fauna;
+    [Canonical] public long NextAnimalId => _nextAnimalId;
+
+    private readonly List<Plant> _flora;
+    private readonly Dictionary<PlantId, Plant> _floraById;
+    private long _nextPlantId;
+
+    /// <summary>Plantas individuais (PWR-101). Distintas do estoque de <c>CropSystem</c>.</summary>
+    [Canonical] public IReadOnlyList<Plant> Flora => _flora;
+    [Canonical] public long NextPlantId => _nextPlantId;
+
+    private readonly List<EnvironmentTemperatureAdjustment> _environmentTemperatureAdjustments;
+
+    /// <summary>Ajustes regionais de temperatura (PWR-75). Overlay de duração; a base mora em
+    /// <see cref="MapCell.Temperature"/>.</summary>
+    [Canonical]
+    public IReadOnlyList<EnvironmentTemperatureAdjustment> EnvironmentTemperatureAdjustments =>
+        _environmentTemperatureAdjustments;
+
     /// <summary>Nome escolhido pelo usuário na criação (Fase 15.1, T42/ADR-0017) — cosmético,
     /// nenhuma decisão de sistema lê nome de mundo (ADR-0014), por isso volátil.</summary>
     [Volatile] public string Name { get; private set; }
@@ -331,7 +355,12 @@ public sealed class WorldState
         ExtraordinaryScenarioData? extraordinary = null,
         IReadOnlyList<ExtraordinaryCarrierState>? extraordinaryCarriers = null,
         IReadOnlyList<ExtraordinaryConstruct>? extraordinaryConstructs = null,
-        long nextExtraordinaryConstructId = 0)
+        long nextExtraordinaryConstructId = 0,
+        IReadOnlyList<Animal>? fauna = null,
+        long nextAnimalId = 0,
+        IReadOnlyList<Plant>? flora = null,
+        long nextPlantId = 0,
+        IReadOnlyList<EnvironmentTemperatureAdjustment>? environmentTemperatureAdjustments = null)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -355,6 +384,13 @@ public sealed class WorldState
         _extraordinaryCarriers = (extraordinaryCarriers ?? []).OrderBy(carrier => carrier.CarrierId.Value).ToList();
         _extraordinaryConstructs = (extraordinaryConstructs ?? []).OrderBy(construct => construct.Id).ToList();
         _nextExtraordinaryConstructId = nextExtraordinaryConstructId;
+        _fauna = (fauna ?? []).OrderBy(animal => animal.Id.Value).ToList();
+        _faunaById = ToLookup(_fauna, animal => animal.Id);
+        _nextAnimalId = nextAnimalId;
+        _flora = (flora ?? []).OrderBy(plant => plant.Id.Value).ToList();
+        _floraById = ToLookup(_flora, plant => plant.Id);
+        _nextPlantId = nextPlantId;
+        _environmentTemperatureAdjustments = (environmentTemperatureAdjustments ?? []).ToList();
         Name = name;
         _facts = [];
         _reports = [];
@@ -446,7 +482,12 @@ public sealed class WorldState
         ExtraordinaryScenarioData? extraordinary = null,
         IReadOnlyList<ExtraordinaryCarrierState>? extraordinaryCarriers = null,
         IReadOnlyList<ExtraordinaryConstruct>? extraordinaryConstructs = null,
-        long nextExtraordinaryConstructId = 0)
+        long nextExtraordinaryConstructId = 0,
+        IReadOnlyList<Animal>? fauna = null,
+        long nextAnimalId = 0,
+        IReadOnlyList<Plant>? flora = null,
+        long nextPlantId = 0,
+        IReadOnlyList<EnvironmentTemperatureAdjustment>? environmentTemperatureAdjustments = null)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -501,6 +542,13 @@ public sealed class WorldState
         _extraordinaryCarriers = (extraordinaryCarriers ?? []).OrderBy(carrier => carrier.CarrierId.Value).ToList();
         _extraordinaryConstructs = (extraordinaryConstructs ?? []).OrderBy(construct => construct.Id).ToList();
         _nextExtraordinaryConstructId = nextExtraordinaryConstructId;
+        _fauna = (fauna ?? []).OrderBy(animal => animal.Id.Value).ToList();
+        _faunaById = ToLookup(_fauna, animal => animal.Id);
+        _nextAnimalId = nextAnimalId;
+        _flora = (flora ?? []).OrderBy(plant => plant.Id.Value).ToList();
+        _floraById = ToLookup(_flora, plant => plant.Id);
+        _nextPlantId = nextPlantId;
+        _environmentTemperatureAdjustments = (environmentTemperatureAdjustments ?? []).ToList();
         _facts = (facts ?? []).ToList();
         _nextFactId = nextFactId;
         _nextReportId = nextReportId;
@@ -625,10 +673,49 @@ public sealed class WorldState
     internal bool RemoveExtraordinaryConstruct(long id) =>
         _extraordinaryConstructs.RemoveAll(construct => construct.Id == id) > 0;
 
+    internal void AddEnvironmentTemperatureAdjustment(EnvironmentTemperatureAdjustment adjustment) =>
+        _environmentTemperatureAdjustments.Add(adjustment);
+
     internal void ReplaceExtraordinaryConstruct(ExtraordinaryConstruct construct)
     {
         RemoveExtraordinaryConstruct(construct.Id);
         AddExtraordinaryConstruct(construct);
+    }
+
+    internal AnimalId NextAnimalIdAndAdvance() => new(_nextAnimalId++);
+
+    public void AddAnimal(Animal animal)
+    {
+        _fauna.Add(animal);
+        _faunaById[animal.Id] = animal;
+        _fauna.Sort((left, right) => left.Id.Value.CompareTo(right.Id.Value));
+    }
+
+    public Animal? FindAnimal(AnimalId id) => _faunaById.GetValueOrDefault(id);
+
+    internal void ReplaceAnimal(Animal animal)
+    {
+        _fauna.RemoveAll(existing => existing.Id == animal.Id);
+        _faunaById.Remove(animal.Id);
+        AddAnimal(animal);
+    }
+
+    internal PlantId NextPlantIdAndAdvance() => new(_nextPlantId++);
+
+    public void AddPlant(Plant plant)
+    {
+        _flora.Add(plant);
+        _floraById[plant.Id] = plant;
+        _flora.Sort((left, right) => left.Id.Value.CompareTo(right.Id.Value));
+    }
+
+    public Plant? FindPlant(PlantId id) => _floraById.GetValueOrDefault(id);
+
+    internal void ReplacePlant(Plant plant)
+    {
+        _flora.RemoveAll(existing => existing.Id == plant.Id);
+        _floraById.Remove(plant.Id);
+        AddPlant(plant);
     }
 
     public bool IsExtraordinaryConstructCell(CellCoord cell) =>

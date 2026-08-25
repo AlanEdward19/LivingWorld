@@ -16,11 +16,23 @@ public class ReferentialIntegritySweepTests
             Assert.Contains(idType, ReferentialIntegritySweep.RegisteredIdTypes);
     }
 
+    [Trait("Category", "Scenario")]
     [Fact]
     public void Default_scenario_after_10_years_has_no_referential_violations()
     {
         var (world, clock) = ScenarioRunner.Create(seed: 42);
         clock.Run(world, TenYearsInHours);
+
+        var violations = ReferentialIntegritySweep.Check(world);
+
+        Assert.Empty(violations);
+    }
+
+    [Fact]
+    public void Default_scenario_after_1_year_has_no_referential_violations()
+    {
+        var (world, clock) = ScenarioRunner.Create(seed: 42);
+        clock.Run(world, 12 * 30 * 24);
 
         var violations = ReferentialIntegritySweep.Check(world);
 

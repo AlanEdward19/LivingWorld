@@ -14,8 +14,9 @@ public static class IncrementalHasher
     }
 
     /// <summary>Verifica equivalência incremental vs hash completo (PERF-12). Hoje recomputa o
-    /// canônico inteiro como oráculo — substituir por combinação de entidades sujas quando o
-    /// rastreio de dirty estiver no <see cref="WorldState"/>.</summary>
+    /// canônico inteiro como oráculo — dirty-set real em <see cref="WorldState"/> continua
+    /// adiado (AD-070). O ganho de payload de mapa nesta fase veio de omitir
+    /// <see cref="MapCell.Temperature"/> recomputável no JSON.</summary>
     public static bool MatchesCanonical(WorldState world) =>
         WorldSnapshot.CanonicalHash(world) == WorldSnapshot.CanonicalHashFromEntityParts(world);
 }

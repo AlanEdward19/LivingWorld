@@ -121,7 +121,11 @@ public sealed class ResourceProcessSystem : ISimulationSystem
         switch (process.Kind)
         {
             case ProcessKind.CollectWater:
-                if (actor is null || !actor.PickUp(process.Output, process.OutputQuantity).IsSuccess)
+                if (actor is null
+                    || !actor.PickUp(
+                        process.Output,
+                        process.OutputQuantity,
+                        AttributeMechanic.EffectiveCarryCapacity(world, actor)).IsSuccess)
                 {
                     Cancel(world, process);
                     return;

@@ -45,6 +45,8 @@ public static class ReferentialIntegritySweep
         // (local, período)), não em WorldState — nenhum campo do domínio hoje guarda uma
         // referência a NarrativeId, então vazio por vacuidade, mesmo padrão de LocationId.
         [typeof(NarrativeId)] = _ => [],
+        [typeof(AnimalId)] = w => w.Fauna.Select(animal => (object)animal.Id).ToHashSet(),
+        [typeof(PlantId)] = w => w.Flora.Select(plant => (object)plant.Id).ToHashSet(),
     };
 
     /// <summary>Todo tipo de id do assembly Domain — o teste de cobertura reprova se algum

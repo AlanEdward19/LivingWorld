@@ -1,7 +1,6 @@
 using System.Net.Http.Json;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LivingWorld.Tests.Visual;
@@ -9,14 +8,17 @@ namespace LivingWorld.Tests.Visual;
 /// <summary>Fase 15, T7 (VTT-08, VTT-09): drill-down de cidade (T5) por <c>/visual/subscribe</c>
 /// aplica FOW quando <c>mode=Player</c> — só residentes dentro do raio do <c>playerNpcId</c>
 /// sobrevivem; <c>mode=Spectator</c> continua vendo tudo (override), sem mudar T5.</summary>
-public class CityFowSubscribeEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection(ApiEndpointCollection.Name)]
+public class CityFowSubscribeEndpointTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly LivingWorldApiFactory _factory;
 
-    public CityFowSubscribeEndpointTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public CityFowSubscribeEndpointTests(LivingWorldApiFactory factory) => _factory = factory;
 
     private (CityId City, long NearNpcId, long FarNpcId) SeedCityWithNearAndFarResident()
     {
+        // Coleção compartilhada: outros endpoints (ex. advance-year) mutam o mesmo WorldHost.
+        _factory.ResetCanonicalWorld();
         using var scope = _factory.Services.CreateScope();
         var world = scope.ServiceProvider.GetRequiredService<WorldState>();
         var npcs = world.Npcs.Take(2).ToList();

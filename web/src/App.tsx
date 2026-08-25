@@ -98,20 +98,17 @@ export function App({ simulationStore, viewStore, selectionStore, timeControlSou
 
   return (
     <div className="app-shell">
-      <header className="hud-bar">
-        <button type="button" onClick={() => setScreen("start")}>
-          ☰ menu
-        </button>
-        {creatingWorld && (
-          <button type="button" onClick={cancelCreatingWorld}>
-            Cancelar
+      {!creatingWorld && (
+        <header className="hud-bar">
+          <button type="button" onClick={() => setScreen("start")}>
+            ☰ menu
           </button>
-        )}
-        {!creatingWorld && worldName && <span className="world-name">{worldName}</span>}
-        {!creatingWorld && <TimeControls timeControlSource={timeControlSource} />}
-      </header>
+          {worldName && <span className="world-name">{worldName}</span>}
+          <TimeControls timeControlSource={timeControlSource} />
+        </header>
+      )}
 
-      <main className={!creatingWorld || creatorForm ? "fullbleed" : ""}>
+      <main className={!creatingWorld || creatorForm ? "fullbleed" : "no-hud"}>
         {creatingWorld && !creatorForm && (
           <PresetStart
             onStart={(form, name, periodId) => {
@@ -135,6 +132,7 @@ export function App({ simulationStore, viewStore, selectionStore, timeControlSou
               setCatalogPeriodId(undefined);
               viewStore.goToAncestor(WORLD);
             }}
+            onCancel={cancelCreatingWorld}
           />
         )}
 

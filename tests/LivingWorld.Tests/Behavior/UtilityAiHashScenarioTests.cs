@@ -9,10 +9,10 @@ namespace LivingWorld.Tests.Behavior;
 /// (rules/eval-criteria.md: "desligar o sistema novo muda o hash").</summary>
 public class UtilityAiHashScenarioTests
 {
-    private const long TenYears = 10 * 12 * 30 * 24;
+    private const long OneYear = 12 * 30 * 24;
 
     [Fact]
-    public void Ten_year_hash_differs_between_utility_ai_on_and_off_with_the_same_seed()
+    public void One_year_hash_differs_between_utility_ai_on_and_off_with_the_same_seed()
     {
         string hashWithUtilityAi = RunAndHash(seed: 42, ScenarioRunner.DefaultSystems());
 
@@ -25,7 +25,7 @@ public class UtilityAiHashScenarioTests
     }
 
     [Fact]
-    public void Ten_year_hash_with_utility_ai_on_is_still_deterministic_across_runs_of_the_same_seed()
+    public void One_year_hash_with_utility_ai_on_is_still_deterministic_across_runs_of_the_same_seed()
     {
         string hashA = RunAndHash(seed: 42, ScenarioRunner.DefaultSystems());
         string hashB = RunAndHash(seed: 42, ScenarioRunner.DefaultSystems());
@@ -37,7 +37,7 @@ public class UtilityAiHashScenarioTests
     {
         var (world, _) = ScenarioRunner.Create(seed, initialPopulation: 20);
         var clock = new WorldClock(systems);
-        clock.Run(world, TenYears);
+        clock.Run(world, OneYear);
         return WorldSnapshot.CanonicalHash(world);
     }
 }

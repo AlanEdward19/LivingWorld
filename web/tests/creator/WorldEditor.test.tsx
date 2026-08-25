@@ -305,22 +305,25 @@ describe("WorldEditor", () => {
     expect(population.closest("label")).toHaveAttribute("title", expect.stringContaining("Ajuste fino"));
   });
 
-  it("offers editable archetype templates while preserving the generic descriptor editor", () => {
+  it("offers editable archetype templates that open the guided power builder pre-filled", () => {
     render(<WorldEditor initialForm={defaultScenarioForm()} viewport={VIEWPORT} />);
 
     fireEvent.click(screen.getByRole("button", { name: /Extraordinário/ }));
     fireEvent.click(screen.getByRole("button", { name: "Ajustar regras de Extraordinário" }));
 
-    const toggle = screen.getByLabelText("Ativar extraordinário");
-    expect(toggle).not.toBeChecked();
+    expect(screen.getByLabelText("Ativar extraordinário")).not.toBeChecked();
     expect(screen.getByRole("option", { name: "Vampiro" })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Template de poder"), { target: { value: "2" } });
     fireEvent.click(screen.getByRole("button", { name: "Adicionar e personalizar" }));
 
-    expect(screen.getByLabelText("Descritores extraordinários-identificador-0")).toBeInTheDocument();
-    expect(screen.getByLabelText("Descritores extraordinários-manifestações (csv)-0")).toBeInTheDocument();
-    expect(screen.getByLabelText("Descritores extraordinários-identificador-0")).toHaveValue("lanterna-verde");
-    expect(toggle).toBeChecked();
+    expect(screen.getByTestId("power-builder")).toBeInTheDocument();
+    expect(screen.getByLabelText("Identificador do poder")).toHaveValue("lanterna-verde");
+
+    fireEvent.click(screen.getByRole("button", { name: "Salvar poder" }));
+
+    expect(screen.queryByTestId("power-builder")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Ativar extraordinário")).toBeChecked();
+    expect(screen.getByText("lanterna-verde")).toBeInTheDocument();
   });
 
   it("opens the selected settlement in a local city editor", () => {

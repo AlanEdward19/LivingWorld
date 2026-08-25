@@ -175,6 +175,7 @@ export function MapView({
     return entitiesRef.current.map((entity) => ({
       ...entity,
       position: interpolationRef.current.visualPositionOf(interpolationKey(entity.ref), now),
+      facing: entity.ref.kind === "npc" ? interpolationRef.current.directionOf(interpolationKey(entity.ref), now) : undefined,
     }));
   }
 

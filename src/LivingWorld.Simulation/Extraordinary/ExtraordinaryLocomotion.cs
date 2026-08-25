@@ -1,4 +1,3 @@
-using System.Globalization;
 using LivingWorld.Domain;
 
 namespace LivingWorld.Simulation;
@@ -16,24 +15,8 @@ public sealed record ExtraordinaryLocomotionAdvance(
 /// <summary>Adapta efeitos genéricos de locomoção ao movimento autoritativo por célula.</summary>
 public static class ExtraordinaryLocomotion
 {
-    public static ExtraordinaryLocomotionProfile Resolve(WorldState world, Npc npc)
-    {
-        var carrier = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npc.Id);
-        if (carrier is not { IsManifested: true }) return new(false, false, 1);
-
-        bool canFly = false;
-        double speed = 1;
-        foreach (var effect in world.Extraordinary.Descriptors
-                     .Where(descriptor => carrier.PowerIds.Contains(descriptor.Id, StringComparer.Ordinal))
-                     .OrderBy(descriptor => descriptor.Id, StringComparer.Ordinal)
-                     .SelectMany(descriptor => descriptor.Effects))
-        {
-            if (!TryPositiveAmount(effect, out string key, out double amount)) continue;
-            if (key == "movement.flight") canFly = true;
-            if (key == "movement.speed-multiplier") speed = Math.Max(speed, amount);
-        }
-        return new(canFly || speed > 1, canFly, speed);
-    }
+    public static ExtraordinaryLocomotionProfile Resolve(WorldState world, Npc npc) =>
+        GravityMechanic.ResolveProfile(world, npc);
 
     public static ExtraordinaryLocomotionAdvance Advance(
         WorldState world,
@@ -60,7 +43,9 @@ public static class ExtraordinaryLocomotion
             path = routed.Value!;
         }
 
-        int budget = Math.Max(1, (int)Math.Floor(profile.SpeedMultiplier));
+        int budget = profile.SpeedMultiplier >= 1
+            ? Math.Max(1, (int)Math.Floor(profile.SpeedMultiplier))
+            : (int)Math.Floor(profile.SpeedMultiplier);
         var next = npc.CurrentLocation;
         int steps = 0;
         foreach (var cell in path.Skip(1).Take(budget))
@@ -161,17 +146,6 @@ public static class ExtraordinaryLocomotion
             && int.TryParse(key[prefix.Length..], out int id) && id >= 0;
         resource = new ResourceType(valid ? int.Parse(key[prefix.Length..]) : 0);
         return valid;
-    }
-
-    private static bool TryPositiveAmount(string declaration, out string key, out double amount)
-    {
-        int separator = declaration.LastIndexOf(':');
-        key = separator > 0 ? declaration[..separator] : "";
-        amount = 0;
-        return separator > 0
-            && double.TryParse(
-                declaration[(separator + 1)..], NumberStyles.Float, CultureInfo.InvariantCulture, out amount)
-            && amount > 0;
     }
 
     private static IReadOnlyList<CellCoord> StraightLine(CellCoord start, CellCoord goal)

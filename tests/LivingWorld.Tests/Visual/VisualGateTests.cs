@@ -2,7 +2,6 @@ using System.Net;
 using LivingWorld.Api.Visual.Layers;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LivingWorld.Tests.Visual;
@@ -16,11 +15,12 @@ namespace LivingWorld.Tests.Visual;
 /// isso aqui exigiria subir um processo dotnet + npx dentro do teste, o que quebraria o
 /// isolamento/velocidade do resto da suíte; o teste D abaixo cobre a mesma garantia de forma
 /// hermética (o arquivo committed precisa mencionar toda rota /visual/* conhecida).</summary>
-public class VisualGateTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection(ApiEndpointCollection.Name)]
+public class VisualGateTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly LivingWorldApiFactory _factory;
 
-    public VisualGateTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public VisualGateTests(LivingWorldApiFactory factory) => _factory = factory;
 
     [Fact]
     public async Task OpenApi_document_is_served_and_describes_the_visual_subscribe_endpoint()

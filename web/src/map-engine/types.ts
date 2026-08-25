@@ -87,4 +87,10 @@ export interface AuthoritativeEntity {
   /** Inter-city household relocation target (world map route). Absent for intra-city commute. */
   travelDestination?: { x: number; y: number };
   cityId?: string;
+  /**
+   * Direção do deslocamento visual em curso, vinda de `InterpolationBuffer.directionOf` (fase 17:
+   * "andar é uma animação") — `null`/ausente quando parado. Puramente cosmético (espelha o pawn,
+   * conduz o bob de andar); nunca participa de hit-test/seleção.
+   */
+  facing?: { x: number; y: number } | null;
 }

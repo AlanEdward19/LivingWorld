@@ -92,8 +92,9 @@ public static class ExtraordinaryScenarioLoader
         if (!source.IsSuccess) return Result<PowerDescriptor>.Fail(source.Error!);
         var effects = TextList(item, "Effects", required: true);
         if (!effects.IsSuccess) return Result<PowerDescriptor>.Fail(effects.Error!);
-        if (effects.Value!.Any(effect => !HasTwoParts(effect)))
-            return Result<PowerDescriptor>.Fail("Extraordinary.Descriptors[].Effects: use 'alvo:magnitude'");
+        if (effects.Value!.Any(effect => !IsDeclarableToken(effect)))
+            return Result<PowerDescriptor>.Fail(
+                "Extraordinary.Descriptors[].Effects: token vazio ou inválido");
         var mode = RequiredText(item, "Mode");
         if (!mode.IsSuccess) return Result<PowerDescriptor>.Fail(mode.Error!);
         if (mode.Value is not ("Passive" or "Active" or "Triggered" or "Conditional"))
@@ -214,11 +215,12 @@ public static class ExtraordinaryScenarioLoader
         return Result<IReadOnlyList<string>>.Ok(values);
     }
 
-    private static bool HasTwoParts(string effect)
-    {
-        int separator = effect.IndexOf(':');
-        return separator > 0 && separator < effect.Length - 1;
-    }
+    /// <summary>
+    /// Token de efeito é dado de cenário: <c>mecânica.chave</c> ou <c>mecânica.chave:args...</c>.
+    /// O loader não interpreta o vocabulário — só rejeita vazio. Mecânica ausente falha na invocação.
+    /// </summary>
+    private static bool IsDeclarableToken(string effect) =>
+        !string.IsNullOrWhiteSpace(effect);
 
     private static bool TryBool(JsonObject node, string field, out bool value)
     {

@@ -81,7 +81,13 @@ public static class ScenarioRunner
         conversationSessions ?? new ConversationSessionStore(),
         };
         if (extraordinary?.Enabled == true)
+        {
             systems.Add(new ExtraordinaryStateSystem());
+            systems.Add(new ExtraordinaryPassiveTickSystem());
+            systems.Add(new DimensionPortalSystem());
+            systems.Add(new FaunaDominateSystem());
+            systems.Add(new FloraGrowthSystem());
+        }
         return systems;
     }
 

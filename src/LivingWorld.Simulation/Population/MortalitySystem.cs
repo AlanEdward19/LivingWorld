@@ -38,7 +38,18 @@ public sealed class MortalitySystem : ISimulationSystem
         double vitalityMultiplier = world.FamilyRules.VitalityMortalitySelectionEnabled
             ? world.FamilyRules.EffectiveVitalityMultiplier(npc.Vitality)
             : 1.0;
-        int deathAge = MortalityPlanner.RollDeathAge(rng, world.PopulationRules.LifeTable, npc.Health, vitalityMultiplier);
+        // PWR-20..22: lê o multiplicador já agregado (mínimo entre poderes manifestos) no
+        // estado do portador. Multiplicador 0 = não envelhece — não agenda morte por idade.
+        double senescenceRateMultiplier = 1.0;
+        var carrier = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npc.Id);
+        if (carrier is { IsManifested: true })
+        {
+            if (carrier.SenescenceRateMultiplier <= 0.0)
+                return;
+            senescenceRateMultiplier = carrier.SenescenceRateMultiplier;
+        }
+        int deathAge = MortalityPlanner.RollDeathAge(
+            rng, world.PopulationRules.LifeTable, npc.Health, vitalityMultiplier, senescenceRateMultiplier);
         long deathTick = npc.BirthDate.AddYears(deathAge).TotalHours;
         if (deathTick <= world.CurrentDate.TotalHours)
             deathTick = world.CurrentDate.TotalHours + 1;

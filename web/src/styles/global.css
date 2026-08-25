@@ -167,6 +167,12 @@ label {
   overflow: hidden;
 }
 
+/* Sem hud-bar durante a criação de mundo (fase 17: "a navbar só faz sentido na simulação") —
+   não precisa reservar o topo pra ela. */
+.app-shell > main.no-hud {
+  padding-top: 1.25rem;
+}
+
 @keyframes view-fade-in {
   from {
     opacity: 0;
@@ -408,6 +414,7 @@ form[data-testid="create-world-form"] > div:not([hidden]) {
 .world-editor-body { position: absolute; inset: 0; }
 .world-editor-body canvas, .creator-city-editor > canvas { display: block; width: 100%; height: 100%; }
 .world-editor-toolbar { position: absolute; z-index: 24; left: calc((100% - min(36vw, 460px)) / 2); bottom: 1rem; transform: translateX(-50%); display: flex; align-items: center; gap: .65rem; }
+.world-editor-exit { padding: .5rem .8rem; font-size: .85rem; }
 .world-tool-dock { display: flex; gap: .3rem; padding: .4rem; background: rgba(12,16,23,.92); border: 1px solid var(--border-subtle); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.45); backdrop-filter: blur(8px); }
 .world-tool-dock button { display: grid; place-items: center; gap: .1rem; min-width: 58px; padding: .45rem .55rem; color: var(--text-muted); background: transparent; border: 1px solid transparent; border-radius: 8px; }
 .world-tool-dock button span { font-size: 1.25rem; line-height: 1; }
@@ -443,6 +450,283 @@ form[data-testid="create-world-form"] > div:not([hidden]) {
 .world-editor-panels fieldset > div { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)) auto; gap: .4rem; margin: .45rem 0; }
 .world-editor-panels fieldset label { display: grid; gap: .25rem; min-width: 0; font-size: .68rem; }
 .world-editor-panels fieldset button { align-self: end; }
+
+/* --- Criador de poder (PowerBuilder, fase 17): substitui a "sopa de letras" CSV por cartões,
+   toggles e sliders. Schema de fio continua sendo texto/CSV — só a UI muda. --- */
+
+.power-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 1rem 0 0.6rem;
+}
+
+.power-list-header h4 {
+  margin: 0;
+  font-family: var(--font-display);
+  color: var(--accent-bright);
+}
+
+.power-list-items {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.power-list-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+}
+
+.power-list-card > div:first-child {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.power-list-card small {
+  color: var(--text-muted);
+}
+
+.power-list-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex: none;
+}
+
+.power-list-actions button {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.78rem;
+}
+
+.power-builder {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.power-builder-preview {
+  padding: 0.75rem 0.85rem;
+  background: rgba(217, 169, 79, 0.06);
+  border: 1px solid rgba(217, 169, 79, 0.28);
+  border-radius: var(--radius);
+}
+
+.power-builder-preview p {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.92rem;
+}
+
+.power-builder-raw-toggle {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.72rem;
+}
+
+.power-raw-data {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.2rem 0.6rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.72rem;
+}
+
+.power-raw-data dt {
+  color: var(--text-muted);
+}
+
+.power-raw-data dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.power-builder-card {
+  padding: 0.75rem 0.8rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+}
+
+.power-vocab-note {
+  display: block;
+  margin: 0.4rem 0 0.6rem;
+  padding: 0.5rem 0.65rem;
+  color: var(--text-muted);
+  background: rgba(217, 169, 79, 0.05);
+  border-left: 2px solid var(--accent-dim);
+  font-size: 0.76rem;
+  line-height: 1.4;
+  text-transform: none;
+}
+
+.power-vocab-note em {
+  color: #ddc486;
+  font-style: normal;
+}
+
+.power-builder-card > h5 {
+  margin: 0 0 0.6rem;
+  color: var(--accent);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.power-field {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0 0 0.6rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.power-field:last-child {
+  margin-bottom: 0;
+}
+
+.power-field input,
+.power-field select {
+  text-transform: none;
+  font-size: 0.85rem;
+}
+
+.power-field-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.power-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.power-source-card {
+  padding: 0.6rem 0.65rem;
+}
+
+.power-source-card small {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  line-height: 1.3;
+}
+
+.power-toggle-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.55rem;
+  font-size: 0.85rem;
+  text-transform: none;
+}
+
+.power-toggle-field input[type="checkbox"] {
+  flex: none;
+}
+
+.power-slider-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1 1 100%;
+  padding-left: 1.6rem;
+}
+
+.power-slider-inline input[type="range"] {
+  flex: 1;
+}
+
+.power-slider-inline strong {
+  min-width: 2.4em;
+  text-align: right;
+  color: var(--accent-bright);
+}
+
+.power-chip-field {
+  margin-bottom: 0.7rem;
+}
+
+.power-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.4rem;
+}
+
+.power-chip {
+  padding: 0.28rem 0.6rem;
+  font-size: 0.76rem;
+}
+
+.power-chip--active {
+  color: #1b150a;
+  background: linear-gradient(180deg, var(--accent-bright), var(--accent));
+  border-color: var(--accent-dim);
+}
+
+.power-chip-add {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.power-chip-add input {
+  flex: 1;
+  min-width: 0;
+}
+
+.power-chip-add button {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.76rem;
+  flex: none;
+}
+
+.power-swatch-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.power-swatch {
+  width: 1.8rem;
+  height: 1.8rem;
+  padding: 0;
+  border: 2px solid var(--border-subtle);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.power-swatch--active {
+  border-color: var(--accent-bright);
+  box-shadow: 0 0 0 2px rgba(240, 198, 116, 0.35);
+}
+
+.power-advanced-toggle {
+  width: 100%;
+  padding: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.power-builder-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
 @keyframes chapter-reveal { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
 .world-overview-chapter > span { color: var(--accent-bright); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; }
 .world-overview-chapter h4 { max-width: 18ch; margin: .45rem 0; font-family: var(--font-display); font-size: 1.5rem; line-height: 1.08; }
@@ -494,6 +778,137 @@ form[data-testid="create-world-form"] > div:not([hidden]) {
   .preview-map-world, .world-editor-panels { animation-duration: .01ms; transition-duration: .01ms; }
 }
 
+/* --- Design system mínimo (fase 17, reforma visual): primitives reusáveis estilo RimWorld —
+   botões "chunky" com relevo em vez de flat, cards de escolha, tooltip de valor/tradeoff.
+   Convenção do arquivo mantida: classes globais, sem CSS-in-JS/módulos. */
+
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: linear-gradient(180deg, var(--bg-panel-raised), var(--bg-panel));
+  border: 1px solid var(--border-subtle);
+  border-bottom-width: 3px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: transform 0.08s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.ui-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(217, 169, 79, 0.25), 0 0 16px rgba(217, 169, 79, 0.18);
+}
+
+.ui-btn:active:not(:disabled) {
+  transform: translateY(2px);
+  border-bottom-width: 1px;
+}
+
+.ui-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ui-btn--primary {
+  color: #1b150a;
+  background: linear-gradient(180deg, var(--accent-bright), var(--accent));
+  border-color: var(--accent-dim);
+}
+
+.ui-btn--primary:hover:not(:disabled) {
+  box-shadow: 0 0 0 1px rgba(240, 198, 116, 0.4), 0 0 20px rgba(240, 198, 116, 0.35);
+}
+
+.ui-btn--secondary {
+  color: var(--accent-bright);
+  border-color: var(--accent-dim);
+}
+
+.ui-btn--danger {
+  color: #ffd9d4;
+  background: linear-gradient(180deg, #8a3a32, #5c231e);
+  border-color: #3d1512;
+}
+
+.ui-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  border-bottom-width: 1px;
+}
+
+.ui-btn--lg {
+  padding: 0.9rem 1.6rem;
+  font-size: 1.05rem;
+}
+
+/* Card de escolha (RPG-creator style): clique seleciona, estado .selected destaca. */
+.ui-card {
+  display: grid;
+  gap: 0.35rem;
+  text-align: left;
+  padding: 0.9rem;
+  color: var(--text-primary);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.1s ease, background 0.15s ease;
+}
+
+.ui-card:hover {
+  border-color: var(--accent-dim);
+  transform: translateY(-2px);
+}
+
+.ui-card.selected {
+  border-color: var(--accent-bright);
+  background: linear-gradient(145deg, rgba(217, 169, 79, 0.16), var(--bg-panel-raised));
+  box-shadow: inset 0 0 0 1px rgba(217, 169, 79, 0.2);
+}
+
+.ui-card small {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+/* Tooltip de valor/tradeoff — não descreve o campo, explica a consequência da escolha. */
+.ui-tip {
+  position: relative;
+  display: inline-flex;
+}
+
+.ui-tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 0.4rem);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  width: max-content;
+  max-width: 220px;
+  padding: 0.45rem 0.6rem;
+  color: var(--text-primary);
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--accent-dim);
+  border-radius: 6px;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-align: left;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 40;
+}
+
+.ui-tip:hover::after,
+.ui-tip:focus-within::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 /* --- Tela inicial (start menu) --- */
 
 .start-menu {
@@ -503,7 +918,10 @@ form[data-testid="create-world-form"] > div:not([hidden]) {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: radial-gradient(ellipse at 50% 30%, #161c2b 0%, var(--bg-void) 70%);
+  background:
+    radial-gradient(ellipse at 76% 66%, rgba(217, 169, 79, 0.05) 0%, transparent 45%),
+    radial-gradient(ellipse at 18% 25%, rgba(140, 108, 60, 0.08) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 30%, #161c2b 0%, var(--bg-void) 70%);
 }
 
 .start-menu-canvas {
@@ -558,10 +976,6 @@ form[data-testid="create-world-form"] > div:not([hidden]) {
 }
 
 .start-menu-buttons button {
-  padding: 0.85rem 1.5rem;
-  font-size: 1.05rem;
-  border-radius: var(--radius);
-  background: rgba(18, 22, 31, 0.75);
   backdrop-filter: blur(2px);
   animation: button-rise 0.5s ease both;
 }
@@ -577,8 +991,105 @@ form[data-testid="create-world-form"] > div:not([hidden]) {
   }
 }
 
-.start-menu-buttons button:hover:not(:disabled) {
-  background: rgba(217, 169, 79, 0.12);
+.start-menu-flourish {
+  width: min(220px, 40vw);
+  height: 2px;
+  margin: 0.6rem auto 0;
+  background: linear-gradient(90deg, transparent, var(--accent-dim) 20%, var(--accent-bright) 50%, var(--accent-dim) 80%, transparent);
+}
+
+/* --- Transições de saída do menu (fase 17): "Criar mundo" mergulha no planeta (zoom com
+   transform-origin nas coordenadas dele), "Continuar" faz um warp de entrada (estrias +
+   fade-to-black). Ambas terminam num blackout que cobre o pop de montagem da próxima tela;
+   duração aqui deve casar com CREATE_EXIT_MS/CONTINUE_EXIT_MS em StartMenu.tsx. */
+
+.start-menu-warp {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  opacity: 0;
+  transform: scale(0.4);
+  background: repeating-conic-gradient(
+    from 0deg at 50% 50%,
+    rgba(240, 198, 116, 0.4) 0deg 0.6deg,
+    transparent 0.6deg 5deg
+  );
+  mix-blend-mode: screen;
+  transition: opacity 0.6s ease, transform 0.85s cubic-bezier(0.6, 0, 0.85, 0);
+}
+
+.start-menu-loading {
+  position: absolute;
+  z-index: 3;
+  bottom: 14%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  color: var(--accent-bright);
+  font-family: var(--font-display);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  opacity: 0;
+  transition: opacity 0.3s ease 0.35s;
+}
+
+.start-menu-blackout {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+}
+
+.start-menu--exiting-create .start-menu-canvas {
+  transition: transform 0.95s cubic-bezier(0.6, 0, 0.85, 0), filter 0.7s ease;
+  transform-origin: 76% 66%;
+  transform: scale(9);
+  filter: brightness(1.4);
+}
+
+.start-menu--exiting-create .start-menu-content {
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  opacity: 0;
+  transform: scale(0.85);
+}
+
+.start-menu--exiting-create .start-menu-blackout {
+  transition-delay: 0.55s;
+  opacity: 1;
+}
+
+.start-menu--exiting-continue .start-menu-warp {
+  opacity: 1;
+  transform: scale(3.5);
+}
+
+.start-menu--exiting-continue .start-menu-content {
+  transition: opacity 0.35s ease;
+  opacity: 0;
+}
+
+.start-menu--exiting-continue .start-menu-loading {
+  opacity: 1;
+}
+
+.start-menu--exiting-continue .start-menu-blackout {
+  transition-delay: 0.5s;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .start-menu-warp,
+  .start-menu-loading,
+  .start-menu-blackout,
+  .start-menu--exiting-create .start-menu-canvas,
+  .start-menu--exiting-create .start-menu-content,
+  .start-menu--exiting-continue .start-menu-content {
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* --- Configurações --- */
@@ -996,6 +1507,341 @@ form[data-testid="create-world-form"] > div:not([hidden]) {
   object-fit: contain;
   image-rendering: auto;
   filter: drop-shadow(0 8px 8px rgba(0, 0, 0, 0.35));
+}
+
+/* Fase 17 (sidebar NPC): abas em vez de despejo único, e "Comandar NPC" promovido de <details>
+   enterrado pra painel próprio e visível (feedback: existia mas ninguém achava). */
+/* Sidebar é estreita (300px) — nav ícone+rótulo lado a lado não cabe (feedback: "menu quebrado").
+   Ícone em cima, rótulo embaixo, grid de 3 colunas: nunca estoura a largura do painel. */
+.npc-inspector-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.3rem;
+  margin: 0.9rem 0 1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.npc-inspector-tabs button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0.4rem 0.2rem;
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  font-size: 0.66rem;
+  line-height: 1.15;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.npc-inspector-tabs button span {
+  font-size: 1rem;
+}
+
+.npc-inspector-tabs button[aria-pressed="true"] {
+  color: var(--accent-bright);
+  border-color: var(--accent-dim);
+  background: rgba(217, 169, 79, 0.1);
+}
+
+.npc-inspector-tabpanel {
+  animation: tab-fade-in 0.18s ease both;
+}
+
+.npc-authoring-controls {
+  margin-bottom: 1rem;
+  padding: 0.9rem;
+  background: rgba(217, 169, 79, 0.05);
+  border: 1px solid rgba(217, 169, 79, 0.28);
+  border-radius: var(--radius);
+}
+
+.npc-authoring-header {
+  margin: -0.1rem 0 0.85rem;
+}
+
+.npc-authoring-header > h4 {
+  margin: 0 0 0.2rem;
+  color: var(--accent-bright);
+}
+
+/* Sub-abas do painel de comando (fase 17: "desmembrar Comandar NPC em outras opções") — cada
+   seção (poderes/personalidade/comportamento) fica isolada, uma por vez. */
+.npc-admin-sections {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.3rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid rgba(217, 169, 79, 0.18);
+}
+
+.npc-admin-sections button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0.4rem 0.2rem;
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  font-size: 0.66rem;
+  line-height: 1.15;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.npc-admin-sections button span {
+  font-size: 1rem;
+}
+
+.npc-admin-sections button[aria-pressed="true"] {
+  color: var(--accent-bright);
+  border-color: var(--accent-dim);
+  background: rgba(217, 169, 79, 0.1);
+}
+
+.npc-command-hint {
+  margin: 0 0 0.65rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.npc-authoring-status {
+  margin: 0 0 0.75rem;
+  padding: 0.4rem 0.6rem;
+  color: var(--accent-bright);
+  background: rgba(217, 169, 79, 0.1);
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+/* Cada bloco de comando (poderes, personalidade, relações) é um cartão próprio, não um <details>
+   genérico — feedback: "personalidade/relações ficaram jogadas ali". */
+.npc-command-card {
+  margin-bottom: 0.85rem;
+  padding: 0.75rem 0.8rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+}
+
+.npc-command-card:last-child {
+  margin-bottom: 0;
+}
+
+.npc-command-card > h5 {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.65rem;
+  color: var(--accent);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.npc-command-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.npc-command-body {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.npc-field {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.npc-field select,
+.npc-field input {
+  text-transform: none;
+  font-size: 0.85rem;
+}
+
+.npc-field--compact {
+  min-width: 0;
+}
+
+.npc-field-row,
+.npc-command-subrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.5rem;
+}
+
+.npc-command-subrow {
+  padding-top: 0.65rem;
+  margin-top: 0.65rem;
+  border-top: 1px solid rgba(217, 169, 79, 0.14);
+}
+
+.npc-command-subrow:first-of-type {
+  padding-top: 0;
+  margin-top: 0;
+  border-top: none;
+}
+
+.npc-field-row .npc-field,
+.npc-command-subrow .npc-field {
+  flex: 1;
+  min-width: 6rem;
+}
+
+.npc-command-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.npc-power-summary {
+  margin: 0;
+  display: grid;
+  gap: 0.15rem;
+  color: var(--text-muted);
+}
+
+.npc-preset-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.npc-preset-chip {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.78rem;
+}
+
+/* Destaque de preset ativo + pulso imediato ao clicar (feedback: "nem parece que a personalidade
+   mudou") — o chip vira sólido quando os traços já batem com o perfil, e pisca ao aplicar. */
+.npc-preset-chip--active {
+  color: #1b150a;
+  background: linear-gradient(180deg, var(--accent-bright), var(--accent));
+  border-color: var(--accent-dim);
+}
+
+@keyframes npc-preset-flash {
+  0% { box-shadow: 0 0 0 0 rgba(240, 198, 116, 0.7); }
+  100% { box-shadow: 0 0 0 8px rgba(240, 198, 116, 0); }
+}
+
+.npc-preset-chip--flash {
+  animation: npc-preset-flash 0.6s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .npc-preset-chip--flash { animation: none; }
+}
+
+.npc-trait-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.npc-trait {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.15rem 0.5rem;
+  padding: 0.4rem 0.55rem;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+}
+
+.npc-trait-label {
+  grid-column: 1 / 3;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.npc-trait input[type="range"] {
+  grid-column: 1 / 2;
+  width: 100%;
+}
+
+.npc-trait-value {
+  grid-column: 2 / 3;
+  min-width: 1.6em;
+  text-align: right;
+  color: var(--accent-bright);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+/* Grade de relações estilo "cartão de vizinhança" (feedback: quer algo mais The Sims) — sem
+   pontos de afinidade no domínio hoje, então o cartão mostra papel + id de forma legível. */
+.npc-relations-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.npc-relation-card {
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  padding: 0.75rem 0.5rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--accent-dim);
+  border-radius: 9px;
+  text-align: center;
+}
+
+.npc-relation-card--empty {
+  border-color: var(--border-subtle);
+  opacity: 0.55;
+}
+
+.npc-relation-icon {
+  font-size: 1.4rem;
+  color: var(--accent-bright);
+}
+
+.npc-relation-card small {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.npc-relation-card strong {
+  font-size: 1rem;
+}
+
+.npc-relation-actions {
+  display: flex;
+  gap: 0.3rem;
+  margin-top: 0.2rem;
+}
+
+.npc-relation-actions button {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.7rem;
+}
+
+.npc-relation-break {
+  color: var(--danger);
 }
 
 .npc-token-wrap {

@@ -37,7 +37,19 @@ public class PopulationArchitectureTests
     }
 
     [Fact]
+    public void Test_scifi_scenario_runs_1_year_with_the_same_invariants_as_default()
+    {
+        AssertScifiInvariants(12 * 30 * 24);
+    }
+
+    [Trait("Category", "Scenario")]
+    [Fact]
     public void Test_scifi_scenario_runs_10_years_with_the_same_invariants_as_default()
+    {
+        AssertScifiInvariants(10 * 12 * 30 * 24);
+    }
+
+    private static void AssertScifiInvariants(long ticks)
     {
         string json = File.ReadAllText(Path.Combine(FindRepoRoot(), "scenarios", "test-scifi.json"));
         var result = ScenarioLoader.LoadWorld(json);
@@ -46,8 +58,7 @@ public class PopulationArchitectureTests
         var (world, clock) = result.Value;
         Assert.Equal(100, world.Npcs.Count);
 
-        const long tenYears = 10 * 12 * 30 * 24;
-        for (long tick = 0; tick < tenYears; tick++)
+        for (long tick = 0; tick < ticks; tick++)
         {
             clock.Tick(world);
 

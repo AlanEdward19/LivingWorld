@@ -35,7 +35,8 @@ public sealed class SkillPracticeSystem : ISimulationSystem
             if (npc.CurrentLocation != workplace.Location) continue;
             if (!_rules.SkillByProfession.TryGetValue(npc.Profession.Id, out var skillType)) continue;
 
-            double gain = _rules.Gain(npc.Skills.Get(skillType), SkillGainSource.Practice, npc.RateGene.Value);
+            double gain = _rules.Gain(npc.Skills.Get(skillType), SkillGainSource.Practice, npc.RateGene.Value)
+                * SkillMechanic.ManifestedLearnRate(world, npc);
             npc.GainSkill(skillType, gain, _rules.Cap);
         }
     }

@@ -26,7 +26,8 @@ public class MovementCostTests
             {
                 var coord = new CellCoord(x, y);
                 var (terrain, altitude) = shape(coord, 0);
-                cells.Add(new MapCell(coord, new TerrainType(terrain), default, altitude, false, []));
+                cells.Add(MapCell.WithDerivedTemperature(
+                    coord, new TerrainType(terrain), default, altitude, false, []));
             }
         var regions = RegionGrid.Partition(width, height, regionSize: Math.Max(width, height));
         return WorldMap.Create(width, height, seed: 1, catalog, Cost, cells, regions, []).Value!;

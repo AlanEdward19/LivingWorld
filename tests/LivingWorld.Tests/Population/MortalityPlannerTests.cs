@@ -52,6 +52,15 @@ public class MortalityPlannerTests
     }
 
     [Fact]
+    public void Default_senescence_multiplier_matches_unspecified_parameter()
+    {
+        int a = MortalityPlanner.RollDeathAge(new WorldRng(7), Table, health: 100);
+        int b = MortalityPlanner.RollDeathAge(
+            new WorldRng(7), Table, health: 100, vitalityMultiplier: 1.0, senescenceRateMultiplier: 1.0);
+        Assert.Equal(a, b);
+    }
+
+    [Fact]
     public void Worse_vitality_multiplier_does_not_increase_average_death_age_across_seeds()
     {
         long favorableSum = 0, unfavorableSum = 0;

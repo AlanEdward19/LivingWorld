@@ -1,4 +1,5 @@
 using LivingWorld.Domain;
+using LivingWorld.Simulation;
 
 namespace LivingWorld.Tests.Geography;
 
@@ -33,8 +34,9 @@ public class MapGeneratorTests
         var a = GenerateOrThrow(seed);
         var b = GenerateOrThrow(seed);
 
-        Assert.Equal(a.Cells.Select(c => (c.Coord, c.Terrain, c.Biome, c.Altitude, c.HasWater)),
-            b.Cells.Select(c => (c.Coord, c.Terrain, c.Biome, c.Altitude, c.HasWater)));
+        Assert.Equal(
+            a.Cells.Select(c => (c.Coord, c.Terrain, c.Biome, c.Altitude, c.HasWater, c.Temperature)),
+            b.Cells.Select(c => (c.Coord, c.Terrain, c.Biome, c.Altitude, c.HasWater, c.Temperature)));
     }
 
     [Fact]
@@ -63,6 +65,28 @@ public class MapGeneratorTests
         Assert.Equal(map.Cells.Count, coveredByRegions.Count);
         foreach (var cell in map.Cells)
             Assert.Contains(cell.Coord, coveredByRegions);
+    }
+
+    [Fact]
+    public void Every_cell_temperature_is_derived_from_biome_and_altitude_without_extra_rng()
+    {
+        var map = GenerateOrThrow(seed: 11);
+
+        Assert.All(map.Cells, cell =>
+            Assert.Equal(MapCell.DeriveBase(cell.Biome, cell.Altitude), cell.Temperature));
+    }
+
+    [Fact]
+    public void Snapshot_json_omits_cell_temperature_and_rehydrates_the_derived_base()
+    {
+        var (world, _) = ScenarioRunner.Create(seed: 5, initialPopulation: 0);
+        var json = System.Text.Json.Nodes.JsonNode.Parse(WorldSnapshot.Serialize(world))!.AsObject();
+        var firstCell = json["Map"]!["Cells"]![0]!.AsObject();
+        Assert.False(firstCell.ContainsKey("Temperature"));
+
+        var rehydrated = WorldSnapshot.Deserialize(json.ToJsonString());
+        Assert.All(rehydrated.Map.Cells, cell =>
+            Assert.Equal(MapCell.DeriveBase(cell.Biome, cell.Altitude), cell.Temperature));
     }
 
     public static IEnumerable<object[]> TwentySeeds() =>

@@ -109,4 +109,13 @@ public enum WorldEventKind
 
     /// <summary>Consequência declarada de uma resolução extraordinária não plena.</summary>
     ExtraordinaryFailureApplied,
+
+    /// <summary>Confronto NPC-vs-NPC resolvido por poder (Fase 16.1, PWR-63).</summary>
+    CombatResolved,
+
+    /// <summary>Instanciação de NPC via poder (clone/split/reincarnate, PWR-107).</summary>
+    NpcInstantiated,
+
+    /// <summary>Troca de identidade observável (possessão/body-swap, PWR-108).</summary>
+    IdentityChanged,
 }

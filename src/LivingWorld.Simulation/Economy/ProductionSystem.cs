@@ -67,6 +67,7 @@ public sealed class ProductionSystem : ISimulationSystem
             workplace.Withdraw(new ResourceType(resourceId), perWorker * scale);
 
         double skillMultiplier = SkillMultiplierOf(presentWorkers, skillsRules);
+        double strengthMultiplier = StrengthMultiplierOf(world, presentWorkers, scale);
 
         foreach (var (resourceId, perWorker) in recipe.Outputs)
         {
@@ -75,7 +76,7 @@ public sealed class ProductionSystem : ISimulationSystem
                 continue;
 
             var resource = new ResourceType(resourceId);
-            long produced = (long)(perWorker * scale * skillMultiplier);
+            long produced = (long)(perWorker * scale * skillMultiplier * strengthMultiplier);
             world.RecordResourceProduced(resource, produced); // ECON-15: conta o bruto, antes do clamp de capacidade
             long lost = workplace.Deposit(resource, produced, rules);
             if (lost > 0)
@@ -101,6 +102,19 @@ public sealed class ProductionSystem : ISimulationSystem
         if (mapped == 0) return 1.0;
 
         return 1.0 + (sum / mapped) / skillsRules.Cap;
+    }
+
+    /// <summary>PWR-53: segundo multiplicador de <c>attribute.strength</c> sobre a taxa de
+    /// skill/RateGene — média dos trabalhadores que entram em <paramref name="scale"/>.</summary>
+    private static double StrengthMultiplierOf(WorldState world, IReadOnlyList<Npc> presentWorkers, int scale)
+    {
+        int count = Math.Min(scale, presentWorkers.Count);
+        if (count <= 0) return 1.0;
+
+        double sum = 0;
+        for (int i = 0; i < count; i++)
+            sum += AttributeMechanic.StrengthMultiplier(world, presentWorkers[i]);
+        return sum / count;
     }
 
     private static void ApplySpoilage(Workplace workplace, EconomyRules rules, TickContext ctx)

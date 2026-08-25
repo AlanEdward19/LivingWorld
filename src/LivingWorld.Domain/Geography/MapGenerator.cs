@@ -33,7 +33,9 @@ public static class MapGenerator
                     ? new ResourceType[] { new(resourceIds[(int)(rng.NextDouble() * resourceIds.Length)]) }
                     : Array.Empty<ResourceType>();
 
-                cells.Add(new MapCell(new CellCoord(x, y), terrain, biome, altitude, hasWater, resources));
+                cells.Add(new MapCell(
+                    new CellCoord(x, y), terrain, biome, altitude, hasWater, resources,
+                    MapCell.DeriveBase(biome, altitude)));
             }
         }
 

@@ -155,7 +155,8 @@ public sealed class ExtraordinaryLocomotionTests
             for (int x = 0; x < 3; x++)
             {
                 var coord = new CellCoord(x, y);
-                cells.Add(new MapCell(coord, new TerrainType(terrainOf(coord)), default, 0, false, []));
+                cells.Add(MapCell.WithDerivedTemperature(
+                    coord, new TerrainType(terrainOf(coord)), default, 0, false, []));
             }
         return WorldMap.Create(3, 3, 1, catalog, cost, cells, RegionGrid.Partition(3, 3, 3), []).Value!;
     }

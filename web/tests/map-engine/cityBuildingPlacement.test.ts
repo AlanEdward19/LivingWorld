@@ -52,11 +52,15 @@ describe("cityBuildingEntityFromMarker (T18 / LWV-04.5)", () => {
   it("applies the authoritative orientation to the rendered footprint", () => {
     const building = marker({ buildingTypeId: -1, orientation: 90 });
     const entity = cityBuildingEntityFromMarker(building, SPACE, 0);
+    const footprint = generateBuildingFootprint(String(building.id.value), -1, 0, 90);
 
     expect(entity.footprintCells?.map(({ x, y }) => ({ x, y }))).toEqual(
-      generateBuildingFootprint(String(building.id.value), -1, 0, 90).map(({ x, y }) => ({ x, y })),
+      footprint.map(({ x, y }) => ({ x, y })),
     );
-    expect(entity.size).toEqual({ w: 3, h: 3 });
+    expect(entity.size).toEqual({
+      w: Math.max(...footprint.map((c) => c.x)) + 1,
+      h: Math.max(...footprint.map((c) => c.y)) + 1,
+    });
   });
 
   it("marks sizeIsDerived when the API location is derived", () => {

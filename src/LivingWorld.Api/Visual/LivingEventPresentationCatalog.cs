@@ -47,6 +47,9 @@ public static class LivingEventPresentationCatalog
             [WorldEventKind.AuthoringCommandApplied] = "O operador interveio no mundo",
             [WorldEventKind.AuthoringCommandRejected] = "Uma intervenção do operador foi recusada",
             [WorldEventKind.ExtraordinaryFailureApplied] = "Uma capacidade extraordinária produziu uma consequência adversa",
+            [WorldEventKind.CombatResolved] = "Dois habitantes travaram um confronto",
+            [WorldEventKind.NpcInstantiated] = "Uma nova pessoa surgiu por capacidade extraordinária",
+            [WorldEventKind.IdentityChanged] = "A identidade observável de um habitante mudou",
         };
 
     public static string Describe(WorldEventKind kind) =>

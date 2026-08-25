@@ -29,6 +29,14 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
         {
             if (world.FindNpc(carrier.CarrierId) is not { IsAlive: true } npc) continue;
             var resolved = Resolve(world, npc, carrier.PowerIds);
+            if (carrier.IsManifested && !resolved.IsManifested)
+            {
+                if (carrier.PreAlterationTraits is { Count: > 0 } traits)
+                    MindMechanic.RevertPreAlterationTraits(world, ctx, npc, traits);
+                ControlMechanic.RevertIfCeased(world, ctx, npc, carrier);
+                AppearanceMechanic.RevertIfCeased(world, ctx, npc, carrier);
+                resolved = Resolve(world, npc, carrier.PowerIds) with { PreAlterationTraits = null };
+            }
             if (resolved.IsManifested != carrier.IsManifested)
             {
                 ctx.LogEvent(
@@ -123,6 +131,7 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
         var appearance = active.Select(descriptor => descriptor.Appearance).FirstOrDefault(value => value is not null);
         var need = active.Select(descriptor => descriptor.NeedSubstitution).FirstOrDefault(value => value is not null);
         double senescence = active.Count == 0 ? 1 : active.Min(descriptor => descriptor.SenescenceRateMultiplier);
+        var existing = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npc.Id);
         return new ExtraordinaryCarrierState(
             npc.Id,
             powerIds.OrderBy(id => id, StringComparer.Ordinal).ToList(),
@@ -133,7 +142,20 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
                 : new ExtraordinaryAppearanceState(
                     appearance.ScaleMultiplier, appearance.SkinTint, appearance.MovementTrail),
             need,
-            senescence);
+            senescence,
+            existing?.PreAlterationTraits,
+            existing?.ForgottenFactIds,
+            existing?.BondPartnerId,
+            existing?.LuckCurseAmount ?? 0,
+            existing?.LuckCurseUntilTick ?? 0,
+            existing?.GravityTargetMultiplier ?? 1,
+            existing?.ImplantedFactIds,
+            existing?.DimensionalPocket,
+            DimensionMechanic.PortalsStillActive(active) ? existing?.DimensionalPortals : null,
+            existing?.PendingReincarnation,
+            existing?.PossessedBy,
+            existing?.BodySwapPartner,
+            existing?.ImpersonatingId);
     }
 
     private static bool MatchesTrigger(string rule, string trigger) =>

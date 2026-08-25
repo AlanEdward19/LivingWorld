@@ -75,7 +75,8 @@ public class MapPathfinderTests
             for (int x = 0; x < width; x++)
             {
                 var coord = new CellCoord(x, y);
-                cells.Add(new MapCell(coord, new TerrainType(terrainOf(coord)), default, Altitude: 0, HasWater: false, []));
+                cells.Add(MapCell.WithDerivedTemperature(
+                    coord, new TerrainType(terrainOf(coord)), default, altitude: 0, hasWater: false, []));
             }
         var regions = RegionGrid.Partition(width, height, regionSize: Math.Max(width, height));
         return WorldMap.Create(width, height, seed: 1, Catalog, Cost, cells, regions, []).Value!;

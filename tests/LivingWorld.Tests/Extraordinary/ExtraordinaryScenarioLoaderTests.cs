@@ -18,6 +18,24 @@ public sealed class ExtraordinaryScenarioLoaderTests
     }
 
     [Fact]
+    public void Descriptor_accepts_any_mechanic_token_as_scenario_data_without_named_power_types()
+    {
+        var root = JsonNode.Parse(ValidScenario())!.AsObject();
+        root["Extraordinary"]!["Descriptors"]![0]!["Effects"] = new JsonArray(
+            "mind.read", "transfer.health:20", "area:radius:3", "luck.capacity-bonus:10");
+        root["Extraordinary"]!["Descriptors"]![0]!["Costs"] = new JsonArray();
+        root["Extraordinary"]!["Descriptors"]![0]!["FailureModes"] = new JsonArray();
+        root["Extraordinary"]!["Descriptors"]![0]!["Reliability"] = "Guaranteed";
+
+        var result = ExtraordinaryScenarioLoader.Load(root.ToJsonString());
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Equal(
+            ["mind.read", "transfer.health:20", "area:radius:3", "luck.capacity-bonus:10"],
+            result.Value!.Descriptors[0].Effects);
+    }
+
+    [Fact]
     public void Valid_descriptor_preserves_every_compositional_axis_as_scenario_data()
     {
         var result = ExtraordinaryScenarioLoader.Load(ValidScenario());
@@ -131,9 +149,15 @@ public sealed class ExtraordinaryScenarioLoaderTests
 
         var result = ExtraordinaryRuntimePlan.Create(loaded.Value!);
 
-        Assert.Equal((true, 0, 0, 1, ExtraordinaryStateSystem.SystemName),
-            (result.IsSuccess, result.Value!.CarrierIds.Count, result.Value.Events.Count,
-                result.Value.SystemNames.Count, Assert.Single(result.Value.SystemNames)));
+        Assert.Equal(
+            [
+                ExtraordinaryStateSystem.SystemName,
+                ExtraordinaryPassiveTickSystem.SystemName,
+                DimensionPortalSystem.SystemName,
+                FaunaDominateSystem.SystemName,
+                FloraGrowthSystem.SystemName,
+            ],
+            result.Value!.SystemNames);
     }
 
     [Theory]
@@ -162,6 +186,50 @@ public sealed class ExtraordinaryScenarioLoaderTests
 
         Assert.Equal((false, "Extraordinary.Prevalence: exige ao menos um descritor"),
             (result.IsSuccess, result.Error));
+    }
+
+    [Fact]
+    public void Sample_pack_of_eighteen_descriptors_loads_as_scenario_data()
+    {
+        string[] effects =
+        [
+            "npc.health:1", "npc.teleport:2", "npc.force-action:1",
+            "construct.create:1x1:1:1:stone", "movement.flight:1", "attribute.fertility:0",
+            "area:radius:3", "transfer.health:5", "mind.read", "luck.capacity-bonus:2",
+            "luck.curse:10:100", "skill.copy:1", "environment.temperature:0:-1:4",
+            "dimension.pocket-store", "fauna.dominate:1", "flora.growth-rate:1",
+            "combat.strike:1", "gravity.self:0",
+        ];
+        var descriptors = new JsonArray();
+        for (int i = 0; i < effects.Length; i++)
+        {
+            descriptors.Add(new JsonObject
+            {
+                ["Id"] = $"sample-{i:00}",
+                ["Source"] = "sample-source",
+                ["Effects"] = new JsonArray(effects[i]),
+                ["Mode"] = "Active",
+                ["Costs"] = new JsonArray(),
+                ["Reliability"] = "Guaranteed",
+                ["FailureModes"] = new JsonArray(),
+                ["IntrinsicVulnerabilities"] = new JsonArray(),
+                ["Manifestations"] = new JsonArray("visible-form"),
+                ["AcquisitionRules"] = new JsonArray("authored"),
+            });
+        }
+
+        var result = ExtraordinaryScenarioLoader.Load(new JsonObject
+        {
+            ["Extraordinary"] = new JsonObject
+            {
+                ["Enabled"] = true,
+                ["Descriptors"] = descriptors,
+            },
+        }.ToJsonString());
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Equal(18, result.Value!.Descriptors.Count);
+        Assert.Equal(effects, result.Value.Descriptors.Select(item => Assert.Single(item.Effects)));
     }
 
     private static string ValidScenario() => """

@@ -66,8 +66,39 @@
 - **Date**: 2026-08-23
 - **Status**: active
 
+### AD-009
+- **Decision**: Suíte completa de testes (com ou sem `Category=Scenario`, `scripts/test.sh` /
+  `verify.sh`, gate do Verifier) é executada **somente pelo usuário**. Agentes podem rodar
+  testes focados da funcionalidade em desenvolvimento (`--filter` no escopo da feature).
+  Verifier analisa código/evidência estática; se precisar de comando de validação, pede ao usuário.
+- **Reason**: Pedido explícito do usuário (2026-08-25) — controle do tempo/carga de máquina
+  e do gate final.
+- **Trade-off**: Verifier não fecha PASS sozinho sem o usuário rodar o gate; closeout depende
+  de evidência de gate fornecida pelo usuário.
+- **Scope**: Todo o projeto LivingWorld / fluxo tlc-spec-driven (Execute + Verifier).
+- **Date**: 2026-08-25
+- **Status**: active
+
 ## Handoff
 
+- **Gate hygiene (2026-08-25)**: 7 falhas do cancel do usuário — causa raiz API =
+  `ConnectionStrings__World` do `run.cmd` herdado pela sessão (mesmo padrão do
+  `TICK_LOOP_ENABLED`); `TestEnvironmentSetup` agora limpa os dois. `scale-sensor.json`
+  regravado (Temperature no snapshot). Gate encurtado: conservação/invariantes 1 ano;
+  10 anos / baseline pop / 10k×10yr → `Category=Scenario`.
+- **API fixture hygiene (2026-08-25)**: `LivingWorldApiFactory` (+ `:memory:` forçado) +
+  `ApiEndpointCollection` (1 boot compartilhado, serializado) para endpoints de leitura;
+  TickLoop/Production deixam de criar factory por teste; create/authoring/preview/sim-control
+  mantêm fixture própria. Filtro focado: 98 passed.
+- **Temperature omit / PERF-12 (2026-08-25)**: `MapCellJsonConverter` omite `Temperature` no
+  snapshot JSON e reidrata via `WithDerivedTemperature` (PWR-74). Golden + `scale-sensor`
+  regravados (BytesPerAliveNpc/yr ~115k@1k pop). PERF-12 dirty hasher segue stub (AD-070).
+- **Gate 10yr leftovers (2026-08-25)**: Behavior max-duration, Employment vacancies,
+  PopulationArchitecture scifi — gate 1 ano; 10 anos → `Category=Scenario`.
+- **Fase 16.1 Re-verify 1/3 (2026-08-25)**: gate do [Re-Verifier](c2c7929b-86f3-451c-8a5b-852d330ab7a2)
+  **interrompido** por AD-009 — usuário passa a ser o único a rodar suíte completa.
+  Verifier segue só com revisão de código/evidência; comandos de gate a pedir ao usuário.
+  PWR-40/41 deferred. 16.2 blocked. Working tree uncommitted.
 - **Round-4 post-ship fixes (2026-08-23) — wall-marker regression + migration hysteresis**: user
   reported cities rendering as tiny circular markers instead of walled footprints, right after the
   round-3 fixes above landed. Two real root causes, one a direct regression from round-3's own fix,

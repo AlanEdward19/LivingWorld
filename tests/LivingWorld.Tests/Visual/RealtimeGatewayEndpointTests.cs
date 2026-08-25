@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using System.Text;
 using LivingWorld.Api.Visual;
 using LivingWorld.Simulation;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LivingWorld.Tests.Visual;
@@ -12,11 +11,12 @@ namespace LivingWorld.Tests.Visual;
 /// espectador-vs-personagem no escopo world (spec.md edge case "assina escopo sem permissão"),
 /// replay por cursor após reconexão, e o invariante de não-escrita (hash canônico do mundo
 /// inalterado por leituras realtime).</summary>
-public class RealtimeGatewayEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection(ApiEndpointCollection.Name)]
+public class RealtimeGatewayEndpointTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly LivingWorldApiFactory _factory;
 
-    public RealtimeGatewayEndpointTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public RealtimeGatewayEndpointTests(LivingWorldApiFactory factory) => _factory = factory;
 
     [Fact]
     public async Task Subscribe_to_world_scope_as_spectator_returns_200_with_a_snapshot_envelope()

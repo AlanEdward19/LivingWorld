@@ -33,7 +33,10 @@ public sealed class NatalitySystem : ISimulationSystem
                 continue;
 
             double roll = ctx.Rng($"natality-{mother.Id.Value}-{now.TotalHours}").NextDouble();
-            if (roll >= populationRules.AnnualConceptionChance)
+            double effectiveChance = populationRules.AnnualConceptionChance
+                * AttributeMechanic.FertilityMultiplier(world, mother)
+                * AttributeMechanic.FertilityMultiplier(world, father);
+            if (roll >= effectiveChance)
                 continue;
 
             var household = mother.Household is { } householdId ? world.FindHousehold(householdId) : null;
@@ -102,6 +105,7 @@ public sealed class NatalitySystem : ISimulationSystem
         baby.ConfigureNeedDecay(world.NeedsRules, world.CurrentDate.TotalHours);
         household.AddMember(baby.Id);
         ctx.LogEvent(WorldEventKind.Birth, $"{baby.Id.Value}|{motherId.Value}|{fatherId.Value}|{household.Id.Value}");
+        NpcInstantiationMechanic.ApplyPendingReincarnation(world, ctx, baby);
         MortalitySystem.SchedulePlannedDeath(world, ctx, baby);
         NpcWakeScheduler.ScheduleWake(world, ctx, baby.Id.Value, world.CurrentDate.TotalHours + 1);
     }

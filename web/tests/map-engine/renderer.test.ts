@@ -73,6 +73,21 @@ function baseFrame(camera: CameraState, entities: AuthoritativeEntity[] = []): R
   };
 }
 
+// `save`/`restore` são mocks vazios aqui — não empilham `globalAlpha` de verdade, então ler o
+// valor final depois de `draw()` pega o ÚLTIMO escritor (ex.: o pulso do badge de ação), não o
+// nosso fade de ocupação. Interceptamos a própria atribuição pra pegar o PRIMEIRO valor — é
+// sempre o nosso, porque `occupancyOpacity` escreve `globalAlpha` antes de qualquer badge.
+function fakeCtxWithAlphaHistory(canvas: { width: number; height: number }) {
+  const ctx = fakeCtx(canvas);
+  const history: number[] = [];
+  let current = 1;
+  Object.defineProperty(ctx, "globalAlpha", {
+    get: () => current,
+    set: (value: number) => { current = value; history.push(value); },
+  });
+  return { ctx, history };
+}
+
 describe("renderer.draw", () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -615,5 +630,86 @@ describe("renderer.draw", () => {
 
     expect(ctx.drawImage).toHaveBeenCalledOnce();
     expect(ctx.arc.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  describe("occupancy (fase 17: NPC entra em casa)", () => {
+    const house: AuthoritativeEntity = {
+      ref: { kind: "building", id: "house-1", space: { kind: "City", cityId: "a" } },
+      position: { x: 0, y: 0 },
+      size: { w: 3, h: 3 },
+      sizeIsDerived: false,
+      color: "#765",
+    };
+
+    it("fades the pawn to near-invisible once it settled (no facing) on an indoor action inside a building", () => {
+      const { ctx, history } = fakeCtxWithAlphaHistory({ width: 100, height: 100 });
+      const sleeper = { ...npc("sleeper", 1, 1), currentAction: 1 };
+
+      draw(ctx, baseFrame({ center: { x: 2, y: 2 }, scale: 12 }, [house, sleeper]));
+
+      expect(history[0]).toBeCloseTo(0.12);
+    });
+
+    it("keeps the pawn fully visible while still walking towards the tile (facing set)", () => {
+      const { ctx, history } = fakeCtxWithAlphaHistory({ width: 100, height: 100 });
+      const arriving = { ...npc("arriving", 1, 1), currentAction: 1, facing: { x: 1, y: 0 } };
+
+      draw(ctx, baseFrame({ center: { x: 2, y: 2 }, scale: 12 }, [house, arriving]));
+
+      expect(history[0]).toBe(1);
+    });
+
+    it("keeps the pawn fully visible on an indoor action when nowhere near a building", () => {
+      const { ctx, history } = fakeCtxWithAlphaHistory({ width: 100, height: 100 });
+      const outside = { ...npc("outside", 30, 30), currentAction: 1 };
+
+      draw(ctx, baseFrame({ center: { x: 30, y: 30 }, scale: 12 }, [house, outside]));
+
+      expect(history[0]).toBe(1);
+    });
+
+    it("keeps the pawn fully visible inside a building for a non-indoor action (socializing)", () => {
+      const { ctx, history } = fakeCtxWithAlphaHistory({ width: 100, height: 100 });
+      const chatting = { ...npc("chatting", 1, 1), currentAction: 3 };
+
+      draw(ctx, baseFrame({ center: { x: 2, y: 2 }, scale: 12 }, [house, chatting]));
+
+      expect(history[0]).toBe(1);
+    });
+
+    it("never applies the occupancy fade at the 'dot' LOD tier, even for a sleeper on a building tile", () => {
+      const { ctx, history } = fakeCtxWithAlphaHistory({ width: 100, height: 100 });
+      const sleeper = { ...npc("sleeper", 1, 1), currentAction: 1 };
+
+      // THRESHOLDS = { aggregate: 4, token: 10, detail: 18 } — scale 6 lands squarely in "dot".
+      draw(ctx, baseFrame({ center: { x: 2, y: 2 }, scale: 6 }, [house, sleeper]));
+
+      expect(history.every((value) => value === 1)).toBe(true);
+    });
+  });
+
+  describe("LOD gating for the conversation link (fase 17, milestone 5)", () => {
+    function socializingPair(): AuthoritativeEntity[] {
+      return [
+        { ...npc("chatter-a", 5, 5), currentAction: 3 },
+        { ...npc("chatter-b", 6, 5), currentAction: 3 },
+      ];
+    }
+
+    it("skips the dashed conversation link at the 'token' tier (medium zoom)", () => {
+      const ctx = fakeCtx({ width: 200, height: 200 });
+
+      draw(ctx, baseFrame({ center: { x: 5, y: 5 }, scale: 12 }, socializingPair()));
+
+      expect(ctx.setLineDash.mock.calls.some(([pattern]) => pattern?.[0] === 4 && pattern?.[1] === 6)).toBe(false);
+    });
+
+    it("draws the dashed conversation link only at the 'token-detail' tier (close zoom)", () => {
+      const ctx = fakeCtx({ width: 200, height: 200 });
+
+      draw(ctx, baseFrame({ center: { x: 5, y: 5 }, scale: 20 }, socializingPair()));
+
+      expect(ctx.setLineDash.mock.calls.some(([pattern]) => pattern?.[0] === 4 && pattern?.[1] === 6)).toBe(true);
+    });
   });
 });

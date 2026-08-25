@@ -2,16 +2,15 @@ using System.Net;
 using System.Net.Http.Json;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LivingWorld.Tests.Authoring;
 
-public sealed class AuthoringEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+public sealed class AuthoringEndpointTests : IClassFixture<LivingWorldApiFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly LivingWorldApiFactory _factory;
 
-    public AuthoringEndpointTests(WebApplicationFactory<Program> factory)
+    public AuthoringEndpointTests(LivingWorldApiFactory factory)
     {
         _factory = factory;
         var descriptor = new PowerDescriptor(

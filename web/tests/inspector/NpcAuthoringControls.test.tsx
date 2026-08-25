@@ -40,20 +40,29 @@ describe("NpcAuthoringControls", () => {
     await waitFor(() => expect(commands.invokePower).toHaveBeenCalledWith(7, "energia", 7, { x: 9, y: 4 }));
   });
 
-  it("sends personality, relationship and immediate action as explicit commands", async () => {
+  it("highlights the matching preset chip, applies it instantly, and sends personality as an explicit command", async () => {
     const commands = source();
     render(<NpcAuthoringControls npcId={7} source={commands} powerIds={[]} personality={{ extroversion: 20 }} location={{ x: 0, y: 0 }} onRefresh={vi.fn().mockResolvedValue(undefined)} />);
     await screen.findByRole("option", { name: "energia" });
-    fireEvent.click(screen.getByText("Personalidade"));
-    fireEvent.click(screen.getByRole("button", { name: "Raivoso" }));
+    fireEvent.click(screen.getByRole("button", { name: /Personalidade/ }));
+
+    const raivoso = screen.getByRole("button", { name: "Raivoso" });
+    expect(raivoso).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(raivoso);
+    expect(raivoso).toHaveAttribute("aria-pressed", "true");
+    expect(await screen.findByText(/Perfil "Raivoso" aplicado/)).toBeInTheDocument();
+
     fireEvent.change(screen.getByLabelText("Extroversão"), { target: { value: "88" } });
     fireEvent.click(screen.getByRole("button", { name: "Salvar personalidade" }));
     await waitFor(() => expect(commands.rewritePersonality).toHaveBeenCalledWith(7, expect.objectContaining({ extroversion: 88, emotionalStability: 10, impulsivity: 90 })));
+  });
 
-    fireEvent.click(screen.getByText("Relações e comportamento"));
-    fireEvent.change(screen.getByLabelText("Outro NPC da relação"), { target: { value: "8" } });
-    fireEvent.click(screen.getByRole("button", { name: "Romper relação entre os dois" }));
-    await waitFor(() => expect(commands.breakRelationships).toHaveBeenCalledWith(7, 8));
+  it("sends an immediate action command from the behavior section", async () => {
+    const commands = source();
+    render(<NpcAuthoringControls npcId={7} source={commands} powerIds={[]} personality={{}} location={{ x: 0, y: 0 }} onRefresh={vi.fn().mockResolvedValue(undefined)} />);
+    await screen.findByRole("option", { name: "energia" });
+    fireEvent.click(screen.getByRole("button", { name: /Comportamento/ }));
+
     fireEvent.click(screen.getByRole("button", { name: "Dar ordem agora" }));
     await waitFor(() => expect(commands.forceAction).toHaveBeenCalledWith(7, 5));
   });

@@ -101,7 +101,8 @@ public static class MapScenarioLoader
                 ? resNode.Select(r => new ResourceType(r!.GetValue<int>())).ToArray()
                 : Array.Empty<ResourceType>();
 
-            cells.Add(new MapCell(new CellCoord(x, y), new TerrainType(terrain), new BiomeType(biome), altitude, water, resources));
+            cells.Add(MapCell.WithDerivedTemperature(
+                new CellCoord(x, y), new TerrainType(terrain), new BiomeType(biome), altitude, water, resources));
         }
 
         var regions = RegionGrid.Partition(width, height, regionSize);

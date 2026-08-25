@@ -11,11 +11,12 @@ namespace LivingWorld.Tests.Periods;
 /// Mesmo padrão de <see cref="LivingWorld.Tests.Cities.NpcEndpointTests"/> —
 /// <see cref="WebApplicationFactory{TEntryPoint}"/> real, uma instância por classe (isolamento
 /// de <c>world</c>/db do host, ver comentário em Program.cs).</summary>
-public class PeriodsEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection(ApiEndpointCollection.Name)]
+public class PeriodsEndpointTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly LivingWorldApiFactory _factory;
 
-    public PeriodsEndpointTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public PeriodsEndpointTests(LivingWorldApiFactory factory) => _factory = factory;
 
     private static JsonObject FullValidPeriodDefinition()
     {
@@ -74,12 +75,15 @@ public class PeriodsEndpointTests : IClassFixture<WebApplicationFactory<Program>
     public async Task Post_periods_returns_201_and_registers_a_valid_period()
     {
         var client = _factory.CreateClient();
+        // Id único por execução — evita 409 se ConnectionStrings__World apontar pra um db de
+        // sessão anterior (run.cmd); o ModuleInitializer limpa isso, mas o id efêmero é cinto.
+        string periodId = $"period-{Guid.NewGuid():N}";
 
-        var response = await client.PostAsync("/periods", JsonBody(Envelope("medieval-201", 1, FullValidPeriodDefinition())));
+        var response = await client.PostAsync("/periods", JsonBody(Envelope(periodId, 1, FullValidPeriodDefinition())));
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("medieval-201", body);
+        Assert.Contains(periodId, body);
     }
 
     [Fact]

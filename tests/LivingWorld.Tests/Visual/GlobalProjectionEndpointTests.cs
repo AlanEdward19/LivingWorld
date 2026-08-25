@@ -1,17 +1,17 @@
 using System.Net;
 using System.Net.Http.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace LivingWorld.Tests.Visual;
 
 /// <summary>Fase 15, T4 (VTT-01): <c>GET /visual/subscribe</c> no escopo world entrega a projeção
 /// global (não mais <c>Payload: null</c> do gateway genérico de T3) — o espectador que abre o
 /// mapa-múndi recebe cidades/camadas de verdade.</summary>
-public class GlobalProjectionEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection(ApiEndpointCollection.Name)]
+public class GlobalProjectionEndpointTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly LivingWorldApiFactory _factory;
 
-    public GlobalProjectionEndpointTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public GlobalProjectionEndpointTests(LivingWorldApiFactory factory) => _factory = factory;
 
     [Fact]
     public async Task Subscribing_to_world_scope_returns_a_populated_global_projection()

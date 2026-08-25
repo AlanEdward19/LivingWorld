@@ -31,6 +31,8 @@ public sealed class CropSystem : ISimulationSystem
             var workers = vacancyIndex.PresentWorkersAt(workplace);
             if (workers.Count == 0) continue;
 
+            _ = ReadCellTemperature(world, workplace.Location, ctx.CurrentTick);
+
             var crop = world.FindCropAt(workplace.Location);
             if (crop is { } harvestable && harvestable.IsHarvestable(ctx.CurrentTick))
             {
@@ -71,6 +73,10 @@ public sealed class CropSystem : ISimulationSystem
             }
         }
     }
+
+    /// <summary>PWR-76: o cultivo lê a temperatura da célula; a fórmula de rendimento não muda nesta fase.</summary>
+    public static float ReadCellTemperature(WorldState world, CellCoord cell, long currentTick) =>
+        EnvironmentTemperatureMechanic.EffectiveTemperature(world, cell, currentTick);
 
     public static Result<ResourceProcess> Plant(WorldState world, Npc npc, long now, long matureDelayTicks, long waterRequired)
     {

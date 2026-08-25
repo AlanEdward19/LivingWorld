@@ -55,6 +55,7 @@ export function EntityInspector({ selectionStore, simulationStore, viewStore, na
             viewStore={viewStore}
             narrativeSources={narrativeSources}
             authoringSource={authoringSource}
+            selectionStore={selectionStore}
           />
         )}
         {selection.kind === "building" && (

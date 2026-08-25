@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using LivingWorld.Simulation;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LivingWorld.Tests.Visual;
@@ -9,11 +8,12 @@ namespace LivingWorld.Tests.Visual;
 /// <summary>Fase 15, T7 (spec.md story "Modo personagem com FOW", AC1; edge case "movimento
 /// inválido"): <c>POST /visual/player/{id}/move</c> — válido move de verdade e publica delta
 /// (replayável via T3); inválido rejeita com 400 e hash canônico inalterado; id inexistente 404.</summary>
-public class VisualInputEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection(ApiEndpointCollection.Name)]
+public class VisualInputEndpointTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly LivingWorldApiFactory _factory;
 
-    public VisualInputEndpointTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public VisualInputEndpointTests(LivingWorldApiFactory factory) => _factory = factory;
 
     [Fact]
     public async Task Move_to_an_adjacent_cell_succeeds_and_actually_moves_the_npc()

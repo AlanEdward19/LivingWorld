@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 12,
+  "next_id": 18,
   "lessons": [
     {
       "id": "L-001",
@@ -256,6 +256,114 @@
       ],
       "created": "2026-08-24T21:14:22Z",
       "last_seen": "2026-08-24T21:14:22Z"
+    },
+    {
+      "id": "L-012",
+      "key": "gate_fail::when adding a constructor or required field to a persisted value object keep a single jsonconstructor or parameterless path so snapshot round trip tests still deserialize",
+      "text": "When adding a constructor or required field to a persisted value object, keep a single JsonConstructor (or parameterless) path so snapshot round-trip tests still deserialize.",
+      "signal": "gate_fail",
+      "scope": "snapshot",
+      "status": "candidate",
+      "features": [
+        "phase-16-1-power-engine"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "WorldSnapshotTests MapCell deserialize (snapshot)"
+      ],
+      "created": "2026-08-25T12:12:32Z",
+      "last_seen": "2026-08-25T12:12:32Z"
+    },
+    {
+      "id": "L-013",
+      "key": "ac_gap::assert multi segment effect tokens amount plus duration by the parsed fields not a single trailing number",
+      "text": "Assert multi-segment effect tokens (amount plus duration) by the parsed fields, not a single trailing number.",
+      "signal": "ac_gap",
+      "scope": "extraordinary",
+      "status": "candidate",
+      "features": [
+        "phase-16-1-power-engine"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "PWR-25 LuckMechanicTests.cs:56 (extraordinary)"
+      ],
+      "created": "2026-08-25T12:12:32Z",
+      "last_seen": "2026-08-25T12:12:32Z"
+    },
+    {
+      "id": "L-014",
+      "key": "ac_gap::when a new concept replaces legacy flags assert composed public outputs for combined legacy tokens not each token in isolation",
+      "text": "When a new concept replaces legacy flags, assert composed public outputs for combined legacy tokens, not each token in isolation.",
+      "signal": "ac_gap",
+      "scope": "extraordinary",
+      "status": "candidate",
+      "features": [
+        "phase-16-1-power-engine"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "PWR-70 ExtraordinaryArchetypeScenarioTests.cs:54 (extraordinary)"
+      ],
+      "created": "2026-08-25T12:12:33Z",
+      "last_seen": "2026-08-25T12:12:33Z"
+    },
+    {
+      "id": "L-015",
+      "key": "ac_gap::a genericity goal that requires a representative scenario sample must ship that many descriptors as data not only engine unit tests",
+      "text": "A genericity goal that requires a representative scenario sample must ship that many descriptors as data, not only engine unit tests.",
+      "signal": "ac_gap",
+      "scope": "extraordinary",
+      "status": "candidate",
+      "features": [
+        "phase-16-1-power-engine"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "spec Success Criteria sample 15-20 (extraordinary)"
+      ],
+      "created": "2026-08-25T12:12:33Z",
+      "last_seen": "2026-08-25T12:12:33Z"
+    },
+    {
+      "id": "L-016",
+      "key": "spec_precision_gap::if the spec requires a causal preview log that is not a fact name the event kind otherwise tests will reuse a generic applied effect kind",
+      "text": "If the spec requires a causal preview log that is not a Fact, name the event kind; otherwise tests will reuse a generic applied-effect kind.",
+      "signal": "spec_precision_gap",
+      "scope": "extraordinary",
+      "status": "candidate",
+      "features": [
+        "phase-16-1-power-engine"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "PWR-120 ForesightMechanicTests.cs:99-101 (extraordinary)"
+      ],
+      "created": "2026-08-25T12:12:33Z",
+      "last_seen": "2026-08-25T12:12:33Z"
+    },
+    {
+      "id": "L-017",
+      "key": "ac_gap::contract error strings must be asserted on the public entry point invoke not only that a registry lookup returns null",
+      "text": "Contract error strings must be asserted on the public entry point (Invoke), not only that a registry lookup returns null.",
+      "signal": "ac_gap",
+      "scope": "extraordinary",
+      "status": "candidate",
+      "features": [
+        "phase-16-1-power-engine"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "PWR-03 ExtraordinaryMechanicRegistryTests.cs:29 (extraordinary)"
+      ],
+      "created": "2026-08-25T12:12:33Z",
+      "last_seen": "2026-08-25T12:12:33Z"
     }
   ]
 }

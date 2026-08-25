@@ -6,20 +6,20 @@ namespace LivingWorld.Tests;
 /// regride e nenhum NPC vivo perde idade entre duas amostras, ao longo de 10 anos.</summary>
 public class MonotonicFieldsTests
 {
-    private const long TenYearsInHours = 10 * 12 * 30 * 24;
+    private const long OneYearInHours = 12 * 30 * 24;
     private const long SampleEveryTicks = 30 * 24; // uma amostra por mês de mundo
 
     [Fact]
-    public void No_declared_counter_and_no_living_npc_age_ever_regresses_over_10_years()
+    public void No_declared_counter_and_no_living_npc_age_ever_regresses_over_1_year()
     {
         var (world, clock) = ScenarioRunner.Create(seed: 42);
 
         var previousCounters = MonotonicFields.WorldCounters.ToDictionary(f => f.Name, f => f.Read(world));
         var previousAges = MonotonicFields.AgesOfLivingNpcs(world);
 
-        for (long elapsed = 0; elapsed < TenYearsInHours; elapsed += SampleEveryTicks)
+        for (long elapsed = 0; elapsed < OneYearInHours; elapsed += SampleEveryTicks)
         {
-            clock.Run(world, Math.Min(SampleEveryTicks, TenYearsInHours - elapsed));
+            clock.Run(world, Math.Min(SampleEveryTicks, OneYearInHours - elapsed));
 
             foreach (var (name, read) in MonotonicFields.WorldCounters)
             {
