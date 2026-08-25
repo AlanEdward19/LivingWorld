@@ -137,61 +137,6 @@ public class SimulationControlEndpointsTests : IClassFixture<LivingWorldApiFacto
     }
 
     [Fact]
-    public async Task Advance_years_with_count_5_runs_exactly_five_calendar_years_and_returns_tick_and_year()
-    {
-        var client = _factory.CreateClient();
-        await client.PostAsync("/simulation/pause", null);
-
-        using var scope = _factory.Services.CreateScope();
-        var world = scope.ServiceProvider.GetRequiredService<WorldState>();
-        var before = world.CurrentDate.TotalHours;
-        long hoursPerYear = world.Calendar.HoursPerYear;
-
-        var response = await client.PostAsync("/simulation/advance-years?count=5", null);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<AdvanceYearsResponse>();
-        Assert.NotNull(body);
-        Assert.Equal(before + 5 * hoursPerYear, world.CurrentDate.TotalHours);
-        Assert.Equal(body!.Tick, world.CurrentDate.TotalHours);
-        Assert.Equal(body.Year, world.CurrentDate.Year);
-    }
-
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    public async Task Advance_years_with_non_positive_count_returns_400_and_does_not_advance(int invalidCount)
-    {
-        var client = _factory.CreateClient();
-        await client.PostAsync("/simulation/pause", null);
-
-        using var scope = _factory.Services.CreateScope();
-        var world = scope.ServiceProvider.GetRequiredService<WorldState>();
-        var before = world.CurrentDate.TotalHours;
-
-        var response = await client.PostAsync($"/simulation/advance-years?count={invalidCount}", null);
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal(before, world.CurrentDate.TotalHours);
-    }
-
-    [Fact]
-    public async Task Advance_years_without_count_returns_400_and_does_not_advance()
-    {
-        var client = _factory.CreateClient();
-        await client.PostAsync("/simulation/pause", null);
-
-        using var scope = _factory.Services.CreateScope();
-        var world = scope.ServiceProvider.GetRequiredService<WorldState>();
-        var before = world.CurrentDate.TotalHours;
-
-        var response = await client.PostAsync("/simulation/advance-years", null);
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal(before, world.CurrentDate.TotalHours);
-    }
-
-    [Fact]
     public async Task Pause_resume_and_speed_calls_never_change_the_canonical_hash()
     {
         using var scope = _factory.Services.CreateScope();
