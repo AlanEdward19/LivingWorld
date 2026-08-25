@@ -93,6 +93,46 @@ public sealed class ForesightMechanicTests
             ExtraordinaryMechanicRegistry.Default.Resolve("foresight.preview:check"));
     }
 
+    [Fact]
+    public void Preview_is_stored_for_carrier_and_action_in_the_same_tick()
+    {
+        var treated = WorldWithPreview("Eat");
+        var ctx = new TickContext(treated.World, treated.World.Rng, treated.World.Scheduler);
+        long tick = ctx.CurrentTick;
+        ForesightMechanic.EnsureTick(tick);
+        const long invocationId = 283;
+        const string evento = "Eat";
+        var expected = ForesightMechanic.PreviewResolve(
+            treated.World, treated.Carrier, treated.Target, ctx,
+            new ExtraordinaryInvocation(invocationId, treated.Carrier.Id, "test-power", treated.Target.Id),
+            evento);
+
+        var result = ExtraordinaryInvocationEngine.Invoke(
+            treated.World, ctx,
+            new ExtraordinaryInvocation(invocationId, treated.Carrier.Id, "test-power", treated.Target.Id));
+
+        Assert.True(result.IsSuccess, result.Error);
+        var previews = ForesightMechanic.PreviewsFor(treated.Carrier.Id, tick);
+        Assert.True(previews.TryGetValue(ActionType.Eat, out var stored));
+        Assert.Equal(expected, stored);
+    }
+
+    [Fact]
+    public void Preview_store_clears_when_tick_advances()
+    {
+        var treated = WorldWithPreview("Eat");
+        var ctx = new TickContext(treated.World, treated.World.Rng, treated.World.Scheduler);
+        long tick = ctx.CurrentTick;
+        ForesightMechanic.EnsureTick(tick);
+        ExtraordinaryInvocationEngine.Invoke(
+            treated.World, ctx,
+            new ExtraordinaryInvocation(284, treated.Carrier.Id, "test-power", treated.Target.Id));
+        Assert.True(ForesightMechanic.PreviewsFor(treated.Carrier.Id, tick).ContainsKey(ActionType.Eat));
+
+        ForesightMechanic.EnsureTick(tick + 1);
+        Assert.False(ForesightMechanic.PreviewsFor(treated.Carrier.Id, tick + 1).ContainsKey(ActionType.Eat));
+    }
+
     private static ResolutionResult PreviewedResolution(RecordingSink sink, string evento)
     {
         string marker = $"{ForesightMechanic.PreviewPrefix}{evento}|";
