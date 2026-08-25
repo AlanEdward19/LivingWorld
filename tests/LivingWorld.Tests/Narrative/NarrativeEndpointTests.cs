@@ -12,9 +12,9 @@ namespace LivingWorld.Tests.Narrative;
 /// <summary>Fase 12, T7 (NARR-19..21): <c>GET /narratives/chronicles|biographies/{npcId}|reports</c>
 /// — mesmo padrão de <c>NpcEndpointTests</c>/<c>ConversationEndpointTests</c>
 /// (<c>WebApplicationFactory&lt;Program&gt;</c>), nenhuma lógica de decisão nova, só tradução
-/// request/response sobre o pipeline já pronto (T2/T4/T5/T6).</summary>
-[Collection(ApiEndpointCollection.Name)]
-public class NarrativeEndpointTests
+/// request/response sobre o pipeline já pronto (T2/T4/T5/T6).
+/// Factory própria: os casos felizes semeiam cidades/facts no mundo canônico.</summary>
+public class NarrativeEndpointTests : IClassFixture<LivingWorldApiFactory>
 {
     private readonly LivingWorldApiFactory _factory;
 

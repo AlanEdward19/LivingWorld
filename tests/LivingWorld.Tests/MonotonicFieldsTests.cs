@@ -3,23 +3,36 @@ using LivingWorld.Simulation;
 namespace LivingWorld.Tests;
 
 /// <summary>Task 14: assert genérico sobre <see cref="MonotonicFields"/> — nenhum contador
-/// regride e nenhum NPC vivo perde idade entre duas amostras, ao longo de 10 anos.</summary>
+/// regride e nenhum NPC vivo perde idade entre duas amostras. Gate: 1 mês; 1 ano em Scenario.</summary>
 public class MonotonicFieldsTests
 {
+    private const long OneMonthInHours = 30 * 24;
     private const long OneYearInHours = 12 * 30 * 24;
-    private const long SampleEveryTicks = 30 * 24; // uma amostra por mês de mundo
+    private const long SampleEveryTicks = 24; // uma amostra por dia de mundo
 
     [Fact]
+    public void No_declared_counter_and_no_living_npc_age_ever_regresses_over_1_month()
+    {
+        AssertNoRegression(OneMonthInHours);
+    }
+
+    [Trait("Category", "Scenario")]
+    [Fact]
     public void No_declared_counter_and_no_living_npc_age_ever_regresses_over_1_year()
+    {
+        AssertNoRegression(OneYearInHours);
+    }
+
+    private static void AssertNoRegression(long horizonHours)
     {
         var (world, clock) = ScenarioRunner.Create(seed: 42);
 
         var previousCounters = MonotonicFields.WorldCounters.ToDictionary(f => f.Name, f => f.Read(world));
         var previousAges = MonotonicFields.AgesOfLivingNpcs(world);
 
-        for (long elapsed = 0; elapsed < OneYearInHours; elapsed += SampleEveryTicks)
+        for (long elapsed = 0; elapsed < horizonHours; elapsed += SampleEveryTicks)
         {
-            clock.Run(world, Math.Min(SampleEveryTicks, OneYearInHours - elapsed));
+            clock.Run(world, Math.Min(SampleEveryTicks, horizonHours - elapsed));
 
             foreach (var (name, read) in MonotonicFields.WorldCounters)
             {

@@ -14,7 +14,8 @@ public sealed class ScalePerformanceCollection
     public const string Name = "Scale performance";
 }
 
-/// <summary>PERF-02: sensor de escala no gate — 1 mês-sim, duas populações estáveis.</summary>
+/// <summary>PERF-02: sensor de escala no gate — 1 mês-sim, população pequena.
+/// População grande (5k) fica em Category=Scenario.</summary>
 [Collection(ScalePerformanceCollection.Name)]
 public class ScaleScenarioSensorTests
 {
@@ -30,9 +31,32 @@ public class ScaleScenarioSensorTests
 
     [Theory]
     [InlineData(ScaleScenarioFixture.PopulationSmall)]
-    [InlineData(ScaleScenarioFixture.PopulationLarge)]
     /// <summary>Disco é determinístico; µs/alloc só teto absoluto (variância de GC/carga).</summary>
     public void One_month_scale_run_stays_within_recorded_baseline(int initialPopulation)
+    {
+        AssertWithinBaseline(initialPopulation);
+    }
+
+    [Theory]
+    [Trait("Category", "Scenario")]
+    [InlineData(ScaleScenarioFixture.PopulationLarge)]
+    public void One_month_large_population_stays_within_recorded_baseline(int initialPopulation)
+    {
+        AssertWithinBaseline(initialPopulation);
+    }
+
+    [Fact(Skip = "Regravar: dotnet test --filter ZZZ_record_scale_sensor_baseline")]
+    public void ZZZ_record_scale_sensor_baseline()
+    {
+        var actual = new Dictionary<int, ScaleSensorSample>
+        {
+            [ScaleScenarioFixture.PopulationSmall] = Measure(ScaleScenarioFixture.PopulationSmall),
+            [ScaleScenarioFixture.PopulationLarge] = Measure(ScaleScenarioFixture.PopulationLarge),
+        };
+        BaselineFixture.Record(BaselinesDir, "scale-sensor", actual);
+    }
+
+    private static void AssertWithinBaseline(int initialPopulation)
     {
         var sample = Measure(initialPopulation);
         var baseline = LoadBaseline()[initialPopulation.ToString()];
@@ -50,17 +74,6 @@ public class ScaleScenarioSensorTests
         Assert.True(
             sample.BytesPerAliveNpcPerYear <= rules.MaxBytesPerAliveNpcPerYear,
             $"BytesPerAliveNpcPerYear={sample.BytesPerAliveNpcPerYear:F0} excede teto {rules.MaxBytesPerAliveNpcPerYear}");
-    }
-
-    [Fact(Skip = "Regravar: dotnet test --filter ZZZ_record_scale_sensor_baseline")]
-    public void ZZZ_record_scale_sensor_baseline()
-    {
-        var actual = new Dictionary<int, ScaleSensorSample>
-        {
-            [ScaleScenarioFixture.PopulationSmall] = Measure(ScaleScenarioFixture.PopulationSmall),
-            [ScaleScenarioFixture.PopulationLarge] = Measure(ScaleScenarioFixture.PopulationLarge),
-        };
-        BaselineFixture.Record(BaselinesDir, "scale-sensor", actual);
     }
 
     private static Dictionary<string, ScaleSensorSample> LoadBaseline()

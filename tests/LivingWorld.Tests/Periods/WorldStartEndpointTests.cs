@@ -7,9 +7,9 @@ using LivingWorld.Api;
 namespace LivingWorld.Tests.Periods;
 
 /// <summary>Fase 13, T6 (PERIOD-04..06, PERIOD-07..10): <c>POST /worlds/start</c> resolve um
-/// template já cadastrado por <c>POST /periods</c> e inicializa mundo com a seed pedida.</summary>
-[Collection(ApiEndpointCollection.Name)]
-public class WorldStartEndpointTests
+/// template já cadastrado por <c>POST /periods</c> e inicializa mundo com a seed pedida.
+/// Factory própria: <c>/worlds/start</c> faz <c>WorldHost.Replace</c>.</summary>
+public class WorldStartEndpointTests : IClassFixture<LivingWorldApiFactory>
 {
     private readonly LivingWorldApiFactory _factory;
 

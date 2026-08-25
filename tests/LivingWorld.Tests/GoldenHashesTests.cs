@@ -5,16 +5,22 @@ namespace LivingWorld.Tests;
 
 /// <summary>Task 9: tests/golden/world-hashes.json versiona {cenário, seed, ticks, hash}.
 /// Mudança legítima de regra quebra o arquivo; atualizar o baseline vira commit explícito,
-/// nunca efeito colateral do gate.</summary>
+/// nunca efeito colateral do gate. Gate padrão só cobre o entry barato (100 ticks);
+/// horizontes longos ficam em <c>Category=Scenario</c>.</summary>
 public class GoldenHashesTests
 {
     public sealed record GoldenEntry(string Scenario, ulong Seed, long Ticks, string CanonicalHash);
 
     private static readonly string GoldenPath = Path.Combine(FindRepoRoot(), "tests", "golden", "world-hashes.json");
 
-    public static IEnumerable<object[]> Entries() =>
-        JsonSerializer.Deserialize<List<GoldenEntry>>(File.ReadAllText(GoldenPath))!
-            .Select(e => new object[] { e });
+    private static List<GoldenEntry> AllEntries() =>
+        JsonSerializer.Deserialize<List<GoldenEntry>>(File.ReadAllText(GoldenPath))!;
+
+    public static IEnumerable<object[]> GateEntries() =>
+        AllEntries().Where(e => e.Ticks <= 100).Select(e => new object[] { e });
+
+    public static IEnumerable<object[]> ScenarioEntries() =>
+        AllEntries().Where(e => e.Ticks > 100).Select(e => new object[] { e });
 
     [Fact(Skip = "Regravar: dotnet test --filter ZZZ_record_golden_hashes")]
     public void ZZZ_record_golden_hashes()
@@ -29,8 +35,21 @@ public class GoldenHashesTests
     }
 
     [Theory]
-    [MemberData(nameof(Entries))]
-    public void Scenario_hash_matches_committed_golden_file(GoldenEntry entry)
+    [MemberData(nameof(GateEntries))]
+    public void Gate_scenario_hash_matches_committed_golden_file(GoldenEntry entry)
+    {
+        AssertHashMatches(entry);
+    }
+
+    [Theory]
+    [MemberData(nameof(ScenarioEntries))]
+    [Trait("Category", "Scenario")]
+    public void Long_horizon_scenario_hash_matches_committed_golden_file(GoldenEntry entry)
+    {
+        AssertHashMatches(entry);
+    }
+
+    private static void AssertHashMatches(GoldenEntry entry)
     {
         Assert.Equal("default", entry.Scenario); // única cena implementada nesta fase
 

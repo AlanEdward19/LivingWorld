@@ -7,9 +7,9 @@ namespace LivingWorld.Tests.Visual;
 
 /// <summary>Fase 15, T7 (spec.md story "Modo personagem com FOW", AC1; edge case "movimento
 /// inválido"): <c>POST /visual/player/{id}/move</c> — válido move de verdade e publica delta
-/// (replayável via T3); inválido rejeita com 400 e hash canônico inalterado; id inexistente 404.</summary>
-[Collection(ApiEndpointCollection.Name)]
-public class VisualInputEndpointTests
+/// (replayável via T3); inválido rejeita com 400 e hash canônico inalterado; id inexistente 404.
+/// Factory própria: move bem-sucedido muta posição no <c>WorldHost</c>.</summary>
+public class VisualInputEndpointTests : IClassFixture<LivingWorldApiFactory>
 {
     private readonly LivingWorldApiFactory _factory;
 

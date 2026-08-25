@@ -9,6 +9,10 @@ namespace LivingWorld.Domain;
 /// construtor no round-trip do snapshot, então todo campo mutável precisa estar nele.</summary>
 public sealed class Npc
 {
+    [JsonIgnore]
+    public Action<NpcId>? CanonicalMutationNotifier { get; set; }
+    private void TouchCanonical() => CanonicalMutationNotifier?.Invoke(Id);
+
     public NpcId Id { get; }
     public string Name { get; }
     public Sex Sex { get; }
@@ -192,6 +196,7 @@ public sealed class Npc
         if (quantity > capacity) return Result<Unit>.Fail("carry: excede capacidade");
         CarriedResourceId = resource.Id;
         CarriedQuantity = quantity;
+        TouchCanonical();
         return Result<Unit>.Ok(Unit.Value);
     }
 
@@ -201,6 +206,7 @@ public sealed class Npc
         household.Deposit(new ResourceType(CarriedResourceId), CarriedQuantity);
         CarriedResourceId = 0;
         CarriedQuantity = 0;
+        TouchCanonical();
         return Result<Unit>.Ok(Unit.Value);
     }
 
@@ -220,14 +226,20 @@ public sealed class Npc
         if (deathDate < BirthDate)
             throw new ArgumentOutOfRangeException(nameof(deathDate), deathDate, "DeathDate não pode ser anterior a BirthDate");
         DeathDate = deathDate;
+        TouchCanonical();
     }
 
-    public void BecomeGhost() => IsGhost = true;
+    public void BecomeGhost()
+    {
+        IsGhost = true;
+        TouchCanonical();
+    }
 
     public void JoinHousehold(HouseholdId household)
     {
         Household = household;
         HomelessSince = null;
+        TouchCanonical();
     }
 
     /// <summary>Limpa a referência quando o household deixa de existir (dissolvido) — nunca
@@ -239,6 +251,7 @@ public sealed class Npc
     {
         Household = null;
         HomelessSince = now;
+        TouchCanonical();
     }
 
     public void ConfigureNeedDecay(NeedsRules rules, long tick)
@@ -247,6 +260,7 @@ public sealed class Npc
         ThirstNeed = ThirstNeed.WithDecayRate(rules.ThirstDecayPerHour, tick);
         SleepNeed = SleepNeed.WithDecayRate(rules.SleepDecayPerHour, tick);
         SocialNeed = SocialNeed.WithDecayRate(rules.SocialDecayPerHour, tick);
+        TouchCanonical();
     }
 
     public int HungerAt(long tick) => NeedAsInt(HungerNeed, tick);
@@ -263,34 +277,71 @@ public sealed class Npc
     private static int NeedAsInt(LazyNeed need, long tick) =>
         (int)Math.Round(need.ValueAt(tick), MidpointRounding.AwayFromZero);
 
-    public void SetHealth(int health) => Health = Math.Clamp(health, 0, 100);
+    public void SetHealth(int health)
+    {
+        Health = Math.Clamp(health, 0, 100);
+        TouchCanonical();
+    }
 
-    public void SetHunger(int hunger, long tick = 0) => HungerNeed = HungerNeed.WithValue(hunger, tick);
+    public void SetHunger(int hunger, long tick = 0)
+    {
+        HungerNeed = HungerNeed.WithValue(hunger, tick);
+        TouchCanonical();
+    }
 
-    public void SetThirst(int thirst, long tick = 0) => ThirstNeed = ThirstNeed.WithValue(thirst, tick);
+    public void SetThirst(int thirst, long tick = 0)
+    {
+        ThirstNeed = ThirstNeed.WithValue(thirst, tick);
+        TouchCanonical();
+    }
 
-    public void SetSleep(int sleep, long tick = 0) => SleepNeed = SleepNeed.WithValue(sleep, tick);
+    public void SetSleep(int sleep, long tick = 0)
+    {
+        SleepNeed = SleepNeed.WithValue(sleep, tick);
+        TouchCanonical();
+    }
 
-    public void SetSocial(int social, long tick = 0) => SocialNeed = SocialNeed.WithValue(social, tick);
+    public void SetSocial(int social, long tick = 0)
+    {
+        SocialNeed = SocialNeed.WithValue(social, tick);
+        TouchCanonical();
+    }
 
     /// <summary>Atualiza o local corrente do NPC (task 6). <paramref name="tick"/> é aceito para
     /// manter a assinatura pedida pelo design — nenhum sistema desta task consome esse valor
     /// ainda (deslocamento com custo é T11/T14).</summary>
-    public void MoveTo(CellCoord destination, long tick) => CurrentLocation = destination;
+    public void MoveTo(CellCoord destination, long tick)
+    {
+        CurrentLocation = destination;
+        TouchCanonical();
+    }
 
     public void SetCurrentAction(ActionType action, long tick)
     {
         CurrentAction = action;
         ActionStartedAtTick = tick;
+        TouchCanonical();
     }
 
     /// <summary>Intervenção explícita de autoria. A personalidade continua mudando somente como
     /// conjunto completo e já validado; sistemas ordinários nunca chamam este método.</summary>
-    public void RewritePersonality(Personality personality) => Personality = personality;
+    public void RewritePersonality(Personality personality)
+    {
+        Personality = personality;
+        TouchCanonical();
+    }
 
-    public void MarkHungerZeroSince(long tick) => HungerZeroSinceTick = tick;
+    public void MarkHungerZeroSince(long tick)
+    {
+        HungerZeroSinceTick = tick;
+        TouchCanonical();
+    }
 
-    public void ClearHungerZeroSince() => HungerZeroSinceTick = null;
+    public void ClearHungerZeroSince()
+    {
+        HungerZeroSinceTick = null;
+        TouchCanonical();
+    }
 
     /// <summary>NEEDS-05: objetivo ativo e inspecionável — necessidade zerada dispara sempre
     /// (NEEDS-02, independente do limiar configurado); necessidade cujo déficit (100 − valor)
@@ -301,11 +352,23 @@ public sealed class Npc
 
     private static bool IsUrgent(int need, NeedsRules rules) => need == 0 || 100 - need > rules.UrgencyThreshold;
 
-    public void BecomePregnant(WorldDate dueDate) => PregnantUntil = dueDate;
+    public void BecomePregnant(WorldDate dueDate)
+    {
+        PregnantUntil = dueDate;
+        TouchCanonical();
+    }
 
-    public void ClearPregnancy() => PregnantUntil = null;
+    public void ClearPregnancy()
+    {
+        PregnantUntil = null;
+        TouchCanonical();
+    }
 
-    public void CreditWallet(Money amount) => Wallet += amount;
+    public void CreditWallet(Money amount)
+    {
+        Wallet += amount;
+        TouchCanonical();
+    }
 
     /// <summary>Delega a <see cref="Money.TryDebit"/> — nunca deixa <see cref="Wallet"/>
     /// negativo (mesma garantia usada por <see cref="Workplace.TryDebitTreasury"/>).</summary>
@@ -313,46 +376,85 @@ public sealed class Npc
     {
         var result = Wallet.TryDebit(amount);
         if (result.IsSuccess)
+        {
             Wallet = result.Value;
+            TouchCanonical();
+        }
         return result;
     }
 
     /// <summary>Vínculo empregatício (ECON-18) — espelha <see cref="JoinHousehold"/>.</summary>
-    public void Hire(WorkplaceId workplace) => Employer = workplace;
+    public void Hire(WorkplaceId workplace)
+    {
+        Employer = workplace;
+        TouchCanonical();
+    }
 
     /// <summary>Desliga o vínculo (ECON-19) — espelha <see cref="LeaveHousehold"/>.</summary>
-    public void Fire() => Employer = null;
+    public void Fire()
+    {
+        Employer = null;
+        TouchCanonical();
+    }
 
     /// <summary>Troca de profissão (SKILL-14) — muda apenas <see cref="Profession"/>; nunca
     /// toca <see cref="Skills"/>. Estagnação da habilidade antiga é ausência de ganho (ela só
     /// para de subir por prática porque deixa de ser a profissão corrente), não um reset nem um
     /// campo novo de "profissão antiga" (Tech Decision do design).</summary>
-    public void SwitchProfession(ProfessionType newProfession) => Profession = newProfession;
+    public void SwitchProfession(ProfessionType newProfession)
+    {
+        Profession = newProfession;
+        TouchCanonical();
+    }
 
     /// <summary>Aplica ganho de habilidade (SKILL-01/03..08) — delega o clamp de teto a <see
     /// cref="SkillSet.WithGain"/>; único ponto que reatribui <see cref="Skills"/> fora do
     /// construtor (mesmo padrão de mutador dedicado de <see cref="SetHunger"/> etc).</summary>
-    public void GainSkill(SkillType type, double delta, double cap) => Skills = Skills.WithGain(type, delta, cap);
+    public void GainSkill(SkillType type, double delta, double cap)
+    {
+        Skills = Skills.WithGain(type, delta, cap);
+        TouchCanonical();
+    }
 
     /// <summary>Vínculo de tutoria mestre->aprendiz (SKILL-08) — espelha <see cref="JoinHousehold"/>.</summary>
-    public void AssignMentor(NpcId mentor) => Mentor = mentor;
+    public void AssignMentor(NpcId mentor)
+    {
+        Mentor = mentor;
+        TouchCanonical();
+    }
 
     /// <summary>Encerra o vínculo de tutoria — espelha <see cref="LeaveHousehold"/> (Edge Case:
     /// mestre morto no meio da tutoria, sem ponteiro solto).</summary>
-    public void ClearMentor() => Mentor = null;
+    public void ClearMentor()
+    {
+        Mentor = null;
+        TouchCanonical();
+    }
 
     /// <summary>Casamento (Fase 7, T7, FAM-12) — seta só o próprio lado do vínculo; quem chama
     /// (<c>MarriageSystem.Marry</c>) é responsável por chamar duas vezes, uma para cada cônjuge.
     /// Nunca há mutador de "divorciar" (AD-060): viuvez é lida (<see cref="Spouse"/> aponta a
     /// alguém com <c>IsAlive == false</c>), nunca limpa automaticamente — mesmo espírito de
     /// <see cref="MotherId"/>/<see cref="FatherId"/> (AD-031, referência histórica válida).</summary>
-    public void Marry(NpcId spouse) => Spouse = spouse;
+    public void Marry(NpcId spouse)
+    {
+        Spouse = spouse;
+        TouchCanonical();
+    }
 
     /// <summary>Início de cortejo (Fase 7, T7) — espelha <see cref="AssignMentor"/>.</summary>
-    public void StartCourtship(NpcId partner) => CourtingWith = partner;
+    public void StartCourtship(NpcId partner)
+    {
+        CourtingWith = partner;
+        TouchCanonical();
+    }
 
     /// <summary>Fim de cortejo, com ou sem sucesso — espelha <see cref="ClearMentor"/>.</summary>
-    public void EndCourtship() => CourtingWith = null;
+    public void EndCourtship()
+    {
+        CourtingWith = null;
+        TouchCanonical();
+    }
 
     // SPEC_DEVIATION: design.md fala em JoinCity/LeaveCity espelhando JoinHousehold/LeaveHousehold.
     // Household mantém uma lista de membros (RemoveMember tem o que limpar); City não guarda
@@ -362,18 +464,29 @@ public sealed class Npc
     // nunca deixando o NPC num tick intermediário sem cidade (CityId nunca é nulo).
 
     /// <summary>Muda a cidade do NPC (Fase 8, T4, CITY-01/CITY-07) — espelha <see cref="JoinHousehold"/>.</summary>
-    public void JoinCity(CityId city) => City = city;
+    public void JoinCity(CityId city)
+    {
+        City = city;
+        TouchCanonical();
+    }
 
     /// <summary>Registra o tick de materialização (Fase 8, T9, CITY-05) — só
     /// <c>MaterializationSystem</c> chama, na criação a partir do pool agregado.</summary>
-    public void MarkMaterialized(long tick) => MaterializedAtTick = tick;
+    public void MarkMaterialized(long tick)
+    {
+        MaterializedAtTick = tick;
+        TouchCanonical();
+    }
 
     /// <summary>Entra num prédio (Fase 15.1, T47) — nunca toca <see cref="CurrentLocation"/>/<see
     /// cref="City"/> (localização global preservada). Chamável de fora ou de dentro de outro
     /// prédio (troca direta, sem passar por <see cref="ExitBuilding"/> — mesmo espírito de <see
     /// cref="JoinCity"/>, nunca um tick intermediário "sem escopo").</summary>
-    public void EnterBuilding(BuildingId building, FloorLevel floor, CellCoord localCell) =>
+    public void EnterBuilding(BuildingId building, FloorLevel floor, CellCoord localCell)
+    {
         Interior = new InteriorOccupancy(building, floor, localCell);
+        TouchCanonical();
+    }
 
     /// <summary>Move dentro do mesmo prédio, mesmo andar (Fase 15.1, T47) — exige estar dentro
     /// de um prédio (exclusividade de escopo: não existe "mover" sem "estar dentro").</summary>
@@ -382,6 +495,7 @@ public sealed class Npc
         if (Interior is not { } current)
             throw new InvalidOperationException($"NPC {Id} não está dentro de um prédio");
         Interior = current with { LocalCell = localCell };
+        TouchCanonical();
     }
 
     /// <summary>Troca de andar dentro do mesmo prédio (Fase 15.1, T47) — exige estar dentro de
@@ -392,10 +506,15 @@ public sealed class Npc
         if (Interior is not { } current)
             throw new InvalidOperationException($"NPC {Id} não está dentro de um prédio");
         Interior = current with { Floor = floor, LocalCell = localCell };
+        TouchCanonical();
     }
 
     /// <summary>Sai do prédio, volta a escopo World/City (Fase 15.1, T47) — <see
     /// cref="CurrentLocation"/>/<see cref="City"/> continuam intocados: nunca dependeram do
     /// interior pra existir.</summary>
-    public void ExitBuilding() => Interior = null;
+    public void ExitBuilding()
+    {
+        Interior = null;
+        TouchCanonical();
+    }
 }

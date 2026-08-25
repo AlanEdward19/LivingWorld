@@ -5,9 +5,9 @@ using Microsoft.Extensions.DependencyInjection;
 namespace LivingWorld.Tests.Cities;
 
 /// <summary>Fase 15.1, T49 (backend-gaps.md G9): <c>GET /npcs/{id}</c> continua leitura pura;
-/// <c>POST /npcs/{id}/materialize</c> é o comando explícito e nomeado, separado do GET.</summary>
-[Collection(ApiEndpointCollection.Name)]
-public class NpcEndpointsTests
+/// <c>POST /npcs/{id}/materialize</c> é o comando explícito e nomeado, separado do GET.
+/// Factory própria: materialize pode mutar o mundo canônico.</summary>
+public class NpcEndpointsTests : IClassFixture<LivingWorldApiFactory>
 {
     private readonly LivingWorldApiFactory _factory;
 

@@ -12,12 +12,10 @@ namespace LivingWorld.Tests.Llm;
 /// <c>POST /conversations/start|send|end</c> — mesmo padrão de <c>NpcEndpointTests</c>
 /// (<c>WebApplicationFactory&lt;Program&gt;</c>). Cada teste usa um <c>NpcId</c> distinto (o
 /// mundo é compartilhado entre os testes da classe, via <c>IClassFixture</c>) para não
-/// interferir no estado de outro cenário. <c>WorldState</c>/<c>ConversationSessionStore</c> são
-/// lidos do container de DI desta factory (registrados como singleton em <c>Program.cs</c>) —
-/// nunca de campos <c>static</c>, que seriam compartilhados entre a factory desta classe e a de
-/// <c>NpcEndpointTests</c> quando as duas rodam em paralelo.</summary>
-[Collection(ApiEndpointCollection.Name)]
-public class ConversationEndpointTests
+/// interferir no estado de outro cenário. Factory própria: muta
+/// <c>ConversationSessionStore</c> e ações de NPC no host — não pode compartilhar a
+/// collection de endpoints de leitura.</summary>
+public class ConversationEndpointTests : IClassFixture<LivingWorldApiFactory>
 {
     private readonly LivingWorldApiFactory _factory;
     private readonly WorldState _world;

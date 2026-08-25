@@ -8,11 +8,9 @@ using Microsoft.AspNetCore.Mvc.Testing;
 namespace LivingWorld.Tests.Periods;
 
 /// <summary>Fase 13, T5 (PERIOD-07..10): <c>POST/GET /periods</c>, <c>GET /periods/{id}</c>.
-/// Mesmo padrão de <see cref="LivingWorld.Tests.Cities.NpcEndpointTests"/> —
-/// <see cref="WebApplicationFactory{TEntryPoint}"/> real, uma instância por classe (isolamento
-/// de <c>world</c>/db do host, ver comentário em Program.cs).</summary>
-[Collection(ApiEndpointCollection.Name)]
-public class PeriodsEndpointTests
+/// Factory própria: registra períodos no catálogo singleton do host — não pode compartilhar
+/// a collection de endpoints de leitura.</summary>
+public class PeriodsEndpointTests : IClassFixture<LivingWorldApiFactory>
 {
     private readonly LivingWorldApiFactory _factory;
 

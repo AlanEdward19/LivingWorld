@@ -5,23 +5,36 @@ namespace LivingWorld.Tests.Economy;
 
 /// <summary>Fase 5, T22 — ECON-05: desligar a economia (<see cref="EconomyRules.Enabled"/> =
 /// falso — os 4 sistemas de economia viram no-op, mesmo mecanismo de <see
-/// cref="UtilityAiHashScenarioTests"/>/NEEDS-04) muda o <c>Hash(world)</c> em 10 anos comparado
-/// ao mundo com ela ligada, mesma seed.</summary>
+/// cref="UtilityAiHashScenarioTests"/>/NEEDS-04) muda o <c>Hash(world)</c> comparado ao mundo
+/// com ela ligada, mesma seed. Gate usa 1 mês; confiança de 1 ano fica em
+/// <c>Category=Scenario</c>.</summary>
 public class EconomyHashScenarioTests
 {
+    private const long OneMonth = 30 * 24;
     private const long OneYear = 12 * 30 * 24;
 
     [Fact]
-    public void One_year_hash_differs_between_economy_on_and_off_with_the_same_seed()
+    public void One_month_hash_differs_between_economy_on_and_off_with_the_same_seed()
     {
-        string hashWithEconomy = RunAndHash(seed: 42, ScenarioRunner.DefaultEconomyRules);
+        string hashWithEconomy = RunAndHash(seed: 42, OneMonth, ScenarioRunner.DefaultEconomyRules);
 
-        string hashWithoutEconomy = RunAndHash(seed: 42, ScenarioRunner.DefaultEconomyRules with { Enabled = false });
+        string hashWithoutEconomy = RunAndHash(seed: 42, OneMonth, ScenarioRunner.DefaultEconomyRules with { Enabled = false });
 
         Assert.NotEqual(hashWithEconomy, hashWithoutEconomy);
     }
 
-    private static string RunAndHash(ulong seed, EconomyRules economyRules)
+    [Fact]
+    [Trait("Category", "Scenario")]
+    public void One_year_hash_differs_between_economy_on_and_off_with_the_same_seed()
+    {
+        string hashWithEconomy = RunAndHash(seed: 42, OneYear, ScenarioRunner.DefaultEconomyRules);
+
+        string hashWithoutEconomy = RunAndHash(seed: 42, OneYear, ScenarioRunner.DefaultEconomyRules with { Enabled = false });
+
+        Assert.NotEqual(hashWithEconomy, hashWithoutEconomy);
+    }
+
+    private static string RunAndHash(ulong seed, long ticks, EconomyRules economyRules)
     {
         var world = new WorldState(
             ScenarioRunner.DefaultCalendar, seed, ScenarioRunner.InitialMap(seed, 20), ScenarioRunner.DefaultPopulationCatalog,
@@ -30,7 +43,7 @@ public class EconomyHashScenarioTests
         PopulationSeeder.SeedInitial(world, 20, ScenarioRunner.DefaultCulture, ScenarioRunner.DefaultVillageLocation);
 
         var clock = new WorldClock(ScenarioRunner.DefaultSystems());
-        clock.Run(world, OneYear);
+        clock.Run(world, ticks);
         return WorldSnapshot.CanonicalHash(world);
     }
 }

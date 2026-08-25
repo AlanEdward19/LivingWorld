@@ -3,6 +3,7 @@ using LivingWorld.Domain.Llm;
 
 using LivingWorld.Simulation.History;
 using LivingWorld.Simulation.Population;
+using LivingWorld.Simulation.Snapshot;
 
 namespace LivingWorld.Simulation;
 
@@ -190,6 +191,8 @@ public sealed class WorldState
     [Volatile] public IReadOnlyList<Npc> NpcWakeBatch => _npcWakeBatch;
 
     [Volatile] public ColdTierArchive ColdArchive { get; private set; }
+
+    [Volatile] internal CanonicalHashCache CanonicalHashCache { get; } = new();
 
     private readonly Dictionary<RelationshipKey, Relationship> _relationships;
 
@@ -422,6 +425,7 @@ public sealed class WorldState
         AliveNpcIndex = AliveNpcIndex.RebuildFrom(this);
         HistoryIndex = HistoryIndex.RebuildFrom(this);
         ColdArchive = new ColdTierArchive();
+        BindNpcCanonicalNotifiers();
     }
 
     /// <summary>Reconstrói a partir de um snapshot (task 7/8) — rehidratação.</summary>
@@ -561,6 +565,7 @@ public sealed class WorldState
         AliveNpcIndex = AliveNpcIndex.RebuildFrom(this);
         HistoryIndex = HistoryIndex.RebuildFrom(this);
         ColdArchive = new ColdTierArchive();
+        BindNpcCanonicalNotifiers();
     }
 
     internal WorldRngRegistry Rng => _rng;
@@ -607,20 +612,32 @@ public sealed class WorldState
 
     /// <summary>Sincroniza o contador depois de um lote gerado fora do tick (seed inicial),
     /// que consome ids diretamente do <see cref="PopulationGenerator"/> em vez de um por vez.</summary>
-    internal void AdvanceNpcIdTo(long value) => _nextNpcId = Math.Max(_nextNpcId, value);
-    internal void AdvanceHouseholdIdTo(long value) => _nextHouseholdId = Math.Max(_nextHouseholdId, value);
+    internal void AdvanceNpcIdTo(long value)
+    {
+        _nextNpcId = Math.Max(_nextNpcId, value);
+        MarkCanonicalPropertyDirty(nameof(NextNpcId));
+    }
+
+    internal void AdvanceHouseholdIdTo(long value)
+    {
+        _nextHouseholdId = Math.Max(_nextHouseholdId, value);
+        MarkCanonicalPropertyDirty(nameof(NextHouseholdId));
+    }
 
     internal void AddNpc(Npc npc)
     {
+        npc.CanonicalMutationNotifier = MarkNpcCanonicalDirty;
         _npcs.Add(npc);
         _npcById[npc.Id] = npc;
         AliveNpcIndex.OnBorn(npc);
+        CanonicalHashCache.MarkNpcsStructureDirty();
     }
 
     internal void AddHousehold(Household household)
     {
         _households.Add(household);
         _householdById[household.Id] = household;
+        MarkCanonicalPropertyDirty(nameof(Households));
     }
 
     /// <summary>Household sem membros é dissolvido (task 3) — sai da lista canônica.</summary>
@@ -628,6 +645,7 @@ public sealed class WorldState
     {
         _households.RemoveAll(h => h.Id == id);
         _householdById.Remove(id);
+        MarkCanonicalPropertyDirty(nameof(Households));
     }
 
     // SPEC_DEVIATION (Fase 8, T9): design.md não previa remover uma linha de Npc — mas
@@ -639,7 +657,19 @@ public sealed class WorldState
             AliveNpcIndex.OnDied(npc);
         _npcs.RemoveAll(n => n.Id == id);
         _npcById.Remove(id);
+        CanonicalHashCache.MarkNpcsStructureDirty();
     }
+
+    private void BindNpcCanonicalNotifiers()
+    {
+        foreach (var npc in _npcs)
+            npc.CanonicalMutationNotifier = MarkNpcCanonicalDirty;
+    }
+
+    private void MarkNpcCanonicalDirty(NpcId id) => CanonicalHashCache.MarkNpcDirty(id.Value);
+
+    internal void MarkCanonicalPropertyDirty(string propertyName) =>
+        CanonicalHashCache.MarkPropertyDirty(propertyName);
 
     internal Npc? FindNpc(NpcId id) => _npcById.GetValueOrDefault(id);
     internal Household? FindHousehold(HouseholdId id) => _householdById.GetValueOrDefault(id);

@@ -16,7 +16,7 @@ namespace LivingWorld.Simulation;
 /// hash, o que o teste de cobertura (LivingWorld.Tests) detecta.</summary>
 public static class WorldSnapshot
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    internal static JsonSerializerOptions SnapshotJsonOptions { get; } = new()
     {
         Converters =
         {
@@ -27,6 +27,8 @@ public static class WorldSnapshot
         PropertyNameCaseInsensitive = true,
     };
 
+    private static JsonSerializerOptions JsonOptions => SnapshotJsonOptions;
+
     private static readonly PropertyInfo[] Properties =
         typeof(WorldState).GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .OrderBy(p => p.Name, StringComparer.Ordinal)
@@ -36,12 +38,12 @@ public static class WorldSnapshot
     public static string Serialize(WorldState world) => BuildJson(world, static _ => true).ToJsonString(JsonOptions);
 
     public static string CanonicalHash(WorldState world) =>
-        Hash(BuildJson(world, static p => p.GetCustomAttribute<CanonicalAttribute>() is not null));
+        Snapshot.IncrementalHasher.Compute(world, useCache: true);
 
-    /// <summary>Mesmo resultado que <see cref="CanonicalHash"/>; caminho reservado para
-    /// recomputar só NPCs sujos antes do <see cref="Hash"/> (PERF-12).</summary>
+    /// <summary>Mesmo resultado que <see cref="CanonicalHash"/> via fragmentos por entidade
+    /// (PERF-12).</summary>
     internal static string CanonicalHashFromEntityParts(WorldState world) =>
-        CanonicalHash(world);
+        Snapshot.IncrementalHasher.Compute(world, useCache: true);
 
     public static string VolatileHash(WorldState world) =>
         Hash(BuildJson(world, static p => p.GetCustomAttribute<VolatileAttribute>() is not null));

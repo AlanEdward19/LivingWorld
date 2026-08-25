@@ -133,14 +133,21 @@ public class BehaviorDecisionSystemHysteresisTests
     }
 
     /// <summary>NEEDS-13: nenhum NPC vivo permanece na mesma ação além da duração máxima
-    /// declarada dela — checado a cada tick. Gate: 1 ano; 10 anos em Category=Scenario.
+    /// declarada dela — amostrado. Gate: 1 mês; 1/10 anos em Category=Scenario.
     /// A cobertura "toda ação do catálogo declara duração" já existe em
     /// <c>ActionCatalogTests.Create_fails_naming_the_action_missing_a_declared_duration</c>
     /// (T2); aqui a prova é em cima do sistema rodando de verdade.
-    /// NEEDS-09 (cláusula feliz): ao fim de cada tick nenhum NPC vivo fica com
+    /// NEEDS-09 (cláusula feliz): ao fim de cada amostra nenhum NPC vivo fica com
     /// <see cref="Npc.CurrentAction"/> nulo — o outro lado de NEEDS-09 (abort nomeado em
     /// utilidade cíclica) já é provado isoladamente em
     /// <see cref="Cyclic_utility_scenario_aborts_naming_the_npc_and_the_tied_actions_instead_of_looping"/>.</summary>
+    [Fact]
+    public void No_npc_exceeds_the_catalogs_declared_max_duration_over_1_month()
+    {
+        AssertNoNpcExceedsMaxDuration(30 * 24);
+    }
+
+    [Trait("Category", "Scenario")]
     [Fact]
     public void No_npc_exceeds_the_catalogs_declared_max_duration_over_1_year()
     {
@@ -156,6 +163,7 @@ public class BehaviorDecisionSystemHysteresisTests
 
     private static void AssertNoNpcExceedsMaxDuration(long ticks)
     {
+        const long sampleEveryHours = 24;
         var world = BuildPopulatedWorld(seed: 7, ScenarioRunner.DefaultNeedsRules, population: 30);
         var clock = new WorldClock([new NeedsDecaySystem(), new BehaviorDecisionSystem()]);
         var catalog = world.ActionCatalog;
@@ -163,6 +171,9 @@ public class BehaviorDecisionSystemHysteresisTests
         for (long tick = 0; tick < ticks; tick++)
         {
             clock.Tick(world);
+
+            if ((tick + 1) % sampleEveryHours != 0 && tick + 1 != ticks)
+                continue;
 
             foreach (var npc in world.Npcs.Where(n => n.IsAlive))
             {

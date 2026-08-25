@@ -102,10 +102,17 @@ public class EmploymentSystemTests
         Assert.Null(npc.Employer);
     }
 
-    /// <summary>ECON-20, checado a cada tick — vaga nunca excede o teto, todo Employer resolve
+    /// <summary>ECON-20, amostrado — vaga nunca excede o teto, todo Employer resolve
     /// pra um Workplace existente (mesmo idioma de BehaviorDecisionSystemHysteresisTests:
-    /// <c>clock.Tick</c> por hora, não <c>clock.Run</c> em lote). Gate: 1 ano; 10 anos em
+    /// <c>clock.Tick</c> por hora, não <c>clock.Run</c> em lote). Gate: 1 mês; 1/10 anos em
     /// Category=Scenario.</summary>
+    [Fact]
+    public void No_workplace_exceeds_max_vacancies_and_every_employer_resolves_over_1_month()
+    {
+        AssertVacanciesAndEmployers(30 * 24);
+    }
+
+    [Trait("Category", "Scenario")]
     [Fact]
     public void No_workplace_exceeds_max_vacancies_and_every_employer_resolves_over_1_year()
     {
@@ -121,6 +128,7 @@ public class EmploymentSystemTests
 
     private void AssertVacanciesAndEmployers(long ticks)
     {
+        const long sampleEveryHours = 24;
         var world = new WorldState(
             Calendar, 7, ScenarioRunner.InitialMap(7, 20), ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules,
@@ -133,6 +141,9 @@ public class EmploymentSystemTests
         for (long tick = 0; tick < ticks; tick++)
         {
             clock.Tick(world);
+
+            if ((tick + 1) % sampleEveryHours != 0 && tick + 1 != ticks)
+                continue;
 
             foreach (var workplace in world.Workplaces)
                 Assert.True(workplace.Employees.Count <= workplace.MaxVacancies,

@@ -4,10 +4,13 @@ using LivingWorld.Simulation;
 namespace LivingWorld.Tests;
 
 /// <summary>Task 12: sweep genérico limpo ao fim de todo cenário, e reprova se algum tipo de id
-/// do assembly Domain não tiver resolver registrado (R5 — nunca "auditoria de código").</summary>
+/// do assembly Domain não tiver resolver registrado (R5 — nunca "auditoria de código").
+/// Gate: 1 mês; 1/10 anos em Category=Scenario.</summary>
 public class ReferentialIntegritySweepTests
 {
-    private const long TenYearsInHours = 10 * 12 * 30 * 24;
+    private const long OneMonthInHours = 30 * 24;
+    private const long OneYearInHours = 12 * 30 * 24;
+    private const long TenYearsInHours = 10 * OneYearInHours;
 
     [Fact]
     public void Every_id_type_in_the_domain_assembly_has_a_registered_resolver()
@@ -16,23 +19,35 @@ public class ReferentialIntegritySweepTests
             Assert.Contains(idType, ReferentialIntegritySweep.RegisteredIdTypes);
     }
 
-    [Trait("Category", "Scenario")]
     [Fact]
-    public void Default_scenario_after_10_years_has_no_referential_violations()
+    public void Default_scenario_after_1_month_has_no_referential_violations()
     {
         var (world, clock) = ScenarioRunner.Create(seed: 42);
-        clock.Run(world, TenYearsInHours);
+        clock.Run(world, OneMonthInHours);
 
         var violations = ReferentialIntegritySweep.Check(world);
 
         Assert.Empty(violations);
     }
 
+    [Trait("Category", "Scenario")]
     [Fact]
     public void Default_scenario_after_1_year_has_no_referential_violations()
     {
         var (world, clock) = ScenarioRunner.Create(seed: 42);
-        clock.Run(world, 12 * 30 * 24);
+        clock.Run(world, OneYearInHours);
+
+        var violations = ReferentialIntegritySweep.Check(world);
+
+        Assert.Empty(violations);
+    }
+
+    [Trait("Category", "Scenario")]
+    [Fact]
+    public void Default_scenario_after_10_years_has_no_referential_violations()
+    {
+        var (world, clock) = ScenarioRunner.Create(seed: 42);
+        clock.Run(world, TenYearsInHours);
 
         var violations = ReferentialIntegritySweep.Check(world);
 

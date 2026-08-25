@@ -8,9 +8,9 @@ namespace LivingWorld.Tests.Visual;
 
 /// <summary>Fase 15, T5 (VTT-03): <c>GET /visual/subscribe</c> no escopo city entrega a projeção
 /// de cidade — drill-down do mapa-múndi (T4) pra dentro de uma cidade específica pela mesma rota
-/// genérica de subscribe (T3), sem endpoint dedicado por escopo.</summary>
-[Collection(ApiEndpointCollection.Name)]
-public class CityProjectionEndpointTests
+/// genérica de subscribe (T3), sem endpoint dedicado por escopo.
+/// Factory própria: o caso feliz chama <c>AddCity</c> no mundo canônico.</summary>
+public class CityProjectionEndpointTests : IClassFixture<LivingWorldApiFactory>
 {
     private readonly LivingWorldApiFactory _factory;
 

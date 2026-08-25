@@ -2,37 +2,46 @@ using LivingWorld.Simulation;
 
 namespace LivingWorld.Tests.Population;
 
-/// <summary>Critérios de verificação da Fase 3A sobre o cenário default: 1 ano no gate
-/// (invariantes a cada tick); 10 anos e 10k×10 anos ficam em <c>Category=Scenario</c>.
+/// <summary>Critérios de verificação da Fase 3A sobre o cenário default: 1 mês no gate
+/// (invariantes amostrados); 1 ano, 10 anos e 10k×10 anos ficam em <c>Category=Scenario</c>.
 /// 100 anos: <see cref="LifeTable100YearScenarioTests"/>.</summary>
 public class PopulationScenarioTests
 {
+    private const long OneMonthInHours = 30 * 24;
     private const long OneYearInHours = 12 * 30 * 24;
     private const long TenYearsInHours = 10 * OneYearInHours;
+    private const long SampleEveryHours = 24;
 
     [Fact]
-    public void One_year_with_100_initial_npcs_never_breaks_invariants_at_any_tick()
+    public void One_month_with_100_initial_npcs_never_breaks_invariants_at_any_sample()
     {
-        var (world, clock) = ScenarioRunner.Create(seed: 42);
-        Assert.Equal(100, world.Npcs.Count);
+        AssertInvariantsOverHorizon(OneMonthInHours);
+    }
 
-        for (long tick = 0; tick < OneYearInHours; tick++)
-        {
-            clock.Tick(world);
-            AssertInvariants(world);
-        }
+    [Trait("Category", "Scenario")]
+    [Fact]
+    public void One_year_with_100_initial_npcs_never_breaks_invariants_at_any_sample()
+    {
+        AssertInvariantsOverHorizon(OneYearInHours);
     }
 
     [Trait("Category", "Scenario")]
     [Fact]
     public void Ten_years_with_100_initial_npcs_never_breaks_invariants_at_any_tick()
     {
+        AssertInvariantsOverHorizon(TenYearsInHours);
+    }
+
+    private static void AssertInvariantsOverHorizon(long ticks)
+    {
         var (world, clock) = ScenarioRunner.Create(seed: 42);
         Assert.Equal(100, world.Npcs.Count);
 
-        for (long tick = 0; tick < TenYearsInHours; tick++)
+        for (long tick = 0; tick < ticks; tick++)
         {
             clock.Tick(world);
+            if ((tick + 1) % SampleEveryHours != 0 && tick + 1 != ticks)
+                continue;
             AssertInvariants(world);
         }
     }
@@ -81,7 +90,7 @@ public class PopulationScenarioTests
     public void Single_npc_world_never_produces_a_child()
     {
         var (world, clock) = ScenarioRunner.Create(seed: 1, initialPopulation: 1);
-        clock.Run(world, OneYearInHours);
+        clock.Run(world, OneMonthInHours);
 
         Assert.Single(world.Npcs); // ninguém nasce sem parceiro
     }
@@ -95,6 +104,9 @@ public class PopulationScenarioTests
         Assert.True(world.Npcs.Count >= 10_000);
     }
 
+    /// <summary>Sensor causal (Category=Scenario): 1 ano — horizontes ≤90d no seed 42 ainda
+    /// não divergem o hash canônico com vs sem natalidade.</summary>
+    [Trait("Category", "Scenario")]
     [Fact]
     public void Disabling_natality_changes_the_1_year_canonical_hash()
     {

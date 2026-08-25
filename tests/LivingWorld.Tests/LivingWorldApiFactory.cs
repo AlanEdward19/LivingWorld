@@ -11,9 +11,10 @@ namespace LivingWorld.Tests;
 
 /// <summary>Host ASP.NET in-process para testes de endpoint — sempre SQLite <c>:memory:</c> e
 /// tick loop desligado, independentemente do ambiente da sessão (<c>run.cmd</c>). Preferir
-/// <see cref="IClassFixture{TFixture}"/> / <see cref="ApiEndpointCollection"/> a
+/// <see cref="ApiEndpointCollection"/> (leitura compartilhada) ou
+/// <see cref="IClassFixture{TFixture}"/> (mutadores de <see cref="WorldHost"/>) a
 /// <c>new WebApplicationFactory&lt;Program&gt;()</c> por teste: cada boot paga Migrate +
-/// ScenarioRunner + DI.</summary>
+/// ScenarioRunner + DI. Um host <b>não</b> é thread-safe para mutação/leitura concorrente.</summary>
 public sealed class LivingWorldApiFactory : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)

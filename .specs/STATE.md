@@ -81,24 +81,21 @@
 
 ## Handoff
 
-- **Gate hygiene (2026-08-25)**: 7 falhas do cancel do usuário — causa raiz API =
-  `ConnectionStrings__World` do `run.cmd` herdado pela sessão (mesmo padrão do
-  `TICK_LOOP_ENABLED`); `TestEnvironmentSetup` agora limpa os dois. `scale-sensor.json`
-  regravado (Temperature no snapshot). Gate encurtado: conservação/invariantes 1 ano;
-  10 anos / baseline pop / 10k×10yr → `Category=Scenario`.
-- **API fixture hygiene (2026-08-25)**: `LivingWorldApiFactory` (+ `:memory:` forçado) +
-  `ApiEndpointCollection` (1 boot compartilhado, serializado) para endpoints de leitura;
-  TickLoop/Production deixam de criar factory por teste; create/authoring/preview/sim-control
-  mantêm fixture própria. Filtro focado: 98 passed.
-- **Temperature omit / PERF-12 (2026-08-25)**: `MapCellJsonConverter` omite `Temperature` no
-  snapshot JSON e reidrata via `WithDerivedTemperature` (PWR-74). Golden + `scale-sensor`
-  regravados (BytesPerAliveNpc/yr ~115k@1k pop). PERF-12 dirty hasher segue stub (AD-070).
-- **Gate 10yr leftovers (2026-08-25)**: Behavior max-duration, Employment vacancies,
-  PopulationArchitecture scifi — gate 1 ano; 10 anos → `Category=Scenario`.
-- **Fase 16.1 Re-verify 1/3 (2026-08-25)**: gate do [Re-Verifier](c2c7929b-86f3-451c-8a5b-852d330ab7a2)
-  **interrompido** por AD-009 — usuário passa a ser o único a rodar suíte completa.
-  Verifier segue só com revisão de código/evidência; comandos de gate a pedir ao usuário.
-  PWR-40/41 deferred. 16.2 blocked. Working tree uncommitted.
+- **Gate hygiene round-2 (2026-08-25, uncommitted)**: sampling+horizonte 1 mês/24h;
+  scale gate só 1k; golden gate 100 ticks; Utility/Economy hash 1 mês; API sem
+  `DisableParallelization` na collection (8 mutadores com fixture própria). Longos →
+  `Category=Scenario`. Checkpoint anterior: `d0942bd`.
+- **Gate hygiene (2026-08-25)**: conservação/invariantes longos no gate → **1 mês**
+  (`30*24`h) com amostra diária; 1yr/10yr/100yr → `Category=Scenario`. Natality-hash
+  sensor só em Scenario (≤90d não diverge no seed 42). Filtro focado: 20 passed ~3s.
+- **API fixture hygiene (2026-08-25)**: `LivingWorldApiFactory` + collection de leitura
+  (serial entre si; sem DisableParallelization de assembly). Mutadores: fixture própria.
+- **Temperature omit / PERF-12 (2026-08-25)**: `MapCellJsonConverter` omite `Temperature`;
+  golden + scale-sensor regravados em `d0942bd`. **PERF-12 implementado**: cache de
+  fragmentos JSON canônicos por NPC + propriedades estáticas; `TouchCanonical` nos mutadores
+  de `Npc`; `IncrementalHasher.MatchesCanonical` verde (1 ano).
+- **Fase 16.1 Re-verify 1/3 (2026-08-25)**: AD-009 — só o usuário roda suíte completa.
+  PWR-40/41 deferred. 16.2 blocked. WIP 16.1 em `d0942bd`; round-2 gate ainda uncommitted.
 - **Round-4 post-ship fixes (2026-08-23) — wall-marker regression + migration hysteresis**: user
   reported cities rendering as tiny circular markers instead of walled footprints, right after the
   round-3 fixes above landed. Two real root causes, one a direct regression from round-3's own fix,

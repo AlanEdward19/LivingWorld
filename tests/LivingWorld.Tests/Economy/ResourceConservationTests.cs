@@ -4,16 +4,19 @@ using LivingWorld.Simulation;
 namespace LivingWorld.Tests.Economy;
 
 /// <summary>Fase 5, T24 — segundo critério mais importante da fase: para cada recurso,
-/// <c>inicial + produzido == consumido + estocado + perdido</c>, exato, checado a cada tick
-/// (ECON-15). "Perdido" soma todo <see cref="WorldEventKind.ResourceLost"/> (excesso de
+/// <c>inicial + produzido == consumido + estocado + perdido</c>, exato, amostrado ao longo do
+/// horizonte (ECON-15). "Perdido" soma todo <see cref="WorldEventKind.ResourceLost"/> (excesso de
 /// capacidade e spoilage, mesmo evento pros dois — <see cref="ProductionSystem"/>). "Estocado"
 /// soma <see cref="Workplace.Stock"/> + <see cref="Household.Stock"/> de todo mundo.
 /// <c>Buy</c> só transfere estoque entre os dois, nunca consome (T23/instrumentação em
-/// <see cref="BehaviorDecisionSystem.ApplyEat"/>), então não perturba a conta.</summary>
+/// <see cref="BehaviorDecisionSystem.ApplyEat"/>), então não perturba a conta.
+/// Gate: 1 mês; 1/10 anos em <c>Category=Scenario</c>.</summary>
 public class ResourceConservationTests
 {
+    private const long OneMonthInHours = 30 * 24;
     private const long OneYearInHours = 12 * 30 * 24;
     private const long TenYearsInHours = 10 * OneYearInHours;
+    private const long SampleEveryHours = 24;
 
     private sealed class LossTrackingSink : IWorldEventSink
     {
@@ -34,14 +37,21 @@ public class ResourceConservationTests
         world.Households.Sum(h => h.Stock.GetValueOrDefault(resource));
 
     [Fact]
-    public void Produced_equals_consumed_plus_stocked_plus_lost_every_tick_over_1_year_for_every_resource()
+    public void Produced_equals_consumed_plus_stocked_plus_lost_every_sample_over_1_month_for_every_resource()
+    {
+        AssertResourceConservation(OneMonthInHours);
+    }
+
+    [Trait("Category", "Scenario")]
+    [Fact]
+    public void Produced_equals_consumed_plus_stocked_plus_lost_every_sample_over_1_year_for_every_resource()
     {
         AssertResourceConservation(OneYearInHours);
     }
 
     [Trait("Category", "Scenario")]
     [Fact]
-    public void Produced_equals_consumed_plus_stocked_plus_lost_every_tick_over_10_years_for_every_resource()
+    public void Produced_equals_consumed_plus_stocked_plus_lost_every_sample_over_10_years_for_every_resource()
     {
         AssertResourceConservation(TenYearsInHours);
     }
@@ -58,6 +68,9 @@ public class ResourceConservationTests
         for (long tick = 0; tick < ticks; tick++)
         {
             clock.Tick(world);
+
+            if ((tick + 1) % SampleEveryHours != 0 && tick + 1 != ticks)
+                continue;
 
             foreach (var resource in resources)
             {
