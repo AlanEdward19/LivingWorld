@@ -18,7 +18,8 @@ public sealed record PowerDescriptor(
     ExtraordinaryAppearanceDescriptor? Appearance = null,
     NeedSubstitutionDescriptor? NeedSubstitution = null,
     double SenescenceRateMultiplier = 1,
-    string? ManifestationCondition = null);
+    string? ManifestationCondition = null,
+    IReadOnlyList<PowerEvolutionStage>? Stages = null);
 
 /// <summary>Indícios visuais genéricos; strings são tokens autorados, nunca arquétipos.</summary>
 public sealed record ExtraordinaryAppearanceDescriptor(
