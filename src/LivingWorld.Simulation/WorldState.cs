@@ -136,15 +136,6 @@ public sealed class WorldState
     public IReadOnlyList<EnvironmentTemperatureAdjustment> EnvironmentTemperatureAdjustments =>
         _environmentTemperatureAdjustments;
 
-    /// <summary>Regras de ciclo de vida por espécie animal (Fase 16.3) — config de cenário.</summary>
-    [Canonical] public IReadOnlyList<AnimalSpeciesRules> AnimalSpeciesRules { get; }
-
-    /// <summary>Regras de ciclo de vida por espécie vegetal (Fase 16.3) — config de cenário.</summary>
-    [Canonical] public IReadOnlyList<PlantSpeciesRules> PlantSpeciesRules { get; }
-
-    /// <summary>Curvas sazonais de delta de temperatura por bioma (Fase 16.3).</summary>
-    [Canonical] public IReadOnlyList<BiomeSeasonTemperatureRules> BiomeSeasonTemperatureRules { get; }
-
     /// <summary>Nome escolhido pelo usuário na criação (Fase 15.1, T42/ADR-0017) — cosmético,
     /// nenhuma decisão de sistema lê nome de mundo (ADR-0014), por isso volátil.</summary>
     [Volatile] public string Name { get; private set; }
@@ -372,10 +363,7 @@ public sealed class WorldState
         long nextAnimalId = 0,
         IReadOnlyList<Plant>? flora = null,
         long nextPlantId = 0,
-        IReadOnlyList<EnvironmentTemperatureAdjustment>? environmentTemperatureAdjustments = null,
-        IReadOnlyList<AnimalSpeciesRules>? animalSpeciesRules = null,
-        IReadOnlyList<PlantSpeciesRules>? plantSpeciesRules = null,
-        IReadOnlyList<BiomeSeasonTemperatureRules>? biomeSeasonTemperatureRules = null)
+        IReadOnlyList<EnvironmentTemperatureAdjustment>? environmentTemperatureAdjustments = null)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -406,9 +394,6 @@ public sealed class WorldState
         _floraById = ToLookup(_flora, plant => plant.Id);
         _nextPlantId = nextPlantId;
         _environmentTemperatureAdjustments = (environmentTemperatureAdjustments ?? []).ToList();
-        AnimalSpeciesRules = animalSpeciesRules ?? [];
-        PlantSpeciesRules = plantSpeciesRules ?? [];
-        BiomeSeasonTemperatureRules = biomeSeasonTemperatureRules ?? [];
         Name = name;
         _facts = [];
         _reports = [];
@@ -506,10 +491,7 @@ public sealed class WorldState
         long nextAnimalId = 0,
         IReadOnlyList<Plant>? flora = null,
         long nextPlantId = 0,
-        IReadOnlyList<EnvironmentTemperatureAdjustment>? environmentTemperatureAdjustments = null,
-        IReadOnlyList<AnimalSpeciesRules>? animalSpeciesRules = null,
-        IReadOnlyList<PlantSpeciesRules>? plantSpeciesRules = null,
-        IReadOnlyList<BiomeSeasonTemperatureRules>? biomeSeasonTemperatureRules = null)
+        IReadOnlyList<EnvironmentTemperatureAdjustment>? environmentTemperatureAdjustments = null)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -525,9 +507,6 @@ public sealed class WorldState
         EconomyRules = economyRules ?? EconomyRules.Disabled;
         EconomyCatalog = economyCatalog ?? EconomyCatalog.Empty;
         Name = name;
-        AnimalSpeciesRules = animalSpeciesRules ?? [];
-        PlantSpeciesRules = plantSpeciesRules ?? [];
-        BiomeSeasonTemperatureRules = biomeSeasonTemperatureRules ?? [];
         _rng = new WorldRngRegistry(seed, rngStreams);
         _scheduler = new EventScheduler(pendingEvents);
         _nextEventId = nextEventId;
@@ -724,21 +703,8 @@ public sealed class WorldState
     internal bool RemoveExtraordinaryConstruct(long id) =>
         _extraordinaryConstructs.RemoveAll(construct => construct.Id == id) > 0;
 
-    internal void AddEnvironmentTemperatureAdjustment(EnvironmentTemperatureAdjustment adjustment)
-    {
+    internal void AddEnvironmentTemperatureAdjustment(EnvironmentTemperatureAdjustment adjustment) =>
         _environmentTemperatureAdjustments.Add(adjustment);
-        CanonicalHashCache.MarkPropertyDirty(nameof(EnvironmentTemperatureAdjustments));
-    }
-
-    internal void ReplaceSeasonalEnvironmentTemperatureAdjustments(
-        IReadOnlyList<EnvironmentTemperatureAdjustment> replacements)
-    {
-        _environmentTemperatureAdjustments.RemoveAll(
-            adjustment => adjustment.UntilTick == Geography.TemperatureSeasonSystem.SeasonalUntilTick);
-        foreach (var adjustment in replacements)
-            _environmentTemperatureAdjustments.Add(adjustment);
-        CanonicalHashCache.MarkPropertyDirty(nameof(EnvironmentTemperatureAdjustments));
-    }
 
     internal void ReplaceExtraordinaryConstruct(ExtraordinaryConstruct construct)
     {
@@ -850,11 +816,7 @@ public sealed class WorldState
     /// <c>ScenarioLoaderV2</c> chama, no mesmo momento em que autora <see cref="City"/>/
     /// <see cref="Building"/>. Sem <c>FindPortal</c>/remoção: portal é dado descritivo estático do
     /// cenário, nenhum sistema desta fase o edita depois de carregado.</summary>
-    public void AddPortal(SpatialPortal portal)
-    {
-        _portals.Add(portal);
-        CanonicalHashCache.MarkPropertyDirty(nameof(Portals));
-    }
+    public void AddPortal(SpatialPortal portal) => _portals.Add(portal);
 
     internal RestPlaceId NextRestPlaceIdAndAdvance() => new(_nextRestPlaceId++);
 

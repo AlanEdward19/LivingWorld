@@ -53,7 +53,6 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         // resultado é idêntico ao recalculado por chamada (PERF-06/07).
         var cityPopulationCache = new Dictionary<CityId, long>();
         var cityBoundsCache = new Dictionary<CityId, CityBounds>();
-        ForesightMechanic.EnsureTick(now);
 
         foreach (var npc in targets)
         {
@@ -85,7 +84,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                 var routineAction = catalog.RoutineOf(NoneIfSentinel(npc.Profession), stage, world.CurrentDate.Hour);
 
                 var candidate = npc.HasUrgentNeed(rules, now)
-                    ? SelectByUtility(world, npc, rules, continuityAction, now, ForesightMechanic.PreviewsFor(npc.Id, now))
+                    ? SelectByUtility(world, npc, rules, continuityAction, now)
                     : routineAction;
 
                 candidate = ApplyPerception(world, npc, candidate);
@@ -322,20 +321,14 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             ? city.Location
             : null;
 
-    internal static ActionType SelectByUtility(
-        WorldState world, Npc npc, NeedsRules rules, ActionType? continuityAction, long tick,
-        IReadOnlyDictionary<ActionType, ResolutionResult>? foresightPreviews = null)
+    private static ActionType SelectByUtility(WorldState world, Npc npc, NeedsRules rules, ActionType? continuityAction, long tick)
     {
-        foresightPreviews ??= ForesightMechanic.EmptyPreviews;
-
         var best = ActionType.Eat;
         double bestScore = double.NegativeInfinity;
 
         foreach (var action in AllActions)
         {
             double score = UtilityBaseOf(world, action, npc, tick) * PersonalityWeighting.WeightOf(npc.Personality, action);
-            if (foresightPreviews.TryGetValue(action, out var preview))
-                score *= ForesightMechanic.UtilityFactor(preview);
             if (rules.HysteresisEnabled && continuityAction == action)
                 score += rules.ContinuityBonus;
 

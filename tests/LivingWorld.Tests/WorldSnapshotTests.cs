@@ -83,10 +83,7 @@ public class WorldSnapshotTests
             extraordinary: SampleExtraordinary,
             extraordinaryCarriers: SampleExtraordinaryCarriers,
             extraordinaryConstructs: SampleExtraordinaryConstructs,
-            nextExtraordinaryConstructId: 1,
-            animalSpeciesRules: ScenarioRunner.DefaultAnimalSpeciesRules,
-            plantSpeciesRules: ScenarioRunner.DefaultPlantSpeciesRules,
-            biomeSeasonTemperatureRules: ScenarioRunner.DefaultBiomeSeasonTemperatureRules);
+            nextExtraordinaryConstructId: 1);
         PopulationSeeder.SeedInitial(world, ScenarioRunner.DefaultInitialPopulation, ScenarioRunner.DefaultCulture, ScenarioRunner.DefaultVillageLocation);
         world.AddWorkplace(new Workplace(
             world.NextWorkplaceIdAndAdvance(), new LocationType(1), ScenarioRunner.DefaultVillageLocation, maxVacancies: 1,
