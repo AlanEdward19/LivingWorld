@@ -3,7 +3,7 @@
 **Status**: **COMPLETE** (+ soft follow-ups done)
 **Branch**: `feat/phase-16-3-world-cohesion`
 **Worktree**: `C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld-16-3-cohesion`
-**HEAD**: `59bd254`
+**HEAD**: `77bf581`
 **Orchestrator**: parent chat
 
 ## Phases
@@ -24,6 +24,8 @@
 - [x] validation.md — PASS ✅ ([Verifier](6af4f78c-b3fc-4934-a6da-d147232c1407); 35/35 COH)
 - [x] `verify.sh` PASS (2083 passed)
 - [x] Soft: belief→Buy (`91ce0e8`)
+- [x] Soft: PowerOpportunity exception isolation (`f91edb2`)
+- [x] Soft: LogEvent SourceSystem migration (`59bd254`)
 
 ## Soft follow-ups remaining (non-blocking)
 
