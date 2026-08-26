@@ -1,7 +1,15 @@
-import { describe, expect, it } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { App } from "../src/App";
 import { WORLD_FIXTURE } from "../src/fixture/oakbridge";
+import { followStore } from "../src/state/followStore";
+
+afterEach(() => {
+  cleanup();
+  act(() => {
+    for (const id of followStore.followedIds()) followStore.toggleFollow(id);
+  });
+});
 
 describe("App", () => {
   it("mounts the full shell (Top Bar, Explorer, world map, Inspector, Timeline bar) at the World route by default", () => {
@@ -39,5 +47,65 @@ describe("App", () => {
     expect(within(screen.getByTestId("center-stage")).getByTestId("causal-explorer")).toBeInTheDocument();
     // Inspector shows a contextual note instead of duplicating the center
     expect(screen.getByTestId("inspector-empty")).toHaveTextContent("Exploring a causal chain");
+  });
+});
+
+describe("App — keyboard shortcuts (doc §148)", () => {
+  // `App`'s NavigationStore is a module-level singleton, so navigation state can leak between
+  // tests in this file — every test resets to World first (via the "w" shortcut itself, once
+  // proven to work) before setting up its own scenario.
+  function renderAtWorld() {
+    const utils = render(<App />);
+    fireEvent.keyDown(window, { key: "w" });
+    return utils;
+  }
+
+  it("'w' returns to the World View from anywhere", () => {
+    renderAtWorld();
+    const oakbridgeIndex = WORLD_FIXTURE.settlements.findIndex((s) => s.id === "oakbridge");
+    fireEvent.click(screen.getAllByTestId("settlement-marker")[oakbridgeIndex]);
+    expect(screen.getByTestId("settlement-view")).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "w" });
+
+    expect(screen.getByTestId("inspector-empty")).toBeInTheDocument();
+    expect(screen.queryByTestId("settlement-view")).not.toBeInTheDocument();
+  });
+
+  it("'f' follows the currently selected settlement", () => {
+    renderAtWorld();
+    const oakbridgeIndex = WORLD_FIXTURE.settlements.findIndex((s) => s.id === "oakbridge");
+    fireEvent.click(screen.getAllByTestId("settlement-marker")[oakbridgeIndex]);
+
+    fireEvent.keyDown(window, { key: "f" });
+
+    expect(followStore.isFollowed("oakbridge")).toBe(true);
+  });
+
+  it("'/' focuses the search input", () => {
+    renderAtWorld();
+    fireEvent.keyDown(window, { key: "/" });
+    expect(document.activeElement).toBe(screen.getByTestId("search-input"));
+  });
+
+  it("'?' toggles the keyboard shortcuts help panel", () => {
+    renderAtWorld();
+    expect(screen.queryByTestId("keyboard-help")).not.toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "?" });
+    expect(screen.getByTestId("keyboard-help")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Close"));
+    expect(screen.queryByTestId("keyboard-help")).not.toBeInTheDocument();
+  });
+
+  it("ignores shortcuts while typing in the search input (no conflict with input text)", () => {
+    renderAtWorld();
+    const oakbridgeIndex = WORLD_FIXTURE.settlements.findIndex((s) => s.id === "oakbridge");
+    fireEvent.click(screen.getAllByTestId("settlement-marker")[oakbridgeIndex]);
+
+    const searchInput = screen.getByTestId("search-input");
+    searchInput.focus();
+    fireEvent.keyDown(searchInput, { key: "w" });
+
+    expect(screen.getByTestId("settlement-view")).toBeInTheDocument(); // "w" did not navigate away
   });
 });

@@ -1,3 +1,4 @@
+import type { KeyboardEvent } from "react";
 import type { WorldFixture } from "../fixture/types";
 import { IsoTile, TILE_HEIGHT, TILE_WIDTH } from "./IsoTileRenderer";
 import { toScreen } from "./IsoProjection";
@@ -18,6 +19,17 @@ export interface SemanticZoomMapProps {
 }
 
 const DEFAULT_HALF_EXTENT = TILE_WIDTH * 3;
+
+/** § 149 Accessibility — "keyboard navigation obrigatório": marcadores do mapa (SVG) não são
+ * nativamente operáveis por teclado com só `onClick`; ativam também em Enter/Space. */
+function activateOnKey(action: () => void) {
+  return (event: KeyboardEvent) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      action();
+    }
+  };
+}
 
 /**
  * Câmera centralizada no conteúdo (doc §192 Map QA "consigo saber onde olhar?") — em vez de um
@@ -76,6 +88,10 @@ export function SemanticZoomMap({ fixture, level = "world", settlementId, onSele
               key={settlement.id}
               data-testid="settlement-marker"
               onClick={() => onSelectSettlement(settlement.id)}
+              onKeyDown={activateOnKey(() => onSelectSettlement(settlement.id))}
+              role="button"
+              tabIndex={0}
+              aria-label={`Open ${settlement.name}`}
               style={{ cursor: "pointer" }}
             >
               <circle cx={x} cy={y} r={16} fill={SETTLEMENT_PALETTE.top} stroke={SETTLEMENT_PALETTE.right} strokeWidth={2} />
@@ -129,6 +145,10 @@ export function SemanticZoomMap({ fixture, level = "world", settlementId, onSele
               width={32}
               height={38}
               onClick={() => onSelectNpc(agent.id)}
+              onKeyDown={activateOnKey(() => onSelectNpc(agent.id))}
+              role="button"
+              tabIndex={0}
+              aria-label={`Open ${agent.name}`}
               style={{ cursor: "pointer" }}
             >
               <NpcToken id={agent.id} size={32} />

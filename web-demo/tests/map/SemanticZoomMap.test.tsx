@@ -153,3 +153,42 @@ describe("SemanticZoomMap — event markers for notable events (doc §103)", () 
     expect(container.querySelectorAll("[data-testid='agent-marker']").length).toBe(oakbridgeAgents.length);
   });
 });
+
+describe("SemanticZoomMap — keyboard accessibility (doc §149, obrigatório)", () => {
+  it("settlement markers are focusable and activate on Enter", () => {
+    const onSelectSettlement = vi.fn();
+    const { getAllByTestId } = render(<SemanticZoomMap fixture={WORLD_FIXTURE} onSelectSettlement={onSelectSettlement} onSelectNpc={() => {}} />);
+    const oakbridgeIndex = WORLD_FIXTURE.settlements.findIndex((s) => s.id === "oakbridge");
+    const marker = getAllByTestId("settlement-marker")[oakbridgeIndex];
+    expect(marker).toHaveAttribute("tabindex", "0");
+    expect(marker).toHaveAttribute("aria-label", "Open Oakbridge");
+    fireEvent.keyDown(marker, { key: "Enter" });
+    expect(onSelectSettlement).toHaveBeenCalledWith("oakbridge");
+  });
+
+  it("settlement markers activate on Space too", () => {
+    const onSelectSettlement = vi.fn();
+    const { getAllByTestId } = render(<SemanticZoomMap fixture={WORLD_FIXTURE} onSelectSettlement={onSelectSettlement} onSelectNpc={() => {}} />);
+    fireEvent.keyDown(getAllByTestId("settlement-marker")[0], { key: " " });
+    expect(onSelectSettlement).toHaveBeenCalled();
+  });
+
+  it("does not activate on an unrelated key", () => {
+    const onSelectSettlement = vi.fn();
+    const { getAllByTestId } = render(<SemanticZoomMap fixture={WORLD_FIXTURE} onSelectSettlement={onSelectSettlement} onSelectNpc={() => {}} />);
+    fireEvent.keyDown(getAllByTestId("settlement-marker")[0], { key: "Tab" });
+    expect(onSelectSettlement).not.toHaveBeenCalled();
+  });
+
+  it("agent markers are focusable and activate on Enter", () => {
+    const onSelectNpc = vi.fn();
+    const { getAllByTestId } = render(
+      <SemanticZoomMap fixture={WORLD_FIXTURE} level="agent" settlementId="oakbridge" onSelectSettlement={() => {}} onSelectNpc={onSelectNpc} />,
+    );
+    const miraIndex = OAKBRIDGE_AGENTS.findIndex((a) => a.id === "mira-valen");
+    const marker = getAllByTestId("agent-marker")[miraIndex];
+    expect(marker).toHaveAttribute("tabindex", "0");
+    fireEvent.keyDown(marker, { key: "Enter" });
+    expect(onSelectNpc).toHaveBeenCalledWith("mira-valen");
+  });
+});
