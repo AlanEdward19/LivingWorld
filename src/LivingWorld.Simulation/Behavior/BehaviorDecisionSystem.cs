@@ -16,7 +16,9 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
     private const double NonNeedBaselineUtility = 50.0;
 
-    private static readonly ActionType[] AllActions = Enum.GetValues<ActionType>();
+    private static readonly ActionType[] AllActions = Enum.GetValues<ActionType>()
+        .Where(a => a != ActionType.UsePower)
+        .ToArray();
 
     private readonly SkillsRules? _skillsRules;
 
@@ -223,6 +225,9 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             case ActionType.Buy:
                 ApplyBuy(world, npc, marketIndex);
                 break;
+            case ActionType.UsePower:
+                // Execução via ExtraordinaryInvocationEngine em T23.
+                break;
         }
     }
 
@@ -407,6 +412,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         ActionType.Socialize => Deficit(ctx.Needs.Social),
         ActionType.Buy => BuyUtilityOf(ctx, economy),
         ActionType.Work or ActionType.Travel or ActionType.Idle => NonNeedBaselineUtility,
+        ActionType.UsePower => 0.0, // só vence via candidatos PowerOpportunity (T22)
         _ => throw new ArgumentOutOfRangeException(nameof(action), action, "ActionType desconhecido"),
     };
 

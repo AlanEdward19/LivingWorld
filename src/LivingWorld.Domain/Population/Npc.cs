@@ -37,6 +37,12 @@ public sealed class Npc
     public CellCoord CurrentLocation { get; private set; }
     public ActionType? CurrentAction { get; private set; }
     public long ActionStartedAtTick { get; private set; }
+
+    /// <summary>Volátil (AD-026 / COH-33): PowerOpportunity vencedor quando
+    /// <see cref="CurrentAction"/> é <see cref="ActionType.UsePower"/>. Nunca serializado.</summary>
+    [JsonIgnore]
+    public PendingPowerInvocation? PendingPowerInvocation { get; set; }
+
     public long? HungerZeroSinceTick { get; private set; }
     public bool IsGhost { get; private set; }
 
@@ -342,6 +348,8 @@ public sealed class Npc
     {
         CurrentAction = action;
         ActionStartedAtTick = tick;
+        if (action != ActionType.UsePower)
+            PendingPowerInvocation = null;
         TouchCanonical();
     }
 

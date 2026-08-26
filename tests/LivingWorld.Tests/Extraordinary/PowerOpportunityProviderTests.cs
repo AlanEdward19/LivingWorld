@@ -189,6 +189,7 @@ public sealed class PowerOpportunityProviderTests
                 [ActionType.Travel] = 4,
                 [ActionType.Idle] = 2,
                 [ActionType.Buy] = 2,
+            [ActionType.UsePower] = 1,
             },
             routineSlots:
             [
