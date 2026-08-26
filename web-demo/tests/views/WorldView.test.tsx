@@ -24,4 +24,11 @@ describe("WorldView", () => {
     fireEvent.click(screen.getAllByTestId("settlement-marker")[oakbridgeIndex]);
     expect(nav.current()).toEqual({ kind: "settlement", id: "oakbridge" });
   });
+
+  it("clicking View Timeline navigates to the world-scoped Timeline (spec P2 AC1)", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    render(<WorldView fixture={WORLD_FIXTURE} nav={nav} />);
+    fireEvent.click(screen.getByTestId("view-timeline"));
+    expect(nav.current()).toEqual({ kind: "timeline", scope: { type: "world" } });
+  });
 });

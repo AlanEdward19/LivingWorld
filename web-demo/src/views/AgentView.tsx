@@ -68,6 +68,14 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
           onFactorClick={(eventId) => nav.push({ kind: "causal", eventId })}
         />
       )}
+
+      <button
+        type="button"
+        data-testid="view-timeline"
+        onClick={() => nav.push({ kind: "timeline", scope: { type: "agent", id: agentId } })}
+      >
+        View Timeline
+      </button>
     </div>
   );
 }

@@ -20,4 +20,11 @@ describe("HouseholdView", () => {
     fireEvent.click(within(screen.getByTestId("household-members")).getByText("Mira Valen"));
     expect(nav.current()).toEqual({ kind: "agent", id: "mira-valen" });
   });
+
+  it("clicking View Timeline navigates to the household-scoped Timeline (spec P2 AC1)", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    render(<HouseholdView fixture={WORLD_FIXTURE} nav={nav} householdId="valen-household" />);
+    fireEvent.click(screen.getByTestId("view-timeline"));
+    expect(nav.current()).toEqual({ kind: "timeline", scope: { type: "household", id: "valen-household" } });
+  });
 });

@@ -65,6 +65,14 @@ export function HouseholdView({ fixture, nav, householdId }: HouseholdViewProps)
           <li key={event.eventId}>{event.summary}</li>
         ))}
       </ul>
+
+      <button
+        type="button"
+        data-testid="view-timeline"
+        onClick={() => nav.push({ kind: "timeline", scope: { type: "household", id: householdId } })}
+      >
+        View Timeline
+      </button>
     </div>
   );
 }

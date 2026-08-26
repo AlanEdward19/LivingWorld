@@ -55,4 +55,11 @@ describe("AgentView", () => {
     fireEvent.click(screen.getByText("grain prices rose"));
     expect(nav.current()).toEqual({ kind: "causal", eventId: "evt-grain-prices-rose" });
   });
+
+  it("clicking View Timeline navigates to the agent-scoped Timeline (spec P2 AC1)", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    render(<AgentView fixture={WORLD_FIXTURE} nav={nav} agentId="mira-valen" />);
+    fireEvent.click(screen.getByTestId("view-timeline"));
+    expect(nav.current()).toEqual({ kind: "timeline", scope: { type: "agent", id: "mira-valen" } });
+  });
 });

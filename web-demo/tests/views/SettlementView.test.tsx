@@ -35,4 +35,11 @@ describe("SettlementView", () => {
 
     expect(nav.current()).toEqual({ kind: "agent", id: "mira-valen" });
   });
+
+  it("clicking View Timeline navigates to the settlement-scoped Timeline (spec P2 AC1)", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    render(<SettlementView fixture={WORLD_FIXTURE} nav={nav} settlementId="oakbridge" />);
+    fireEvent.click(screen.getByTestId("view-timeline"));
+    expect(nav.current()).toEqual({ kind: "timeline", scope: { type: "settlement", id: "oakbridge" } });
+  });
 });

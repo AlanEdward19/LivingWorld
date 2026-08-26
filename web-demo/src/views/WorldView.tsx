@@ -33,6 +33,10 @@ export function WorldView({ fixture, nav }: WorldViewProps) {
         onSelectSettlement={(settlementId) => nav.push({ kind: "settlement", id: settlementId })}
         onSelectNpc={() => {}}
       />
+
+      <button type="button" data-testid="view-timeline" onClick={() => nav.push({ kind: "timeline", scope: { type: "world" } })}>
+        View Timeline
+      </button>
     </div>
   );
 }

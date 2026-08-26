@@ -76,6 +76,14 @@ export function SettlementView({ fixture, nav, settlementId }: SettlementViewPro
         onSelectSettlement={() => {}}
         onSelectNpc={(agentId) => nav.push({ kind: "agent", id: agentId })}
       />
+
+      <button
+        type="button"
+        data-testid="view-timeline"
+        onClick={() => nav.push({ kind: "timeline", scope: { type: "settlement", id: settlementId } })}
+      >
+        View Timeline
+      </button>
     </div>
   );
 }
