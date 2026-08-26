@@ -165,6 +165,45 @@ Nada disto foi escondido ou fingido feito; fica pendente na mesma `phase-16-3-we
 - **Multi-floor com escada visível/transição de andar animada** — o seletor de andar troca o
   conteúdo desenhado instantaneamente (sem "Agent sobe a escada, câmera segue").
 
+## Redesign — Sidebars/Inspector/Popup-Drawer (doc "Redesign das Sidebars, Inspector, Timelines")
+
+Segundo doc do usuário, focado em informação: 4 níveis de profundidade (Glance/Compact
+Detail/Popup-Drawer/Full Context View) e uma regra central — nunca espremer conteúdo de Nível
+3-4 dentro da sidebar de 340px. Escopo combinado com o usuário: começar pela fundação
+(Popup/Drawer, §19) + Agent Inspector redesenhado como prova de conceito, antes de espalhar pro
+resto.
+
+### O que foi entregue
+
+- **`components/ContextOverlay.tsx`** — `Popup` (pequeno, 280-360px) e `Drawer` (médio,
+  420-520px), Nível 3 do doc. Deliberadamente **não bloqueante** (doc §19: "modal contextual não
+  bloqueante") — sem backdrop escurecido, diferente do Center Overlay que já existia (AD-021,
+  causal/timeline/life/feed/threads) — o resto da tela continua visível/clicável atrás. Fecha
+  com X, clique fora, ou Esc.
+- **`components/InspectorPrimitives.tsx`** — `SectionHeader`, `EntityRow`, `StatusChips`,
+  `MetricRow`, `SectionLink` (doc §29-32) — label/valor sempre na mesma linha, listas como linhas
+  clicáveis compactas em vez de blocos de texto.
+- **Agent Inspector redesenhado** (`views/AgentView.tsx`, doc §13) — seções CURRENTLY / STATUS /
+  BODY / HOUSEHOLD / RELATIONSHIPS / RECENT / WHY?, cada uma compacta. "View physical details",
+  "View relationships" e "Explain decision" (Why?) — que antes ficavam permanentemente expandidos
+  inline na sidebar — agora abrem em `Popup` (doc §14: "não deixar os fatores ocupando
+  permanentemente um card grande").
+
+### Decisões de adaptação / o que ficou de fora
+
+- **`Drawer` ainda sem consumidor real** — construído junto com `Popup` (mesma implementação
+  interna, `ContextOverlay`) porque o doc pede os dois como a mesma fundação, mas nenhuma lista
+  do Agent Inspector é grande o bastante pra precisar do tier "drawer médio" (todas cabem no
+  `Popup`). Vai ganhar uso real quando Household/Settlement/Organization forem redesenhados (ex.:
+  "View all households", "View all people") na próxima rodada.
+- **"Locate" e "⋯" do header (doc §12)** — não implementados nesta rodada. "Locate" exigiria
+  expor um jeito de centralizar a câmera do `SettlementStage` num agent a partir do Inspector
+  (fora do escopo desta prova de conceito); "⋯" não tem nenhuma ação real pra abrigar ainda —
+  melhor omitir do que criar um menu vazio.
+- **Household/Settlement/Organization/Event Inspector, Explorer (§5-10), World/Agent Timeline
+  (§20-28)** — doc completo cobre todos esses; só Agent Inspector foi redesenhado nesta rodada,
+  o resto é a próxima fatia combinada com o usuário.
+
 ## Comparação visual com `web/` (spec P1b Independent Test)
 
 Verificado ao vivo, os dois projetos rodando lado a lado (`web/demo.html`, modo mock offline, vs

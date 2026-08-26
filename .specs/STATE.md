@@ -209,6 +209,14 @@
 - **Date**: 2026-08-26
 - **Status**: active
 
+### AD-024
+- **Decision**: `phase-16-3-web` — início do redesign de sidebars/Inspector/Popup-Drawer pedido pelo usuário (novo doc "Redesign das Sidebars, Inspector, Timelines e Painéis Contextuais"). Escopo desta rodada, combinado explicitamente com o usuário via pergunta direta: fundação (`Popup`/`Drawer`, doc §19, componente novo `ContextOverlay.tsx`) + Agent Inspector redesenhado (doc §13, `AgentView.tsx`) como prova de conceito — não o doc inteiro (que cobre Explorer, 6 outros tipos de Inspector, e 2 timelines).
+- **Reason**: doc é grande (45 seções); usuário pediu explicitamente pra "pensar alguns redesigns" (discussão, não implementação direta) — perguntado onde começar, confirmou a fundação+Agent Inspector antes de espalhar pro resto, mesmo padrão de scoping incremental usado nas rodadas anteriores desta fase.
+- **Trade-off**: `Drawer` (tier "médio", 420-520px) foi construído junto com `Popup` mas SEM consumidor real ainda — nenhuma lista do Agent Inspector precisa desse tier. Fica pronto pra Household/Settlement/Organization na próxima rodada. "Locate"/"⋯" do header do Inspector (doc §12) ficaram de fora — "Locate" precisa de uma forma de centralizar a câmera do `SettlementStage` a partir do Inspector, "⋯" não tem ação real ainda pra abrigar.
+- **Scope**: `web-demo/src/components/{ContextOverlay,InspectorPrimitives}.tsx` (novos), `web-demo/src/views/AgentView.tsx` (redesenhado), `tokens.css`. Não toca Household/Settlement/Organization/Event Inspector, Explorer, ou as timelines.
+- **Date**: 2026-08-26
+- **Status**: active
+
 ## Handoff
 
 - **Feature**: Fase 16.3 Living World Cohesion — **MERGED** into primary

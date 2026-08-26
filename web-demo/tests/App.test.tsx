@@ -48,7 +48,7 @@ describe("App", () => {
     // Agent detail
     const inspector = screen.getByTestId("inspector");
     expect(within(inspector).getByTestId("agent-view")).toBeInTheDocument();
-    fireEvent.click(within(inspector).getByText("Why?"));
+    fireEvent.click(within(inspector).getByText("Explain decision →"));
     fireEvent.click(within(inspector).getByText("grain prices rose"));
 
     // Causal Explorer takes over the center stage

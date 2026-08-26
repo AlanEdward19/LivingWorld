@@ -704,3 +704,166 @@ button:disabled {
   text-transform: none;
   letter-spacing: normal;
 }
+
+/* Redesign doc (2026-08-26) §19 — Popup/Drawer (Nível 3). Deliberadamente NÃO bloqueante: sem
+ * backdrop escurecido, só um click-catcher transparente pra fechar ao clicar fora. */
+[data-testid="popup-backdrop"],
+[data-testid="drawer-backdrop"] {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: transparent;
+}
+
+[data-testid="popup-panel"] {
+  position: absolute;
+  top: 4rem;
+  right: 1rem;
+  width: 320px;
+  max-width: calc(100vw - 2rem);
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.85rem 1rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+[data-testid="drawer-panel"] {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 460px;
+  max-width: 90vw;
+  overflow-y: auto;
+  background: var(--surface-1);
+  border-left: 1px solid var(--border);
+  padding: 1rem 1.25rem;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.35);
+}
+
+[data-testid="popup-header"],
+[data-testid="drawer-header"] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+}
+
+[data-testid="popup-header"] h3,
+[data-testid="drawer-header"] h3 {
+  margin: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+[data-testid="popup-close"],
+[data-testid="drawer-close"] {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  background: var(--surface-3);
+  flex-shrink: 0;
+}
+
+/* Redesign doc §29-32 — primitives compactos do Inspector, reusados por qualquer entidade. */
+.section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin: 1.1rem 0 0.4rem;
+}
+
+.section-header:first-child {
+  margin-top: 0;
+}
+
+.entity-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: 0.25rem;
+}
+
+.entity-row-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.entity-row-title {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.entity-row-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.entity-row-chevron {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.status-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.status-chip {
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.1rem 0.5rem;
+}
+
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+  padding: 0.2rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.metric-row-label {
+  color: var(--text-secondary);
+}
+
+.metric-row-value {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.section-link {
+  background: transparent;
+  border-color: transparent;
+  color: var(--accent-secondary);
+  padding: 0.2rem 0;
+  font-size: 12px;
+}
+
+.section-link:hover {
+  background: transparent;
+  text-decoration: underline;
+}
