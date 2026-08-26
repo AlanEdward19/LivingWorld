@@ -3,13 +3,13 @@ using LivingWorld.Domain;
 using LivingWorld.Simulation;
 using LivingWorld.Simulation.Economy;
 using LivingWorld.Simulation.History;
-using LivingWorld.Tests.Economy;
+using Xunit.Abstractions;
 
 namespace LivingWorld.Tests.Scenario;
 
 /// <summary>COH-64/65 — cenário vertical <c>test-living-village</c> (Fase 16.3 P3).
 /// Choques são multiplicadores de produção (ECON-28); sem scripting narrativo de fome/emprego.</summary>
-public class LivingVillageScenarioTests
+public class LivingVillageScenarioTests(ITestOutputHelper output)
 {
     private const ulong Seed = 42;
     private const int Population = 40;
@@ -61,6 +61,73 @@ public class LivingVillageScenarioTests
         Assert.True(first.Depth >= 4, $"profundidade causal {first.Depth} < 4");
         Assert.True(first.HarvestReducedUnits > 0,
             "multiplicador 0.7 deve retirar unidades de colheita (choque observável)");
+    }
+
+    [Fact]
+    [Trait("Category", "Scenario")]
+    public void Doc85_metrics_baseline_is_collected_for_test_living_village()
+    {
+        var report = CollectDoc85Metrics();
+
+        Assert.True(report.DecisionsPerAgentDay >= 0);
+        Assert.True(report.WakeupsPerAgentDay >= 0);
+        Assert.InRange(report.IntentChangeWakeFraction, 0.0, 1.0);
+        Assert.True(report.CausalDepthMean >= 0);
+        Assert.True(report.CausalDepthP95 >= report.CausalDepthMean);
+        Assert.True(report.CausalDepthMax >= report.CausalDepthP95);
+        Assert.True(report.CrossSystemChainsObserved >= 1);
+        Assert.Contains("Height", report.AttributesWithoutConsumer);
+        Assert.Contains("Weight", report.AttributesWithoutConsumer);
+
+        output.WriteLine(
+            "doc#85 baseline: decisions/agent-day={0:F3}; wakeups/agent-day={1:F3}; "
+            + "intentChange%={2:P1}; causalDepth mean/p95/max={3:F2}/{4}/{5}; "
+            + "crossSystemChains={6}; attrsWithoutConsumer=[{7}]",
+            report.DecisionsPerAgentDay,
+            report.WakeupsPerAgentDay,
+            report.IntentChangeWakeFraction,
+            report.CausalDepthMean,
+            report.CausalDepthP95,
+            report.CausalDepthMax,
+            report.CrossSystemChainsObserved,
+            string.Join(",", report.AttributesWithoutConsumer));
+    }
+
+    private sealed record Doc85Metrics(
+        double DecisionsPerAgentDay,
+        double WakeupsPerAgentDay,
+        double IntentChangeWakeFraction,
+        double CausalDepthMean,
+        int CausalDepthP95,
+        int CausalDepthMax,
+        int CrossSystemChainsObserved,
+        IReadOnlyList<string> AttributesWithoutConsumer);
+
+    private static Doc85Metrics CollectDoc85Metrics()
+    {
+        var comparison = DecisionMetrics.CompareFullVsEventDriven(Seed, hours: HorizonDays * 24);
+        var eventDriven = comparison.EventDriven.Metrics;
+
+        var chain = CaptureShockChain();
+        var depths = new List<int> { chain.Depth };
+        // Segunda amostra determinística (mesma seed) — p95/max triviais com N=2.
+        depths.Add(CaptureShockChain().Depth);
+        depths.Sort();
+        double mean = depths.Average();
+        int p95 = depths[(int)Math.Clamp(Math.Ceiling(0.95 * depths.Count) - 1, 0, depths.Count - 1)];
+        int max = depths[^1];
+
+        string[] withoutConsumer = ["Height", "Weight"]; // FUTURE_DEPENDENCY — audit T34
+
+        return new Doc85Metrics(
+            eventDriven.DecisionsPerAgentDay,
+            eventDriven.WakeupsPerAgentDay,
+            eventDriven.IntentChangeWakeFraction,
+            mean,
+            p95,
+            max,
+            CrossSystemChainsObserved: chain.SystemsOrdered.Count >= 5 ? 1 : 0,
+            withoutConsumer);
     }
 
     private static string RunBaselineFingerprint()

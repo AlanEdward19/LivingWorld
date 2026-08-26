@@ -108,6 +108,33 @@
 
 ## Handoff
 
+- **Feature**: Fase 16.3 Living World Cohesion — `.specs/features/phase-16-3-world-cohesion/`
+  — **Phase 7 (T34–T39) complete** on branch `feat/phase-16-3-world-cohesion`
+  (worktree `LivingWorld-16-3-cohesion`).
+- **Audit**: [`docs/audits/living-world-cohesion-audit.md`](../docs/audits/living-world-cohesion-audit.md)
+  — System + Attribute Integration Matrix (COH-61); ~54 `LogEvent` sites still `Unknown`;
+  Height/Weight = FUTURE_DEPENDENCY (equipment/combat).
+- **doc#85 metrics baseline** (`test-living-village`, seed 42, event-driven attention harness
+  + harvest×0.7 causal chain):
+  - decisions/agent-day ≈ **0.036**
+  - wakeups/agent-day ≈ **0.036**
+  - % wakeups that change intent ≈ **0%** (stable Active plans in harness)
+  - causal depth mean/p95/max = **4 / 4 / 4**
+  - cross-system causal chains observed ≥1 with **≥5 SourceSystems**
+  - attributes without consumer: **Height**, **Weight** (audit FUTURE_DEPENDENCY)
+- **Golden hashes**: regravados sob **AD-011** (Phase 4 / T24 — `UsePower` duration + body/causal
+  provenance fields). Nenhum re-golden adicional em Phase 7.
+- **ADs desta fase**: AD-009 (gate só usuário / verify autorizado no closeout P7), AD-011 (golden).
+- **Commits Phase 7**: `9806f0f` (T34 audit) → `45cc883` (T35 CausalDiagnostics) → `5682b7b`
+  (T36 storm) → `b935972` (T37 village) → `e501683` (T38 harvest chain) → (T39 STATE+metrics).
+- **Next step**: orchestrator spawns **phase-verifier** (author ≠ verifier). Do not self-verify.
+- **Blockers**: none for Phase 7 implementer.
+- **Branch**: `feat/phase-16-3-world-cohesion`
+
+---
+
+### Histórico — pausa paralelismo / gate hygiene (pré-16.3 Execute)
+
 - **Execução paralela PAUSADA (2026-08-25 19:46)**: STOP.json ativo em todos worktrees.
   Locks liberados. Ver `.specs/parallel-execution/STATUS.md` + progress files antes de retomar.
   Worktrees: `LivingWorld` (16.2), `LivingWorld-16-3` (spec renumerada p/ 16.4, worktree/branch mantêm nome "16-3" antigo), `LivingWorld-trilha-c`.
