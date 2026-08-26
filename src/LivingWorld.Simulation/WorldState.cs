@@ -82,6 +82,11 @@ public sealed class WorldState
     /// porque decide todo evento de relação/cortejo/concepção.</summary>
     [Canonical] public FamilyRules FamilyRules { get; }
 
+    /// <summary>Parâmetros cenário-driven do corpo mínimo causal (Fase 16.3, COH-21) —
+    /// distribuição de Height/Weight/MuscleMass. <see cref="BodyRules.Enabled"/> falso
+    /// mantém os campos gerados mas multiplicadores de BodyMechanic neutros 1.0.</summary>
+    [Canonical] public BodyRules BodyRules { get; }
+
     // SPEC_DEVIATION (Fase 8, T9): design.md/tasks.md pressupõem `world.CityRules`/
     // `world.CityCatalog` (todo sistema da Fase 8 lê threshold/receita por eles), mas T1-T8
     // (Foundation) nunca os wireou em WorldState — só criaram os tipos e o loader. Sem isso,
@@ -355,6 +360,7 @@ public sealed class WorldState
         PopulationCatalog populationCatalog, PopulationRules populationRules,
         NeedsRules needsRules, ActionCatalog actionCatalog, LifeStageRules lifeStageRules, BranchId branchId = default,
         EconomyRules? economyRules = null, EconomyCatalog? economyCatalog = null, FamilyRules? familyRules = null,
+        BodyRules? bodyRules = null,
         CityRules? cityRules = null, CityCatalog? cityCatalog = null, PerfRules? perfRules = null,
         HistoryRules? historyRules = null, string name = "", IReadOnlyList<SpatialPortal>? portals = null,
         RestPlaceCatalog? restPlaceCatalog = null, IReadOnlyList<RestPlace>? restPlaces = null,
@@ -384,6 +390,7 @@ public sealed class WorldState
         EconomyRules = economyRules ?? EconomyRules.Disabled;
         EconomyCatalog = economyCatalog ?? EconomyCatalog.Empty;
         FamilyRules = familyRules ?? FamilyRules.Disabled;
+        BodyRules = bodyRules ?? BodyRules.Default;
         CityRules = cityRules ?? CityRules.Disabled;
         CityCatalog = cityCatalog ?? CityCatalog.Empty;
         PerfRules = perfRules ?? PerfRules.Default;
@@ -460,6 +467,7 @@ public sealed class WorldState
         IReadOnlyList<Workplace>? workplaces = null,
         long nextWorkplaceId = 0,
         FamilyRules? familyRules = null,
+        BodyRules? bodyRules = null,
         IReadOnlyDictionary<RelationshipKey, Relationship>? relationships = null,
         IReadOnlyList<City>? cities = null,
         IReadOnlyList<Building>? buildings = null,
@@ -530,6 +538,7 @@ public sealed class WorldState
         _workplaceById = ToLookup(_workplaces, w => w.Id);
         _nextWorkplaceId = nextWorkplaceId;
         FamilyRules = familyRules ?? FamilyRules.Disabled;
+        BodyRules = bodyRules ?? BodyRules.Default;
         _relationships = relationships is null ? [] : new Dictionary<RelationshipKey, Relationship>(relationships);
         _cities = (cities ?? []).ToList();
         _cityById = ToLookup(_cities, c => c.Id);

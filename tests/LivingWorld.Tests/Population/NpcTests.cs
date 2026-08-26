@@ -187,6 +187,23 @@ public class NpcTests
         Assert.Equal(npc.City, rehydrated.City);
     }
 
+    [Fact]
+    public void Height_Weight_MuscleMass_round_trip_through_json()
+    {
+        var npc = new Npc(
+            new NpcId(1), "test", Sex.Female, WorldDate.Epoch(Calendar), new CultureId(1), new CellCoord(0, 0),
+            motherId: null, fatherId: null, household: null, health: 100,
+            personality: DefaultPersonality, profession: default, currentLocation: new CellCoord(0, 0),
+            height: 1.82, weight: 74.5, muscleMass: 32.1);
+
+        var json = JsonSerializer.Serialize(npc);
+        var rehydrated = JsonSerializer.Deserialize<Npc>(json)!;
+
+        Assert.Equal(1.82, rehydrated.Height);
+        Assert.Equal(74.5, rehydrated.Weight);
+        Assert.Equal(32.1, rehydrated.MuscleMass);
+    }
+
     // --- Fase 8 (T4): CityId ---
 
     [Fact]

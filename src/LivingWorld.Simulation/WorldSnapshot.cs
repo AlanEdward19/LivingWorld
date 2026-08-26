@@ -82,6 +82,9 @@ public static class WorldSnapshot
         var workplaces = node["Workplaces"].Deserialize<List<Workplace>>(JsonOptions)!;
         var nextWorkplaceId = node["NextWorkplaceId"]!.GetValue<long>();
         var familyRules = node["FamilyRules"].Deserialize<FamilyRules>(JsonOptions)!;
+        var bodyRules = node.TryGetPropertyValue("BodyRules", out var bodyNode) && bodyNode is not null
+            ? bodyNode.Deserialize<BodyRules>(JsonOptions)!
+            : BodyRules.Default;
         var relationships = node["Relationships"].Deserialize<Dictionary<RelationshipKey, Relationship>>(JsonOptions)!;
         var cities = node["Cities"].Deserialize<List<City>>(JsonOptions)!;
         var buildings = node["Buildings"].Deserialize<List<Building>>(JsonOptions)!;
@@ -189,7 +192,7 @@ public static class WorldSnapshot
             calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
             lifeStageRules, rngStreams, pendingEvents, nextEventId, exampleCounts, npcs, households, nextNpcId,
             nextHouseholdId, branchId, moneyMinted, moneyDestroyed, economyRules, economyCatalog, workplaces,
-            nextWorkplaceId, familyRules, relationships, cities, buildings, nextBuildingId, cityRules, cityCatalog,
+            nextWorkplaceId, familyRules, bodyRules, relationships, cities, buildings, nextBuildingId, cityRules, cityCatalog,
             perfRules, historyRules, facts, nextFactId, nextReportId, reports, books, nextBookId,
             canonicalMemories, volatileMemories, nextMemoryId, name, portals,
             restPlaceCatalog, restPlaces, nextRestPlaceId,

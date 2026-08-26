@@ -93,13 +93,18 @@ public sealed class NatalitySystem : ISimulationSystem
             mother.Vitality, father?.Vitality ?? mother.Vitality, familyRules,
             ctx.StreamFor("vitality", babyId.Value));
         double upbringing = HeredityService.DeriveUpbringingFromConceptionStock(conceptionStock, familyRules);
+        var body = world.BodyRules;
+        double height = BodyGeneration.RollHeight(ctx.StreamFor("height", babyId.Value), body);
+        double weight = BodyGeneration.RollWeight(ctx.StreamFor("weight", babyId.Value), body);
+        double muscleMass = BodyGeneration.RollMuscleMass(ctx.StreamFor("musclemass", babyId.Value), body);
 
         var baby = new Npc(
             babyId, $"npc-{mother.Culture.Id}-child-{evt.Id}", sex, world.CurrentDate,
             mother.Culture, household.Location, motherId, father is { IsAlive: true } ? fatherId : null,
             household.Id, health: 100,
             personality: personality, profession: profession, currentLocation: household.Location,
-            rateGene: rateGene, vitality: vitality, upbringing: upbringing);
+            rateGene: rateGene, vitality: vitality, upbringing: upbringing,
+            height: height, weight: weight, muscleMass: muscleMass);
 
         world.AddNpc(baby);
         baby.ConfigureNeedDecay(world.NeedsRules, world.CurrentDate.TotalHours);

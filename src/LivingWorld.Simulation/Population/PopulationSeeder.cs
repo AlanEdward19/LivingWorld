@@ -19,7 +19,8 @@ public static class PopulationSeeder
             rng, world.CurrentDate, count, culture, villageLocation, world.PopulationRules.LifeTable,
             world.PopulationCatalog, world.NextNpcId, world.NextHouseholdId, placementCity.Id,
             householdLocationsFactory: householdCount => PlaceHouseholdBuildings(
-                world, placementCity, count, householdCount));
+                world, placementCity, count, householdCount),
+            bodyRules: world.BodyRules);
 
         foreach (var npc in generated.Npcs)
         {

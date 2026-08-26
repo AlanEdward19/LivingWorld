@@ -61,6 +61,15 @@ public sealed class Npc
     public NpcId? Spouse { get; private set; }
     public NpcId? CourtingWith { get; private set; }
 
+    // Fase 16.3 (COH-21): corpo mínimo causal — Height/Weight imutáveis após nascimento;
+    // MuscleMass pode crescer lentamente com trabalho pesado (COH-24, BodyMechanic).
+    /// <summary>Altura em metros, gerada via RNG semeado (<see cref="BodyGeneration"/>).</summary>
+    public double Height { get; }
+    /// <summary>Peso em kg, gerado via RNG semeado.</summary>
+    public double Weight { get; }
+    /// <summary>Massa muscular em kg — pode aumentar com trabalho pesado sustentado.</summary>
+    public double MuscleMass { get; private set; }
+
     /// <summary>Cidade onde o NPC vive (Fase 8, T4, CITY-01) — nunca "sem cidade"
     /// (CITY-09: todo NPC vivo tem exatamente uma). Mutável só por <see cref="JoinCity"/>.</summary>
     public CityId City { get; private set; }
@@ -101,7 +110,8 @@ public sealed class Npc
         double vitality = 50.0, double upbringing = 50.0, NpcId? spouse = null, NpcId? courtingWith = null,
         CityId city = default, long? materializedAtTick = null, InteriorOccupancy? interior = null,
         int carriedResourceId = 0, long carriedQuantity = 0, long carryCapacity = DefaultCarryCapacity,
-        bool isGhost = false)
+        bool isGhost = false,
+        double height = 1.70, double weight = 68.0, double muscleMass = 28.0)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -149,6 +159,9 @@ public sealed class Npc
         CarriedResourceId = carriedResourceId;
         CarriedQuantity = carriedQuantity;
         CarryCapacity = carryCapacity > 0 ? carryCapacity : DefaultCarryCapacity;
+        Height = height;
+        Weight = weight;
+        MuscleMass = muscleMass;
     }
 
     public Npc(
@@ -164,15 +177,24 @@ public sealed class Npc
         double vitality = 50.0, double upbringing = 50.0, NpcId? spouse = null, NpcId? courtingWith = null,
         CityId city = default, long? materializedAtTick = null, InteriorOccupancy? interior = null,
         int carriedResourceId = 0, long carriedQuantity = 0, long carryCapacity = DefaultCarryCapacity,
-        bool isGhost = false)
+        bool isGhost = false,
+        double height = 1.70, double weight = 68.0, double muscleMass = 28.0)
         : this(
             id, name, sex, birthDate, culture, birthLocation, motherId, fatherId, household, health,
             personality, profession, currentLocation,
             LazyNeed.Initial(hunger, 0, 0), LazyNeed.Initial(thirst, 0, 0), LazyNeed.Initial(sleep, 0, 0), LazyNeed.Initial(social, 0, 0),
             currentAction, actionStartedAtTick, hungerZeroSinceTick, homelessSince, pregnantUntil, deathDate,
             wallet, employer, skills, rateGene, mentor, vitality, upbringing, spouse, courtingWith, city, materializedAtTick, interior,
-            carriedResourceId, carriedQuantity, carryCapacity, isGhost)
+            carriedResourceId, carriedQuantity, carryCapacity, isGhost, height, weight, muscleMass)
     {
+    }
+
+    /// <summary>Atualiza <see cref="MuscleMass"/> (trabalho pesado / clamp do chamador via
+    /// <see cref="BodyRules"/>). Touch canônico — entra no hash do snapshot.</summary>
+    public void SetMuscleMass(double value)
+    {
+        MuscleMass = value;
+        TouchCanonical();
     }
 
     /// <summary>Recurso carregado em trânsito (Fase 15.1, Stage 4, T15). Zero significa as mãos

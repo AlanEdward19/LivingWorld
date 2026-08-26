@@ -195,6 +195,22 @@ public class NatalitySystemTests
 
         Assert.Equal(babyA.Personality, babyB.Personality);
         Assert.Equal(babyA.Profession, babyB.Profession);
+        Assert.Equal((babyA.Height, babyA.Weight, babyA.MuscleMass),
+            (babyB.Height, babyB.Weight, babyB.MuscleMass));
+    }
+
+    [Fact]
+    public void Baby_born_at_runtime_gets_body_fields_within_BodyRules_range()
+    {
+        var catalog = new PopulationCatalog(new HashSet<int>(), new HashSet<int>(), new HashSet<int>());
+        var (world, ctx, mother, father, household) = BuildWorldWithMarriedCouple(catalog, seed: 13);
+        var rules = world.BodyRules;
+
+        var baby = TriggerBirth(world, ctx, mother.Id, father.Id, household.Id);
+
+        Assert.InRange(baby.Height, rules.HeightMin, rules.HeightMax);
+        Assert.InRange(baby.Weight, rules.WeightMin, rules.WeightMax);
+        Assert.InRange(baby.MuscleMass, rules.MuscleMassMin, rules.MuscleMassMax);
     }
 
     [Fact]
