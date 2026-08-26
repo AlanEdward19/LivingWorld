@@ -1,0 +1,295 @@
+/* Tokens literais do doc "LivingWorld — Frontend Experience & Design System" § 202. */
+:root {
+  --bg-world: #0b0e12;
+
+  --surface-1: #11151b;
+  --surface-2: #171c23;
+  --surface-3: #20262f;
+
+  --text-primary: #eceff4;
+  --text-secondary: #aab2bf;
+  --text-muted: #707a89;
+  --text-disabled: #4d5561;
+
+  --accent: #d5a85a;
+  --accent-secondary: #6fa6a1;
+
+  --positive: #7fa77b;
+  --warning: #c69b58;
+  --danger: #c86f6f;
+  --info: #6f91b8;
+  --unknown: #7d748f;
+
+  --cause: #728eb6;
+  --consequence: #a77a68;
+
+  --border: rgba(255, 255, 255, 0.07);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-world);
+  color: var(--text-primary);
+  font-family: "Inter", "Geist", system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  gap: 1rem;
+}
+
+/* § 22 Escala tipográfica */
+h1 {
+  font-size: 20px; /* entity title */
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+  color: var(--text-primary);
+}
+
+/* § 164 Section header — uppercase, 11-12px, muted */
+h2,
+h3 {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 1rem 0 0.4rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+p {
+  margin: 0.2rem 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+ul,
+ol,
+dl {
+  margin: 0.2rem 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+/* § 80 Resource row / § 76 Settlement Pulse — label acima, valor abaixo, sem tabela pesada */
+dl > div {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.2rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+/* § 24 Borders — separação por espaçamento/superfície, quase sem shadow (§ 25) */
+
+/* § 133-135 Buttons — secondary é o padrão (superfície + border + texto claro) */
+button {
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+button:hover {
+  background: var(--surface-3);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Toggle ativo (Follow/Following, filtros de zoom) usa o accent — só em elemento pequeno, nunca superfície grande (§ 14). */
+button[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1a1408;
+}
+
+/* Botões ghost (§ 135): Back e toggles de contexto, sem preenchimento forte */
+[data-testid="breadcrumb"] button,
+[data-testid="map-level-toggle"] button {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+
+[data-testid="breadcrumb"] button:hover,
+[data-testid="map-level-toggle"] button:hover {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+input[type="text"] {
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.35rem 0.6rem;
+  width: 100%;
+}
+
+input[type="text"]::placeholder {
+  color: var(--text-muted);
+}
+
+/* Telas/painéis principais — surface-1, radius-lg, borda sutil (§ 162: seções planas, não card-dentro-de-card) */
+[data-testid$="-view"],
+[data-testid="why-panel"],
+[data-testid="causal-explorer"],
+[data-testid="timeline-view"],
+[data-testid="life-view"],
+[data-testid="world-feed"] {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+}
+
+[data-testid="story-thread-card"] {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  text-align: left;
+  width: 100%;
+}
+
+/* § 33 Breadcrumb */
+[data-testid="breadcrumb"] {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+[data-testid="breadcrumb"] ol {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+[data-testid="breadcrumb"] li {
+  color: var(--text-secondary);
+}
+
+[data-testid="breadcrumb"] li:not(:last-child)::after {
+  content: "/";
+  margin-left: 0.3rem;
+  color: var(--text-disabled);
+}
+
+/* § 37-38 Global Search */
+[data-testid="search-bar"] {
+  position: relative;
+}
+
+[data-testid="search-results"] {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  right: 0;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+/* § 43 People cards / listas clicáveis */
+[data-testid="household-list"] li,
+[data-testid="household-members"] li,
+[data-testid="settlement-list"] li,
+[data-testid="story-threads"] li {
+  margin-bottom: 0.25rem;
+}
+
+[data-testid="household-members"] button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: left;
+  width: 100%;
+}
+
+/* § 165-166 Avatar — 40-52px no painel, nunca dominante */
+[data-testid="household-members"] img,
+[data-testid="agent-view"] > img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+[data-testid="map-level-toggle"] {
+  display: flex;
+  gap: 0.3rem;
+  margin: 0.5rem 0;
+}
+
+/* § 92-96 Map — recua visualmente, sem competir com a UI ao redor */
+svg[data-testid="semantic-zoom-map"] {
+  width: 100%;
+  height: 300px;
+  background: var(--bg-world);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+/* § 66-73 Causal Explorer — linguagem visual própria: causa (azul-acinzentado) → selecionado (dourado) → consequência (terracota) */
+[data-testid="causal-explorer"] h1 {
+  color: var(--accent);
+}
+
+[data-testid="why-section"] {
+  border-left: 2px solid var(--cause);
+  padding-left: 0.75rem;
+}
+
+[data-testid="consequences-section"] {
+  border-left: 2px solid var(--consequence);
+  padding-left: 0.75rem;
+}
+
+[data-testid="systems-involved"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+}
+
+[data-testid="systems-involved"] li {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 0.15rem 0.5rem;
+}
