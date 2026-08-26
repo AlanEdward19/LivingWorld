@@ -106,7 +106,7 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
       )}
 
       {household && (
-        <button type="button" data-testid="agent-household" onClick={() => nav.push({ kind: "household", id: household.id })}>
+        <button type="button" data-testid="agent-household" onClick={() => nav.replace({ kind: "household", id: household.id })}>
           {household.name}
         </button>
       )}

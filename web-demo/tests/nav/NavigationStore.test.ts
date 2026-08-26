@@ -19,6 +19,31 @@ describe("NavigationStore", () => {
     expect(store.current()).toEqual({ kind: "settlement", id: "oakbridge" });
   });
 
+  it("replace swaps the top of the stack without growing it (AD-021)", () => {
+    const store = new NavigationStore();
+    store.push({ kind: "settlement", id: "oakbridge" });
+    store.replace({ kind: "agent", id: "mira-valen" });
+    expect(store.current()).toEqual({ kind: "agent", id: "mira-valen" });
+    expect(store.breadcrumb()).toEqual([{ kind: "world" }, { kind: "agent", id: "mira-valen" }]);
+  });
+
+  it("replace after replace keeps the stack flat — sibling switches never accumulate", () => {
+    const store = new NavigationStore();
+    store.push({ kind: "settlement", id: "oakbridge" });
+    store.replace({ kind: "agent", id: "mira-valen" });
+    store.replace({ kind: "building", id: "bld-corvin-bakery" });
+    store.replace({ kind: "agent", id: "corvin" });
+    expect(store.breadcrumb()).toEqual([{ kind: "world" }, { kind: "agent", id: "corvin" }]);
+  });
+
+  it("replace updates the URL via replaceState, not pushState (doesn't grow browser history)", () => {
+    const store = new NavigationStore();
+    store.push({ kind: "settlement", id: "oakbridge" });
+    store.replace({ kind: "agent", id: "mira-valen" });
+    expect(window.location.pathname).toBe("/agent/mira-valen");
+    window.history.replaceState(null, "", "/");
+  });
+
   it("maintains a consistent stack across 5+ pushes and backs", () => {
     const store = new NavigationStore();
     store.push({ kind: "settlement", id: "oakbridge" });

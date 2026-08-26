@@ -44,7 +44,7 @@ export function SettlementView({ fixture, nav, settlementId }: SettlementViewPro
       <ul data-testid="household-list">
         {households.map((household) => (
           <li key={household.id}>
-            <button type="button" onClick={() => nav.push({ kind: "household", id: household.id })}>
+            <button type="button" onClick={() => nav.replace({ kind: "household", id: household.id })}>
               {household.name}
             </button>
           </li>

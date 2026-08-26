@@ -64,7 +64,7 @@ describe("CenterStage — settlement-scoped routes mount SettlementStage for the
     expect(screen.getByTestId("focused-building-name")).toHaveTextContent("Valen House");
   });
 
-  it("clicking the street-view button while on a building route calls nav.back()", () => {
+  it("clicking the street-view button while on a building route returns to the settlement (AD-021: replace, not push)", () => {
     const nav = new NavigationStore(WORLD_FIXTURE);
     nav.push({ kind: "settlement", id: "oakbridge" });
     nav.push({ kind: "building", id: "bld-valen-house" });
@@ -74,11 +74,25 @@ describe("CenterStage — settlement-scoped routes mount SettlementStage for the
   });
 });
 
-describe("CenterStage — replaces the map for causal/timeline/life/feed/threads", () => {
-  it("shows the Causal Explorer for a causal route", () => {
+// AD-021: causal/timeline/life/feed/threads open as a panel OVER the map — the map (world or
+// settlement) stays mounted underneath the whole time. User feedback: losing the city/NPC view
+// to check "Why?"/Timeline was disorienting.
+describe("CenterStage — causal/timeline/life/feed/threads open as an overlay, map stays visible", () => {
+  it("shows the Causal Explorer for a causal route, with the world map still mounted underneath", () => {
     const nav = new NavigationStore(WORLD_FIXTURE);
     render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "causal", eventId: "evt-grain-prices-rose" }} />);
     expect(screen.getByTestId("causal-explorer")).toBeInTheDocument();
+    expect(screen.getByTestId("semantic-zoom-map")).toBeInTheDocument();
+    expect(screen.getByTestId("center-stage-overlay-backdrop")).toBeInTheDocument();
+  });
+
+  it("shows the settlement map underneath when the overlay was opened while a settlement was focused", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    nav.push({ kind: "settlement", id: "oakbridge" });
+    nav.push({ kind: "causal", eventId: "evt-grain-prices-rose" });
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={nav.current()} />);
+    expect(screen.getByTestId("causal-explorer")).toBeInTheDocument();
+    expect(screen.getByTestId("settlement-stage")).toBeInTheDocument();
   });
 
   it("shows the Timeline for a timeline route", () => {
@@ -103,5 +117,43 @@ describe("CenterStage — replaces the map for causal/timeline/life/feed/threads
     const nav = new NavigationStore(WORLD_FIXTURE);
     render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "threads" }} />);
     expect(screen.getByTestId("story-threads")).toBeInTheDocument();
+  });
+
+  it("closing via the X button calls nav.back()", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    nav.push({ kind: "causal", eventId: "evt-grain-prices-rose" });
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={nav.current()} />);
+    fireEvent.click(screen.getByTestId("center-stage-overlay-close"));
+    expect(nav.current()).toEqual({ kind: "world" });
+  });
+
+  it("closing via a backdrop click calls nav.back()", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    nav.push({ kind: "causal", eventId: "evt-grain-prices-rose" });
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={nav.current()} />);
+    fireEvent.click(screen.getByTestId("center-stage-overlay-backdrop"));
+    expect(nav.current()).toEqual({ kind: "world" });
+  });
+
+  it("clicking inside the overlay panel itself does not close it", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    nav.push({ kind: "causal", eventId: "evt-grain-prices-rose" });
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={nav.current()} />);
+    fireEvent.click(screen.getByTestId("center-stage-overlay-panel"));
+    expect(nav.current()).toEqual({ kind: "causal", eventId: "evt-grain-prices-rose" });
+  });
+
+  it("pressing Escape closes the overlay", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    nav.push({ kind: "causal", eventId: "evt-grain-prices-rose" });
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={nav.current()} />);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(nav.current()).toEqual({ kind: "world" });
+  });
+
+  it("does not show the overlay backdrop for spatial routes", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "world" }} />);
+    expect(screen.queryByTestId("center-stage-overlay-backdrop")).not.toBeInTheDocument();
   });
 });

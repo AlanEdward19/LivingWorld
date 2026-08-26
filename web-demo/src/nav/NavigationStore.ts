@@ -123,6 +123,21 @@ export class NavigationStore {
     this.notify();
   }
 
+  /**
+   * Substitui o topo da pilha em vez de empilhar — usado quando o foco troca ENTRE irmãos
+   * dentro do mesmo settlement (building/household/agent, ex.: clicar num NPC depois de já
+   * estar vendo outro), não quando entra de verdade num nível novo (world→settlement). Sem
+   * isso a pilha crescia sem fim e "Back"/clicar fora nunca voltava direto pra a cidade —
+   * feedback do usuário 2026-08-26 (AD-021).
+   */
+  replace(route: Route): void {
+    this.stack = [...this.stack.slice(0, -1), route];
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", routeToPath(route));
+    }
+    this.notify();
+  }
+
   /** Desempilha o topo, voltando pra rota anterior. Nunca esvazia o root (`world`). */
   back(): void {
     if (this.stack.length <= 1) return;

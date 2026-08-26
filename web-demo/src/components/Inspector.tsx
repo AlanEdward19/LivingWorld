@@ -51,7 +51,7 @@ export function Inspector({ fixture, nav, route }: InspectorProps) {
           <ul data-testid="building-inspector-people">
             {occupants.map((agent) => (
               <li key={agent.id}>
-                <button type="button" onClick={() => nav.push({ kind: "agent", id: agent.id })}>
+                <button type="button" onClick={() => nav.replace({ kind: "agent", id: agent.id })}>
                   {agent.name}
                 </button>
               </li>

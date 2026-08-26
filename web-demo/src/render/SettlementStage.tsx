@@ -16,15 +16,17 @@ export interface SettlementStageProps {
    * vista de rua do settlement inteiro. */
   focusBuildingId?: string | null;
   onSelectAgent: (agentId: string) => void;
-  /** `null` = sair do foco (volta pra vista de rua). */
-  onFocusBuilding: (buildingId: string | null) => void;
+  onFocusBuilding: (buildingId: string) => void;
+  /** Clicou no chão/terreno vazio — sai do foco atual (prédio OU agent), volta pra vista geral
+   * do settlement. Sempre chamável, mesmo sem nada focado (no-op nesse caso). */
+  onBackgroundClick: () => void;
 }
 
 const GROUND_BASE = 0x3a4a2c;
 const GROUND_VARIANCE = 14; // +/- por canal RGB, não um int somado direto no hex (isso estourava canal)
 const ROOF_ALPHA_FOCUSED = 0.14;
 const FADE_SPEED = 0.12; // por frame a 60fps, ver ticker
-const CLICK_DRAG_THRESHOLD = 6; // px de movimento do pointer antes de virar "arrastando"
+const CLICK_DRAG_THRESHOLD = 14; // px — 6 era sensível demais, cliques reais de mouse têm jitter
 const OUTDOOR_SPRITE_SCALE = (TILE * 0.6) / 100; // textura do NpcToken é 100x120
 
 const FURNITURE_COLORS: Record<FurnitureKind, number> = {
@@ -80,11 +82,18 @@ interface InteriorTransform {
  * apresentação — NÃO dado canônico). Prédios têm footprint real (área, não 1 tile) e revelam o
  * interior fisicamente (roof cutaway) ao focar, em vez de navegar pra outra tela.
  */
-export function SettlementStage({ fixture, settlementId, focusBuildingId = null, onSelectAgent, onFocusBuilding }: SettlementStageProps) {
+export function SettlementStage({
+  fixture,
+  settlementId,
+  focusBuildingId = null,
+  onSelectAgent,
+  onFocusBuilding,
+  onBackgroundClick,
+}: SettlementStageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<CameraState>(initialCamera(0, 0));
   const focusBuildingIdRef = useRef<string | null>(focusBuildingId);
-  const dragRef = useRef<{ startX: number; startY: number; startCamera: CameraState; moved: number } | null>(null);
+  const dragRef = useRef<{ startX: number; startY: number; startCamera: CameraState; moved: number; captured: boolean } | null>(null);
   const suppressClickRef = useRef(false);
   const buildingNodesRef = useRef(new Map<string, BuildingNode>());
   const interiorTransformsRef = useRef(new Map<string, InteriorTransform>());
@@ -206,7 +215,7 @@ export function SettlementStage({ fixture, settlementId, focusBuildingId = null,
       }
       terrainLayer.eventMode = "static";
       terrainLayer.on("pointertap", () => {
-        if (!suppressClickRef.current && focusBuildingIdRef.current) onFocusBuilding(null);
+        if (!suppressClickRef.current) onBackgroundClick();
       });
 
       for (const road of generateRoads(settlementDef.buildings)) {
@@ -323,8 +332,14 @@ export function SettlementStage({ fixture, settlementId, focusBuildingId = null,
       cameraRef.current = zoomBy(cameraRef.current, event.deltaY < 0 ? 1.12 : 1 / 1.12);
     }
     function onPointerDown(event: PointerEvent) {
-      dragRef.current = { startX: event.clientX, startY: event.clientY, startCamera: cameraRef.current, moved: 0 };
-      containerRef.current?.setPointerCapture(event.pointerId);
+      // NÃO captura o pointer aqui (bug real, achado ao vivo): `setPointerCapture` já no
+      // pointerdown redireciona o TARGET dos eventos pointermove/pointerup subsequentes pra
+      // `containerEl`, então o listener interno do Pixi (que escuta direto no `<canvas>`) nunca
+      // via esses eventos — nenhum clique em prédio/agent/terreno disparava "pointertap" de
+      // verdade num mouse real (só em testes/dispatch sintético, que não passa pela mesma
+      // redireção de capture do browser). Captura só depois de confirmar que é arrasto de
+      // verdade, em `onPointerMove`.
+      dragRef.current = { startX: event.clientX, startY: event.clientY, startCamera: cameraRef.current, moved: 0, captured: false };
     }
     function onPointerMove(event: PointerEvent) {
       const drag = dragRef.current;
@@ -332,7 +347,13 @@ export function SettlementStage({ fixture, settlementId, focusBuildingId = null,
       const dx = event.clientX - drag.startX;
       const dy = event.clientY - drag.startY;
       drag.moved = Math.max(drag.moved, Math.hypot(dx, dy));
-      suppressClickRef.current = drag.moved > CLICK_DRAG_THRESHOLD;
+      if (drag.moved > CLICK_DRAG_THRESHOLD) {
+        suppressClickRef.current = true;
+        if (!drag.captured) {
+          drag.captured = true;
+          containerRef.current?.setPointerCapture(event.pointerId);
+        }
+      }
       cameraRef.current = panBy(drag.startCamera, dx / drag.startCamera.zoom, dy / drag.startCamera.zoom);
     }
     function onPointerUp() {
@@ -384,7 +405,7 @@ export function SettlementStage({ fixture, settlementId, focusBuildingId = null,
     <div data-testid="settlement-stage" ref={containerRef}>
       {focusedBuilding && (
         <div data-testid="settlement-stage-overlay">
-          <button type="button" data-testid="street-view-button" onClick={() => onFocusBuilding(null)}>
+          <button type="button" data-testid="street-view-button" onClick={onBackgroundClick}>
             ← Street
           </button>
           <span data-testid="focused-building-name">{focusedBuilding.name}</span>

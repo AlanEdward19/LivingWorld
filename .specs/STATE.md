@@ -185,6 +185,14 @@
 - **Date**: 2026-08-26
 - **Status**: active
 
+### AD-021
+- **Decision**: `phase-16-3-web` — 3 correções sobre o Settlement View (AD-020) a partir de teste ao vivo do usuário: (1) navegação entre building/household/agent dentro de um settlement passa a usar `NavigationStore.replace` (novo método) em vez de `push` — são irmãos (um foco substitui o outro), não uma pilha que deve crescer; clicar no terreno vazio do mapa sempre volta pro settlement (`SettlementStage` ganhou o prop `onBackgroundClick`). (2) Causal Explorer/Timeline/Life/Feed/Threads abrem como um painel POR CIMA do mapa (`CenterStage` sempre monta a camada espacial, deriva a última rota espacial da pilha quando uma dessas 5 rotas está no topo) em vez de substituir o centro — fecha com X/backdrop/Esc, todos chamando `nav.back()`. (3) Bug real: `containerEl.setPointerCapture()` era chamado já no `pointerdown`, o que redireciona o `target` dos eventos seguintes pro elemento capturado — o listener do Pixi no `<canvas>` nunca via `pointerup`, então clique em prédio/agent/terreno não funcionava com mouse real (só em dispatch sintético direto no canvas, que não sofre essa redireção). Corrigido: captura só depois de confirmar arrasto de verdade.
+- **Reason**: usuário testou ao vivo 3 vezes nesta rodada: 1ª vez reportou terreno/NPCs quebrados (bugs à parte, AD-020); 2ª vez reportou os 3 problemas de navegação/UX acima; 3ª vez (após o fix de push→replace/overlay) reportou que building ainda não abria e sugeriu investigar conflito com a feature de drag — hipótese certa, era o `setPointerCapture` cedo demais.
+- **Trade-off**: nenhum real — `replace` é estritamente mais correto pro modelo "foco entre irmãos" que o doc do usuário pede; o overlay é puramente aditivo (o mapa que já existia continua existindo, só ganha um painel por cima); o fix de pointer capture não muda nenhum comportamento de pan intencional, só corrige quando a captura acontece.
+- **Scope**: `web-demo/src/nav/NavigationStore.ts` (`replace`), `web-demo/src/render/SettlementStage.tsx` (`onBackgroundClick`, captura tardia), `web-demo/src/components/CenterStage.tsx` (overlay), `AgentView.tsx`/`HouseholdView.tsx`/`SettlementView.tsx`/`Inspector.tsx` (chamadas pontuais push→replace pra navegação irmã-a-irmã dentro do settlement).
+- **Date**: 2026-08-26
+- **Status**: active
+
 ## Handoff
 
 - **Feature**: Fase 16.3 Living World Cohesion — **MERGED** into primary

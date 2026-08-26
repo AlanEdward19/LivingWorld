@@ -119,6 +119,28 @@ pegam nenhum dos dois — nem canvas real, nem timing de carregamento de imagem)
   canal pra canal e virando ruído de cor aleatório (tiles azuis/roxos/vermelhos num "gramado").
   Corrigido com `jitterColor` — varia R/G/B separadamente, clamped 0-255.
 
+**Mais 2 bugs reais + 1 mudança de UX, achados no feedback seguinte do usuário** ("ainda não
+consigo entrar nas casas" mesmo depois do fix acima; "tudo que abro na sidebar fica lá"):
+
+- **Bug — captura de pointer cedo demais quebrava TODO clique num prédio/agent/terreno num
+  mouse real.** `containerEl.setPointerCapture()` era chamado já no `pointerdown`. Uma vez
+  capturado, o browser redireciona o `target` dos `pointermove`/`pointerup` seguintes pro
+  elemento que capturou — então o listener do Pixi (que escuta direto no `<canvas>`) nunca via
+  esses eventos, e nenhum "pointertap" era sintetizado. Só não aparecia em teste algum porque
+  testes disparam o evento sintético direto no objeto Pixi mockado, nunca passam pelo
+  redirecionamento de capture real do browser. Corrigido: captura só depois de confirmar que é
+  arrasto de verdade (movimento > `CLICK_DRAG_THRESHOLD`), nunca no `pointerdown` em si.
+- **AD-021 — navegação entre building/household/agent virou `replace`, não `push`.** Antes, cada
+  clique empilhava (`nav.push`) — a sidebar direita nunca "soltava" o que foi aberto, e "voltar"
+  tinha que ser feito um passo de cada vez. Agora household/agent/building são irmãos dentro do
+  mesmo settlement: focar um substitui o foco anterior (`nav.replace`), e clicar no terreno vazio
+  do mapa sempre volta pro settlement (novo prop `onBackgroundClick` do `SettlementStage`).
+- **AD-021 — Causal Explorer/Timeline/Life/Feed/Threads abrem por CIMA do mapa, não substituem
+  mais o centro.** Usuário: perder a cidade/NPC de vista pra checar "Why?"/Timeline era
+  desorientador. `CenterStage` agora sempre monta o mapa (mundo ou settlement, derivado da
+  última rota espacial na pilha) e renderiza essas 5 rotas como um painel flutuante por cima,
+  com X / clique fora / Esc pra fechar (todos chamam `nav.back()`).
+
 ### O que ficou de fora desta rodada — mesma fase, backlog explícito
 
 Nada disto foi escondido ou fingido feito; fica pendente na mesma `phase-16-3-web`:
