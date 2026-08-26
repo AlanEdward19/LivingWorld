@@ -6,6 +6,7 @@ import { Timeline } from "../views/Timeline";
 import { LifeView } from "../views/LifeView";
 import { WorldFeed } from "../views/WorldFeed";
 import { StoryThreads } from "../views/StoryThreads";
+import { BuildingInterior } from "../views/BuildingInterior";
 
 export interface CenterStageProps {
   fixture: WorldFixture;
@@ -46,7 +47,14 @@ export function CenterStage({ fixture, nav, route }: CenterStageProps) {
             settlementId={route.id}
             onSelectSettlement={() => {}}
             onSelectNpc={(agentId) => nav.push({ kind: "agent", id: agentId })}
+            onSelectBuilding={(buildingId) => nav.push({ kind: "building", id: buildingId })}
           />
+        </div>
+      );
+    case "building":
+      return (
+        <div data-testid="center-stage">
+          <BuildingInterior fixture={fixture} nav={nav} buildingId={route.id} />
         </div>
       );
     case "household": {
@@ -60,6 +68,7 @@ export function CenterStage({ fixture, nav, route }: CenterStageProps) {
             settlementId={household.settlementId}
             onSelectSettlement={() => {}}
             onSelectNpc={(agentId) => nav.push({ kind: "agent", id: agentId })}
+            onSelectBuilding={(buildingId) => nav.push({ kind: "building", id: buildingId })}
           />
         </div>
       );
@@ -75,6 +84,7 @@ export function CenterStage({ fixture, nav, route }: CenterStageProps) {
             settlementId={agent.settlementId}
             onSelectSettlement={() => {}}
             onSelectNpc={(agentId) => nav.push({ kind: "agent", id: agentId })}
+            onSelectBuilding={(buildingId) => nav.push({ kind: "building", id: buildingId })}
           />
         </div>
       );

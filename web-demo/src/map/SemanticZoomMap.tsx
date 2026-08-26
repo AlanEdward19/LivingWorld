@@ -24,6 +24,8 @@ export interface SemanticZoomMapProps {
   settlementId?: string;
   onSelectSettlement: (settlementId: string) => void;
   onSelectNpc: (agentId: string) => void;
+  /** Só chamado pra prédios com `floors.length > 0` — só esses têm interior pra entrar. */
+  onSelectBuilding?: (buildingId: string) => void;
 }
 
 const DEFAULT_HALF_EXTENT = TILE_WIDTH * 3;
@@ -153,7 +155,7 @@ function SettlementAgentMarker({ agent, notable, onSelectNpc }: SettlementAgentM
   );
 }
 
-export function SemanticZoomMap({ fixture, level = "world", settlementId, onSelectSettlement, onSelectNpc }: SemanticZoomMapProps) {
+export function SemanticZoomMap({ fixture, level = "world", settlementId, onSelectSettlement, onSelectNpc, onSelectBuilding }: SemanticZoomMapProps) {
   if (level === "world") {
     const settlementPoints = fixture.settlements.map((s) => toScreen(s.gridPosition.x, s.gridPosition.y, TILE_WIDTH, TILE_HEIGHT));
     const notableSettlements = notableSettlementIds(fixture);
@@ -220,7 +222,14 @@ export function SemanticZoomMap({ fixture, level = "world", settlementId, onSele
   return (
     <svg data-testid="semantic-zoom-map" data-zoom-level="settlement" viewBox={centeredViewBox(boundsPoints, TILE_WIDTH * 2)}>
       {settlement.buildings.map((building) => (
-        <IsoTile key={building.id} gridX={building.gridPosition.x} gridY={building.gridPosition.y} height={building.height} kind={building.kind} />
+        <IsoTile
+          key={building.id}
+          gridX={building.gridPosition.x}
+          gridY={building.gridPosition.y}
+          height={building.height}
+          kind={building.kind}
+          onClick={building.floors.length > 0 ? () => onSelectBuilding?.(building.id) : undefined}
+        />
       ))}
       {agents.map((agent) => (
         <SettlementAgentMarker key={agent.id} agent={agent} notable={notableAgents.has(agent.id)} onSelectNpc={onSelectNpc} />

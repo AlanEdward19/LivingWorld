@@ -87,6 +87,40 @@ describe("SemanticZoomMap — settlement level (buildings AND NPCs together, no 
     fireEvent.click(getAllByTestId("agent-marker")[miraIndex]);
     expect(onSelectNpc).toHaveBeenCalledWith("mira-valen");
   });
+
+  it("clicking a building with an interior calls onSelectBuilding with its id", () => {
+    const onSelectBuilding = vi.fn();
+    const bakeryIndex = OAKBRIDGE.buildings.findIndex((b) => b.id === "bld-corvin-bakery");
+    const { getAllByTestId } = render(
+      <SemanticZoomMap
+        fixture={WORLD_FIXTURE}
+        level="settlement"
+        settlementId="oakbridge"
+        onSelectSettlement={() => {}}
+        onSelectNpc={() => {}}
+        onSelectBuilding={onSelectBuilding}
+      />,
+    );
+    fireEvent.click(getAllByTestId("iso-tile")[bakeryIndex]);
+    expect(onSelectBuilding).toHaveBeenCalledWith("bld-corvin-bakery");
+  });
+
+  it("does not call onSelectBuilding for a building with no interior modeled (North Farm)", () => {
+    const onSelectBuilding = vi.fn();
+    const farmIndex = OAKBRIDGE.buildings.findIndex((b) => b.id === "bld-north-farm");
+    const { getAllByTestId } = render(
+      <SemanticZoomMap
+        fixture={WORLD_FIXTURE}
+        level="settlement"
+        settlementId="oakbridge"
+        onSelectSettlement={() => {}}
+        onSelectNpc={() => {}}
+        onSelectBuilding={onSelectBuilding}
+      />,
+    );
+    fireEvent.click(getAllByTestId("iso-tile")[farmIndex]);
+    expect(onSelectBuilding).not.toHaveBeenCalled();
+  });
 });
 
 describe("SemanticZoomMap — information density changes across zoom levels", () => {

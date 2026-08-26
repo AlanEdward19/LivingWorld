@@ -35,6 +35,7 @@ npm --prefix web-demo run build   # type-check + build de produção
 | Shell de 1 janela (`src/components/TopBar.tsx`/`Explorer.tsx`/`CenterStage.tsx`/`Inspector.tsx`/`TimelineBar.tsx`) | **Novo**, seguindo literalmente `LivingWorld — Frontend Experience & Design System.md` §5/§26-29/§39-46/§47-48/§105-107 | Doc pede um shell único (Top Bar / Explorer + World + Inspector / Timeline) pras 3 perspectivas (Observe/Table/Inhabit) — implementado 1:1 pra Observe, único modo real desta demo |
 | Tema geral (cores, tipografia, painéis) — `src/styles/tokens.css` | **Novo**, baseado nos tokens literais do mesmo doc (§202) | `web/` não tinha um design system formal ainda; esta demo é onde ele entra pela primeira vez |
 | Navegação/breadcrumb, stores (`NavigationStore`/`followStore`/`modeStore`) | **Novo**, idioma de store igual ao já usado em `web/src/state/*.ts` (`useSyncExternalStore`) | Estado de navegação específico desta demo, sem framework de roteamento |
+| Interior de prédio (`src/views/BuildingInterior.tsx`) | **Redesenho deliberado, não isométrico** — vista top-down 2D separada (troca completa de view, como o Causal Explorer substitui o mapa) | Doc pede "roof cutaway" isométrico (§31); um cutaway isométrico de verdade é um efeito quase-3D caro. RimWorld (referência citada pelo usuário) também renderiza interiores em top-down ortogonal, não isométrico — a demo segue a mesma escolha em vez de forçar o efeito 3D sobre o exterior isométrico |
 
 ### Shell — decisões de adaptação (honestas, não escondidas)
 
@@ -58,10 +59,24 @@ adotado foi **mostrar desabilitado** em vez de esconder como quebrado (mesmo pri
 | Critical event toast (§172) | Real — mostra o evento "critical" do fixture ao carregar, dispensável, com atalho pro Causal Explorer |
 | Keyboard shortcuts (§148) | W/F/`/`/? implementados (os que têm ação real nesta demo) |
 | Map marker accessibility (§149) | Marcadores do mapa são focáveis, com `aria-label` e ativação por Enter/Space |
+| Building interiors / LOD prédios (§29-36/§58-60) | Real, mas **vista separada** (não roof cutaway) — clicar num prédio com `floors.length > 0` no zoom "settlement" navega pra `BuildingInterior` (top-down 2D, seletor de andar quando há mais de 1, cômodos/móveis/NPCs presentes). North Farm fica sem interior modelado (`floors: []`, marcador puramente exterior); Rowan (o farmer) fica sem `indoorLocation` — ambos deliberados, não bug |
 
 Só ficaram desabilitados os 3 itens que dependiam de recursos explicitamente fora do escopo
 desta demo (Table/Inhabit Mode, simulação real, múltiplos mundos) — decisão do usuário, não
 limitação técnica.
+
+### Níveis de LOD
+
+Pedido do usuário: Planeta / Continente / Cidade / Prédios / Interiores, com NPCs presentes em
+cada um. Mapeamento nesta demo:
+
+| LOD pedido | Nesta demo | NPCs visíveis? |
+| --- | --- | --- |
+| Planeta | **Não implementado** — decisão explícita do usuário ("não precisa agora") | — |
+| Continente | `SemanticZoomMap level="world"` — assentamentos + todo NPC como pontinho (AD-018) | Sim, sempre |
+| Cidade | `SemanticZoomMap level="settlement"` — prédios + NPCs juntos, sem toggle | Sim, sempre |
+| Prédios | Mesma vista "Cidade" — prédio é um `IsoTile` clicável quando tem `floors.length > 0` | Sim (tokens completos) |
+| Interiores | `BuildingInterior` (top-down 2D, não isométrico — ver tabela acima) | Sim, os que têm `indoorLocation` nesse prédio/andar/cômodo |
 
 ## Comparação visual com `web/` (spec P1b Independent Test)
 

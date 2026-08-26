@@ -126,6 +126,14 @@ describe("NavigationStore — URL sync (deep-linking)", () => {
     store.stopSyncWithHistory();
   });
 
+  it("syncWithHistory loads a building deep-link (nested id, from any settlement's buildings)", () => {
+    window.history.replaceState(null, "", "/building/bld-valen-house");
+    const store = new NavigationStore(WORLD_FIXTURE);
+    store.syncWithHistory();
+    expect(store.current()).toEqual({ kind: "building", id: "bld-valen-house" });
+    store.stopSyncWithHistory();
+  });
+
   it("syncWithHistory redirects to World View when the deep-link id doesn't exist in the fixture", () => {
     window.history.replaceState(null, "", "/agent/does-not-exist");
     const store = new NavigationStore(WORLD_FIXTURE);
@@ -156,6 +164,7 @@ describe("NavigationStore — URL sync (deep-linking)", () => {
     const routes: Route[] = [
       { kind: "world" },
       { kind: "settlement", id: "oakbridge" },
+      { kind: "building", id: "bld-valen-house" },
       { kind: "household", id: "valen-household" },
       { kind: "agent", id: "mira-valen" },
       { kind: "causal", eventId: "evt-grain-prices-rose" },

@@ -54,6 +54,22 @@ describe("CenterStage — settlement route", () => {
   });
 });
 
+describe("CenterStage — building route", () => {
+  it("shows the Building Interior for a building route", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "building", id: "bld-valen-house" }} />);
+    expect(screen.getByTestId("building-interior")).toBeInTheDocument();
+  });
+
+  it("clicking a building at settlement level navigates to its interior", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "settlement", id: "oakbridge" }} />);
+    const bakeryIndex = OAKBRIDGE.buildings.findIndex((b) => b.id === "bld-corvin-bakery");
+    fireEvent.click(screen.getAllByTestId("iso-tile")[bakeryIndex]);
+    expect(nav.current()).toEqual({ kind: "building", id: "bld-corvin-bakery" });
+  });
+});
+
 describe("CenterStage — household route", () => {
   it("shows the household's settlement map with buildings and agents together", () => {
     const nav = new NavigationStore(WORLD_FIXTURE);
