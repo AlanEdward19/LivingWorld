@@ -41,12 +41,3 @@ public readonly record struct RelationshipFact(
     int Affection,
     int Respect,
     int Familiarity);
-
-/// <summary>Candidato dinâmico de poder no utility loop (shape P1d; lista vazia em P1b até
-/// <c>PowerOpportunityProvider</c> na Phase 4).</summary>
-public sealed record PowerOpportunity(
-    string MechanicToken,
-    NpcId? SuggestedTarget,
-    decimal EstimatedCost,
-    double EstimatedRisk,
-    string Reliability);
