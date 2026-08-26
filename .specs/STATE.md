@@ -169,6 +169,22 @@
 - **Date**: 2026-08-26
 - **Status**: active
 
+### AD-019
+- **Decision**: `phase-16-3-web` — trocado o bloco isométrico 2:1 (`IsoProjection`/`IsoTile`) por projeção top-down ortogonal (escala 1:1, sem shear). `BuildingInterior` já era top-down; agora exterior e interior usam a mesma lógica de projeção.
+- **Reason**: usuário testou e reportou "a visão isométrica não está funcionando bem... tem que ser algo topdown". Achado incidental na mesma passada: labels do mapa (`<text>`) não tinham `fill`, herdavam preto default de SVG — ilegível sobre `--bg-world`.
+- **Trade-off**: nenhum — top-down é estritamente mais simples que a projeção isométrica que substituiu, sem perda de informação espacial pro fixture atual (grid 2D raso, sem elevação real).
+- **Scope**: `web-demo/src/map/{IsoProjection,IsoTileRenderer}.ts(x)`, `tokens.css`.
+- **Date**: 2026-08-26
+- **Status**: active
+
+### AD-020
+- **Decision**: `phase-16-3-web` — redesign estrutural do renderer de Settlement View: sai o SVG/React declarativo (`SemanticZoomMap` no nível "settlement", `BuildingInterior` como view separada), entra um renderer Canvas/WebGL dedicado (`PixiJS`, novo `web-demo/src/render/**`) com câmera pan/zoom, terreno/roads procedurais (layout gerado, não canônico — ver Trade-off), footprints de prédio reais, e "roof cutaway" físico (fade do telhado revelando o interior NA MESMA cena, ao focar um prédio) em vez de navegar pra uma página/view separada. World View (nível "mundo", `SemanticZoomMap`) e todo o resto do doc completo do usuário (day/night, atividades visíveis tipo sleep/work/talk, conversas, veículos, mapa mundial estilizado com terreno/rios/estradas, LOD com milhares de agents) ficam **fora desta rodada — mesma fase (`phase-16-3-web`), sem fase nova**, registrados como backlog em `spec.md`.
+- **Reason**: usuário pediu um redesign profundo (doc completo, referência RimWorld) e, perguntado explicitamente, escolheu Canvas/WebGL agora (contra a recomendação de manter SVG/React, dada a escala de 11 NPCs desta demo) e escolheu Settlement View como fatia desta rodada, com o resto anotado no roadmap da mesma fase em vez de virar fase nova.
+- **Trade-off**: (1) Terreno/roads são gerados por um `settlementLayout.ts` determinístico (seed = id do settlement/prédio), não dado canônico do fixture — é uma camada de apresentação/layout, nunca a simulação decidindo verdade nova (mesmo princípio do §82 do doc, aplicado à camada visual). (2) Testes de canvas não são inspecionáveis via DOM como os de SVG — lógica pura (layout, câmera, interpolação de patrulha) ganhou módulos próprios 100% testados sem Pixi; o componente Pixi em si é testado com `pixi.js` mockado (spies nas chamadas de desenho), não com asserts de pixel. (3) `BuildingInterior.tsx` (view separada, AD anterior implícito) fica obsoleta e é removida — o interior agora só existe dentro do canvas do settlement.
+- **Scope**: `web-demo/src/render/**` (novo), `web-demo/src/map/patrolMath.ts` (novo, extraído de `usePatrolPosition`), `CenterStage.tsx`, remove `views/BuildingInterior.tsx` + teste. Não toca `SemanticZoomMap` no nível "world".
+- **Date**: 2026-08-26
+- **Status**: active
+
 ## Handoff
 
 - **Feature**: Fase 16.3 Living World Cohesion — **MERGED** into primary

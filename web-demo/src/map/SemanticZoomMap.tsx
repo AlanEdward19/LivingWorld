@@ -1,31 +1,24 @@
 import type { KeyboardEvent } from "react";
 import type { AgentFixture, WorldFixture } from "../fixture/types";
-import { IsoTile, TILE_HEIGHT, TILE_WIDTH } from "./IsoTileRenderer";
-import { toScreen } from "./IsoProjection";
+import { TILE_HEIGHT, TILE_WIDTH, toScreen } from "./IsoProjection";
 import { SETTLEMENT_PALETTE } from "./isoPalette";
-import { NpcToken } from "../npc/NpcToken";
 import { appearanceForNpc } from "../npc/appearance";
 import { usePatrolPosition, type GridPoint } from "./usePatrolPosition";
 
 /**
- * Doc `LivingWorld_Frontend_Final.md` §14/§46 (AD-018) — Agents nunca somem por causa do zoom.
- * Só 2 níveis restam: "world" (assentamentos + todo NPC como ponto pequeno, perto do seu
- * assentamento) e "settlement" (prédios E NPCs do assentamento juntos, na mesma cena — nunca um
- * toggle excludente entre "ver prédios" e "ver gente").
+ * World View (doc `LivingWorld_Frontend_Final.md` §14/§46, AD-018) — assentamentos + todo NPC
+ * como ponto pequeno, perto do seu assentamento; agents nunca somem por causa do zoom.
+ *
+ * AD-020: o nível "settlement" que existia aqui (prédios isométricos via `IsoTile`) foi
+ * REMOVIDO — Settlement View agora é o renderer Canvas/WebGL dedicado
+ * (`render/SettlementStage.tsx`), não mais um SVG declarativo. Este componente só cobre o
+ * mapa-múndi (nível "world"); World/Continent View redesign completo (terreno estilizado,
+ * estradas, rios, veículos) fica no backlog da mesma fase (ver spec.md).
  */
-export type ZoomLevel = "world" | "settlement";
-
 export interface SemanticZoomMapProps {
   fixture: WorldFixture;
-  /** Nível atual — decidido pela view que monta o mapa, não por um controle de zoom interno ao
-   * mapa nesta demo. Default "world". */
-  level?: ZoomLevel;
-  /** Obrigatório pra "settlement" — escopa prédios/NPCs ao assentamento selecionado. */
-  settlementId?: string;
   onSelectSettlement: (settlementId: string) => void;
   onSelectNpc: (agentId: string) => void;
-  /** Só chamado pra prédios com `floors.length > 0` — só esses têm interior pra entrar. */
-  onSelectBuilding?: (buildingId: string) => void;
 }
 
 const DEFAULT_HALF_EXTENT = TILE_WIDTH * 3;
@@ -120,119 +113,54 @@ function WorldAgentDot({ agent, settlementScreen, notable, onSelectNpc }: WorldA
   );
 }
 
-interface SettlementAgentMarkerProps {
-  agent: AgentFixture;
-  notable: boolean;
-  onSelectNpc: (agentId: string) => void;
-}
-
-/** Um NPC no nível "settlement" — token completo (NpcToken), posicionado no mesmo espaço de
- * grid dos prédios, movendo-se pelo seu trajeto de patrulha (AD-018). */
-function SettlementAgentMarker({ agent, notable, onSelectNpc }: SettlementAgentMarkerProps) {
-  const position = usePatrolPosition(agent.patrolPoints);
-  const { x, y } = toScreen(position.x, position.y, TILE_WIDTH, TILE_HEIGHT);
-
-  return (
-    <g>
-      <foreignObject
-        data-testid="agent-marker"
-        data-zoom-scale="settlement"
-        x={x - 16}
-        y={y - 16}
-        width={32}
-        height={38}
-        onClick={() => onSelectNpc(agent.id)}
-        onKeyDown={activateOnKey(() => onSelectNpc(agent.id))}
-        role="button"
-        tabIndex={0}
-        aria-label={`Open ${agent.name}`}
-        style={{ cursor: "pointer" }}
-      >
-        <NpcToken id={agent.id} size={32} />
-      </foreignObject>
-      {notable && <circle data-testid="event-marker" cx={x + 14} cy={y - 14} r={3.5} fill="var(--warning, #c69b58)" />}
-    </g>
-  );
-}
-
-export function SemanticZoomMap({ fixture, level = "world", settlementId, onSelectSettlement, onSelectNpc, onSelectBuilding }: SemanticZoomMapProps) {
-  if (level === "world") {
-    const settlementPoints = fixture.settlements.map((s) => toScreen(s.gridPosition.x, s.gridPosition.y, TILE_WIDTH, TILE_HEIGHT));
-    const notableSettlements = notableSettlementIds(fixture);
-    const notableAgents = notableAgentIds(fixture);
-
-    return (
-      <svg data-testid="semantic-zoom-map" data-zoom-level="world" viewBox={centeredViewBox(settlementPoints, TILE_WIDTH * 2)}>
-        {fixture.settlements.map((settlement) => {
-          const settlementScreen = toScreen(settlement.gridPosition.x, settlement.gridPosition.y, TILE_WIDTH, TILE_HEIGHT);
-          const residents = fixture.agents.filter((a) => a.settlementId === settlement.id);
-          return (
-            <g key={settlement.id}>
-              <g
-                data-testid="settlement-marker"
-                onClick={() => onSelectSettlement(settlement.id)}
-                onKeyDown={activateOnKey(() => onSelectSettlement(settlement.id))}
-                role="button"
-                tabIndex={0}
-                aria-label={`Open ${settlement.name}`}
-                style={{ cursor: "pointer" }}
-              >
-                <circle
-                  cx={settlementScreen.x}
-                  cy={settlementScreen.y}
-                  r={16}
-                  fill={SETTLEMENT_PALETTE.top}
-                  stroke={SETTLEMENT_PALETTE.right}
-                  strokeWidth={2}
-                />
-                {notableSettlements.has(settlement.id) && (
-                  <circle data-testid="event-marker" cx={settlementScreen.x + 12} cy={settlementScreen.y - 12} r={4} fill="var(--warning, #c69b58)" />
-                )}
-                <text x={settlementScreen.x} y={settlementScreen.y + 30} textAnchor="middle" fontSize={12}>
-                  {settlement.name}
-                </text>
-              </g>
-              {residents.map((agent) => (
-                <WorldAgentDot
-                  key={agent.id}
-                  agent={agent}
-                  settlementScreen={settlementScreen}
-                  notable={notableAgents.has(agent.id)}
-                  onSelectNpc={onSelectNpc}
-                />
-              ))}
-            </g>
-          );
-        })}
-      </svg>
-    );
-  }
-
-  // level === "settlement"
-  const settlement = fixture.settlements.find((s) => s.id === settlementId);
-  if (!settlement) return null;
-
-  const agents = fixture.agents.filter((agent) => agent.settlementId === settlementId);
+export function SemanticZoomMap({ fixture, onSelectSettlement, onSelectNpc }: SemanticZoomMapProps) {
+  const settlementPoints = fixture.settlements.map((s) => toScreen(s.gridPosition.x, s.gridPosition.y, TILE_WIDTH, TILE_HEIGHT));
+  const notableSettlements = notableSettlementIds(fixture);
   const notableAgents = notableAgentIds(fixture);
-  const boundsPoints = [
-    ...settlement.buildings.map((b) => toScreen(b.gridPosition.x, b.gridPosition.y, TILE_WIDTH, TILE_HEIGHT)),
-    ...agents.flatMap((a) => a.patrolPoints.map((p) => toScreen(p.x, p.y, TILE_WIDTH, TILE_HEIGHT))),
-  ];
 
   return (
-    <svg data-testid="semantic-zoom-map" data-zoom-level="settlement" viewBox={centeredViewBox(boundsPoints, TILE_WIDTH * 2)}>
-      {settlement.buildings.map((building) => (
-        <IsoTile
-          key={building.id}
-          gridX={building.gridPosition.x}
-          gridY={building.gridPosition.y}
-          kind={building.kind}
-          onClick={building.floors.length > 0 ? () => onSelectBuilding?.(building.id) : undefined}
-        />
-      ))}
-      {agents.map((agent) => (
-        <SettlementAgentMarker key={agent.id} agent={agent} notable={notableAgents.has(agent.id)} onSelectNpc={onSelectNpc} />
-      ))}
+    <svg data-testid="semantic-zoom-map" data-zoom-level="world" viewBox={centeredViewBox(settlementPoints, TILE_WIDTH * 2)}>
+      {fixture.settlements.map((settlement) => {
+        const settlementScreen = toScreen(settlement.gridPosition.x, settlement.gridPosition.y, TILE_WIDTH, TILE_HEIGHT);
+        const residents = fixture.agents.filter((a) => a.settlementId === settlement.id);
+        return (
+          <g key={settlement.id}>
+            <g
+              data-testid="settlement-marker"
+              onClick={() => onSelectSettlement(settlement.id)}
+              onKeyDown={activateOnKey(() => onSelectSettlement(settlement.id))}
+              role="button"
+              tabIndex={0}
+              aria-label={`Open ${settlement.name}`}
+              style={{ cursor: "pointer" }}
+            >
+              <circle
+                cx={settlementScreen.x}
+                cy={settlementScreen.y}
+                r={16}
+                fill={SETTLEMENT_PALETTE.top}
+                stroke={SETTLEMENT_PALETTE.right}
+                strokeWidth={2}
+              />
+              {notableSettlements.has(settlement.id) && (
+                <circle data-testid="event-marker" cx={settlementScreen.x + 12} cy={settlementScreen.y - 12} r={4} fill="var(--warning, #c69b58)" />
+              )}
+              <text x={settlementScreen.x} y={settlementScreen.y + 30} textAnchor="middle" fontSize={12}>
+                {settlement.name}
+              </text>
+            </g>
+            {residents.map((agent) => (
+              <WorldAgentDot
+                key={agent.id}
+                agent={agent}
+                settlementScreen={settlementScreen}
+                notable={notableAgents.has(agent.id)}
+                onSelectNpc={onSelectNpc}
+              />
+            ))}
+          </g>
+        );
+      })}
     </svg>
   );
 }

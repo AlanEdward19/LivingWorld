@@ -4,9 +4,6 @@ import { CenterStage } from "../../src/components/CenterStage";
 import { NavigationStore } from "../../src/nav/NavigationStore";
 import { WORLD_FIXTURE } from "../../src/fixture/oakbridge";
 
-const OAKBRIDGE = WORLD_FIXTURE.settlements.find((s) => s.id === "oakbridge")!;
-const OAKBRIDGE_AGENTS = WORLD_FIXTURE.agents.filter((a) => a.settlementId === "oakbridge");
-
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(0);
@@ -35,55 +32,45 @@ describe("CenterStage — world route", () => {
   });
 });
 
-describe("CenterStage — settlement route", () => {
-  it("shows buildings AND every agent of the settlement together, no toggle between them", () => {
-    const nav = new NavigationStore(WORLD_FIXTURE);
-    const { container } = render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "settlement", id: "oakbridge" }} />);
-    expect(container.querySelectorAll('[data-testid="iso-tile"]')).toHaveLength(OAKBRIDGE.buildings.length);
-    expect(container.querySelectorAll("img")).toHaveLength(OAKBRIDGE_AGENTS.length);
-    expect(screen.queryByText("Agent view")).not.toBeInTheDocument();
-    expect(screen.queryByText("District view")).not.toBeInTheDocument();
-  });
-
-  it("clicking Mira navigates to her, same as any other path (spec P1b AC4)", () => {
+// Settlement/household/agent/building routes all mount the SAME `SettlementStage` (Canvas/Pixi,
+// AD-020) scoped to the right settlement — deep Pixi-scene assertions (buildings/agents/roof
+// cutaway/clicks) live in tests/render/SettlementStage.test.tsx, not here. CenterStage's own
+// job is just "pick the right settlement id for this route", so that's all these test.
+describe("CenterStage — settlement-scoped routes mount SettlementStage for the right settlement", () => {
+  it("settlement route", () => {
     const nav = new NavigationStore(WORLD_FIXTURE);
     render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "settlement", id: "oakbridge" }} />);
-    const miraIndex = OAKBRIDGE_AGENTS.findIndex((a) => a.id === "mira-valen");
-    fireEvent.click(screen.getAllByTestId("agent-marker")[miraIndex]);
-    expect(nav.current()).toEqual({ kind: "agent", id: "mira-valen" });
+    expect(screen.getByTestId("settlement-stage")).toBeInTheDocument();
   });
-});
 
-describe("CenterStage — building route", () => {
-  it("shows the Building Interior for a building route", () => {
+  it("household route resolves to the household's settlement", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    const household = WORLD_FIXTURE.households.find((h) => h.id === "valen-household")!;
+    expect(household.settlementId).toBe("oakbridge");
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "household", id: "valen-household" }} />);
+    expect(screen.getByTestId("settlement-stage")).toBeInTheDocument();
+  });
+
+  it("agent route resolves to the agent's own settlement", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "agent", id: "mira-valen" }} />);
+    expect(screen.getByTestId("settlement-stage")).toBeInTheDocument();
+  });
+
+  it("building route resolves to the settlement that owns the building, focused on it", () => {
     const nav = new NavigationStore(WORLD_FIXTURE);
     render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "building", id: "bld-valen-house" }} />);
-    expect(screen.getByTestId("building-interior")).toBeInTheDocument();
+    expect(screen.getByTestId("settlement-stage-overlay")).toBeInTheDocument();
+    expect(screen.getByTestId("focused-building-name")).toHaveTextContent("Valen House");
   });
 
-  it("clicking a building at settlement level navigates to its interior", () => {
+  it("clicking the street-view button while on a building route calls nav.back()", () => {
     const nav = new NavigationStore(WORLD_FIXTURE);
-    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "settlement", id: "oakbridge" }} />);
-    const bakeryIndex = OAKBRIDGE.buildings.findIndex((b) => b.id === "bld-corvin-bakery");
-    fireEvent.click(screen.getAllByTestId("iso-tile")[bakeryIndex]);
-    expect(nav.current()).toEqual({ kind: "building", id: "bld-corvin-bakery" });
-  });
-});
-
-describe("CenterStage — household route", () => {
-  it("shows the household's settlement map with buildings and agents together", () => {
-    const nav = new NavigationStore(WORLD_FIXTURE);
-    const { container } = render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "household", id: "valen-household" }} />);
-    expect(container.querySelectorAll('[data-testid="iso-tile"]')).toHaveLength(OAKBRIDGE.buildings.length);
-    expect(container.querySelectorAll("img")).toHaveLength(OAKBRIDGE_AGENTS.length);
-  });
-});
-
-describe("CenterStage — agent route", () => {
-  it("shows the settlement map (buildings + agents) of the agent's own settlement", () => {
-    const nav = new NavigationStore(WORLD_FIXTURE);
-    const { container } = render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "agent", id: "mira-valen" }} />);
-    expect(container.querySelectorAll("img")).toHaveLength(OAKBRIDGE_AGENTS.length);
+    nav.push({ kind: "settlement", id: "oakbridge" });
+    nav.push({ kind: "building", id: "bld-valen-house" });
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={nav.current()} />);
+    fireEvent.click(screen.getByTestId("street-view-button"));
+    expect(nav.current()).toEqual({ kind: "settlement", id: "oakbridge" });
   });
 });
 

@@ -8,6 +8,11 @@ export interface GridPoint {
   y: number;
 }
 
+/** Tamanho de tile do mapa "mundo" (SVG, `SemanticZoomMap`) — não usado pelo renderer Pixi do
+ * Settlement View, que define sua própria escala em `render/constants.ts` (AD-020). */
+export const TILE_WIDTH = 48;
+export const TILE_HEIGHT = 48;
+
 /**
  * Projeção top-down ortogonal — grid coord → screen coord, 1:1 escalado por tile.
  * SUBSTITUIU a projeção isométrica 2:1 original (AD-019): usuário reportou que o visual

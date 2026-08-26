@@ -2,11 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { SemanticZoomMap } from "../../src/map/SemanticZoomMap";
 import { WORLD_FIXTURE } from "../../src/fixture/oakbridge";
-import { toScreen } from "../../src/map/IsoProjection";
-import { TILE_HEIGHT, TILE_WIDTH } from "../../src/map/IsoTileRenderer";
-
-const OAKBRIDGE = WORLD_FIXTURE.settlements.find((s) => s.id === "oakbridge")!;
-const OAKBRIDGE_AGENTS = WORLD_FIXTURE.agents.filter((a) => a.settlementId === "oakbridge");
+import { TILE_HEIGHT, TILE_WIDTH, toScreen } from "../../src/map/IsoProjection";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -19,9 +15,9 @@ afterEach(() => {
 });
 
 describe("SemanticZoomMap — world level (AD-018: NPCs never disappear)", () => {
-  it("renders no building IsoTile (polygon) at world level", () => {
+  it("renders no building tile at world level — Settlement View is the Canvas renderer now (AD-020)", () => {
     const { container } = render(<SemanticZoomMap fixture={WORLD_FIXTURE} onSelectSettlement={() => {}} onSelectNpc={() => {}} />);
-    expect(container.querySelectorAll("polygon")).toHaveLength(0);
+    expect(container.querySelectorAll('[data-testid="iso-tile"]')).toHaveLength(0);
   });
 
   it("renders one marker per settlement in the fixture", () => {
@@ -57,85 +53,6 @@ describe("SemanticZoomMap — world level (AD-018: NPCs never disappear)", () =>
     const miraIndex = WORLD_FIXTURE.agents.findIndex((a) => a.id === "mira-valen");
     fireEvent.click(getAllByTestId("agent-marker")[miraIndex]);
     expect(onSelectNpc).toHaveBeenCalledWith("mira-valen");
-  });
-});
-
-describe("SemanticZoomMap — settlement level (buildings AND NPCs together, no toggle)", () => {
-  it("shows the settlement's buildings", () => {
-    const { container } = render(
-      <SemanticZoomMap fixture={WORLD_FIXTURE} level="settlement" settlementId="oakbridge" onSelectSettlement={() => {}} onSelectNpc={() => {}} />,
-    );
-    expect(container.querySelectorAll('[data-testid="iso-tile"]')).toHaveLength(OAKBRIDGE.buildings.length);
-  });
-
-  it("shows every agent of the settlement in the SAME render as the buildings — never a mutually exclusive toggle", () => {
-    const { container, getAllByTestId } = render(
-      <SemanticZoomMap fixture={WORLD_FIXTURE} level="settlement" settlementId="oakbridge" onSelectSettlement={() => {}} onSelectNpc={() => {}} />,
-    );
-    expect(container.querySelectorAll('[data-testid="iso-tile"]')).toHaveLength(OAKBRIDGE.buildings.length);
-    expect(container.querySelectorAll("img")).toHaveLength(OAKBRIDGE_AGENTS.length);
-    const markers = getAllByTestId("agent-marker");
-    for (const marker of markers) expect(marker).toHaveAttribute("data-zoom-scale", "settlement");
-  });
-
-  it("clicking Mira's marker calls onSelectNpc with her id", () => {
-    const onSelectNpc = vi.fn();
-    const { getAllByTestId } = render(
-      <SemanticZoomMap fixture={WORLD_FIXTURE} level="settlement" settlementId="oakbridge" onSelectSettlement={() => {}} onSelectNpc={onSelectNpc} />,
-    );
-    const miraIndex = OAKBRIDGE_AGENTS.findIndex((a) => a.id === "mira-valen");
-    fireEvent.click(getAllByTestId("agent-marker")[miraIndex]);
-    expect(onSelectNpc).toHaveBeenCalledWith("mira-valen");
-  });
-
-  it("clicking a building with an interior calls onSelectBuilding with its id", () => {
-    const onSelectBuilding = vi.fn();
-    const bakeryIndex = OAKBRIDGE.buildings.findIndex((b) => b.id === "bld-corvin-bakery");
-    const { getAllByTestId } = render(
-      <SemanticZoomMap
-        fixture={WORLD_FIXTURE}
-        level="settlement"
-        settlementId="oakbridge"
-        onSelectSettlement={() => {}}
-        onSelectNpc={() => {}}
-        onSelectBuilding={onSelectBuilding}
-      />,
-    );
-    fireEvent.click(getAllByTestId("iso-tile")[bakeryIndex]);
-    expect(onSelectBuilding).toHaveBeenCalledWith("bld-corvin-bakery");
-  });
-
-  it("does not call onSelectBuilding for a building with no interior modeled (North Farm)", () => {
-    const onSelectBuilding = vi.fn();
-    const farmIndex = OAKBRIDGE.buildings.findIndex((b) => b.id === "bld-north-farm");
-    const { getAllByTestId } = render(
-      <SemanticZoomMap
-        fixture={WORLD_FIXTURE}
-        level="settlement"
-        settlementId="oakbridge"
-        onSelectSettlement={() => {}}
-        onSelectNpc={() => {}}
-        onSelectBuilding={onSelectBuilding}
-      />,
-    );
-    fireEvent.click(getAllByTestId("iso-tile")[farmIndex]);
-    expect(onSelectBuilding).not.toHaveBeenCalled();
-  });
-});
-
-describe("SemanticZoomMap — information density changes across zoom levels", () => {
-  it("world level has fewer distinguishable elements than settlement level for the same settlement", () => {
-    const worldRender = render(<SemanticZoomMap fixture={WORLD_FIXTURE} onSelectSettlement={() => {}} onSelectNpc={() => {}} />);
-    const worldTileCount = worldRender.container.querySelectorAll('[data-testid="iso-tile"]').length;
-
-    const settlementRender = render(
-      <SemanticZoomMap fixture={WORLD_FIXTURE} level="settlement" settlementId="oakbridge" onSelectSettlement={() => {}} onSelectNpc={() => {}} />,
-    );
-    const settlementTileCount = settlementRender.container.querySelectorAll('[data-testid="iso-tile"]').length;
-
-    expect(worldTileCount).toBe(0); // sem prédios no nível mundo
-    expect(settlementTileCount).toBe(OAKBRIDGE.buildings.length);
-    expect(settlementTileCount).toBeGreaterThan(worldTileCount);
   });
 });
 
@@ -184,18 +101,6 @@ describe("SemanticZoomMap — event markers for notable events (doc §48)", () =
     // 1 marcador de settlement (Oakbridge) + 1 por agent notável (doc §48 se aplica a qualquer
     // entidade com localização física, não só settlements).
     expect(getAllByTestId("event-marker")).toHaveLength(1 + notableAgentCount);
-  });
-
-  it("shows an event marker on Mira (affected by Story Thread events) at settlement level", () => {
-    const { getAllByTestId } = render(
-      <SemanticZoomMap fixture={WORLD_FIXTURE} level="settlement" settlementId="oakbridge" onSelectSettlement={() => {}} onSelectNpc={() => {}} />,
-    );
-    const notableCount = OAKBRIDGE_AGENTS.filter((a) =>
-      WORLD_FIXTURE.events.some(
-        (e) => WORLD_FIXTURE.storyThreads.some((t) => t.eventIds.includes(e.eventId)) && e.affectedAgentIds.includes(a.id),
-      ),
-    ).length;
-    expect(getAllByTestId("event-marker")).toHaveLength(notableCount);
   });
 });
 
