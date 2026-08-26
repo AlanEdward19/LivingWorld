@@ -214,10 +214,10 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] `toGrid(toScreen(x, y, ...))` retorna `(x, y)` original pra vários pontos, incluindo cantos do grid
-- [ ] Casos de borda de altura de bloco sobreposta cobertos (Risk do design.md)
-- [ ] Gate check passa: `npm --prefix web-demo test -- IsoProjection`
-- [ ] Test count: 8+
+- [x] `toGrid(toScreen(x, y, ...))` retorna `(x, y)` original pra vários pontos, incluindo cantos do grid
+- [x] Casos de borda de altura de bloco sobreposta cobertos (Risk do design.md)
+- [x] Gate check passa: `npm --prefix web-demo test -- IsoProjection`
+- [x] Test count: 8+
 
 **Tests**: unit
 **Gate**: quick
@@ -237,8 +237,8 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] Toda `BuildingKind` do fixture (`residence`/`agriculture`/`forge`/`generic`) tem paleta definida
-- [ ] Gate check passa: `npm --prefix web-demo test -- isoPalette`
+- [x] Toda `BuildingKind` do fixture (`residence`/`agriculture`/`forge`/`generic`) tem paleta definida
+- [x] Gate check passa: `npm --prefix web-demo test -- isoPalette`
 
 **Tests**: unit
 **Gate**: quick
@@ -258,9 +258,9 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] Renderiza 3 faces com cores da paleta correta pro `kind` passado
-- [ ] `onClick` dispara com o `gridX`/`gridY` corretos (teste de clique via `@testing-library/react`)
-- [ ] Gate check passa: `npm --prefix web-demo test -- IsoTile`
+- [x] Renderiza 3 faces com cores da paleta correta pro `kind` passado
+- [x] `onClick` dispara com o `gridX`/`gridY` corretos (teste de clique via `@testing-library/react`)
+- [x] Gate check passa: `npm --prefix web-demo test -- IsoTile`
 
 **Tests**: component
 **Gate**: quick
@@ -280,9 +280,9 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] Nível "mundo" não renderiza nenhum `IsoTile` de prédio nem `NpcToken` (spec P1b AC1)
-- [ ] Clicar num assentamento chama `onSelectSettlement` (teste)
-- [ ] Gate check passa: `npm --prefix web-demo test -- SemanticZoomMap`
+- [x] Nível "mundo" não renderiza nenhum `IsoTile` de prédio nem `NpcToken` (spec P1b AC1)
+- [x] Clicar num assentamento chama `onSelectSettlement` (teste)
+- [x] Gate check passa: `npm --prefix web-demo test -- SemanticZoomMap`
 
 **Tests**: component
 **Gate**: quick
@@ -302,10 +302,10 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] Nível "distrito" mostra prédios do settlement selecionado, sem NPC (spec AC2)
-- [ ] Nível "agente" mostra NPCs clicáveis, `onSelectNpc` disparado corretamente (spec AC3)
-- [ ] Densidade de informação muda visivelmente entre os 3 níveis (teste conta elementos renderizados por nível)
-- [ ] Gate check passa: `npm --prefix web-demo test -- SemanticZoomMap`
+- [x] Nível "distrito" mostra prédios do settlement selecionado, sem NPC (spec AC2)
+- [x] Nível "agente" mostra NPCs clicáveis, `onSelectNpc` disparado corretamente (spec AC3)
+- [x] Densidade de informação muda visivelmente entre os 3 níveis (teste conta elementos renderizados por nível)
+- [x] Gate check passa: `npm --prefix web-demo test -- SemanticZoomMap`
 
 **Tests**: component
 **Gate**: quick
