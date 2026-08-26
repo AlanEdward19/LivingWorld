@@ -3,6 +3,9 @@ import { fireEvent, render } from "@testing-library/react";
 import { SemanticZoomMap } from "../../src/map/SemanticZoomMap";
 import { WORLD_FIXTURE } from "../../src/fixture/oakbridge";
 
+const OAKBRIDGE = WORLD_FIXTURE.settlements.find((s) => s.id === "oakbridge")!;
+const OAKBRIDGE_AGENTS = WORLD_FIXTURE.agents.filter((a) => a.settlementId === "oakbridge");
+
 describe("SemanticZoomMap — world zoom level", () => {
   it("renders no building IsoTile (polygon) at world level", () => {
     const { container } = render(
@@ -33,5 +36,76 @@ describe("SemanticZoomMap — world zoom level", () => {
     const oakbridgeIndex = WORLD_FIXTURE.settlements.findIndex((s) => s.id === "oakbridge");
     fireEvent.click(getAllByTestId("settlement-marker")[oakbridgeIndex]);
     expect(onSelectSettlement).toHaveBeenCalledWith("oakbridge");
+  });
+});
+
+describe("SemanticZoomMap — district zoom level", () => {
+  it("shows the selected settlement's buildings, no NPC token", () => {
+    const { container } = render(
+      <SemanticZoomMap
+        fixture={WORLD_FIXTURE}
+        level="district"
+        settlementId="oakbridge"
+        onSelectSettlement={() => {}}
+        onSelectNpc={() => {}}
+      />,
+    );
+    expect(container.querySelectorAll("polygon")).toHaveLength(OAKBRIDGE.buildings.length * 3);
+    expect(container.querySelectorAll("img")).toHaveLength(0);
+  });
+});
+
+describe("SemanticZoomMap — agent zoom level", () => {
+  it("shows individual NPCs for the selected settlement, clickable", () => {
+    const onSelectNpc = vi.fn();
+    const { container, getAllByTestId } = render(
+      <SemanticZoomMap
+        fixture={WORLD_FIXTURE}
+        level="agent"
+        settlementId="oakbridge"
+        onSelectSettlement={() => {}}
+        onSelectNpc={onSelectNpc}
+      />,
+    );
+    expect(container.querySelectorAll("img")).toHaveLength(OAKBRIDGE_AGENTS.length);
+    const miraIndex = OAKBRIDGE_AGENTS.findIndex((a) => a.id === "mira-valen");
+    fireEvent.click(getAllByTestId("agent-marker")[miraIndex]);
+    expect(onSelectNpc).toHaveBeenCalledWith("mira-valen");
+  });
+});
+
+describe("SemanticZoomMap — information density changes across zoom levels", () => {
+  it("renders a different element count at each of the 3 levels for the same settlement", () => {
+    const worldRender = render(
+      <SemanticZoomMap fixture={WORLD_FIXTURE} onSelectSettlement={() => {}} onSelectNpc={() => {}} />,
+    );
+    const worldCount = worldRender.getAllByTestId("settlement-marker").length;
+
+    const districtRender = render(
+      <SemanticZoomMap
+        fixture={WORLD_FIXTURE}
+        level="district"
+        settlementId="oakbridge"
+        onSelectSettlement={() => {}}
+        onSelectNpc={() => {}}
+      />,
+    );
+    const districtCount = districtRender.container.querySelectorAll("polygon").length;
+
+    const agentRender = render(
+      <SemanticZoomMap
+        fixture={WORLD_FIXTURE}
+        level="agent"
+        settlementId="oakbridge"
+        onSelectSettlement={() => {}}
+        onSelectNpc={() => {}}
+      />,
+    );
+    const agentCount = agentRender.getAllByTestId("agent-marker").length;
+
+    expect(worldCount).toBe(WORLD_FIXTURE.settlements.length);
+    expect(districtCount).toBe(OAKBRIDGE.buildings.length * 3);
+    expect(agentCount).toBe(OAKBRIDGE_AGENTS.length);
+    expect(new Set([worldCount, districtCount, agentCount]).size).toBe(3);
   });
 });
