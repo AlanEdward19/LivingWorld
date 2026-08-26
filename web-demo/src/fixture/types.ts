@@ -83,11 +83,16 @@ export interface AgentFixture {
   whyFactors: { text: string; linkedEventId?: string }[]; // painel Why?
 }
 
+/** Doc §173: routine (sem acento) → notable (acento pequeno) → major (borda de acento) →
+ * critical/world-changing (toast maior + marcador de timeline). */
+export type EventSeverity = "routine" | "notable" | "major" | "critical";
+
 export interface WorldEventFixture {
   eventId: string;
   tick: string; // rótulo temporal legível ("Year 312 · Spring · 09")
   kind: string; // "GrainPriceIncreased", "PurchaseFailed", ...
   summary: string; // texto humano
+  severity: EventSeverity;
   causeEventId: string | null; // proveniência causal
   sourceSystem: string; // "Agriculture" | "Economy" | "Household" | "Needs" | "Decision" | "Employment"
   affectedAgentIds: string[];

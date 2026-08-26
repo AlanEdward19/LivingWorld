@@ -34,7 +34,7 @@ describe("WhyPanel", () => {
 
   it("shows the linked event's technical fields instead of the human text when debug is true", () => {
     const events = [
-      { eventId: "evt-grain-prices-rose", tick: "Year 312 · Winter · 06", kind: "GrainPriceIncreased", summary: "x", causeEventId: null, sourceSystem: "Economy", affectedAgentIds: [], affectedHouseholdIds: [], settlementId: "oakbridge" },
+      { eventId: "evt-grain-prices-rose", tick: "Year 312 · Winter · 06", kind: "GrainPriceIncreased", summary: "x", severity: "major" as const, causeEventId: null, sourceSystem: "Economy", affectedAgentIds: [], affectedHouseholdIds: [], settlementId: "oakbridge" },
     ];
     render(<WhyPanel factors={factors} onFactorClick={() => {}} debug events={events} />);
     expect(screen.queryByText("grain prices rose")).not.toBeInTheDocument();
