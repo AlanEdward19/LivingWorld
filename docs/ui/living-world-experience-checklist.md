@@ -111,3 +111,42 @@ não há sessão de RPG, GM controls, cast list, etc. nesta demo).
 
 Nenhum destes bloqueia o fechamento desta fase — a spec explicitamente permite gap documentado
 em vez de fechamento forçado quando as perguntas centrais não são unanimemente "sim".
+
+---
+
+## Atualização — Shell completo (doc §5/§26-29/§39-48/§105-107)
+
+Depois do fechamento inicial (T1-T31) e da verificação independente (PASS,
+`validation.md`), o usuário pediu explicitamente o shell completo do doc de design
+("Frontend Experience & Design System"), não só o tema visual — Top Bar, Explorer, Inspector
+e Timeline bar, com fidelidade 1:1 ao doc. Implementado como trabalho adicional fora de
+`tasks.md` (mesma categoria do `App.tsx`/`tokens.css` original — conectivo necessário, não
+coberto por nenhuma task numerada).
+
+**Isso resolve, sem ação adicional, 2 dos 5 gaps listados acima:**
+
+- Gap 2 (`LifeView` sem entry point) — **corrigido**: `AgentView` ganhou o botão "View full
+  life" (doc §61), e a lista de gaps do Verifier também apontava que `WorldFeed`/`StoryThreads`
+  tinham o mesmo problema — **corrigido** como efeito colateral do Explorer (tabs Events/Threads
+  reusam esses componentes diretamente).
+- O Settlement Pulse "ainda lê como dashboard" (gap 1, parte) muda de contexto: antes era uma
+  tela inteira sozinha; agora é o conteúdo do Inspector (340px) ao lado do mapa vivo (Center
+  Stage) — o mapa nunca desaparece enquanto o Pulse é lido, o que é mais fiel ao doc §74 ("Ao
+  selecionar Oakbridge, o centro muda... não necessariamente abre página nova") do que a versão
+  anterior (Settlement View como página cheia com o mapa embutido embaixo).
+
+**Gaps que continuam abertos** (3, 4, 5 da lista acima — câmera não centralizada, sem
+marcadores de evento no mapa, Body sem detalhe físico) — nenhum foi tocado nesta rodada, mesma
+razão de antes (polish visual/dado do fixture, não pedido por nenhuma task ou pelo pedido atual
+do usuário, que era especificamente sobre o shell).
+
+**Novo veredito nas perguntas centrais**, re-verificado ao vivo com o shell montado:
+
+- **"Parece um mundo ou um dashboard?"** — Reforçado como "mundo": o usuário nunca vê uma tela
+  vazia de mapa (Center Stage sempre mostra o mapa da seleção atual, exceto quando Causal
+  Explorer/Timeline/Life/Feed/Threads o substituem de propósito, como o doc pede em §66/§87), e
+  o Inspector nunca duplica o que já está no centro (mostra uma nota contextual em vez disso).
+
+**Decisões de adaptação do shell** (onde o fixture não sustenta o doc literal — mostrado
+desabilitado, nunca escondido, nunca fabricado): ver `web-demo/README.md` § "Shell — decisões
+de adaptação".

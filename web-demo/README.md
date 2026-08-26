@@ -32,8 +32,25 @@ npm --prefix web-demo run build   # type-check + build de produção
 | --- | --- | --- |
 | Token visual de NPC (`src/npc/appearance.ts`, `src/npc/NpcToken.tsx`) | **Cópia literal** de `web/src/npcAppearance.ts` / `NpcTokenSvg.tsx` | Único elemento explicitamente pedido pra reusar — fenótipo procedural (skin/hair/hairStyle/clothing) já validado no cliente atual |
 | Prédios/terreno/tiles do mapa (`src/map/**`) | **Redesenho completo** — isométrico 2:1 simplificado, blocos flat-shaded de 3 faces, paleta nova/neutra | Correção explícita do usuário: não gostava do estilo rústico/top-down atual (`web/src/map-engine/**`) |
-| Tema geral (cores, tipografia, painéis) — `src/styles/tokens.css` | **Novo**, baseado nos tokens literais de `LivingWorld — Frontend Experience & Design System.md` (§202) | `web/` não tinha um design system formal ainda; esta demo é onde ele entra pela primeira vez |
+| Shell de 1 janela (`src/components/TopBar.tsx`/`Explorer.tsx`/`CenterStage.tsx`/`Inspector.tsx`/`TimelineBar.tsx`) | **Novo**, seguindo literalmente `LivingWorld — Frontend Experience & Design System.md` §5/§26-29/§39-46/§47-48/§105-107 | Doc pede um shell único (Top Bar / Explorer + World + Inspector / Timeline) pras 3 perspectivas (Observe/Table/Inhabit) — implementado 1:1 pra Observe, único modo real desta demo |
+| Tema geral (cores, tipografia, painéis) — `src/styles/tokens.css` | **Novo**, baseado nos tokens literais do mesmo doc (§202) | `web/` não tinha um design system formal ainda; esta demo é onde ele entra pela primeira vez |
 | Navegação/breadcrumb, stores (`NavigationStore`/`followStore`/`modeStore`) | **Novo**, idioma de store igual ao já usado em `web/src/state/*.ts` (`useSyncExternalStore`) | Estado de navegação específico desta demo, sem framework de roteamento |
+
+### Shell — decisões de adaptação (honestas, não escondidas)
+
+O shell segue o doc literalmente onde o fixture/escopo permite; onde não permite, o padrão
+adotado foi **mostrar desabilitado** em vez de esconder como quebrado (mesmo princípio do doc
+§6 pro Inhabit Mode), nunca fabricar dado que o fixture não modela:
+
+| Componente do doc | Estado nesta demo |
+| --- | --- |
+| Mode Selector (§32) | Observe é real; Table/Inhabit aparecem desabilitados com "Coming" — Table Mode é Out of Scope desta spec |
+| Simulation Controls (§34-35) | Desabilitados — fixture é um snapshot congelado, não há simulação rodando pra pausar/acelerar (Out of Scope) |
+| World Selector (§31) | Só "World Details" é real — mundo único, sem troca de fixture em runtime (Out of Scope) |
+| Notifications (§111-112) | Reais — contagem de eventos que afetam entidades seguidas (`followStore`), não decorativo |
+| Explorer "People" filtro (§43) | Só All/Followed (reais) — Nearby/Notable exigiriam posição de câmera/flag de importância que o fixture não tem |
+| Explorer "Organizations" (§44) | Estado vazio explícito — fixture não modela facções/organizações |
+| Explorer "Places" (§42) | Lista flat de settlements — fixture não modela hierarquia de regiões |
 
 ## Comparação visual com `web/` (spec P1b Independent Test)
 
@@ -62,11 +79,13 @@ src/
   nav/           NavigationStore (pilha de breadcrumb + sync de URL)
   state/         followStore, modeStore (Experience/Debug)
   search/        SearchIndex (busca client-side)
-  views/         uma tela por rota (World/Settlement/Household/Agent/Why/CausalExplorer/
-                 Timeline/Life/WorldFeed/StoryThreads)
-  components/    Breadcrumb, FollowButton, SearchBar
-  styles/        tokens.css (tema visual)
-  App.tsx        composition root — troca de view por NavigationStore.current().kind
+  views/         conteúdo de entidade — Settlement/Household/Agent/Why/CausalExplorer/
+                 Timeline/Life/WorldFeed/StoryThreads (consumidos pelo Inspector/CenterStage)
+  components/    TopBar, Explorer, CenterStage, Inspector, TimelineBar (shell),
+                 Breadcrumb, FollowButton, SearchBar (usados dentro do shell)
+  styles/        tokens.css (tema visual + layout do shell)
+  App.tsx        composition root — monta o shell, troca cada região por
+                 NavigationStore.current().kind
 ```
 
 ## Checklist de experiência
