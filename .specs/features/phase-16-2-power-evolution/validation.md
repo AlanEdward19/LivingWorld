@@ -2,7 +2,7 @@
 
 **Date**: 2026-08-25
 **Spec**: `.specs/features/phase-16-2-power-evolution/spec.md`
-**Diff range**: `9547a54`..`8ecbfb5` (`feat/phase-16-2-power-evolution`)
+**Diff range**: `9547a54`..`92d618d` (`feat/phase-16-2-power-evolution`)
 **Verifier**: [phase-verifier](b606d8b5-ff0e-4251-a483-3eecbb8bb4f3) (author ≠ verifier)
 
 ## Task Completion
@@ -10,6 +10,7 @@
 | Task | Commit | Status |
 | --- | --- | --- |
 | T1–T12 | `968fcfa`..`8ecbfb5` | ✅ all done |
+| Closeout | `92d618d` heredity test align + validation.md | ✅ |
 
 ## Spec-Anchored (EVO) — 15/15 ✅
 
@@ -35,7 +36,7 @@ Static only at verify time: AND→OR, sum→wrong, always-Both — predicted kil
 
 ## Gate
 
-- Scoped filter: run by parent after verifier (see progress)
+- Scoped filter: ✅ **304 passed**, 0 failed (`Extraordinary|PowerEvolution|PowerInheritance`)
 - Full gate: **user must run** `bash scripts/verify.sh`
 
 ## Non-blocking notes
@@ -46,4 +47,4 @@ Static only at verify time: AND→OR, sum→wrong, always-Both — predicted kil
 
 ## Summary
 
-**Overall**: ✅ Ready (static AC evidence complete) — pending user `verify.sh`
+**Overall**: ✅ Ready — scoped green; pending user `verify.sh`
