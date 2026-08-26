@@ -126,7 +126,7 @@
   provenance fields). Nenhum re-golden adicional em Phase 7.
 - **ADs desta fase**: AD-009 (gate só usuário / verify autorizado no closeout P7), AD-011 (golden).
 - **Commits Phase 7**: `9806f0f` (T34 audit) → `45cc883` (T35 CausalDiagnostics) → `5682b7b`
-  (T36 storm) → `b935972` (T37 village) → `e501683` (T38 harvest chain) → (T39 STATE+metrics).
+  (T36 storm) → `b935972` (T37 village) → `e501683` (T38 harvest chain) → `8926375` (T39 STATE+metrics).
 - **Next step**: orchestrator spawns **phase-verifier** (author ≠ verifier). Do not self-verify.
 - **Blockers**: none for Phase 7 implementer.
 - **Branch**: `feat/phase-16-3-world-cohesion`
