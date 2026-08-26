@@ -9,8 +9,8 @@ export interface WorldViewProps {
 
 /**
  * Tela raiz (doc#107) — mapa nível "mundo" + resumo do que está acontecendo, derivado do
- * fixture. Clique num assentamento (lista) navega pra Settlement View — o clique no MAPA é
- * conectado em T18 (spec P1b AC4), aqui o mapa é só exibido.
+ * fixture. Clique num assentamento — mapa OU lista — navega pra Settlement View, mesmo
+ * comportamento nos dois caminhos (spec P1b AC4, wiring de mapa em T18).
  */
 export function WorldView({ fixture, nav }: WorldViewProps) {
   return (
@@ -28,7 +28,11 @@ export function WorldView({ fixture, nav }: WorldViewProps) {
         ))}
       </ul>
 
-      <SemanticZoomMap fixture={fixture} onSelectSettlement={() => {}} onSelectNpc={() => {}} />
+      <SemanticZoomMap
+        fixture={fixture}
+        onSelectSettlement={(settlementId) => nav.push({ kind: "settlement", id: settlementId })}
+        onSelectNpc={() => {}}
+      />
     </div>
   );
 }

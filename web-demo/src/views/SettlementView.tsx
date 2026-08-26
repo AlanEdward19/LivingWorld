@@ -1,6 +1,7 @@
+import { useState } from "react";
 import type { WorldFixture } from "../fixture/types";
 import type { NavigationStore } from "../nav/NavigationStore";
-import { SemanticZoomMap } from "../map/SemanticZoomMap";
+import { SemanticZoomMap, type ZoomLevel } from "../map/SemanticZoomMap";
 
 export interface SettlementViewProps {
   fixture: WorldFixture;
@@ -10,9 +11,12 @@ export interface SettlementViewProps {
 
 /**
  * Settlement Pulse (doc#108/#125) — população, food/employment/migration/construction,
- * eventos recentes — + mapa nível "distrito". Clique no mapa é conectado em T18.
+ * eventos recentes — + mapa com zoom "distrito"/"agente" (toggle local, spec P1b AC2-4).
+ * Clique num NPC no mapa nível "agente" navega pra Agent View — mesmo comportamento de
+ * clicar num membro na lista da Household View (T18, wiring de mapa).
  */
 export function SettlementView({ fixture, nav, settlementId }: SettlementViewProps) {
+  const [mapLevel, setMapLevel] = useState<Extract<ZoomLevel, "district" | "agent">>("district");
   const settlement = fixture.settlements.find((s) => s.id === settlementId);
   if (!settlement) return null;
 
@@ -54,12 +58,21 @@ export function SettlementView({ fixture, nav, settlementId }: SettlementViewPro
         ))}
       </ul>
 
+      <div data-testid="map-level-toggle">
+        <button type="button" onClick={() => setMapLevel("district")} aria-pressed={mapLevel === "district"}>
+          District view
+        </button>
+        <button type="button" onClick={() => setMapLevel("agent")} aria-pressed={mapLevel === "agent"}>
+          Agent view
+        </button>
+      </div>
+
       <SemanticZoomMap
         fixture={fixture}
-        level="district"
+        level={mapLevel}
         settlementId={settlementId}
         onSelectSettlement={() => {}}
-        onSelectNpc={() => {}}
+        onSelectNpc={(agentId) => nav.push({ kind: "agent", id: agentId })}
       />
     </div>
   );
