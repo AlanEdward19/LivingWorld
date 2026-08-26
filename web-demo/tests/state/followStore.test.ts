@@ -46,4 +46,18 @@ describe("FollowStore", () => {
     store.toggleFollow("mira-valen");
     expect(listener).toHaveBeenCalledTimes(1);
   });
+
+  it("followedIds() lists every currently-followed id", () => {
+    const store = new FollowStore();
+    store.toggleFollow("mira-valen");
+    store.toggleFollow("oakbridge");
+    expect(store.followedIds().sort()).toEqual(["mira-valen", "oakbridge"].sort());
+  });
+
+  it("followedIds() drops an id once it's un-followed", () => {
+    const store = new FollowStore();
+    store.toggleFollow("mira-valen");
+    store.toggleFollow("mira-valen");
+    expect(store.followedIds()).toEqual([]);
+  });
 });

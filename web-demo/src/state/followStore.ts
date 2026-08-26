@@ -5,6 +5,10 @@
  */
 export class FollowStore {
   private followed = new Set<string>();
+  // Cache de array pra `followedIds()` — só troca de referência quando o conteúdo muda de
+  // verdade (mesmo motivo do `NavigationStore.breadcrumb()`: `useSyncExternalStore` entra em
+  // loop se `getSnapshot()` devolver um array novo a cada chamada).
+  private followedList: string[] = [];
   private readonly listeners = new Set<() => void>();
 
   /** Alterna seguir/deixar de seguir uma entidade — nunca duplica o destaque (Edge Case da spec). */
@@ -14,11 +18,17 @@ export class FollowStore {
     } else {
       this.followed.add(entityId);
     }
+    this.followedList = [...this.followed];
     this.notify();
   }
 
   isFollowed(entityId: string): boolean {
     return this.followed.has(entityId);
+  }
+
+  /** Todos os ids atualmente seguidos — usado pelo Explorer "Followed" tab (doc §41). */
+  followedIds(): string[] {
+    return this.followedList;
   }
 
   subscribe(listener: () => void): () => void {
