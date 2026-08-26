@@ -21,7 +21,7 @@ T1–T39 + closeout fixes: **Done** (progress.md; HEAD `d1cc79f`).
 | COH-05 | `CausalChainPilotTests.cs:46` — `Assert.Equal(Run(), Run())` | ✅ |
 | COH-11 | `BehaviorDecisionSystem.cs:474` `SelectByUtility(DecisionContext…)` | ✅ |
 | COH-12 | `DecisionContextBuilderTests.cs:56-67,100-103,151,186,216-222` | ✅ |
-| COH-13 | `DecisionContextIntegrationTests.cs:75-85` memory→Travel; builder `:186` beliefs (⚠️ no belief→decision test) | ✅⚠️ |
+| COH-13 | `DecisionContextIntegrationTests.cs` memory→Travel + scarcity belief→Buy | ✅ |
 | COH-14 | `DecisionContextIntegrationTests.cs:108-112` trust→Socialize | ✅ |
 | COH-15 | `DecisionContextIntegrationTests.cs:140-142` Eat vs Buy | ✅ |
 | COH-16 | `DecisionContextIntegrationTests.cs:153-159` empty → Eat | ✅ |
@@ -67,7 +67,6 @@ Static lightweight (Ask/AD-009 blocked live mutate):
 ## Edge / follow-ups (non-blocking)
 
 - Mechanic eval exception isolation: missing
-- Belief→Buy divergence test: missing
 - ~54 LogEvent Unknown backlog (audit)
 
 ## Summary

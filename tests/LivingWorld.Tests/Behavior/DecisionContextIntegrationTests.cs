@@ -1,10 +1,11 @@
 using LivingWorld.Domain;
 using LivingWorld.Domain.Llm;
 using LivingWorld.Simulation;
+using LivingWorld.Simulation.History;
 
 namespace LivingWorld.Tests.Behavior;
 
-/// <summary>Fase 16.3 P1b T17 (COH-13..16): memória/relação/household divergem a decisão;
+/// <summary>Fase 16.3 P1b T17 (COH-13..16): memória/crença/relação/household divergem a decisão;
 /// fatores vazios não quebram.</summary>
 public class DecisionContextIntegrationTests
 {
@@ -83,6 +84,100 @@ public class DecisionContextIntegrationTests
 
         Assert.Equal(ActionType.Travel, npcMem.CurrentAction);
         Assert.NotEqual(npcPlain.CurrentAction, npcMem.CurrentAction);
+    }
+
+    [Fact]
+    public void Scarcity_belief_diverges_decision_toward_Buy()
+    {
+        // Household com estoque: Eat leva o déficit de fome; Buy fica em baseline (50).
+        // Crença canônica com cue "escassez" (+40 em Buy) faz Buy vencer — COH-13 Independent Test.
+        var historyRules = HistoryRules.Create(
+            enabled: true,
+            skeletonSignificanceThreshold: 0.5,
+            canonSizePerCommunity: 10,
+            mediumFidelityByType: new Dictionary<TransmissionMediumType, MediumFidelity>
+            {
+                [TransmissionMediumType.OralTradition] = new(1.0, 10, DeathConditionType.Decay),
+            },
+            operatorProbability: new Dictionary<DistortionOperator, double> { [DistortionOperator.Moralization] = 1.0 },
+            importanceWeight: 1,
+            transmissibilityWeight: 0,
+            recencyWeight: 0).Value!;
+        var rules = UrgentRules();
+        var catalog = WorkRoutineCatalog();
+        var economy = EnabledEconomy();
+        var food = new ResourceType(1);
+        var cityId = new CityId(Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
+
+        ActionType Decide(bool withScarcityBelief)
+        {
+            var map = ScenarioRunner.DefaultMap(seed: 55);
+            var world = new WorldState(
+                Calendar, seed: 55, map, ScenarioRunner.DefaultPopulationCatalog,
+                ScenarioRunner.DefaultPopulationRules, rules, catalog,
+                ScenarioRunner.DefaultLifeStageRules, economyRules: economy, historyRules: historyRules);
+            var location = new CellCoord(1, 1);
+            var city = new City(cityId, location, 0, null, AggregatePopulationPool.Empty);
+            world.AddCity(city);
+
+            var npc = new Npc(
+                new NpcId(1), "npc", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30), new CultureId(1),
+                location, motherId: null, fatherId: null, household: null, health: 100,
+                personality: Neutral, profession: ProfessionType.None, currentLocation: location,
+                hunger: 20, thirst: 100, sleep: 100, social: 100, city: cityId);
+            world.AddNpc(npc);
+            world.AdvanceNpcIdTo(2);
+
+            var household = new Household(
+                new HouseholdId(1), location, npc.Id, [npc.Id],
+                stock: new Dictionary<ResourceType, long>
+                {
+                    [food] = 5,
+                    [new ResourceType(2)] = 5, // água: sem isso BuyUtility cai a 0 (só sede “faltando”)
+                });
+            world.AddHousehold(household);
+            npc.JoinHousehold(household.Id);
+
+            if (withScarcityBelief)
+            {
+                var fact = new Fact(
+                    new FactId(1), 5, WorldEventKind.Death, [npc.Id], city.Id, 0.9,
+                    "escassez de comida no mercado");
+                world.AddFact(fact);
+                var report = new ReportState(
+                    world.NextReportIdAndAdvance(), fact.Id, city.Id, TransmissionMediumType.OralTradition,
+                    HopCount: 1, Weight: fact.Significance, CreatedAtTick: 10, LastHopTick: 10);
+                world.RegisterReport(report);
+                CanonSlotManager.Admit(city, report, historyRules, nowTick: 20);
+
+                Assert.Contains(
+                    NpcBeliefQuery.BeliefsOf(world, npc.Id),
+                    b => b.Contains("escassez", StringComparison.OrdinalIgnoreCase));
+            }
+
+            var decisionCtx = DecisionContextBuilder.Build(world, npc, tick: 0);
+            if (withScarcityBelief)
+            {
+                Assert.Contains(
+                    decisionCtx.RelevantBeliefs,
+                    b => b.Contains("escassez", StringComparison.OrdinalIgnoreCase));
+                var scored = BehaviorDecisionSystem.SelectByUtility(
+                    decisionCtx, rules, economy, continuityAction: null);
+                Assert.Equal(ActionType.Buy, scored.Action);
+            }
+
+            var ctx = new TickContext(world, world.Rng, world.Scheduler);
+            SimulationWakeTestHelper.Wake(world, npc);
+            new BehaviorDecisionSystem().Tick(world, ctx);
+            return npc.CurrentAction!.Value;
+        }
+
+        var plain = Decide(withScarcityBelief: false);
+        var withBelief = Decide(withScarcityBelief: true);
+
+        Assert.Equal(ActionType.Eat, plain);
+        Assert.Equal(ActionType.Buy, withBelief);
+        Assert.NotEqual(plain, withBelief);
     }
 
     [Fact]
