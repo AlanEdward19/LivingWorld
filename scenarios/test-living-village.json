@@ -1,0 +1,153 @@
+{
+  "_comment": "Fase 16.3 COH-64 — test-living-village baseline. Profession names only here (AD-023): 1=Farmer, 2=Blacksmith, 3=Baker, 4=Merchant, 5=Guard, 6=Worker. No CreateFoodCrisis scripting — shocks are scenario multipliers in tests.",
+  "Width": 40,
+  "Height": 40,
+  "Seed": 42,
+  "RegionSize": 5,
+  "TerrainIds": [1, 2, 3],
+  "BiomeIds": [1],
+  "ResourceIds": [],
+  "CostWeights": {
+    "Base": 1.0,
+    "AltitudeWeight": 0.5,
+    "TerrainWeight": { "1": 1.0, "2": 1.5, "3": 3.0 }
+  },
+  "Settlements": [{ "Name": "living-village", "X": 20, "Y": 20 }],
+
+  "InitialPopulation": 40,
+  "Culture": 1,
+  "VillageX": 20,
+  "VillageY": 20,
+  "CultureIds": [1],
+  "ProfessionIds": [1, 2, 3, 4, 5, 6],
+  "LocationTypeIds": [1, 2],
+  "MaxLongevityYears": 90,
+  "LifeTableBrackets": [
+    { "MinAgeYears": 0, "MaxAgeYears": 1, "BaseAnnualMortality": 0.08 },
+    { "MinAgeYears": 2, "MaxAgeYears": 14, "BaseAnnualMortality": 0.01 },
+    { "MinAgeYears": 15, "MaxAgeYears": 39, "BaseAnnualMortality": 0.004 },
+    { "MinAgeYears": 40, "MaxAgeYears": 59, "BaseAnnualMortality": 0.01 },
+    { "MinAgeYears": 60, "MaxAgeYears": 79, "BaseAnnualMortality": 0.04 },
+    { "MinAgeYears": 80, "MaxAgeYears": 89, "BaseAnnualMortality": 0.15 }
+  ],
+  "FertilityMinAge": 16,
+  "FertilityMaxAge": 45,
+  "AnnualConceptionChance": 0.25,
+  "GestationDays": 270,
+  "MaxBytesPerNpcPerYear": 4000,
+
+  "HungerDecayPerHour": 2.0,
+  "ThirstDecayPerHour": 3.0,
+  "SleepDecayPerHour": 1.5,
+  "SocialDecayPerHour": 1.0,
+  "UrgencyThreshold": 70,
+  "MaxActionSelectionSteps": 10,
+  "HysteresisEnabled": true,
+  "ContinuityBonus": 5.0,
+  "HomelessSleepEfficiency": 0.5,
+  "MaxDurationHours": {
+    "Eat": 2, "Sleep": 8, "Work": 8, "Socialize": 3, "Travel": 4, "Idle": 2, "Buy": 2, "UsePower": 1
+  },
+  "RoutineSlots": [
+    { "ProfessionId": 1, "Stage": "Adult", "HourStart": 6, "HourEnd": 14, "Action": "Work" },
+    { "ProfessionId": 2, "Stage": "Adult", "HourStart": 7, "HourEnd": 15, "Action": "Work" },
+    { "ProfessionId": 3, "Stage": "Adult", "HourStart": 6, "HourEnd": 14, "Action": "Work" },
+    { "ProfessionId": 4, "Stage": "Adult", "HourStart": 8, "HourEnd": 16, "Action": "Work" },
+    { "ProfessionId": 5, "Stage": "Adult", "HourStart": 8, "HourEnd": 16, "Action": "Work" },
+    { "ProfessionId": 6, "Stage": "Adult", "HourStart": 8, "HourEnd": 16, "Action": "Work" },
+    { "ProfessionId": null, "Stage": "Adult", "HourStart": 18, "HourEnd": 20, "Action": "Socialize" },
+    { "ProfessionId": null, "Stage": "Adult", "HourStart": 22, "HourEnd": 23, "Action": "Sleep" },
+    { "ProfessionId": null, "Stage": "Adult", "HourStart": 0, "HourEnd": 5, "Action": "Sleep" },
+    { "ProfessionId": null, "Stage": "Child", "HourStart": 20, "HourEnd": 23, "Action": "Sleep" },
+    { "ProfessionId": null, "Stage": "Child", "HourStart": 0, "HourEnd": 6, "Action": "Sleep" },
+    { "ProfessionId": null, "Stage": "Elder", "HourStart": 21, "HourEnd": 23, "Action": "Sleep" },
+    { "ProfessionId": null, "Stage": "Elder", "HourStart": 0, "HourEnd": 6, "Action": "Sleep" }
+  ],
+  "DefaultAction": "Idle",
+
+  "EconomyEnabled": true,
+  "FoodResourceId": 1,
+  "WaterResourceId": 2,
+  "PriceSensitivity": 0.2,
+  "CapacityByResourceLocation": { "1,1": 1000, "2,1": 1000, "4,2": 1000 },
+  "SpoilagePerDayByResource": { "1": 0.01 },
+  "WageByProfession": { "1": 90, "2": 110, "3": 85, "4": 95, "5": 80, "6": 70 },
+  "PriceFloor": { "1": 1, "2": 1, "4": 1 },
+  "PriceCeiling": { "1": 20, "2": 15, "4": 80 },
+  "DemandBaselinePerNpc": { "1": 0.5, "2": 0.3 },
+  "Recipes": {
+    "1": {
+      "Inputs": {},
+      "Outputs": { "1": 10, "2": 8 },
+      "RequiresCellResource": null,
+      "MaxWorkersPerCycle": 80
+    },
+    "2": {
+      "Inputs": {},
+      "Outputs": { "4": 5 },
+      "RequiresCellResource": null,
+      "MaxWorkersPerCycle": 40
+    }
+  },
+  "MarketLocationTypeIds": [1, 2],
+  "LocationTypeByProfession": { "1": 1, "2": 2, "3": 1, "4": 1, "5": 1, "6": 1 },
+  "Workplaces": [
+    {
+      "LocationTypeId": 1,
+      "X": 18,
+      "Y": 20,
+      "MaxVacancies": 80,
+      "Treasury": 500000,
+      "Stock": {},
+      "Prices": { "1": 5, "2": 5 }
+    },
+    {
+      "LocationTypeId": 2,
+      "X": 22,
+      "Y": 20,
+      "MaxVacancies": 40,
+      "Treasury": 500000,
+      "Stock": {},
+      "Prices": { "4": 5 }
+    }
+  ],
+
+  "CitiesEnabled": true,
+  "FoodShortageThreshold": 0.1,
+  "HousingShortageThreshold": 0.1,
+  "SecurityShortageThreshold": 0.1,
+  "EmigrationRatePerDeficitUnit": 0.1,
+  "MigrationEmploymentWeight": 0.1,
+  "MigrationFoodWeight": 0.1,
+  "MigrationSecurityWeight": 0.1,
+  "MigrationFamilyTiesWeight": 0.1,
+  "FoundingConcentrationThreshold": 0.1,
+  "FoundingResourceThreshold": 0.1,
+  "FoundingRouteThreshold": 0.1,
+  "FoundingDefensibilityThreshold": 0.1,
+  "FoundingLeadershipThreshold": 0.1,
+  "OrganizationTicks": 1,
+  "MaterializationIdleTicksBeforeEligible": 1,
+  "BuildingRecipes": {},
+  "Cities": [
+    {
+      "Name": "living-village",
+      "X": 20,
+      "Y": 20,
+      "FoundedAtTick": 0,
+      "AggregatePool": { "Count": 0, "WealthSum": 0, "HealthSum": 0 }
+    }
+  ],
+
+  "Dynamics": {
+    "ProfessionBiases": [
+      { "ProfessionId": 1, "Weight": 2.0 },
+      { "ProfessionId": 2, "Weight": 1.0 },
+      { "ProfessionId": 3, "Weight": 1.0 },
+      { "ProfessionId": 4, "Weight": 1.0 },
+      { "ProfessionId": 5, "Weight": 0.8 },
+      { "ProfessionId": 6, "Weight": 1.2 }
+    ],
+    "TransformationRules": []
+  }
+}

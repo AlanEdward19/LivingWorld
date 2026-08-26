@@ -21,7 +21,7 @@ public static class WorldAuthoringCommands
             values.Altruism, values.Impulsivity, values.RiskAversion);
         if (!personality.IsSuccess) return Result<Unit>.Fail(personality.Error!);
         npc.RewritePersonality(personality.Value!);
-        ctx.LogEvent(WorldEventKind.AuthoringCommandApplied, $"personality|{npcId.Value}");
+        ctx.LogEvent(WorldEventKind.AuthoringCommandApplied, $"personality|{npcId.Value}", sourceSystem: "WorldAuthoringCommands");
         return Result<Unit>.Ok(Unit.Value);
     }
 
@@ -32,7 +32,7 @@ public static class WorldAuthoringCommands
         if (world.FindNpc(first) is null || world.FindNpc(second) is null)
             return Result<int>.Fail("NpcId: NPC ausente");
         int removed = world.RemoveRelationshipsBetween(first, second);
-        ctx.LogEvent(WorldEventKind.AuthoringCommandApplied, $"relationships.break|{first.Value}|{second.Value}|{removed}");
+        ctx.LogEvent(WorldEventKind.AuthoringCommandApplied, $"relationships.break|{first.Value}|{second.Value}|{removed}", sourceSystem: "WorldAuthoringCommands");
         return Result<int>.Ok(removed);
     }
 
@@ -43,7 +43,7 @@ public static class WorldAuthoringCommands
         var npc = world.FindNpc(npcId);
         if (npc is null || !npc.IsAlive) return Result<Unit>.Fail("NpcId: NPC ausente ou morto");
         npc.SetCurrentAction(action, ctx.CurrentTick);
-        ctx.LogEvent(WorldEventKind.AuthoringCommandApplied, $"action|{npcId.Value}|{action}");
+        ctx.LogEvent(WorldEventKind.AuthoringCommandApplied, $"action|{npcId.Value}|{action}", sourceSystem: "WorldAuthoringCommands");
         return Result<Unit>.Ok(Unit.Value);
     }
 }
@@ -58,7 +58,7 @@ public sealed class WorldAuthoringService(IWorldEventSink sink)
         var ctx = Context(world, sink);
         var result = command(ctx);
         if (!result.IsSuccess)
-            ctx.LogEvent(WorldEventKind.AuthoringCommandRejected, $"{operation}|{result.Error}");
+            ctx.LogEvent(WorldEventKind.AuthoringCommandRejected, $"{operation}|{result.Error}", sourceSystem: "WorldAuthoringCommands");
         return result;
     }
 

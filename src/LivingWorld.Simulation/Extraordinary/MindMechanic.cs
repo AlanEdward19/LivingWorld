@@ -23,7 +23,7 @@ public sealed class MindMechanic : ExtraordinaryMechanic
             var target = ctx.Target;
             long tick = ctx.Tick.CurrentTick;
             return Result<PreparedMutation?>.Ok(new PreparedMutation(declaration, _ =>
-                ctx.Tick.LogEvent(WorldEventKind.ExtraordinaryEffectApplied, ReadPayload(target, tick))));
+                ctx.Tick.LogEvent(WorldEventKind.ExtraordinaryEffectApplied, ReadPayload(target, tick), sourceSystem: "MindMechanic")));
         }
 
         if (declaration == "mind.read-memory")
@@ -68,7 +68,7 @@ public sealed class MindMechanic : ExtraordinaryMechanic
         var world = ctx.World;
         var target = ctx.Target;
         return Result<PreparedMutation?>.Ok(new PreparedMutation(declaration, _ =>
-            ctx.Tick.LogEvent(WorldEventKind.ExtraordinaryEffectApplied, MemoryPayload(world, target))));
+            ctx.Tick.LogEvent(WorldEventKind.ExtraordinaryEffectApplied, MemoryPayload(world, target), sourceSystem: "MindMechanic")));
     }
 
     private static Result<PreparedMutation?> PrepareEraseMemory(

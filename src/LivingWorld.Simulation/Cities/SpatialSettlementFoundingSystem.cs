@@ -190,7 +190,7 @@ public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
         }
 
         world.MergeCityInto(daughter, mother);
-        ctx.LogEvent(WorldEventKind.CityMerged, $"{daughter.Id.Value}|{mother.Id.Value}");
+        ctx.LogEvent(WorldEventKind.CityMerged, $"{daughter.Id.Value}|{mother.Id.Value}", sourceSystem: "SpatialSettlementFoundingSystem");
     }
 
     private static bool AreAdjacent(WorldState world, City mother, City daughter, int ring)

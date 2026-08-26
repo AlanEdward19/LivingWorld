@@ -63,7 +63,9 @@ public class EmploymentSystemTests
 
         Assert.Equal(workplace.Id, npc.Employer);
         Assert.Contains(npc.Id, workplace.Employees);
-        Assert.Contains(sink.Events, e => e.Kind == WorldEventKind.Hired);
+        var hired = Assert.Single(sink.Events, e => e.Kind == WorldEventKind.Hired);
+        Assert.Equal("EmploymentSystem", hired.SourceSystem);
+        Assert.NotEqual("Unknown", hired.SourceSystem);
     }
 
     [Fact]

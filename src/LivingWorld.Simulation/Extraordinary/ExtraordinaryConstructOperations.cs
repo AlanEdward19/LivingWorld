@@ -16,15 +16,18 @@ public static class ExtraordinaryConstructOperations
 
         int durability = Math.Max(0, current.Durability - amount);
         var updated = current with { Durability = durability };
-        ctx.LogEvent(
+        long damagedId = ctx.LogEvent(
             WorldEventKind.ExtraordinaryConstructDamaged,
-            $"{current.CreatorId.Value}|{current.SourceInvocationId}|{current.Id}|{amount}|{durability}");
+            $"{current.CreatorId.Value}|{current.SourceInvocationId}|{current.Id}|{amount}|{durability}",
+            sourceSystem: "ExtraordinaryConstructOperations");
         if (durability == 0)
         {
             world.RemoveExtraordinaryConstruct(current.Id);
             ctx.LogEvent(
                 WorldEventKind.ExtraordinaryConstructRemoved,
-                $"{current.CreatorId.Value}|{current.SourceInvocationId}|{current.Id}|destroyed");
+                $"{current.CreatorId.Value}|{current.SourceInvocationId}|{current.Id}|destroyed",
+                sourceSystem: "ExtraordinaryConstructOperations",
+                causeEventId: damagedId);
         }
         else
         {

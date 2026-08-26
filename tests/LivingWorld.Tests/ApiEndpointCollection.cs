@@ -1,5 +1,3 @@
-using Xunit;
-
 namespace LivingWorld.Tests;
 
 /// <summary>Uma <see cref="LivingWorldApiFactory"/> compartilhada para endpoints de <b>leitura</b>

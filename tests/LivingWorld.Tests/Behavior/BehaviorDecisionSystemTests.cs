@@ -1,5 +1,7 @@
 using LivingWorld.Domain;
+using LivingWorld.Domain.Llm;
 using LivingWorld.Simulation;
+using LivingWorld.Simulation.Economy;
 
 namespace LivingWorld.Tests.Behavior;
 
@@ -62,6 +64,7 @@ public class BehaviorDecisionSystemTests
             [ActionType.Travel] = 4,
             [ActionType.Idle] = 2,
             [ActionType.Buy] = 2,
+            [ActionType.UsePower] = 1,
         },
         routineSlots: [new RoutineSlot(ProfessionId: null, Stage: LifeStage.Adult, HourStart: 0, HourEnd: 23, Action: ActionType.Work)],
         defaultAction: ActionType.Idle).Value!;
@@ -155,6 +158,7 @@ public class BehaviorDecisionSystemTests
                     [ActionType.Travel] = 4,
                     [ActionType.Idle] = 2,
                     [ActionType.Buy] = 2,
+                    [ActionType.UsePower] = 1,
                 }, [], ActionType.Idle).Value!;
             var (world, ctx, npc) = BuildWorld(seed: 44, rules, catalog, Neutral);
             var before = npc.CurrentLocation;
@@ -345,5 +349,331 @@ public class BehaviorDecisionSystemTests
             new BehaviorDecisionSystem().Tick(worldHigh, ctxHigh);
             Assert.Equal(highAction, npcHigh.CurrentAction);
         }
+    }
+
+    [Fact]
+    public void Teleport_power_with_reach_urgency_chooses_UsePower_and_sets_Pending()
+    {
+        var rules = MakeRules(urgencyThreshold: 70);
+        var catalog = MakeCatalogWithOpenWorkShift();
+        var descriptor = new PowerDescriptor(
+            "teleport-power", "test", ["npc.teleport:elsewhere"], "Active", [], "Guaranteed",
+            [], [], [], []);
+        var carrier = new ExtraordinaryCarrierState(
+            new NpcId(1), [descriptor.Id], true, "active",
+            new ExtraordinaryAppearanceState(1, "", ""), null, 1);
+
+        var map = ScenarioRunner.DefaultMap(11);
+        var world = new WorldState(
+            Calendar, 11, map, ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
+            rules, catalog, Stages,
+            extraordinary: new ExtraordinaryScenarioData(true, [descriptor]),
+            extraordinaryCarriers: [carrier]);
+        var location = new CellCoord(1, 1);
+        var npc = new Npc(
+            new NpcId(1), "npc", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30), new CultureId(1), location,
+            motherId: null, fatherId: null, household: null, health: 100,
+            personality: Neutral, profession: ProfessionType.None, currentLocation: location,
+            hunger: 20, thirst: 100, sleep: 100, social: 100);
+        world.AddNpc(npc);
+        world.AdvanceNpcIdTo(2);
+        world.AddNpcMemory(
+            npc.Id, MemoryCategory.Social, "foi traído por X na colheita", importance: 90, originTick: 1,
+            participants: [npc.Id], location: npc.CurrentLocation,
+            canonicalImportanceThreshold: LlmRules.Default.CanonicalMemoryImportanceThreshold);
+
+        var ctx = new TickContext(world, world.Rng, world.Scheduler);
+        SimulationWakeTestHelper.Wake(world, npc);
+        new BehaviorDecisionSystem().Tick(world, ctx);
+
+        Assert.Equal(ActionType.UsePower, npc.CurrentAction);
+        Assert.NotNull(npc.PendingPowerInvocation);
+        Assert.Equal("teleport-power", npc.PendingPowerInvocation!.PowerId);
+        Assert.Equal("npc.teleport:elsewhere", npc.PendingPowerInvocation.MechanicToken);
+    }
+
+    [Fact]
+    public void Without_power_capability_never_chooses_UsePower_under_same_pressure()
+    {
+        var rules = MakeRules(urgencyThreshold: 70);
+        var catalog = MakeCatalogWithOpenWorkShift();
+        var (world, ctx, npc) = BuildWorld(seed: 11, rules, catalog, Neutral, hunger: 20);
+        world.AddNpcMemory(
+            npc.Id, MemoryCategory.Social, "foi traído por X na colheita", importance: 90, originTick: 1,
+            participants: [npc.Id], location: npc.CurrentLocation,
+            canonicalImportanceThreshold: LlmRules.Default.CanonicalMemoryImportanceThreshold);
+
+        new BehaviorDecisionSystem().Tick(world, ctx);
+
+        Assert.NotEqual(ActionType.UsePower, npc.CurrentAction);
+        Assert.Null(npc.PendingPowerInvocation);
+        Assert.Equal(ActionType.Travel, npc.CurrentAction);
+    }
+
+    [Fact]
+    public void PowerOpportunityUtility_is_deterministic_for_same_inputs()
+    {
+        var opp = new PowerOpportunity("p", "npc.teleport:x", null, 0m, 0.1, "Guaranteed");
+        var ctx = new DecisionContext(
+            new NpcId(1), 0,
+            new NeedsSnapshot(20, 100, 100, 100),
+            new BodySnapshot(1.7, 68, 28, 1, 1),
+            null,
+            [new NpcMemory(1, new NpcId(1), MemoryCategory.Social, "threat nearby", 90, 1, Array.Empty<NpcId>(), new CellCoord(0, 0))],
+            Array.Empty<string>(),
+            Array.Empty<RelationshipFact>(),
+            [opp],
+            Neutral,
+            null);
+
+        double a = BehaviorDecisionSystem.PowerOpportunityUtility(opp, ctx, PowerUtilityRules.Default);
+        double b = BehaviorDecisionSystem.PowerOpportunityUtility(opp, ctx, PowerUtilityRules.Default);
+        Assert.Equal(a, b);
+        Assert.True(a > 50);
+    }
+
+    /// <summary>Spec edge: WHEN a utility candidate throws THEN isolate failure to that
+    /// candidate without aborting other candidates / fixed ActionTypes.</summary>
+    [Fact]
+    public void Throwing_PowerOpportunity_candidate_is_excluded_other_still_wins()
+    {
+        var throwing = new PowerOpportunity(
+            "throwing-power", MechanicToken: null!, null, 0m, 0.0, "Guaranteed");
+        var good = new PowerOpportunity(
+            "good-power", "npc.teleport:elsewhere", null, 0m, 0.1, "Guaranteed");
+        var memory = new NpcMemory(
+            1, new NpcId(1), MemoryCategory.Social, "threat nearby", 90, 1,
+            Array.Empty<NpcId>(), new CellCoord(0, 0));
+        var ctx = new DecisionContext(
+            new NpcId(1), 0,
+            new NeedsSnapshot(20, 100, 100, 100),
+            new BodySnapshot(1.7, 68, 28, 1, 1),
+            null,
+            [memory],
+            Array.Empty<string>(),
+            Array.Empty<RelationshipFact>(),
+            [throwing, good],
+            Neutral,
+            null);
+
+        var economy = EconomyRules.Create(
+            enabled: true, foodResourceId: 1, waterResourceId: 2,
+            capacityByResourceLocation: new Dictionary<(int, int), long>(),
+            spoilagePerDayByResource: new Dictionary<int, double>(),
+            wageByProfession: new Dictionary<int, long>(),
+            priceFloor: new Dictionary<int, long>(),
+            priceCeiling: new Dictionary<int, long>(),
+            priceSensitivity: 0,
+            demandBaselinePerNpc: new Dictionary<int, double>()).Value!;
+
+        var decision = BehaviorDecisionSystem.SelectByUtility(
+            ctx, MakeRules(urgencyThreshold: 70), economy, continuityAction: null);
+
+        Assert.Equal(ActionType.UsePower, decision.Action);
+        Assert.NotNull(decision.PendingPower);
+        Assert.Equal("good-power", decision.PendingPower!.PowerId);
+        Assert.Equal("npc.teleport:elsewhere", decision.PendingPower.MechanicToken);
+        // Fixed ActionTypes still scored (appear as alternatives when UsePower wins).
+        Assert.Contains(ActionType.Eat, decision.Trace.KnownAlternatives);
+        Assert.Contains(ActionType.Travel, decision.Trace.KnownAlternatives);
+    }
+
+    [Fact]
+    public void Throwing_PowerOpportunity_does_not_abort_fixed_ActionType_scoring()
+    {
+        var throwing = new PowerOpportunity(
+            "throwing-power", MechanicToken: null!, null, 0m, 0.0, "Guaranteed");
+        var ctx = new DecisionContext(
+            new NpcId(1), 0,
+            new NeedsSnapshot(15, 100, 100, 100),
+            new BodySnapshot(1.7, 68, 28, 1, 1),
+            null,
+            Array.Empty<NpcMemory>(),
+            Array.Empty<string>(),
+            Array.Empty<RelationshipFact>(),
+            [throwing],
+            Neutral,
+            null);
+
+        var economy = EconomyRules.Create(
+            enabled: true, foodResourceId: 1, waterResourceId: 2,
+            capacityByResourceLocation: new Dictionary<(int, int), long>(),
+            spoilagePerDayByResource: new Dictionary<int, double>(),
+            wageByProfession: new Dictionary<int, long>(),
+            priceFloor: new Dictionary<int, long>(),
+            priceCeiling: new Dictionary<int, long>(),
+            priceSensitivity: 0,
+            demandBaselinePerNpc: new Dictionary<int, double>()).Value!;
+
+        var decision = BehaviorDecisionSystem.SelectByUtility(
+            ctx, MakeRules(urgencyThreshold: 70), economy, continuityAction: null);
+
+        Assert.NotEqual(ActionType.UsePower, decision.Action);
+        Assert.Null(decision.PendingPower);
+        Assert.True(decision.Trace.WinningUtility > double.NegativeInfinity);
+        Assert.NotEmpty(decision.Trace.KnownAlternatives);
+    }
+
+    [Fact]
+    public void Completing_UsePower_invokes_engine_logs_PowerInvoked_with_CauseEventId_and_clears_Pending()
+    {
+        var rules = MakeRules(urgencyThreshold: 70);
+        var catalog = MakeCatalogWithOpenWorkShift();
+        var descriptor = new PowerDescriptor(
+            "curse-power", "test", ["luck.curse:1:10"], "Active", [], "Guaranteed",
+            [], [], [], []);
+        var carrier = new ExtraordinaryCarrierState(
+            new NpcId(1), [descriptor.Id], true, "active",
+            new ExtraordinaryAppearanceState(1, "", ""), null, 1);
+
+        var map = ScenarioRunner.DefaultMap(33);
+        var world = new WorldState(
+            Calendar, 33, map, ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
+            rules, catalog, Stages,
+            extraordinary: new ExtraordinaryScenarioData(true, [descriptor]),
+            extraordinaryCarriers: [carrier]);
+        var location = new CellCoord(1, 1);
+        var npc = new Npc(
+            new NpcId(1), "npc", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30), new CultureId(1), location,
+            motherId: null, fatherId: null, household: null, health: 100,
+            personality: Neutral, profession: ProfessionType.None, currentLocation: location,
+            hunger: 100, thirst: 100, sleep: 100, social: 100);
+        world.AddNpc(npc);
+        world.AdvanceNpcIdTo(2);
+
+        npc.SetCurrentAction(ActionType.UsePower, tick: 0);
+        npc.PendingPowerInvocation = new PendingPowerInvocation(
+            "curse-power", "luck.curse:1:10", SuggestedTarget: null);
+
+        var sink = new ListWorldEventSink();
+        var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
+        // Avança além da duração (UsePower=1) para completar a ação.
+        world.CurrentDate = WorldDate.Epoch(Calendar).AddHours(catalog.MaxDurationHours[ActionType.UsePower]);
+        SimulationWakeTestHelper.Wake(world, npc);
+        new BehaviorDecisionSystem().Tick(world, ctx);
+
+        Assert.Null(npc.PendingPowerInvocation);
+        Assert.Contains(sink.Events, e => e.Kind == WorldEventKind.PowerInvoked && e.CauseEventId is not null);
+        Assert.Contains(sink.Events, e => e.Kind == WorldEventKind.ExtraordinaryUseAttempted);
+        Assert.Contains(sink.Events, e => e.Kind == WorldEventKind.ExtraordinaryEffectApplied);
+
+        var powerInvoked = sink.Events.First(e =>
+            e.Kind == WorldEventKind.PowerInvoked && e.CauseEventId is not null);
+        Assert.Contains(sink.Events, e =>
+            e.Kind == WorldEventKind.ExtraordinaryUseAttempted
+            && e.CauseEventId == powerInvoked.EventId);
+    }
+
+    // --- Fase 16.3 T26 (COH-42): plan alternatives before Invalidated ---
+
+    private static EconomyRules EnabledFoodEconomy() => EconomyRules.Create(
+        enabled: true, foodResourceId: 1, waterResourceId: 2,
+        capacityByResourceLocation: new Dictionary<(int, int), long>(),
+        spoilagePerDayByResource: new Dictionary<int, double>(),
+        wageByProfession: new Dictionary<int, long>(),
+        priceFloor: new Dictionary<int, long>(),
+        priceCeiling: new Dictionary<int, long>(),
+        priceSensitivity: 0,
+        demandBaselinePerNpc: new Dictionary<int, double>()).Value!;
+
+    [Fact]
+    public void Buy_unavailable_uses_household_stock_before_invalidating_Intent()
+    {
+        var economy = EnabledFoodEconomy();
+        var map = ScenarioRunner.DefaultMap(7);
+        var world = new WorldState(
+            Calendar, 7, map, ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
+            MakeRules(urgencyThreshold: 70), MakeCatalogWithOpenWorkShift(), Stages,
+            economyRules: economy);
+        var loc = new CellCoord(1, 1);
+        var food = new ResourceType(1);
+        var npc = new Npc(
+            new NpcId(1), "buyer", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30), new CultureId(1), loc,
+            null, null, household: new HouseholdId(1), health: 100, Neutral, ProfessionType.None, loc,
+            hunger: 0, thirst: 100);
+        var household = new Household(
+            new HouseholdId(1), loc, npc.Id, [npc.Id],
+            stock: new Dictionary<ResourceType, long> { [food] = 3 });
+        world.AddHousehold(household);
+        world.AddNpc(npc);
+        npc.SetIntent(ActionType.Buy, tick: 0);
+        var markets = MarketIndex.BuildForTick(world);
+
+        var status = BehaviorDecisionSystem.ResolveFoodPlan(world, npc, markets, tick: 1, ActionType.Buy);
+
+        Assert.Equal(100, npc.Hunger);
+        Assert.Equal(2, household.Stock[food]);
+        Assert.Equal(IntentStatus.Completed, status);
+        Assert.NotEqual(IntentStatus.Invalidated, npc.IntentStatus);
+    }
+
+    [Fact]
+    public void Buy_and_household_alternatives_fail_invalidates_Intent()
+    {
+        var economy = EnabledFoodEconomy();
+        var map = ScenarioRunner.DefaultMap(8);
+        var world = new WorldState(
+            Calendar, 8, map, ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
+            MakeRules(urgencyThreshold: 70), MakeCatalogWithOpenWorkShift(), Stages,
+            economyRules: economy);
+        var loc = new CellCoord(1, 1);
+        var npc = new Npc(
+            new NpcId(1), "buyer", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30), new CultureId(1), loc,
+            null, null, household: new HouseholdId(1), health: 100, Neutral, ProfessionType.None, loc,
+            hunger: 0, thirst: 100);
+        var household = new Household(
+            new HouseholdId(1), loc, npc.Id, [npc.Id],
+            stock: new Dictionary<ResourceType, long>());
+        world.AddHousehold(household);
+        world.AddNpc(npc);
+        npc.SetIntent(ActionType.Buy, tick: 0);
+        var markets = MarketIndex.BuildForTick(world);
+
+        var status = BehaviorDecisionSystem.ResolveFoodPlan(world, npc, markets, tick: 1, ActionType.Buy);
+
+        Assert.Equal(0, npc.Hunger);
+        Assert.Equal(IntentStatus.Invalidated, status);
+        Assert.Equal(IntentStatus.Invalidated, npc.IntentStatus);
+    }
+
+    [Fact]
+    public void Successful_Buy_completes_Intent()
+    {
+        var economy = EnabledFoodEconomy();
+        var catalog = new EconomyCatalog(new Dictionary<int, ProductionRecipe>(), [1], new Dictionary<int, int>());
+        var map = ScenarioRunner.DefaultMap(9);
+        var world = new WorldState(
+            Calendar, 9, map, ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
+            MakeRules(urgencyThreshold: 70), MakeCatalogWithOpenWorkShift(), Stages,
+            economyRules: economy, economyCatalog: catalog);
+        var loc = new CellCoord(1, 1);
+        var food = new ResourceType(1);
+        var market = new Workplace(
+            world.NextWorkplaceIdAndAdvance(), new LocationType(1), loc, maxVacancies: 0,
+            employees: [], stock: new Dictionary<ResourceType, long> { [food] = 50 },
+            treasury: Money.Zero, prices: new Dictionary<ResourceType, long> { [food] = 5 });
+        world.AddWorkplace(market);
+        var npc = new Npc(
+            new NpcId(1), "buyer", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30), new CultureId(1), loc,
+            null, null, household: new HouseholdId(1), health: 100, Neutral, ProfessionType.None, loc,
+            hunger: 0, thirst: 100);
+        npc.CreditWallet(new Money(100));
+        var household = new Household(new HouseholdId(1), loc, npc.Id, [npc.Id]);
+        world.AddHousehold(household);
+        world.AddNpc(npc);
+        npc.SetIntent(ActionType.Buy, tick: 0);
+        var markets = MarketIndex.BuildForTick(world);
+
+        var status = BehaviorDecisionSystem.ResolveFoodPlan(world, npc, markets, tick: 1, ActionType.Buy);
+
+        Assert.Equal(10, household.Stock.GetValueOrDefault(food));
+        Assert.Equal(IntentStatus.Completed, status);
+        Assert.Equal(IntentStatus.Completed, npc.IntentStatus);
+    }
+
+    private sealed class ListWorldEventSink : IWorldEventSink
+    {
+        public List<WorldEvent> Events { get; } = [];
+        public void Record(WorldEvent evt) => Events.Add(evt);
     }
 }

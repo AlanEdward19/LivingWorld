@@ -50,7 +50,7 @@ public sealed class CombatMechanic : ExtraordinaryMechanic
             target.SetHealth(ExtraordinaryMechanicSupport.ClampNeed((long)target.Health - damage));
             tick.LogEvent(
                 WorldEventKind.CombatResolved,
-                $"{attacker.Id.Value}|{target.Id.Value}|{resolution}");
+                $"{attacker.Id.Value}|{target.Id.Value}|{resolution}", sourceSystem: "CombatMechanic");
         }));
     }
 

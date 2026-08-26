@@ -30,6 +30,7 @@ public class RestPresentationTests
             [ActionType.Travel] = 1,
             [ActionType.Idle] = 1,
             [ActionType.Buy] = 1,
+            [ActionType.UsePower] = 1,
         },
         routineSlots: [], defaultAction: ActionType.Idle).Value!;
 

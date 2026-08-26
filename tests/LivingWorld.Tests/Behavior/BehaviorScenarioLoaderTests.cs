@@ -29,6 +29,7 @@ public class BehaviorScenarioLoaderTests
             ["Travel"] = 6,
             ["Idle"] = 4,
             ["Buy"] = 2,
+            ["UsePower"] = 1,
         },
         ["RoutineSlots"] = new JsonArray
         {

@@ -4,7 +4,6 @@ using LivingWorld.Api;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
 using LivingWorld.Simulation.History;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LivingWorld.Tests.Narrative;

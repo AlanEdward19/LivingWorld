@@ -94,7 +94,7 @@
     "Socialize": 3,
     "Travel": 4,
     "Idle": 2,
-    "Buy": 2
+    "Buy": 2, "UsePower": 1
   },
   "RoutineSlots": [
     {

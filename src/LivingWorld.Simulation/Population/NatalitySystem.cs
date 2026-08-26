@@ -78,7 +78,9 @@ public sealed class NatalitySystem : ISimulationSystem
 
         if (ctx.Rng($"natality-infant-{motherId.Value}-{evt.Id}").NextDouble() < familyRules.InfantDeathRisk)
         {
-            ctx.LogEvent(WorldEventKind.StillBirth, $"{motherId.Value}|{fatherId.Value}");
+            ctx.LogEvent(
+                WorldEventKind.StillBirth, $"{motherId.Value}|{fatherId.Value}",
+                sourceSystem: "NatalitySystem");
             return;
         }
 
@@ -93,19 +95,27 @@ public sealed class NatalitySystem : ISimulationSystem
             mother.Vitality, father?.Vitality ?? mother.Vitality, familyRules,
             ctx.StreamFor("vitality", babyId.Value));
         double upbringing = HeredityService.DeriveUpbringingFromConceptionStock(conceptionStock, familyRules);
+        var body = world.BodyRules;
+        double height = BodyGeneration.RollHeight(ctx.StreamFor("height", babyId.Value), body);
+        double weight = BodyGeneration.RollWeight(ctx.StreamFor("weight", babyId.Value), body);
+        double muscleMass = BodyGeneration.RollMuscleMass(ctx.StreamFor("musclemass", babyId.Value), body);
 
         var baby = new Npc(
             babyId, $"npc-{mother.Culture.Id}-child-{evt.Id}", sex, world.CurrentDate,
             mother.Culture, household.Location, motherId, father is { IsAlive: true } ? fatherId : null,
             household.Id, health: 100,
             personality: personality, profession: profession, currentLocation: household.Location,
-            rateGene: rateGene, vitality: vitality, upbringing: upbringing);
+            rateGene: rateGene, vitality: vitality, upbringing: upbringing,
+            height: height, weight: weight, muscleMass: muscleMass);
 
         world.AddNpc(baby);
         baby.ConfigureNeedDecay(world.NeedsRules, world.CurrentDate.TotalHours);
         household.AddMember(baby.Id);
-        ctx.LogEvent(WorldEventKind.Birth, $"{baby.Id.Value}|{motherId.Value}|{fatherId.Value}|{household.Id.Value}");
-        TryApplyPowerInheritance(world, ctx, baby, motherId, fatherId);
+        long birthEventId = ctx.LogEvent(
+            WorldEventKind.Birth,
+            $"{baby.Id.Value}|{motherId.Value}|{fatherId.Value}|{household.Id.Value}",
+            sourceSystem: "NatalitySystem");
+        TryApplyPowerInheritance(world, ctx, baby, motherId, fatherId, birthEventId);
         NpcInstantiationMechanic.ApplyPendingReincarnation(world, ctx, baby);
         MortalitySystem.SchedulePlannedDeath(world, ctx, baby);
         NpcWakeScheduler.ScheduleWake(world, ctx, baby.Id.Value, world.CurrentDate.TotalHours + 1);
@@ -114,7 +124,8 @@ public sealed class NatalitySystem : ISimulationSystem
     /// <summary>EVO-10: se ambos os pais são portadores, resolve herança e audita
     /// <see cref="WorldEventKind.PowerInherited"/>. Sem dois portadores — no-op O(1).</summary>
     internal static void TryApplyPowerInheritance(
-        WorldState world, TickContext ctx, Npc baby, NpcId motherId, NpcId fatherId)
+        WorldState world, TickContext ctx, Npc baby, NpcId motherId, NpcId fatherId,
+        long? causeEventId = null)
     {
         if (!PowerInheritanceResolver.IsPowerCarrier(world, motherId)
             || !PowerInheritanceResolver.IsPowerCarrier(world, fatherId))
@@ -145,7 +156,9 @@ public sealed class NatalitySystem : ISimulationSystem
         string idsCsv = string.Join(",", descriptors.Select(d => d.Id));
         ctx.LogEvent(
             WorldEventKind.PowerInherited,
-            $"{baby.Id.Value}|{motherId.Value}|{fatherId.Value}|{decision.Outcome}|{idsCsv}");
+            $"{baby.Id.Value}|{motherId.Value}|{fatherId.Value}|{decision.Outcome}|{idsCsv}",
+            sourceSystem: "NatalitySystem",
+            causeEventId: causeEventId);
     }
 
     internal static bool MeetsConceptionFloors(

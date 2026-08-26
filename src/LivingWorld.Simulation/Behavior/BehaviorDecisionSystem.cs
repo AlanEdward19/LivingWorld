@@ -16,7 +16,9 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
     private const double NonNeedBaselineUtility = 50.0;
 
-    private static readonly ActionType[] AllActions = Enum.GetValues<ActionType>();
+    private static readonly ActionType[] AllActions = Enum.GetValues<ActionType>()
+        .Where(a => a != ActionType.UsePower)
+        .ToArray();
 
     private readonly SkillsRules? _skillsRules;
 
@@ -73,7 +75,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                     npc.SetCurrentAction(chosen, now);
                     ctx.LogEvent(
                         WorldEventKind.ExtraordinaryEffectApplied,
-                        $"{npc.Id.Value}|possessed-action|{chosen}");
+                        $"{npc.Id.Value}|possessed-action|{chosen}", sourceSystem: SystemName);
                 }
             }
             else
@@ -83,16 +85,37 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                 var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
                 var routineAction = catalog.RoutineOf(NoneIfSentinel(npc.Profession), stage, world.CurrentDate.Hour);
 
-                var candidate = npc.HasUrgentNeed(rules, now)
-                    ? SelectByUtility(world, npc, rules, continuityAction, now)
-                    : routineAction;
+                PendingPowerInvocation? pendingPower = null;
+                ActionType candidate;
+                if (npc.HasUrgentNeed(rules, now))
+                {
+                    var decision = SelectByUtility(
+                        DecisionContextBuilder.Build(world, npc, now),
+                        rules,
+                        world.EconomyRules,
+                        continuityAction,
+                        wakeReason: justCompleted ? WakeReason.ActionCompleted : WakeReason.UrgentNeed,
+                        previousIntent: npc.CurrentIntent);
+                    candidate = decision.Action;
+                    pendingPower = decision.PendingPower;
+                }
+                else
+                {
+                    candidate = routineAction;
+                }
 
                 candidate = ApplyPerception(world, npc, candidate);
 
                 chosen = ResolveWithStepCap(npc.Id.Value, candidate, world, npc, marketIndex, rules.MaxActionSelectionSteps);
 
                 if (justCompleted || chosen != npc.CurrentAction)
+                {
                     npc.SetCurrentAction(chosen, now);
+                    if (chosen == ActionType.UsePower && pendingPower is not null)
+                        npc.PendingPowerInvocation = pendingPower;
+                    if (chosen is ActionType.Buy or ActionType.Eat)
+                        EnsureFoodIntent(npc, chosen, now);
+                }
             }
 
             NpcWakeScheduler.RescheduleAfterHour(world, ctx, npc, rules, catalog, now);
@@ -118,7 +141,9 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                 return advance.Reached;
             }
 
-            long ticksNeeded = TravelResolution.TicksBetween(world.Map, npc.CurrentLocation, destination);
+            long ticksNeeded = TravelResolution.TicksBetween(
+                world.Map, npc.CurrentLocation, destination,
+                BodyMechanic.MovementCostMultiplier(world, npc));
             if (now - npc.ActionStartedAtTick < ticksNeeded) return false;
             if (world.IsExtraordinaryConstructCell(destination)) return false;
 
@@ -133,7 +158,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         if (action is ActionType.Idle or ActionType.Socialize || (action == ActionType.Work && npc.Employer is not null))
             MoveOneAmbientStep(world, npc, ctx, now, action, occupancy, cityPopulationCache, cityBoundsCache);
 
-        ApplyActionEffect(world, npc, action, marketIndex, now);
+        ApplyActionEffect(world, npc, action, marketIndex, now, ctx);
         return true;
     }
 
@@ -201,12 +226,13 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         MoveTracked(npc, candidates[index], tick, occupancy);
     }
 
-    private static void ApplyActionEffect(WorldState world, Npc npc, ActionType action, MarketIndex marketIndex, long tick)
+    private static void ApplyActionEffect(
+        WorldState world, Npc npc, ActionType action, MarketIndex marketIndex, long tick, TickContext ctx)
     {
         switch (action)
         {
             case ActionType.Eat:
-                ApplyEat(world, npc, tick);
+                ApplyFoodPlan(world, npc, marketIndex, tick, primary: ActionType.Eat);
                 break;
             case ActionType.Sleep:
                 ApplySleep(world, npc, tick);
@@ -215,9 +241,66 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                 npc.SetSocial(100, tick);
                 break;
             case ActionType.Buy:
-                ApplyBuy(world, npc, marketIndex);
+                ApplyFoodPlan(world, npc, marketIndex, tick, primary: ActionType.Buy);
+                break;
+            case ActionType.UsePower:
+                ApplyUsePower(world, npc, tick, ctx);
                 break;
         }
+    }
+
+    /// <summary>Executa o PendingPowerInvocation via motor extraordinário e registra
+    /// <see cref="WorldEventKind.PowerInvoked"/> com proveniência (COH-33).</summary>
+    private static void ApplyUsePower(WorldState world, Npc npc, long tick, TickContext ctx)
+    {
+        var pending = npc.PendingPowerInvocation;
+        npc.PendingPowerInvocation = null;
+        if (pending is null) return;
+
+        // Decisão (raiz) + PowerInvoked com CauseEventId apontando pra ela (COH-33 AC).
+        long decisionEventId = ctx.LogEvent(
+            WorldEventKind.PowerInvoked,
+            $"{npc.Id.Value}|{pending.PowerId}|decision",
+            SystemName,
+            causeEventId: null);
+
+        long powerInvokedId = ctx.LogEvent(
+            WorldEventKind.PowerInvoked,
+            $"{npc.Id.Value}|{pending.PowerId}|{pending.MechanicToken}",
+            SystemName,
+            causeEventId: decisionEventId);
+
+        NpcId targetId = pending.SuggestedTarget ?? npc.Id;
+        CellCoord? targetCell = null;
+        if (pending.MechanicToken.StartsWith("npc.teleport", StringComparison.Ordinal))
+            targetCell = ResolveTeleportTargetCell(world, npc);
+
+        var invocation = new ExtraordinaryInvocation(
+            world.NextEventId,
+            npc.Id,
+            pending.PowerId,
+            targetId,
+            Resolution: null,
+            TargetCell: targetCell,
+            Origin: ExtraordinaryInvocationOrigin.Authored);
+
+        ExtraordinaryInvocationEngine.Invoke(world, ctx, invocation, causeEventId: powerInvokedId);
+        _ = tick;
+    }
+
+    private static CellCoord? ResolveTeleportTargetCell(WorldState world, Npc npc)
+    {
+        // Destino adjacente vazio preferido; senão a própria célula (Invoke pode falhar — ok).
+        foreach (var delta in new (int X, int Y)[] { (1, 0), (-1, 0), (0, 1), (0, -1), (1, 1) })
+        {
+            var candidate = new CellCoord(npc.CurrentLocation.X + delta.X, npc.CurrentLocation.Y + delta.Y);
+            if (!world.Map.TryGetCell(candidate, out _)) continue;
+            if (world.IsExtraordinaryConstructCell(candidate)) continue;
+            if (world.Npcs.Any(o => o.IsAlive && o.CurrentLocation == candidate)) continue;
+            return candidate;
+        }
+
+        return npc.CurrentLocation;
     }
 
     private static void ApplySleep(WorldState world, Npc npc, long tick)
@@ -228,23 +311,75 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         npc.SetSleep((int)(100 * rest.RecoveryEfficiency), tick);
     }
 
-    private static void ApplyEat(WorldState world, Npc npc, long tick)
+    /// <summary>COH-42: falha local tenta alternativa (Buy↔Eat/estoque) antes de
+    /// <see cref="IntentStatus.Invalidated"/>.</summary>
+    private static void ApplyFoodPlan(
+        WorldState world, Npc npc, MarketIndex marketIndex, long tick, ActionType primary) =>
+        ResolveFoodPlan(world, npc, marketIndex, tick, primary);
+
+    /// <summary>Resolve Buy/Eat com alternativas; retorna o status final do Intent quando
+    /// um plano alimentar estava em curso (para testes T26).</summary>
+    internal static IntentStatus? ResolveFoodPlan(
+        WorldState world, Npc npc, MarketIndex marketIndex, long tick, ActionType primary)
+    {
+        EnsureFoodIntent(npc, primary, tick);
+
+        bool primaryOk = primary == ActionType.Buy
+            ? TryApplyBuy(world, npc, marketIndex)
+            : TryApplyEat(world, npc, tick);
+
+        if (primaryOk)
+        {
+            if (npc.IntentStatus == IntentStatus.Active)
+                npc.CompleteIntent();
+            return npc.IntentStatus;
+        }
+
+        bool alternativeOk = primary == ActionType.Buy
+            ? TryApplyEat(world, npc, tick)
+            : TryApplyBuy(world, npc, marketIndex);
+
+        if (alternativeOk)
+        {
+            if (npc.IntentStatus == IntentStatus.Active)
+                npc.CompleteIntent();
+            return npc.IntentStatus;
+        }
+
+        if (npc.IntentStatus == IntentStatus.Active)
+            npc.InvalidateIntent();
+        return npc.IntentStatus;
+    }
+
+    private static void EnsureFoodIntent(Npc npc, ActionType foodAction, long tick)
+    {
+        if (npc.IntentStatus == IntentStatus.Active
+            && npc.CurrentIntent is ActionType.Buy or ActionType.Eat)
+            return;
+
+        npc.SetIntent(foodAction, tick);
+    }
+
+    private static bool TryApplyEat(WorldState world, Npc npc, long tick)
     {
         var econ = world.EconomyRules;
         if (!econ.Enabled)
         {
             npc.SetHunger(100, tick);
             npc.SetThirst(100, tick);
-            return;
+            return true;
         }
 
-        if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household) return;
+        if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household)
+            return false;
 
+        bool fed = false;
         var meal = FoodResolver.ResolveMeal(world, household);
         if (meal.Id > 0 && household.Withdraw(meal, 1).IsSuccess)
         {
             npc.SetHunger(100, tick);
             world.RecordResourceConsumed(meal, 1);
+            fed = true;
         }
 
         var water = new ResourceType(econ.WaterResourceId);
@@ -252,17 +387,22 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         {
             npc.SetThirst(100, tick);
             world.RecordResourceConsumed(water, 1);
+            fed = true;
         }
+
+        return fed;
     }
 
-    private static void ApplyBuy(WorldState world, Npc npc, MarketIndex marketIndex)
+    private static bool TryApplyBuy(WorldState world, Npc npc, MarketIndex marketIndex)
     {
-        if (!world.EconomyRules.Enabled) return;
+        if (!world.EconomyRules.Enabled) return false;
         var market = marketIndex.NearestTo(npc.CurrentLocation);
-        if (market is null) return;
-        if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household) return;
+        if (market is null) return false; // vendedor indisponível
+        if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household)
+            return false;
 
         var econ = world.EconomyRules;
+        bool bought = false;
         foreach (var resourceId in new[] { econ.FoodResourceId, econ.WaterResourceId })
         {
             var resource = new ResourceType(resourceId);
@@ -280,11 +420,15 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             market.Withdraw(resource, quantity);
             market.CreditTreasury(price);
             household.Deposit(resource, quantity);
+            bought = true;
         }
+
+        return bought;
     }
 
     private static ActionType RefineForLocation(WorldState world, Npc npc, ActionType candidate, MarketIndex marketIndex) => candidate switch
     {
+        ActionType.UsePower => ActionType.UsePower,
         ActionType.Sleep when SleepDestinationOf(world, npc) is { } dest && dest != npc.CurrentLocation => ActionType.Travel,
         ActionType.Work when WorkDestinationOf(world, npc) is { } dest && dest != npc.CurrentLocation => ActionType.Travel,
         ActionType.Buy when BuyDestinationOf(world, npc, marketIndex) is { } dest && dest != npc.CurrentLocation => ActionType.Travel,
@@ -321,25 +465,195 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             ? city.Location
             : null;
 
-    private static ActionType SelectByUtility(WorldState world, Npc npc, NeedsRules rules, ActionType? continuityAction, long tick)
+    internal readonly record struct UtilityDecision(
+        ActionType Action,
+        PendingPowerInvocation? PendingPower,
+        DecisionTrace Trace);
+
+    /// <summary>Escolhe ação por utility e expõe <see cref="DecisionTrace"/> volátil (COH-54).</summary>
+    internal static UtilityDecision SelectByUtility(
+        DecisionContext ctx, NeedsRules rules, EconomyRules economy, ActionType? continuityAction,
+        PowerUtilityRules? powerRules = null,
+        WakeReason wakeReason = WakeReason.UrgentNeed,
+        ActionType? previousIntent = null)
     {
+        var utilityRules = PowerUtilityRules.Resolve(powerRules);
         var best = ActionType.Eat;
         double bestScore = double.NegativeInfinity;
+        PendingPowerInvocation? bestPending = null;
+        var scored = new List<(ActionType Action, double Score)>(AllActions.Length + ctx.PowerOpportunities.Count);
 
         foreach (var action in AllActions)
         {
-            double score = UtilityBaseOf(world, action, npc, tick) * PersonalityWeighting.WeightOf(npc.Personality, action);
+            double score = UtilityBaseOf(ctx, action, economy) * PersonalityWeighting.WeightOf(ctx.Personality, action)
+                + ContextFactorBonus(ctx, action);
             if (rules.HysteresisEnabled && continuityAction == action)
                 score += rules.ContinuityBonus;
 
+            scored.Add((action, score));
             if (score > bestScore)
             {
                 bestScore = score;
                 best = action;
+                bestPending = null;
             }
         }
 
-        return best;
+        foreach (var opp in ctx.PowerOpportunities)
+        {
+            // Spec edge: mechanic/candidate scoring failure is isolated — exclude this
+            // opportunity from comparison; other candidates and fixed ActionTypes continue.
+            double score;
+            try
+            {
+                score = PowerOpportunityUtility(opp, ctx, utilityRules);
+            }
+            catch
+            {
+                continue;
+            }
+
+            scored.Add((ActionType.UsePower, score));
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = ActionType.UsePower;
+                bestPending = new PendingPowerInvocation(
+                    opp.PowerId, opp.MechanicToken, opp.SuggestedTarget);
+            }
+        }
+
+        var trace = BuildDecisionTrace(ctx, wakeReason, previousIntent, best, bestScore, scored);
+        return new UtilityDecision(best, bestPending, trace);
+    }
+
+    private static DecisionTrace BuildDecisionTrace(
+        DecisionContext ctx,
+        WakeReason wakeReason,
+        ActionType? previousIntent,
+        ActionType winner,
+        double winningUtility,
+        List<(ActionType Action, double Score)> scored)
+    {
+        var pressures = PressureModel.DerivePressures(ctx);
+        var opportunities = OpportunityModel.DeriveOpportunities(ctx);
+
+        var topPressures = pressures
+            .OrderByDescending(p => p.Intensity)
+            .ThenBy(p => p.Kind, StringComparer.Ordinal)
+            .Take(3)
+            .ToList();
+
+        var ordered = scored
+            .GroupBy(s => s.Action)
+            .Select(g => (Action: g.Key, Score: g.Max(x => x.Score)))
+            .OrderByDescending(s => s.Score)
+            .ThenBy(s => s.Action)
+            .ToList();
+
+        var alternatives = ordered
+            .Where(s => s.Action != winner)
+            .Take(3)
+            .Select(s => s.Action)
+            .ToList();
+
+        var positives = new List<string>();
+        foreach (var pressure in topPressures)
+        {
+            positives.Add($"{pressure.Kind}:{pressure.Intensity:0.#}");
+            foreach (var factor in pressure.Factors.Take(2))
+                positives.Add(factor);
+        }
+
+        foreach (var opp in opportunities.Take(2))
+            positives.Add(opp.Kind);
+
+        var negatives = new List<string>();
+        var blocking = new List<string>();
+        foreach (var alt in ordered.Where(s => s.Action != winner).Take(3))
+        {
+            negatives.Add($"{alt.Action}:{alt.Score:0.#}");
+            if (alt.Score < 0 || alt.Score + 25 < winningUtility)
+                blocking.Add($"{alt.Action}:outscored");
+        }
+
+        if (ctx.Household is null && winner is ActionType.Eat or ActionType.Buy)
+            blocking.Add("NoHousehold");
+
+        return new DecisionTrace(
+            WakeReason: wakeReason,
+            PreviousIntent: previousIntent,
+            TopPressures: topPressures,
+            KnownOpportunities: opportunities,
+            Winner: winner,
+            WinningUtility: winningUtility,
+            TopPositiveFactors: positives,
+            TopNegativeFactors: negatives,
+            BlockingFactors: blocking,
+            KnownAlternatives: alternatives);
+    }
+
+    /// <summary>Utility de candidato dinâmico de poder (COH-33 / AD-012):
+    /// <c>Urgency×w − Cost×w − Risk×w + Reliability×w</c>.</summary>
+    internal static double PowerOpportunityUtility(
+        PowerOpportunity opp, DecisionContext ctx, PowerUtilityRules rules)
+    {
+        double urgency = PowerUrgencyOf(ctx, opp);
+        double reliabilityBonus = string.Equals(opp.Reliability, "Guaranteed", StringComparison.Ordinal)
+            ? 1.0
+            : string.Equals(opp.Reliability, "ResolutionCheck", StringComparison.Ordinal)
+                ? 0.35
+                : 0.1;
+
+        return rules.UrgencyWeight * urgency
+            - rules.CostWeight * (double)opp.EstimatedCost * 10.0
+            - rules.RiskWeight * opp.EstimatedRisk * 100.0
+            + rules.ReliabilityWeight * reliabilityBonus * 25.0;
+    }
+
+    /// <summary>Urgência contextual: déficit máximo de needs + boost ReachDestinationUrgently
+    /// para teleport/movimento quando memória de ameaça ou necessidade de deslocamento.</summary>
+    internal static double PowerUrgencyOf(DecisionContext ctx, PowerOpportunity opp)
+    {
+        double urgency = Math.Max(
+            Math.Max(Deficit(ctx.Needs.Hunger), Deficit(ctx.Needs.Thirst)),
+            Math.Max(Deficit(ctx.Needs.Sleep), Deficit(ctx.Needs.Social)));
+
+        bool reachUrgent = ctx.RelevantMemories.Any(m =>
+            ContainsAny(m.Content, "traído", "traido", "betray", "threat", "perigo", "danger"));
+        bool locomotion = opp.MechanicToken.StartsWith("npc.teleport", StringComparison.Ordinal)
+            || opp.MechanicToken.StartsWith("movement.", StringComparison.Ordinal);
+
+        if (reachUrgent && locomotion)
+            urgency = Math.Max(urgency, 95.0);
+
+        return urgency;
+    }
+
+    /// <summary>Bônus só quando memória/crença/relação estão presentes (COH-13/14) —
+    /// listas vazias → 0, comportamento idêntico ao pré-DecisionContext (golden preservado).</summary>
+    private static double ContextFactorBonus(DecisionContext ctx, ActionType action)
+    {
+        const double factorBonus = 40.0;
+        return action switch
+        {
+            ActionType.Travel when ctx.RelevantMemories.Any(m =>
+                ContainsAny(m.Content, "traído", "traido", "betray", "threat", "perigo", "danger")) => factorBonus,
+            ActionType.Buy when ctx.RelevantBeliefs.Any(b =>
+                ContainsAny(b, "scarcity", "escassez", "fome", "hunger", "food")) => factorBonus,
+            ActionType.Socialize when ctx.KnownRelationships.Any(r => r.Trust >= 60 || r.Affection >= 60) => factorBonus,
+            _ => 0.0,
+        };
+    }
+
+    private static bool ContainsAny(string text, params string[] tokens)
+    {
+        foreach (var token in tokens)
+        {
+            if (text.Contains(token, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
     }
 
     /// <summary>PWR-56..58: considera NPCs/perigo no raio Chebyshev do portador (1 = adjacência
@@ -366,40 +680,39 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     private static int Chebyshev(CellCoord a, CellCoord b) =>
         Math.Max(Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y));
 
-    private static double UtilityBaseOf(WorldState world, ActionType action, Npc npc, long tick) => action switch
+    private static double UtilityBaseOf(DecisionContext ctx, ActionType action, EconomyRules economy) => action switch
     {
-        ActionType.Eat => EatUtilityOf(world, npc, tick),
-        ActionType.Sleep => Deficit(npc.SleepAt(tick)),
-        ActionType.Socialize => Deficit(npc.SocialAt(tick)),
-        ActionType.Buy => BuyUtilityOf(world, npc, tick),
+        ActionType.Eat => EatUtilityOf(ctx, economy),
+        ActionType.Sleep => Deficit(ctx.Needs.Sleep),
+        ActionType.Socialize => Deficit(ctx.Needs.Social),
+        ActionType.Buy => BuyUtilityOf(ctx, economy),
         ActionType.Work or ActionType.Travel or ActionType.Idle => NonNeedBaselineUtility,
+        ActionType.UsePower => 0.0, // só vence via candidatos PowerOpportunity (T22)
         _ => throw new ArgumentOutOfRangeException(nameof(action), action, "ActionType desconhecido"),
     };
 
-    private static double EatUtilityOf(WorldState world, Npc npc, long tick)
+    private static double EatUtilityOf(DecisionContext ctx, EconomyRules economy)
     {
-        double deficit = Math.Max(Deficit(npc.HungerAt(tick)), Deficit(npc.ThirstAt(tick)));
-        if (!world.EconomyRules.Enabled) return deficit;
-        if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household) return deficit;
+        double deficit = Math.Max(Deficit(ctx.Needs.Hunger), Deficit(ctx.Needs.Thirst));
+        if (!economy.Enabled) return deficit;
+        if (ctx.Household is not { } household) return deficit;
 
-        var econ = world.EconomyRules;
-        bool hasFood = household.Stock.GetValueOrDefault(new ResourceType(econ.FoodResourceId)) >= 1;
-        bool hasWater = household.Stock.GetValueOrDefault(new ResourceType(econ.WaterResourceId)) >= 1;
+        bool hasFood = household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId)) >= 1;
+        bool hasWater = household.Stock.GetValueOrDefault(new ResourceType(economy.WaterResourceId)) >= 1;
         return hasFood || hasWater ? deficit : NonNeedBaselineUtility / 2;
     }
 
-    private static double BuyUtilityOf(WorldState world, Npc npc, long tick)
+    private static double BuyUtilityOf(DecisionContext ctx, EconomyRules economy)
     {
-        if (!world.EconomyRules.Enabled) return NonNeedBaselineUtility;
-        if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household)
+        if (!economy.Enabled) return NonNeedBaselineUtility;
+        if (ctx.Household is not { } household)
             return NonNeedBaselineUtility;
 
-        var econ = world.EconomyRules;
-        bool needsFood = household.Stock.GetValueOrDefault(new ResourceType(econ.FoodResourceId)) < 1;
-        bool needsWater = household.Stock.GetValueOrDefault(new ResourceType(econ.WaterResourceId)) < 1;
+        bool needsFood = household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId)) < 1;
+        bool needsWater = household.Stock.GetValueOrDefault(new ResourceType(economy.WaterResourceId)) < 1;
         if (!needsFood && !needsWater) return NonNeedBaselineUtility;
 
-        return Math.Max(needsFood ? Deficit(npc.HungerAt(tick)) : 0, needsWater ? Deficit(npc.ThirstAt(tick)) : 0);
+        return Math.Max(needsFood ? Deficit(ctx.Needs.Hunger) : 0, needsWater ? Deficit(ctx.Needs.Thirst) : 0);
     }
 
     private static int Deficit(int need) => 100 - need;

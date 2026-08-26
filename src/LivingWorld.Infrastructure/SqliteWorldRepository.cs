@@ -60,6 +60,9 @@ public sealed class SqliteWorldRepository(WorldDbContext context) : IWorldReposi
                 Sequence = sequence,
                 Kind = evt.Kind.ToString(),
                 Payload = evt.Payload,
+                EventId = evt.EventId,
+                CauseEventId = evt.CauseEventId,
+                SourceSystem = evt.SourceSystem,
             });
         }
 

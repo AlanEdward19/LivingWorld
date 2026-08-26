@@ -1,9 +1,9 @@
 {
-  "stopped": true,
-  "reason": "User stopped background orchestrator — parent chat takes over as orchestrator (2026-08-25)",
-  "stoppedBy": "user",
+  "stopped": false,
+  "reason": "Phase 16.3 world-cohesion COMPLETE — verify PASS, validation PASS",
+  "stoppedBy": null,
   "orchestrators": {
-    "orchestrator-phase-16-2": "aborted_by_user"
+    "orchestrator-phase-16-3-cohesion": "complete"
   },
-  "instruction": "HALT background orchestrator. Parent agent owns 16.2 execution now."
+  "instruction": "Feature closed on feat/phase-16-3-world-cohesion. Do not mix with LivingWorld-16-3 (realism/16.4)."
 }

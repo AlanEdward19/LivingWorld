@@ -31,7 +31,7 @@ public sealed class WagePaymentSystem : ISimulationSystem
                 var debited = workplace.TryDebitTreasury(wage);
                 if (!debited.IsSuccess)
                 {
-                    ctx.LogEvent(WorldEventKind.WageUnpaid, $"{npc.Id.Value}|{workplace.Id.Value}|{wageAmount}");
+                    ctx.LogEvent(WorldEventKind.WageUnpaid, $"{npc.Id.Value}|{workplace.Id.Value}|{wageAmount}", sourceSystem: "WagePaymentSystem");
                     continue; // ECON-22: nem Treasury nem Wallet mudam neste caso
                 }
 

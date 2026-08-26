@@ -51,7 +51,7 @@ public static class BookOperations
 
         var lost = book.MarkLost(ctx.CurrentTick);
         world.ReplaceBook(lost);
-        ctx.LogEvent(WorldEventKind.BookLost, $"{bookId.Value}|{ctx.CurrentTick}");
+        ctx.LogEvent(WorldEventKind.BookLost, $"{bookId.Value}|{ctx.CurrentTick}", sourceSystem: "BookOperations");
         return Result<Book>.Ok(lost);
     }
 }

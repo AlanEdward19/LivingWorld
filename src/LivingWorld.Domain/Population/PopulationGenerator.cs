@@ -24,10 +24,12 @@ public static class PopulationGenerator
         WorldRng rng, WorldDate now, int count, CultureId culture, CellCoord villageLocation,
         LifeTable lifeTable, PopulationCatalog catalog, long startingNpcId = 0, long startingHouseholdId = 0,
         CityId city = default,
-        Func<int, IReadOnlyList<CellCoord>>? householdLocationsFactory = null)
+        Func<int, IReadOnlyList<CellCoord>>? householdLocationsFactory = null,
+        BodyRules? bodyRules = null)
     {
         long nextNpcId = startingNpcId;
         long nextHouseholdId = startingHouseholdId;
+        var body = BodyRules.Resolve(bodyRules);
 
         var npcs = new List<Npc>(count);
         var adults = new List<Npc>();
@@ -54,12 +56,20 @@ public static class PopulationGenerator
                 rng.Derive(WorldRngRegistry.StableHash($"vitality-{npcId.Value}")));
             var upbringing = HeredityService.RollInitialUpbringing(
                 rng.Derive(WorldRngRegistry.StableHash($"upbringing-{npcId.Value}")));
+            // Fase 16.3 (COH-21): corpo mínimo — streams irmãos height-/weight-/musclemass-.
+            var height = BodyGeneration.RollHeight(
+                rng.Derive(WorldRngRegistry.StableHash($"height-{npcId.Value}")), body);
+            var weight = BodyGeneration.RollWeight(
+                rng.Derive(WorldRngRegistry.StableHash($"weight-{npcId.Value}")), body);
+            var muscleMass = BodyGeneration.RollMuscleMass(
+                rng.Derive(WorldRngRegistry.StableHash($"musclemass-{npcId.Value}")), body);
 
             var npc = new Npc(
                 npcId, $"npc-{culture.Id}-{npcs.Count}", sex, birthDate, culture, villageLocation,
                 motherId: null, fatherId: null, household: null, health,
                 personality: personality, profession: profession, currentLocation: villageLocation,
-                rateGene: rateGene, vitality: vitality, upbringing: upbringing, city: city);
+                rateGene: rateGene, vitality: vitality, upbringing: upbringing, city: city,
+                height: height, weight: weight, muscleMass: muscleMass);
 
             npcs.Add(npc);
             (ageYears >= 18 ? adults : children).Add(npc);

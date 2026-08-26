@@ -37,6 +37,7 @@ public class FoodPresentationTests
             [ActionType.Travel] = 1,
             [ActionType.Idle] = 100,
             [ActionType.Buy] = 1,
+            [ActionType.UsePower] = 1,
         },
         routineSlots: [], defaultAction: ActionType.Idle).Value!;
 

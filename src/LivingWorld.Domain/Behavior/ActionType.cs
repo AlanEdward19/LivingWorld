@@ -16,4 +16,8 @@ public enum ActionType
     /// <summary>Fase 5 (AD-040): viagem a um <c>Workplace</c> de mercado + execução de uma
     /// transação de compra.</summary>
     Buy = 6,
+
+    /// <summary>Fase 16.3 P1d (COH-33): usar um poder extraordinário — o poder específico
+    /// vive em <c>Npc.PendingPowerInvocation</c>, não neste enum.</summary>
+    UsePower = 7,
 }

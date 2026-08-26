@@ -69,6 +69,38 @@ public class PopulationGeneratorTests
         // Task 7: mesma seed produz mesma Personality/Profissão para o mesmo NPC.
         Assert.Equal(a.Npcs.Select(n => n.Personality), b.Npcs.Select(n => n.Personality));
         Assert.Equal(a.Npcs.Select(n => n.Profession), b.Npcs.Select(n => n.Profession));
+        // Fase 16.3 COH-21: mesma seed → mesmos Height/Weight/MuscleMass.
+        Assert.Equal(a.Npcs.Select(n => (n.Height, n.Weight, n.MuscleMass)),
+            b.Npcs.Select(n => (n.Height, n.Weight, n.MuscleMass)));
+    }
+
+    [Fact]
+    public void Generated_npcs_have_body_fields_within_BodyRules_range()
+    {
+        var now = WorldDate.Epoch(Calendar).AddYears(200);
+        var rules = BodyRules.Default;
+        var generated = PopulationGenerator.GenerateInitial(
+            new WorldRng(11), now, 50, new CultureId(1), new CellCoord(5, 5), Table, EmptyCatalog,
+            bodyRules: rules);
+
+        Assert.All(generated.Npcs, n =>
+        {
+            Assert.InRange(n.Height, rules.HeightMin, rules.HeightMax);
+            Assert.InRange(n.Weight, rules.WeightMin, rules.WeightMax);
+            Assert.InRange(n.MuscleMass, rules.MuscleMassMin, rules.MuscleMassMax);
+        });
+    }
+
+    [Fact]
+    public void Different_seeds_produce_different_body_fields()
+    {
+        var now = WorldDate.Epoch(Calendar).AddYears(200);
+        var a = PopulationGenerator.GenerateInitial(new WorldRng(100), now, 20, new CultureId(1), new CellCoord(5, 5), Table, EmptyCatalog);
+        var b = PopulationGenerator.GenerateInitial(new WorldRng(101), now, 20, new CultureId(1), new CellCoord(5, 5), Table, EmptyCatalog);
+
+        Assert.NotEqual(
+            a.Npcs.Select(n => (n.Height, n.Weight, n.MuscleMass)),
+            b.Npcs.Select(n => (n.Height, n.Weight, n.MuscleMass)));
     }
 
     [Fact]

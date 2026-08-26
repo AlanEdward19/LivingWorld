@@ -50,6 +50,7 @@ public class PurposefulCommuteTests
             [ActionType.Travel] = 1,
             [ActionType.Idle] = 1,
             [ActionType.Buy] = 1,
+            [ActionType.UsePower] = 1,
         },
         routineSlots: [new RoutineSlot(ProfessionId: null, LifeStage.Adult, HourStart: 0, HourEnd: 23, ActionType.Work)],
         defaultAction: ActionType.Idle).Value!;
@@ -67,6 +68,7 @@ public class PurposefulCommuteTests
             [ActionType.Travel] = 1,
             [ActionType.Idle] = 1,
             [ActionType.Buy] = 1,
+            [ActionType.UsePower] = 1,
         },
         routineSlots:
         [

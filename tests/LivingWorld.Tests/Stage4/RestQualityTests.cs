@@ -49,6 +49,7 @@ public class RestQualityTests
             [ActionType.Travel] = 1,
             [ActionType.Idle] = 100,
             [ActionType.Buy] = 1,
+            [ActionType.UsePower] = 1,
         },
         routineSlots: [],
         defaultAction: ActionType.Idle).Value!;
@@ -223,7 +224,7 @@ public class RestQualityTests
               "HungerDecayPerHour": 2, "ThirstDecayPerHour": 3, "SleepDecayPerHour": 1.5, "SocialDecayPerHour": 1,
               "UrgencyThreshold": 70, "MaxActionSelectionSteps": 10, "HysteresisEnabled": true,
               "ContinuityBonus": 5, "HomelessSleepEfficiency": 0.4,
-              "MaxDurationHours": { "Eat": 1, "Sleep": 1, "Work": 1, "Socialize": 1, "Travel": 1, "Idle": 1, "Buy": 1 },
+              "MaxDurationHours": { "Eat": 1, "Sleep": 1, "Work": 1, "Socialize": 1, "Travel": 1, "Idle": 1, "Buy": 1, "UsePower": 1 },
               "RoutineSlots": [], "DefaultAction": "Idle"
             }
             """;

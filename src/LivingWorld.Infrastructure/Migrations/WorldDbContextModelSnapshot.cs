@@ -28,12 +28,21 @@ namespace LivingWorld.Infrastructure.Migrations
                     b.Property<int>("Sequence")
                         .HasColumnType("INTEGER");
 
+                    b.Property<long?>("CauseEventId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("EventId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Payload")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceSystem")
                         .HasColumnType("TEXT");
 
                     b.HasKey("BranchId", "Tick", "Sequence");

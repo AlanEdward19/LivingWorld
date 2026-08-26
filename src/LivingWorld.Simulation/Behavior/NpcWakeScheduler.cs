@@ -3,7 +3,8 @@ using LivingWorld.Domain;
 namespace LivingWorld.Simulation.Behavior;
 
 /// <summary>Agenda acordar NPC no tick em que a ação termina ou uma necessidade cruza limiar
-/// (Fase 9, PERF-08).</summary>
+/// (Fase 9, PERF-08). Fase 16.3 P2a: também agenda wakes event-driven via
+/// <see cref="AttentionRouter"/> (COH-43/44).</summary>
 public static class NpcWakeScheduler
 {
     public const string SystemName = "npc-wake";
@@ -29,8 +30,28 @@ public static class NpcWakeScheduler
     public static void ScheduleWake(WorldState world, TickContext ctx, long npcId, long targetTick) =>
         world.ReplaceNpcWake(ctx, npcId, targetTick);
 
+    /// <summary>Agenda wake imediato (próximo tick) para NPCs roteados pelo AttentionRouter
+    /// que tenham Intent Active — dedupe via <see cref="WorldState.ReplaceNpcWake"/>.</summary>
+    public static void ScheduleAttentionWakes(
+        WorldState world, TickContext ctx, WorldEvent evt, AttentionRules rules, long now)
+    {
+        var routed = AttentionRouter.RouteRelevantNpcs(world, evt, rules);
+        foreach (var npcId in routed.OrderBy(id => id.Value))
+        {
+            if (world.FindNpc(npcId) is not { IsAlive: true } npc) continue;
+            // COH-44: sem Intent válido, comportamento antigo (só threshold/fim de ação).
+            if (npc.IntentStatus != IntentStatus.Active) continue;
+
+            long wakeAt = ComputeNextWakeTick(
+                npc, world.NeedsRules, world.ActionCatalog, now, world,
+                eventDrivenWakeTick: now + 1);
+            ScheduleWake(world, ctx, npcId.Value, wakeAt);
+        }
+    }
+
     public static long ComputeNextWakeTick(
-        Npc npc, NeedsRules needsRules, ActionCatalog catalog, long now, WorldState world)
+        Npc npc, NeedsRules needsRules, ActionCatalog catalog, long now, WorldState world,
+        long? eventDrivenWakeTick = null)
     {
         long next = long.MaxValue;
         next = Math.Min(next, NextThresholdCrossing(npc.HungerNeed, now, needsRules.UrgencyThreshold));
@@ -43,6 +64,9 @@ public static class NpcWakeScheduler
             long actionEnd = npc.ActionStartedAtTick + catalog.MaxDurationHours[action];
             next = Math.Min(next, actionEnd);
         }
+
+        if (eventDrivenWakeTick is { } attentionTick)
+            next = Math.Min(next, attentionTick);
 
         if (next == long.MaxValue) next = now + 1;
         if (next <= now) next = now + 1;

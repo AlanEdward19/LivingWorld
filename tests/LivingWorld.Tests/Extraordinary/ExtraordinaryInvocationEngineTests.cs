@@ -250,6 +250,7 @@ public sealed class ExtraordinaryInvocationEngineTests
             manifested: true, manifestationCondition: "world:is-night");
         string beforeHash = WorldSnapshot.CanonicalHash(dormant.World);
         long beforeEventId = dormant.World.NextEventId;
+        long beforeHistoryEventId = dormant.World.NextHistoryEventId;
 
         var rejected = ExtraordinaryInvocationEngine.InvokeAuthored(
             dormant.World, new TickContext(dormant.World, dormant.World.Rng, dormant.World.Scheduler),
@@ -258,10 +259,13 @@ public sealed class ExtraordinaryInvocationEngineTests
             manifested.World, new TickContext(manifested.World, manifested.World.Rng, manifested.World.Scheduler),
             manifested.Carrier.Id, "test-power", manifested.Target.Id);
 
-        Assert.Equal((false, 50, 5L, beforeEventId, beforeHash),
+        // Material zero-state: stock/health/ScheduledEvent counter untouched. History EventId
+        // advances (attempt+fail audit) — NextHistoryEventId is canonical (AD-013), so hash moves.
+        Assert.Equal((false, 50, 5L, beforeEventId, beforeHistoryEventId + 2),
             (rejected.IsSuccess, dormant.Target.Health,
                 dormant.Home.Stock[new ResourceType(9)], dormant.World.NextEventId,
-                WorldSnapshot.CanonicalHash(dormant.World)));
+                dormant.World.NextHistoryEventId));
+        Assert.NotEqual(beforeHash, WorldSnapshot.CanonicalHash(dormant.World));
         Assert.Equal((true, 65, 3L),
             (accepted.IsSuccess, manifested.Target.Health,
                 manifested.Home.Stock[new ResourceType(9)]));

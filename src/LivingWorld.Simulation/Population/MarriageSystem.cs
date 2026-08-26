@@ -29,7 +29,7 @@ public static class MarriageSystem
         spouseA.Marry(spouseB.Id);
         spouseB.Marry(spouseA.Id);
 
-        ctx.LogEvent(WorldEventKind.Marriage, $"{spouseA.Id.Value}|{spouseB.Id.Value}");
+        ctx.LogEvent(WorldEventKind.Marriage, $"{spouseA.Id.Value}|{spouseB.Id.Value}", sourceSystem: "MarriageSystem");
     }
 
     private static void LeavePreviousHousehold(WorldState world, TickContext ctx, Npc npc)

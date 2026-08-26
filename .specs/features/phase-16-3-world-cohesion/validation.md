@@ -52,7 +52,7 @@ T1–T39 + closeout fixes: **Done** (progress.md; HEAD `d1cc79f`).
 | COH-65 | `LivingVillageScenarioTests.cs:72-80` | ✅ |
 | COH-66 | gate PASS + STATE AD-011..014 | ✅ |
 
-**Status**: ✅ 35/35 · soft ⚠️ belief→decision unasserted
+**Status**: ✅ 35/35
 
 ## Discrimination Sensor
 
@@ -66,9 +66,10 @@ Static lightweight (Ask/AD-009 blocked live mutate):
 
 ## Edge / follow-ups (non-blocking)
 
-- Mechanic eval exception isolation: missing
-- ~54 LogEvent Unknown backlog (audit)
+- ~~Mechanic eval exception isolation: missing~~ **done** — `SelectByUtility` isolates per-candidate scoring exceptions (`BehaviorDecisionSystemTests` throwing-candidate cases)
+- ~~~54 LogEvent Unknown backlog (audit)~~ **done** — Simulation call sites pass explicit `SourceSystem`; `TickContextLogEventTests` scan + high-traffic assertions
+- Belief→Buy divergence **done** — `DecisionContextIntegrationTests.Scarcity_belief_diverges_decision_toward_Buy`
 
 ## Summary
 
-**Overall**: ✅ PASS — feature ready to close.
+**Overall**: ✅ PASS — feature closed and merged to primary.

@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json.Nodes;
 using LivingWorld.Api;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace LivingWorld.Tests.Periods;
 

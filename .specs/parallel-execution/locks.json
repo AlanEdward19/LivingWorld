@@ -1,4 +1,1 @@
-{
-  "testLock": { "holder": null, "phase": null, "command": null, "acquiredAt": null },
-  "fileLocks": { "WorldEventKind.cs": null }
-}
+{"testLock":{"holder":null,"phase":null,"command":null,"acquiredAt":null},"fileLocks":{"WorldEventKind.cs":null}}

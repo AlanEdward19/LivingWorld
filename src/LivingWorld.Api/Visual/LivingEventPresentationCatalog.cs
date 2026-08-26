@@ -51,6 +51,7 @@ public static class LivingEventPresentationCatalog
             [WorldEventKind.NpcInstantiated] = "Uma nova pessoa surgiu por capacidade extraordinária",
             [WorldEventKind.IdentityChanged] = "A identidade observável de um habitante mudou",
             [WorldEventKind.PowerInherited] = "Um nascido herdou capacidade extraordinária",
+            [WorldEventKind.PowerInvoked] = "Um habitante invocou uma capacidade extraordinária",
         };
 
     public static string Describe(WorldEventKind kind) =>

@@ -220,4 +220,68 @@ public class ProductionSystemTests
         Assert.Equal(90, workplace.Stock[new ResourceType(1)]);
         Assert.Equal(100, workplace.Stock[new ResourceType(2)]);
     }
+
+    // --- Fase 16.3, T9 (COH-22): WorkCapacityMultiplier como 4º fator ---
+
+    private static Npc MakeWorkerWithMuscle(WorldState world, CellCoord location, double muscleMass)
+    {
+        var npc = new Npc(
+            world.NextNpcIdAndAdvance(), "worker", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30), new CultureId(1),
+            location, motherId: null, fatherId: null, household: null, health: 100,
+            personality: SomePersonality, profession: new ProfessionType(1), currentLocation: location,
+            muscleMass: muscleMass);
+        world.AddNpc(npc);
+        return npc;
+    }
+
+    [Fact]
+    public void WorkCapacityMultiplier_is_applied_as_fourth_production_factor()
+    {
+        var recipe = ProductionRecipe.Create(
+            new Dictionary<int, long>(), new Dictionary<int, long> { [1] = 100 }, requiresCellResource: null, maxWorkersPerCycle: 1).Value!;
+        var catalog = new EconomyCatalog(new Dictionary<int, ProductionRecipe> { [1] = recipe }, [], new Dictionary<int, int>());
+        var location = new CellCoord(1, 1);
+        var world = BuildWorld(catalog);
+        var workplace = new Workplace(
+            world.NextWorkplaceIdAndAdvance(), new LocationType(1), location, maxVacancies: 1,
+            employees: [], stock: new Dictionary<ResourceType, long>(), treasury: Money.Zero, prices: new Dictionary<ResourceType, long>());
+        world.AddWorkplace(workplace);
+        // MuscleMassMean default = 28 → multiplier 1.0 at mean; 56 → 1.5
+        var worker = MakeWorkerWithMuscle(world, location, muscleMass: 56);
+        workplace.Hire(worker.Id);
+        worker.Hire(workplace.Id);
+        var ctx = new TickContext(world, world.Rng, world.Scheduler);
+
+        new ProductionSystem().Tick(world, ctx);
+
+        Assert.Equal(150, workplace.Stock[new ResourceType(1)]);
+    }
+
+    [Fact]
+    public void Two_npcs_same_job_different_MuscleMass_produce_different_output()
+    {
+        var recipe = ProductionRecipe.Create(
+            new Dictionary<int, long>(), new Dictionary<int, long> { [1] = 100 }, requiresCellResource: null, maxWorkersPerCycle: 1).Value!;
+        var catalog = new EconomyCatalog(new Dictionary<int, ProductionRecipe> { [1] = recipe }, [], new Dictionary<int, int>());
+        var location = new CellCoord(1, 1);
+
+        long ProduceWithMuscle(double muscleMass)
+        {
+            var world = BuildWorld(catalog);
+            var workplace = new Workplace(
+                world.NextWorkplaceIdAndAdvance(), new LocationType(1), location, maxVacancies: 1,
+                employees: [], stock: new Dictionary<ResourceType, long>(), treasury: Money.Zero, prices: new Dictionary<ResourceType, long>());
+            world.AddWorkplace(workplace);
+            var worker = MakeWorkerWithMuscle(world, location, muscleMass);
+            workplace.Hire(worker.Id);
+            worker.Hire(workplace.Id);
+            new ProductionSystem().Tick(world, new TickContext(world, world.Rng, world.Scheduler));
+            return workplace.Stock.GetValueOrDefault(new ResourceType(1));
+        }
+
+        long weak = ProduceWithMuscle(14);
+        long strong = ProduceWithMuscle(42);
+
+        Assert.True(strong > weak, $"strong={strong} should exceed weak={weak}");
+    }
 }

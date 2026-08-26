@@ -65,6 +65,7 @@ public static class ScenarioRunner
         new RelationshipSystem(),
         new SkillPracticeSystem(DefaultSkillsRules),
         new SkillTeachingSystem(DefaultSkillsRules, DefaultLifeStageRules),
+        new WorkHardeningSystem(),
         new ProductionSystem(DefaultSkillsRules),
         new CropSystem(),
         new MarketPricingSystem(),
@@ -239,6 +240,7 @@ public static class ScenarioRunner
             [ActionType.Travel] = 4,
             [ActionType.Idle] = 2,
             [ActionType.Buy] = 2,
+            [ActionType.UsePower] = 1,
         },
         routineSlots:
         [

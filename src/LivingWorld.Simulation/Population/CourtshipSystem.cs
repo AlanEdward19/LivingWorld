@@ -80,7 +80,7 @@ public sealed class CourtshipSystem : ISimulationSystem
             return;
         }
 
-        ctx.LogEvent(WorldEventKind.CourtshipSucceeded, OrderedPairPayload(a.Id, b.Id));
+        ctx.LogEvent(WorldEventKind.CourtshipSucceeded, OrderedPairPayload(a.Id, b.Id), sourceSystem: "CourtshipSystem");
         MarriageSystem.Marry(world, ctx, a, b);
         a.EndCourtship();
         b.EndCourtship();
@@ -172,7 +172,7 @@ public sealed class CourtshipSystem : ISimulationSystem
         {
             ctx.LogEvent(
                 WorldEventKind.CourtshipRejected,
-                $"{reason}|{seeker.Id.Value}|{candidate.Id.Value}");
+                $"{reason}|{seeker.Id.Value}|{candidate.Id.Value}", sourceSystem: "CourtshipSystem");
             return;
         }
 
@@ -183,7 +183,7 @@ public sealed class CourtshipSystem : ISimulationSystem
         {
             ctx.LogEvent(
                 WorldEventKind.CourtshipRejected,
-                $"{CourtshipRejectionReason.SemAfinidade}|{seeker.Id.Value}|{candidate.Id.Value}");
+                $"{CourtshipRejectionReason.SemAfinidade}|{seeker.Id.Value}|{candidate.Id.Value}", sourceSystem: "CourtshipSystem");
             return;
         }
 
@@ -194,7 +194,7 @@ public sealed class CourtshipSystem : ISimulationSystem
     {
         a.StartCourtship(b.Id);
         b.StartCourtship(a.Id);
-        ctx.LogEvent(WorldEventKind.CourtshipStarted, OrderedPairPayload(a.Id, b.Id));
+        ctx.LogEvent(WorldEventKind.CourtshipStarted, OrderedPairPayload(a.Id, b.Id), sourceSystem: "CourtshipSystem");
 
         var dueDate = world.CurrentDate.AddDays(familyRules.CourtshipDurationDays);
         ctx.ScheduleEvent(dueDate.TotalHours, SystemName, OrderedPairPayload(a.Id, b.Id));

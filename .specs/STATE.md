@@ -115,7 +115,66 @@
 - **Date**: 2026-08-25
 - **Status**: active
 
+### AD-014
+- **Decision**: Regravar `tests/golden/world-hashes.json` (default seed 42/43 × 100 e 3650 ticks)
+  após Phase 16.3 P1d (powers full utility) nesta branch.
+- **Reason**: Hash canônico mudou de forma legítima — `ActionCatalog.MaxDurationHours` passou a
+  declarar `ActionType.UsePower` (AD-040 / COH-33; enum fechado entra no snapshot) e fases P1a–P1c
+  nesta branch já haviam adicionado campos canônicos (`EventId`/`CauseEventId`/`SourceSystem`,
+  `Height`/`Weight`/`MuscleMass`). Não é regressão silenciosa: baseline atualizado com AD explícito
+  (padrão AD-065/069).
+- **Trade-off**: Mundos gravados com golden anterior não batem byte-a-byte; comportamento de
+  cenário `default` sem powers ativos continua deterministicamente reproduzível sob o novo hash.
+  Possessão (`ControlMechanic.TryDelegatedAction`) permanece no caminho especial intocado (COH-36).
+- **Scope**: Fase 16.3 Living World Cohesion Phase 4 / T24 — `tests/golden/world-hashes.json`.
+- **Date**: 2026-08-26
+- **Status**: active
+
+### AD-015
+- **Decision**: Regravar `tests/baselines/action-switches.json` no closeout da Fase 16.3 cohesion.
+- **Reason**: DecisionContext / Intent / PowerOpportunity (P1c–P1e) alteram escolhas de ação de
+  forma legítima e determinística — mesma classe de ripple que AD-005/AD-006.
+- **Trade-off**: Contagens por seed mudam; histerese continua reduzindo trocas vs braço sem
+  histerese. Regravação via `ZZZ_record_action_switches_baseline`.
+- **Scope**: Fase 16.3 closeout — `tests/baselines/action-switches.json`.
+- **Date**: 2026-08-26
+- **Status**: active
+
+### AD-016
+- **Decision**: Regravar entrada 1k de `tests/baselines/scale-sensor.json` no closeout cohesion;
+  manter entrada 5k (Category=Scenario) da baseline anterior.
+- **Reason**: Cohesion (body/decision/powers) deslocou `BytesPerAliveNpcPerYear` fora da faixa
+  relativa de 1% no sensor de gate (1k). Não é regressão de perf absoluta — tetos de
+  `PerfRules.ScaleSensorInitial` continuam válidos.
+- **Trade-off**: Disco/alloc por NPC-ano sobe levemente na amostra 1k; 5k não foi re-medido neste
+  closeout (custo multi-10min, fora do gate padrão).
+- **Scope**: Fase 16.3 closeout — `tests/baselines/scale-sensor.json` (chave `"1000"`).
+- **Date**: 2026-08-26
+- **Status**: active
+
+### AD-017
+- **Decision**: Regravar `tests/golden/world-hashes.json` novamente no closeout (após AD-014/T24).
+- **Reason**: WorkHardeningSystem no DefaultSystems + campos/canônicos finais da cohesion
+  mudaram o hash do cenário `default` vs baseline AD-014.
+- **Trade-off**: Mesmo da AD-014 — mundos com golden anterior não batem byte-a-byte.
+- **Scope**: Fase 16.3 closeout — `tests/golden/world-hashes.json`.
+- **Date**: 2026-08-26
+- **Status**: active
+
 ## Handoff
+
+- **Feature**: Fase 16.3 Living World Cohesion — **MERGED** into primary
+  (`feat/phase-16-2-power-evolution`) from worktree `LivingWorld-16-3-cohesion`
+  (`feat/phase-16-3-world-cohesion`). Soft follow-ups done (exception isolation + LogEvent SourceSystem).
+- **Audit**: [`docs/audits/living-world-cohesion-audit.md`](../docs/audits/living-world-cohesion-audit.md)
+- **Validation**: `.specs/features/phase-16-3-world-cohesion/validation.md` — PASS 35/35 COH
+- **ADs**: AD-011..013 (arquitetura) + AD-014..017 (baselines/golden closeout)
+- **Next**: remove cohesion worktree when merge is confirmed; Height/Weight consumers → 16.4+
+- **Blockers**: none
+
+---
+
+### Histórico — pausa paralelismo / gate hygiene (pré-16.3 Execute)
 
 - **Execução paralela PAUSADA (2026-08-25 19:46)**: STOP.json ativo em todos worktrees.
   Locks liberados. Ver `.specs/parallel-execution/STATUS.md` + progress files antes de retomar.

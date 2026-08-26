@@ -36,7 +36,9 @@ public sealed class BookRediscoverySystem : ISimulationSystem
 
         var rediscovered = book.WithRediscovered(ctx.CurrentTick);
         world.ReplaceBook(rediscovered);
-        ctx.LogEvent(WorldEventKind.BookRediscovered, $"{bookId.Value}|{ctx.CurrentTick}");
+        ctx.LogEvent(
+            WorldEventKind.BookRediscovered, $"{bookId.Value}|{ctx.CurrentTick}",
+            sourceSystem: "BookRediscoverySystem");
         return Result<Book>.Ok(rediscovered);
     }
 }
