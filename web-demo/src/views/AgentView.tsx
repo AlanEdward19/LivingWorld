@@ -3,6 +3,7 @@ import type { WorldFixture } from "../fixture/types";
 import type { NavigationStore } from "../nav/NavigationStore";
 import { NpcToken } from "../npc/NpcToken";
 import { WhyPanel } from "./WhyPanel";
+import { FollowButton } from "../components/FollowButton";
 
 export interface AgentViewProps {
   fixture: WorldFixture;
@@ -26,6 +27,7 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
     <div data-testid="agent-view">
       <NpcToken id={agent.id} size={64} />
       <h1>{agent.name}</h1>
+      <FollowButton entityId={agent.id} />
       <p data-testid="agent-age-profession">
         {agent.age} · {agent.profession}
       </p>

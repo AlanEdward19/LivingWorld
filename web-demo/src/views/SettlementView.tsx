@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { WorldFixture } from "../fixture/types";
 import type { NavigationStore } from "../nav/NavigationStore";
 import { SemanticZoomMap, type ZoomLevel } from "../map/SemanticZoomMap";
+import { FollowButton } from "../components/FollowButton";
 
 export interface SettlementViewProps {
   fixture: WorldFixture;
@@ -26,6 +27,7 @@ export function SettlementView({ fixture, nav, settlementId }: SettlementViewPro
   return (
     <div data-testid="settlement-view">
       <h1>{settlement.name}</h1>
+      <FollowButton entityId={settlement.id} />
 
       <dl data-testid="settlement-pulse">
         <dt>Population</dt>

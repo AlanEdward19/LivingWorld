@@ -1,6 +1,7 @@
 import type { WorldFixture } from "../fixture/types";
 import type { NavigationStore } from "../nav/NavigationStore";
 import { NpcToken } from "../npc/NpcToken";
+import { FollowButton } from "../components/FollowButton";
 
 export interface HouseholdViewProps {
   fixture: WorldFixture;
@@ -27,6 +28,7 @@ export function HouseholdView({ fixture, nav, householdId }: HouseholdViewProps)
   return (
     <div data-testid="household-view">
       <h1>{household.name}</h1>
+      <FollowButton entityId={household.id} />
 
       <ul data-testid="household-members">
         {members.map((member) => (
