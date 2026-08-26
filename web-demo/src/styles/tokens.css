@@ -297,6 +297,35 @@ svg[data-testid="semantic-zoom-map"] {
   border: 1px solid var(--border);
 }
 
+/* § 103 Event markers — "small pulse once", depois fica discreto e estático. Um único
+ * keyframe (iteration-count 1) na montagem, nunca piscando pra sempre (§171: no gamification
+ * noise). § 150: sem movimento quando o usuário pede reduced motion. */
+[data-testid="event-marker"] {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-testid="event-marker"] {
+    animation: event-marker-pulse 1.2s ease-out 1;
+  }
+}
+
+@keyframes event-marker-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 /* § 66-73 Causal Explorer — linguagem visual própria: causa (azul-acinzentado) → selecionado (dourado) → consequência (terracota) */
 [data-testid="causal-explorer"] h1 {
   color: var(--accent);

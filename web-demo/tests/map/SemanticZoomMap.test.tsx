@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 import { SemanticZoomMap } from "../../src/map/SemanticZoomMap";
 import { WORLD_FIXTURE } from "../../src/fixture/oakbridge";
+import { toScreen } from "../../src/map/IsoProjection";
+import { TILE_HEIGHT, TILE_WIDTH } from "../../src/map/IsoTileRenderer";
 
 const OAKBRIDGE = WORLD_FIXTURE.settlements.find((s) => s.id === "oakbridge")!;
 const OAKBRIDGE_AGENTS = WORLD_FIXTURE.agents.filter((a) => a.settlementId === "oakbridge");
@@ -107,5 +109,47 @@ describe("SemanticZoomMap — information density changes across zoom levels", (
     expect(districtCount).toBe(OAKBRIDGE.buildings.length * 3);
     expect(agentCount).toBe(OAKBRIDGE_AGENTS.length);
     expect(new Set([worldCount, districtCount, agentCount]).size).toBe(3);
+  });
+});
+
+describe("SemanticZoomMap — camera centered on content (doc §192 Map QA)", () => {
+  it("world-level viewBox bounding box contains every settlement's screen point", () => {
+    const { container } = render(<SemanticZoomMap fixture={WORLD_FIXTURE} onSelectSettlement={() => {}} onSelectNpc={() => {}} />);
+    const svg = container.querySelector("svg")!;
+    const [minX, minY, width, height] = svg.getAttribute("viewBox")!.split(" ").map(Number);
+
+    for (const settlement of WORLD_FIXTURE.settlements) {
+      const { x, y } = toScreen(settlement.gridPosition.x, settlement.gridPosition.y, TILE_WIDTH, TILE_HEIGHT);
+      expect(x).toBeGreaterThanOrEqual(minX);
+      expect(x).toBeLessThanOrEqual(minX + width);
+      expect(y).toBeGreaterThanOrEqual(minY);
+      expect(y).toBeLessThanOrEqual(minY + height);
+    }
+  });
+
+  it("does not use the old fixed 0 0 800 600 viewBox that left content off-center", () => {
+    const { container } = render(<SemanticZoomMap fixture={WORLD_FIXTURE} onSelectSettlement={() => {}} onSelectNpc={() => {}} />);
+    expect(container.querySelector("svg")!.getAttribute("viewBox")).not.toBe("0 0 800 600");
+  });
+});
+
+describe("SemanticZoomMap — event markers for notable events (doc §103)", () => {
+  it("shows an event marker on Oakbridge (has Story Thread events) at world level", () => {
+    const { getAllByTestId } = render(<SemanticZoomMap fixture={WORLD_FIXTURE} onSelectSettlement={() => {}} onSelectNpc={() => {}} />);
+    expect(getAllByTestId("event-marker")).toHaveLength(1);
+  });
+
+  it("shows an event marker on Mira (affected by Story Thread events) at agent level", () => {
+    const { container, getAllByTestId } = render(
+      <SemanticZoomMap fixture={WORLD_FIXTURE} level="agent" settlementId="oakbridge" onSelectSettlement={() => {}} onSelectNpc={() => {}} />,
+    );
+    const oakbridgeAgents = WORLD_FIXTURE.agents.filter((a) => a.settlementId === "oakbridge");
+    const notableCount = oakbridgeAgents.filter((a) =>
+      WORLD_FIXTURE.events.some(
+        (e) => WORLD_FIXTURE.storyThreads.some((t) => t.eventIds.includes(e.eventId)) && e.affectedAgentIds.includes(a.id),
+      ),
+    ).length;
+    expect(getAllByTestId("event-marker")).toHaveLength(notableCount);
+    expect(container.querySelectorAll("[data-testid='agent-marker']").length).toBe(oakbridgeAgents.length);
   });
 });
