@@ -69,7 +69,11 @@ export interface AgentFixture {
   profession: string;
   settlementId: string;
   householdId: string | null;
-  gridPosition: { x: number; y: number }; // zoom "agente"
+  /** Pontos de patrulha (mesmo espaço de grid dos prédios do settlement) — o NPC se move entre
+   * eles em loop, decorativo/scripted (AD-018: sem simulação real rodando nesta demo pra
+   * derivar posição de verdade ao longo do tempo). Nunca vazio — mínimo 2 pontos formam o loop;
+   * 1 ponto só = fica parado nesse ponto (ex.: crianças brincando perto de casa). */
+  patrolPoints: { x: number; y: number }[];
   currentIntent: string; // "Looking for affordable grain"
   condition: string[]; // ["Healthy", "Tired", "Hungry"]
   bodySummary: { build: string }; // "Average height · Strong"

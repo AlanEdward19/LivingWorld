@@ -161,6 +161,14 @@
 - **Date**: 2026-08-26
 - **Status**: active
 
+### AD-018
+- **Decision**: `phase-16-3-web` (demo isolada) — `LivingWorld_Frontend_Final.md` (doc consolidado, mais recente) passa a mandar sobre `LivingWorld — Frontend Experience & Design System.md` (doc anterior) nos pontos em que os dois conflitam. Primeiro conflito resolvido: NPCs nunca somem por causa do zoom (doc novo §14/§46) — revoga P1b AC1-2 da spec original ("nenhum NPC visível" no nível mundo/distrito). Nesta demo (sem simulação real rodando), a posição do NPC ganha um movimento decorativo/scripted entre pontos do fixture — trade-off explícito do usuário sobre o próprio doc novo §82 ("no fake world... nunca inventar activity/position"), aceito porque não há simulação de verdade pra derivar posição real ao longo do tempo.
+- **Reason**: Usuário testou a demo ao vivo e disse que a experiência "ainda não bate com o que eu imaginei" — pediu explicitamente "poder ver os NPCs vivendo no mundo" depois de ler o doc consolidado.
+- **Trade-off**: O movimento não é canônico/derivado de simulação — é uma simulação visual decorativa só pra esta demo provar a sensação de "mundo vivo" antes da integração real (`phase-16-3-world-cohesion`). Documentado explicitamente no código/README/checklist pra não ser confundido com dado real quando a integração acontecer.
+- **Scope**: `.specs/features/phase-16-3-web/` (demo isolada) — não afeta `phase-16-3-world-cohesion` (backend) nem `web/` (cliente de produção).
+- **Date**: 2026-08-26
+- **Status**: active
+
 ## Handoff
 
 - **Feature**: Fase 16.3 Living World Cohesion — **MERGED** into primary
