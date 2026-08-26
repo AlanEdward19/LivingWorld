@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import type { WorldFixture } from "../fixture/types";
 import type { NavigationStore } from "../nav/NavigationStore";
 import { NpcToken } from "../npc/NpcToken";
 import { WhyPanel } from "./WhyPanel";
 import { FollowButton } from "../components/FollowButton";
+import { modeStore } from "../state/modeStore";
 
 export interface AgentViewProps {
   fixture: WorldFixture;
@@ -17,6 +18,10 @@ export interface AgentViewProps {
  */
 export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
   const [whyOpen, setWhyOpen] = useState(false);
+  const mode = useSyncExternalStore(
+    (listener) => modeStore.subscribe(listener),
+    () => modeStore.currentMode(),
+  );
   const agent = fixture.agents.find((a) => a.id === agentId);
   if (!agent) return null;
 
@@ -66,8 +71,14 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
         <WhyPanel
           factors={agent.whyFactors}
           onFactorClick={(eventId) => nav.push({ kind: "causal", eventId })}
+          debug={mode === "debug"}
+          events={fixture.events}
         />
       )}
+
+      <button type="button" data-testid="toggle-mode" onClick={() => modeStore.toggleMode()}>
+        {mode === "debug" ? "Switch to Experience Mode" : "Switch to Debug Mode"}
+      </button>
 
       <button
         type="button"

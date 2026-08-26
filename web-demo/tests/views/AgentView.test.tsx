@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { AgentView } from "../../src/views/AgentView";
 import { NavigationStore } from "../../src/nav/NavigationStore";
 import { WORLD_FIXTURE } from "../../src/fixture/oakbridge";
+import { modeStore } from "../../src/state/modeStore";
 
 const MIRA = WORLD_FIXTURE.agents.find((a) => a.id === "mira-valen")!;
 
@@ -61,5 +62,17 @@ describe("AgentView", () => {
     render(<AgentView fixture={WORLD_FIXTURE} nav={nav} agentId="mira-valen" />);
     fireEvent.click(screen.getByTestId("view-timeline"));
     expect(nav.current()).toEqual({ kind: "timeline", scope: { type: "agent", id: "mira-valen" } });
+  });
+
+  it("Debug Mode shows technical event fields in the Why panel without losing the current selection (doc#116)", () => {
+    render(<AgentView fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} agentId="mira-valen" />);
+    fireEvent.click(screen.getByText("Why?"));
+    fireEvent.click(screen.getByTestId("toggle-mode"));
+
+    expect(screen.getByText("Mira Valen")).toBeInTheDocument(); // seleção não mudou
+    const panel = screen.getByTestId("why-panel");
+    expect(panel).toHaveTextContent("evt-grain-prices-rose · GrainPriceIncreased · Economy");
+
+    act(() => modeStore.toggleMode()); // volta pra Experience Mode
   });
 });

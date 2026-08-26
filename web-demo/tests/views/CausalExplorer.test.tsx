@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { CausalExplorer } from "../../src/views/CausalExplorer";
 import { NavigationStore } from "../../src/nav/NavigationStore";
 import { WORLD_FIXTURE } from "../../src/fixture/oakbridge";
+import { modeStore } from "../../src/state/modeStore";
 
 describe("CausalExplorer", () => {
   it("shows the WHY? cause for the grain price rise event (Harvest below normal)", () => {
@@ -55,5 +56,16 @@ describe("CausalExplorer", () => {
       render(<CausalExplorer fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} eventId="does-not-exist" />),
     ).not.toThrow();
     expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("Debug Mode shows technical fields (eventId/kind/sourceSystem/tick) instead of the human summary, without changing the selected event (doc#116)", () => {
+    render(<CausalExplorer fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} eventId="evt-grain-prices-rose" />);
+    fireEvent.click(screen.getByTestId("toggle-mode"));
+
+    expect(screen.getByText(/evt-grain-prices-rose · GrainPriceIncreased · Economy · Year 312/)).toBeInTheDocument();
+    const consequences = screen.getByTestId("consequences-section");
+    expect(consequences).toHaveTextContent("evt-valen-purchase-failed · PurchaseFailed · Household");
+
+    act(() => modeStore.toggleMode()); // volta pra Experience Mode, não afeta outros testes deste arquivo
   });
 });

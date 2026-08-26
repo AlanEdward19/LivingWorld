@@ -31,4 +31,13 @@ describe("WhyPanel", () => {
     fireEvent.click(item);
     expect(onFactorClick).not.toHaveBeenCalled();
   });
+
+  it("shows the linked event's technical fields instead of the human text when debug is true", () => {
+    const events = [
+      { eventId: "evt-grain-prices-rose", tick: "Year 312 · Winter · 06", kind: "GrainPriceIncreased", summary: "x", causeEventId: null, sourceSystem: "Economy", affectedAgentIds: [], affectedHouseholdIds: [], settlementId: "oakbridge" },
+    ];
+    render(<WhyPanel factors={factors} onFactorClick={() => {}} debug events={events} />);
+    expect(screen.queryByText("grain prices rose")).not.toBeInTheDocument();
+    expect(screen.getByText("evt-grain-prices-rose · GrainPriceIncreased · Economy · Year 312 · Winter · 06")).toBeInTheDocument();
+  });
 });
