@@ -47,4 +47,12 @@ describe("AgentView", () => {
     fireEvent.click(screen.getByTestId("agent-household"));
     expect(nav.current()).toEqual({ kind: "household", id: "valen-household" });
   });
+
+  it("clicking a Why factor ('grain prices rose') opens the Causal Explorer on the correct event", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    render(<AgentView fixture={WORLD_FIXTURE} nav={nav} agentId="mira-valen" />);
+    fireEvent.click(screen.getByText("Why?"));
+    fireEvent.click(screen.getByText("grain prices rose"));
+    expect(nav.current()).toEqual({ kind: "causal", eventId: "evt-grain-prices-rose" });
+  });
 });
