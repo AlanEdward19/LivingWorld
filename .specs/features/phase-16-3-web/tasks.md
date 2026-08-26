@@ -548,9 +548,9 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] Filtro por household Valen mostra só os eventos relevantes (spec P2 Independent Test)
-- [ ] Clicar num evento do Causal Explorer navega pra esse ponto na Timeline preservando breadcrumb (spec P1 AC7)
-- [ ] Gate check passa: `npm --prefix web-demo test -- Timeline`
+- [x] Filtro por household Valen mostra só os eventos relevantes (spec P2 Independent Test)
+- [x] Clicar num evento do Causal Explorer navega pra esse ponto na Timeline preservando breadcrumb (spec P1 AC7)
+- [x] Gate check passa: `npm --prefix web-demo test -- Timeline`
 
 **Tests**: component
 **Gate**: quick
@@ -570,10 +570,10 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] Life View mostra os marcos do doc#122 (nascimento, mudança, aprendizado, casamento, filhos, master baker, morte do pai, atual)
-- [ ] `toggleFollow` marca/desmarca (toggle, não duplica — Edge Case da spec)
-- [ ] Destaque de follow persiste ao navegar pra outra tela e voltar
-- [ ] Gate check passa: `npm --prefix web-demo test -- followStore|LifeView`
+- [x] Life View mostra os marcos do doc#122 (nascimento, mudança, aprendizado, casamento, filhos, master baker, morte do pai, atual)
+- [x] `toggleFollow` marca/desmarca (toggle, não duplica — Edge Case da spec)
+- [x] Destaque de follow persiste ao navegar pra outra tela e voltar
+- [x] Gate check passa: `npm --prefix web-demo test -- followStore|LifeView`
 
 **Tests**: unit + component
 **Gate**: quick
@@ -593,8 +593,8 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] Botão aparece nas 3 views, estado visual reflete `followStore`
-- [ ] Gate check passa: `npm --prefix web-demo test -- FollowButton`
+- [x] Botão aparece nas 3 views, estado visual reflete `followStore`
+- [x] Gate check passa: `npm --prefix web-demo test -- FollowButton`
 
 **Tests**: component
 **Gate**: quick
@@ -614,8 +614,8 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] Feed mostra eventos do fixture agrupados/ordenados
-- [ ] Gate check passa: `npm --prefix web-demo test -- WorldFeed`
+- [x] Feed mostra eventos do fixture agrupados/ordenados
+- [x] Gate check passa: `npm --prefix web-demo test -- WorldFeed`
 
 **Tests**: component
 **Gate**: quick
@@ -635,8 +635,8 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] Timeline acessível de World/Settlement/Household/Agent (spec P2 AC1)
-- [ ] Gate check passa: `npm --prefix web-demo test`
+- [x] Timeline acessível de World/Settlement/Household/Agent (spec P2 AC1)
+- [x] Gate check passa: `npm --prefix web-demo test`
 
 **Tests**: component
 **Gate**: full
