@@ -91,10 +91,17 @@ public sealed class ExtraordinaryPassiveTickSystemTests
         var enabled = ScenarioRunner.DefaultSystems(extraordinary: new ExtraordinaryScenarioData(true, []));
 
         Assert.Equal(ExtraordinaryStateSystem.SystemName, plan.Value!.SystemNames[0]);
-        Assert.Equal(ExtraordinaryPassiveTickSystem.SystemName, plan.Value.SystemNames[1]);
+        Assert.Equal(ExtraordinaryPowerStageSystem.SystemName, plan.Value.SystemNames[1]);
+        Assert.Equal(ExtraordinaryPassiveTickSystem.SystemName, plan.Value.SystemNames[2]);
         Assert.Equal(
-            [ExtraordinaryStateSystem.SystemName, ExtraordinaryPassiveTickSystem.SystemName],
-            enabled.Where(system => system is ExtraordinaryStateSystem or ExtraordinaryPassiveTickSystem)
+            [
+                ExtraordinaryStateSystem.SystemName,
+                ExtraordinaryPowerStageSystem.SystemName,
+                ExtraordinaryPassiveTickSystem.SystemName,
+            ],
+            enabled.Where(system => system is ExtraordinaryStateSystem
+                    or ExtraordinaryPowerStageSystem
+                    or ExtraordinaryPassiveTickSystem)
                 .Select(system => system.Name));
     }
 

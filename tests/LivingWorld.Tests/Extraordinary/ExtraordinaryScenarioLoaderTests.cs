@@ -152,6 +152,7 @@ public sealed class ExtraordinaryScenarioLoaderTests
         Assert.Equal(
             [
                 ExtraordinaryStateSystem.SystemName,
+                ExtraordinaryPowerStageSystem.SystemName,
                 ExtraordinaryPassiveTickSystem.SystemName,
                 DimensionPortalSystem.SystemName,
                 FaunaDominateSystem.SystemName,

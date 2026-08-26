@@ -56,10 +56,18 @@ public sealed class ExtraordinaryIntegrationTests
 
         Assert.DoesNotContain(
             disabled,
-            system => system is ExtraordinaryStateSystem or ExtraordinaryPassiveTickSystem);
+            system => system is ExtraordinaryStateSystem
+                or ExtraordinaryPowerStageSystem
+                or ExtraordinaryPassiveTickSystem);
         Assert.Equal(
-            [ExtraordinaryStateSystem.SystemName, ExtraordinaryPassiveTickSystem.SystemName],
-            enabled.Where(system => system is ExtraordinaryStateSystem or ExtraordinaryPassiveTickSystem)
+            [
+                ExtraordinaryStateSystem.SystemName,
+                ExtraordinaryPowerStageSystem.SystemName,
+                ExtraordinaryPassiveTickSystem.SystemName,
+            ],
+            enabled.Where(system => system is ExtraordinaryStateSystem
+                    or ExtraordinaryPowerStageSystem
+                    or ExtraordinaryPassiveTickSystem)
                 .Select(system => system.Name));
     }
 

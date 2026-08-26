@@ -111,13 +111,15 @@ public static class ExtraordinaryInvocationEngine
         if (carrier is null || !carrier.IsAlive)
             return Result<InvocationPlan>.Fail("CarrierId: NPC ausente ou morto");
 
+        var effectDeclarations = ExtraordinaryPowerStageSystem.EffectiveEffects(
+            descriptor, carrier.AgeYears(world.CurrentDate), carrierState.UseCount);
         var effectTargets = ResolveEffectTargets(world, invocation, descriptor, carrier);
         if (!effectTargets.IsSuccess) return Result<InvocationPlan>.Fail(effectTargets.Error!);
 
         var primaryTarget = world.FindNpc(invocation.TargetId) ?? carrier;
         var mechanicCtx = new ExtraordinaryMechanicContext(
             world, ctx, invocation, carrier, primaryTarget, ExtraordinaryMechanicKind.Effect);
-        var effects = PrepareEffectsForTargets(registry, mechanicCtx, descriptor.Effects, effectTargets.Value!);
+        var effects = PrepareEffectsForTargets(registry, mechanicCtx, effectDeclarations, effectTargets.Value!);
         if (!effects.IsSuccess) return Result<InvocationPlan>.Fail(effects.Error!);
         var costs = PrepareCosts(registry, mechanicCtx with { Kind = ExtraordinaryMechanicKind.Cost }, descriptor.Costs);
         if (!costs.IsSuccess) return Result<InvocationPlan>.Fail(costs.Error!);
