@@ -1,6 +1,7 @@
 using LivingWorld.Domain;
 using LivingWorld.Domain.Llm;
 using LivingWorld.Simulation;
+using LivingWorld.Simulation.Economy;
 
 namespace LivingWorld.Tests.Behavior;
 
@@ -479,6 +480,113 @@ public class BehaviorDecisionSystemTests
         Assert.Contains(sink.Events, e =>
             e.Kind == WorldEventKind.ExtraordinaryUseAttempted
             && e.CauseEventId == powerInvoked.EventId);
+    }
+
+    // --- Fase 16.3 T26 (COH-42): plan alternatives before Invalidated ---
+
+    private static EconomyRules EnabledFoodEconomy() => EconomyRules.Create(
+        enabled: true, foodResourceId: 1, waterResourceId: 2,
+        capacityByResourceLocation: new Dictionary<(int, int), long>(),
+        spoilagePerDayByResource: new Dictionary<int, double>(),
+        wageByProfession: new Dictionary<int, long>(),
+        priceFloor: new Dictionary<int, long>(),
+        priceCeiling: new Dictionary<int, long>(),
+        priceSensitivity: 0,
+        demandBaselinePerNpc: new Dictionary<int, double>()).Value!;
+
+    [Fact]
+    public void Buy_unavailable_uses_household_stock_before_invalidating_Intent()
+    {
+        var economy = EnabledFoodEconomy();
+        var map = ScenarioRunner.DefaultMap(7);
+        var world = new WorldState(
+            Calendar, 7, map, ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
+            MakeRules(urgencyThreshold: 70), MakeCatalogWithOpenWorkShift(), Stages,
+            economyRules: economy);
+        var loc = new CellCoord(1, 1);
+        var food = new ResourceType(1);
+        var npc = new Npc(
+            new NpcId(1), "buyer", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30), new CultureId(1), loc,
+            null, null, household: new HouseholdId(1), health: 100, Neutral, ProfessionType.None, loc,
+            hunger: 0, thirst: 100);
+        var household = new Household(
+            new HouseholdId(1), loc, npc.Id, [npc.Id],
+            stock: new Dictionary<ResourceType, long> { [food] = 3 });
+        world.AddHousehold(household);
+        world.AddNpc(npc);
+        npc.SetIntent(ActionType.Buy, tick: 0);
+        var markets = MarketIndex.BuildForTick(world);
+
+        var status = BehaviorDecisionSystem.ResolveFoodPlan(world, npc, markets, tick: 1, ActionType.Buy);
+
+        Assert.Equal(100, npc.Hunger);
+        Assert.Equal(2, household.Stock[food]);
+        Assert.Equal(IntentStatus.Completed, status);
+        Assert.NotEqual(IntentStatus.Invalidated, npc.IntentStatus);
+    }
+
+    [Fact]
+    public void Buy_and_household_alternatives_fail_invalidates_Intent()
+    {
+        var economy = EnabledFoodEconomy();
+        var map = ScenarioRunner.DefaultMap(8);
+        var world = new WorldState(
+            Calendar, 8, map, ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
+            MakeRules(urgencyThreshold: 70), MakeCatalogWithOpenWorkShift(), Stages,
+            economyRules: economy);
+        var loc = new CellCoord(1, 1);
+        var npc = new Npc(
+            new NpcId(1), "buyer", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30), new CultureId(1), loc,
+            null, null, household: new HouseholdId(1), health: 100, Neutral, ProfessionType.None, loc,
+            hunger: 0, thirst: 100);
+        var household = new Household(
+            new HouseholdId(1), loc, npc.Id, [npc.Id],
+            stock: new Dictionary<ResourceType, long>());
+        world.AddHousehold(household);
+        world.AddNpc(npc);
+        npc.SetIntent(ActionType.Buy, tick: 0);
+        var markets = MarketIndex.BuildForTick(world);
+
+        var status = BehaviorDecisionSystem.ResolveFoodPlan(world, npc, markets, tick: 1, ActionType.Buy);
+
+        Assert.Equal(0, npc.Hunger);
+        Assert.Equal(IntentStatus.Invalidated, status);
+        Assert.Equal(IntentStatus.Invalidated, npc.IntentStatus);
+    }
+
+    [Fact]
+    public void Successful_Buy_completes_Intent()
+    {
+        var economy = EnabledFoodEconomy();
+        var catalog = new EconomyCatalog(new Dictionary<int, ProductionRecipe>(), [1], new Dictionary<int, int>());
+        var map = ScenarioRunner.DefaultMap(9);
+        var world = new WorldState(
+            Calendar, 9, map, ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
+            MakeRules(urgencyThreshold: 70), MakeCatalogWithOpenWorkShift(), Stages,
+            economyRules: economy, economyCatalog: catalog);
+        var loc = new CellCoord(1, 1);
+        var food = new ResourceType(1);
+        var market = new Workplace(
+            world.NextWorkplaceIdAndAdvance(), new LocationType(1), loc, maxVacancies: 0,
+            employees: [], stock: new Dictionary<ResourceType, long> { [food] = 50 },
+            treasury: Money.Zero, prices: new Dictionary<ResourceType, long> { [food] = 5 });
+        world.AddWorkplace(market);
+        var npc = new Npc(
+            new NpcId(1), "buyer", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30), new CultureId(1), loc,
+            null, null, household: new HouseholdId(1), health: 100, Neutral, ProfessionType.None, loc,
+            hunger: 0, thirst: 100);
+        npc.CreditWallet(new Money(100));
+        var household = new Household(new HouseholdId(1), loc, npc.Id, [npc.Id]);
+        world.AddHousehold(household);
+        world.AddNpc(npc);
+        npc.SetIntent(ActionType.Buy, tick: 0);
+        var markets = MarketIndex.BuildForTick(world);
+
+        var status = BehaviorDecisionSystem.ResolveFoodPlan(world, npc, markets, tick: 1, ActionType.Buy);
+
+        Assert.Equal(10, household.Stock.GetValueOrDefault(food));
+        Assert.Equal(IntentStatus.Completed, status);
+        Assert.Equal(IntentStatus.Completed, npc.IntentStatus);
     }
 
     private sealed class ListWorldEventSink : IWorldEventSink

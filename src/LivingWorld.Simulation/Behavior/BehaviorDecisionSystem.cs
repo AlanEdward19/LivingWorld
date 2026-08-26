@@ -111,6 +111,8 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                     npc.SetCurrentAction(chosen, now);
                     if (chosen == ActionType.UsePower && pendingPower is not null)
                         npc.PendingPowerInvocation = pendingPower;
+                    if (chosen is ActionType.Buy or ActionType.Eat)
+                        EnsureFoodIntent(npc, chosen, now);
                 }
             }
 
@@ -228,7 +230,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         switch (action)
         {
             case ActionType.Eat:
-                ApplyEat(world, npc, tick);
+                ApplyFoodPlan(world, npc, marketIndex, tick, primary: ActionType.Eat);
                 break;
             case ActionType.Sleep:
                 ApplySleep(world, npc, tick);
@@ -237,7 +239,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                 npc.SetSocial(100, tick);
                 break;
             case ActionType.Buy:
-                ApplyBuy(world, npc, marketIndex);
+                ApplyFoodPlan(world, npc, marketIndex, tick, primary: ActionType.Buy);
                 break;
             case ActionType.UsePower:
                 ApplyUsePower(world, npc, tick, ctx);
@@ -307,23 +309,75 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         npc.SetSleep((int)(100 * rest.RecoveryEfficiency), tick);
     }
 
-    private static void ApplyEat(WorldState world, Npc npc, long tick)
+    /// <summary>COH-42: falha local tenta alternativa (Buy↔Eat/estoque) antes de
+    /// <see cref="IntentStatus.Invalidated"/>.</summary>
+    private static void ApplyFoodPlan(
+        WorldState world, Npc npc, MarketIndex marketIndex, long tick, ActionType primary) =>
+        ResolveFoodPlan(world, npc, marketIndex, tick, primary);
+
+    /// <summary>Resolve Buy/Eat com alternativas; retorna o status final do Intent quando
+    /// um plano alimentar estava em curso (para testes T26).</summary>
+    internal static IntentStatus? ResolveFoodPlan(
+        WorldState world, Npc npc, MarketIndex marketIndex, long tick, ActionType primary)
+    {
+        EnsureFoodIntent(npc, primary, tick);
+
+        bool primaryOk = primary == ActionType.Buy
+            ? TryApplyBuy(world, npc, marketIndex)
+            : TryApplyEat(world, npc, tick);
+
+        if (primaryOk)
+        {
+            if (npc.IntentStatus == IntentStatus.Active)
+                npc.CompleteIntent();
+            return npc.IntentStatus;
+        }
+
+        bool alternativeOk = primary == ActionType.Buy
+            ? TryApplyEat(world, npc, tick)
+            : TryApplyBuy(world, npc, marketIndex);
+
+        if (alternativeOk)
+        {
+            if (npc.IntentStatus == IntentStatus.Active)
+                npc.CompleteIntent();
+            return npc.IntentStatus;
+        }
+
+        if (npc.IntentStatus == IntentStatus.Active)
+            npc.InvalidateIntent();
+        return npc.IntentStatus;
+    }
+
+    private static void EnsureFoodIntent(Npc npc, ActionType foodAction, long tick)
+    {
+        if (npc.IntentStatus == IntentStatus.Active
+            && npc.CurrentIntent is ActionType.Buy or ActionType.Eat)
+            return;
+
+        npc.SetIntent(foodAction, tick);
+    }
+
+    private static bool TryApplyEat(WorldState world, Npc npc, long tick)
     {
         var econ = world.EconomyRules;
         if (!econ.Enabled)
         {
             npc.SetHunger(100, tick);
             npc.SetThirst(100, tick);
-            return;
+            return true;
         }
 
-        if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household) return;
+        if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household)
+            return false;
 
+        bool fed = false;
         var meal = FoodResolver.ResolveMeal(world, household);
         if (meal.Id > 0 && household.Withdraw(meal, 1).IsSuccess)
         {
             npc.SetHunger(100, tick);
             world.RecordResourceConsumed(meal, 1);
+            fed = true;
         }
 
         var water = new ResourceType(econ.WaterResourceId);
@@ -331,17 +385,22 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         {
             npc.SetThirst(100, tick);
             world.RecordResourceConsumed(water, 1);
+            fed = true;
         }
+
+        return fed;
     }
 
-    private static void ApplyBuy(WorldState world, Npc npc, MarketIndex marketIndex)
+    private static bool TryApplyBuy(WorldState world, Npc npc, MarketIndex marketIndex)
     {
-        if (!world.EconomyRules.Enabled) return;
+        if (!world.EconomyRules.Enabled) return false;
         var market = marketIndex.NearestTo(npc.CurrentLocation);
-        if (market is null) return;
-        if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household) return;
+        if (market is null) return false; // vendedor indisponível
+        if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household)
+            return false;
 
         var econ = world.EconomyRules;
+        bool bought = false;
         foreach (var resourceId in new[] { econ.FoodResourceId, econ.WaterResourceId })
         {
             var resource = new ResourceType(resourceId);
@@ -359,7 +418,10 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             market.Withdraw(resource, quantity);
             market.CreditTreasury(price);
             household.Deposit(resource, quantity);
+            bought = true;
         }
+
+        return bought;
     }
 
     private static ActionType RefineForLocation(WorldState world, Npc npc, ActionType candidate, MarketIndex marketIndex) => candidate switch
