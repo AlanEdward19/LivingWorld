@@ -501,7 +501,18 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
         foreach (var opp in ctx.PowerOpportunities)
         {
-            double score = PowerOpportunityUtility(opp, ctx, utilityRules);
+            // Spec edge: mechanic/candidate scoring failure is isolated — exclude this
+            // opportunity from comparison; other candidates and fixed ActionTypes continue.
+            double score;
+            try
+            {
+                score = PowerOpportunityUtility(opp, ctx, utilityRules);
+            }
+            catch
+            {
+                continue;
+            }
+
             scored.Add((ActionType.UsePower, score));
             if (score > bestScore)
             {

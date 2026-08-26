@@ -432,6 +432,88 @@ public class BehaviorDecisionSystemTests
         Assert.True(a > 50);
     }
 
+    /// <summary>Spec edge: WHEN a utility candidate throws THEN isolate failure to that
+    /// candidate without aborting other candidates / fixed ActionTypes.</summary>
+    [Fact]
+    public void Throwing_PowerOpportunity_candidate_is_excluded_other_still_wins()
+    {
+        var throwing = new PowerOpportunity(
+            "throwing-power", MechanicToken: null!, null, 0m, 0.0, "Guaranteed");
+        var good = new PowerOpportunity(
+            "good-power", "npc.teleport:elsewhere", null, 0m, 0.1, "Guaranteed");
+        var memory = new NpcMemory(
+            1, new NpcId(1), MemoryCategory.Social, "threat nearby", 90, 1,
+            Array.Empty<NpcId>(), new CellCoord(0, 0));
+        var ctx = new DecisionContext(
+            new NpcId(1), 0,
+            new NeedsSnapshot(20, 100, 100, 100),
+            new BodySnapshot(1.7, 68, 28, 1, 1),
+            null,
+            [memory],
+            Array.Empty<string>(),
+            Array.Empty<RelationshipFact>(),
+            [throwing, good],
+            Neutral,
+            null);
+
+        var economy = EconomyRules.Create(
+            enabled: true, foodResourceId: 1, waterResourceId: 2,
+            capacityByResourceLocation: new Dictionary<(int, int), long>(),
+            spoilagePerDayByResource: new Dictionary<int, double>(),
+            wageByProfession: new Dictionary<int, long>(),
+            priceFloor: new Dictionary<int, long>(),
+            priceCeiling: new Dictionary<int, long>(),
+            priceSensitivity: 0,
+            demandBaselinePerNpc: new Dictionary<int, double>()).Value!;
+
+        var decision = BehaviorDecisionSystem.SelectByUtility(
+            ctx, MakeRules(urgencyThreshold: 70), economy, continuityAction: null);
+
+        Assert.Equal(ActionType.UsePower, decision.Action);
+        Assert.NotNull(decision.PendingPower);
+        Assert.Equal("good-power", decision.PendingPower!.PowerId);
+        Assert.Equal("npc.teleport:elsewhere", decision.PendingPower.MechanicToken);
+        // Fixed ActionTypes still scored (appear as alternatives when UsePower wins).
+        Assert.Contains(ActionType.Eat, decision.Trace.KnownAlternatives);
+        Assert.Contains(ActionType.Travel, decision.Trace.KnownAlternatives);
+    }
+
+    [Fact]
+    public void Throwing_PowerOpportunity_does_not_abort_fixed_ActionType_scoring()
+    {
+        var throwing = new PowerOpportunity(
+            "throwing-power", MechanicToken: null!, null, 0m, 0.0, "Guaranteed");
+        var ctx = new DecisionContext(
+            new NpcId(1), 0,
+            new NeedsSnapshot(15, 100, 100, 100),
+            new BodySnapshot(1.7, 68, 28, 1, 1),
+            null,
+            Array.Empty<NpcMemory>(),
+            Array.Empty<string>(),
+            Array.Empty<RelationshipFact>(),
+            [throwing],
+            Neutral,
+            null);
+
+        var economy = EconomyRules.Create(
+            enabled: true, foodResourceId: 1, waterResourceId: 2,
+            capacityByResourceLocation: new Dictionary<(int, int), long>(),
+            spoilagePerDayByResource: new Dictionary<int, double>(),
+            wageByProfession: new Dictionary<int, long>(),
+            priceFloor: new Dictionary<int, long>(),
+            priceCeiling: new Dictionary<int, long>(),
+            priceSensitivity: 0,
+            demandBaselinePerNpc: new Dictionary<int, double>()).Value!;
+
+        var decision = BehaviorDecisionSystem.SelectByUtility(
+            ctx, MakeRules(urgencyThreshold: 70), economy, continuityAction: null);
+
+        Assert.NotEqual(ActionType.UsePower, decision.Action);
+        Assert.Null(decision.PendingPower);
+        Assert.True(decision.Trace.WinningUtility > double.NegativeInfinity);
+        Assert.NotEmpty(decision.Trace.KnownAlternatives);
+    }
+
     [Fact]
     public void Completing_UsePower_invokes_engine_logs_PowerInvoked_with_CauseEventId_and_clears_Pending()
     {
