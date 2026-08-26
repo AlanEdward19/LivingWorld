@@ -158,7 +158,7 @@ public class BehaviorDecisionSystemTests
                     [ActionType.Travel] = 4,
                     [ActionType.Idle] = 2,
                     [ActionType.Buy] = 2,
-            [ActionType.UsePower] = 1,
+                    [ActionType.UsePower] = 1,
                 }, [], ActionType.Idle).Value!;
             var (world, ctx, npc) = BuildWorld(seed: 44, rules, catalog, Neutral);
             var before = npc.CurrentLocation;

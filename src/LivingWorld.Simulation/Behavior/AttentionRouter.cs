@@ -1,5 +1,5 @@
-using LivingWorld.Domain;
 using System.Collections.Immutable;
+using LivingWorld.Domain;
 
 namespace LivingWorld.Simulation.Behavior;
 

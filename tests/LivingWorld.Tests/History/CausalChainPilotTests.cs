@@ -1,7 +1,6 @@
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
 using LivingWorld.Simulation.History;
-using LivingWorld.Simulation.Population;
 
 namespace LivingWorld.Tests.History;
 

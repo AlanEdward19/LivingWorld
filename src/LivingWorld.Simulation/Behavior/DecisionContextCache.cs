@@ -1,6 +1,6 @@
+using System.Runtime.CompilerServices;
 using LivingWorld.Domain;
 using LivingWorld.Domain.Llm;
-using System.Runtime.CompilerServices;
 
 namespace LivingWorld.Simulation;
 

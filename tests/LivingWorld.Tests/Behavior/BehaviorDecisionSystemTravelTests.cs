@@ -150,7 +150,7 @@ public class BehaviorDecisionSystemTravelTests
                 [ActionType.Travel] = 1,
                 [ActionType.Idle] = 100,
                 [ActionType.Buy] = 1,
-            [ActionType.UsePower] = 1,
+                [ActionType.UsePower] = 1,
             },
             routineSlots: [], defaultAction: ActionType.Idle).Value!;
         var (world, npc) = BuildHomelessWorld(map, rules, catalog, location, sleep: 0);

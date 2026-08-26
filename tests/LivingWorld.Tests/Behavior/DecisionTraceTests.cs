@@ -1,6 +1,5 @@
 using System.Reflection;
 using LivingWorld.Domain;
-using LivingWorld.Domain.Llm;
 using LivingWorld.Simulation;
 
 namespace LivingWorld.Tests.Behavior;
