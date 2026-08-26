@@ -38,6 +38,13 @@ public sealed class Npc
     public ActionType? CurrentAction { get; private set; }
     public long ActionStartedAtTick { get; private set; }
 
+    /// <summary>Intent de plano persistente (Fase 16.3 P2a, COH-41) — granularidade de
+    /// <see cref="ActionType"/> + target opcional; sobrevive além da ação imediata.</summary>
+    public ActionType? CurrentIntent { get; private set; }
+    public long IntentStartedTick { get; private set; }
+    public string? IntentTarget { get; private set; }
+    public IntentStatus? IntentStatus { get; private set; }
+
     /// <summary>Volátil (AD-026 / COH-33): PowerOpportunity vencedor quando
     /// <see cref="CurrentAction"/> é <see cref="ActionType.UsePower"/>. Nunca serializado.</summary>
     [JsonIgnore]
@@ -117,7 +124,9 @@ public sealed class Npc
         CityId city = default, long? materializedAtTick = null, InteriorOccupancy? interior = null,
         int carriedResourceId = 0, long carriedQuantity = 0, long carryCapacity = DefaultCarryCapacity,
         bool isGhost = false,
-        double height = 1.70, double weight = 68.0, double muscleMass = 28.0)
+        double height = 1.70, double weight = 68.0, double muscleMass = 28.0,
+        ActionType? currentIntent = null, long intentStartedTick = 0,
+        string? intentTarget = null, IntentStatus? intentStatus = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -145,6 +154,10 @@ public sealed class Npc
         CurrentLocation = currentLocation;
         CurrentAction = currentAction;
         ActionStartedAtTick = actionStartedAtTick;
+        CurrentIntent = currentIntent;
+        IntentStartedTick = intentStartedTick;
+        IntentTarget = intentTarget;
+        IntentStatus = intentStatus;
         HungerZeroSinceTick = hungerZeroSinceTick;
         IsGhost = isGhost;
         HomelessSince = homelessSince;
@@ -184,14 +197,17 @@ public sealed class Npc
         CityId city = default, long? materializedAtTick = null, InteriorOccupancy? interior = null,
         int carriedResourceId = 0, long carriedQuantity = 0, long carryCapacity = DefaultCarryCapacity,
         bool isGhost = false,
-        double height = 1.70, double weight = 68.0, double muscleMass = 28.0)
+        double height = 1.70, double weight = 68.0, double muscleMass = 28.0,
+        ActionType? currentIntent = null, long intentStartedTick = 0,
+        string? intentTarget = null, IntentStatus? intentStatus = null)
         : this(
             id, name, sex, birthDate, culture, birthLocation, motherId, fatherId, household, health,
             personality, profession, currentLocation,
             LazyNeed.Initial(hunger, 0, 0), LazyNeed.Initial(thirst, 0, 0), LazyNeed.Initial(sleep, 0, 0), LazyNeed.Initial(social, 0, 0),
             currentAction, actionStartedAtTick, hungerZeroSinceTick, homelessSince, pregnantUntil, deathDate,
             wallet, employer, skills, rateGene, mentor, vitality, upbringing, spouse, courtingWith, city, materializedAtTick, interior,
-            carriedResourceId, carriedQuantity, carryCapacity, isGhost, height, weight, muscleMass)
+            carriedResourceId, carriedQuantity, carryCapacity, isGhost, height, weight, muscleMass,
+            currentIntent, intentStartedTick, intentTarget, intentStatus)
     {
     }
 
@@ -350,6 +366,42 @@ public sealed class Npc
         ActionStartedAtTick = tick;
         if (action != ActionType.UsePower)
             PendingPowerInvocation = null;
+        TouchCanonical();
+    }
+
+    /// <summary>Inicia ou substitui o intent de plano (COH-41) — status sempre Active.</summary>
+    public void SetIntent(ActionType intent, long tick, string? target = null)
+    {
+        CurrentIntent = intent;
+        IntentStartedTick = tick;
+        IntentTarget = target;
+        IntentStatus = global::LivingWorld.Domain.IntentStatus.Active;
+        TouchCanonical();
+    }
+
+    /// <summary>Active → Completed (objetivo atingido).</summary>
+    public void CompleteIntent()
+    {
+        if (IntentStatus != global::LivingWorld.Domain.IntentStatus.Active) return;
+        IntentStatus = global::LivingWorld.Domain.IntentStatus.Completed;
+        TouchCanonical();
+    }
+
+    /// <summary>Active → Invalidated (todas as alternativas do plano falharam).</summary>
+    public void InvalidateIntent()
+    {
+        if (IntentStatus != global::LivingWorld.Domain.IntentStatus.Active) return;
+        IntentStatus = global::LivingWorld.Domain.IntentStatus.Invalidated;
+        TouchCanonical();
+    }
+
+    /// <summary>Limpa o intent persistente (após reconsideração completa).</summary>
+    public void ClearIntent()
+    {
+        CurrentIntent = null;
+        IntentStartedTick = 0;
+        IntentTarget = null;
+        IntentStatus = null;
         TouchCanonical();
     }
 

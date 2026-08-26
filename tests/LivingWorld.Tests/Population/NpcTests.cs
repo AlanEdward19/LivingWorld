@@ -150,6 +150,68 @@ public class NpcTests
         Assert.Equal(42, npc.ActionStartedAtTick);
     }
 
+    // --- Fase 16.3 T25 (COH-41): Intent persistence ---
+
+    [Fact]
+    public void SetIntent_sets_Active_status_and_fields()
+    {
+        var npc = MakeNpc(WorldDate.Epoch(Calendar));
+        npc.SetIntent(ActionType.Buy, tick: 10, target: "market:1");
+
+        Assert.Equal(ActionType.Buy, npc.CurrentIntent);
+        Assert.Equal(10, npc.IntentStartedTick);
+        Assert.Equal("market:1", npc.IntentTarget);
+        Assert.Equal(IntentStatus.Active, npc.IntentStatus);
+    }
+
+    [Fact]
+    public void CompleteIntent_transitions_Active_to_Completed()
+    {
+        var npc = MakeNpc(WorldDate.Epoch(Calendar));
+        npc.SetIntent(ActionType.Eat, tick: 1);
+        npc.CompleteIntent();
+
+        Assert.Equal(IntentStatus.Completed, npc.IntentStatus);
+        Assert.Equal(ActionType.Eat, npc.CurrentIntent);
+    }
+
+    [Fact]
+    public void InvalidateIntent_transitions_Active_to_Invalidated()
+    {
+        var npc = MakeNpc(WorldDate.Epoch(Calendar));
+        npc.SetIntent(ActionType.Buy, tick: 1);
+        npc.InvalidateIntent();
+
+        Assert.Equal(IntentStatus.Invalidated, npc.IntentStatus);
+    }
+
+    [Fact]
+    public void CompleteIntent_is_noop_when_not_Active()
+    {
+        var npc = MakeNpc(WorldDate.Epoch(Calendar));
+        npc.SetIntent(ActionType.Buy, tick: 1);
+        npc.InvalidateIntent();
+        npc.CompleteIntent();
+
+        Assert.Equal(IntentStatus.Invalidated, npc.IntentStatus);
+    }
+
+    [Fact]
+    public void Intent_fields_round_trip_through_json()
+    {
+        var options = new JsonSerializerOptions { Converters = { new JsonStringEnumConverter() } };
+        var npc = MakeNpc(WorldDate.Epoch(Calendar));
+        npc.SetIntent(ActionType.Buy, tick: 77, target: "food");
+
+        var json = JsonSerializer.Serialize(npc, options);
+        var rehydrated = JsonSerializer.Deserialize<Npc>(json, options)!;
+
+        Assert.Equal(ActionType.Buy, rehydrated.CurrentIntent);
+        Assert.Equal(77, rehydrated.IntentStartedTick);
+        Assert.Equal("food", rehydrated.IntentTarget);
+        Assert.Equal(IntentStatus.Active, rehydrated.IntentStatus);
+    }
+
     // Npc não tem snapshot próprio (WorldState/WorldSnapshot é quem serializa de verdade, T9) —
     // round-trip direto via System.Text.Json sobre o tipo isolado, mesmas opções (enum-como-string)
     // usadas por WorldSnapshot, prova que o construtor único continua reidratando todo campo novo.
