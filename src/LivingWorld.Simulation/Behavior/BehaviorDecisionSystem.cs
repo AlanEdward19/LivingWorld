@@ -118,7 +118,9 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                 return advance.Reached;
             }
 
-            long ticksNeeded = TravelResolution.TicksBetween(world.Map, npc.CurrentLocation, destination);
+            long ticksNeeded = TravelResolution.TicksBetween(
+                world.Map, npc.CurrentLocation, destination,
+                BodyMechanic.MovementCostMultiplier(world, npc));
             if (now - npc.ActionStartedAtTick < ticksNeeded) return false;
             if (world.IsExtraordinaryConstructCell(destination)) return false;
 

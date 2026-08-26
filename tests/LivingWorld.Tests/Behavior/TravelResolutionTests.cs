@@ -53,4 +53,30 @@ public class TravelResolutionTests
         Assert.Equal((long)Math.Ceiling(rawCost), ticks);
         Assert.True(ticks > 1);
     }
+
+    [Fact]
+    public void MovementCostMultiplier_scales_travel_ticks()
+    {
+        var map = MakeMap(costBase: 2.0);
+        var origin = new CellCoord(0, 0);
+        var dest = new CellCoord(1, 0);
+
+        long baseline = TravelResolution.TicksBetween(map, origin, dest);
+        long heavier = TravelResolution.TicksBetween(map, origin, dest, movementCostMultiplier: 2.0);
+
+        Assert.True(heavier > baseline);
+        Assert.Equal(baseline, TravelResolution.TicksBetween(map, origin, dest, movementCostMultiplier: 1.0));
+    }
+
+    [Fact]
+    public void Default_multiplier_preserves_legacy_TicksBetween_behavior()
+    {
+        var map = MakeMap(costBase: 1.6);
+        var origin = new CellCoord(0, 0);
+        var dest = new CellCoord(1, 0);
+
+        Assert.Equal(
+            TravelResolution.TicksBetween(map, origin, dest),
+            TravelResolution.TicksBetween(map, origin, dest, movementCostMultiplier: 1.0));
+    }
 }
