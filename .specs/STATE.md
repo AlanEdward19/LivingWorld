@@ -91,6 +91,21 @@
 - **Date**: 2026-08-25
 - **Status**: active
 
+### AD-011
+- **Decision**: Regravar `tests/golden/world-hashes.json` (default seed 42/43 × 100 e 3650 ticks)
+  após Phase 16.3 P1d (powers full utility) nesta branch.
+- **Reason**: Hash canônico mudou de forma legítima — `ActionCatalog.MaxDurationHours` passou a
+  declarar `ActionType.UsePower` (AD-040 / COH-33; enum fechado entra no snapshot) e fases P1a–P1c
+  nesta branch já haviam adicionado campos canônicos (`EventId`/`CauseEventId`/`SourceSystem`,
+  `Height`/`Weight`/`MuscleMass`). Não é regressão silenciosa: baseline atualizado com AD explícito
+  (padrão AD-065/069).
+- **Trade-off**: Mundos gravados com golden anterior não batem byte-a-byte; comportamento de
+  cenário `default` sem powers ativos continua deterministicamente reproduzível sob o novo hash.
+  Possessão (`ControlMechanic.TryDelegatedAction`) permanece no caminho especial intocado (COH-36).
+- **Scope**: Fase 16.3 Living World Cohesion Phase 4 / T24 — `tests/golden/world-hashes.json`.
+- **Date**: 2026-08-26
+- **Status**: active
+
 ## Handoff
 
 - **Execução paralela PAUSADA (2026-08-25 19:46)**: STOP.json ativo em todos worktrees.
