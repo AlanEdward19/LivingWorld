@@ -104,19 +104,35 @@ public sealed record ExtraordinaryScenarioData
 {
     public bool Enabled { get; init; }
     public double Prevalence { get; init; }
-    public IReadOnlyList<PowerDescriptor> Descriptors { get; init; }
+    public IReadOnlyList<PowerDescriptor> Descriptors { get; private set; }
     public IReadOnlyList<ExtraordinaryCulturalResponseRule> CulturalResponses { get; init; }
+    /// <summary>Herança de poder (16.2). Null → <see cref="PowerInheritanceRules.Default"/>.</summary>
+    public PowerInheritanceRules? InheritanceRules { get; init; }
 
     public ExtraordinaryScenarioData(
         bool enabled,
         IReadOnlyList<PowerDescriptor> descriptors,
         IReadOnlyList<ExtraordinaryCulturalResponseRule>? culturalResponses = null,
-        double prevalence = 0)
+        double prevalence = 0,
+        PowerInheritanceRules? inheritanceRules = null)
     {
         Enabled = enabled;
         Prevalence = prevalence;
-        Descriptors = descriptors;
+        Descriptors = descriptors.ToList();
         CulturalResponses = culturalResponses ?? [];
+        InheritanceRules = inheritanceRules;
+    }
+
+    /// <summary>Registra descritor gerado em runtime (ex.: mistura genética) sem duplicar Id.</summary>
+    public void EnsureDescriptor(PowerDescriptor descriptor)
+    {
+        ArgumentNullException.ThrowIfNull(descriptor);
+        if (Descriptors.Any(d => string.Equals(d.Id, descriptor.Id, StringComparison.Ordinal)))
+            return;
+        var next = new List<PowerDescriptor>(Descriptors.Count + 1);
+        next.AddRange(Descriptors);
+        next.Add(descriptor);
+        Descriptors = next;
     }
 
     public static ExtraordinaryScenarioData Disabled { get; } = new(false, [], [], 0);

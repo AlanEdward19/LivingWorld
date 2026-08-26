@@ -105,9 +105,47 @@ public sealed class NatalitySystem : ISimulationSystem
         baby.ConfigureNeedDecay(world.NeedsRules, world.CurrentDate.TotalHours);
         household.AddMember(baby.Id);
         ctx.LogEvent(WorldEventKind.Birth, $"{baby.Id.Value}|{motherId.Value}|{fatherId.Value}|{household.Id.Value}");
+        TryApplyPowerInheritance(world, ctx, baby, motherId, fatherId);
         NpcInstantiationMechanic.ApplyPendingReincarnation(world, ctx, baby);
         MortalitySystem.SchedulePlannedDeath(world, ctx, baby);
         NpcWakeScheduler.ScheduleWake(world, ctx, baby.Id.Value, world.CurrentDate.TotalHours + 1);
+    }
+
+    /// <summary>EVO-10: se ambos os pais são portadores, resolve herança e audita
+    /// <see cref="WorldEventKind.PowerInherited"/>. Sem dois portadores — no-op O(1).</summary>
+    internal static void TryApplyPowerInheritance(
+        WorldState world, TickContext ctx, Npc baby, NpcId motherId, NpcId fatherId)
+    {
+        if (!PowerInheritanceResolver.IsPowerCarrier(world, motherId)
+            || !PowerInheritanceResolver.IsPowerCarrier(world, fatherId))
+            return;
+
+        var decision = PowerInheritanceResolver.Decide(
+            world, baby.Id, motherId, fatherId, world.Extraordinary.InheritanceRules);
+        if (!decision.Occurred || decision.Outcome is null)
+            return;
+
+        var descriptors = PowerInheritanceResolver.ResolveDescriptors(
+            world, baby.Id, motherId, fatherId, world.Extraordinary.InheritanceRules);
+        foreach (var descriptor in descriptors)
+            world.Extraordinary.EnsureDescriptor(descriptor);
+
+        if (descriptors.Count > 0)
+        {
+            world.UpsertExtraordinaryCarrier(new ExtraordinaryCarrierState(
+                baby.Id,
+                descriptors.Select(d => d.Id).OrderBy(id => id, StringComparer.Ordinal).ToList(),
+                IsManifested: false,
+                ManifestationState: "dormant",
+                Appearance: new ExtraordinaryAppearanceState(1, "", ""),
+                NeedSubstitution: null,
+                SenescenceRateMultiplier: 1));
+        }
+
+        string idsCsv = string.Join(",", descriptors.Select(d => d.Id));
+        ctx.LogEvent(
+            WorldEventKind.PowerInherited,
+            $"{baby.Id.Value}|{motherId.Value}|{fatherId.Value}|{decision.Outcome}|{idsCsv}");
     }
 
     internal static bool MeetsConceptionFloors(

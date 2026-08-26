@@ -118,4 +118,8 @@ public enum WorldEventKind
 
     /// <summary>Troca de identidade observável (possessão/body-swap, PWR-108).</summary>
     IdentityChanged,
+
+    /// <summary>Herança de poder no nascimento (Fase 16.2, EVO-10) — payload:
+    /// childId|parentAId|parentBId|outcome|descriptorIdsCsv</summary>
+    PowerInherited,
 }
