@@ -154,7 +154,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         if (action is ActionType.Idle or ActionType.Socialize || (action == ActionType.Work && npc.Employer is not null))
             MoveOneAmbientStep(world, npc, ctx, now, action, occupancy, cityPopulationCache, cityBoundsCache);
 
-        ApplyActionEffect(world, npc, action, marketIndex, now);
+        ApplyActionEffect(world, npc, action, marketIndex, now, ctx);
         return true;
     }
 
@@ -222,7 +222,8 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         MoveTracked(npc, candidates[index], tick, occupancy);
     }
 
-    private static void ApplyActionEffect(WorldState world, Npc npc, ActionType action, MarketIndex marketIndex, long tick)
+    private static void ApplyActionEffect(
+        WorldState world, Npc npc, ActionType action, MarketIndex marketIndex, long tick, TickContext ctx)
     {
         switch (action)
         {
@@ -239,9 +240,63 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                 ApplyBuy(world, npc, marketIndex);
                 break;
             case ActionType.UsePower:
-                // Execução via ExtraordinaryInvocationEngine em T23.
+                ApplyUsePower(world, npc, tick, ctx);
                 break;
         }
+    }
+
+    /// <summary>Executa o PendingPowerInvocation via motor extraordinário e registra
+    /// <see cref="WorldEventKind.PowerInvoked"/> com proveniência (COH-33).</summary>
+    private static void ApplyUsePower(WorldState world, Npc npc, long tick, TickContext ctx)
+    {
+        var pending = npc.PendingPowerInvocation;
+        npc.PendingPowerInvocation = null;
+        if (pending is null) return;
+
+        // Decisão (raiz) + PowerInvoked com CauseEventId apontando pra ela (COH-33 AC).
+        long decisionEventId = ctx.LogEvent(
+            WorldEventKind.PowerInvoked,
+            $"{npc.Id.Value}|{pending.PowerId}|decision",
+            SystemName,
+            causeEventId: null);
+
+        long powerInvokedId = ctx.LogEvent(
+            WorldEventKind.PowerInvoked,
+            $"{npc.Id.Value}|{pending.PowerId}|{pending.MechanicToken}",
+            SystemName,
+            causeEventId: decisionEventId);
+
+        NpcId targetId = pending.SuggestedTarget ?? npc.Id;
+        CellCoord? targetCell = null;
+        if (pending.MechanicToken.StartsWith("npc.teleport", StringComparison.Ordinal))
+            targetCell = ResolveTeleportTargetCell(world, npc);
+
+        var invocation = new ExtraordinaryInvocation(
+            world.NextEventId,
+            npc.Id,
+            pending.PowerId,
+            targetId,
+            Resolution: null,
+            TargetCell: targetCell,
+            Origin: ExtraordinaryInvocationOrigin.Authored);
+
+        ExtraordinaryInvocationEngine.Invoke(world, ctx, invocation, causeEventId: powerInvokedId);
+        _ = tick;
+    }
+
+    private static CellCoord? ResolveTeleportTargetCell(WorldState world, Npc npc)
+    {
+        // Destino adjacente vazio preferido; senão a própria célula (Invoke pode falhar — ok).
+        foreach (var delta in new (int X, int Y)[] { (1, 0), (-1, 0), (0, 1), (0, -1), (1, 1) })
+        {
+            var candidate = new CellCoord(npc.CurrentLocation.X + delta.X, npc.CurrentLocation.Y + delta.Y);
+            if (!world.Map.TryGetCell(candidate, out _)) continue;
+            if (world.IsExtraordinaryConstructCell(candidate)) continue;
+            if (world.Npcs.Any(o => o.IsAlive && o.CurrentLocation == candidate)) continue;
+            return candidate;
+        }
+
+        return npc.CurrentLocation;
     }
 
     private static void ApplySleep(WorldState world, Npc npc, long tick)

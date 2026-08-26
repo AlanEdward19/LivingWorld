@@ -51,12 +51,13 @@ public static class ExtraordinaryInvocationEngine
 
     public static Result<ExtraordinaryInvocationResult> Invoke(
         WorldState world, TickContext ctx, ExtraordinaryInvocation invocation,
-        IExtraordinaryMechanicRegistry? registry = null)
+        IExtraordinaryMechanicRegistry? registry = null,
+        long? causeEventId = null)
     {
         const string source = "ExtraordinaryInvocationEngine";
         string prefix = Prefix(invocation);
         var attemptId = ctx.LogEvent(
-            WorldEventKind.ExtraordinaryUseAttempted, $"{prefix}attempt", source);
+            WorldEventKind.ExtraordinaryUseAttempted, $"{prefix}attempt", source, causeEventId);
 
         var prepared = Prepare(world, ctx, invocation, registry ?? ExtraordinaryMechanicRegistry.Default);
         if (!prepared.IsSuccess)

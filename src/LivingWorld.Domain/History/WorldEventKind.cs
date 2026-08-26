@@ -122,4 +122,8 @@ public enum WorldEventKind
     /// <summary>Herança de poder no nascimento (Fase 16.2, EVO-10) — payload:
     /// childId|parentAId|parentBId|outcome|descriptorIdsCsv</summary>
     PowerInherited,
+
+    /// <summary>Agent escolheu/executou UsePower via utility AI (Fase 16.3 P1d, COH-33) —
+    /// payload: npcId|powerId|mechanicToken. CauseEventId aponta ao evento de decisão.</summary>
+    PowerInvoked,
 }

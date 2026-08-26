@@ -430,4 +430,60 @@ public class BehaviorDecisionSystemTests
         Assert.Equal(a, b);
         Assert.True(a > 50);
     }
+
+    [Fact]
+    public void Completing_UsePower_invokes_engine_logs_PowerInvoked_with_CauseEventId_and_clears_Pending()
+    {
+        var rules = MakeRules(urgencyThreshold: 70);
+        var catalog = MakeCatalogWithOpenWorkShift();
+        var descriptor = new PowerDescriptor(
+            "curse-power", "test", ["luck.curse:1:10"], "Active", [], "Guaranteed",
+            [], [], [], []);
+        var carrier = new ExtraordinaryCarrierState(
+            new NpcId(1), [descriptor.Id], true, "active",
+            new ExtraordinaryAppearanceState(1, "", ""), null, 1);
+
+        var map = ScenarioRunner.DefaultMap(33);
+        var world = new WorldState(
+            Calendar, 33, map, ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
+            rules, catalog, Stages,
+            extraordinary: new ExtraordinaryScenarioData(true, [descriptor]),
+            extraordinaryCarriers: [carrier]);
+        var location = new CellCoord(1, 1);
+        var npc = new Npc(
+            new NpcId(1), "npc", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30), new CultureId(1), location,
+            motherId: null, fatherId: null, household: null, health: 100,
+            personality: Neutral, profession: ProfessionType.None, currentLocation: location,
+            hunger: 100, thirst: 100, sleep: 100, social: 100);
+        world.AddNpc(npc);
+        world.AdvanceNpcIdTo(2);
+
+        npc.SetCurrentAction(ActionType.UsePower, tick: 0);
+        npc.PendingPowerInvocation = new PendingPowerInvocation(
+            "curse-power", "luck.curse:1:10", SuggestedTarget: null);
+
+        var sink = new ListWorldEventSink();
+        var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
+        // Avança além da duração (UsePower=1) para completar a ação.
+        world.CurrentDate = WorldDate.Epoch(Calendar).AddHours(catalog.MaxDurationHours[ActionType.UsePower]);
+        SimulationWakeTestHelper.Wake(world, npc);
+        new BehaviorDecisionSystem().Tick(world, ctx);
+
+        Assert.Null(npc.PendingPowerInvocation);
+        Assert.Contains(sink.Events, e => e.Kind == WorldEventKind.PowerInvoked && e.CauseEventId is not null);
+        Assert.Contains(sink.Events, e => e.Kind == WorldEventKind.ExtraordinaryUseAttempted);
+        Assert.Contains(sink.Events, e => e.Kind == WorldEventKind.ExtraordinaryEffectApplied);
+
+        var powerInvoked = sink.Events.First(e =>
+            e.Kind == WorldEventKind.PowerInvoked && e.CauseEventId is not null);
+        Assert.Contains(sink.Events, e =>
+            e.Kind == WorldEventKind.ExtraordinaryUseAttempted
+            && e.CauseEventId == powerInvoked.EventId);
+    }
+
+    private sealed class ListWorldEventSink : IWorldEventSink
+    {
+        public List<WorldEvent> Events { get; } = [];
+        public void Record(WorldEvent evt) => Events.Add(evt);
+    }
 }
