@@ -65,6 +65,7 @@ public static class ScenarioRunner
         new RelationshipSystem(),
         new SkillPracticeSystem(DefaultSkillsRules),
         new SkillTeachingSystem(DefaultSkillsRules, DefaultLifeStageRules),
+        new WorkHardeningSystem(),
         new ProductionSystem(DefaultSkillsRules),
         new CropSystem(),
         new MarketPricingSystem(),

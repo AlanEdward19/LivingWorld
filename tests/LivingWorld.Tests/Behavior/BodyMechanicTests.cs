@@ -96,4 +96,70 @@ public class BodyMechanicTests
             BodyMechanic.MovementCostMultiplier(world, npc),
             BodyMechanic.MovementCostMultiplier(world, npc));
     }
+
+    [Fact]
+    public void ApplyWorkHardening_increases_MuscleMass_from_baseline()
+    {
+        var world = BuildWorld();
+        var npc = MakeNpc(1.70, 68, muscleMass: 20);
+        double baseline = npc.MuscleMass;
+
+        BodyMechanic.ApplyWorkHardening(world, npc);
+
+        Assert.True(npc.MuscleMass > baseline);
+        Assert.Equal(baseline + BodyMechanic.DailyWorkHardeningDelta, npc.MuscleMass, precision: 10);
+    }
+
+    [Fact]
+    public void ApplyWorkHardening_clamps_at_MuscleMassMax()
+    {
+        var rules = BodyRules.Default;
+        var world = BuildWorld(rules);
+        var npc = MakeNpc(1.70, 68, muscleMass: rules.MuscleMassMax - 0.01);
+
+        BodyMechanic.ApplyWorkHardening(world, npc);
+        BodyMechanic.ApplyWorkHardening(world, npc);
+        BodyMechanic.ApplyWorkHardening(world, npc);
+
+        Assert.Equal(rules.MuscleMassMax, npc.MuscleMass);
+    }
+
+    [Fact]
+    public void ApplyWorkHardening_is_noop_when_BodyRules_disabled()
+    {
+        var world = BuildWorld(BodyRules.Disabled);
+        var npc = MakeNpc(1.70, 68, muscleMass: 20);
+
+        BodyMechanic.ApplyWorkHardening(world, npc);
+
+        Assert.Equal(20, npc.MuscleMass);
+    }
+
+    [Fact]
+    public void WorkHardeningSystem_grows_MuscleMass_after_sustained_heavy_labor_days()
+    {
+        var world = BuildWorld();
+        var location = new CellCoord(1, 1);
+        var npc = MakeNpc(1.70, 68, muscleMass: 20);
+        world.AddNpc(npc);
+        var workplace = new Workplace(
+            world.NextWorkplaceIdAndAdvance(), new LocationType(1), location, maxVacancies: 1,
+            employees: [], stock: new Dictionary<ResourceType, long>(), treasury: Money.Zero,
+            prices: new Dictionary<ResourceType, long>());
+        world.AddWorkplace(workplace);
+        workplace.Hire(npc.Id);
+        npc.Hire(workplace.Id);
+        npc.MoveTo(location, 0);
+        npc.SetCurrentAction(ActionType.Work, 0);
+
+        double baseline = npc.MuscleMass;
+        var system = new WorkHardeningSystem();
+        var ctx = new TickContext(world, world.Rng, world.Scheduler);
+
+        for (int day = 0; day < 10; day++)
+            system.Tick(world, ctx);
+
+        Assert.True(npc.MuscleMass > baseline);
+        Assert.Equal(baseline + 10 * BodyMechanic.DailyWorkHardeningDelta, npc.MuscleMass, precision: 10);
+    }
 }

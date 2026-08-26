@@ -7,12 +7,16 @@ namespace LivingWorld.Simulation;
 /// <c>WorldState × Npc → double</c>, neutro 1.0 quando <see cref="BodyRules.Enabled"/>
 /// é falso.</summary>
 /// <remarks>
-/// FUTURE_DEPENDENCY (COH-25): Height/Weight/MuscleMass ainda não têm consumidores em
-/// equipment compatibility nem combat — documentado para auditoria P3 (T34), não
-/// implementados como stub sem uso.
+/// FUTURE_DEPENDENCY (COH-25 / P3 T34 audit): Height/Weight/MuscleMass ainda não têm
+/// consumidores em equipment compatibility nem combat — documentado aqui para o relatório
+/// de auditoria, não implementados como stub sem uso.
 /// </remarks>
 public static class BodyMechanic
 {
+    /// <summary>Incremento diário de MuscleMass sob trabalho físico pesado sustentado
+    /// (categoria SLOW, COH-24) — kg por dia de Work presente no workplace.</summary>
+    public const double DailyWorkHardeningDelta = 0.05;
+
     /// <summary>Capacidade de trabalho físico: cresce com <see cref="Npc.MuscleMass"/>
     /// acima da média do cenário; 1.0 no mean; neutro se BodyRules desabilitado.</summary>
     public static double WorkCapacityMultiplier(WorldState world, Npc npc)
@@ -39,5 +43,19 @@ public static class BodyMechanic
         double weightFactor = 0.3 * ((npc.Weight - weightMean) / weightMean);
         double heightFactor = 0.2 * ((npc.Height - heightMean) / heightMean);
         return Math.Max(0.1, 1.0 + weightFactor + heightFactor);
+    }
+
+    /// <summary>COH-24: incrementa <see cref="Npc.MuscleMass"/> lentamente após trabalho
+    /// físico pesado, clampado em <see cref="BodyRules.MuscleMassMax"/>. No-op se BodyRules
+    /// desabilitado ou já no teto.</summary>
+    public static void ApplyWorkHardening(WorldState world, Npc npc)
+    {
+        var rules = world.BodyRules;
+        if (!rules.Enabled)
+            return;
+
+        double next = Math.Min(npc.MuscleMass + DailyWorkHardeningDelta, rules.MuscleMassMax);
+        if (next > npc.MuscleMass)
+            npc.SetMuscleMass(next);
     }
 }
