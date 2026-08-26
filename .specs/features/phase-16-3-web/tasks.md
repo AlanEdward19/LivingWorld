@@ -371,9 +371,9 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] Renderiza resumo do mundo do fixture
-- [ ] Clicar em Oakbridge chama `NavigationStore.push({kind:"settlement", id:...})`
-- [ ] Gate check passa: `npm --prefix web-demo test -- WorldView`
+- [x] Renderiza resumo do mundo do fixture
+- [x] Clicar em Oakbridge chama `NavigationStore.push({kind:"settlement", id:...})`
+- [x] Gate check passa: `npm --prefix web-demo test -- WorldView`
 
 **Tests**: component
 **Gate**: quick
@@ -393,9 +393,9 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] Valores exatos do fixture exibidos (comparação snapshot com doc#125)
-- [ ] Clicar no household Valen navega pra `HouseholdView`
-- [ ] Gate check passa: `npm --prefix web-demo test -- SettlementView`
+- [x] Valores exatos do fixture exibidos (comparação snapshot com doc#125)
+- [x] Clicar no household Valen navega pra `HouseholdView`
+- [x] Gate check passa: `npm --prefix web-demo test -- SettlementView`
 
 **Tests**: component
 **Gate**: quick
@@ -415,9 +415,9 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] Mostra Mira/Tomas/Eli/Nora conforme doc#124
-- [ ] Clicar em Mira navega pra `AgentView`
-- [ ] Gate check passa: `npm --prefix web-demo test -- HouseholdView`
+- [x] Mostra Mira/Tomas/Eli/Nora conforme doc#124
+- [x] Clicar em Mira navega pra `AgentView`
+- [x] Gate check passa: `npm --prefix web-demo test -- HouseholdView`
 
 **Tests**: component
 **Gate**: quick
@@ -437,10 +437,10 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] Card de Mira bate com o exemplo do doc#113 (nome/idade/profissão/intent/condição/build/household/relações/recent life)
-- [ ] `WhyPanel` mostra os `whyFactors` do fixture em linguagem humana (doc#114)
-- [ ] Pelo menos 1 fator é clicável
-- [ ] Gate check passa: `npm --prefix web-demo test -- AgentView|WhyPanel`
+- [x] Card de Mira bate com o exemplo do doc#113 (nome/idade/profissão/intent/condição/build/household/relações/recent life)
+- [x] `WhyPanel` mostra os `whyFactors` do fixture em linguagem humana (doc#114)
+- [x] Pelo menos 1 fator é clicável
+- [x] Gate check passa: `npm --prefix web-demo test -- AgentView|WhyPanel`
 
 **Tests**: component
 **Gate**: quick
@@ -460,11 +460,11 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] Clicar num fator do Why abre o Causal Explorer no evento certo
-- [ ] Árvore de consequências bate com doc#117-118 (Valen household reduced purchases → Mira became VeryHungry → Mira left work early; Baker reduced production; Migration pressure increased)
-- [ ] Lista de sistemas envolvidos bate com doc#118
-- [ ] Evento sem `causeEventId` mostra "sem causa anterior conhecida" (Edge Case)
-- [ ] Gate check passa: `npm --prefix web-demo test -- CausalExplorer`
+- [x] Clicar num fator do Why abre o Causal Explorer no evento certo
+- [x] Árvore de consequências bate com doc#117-118 (Valen household reduced purchases → Mira became VeryHungry → Mira left work early; Baker reduced production; Migration pressure increased)
+- [x] Lista de sistemas envolvidos bate com doc#118
+- [x] Evento sem `causeEventId` mostra "sem causa anterior conhecida" (Edge Case)
+- [x] Gate check passa: `npm --prefix web-demo test -- CausalExplorer`
 
 **Tests**: component
 **Gate**: quick
@@ -484,8 +484,8 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] Clicar em Mira no mapa nível "agente" abre o mesmo `AgentView` que clicar na lista (teste compara resultado dos dois caminhos)
-- [ ] Gate check passa: `npm --prefix web-demo test -- WorldView|SettlementView`
+- [x] Clicar em Mira no mapa nível "agente" abre o mesmo `AgentView` que clicar na lista (teste compara resultado dos dois caminhos)
+- [x] Gate check passa: `npm --prefix web-demo test -- WorldView|SettlementView`
 
 **Tests**: component
 **Gate**: quick
@@ -505,9 +505,9 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] Breadcrumb mostra a pilha correta em cada ponto do fluxo P1 AC1-7
-- [ ] Botão voltar retorna à tela anterior com estado preservado (não reseta pro World View)
-- [ ] Gate check passa: `npm --prefix web-demo test -- Breadcrumb`
+- [x] Breadcrumb mostra a pilha correta em cada ponto do fluxo P1 AC1-7
+- [x] Botão voltar retorna à tela anterior com estado preservado (não reseta pro World View)
+- [x] Gate check passa: `npm --prefix web-demo test -- Breadcrumb`
 
 **Tests**: component
 **Gate**: quick
@@ -527,8 +527,8 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] Teste percorre os 7 passos do fluxo sem falhar
-- [ ] Gate check passa: `npm --prefix web-demo test`
+- [x] Teste percorre os 7 passos do fluxo sem falhar
+- [x] Gate check passa: `npm --prefix web-demo test`
 
 **Tests**: component (integration-style)
 **Gate**: full
