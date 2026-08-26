@@ -24,18 +24,6 @@ describe("SettlementView", () => {
     expect(nav.current()).toEqual({ kind: "household", id: "valen-household" });
   });
 
-  it("clicking Mira's marker on the agent-level map pushes the same agent route as clicking her in a list (spec P1b AC4)", () => {
-    const nav = new NavigationStore(WORLD_FIXTURE);
-    render(<SettlementView fixture={WORLD_FIXTURE} nav={nav} settlementId="oakbridge" />);
-
-    fireEvent.click(screen.getByText("Agent view"));
-    const oakbridgeAgents = WORLD_FIXTURE.agents.filter((a) => a.settlementId === "oakbridge");
-    const miraIndex = oakbridgeAgents.findIndex((a) => a.id === "mira-valen");
-    fireEvent.click(screen.getAllByTestId("agent-marker")[miraIndex]);
-
-    expect(nav.current()).toEqual({ kind: "agent", id: "mira-valen" });
-  });
-
   it("clicking View Timeline navigates to the settlement-scoped Timeline (spec P2 AC1)", () => {
     const nav = new NavigationStore(WORLD_FIXTURE);
     render(<SettlementView fixture={WORLD_FIXTURE} nav={nav} settlementId="oakbridge" />);

@@ -1,7 +1,5 @@
-import { useState } from "react";
 import type { WorldFixture } from "../fixture/types";
 import type { NavigationStore } from "../nav/NavigationStore";
-import { SemanticZoomMap, type ZoomLevel } from "../map/SemanticZoomMap";
 import { FollowButton } from "../components/FollowButton";
 
 export interface SettlementViewProps {
@@ -12,12 +10,11 @@ export interface SettlementViewProps {
 
 /**
  * Settlement Pulse (doc#108/#125) — população, food/employment/migration/construction,
- * eventos recentes — + mapa com zoom "distrito"/"agente" (toggle local, spec P1b AC2-4).
- * Clique num NPC no mapa nível "agente" navega pra Agent View — mesmo comportamento de
- * clicar num membro na lista da Household View (T18, wiring de mapa).
+ * eventos recentes. Conteúdo do Inspector quando um settlement está selecionado; o mapa
+ * (nível distrito/agente) mora no `CenterStage` (doc §5: Inspector é o painel contextual da
+ * ENTIDADE selecionada, o mapa é o "World" central — os dois nunca se sobrepõem).
  */
 export function SettlementView({ fixture, nav, settlementId }: SettlementViewProps) {
-  const [mapLevel, setMapLevel] = useState<Extract<ZoomLevel, "district" | "agent">>("district");
   const settlement = fixture.settlements.find((s) => s.id === settlementId);
   if (!settlement) return null;
 
@@ -59,23 +56,6 @@ export function SettlementView({ fixture, nav, settlementId }: SettlementViewPro
           <li key={event.eventId}>{event.summary}</li>
         ))}
       </ul>
-
-      <div data-testid="map-level-toggle">
-        <button type="button" onClick={() => setMapLevel("district")} aria-pressed={mapLevel === "district"}>
-          District view
-        </button>
-        <button type="button" onClick={() => setMapLevel("agent")} aria-pressed={mapLevel === "agent"}>
-          Agent view
-        </button>
-      </div>
-
-      <SemanticZoomMap
-        fixture={fixture}
-        level={mapLevel}
-        settlementId={settlementId}
-        onSelectSettlement={() => {}}
-        onSelectNpc={(agentId) => nav.push({ kind: "agent", id: agentId })}
-      />
 
       <button
         type="button"
