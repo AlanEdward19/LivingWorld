@@ -79,4 +79,92 @@ public static class PowerInheritanceResolver
 
         return PowerInheritanceOutcome.Mixed;
     }
+
+    /// <summary>EVO-11: filho recebe cópias dos descritores de A e B, completos e
+    /// independentes — sem fusão nem alteração. Nova lista; records imutáveis.</summary>
+    public static IReadOnlyList<PowerDescriptor> ApplyBoth(
+        IReadOnlyList<PowerDescriptor> parentA,
+        IReadOnlyList<PowerDescriptor> parentB)
+    {
+        ArgumentNullException.ThrowIfNull(parentA);
+        ArgumentNullException.ThrowIfNull(parentB);
+
+        var result = new List<PowerDescriptor>(parentA.Count + parentB.Count);
+        result.AddRange(parentA);
+        result.AddRange(parentB);
+        return result;
+    }
+
+    /// <summary>Decide + aplica caminho de descritores. Both → <see cref="ApplyBoth"/>;
+    /// OneOf/Mixed ainda não implementados (T9/T10).</summary>
+    public static IReadOnlyList<PowerDescriptor> ResolveDescriptors(
+        ulong worldSeed,
+        NpcId childId,
+        bool parentAIsCarrier,
+        bool parentBIsCarrier,
+        IReadOnlyList<PowerDescriptor> parentADescriptors,
+        IReadOnlyList<PowerDescriptor> parentBDescriptors,
+        PowerInheritanceRules? rules = null)
+    {
+        var decision = Decide(
+            worldSeed, childId, parentAIsCarrier, parentBIsCarrier, rules);
+        return ApplyOutcome(decision, parentADescriptors, parentBDescriptors);
+    }
+
+    /// <summary>Decide a partir de portadores no mundo + aplica caminho Both (EVO-11).
+    /// OneOf/Mixed → T9/T10.</summary>
+    public static IReadOnlyList<PowerDescriptor> ResolveDescriptors(
+        WorldState world,
+        NpcId childId,
+        NpcId parentAId,
+        NpcId parentBId,
+        PowerInheritanceRules? rules = null)
+    {
+        var decision = Decide(world, childId, parentAId, parentBId, rules);
+        if (!decision.Occurred)
+            return [];
+
+        var parentA = LookupDescriptors(world, parentAId);
+        var parentB = LookupDescriptors(world, parentBId);
+        return ApplyOutcome(decision, parentA, parentB);
+    }
+
+    static IReadOnlyList<PowerDescriptor> ApplyOutcome(
+        PowerInheritanceDecision decision,
+        IReadOnlyList<PowerDescriptor> parentADescriptors,
+        IReadOnlyList<PowerDescriptor> parentBDescriptors)
+    {
+        if (!decision.Occurred)
+            return [];
+
+        return decision.Outcome switch
+        {
+            PowerInheritanceOutcome.Both => ApplyBoth(parentADescriptors, parentBDescriptors),
+            // T9
+            PowerInheritanceOutcome.OneOf => throw new NotSupportedException(
+                "OneOf inheritance outcome is not implemented yet (T9)."),
+            // T10
+            PowerInheritanceOutcome.Mixed => throw new NotSupportedException(
+                "Mixed inheritance outcome is not implemented yet (T10)."),
+            _ => [],
+        };
+    }
+
+    static IReadOnlyList<PowerDescriptor> LookupDescriptors(WorldState world, NpcId npcId)
+    {
+        var carrier = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npcId);
+        if (carrier is null || carrier.PowerIds.Count == 0)
+            return [];
+
+        var byId = world.Extraordinary.Descriptors.ToDictionary(
+            d => d.Id, StringComparer.Ordinal);
+        var list = new List<PowerDescriptor>(carrier.PowerIds.Count);
+        foreach (var powerId in carrier.PowerIds)
+        {
+            if (byId.TryGetValue(powerId, out var descriptor))
+                list.Add(descriptor);
+        }
+
+        return list;
+    }
 }
