@@ -327,6 +327,40 @@ svg[data-testid="semantic-zoom-map"] {
   padding: 0.15rem 0.5rem;
 }
 
+/* § 50 Agent status strip — chips discretos, não barra de progresso colorida */
+[data-testid="agent-condition"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+[data-testid="agent-condition"] li {
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.1rem 0.5rem;
+}
+
+/* § 52 Body detail drawer */
+[data-testid="agent-body-detail"] {
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.75rem;
+  margin: 0.5rem 0;
+}
+
+[data-testid="agent-body-affects"] ul {
+  margin-left: 0.75rem;
+  list-style: disc;
+}
+
+[data-testid="agent-body-affects"] li {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
 /* § 29 Top Bar */
 [data-testid="top-bar"] {
   display: flex;

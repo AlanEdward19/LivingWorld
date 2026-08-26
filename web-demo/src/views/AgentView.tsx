@@ -18,6 +18,7 @@ export interface AgentViewProps {
  */
 export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
   const [whyOpen, setWhyOpen] = useState(false);
+  const [bodyDetailOpen, setBodyDetailOpen] = useState(false);
   const mode = useSyncExternalStore(
     (listener) => modeStore.subscribe(listener),
     () => modeStore.currentMode(),
@@ -38,8 +39,71 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
       </p>
       <p data-testid="agent-location">{settlement?.name}</p>
       <p data-testid="agent-intent">{agent.currentIntent}</p>
-      <p data-testid="agent-condition">{agent.condition.join(" · ")}</p>
+      {/* § 50 Status strip — chips discretos, não barras coloridas (doc §50) */}
+      <ul data-testid="agent-condition">
+        {agent.condition.map((c) => (
+          <li key={c}>{c}</li>
+        ))}
+      </ul>
+
       <p data-testid="agent-body">{agent.bodySummary.build}</p>
+      <button type="button" data-testid="toggle-body-detail" onClick={() => setBodyDetailOpen((open) => !open)}>
+        {bodyDetailOpen ? "Hide details" : "View details"}
+      </button>
+      {bodyDetailOpen && (
+        <div data-testid="agent-body-detail">
+          <h3>Physical</h3>
+          <dl>
+            <div>
+              <dt>Height</dt>
+              <dd>{agent.bodyDetail.height}</dd>
+            </div>
+            <div>
+              <dt>Weight</dt>
+              <dd>{agent.bodyDetail.weight}</dd>
+            </div>
+            <div>
+              <dt>Muscle mass</dt>
+              <dd>{agent.bodyDetail.muscleMass}</dd>
+            </div>
+            <div>
+              <dt>Fat mass</dt>
+              <dd>{agent.bodyDetail.fatMass}</dd>
+            </div>
+            <div>
+              <dt>Physical strength</dt>
+              <dd>{agent.bodyDetail.physicalStrength}</dd>
+            </div>
+            <div>
+              <dt>Endurance</dt>
+              <dd>{agent.bodyDetail.endurance}</dd>
+            </div>
+            <div>
+              <dt>Mobility</dt>
+              <dd>{agent.bodyDetail.mobility}</dd>
+            </div>
+          </dl>
+          <p>Current injuries: {agent.bodyDetail.currentInjuries.length > 0 ? agent.bodyDetail.currentInjuries.join(", ") : "None"}</p>
+          <p>Diseases: {agent.bodyDetail.diseases.length > 0 ? agent.bodyDetail.diseases.join(", ") : "None"}</p>
+          <p>Conditions: {agent.bodyDetail.conditions.length > 0 ? agent.bodyDetail.conditions.join(", ") : "None"}</p>
+
+          {agent.bodyDetail.affects.length > 0 && (
+            <div data-testid="agent-body-affects">
+              <h3>What this affects</h3>
+              {agent.bodyDetail.affects.map((affect) => (
+                <div key={affect.trait}>
+                  <strong>{affect.trait}</strong>
+                  <ul>
+                    {affect.effects.map((effect) => (
+                      <li key={effect}>{effect}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {household && (
         <button type="button" data-testid="agent-household" onClick={() => nav.push({ kind: "household", id: household.id })}>
