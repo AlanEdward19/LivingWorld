@@ -47,6 +47,12 @@ describe("Explorer — tab switching", () => {
     expect(nav.current()).toEqual({ kind: "settlement", id: "oakbridge" });
   });
 
+  it("Places groups settlements by region (doc §42)", () => {
+    renderExplorer();
+    fireEvent.click(screen.getByRole("tab", { name: "Places" }));
+    expect(screen.getByTestId("explorer-places")).toHaveTextContent(WORLD_FIXTURE.regions[0].name);
+  });
+
   it("switching to People lists every agent by default, clicking one navigates", () => {
     const { nav } = renderExplorer();
     fireEvent.click(screen.getByRole("tab", { name: "People" }));
@@ -66,10 +72,45 @@ describe("Explorer — tab switching", () => {
     expect(people).toHaveTextContent("Mira Valen");
   });
 
-  it("Organizations tab shows an explicit empty state (fixture models none)", () => {
+  it("People 'Notable' filter shows only agents flagged notable in the fixture", () => {
+    renderExplorer();
+    fireEvent.click(screen.getByRole("tab", { name: "People" }));
+    fireEvent.click(within(screen.getByTestId("people-filter")).getByText("Notable"));
+    const expectedNotable = WORLD_FIXTURE.agents.filter((a) => a.notable);
+    const people = screen.getByTestId("explorer-people");
+    expect(within(people).getAllByRole("listitem")).toHaveLength(expectedNotable.length);
+    expect(people).toHaveTextContent("Mira Valen"); // notable
+    expect(people).not.toHaveTextContent("Eli Valen"); // not notable (child, no independent agency)
+  });
+
+  it("People 'Nearby' filter is disabled with nothing selected, and scopes to the current settlement once something is", () => {
+    const { nav } = renderExplorer();
+    fireEvent.click(screen.getByRole("tab", { name: "People" }));
+    expect(within(screen.getByTestId("people-filter")).getByText("Nearby")).toBeDisabled();
+
+    act(() => nav.push({ kind: "agent", id: "mira-valen" }));
+    const nearbyButton = within(screen.getByTestId("people-filter")).getByText("Nearby");
+    expect(nearbyButton).not.toBeDisabled();
+    fireEvent.click(nearbyButton);
+
+    const expectedNearby = WORLD_FIXTURE.agents.filter((a) => a.settlementId === "oakbridge");
+    const people = screen.getByTestId("explorer-people");
+    expect(within(people).getAllByRole("listitem")).toHaveLength(expectedNearby.length);
+  });
+
+  it("Organizations tab shows Corvin's Bakery with its real members", () => {
     renderExplorer();
     fireEvent.click(screen.getByRole("tab", { name: "Organizations" }));
-    expect(screen.getByTestId("explorer-organizations")).toHaveTextContent("No organizations in this world yet.");
+    const organizations = screen.getByTestId("explorer-organizations");
+    expect(organizations).toHaveTextContent("Corvin's Bakery");
+    expect(organizations).toHaveTextContent("Mira Valen");
+  });
+
+  it("clicking an organization member in Organizations navigates to their Agent View", () => {
+    const { nav } = renderExplorer();
+    fireEvent.click(screen.getByRole("tab", { name: "Organizations" }));
+    fireEvent.click(within(screen.getByTestId("explorer-organizations")).getByText("Mira Valen"));
+    expect(nav.current()).toEqual({ kind: "agent", id: "mira-valen" });
   });
 
   it("Threads tab shows the Oakbridge Food Crisis card", () => {
