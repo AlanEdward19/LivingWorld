@@ -142,6 +142,28 @@ describe("SettlementStage — clicking things (AD-020: physical interaction, not
 
     expect(onBackgroundClick).toHaveBeenCalled();
   });
+
+  it("does NOT call onBackgroundClick from empty terrain while a building is focused (regression: misclick near an indoor NPC shouldn't kick you back to the city)", async () => {
+    const onBackgroundClick = vi.fn();
+    render(
+      <SettlementStage
+        fixture={WORLD_FIXTURE}
+        settlementId="oakbridge"
+        focusBuildingId="bld-corvin-bakery"
+        onSelectAgent={() => {}}
+        onFocusBuilding={() => {}}
+        onBackgroundClick={onBackgroundClick}
+      />,
+    );
+    await flush();
+
+    const app = pixiMock.__lastApplication();
+    const worldRoot = app.stage.children[0] as unknown as FakeNode;
+    const [terrainLayer] = worldRoot.children as unknown as FakeNode[];
+    terrainLayer.emit("pointertap");
+
+    expect(onBackgroundClick).not.toHaveBeenCalled();
+  });
 });
 
 describe("SettlementStage — roof cutaway (AD-020: reveal in place, not a route swap)", () => {

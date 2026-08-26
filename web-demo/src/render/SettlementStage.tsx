@@ -221,7 +221,12 @@ export function SettlementStage({
       }
       terrainLayer.eventMode = "static";
       terrainLayer.on("pointertap", () => {
-        if (!suppressClickRef.current) onBackgroundClick();
+        // Bug real achado ao vivo: focado num prédio (câmera em FOCUS_ZOOM), o interior não
+        // preenche a viewport inteira — sobra terreno visível nas bordas. Um clique um pouco
+        // impreciso perto de um NPC lá dentro caía nesse terreno e voltava pra cidade inteira.
+        // O "← Street" já cobre "sair do prédio" sem ambiguidade — clique no terreno só
+        // desfoca quando o foco atual é um AGENT (visão de rua, sem essa zona de risco).
+        if (!suppressClickRef.current && !focusBuildingIdRef.current) onBackgroundClick();
       });
 
       for (const road of generateRoads(settlementDef.buildings)) {

@@ -201,6 +201,14 @@
 - **Date**: 2026-08-26
 - **Status**: active
 
+### AD-023
+- **Decision**: `phase-16-3-web` — clique no terreno vazio só desfoca (`onBackgroundClick`) quando NENHUM prédio está focado. Focado num prédio, só o botão explícito "← Street" sai do foco.
+- **Reason**: bug real do usuário — ao focar um prédio a câmera aproxima (`FOCUS_ZOOM`), mas o interior não preenche a viewport inteira, sobra terreno visível nas bordas da cena. Um clique um pouco impreciso perto de um NPC lá dentro (agents/mobília não cobrem o footprint inteiro) caía nesse terreno e disparava `onBackgroundClick`, voltando pra cidade inteira — parecia que "clicar no NPC fechava a visualização".
+- **Trade-off**: nenhum — o "← Street" já existe e é a saída sem ambiguidade; desabilitar o clique-fora só nesse estado remove um jeito acidental de sair sem tirar nenhuma funcionalidade real (a intenção original do AD-021, "clicar fora volta pra cidade", segue valendo no nível agent/rua, onde não tem essa zona de risco).
+- **Scope**: `web-demo/src/render/SettlementStage.tsx` (`terrainLayer` pointertap handler).
+- **Date**: 2026-08-26
+- **Status**: active
+
 ## Handoff
 
 - **Feature**: Fase 16.3 Living World Cohesion — **MERGED** into primary
