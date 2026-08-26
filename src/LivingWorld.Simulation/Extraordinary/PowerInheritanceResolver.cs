@@ -112,7 +112,7 @@ public static class PowerInheritanceResolver
         return new List<PowerDescriptor>(chosen);
     }
 
-    /// <summary>Decide + aplica caminho de descritores (Both / OneOf; Mixed → T10).</summary>
+    /// <summary>Decide + aplica Both / OneOf / Mixed (EVO-11..14).</summary>
     public static IReadOnlyList<PowerDescriptor> ResolveDescriptors(
         ulong worldSeed,
         NpcId childId,
@@ -128,8 +128,7 @@ public static class PowerInheritanceResolver
             decision, worldSeed, childId, parentADescriptors, parentBDescriptors);
     }
 
-    /// <summary>Decide a partir de portadores no mundo + aplica Both/OneOf (EVO-11/12).
-    /// Mixed → T10.</summary>
+    /// <summary>Decide a partir de portadores no mundo + aplica Both/OneOf/Mixed.</summary>
     public static IReadOnlyList<PowerDescriptor> ResolveDescriptors(
         WorldState world,
         NpcId childId,
@@ -144,6 +143,23 @@ public static class PowerInheritanceResolver
         var parentA = LookupDescriptors(world, parentAId);
         var parentB = LookupDescriptors(world, parentBId);
         return ApplyOutcome(decision, world.Seed, childId, parentA, parentB);
+    }
+
+    /// <summary>EVO-13: mistura o primeiro descritor de cada pai via
+    /// <see cref="MixDescriptorBuilder"/>. Inválido → lista vazia (filho sem poder).</summary>
+    public static IReadOnlyList<PowerDescriptor> ApplyMixed(
+        IReadOnlyList<PowerDescriptor> parentA,
+        IReadOnlyList<PowerDescriptor> parentB,
+        ulong seed,
+        NpcId childId)
+    {
+        ArgumentNullException.ThrowIfNull(parentA);
+        ArgumentNullException.ThrowIfNull(parentB);
+        if (parentA.Count == 0 || parentB.Count == 0)
+            return [];
+
+        var mixed = MixDescriptorBuilder.Build(parentA[0], parentB[0], seed, childId);
+        return mixed is null ? [] : [mixed];
     }
 
     static IReadOnlyList<PowerDescriptor> ApplyOutcome(
@@ -161,9 +177,8 @@ public static class PowerInheritanceResolver
             PowerInheritanceOutcome.Both => ApplyBoth(parentADescriptors, parentBDescriptors),
             PowerInheritanceOutcome.OneOf => ApplyOneOf(
                 parentADescriptors, parentBDescriptors, worldSeed, childId),
-            // T10
-            PowerInheritanceOutcome.Mixed => throw new NotSupportedException(
-                "Mixed inheritance outcome is not implemented yet (T10)."),
+            PowerInheritanceOutcome.Mixed => ApplyMixed(
+                parentADescriptors, parentBDescriptors, worldSeed, childId),
             _ => [],
         };
     }
