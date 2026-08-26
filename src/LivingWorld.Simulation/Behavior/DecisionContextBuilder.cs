@@ -1,5 +1,6 @@
 using LivingWorld.Domain;
 using LivingWorld.Domain.Llm;
+using LivingWorld.Simulation.History;
 
 namespace LivingWorld.Simulation;
 
@@ -10,7 +11,7 @@ public static class DecisionContextBuilder
     /// <summary>Máximo de memórias recuperadas por wake (P1b; dirty-cache em P2a).</summary>
     public const int DefaultMemoryRecallCount = 5;
 
-    public static DecisionContext Build(WorldState world, Npc npc, long tick)
+    public static DecisionContext Build(WorldState world, Npc npc, long tick, LlmRules? llmRules = null)
     {
         var needs = new NeedsSnapshot(
             npc.HungerAt(tick),
@@ -34,17 +35,39 @@ public static class DecisionContextBuilder
                 h.Members.ToList());
         }
 
+        var rules = llmRules ?? LlmRules.Default;
+        string needQuery = DeriveActiveNeedQuery(needs);
+        var memories = MemoryRecall.Recall(world, npc.Id, needQuery, DefaultMemoryRecallCount, rules);
+        var beliefs = NpcBeliefQuery.BeliefsOf(world, npc.Id);
+
         return new DecisionContext(
             npc.Id,
             tick,
             needs,
             body,
             household,
-            RelevantMemories: Array.Empty<NpcMemory>(),
-            RelevantBeliefs: Array.Empty<string>(),
+            RelevantMemories: memories.Count == 0 ? Array.Empty<NpcMemory>() : memories.ToArray(),
+            RelevantBeliefs: beliefs.Count == 0 ? Array.Empty<string>() : beliefs.ToArray(),
             KnownRelationships: Array.Empty<RelationshipFact>(),
             PowerOpportunities: Array.Empty<PowerOpportunity>(),
             npc.Personality,
             npc.CurrentAction);
+    }
+
+    /// <summary>Query bag-of-words derivada do need com maior déficit (COH-12) — alimenta
+    /// <see cref="MemoryRecall.Recall"/>; lista vazia de memórias/crenças é OK (COH-16).</summary>
+    internal static string DeriveActiveNeedQuery(NeedsSnapshot needs)
+    {
+        int hunger = 100 - needs.Hunger;
+        int thirst = 100 - needs.Thirst;
+        int sleep = 100 - needs.Sleep;
+        int social = 100 - needs.Social;
+        int max = Math.Max(Math.Max(hunger, thirst), Math.Max(sleep, social));
+        if (max <= 0) return "";
+
+        if (hunger == max) return "hunger food fome eat meal scarcity";
+        if (thirst == max) return "thirst water sede drink";
+        if (sleep == max) return "sleep rest tired cansaco";
+        return "social friend betrayal trust relation traição";
     }
 }

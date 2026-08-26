@@ -1,5 +1,7 @@
 using LivingWorld.Domain;
+using LivingWorld.Domain.Llm;
 using LivingWorld.Simulation;
+using LivingWorld.Simulation.History;
 
 namespace LivingWorld.Tests.Behavior;
 
@@ -111,6 +113,76 @@ public class DecisionContextBuilderTests
         var first = DecisionContextBuilder.Build(world, npc, tick: 5);
         var second = DecisionContextBuilder.Build(world, npc, tick: 5);
 
-        Assert.Equal(first, second);
+        Assert.Equal(first.NpcId, second.NpcId);
+        Assert.Equal(first.Tick, second.Tick);
+        Assert.Equal(first.Needs, second.Needs);
+        Assert.Equal(first.Body, second.Body);
+        Assert.Equal(first.Personality, second.Personality);
+        Assert.Equal(first.RelevantMemories.Select(m => m.Id), second.RelevantMemories.Select(m => m.Id));
+        Assert.Equal(first.RelevantBeliefs, second.RelevantBeliefs);
+    }
+
+    [Fact]
+    public void Build_without_memory_or_belief_returns_empty_lists()
+    {
+        var world = BuildWorld();
+        var npc = MakeNpc(world);
+        world.AddNpc(npc);
+
+        var ctx = DecisionContextBuilder.Build(world, npc, tick: 0);
+
+        Assert.Empty(ctx.RelevantMemories);
+        Assert.Empty(ctx.RelevantBeliefs);
+    }
+
+    [Fact]
+    public void Build_includes_relevant_betrayal_memory_when_social_deficit_is_highest()
+    {
+        var world = BuildWorld();
+        var npc = MakeNpc(world, hunger: 90, thirst: 90, sleep: 90, social: 10);
+        world.AddNpc(npc);
+        world.AddNpcMemory(
+            npc.Id, MemoryCategory.Social, "foi traído por X na colheita", importance: 80, originTick: 1,
+            participants: [npc.Id], location: npc.CurrentLocation,
+            canonicalImportanceThreshold: LlmRules.Default.CanonicalMemoryImportanceThreshold);
+
+        var ctx = DecisionContextBuilder.Build(world, npc, tick: 0);
+
+        Assert.Contains(ctx.RelevantMemories, m => m.Content.Contains("traído", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Build_includes_city_beliefs_from_NpcBeliefQuery()
+    {
+        var historyRules = HistoryRules.Create(
+            enabled: true,
+            skeletonSignificanceThreshold: 0.5,
+            canonSizePerCommunity: 10,
+            mediumFidelityByType: new Dictionary<TransmissionMediumType, MediumFidelity>
+            {
+                [TransmissionMediumType.OralTradition] = new(1.0, 10, DeathConditionType.Decay),
+            },
+            operatorProbability: new Dictionary<DistortionOperator, double> { [DistortionOperator.Moralization] = 1.0 },
+            importanceWeight: 1,
+            transmissibilityWeight: 0,
+            recencyWeight: 0).Value!;
+        var (world, _) = ScenarioRunner.Create(3, historyRules: historyRules);
+        var npc = world.Npcs[0];
+        var city = world.FindCity(npc.City) ?? new City(npc.City, ScenarioRunner.DefaultVillageLocation, 0, null, AggregatePopulationPool.Empty);
+        if (world.FindCity(npc.City) is null) world.AddCity(city);
+
+        var fact = new Fact(new FactId(1), 5, WorldEventKind.Marriage, [npc.Id], city.Id, 0.8, "1|cause");
+        world.AddFact(fact);
+        var report = new ReportState(
+            world.NextReportIdAndAdvance(), fact.Id, city.Id, TransmissionMediumType.OralTradition,
+            HopCount: 1, Weight: fact.Significance, CreatedAtTick: 10, LastHopTick: 10);
+        world.RegisterReport(report);
+        CanonSlotManager.Admit(city, report, historyRules, nowTick: 20);
+
+        var beliefsDirect = NpcBeliefQuery.BeliefsOf(world, npc.Id);
+        var ctx = DecisionContextBuilder.Build(world, npc, tick: 0);
+
+        Assert.NotEmpty(beliefsDirect);
+        Assert.Equal(beliefsDirect, ctx.RelevantBeliefs);
     }
 }
