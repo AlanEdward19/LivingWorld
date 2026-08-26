@@ -49,12 +49,45 @@ body {
 }
 
 #root {
-  display: flex;
-  flex-direction: column;
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 1.5rem;
-  gap: 1rem;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* § 5/§26-29 — shell de uma janela só: Top Bar / (Explorer + World + Inspector) / Timeline */
+[data-testid="shell"] {
+  display: grid;
+  grid-template-rows: 48px 1fr auto;
+  height: 100%;
+}
+
+[data-testid="shell-body"] {
+  display: grid;
+  grid-template-columns: 260px 1fr 340px; /* § 27 */
+  overflow: hidden;
+}
+
+[data-testid="explorer"],
+[data-testid="inspector"] {
+  overflow-y: auto;
+  padding: 0.75rem;
+}
+
+[data-testid="explorer"] {
+  border-right: 1px solid var(--border);
+}
+
+[data-testid="inspector"] {
+  border-left: 1px solid var(--border);
+}
+
+[data-testid="center-stage"] {
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+[data-testid="inspector-empty"] {
+  color: var(--text-muted);
+  padding: 1rem;
 }
 
 /* § 22 Escala tipográfica */
@@ -292,4 +325,168 @@ svg[data-testid="semantic-zoom-map"] {
   background: var(--surface-2);
   border-radius: var(--radius-sm);
   padding: 0.15rem 0.5rem;
+}
+
+/* § 29 Top Bar */
+[data-testid="top-bar"] {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-1);
+  font-size: 13px;
+}
+
+[data-testid="logo"] {
+  background: transparent;
+  border-color: transparent;
+  color: var(--accent);
+  font-weight: 600;
+  padding: 0.35rem 0.4rem;
+}
+
+[data-testid="topbar-breadcrumb"] {
+  flex: 1;
+  min-width: 0;
+}
+
+[data-testid="topbar-breadcrumb"] [data-testid="breadcrumb"] {
+  font-size: 12px;
+}
+
+[data-testid="world-date"] {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+[data-testid="simulation-controls"] {
+  display: flex;
+  gap: 0.2rem;
+}
+
+[data-testid="topbar-search"] [data-testid="search-bar"] {
+  width: 220px;
+}
+
+/* Menus suspensos do topbar (World/Mode/Notifications) — doc §31/§32/§38 */
+.topbar-menu {
+  position: relative;
+}
+
+.topbar-menu > button {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+
+.topbar-menu > button:hover {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+.topbar-menu [role="menu"] {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  z-index: 20;
+  min-width: 200px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.3rem;
+}
+
+.topbar-menu [role="menu"] button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border-color: transparent;
+}
+
+.topbar-menu [role="menu"] button:hover:not(:disabled) {
+  background: var(--surface-3);
+}
+
+.topbar-menu [role="menu"] small {
+  color: var(--text-muted);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+[data-testid="notifications-button"] {
+  color: var(--warning);
+}
+
+[data-testid="notifications-button"]:disabled {
+  color: var(--text-disabled);
+  background: transparent;
+  border-color: transparent;
+}
+
+/* § 39 Explorer tabs — rail vertical, não 20 opções simultâneas visíveis de uma vez no conteúdo */
+[data-testid="explorer-tabs"] {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: 0.75rem;
+}
+
+[data-testid="explorer-tabs"] [role="tab"] {
+  text-align: left;
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+
+[data-testid="explorer-tabs"] [role="tab"][aria-selected="true"] {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+[data-testid="explorer-content"] ul li {
+  margin-bottom: 0.2rem;
+}
+
+[data-testid="explorer-content"] button {
+  display: block;
+  width: 100%;
+  text-align: left;
+}
+
+[data-testid="people-filter"] {
+  display: flex;
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+
+[data-testid="people-filter"] button {
+  width: auto;
+}
+
+/* § 105-107 Timeline inferior */
+[data-testid="timeline-bar"] {
+  border-top: 1px solid var(--border);
+  background: var(--surface-1);
+}
+
+[data-testid="timeline-bar-toggle"] {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+  width: 100%;
+  text-align: left;
+}
+
+[data-testid="timeline-bar-content"] {
+  max-height: 40vh;
+  overflow-y: auto;
+  padding: 0 0.75rem 0.75rem;
 }
