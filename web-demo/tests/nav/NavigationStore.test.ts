@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
-import { NavigationStore } from "../../src/nav/NavigationStore";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { NavigationStore, pathToRoute, routeToPath, type Route } from "../../src/nav/NavigationStore";
+import { WORLD_FIXTURE } from "../../src/fixture/oakbridge";
 
 describe("NavigationStore", () => {
   it("starts at the world route", () => {
@@ -95,5 +96,78 @@ describe("NavigationStore", () => {
     unsubscribe();
     store.push({ kind: "settlement", id: "oakbridge" });
     expect(listener).not.toHaveBeenCalled();
+  });
+});
+
+describe("NavigationStore — URL sync (deep-linking)", () => {
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("push updates the URL to the serialized route path", () => {
+    const store = new NavigationStore();
+    store.push({ kind: "agent", id: "mira-valen" });
+    expect(window.location.pathname).toBe("/agent/mira-valen");
+  });
+
+  it("back() updates the URL back to the previous route's path", () => {
+    const store = new NavigationStore();
+    store.push({ kind: "settlement", id: "oakbridge" });
+    store.push({ kind: "agent", id: "mira-valen" });
+    store.back();
+    expect(window.location.pathname).toBe("/settlement/oakbridge");
+  });
+
+  it("syncWithHistory loads the initial route from a deep-link URL", () => {
+    window.history.replaceState(null, "", "/agent/mira-valen");
+    const store = new NavigationStore(WORLD_FIXTURE);
+    store.syncWithHistory();
+    expect(store.current()).toEqual({ kind: "agent", id: "mira-valen" });
+    store.stopSyncWithHistory();
+  });
+
+  it("syncWithHistory redirects to World View when the deep-link id doesn't exist in the fixture", () => {
+    window.history.replaceState(null, "", "/agent/does-not-exist");
+    const store = new NavigationStore(WORLD_FIXTURE);
+    store.syncWithHistory();
+    expect(store.current()).toEqual({ kind: "world" });
+    expect(window.location.pathname).toBe("/");
+    store.stopSyncWithHistory();
+  });
+
+  it("popstate (browser back) syncs the internal stack from the URL without duplicating the entry", () => {
+    window.history.replaceState(null, "", "/");
+    const store = new NavigationStore(WORLD_FIXTURE);
+    store.syncWithHistory();
+    store.push({ kind: "settlement", id: "oakbridge" });
+    expect(store.breadcrumb()).toHaveLength(2);
+
+    // Simula o browser voltando pra "/" sem passar por store.back() — location muda primeiro
+    // (como o browser faria ao consumir a entrada de history), depois o evento popstate dispara.
+    window.history.pushState(null, "", "/");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+
+    expect(store.current()).toEqual({ kind: "world" });
+    expect(store.breadcrumb()).toEqual([{ kind: "world" }]);
+    store.stopSyncWithHistory();
+  });
+
+  it("routeToPath/pathToRoute round-trip for every Route kind", () => {
+    const routes: Route[] = [
+      { kind: "world" },
+      { kind: "settlement", id: "oakbridge" },
+      { kind: "household", id: "valen-household" },
+      { kind: "agent", id: "mira-valen" },
+      { kind: "causal", eventId: "evt-grain-prices-rose" },
+      { kind: "timeline", scope: { type: "world" } },
+      { kind: "timeline", scope: { type: "agent", id: "mira-valen" } },
+      { kind: "life", agentId: "mira-valen" },
+      { kind: "feed" },
+      { kind: "threads" },
+      { kind: "thread", id: "oakbridge-food-crisis" },
+    ];
+    for (const route of routes) {
+      expect(pathToRoute(routeToPath(route), WORLD_FIXTURE)).toEqual(route);
+    }
   });
 });
