@@ -93,7 +93,9 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                         DecisionContextBuilder.Build(world, npc, now),
                         rules,
                         world.EconomyRules,
-                        continuityAction);
+                        continuityAction,
+                        wakeReason: justCompleted ? WakeReason.ActionCompleted : WakeReason.UrgentNeed,
+                        previousIntent: npc.CurrentIntent);
                     candidate = decision.Action;
                     pendingPower = decision.PendingPower;
                 }
@@ -463,16 +465,23 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             ? city.Location
             : null;
 
-    private readonly record struct UtilityDecision(ActionType Action, PendingPowerInvocation? PendingPower);
+    internal readonly record struct UtilityDecision(
+        ActionType Action,
+        PendingPowerInvocation? PendingPower,
+        DecisionTrace Trace);
 
-    private static UtilityDecision SelectByUtility(
+    /// <summary>Escolhe ação por utility e expõe <see cref="DecisionTrace"/> volátil (COH-54).</summary>
+    internal static UtilityDecision SelectByUtility(
         DecisionContext ctx, NeedsRules rules, EconomyRules economy, ActionType? continuityAction,
-        PowerUtilityRules? powerRules = null)
+        PowerUtilityRules? powerRules = null,
+        WakeReason wakeReason = WakeReason.UrgentNeed,
+        ActionType? previousIntent = null)
     {
         var utilityRules = PowerUtilityRules.Resolve(powerRules);
         var best = ActionType.Eat;
         double bestScore = double.NegativeInfinity;
         PendingPowerInvocation? bestPending = null;
+        var scored = new List<(ActionType Action, double Score)>(AllActions.Length + ctx.PowerOpportunities.Count);
 
         foreach (var action in AllActions)
         {
@@ -481,6 +490,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             if (rules.HysteresisEnabled && continuityAction == action)
                 score += rules.ContinuityBonus;
 
+            scored.Add((action, score));
             if (score > bestScore)
             {
                 bestScore = score;
@@ -492,6 +502,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         foreach (var opp in ctx.PowerOpportunities)
         {
             double score = PowerOpportunityUtility(opp, ctx, utilityRules);
+            scored.Add((ActionType.UsePower, score));
             if (score > bestScore)
             {
                 bestScore = score;
@@ -501,7 +512,74 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             }
         }
 
-        return new UtilityDecision(best, bestPending);
+        var trace = BuildDecisionTrace(ctx, wakeReason, previousIntent, best, bestScore, scored);
+        return new UtilityDecision(best, bestPending, trace);
+    }
+
+    private static DecisionTrace BuildDecisionTrace(
+        DecisionContext ctx,
+        WakeReason wakeReason,
+        ActionType? previousIntent,
+        ActionType winner,
+        double winningUtility,
+        List<(ActionType Action, double Score)> scored)
+    {
+        var pressures = PressureModel.DerivePressures(ctx);
+        var opportunities = OpportunityModel.DeriveOpportunities(ctx);
+
+        var topPressures = pressures
+            .OrderByDescending(p => p.Intensity)
+            .ThenBy(p => p.Kind, StringComparer.Ordinal)
+            .Take(3)
+            .ToList();
+
+        var ordered = scored
+            .GroupBy(s => s.Action)
+            .Select(g => (Action: g.Key, Score: g.Max(x => x.Score)))
+            .OrderByDescending(s => s.Score)
+            .ThenBy(s => s.Action)
+            .ToList();
+
+        var alternatives = ordered
+            .Where(s => s.Action != winner)
+            .Take(3)
+            .Select(s => s.Action)
+            .ToList();
+
+        var positives = new List<string>();
+        foreach (var pressure in topPressures)
+        {
+            positives.Add($"{pressure.Kind}:{pressure.Intensity:0.#}");
+            foreach (var factor in pressure.Factors.Take(2))
+                positives.Add(factor);
+        }
+
+        foreach (var opp in opportunities.Take(2))
+            positives.Add(opp.Kind);
+
+        var negatives = new List<string>();
+        var blocking = new List<string>();
+        foreach (var alt in ordered.Where(s => s.Action != winner).Take(3))
+        {
+            negatives.Add($"{alt.Action}:{alt.Score:0.#}");
+            if (alt.Score < 0 || alt.Score + 25 < winningUtility)
+                blocking.Add($"{alt.Action}:outscored");
+        }
+
+        if (ctx.Household is null && winner is ActionType.Eat or ActionType.Buy)
+            blocking.Add("NoHousehold");
+
+        return new DecisionTrace(
+            WakeReason: wakeReason,
+            PreviousIntent: previousIntent,
+            TopPressures: topPressures,
+            KnownOpportunities: opportunities,
+            Winner: winner,
+            WinningUtility: winningUtility,
+            TopPositiveFactors: positives,
+            TopNegativeFactors: negatives,
+            BlockingFactors: blocking,
+            KnownAlternatives: alternatives);
     }
 
     /// <summary>Utility de candidato dinâmico de poder (COH-33 / AD-012):
