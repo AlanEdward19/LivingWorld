@@ -2,7 +2,9 @@ namespace LivingWorld.Infrastructure;
 
 /// <summary>Linha do event log Tier A (ADR-0006, task 8): imutável — corrigir a história é
 /// escrever outro evento, nunca <c>UPDATE</c> (rules/database-entities.md). <see cref="Id"/> é
-/// o mesmo id monotônico do <c>ScheduledEvent</c>/log de origem, único por branch.</summary>
+/// o mesmo id monotônico do <c>ScheduledEvent</c>/log de origem, único por branch.
+/// <see cref="EventId"/>/<see cref="CauseEventId"/>/<see cref="SourceSystem"/> são nullable
+/// aditivos (COH-04) — leitores antigos ignoram as colunas novas.</summary>
 public sealed class EventLogRecord
 {
     public long BranchId { get; set; }
@@ -15,4 +17,12 @@ public sealed class EventLogRecord
 
     public required string Kind { get; set; }
     public required string Payload { get; set; }
+
+    /// <summary>Id monotônico de proveniência causal (<c>WorldEvent.EventId</c>) — nullable
+    /// para linhas pré-COH-04.</summary>
+    public long? EventId { get; set; }
+
+    public long? CauseEventId { get; set; }
+
+    public string? SourceSystem { get; set; }
 }
