@@ -164,15 +164,13 @@ button[aria-pressed="true"] {
 }
 
 /* Botões ghost (§ 135): Back e toggles de contexto, sem preenchimento forte */
-[data-testid="breadcrumb"] button,
-[data-testid="map-level-toggle"] button {
+[data-testid="breadcrumb"] button {
   background: transparent;
   border-color: transparent;
   color: var(--text-secondary);
 }
 
-[data-testid="breadcrumb"] button:hover,
-[data-testid="map-level-toggle"] button:hover {
+[data-testid="breadcrumb"] button:hover {
   background: var(--surface-2);
   color: var(--text-primary);
 }
@@ -280,12 +278,6 @@ input[type="text"]::placeholder {
   width: 44px;
   height: 44px;
   object-fit: contain;
-}
-
-[data-testid="map-level-toggle"] {
-  display: flex;
-  gap: 0.3rem;
-  margin: 0.5rem 0;
 }
 
 /* § 92-96 Map — recua visualmente, sem competir com a UI ao redor */
