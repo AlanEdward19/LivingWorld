@@ -836,7 +836,13 @@ public sealed class WorldState
     /// <c>ScenarioLoaderV2</c> chama, no mesmo momento em que autora <see cref="City"/>/
     /// <see cref="Building"/>. Sem <c>FindPortal</c>/remoção: portal é dado descritivo estático do
     /// cenário, nenhum sistema desta fase o edita depois de carregado.</summary>
-    public void AddPortal(SpatialPortal portal) => _portals.Add(portal);
+    public void AddPortal(SpatialPortal portal)
+    {
+        _portals.Add(portal);
+        // Portals is cold (not HotProperties): must invalidate fragment cache after mutation
+        // or CanonicalHash after AddPortal stays stale (PERF-12 IncrementalHasher).
+        CanonicalHashCache.MarkPropertyDirty(nameof(Portals));
+    }
 
     internal RestPlaceId NextRestPlaceIdAndAdvance() => new(_nextRestPlaceId++);
 
