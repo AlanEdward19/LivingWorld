@@ -78,6 +78,7 @@ public static class ExtraordinaryInvocationEngine
             effect.Apply(plan.Resolution);
             ctx.LogEvent(WorldEventKind.ExtraordinaryEffectApplied, $"{prefix}{effect.Token}");
         }
+        PowerUseCounter.RecordSuccessfulUse(world, invocation.CarrierId);
         if (plan.Resolution == ResolutionResult.PartialSuccess)
             ApplyFailureModes(ctx, prefix, plan.FailureModes);
 
