@@ -5,7 +5,7 @@ namespace LivingWorld.Simulation;
 /// <summary>
 /// Escolha pura e reproduzível: <c>hash(seed, npcId, salt) → [0,1)</c> (EVO-16).
 /// Usado nos rolls de herança e em escolhas internas do caminho "mistura".
-/// Nunca <see cref="System.Random"/>, <c>HashCode.Combine</c> ou <c>string.GetHashCode</c>.
+/// Nunca System.Random, <c>HashCode.Combine</c> ou <c>string.GetHashCode</c>.
 /// </summary>
 public static class DeterministicChoice
 {
