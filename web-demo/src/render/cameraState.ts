@@ -13,11 +13,22 @@ export const MAX_ZOOM = 3.5;
  * página) — suficiente pra ler paredes/móveis/NPCs do interior revelado. */
 export const FOCUS_ZOOM = 2.4;
 
-export function initialCamera(centerX: number, centerY: number): CameraState {
-  return { x: centerX, y: centerY, zoom: DEFAULT_ZOOM, focusBuildingId: null };
+export function initialCamera(centerX: number, centerY: number, zoom: number = DEFAULT_ZOOM): CameraState {
+  return { x: centerX, y: centerY, zoom, focusBuildingId: null };
 }
 
 const clampZoom = (zoom: number): number => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom));
+
+/**
+ * Zoom que caberia o bounding box inteiro (prédios espalhados, AD-022) na viewport — nunca
+ * amplia além de 1x (`DEFAULT_ZOOM`) pra um settlement pequeno/vazio não vir "grudado" na tela;
+ * só encolhe quando o settlement é grande demais pra caber. `margin` deixa uma borda de respiro.
+ */
+export function fitZoom(boundingWidth: number, boundingHeight: number, viewportWidth: number, viewportHeight: number, margin = 0.85): number {
+  if (boundingWidth <= 0 || boundingHeight <= 0) return DEFAULT_ZOOM;
+  const fit = Math.min(viewportWidth / boundingWidth, viewportHeight / boundingHeight) * margin;
+  return clampZoom(Math.min(DEFAULT_ZOOM, fit));
+}
 
 /** Zoom centrado na tela (não no cursor) — mais simples que zoom-to-pointer e suficiente pro
  * pedido do usuário ("consigo dar zoom"); câmera continua olhando pro mesmo ponto de mundo. */
@@ -38,7 +49,8 @@ export function focusOn(state: CameraState, buildingId: string, targetX: number,
   return { x: targetX, y: targetY, zoom: FOCUS_ZOOM, focusBuildingId: buildingId };
 }
 
-/** Sai do foco, volta pro overview do settlement (`centerX`/`centerY` = centro do settlement). */
-export function unfocus(state: CameraState, centerX: number, centerY: number): CameraState {
-  return { x: centerX, y: centerY, zoom: DEFAULT_ZOOM, focusBuildingId: null };
+/** Sai do foco, volta pro overview do settlement (`centerX`/`centerY` = centro do settlement,
+ * `zoom` = o overview zoom real desse settlement — ver `fitZoom` — não sempre `DEFAULT_ZOOM`). */
+export function unfocus(state: CameraState, centerX: number, centerY: number, zoom: number = DEFAULT_ZOOM): CameraState {
+  return { x: centerX, y: centerY, zoom, focusBuildingId: null };
 }

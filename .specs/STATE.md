@@ -193,6 +193,14 @@
 - **Date**: 2026-08-26
 - **Status**: active
 
+### AD-022
+- **Decision**: `phase-16-3-web` — prédios de Oakbridge (e patrolPoints dos agents que moram/trabalham neles) escalados 5x no fixture (`oakbridge.ts`) — grid antigo 0-3 virou 0-15. Settlement View ganhou zoom-to-fit no overview (`cameraState.fitZoom`, novo): a câmera inicial cabe o bounding box real dos prédios na viewport, nunca amplia além de 1x pra um settlement pequeno.
+- **Reason**: usuário reportou que as casas estavam "muito coladas" pra testar — bug real por trás: `buildingFootprint` (AD-020) dá a cada prédio uma área de 2-5 tiles, mas os `gridPosition` originais (herdados do modelo antigo de 1-tile-por-prédio) ficavam a 1 tile de distância um do outro — footprints se sobrepunham de verdade (não só visualmente apertado).
+- **Trade-off**: nenhum — é estritamente uma correção (positions eram artefato do modelo antigo, não dado "de verdade" de nenhum sistema). `SEMANTIC_LOCAL_CENTER` (mapa-múndi, AD-018) ajustado de 1.5→7.5 pra continuar centralizando os pontinhos de agent no settlement certo.
+- **Scope**: `web-demo/src/fixture/oakbridge.ts` (gridPosition + patrolPoints, só Oakbridge — outros settlements não têm prédios/agents modelados ainda), `web-demo/src/render/cameraState.ts` (`fitZoom`), `web-demo/src/render/SettlementStage.tsx`, `web-demo/src/map/SemanticZoomMap.tsx` (`SETTLEMENT_LOCAL_CENTER`).
+- **Date**: 2026-08-26
+- **Status**: active
+
 ## Handoff
 
 - **Feature**: Fase 16.3 Living World Cohesion — **MERGED** into primary

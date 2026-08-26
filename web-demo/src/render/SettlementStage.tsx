@@ -4,7 +4,7 @@ import type { BuildingFixture, FurnitureKind, WorldFixture } from "../fixture/ty
 import { paletteForBuildingKind } from "../map/isoPalette";
 import { patrolPositionAt } from "../map/patrolMath";
 import { buildingFootprint, generateRoads, tileNoise, type Footprint } from "./settlementLayout";
-import { focusOn, initialCamera, panBy, unfocus, zoomBy, type CameraState } from "./cameraState";
+import { fitZoom, focusOn, initialCamera, panBy, unfocus, zoomBy, type CameraState } from "./cameraState";
 import { getNpcTexture } from "./npcTexture";
 import { TILE } from "./constants";
 
@@ -99,7 +99,7 @@ export function SettlementStage({
   const interiorTransformsRef = useRef(new Map<string, InteriorTransform>());
   const agentSpritesRef = useRef(new Map<string, Sprite>());
   const agentLayerRef = useRef<Container | null>(null);
-  const settlementCenterRef = useRef({ x: 0, y: 0 });
+  const settlementCenterRef = useRef({ x: 0, y: 0, zoom: 1 });
   const [activeFloorIndex, setActiveFloorIndex] = useState(0);
 
   /** Move a câmera pro prédio focado (ou de volta pro overview do settlement) — "aproximar a
@@ -117,7 +117,7 @@ export function SettlementStage({
         );
       }
     } else {
-      cameraRef.current = unfocus(cameraRef.current, settlementCenterRef.current.x, settlementCenterRef.current.y);
+      cameraRef.current = unfocus(cameraRef.current, settlementCenterRef.current.x, settlementCenterRef.current.y, settlementCenterRef.current.zoom);
     }
   }
 
@@ -190,8 +190,14 @@ export function SettlementStage({
     const maxY = Math.max(4, ...ys) + 3;
     const centerX = ((minX + maxX) / 2) * TILE;
     const centerY = ((minY + maxY) / 2) * TILE;
-    cameraRef.current = initialCamera(centerX, centerY);
-    settlementCenterRef.current = { x: centerX, y: centerY };
+    // Zoom de overview que cabe os PRÉDIOS (sem o padding de terreno) na viewport — settlements
+    // grandes/espalhados (AD-022) não cabiam mais em zoom 1 fixo; um settlement pequeno/vazio
+    // nunca amplia além de 1x (ver `fitZoom`).
+    const buildingsExtentX = (Math.max(0, ...xs) - Math.min(0, ...xs)) * TILE;
+    const buildingsExtentY = (Math.max(0, ...ys) - Math.min(0, ...ys)) * TILE;
+    const overviewZoom = fitZoom(buildingsExtentX, buildingsExtentY, containerEl.clientWidth || 680, containerEl.clientHeight || 600);
+    cameraRef.current = initialCamera(centerX, centerY, overviewZoom);
+    settlementCenterRef.current = { x: centerX, y: centerY, zoom: overviewZoom };
 
     // Parâmetros explícitos (não closure sobre `settlementDef`/`containerEl` do escopo externo)
     // porque o TS reseta narrowing de `const` ao cruzar uma fronteira de função aninhada —

@@ -188,8 +188,19 @@ describe("SettlementStage — roof cutaway (AD-020: reveal in place, not a route
     expect(worldRoot.scale.x).toBeGreaterThan(1);
   });
 
-  it("returns the camera to the settlement overview when focus clears (clicking street-view)", async () => {
+  it("returns the camera to the settlement's own overview zoom when focus clears (clicking street-view)", async () => {
+    // AD-022: prédios espalhados podem exigir um overview zoom < 1 (fitZoom) pra caber tudo na
+    // viewport — não é sempre exatamente 1. Captura o overview de verdade antes de focar, em vez
+    // de assumir um valor fixo, pra continuar correto se o layout do fixture mudar de novo.
     const { rerender } = render(
+      <SettlementStage fixture={WORLD_FIXTURE} settlementId="oakbridge" onSelectAgent={() => {}} onFocusBuilding={() => {}} onBackgroundClick={() => {}} />,
+    );
+    await flush();
+    act(() => pixiMock.__runTick());
+    const { worldRoot } = layers();
+    const overviewZoom = worldRoot.scale.x;
+
+    rerender(
       <SettlementStage
         fixture={WORLD_FIXTURE}
         settlementId="oakbridge"
@@ -199,17 +210,15 @@ describe("SettlementStage — roof cutaway (AD-020: reveal in place, not a route
         onBackgroundClick={() => {}}
       />,
     );
-    await flush();
     act(() => pixiMock.__runTick());
-    const { worldRoot } = layers();
-    expect(worldRoot.scale.x).toBeGreaterThan(1);
+    expect(worldRoot.scale.x).toBeGreaterThan(overviewZoom);
 
     rerender(
       <SettlementStage fixture={WORLD_FIXTURE} settlementId="oakbridge" focusBuildingId={null} onSelectAgent={() => {}} onFocusBuilding={() => {}} onBackgroundClick={() => {}} />,
     );
     act(() => pixiMock.__runTick());
 
-    expect(worldRoot.scale.x).toBeCloseTo(1, 5);
+    expect(worldRoot.scale.x).toBeCloseTo(overviewZoom, 5);
   });
 
   it("builds room rectangles for the focused building's interior on mount (deep-link safe)", async () => {

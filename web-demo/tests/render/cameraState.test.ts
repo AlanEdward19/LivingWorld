@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_ZOOM, FOCUS_ZOOM, MAX_ZOOM, MIN_ZOOM, focusOn, initialCamera, panBy, unfocus, zoomBy } from "../../src/render/cameraState";
+import { DEFAULT_ZOOM, FOCUS_ZOOM, MAX_ZOOM, MIN_ZOOM, fitZoom, focusOn, initialCamera, panBy, unfocus, zoomBy } from "../../src/render/cameraState";
 
 describe("initialCamera", () => {
   it("starts at the given center, default zoom, unfocused", () => {
@@ -45,8 +45,38 @@ describe("focusOn / unfocus", () => {
     expect(focusOn(state, "bld-bakery", 100, 200)).toEqual({ x: 100, y: 200, zoom: FOCUS_ZOOM, focusBuildingId: "bld-bakery" });
   });
 
-  it("unfocus returns to the settlement center at DEFAULT_ZOOM and clears focusBuildingId", () => {
+  it("unfocus returns to the settlement center at DEFAULT_ZOOM by default and clears focusBuildingId", () => {
     const focused = focusOn(initialCamera(0, 0), "bld-bakery", 100, 200);
     expect(unfocus(focused, 0, 0)).toEqual({ x: 0, y: 0, zoom: DEFAULT_ZOOM, focusBuildingId: null });
+  });
+
+  it("unfocus returns to a given overview zoom (AD-022: fitZoom), not always DEFAULT_ZOOM", () => {
+    const focused = focusOn(initialCamera(0, 0), "bld-bakery", 100, 200);
+    expect(unfocus(focused, 0, 0, 0.6)).toEqual({ x: 0, y: 0, zoom: 0.6, focusBuildingId: null });
+  });
+});
+
+describe("fitZoom (AD-022: spread-out settlements may not fit at 1x)", () => {
+  it("never zooms in past DEFAULT_ZOOM for a settlement smaller than the viewport", () => {
+    expect(fitZoom(100, 100, 800, 600)).toBe(DEFAULT_ZOOM);
+  });
+
+  it("zooms out to fit a settlement wider than the viewport", () => {
+    const zoom = fitZoom(1200, 500, 800, 600);
+    expect(zoom).toBeLessThan(DEFAULT_ZOOM);
+    expect(zoom).toBeCloseTo((800 / 1200) * 0.85, 5);
+  });
+
+  it("uses whichever axis (width or height) needs more shrinking", () => {
+    const zoom = fitZoom(1000, 1200, 800, 600);
+    expect(zoom).toBeCloseTo((600 / 1200) * 0.85, 5);
+  });
+
+  it("falls back to DEFAULT_ZOOM for a zero-size bounding box (no buildings)", () => {
+    expect(fitZoom(0, 0, 800, 600)).toBe(DEFAULT_ZOOM);
+  });
+
+  it("clamps to MIN_ZOOM for an extremely large settlement", () => {
+    expect(fitZoom(1_000_000, 1_000_000, 800, 600)).toBe(MIN_ZOOM);
   });
 });

@@ -26,8 +26,9 @@ const DEFAULT_HALF_EXTENT = TILE_WIDTH * 3;
  * no nível "world" (doc §14: "zoom distante: bolinhas pequenas"). */
 const WORLD_DOT_SHRINK = 5;
 /** Centro aproximado do grid de um settlement — usado só pra centralizar o encolhimento acima,
- * não é um dado real de nenhum sistema. */
-const SETTLEMENT_LOCAL_CENTER: GridPoint = { x: 1.5, y: 1.5 };
+ * não é um dado real de nenhum sistema. Prédios/patrol points de Oakbridge ocupam ~0-15 em cada
+ * eixo (espaçados pra não sobrepor footprint, AD-022), daí o centro em 7.5. */
+const SETTLEMENT_LOCAL_CENTER: GridPoint = { x: 7.5, y: 7.5 };
 
 /** § 149 Accessibility — "keyboard navigation obrigatório": marcadores do mapa (SVG) não são
  * nativamente operáveis por teclado com só `onClick`; ativam também em Enter/Space. */
