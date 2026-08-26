@@ -84,7 +84,11 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                 var routineAction = catalog.RoutineOf(NoneIfSentinel(npc.Profession), stage, world.CurrentDate.Hour);
 
                 var candidate = npc.HasUrgentNeed(rules, now)
-                    ? SelectByUtility(world, npc, rules, continuityAction, now)
+                    ? SelectByUtility(
+                        DecisionContextBuilder.Build(world, npc, now),
+                        rules,
+                        world.EconomyRules,
+                        continuityAction)
                     : routineAction;
 
                 candidate = ApplyPerception(world, npc, candidate);
@@ -323,14 +327,16 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             ? city.Location
             : null;
 
-    private static ActionType SelectByUtility(WorldState world, Npc npc, NeedsRules rules, ActionType? continuityAction, long tick)
+    private static ActionType SelectByUtility(
+        DecisionContext ctx, NeedsRules rules, EconomyRules economy, ActionType? continuityAction)
     {
         var best = ActionType.Eat;
         double bestScore = double.NegativeInfinity;
 
         foreach (var action in AllActions)
         {
-            double score = UtilityBaseOf(world, action, npc, tick) * PersonalityWeighting.WeightOf(npc.Personality, action);
+            double score = UtilityBaseOf(ctx, action, economy) * PersonalityWeighting.WeightOf(ctx.Personality, action)
+                + ContextFactorBonus(ctx, action);
             if (rules.HysteresisEnabled && continuityAction == action)
                 score += rules.ContinuityBonus;
 
@@ -342,6 +348,32 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         }
 
         return best;
+    }
+
+    /// <summary>Bônus só quando memória/crença/relação estão presentes (COH-13/14) —
+    /// listas vazias → 0, comportamento idêntico ao pré-DecisionContext (golden preservado).</summary>
+    private static double ContextFactorBonus(DecisionContext ctx, ActionType action)
+    {
+        const double factorBonus = 40.0;
+        return action switch
+        {
+            ActionType.Travel when ctx.RelevantMemories.Any(m =>
+                ContainsAny(m.Content, "trai", "betray", "threat", "perigo", "danger")) => factorBonus,
+            ActionType.Buy when ctx.RelevantBeliefs.Any(b =>
+                ContainsAny(b, "scarcity", "escassez", "fome", "hunger", "food")) => factorBonus,
+            ActionType.Socialize when ctx.KnownRelationships.Any(r => r.Trust >= 60 || r.Affection >= 60) => factorBonus,
+            _ => 0.0,
+        };
+    }
+
+    private static bool ContainsAny(string text, params string[] tokens)
+    {
+        foreach (var token in tokens)
+        {
+            if (text.Contains(token, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
     }
 
     /// <summary>PWR-56..58: considera NPCs/perigo no raio Chebyshev do portador (1 = adjacência
@@ -368,40 +400,38 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     private static int Chebyshev(CellCoord a, CellCoord b) =>
         Math.Max(Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y));
 
-    private static double UtilityBaseOf(WorldState world, ActionType action, Npc npc, long tick) => action switch
+    private static double UtilityBaseOf(DecisionContext ctx, ActionType action, EconomyRules economy) => action switch
     {
-        ActionType.Eat => EatUtilityOf(world, npc, tick),
-        ActionType.Sleep => Deficit(npc.SleepAt(tick)),
-        ActionType.Socialize => Deficit(npc.SocialAt(tick)),
-        ActionType.Buy => BuyUtilityOf(world, npc, tick),
+        ActionType.Eat => EatUtilityOf(ctx, economy),
+        ActionType.Sleep => Deficit(ctx.Needs.Sleep),
+        ActionType.Socialize => Deficit(ctx.Needs.Social),
+        ActionType.Buy => BuyUtilityOf(ctx, economy),
         ActionType.Work or ActionType.Travel or ActionType.Idle => NonNeedBaselineUtility,
         _ => throw new ArgumentOutOfRangeException(nameof(action), action, "ActionType desconhecido"),
     };
 
-    private static double EatUtilityOf(WorldState world, Npc npc, long tick)
+    private static double EatUtilityOf(DecisionContext ctx, EconomyRules economy)
     {
-        double deficit = Math.Max(Deficit(npc.HungerAt(tick)), Deficit(npc.ThirstAt(tick)));
-        if (!world.EconomyRules.Enabled) return deficit;
-        if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household) return deficit;
+        double deficit = Math.Max(Deficit(ctx.Needs.Hunger), Deficit(ctx.Needs.Thirst));
+        if (!economy.Enabled) return deficit;
+        if (ctx.Household is not { } household) return deficit;
 
-        var econ = world.EconomyRules;
-        bool hasFood = household.Stock.GetValueOrDefault(new ResourceType(econ.FoodResourceId)) >= 1;
-        bool hasWater = household.Stock.GetValueOrDefault(new ResourceType(econ.WaterResourceId)) >= 1;
+        bool hasFood = household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId)) >= 1;
+        bool hasWater = household.Stock.GetValueOrDefault(new ResourceType(economy.WaterResourceId)) >= 1;
         return hasFood || hasWater ? deficit : NonNeedBaselineUtility / 2;
     }
 
-    private static double BuyUtilityOf(WorldState world, Npc npc, long tick)
+    private static double BuyUtilityOf(DecisionContext ctx, EconomyRules economy)
     {
-        if (!world.EconomyRules.Enabled) return NonNeedBaselineUtility;
-        if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household)
+        if (!economy.Enabled) return NonNeedBaselineUtility;
+        if (ctx.Household is not { } household)
             return NonNeedBaselineUtility;
 
-        var econ = world.EconomyRules;
-        bool needsFood = household.Stock.GetValueOrDefault(new ResourceType(econ.FoodResourceId)) < 1;
-        bool needsWater = household.Stock.GetValueOrDefault(new ResourceType(econ.WaterResourceId)) < 1;
+        bool needsFood = household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId)) < 1;
+        bool needsWater = household.Stock.GetValueOrDefault(new ResourceType(economy.WaterResourceId)) < 1;
         if (!needsFood && !needsWater) return NonNeedBaselineUtility;
 
-        return Math.Max(needsFood ? Deficit(npc.HungerAt(tick)) : 0, needsWater ? Deficit(npc.ThirstAt(tick)) : 0);
+        return Math.Max(needsFood ? Deficit(ctx.Needs.Hunger) : 0, needsWater ? Deficit(ctx.Needs.Thirst) : 0);
     }
 
     private static int Deficit(int need) => 100 - need;
