@@ -44,13 +44,24 @@ adotado foi **mostrar desabilitado** em vez de esconder como quebrado (mesmo pri
 
 | Componente do doc | Estado nesta demo |
 | --- | --- |
-| Mode Selector (§32) | Observe é real; Table/Inhabit aparecem desabilitados com "Coming" — Table Mode é Out of Scope desta spec |
-| Simulation Controls (§34-35) | Desabilitados — fixture é um snapshot congelado, não há simulação rodando pra pausar/acelerar (Out of Scope) |
-| World Selector (§31) | Só "World Details" é real — mundo único, sem troca de fixture em runtime (Out of Scope) |
+| Mode Selector (§32) | Observe é real; Table/Inhabit aparecem desabilitados com "Coming" — Table Mode é Out of Scope desta spec (decisão explícita do usuário) |
+| Simulation Controls (§34-35) | Desabilitados — fixture é um snapshot congelado, não há simulação rodando pra pausar/acelerar (Out of Scope, decisão explícita do usuário) |
+| World Selector (§31) | Só "World Details" é real — mundo único, sem troca de fixture em runtime (Out of Scope, decisão explícita do usuário) |
 | Notifications (§111-112) | Reais — contagem de eventos que afetam entidades seguidas (`followStore`), não decorativo |
-| Explorer "People" filtro (§43) | Só All/Followed (reais) — Nearby/Notable exigiriam posição de câmera/flag de importância que o fixture não tem |
-| Explorer "Organizations" (§44) | Estado vazio explícito — fixture não modela facções/organizações |
-| Explorer "Places" (§42) | Lista flat de settlements — fixture não modela hierarquia de regiões |
+| Explorer "People" filtro (§43) | All/Nearby/Notable/Followed — todos reais (Nearby escopado à seleção atual, Notable via `AgentFixture.notable`) |
+| Explorer "Organizations" (§44) | Corvin's Bakery — organização real no fixture, com membros clicáveis |
+| Explorer "Places" (§42) | Agrupado por região (`RegionFixture`) |
+| Agent Body detail (§51-52) | Drawer "View details" com físico completo + "what this affects" (`AgentFixture.bodyDetail`) |
+| Map camera (§192) | `viewBox` centralizado no bounding box real do conteúdo, não mais fixo |
+| Event markers (§103) | Pulso único no mount + marcador discreto pra settlements/agents tocados por um Story Thread |
+| Event severity (§173) | `WorldEventFixture.severity` — acento visual por nível (routine/notable/major/critical) |
+| Critical event toast (§172) | Real — mostra o evento "critical" do fixture ao carregar, dispensável, com atalho pro Causal Explorer |
+| Keyboard shortcuts (§148) | W/F/`/`/? implementados (os que têm ação real nesta demo) |
+| Map marker accessibility (§149) | Marcadores do mapa são focáveis, com `aria-label` e ativação por Enter/Space |
+
+Só ficaram desabilitados os 3 itens que dependiam de recursos explicitamente fora do escopo
+desta demo (Table/Inhabit Mode, simulação real, múltiplos mundos) — decisão do usuário, não
+limitação técnica.
 
 ## Comparação visual com `web/` (spec P1b Independent Test)
 
@@ -82,7 +93,7 @@ src/
   views/         conteúdo de entidade — Settlement/Household/Agent/Why/CausalExplorer/
                  Timeline/Life/WorldFeed/StoryThreads (consumidos pelo Inspector/CenterStage)
   components/    TopBar, Explorer, CenterStage, Inspector, TimelineBar (shell),
-                 Breadcrumb, FollowButton, SearchBar (usados dentro do shell)
+                 CriticalEventToast, Breadcrumb, FollowButton, SearchBar
   styles/        tokens.css (tema visual + layout do shell)
   App.tsx        composition root — monta o shell, troca cada região por
                  NavigationStore.current().kind

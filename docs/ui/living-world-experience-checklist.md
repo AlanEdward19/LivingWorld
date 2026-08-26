@@ -135,10 +135,49 @@ coberto por nenhuma task numerada).
   selecionar Oakbridge, o centro muda... não necessariamente abre página nova") do que a versão
   anterior (Settlement View como página cheia com o mapa embutido embaixo).
 
-**Gaps que continuam abertos** (3, 4, 5 da lista acima — câmera não centralizada, sem
-marcadores de evento no mapa, Body sem detalhe físico) — nenhum foi tocado nesta rodada, mesma
-razão de antes (polish visual/dado do fixture, não pedido por nenhuma task ou pelo pedido atual
-do usuário, que era especificamente sobre o shell).
+**Gaps que continuam abertos nesta rodada** (3, 4, 5 da lista acima — câmera não centralizada,
+sem marcadores de evento no mapa, Body sem detalhe físico) — não tocados nesta rodada
+específica do shell, mas resolvidos na rodada seguinte (ver "Atualização — Fidelidade total ao
+doc" abaixo).
+
+---
+
+## Atualização — Fidelidade total ao doc (exceto decisões explícitas de desabilitar)
+
+Pedido do usuário: implementar tudo do doc que ainda não tinha sido feito, exceto os 3 itens já
+decididos explicitamente como desabilitados (Simulation Controls, World Selector
+switch/duplicate/export, Table/Inhabit Mode). Fecha os 3 gaps restantes da rodada anterior e
+adiciona itens do doc nunca cobertos antes:
+
+- **Gap 3 (câmera não centralizada)** — **corrigido**. `viewBox` agora é calculado a partir do
+  bounding box real do conteúdo renderizado em cada nível de zoom, com fallback pra um extent
+  fixo quando não há nada pra centralizar (ex.: Millbrook/Stonehaven sem prédios).
+- **Gap 4 (sem marcadores de evento)** — **corrigido**. Settlements/agents tocados por um Story
+  Thread ganham um marcador discreto com pulso único no mount (doc §103), respeitando
+  `prefers-reduced-motion`.
+- **Gap 5 (Body sem detalhe físico)** — **corrigido**. Fixture ganhou `AgentFixture.bodyDetail`
+  (height/weight/muscle mass/etc. + "what this affects" por traço, doc §51-52) pros 11 agents;
+  `AgentView` ganhou um drawer "View details".
+
+**Itens novos do doc, nunca cobertos antes, implementados nesta rodada:**
+
+- Places agrupado por região (`RegionFixture`, doc §42).
+- People "Nearby"/"Notable" reais (doc §43) — fixture ganhou `AgentFixture.notable`.
+- Organizations real — "Corvin's Bakery" (`OrganizationFixture`, doc §44).
+- Acessibilidade de teclado nos marcadores do mapa — `role="button"`/`tabIndex`/`aria-label`/
+  Enter-Space (doc §149, "obrigatório").
+- Atalhos de teclado globais W/F/`/`/? (doc §148) — limitados aos que têm ação real nesta demo
+  (Space/1/2/3 ficam de fora porque não há simulação rodando pra controlar).
+- Severidade de evento (`WorldEventFixture.severity`, doc §173) com acento visual em
+  WorldFeed/Timeline/CausalExplorer.
+- Toast de evento crítico (doc §172) — `CriticalEventToast`, mostra o evento "critical" do
+  fixture ao carregar o app.
+
+**Não implementado, por ser opcional/irrelevante no doc mesmo** (não são gaps, são deliberadamente
+fora): som ambiente (§170, doc já diz "opcional... desligado por padrão"), responsivo
+mobile/tablet completo (§151-152, já Out of Scope do spec.md), virtualização/clustering de mapa
+(§157-158, só relevante em escala — o fixture tem 11 agents), Table Mode completo (§116-124,
+decisão explícita do usuário de deixar desabilitado).
 
 **Novo veredito nas perguntas centrais**, re-verificado ao vivo com o shell montado:
 
