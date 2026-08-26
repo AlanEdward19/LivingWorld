@@ -131,9 +131,14 @@ export class NavigationStore {
     return this.stack[this.stack.length - 1];
   }
 
-  /** Pilha completa, da raiz (`world`) até a rota atual, na ordem de navegação. */
+  /**
+   * Pilha completa, da raiz (`world`) até a rota atual, na ordem de navegação. Retorna a
+   * referência interna (nunca uma cópia nova) — `push`/`back` sempre trocam `this.stack` por um
+   * array novo em vez de mutar, então a referência só muda quando o conteúdo de fato muda.
+   * Necessário pra `useSyncExternalStore` (Breadcrumb, T19) não entrar em loop de re-render.
+   */
   breadcrumb(): Route[] {
-    return [...this.stack];
+    return this.stack;
   }
 
   /**
