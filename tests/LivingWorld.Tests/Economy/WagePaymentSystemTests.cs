@@ -111,7 +111,8 @@ public class WagePaymentSystemTests
         Assert.Equal(new Money(30), e1.Wallet);
         Assert.Equal(Money.Zero, e2.Wallet);
         Assert.Equal(Money.Zero, workplace.Treasury);
-        Assert.Contains(sink.Events, e => e.Kind == WorldEventKind.WageUnpaid);
+        var unpaid = Assert.Single(sink.Events, e => e.Kind == WorldEventKind.WageUnpaid);
+        Assert.Equal("WagePaymentSystem", unpaid.SourceSystem);
     }
 
     private sealed class RecordingSink : IWorldEventSink

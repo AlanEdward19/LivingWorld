@@ -22,7 +22,7 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
             world.RemoveExtraordinaryConstruct(construct.Id);
             ctx.LogEvent(
                 WorldEventKind.ExtraordinaryConstructRemoved,
-                $"{construct.CreatorId.Value}|{construct.SourceInvocationId}|{construct.Id}|expired");
+                $"{construct.CreatorId.Value}|{construct.SourceInvocationId}|{construct.Id}|expired", sourceSystem: SystemName);
         }
 
         foreach (var carrier in world.ExtraordinaryCarriers.OrderBy(item => item.CarrierId.Value).ToList())
@@ -41,7 +41,7 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
             {
                 ctx.LogEvent(
                     resolved.IsManifested ? WorldEventKind.ExtraordinaryManifested : WorldEventKind.ExtraordinaryDormant,
-                    $"{carrier.CarrierId.Value}|{string.Join(',', resolved.PowerIds)}|condition");
+                    $"{carrier.CarrierId.Value}|{string.Join(',', resolved.PowerIds)}|condition", sourceSystem: SystemName);
                 if (resolved.IsManifested)
                     LogCulturalResponses(world, ctx, npc, resolved.PowerIds);
             }
@@ -67,7 +67,7 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
         if (npc is null || !npc.IsAlive || descriptor is null || acquisitionRule is null
             || !PassesAcquisitionRate(acquisitionRule, npc, powerId, evt.Id, ctx))
         {
-            ctx.LogEvent(WorldEventKind.ExtraordinaryAcquisitionFailed, $"{npcValue}|{powerId}|{trigger}");
+            ctx.LogEvent(WorldEventKind.ExtraordinaryAcquisitionFailed, $"{npcValue}|{powerId}|{trigger}", sourceSystem: SystemName);
             return;
         }
 
@@ -78,10 +78,14 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
             .Distinct(StringComparer.Ordinal).OrderBy(id => id, StringComparer.Ordinal).ToList();
         var resolved = Resolve(world, npc, powerIds);
         world.UpsertExtraordinaryCarrier(resolved);
-        ctx.LogEvent(WorldEventKind.ExtraordinaryAcquired, $"{npcValue}|{powerId}|event:{trigger}");
+        long acquiredId = ctx.LogEvent(
+            WorldEventKind.ExtraordinaryAcquired, $"{npcValue}|{powerId}|event:{trigger}",
+            sourceSystem: SystemName);
         if (resolved.IsManifested && existing?.IsManifested != true)
         {
-            ctx.LogEvent(WorldEventKind.ExtraordinaryManifested, $"{npcValue}|{powerId}|condition");
+            ctx.LogEvent(
+                WorldEventKind.ExtraordinaryManifested, $"{npcValue}|{powerId}|condition",
+                sourceSystem: SystemName, causeEventId: acquiredId);
             LogCulturalResponses(world, ctx, npc, resolved.PowerIds);
         }
     }
@@ -102,7 +106,7 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
             .Distinct(StringComparer.Ordinal).OrderBy(id => id, StringComparer.Ordinal).ToList();
         var resolved = Resolve(world, npc, ids);
         world.UpsertExtraordinaryCarrier(resolved);
-        ctx.LogEvent(WorldEventKind.ExtraordinaryAcquired, $"{npcId.Value}|{powerId}|authoring:web");
+        ctx.LogEvent(WorldEventKind.ExtraordinaryAcquired, $"{npcId.Value}|{powerId}|authoring:web", sourceSystem: SystemName);
         return Result<ExtraordinaryCarrierState>.Ok(resolved);
     }
 
@@ -117,7 +121,7 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
         ExtraordinaryCarrierState? resolved = ids.Count == 0 ? null : Resolve(world, npc, ids);
         if (resolved is null) world.RemoveExtraordinaryCarrier(npcId);
         else world.UpsertExtraordinaryCarrier(resolved);
-        ctx.LogEvent(WorldEventKind.ExtraordinaryRevoked, $"{npcId.Value}|{powerId}|authoring:web");
+        ctx.LogEvent(WorldEventKind.ExtraordinaryRevoked, $"{npcId.Value}|{powerId}|authoring:web", sourceSystem: SystemName);
         return Result<ExtraordinaryCarrierState?>.Ok(resolved);
     }
 
@@ -193,6 +197,6 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
         foreach (var response in ExtraordinaryCultureInterpreter.Responses(world, carrier, activePowerIds))
             ctx.LogEvent(
                 WorldEventKind.ExtraordinaryCulturalReaction,
-                $"{carrier.Id.Value}|{response.CultureId}|{response.Manifestation}|{response.Response}");
+                $"{carrier.Id.Value}|{response.CultureId}|{response.Manifestation}|{response.Response}", sourceSystem: SystemName);
     }
 }

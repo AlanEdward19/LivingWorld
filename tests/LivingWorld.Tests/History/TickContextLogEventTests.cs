@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
 
@@ -79,5 +80,125 @@ public class TickContextLogEventTests
         }
 
         Assert.Equal(Run(), Run());
+    }
+
+    /// <summary>Soft follow-up: Simulation call sites must pass explicit SourceSystem —
+    /// only the TickContext 2-arg wrapper (legacy Unknown default) is allowlisted.</summary>
+    [Fact]
+    public void Simulation_LogEvent_call_sites_use_explicit_SourceSystem()
+    {
+        string repoRoot = FindRepoRoot();
+        string simDir = Path.Combine(repoRoot, "src", "LivingWorld.Simulation");
+        var offenders = new List<string>();
+
+        foreach (var file in Directory.EnumerateFiles(simDir, "*.cs", SearchOption.AllDirectories))
+        {
+            if (file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")
+                || file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}"))
+                continue;
+
+            string text = File.ReadAllText(file);
+            string rel = Path.GetRelativePath(repoRoot, file).Replace('\\', '/');
+            foreach (Match m in Regex.Matches(text, @"\.LogEvent\s*\("))
+            {
+                int open = m.Index + m.Length - 1;
+                int end = FindMatchingParen(text, open);
+                string call = text[m.Index..end];
+                string prelude = text[Math.Max(0, m.Index - 100)..m.Index];
+                if (prelude.Contains("public long LogEvent", StringComparison.Ordinal))
+                    continue; // method definitions
+
+                // Allowlist: TickContext 2-arg wrapper that deliberately defaults Unknown.
+                if (rel.EndsWith("TickContext.cs", StringComparison.Ordinal)
+                    && call.Contains("sourceSystem: \"Unknown\"", StringComparison.Ordinal))
+                    continue;
+
+                int commas = CountTopLevelCommas(call[(call.IndexOf('(') + 1)..^1]);
+                bool hasExplicitSource =
+                    call.Contains("sourceSystem", StringComparison.Ordinal)
+                    || Regex.IsMatch(call, @",\s*""[A-Za-z][^""]*""\s*(,|\))")
+                    || Regex.IsMatch(call, @",\s*source\s*(,|\))")
+                    || Regex.IsMatch(call, @",\s*SystemName\s*(,|\))");
+
+                if (commas <= 1 && !hasExplicitSource)
+                {
+                    int line = text.Take(m.Index).Count(c => c == '\n') + 1;
+                    offenders.Add($"{rel}:{line}");
+                }
+            }
+        }
+
+        Assert.True(offenders.Count == 0,
+            "2-arg LogEvent call sites still defaulting SourceSystem=Unknown: "
+            + string.Join(", ", offenders));
+    }
+
+    [Fact]
+    public void High_traffic_paths_emit_non_Unknown_SourceSystem()
+    {
+        var (world, ctx, sink) = Build();
+        world.Mint(ctx, new Money(5), "test-mint");
+        _ = world.Destroy(ctx, new Money(1), "test-destroy");
+
+        Assert.Contains(sink.Events, e =>
+            e.Kind == WorldEventKind.Minted && e.SourceSystem == "WorldState");
+        Assert.Contains(sink.Events, e =>
+            e.Kind == WorldEventKind.Destroyed && e.SourceSystem == "WorldState");
+        Assert.DoesNotContain(sink.Events, e => e.SourceSystem == "Unknown");
+    }
+
+    private static int FindMatchingParen(string text, int openIdx)
+    {
+        int i = openIdx + 1;
+        int depth = 1;
+        bool inStr = false;
+        char strCh = '\0';
+        while (i < text.Length && depth > 0)
+        {
+            char ch = text[i];
+            if (inStr)
+            {
+                if (ch == '\\' && i + 1 < text.Length) { i += 2; continue; }
+                if (ch == strCh) inStr = false;
+                i++;
+                continue;
+            }
+            if (ch is '"' or '\'') { inStr = true; strCh = ch; i++; continue; }
+            if (ch == '(') depth++;
+            else if (ch == ')') depth--;
+            i++;
+        }
+        return i;
+    }
+
+    private static int CountTopLevelCommas(string args)
+    {
+        int d = 0, commas = 0;
+        bool inStr = false;
+        char strCh = '\0';
+        for (int i = 0; i < args.Length; i++)
+        {
+            char ch = args[i];
+            if (inStr)
+            {
+                if (ch == '\\' && i + 1 < args.Length) { i++; continue; }
+                if (ch == strCh) inStr = false;
+                continue;
+            }
+            if (ch is '"' or '\'') { inStr = true; strCh = ch; continue; }
+            if (ch == '(') d++;
+            else if (ch == ')') d--;
+            else if (ch == ',' && d == 0) commas++;
+        }
+        return commas;
+    }
+
+    private static string FindRepoRoot()
+    {
+        var dir = AppContext.BaseDirectory;
+        while (dir is not null && !File.Exists(Path.Combine(dir, "LivingWorld.sln")))
+            dir = Directory.GetParent(dir)?.FullName;
+        return dir ?? throw new InvalidOperationException(
+            "LivingWorld.sln não encontrado a partir de " + AppContext.BaseDirectory);
     }
 }

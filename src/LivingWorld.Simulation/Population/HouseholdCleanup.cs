@@ -15,7 +15,7 @@ public static class HouseholdCleanup
 
         foreach (var (resource, amount) in household.Stock)
             if (amount > 0)
-                ctx.LogEvent(WorldEventKind.ResourceLost, $"{household.Id.Value}|{resource.Id}|{amount}");
+                ctx.LogEvent(WorldEventKind.ResourceLost, $"{household.Id.Value}|{resource.Id}|{amount}", sourceSystem: "HouseholdCleanup");
 
         world.RemoveHousehold(household.Id);
         foreach (var member in world.Npcs)

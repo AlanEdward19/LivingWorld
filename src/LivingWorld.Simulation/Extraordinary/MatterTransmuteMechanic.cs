@@ -41,8 +41,12 @@ public sealed class MatterTransmuteMechanic : ExtraordinaryMechanic
             long credit = (long)debit * rate;
             home.Withdraw(origin, debit);
             home.Deposit(dest, credit);
-            tickCtx.LogEvent(WorldEventKind.Destroyed, $"{origin.Id}|{debit}");
-            tickCtx.LogEvent(WorldEventKind.Minted, $"{dest.Id}|{credit}");
+            long destroyedId = tickCtx.LogEvent(
+                WorldEventKind.Destroyed, $"{origin.Id}|{debit}",
+                sourceSystem: "MatterTransmuteMechanic");
+            tickCtx.LogEvent(
+                WorldEventKind.Minted, $"{dest.Id}|{credit}",
+                sourceSystem: "MatterTransmuteMechanic", causeEventId: destroyedId);
         }));
     }
 }

@@ -55,7 +55,7 @@ public sealed class ConstructMechanic : ExtraordinaryMechanic
             world.AddExtraordinaryConstruct(construct);
             tickCtx.LogEvent(
                 WorldEventKind.ExtraordinaryConstructCreated,
-                $"{invocation.CarrierId.Value}|{invocation.InvocationId}|{invocation.PowerId}|{id}");
+                $"{invocation.CarrierId.Value}|{invocation.InvocationId}|{invocation.PowerId}|{id}", sourceSystem: "ConstructMechanic");
         }));
     }
 }

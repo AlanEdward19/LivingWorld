@@ -57,7 +57,7 @@ public static class NpcInstantiationMechanic
         world.UpsertExtraordinaryCarrier(carrier with { PendingReincarnation = null });
         ctx.LogEvent(
             WorldEventKind.NpcInstantiated,
-            $"{carrier.CarrierId.Value}|{baby.Id.Value}|reincarnate");
+            $"{carrier.CarrierId.Value}|{baby.Id.Value}|reincarnate", sourceSystem: "NpcInstantiationMechanic");
     }
 
     public static Npc InstantiateCopy(WorldState world, TickContext ctx, Npc source, string origin)
@@ -87,7 +87,7 @@ public static class NpcInstantiationMechanic
                 clone.Id, [], false, "dormant", appearance, null, 1));
         }
 
-        ctx.LogEvent(WorldEventKind.NpcInstantiated, $"{source.Id.Value}|{clone.Id.Value}|{origin}");
+        ctx.LogEvent(WorldEventKind.NpcInstantiated, $"{source.Id.Value}|{clone.Id.Value}|{origin}", sourceSystem: "NpcInstantiationMechanic");
         return clone;
     }
 

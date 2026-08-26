@@ -30,7 +30,7 @@ public sealed class EmploymentSystem : ISimulationSystem
 
             workplace?.Fire(npc.Id);
             npc.Fire();
-            ctx.LogEvent(WorldEventKind.Fired, $"{npc.Id.Value}|{employerId.Value}");
+            ctx.LogEvent(WorldEventKind.Fired, $"{npc.Id.Value}|{employerId.Value}", sourceSystem: "EmploymentSystem");
         }
 
         var catalog = world.EconomyCatalog;
@@ -45,7 +45,7 @@ public sealed class EmploymentSystem : ISimulationSystem
 
             if (!workplace.Hire(npc.Id).IsSuccess) continue;
             npc.Hire(workplace.Id);
-            ctx.LogEvent(WorldEventKind.Hired, $"{npc.Id.Value}|{workplace.Id.Value}");
+            ctx.LogEvent(WorldEventKind.Hired, $"{npc.Id.Value}|{workplace.Id.Value}", sourceSystem: "EmploymentSystem");
         }
     }
 }

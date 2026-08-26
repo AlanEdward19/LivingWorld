@@ -75,7 +75,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                     npc.SetCurrentAction(chosen, now);
                     ctx.LogEvent(
                         WorldEventKind.ExtraordinaryEffectApplied,
-                        $"{npc.Id.Value}|possessed-action|{chosen}");
+                        $"{npc.Id.Value}|possessed-action|{chosen}", sourceSystem: SystemName);
                 }
             }
             else

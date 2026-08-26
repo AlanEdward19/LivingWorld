@@ -33,7 +33,7 @@ public sealed class AppearanceMechanic : ExtraordinaryMechanic
             var state = ControlMechanic.CarrierOf(world, carrier);
             if (state.ImpersonatingId == impersonatedId) return;
             world.UpsertExtraordinaryCarrier(state with { ImpersonatingId = impersonatedId });
-            tick.LogEvent(WorldEventKind.IdentityChanged, $"{carrier.Id.Value}|{impersonatedId.Value}|impersonate");
+            tick.LogEvent(WorldEventKind.IdentityChanged, $"{carrier.Id.Value}|{impersonatedId.Value}|impersonate", sourceSystem: "AppearanceMechanic");
         }));
     }
 
@@ -45,6 +45,6 @@ public sealed class AppearanceMechanic : ExtraordinaryMechanic
         var state = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npc.Id);
         if (state is null) return;
         world.UpsertExtraordinaryCarrier(state with { ImpersonatingId = null });
-        ctx.LogEvent(WorldEventKind.IdentityChanged, $"{npc.Id.Value}|{impersonated.Value}|impersonate-revert");
+        ctx.LogEvent(WorldEventKind.IdentityChanged, $"{npc.Id.Value}|{impersonated.Value}|impersonate-revert", sourceSystem: "AppearanceMechanic");
     }
 }

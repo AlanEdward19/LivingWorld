@@ -64,7 +64,7 @@ public sealed class FactToReportConversionScheduler : ISimulationSystem
         world.RegisterReport(report);
         ctx.LogEvent(
             WorldEventKind.ReportConverted,
-            $"{report.Id.Value}|{factId.Value}|{communityId.Value}");
+            $"{report.Id.Value}|{factId.Value}|{communityId.Value}", sourceSystem: "FactToReportConversionScheduler");
     }
 
     private static IEnumerable<CityId> ResolveCommunities(Fact fact, WorldState world)

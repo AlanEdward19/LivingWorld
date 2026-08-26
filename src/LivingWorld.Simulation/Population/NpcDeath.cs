@@ -18,7 +18,7 @@ public static class NpcDeath
         npc.Die(world.CurrentDate);
         SoulMechanic.OnCarrierDeath(world, npc);
         world.AliveNpcIndex.OnDied(npc);
-        ctx.LogEvent(kind, npc.Id.Value.ToString());
+        ctx.LogEvent(kind, npc.Id.Value.ToString(), sourceSystem: "NpcDeath");
         FactToReportConversionScheduler.OnWitnessDied(npc.Id, world, ctx);
 
         if (npc.Household is not { } householdId) return;

@@ -1,9 +1,9 @@
 # Progress — Fase 16.3 Living World Cohesion
 
-**Status**: **COMPLETE**
+**Status**: **COMPLETE** (+ soft follow-ups done)
 **Branch**: `feat/phase-16-3-world-cohesion`
 **Worktree**: `C:\Users\Alan-\Desktop\Projetos\Pessoal\LivingWorld-16-3-cohesion`
-**HEAD**: `d1cc79f` (+ validation.md pending commit)
+**HEAD**: pending soft follow-up commits
 **Orchestrator**: parent chat
 
 ## Phases
@@ -21,14 +21,14 @@
 
 ## Verifier
 
-- [x] validation.md — PASS ✅ ([Verifier](6af4f78c-b3fc-4934-a6da-d147232c1407); 35/35 COH; soft gaps noted)
-- [x] `verify.sh` PASS (2083 passed, 0 failed, 10 skipped)
+- [x] validation.md — PASS ✅ ([Verifier](6af4f78c-b3fc-4934-a6da-d147232c1407); 35/35 COH)
+- [x] `verify.sh` PASS (2083 passed)
+- [x] Soft: belief→Buy (`91ce0e8`)
 
-## Soft follow-ups (non-blocking)
+## Soft follow-ups remaining (non-blocking)
 
-1. Belief→decision divergence test
-2. Mechanic candidate exception isolation
-3. ~54 LogEvent `SourceSystem=Unknown` backlog
+1. ~~Mechanic candidate exception isolation (edge case da spec)~~ **done** (`f91edb2`)
+2. ~~~54 LogEvent `SourceSystem=Unknown` backlog (audit / migração gradual)~~ **done** (49 sites migrated; scan + high-traffic SourceSystem tests)
 
 ## Blockers
 

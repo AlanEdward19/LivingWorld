@@ -987,7 +987,7 @@ public sealed class WorldState
     public void Mint(TickContext ctx, Money amount, string reason)
     {
         _moneyMinted += amount;
-        ctx.LogEvent(WorldEventKind.Minted, $"{amount.Amount}|{reason}");
+        ctx.LogEvent(WorldEventKind.Minted, $"{amount.Amount}|{reason}", sourceSystem: "WorldState");
     }
 
     /// <summary>Retira massa da circulação (ex.: arquivo frio) — incrementa
@@ -996,7 +996,7 @@ public sealed class WorldState
     {
         if (amount.Amount <= 0) return;
         _moneyDestroyed += amount;
-        ctx.LogEvent(WorldEventKind.Destroyed, $"{amount.Amount}|{reason}");
+        ctx.LogEvent(WorldEventKind.Destroyed, $"{amount.Amount}|{reason}", sourceSystem: "WorldState");
     }
 
     /// <summary>Destruição explícita e rara — falha (mesmo padrão de <see
@@ -1010,7 +1010,7 @@ public sealed class WorldState
             return Result<Unit>.Fail("insufficient_money_supply");
 
         _moneyDestroyed += amount;
-        ctx.LogEvent(WorldEventKind.Destroyed, $"{amount.Amount}|{reason}");
+        ctx.LogEvent(WorldEventKind.Destroyed, $"{amount.Amount}|{reason}", sourceSystem: "WorldState");
         return Result<Unit>.Ok(Unit.Value);
     }
 

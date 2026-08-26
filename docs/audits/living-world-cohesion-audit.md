@@ -6,7 +6,7 @@ Fonte: COH-61 / doc#22–23. Status pós P1–P2 (causal events, Body, DecisionC
 
 | System | In DecisionContext | Causal consumer | Event provenance | Notes |
 | --- | --- | --- | --- | --- |
-| Events | n/a (carrier) | `CauseEventId` / `RootCauseEventId` | Pilots wired (Extraordinary, BookRediscovery, StillBirth) | ~54 `LogEvent` 2-arg call sites still default `SourceSystem=Unknown` (T5 backlog) |
+| Events | n/a (carrier) | `CauseEventId` / `RootCauseEventId` | All Simulation `LogEvent` call sites pass explicit `SourceSystem` (2-arg wrapper remains for legacy only) | Soft follow-up migrated 49 sites; scan test guards regression |
 | DecisionContext | self | `SelectByUtility` reads scoped DTO | DecisionTrace non-canonical | Built on wake; category cache (PERF-12 pattern) |
 | Body | `BodySnapshot` | WorkCapacity + MovementCost | MuscleMass growth via labor | Height/Weight/MuscleMass generated seeded |
 | Memory | `RelevantMemories` | Utility divergence proven | Fact/report path unchanged | Was PRESENTATION_ONLY → now CAUSAL in decision |
@@ -41,6 +41,6 @@ Legend: **CAUSAL** = real consumer in sim/decision · **PARTIALLY_INTEGRATED** =
 
 ## Backlog (not blocking closeout)
 
-1. Migrate remaining ~54 `TickContext.LogEvent(kind, payload)` sites off `Unknown`.
+1. ~~Migrate remaining ~54 `TickContext.LogEvent(kind, payload)` sites off `Unknown`.~~ **Done** — 49 sites migrated to explicit `SourceSystem`; only `TickContext` 2-arg wrapper still defaults `Unknown` (allowlisted + scan-tested).
 2. Height/Weight → equipment/combat consumers when those systems land.
 3. Event coalescing for write-many-per-tick noise (doc#82) — FUTURE_DEPENDENCY.

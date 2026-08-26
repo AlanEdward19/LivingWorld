@@ -66,8 +66,8 @@ Static lightweight (Ask/AD-009 blocked live mutate):
 
 ## Edge / follow-ups (non-blocking)
 
-- Mechanic eval exception isolation: missing
-- ~54 LogEvent Unknown backlog (audit)
+- ~~Mechanic eval exception isolation: missing~~ **done** — `SelectByUtility` isolates per-candidate scoring exceptions (`BehaviorDecisionSystemTests` throwing-candidate cases)
+- ~~~54 LogEvent Unknown backlog (audit)~~ **done** — Simulation call sites pass explicit `SourceSystem`; `TickContextLogEventTests` scan + high-traffic assertions
 
 ## Summary
 

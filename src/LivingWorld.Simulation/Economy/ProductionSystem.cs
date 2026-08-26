@@ -81,7 +81,7 @@ public sealed class ProductionSystem : ISimulationSystem
             world.RecordResourceProduced(resource, produced); // ECON-15: conta o bruto, antes do clamp de capacidade
             long lost = workplace.Deposit(resource, produced, rules);
             if (lost > 0)
-                ctx.LogEvent(WorldEventKind.ResourceLost, $"{workplace.Id.Value}|{resourceId}|{lost}");
+                ctx.LogEvent(WorldEventKind.ResourceLost, $"{workplace.Id.Value}|{resourceId}|{lost}", sourceSystem: "ProductionSystem");
         }
     }
 
@@ -140,7 +140,7 @@ public sealed class ProductionSystem : ISimulationSystem
             if (spoiled <= 0) continue;
 
             workplace.Withdraw(resource, Math.Min(spoiled, amount));
-            ctx.LogEvent(WorldEventKind.ResourceLost, $"{workplace.Id.Value}|{resource.Id}|{spoiled}");
+            ctx.LogEvent(WorldEventKind.ResourceLost, $"{workplace.Id.Value}|{resource.Id}|{spoiled}", sourceSystem: "ProductionSystem");
         }
     }
 }
