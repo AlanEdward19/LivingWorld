@@ -43,7 +43,9 @@ export function WorldFeed({ fixture }: WorldFeedProps) {
           <h2>{group.tick}</h2>
           <ul>
             {group.events.map((event) => (
-              <li key={event.eventId}>{event.summary}</li>
+              <li key={event.eventId} data-severity={event.severity}>
+                {event.summary}
+              </li>
             ))}
           </ul>
         </section>

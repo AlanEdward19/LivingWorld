@@ -22,6 +22,14 @@ describe("App", () => {
     expect(screen.getAllByTestId("settlement-marker")).toHaveLength(WORLD_FIXTURE.settlements.length);
   });
 
+  it("shows the critical-event toast on load, dismissible (doc §172)", () => {
+    render(<App />);
+    const critical = WORLD_FIXTURE.events.find((e) => e.severity === "critical")!;
+    expect(screen.getByTestId("critical-event-toast")).toHaveTextContent(critical.summary);
+    fireEvent.click(screen.getByText("Dismiss"));
+    expect(screen.queryByTestId("critical-event-toast")).not.toBeInTheDocument();
+  });
+
   it("walks the full P1 flow end to end through the real shell: World map → Settlement → Household → Agent → Why → Causal Explorer", () => {
     render(<App />);
 

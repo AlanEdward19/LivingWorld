@@ -52,8 +52,8 @@ export function Timeline({ fixture, scope }: TimelineProps) {
 
       <ul data-testid="timeline-events">
         {filtered.map((event) => (
-          <li key={event.eventId}>
-            {event.tick} — {event.summary}
+          <li key={event.eventId} data-severity={event.severity}>
+            {event.severity === "critical" && <span data-testid="timeline-critical-marker">●</span>} {event.tick} — {event.summary}
           </li>
         ))}
       </ul>

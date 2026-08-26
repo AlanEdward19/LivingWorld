@@ -7,6 +7,7 @@ import { Explorer } from "./components/Explorer";
 import { CenterStage } from "./components/CenterStage";
 import { Inspector } from "./components/Inspector";
 import { TimelineBar } from "./components/TimelineBar";
+import { CriticalEventToast } from "./components/CriticalEventToast";
 
 const nav = new NavigationStore(WORLD_FIXTURE);
 
@@ -29,6 +30,7 @@ const KEYBOARD_SHORTCUTS: { key: string; label: string }[] = [
  */
 export function App() {
   const [helpOpen, setHelpOpen] = useState(false);
+  const [toastDismissed, setToastDismissed] = useState(false);
 
   useEffect(() => {
     nav.syncWithHistory();
@@ -73,6 +75,8 @@ export function App() {
         <Inspector fixture={WORLD_FIXTURE} nav={nav} route={route} />
       </div>
       <TimelineBar fixture={WORLD_FIXTURE} />
+
+      {!toastDismissed && <CriticalEventToast fixture={WORLD_FIXTURE} nav={nav} onDismiss={() => setToastDismissed(true)} />}
 
       {helpOpen && (
         <div data-testid="keyboard-help" role="dialog" aria-label="Keyboard shortcuts">

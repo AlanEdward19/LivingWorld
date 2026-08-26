@@ -39,7 +39,7 @@ function ConsequenceTree({ events, rootId, onEventClick, debug }: ConsequenceTre
   return (
     <ul>
       {children.map((child) => (
-        <li key={child.eventId}>
+        <li key={child.eventId} data-severity={child.severity}>
           <button type="button" onClick={() => onEventClick(child.eventId)}>
             {debug ? (
               <span data-testid="consequence-debug">

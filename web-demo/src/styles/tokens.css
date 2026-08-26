@@ -579,3 +579,46 @@ button:disabled {
   font-family: inherit;
   font-size: 11px;
 }
+
+/* § 173 Event severity — routine: sem acento; notable: acento pequeno; major: borda de
+ * acento; critical: ver toast (CriticalEventToast.tsx) + marcador na Timeline. */
+[data-severity="notable"] {
+  border-left: 2px solid var(--info);
+  padding-left: 0.5rem;
+}
+
+[data-severity="major"] {
+  border-left: 2px solid var(--warning);
+  padding-left: 0.5rem;
+}
+
+[data-severity="critical"] {
+  border-left: 3px solid var(--danger);
+  padding-left: 0.5rem;
+  font-weight: 600;
+}
+
+[data-testid="timeline-critical-marker"] {
+  color: var(--danger);
+}
+
+/* § 172 Important Event toast */
+[data-testid="critical-event-toast"] {
+  position: fixed;
+  z-index: 40;
+  top: 3.5rem;
+  right: 1rem;
+  max-width: 320px;
+  background: var(--surface-2);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-lg);
+  padding: 0.85rem 1rem;
+}
+
+[data-testid="critical-event-toast"] h3 {
+  color: var(--text-primary);
+  font-size: 14px;
+  margin: 0 0 0.25rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
