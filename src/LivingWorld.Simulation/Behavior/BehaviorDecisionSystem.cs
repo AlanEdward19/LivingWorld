@@ -358,7 +358,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         return action switch
         {
             ActionType.Travel when ctx.RelevantMemories.Any(m =>
-                ContainsAny(m.Content, "trai", "betray", "threat", "perigo", "danger")) => factorBonus,
+                ContainsAny(m.Content, "traído", "traido", "betray", "threat", "perigo", "danger")) => factorBonus,
             ActionType.Buy when ctx.RelevantBeliefs.Any(b =>
                 ContainsAny(b, "scarcity", "escassez", "fome", "hunger", "food")) => factorBonus,
             ActionType.Socialize when ctx.KnownRelationships.Any(r => r.Trust >= 60 || r.Affection >= 60) => factorBonus,
