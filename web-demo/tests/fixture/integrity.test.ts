@@ -5,12 +5,27 @@ import { WORLD_FIXTURE } from "../../src/fixture/oakbridge";
 // quebrada (`agentId` que não existe em `agents`, por exemplo) e quebrar uma tela em silêncio.
 // Este teste garante que todo id referenciado em qualquer campo existe na lista correspondente.
 
+const regionIds = new Set(WORLD_FIXTURE.regions.map((r) => r.id));
 const settlementIds = new Set(WORLD_FIXTURE.settlements.map((s) => s.id));
 const householdIds = new Set(WORLD_FIXTURE.households.map((h) => h.id));
 const agentIds = new Set(WORLD_FIXTURE.agents.map((a) => a.id));
 const eventIds = new Set(WORLD_FIXTURE.events.map((e) => e.eventId));
 
 describe("Oakbridge fixture referential integrity", () => {
+  it("every settlement references a region that exists", () => {
+    for (const settlement of WORLD_FIXTURE.settlements) {
+      expect(regionIds.has(settlement.regionId)).toBe(true);
+    }
+  });
+
+  it("every organization memberId references an agent that exists", () => {
+    for (const organization of WORLD_FIXTURE.organizations) {
+      for (const memberId of organization.memberIds) {
+        expect(agentIds.has(memberId)).toBe(true);
+      }
+    }
+  });
+
   it("every household references a settlement that exists", () => {
     for (const household of WORLD_FIXTURE.households) {
       expect(settlementIds.has(household.settlementId)).toBe(true);
