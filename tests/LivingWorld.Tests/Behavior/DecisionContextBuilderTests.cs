@@ -185,4 +185,53 @@ public class DecisionContextBuilderTests
         Assert.NotEmpty(beliefsDirect);
         Assert.Equal(beliefsDirect, ctx.RelevantBeliefs);
     }
+
+    [Fact]
+    public void Build_without_relationships_returns_empty_KnownRelationships()
+    {
+        var world = BuildWorld();
+        var npc = MakeNpc(world);
+        world.AddNpc(npc);
+
+        var ctx = DecisionContextBuilder.Build(world, npc, tick: 0);
+
+        Assert.Empty(ctx.KnownRelationships);
+        Assert.Empty(world.Relationships);
+    }
+
+    [Fact]
+    public void Build_includes_existing_outgoing_relationships_with_four_axes()
+    {
+        var world = BuildWorld();
+        var npc = MakeNpc(world, id: 1);
+        var other = MakeNpc(world, id: 2);
+        world.AddNpc(npc);
+        world.AddNpc(other);
+
+        var rel = world.GetOrCreateRelationship(new RelationshipKey(npc.Id, other.Id), now: 10);
+        rel.ApplyEvent(RelationshipEventType.Help, ScenarioRunner.DefaultFamilyRules);
+
+        var ctx = DecisionContextBuilder.Build(world, npc, tick: 0);
+
+        Assert.Single(ctx.KnownRelationships);
+        var fact = ctx.KnownRelationships[0];
+        Assert.Equal(other.Id, fact.With);
+        Assert.Equal((int)Math.Round(rel.Trust), fact.Trust);
+        Assert.Equal((int)Math.Round(rel.Affection), fact.Affection);
+        Assert.Equal((int)Math.Round(rel.Respect), fact.Respect);
+        Assert.Equal((int)Math.Round(rel.Debt), fact.Familiarity);
+    }
+
+    [Fact]
+    public void Build_never_creates_relationship_entries()
+    {
+        var world = BuildWorld();
+        var npc = MakeNpc(world);
+        world.AddNpc(npc);
+        int before = world.Relationships.Count;
+
+        _ = DecisionContextBuilder.Build(world, npc, tick: 0);
+
+        Assert.Equal(before, world.Relationships.Count);
+    }
 }

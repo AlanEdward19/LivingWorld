@@ -39,6 +39,7 @@ public static class DecisionContextBuilder
         string needQuery = DeriveActiveNeedQuery(needs);
         var memories = MemoryRecall.Recall(world, npc.Id, needQuery, DefaultMemoryRecallCount, rules);
         var beliefs = NpcBeliefQuery.BeliefsOf(world, npc.Id);
+        var relationships = KnownRelationshipsOf(world, npc.Id);
 
         return new DecisionContext(
             npc.Id,
@@ -48,10 +49,32 @@ public static class DecisionContextBuilder
             household,
             RelevantMemories: memories.Count == 0 ? Array.Empty<NpcMemory>() : memories.ToArray(),
             RelevantBeliefs: beliefs.Count == 0 ? Array.Empty<string>() : beliefs.ToArray(),
-            KnownRelationships: Array.Empty<RelationshipFact>(),
+            KnownRelationships: relationships,
             PowerOpportunities: Array.Empty<PowerOpportunity>(),
             npc.Personality,
             npc.CurrentAction);
+    }
+
+    /// <summary>Relações A→* já existentes (lazy AD-061) — nunca cria entrada nova a partir
+    /// da decisão (COH-14).</summary>
+    private static IReadOnlyList<RelationshipFact> KnownRelationshipsOf(WorldState world, NpcId npcId)
+    {
+        if (world.Relationships.Count == 0)
+            return Array.Empty<RelationshipFact>();
+
+        var facts = new List<RelationshipFact>();
+        foreach (var (key, rel) in world.Relationships.OrderBy(kv => kv.Key.To.Value))
+        {
+            if (key.From != npcId) continue;
+            facts.Add(new RelationshipFact(
+                key.To,
+                (int)Math.Round(rel.Trust),
+                (int)Math.Round(rel.Affection),
+                (int)Math.Round(rel.Respect),
+                (int)Math.Round(rel.Debt)));
+        }
+
+        return facts.Count == 0 ? Array.Empty<RelationshipFact>() : facts.ToArray();
     }
 
     /// <summary>Query bag-of-words derivada do need com maior déficit (COH-12) — alimenta
