@@ -65,6 +65,10 @@ public static class WorldSnapshot
         var rngStreams = node["RngStreams"].Deserialize<List<RngStreamState>>(JsonOptions)!;
         var pendingEvents = node["PendingEvents"].Deserialize<List<ScheduledEvent>>(JsonOptions)!;
         var nextEventId = node["NextEventId"]!.GetValue<long>();
+        var nextHistoryEventId = node.TryGetPropertyValue("NextHistoryEventId", out var nextHistoryNode)
+            && nextHistoryNode is not null
+            ? nextHistoryNode.GetValue<long>()
+            : 0L;
         var exampleCounts = node["ExampleTickCounts"].Deserialize<Dictionary<TickFrequency, long>>(JsonOptions)!;
         var npcs = node["Npcs"].Deserialize<List<Npc>>(JsonOptions)!;
         var households = node["Households"].Deserialize<List<Household>>(JsonOptions)!;
@@ -192,7 +196,8 @@ public static class WorldSnapshot
             resourceCatalog, processRecipes, resourceProcesses, nextResourceProcessId,
             cropBatches, nextCropBatchId, extraordinary, extraordinaryCarriers,
             extraordinaryConstructs, nextExtraordinaryConstructId,
-            fauna, nextAnimalId, flora, nextPlantId, environmentTemperatureAdjustments);
+            fauna, nextAnimalId, flora, nextPlantId, environmentTemperatureAdjustments,
+            nextHistoryEventId);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)

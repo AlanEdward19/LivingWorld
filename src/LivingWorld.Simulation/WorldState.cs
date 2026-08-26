@@ -15,10 +15,15 @@ public sealed class WorldState
     private readonly WorldRngRegistry _rng;
     private readonly EventScheduler _scheduler;
     private long _nextEventId;
+    private long _nextHistoryEventId;
 
     [Canonical] public WorldCalendar Calendar { get; }
     [Canonical] public WorldDate CurrentDate { get; internal set; }
     [Canonical] public long NextEventId => _nextEventId;
+
+    /// <summary>Contador monotônico de <see cref="WorldEvent.EventId"/> (COH-01 / AD-013) —
+    /// irmão de <see cref="NextEventId"/>; nunca reaproveita o contador de <c>ScheduledEvent</c>.</summary>
+    [Canonical] public long NextHistoryEventId => _nextHistoryEventId;
 
     /// <summary>Linha temporal deste mundo (ADR-0009). O hash canônico é por branch: dois
     /// branches com conteúdo idêntico têm hashes distintos.</summary>
@@ -491,7 +496,8 @@ public sealed class WorldState
         long nextAnimalId = 0,
         IReadOnlyList<Plant>? flora = null,
         long nextPlantId = 0,
-        IReadOnlyList<EnvironmentTemperatureAdjustment>? environmentTemperatureAdjustments = null)
+        IReadOnlyList<EnvironmentTemperatureAdjustment>? environmentTemperatureAdjustments = null,
+        long nextHistoryEventId = 0)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -510,6 +516,7 @@ public sealed class WorldState
         _rng = new WorldRngRegistry(seed, rngStreams);
         _scheduler = new EventScheduler(pendingEvents);
         _nextEventId = nextEventId;
+        _nextHistoryEventId = nextHistoryEventId;
         _exampleTickCounts = new Dictionary<TickFrequency, long>(exampleTickCounts);
         _npcs = npcs.ToList();
         _npcById = ToLookup(_npcs, n => n.Id);
@@ -577,6 +584,10 @@ public sealed class WorldState
     public void Rename(string name) => Name = name;
 
     internal long NextEventIdAndAdvance() => _nextEventId++;
+
+    /// <summary>Único ponto de mint de <see cref="WorldEvent.EventId"/> — monotônico e
+    /// determinístico entre processos (AD-013).</summary>
+    internal long NextHistoryEventIdAndAdvance() => _nextHistoryEventId++;
 
     internal void IncrementExampleCount(TickFrequency frequency) => _exampleTickCounts[frequency]++;
 
