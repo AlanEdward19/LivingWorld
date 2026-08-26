@@ -85,20 +85,33 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                 var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
                 var routineAction = catalog.RoutineOf(NoneIfSentinel(npc.Profession), stage, world.CurrentDate.Hour);
 
-                var candidate = npc.HasUrgentNeed(rules, now)
-                    ? SelectByUtility(
+                PendingPowerInvocation? pendingPower = null;
+                ActionType candidate;
+                if (npc.HasUrgentNeed(rules, now))
+                {
+                    var decision = SelectByUtility(
                         DecisionContextBuilder.Build(world, npc, now),
                         rules,
                         world.EconomyRules,
-                        continuityAction)
-                    : routineAction;
+                        continuityAction);
+                    candidate = decision.Action;
+                    pendingPower = decision.PendingPower;
+                }
+                else
+                {
+                    candidate = routineAction;
+                }
 
                 candidate = ApplyPerception(world, npc, candidate);
 
                 chosen = ResolveWithStepCap(npc.Id.Value, candidate, world, npc, marketIndex, rules.MaxActionSelectionSteps);
 
                 if (justCompleted || chosen != npc.CurrentAction)
+                {
                     npc.SetCurrentAction(chosen, now);
+                    if (chosen == ActionType.UsePower && pendingPower is not null)
+                        npc.PendingPowerInvocation = pendingPower;
+                }
             }
 
             NpcWakeScheduler.RescheduleAfterHour(world, ctx, npc, rules, catalog, now);
@@ -296,6 +309,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
     private static ActionType RefineForLocation(WorldState world, Npc npc, ActionType candidate, MarketIndex marketIndex) => candidate switch
     {
+        ActionType.UsePower => ActionType.UsePower,
         ActionType.Sleep when SleepDestinationOf(world, npc) is { } dest && dest != npc.CurrentLocation => ActionType.Travel,
         ActionType.Work when WorkDestinationOf(world, npc) is { } dest && dest != npc.CurrentLocation => ActionType.Travel,
         ActionType.Buy when BuyDestinationOf(world, npc, marketIndex) is { } dest && dest != npc.CurrentLocation => ActionType.Travel,
@@ -332,11 +346,16 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             ? city.Location
             : null;
 
-    private static ActionType SelectByUtility(
-        DecisionContext ctx, NeedsRules rules, EconomyRules economy, ActionType? continuityAction)
+    private readonly record struct UtilityDecision(ActionType Action, PendingPowerInvocation? PendingPower);
+
+    private static UtilityDecision SelectByUtility(
+        DecisionContext ctx, NeedsRules rules, EconomyRules economy, ActionType? continuityAction,
+        PowerUtilityRules? powerRules = null)
     {
+        var utilityRules = PowerUtilityRules.Resolve(powerRules);
         var best = ActionType.Eat;
         double bestScore = double.NegativeInfinity;
+        PendingPowerInvocation? bestPending = null;
 
         foreach (var action in AllActions)
         {
@@ -349,10 +368,60 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             {
                 bestScore = score;
                 best = action;
+                bestPending = null;
             }
         }
 
-        return best;
+        foreach (var opp in ctx.PowerOpportunities)
+        {
+            double score = PowerOpportunityUtility(opp, ctx, utilityRules);
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = ActionType.UsePower;
+                bestPending = new PendingPowerInvocation(
+                    opp.PowerId, opp.MechanicToken, opp.SuggestedTarget);
+            }
+        }
+
+        return new UtilityDecision(best, bestPending);
+    }
+
+    /// <summary>Utility de candidato dinâmico de poder (COH-33 / AD-012):
+    /// <c>Urgency×w − Cost×w − Risk×w + Reliability×w</c>.</summary>
+    internal static double PowerOpportunityUtility(
+        PowerOpportunity opp, DecisionContext ctx, PowerUtilityRules rules)
+    {
+        double urgency = PowerUrgencyOf(ctx, opp);
+        double reliabilityBonus = string.Equals(opp.Reliability, "Guaranteed", StringComparison.Ordinal)
+            ? 1.0
+            : string.Equals(opp.Reliability, "ResolutionCheck", StringComparison.Ordinal)
+                ? 0.35
+                : 0.1;
+
+        return rules.UrgencyWeight * urgency
+            - rules.CostWeight * (double)opp.EstimatedCost * 10.0
+            - rules.RiskWeight * opp.EstimatedRisk * 100.0
+            + rules.ReliabilityWeight * reliabilityBonus * 25.0;
+    }
+
+    /// <summary>Urgência contextual: déficit máximo de needs + boost ReachDestinationUrgently
+    /// para teleport/movimento quando memória de ameaça ou necessidade de deslocamento.</summary>
+    internal static double PowerUrgencyOf(DecisionContext ctx, PowerOpportunity opp)
+    {
+        double urgency = Math.Max(
+            Math.Max(Deficit(ctx.Needs.Hunger), Deficit(ctx.Needs.Thirst)),
+            Math.Max(Deficit(ctx.Needs.Sleep), Deficit(ctx.Needs.Social)));
+
+        bool reachUrgent = ctx.RelevantMemories.Any(m =>
+            ContainsAny(m.Content, "traído", "traido", "betray", "threat", "perigo", "danger"));
+        bool locomotion = opp.MechanicToken.StartsWith("npc.teleport", StringComparison.Ordinal)
+            || opp.MechanicToken.StartsWith("movement.", StringComparison.Ordinal);
+
+        if (reachUrgent && locomotion)
+            urgency = Math.Max(urgency, 95.0);
+
+        return urgency;
     }
 
     /// <summary>Bônus só quando memória/crença/relação estão presentes (COH-13/14) —

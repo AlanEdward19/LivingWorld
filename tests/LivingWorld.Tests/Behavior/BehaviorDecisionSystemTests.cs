@@ -1,4 +1,5 @@
 using LivingWorld.Domain;
+using LivingWorld.Domain.Llm;
 using LivingWorld.Simulation;
 
 namespace LivingWorld.Tests.Behavior;
@@ -347,5 +348,86 @@ public class BehaviorDecisionSystemTests
             new BehaviorDecisionSystem().Tick(worldHigh, ctxHigh);
             Assert.Equal(highAction, npcHigh.CurrentAction);
         }
+    }
+
+    [Fact]
+    public void Teleport_power_with_reach_urgency_chooses_UsePower_and_sets_Pending()
+    {
+        var rules = MakeRules(urgencyThreshold: 70);
+        var catalog = MakeCatalogWithOpenWorkShift();
+        var descriptor = new PowerDescriptor(
+            "teleport-power", "test", ["npc.teleport:elsewhere"], "Active", [], "Guaranteed",
+            [], [], [], []);
+        var carrier = new ExtraordinaryCarrierState(
+            new NpcId(1), [descriptor.Id], true, "active",
+            new ExtraordinaryAppearanceState(1, "", ""), null, 1);
+
+        var map = ScenarioRunner.DefaultMap(11);
+        var world = new WorldState(
+            Calendar, 11, map, ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
+            rules, catalog, Stages,
+            extraordinary: new ExtraordinaryScenarioData(true, [descriptor]),
+            extraordinaryCarriers: [carrier]);
+        var location = new CellCoord(1, 1);
+        var npc = new Npc(
+            new NpcId(1), "npc", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30), new CultureId(1), location,
+            motherId: null, fatherId: null, household: null, health: 100,
+            personality: Neutral, profession: ProfessionType.None, currentLocation: location,
+            hunger: 20, thirst: 100, sleep: 100, social: 100);
+        world.AddNpc(npc);
+        world.AdvanceNpcIdTo(2);
+        world.AddNpcMemory(
+            npc.Id, MemoryCategory.Social, "foi traído por X na colheita", importance: 90, originTick: 1,
+            participants: [npc.Id], location: npc.CurrentLocation,
+            canonicalImportanceThreshold: LlmRules.Default.CanonicalMemoryImportanceThreshold);
+
+        var ctx = new TickContext(world, world.Rng, world.Scheduler);
+        SimulationWakeTestHelper.Wake(world, npc);
+        new BehaviorDecisionSystem().Tick(world, ctx);
+
+        Assert.Equal(ActionType.UsePower, npc.CurrentAction);
+        Assert.NotNull(npc.PendingPowerInvocation);
+        Assert.Equal("teleport-power", npc.PendingPowerInvocation!.PowerId);
+        Assert.Equal("npc.teleport:elsewhere", npc.PendingPowerInvocation.MechanicToken);
+    }
+
+    [Fact]
+    public void Without_power_capability_never_chooses_UsePower_under_same_pressure()
+    {
+        var rules = MakeRules(urgencyThreshold: 70);
+        var catalog = MakeCatalogWithOpenWorkShift();
+        var (world, ctx, npc) = BuildWorld(seed: 11, rules, catalog, Neutral, hunger: 20);
+        world.AddNpcMemory(
+            npc.Id, MemoryCategory.Social, "foi traído por X na colheita", importance: 90, originTick: 1,
+            participants: [npc.Id], location: npc.CurrentLocation,
+            canonicalImportanceThreshold: LlmRules.Default.CanonicalMemoryImportanceThreshold);
+
+        new BehaviorDecisionSystem().Tick(world, ctx);
+
+        Assert.NotEqual(ActionType.UsePower, npc.CurrentAction);
+        Assert.Null(npc.PendingPowerInvocation);
+        Assert.Equal(ActionType.Travel, npc.CurrentAction);
+    }
+
+    [Fact]
+    public void PowerOpportunityUtility_is_deterministic_for_same_inputs()
+    {
+        var opp = new PowerOpportunity("p", "npc.teleport:x", null, 0m, 0.1, "Guaranteed");
+        var ctx = new DecisionContext(
+            new NpcId(1), 0,
+            new NeedsSnapshot(20, 100, 100, 100),
+            new BodySnapshot(1.7, 68, 28, 1, 1),
+            null,
+            [new NpcMemory(1, new NpcId(1), MemoryCategory.Social, "threat nearby", 90, 1, Array.Empty<NpcId>(), new CellCoord(0, 0))],
+            Array.Empty<string>(),
+            Array.Empty<RelationshipFact>(),
+            [opp],
+            Neutral,
+            null);
+
+        double a = BehaviorDecisionSystem.PowerOpportunityUtility(opp, ctx, PowerUtilityRules.Default);
+        double b = BehaviorDecisionSystem.PowerOpportunityUtility(opp, ctx, PowerUtilityRules.Default);
+        Assert.Equal(a, b);
+        Assert.True(a > 50);
     }
 }
