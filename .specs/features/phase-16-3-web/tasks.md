@@ -722,8 +722,8 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] Todas as perguntas do doc#147 respondidas com evidência (screenshot ou descrição do que se vê)
-- [ ] Perguntas centrais ("consigo entender por quê?", "parece um mundo ou um dashboard?") respondidas "sim" — se não, vira gap documentado, não fechamento forçado
+- [x] Todas as perguntas do doc#147 respondidas com evidência (screenshot ou descrição do que se vê)
+- [x] Perguntas centrais ("consigo entender por quê?", "parece um mundo ou um dashboard?") respondidas "sim" — se não, vira gap documentado, não fechamento forçado
 
 **Tests**: none
 **Gate**: build
@@ -743,8 +743,8 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] README explica escopo/isolamento/como rodar
-- [ ] Comparação visual documentada (token de NPC igual; prédio/tile/cidade visivelmente diferente)
+- [x] README explica escopo/isolamento/como rodar
+- [x] Comparação visual documentada (token de NPC igual; prédio/tile/cidade visivelmente diferente)
 
 **Tests**: none
 **Gate**: build
@@ -764,9 +764,9 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] `npm --prefix web-demo test` verde
-- [ ] `npm --prefix web-demo run build` verde
-- [ ] Traceability table atualizada
+- [x] `npm --prefix web-demo test` verde
+- [x] `npm --prefix web-demo run build` verde
+- [x] Traceability table atualizada
 
 **Tests**: none
 **Gate**: full
