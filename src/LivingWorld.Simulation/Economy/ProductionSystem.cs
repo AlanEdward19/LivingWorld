@@ -68,6 +68,7 @@ public sealed class ProductionSystem : ISimulationSystem
 
         double skillMultiplier = SkillMultiplierOf(presentWorkers, skillsRules);
         double strengthMultiplier = StrengthMultiplierOf(world, presentWorkers, scale);
+        double workCapacityMultiplier = WorkCapacityMultiplierOf(world, presentWorkers, scale);
 
         foreach (var (resourceId, perWorker) in recipe.Outputs)
         {
@@ -76,7 +77,7 @@ public sealed class ProductionSystem : ISimulationSystem
                 continue;
 
             var resource = new ResourceType(resourceId);
-            long produced = (long)(perWorker * scale * skillMultiplier * strengthMultiplier);
+            long produced = (long)(perWorker * scale * skillMultiplier * strengthMultiplier * workCapacityMultiplier);
             world.RecordResourceProduced(resource, produced); // ECON-15: conta o bruto, antes do clamp de capacidade
             long lost = workplace.Deposit(resource, produced, rules);
             if (lost > 0)
@@ -114,6 +115,19 @@ public sealed class ProductionSystem : ISimulationSystem
         double sum = 0;
         for (int i = 0; i < count; i++)
             sum += AttributeMechanic.StrengthMultiplier(world, presentWorkers[i]);
+        return sum / count;
+    }
+
+    /// <summary>COH-22: 4º fator — média de <see cref="BodyMechanic.WorkCapacityMultiplier"/>
+    /// sobre os trabalhadores em <paramref name="scale"/> (neutro 1.0 se BodyRules off).</summary>
+    private static double WorkCapacityMultiplierOf(WorldState world, IReadOnlyList<Npc> presentWorkers, int scale)
+    {
+        int count = Math.Min(scale, presentWorkers.Count);
+        if (count <= 0) return 1.0;
+
+        double sum = 0;
+        for (int i = 0; i < count; i++)
+            sum += BodyMechanic.WorkCapacityMultiplier(world, presentWorkers[i]);
         return sum / count;
     }
 
