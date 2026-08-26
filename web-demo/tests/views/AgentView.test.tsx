@@ -57,6 +57,13 @@ describe("AgentView", () => {
     expect(nav.current()).toEqual({ kind: "causal", eventId: "evt-grain-prices-rose" });
   });
 
+  it("clicking 'View full life' navigates to Mira's LifeView (doc §61)", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    render(<AgentView fixture={WORLD_FIXTURE} nav={nav} agentId="mira-valen" />);
+    fireEvent.click(screen.getByTestId("view-full-life"));
+    expect(nav.current()).toEqual({ kind: "life", agentId: "mira-valen" });
+  });
+
   it("clicking View Timeline navigates to the agent-scoped Timeline (spec P2 AC1)", () => {
     const nav = new NavigationStore(WORLD_FIXTURE);
     render(<AgentView fixture={WORLD_FIXTURE} nav={nav} agentId="mira-valen" />);

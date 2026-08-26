@@ -64,6 +64,10 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
         ))}
       </ul>
 
+      <button type="button" data-testid="view-full-life" onClick={() => nav.push({ kind: "life", agentId })}>
+        View full life
+      </button>
+
       <button type="button" onClick={() => setWhyOpen((open) => !open)}>
         Why?
       </button>
