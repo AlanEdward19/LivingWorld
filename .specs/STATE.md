@@ -106,6 +106,28 @@
 - **Date**: 2026-08-26
 - **Status**: active
 
+### AD-012
+- **Decision**: Regravar `tests/baselines/action-switches.json` no closeout da Fase 16.3 cohesion.
+- **Reason**: DecisionContext / Intent / PowerOpportunity (P1c–P1e) alteram escolhas de ação de
+  forma legítima e determinística — mesma classe de ripple que AD-005/AD-006.
+- **Trade-off**: Contagens por seed mudam; histerese continua reduzindo trocas vs braço sem
+  histerese. Regravação via `ZZZ_record_action_switches_baseline`.
+- **Scope**: Fase 16.3 closeout — `tests/baselines/action-switches.json`.
+- **Date**: 2026-08-26
+- **Status**: active
+
+### AD-013
+- **Decision**: Regravar entrada 1k de `tests/baselines/scale-sensor.json` no closeout cohesion;
+  manter entrada 5k (Category=Scenario) da baseline anterior.
+- **Reason**: Cohesion (body/decision/powers) deslocou `BytesPerAliveNpcPerYear` fora da faixa
+  relativa de 1% no sensor de gate (1k). Não é regressão de perf absoluta — tetos de
+  `PerfRules.ScaleSensorInitial` continuam válidos.
+- **Trade-off**: Disco/alloc por NPC-ano sobe levemente na amostra 1k; 5k não foi re-medido neste
+  closeout (custo multi-10min, fora do gate padrão).
+- **Scope**: Fase 16.3 closeout — `tests/baselines/scale-sensor.json` (chave `"1000"`).
+- **Date**: 2026-08-26
+- **Status**: active
+
 ## Handoff
 
 - **Feature**: Fase 16.3 Living World Cohesion — `.specs/features/phase-16-3-world-cohesion/`
