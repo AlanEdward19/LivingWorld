@@ -19,27 +19,11 @@ public static class DecisionContextBuilder
             npc.SleepAt(tick),
             npc.SocialAt(tick));
 
-        var body = new BodySnapshot(
-            npc.Height,
-            npc.Weight,
-            npc.MuscleMass,
-            BodyMechanic.WorkCapacityMultiplier(world, npc),
-            BodyMechanic.MovementCostMultiplier(world, npc));
-
-        HouseholdSnapshot? household = null;
-        if (npc.Household is { } householdId && world.FindHousehold(householdId) is { } h)
-        {
-            household = new HouseholdSnapshot(
-                h.Id,
-                new Dictionary<ResourceType, long>(h.Stock),
-                h.Members.ToList());
-        }
-
-        var rules = llmRules ?? LlmRules.Default;
-        string needQuery = DeriveActiveNeedQuery(needs);
-        var memories = MemoryRecall.Recall(world, npc.Id, needQuery, DefaultMemoryRecallCount, rules);
-        var beliefs = NpcBeliefQuery.BeliefsOf(world, npc.Id);
-        var relationships = KnownRelationshipsOf(world, npc.Id);
+        var body = BuildBodySlice(world, npc);
+        var household = BuildHouseholdSlice(world, npc);
+        var memories = BuildMemorySlice(world, npc, needs, llmRules);
+        var beliefs = BuildBeliefSlice(world, npc);
+        var relationships = BuildRelationshipSlice(world, npc);
 
         return new DecisionContext(
             npc.Id,
@@ -47,13 +31,50 @@ public static class DecisionContextBuilder
             needs,
             body,
             household,
-            RelevantMemories: memories.Count == 0 ? Array.Empty<NpcMemory>() : memories.ToArray(),
-            RelevantBeliefs: beliefs.Count == 0 ? Array.Empty<string>() : beliefs.ToArray(),
+            RelevantMemories: memories,
+            RelevantBeliefs: beliefs,
             KnownRelationships: relationships,
             PowerOpportunities: PowerOpportunityProvider.ApplicableTo(world, npc, tick),
             npc.Personality,
             npc.CurrentAction);
     }
+
+    internal static BodySnapshot BuildBodySlice(WorldState world, Npc npc) =>
+        new(
+            npc.Height,
+            npc.Weight,
+            npc.MuscleMass,
+            BodyMechanic.WorkCapacityMultiplier(world, npc),
+            BodyMechanic.MovementCostMultiplier(world, npc));
+
+    internal static HouseholdSnapshot? BuildHouseholdSlice(WorldState world, Npc npc)
+    {
+        if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } h)
+            return null;
+
+        return new HouseholdSnapshot(
+            h.Id,
+            new Dictionary<ResourceType, long>(h.Stock),
+            h.Members.ToList());
+    }
+
+    internal static IReadOnlyList<NpcMemory> BuildMemorySlice(
+        WorldState world, Npc npc, NeedsSnapshot needs, LlmRules? llmRules = null)
+    {
+        var rules = llmRules ?? LlmRules.Default;
+        string needQuery = DeriveActiveNeedQuery(needs);
+        var memories = MemoryRecall.Recall(world, npc.Id, needQuery, DefaultMemoryRecallCount, rules);
+        return memories.Count == 0 ? Array.Empty<NpcMemory>() : memories.ToArray();
+    }
+
+    internal static IReadOnlyList<string> BuildBeliefSlice(WorldState world, Npc npc)
+    {
+        var beliefs = NpcBeliefQuery.BeliefsOf(world, npc.Id);
+        return beliefs.Count == 0 ? Array.Empty<string>() : beliefs.ToArray();
+    }
+
+    internal static IReadOnlyList<RelationshipFact> BuildRelationshipSlice(WorldState world, Npc npc) =>
+        KnownRelationshipsOf(world, npc.Id);
 
     /// <summary>Relações A→* já existentes (lazy AD-061) — nunca cria entrada nova a partir
     /// da decisão (COH-14).</summary>
