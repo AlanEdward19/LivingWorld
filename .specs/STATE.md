@@ -128,6 +128,15 @@
 - **Date**: 2026-08-26
 - **Status**: active
 
+### AD-014
+- **Decision**: Regravar `tests/golden/world-hashes.json` novamente no closeout (após AD-011/T24).
+- **Reason**: WorkHardeningSystem no DefaultSystems + campos/canônicos finais da cohesion
+  mudaram o hash do cenário `default` vs baseline AD-011.
+- **Trade-off**: Mesmo da AD-011 — mundos com golden anterior não batem byte-a-byte.
+- **Scope**: Fase 16.3 closeout — `tests/golden/world-hashes.json`.
+- **Date**: 2026-08-26
+- **Status**: active
+
 ## Handoff
 
 - **Feature**: Fase 16.3 Living World Cohesion — `.specs/features/phase-16-3-world-cohesion/`
