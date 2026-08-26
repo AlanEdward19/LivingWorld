@@ -656,9 +656,9 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] Card mostra os números exatos do fixture
-- [ ] Clicar abre o Causal Explorer no thread certo
-- [ ] Gate check passa: `npm --prefix web-demo test -- StoryThreads`
+- [x] Card mostra os números exatos do fixture
+- [x] Clicar abre o Causal Explorer no thread certo
+- [x] Gate check passa: `npm --prefix web-demo test -- StoryThreads`
 
 **Tests**: component
 **Gate**: quick
@@ -678,8 +678,8 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] Alternar pra Debug Mode mostra campos técnicos (`WakeReason`/tick/etc do fixture) sem perder a seleção atual (spec P3 Independent Test)
-- [ ] Gate check passa: `npm --prefix web-demo test -- modeStore`
+- [x] Alternar pra Debug Mode mostra campos técnicos (`WakeReason`/tick/etc do fixture) sem perder a seleção atual (spec P3 Independent Test)
+- [x] Gate check passa: `npm --prefix web-demo test -- modeStore`
 
 **Tests**: unit + component
 **Gate**: quick
@@ -699,10 +699,10 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] Busca "Mira" retorna Mira em People
-- [ ] Busca sem match retorna estado vazio explícito por categoria (Edge Case)
-- [ ] Resultado clicável navega pra entidade certa
-- [ ] Gate check passa: `npm --prefix web-demo test -- SearchIndex|SearchBar`
+- [x] Busca "Mira" retorna Mira em People
+- [x] Busca sem match retorna estado vazio explícito por categoria (Edge Case)
+- [x] Resultado clicável navega pra entidade certa
+- [x] Gate check passa: `npm --prefix web-demo test -- SearchIndex|SearchBar`
 
 **Tests**: unit + component
 **Gate**: quick
