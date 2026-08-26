@@ -91,6 +91,30 @@
 - **Date**: 2026-08-25
 - **Status**: active
 
+### AD-011
+- **Decision**: `DecisionContext` (não `WorldState` bruto) passa a ser a assinatura padrão de scoring de decisão de Agent daqui pra frente — `SelectByUtility`/`UtilityBaseOf` migram de `(WorldState world, Npc npc, ...)` para `(DecisionContext ctx, ...)`; qualquer feature futura que adicione um novo fator de decisão passa por `DecisionContextBuilder`, nunca lê `world`/`npc` direto dentro do loop de utility.
+- **Reason**: Doc "Living World Cohesion" (pós-16.2) exige que decisão de Agent nunca seja onisciente (`Score(agent, decisionContext)`, nunca `Score(agent, world)`); survey de arquitetura confirmou que Memory/Belief/Relationships hoje são `PRESENTATION_ONLY` justamente por não passarem por um contexto escopado.
+- **Trade-off**: Todo novo fator de decisão exige um passo a mais (expor via `DecisionContextBuilder`) em vez de ler `world` direto — mais disciplina, mas fecha por construção a classe de bug "decisão lê dado que o Agent não deveria conhecer".
+- **Scope**: Fase 16.3 (Living World Cohesion) em diante — `BehaviorDecisionSystem` e qualquer sistema de decisão futuro.
+- **Date**: 2026-08-25
+- **Status**: active
+
+### AD-012
+- **Decision**: Powers entram em loops de decisão autônoma via um único `ActionType.UsePower` + candidato dinâmico `PowerOpportunity` (gerado por `PowerOpportunityProvider`), nunca um valor de enum por poder específico.
+- **Reason**: `ActionType` é um switch fechado usado em múltiplos hot paths (`PersonalityWeighting.TraitValueOf`, `ActionCatalog`, `NpcWakeScheduler`); adicionar um valor por mechanic (27 hoje) explodiria todo esse switch por 4x. `ActionType` é categoria de ação, não "poder específico" — mesmo padrão já usado por `Buy`/`Travel`.
+- **Trade-off**: O poder específico escolhido não fica visível só olhando o enum — precisa do campo volátil `Npc.PendingPowerInvocation` ao lado. Em troca, o enum fechado nunca cresce proporcionalmente ao catálogo de poderes.
+- **Scope**: Fase 16.3 (Living World Cohesion) — integração Powers↔Utility; qualquer poder novo adicionado depois não ganha valor de `ActionType` próprio.
+- **Date**: 2026-08-25
+- **Status**: active
+
+### AD-013
+- **Decision**: O contador de `EventId` de proveniência causal (`WorldEvent.EventId`, novo) é um campo canônico próprio (`_nextHistoryEventId`/`NextHistoryEventIdAndAdvance`) — nunca reaproveita `_nextEventId`/`NextEventIdAndAdvance`, que já pertence a `ScheduledEvent`.
+- **Reason**: Survey de arquitetura confirmou que `_nextEventId` já tem dono (`TickContext.ScheduleEvent`); reusar o mesmo contador pra dois conceitos diferentes (evento agendado vs. evento de história/causalidade) quebraria o significado de cada um e acoplaria dois sistemas sem necessidade.
+- **Trade-off**: Mais um contador monotônico em `WorldState` (mesmo padrão já replicado várias vezes — `NpcId`/`HouseholdId`/`WorkplaceId`), nenhum custo real.
+- **Scope**: Fase 16.3 (Living World Cohesion) — proveniência causal de `WorldEvent`.
+- **Date**: 2026-08-25
+- **Status**: active
+
 ## Handoff
 
 - **Execução paralela PAUSADA (2026-08-25 19:46)**: STOP.json ativo em todos worktrees.
