@@ -65,14 +65,14 @@ describe("SemanticZoomMap — settlement level (buildings AND NPCs together, no 
     const { container } = render(
       <SemanticZoomMap fixture={WORLD_FIXTURE} level="settlement" settlementId="oakbridge" onSelectSettlement={() => {}} onSelectNpc={() => {}} />,
     );
-    expect(container.querySelectorAll("polygon")).toHaveLength(OAKBRIDGE.buildings.length * 3);
+    expect(container.querySelectorAll('[data-testid="iso-tile"]')).toHaveLength(OAKBRIDGE.buildings.length);
   });
 
   it("shows every agent of the settlement in the SAME render as the buildings — never a mutually exclusive toggle", () => {
     const { container, getAllByTestId } = render(
       <SemanticZoomMap fixture={WORLD_FIXTURE} level="settlement" settlementId="oakbridge" onSelectSettlement={() => {}} onSelectNpc={() => {}} />,
     );
-    expect(container.querySelectorAll("polygon")).toHaveLength(OAKBRIDGE.buildings.length * 3);
+    expect(container.querySelectorAll('[data-testid="iso-tile"]')).toHaveLength(OAKBRIDGE.buildings.length);
     expect(container.querySelectorAll("img")).toHaveLength(OAKBRIDGE_AGENTS.length);
     const markers = getAllByTestId("agent-marker");
     for (const marker of markers) expect(marker).toHaveAttribute("data-zoom-scale", "settlement");
@@ -126,16 +126,16 @@ describe("SemanticZoomMap — settlement level (buildings AND NPCs together, no 
 describe("SemanticZoomMap — information density changes across zoom levels", () => {
   it("world level has fewer distinguishable elements than settlement level for the same settlement", () => {
     const worldRender = render(<SemanticZoomMap fixture={WORLD_FIXTURE} onSelectSettlement={() => {}} onSelectNpc={() => {}} />);
-    const worldPolygonCount = worldRender.container.querySelectorAll("polygon").length;
+    const worldTileCount = worldRender.container.querySelectorAll('[data-testid="iso-tile"]').length;
 
     const settlementRender = render(
       <SemanticZoomMap fixture={WORLD_FIXTURE} level="settlement" settlementId="oakbridge" onSelectSettlement={() => {}} onSelectNpc={() => {}} />,
     );
-    const settlementPolygonCount = settlementRender.container.querySelectorAll("polygon").length;
+    const settlementTileCount = settlementRender.container.querySelectorAll('[data-testid="iso-tile"]').length;
 
-    expect(worldPolygonCount).toBe(0); // sem prédios no nível mundo
-    expect(settlementPolygonCount).toBe(OAKBRIDGE.buildings.length * 3);
-    expect(settlementPolygonCount).toBeGreaterThan(worldPolygonCount);
+    expect(worldTileCount).toBe(0); // sem prédios no nível mundo
+    expect(settlementTileCount).toBe(OAKBRIDGE.buildings.length);
+    expect(settlementTileCount).toBeGreaterThan(worldTileCount);
   });
 });
 

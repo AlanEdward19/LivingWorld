@@ -226,7 +226,6 @@ export function SemanticZoomMap({ fixture, level = "world", settlementId, onSele
           key={building.id}
           gridX={building.gridPosition.x}
           gridY={building.gridPosition.y}
-          height={building.height}
           kind={building.kind}
           onClick={building.floors.length > 0 ? () => onSelectBuilding?.(building.id) : undefined}
         />

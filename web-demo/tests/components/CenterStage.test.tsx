@@ -39,7 +39,7 @@ describe("CenterStage — settlement route", () => {
   it("shows buildings AND every agent of the settlement together, no toggle between them", () => {
     const nav = new NavigationStore(WORLD_FIXTURE);
     const { container } = render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "settlement", id: "oakbridge" }} />);
-    expect(container.querySelectorAll("polygon")).toHaveLength(OAKBRIDGE.buildings.length * 3);
+    expect(container.querySelectorAll('[data-testid="iso-tile"]')).toHaveLength(OAKBRIDGE.buildings.length);
     expect(container.querySelectorAll("img")).toHaveLength(OAKBRIDGE_AGENTS.length);
     expect(screen.queryByText("Agent view")).not.toBeInTheDocument();
     expect(screen.queryByText("District view")).not.toBeInTheDocument();
@@ -74,7 +74,7 @@ describe("CenterStage — household route", () => {
   it("shows the household's settlement map with buildings and agents together", () => {
     const nav = new NavigationStore(WORLD_FIXTURE);
     const { container } = render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "household", id: "valen-household" }} />);
-    expect(container.querySelectorAll("polygon")).toHaveLength(OAKBRIDGE.buildings.length * 3);
+    expect(container.querySelectorAll('[data-testid="iso-tile"]')).toHaveLength(OAKBRIDGE.buildings.length);
     expect(container.querySelectorAll("img")).toHaveLength(OAKBRIDGE_AGENTS.length);
   });
 });

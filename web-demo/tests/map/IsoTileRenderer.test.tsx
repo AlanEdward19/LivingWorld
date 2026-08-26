@@ -3,14 +3,15 @@ import { fireEvent, render } from "@testing-library/react";
 import { IsoTile } from "../../src/map/IsoTileRenderer";
 import { paletteForBuildingKind } from "../../src/map/isoPalette";
 
-describe("IsoTile", () => {
-  it("renders exactly 3 polygon faces", () => {
+describe("IsoTile (top-down, AD-019)", () => {
+  it("renders exactly one rect (flat top-down square, not an isometric 3-face block)", () => {
     const { container } = render(
       <svg>
         <IsoTile gridX={0} gridY={0} kind="residence" />
       </svg>,
     );
-    expect(container.querySelectorAll("polygon")).toHaveLength(3);
+    expect(container.querySelectorAll("rect")).toHaveLength(1);
+    expect(container.querySelectorAll("polygon")).toHaveLength(0);
   });
 
   it("uses the palette colors matching the given kind", () => {
@@ -20,12 +21,9 @@ describe("IsoTile", () => {
       </svg>,
     );
     const palette = paletteForBuildingKind("forge");
-    const top = container.querySelector('polygon[data-face="top"]');
-    const left = container.querySelector('polygon[data-face="left"]');
-    const right = container.querySelector('polygon[data-face="right"]');
-    expect(top?.getAttribute("fill")).toBe(palette.top);
-    expect(left?.getAttribute("fill")).toBe(palette.left);
-    expect(right?.getAttribute("fill")).toBe(palette.right);
+    const rect = container.querySelector("rect");
+    expect(rect?.getAttribute("fill")).toBe(palette.top);
+    expect(rect?.getAttribute("stroke")).toBe(palette.right);
   });
 
   it("fires onClick with the tile's own gridX/gridY", () => {

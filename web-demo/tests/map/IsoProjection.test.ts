@@ -11,25 +11,13 @@ function expectRoundTrip(gridX: number, gridY: number) {
   expect(back.y).toBeCloseTo(gridY, 10);
 }
 
-describe("IsoProjection", () => {
+describe("IsoProjection (top-down ortogonal, AD-019)", () => {
   it("round-trips the origin (0, 0)", () => {
     expectRoundTrip(0, 0);
   });
 
   it("round-trips an interior point (5, 5)", () => {
     expectRoundTrip(5, 5);
-  });
-
-  it("round-trips the top-left grid corner (0, 19)", () => {
-    expectRoundTrip(0, 19);
-  });
-
-  it("round-trips the top-right grid corner (19, 0)", () => {
-    expectRoundTrip(19, 0);
-  });
-
-  it("round-trips the bottom-right grid corner (19, 19)", () => {
-    expectRoundTrip(19, 19);
   });
 
   it("round-trips negative grid coordinates", () => {
@@ -43,24 +31,15 @@ describe("IsoProjection", () => {
     expect(back.y).toBeCloseTo(2, 10);
   });
 
-  it("projects a known point to the exact expected screen coordinates", () => {
-    // gridX=1, gridY=0 → topo do diamante: x desloca meia largura, y desloca meia altura
-    expect(toScreen(1, 0, TILE_W, TILE_H)).toEqual({ x: 32, y: 16 });
+  it("projects a known point to the exact expected screen coordinates (identity scale, not isometric)", () => {
+    expect(toScreen(1, 0, TILE_W, TILE_H)).toEqual({ x: 64, y: 0 });
+    expect(toScreen(2, 3, TILE_W, TILE_H)).toEqual({ x: 128, y: 96 });
   });
 
-  it("raises the screen Y for taller blocks without affecting X", () => {
-    const ground = toScreen(2, 2, TILE_W, TILE_H, 0);
-    const raised = toScreen(2, 2, TILE_W, TILE_H, 3);
-    expect(raised.x).toBe(ground.x);
-    expect(raised.y).toBe(ground.y - 3 * TILE_H);
-  });
-
-  it("does not require height to round-trip through toGrid (height is a render-only offset)", () => {
-    // Um bloco alto em (2,2) pode visualmente sobrepor um bloco baixo em (2,3) na tela —
-    // toGrid não recebe height, então quem faz hit-test precisa desfazer o offset de height
-    // antes de chamar toGrid (IsoTileRenderer, T8). Aqui confirmamos que, sem esse offset
-    // (height=0 na ida), o round-trip continua exato mesmo perto de outro bloco alto.
-    expectRoundTrip(2, 2);
-    expectRoundTrip(2, 3);
+  it("moving along Y only changes screen Y — no isometric X shear", () => {
+    const a = toScreen(2, 1, TILE_W, TILE_H);
+    const b = toScreen(2, 5, TILE_W, TILE_H);
+    expect(b.x).toBe(a.x);
+    expect(b.y).toBeGreaterThan(a.y);
   });
 });

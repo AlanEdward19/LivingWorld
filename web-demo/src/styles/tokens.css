@@ -289,6 +289,17 @@ svg[data-testid="semantic-zoom-map"] {
   border: 1px solid var(--border);
 }
 
+/* Redesign ask (2026-08-26): labels no mapa não tinham `fill` — herdavam o preto default de
+ * <text> em SVG, ilegível sobre `--bg-world`. Halo (paint-order stroke) mantém leitura em
+ * qualquer nível de zoom/paleta de fundo por baixo do texto. */
+svg[data-testid="semantic-zoom-map"] text {
+  fill: var(--text-primary);
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: var(--bg-world);
+  stroke-width: 3px;
+}
+
 /* § 103 Event markers — "small pulse once", depois fica discreto e estático. Um único
  * keyframe (iteration-count 1) na montagem, nunca piscando pra sempre (§171: no gamification
  * noise). § 150: sem movimento quando o usuário pede reduced motion. */
