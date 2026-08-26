@@ -78,7 +78,9 @@ public sealed class NatalitySystem : ISimulationSystem
 
         if (ctx.Rng($"natality-infant-{motherId.Value}-{evt.Id}").NextDouble() < familyRules.InfantDeathRisk)
         {
-            ctx.LogEvent(WorldEventKind.StillBirth, $"{motherId.Value}|{fatherId.Value}");
+            ctx.LogEvent(
+                WorldEventKind.StillBirth, $"{motherId.Value}|{fatherId.Value}",
+                sourceSystem: "NatalitySystem");
             return;
         }
 

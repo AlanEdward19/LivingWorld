@@ -53,34 +53,39 @@ public static class ExtraordinaryInvocationEngine
         WorldState world, TickContext ctx, ExtraordinaryInvocation invocation,
         IExtraordinaryMechanicRegistry? registry = null)
     {
+        const string source = "ExtraordinaryInvocationEngine";
         string prefix = Prefix(invocation);
-        ctx.LogEvent(WorldEventKind.ExtraordinaryUseAttempted, $"{prefix}attempt");
+        var attemptId = ctx.LogEvent(
+            WorldEventKind.ExtraordinaryUseAttempted, $"{prefix}attempt", source);
 
         var prepared = Prepare(world, ctx, invocation, registry ?? ExtraordinaryMechanicRegistry.Default);
         if (!prepared.IsSuccess)
-            return Fail(ctx, prefix, prepared.Error!);
+            return Fail(ctx, prefix, prepared.Error!, attemptId);
 
         var plan = prepared.Value!;
+        long priorId = attemptId;
         foreach (var cost in plan.Costs)
         {
             cost.Apply(ResolutionResult.Success);
-            ctx.LogEvent(WorldEventKind.ExtraordinaryCostPaid, $"{prefix}{cost.Token}");
+            priorId = ctx.LogEvent(
+                WorldEventKind.ExtraordinaryCostPaid, $"{prefix}{cost.Token}", source, priorId);
         }
 
         if (plan.Resolution is ResolutionResult.Failure or ResolutionResult.CriticalFailure)
         {
-            ApplyFailureModes(ctx, prefix, plan.FailureModes);
-            return Fail(ctx, prefix, $"resolution:{plan.Resolution}");
+            ApplyFailureModes(ctx, prefix, plan.FailureModes, attemptId);
+            return Fail(ctx, prefix, $"resolution:{plan.Resolution}", attemptId);
         }
 
         foreach (var effect in plan.Effects)
         {
             effect.Apply(plan.Resolution);
-            ctx.LogEvent(WorldEventKind.ExtraordinaryEffectApplied, $"{prefix}{effect.Token}");
+            priorId = ctx.LogEvent(
+                WorldEventKind.ExtraordinaryEffectApplied, $"{prefix}{effect.Token}", source, priorId);
         }
         PowerUseCounter.RecordSuccessfulUse(world, invocation.CarrierId);
         if (plan.Resolution == ResolutionResult.PartialSuccess)
-            ApplyFailureModes(ctx, prefix, plan.FailureModes);
+            ApplyFailureModes(ctx, prefix, plan.FailureModes, attemptId);
 
         return Result<ExtraordinaryInvocationResult>.Ok(new ExtraordinaryInvocationResult(
             invocation.InvocationId, plan.Resolution, plan.Costs.Count, plan.Effects.Count));
@@ -365,18 +370,23 @@ public static class ExtraordinaryInvocationEngine
         };
 
     private static void ApplyFailureModes(
-        TickContext ctx, string prefix, IReadOnlyList<PreparedFailureMode> failureModes)
+        TickContext ctx, string prefix, IReadOnlyList<PreparedFailureMode> failureModes, long causeEventId)
     {
         foreach (var failureMode in failureModes)
         {
             failureMode.Apply();
-            ctx.LogEvent(WorldEventKind.ExtraordinaryFailureApplied, $"{prefix}{failureMode.Token}");
+            ctx.LogEvent(
+                WorldEventKind.ExtraordinaryFailureApplied, $"{prefix}{failureMode.Token}",
+                "ExtraordinaryInvocationEngine", causeEventId);
         }
     }
 
-    private static Result<ExtraordinaryInvocationResult> Fail(TickContext ctx, string prefix, string error)
+    private static Result<ExtraordinaryInvocationResult> Fail(
+        TickContext ctx, string prefix, string error, long causeEventId)
     {
-        ctx.LogEvent(WorldEventKind.ExtraordinaryUseFailed, $"{prefix}{error}");
+        ctx.LogEvent(
+            WorldEventKind.ExtraordinaryUseFailed, $"{prefix}{error}",
+            "ExtraordinaryInvocationEngine", causeEventId);
         return Result<ExtraordinaryInvocationResult>.Fail(error);
     }
 
