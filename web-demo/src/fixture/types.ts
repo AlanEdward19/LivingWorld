@@ -33,9 +33,38 @@ export interface SettlementFixture {
 
 export interface BuildingFixture {
   id: string;
+  name: string;
   kind: BuildingKind;
   gridPosition: { x: number; y: number }; // relativo ao settlement, zoom "distrito"
-  height: number; // nº de "andares" isométricos
+  height: number; // nº de "andares" isométricos (exterior)
+  /** Interior explorável (doc §29-36) — [] pra prédios sem interior modelado nesta demo (ex.:
+   * a fazenda, um marcador puramente exterior). Presença de andares é o que torna o prédio
+   * clicável/"enterable" no mapa de settlement. */
+  floors: FloorFixture[];
+}
+
+export type FurnitureKind = "bed" | "table" | "chair" | "stove" | "oven" | "counter" | "shelf" | "workbench" | "desk";
+
+/** Objeto físico dentro de um cômodo (doc §36) — posição local ao grid do FLOOR (não da room). */
+export interface FurnitureFixture {
+  id: string;
+  kind: FurnitureKind;
+  gridPosition: { x: number; y: number };
+}
+
+/** Cômodo (doc §35) — `bounds` é a área retangular ocupada dentro do grid do floor (RimWorld-
+ * style top-down: paredes = borda do retângulo, piso = área preenchida). */
+export interface RoomFixture {
+  id: string;
+  name: string; // "Kitchen"
+  bounds: { x: number; y: number; width: number; height: number };
+  furniture: FurnitureFixture[];
+}
+
+export interface FloorFixture {
+  id: string;
+  label: string; // "Ground Floor", "Floor 1"
+  rooms: RoomFixture[];
 }
 
 export interface HouseholdFixture {
@@ -81,6 +110,11 @@ export interface AgentFixture {
   /** People "Notable" filter (doc §43) — protagonistas/vozes independentes da crise, não
    * dependentes (crianças) que só aparecem através de outro agent. */
   notable: boolean;
+  /** Onde o NPC está agora dentro de um prédio (doc §39 location model), se estiver indoors —
+   * um fato do fixture, decorativo/estático como o resto do movimento nesta demo (AD-018), não
+   * sincronizado tick-a-tick com `patrolPoints` (que descreve a posição EXTERIOR/de settlement,
+   * sempre válida pro zoom mundo/settlement mesmo quando o NPC também "está" num cômodo). */
+  indoorLocation?: { buildingId: string; floorId: string; roomId: string; position: { x: number; y: number } };
   relationships: { withAgentId: string; label: string }[]; // "Rowan · trusted"
   recentLifeEvents: string[];
   lifeMilestones: { label: string; approxDate: string }[]; // pra Life View

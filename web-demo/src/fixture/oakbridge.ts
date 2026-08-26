@@ -27,13 +27,182 @@ export const WORLD_FIXTURE: WorldFixture = {
       migration: "leaving",
       construction: 1,
       buildings: [
-        { id: "bld-valen-house", kind: "residence", gridPosition: { x: 1, y: 1 }, height: 1 },
-        { id: "bld-corvin-bakery", kind: "generic", gridPosition: { x: 2, y: 1 }, height: 1 },
-        { id: "bld-north-farm", kind: "agriculture", gridPosition: { x: 0, y: 3 }, height: 1 },
-        { id: "bld-smithy", kind: "forge", gridPosition: { x: 3, y: 2 }, height: 1 },
-        { id: "bld-miller-house", kind: "residence", gridPosition: { x: 2, y: 3 }, height: 1 },
-        { id: "bld-cobb-house", kind: "residence", gridPosition: { x: 3, y: 3 }, height: 1 },
-        { id: "bld-reyes-house", kind: "residence", gridPosition: { x: 1, y: 3 }, height: 1 },
+        {
+          id: "bld-valen-house",
+          name: "Valen House",
+          kind: "residence",
+          gridPosition: { x: 1, y: 1 },
+          height: 1,
+          floors: [
+            {
+              id: "valen-house-ground",
+              label: "Ground Floor",
+              rooms: [
+                {
+                  id: "valen-kitchen",
+                  name: "Kitchen",
+                  bounds: { x: 0, y: 0, width: 3, height: 3 },
+                  furniture: [
+                    { id: "valen-stove", kind: "stove", gridPosition: { x: 1, y: 1 } },
+                    { id: "valen-counter", kind: "counter", gridPosition: { x: 2, y: 0 } },
+                  ],
+                },
+                {
+                  id: "valen-dining",
+                  name: "Dining Room",
+                  bounds: { x: 3, y: 0, width: 3, height: 3 },
+                  furniture: [
+                    { id: "valen-table", kind: "table", gridPosition: { x: 4, y: 1 } },
+                    { id: "valen-chair", kind: "chair", gridPosition: { x: 4, y: 2 } },
+                  ],
+                },
+                {
+                  id: "valen-bedroom",
+                  name: "Bedroom",
+                  bounds: { x: 0, y: 3, width: 3, height: 3 },
+                  furniture: [{ id: "valen-bed", kind: "bed", gridPosition: { x: 1, y: 4 } }],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: "bld-corvin-bakery",
+          name: "Corvin's Bakery",
+          kind: "generic",
+          gridPosition: { x: 2, y: 1 },
+          height: 2,
+          floors: [
+            {
+              id: "bakery-ground",
+              label: "Ground Floor",
+              rooms: [
+                {
+                  id: "bakery-kitchen",
+                  name: "Bakery Kitchen",
+                  bounds: { x: 0, y: 0, width: 4, height: 4 },
+                  furniture: [
+                    { id: "bakery-oven", kind: "oven", gridPosition: { x: 1, y: 1 } },
+                    { id: "bakery-workbench", kind: "workbench", gridPosition: { x: 2, y: 2 } },
+                    { id: "bakery-counter", kind: "counter", gridPosition: { x: 3, y: 0 } },
+                  ],
+                },
+              ],
+            },
+            {
+              id: "bakery-floor-1",
+              label: "Floor 1",
+              rooms: [
+                {
+                  id: "bakery-quarters",
+                  name: "Corvin's Quarters",
+                  bounds: { x: 0, y: 0, width: 3, height: 3 },
+                  furniture: [
+                    { id: "bakery-bed", kind: "bed", gridPosition: { x: 1, y: 1 } },
+                    { id: "bakery-desk", kind: "desk", gridPosition: { x: 2, y: 0 } },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        { id: "bld-north-farm", name: "North Farm", kind: "agriculture", gridPosition: { x: 0, y: 3 }, height: 1, floors: [] },
+        {
+          id: "bld-smithy",
+          name: "Oakbridge Smithy",
+          kind: "forge",
+          gridPosition: { x: 3, y: 2 },
+          height: 1,
+          floors: [
+            {
+              id: "smithy-ground",
+              label: "Ground Floor",
+              rooms: [
+                {
+                  id: "smithy-workshop",
+                  name: "Workshop",
+                  bounds: { x: 0, y: 0, width: 3, height: 3 },
+                  furniture: [
+                    { id: "smithy-workbench", kind: "workbench", gridPosition: { x: 1, y: 1 } },
+                    { id: "smithy-shelf", kind: "shelf", gridPosition: { x: 2, y: 0 } },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: "bld-miller-house",
+          name: "Miller House",
+          kind: "residence",
+          gridPosition: { x: 2, y: 3 },
+          height: 1,
+          floors: [
+            {
+              id: "miller-ground",
+              label: "Ground Floor",
+              rooms: [
+                {
+                  id: "miller-living-room",
+                  name: "Living Room",
+                  bounds: { x: 0, y: 0, width: 3, height: 3 },
+                  furniture: [
+                    { id: "miller-table", kind: "table", gridPosition: { x: 1, y: 1 } },
+                    { id: "miller-bed", kind: "bed", gridPosition: { x: 2, y: 2 } },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: "bld-cobb-house",
+          name: "Cobb House",
+          kind: "residence",
+          gridPosition: { x: 3, y: 3 },
+          height: 1,
+          floors: [
+            {
+              id: "cobb-ground",
+              label: "Ground Floor",
+              rooms: [
+                {
+                  id: "cobb-living-room",
+                  name: "Living Room",
+                  bounds: { x: 0, y: 0, width: 3, height: 3 },
+                  furniture: [
+                    { id: "cobb-bed", kind: "bed", gridPosition: { x: 1, y: 1 } },
+                    { id: "cobb-chair", kind: "chair", gridPosition: { x: 2, y: 1 } },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: "bld-reyes-house",
+          name: "Reyes House",
+          kind: "residence",
+          gridPosition: { x: 1, y: 3 },
+          height: 1,
+          floors: [
+            {
+              id: "reyes-ground",
+              label: "Ground Floor",
+              rooms: [
+                {
+                  id: "reyes-living-room",
+                  name: "Living Room",
+                  bounds: { x: 0, y: 0, width: 3, height: 3 },
+                  furniture: [
+                    { id: "reyes-bed", kind: "bed", gridPosition: { x: 1, y: 1 } },
+                    { id: "reyes-table", kind: "table", gridPosition: { x: 2, y: 1 } },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
       ],
     },
     {
@@ -131,6 +300,7 @@ export const WORLD_FIXTURE: WorldFixture = {
         ],
       },
       notable: true,
+      indoorLocation: { buildingId: "bld-corvin-bakery", floorId: "bakery-ground", roomId: "bakery-kitchen", position: { x: 2, y: 1 } },
       relationships: [
         { withAgentId: "rowan", label: "trusted" },
         { withAgentId: "corvin", label: "disliked employer" },
@@ -180,6 +350,7 @@ export const WORLD_FIXTURE: WorldFixture = {
         affects: [{ trait: "High muscle mass", effects: ["carpentry work efficiency", "taking on extra physical shifts"] }],
       },
       notable: false,
+      indoorLocation: { buildingId: "bld-valen-house", floorId: "valen-house-ground", roomId: "valen-dining", position: { x: 4, y: 1 } },
       relationships: [{ withAgentId: "mira-valen", label: "spouse" }],
       recentLifeEvents: ["Took an extra shift to cover the shortfall"],
       lifeMilestones: [],
@@ -210,6 +381,7 @@ export const WORLD_FIXTURE: WorldFixture = {
         affects: [{ trait: "Still growing", effects: ["needs consistent food for healthy development"] }],
       },
       notable: false,
+      indoorLocation: { buildingId: "bld-valen-house", floorId: "valen-house-ground", roomId: "valen-bedroom", position: { x: 1, y: 4 } },
       relationships: [],
       recentLifeEvents: [],
       lifeMilestones: [],
@@ -240,6 +412,7 @@ export const WORLD_FIXTURE: WorldFixture = {
         affects: [{ trait: "Still growing", effects: ["needs consistent food for healthy development"] }],
       },
       notable: false,
+      indoorLocation: { buildingId: "bld-valen-house", floorId: "valen-house-ground", roomId: "valen-bedroom", position: { x: 2, y: 4 } },
       relationships: [],
       recentLifeEvents: [],
       lifeMilestones: [],
@@ -300,6 +473,7 @@ export const WORLD_FIXTURE: WorldFixture = {
         affects: [{ trait: "Above average fat mass", effects: ["more resilient to short food shortages than his workers"] }],
       },
       notable: true,
+      indoorLocation: { buildingId: "bld-corvin-bakery", floorId: "bakery-ground", roomId: "bakery-kitchen", position: { x: 1, y: 1 } },
       relationships: [{ withAgentId: "mira-valen", label: "disliked employee" }],
       recentLifeEvents: ["Reduced bakery production"],
       lifeMilestones: [],
@@ -330,6 +504,7 @@ export const WORLD_FIXTURE: WorldFixture = {
         affects: [],
       },
       notable: true,
+      indoorLocation: { buildingId: "bld-miller-house", floorId: "miller-ground", roomId: "miller-living-room", position: { x: 1, y: 1 } },
       relationships: [],
       recentLifeEvents: ["Household grain purchase failed"],
       lifeMilestones: [],
@@ -360,6 +535,7 @@ export const WORLD_FIXTURE: WorldFixture = {
         affects: [],
       },
       notable: false,
+      indoorLocation: { buildingId: "bld-miller-house", floorId: "miller-ground", roomId: "miller-living-room", position: { x: 2, y: 2 } },
       relationships: [],
       recentLifeEvents: [],
       lifeMilestones: [],
@@ -390,6 +566,7 @@ export const WORLD_FIXTURE: WorldFixture = {
         affects: [{ trait: "Low fat mass", effects: ["tires faster on an empty stomach"] }],
       },
       notable: true,
+      indoorLocation: { buildingId: "bld-cobb-house", floorId: "cobb-ground", roomId: "cobb-living-room", position: { x: 1, y: 1 } },
       relationships: [],
       recentLifeEvents: ["Left work early due to hunger"],
       lifeMilestones: [],
@@ -420,6 +597,7 @@ export const WORLD_FIXTURE: WorldFixture = {
         affects: [],
       },
       notable: true,
+      indoorLocation: { buildingId: "bld-reyes-house", floorId: "reyes-ground", roomId: "reyes-living-room", position: { x: 1, y: 1 } },
       relationships: [],
       recentLifeEvents: ["Household grain rationed"],
       lifeMilestones: [],
@@ -450,6 +628,7 @@ export const WORLD_FIXTURE: WorldFixture = {
         affects: [{ trait: "Below average muscle mass", effects: ["still building the strength needed for heavy bakery work"] }],
       },
       notable: true,
+      indoorLocation: { buildingId: "bld-corvin-bakery", floorId: "bakery-ground", roomId: "bakery-kitchen", position: { x: 3, y: 1 } },
       relationships: [{ withAgentId: "corvin", label: "employer" }],
       recentLifeEvents: ["Bakery hours cut"],
       lifeMilestones: [],

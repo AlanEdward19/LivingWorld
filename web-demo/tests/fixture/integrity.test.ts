@@ -10,11 +10,33 @@ const settlementIds = new Set(WORLD_FIXTURE.settlements.map((s) => s.id));
 const householdIds = new Set(WORLD_FIXTURE.households.map((h) => h.id));
 const agentIds = new Set(WORLD_FIXTURE.agents.map((a) => a.id));
 const eventIds = new Set(WORLD_FIXTURE.events.map((e) => e.eventId));
+const allBuildings = WORLD_FIXTURE.settlements.flatMap((s) => s.buildings);
+const buildingIds = new Set(allBuildings.map((b) => b.id));
+/** floorId/roomId não são globalmente únicos por design (cada building tem seu próprio
+ * namespace) — a integridade real é "esse floor/room existe DENTRO desse building". */
+function buildingHasFloorAndRoom(buildingId: string, floorId: string, roomId: string): boolean {
+  const building = allBuildings.find((b) => b.id === buildingId);
+  const floor = building?.floors.find((f) => f.id === floorId);
+  return floor !== undefined && floor.rooms.some((r) => r.id === roomId);
+}
 
 describe("Oakbridge fixture referential integrity", () => {
   it("every settlement references a region that exists", () => {
     for (const settlement of WORLD_FIXTURE.settlements) {
       expect(regionIds.has(settlement.regionId)).toBe(true);
+    }
+  });
+
+  it("every building id is globally unique", () => {
+    expect(buildingIds.size).toBe(allBuildings.length);
+  });
+
+  it("every agent indoorLocation references a building/floor/room that really exists (nested)", () => {
+    for (const agent of WORLD_FIXTURE.agents) {
+      if (!agent.indoorLocation) continue;
+      const { buildingId, floorId, roomId } = agent.indoorLocation;
+      expect(buildingIds.has(buildingId)).toBe(true);
+      expect(buildingHasFloorAndRoom(buildingId, floorId, roomId)).toBe(true);
     }
   });
 
