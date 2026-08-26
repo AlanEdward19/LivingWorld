@@ -325,10 +325,10 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] `push`/`back` mantêm pilha consistente (teste com sequência de 5+ pushes e backs)
-- [ ] `breadcrumb()` retorna a pilha completa na ordem certa
-- [ ] Gate check passa: `npm --prefix web-demo test -- NavigationStore`
-- [ ] Test count: 6+
+- [x] `push`/`back` mantêm pilha consistente (teste com sequência de 5+ pushes e backs)
+- [x] `breadcrumb()` retorna a pilha completa na ordem certa
+- [x] Gate check passa: `npm --prefix web-demo test -- NavigationStore`
+- [x] Test count: 6+
 
 **Tests**: unit
 **Gate**: quick
@@ -348,10 +348,10 @@ T29 → T30 → T31
 
 **Done when**:
 
-- [ ] Navegar `push` atualiza a URL
-- [ ] Simular `popstate` (botão voltar do browser) sincroniza a pilha interna sem duplicar entrada
-- [ ] URL com id inexistente no fixture redireciona pra World View
-- [ ] Gate check passa: `npm --prefix web-demo test -- NavigationStore`
+- [x] Navegar `push` atualiza a URL
+- [x] Simular `popstate` (botão voltar do browser) sincroniza a pilha interna sem duplicar entrada
+- [x] URL com id inexistente no fixture redireciona pra World View
+- [x] Gate check passa: `npm --prefix web-demo test -- NavigationStore`
 
 **Tests**: unit
 **Gate**: quick
