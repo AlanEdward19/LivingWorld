@@ -8,8 +8,8 @@ export interface ActionVisual {
   hidden: boolean;
 }
 
-/** `ActionType` integer ids from `LivingWorld.Domain` — Eat..Buy. */
-export const ACTION_TYPE_IDS = [0, 1, 2, 3, 4, 5, 6] as const;
+/** `ActionType` integer ids from `LivingWorld.Domain` — Eat..Buy..UsePower. */
+export const ACTION_TYPE_IDS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 
 /**
  * Stage 4 `ProcessVisual.descriptorKey` values projected by rest/food/water/crop/construction.
@@ -85,6 +85,7 @@ const ACTION_SPECS: Record<number, NpcAnimationSpec> = {
   4: spec("travel", "Viajando", "question", { hidden: true }),
   5: spec("rest", "Descansando", "waves", REST_ZZZ),
   6: spec("buy", "Comprando", "coin", BUY_COIN),
+  7: spec("use-power", "Usando poder", "waves", { keyframes: "npc-social-chat", durationMs: 1400, animated: true }),
 };
 
 const PROCESS_SPECS: Record<string, NpcAnimationSpec> = {
