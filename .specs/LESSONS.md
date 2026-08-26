@@ -134,6 +134,12 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: PWR-03 ExtraordinaryMechanicRegistryTests.cs:29 (extraordinary)
 - last seen: 2026-08-25T12:12:33Z
 
+### L-018 — When tasks.md cites a design.md section repeatedly as the source of data models/tech decisions/architecture, confirm the file actually exists before Execute — a missing design doc that nothing catches until an independent Verifier greps for it lets every per-task "Done when" check pass against a citation nobody can open.
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `process/tlc-spec-driven` · harmful: 0
+- features: phase-16-3-web
+- evidence: validation.md Process Note — .specs/features/phase-16-3-web/design.md cited 15+ times by tasks.md/README/checklist, git log --all shows the file was never committed
+- last seen: 2026-08-26T00:00:00Z
+
 ## Quarantined (failed when applied — ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

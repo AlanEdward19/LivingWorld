@@ -3,8 +3,26 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 18,
+  "next_id": 19,
   "lessons": [
+    {
+      "id": "L-018",
+      "key": "spec_precision_gap::when tasks md cites a design md section repeatedly as the source of data models tech decisions or architecture confirm the file exists before execute a missing design doc that nothing catches until an independent verifier greps for it lets every per task done when check pass against a citation nobody can open",
+      "text": "When tasks.md cites a design.md section repeatedly as the source of data models/tech decisions/architecture, confirm the file actually exists before Execute — a missing design doc that nothing catches until an independent Verifier greps for it lets every per-task \"Done when\" check pass against a citation nobody can open.",
+      "signal": "spec_precision_gap",
+      "scope": "process/tlc-spec-driven",
+      "status": "candidate",
+      "features": [
+        "phase-16-3-web"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md Process Note — .specs/features/phase-16-3-web/design.md cited 15+ times by tasks.md/README/checklist, git log --all shows the file was never committed"
+      ],
+      "created": "2026-08-26T00:00:00Z",
+      "last_seen": "2026-08-26T00:00:00Z"
+    },
     {
       "id": "L-001",
       "key": "ac_gap::when an ac has a compound then clause abort path happy path invariant write one assertion per clause an abort only test leaves the happy path guarantee unverified even if every other test incidentally relies on it",
