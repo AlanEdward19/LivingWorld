@@ -359,7 +359,9 @@ public static class ExtraordinaryInvocationEngine
             difficulty, capacity, VarianceProfile.Dramatico("extraordinary"), ctx.Rng(stream)));
     }
 
-    private static bool IsAvailable(
+    /// <summary>Disponibilidade por Mode × origem × manifestação — compartilhado com
+    /// <see cref="PowerOpportunityProvider"/> (COH-31).</summary>
+    internal static bool IsAvailable(
         string mode, ExtraordinaryInvocationOrigin origin, bool isManifested) => mode switch
         {
             "Active" => origin == ExtraordinaryInvocationOrigin.Authored,

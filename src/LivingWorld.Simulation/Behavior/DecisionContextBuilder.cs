@@ -50,7 +50,7 @@ public static class DecisionContextBuilder
             RelevantMemories: memories.Count == 0 ? Array.Empty<NpcMemory>() : memories.ToArray(),
             RelevantBeliefs: beliefs.Count == 0 ? Array.Empty<string>() : beliefs.ToArray(),
             KnownRelationships: relationships,
-            PowerOpportunities: Array.Empty<PowerOpportunity>(),
+            PowerOpportunities: PowerOpportunityProvider.ApplicableTo(world, npc, tick),
             npc.Personality,
             npc.CurrentAction);
     }

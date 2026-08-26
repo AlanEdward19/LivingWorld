@@ -16,6 +16,7 @@ namespace LivingWorld.Simulation;
 /// </list>
 /// </remarks>
 public sealed record PowerOpportunity(
+    string PowerId,
     string MechanicToken,
     NpcId? SuggestedTarget,
     decimal EstimatedCost,
@@ -38,7 +39,8 @@ public sealed record PowerOpportunity(
     public const double UnknownReliabilityRisk = 0.75;
 
     /// <summary>Deriva custo/risco do descritor; <paramref name="mechanicToken"/> identifica
-    /// o mechanic no registry (em geral o Id do descritor ou um effect token).</summary>
+    /// o effect token resolvido no registry; <see cref="PowerId"/> alimenta
+    /// <c>ExtraordinaryInvocationEngine.Invoke</c>.</summary>
     public static PowerOpportunity FromDescriptor(
         PowerDescriptor descriptor,
         string mechanicToken,
@@ -48,6 +50,7 @@ public sealed record PowerOpportunity(
         ArgumentException.ThrowIfNullOrWhiteSpace(mechanicToken);
 
         return new PowerOpportunity(
+            PowerId: descriptor.Id,
             MechanicToken: mechanicToken,
             SuggestedTarget: suggestedTarget,
             EstimatedCost: EstimateCost(descriptor),

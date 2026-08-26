@@ -30,6 +30,10 @@ public sealed class ExtraordinaryMechanicRegistry : IExtraordinaryMechanicRegist
 
     public static ExtraordinaryMechanicRegistry Default { get; } = CreateDefault();
 
+    /// <summary>Todos os mechanics registrados (ordem de resolução: prefixo mais longo
+    /// primeiro). Usado por cobertura de exposição (COH-32).</summary>
+    public IReadOnlyList<IExtraordinaryMechanic> All => _mechanics;
+
     public IExtraordinaryMechanic? Resolve(string token)
     {
         foreach (var mechanic in _mechanics)

@@ -74,6 +74,7 @@ public class PowerOpportunityTests
         var d = Descriptor(reliability: "Guaranteed", costs: ["cost:hunger:2"]);
         var opp = PowerOpportunity.FromDescriptor(d, mechanicToken: "effect:teleport");
 
+        Assert.Equal("test-power", opp.PowerId);
         Assert.Equal("effect:teleport", opp.MechanicToken);
         Assert.Equal("Guaranteed", opp.Reliability);
         Assert.Equal(1.0m, opp.EstimatedCost);
