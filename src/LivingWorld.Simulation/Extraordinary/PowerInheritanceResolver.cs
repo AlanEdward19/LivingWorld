@@ -22,6 +22,7 @@ public static class PowerInheritanceResolver
 {
     public const string OccursSalt = "inheritance-occurs";
     public const string OutcomeSalt = "inheritance-outcome";
+    public const string OneOfParentSalt = "inheritance-one-of-parent";
 
     /// <summary>Decide herança a partir de flags de portador (sem tocar descritores).</summary>
     public static PowerInheritanceDecision Decide(
@@ -95,8 +96,23 @@ public static class PowerInheritanceResolver
         return result;
     }
 
-    /// <summary>Decide + aplica caminho de descritores. Both → <see cref="ApplyBoth"/>;
-    /// OneOf/Mixed ainda não implementados (T9/T10).</summary>
+    /// <summary>EVO-12: filho recebe exatamente um dos pais, inalterado.
+    /// Qual pai: <see cref="DeterministicChoice"/> com <see cref="OneOfParentSalt"/>.</summary>
+    public static IReadOnlyList<PowerDescriptor> ApplyOneOf(
+        IReadOnlyList<PowerDescriptor> parentA,
+        IReadOnlyList<PowerDescriptor> parentB,
+        ulong seed,
+        NpcId childId)
+    {
+        ArgumentNullException.ThrowIfNull(parentA);
+        ArgumentNullException.ThrowIfNull(parentB);
+
+        bool chooseA = DeterministicChoice.InUnitInterval(seed, childId, OneOfParentSalt) < 0.5;
+        var chosen = chooseA ? parentA : parentB;
+        return new List<PowerDescriptor>(chosen);
+    }
+
+    /// <summary>Decide + aplica caminho de descritores (Both / OneOf; Mixed → T10).</summary>
     public static IReadOnlyList<PowerDescriptor> ResolveDescriptors(
         ulong worldSeed,
         NpcId childId,
@@ -108,11 +124,12 @@ public static class PowerInheritanceResolver
     {
         var decision = Decide(
             worldSeed, childId, parentAIsCarrier, parentBIsCarrier, rules);
-        return ApplyOutcome(decision, parentADescriptors, parentBDescriptors);
+        return ApplyOutcome(
+            decision, worldSeed, childId, parentADescriptors, parentBDescriptors);
     }
 
-    /// <summary>Decide a partir de portadores no mundo + aplica caminho Both (EVO-11).
-    /// OneOf/Mixed → T9/T10.</summary>
+    /// <summary>Decide a partir de portadores no mundo + aplica Both/OneOf (EVO-11/12).
+    /// Mixed → T10.</summary>
     public static IReadOnlyList<PowerDescriptor> ResolveDescriptors(
         WorldState world,
         NpcId childId,
@@ -126,11 +143,13 @@ public static class PowerInheritanceResolver
 
         var parentA = LookupDescriptors(world, parentAId);
         var parentB = LookupDescriptors(world, parentBId);
-        return ApplyOutcome(decision, parentA, parentB);
+        return ApplyOutcome(decision, world.Seed, childId, parentA, parentB);
     }
 
     static IReadOnlyList<PowerDescriptor> ApplyOutcome(
         PowerInheritanceDecision decision,
+        ulong worldSeed,
+        NpcId childId,
         IReadOnlyList<PowerDescriptor> parentADescriptors,
         IReadOnlyList<PowerDescriptor> parentBDescriptors)
     {
@@ -140,9 +159,8 @@ public static class PowerInheritanceResolver
         return decision.Outcome switch
         {
             PowerInheritanceOutcome.Both => ApplyBoth(parentADescriptors, parentBDescriptors),
-            // T9
-            PowerInheritanceOutcome.OneOf => throw new NotSupportedException(
-                "OneOf inheritance outcome is not implemented yet (T9)."),
+            PowerInheritanceOutcome.OneOf => ApplyOneOf(
+                parentADescriptors, parentBDescriptors, worldSeed, childId),
             // T10
             PowerInheritanceOutcome.Mixed => throw new NotSupportedException(
                 "Mixed inheritance outcome is not implemented yet (T10)."),
