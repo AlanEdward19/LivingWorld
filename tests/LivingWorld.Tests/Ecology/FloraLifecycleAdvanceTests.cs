@@ -53,6 +53,7 @@ public sealed class FloraLifecycleAdvanceTests
         var death = Assert.Single(sink.Events, e => e.Kind == WorldEventKind.Death);
         Assert.Equal(plantId.Value.ToString(), death.Payload);
         Assert.Equal(FloraLifecycleSystem.SystemName, death.SourceSystem);
+        Assert.NotNull(world.ColdArchive.LookupPlant(plantId.Value));
     }
 
     [Fact]

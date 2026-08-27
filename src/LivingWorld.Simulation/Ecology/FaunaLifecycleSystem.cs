@@ -166,7 +166,7 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
     internal static void Kill(WorldState world, TickContext ctx, Animal animal, WorldEventKind kind)
     {
         if (!animal.IsAlive) return;
-        world.ReplaceAnimal(animal with { IsAlive = false });
+        world.ReplaceAnimal(animal with { IsAlive = false, DeathTick = ctx.CurrentTick });
         ctx.LogEvent(kind, animal.Id.Value.ToString(), sourceSystem: SystemName);
     }
 

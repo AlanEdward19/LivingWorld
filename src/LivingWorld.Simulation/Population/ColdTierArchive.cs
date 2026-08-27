@@ -2,10 +2,13 @@ using LivingWorld.Domain;
 
 namespace LivingWorld.Simulation.Population;
 
-/// <summary>Arquivo frio (tier-2) de NPCs mortos há muito tempo (Fase 9, PERF-10).</summary>
+/// <summary>Arquivo frio (tier-2) de NPCs/fauna/flora mortos há muito tempo (Fase 9 PERF-10,
+/// REALISM-21).</summary>
 public sealed class ColdTierArchive
 {
     private readonly Dictionary<long, NpcSummary> _byId = new();
+    private readonly Dictionary<long, AnimalSummary> _animalsById = new();
+    private readonly Dictionary<long, PlantSummary> _plantsById = new();
 
     public bool TryArchive(WorldState world, TickContext ctx, Npc deadNpc, long nowTick, PerfRules rules)
     {
@@ -31,7 +34,31 @@ public sealed class ColdTierArchive
         return true;
     }
 
+    public bool TryArchiveAnimal(WorldState world, Animal dead, long nowTick, PerfRules rules)
+    {
+        if (dead.IsAlive || dead.DeathTick is not { } deathTick) return false;
+
+        long ageYears = (nowTick - deathTick) / world.Calendar.HoursPerYear;
+        if (ageYears < rules.ColdArchiveAfterYears) return false;
+
+        _animalsById[dead.Id.Value] = AnimalSummary.From(dead);
+        world.RemoveAnimal(dead.Id);
+        return true;
+    }
+
+    /// <summary>REALISM-21: flora sai do hot na morte e entra no arquivo frio na hora
+    /// (sem DeathTick no record Plant — contrato T7).</summary>
+    public void ArchivePlantOnDeath(Plant plant, long deathTick)
+    {
+        _plantsById[plant.Id.Value] = new PlantSummary(
+            plant.Id, plant.Species, plant.Position, plant.GrowthStage, deathTick);
+    }
+
     public NpcSummary? Lookup(long npcId) => _byId.GetValueOrDefault(npcId);
+
+    public AnimalSummary? LookupAnimal(long animalId) => _animalsById.GetValueOrDefault(animalId);
+
+    public PlantSummary? LookupPlant(long plantId) => _plantsById.GetValueOrDefault(plantId);
 
     private static bool IsReferencedByLivingNpc(WorldState world, NpcId id)
     {
@@ -61,5 +88,13 @@ public sealed class ColdTierArchive
     {
         public static NpcSummary From(Npc npc) => new(
             npc.Id, npc.Name, npc.Sex, npc.BirthDate, npc.DeathDate, npc.Culture, npc.Profession);
+    }
+
+    public sealed record PlantSummary(PlantId Id, string Species, CellCoord Position, int GrowthStage, long DeathTick);
+
+    public sealed record AnimalSummary(AnimalId Id, string Species, CellCoord Position, long DeathTick)
+    {
+        public static AnimalSummary From(Animal animal) => new(
+            animal.Id, animal.Species, animal.Position, animal.DeathTick!.Value);
     }
 }

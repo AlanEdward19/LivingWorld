@@ -810,6 +810,12 @@ public sealed class WorldState
         AddAnimal(animal);
     }
 
+    internal void RemoveAnimal(AnimalId id)
+    {
+        _fauna.RemoveAll(existing => existing.Id == id);
+        _faunaById.Remove(id);
+    }
+
     internal PlantId NextPlantIdAndAdvance() => new(_nextPlantId++);
 
     public void AddPlant(Plant plant)

@@ -12,4 +12,5 @@ public sealed record Animal(
     CellCoord Position,
     bool IsAlive,
     string? VectorDisease,
-    LazyNeed Energy);
+    LazyNeed Energy,
+    long? DeathTick = null);

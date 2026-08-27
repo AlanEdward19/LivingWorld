@@ -169,8 +169,11 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
         return cells;
     }
 
+    /// <summary>REALISM-21: remove do hot e grava resumo frio imediato (Plant não carrega
+    /// DeathTick — contrato T7; fauna usa idade via ColdArchiveSystem).</summary>
     internal static void Kill(WorldState world, TickContext ctx, Plant plant)
     {
+        world.ColdArchive.ArchivePlantOnDeath(plant, ctx.CurrentTick);
         world.RemovePlant(plant.Id);
         ctx.LogEvent(WorldEventKind.Death, plant.Id.Value.ToString(), sourceSystem: SystemName);
     }
