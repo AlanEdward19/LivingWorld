@@ -6,9 +6,15 @@ namespace LivingWorld.Simulation;
 /// Possessão contínua e troca de corpo. Decisões do possuído delegam ao portador/regras
 /// declaradas; o log causal atribui ações ao possuído. Identidade mutada via
 /// <see cref="WorldEventKind.IdentityChanged"/>.
+/// AD-071 (<c>docs/decisions-log.md</c>): resistência à possessão modula por
+/// <see cref="Npc.Vitality"/> — atributo genético já causal (mortalidade/concepção), sem
+/// campo novo.
 /// </summary>
 public sealed class ControlMechanic : ExtraordinaryMechanic
 {
+    /// <summary>Atributo de hospedeiro usado pela resistência à possessão (AD-071).</summary>
+    public const string PossessionResistanceAttribute = nameof(Npc.Vitality);
+
     public const string PossessToken = "control.possess";
     public const string PossessPrefix = "control.possess:";
     public const string BodySwapToken = "control.body-swap";
