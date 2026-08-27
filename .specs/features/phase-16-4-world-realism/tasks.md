@@ -332,11 +332,11 @@ planta madura deposita em `CropBatch`/`workplace.Deposit` (nunca cria segundo es
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-09: planta madura gera recurso consumível via `CropBatch` existente (sem
+- [x] AC REALISM-09: planta madura gera recurso consumível via `CropBatch` existente (sem
       estoque duplicado)
-- [ ] AC REALISM-10: planta madura com espaço livre compatível brota nova planta, determinístico
-- [ ] `Independent Test` do spec (P1 Flora) reproduzido: 2 estações, taxa de avanço difere
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology\|FullyQualifiedName~Economy"`
+- [x] AC REALISM-10: planta madura com espaço livre compatível brota nova planta, determinístico
+- [x] `Independent Test` do spec (P1 Flora) reproduzido: 2 estações, taxa de avanço difere
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology\|FullyQualifiedName~Economy"`
 
 **Tests**: unit
 **Gate**: full
