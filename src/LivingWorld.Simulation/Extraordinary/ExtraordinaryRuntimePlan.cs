@@ -27,6 +27,7 @@ public sealed record ExtraordinaryRuntimePlan(
                 scenario.Enabled
                     ? [
                         ExtraordinaryStateSystem.SystemName,
+                        ExtraordinaryPowerStageSystem.SystemName,
                         ExtraordinaryPassiveTickSystem.SystemName,
                         DimensionPortalSystem.SystemName,
                         FaunaDominateSystem.SystemName,

@@ -83,6 +83,7 @@ public static class ScenarioRunner
         if (extraordinary?.Enabled == true)
         {
             systems.Add(new ExtraordinaryStateSystem());
+            systems.Add(new ExtraordinaryPowerStageSystem());
             systems.Add(new ExtraordinaryPassiveTickSystem());
             systems.Add(new DimensionPortalSystem());
             systems.Add(new FaunaDominateSystem());

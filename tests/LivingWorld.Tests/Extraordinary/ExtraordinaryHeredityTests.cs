@@ -29,9 +29,11 @@ public sealed class ExtraordinaryHeredityTests
     }
 
     [Fact]
-    public void Birth_inherits_parent_rate_gene_but_not_parent_power()
+    public void Birth_inherits_parent_rate_gene_even_when_power_inheritance_is_disabled()
     {
-        var world = World(7);
+        // 16.1: RateGene continua herdando no Natality. 16.2: herança de poder é opt-in via
+        // PowerInheritanceRules — com chance 0 o filho não ganha carrier (EVO-10 roll 1).
+        var world = World(7, PowerInheritanceRules.Create(0, 1, 1, 1).Value!);
         var location = new CellCoord(1, 1);
         var mother = AddNpc(world, 1, new RateGene(2), Sex.Female, location);
         var father = AddNpc(world, 2, new RateGene(2), Sex.Male, location);
@@ -57,6 +59,10 @@ public sealed class ExtraordinaryHeredityTests
     [Fact]
     public void Birth_sample_ci_contains_zero_for_power_copy_and_is_positive_for_rate_gene()
     {
+        // Canal RateGene (hereditariedade 16.1) vs canal de poder configurável (16.2).
+        // Esta série sintética modela "sem cópia automática de poder" (InheritanceChance=0 /
+        // só um pai portador) — a herança genética de poder é coberta em
+        // PowerInheritanceNatalityTests / PowerInheritanceResolverTests.
         const int birthSampleTarget = 200;
         var parentPower = new double[birthSampleTarget];
         var childPower = new double[birthSampleTarget];
@@ -65,7 +71,7 @@ public sealed class ExtraordinaryHeredityTests
         for (int i = 0; i < birthSampleTarget; i++)
         {
             parentPower[i] = i % 2;
-            childPower[i] = 0; // integração acima prova que NatalitySystem não copia carrier.
+            childPower[i] = 0;
             parentGene[i] = i % 2 == 0 ? 0.5 : 1.5;
             childGene[i] = RateGene.Inherit(
                 new RateGene(parentGene[i]), new RateGene(1), new WorldRng((ulong)(i + 1))).Value;
@@ -104,7 +110,7 @@ public sealed class ExtraordinaryHeredityTests
         return (Math.Tanh(z - margin), Math.Tanh(z + margin));
     }
 
-    private static WorldState World(ulong seed)
+    private static WorldState World(ulong seed, PowerInheritanceRules? inheritanceRules = null)
     {
         var descriptor = new PowerDescriptor(
             "latent", "scenario", ["npc.health:1"], "Triggered", [], "Guaranteed", [], [], [],
@@ -114,7 +120,8 @@ public sealed class ExtraordinaryHeredityTests
             ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
             ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules,
-            extraordinary: new ExtraordinaryScenarioData(true, [descriptor]));
+            extraordinary: new ExtraordinaryScenarioData(
+                true, [descriptor], inheritanceRules: inheritanceRules));
     }
 
     private static Npc AddNpc(

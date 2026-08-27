@@ -155,7 +155,9 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
             existing?.PendingReincarnation,
             existing?.PossessedBy,
             existing?.BodySwapPartner,
-            existing?.ImpersonatingId);
+            existing?.ImpersonatingId,
+            existing?.UseCount ?? 0,
+            existing?.CurrentStageIndex ?? 0);
     }
 
     private static bool MatchesTrigger(string rule, string trigger) =>

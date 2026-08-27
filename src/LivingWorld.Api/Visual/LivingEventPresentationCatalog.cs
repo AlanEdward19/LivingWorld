@@ -50,6 +50,7 @@ public static class LivingEventPresentationCatalog
             [WorldEventKind.CombatResolved] = "Dois habitantes travaram um confronto",
             [WorldEventKind.NpcInstantiated] = "Uma nova pessoa surgiu por capacidade extraordinária",
             [WorldEventKind.IdentityChanged] = "A identidade observável de um habitante mudou",
+            [WorldEventKind.PowerInherited] = "Um nascido herdou capacidade extraordinária",
         };
 
     public static string Describe(WorldEventKind kind) =>

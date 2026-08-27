@@ -40,9 +40,9 @@ O número é **identidade**, não ordem. Só a trilha núcleo é sequencial.
 | 8 | [Cidades](docs/roadmap/phase-08-cities.md) | Crescimento, edifícios, migração, fundação de assentamentos, inspeção por CLI/API | fechada |
 | 9 | [Escala e armazenamento](docs/roadmap/phase-09-scale.md) | Custo por NPC-tick, decisão por evento, decaimento preguiçoso, snapshot delta/binário, arquivo frio de mortos, sensor de escala | fechada |
 | 10 | [História degradável](docs/roadmap/phase-10-history.md) | Fato, relato, distorção por transmissão, cânone limitado, verdade vs crença | pendente |
-| 11 | [Interação com LLM](docs/roadmap/phase-11-llm.md) | Contexto, diálogo, validação, memória, relação | pendente |
+| 11 | [Interação com LLM](docs/roadmap/phase-11-llm.md) | Contexto, diálogo, validação, memória, relação | fechada |
 | 12 | [Narrativa](docs/roadmap/phase-12-narrative.md) | Resumos, jornais, rumores, biografias, crônicas | pendente |
-| 13 | [Múltiplos períodos](docs/roadmap/phase-13-periods.md) | Módulos de conteúdo: pré-histórico, moderno, futurista, criaturas | pendente |
+| 13 | [Múltiplos períodos](docs/roadmap/phase-13-periods.md) | Módulos de conteúdo: pré-histórico, moderno, futurista, criaturas | fechada |
 | 14 | [Unreal](docs/roadmap/phase-14-unreal.md) | Cliente 3D, personagens, voz, animação | adiada (não iniciada) |
 | 15 | [Mapa visual](docs/roadmap/phase-15-map-visual.md) | Cliente React+TS VTT 2D realtime: camadas + espectador + FOW | pendente |
 | 16 | [Potência](docs/roadmap/phase-16-powers.md) | Extraordinário opcional por mundo: modificador unificado, custo/rolagem/fraqueza opcionais, aquisição declarativa | spec |
