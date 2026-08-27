@@ -78,6 +78,9 @@ vi.mock("pixi.js", () => {
     circle() {
       return this;
     }
+    ellipse() {
+      return this;
+    }
     moveTo() {
       return this;
     }

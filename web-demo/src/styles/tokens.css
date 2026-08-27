@@ -317,6 +317,15 @@ svg[data-testid="semantic-zoom-map"] text {
   cursor: grabbing;
 }
 
+/* Nó exclusivo do Pixi (appendChild/replaceChildren direto no DOM) — precisa herdar o tamanho
+ * cheio do wrapper acima dele, já que é ele (não mais o wrapper) que vira `containerEl` pro
+ * `resizeTo`/`clientWidth` do canvas. Irmão do overlay, nunca o mesmo nó (ver comentário em
+ * SettlementStage.tsx). */
+[data-testid="settlement-stage"] > div:first-child {
+  position: absolute;
+  inset: 0;
+}
+
 [data-testid="settlement-stage-overlay"] {
   position: absolute;
   z-index: 5;
@@ -718,7 +727,11 @@ button:disabled {
 [data-testid="popup-panel"] {
   position: absolute;
   top: 4rem;
-  right: 1rem;
+  /* Bug real reportado pelo usuário: `right: 1rem` ancorava o popup na borda direita do
+   * VIEWPORT (o backdrop é `position:fixed; inset:0`), ou seja, em cima do Inspector (340px,
+   * ver `[data-testid="shell-body"]`), sobrepondo o texto da sidebar e deixando tudo ilegível.
+   * O popup precisa flutuar à ESQUERDA do Inspector, sobre o mapa, nunca por cima dele. */
+  right: calc(340px + 1rem);
   width: 320px;
   max-width: calc(100vw - 2rem);
   max-height: 70vh;
@@ -856,14 +869,126 @@ button:disabled {
 }
 
 .section-link {
+  /* Bug real reportado pelo usuário: "View life timeline" e o botão "View Timeline" (que já
+   * existia antes desta rodada) apareciam colados na mesma linha — `button` é inline-block por
+   * padrão e nada aqui forçava quebra/espaçamento entre os dois. `display:block` + margin
+   * garante que cada link/ação de seção sempre fica em sua própria linha. */
+  display: block;
   background: transparent;
   border-color: transparent;
   color: var(--accent-secondary);
   padding: 0.2rem 0;
+  margin-bottom: 0.2rem;
   font-size: 12px;
 }
 
 .section-link:hover {
   background: transparent;
   text-decoration: underline;
+}
+
+.inspector-actions-row {
+  margin-top: 0.5rem;
+}
+
+.inspector-empty-note {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-style: italic;
+  margin: 0.2rem 0 0.6rem;
+}
+
+/* Redesign "aba social" (pedido do usuário 2026-08-26) — linha de relacionamento com ícone de
+ * categoria + nome/label + indicador discreto de força do vínculo (nunca uma barra grande). */
+.relationship-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: 0.25rem;
+}
+
+.relationship-row-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.relationship-strength {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.relationship-strength--strong {
+  background: var(--positive);
+}
+
+.relationship-strength--warm {
+  background: var(--accent-secondary);
+}
+
+.relationship-strength--neutral {
+  background: var(--text-disabled);
+}
+
+.relationship-strength--tense {
+  background: var(--danger);
+}
+
+/* Árvore genealógica (pedido do usuário 2026-08-26, "estilo the sims") — gerações empilhadas,
+ * ligadas por uma linha vertical entre linhas (`border-top` na linha seguinte). */
+.family-tree-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.family-tree-row:first-child {
+  border-top: none;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.family-tree-row--self {
+  align-items: center;
+}
+
+.family-tree-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  width: 76px;
+  background: transparent;
+  border: none;
+  padding: 0.25rem;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.family-tree-node:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+}
+
+.family-tree-node--self {
+  color: var(--text-primary);
+  font-weight: 600;
+  cursor: default;
+}
+
+.family-tree-empty {
+  color: var(--text-muted);
+  font-size: 13px;
 }

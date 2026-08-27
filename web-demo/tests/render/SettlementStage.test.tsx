@@ -3,6 +3,7 @@ import { act, cleanup, render, screen } from "@testing-library/react";
 import * as PixiMock from "pixi.js";
 import { SettlementStage } from "../../src/render/SettlementStage";
 import { WORLD_FIXTURE } from "../../src/fixture/oakbridge";
+import { followStore } from "../../src/state/followStore";
 
 const pixiMock = PixiMock as unknown as {
   __runTick: () => void;
@@ -143,7 +144,7 @@ describe("SettlementStage — clicking things (AD-020: physical interaction, not
     expect(onBackgroundClick).toHaveBeenCalled();
   });
 
-  it("does NOT call onBackgroundClick from empty terrain while a building is focused (regression: misclick near an indoor NPC shouldn't kick you back to the city)", async () => {
+  it("also calls onBackgroundClick from empty terrain while a building is focused (AD-023 revert: 'click outside the house' is the explicit reverse of entering it, symmetric with the Street button)", async () => {
     const onBackgroundClick = vi.fn();
     render(
       <SettlementStage
@@ -162,7 +163,7 @@ describe("SettlementStage — clicking things (AD-020: physical interaction, not
     const [terrainLayer] = worldRoot.children as unknown as FakeNode[];
     terrainLayer.emit("pointertap");
 
-    expect(onBackgroundClick).not.toHaveBeenCalled();
+    expect(onBackgroundClick).toHaveBeenCalled();
   });
 });
 
@@ -287,6 +288,117 @@ describe("SettlementStage — roof cutaway (AD-020: reveal in place, not a route
     expect(valenRoof.alpha).toBeCloseTo(1, 1);
   });
 
+});
+
+describe("SettlementStage — camera follow (bug real: 'Follow' não seguia o NPC de verdade)", () => {
+  afterEach(() => {
+    for (const id of ["rowan", "mira-valen"]) {
+      if (followStore.isFollowed(id)) followStore.toggleFollow(id);
+    }
+  });
+
+  it("locks the camera onto a followed agent's live world position every tick", async () => {
+    followStore.toggleFollow("rowan");
+    render(
+      <SettlementStage fixture={WORLD_FIXTURE} settlementId="oakbridge" onSelectAgent={() => {}} onFocusBuilding={() => {}} onBackgroundClick={() => {}} />,
+    );
+    await flush();
+    act(() => pixiMock.__runTick());
+
+    const { worldRoot, agentLayer } = layers();
+    const rowanIndex = OAKBRIDGE_AGENTS.findIndex((a) => a.id === "rowan");
+    const rowanSprite = agentLayer.children[rowanIndex] as unknown as FakeNode;
+    const zoom = worldRoot.scale.x;
+
+    expect(worldRoot.position.x).toBeCloseTo(800 / 2 - rowanSprite.position.x * zoom, 5);
+    expect(worldRoot.position.y).toBeCloseTo(600 / 2 - rowanSprite.position.y * zoom, 5);
+  });
+
+  it("tracks the LAST-activated followed agent, not the first one in fixture order (bug real: dois seguidos ao mesmo tempo travava sempre no primeiro do array)", async () => {
+    // mira-valen aparece ANTES de rowan no fixture — seguir mira primeiro e rowan depois deve
+    // travar a câmera em rowan (o mais recente), nunca voltar pra mira por causa da ordem do array.
+    followStore.toggleFollow("mira-valen");
+    followStore.toggleFollow("rowan");
+    render(
+      <SettlementStage fixture={WORLD_FIXTURE} settlementId="oakbridge" onSelectAgent={() => {}} onFocusBuilding={() => {}} onBackgroundClick={() => {}} />,
+    );
+    await flush();
+    act(() => pixiMock.__runTick());
+
+    const { worldRoot, agentLayer } = layers();
+    const rowanIndex = OAKBRIDGE_AGENTS.findIndex((a) => a.id === "rowan");
+    const rowanSprite = agentLayer.children[rowanIndex] as unknown as FakeNode;
+    const zoom = worldRoot.scale.x;
+
+    expect(worldRoot.position.x).toBeCloseTo(800 / 2 - rowanSprite.position.x * zoom, 5);
+    expect(worldRoot.position.y).toBeCloseTo(600 / 2 - rowanSprite.position.y * zoom, 5);
+  });
+
+  it("switching the active follow target with activate() re-tracks the camera without un-following the other one", async () => {
+    followStore.toggleFollow("rowan");
+    followStore.toggleFollow("mira-valen");
+    render(
+      <SettlementStage fixture={WORLD_FIXTURE} settlementId="oakbridge" onSelectAgent={() => {}} onFocusBuilding={() => {}} onBackgroundClick={() => {}} />,
+    );
+    await flush();
+
+    followStore.activate("rowan"); // como clicar no nome do Rowan na aba "Followed"
+    act(() => pixiMock.__runTick());
+
+    const { worldRoot, agentLayer } = layers();
+    const rowanIndex = OAKBRIDGE_AGENTS.findIndex((a) => a.id === "rowan");
+    const rowanSprite = agentLayer.children[rowanIndex] as unknown as FakeNode;
+    const zoom = worldRoot.scale.x;
+
+    expect(worldRoot.position.x).toBeCloseTo(800 / 2 - rowanSprite.position.x * zoom, 5);
+    expect(followStore.isFollowed("mira-valen")).toBe(true);
+  });
+
+  // Pedido do usuário 2026-08-26: arrastar o mapa pra longe de quem a câmera segue deve
+  // "desgrudar" — parar de travar nele — sem des-seguir. Só reata clicando o nome de novo
+  // (`activate`) ou seguindo outro agent (`toggleFollow`).
+  it("dragging the map away from the followed agent detaches the camera lock without un-following", async () => {
+    followStore.toggleFollow("rowan");
+    const { getByTestId } = render(
+      <SettlementStage fixture={WORLD_FIXTURE} settlementId="oakbridge" onSelectAgent={() => {}} onFocusBuilding={() => {}} onBackgroundClick={() => {}} />,
+    );
+    await flush();
+    act(() => pixiMock.__runTick());
+
+    const stage = getByTestId("settlement-stage").firstElementChild!;
+    const dispatch = (type: string, x: number, y: number) => stage.dispatchEvent(new MouseEvent(type, { clientX: x, clientY: y, bubbles: true, cancelable: true }));
+    dispatch("pointerdown", 100, 100);
+    dispatch("pointermove", 300, 100); // bem além do CLICK_DRAG_THRESHOLD — arrasto de verdade
+    dispatch("pointerup", 300, 100);
+
+    act(() => pixiMock.__runTick());
+
+    const { worldRoot, agentLayer } = layers();
+    const rowanIndex = OAKBRIDGE_AGENTS.findIndex((a) => a.id === "rowan");
+    const rowanSprite = agentLayer.children[rowanIndex] as unknown as FakeNode;
+    const zoom = worldRoot.scale.x;
+
+    expect(followStore.activeFollowId()).toBeNull();
+    expect(followStore.isFollowed("rowan")).toBe(true); // continua seguido, só não trava mais
+    expect(worldRoot.position.x).not.toBeCloseTo(800 / 2 - rowanSprite.position.x * zoom, 1);
+  });
+
+  it("does not move the camera for anyone when no one is followed", async () => {
+    render(
+      <SettlementStage fixture={WORLD_FIXTURE} settlementId="oakbridge" onSelectAgent={() => {}} onFocusBuilding={() => {}} onBackgroundClick={() => {}} />,
+    );
+    await flush();
+    act(() => pixiMock.__runTick());
+    const { worldRoot } = layers();
+    const before = { x: worldRoot.position.x, y: worldRoot.position.y };
+    act(() => pixiMock.__runTick());
+
+    expect(worldRoot.position.x).toBeCloseTo(before.x, 5);
+    expect(worldRoot.position.y).toBeCloseTo(before.y, 5);
+  });
+});
+
+describe("SettlementStage — floor selector overlay", () => {
   it("shows the floor selector overlay only for a multi-floor building, and the street-view button while focused", () => {
     render(
       <SettlementStage
@@ -368,7 +480,10 @@ describe("SettlementStage — pan vs. click (bug real: capture cedo demais quebr
     render(<SettlementStage fixture={WORLD_FIXTURE} settlementId="oakbridge" onSelectAgent={() => {}} onFocusBuilding={() => {}} onBackgroundClick={() => {}} />);
     await flush();
 
-    const stage = screen.getByTestId("settlement-stage");
+    // Os listeners de pointer ficam no nó interno exclusivo do Pixi (irmão do overlay, não mais
+    // o wrapper com o testid) — ver comentário em SettlementStage.tsx sobre por que o canvas não
+    // pode dividir nó com filhos renderizados pelo React.
+    const stage = screen.getByTestId("settlement-stage").firstElementChild!;
     firePointerSequence(stage, [{ x: 100, y: 100 }, { x: 102, y: 101 }, { x: 100, y: 100 }]);
 
     expect(setPointerCaptureSpy).not.toHaveBeenCalled();
@@ -378,7 +493,7 @@ describe("SettlementStage — pan vs. click (bug real: capture cedo demais quebr
     render(<SettlementStage fixture={WORLD_FIXTURE} settlementId="oakbridge" onSelectAgent={() => {}} onFocusBuilding={() => {}} onBackgroundClick={() => {}} />);
     await flush();
 
-    const stage = screen.getByTestId("settlement-stage");
+    const stage = screen.getByTestId("settlement-stage").firstElementChild!;
     firePointerSequence(stage, [{ x: 100, y: 100 }, { x: 160, y: 100 }]);
 
     expect(setPointerCaptureSpy).toHaveBeenCalledTimes(1);

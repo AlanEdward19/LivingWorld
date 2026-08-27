@@ -102,7 +102,17 @@ function FollowedTab({ fixture, nav }: { fixture: WorldFixture; nav: NavigationS
         if (agent) {
           return (
             <li key={id}>
-              <button type="button" onClick={() => nav.push({ kind: "agent", id })}>
+              {/* Pedido do usuário 2026-08-26: com vários NPCs seguidos, clicar num nome já
+               * seguido nesta lista deveria alternar QUAL DELES a câmera acompanha (só o
+               * "último" ativado é rastreado, ver `followStore.activeFollowId`/AD-026) — sem
+               * precisar tirar e pôr o follow de novo. */}
+              <button
+                type="button"
+                onClick={() => {
+                  followStore.activate(id);
+                  nav.push({ kind: "agent", id });
+                }}
+              >
                 {agent.name}
                 <br />
                 <small>

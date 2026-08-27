@@ -91,6 +91,23 @@ export interface BodyDetailFixture {
   affects: { trait: string; effects: string[] }[];
 }
 
+/** Categoria pra ícone/agrupamento na aba social estilo Sims (doc redesign, pedido do usuário
+ * 2026-08-26: "estilo aba social do the sims"). `familyRole` só existe pra `kind: "family"` —
+ * é o que a árvore genealógica (`FamilyTree.tsx`) percorre pra montar gerações; sempre do ponto
+ * de vista do DONO da relação em relação a `withAgentId` (ex.: Eli lista Mira como
+ * `familyRole: "parent"` porque Mira É a mãe dele). */
+export type RelationshipKind = "family" | "romantic" | "friend" | "professional" | "rival";
+export type FamilyRole = "spouse" | "parent" | "child" | "sibling";
+export type RelationshipStrength = "strong" | "warm" | "neutral" | "tense";
+
+export interface RelationshipFixture {
+  withAgentId: string;
+  label: string; // "trusted", "mother", "disliked employer" — texto exibido
+  kind: RelationshipKind;
+  familyRole?: FamilyRole;
+  strength: RelationshipStrength;
+}
+
 export interface AgentFixture {
   id: string;
   name: string;
@@ -115,7 +132,7 @@ export interface AgentFixture {
    * sincronizado tick-a-tick com `patrolPoints` (que descreve a posição EXTERIOR/de settlement,
    * sempre válida pro zoom mundo/settlement mesmo quando o NPC também "está" num cômodo). */
   indoorLocation?: { buildingId: string; floorId: string; roomId: string; position: { x: number; y: number } };
-  relationships: { withAgentId: string; label: string }[]; // "Rowan · trusted"
+  relationships: RelationshipFixture[];
   recentLifeEvents: string[];
   lifeMilestones: { label: string; approxDate: string }[]; // pra Life View
   whyFactors: { text: string; linkedEventId?: string }[]; // painel Why?

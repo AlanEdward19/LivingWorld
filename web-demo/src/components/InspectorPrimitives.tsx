@@ -1,4 +1,20 @@
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
+import type { RelationshipKind, RelationshipStrength } from "../fixture/types";
+
+const RELATIONSHIP_ICON: Record<RelationshipKind, string> = {
+  family: "\u{1F46A}",
+  romantic: "\u{1F49D}",
+  friend: "\u{1F642}",
+  professional: "\u{1F4BC}",
+  rival: "\u{2694}\u{FE0F}",
+};
+
+const STRENGTH_TITLE: Record<RelationshipStrength, string> = {
+  strong: "Strong bond",
+  warm: "Warm",
+  neutral: "Neutral",
+  tense: "Tense",
+};
 
 /** Redesign doc §32 — header de seção compacto (11px uppercase muted), com contagem/link
  * opcional à direita ("HOUSEHOLDS   4" ou "HOUSEHOLDS   View all →"). */
@@ -61,9 +77,56 @@ export function MetricRow({ label, value }: { label: string; value: ReactNode })
   );
 }
 
+/** Linha de relacionamento estilo "aba social" (pedido do usuário 2026-08-26, "estilo aba
+ * social do the sims") — ícone por categoria (`kind`) + nome + label + um indicador discreto de
+ * força do vínculo, em vez de um `<li>Nome · label</li>` de texto corrido. */
+export function RelationshipRow({
+  name,
+  label,
+  kind,
+  strength,
+  onClick,
+  testId,
+}: {
+  name: string;
+  label: string;
+  kind: RelationshipKind;
+  strength: RelationshipStrength;
+  onClick: () => void;
+  testId?: string;
+}) {
+  return (
+    <button type="button" className="relationship-row" onClick={onClick} data-testid={testId}>
+      <span className="relationship-row-icon" aria-hidden="true">
+        {RELATIONSHIP_ICON[kind]}
+      </span>
+      <span className="entity-row-text">
+        <span className="entity-row-title">{name}</span>
+        <span className="entity-row-meta"> · {label}</span>
+      </span>
+      <span
+        className={`relationship-strength relationship-strength--${strength}`}
+        title={STRENGTH_TITLE[strength]}
+        aria-label={STRENGTH_TITLE[strength]}
+      />
+    </button>
+  );
+}
+
 /** Link discreto de "ver mais" — abre popup/drawer/view expandida, nunca troca o texto por um
  * botão gigante. */
-export function SectionLink({ children, onClick, testId }: { children: ReactNode; onClick: () => void; testId?: string }) {
+export function SectionLink({
+  children,
+  onClick,
+  testId,
+}: {
+  children: ReactNode;
+  /** Recebe o `MouseEvent` — quem abre um Popup usa `event.currentTarget` pra ancorar o painel
+   * ao lado do próprio link clicado (pedido do usuário 2026-08-26: "abrir na mesma linha
+   * horizontal do botão, e à esquerda", não flutuando fixo no topo da tela). */
+  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
+  testId?: string;
+}) {
   return (
     <button type="button" className="section-link" onClick={onClick} data-testid={testId}>
       {children}
