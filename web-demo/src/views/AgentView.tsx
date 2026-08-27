@@ -1,11 +1,12 @@
-import { useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore, type MouseEvent } from "react";
 import type { WorldFixture } from "../fixture/types";
 import type { NavigationStore } from "../nav/NavigationStore";
 import { NpcToken } from "../npc/NpcToken";
 import { WhyPanel } from "./WhyPanel";
 import { FollowButton } from "../components/FollowButton";
-import { Popup } from "../components/ContextOverlay";
-import { EntityRow, MetricRow, SectionHeader, SectionLink, StatusChips } from "../components/InspectorPrimitives";
+import { Popup, Drawer } from "../components/ContextOverlay";
+import { EntityRow, RelationshipRow, SectionHeader, SectionLink, StatusChips } from "../components/InspectorPrimitives";
+import { FamilyTree } from "./FamilyTree";
 import { modeStore } from "../state/modeStore";
 
 export interface AgentViewProps {
@@ -24,6 +25,13 @@ type OpenPopup = "body" | "relationships" | "why" | null;
  */
 export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
   const [openPopup, setOpenPopup] = useState<OpenPopup>(null);
+  const [popupAnchor, setPopupAnchor] = useState<DOMRect | null>(null);
+  const [showFamilyTree, setShowFamilyTree] = useState(false);
+
+  function openPopupAt(kind: Exclude<OpenPopup, null>, event: MouseEvent<HTMLButtonElement>) {
+    setPopupAnchor(event.currentTarget.getBoundingClientRect());
+    setOpenPopup(kind);
+  }
   const mode = useSyncExternalStore(
     (listener) => modeStore.subscribe(listener),
     () => modeStore.currentMode(),
@@ -37,6 +45,7 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
     ...relationship,
     name: fixture.agents.find((a) => a.id === relationship.withAgentId)?.name ?? relationship.withAgentId,
   }));
+  const hasFamily = agent.relationships.some((r) => r.familyRole !== undefined);
 
   return (
     <div data-testid="agent-view">
@@ -56,7 +65,7 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
 
       <SectionHeader title="Body" />
       <p data-testid="agent-body">{agent.bodySummary.build}</p>
-      <SectionLink onClick={() => setOpenPopup("body")}>View physical details →</SectionLink>
+      <SectionLink onClick={(e) => openPopupAt("body", e)}>View physical details →</SectionLink>
 
       {household && (
         <>
@@ -71,14 +80,20 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
       )}
 
       <SectionHeader title="Relationships" />
-      <ul data-testid="agent-relationships">
+      <div data-testid="agent-relationships">
         {relationships.slice(0, 2).map((relationship) => (
-          <li key={relationship.withAgentId}>
-            {relationship.name} · {relationship.label}
-          </li>
+          <RelationshipRow
+            key={relationship.withAgentId}
+            name={relationship.name}
+            label={relationship.label}
+            kind={relationship.kind}
+            strength={relationship.strength}
+            onClick={() => nav.replace({ kind: "agent", id: relationship.withAgentId })}
+          />
         ))}
-      </ul>
-      {relationships.length > 0 && <SectionLink onClick={() => setOpenPopup("relationships")}>View relationships →</SectionLink>}
+      </div>
+      {relationships.length > 0 && <SectionLink onClick={(e) => openPopupAt("relationships", e)}>View relationships →</SectionLink>}
+      {hasFamily && <SectionLink onClick={() => setShowFamilyTree(true)}>View family tree →</SectionLink>}
 
       <SectionHeader title="Recent" />
       <ul data-testid="agent-recent-events">
@@ -89,19 +104,21 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
       <SectionLink testId="view-full-life" onClick={() => nav.push({ kind: "life", agentId })}>
         View life timeline →
       </SectionLink>
-      <button
-        type="button"
-        data-testid="view-timeline"
-        onClick={() => nav.push({ kind: "timeline", scope: { type: "agent", id: agentId } })}
-      >
-        View Timeline
-      </button>
+      <div className="inspector-actions-row">
+        <button
+          type="button"
+          data-testid="view-timeline"
+          onClick={() => nav.push({ kind: "timeline", scope: { type: "agent", id: agentId } })}
+        >
+          View Timeline
+        </button>
+      </div>
 
       {agent.whyFactors.length > 0 && (
         <>
           <SectionHeader title="Why?" />
           <p data-testid="why-summary">{agent.whyFactors.length} contributing factors</p>
-          <SectionLink onClick={() => setOpenPopup("why")}>Explain decision →</SectionLink>
+          <SectionLink onClick={(e) => openPopupAt("why", e)}>Explain decision →</SectionLink>
         </>
       )}
 
@@ -110,7 +127,7 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
       </button>
 
       {openPopup === "body" && (
-        <Popup title="Physical details" onClose={() => setOpenPopup(null)}>
+        <Popup title="Physical details" anchorRect={popupAnchor} onClose={() => setOpenPopup(null)}>
           <div data-testid="agent-body-detail">
             <dl>
               <div>
@@ -166,19 +183,42 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
       )}
 
       {openPopup === "relationships" && (
-        <Popup title={`${agent.name}'s relationships`} onClose={() => setOpenPopup(null)}>
-          <ul>
-            {relationships.map((relationship) => (
-              <li key={relationship.withAgentId}>
-                <MetricRow label={relationship.name} value={relationship.label} />
-              </li>
-            ))}
-          </ul>
+        <Popup title={`${agent.name}'s relationships`} anchorRect={popupAnchor} onClose={() => setOpenPopup(null)}>
+          {relationships.map((relationship) => (
+            <RelationshipRow
+              key={relationship.withAgentId}
+              name={relationship.name}
+              label={relationship.label}
+              kind={relationship.kind}
+              strength={relationship.strength}
+              onClick={() => {
+                setOpenPopup(null);
+                nav.replace({ kind: "agent", id: relationship.withAgentId });
+              }}
+            />
+          ))}
         </Popup>
       )}
 
+      {showFamilyTree && (
+        <Drawer title={`${agent.name}'s family`} onClose={() => setShowFamilyTree(false)}>
+          <FamilyTree
+            fixture={fixture}
+            agentId={agentId}
+            onSelectAgent={(id) => {
+              setShowFamilyTree(false);
+              nav.replace({ kind: "agent", id });
+            }}
+          />
+        </Drawer>
+      )}
+
       {openPopup === "why" && (
-        <Popup title={`Why is ${agent.name} ${agent.currentIntent.charAt(0).toLowerCase() + agent.currentIntent.slice(1)}?`} onClose={() => setOpenPopup(null)}>
+        <Popup
+          title={`Why is ${agent.name} ${agent.currentIntent.charAt(0).toLowerCase() + agent.currentIntent.slice(1)}?`}
+          anchorRect={popupAnchor}
+          onClose={() => setOpenPopup(null)}
+        >
           <WhyPanel
             factors={agent.whyFactors}
             onFactorClick={(eventId) => {

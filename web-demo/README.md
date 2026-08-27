@@ -204,6 +204,62 @@ resto.
   (§20-28)** — doc completo cobre todos esses; só Agent Inspector foi redesenhado nesta rodada,
   o resto é a próxima fatia combinada com o usuário.
 
+## Bugfix — clicar num NPC dentro de casa saía da casa (AD-025)
+
+Três sintomas relatados em sequência, resolvidos juntos:
+
+- **"Clico no NPC da casa, ele seleciona mas sai da casa"** — causa raiz real: clicar num agent
+  chama `onSelectAgent`, que troca a rota inteira pra `{kind:"agent"}`; como o foco de prédio
+  (`focusBuildingId`) só vinha de `route.kind === "building"`, a seleção do agent colapsava o
+  foco junto, mesmo o agent continuando visualmente dentro da casa. Fix: `CenterStage.tsx` ganha
+  `useFocusBuildingId`, que preserva o prédio focado se o agent selecionado já morava/trabalhava
+  no prédio que já estava focado ANTES do clique (memória via `useRef`).
+- **Regressão do fix acima** — "clico num NPC na rua, ele me leva pra casa dele direto": a v1
+  ingênua (focar sempre que o agent tem `indoorLocation`) não checava se o prédio já estava
+  focado, então QUALQUER clique num agent com casa "puxava" a câmera pra dentro. Corrigido
+  checando a memória antes de criar foco novo.
+- **"Faltou o comando reverso, clicar fora da casa deveria voltar pra rua"** — o guard do AD-023
+  (desabilitava clique-fora-desfoca enquanto um prédio estava focado, pra evitar que um clique
+  impreciso saísse sem querer) foi revertido — a causa raiz real era a de cima, não precisa mais
+  desse guard, e o usuário pediu de volta o comportamento simétrico.
+- **Bug invisível em todos os testes jsdom, só achado ao vivo no browser**: mesmo com
+  `focusBuildingId` corretamente computado (confirmado com globals de debug temporários nos dois
+  componentes), o overlay `settlement-stage-overlay` não aparecia no DOM real. Causa: o Pixi
+  (`containerEl.appendChild(app.canvas)` / `.replaceChildren()` no cleanup) escrevia direto no
+  MESMO nó DOM que o React usava pro overlay. O `replaceChildren()` apagava o `<div>` do overlay
+  por baixo do React; na reconciliação seguinte o React tentava remover um nó que já não existia,
+  lançava `NotFoundError` sem estar capturado, e derrubava a subtree inteira (sem nenhum erro
+  visível na UI). Fix: `SettlementStage.tsx` agora tem um `<div ref={containerRef}/>` EXCLUSIVO do
+  Pixi, irmão do overlay renderizado pelo React — nunca o mesmo nó — com `tokens.css` fazendo esse
+  nó herdar o tamanho cheio do wrapper.
+
+Ver AD-025 em `.specs/STATE.md` para detalhes completos.
+
+## Segunda leva de fixes/redesign (AD-026)
+
+Seis problemas visuais reportados pelo usuário depois da v1 do redesign, todos corrigidos:
+
+- "View life timeline"/"View Timeline" colados → `.section-link` agora é `display:block`.
+- Popup de relacionamentos sobrepondo o Inspector → reancorado à esquerda dele (`right: calc(340px + 1rem)`).
+- Relacionamentos ganharam estilo "aba social" (ícone por categoria + força do vínculo, `RelationshipRow`) e uma árvore genealógica de verdade (`FamilyTree.tsx`, dados estruturados `familyRole` no fixture — Valen e Miller).
+- Follow agora tem efeito real: a câmera trava na posição do agent seguido a cada frame (`SettlementStage`), em vez de só marcar um bookmark.
+- Follow removido do Settlement Inspector — seguir uma cidade inteira não fazia sentido.
+- Settlement e Building Inspector redesenhados com os primitives existentes (antes eram `<dl>`/`<ul>` cru).
+
+Ver AD-026 em `.specs/STATE.md`.
+
+## Terceira leva — follow multi-NPC + polish (AD-027)
+
+Achados testando ao vivo em cima do AD-026:
+
+- Popup ganhou posicionamento de verdade por `anchorRect` (alinhado com a linha do botão, à esquerda dele) — o `right` fixo do AD-026 só resolvia a sobreposição, não o alinhamento pedido.
+- Anel de "seguindo" trocado de círculo (cortava o corpo do NPC) pra elipse achatada nos pés.
+- Múltiplos NPCs podem ser seguidos (bookmark, lista "Followed" nunca reordena) mas a câmera só trava no último ativado (`followStore.activeFollowId`); clicar um nome já seguido alterna o alvo sem mexer na lista.
+- Arrastar o mapa de verdade "desgruda" a câmera de quem ela seguia (sem des-seguir) — só reata clicando o nome de novo ou seguindo outro agent.
+- Building Inspector ganhou ícone por tipo + subtítulo, Occupants subiu pro topo.
+
+Nota de processo: um dos bugs reportados ("following não faz nada") era o dev server do Vite com HMR preso numa versão antiga do módulo `SettlementStage.tsx` — resolvido reiniciando o processo, não só editando o código. Ver AD-027 em `.specs/STATE.md`.
+
 ## Comparação visual com `web/` (spec P1b Independent Test)
 
 Verificado ao vivo, os dois projetos rodando lado a lado (`web/demo.html`, modo mock offline, vs

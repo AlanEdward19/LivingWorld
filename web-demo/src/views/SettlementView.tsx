@@ -1,6 +1,6 @@
 import type { WorldFixture } from "../fixture/types";
 import type { NavigationStore } from "../nav/NavigationStore";
-import { FollowButton } from "../components/FollowButton";
+import { EntityRow, MetricRow, SectionHeader, SectionLink } from "../components/InspectorPrimitives";
 
 export interface SettlementViewProps {
   fixture: WorldFixture;
@@ -9,61 +9,65 @@ export interface SettlementViewProps {
 }
 
 /**
- * Settlement Pulse (doc#108/#125) — população, food/employment/migration/construction,
- * eventos recentes. Conteúdo do Inspector quando um settlement está selecionado; o mapa
- * (nível distrito/agente) mora no `CenterStage` (doc §5: Inspector é o painel contextual da
- * ENTIDADE selecionada, o mapa é o "World" central — os dois nunca se sobrepõem).
+ * Settlement Inspector (redesign doc §16) — KEY METRICS/HOUSEHOLDS/PLACES/RECENT, cada seção
+ * compacta com `MetricRow`/`EntityRow` em vez de `<dl>`/`<ul>` cru (bug real reportado pelo
+ * usuário: "design bem bagunçado, muito texto jogado"). Sem `FollowButton` — "seguir" agora
+ * significa a câmera acompanhar um agent se movendo (ver AD em STATE.md), e um settlement
+ * inteiro não anda; o botão não fazia sentido aqui (outra queixa direta do usuário).
  */
 export function SettlementView({ fixture, nav, settlementId }: SettlementViewProps) {
   const settlement = fixture.settlements.find((s) => s.id === settlementId);
   if (!settlement) return null;
 
   const households = fixture.households.filter((h) => h.settlementId === settlementId);
+  const places = settlement.buildings;
   const recentEvents = fixture.events.filter((e) => e.settlementId === settlementId);
 
   return (
     <div data-testid="settlement-view">
       <h1>{settlement.name}</h1>
-      <FollowButton entityId={settlement.id} />
 
+      <SectionHeader title="Key metrics" />
       <dl data-testid="settlement-pulse">
-        <dt>Population</dt>
-        <dd data-testid="pulse-population">{settlement.population}</dd>
-        <dt>Population trend</dt>
-        <dd data-testid="pulse-population-trend">{settlement.populationTrend}</dd>
-        <dt>Food</dt>
-        <dd data-testid="pulse-food">{settlement.food}</dd>
-        <dt>Employment</dt>
-        <dd data-testid="pulse-employment">{settlement.employment}</dd>
-        <dt>Migration</dt>
-        <dd data-testid="pulse-migration">{settlement.migration}</dd>
-        <dt>Construction</dt>
-        <dd data-testid="pulse-construction">{settlement.construction}</dd>
+        <MetricRow label="Population" value={<span data-testid="pulse-population">{settlement.population}</span>} />
+        <MetricRow label="Trend" value={<span data-testid="pulse-population-trend">{settlement.populationTrend}</span>} />
+        <MetricRow label="Food" value={<span data-testid="pulse-food">{settlement.food}</span>} />
+        <MetricRow label="Employment" value={<span data-testid="pulse-employment">{settlement.employment}</span>} />
+        <MetricRow label="Migration" value={<span data-testid="pulse-migration">{settlement.migration}</span>} />
+        <MetricRow label="Construction" value={<span data-testid="pulse-construction">{settlement.construction}</span>} />
       </dl>
 
+      <SectionHeader title="Households" trailing={households.length} />
       <ul data-testid="household-list">
-        {households.map((household) => (
+        {households.slice(0, 4).map((household) => (
           <li key={household.id}>
-            <button type="button" onClick={() => nav.replace({ kind: "household", id: household.id })}>
-              {household.name}
-            </button>
+            <EntityRow
+              title={household.name}
+              meta={`${household.memberIds.length} members`}
+              onClick={() => nav.replace({ kind: "household", id: household.id })}
+            />
           </li>
         ))}
       </ul>
 
-      <ul data-testid="settlement-recent-events">
-        {recentEvents.map((event) => (
-          <li key={event.eventId}>{event.summary}</li>
+      <SectionHeader title="Places" trailing={places.length} />
+      <ul data-testid="settlement-places">
+        {places.slice(0, 4).map((building) => (
+          <li key={building.id}>
+            <EntityRow title={building.name} meta={building.kind} onClick={() => nav.replace({ kind: "building", id: building.id })} />
+          </li>
         ))}
       </ul>
 
-      <button
-        type="button"
-        data-testid="view-timeline"
-        onClick={() => nav.push({ kind: "timeline", scope: { type: "settlement", id: settlementId } })}
-      >
-        View Timeline
-      </button>
+      <SectionHeader title="Recent" />
+      <ul data-testid="settlement-recent-events">
+        {recentEvents.slice(0, 4).map((event) => (
+          <li key={event.eventId}>{event.summary}</li>
+        ))}
+      </ul>
+      <SectionLink testId="view-timeline" onClick={() => nav.push({ kind: "timeline", scope: { type: "settlement", id: settlementId } })}>
+        Open settlement timeline →
+      </SectionLink>
     </div>
   );
 }

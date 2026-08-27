@@ -1,4 +1,4 @@
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { WorldFixture } from "../fixture/types";
 import type { NavigationStore, Route } from "../nav/NavigationStore";
 import { SemanticZoomMap } from "../map/SemanticZoomMap";
@@ -46,7 +46,42 @@ function underlyingSpatialRoute(breadcrumb: Route[]): Route {
   return { kind: "world" };
 }
 
+/**
+ * Bug real achado ao vivo: clicar num NPC DENTRO de um prédio focado chama `onSelectAgent`, que
+ * troca a rota inteira pra `{kind:"agent"}` — como `focusBuildingId` vinha só de
+ * `route.kind === "building"`, isso derrubava o foco (câmera afastava, telhado voltava) junto
+ * com a seleção do agent, mesmo ele continuando visualmente dentro da casa. `building` e "agent
+ * inspecionado" são dois estados independentes (canvas vs. Inspector) que `Route` sozinha não
+ * guarda os dois ao mesmo tempo.
+ *
+ * Fix ingênuo v1 (derivar de `agent.indoorLocation` sempre que a rota é "agent") causou uma
+ * regressão: clicar num agent NA RUA (settlement sem prédio focado) também "puxava" a câmera
+ * pra dentro da casa dele, mesmo ele não estando visualmente lá dentro no momento do clique. A
+ * regra certa precisa de memória — só preserva o foco se o prédio já estava focado ANTES desse
+ * agent ser selecionado (`lastFocusBuildingIdRef`), nunca cria foco novo a partir do nada.
+ */
+function useFocusBuildingId(fixture: WorldFixture, route: Route): string | null {
+  const lastFocusBuildingIdRef = useRef<string | null>(null);
+
+  let resolved: string | null = null;
+  if (route.kind === "building") {
+    resolved = route.id;
+  } else if (route.kind === "agent") {
+    const agent = fixture.agents.find((a) => a.id === route.id);
+    if (agent?.indoorLocation && agent.indoorLocation.buildingId === lastFocusBuildingIdRef.current) {
+      resolved = lastFocusBuildingIdRef.current;
+    }
+  }
+  lastFocusBuildingIdRef.current = resolved;
+  return resolved;
+}
+
 function SpatialLayer({ fixture, nav, route }: CenterStageProps) {
+  // Chamado incondicionalmente (regra dos hooks) — pra rota "world" o valor é descartado, mas a
+  // ref interna ainda precisa "ver" cada render pra rastrear corretamente quando o foco no
+  // prédio deixa de existir (ex.: settlement/world limpam a memória de foco anterior).
+  const focusBuildingId = useFocusBuildingId(fixture, route);
+
   if (route.kind === "world") {
     return (
       <SemanticZoomMap
@@ -63,7 +98,7 @@ function SpatialLayer({ fixture, nav, route }: CenterStageProps) {
     <SettlementStage
       fixture={fixture}
       settlementId={settlementId}
-      focusBuildingId={route.kind === "building" ? route.id : null}
+      focusBuildingId={focusBuildingId}
       onSelectAgent={(agentId) => nav.replace({ kind: "agent", id: agentId })}
       onFocusBuilding={(buildingId) => nav.replace({ kind: "building", id: buildingId })}
       onBackgroundClick={() => nav.replace({ kind: "settlement", id: settlementId })}

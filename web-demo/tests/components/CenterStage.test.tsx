@@ -72,6 +72,57 @@ describe("CenterStage — settlement-scoped routes mount SettlementStage for the
     fireEvent.click(screen.getByTestId("street-view-button"));
     expect(nav.current()).toEqual({ kind: "settlement", id: "oakbridge" });
   });
+
+  it("selecting an indoor agent's route keeps their building focused (regression: used to kick you back out to the street)", () => {
+    // mira-valen mora/trabalha dentro de bld-corvin-bakery (indoorLocation no fixture) — rota
+    // virando "agent" (como onSelectAgent faz ao clicar o sprite dela) não deveria derrubar o
+    // foco no prédio onde ela está de verdade.
+    const mira = WORLD_FIXTURE.agents.find((a) => a.id === "mira-valen")!;
+    expect(mira.indoorLocation?.buildingId).toBe("bld-corvin-bakery");
+
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    const { rerender } = render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "building", id: "bld-corvin-bakery" }} />);
+    expect(screen.getByTestId("focused-building-name")).toHaveTextContent("Corvin's Bakery");
+
+    rerender(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "agent", id: "mira-valen" }} />);
+
+    expect(screen.getByTestId("settlement-stage-overlay")).toBeInTheDocument();
+    expect(screen.getByTestId("focused-building-name")).toHaveTextContent("Corvin's Bakery");
+  });
+
+  it("selecting an outdoor-only agent's route (no indoorLocation) does unfocus the building — they aren't visually inside it", () => {
+    const rowan = WORLD_FIXTURE.agents.find((a) => a.id === "rowan")!;
+    expect(rowan.indoorLocation).toBeUndefined();
+
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    const { rerender } = render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "building", id: "bld-corvin-bakery" }} />);
+    expect(screen.getByTestId("focused-building-name")).toBeInTheDocument();
+
+    rerender(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "agent", id: "rowan" }} />);
+
+    expect(screen.queryByTestId("settlement-stage-overlay")).not.toBeInTheDocument();
+  });
+
+  it("clicking an OUTDOOR agent from the street does NOT auto-jump into their house (regression: fixing the bug above over-broadly once did exactly this)", () => {
+    // Mira mora na padaria, mas ver o Inspector dela a partir da RUA (sem nenhum prédio focado
+    // antes) não deve puxar a câmera pra dentro da casa dela — ela só "está lá dentro" quando o
+    // prédio já estava focado ANTES de ela ser selecionada.
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "agent", id: "mira-valen" }} />);
+    expect(screen.queryByTestId("settlement-stage-overlay")).not.toBeInTheDocument();
+  });
+
+  it("focus memory resets once you leave via the settlement route, so a later indoor-agent click doesn't stick around from a stale focus", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    const { rerender } = render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "building", id: "bld-corvin-bakery" }} />);
+    expect(screen.getByTestId("settlement-stage-overlay")).toBeInTheDocument();
+
+    rerender(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "settlement", id: "oakbridge" }} />);
+    expect(screen.queryByTestId("settlement-stage-overlay")).not.toBeInTheDocument();
+
+    rerender(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "agent", id: "mira-valen" }} />);
+    expect(screen.queryByTestId("settlement-stage-overlay")).not.toBeInTheDocument();
+  });
 });
 
 // AD-021: causal/timeline/life/feed/threads open as a panel OVER the map — the map (world or

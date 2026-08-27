@@ -61,6 +61,34 @@ describe("Popup (redesign doc §19 — Nível 3, não bloqueante)", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  // Bug real reportado pelo usuário (2026-08-26): o popup abria fixo perto do topo da tela,
+  // longe do link clicado. Precisa alinhar com o TOPO do anchor e ficar À ESQUERDA dele.
+  it("anchors to the trigger's row and sits to its left when anchorRect is given", () => {
+    const anchorRect = { top: 500, left: 900, right: 1000, bottom: 526, width: 100, height: 26 } as DOMRect;
+    render(
+      <Popup title="X" onClose={() => {}} anchorRect={anchorRect}>
+        content
+      </Popup>,
+    );
+    const panel = screen.getByTestId("popup-panel");
+    expect(panel.style.top).toBe("500px");
+    expect(panel.style.left).toBe("auto");
+    // right = distância do anchor.left até a borda da viewport, mais uma folga — garante que o
+    // painel termina ANTES do início do link (à esquerda dele), nunca por cima.
+    expect(panel.style.right).toBe(`${window.innerWidth - 900 + 8}px`);
+  });
+
+  it("falls back to the CSS default position when no anchorRect is given", () => {
+    render(
+      <Popup title="X" onClose={() => {}}>
+        content
+      </Popup>,
+    );
+    const panel = screen.getByTestId("popup-panel");
+    expect(panel.style.top).toBe("");
+    expect(panel.style.right).toBe("");
+  });
+
   it("is non-blocking — no dark backdrop element intercepts the whole screen visually (transparent by design, see tokens.css)", () => {
     // Sanity check estrutural: o backdrop existe (pra fechar ao clicar fora) mas não é um modal
     // bloqueante como o Center Overlay (AD-021) — não tem texto/whatever escondendo o resto.

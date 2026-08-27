@@ -53,12 +53,13 @@ describe("AgentView", () => {
     expect(popup).toHaveTextContent("Corvin");
   });
 
-  it("shows Mira's household and important relationships (Rowan, Corvin)", () => {
+  it("shows Mira's household and her closest relationships (family surfaces first)", () => {
     render(<AgentView fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} agentId="mira-valen" />);
     expect(screen.getByTestId("agent-household")).toHaveTextContent("Valen Household");
     const relationships = screen.getByTestId("agent-relationships");
-    expect(relationships).toHaveTextContent("Rowan · trusted");
-    expect(relationships).toHaveTextContent("Corvin · disliked employer");
+    expect(relationships).toHaveTextContent("Tomas Valen · husband");
+    expect(relationships).toHaveTextContent("Eli Valen · son");
+    // Rowan/Corvin ainda existem, só não cabem no preview de 2 — cobertos por "View relationships".
   });
 
   it("shows Mira's recent life events", () => {

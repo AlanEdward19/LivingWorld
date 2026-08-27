@@ -30,7 +30,7 @@ describe("FollowButton", () => {
 });
 
 describe("FollowButton — integrated into existing views", () => {
-  it("appears in AgentView, HouseholdView and SettlementView with visual state matching followStore", () => {
+  it("appears in AgentView and HouseholdView with visual state matching followStore", () => {
     const nav = new NavigationStore(WORLD_FIXTURE);
 
     const agent = render(<AgentView fixture={WORLD_FIXTURE} nav={nav} agentId="mira-valen" />);
@@ -40,9 +40,15 @@ describe("FollowButton — integrated into existing views", () => {
     const household = render(<HouseholdView fixture={WORLD_FIXTURE} nav={nav} householdId="valen-household" />);
     expect(household.getByTestId("follow-button")).toBeInTheDocument();
     household.unmount();
+  });
 
+  // Bug real reportado pelo usuário (2026-08-26): Follow na sidebar do Settlement não fazia
+  // sentido — agora que Follow significa "câmera acompanha esse agent" (ver AD em STATE.md),
+  // isso só é possível pra algo que se move; um settlement inteiro não anda.
+  it("does NOT appear in SettlementView — following a whole city has no camera-follow meaning", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
     const settlement = render(<SettlementView fixture={WORLD_FIXTURE} nav={nav} settlementId="oakbridge" />);
-    expect(settlement.getByTestId("follow-button")).toBeInTheDocument();
+    expect(settlement.queryByTestId("follow-button")).not.toBeInTheDocument();
     settlement.unmount();
   });
 });

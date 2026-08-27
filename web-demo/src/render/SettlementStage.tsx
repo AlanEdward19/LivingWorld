@@ -7,6 +7,7 @@ import { buildingFootprint, generateRoads, tileNoise, type Footprint } from "./s
 import { fitZoom, focusOn, initialCamera, panBy, unfocus, zoomBy, type CameraState } from "./cameraState";
 import { getNpcTexture } from "./npcTexture";
 import { TILE } from "./constants";
+import { followStore } from "../state/followStore";
 
 export interface SettlementStageProps {
   fixture: WorldFixture;
@@ -28,6 +29,13 @@ const ROOF_ALPHA_FOCUSED = 0.14;
 const FADE_SPEED = 0.12; // por frame a 60fps, ver ticker
 const CLICK_DRAG_THRESHOLD = 14; // px — 6 era sensível demais, cliques reais de mouse têm jitter
 const OUTDOOR_SPRITE_SCALE = (TILE * 0.6) / 100; // textura do NpcToken é 100x120
+// Anel achatado (não círculo) — unidades de textura (100x120), ver comentário no `agents.forEach`.
+// Bug real: um círculo de raio 32 centrado perto dos "pés" (y=6) estourava pra CIMA até y=-26,
+// cortando o corpo do sprite ao meio em vez de ficar no chão, embaixo dele.
+const FOLLOW_RING_RADIUS_X = 30;
+const FOLLOW_RING_RADIUS_Y = 10;
+const FOLLOW_RING_OFFSET_Y = 8;
+const FOLLOW_RING_COLOR = 0xd5a85a; // --accent
 
 const FURNITURE_COLORS: Record<FurnitureKind, number> = {
   bed: 0x7a5c4a,
@@ -98,6 +106,7 @@ export function SettlementStage({
   const buildingNodesRef = useRef(new Map<string, BuildingNode>());
   const interiorTransformsRef = useRef(new Map<string, InteriorTransform>());
   const agentSpritesRef = useRef(new Map<string, Sprite>());
+  const followRingsRef = useRef(new Map<string, Graphics>());
   const agentLayerRef = useRef<Container | null>(null);
   const settlementCenterRef = useRef({ x: 0, y: 0, zoom: 1 });
   const [activeFloorIndex, setActiveFloorIndex] = useState(0);
@@ -221,12 +230,15 @@ export function SettlementStage({
       }
       terrainLayer.eventMode = "static";
       terrainLayer.on("pointertap", () => {
-        // Bug real achado ao vivo: focado num prédio (câmera em FOCUS_ZOOM), o interior não
-        // preenche a viewport inteira — sobra terreno visível nas bordas. Um clique um pouco
-        // impreciso perto de um NPC lá dentro caía nesse terreno e voltava pra cidade inteira.
-        // O "← Street" já cobre "sair do prédio" sem ambiguidade — clique no terreno só
-        // desfoca quando o foco atual é um AGENT (visão de rua, sem essa zona de risco).
-        if (!suppressClickRef.current && !focusBuildingIdRef.current) onBackgroundClick();
+        // AD-023 tinha desabilitado isso enquanto um prédio estava focado, pra evitar que um
+        // clique impreciso perto de um NPC lá dentro "vazasse" pro terreno visível nas bordas da
+        // câmera zoom e derrubasse o foco sem querer. Mas o bug de verdade por trás daquele
+        // sintoma era outro (rota "agent" derrubava o foco mesmo num clique PERFEITO no NPC —
+        // ver `CenterStage.useFocusBuildingId`), já corrigido na origem. Com a causa raiz
+        // resolvida, clicar fora volta a ser sempre "sair pro que tiver por baixo" (prédio →
+        // rua, agent → settlement) — usuário pediu de volta esse comportamento simétrico
+        // explicitamente ("clicar fora da casa deveria ser equivalente a voltar pra rua").
+        if (!suppressClickRef.current) onBackgroundClick();
       });
 
       for (const road of generateRoads(settlementDef.buildings)) {
@@ -296,6 +308,18 @@ export function SettlementStage({
           if (suppressClickRef.current) return;
           onSelectAgent(agent.id);
         });
+
+        // Anel de "seguindo" (pedido do usuário 2026-08-26: "não está dando highlight no NPC") —
+        // filho do sprite pra herdar posição/reparent (indoor↔outdoor) automaticamente; desenhado
+        // no espaço LOCAL da textura (100x120, anchor 0.5/1 = origem nos "pés"), por isso o raio é
+        // em unidades de textura, não de mundo. Escondido por padrão, só visível pro agent seguido.
+        const ring = new Graphics()
+          .ellipse(0, FOLLOW_RING_OFFSET_Y, FOLLOW_RING_RADIUS_X, FOLLOW_RING_RADIUS_Y)
+          .stroke({ width: 5, color: FOLLOW_RING_COLOR, alpha: 0.9 });
+        ring.visible = false;
+        sprite.addChild(ring);
+        followRingsRef.current.set(agent.id, ring);
+
         agentLayer.addChild(sprite);
         agentSpritesRef.current.set(agent.id, sprite);
       });
@@ -310,9 +334,20 @@ export function SettlementStage({
           node.interior.alpha = lerp(node.interior.alpha, isFocused ? 1 : 0, FADE_SPEED);
         }
 
+        // Follow (pedido do usuário 2026-08-26: "botão de follow não segue de verdade o NPC") —
+        // só agents fazem sentido aqui (a única entidade que se move nesta demo, AD-018). Dá pra
+        // seguir vários (bookmark), mas a câmera trava só no ÚLTIMO ativado (`activeFollowId`),
+        // nunca no primeiro match por ordem do fixture (bug real: dois seguidos ao mesmo tempo
+        // sempre travava no que aparecia primeiro no array de agents, não no mais recente).
+        const activeId = followStore.activeFollowId();
+        const followedAgentId = activeId && agents.some((agent) => agent.id === activeId) ? activeId : null;
+        let followedWorldPos: { x: number; y: number } | null = null;
+
         for (const agent of agents) {
           const sprite = agentSpritesRef.current.get(agent.id);
+          const ring = followRingsRef.current.get(agent.id);
           if (!sprite) continue;
+          if (ring) ring.visible = agent.id === followedAgentId;
           const indoor = agent.indoorLocation;
           const showIndoors = Boolean(indoor && indoor.buildingId === focusedId);
 
@@ -320,16 +355,32 @@ export function SettlementStage({
             const node = buildingNodesRef.current.get(indoor.buildingId);
             const transform = interiorTransformsRef.current.get(indoor.buildingId);
             if (node && transform && sprite.parent !== node.interior) node.interior.addChild(sprite);
-            if (transform) {
-              sprite.position.set(transform.offsetX + indoor.position.x * transform.scale, transform.offsetY + indoor.position.y * transform.scale);
+            if (node && transform) {
+              const localX = transform.offsetX + indoor.position.x * transform.scale;
+              const localY = transform.offsetY + indoor.position.y * transform.scale;
+              sprite.position.set(localX, localY);
               sprite.scale.set((transform.scale * 0.9) / 100);
+              // `sprite.position` aqui é local ao container `interior` (filho de `node.root`,
+              // que mora em `worldX,worldY`) — bug real: ler `sprite.position` direto depois de
+              // reparentar pro interior dava coordenadas LOCAIS pro follow, não de mundo, e a
+              // câmera pulava pra perto da origem sempre que o agent seguido estava indoors.
+              if (agent.id === followedAgentId) followedWorldPos = { x: node.worldX + localX, y: node.worldY + localY };
             }
           } else {
             if (sprite.parent !== agentLayer) agentLayer.addChild(sprite);
             const pos = patrolPositionAt(agent.patrolPoints, now);
-            sprite.position.set(pos.x * TILE, pos.y * TILE);
+            const worldX = pos.x * TILE;
+            const worldY = pos.y * TILE;
+            sprite.position.set(worldX, worldY);
             sprite.scale.set(OUTDOOR_SPRITE_SCALE);
+            if (agent.id === followedAgentId) followedWorldPos = { x: worldX, y: worldY };
           }
+        }
+
+        // Câmera trava na posição do agent seguido a cada frame, mantendo o zoom atual — parado
+        // durante um arrasto de verdade pra não brigar com o gesto do usuário.
+        if (followedWorldPos && !dragRef.current) {
+          cameraRef.current = { ...cameraRef.current, x: followedWorldPos.x, y: followedWorldPos.y };
         }
 
         const screen = app.screen;
@@ -363,6 +414,10 @@ export function SettlementStage({
         if (!drag.captured) {
           drag.captured = true;
           containerRef.current?.setPointerCapture(event.pointerId);
+          // Pedido do usuário 2026-08-26: arrastar o mapa pra longe de quem a câmera segue
+          // "desgruda" dele (some o anel, para de travar), sem des-seguir — segue como bookmark
+          // até o usuário clicar o nome de novo em "Followed" ou seguir outro agent.
+          followStore.detachCamera();
         }
       }
       cameraRef.current = panBy(drag.startCamera, dx / drag.startCamera.zoom, dy / drag.startCamera.zoom);
@@ -390,6 +445,7 @@ export function SettlementStage({
       buildingNodesRef.current.clear();
       interiorTransformsRef.current.clear();
       agentSpritesRef.current.clear();
+      followRingsRef.current.clear();
       agentLayerRef.current = null;
       try {
         app.destroy(true, { children: true });
@@ -413,7 +469,15 @@ export function SettlementStage({
   if (!settlement) return null;
 
   return (
-    <div data-testid="settlement-stage" ref={containerRef}>
+    <div data-testid="settlement-stage">
+      {/* Pixi é dono exclusivo deste nó (appendChild/replaceChildren direto no DOM) — bug real:
+       * quando o canvas dividia o mesmo container que o overlay renderizado pelo React, o
+       * `replaceChildren()` do cleanup apagava o <div> do overlay por baixo do React; na
+       * reconciliação seguinte o React tentava remover esse nó (que já não existia) e lançava
+       * `NotFoundError: removeChild`, não capturado, derrubando a subtree inteira — o overlay
+       * sumia mesmo com `focusedBuilding` correto. Canvas e overlay agora são irmãos, nunca o
+       * mesmo nó. */}
+      <div ref={containerRef} />
       {focusedBuilding && (
         <div data-testid="settlement-stage-overlay">
           <button type="button" data-testid="street-view-button" onClick={onBackgroundClick}>
