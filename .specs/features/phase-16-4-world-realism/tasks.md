@@ -131,10 +131,10 @@ usado por `ScenarioRunner`)
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] `AnimalSpeciesRules`/`PlantSpeciesRules` existem com os campos do Design
-- [ ] Teste gerado por reflexão (Fase 1) passa sem exigir classificação nova (confirma que
+- [x] `AnimalSpeciesRules`/`PlantSpeciesRules` existem com os campos do Design
+- [x] Teste gerado por reflexão (Fase 1) passa sem exigir classificação nova (confirma que
       nenhum campo canônico/volátil ficou sem categoria)
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Snapshot"`
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Snapshot"`
 
 **Tests**: unit
 **Gate**: quick
