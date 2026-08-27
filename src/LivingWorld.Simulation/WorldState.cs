@@ -744,8 +744,21 @@ public sealed class WorldState
     internal bool RemoveExtraordinaryConstruct(long id) =>
         _extraordinaryConstructs.RemoveAll(construct => construct.Id == id) > 0;
 
-    internal void AddEnvironmentTemperatureAdjustment(EnvironmentTemperatureAdjustment adjustment) =>
+    internal void AddEnvironmentTemperatureAdjustment(EnvironmentTemperatureAdjustment adjustment)
+    {
         _environmentTemperatureAdjustments.Add(adjustment);
+        CanonicalHashCache.MarkPropertyDirty(nameof(EnvironmentTemperatureAdjustments));
+    }
+
+    internal void ReplaceSeasonalEnvironmentTemperatureAdjustments(
+        IReadOnlyList<EnvironmentTemperatureAdjustment> replacements)
+    {
+        _environmentTemperatureAdjustments.RemoveAll(
+            adjustment => adjustment.UntilTick == Geography.TemperatureSeasonSystem.SeasonalUntilTick);
+        foreach (var adjustment in replacements)
+            _environmentTemperatureAdjustments.Add(adjustment);
+        CanonicalHashCache.MarkPropertyDirty(nameof(EnvironmentTemperatureAdjustments));
+    }
 
     internal void ReplaceExtraordinaryConstruct(ExtraordinaryConstruct construct)
     {

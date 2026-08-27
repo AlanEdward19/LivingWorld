@@ -1,6 +1,7 @@
 using LivingWorld.Domain;
 
 using LivingWorld.Simulation.Economy;
+using LivingWorld.Simulation.Geography;
 using LivingWorld.Simulation.History;
 using LivingWorld.Simulation.Narrative;
 using LivingWorld.Simulation.Periods;
@@ -67,6 +68,7 @@ public static class ScenarioRunner
         new SkillTeachingSystem(DefaultSkillsRules, DefaultLifeStageRules),
         new WorkHardeningSystem(),
         new ProductionSystem(DefaultSkillsRules),
+        new TemperatureSeasonSystem(),
         new CropSystem(),
         new MarketPricingSystem(),
         new WagePaymentSystem(),

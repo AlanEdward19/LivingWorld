@@ -155,11 +155,11 @@ mudança), `EnvironmentTemperatureAdjustments` (overlay existente)
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-12: célula sob 2 estações opostas lê temperatura diferente, sem nenhum poder ativo
-- [ ] AC REALISM-13: célula sem poder segue curva sazonal (não trava em valor único)
-- [ ] AC REALISM-14: delta de poder soma sobre o valor sazonal (não sobre base fixa)
-- [ ] AC REALISM-15: `CropSystem.ReadCellTemperature` lê o valor combinado sem mudança de assinatura
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology\|FullyQualifiedName~Extraordinary"`
+- [x] AC REALISM-12: célula sob 2 estações opostas lê temperatura diferente, sem nenhum poder ativo
+- [x] AC REALISM-13: célula sem poder segue curva sazonal (não trava em valor único)
+- [x] AC REALISM-14: delta de poder soma sobre o valor sazonal (não sobre base fixa)
+- [x] AC REALISM-15: `CropSystem.ReadCellTemperature` lê o valor combinado sem mudança de assinatura
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology\|FullyQualifiedName~Extraordinary"`
 
 **Tests**: unit
 **Gate**: quick
