@@ -25,6 +25,8 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
                 $"{construct.CreatorId.Value}|{construct.SourceInvocationId}|{construct.Id}|expired", sourceSystem: SystemName);
         }
 
+        ControlMechanic.ApplyPossessionResistance(world, ctx);
+
         foreach (var carrier in world.ExtraordinaryCarriers.OrderBy(item => item.CarrierId.Value).ToList())
         {
             if (world.FindNpc(carrier.CarrierId) is not { IsAlive: true } npc) continue;

@@ -139,4 +139,8 @@ public enum WorldEventKind
     /// <summary>Planta atingiu estágio de maturidade/produção (Fase 16.4, REALISM-07) —
     /// payload: plantId.</summary>
     PlantMatured,
+
+    /// <summary>Hospedeiro retomou controle de possessão (Fase 16.4, REALISM-33/34) —
+    /// payload: <c>hostId|possessorId|possession-resisted</c>.</summary>
+    PossessionResisted,
 }
