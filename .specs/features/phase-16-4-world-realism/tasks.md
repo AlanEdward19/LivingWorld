@@ -283,12 +283,14 @@ performance de busca por raio) é classificado no hasher.
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] Confirmado (comentário/teste) que `Plant` não precisa de campo novo
-- [ ] Se um índice novo foi adicionado a `WorldState`, está classificado no hasher
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Snapshot"`
+- [x] Confirmado (comentário/teste) que `Plant` não precisa de campo novo
+- [x] Se um índice novo foi adicionado a `WorldState`, está classificado no hasher
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Snapshot"`
 
 **Tests**: unit
 **Gate**: quick
+
+**Commit**: `feat(phase-16-4): confirm plant model needs no new fields`
 
 ---
 
