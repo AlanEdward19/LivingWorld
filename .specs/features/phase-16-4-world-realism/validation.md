@@ -40,8 +40,10 @@ Working tree restored after sensor. No surviving mutants.
 
 ```bash
 bash scripts/verify.sh
-dotnet test LivingWorld.sln --filter "FullyQualifiedName~WorldRealismCloseoutTests.Reference_scenario_hundred_years"
+dotnet test LivingWorld.sln --filter "FullyQualifiedName~WorldRealismCloseoutTests.Reference_scenario_ten_years"
 ```
+
+(AD-029: closeout 16.4 = 10 anos; 100 anos fica no objetivo #1.)
 
 ## Commits (feature)
 
