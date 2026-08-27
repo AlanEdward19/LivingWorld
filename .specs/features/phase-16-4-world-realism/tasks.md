@@ -636,10 +636,10 @@ confirma que `PerfRules.MaxMicrosPerAliveNpcTick`/`MaxBytesAllocPerTick` não s�
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] Sensor confirma que fauna/flora em massa não fura o teto já fixado na Fase 9
-- [ ] Se o teto for furado, sistema degrada por decaimento preguiçoso (não trava o tick) —
-      testado explicitamente
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Performance"`
+- [x] Sensor confirma que fauna/flora em massa não fura o teto já fixado na Fase 9
+- [x] Se o teto for furado, sistema degrada por decaimento preguiçoso (não trava o tick) —
+      testado explicitamente (`MaxAliveFauna`/`MaxAliveFlora` + LazyNeed; tetos PerfRules OK)
+- [x] Gate: `Category!=Scenario&FullyQualifiedName~ScaleScenarioSensor` (AD-009; evita bare `~Performance`)
 
 **Tests**: integration
 **Gate**: full
@@ -662,16 +662,25 @@ precise de flags novas pra habilitar fauna/flora, o que é edição de config)
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
+- [x] Smoke agente: cenário default semeia ecologia (0 poderes); fome/estágios variam em 1 mês
+      (`WorldRealismCloseoutTests`) — Independent T6/T9 cobrem reprodução
 - [ ] Cenário de 100 anos com fauna/flora/temperatura habilitadas e 0 poderes ativos termina
       sem travar; log mostra população de fauna e estágios de flora variando
-- [ ] `bash scripts/verify.sh` sai 0
-- [ ] Nenhuma das 5 mecânicas antes "ocas" continua com o gap específico citado pelo revisor
-      (checklist manual contra o Success Criteria do spec)
+      — **USER**: `dotnet test --filter "FullyQualifiedName~WorldRealismCloseoutTests.Reference_scenario_hundred_years"`
+- [ ] `bash scripts/verify.sh` sai 0 — **USER (AD-009)**
+- [x] Checklist 5 mecânicas antes ocas fechadas: combate multi-round; clone/split/reincarnate
+      herança; foresight→utility; possession resist; autonomous ecology
 
 **Tests**: none (execução de cenário + gate)
 **Gate**: build
 
 **Commit**: `feat(phase-16-4): fecha fase — realismo autônomo de fauna/flora/clima e mecânicas aprofundadas`
+
+**User verify commands (AD-009 — do not run as agent)**:
+```bash
+bash scripts/verify.sh
+dotnet test LivingWorld.sln --filter "FullyQualifiedName~WorldRealismCloseoutTests.Reference_scenario_hundred_years"
+```
 
 ---
 

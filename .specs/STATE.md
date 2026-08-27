@@ -241,21 +241,38 @@
 - **Date**: 2026-08-26
 - **Status**: active
 
+### AD-028
+- **Decision**: Regravar entrada 1k de `tests/baselines/scale-sensor.json` no closeout da
+  Fase 16.4 (T21); manter entrada 5k (Category=Scenario) da baseline anterior.
+- **Reason**: Drift de `BytesPerAliveNpcPerYear` (~121306 → ~123260) já existia na branch
+  antes de semear fauna/flora em massa no fixture de escala (canônicos 16.4 + sistemas de
+  ecologia no `DefaultSystems`). Após T21, o fixture também semeia N=pop/5 animais/plantas
+  (reprodução/predação desligadas no braço de escala — custo O(n), não O(n²)). Não é
+  regressão de teto absoluto: `PerfRules.ScaleSensorInitial` continua válido. Mesmo padrão
+  AD-014..017.
+- **Trade-off**: Disco/alloc por NPC-ano sobe levemente na amostra 1k; 5k não foi re-medido
+  neste closeout (custo multi-10min, fora do gate padrão).
+- **Scope**: Fase 16.4 T21 — `tests/baselines/scale-sensor.json` (chave `"1000"`).
+- **Date**: 2026-08-27
+- **Status**: active
+
 ## Handoff
 
-- **Feature**: Fase 16.4 World Realism — **Execute started** (2026-08-26)
-- **Branch**: `feat/phase-16-4-world-realism` (from primary with 16.3 cohesion merged)
+- **Feature**: Fase 16.4 World Realism — **Execute complete pending user verify** (2026-08-27)
+- **Branch**: `feat/phase-16-4-world-realism`
 - **Spec**: `.specs/features/phase-16-4-world-realism/{spec,design,tasks}.md`
-- **Rule**: `rules/living-world-cohesion.md` (permanent — systems must have causal consumers)
-- **Mode**: sub-agentes por fase (user confirmed); commits atômicos por task; AD-009 (full verify só usuário)
-- **Last**: setup commit `74725bf` (cohesion rule); Phase 1 (T1–T2) dispatching
-- **WIP reference only** (do not merge blindly): worktree `LivingWorld-16-3` / `62a2e13` + uncommitted — old name 16.3
-- **Blockers**: none
-- **Prior**: Fase 16.3 Living World Cohesion MERGED — audit `docs/audits/living-world-cohesion-audit.md`, validation PASS 35/35 COH
+- **Last**: Phase 8 (T21–T22) agent part done — scale sensor + closeout smoke
+- **User must run (AD-009)**:
+  1. `bash scripts/verify.sh`
+  2. Full 100yr: `dotnet test --filter "FullyQualifiedName~WorldRealismCloseoutTests.Reference_scenario_hundred_years"`
+     (or `Category=Scenario` suite if preferred)
+- **Blockers**: none (gate final só usuário)
+- **Prior**: Phases 1–7 done; T19–T20 possession committed
 
 ---
 
 ### Histórico — pausa paralelismo / gate hygiene (pré-16.3 Execute)
+
 
 - **Execução paralela PAUSADA (2026-08-25 19:46)**: STOP.json ativo em todos worktrees.
   Locks liberados. Ver `.specs/parallel-execution/STATUS.md` + progress files antes de retomar.
