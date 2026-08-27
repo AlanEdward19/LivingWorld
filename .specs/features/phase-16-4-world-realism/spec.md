@@ -357,14 +357,14 @@ no mesmo seed/cenário.
 
 ## Success Criteria
 
-- [ ] Mundo com fauna/flora/temperatura habilitadas e **0 poderes ativos**, rodado por **10
+- [x] Mundo com fauna/flora/temperatura habilitadas e **0 poderes ativos**, rodado por **10
       anos** no cenário de referência (AD-029; 100 anos fica no objetivo #1 / LifeTable),
       termina sem travar e com população de fauna/estágios de flora variando de forma
       auditável no log — não estática.
-- [ ] `bash scripts/verify.sh` permanece verde (0 falhas novas) com fauna/flora/clima/combate
+- [x] `bash scripts/verify.sh` permanece verde (0 falhas novas) com fauna/flora/clima/combate
       por round/instanciação-com-herança/foresight-informando-decisão/possessão-com-resistência
       todos cobertos por teste.
-- [ ] Sensor de custo por NPC-tick (Fase 9) confirma que fauna/flora em massa não fura o
+- [x] Sensor de custo por NPC-tick (Fase 9) confirma que fauna/flora em massa não fura o
       teto já fixado — nenhuma regressão de performance no cenário de referência.
-- [ ] Nenhuma das 5 mecânicas antes "ocas" (clone/split/reincarnate, foresight, possessão)
+- [x] Nenhuma das 5 mecânicas antes "ocas" (clone/split/reincarnate, foresight, possessão)
       continua com o gap específico citado pelo revisor.
