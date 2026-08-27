@@ -46,13 +46,14 @@ public sealed class CombatMechanic : ExtraordinaryMechanic
             int baseCapacity = (int)Math.Clamp(
                 Math.Round(attacker.Vitality / 10d + attacker.RateGene.Value * 5d), 0, 20);
             int strengthBonus = (int)Math.Round((AttributeMechanic.StrengthMultiplier(world, attacker) - 1) * 10);
+            int bodyBonus = (int)Math.Round((BodyMechanic.CombatOffenseMultiplier(world, attacker) - 1) * 10);
             int capacity = LuckMechanic.AdjustCapacity(
-                world, attacker, tick.CurrentTick, baseCapacity + strengthBonus);
+                world, attacker, tick.CurrentTick, baseCapacity + strengthBonus + bodyBonus);
             string stream =
                 $"combat-strike-{attacker.Id.Value}-{target.Id.Value}-{invocation.InvocationId}";
             var resolution = Resolver.Resolve(
                 difficulty, capacity, VarianceProfile.Dramatico("extraordinary"), tick.Rng(stream));
-            int damage = DamageOf(magnitude, resolution);
+            int damage = ApplyBodyToDamage(world, target, DamageOf(magnitude, resolution));
             target.SetHealth(ExtraordinaryMechanicSupport.ClampNeed((long)target.Health - damage));
             tick.LogEvent(
                 WorldEventKind.CombatResolved,
@@ -84,4 +85,14 @@ public sealed class CombatMechanic : ExtraordinaryMechanic
         ResolutionResult.PartialSuccess => ExtraordinaryMechanicSupport.HalfAwayFromZero(magnitude),
         _ => 0,
     };
+
+    /// <summary>Aplica <see cref="BodyMechanic.CombatDamageTakenMultiplier"/> ao dano bruto
+    /// (Height/Weight do alvo). 0 permanece 0.</summary>
+    internal static int ApplyBodyToDamage(WorldState world, Npc target, int rawDamage)
+    {
+        if (rawDamage <= 0)
+            return 0;
+        double taken = BodyMechanic.CombatDamageTakenMultiplier(world, target);
+        return Math.Max(0, (int)Math.Round(rawDamage * taken));
+    }
 }

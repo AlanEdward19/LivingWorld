@@ -7,9 +7,10 @@ namespace LivingWorld.Simulation;
 /// <c>WorldState × Npc → double</c>, neutro 1.0 quando <see cref="BodyRules.Enabled"/>
 /// é falso.</summary>
 /// <remarks>
-/// FUTURE_DEPENDENCY (COH-25 / P3 T34 audit): Height/Weight/MuscleMass ainda não têm
-/// consumidores em equipment compatibility nem combat — documentado aqui para o relatório
-/// de auditoria, não implementados como stub sem uso.
+/// Consumidores: trabalho (<see cref="WorkCapacityMultiplier"/>), deslocamento
+/// (<see cref="MovementCostMultiplier"/>), combate
+/// (<see cref="CombatOffenseMultiplier"/> / <see cref="CombatDamageTakenMultiplier"/>).
+/// Equipment compatibility permanece FUTURE_DEPENDENCY (sem sistema de equipamento ainda).
 /// </remarks>
 public static class BodyMechanic
 {
@@ -30,6 +31,11 @@ public static class BodyMechanic
         return 1.0 + 0.5 * ((npc.MuscleMass - mean) / mean);
     }
 
+    /// <summary>Ofensa em combate — reusa a curva de MuscleMass de
+    /// <see cref="WorkCapacityMultiplier"/> (mesmo atributo causal, outro consumidor).</summary>
+    public static double CombatOffenseMultiplier(WorldState world, Npc npc) =>
+        WorkCapacityMultiplier(world, npc);
+
     /// <summary>Custo de movimento: cresce com Weight/Height acima da média; 1.0 no mean;
     /// neutro se BodyRules desabilitado.</summary>
     public static double MovementCostMultiplier(WorldState world, Npc npc)
@@ -43,6 +49,22 @@ public static class BodyMechanic
         double weightFactor = 0.3 * ((npc.Weight - weightMean) / weightMean);
         double heightFactor = 0.2 * ((npc.Height - heightMean) / heightMean);
         return Math.Max(0.1, 1.0 + weightFactor + heightFactor);
+    }
+
+    /// <summary>Dano recebido: massa/altura acima da média absorvem um pouco mais
+    /// (multiplicador &lt; 1); abaixo da média sofrem mais. Neutro 1.0 se BodyRules off
+    /// ou no mean. Clamp [0.5, 1.5].</summary>
+    public static double CombatDamageTakenMultiplier(WorldState world, Npc npc)
+    {
+        var rules = world.BodyRules;
+        if (!rules.Enabled)
+            return 1.0;
+
+        double weightMean = Math.Max(rules.WeightMean, 1e-9);
+        double heightMean = Math.Max(rules.HeightMean, 1e-9);
+        double weightFactor = 0.2 * ((npc.Weight - weightMean) / weightMean);
+        double heightFactor = 0.1 * ((npc.Height - heightMean) / heightMean);
+        return Math.Clamp(1.0 - weightFactor - heightFactor, 0.5, 1.5);
     }
 
     /// <summary>COH-24: incrementa <see cref="Npc.MuscleMass"/> lentamente após trabalho
