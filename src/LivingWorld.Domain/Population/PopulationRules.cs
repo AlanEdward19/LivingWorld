@@ -8,10 +8,18 @@ public sealed record PopulationRules(
     int FertilityMinAge,
     int FertilityMaxAge,
     double AnnualConceptionChance,
-    int GestationDays)
+    int GestationDays,
+    /// <summary>Teto de NPCs vivos (natalidade + split-on-death). Default
+    /// <see cref="int.MaxValue"/> = sem teto (comportamento legado).</summary>
+    int MaxAliveNpcs = int.MaxValue)
 {
     public static Result<PopulationRules> Create(
-        LifeTable lifeTable, int fertilityMinAge, int fertilityMaxAge, double annualConceptionChance, int gestationDays)
+        LifeTable lifeTable,
+        int fertilityMinAge,
+        int fertilityMaxAge,
+        double annualConceptionChance,
+        int gestationDays,
+        int maxAliveNpcs = int.MaxValue)
     {
         if (fertilityMinAge < 0 || fertilityMaxAge < fertilityMinAge)
             return Result<PopulationRules>.Fail("FertilityMinAge/FertilityMaxAge: janela inválida");
@@ -19,10 +27,16 @@ public sealed record PopulationRules(
             return Result<PopulationRules>.Fail("AnnualConceptionChance: fora de [0,1]");
         if (gestationDays <= 0)
             return Result<PopulationRules>.Fail("GestationDays: deve ser positivo");
+        if (maxAliveNpcs <= 0)
+            return Result<PopulationRules>.Fail("MaxAliveNpcs: deve ser > 0");
 
         return Result<PopulationRules>.Ok(
-            new PopulationRules(lifeTable, fertilityMinAge, fertilityMaxAge, annualConceptionChance, gestationDays));
+            new PopulationRules(
+                lifeTable, fertilityMinAge, fertilityMaxAge, annualConceptionChance, gestationDays, maxAliveNpcs));
     }
 
     public bool IsFertileAge(int ageYears) => ageYears >= FertilityMinAge && ageYears <= FertilityMaxAge;
+
+    /// <summary>Quantos novos vivos ainda cabem sob o teto, dado o número atual de vivos.</summary>
+    public int RemainingAliveSlots(int currentAlive) => Math.Max(0, MaxAliveNpcs - currentAlive);
 }

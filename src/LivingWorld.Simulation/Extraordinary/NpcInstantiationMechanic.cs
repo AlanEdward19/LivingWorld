@@ -15,10 +15,19 @@ public static class NpcInstantiationMechanic
             return;
 
         int split = DeclaredMagnitudeSum(world, npc, "npc.split-on-death:");
-        // REALISM-27: cada filho herda fração proporcional 1/N (não skill completa duplicada).
+        // OnCarrierDeath roda antes de Die — o moribundo ainda está no AliveNpcIndex;
+        // após a morte sobra (alive - 1) e o teto libera RemainingAliveSlots(alive - 1).
+        int aliveIncludingDying = world.AliveNpcIndex.Alive.Count;
+        int allowed = Math.Min(
+            split, world.PopulationRules.RemainingAliveSlots(aliveIncludingDying - 1));
+        if (allowed < split)
+            RecordSplitCapCut(world, ctx, npc.Id, requested: split, allowed: allowed);
+
+        // REALISM-27: cada filho herda fração proporcional 1/N do pedido original (não do allowed),
+        // pra skill refletir a divisão declarada mesmo quando o teto corta nascimentos.
         double splitWeight = split > 0 ? 1.0 / split : 0.0;
-        var splitIds = new List<NpcId>(split);
-        for (int i = 0; i < split; i++)
+        var splitIds = new List<NpcId>(allowed);
+        for (int i = 0; i < allowed; i++)
             splitIds.Add(InstantiateCopy(world, ctx, npc, "split-on-death", skillWeight: splitWeight).Id);
         // REALISM-29: Preserve — cada novo NPC mantém os vínculos originais (explícito, não omissão).
         NpcInstantiationHeredity.TransferBonds(world, npc, splitIds, BondTransferMode.Preserve);
@@ -129,6 +138,21 @@ public static class NpcInstantiationMechanic
             Mix(donor.Altruism, baseline.Altruism),
             Mix(donor.Impulsivity, baseline.Impulsivity),
             Mix(donor.RiskAversion, baseline.RiskAversion)).Value!;
+    }
+
+    private static void RecordSplitCapCut(
+        WorldState world, TickContext ctx, NpcId sourceId, int requested, int allowed)
+    {
+        string payload = $"{sourceId.Value}|{requested}|{allowed}|split-cap";
+        ctx.LogEvent(WorldEventKind.NpcInstantiated, payload, sourceSystem: "NpcInstantiationMechanic");
+        world.AddFact(new Fact(
+            world.NextFactIdAndAdvance(),
+            ctx.CurrentTick,
+            WorldEventKind.NpcInstantiated,
+            [sourceId],
+            null,
+            1.0,
+            payload));
     }
 
     private static NpcId AllocateNpcId(WorldState world)

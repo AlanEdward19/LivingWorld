@@ -29,6 +29,11 @@ public sealed class NatalitySystem : ISimulationSystem
             if (father is null)
                 continue;
 
+            // Mesmo teto de população viva usado por split-on-death (fase 16.4).
+            int alive = world.AliveNpcIndex.Alive.Count;
+            if (world.PopulationRules.RemainingAliveSlots(alive) <= 0)
+                continue;
+
             if (!MeetsConceptionFloors(world, mother, father, familyRules))
                 continue;
 
@@ -83,6 +88,10 @@ public sealed class NatalitySystem : ISimulationSystem
                 sourceSystem: "NatalitySystem");
             return;
         }
+
+        // Teto de população viva (compartilhado com split-on-death).
+        if (world.PopulationRules.RemainingAliveSlots(world.AliveNpcIndex.Alive.Count) <= 0)
+            return;
 
         var sex = ctx.Rng($"natality-sex-{motherId.Value}-{evt.Id}").NextDouble() < 0.5 ? Sex.Female : Sex.Male;
         var babyId = world.NextNpcIdAndAdvance();

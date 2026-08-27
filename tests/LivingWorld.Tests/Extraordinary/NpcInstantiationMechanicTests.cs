@@ -134,6 +134,32 @@ public sealed class NpcInstantiationMechanicTests
     }
 
     [Fact]
+    public void Split_on_death_is_capped_to_live_population_ceiling_and_records_fact()
+    {
+        // WorldWithPower: carrier + target = 2 vivos. Cap=2 → após morte sobra 1 slot → 1 de 3.
+        var (world, carrier, _, _) = WorldWithPower(["npc.split-on-death:3"], mode: "Passive", maxAliveNpcs: 2);
+        var sink = new RecordingSink();
+        var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
+        int livingBefore = world.Npcs.Count(npc => npc.IsAlive);
+        Assert.Equal(2, livingBefore);
+
+        NpcDeath.Apply(world, ctx, carrier, WorldEventKind.Death);
+
+        Assert.Equal(2, world.Npcs.Count(npc => npc.IsAlive)); // target + 1 split
+        Assert.Single(world.Npcs, npc => npc.IsAlive && npc.Id != new NpcId(2));
+        Assert.Contains(
+            sink.Events,
+            evt => evt.Kind == WorldEventKind.NpcInstantiated
+                   && evt.Payload.Contains("|split-cap", StringComparison.Ordinal)
+                   && evt.Payload.StartsWith($"{carrier.Id.Value}|3|1|", StringComparison.Ordinal));
+        Assert.Contains(
+            world.Facts,
+            fact => fact.Kind == WorldEventKind.NpcInstantiated
+                    && fact.Payload.Contains("|split-cap", StringComparison.Ordinal)
+                    && fact.Payload.Contains("|3|1|", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Split_on_death_instantiates_exactly_n_npcs_at_death_never_before_or_after()
     {
         var (world, carrier, _, _) = WorldWithPower(["npc.split-on-death:3"], mode: "Passive");
@@ -198,16 +224,20 @@ public sealed class NpcInstantiationMechanicTests
     }
 
     private static (WorldState World, Npc Carrier, Npc Target, Household Home) WorldWithPower(
-        IReadOnlyList<string> effects, string mode = "Active")
+        IReadOnlyList<string> effects, string mode = "Active", int maxAliveNpcs = int.MaxValue)
     {
         var descriptor = new PowerDescriptor(
             "test-power", "test-source", effects, mode, [], "Guaranteed", [], [], [], []);
         var state = new ExtraordinaryCarrierState(
             new NpcId(1), [descriptor.Id], true, "active",
             new ExtraordinaryAppearanceState(2.5, "ash", "trail"), null, 1);
+        var populationRules = maxAliveNpcs == int.MaxValue
+            ? ScenarioRunner.DefaultPopulationRules
+            : PopulationRules.Create(
+                ScenarioRunner.DefaultPopulationRules.LifeTable, 16, 45, 0.25, 270, maxAliveNpcs).Value!;
         var world = new WorldState(
             ScenarioRunner.DefaultCalendar, 42, ScenarioRunner.DefaultMap(42),
-            ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
+            ScenarioRunner.DefaultPopulationCatalog, populationRules,
             ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules,
             extraordinary: new ExtraordinaryScenarioData(true, [descriptor]), extraordinaryCarriers: [state]);

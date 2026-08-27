@@ -512,9 +512,9 @@ reprodução normal; corte registrado em `Fact`.
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] Split que excederia o teto é cortado a N, sem estourar memória
-- [ ] `Fact` registra o corte
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary\|FullyQualifiedName~Performance"`
+- [x] Split que excederia o teto é cortado a N, sem estourar memória
+- [x] `Fact` registra o corte
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary\|FullyQualifiedName~Performance"`
 
 **Tests**: unit
 **Gate**: full
