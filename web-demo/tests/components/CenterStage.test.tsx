@@ -1,10 +1,18 @@
-import { describe, expect, it } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { CenterStage } from "../../src/components/CenterStage";
 import { NavigationStore } from "../../src/nav/NavigationStore";
 import { WORLD_FIXTURE } from "../../src/fixture/oakbridge";
 
-const OAKBRIDGE = WORLD_FIXTURE.settlements.find((s) => s.id === "oakbridge")!;
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(0);
+});
+
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 describe("CenterStage — world route", () => {
   it("shows the world-level map; clicking Oakbridge's marker navigates to it", () => {
@@ -14,49 +22,77 @@ describe("CenterStage — world route", () => {
     fireEvent.click(screen.getAllByTestId("settlement-marker")[oakbridgeIndex]);
     expect(nav.current()).toEqual({ kind: "settlement", id: "oakbridge" });
   });
-});
 
-describe("CenterStage — settlement route", () => {
-  it("defaults to the district-level map (buildings, no NPC)", () => {
+  it("clicking an agent's dot at world level navigates to them too (AD-018: NPCs never disappear)", () => {
     const nav = new NavigationStore(WORLD_FIXTURE);
-    const { container } = render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "settlement", id: "oakbridge" }} />);
-    expect(container.querySelectorAll("polygon")).toHaveLength(OAKBRIDGE.buildings.length * 3);
-    expect(container.querySelectorAll("img")).toHaveLength(0);
-  });
-
-  it("switching to Agent view and clicking Mira navigates to her, same as any other path (spec P1b AC4)", () => {
-    const nav = new NavigationStore(WORLD_FIXTURE);
-    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "settlement", id: "oakbridge" }} />);
-    fireEvent.click(screen.getByText("Agent view"));
-    const oakbridgeAgents = WORLD_FIXTURE.agents.filter((a) => a.settlementId === "oakbridge");
-    const miraIndex = oakbridgeAgents.findIndex((a) => a.id === "mira-valen");
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "world" }} />);
+    const miraIndex = WORLD_FIXTURE.agents.findIndex((a) => a.id === "mira-valen");
     fireEvent.click(screen.getAllByTestId("agent-marker")[miraIndex]);
     expect(nav.current()).toEqual({ kind: "agent", id: "mira-valen" });
   });
 });
 
-describe("CenterStage — household route", () => {
-  it("shows the household's settlement map (district level)", () => {
+// Settlement/household/agent/building routes all mount the SAME `SettlementStage` (Canvas/Pixi,
+// AD-020) scoped to the right settlement — deep Pixi-scene assertions (buildings/agents/roof
+// cutaway/clicks) live in tests/render/SettlementStage.test.tsx, not here. CenterStage's own
+// job is just "pick the right settlement id for this route", so that's all these test.
+describe("CenterStage — settlement-scoped routes mount SettlementStage for the right settlement", () => {
+  it("settlement route", () => {
     const nav = new NavigationStore(WORLD_FIXTURE);
-    const { container } = render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "household", id: "valen-household" }} />);
-    expect(container.querySelectorAll("polygon")).toHaveLength(OAKBRIDGE.buildings.length * 3);
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "settlement", id: "oakbridge" }} />);
+    expect(screen.getByTestId("settlement-stage")).toBeInTheDocument();
+  });
+
+  it("household route resolves to the household's settlement", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    const household = WORLD_FIXTURE.households.find((h) => h.id === "valen-household")!;
+    expect(household.settlementId).toBe("oakbridge");
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "household", id: "valen-household" }} />);
+    expect(screen.getByTestId("settlement-stage")).toBeInTheDocument();
+  });
+
+  it("agent route resolves to the agent's own settlement", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "agent", id: "mira-valen" }} />);
+    expect(screen.getByTestId("settlement-stage")).toBeInTheDocument();
+  });
+
+  it("building route resolves to the settlement that owns the building, focused on it", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "building", id: "bld-valen-house" }} />);
+    expect(screen.getByTestId("settlement-stage-overlay")).toBeInTheDocument();
+    expect(screen.getByTestId("focused-building-name")).toHaveTextContent("Valen House");
+  });
+
+  it("clicking the street-view button while on a building route returns to the settlement (AD-021: replace, not push)", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    nav.push({ kind: "settlement", id: "oakbridge" });
+    nav.push({ kind: "building", id: "bld-valen-house" });
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={nav.current()} />);
+    fireEvent.click(screen.getByTestId("street-view-button"));
+    expect(nav.current()).toEqual({ kind: "settlement", id: "oakbridge" });
   });
 });
 
-describe("CenterStage — agent route", () => {
-  it("shows the agent-level map of the agent's own settlement", () => {
-    const nav = new NavigationStore(WORLD_FIXTURE);
-    const { container } = render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "agent", id: "mira-valen" }} />);
-    const oakbridgeAgents = WORLD_FIXTURE.agents.filter((a) => a.settlementId === "oakbridge");
-    expect(container.querySelectorAll("img")).toHaveLength(oakbridgeAgents.length);
-  });
-});
-
-describe("CenterStage — replaces the map for causal/timeline/life/feed/threads", () => {
-  it("shows the Causal Explorer for a causal route", () => {
+// AD-021: causal/timeline/life/feed/threads open as a panel OVER the map — the map (world or
+// settlement) stays mounted underneath the whole time. User feedback: losing the city/NPC view
+// to check "Why?"/Timeline was disorienting.
+describe("CenterStage — causal/timeline/life/feed/threads open as an overlay, map stays visible", () => {
+  it("shows the Causal Explorer for a causal route, with the world map still mounted underneath", () => {
     const nav = new NavigationStore(WORLD_FIXTURE);
     render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "causal", eventId: "evt-grain-prices-rose" }} />);
     expect(screen.getByTestId("causal-explorer")).toBeInTheDocument();
+    expect(screen.getByTestId("semantic-zoom-map")).toBeInTheDocument();
+    expect(screen.getByTestId("center-stage-overlay-backdrop")).toBeInTheDocument();
+  });
+
+  it("shows the settlement map underneath when the overlay was opened while a settlement was focused", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    nav.push({ kind: "settlement", id: "oakbridge" });
+    nav.push({ kind: "causal", eventId: "evt-grain-prices-rose" });
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={nav.current()} />);
+    expect(screen.getByTestId("causal-explorer")).toBeInTheDocument();
+    expect(screen.getByTestId("settlement-stage")).toBeInTheDocument();
   });
 
   it("shows the Timeline for a timeline route", () => {
@@ -81,5 +117,43 @@ describe("CenterStage — replaces the map for causal/timeline/life/feed/threads
     const nav = new NavigationStore(WORLD_FIXTURE);
     render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "threads" }} />);
     expect(screen.getByTestId("story-threads")).toBeInTheDocument();
+  });
+
+  it("closing via the X button calls nav.back()", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    nav.push({ kind: "causal", eventId: "evt-grain-prices-rose" });
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={nav.current()} />);
+    fireEvent.click(screen.getByTestId("center-stage-overlay-close"));
+    expect(nav.current()).toEqual({ kind: "world" });
+  });
+
+  it("closing via a backdrop click calls nav.back()", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    nav.push({ kind: "causal", eventId: "evt-grain-prices-rose" });
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={nav.current()} />);
+    fireEvent.click(screen.getByTestId("center-stage-overlay-backdrop"));
+    expect(nav.current()).toEqual({ kind: "world" });
+  });
+
+  it("clicking inside the overlay panel itself does not close it", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    nav.push({ kind: "causal", eventId: "evt-grain-prices-rose" });
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={nav.current()} />);
+    fireEvent.click(screen.getByTestId("center-stage-overlay-panel"));
+    expect(nav.current()).toEqual({ kind: "causal", eventId: "evt-grain-prices-rose" });
+  });
+
+  it("pressing Escape closes the overlay", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    nav.push({ kind: "causal", eventId: "evt-grain-prices-rose" });
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={nav.current()} />);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(nav.current()).toEqual({ kind: "world" });
+  });
+
+  it("does not show the overlay backdrop for spatial routes", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "world" }} />);
+    expect(screen.queryByTestId("center-stage-overlay-backdrop")).not.toBeInTheDocument();
   });
 });

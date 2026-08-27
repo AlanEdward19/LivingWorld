@@ -11,6 +11,7 @@ public static class MonotonicFields
     public static readonly IReadOnlyList<(string Name, Func<WorldState, long> Read)> WorldCounters =
     [
         ("NextEventId", w => w.NextEventId),
+        ("NextHistoryEventId", w => w.NextHistoryEventId),
         ("NextNpcId", w => w.NextNpcId),
         ("NextHouseholdId", w => w.NextHouseholdId),
     ];

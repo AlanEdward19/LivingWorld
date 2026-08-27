@@ -91,6 +91,36 @@ public class WorldClockTests
         Assert.Equal(system.Name, ex.SystemName);
     }
 
+    /// <summary>COH-63 / doc#81: ciclo de PRODUÇÃO A→B→A no mesmo tick — guard de
+    /// <see cref="WorldClock"/> (<c>maxIterationsPerTick</c>) já cobre; distinto do
+    /// <see cref="CausalChainTooDeepException"/> de proveniência (T4).</summary>
+    [Fact]
+    public void Production_cycle_A_B_A_aborts_deterministically_naming_culprit()
+    {
+        var calendar = new WorldCalendar(HoursPerDay: 24, DaysPerMonth: 30, MonthsPerYear: 12);
+        var world = new WorldState(
+            calendar, seed: 1, ScenarioRunner.DefaultMap(1), ScenarioRunner.DefaultPopulationCatalog,
+            ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
+            ScenarioRunner.DefaultLifeStageRules);
+        var a = new PingPongSystem("system-A", peer: "system-B");
+        var b = new PingPongSystem("system-B", peer: "system-A");
+        var clock = new WorldClock([a, b], maxIterationsPerTick: 8);
+
+        var first = Assert.Throws<TickBudgetExceededException>(() => clock.Run(world, ticks: 1));
+        Assert.Contains(first.SystemName, new[] { a.Name, b.Name });
+        Assert.Contains("8", first.Message, StringComparison.Ordinal);
+
+        // Mesma seed / mesmo setup → mesmo culpado (determinístico).
+        var world2 = new WorldState(
+            calendar, seed: 1, ScenarioRunner.DefaultMap(1), ScenarioRunner.DefaultPopulationCatalog,
+            ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
+            ScenarioRunner.DefaultLifeStageRules);
+        var second = Assert.Throws<TickBudgetExceededException>(
+            () => new WorldClock([a, b], maxIterationsPerTick: 8).Run(world2, ticks: 1));
+        Assert.Equal(first.SystemName, second.SystemName);
+        Assert.Equal(first.Message, second.Message);
+    }
+
     private sealed class RecordingSystem(string name, TickFrequency frequency, List<string> order) : ISimulationSystem
     {
         public string Name => name;
@@ -115,5 +145,19 @@ public class WorldClockTests
             if (rescheduleForever)
                 ctx.ScheduleEvent(evt.TargetTick, Name);
         }
+    }
+
+    /// <summary>No Tick agenda o peer no mesmo tick; no HandleEvent reagenda o peer —
+    /// produz ciclo A→B→A… até o iteration budget.</summary>
+    private sealed class PingPongSystem(string name, string peer) : ISimulationSystem
+    {
+        public string Name => name;
+        public TickFrequency Frequency => TickFrequency.Hourly;
+
+        public void Tick(WorldState world, TickContext ctx) =>
+            ctx.ScheduleEvent(ctx.CurrentTick, peer);
+
+        public void HandleEvent(WorldState world, TickContext ctx, ScheduledEvent evt) =>
+            ctx.ScheduleEvent(ctx.CurrentTick, peer);
     }
 }

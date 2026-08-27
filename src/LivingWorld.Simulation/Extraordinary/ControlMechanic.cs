@@ -85,7 +85,7 @@ public sealed class ControlMechanic : ExtraordinaryMechanic
         var mine = npc.Personality;
         npc.RewritePersonality(partner.Personality);
         partner.RewritePersonality(mine);
-        ctx.LogEvent(WorldEventKind.IdentityChanged, $"{npc.Id.Value}|{partnerId.Value}|body-swap-revert");
+        ctx.LogEvent(WorldEventKind.IdentityChanged, $"{npc.Id.Value}|{partnerId.Value}|body-swap-revert", sourceSystem: "ControlMechanic");
         ClearSwap(world, npc.Id);
         ClearSwap(world, partnerId);
     }
@@ -136,7 +136,7 @@ public sealed class ControlMechanic : ExtraordinaryMechanic
                 BodySwapPartner = carrier.Id,
                 ImpersonatingId = carrier.Id,
             });
-            tick.LogEvent(WorldEventKind.IdentityChanged, $"{carrier.Id.Value}|{target.Id.Value}|body-swap");
+            tick.LogEvent(WorldEventKind.IdentityChanged, $"{carrier.Id.Value}|{target.Id.Value}|body-swap", sourceSystem: "ControlMechanic");
         }));
     }
 

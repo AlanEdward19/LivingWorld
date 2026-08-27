@@ -15,10 +15,15 @@ public sealed class WorldState
     private readonly WorldRngRegistry _rng;
     private readonly EventScheduler _scheduler;
     private long _nextEventId;
+    private long _nextHistoryEventId;
 
     [Canonical] public WorldCalendar Calendar { get; }
     [Canonical] public WorldDate CurrentDate { get; internal set; }
     [Canonical] public long NextEventId => _nextEventId;
+
+    /// <summary>Contador monotônico de <see cref="WorldEvent.EventId"/> (COH-01 / AD-013) —
+    /// irmão de <see cref="NextEventId"/>; nunca reaproveita o contador de <c>ScheduledEvent</c>.</summary>
+    [Canonical] public long NextHistoryEventId => _nextHistoryEventId;
 
     /// <summary>Linha temporal deste mundo (ADR-0009). O hash canônico é por branch: dois
     /// branches com conteúdo idêntico têm hashes distintos.</summary>
@@ -76,6 +81,11 @@ public sealed class WorldState
     /// <see cref="NeedsRules"/>/<see cref="EconomyRules"/>: cenário-driven, entra no hash canônico
     /// porque decide todo evento de relação/cortejo/concepção.</summary>
     [Canonical] public FamilyRules FamilyRules { get; }
+
+    /// <summary>Parâmetros cenário-driven do corpo mínimo causal (Fase 16.3, COH-21) —
+    /// distribuição de Height/Weight/MuscleMass. <see cref="BodyRules.Enabled"/> falso
+    /// mantém os campos gerados mas multiplicadores de BodyMechanic neutros 1.0.</summary>
+    [Canonical] public BodyRules BodyRules { get; }
 
     // SPEC_DEVIATION (Fase 8, T9): design.md/tasks.md pressupõem `world.CityRules`/
     // `world.CityCatalog` (todo sistema da Fase 8 lê threshold/receita por eles), mas T1-T8
@@ -350,6 +360,7 @@ public sealed class WorldState
         PopulationCatalog populationCatalog, PopulationRules populationRules,
         NeedsRules needsRules, ActionCatalog actionCatalog, LifeStageRules lifeStageRules, BranchId branchId = default,
         EconomyRules? economyRules = null, EconomyCatalog? economyCatalog = null, FamilyRules? familyRules = null,
+        BodyRules? bodyRules = null,
         CityRules? cityRules = null, CityCatalog? cityCatalog = null, PerfRules? perfRules = null,
         HistoryRules? historyRules = null, string name = "", IReadOnlyList<SpatialPortal>? portals = null,
         RestPlaceCatalog? restPlaceCatalog = null, IReadOnlyList<RestPlace>? restPlaces = null,
@@ -379,6 +390,7 @@ public sealed class WorldState
         EconomyRules = economyRules ?? EconomyRules.Disabled;
         EconomyCatalog = economyCatalog ?? EconomyCatalog.Empty;
         FamilyRules = familyRules ?? FamilyRules.Disabled;
+        BodyRules = bodyRules ?? BodyRules.Default;
         CityRules = cityRules ?? CityRules.Disabled;
         CityCatalog = cityCatalog ?? CityCatalog.Empty;
         PerfRules = perfRules ?? PerfRules.Default;
@@ -455,6 +467,7 @@ public sealed class WorldState
         IReadOnlyList<Workplace>? workplaces = null,
         long nextWorkplaceId = 0,
         FamilyRules? familyRules = null,
+        BodyRules? bodyRules = null,
         IReadOnlyDictionary<RelationshipKey, Relationship>? relationships = null,
         IReadOnlyList<City>? cities = null,
         IReadOnlyList<Building>? buildings = null,
@@ -491,7 +504,8 @@ public sealed class WorldState
         long nextAnimalId = 0,
         IReadOnlyList<Plant>? flora = null,
         long nextPlantId = 0,
-        IReadOnlyList<EnvironmentTemperatureAdjustment>? environmentTemperatureAdjustments = null)
+        IReadOnlyList<EnvironmentTemperatureAdjustment>? environmentTemperatureAdjustments = null,
+        long nextHistoryEventId = 0)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -510,6 +524,7 @@ public sealed class WorldState
         _rng = new WorldRngRegistry(seed, rngStreams);
         _scheduler = new EventScheduler(pendingEvents);
         _nextEventId = nextEventId;
+        _nextHistoryEventId = nextHistoryEventId;
         _exampleTickCounts = new Dictionary<TickFrequency, long>(exampleTickCounts);
         _npcs = npcs.ToList();
         _npcById = ToLookup(_npcs, n => n.Id);
@@ -523,6 +538,7 @@ public sealed class WorldState
         _workplaceById = ToLookup(_workplaces, w => w.Id);
         _nextWorkplaceId = nextWorkplaceId;
         FamilyRules = familyRules ?? FamilyRules.Disabled;
+        BodyRules = bodyRules ?? BodyRules.Default;
         _relationships = relationships is null ? [] : new Dictionary<RelationshipKey, Relationship>(relationships);
         _cities = (cities ?? []).ToList();
         _cityById = ToLookup(_cities, c => c.Id);
@@ -577,6 +593,10 @@ public sealed class WorldState
     public void Rename(string name) => Name = name;
 
     internal long NextEventIdAndAdvance() => _nextEventId++;
+
+    /// <summary>Único ponto de mint de <see cref="WorldEvent.EventId"/> — monotônico e
+    /// determinístico entre processos (AD-013).</summary>
+    internal long NextHistoryEventIdAndAdvance() => _nextHistoryEventId++;
 
     internal void IncrementExampleCount(TickFrequency frequency) => _exampleTickCounts[frequency]++;
 
@@ -816,7 +836,13 @@ public sealed class WorldState
     /// <c>ScenarioLoaderV2</c> chama, no mesmo momento em que autora <see cref="City"/>/
     /// <see cref="Building"/>. Sem <c>FindPortal</c>/remoção: portal é dado descritivo estático do
     /// cenário, nenhum sistema desta fase o edita depois de carregado.</summary>
-    public void AddPortal(SpatialPortal portal) => _portals.Add(portal);
+    public void AddPortal(SpatialPortal portal)
+    {
+        _portals.Add(portal);
+        // Portals is cold (not HotProperties): must invalidate fragment cache after mutation
+        // or CanonicalHash after AddPortal stays stale (PERF-12 IncrementalHasher).
+        CanonicalHashCache.MarkPropertyDirty(nameof(Portals));
+    }
 
     internal RestPlaceId NextRestPlaceIdAndAdvance() => new(_nextRestPlaceId++);
 
@@ -961,7 +987,7 @@ public sealed class WorldState
     public void Mint(TickContext ctx, Money amount, string reason)
     {
         _moneyMinted += amount;
-        ctx.LogEvent(WorldEventKind.Minted, $"{amount.Amount}|{reason}");
+        ctx.LogEvent(WorldEventKind.Minted, $"{amount.Amount}|{reason}", sourceSystem: "WorldState");
     }
 
     /// <summary>Retira massa da circulação (ex.: arquivo frio) — incrementa
@@ -970,7 +996,7 @@ public sealed class WorldState
     {
         if (amount.Amount <= 0) return;
         _moneyDestroyed += amount;
-        ctx.LogEvent(WorldEventKind.Destroyed, $"{amount.Amount}|{reason}");
+        ctx.LogEvent(WorldEventKind.Destroyed, $"{amount.Amount}|{reason}", sourceSystem: "WorldState");
     }
 
     /// <summary>Destruição explícita e rara — falha (mesmo padrão de <see
@@ -984,7 +1010,7 @@ public sealed class WorldState
             return Result<Unit>.Fail("insufficient_money_supply");
 
         _moneyDestroyed += amount;
-        ctx.LogEvent(WorldEventKind.Destroyed, $"{amount.Amount}|{reason}");
+        ctx.LogEvent(WorldEventKind.Destroyed, $"{amount.Amount}|{reason}", sourceSystem: "WorldState");
         return Result<Unit>.Ok(Unit.Value);
     }
 

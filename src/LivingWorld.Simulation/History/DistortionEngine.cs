@@ -29,8 +29,22 @@ public static class DistortionEngine
             fact.Significance,
             fact.Tick,
             fact.Payload,
-            MoralSeed: "",
+            MoralSeed: InitialMoralSeedFromPayload(fact.Payload),
             DistanceFromFact: 0);
+
+    /// <summary>COH-13: cues de escassez/fome reconhecidos no scoring de Buy precisam
+    /// sobreviver no MoralizedNarrativeSeed — senão crença canônica nunca altera a decisão.</summary>
+    private static string InitialMoralSeedFromPayload(string payload)
+    {
+        ReadOnlySpan<string> cues = ["scarcity", "escassez", "fome", "hunger", "food"];
+        foreach (var cue in cues)
+        {
+            if (payload.Contains(cue, StringComparison.OrdinalIgnoreCase))
+                return payload;
+        }
+
+        return "";
+    }
 
     public static DistortedPayload Apply(
         DistortionOperator op,

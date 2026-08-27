@@ -34,6 +34,33 @@ export function Inspector({ fixture, nav, route }: InspectorProps) {
       </aside>
     );
   }
+  if (route.kind === "building") {
+    const building = fixture.settlements.flatMap((s) => s.buildings).find((b) => b.id === route.id);
+    if (!building) return <aside data-testid="inspector" />;
+    const occupants = fixture.agents.filter((a) => a.indoorLocation?.buildingId === building.id);
+    return (
+      <aside data-testid="inspector">
+        <div data-testid="building-inspector">
+          <h2>{building.name}</h2>
+          <dl>
+            <dt>Kind</dt>
+            <dd>{building.kind}</dd>
+            <dt>Floors</dt>
+            <dd>{building.floors.length}</dd>
+          </dl>
+          <ul data-testid="building-inspector-people">
+            {occupants.map((agent) => (
+              <li key={agent.id}>
+                <button type="button" onClick={() => nav.replace({ kind: "agent", id: agent.id })}>
+                  {agent.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </aside>
+    );
+  }
   if (route.kind === "household") {
     return (
       <aside data-testid="inspector">

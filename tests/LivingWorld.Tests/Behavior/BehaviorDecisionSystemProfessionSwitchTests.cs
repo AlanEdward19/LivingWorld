@@ -31,6 +31,7 @@ public class BehaviorDecisionSystemProfessionSwitchTests
             [ActionType.Travel] = 4,
             [ActionType.Idle] = 2,
             [ActionType.Buy] = 2,
+            [ActionType.UsePower] = 1,
         },
         routineSlots: [new RoutineSlot(ProfessionId: null, Stage: LifeStage.Adult, HourStart: 0, HourEnd: 23, Action: ActionType.Work)],
         defaultAction: ActionType.Idle).Value!;

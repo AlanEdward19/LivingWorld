@@ -35,7 +35,7 @@ public sealed class ForesightMechanic : ExtraordinaryMechanic
             var resolution = PreviewResolve(world, carrier, target, tick, invocation, evento);
             tick.LogEvent(
                 WorldEventKind.ExtraordinaryEffectApplied,
-                $"{PreviewPrefix}{evento}|{resolution}");
+                $"{PreviewPrefix}{evento}|{resolution}", sourceSystem: "ForesightMechanic");
         }));
     }
 

@@ -115,7 +115,122 @@
 - **Date**: 2026-08-25
 - **Status**: active
 
+### AD-014
+- **Decision**: Regravar `tests/golden/world-hashes.json` (default seed 42/43 × 100 e 3650 ticks)
+  após Phase 16.3 P1d (powers full utility) nesta branch.
+- **Reason**: Hash canônico mudou de forma legítima — `ActionCatalog.MaxDurationHours` passou a
+  declarar `ActionType.UsePower` (AD-040 / COH-33; enum fechado entra no snapshot) e fases P1a–P1c
+  nesta branch já haviam adicionado campos canônicos (`EventId`/`CauseEventId`/`SourceSystem`,
+  `Height`/`Weight`/`MuscleMass`). Não é regressão silenciosa: baseline atualizado com AD explícito
+  (padrão AD-065/069).
+- **Trade-off**: Mundos gravados com golden anterior não batem byte-a-byte; comportamento de
+  cenário `default` sem powers ativos continua deterministicamente reproduzível sob o novo hash.
+  Possessão (`ControlMechanic.TryDelegatedAction`) permanece no caminho especial intocado (COH-36).
+- **Scope**: Fase 16.3 Living World Cohesion Phase 4 / T24 — `tests/golden/world-hashes.json`.
+- **Date**: 2026-08-26
+- **Status**: active
+
+### AD-015
+- **Decision**: Regravar `tests/baselines/action-switches.json` no closeout da Fase 16.3 cohesion.
+- **Reason**: DecisionContext / Intent / PowerOpportunity (P1c–P1e) alteram escolhas de ação de
+  forma legítima e determinística — mesma classe de ripple que AD-005/AD-006.
+- **Trade-off**: Contagens por seed mudam; histerese continua reduzindo trocas vs braço sem
+  histerese. Regravação via `ZZZ_record_action_switches_baseline`.
+- **Scope**: Fase 16.3 closeout — `tests/baselines/action-switches.json`.
+- **Date**: 2026-08-26
+- **Status**: active
+
+### AD-016
+- **Decision**: Regravar entrada 1k de `tests/baselines/scale-sensor.json` no closeout cohesion;
+  manter entrada 5k (Category=Scenario) da baseline anterior.
+- **Reason**: Cohesion (body/decision/powers) deslocou `BytesPerAliveNpcPerYear` fora da faixa
+  relativa de 1% no sensor de gate (1k). Não é regressão de perf absoluta — tetos de
+  `PerfRules.ScaleSensorInitial` continuam válidos.
+- **Trade-off**: Disco/alloc por NPC-ano sobe levemente na amostra 1k; 5k não foi re-medido neste
+  closeout (custo multi-10min, fora do gate padrão).
+- **Scope**: Fase 16.3 closeout — `tests/baselines/scale-sensor.json` (chave `"1000"`).
+- **Date**: 2026-08-26
+- **Status**: active
+
+### AD-017
+- **Decision**: Regravar `tests/golden/world-hashes.json` novamente no closeout (após AD-014/T24).
+- **Reason**: WorkHardeningSystem no DefaultSystems + campos/canônicos finais da cohesion
+  mudaram o hash do cenário `default` vs baseline AD-014.
+- **Trade-off**: Mesmo da AD-014 — mundos com golden anterior não batem byte-a-byte.
+- **Scope**: Fase 16.3 closeout — `tests/golden/world-hashes.json`.
+- **Date**: 2026-08-26
+- **Status**: active
+
+### AD-018
+- **Decision**: `phase-16-3-web` (demo isolada) — `LivingWorld_Frontend_Final.md` (doc consolidado, mais recente) passa a mandar sobre `LivingWorld — Frontend Experience & Design System.md` (doc anterior) nos pontos em que os dois conflitam. Primeiro conflito resolvido: NPCs nunca somem por causa do zoom (doc novo §14/§46) — revoga P1b AC1-2 da spec original ("nenhum NPC visível" no nível mundo/distrito). Nesta demo (sem simulação real rodando), a posição do NPC ganha um movimento decorativo/scripted entre pontos do fixture — trade-off explícito do usuário sobre o próprio doc novo §82 ("no fake world... nunca inventar activity/position"), aceito porque não há simulação de verdade pra derivar posição real ao longo do tempo.
+- **Reason**: Usuário testou a demo ao vivo e disse que a experiência "ainda não bate com o que eu imaginei" — pediu explicitamente "poder ver os NPCs vivendo no mundo" depois de ler o doc consolidado.
+- **Trade-off**: O movimento não é canônico/derivado de simulação — é uma simulação visual decorativa só pra esta demo provar a sensação de "mundo vivo" antes da integração real (`phase-16-3-world-cohesion`). Documentado explicitamente no código/README/checklist pra não ser confundido com dado real quando a integração acontecer.
+- **Scope**: `.specs/features/phase-16-3-web/` (demo isolada) — não afeta `phase-16-3-world-cohesion` (backend) nem `web/` (cliente de produção).
+- **Date**: 2026-08-26
+- **Status**: active
+
+### AD-019
+- **Decision**: `phase-16-3-web` — trocado o bloco isométrico 2:1 (`IsoProjection`/`IsoTile`) por projeção top-down ortogonal (escala 1:1, sem shear). `BuildingInterior` já era top-down; agora exterior e interior usam a mesma lógica de projeção.
+- **Reason**: usuário testou e reportou "a visão isométrica não está funcionando bem... tem que ser algo topdown". Achado incidental na mesma passada: labels do mapa (`<text>`) não tinham `fill`, herdavam preto default de SVG — ilegível sobre `--bg-world`.
+- **Trade-off**: nenhum — top-down é estritamente mais simples que a projeção isométrica que substituiu, sem perda de informação espacial pro fixture atual (grid 2D raso, sem elevação real).
+- **Scope**: `web-demo/src/map/{IsoProjection,IsoTileRenderer}.ts(x)`, `tokens.css`.
+- **Date**: 2026-08-26
+- **Status**: active
+
+### AD-020
+- **Decision**: `phase-16-3-web` — redesign estrutural do renderer de Settlement View: sai o SVG/React declarativo (`SemanticZoomMap` no nível "settlement", `BuildingInterior` como view separada), entra um renderer Canvas/WebGL dedicado (`PixiJS`, novo `web-demo/src/render/**`) com câmera pan/zoom, terreno/roads procedurais (layout gerado, não canônico — ver Trade-off), footprints de prédio reais, e "roof cutaway" físico (fade do telhado revelando o interior NA MESMA cena, ao focar um prédio) em vez de navegar pra uma página/view separada. World View (nível "mundo", `SemanticZoomMap`) e todo o resto do doc completo do usuário (day/night, atividades visíveis tipo sleep/work/talk, conversas, veículos, mapa mundial estilizado com terreno/rios/estradas, LOD com milhares de agents) ficam **fora desta rodada — mesma fase (`phase-16-3-web`), sem fase nova**, registrados como backlog em `spec.md`.
+- **Reason**: usuário pediu um redesign profundo (doc completo, referência RimWorld) e, perguntado explicitamente, escolheu Canvas/WebGL agora (contra a recomendação de manter SVG/React, dada a escala de 11 NPCs desta demo) e escolheu Settlement View como fatia desta rodada, com o resto anotado no roadmap da mesma fase em vez de virar fase nova.
+- **Trade-off**: (1) Terreno/roads são gerados por um `settlementLayout.ts` determinístico (seed = id do settlement/prédio), não dado canônico do fixture — é uma camada de apresentação/layout, nunca a simulação decidindo verdade nova (mesmo princípio do §82 do doc, aplicado à camada visual). (2) Testes de canvas não são inspecionáveis via DOM como os de SVG — lógica pura (layout, câmera, interpolação de patrulha) ganhou módulos próprios 100% testados sem Pixi; o componente Pixi em si é testado com `pixi.js` mockado (spies nas chamadas de desenho), não com asserts de pixel. (3) `BuildingInterior.tsx` (view separada, AD anterior implícito) fica obsoleta e é removida — o interior agora só existe dentro do canvas do settlement.
+- **Scope**: `web-demo/src/render/**` (novo), `web-demo/src/map/patrolMath.ts` (novo, extraído de `usePatrolPosition`), `CenterStage.tsx`, remove `views/BuildingInterior.tsx` + teste. Não toca `SemanticZoomMap` no nível "world".
+- **Date**: 2026-08-26
+- **Status**: active
+
+### AD-021
+- **Decision**: `phase-16-3-web` — 3 correções sobre o Settlement View (AD-020) a partir de teste ao vivo do usuário: (1) navegação entre building/household/agent dentro de um settlement passa a usar `NavigationStore.replace` (novo método) em vez de `push` — são irmãos (um foco substitui o outro), não uma pilha que deve crescer; clicar no terreno vazio do mapa sempre volta pro settlement (`SettlementStage` ganhou o prop `onBackgroundClick`). (2) Causal Explorer/Timeline/Life/Feed/Threads abrem como um painel POR CIMA do mapa (`CenterStage` sempre monta a camada espacial, deriva a última rota espacial da pilha quando uma dessas 5 rotas está no topo) em vez de substituir o centro — fecha com X/backdrop/Esc, todos chamando `nav.back()`. (3) Bug real: `containerEl.setPointerCapture()` era chamado já no `pointerdown`, o que redireciona o `target` dos eventos seguintes pro elemento capturado — o listener do Pixi no `<canvas>` nunca via `pointerup`, então clique em prédio/agent/terreno não funcionava com mouse real (só em dispatch sintético direto no canvas, que não sofre essa redireção). Corrigido: captura só depois de confirmar arrasto de verdade.
+- **Reason**: usuário testou ao vivo 3 vezes nesta rodada: 1ª vez reportou terreno/NPCs quebrados (bugs à parte, AD-020); 2ª vez reportou os 3 problemas de navegação/UX acima; 3ª vez (após o fix de push→replace/overlay) reportou que building ainda não abria e sugeriu investigar conflito com a feature de drag — hipótese certa, era o `setPointerCapture` cedo demais.
+- **Trade-off**: nenhum real — `replace` é estritamente mais correto pro modelo "foco entre irmãos" que o doc do usuário pede; o overlay é puramente aditivo (o mapa que já existia continua existindo, só ganha um painel por cima); o fix de pointer capture não muda nenhum comportamento de pan intencional, só corrige quando a captura acontece.
+- **Scope**: `web-demo/src/nav/NavigationStore.ts` (`replace`), `web-demo/src/render/SettlementStage.tsx` (`onBackgroundClick`, captura tardia), `web-demo/src/components/CenterStage.tsx` (overlay), `AgentView.tsx`/`HouseholdView.tsx`/`SettlementView.tsx`/`Inspector.tsx` (chamadas pontuais push→replace pra navegação irmã-a-irmã dentro do settlement).
+- **Date**: 2026-08-26
+- **Status**: active
+
+### AD-022
+- **Decision**: `phase-16-3-web` — prédios de Oakbridge (e patrolPoints dos agents que moram/trabalham neles) escalados 5x no fixture (`oakbridge.ts`) — grid antigo 0-3 virou 0-15. Settlement View ganhou zoom-to-fit no overview (`cameraState.fitZoom`, novo): a câmera inicial cabe o bounding box real dos prédios na viewport, nunca amplia além de 1x pra um settlement pequeno.
+- **Reason**: usuário reportou que as casas estavam "muito coladas" pra testar — bug real por trás: `buildingFootprint` (AD-020) dá a cada prédio uma área de 2-5 tiles, mas os `gridPosition` originais (herdados do modelo antigo de 1-tile-por-prédio) ficavam a 1 tile de distância um do outro — footprints se sobrepunham de verdade (não só visualmente apertado).
+- **Trade-off**: nenhum — é estritamente uma correção (positions eram artefato do modelo antigo, não dado "de verdade" de nenhum sistema). `SEMANTIC_LOCAL_CENTER` (mapa-múndi, AD-018) ajustado de 1.5→7.5 pra continuar centralizando os pontinhos de agent no settlement certo.
+- **Scope**: `web-demo/src/fixture/oakbridge.ts` (gridPosition + patrolPoints, só Oakbridge — outros settlements não têm prédios/agents modelados ainda), `web-demo/src/render/cameraState.ts` (`fitZoom`), `web-demo/src/render/SettlementStage.tsx`, `web-demo/src/map/SemanticZoomMap.tsx` (`SETTLEMENT_LOCAL_CENTER`).
+- **Date**: 2026-08-26
+- **Status**: active
+
+### AD-023
+- **Decision**: `phase-16-3-web` — clique no terreno vazio só desfoca (`onBackgroundClick`) quando NENHUM prédio está focado. Focado num prédio, só o botão explícito "← Street" sai do foco.
+- **Reason**: bug real do usuário — ao focar um prédio a câmera aproxima (`FOCUS_ZOOM`), mas o interior não preenche a viewport inteira, sobra terreno visível nas bordas da cena. Um clique um pouco impreciso perto de um NPC lá dentro (agents/mobília não cobrem o footprint inteiro) caía nesse terreno e disparava `onBackgroundClick`, voltando pra cidade inteira — parecia que "clicar no NPC fechava a visualização".
+- **Trade-off**: nenhum — o "← Street" já existe e é a saída sem ambiguidade; desabilitar o clique-fora só nesse estado remove um jeito acidental de sair sem tirar nenhuma funcionalidade real (a intenção original do AD-021, "clicar fora volta pra cidade", segue valendo no nível agent/rua, onde não tem essa zona de risco).
+- **Scope**: `web-demo/src/render/SettlementStage.tsx` (`terrainLayer` pointertap handler).
+- **Date**: 2026-08-26
+- **Status**: active
+
+### AD-024
+- **Decision**: `phase-16-3-web` — início do redesign de sidebars/Inspector/Popup-Drawer pedido pelo usuário (novo doc "Redesign das Sidebars, Inspector, Timelines e Painéis Contextuais"). Escopo desta rodada, combinado explicitamente com o usuário via pergunta direta: fundação (`Popup`/`Drawer`, doc §19, componente novo `ContextOverlay.tsx`) + Agent Inspector redesenhado (doc §13, `AgentView.tsx`) como prova de conceito — não o doc inteiro (que cobre Explorer, 6 outros tipos de Inspector, e 2 timelines).
+- **Reason**: doc é grande (45 seções); usuário pediu explicitamente pra "pensar alguns redesigns" (discussão, não implementação direta) — perguntado onde começar, confirmou a fundação+Agent Inspector antes de espalhar pro resto, mesmo padrão de scoping incremental usado nas rodadas anteriores desta fase.
+- **Trade-off**: `Drawer` (tier "médio", 420-520px) foi construído junto com `Popup` mas SEM consumidor real ainda — nenhuma lista do Agent Inspector precisa desse tier. Fica pronto pra Household/Settlement/Organization na próxima rodada. "Locate"/"⋯" do header do Inspector (doc §12) ficaram de fora — "Locate" precisa de uma forma de centralizar a câmera do `SettlementStage` a partir do Inspector, "⋯" não tem ação real ainda pra abrigar.
+- **Scope**: `web-demo/src/components/{ContextOverlay,InspectorPrimitives}.tsx` (novos), `web-demo/src/views/AgentView.tsx` (redesenhado), `tokens.css`. Não toca Household/Settlement/Organization/Event Inspector, Explorer, ou as timelines.
+- **Date**: 2026-08-26
+- **Status**: active
+
 ## Handoff
+
+- **Feature**: Fase 16.3 Living World Cohesion — **MERGED** into primary
+  (`feat/phase-16-2-power-evolution`) from worktree `LivingWorld-16-3-cohesion`
+  (`feat/phase-16-3-world-cohesion`). Soft follow-ups done (exception isolation + LogEvent SourceSystem).
+- **Audit**: [`docs/audits/living-world-cohesion-audit.md`](../docs/audits/living-world-cohesion-audit.md)
+- **Validation**: `.specs/features/phase-16-3-world-cohesion/validation.md` — PASS 35/35 COH
+- **ADs**: AD-011..013 (arquitetura) + AD-014..017 (baselines/golden closeout)
+- **Next**: remove cohesion worktree when merge is confirmed; Height/Weight consumers → 16.4+
+- **Blockers**: none
+
+---
+
+### Histórico — pausa paralelismo / gate hygiene (pré-16.3 Execute)
 
 - **Execução paralela PAUSADA (2026-08-25 19:46)**: STOP.json ativo em todos worktrees.
   Locks liberados. Ver `.specs/parallel-execution/STATUS.md` + progress files antes de retomar.

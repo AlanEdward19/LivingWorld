@@ -13,6 +13,8 @@ function labelFor(route: Route, fixture: WorldFixture): string {
       return "World";
     case "settlement":
       return fixture.settlements.find((s) => s.id === route.id)?.name ?? route.id;
+    case "building":
+      return fixture.settlements.flatMap((s) => s.buildings).find((b) => b.id === route.id)?.name ?? route.id;
     case "household":
       return fixture.households.find((h) => h.id === route.id)?.name ?? route.id;
     case "agent":

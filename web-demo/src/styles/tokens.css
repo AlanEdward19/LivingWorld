@@ -81,6 +81,7 @@ body {
 }
 
 [data-testid="center-stage"] {
+  position: relative;
   overflow-y: auto;
   padding: 1rem;
 }
@@ -164,15 +165,13 @@ button[aria-pressed="true"] {
 }
 
 /* Botões ghost (§ 135): Back e toggles de contexto, sem preenchimento forte */
-[data-testid="breadcrumb"] button,
-[data-testid="map-level-toggle"] button {
+[data-testid="breadcrumb"] button {
   background: transparent;
   border-color: transparent;
   color: var(--text-secondary);
 }
 
-[data-testid="breadcrumb"] button:hover,
-[data-testid="map-level-toggle"] button:hover {
+[data-testid="breadcrumb"] button:hover {
   background: var(--surface-2);
   color: var(--text-primary);
 }
@@ -282,12 +281,6 @@ input[type="text"]::placeholder {
   object-fit: contain;
 }
 
-[data-testid="map-level-toggle"] {
-  display: flex;
-  gap: 0.3rem;
-  margin: 0.5rem 0;
-}
-
 /* § 92-96 Map — recua visualmente, sem competir com a UI ao redor */
 svg[data-testid="semantic-zoom-map"] {
   width: 100%;
@@ -295,6 +288,95 @@ svg[data-testid="semantic-zoom-map"] {
   background: var(--bg-world);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
+}
+
+/* Redesign ask (2026-08-26): labels no mapa não tinham `fill` — herdavam o preto default de
+ * <text> em SVG, ilegível sobre `--bg-world`. Halo (paint-order stroke) mantém leitura em
+ * qualquer nível de zoom/paleta de fundo por baixo do texto. */
+svg[data-testid="semantic-zoom-map"] text {
+  fill: var(--text-primary);
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: var(--bg-world);
+  stroke-width: 3px;
+}
+
+/* Settlement View (AD-020) — Canvas/Pixi ocupa o centro inteiro, "bleeding" através do padding
+ * de `center-stage` (doc: "o mapa deve ocupar praticamente todo o espaço central disponível"),
+ * não uma ilha pequena numa área vazia. */
+[data-testid="settlement-stage"] {
+  position: relative;
+  width: calc(100% + 2rem);
+  height: calc(100% + 2rem);
+  margin: -1rem;
+  cursor: grab;
+  overflow: hidden;
+}
+
+[data-testid="settlement-stage"]:active {
+  cursor: grabbing;
+}
+
+[data-testid="settlement-stage-overlay"] {
+  position: absolute;
+  z-index: 5;
+  top: 0.75rem;
+  left: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.35rem 0.5rem;
+}
+
+[data-testid="settlement-stage-overlay"] [data-testid="focused-building-name"] {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 0 0.25rem;
+}
+
+[data-testid="floor-selector"] {
+  display: flex;
+  gap: 0.2rem;
+}
+
+/* AD-021 — Causal Explorer/Timeline/Life/Feed/Threads abrem por CIMA do mapa, não substituem
+ * mais o centro (usuário: perder a cidade de vista pra checar "Why?" era desorientador). */
+[data-testid="center-stage-overlay-backdrop"] {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 14, 18, 0.55);
+  padding: 2rem;
+}
+
+[data-testid="center-stage-overlay-panel"] {
+  position: relative;
+  width: min(720px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+}
+
+[data-testid="center-stage-overlay-close"] {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  background: var(--surface-2);
 }
 
 /* § 103 Event markers — "small pulse once", depois fica discreto e estático. Um único
@@ -621,4 +703,167 @@ button:disabled {
   margin: 0 0 0.25rem;
   text-transform: none;
   letter-spacing: normal;
+}
+
+/* Redesign doc (2026-08-26) §19 — Popup/Drawer (Nível 3). Deliberadamente NÃO bloqueante: sem
+ * backdrop escurecido, só um click-catcher transparente pra fechar ao clicar fora. */
+[data-testid="popup-backdrop"],
+[data-testid="drawer-backdrop"] {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: transparent;
+}
+
+[data-testid="popup-panel"] {
+  position: absolute;
+  top: 4rem;
+  right: 1rem;
+  width: 320px;
+  max-width: calc(100vw - 2rem);
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.85rem 1rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+[data-testid="drawer-panel"] {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 460px;
+  max-width: 90vw;
+  overflow-y: auto;
+  background: var(--surface-1);
+  border-left: 1px solid var(--border);
+  padding: 1rem 1.25rem;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.35);
+}
+
+[data-testid="popup-header"],
+[data-testid="drawer-header"] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+}
+
+[data-testid="popup-header"] h3,
+[data-testid="drawer-header"] h3 {
+  margin: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+[data-testid="popup-close"],
+[data-testid="drawer-close"] {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  background: var(--surface-3);
+  flex-shrink: 0;
+}
+
+/* Redesign doc §29-32 — primitives compactos do Inspector, reusados por qualquer entidade. */
+.section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin: 1.1rem 0 0.4rem;
+}
+
+.section-header:first-child {
+  margin-top: 0;
+}
+
+.entity-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: 0.25rem;
+}
+
+.entity-row-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.entity-row-title {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.entity-row-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.entity-row-chevron {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.status-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.status-chip {
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.1rem 0.5rem;
+}
+
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+  padding: 0.2rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.metric-row-label {
+  color: var(--text-secondary);
+}
+
+.metric-row-value {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.section-link {
+  background: transparent;
+  border-color: transparent;
+  color: var(--accent-secondary);
+  padding: 0.2rem 0;
+  font-size: 12px;
+}
+
+.section-link:hover {
+  background: transparent;
+  text-decoration: underline;
 }

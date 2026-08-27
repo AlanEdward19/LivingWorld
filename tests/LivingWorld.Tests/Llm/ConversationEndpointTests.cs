@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using LivingWorld.Api;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LivingWorld.Tests.Llm;

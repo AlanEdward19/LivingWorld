@@ -33,6 +33,7 @@ public sealed class ProductionCompositionTests
         typeof(RelationshipSystem),
         typeof(SkillPracticeSystem),
         typeof(SkillTeachingSystem),
+        typeof(WorkHardeningSystem),
         typeof(ProductionSystem),
         typeof(CropSystem),
         typeof(MarketPricingSystem),

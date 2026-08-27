@@ -3,6 +3,7 @@ import type { WorldFixture } from "../fixture/types";
 export type Route =
   | { kind: "world" }
   | { kind: "settlement"; id: string }
+  | { kind: "building"; id: string }
   | { kind: "household"; id: string }
   | { kind: "agent"; id: string }
   | { kind: "causal"; eventId: string }
@@ -21,6 +22,8 @@ export function routeToPath(route: Route): string {
       return "/";
     case "settlement":
       return `/settlement/${route.id}`;
+    case "building":
+      return `/building/${route.id}`;
     case "household":
       return `/household/${route.id}`;
     case "agent":
@@ -52,6 +55,7 @@ export function pathToRoute(path: string, fixture?: WorldFixture): Route | null 
   const [head, id, sub] = segments;
   const exists = {
     settlement: (candidate: string) => !fixture || fixture.settlements.some((s) => s.id === candidate),
+    building: (candidate: string) => !fixture || fixture.settlements.some((s) => s.buildings.some((b) => b.id === candidate)),
     household: (candidate: string) => !fixture || fixture.households.some((h) => h.id === candidate),
     agent: (candidate: string) => !fixture || fixture.agents.some((a) => a.id === candidate),
     event: (candidate: string) => !fixture || fixture.events.some((e) => e.eventId === candidate),
@@ -61,6 +65,8 @@ export function pathToRoute(path: string, fixture?: WorldFixture): Route | null 
   switch (head) {
     case "settlement":
       return id && exists.settlement(id) ? { kind: "settlement", id } : null;
+    case "building":
+      return id && exists.building(id) ? { kind: "building", id } : null;
     case "household":
       return id && exists.household(id) ? { kind: "household", id } : null;
     case "agent":
@@ -113,6 +119,21 @@ export class NavigationStore {
     this.stack = [...this.stack, route];
     if (typeof window !== "undefined") {
       window.history.pushState(null, "", routeToPath(route));
+    }
+    this.notify();
+  }
+
+  /**
+   * Substitui o topo da pilha em vez de empilhar — usado quando o foco troca ENTRE irmãos
+   * dentro do mesmo settlement (building/household/agent, ex.: clicar num NPC depois de já
+   * estar vendo outro), não quando entra de verdade num nível novo (world→settlement). Sem
+   * isso a pilha crescia sem fim e "Back"/clicar fora nunca voltava direto pra a cidade —
+   * feedback do usuário 2026-08-26 (AD-021).
+   */
+  replace(route: Route): void {
+    this.stack = [...this.stack.slice(0, -1), route];
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", routeToPath(route));
     }
     this.notify();
   }

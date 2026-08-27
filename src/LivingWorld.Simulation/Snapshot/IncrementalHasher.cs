@@ -16,6 +16,7 @@ public static class IncrementalHasher
         nameof(WorldState.PendingEvents),
         nameof(WorldState.RngStreams),
         nameof(WorldState.NextEventId),
+        nameof(WorldState.NextHistoryEventId),
         nameof(WorldState.MoneyMinted),
         nameof(WorldState.MoneyDestroyed),
         nameof(WorldState.Relationships),

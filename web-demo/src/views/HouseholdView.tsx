@@ -33,7 +33,7 @@ export function HouseholdView({ fixture, nav, householdId }: HouseholdViewProps)
       <ul data-testid="household-members">
         {members.map((member) => (
           <li key={member.id}>
-            <button type="button" onClick={() => nav.push({ kind: "agent", id: member.id })}>
+            <button type="button" onClick={() => nav.replace({ kind: "agent", id: member.id })}>
               <NpcToken id={member.id} size={48} />
               {member.name}
             </button>

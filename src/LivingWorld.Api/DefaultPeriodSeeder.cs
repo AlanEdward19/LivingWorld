@@ -100,6 +100,7 @@ public static class DefaultPeriodSeeder
                 ["Travel"] = 4,
                 ["Idle"] = 2,
                 ["Buy"] = 2,
+                ["UsePower"] = 1,
             },
             ["RoutineSlots"] = new JsonArray(
                 new JsonObject { ["ProfessionId"] = 1, ["Stage"] = "Adult", ["HourStart"] = 6, ["HourEnd"] = 14, ["Action"] = "Work" },

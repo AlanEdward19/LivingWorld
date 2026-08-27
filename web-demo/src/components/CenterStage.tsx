@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import type { WorldFixture } from "../fixture/types";
 import type { NavigationStore, Route } from "../nav/NavigationStore";
-import { SemanticZoomMap, type ZoomLevel } from "../map/SemanticZoomMap";
+import { SemanticZoomMap } from "../map/SemanticZoomMap";
+import { SettlementStage } from "../render/SettlementStage";
 import { CausalExplorer } from "../views/CausalExplorer";
 import { Timeline } from "../views/Timeline";
 import { LifeView } from "../views/LifeView";
@@ -14,112 +15,117 @@ export interface CenterStageProps {
   route: Route;
 }
 
-function SettlementMap({ fixture, nav, settlementId }: { fixture: WorldFixture; nav: NavigationStore; settlementId: string }) {
-  const [level, setLevel] = useState<Extract<ZoomLevel, "district" | "agent">>("district");
-  return (
-    <div data-testid="settlement-map">
-      <div data-testid="map-level-toggle">
-        <button type="button" onClick={() => setLevel("district")} aria-pressed={level === "district"}>
-          District view
-        </button>
-        <button type="button" onClick={() => setLevel("agent")} aria-pressed={level === "agent"}>
-          Agent view
-        </button>
-      </div>
+/** Rotas que "abrem em cima" do mapa (AD-021) em vez de substituí-lo — o usuário reportou que
+ * perder a cidade/mundo de vista ao abrir Why?/Timeline/Life era desorientador. */
+const OVERLAY_KINDS = new Set<Route["kind"]>(["causal", "timeline", "life", "feed", "threads", "thread"]);
+
+/** Resolve o settlement a mostrar no Settlement View pra qualquer rota escopada a ele (doc
+ * §22-23: "a cidade em si é o mapa" — household/agent/building continuam mostrando o MESMO
+ * settlement, nunca uma página separada). */
+function settlementIdForRoute(fixture: WorldFixture, route: Route): string | undefined {
+  switch (route.kind) {
+    case "settlement":
+      return route.id;
+    case "household":
+      return fixture.households.find((h) => h.id === route.id)?.settlementId;
+    case "agent":
+      return fixture.agents.find((a) => a.id === route.id)?.settlementId;
+    case "building":
+      return fixture.settlements.find((s) => s.buildings.some((b) => b.id === route.id))?.id;
+    default:
+      return undefined;
+  }
+}
+
+/** Última rota espacial (world/settlement/household/agent/building) da pilha — o que o mapa
+ * deve continuar mostrando embaixo de um overlay (causal/timeline/life/feed/threads/thread). */
+function underlyingSpatialRoute(breadcrumb: Route[]): Route {
+  for (let index = breadcrumb.length - 1; index >= 0; index -= 1) {
+    if (!OVERLAY_KINDS.has(breadcrumb[index].kind)) return breadcrumb[index];
+  }
+  return { kind: "world" };
+}
+
+function SpatialLayer({ fixture, nav, route }: CenterStageProps) {
+  if (route.kind === "world") {
+    return (
       <SemanticZoomMap
         fixture={fixture}
-        level={level}
-        settlementId={settlementId}
-        onSelectSettlement={() => {}}
+        onSelectSettlement={(settlementId) => nav.push({ kind: "settlement", id: settlementId })}
         onSelectNpc={(agentId) => nav.push({ kind: "agent", id: agentId })}
       />
-    </div>
+    );
+  }
+
+  const settlementId = settlementIdForRoute(fixture, route);
+  if (!settlementId) return null;
+  return (
+    <SettlementStage
+      fixture={fixture}
+      settlementId={settlementId}
+      focusBuildingId={route.kind === "building" ? route.id : null}
+      onSelectAgent={(agentId) => nav.replace({ kind: "agent", id: agentId })}
+      onFocusBuilding={(buildingId) => nav.replace({ kind: "building", id: buildingId })}
+      onBackgroundClick={() => nav.replace({ kind: "settlement", id: settlementId })}
+    />
   );
 }
 
-/**
- * "World" — o centro do shell (doc §5/§92-96). Por padrão é o mapa vivo, escopado pela seleção
- * atual: nível "mundo" na raiz, "distrito"/"agente" (toggle local) dentro de um settlement, e o
- * mesmo mapa do settlement continua visível ao inspecionar um household/agent dele (doc §74:
- * "Ao selecionar Oakbridge, o centro muda... não necessariamente abre página nova").
- *
- * Causal Explorer, Timeline, Life View, World Feed e Story Threads SUBSTITUEM o mapa
- * temporariamente quando abertos (doc §66 pro Causal Explorer, §87 "fullscreen center
- * experience, não Inspector estreito" pra Life View) — não ficam espremidos na largura do
- * Inspector (340px).
- */
-export function CenterStage({ fixture, nav, route }: CenterStageProps) {
+function OverlayContent({ fixture, nav, route }: CenterStageProps) {
   switch (route.kind) {
-    case "world":
-      return (
-        <div data-testid="center-stage">
-          <SemanticZoomMap
-            fixture={fixture}
-            onSelectSettlement={(settlementId) => nav.push({ kind: "settlement", id: settlementId })}
-            onSelectNpc={() => {}}
-          />
-        </div>
-      );
-    case "settlement":
-      return (
-        <div data-testid="center-stage">
-          <SettlementMap fixture={fixture} nav={nav} settlementId={route.id} />
-        </div>
-      );
-    case "household": {
-      const household = fixture.households.find((h) => h.id === route.id);
-      if (!household) return <div data-testid="center-stage" />;
-      return (
-        <div data-testid="center-stage">
-          <SettlementMap fixture={fixture} nav={nav} settlementId={household.settlementId} />
-        </div>
-      );
-    }
-    case "agent": {
-      const agent = fixture.agents.find((a) => a.id === route.id);
-      if (!agent) return <div data-testid="center-stage" />;
-      return (
-        <div data-testid="center-stage">
-          <SemanticZoomMap
-            fixture={fixture}
-            level="agent"
-            settlementId={agent.settlementId}
-            onSelectSettlement={() => {}}
-            onSelectNpc={(agentId) => nav.push({ kind: "agent", id: agentId })}
-          />
-        </div>
-      );
-    }
     case "causal":
-      return (
-        <div data-testid="center-stage">
-          <CausalExplorer fixture={fixture} nav={nav} eventId={route.eventId} />
-        </div>
-      );
+      return <CausalExplorer fixture={fixture} nav={nav} eventId={route.eventId} />;
     case "timeline":
-      return (
-        <div data-testid="center-stage">
-          <Timeline fixture={fixture} scope={route.scope} />
-        </div>
-      );
+      return <Timeline fixture={fixture} scope={route.scope} />;
     case "life":
-      return (
-        <div data-testid="center-stage">
-          <LifeView fixture={fixture} agentId={route.agentId} />
-        </div>
-      );
+      return <LifeView fixture={fixture} agentId={route.agentId} />;
     case "feed":
-      return (
-        <div data-testid="center-stage">
-          <WorldFeed fixture={fixture} />
-        </div>
-      );
+      return <WorldFeed fixture={fixture} />;
     case "threads":
     case "thread":
-      return (
-        <div data-testid="center-stage">
-          <StoryThreads fixture={fixture} nav={nav} />
-        </div>
-      );
+      return <StoryThreads fixture={fixture} nav={nav} />;
+    default:
+      return null;
   }
+}
+
+/**
+ * "World" — o centro do shell (doc §6/§92-96). O mapa (mundo ou settlement) fica SEMPRE
+ * montado — Causal Explorer/Timeline/Life/Feed/Threads abrem como um painel POR CIMA dele
+ * (AD-021), não substituem mais o centro: usuário reportou que perder a cidade/NPC de vista ao
+ * checar "Why?"/Timeline era desorientador. Fecha com X, clique fora, ou Esc — todos chamam
+ * `nav.back()` (essas rotas continuam empilhadas via `push`, então back as remove de novo).
+ */
+export function CenterStage({ fixture, nav, route }: CenterStageProps) {
+  const breadcrumb = useSyncExternalStore(
+    (listener) => nav.subscribe(listener),
+    () => nav.breadcrumb(),
+  );
+  const isOverlay = OVERLAY_KINDS.has(route.kind);
+  const spatialRoute = isOverlay ? underlyingSpatialRoute(breadcrumb) : route;
+
+  useEffect(() => {
+    if (!isOverlay) return undefined;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") nav.back();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOverlay, nav]);
+
+  return (
+    <div data-testid="center-stage">
+      <SpatialLayer fixture={fixture} nav={nav} route={spatialRoute} />
+      {isOverlay && (
+        <div data-testid="center-stage-overlay-backdrop" onClick={() => nav.back()}>
+          <div data-testid="center-stage-overlay-panel" onClick={(event) => event.stopPropagation()}>
+            <button type="button" data-testid="center-stage-overlay-close" aria-label="Close" onClick={() => nav.back()}>
+              ×
+            </button>
+            <OverlayContent fixture={fixture} nav={nav} route={route} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

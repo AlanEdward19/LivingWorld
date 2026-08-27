@@ -21,12 +21,13 @@ describe("AgentView", () => {
     expect(screen.getByTestId("agent-body")).toHaveTextContent(MIRA.bodySummary.build);
   });
 
-  it("'View details' expands Mira's full physical breakdown and what it affects (doc §51-52)", () => {
+  it("'View physical details' opens a Popup (Nível 3, redesign doc §14/§19) with Mira's full physical breakdown", () => {
     render(<AgentView fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} agentId="mira-valen" />);
-    expect(screen.queryByTestId("agent-body-detail")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("popup-panel")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId("toggle-body-detail"));
+    fireEvent.click(screen.getByText("View physical details →"));
 
+    expect(screen.getByTestId("popup-panel")).toHaveTextContent("Physical details");
     const detail = screen.getByTestId("agent-body-detail");
     expect(detail).toHaveTextContent(MIRA.bodyDetail.height);
     expect(detail).toHaveTextContent(MIRA.bodyDetail.weight);
@@ -39,6 +40,17 @@ describe("AgentView", () => {
         expect(affects).toHaveTextContent(effect);
       }
     }
+
+    fireEvent.click(screen.getByTestId("popup-close"));
+    expect(screen.queryByTestId("popup-panel")).not.toBeInTheDocument();
+  });
+
+  it("'View relationships' opens a Popup with Mira's full relationship list", () => {
+    render(<AgentView fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} agentId="mira-valen" />);
+    fireEvent.click(screen.getByText("View relationships →"));
+    const popup = screen.getByTestId("popup-panel");
+    expect(popup).toHaveTextContent("Rowan");
+    expect(popup).toHaveTextContent("Corvin");
   });
 
   it("shows Mira's household and important relationships (Rowan, Corvin)", () => {
@@ -59,7 +71,7 @@ describe("AgentView", () => {
 
   it("clicking Why? opens the WhyPanel with the agent's whyFactors", () => {
     render(<AgentView fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} agentId="mira-valen" />);
-    fireEvent.click(screen.getByText("Why?"));
+    fireEvent.click(screen.getByText("Explain decision →"));
     const panel = screen.getByTestId("why-panel");
     for (const factor of MIRA.whyFactors) {
       expect(panel).toHaveTextContent(factor.text);
@@ -76,7 +88,7 @@ describe("AgentView", () => {
   it("clicking a Why factor ('grain prices rose') opens the Causal Explorer on the correct event", () => {
     const nav = new NavigationStore(WORLD_FIXTURE);
     render(<AgentView fixture={WORLD_FIXTURE} nav={nav} agentId="mira-valen" />);
-    fireEvent.click(screen.getByText("Why?"));
+    fireEvent.click(screen.getByText("Explain decision →"));
     fireEvent.click(screen.getByText("grain prices rose"));
     expect(nav.current()).toEqual({ kind: "causal", eventId: "evt-grain-prices-rose" });
   });
@@ -97,7 +109,7 @@ describe("AgentView", () => {
 
   it("Debug Mode shows technical event fields in the Why panel without losing the current selection (doc#116)", () => {
     render(<AgentView fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} agentId="mira-valen" />);
-    fireEvent.click(screen.getByText("Why?"));
+    fireEvent.click(screen.getByText("Explain decision →"));
     fireEvent.click(screen.getByTestId("toggle-mode"));
 
     expect(screen.getByText("Mira Valen")).toBeInTheDocument(); // seleção não mudou

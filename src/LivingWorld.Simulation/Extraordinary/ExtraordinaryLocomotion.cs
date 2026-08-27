@@ -134,7 +134,7 @@ public static class ExtraordinaryLocomotion
                     household!.Withdraw(resource, amount);
                     break;
             }
-            ctx?.LogEvent(WorldEventKind.ExtraordinaryCostPaid, $"{npc.Id.Value}|movement|{token}");
+            ctx?.LogEvent(WorldEventKind.ExtraordinaryCostPaid, $"{npc.Id.Value}|movement|{token}", sourceSystem: "ExtraordinaryLocomotion");
         }
         return true;
     }

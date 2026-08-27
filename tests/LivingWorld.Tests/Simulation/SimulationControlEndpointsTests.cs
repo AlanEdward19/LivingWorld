@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using LivingWorld.Api.Simulation;
 using LivingWorld.Simulation;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LivingWorld.Tests.Simulation;

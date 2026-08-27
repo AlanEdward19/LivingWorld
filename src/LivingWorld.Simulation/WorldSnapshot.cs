@@ -65,6 +65,10 @@ public static class WorldSnapshot
         var rngStreams = node["RngStreams"].Deserialize<List<RngStreamState>>(JsonOptions)!;
         var pendingEvents = node["PendingEvents"].Deserialize<List<ScheduledEvent>>(JsonOptions)!;
         var nextEventId = node["NextEventId"]!.GetValue<long>();
+        var nextHistoryEventId = node.TryGetPropertyValue("NextHistoryEventId", out var nextHistoryNode)
+            && nextHistoryNode is not null
+            ? nextHistoryNode.GetValue<long>()
+            : 0L;
         var exampleCounts = node["ExampleTickCounts"].Deserialize<Dictionary<TickFrequency, long>>(JsonOptions)!;
         var npcs = node["Npcs"].Deserialize<List<Npc>>(JsonOptions)!;
         var households = node["Households"].Deserialize<List<Household>>(JsonOptions)!;
@@ -78,6 +82,9 @@ public static class WorldSnapshot
         var workplaces = node["Workplaces"].Deserialize<List<Workplace>>(JsonOptions)!;
         var nextWorkplaceId = node["NextWorkplaceId"]!.GetValue<long>();
         var familyRules = node["FamilyRules"].Deserialize<FamilyRules>(JsonOptions)!;
+        var bodyRules = node.TryGetPropertyValue("BodyRules", out var bodyNode) && bodyNode is not null
+            ? bodyNode.Deserialize<BodyRules>(JsonOptions)!
+            : BodyRules.Default;
         var relationships = node["Relationships"].Deserialize<Dictionary<RelationshipKey, Relationship>>(JsonOptions)!;
         var cities = node["Cities"].Deserialize<List<City>>(JsonOptions)!;
         var buildings = node["Buildings"].Deserialize<List<Building>>(JsonOptions)!;
@@ -185,14 +192,15 @@ public static class WorldSnapshot
             calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
             lifeStageRules, rngStreams, pendingEvents, nextEventId, exampleCounts, npcs, households, nextNpcId,
             nextHouseholdId, branchId, moneyMinted, moneyDestroyed, economyRules, economyCatalog, workplaces,
-            nextWorkplaceId, familyRules, relationships, cities, buildings, nextBuildingId, cityRules, cityCatalog,
+            nextWorkplaceId, familyRules, bodyRules, relationships, cities, buildings, nextBuildingId, cityRules, cityCatalog,
             perfRules, historyRules, facts, nextFactId, nextReportId, reports, books, nextBookId,
             canonicalMemories, volatileMemories, nextMemoryId, name, portals,
             restPlaceCatalog, restPlaces, nextRestPlaceId,
             resourceCatalog, processRecipes, resourceProcesses, nextResourceProcessId,
             cropBatches, nextCropBatchId, extraordinary, extraordinaryCarriers,
             extraordinaryConstructs, nextExtraordinaryConstructId,
-            fauna, nextAnimalId, flora, nextPlantId, environmentTemperatureAdjustments);
+            fauna, nextAnimalId, flora, nextPlantId, environmentTemperatureAdjustments,
+            nextHistoryEventId);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)

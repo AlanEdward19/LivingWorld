@@ -31,10 +31,12 @@ npm --prefix web-demo run build   # type-check + build de produção
 | Elemento | Origem | Por quê |
 | --- | --- | --- |
 | Token visual de NPC (`src/npc/appearance.ts`, `src/npc/NpcToken.tsx`) | **Cópia literal** de `web/src/npcAppearance.ts` / `NpcTokenSvg.tsx` | Único elemento explicitamente pedido pra reusar — fenótipo procedural (skin/hair/hairStyle/clothing) já validado no cliente atual |
-| Prédios/terreno/tiles do mapa (`src/map/**`) | **Redesenho completo** — isométrico 2:1 simplificado, blocos flat-shaded de 3 faces, paleta nova/neutra | Correção explícita do usuário: não gostava do estilo rústico/top-down atual (`web/src/map-engine/**`) |
+| Mapa-múndi (`src/map/**`, SVG) | **Redesenho, depois corrigido de isométrico pra top-down** — settlements/agents como pontos, sem prédios | Isométrico (T1-T31) reportado pelo usuário como "não está funcionando bem" (AD-019) — trocado por projeção top-down ortogonal |
+| Settlement View — terreno/roads/prédios/NPCs (`src/render/**`) | **Reescrita completa pra Canvas/WebGL (Pixi.js)** — substituiu o SVG declarativo | AD-020: pedido de redesign profundo (referência RimWorld) — usuário escolheu explicitamente Canvas/WebGL sobre manter SVG/React, mesmo sem caso de performance real nesta escala (11 NPCs) |
 | Shell de 1 janela (`src/components/TopBar.tsx`/`Explorer.tsx`/`CenterStage.tsx`/`Inspector.tsx`/`TimelineBar.tsx`) | **Novo**, seguindo literalmente `LivingWorld — Frontend Experience & Design System.md` §5/§26-29/§39-46/§47-48/§105-107 | Doc pede um shell único (Top Bar / Explorer + World + Inspector / Timeline) pras 3 perspectivas (Observe/Table/Inhabit) — implementado 1:1 pra Observe, único modo real desta demo |
 | Tema geral (cores, tipografia, painéis) — `src/styles/tokens.css` | **Novo**, baseado nos tokens literais do mesmo doc (§202) | `web/` não tinha um design system formal ainda; esta demo é onde ele entra pela primeira vez |
 | Navegação/breadcrumb, stores (`NavigationStore`/`followStore`/`modeStore`) | **Novo**, idioma de store igual ao já usado em `web/src/state/*.ts` (`useSyncExternalStore`) | Estado de navegação específico desta demo, sem framework de roteamento |
+| Interior de prédio | **Absorvido pelo `SettlementStage`** — `views/BuildingInterior.tsx` (view separada, top-down) foi removido | AD-020: o pedido explícito é revelar o interior fisicamente na mesma cena ao aproximar a câmera ("roof cutaway"), não trocar de tela — a versão anterior (view separada) foi uma decisão de uma rodada anterior, revertida nesta |
 
 ### Shell — decisões de adaptação (honestas, não escondidas)
 
@@ -58,10 +60,149 @@ adotado foi **mostrar desabilitado** em vez de esconder como quebrado (mesmo pri
 | Critical event toast (§172) | Real — mostra o evento "critical" do fixture ao carregar, dispensável, com atalho pro Causal Explorer |
 | Keyboard shortcuts (§148) | W/F/`/`/? implementados (os que têm ação real nesta demo) |
 | Map marker accessibility (§149) | Marcadores do mapa são focáveis, com `aria-label` e ativação por Enter/Space |
+| Building interiors / roof cutaway (§29-36/§58-60) | Real, e agora **na mesma cena** (AD-020) — focar um prédio com `floors.length > 0` aproxima a câmera e faz o telhado (`Graphics`) desaparecer em alpha, revelando cômodos/móveis/NPCs dentro, sem trocar de view. North Farm fica sem interior modelado (`floors: []`); Rowan (o farmer) fica sem `indoorLocation` — ambos deliberados, não bug |
 
 Só ficaram desabilitados os 3 itens que dependiam de recursos explicitamente fora do escopo
 desta demo (Table/Inhabit Mode, simulação real, múltiplos mundos) — decisão do usuário, não
 limitação técnica.
+
+### Níveis de LOD
+
+Pedido do usuário: Planeta / Continente / Cidade / Prédios / Interiores, com NPCs presentes em
+cada um. Mapeamento nesta demo:
+
+| LOD pedido | Nesta demo | NPCs visíveis? |
+| --- | --- | --- |
+| Planeta | **Não implementado** — decisão explícita do usuário ("não precisa agora") | — |
+| Continente | `SemanticZoomMap` (SVG) — assentamentos + todo NPC como pontinho (AD-018). Terreno estilizado/estradas/rios do doc completo **ficam no backlog** (ver seção "Redesign — o que ficou de fora"), esta rodada focou Settlement View | Sim, sempre |
+| Cidade / Prédios / Interiores | `SettlementStage` (Canvas/Pixi, AD-020) — terreno + roads + prédios com footprint real + NPCs, tudo na mesma cena; focar um prédio com interior aproxima a câmera e revela cômodos/móveis/NPCs por dentro (roof cutaway físico, não troca de view) | Sim, sempre — outdoor via patrolPoints, indoor via `indoorLocation` quando o prédio deles está focado |
+
+## Redesign — Settlement View em Canvas/Pixi (AD-020)
+
+Pedido do usuário: redesign profundo de toda a experiência visual, referência conceitual
+RimWorld (mapa top-down, prédios com footprint real, roof cutaway físico, NPCs caminhando,
+terreno rico, day/night, atividades visíveis, mundo em escala planetária navegável por zoom
+contínuo). É essencialmente o escopo de um motor de jogo — perguntado explicitamente, o usuário
+escolheu:
+
+1. **Canvas/WebGL (Pixi.js) em vez de manter SVG/React** para o renderer, mesmo sem ganho de
+   performance nesta escala (11 NPCs fixos, 3 settlements) — decisão explícita contra a
+   recomendação de manter SVG.
+2. **Settlement View primeiro**, com o resto do pedido **anotado nesta mesma fase
+   (`phase-16-3-web`), sem virar fase nova** — é a lista abaixo.
+
+### O que foi entregue nesta rodada
+
+- `SettlementStage.tsx` — terreno (tiles com variação procedural via `tileNoise`, determinística
+  por settlement), roads decorativas conectando prédios a um hub central (`generateRoads`,
+  **layout de apresentação, não dado canônico** — mesmo princípio do §82 do doc aplicado à
+  camada visual), prédios com footprint real derivado da contagem de cômodos (`buildingFootprint`
+  — mais cômodos, prédio maior; sem interior modelado = footprint "de campo" tipo fazenda), NPCs
+  como sprites reusando a MESMA identidade visual procedural de `appearance.ts` (não emoji, não
+  arte nova).
+- **Roof cutaway físico** — focar um prédio (`onFocusBuilding`) aproxima a câmera
+  (`cameraState.focusOn`, zoom 2.4×) e faz o telhado desaparecer em alpha enquanto o interior
+  (cômodos/móveis/NPCs, mesmo dado de `BuildingFixture.floors`) aparece, tudo dentro da MESMA
+  cena — sem navegar pra outra tela. `nav.push({kind:"building"})` continua existindo pra
+  URL/breadcrumb/back, mas a apresentação é 100% câmera.
+- Pan (arrastar) e zoom (wheel) livres na cena do settlement.
+- Movimento outdoor continua decorativo (AD-018, `patrolPositionAt`), agora avaliado por frame
+  no ticker do Pixi (60fps) em vez de a cada 200ms — mais suave, sem mudar a natureza decorativa.
+
+**2 bugs reais pegos e corrigidos na primeira passada visual ao vivo** (jsdom/testes não
+pegam nenhum dos dois — nem canvas real, nem timing de carregamento de imagem):
+
+- Textura do NPC criada com `Texture.from(image)` antes da `Image` terminar de decodificar —
+  textura ficava 0×0, NPC invisível. Corrigido em `npcTexture.ts`: `getNpcTexture` agora é
+  assíncrona, espera `image.decode()` antes de criar a `Texture`.
+- Variação de terreno somava um inteiro direto no hex da cor (`GROUND_BASE + n`), estourando de
+  canal pra canal e virando ruído de cor aleatório (tiles azuis/roxos/vermelhos num "gramado").
+  Corrigido com `jitterColor` — varia R/G/B separadamente, clamped 0-255.
+
+**Mais 2 bugs reais + 1 mudança de UX, achados no feedback seguinte do usuário** ("ainda não
+consigo entrar nas casas" mesmo depois do fix acima; "tudo que abro na sidebar fica lá"):
+
+- **Bug — captura de pointer cedo demais quebrava TODO clique num prédio/agent/terreno num
+  mouse real.** `containerEl.setPointerCapture()` era chamado já no `pointerdown`. Uma vez
+  capturado, o browser redireciona o `target` dos `pointermove`/`pointerup` seguintes pro
+  elemento que capturou — então o listener do Pixi (que escuta direto no `<canvas>`) nunca via
+  esses eventos, e nenhum "pointertap" era sintetizado. Só não aparecia em teste algum porque
+  testes disparam o evento sintético direto no objeto Pixi mockado, nunca passam pelo
+  redirecionamento de capture real do browser. Corrigido: captura só depois de confirmar que é
+  arrasto de verdade (movimento > `CLICK_DRAG_THRESHOLD`), nunca no `pointerdown` em si.
+- **AD-021 — navegação entre building/household/agent virou `replace`, não `push`.** Antes, cada
+  clique empilhava (`nav.push`) — a sidebar direita nunca "soltava" o que foi aberto, e "voltar"
+  tinha que ser feito um passo de cada vez. Agora household/agent/building são irmãos dentro do
+  mesmo settlement: focar um substitui o foco anterior (`nav.replace`), e clicar no terreno vazio
+  do mapa sempre volta pro settlement (novo prop `onBackgroundClick` do `SettlementStage`).
+- **AD-021 — Causal Explorer/Timeline/Life/Feed/Threads abrem por CIMA do mapa, não substituem
+  mais o centro.** Usuário: perder a cidade/NPC de vista pra checar "Why?"/Timeline era
+  desorientador. `CenterStage` agora sempre monta o mapa (mundo ou settlement, derivado da
+  última rota espacial na pilha) e renderiza essas 5 rotas como um painel flutuante por cima,
+  com X / clique fora / Esc pra fechar (todos chamam `nav.back()`).
+
+### O que ficou de fora desta rodada — mesma fase, backlog explícito
+
+Nada disto foi escondido ou fingido feito; fica pendente na mesma `phase-16-3-web`:
+
+- **World/Continent View redesign** — mapa-múndi continua SVG com pontos/círculos, sem terreno
+  estilizado, rios, estradas, fronteiras ou zoom/pan interativo. Settlement View foi a fatia
+  escolhida pelo usuário para esta rodada.
+- **Day/night, iluminação, estações** — nenhum estado temporal real existe nesta demo fixture
+  (snapshot congelado); implementar isso exigiria inventar um relógio, o que o próprio doc do
+  usuário proíbe (§82) sem base em simulação real.
+- **Atividades visíveis (sleep/eat/work/talk/etc.) e conversas** — exigiriam um schedule por
+  agent que este fixture não modela; adicionar isso seria inventar comportamento, não só visual.
+  `AgentFixture` teria que ganhar um novo campo decorativo-mas-explícito (como `patrolPoints` já
+  é) antes de qualquer UI em cima — não feito aqui.
+- **Veículos, caravanas, viagem entre settlements ("Follow" seguindo alguém pela estrada)** —
+  fora do fixture atual (agents não têm rota entre settlements, só patrulha local).
+- **Animações de caminhada com frames/estado (idle/walk/sit/sleep)** — o sprite é estático,
+  só a posição interpola; não há troca de pose.
+- **LOD/instancing pra milhares de agents** — irrelevante nesta escala (11 agents); a arquitetura
+  atual (um `Sprite` por agent) já seria o gargalo certo pra resolver primeiro SE isso um dia
+  importar de verdade.
+- **Multi-floor com escada visível/transição de andar animada** — o seletor de andar troca o
+  conteúdo desenhado instantaneamente (sem "Agent sobe a escada, câmera segue").
+
+## Redesign — Sidebars/Inspector/Popup-Drawer (doc "Redesign das Sidebars, Inspector, Timelines")
+
+Segundo doc do usuário, focado em informação: 4 níveis de profundidade (Glance/Compact
+Detail/Popup-Drawer/Full Context View) e uma regra central — nunca espremer conteúdo de Nível
+3-4 dentro da sidebar de 340px. Escopo combinado com o usuário: começar pela fundação
+(Popup/Drawer, §19) + Agent Inspector redesenhado como prova de conceito, antes de espalhar pro
+resto.
+
+### O que foi entregue
+
+- **`components/ContextOverlay.tsx`** — `Popup` (pequeno, 280-360px) e `Drawer` (médio,
+  420-520px), Nível 3 do doc. Deliberadamente **não bloqueante** (doc §19: "modal contextual não
+  bloqueante") — sem backdrop escurecido, diferente do Center Overlay que já existia (AD-021,
+  causal/timeline/life/feed/threads) — o resto da tela continua visível/clicável atrás. Fecha
+  com X, clique fora, ou Esc.
+- **`components/InspectorPrimitives.tsx`** — `SectionHeader`, `EntityRow`, `StatusChips`,
+  `MetricRow`, `SectionLink` (doc §29-32) — label/valor sempre na mesma linha, listas como linhas
+  clicáveis compactas em vez de blocos de texto.
+- **Agent Inspector redesenhado** (`views/AgentView.tsx`, doc §13) — seções CURRENTLY / STATUS /
+  BODY / HOUSEHOLD / RELATIONSHIPS / RECENT / WHY?, cada uma compacta. "View physical details",
+  "View relationships" e "Explain decision" (Why?) — que antes ficavam permanentemente expandidos
+  inline na sidebar — agora abrem em `Popup` (doc §14: "não deixar os fatores ocupando
+  permanentemente um card grande").
+
+### Decisões de adaptação / o que ficou de fora
+
+- **`Drawer` ainda sem consumidor real** — construído junto com `Popup` (mesma implementação
+  interna, `ContextOverlay`) porque o doc pede os dois como a mesma fundação, mas nenhuma lista
+  do Agent Inspector é grande o bastante pra precisar do tier "drawer médio" (todas cabem no
+  `Popup`). Vai ganhar uso real quando Household/Settlement/Organization forem redesenhados (ex.:
+  "View all households", "View all people") na próxima rodada.
+- **"Locate" e "⋯" do header (doc §12)** — não implementados nesta rodada. "Locate" exigiria
+  expor um jeito de centralizar a câmera do `SettlementStage` num agent a partir do Inspector
+  (fora do escopo desta prova de conceito); "⋯" não tem nenhuma ação real pra abrigar ainda —
+  melhor omitir do que criar um menu vazio.
+- **Household/Settlement/Organization/Event Inspector, Explorer (§5-10), World/Agent Timeline
+  (§20-28)** — doc completo cobre todos esses; só Agent Inspector foi redesenhado nesta rodada,
+  o resto é a próxima fatia combinada com o usuário.
 
 ## Comparação visual com `web/` (spec P1b Independent Test)
 
@@ -86,7 +227,12 @@ Verificado ao vivo, os dois projetos rodando lado a lado (`web/demo.html`, modo 
 src/
   fixture/       dado estático (Oakbridge) + tipos
   npc/           token de NPC portado (appearance.ts + NpcToken.tsx)
-  map/           projeção isométrica, paleta, IsoTile, SemanticZoomMap
+  map/           mapa-múndi SVG (IsoProjection top-down, isoPalette, SemanticZoomMap,
+                 patrolMath — matemática de patrulha decorativa, AD-018)
+  render/        Settlement View — renderer Canvas/Pixi (AD-020): SettlementStage.tsx,
+                 settlementLayout.ts (footprint/roads/terreno procedural), cameraState.ts
+                 (pan/zoom/foco, puro/testável), npcTexture.ts (reusa appearance.ts como
+                 textura Pixi)
   nav/           NavigationStore (pilha de breadcrumb + sync de URL)
   state/         followStore, modeStore (Experience/Debug)
   search/        SearchIndex (busca client-side)

@@ -25,6 +25,14 @@ describe("Inspector", () => {
     expect(screen.getByTestId("agent-view")).toBeInTheDocument();
   });
 
+  it("shows the Building Inspector (name/kind/floors/people inside) when a building is selected", () => {
+    render(<Inspector fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} route={{ kind: "building", id: "bld-corvin-bakery" }} />);
+    const panel = screen.getByTestId("building-inspector");
+    expect(panel).toHaveTextContent("Corvin's Bakery");
+    expect(panel).toHaveTextContent("2");
+    expect(screen.getByTestId("building-inspector-people")).toHaveTextContent("Mira");
+  });
+
   it("shows a contextual note (not a duplicate) while the center is showing the Causal Explorer", () => {
     render(<Inspector fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} route={{ kind: "causal", eventId: "evt-grain-prices-rose" }} />);
     expect(screen.getByTestId("inspector-empty")).toHaveTextContent("Exploring a causal chain");
