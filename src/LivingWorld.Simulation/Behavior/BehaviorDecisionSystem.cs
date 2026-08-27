@@ -470,7 +470,9 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         PendingPowerInvocation? PendingPower,
         DecisionTrace Trace);
 
-    /// <summary>Escolhe ação por utility e expõe <see cref="DecisionTrace"/> volátil (COH-54).</summary>
+    /// <summary>Escolhe ação por utility e expõe <see cref="DecisionTrace"/> volátil (COH-54).
+    /// Foresight (REALISM-31/32, AD-011) entra via <see cref="DecisionContext.ForesightPreviews"/>
+    /// — dicionário vazio compartilhado no caminho comum, sem parâmetro paralelo omnisciente.</summary>
     internal static UtilityDecision SelectByUtility(
         DecisionContext ctx, NeedsRules rules, EconomyRules economy, ActionType? continuityAction,
         PowerUtilityRules? powerRules = null,
@@ -478,6 +480,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         ActionType? previousIntent = null)
     {
         var utilityRules = PowerUtilityRules.Resolve(powerRules);
+        var foresight = ctx.ForesightPreviews ?? ForesightMechanic.EmptyPreviews;
         var best = ActionType.Eat;
         double bestScore = double.NegativeInfinity;
         PendingPowerInvocation? bestPending = null;
@@ -487,6 +490,8 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         {
             double score = UtilityBaseOf(ctx, action, economy) * PersonalityWeighting.WeightOf(ctx.Personality, action)
                 + ContextFactorBonus(ctx, action);
+            if (foresight.TryGetValue(action, out var preview))
+                score *= ForesightUtilityFactor(preview);
             if (rules.HysteresisEnabled && continuityAction == action)
                 score += rules.ContinuityBonus;
 
@@ -629,6 +634,18 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
         return urgency;
     }
+
+    /// <summary>Fator de utility a partir do preview de foresight (REALISM-31):
+    /// desfecho ruim → fator &lt; 1; sucesso → fator ≥ 1; PartialSuccess neutro.</summary>
+    internal static double ForesightUtilityFactor(ResolutionResult preview) => preview switch
+    {
+        ResolutionResult.CriticalSuccess => 1.5,
+        ResolutionResult.Success => 1.25,
+        ResolutionResult.PartialSuccess => 1.0,
+        ResolutionResult.Failure => 0.35,
+        ResolutionResult.CriticalFailure => 0.1,
+        _ => 1.0,
+    };
 
     /// <summary>Bônus só quando memória/crença/relação estão presentes (COH-13/14) —
     /// listas vazias → 0, comportamento idêntico ao pré-DecisionContext (golden preservado).</summary>

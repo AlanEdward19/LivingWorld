@@ -91,7 +91,10 @@ public static class DecisionContextCache
 
         var dirty = entry.Dirty;
         if (dirty == DecisionContextCategory.None)
-            return entry.Context with { Tick = tick };
+        {
+            var foresightOnly = ForesightMechanic.PreviewsFor(world, npc.Id, tick);
+            return entry.Context with { Tick = tick, ForesightPreviews = foresightOnly };
+        }
 
         var prev = entry.Context;
         var needs = (dirty & DecisionContextCategory.Needs) != 0
@@ -116,9 +119,12 @@ public static class DecisionContextCache
             ? PowerOpportunityProvider.ApplicableTo(world, npc, tick)
             : prev.PowerOpportunities;
 
+        // Foresight é volátil por tick (REALISM-30) — sempre relê; não entra no dirty-flag.
+        var foresight = ForesightMechanic.PreviewsFor(world, npc.Id, tick);
+
         var merged = new DecisionContext(
             npc.Id, tick, needs, body, household, memories, beliefs, relationships, powers,
-            npc.Personality, npc.CurrentAction);
+            npc.Personality, npc.CurrentAction, foresight);
 
         entry.Context = merged;
         entry.Dirty = DecisionContextCategory.None;

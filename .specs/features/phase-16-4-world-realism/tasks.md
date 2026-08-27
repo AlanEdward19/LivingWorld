@@ -560,14 +560,14 @@ caminho comum (Risk do Design).
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-31: ação com preview de desfecho ruim tem utility reduzida, medida
+- [x] AC REALISM-31: ação com preview de desfecho ruim tem utility reduzida, medida
       estatisticamente (NPC com foresight evita mais que NPC sem, mesmo seed/cenário)
-- [ ] AC REALISM-32: sem preview no tick, decisão idêntica ao comportamento anterior
+- [x] AC REALISM-32: sem preview no tick, decisão idêntica ao comportamento anterior
       (regressão zero pra NPC sem o poder)
-- [ ] Sensor de performance confirma sem alocação extra no caminho comum (dicionário vazio
+- [x] Sensor de performance confirma sem alocação extra no caminho comum (dicionário vazio
       compartilhado, não alocado por chamada)
-- [ ] `Independent Test` do spec (P2 Foresight) reproduzido
-- [ ] Gate: `bash scripts/test.sh` (full — hot path, cruza com Performance)
+- [x] `Independent Test` do spec (P2 Foresight) reproduzido
+- [x] Gate: `bash scripts/test.sh` (full — hot path, cruza com Performance)
 
 **Tests**: unit
 **Gate**: full

@@ -1,4 +1,5 @@
 using LivingWorld.Domain;
+using LivingWorld.Domain.Llm;
 using LivingWorld.Simulation;
 
 namespace LivingWorld.Tests.Extraordinary;
@@ -123,6 +124,155 @@ public sealed class ForesightMechanicTests
             ForesightMechanic.EmptyPreviews,
             ForesightMechanic.PreviewsFor(treated.World, treated.Carrier.Id, tick + 1));
     }
+
+    /// <summary>REALISM-32: sem preview no tick, decisão idêntica ao comportamento anterior.</summary>
+    [Fact]
+    public void SelectByUtility_without_foresight_preview_matches_prior_behavior()
+    {
+        var economy = NeutralEconomy();
+        var rules = NeedsRules.Create(
+            0, 0, 0, 0, urgencyThreshold: 70, maxActionSelectionSteps: 10,
+            hysteresisEnabled: false, continuityBonus: 0, homelessSleepEfficiency: 0.5).Value!;
+        var personality = Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!;
+        var baseCtx = new DecisionContext(
+            new NpcId(1), 0,
+            new NeedsSnapshot(15, 100, 100, 100),
+            new BodySnapshot(1.7, 68, 28, 1, 1),
+            null,
+            Array.Empty<NpcMemory>(),
+            Array.Empty<string>(),
+            Array.Empty<RelationshipFact>(),
+            Array.Empty<PowerOpportunity>(),
+            personality,
+            null);
+        var withEmpty = baseCtx with { ForesightPreviews = ForesightMechanic.EmptyPreviews };
+
+        var without = BehaviorDecisionSystem.SelectByUtility(baseCtx, rules, economy, null);
+        var empty = BehaviorDecisionSystem.SelectByUtility(withEmpty, rules, economy, null);
+
+        Assert.Equal(without.Action, empty.Action);
+        Assert.Equal(without.Trace.WinningUtility, empty.Trace.WinningUtility);
+        Assert.Equal(ActionType.Eat, without.Action);
+        Assert.Same(ForesightMechanic.EmptyPreviews, withEmpty.ForesightPreviews);
+    }
+
+    /// <summary>REALISM-31: preview de desfecho ruim reduz utility da ação prevista.</summary>
+    [Fact]
+    public void SelectByUtility_with_Failure_foresight_on_Eat_avoids_Eat()
+    {
+        var economy = NeutralEconomy();
+        var rules = NeedsRules.Create(
+            0, 0, 0, 0, urgencyThreshold: 70, maxActionSelectionSteps: 10,
+            hysteresisEnabled: false, continuityBonus: 0, homelessSleepEfficiency: 0.5).Value!;
+        var personality = Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!;
+        var hungry = new DecisionContext(
+            new NpcId(1), 0,
+            new NeedsSnapshot(15, 100, 100, 100),
+            new BodySnapshot(1.7, 68, 28, 1, 1),
+            null,
+            Array.Empty<NpcMemory>(),
+            Array.Empty<string>(),
+            Array.Empty<RelationshipFact>(),
+            Array.Empty<PowerOpportunity>(),
+            personality,
+            null);
+        var withBadEat = hungry with
+        {
+            ForesightPreviews = new Dictionary<ActionType, ResolutionResult>
+            {
+                [ActionType.Eat] = ResolutionResult.Failure,
+            },
+        };
+
+        var baseline = BehaviorDecisionSystem.SelectByUtility(hungry, rules, economy, null);
+        var foresight = BehaviorDecisionSystem.SelectByUtility(withBadEat, rules, economy, null);
+
+        Assert.Equal(ActionType.Eat, baseline.Action);
+        Assert.NotEqual(ActionType.Eat, foresight.Action);
+        Assert.True(BehaviorDecisionSystem.ForesightUtilityFactor(ResolutionResult.Failure) < 1.0);
+        Assert.True(BehaviorDecisionSystem.ForesightUtilityFactor(ResolutionResult.CriticalFailure) <
+            BehaviorDecisionSystem.ForesightUtilityFactor(ResolutionResult.Failure));
+    }
+
+    /// <summary>Independent Test P2 Foresight: com preview de Failure em Eat, o portador
+    /// escolhe alternativa com frequência maior que o NPC idêntico sem foresight (mesmos seeds).</summary>
+    [Fact]
+    public void Independent_foresight_avoids_bad_Eat_more_often_than_without_across_seeds()
+    {
+        var economy = NeutralEconomy();
+        var rules = NeedsRules.Create(
+            0, 0, 0, 0, urgencyThreshold: 70, maxActionSelectionSteps: 10,
+            hysteresisEnabled: false, continuityBonus: 0, homelessSleepEfficiency: 0.5).Value!;
+        int withoutAte = 0;
+        int withAte = 0;
+        const int trials = 40;
+        for (int seed = 1; seed <= trials; seed++)
+        {
+            // Personalidade semeada: variação nos traços que modulam Eat vs outras ações.
+            int risk = 20 + (seed * 7) % 61;
+            int impulse = 20 + (seed * 11) % 61;
+            var personality = Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, impulse, risk).Value!;
+            var hungry = new DecisionContext(
+                new NpcId(1), seed,
+                new NeedsSnapshot(18, 100, 100, 100),
+                new BodySnapshot(1.7, 68, 28, 1, 1),
+                null,
+                Array.Empty<NpcMemory>(),
+                Array.Empty<string>(),
+                Array.Empty<RelationshipFact>(),
+                Array.Empty<PowerOpportunity>(),
+                personality,
+                null);
+            var withPreview = hungry with
+            {
+                ForesightPreviews = new Dictionary<ActionType, ResolutionResult>
+                {
+                    [ActionType.Eat] = ResolutionResult.Failure,
+                },
+            };
+
+            if (BehaviorDecisionSystem.SelectByUtility(hungry, rules, economy, null).Action == ActionType.Eat)
+                withoutAte++;
+            if (BehaviorDecisionSystem.SelectByUtility(withPreview, rules, economy, null).Action == ActionType.Eat)
+                withAte++;
+        }
+
+        Assert.True(withoutAte > withAte,
+            $"sem foresight Eat={withoutAte}/{trials}, com foresight Eat={withAte}/{trials}");
+        Assert.Equal(0, withAte);
+    }
+
+    /// <summary>DecisionContextBuilder expõe foresight persistido no tick (AD-011).</summary>
+    [Fact]
+    public void DecisionContextBuilder_exposes_stored_foresight_preview_for_carrier()
+    {
+        var treated = WorldWithPreview(nameof(ActionType.Travel));
+        const long invocationId = 291;
+        long tick = treated.World.CurrentDate.TotalHours;
+
+        Assert.True(ExtraordinaryInvocationEngine.Invoke(
+            treated.World, new TickContext(treated.World, treated.World.Rng, treated.World.Scheduler),
+            new ExtraordinaryInvocation(invocationId, treated.Carrier.Id, "test-power", treated.Target.Id)).IsSuccess);
+
+        var ctx = DecisionContextBuilder.Build(treated.World, treated.Carrier, tick);
+        Assert.True(ctx.ForesightPreviews!.TryGetValue(ActionType.Travel, out var preview));
+        Assert.Equal(
+            ForesightMechanic.PreviewsFor(treated.World, treated.Carrier.Id, tick)[ActionType.Travel],
+            preview);
+
+        var other = DecisionContextBuilder.Build(treated.World, treated.Target, tick);
+        Assert.Same(ForesightMechanic.EmptyPreviews, other.ForesightPreviews);
+    }
+
+    private static EconomyRules NeutralEconomy() => EconomyRules.Create(
+        enabled: false, foodResourceId: 1, waterResourceId: 2,
+        capacityByResourceLocation: new Dictionary<(int, int), long>(),
+        spoilagePerDayByResource: new Dictionary<int, double>(),
+        wageByProfession: new Dictionary<int, long>(),
+        priceFloor: new Dictionary<int, long>(),
+        priceCeiling: new Dictionary<int, long>(),
+        priceSensitivity: 0,
+        demandBaselinePerNpc: new Dictionary<int, double>()).Value!;
 
     private static ResolutionResult PreviewedResolution(RecordingSink sink, string evento)
     {
