@@ -205,10 +205,10 @@ zero, gerando `Fact` (mesmo padrão de `NpcDeath`).
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-01: animal consome fome por tick conforme `AnimalSpeciesRules.HungerDecayPerTick`
-- [ ] AC REALISM-02: energia zero → morte + `Fact` de morte
-- [ ] AC REALISM-06: roda com `Extraordinary.Enabled == false`
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology"`
+- [x] AC REALISM-01: animal consome fome por tick conforme `AnimalSpeciesRules.HungerDecayPerTick`
+- [x] AC REALISM-02: energia zero → morte + `Fact` de morte
+- [x] AC REALISM-06: roda com `Extraordinary.Enabled == false`
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology"`
 
 **Tests**: unit
 **Gate**: quick

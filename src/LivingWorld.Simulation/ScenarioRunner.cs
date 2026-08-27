@@ -68,6 +68,7 @@ public static class ScenarioRunner
         new SkillTeachingSystem(DefaultSkillsRules, DefaultLifeStageRules),
         new WorkHardeningSystem(),
         new ProductionSystem(DefaultSkillsRules),
+        new FaunaLifecycleSystem(),
         new TemperatureSeasonSystem(),
         new CropSystem(),
         new MarketPricingSystem(),

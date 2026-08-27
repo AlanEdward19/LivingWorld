@@ -33,6 +33,7 @@ public static class LivingWorldCapabilityCatalog
         Living("REST", consumers: ["map.npc.rest"]),
         Living("FOOD", consumers: ["inspector.npc.food"]),
         Living("CROPS", systems: [typeof(CropSystem)], consumers: ["map.crop"]),
+        Living("FAUNA", systems: [typeof(FaunaLifecycleSystem)], consumers: ["map.fauna"]),
         Living("WATER", consumers: ["map.water"]),
         Living("EMPLOYMENT", [typeof(EmploymentSystem)], [WorldEventKind.Hired, WorldEventKind.Fired], ["inspector.employment"]),
         Living("PRODUCTION", [typeof(ProductionSystem), typeof(ResourceProcessSystem)], [WorldEventKind.ResourceLost], ["inspector.production"]),
