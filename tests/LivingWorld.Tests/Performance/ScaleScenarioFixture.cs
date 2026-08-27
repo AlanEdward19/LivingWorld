@@ -78,6 +78,22 @@ public static class ScaleScenarioFixture
         maxCohabitationGroupSize: 30).Value
         ?? throw new InvalidOperationException("scale family rules inválida");
 
+    /// <summary>Reprodução/predação desligadas — sensor mede custo O(n) de entidades em massa;
+    /// pares O(n²) ficam nos testes de ecologia (REALISM-03/04).</summary>
+    public static readonly IReadOnlyList<AnimalSpeciesRules> ScaleAnimalSpeciesRules =
+    [
+        new("wolf", HungerDecayPerTick: 0.5, ReproduceEnergyThreshold: 99, ReproduceRadius: 3,
+            ReproduceProbability: 0, PredatorOf: null, PredationProbability: 0),
+        new("rabbit", HungerDecayPerTick: 0.35, ReproduceEnergyThreshold: 99, ReproduceRadius: 2,
+            ReproduceProbability: 0, PredatorOf: null, PredationProbability: 0),
+    ];
+
+    public static readonly IReadOnlyList<PlantSpeciesRules> ScalePlantSpeciesRules =
+    [
+        new("wheat", MinToleratedTemp: 5, MaxToleratedTemp: 35, MaturityStage: 3,
+            CropResourceId: 1, YieldPerMaturePlant: 10, ReproduceRadius: 2, ReproduceProbability: 0),
+    ];
+
     public static (WorldState World, WorldClock Clock) CreateWorld(ulong seed, int initialPopulation)
     {
         int vacancyMult = Math.Max(1, initialPopulation / 100);
@@ -89,7 +105,9 @@ public static class ScaleScenarioFixture
             populationRules: ScalePopulationRules,
             perfRules: PerfRules.ScaleSensorInitial,
             workplaceVacancyMultiplier: vacancyMult,
-            economyCatalog: ScenarioRunner.ScaleEconomyCatalog(vacancyMult));
+            economyCatalog: ScenarioRunner.ScaleEconomyCatalog(vacancyMult),
+            animalSpeciesRules: ScaleAnimalSpeciesRules,
+            plantSpeciesRules: ScalePlantSpeciesRules);
 
         // PERF-01 mede custo e estabilidade demográfica, não a capacidade de um único mercado
         // central alimentar uma metrópole. Depois que cada household ganhou residência física,
@@ -103,6 +121,8 @@ public static class ScaleScenarioFixture
             household.Deposit(new ResourceType(1), reserve);
             household.Deposit(new ResourceType(2), reserve);
         }
+
+        EcologyScenarioSeeder.SeedMass(scenario.World, initialPopulation);
 
         return scenario;
     }

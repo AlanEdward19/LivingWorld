@@ -430,7 +430,9 @@ public static class ScenarioRunner
         ulong seed, int maxIterationsPerTick = 1000, int initialPopulation = DefaultInitialPopulation,
         EconomyRules? economyRules = null, FamilyRules? familyRules = null, PerfRules? perfRules = null,
         PopulationRules? populationRules = null, int workplaceVacancyMultiplier = 1,
-        EconomyCatalog? economyCatalog = null, HistoryRules? historyRules = null)
+        EconomyCatalog? economyCatalog = null, HistoryRules? historyRules = null,
+        IReadOnlyList<AnimalSpeciesRules>? animalSpeciesRules = null,
+        IReadOnlyList<PlantSpeciesRules>? plantSpeciesRules = null)
     {
         var rules = economyRules ?? DefaultEconomyRules;
         var family = familyRules ?? DefaultFamilyRules;
@@ -443,8 +445,8 @@ public static class ScenarioRunner
             DefaultNeedsRules, DefaultActionCatalog, DefaultLifeStageRules,
             economyRules: rules, economyCatalog: catalog, familyRules: family, perfRules: perf,
             historyRules: history, processRecipes: DefaultProcessRecipes,
-            animalSpeciesRules: DefaultAnimalSpeciesRules,
-            plantSpeciesRules: DefaultPlantSpeciesRules,
+            animalSpeciesRules: animalSpeciesRules ?? DefaultAnimalSpeciesRules,
+            plantSpeciesRules: plantSpeciesRules ?? DefaultPlantSpeciesRules,
             biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules);
         var initialCity = new City(
             world.NextCityId(), DefaultVillageLocation, world.CurrentDate.TotalHours,
@@ -459,6 +461,8 @@ public static class ScenarioRunner
             PopulationSeeder.SeedInitial(
                 world, initialPopulation, DefaultCulture, DefaultVillageLocation, initialCity.Id);
             SeedInitialEconomyBuffer(world);
+            if (initialPopulation == DefaultInitialPopulation)
+                EcologyScenarioSeeder.SeedDefault(world);
         }
 
         return (world, new WorldClock(DefaultSystems(), maxIterationsPerTick));

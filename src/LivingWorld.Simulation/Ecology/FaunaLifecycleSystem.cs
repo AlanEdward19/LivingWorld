@@ -8,6 +8,8 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
 {
     public const string SystemName = "fauna-lifecycle";
     public const double PredationEnergyGain = 40;
+    /// <summary>Teto leve (REALISM-19): evita explosão O(n²) de reprodução em horizontes longos.</summary>
+    public const int MaxAliveFauna = 400;
 
     public string Name => SystemName;
     public TickFrequency Frequency => TickFrequency.Hourly;
@@ -48,6 +50,9 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
     /// <summary>REALISM-03: par elegível (mesma espécie, raio, energia) gera filhote próximo.</summary>
     public static void TryReproduce(WorldState world, TickContext ctx)
     {
+        if (world.Fauna.Count(a => a.IsAlive) >= MaxAliveFauna)
+            return;
+
         var rulesBySpecies = IndexRules(world);
         long tick = ctx.CurrentTick;
         var alive = world.Fauna.Where(a => a.IsAlive).OrderBy(a => a.Id.Value).ToList();

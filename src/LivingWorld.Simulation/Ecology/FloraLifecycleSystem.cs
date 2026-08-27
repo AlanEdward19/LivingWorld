@@ -9,6 +9,8 @@ namespace LivingWorld.Simulation;
 public sealed class FloraLifecycleSystem : ISimulationSystem
 {
     public const string SystemName = "flora-lifecycle";
+    /// <summary>Teto leve (REALISM-19): evita crescimento ilimitado em horizontes longos.</summary>
+    public const int MaxAliveFlora = 800;
 
     public string Name => SystemName;
     public TickFrequency Frequency => TickFrequency.Hourly;
@@ -61,6 +63,9 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
     /// (RNG semeado por stream).</summary>
     public static void TryReproduce(WorldState world, TickContext ctx)
     {
+        if (world.Flora.Count >= MaxAliveFlora)
+            return;
+
         var rulesBySpecies = IndexRules(world);
         long tick = ctx.CurrentTick;
         var occupied = world.Flora

@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using LivingWorld.Domain;
 using LivingWorld.Infrastructure;
+using LivingWorld.Simulation;
 using LivingWorld.Tests.Baselines;
 using Microsoft.EntityFrameworkCore;
 
@@ -35,6 +36,18 @@ public class ScaleScenarioSensorTests
     public void One_month_scale_run_stays_within_recorded_baseline(int initialPopulation)
     {
         AssertWithinBaseline(initialPopulation);
+    }
+
+    [Fact]
+    public void Scale_fixture_seeds_fauna_and_flora_at_declared_mass()
+    {
+        const int pop = ScaleScenarioFixture.PopulationSmall;
+        var (world, _) = ScaleScenarioFixture.CreateWorld((ulong)Seed, pop);
+        int expected = EcologyScenarioSeeder.EcologyMassCount(pop);
+        Assert.Equal(expected, world.Fauna.Count);
+        Assert.Equal(expected, world.Flora.Count);
+        Assert.Contains(world.Fauna, a => a.Species == "wolf" && a.IsAlive);
+        Assert.Contains(world.Fauna, a => a.Species == "rabbit" && a.IsAlive);
     }
 
     [Theory]
