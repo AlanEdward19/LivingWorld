@@ -307,11 +307,11 @@ reverte fora da faixa de tolerância da espécie.
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-07: estágio avança sem poder ativo, taxa depende de temperatura/estação
-- [ ] AC REALISM-08: fora da faixa de tolerância, taxa cai/reverte (nunca avança normal)
-- [ ] AC REALISM-11: `flora.growth-rate` multiplica a taxa de base, não a substitui
-- [ ] Edge case: planta que nunca entra na faixa morre sem nunca produzir
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology\|FullyQualifiedName~Extraordinary"`
+- [x] AC REALISM-07: estágio avança sem poder ativo, taxa depende de temperatura/estação
+- [x] AC REALISM-08: fora da faixa de tolerância, taxa cai/reverte (nunca avança normal)
+- [x] AC REALISM-11: `flora.growth-rate` multiplica a taxa de base, não a substitui
+- [x] Edge case: planta que nunca entra na faixa morre sem nunca produzir
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology\|FullyQualifiedName~Extraordinary"`
 
 **Tests**: unit
 **Gate**: quick

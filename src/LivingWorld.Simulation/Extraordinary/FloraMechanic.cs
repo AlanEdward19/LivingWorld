@@ -31,8 +31,14 @@ public sealed class FloraMechanic : ExtraordinaryMechanic
                && multiplier >= 0;
     }
 
-    internal static int GrowthIncrement(WorldState world, Plant plant)
+    /// <summary>Multiplicador de <c>flora.growth-rate</c> sobre a taxa de base (REALISM-11).
+    /// Sem poder ativo (ou extraordinário desligado) retorna 1 — nunca substitui o cálculo
+    /// de temperatura/estação.</summary>
+    internal static double GrowthRateMultiplier(WorldState world, Plant plant)
     {
+        if (!world.Extraordinary.Enabled)
+            return 1;
+
         double rate = 1;
         foreach (var carrierState in world.ExtraordinaryCarriers.OrderBy(item => item.CarrierId.Value))
         {
@@ -55,8 +61,11 @@ public sealed class FloraMechanic : ExtraordinaryMechanic
             }
         }
 
-        return (int)Math.Floor(rate);
+        return rate;
     }
+
+    internal static int GrowthIncrement(WorldState world, Plant plant) =>
+        (int)Math.Floor(GrowthRateMultiplier(world, plant));
 
     internal static bool PlantInArea(
         WorldState world, Npc carrier, IReadOnlyList<string> effects, Plant plant)
@@ -83,7 +92,9 @@ public sealed class FloraMechanic : ExtraordinaryMechanic
     }
 }
 
-/// <summary>Avança o estágio de crescimento das plantas, multiplicado na área afetada.</summary>
+/// <summary>Registro extraordinário legado. O avanço de estágio passou a
+/// <see cref="FloraLifecycleSystem"/> (taxa base × multiplicador de poder); este sistema
+/// não muta flora — evita dobro de avanço quando ambos estão no clock.</summary>
 public sealed class FloraGrowthSystem : ISimulationSystem
 {
     public const string SystemName = "ExtraordinaryFlora";
@@ -92,13 +103,6 @@ public sealed class FloraGrowthSystem : ISimulationSystem
 
     public void Tick(WorldState world, TickContext ctx)
     {
-        if (!world.Extraordinary.Enabled) return;
-
-        foreach (var plant in world.Flora.OrderBy(item => item.Id.Value).ToList())
-        {
-            int increment = FloraMechanic.GrowthIncrement(world, plant);
-            if (increment == 0) continue;
-            world.ReplacePlant(plant with { GrowthStage = plant.GrowthStage + increment });
-        }
+        // no-op: FloraLifecycleSystem.AdvanceStage aplica GrowthRateMultiplier sobre a taxa base.
     }
 }

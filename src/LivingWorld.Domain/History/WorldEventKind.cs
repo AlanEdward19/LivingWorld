@@ -126,4 +126,8 @@ public enum WorldEventKind
     /// <summary>Agent escolheu/executou UsePower via utility AI (Fase 16.3 P1d, COH-33) —
     /// payload: npcId|powerId|mechanicToken. CauseEventId aponta ao evento de decisão.</summary>
     PowerInvoked,
+
+    /// <summary>Planta atingiu estágio de maturidade/produção (Fase 16.4, REALISM-07) —
+    /// payload: plantId.</summary>
+    PlantMatured,
 }

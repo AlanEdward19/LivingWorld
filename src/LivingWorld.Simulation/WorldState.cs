@@ -802,6 +802,12 @@ public sealed class WorldState
         AddPlant(plant);
     }
 
+    internal void RemovePlant(PlantId id)
+    {
+        _flora.RemoveAll(existing => existing.Id == id);
+        _floraById.Remove(id);
+    }
+
     public bool IsExtraordinaryConstructCell(CellCoord cell) =>
         _extraordinaryConstructs.Any(construct => construct.Footprint.Contains(cell));
 
