@@ -79,8 +79,8 @@ public sealed class FaunaMechanicTests
     private static FaunaWorld WorldWithDominate(
         int radius, CellCoord animalAt, CellCoord outsiderAt, bool enabled = true)
     {
-        var near = new Animal(new AnimalId(1), "wolf", animalAt, true);
-        var far = new Animal(new AnimalId(2), "deer", outsiderAt, true);
+        var near = new Animal(new AnimalId(1), "wolf", animalAt, true, null, LazyNeed.Initial(100, 0, 0));
+        var far = new Animal(new AnimalId(2), "deer", outsiderAt, true, null, LazyNeed.Initial(100, 0, 0));
         var (world, carrier) = World(
             [$"fauna.dominate:{radius}"], [near, far], enabled);
         return new FaunaWorld(world, carrier, near, far, far);
@@ -88,9 +88,9 @@ public sealed class FaunaMechanicTests
 
     private static FaunaWorld WorldWithInfect(string disease)
     {
-        var near = new Animal(new AnimalId(1), "rat", new CellCoord(5, 5), true);
-        var adjacent = new Animal(new AnimalId(2), "rat", new CellCoord(6, 5), true);
-        var far = new Animal(new AnimalId(3), "rat", new CellCoord(0, 0), true);
+        var near = new Animal(new AnimalId(1), "rat", new CellCoord(5, 5), true, null, LazyNeed.Initial(100, 0, 0));
+        var adjacent = new Animal(new AnimalId(2), "rat", new CellCoord(6, 5), true, null, LazyNeed.Initial(100, 0, 0));
+        var far = new Animal(new AnimalId(3), "rat", new CellCoord(0, 0), true, null, LazyNeed.Initial(100, 0, 0));
         var (world, carrier) = World([$"fauna.infect-vector:{disease}"], [near, adjacent, far]);
         return new FaunaWorld(world, carrier, near, far, adjacent);
     }

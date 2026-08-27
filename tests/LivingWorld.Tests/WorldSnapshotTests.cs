@@ -159,7 +159,8 @@ public class WorldSnapshotTests
             new PortalEndpoint(PortalSpaceKind.World, "", new CellCoord(1, 1)),
             new PortalEndpoint(PortalSpaceKind.City, city.Id.ToString(), new CellCoord(2, 2))));
         world.AddAnimal(new Animal(
-            world.NextAnimalIdAndAdvance(), "probe-wolf", new CellCoord(0, 0), true));
+            world.NextAnimalIdAndAdvance(), "probe-wolf", new CellCoord(0, 0), true, null,
+            LazyNeed.Initial(100, 0, 0)));
         world.AddPlant(new Plant(
             world.NextPlantIdAndAdvance(), "probe-oak", new CellCoord(0, 0), 1));
         world.AddEnvironmentTemperatureAdjustment(new EnvironmentTemperatureAdjustment(

@@ -181,13 +181,15 @@ campo novo no teste de reflexão.
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] `Animal.Energy` existe e é lido/escrito só via `LazyNeed.ValueAt`
-- [ ] Nenhum call-site existente de `Animal` quebra (compila)
-- [ ] Teste de reflexão classifica o campo sem exigir mudança manual em outro lugar
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Snapshot\|FullyQualifiedName~Extraordinary"`
+- [x] `Animal.Energy` existe e é lido/escrito só via `LazyNeed.ValueAt`
+- [x] Nenhum call-site existente de `Animal` quebra (compila)
+- [x] Teste de reflexão classifica o campo sem exigir mudança manual em outro lugar
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Snapshot\|FullyQualifiedName~Extraordinary"`
 
 **Tests**: unit
 **Gate**: quick
+
+**Commit**: `feat(phase-16-4): animal energy as LazyNeed`
 
 ---
 
