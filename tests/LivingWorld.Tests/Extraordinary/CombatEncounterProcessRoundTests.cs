@@ -105,6 +105,34 @@ public sealed class CombatEncounterProcessRoundTests
         Assert.Contains(sink.Events, e => e.Payload.Contains("Exhaustion"));
     }
 
+    [Fact]
+    public void ProcessRound_on_non_active_encounter_is_noop()
+    {
+        var (world, attacker, defender, id, sink) = WorldWithEncounter(
+            magnitude: 80, attackerHp: 100, defenderHp: 5,
+            combatRules: new CombatRules(MaxRounds: 10, FleeHealthThreshold: 0, FleeProbability: 0));
+        var tick = new TickContext(world, world.Rng, world.Scheduler, sink);
+
+        CombatRoundOutcome outcome = CombatRoundOutcome.Continuing;
+        for (int i = 0; i < 10 && outcome == CombatRoundOutcome.Continuing; i++)
+            outcome = CombatEncounterSystem.ProcessRound(world, id, tick);
+
+        Assert.Equal(CombatEncounterStatus.Resolved, world.FindCombatEncounter(id)!.Status);
+        int rounds = world.FindCombatEncounter(id)!.RoundsElapsed;
+        int atkHp = attacker.Health;
+        int defHp = defender.Health;
+        int eventCount = sink.Events.Count;
+
+        var again = CombatEncounterSystem.ProcessRound(world, id, tick);
+
+        Assert.Equal(CombatRoundOutcome.Resolved, again);
+        Assert.Equal(CombatEncounterStatus.Resolved, world.FindCombatEncounter(id)!.Status);
+        Assert.Equal(rounds, world.FindCombatEncounter(id)!.RoundsElapsed);
+        Assert.Equal(atkHp, attacker.Health);
+        Assert.Equal(defHp, defender.Health);
+        Assert.Equal(eventCount, sink.Events.Count);
+    }
+
     private static (
         WorldState World, Npc Attacker, Npc Defender, CombatEncounterId Id, RecordingSink Sink)
         WorldWithEncounter(

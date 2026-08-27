@@ -590,8 +590,9 @@ Design como não decidido). Registra a escolha como comentário/AD curto.
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] Atributo escolhido e justificado (ou confirmado com o usuário que precisa de um novo)
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
+- [x] Atributo escolhido e justificado (ou confirmado com o usuário que precisa de um novo)
+      — `Npc.Vitality` via `ControlMechanic.PossessionResistanceAttribute` (AD-071 / T19)
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
 
 **Tests**: unit
 **Gate**: quick
@@ -611,11 +612,11 @@ atribuição causal já garantida na 16.1).
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-33: hospedeiro com resistência alta recupera controle mais que resistência
+- [x] AC REALISM-33: hospedeiro com resistência alta recupera controle mais que resistência
       baixa, mesmo seed/cenário
-- [ ] AC REALISM-34: `Fact` registra o evento com o possuidor identificado
-- [ ] `Independent Test` do spec (P3 Possessão) reproduzido
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
+- [x] AC REALISM-34: `Fact` registra o evento com o possuidor identificado
+- [x] `Independent Test` do spec (P3 Possessão) reproduzido
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
 
 **Tests**: unit
 **Gate**: quick
