@@ -256,6 +256,18 @@
 - **Date**: 2026-08-27
 - **Status**: active
 
+### AD-029
+- **Decision**: Closeout Scenario da Fase 16.4 usa horizonte de **10 anos**, não 100.
+  100 anos permanece no objetivo #1 do roadmap (`LifeTable*` / Scenario de população),
+  não é pré-requisito de fechamento desta fase.
+- **Reason**: Usuário cancelou a rodagem de ~864k ticks (~2h+) por custo; 10 anos cobrem
+  várias estações, cold-archive e variação ecológica sem duplicar o gate do objetivo #1.
+- **Trade-off**: Closeout 16.4 não prova sozinho multi-geração de século; isso continua
+  nos testes de população de longo prazo já existentes.
+- **Scope**: `.specs/features/phase-16-4-world-realism/` + `WorldRealismCloseoutTests`.
+- **Date**: 2026-08-27
+- **Status**: active
+
 ## Handoff
 
 - **Feature**: Fase 16.4 World Realism — **Verifier PASS agent-side**; pending user AD-009
@@ -264,8 +276,8 @@
 - **Rule**: `rules/living-world-cohesion.md`
 - **User must run (AD-009)**:
   1. `bash scripts/verify.sh`
-  2. `dotnet test LivingWorld.sln --filter "FullyQualifiedName~WorldRealismCloseoutTests.Reference_scenario_hundred_years"`
-- **Tip**: `d473c94` (+ Fix1–4 after T22); ecology/combat/instantiation/foresight/possession
+  2. `dotnet test LivingWorld.sln --filter "FullyQualifiedName~WorldRealismCloseoutTests.Reference_scenario_ten_years"`
+- **Tip**: `d473c94` (+ Fix1–4 after T22); AD-029 (10yr closeout)
 - **Blockers**: none agent-side
 - **Prior**: Fase 16.3 Cohesion MERGED
 

@@ -5,7 +5,8 @@ using LivingWorld.Simulation.Geography;
 namespace LivingWorld.Tests.Ecology;
 
 /// <summary>T22 closeout (agente): cenário de referência com fauna/flora/clima e 0 poderes.
-/// Smoke curto prova variação auditável; 100 anos = Category=Scenario + verify.sh (AD-009).</summary>
+/// Smoke curto prova variação auditável; 10 anos = Category=Scenario (AD-029 — 100 anos fica
+/// no objetivo #1 / LifeTable, não no closeout da 16.4).</summary>
 public sealed class WorldRealismCloseoutTests
 {
     private sealed class RecordingSink : IWorldEventSink
@@ -81,16 +82,17 @@ public sealed class WorldRealismCloseoutTests
             "flora deve avançar estágio sob temperatura sazonal");
     }
 
-    /// <summary>100 anos — só usuário (Category=Scenario). Ver tasks.md.</summary>
+    /// <summary>10 anos — Category=Scenario (AD-029). Suficiente para estações, archive e
+    /// população ecológica sem duplicar o custo do objetivo #1 (100 anos).</summary>
     [Fact]
     [Trait("Category", "Scenario")]
-    public void Reference_scenario_hundred_years_completes_with_ecology_active()
+    public void Reference_scenario_ten_years_completes_with_ecology_active()
     {
-        const long hundredYearsTicks = 100 * 12 * 30 * 24;
+        const long tenYearsTicks = 10 * 12 * 30 * 24;
         var (world, clock) = ScenarioRunner.Create(seed: 42);
-        clock.Run(world, hundredYearsTicks);
+        clock.Run(world, tenYearsTicks);
         Assert.True(world.Npcs.Any(n => n.IsAlive), "NPCs sobrevivem no horizonte de referência");
         Assert.True(world.Fauna.Any(a => a.IsAlive) || world.Flora.Count > 0,
-            "ecologia permanece materializada após 100 anos");
+            "ecologia permanece materializada após 10 anos");
     }
 }

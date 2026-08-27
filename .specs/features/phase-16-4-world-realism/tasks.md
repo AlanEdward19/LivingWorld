@@ -649,11 +649,12 @@ confirma que `PerfRules.MaxMicrosPerAliveNpcTick`/`MaxBytesAllocPerTick` não s�
 
 ---
 
-### T22: Cenário de referência 100 anos + `bash scripts/verify.sh`
+### T22: Cenário de referência 10 anos + `bash scripts/verify.sh`
 
-**What**: Roda o cenário de referência do objetivo #1 (100 NPCs, 100 anos) com
+**What**: Roda o cenário de referência (100 NPCs, **10 anos** — AD-029) com
 fauna/flora/temperatura habilitadas e 0 poderes ativos, confirma que não trava e que a
-população/estágios variam de forma auditável no log. Roda o gate final.
+população/estágios variam de forma auditável no log. Roda o gate final. 100 anos permanece
+no objetivo #1 (`LifeTable*`), não neste closeout.
 **Where**: N/A (execução de cenário, não código novo — a menos que o cenário de referência
 precise de flags novas pra habilitar fauna/flora, o que é edição de config)
 **Depends on**: T21
@@ -665,9 +666,8 @@ precise de flags novas pra habilitar fauna/flora, o que é edição de config)
 **Done when**:
 - [x] Smoke agente: cenário default semeia ecologia (0 poderes); fome/estágios variam em 1 mês
       (`WorldRealismCloseoutTests`) — Independent T6/T9 cobrem reprodução
-- [ ] Cenário de 100 anos com fauna/flora/temperatura habilitadas e 0 poderes ativos termina
-      sem travar; log mostra população de fauna e estágios de flora variando
-      — **USER**: `dotnet test --filter "FullyQualifiedName~WorldRealismCloseoutTests.Reference_scenario_hundred_years"`
+- [ ] Cenário de 10 anos (AD-029) com fauna/flora/temperatura e 0 poderes termina sem travar
+      — **USER**: `dotnet test --filter "FullyQualifiedName~WorldRealismCloseoutTests.Reference_scenario_ten_years"`
 - [ ] `bash scripts/verify.sh` sai 0 — **USER (AD-009)**
 - [x] Checklist 5 mecânicas antes ocas fechadas: combate multi-round; clone/split/reincarnate
       herança; foresight→utility; possession resist; autonomous ecology
