@@ -200,6 +200,19 @@ public static class WorldSnapshot
             && biomeSeasonNode is not null
                 ? biomeSeasonNode.Deserialize<List<BiomeSeasonTemperatureRules>>(JsonOptions)!
                 : [];
+        var combatEncounters =
+            node.TryGetPropertyValue("CombatEncounters", out var combatNode) && combatNode is not null
+                ? combatNode.Deserialize<List<CombatEncounter>>(JsonOptions)!
+                : [];
+        var nextCombatEncounterId =
+            node.TryGetPropertyValue("NextCombatEncounterId", out var nextCombatNode)
+            && nextCombatNode is not null
+                ? nextCombatNode.GetValue<long>()
+                : 0L;
+        var combatRules =
+            node.TryGetPropertyValue("CombatRules", out var combatRulesNode) && combatRulesNode is not null
+                ? combatRulesNode.Deserialize<CombatRules>(JsonOptions)!
+                : CombatRules.Default;
 
         return new WorldState(
             calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
@@ -214,7 +227,7 @@ public static class WorldSnapshot
             extraordinaryConstructs, nextExtraordinaryConstructId,
             fauna, nextAnimalId, flora, nextPlantId, environmentTemperatureAdjustments,
             animalSpeciesRules, plantSpeciesRules, biomeSeasonTemperatureRules,
-            nextHistoryEventId);
+            nextHistoryEventId, combatEncounters, nextCombatEncounterId, combatRules);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)

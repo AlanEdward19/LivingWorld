@@ -110,8 +110,17 @@ public enum WorldEventKind
     /// <summary>Consequência declarada de uma resolução extraordinária não plena.</summary>
     ExtraordinaryFailureApplied,
 
-    /// <summary>Confronto NPC-vs-NPC resolvido por poder (Fase 16.1, PWR-63).</summary>
+    /// <summary>Confronto NPC-vs-NPC resolvido por poder (Fase 16.1, PWR-63) ou encontro
+    /// multi-round encerrado (Fase 16.4).</summary>
     CombatResolved,
+
+    /// <summary>Encontro multi-round iniciado via <c>combat.engage:</c> (AD-010 / REALISM-16)
+    /// — payload: encounterId|attackerId|defenderId.</summary>
+    CombatEncounterStarted,
+
+    /// <summary>Um round de encontro processado (REALISM-17) — payload:
+    /// encounterId|round|attackerHp|defenderHp.</summary>
+    CombatRound,
 
     /// <summary>Instanciação de NPC via poder (clone/split/reincarnate, PWR-107).</summary>
     NpcInstantiated,

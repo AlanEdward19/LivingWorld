@@ -361,13 +361,15 @@ teste que trava o contrato escolhido.
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AD-NNN registrado com a escolha e o porquê (impacto em poderes já salvos)
-- [ ] Teste que documenta o contrato escolhido (ex.: `combat.strike` continua resolvendo
+- [x] AD-NNN registrado com a escolha e o porquê (impacto em poderes já salvos)
+- [x] Teste que documenta o contrato escolhido (ex.: `combat.strike` continua resolvendo
       imediato OU passa a iniciar encontro — o teste prova qual)
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
 
 **Tests**: unit
 **Gate**: quick
+
+**Commit**: `feat(phase-16-4): lock combat.strike vs combat.engage contract`
 
 ---
 

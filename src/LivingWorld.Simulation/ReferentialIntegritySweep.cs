@@ -47,6 +47,7 @@ public static class ReferentialIntegritySweep
         [typeof(NarrativeId)] = _ => [],
         [typeof(AnimalId)] = w => w.Fauna.Select(animal => (object)animal.Id).ToHashSet(),
         [typeof(PlantId)] = w => w.Flora.Select(plant => (object)plant.Id).ToHashSet(),
+        [typeof(CombatEncounterId)] = w => w.CombatEncounters.Select(e => (object)e.Id).ToHashSet(),
     };
 
     /// <summary>Todo tipo de id do assembly Domain — o teste de cobertura reprova se algum

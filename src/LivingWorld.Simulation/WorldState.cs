@@ -155,6 +155,18 @@ public sealed class WorldState
     /// <summary>Curvas sazonais de delta de temperatura por bioma (Fase 16.4).</summary>
     [Canonical] public IReadOnlyList<BiomeSeasonTemperatureRules> BiomeSeasonTemperatureRules { get; }
 
+    private readonly List<CombatEncounter> _combatEncounters;
+    private readonly Dictionary<CombatEncounterId, CombatEncounter> _combatEncountersById;
+    private long _nextCombatEncounterId;
+
+    /// <summary>Encontros de combate multi-round (Fase 16.4, REALISM-16) — AD-010 via
+    /// <c>combat.engage:</c>.</summary>
+    [Canonical] public IReadOnlyList<CombatEncounter> CombatEncounters => _combatEncounters;
+    [Canonical] public long NextCombatEncounterId => _nextCombatEncounterId;
+
+    /// <summary>Teto de rounds e limiar de fuga (cenário).</summary>
+    [Canonical] public CombatRules CombatRules { get; }
+
     /// <summary>Nome escolhido pelo usuário na criação (Fase 15.1, T42/ADR-0017) — cosmético,
     /// nenhuma decisão de sistema lê nome de mundo (ADR-0014), por isso volátil.</summary>
     [Volatile] public string Name { get; private set; }
@@ -386,7 +398,10 @@ public sealed class WorldState
         IReadOnlyList<EnvironmentTemperatureAdjustment>? environmentTemperatureAdjustments = null,
         IReadOnlyList<AnimalSpeciesRules>? animalSpeciesRules = null,
         IReadOnlyList<PlantSpeciesRules>? plantSpeciesRules = null,
-        IReadOnlyList<BiomeSeasonTemperatureRules>? biomeSeasonTemperatureRules = null)
+        IReadOnlyList<BiomeSeasonTemperatureRules>? biomeSeasonTemperatureRules = null,
+        IReadOnlyList<CombatEncounter>? combatEncounters = null,
+        long nextCombatEncounterId = 0,
+        CombatRules? combatRules = null)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -421,6 +436,10 @@ public sealed class WorldState
         AnimalSpeciesRules = animalSpeciesRules ?? [];
         PlantSpeciesRules = plantSpeciesRules ?? [];
         BiomeSeasonTemperatureRules = biomeSeasonTemperatureRules ?? [];
+        _combatEncounters = (combatEncounters ?? []).OrderBy(e => e.Id.Value).ToList();
+        _combatEncountersById = ToLookup(_combatEncounters, e => e.Id);
+        _nextCombatEncounterId = nextCombatEncounterId;
+        CombatRules = combatRules ?? CombatRules.Default;
         Name = name;
         _facts = [];
         _reports = [];
@@ -523,7 +542,10 @@ public sealed class WorldState
         IReadOnlyList<AnimalSpeciesRules>? animalSpeciesRules = null,
         IReadOnlyList<PlantSpeciesRules>? plantSpeciesRules = null,
         IReadOnlyList<BiomeSeasonTemperatureRules>? biomeSeasonTemperatureRules = null,
-        long nextHistoryEventId = 0)
+        long nextHistoryEventId = 0,
+        IReadOnlyList<CombatEncounter>? combatEncounters = null,
+        long nextCombatEncounterId = 0,
+        CombatRules? combatRules = null)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -590,6 +612,10 @@ public sealed class WorldState
         AnimalSpeciesRules = animalSpeciesRules ?? [];
         PlantSpeciesRules = plantSpeciesRules ?? [];
         BiomeSeasonTemperatureRules = biomeSeasonTemperatureRules ?? [];
+        _combatEncounters = (combatEncounters ?? []).OrderBy(e => e.Id.Value).ToList();
+        _combatEncountersById = ToLookup(_combatEncounters, e => e.Id);
+        _nextCombatEncounterId = nextCombatEncounterId;
+        CombatRules = combatRules ?? CombatRules.Default;
         _facts = (facts ?? []).ToList();
         _nextFactId = nextFactId;
         _nextReportId = nextReportId;
@@ -806,6 +832,27 @@ public sealed class WorldState
     {
         _flora.RemoveAll(existing => existing.Id == id);
         _floraById.Remove(id);
+    }
+
+    internal CombatEncounterId NextCombatEncounterIdAndAdvance() => new(_nextCombatEncounterId++);
+
+    public void AddCombatEncounter(CombatEncounter encounter)
+    {
+        _combatEncounters.Add(encounter);
+        _combatEncountersById[encounter.Id] = encounter;
+        _combatEncounters.Sort((left, right) => left.Id.Value.CompareTo(right.Id.Value));
+        CanonicalHashCache.MarkPropertyDirty(nameof(CombatEncounters));
+        CanonicalHashCache.MarkPropertyDirty(nameof(NextCombatEncounterId));
+    }
+
+    public CombatEncounter? FindCombatEncounter(CombatEncounterId id) =>
+        _combatEncountersById.GetValueOrDefault(id);
+
+    internal void ReplaceCombatEncounter(CombatEncounter encounter)
+    {
+        _combatEncounters.RemoveAll(existing => existing.Id == encounter.Id);
+        _combatEncountersById.Remove(encounter.Id);
+        AddCombatEncounter(encounter);
     }
 
     public bool IsExtraordinaryConstructCell(CellCoord cell) =>

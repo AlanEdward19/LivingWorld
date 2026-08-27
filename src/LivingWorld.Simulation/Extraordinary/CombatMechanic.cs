@@ -3,13 +3,16 @@ using LivingWorld.Domain;
 namespace LivingWorld.Simulation;
 
 /// <summary>
-/// Confronto NPC-vs-NPC: <c>combat.strike:&lt;magnitude-base&gt;</c> resolve via
-/// <see cref="Resolver.Resolve"/> (capacidade inclui <c>attribute.strength</c>), aplica dano
-/// no caminho <c>npc.health</c> e loga <see cref="WorldEventKind.CombatResolved"/>.
+/// Confronto NPC-vs-NPC. AD-010 (<c>.specs/STATE.md</c>): <c>combat.strike:&lt;magnitude&gt;</c>
+/// permanece resolução imediata single-shot; multi-round entra por <c>combat.engage:</c>
+/// criando <see cref="CombatEncounter"/> persistente via <see cref="CombatEncounterSystem"/>.
 /// </summary>
 public sealed class CombatMechanic : ExtraordinaryMechanic
 {
     public const string StrikePrefix = "combat.strike:";
+
+    /// <summary>Token multi-round (AD-010) — não reusa <see cref="StrikePrefix"/>.</summary>
+    public const string EngagePrefix = "combat.engage:";
 
     public override string Prefix => "combat.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
@@ -17,6 +20,9 @@ public sealed class CombatMechanic : ExtraordinaryMechanic
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
+        if (declaration.StartsWith(EngagePrefix, StringComparison.Ordinal))
+            return PrepareEngage(ctx, declaration);
+
         if (!declaration.StartsWith(StrikePrefix, StringComparison.Ordinal))
         {
             int separator = declaration.LastIndexOf(':');
@@ -52,6 +58,23 @@ public sealed class CombatMechanic : ExtraordinaryMechanic
                 WorldEventKind.CombatResolved,
                 $"{attacker.Id.Value}|{target.Id.Value}|{resolution}", sourceSystem: "CombatMechanic");
         }));
+    }
+
+    /// <summary>AD-010: inicia encontro persistente — sem dano imediato de strike.</summary>
+    private static Result<PreparedMutation?> PrepareEngage(
+        ExtraordinaryMechanicContext ctx, string declaration)
+    {
+        var parsed = ExtraordinaryMechanicSupport.ParseAmount(declaration, "Effects", allowSigned: false);
+        if (!parsed.IsSuccess) return Result<PreparedMutation?>.Fail(parsed.Error!);
+
+        int magnitude = parsed.Value.Amount;
+        var world = ctx.World;
+        var attacker = ctx.Carrier;
+        var target = ctx.Target;
+        var tick = ctx.Tick;
+
+        return Result<PreparedMutation?>.Ok(new PreparedMutation(declaration, _ =>
+            CombatEncounterSystem.StartEncounter(world, attacker.Id, target.Id, magnitude, tick)));
     }
 
     internal static int DamageOf(int magnitude, ResolutionResult resolution) => resolution switch
