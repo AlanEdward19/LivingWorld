@@ -536,11 +536,13 @@ documentada de não mutar `WorldState` além disso).
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-30: preview fica disponível como entrada pro tick corrente do portador
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
+- [x] AC REALISM-30: preview fica disponível como entrada pro tick corrente do portador
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
 
 **Tests**: unit
 **Gate**: quick
+
+**Commit**: `feat(phase-16-4): foresight preview persists for current tick`
 
 ---
 

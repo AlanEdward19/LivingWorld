@@ -93,6 +93,37 @@ public sealed class ForesightMechanicTests
             ExtraordinaryMechanicRegistry.Default.Resolve("foresight.preview:check"));
     }
 
+    /// <summary>REALISM-30: preview of an ActionType stays readable for the carrier on the
+    /// current tick (volatile store — no Fact, no canonical WorldState mutation).</summary>
+    [Fact]
+    public void Preview_for_ActionType_persists_readable_on_current_tick_without_Fact()
+    {
+        var treated = WorldWithPreview(nameof(ActionType.Travel));
+        var sink = new RecordingSink();
+        const long invocationId = 290;
+        int factsBefore = treated.World.Facts.Count;
+        long tick = treated.World.CurrentDate.TotalHours;
+
+        Assert.Same(
+            ForesightMechanic.EmptyPreviews,
+            ForesightMechanic.PreviewsFor(treated.World, treated.Carrier.Id, tick));
+
+        var result = ExtraordinaryInvocationEngine.Invoke(
+            treated.World, new TickContext(treated.World, treated.World.Rng, treated.World.Scheduler, sink),
+            new ExtraordinaryInvocation(invocationId, treated.Carrier.Id, "test-power", treated.Target.Id));
+
+        Assert.True(result.IsSuccess, result.Error);
+        var expected = PreviewedResolution(sink, nameof(ActionType.Travel));
+        var previews = ForesightMechanic.PreviewsFor(treated.World, treated.Carrier.Id, tick);
+        Assert.True(previews.TryGetValue(ActionType.Travel, out var stored));
+        Assert.Equal(expected, stored);
+        Assert.Equal(factsBefore, treated.World.Facts.Count);
+        Assert.Empty(ForesightMechanic.PreviewsFor(treated.World, treated.Target.Id, tick));
+        Assert.Same(
+            ForesightMechanic.EmptyPreviews,
+            ForesightMechanic.PreviewsFor(treated.World, treated.Carrier.Id, tick + 1));
+    }
+
     private static ResolutionResult PreviewedResolution(RecordingSink sink, string evento)
     {
         string marker = $"{ForesightMechanic.PreviewPrefix}{evento}|";
