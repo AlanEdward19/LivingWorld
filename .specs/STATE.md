@@ -243,14 +243,15 @@
 
 ## Handoff
 
-- **Feature**: Fase 16.3 Living World Cohesion — **MERGED** into primary
-  (`feat/phase-16-2-power-evolution`) from worktree `LivingWorld-16-3-cohesion`
-  (`feat/phase-16-3-world-cohesion`). Soft follow-ups done (exception isolation + LogEvent SourceSystem).
-- **Audit**: [`docs/audits/living-world-cohesion-audit.md`](../docs/audits/living-world-cohesion-audit.md)
-- **Validation**: `.specs/features/phase-16-3-world-cohesion/validation.md` — PASS 35/35 COH
-- **ADs**: AD-011..013 (arquitetura) + AD-014..017 (baselines/golden closeout)
-- **Next**: remove cohesion worktree when merge is confirmed; Height/Weight consumers → 16.4+
+- **Feature**: Fase 16.4 World Realism — **Execute started** (2026-08-26)
+- **Branch**: `feat/phase-16-4-world-realism` (from primary with 16.3 cohesion merged)
+- **Spec**: `.specs/features/phase-16-4-world-realism/{spec,design,tasks}.md`
+- **Rule**: `rules/living-world-cohesion.md` (permanent — systems must have causal consumers)
+- **Mode**: sub-agentes por fase (user confirmed); commits atômicos por task; AD-009 (full verify só usuário)
+- **Last**: setup commit `74725bf` (cohesion rule); Phase 1 (T1–T2) dispatching
+- **WIP reference only** (do not merge blindly): worktree `LivingWorld-16-3` / `62a2e13` + uncommitted — old name 16.3
 - **Blockers**: none
+- **Prior**: Fase 16.3 Living World Cohesion MERGED — audit `docs/audits/living-world-cohesion-audit.md`, validation PASS 35/35 COH
 
 ---
 
