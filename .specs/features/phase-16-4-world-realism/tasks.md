@@ -487,11 +487,11 @@ transfere (NPC novo).
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-29: as 3 mecânicas produzem o comportamento de vínculo declarado (nunca
+- [x] AC REALISM-29: as 3 mecânicas produzem o comportamento de vínculo declarado (nunca
       vazio por omissão)
-- [ ] `Independent Test` do spec (P2 Instanciação) reproduzido: clone com skill N e F
+- [x] `Independent Test` do spec (P2 Instanciação) reproduzido: clone com skill N e F
       vínculos → clone nasce com skill N e F vínculos
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
 
 **Tests**: unit
 **Gate**: quick

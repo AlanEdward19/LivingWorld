@@ -2,9 +2,22 @@ using LivingWorld.Domain;
 
 namespace LivingWorld.Simulation;
 
-/// <summary>Herança de skill para clone/split/reincarnate (REALISM-26..28).
+/// <summary>Modo de transferência de vínculos sociais (REALISM-29) em instanciação.</summary>
+public enum BondTransferMode
+{
+    /// <summary><c>npc.clone</c> — cópia independente dos vínculos do original.</summary>
+    Copy,
+
+    /// <summary><c>npc.split-on-death</c> — cada novo NPC preserva os vínculos do original.</summary>
+    Preserve,
+
+    /// <summary><c>npc.reincarnate</c> — vínculos não sobrevivem (NPC novo).</summary>
+    None,
+}
+
+/// <summary>Herança de skill e vínculos para clone/split/reincarnate (REALISM-26..29).
 /// Reusa a fórmula de <see cref="RateGene.Inherit"/>/<see cref="HeredityService.InheritVitality"/>
-/// — blend ponderado + mutação RNG + clamp — sem segunda regra genética.</summary>
+/// e <see cref="WorldState.Relationships"/> — sem stores paralelos.</summary>
 public static class NpcInstantiationHeredity
 {
     /// <summary>Meia-largura de mutação de <b>nível</b> de skill. Zero: skill é nível acumulado
@@ -28,6 +41,46 @@ public static class NpcInstantiationHeredity
         }
 
         return result;
+    }
+
+    /// <summary>Transfere vínculos de <paramref name="source"/> para cada alvo conforme
+    /// <paramref name="mode"/> — nunca omite por omissão (REALISM-29).</summary>
+    public static void TransferBonds(
+        WorldState world, Npc source, IReadOnlyList<NpcId> targets, BondTransferMode mode)
+    {
+        if (mode == BondTransferMode.None || targets.Count == 0)
+            return;
+
+        long now = world.CurrentDate.TotalHours;
+        var partners = world.Relationships
+            .Where(pair => pair.Key.From == source.Id || pair.Key.To == source.Id)
+            .Select(pair => pair.Key.From == source.Id ? pair.Key.To : pair.Key.From)
+            .Distinct()
+            .OrderBy(id => id.Value)
+            .ToList();
+
+        foreach (var targetId in targets.OrderBy(id => id.Value))
+        {
+            foreach (var partnerId in partners)
+            {
+                if (partnerId == targetId)
+                    continue;
+
+                CopyDirectedBond(world, source.Id, partnerId, targetId, partnerId, now);
+                CopyDirectedBond(world, partnerId, source.Id, partnerId, targetId, now);
+            }
+        }
+    }
+
+    private static void CopyDirectedBond(
+        WorldState world, NpcId fromSource, NpcId toSource, NpcId fromDest, NpcId toDest, long now)
+    {
+        if (!world.Relationships.TryGetValue(new RelationshipKey(fromSource, toSource), out var origin))
+            return;
+
+        var copy = world.GetOrCreateRelationship(new RelationshipKey(fromDest, toDest), now);
+        copy.CopyAxesFrom(origin);
+        copy.MarkContact(now);
     }
 }
 

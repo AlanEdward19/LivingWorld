@@ -17,8 +17,11 @@ public static class NpcInstantiationMechanic
         int split = DeclaredMagnitudeSum(world, npc, "npc.split-on-death:");
         // REALISM-27: cada filho herda fração proporcional 1/N (não skill completa duplicada).
         double splitWeight = split > 0 ? 1.0 / split : 0.0;
+        var splitIds = new List<NpcId>(split);
         for (int i = 0; i < split; i++)
-            InstantiateCopy(world, ctx, npc, "split-on-death", skillWeight: splitWeight);
+            splitIds.Add(InstantiateCopy(world, ctx, npc, "split-on-death", skillWeight: splitWeight).Id);
+        // REALISM-29: Preserve — cada novo NPC mantém os vínculos originais (explícito, não omissão).
+        NpcInstantiationHeredity.TransferBonds(world, npc, splitIds, BondTransferMode.Preserve);
 
         int reincarnate = DeclaredMagnitudeSum(world, npc, "npc.reincarnate:");
         if (reincarnate <= 0)
@@ -60,6 +63,10 @@ public static class NpcInstantiationMechanic
         foreach (var (skillId, value) in inherited.Values.OrderBy(pair => pair.Key))
             baby.GainSkill(new SkillType(skillId), value, 100);
 
+        // REALISM-29: None — vínculos do doador não sobrevivem (explícito, não omissão).
+        if (world.FindNpc(carrier.CarrierId) is { } donor)
+            NpcInstantiationHeredity.TransferBonds(world, donor, [baby.Id], BondTransferMode.None);
+
         world.UpsertExtraordinaryCarrier(carrier with { PendingReincarnation = null });
         ctx.LogEvent(
             WorldEventKind.NpcInstantiated,
@@ -97,6 +104,12 @@ public static class NpcInstantiationMechanic
         }
 
         ctx.LogEvent(WorldEventKind.NpcInstantiated, $"{source.Id.Value}|{clone.Id.Value}|{origin}", sourceSystem: "NpcInstantiationMechanic");
+
+        // Clone path (weight default 1): Copy bonds. Split path calls TransferBonds(Preserve) once
+        // for all children after the loop — skip here when origin is split-on-death.
+        if (!string.Equals(origin, "split-on-death", StringComparison.Ordinal))
+            NpcInstantiationHeredity.TransferBonds(world, source, [clone.Id], BondTransferMode.Copy);
+
         return clone;
     }
 

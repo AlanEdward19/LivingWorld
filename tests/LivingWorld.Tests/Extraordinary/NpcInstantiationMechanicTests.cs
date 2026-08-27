@@ -73,6 +73,67 @@ public sealed class NpcInstantiationMechanicTests
     }
 
     [Fact]
+    public void Clone_with_skill_N_and_F_bonds_produces_clone_with_skill_N_and_F_bonds()
+    {
+        // Independent Test (spec P2 Instanciação / REALISM-26+29).
+        var (world, carrier, friend, _) = WorldWithPower(["npc.clone:1"]);
+        var skill = new SkillType(3);
+        const int skillN = 55;
+        carrier.GainSkill(skill, skillN, 100);
+
+        SeedBond(world, carrier.Id, friend.Id, trust: 70, affection: 60);
+        int bondCountF = UniquePartnersOf(world, carrier.Id);
+        Assert.Equal(1, bondCountF);
+
+        var sink = new RecordingSink();
+        var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
+        var result = ExtraordinaryInvocationEngine.Invoke(
+            world, ctx, new ExtraordinaryInvocation(70, carrier.Id, "test-power", carrier.Id));
+
+        Assert.True(result.IsSuccess, result.Error);
+        var clone = Assert.Single(world.Npcs, npc => npc.Id != carrier.Id && npc.Id != friend.Id);
+        Assert.Equal(skillN, clone.Skills.Get(skill));
+        Assert.Equal(bondCountF, UniquePartnersOf(world, clone.Id));
+        Assert.True(world.Relationships.ContainsKey(new RelationshipKey(clone.Id, friend.Id)));
+        Assert.Equal(70, world.Relationships[new RelationshipKey(clone.Id, friend.Id)].Trust);
+        Assert.Equal(60, world.Relationships[new RelationshipKey(clone.Id, friend.Id)].Affection);
+    }
+
+    [Fact]
+    public void Split_preserves_original_bonds_on_each_new_npc()
+    {
+        var (world, carrier, friend, _) = WorldWithPower(["npc.split-on-death:2"], mode: "Passive");
+        SeedBond(world, carrier.Id, friend.Id, trust: 80, affection: 50);
+        var sink = new RecordingSink();
+        var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
+
+        NpcDeath.Apply(world, ctx, carrier, WorldEventKind.Death);
+
+        var spawned = world.Npcs.Where(npc => npc.IsAlive && npc.Id != friend.Id).OrderBy(n => n.Id.Value).ToList();
+        Assert.Equal(2, spawned.Count);
+        Assert.All(spawned, child =>
+        {
+            Assert.Equal(1, UniquePartnersOf(world, child.Id));
+            Assert.Equal(80, world.Relationships[new RelationshipKey(child.Id, friend.Id)].Trust);
+        });
+    }
+
+    [Fact]
+    public void Reincarnate_transfers_no_social_bonds_to_the_newborn()
+    {
+        var treated = CoupleWorldWithDonor(["npc.reincarnate:50"]);
+        SeedBond(treated.World, treated.Donor.Id, treated.Mother.Id, trust: 90, affection: 40);
+        int donorBonds = UniquePartnersOf(treated.World, treated.Donor.Id);
+        Assert.True(donorBonds >= 1);
+
+        NpcDeath.Apply(treated.World, treated.Ctx, treated.Donor, WorldEventKind.Death);
+        var baby = TriggerBirth(treated.World, treated.Ctx, treated.Mother.Id, treated.Father.Id, treated.Home.Id);
+
+        Assert.Equal(0, UniquePartnersOf(treated.World, baby.Id));
+        Assert.False(treated.World.Relationships.ContainsKey(new RelationshipKey(baby.Id, treated.Mother.Id)));
+    }
+
+    [Fact]
     public void Split_on_death_instantiates_exactly_n_npcs_at_death_never_before_or_after()
     {
         var (world, carrier, _, _) = WorldWithPower(["npc.split-on-death:3"], mode: "Passive");
@@ -158,6 +219,25 @@ public sealed class NpcInstantiationMechanicTests
         world.AddHousehold(home);
         return (world, carrier, target, home);
     }
+
+    private static void SeedBond(WorldState world, NpcId a, NpcId b, double trust, double affection)
+    {
+        long now = world.CurrentDate.TotalHours;
+        var template = Relationship.FromAxes(trust, affection, respect: 0, debt: 0, now);
+        var ab = world.GetOrCreateRelationship(new RelationshipKey(a, b), now);
+        ab.CopyAxesFrom(template);
+        ab.MarkContact(now);
+        var ba = world.GetOrCreateRelationship(new RelationshipKey(b, a), now);
+        ba.CopyAxesFrom(template);
+        ba.MarkContact(now);
+    }
+
+    private static int UniquePartnersOf(WorldState world, NpcId id) =>
+        world.Relationships
+            .Where(pair => pair.Key.From == id || pair.Key.To == id)
+            .Select(pair => pair.Key.From == id ? pair.Key.To : pair.Key.From)
+            .Distinct()
+            .Count();
 
     private static Npc Npc(NpcId id, string name, int health, Personality personality) => new(
         id, name, Sex.Male, WorldDate.Epoch(ScenarioRunner.DefaultCalendar),
