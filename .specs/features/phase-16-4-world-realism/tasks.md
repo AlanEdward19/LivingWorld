@@ -461,11 +461,11 @@ ou renomeado se a task decidir que "stub" não descreve mais o arquivo)
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-26: `npc.clone` herda skill completa do original (não zero)
-- [ ] AC REALISM-27: `npc.split-on-death` herda fração proporcional por novo NPC
-- [ ] AC REALISM-28: `npc.reincarnate` herda fração pelo mesmo peso `w_gene`-equivalente
+- [x] AC REALISM-26: `npc.clone` herda skill completa do original (não zero)
+- [x] AC REALISM-27: `npc.split-on-death` herda fração proporcional por novo NPC
+- [x] AC REALISM-28: `npc.reincarnate` herda fração pelo mesmo peso `w_gene`-equivalente
       usado em atributos (não 1:1)
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
 
 **Tests**: unit
 **Gate**: quick

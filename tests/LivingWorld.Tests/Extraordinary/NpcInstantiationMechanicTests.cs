@@ -45,6 +45,34 @@ public sealed class NpcInstantiationMechanicTests
     }
 
     [Fact]
+    public void Split_on_death_inherits_proportional_skill_fraction_per_new_npc()
+    {
+        var (world, carrier, _, _) = WorldWithPower(["npc.split-on-death:3"], mode: "Passive");
+        var skill = new SkillType(3);
+        carrier.GainSkill(skill, 90, 100);
+        var sink = new RecordingSink();
+        var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
+
+        NpcDeath.Apply(world, ctx, carrier, WorldEventKind.Death);
+
+        var spawned = world.Npcs.Where(npc => npc.IsAlive && npc.Id != new NpcId(2)).ToList();
+        Assert.Equal(3, spawned.Count);
+        Assert.All(spawned, child => Assert.Equal(30, child.Skills.Get(skill)));
+    }
+
+    [Fact]
+    public void InheritSkills_matches_rate_gene_blend_weight_plus_mutation_clamp_shape()
+    {
+        var source = SkillSet.Empty.WithGain(new SkillType(1), 80, 100);
+        var rng = new WorldRng(42);
+        var inherited = NpcInstantiationHeredity.InheritSkills(source, weight: 0.5, rng);
+
+        // Mesma fórmula: blended = 80 * 0.5; mutation spread de nível = 0 → 40 exato.
+        Assert.Equal(40, inherited.Get(new SkillType(1)));
+        Assert.Equal(0, inherited.Get(new SkillType(99)));
+    }
+
+    [Fact]
     public void Split_on_death_instantiates_exactly_n_npcs_at_death_never_before_or_after()
     {
         var (world, carrier, _, _) = WorldWithPower(["npc.split-on-death:3"], mode: "Passive");

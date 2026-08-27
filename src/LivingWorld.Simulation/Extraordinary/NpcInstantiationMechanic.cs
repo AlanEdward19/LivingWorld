@@ -15,8 +15,10 @@ public static class NpcInstantiationMechanic
             return;
 
         int split = DeclaredMagnitudeSum(world, npc, "npc.split-on-death:");
+        // REALISM-27: cada filho herda fração proporcional 1/N (não skill completa duplicada).
+        double splitWeight = split > 0 ? 1.0 / split : 0.0;
         for (int i = 0; i < split; i++)
-            InstantiateCopy(world, ctx, npc, "split-on-death");
+            InstantiateCopy(world, ctx, npc, "split-on-death", skillWeight: splitWeight);
 
         int reincarnate = DeclaredMagnitudeSum(world, npc, "npc.reincarnate:");
         if (reincarnate <= 0)
@@ -51,8 +53,12 @@ public static class NpcInstantiationMechanic
             return;
 
         baby.RewritePersonality(BlendPersonality(pending.Personality, baby.Personality, pending.FractionPercent));
-        foreach (var (skillId, value) in pending.Skills.OrderBy(pair => pair.Key))
-            baby.GainSkill(new SkillType(skillId), value * pending.FractionPercent / 100.0, 100);
+        // REALISM-28: peso w_gene-equivalente (fraction/100), mesma fórmula de InheritSkills.
+        double weight = pending.FractionPercent / 100.0;
+        var inherited = NpcInstantiationHeredity.InheritSkills(
+            new SkillSet(pending.Skills), weight, ctx.StreamFor("inherit-skills", baby.Id.Value));
+        foreach (var (skillId, value) in inherited.Values.OrderBy(pair => pair.Key))
+            baby.GainSkill(new SkillType(skillId), value, 100);
 
         world.UpsertExtraordinaryCarrier(carrier with { PendingReincarnation = null });
         ctx.LogEvent(
@@ -60,11 +66,14 @@ public static class NpcInstantiationMechanic
             $"{carrier.CarrierId.Value}|{baby.Id.Value}|reincarnate", sourceSystem: "NpcInstantiationMechanic");
     }
 
-    public static Npc InstantiateCopy(WorldState world, TickContext ctx, Npc source, string origin)
+    public static Npc InstantiateCopy(
+        WorldState world, TickContext ctx, Npc source, string origin, double skillWeight = 1.0)
     {
         var id = AllocateNpcId(world);
         var personality = CopyPersonality(source.Personality);
-        var skills = new SkillSet(new Dictionary<int, double>(source.Skills.Values));
+        // REALISM-26 (weight=1) / REALISM-27 (weight=1/N): InheritSkills, não cópia crua.
+        var skills = NpcInstantiationHeredity.InheritSkills(
+            source.Skills, skillWeight, ctx.StreamFor("inherit-skills", id.Value));
         var clone = new Npc(
             id, $"{source.Name}-{origin}-{id.Value}", source.Sex, source.BirthDate, source.Culture,
             source.BirthLocation, motherId: null, fatherId: null, household: null, health: source.Health,
