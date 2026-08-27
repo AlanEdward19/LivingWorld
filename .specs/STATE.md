@@ -258,16 +258,16 @@
 
 ## Handoff
 
-- **Feature**: Fase 16.4 World Realism — **Execute complete pending user verify** (2026-08-27)
+- **Feature**: Fase 16.4 World Realism — **Verifier PASS agent-side**; pending user AD-009
 - **Branch**: `feat/phase-16-4-world-realism`
-- **Spec**: `.specs/features/phase-16-4-world-realism/{spec,design,tasks}.md`
-- **Last**: Phase 8 (T21–T22) agent part done — scale sensor + closeout smoke
+- **Validation**: `.specs/features/phase-16-4-world-realism/validation.md` (sensor 3/3 killed)
+- **Rule**: `rules/living-world-cohesion.md`
 - **User must run (AD-009)**:
   1. `bash scripts/verify.sh`
-  2. Full 100yr: `dotnet test --filter "FullyQualifiedName~WorldRealismCloseoutTests.Reference_scenario_hundred_years"`
-     (or `Category=Scenario` suite if preferred)
-- **Blockers**: none (gate final só usuário)
-- **Prior**: Phases 1–7 done; T19–T20 possession committed
+  2. `dotnet test LivingWorld.sln --filter "FullyQualifiedName~WorldRealismCloseoutTests.Reference_scenario_hundred_years"`
+- **Tip**: `d473c94` (+ Fix1–4 after T22); ecology/combat/instantiation/foresight/possession
+- **Blockers**: none agent-side
+- **Prior**: Fase 16.3 Cohesion MERGED
 
 ---
 
