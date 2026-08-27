@@ -52,6 +52,8 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
     {
         if (world.Fauna.Count(a => a.IsAlive) >= MaxAliveFauna)
             return;
+        if (!world.AnimalSpeciesRules.Any(r => r.ReproduceProbability > 0))
+            return;
 
         var rulesBySpecies = IndexRules(world);
         long tick = ctx.CurrentTick;
@@ -128,6 +130,10 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
     /// <summary>REALISM-04: predador consome presa no raio; sem PredatorOf é no-op.</summary>
     public static void TryPredate(WorldState world, TickContext ctx)
     {
+        if (!world.AnimalSpeciesRules.Any(r =>
+                !string.IsNullOrEmpty(r.PredatorOf) && r.PredationProbability > 0))
+            return;
+
         var rulesBySpecies = IndexRules(world);
         long tick = ctx.CurrentTick;
         var alive = world.Fauna.Where(a => a.IsAlive).OrderBy(a => a.Id.Value).ToList();

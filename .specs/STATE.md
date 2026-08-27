@@ -268,6 +268,20 @@
 - **Date**: 2026-08-27
 - **Status**: active
 
+### AD-030
+- **Decision**: Scenario de closeout da 16.4 (`Reference_scenario_ten_years_*`) usa regras de
+  espécie **hunger-only** (ReproduceProbability/PredationProbability = 0), mesmo padrão do
+  `ScaleScenarioFixture`. Repro/predação continuam cobertas pelos Independent Tests unitários.
+- **Reason**: Com o default (repro ~0.12–0.18 + predação), a fauna sobe ao teto
+  (`MaxAliveFauna=400`) e `TryPredate` fica O(n²)/hora — 10 anos travou ~6k+ s. Usuário
+  cancelou; closeout precisa provar horizonte longo sem duplicar o custo O(n²).
+- **Trade-off**: O Scenario longo não exercita dinâmica populacional predatória; isso já
+  está nos testes Ecology focados (T5/T6).
+- **Scope**: `WorldRealismCloseoutTests` + early-out em `FaunaLifecycleSystem` quando
+  probabilidades são zero.
+- **Date**: 2026-08-27
+- **Status**: active
+
 ## Handoff
 
 - **Feature**: Fase 16.4 World Realism — **Verifier PASS agent-side**; pending user AD-009
@@ -277,7 +291,7 @@
 - **User must run (AD-009)**:
   1. `bash scripts/verify.sh`
   2. `dotnet test LivingWorld.sln --filter "FullyQualifiedName~WorldRealismCloseoutTests.Reference_scenario_ten_years"`
-- **Tip**: `d473c94` (+ Fix1–4 after T22); AD-029 (10yr closeout)
+- **Tip**: AD-029 (10yr) + AD-030 (hunger-only closeout — cancel old run first)
 - **Blockers**: none agent-side
 - **Prior**: Fase 16.3 Cohesion MERGED
 
