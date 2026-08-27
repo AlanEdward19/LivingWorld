@@ -1,6 +1,7 @@
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
 using LivingWorld.Simulation.Economy;
+using LivingWorld.Simulation.Geography;
 using LivingWorld.Simulation.History;
 using LivingWorld.Simulation.Narrative;
 using LivingWorld.Simulation.Periods;
@@ -27,7 +28,7 @@ public static class LivingWorldCapabilityCatalog
     public static IReadOnlyList<LivingWorldCapability> All { get; } =
     [
         Living("TIME", consumers: ["hud.clock"]),
-        Living("GEO", consumers: ["map.geography"]),
+        Living("GEO", systems: [typeof(TemperatureSeasonSystem)], consumers: ["map.geography"]),
         Living("NEEDS", systems: [typeof(NeedsDecaySystem)], consumers: ["inspector.npc.needs"]),
         Living("BEHAVIOR", systems: [typeof(BehaviorDecisionSystem)], consumers: ["map.npc.action"]),
         Living("REST", consumers: ["map.npc.rest"]),

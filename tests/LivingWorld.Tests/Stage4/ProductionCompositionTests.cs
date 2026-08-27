@@ -2,6 +2,7 @@ using LivingWorld.Api.Visual;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
 using LivingWorld.Simulation.Economy;
+using LivingWorld.Simulation.Geography;
 using LivingWorld.Simulation.History;
 using LivingWorld.Simulation.Narrative;
 using LivingWorld.Simulation.Periods;
@@ -35,6 +36,9 @@ public sealed class ProductionCompositionTests
         typeof(SkillTeachingSystem),
         typeof(WorkHardeningSystem),
         typeof(ProductionSystem),
+        typeof(FaunaLifecycleSystem),
+        typeof(FloraLifecycleSystem),
+        typeof(TemperatureSeasonSystem),
         typeof(CropSystem),
         typeof(MarketPricingSystem),
         typeof(WagePaymentSystem),
