@@ -229,10 +229,10 @@ acima do limiar de energia.
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-03: par elegível gera novo animal próximo, determinístico por seed (dois
+- [x] AC REALISM-03: par elegível gera novo animal próximo, determinístico por seed (dois
       processos com mesmo seed produzem o mesmo resultado — mesma garantia já usada no motor
       de tempo)
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology"`
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology"`
 
 **Tests**: unit
 **Gate**: quick
