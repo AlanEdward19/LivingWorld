@@ -666,21 +666,21 @@ precise de flags novas pra habilitar fauna/flora, o que é edição de config)
 **Done when**:
 - [x] Smoke agente: cenário default semeia ecologia (0 poderes); fome/estágios variam em 1 mês
       (`WorldRealismCloseoutTests`) — Independent T6/T9 cobrem reprodução
-- [ ] Cenário de 10 anos (AD-029) com fauna/flora/temperatura e 0 poderes termina sem travar
-      — **USER**: `dotnet test --filter "FullyQualifiedName~WorldRealismCloseoutTests.Reference_scenario_ten_years"`
-- [ ] `bash scripts/verify.sh` sai 0 — **USER (AD-009)**
+- [x] Cenário de 10 anos (AD-029/AD-030) com fauna/flora/temperatura e 0 poderes termina sem travar
+      — USER PASS (`Reference_scenario_ten_years`)
+- [x] `bash scripts/verify.sh` sai 0 — USER PASS (AD-009)
 - [x] Checklist 5 mecânicas antes ocas fechadas: combate multi-round; clone/split/reincarnate
       herança; foresight→utility; possession resist; autonomous ecology
 
 **Tests**: none (execução de cenário + gate)
 **Gate**: build
 
-**Commit**: `feat(phase-16-4): fecha fase — realismo autônomo de fauna/flora/clima e mecânicas aprofundadas`
+**Commit**: `docs(phase-16-4): close phase after user gate PASS`
 
-**User verify commands (AD-009 — do not run as agent)**:
+**User verify commands (AD-009)**:
 ```bash
 bash scripts/verify.sh
-dotnet test LivingWorld.sln --filter "FullyQualifiedName~WorldRealismCloseoutTests.Reference_scenario_hundred_years"
+dotnet test LivingWorld.sln --filter "FullyQualifiedName~WorldRealismCloseoutTests.Reference_scenario_ten_years"
 ```
 
 ---

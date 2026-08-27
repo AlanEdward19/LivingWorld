@@ -284,15 +284,14 @@
 
 ## Handoff
 
-- **Feature**: Fase 16.4 World Realism — **Verifier PASS agent-side**; pending user AD-009
+- **Feature**: Fase 16.4 World Realism — **CLOSED** (user gate PASS 2026-08-27)
 - **Branch**: `feat/phase-16-4-world-realism`
-- **Validation**: `.specs/features/phase-16-4-world-realism/validation.md` (sensor 3/3 killed)
-- **Rule**: `rules/living-world-cohesion.md`
-- **User must run (AD-009)**:
-  1. `bash scripts/verify.sh`
-  2. `dotnet test LivingWorld.sln --filter "FullyQualifiedName~WorldRealismCloseoutTests.Reference_scenario_ten_years"`
-- **Tip**: AD-029 (10yr) + AD-030 (hunger-only closeout — cancel old run first)
-- **Blockers**: none agent-side
+- **Validation**: `.specs/features/phase-16-4-world-realism/validation.md` — PASS
+- **Rule**: `rules/living-world-cohesion.md` (permanent)
+- **ADs**: AD-028 (scale baseline), AD-029 (10yr closeout), AD-030 (hunger-only Scenario)
+- **Tip**: `150fcac`
+- **Next**: merge/PR quando desejado; Height/Weight→combat sizing ainda FUTURE_DEPENDENCY
+- **Blockers**: none
 - **Prior**: Fase 16.3 Cohesion MERGED
 
 ---

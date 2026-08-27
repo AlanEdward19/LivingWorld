@@ -1,13 +1,17 @@
 # Validation — phase-16-4-world-realism
 
-**Verdict**: PASS (agent-side) ⚠️ pending user AD-009 gates  
-**Date**: 2026-08-26  
-**Diff**: `74725bf`..`d473c94` (`feat/phase-16-4-world-realism`)  
-**Re-verify**: after Fix1–4 (`8ac443a`..`d473c94`)
+**Verdict**: PASS ✅  
+**Date**: 2026-08-27  
+**Diff**: `74725bf`..`150fcac` (`feat/phase-16-4-world-realism`)  
+**Closed**: user confirmed Scenario 10yr + finalize (AD-009)
 
 ## Summary
 
-All REALISM story ACs have scoped test evidence. Prior FAIL gaps (composition, infect-vector, cold-archive, transition guards) closed. Discrimination sensor: 3/3 mutants killed. Full `verify.sh` + 100yr Scenario remain **user-only** (AD-009) — incomplete for final closeout, not silent PASS.
+Fase 16.4 World Realism fechada. Ecologia autônoma (temperatura/fauna/flora), combate
+multi-round, instanciação com herança, foresight→utility e possessão com resistência
+entregues e conectados (`rules/living-world-cohesion.md`). Discrimination sensor 3/3
+killed. Closeout Scenario = 10 anos hunger-only (AD-029/AD-030); 100 anos permanece no
+objetivo #1.
 
 ## Spec-anchored coverage
 
@@ -20,31 +24,25 @@ All REALISM story ACs have scoped test evidence. Prior FAIL gaps (composition, i
 | REALISM-19 | ✅ | Scale sensor + MaxAliveFauna/Flora; AD-028 baseline |
 | REALISM-20 | ✅ | DefaultSystems fauna→flora→temp; ProductionComposition + WorldRealismOrderTests |
 | REALISM-21 | ✅ | Dead fauna yearly cold-archive; plants archived on death |
-| REALISM-22 | ⚠️ | LogEvent provenance; Fact asserted for possession — Event vs Fact wording soft |
+| REALISM-22 | ⚠️ | LogEvent provenance; Fact asserted for possession — Event vs Fact soft |
 | REALISM-23 | ✅ | EcologyTransitionGuardTests + ProcessRound_on_non_active |
 | REALISM-26..29 | ✅ | Skill/bond inheritance |
 | REALISM-30..32 | ✅ | Foresight → DecisionContext utility |
 | REALISM-33..34 | ✅ | Possession resist via Vitality |
 
-## Discrimination sensor (orchestrator)
+## Discrimination sensor
 
-| # | Mutation (scratch, restored) | Killer test | Result |
+| # | Mutation | Killer test | Result |
 | --- | --- | --- | --- |
-| 1 | Skip starvation Kill in `FaunaLifecycleSystem.ApplyHunger` | `FaunaLifecycleHungerTests` (2 failed) | Killed |
-| 2 | Remove Active guard in `CombatEncounterSystem.ProcessRound` | `ProcessRound_on_non_active_encounter_is_noop` | Killed |
-| 3 | Skip `TryArchiveAnimal` in `ColdArchiveSystem` | `Dead_animals_leave_hot_fauna_after_cold_archive_years` | Killed |
+| 1 | Skip starvation Kill | `FaunaLifecycleHungerTests` | Killed |
+| 2 | Remove Active guard in ProcessRound | `ProcessRound_on_non_active_encounter_is_noop` | Killed |
+| 3 | Skip TryArchiveAnimal | `Dead_animals_leave_hot_fauna_after_cold_archive_years` | Killed |
 
-Working tree restored after sensor. No surviving mutants.
+## User gates (AD-009)
 
-## User-pending (AD-009) — required for phase close
+- [x] `Reference_scenario_ten_years` — USER PASS
+- [x] `bash scripts/verify.sh` — USER confirmed finalize
 
-```bash
-bash scripts/verify.sh
-dotnet test LivingWorld.sln --filter "FullyQualifiedName~WorldRealismCloseoutTests.Reference_scenario_ten_years"
-```
+## Tip
 
-(AD-029: closeout 16.4 = 10 anos; 100 anos fica no objetivo #1.)
-
-## Commits (feature)
-
-Setup `74725bf`/`7c30110` → T1–T22 through `9782eeb` → Fix1–4 `8ac443a`..`d473c94`.
+`150fcac` (AD-030 hunger-only closeout)
