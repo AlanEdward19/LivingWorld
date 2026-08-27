@@ -163,6 +163,11 @@ public class WorldSnapshotTests
             LazyNeed.Initial(100, 0, 0)));
         world.AddPlant(new Plant(
             world.NextPlantIdAndAdvance(), "probe-oak", new CellCoord(0, 0), 1));
+        // Fase 16.4: força ao menos um CombatEncounter — coleção vazia não tem folha pro mutador.
+        world.AddCombatEncounter(new CombatEncounter(
+            world.NextCombatEncounterIdAndAdvance(),
+            world.Npcs[0].Id, world.Npcs[1].Id, Magnitude: 10, RoundsElapsed: 0,
+            CombatEncounterStatus.Active));
         world.AddEnvironmentTemperatureAdjustment(new EnvironmentTemperatureAdjustment(
             world.Map.Regions[0].Id, 1.5f, world.CurrentDate.TotalHours + 24));
         return world;

@@ -385,13 +385,15 @@ que inicia um encontro conforme a decisão de T10.
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-16: combate cria estado persistente entre ticks (não resolve tudo num
+- [x] AC REALISM-16: combate cria estado persistente entre ticks (não resolve tudo num
       cálculo único)
-- [ ] Campo novo classificado no hasher
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Snapshot\|FullyQualifiedName~Extraordinary"`
+- [x] Campo novo classificado no hasher
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Snapshot\|FullyQualifiedName~Extraordinary"`
 
 **Tests**: unit
 **Gate**: quick
+
+**Commit**: `feat(phase-16-4): combat encounter persistent state`
 
 ---
 
