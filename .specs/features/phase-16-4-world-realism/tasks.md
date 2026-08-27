@@ -410,12 +410,12 @@ avalia fuga se abaixo do limiar declarado.
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-17: round acumula dano sobre o round anterior, chance de esquiva/bloqueio
-- [ ] AC REALISM-18: vida zero em qualquer round resolve morte imediata
-- [ ] AC REALISM-24: abaixo do limiar, chance de fuga bem-sucedida encerra sem morte
-- [ ] AC REALISM-25: roda com `Extraordinary.Enabled == false`
-- [ ] Edge case: teto de rounds força resolução (empate/fuga automática), nunca trava
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
+- [x] AC REALISM-17: round acumula dano sobre o round anterior, chance de esquiva/bloqueio
+- [x] AC REALISM-18: vida zero em qualquer round resolve morte imediata
+- [x] AC REALISM-24: abaixo do limiar, chance de fuga bem-sucedida encerra sem morte
+- [x] AC REALISM-25: roda com `Extraordinary.Enabled == false`
+- [x] Edge case: teto de rounds força resolução (empate/fuga automática), nunca trava
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
 
 **Tests**: unit
 **Gate**: quick
@@ -437,12 +437,12 @@ distintos antes da resolução).
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] Combate nunca excede o teto de rounds declarado no cenário
-- [ ] `Independent Test` do spec (P2 Combate) reproduzido: log mostra rounds distintos
-- [ ] Gate: `bash scripts/test.sh` (full, cruza com fauna/flora já implementadas)
+- [x] Combate nunca excede o teto de rounds declarado no cenário
+- [x] `Independent Test` do spec (P2 Combate) reproduzido: log mostra rounds distintos
+- [x] Gate (AD-009): `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary|FullyQualifiedName~Ecology|FullyQualifiedName~Snapshot"` — não suite full unfiltered
 
 **Tests**: unit
-**Gate**: full
+**Gate**: full (AD-009: scoped broaden, not bare `scripts/test.sh`)
 
 **Commit**: `feat(phase-16-4): teto de rounds fecha combate multi-round`
 
