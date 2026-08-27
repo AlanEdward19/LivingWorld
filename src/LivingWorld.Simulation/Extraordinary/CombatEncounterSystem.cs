@@ -134,15 +134,17 @@ public static class CombatEncounterSystem
         int baseCapacity = (int)Math.Clamp(
             Math.Round(striker.Vitality / 10d + striker.RateGene.Value * 5d), 0, 20);
         int strengthBonus = (int)Math.Round((AttributeMechanic.StrengthMultiplier(world, striker) - 1) * 10);
+        int bodyBonus = (int)Math.Round((BodyMechanic.CombatOffenseMultiplier(world, striker) - 1) * 10);
         int capacity = LuckMechanic.AdjustCapacity(
-            world, striker, tick.CurrentTick, baseCapacity + strengthBonus);
+            world, striker, tick.CurrentTick, baseCapacity + strengthBonus + bodyBonus);
         string role = isAttackerStrike ? "atk" : "def";
         string stream =
             $"combat-round-{encounter.Id.Value}-{role}-{roundNumber}";
         var resolution = Resolver.Resolve(
             difficulty, capacity, VarianceProfile.Dramatico("combat-encounter"), tick.Rng(stream));
         // Failure = esquiva (0 dano); PartialSuccess = bloqueio (meio dano) — DamageOf já mapeia.
-        int damage = CombatMechanic.DamageOf(encounter.Magnitude, resolution);
+        int damage = CombatMechanic.ApplyBodyToDamage(
+            world, target, CombatMechanic.DamageOf(encounter.Magnitude, resolution));
         target.SetHealth(ExtraordinaryMechanicSupport.ClampNeed((long)target.Health - damage));
     }
 

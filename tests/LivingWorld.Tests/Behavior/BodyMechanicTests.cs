@@ -95,6 +95,67 @@ public class BodyMechanicTests
         Assert.Equal(
             BodyMechanic.MovementCostMultiplier(world, npc),
             BodyMechanic.MovementCostMultiplier(world, npc));
+        Assert.Equal(
+            BodyMechanic.CombatOffenseMultiplier(world, npc),
+            BodyMechanic.WorkCapacityMultiplier(world, npc));
+        Assert.Equal(
+            BodyMechanic.CombatDamageTakenMultiplier(world, npc),
+            BodyMechanic.CombatDamageTakenMultiplier(world, npc));
+    }
+
+    [Fact]
+    public void CombatOffenseMultiplier_tracks_MuscleMass_like_WorkCapacity()
+    {
+        var world = BuildWorld();
+        var weak = MakeNpc(1.70, 68, muscleMass: 15);
+        var strong = MakeNpc(1.70, 68, muscleMass: 45);
+
+        Assert.Equal(
+            BodyMechanic.WorkCapacityMultiplier(world, strong),
+            BodyMechanic.CombatOffenseMultiplier(world, strong));
+        Assert.True(
+            BodyMechanic.CombatOffenseMultiplier(world, strong)
+            > BodyMechanic.CombatOffenseMultiplier(world, weak));
+    }
+
+    [Fact]
+    public void CombatDamageTakenMultiplier_falls_as_Weight_and_Height_rise()
+    {
+        var world = BuildWorld();
+        var light = MakeNpc(height: 1.55, weight: 50, muscleMass: 28);
+        var heavy = MakeNpc(height: 1.90, weight: 95, muscleMass: 28);
+
+        double lightTaken = BodyMechanic.CombatDamageTakenMultiplier(world, light);
+        double heavyTaken = BodyMechanic.CombatDamageTakenMultiplier(world, heavy);
+
+        Assert.True(heavyTaken < lightTaken);
+        Assert.True(heavyTaken < 1.0);
+        Assert.True(lightTaken > 1.0);
+    }
+
+    [Fact]
+    public void CombatDamageTakenMultiplier_is_neutral_when_BodyRules_disabled()
+    {
+        var world = BuildWorld(BodyRules.Disabled);
+        var npc = MakeNpc(1.9, 90, 50);
+
+        Assert.Equal(1.0, BodyMechanic.CombatDamageTakenMultiplier(world, npc));
+        Assert.Equal(1.0, BodyMechanic.CombatOffenseMultiplier(world, npc));
+    }
+
+    [Fact]
+    public void ApplyBodyToDamage_scales_raw_damage_by_target_body()
+    {
+        var world = BuildWorld();
+        var light = MakeNpc(height: 1.55, weight: 50, muscleMass: 28);
+        var heavy = MakeNpc(height: 1.90, weight: 95, muscleMass: 28);
+        const int raw = 20;
+
+        int lightDmg = CombatMechanic.ApplyBodyToDamage(world, light, raw);
+        int heavyDmg = CombatMechanic.ApplyBodyToDamage(world, heavy, raw);
+
+        Assert.True(heavyDmg < lightDmg);
+        Assert.Equal(0, CombatMechanic.ApplyBodyToDamage(world, heavy, 0));
     }
 
     [Fact]

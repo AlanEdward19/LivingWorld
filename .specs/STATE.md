@@ -282,17 +282,25 @@
 - **Date**: 2026-08-27
 - **Status**: active
 
+### AD-031
+- **Decision**: Height/Weight/MuscleMass passam a consumir combate: ofensa via
+  `BodyMechanic.CombatOffenseMultiplier` (= curva de MuscleMass/`WorkCapacityMultiplier`)
+  no capacity do strike/round; dano recebido via `CombatDamageTakenMultiplier`
+  (Weight+Height). Equipment compatibility permanece FUTURE_DEPENDENCY.
+- **Reason**: Fechar FUTURE_DEPENDENCY do audit 16.3 (COH-25) agora que combate multi-round
+  existe (16.4); reusa `BodyMechanic` em vez de fórmula paralela.
+- **Trade-off**: Sem equipamento ainda — só sizing corporal no Resolve/Damage.
+- **Scope**: `BodyMechanic`, `CombatMechanic`, `CombatEncounterSystem`.
+- **Date**: 2026-08-27
+- **Status**: active
+
 ## Handoff
 
-- **Feature**: Fase 16.4 World Realism — **CLOSED** (user gate PASS 2026-08-27)
-- **Branch**: `feat/phase-16-4-world-realism`
-- **Validation**: `.specs/features/phase-16-4-world-realism/validation.md` — PASS
-- **Rule**: `rules/living-world-cohesion.md` (permanent)
-- **ADs**: AD-028 (scale baseline), AD-029 (10yr closeout), AD-030 (hunger-only Scenario)
-- **Tip**: `150fcac`
-- **Next**: merge/PR quando desejado; Height/Weight→combat sizing ainda FUTURE_DEPENDENCY
-- **Blockers**: none
-- **Prior**: Fase 16.3 Cohesion MERGED
+- **Feature**: Body→combat sizing (AD-031) — **done** on `feat/body-combat-sizing`
+- **Base**: `main` (16.4 via PR #8)
+- **What**: MuscleMass → combat offense capacity; Height/Weight → damage taken; equipment still FUTURE
+- **Tests**: BodyMechanicTests + CombatMechanic/Encounter scoped — 26 passed
+- **Prior**: Fase 16.4 World Realism CLOSED
 
 ---
 
