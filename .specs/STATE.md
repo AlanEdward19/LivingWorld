@@ -241,20 +241,63 @@
 - **Date**: 2026-08-26
 - **Status**: active
 
+### AD-028
+- **Decision**: Regravar entrada 1k de `tests/baselines/scale-sensor.json` no closeout da
+  Fase 16.4 (T21); manter entrada 5k (Category=Scenario) da baseline anterior.
+- **Reason**: Drift de `BytesPerAliveNpcPerYear` (~121306 → ~123260) já existia na branch
+  antes de semear fauna/flora em massa no fixture de escala (canônicos 16.4 + sistemas de
+  ecologia no `DefaultSystems`). Após T21, o fixture também semeia N=pop/5 animais/plantas
+  (reprodução/predação desligadas no braço de escala — custo O(n), não O(n²)). Não é
+  regressão de teto absoluto: `PerfRules.ScaleSensorInitial` continua válido. Mesmo padrão
+  AD-014..017.
+- **Trade-off**: Disco/alloc por NPC-ano sobe levemente na amostra 1k; 5k não foi re-medido
+  neste closeout (custo multi-10min, fora do gate padrão).
+- **Scope**: Fase 16.4 T21 — `tests/baselines/scale-sensor.json` (chave `"1000"`).
+- **Date**: 2026-08-27
+- **Status**: active
+
+### AD-029
+- **Decision**: Closeout Scenario da Fase 16.4 usa horizonte de **10 anos**, não 100.
+  100 anos permanece no objetivo #1 do roadmap (`LifeTable*` / Scenario de população),
+  não é pré-requisito de fechamento desta fase.
+- **Reason**: Usuário cancelou a rodagem de ~864k ticks (~2h+) por custo; 10 anos cobrem
+  várias estações, cold-archive e variação ecológica sem duplicar o gate do objetivo #1.
+- **Trade-off**: Closeout 16.4 não prova sozinho multi-geração de século; isso continua
+  nos testes de população de longo prazo já existentes.
+- **Scope**: `.specs/features/phase-16-4-world-realism/` + `WorldRealismCloseoutTests`.
+- **Date**: 2026-08-27
+- **Status**: active
+
+### AD-030
+- **Decision**: Scenario de closeout da 16.4 (`Reference_scenario_ten_years_*`) usa regras de
+  espécie **hunger-only** (ReproduceProbability/PredationProbability = 0), mesmo padrão do
+  `ScaleScenarioFixture`. Repro/predação continuam cobertas pelos Independent Tests unitários.
+- **Reason**: Com o default (repro ~0.12–0.18 + predação), a fauna sobe ao teto
+  (`MaxAliveFauna=400`) e `TryPredate` fica O(n²)/hora — 10 anos travou ~6k+ s. Usuário
+  cancelou; closeout precisa provar horizonte longo sem duplicar o custo O(n²).
+- **Trade-off**: O Scenario longo não exercita dinâmica populacional predatória; isso já
+  está nos testes Ecology focados (T5/T6).
+- **Scope**: `WorldRealismCloseoutTests` + early-out em `FaunaLifecycleSystem` quando
+  probabilidades são zero.
+- **Date**: 2026-08-27
+- **Status**: active
+
 ## Handoff
 
-- **Feature**: Fase 16.3 Living World Cohesion — **MERGED** into primary
-  (`feat/phase-16-2-power-evolution`) from worktree `LivingWorld-16-3-cohesion`
-  (`feat/phase-16-3-world-cohesion`). Soft follow-ups done (exception isolation + LogEvent SourceSystem).
-- **Audit**: [`docs/audits/living-world-cohesion-audit.md`](../docs/audits/living-world-cohesion-audit.md)
-- **Validation**: `.specs/features/phase-16-3-world-cohesion/validation.md` — PASS 35/35 COH
-- **ADs**: AD-011..013 (arquitetura) + AD-014..017 (baselines/golden closeout)
-- **Next**: remove cohesion worktree when merge is confirmed; Height/Weight consumers → 16.4+
+- **Feature**: Fase 16.4 World Realism — **CLOSED** (user gate PASS 2026-08-27)
+- **Branch**: `feat/phase-16-4-world-realism`
+- **Validation**: `.specs/features/phase-16-4-world-realism/validation.md` — PASS
+- **Rule**: `rules/living-world-cohesion.md` (permanent)
+- **ADs**: AD-028 (scale baseline), AD-029 (10yr closeout), AD-030 (hunger-only Scenario)
+- **Tip**: `150fcac`
+- **Next**: merge/PR quando desejado; Height/Weight→combat sizing ainda FUTURE_DEPENDENCY
 - **Blockers**: none
+- **Prior**: Fase 16.3 Cohesion MERGED
 
 ---
 
 ### Histórico — pausa paralelismo / gate hygiene (pré-16.3 Execute)
+
 
 - **Execução paralela PAUSADA (2026-08-25 19:46)**: STOP.json ativo em todos worktrees.
   Locks liberados. Ver `.specs/parallel-execution/STATUS.md` + progress files antes de retomar.

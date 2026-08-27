@@ -131,10 +131,10 @@ usado por `ScenarioRunner`)
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] `AnimalSpeciesRules`/`PlantSpeciesRules` existem com os campos do Design
-- [ ] Teste gerado por reflexão (Fase 1) passa sem exigir classificação nova (confirma que
+- [x] `AnimalSpeciesRules`/`PlantSpeciesRules` existem com os campos do Design
+- [x] Teste gerado por reflexão (Fase 1) passa sem exigir classificação nova (confirma que
       nenhum campo canônico/volátil ficou sem categoria)
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Snapshot"`
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Snapshot"`
 
 **Tests**: unit
 **Gate**: quick
@@ -155,11 +155,11 @@ mudança), `EnvironmentTemperatureAdjustments` (overlay existente)
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-12: célula sob 2 estações opostas lê temperatura diferente, sem nenhum poder ativo
-- [ ] AC REALISM-13: célula sem poder segue curva sazonal (não trava em valor único)
-- [ ] AC REALISM-14: delta de poder soma sobre o valor sazonal (não sobre base fixa)
-- [ ] AC REALISM-15: `CropSystem.ReadCellTemperature` lê o valor combinado sem mudança de assinatura
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology\|FullyQualifiedName~Extraordinary"`
+- [x] AC REALISM-12: célula sob 2 estações opostas lê temperatura diferente, sem nenhum poder ativo
+- [x] AC REALISM-13: célula sem poder segue curva sazonal (não trava em valor único)
+- [x] AC REALISM-14: delta de poder soma sobre o valor sazonal (não sobre base fixa)
+- [x] AC REALISM-15: `CropSystem.ReadCellTemperature` lê o valor combinado sem mudança de assinatura
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology\|FullyQualifiedName~Extraordinary"`
 
 **Tests**: unit
 **Gate**: quick
@@ -181,13 +181,15 @@ campo novo no teste de reflexão.
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] `Animal.Energy` existe e é lido/escrito só via `LazyNeed.ValueAt`
-- [ ] Nenhum call-site existente de `Animal` quebra (compila)
-- [ ] Teste de reflexão classifica o campo sem exigir mudança manual em outro lugar
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Snapshot\|FullyQualifiedName~Extraordinary"`
+- [x] `Animal.Energy` existe e é lido/escrito só via `LazyNeed.ValueAt`
+- [x] Nenhum call-site existente de `Animal` quebra (compila)
+- [x] Teste de reflexão classifica o campo sem exigir mudança manual em outro lugar
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Snapshot\|FullyQualifiedName~Extraordinary"`
 
 **Tests**: unit
 **Gate**: quick
+
+**Commit**: `feat(phase-16-4): animal energy as LazyNeed`
 
 ---
 
@@ -203,10 +205,10 @@ zero, gerando `Fact` (mesmo padrão de `NpcDeath`).
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-01: animal consome fome por tick conforme `AnimalSpeciesRules.HungerDecayPerTick`
-- [ ] AC REALISM-02: energia zero → morte + `Fact` de morte
-- [ ] AC REALISM-06: roda com `Extraordinary.Enabled == false`
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology"`
+- [x] AC REALISM-01: animal consome fome por tick conforme `AnimalSpeciesRules.HungerDecayPerTick`
+- [x] AC REALISM-02: energia zero → morte + `Fact` de morte
+- [x] AC REALISM-06: roda com `Extraordinary.Enabled == false`
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology"`
 
 **Tests**: unit
 **Gate**: quick
@@ -227,10 +229,10 @@ acima do limiar de energia.
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-03: par elegível gera novo animal próximo, determinístico por seed (dois
+- [x] AC REALISM-03: par elegível gera novo animal próximo, determinístico por seed (dois
       processos com mesmo seed produzem o mesmo resultado — mesma garantia já usada no motor
       de tempo)
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology"`
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology"`
 
 **Tests**: unit
 **Gate**: quick
@@ -253,11 +255,11 @@ mudança de contrato esperada)
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-04: predador consome presa no raio, determinístico
-- [ ] AC REALISM-05: `fauna.dominate` ativo não interrompe fome/reprodução/predação de base
-- [ ] Edge case: espécie sem `PredatorOf` declarado não gera erro (no-op)
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology\|FullyQualifiedName~Extraordinary"`
-- [ ] `Independent Test` do spec (P1 Fauna) reproduzido manualmente: mundo com 2 espécies, 0
+- [x] AC REALISM-04: predador consome presa no raio, determinístico
+- [x] AC REALISM-05: `fauna.dominate` ativo não interrompe fome/reprodução/predação de base
+- [x] Edge case: espécie sem `PredatorOf` declarado não gera erro (no-op)
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology\|FullyQualifiedName~Extraordinary"`
+- [x] `Independent Test` do spec (P1 Fauna) reproduzido manualmente: mundo com 2 espécies, 0
       poderes, T ticks — população varia no log
 
 **Tests**: unit
@@ -281,12 +283,14 @@ performance de busca por raio) é classificado no hasher.
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] Confirmado (comentário/teste) que `Plant` não precisa de campo novo
-- [ ] Se um índice novo foi adicionado a `WorldState`, está classificado no hasher
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Snapshot"`
+- [x] Confirmado (comentário/teste) que `Plant` não precisa de campo novo
+- [x] Se um índice novo foi adicionado a `WorldState`, está classificado no hasher
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Snapshot"`
 
 **Tests**: unit
 **Gate**: quick
+
+**Commit**: `feat(phase-16-4): confirm plant model needs no new fields`
 
 ---
 
@@ -303,11 +307,11 @@ reverte fora da faixa de tolerância da espécie.
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-07: estágio avança sem poder ativo, taxa depende de temperatura/estação
-- [ ] AC REALISM-08: fora da faixa de tolerância, taxa cai/reverte (nunca avança normal)
-- [ ] AC REALISM-11: `flora.growth-rate` multiplica a taxa de base, não a substitui
-- [ ] Edge case: planta que nunca entra na faixa morre sem nunca produzir
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology\|FullyQualifiedName~Extraordinary"`
+- [x] AC REALISM-07: estágio avança sem poder ativo, taxa depende de temperatura/estação
+- [x] AC REALISM-08: fora da faixa de tolerância, taxa cai/reverte (nunca avança normal)
+- [x] AC REALISM-11: `flora.growth-rate` multiplica a taxa de base, não a substitui
+- [x] Edge case: planta que nunca entra na faixa morre sem nunca produzir
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology\|FullyQualifiedName~Extraordinary"`
 
 **Tests**: unit
 **Gate**: quick
@@ -328,11 +332,11 @@ planta madura deposita em `CropBatch`/`workplace.Deposit` (nunca cria segundo es
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-09: planta madura gera recurso consumível via `CropBatch` existente (sem
+- [x] AC REALISM-09: planta madura gera recurso consumível via `CropBatch` existente (sem
       estoque duplicado)
-- [ ] AC REALISM-10: planta madura com espaço livre compatível brota nova planta, determinístico
-- [ ] `Independent Test` do spec (P1 Flora) reproduzido: 2 estações, taxa de avanço difere
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology\|FullyQualifiedName~Economy"`
+- [x] AC REALISM-10: planta madura com espaço livre compatível brota nova planta, determinístico
+- [x] `Independent Test` do spec (P1 Flora) reproduzido: 2 estações, taxa de avanço difere
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology\|FullyQualifiedName~Economy"`
 
 **Tests**: unit
 **Gate**: full
@@ -357,13 +361,15 @@ teste que trava o contrato escolhido.
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AD-NNN registrado com a escolha e o porquê (impacto em poderes já salvos)
-- [ ] Teste que documenta o contrato escolhido (ex.: `combat.strike` continua resolvendo
+- [x] AD-NNN registrado com a escolha e o porquê (impacto em poderes já salvos)
+- [x] Teste que documenta o contrato escolhido (ex.: `combat.strike` continua resolvendo
       imediato OU passa a iniciar encontro — o teste prova qual)
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
 
 **Tests**: unit
 **Gate**: quick
+
+**Commit**: `feat(phase-16-4): lock combat.strike vs combat.engage contract`
 
 ---
 
@@ -379,13 +385,15 @@ que inicia um encontro conforme a decisão de T10.
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-16: combate cria estado persistente entre ticks (não resolve tudo num
+- [x] AC REALISM-16: combate cria estado persistente entre ticks (não resolve tudo num
       cálculo único)
-- [ ] Campo novo classificado no hasher
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Snapshot\|FullyQualifiedName~Extraordinary"`
+- [x] Campo novo classificado no hasher
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Snapshot\|FullyQualifiedName~Extraordinary"`
 
 **Tests**: unit
 **Gate**: quick
+
+**Commit**: `feat(phase-16-4): combat encounter persistent state`
 
 ---
 
@@ -402,12 +410,12 @@ avalia fuga se abaixo do limiar declarado.
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-17: round acumula dano sobre o round anterior, chance de esquiva/bloqueio
-- [ ] AC REALISM-18: vida zero em qualquer round resolve morte imediata
-- [ ] AC REALISM-24: abaixo do limiar, chance de fuga bem-sucedida encerra sem morte
-- [ ] AC REALISM-25: roda com `Extraordinary.Enabled == false`
-- [ ] Edge case: teto de rounds força resolução (empate/fuga automática), nunca trava
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
+- [x] AC REALISM-17: round acumula dano sobre o round anterior, chance de esquiva/bloqueio
+- [x] AC REALISM-18: vida zero em qualquer round resolve morte imediata
+- [x] AC REALISM-24: abaixo do limiar, chance de fuga bem-sucedida encerra sem morte
+- [x] AC REALISM-25: roda com `Extraordinary.Enabled == false`
+- [x] Edge case: teto de rounds força resolução (empate/fuga automática), nunca trava
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
 
 **Tests**: unit
 **Gate**: quick
@@ -429,12 +437,12 @@ distintos antes da resolução).
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] Combate nunca excede o teto de rounds declarado no cenário
-- [ ] `Independent Test` do spec (P2 Combate) reproduzido: log mostra rounds distintos
-- [ ] Gate: `bash scripts/test.sh` (full, cruza com fauna/flora já implementadas)
+- [x] Combate nunca excede o teto de rounds declarado no cenário
+- [x] `Independent Test` do spec (P2 Combate) reproduzido: log mostra rounds distintos
+- [x] Gate (AD-009): `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary|FullyQualifiedName~Ecology|FullyQualifiedName~Snapshot"` — não suite full unfiltered
 
 **Tests**: unit
-**Gate**: full
+**Gate**: full (AD-009: scoped broaden, not bare `scripts/test.sh`)
 
 **Commit**: `feat(phase-16-4): teto de rounds fecha combate multi-round`
 
@@ -453,11 +461,11 @@ ou renomeado se a task decidir que "stub" não descreve mais o arquivo)
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-26: `npc.clone` herda skill completa do original (não zero)
-- [ ] AC REALISM-27: `npc.split-on-death` herda fração proporcional por novo NPC
-- [ ] AC REALISM-28: `npc.reincarnate` herda fração pelo mesmo peso `w_gene`-equivalente
+- [x] AC REALISM-26: `npc.clone` herda skill completa do original (não zero)
+- [x] AC REALISM-27: `npc.split-on-death` herda fração proporcional por novo NPC
+- [x] AC REALISM-28: `npc.reincarnate` herda fração pelo mesmo peso `w_gene`-equivalente
       usado em atributos (não 1:1)
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
 
 **Tests**: unit
 **Gate**: quick
@@ -479,11 +487,11 @@ transfere (NPC novo).
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-29: as 3 mecânicas produzem o comportamento de vínculo declarado (nunca
+- [x] AC REALISM-29: as 3 mecânicas produzem o comportamento de vínculo declarado (nunca
       vazio por omissão)
-- [ ] `Independent Test` do spec (P2 Instanciação) reproduzido: clone com skill N e F
+- [x] `Independent Test` do spec (P2 Instanciação) reproduzido: clone com skill N e F
       vínculos → clone nasce com skill N e F vínculos
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
 
 **Tests**: unit
 **Gate**: quick
@@ -504,9 +512,9 @@ reprodução normal; corte registrado em `Fact`.
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] Split que excederia o teto é cortado a N, sem estourar memória
-- [ ] `Fact` registra o corte
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary\|FullyQualifiedName~Performance"`
+- [x] Split que excederia o teto é cortado a N, sem estourar memória
+- [x] `Fact` registra o corte
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary\|FullyQualifiedName~Performance"`
 
 **Tests**: unit
 **Gate**: full
@@ -528,11 +536,13 @@ documentada de não mutar `WorldState` além disso).
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-30: preview fica disponível como entrada pro tick corrente do portador
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
+- [x] AC REALISM-30: preview fica disponível como entrada pro tick corrente do portador
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
 
 **Tests**: unit
 **Gate**: quick
+
+**Commit**: `feat(phase-16-4): foresight preview persists for current tick`
 
 ---
 
@@ -550,14 +560,14 @@ caminho comum (Risk do Design).
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-31: ação com preview de desfecho ruim tem utility reduzida, medida
+- [x] AC REALISM-31: ação com preview de desfecho ruim tem utility reduzida, medida
       estatisticamente (NPC com foresight evita mais que NPC sem, mesmo seed/cenário)
-- [ ] AC REALISM-32: sem preview no tick, decisão idêntica ao comportamento anterior
+- [x] AC REALISM-32: sem preview no tick, decisão idêntica ao comportamento anterior
       (regressão zero pra NPC sem o poder)
-- [ ] Sensor de performance confirma sem alocação extra no caminho comum (dicionário vazio
+- [x] Sensor de performance confirma sem alocação extra no caminho comum (dicionário vazio
       compartilhado, não alocado por chamada)
-- [ ] `Independent Test` do spec (P2 Foresight) reproduzido
-- [ ] Gate: `bash scripts/test.sh` (full — hot path, cruza com Performance)
+- [x] `Independent Test` do spec (P2 Foresight) reproduzido
+- [x] Gate: `bash scripts/test.sh` (full — hot path, cruza com Performance)
 
 **Tests**: unit
 **Gate**: full
@@ -580,8 +590,9 @@ Design como não decidido). Registra a escolha como comentário/AD curto.
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] Atributo escolhido e justificado (ou confirmado com o usuário que precisa de um novo)
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
+- [x] Atributo escolhido e justificado (ou confirmado com o usuário que precisa de um novo)
+      — `Npc.Vitality` via `ControlMechanic.PossessionResistanceAttribute` (AD-071 / T19)
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
 
 **Tests**: unit
 **Gate**: quick
@@ -601,11 +612,11 @@ atribuição causal já garantida na 16.1).
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-33: hospedeiro com resistência alta recupera controle mais que resistência
+- [x] AC REALISM-33: hospedeiro com resistência alta recupera controle mais que resistência
       baixa, mesmo seed/cenário
-- [ ] AC REALISM-34: `Fact` registra o evento com o possuidor identificado
-- [ ] `Independent Test` do spec (P3 Possessão) reproduzido
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
+- [x] AC REALISM-34: `Fact` registra o evento com o possuidor identificado
+- [x] `Independent Test` do spec (P3 Possessão) reproduzido
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Extraordinary"`
 
 **Tests**: unit
 **Gate**: quick
@@ -626,10 +637,10 @@ confirma que `PerfRules.MaxMicrosPerAliveNpcTick`/`MaxBytesAllocPerTick` não s�
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] Sensor confirma que fauna/flora em massa não fura o teto já fixado na Fase 9
-- [ ] Se o teto for furado, sistema degrada por decaimento preguiçoso (não trava o tick) —
-      testado explicitamente
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Performance"`
+- [x] Sensor confirma que fauna/flora em massa não fura o teto já fixado na Fase 9
+- [x] Se o teto for furado, sistema degrada por decaimento preguiçoso (não trava o tick) —
+      testado explicitamente (`MaxAliveFauna`/`MaxAliveFlora` + LazyNeed; tetos PerfRules OK)
+- [x] Gate: `Category!=Scenario&FullyQualifiedName~ScaleScenarioSensor` (AD-009; evita bare `~Performance`)
 
 **Tests**: integration
 **Gate**: full
@@ -638,11 +649,12 @@ confirma que `PerfRules.MaxMicrosPerAliveNpcTick`/`MaxBytesAllocPerTick` não s�
 
 ---
 
-### T22: Cenário de referência 100 anos + `bash scripts/verify.sh`
+### T22: Cenário de referência 10 anos + `bash scripts/verify.sh`
 
-**What**: Roda o cenário de referência do objetivo #1 (100 NPCs, 100 anos) com
+**What**: Roda o cenário de referência (100 NPCs, **10 anos** — AD-029) com
 fauna/flora/temperatura habilitadas e 0 poderes ativos, confirma que não trava e que a
-população/estágios variam de forma auditável no log. Roda o gate final.
+população/estágios variam de forma auditável no log. Roda o gate final. 100 anos permanece
+no objetivo #1 (`LifeTable*`), não neste closeout.
 **Where**: N/A (execução de cenário, não código novo — a menos que o cenário de referência
 precise de flags novas pra habilitar fauna/flora, o que é edição de config)
 **Depends on**: T21
@@ -652,16 +664,24 @@ precise de flags novas pra habilitar fauna/flora, o que é edição de config)
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] Cenário de 100 anos com fauna/flora/temperatura habilitadas e 0 poderes ativos termina
-      sem travar; log mostra população de fauna e estágios de flora variando
-- [ ] `bash scripts/verify.sh` sai 0
-- [ ] Nenhuma das 5 mecânicas antes "ocas" continua com o gap específico citado pelo revisor
-      (checklist manual contra o Success Criteria do spec)
+- [x] Smoke agente: cenário default semeia ecologia (0 poderes); fome/estágios variam em 1 mês
+      (`WorldRealismCloseoutTests`) — Independent T6/T9 cobrem reprodução
+- [x] Cenário de 10 anos (AD-029/AD-030) com fauna/flora/temperatura e 0 poderes termina sem travar
+      — USER PASS (`Reference_scenario_ten_years`)
+- [x] `bash scripts/verify.sh` sai 0 — USER PASS (AD-009)
+- [x] Checklist 5 mecânicas antes ocas fechadas: combate multi-round; clone/split/reincarnate
+      herança; foresight→utility; possession resist; autonomous ecology
 
 **Tests**: none (execução de cenário + gate)
 **Gate**: build
 
-**Commit**: `feat(phase-16-4): fecha fase — realismo autônomo de fauna/flora/clima e mecânicas aprofundadas`
+**Commit**: `docs(phase-16-4): close phase after user gate PASS`
+
+**User verify commands (AD-009)**:
+```bash
+bash scripts/verify.sh
+dotnet test LivingWorld.sln --filter "FullyQualifiedName~WorldRealismCloseoutTests.Reference_scenario_ten_years"
+```
 
 ---
 

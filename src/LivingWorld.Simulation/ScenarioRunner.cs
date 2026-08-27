@@ -1,6 +1,7 @@
 using LivingWorld.Domain;
 
 using LivingWorld.Simulation.Economy;
+using LivingWorld.Simulation.Geography;
 using LivingWorld.Simulation.History;
 using LivingWorld.Simulation.Narrative;
 using LivingWorld.Simulation.Periods;
@@ -67,6 +68,9 @@ public static class ScenarioRunner
         new SkillTeachingSystem(DefaultSkillsRules, DefaultLifeStageRules),
         new WorkHardeningSystem(),
         new ProductionSystem(DefaultSkillsRules),
+        new FaunaLifecycleSystem(),
+        new FloraLifecycleSystem(),
+        new TemperatureSeasonSystem(),
         new CropSystem(),
         new MarketPricingSystem(),
         new WagePaymentSystem(),
@@ -312,6 +316,31 @@ public static class ScenarioRunner
         ProcessRecipe.Create(ProcessKind.Plant, new Dictionary<int, long>(), 1, 1, null, 1).Value!,
     ];
 
+    /// <summary>Espécies animais do cenário medieval default (Fase 16.4) — lobo/coelho pra
+    /// futura <c>FaunaLifecycleSystem</c>.</summary>
+    public static readonly IReadOnlyList<AnimalSpeciesRules> DefaultAnimalSpeciesRules =
+    [
+        new("wolf", HungerDecayPerTick: 0.5, ReproduceEnergyThreshold: 60, ReproduceRadius: 3,
+            ReproduceProbability: 0.12, PredatorOf: "rabbit", PredationProbability: 0.25),
+        new("rabbit", HungerDecayPerTick: 0.35, ReproduceEnergyThreshold: 50, ReproduceRadius: 2,
+            ReproduceProbability: 0.18, PredatorOf: null, PredationProbability: 0),
+    ];
+
+    /// <summary>Espécies vegetais do cenário medieval default (Fase 16.4) — trigo alinhado ao
+    /// recurso alimentício <see cref="DefaultEconomyRules.FoodResourceId"/>.</summary>
+    public static readonly IReadOnlyList<PlantSpeciesRules> DefaultPlantSpeciesRules =
+    [
+        new("wheat", MinToleratedTemp: 5, MaxToleratedTemp: 35, MaturityStage: 3,
+            CropResourceId: 1, YieldPerMaturePlant: 10, ReproduceRadius: 2, ReproduceProbability: 0.2),
+    ];
+
+    /// <summary>Delta sazonal por bioma (4 estações) — bioma 1 do default tem amplitude
+    /// temperada; REALISM-12/13 exigem variação ao longo do ano.</summary>
+    public static readonly IReadOnlyList<BiomeSeasonTemperatureRules> DefaultBiomeSeasonTemperatureRules =
+    [
+        new(BiomeId: 1, SeasonDeltas: [-6f, 0f, 10f, 2f]),
+    ];
+
     /// <summary>Receitas com tetos de trabalhadores altos para cenário de escala (PERF-01).</summary>
     public static EconomyCatalog ScaleEconomyCatalog(int workerCapMultiplier)
     {
@@ -401,7 +430,9 @@ public static class ScenarioRunner
         ulong seed, int maxIterationsPerTick = 1000, int initialPopulation = DefaultInitialPopulation,
         EconomyRules? economyRules = null, FamilyRules? familyRules = null, PerfRules? perfRules = null,
         PopulationRules? populationRules = null, int workplaceVacancyMultiplier = 1,
-        EconomyCatalog? economyCatalog = null, HistoryRules? historyRules = null)
+        EconomyCatalog? economyCatalog = null, HistoryRules? historyRules = null,
+        IReadOnlyList<AnimalSpeciesRules>? animalSpeciesRules = null,
+        IReadOnlyList<PlantSpeciesRules>? plantSpeciesRules = null)
     {
         var rules = economyRules ?? DefaultEconomyRules;
         var family = familyRules ?? DefaultFamilyRules;
@@ -413,7 +444,10 @@ public static class ScenarioRunner
             DefaultCalendar, seed, InitialMap(seed, initialPopulation), DefaultPopulationCatalog, population,
             DefaultNeedsRules, DefaultActionCatalog, DefaultLifeStageRules,
             economyRules: rules, economyCatalog: catalog, familyRules: family, perfRules: perf,
-            historyRules: history, processRecipes: DefaultProcessRecipes);
+            historyRules: history, processRecipes: DefaultProcessRecipes,
+            animalSpeciesRules: animalSpeciesRules ?? DefaultAnimalSpeciesRules,
+            plantSpeciesRules: plantSpeciesRules ?? DefaultPlantSpeciesRules,
+            biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules);
         var initialCity = new City(
             world.NextCityId(), DefaultVillageLocation, world.CurrentDate.TotalHours,
             foundedFromCityId: null, AggregatePopulationPool.Empty);
@@ -427,6 +461,8 @@ public static class ScenarioRunner
             PopulationSeeder.SeedInitial(
                 world, initialPopulation, DefaultCulture, DefaultVillageLocation, initialCity.Id);
             SeedInitialEconomyBuffer(world);
+            if (initialPopulation == DefaultInitialPopulation)
+                EcologyScenarioSeeder.SeedDefault(world);
         }
 
         return (world, new WorldClock(DefaultSystems(), maxIterationsPerTick));

@@ -29,6 +29,7 @@ export const frontendCapabilityConsumers: Record<string, ConsumerSlice> = {
   "map.npc.rest": "processes",
   "inspector.npc.food": "processes",
   "map.crop": "processes",
+  "map.fauna": "events",
   "map.water": "processes",
   "inspector.employment": "events",
   "inspector.production": "buildings",

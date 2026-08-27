@@ -37,6 +37,17 @@ public sealed class Relationship
     /// evolução real vem do primeiro <see cref="ApplyEvent"/> que o chamador aplicar em seguida.</summary>
     public static Relationship Initial(long firstContactTick) => new(AxisMin, AxisMin, AxisMin, AxisMin, firstContactTick);
 
+    /// <summary>Cópia com eixos explícitos (instanciação clone/split, REALISM-29) — clamp
+    /// <c>[0,100]</c>, mesmo piso/teto de <see cref="Set"/>.</summary>
+    public static Relationship FromAxes(
+        double trust, double affection, double respect, double debt, long firstContactTick) =>
+        new(
+            Math.Clamp(trust, AxisMin, AxisMax),
+            Math.Clamp(affection, AxisMin, AxisMax),
+            Math.Clamp(respect, AxisMin, AxisMax),
+            Math.Clamp(debt, AxisMin, AxisMax),
+            firstContactTick);
+
     public double Get(RelationshipAxis axis) => axis switch
     {
         RelationshipAxis.Trust => Trust,
@@ -91,4 +102,15 @@ public sealed class Relationship
     }
 
     public void MarkContact(long tick) => LastContactTick = tick;
+
+    /// <summary>Copia os 4 eixos de <paramref name="source"/> (REALISM-29: transferência de
+    /// vínculos em clone/split) — não altera <see cref="LastContactTick"/> (o chamador marca
+    /// contato no tick atual).</summary>
+    public void CopyAxesFrom(Relationship source)
+    {
+        Trust = source.Trust;
+        Affection = source.Affection;
+        Respect = source.Respect;
+        Debt = source.Debt;
+    }
 }

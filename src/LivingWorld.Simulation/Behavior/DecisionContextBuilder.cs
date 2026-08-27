@@ -36,7 +36,8 @@ public static class DecisionContextBuilder
             KnownRelationships: relationships,
             PowerOpportunities: PowerOpportunityProvider.ApplicableTo(world, npc, tick),
             npc.Personality,
-            npc.CurrentAction);
+            npc.CurrentAction,
+            ForesightPreviews: ForesightMechanic.PreviewsFor(world, npc.Id, tick));
     }
 
     internal static BodySnapshot BuildBodySlice(WorldState world, Npc npc) =>

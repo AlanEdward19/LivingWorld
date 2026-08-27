@@ -6,9 +6,15 @@ namespace LivingWorld.Simulation;
 /// Possessão contínua e troca de corpo. Decisões do possuído delegam ao portador/regras
 /// declaradas; o log causal atribui ações ao possuído. Identidade mutada via
 /// <see cref="WorldEventKind.IdentityChanged"/>.
+/// AD-071 (<c>docs/decisions-log.md</c>): resistência à possessão modula por
+/// <see cref="Npc.Vitality"/> — atributo genético já causal (mortalidade/concepção), sem
+/// campo novo.
 /// </summary>
 public sealed class ControlMechanic : ExtraordinaryMechanic
 {
+    /// <summary>Atributo de hospedeiro usado por <see cref="TryResist"/> (AD-071).</summary>
+    public const string PossessionResistanceAttribute = nameof(Npc.Vitality);
+
     public const string PossessToken = "control.possess";
     public const string PossessPrefix = "control.possess:";
     public const string BodySwapToken = "control.body-swap";
@@ -89,6 +95,52 @@ public sealed class ControlMechanic : ExtraordinaryMechanic
         ClearSwap(world, npc.Id);
         ClearSwap(world, partnerId);
     }
+
+    /// <summary>REALISM-33: roll determinístico por tick para cada hospedeiro possuído.</summary>
+    internal static void ApplyPossessionResistance(WorldState world, TickContext ctx)
+    {
+        if (!world.Extraordinary.Enabled) return;
+
+        foreach (var hostState in world.ExtraordinaryCarriers
+                     .Where(item => item.PossessedBy is not null)
+                     .OrderBy(item => item.CarrierId.Value)
+                     .ToList())
+        {
+            if (world.FindNpc(hostState.CarrierId) is not { IsAlive: true } host) continue;
+            if (!IsPossessed(world, host)) continue;
+            TryResist(world, hostState, host, ctx);
+        }
+    }
+
+    /// <summary>Roll modulado por <see cref="Npc.Vitality"/> (AD-071); sucesso limpa
+    /// <see cref="ExtraordinaryCarrierState.PossessedBy"/> como em
+    /// <see cref="RevertIfCeased"/>.</summary>
+    internal static bool TryResist(
+        WorldState world, ExtraordinaryCarrierState hostState, Npc host, TickContext ctx)
+    {
+        if (hostState.PossessedBy is not { } possessorId) return false;
+        if (!IsPossessed(world, host)) return false;
+
+        double chance = ResistanceChanceOf(host);
+        double roll = ctx.Rng($"possession-resist-{host.Id.Value}-{ctx.CurrentTick}").NextDouble();
+        if (roll >= chance) return false;
+
+        world.UpsertExtraordinaryCarrier(hostState with { PossessedBy = null });
+        string payload = $"{host.Id.Value}|{possessorId.Value}|possession-resisted";
+        ctx.LogEvent(WorldEventKind.PossessionResisted, payload, sourceSystem: "ControlMechanic");
+        world.AddFact(new Fact(
+            world.NextFactIdAndAdvance(),
+            ctx.CurrentTick,
+            WorldEventKind.PossessionResisted,
+            [host.Id, possessorId],
+            host.City != default ? host.City : null,
+            0.75,
+            payload));
+        return true;
+    }
+
+    internal static double ResistanceChanceOf(Npc host) =>
+        Math.Clamp(0.001 + host.Vitality / 100.0 * 0.048, 0.001, 0.05);
 
     private static Result<PreparedMutation?> PreparePossess(
         ExtraordinaryMechanicContext ctx, string declaration)

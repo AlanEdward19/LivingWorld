@@ -187,6 +187,32 @@ public static class WorldSnapshot
             && temperatureNode is not null
                 ? temperatureNode.Deserialize<List<EnvironmentTemperatureAdjustment>>(JsonOptions)!
                 : [];
+        var animalSpeciesRules = node.TryGetPropertyValue("AnimalSpeciesRules", out var animalRulesNode)
+            && animalRulesNode is not null
+                ? animalRulesNode.Deserialize<List<AnimalSpeciesRules>>(JsonOptions)!
+                : [];
+        var plantSpeciesRules = node.TryGetPropertyValue("PlantSpeciesRules", out var plantRulesNode)
+            && plantRulesNode is not null
+                ? plantRulesNode.Deserialize<List<PlantSpeciesRules>>(JsonOptions)!
+                : [];
+        var biomeSeasonTemperatureRules =
+            node.TryGetPropertyValue("BiomeSeasonTemperatureRules", out var biomeSeasonNode)
+            && biomeSeasonNode is not null
+                ? biomeSeasonNode.Deserialize<List<BiomeSeasonTemperatureRules>>(JsonOptions)!
+                : [];
+        var combatEncounters =
+            node.TryGetPropertyValue("CombatEncounters", out var combatNode) && combatNode is not null
+                ? combatNode.Deserialize<List<CombatEncounter>>(JsonOptions)!
+                : [];
+        var nextCombatEncounterId =
+            node.TryGetPropertyValue("NextCombatEncounterId", out var nextCombatNode)
+            && nextCombatNode is not null
+                ? nextCombatNode.GetValue<long>()
+                : 0L;
+        var combatRules =
+            node.TryGetPropertyValue("CombatRules", out var combatRulesNode) && combatRulesNode is not null
+                ? combatRulesNode.Deserialize<CombatRules>(JsonOptions)!
+                : CombatRules.Default;
 
         return new WorldState(
             calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
@@ -200,7 +226,8 @@ public static class WorldSnapshot
             cropBatches, nextCropBatchId, extraordinary, extraordinaryCarriers,
             extraordinaryConstructs, nextExtraordinaryConstructId,
             fauna, nextAnimalId, flora, nextPlantId, environmentTemperatureAdjustments,
-            nextHistoryEventId);
+            animalSpeciesRules, plantSpeciesRules, biomeSeasonTemperatureRules,
+            nextHistoryEventId, combatEncounters, nextCombatEncounterId, combatRules);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)

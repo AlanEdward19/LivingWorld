@@ -68,7 +68,15 @@ public static class PopulationScenarioLoader
         if (!TryGetInt(root, "GestationDays", out var gestationDays))
             return Result<PopulationScenarioData>.Fail("GestationDays: campo obrigatório ausente ou inválido");
 
-        var rulesResult = PopulationRules.Create(lifeTableResult.Value!, fertilityMinAge, fertilityMaxAge, conceptionChance, gestationDays);
+        int maxAliveNpcs = int.MaxValue;
+        if (root["MaxAliveNpcs"] is JsonValue maxAliveNode)
+        {
+            if (!maxAliveNode.TryGetValue(out maxAliveNpcs) || maxAliveNpcs <= 0)
+                return Result<PopulationScenarioData>.Fail("MaxAliveNpcs: deve ser > 0");
+        }
+
+        var rulesResult = PopulationRules.Create(
+            lifeTableResult.Value!, fertilityMinAge, fertilityMaxAge, conceptionChance, gestationDays, maxAliveNpcs);
         if (!rulesResult.IsSuccess)
             return Result<PopulationScenarioData>.Fail(rulesResult.Error!);
 

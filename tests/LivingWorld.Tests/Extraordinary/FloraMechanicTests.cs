@@ -9,15 +9,22 @@ public sealed class FloraMechanicTests
     public void Growth_rate_five_advances_plants_in_area_five_times_versus_control()
     {
         var setup = WorldWithGrowth(multiplier: 5, radius: 1);
+        var rules = setup.World.PlantSpeciesRules.Single();
+        var treatedPlant = setup.World.FindPlant(setup.Treated.Id)!;
+        var controlPlant = setup.World.FindPlant(setup.Control.Id)!;
+        double treatedBase = FloraLifecycleSystem.BaseGrowthRate(
+            setup.World, treatedPlant, rules, setup.World.CurrentDate.TotalHours);
+        double controlBase = FloraLifecycleSystem.BaseGrowthRate(
+            setup.World, controlPlant, rules, setup.World.CurrentDate.TotalHours);
         var ctx = new TickContext(setup.World, setup.World.Rng, setup.World.Scheduler);
 
-        new FloraGrowthSystem().Tick(setup.World, ctx);
-        new FloraGrowthSystem().Tick(setup.World, ctx);
+        new FloraLifecycleSystem().Tick(setup.World, ctx);
+        new FloraLifecycleSystem().Tick(setup.World, ctx);
 
-        Assert.Equal(
-            (10, 2),
-            (setup.World.FindPlant(setup.Treated.Id)!.GrowthStage,
-                setup.World.FindPlant(setup.Control.Id)!.GrowthStage));
+        Assert.Equal((int)Math.Floor(treatedBase * 5) * 2, setup.World.FindPlant(setup.Treated.Id)!.GrowthStage);
+        Assert.Equal((int)Math.Floor(controlBase) * 2, setup.World.FindPlant(setup.Control.Id)!.GrowthStage);
+        Assert.True(setup.World.FindPlant(setup.Treated.Id)!.GrowthStage
+            > setup.World.FindPlant(setup.Control.Id)!.GrowthStage);
     }
 
     [Fact]
@@ -28,9 +35,9 @@ public sealed class FloraMechanicTests
 
         for (int i = 0; i < 3; i++)
         {
-            new FloraGrowthSystem().Tick(
+            new FloraLifecycleSystem().Tick(
                 first.World, new TickContext(first.World, first.World.Rng, first.World.Scheduler));
-            new FloraGrowthSystem().Tick(
+            new FloraLifecycleSystem().Tick(
                 second.World, new TickContext(second.World, second.World.Rng, second.World.Scheduler));
         }
 
@@ -40,21 +47,28 @@ public sealed class FloraMechanicTests
     }
 
     [Fact]
-    public void Disabled_extraordinary_cannot_execute_flora_effects_or_grow()
+    public void Disabled_extraordinary_cannot_execute_flora_effects_or_apply_growth_multiplier()
     {
         var setup = WorldWithGrowth(multiplier: 5, radius: 1, enabled: false);
+        var rules = setup.World.PlantSpeciesRules.Single();
+        var treatedPlant = setup.World.FindPlant(setup.Treated.Id)!;
+        double treatedBase = FloraLifecycleSystem.BaseGrowthRate(
+            setup.World, treatedPlant, rules, setup.World.CurrentDate.TotalHours);
         var invoked = ExtraordinaryInvocationEngine.Invoke(
             setup.World, new TickContext(setup.World, setup.World.Rng, setup.World.Scheduler),
             new ExtraordinaryInvocation(501, setup.Carrier.Id, "test-power", setup.Carrier.Id));
-        new FloraGrowthSystem().Tick(
+        new FloraLifecycleSystem().Tick(
             setup.World, new TickContext(setup.World, setup.World.Rng, setup.World.Scheduler));
 
         Assert.False(invoked.IsSuccess);
         Assert.Contains("Enabled", invoked.Error, StringComparison.Ordinal);
+        // Multiplicador de poder não aplica — só a taxa de base (REALISM-11 / Enabled=false).
         Assert.Equal(
-            (0, 0),
-            (setup.World.FindPlant(setup.Treated.Id)!.GrowthStage,
-                setup.World.FindPlant(setup.Control.Id)!.GrowthStage));
+            (int)Math.Floor(treatedBase),
+            setup.World.FindPlant(setup.Treated.Id)!.GrowthStage);
+        Assert.Equal(
+            1.0,
+            FloraMechanic.GrowthRateMultiplier(setup.World, treatedPlant));
     }
 
     [Fact]
@@ -67,6 +81,9 @@ public sealed class FloraMechanicTests
     {
         var treated = new Plant(new PlantId(1), "oak", new CellCoord(5, 5), 0);
         var control = new Plant(new PlantId(2), "oak", new CellCoord(9, 9), 0);
+        var rules = new PlantSpeciesRules(
+            "oak", MinToleratedTemp: -50, MaxToleratedTemp: 50, MaturityStage: 100,
+            CropResourceId: 1, YieldPerMaturePlant: 0, ReproduceRadius: 0, ReproduceProbability: 0);
         var descriptor = new PowerDescriptor(
             "test-power", "test-source",
             [$"area:radius:{radius}", $"flora.growth-rate:{multiplier}"],
@@ -81,7 +98,8 @@ public sealed class FloraMechanicTests
             ScenarioRunner.DefaultLifeStageRules,
             extraordinary: new ExtraordinaryScenarioData(enabled, [descriptor]),
             extraordinaryCarriers: [state],
-            flora: [treated, control]);
+            flora: [treated, control],
+            plantSpeciesRules: [rules]);
         var carrier = new Npc(
             new NpcId(1), "carrier", Sex.Male, WorldDate.Epoch(ScenarioRunner.DefaultCalendar),
             ScenarioRunner.DefaultCulture, new CellCoord(5, 5), motherId: null, fatherId: null,

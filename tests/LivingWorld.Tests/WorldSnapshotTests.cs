@@ -83,7 +83,10 @@ public class WorldSnapshotTests
             extraordinary: SampleExtraordinary,
             extraordinaryCarriers: SampleExtraordinaryCarriers,
             extraordinaryConstructs: SampleExtraordinaryConstructs,
-            nextExtraordinaryConstructId: 1);
+            nextExtraordinaryConstructId: 1,
+            animalSpeciesRules: ScenarioRunner.DefaultAnimalSpeciesRules,
+            plantSpeciesRules: ScenarioRunner.DefaultPlantSpeciesRules,
+            biomeSeasonTemperatureRules: ScenarioRunner.DefaultBiomeSeasonTemperatureRules);
         PopulationSeeder.SeedInitial(world, ScenarioRunner.DefaultInitialPopulation, ScenarioRunner.DefaultCulture, ScenarioRunner.DefaultVillageLocation);
         world.AddWorkplace(new Workplace(
             world.NextWorkplaceIdAndAdvance(), new LocationType(1), ScenarioRunner.DefaultVillageLocation, maxVacancies: 1,
@@ -156,9 +159,15 @@ public class WorldSnapshotTests
             new PortalEndpoint(PortalSpaceKind.World, "", new CellCoord(1, 1)),
             new PortalEndpoint(PortalSpaceKind.City, city.Id.ToString(), new CellCoord(2, 2))));
         world.AddAnimal(new Animal(
-            world.NextAnimalIdAndAdvance(), "probe-wolf", new CellCoord(0, 0), true));
+            world.NextAnimalIdAndAdvance(), "probe-wolf", new CellCoord(0, 0), true, null,
+            LazyNeed.Initial(100, 0, 0)));
         world.AddPlant(new Plant(
             world.NextPlantIdAndAdvance(), "probe-oak", new CellCoord(0, 0), 1));
+        // Fase 16.4: força ao menos um CombatEncounter — coleção vazia não tem folha pro mutador.
+        world.AddCombatEncounter(new CombatEncounter(
+            world.NextCombatEncounterIdAndAdvance(),
+            world.Npcs[0].Id, world.Npcs[1].Id, Magnitude: 10, RoundsElapsed: 0,
+            CombatEncounterStatus.Active));
         world.AddEnvironmentTemperatureAdjustment(new EnvironmentTemperatureAdjustment(
             world.Map.Regions[0].Id, 1.5f, world.CurrentDate.TotalHours + 24));
         return world;

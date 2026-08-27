@@ -110,8 +110,17 @@ public enum WorldEventKind
     /// <summary>Consequência declarada de uma resolução extraordinária não plena.</summary>
     ExtraordinaryFailureApplied,
 
-    /// <summary>Confronto NPC-vs-NPC resolvido por poder (Fase 16.1, PWR-63).</summary>
+    /// <summary>Confronto NPC-vs-NPC resolvido por poder (Fase 16.1, PWR-63) ou encontro
+    /// multi-round encerrado (Fase 16.4).</summary>
     CombatResolved,
+
+    /// <summary>Encontro multi-round iniciado via <c>combat.engage:</c> (AD-010 / REALISM-16)
+    /// — payload: encounterId|attackerId|defenderId.</summary>
+    CombatEncounterStarted,
+
+    /// <summary>Um round de encontro processado (REALISM-17) — payload:
+    /// encounterId|round|attackerHp|defenderHp.</summary>
+    CombatRound,
 
     /// <summary>Instanciação de NPC via poder (clone/split/reincarnate, PWR-107).</summary>
     NpcInstantiated,
@@ -126,4 +135,12 @@ public enum WorldEventKind
     /// <summary>Agent escolheu/executou UsePower via utility AI (Fase 16.3 P1d, COH-33) —
     /// payload: npcId|powerId|mechanicToken. CauseEventId aponta ao evento de decisão.</summary>
     PowerInvoked,
+
+    /// <summary>Planta atingiu estágio de maturidade/produção (Fase 16.4, REALISM-07) —
+    /// payload: plantId.</summary>
+    PlantMatured,
+
+    /// <summary>Hospedeiro retomou controle de possessão (Fase 16.4, REALISM-33/34) —
+    /// payload: <c>hostId|possessorId|possession-resisted</c>.</summary>
+    PossessionResisted,
 }

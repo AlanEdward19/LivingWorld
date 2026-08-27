@@ -5,7 +5,9 @@ namespace LivingWorld.Simulation;
 
 /// <summary>Snapshot efêmero por (NpcId, wake) para scoring de decisão (Fase 16.3 P1b,
 /// COH-11) — nunca persistido, nunca <c>[Canonical]</c>, nunca carrega referência a
-/// <see cref="WorldState"/>. Coleções são listas vazias quando sem fatores, nunca <c>null</c>.</summary>
+/// <see cref="WorldState"/>. Coleções são listas vazias quando sem fatores, nunca <c>null</c>.
+/// <see cref="ForesightPreviews"/> (REALISM-30/31, AD-011) é volátil por tick; omitido/
+/// <c>null</c> ≡ <see cref="ForesightMechanic.EmptyPreviews"/> (sem alocação no caminho comum).</summary>
 public sealed record DecisionContext(
     NpcId NpcId,
     long Tick,
@@ -17,7 +19,8 @@ public sealed record DecisionContext(
     IReadOnlyList<RelationshipFact> KnownRelationships,
     IReadOnlyList<PowerOpportunity> PowerOpportunities,
     Personality Personality,
-    ActionType? CurrentAction);
+    ActionType? CurrentAction,
+    IReadOnlyDictionary<ActionType, ResolutionResult>? ForesightPreviews = null);
 
 public readonly record struct NeedsSnapshot(int Hunger, int Thirst, int Sleep, int Social);
 
