@@ -120,10 +120,42 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
         return candidates[index];
     }
 
-    /// <summary>REALISM-04 — implementado em T6.</summary>
+    /// <summary>REALISM-04: predador consome presa no raio; sem PredatorOf é no-op.</summary>
     public static void TryPredate(WorldState world, TickContext ctx)
     {
-        _ = (world, ctx);
+        var rulesBySpecies = IndexRules(world);
+        long tick = ctx.CurrentTick;
+        var alive = world.Fauna.Where(a => a.IsAlive).OrderBy(a => a.Id.Value).ToList();
+        var eaten = new HashSet<long>();
+
+        foreach (var predator in alive)
+        {
+            if (eaten.Contains(predator.Id.Value)) continue;
+            if (!rulesBySpecies.TryGetValue(predator.Species, out var rules)) continue;
+            if (string.IsNullOrEmpty(rules.PredatorOf) || rules.PredationProbability <= 0) continue;
+
+            foreach (var prey in alive)
+            {
+                if (prey.Id.Value == predator.Id.Value) continue;
+                if (eaten.Contains(prey.Id.Value)) continue;
+                if (!string.Equals(prey.Species, rules.PredatorOf, StringComparison.Ordinal)) continue;
+                if (Chebyshev(predator.Position, prey.Position) > rules.ReproduceRadius) continue;
+
+                double roll = ctx.Rng($"fauna-predate-{predator.Id.Value}-{prey.Id.Value}-{tick}")
+                    .NextDouble();
+                if (roll >= rules.PredationProbability) continue;
+
+                var currentPredator = world.FindAnimal(predator.Id) ?? predator;
+                double gained = currentPredator.Energy.ValueAt(tick) + PredationEnergyGain;
+                world.ReplaceAnimal(currentPredator with
+                {
+                    Energy = currentPredator.Energy.WithValue(gained, tick),
+                });
+                Kill(world, ctx, prey, WorldEventKind.Death);
+                eaten.Add(prey.Id.Value);
+                break;
+            }
+        }
     }
 
     internal static void Kill(WorldState world, TickContext ctx, Animal animal, WorldEventKind kind)

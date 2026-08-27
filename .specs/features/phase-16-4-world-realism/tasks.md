@@ -255,11 +255,11 @@ mudança de contrato esperada)
 **Tools**: MCP: NONE / Skill: NONE
 
 **Done when**:
-- [ ] AC REALISM-04: predador consome presa no raio, determinístico
-- [ ] AC REALISM-05: `fauna.dominate` ativo não interrompe fome/reprodução/predação de base
-- [ ] Edge case: espécie sem `PredatorOf` declarado não gera erro (no-op)
-- [ ] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology\|FullyQualifiedName~Extraordinary"`
-- [ ] `Independent Test` do spec (P1 Fauna) reproduzido manualmente: mundo com 2 espécies, 0
+- [x] AC REALISM-04: predador consome presa no raio, determinístico
+- [x] AC REALISM-05: `fauna.dominate` ativo não interrompe fome/reprodução/predação de base
+- [x] Edge case: espécie sem `PredatorOf` declarado não gera erro (no-op)
+- [x] Gate: `bash scripts/test.sh --filter "FullyQualifiedName~Ecology\|FullyQualifiedName~Extraordinary"`
+- [x] `Independent Test` do spec (P1 Fauna) reproduzido manualmente: mundo com 2 espécies, 0
       poderes, T ticks — população varia no log
 
 **Tests**: unit
