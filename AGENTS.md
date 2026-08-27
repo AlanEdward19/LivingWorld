@@ -47,6 +47,7 @@
 | Escrever/ajustar testes | `rules/tests.md` | `harness-engineering` |
 | Escrever/revisar critério de fase | `rules/eval-criteria.md` | — |
 | Sistema de simulação / tick / RNG | `rules/simulation-determinism.md` | — |
+| Novo sistema / integração / “mundo vivo” | `rules/living-world-cohesion.md` | — |
 | Qualquer coisa com LLM | `rules/llm-boundary.md` | — |
 | Banco / entidade / migração | `rules/database-entities.md` | — |
 | "O que vem depois?" | `ROADMAP.md` (índice) → `docs/roadmap/phase-NN-*.md` | `agentic-delivery` |
@@ -62,6 +63,9 @@
 - **Implementação**: unidades pequenas, 1 comportamento por tarefa. Sem one-shot hero.
 - **Testes**: comportamento novo tem teste. O agente não se autoavalia — quem decide é o gate.
 - **Simulação**: determinística e reprodutível. Mesma seed + mesmos ticks = mesmo mundo.
+- **Coesão**: todo sistema novo entra **conectado** (consumidor causal real) — ver
+  `rules/living-world-cohesion.md`. Stub presentation-only sem consumidor é dívida explícita,
+  não entrega.
 - **LLM**: propõe linguagem e intenção; o motor valida e aplica. Nunca o contrário.
 
 ## Harness
