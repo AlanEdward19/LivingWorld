@@ -1346,7 +1346,7 @@ button:disabled {
     animation: starfield-shoot linear infinite;
   }
 
-  [data-testid="planet-scene"] {
+  [data-testid="planet-drift-layer"] {
     animation: planet-drift 46s ease-in-out infinite alternate;
   }
 }
@@ -1396,6 +1396,11 @@ button:disabled {
   height: min(45vh, 420px);
 }
 
+[data-testid="planet-drift-layer"] {
+  position: absolute;
+  inset: 0;
+}
+
 [data-testid="planet-sphere"] {
   position: absolute;
   inset: 0;
@@ -1426,6 +1431,22 @@ button:disabled {
   text-align: center;
   color: var(--text-muted);
   font-size: 12px;
+  transition: opacity 0.25s ease;
+}
+
+/* The zoom-dive "camera" — a soft radial wash, same color as the sphere, that blooms from the
+   planet's own size to well past the viewport. A flat gradient div blown up 9x just shows one
+   blurry patch of itself (that was the bug); a gradient that's ALREADY radial-from-center reads
+   as a bloom/flash at any scale, which is what sells "flying toward it" instead of "stretched". */
+[data-testid="planet-zoom-flash"] {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, var(--accent-secondary) 40%, transparent 72%);
+  filter: hue-rotate(var(--planet-hue, 0deg));
+  opacity: 0;
+  transform: scale(1);
+  pointer-events: none;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -1443,18 +1464,35 @@ button:disabled {
   }
 }
 
-/* "Continue" dive-into-the-planet exit (same technique as the old `web/` project's
-   `.start-menu--exiting-create` — see `usePlanetZoomExit.ts`, durations must match
-   ZOOM_EXIT_MS=950). Toggled by `.zoom-exit` on the screen root; targets the planet by its own
-   testid (works from either the Main Menu or the Worlds Library, both use `.planet-frame`). */
+/* "Continue" dive-into-the-planet exit — a camera-push, not a distorted zoom: the sphere itself
+   only grows modestly (it's still visibly a *sphere* getting closer, not a stretched blob) while
+   `planet-zoom-flash` blooms past the viewport doing the actual "rushing toward it" work, and
+   everything else (panel, stars, ring, label) recedes/fades under it. Toggled by `.zoom-exit` on
+   the screen root; works from either the Main Menu or the Worlds Library (both `.planet-frame`).
+   Durations must stay in sync with ZOOM_EXIT_MS in `usePlanetZoomExit.ts`. */
 .zoom-exit .planet-frame-scene [data-testid="planet-scene"] {
-  /* Real bug: `planet-drift` (ambient idle animation, see `@keyframes planet-drift`) keeps
-     writing `transform` every frame and was winning over this transition on the same property
-     — the scale barely showed. Killing the animation here is what lets the transition run. */
+  transition: transform 0.95s cubic-bezier(0.4, 0, 0.7, 1);
+  transform: scale(1.6);
+}
+
+/* Freezes the idle drift instantly (no transition needed — a snap here is imperceptible under
+   the much bigger scale/flash happening at the same time) so it can't drag the scaled-up planet
+   sideways mid-dive. This is a DIFFERENT element than the one transitioning above, so it doesn't
+   hit the animation+transition-on-the-same-element bug documented on `planet-drift-layer`. */
+.zoom-exit [data-testid="planet-drift-layer"] {
   animation: none;
-  transition: transform 0.95s cubic-bezier(0.6, 0, 0.85, 0), filter 0.7s ease;
-  transform: scale(9);
-  filter: brightness(1.4);
+}
+
+.zoom-exit [data-testid="planet-atmosphere"],
+.zoom-exit [data-testid="planet-label"] {
+  transition: opacity 0.3s ease;
+  opacity: 0;
+}
+
+.zoom-exit [data-testid="planet-zoom-flash"] {
+  transition: opacity 0.45s ease 0.1s, transform 0.85s cubic-bezier(0.5, 0, 0.85, 0) 0.1s;
+  opacity: 1;
+  transform: scale(16);
 }
 
 .zoom-exit .planet-frame > *:not(.planet-frame-scene) {
@@ -1481,12 +1519,15 @@ button:disabled {
 }
 
 .zoom-exit .zoom-blackout {
-  transition-delay: 0.55s;
+  transition-delay: 0.6s;
   opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .zoom-exit .planet-frame-scene [data-testid="planet-scene"],
+  .zoom-exit [data-testid="planet-atmosphere"],
+  .zoom-exit [data-testid="planet-label"],
+  .zoom-exit [data-testid="planet-zoom-flash"],
   .zoom-exit .planet-frame > *:not(.planet-frame-scene),
   .zoom-blackout {
     transition-duration: 0.01ms !important;
