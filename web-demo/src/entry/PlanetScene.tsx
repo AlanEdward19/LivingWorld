@@ -11,15 +11,25 @@ export function PlanetScene({
   variant,
   worldName,
   hueRotate = 0,
+  sizeScale = 1,
+  glowIntensity = 1,
 }: {
   variant: PlanetVariant;
   worldName?: string;
   /** Deterministic per-world color shift (see `hueForWorldId`) — lets the Worlds Library swap
       which save the planet represents without needing separate art per world. */
   hueRotate?: number;
+  /** World Creator: reflects Width — a bigger map reads as a visually bigger planet. */
+  sizeScale?: number;
+  /** World Creator: reflects Extraordinary prevalence — more of it, a stronger atmosphere glow. */
+  glowIntensity?: number;
 }) {
+  // Custom properties, not an inline `transform` — an inline style would always beat the
+  // `.zoom-exit` stylesheet rule that needs to override this element's transform for the
+  // Continue camera-dive (see tokens.css), no matter its specificity.
+  const style = { "--planet-hue": `${hueRotate}deg`, "--planet-glow": glowIntensity, "--planet-size-scale": sizeScale } as CSSProperties;
   return (
-    <div data-testid="planet-scene" data-variant={variant} aria-hidden="true" style={{ "--planet-hue": `${hueRotate}deg` } as CSSProperties}>
+    <div data-testid="planet-scene" data-variant={variant} aria-hidden="true" style={style}>
       {/* The idle drift animation lives on this inner layer, never on `planet-scene` itself —
           `transition`-ing a property on the same element that a CSS `animation` was JUST
           removed from (`animation: none` + `transition: transform` in one style recalc) snaps

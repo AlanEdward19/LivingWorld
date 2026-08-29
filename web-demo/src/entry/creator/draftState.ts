@@ -1,31 +1,37 @@
 import type { WorldConfig, WorldDraft } from "../repository/types";
 
+const MAX_ULONG = 18_446_744_073_709_551_615n;
+
+/** Real backend seed is a `ulong` — draw uniformly from its full range via BigInt, not a
+    JS-precision-losing `Math.random() * Number.MAX_SAFE_INTEGER`. */
 function randomSeed(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const block = (len: number) => Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-  return `${block(4)}-${block(3)}-${block(3)}`;
+  const bytes = crypto.getRandomValues(new Uint32Array(2));
+  const value = ((BigInt(bytes[0]) << 32n) | BigInt(bytes[1])) % (MAX_ULONG + 1n);
+  return value.toString();
 }
+
+/** UI-only convenience — the real fields are Width/Height/RegionSize (`MapScenarioLoader`);
+    `size` just fills in a sensible preset for them so Quick Create doesn't need three inputs. */
+export const SIZE_PRESETS: Record<WorldConfig["size"], { width: number; height: number; regionSize: number }> = {
+  Small: { width: 64, height: 64, regionSize: 8 },
+  Medium: { width: 128, height: 128, regionSize: 16 },
+  Large: { width: 256, height: 256, regionSize: 24 },
+  Huge: { width: 512, height: 512, regionSize: 32 },
+};
 
 export function defaultWorldConfig(): WorldConfig {
   return {
     name: "",
     seed: randomSeed(),
+    period: "Medieval",
+
     size: "Medium",
-    era: "Medieval",
-    preset: "Balanced",
-    historyLengthYears: 100,
+    ...SIZE_PRESETS.Medium,
+
     initialPopulation: 5_000,
-    extraordinary: "Rare",
 
-    oceanCoverage: 60,
-    terrainStyle: "Varied",
-
-    climateZone: "Temperate",
-    seasonalIntensity: "Moderate",
-    rainfall: "Moderate",
-
-    mineralAbundance: "Balanced",
-    fertility: "Moderate",
+    extraordinaryEnabled: true,
+    extraordinaryPrevalence: 20,
   };
 }
 
@@ -48,6 +54,7 @@ export type DraftAction =
   | { type: "load"; draft: WorldDraft }
   | { type: "set-mode"; mode: WorldDraft["mode"] }
   | { type: "update-field"; field: keyof WorldConfig; value: WorldConfig[keyof WorldConfig] }
+  | { type: "update-fields"; values: Partial<WorldConfig> }
   | { type: "toggle-lock"; field: keyof WorldConfig }
   | { type: "randomize-field"; field: keyof WorldConfig }
   | { type: "randomize-all" }
@@ -91,6 +98,19 @@ export function draftReducer(state: DraftState, action: DraftAction): DraftState
     case "update-field":
       if (state.draft.lockedFields.includes(action.field)) return state;
       return withConfig(state, { ...state.draft.world, [action.field]: action.value });
+
+    // Size preset -> Width/Height/RegionSize in one undo step (three separate `update-field`
+    // dispatches would fragment one logical change across three undo entries).
+    case "update-fields": {
+      const next = { ...state.draft.world };
+      let changed = false;
+      for (const key of Object.keys(action.values) as (keyof WorldConfig)[]) {
+        if (state.draft.lockedFields.includes(key)) continue;
+        (next as any)[key] = action.values[key];
+        changed = true;
+      }
+      return changed ? withConfig(state, next) : state;
+    }
 
     case "toggle-lock": {
       const locked = state.draft.lockedFields.includes(action.field)

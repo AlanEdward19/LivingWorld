@@ -10,28 +10,38 @@ export type WorldSummary = {
   lastOpenedAt: number;
 };
 
+/**
+ * Real periods the engine ships scenario templates for (`scenarios/periods/*.json` in the
+ * backend repo) — not an invented enum. `POST /worlds/start` instantiates one of these by id.
+ */
+export type WorldPeriod = "Medieval" | "Modern" | "Futuristic" | "Prehistoric" | "Creatures";
+
+/**
+ * Mirrors what the real backend actually takes to create a world (`CreateWorldRequest` /
+ * `MapScenarioLoader` / `PopulationScenarioLoader` / `ExtraordinaryScenarioLoader` in
+ * `src/LivingWorld.*`) — no invented knobs (no "ocean coverage", "terrain style", "climate
+ * zone", "mineral abundance"; the real engine has none of those at world-creation time).
+ * `size` is a frontend-only convenience preset that fills in Width/Height/RegionSize — those
+ * three are the real fields, `size` never leaves the client.
+ */
 export type WorldConfig = {
   name: string;
+  /** Real backend seed is a `ulong` (0..18446744073709551615) — kept as a numeric-only string
+      here since JS numbers lose precision above 2^53. */
   seed: string;
+  period: WorldPeriod;
+
   size: "Small" | "Medium" | "Large" | "Huge";
-  era: string;
-  preset: string;
-  historyLengthYears: number;
+  width: number;
+  height: number;
+  regionSize: number;
+
   initialPopulation: number;
-  extraordinary: "None" | "Rare" | "Common" | "Abundant";
 
-  // World / Geography (doc §32 "World" group)
-  oceanCoverage: number;
-  terrainStyle: "Varied" | "Mountainous" | "Flatlands" | "Archipelago" | "Canyons";
-
-  // World / Climate
-  climateZone: "Temperate" | "Arid" | "Tropical" | "Polar" | "Varied";
-  seasonalIntensity: "Mild" | "Moderate" | "Extreme";
-  rainfall: "Low" | "Moderate" | "High";
-
-  // World / Resources
-  mineralAbundance: "Scarce" | "Balanced" | "Abundant";
-  fertility: "Poor" | "Moderate" | "Rich";
+  extraordinaryEnabled: boolean;
+  /** Real field is `Extraordinary.Prevalence`, a 0..1 float — stored here as a 0..100 percent
+      for the UI and converted at the edge. */
+  extraordinaryPrevalence: number;
 };
 
 export type WorldDraft = {
@@ -43,15 +53,17 @@ export type WorldDraft = {
   updatedAt: string;
 };
 
+/** Mirrors the real backend pipeline (`PeriodDefinitionValidator.Validate` ->
+    `ScenarioLoaderV2.LoadWorld`, `src/LivingWorld.Simulation/Periods/`) — not invented flavor
+    text like "carving rivers"; the real engine has no such stage. */
 export type GenerationStage =
   | "validating"
-  | "forming-terrain"
-  | "shaping-climate"
-  | "carving-rivers"
-  | "growing-ecosystems"
-  | "founding-settlements"
-  | "populating"
-  | "simulating-history"
+  | "loading-map"
+  | "seeding-population"
+  | "configuring-behavior-economy"
+  | "founding-cities"
+  | "wiring-portals"
+  | "seeding-extraordinary"
   | "complete";
 
 export type GenerationEvent = {

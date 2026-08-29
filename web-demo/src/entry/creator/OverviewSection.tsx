@@ -1,12 +1,14 @@
 import type { WorldConfig, WorldDraft } from "../repository/types";
 import type { DraftAction } from "./draftState";
+import { SIZE_PRESETS } from "./draftState";
 import { createFieldBinder } from "./fieldBinding";
 
 const SIZES: WorldConfig["size"][] = ["Small", "Medium", "Large", "Huge"];
-const EXTRAORDINARY: WorldConfig["extraordinary"][] = ["None", "Rare", "Common", "Abundant"];
-const PRESETS = ["Balanced", "Harsh Survival", "Golden Age", "Age of Strife"];
+const PERIODS: WorldConfig["period"][] = ["Medieval", "Modern", "Futuristic", "Prehistoric", "Creatures"];
 
-/** Doc §33-36 — Overview: Quick Create fields, seed edit/randomize/copy, per-field lock + randomize. */
+/** Doc §33-36 — Overview: Quick Create fields, seed edit/randomize/copy, per-field lock + randomize.
+    Fields mirror the real backend's world-creation input (see `WorldConfig` in `repository/types.ts`
+    for the source mapping) — no invented knobs here. */
 export function OverviewSection({ draft, dispatch }: { draft: WorldDraft; dispatch: (action: DraftAction) => void }) {
   const { world } = draft;
   const field = createFieldBinder(draft, dispatch);
@@ -14,11 +16,15 @@ export function OverviewSection({ draft, dispatch }: { draft: WorldDraft; dispat
   const name = field("name");
   const seed = field("seed");
   const size = field("size");
-  const era = field("era");
-  const preset = field("preset");
-  const history = field("historyLengthYears");
+  const period = field("period");
   const population = field("initialPopulation");
-  const extraordinary = field("extraordinary");
+  const extraordinaryEnabled = field("extraordinaryEnabled");
+  const extraordinaryPrevalence = field("extraordinaryPrevalence");
+
+  function onSizeChange(next: WorldConfig["size"]) {
+    // One undo step, not three — size is a UI preset for the real Width/Height/RegionSize fields.
+    dispatch({ type: "update-fields", values: { size: next, ...SIZE_PRESETS[next] } });
+  }
 
   return (
     <section data-testid="overview-section">
@@ -36,7 +42,13 @@ export function OverviewSection({ draft, dispatch }: { draft: WorldDraft; dispat
 
       <label data-testid="field-seed">
         Seed
-        <input type="text" value={world.seed} onChange={(e) => seed.update(e.target.value)} disabled={seed.locked} />
+        <input
+          type="text"
+          inputMode="numeric"
+          value={world.seed}
+          onChange={(e) => seed.update(e.target.value.replace(/[^0-9]/g, ""))}
+          disabled={seed.locked}
+        />
         <button type="button" onClick={seed.randomize} disabled={seed.locked}>
           Randomize
         </button>
@@ -50,40 +62,27 @@ export function OverviewSection({ draft, dispatch }: { draft: WorldDraft; dispat
 
       <label data-testid="field-size">
         World Size
-        <select value={world.size} onChange={(e) => size.update(e.target.value as WorldConfig["size"])} disabled={size.locked}>
+        <select value={world.size} onChange={(e) => onSizeChange(e.target.value as WorldConfig["size"])} disabled={size.locked}>
           {SIZES.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {s} ({SIZE_PRESETS[s].width}×{SIZE_PRESETS[s].height})
             </option>
           ))}
         </select>
       </label>
 
-      <label data-testid="field-era">
-        Era / Technology
-        <input type="text" value={world.era} onChange={(e) => era.update(e.target.value)} disabled={era.locked} />
-      </label>
-
-      <label data-testid="field-preset">
-        Simulation Preset
-        <select value={world.preset} onChange={(e) => preset.update(e.target.value)} disabled={preset.locked}>
-          {PRESETS.map((p) => (
+      <label data-testid="field-period">
+        Period
+        <select value={world.period} onChange={(e) => period.update(e.target.value as WorldConfig["period"])} disabled={period.locked}>
+          {PERIODS.map((p) => (
             <option key={p} value={p}>
               {p}
             </option>
           ))}
         </select>
-      </label>
-
-      <label data-testid="field-history">
-        History Length (years)
-        <input
-          type="number"
-          min={0}
-          value={world.historyLengthYears}
-          onChange={(e) => history.update(Number(e.target.value))}
-          disabled={history.locked}
-        />
+        <button type="button" aria-pressed={period.locked} onClick={period.toggleLock}>
+          {period.locked ? "🔒" : "🔓"}
+        </button>
       </label>
 
       <label data-testid="field-population">
@@ -100,20 +99,29 @@ export function OverviewSection({ draft, dispatch }: { draft: WorldDraft; dispat
         </button>
       </label>
 
-      <label data-testid="field-extraordinary">
+      <label data-testid="field-extraordinary-enabled">
         Extraordinary
-        <select
-          value={world.extraordinary}
-          onChange={(e) => extraordinary.update(e.target.value as WorldConfig["extraordinary"])}
-          disabled={extraordinary.locked}
-        >
-          {EXTRAORDINARY.map((x) => (
-            <option key={x} value={x}>
-              {x}
-            </option>
-          ))}
-        </select>
+        <input
+          type="checkbox"
+          checked={world.extraordinaryEnabled}
+          onChange={(e) => extraordinaryEnabled.update(e.target.checked)}
+          disabled={extraordinaryEnabled.locked}
+        />
       </label>
+
+      {world.extraordinaryEnabled && (
+        <label data-testid="field-extraordinary-prevalence">
+          Prevalence ({world.extraordinaryPrevalence}%)
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={world.extraordinaryPrevalence}
+            onChange={(e) => extraordinaryPrevalence.update(Number(e.target.value))}
+            disabled={extraordinaryPrevalence.locked}
+          />
+        </label>
+      )}
 
       {/* Doc §44 — frontend-only structural validation, separate from simulation prediction. */}
       {world.name.trim() === "" && <p data-testid="validation-name-required">World Name is required.</p>}

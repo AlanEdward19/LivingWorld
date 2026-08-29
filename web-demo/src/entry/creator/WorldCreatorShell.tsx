@@ -1,29 +1,65 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useEntryServices } from "../EntryContext";
-import { draftReducer, initDraftState, newDraft } from "./draftState";
+import { draftReducer, initDraftState, newDraft, SIZE_PRESETS } from "./draftState";
 import { OverviewSection } from "./OverviewSection";
 import { GeographySection } from "./GeographySection";
-import { ClimateSection } from "./ClimateSection";
-import { ResourcesSection } from "./ResourcesSection";
 import { ReviewSection } from "./ReviewSection";
 import { UnsavedDraftGuard } from "./UnsavedDraftGuard";
 import { NotFoundScreen } from "../WorldNotFound";
 import { GenerationView } from "../GenerationView";
 import { StarfieldBackground } from "../StarfieldBackground";
+import { PlanetScene, hueForWorldId } from "../PlanetScene";
 
-type Section = "overview" | "geography" | "climate" | "resources" | "review";
+type Section = "overview" | "geography" | "review";
 
-const WORLD_GROUP_SECTIONS: { section: Section; label: string }[] = [
-  { section: "geography", label: "Geography" },
-  { section: "climate", label: "Climate" },
-  { section: "resources", label: "Resources" },
-];
+type NavItem = { label: string; section?: Section; disabledReason?: string };
+type NavGroup = { label: string; items: NavItem[] };
 
-const COMING_LATER_GROUPS: { label: string; items: string[] }[] = [
-  { label: "Life", items: ["Population", "Biology", "Cultures"] },
-  { label: "Society", items: ["Settlements", "Economy", "Technology", "Social Rules"] },
-  { label: "Extraordinary", items: ["Powers", "Sources", "Social Response"] },
-  { label: "Simulation", items: ["History", "Detail", "Performance"] },
+// Only Geography has a real backend field mapping today (Width/Height/RegionSize). Everything
+// else here is either not yet built (doc's own "coming later", §32) or, for Climate/Resources,
+// has no equivalent anywhere in the real engine at all — disabled rather than faked.
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "World",
+    items: [
+      { label: "Geography", section: "geography" },
+      { label: "Climate", disabledReason: "No backend support yet" },
+      { label: "Resources", disabledReason: "No backend support yet" },
+    ],
+  },
+  {
+    label: "Life",
+    items: [
+      { label: "Population", disabledReason: "Configured in Overview" },
+      { label: "Biology", disabledReason: "Coming later" },
+      { label: "Cultures", disabledReason: "Coming later" },
+    ],
+  },
+  {
+    label: "Society",
+    items: [
+      { label: "Settlements", disabledReason: "Coming later" },
+      { label: "Economy", disabledReason: "Coming later" },
+      { label: "Technology", disabledReason: "Coming later" },
+      { label: "Social Rules", disabledReason: "Coming later" },
+    ],
+  },
+  {
+    label: "Extraordinary",
+    items: [
+      { label: "Powers", disabledReason: "Coming later" },
+      { label: "Sources", disabledReason: "Coming later" },
+      { label: "Social Response", disabledReason: "Coming later" },
+    ],
+  },
+  {
+    label: "Simulation",
+    items: [
+      { label: "History", disabledReason: "No backend support yet" },
+      { label: "Detail", disabledReason: "Coming later" },
+      { label: "Performance", disabledReason: "Coming later" },
+    ],
+  },
 ];
 
 function newDraftId(): string {
@@ -94,6 +130,18 @@ export function WorldCreatorShell({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
+
+  // Live planet preview — reacts to the actual draft, no separate "preview state" to fall out of
+  // sync. Width feeds the sphere's size (min/max clamped to the smallest/largest size preset),
+  // Extraordinary prevalence feeds the atmosphere glow, period+seed feeds the color.
+  const world = state.draft.world;
+  const preview = useMemo(() => {
+    const minW = SIZE_PRESETS.Small.width;
+    const maxW = SIZE_PRESETS.Huge.width;
+    const sizeScale = 0.75 + (Math.min(maxW, Math.max(minW, world.width)) - minW) / (maxW - minW) * 0.55;
+    const glowIntensity = world.extraordinaryEnabled ? 0.5 + (world.extraordinaryPrevalence / 100) * 1.5 : 0.35;
+    return { sizeScale, glowIntensity, hueRotate: hueForWorldId(`${world.period}:${world.seed}`) };
+  }, [world.width, world.extraordinaryEnabled, world.extraordinaryPrevalence, world.period, world.seed]);
 
   const leaveToMainMenu = useCallback(() => {
     if (state.dirty) {
@@ -166,22 +214,20 @@ export function WorldCreatorShell({
           <button type="button" aria-current={section === "overview"} onClick={() => setSection("overview")}>
             Overview
           </button>
-          <div data-testid="creator-nav-group-world">
-            <span>World</span>
-            {WORLD_GROUP_SECTIONS.map((item) => (
-              <button key={item.section} type="button" aria-current={section === item.section} onClick={() => setSection(item.section)}>
-                {item.label}
-              </button>
-            ))}
-          </div>
-          {COMING_LATER_GROUPS.map((group) => (
+          {NAV_GROUPS.map((group) => (
             <div key={group.label} data-testid={`creator-nav-group-${group.label.toLowerCase()}`}>
               <span>{group.label}</span>
-              {group.items.map((item) => (
-                <button key={item} type="button" disabled title="Coming later">
-                  {item}
-                </button>
-              ))}
+              {group.items.map((item) =>
+                item.section ? (
+                  <button key={item.label} type="button" aria-current={section === item.section} onClick={() => setSection(item.section!)}>
+                    {item.label}
+                  </button>
+                ) : (
+                  <button key={item.label} type="button" disabled title={item.disabledReason}>
+                    {item.label}
+                  </button>
+                ),
+              )}
             </div>
           ))}
           <button type="button" aria-current={section === "review"} onClick={() => setSection("review")}>
@@ -189,11 +235,19 @@ export function WorldCreatorShell({
           </button>
         </nav>
 
+        <div data-testid="creator-preview">
+          <PlanetScene
+            variant={world.initialPopulation > 0 ? "inhabited" : "proto-world"}
+            worldName={world.name || "Unnamed World"}
+            hueRotate={preview.hueRotate}
+            sizeScale={preview.sizeScale}
+            glowIntensity={preview.glowIntensity}
+          />
+        </div>
+
         <div data-testid="creator-content">
           {section === "overview" && <OverviewSection draft={state.draft} dispatch={dispatch} />}
           {section === "geography" && <GeographySection draft={state.draft} dispatch={dispatch} />}
-          {section === "climate" && <ClimateSection draft={state.draft} dispatch={dispatch} />}
-          {section === "resources" && <ResourcesSection draft={state.draft} dispatch={dispatch} />}
           {section === "review" && <ReviewSection draft={state.draft} />}
         </div>
       </div>

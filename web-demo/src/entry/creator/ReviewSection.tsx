@@ -1,6 +1,7 @@
 import type { WorldDraft } from "../repository/types";
 
-/** Doc §42-43 — summarizes the chosen config; never claims a simulation result that doesn't exist. */
+/** Doc §42-43 — summarizes the chosen config; never claims a simulation result that doesn't exist.
+    Fields match what the real backend actually takes to create a world (see `WorldConfig`). */
 export function ReviewSection({ draft }: { draft: WorldDraft }) {
   const { world } = draft;
   const nameMissing = world.name.trim() === "";
@@ -10,52 +11,22 @@ export function ReviewSection({ draft }: { draft: WorldDraft }) {
       <h2>World</h2>
       <dl>
         <div>
-          <dt>Size</dt>
-          <dd>{world.size}</dd>
+          <dt>Period</dt>
+          <dd>{world.period}</dd>
         </div>
         <div>
-          <dt>Era</dt>
-          <dd>{world.era}</dd>
+          <dt>Map size</dt>
+          <dd>
+            {world.width} × {world.height} ({world.size})
+          </dd>
         </div>
         <div>
-          <dt>Preset</dt>
-          <dd>{world.preset}</dd>
+          <dt>Region size</dt>
+          <dd>{world.regionSize}</dd>
         </div>
         <div>
-          <dt>Ocean coverage</dt>
-          <dd>{world.oceanCoverage}%</dd>
-        </div>
-        <div>
-          <dt>Terrain</dt>
-          <dd>{world.terrainStyle}</dd>
-        </div>
-      </dl>
-
-      <h2>Climate</h2>
-      <dl>
-        <div>
-          <dt>Zone</dt>
-          <dd>{world.climateZone}</dd>
-        </div>
-        <div>
-          <dt>Seasonal intensity</dt>
-          <dd>{world.seasonalIntensity}</dd>
-        </div>
-        <div>
-          <dt>Rainfall</dt>
-          <dd>{world.rainfall}</dd>
-        </div>
-      </dl>
-
-      <h2>Resources</h2>
-      <dl>
-        <div>
-          <dt>Minerals</dt>
-          <dd>{world.mineralAbundance}</dd>
-        </div>
-        <div>
-          <dt>Soil fertility</dt>
-          <dd>{world.fertility}</dd>
+          <dt>Seed</dt>
+          <dd>{world.seed}</dd>
         </div>
       </dl>
 
@@ -67,20 +38,18 @@ export function ReviewSection({ draft }: { draft: WorldDraft }) {
         </div>
       </dl>
 
-      <h2>History</h2>
-      <dl>
-        <div>
-          <dt>Length</dt>
-          <dd>{world.historyLengthYears} years</dd>
-        </div>
-      </dl>
-
       <h2>Extraordinary</h2>
       <dl>
         <div>
-          <dt>Prevalence</dt>
-          <dd>{world.extraordinary}</dd>
+          <dt>Enabled</dt>
+          <dd>{world.extraordinaryEnabled ? "Yes" : "No"}</dd>
         </div>
+        {world.extraordinaryEnabled && (
+          <div>
+            <dt>Prevalence</dt>
+            <dd>{world.extraordinaryPrevalence}%</dd>
+          </div>
+        )}
       </dl>
 
       <p data-testid="review-disclaimer">

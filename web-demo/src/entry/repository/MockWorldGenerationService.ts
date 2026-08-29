@@ -1,16 +1,17 @@
 import type { WorldGenerationService } from "./WorldGenerationService";
 import type { GenerationEvent, GenerationResult, GenerationStage, WorldDraft } from "./types";
 
-/** Doc §48 stage copy — visual contract for real backend stages, not a claim that they ran. */
+/** Doc §48 stage copy, but the stages themselves are the real backend pipeline order
+    (`PeriodDefinitionValidator.Validate` -> `ScenarioLoaderV2.LoadWorld`) — not a claim that
+    this mock actually ran them, just the real shape instead of invented flavor text. */
 const STAGES: { stage: GenerationStage; progress: number; message: string }[] = [
-  { stage: "validating", progress: 5, message: "Validating configuration..." },
-  { stage: "forming-terrain", progress: 20, message: "Forming terrain..." },
-  { stage: "shaping-climate", progress: 35, message: "Shaping climate..." },
-  { stage: "carving-rivers", progress: 50, message: "Carving rivers..." },
-  { stage: "growing-ecosystems", progress: 65, message: "Growing ecosystems..." },
-  { stage: "founding-settlements", progress: 80, message: "Founding settlements..." },
-  { stage: "populating", progress: 90, message: "Populating the world..." },
-  { stage: "simulating-history", progress: 97, message: "Advancing history..." },
+  { stage: "validating", progress: 8, message: "Validating configuration..." },
+  { stage: "loading-map", progress: 25, message: "Loading the map..." },
+  { stage: "seeding-population", progress: 45, message: "Seeding initial population..." },
+  { stage: "configuring-behavior-economy", progress: 60, message: "Configuring behavior and economy..." },
+  { stage: "founding-cities", progress: 78, message: "Founding cities and buildings..." },
+  { stage: "wiring-portals", progress: 88, message: "Wiring portals..." },
+  { stage: "seeding-extraordinary", progress: 96, message: "Seeding the extraordinary..." },
   { stage: "complete", progress: 100, message: "The world is ready." },
 ];
 

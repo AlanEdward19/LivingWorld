@@ -1394,6 +1394,8 @@ button:disabled {
   position: relative;
   width: min(45vh, 420px);
   height: min(45vh, 420px);
+  transform: scale(var(--planet-size-scale, 1));
+  transition: transform 500ms ease;
 }
 
 [data-testid="planet-drift-layer"] {
@@ -1419,7 +1421,10 @@ button:disabled {
   position: absolute;
   inset: -6%;
   border-radius: 50%;
-  box-shadow: 0 0 40px 10px rgba(111, 166, 161, 0.12);
+  /* World Creator's Extraordinary prevalence drives `--planet-glow` (see PlanetScene.tsx) —
+     everywhere else it's unset and this behaves exactly as before (glow=1). */
+  box-shadow: 0 0 calc(40px * var(--planet-glow, 1)) calc(10px * var(--planet-glow, 1)) rgba(111, 166, 161, 0.12);
+  transition: box-shadow 500ms ease;
   pointer-events: none;
 }
 
@@ -1628,10 +1633,26 @@ button:disabled {
   background: var(--surface-1);
 }
 
+/* Doc §25 shell mockup: Sections | WORLD PREVIEW | Inspector. Preview column can shrink away
+   entirely on a narrow viewport (min-width: 0 lets it collapse before content does). */
 [data-testid="creator-body"] {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 220px minmax(0, 1fr) minmax(340px, 420px);
   overflow: hidden;
+}
+
+[data-testid="creator-preview"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+  background: radial-gradient(ellipse at 50% 40%, var(--menu-space-secondary, #090c12) 0%, var(--bg-world) 75%);
+}
+
+[data-testid="creator-preview"] [data-testid="planet-scene"] {
+  width: min(30vh, 260px);
+  height: min(30vh, 260px);
 }
 
 [data-testid="creator-nav"] {

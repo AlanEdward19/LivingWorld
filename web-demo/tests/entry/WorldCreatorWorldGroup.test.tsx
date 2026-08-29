@@ -31,72 +31,68 @@ function openWorldGroupSection(label: string) {
   fireEvent.click(within(screen.getByTestId("creator-nav-group-world")).getByText(label));
 }
 
-describe("WorldCreatorShell — World group (Geography/Climate/Resources)", () => {
-  it("doc §32 — nav switches into each section, no longer 'coming later'", () => {
+describe("WorldCreatorShell — World group (backend-aligned fields)", () => {
+  it("Climate/Resources are disabled — no real backend field for them", () => {
     renderShell();
-
-    openWorldGroupSection("Geography");
-    expect(screen.getByTestId("geography-section")).toBeInTheDocument();
-
-    openWorldGroupSection("Climate");
-    expect(screen.getByTestId("climate-section")).toBeInTheDocument();
-
-    openWorldGroupSection("Resources");
-    expect(screen.getByTestId("resources-section")).toBeInTheDocument();
+    const worldGroup = screen.getByTestId("creator-nav-group-world");
+    expect(within(worldGroup).getByText("Climate").closest("button")).toBeDisabled();
+    expect(within(worldGroup).getByText("Resources").closest("button")).toBeDisabled();
+    expect(within(worldGroup).getByText("Geography").closest("button")).not.toBeDisabled();
   });
 
-  it("Geography: ocean coverage slider and terrain style edit the draft", () => {
+  it("Geography edits the real Width/Height/RegionSize fields, reflected in Review", () => {
     renderShell();
     openWorldGroupSection("Geography");
 
-    const ocean = screen.getByTestId("field-ocean-coverage").querySelector("input")! as HTMLInputElement;
-    fireEvent.change(ocean, { target: { value: "35" } });
-    expect(screen.getByTestId("field-ocean-coverage")).toHaveTextContent("35%");
-
-    const terrain = screen.getByTestId("field-terrain-style").querySelector("select")! as HTMLSelectElement;
-    fireEvent.change(terrain, { target: { value: "Archipelago" } });
-    expect(terrain.value).toBe("Archipelago");
-  });
-
-  it("Climate: a locked field survives Randomize Climate", () => {
-    renderShell();
-    openWorldGroupSection("Climate");
-
-    const zoneSelect = screen.getByTestId("field-climate-zone").querySelector("select")! as HTMLSelectElement;
-    fireEvent.change(zoneSelect, { target: { value: "Polar" } });
-    fireEvent.click(within(screen.getByTestId("field-climate-zone")).getByRole("button", { name: "🔓" }));
-
-    fireEvent.click(screen.getByTestId("randomize-climate"));
-    expect(zoneSelect.value).toBe("Polar");
-  });
-
-  it("Resources fields edit the draft and show up in Review", () => {
-    renderShell();
-    openWorldGroupSection("Resources");
-
-    fireEvent.change(screen.getByTestId("field-mineral-abundance").querySelector("select")!, { target: { value: "Abundant" } });
-    fireEvent.change(screen.getByTestId("field-fertility").querySelector("select")!, { target: { value: "Rich" } });
+    fireEvent.change(screen.getByTestId("field-width").querySelector("input")!, { target: { value: "300" } });
+    fireEvent.change(screen.getByTestId("field-height").querySelector("input")!, { target: { value: "150" } });
 
     fireEvent.click(screen.getByTestId("creator-review"));
-    const review = screen.getByTestId("review-section");
-    expect(review).toHaveTextContent("Abundant");
-    expect(review).toHaveTextContent("Rich");
+    expect(screen.getByTestId("review-section")).toHaveTextContent("300 × 150");
   });
 
-  it("Review reflects Geography/Climate edits (doc §42-43)", () => {
+  it("World Size preset fills in Width/Height/RegionSize in one step (undo restores all three together)", () => {
     renderShell();
+    const sizeSelect = screen.getByTestId("field-size").querySelector("select")! as HTMLSelectElement;
+    fireEvent.change(sizeSelect, { target: { value: "Huge" } });
 
     openWorldGroupSection("Geography");
-    fireEvent.change(screen.getByTestId("field-ocean-coverage").querySelector("input")!, { target: { value: "80" } });
-    fireEvent.change(screen.getByTestId("field-terrain-style").querySelector("select")!, { target: { value: "Mountainous" } });
+    expect((screen.getByTestId("field-width").querySelector("input") as HTMLInputElement).value).toBe("512");
 
-    openWorldGroupSection("Climate");
-    fireEvent.change(screen.getByTestId("field-climate-zone").querySelector("select")!, { target: { value: "Tropical" } });
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+    expect((screen.getByTestId("field-width").querySelector("input") as HTMLInputElement).value).toBe("128");
+  });
 
-    fireEvent.click(screen.getByTestId("creator-review"));
-    const review = screen.getByTestId("review-section");
-    expect(review).toHaveTextContent("80%");
-    expect(review).toHaveTextContent("Mountainous");
-    expect(review).toHaveTextContent("Tropical");
+  it("Extraordinary is Enabled + Prevalence%, matching the real backend shape (not an invented enum)", () => {
+    renderShell();
+    const enabledCheckbox = screen.getByTestId("field-extraordinary-enabled").querySelector("input")! as HTMLInputElement;
+    expect(enabledCheckbox.checked).toBe(true);
+    expect(screen.getByTestId("field-extraordinary-prevalence")).toBeInTheDocument();
+
+    fireEvent.click(enabledCheckbox);
+    expect(screen.queryByTestId("field-extraordinary-prevalence")).not.toBeInTheDocument();
+  });
+
+  it("Seed is numeric-only (real backend seed is a ulong)", () => {
+    renderShell();
+    const seedInput = screen.getByTestId("field-seed").querySelector("input")! as HTMLInputElement;
+    fireEvent.change(seedInput, { target: { value: "abc123xyz" } });
+    expect(seedInput.value).toBe("123");
+  });
+
+  it("the Creator preview planet reacts live to Width and Extraordinary prevalence", () => {
+    renderShell();
+    const planetBefore = screen.getByTestId("creator-preview").querySelector('[data-testid="planet-scene"]') as HTMLElement;
+    const scaleBefore = planetBefore.style.getPropertyValue("--planet-size-scale");
+    const glowBefore = planetBefore.style.getPropertyValue("--planet-glow");
+
+    const sizeSelect = screen.getByTestId("field-size").querySelector("select")! as HTMLSelectElement;
+    fireEvent.change(sizeSelect, { target: { value: "Huge" } });
+    const prevalence = screen.getByTestId("field-extraordinary-prevalence").querySelector("input")! as HTMLInputElement;
+    fireEvent.change(prevalence, { target: { value: "90" } });
+
+    const planetAfter = screen.getByTestId("creator-preview").querySelector('[data-testid="planet-scene"]') as HTMLElement;
+    expect(planetAfter.style.getPropertyValue("--planet-size-scale")).not.toBe(scaleBefore);
+    expect(planetAfter.style.getPropertyValue("--planet-glow")).not.toBe(glowBefore);
   });
 });
