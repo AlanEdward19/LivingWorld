@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Application, Container, Graphics, Sprite } from "pixi.js";
+import { Application, Container, Graphics, Sprite, type FederatedPointerEvent } from "pixi.js";
 import type { BuildingFixture, FurnitureKind, WorldFixture } from "../fixture/types";
 import { paletteForBuildingKind } from "../map/isoPalette";
 import { patrolPositionAt } from "../map/patrolMath";
@@ -8,6 +8,7 @@ import { fitZoom, focusOn, initialCamera, panBy, unfocus, zoomBy, type CameraSta
 import { getNpcTexture } from "./npcTexture";
 import { TILE } from "./constants";
 import { followStore } from "../state/followStore";
+import { MapHoverCard, type MapHoverTarget } from "../components/MapHoverCard";
 
 export interface SettlementStageProps {
   fixture: WorldFixture;
@@ -27,14 +28,19 @@ const GROUND_BASE = 0x3a4a2c;
 const GROUND_VARIANCE = 14; // +/- por canal RGB, não um int somado direto no hex (isso estourava canal)
 const ROOF_ALPHA_FOCUSED = 0.14;
 const FADE_SPEED = 0.12; // por frame a 60fps, ver ticker
+const FOLLOW_CAMERA_LERP = 0.08; // por frame a 60fps — câmera "viaja" até o agent seguido
 const CLICK_DRAG_THRESHOLD = 14; // px — 6 era sensível demais, cliques reais de mouse têm jitter
 const OUTDOOR_SPRITE_SCALE = (TILE * 0.6) / 100; // textura do NpcToken é 100x120
 // Anel achatado (não círculo) — unidades de textura (100x120), ver comentário no `agents.forEach`.
 // Bug real: um círculo de raio 32 centrado perto dos "pés" (y=6) estourava pra CIMA até y=-26,
-// cortando o corpo do sprite ao meio em vez de ficar no chão, embaixo dele.
-const FOLLOW_RING_RADIUS_X = 30;
-const FOLLOW_RING_RADIUS_Y = 10;
-const FOLLOW_RING_OFFSET_Y = 8;
+// cortando o corpo do sprite ao meio em vez de ficar no chão, embaixo dele. Segundo bug real
+// (screenshot, mesma queixa do `WorldStage`): 30/10 ainda dava um anel MAIS LARGO que o próprio
+// sprite (largura de textura 100) e flutuando longe dos pés — encolhido bem mais, fração pequena
+// da largura/altura da textura, não perto dela, e stroke mais fina (5px dominava a forma toda).
+const FOLLOW_RING_RADIUS_X = 25; // 0.25 * largura da textura (100)
+const FOLLOW_RING_RADIUS_Y = 6; // 0.05 * altura da textura (120)
+const FOLLOW_RING_OFFSET_Y = 1.2; // 0.01 * altura da textura — colado nos pés
+const FOLLOW_RING_STROKE = 2;
 const FOLLOW_RING_COLOR = 0xd5a85a; // --accent
 
 const FURNITURE_COLORS: Record<FurnitureKind, number> = {
@@ -110,6 +116,7 @@ export function SettlementStage({
   const agentLayerRef = useRef<Container | null>(null);
   const settlementCenterRef = useRef({ x: 0, y: 0, zoom: 1 });
   const [activeFloorIndex, setActiveFloorIndex] = useState(0);
+  const [hover, setHover] = useState<MapHoverTarget | null>(null);
 
   /** Move a câmera pro prédio focado (ou de volta pro overview do settlement) — "aproximar a
    * câmera" em vez de só trocar o alpha do telhado (esse fica no ticker). Refs apenas, chamável
@@ -279,6 +286,10 @@ export function SettlementStage({
             if (suppressClickRef.current) return;
             onFocusBuilding(building.id);
           });
+          roof.on("pointerover", (event: FederatedPointerEvent) => {
+            setHover({ kind: "building", id: building.id, x: event.clientX, y: event.clientY });
+          });
+          roof.on("pointerout", () => setHover((current) => (current?.id === building.id ? null : current)));
           // Pré-constrói o floor 0 já no mount (não só quando o efeito de foco roda depois) —
           // esse efeito depende de `buildingNodesRef` já populado, que só acontece aqui dentro
           // do `setup()` assíncrono; sem isso, um deep-link direto pra `/building/:id` (settlement
@@ -308,6 +319,10 @@ export function SettlementStage({
           if (suppressClickRef.current) return;
           onSelectAgent(agent.id);
         });
+        sprite.on("pointerover", (event: FederatedPointerEvent) => {
+          setHover({ kind: "agent", id: agent.id, x: event.clientX, y: event.clientY });
+        });
+        sprite.on("pointerout", () => setHover((current) => (current?.id === agent.id ? null : current)));
 
         // Anel de "seguindo" (pedido do usuário 2026-08-26: "não está dando highlight no NPC") —
         // filho do sprite pra herdar posição/reparent (indoor↔outdoor) automaticamente; desenhado
@@ -315,7 +330,7 @@ export function SettlementStage({
         // em unidades de textura, não de mundo. Escondido por padrão, só visível pro agent seguido.
         const ring = new Graphics()
           .ellipse(0, FOLLOW_RING_OFFSET_Y, FOLLOW_RING_RADIUS_X, FOLLOW_RING_RADIUS_Y)
-          .stroke({ width: 5, color: FOLLOW_RING_COLOR, alpha: 0.9 });
+          .stroke({ width: FOLLOW_RING_STROKE, color: FOLLOW_RING_COLOR, alpha: 0.9 });
         ring.visible = false;
         sprite.addChild(ring);
         followRingsRef.current.set(agent.id, ring);
@@ -377,10 +392,19 @@ export function SettlementStage({
           }
         }
 
-        // Câmera trava na posição do agent seguido a cada frame, mantendo o zoom atual — parado
-        // durante um arrasto de verdade pra não brigar com o gesto do usuário.
+        // Câmera VIAJA até o agent seguido (pedido do usuário 2026-08-27: "animação de câmera...
+        // vai me levar até ele") em vez de saltar direto pra posição dele — `lerp` a cada frame,
+        // não uma atribuição direta. Como o alvo é recomputado a cada tick, isso também cobre
+        // "seguir de perto" enquanto ele anda (a distância por frame é pequena, o lerp já
+        // resolve isso sem lag perceptível) e trocar de alvo (`activate`) sem código extra: o
+        // alvo só muda de quem, o mecanismo de aproximação é sempre o mesmo. Parado durante um
+        // arrasto de verdade pra não brigar com o gesto do usuário.
         if (followedWorldPos && !dragRef.current) {
-          cameraRef.current = { ...cameraRef.current, x: followedWorldPos.x, y: followedWorldPos.y };
+          cameraRef.current = {
+            ...cameraRef.current,
+            x: lerp(cameraRef.current.x, followedWorldPos.x, FOLLOW_CAMERA_LERP),
+            y: lerp(cameraRef.current.y, followedWorldPos.y, FOLLOW_CAMERA_LERP),
+          };
         }
 
         const screen = app.screen;
@@ -495,6 +519,7 @@ export function SettlementStage({
           )}
         </div>
       )}
+      <MapHoverCard fixture={fixture} hover={hover} />
     </div>
   );
 }

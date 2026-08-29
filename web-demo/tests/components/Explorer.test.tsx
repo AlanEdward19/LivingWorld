@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { Explorer } from "../../src/components/Explorer";
 import { NavigationStore } from "../../src/nav/NavigationStore";
@@ -127,6 +127,13 @@ describe("Explorer — tab switching", () => {
 });
 
 describe("Explorer — Followed tab", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("shows an explicit empty state when nothing is followed", () => {
     renderExplorer();
     fireEvent.click(screen.getByRole("tab", { name: "Followed" }));
@@ -139,5 +146,60 @@ describe("Explorer — Followed tab", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Followed" }));
     fireEvent.click(within(screen.getByTestId("explorer-followed")).getByText("Mira Valen"));
     expect(nav.current()).toEqual({ kind: "agent", id: "mira-valen" });
+  });
+
+  // Pedido do usuário 2026-08-27: botão direito num item da lista tira ele do follow (com uma
+  // animação de saída, ver `.explorer-followed-row--removing` em tokens.css), sem precisar abrir
+  // a entidade pra desmarcar "Follow" de novo lá.
+  it("right-clicking a followed agent plays a removal animation, then un-follows it without navigating", () => {
+    act(() => followStore.toggleFollow("mira-valen"));
+    const { nav } = renderExplorer();
+    fireEvent.click(screen.getByRole("tab", { name: "Followed" }));
+    const row = within(screen.getByTestId("explorer-followed")).getByText("Mira Valen").closest("li")!;
+    fireEvent.contextMenu(within(screen.getByTestId("explorer-followed")).getByText("Mira Valen"));
+
+    // Ainda seguido — a remoção de verdade só acontece depois da animação.
+    expect(followStore.isFollowed("mira-valen")).toBe(true);
+    expect(row).toHaveClass("explorer-followed-row--removing");
+
+    act(() => vi.advanceTimersByTime(300));
+
+    expect(followStore.isFollowed("mira-valen")).toBe(false);
+    expect(screen.getByTestId("explorer-followed")).toHaveTextContent("Nothing followed yet.");
+    expect(nav.current()).toEqual({ kind: "world" });
+  });
+
+  it("right-clicking a followed settlement/household/thread also un-follows it after the animation", () => {
+    act(() => {
+      followStore.toggleFollow("oakbridge");
+      followStore.toggleFollow("valen-household");
+      followStore.toggleFollow("oakbridge-food-crisis");
+    });
+    renderExplorer();
+    fireEvent.click(screen.getByRole("tab", { name: "Followed" }));
+    const list = screen.getByTestId("explorer-followed");
+
+    fireEvent.contextMenu(within(list).getByText("Oakbridge"));
+    fireEvent.contextMenu(within(list).getByText("Valen Household"));
+    fireEvent.contextMenu(within(list).getByText("The Oakbridge Food Crisis"));
+    act(() => vi.advanceTimersByTime(300));
+
+    expect(followStore.isFollowed("oakbridge")).toBe(false);
+    expect(followStore.isFollowed("valen-household")).toBe(false);
+    expect(followStore.isFollowed("oakbridge-food-crisis")).toBe(false);
+  });
+
+  it("does not un-follow other entities when right-clicking one of them", () => {
+    act(() => {
+      followStore.toggleFollow("mira-valen");
+      followStore.toggleFollow("rowan");
+    });
+    renderExplorer();
+    fireEvent.click(screen.getByRole("tab", { name: "Followed" }));
+    fireEvent.contextMenu(within(screen.getByTestId("explorer-followed")).getByText("Mira Valen"));
+    act(() => vi.advanceTimersByTime(300));
+
+    expect(followStore.isFollowed("mira-valen")).toBe(false);
+    expect(followStore.isFollowed("rowan")).toBe(true);
   });
 });

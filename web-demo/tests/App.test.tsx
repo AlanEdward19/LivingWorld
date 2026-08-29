@@ -11,15 +11,27 @@ afterEach(() => {
   });
 });
 
+/** Navega até um settlement pela aba "Places" do Explorer — o World Map agora é um canvas Pixi
+ * (`WorldStage`, substituiu o SVG `SemanticZoomMap`), sem elementos DOM clicáveis por settlement;
+ * o comportamento de clicar DIRETO no mapa já é coberto em profundidade por
+ * `tests/render/WorldStage.test.tsx`. Aqui o interesse é só o FLUXO de navegação ponta a ponta.
+ * Escopado a `explorer-places` (não `screen.getByText` solto) — o World Inspector (`WorldView`,
+ * pedido do usuário 2026-08-27) também lista os mesmos nomes de settlement, então uma busca
+ * global por texto agora acha os dois e falha por ambiguidade. */
+function navigateToSettlementViaExplorer(settlementName: string) {
+  fireEvent.click(screen.getByText("Places"));
+  fireEvent.click(within(screen.getByTestId("explorer-places")).getByText(settlementName));
+}
+
 describe("App", () => {
   it("mounts the full shell (Top Bar, Explorer, world map, Inspector, Timeline bar) at the World route by default", () => {
     render(<App />);
     expect(screen.getByTestId("top-bar")).toBeInTheDocument();
     expect(screen.getByTestId("explorer")).toBeInTheDocument();
     expect(screen.getByTestId("center-stage")).toBeInTheDocument();
-    expect(screen.getByTestId("inspector-empty")).toBeInTheDocument();
+    expect(screen.getByTestId("world-stage")).toBeInTheDocument();
+    expect(screen.getByTestId("world-view")).toBeInTheDocument(); // pedido do usuário 2026-08-27
     expect(screen.getByTestId("timeline-bar")).toBeInTheDocument();
-    expect(screen.getAllByTestId("settlement-marker")).toHaveLength(WORLD_FIXTURE.settlements.length);
   });
 
   it("shows the critical-event toast on load, dismissible (doc §172)", () => {
@@ -33,9 +45,8 @@ describe("App", () => {
   it("walks the full P1 flow end to end through the real shell: World map → Settlement → Household → Agent → Why → Causal Explorer", () => {
     render(<App />);
 
-    // World: click Oakbridge on the map (center stage)
-    const oakbridgeIndex = WORLD_FIXTURE.settlements.findIndex((s) => s.id === "oakbridge");
-    fireEvent.click(screen.getAllByTestId("settlement-marker")[oakbridgeIndex]);
+    // World: navigate to Oakbridge
+    navigateToSettlementViaExplorer("Oakbridge");
 
     // Settlement Pulse now lives in the Inspector
     expect(within(screen.getByTestId("inspector")).getByTestId("settlement-view")).toBeInTheDocument();
@@ -70,20 +81,18 @@ describe("App — keyboard shortcuts (doc §148)", () => {
 
   it("'w' returns to the World View from anywhere", () => {
     renderAtWorld();
-    const oakbridgeIndex = WORLD_FIXTURE.settlements.findIndex((s) => s.id === "oakbridge");
-    fireEvent.click(screen.getAllByTestId("settlement-marker")[oakbridgeIndex]);
+    navigateToSettlementViaExplorer("Oakbridge");
     expect(screen.getByTestId("settlement-view")).toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "w" });
 
-    expect(screen.getByTestId("inspector-empty")).toBeInTheDocument();
+    expect(screen.getByTestId("world-view")).toBeInTheDocument(); // pedido do usuário 2026-08-27
     expect(screen.queryByTestId("settlement-view")).not.toBeInTheDocument();
   });
 
   it("'f' follows the currently selected settlement", () => {
     renderAtWorld();
-    const oakbridgeIndex = WORLD_FIXTURE.settlements.findIndex((s) => s.id === "oakbridge");
-    fireEvent.click(screen.getAllByTestId("settlement-marker")[oakbridgeIndex]);
+    navigateToSettlementViaExplorer("Oakbridge");
 
     fireEvent.keyDown(window, { key: "f" });
 
@@ -107,8 +116,7 @@ describe("App — keyboard shortcuts (doc §148)", () => {
 
   it("ignores shortcuts while typing in the search input (no conflict with input text)", () => {
     renderAtWorld();
-    const oakbridgeIndex = WORLD_FIXTURE.settlements.findIndex((s) => s.id === "oakbridge");
-    fireEvent.click(screen.getAllByTestId("settlement-marker")[oakbridgeIndex]);
+    navigateToSettlementViaExplorer("Oakbridge");
 
     const searchInput = screen.getByTestId("search-input");
     searchInput.focus();

@@ -19,8 +19,6 @@ export function paletteForBuildingKind(kind: BuildingKind): IsoPalette {
   return BUILDING_PALETTES[kind];
 }
 
-/** Piso/terreno neutro sob os blocos, em todos os níveis de zoom. */
-export const TERRAIN_PALETTE: IsoPalette = { top: "#c7cdd1", left: "#a9b0b6", right: "#8c949b" };
-
-/** Marcador de assentamento no zoom "mundo" (sem prédio individual renderizado ali). */
+/** Footprint de settlement no World Map (`render/WorldStage.tsx`) — reaproveitada em vez de cada
+ * renderer ter sua própria cópia dos mesmos tons. */
 export const SETTLEMENT_PALETTE: IsoPalette = { top: "#d9c98f", left: "#b8a86e", right: "#8f8153" };

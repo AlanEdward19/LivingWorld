@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type MouseEvent as ReactMouseEvent } from "react";
 import type { WorldFixture } from "../fixture/types";
 import type { NavigationStore } from "../nav/NavigationStore";
 import { followStore } from "../state/followStore";
@@ -81,11 +81,44 @@ function OverviewTab({ fixture, nav }: { fixture: WorldFixture; nav: NavigationS
   );
 }
 
+/** Duração da animação de saída (`.explorer-followed-row--removing` em tokens.css) — o `<li>`
+ * some SUAVE antes de sair da lista de verdade, em vez de piscar/sumir instantâneo. */
+const UNFOLLOW_ANIMATION_MS = 220;
+
 function FollowedTab({ fixture, nav }: { fixture: WorldFixture; nav: NavigationStore }) {
   const followedIds = useSyncExternalStore(
     (listener) => followStore.subscribe(listener),
     () => followStore.followedIds(),
   );
+  // Pedido do usuário 2026-08-27: animação ao remover um followed. `followStore.toggleFollow`
+  // some da lista NA HORA (é a fonte da verdade) — pra dar tempo da transição CSS rodar, o `<li>`
+  // continua renderizado por `UNFOLLOW_ANIMATION_MS` com a classe `--removing` aplicada, e só
+  // então o toggle de verdade acontece.
+  const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
+  const timeoutsRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+
+  useEffect(() => {
+    const timeouts = timeoutsRef.current;
+    return () => {
+      for (const timeout of timeouts.values()) clearTimeout(timeout);
+    };
+  }, []);
+
+  function unfollowOnContextMenu(event: ReactMouseEvent, id: string) {
+    event.preventDefault();
+    if (timeoutsRef.current.has(id)) return;
+    setRemovingIds((current) => new Set(current).add(id));
+    const timeout = setTimeout(() => {
+      followStore.toggleFollow(id);
+      timeoutsRef.current.delete(id);
+      setRemovingIds((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
+    }, UNFOLLOW_ANIMATION_MS);
+    timeoutsRef.current.set(id, timeout);
+  }
 
   if (followedIds.length === 0) {
     return (
@@ -101,17 +134,19 @@ function FollowedTab({ fixture, nav }: { fixture: WorldFixture; nav: NavigationS
         const agent = fixture.agents.find((a) => a.id === id);
         if (agent) {
           return (
-            <li key={id}>
+            <li key={id} className={removingIds.has(id) ? "explorer-followed-row explorer-followed-row--removing" : "explorer-followed-row"}>
               {/* Pedido do usuário 2026-08-26: com vários NPCs seguidos, clicar num nome já
                * seguido nesta lista deveria alternar QUAL DELES a câmera acompanha (só o
                * "último" ativado é rastreado, ver `followStore.activeFollowId`/AD-026) — sem
                * precisar tirar e pôr o follow de novo. */}
               <button
                 type="button"
+                title="Right-click to unfollow"
                 onClick={() => {
                   followStore.activate(id);
                   nav.push({ kind: "agent", id });
                 }}
+                onContextMenu={(event) => unfollowOnContextMenu(event, id)}
               >
                 {agent.name}
                 <br />
@@ -125,8 +160,8 @@ function FollowedTab({ fixture, nav }: { fixture: WorldFixture; nav: NavigationS
         const household = fixture.households.find((h) => h.id === id);
         if (household) {
           return (
-            <li key={id}>
-              <button type="button" onClick={() => nav.push({ kind: "household", id })}>
+            <li key={id} className={removingIds.has(id) ? "explorer-followed-row explorer-followed-row--removing" : "explorer-followed-row"}>
+              <button type="button" title="Right-click to unfollow" onClick={() => nav.push({ kind: "household", id })} onContextMenu={(event) => unfollowOnContextMenu(event, id)}>
                 {household.name}
                 <br />
                 <small>{household.memberIds.length} members</small>
@@ -137,8 +172,8 @@ function FollowedTab({ fixture, nav }: { fixture: WorldFixture; nav: NavigationS
         const settlement = fixture.settlements.find((s) => s.id === id);
         if (settlement) {
           return (
-            <li key={id}>
-              <button type="button" onClick={() => nav.push({ kind: "settlement", id })}>
+            <li key={id} className={removingIds.has(id) ? "explorer-followed-row explorer-followed-row--removing" : "explorer-followed-row"}>
+              <button type="button" title="Right-click to unfollow" onClick={() => nav.push({ kind: "settlement", id })} onContextMenu={(event) => unfollowOnContextMenu(event, id)}>
                 {settlement.name}
                 <br />
                 <small>Population {settlement.population}</small>
@@ -149,8 +184,8 @@ function FollowedTab({ fixture, nav }: { fixture: WorldFixture; nav: NavigationS
         const thread = fixture.storyThreads.find((t) => t.id === id);
         if (thread) {
           return (
-            <li key={id}>
-              <button type="button" onClick={() => nav.push({ kind: "thread", id })}>
+            <li key={id} className={removingIds.has(id) ? "explorer-followed-row explorer-followed-row--removing" : "explorer-followed-row"}>
+              <button type="button" title="Right-click to unfollow" onClick={() => nav.push({ kind: "thread", id })} onContextMenu={(event) => unfollowOnContextMenu(event, id)}>
                 {thread.title}
               </button>
             </li>

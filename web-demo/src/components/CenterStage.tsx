@@ -1,7 +1,7 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { WorldFixture } from "../fixture/types";
 import type { NavigationStore, Route } from "../nav/NavigationStore";
-import { SemanticZoomMap } from "../map/SemanticZoomMap";
+import { WorldStage } from "../render/WorldStage";
 import { SettlementStage } from "../render/SettlementStage";
 import { CausalExplorer } from "../views/CausalExplorer";
 import { Timeline } from "../views/Timeline";
@@ -76,24 +76,62 @@ function useFocusBuildingId(fixture: WorldFixture, route: Route): string | null 
   return resolved;
 }
 
-function SpatialLayer({ fixture, nav, route }: CenterStageProps) {
-  // Chamado incondicionalmente (regra dos hooks) — pra rota "world" o valor é descartado, mas a
-  // ref interna ainda precisa "ver" cada render pra rastrear corretamente quando o foco no
-  // prédio deixa de existir (ex.: settlement/world limpam a memória de foco anterior).
-  const focusBuildingId = useFocusBuildingId(fixture, route);
+/**
+ * Bug real reportado pelo usuário (2026-08-27): clicar num NPC diretamente no mapa mundi estava
+ * "abrindo a cidade" dele — como toda rota `agent` resolve pro settlement dele via
+ * `settlementIdForRoute`, selecionar um agent SEMPRE trocava a área espacial pro
+ * `SettlementStage`, mesmo vindo do mapa mundi (onde clicar deveria só abrir a sidebar do NPC,
+ * doc World Map §42-43: "click seleciona a entidade... o mapa não muda de tela imediatamente" —
+ * igual já funciona clicar num agent DENTRO de um settlement, que nunca troca de settlement).
+ *
+ * Mesma família de bug do `useFocusBuildingId` acima: precisa de memória de qual era a área
+ * espacial ANTES da seleção do agent, não pode derivar só do agent em si. Só entra na cidade dele
+ * se a gente já estava DENTRO de algum settlement quando selecionou (comportamento antigo,
+ * inalterado); se estava no mapa mundi, continua no mapa mundi.
+ */
+function useSpatialScope(fixture: WorldFixture, route: Route): string | "world" {
+  // `null` = "nunca resolveu nada ainda" (primeiro render) — DIFERENTE de já ter resolvido pra
+  // "world" de verdade. Bug real pego pelos testes: usar `"world"` como valor inicial fazia um
+  // deep-link direto pra `/agent/:id` (sem passar pelo mapa mundi antes) tratar isso como "veio
+  // do mapa mundi" e nunca entrar no settlement do agent — quebrando o deep-link que sempre
+  // funcionou (mesmo comportamento de building/household: mostra o settlement de verdade).
+  const lastScopeRef = useRef<string | "world" | null>(null);
 
+  let resolved: string | "world";
   if (route.kind === "world") {
+    resolved = "world";
+  } else if (route.kind === "agent") {
+    if (lastScopeRef.current === "world") {
+      resolved = "world";
+    } else {
+      resolved = fixture.agents.find((a) => a.id === route.id)?.settlementId ?? lastScopeRef.current ?? "world";
+    }
+  } else {
+    resolved = settlementIdForRoute(fixture, route) ?? lastScopeRef.current ?? "world";
+  }
+
+  lastScopeRef.current = resolved;
+  return resolved;
+}
+
+function SpatialLayer({ fixture, nav, route }: CenterStageProps) {
+  // Chamados incondicionalmente (regra dos hooks) — pra rota "world" os valores específicos de
+  // settlement são descartados, mas as refs internas ainda precisam "ver" cada render.
+  const focusBuildingId = useFocusBuildingId(fixture, route);
+  const spatialScope = useSpatialScope(fixture, route);
+
+  if (spatialScope === "world") {
     return (
-      <SemanticZoomMap
+      <WorldStage
         fixture={fixture}
         onSelectSettlement={(settlementId) => nav.push({ kind: "settlement", id: settlementId })}
         onSelectNpc={(agentId) => nav.push({ kind: "agent", id: agentId })}
+        onBackgroundClick={() => nav.replace({ kind: "world" })}
       />
     );
   }
 
-  const settlementId = settlementIdForRoute(fixture, route);
-  if (!settlementId) return null;
+  const settlementId = spatialScope;
   return (
     <SettlementStage
       fixture={fixture}

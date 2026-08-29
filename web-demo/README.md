@@ -248,6 +248,36 @@ Seis problemas visuais reportados pelo usuário depois da v1 do redesign, todos 
 
 Ver AD-026 em `.specs/STATE.md`.
 
+## World Map (AD-032)
+
+O World View trocou de SVG declarativo (`SemanticZoomMap`, settlements como círculos-pin) pra
+`render/WorldStage.tsx`, um segundo renderer Pixi.js dedicado — mesma linguagem visual do
+Settlement View (terreno procedural, rios, estradas conectando settlements por uma árvore
+geradora mínima, footprints reais proporcionais à população, agents como pontos com cor estável
+de fenótipo se movendo pelo trajeto de patrulha). Clicar num settlement ou agent dá zoom na
+câmera do mapa mundi ANTES de trocar pra `SettlementStage` (animação de ponte, não um corte
+abrupto) — dois renderers separados continuam existindo (decisão explícita do usuário: unificar
+os dois numa única Pixi App/câmera é escopo maior, fica pra outra rodada). Follow funciona
+igual ao Settlement (mesmo `activeFollowId`/anel/detach ao arrastar).
+
+Novo: `map/worldPosition.ts` resolve a posição ABSOLUTA (grid do mapa mundi) de qualquer agent a
+partir do fixture hierárquico atual — a fronteira exata onde plugar uma API real que já mande
+X/Y absoluto (pedido do usuário: "no backend não temos separação de mundo/cidade/casa, é uma
+posição X/Y absoluta única").
+
+Ver AD-032 em `.specs/STATE.md`.
+
+## World Map — bugs achados ao vivo (AD-033)
+
+- Agents ganharam LOD de verdade: ponto discreto de longe, sprite real de perto (mesma textura
+  do Settlement View), trocando sozinho por zoom.
+- Clicar um NPC no mapa mundi virou seleção instantânea (abre a sidebar dele) em vez de "entrar
+  na cidade" — só clicar um settlement continua com a animação de zoom.
+- Hover em settlement/agent/building mostra um card LOD compacto perto do cursor
+  (`components/MapHoverCard.tsx`) — mesmo componente usado no World Map e no Settlement View.
+
+Ver AD-033 em `.specs/STATE.md`.
+
 ## Terceira leva — follow multi-NPC + polish (AD-027)
 
 Achados testando ao vivo em cima do AD-026:
