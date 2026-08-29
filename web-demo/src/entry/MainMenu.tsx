@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useEntryServices } from "./EntryContext";
 import { PlanetScene } from "./PlanetScene";
+import { StarfieldBackground } from "./StarfieldBackground";
 import type { WorldDraft, WorldSummary } from "./repository/types";
 
 function timeAgo(updatedAt: string): string {
@@ -51,6 +52,7 @@ export function MainMenu({ onNavigate }: { onNavigate: (path: string) => void })
 
   return (
     <div data-testid="main-menu">
+      <StarfieldBackground />
       <div data-testid="main-menu-frame">
         <div data-testid="main-menu-panel">
           <div data-testid="main-menu-identity">

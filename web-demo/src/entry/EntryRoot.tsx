@@ -48,13 +48,20 @@ export function EntryRoot() {
 
   const navigate = useMemo(() => (path: string) => router.navigate(path), []);
 
+  // Doc §22/§77 — a screen change should feel like a transition, not a hard cut. Keying on the
+  // logical screen (not just `kind`) gives every navigation — including Continue landing on a
+  // different world — a fresh mount, which is what replays the CSS enter animation below.
+  const screenKey = `${screen.kind}:${"draftId" in screen ? (screen.draftId ?? "") : "worldId" in screen ? screen.worldId : ""}`;
+
   return (
     <EntryServicesProvider>
-      {screen.kind === "main-menu" && <MainMenu onNavigate={navigate} />}
-      {screen.kind === "create" && <WorldCreatorShell draftId={screen.draftId} onNavigate={navigate} />}
-      {screen.kind === "worlds" && <WorldLibrary onNavigate={navigate} />}
-      {screen.kind === "settings" && <SettingsView onNavigate={navigate} />}
-      {screen.kind === "world" && <WorldScreen worldId={screen.worldId} onNavigate={navigate} />}
+      <div key={screenKey} data-testid="screen-transition">
+        {screen.kind === "main-menu" && <MainMenu onNavigate={navigate} />}
+        {screen.kind === "create" && <WorldCreatorShell draftId={screen.draftId} onNavigate={navigate} />}
+        {screen.kind === "worlds" && <WorldLibrary onNavigate={navigate} />}
+        {screen.kind === "settings" && <SettingsView onNavigate={navigate} />}
+        {screen.kind === "world" && <WorldScreen worldId={screen.worldId} onNavigate={navigate} />}
+      </div>
     </EntryServicesProvider>
   );
 }

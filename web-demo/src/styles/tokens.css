@@ -1242,12 +1242,122 @@ button:disabled {
 
 /* ===== Entry flow (Main Menu / Create / Continue) — design doc §73/§105 tokens/anti-patterns ===== */
 
-[data-testid="main-menu"] {
+[data-testid="screen-transition"] {
   height: 100%;
+}
+
+/* Doc §22/§77 — 700-1200ms is for the Create cinematic specifically; a plain screen swap uses
+   the doc's own "major scene transition" ceiling scaled down to something that reads as a
+   transition without feeling like a load. Reduced motion: instant, no animation (doc §15). */
+@media (prefers-reduced-motion: no-preference) {
+  [data-testid="screen-transition"] {
+    animation: screen-enter 320ms ease both;
+  }
+}
+
+@keyframes screen-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+[data-testid="main-menu"] {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   background: radial-gradient(ellipse at 70% 30%, var(--menu-space-secondary, #090c12) 0%, var(--bg-world) 70%);
+}
+
+[data-testid="starfield"] {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+[data-testid="main-menu-frame"] {
+  position: relative;
+  z-index: 1;
+}
+
+.starfield-star {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--text-primary);
+  opacity: 0.5;
+}
+
+.starfield-streak {
+  position: absolute;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--text-primary) 70%, #fff);
+  opacity: 0;
+  transform-origin: left center;
+}
+
+.starfield-streak--comet {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent-secondary) 60%, #fff);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .starfield-star {
+    animation: starfield-twinkle ease-in-out infinite;
+  }
+
+  .starfield-streak {
+    animation: starfield-shoot linear infinite;
+  }
+
+  [data-testid="planet-scene"] {
+    animation: planet-drift 46s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes starfield-twinkle {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+/* Occasional streak, not a constant swarm — visible only for a short slice of a long cycle. */
+@keyframes starfield-shoot {
+  0%,
+  85% {
+    opacity: 0;
+    transform: rotate(var(--streak-angle, 18deg)) translateX(0);
+  }
+  87% {
+    opacity: 1;
+  }
+  96% {
+    opacity: 0;
+    transform: rotate(var(--streak-angle, 18deg)) translateX(220px);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--streak-angle, 18deg)) translateX(220px);
+  }
+}
+
+@keyframes planet-drift {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(-14px, 10px);
+  }
 }
 
 /* Ultrawide guard: `main-menu` centers this frame instead of letting a flex row stretch full
