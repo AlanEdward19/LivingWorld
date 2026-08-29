@@ -16,6 +16,16 @@ export function defaultWorldConfig(): WorldConfig {
     historyLengthYears: 100,
     initialPopulation: 5_000,
     extraordinary: "Rare",
+
+    oceanCoverage: 60,
+    terrainStyle: "Varied",
+
+    climateZone: "Temperate",
+    seasonalIntensity: "Moderate",
+    rainfall: "Moderate",
+
+    mineralAbundance: "Balanced",
+    fertility: "Moderate",
   };
 }
 

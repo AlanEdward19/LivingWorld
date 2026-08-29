@@ -2,16 +2,24 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { useEntryServices } from "../EntryContext";
 import { draftReducer, initDraftState, newDraft } from "./draftState";
 import { OverviewSection } from "./OverviewSection";
+import { GeographySection } from "./GeographySection";
+import { ClimateSection } from "./ClimateSection";
+import { ResourcesSection } from "./ResourcesSection";
 import { ReviewSection } from "./ReviewSection";
 import { UnsavedDraftGuard } from "./UnsavedDraftGuard";
 import { NotFoundScreen } from "../WorldNotFound";
 import { GenerationView } from "../GenerationView";
 import { StarfieldBackground } from "../StarfieldBackground";
 
-type Section = "overview" | "review";
+type Section = "overview" | "geography" | "climate" | "resources" | "review";
+
+const WORLD_GROUP_SECTIONS: { section: Section; label: string }[] = [
+  { section: "geography", label: "Geography" },
+  { section: "climate", label: "Climate" },
+  { section: "resources", label: "Resources" },
+];
 
 const COMING_LATER_GROUPS: { label: string; items: string[] }[] = [
-  { label: "World", items: ["Geography", "Climate", "Resources"] },
   { label: "Life", items: ["Population", "Biology", "Cultures"] },
   { label: "Society", items: ["Settlements", "Economy", "Technology", "Social Rules"] },
   { label: "Extraordinary", items: ["Powers", "Sources", "Social Response"] },
@@ -158,6 +166,14 @@ export function WorldCreatorShell({
           <button type="button" aria-current={section === "overview"} onClick={() => setSection("overview")}>
             Overview
           </button>
+          <div data-testid="creator-nav-group-world">
+            <span>World</span>
+            {WORLD_GROUP_SECTIONS.map((item) => (
+              <button key={item.section} type="button" aria-current={section === item.section} onClick={() => setSection(item.section)}>
+                {item.label}
+              </button>
+            ))}
+          </div>
           {COMING_LATER_GROUPS.map((group) => (
             <div key={group.label} data-testid={`creator-nav-group-${group.label.toLowerCase()}`}>
               <span>{group.label}</span>
@@ -174,11 +190,11 @@ export function WorldCreatorShell({
         </nav>
 
         <div data-testid="creator-content">
-          {section === "overview" ? (
-            <OverviewSection draft={state.draft} dispatch={dispatch} />
-          ) : (
-            <ReviewSection draft={state.draft} />
-          )}
+          {section === "overview" && <OverviewSection draft={state.draft} dispatch={dispatch} />}
+          {section === "geography" && <GeographySection draft={state.draft} dispatch={dispatch} />}
+          {section === "climate" && <ClimateSection draft={state.draft} dispatch={dispatch} />}
+          {section === "resources" && <ResourcesSection draft={state.draft} dispatch={dispatch} />}
+          {section === "review" && <ReviewSection draft={state.draft} />}
         </div>
       </div>
 

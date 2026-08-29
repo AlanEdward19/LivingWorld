@@ -1,5 +1,6 @@
 import type { WorldConfig, WorldDraft } from "../repository/types";
 import type { DraftAction } from "./draftState";
+import { createFieldBinder } from "./fieldBinding";
 
 const SIZES: WorldConfig["size"][] = ["Small", "Medium", "Large", "Huge"];
 const EXTRAORDINARY: WorldConfig["extraordinary"][] = ["None", "Rare", "Common", "Abundant"];
@@ -7,17 +8,8 @@ const PRESETS = ["Balanced", "Harsh Survival", "Golden Age", "Age of Strife"];
 
 /** Doc §33-36 — Overview: Quick Create fields, seed edit/randomize/copy, per-field lock + randomize. */
 export function OverviewSection({ draft, dispatch }: { draft: WorldDraft; dispatch: (action: DraftAction) => void }) {
-  const { world, lockedFields } = draft;
-
-  function field<K extends keyof WorldConfig>(key: K) {
-    const locked = lockedFields.includes(key);
-    return {
-      locked,
-      update: (value: WorldConfig[K]) => dispatch({ type: "update-field", field: key, value }),
-      toggleLock: () => dispatch({ type: "toggle-lock", field: key }),
-      randomize: () => dispatch({ type: "randomize-field", field: key }),
-    };
-  }
+  const { world } = draft;
+  const field = createFieldBinder(draft, dispatch);
 
   const name = field("name");
   const seed = field("seed");

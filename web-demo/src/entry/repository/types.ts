@@ -19,6 +19,19 @@ export type WorldConfig = {
   historyLengthYears: number;
   initialPopulation: number;
   extraordinary: "None" | "Rare" | "Common" | "Abundant";
+
+  // World / Geography (doc §32 "World" group)
+  oceanCoverage: number;
+  terrainStyle: "Varied" | "Mountainous" | "Flatlands" | "Archipelago" | "Canyons";
+
+  // World / Climate
+  climateZone: "Temperate" | "Arid" | "Tropical" | "Polar" | "Varied";
+  seasonalIntensity: "Mild" | "Moderate" | "Extreme";
+  rainfall: "Low" | "Moderate" | "High";
+
+  // World / Resources
+  mineralAbundance: "Scarce" | "Balanced" | "Abundant";
+  fertility: "Poor" | "Moderate" | "Rich";
 };
 
 export type WorldDraft = {

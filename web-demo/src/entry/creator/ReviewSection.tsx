@@ -21,6 +21,42 @@ export function ReviewSection({ draft }: { draft: WorldDraft }) {
           <dt>Preset</dt>
           <dd>{world.preset}</dd>
         </div>
+        <div>
+          <dt>Ocean coverage</dt>
+          <dd>{world.oceanCoverage}%</dd>
+        </div>
+        <div>
+          <dt>Terrain</dt>
+          <dd>{world.terrainStyle}</dd>
+        </div>
+      </dl>
+
+      <h2>Climate</h2>
+      <dl>
+        <div>
+          <dt>Zone</dt>
+          <dd>{world.climateZone}</dd>
+        </div>
+        <div>
+          <dt>Seasonal intensity</dt>
+          <dd>{world.seasonalIntensity}</dd>
+        </div>
+        <div>
+          <dt>Rainfall</dt>
+          <dd>{world.rainfall}</dd>
+        </div>
+      </dl>
+
+      <h2>Resources</h2>
+      <dl>
+        <div>
+          <dt>Minerals</dt>
+          <dd>{world.mineralAbundance}</dd>
+        </div>
+        <div>
+          <dt>Soil fertility</dt>
+          <dd>{world.fertility}</dd>
+        </div>
       </dl>
 
       <h2>Population</h2>

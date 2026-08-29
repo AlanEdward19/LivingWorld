@@ -1663,6 +1663,9 @@ button:disabled {
 }
 
 [data-testid="overview-section"] label,
+[data-testid="geography-section"] label,
+[data-testid="climate-section"] label,
+[data-testid="resources-section"] label,
 [data-testid="review-section"] {
   display: flex;
   flex-direction: column;
