@@ -53,7 +53,7 @@ export function MainMenu({ onNavigate }: { onNavigate: (path: string) => void })
   const recentDraft = draftList[0];
 
   return (
-    <div data-testid="main-menu" className={exiting ? "zoom-exit" : undefined}>
+    <div data-testid="main-menu" className={`entry-cosmos-bg${exiting ? " zoom-exit" : ""}`}>
       <StarfieldBackground />
       <div className="planet-frame">
         <div data-testid="main-menu-panel">

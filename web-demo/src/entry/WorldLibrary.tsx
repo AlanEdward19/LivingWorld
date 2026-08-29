@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useEntryServices } from "./EntryContext";
 import { WorldCard } from "./WorldCard";
 import { PlanetScene, hueForWorldId } from "./PlanetScene";
+import { StarfieldBackground } from "./StarfieldBackground";
 import { usePlanetZoomExit } from "./usePlanetZoomExit";
 import type { WorldDraft, WorldSummary } from "./repository/types";
 
@@ -14,6 +15,7 @@ export function WorldLibrary({ onNavigate }: { onNavigate: (path: string) => voi
   const [tab, setTab] = useState<"worlds" | "drafts">("worlds");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([worlds.listWorlds(), drafts.listDrafts()]).then(([w, d]) => {
@@ -29,10 +31,16 @@ export function WorldLibrary({ onNavigate }: { onNavigate: (path: string) => voi
 
   const filtered = worldList.filter((w) => w.name.toLowerCase().includes(query.trim().toLowerCase()));
   const noWorldsAtAll = worldList.length === 0;
-  const selectedWorld = worldList.find((w) => w.id === selectedId) ?? null;
+  // Hover previews without losing the actual selection — clearing the hover falls back to
+  // whatever's selected, never to nothing (doc: the planet should always show *something*).
+  const displayedWorld = worldList.find((w) => w.id === (hoveredId ?? selectedId)) ?? worldList[0] ?? null;
+  // Relative to the Main Menu's default (its most-recent world, hue 0) so the SAME world looks
+  // the SAME color on both screens — only other saves shift away from that baseline.
+  const baselineHue = worldList[0] ? hueForWorldId(worldList[0].id) : 0;
 
   return (
-    <div data-testid="world-library" className={exiting ? "zoom-exit" : undefined}>
+    <div data-testid="world-library" className={`entry-cosmos-bg${exiting ? " zoom-exit" : ""}`}>
+      <StarfieldBackground />
       {noWorldsAtAll ? (
         <div data-testid="world-library-empty">
           <header data-testid="world-library-header">
@@ -100,6 +108,7 @@ export function WorldLibrary({ onNavigate }: { onNavigate: (path: string) => voi
                     world={w}
                     selected={selectedId === w.id}
                     onSelect={() => setSelectedId(w.id)}
+                    onHover={(hovering) => setHoveredId((current) => (hovering ? w.id : current === w.id ? null : current))}
                     onContinue={() => zoomInto(`/worlds/${w.id}`)}
                   />
                 ))}
@@ -119,7 +128,13 @@ export function WorldLibrary({ onNavigate }: { onNavigate: (path: string) => voi
           </div>
 
           <div className="planet-frame-scene">
-            {selectedWorld && <PlanetScene variant="inhabited" worldName={selectedWorld.name} hueRotate={hueForWorldId(selectedWorld.id)} />}
+            {displayedWorld && (
+              <PlanetScene
+                variant="inhabited"
+                worldName={displayedWorld.name}
+                hueRotate={(hueForWorldId(displayedWorld.id) - baselineHue + 360) % 360}
+              />
+            )}
           </div>
         </div>
       )}

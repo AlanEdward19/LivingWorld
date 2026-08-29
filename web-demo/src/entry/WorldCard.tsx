@@ -1,13 +1,20 @@
 import type { WorldSummary } from "./repository/types";
 
-export function WorldCard({ world, selected, onSelect, onContinue }: {
+export function WorldCard({ world, selected, onSelect, onHover, onContinue }: {
   world: WorldSummary;
   selected: boolean;
   onSelect: () => void;
+  onHover: (hovering: boolean) => void;
   onContinue: () => void;
 }) {
   return (
-    <li data-testid="world-card" data-selected={selected} className="entity-row">
+    <li
+      data-testid="world-card"
+      data-selected={selected}
+      className="entity-row"
+      onMouseEnter={() => onHover(true)}
+      onMouseLeave={() => onHover(false)}
+    >
       <button type="button" className="entity-row-text" data-testid="world-card-select" onClick={onSelect} style={{ background: "transparent", border: "none", padding: 0, textAlign: "left" }}>
         <div className="entity-row-title">{world.name}</div>
         <div className="entity-row-meta">

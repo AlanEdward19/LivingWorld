@@ -6,6 +6,7 @@ import { ReviewSection } from "./ReviewSection";
 import { UnsavedDraftGuard } from "./UnsavedDraftGuard";
 import { NotFoundScreen } from "../WorldNotFound";
 import { GenerationView } from "../GenerationView";
+import { StarfieldBackground } from "../StarfieldBackground";
 
 type Section = "overview" | "review";
 
@@ -121,7 +122,8 @@ export function WorldCreatorShell({
   }
 
   return (
-    <div data-testid="world-creator-shell">
+    <div data-testid="world-creator-shell" className="entry-cosmos-bg">
+      <StarfieldBackground />
       <header data-testid="creator-top-bar">
         <button type="button" data-testid="creator-back" onClick={leaveToMainMenu}>
           ← Main Menu
