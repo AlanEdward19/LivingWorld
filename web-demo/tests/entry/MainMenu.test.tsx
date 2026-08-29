@@ -34,7 +34,15 @@ describe("MainMenu", () => {
   it("doc §20 — with worlds: offers 'Continue {recent}' and Browse Worlds", async () => {
     const onNavigate = renderMenu();
     await waitFor(() => expect(screen.getByTestId("action-continue")).toHaveTextContent("Continue Eldoria"));
-    screen.getByTestId("action-continue").click();
+
+    vi.useFakeTimers();
+    try {
+      screen.getByTestId("action-continue").click();
+      // Continue plays the planet zoom-dive (usePlanetZoomExit) before navigating.
+      await vi.advanceTimersByTimeAsync(1000);
+    } finally {
+      vi.useRealTimers();
+    }
     expect(onNavigate).toHaveBeenCalledWith("/worlds/eldoria");
   });
 

@@ -36,8 +36,23 @@ describe("WorldLibrary", () => {
     fireEvent.change(screen.getByTestId("world-search"), { target: { value: "mars" } });
     expect(screen.getAllByTestId("world-card")).toHaveLength(1);
 
-    fireEvent.click(screen.getAllByTestId("world-card-continue")[0]);
+    vi.useFakeTimers();
+    try {
+      fireEvent.click(screen.getAllByTestId("world-card-continue")[0]);
+      // Continue plays the planet zoom-dive (usePlanetZoomExit) before navigating.
+      await vi.advanceTimersByTimeAsync(1000);
+    } finally {
+      vi.useRealTimers();
+    }
     expect(onNavigate).toHaveBeenCalledWith("/worlds/mars-2149");
+  });
+
+  it("shows the recent world's planet by default, swaps to the selected save on click", async () => {
+    renderLibrary();
+    await waitFor(() => expect(screen.getByTestId("planet-label")).toHaveTextContent("Eldoria"));
+
+    fireEvent.click(screen.getAllByTestId("world-card-select")[1]);
+    expect(screen.getByTestId("planet-label")).toHaveTextContent("Mars 2149");
   });
 
   it("← Main Menu navigates to /", async () => {

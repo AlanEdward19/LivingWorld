@@ -1282,9 +1282,25 @@ button:disabled {
   z-index: 0;
 }
 
-[data-testid="main-menu-frame"] {
+/* Shared side-by-side layout (content left, planet right) — reused by the Main Menu and the
+   Worlds Library so the planet sits in the exact same spot on both screens. */
+.planet-frame {
   position: relative;
   z-index: 1;
+  width: min(1600px, 92vw);
+  height: min(78vh, 820px);
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: clamp(2rem, 6vw, 6rem);
+}
+
+.planet-frame-scene {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
 }
 
 .starfield-star {
@@ -1360,26 +1376,6 @@ button:disabled {
   }
 }
 
-/* Ultrawide guard: `main-menu` centers this frame instead of letting a flex row stretch full
-   viewport width — on very wide monitors that put an ever-growing, disproportionate gap between
-   the menu and the planet. Width/gap still scale with the viewport (dynamic), just bounded. */
-[data-testid="main-menu-frame"] {
-  width: min(1600px, 92vw);
-  height: min(78vh, 820px);
-  display: flex;
-  align-items: stretch;
-  justify-content: space-between;
-  gap: clamp(2rem, 6vw, 6rem);
-}
-
-[data-testid="main-menu-scene"] {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-  min-width: 0;
-}
-
 [data-testid="planet-scene"] {
   position: relative;
   width: min(45vh, 420px);
@@ -1392,6 +1388,8 @@ button:disabled {
   border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, #3a4a52 0%, #202b31 45%, #0d1216 100%);
   box-shadow: inset -20px -20px 60px rgba(0, 0, 0, 0.55);
+  filter: hue-rotate(var(--planet-hue, 0deg));
+  transition: filter 500ms ease;
 }
 
 [data-testid="planet-scene"][data-variant="inhabited"] [data-testid="planet-sphere"] {
@@ -1428,6 +1426,52 @@ button:disabled {
   }
   to {
     background-position: 100% 50%;
+  }
+}
+
+/* "Continue" dive-into-the-planet exit (same technique as the old `web/` project's
+   `.start-menu--exiting-create` — see `usePlanetZoomExit.ts`, durations must match
+   ZOOM_EXIT_MS=950). Toggled by `.zoom-exit` on the screen root; targets the planet by its own
+   testid (works from either the Main Menu or the Worlds Library, both use `.planet-frame`). */
+.zoom-exit .planet-frame-scene [data-testid="planet-scene"] {
+  transition: transform 0.95s cubic-bezier(0.6, 0, 0.85, 0), filter 0.7s ease;
+  transform: scale(9);
+  filter: brightness(1.4);
+}
+
+.zoom-exit .planet-frame > *:not(.planet-frame-scene) {
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  opacity: 0;
+  transform: scale(0.85);
+  pointer-events: none;
+}
+
+.zoom-exit .starfield-star,
+.zoom-exit .starfield-streak {
+  transition: opacity 0.4s ease;
+  opacity: 0;
+}
+
+.zoom-blackout {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+}
+
+.zoom-exit .zoom-blackout {
+  transition-delay: 0.55s;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zoom-exit .planet-frame-scene [data-testid="planet-scene"],
+  .zoom-exit .planet-frame > *:not(.planet-frame-scene),
+  .zoom-blackout {
+    transition-duration: 0.01ms !important;
   }
 }
 
@@ -1600,11 +1644,34 @@ button:disabled {
   transition: width 200ms ease;
 }
 
-/* Worlds library */
+/* Worlds library — same planet position/size as the Main Menu (`.planet-frame`, doc consistency
+   the user asked for), content column scrolls independently when the list is long. */
 [data-testid="world-library"] {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 70% 30%, var(--menu-space-secondary, #090c12) 0%, var(--bg-world) 70%);
+}
+
+[data-testid="world-library-empty"] {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+[data-testid="world-library-content"] {
+  width: min(460px, 100%);
+  flex-shrink: 0;
   height: 100%;
   overflow-y: auto;
-  padding: 1.25rem 2rem;
+  padding-right: 0.5rem;
 }
 
 [data-testid="world-library-header"] {

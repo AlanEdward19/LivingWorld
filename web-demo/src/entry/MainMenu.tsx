@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useEntryServices } from "./EntryContext";
 import { PlanetScene } from "./PlanetScene";
 import { StarfieldBackground } from "./StarfieldBackground";
+import { usePlanetZoomExit } from "./usePlanetZoomExit";
 import type { WorldDraft, WorldSummary } from "./repository/types";
 
 function timeAgo(updatedAt: string): string {
@@ -14,6 +15,7 @@ function timeAgo(updatedAt: string): string {
 /** Doc §9-21 — the Main Menu, always mounted at `/` (doc §2), never auto-redirects. */
 export function MainMenu({ onNavigate }: { onNavigate: (path: string) => void }) {
   const { worlds, drafts } = useEntryServices();
+  const { exiting, zoomInto } = usePlanetZoomExit(onNavigate);
   const [worldList, setWorldList] = useState<WorldSummary[] | null>(null);
   const [draftList, setDraftList] = useState<WorldDraft[]>([]);
   const [loadError, setLoadError] = useState(false);
@@ -51,9 +53,9 @@ export function MainMenu({ onNavigate }: { onNavigate: (path: string) => void })
   const recentDraft = draftList[0];
 
   return (
-    <div data-testid="main-menu">
+    <div data-testid="main-menu" className={exiting ? "zoom-exit" : undefined}>
       <StarfieldBackground />
-      <div data-testid="main-menu-frame">
+      <div className="planet-frame">
         <div data-testid="main-menu-panel">
           <div data-testid="main-menu-identity">
             <h1>LivingWorld</h1>
@@ -61,13 +63,13 @@ export function MainMenu({ onNavigate }: { onNavigate: (path: string) => void })
           </div>
 
           <nav data-testid="main-menu-actions" aria-label="Main menu">
-            <button type="button" data-testid="action-create" disabled={loading} onClick={() => onNavigate("/create")}>
+            <button type="button" data-testid="action-create" disabled={loading || exiting} onClick={() => onNavigate("/create")}>
               <span>Create New World</span>
               <small>Build a new living universe</small>
             </button>
 
             {recentWorld ? (
-              <button type="button" data-testid="action-continue" onClick={() => onNavigate(`/worlds/${recentWorld.id}`)}>
+              <button type="button" data-testid="action-continue" disabled={exiting} onClick={() => zoomInto(`/worlds/${recentWorld.id}`)}>
                 <span>Continue {recentWorld.name}</span>
                 <small>
                   Year {recentWorld.year} · {recentWorld.season}
@@ -81,13 +83,18 @@ export function MainMenu({ onNavigate }: { onNavigate: (path: string) => void })
             )}
 
             {hasWorlds && (
-              <button type="button" data-testid="action-browse-worlds" onClick={() => onNavigate("/worlds")}>
+              <button type="button" data-testid="action-browse-worlds" disabled={exiting} onClick={() => onNavigate("/worlds")}>
                 Browse Worlds
               </button>
             )}
 
             {recentDraft && (
-              <button type="button" data-testid="action-continue-draft" onClick={() => onNavigate(`/create/${recentDraft.id}`)}>
+              <button
+                type="button"
+                data-testid="action-continue-draft"
+                disabled={exiting}
+                onClick={() => onNavigate(`/create/${recentDraft.id}`)}
+              >
                 <span>Continue Draft</span>
                 <small>
                   {recentDraft.world.name || "Untitled world"} · Edited {timeAgo(recentDraft.updatedAt)}
@@ -95,7 +102,7 @@ export function MainMenu({ onNavigate }: { onNavigate: (path: string) => void })
               </button>
             )}
 
-            <button type="button" data-testid="action-settings" onClick={() => onNavigate("/settings")}>
+            <button type="button" data-testid="action-settings" disabled={exiting} onClick={() => onNavigate("/settings")}>
               Settings
             </button>
           </nav>
@@ -103,10 +110,12 @@ export function MainMenu({ onNavigate }: { onNavigate: (path: string) => void })
           <div data-testid="main-menu-version">v0.x</div>
         </div>
 
-        <div data-testid="main-menu-scene">
+        <div className="planet-frame-scene">
           <PlanetScene variant={recentWorld ? "inhabited" : "proto-world"} worldName={recentWorld?.name} />
         </div>
       </div>
+
+      <div data-testid="zoom-blackout" className="zoom-blackout" />
     </div>
   );
 }
