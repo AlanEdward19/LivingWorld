@@ -1,10 +1,39 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import * as PixiMock from "pixi.js";
 import { CenterStage } from "../../src/components/CenterStage";
 import { NavigationStore } from "../../src/nav/NavigationStore";
 import { WORLD_FIXTURE } from "../../src/fixture/oakbridge";
 
+const pixiMock = PixiMock as unknown as {
+  __runTick: () => void;
+  __resetPixiMock: () => void;
+  __lastApplication: () => { stage: { children: { children: { children: unknown[] }[] }[] } };
+};
+
+interface FakeNode {
+  children: FakeNode[];
+  emit: (event: string, ...args: unknown[]) => void;
+}
+
+/** Espelha `worldRoot.addChild(terrainLayer, riverLayer, roadLayer, settlementLayer,
+ * agentLayer)` de `WorldStage` — ver esse componente se essa ordem mudar. */
+function worldStageLayers() {
+  const app = pixiMock.__lastApplication();
+  const worldRoot = app.stage.children[0] as unknown as FakeNode;
+  const [terrainLayer, , , settlementLayer, agentLayer] = worldRoot.children as unknown as FakeNode[];
+  return { terrainLayer, settlementLayer, agentLayer };
+}
+
+async function flushPixiSetup() {
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
 beforeEach(() => {
+  pixiMock.__resetPixiMock();
   vi.useFakeTimers();
   vi.setSystemTime(0);
 });
@@ -14,21 +43,84 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+// O World Map agora é um canvas Pixi (`WorldStage`, substituiu o SVG `SemanticZoomMap`) — sem
+// elementos DOM por settlement/agent pra clicar direto. O comportamento de clique-com-transição
+// em si já é coberto em profundidade por `tests/render/WorldStage.test.tsx`; aqui o interesse é
+// só confirmar que o `CenterStage` PASSA os callbacks certos pro `WorldStage` (a fiação entre os
+// dois), simulando o clique via o mock do Pixi do jeito que um mouse real dispararia.
 describe("CenterStage — world route", () => {
-  it("shows the world-level map; clicking Oakbridge's marker navigates to it", () => {
+  it("shows the world-level map; clicking Oakbridge's footprint navigates to it", async () => {
     const nav = new NavigationStore(WORLD_FIXTURE);
     render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "world" }} />);
+    await flushPixiSetup();
+    act(() => pixiMock.__runTick());
+
+    const { settlementLayer } = worldStageLayers();
     const oakbridgeIndex = WORLD_FIXTURE.settlements.findIndex((s) => s.id === "oakbridge");
-    fireEvent.click(screen.getAllByTestId("settlement-marker")[oakbridgeIndex]);
+    const [footprint] = settlementLayer.children[oakbridgeIndex].children;
+    act(() => footprint.emit("pointertap", { stopPropagation: () => {} }));
+
+    vi.setSystemTime(1000); // além do TRANSITION_MIN_MS do WorldStage
+    act(() => pixiMock.__runTick());
+
     expect(nav.current()).toEqual({ kind: "settlement", id: "oakbridge" });
   });
 
-  it("clicking an agent's dot at world level navigates to them too (AD-018: NPCs never disappear)", () => {
+  it("clicking an agent's dot at world level navigates to them too (AD-018: NPCs never disappear)", async () => {
     const nav = new NavigationStore(WORLD_FIXTURE);
     render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "world" }} />);
+    await flushPixiSetup();
+    act(() => pixiMock.__runTick());
+
+    const { agentLayer } = worldStageLayers();
     const miraIndex = WORLD_FIXTURE.agents.findIndex((a) => a.id === "mira-valen");
-    fireEvent.click(screen.getAllByTestId("agent-marker")[miraIndex]);
+    const [mark] = agentLayer.children[miraIndex].children;
+    // Clicar num agent é seleção instantânea (sem zoom de transição, diferente de settlement) —
+    // bug real reportado pelo usuário: clicar um NPC estava "abrindo a cidade" dele.
+    act(() => mark.emit("pointertap", { stopPropagation: () => {} }));
+
     expect(nav.current()).toEqual({ kind: "agent", id: "mira-valen" });
+  });
+
+  // Bug real reportado pelo usuário 2026-08-27: clicar num NPC no mapa mundi estava "abrindo a
+  // cidade" dele (o mapa espacial trocava pro `SettlementStage`) em vez de só selecioná-lo — a
+  // MESMA regra de "world" nunca navega sozinho já valia pra settlement/agent routes.
+  it("selecting an agent from the world map keeps the world map mounted (does not jump into their settlement)", async () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "world" }} />);
+    await flushPixiSetup();
+    act(() => pixiMock.__runTick());
+
+    const { agentLayer } = worldStageLayers();
+    const miraIndex = WORLD_FIXTURE.agents.findIndex((a) => a.id === "mira-valen");
+    const [mark] = agentLayer.children[miraIndex].children;
+    act(() => mark.emit("pointertap", { stopPropagation: () => {} }));
+
+    expect(nav.current()).toEqual({ kind: "agent", id: "mira-valen" });
+    expect(screen.getByTestId("world-stage")).toBeInTheDocument();
+    expect(screen.queryByTestId("settlement-stage")).not.toBeInTheDocument();
+  });
+
+  // Pedido do usuário 2026-08-27: clicar em terreno vazio no mapa mundi (nem cidade, nem NPC)
+  // mostra info do mundo no Inspector — mesma paridade que já existe pro Settlement View.
+  it("clicking empty terrain on the world map navigates back to the world route", async () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "world" }} />);
+    await flushPixiSetup();
+    act(() => pixiMock.__runTick());
+
+    // Seleciona um agent primeiro (simula "já ter algo selecionado") — continua no mapa mundi
+    // (useSpatialScope) já que a seleção veio de lá.
+    const { agentLayer } = worldStageLayers();
+    const miraIndex = WORLD_FIXTURE.agents.findIndex((a) => a.id === "mira-valen");
+    const [mark] = agentLayer.children[miraIndex].children;
+    act(() => mark.emit("pointertap", { stopPropagation: () => {} }));
+    expect(nav.current()).toEqual({ kind: "agent", id: "mira-valen" });
+
+    const { terrainLayer } = worldStageLayers();
+    act(() => terrainLayer.emit("pointertap"));
+
+    expect(nav.current()).toEqual({ kind: "world" });
   });
 });
 
@@ -133,7 +225,7 @@ describe("CenterStage — causal/timeline/life/feed/threads open as an overlay, 
     const nav = new NavigationStore(WORLD_FIXTURE);
     render(<CenterStage fixture={WORLD_FIXTURE} nav={nav} route={{ kind: "causal", eventId: "evt-grain-prices-rose" }} />);
     expect(screen.getByTestId("causal-explorer")).toBeInTheDocument();
-    expect(screen.getByTestId("semantic-zoom-map")).toBeInTheDocument();
+    expect(screen.getByTestId("world-stage")).toBeInTheDocument();
     expect(screen.getByTestId("center-stage-overlay-backdrop")).toBeInTheDocument();
   });
 

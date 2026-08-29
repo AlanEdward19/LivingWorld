@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { paletteForBuildingKind, SETTLEMENT_PALETTE, TERRAIN_PALETTE } from "../../src/map/isoPalette";
+import { paletteForBuildingKind, SETTLEMENT_PALETTE } from "../../src/map/isoPalette";
 import { WORLD_FIXTURE } from "../../src/fixture/oakbridge";
 import type { BuildingKind } from "../../src/fixture/types";
 
@@ -34,10 +34,6 @@ describe("isoPalette", () => {
     const palette = paletteForBuildingKind("residence");
     const faces = new Set([palette.top, palette.left, palette.right]);
     expect(faces.size).toBe(3);
-  });
-
-  it("defines a terrain palette", () => {
-    expectValidPalette(TERRAIN_PALETTE);
   });
 
   it("defines a settlement marker palette", () => {

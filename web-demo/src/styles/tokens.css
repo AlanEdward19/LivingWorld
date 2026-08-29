@@ -57,6 +57,13 @@ body {
 [data-testid="shell"] {
   display: grid;
   grid-template-rows: 48px 1fr auto;
+  /* Bug real reportado pelo usuário: sem uma coluna EXPLÍCITA, a única coluna implícita usa
+   * sizing por conteúdo (`auto`) — o gráfico largo da Timeline no footer inflava essa coluna
+   * além da viewport inteira, empurrando o Inspector (340px, última "linha" da mesma coluna
+   * única) pra fora da tela ao expandir o footer. `minmax(0, 1fr)` é o equivalente, em largura,
+   * do já conhecido "min-height:0 pra linhas 1fr": trava a coluna no tamanho do container,
+   * imune ao conteúdo interno querer crescer mais que isso. */
+  grid-template-columns: minmax(0, 1fr);
   height: 100%;
 }
 
@@ -891,6 +898,54 @@ button:disabled {
   margin-top: 0.5rem;
 }
 
+/* Hover card LOD do mapa (World/Settlement) — perto do mouse, nunca cobre a tela, sem roubar o
+ * clique de quem está embaixo (doc §42 "Hover é a primeira camada informacional"). */
+.map-hover-card {
+  position: fixed;
+  z-index: 30;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  max-width: 220px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.65rem;
+  font-size: 12px;
+  color: var(--text-secondary);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.map-hover-card strong {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+/* Pedido do usuário 2026-08-27: animação ao remover um followed (botão direito, ver
+ * `Explorer.tsx`'s `unfollowOnContextMenu`) — o `<li>` encolhe/esmaece antes de sumir de vez,
+ * em vez de piscar/desaparecer instantâneo. `overflow:hidden` é o que faz o `max-height`
+ * animando de verdade colapsar o espaço em vez de só cortar o conteúdo. */
+.explorer-followed-row {
+  overflow: hidden;
+  /* Bug real reportado pelo usuário (screenshot): 3.5rem cortava linhas quando nome+profissão+
+   * intent (ex.: "Baker's Apprentice · Working reduced bakery hours") quebrava em 3 linhas numa
+   * sidebar estreita. Só existe pra dar o que animar até 0 na saída — generoso o bastante pra
+   * nunca cortar conteúdo normal (nenhuma linha real chega perto disso). */
+  max-height: 6rem;
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 220ms ease, transform 220ms ease, max-height 220ms ease, margin-bottom 220ms ease;
+  margin-bottom: 0.2rem;
+}
+
+.explorer-followed-row--removing {
+  opacity: 0;
+  transform: translateX(12px);
+  max-height: 0;
+  margin-bottom: 0;
+}
+
 .inspector-empty-note {
   color: var(--text-muted);
   font-size: 12px;
@@ -991,4 +1046,196 @@ button:disabled {
 .family-tree-empty {
   color: var(--text-muted);
   font-size: 13px;
+}
+
+/* Timeline redesign (pedido do usuário 2026-08-27: "estilo branch do git, horizontal, dinâmico e
+ * estiloso" — a versão anterior era uma `<ul>` vertical crua, "formato muito estranho"). Trunk
+ * horizontal com os eventos como nós, curvas arqueadas pra causalidade que pula vizinhos
+ * (mesma ideia de "merge" de um grafo git), agrupados por Year·Season num divisor tracejado. */
+.timeline-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.timeline-filter-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.timeline-filter-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--surface-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23aab2bf' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    no-repeat right 0.65rem center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.4rem 1.9rem 0.4rem 0.75rem;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.timeline-filter-select:hover {
+  border-color: var(--accent-secondary);
+}
+
+.timeline-empty {
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 1rem 0;
+}
+
+.timeline-graph {
+  position: relative;
+  /* Bug real reportado pelo usuário: sem isso, o gráfico (mais largo que o painel) simplesmente
+   * empurrava o `center-stage-overlay-panel` inteiro (que só tem `overflow-y`, nunca `overflow-
+   * x`) — a barra de rolagem própria daqui embaixo nunca chegava a aparecer porque o elemento
+   * nunca ficava mais estreito que o próprio conteúdo. */
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: var(--bg-world);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.5rem 0;
+}
+
+.timeline-graph-lines {
+  display: block;
+}
+
+.timeline-trunk {
+  stroke: var(--border);
+  stroke-width: 3;
+}
+
+.timeline-group-divider {
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.timeline-group-label {
+  fill: var(--text-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.timeline-nodes {
+  position: absolute;
+  inset: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.timeline-node {
+  position: absolute;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  width: 92px;
+}
+
+.timeline-node--below {
+  flex-direction: column;
+}
+
+.timeline-node--above {
+  flex-direction: column-reverse;
+}
+
+.timeline-node-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  border: 2px solid var(--bg-world);
+  box-shadow: 0 0 0 1px var(--border);
+  flex-shrink: 0;
+  transition: transform 150ms ease;
+}
+
+.timeline-node:hover .timeline-node-dot {
+  transform: scale(1.25);
+}
+
+.timeline-node[data-severity="notable"] .timeline-node-dot {
+  width: 12px;
+  height: 12px;
+  background: var(--accent-secondary);
+}
+
+.timeline-node[data-severity="major"] .timeline-node-dot {
+  width: 14px;
+  height: 14px;
+  background: var(--warning);
+}
+
+.timeline-node[data-severity="critical"] .timeline-node-dot {
+  width: 18px;
+  height: 18px;
+  background: var(--danger);
+  box-shadow: 0 0 0 5px rgba(200, 111, 111, 0.22);
+}
+
+.timeline-node-label {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-secondary);
+  text-align: center;
+  /* Bug real reportado pelo usuário: resumos inteiros de 2-3 linhas por nó, sem truncar,
+   * viravam uma parede de texto ilegível quando vários nós ficam próximos. Trunca em 2 linhas —
+   * o texto completo mora no `title` nativo (hover) do `<li>`, doc §35 "nunca permitir que um
+   * parágrafo ocupe metade do painel". */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.timeline-node-label strong {
+  color: var(--text-primary);
+}
+
+.timeline-node {
+  cursor: pointer;
+}
+
+/* Pedido do usuário 2026-08-27: hover num evento realça a cadeia de causas que levou a ele
+ * (antes só dava pra ver via indentação no Causal Explorer). */
+.timeline-node--highlighted .timeline-node-dot {
+  background: var(--cause);
+  box-shadow: 0 0 0 4px rgba(184, 148, 90, 0.28);
+}
+
+.timeline-node--highlighted .timeline-node-label {
+  color: var(--text-primary);
+}
+
+.timeline-event-chain {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.timeline-event-chain-current {
+  color: var(--text-primary);
+  border-left: 2px solid var(--cause);
+  padding-left: 0.5rem;
+}
+
+.timeline-event-chain-empty {
+  color: var(--text-muted);
+  font-style: italic;
 }

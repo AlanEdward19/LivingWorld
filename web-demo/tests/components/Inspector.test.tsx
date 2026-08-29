@@ -5,9 +5,12 @@ import { NavigationStore } from "../../src/nav/NavigationStore";
 import { WORLD_FIXTURE } from "../../src/fixture/oakbridge";
 
 describe("Inspector", () => {
-  it("shows an explicit empty state at the World route (doc §144)", () => {
+  // Pedido do usuário 2026-08-27: clicar em terreno vazio no mapa mundi mostra info do MUNDO no
+  // Inspector — mesma paridade do Settlement Inspector aparecer sempre que a rota é "settlement".
+  it("shows the World Inspector at the World route", () => {
     render(<Inspector fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} route={{ kind: "world" }} />);
-    expect(screen.getByTestId("inspector-empty")).toHaveTextContent("No entity selected.");
+    expect(screen.getByTestId("world-view")).toBeInTheDocument();
+    expect(screen.queryByTestId("inspector-empty")).not.toBeInTheDocument();
   });
 
   it("shows the Settlement Pulse when a settlement is selected", () => {

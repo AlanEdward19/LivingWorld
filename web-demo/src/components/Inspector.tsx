@@ -4,6 +4,7 @@ import { SettlementView } from "../views/SettlementView";
 import { HouseholdView } from "../views/HouseholdView";
 import { AgentView } from "../views/AgentView";
 import { BuildingView } from "../views/BuildingView";
+import { WorldView } from "../views/WorldView";
 
 export interface InspectorProps {
   fixture: WorldFixture;
@@ -28,6 +29,17 @@ const CONTEXT_NOTE: Partial<Record<Route["kind"], string>> = {
  * de duplicar o que já está visível no centro.
  */
 export function Inspector({ fixture, nav, route }: InspectorProps) {
+  // Pedido do usuário 2026-08-27: clicar em qualquer coisa que não seja casa/NPC no mapa mundi
+  // (terreno vazio) mostra info do MUNDO — mesma paridade de "route.kind === settlement" já
+  // mostrar o Settlement Inspector pra qualquer motivo de estar naquela rota (deep-link, clique
+  // no mapa, clique de fundo dentro da cidade), não só um caso especial de "acabou de clicar".
+  if (route.kind === "world") {
+    return (
+      <aside data-testid="inspector">
+        <WorldView fixture={fixture} nav={nav} />
+      </aside>
+    );
+  }
   if (route.kind === "settlement") {
     return (
       <aside data-testid="inspector">

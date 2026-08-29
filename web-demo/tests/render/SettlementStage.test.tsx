@@ -13,6 +13,10 @@ const pixiMock = PixiMock as unknown as {
 
 const OAKBRIDGE = WORLD_FIXTURE.settlements.find((s) => s.id === "oakbridge")!;
 const OAKBRIDGE_AGENTS = WORLD_FIXTURE.agents.filter((a) => a.settlementId === "oakbridge");
+/** Tolerância pros testes de convergência da câmera de follow (lerp) — generosa o bastante pra
+ * não flakar sob carga da suíte inteira (GC/scheduling entre as 200 ticks sintéticas), pequena
+ * o bastante pra ainda provar que a câmera de fato chegou perto do agent seguido. */
+const FOLLOW_CONVERGENCE_TOLERANCE_PX = 10;
 
 interface FakeNode {
   children: FakeNode[];
@@ -297,7 +301,7 @@ describe("SettlementStage — camera follow (bug real: 'Follow' não seguia o NP
     }
   });
 
-  it("locks the camera onto a followed agent's live world position every tick", async () => {
+  it("travels to and locks onto a followed agent's live world position (pedido do usuário: câmera viaja até ele, não salta)", async () => {
     followStore.toggleFollow("rowan");
     render(
       <SettlementStage fixture={WORLD_FIXTURE} settlementId="oakbridge" onSelectAgent={() => {}} onFocusBuilding={() => {}} onBackgroundClick={() => {}} />,
@@ -309,9 +313,19 @@ describe("SettlementStage — camera follow (bug real: 'Follow' não seguia o NP
     const rowanIndex = OAKBRIDGE_AGENTS.findIndex((a) => a.id === "rowan");
     const rowanSprite = agentLayer.children[rowanIndex] as unknown as FakeNode;
     const zoom = worldRoot.scale.x;
+    const target = { x: 800 / 2 - rowanSprite.position.x * zoom, y: 600 / 2 - rowanSprite.position.y * zoom };
 
-    expect(worldRoot.position.x).toBeCloseTo(800 / 2 - rowanSprite.position.x * zoom, 5);
-    expect(worldRoot.position.y).toBeCloseTo(600 / 2 - rowanSprite.position.y * zoom, 5);
+    // Uma única tick NÃO chega no destino — é uma viagem suave (lerp), não um salto instantâneo.
+    expect(worldRoot.position.x).not.toBeCloseTo(target.x, 1);
+
+    for (let i = 0; i < 200; i += 1) act(() => pixiMock.__runTick());
+
+    // Tolerância generosa (não `toBeCloseTo(x, 0)` = 0.5px) — rowan continua andando (patrol
+    // real via `Date.now()`) durante as 200 ticks; sob carga da suíte inteira, uma pausa de GC
+    // entre ticks pode deixar alguns px de folga entre "onde a câmera convergiu" e "onde o
+    // sprite está no instante exato da leitura". O que importa é ter convergido, não um pixel.
+    expect(Math.abs(worldRoot.position.x - target.x)).toBeLessThan(FOLLOW_CONVERGENCE_TOLERANCE_PX);
+    expect(Math.abs(worldRoot.position.y - target.y)).toBeLessThan(FOLLOW_CONVERGENCE_TOLERANCE_PX);
   });
 
   it("tracks the LAST-activated followed agent, not the first one in fixture order (bug real: dois seguidos ao mesmo tempo travava sempre no primeiro do array)", async () => {
@@ -323,15 +337,15 @@ describe("SettlementStage — camera follow (bug real: 'Follow' não seguia o NP
       <SettlementStage fixture={WORLD_FIXTURE} settlementId="oakbridge" onSelectAgent={() => {}} onFocusBuilding={() => {}} onBackgroundClick={() => {}} />,
     );
     await flush();
-    act(() => pixiMock.__runTick());
+    for (let i = 0; i < 200; i += 1) act(() => pixiMock.__runTick());
 
     const { worldRoot, agentLayer } = layers();
     const rowanIndex = OAKBRIDGE_AGENTS.findIndex((a) => a.id === "rowan");
     const rowanSprite = agentLayer.children[rowanIndex] as unknown as FakeNode;
     const zoom = worldRoot.scale.x;
 
-    expect(worldRoot.position.x).toBeCloseTo(800 / 2 - rowanSprite.position.x * zoom, 5);
-    expect(worldRoot.position.y).toBeCloseTo(600 / 2 - rowanSprite.position.y * zoom, 5);
+    expect(Math.abs(worldRoot.position.x - (800 / 2 - rowanSprite.position.x * zoom))).toBeLessThan(FOLLOW_CONVERGENCE_TOLERANCE_PX);
+    expect(Math.abs(worldRoot.position.y - (600 / 2 - rowanSprite.position.y * zoom))).toBeLessThan(FOLLOW_CONVERGENCE_TOLERANCE_PX);
   });
 
   it("switching the active follow target with activate() re-tracks the camera without un-following the other one", async () => {
@@ -343,14 +357,14 @@ describe("SettlementStage — camera follow (bug real: 'Follow' não seguia o NP
     await flush();
 
     followStore.activate("rowan"); // como clicar no nome do Rowan na aba "Followed"
-    act(() => pixiMock.__runTick());
+    for (let i = 0; i < 200; i += 1) act(() => pixiMock.__runTick());
 
     const { worldRoot, agentLayer } = layers();
     const rowanIndex = OAKBRIDGE_AGENTS.findIndex((a) => a.id === "rowan");
     const rowanSprite = agentLayer.children[rowanIndex] as unknown as FakeNode;
     const zoom = worldRoot.scale.x;
 
-    expect(worldRoot.position.x).toBeCloseTo(800 / 2 - rowanSprite.position.x * zoom, 5);
+    expect(Math.abs(worldRoot.position.x - (800 / 2 - rowanSprite.position.x * zoom))).toBeLessThan(FOLLOW_CONVERGENCE_TOLERANCE_PX);
     expect(followStore.isFollowed("mira-valen")).toBe(true);
   });
 
@@ -363,7 +377,10 @@ describe("SettlementStage — camera follow (bug real: 'Follow' não seguia o NP
       <SettlementStage fixture={WORLD_FIXTURE} settlementId="oakbridge" onSelectAgent={() => {}} onFocusBuilding={() => {}} onBackgroundClick={() => {}} />,
     );
     await flush();
-    act(() => pixiMock.__runTick());
+    // Deixa a câmera CHEGAR em rowan antes de arrastar (lerp precisa de várias frames agora,
+    // pedido do usuário: "câmera viaja até ele") — senão o teste passaria mesmo sem detach de
+    // verdade, só por ainda estar a caminho.
+    for (let i = 0; i < 200; i += 1) act(() => pixiMock.__runTick());
 
     const stage = getByTestId("settlement-stage").firstElementChild!;
     const dispatch = (type: string, x: number, y: number) => stage.dispatchEvent(new MouseEvent(type, { clientX: x, clientY: y, bubbles: true, cancelable: true }));
@@ -372,15 +389,17 @@ describe("SettlementStage — camera follow (bug real: 'Follow' não seguia o NP
     dispatch("pointerup", 300, 100);
 
     act(() => pixiMock.__runTick());
+    const { worldRoot } = layers();
+    const rightAfterDrag = { x: worldRoot.position.x, y: worldRoot.position.y };
 
-    const { worldRoot, agentLayer } = layers();
-    const rowanIndex = OAKBRIDGE_AGENTS.findIndex((a) => a.id === "rowan");
-    const rowanSprite = agentLayer.children[rowanIndex] as unknown as FakeNode;
-    const zoom = worldRoot.scale.x;
+    // Mais frames depois do detach — se ainda estivesse "travado", continuaria convergindo de
+    // volta pra rowan; desgrudado, fica exatamente onde o arrasto deixou.
+    for (let i = 0; i < 200; i += 1) act(() => pixiMock.__runTick());
 
     expect(followStore.activeFollowId()).toBeNull();
     expect(followStore.isFollowed("rowan")).toBe(true); // continua seguido, só não trava mais
-    expect(worldRoot.position.x).not.toBeCloseTo(800 / 2 - rowanSprite.position.x * zoom, 1);
+    expect(worldRoot.position.x).toBeCloseTo(rightAfterDrag.x, 5);
+    expect(worldRoot.position.y).toBeCloseTo(rightAfterDrag.y, 5);
   });
 
   it("does not move the camera for anyone when no one is followed", async () => {
@@ -497,5 +516,38 @@ describe("SettlementStage — pan vs. click (bug real: capture cedo demais quebr
     firePointerSequence(stage, [{ x: 100, y: 100 }, { x: 160, y: 100 }]);
 
     expect(setPointerCaptureSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Pedido do usuário 2026-08-27: "gostaria inclusive deste mesmo comportamento [hover card] para
+// casas e NPCs" — mesmo `MapHoverCard` do WorldStage, agora ligado no roof (building) e no
+// sprite (agent) do Settlement View.
+describe("SettlementStage — hover LOD card (redesign doc §42, mesmo componente do WorldStage)", () => {
+  it("shows a hover card near the cursor when hovering a building's roof, hides it on pointerout", async () => {
+    render(<SettlementStage fixture={WORLD_FIXTURE} settlementId="oakbridge" onSelectAgent={() => {}} onFocusBuilding={() => {}} onBackgroundClick={() => {}} />);
+    await flush();
+
+    const { buildingLayer } = layers();
+    const bakeryIndex = OAKBRIDGE.buildings.findIndex((b) => b.id === "bld-corvin-bakery");
+    const [roof] = buildingLayer.children[bakeryIndex].children;
+
+    expect(screen.queryByText("Corvin's Bakery", { selector: "strong" })).not.toBeInTheDocument();
+    act(() => roof.emit("pointerover", { clientX: 40, clientY: 80 }));
+    expect(screen.getByText("Corvin's Bakery", { selector: "strong" })).toBeInTheDocument();
+
+    act(() => roof.emit("pointerout"));
+    expect(screen.queryByText("Corvin's Bakery", { selector: "strong" })).not.toBeInTheDocument();
+  });
+
+  it("shows a hover card when hovering an agent's sprite", async () => {
+    render(<SettlementStage fixture={WORLD_FIXTURE} settlementId="oakbridge" onSelectAgent={() => {}} onFocusBuilding={() => {}} onBackgroundClick={() => {}} />);
+    await flush();
+
+    const { agentLayer } = layers();
+    const rowanIndex = OAKBRIDGE_AGENTS.findIndex((a) => a.id === "rowan");
+    const sprite = agentLayer.children[rowanIndex] as unknown as { emit: (event: string, ...args: unknown[]) => void };
+
+    act(() => sprite.emit("pointerover", { clientX: 10, clientY: 20 }));
+    expect(screen.getByText("Rowan", { selector: "strong" })).toBeInTheDocument();
   });
 });

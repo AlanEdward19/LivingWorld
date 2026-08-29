@@ -23,6 +23,10 @@ export interface ContextOverlayProps {
  * anchor está perto de uma borda — mantido em sincronia manual com `width`/`max-height` do CSS
  * (`[data-testid="popup-panel"]`); não vale a pena medir o DOM real pra um clamp tão simples. */
 const VIEWPORT_MARGIN = 8;
+/** Mantido em sincronia manual com `width` do CSS (`[data-testid="popup-panel"]`) — só usado
+ * pra impedir que a borda ESQUERDA do painel saia da viewport quando o anchor está perto da
+ * borda esquerda da tela (mesma classe de bug do clamp vertical, mas no eixo horizontal). */
+const PANEL_WIDTH = 320;
 
 function ContextOverlay({ variant, title, onClose, children, anchorRect }: ContextOverlayProps & { variant: "popup" | "drawer" }) {
   useEffect(() => {
@@ -38,12 +42,40 @@ function ContextOverlay({ variant, title, onClose, children, anchorRect }: Conte
   // Alinha exatamente com o topo do link clicado — "mesma linha horizontal, à esquerda" — e usa
   // `max-height`/`overflow-y` do CSS (`popup-panel`) pra lidar com o caso raro de estourar o
   // fundo da viewport, em vez de sacrificar o alinhamento pro caso comum.
+  // Bug real reportado pelo usuário: ancorar sempre pelo TOPO do link cortava o popup quando o
+  // link clicado ficava perto do fundo da tela (o painel, `max-height:70vh`, estourava o fundo
+  // da viewport sem chance de scroll). Só troca pra ancorar pelo FUNDO (painel cresce pra CIMA a
+  // partir do clique) quando sobra pouco espaço abaixo do anchor — um clique na metade de cima
+  // da tela (caso já coberto por teste, ex. anchor a 500px numa viewport de 768px) ainda tem
+  // espaço de sobra abaixo e não deve mudar de comportamento.
+  const MIN_ROOM_BELOW = 200;
+  const anchorsFromBottom = variant === "popup" && anchorRect && window.innerHeight - anchorRect.top < MIN_ROOM_BELOW;
+  // Bug real reportado pelo usuário (persistiu depois do fix de direção): o CSS tem um
+  // `max-height:70vh` FIXO — não sabe quanto espaço realmente sobra entre o anchor e a borda da
+  // viewport na direção escolhida. Um popup ancorado perto do meio da tela com conteúdo longo
+  // (cadeia causal com muitos itens) ainda estourava a borda oposta antes de bater nos 70vh. Capa
+  // dinamicamente no espaço REAL disponível pra essa direção, garantindo que o scroll interno
+  // (`overflow-y:auto` do CSS) sempre tenha onde entrar em ação em vez de cortar.
+  const availableHeight =
+    variant === "popup" && anchorRect
+      ? anchorsFromBottom
+        ? anchorRect.top - VIEWPORT_MARGIN
+        : window.innerHeight - anchorRect.top - VIEWPORT_MARGIN
+      : undefined;
   const anchoredStyle: CSSProperties | undefined =
     variant === "popup" && anchorRect
       ? {
-          top: Math.max(VIEWPORT_MARGIN, anchorRect.top),
-          right: Math.max(VIEWPORT_MARGIN, window.innerWidth - anchorRect.left + VIEWPORT_MARGIN),
+          ...(anchorsFromBottom
+            ? { top: "auto", bottom: Math.max(VIEWPORT_MARGIN, window.innerHeight - anchorRect.top) }
+            : { top: Math.max(VIEWPORT_MARGIN, anchorRect.top) }),
+          // `right` cresce sem limite quando o anchor está perto da borda ESQUERDA da tela — capa
+          // no maior valor que ainda deixa a borda esquerda do painel dentro da viewport.
+          right: Math.min(
+            Math.max(VIEWPORT_MARGIN, window.innerWidth - anchorRect.left + VIEWPORT_MARGIN),
+            Math.max(VIEWPORT_MARGIN, window.innerWidth - PANEL_WIDTH - VIEWPORT_MARGIN),
+          ),
           left: "auto",
+          maxHeight: Math.max(120, availableHeight ?? 0),
         }
       : undefined;
 
