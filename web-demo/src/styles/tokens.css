@@ -1246,9 +1246,9 @@ button:disabled {
   height: 100%;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: clamp(2rem, 6vw, 5rem);
-  padding: 0 clamp(1rem, 5vw, 4rem);
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 0 clamp(2rem, 8vw, 7rem);
   background: radial-gradient(ellipse at 70% 30%, var(--menu-space-secondary, #090c12) 0%, var(--bg-world) 70%);
 }
 
@@ -1256,7 +1256,7 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  flex: 1;
 }
 
 [data-testid="planet-scene"] {
@@ -1313,6 +1313,9 @@ button:disabled {
 [data-testid="main-menu-panel"] {
   width: min(360px, 100%);
   flex-shrink: 0;
+  /* doc §9-10/§84 — planet center-right, menu left; DOM order stays scene-then-panel (planet
+     is decorative, keeps tab order starting on the actionable menu) so flip it visually here. */
+  order: -1;
 }
 
 [data-testid="main-menu-identity"] h1 {
