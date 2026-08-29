@@ -51,57 +51,59 @@ export function MainMenu({ onNavigate }: { onNavigate: (path: string) => void })
 
   return (
     <div data-testid="main-menu">
-      <div data-testid="main-menu-scene">
-        <PlanetScene variant={recentWorld ? "inhabited" : "proto-world"} worldName={recentWorld?.name} />
-      </div>
+      <div data-testid="main-menu-frame">
+        <div data-testid="main-menu-panel">
+          <div data-testid="main-menu-identity">
+            <h1>LivingWorld</h1>
+            <p>A world that keeps living.</p>
+          </div>
 
-      <div data-testid="main-menu-panel">
-        <div data-testid="main-menu-identity">
-          <h1>LivingWorld</h1>
-          <p>A world that keeps living.</p>
+          <nav data-testid="main-menu-actions" aria-label="Main menu">
+            <button type="button" data-testid="action-create" disabled={loading} onClick={() => onNavigate("/create")}>
+              <span>Create New World</span>
+              <small>Build a new living universe</small>
+            </button>
+
+            {recentWorld ? (
+              <button type="button" data-testid="action-continue" onClick={() => onNavigate(`/worlds/${recentWorld.id}`)}>
+                <span>Continue {recentWorld.name}</span>
+                <small>
+                  Year {recentWorld.year} · {recentWorld.season}
+                </small>
+              </button>
+            ) : (
+              <button type="button" data-testid="action-continue" disabled>
+                <span>Continue</span>
+                <small>{loading ? "Loading..." : "No worlds yet"}</small>
+              </button>
+            )}
+
+            {hasWorlds && (
+              <button type="button" data-testid="action-browse-worlds" onClick={() => onNavigate("/worlds")}>
+                Browse Worlds
+              </button>
+            )}
+
+            {recentDraft && (
+              <button type="button" data-testid="action-continue-draft" onClick={() => onNavigate(`/create/${recentDraft.id}`)}>
+                <span>Continue Draft</span>
+                <small>
+                  {recentDraft.world.name || "Untitled world"} · Edited {timeAgo(recentDraft.updatedAt)}
+                </small>
+              </button>
+            )}
+
+            <button type="button" data-testid="action-settings" onClick={() => onNavigate("/settings")}>
+              Settings
+            </button>
+          </nav>
+
+          <div data-testid="main-menu-version">v0.x</div>
         </div>
 
-        <nav data-testid="main-menu-actions" aria-label="Main menu">
-          <button type="button" data-testid="action-create" disabled={loading} onClick={() => onNavigate("/create")}>
-            <span>Create New World</span>
-            <small>Build a new living universe</small>
-          </button>
-
-          {recentWorld ? (
-            <button type="button" data-testid="action-continue" onClick={() => onNavigate(`/worlds/${recentWorld.id}`)}>
-              <span>Continue {recentWorld.name}</span>
-              <small>
-                Year {recentWorld.year} · {recentWorld.season}
-              </small>
-            </button>
-          ) : (
-            <button type="button" data-testid="action-continue" disabled>
-              <span>Continue</span>
-              <small>{loading ? "Loading..." : "No worlds yet"}</small>
-            </button>
-          )}
-
-          {hasWorlds && (
-            <button type="button" data-testid="action-browse-worlds" onClick={() => onNavigate("/worlds")}>
-              Browse Worlds
-            </button>
-          )}
-
-          {recentDraft && (
-            <button type="button" data-testid="action-continue-draft" onClick={() => onNavigate(`/create/${recentDraft.id}`)}>
-              <span>Continue Draft</span>
-              <small>
-                {recentDraft.world.name || "Untitled world"} · Edited {timeAgo(recentDraft.updatedAt)}
-              </small>
-            </button>
-          )}
-
-          <button type="button" data-testid="action-settings" onClick={() => onNavigate("/settings")}>
-            Settings
-          </button>
-        </nav>
-
-        <div data-testid="main-menu-version">v0.x</div>
+        <div data-testid="main-menu-scene">
+          <PlanetScene variant={recentWorld ? "inhabited" : "proto-world"} worldName={recentWorld?.name} />
+        </div>
       </div>
     </div>
   );

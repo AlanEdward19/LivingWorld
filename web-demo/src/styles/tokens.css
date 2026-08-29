@@ -1246,10 +1246,20 @@ button:disabled {
   height: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 2rem;
-  padding: 0 clamp(2rem, 8vw, 7rem);
+  justify-content: center;
   background: radial-gradient(ellipse at 70% 30%, var(--menu-space-secondary, #090c12) 0%, var(--bg-world) 70%);
+}
+
+/* Ultrawide guard: `main-menu` centers this frame instead of letting a flex row stretch full
+   viewport width — on very wide monitors that put an ever-growing, disproportionate gap between
+   the menu and the planet. Width/gap still scale with the viewport (dynamic), just bounded. */
+[data-testid="main-menu-frame"] {
+  width: min(1600px, 92vw);
+  height: min(78vh, 820px);
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: clamp(2rem, 6vw, 6rem);
 }
 
 [data-testid="main-menu-scene"] {
@@ -1257,6 +1267,7 @@ button:disabled {
   align-items: center;
   justify-content: center;
   flex: 1;
+  min-width: 0;
 }
 
 [data-testid="planet-scene"] {
@@ -1310,12 +1321,14 @@ button:disabled {
   }
 }
 
+/* doc §9-10/§84 — planet center-right, menu left; the panel is first in `main-menu-frame` now
+   (matches visual + tab order), stretched to the frame's full height and split into three
+   bands (identity / actions / version) instead of one clump floating dead-center. */
 [data-testid="main-menu-panel"] {
   width: min(360px, 100%);
   flex-shrink: 0;
-  /* doc §9-10/§84 — planet center-right, menu left; DOM order stays scene-then-panel (planet
-     is decorative, keeps tab order starting on the actionable menu) so flip it visually here. */
-  order: -1;
+  display: flex;
+  flex-direction: column;
 }
 
 [data-testid="main-menu-identity"] h1 {
@@ -1325,12 +1338,14 @@ button:disabled {
 }
 
 [data-testid="main-menu-identity"] p {
-  margin-bottom: 2rem;
+  margin: 0;
 }
 
 [data-testid="main-menu-actions"] {
+  flex: 1;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 0.6rem;
 }
 
