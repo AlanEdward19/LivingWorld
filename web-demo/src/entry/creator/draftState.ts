@@ -28,6 +28,13 @@ export function defaultWorldConfig(): WorldConfig {
     size: "Medium",
     ...SIZE_PRESETS.Medium,
 
+    // Matches every shipped period's CostWeights exactly (scenarios/periods/*.json).
+    costBase: 1.0,
+    costAltitudeWeight: 0.5,
+    terrainWeight1: 1.0,
+    terrainWeight2: 1.5,
+    terrainWeight3: 3.0,
+
     initialPopulation: 5_000,
 
     extraordinaryEnabled: true,

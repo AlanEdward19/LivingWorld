@@ -51,6 +51,22 @@ describe("WorldCreatorShell — World group (backend-aligned fields)", () => {
     expect(screen.getByTestId("review-section")).toHaveTextContent("300 × 150");
   });
 
+  it("Geography exposes the real (required) CostWeights fields, defaulted to what every shipped period uses", () => {
+    renderShell();
+    openWorldGroupSection("Geography");
+
+    expect((screen.getByTestId("field-cost-base").querySelector("input") as HTMLInputElement).value).toBe("1");
+    expect((screen.getByTestId("field-cost-altitude-weight").querySelector("input") as HTMLInputElement).value).toBe("0.5");
+    expect((screen.getByTestId("field-terrain-weight-1").querySelector("input") as HTMLInputElement).value).toBe("1");
+    expect((screen.getByTestId("field-terrain-weight-2").querySelector("input") as HTMLInputElement).value).toBe("1.5");
+    expect((screen.getByTestId("field-terrain-weight-3").querySelector("input") as HTMLInputElement).value).toBe("3");
+
+    fireEvent.change(screen.getByTestId("field-cost-base").querySelector("input")!, { target: { value: "2.5" } });
+    fireEvent.click(screen.getByTestId("creator-review"));
+    expect(screen.getByTestId("review-section")).toHaveTextContent("base 2.5, altitude ×0.5");
+    expect(screen.getByTestId("review-section")).toHaveTextContent("1 / 1.5 / 3");
+  });
+
   it("World Size preset fills in Width/Height/RegionSize in one step (undo restores all three together)", () => {
     renderShell();
     const sizeSelect = screen.getByTestId("field-size").querySelector("select")! as HTMLSelectElement;

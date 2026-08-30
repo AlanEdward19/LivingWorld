@@ -28,6 +28,18 @@ export function ReviewSection({ draft }: { draft: WorldDraft }) {
           <dt>Seed</dt>
           <dd>{world.seed}</dd>
         </div>
+        <div>
+          <dt>Travel cost</dt>
+          <dd>
+            base {world.costBase}, altitude ×{world.costAltitudeWeight}
+          </dd>
+        </div>
+        <div>
+          <dt>Terrain weights</dt>
+          <dd>
+            {world.terrainWeight1} / {world.terrainWeight2} / {world.terrainWeight3}
+          </dd>
+        </div>
       </dl>
 
       <h2>Population</h2>

@@ -36,6 +36,20 @@ export type WorldConfig = {
   height: number;
   regionSize: number;
 
+  /** Real, required field: `CostWeights.Base` — flat travel-cost base per distance unit
+      (`GeographyCatalog.cs`'s `CostWeights` record). Every shipped period defaults it to 1.0. */
+  costBase: number;
+  /** Real, required field: `CostWeights.AltitudeWeight` — extra travel cost per unit of altitude
+      climbed. Every shipped period defaults it to 0.5. */
+  costAltitudeWeight: number;
+  /** Real, optional field: `CostWeights.TerrainWeight[id]` — per-terrain-id travel cost
+      multiplier (defaults to 1.0 for any id not listed). Keyed on the real terrain ids every
+      shipped period's catalog uses (1/2/3, see `TileMapPreview.tsx`'s CATALOG comment) — there's
+      no name for what each id "is" anywhere in the engine, just the id and its weight. */
+  terrainWeight1: number;
+  terrainWeight2: number;
+  terrainWeight3: number;
+
   initialPopulation: number;
 
   extraordinaryEnabled: boolean;
