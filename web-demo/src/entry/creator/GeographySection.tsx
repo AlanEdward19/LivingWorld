@@ -1,6 +1,7 @@
 import type { WorldDraft } from "../repository/types";
 import type { DraftAction } from "./draftState";
 import { createFieldBinder } from "./fieldBinding";
+import { FieldRow } from "./FieldRow";
 
 /** Doc §32 "World" group — Geography = the real map fields (`MapScenarioLoader`): Width, Height,
     RegionSize, and `CostWeights` (Base + AltitudeWeight, required; per-terrain-id TerrainWeight,
@@ -26,24 +27,27 @@ export function GeographySection({ draft, dispatch }: { draft: WorldDraft; dispa
         Raw map dimensions — World Size on Overview fills these in from a preset; edit directly here for a custom map.
       </p>
 
-      <label data-testid="field-width">
-        Width (cells)
+      <FieldRow testId="field-width" label="Width (cells)" hint="How wide the map is, in tiles. Bigger = more room, slower to generate. Typical: 64–512." locked={width.locked} onToggleLock={width.toggleLock}>
         <input type="number" min={1} value={world.width} onChange={(e) => width.update(Number(e.target.value))} disabled={width.locked} />
-        <button type="button" aria-pressed={width.locked} onClick={width.toggleLock}>
-          {width.locked ? "🔒" : "🔓"}
-        </button>
-      </label>
+      </FieldRow>
 
-      <label data-testid="field-height">
-        Height (cells)
+      <FieldRow
+        testId="field-height"
+        label="Height (cells)"
+        hint="How tall the map is, in tiles. Typical: 64–512."
+        locked={height.locked}
+        onToggleLock={height.toggleLock}
+      >
         <input type="number" min={1} value={world.height} onChange={(e) => height.update(Number(e.target.value))} disabled={height.locked} />
-        <button type="button" aria-pressed={height.locked} onClick={height.toggleLock}>
-          {height.locked ? "🔒" : "🔓"}
-        </button>
-      </label>
+      </FieldRow>
 
-      <label data-testid="field-region-size">
-        Region Size
+      <FieldRow
+        testId="field-region-size"
+        label="Region Size"
+        hint="Groups tiles into regions of this many cells per side, for the engine's internal bookkeeping — doesn't change how the map looks. Typical: 8–32, roughly Width/4."
+        locked={regionSize.locked}
+        onToggleLock={regionSize.toggleLock}
+      >
         <input
           type="number"
           min={1}
@@ -51,18 +55,21 @@ export function GeographySection({ draft, dispatch }: { draft: WorldDraft; dispa
           onChange={(e) => regionSize.update(Number(e.target.value))}
           disabled={regionSize.locked}
         />
-        <button type="button" aria-pressed={regionSize.locked} onClick={regionSize.toggleLock}>
-          {regionSize.locked ? "🔒" : "🔓"}
-        </button>
-      </label>
+      </FieldRow>
 
       <h3>Travel Cost</h3>
       <p className="inspector-empty-note">
-        How expensive it is for NPCs to path across the map — required by the engine (`CostWeights`), not cosmetic.
+        How expensive it is for NPCs to path across the map — the engine requires these to generate a world at all, they're
+        not cosmetic. Leave at the defaults unless you specifically want travel to feel faster or slower.
       </p>
 
-      <label data-testid="field-cost-base">
-        Base cost (per step)
+      <FieldRow
+        testId="field-cost-base"
+        label="Base cost (per step)"
+        hint="What it costs an NPC to move one tile, before any terrain/altitude penalty. Higher = everyone travels slower everywhere. Default 1, typical range 0.5–3."
+        locked={costBase.locked}
+        onToggleLock={costBase.toggleLock}
+      >
         <input
           type="number"
           min={0}
@@ -71,13 +78,15 @@ export function GeographySection({ draft, dispatch }: { draft: WorldDraft; dispa
           onChange={(e) => costBase.update(Number(e.target.value))}
           disabled={costBase.locked}
         />
-        <button type="button" aria-pressed={costBase.locked} onClick={costBase.toggleLock}>
-          {costBase.locked ? "🔒" : "🔓"}
-        </button>
-      </label>
+      </FieldRow>
 
-      <label data-testid="field-cost-altitude-weight">
-        Altitude weight
+      <FieldRow
+        testId="field-cost-altitude-weight"
+        label="Altitude weight"
+        hint="Extra cost added per unit of altitude an NPC climbs. Higher = steep terrain slows travel down more. 0 = altitude doesn't matter. Default 0.5, typical range 0–2."
+        locked={costAltitudeWeight.locked}
+        onToggleLock={costAltitudeWeight.toggleLock}
+      >
         <input
           type="number"
           min={0}
@@ -86,13 +95,21 @@ export function GeographySection({ draft, dispatch }: { draft: WorldDraft; dispa
           onChange={(e) => costAltitudeWeight.update(Number(e.target.value))}
           disabled={costAltitudeWeight.locked}
         />
-        <button type="button" aria-pressed={costAltitudeWeight.locked} onClick={costAltitudeWeight.toggleLock}>
-          {costAltitudeWeight.locked ? "🔒" : "🔓"}
-        </button>
-      </label>
+      </FieldRow>
 
-      <label data-testid="field-terrain-weight-1">
-        Terrain 1 weight
+      <p className="inspector-empty-note">
+        The engine sorts every map tile into 3 anonymous terrain types (it doesn't name them — no "grass" or "mountain",
+        just "type A/B/C") and assigns each tile one at random. These 3 weights say how much slower each type is to cross,
+        as a multiplier on the base cost above: 1.0 = normal speed, 2.0 = twice as slow, 0.5 = twice as fast.
+      </p>
+
+      <FieldRow
+        testId="field-terrain-weight-1"
+        label="Terrain type A weight"
+        hint="Default 1.0 — the shipped scenarios treat this as the easiest terrain to cross."
+        locked={terrainWeight1.locked}
+        onToggleLock={terrainWeight1.toggleLock}
+      >
         <input
           type="number"
           min={0}
@@ -101,10 +118,15 @@ export function GeographySection({ draft, dispatch }: { draft: WorldDraft; dispa
           onChange={(e) => terrainWeight1.update(Number(e.target.value))}
           disabled={terrainWeight1.locked}
         />
-      </label>
+      </FieldRow>
 
-      <label data-testid="field-terrain-weight-2">
-        Terrain 2 weight
+      <FieldRow
+        testId="field-terrain-weight-2"
+        label="Terrain type B weight"
+        hint="Default 1.5 — moderately slower to cross than type A."
+        locked={terrainWeight2.locked}
+        onToggleLock={terrainWeight2.toggleLock}
+      >
         <input
           type="number"
           min={0}
@@ -113,10 +135,15 @@ export function GeographySection({ draft, dispatch }: { draft: WorldDraft; dispa
           onChange={(e) => terrainWeight2.update(Number(e.target.value))}
           disabled={terrainWeight2.locked}
         />
-      </label>
+      </FieldRow>
 
-      <label data-testid="field-terrain-weight-3">
-        Terrain 3 weight
+      <FieldRow
+        testId="field-terrain-weight-3"
+        label="Terrain type C weight"
+        hint="Default 3.0 — the shipped scenarios treat this as the hardest terrain to cross."
+        locked={terrainWeight3.locked}
+        onToggleLock={terrainWeight3.toggleLock}
+      >
         <input
           type="number"
           min={0}
@@ -125,7 +152,7 @@ export function GeographySection({ draft, dispatch }: { draft: WorldDraft; dispa
           onChange={(e) => terrainWeight3.update(Number(e.target.value))}
           disabled={terrainWeight3.locked}
         />
-      </label>
+      </FieldRow>
     </section>
   );
 }

@@ -1,6 +1,7 @@
 import type { WorldDraft } from "../repository/types";
 import type { DraftAction } from "./draftState";
 import { createFieldBinder } from "./fieldBinding";
+import { FieldRow } from "./FieldRow";
 
 /** Doc §32 "Life" group — Population = the real fields `PopulationScenarioLoader.cs` requires
     beyond Initial Population (already on Overview): Culture, Village X/Y, the fertility/mortality
@@ -28,13 +29,21 @@ export function PopulationSection({ draft, dispatch }: { draft: WorldDraft; disp
 
   return (
     <section data-testid="population-section">
-      <label data-testid="field-culture">
-        Culture
+      <FieldRow
+        testId="field-culture"
+        label="Culture"
+        hint="Which starting culture NPCs belong to, by internal id. Every shipped scenario only defines one (id 1) — leave this as 1 unless you know a scenario with more."
+        locked={culture.locked}
+        onToggleLock={culture.toggleLock}
+      >
         <input type="number" min={1} value={world.culture} onChange={(e) => culture.update(Number(e.target.value))} disabled={culture.locked} />
-      </label>
+      </FieldRow>
 
-      <label data-testid="field-village-x">
-        Village X
+      <FieldRow
+        testId="field-village-x"
+        label="Village X"
+        hint={`Where the starting village sits on the map, left-to-right. 0 is the west edge, ${Math.max(0, world.width - 1)} is the east edge (must stay inside Geography's Width/Height — check the map preview).`}
+      >
         <input
           type="number"
           min={0}
@@ -43,10 +52,13 @@ export function PopulationSection({ draft, dispatch }: { draft: WorldDraft; disp
           onChange={(e) => villageX.update(Number(e.target.value))}
           disabled={villageX.locked}
         />
-      </label>
+      </FieldRow>
 
-      <label data-testid="field-village-y">
-        Village Y
+      <FieldRow
+        testId="field-village-y"
+        label="Village Y"
+        hint={`Same idea, top-to-bottom: 0 is the north edge, ${Math.max(0, world.height - 1)} is the south edge.`}
+      >
         <input
           type="number"
           min={0}
@@ -55,7 +67,7 @@ export function PopulationSection({ draft, dispatch }: { draft: WorldDraft; disp
           onChange={(e) => villageY.update(Number(e.target.value))}
           disabled={villageY.locked}
         />
-      </label>
+      </FieldRow>
 
       {villageOutOfBounds && (
         <p data-testid="validation-village-out-of-bounds">
@@ -65,8 +77,13 @@ export function PopulationSection({ draft, dispatch }: { draft: WorldDraft; disp
 
       <h3>Life &amp; Fertility</h3>
 
-      <label data-testid="field-max-longevity">
-        Max longevity (years)
+      <FieldRow
+        testId="field-max-longevity"
+        label="Max longevity (years)"
+        hint="The oldest age an NPC can reach through natural aging alone. Default 90, typical range 60–120."
+        locked={maxLongevityYears.locked}
+        onToggleLock={maxLongevityYears.toggleLock}
+      >
         <input
           type="number"
           min={1}
@@ -74,13 +91,13 @@ export function PopulationSection({ draft, dispatch }: { draft: WorldDraft; disp
           onChange={(e) => maxLongevityYears.update(Number(e.target.value))}
           disabled={maxLongevityYears.locked}
         />
-        <button type="button" aria-pressed={maxLongevityYears.locked} onClick={maxLongevityYears.toggleLock}>
-          {maxLongevityYears.locked ? "🔒" : "🔓"}
-        </button>
-      </label>
+      </FieldRow>
 
-      <label data-testid="field-fertility-min-age">
-        Fertility min age
+      <FieldRow
+        testId="field-fertility-min-age"
+        label="Fertility min age"
+        hint="Youngest age (years) an NPC can conceive. Must be ≤ max age below. Default 16."
+      >
         <input
           type="number"
           min={0}
@@ -88,10 +105,13 @@ export function PopulationSection({ draft, dispatch }: { draft: WorldDraft; disp
           onChange={(e) => fertilityMinAge.update(Number(e.target.value))}
           disabled={fertilityMinAge.locked}
         />
-      </label>
+      </FieldRow>
 
-      <label data-testid="field-fertility-max-age">
-        Fertility max age
+      <FieldRow
+        testId="field-fertility-max-age"
+        label="Fertility max age"
+        hint="Oldest age (years) an NPC can conceive. Default 45."
+      >
         <input
           type="number"
           min={0}
@@ -99,14 +119,19 @@ export function PopulationSection({ draft, dispatch }: { draft: WorldDraft; disp
           onChange={(e) => fertilityMaxAge.update(Number(e.target.value))}
           disabled={fertilityMaxAge.locked}
         />
-      </label>
+      </FieldRow>
 
       {fertilityRangeInvalid && (
         <p data-testid="validation-fertility-range">Fertility min age must not be greater than max age.</p>
       )}
 
-      <label data-testid="field-conception-chance">
-        Annual conception chance ({Math.round(world.annualConceptionChance * 100)}%)
+      <FieldRow
+        testId="field-conception-chance"
+        label={`Annual conception chance (${Math.round(world.annualConceptionChance * 100)}%)`}
+        hint="For an NPC in the fertile age range with a partner, the odds they conceive in a given year. Default 25%."
+        locked={annualConceptionChance.locked}
+        onToggleLock={annualConceptionChance.toggleLock}
+      >
         <input
           type="range"
           min={0}
@@ -115,10 +140,13 @@ export function PopulationSection({ draft, dispatch }: { draft: WorldDraft; disp
           onChange={(e) => annualConceptionChance.update(Number(e.target.value) / 100)}
           disabled={annualConceptionChance.locked}
         />
-      </label>
+      </FieldRow>
 
-      <label data-testid="field-gestation-days">
-        Gestation (days)
+      <FieldRow
+        testId="field-gestation-days"
+        label="Gestation (days)"
+        hint="How many days pass between conception and birth. Default 270 (~9 months)."
+      >
         <input
           type="number"
           min={1}
@@ -126,12 +154,15 @@ export function PopulationSection({ draft, dispatch }: { draft: WorldDraft; disp
           onChange={(e) => gestationDays.update(Number(e.target.value))}
           disabled={gestationDays.locked}
         />
-      </label>
+      </FieldRow>
 
       <h3>Engine Limits</h3>
 
-      <label data-testid="field-max-bytes-per-npc">
-        Max memory per NPC/year (bytes)
+      <FieldRow
+        testId="field-max-bytes-per-npc"
+        label="Max memory per NPC/year (bytes)"
+        hint="Safety cap on how much history each NPC is allowed to accumulate per simulated year — keeps long-running worlds from growing without bound. Higher = richer memory, more storage used. Default 4000; you're unlikely to need to change this."
+      >
         <input
           type="number"
           min={1}
@@ -139,20 +170,24 @@ export function PopulationSection({ draft, dispatch }: { draft: WorldDraft; disp
           onChange={(e) => maxBytesPerNpcPerYear.update(Number(e.target.value))}
           disabled={maxBytesPerNpcPerYear.locked}
         />
-      </label>
+      </FieldRow>
 
-      <label data-testid="field-max-alive-npcs-enabled">
-        Cap max alive NPCs
-        <input
-          type="checkbox"
-          checked={world.maxAliveNpcsEnabled}
-          onChange={(e) => maxAliveNpcsEnabled.update(e.target.checked)}
-        />
-      </label>
+      <FieldRow
+        testId="field-max-alive-npcs-enabled"
+        label="Cap max alive NPCs"
+        hint="Off by default (no cap). Turn on to hard-limit how many NPCs can be alive at once — useful to keep a very high-population world running smoothly."
+      >
+        <input type="checkbox" checked={world.maxAliveNpcsEnabled} onChange={(e) => maxAliveNpcsEnabled.update(e.target.checked)} />
+      </FieldRow>
 
       {world.maxAliveNpcsEnabled && (
-        <label data-testid="field-max-alive-npcs">
-          Max alive NPCs
+        <FieldRow
+          testId="field-max-alive-npcs"
+          label="Max alive NPCs"
+          hint="Once the population hits this number, growth stops being simulated further."
+          locked={maxAliveNpcs.locked}
+          onToggleLock={maxAliveNpcs.toggleLock}
+        >
           <input
             type="number"
             min={1}
@@ -160,7 +195,7 @@ export function PopulationSection({ draft, dispatch }: { draft: WorldDraft; disp
             onChange={(e) => maxAliveNpcs.update(Number(e.target.value))}
             disabled={maxAliveNpcs.locked}
           />
-        </label>
+        </FieldRow>
       )}
 
       <p className="inspector-empty-note">

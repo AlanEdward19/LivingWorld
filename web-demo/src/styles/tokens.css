@@ -1759,15 +1759,63 @@ button:disabled {
   padding: 1rem 1.25rem;
 }
 
-[data-testid="overview-section"] label,
-[data-testid="geography-section"] label,
-[data-testid="population-section"] label,
 [data-testid="review-section"] {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   margin-bottom: 0.75rem;
   max-width: 420px;
+}
+
+/* FieldRow (Overview/Geography/Population) — label, plain-language hint, then the control.
+   User feedback: fields like "Terrain 1 weight" or "Base cost" meant nothing on first contact
+   without an explanation of what they do and what values make sense. */
+.field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 1rem;
+  max-width: 460px;
+}
+
+.field-row-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.field-hint {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.field-row-control {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.15rem;
+}
+
+.field-row-control input[type="text"],
+.field-row-control input[type="number"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.field-row-control input[type="range"] {
+  flex: 1;
+}
+
+.field-row-control select {
+  flex: 1;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.35rem 0.6rem;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
 }
 
 [data-testid="creator-footer"] {
