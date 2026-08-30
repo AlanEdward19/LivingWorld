@@ -1678,17 +1678,52 @@ button:disabled {
   gap: 0.5rem;
 }
 
-[data-testid="tile-map-preview"] canvas {
+[data-testid="tile-map-viewport"] {
   /* vh-based, not %-of-column — the center column can get squeezed by the fixed-width inspector
      on narrower viewports, and a %-based size shrunk right along with it (too small to see,
      user report). Tied to viewport height instead, same as the planet backdrop's own sizing. */
   width: min(62vh, 520px);
   max-width: 100%;
-  height: auto;
-  image-rendering: pixelated;
+  aspect-ratio: 1;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  cursor: grab;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-testid="tile-map-viewport"]:active {
+  cursor: grabbing;
+}
+
+[data-testid="tile-map-preview"] canvas {
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  transform-origin: center;
+}
+
+[data-testid="tile-map-controls"] {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+[data-testid="tile-map-controls"] button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+}
+
+[data-testid="tile-map-zoom"] {
+  font-size: 11px;
+  color: var(--text-muted);
+  min-width: 3em;
+  text-align: center;
 }
 
 [data-testid="tile-map-caption"] {

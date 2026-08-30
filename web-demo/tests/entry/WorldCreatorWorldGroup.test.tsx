@@ -106,4 +106,61 @@ describe("WorldCreatorShell — World group (backend-aligned fields)", () => {
     fireEvent.change(sizeSelect, { target: { value: "Small" } });
     expect(screen.getByTestId("tile-map-caption")).toHaveTextContent("64 × 64 tiles");
   });
+
+  it("the tile map supports zoom (buttons + wheel) and drag-pan, clamped to the map's own edge, resettable", () => {
+    renderShell();
+
+    expect(screen.getByTestId("tile-map-zoom")).toHaveTextContent("100%");
+    fireEvent.click(screen.getByLabelText("Zoom in"));
+    expect(screen.getByTestId("tile-map-zoom")).not.toHaveTextContent("100%");
+
+    const viewport = screen.getByTestId("tile-map-viewport");
+    fireEvent.wheel(viewport, { deltaY: -100 });
+
+    const canvas = viewport.querySelector("canvas")!;
+    // jsdom does no real layout (clientWidth/Height are always 0) — stub both elements to a
+    // fixed 300x300 box so the pan-clamp math (which reads these) has real numbers to clamp
+    // against, otherwise every offset would clamp to 0 regardless of what's being tested.
+    Object.defineProperty(viewport, "clientWidth", { value: 300, configurable: true });
+    Object.defineProperty(viewport, "clientHeight", { value: 300, configurable: true });
+    Object.defineProperty(canvas, "clientWidth", { value: 300, configurable: true });
+    Object.defineProperty(canvas, "clientHeight", { value: 300, configurable: true });
+
+    // Force a known zoom (2x) so the expected clamp bound is predictable: at 300x300 base in a
+    // 300x300 viewport, max pan on each axis is (300*2 - 300) / 2 = 150px.
+    fireEvent.click(screen.getByText("Reset"));
+    fireEvent.click(screen.getByLabelText("Zoom in"));
+    fireEvent.click(screen.getByLabelText("Zoom in"));
+    expect(screen.getByTestId("tile-map-zoom")).toHaveTextContent("196%"); // 1.4 * 1.4, close enough to 2x for the point
+
+    // jsdom has no PointerEvent at all — React dispatches by event.type string, so a MouseEvent
+    // typed "pointerdown"/"pointermove" still reaches the onPointerDown/onPointerMove handlers,
+    // with `pointerId` bolted on manually (MouseEvent's init dict doesn't have one).
+    function firePointer(type: string, clientX: number, clientY: number) {
+      const event = new MouseEvent(type, { clientX, clientY, bubbles: true });
+      Object.defineProperty(event, "pointerId", { value: 1 });
+      fireEvent(viewport, event);
+    }
+
+    // A modest drag stays within bounds and passes through untouched.
+    firePointer("pointerdown", 0, 0);
+    firePointer("pointermove", 40, 20);
+    expect(canvas.style.transform).toContain("translate(40px, 20px)");
+    firePointer("pointerup", 40, 20);
+
+    // User report: dragging far enough used to fling the map fully off-screen. A huge drag must
+    // now clamp to the computed bound instead of applying the raw offset.
+    // Same expression the component evaluates (two 1.4x zoom-in clicks compounded) — written
+    // this way rather than a "1.96" literal so it's bit-identical to what the component computes.
+    const compoundedZoom = 1 * 1.4 * 1.4;
+    const maxOffset = (300 * compoundedZoom - 300) / 2;
+    firePointer("pointerdown", 0, 0);
+    firePointer("pointermove", 9999, 9999);
+    expect(canvas.style.transform).toContain(`translate(${maxOffset}px, ${maxOffset}px)`);
+    firePointer("pointerup", 9999, 9999);
+
+    fireEvent.click(screen.getByText("Reset"));
+    expect(screen.getByTestId("tile-map-zoom")).toHaveTextContent("100%");
+    expect(canvas.style.transform).toContain("translate(0px, 0px)");
+  });
 });
