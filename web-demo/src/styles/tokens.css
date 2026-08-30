@@ -1651,8 +1651,10 @@ button:disabled {
 }
 
 [data-testid="creator-preview"] [data-testid="planet-scene"] {
-  width: min(30vh, 260px);
-  height: min(30vh, 260px);
+  /* Same size as the Main Menu's planet (doc consistency the user asked for) — the shell's
+     center column is wide enough for it now that the inspector column got a fixed max-width. */
+  width: min(45vh, 420px);
+  height: min(45vh, 420px);
 }
 
 [data-testid="creator-nav"] {
