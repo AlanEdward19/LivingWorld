@@ -23,6 +23,12 @@ export type WorldPeriod = "Medieval" | "Modern" | "Futuristic" | "Prehistoric" |
  * zone", "mineral abundance"; the real engine has none of those at world-creation time).
  * `size` is a frontend-only convenience preset that fills in Width/Height/RegionSize — those
  * three are the real fields, `size` never leaves the client.
+ *
+ * Known real-but-unmodeled field: `LifeTableBrackets[]` (age-bracketed mortality curve,
+ * `PopulationScenarioLoader.cs`) is REQUIRED by the backend but not editable here yet — an
+ * array editor for it is real scope, deliberately deferred rather than faked. The Population
+ * section says so; when it's built, it'll default to the identical brackets every shipped
+ * period ships today.
  */
 export type WorldConfig = {
   name: string;
@@ -51,6 +57,27 @@ export type WorldConfig = {
   terrainWeight3: number;
 
   initialPopulation: number;
+  /** Real, required field: `Culture` (`PopulationScenarioLoader.cs`) — a `CultureId` into the
+      period's `CultureIds` catalog. Every shipped period's catalog is just `[1]` today. */
+  culture: number;
+  /** Real, required fields: `VillageX`/`VillageY` — where the initial population starts.
+      Defaulted to map center when Width/Height change via the World Size preset. */
+  villageX: number;
+  villageY: number;
+
+  /** Real, required field: `MaxLongevityYears` (`PopulationScenarioLoader.cs` -> `LifeTable`). */
+  maxLongevityYears: number;
+  /** Real, required fields: `FertilityMinAge`/`FertilityMaxAge`/`AnnualConceptionChance`/
+      `GestationDays` (`PopulationRules.Create`). */
+  fertilityMinAge: number;
+  fertilityMaxAge: number;
+  annualConceptionChance: number;
+  gestationDays: number;
+  /** Real, required field: `MaxBytesPerNpcPerYear` — per-NPC memory/history budget. */
+  maxBytesPerNpcPerYear: number;
+  /** Real, optional field: `MaxAliveNpcs` (defaults to unlimited/`int.MaxValue` if omitted). */
+  maxAliveNpcsEnabled: boolean;
+  maxAliveNpcs: number;
 
   extraordinaryEnabled: boolean;
   /** Real field is `Extraordinary.Prevalence`, a 0..1 float — stored here as a 0..100 percent

@@ -5,6 +5,8 @@ import type { WorldDraft } from "../repository/types";
 export function ReviewSection({ draft }: { draft: WorldDraft }) {
   const { world } = draft;
   const nameMissing = world.name.trim() === "";
+  const villageOutOfBounds = world.villageX >= world.width || world.villageY >= world.height;
+  const fertilityRangeInvalid = world.fertilityMinAge > world.fertilityMaxAge;
 
   return (
     <section data-testid="review-section">
@@ -48,6 +50,31 @@ export function ReviewSection({ draft }: { draft: WorldDraft }) {
           <dt>Initial population</dt>
           <dd>{world.initialPopulation.toLocaleString()}</dd>
         </div>
+        <div>
+          <dt>Culture</dt>
+          <dd>{world.culture}</dd>
+        </div>
+        <div>
+          <dt>Village at</dt>
+          <dd>
+            ({world.villageX}, {world.villageY})
+          </dd>
+        </div>
+        <div>
+          <dt>Fertility</dt>
+          <dd>
+            ages {world.fertilityMinAge}–{world.fertilityMaxAge}, {Math.round(world.annualConceptionChance * 100)}%/yr,{" "}
+            {world.gestationDays}d gestation
+          </dd>
+        </div>
+        <div>
+          <dt>Max longevity</dt>
+          <dd>{world.maxLongevityYears} years</dd>
+        </div>
+        <div>
+          <dt>Max alive NPCs</dt>
+          <dd>{world.maxAliveNpcsEnabled ? world.maxAliveNpcs.toLocaleString() : "Unlimited"}</dd>
+        </div>
       </dl>
 
       <h2>Extraordinary</h2>
@@ -70,6 +97,12 @@ export function ReviewSection({ draft }: { draft: WorldDraft }) {
       </p>
 
       {nameMissing && <p data-testid="review-blocked">Add a World Name before generating.</p>}
+      {villageOutOfBounds && (
+        <p data-testid="review-blocked-village">Village X/Y must be within the map before generating.</p>
+      )}
+      {fertilityRangeInvalid && (
+        <p data-testid="review-blocked-fertility">Fertility min age must not be greater than max age before generating.</p>
+      )}
     </section>
   );
 }

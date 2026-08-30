@@ -23,7 +23,13 @@ export function OverviewSection({ draft, dispatch }: { draft: WorldDraft; dispat
 
   function onSizeChange(next: WorldConfig["size"]) {
     // One undo step, not three — size is a UI preset for the real Width/Height/RegionSize fields.
-    dispatch({ type: "update-fields", values: { size: next, ...SIZE_PRESETS[next] } });
+    // Re-centers Village X/Y too: leaving them at the old size's center could place the real
+    // (required) VillageX/VillageY outside the new, possibly-smaller map bounds.
+    const preset = SIZE_PRESETS[next];
+    dispatch({
+      type: "update-fields",
+      values: { size: next, ...preset, villageX: Math.floor(preset.width / 2), villageY: Math.floor(preset.height / 2) },
+    });
   }
 
   return (

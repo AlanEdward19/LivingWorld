@@ -3,6 +3,7 @@ import { useEntryServices } from "../EntryContext";
 import { draftReducer, initDraftState, newDraft, SIZE_PRESETS } from "./draftState";
 import { OverviewSection } from "./OverviewSection";
 import { GeographySection } from "./GeographySection";
+import { PopulationSection } from "./PopulationSection";
 import { ReviewSection } from "./ReviewSection";
 import { UnsavedDraftGuard } from "./UnsavedDraftGuard";
 import { NotFoundScreen } from "../WorldNotFound";
@@ -11,14 +12,14 @@ import { StarfieldBackground } from "../StarfieldBackground";
 import { PlanetScene, hueForWorldId } from "../PlanetScene";
 import { TileMapPreview } from "./TileMapPreview";
 
-type Section = "overview" | "geography" | "review";
+type Section = "overview" | "geography" | "population" | "review";
 
 type NavItem = { label: string; section?: Section; disabledReason?: string };
 type NavGroup = { label: string; items: NavItem[] };
 
-// Only Geography has a real backend field mapping today (Width/Height/RegionSize). Everything
-// else here is either not yet built (doc's own "coming later", §32) or, for Climate/Resources,
-// has no equivalent anywhere in the real engine at all — disabled rather than faked.
+// Geography and Population have real backend field mappings today. Everything else here is
+// either not yet built (doc's own "coming later", §32) or, for Climate/Resources, has no
+// equivalent anywhere in the real engine at all — disabled rather than faked.
 const NAV_GROUPS: NavGroup[] = [
   {
     label: "World",
@@ -31,7 +32,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Life",
     items: [
-      { label: "Population", disabledReason: "Configured in Overview" },
+      { label: "Population", section: "population" },
       { label: "Biology", disabledReason: "Coming later" },
       { label: "Cultures", disabledReason: "Coming later" },
     ],
@@ -254,6 +255,7 @@ export function WorldCreatorShell({
         <div data-testid="creator-content">
           {section === "overview" && <OverviewSection draft={state.draft} dispatch={dispatch} />}
           {section === "geography" && <GeographySection draft={state.draft} dispatch={dispatch} />}
+          {section === "population" && <PopulationSection draft={state.draft} dispatch={dispatch} />}
           {section === "review" && <ReviewSection draft={state.draft} />}
         </div>
       </div>
@@ -263,7 +265,12 @@ export function WorldCreatorShell({
           <button
             type="button"
             data-testid="generate-world"
-            disabled={state.draft.world.name.trim() === ""}
+            disabled={
+              world.name.trim() === "" ||
+              world.villageX >= world.width ||
+              world.villageY >= world.height ||
+              world.fertilityMinAge > world.fertilityMaxAge
+            }
             onClick={() => setGenerating(true)}
           >
             Generate World

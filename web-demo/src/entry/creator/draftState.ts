@@ -36,6 +36,18 @@ export function defaultWorldConfig(): WorldConfig {
     terrainWeight3: 3.0,
 
     initialPopulation: 5_000,
+    // Matches every shipped period's population config exactly (scenarios/periods/*.json).
+    culture: 1,
+    villageX: Math.floor(SIZE_PRESETS.Medium.width / 2),
+    villageY: Math.floor(SIZE_PRESETS.Medium.height / 2),
+    maxLongevityYears: 90,
+    fertilityMinAge: 16,
+    fertilityMaxAge: 45,
+    annualConceptionChance: 0.25,
+    gestationDays: 270,
+    maxBytesPerNpcPerYear: 4_000,
+    maxAliveNpcsEnabled: false,
+    maxAliveNpcs: 10_000,
 
     extraordinaryEnabled: true,
     extraordinaryPrevalence: 20,
