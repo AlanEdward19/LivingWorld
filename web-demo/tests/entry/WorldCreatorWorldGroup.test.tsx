@@ -95,4 +95,15 @@ describe("WorldCreatorShell — World group (backend-aligned fields)", () => {
     expect(planetAfter.style.getPropertyValue("--planet-size-scale")).not.toBe(scaleBefore);
     expect(planetAfter.style.getPropertyValue("--planet-glow")).not.toBe(glowBefore);
   });
+
+  it("the tile map preview reflects Width/Height live, alongside the planet backdrop (user request)", () => {
+    renderShell();
+
+    expect(screen.getByTestId("tile-map-caption")).toHaveTextContent("128 × 128 tiles");
+    expect(screen.getByTestId("creator-preview-planet-backdrop").querySelector('[data-testid="planet-scene"]')).toBeInTheDocument();
+
+    const sizeSelect = screen.getByTestId("field-size").querySelector("select")! as HTMLSelectElement;
+    fireEvent.change(sizeSelect, { target: { value: "Small" } });
+    expect(screen.getByTestId("tile-map-caption")).toHaveTextContent("64 × 64 tiles");
+  });
 });

@@ -9,6 +9,7 @@ import { NotFoundScreen } from "../WorldNotFound";
 import { GenerationView } from "../GenerationView";
 import { StarfieldBackground } from "../StarfieldBackground";
 import { PlanetScene, hueForWorldId } from "../PlanetScene";
+import { TileMapPreview } from "./TileMapPreview";
 
 type Section = "overview" | "geography" | "review";
 
@@ -236,13 +237,18 @@ export function WorldCreatorShell({
         </nav>
 
         <div data-testid="creator-preview">
-          <PlanetScene
-            variant={world.initialPopulation > 0 ? "inhabited" : "proto-world"}
-            worldName={world.name || "Unnamed World"}
-            hueRotate={preview.hueRotate}
-            sizeScale={preview.sizeScale}
-            glowIntensity={preview.glowIntensity}
-          />
+          {/* Doc-requested (user): the planet stays as ambient backdrop, but the real backend
+              generates a grid of tiles, not a sphere — the tile map is the actual focus here. */}
+          <div data-testid="creator-preview-planet-backdrop">
+            <PlanetScene
+              variant={world.initialPopulation > 0 ? "inhabited" : "proto-world"}
+              worldName={world.name || "Unnamed World"}
+              hueRotate={preview.hueRotate}
+              sizeScale={preview.sizeScale}
+              glowIntensity={preview.glowIntensity}
+            />
+          </div>
+          <TileMapPreview width={world.width} height={world.height} seed={world.seed} />
         </div>
 
         <div data-testid="creator-content">

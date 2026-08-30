@@ -1642,6 +1642,7 @@ button:disabled {
 }
 
 [data-testid="creator-preview"] {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1650,11 +1651,49 @@ button:disabled {
   background: radial-gradient(ellipse at 50% 40%, var(--menu-space-secondary, #090c12) 0%, var(--bg-world) 75%);
 }
 
-[data-testid="creator-preview"] [data-testid="planet-scene"] {
-  /* Same size as the Main Menu's planet (doc consistency the user asked for) — the shell's
-     center column is wide enough for it now that the inspector column got a fixed max-width. */
+/* Planet stays as ambient backdrop (doc consistency, same size as the Main Menu's) — the real
+   backend generates a tile grid, not a sphere, so it recedes behind the actual map preview
+   instead of being the focus (user request). */
+[data-testid="creator-preview-planet-backdrop"] {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.4;
+  filter: blur(1px);
+}
+
+[data-testid="creator-preview-planet-backdrop"] [data-testid="planet-scene"] {
   width: min(45vh, 420px);
   height: min(45vh, 420px);
+}
+
+[data-testid="tile-map-preview"] {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+[data-testid="tile-map-preview"] canvas {
+  /* vh-based, not %-of-column — the center column can get squeezed by the fixed-width inspector
+     on narrower viewports, and a %-based size shrunk right along with it (too small to see,
+     user report). Tied to viewport height instead, same as the planet backdrop's own sizing. */
+  width: min(62vh, 520px);
+  max-width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+[data-testid="tile-map-caption"] {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 [data-testid="creator-nav"] {
