@@ -1,11 +1,12 @@
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
+using LivingWorld.Simulation.Observation;
 
 namespace LivingWorld.Tests.Behavior;
 
 /// <summary>Fase 28 T6 (COG-01..03): <see cref="BehaviorDecisionSystem"/> grava
 /// <see cref="DecisionTrace"/> em <see cref="WorldState.CognitionLog"/> só para NPCs
-/// materializados/detalhados.</summary>
+/// materializados dentro do escopo observacional com detalhe cosmético pleno (COG-02).</summary>
 public class BehaviorDecisionSystemCognitionTests
 {
     private static readonly WorldCalendar Calendar = new(24, 30, 12);
@@ -50,6 +51,7 @@ public class BehaviorDecisionSystemCognitionTests
 
         world.AddNpc(npc);
         world.AdvanceNpcIdTo(2);
+        world.ObservationRegistry.SetScope("test", SpaceScope.World());
         var ctx = new TickContext(world, world.Rng, world.Scheduler);
         SimulationWakeTestHelper.Wake(world, npc);
         return (world, ctx, npc);
@@ -78,6 +80,7 @@ public class BehaviorDecisionSystemCognitionTests
             world.NextCityId(), ScenarioRunner.DefaultVillageLocation, foundedAtTick: 0, foundedFromCityId: null,
             aggregatePool: pool, poolNpcIds: poolNpcIds);
         world.AddCity(city);
+        world.ObservationRegistry.SetScope("test", SpaceScope.City(city.Id));
 
         var ctx = new TickContext(world, world.Rng, world.Scheduler);
         var materialized = MaterializationSystem.MaterializeOne(world, ctx, city.Id).Value!;
@@ -246,6 +249,7 @@ public class BehaviorDecisionSystemCognitionTests
         world.AddNpc(first);
         world.AddNpc(second);
         world.AdvanceNpcIdTo(3);
+        world.ObservationRegistry.SetScope("test", SpaceScope.World());
         var ctx = new TickContext(world, world.Rng, world.Scheduler);
         SimulationWakeTestHelper.Wake(world, first);
         SimulationWakeTestHelper.Wake(world, second);
@@ -278,5 +282,62 @@ public class BehaviorDecisionSystemCognitionTests
         TickDecision(world, ctx);
 
         Assert.NotEmpty(Entries(world, npc.Id));
+    }
+
+    private static (WorldState World, TickContext Ctx, City City, Building Building, Npc Npc)
+        BuildMaterializedNpcInsideBuilding(ulong seed, bool cityScope, bool buildingScope)
+    {
+        var world = ScenarioRunner.Create(seed: seed, initialPopulation: 0).World;
+        var city = new City(world.NextCityId(), new CellCoord(5, 5), 0, null, AggregatePopulationPool.Empty);
+        world.AddCity(city);
+
+        var building = new Building(new BuildingId(1), city.Id, buildingTypeId: 1, completedAtTick: 0);
+        world.AddBuilding(building);
+
+        var location = new CellCoord(5, 5);
+        var npc = new Npc(
+            world.NextNpcIdAndAdvance(), "interior-npc", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30),
+            new CultureId(1), location, null, null, null, 100, Neutral, ProfessionType.None, location,
+            city: city.Id, hunger: 15, thirst: 90, sleep: 80, social: 80);
+        npc.EnterBuilding(building.Id, FloorLevel.Ground, new CellCoord(1, 1));
+        world.AddNpc(npc);
+
+        if (cityScope)
+            world.ObservationRegistry.SetScope("city", SpaceScope.City(city.Id));
+        if (buildingScope)
+            world.ObservationRegistry.SetScope("building", SpaceScope.Building(city.Id, building.Id));
+
+        var ctx = new TickContext(world, world.Rng, world.Scheduler);
+        SimulationWakeTestHelper.Wake(world, npc);
+        return (world, ctx, city, building, npc);
+    }
+
+    [Fact]
+    public void Interior_npc_with_city_scope_only_does_not_record_cognition_trace()
+    {
+        var (world, ctx, _, _, npc) = BuildMaterializedNpcInsideBuilding(seed: 201, cityScope: true, buildingScope: false);
+
+        TickDecision(world, ctx);
+
+        Assert.Empty(Entries(world, npc.Id));
+    }
+
+    [Fact]
+    public void Interior_npc_records_trace_when_building_scope_added()
+    {
+        var (world, ctx, city, building, npc) =
+            BuildMaterializedNpcInsideBuilding(seed: 202, cityScope: true, buildingScope: false);
+
+        TickDecision(world, ctx);
+        Assert.Empty(Entries(world, npc.Id));
+
+        world.ObservationRegistry.SetScope("building", SpaceScope.Building(city.Id, building.Id));
+        world.CurrentDate = world.CurrentDate.AddHours(1);
+        ctx = new TickContext(world, world.Rng, world.Scheduler);
+        npc.SetHunger(15, world.CurrentDate.TotalHours);
+        TickDecision(world, ctx);
+
+        Assert.NotEmpty(Entries(world, npc.Id));
+        Assert.Equal(ActionType.Eat, Entries(world, npc.Id)[^1].Trace.Winner);
     }
 }
