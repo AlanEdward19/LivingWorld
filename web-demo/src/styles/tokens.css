@@ -610,6 +610,14 @@ svg[data-testid="semantic-zoom-map"] text {
   padding: 0.3rem;
 }
 
+/* Notifications fica perto da borda direita do topbar — ancora pela direita
+ * pra não vazar pra fora da tela. */
+[data-testid="notifications-menu"] [role="menu"] {
+  left: auto;
+  right: 0;
+  max-width: 320px;
+}
+
 .topbar-menu [role="menu"] button {
   display: block;
   width: 100%;
