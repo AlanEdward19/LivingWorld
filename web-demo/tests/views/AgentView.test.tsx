@@ -62,6 +62,23 @@ describe("AgentView", () => {
     expect(screen.queryByTestId("popup-panel")).not.toBeInTheDocument();
   });
 
+  it("'View needs' opens a Popup with Mira's needs and their values", () => {
+    render(<AgentView fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} agentId="mira-valen" />);
+    expect(screen.queryByTestId("popup-panel")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("View needs →"));
+
+    expect(screen.getByTestId("popup-panel")).toHaveTextContent("Mira Valen's needs");
+    const detail = screen.getByTestId("agent-needs-detail");
+    for (const [need, value] of Object.entries(MIRA.needs)) {
+      expect(detail).toHaveTextContent(need.charAt(0).toUpperCase() + need.slice(1));
+      expect(detail).toHaveTextContent(String(value));
+    }
+
+    fireEvent.click(screen.getByTestId("popup-close"));
+    expect(screen.queryByTestId("popup-panel")).not.toBeInTheDocument();
+  });
+
   it("'View relationships' opens a Popup with Mira's full relationship list", () => {
     render(<AgentView fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} agentId="mira-valen" />);
     fireEvent.click(screen.getByText("View relationships →"));

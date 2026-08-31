@@ -15,7 +15,7 @@ export interface AgentViewProps {
   agentId: string;
 }
 
-type OpenPopup = "body" | "skills" | "relationships" | "why" | null;
+type OpenPopup = "needs" | "body" | "skills" | "relationships" | "why" | null;
 
 /**
  * Agent Inspector (redesign doc §13) — CURRENTLY/STATUS/BODY/HOUSEHOLD/RELATIONSHIPS/RECENT/WHY,
@@ -63,6 +63,7 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
 
       <SectionHeader title="Status" />
       <StatusChips testId="agent-condition" items={agent.condition} />
+      <SectionLink onClick={(e) => openPopupAt("needs", e)}>View needs →</SectionLink>
       <SectionLink onClick={(e) => openPopupAt("skills", e)}>View skills →</SectionLink>
 
       <SectionHeader title="Body" />
@@ -180,6 +181,24 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
                 ))}
               </div>
             )}
+          </div>
+        </Popup>
+      )}
+
+      {openPopup === "needs" && (
+        <Popup title={`${agent.name}'s needs`} anchorRect={popupAnchor} onClose={() => setOpenPopup(null)}>
+          <div data-testid="agent-needs-detail">
+            {(Object.entries(agent.needs) as [keyof typeof agent.needs, number][]).map(([need, value]) => (
+              <div className="skill-row" key={need}>
+                <div className="skill-row-label">
+                  <span>{need.charAt(0).toUpperCase() + need.slice(1)}</span>
+                  <span>{value}</span>
+                </div>
+                <div className="skill-progress">
+                  <div style={{ width: `${value}%` }} />
+                </div>
+              </div>
+            ))}
           </div>
         </Popup>
       )}

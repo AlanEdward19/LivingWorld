@@ -1919,7 +1919,7 @@ button:disabled {
 
 .skill-progress {
   height: 4px;
-  background: var(--surface-2);
+  background: var(--surface-1);
   border-radius: var(--radius-sm);
   overflow: hidden;
 }

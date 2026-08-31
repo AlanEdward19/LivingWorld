@@ -113,12 +113,22 @@ export interface SkillFixture {
   level: number;
 }
 
+/** Necessidades básicas do agente (0-100, quanto maior mais satisfeita). */
+export interface NeedsFixture {
+  health: number;
+  hunger: number;
+  thirst: number;
+  sleep: number;
+  social: number;
+}
+
 export interface AgentFixture {
   id: string;
   name: string;
   age: number;
   profession: string;
   skills: SkillFixture[];
+  needs: NeedsFixture;
   settlementId: string;
   householdId: string | null;
   /** Pontos de patrulha (mesmo espaço de grid dos prédios do settlement) — o NPC se move entre
