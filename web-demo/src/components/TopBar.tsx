@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { WorldFixture } from "../fixture/types";
 import type { NavigationStore } from "../nav/NavigationStore";
 import { Breadcrumb } from "./Breadcrumb";
@@ -10,6 +10,21 @@ export interface TopBarProps {
   nav: NavigationStore;
 }
 
+/** Fecha um menu do topbar ao clicar fora dele — os três menus (World/Mode/Notifications)
+ * só abriam via onClick e nunca se fechavam sozinhos. */
+function useCloseOnOutsideClick<T extends HTMLElement>(open: boolean, close: () => void) {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) close();
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open, close]);
+  return ref;
+}
+
 /**
  * Menu do World Selector (doc §31) — mundo único nesta demo (Out of Scope: sem múltiplos
  * mundos/troca de fixture), então só "World Details" é uma ação real; o resto é desabilitado
@@ -18,8 +33,9 @@ export interface TopBarProps {
  */
 function WorldSelector({ fixture, nav }: { fixture: WorldFixture; nav: NavigationStore }) {
   const [open, setOpen] = useState(false);
+  const ref = useCloseOnOutsideClick<HTMLDivElement>(open, () => setOpen(false));
   return (
-    <div data-testid="world-selector" className="topbar-menu">
+    <div ref={ref} data-testid="world-selector" className="topbar-menu">
       <button type="button" onClick={() => setOpen((o) => !o)}>
         {fixture.world.name} ▾
       </button>
@@ -61,8 +77,9 @@ function WorldSelector({ fixture, nav }: { fixture: WorldFixture; nav: Navigatio
  * visíveis com "Coming", nunca escondidos como quebrados (mesmo texto/princípio do doc §6). */
 function ModeSelector() {
   const [open, setOpen] = useState(false);
+  const ref = useCloseOnOutsideClick<HTMLDivElement>(open, () => setOpen(false));
   return (
-    <div data-testid="mode-selector" className="topbar-menu">
+    <div ref={ref} data-testid="mode-selector" className="topbar-menu">
       <button type="button" onClick={() => setOpen((o) => !o)}>
         Observe ▾
       </button>
@@ -121,6 +138,7 @@ function Notifications({ fixture, nav }: { fixture: WorldFixture; nav: Navigatio
     () => followStore.followedIds(),
   );
   const [open, setOpen] = useState(false);
+  const ref = useCloseOnOutsideClick<HTMLDivElement>(open, () => setOpen(false));
 
   const relevantEvents = fixture.events.filter(
     (event) =>
@@ -138,7 +156,7 @@ function Notifications({ fixture, nav }: { fixture: WorldFixture; nav: Navigatio
   }
 
   return (
-    <div data-testid="notifications-menu" className="topbar-menu">
+    <div ref={ref} data-testid="notifications-menu" className="topbar-menu">
       <button type="button" data-testid="notifications-button" onClick={() => setOpen((o) => !o)}>
         ● {relevantEvents.length}
       </button>
