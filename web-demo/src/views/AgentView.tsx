@@ -5,7 +5,7 @@ import { NpcToken } from "../npc/NpcToken";
 import { WhyPanel } from "./WhyPanel";
 import { FollowButton } from "../components/FollowButton";
 import { Popup, Drawer } from "../components/ContextOverlay";
-import { EntityRow, RelationshipRow, SectionHeader, SectionLink, StatusChips } from "../components/InspectorPrimitives";
+import { BackButton, EntityRow, RelationshipRow, SectionHeader, SectionLink, StatusChips } from "../components/InspectorPrimitives";
 import { FamilyTree } from "./FamilyTree";
 import { modeStore } from "../state/modeStore";
 
@@ -49,6 +49,7 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
 
   return (
     <div data-testid="agent-view">
+      {nav.canGoBack() && <BackButton onClick={() => nav.back()} />}
       <NpcToken id={agent.id} size={64} />
       <h1>{agent.name}</h1>
       <p data-testid="agent-age-profession">

@@ -40,8 +40,8 @@ function labelFor(route: Route, fixture: WorldFixture): string {
  * (design.md § Architecture — fonte única de verdade de navegação). Assina `current()` (não
  * `breadcrumb()`) pra também re-renderizar quando só um overlay não-espacial (causal/timeline/
  * agent/household/...) muda por cima da localização, já que esses nunca tocam a pilha de
- * localização em si. Botão voltar chama `nav.back()`, preservando o estado da tela anterior em
- * vez de resetar pro World View (spec P1 AC8).
+ * localização em si. O botão Back saiu daqui (usuário: back pertence à view, não ao breadcrumb)
+ * — ver `BackButton` em `InspectorPrimitives`, usado por HouseholdView/AgentView.
  */
 export function Breadcrumb({ fixture, nav }: BreadcrumbProps) {
   const current = useSyncExternalStore(
@@ -59,7 +59,7 @@ export function Breadcrumb({ fixture, nav }: BreadcrumbProps) {
           return (
             <li key={index}>
               {isCurrent ? (
-                labelFor(route, fixture)
+                <span>{labelFor(route, fixture)}</span>
               ) : (
                 <button type="button" onClick={() => nav.goTo(route)}>
                   {labelFor(route, fixture)}
@@ -69,11 +69,6 @@ export function Breadcrumb({ fixture, nav }: BreadcrumbProps) {
           );
         })}
       </ol>
-      {nav.canGoBack() && (
-        <button type="button" onClick={() => nav.back()}>
-          Back
-        </button>
-      )}
     </nav>
   );
 }

@@ -171,11 +171,24 @@ button[aria-pressed="true"] {
   color: #1a1408;
 }
 
-/* Botões ghost (§ 135): Back e toggles de contexto, sem preenchimento forte */
+/* Botões ghost (§ 135): toggles de contexto, sem preenchimento forte. `border: none` (não só
+ * `border-color: transparent`) e `font-size` igual ao span do crumb atual — senão o button
+ * global (border 1px + font-size 13px) deixa a linha mais alta que a rota "World" (só span,
+ * sem button nenhum), variando a altura do breadcrumb conforme a profundidade da rota. */
 [data-testid="breadcrumb"] button {
   background: transparent;
-  border-color: transparent;
+  border: none;
+  font-size: 12px;
   color: var(--text-secondary);
+}
+
+/* `span` é inline por padrão — padding vertical de inline não engorda a linha (spec CSS), só de
+ * inline-block/button. Sem `inline-block` aqui, o crumb atual (span) fica mais baixo que os
+ * outros (button), e a rota "World" (só span, sem nenhum button) fica com o breadcrumb inteiro
+ * mais baixo que "World > Oakbridge" (button + span). */
+[data-testid="breadcrumb"] span {
+  display: inline-block;
+  padding: 0.35rem 0.7rem;
 }
 
 [data-testid="breadcrumb"] button:hover {
@@ -205,10 +218,23 @@ input[type="text"]::placeholder {
 [data-testid="timeline-view"],
 [data-testid="life-view"],
 [data-testid="world-feed"] {
+  position: relative;
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 1rem 1.25rem;
+}
+
+.view-back-button {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  background: var(--surface-2);
 }
 
 [data-testid="story-thread-card"] {
@@ -227,6 +253,9 @@ input[type="text"]::placeholder {
   gap: 0.5rem;
   font-size: 12px;
   color: var(--text-muted);
+  background: var(--bg-world);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
 }
 
 [data-testid="breadcrumb"] ol {
@@ -234,6 +263,7 @@ input[type="text"]::placeholder {
   gap: 0.3rem;
   flex-wrap: wrap;
   align-items: center;
+  margin-left: 0.3rem;
 }
 
 [data-testid="breadcrumb"] li {

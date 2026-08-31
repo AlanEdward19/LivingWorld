@@ -47,21 +47,4 @@ describe("Breadcrumb", () => {
     const current = within(screen.getByTestId("breadcrumb")).getByText("Oakbridge");
     expect(current.tagName).not.toBe("BUTTON");
   });
-
-  it("does not show a Back button at the root World route", () => {
-    const nav = new NavigationStore(WORLD_FIXTURE);
-    render(<Breadcrumb fixture={WORLD_FIXTURE} nav={nav} />);
-    expect(screen.queryByText("Back")).not.toBeInTheDocument();
-  });
-
-  it("Back button returns to the previous route, preserving state instead of resetting to World View", () => {
-    const nav = new NavigationStore(WORLD_FIXTURE);
-    nav.push({ kind: "settlement", id: "oakbridge" });
-    nav.push({ kind: "household", id: "valen-household" });
-    render(<Breadcrumb fixture={WORLD_FIXTURE} nav={nav} />);
-
-    fireEvent.click(screen.getByText("Back"));
-
-    expect(nav.current()).toEqual({ kind: "settlement", id: "oakbridge" });
-  });
 });

@@ -125,6 +125,22 @@ describe("AgentView", () => {
     expect(nav.current()).toEqual({ kind: "timeline", scope: { type: "agent", id: "mira-valen" } });
   });
 
+  it("does not show a Back button at the root World route", () => {
+    render(<AgentView fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} agentId="mira-valen" />);
+    expect(screen.queryByLabelText("Back")).not.toBeInTheDocument();
+  });
+
+  it("Back button returns to the previous route, preserving state instead of resetting to World View", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    nav.push({ kind: "settlement", id: "oakbridge" });
+    nav.push({ kind: "agent", id: "mira-valen" });
+    render(<AgentView fixture={WORLD_FIXTURE} nav={nav} agentId="mira-valen" />);
+
+    fireEvent.click(screen.getByLabelText("Back"));
+
+    expect(nav.current()).toEqual({ kind: "settlement", id: "oakbridge" });
+  });
+
   it("Debug Mode shows technical event fields in the Why panel without losing the current selection (doc#116)", () => {
     render(<AgentView fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} agentId="mira-valen" />);
     fireEvent.click(screen.getByText("Explain decision →"));

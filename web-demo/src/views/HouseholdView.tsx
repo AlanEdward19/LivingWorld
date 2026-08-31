@@ -2,7 +2,7 @@ import type { WorldFixture } from "../fixture/types";
 import type { NavigationStore } from "../nav/NavigationStore";
 import { NpcToken } from "../npc/NpcToken";
 import { FollowButton } from "../components/FollowButton";
-import { MetricRow, SectionHeader, SectionLink } from "../components/InspectorPrimitives";
+import { BackButton, MetricRow, SectionHeader, SectionLink } from "../components/InspectorPrimitives";
 import { FamilyTree } from "./FamilyTree";
 
 export interface HouseholdViewProps {
@@ -28,6 +28,7 @@ export function HouseholdView({ fixture, nav, householdId }: HouseholdViewProps)
 
   return (
     <div data-testid="household-view">
+      {nav.canGoBack() && <BackButton onClick={() => nav.back()} />}
       <h1>{household.name}</h1>
       <FollowButton entityId={household.id} />
 
