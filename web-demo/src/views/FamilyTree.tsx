@@ -5,6 +5,8 @@ export interface FamilyTreeProps {
   fixture: WorldFixture;
   agentId: string;
   onSelectAgent: (agentId: string) => void;
+  /** Agent to render muted/disabled (e.g. the panel's own subject). Omit when no member is in focus. */
+  focusAgentId?: string;
 }
 
 /**
@@ -13,7 +15,7 @@ export interface FamilyTreeProps {
  * só `familyRole` (doc de tipos em `fixture/types.ts`) — nunca infere parentesco de `label`
  * livre, por isso funciona pra qualquer agent que tenha dados de família estruturados.
  */
-export function FamilyTree({ fixture, agentId, onSelectAgent }: FamilyTreeProps) {
+export function FamilyTree({ fixture, agentId, onSelectAgent, focusAgentId }: FamilyTreeProps) {
   const agent = fixture.agents.find((a) => a.id === agentId);
   if (!agent) return null;
 
@@ -56,7 +58,7 @@ export function FamilyTree({ fixture, agentId, onSelectAgent }: FamilyTreeProps)
         {siblings.map((s) => (
           <Node key={s.id} id={s.id} name={s.name} />
         ))}
-        <Node id={agent.id} name={agent.name} muted />
+        <Node id={agent.id} name={agent.name} muted={agent.id === focusAgentId} />
         {spouse && <Node key={spouse.id} id={spouse.id} name={spouse.name} />}
       </div>
       {children.length > 0 && (

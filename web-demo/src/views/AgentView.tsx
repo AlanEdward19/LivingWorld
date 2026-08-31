@@ -244,6 +244,7 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
           <FamilyTree
             fixture={fixture}
             agentId={agentId}
+            focusAgentId={agentId}
             onSelectAgent={(id) => {
               setShowFamilyTree(false);
               nav.replace({ kind: "agent", id });
