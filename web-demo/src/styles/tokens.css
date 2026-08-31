@@ -339,6 +339,22 @@ svg[data-testid="semantic-zoom-map"] text {
   inset: 0;
 }
 
+/* World Map — mesmo bleeding do Settlement View acima: canvas Pixi precisa ocupar a altura
+ * inteira do centro, não só a largura (bug real: sem `height`, o wrapper colapsava pra altura
+ * do conteúdo/canvas inicial em vez de esticar até o rodapé). */
+[data-testid="world-stage"] {
+  position: relative;
+  width: calc(100% + 2rem);
+  height: calc(100% + 2rem);
+  margin: -1rem;
+  cursor: grab;
+  overflow: hidden;
+}
+
+[data-testid="world-stage"]:active {
+  cursor: grabbing;
+}
+
 [data-testid="settlement-stage-overlay"] {
   position: absolute;
   z-index: 5;
