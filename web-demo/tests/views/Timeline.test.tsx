@@ -142,13 +142,9 @@ describe("Timeline — reached from the Causal Explorer (spec P1 AC7)", () => {
     fireEvent.click(screen.getByText("Mira Valen became very hungry."));
 
     expect(nav.current()).toMatchObject({ kind: "timeline" });
-    expect(nav.breadcrumb()).toEqual([
-      { kind: "world" },
-      { kind: "settlement", id: "oakbridge" },
-      { kind: "agent", id: "mira-valen" },
-      { kind: "causal", eventId: "evt-grain-prices-rose" },
-      nav.current(),
-    ]);
+    // Breadcrumb só mostra localização (World/Settlement) — agent/causal/timeline são overlays,
+    // nunca entram na pilha (só World/Settlement/Building formam a hierarquia espacial).
+    expect(nav.breadcrumb()).toEqual([{ kind: "world" }, { kind: "settlement", id: "oakbridge" }]);
 
     const route = nav.current();
     if (route.kind !== "timeline") throw new Error("expected timeline route");
