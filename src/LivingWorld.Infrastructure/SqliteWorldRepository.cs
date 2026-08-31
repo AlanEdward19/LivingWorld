@@ -47,6 +47,15 @@ public sealed class SqliteWorldRepository(WorldDbContext context) : IWorldReposi
             });
         }
 
+        var kindPool = new StringInternPool();
+        EventLogKindEncoding.SeedPool(
+            kindPool,
+            context.EventLog
+                .Where(l => l.BranchId == branch.Value)
+                .OrderBy(l => l.Tick)
+                .ThenBy(l => l.Sequence)
+                .Select(l => l.Kind));
+
         var sequenceByTick = new Dictionary<long, int>();
         foreach (var evt in events)
         {
@@ -58,7 +67,7 @@ public sealed class SqliteWorldRepository(WorldDbContext context) : IWorldReposi
                 BranchId = branch.Value,
                 Tick = evt.Tick,
                 Sequence = sequence,
-                Kind = evt.Kind.ToString(),
+                Kind = EventLogKindEncoding.Encode(evt.Kind.ToString(), kindPool),
                 Payload = evt.Payload,
                 EventId = evt.EventId,
                 CauseEventId = evt.CauseEventId,
@@ -79,10 +88,31 @@ public sealed class SqliteWorldRepository(WorldDbContext context) : IWorldReposi
     public WorldSnapshotRecord? LoadSnapshotAt(BranchId branch, long tick) =>
         context.Snapshots.SingleOrDefault(s => s.BranchId == branch.Value && s.Tick == tick);
 
-    public IReadOnlyList<EventLogRecord> LoadEvents(BranchId branch) =>
-        context.EventLog
+    public IReadOnlyList<EventLogRecord> LoadEvents(BranchId branch)
+    {
+        var kindPool = new StringInternPool();
+        var rows = context.EventLog
             .Where(l => l.BranchId == branch.Value)
             .OrderBy(l => l.Tick)
             .ThenBy(l => l.Sequence)
             .ToList();
+
+        var decoded = new List<EventLogRecord>(rows.Count);
+        foreach (var row in rows)
+        {
+            decoded.Add(new EventLogRecord
+            {
+                BranchId = row.BranchId,
+                Tick = row.Tick,
+                Sequence = row.Sequence,
+                Kind = EventLogKindEncoding.Decode(row.Kind, kindPool),
+                Payload = row.Payload,
+                EventId = row.EventId,
+                CauseEventId = row.CauseEventId,
+                SourceSystem = row.SourceSystem,
+            });
+        }
+
+        return decoded;
+    }
 }

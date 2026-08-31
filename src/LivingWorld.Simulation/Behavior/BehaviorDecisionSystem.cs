@@ -98,6 +98,9 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                         previousIntent: npc.CurrentIntent);
                     candidate = decision.Action;
                     pendingPower = decision.PendingPower;
+
+                    if (IsMaterializedNpc(world, npc))
+                        world.CognitionLog.Record(npc.Id, now, decision.Trace);
                 }
                 else
                 {
@@ -123,6 +126,11 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     }
 
     internal static IEnumerable<Npc> TargetsForTick(WorldState world) => world.NpcWakeBatch;
+
+    /// <summary>Fase 28 T6 (COG-02): só grava rastro para NPC materializado/detalhado (linha em
+    /// <see cref="WorldState.Npcs"/>), nunca para membro exclusivo do pool agregado.</summary>
+    private static bool IsMaterializedNpc(WorldState world, Npc npc) =>
+        world.FindNpc(npc.Id) is not null;
 
     private static bool TryCompleteAction(
         WorldState world, Npc npc, NeedsRules rules, ActionCatalog catalog, long now,

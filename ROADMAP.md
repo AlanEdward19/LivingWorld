@@ -11,6 +11,7 @@ verificação (o que o gate precisa provar) e o que fica **explicitamente fora**
 | 2 | Selecionar qualquer NPC vivo e ver identidade, família, profissão, atributos, rotina e memórias | 8 |
 | 3 | Jogador conversa com NPC via LLM, **sem** que a LLM altere o mundo | 11 |
 | 4 | Cidades crescem, encolhem e dão origem a novos assentamentos | 8 |
+| 5 | Selecionar um NPC detalhado e ver o motor de decisão dele — estímulo, ponderação, decisão — em dados e em visual | 28 |
 
 ## Trilhas
 O número é **identidade**, não ordem. Só a trilha núcleo é sequencial.
@@ -24,6 +25,7 @@ O número é **identidade**, não ordem. Só a trilha núcleo é sequencial.
 | Extraordinário | 16–20 | Depois da 9. Potência → divindade → tempo → cosmos → trânsito |
 | Realismo humano | 21–23 | Depois da 7. Ontogenia, imperfeição, intriga |
 | Sistêmicas | 24–26 | Emergência exige 13; jogadores exige 11; console exige 18 |
+| Cognição | 28 | Depois da 16 (reaproveita LOD/conservação/potência). Independente de 17–27 |
 | Espectador | 27 | Última. Cinemática exige 10 (relato) e 12 (ancoragem) |
 
 ## Fases
@@ -57,6 +59,7 @@ O número é **identidade**, não ordem. Só a trilha núcleo é sequencial.
 | 25 | [Jogadores](docs/roadmap/phase-25-players.md) | Encarnação, offline vira desaparecimento, espectador, multiplayer | spec |
 | 26 | [Console e modo god](docs/roadmap/phase-26-console.md) | Pausa, velocidade, busca, eventos marcantes, reescrita + rebuild | spec |
 | 27 | [Motor cinematográfico](docs/roadmap/phase-27-cinematics.md) | Assistir a uma vida: texto → 2D → caminho para 3D | spec |
+| 28 | [Cognição e LOD observacional](docs/roadmap/phase-28-cognition.md) | Motor de decisão inspecionável (estímulo→decisão) com painel "ver o cérebro", compressão de estado frio, LOD por três escopos de observação (mundo/cidade/interior) | implementada (verify pendente) |
 
 ## Regras do roadmap
 - Uma fase só fecha com `bash scripts/verify.sh` em 0 **e** os critérios da fase provados

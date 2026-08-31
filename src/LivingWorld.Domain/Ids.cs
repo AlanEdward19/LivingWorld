@@ -96,3 +96,11 @@ public readonly record struct NarrativeId(long Value)
 {
     public override string ToString() => $"narrative-{Value}";
 }
+
+/// <summary>Rota cosmética pendente de um NPC (Fase 28, LOD-10) — id monotônico, mesmo molde de
+/// <see cref="NpcId"/>; resolvida por <see cref="ILazyPositionWorld"/> em
+/// <see cref="LazyPosition.ValueAt"/>.</summary>
+public readonly record struct RouteId(long Value)
+{
+    public override string ToString() => $"route-{Value}";
+}

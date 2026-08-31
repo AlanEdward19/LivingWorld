@@ -70,6 +70,7 @@ public static class NpcInspectionQuery
             Memories: [],
             PowerIds: PowerIdsOf(world, npc.Id),
             CurrentScope: ResolveScope(world, npc),
+            CognitionTrace: CognitionTraceOf(world, npc.Id),
             Rest: RestPresentation.Of(world, npc),
             Food: FoodPresentation.Of(world, npc));
     }
@@ -102,7 +103,8 @@ public static class NpcInspectionQuery
             Beliefs: [],
             Memories: [],
             PowerIds: PowerIdsOf(world, summary.Id),
-            CurrentScope: new NpcScope(NpcScopeKind.World, null));
+            CurrentScope: new NpcScope(NpcScopeKind.World, null),
+            CognitionTrace: CognitionTraceOf(world, summary.Id));
     }
 
     /// <summary>DTO mínimo pra um id ainda no pool agregado (T50) — mesmo espírito de placeholder
@@ -122,8 +124,12 @@ public static class NpcInspectionQuery
             Beliefs: [],
             Memories: [],
             PowerIds: PowerIdsOf(world, id),
-            CurrentScope: new NpcScope(NpcScopeKind.City, city.Id));
+            CurrentScope: new NpcScope(NpcScopeKind.City, city.Id),
+            CognitionTrace: CognitionTraceOf(world, id));
     }
+
+    private static IReadOnlyList<TraceEntry> CognitionTraceOf(WorldState world, NpcId id) =>
+        world.CognitionLog.RecentEntries(id, int.MaxValue);
 
     private static IReadOnlyList<string> PowerIdsOf(WorldState world, NpcId id) =>
         world.ExtraordinaryCarriers.FirstOrDefault(carrier => carrier.CarrierId == id)?.PowerIds

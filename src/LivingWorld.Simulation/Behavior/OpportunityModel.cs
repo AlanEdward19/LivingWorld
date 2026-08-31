@@ -1,11 +1,6 @@
-namespace LivingWorld.Simulation;
+using LivingWorld.Domain;
 
-/// <summary>Opportunity derivada de <see cref="DecisionContext"/> (Fase 16.3 P2b, COH-53 /
-/// doc#38-39) — "o que posso fazer?" filtrado pelo que o Agent conhece/percebe.</summary>
-public sealed record Opportunity(
-    string Kind,
-    double Attractiveness,
-    string? Detail = null);
+namespace LivingWorld.Simulation;
 
 /// <summary>Deriva oportunidades conhecidas a partir do snapshot de decisão — nunca inventa
 /// opções que o NPC não conhece via beliefs/memórias/relações/powers já no contexto.</summary>

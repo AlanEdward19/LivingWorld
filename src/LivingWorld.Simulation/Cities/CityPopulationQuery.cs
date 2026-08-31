@@ -69,6 +69,26 @@ public static class CityPopulationQuery
     /// <summary>Infraestrutura da cidade (Fase 8, fix round 1, gap 1 — CITY-01 AC1). Ver SPEC_DEVIATION acima.</summary>
     public static long Infrastructure(WorldState world, CityId city) => BuildingCount(world, city);
 
+    /// <summary>LOD observacional (Fase 28, T4): delega a
+    /// <see cref="MaterializationSystem.HasFullCosmeticDetail"/>.</summary>
+    public static bool HasFullCosmeticDetail(WorldState world, Npc npc) =>
+        MaterializationSystem.HasFullCosmeticDetail(world, npc);
+
+    /// <summary>Verdadeiro se alguma fonte enquadra o <paramref name="npc"/> (união de escopos,
+    /// LOD-04) — pode ser camada aproximada (cidade sem prédio enquadrado).</summary>
+    public static bool IsCosmeticallyObserved(WorldState world, Npc npc) =>
+        world.ObservationRegistry.IsObserved(npc, world);
+
+    /// <summary>Materializados vivos com camada cosmética plena (interior enquadrado, rua em
+    /// cidade observada, ou escopo mundo).</summary>
+    public static long CosmeticallyDetailedPopulation(WorldState world, CityId city) =>
+        MaterializedAlive(world, city).LongCount(n => HasFullCosmeticDetail(world, n));
+
+    /// <summary>Materializados vivos enquadrados por escopo mas com camada cosmética
+    /// aproximada (ex.: dentro de prédio não enquadrado numa cidade observada).</summary>
+    public static long CosmeticallyApproximatePopulation(WorldState world, CityId city) =>
+        MaterializedAlive(world, city).LongCount(n => IsCosmeticallyObserved(world, n) && !HasFullCosmeticDetail(world, n));
+
     private static long BuildingCount(WorldState world, CityId city) =>
         world.Buildings.Count(b => b.City == city);
 

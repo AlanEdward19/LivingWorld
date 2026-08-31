@@ -4,7 +4,13 @@ Fonte única de continuidade. Quem entra numa área nova **lê este arquivo prim
 Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
-- **Última coisa concluída (2026-08-23)**: `dynamic-city-growth` FixT18 — filha fundada junto da
+- **Última coisa concluída (2026-08-31)**: Fase 28 — cognição inspecionável, LOD observacional
+  (mundo/cidade/interior), compressão de estado frio, painel web "ver o cérebro", sandbox de
+  decisão. Branch `feat/phase-28-cognition` em `LivingWorld-28`. Tasks T1–T23 implementadas;
+  143 testes .NET focados na fase passaram; `verify.sh` completo pendente (usuário). Worktrees
+  `LivingWorld-28-t*` mantidas até aprovação do usuário para limpeza.
+- **Próxima unidade**: usuário roda `bash scripts/verify.sh` na worktree `LivingWorld-28`; após
+  aprovação, limpar worktrees efêmeras `LivingWorld-28-t*`.
   mãe agenda fusão por `OrganizationTicks`, revalida adjacência e transfere todo estado causal.
   A filha permanece como tombstone histórico (`MergedIntoCityId`), mas sai de migração,
   crescimento, construção, fundação e projeções via `ActiveCities()`. ADR-0019; detalhes em

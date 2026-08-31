@@ -2,6 +2,7 @@
 // (design.md "Components" -> `ViewStore`; master prompt §33). Recebe `PortalSource` por
 // construtor (T0/OQ-2) — o mock no Estágio 1, a projeção real (`Portals` de
 // `GlobalSnapshot`/`CitySnapshot`) na T33, mesma interface, mesma chamada.
+import { postObservationScope } from "../api/observationScope";
 import type { PortalSource } from "../data/sources";
 import type { PortalEndpointDto } from "../data/contracts";
 import type { CameraState, EntityRef, SpaceId } from "../map-engine/types";
@@ -22,14 +23,27 @@ function endpointToSpaceId(endpoint: PortalEndpointDto): SpaceId {
   }
 }
 
+function newObservationSourceId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "view-store";
+}
+
 export class ViewStore {
   private current: SpaceId = { kind: "World" };
   private readonly cameraByScope = new Map<string, CameraState>();
   private readonly activeLayerIds = new Set<string>();
   private followed: EntityRef | null = null;
   private readonly listeners = new Set<() => void>();
+  private readonly observationSourceId: string;
 
-  constructor(private readonly portalSource: PortalSource) {}
+  constructor(
+    private readonly portalSource: PortalSource,
+    observationSourceId?: string,
+  ) {
+    this.observationSourceId = observationSourceId ?? newObservationSourceId();
+  }
 
   currentSpace(): SpaceId {
     return this.current;
@@ -37,13 +51,16 @@ export class ViewStore {
 
   /** Navegação direta (clique numa cidade/prédio, botão Open, breadcrumb) — sem portal específico. */
   enter(target: SpaceId): void {
+    const previousKey = toScopeKey(this.current);
     this.current = target;
+    if (previousKey !== toScopeKey(target)) {
+      void postObservationScope(this.observationSourceId, target);
+    }
     this.notify();
   }
 
   goToAncestor(target: SpaceId): void {
-    this.current = target;
-    this.notify();
+    this.enter(target);
   }
 
   /**

@@ -1,7 +1,9 @@
 using LivingWorld.Domain;
 using LivingWorld.Domain.Llm;
 
+using LivingWorld.Simulation.Behavior;
 using LivingWorld.Simulation.History;
+using LivingWorld.Simulation.Observation;
 using LivingWorld.Simulation.Population;
 using LivingWorld.Simulation.Snapshot;
 
@@ -222,6 +224,15 @@ public sealed class WorldState
     [Volatile] public IReadOnlyList<Npc> NpcWakeBatch => _npcWakeBatch;
 
     [Volatile] public ColdTierArchive ColdArchive { get; private set; }
+
+    /// <summary>Rastro de decisão por NPC (Fase 28, COG-01) — side-store não-canônico.</summary>
+    [Volatile] public NpcCognitionLog CognitionLog { get; } = new();
+
+    /// <summary>União dos escopos de observação ativos (Fase 28, LOD-04).</summary>
+    [Volatile] public ObservationRegistry ObservationRegistry { get; } = new();
+
+    /// <summary>Camada cosmética lazy/exata por observação (Fase 28, T5).</summary>
+    [Volatile] public CosmeticDetailSystem CosmeticDetail { get; private set; } = null!;
 
     [Volatile] internal CanonicalHashCache CanonicalHashCache { get; } = new();
 
@@ -471,6 +482,7 @@ public sealed class WorldState
         AliveNpcIndex = AliveNpcIndex.RebuildFrom(this);
         HistoryIndex = HistoryIndex.RebuildFrom(this);
         ColdArchive = new ColdTierArchive();
+        CosmeticDetail = new CosmeticDetailSystem(ObservationRegistry);
         BindNpcCanonicalNotifiers();
     }
 
@@ -628,9 +640,9 @@ public sealed class WorldState
         AliveNpcIndex = AliveNpcIndex.RebuildFrom(this);
         HistoryIndex = HistoryIndex.RebuildFrom(this);
         ColdArchive = new ColdTierArchive();
+        CosmeticDetail = new CosmeticDetailSystem(ObservationRegistry);
         BindNpcCanonicalNotifiers();
     }
-
     internal WorldRngRegistry Rng => _rng;
     internal EventScheduler Scheduler => _scheduler;
 
