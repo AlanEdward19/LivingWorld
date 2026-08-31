@@ -45,6 +45,23 @@ describe("AgentView", () => {
     expect(screen.queryByTestId("popup-panel")).not.toBeInTheDocument();
   });
 
+  it("'View skills' opens a Popup with Mira's skills and their levels", () => {
+    render(<AgentView fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} agentId="mira-valen" />);
+    expect(screen.queryByTestId("popup-panel")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("View skills →"));
+
+    expect(screen.getByTestId("popup-panel")).toHaveTextContent("Mira Valen's skills");
+    const detail = screen.getByTestId("agent-skills-detail");
+    for (const skill of MIRA.skills) {
+      expect(detail).toHaveTextContent(skill.name);
+      expect(detail).toHaveTextContent(String(Math.floor(skill.level)));
+    }
+
+    fireEvent.click(screen.getByTestId("popup-close"));
+    expect(screen.queryByTestId("popup-panel")).not.toBeInTheDocument();
+  });
+
   it("'View relationships' opens a Popup with Mira's full relationship list", () => {
     render(<AgentView fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} agentId="mira-valen" />);
     fireEvent.click(screen.getByText("View relationships →"));

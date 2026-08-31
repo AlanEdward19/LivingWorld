@@ -108,11 +108,17 @@ export interface RelationshipFixture {
   strength: RelationshipStrength;
 }
 
+export interface SkillFixture {
+  name: string;
+  level: number;
+}
+
 export interface AgentFixture {
   id: string;
   name: string;
   age: number;
   profession: string;
+  skills: SkillFixture[];
   settlementId: string;
   householdId: string | null;
   /** Pontos de patrulha (mesmo espaço de grid dos prédios do settlement) — o NPC se move entre
