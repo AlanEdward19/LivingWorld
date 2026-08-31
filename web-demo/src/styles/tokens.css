@@ -233,6 +233,7 @@ input[type="text"]::placeholder {
   display: flex;
   gap: 0.3rem;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 [data-testid="breadcrumb"] li {
@@ -244,6 +245,11 @@ input[type="text"]::placeholder {
   margin-left: 0.3rem;
   color: var(--text-disabled);
 }
+
+[data-testid="breadcrumb"] li:last-child {
+  font-weight: 600;
+}
+
 
 /* § 37-38 Global Search */
 [data-testid="search-bar"] {
@@ -1848,6 +1854,33 @@ button:disabled {
   height: 100%;
   background: var(--accent);
   transition: width 200ms ease;
+}
+
+.skill-row {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--surface-2);
+}
+
+.skill-row:last-child {
+  border-bottom: none;
+}
+
+.skill-row-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.skill-progress {
+  height: 4px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.skill-progress > div {
+  height: 100%;
+  background: var(--accent-secondary);
 }
 
 /* Worlds library — same planet position/size as the Main Menu (`.planet-frame`, doc consistency

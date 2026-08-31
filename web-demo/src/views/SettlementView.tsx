@@ -54,7 +54,7 @@ export function SettlementView({ fixture, nav, settlementId }: SettlementViewPro
       <ul data-testid="settlement-places">
         {places.slice(0, 4).map((building) => (
           <li key={building.id}>
-            <EntityRow title={building.name} meta={building.kind} onClick={() => nav.replace({ kind: "building", id: building.id })} />
+            <EntityRow title={building.name} meta={building.kind} onClick={() => nav.push({ kind: "building", id: building.id })} />
           </li>
         ))}
       </ul>

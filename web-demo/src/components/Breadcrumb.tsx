@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import type { WorldFixture } from "../fixture/types";
-import { NavigationStore, type Route } from "../nav/NavigationStore";
+import { NavigationStore, routeToPath, type Route } from "../nav/NavigationStore";
 
 export interface BreadcrumbProps {
   fixture: WorldFixture;
@@ -35,24 +35,41 @@ function labelFor(route: Route, fixture: WorldFixture): string {
 }
 
 /**
- * Breadcrumb visível em toda tela, lendo `NavigationStore.breadcrumb()` (design.md §
- * Architecture — fonte única de verdade de navegação). Botão voltar chama `nav.back()`,
- * preservando o estado da tela anterior em vez de resetar pro World View (spec P1 AC8).
+ * Breadcrumb visível em toda tela, lendo `NavigationStore.breadcrumb()` — só rotas de
+ * localização (World/Settlement/Building), cada uma clicável pra saltar direto de volta
+ * (design.md § Architecture — fonte única de verdade de navegação). Assina `current()` (não
+ * `breadcrumb()`) pra também re-renderizar quando só um overlay não-espacial (causal/timeline/
+ * agent/household/...) muda por cima da localização, já que esses nunca tocam a pilha de
+ * localização em si. Botão voltar chama `nav.back()`, preservando o estado da tela anterior em
+ * vez de resetar pro World View (spec P1 AC8).
  */
 export function Breadcrumb({ fixture, nav }: BreadcrumbProps) {
-  const breadcrumb = useSyncExternalStore(
+  const current = useSyncExternalStore(
     (listener) => nav.subscribe(listener),
-    () => nav.breadcrumb(),
+    () => nav.current(),
   );
+  const breadcrumb = nav.breadcrumb();
+  const currentPath = routeToPath(current);
 
   return (
     <nav data-testid="breadcrumb">
       <ol>
-        {breadcrumb.map((route, index) => (
-          <li key={index}>{labelFor(route, fixture)}</li>
-        ))}
+        {breadcrumb.map((route, index) => {
+          const isCurrent = routeToPath(route) === currentPath;
+          return (
+            <li key={index}>
+              {isCurrent ? (
+                labelFor(route, fixture)
+              ) : (
+                <button type="button" onClick={() => nav.goTo(route)}>
+                  {labelFor(route, fixture)}
+                </button>
+              )}
+            </li>
+          );
+        })}
       </ol>
-      {breadcrumb.length > 1 && (
+      {nav.canGoBack() && (
         <button type="button" onClick={() => nav.back()}>
           Back
         </button>
