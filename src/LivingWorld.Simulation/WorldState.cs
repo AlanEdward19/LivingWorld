@@ -213,26 +213,26 @@ public sealed class WorldState
 
     [Canonical] public long NextMemoryId => _nextMemoryId;
 
-    [Volatile] public AliveNpcIndex AliveNpcIndex { get; private set; }
+    [Volatile, Ephemeral] public AliveNpcIndex AliveNpcIndex { get; private set; }
 
-    [Volatile] public HistoryIndex HistoryIndex { get; private set; }
+    [Volatile, Ephemeral] public HistoryIndex HistoryIndex { get; private set; }
 
     private readonly List<Npc> _npcWakeBatch = [];
     private readonly Dictionary<long, long> _npcWakeEventIdByNpc = [];
 
     /// <summary>NPCs que acordam neste tick (PERF-08) — derivado, fora do hash canônico.</summary>
-    [Volatile] public IReadOnlyList<Npc> NpcWakeBatch => _npcWakeBatch;
+    [Volatile, Ephemeral] public IReadOnlyList<Npc> NpcWakeBatch => _npcWakeBatch;
 
     [Volatile] public ColdTierArchive ColdArchive { get; private set; }
 
     /// <summary>Rastro de decisão por NPC (Fase 28, COG-01) — side-store não-canônico.</summary>
-    [Volatile] public NpcCognitionLog CognitionLog { get; } = new();
+    [Volatile, Ephemeral] public NpcCognitionLog CognitionLog { get; } = new();
 
     /// <summary>União dos escopos de observação ativos (Fase 28, LOD-04).</summary>
-    [Volatile] public ObservationRegistry ObservationRegistry { get; } = new();
+    [Volatile, Ephemeral] public ObservationRegistry ObservationRegistry { get; } = new();
 
     /// <summary>Camada cosmética lazy/exata por observação (Fase 28, T5).</summary>
-    [Volatile] public CosmeticDetailSystem CosmeticDetail { get; private set; } = null!;
+    [Volatile, Ephemeral] public CosmeticDetailSystem CosmeticDetail { get; private set; } = null!;
 
     [Volatile] internal CanonicalHashCache CanonicalHashCache { get; } = new();
 

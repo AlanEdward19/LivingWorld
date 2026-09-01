@@ -48,6 +48,9 @@ public static class ReferentialIntegritySweep
         [typeof(AnimalId)] = w => w.Fauna.Select(animal => (object)animal.Id).ToHashSet(),
         [typeof(PlantId)] = w => w.Flora.Select(plant => (object)plant.Id).ToHashSet(),
         [typeof(CombatEncounterId)] = w => w.CombatEncounters.Select(e => (object)e.Id).ToHashSet(),
+        // Fase 28: rotas cosméticas vivem em CosmeticDetail (efêmero) — nenhum campo canônico
+        // referencia RouteId ainda; vazio por vacuidade até haver consumidor causal real.
+        [typeof(RouteId)] = _ => [],
     };
 
     /// <summary>Todo tipo de id do assembly Domain — o teste de cobertura reprova se algum

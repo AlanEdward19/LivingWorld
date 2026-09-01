@@ -1,5 +1,4 @@
 using LivingWorld.Domain;
-using LivingWorld.Simulation.Economy;
 
 namespace LivingWorld.Simulation;
 

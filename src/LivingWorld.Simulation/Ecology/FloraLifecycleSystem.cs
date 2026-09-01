@@ -81,7 +81,8 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
             if (rules.ReproduceProbability <= 0)
                 continue;
 
-            double roll = ctx.Rng($"flora-reproduce-{plant.Id.Value}-{tick}").NextDouble();
+            double roll = ctx.StreamFor("flora-reproduce", unchecked(plant.Id.Value * 1_000_000L + tick))
+                .NextDouble();
             if (roll >= rules.ReproduceProbability)
                 continue;
 
@@ -89,7 +90,8 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
             if (freeCells.Count == 0)
                 continue;
 
-            int index = (int)(ctx.Rng($"flora-sprout-pos-{plant.Id.Value}-{tick}").NextDouble()
+            int index = (int)(ctx.StreamFor("flora-sprout-pos", unchecked(plant.Id.Value * 1_000_000L + tick))
+                .NextDouble()
                 * freeCells.Count);
             if (index >= freeCells.Count) index = freeCells.Count - 1;
             var sproutPos = freeCells[index];
@@ -151,15 +153,15 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
         int r = (int)Math.Floor(radius);
         var cells = new List<CellCoord>();
         for (int dx = -r; dx <= r; dx++)
-        for (int dy = -r; dy <= r; dy++)
-        {
-            if (dx == 0 && dy == 0) continue;
-            if (Math.Max(Math.Abs(dx), Math.Abs(dy)) > r) continue;
-            var cell = new CellCoord(origin.X + dx, origin.Y + dy);
-            if (!world.Map.TryGetCell(cell, out _)) continue;
-            if (occupied.Contains(cell)) continue;
-            cells.Add(cell);
-        }
+            for (int dy = -r; dy <= r; dy++)
+            {
+                if (dx == 0 && dy == 0) continue;
+                if (Math.Max(Math.Abs(dx), Math.Abs(dy)) > r) continue;
+                var cell = new CellCoord(origin.X + dx, origin.Y + dy);
+                if (!world.Map.TryGetCell(cell, out _)) continue;
+                if (occupied.Contains(cell)) continue;
+                cells.Add(cell);
+            }
 
         cells.Sort((a, b) =>
         {

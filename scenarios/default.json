@@ -33,7 +33,7 @@
   "FertilityMaxAge": 45,
   "AnnualConceptionChance": 0.25,
   "GestationDays": 270,
-  "MaxBytesPerNpcPerYear": 4000,
+  "MaxBytesPerNpcPerYear": 80000,
 
   "_professionComment": "1 = lavrador, 2 = ferreiro — nome só neste comentário, o motor só vê o id (AD-023/AD-025)",
   "HungerDecayPerHour": 2.0,

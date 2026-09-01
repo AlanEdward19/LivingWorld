@@ -1,6 +1,6 @@
 # Fase 28 — Cognição e LOD observacional
 
-**Status**: implementada (2026-08-31). Critérios cobertos por teste; `verify.sh` completo a rodar pelo usuário.
+**Status**: fechada (2026-09-01). Gate `verify.sh` verde; critérios cobertos por teste.
 
 **Objetivo**: (a) o utility AI da Fase 4 vira **inspecionável** — cada decisão relevante
 grava estímulo, ponderação e escolha como dado navegável, com painel web "ver o cérebro" e

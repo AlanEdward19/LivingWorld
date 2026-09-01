@@ -330,7 +330,7 @@ public static class ScenarioRunner
     /// recurso alimentício <see cref="DefaultEconomyRules.FoodResourceId"/>.</summary>
     public static readonly IReadOnlyList<PlantSpeciesRules> DefaultPlantSpeciesRules =
     [
-        new("wheat", MinToleratedTemp: 5, MaxToleratedTemp: 35, MaturityStage: 3,
+        new("crop1", MinToleratedTemp: 5, MaxToleratedTemp: 35, MaturityStage: 3,
             CropResourceId: 1, YieldPerMaturePlant: 10, ReproduceRadius: 2, ReproduceProbability: 0.2),
     ];
 

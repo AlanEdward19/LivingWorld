@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using LivingWorld.Domain;
 using LivingWorld.Simulation;
-using LivingWorld.Simulation.Behavior;
 using LivingWorld.Simulation.Observation;
 
 namespace LivingWorld.Tests.Performance;

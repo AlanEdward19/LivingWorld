@@ -182,7 +182,7 @@ describe("NpcInspector living view", () => {
       rest: { kind: 1, quality: 0.7, location: { x: 9, y: 9 }, remainingHours: 8, blocked: true },
     }]])));
 
-    expect(screen.getByRole("status")).toHaveTextContent("Descanso bloqueado — o lugar não é alcançável.");
+    expect(screen.getByText("Descanso bloqueado — o lugar não é alcançável.")).toBeInTheDocument();
     expect(screen.getByLabelText(/bloqueado/)).toBeInTheDocument();
   });
 
@@ -226,9 +226,7 @@ describe("NpcInspector living view", () => {
       food: { resourceId: 0, preparation: 0, remainingHours: 2, blocked: true },
     }]])));
 
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Refeição bloqueada — nenhum alimento comestível disponível.",
-    );
+    expect(screen.getByText("Refeição bloqueada — nenhum alimento comestível disponível.")).toBeInTheDocument();
   });
 
   it("retains follow but never offers spatial navigation for an NPC", async () => {

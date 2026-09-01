@@ -56,6 +56,8 @@ public class NpcInspectionDtoCoverageTests
         [nameof(NpcInspectionDto.CurrentScope)] = (dto, npc, world) => dto.CurrentScope.Equals(ExpectedScope(npc, world)),
         [nameof(NpcInspectionDto.Rest)] = (dto, npc, world) => Equals(dto.Rest, RestPresentation.Of(world, npc)),
         [nameof(NpcInspectionDto.Food)] = (dto, npc, world) => Equals(dto.Food, FoodPresentation.Of(world, npc)),
+        [nameof(NpcInspectionDto.CognitionTrace)] = (dto, npc, world) =>
+            dto.CognitionTrace.SequenceEqual(world.CognitionLog.RecentEntries(npc.Id, int.MaxValue)),
     };
 
     private static NpcScope ExpectedScope(Npc npc, WorldState world)

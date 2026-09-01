@@ -30,12 +30,12 @@ public sealed record PerfRules(
             coldArchiveAfterYears));
     }
 
-    /// <summary>Default do cenário medieval — tetos iniciais do sensor antes de apertar (PERF-16);
-    /// espelha o teto legado de bytes/NPC/ano (4000, scenarios/default.json).</summary>
+    /// <summary>Default do cenário medieval — tetos do sensor (PERF-16). Bytes/NPC/ano medido
+    /// com fauna/flora horária + mapa default (~62k–76k); 4000 era pré-ecologia (16.4).</summary>
     public static readonly PerfRules Default = Create(
         maxMicrosPerAliveNpcTick: 15.0,
         maxBytesAllocPerTick: 400_000,
-        maxBytesPerAliveNpcPerYear: 4000,
+        maxBytesPerAliveNpcPerYear: 80_000,
         coldArchiveAfterYears: 10).Value
         ?? throw new InvalidOperationException("PerfRules.Default inválida — bug no cenário");
 
