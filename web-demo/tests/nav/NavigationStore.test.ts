@@ -19,21 +19,31 @@ describe("NavigationStore", () => {
     expect(store.current()).toEqual({ kind: "settlement", id: "oakbridge" });
   });
 
-  it("replace swaps the top of the stack without growing it (AD-021)", () => {
+  it("replace swaps the current route without growing the breadcrumb — non-location kinds never join it (AD-021)", () => {
     const store = new NavigationStore();
     store.push({ kind: "settlement", id: "oakbridge" });
     store.replace({ kind: "agent", id: "mira-valen" });
     expect(store.current()).toEqual({ kind: "agent", id: "mira-valen" });
-    expect(store.breadcrumb()).toEqual([{ kind: "world" }, { kind: "agent", id: "mira-valen" }]);
+    expect(store.breadcrumb()).toEqual([{ kind: "world" }, { kind: "settlement", id: "oakbridge" }]);
   });
 
-  it("replace after replace keeps the stack flat — sibling switches never accumulate", () => {
+  it("replace after replace keeps the breadcrumb flat — sibling switches never accumulate", () => {
     const store = new NavigationStore();
     store.push({ kind: "settlement", id: "oakbridge" });
     store.replace({ kind: "agent", id: "mira-valen" });
-    store.replace({ kind: "building", id: "bld-corvin-bakery" });
     store.replace({ kind: "agent", id: "corvin" });
-    expect(store.breadcrumb()).toEqual([{ kind: "world" }, { kind: "agent", id: "corvin" }]);
+    expect(store.current()).toEqual({ kind: "agent", id: "corvin" });
+    expect(store.breadcrumb()).toEqual([{ kind: "world" }, { kind: "settlement", id: "oakbridge" }]);
+  });
+
+  it("building is a location kind — pushing one descends the breadcrumb, replacing a sibling swaps it", () => {
+    const store = new NavigationStore();
+    store.push({ kind: "settlement", id: "oakbridge" });
+    store.push({ kind: "building", id: "bld-corvin-bakery" });
+    expect(store.breadcrumb()).toEqual([{ kind: "world" }, { kind: "settlement", id: "oakbridge" }, { kind: "building", id: "bld-corvin-bakery" }]);
+
+    store.replace({ kind: "building", id: "bld-valen-house" });
+    expect(store.breadcrumb()).toEqual([{ kind: "world" }, { kind: "settlement", id: "oakbridge" }, { kind: "building", id: "bld-valen-house" }]);
   });
 
   it("replace updates the URL via replaceState, not pushState (doesn't grow browser history)", () => {
@@ -44,7 +54,7 @@ describe("NavigationStore", () => {
     window.history.replaceState(null, "", "/");
   });
 
-  it("maintains a consistent stack across 5+ pushes and backs", () => {
+  it("maintains a consistent stack across 5+ pushes and backs — only location kinds grow the breadcrumb", () => {
     const store = new NavigationStore();
     store.push({ kind: "settlement", id: "oakbridge" });
     store.push({ kind: "household", id: "valen-household" });
@@ -52,14 +62,7 @@ describe("NavigationStore", () => {
     store.push({ kind: "causal", eventId: "evt-grain-prices-rose" });
     store.push({ kind: "timeline", scope: { type: "agent", id: "mira-valen" } });
 
-    expect(store.breadcrumb()).toEqual([
-      { kind: "world" },
-      { kind: "settlement", id: "oakbridge" },
-      { kind: "household", id: "valen-household" },
-      { kind: "agent", id: "mira-valen" },
-      { kind: "causal", eventId: "evt-grain-prices-rose" },
-      { kind: "timeline", scope: { type: "agent", id: "mira-valen" } },
-    ]);
+    expect(store.breadcrumb()).toEqual([{ kind: "world" }, { kind: "settlement", id: "oakbridge" }]);
 
     store.back();
     expect(store.current()).toEqual({ kind: "causal", eventId: "evt-grain-prices-rose" });
@@ -83,15 +86,38 @@ describe("NavigationStore", () => {
     expect(store.breadcrumb()).toEqual([{ kind: "world" }]);
   });
 
-  it("breadcrumb() returns the full stack in navigation order", () => {
+  it("breadcrumb() returns only the location stack, in navigation order", () => {
     const store = new NavigationStore();
     store.push({ kind: "settlement", id: "oakbridge" });
     store.push({ kind: "household", id: "valen-household" });
-    expect(store.breadcrumb()).toEqual([
-      { kind: "world" },
-      { kind: "settlement", id: "oakbridge" },
-      { kind: "household", id: "valen-household" },
-    ]);
+    expect(store.breadcrumb()).toEqual([{ kind: "world" }, { kind: "settlement", id: "oakbridge" }]);
+    expect(store.current()).toEqual({ kind: "household", id: "valen-household" });
+  });
+
+  it("canGoBack() is true for an open overlay even when the breadcrumb itself is only World", () => {
+    const store = new NavigationStore();
+    expect(store.canGoBack()).toBe(false);
+
+    store.push({ kind: "causal", eventId: "evt-grain-prices-rose" });
+    expect(store.breadcrumb()).toEqual([{ kind: "world" }]);
+    expect(store.canGoBack()).toBe(true);
+
+    store.back();
+    expect(store.current()).toEqual({ kind: "world" });
+    expect(store.canGoBack()).toBe(false);
+  });
+
+  it("goTo() jumps straight to a clicked breadcrumb entry, discarding everything pushed after it", () => {
+    const store = new NavigationStore();
+    store.push({ kind: "settlement", id: "oakbridge" });
+    store.push({ kind: "building", id: "bld-corvin-bakery" });
+    store.push({ kind: "agent", id: "mira-valen" });
+    store.push({ kind: "causal", eventId: "evt-grain-prices-rose" });
+
+    store.goTo({ kind: "settlement", id: "oakbridge" });
+
+    expect(store.current()).toEqual({ kind: "settlement", id: "oakbridge" });
+    expect(store.breadcrumb()).toEqual([{ kind: "world" }, { kind: "settlement", id: "oakbridge" }]);
   });
 
   it("notifies subscribers on push and back", () => {

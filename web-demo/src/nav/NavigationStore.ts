@@ -15,6 +15,30 @@ export type Route =
 
 const ROOT_ROUTE: Route = { kind: "world" };
 
+const LOCATION_KINDS = new Set<Route["kind"]>(["world", "settlement", "building"]);
+
+/** Rotas de localização (World/Settlement/Building) — as únicas que formam a hierarquia
+ * espacial do breadcrumb. As demais (household/agent/causal/timeline/life/feed/threads/thread)
+ * nunca entram na pilha, só trocam a rota atual (pedido do usuário 2026-08-31: breadcrumb
+ * cheio de entidades não-espaciais confundia "onde estou no mundo"). */
+function isLocationRoute(route: Route): boolean {
+  return LOCATION_KINDS.has(route.kind);
+}
+
+/** Profundidade de uma rota de localização na hierarquia World(0) > Settlement(1) > Building(2). */
+function locationDepth(kind: Route["kind"]): number {
+  switch (kind) {
+    case "world":
+      return 0;
+    case "settlement":
+      return 1;
+    case "building":
+      return 2;
+    default:
+      return -1;
+  }
+}
+
 /** Serializa uma `Route` pra um path de URL — inverso de `pathToRoute`. */
 export function routeToPath(route: Route): string {
   switch (route.kind) {
@@ -99,49 +123,79 @@ export function pathToRoute(path: string, fixture?: WorldFixture): Route | null 
 
 /**
  * Pilha de breadcrumb — fonte única de verdade de "onde estou" (design.md § Architecture).
- * Nenhuma view guarda estado de navegação próprio; toda view lê `current()`/`breadcrumb()`
- * daqui. Idioma de store igual a `web/src/state/viewStore.ts` (listeners + subscribe,
- * compatível com `useSyncExternalStore`), implementação própria desta demo.
+ * Só rotas de localização (World/Settlement/Building) entram nessa pilha; o resto (household,
+ * agent, causal, timeline, life, feed, threads, thread) só troca `current()`, sem virar crumb —
+ * pedido do usuário 2026-08-31. Nenhuma view guarda estado de navegação próprio; toda view lê
+ * `current()`/`breadcrumb()` daqui. Idioma de store igual a `web/src/state/viewStore.ts`
+ * (listeners + subscribe, compatível com `useSyncExternalStore`), implementação própria desta
+ * demo.
  *
  * Sincronização de URL (T12): `push`/`back` escrevem em `history` e `syncWithHistory` escuta
  * `popstate` — só um lado escreve por vez (nunca os dois, ver Risk do design.md), evitando
  * dessincronia entre o botão voltar do browser e `back()`.
  */
 export class NavigationStore {
-  private stack: Route[] = [ROOT_ROUTE];
+  /** Hierarquia espacial (World > Settlement > Building) — o breadcrumb exibido é exatamente
+   * esta pilha. */
+  private locationStack: Route[] = [ROOT_ROUTE];
+  /** Rotas não-espaciais empilhadas por cima da localização atual (ex.: agent → causal →
+   * timeline abertos em sequência) — nunca aparecem no breadcrumb, só em `current()`/`back()`. */
+  private overlayStack: Route[] = [];
+  /** Última rota de localização vigente quando a `overlayStack` começou a crescer — o que
+   * `CenterStage` deve continuar mostrando embaixo de um overlay (causal/timeline/life/...). */
+  private overlayBase: Route | null = null;
   private readonly listeners = new Set<() => void>();
   private readonly popstateHandler = () => this.syncFromLocation();
 
-  constructor(private readonly fixture?: WorldFixture) {}
+  constructor(private readonly fixture?: WorldFixture) { }
 
-  /** Empilha uma nova rota no topo — nunca substitui a pilha existente. */
+  /** Empilha uma nova rota no topo — localização cresce a pilha do breadcrumb, o resto só vira
+   * a rota atual. */
   push(route: Route): void {
-    this.stack = [...this.stack, route];
-    if (typeof window !== "undefined") {
-      window.history.pushState(null, "", routeToPath(route));
-    }
-    this.notify();
+    this.setRoute(route, "push");
   }
 
   /**
-   * Substitui o topo da pilha em vez de empilhar — usado quando o foco troca ENTRE irmãos
-   * dentro do mesmo settlement (building/household/agent, ex.: clicar num NPC depois de já
-   * estar vendo outro), não quando entra de verdade num nível novo (world→settlement). Sem
-   * isso a pilha crescia sem fim e "Back"/clicar fora nunca voltava direto pra a cidade —
-   * feedback do usuário 2026-08-26 (AD-021).
+   * Substitui o topo em vez de empilhar — usado quando o foco troca ENTRE irmãos (ex.: clicar
+   * num NPC depois de já estar vendo outro), não quando entra de verdade num nível novo
+   * (world→settlement→building). Sem isso a pilha crescia sem fim e "Back"/clicar fora nunca
+   * voltava direto pra a cidade — feedback do usuário 2026-08-26 (AD-021).
    */
   replace(route: Route): void {
-    this.stack = [...this.stack.slice(0, -1), route];
+    this.setRoute(route, "replace");
+  }
+
+  private setRoute(route: Route, mode: "push" | "replace"): void {
+    if (isLocationRoute(route)) {
+      // Sempre reconstrói pela profundidade (não pelo push/replace do chamador): entrar mais
+      // fundo cresce a pilha, trocar de irmão ao mesmo nível ou subir a substitui — mesmo
+      // resultado não importa de onde a navegação veio (mapa, sidebar, busca...).
+      this.locationStack = [...this.locationStack.slice(0, locationDepth(route.kind)), route];
+      this.overlayStack = [];
+      this.overlayBase = null;
+    } else {
+      if (this.overlayStack.length === 0) this.overlayBase = this.current();
+      this.overlayStack = mode === "push" ? [...this.overlayStack, route] : [...this.overlayStack.slice(0, -1), route];
+    }
+
     if (typeof window !== "undefined") {
-      window.history.replaceState(null, "", routeToPath(route));
+      if (mode === "push") window.history.pushState(null, "", routeToPath(route));
+      else window.history.replaceState(null, "", routeToPath(route));
     }
     this.notify();
   }
 
-  /** Desempilha o topo, voltando pra rota anterior. Nunca esvazia o root (`world`). */
+  /** Desempilha o topo (overlay primeiro, depois localização), voltando pra rota anterior.
+   * Nunca esvazia o root (`world`). */
   back(): void {
-    if (this.stack.length <= 1) return;
-    this.stack = this.stack.slice(0, -1);
+    if (this.overlayStack.length > 0) {
+      this.overlayStack = this.overlayStack.slice(0, -1);
+      if (this.overlayStack.length === 0) this.overlayBase = null;
+    } else if (this.locationStack.length > 1) {
+      this.locationStack = this.locationStack.slice(0, -1);
+    } else {
+      return;
+    }
     if (typeof window !== "undefined") {
       window.history.pushState(null, "", routeToPath(this.current()));
     }
@@ -149,17 +203,42 @@ export class NavigationStore {
   }
 
   current(): Route {
-    return this.stack[this.stack.length - 1];
+    return this.overlayStack.length > 0 ? this.overlayStack[this.overlayStack.length - 1] : this.locationStack[this.locationStack.length - 1];
+  }
+
+  /** Se `back()` tem pra onde voltar (overlay aberto ou localização acima do root). */
+  canGoBack(): boolean {
+    return this.overlayStack.length > 0 || this.locationStack.length > 1;
   }
 
   /**
-   * Pilha completa, da raiz (`world`) até a rota atual, na ordem de navegação. Retorna a
-   * referência interna (nunca uma cópia nova) — `push`/`back` sempre trocam `this.stack` por um
-   * array novo em vez de mutar, então a referência só muda quando o conteúdo de fato muda.
-   * Necessário pra `useSyncExternalStore` (Breadcrumb, T19) não entrar em loop de re-render.
+   * Pilha de localização, da raiz (`world`) até a rota espacial atual — só World/Settlement/
+   * Building. Retorna a referência interna (nunca uma cópia nova) — muda só quando o conteúdo
+   * de fato muda. Necessário pra `useSyncExternalStore` (Breadcrumb, T19) não entrar em loop de
+   * re-render.
    */
   breadcrumb(): Route[] {
-    return this.stack;
+    return this.locationStack;
+  }
+
+  /** Rota espacial (world/settlement/building) que `CenterStage` deve mostrar embaixo de um
+   * overlay não-espacial (causal/timeline/life/feed/threads/thread) atualmente aberto. */
+  spatialContext(): Route {
+    return this.overlayBase ?? this.locationStack[this.locationStack.length - 1];
+  }
+
+  /** Clique num crumb do breadcrumb — salta direto pra aquela rota de localização, descartando
+   * tudo que foi empilhado depois dela (localização mais funda e qualquer overlay aberto). */
+  goTo(route: Route): void {
+    const index = this.locationStack.findIndex((entry) => routeToPath(entry) === routeToPath(route));
+    if (index === -1) return;
+    this.locationStack = this.locationStack.slice(0, index + 1);
+    this.overlayStack = [];
+    this.overlayBase = null;
+    if (typeof window !== "undefined") {
+      window.history.pushState(null, "", routeToPath(this.current()));
+    }
+    this.notify();
   }
 
   /**
@@ -179,17 +258,34 @@ export class NavigationStore {
   private syncFromLocation(isInitialLoad = false): void {
     const route = pathToRoute(window.location.pathname, this.fixture);
     if (!route) {
-      this.stack = [ROOT_ROUTE];
+      this.locationStack = [ROOT_ROUTE];
+      this.overlayStack = [];
+      this.overlayBase = null;
       window.history.replaceState(null, "", routeToPath(ROOT_ROUTE));
       this.notify();
       return;
     }
 
-    this.stack = route.kind === "world" ? [ROOT_ROUTE] : [ROOT_ROUTE, route];
+    this.locationStack = this.locationStackFor(route);
+    this.overlayStack = isLocationRoute(route) ? [] : [route];
+    this.overlayBase = isLocationRoute(route) ? null : this.locationStack[this.locationStack.length - 1];
+
     if (isInitialLoad) {
       window.history.replaceState(null, "", routeToPath(this.current()));
     }
     this.notify();
+  }
+
+  /** Reconstrói a pilha de localização pra um deep-link — building precisa achar o settlement
+   * dono no fixture pra manter World > Settlement > Building completo (sem fixture, cai pra
+   * World > Building, ponytail: aceitável pra esse caso raro sem dados). */
+  private locationStackFor(route: Route): Route[] {
+    if (route.kind === "settlement") return [ROOT_ROUTE, route];
+    if (route.kind === "building") {
+      const owner = this.fixture?.settlements.find((s) => s.buildings.some((b) => b.id === route.id));
+      return owner ? [ROOT_ROUTE, { kind: "settlement", id: owner.id }, route] : [ROOT_ROUTE, route];
+    }
+    return [ROOT_ROUTE];
   }
 
   subscribe(listener: () => void): () => void {

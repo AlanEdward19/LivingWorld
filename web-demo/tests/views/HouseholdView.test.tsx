@@ -27,4 +27,20 @@ describe("HouseholdView", () => {
     fireEvent.click(screen.getByTestId("view-timeline"));
     expect(nav.current()).toEqual({ kind: "timeline", scope: { type: "household", id: "valen-household" } });
   });
+
+  it("does not show a Back button at the root World route", () => {
+    render(<HouseholdView fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} householdId="valen-household" />);
+    expect(screen.queryByLabelText("Back")).not.toBeInTheDocument();
+  });
+
+  it("Back button returns to the previous route, preserving state instead of resetting to World View", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    nav.push({ kind: "settlement", id: "oakbridge" });
+    nav.push({ kind: "household", id: "valen-household" });
+    render(<HouseholdView fixture={WORLD_FIXTURE} nav={nav} householdId="valen-household" />);
+
+    fireEvent.click(screen.getByLabelText("Back"));
+
+    expect(nav.current()).toEqual({ kind: "settlement", id: "oakbridge" });
+  });
 });

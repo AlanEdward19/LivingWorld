@@ -113,6 +113,16 @@ export function RelationshipRow({
   );
 }
 
+/** Botão Back no canto superior direito da view (saiu do Breadcrumb — usuário: back pertence à
+ * view que o usuário está olhando, não à barra de navegação global). */
+export function BackButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" className="view-back-button" aria-label="Back" onClick={onClick}>
+      ←
+    </button>
+  );
+}
+
 /** Link discreto de "ver mais" — abre popup/drawer/view expandida, nunca troca o texto por um
  * botão gigante. */
 export function SectionLink({

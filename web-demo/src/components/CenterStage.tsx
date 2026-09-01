@@ -1,4 +1,4 @@
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef } from "react";
 import type { WorldFixture } from "../fixture/types";
 import type { NavigationStore, Route } from "../nav/NavigationStore";
 import { WorldStage } from "../render/WorldStage";
@@ -35,15 +35,6 @@ function settlementIdForRoute(fixture: WorldFixture, route: Route): string | und
     default:
       return undefined;
   }
-}
-
-/** Última rota espacial (world/settlement/household/agent/building) da pilha — o que o mapa
- * deve continuar mostrando embaixo de um overlay (causal/timeline/life/feed/threads/thread). */
-function underlyingSpatialRoute(breadcrumb: Route[]): Route {
-  for (let index = breadcrumb.length - 1; index >= 0; index -= 1) {
-    if (!OVERLAY_KINDS.has(breadcrumb[index].kind)) return breadcrumb[index];
-  }
-  return { kind: "world" };
 }
 
 /**
@@ -138,7 +129,7 @@ function SpatialLayer({ fixture, nav, route }: CenterStageProps) {
       settlementId={settlementId}
       focusBuildingId={focusBuildingId}
       onSelectAgent={(agentId) => nav.replace({ kind: "agent", id: agentId })}
-      onFocusBuilding={(buildingId) => nav.replace({ kind: "building", id: buildingId })}
+      onFocusBuilding={(buildingId) => nav.push({ kind: "building", id: buildingId })}
       onBackgroundClick={() => nav.replace({ kind: "settlement", id: settlementId })}
     />
   );
@@ -170,12 +161,8 @@ function OverlayContent({ fixture, nav, route }: CenterStageProps) {
  * `nav.back()` (essas rotas continuam empilhadas via `push`, então back as remove de novo).
  */
 export function CenterStage({ fixture, nav, route }: CenterStageProps) {
-  const breadcrumb = useSyncExternalStore(
-    (listener) => nav.subscribe(listener),
-    () => nav.breadcrumb(),
-  );
   const isOverlay = OVERLAY_KINDS.has(route.kind);
-  const spatialRoute = isOverlay ? underlyingSpatialRoute(breadcrumb) : route;
+  const spatialRoute = isOverlay ? nav.spatialContext() : route;
 
   useEffect(() => {
     if (!isOverlay) return undefined;

@@ -49,6 +49,14 @@ describe("TopBar", () => {
     expect(nav.current()).toEqual({ kind: "world" });
   });
 
+  it("World Selector: clicking outside closes the open menu", () => {
+    render(<TopBar fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} />);
+    fireEvent.click(within(screen.getByTestId("world-selector")).getByText(`${WORLD_FIXTURE.world.name} ▾`));
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
   it("Mode Selector: Observe is the active mode, Table and Inhabit are disabled ('Coming'), not hidden", () => {
     render(<TopBar fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} />);
     fireEvent.click(within(screen.getByTestId("mode-selector")).getByText("Observe ▾"));
