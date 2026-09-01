@@ -40,7 +40,7 @@ export function WorldView({ fixture, nav }: WorldViewProps) {
             <EntityRow
               title={settlement.name}
               meta={`${settlement.population} residents`}
-              onClick={() => nav.replace({ kind: "settlement", id: settlement.id })}
+              onClick={() => nav.push({ kind: "settlement", id: settlement.id })}
             />
           </li>
         ))}

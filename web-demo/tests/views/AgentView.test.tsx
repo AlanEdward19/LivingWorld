@@ -45,6 +45,40 @@ describe("AgentView", () => {
     expect(screen.queryByTestId("popup-panel")).not.toBeInTheDocument();
   });
 
+  it("'View skills' opens a Popup with Mira's skills and their levels", () => {
+    render(<AgentView fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} agentId="mira-valen" />);
+    expect(screen.queryByTestId("popup-panel")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("View skills →"));
+
+    expect(screen.getByTestId("popup-panel")).toHaveTextContent("Mira Valen's skills");
+    const detail = screen.getByTestId("agent-skills-detail");
+    for (const skill of MIRA.skills) {
+      expect(detail).toHaveTextContent(skill.name);
+      expect(detail).toHaveTextContent(String(Math.floor(skill.level)));
+    }
+
+    fireEvent.click(screen.getByTestId("popup-close"));
+    expect(screen.queryByTestId("popup-panel")).not.toBeInTheDocument();
+  });
+
+  it("'View needs' opens a Popup with Mira's needs and their values", () => {
+    render(<AgentView fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} agentId="mira-valen" />);
+    expect(screen.queryByTestId("popup-panel")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("View needs →"));
+
+    expect(screen.getByTestId("popup-panel")).toHaveTextContent("Mira Valen's needs");
+    const detail = screen.getByTestId("agent-needs-detail");
+    for (const [need, value] of Object.entries(MIRA.needs)) {
+      expect(detail).toHaveTextContent(need.charAt(0).toUpperCase() + need.slice(1));
+      expect(detail).toHaveTextContent(String(value));
+    }
+
+    fireEvent.click(screen.getByTestId("popup-close"));
+    expect(screen.queryByTestId("popup-panel")).not.toBeInTheDocument();
+  });
+
   it("'View relationships' opens a Popup with Mira's full relationship list", () => {
     render(<AgentView fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} agentId="mira-valen" />);
     fireEvent.click(screen.getByText("View relationships →"));
@@ -106,6 +140,22 @@ describe("AgentView", () => {
     render(<AgentView fixture={WORLD_FIXTURE} nav={nav} agentId="mira-valen" />);
     fireEvent.click(screen.getByTestId("view-timeline"));
     expect(nav.current()).toEqual({ kind: "timeline", scope: { type: "agent", id: "mira-valen" } });
+  });
+
+  it("does not show a Back button at the root World route", () => {
+    render(<AgentView fixture={WORLD_FIXTURE} nav={new NavigationStore(WORLD_FIXTURE)} agentId="mira-valen" />);
+    expect(screen.queryByLabelText("Back")).not.toBeInTheDocument();
+  });
+
+  it("Back button returns to the previous route, preserving state instead of resetting to World View", () => {
+    const nav = new NavigationStore(WORLD_FIXTURE);
+    nav.push({ kind: "settlement", id: "oakbridge" });
+    nav.push({ kind: "agent", id: "mira-valen" });
+    render(<AgentView fixture={WORLD_FIXTURE} nav={nav} agentId="mira-valen" />);
+
+    fireEvent.click(screen.getByLabelText("Back"));
+
+    expect(nav.current()).toEqual({ kind: "settlement", id: "oakbridge" });
   });
 
   it("Debug Mode shows technical event fields in the Why panel without losing the current selection (doc#116)", () => {

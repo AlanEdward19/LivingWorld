@@ -5,7 +5,7 @@ import { NpcToken } from "../npc/NpcToken";
 import { WhyPanel } from "./WhyPanel";
 import { FollowButton } from "../components/FollowButton";
 import { Popup, Drawer } from "../components/ContextOverlay";
-import { EntityRow, RelationshipRow, SectionHeader, SectionLink, StatusChips } from "../components/InspectorPrimitives";
+import { BackButton, EntityRow, RelationshipRow, SectionHeader, SectionLink, StatusChips } from "../components/InspectorPrimitives";
 import { FamilyTree } from "./FamilyTree";
 import { modeStore } from "../state/modeStore";
 
@@ -15,7 +15,7 @@ export interface AgentViewProps {
   agentId: string;
 }
 
-type OpenPopup = "body" | "relationships" | "why" | null;
+type OpenPopup = "needs" | "body" | "skills" | "relationships" | "why" | null;
 
 /**
  * Agent Inspector (redesign doc §13) — CURRENTLY/STATUS/BODY/HOUSEHOLD/RELATIONSHIPS/RECENT/WHY,
@@ -49,6 +49,7 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
 
   return (
     <div data-testid="agent-view">
+      {nav.canGoBack() && <BackButton onClick={() => nav.back()} />}
       <NpcToken id={agent.id} size={64} />
       <h1>{agent.name}</h1>
       <p data-testid="agent-age-profession">
@@ -62,6 +63,8 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
 
       <SectionHeader title="Status" />
       <StatusChips testId="agent-condition" items={agent.condition} />
+      <SectionLink onClick={(e) => openPopupAt("needs", e)}>View needs →</SectionLink>
+      <SectionLink onClick={(e) => openPopupAt("skills", e)}>View skills →</SectionLink>
 
       <SectionHeader title="Body" />
       <p data-testid="agent-body">{agent.bodySummary.build}</p>
@@ -182,6 +185,42 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
         </Popup>
       )}
 
+      {openPopup === "needs" && (
+        <Popup title={`${agent.name}'s needs`} anchorRect={popupAnchor} onClose={() => setOpenPopup(null)}>
+          <div data-testid="agent-needs-detail">
+            {(Object.entries(agent.needs) as [keyof typeof agent.needs, number][]).map(([need, value]) => (
+              <div className="skill-row" key={need}>
+                <div className="skill-row-label">
+                  <span>{need.charAt(0).toUpperCase() + need.slice(1)}</span>
+                  <span>{value}</span>
+                </div>
+                <div className="skill-progress">
+                  <div style={{ width: `${value}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </Popup>
+      )}
+
+      {openPopup === "skills" && (
+        <Popup title={`${agent.name}'s skills`} anchorRect={popupAnchor} onClose={() => setOpenPopup(null)}>
+          <div data-testid="agent-skills-detail">
+            {agent.skills.map((skill) => (
+              <div className="skill-row" key={skill.name}>
+                <div className="skill-row-label">
+                  <span>{skill.name}</span>
+                  <span>{Math.floor(skill.level)}</span>
+                </div>
+                <div className="skill-progress">
+                  <div style={{ width: `${(skill.level % 1) * 100}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </Popup>
+      )}
+
       {openPopup === "relationships" && (
         <Popup title={`${agent.name}'s relationships`} anchorRect={popupAnchor} onClose={() => setOpenPopup(null)}>
           {relationships.map((relationship) => (
@@ -205,6 +244,7 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
           <FamilyTree
             fixture={fixture}
             agentId={agentId}
+            focusAgentId={agentId}
             onSelectAgent={(id) => {
               setShowFamilyTree(false);
               nav.replace({ kind: "agent", id });

@@ -171,11 +171,24 @@ button[aria-pressed="true"] {
   color: #1a1408;
 }
 
-/* Botões ghost (§ 135): Back e toggles de contexto, sem preenchimento forte */
+/* Botões ghost (§ 135): toggles de contexto, sem preenchimento forte. `border: none` (não só
+ * `border-color: transparent`) e `font-size` igual ao span do crumb atual — senão o button
+ * global (border 1px + font-size 13px) deixa a linha mais alta que a rota "World" (só span,
+ * sem button nenhum), variando a altura do breadcrumb conforme a profundidade da rota. */
 [data-testid="breadcrumb"] button {
   background: transparent;
-  border-color: transparent;
+  border: none;
+  font-size: 12px;
   color: var(--text-secondary);
+}
+
+/* `span` é inline por padrão — padding vertical de inline não engorda a linha (spec CSS), só de
+ * inline-block/button. Sem `inline-block` aqui, o crumb atual (span) fica mais baixo que os
+ * outros (button), e a rota "World" (só span, sem nenhum button) fica com o breadcrumb inteiro
+ * mais baixo que "World > Oakbridge" (button + span). */
+[data-testid="breadcrumb"] span {
+  display: inline-block;
+  padding: 0.35rem 0.7rem;
 }
 
 [data-testid="breadcrumb"] button:hover {
@@ -205,10 +218,23 @@ input[type="text"]::placeholder {
 [data-testid="timeline-view"],
 [data-testid="life-view"],
 [data-testid="world-feed"] {
+  position: relative;
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 1rem 1.25rem;
+}
+
+.view-back-button {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  background: var(--surface-2);
 }
 
 [data-testid="story-thread-card"] {
@@ -227,12 +253,17 @@ input[type="text"]::placeholder {
   gap: 0.5rem;
   font-size: 12px;
   color: var(--text-muted);
+  background: var(--bg-world);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
 }
 
 [data-testid="breadcrumb"] ol {
   display: flex;
   gap: 0.3rem;
   flex-wrap: wrap;
+  align-items: center;
+  margin-left: 0.3rem;
 }
 
 [data-testid="breadcrumb"] li {
@@ -244,6 +275,11 @@ input[type="text"]::placeholder {
   margin-left: 0.3rem;
   color: var(--text-disabled);
 }
+
+[data-testid="breadcrumb"] li:last-child {
+  font-weight: 600;
+}
+
 
 /* § 37-38 Global Search */
 [data-testid="search-bar"] {
@@ -331,6 +367,22 @@ svg[data-testid="semantic-zoom-map"] text {
 [data-testid="settlement-stage"] > div:first-child {
   position: absolute;
   inset: 0;
+}
+
+/* World Map — mesmo bleeding do Settlement View acima: canvas Pixi precisa ocupar a altura
+ * inteira do centro, não só a largura (bug real: sem `height`, o wrapper colapsava pra altura
+ * do conteúdo/canvas inicial em vez de esticar até o rodapé). */
+[data-testid="world-stage"] {
+  position: relative;
+  width: calc(100% + 2rem);
+  height: calc(100% + 2rem);
+  margin: -1rem;
+  cursor: grab;
+  overflow: hidden;
+}
+
+[data-testid="world-stage"]:active {
+  cursor: grabbing;
 }
 
 [data-testid="settlement-stage-overlay"] {
@@ -556,6 +608,14 @@ svg[data-testid="semantic-zoom-map"] text {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 0.3rem;
+}
+
+/* Notifications fica perto da borda direita do topbar — ancora pela direita
+ * pra não vazar pra fora da tela. */
+[data-testid="notifications-menu"] [role="menu"] {
+  left: auto;
+  right: 0;
+  max-width: 320px;
 }
 
 .topbar-menu [role="menu"] button {
@@ -1848,6 +1908,33 @@ button:disabled {
   height: 100%;
   background: var(--accent);
   transition: width 200ms ease;
+}
+
+.skill-row {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--surface-2);
+}
+
+.skill-row:last-child {
+  border-bottom: none;
+}
+
+.skill-row-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.skill-progress {
+  height: 4px;
+  background: var(--surface-1);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.skill-progress > div {
+  height: 100%;
+  background: var(--accent-secondary);
 }
 
 /* Worlds library — same planet position/size as the Main Menu (`.planet-frame`, doc consistency
