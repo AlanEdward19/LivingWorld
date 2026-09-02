@@ -74,17 +74,15 @@ describe("ViewStore", () => {
     expect(() => store.enterViaPortal("does-not-exist")).toThrow();
   });
 
-  it("never issues an HTTP request from any method", () => {
+  it("does not issue HTTP for camera, layer, or follow-only operations", () => {
     const fetchSpy = vi.fn(() => {
-      throw new Error("fetch must never be called by ViewStore");
+      throw new Error("fetch must not be called for non-navigation ViewStore operations");
     });
     vi.stubGlobal("fetch", fetchSpy);
 
     const store = new ViewStore(new MockPortalSource(portalFixtures));
     store.recordCamera(CITY_A, { center: { x: 0, y: 0 }, scale: 1 });
     store.cameraFor(CITY_A, { center: { x: 0, y: 0 }, scale: 1 });
-    store.enter(WORLD);
-    store.enterViaPortal("portal-city-a-north");
     store.setLayerActive("Terrain", true);
     store.startFollow({ kind: "npc", id: "1", space: WORLD });
     store.stopFollow();

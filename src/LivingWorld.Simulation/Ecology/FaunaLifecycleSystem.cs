@@ -76,7 +76,8 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
                 if (b.Energy.ValueAt(tick) < rules.ReproduceEnergyThreshold) continue;
                 if (Chebyshev(a.Position, b.Position) > rules.ReproduceRadius) continue;
 
-                double roll = ctx.Rng($"fauna-reproduce-{a.Id.Value}-{b.Id.Value}-{tick}").NextDouble();
+                double roll = ctx.StreamFor("fauna-reproduce", PairStreamId(a.Id.Value, b.Id.Value, tick))
+                    .NextDouble();
                 used.Add(a.Id.Value);
                 used.Add(b.Id.Value);
                 if (roll >= rules.ReproduceProbability) break;
@@ -107,12 +108,12 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
         int midY = (a.Y + b.Y) / 2;
         var candidates = new List<CellCoord>(9);
         for (int dx = -1; dx <= 1; dx++)
-        for (int dy = -1; dy <= 1; dy++)
-        {
-            var cell = new CellCoord(midX + dx, midY + dy);
-            if (world.Map.TryGetCell(cell, out _))
-                candidates.Add(cell);
-        }
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                var cell = new CellCoord(midX + dx, midY + dy);
+                if (world.Map.TryGetCell(cell, out _))
+                    candidates.Add(cell);
+            }
 
         if (candidates.Count == 0)
             return a;
@@ -122,7 +123,7 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
             int cmp = left.X.CompareTo(right.X);
             return cmp != 0 ? cmp : left.Y.CompareTo(right.Y);
         });
-        int index = (int)(ctx.Rng($"fauna-birth-pos-{idA}-{idB}-{tick}").NextDouble() * candidates.Count);
+        int index = (int)(ctx.StreamFor("fauna-birth-pos", PairStreamId(idA, idB, tick)).NextDouble() * candidates.Count);
         if (index >= candidates.Count) index = candidates.Count - 1;
         return candidates[index];
     }
@@ -152,7 +153,7 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
                 if (!string.Equals(prey.Species, rules.PredatorOf, StringComparison.Ordinal)) continue;
                 if (Chebyshev(predator.Position, prey.Position) > rules.ReproduceRadius) continue;
 
-                double roll = ctx.Rng($"fauna-predate-{predator.Id.Value}-{prey.Id.Value}-{tick}")
+                double roll = ctx.StreamFor("fauna-predate", PairStreamId(predator.Id.Value, prey.Id.Value, tick))
                     .NextDouble();
                 if (roll >= rules.PredationProbability) continue;
 
@@ -183,4 +184,7 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
 
     public static int Chebyshev(CellCoord a, CellCoord b) =>
         Math.Max(Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y));
+
+    private static long PairStreamId(long idA, long idB, long tick) =>
+        unchecked(idA * 1_000_000_000L + idB * 1_000_000L + tick);
 }

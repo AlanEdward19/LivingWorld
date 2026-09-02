@@ -1,4 +1,7 @@
+using System.Reflection;
 using LivingWorld.Domain;
+using LivingWorld.Simulation.Behavior;
+using LivingWorld.Simulation.Observation;
 
 namespace LivingWorld.Simulation;
 
@@ -21,6 +24,8 @@ public sealed class MaterializationSystem : ISimulationSystem
 
     public void Tick(WorldState world, TickContext ctx)
     {
+        SyncCosmeticLayers(world, ctx.CurrentTick);
+
         if (!world.CityRules.Enabled) return;
         var rules = world.CityRules;
 
@@ -38,6 +43,71 @@ public sealed class MaterializationSystem : ISimulationSystem
 
             Dematerialize(world, npc.Id);
         }
+    }
+
+    /// <summary>LOD observacional (Fase 28, T4, LOD-01..03): detalhe cosmético pleno só com
+    /// escopo <see cref="ScopeKind.World"/> ou <see cref="ScopeKind.Building"/> do prédio
+    /// ocupado; NPC em rua com escopo de cidade; prédio não enquadrado numa cidade observada
+    /// fica aproximado. Fora de qualquer escopo: agregado (sem camada cosmética ativa).</summary>
+    public static bool HasFullCosmeticDetail(WorldState world, Npc npc)
+    {
+        ArgumentNullException.ThrowIfNull(world);
+        ArgumentNullException.ThrowIfNull(npc);
+
+        var scopes = GetActiveScopes(world.ObservationRegistry);
+        if (scopes.Count == 0)
+            return false;
+
+        if (scopes.Any(s => s.Kind == ScopeKind.World))
+            return world.ObservationRegistry.IsObserved(npc, world);
+
+        if (!world.ObservationRegistry.IsObserved(npc, world))
+            return false;
+
+        if (npc.Interior is not { Building: var buildingId })
+            return true;
+
+        return scopes.Any(s => s.Kind == ScopeKind.Building
+            && s.CityId == npc.City
+            && s.BuildingId == buildingId);
+    }
+
+    private static void SyncCosmeticLayers(WorldState world, long tick)
+    {
+        foreach (var npc in world.Npcs.Where(n => n.IsAlive).OrderBy(n => n.Id.Value))
+            ApplyCosmeticLayer(world, npc, tick);
+    }
+
+    private static void ApplyCosmeticLayer(WorldState world, Npc npc, long tick)
+    {
+        world.CosmeticDetail.EnsureNpc(npc, world, tick);
+
+        if (!world.CosmeticDetail.TryGetState(npc.Id, out var state))
+            return;
+
+        bool wantFull = HasFullCosmeticDetail(world, npc);
+        bool observed = world.ObservationRegistry.IsObserved(npc, world);
+
+        if (!wantFull && !observed)
+        {
+            if (state.Layer == CosmeticDetailLayer.FullDetail)
+                world.CosmeticDetail.OnDemoted(npc, tick);
+            return;
+        }
+
+        if (wantFull && state.Layer == CosmeticDetailLayer.Approximate)
+            world.CosmeticDetail.OnPromoted(npc, world, tick);
+        else if (!wantFull && state.Layer == CosmeticDetailLayer.FullDetail)
+            world.CosmeticDetail.OnDemoted(npc, tick);
+    }
+
+    private static IReadOnlyList<SpaceScope> GetActiveScopes(ObservationRegistry registry)
+    {
+        var field = typeof(ObservationRegistry).GetField("_scopesBySource", BindingFlags.Instance | BindingFlags.NonPublic);
+        if (field?.GetValue(registry) is not Dictionary<string, SpaceScope> scopes)
+            return Array.Empty<SpaceScope>();
+
+        return scopes.Values.ToList();
     }
 
     /// <summary>Papel formal (Fase 8, T9, CITY-05) — ver SPEC_DEVIATION acima sobre liderança de
@@ -87,6 +157,7 @@ public sealed class MaterializationSystem : ISimulationSystem
             wallet: new Money(wealthPerHead), city: city.Id, materializedAtTick: ctx.CurrentTick);
 
         world.AddNpc(npc);
+        ApplyCosmeticLayer(world, npc, ctx.CurrentTick);
         return Result<Npc>.Ok(npc);
     }
 
@@ -134,6 +205,10 @@ public sealed class MaterializationSystem : ISimulationSystem
 
         var ctx = new TickContext(world, world.Rng, world.Scheduler);
         var materialized = MaterializeOne(world, ctx, city.Id, npcId);
-        return materialized.IsSuccess ? Result<Unit>.Ok(Unit.Value) : Result<Unit>.Fail(materialized.Error!);
+        if (!materialized.IsSuccess)
+            return Result<Unit>.Fail(materialized.Error!);
+
+        ApplyCosmeticLayer(world, materialized.Value!, ctx.CurrentTick);
+        return Result<Unit>.Ok(Unit.Value);
     }
 }

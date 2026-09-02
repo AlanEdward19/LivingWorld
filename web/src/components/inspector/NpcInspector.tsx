@@ -11,6 +11,7 @@ import { ACTION_LABELS } from "../../map-engine/actionVisuals";
 import { NpcTokenSvg } from "../NpcTokenSvg";
 import type { AuthoringSource } from "../../data/sources";
 import { NpcAuthoringControls } from "./NpcAuthoringControls";
+import { CognitionTrace, cognitionTraceOf } from "./CognitionTrace";
 
 export interface NpcInspectorProps {
   entityRef: EntityRef;
@@ -416,6 +417,11 @@ export function NpcInspector({ entityRef, simulationStore, viewStore, narrativeS
               <NeedMeter label="Sede" value={inspection.thirst} />
               <NeedMeter label="Sono" value={inspection.sleep} />
               <NeedMeter label="Social" value={inspection.social} />
+            </section>
+
+            <section aria-labelledby="npc-cognition-title">
+              <h4 id="npc-cognition-title">Ver o cérebro</h4>
+              <CognitionTrace entries={cognitionTraceOf(inspection)} />
             </section>
           </>
         )}

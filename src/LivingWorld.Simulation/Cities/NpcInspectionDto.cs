@@ -65,5 +65,8 @@ public sealed record NpcInspectionDto(
     // GlobalProjector/LivingScopeProjector (NpcScopeResolver), agora também aqui — cliente usa
     // pra saber que o NPC seguido cruzou de cidade pro mundo (ou vice-versa) e trocar de tela.
     NpcScope CurrentScope,
+    // Fase 28 T10 (COG-10, COG-12, COG-13): rastro de decisão do side-store — leitura pura,
+    // lista vazia explícita quando não há entradas; nunca recalculado aqui.
+    IReadOnlyList<TraceEntry> CognitionTrace,
     NpcRestStatusDto? Rest = null,
     NpcFoodStatusDto? Food = null);

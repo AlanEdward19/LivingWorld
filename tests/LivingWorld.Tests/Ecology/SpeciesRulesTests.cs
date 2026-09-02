@@ -42,7 +42,7 @@ public sealed class SpeciesRulesTests
         Assert.Equal(ScenarioRunner.DefaultPlantSpeciesRules, world.PlantSpeciesRules);
         Assert.Equal(ScenarioRunner.DefaultBiomeSeasonTemperatureRules, world.BiomeSeasonTemperatureRules);
         Assert.Contains(world.AnimalSpeciesRules, r => r.Species == "wolf" && r.PredatorOf == "rabbit");
-        Assert.Contains(world.PlantSpeciesRules, r => r.Species == "wheat");
+        Assert.Contains(world.PlantSpeciesRules, r => r.Species == "crop1");
         Assert.Contains(world.BiomeSeasonTemperatureRules, r => r.BiomeId == 1 && r.SeasonDeltas.Count == 4);
     }
 }

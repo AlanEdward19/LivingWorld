@@ -6,6 +6,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using LivingWorld.Domain;
 using LivingWorld.Domain.Llm;
+using LivingWorld.Simulation.Snapshot;
 
 namespace LivingWorld.Simulation;
 
@@ -34,8 +35,15 @@ public static class WorldSnapshot
             .OrderBy(p => p.Name, StringComparer.Ordinal)
             .ToArray();
 
-    /// <summary>Toda propriedade pública, para round-trip completo (Serialize/Deserialize).</summary>
-    public static string Serialize(WorldState world) => BuildJson(world, static _ => true).ToJsonString(JsonOptions);
+    /// <summary>Toda propriedade pública persistível — exclui <see cref="EphemeralAttribute"/>
+    /// (sessão/LOD/cognição reconstruídos ao reidratar).</summary>
+    public static string Serialize(WorldState world)
+    {
+        var json = BuildJson(world, static p =>
+            p.GetCustomAttribute<EphemeralAttribute>() is null);
+        SnapshotStringInterning.Apply(json);
+        return json.ToJsonString(JsonOptions);
+    }
 
     public static string CanonicalHash(WorldState world) =>
         Snapshot.IncrementalHasher.Compute(world, useCache: true);
@@ -51,6 +59,7 @@ public static class WorldSnapshot
     public static WorldState Deserialize(string json)
     {
         var node = JsonNode.Parse(json)!.AsObject();
+        SnapshotStringInterning.Resolve(node);
 
         var calendar = node["Calendar"].Deserialize<WorldCalendar>(JsonOptions)!;
         var totalHours = node["CurrentDate"]!["TotalHours"]!.GetValue<long>();

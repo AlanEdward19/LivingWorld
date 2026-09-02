@@ -1,6 +1,4 @@
-using LivingWorld.Domain;
-
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Domain;
 
 /// <summary>Motivo do wake que disparou a decisão (Fase 16.3 P2b, COH-54) — volátil,
 /// só entra no <see cref="DecisionTrace"/>.</summary>

@@ -164,6 +164,8 @@ app.MapSimulationControlEndpoints();
 app.MapRealtimeEndpoints();
 app.MapVisualInputEndpoints();
 app.MapAuthoringEndpoints();
+app.MapWatchlistEndpoints(worldHost);
+app.MapObservationScopeEndpoints(worldHost);
 
 app.Run();
 

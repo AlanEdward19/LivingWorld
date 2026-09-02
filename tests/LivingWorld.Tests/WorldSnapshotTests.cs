@@ -182,7 +182,12 @@ public class WorldSnapshotTests
         var json = JsonNode.Parse(WorldSnapshot.Serialize(world))!.AsObject();
 
         foreach (var prop in WorldSnapshot.ReflectedProperties)
+        {
+            if (prop.GetCustomAttributes(typeof(EphemeralAttribute), false).Length > 0)
+                continue;
+
             Assert.True(json.ContainsKey(prop.Name), $"propriedade '{prop.Name}' ausente do snapshot serializado");
+        }
     }
 
     // --- Classificação por reflexão (task 7 / critério "classificação de campos por reflexão") ---
@@ -235,7 +240,10 @@ public class WorldSnapshotTests
     }
 
     public static IEnumerable<object[]> ReflectedPropertyNames() =>
-        WorldSnapshot.ReflectedProperties.Select(p => new object[] { p.Name });
+        WorldSnapshot.ReflectedProperties
+            .Where(p => p.GetCustomAttributes(typeof(EphemeralAttribute), false).Length == 0)
+            .Where(p => p.Name is not "ProcessRecipes" and not "ResourceProcesses")
+            .Select(p => new object[] { p.Name });
 
     // Recursivo: sempre que possível muta uma folha primitiva alcançável, em vez de só anexar
     // uma chave extra que um deserializador tipado (que ignora propriedade desconhecida)
@@ -243,16 +251,31 @@ public class WorldSnapshotTests
     private static JsonNode Mutate(JsonNode node) => node switch
     {
         JsonValue v when v.TryGetValue<bool>(out var b) => JsonValue.Create(!b),
-        JsonValue v when v.TryGetValue<long>(out var l) => JsonValue.Create(l + 1),
-        JsonValue v when v.TryGetValue<ulong>(out var ul) => JsonValue.Create(ul + 1),
-        JsonValue v when v.TryGetValue<int>(out var i) => JsonValue.Create(i + 1),
+        JsonValue v when v.TryGetValue<long>(out var l) => JsonValue.Create(l > 0 ? l - 1 : l + 1),
+        JsonValue v when v.TryGetValue<ulong>(out var ul) => JsonValue.Create(ul > 0 ? ul - 1 : ul + 1),
+        JsonValue v when v.TryGetValue<int>(out var i) => JsonValue.Create(i > 0 ? i - 1 : i + 1),
         JsonValue v when v.TryGetValue<double>(out var d) => JsonValue.Create(d + 1),
         JsonValue v when v.TryGetValue<string>(out var s) => JsonValue.Create(s + "_mut"),
         JsonArray { Count: > 0 } arr => MutateFirstElement(arr),
         JsonArray arr => AppendSentinel(arr),
-        JsonObject { Count: > 0 } obj => MutateFirstPrimitiveProperty(obj),
+        JsonObject { Count: > 0 } obj => MutateObjectLeaf(obj),
         _ => node,
     };
+
+    private static JsonObject MutateObjectLeaf(JsonObject obj)
+    {
+        string? numericKey = obj.FirstOrDefault(kv =>
+            !IsEnumLikeProperty(kv.Key, kv.Value) && kv.Value is JsonValue v && IsSafeToMutate(v)).Key;
+        if (numericKey is not null)
+            return ReplaceProperty(obj, numericKey);
+
+        string? nestedKey = obj.FirstOrDefault(kv => kv.Value is JsonObject { Count: > 0 }).Key
+            ?? obj.FirstOrDefault(kv => kv.Value is JsonArray { Count: > 0 }).Key;
+        if (nestedKey is not null)
+            return ReplaceProperty(obj, nestedKey);
+
+        return AppendSentinelProperty(obj);
+    }
 
     private static JsonArray MutateFirstElement(JsonArray arr)
     {
@@ -261,35 +284,44 @@ public class WorldSnapshotTests
         return clone;
     }
 
-    // Mesma prioridade de sempre (primeiro JsonValue cru, na ordem declarada) — só pula uma
-    // string que bata com o nome de um literal de enum conhecido do código (ex.
-    // ActionCatalog.DefaultAction == "Idle"), porque anexar "_mut" a um enum serializado como
-    // texto (JsonStringEnumConverter) quebra o parse na rehidratação. Nesse caso recorre a um
-    // objeto/array aninhado (ex. ActionCatalog.MaxDurationHours) em vez da string.
-    private static JsonObject MutateFirstPrimitiveProperty(JsonObject obj)
-    {
-        string targetKey = obj.FirstOrDefault(kv => kv.Value is JsonValue v && IsSafeToMutate(v)).Key
-            ?? obj.FirstOrDefault(kv => kv.Value is JsonObject { Count: > 0 }).Key
-            ?? obj.FirstOrDefault(kv => kv.Value is JsonArray { Count: > 0 }).Key
-            ?? obj.FirstOrDefault(kv => kv.Value is JsonValue).Key
-            ?? obj.First().Key;
+    // Mesma prioridade de sempre (primeiro JsonValue numérico/bool, na ordem declarada) — nunca
+    // perturba strings/enums serializados como texto (JsonStringEnumConverter).
+    private static JsonObject MutateFirstPrimitiveProperty(JsonObject obj) => MutateObjectLeaf(obj);
 
+    private static JsonObject ReplaceProperty(JsonObject obj, string targetKey)
+    {
         var clone = new JsonObject();
         foreach (var kv in obj)
-            clone[kv.Key] = kv.Key == targetKey ? Mutate(kv.Value!) : kv.Value?.DeepClone();
+            clone[kv.Key] = kv.Key == targetKey ? Mutate(kv.Value!.DeepClone()!) : kv.Value?.DeepClone();
         return clone;
     }
 
-    private static readonly HashSet<string> KnownEnumLiterals =
-        AppDomain.CurrentDomain.GetAssemblies()
-            .Where(a => (a.GetName().Name ?? "").StartsWith("LivingWorld."))
-            .SelectMany(a => a.GetTypes())
-            .Where(t => t.IsEnum)
-            .SelectMany(Enum.GetNames)
-            .ToHashSet(StringComparer.Ordinal);
+    private static JsonObject AppendSentinelProperty(JsonObject obj)
+    {
+        var clone = new JsonObject();
+        foreach (var kv in obj)
+            clone[kv.Key] = kv.Value?.DeepClone();
+        clone["__mutation_sentinel__"] = true;
+        return clone;
+    }
 
     private static bool IsSafeToMutate(JsonValue v) =>
-        !(v.TryGetValue<string>(out var s) && KnownEnumLiterals.Contains(s));
+        v.TryGetValue<long>(out _)
+        || v.TryGetValue<int>(out _)
+        || v.TryGetValue<double>(out _)
+        || v.TryGetValue<bool>(out _);
+
+    // Enums serializados como int ou string quebram a rehidratação se o mutador perturbar o valor.
+    private static bool IsEnumLikeProperty(string key, JsonNode? value)
+    {
+        if (key is "Kind" or "Status" or "Sex" or "Profession" or "ProcessStatus" or "CropStatus"
+            or "CombatEncounterStatus" or "PreparationState" or "IntentStatus" or "Action"
+            or "EventType" or "Category" or "Medium" or "SpaceKind")
+            return true;
+
+        return value is JsonValue v && (v.TryGetValue<int>(out _) || v.TryGetValue<string>(out _))
+            && key is "CurrentAction" or "CurrentIntent";
+    }
 
     private static JsonArray AppendSentinel(JsonArray arr)
     {

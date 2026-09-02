@@ -8,3 +8,8 @@ public sealed class CanonicalAttribute : Attribute;
 /// nunca entra no hash canônico.</summary>
 [AttributeUsage(AttributeTargets.Property)]
 public sealed class VolatileAttribute : Attribute;
+
+/// <summary>Volátil de sessão — não persiste em <c>WorldSnapshot.Serialize</c> (Fase 28:
+/// cognição/observação/LOD cosmético). Reconstruído ao reidratar.</summary>
+[AttributeUsage(AttributeTargets.Property)]
+public sealed class EphemeralAttribute : Attribute;
