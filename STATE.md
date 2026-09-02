@@ -7,7 +7,7 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 - **Última coisa concluída (2026-09-01)**: Fase 28 fechada — cognição inspecionável, LOD
   observacional (mundo/cidade/interior), compressão de estado frio, painel web "ver o cérebro",
   sandbox de decisão. Branch `feat/phase-28-cognition` com gate verde; worktrees intermediárias
-  `LivingWorld-28-t*` removidas.
+  `LivingWorld-28-t*` removidas; efêmeros spec-driven (tasks, parallel-execution) limpos.
 - **Próxima unidade**: merge de `feat/phase-28-cognition` em `main` (PR) ou iniciar próxima fase
   do roadmap conforme prioridade.
 - **Última coisa concluída (2026-08-23)**: `dynamic-city-growth` FixT17 — causa raiz real da saga
