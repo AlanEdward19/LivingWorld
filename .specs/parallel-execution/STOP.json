@@ -1,9 +1,0 @@
-{
-  "stopped": false,
-  "reason": "Phase 16.3 world-cohesion COMPLETE — verify PASS, validation PASS",
-  "stoppedBy": null,
-  "orchestrators": {
-    "orchestrator-phase-16-3-cohesion": "complete"
-  },
-  "instruction": "Feature closed on feat/phase-16-3-world-cohesion. Do not mix with LivingWorld-16-3 (realism/16.4)."
-}

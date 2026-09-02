@@ -321,13 +321,7 @@
 
 ---
 
-### Histórico — pausa paralelismo / gate hygiene (pré-16.3 Execute)
-
-
-- **Execução paralela PAUSADA (2026-08-25 19:46)**: STOP.json ativo em todos worktrees.
-  Locks liberados. Ver `.specs/parallel-execution/STATUS.md` + progress files antes de retomar.
-  Worktrees: `LivingWorld` (16.2), `LivingWorld-16-3` (spec renumerada p/ 16.4, worktree/branch mantêm nome "16-3" antigo), `LivingWorld-trilha-c`.
-- **Gate hygiene round-2 (2026-08-25, uncommitted)**: sampling+horizonte 1 mês/24h;
+### Histórico — gate hygiene (pré-16.3 Execute)
   scale gate só 1k; golden gate 100 ticks; Utility/Economy hash 1 mês; API sem
   `DisableParallelization` na collection (8 mutadores com fixture própria). Longos →
   `Category=Scenario`. Checkpoint anterior: `d0942bd`.
