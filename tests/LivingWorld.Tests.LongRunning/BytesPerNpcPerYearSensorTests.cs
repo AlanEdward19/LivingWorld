@@ -1,10 +1,14 @@
 using System.Text;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Infrastructure;
-using LivingWorld.Simulation;
+using LivingWorld.Infrastructure.EfCore;
+using LivingWorld.Infrastructure.EventLog;
+using LivingWorld.Infrastructure.Repositories;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 using Microsoft.EntityFrameworkCore;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.LongRunning;
 
 /// <summary>Task 13: mede bytes de snapshot + event log por NPC/ano em 10 anos e reprova acima
 /// do teto declarado no cenário (R3 — nenhum número mágico no teste, só em

@@ -1,7 +1,15 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Ecology;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Performance;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Ecology;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Performance;
+namespace LivingWorld.Tests.Shared.Performance;
 
 /// <summary>Cenário de escala com demografia estável (PERF-01) — calibrado para não colapsar
 /// como o default (que cai a ~13% dos iniciais em pop 1k/5k). Ajustes vs default (AD-047):

@@ -1,7 +1,11 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Economy;
+namespace LivingWorld.Tests.Unit.Economy;
 
 /// <summary>Fase 5, T12: round-trip completo (Serialize → Deserialize) com pelo menos um
 /// Workplace com Stock/Treasury/Employees não vazios produz o mesmo hash canônico antes e

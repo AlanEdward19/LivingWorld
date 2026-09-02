@@ -1,4 +1,4 @@
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Geography.Spatial;
 
 /// <summary>Nível de espaço endereçável (Fase 15.1, T46/ADR-0018) — mesmos três níveis de
 /// `VisualScopeKind` (`src/LivingWorld.Api/Visual/VisualScope.cs:4`), definido em Domain porque

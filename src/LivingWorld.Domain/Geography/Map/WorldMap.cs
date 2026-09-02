@@ -1,4 +1,6 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Geography.Map;
 
 /// <summary>Geografia do mundo (Fase 2): grid de células, regiões, catálogo, custo de
 /// deslocamento e âncoras de assentamento. Value-object-like — imutável após construção.

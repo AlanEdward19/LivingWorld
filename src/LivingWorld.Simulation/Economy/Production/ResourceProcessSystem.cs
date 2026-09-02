@@ -1,6 +1,13 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation.Economy;
+namespace LivingWorld.Simulation.Economy.Production;
 
 /// <summary>Scheduler de processos materiais estagiados (Fase 15.1, Stage 4, T14–T17):
 /// reserva insumos ao iniciar, devolve no cancelamento/morte, cria a saída só na conclusão.</summary>

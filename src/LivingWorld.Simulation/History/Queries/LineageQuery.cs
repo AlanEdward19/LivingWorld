@@ -1,6 +1,8 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation.History;
+namespace LivingWorld.Simulation.History.Queries;
 
 /// <summary>Reconstrói linhagem a partir do esqueleto (Fase 10, HIST-22/23) — nunca tabela
 /// paralela.</summary>

@@ -1,9 +1,14 @@
 using System.Security.Cryptography;
 using System.Text;
-using LivingWorld.Domain;
-using LivingWorld.Simulation.Behavior;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Behavior.Decision;
 
 /// <summary>Contadores de redecisão (Fase 16.3 P2a, COH-44/45 / doc#85/98) — decisions e
 /// wakeups por agent-day; comparação full-reconsideration vs event-driven.</summary>

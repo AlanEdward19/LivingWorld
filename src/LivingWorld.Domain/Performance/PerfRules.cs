@@ -1,4 +1,6 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Performance;
 
 /// <summary>Tetos de custo e janela de arquivamento frio (Fase 9, PERF-03) — cenário-driven,
 /// nunca literal em teste de sensor.</summary>

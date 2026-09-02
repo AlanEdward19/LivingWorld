@@ -1,7 +1,13 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Cities.Spatial;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Geography;
+namespace LivingWorld.Tests.Unit.Geography;
 
 /// <summary>Fase 15.1, T46 (ADR-0018): escala World/City/Building como dado de domínio,
 /// navegação vertical reversível e contrato de caminhabilidade.</summary>

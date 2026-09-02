@@ -1,12 +1,12 @@
-using LivingWorld.Domain;
 using LivingWorld.Domain.Narrative;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Narrative;
-using LivingWorld.Tests.History;
+using LivingWorld.Tests.Unit.History;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using NetArchTest.Rules;
 
-namespace LivingWorld.Tests.Narrative;
+namespace LivingWorld.Tests.Unit.Narrative;
 
 /// <summary>Fase 12, T9 (NARR-13..15, story "Crença separada de verdade"): blindagem estrutural
 /// Verdade vs Crença sobre a superfície narrativa desta fase (endpoints + <see
@@ -127,7 +127,7 @@ public class NarrativeSecurityTests
         Assert.False(withOrphan.IsSuccess);
         Assert.True(withoutOrphan.IsSuccess);
 
-        static Result<Unit> MutatedAlwaysOk() => Result<Unit>.Ok(Unit.Value);
+        static Result<Domain.Shared.Unit> MutatedAlwaysOk() => Result<Domain.Shared.Unit>.Ok(Domain.Shared.Unit.Value);
         Assert.True(MutatedAlwaysOk().IsSuccess);
         Assert.NotEqual(MutatedAlwaysOk().IsSuccess, withOrphan.IsSuccess);
     }

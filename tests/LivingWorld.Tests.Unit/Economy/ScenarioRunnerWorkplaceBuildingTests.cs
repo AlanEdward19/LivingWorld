@@ -1,7 +1,8 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Economy;
+namespace LivingWorld.Tests.Unit.Economy;
 
 public sealed class ScenarioRunnerWorkplaceBuildingTests
 {

@@ -1,6 +1,9 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation.History;
+namespace LivingWorld.Simulation.History.Queries;
 
 /// <summary>Consulta de crença agregada de um NPC para montar contexto de LLM (Fase 11, LLM-05/06)
 /// — mesma separação Verdade/Crença de <see cref="HistoryBeliefQuery"/> (HIST-10): só entra o

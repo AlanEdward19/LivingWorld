@@ -1,6 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Population;
 
-namespace LivingWorld.Tests.Economy;
+namespace LivingWorld.Tests.Unit.Economy;
 
 /// <summary>Fase 5, T3: <see cref="EconomyCatalog"/>/<see cref="ProductionRecipe"/> —
 /// recipe por <see cref="LocationType"/> (ECON-06/07/08), local sem produção física fica

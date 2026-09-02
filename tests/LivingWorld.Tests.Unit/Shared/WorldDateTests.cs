@@ -1,6 +1,6 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.Unit.Shared;
 
 public class WorldDateTests
 {

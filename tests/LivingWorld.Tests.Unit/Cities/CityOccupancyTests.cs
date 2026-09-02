@@ -1,7 +1,15 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Cities.Spatial;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Unit.Cities;
 
 /// <summary>dynamic-city-growth, T1 (CITYGROW-01/02): <see cref="CityOccupancy"/> — livre/ocupado
 /// derivado de <see cref="WorldState.Buildings"/> via <see cref="BuildingFootprintGenerator"/>,

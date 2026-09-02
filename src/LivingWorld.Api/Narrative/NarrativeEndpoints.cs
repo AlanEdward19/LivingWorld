@@ -1,10 +1,11 @@
-using LivingWorld.Domain;
+using LivingWorld.Api.Conversation;
 using LivingWorld.Domain.Narrative;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.History.Queries;
+using LivingWorld.Simulation.Hosting;
 using LivingWorld.Simulation.Narrative;
 
-namespace LivingWorld.Api;
+namespace LivingWorld.Api.Narrative;
 
 public sealed record NarrativeClaimDto(string Text, IReadOnlyList<long> EventIds);
 

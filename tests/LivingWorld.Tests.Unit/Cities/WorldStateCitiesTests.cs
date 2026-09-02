@@ -1,7 +1,11 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Unit.Cities;
 
 /// <summary>Fase 8, T5 (CITY-01/CITY-03/CITY-04): <see cref="City"/>/<see cref="Building"/> em
 /// <see cref="WorldState"/> — canônico, snapshot round-trip, e CityId/LocationId derivados só do

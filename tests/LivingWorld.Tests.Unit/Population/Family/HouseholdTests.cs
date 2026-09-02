@@ -1,6 +1,8 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.Unit.Population.Family;
 
 public class HouseholdTests
 {

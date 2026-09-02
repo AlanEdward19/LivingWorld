@@ -1,7 +1,7 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Simulation.Extraordinary.Opportunity;
 
-namespace LivingWorld.Tests.Extraordinary;
+namespace LivingWorld.Tests.Unit.Extraordinary.Opportunity;
 
 /// <summary>Fase 16.3, T19 (COH-31): heurística de custo/risco de PowerOpportunity.</summary>
 public class PowerOpportunityTests

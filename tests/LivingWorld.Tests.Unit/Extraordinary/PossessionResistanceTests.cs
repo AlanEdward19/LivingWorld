@@ -1,7 +1,16 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Engine;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Extraordinary.Systems;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Extraordinary;
+namespace LivingWorld.Tests.Unit.Extraordinary;
 
 /// <summary>REALISM-33/34 — hospedeiro pode resistir possessão (P3 Possessão).</summary>
 public sealed class PossessionResistanceTests

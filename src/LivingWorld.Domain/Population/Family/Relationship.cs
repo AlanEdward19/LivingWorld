@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
+using LivingWorld.Domain.Population.Skills;
 
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Population.Family;
 
 /// <summary>Os 4 eixos (Confiança, Afeto, Respeito, Dívida) de A→B — nunca o mesmo objeto usado
 /// para B→A (Fase 7, T5, FAM-01). Classe mutável (não <c>record</c>): os eixos mudam com

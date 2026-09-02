@@ -1,7 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
+using LivingWorld.Tests.Shared;
 
-namespace LivingWorld.Tests.Visual;
+namespace LivingWorld.Tests.Integration.Visual;
 
 /// <summary>Fase 15, T4 (VTT-01): <c>GET /visual/subscribe</c> no escopo world entrega a projeção
 /// global (não mais <c>Payload: null</c> do gateway genérico de T3) — o espectador que abre o

@@ -1,4 +1,7 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Cities.Spatial;
 
 public enum NpcScopeKind { World, City }
 

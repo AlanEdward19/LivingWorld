@@ -1,9 +1,23 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
 using LivingWorld.Domain.Llm;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History.Books;
+using LivingWorld.Simulation.History.Queries;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
+using LivingWorld.Tests.Shared;
 
-namespace LivingWorld.Tests.Behavior;
+namespace LivingWorld.Tests.Integration.Behavior;
 
 /// <summary>Fase 16.3 P1b T17 (COH-13..16): memória/crença/relação/household divergem a decisão;
 /// fatores vazios não quebram.</summary>

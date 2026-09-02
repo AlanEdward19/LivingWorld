@@ -1,6 +1,6 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population.Skills;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.Unit.Population.Skills;
 
 /// <summary>Fase 6, task 6: catálogo cenário-driven de parâmetros de habilidade — teto,
 /// taxa-base por fonte, mapeamento profissão→habilidade.</summary>

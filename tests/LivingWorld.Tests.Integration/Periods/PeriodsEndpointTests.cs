@@ -2,9 +2,10 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json.Nodes;
-using LivingWorld.Api;
+using LivingWorld.Api.Periods;
+using LivingWorld.Tests.Shared;
 
-namespace LivingWorld.Tests.Periods;
+namespace LivingWorld.Tests.Integration.Periods;
 
 /// <summary>Fase 13, T5 (PERIOD-07..10): <c>POST/GET /periods</c>, <c>GET /periods/{id}</c>.
 /// Factory própria: registra períodos no catálogo singleton do host — não pode compartilhar

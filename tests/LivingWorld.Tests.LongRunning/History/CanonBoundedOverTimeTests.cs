@@ -1,10 +1,14 @@
 using System.Text.Json;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.History;
-using LivingWorld.Tests.Baselines;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History.Books;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Tests.Shared.Baselines;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.LongRunning.History;
 
 /// <summary>Fase 10, T20: cânone fica no teto declarado (<see cref="HistoryRules.CanonSizePerCommunity"/>)
 /// em 50/100/200 anos sem tendência de crescimento; bytes/relato retido dentro do baseline de 20

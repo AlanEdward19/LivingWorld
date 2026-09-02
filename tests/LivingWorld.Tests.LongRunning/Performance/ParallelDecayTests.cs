@@ -1,7 +1,9 @@
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.Behavior;
+using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Performance;
+namespace LivingWorld.Tests.LongRunning.Performance;
 
 public class ParallelDecayTests
 {

@@ -1,4 +1,4 @@
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Population.Family;
 
 /// <summary>Motivo auditável de rejeição de cortejo (Fase 7, T2, AD-054) — enum fechado, nunca
 /// string livre (evita typo silencioso). Checado nesta ordem por <c>CourtshipSystem.Reject</c>:

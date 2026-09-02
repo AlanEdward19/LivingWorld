@@ -1,6 +1,10 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cognition;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Behavior.Decision;
 
 /// <summary>Ambiente isolado que roda o mesmo pipeline de
 /// <see cref="BehaviorDecisionSystem.SelectByUtility"/> com <see cref="DecisionContext"/>

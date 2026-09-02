@@ -1,8 +1,14 @@
-using LivingWorld.Api.Visual;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Api.Visual.Projection;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Culture;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Extraordinary;
+namespace LivingWorld.Tests.Unit.Extraordinary;
 
 public sealed class ExtraordinaryPrevalenceTests
 {
@@ -81,7 +87,7 @@ public sealed class ExtraordinaryPrevalenceTests
                 (Id: carrier.CarrierId, PowerId: Assert.Single(carrier.PowerIds))).ToArray());
     }
 
-    private static (WorldState World, City City) World(
+    private static (WorldState World, Domain.Cities.City City) World(
         double prevalence, IReadOnlyList<PowerDescriptor>? descriptors = null)
     {
         descriptors ??= [Descriptor("generic")];

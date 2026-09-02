@@ -1,7 +1,9 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Extraordinary.Systems;
 
-namespace LivingWorld.Tests.Extraordinary;
+namespace LivingWorld.Tests.Unit.Extraordinary;
 
 /// <summary>T12 / EVO-20..22: uma amostra por categoria de mecânica da 16.1 —
 /// estágio + pelo menos uma mistura cruzada cada. Falha se alguma categoria exigir

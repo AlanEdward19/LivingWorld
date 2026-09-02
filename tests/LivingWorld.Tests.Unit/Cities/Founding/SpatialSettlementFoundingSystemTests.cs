@@ -1,9 +1,24 @@
-using LivingWorld.Api.Visual;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.Behavior;
+using LivingWorld.Api.Visual.Projection;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Cities.Founding;
+using LivingWorld.Simulation.Cities.Migration;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Unit.Cities.Founding;
 
 /// <summary>dynamic-city-growth, T7 (CITYGROW-04): <see cref="SpatialSettlementFoundingSystem"/> —
 /// funda uma cidade nova a partir de um cluster de overflow que reúne população materializada

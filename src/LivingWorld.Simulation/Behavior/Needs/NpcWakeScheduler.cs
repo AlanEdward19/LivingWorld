@@ -1,6 +1,12 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation.Behavior;
+namespace LivingWorld.Simulation.Behavior.Needs;
 
 /// <summary>Agenda acordar NPC no tick em que a ação termina ou uma necessidade cruza limiar
 /// (Fase 9, PERF-08). Fase 16.3 P2a: também agenda wakes event-driven via

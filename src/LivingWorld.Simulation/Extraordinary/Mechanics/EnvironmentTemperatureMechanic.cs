@@ -1,7 +1,9 @@
 using System.Globalization;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 
 public sealed record EnvironmentTemperatureAdjustment(RegionId Region, float Delta, long UntilTick);
 

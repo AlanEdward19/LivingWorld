@@ -1,4 +1,4 @@
-namespace LivingWorld.Infrastructure;
+namespace LivingWorld.Infrastructure.Records;
 
 /// <summary>Linha do event log Tier A (ADR-0006, task 8): imutável — corrigir a história é
 /// escrever outro evento, nunca <c>UPDATE</c> (rules/database-entities.md). <see cref="Id"/> é

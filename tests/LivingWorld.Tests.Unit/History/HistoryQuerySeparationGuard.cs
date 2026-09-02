@@ -1,8 +1,8 @@
 using System.Reflection;
-using LivingWorld.Simulation.History;
+using LivingWorld.Simulation.History.Queries;
 using NetArchTest.Rules;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Unit.History;
 
 /// <summary>Guarda estrutural da fronteira Verdade/Crença (Fase 10, T16, HIST-17/HIST-18).</summary>
 internal static class HistoryQuerySeparationGuard

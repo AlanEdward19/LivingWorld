@@ -1,11 +1,12 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Periods;
+namespace LivingWorld.Tests.Unit.Periods;
 
 /// <summary>Fase 13, T13 (Goal #2 da fase; edge case "remoção de profissão em uso"): as 4 regras
 /// de transformação (Emerge/Merge/Split/Disappear) realmente mudam
-/// <see cref="LivingWorld.Domain.PopulationCatalog.ProfessionIds"/> em runtime e reatribuem quem
+/// <see cref="PopulationCatalog.ProfessionIds"/> em runtime e reatribuem quem
 /// ficou com a profissão removida — nunca deixam um NPC com um id fora do catálogo.</summary>
 public class PeriodEvolutionSystemTests
 {

@@ -1,4 +1,6 @@
 using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Economy;
 

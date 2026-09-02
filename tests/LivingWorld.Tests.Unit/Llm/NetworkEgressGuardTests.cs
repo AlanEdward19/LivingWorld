@@ -1,4 +1,4 @@
-namespace LivingWorld.Tests.Llm;
+namespace LivingWorld.Tests.Unit.Llm;
 
 /// <summary>Fase 11, T9 (LLM-14, story "Segurança de rede e injeção", AC1): guard de runtime que
 /// bloqueia qualquer egress de rede por comportamento — nunca por lista de tipos banidos. Dois

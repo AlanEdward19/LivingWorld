@@ -1,8 +1,9 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.History;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.History.Queries;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Unit.History.Queries;
 
 /// <summary>Fase 10, T14: <see cref="HistoryTruthQuery"/> (HIST-15 AC1).</summary>
 public class HistoryTruthQueryTests

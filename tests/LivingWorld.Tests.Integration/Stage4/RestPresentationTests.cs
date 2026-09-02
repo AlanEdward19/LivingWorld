@@ -1,8 +1,17 @@
-using LivingWorld.Api.Visual;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Api.Visual.Scope;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Stage4;
+namespace LivingWorld.Tests.Integration.Stage4;
 
 /// <summary>Fase 15.1, Stage 4, T13 (LWV-03.1/LWV-06): qualidade/progresso de descanso chegam
 /// ao inspector e à pista de mapa via processo projetado, com replay e rótulo acessível.</summary>

@@ -1,8 +1,15 @@
 using LivingWorld.Api.Visual.Layers;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Api.Visual.Scope;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Spatial;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Api.Visual;
+namespace LivingWorld.Api.Visual.Projection;
 
 /// <summary>Fase 15.1, T20 (OQ-1): forma achatada de <see cref="CityBounds"/> pro shape que o
 /// cliente já espera (<c>web/src/data/contracts.ts</c> <c>CellBounds</c>) — <see

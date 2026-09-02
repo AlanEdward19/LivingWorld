@@ -1,6 +1,11 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Economy.Labor;
 
 /// <summary>Paga salário mensal do <see cref="Workplace.Treasury"/> ao <see cref="Npc.Wallet"/>
 /// de cada empregado (Fase 5, ECON-21/22), <c>Monthly</c>. Respeita <see

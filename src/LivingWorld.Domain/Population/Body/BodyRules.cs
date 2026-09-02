@@ -1,4 +1,8 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Population.Body;
 
 /// <summary>Parâmetros cenário-driven do corpo mínimo causal (Fase 16.3, COH-21) —
 /// distribuição truncada de <c>Height</c>/<c>Weight</c>/<c>MuscleMass</c> na criação do NPC.

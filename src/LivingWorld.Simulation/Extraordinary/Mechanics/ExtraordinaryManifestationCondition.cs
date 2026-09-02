@@ -1,6 +1,8 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 
 /// <summary>Condições genéricas sobre relógio e estado existente; não conhece arquétipos.</summary>
 internal static class ExtraordinaryManifestationCondition

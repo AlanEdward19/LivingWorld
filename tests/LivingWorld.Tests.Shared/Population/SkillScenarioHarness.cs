@@ -1,7 +1,14 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.Shared.Population;
 
 /// <summary>Fase 6, T14+: harness mínimo pros cenários pareados de habilidade — constrói um
 /// <see cref="WorldState"/> isolado com NPCs de idade/genes/ação fixados por parâmetro (ação

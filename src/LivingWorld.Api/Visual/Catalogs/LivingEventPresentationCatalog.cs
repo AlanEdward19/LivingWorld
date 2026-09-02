@@ -1,6 +1,6 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
 
-namespace LivingWorld.Api.Visual;
+namespace LivingWorld.Api.Visual.Catalogs;
 
 /// <summary>Fronteira pública do log: converte kinds canônicos em linguagem segura e nunca
 /// encaminha o payload técnico, que pode conter ids, causas ou texto de verdade histórica.</summary>

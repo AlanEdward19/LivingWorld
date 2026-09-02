@@ -1,6 +1,11 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Cities.Queries;
 
 // SPEC_DEVIATION: design.md pede este tipo em src/LivingWorld.Domain/Cities/ — mas
 // LivingWorld.Domain não referencia LivingWorld.Simulation (é o inverso: Simulation -> Domain,

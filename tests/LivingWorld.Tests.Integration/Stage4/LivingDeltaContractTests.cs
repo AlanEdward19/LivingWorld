@@ -1,11 +1,20 @@
 using LivingWorld.Api.Realtime;
 using LivingWorld.Api.Simulation;
-using LivingWorld.Api.Visual;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Api.Visual.Projection;
+using LivingWorld.Api.Visual.Scope;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Hosting;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LivingWorld.Tests.Stage4;
+namespace LivingWorld.Tests.Integration.Stage4;
 
 public sealed class LivingDeltaContractTests
 {

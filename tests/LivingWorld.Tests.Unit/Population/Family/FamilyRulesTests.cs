@@ -1,6 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.Unit.Population.Family;
 
 /// <summary>Fase 7, T4 (FAM-03, FAM-04, FAM-06, FAM-07, FAM-12, FAM-13, FAM-16, FAM-18, FAM-19,
 /// FAM-21, FAM-23): catálogo cenário-driven de parâmetros de família.</summary>

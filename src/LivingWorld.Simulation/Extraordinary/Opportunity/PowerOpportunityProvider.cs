@@ -1,6 +1,11 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Engine;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Extraordinary.Systems;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Opportunity;
 
 /// <summary>Expõe powers aplicáveis do portador como candidatos de utility (Fase 16.3 P1d,
 /// COH-31/32). Filtra por Mode (<see cref="ExtraordinaryInvocationEngine.IsAvailable"/>)

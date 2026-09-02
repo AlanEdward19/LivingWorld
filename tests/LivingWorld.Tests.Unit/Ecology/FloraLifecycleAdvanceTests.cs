@@ -1,7 +1,18 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Ecology;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Flora;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Ecology;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
+using Plant = LivingWorld.Domain.Flora.Plant;
 
-namespace LivingWorld.Tests.Ecology;
+namespace LivingWorld.Tests.Unit.Ecology;
 
 /// <summary>REALISM-07/08/11 — flora avança por temperatura/estação; poder multiplica a taxa base.</summary>
 public sealed class FloraLifecycleAdvanceTests
@@ -109,11 +120,11 @@ public sealed class FloraLifecycleAdvanceTests
         new("wheat", min, max, maturity, CropResourceId: 1, YieldPerMaturePlant: 10,
             ReproduceRadius: 2, ReproduceProbability: 0);
 
-    private static (WorldState World, PlantId PlantId) WorldWithPlant(
+    private static (WorldState World, Domain.Flora.PlantId PlantId) WorldWithPlant(
         string species, int stage, PlantSpeciesRules rules, float tempDelta,
         bool enabledExtraordinary = false)
     {
-        var plant = new Plant(new PlantId(1), species, new CellCoord(0, 0), stage);
+        var plant = new Plant(new Domain.Flora.PlantId(1), species, new CellCoord(0, 0), stage);
         var world = new WorldState(
             ScenarioRunner.DefaultCalendar, 42, ScenarioRunner.DefaultMap(42),
             ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
@@ -128,7 +139,7 @@ public sealed class FloraLifecycleAdvanceTests
         return (world, plant.Id);
     }
 
-    private static (WorldState World, PlantId PlantId) WorldWithGrowthPower(
+    private static (WorldState World, Domain.Flora.PlantId PlantId) WorldWithGrowthPower(
         string species, int stage, PlantSpeciesRules rules, int multiplier, int radius)
     {
         var plant = new Plant(new PlantId(1), species, new CellCoord(0, 0), stage);

@@ -1,8 +1,14 @@
 using System.Reflection;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Unit.Cities.Queries;
 
 /// <summary>Fase 8, T8 (CITY-01, CITY-09): <see cref="CityPopulationQuery"/> — sempre on-demand,
 /// nunca cacheado; Population bate com COUNT manual + AggregatePool.Count.</summary>

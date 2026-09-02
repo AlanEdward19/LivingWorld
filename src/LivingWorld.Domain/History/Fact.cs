@@ -1,4 +1,6 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.History;
 
 /// <summary>Esqueleto imutável Tier A de um fato histórico (Fase 10, HIST-01) — quem, o quê,
 /// onde, quando, significância. Nunca mutado após a escrita; entra no hash via

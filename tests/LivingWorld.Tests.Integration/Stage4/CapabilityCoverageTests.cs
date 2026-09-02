@@ -1,8 +1,8 @@
-using LivingWorld.Api.Visual;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Api.Visual.Catalogs;
+using LivingWorld.Domain.History;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Stage4;
+namespace LivingWorld.Tests.Integration.Stage4;
 
 public sealed class CapabilityCoverageTests
 {

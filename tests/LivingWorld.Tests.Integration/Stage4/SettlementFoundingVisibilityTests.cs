@@ -1,8 +1,14 @@
-using LivingWorld.Api.Visual;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Api.Visual.Scope;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Simulation.Cities.Founding;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Stage4;
+namespace LivingWorld.Tests.Integration.Stage4;
 
 /// <summary>Fase 15.1, Stage 4, T22 (LWV-04.6): fundação visível no mapa-múndi a partir de
 /// uma única cidade-mãe — marcador novo em sítio distinto, transferência do pool e evento

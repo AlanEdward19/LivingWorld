@@ -1,6 +1,11 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History.Distortion;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation.History;
+namespace LivingWorld.Simulation.History.Books;
 
 /// <summary>Operações sobre <see cref="Book"/> (Fase 10, HIST-09) — cópia com erro de copista
 /// e perda sem apagar a linha.</summary>

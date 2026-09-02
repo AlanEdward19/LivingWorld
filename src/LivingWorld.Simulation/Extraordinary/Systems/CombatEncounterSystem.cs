@@ -1,6 +1,14 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Population.Lifecycle;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Systems;
 
 /// <summary>Combate multi-round com estado persistente em <see cref="WorldState"/> (REALISM-16+).
 /// Base de simulação — roda com <c>Extraordinary.Enabled == false</c> quando chamado direto.</summary>

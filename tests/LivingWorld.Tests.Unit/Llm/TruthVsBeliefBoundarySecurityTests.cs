@@ -1,7 +1,7 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace LivingWorld.Tests.Llm;
+namespace LivingWorld.Tests.Unit.Llm;
 
 /// <summary>Fase 11, T8 (LLM-15), story "Segurança de rede e injeção": prova estrutural (mesmo
 /// padrão de <c>ArchitectureTests.No_src_symbol_is_named_fitness_...</c> — parse Roslyn do texto

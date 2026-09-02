@@ -1,10 +1,11 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
 using LivingWorld.Domain.Narrative;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.History.Queries;
 using LivingWorld.Simulation.Narrative;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Narrative;
+namespace LivingWorld.Tests.Integration.Narrative;
 
 /// <summary>Fase 12, T3 (integration): <see cref="ClaimAnchorValidator"/> encadeado com
 /// <see cref="WindowedHistoryAggregator"/> — prova que só claims com eventIds que resolvem a

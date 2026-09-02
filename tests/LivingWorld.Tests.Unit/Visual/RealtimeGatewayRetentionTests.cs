@@ -1,7 +1,7 @@
 using LivingWorld.Api.Realtime;
-using LivingWorld.Api.Visual;
+using LivingWorld.Api.Visual.Scope;
 
-namespace LivingWorld.Tests.Visual;
+namespace LivingWorld.Tests.Unit.Visual;
 
 /// <summary>Fase 15.1, T4 (VTT2-26, viabilidade operacional): janela de retenção do log de
 /// replay do gateway — descarta entradas abaixo do menor cursor que um assinante ativo ainda

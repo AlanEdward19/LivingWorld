@@ -1,7 +1,15 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Production;
+using LivingWorld.Simulation.Population;
+using LivingWorld.Simulation.Population.Skills;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
+using LivingWorld.Tests.Shared.Population;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.LongRunning.Population;
 
 /// <summary>Fase 6, T19 (SKILL-01/12): dois sensores de <c>Hash(world)</c> — (a) ganho aplicado a
 /// um NPC já no teto do cenário não muda o hash (rápido, sem <c>Category=Scenario</c>); (b)

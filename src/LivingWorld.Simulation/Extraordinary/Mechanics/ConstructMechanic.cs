@@ -1,6 +1,9 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 
 public sealed class ConstructMechanic : ExtraordinaryMechanic
 {

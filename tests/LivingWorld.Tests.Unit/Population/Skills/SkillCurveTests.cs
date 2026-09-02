@@ -1,6 +1,6 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population.Skills;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.Unit.Population.Skills;
 
 /// <summary>Fase 6, task 2 (SKILL-02): curva de retornos decrescentes — função pura, sem
 /// <c>ScenarioRunner</c>, sem seed.</summary>

@@ -1,4 +1,6 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+
+namespace LivingWorld.Domain.Cities.Buildings;
 
 /// <summary>Material de uma célula do footprint de um prédio (Fase 15.1, T45) — mesmo vocabulário
 /// do placeholder client-side (`web/src/map-engine/buildingFootprint.ts`, `BuildingMaterial`).</summary>

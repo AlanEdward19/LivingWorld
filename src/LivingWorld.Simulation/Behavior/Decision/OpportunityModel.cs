@@ -1,6 +1,6 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Cognition;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Behavior.Decision;
 
 /// <summary>Deriva oportunidades conhecidas a partir do snapshot de decisão — nunca inventa
 /// opções que o NPC não conhece via beliefs/memórias/relações/powers já no contexto.</summary>

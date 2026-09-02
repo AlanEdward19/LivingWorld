@@ -1,7 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
 using LivingWorld.Simulation.Visibility;
 
-namespace LivingWorld.Api.Visual;
+namespace LivingWorld.Api.Visual.Projection;
 
 /// <summary>Fase 15, T7 (VTT-08, VTT-09): aplica FOW por raio sobre um <see cref="CitySnapshot"/>
 /// já montado — nunca reconsulta o mundo, só filtra o que <see cref="CityProjector"/> projetou.

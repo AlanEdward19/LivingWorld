@@ -1,4 +1,10 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Economy;
 
 /// <summary>Local de produção/estoque/mercado da Fase 5 (AD-043) — uma única entidade cobre
 /// casa de trabalho, celeiro, loja, mercado e oficina; o papel é decidido pelo

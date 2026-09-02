@@ -1,6 +1,17 @@
 using System.Text.Json.Serialization;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Population;
 
 /// <summary>O indivíduo simulado: identidade, saúde, localização, necessidades (Fase 4),
 /// personalidade e profissão. Mutável (mesmo padrão de <c>WorldState</c>): idade nunca é campo
@@ -375,23 +386,23 @@ public sealed class Npc
         CurrentIntent = intent;
         IntentStartedTick = tick;
         IntentTarget = target;
-        IntentStatus = global::LivingWorld.Domain.IntentStatus.Active;
+        IntentStatus = global::LivingWorld.Domain.Behavior.IntentStatus.Active;
         TouchCanonical();
     }
 
     /// <summary>Active → Completed (objetivo atingido).</summary>
     public void CompleteIntent()
     {
-        if (IntentStatus != global::LivingWorld.Domain.IntentStatus.Active) return;
-        IntentStatus = global::LivingWorld.Domain.IntentStatus.Completed;
+        if (IntentStatus != global::LivingWorld.Domain.Behavior.IntentStatus.Active) return;
+        IntentStatus = global::LivingWorld.Domain.Behavior.IntentStatus.Completed;
         TouchCanonical();
     }
 
     /// <summary>Active → Invalidated (todas as alternativas do plano falharam).</summary>
     public void InvalidateIntent()
     {
-        if (IntentStatus != global::LivingWorld.Domain.IntentStatus.Active) return;
-        IntentStatus = global::LivingWorld.Domain.IntentStatus.Invalidated;
+        if (IntentStatus != global::LivingWorld.Domain.Behavior.IntentStatus.Active) return;
+        IntentStatus = global::LivingWorld.Domain.Behavior.IntentStatus.Invalidated;
         TouchCanonical();
     }
 

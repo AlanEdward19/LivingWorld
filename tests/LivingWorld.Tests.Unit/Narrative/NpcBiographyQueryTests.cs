@@ -1,8 +1,9 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Narrative;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Narrative;
+namespace LivingWorld.Tests.Unit.Narrative;
 
 /// <summary>Fase 12, T5: <see cref="NpcBiographyQuery"/> (NARR-16..18) — linha do tempo de
 /// participação do NPC, ordem cronológica, sem eventos após a morte.</summary>

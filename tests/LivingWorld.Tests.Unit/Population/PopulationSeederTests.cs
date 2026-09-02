@@ -1,8 +1,14 @@
-using LivingWorld.Api.Visual;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Api.Visual.Projection;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Cities.Spatial;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Population;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.Unit.Population;
 
 public class PopulationSeederTests
 {

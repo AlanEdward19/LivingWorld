@@ -1,17 +1,19 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using LivingWorld.Simulation;
-using LivingWorld.Tests.Baselines;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Tests.Shared.Baselines;
+using LivingWorld.Tests.Unit.Population;
 
-namespace LivingWorld.Tests.Periods;
+namespace LivingWorld.Tests.Unit.Periods;
 
 /// <summary>Fase 13, T10 (PERIOD-14..16): "baseline de horizonte mínimo" — mesmo braço de
 /// tratamento de <see cref="PeriodCausalTests"/> (viés declarado pra profissão 2), rodado por um
 /// horizonte curto (30 dias) em vez de só a semeadura inicial. Grava/reprova a fração de
 /// população naquela profissão por seed em <c>tests/baselines/period-evolution-horizon.json</c>
-/// — mesmo padrão de <see cref="LivingWorld.Tests.Population.PopulationBaselineTests"/>, prova
+/// — mesmo padrão de <see cref="PopulationBaselineTests"/>, prova
 /// que o viés continua valendo (nascimentos/materialização também sorteiam por
-/// <see cref="LivingWorld.Domain.PopulationCatalog.RollProfession"/>) conforme o mundo evolui,
+/// <see cref="PopulationCatalog.RollProfession"/>) conforme o mundo evolui,
 /// não só no instante zero.</summary>
 public class PeriodEvolutionHorizonBaselineTests
 {

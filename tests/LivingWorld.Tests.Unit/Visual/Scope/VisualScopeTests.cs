@@ -1,6 +1,6 @@
-using LivingWorld.Api.Visual;
+using LivingWorld.Api.Visual.Scope;
 
-namespace LivingWorld.Tests.Visual;
+namespace LivingWorld.Tests.Unit.Visual.Scope;
 
 /// <summary>Fase 15, T1 (VTT-01): <see cref="VisualScope"/> deve produzir uma chave estável
 /// e endereçável por escopo, usada por subscribe/replay realtime (VTT-02, VTT-10).</summary>

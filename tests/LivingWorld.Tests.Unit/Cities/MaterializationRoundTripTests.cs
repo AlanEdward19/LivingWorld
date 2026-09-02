@@ -1,8 +1,12 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Unit.Cities;
 
 /// <summary>Fase 8, T18 (CITY-04): materializar e desmaterializar o mesmo NPC, sem nenhuma
 /// outra mudança, deve deixar o mundo observável byte-idêntico.

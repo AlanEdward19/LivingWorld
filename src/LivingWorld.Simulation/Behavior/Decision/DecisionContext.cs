@@ -1,7 +1,14 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Llm;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Extraordinary.Opportunity;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Behavior.Decision;
 
 /// <summary>Snapshot efêmero por (NpcId, wake) para scoring de decisão (Fase 16.3 P1b,
 /// COH-11) — nunca persistido, nunca <c>[Canonical]</c>, nunca carrega referência a

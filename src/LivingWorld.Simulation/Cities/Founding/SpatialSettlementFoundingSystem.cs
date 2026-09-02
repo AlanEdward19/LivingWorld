@@ -1,6 +1,14 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Cities.Spatial;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Cities.Founding;
 
 /// <summary>Checa mensalmente se algum cluster de prédios de overflow de uma cidade (dynamic-city-growth,
 /// T7, CITYGROW-04) já reúne população materializada suficiente pra fundar uma cidade nova — a

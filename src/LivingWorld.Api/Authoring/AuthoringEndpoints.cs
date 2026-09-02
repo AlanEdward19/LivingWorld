@@ -1,7 +1,10 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Authoring;
+using LivingWorld.Simulation.Hosting;
 
-namespace LivingWorld.Api;
+namespace LivingWorld.Api.Authoring;
 
 public sealed record PowerCommandRequest(string PowerId);
 public sealed record InvokePowerRequest(

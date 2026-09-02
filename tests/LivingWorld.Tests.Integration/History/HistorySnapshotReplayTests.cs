@@ -1,10 +1,19 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Infrastructure;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.History;
+using LivingWorld.Infrastructure.EfCore;
+using LivingWorld.Infrastructure.EventLog;
+using LivingWorld.Infrastructure.Repositories;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History.Books;
+using LivingWorld.Simulation.History.Distortion;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Tests.Integration.EventLog;
 using Microsoft.EntityFrameworkCore;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Integration.History;
 
 /// <summary>Fase 10, T21: snapshot em t, reidratar e reaplicar o log até T reproduz o mesmo
 /// <c>Hash(world)</c> da execução contínua — mesmo padrão de <see cref="PersistentWorldRunnerTests"/>,

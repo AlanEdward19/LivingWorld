@@ -1,8 +1,28 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation.Behavior;
-using LivingWorld.Simulation.Economy;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities.Spatial;
+using LivingWorld.Domain.Cognition;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Behavior.Resolvers;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Labor;
+using LivingWorld.Simulation.Economy.Market;
+using LivingWorld.Simulation.Extraordinary.Engine;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Extraordinary.Opportunity;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Behavior.Decision;
 
 /// <summary>Escolhe a ação do tick de cada NPC vivo (Fase 4 — NEEDS-05..16): rotina diária por
 /// padrão, utility AI só quando alguma necessidade supera o limiar de urgência do cenário, com

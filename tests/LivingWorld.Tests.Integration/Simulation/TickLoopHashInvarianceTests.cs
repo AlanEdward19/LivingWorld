@@ -1,10 +1,12 @@
 using LivingWorld.Api.Realtime;
 using LivingWorld.Api.Simulation;
-using LivingWorld.Api.Visual;
-using LivingWorld.Simulation;
+using LivingWorld.Api.Visual.Scope;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Hosting;
+using LivingWorld.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LivingWorld.Tests.Simulation;
+namespace LivingWorld.Tests.Integration.Simulation;
 
 /// <summary>Fase 15.1, T27 (fechamento — VTT2-05, VTT2-30, VTT2-33): prova de que ligar o
 /// cliente de verdade (WebSocket assinando um escopo, navegando via `/visual/subscribe`, mais

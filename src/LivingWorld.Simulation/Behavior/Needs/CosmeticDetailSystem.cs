@@ -1,7 +1,9 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Observation;
 
-namespace LivingWorld.Simulation.Behavior;
+namespace LivingWorld.Simulation.Behavior.Needs;
 
 /// <summary>Camada cosmética observacional (Fase 28, T5, LOD-10..12) — promove/rebaixa só posição
 /// exata e micro-ação; nunca eventos de vida.</summary>

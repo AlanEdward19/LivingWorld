@@ -1,6 +1,12 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Cities.Spatial;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities.Founding;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Cities.Construction;
 
 // SPEC_DEVIATION (dynamic-city-growth, T3): movido de LivingWorld.Domain para
 // LivingWorld.Simulation -- design.md mantém este arquivo em src/LivingWorld.Domain/Cities/, mas

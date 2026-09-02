@@ -1,4 +1,4 @@
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Shared;
 
 /// <summary>Relógio do mundo (docs/domain/time-and-ticks.md): hora/dia/mês/ano do cenário,
 /// nunca o relógio da máquina. Imutável; toda soma devolve uma nova data.</summary>

@@ -1,6 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Infrastructure.Records;
 
-namespace LivingWorld.Infrastructure;
+namespace LivingWorld.Infrastructure.Repositories;
 
 /// <summary>Persistência de templates oficiais de período (Fase 13, T4). <see
 /// cref="Save"/> nunca sobrescreve uma versão já registrada — conflito de versão vira

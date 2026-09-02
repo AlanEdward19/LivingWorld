@@ -1,8 +1,10 @@
 using System.Text.Json;
-using LivingWorld.Infrastructure;
+using LivingWorld.Api.Conversation;
+using LivingWorld.Infrastructure.Records;
+using LivingWorld.Infrastructure.Repositories;
 using LivingWorld.Simulation.Periods;
 
-namespace LivingWorld.Api;
+namespace LivingWorld.Api.Periods;
 
 public sealed record CreatePeriodRequest(string PeriodId, int Version, JsonElement PeriodDefinition, string Source);
 

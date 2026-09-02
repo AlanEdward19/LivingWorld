@@ -1,4 +1,4 @@
-namespace LivingWorld.Infrastructure;
+namespace LivingWorld.Infrastructure.Records;
 
 /// <summary>Linha de persistência de um template de período (Fase 13, T4): payload JSON
 /// canônico versionado (design.md). Chave composta (<see cref="PeriodId"/>, <see cref="Version"/>)

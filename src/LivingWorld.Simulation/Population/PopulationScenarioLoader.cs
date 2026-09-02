@@ -1,7 +1,11 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Geography;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Population;
 
 /// <summary>Dado de população resolvido de um cenário (task 7): catálogo, tabela de vida,
 /// regras de fertilidade, tamanho e local da população inicial. Mesmo padrão de

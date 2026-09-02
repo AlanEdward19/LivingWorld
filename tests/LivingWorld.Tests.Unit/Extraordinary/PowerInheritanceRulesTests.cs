@@ -1,6 +1,6 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Extraordinary;
 
-namespace LivingWorld.Tests.Extraordinary;
+namespace LivingWorld.Tests.Unit.Extraordinary;
 
 /// <summary>Fase 16.2 T6 (suporta EVO-10): regra de cenário da herança de poder com
 /// defaults documentados quando o cenário omite a declaração.</summary>

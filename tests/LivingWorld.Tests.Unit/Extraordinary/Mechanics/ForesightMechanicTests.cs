@@ -1,8 +1,20 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
 using LivingWorld.Domain.Llm;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Engine;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Extraordinary.Opportunity;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Extraordinary;
+namespace LivingWorld.Tests.Unit.Extraordinary.Mechanics;
 
 public sealed class ForesightMechanicTests
 {

@@ -1,6 +1,13 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Population.Family;
 
 /// <summary>Score de atração, gates de elegibilidade e cortejo agendado (Fase 7, T16,
 /// FAM-06..11).</summary>

@@ -1,4 +1,6 @@
-namespace LivingWorld.Simulation;
+using LivingWorld.Simulation.Core;
+
+namespace LivingWorld.Simulation.Hosting;
 
 /// <summary>Wrapper mutável de mundo canônico (feature "criar mundo"): antes desta classe,
 /// `Program.cs` registrava `WorldState`/`WorldClock` como singletons fixos e nada no processo

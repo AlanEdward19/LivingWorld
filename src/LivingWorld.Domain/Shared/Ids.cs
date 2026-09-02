@@ -1,4 +1,7 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Population;
+
+namespace LivingWorld.Domain.Shared;
 
 /// <summary>Base para IDs tipados: um wrapper que impede trocar um NpcId por um CityId por
 /// engano na assinatura de um método.</summary>

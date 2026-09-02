@@ -1,4 +1,4 @@
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Shared;
 
 /// <summary>Um stream de <see cref="WorldRng"/> por chave, derivado uma única vez da seed raiz
 /// (ADR-0005). O stream persiste e avança ao longo da run; a raiz nunca é consumida

@@ -1,8 +1,14 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.Behavior;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Behavior;
+namespace LivingWorld.Tests.Unit.Behavior.Decision;
 
 /// <summary>Fase 16.3 T27 (COH-43): AttentionRouter escopa NPCs relevantes a um evento.</summary>
 public class AttentionRouterTests

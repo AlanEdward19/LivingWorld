@@ -1,6 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.Unit.Population.Body;
 
 /// <summary>Fase 16.3, T7 (COH-21): geração truncada de Height/Weight/MuscleMass.</summary>
 public class BodyGenerationTests

@@ -1,7 +1,12 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Behavior;
+namespace LivingWorld.Tests.Unit.Behavior.Decision;
 
 /// <summary>Fase 16.3 T30 (COH-44/45): full reconsideration vs event-driven metrics.</summary>
 public class DecisionMetricsTests

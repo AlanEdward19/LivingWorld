@@ -1,6 +1,6 @@
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Periods;
+namespace LivingWorld.Tests.Unit.Periods;
 
 /// <summary>Fase 13, T8 (PERIOD-17..18): os pacotes de referência (pré-histórico, medieval,
 /// moderno, futurista, criaturas) em <c>scenarios/periods/*.json</c> são conteúdo, não

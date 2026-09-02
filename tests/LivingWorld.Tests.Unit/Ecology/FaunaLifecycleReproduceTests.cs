@@ -1,7 +1,14 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Ecology;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Fauna;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Ecology;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Ecology;
+namespace LivingWorld.Tests.Unit.Ecology;
 
 /// <summary>REALISM-03 — reprodução por proximidade, energia e seed.</summary>
 public sealed class FaunaLifecycleReproduceTests

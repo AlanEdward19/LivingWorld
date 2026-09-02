@@ -1,12 +1,14 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
-using LivingWorld.Api;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Api.World;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Simulation.Geography;
+using LivingWorld.Simulation.Hosting;
+using LivingWorld.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.Integration.World;
 
 /// <summary>Fase 15.1, T43 (backend-gaps.md G2): <c>POST /worlds/preview</c> usa o mesmo
 /// <see cref="MapScenarioLoader"/> que o create, sem tocar <see cref="WorldHost"/> nem persistir

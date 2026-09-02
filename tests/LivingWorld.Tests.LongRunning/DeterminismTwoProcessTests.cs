@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.LongRunning;
 
 /// <summary>Task 8: roda o mesmo cenário em dois processos separados de verdade — .NET
 /// randomiza o hash de string por processo, então uma run no mesmo processo não pegaria bug

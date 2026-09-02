@@ -1,9 +1,9 @@
-using LivingWorld.Domain;
 using LivingWorld.Domain.Llm;
 using LivingWorld.Domain.Narrative;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Narrative;
 
-namespace LivingWorld.Tests.Narrative;
+namespace LivingWorld.Tests.Unit.Narrative;
 
 /// <summary>Fase 12, T4: <see cref="NarrativeRenderer"/> (NARR-08, NARR-12) — template
 /// determinístico é o caminho padrão/fallback; LLM opcional só reescreve a prosa dos claims já

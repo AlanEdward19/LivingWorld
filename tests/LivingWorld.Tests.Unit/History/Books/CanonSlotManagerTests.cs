@@ -1,8 +1,12 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.History;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History.Books;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Unit.History.Books;
 
 /// <summary>Fase 10, T11: <see cref="CanonSlotManager"/> (HIST-08 AC2).</summary>
 public class CanonSlotManagerTests

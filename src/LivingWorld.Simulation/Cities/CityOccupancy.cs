@@ -1,6 +1,14 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Cities.Spatial;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Cities.Founding;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Cities;
 
 // SPEC_DEVIATION (dynamic-city-growth, T1/T3): design.md declara este tipo em
 // src/LivingWorld.Domain/Cities/ — mas LivingWorld.Domain não referencia LivingWorld.Simulation

@@ -1,8 +1,10 @@
-using LivingWorld.Domain;
 using LivingWorld.Domain.Llm;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Extraordinary.Opportunity;
 
-namespace LivingWorld.Tests.Behavior;
+namespace LivingWorld.Tests.Unit.Behavior.Decision;
 
 /// <summary>Fase 16.3 T32 (COH-53): <see cref="OpportunityModel.DeriveOpportunities"/>.</summary>
 public class OpportunityModelTests

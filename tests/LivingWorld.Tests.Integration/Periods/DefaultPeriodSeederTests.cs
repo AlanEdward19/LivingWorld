@@ -1,9 +1,10 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Api;
-using LivingWorld.Infrastructure;
+using LivingWorld.Api.Periods;
+using LivingWorld.Infrastructure.EfCore;
+using LivingWorld.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 
-namespace LivingWorld.Tests.Periods;
+namespace LivingWorld.Tests.Integration.Periods;
 
 public class DefaultPeriodSeederTests
 {

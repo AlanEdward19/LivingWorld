@@ -1,10 +1,11 @@
 using System.Buffers.Binary;
 using System.IO.Compression;
 using System.Text;
-using LivingWorld.Domain;
-using LivingWorld.Simulation.Population;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Population.Archive;
 
-namespace LivingWorld.Infrastructure;
+namespace LivingWorld.Infrastructure.EventLog;
 
 public enum ColdTierCompressionCodec : byte
 {

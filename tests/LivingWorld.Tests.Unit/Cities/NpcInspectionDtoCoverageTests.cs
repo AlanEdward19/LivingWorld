@@ -1,9 +1,15 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.Behavior;
-using LivingWorld.Simulation.History;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities.Spatial;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Behavior.Resolvers;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History.Queries;
+using LivingWorld.Simulation.Population;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Unit.Cities;
 
 /// <summary>Fase 8, T21 (CITY-06): inspeção exaustiva por reflexão — mundo de 100 NPCs, itera
 /// TODOS os vivos (sem sorteio), compara <see cref="NpcInspectionDto"/> campo a campo com o

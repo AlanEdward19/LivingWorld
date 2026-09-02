@@ -1,7 +1,14 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Unit.Cities.Construction;
 
 /// <summary>Fase 8, T10 (CITY-03): <see cref="ConstructionSystem"/> — iniciar sem insumo falha
 /// sem mutar nada; obra concluída consome exatamente a receita; fila é FIFO.</summary>

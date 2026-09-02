@@ -1,6 +1,8 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cognition;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Tests.Cognition;
+namespace LivingWorld.Tests.Unit.Cognition;
 
 /// <summary>Fase 28 T1 (COG-04, COG-20..23): <see cref="NpcCognitionLog"/> ring buffer + watchlist.</summary>
 public class NpcCognitionLogTests

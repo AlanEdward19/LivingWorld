@@ -1,4 +1,7 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Behavior;
 
 /// <summary>Todo parâmetro numérico do utility AI e das necessidades (Fase 4, task 4),
 /// cenário-driven — nenhum literal em C# (R3), mesmo padrão de

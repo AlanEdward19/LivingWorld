@@ -1,6 +1,10 @@
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Behavior;
+namespace LivingWorld.Tests.Integration.Behavior;
 
 /// <summary>Fase 4, task 15 — NEEDS-04: desligar o utility AI (remover <see
 /// cref="NeedsDecaySystem"/>/<see cref="BehaviorDecisionSystem"/> da lista de sistemas) muda o

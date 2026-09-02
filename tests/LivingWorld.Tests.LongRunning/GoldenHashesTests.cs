@@ -1,7 +1,7 @@
 using System.Text.Json;
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.LongRunning;
 
 /// <summary>Task 9: tests/golden/world-hashes.json versiona {cenário, seed, ticks, hash}.
 /// Mudança legítima de regra quebra o arquivo; atualizar o baseline vira commit explícito,

@@ -1,7 +1,9 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Economy;
+namespace LivingWorld.Tests.LongRunning.Economy;
 
 /// <summary>Fase 5, T24 — segundo critério mais importante da fase: para cada recurso,
 /// <c>inicial + produzido == consumido + estocado + perdido</c>, exato, amostrado ao longo do

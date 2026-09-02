@@ -1,6 +1,8 @@
 using System.Text.Json.Serialization;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Geography.Spatial;
 
 /// <summary>Espaço de origem/destino de um <see cref="PortalEndpoint"/> (Fase 15.1, T21). Anotado
 /// com <see cref="JsonStringEnumConverter"/> diretamente no tipo — sem essa conversão o cliente

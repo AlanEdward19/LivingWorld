@@ -1,7 +1,14 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Ecology;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Fauna;
+using LivingWorld.Domain.Flora;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Ecology;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Ecology;
+namespace LivingWorld.Tests.Unit.Ecology;
 
 /// <summary>REALISM-23 — transições inválidas de fauna/flora não passam.</summary>
 public sealed class EcologyTransitionGuardTests

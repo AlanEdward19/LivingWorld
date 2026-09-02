@@ -1,4 +1,4 @@
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Population.Skills;
 
 /// <summary>Habilidades de um <c>Npc</c> (Fase 6, task 4; Fase 13, T11b: catálogo aberto por id
 /// — mesmo padrão de <see cref="PopulationCatalog.ProfessionWeights"/>). Cada uma um <c>double</c>

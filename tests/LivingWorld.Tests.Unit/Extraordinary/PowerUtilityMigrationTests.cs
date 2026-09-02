@@ -1,7 +1,17 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Engine;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Extraordinary.Opportunity;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
+using Personality = LivingWorld.Domain.Population.Personality;
 
-namespace LivingWorld.Tests.Extraordinary;
+namespace LivingWorld.Tests.Unit.Extraordinary;
 
 /// <summary>Fase 16.3 T24 (COH-34..36): divergência com/sem capacidade + possessão intocada.</summary>
 public sealed class PowerUtilityMigrationTests
@@ -61,7 +71,7 @@ public sealed class PowerUtilityMigrationTests
         Assert.Equal(ActionType.Sleep, delegated);
     }
 
-    private static (WorldState World, Npc Npc) Build(ulong seed, PowerDescriptor descriptor, bool hasCarrier)
+    private static (WorldState World, Domain.Population.Npc Npc) Build(ulong seed, PowerDescriptor descriptor, bool hasCarrier)
     {
         var needs = NeedsRules.Create(0, 0, 0, 0, 70, 10, false, 0, 0.5).Value!;
         ExtraordinaryCarrierState[] carriers = hasCarrier

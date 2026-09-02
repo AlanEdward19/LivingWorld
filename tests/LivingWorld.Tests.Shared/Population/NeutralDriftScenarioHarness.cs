@@ -1,7 +1,8 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.Shared.Population;
 
 /// <summary>Fase 7, T21 (FAM-23, FAM-25): braço de deriva neutra sobre o cenário default — troca
 /// <see cref="FamilyRules.NeutralDriftEnabled"/> (escolha de parceiro) e

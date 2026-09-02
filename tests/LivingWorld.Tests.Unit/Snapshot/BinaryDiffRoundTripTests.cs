@@ -1,7 +1,8 @@
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Simulation.Snapshot;
 
-namespace LivingWorld.Tests.Snapshot;
+namespace LivingWorld.Tests.Unit.Snapshot;
 
 /// <summary>Fase 28, T19 (CMP-04/05): round-trip binário do diff real após simulação longa.</summary>
 public class BinaryDiffRoundTripTests

@@ -1,6 +1,9 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Behavior.Needs;
 
 /// <summary>Multiplicadores físicos puros derivados de Height/Weight/MuscleMass
 /// (Fase 16.3, COH-22/23) — mesmo shape de <see cref="AttributeMechanic"/>:

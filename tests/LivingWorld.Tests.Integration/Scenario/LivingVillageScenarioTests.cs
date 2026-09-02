@@ -1,11 +1,16 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.Economy;
-using LivingWorld.Simulation.History;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Production;
+using LivingWorld.Simulation.History.Causality;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 using Xunit.Abstractions;
 
-namespace LivingWorld.Tests.Scenario;
+namespace LivingWorld.Tests.Integration.Scenario;
 
 /// <summary>COH-64/65 — cenário vertical <c>test-living-village</c> (Fase 16.3 P3).
 /// Choques são multiplicadores de produção (ECON-28); sem scripting narrativo de fome/emprego.</summary>

@@ -1,5 +1,9 @@
 using LivingWorld.Domain;
+using LivingWorld.Domain.History;
 using LivingWorld.Domain.Narrative;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Narrative;
 

@@ -1,10 +1,12 @@
 using System.Net;
-using LivingWorld.Domain;
-using LivingWorld.Infrastructure;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Infrastructure.Repositories;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Hosting;
+using LivingWorld.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LivingWorld.Tests.Visual;
+namespace LivingWorld.Tests.Integration.Visual;
 
 /// <summary>Fase 15, T2 (VTT-01..03): a API deixa de recriar um mundo efêmero a cada start e
 /// passa a hospedar um mundo canônico compartilhado, lastreado num <see cref="IWorldRepository"/>

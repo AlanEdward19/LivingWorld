@@ -1,6 +1,6 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Core;
 
 /// <summary>Um evento de história, carimbado com o tick em que ocorreu. Sem <c>BranchId</c> —
 /// quem persiste (Infrastructure) atribui o branch explicitamente, nunca implícito

@@ -1,9 +1,15 @@
 using System.Text.Json;
-using LivingWorld.Api.Visual;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Api.Visual.Projection;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Cities.Spatial;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Stage4;
+namespace LivingWorld.Tests.Integration.Stage4;
 
 /// <summary>Fase 15.1, Stage 4, T18 (LWV-04.5): o marcador de prédio concluído expõe
 /// <c>location</c>/<c>locationIsDerived</c> no fio camelCase que o cliente da cidade consome —

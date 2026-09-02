@@ -1,7 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.Shared;
 
 /// <summary>Compila um snippet C# em memória contra um conjunto declarado de assemblies
 /// (R5: fronteira provada por compilação Roslyn, não por leitura humana de código).</summary>

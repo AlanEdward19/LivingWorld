@@ -1,8 +1,12 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.Unit.Population;
 
 public class NpcSkillMutatorsTests
 {

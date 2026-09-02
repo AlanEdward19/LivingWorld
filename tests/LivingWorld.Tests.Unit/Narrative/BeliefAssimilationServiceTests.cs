@@ -1,12 +1,18 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
 using LivingWorld.Domain.Llm;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History.Books;
+using LivingWorld.Simulation.History.Queries;
 using LivingWorld.Simulation.Narrative;
+using LivingWorld.Simulation.Scenarios;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace LivingWorld.Tests.Narrative;
+namespace LivingWorld.Tests.Unit.Narrative;
 
 /// <summary>Fase 12, T8 (NARR-13..15, story "Crença separada de verdade"): limiar de confiança na
 /// assimilação de relato em memória semântica.</summary>

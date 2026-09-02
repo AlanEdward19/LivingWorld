@@ -1,11 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
-using LivingWorld.Api.Visual;
-using LivingWorld.Simulation;
+using LivingWorld.Api.Visual.Scope;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LivingWorld.Tests.Visual;
+namespace LivingWorld.Tests.Integration.Visual;
 
 /// <summary>Fase 15, T3 (VTT-02, VTT-10): subscribe/replay do gateway realtime — permissão
 /// espectador-vs-personagem no escopo world (spec.md edge case "assina escopo sem permissão"),

@@ -1,9 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Integration.Cities;
 
 /// <summary>Fase 8, T15 (CITY-06): <c>GET /npcs/{id}</c> — devolve o DTO de inspeção para NPC
 /// vivo (AC #1) e 404, nunca 500, para id inexistente/morto (AC #3).</summary>

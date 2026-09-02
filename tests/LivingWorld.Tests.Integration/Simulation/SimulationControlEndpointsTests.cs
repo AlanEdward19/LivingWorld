@@ -1,10 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
 using LivingWorld.Api.Simulation;
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Hosting;
+using LivingWorld.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LivingWorld.Tests.Simulation;
+namespace LivingWorld.Tests.Integration.Simulation;
 
 /// <summary>Fase 15.1, T1 (VTT2-27..30): <c>POST /simulation/pause|resume|speed|step</c> e
 /// <c>GET /simulation/status</c> como tradução fina sobre <see cref="SimulationHost"/>. Factory

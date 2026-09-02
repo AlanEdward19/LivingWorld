@@ -1,7 +1,14 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Population;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Unit.Cities.Construction;
 
 /// <summary>Fase 8, T9 (CITY-04/CITY-05): <see cref="MaterializationSystem"/> — materializar
 /// debita exatamente 1 do pool e cria exatamente 1 <see cref="Npc"/>; desmaterializar devolve

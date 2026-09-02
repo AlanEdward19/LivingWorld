@@ -1,7 +1,9 @@
-using LivingWorld.Infrastructure;
+using LivingWorld.Infrastructure.EfCore;
+using LivingWorld.Infrastructure.Records;
+using LivingWorld.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 
-namespace LivingWorld.Tests.Periods;
+namespace LivingWorld.Tests.Integration.Periods;
 
 /// <summary>Fase 13, T4: persistência de templates de período versionados. Mesmo padrão de
 /// <c>HistorySnapshotReplayTests.OpenInMemoryDb</c> — sqlite <c>:memory:</c> real, migrado de

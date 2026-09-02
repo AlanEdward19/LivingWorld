@@ -1,8 +1,15 @@
 using System.Security.Cryptography;
 using System.Text;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History.Distortion;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation.History;
+namespace LivingWorld.Simulation.History.Books;
 
 /// <summary>Digest determinístico de livros (Fase 10, HIST-09) — usado pelos testes de dois
 /// processos.</summary>

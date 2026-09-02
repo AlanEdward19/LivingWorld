@@ -1,4 +1,6 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.History.Distortion;
 
 /// <summary>Correção do passado como evento novo anexado (Fase 10, HIST-24) — a linha original
 /// nunca é reescrita.</summary>

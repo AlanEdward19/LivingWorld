@@ -1,11 +1,18 @@
 using System.Net;
 using System.Net.Http.Json;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.Population;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Performance;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Hosting;
+using LivingWorld.Simulation.Population.Archive;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LivingWorld.Tests.Api;
+namespace LivingWorld.Tests.Integration.Api.Watchlist;
 
 /// <summary>Fase 28 T7 (COG-20, COG-21): <c>POST|DELETE /npcs/{id}/watchlist</c>.</summary>
 public sealed class WatchlistEndpointsTests : IClassFixture<LivingWorldApiFactory>

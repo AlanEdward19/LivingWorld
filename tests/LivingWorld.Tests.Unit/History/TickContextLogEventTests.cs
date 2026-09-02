@@ -1,8 +1,11 @@
 using System.Text.RegularExpressions;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Unit.History;
 
 /// <summary>COH-01/COH-03: LogEvent aditivo minta EventId e carrega SourceSystem/CauseEventId.</summary>
 public class TickContextLogEventTests

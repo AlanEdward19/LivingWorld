@@ -1,9 +1,10 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Tests.Shared;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using NetArchTest.Rules;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.Unit;
 
 public class ArchitectureTests
 {

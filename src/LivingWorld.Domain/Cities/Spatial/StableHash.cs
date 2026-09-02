@@ -1,4 +1,4 @@
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Cities.Spatial;
 
 /// <summary>Mistura determinística (splitmix-style finalizer) para derivar geometria estável de
 /// um id (Fase 15.1, T45) — nunca <c>HashCode.Combine</c>/<c>string.GetHashCode</c>: ambos são

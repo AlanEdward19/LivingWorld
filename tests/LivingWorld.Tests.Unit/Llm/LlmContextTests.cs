@@ -1,7 +1,7 @@
 using LivingWorld.AI;
 using LivingWorld.Domain.Llm;
 
-namespace LivingWorld.Tests.Llm;
+namespace LivingWorld.Tests.Unit.Llm;
 
 /// <summary>Fase 11, LLM-04/05: <see cref="LlmContext"/> ganha crença, memória relevante, ações
 /// permitidas e metadados de sessão sem quebrar o contrato de leitura original (ADR-0004) — todo

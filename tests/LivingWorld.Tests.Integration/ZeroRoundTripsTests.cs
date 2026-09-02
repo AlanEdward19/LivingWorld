@@ -1,9 +1,14 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Infrastructure;
-using LivingWorld.Simulation;
+using LivingWorld.Infrastructure.EfCore;
+using LivingWorld.Infrastructure.EventLog;
+using LivingWorld.Infrastructure.Repositories;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Tests.Shared;
 using Microsoft.EntityFrameworkCore;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.Integration;
 
 /// <summary>Task 11: o banco só é tocado nas fronteiras de snapshot. 1 mês de ticks
 /// rodando puro em memória não devem gerar nenhum comando SQL (1 ano fica em Scenario).</summary>

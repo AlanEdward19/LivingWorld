@@ -1,7 +1,17 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
+using LivingWorld.Tests.Shared;
 
-namespace LivingWorld.Tests.Behavior;
+namespace LivingWorld.Tests.Unit.Behavior;
 
 /// <summary>Fase 6, T11: <see cref="BehaviorDecisionSystem"/> — escolha/troca de profissão
 /// (SKILL-13/14). Score combina habilidade atual na candidata, personalidade (mesmo padrão de

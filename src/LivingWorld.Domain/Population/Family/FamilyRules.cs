@@ -1,4 +1,10 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Population.Family;
 
 /// <summary>Todo peso/limiar/duração/flag da Fase 7 (Relações e Famílias), cenário-driven (R3)
 /// — nenhum literal em C#, mesmo padrão de <see cref="NeedsRules"/>/<see cref="EconomyRules"/>/

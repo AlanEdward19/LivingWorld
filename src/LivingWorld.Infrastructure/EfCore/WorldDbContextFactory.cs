@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
-namespace LivingWorld.Infrastructure;
+namespace LivingWorld.Infrastructure.EfCore;
 
 /// <summary>Fábrica de design-time só para <c>dotnet ef migrations add</c> — runtime real monta
 /// as options via DI (Workers/Api), sempre com o caminho do arquivo `.db` do mundo (ADR-0002).</summary>

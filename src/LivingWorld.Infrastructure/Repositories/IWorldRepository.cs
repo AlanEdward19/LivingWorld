@@ -1,7 +1,8 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Infrastructure.Records;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Infrastructure;
+namespace LivingWorld.Infrastructure.Repositories;
 
 /// <summary>Persistência de snapshot + event log (ADR-0006). <see cref="BranchId"/> é parâmetro
 /// explícito de todo método (ADR-0009) — nunca implícito nem ambiente. Um teste de arquitetura

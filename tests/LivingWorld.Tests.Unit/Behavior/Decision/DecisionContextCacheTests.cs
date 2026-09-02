@@ -1,8 +1,13 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Llm;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Behavior;
+namespace LivingWorld.Tests.Unit.Behavior.Decision;
 
 /// <summary>Fase 16.3 T29 (COH-45): DecisionContextCache dirty-flag por categoria.</summary>
 public class DecisionContextCacheTests

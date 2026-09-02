@@ -1,7 +1,9 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Economy;
+namespace LivingWorld.Tests.LongRunning.Economy;
 
 /// <summary>Fase 5, T23 — o critério mais importante da fase: <c>soma de todas as moedas do
 /// mundo == inicial + cunhado - destruído</c>, exato, amostrado ao longo do horizonte (ECON-14/27).

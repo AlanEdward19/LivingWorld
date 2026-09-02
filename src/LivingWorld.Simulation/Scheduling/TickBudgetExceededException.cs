@@ -1,4 +1,4 @@
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Scheduling;
 
 /// <summary>Um tick não converge — evento se re-agenda para o mesmo tick indefinidamente
 /// (task 10). Aborta nomeando o sistema culpado em vez de travar o processo.</summary>

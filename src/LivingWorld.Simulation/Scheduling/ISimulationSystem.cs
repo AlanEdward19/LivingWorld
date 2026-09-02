@@ -1,6 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Scheduling;
 
 /// <summary>Um sistema de simulação. Registrado por frequência (rules/implementation.md);
 /// não chama outro sistema direto — comunica por evento agendado (<see cref="TickContext"/>).</summary>

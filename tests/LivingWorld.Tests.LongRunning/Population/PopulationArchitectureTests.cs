@@ -1,6 +1,6 @@
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.LongRunning.Population;
 
 /// <summary>Fase 3, task 7: profissão, recurso e tipo de local vêm do cenário, nunca de literal
 /// em C# — mesmo padrão de <c>GeographyNamingArchitectureTests</c>. O cenário <c>test-scifi</c>

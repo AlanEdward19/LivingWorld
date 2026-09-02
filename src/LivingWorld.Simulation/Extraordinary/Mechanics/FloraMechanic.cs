@@ -1,7 +1,12 @@
 using System.Globalization;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Flora;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Ecology;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 
 /// <summary>
 /// <c>flora.growth-rate:&lt;multiplicador&gt;</c> numa área (<c>area:radius</c>/<c>area:region</c>).

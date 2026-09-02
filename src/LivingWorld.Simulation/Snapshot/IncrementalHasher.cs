@@ -4,6 +4,8 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Snapshot;
 

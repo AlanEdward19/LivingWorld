@@ -1,6 +1,8 @@
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Population.Lifecycle;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.LongRunning.Population;
 
 /// <summary>Critérios de verificação da Fase 3A sobre o cenário default: 1 mês no gate
 /// (invariantes amostrados); 1 ano, 10 anos e 10k×10 anos ficam em <c>Category=Scenario</c>.

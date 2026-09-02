@@ -1,6 +1,8 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Scheduling;
 
 /// <summary>Fachada que um sistema recebe a cada tick: RNG por stream, agendamento de eventos
 /// futuros e o tick atual. Nunca o relógio da máquina.</summary>

@@ -1,4 +1,4 @@
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Shared;
 
 public enum VarianceProfileKind
 {

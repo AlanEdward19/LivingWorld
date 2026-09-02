@@ -1,6 +1,6 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population.Family;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.Unit.Population.Family;
 
 /// <summary>Fase 7, T5 (FAM-01, FAM-02, FAM-03, FAM-04, FAM-05): os 4 eixos assimétricos de uma
 /// relação — evolução por evento nomeado, decaimento sem contato, nunca o mesmo objeto para os

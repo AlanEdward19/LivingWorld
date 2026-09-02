@@ -1,6 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Opportunity;
 
 /// <summary>Candidato dinâmico de poder no utility loop (Fase 16.3 P1d, COH-31).
 /// Volátil — nunca canônico / persistido. Custo e risco vêm de heurística documentada

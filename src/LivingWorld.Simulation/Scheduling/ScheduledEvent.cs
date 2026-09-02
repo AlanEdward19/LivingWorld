@@ -1,4 +1,4 @@
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Scheduling;
 
 /// <summary>Evento agendado no futuro (docs/domain/time-and-ticks.md): troca varredura por
 /// população por O(eventos). <see cref="Id"/> é o desempate estável entre processos quando

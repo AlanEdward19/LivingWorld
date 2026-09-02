@@ -1,6 +1,6 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population.Skills;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.Unit.Population.Skills;
 
 /// <summary>Fase 6, task 4 (SKILL-01, SKILL-12) + Fase 13, T11b: habilidades de um <c>Npc</c>,
 /// imutáveis, clampadas em <c>[0,cap]</c>, id aberto (não mais enum fechado de 13 valores) — uma

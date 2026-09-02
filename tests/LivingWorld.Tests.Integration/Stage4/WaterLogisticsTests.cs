@@ -1,10 +1,20 @@
-using LivingWorld.Api.Visual;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.Behavior;
-using LivingWorld.Simulation.Economy;
+using LivingWorld.Api.Visual.Scope;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Production;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Stage4;
+namespace LivingWorld.Tests.Integration.Stage4;
 
 /// <summary>Fase 15.1, Stage 4, T15 (LWV-03.4/LWV-06): cadeia de água
 /// travel→collect→carry→deliver — sem uso remoto, rota/fonte ausente bloqueia, quantidade

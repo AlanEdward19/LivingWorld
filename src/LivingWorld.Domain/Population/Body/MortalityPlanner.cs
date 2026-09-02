@@ -1,4 +1,6 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Population.Body;
 
 /// <summary>Resolve a idade de morte de um NPC por antecipação (task 4): rola ano a ano contra
 /// <see cref="LifeTable.AnnualMortality"/> até o primeiro sucesso ou o teto de longevidade.

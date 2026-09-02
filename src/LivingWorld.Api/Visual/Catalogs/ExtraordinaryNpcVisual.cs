@@ -1,7 +1,8 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
 
-namespace LivingWorld.Api.Visual;
+namespace LivingWorld.Api.Visual.Catalogs;
 
 public sealed record ExtraordinaryNeedSubstitutionVisual(
     string ReplacesNeed, int ResourceId, long UnitsPerUse);

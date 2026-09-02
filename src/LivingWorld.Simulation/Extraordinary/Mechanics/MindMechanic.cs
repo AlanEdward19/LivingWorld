@@ -1,6 +1,12 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Authoring;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 
 /// <summary>
 /// Leitura de campos já públicos, consulta/apagar/implantar memória no log de

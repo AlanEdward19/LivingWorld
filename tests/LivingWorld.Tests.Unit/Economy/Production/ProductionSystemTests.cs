@@ -1,7 +1,14 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Production;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Economy;
+namespace LivingWorld.Tests.Unit.Economy.Production;
 
 /// <summary>Fase 5, T15: <see cref="ProductionSystem"/> — sem trabalhador presente ou sem
 /// recurso de célula exigido, produção é 0 (ECON-07/08); spoilage reduz estoque pela taxa

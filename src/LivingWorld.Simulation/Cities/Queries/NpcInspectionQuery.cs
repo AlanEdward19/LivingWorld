@@ -1,9 +1,18 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation.Behavior;
-using LivingWorld.Simulation.History;
-using LivingWorld.Simulation.Population;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Spatial;
+using LivingWorld.Domain.Cognition;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Resolvers;
+using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History.Queries;
+using LivingWorld.Simulation.Population.Archive;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Cities.Queries;
 
 // SPEC_DEVIATION: design.md pede este tipo em src/LivingWorld.Domain/Cities/ — mesmo
 // SPEC_DEVIATION já registrado em CityPopulationQuery.cs: LivingWorld.Domain não referencia

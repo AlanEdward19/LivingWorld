@@ -1,4 +1,4 @@
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Cities.Buildings;
 
 /// <summary>Contrato de caminhabilidade de uma célula de footprint (Fase 15.1, T46/ADR-0018):
 /// piso, porta e escada são caminháveis; parede não é.</summary>

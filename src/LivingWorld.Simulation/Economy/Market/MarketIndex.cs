@@ -1,6 +1,9 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation.Economy;
+namespace LivingWorld.Simulation.Economy.Market;
 
 /// <summary>Mercado mais próximo por célula de origem, recomputado uma vez por tick (PERF-05).</summary>
 public sealed class MarketIndex

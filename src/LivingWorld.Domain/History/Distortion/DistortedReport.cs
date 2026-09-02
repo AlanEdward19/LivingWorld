@@ -1,4 +1,6 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.History.Distortion;
 
 /// <summary>Relato distorcido materializado sob demanda (Fase 10, Opção C) — volátil, nunca
 /// serializado no snapshot canônico.</summary>

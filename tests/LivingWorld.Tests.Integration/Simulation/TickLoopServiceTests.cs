@@ -1,11 +1,15 @@
 using LivingWorld.Api.Realtime;
 using LivingWorld.Api.Simulation;
-using LivingWorld.Api.Visual;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Api.Visual.Scope;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Hosting;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LivingWorld.Tests.Simulation;
+namespace LivingWorld.Tests.Integration.Simulation;
 
 /// <summary>Fase 15.1, T3 (VTT2-26). Uma <see cref="LivingWorldApiFactory"/> por classe (não por
 /// teste): o Parallelism Assessment original temia factory compartilhada com loop em background,

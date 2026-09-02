@@ -1,4 +1,7 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Economy;
 
 /// <summary>Recipe de produção de um <see cref="Workplace"/> (Fase 5): entrada/saída por
 /// trabalhador por ciclo, recurso natural de célula exigido (ECON-08, opcional) e teto de

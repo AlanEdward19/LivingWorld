@@ -1,7 +1,12 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Llm;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Llm;
 
-namespace LivingWorld.Tests.Llm;
+namespace LivingWorld.Tests.Unit.Llm;
 
 /// <summary>Fase 11, story "Sessão de conversa segura" (LLM-01, LLM-02, AC1/AC4): <see
 /// cref="ConversationAvailabilityPolicy"/> decide Accepted/Rejected com motivo determinístico e

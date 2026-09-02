@@ -1,7 +1,7 @@
-using LivingWorld.Infrastructure;
+using LivingWorld.Infrastructure.Repositories;
 using LivingWorld.Simulation.Periods;
 
-namespace LivingWorld.Api;
+namespace LivingWorld.Api.World;
 
 public sealed record StartWorldRequest(string PeriodId, ulong Seed);
 

@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
 using LivingWorld.Simulation.Periods;
 
-namespace LivingWorld.Tests.Periods;
+namespace LivingWorld.Tests.Unit.Periods;
 
 /// <summary>Fase 15.1, T48 (backend-gaps.md G8): descritores legíveis por categoria — só existem
 /// se o período os declarar; ausência nunca é falha, sempre lista vazia.</summary>

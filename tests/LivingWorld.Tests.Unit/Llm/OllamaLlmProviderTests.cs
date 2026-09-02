@@ -4,7 +4,7 @@ using System.Text.Json;
 using LivingWorld.AI;
 using LivingWorld.Domain.Llm;
 
-namespace LivingWorld.Tests.Llm;
+namespace LivingWorld.Tests.Unit.Llm;
 
 /// <summary>Fase 11 (ADR-0016 follow-up): <see cref="OllamaLlmProvider"/> é só transporte —
 /// monta a requisição HTTP certa e faz o parse certo. Nunca chama rede real (mesmo guard de T9,

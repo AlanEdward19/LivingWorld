@@ -1,7 +1,7 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
 
-namespace LivingWorld.Tests.Extraordinary;
+namespace LivingWorld.Tests.Unit.Extraordinary.Mechanics;
 
 /// <summary>T5 / EVO-16: hash(seed, npcId, salt) → [0,1) determinístico e uniforme.</summary>
 public sealed class DeterministicChoiceTests

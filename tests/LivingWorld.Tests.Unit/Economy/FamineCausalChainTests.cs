@@ -1,6 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Tests.Shared.Economy;
 
-namespace LivingWorld.Tests.Economy;
+namespace LivingWorld.Tests.Unit.Economy;
 
 /// <summary>Fase 5, T26 (ECON-29) — a cadeia causal completa da fase: quebra de safra (produção
 /// de trigo cortada a zero) aumenta a contagem de NPCs com fome acima do limiar do cenário, em

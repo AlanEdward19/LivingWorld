@@ -1,7 +1,11 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation.Economy;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Economy.Labor;
 
 /// <summary>Liga NPC adulto desempregado a um <see cref="Workplace"/> com vaga livre (Fase 5,
 /// ECON-18/19/20), <c>Daily</c> (AD-042 — vaga não precisa reagir por hora). Respeita

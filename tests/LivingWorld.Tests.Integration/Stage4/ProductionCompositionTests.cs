@@ -1,15 +1,34 @@
-using LivingWorld.Api.Visual;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.Economy;
+using LivingWorld.Api.Visual.Catalogs;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Cities.Founding;
+using LivingWorld.Simulation.Cities.Migration;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Ecology;
+using LivingWorld.Simulation.Economy.Labor;
+using LivingWorld.Simulation.Economy.Market;
+using LivingWorld.Simulation.Economy.Production;
 using LivingWorld.Simulation.Geography;
-using LivingWorld.Simulation.History;
+using LivingWorld.Simulation.History.Books;
+using LivingWorld.Simulation.History.Distortion;
+using LivingWorld.Simulation.Hosting;
+using LivingWorld.Simulation.Llm;
 using LivingWorld.Simulation.Narrative;
 using LivingWorld.Simulation.Periods;
-using LivingWorld.Simulation.Population;
+using LivingWorld.Simulation.Population.Archive;
+using LivingWorld.Simulation.Population.Family;
+using LivingWorld.Simulation.Population.Lifecycle;
+using LivingWorld.Simulation.Population.Skills;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
+using LivingWorld.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LivingWorld.Tests.Stage4;
+namespace LivingWorld.Tests.Integration.Stage4;
 
 [Collection(ApiEndpointCollection.Name)]
 public sealed class ProductionCompositionTests

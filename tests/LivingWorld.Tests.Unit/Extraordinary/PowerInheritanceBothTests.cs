@@ -1,7 +1,10 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Inheritance;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Extraordinary;
+namespace LivingWorld.Tests.Unit.Extraordinary;
 
 /// <summary>T8 / EVO-11: caminho "ambos" — descritores completos e independentes.</summary>
 public sealed class PowerInheritanceBothTests

@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Geography.Map;
 
 /// <summary>Hash determinístico só da geografia (Fase 15.1, T43): dimensões, células e âncoras —
 /// nunca catálogo/custo/regiões, que são regras/índices derivados, não a forma do mapa em si.

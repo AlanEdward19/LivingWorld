@@ -1,6 +1,9 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Systems;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Culture;
 
 /// <summary>Atribui portadores iniciais sem materializar pessoas do pool agregado.</summary>
 public static class ExtraordinaryPrevalenceSeeder

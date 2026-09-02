@@ -1,6 +1,11 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Population.Lifecycle;
 
 /// <summary>Morte por idade como evento agendado (task 4) — nenhuma varredura por tick. A
 /// idade de morte é resolvida por antecipação (<see cref="MortalityPlanner"/>) no nascimento;

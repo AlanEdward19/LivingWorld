@@ -1,7 +1,14 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Behavior;
+namespace LivingWorld.Tests.Unit.Behavior;
 
 /// <summary>Fase 4, task 2: <see cref="ActionType"/> como catálogo fechado com id estável
 /// (desempate de utility AI, NEEDS-06) e <see cref="ActionCatalog"/> — duração máxima
@@ -85,7 +92,7 @@ public class ActionCatalogTests
             currentAction: ActionType.UsePower, actionStartedAtTick: 10);
         npc.PendingPowerInvocation = new PendingPowerInvocation("p", "npc.teleport:1", null);
 
-        long wake = LivingWorld.Simulation.Behavior.NpcWakeScheduler.ComputeNextWakeTick(
+        long wake = NpcWakeScheduler.ComputeNextWakeTick(
             npc, needs, catalog, now: 10, world);
 
         Assert.Equal(10 + catalog.MaxDurationHours[ActionType.UsePower], wake);

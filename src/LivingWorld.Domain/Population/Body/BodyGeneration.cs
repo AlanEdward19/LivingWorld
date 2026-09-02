@@ -1,4 +1,6 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Population.Body;
 
 /// <summary>Geração determinística de <c>Height</c>/<c>Weight</c>/<c>MuscleMass</c>
 /// (Fase 16.3, COH-21) — normal truncada via Box-Muller + clamp em <see cref="BodyRules"/>.

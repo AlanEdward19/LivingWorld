@@ -1,9 +1,27 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Fauna;
+using LivingWorld.Domain.Flora;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
 using LivingWorld.Domain.Llm;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Hosting;
+using LivingWorld.Simulation.Population;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.Unit.Core;
 
 public class WorldSnapshotTests
 {

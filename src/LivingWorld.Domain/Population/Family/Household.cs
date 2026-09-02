@@ -1,6 +1,9 @@
 using System.Text.Json.Serialization;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Population.Family;
 
 /// <summary>Família como unidade (task 3): residência, membros e chefe. Nascimento entra,
 /// morte remove; sem membros, <see cref="IsEmpty"/> sinaliza dissolução para quem gerencia a

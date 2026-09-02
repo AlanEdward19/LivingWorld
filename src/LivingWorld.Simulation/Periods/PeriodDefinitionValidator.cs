@@ -1,4 +1,16 @@
 using LivingWorld.Domain;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Economy;
+using LivingWorld.Simulation.Economy.Production;
+using LivingWorld.Simulation.Extraordinary.Culture;
+using LivingWorld.Simulation.Geography;
+using LivingWorld.Simulation.Population;
 
 namespace LivingWorld.Simulation.Periods;
 

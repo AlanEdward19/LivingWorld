@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
 using LivingWorld.Simulation.Periods;
 
-namespace LivingWorld.Tests.Periods;
+namespace LivingWorld.Tests.Unit.Periods;
 
 public class WorldStartServiceTests
 {

@@ -1,4 +1,6 @@
 using LivingWorld.Simulation;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Hosting;
 
 namespace LivingWorld.Api.Simulation;
 

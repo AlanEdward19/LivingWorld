@@ -1,6 +1,9 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Unit.History;
 
 /// <summary>Fase 10, T1: <see cref="HistoryRules"/> — parâmetros cenário-driven (HIST-08).</summary>
 public class HistoryRulesTests
@@ -99,7 +102,7 @@ public class HistoryRulesTests
     [Fact]
     public void ScenarioRunner_Create_accepts_optional_history_rules()
     {
-        var (world, _) = LivingWorld.Simulation.ScenarioRunner.Create(1, historyRules: HistoryRules.Default);
+        var (world, _) = ScenarioRunner.Create(1, historyRules: HistoryRules.Default);
         Assert.True(world.HistoryRules.Enabled);
     }
 }

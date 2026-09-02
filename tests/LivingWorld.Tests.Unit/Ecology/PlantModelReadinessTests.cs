@@ -1,7 +1,9 @@
 using System.Reflection;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Ecology;
+using LivingWorld.Domain.Flora;
+using LivingWorld.Domain.Geography;
 
-namespace LivingWorld.Tests.Ecology;
+namespace LivingWorld.Tests.Unit.Ecology;
 
 /// <summary>T7 — <see cref="Plant"/> já cobre o ciclo via <see cref="Plant.GrowthStage"/>;
 /// parâmetros por espécie vivem em <see cref="PlantSpeciesRules"/> (REALISM-07). Nenhum campo

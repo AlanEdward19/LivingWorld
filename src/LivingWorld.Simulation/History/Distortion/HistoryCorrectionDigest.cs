@@ -1,8 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Simulation.History;
+namespace LivingWorld.Simulation.History.Distortion;
 
 /// <summary>Digest determinístico de correção compensatória (Fase 10, HIST-24) — usado pelos
 /// testes de dois processos.</summary>

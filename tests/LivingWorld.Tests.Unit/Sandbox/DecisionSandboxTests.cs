@@ -1,7 +1,14 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cognition;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Sandbox;
+namespace LivingWorld.Tests.Unit.Sandbox;
 
 /// <summary>Fase 28 T21 (SBX-01, SBX-03): sandbox isolado com <see cref="DecisionContext"/>
 /// sintético — mesmo pipeline de <see cref="BehaviorDecisionSystem.SelectByUtility"/>.</summary>

@@ -1,7 +1,16 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation.Economy;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Labor;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Economy.Production;
 
 /// <summary>Converte trabalho + recipe em saída de estoque por <see cref="Workplace"/> (Fase 5,
 /// ECON-06/07/08), <c>Daily</c> (AD-042). Respeita <see cref="EconomyRules.Enabled"/>

@@ -1,6 +1,10 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Engine;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Systems;
 
 /// <summary>
 /// Reinvoca poderes <c>Mode=Passive</c> a cada tick Hourly enquanto manifestados.

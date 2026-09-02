@@ -1,4 +1,6 @@
-namespace LivingWorld.Tests;
+using LivingWorld.Tests.Shared;
+
+namespace LivingWorld.Tests.Integration;
 
 /// <summary>Uma <see cref="LivingWorldApiFactory"/> compartilhada para endpoints de <b>leitura</b>
 /// (ou leituras que só tocam estado efêmero do gateway sem <c>WorldHost.Replace</c>).

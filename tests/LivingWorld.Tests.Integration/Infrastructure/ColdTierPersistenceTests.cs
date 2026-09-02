@@ -1,8 +1,10 @@
-using LivingWorld.Domain;
-using LivingWorld.Infrastructure;
-using LivingWorld.Simulation.Population;
+using LivingWorld.Domain.Performance;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Infrastructure.EventLog;
+using LivingWorld.Simulation.Population.Archive;
 
-namespace LivingWorld.Tests.Infrastructure;
+namespace LivingWorld.Tests.Integration.Infrastructure;
 
 public sealed class ColdTierPersistenceTests
 {

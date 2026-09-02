@@ -1,6 +1,10 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Population.Lifecycle;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 
 /// <summary>
 /// Transferência atômica genérica <c>transfer.&lt;atributo&gt;:&lt;magnitude&gt;</c>

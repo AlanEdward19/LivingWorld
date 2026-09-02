@@ -1,6 +1,10 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Tests.Economy;
+namespace LivingWorld.Tests.Unit.Economy;
 
 /// <summary>Fase 5, T2: <see cref="EconomyRules"/> — todo parâmetro numérico da economia,
 /// cenário-driven (R3, AD-041/044/045), mesmo padrão de validação de <see cref="NeedsRules"/>.</summary>

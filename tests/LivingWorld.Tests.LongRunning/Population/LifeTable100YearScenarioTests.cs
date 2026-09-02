@@ -1,6 +1,6 @@
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.LongRunning.Population;
 
 /// <summary>R2 (rules/eval-criteria.md): horizonte longo (100 anos) fica fora do gate padrão —
 /// roda só com <c>--filter Category=Scenario</c> (nightly). Critério: a tabela de vida não

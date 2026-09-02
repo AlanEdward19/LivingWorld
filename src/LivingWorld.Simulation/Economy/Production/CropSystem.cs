@@ -1,6 +1,14 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Labor;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation.Economy;
+namespace LivingWorld.Simulation.Economy.Production;
 
 /// <summary>Cultivo estagiado <c>plant→water→mature→harvest</c> (Fase 15.1, Stage 4, T17).
 /// Substitui o trigo instantâneo da fazenda default; colheita antecipada é rejeitada.</summary>

@@ -1,7 +1,14 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Ecology;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Fauna;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Ecology;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Ecology;
+namespace LivingWorld.Tests.Unit.Ecology;
 
 /// <summary>REALISM-01/02/06 — fauna consome energia e morre de fome sem poderes.</summary>
 public sealed class FaunaLifecycleHungerTests

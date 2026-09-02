@@ -1,4 +1,4 @@
-namespace LivingWorld.Tests.Periods;
+namespace LivingWorld.Tests.Unit.Periods;
 
 /// <summary>Fase 13, T15 (PERIOD-20): nenhum nome de habilidade vira literal de decisão em
 /// <c>LivingWorld.Domain</c>/<c>LivingWorld.Simulation</c> — mesmo padrão de <see

@@ -1,7 +1,13 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Population;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Unit.Cities;
 
 /// <summary>Fase 8, T11 (CITY-02): <see cref="CityGrowthSystem"/> — déficit de comida/moradia
 /// reduz só <see cref="AggregatePopulationPool.Count"/>, nunca NPC materializado; taxa vem só de

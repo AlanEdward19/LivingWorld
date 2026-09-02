@@ -1,6 +1,9 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation.Economy;
+namespace LivingWorld.Simulation.Economy.Labor;
 
 /// <summary>Vagas abertas e workplaces com vaga por tipo de local, recomputado uma vez por dia (PERF-06).</summary>
 public sealed class VacancyIndex

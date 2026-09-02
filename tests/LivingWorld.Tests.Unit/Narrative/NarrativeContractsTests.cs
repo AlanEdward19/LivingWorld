@@ -1,8 +1,8 @@
 using System.Reflection;
-using LivingWorld.Domain;
 using LivingWorld.Domain.Narrative;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Tests.Narrative;
+namespace LivingWorld.Tests.Unit.Narrative;
 
 /// <summary>Fase 12, T1: contratos narrativos estruturados (NARR-01..04).</summary>
 public class NarrativeContractsTests

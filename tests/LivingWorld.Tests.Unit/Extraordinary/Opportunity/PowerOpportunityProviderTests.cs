@@ -1,7 +1,15 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Engine;
+using LivingWorld.Simulation.Extraordinary.Opportunity;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Extraordinary;
+namespace LivingWorld.Tests.Unit.Extraordinary.Opportunity;
 
 /// <summary>Fase 16.3, T20 (COH-31/32): filtro Mode + estágio e cobertura do registry.</summary>
 public sealed class PowerOpportunityProviderTests

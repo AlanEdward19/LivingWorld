@@ -1,4 +1,9 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.History.Distortion;
+using LivingWorld.Domain.Performance;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.History;
 
 /// <summary>Parâmetros cenário-driven da história degradável (Fase 10, HIST-08) — limiar de
 /// significância, cânone por comunidade, fidelidade por meio, operadores e pesos de despejo.

@@ -1,7 +1,15 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Labor;
+using LivingWorld.Simulation.Population;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Economy;
+namespace LivingWorld.Tests.LongRunning.Economy.Labor;
 
 /// <summary>Fase 5, T14: <see cref="EmploymentSystem"/> — contratação por vaga livre + profissão
 /// compatível (ECON-18/19/20), demissão de órfão antes de nova contratação no mesmo tick.</summary>

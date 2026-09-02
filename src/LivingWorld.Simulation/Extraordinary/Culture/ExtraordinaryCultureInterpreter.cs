@@ -1,6 +1,8 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Culture;
 
 /// <summary>Resolve respostas por cultura e assinatura manifestada; o poder não contém julgamento.</summary>
 internal static class ExtraordinaryCultureInterpreter

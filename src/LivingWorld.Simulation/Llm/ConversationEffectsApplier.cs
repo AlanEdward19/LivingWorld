@@ -1,7 +1,10 @@
-using LivingWorld.Domain;
 using LivingWorld.Domain.Llm;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Llm;
 
 /// <summary>Aplica só os efeitos permitidos de um turno já validado (Fase 11, LLM-09 AC3):
 /// memória episódica canônica do NPC (<see cref="WorldState.AddNpcMemory"/>, T9b) e a relação

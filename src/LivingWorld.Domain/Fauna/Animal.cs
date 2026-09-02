@@ -1,4 +1,7 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+
+namespace LivingWorld.Domain.Fauna;
 
 /// <summary>Entidade animal mínima (PWR-77). Não é NPC: sem personalidade, profissão ou família.</summary>
 public readonly record struct AnimalId(long Value)

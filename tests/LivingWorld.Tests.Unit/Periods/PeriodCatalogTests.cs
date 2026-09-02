@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
 using LivingWorld.Simulation.Periods;
 
-namespace LivingWorld.Tests.Periods;
+namespace LivingWorld.Tests.Unit.Periods;
 
 /// <summary>Fase 13, T12 (PERIOD-22..23): catálogo ativo derivado de um <see
 /// cref="PeriodDefinition"/> já validado — ids de profissão (bloco População) + ids de

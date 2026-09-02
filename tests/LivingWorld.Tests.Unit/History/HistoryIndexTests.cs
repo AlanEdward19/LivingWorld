@@ -1,10 +1,12 @@
 using System.Diagnostics;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.History;
-using LivingWorld.Tests.Baselines;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Tests.Shared.Baselines;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Unit.History;
 
 /// <summary>Fase 10, T17: <see cref="HistoryIndex"/> (HIST-20/21).</summary>
 public class HistoryIndexTests

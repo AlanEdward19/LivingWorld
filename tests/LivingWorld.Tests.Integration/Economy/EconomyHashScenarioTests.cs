@@ -1,7 +1,9 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Population;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Economy;
+namespace LivingWorld.Tests.Integration.Economy;
 
 /// <summary>Fase 5, T22 — ECON-05: desligar a economia (<see cref="EconomyRules.Enabled"/> =
 /// falso — os 4 sistemas de economia viram no-op, mesmo mecanismo de <see

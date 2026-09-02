@@ -1,8 +1,9 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Simulation.Cities;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Unit.Cities;
 
 /// <summary>Fase 8, T7 (CITY-02, CITY-03, CITY-07, CITY-08): carga de CityRules/CityCatalog/
 /// cidades iniciais do cenário — mesmo padrão de EconomyScenarioLoaderTests, campo obrigatório

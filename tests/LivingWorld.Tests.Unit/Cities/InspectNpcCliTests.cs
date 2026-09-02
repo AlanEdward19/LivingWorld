@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Unit.Cities;
 
 /// <summary>Fase 8, T16 (CITY-06): <c>LivingWorld.Workers inspect-npc &lt;id&gt;</c> — mesmo
 /// molde de processo real de <see cref="DeterminismTwoProcessTests"/>. NPC vivo imprime saída

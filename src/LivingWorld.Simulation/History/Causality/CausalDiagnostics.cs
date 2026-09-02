@@ -1,6 +1,8 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation.History;
+namespace LivingWorld.Simulation.History.Causality;
 
 /// <summary>Diagnósticos sobre cadeias <see cref="WorldEvent.CauseEventId"/> (COH-62 / doc#30–31).
 /// Reusa o mesmo <c>maxDepth</c> guard de <see cref="CausalProvenance"/>.</summary>

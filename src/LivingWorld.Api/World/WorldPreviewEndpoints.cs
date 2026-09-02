@@ -1,7 +1,9 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Geography;
+using LivingWorld.Simulation.Hosting;
 
-namespace LivingWorld.Api;
+namespace LivingWorld.Api.World;
 
 public sealed record PreviewWorldRequest(string ScenarioJson);
 

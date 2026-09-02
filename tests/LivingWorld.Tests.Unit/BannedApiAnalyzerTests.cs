@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis.CSharp.BannedApiAnalyzers;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Text;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.Unit;
 
 /// <summary>Para cada símbolo listado em BannedSymbols.txt, um fixture que o usa reprova com
 /// o analyzer ligado. A lista de símbolos vem do próprio arquivo: um símbolo novo sem entrada

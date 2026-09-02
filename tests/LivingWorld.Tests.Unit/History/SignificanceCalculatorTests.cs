@@ -1,11 +1,12 @@
 using System.Diagnostics;
-using LivingWorld.Domain;
-using LivingWorld.Infrastructure;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.History;
+using LivingWorld.Infrastructure.EventLog;
+using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.History;
-using LivingWorld.Tests.Baselines;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Tests.Shared.Baselines;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Unit.History;
 
 /// <summary>Fase 10, T4: <see cref="SignificanceCalculator"/> (HIST-01/HIST-02).</summary>
 public class SignificanceCalculatorTests

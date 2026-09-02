@@ -1,7 +1,11 @@
 using LivingWorld.Api.Realtime;
 using LivingWorld.Api.Visual;
+using LivingWorld.Api.Visual.Scope;
 using LivingWorld.Infrastructure;
+using LivingWorld.Infrastructure.EventLog;
 using LivingWorld.Simulation;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Hosting;
 
 namespace LivingWorld.Api.Simulation;
 

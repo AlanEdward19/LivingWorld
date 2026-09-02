@@ -1,8 +1,9 @@
 using System.Reflection;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Unit.History;
 
 /// <summary>Fase 10, T2: <see cref="Fact"/> esqueleto imutável (HIST-01).</summary>
 public class FactTests

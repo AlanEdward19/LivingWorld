@@ -1,8 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Serialization;
 
 /// <summary>System.Text.Json só serializa chave de dicionário nativamente pra string/enum. A
 /// economia (Fase 5) usa <see cref="ResourceType"/> (T4: <c>Workplace.Stock</c>/<c>Prices</c>) e

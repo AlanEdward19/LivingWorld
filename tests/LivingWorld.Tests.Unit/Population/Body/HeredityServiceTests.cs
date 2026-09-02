@@ -1,6 +1,9 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.Unit.Population.Body;
 
 /// <summary>Fase 7, T6 (FAM-18, FAM-19, FAM-20, FAM-22): hereditariedade genética
 /// (<c>Vitality</c>) vs ambiental (<c>Upbringing</c>) — origens distintas por construção.</summary>

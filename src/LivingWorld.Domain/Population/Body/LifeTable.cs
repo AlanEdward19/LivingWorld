@@ -1,4 +1,6 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Population.Body;
 
 /// <summary>Faixa etária com mortalidade anual base (task 5), dado de cenário.</summary>
 public sealed record LifeTableBracket(int MinAgeYears, int MaxAgeYears, double BaseAnnualMortality);

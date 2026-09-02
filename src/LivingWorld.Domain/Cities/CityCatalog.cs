@@ -1,4 +1,8 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Cities;
 
 /// <summary>Local de trabalho provisionado ao concluir um edifício (Fase 15.1, Stage 4, T10,
 /// LWV-04.1) — opcional; ausente significa só moradia/infraestrutura.</summary>

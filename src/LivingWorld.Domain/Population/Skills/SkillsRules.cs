@@ -1,4 +1,6 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Population.Skills;
 
 /// <summary>Todo parâmetro numérico de habilidade (Fase 6), cenário-driven (R3) — nenhum
 /// literal em C#, mesmo padrão de <see cref="NeedsRules"/>/<see cref="EconomyRules"/>: teto

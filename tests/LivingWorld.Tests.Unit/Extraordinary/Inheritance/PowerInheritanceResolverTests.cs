@@ -1,7 +1,10 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Inheritance;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Extraordinary;
+namespace LivingWorld.Tests.Unit.Extraordinary.Inheritance;
 
 /// <summary>T7 / EVO-10, EVO-15, EVO-16: rolls de ocorrência e caminho.</summary>
 public sealed class PowerInheritanceResolverTests

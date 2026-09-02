@@ -1,8 +1,9 @@
 using System.Net;
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Integration.Cities;
 
 /// <summary>Fase 15.1, T49 (backend-gaps.md G9): <c>GET /npcs/{id}</c> continua leitura pura;
 /// <c>POST /npcs/{id}/materialize</c> é o comando explícito e nomeado, separado do GET.

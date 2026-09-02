@@ -1,6 +1,9 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Economy.Production;
 
 /// <summary>Projeção de processos materiais, carga em trânsito e cultivos
 /// (Fase 15.1, Stage 4, T15–T17) — progresso visual derivado do estado canônico.</summary>

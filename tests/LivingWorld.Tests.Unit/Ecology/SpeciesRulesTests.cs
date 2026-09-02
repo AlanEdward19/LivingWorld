@@ -1,7 +1,7 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Ecology;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Ecology;
+namespace LivingWorld.Tests.Unit.Ecology;
 
 /// <summary>T1 — records de cenário e wiring no ScenarioRunner (pré-requisito REALISM-01/07).</summary>
 public sealed class SpeciesRulesTests

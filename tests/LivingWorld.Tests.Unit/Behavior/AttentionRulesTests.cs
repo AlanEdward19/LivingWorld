@@ -1,6 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Tests.Behavior;
+namespace LivingWorld.Tests.Unit.Behavior;
 
 /// <summary>Fase 16.3, T25 (COH-41/43): limiares cenário-driven do Attention Router.</summary>
 public class AttentionRulesTests

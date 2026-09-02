@@ -1,6 +1,10 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Extraordinary.Culture;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Extraordinary.Systems;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Engine;
 
 /// <summary>
 /// Plano inspecionável do gate de registro. Conteúdo desligado permanece fora do caminho quente.

@@ -1,8 +1,9 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Narrative;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Narrative;
+namespace LivingWorld.Tests.Unit.Narrative;
 
 /// <summary>Fase 12, T2: <see cref="WindowedHistoryAggregator"/> (NARR-05..07).</summary>
 public class WindowedHistoryAggregatorTests

@@ -1,6 +1,7 @@
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Tests.Shared.Performance;
 
-namespace LivingWorld.Tests.Performance;
+namespace LivingWorld.Tests.LongRunning.Performance;
 
 [Trait("Category", "Scenario")]
 public class LongRunScaleTests

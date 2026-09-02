@@ -1,7 +1,8 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Infrastructure;
+using LivingWorld.Infrastructure.Records;
+using LivingWorld.Infrastructure.Repositories;
 
-namespace LivingWorld.Api;
+namespace LivingWorld.Api.Periods;
 
 /// <summary>UX pass 3 (feedback do usuário: "permitir usar algum dos templates que temos" no
 /// wizard de criar mundo) — o repositório de períodos (`IPeriodTemplateRepository`) começa

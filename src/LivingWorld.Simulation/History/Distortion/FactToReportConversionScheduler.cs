@@ -1,6 +1,11 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History.Books;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation.History;
+namespace LivingWorld.Simulation.History.Distortion;
 
 /// <summary>Converte fato em relato hop-0 quando a última testemunha morre (Fase 10, HIST-03)
 /// — via <see cref="EventScheduler"/>, nunca varredura por tick.</summary>

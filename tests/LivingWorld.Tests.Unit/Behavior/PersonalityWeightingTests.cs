@@ -1,6 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Population;
 
-namespace LivingWorld.Tests.Behavior;
+namespace LivingWorld.Tests.Unit.Behavior;
 
 /// <summary>Fase 4, task 5: <see cref="PersonalityWeighting.WeightOf"/> — peso = 1 +
 /// (traço/100 − 0.5) × influência[traço][ação]. Cobertura por reflexão garante que todo

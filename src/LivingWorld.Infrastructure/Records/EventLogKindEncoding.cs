@@ -1,6 +1,6 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Infrastructure;
+namespace LivingWorld.Infrastructure.Records;
 
 /// <summary>Interning aditivo de <see cref="EventLogRecord.Kind"/> na fronteira de persistência
 /// (Fase 28, T17). Primeira ocorrência de um kind permanece literal (compatível com linhas

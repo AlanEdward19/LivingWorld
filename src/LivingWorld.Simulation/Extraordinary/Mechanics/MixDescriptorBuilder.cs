@@ -1,7 +1,15 @@
 using System.Globalization;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Cities.Spatial;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Engine;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 
 /// <summary>
 /// Caminho "mistura" (EVO-13/14/21): recombina eixos Source/Effects/Costs/Conditions/

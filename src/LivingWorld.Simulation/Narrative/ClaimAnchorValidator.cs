@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using LivingWorld.Domain;
 using LivingWorld.Domain.Narrative;
+using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Simulation.Narrative;
 

@@ -1,6 +1,7 @@
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.Unit.World;
 
 /// <summary>Fase 15.1, T42 (ADR-0017): <c>WorldState.Name</c> é volátil (cosmético, ADR-0014) e
 /// precisa sobreviver a snapshot/reidratação, mas nunca ao hash canônico.</summary>

@@ -1,7 +1,8 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Periods;
+namespace LivingWorld.Tests.Unit.Periods;
 
 /// <summary>Fase 13, T9 (PERIOD-14..16): mesmo período + mesma seed produz o mesmo hash
 /// canônico; períodos distintos com a mesma seed produzem hashes diferentes. Horizonte curto

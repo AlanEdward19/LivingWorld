@@ -1,8 +1,14 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Cities.Founding;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Unit.Cities;
 
 /// <summary>Fase 15.1, T44 (backend-gaps.md): nome autorado/determinístico de cidade e prédios
 /// autorados (id/tipo/posição/orientação) com validação de overlap/bounds/referência.</summary>

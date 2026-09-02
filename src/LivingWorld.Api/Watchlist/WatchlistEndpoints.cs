@@ -1,7 +1,9 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cognition;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Hosting;
 
-namespace LivingWorld.Api;
+namespace LivingWorld.Api.Watchlist;
 
 /// <summary>Fase 28 T7 (COG-20, COG-21): marca/desmarca NPC na watchlist de
 /// <see cref="NpcCognitionLog"/> — rejeita morto ou arquivado na borda.</summary>

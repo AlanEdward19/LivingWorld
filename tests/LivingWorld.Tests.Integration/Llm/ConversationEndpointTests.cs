@@ -1,11 +1,15 @@
 using System.Net;
 using System.Net.Http.Json;
-using LivingWorld.Api;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Api.Conversation;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Llm;
+using LivingWorld.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LivingWorld.Tests.Llm;
+namespace LivingWorld.Tests.Integration.Llm;
 
 /// <summary>Fase 11, T7 (LLM-01..03, story "Sessão de conversa segura", todas as ACs):
 /// <c>POST /conversations/start|send|end</c> — mesmo padrão de <c>NpcEndpointTests</c>

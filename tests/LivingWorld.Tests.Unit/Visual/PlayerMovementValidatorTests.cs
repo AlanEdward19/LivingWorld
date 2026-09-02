@@ -1,8 +1,10 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Simulation.Visibility;
 
-namespace LivingWorld.Tests.Visual;
+namespace LivingWorld.Tests.Unit.Visual;
 
 /// <summary>Fase 15, T7 (spec.md story "Modo personagem com FOW", AC1; edge case "movimento
 /// inválido"): <see cref="PlayerMovementValidator"/> — só aceita passo pra célula adjacente

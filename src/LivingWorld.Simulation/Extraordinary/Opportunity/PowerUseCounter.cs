@@ -1,6 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Opportunity;
 
 /// <summary>
 /// Incrementa o contador de uso por invocação bem-sucedida (EVO-04). Falhas nunca contam.

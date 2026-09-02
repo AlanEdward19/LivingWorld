@@ -1,4 +1,4 @@
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Population;
 
 /// <summary>Necessidade com decaimento linear lazy (Fase 9, PERF-09) — valor materializado só
 /// em <see cref="ValueAt"/>, nunca escrito por tick.</summary>

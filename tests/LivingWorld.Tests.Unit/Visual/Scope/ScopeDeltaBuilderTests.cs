@@ -1,9 +1,10 @@
 using System.Reflection;
-using LivingWorld.Api.Visual;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Api.Visual.Scope;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Tests.Visual;
+namespace LivingWorld.Tests.Unit.Visual.Scope;
 
 /// <summary>Fase 15.1, T2 (VTT2-11): <see cref="ScopeDeltaBuilder.Diff"/> diffa o estado
 /// projetado de um escopo entre dois ticks, publicando só o que mudou.</summary>

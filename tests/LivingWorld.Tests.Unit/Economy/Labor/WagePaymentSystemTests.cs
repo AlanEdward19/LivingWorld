@@ -1,7 +1,14 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Labor;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Economy;
+namespace LivingWorld.Tests.Unit.Economy.Labor;
 
 /// <summary>Fase 5, T17: <see cref="WagePaymentSystem"/> — caixa suficiente paga todo mundo,
 /// caixa insuficiente emite <see cref="WorldEventKind.WageUnpaid"/> sem alterar nenhum saldo

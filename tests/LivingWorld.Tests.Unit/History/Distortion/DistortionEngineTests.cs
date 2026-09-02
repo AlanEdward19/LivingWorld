@@ -1,9 +1,12 @@
 using System.Diagnostics;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.History;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History.Distortion;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Unit.History.Distortion;
 
 /// <summary>Fase 10, T8/T9: <see cref="DistortionEngine"/> (HIST-05/HIST-06).</summary>
 public class DistortionEngineTests

@@ -1,4 +1,9 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.Geography.Spatial;
+
+namespace LivingWorld.Domain.Cities.Spatial;
 
 /// <summary>Resolução de bounds unificada pelos três níveis de <see cref="SpaceKind"/> (Fase
 /// 15.1, T46/ADR-0018) — nenhuma fórmula nova: World vem de <see cref="WorldMap"/>, City delega

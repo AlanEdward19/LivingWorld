@@ -1,6 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Llm;
 
-namespace LivingWorld.Tests.Llm;
+namespace LivingWorld.Tests.Unit.Llm;
 
 /// <summary>Fase 11, LLM-01/02: <see cref="LlmRules"/> valida limiar de hostilidade e a
 /// cobertura exaustiva de <see cref="ConversationCompatibility"/> por <see cref="ActionType"/> —

@@ -1,4 +1,4 @@
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Geography;
 
 /// <summary>Curva sazonal de delta de temperatura por bioma (Fase 16.4). <see
 /// cref="SeasonDeltas"/> tem uma entrada por estação (4 estações = 12 meses / 3).</summary>

@@ -1,7 +1,8 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Simulation.Geography;
 
-namespace LivingWorld.Tests.Geography;
+namespace LivingWorld.Tests.Unit.Geography;
 
 /// <summary>Fase 15.1, T44 (backend-gaps.md G3): id estável, orientação e ruas autoradas por
 /// assentamento — extensão opcional e retrocompatível de <see cref="SettlementAnchor"/>.</summary>

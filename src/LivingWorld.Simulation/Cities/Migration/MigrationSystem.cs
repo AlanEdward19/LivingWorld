@@ -1,6 +1,15 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Cities.Migration;
 
 // SPEC_DEVIATION (Fase 8, T12): design.md não define a fórmula de pontuação por cidade — só que
 // os 4 fatores (emprego, comida, segurança, laços familiares) são pesados por CityRules (R3).

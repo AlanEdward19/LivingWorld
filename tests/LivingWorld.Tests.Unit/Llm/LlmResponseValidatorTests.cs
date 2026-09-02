@@ -1,7 +1,7 @@
 using LivingWorld.Domain.Llm;
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Llm;
 
-namespace LivingWorld.Tests.Llm;
+namespace LivingWorld.Tests.Unit.Llm;
 
 /// <summary>Fase 11, T5 (LLM-07/08), story "Validação estrita e aplicação controlada": <see
 /// cref="LlmResponseValidator"/> — schema + <c>proposedActions</c> subconjunto de

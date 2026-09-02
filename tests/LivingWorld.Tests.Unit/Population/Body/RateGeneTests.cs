@@ -1,6 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.Unit.Population.Body;
 
 /// <summary>Fase 6, task 5 (SKILL-09): gene de taxa herdado — multiplicador de taxa de ganho,
 /// nunca de valor de habilidade.</summary>

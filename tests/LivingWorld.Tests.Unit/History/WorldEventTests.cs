@@ -1,7 +1,8 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.History;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Unit.History;
 
 /// <summary>COH-01: WorldEvent carrega EventId/CauseEventId/SourceSystem; WorldState minta
 /// EventId via contador irmão de ScheduledEvent (AD-013).</summary>

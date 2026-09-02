@@ -1,9 +1,13 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Infrastructure;
-using LivingWorld.Simulation;
+using LivingWorld.Infrastructure.EfCore;
+using LivingWorld.Infrastructure.EventLog;
+using LivingWorld.Infrastructure.Repositories;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 using Microsoft.EntityFrameworkCore;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.Integration.EventLog;
 
 /// <summary>Task 10: idempotência de replay — para cada snapshot em t ∈ {0, T/4, T/2, 3T/4},
 /// reidratar e rodar até T produz o mesmo hash canônico da run contínua.</summary>

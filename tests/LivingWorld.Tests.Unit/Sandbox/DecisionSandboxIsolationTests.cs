@@ -1,8 +1,15 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cognition;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Simulation.Snapshot;
 
-namespace LivingWorld.Tests.Sandbox;
+namespace LivingWorld.Tests.Unit.Sandbox;
 
 /// <summary>Fase 28 T22 (SBX-02): o hash canônico do mundo principal permanece idêntico
 /// antes/depois de qualquer uso do <see cref="DecisionSandbox"/> — 5 combinações de estímulo.</summary>

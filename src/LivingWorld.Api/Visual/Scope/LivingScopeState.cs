@@ -1,8 +1,21 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.Behavior;
+using LivingWorld.Api.Visual.Catalogs;
+using LivingWorld.Api.Visual.Projection;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Cities.Spatial;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Resolvers;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Production;
 
-namespace LivingWorld.Api.Visual;
+namespace LivingWorld.Api.Visual.Scope;
 
 public sealed record NpcVisual(
     NpcId Id,

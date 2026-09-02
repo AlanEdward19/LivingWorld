@@ -1,8 +1,16 @@
 using System.Text.Json;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Population.Family;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
+using LivingWorld.Tests.Shared.Population;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.LongRunning.Population;
 
 /// <summary>Fase 7, T23–T26: cenários pareados/estatísticos de família — fora do gate padrão via
 /// <c>[Trait("Category","Scenario")]</c> (mesmo padrão de <see cref="PairedScenarioTests"/>).</summary>

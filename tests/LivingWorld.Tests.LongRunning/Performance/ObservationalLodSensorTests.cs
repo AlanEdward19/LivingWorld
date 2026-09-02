@@ -1,9 +1,24 @@
 using System.Diagnostics;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Observation;
+using LivingWorld.Simulation.Population;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
+using LivingWorld.Tests.Shared;
+using LivingWorld.Tests.Shared.Performance;
 
-namespace LivingWorld.Tests.Performance;
+namespace LivingWorld.Tests.LongRunning.Performance;
 
 /// <summary>Fase 28, T14 (LOD-20..22): sensor de custo da camada cosmética observacional —
 /// µs/NPC-tick separado para observado vs. aproximado; fração declarada; rastro zero fora de

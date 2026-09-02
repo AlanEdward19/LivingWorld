@@ -1,6 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Tests.Extraordinary;
+namespace LivingWorld.Tests.Unit.Extraordinary;
 
 /// <summary>Fase 16.3, T18 (COH-31): catálogo cenário-driven de pesos de utility de poder.</summary>
 public class PowerUtilityRulesTests

@@ -1,4 +1,4 @@
-namespace LivingWorld.Tests.Periods;
+namespace LivingWorld.Tests.Unit.Periods;
 
 /// <summary>Fase 13, T9 (PERIOD-04..06): nenhum id de período de referência vira literal de
 /// decisão em <c>LivingWorld.Domain</c>/<c>LivingWorld.Simulation</c> — mesmo padrão de

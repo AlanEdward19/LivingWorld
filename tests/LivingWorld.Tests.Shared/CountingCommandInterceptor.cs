@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.Shared;
 
 /// <summary>Sensor do critério "zero round-trips de banco durante o tick" (task 11): conta todo
 /// comando SQL executado. Registrado no <c>WorldDbContext</c> de teste — se algum sistema de

@@ -1,4 +1,6 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Population.Body;
 
 /// <summary>Multiplicador de <b>taxa</b> de ganho de habilidade — nunca de valor inicial
 /// (Fase 6, Assunção A1: modelo simplificado de gene único, Fase 7 pode expandir). Sempre

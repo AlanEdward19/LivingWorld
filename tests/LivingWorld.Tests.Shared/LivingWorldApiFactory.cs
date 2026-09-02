@@ -1,13 +1,17 @@
-using LivingWorld.Domain;
-using LivingWorld.Infrastructure;
-using LivingWorld.Simulation;
+using LivingWorld.Api;
+using LivingWorld.Domain.History;
+using LivingWorld.Infrastructure.EventLog;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Hosting;
+using LivingWorld.Simulation.Llm;
 using LivingWorld.Simulation.Narrative;
+using LivingWorld.Simulation.Scenarios;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.Shared;
 
 /// <summary>Host ASP.NET in-process para testes de endpoint — sempre SQLite <c>:memory:</c> e
 /// tick loop desligado, independentemente do ambiente da sessão (<c>run.cmd</c>). Preferir

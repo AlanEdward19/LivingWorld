@@ -1,7 +1,8 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Economy.Production;
 
 /// <summary>Carrega catálogo de recursos/processos estagiados (Fase 15.1, Stage 4, T14).
 /// Seções opcionais: cenário legado sem <c>Resources</c>/<c>ProcessRecipes</c> continua válido.</summary>

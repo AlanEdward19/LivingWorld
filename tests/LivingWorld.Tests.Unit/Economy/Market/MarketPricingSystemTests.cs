@@ -1,7 +1,13 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Market;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Economy;
+namespace LivingWorld.Tests.Unit.Economy.Market;
 
 /// <summary>Fase 5, T16: <see cref="MarketPricingSystem"/> — preço sobe quando oferta/demanda
 /// cai, cai quando sobra, nunca sai de [PriceFloor, PriceCeiling] (ECON-23/24).</summary>

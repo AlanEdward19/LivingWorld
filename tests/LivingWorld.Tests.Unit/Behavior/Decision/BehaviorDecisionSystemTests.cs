@@ -1,9 +1,25 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Spatial;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
 using LivingWorld.Domain.Llm;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.Economy;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Market;
+using LivingWorld.Simulation.Extraordinary.Opportunity;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
+using LivingWorld.Tests.Shared;
 
-namespace LivingWorld.Tests.Behavior;
+namespace LivingWorld.Tests.Unit.Behavior.Decision;
 
 /// <summary>Fase 4, task 12: <see cref="BehaviorDecisionSystem"/> — rotina diária por padrão,
 /// utility AI só quando alguma necessidade supera o limiar de urgência (NEEDS-05/06/10/11),

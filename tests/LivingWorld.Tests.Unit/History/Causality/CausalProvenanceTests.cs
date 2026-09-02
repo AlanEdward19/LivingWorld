@@ -1,8 +1,9 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.History;
+using LivingWorld.Domain.History;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History.Causality;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Unit.History.Causality;
 
 /// <summary>COH-02: ResolveRootCauseEventId percorre CauseEventId até a raiz com guard de ciclo.</summary>
 public class CausalProvenanceTests

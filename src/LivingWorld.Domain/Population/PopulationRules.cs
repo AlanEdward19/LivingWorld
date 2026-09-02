@@ -1,4 +1,7 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Population;
 
 /// <summary>Regras demográficas do cenário (task 5/tasks fora-de-escopo da Fase 3): tabela de
 /// vida e janela de fertilidade. Reprodução aqui é regra do cenário, não escolha do NPC — a

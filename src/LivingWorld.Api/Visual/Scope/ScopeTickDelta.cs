@@ -1,6 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Api.Visual;
+namespace LivingWorld.Api.Visual.Scope;
 
 /// <summary>Fase 15.1, T2 (VTT2-11): posição de um NPC num tick — mesmo shape de
 /// <c>NpcPositionDelta</c> em <c>web/src/data/contracts.ts</c>.</summary>

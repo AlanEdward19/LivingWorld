@@ -1,13 +1,29 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.Economy;
+using LivingWorld.Domain.History;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Cities.Founding;
+using LivingWorld.Simulation.Cities.Migration;
+using LivingWorld.Simulation.Ecology;
+using LivingWorld.Simulation.Economy.Labor;
+using LivingWorld.Simulation.Economy.Market;
+using LivingWorld.Simulation.Economy.Production;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Extraordinary.Systems;
 using LivingWorld.Simulation.Geography;
-using LivingWorld.Simulation.History;
+using LivingWorld.Simulation.History.Books;
+using LivingWorld.Simulation.History.Distortion;
+using LivingWorld.Simulation.Llm;
 using LivingWorld.Simulation.Narrative;
 using LivingWorld.Simulation.Periods;
-using LivingWorld.Simulation.Population;
+using LivingWorld.Simulation.Population.Archive;
+using LivingWorld.Simulation.Population.Family;
+using LivingWorld.Simulation.Population.Lifecycle;
+using LivingWorld.Simulation.Population.Skills;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Api.Visual;
+namespace LivingWorld.Api.Visual.Catalogs;
 
 public enum CapabilityKind
 {

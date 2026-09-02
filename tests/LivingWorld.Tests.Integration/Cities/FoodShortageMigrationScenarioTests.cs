@@ -1,7 +1,17 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Population;
+using LivingWorld.Simulation.Population.Lifecycle;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Integration.Cities;
 
 /// <summary>Fase 8, T19 (CITY-02): par base/tratamento na mesma seed — tratamento zera o
 /// estoque de comida da cidade — <c>popTrat &lt; popBase</c>, com a diferença maior que o

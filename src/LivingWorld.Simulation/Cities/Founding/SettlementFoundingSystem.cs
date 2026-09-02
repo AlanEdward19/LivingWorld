@@ -1,6 +1,11 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Population.Lifecycle;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Cities.Founding;
 
 // SPEC_DEVIATION (Fase 8, T13): design.md lista 5 limiares de fundação (concentração, recurso,
 // rota, defensabilidade, liderança), mas nenhum sistema de Foundation produz dado real pra

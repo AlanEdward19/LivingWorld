@@ -1,9 +1,16 @@
 using System.Text.Json;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Llm;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Llm;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Llm;
+namespace LivingWorld.Tests.Unit.Llm;
 
 /// <summary>Fase 11, T8 (LLM-12, LLM-14, LLM-15), story "Segurança de rede e injeção" (AC2-3):
 /// corpus versionado de tentativas de prompt injection (<c>tests/fixtures/prompt-injection/*.json</c>)

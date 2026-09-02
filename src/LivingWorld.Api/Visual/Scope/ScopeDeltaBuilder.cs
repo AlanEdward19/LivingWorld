@@ -1,6 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Api.Visual;
+namespace LivingWorld.Api.Visual.Scope;
 
 /// <summary>Fase 15.1, T2 (VTT2-11): diff puro entre duas fotos de posição de um escopo — nunca
 /// recebe <c>WorldState</c> nem invoca <c>GlobalLayerBuilder</c>/<c>CityLayerBuilder</c>. Só o

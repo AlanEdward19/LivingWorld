@@ -1,4 +1,4 @@
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Shared;
 
 /// <summary>Campo alimenta ao menos uma decisão (ADR-0014) — entra no hash canônico.</summary>
 [AttributeUsage(AttributeTargets.Property)]

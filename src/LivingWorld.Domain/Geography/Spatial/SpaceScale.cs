@@ -1,4 +1,4 @@
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Geography.Spatial;
 
 /// <summary>Escala entre níveis de espaço como dado de domínio (Fase 15.1, T46/ADR-0018) — porta
 /// `SCALE`/`localToParent`/`parentToLocal` de `web/src/map-engine/space.ts:20-48` pro servidor;

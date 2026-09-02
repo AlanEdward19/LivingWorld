@@ -2,8 +2,12 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using LivingWorld.Api.Visual;
+using LivingWorld.Api.Visual.Projection;
+using LivingWorld.Api.Visual.Scope;
 using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation;
+using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Api.Realtime;
 

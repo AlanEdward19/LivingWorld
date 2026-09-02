@@ -1,7 +1,16 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation.Behavior;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Population.Lifecycle;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Population;
 
 /// <summary>Gera a população inicial (task 6) e registra em <see cref="WorldState"/>: chama o
 /// gerador puro do Domain, adiciona NPCs/households e agenda a morte de cada um — nenhum deles

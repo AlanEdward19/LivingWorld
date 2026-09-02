@@ -1,12 +1,18 @@
 using System.Net;
 using System.Net.Http.Json;
-using LivingWorld.Api;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.History;
+using LivingWorld.Api.Narrative;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History.Books;
+using LivingWorld.Simulation.Hosting;
+using LivingWorld.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LivingWorld.Tests.Narrative;
+namespace LivingWorld.Tests.Integration.Narrative;
 
 /// <summary>Fase 12, T7 (NARR-19..21): <c>GET /narratives/chronicles|biographies/{npcId}|reports</c>
 /// — mesmo padrão de <c>NpcEndpointTests</c>/<c>ConversationEndpointTests</c>

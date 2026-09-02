@@ -1,6 +1,6 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Core;
 
 /// <summary>Lista declarada de campos que só podem crescer (task 14) — cresce a cada fase nova
 /// que introduzir outro contador ou grandeza conservada (massa monetária, estoque...). O teste

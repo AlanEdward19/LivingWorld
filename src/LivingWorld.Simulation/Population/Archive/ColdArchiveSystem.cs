@@ -1,6 +1,8 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation.Population;
+namespace LivingWorld.Simulation.Population.Archive;
 
 /// <summary>Arquiva NPCs/fauna/flora mortos antigos no tier frio (PERF-10, REALISM-21).</summary>
 public sealed class ColdArchiveSystem : ISimulationSystem

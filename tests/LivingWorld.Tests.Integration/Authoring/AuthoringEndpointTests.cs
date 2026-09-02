@@ -1,10 +1,17 @@
 using System.Net;
 using System.Net.Http.Json;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Systems;
+using LivingWorld.Simulation.Hosting;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LivingWorld.Tests.Authoring;
+namespace LivingWorld.Tests.Integration.Authoring;
 
 public sealed class AuthoringEndpointTests : IClassFixture<LivingWorldApiFactory>
 {

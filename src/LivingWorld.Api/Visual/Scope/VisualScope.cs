@@ -1,4 +1,4 @@
-namespace LivingWorld.Api.Visual;
+namespace LivingWorld.Api.Visual.Scope;
 
 /// <summary>Fase 15, T1 (VTT-01, VTT-04): granularidade de foco — mundo, cidade ou interior.</summary>
 public enum VisualScopeKind { World, City, Interior }

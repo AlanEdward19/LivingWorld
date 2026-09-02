@@ -1,4 +1,6 @@
-namespace LivingWorld.Simulation;
+using LivingWorld.Simulation.Core;
+
+namespace LivingWorld.Simulation.Scheduling;
 
 /// <summary>Cadeia de <see cref="WorldEvent.CauseEventId"/> ciclou ou excedeu
 /// <c>CausalRules.MaxCauseChainDepth</c> (COH-02). Aborta nomeando o evento culpado —

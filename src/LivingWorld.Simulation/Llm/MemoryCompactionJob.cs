@@ -1,5 +1,6 @@
 using LivingWorld.Domain;
 using LivingWorld.Domain.Llm;
+using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Llm;
 

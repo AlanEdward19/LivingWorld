@@ -1,4 +1,8 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Cities.Spatial;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Cities.Buildings;
 
 /// <summary>Planta determinística por prédio (Fase 15.1, T45; porta canônica do placeholder
 /// client-side em `web/src/map-engine/buildingFootprint.ts`): retângulo ou L (nunca aleatório —

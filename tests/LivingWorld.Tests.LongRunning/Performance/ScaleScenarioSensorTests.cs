@@ -1,13 +1,18 @@
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Performance;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Infrastructure;
-using LivingWorld.Simulation;
-using LivingWorld.Tests.Baselines;
+using LivingWorld.Infrastructure.EfCore;
+using LivingWorld.Infrastructure.EventLog;
+using LivingWorld.Infrastructure.Repositories;
+using LivingWorld.Simulation.Ecology;
+using LivingWorld.Tests.Shared.Baselines;
+using LivingWorld.Tests.Shared.Performance;
 using Microsoft.EntityFrameworkCore;
 
-namespace LivingWorld.Tests.Performance;
+namespace LivingWorld.Tests.LongRunning.Performance;
 
 [CollectionDefinition(Name, DisableParallelization = true)]
 public sealed class ScalePerformanceCollection

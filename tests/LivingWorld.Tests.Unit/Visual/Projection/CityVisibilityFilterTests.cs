@@ -1,8 +1,11 @@
-using LivingWorld.Api.Visual;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Api.Visual.Projection;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Visual;
+namespace LivingWorld.Tests.Unit.Visual.Projection;
 
 /// <summary>Fase 15, T7 (VTT-08, VTT-09): <see cref="CityVisibilityFilter"/> — só moradores
 /// dentro do raio do personagem sobrevivem ao filtro; override admin devolve o snapshot intacto.</summary>

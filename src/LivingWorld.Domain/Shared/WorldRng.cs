@@ -1,4 +1,4 @@
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Shared;
 
 /// <summary>RNG determinístico do mundo (splitmix64). Nunca o RNG do BCL — o algoritmo não
 /// tem garantia de estabilidade entre versões do runtime, e o mundo precisa do mesmo

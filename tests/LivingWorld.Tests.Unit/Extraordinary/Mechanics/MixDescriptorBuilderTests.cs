@@ -1,7 +1,8 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
 
-namespace LivingWorld.Tests.Extraordinary;
+namespace LivingWorld.Tests.Unit.Extraordinary.Mechanics;
 
 /// <summary>T10 / EVO-13, EVO-14, EVO-21: MixDescriptorBuilder — recombinação por eixo.</summary>
 public sealed class MixDescriptorBuilderTests

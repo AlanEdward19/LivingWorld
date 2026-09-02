@@ -1,6 +1,8 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Unit.Cities;
 
 /// <summary>Fase 8, T1 (CITY-01/CITY-04): <see cref="City"/> — construtível só pelo construtor
 /// único de reidratação, e Materialize/Dematerialize movem o <see cref="AggregatePopulationPool"/>

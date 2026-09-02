@@ -1,4 +1,4 @@
-namespace LivingWorld.Infrastructure;
+namespace LivingWorld.Infrastructure.Records;
 
 /// <summary>Linha de persistência do snapshot (ADR-0006, task 8): serialização completa do
 /// mundo (<c>WorldSnapshot.Serialize</c>) num ponto de retomada. Chave composta

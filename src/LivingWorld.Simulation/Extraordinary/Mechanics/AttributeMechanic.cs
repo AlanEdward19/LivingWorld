@@ -1,7 +1,9 @@
 using System.Globalization;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 
 /// <summary>
 /// Modificadores de atributo são lidos pelos sistemas consumidores (ex.: natalidade),

@@ -1,6 +1,8 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.Geography.Spatial;
 
-namespace LivingWorld.Tests.Geography;
+namespace LivingWorld.Tests.Unit.Geography.Map;
 
 /// <summary>Fase 2, task 3: pathfinding mínimo entre locais — base de rota comercial
 /// (Fase 5) e migração (Fase 8).</summary>

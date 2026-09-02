@@ -1,4 +1,6 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Population.Family;
 
 /// <summary>Chave de <see cref="Relationship"/> — par ordenado <c>(From, To)</c>, nunca
 /// normalizado (Fase 7, T3, AD-052). A assimetria é o próprio propósito do tipo (FAM-05):

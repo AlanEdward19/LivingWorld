@@ -1,7 +1,8 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.Unit.Population;
 
 /// <summary>Fase 7, T20: rede de segurança — todo <c>ResourceId</c> em
 /// <see cref="FamilyRules.MarriageInitialStock"/>/<see cref="FamilyRules.ConceptionResourceFloor"/>

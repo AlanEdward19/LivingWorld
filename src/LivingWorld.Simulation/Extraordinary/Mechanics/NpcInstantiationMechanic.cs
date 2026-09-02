@@ -1,7 +1,15 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation.Behavior;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Inheritance;
+using LivingWorld.Simulation.Population.Lifecycle;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 
 /// <summary>
 /// Instanciação de NPC via poder (PWR-104..107). Prefixos longos para não colidir com

@@ -1,7 +1,17 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation.Behavior;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Inheritance;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Population.Lifecycle;
 
 /// <summary>Concepção anual entre cônjuges casados (Fase 7, T17) — agenda parto com riqueza
 /// capturada na concepção; risco de parto e hereditariedade no <see cref="HandleEvent"/>.</summary>

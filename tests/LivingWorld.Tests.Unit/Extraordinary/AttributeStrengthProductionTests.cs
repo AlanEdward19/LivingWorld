@@ -1,7 +1,19 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Production;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Extraordinary;
+namespace LivingWorld.Tests.Unit.Extraordinary;
 
 public sealed class AttributeStrengthProductionTests
 {
@@ -91,7 +103,7 @@ public sealed class AttributeStrengthProductionTests
         Assert.Equal(6, site.City.ConstructionQueue[0].Consumed.GetValueOrDefault(Timber));
     }
 
-    private static (WorldState World, TickContext Ctx, Workplace Workplace, Npc Worker) Workshop(
+    private static (WorldState World, TickContext Ctx, Domain.Economy.Workplace Workplace, Npc Worker) Workshop(
         IReadOnlyList<string> effects, bool manifested, double workerSkill, SkillsRules? skills,
         Dictionary<(int, int), long>? capacity = null)
     {
@@ -139,7 +151,7 @@ public sealed class AttributeStrengthProductionTests
         return (world, new TickContext(world, world.Rng, world.Scheduler), workplace, worker);
     }
 
-    private static (WorldState World, TickContext Ctx, City City, Npc Worker) ConstructionSite(
+    private static (WorldState World, TickContext Ctx, Domain.Cities.City City, Npc Worker) ConstructionSite(
         IReadOnlyList<string> effects, bool manifested)
     {
         var cityRules = CityRules.Create(

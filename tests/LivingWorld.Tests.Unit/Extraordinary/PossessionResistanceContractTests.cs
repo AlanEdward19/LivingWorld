@@ -1,6 +1,6 @@
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
 
-namespace LivingWorld.Tests.Extraordinary;
+namespace LivingWorld.Tests.Unit.Extraordinary;
 
 /// <summary>Trava o contrato AD-071: resistência à possessão usa Vitality.</summary>
 public sealed class PossessionResistanceContractTests

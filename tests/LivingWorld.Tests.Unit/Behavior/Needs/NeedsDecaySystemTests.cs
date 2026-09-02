@@ -1,9 +1,14 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-using LivingWorld.Simulation.Behavior;
-
-namespace LivingWorld.Tests.Behavior;
+namespace LivingWorld.Tests.Unit.Behavior.Needs;
 
 /// <summary>Fase 4, task 10: <see cref="NeedsDecaySystem"/> — decaimento das 4 necessidades
 /// (NEEDS-01), objetivo inspecionável em déficit/zero (NEEDS-02/05) e morte por fome sustentada

@@ -1,8 +1,18 @@
+using LivingWorld.Api.Visual.Catalogs;
 using LivingWorld.Api.Visual.Layers;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Api.Visual.Scope;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Api.Visual;
+namespace LivingWorld.Api.Visual.Projection;
 
 /// <summary>Fase 15, T5 (VTT-03, VTT-11): morador materializado no foco de cidade — posição e
 /// atividade atual, mesmo par de campos de <c>NpcInspectionDto</c> relevante pro mapa, sem o

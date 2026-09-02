@@ -1,10 +1,14 @@
 using System.Net;
 using System.Net.Http.Json;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cognition;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Hosting;
+using LivingWorld.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LivingWorld.Tests.Api;
+namespace LivingWorld.Tests.Integration.Api;
 
 /// <summary>Fase 28 T10 (COG-10, COG-12, COG-13): <c>GET /npcs/{id}</c> inclui
 /// <see cref="NpcInspectionDto.CognitionTrace"/> a partir de <see cref="WorldState.CognitionLog"/>.</summary>

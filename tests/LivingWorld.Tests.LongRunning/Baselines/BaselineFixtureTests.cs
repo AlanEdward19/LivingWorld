@@ -1,6 +1,6 @@
-using LivingWorld.Tests.Baselines;
+using LivingWorld.Tests.Shared.Baselines;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.LongRunning.Baselines;
 
 public class BaselineFixtureTests : IDisposable
 {

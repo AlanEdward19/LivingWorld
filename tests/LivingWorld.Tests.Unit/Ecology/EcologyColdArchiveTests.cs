@@ -1,8 +1,16 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.Population;
+using LivingWorld.Domain.Ecology;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Fauna;
+using LivingWorld.Domain.Flora;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Performance;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Ecology;
+using LivingWorld.Simulation.Population.Archive;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Ecology;
+namespace LivingWorld.Tests.Unit.Ecology;
 
 /// <summary>REALISM-21 — animal/planta morta sai do hot com registro frio (idade NPC / morte flora).</summary>
 public sealed class EcologyColdArchiveTests

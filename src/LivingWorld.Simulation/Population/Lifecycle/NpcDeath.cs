@@ -1,7 +1,13 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation.History;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.History.Distortion;
+using LivingWorld.Simulation.Population.Family;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Population.Lifecycle;
 
 /// <summary>Mata um NPC e limpa a referência de household — único ponto que faz as duas coisas
 /// juntas, reusado por todo sistema que pode matar um NPC (<see cref="MortalitySystem"/>,

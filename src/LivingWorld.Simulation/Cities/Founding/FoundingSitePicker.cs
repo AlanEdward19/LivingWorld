@@ -1,6 +1,11 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Spatial;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Cities.Founding;
 
 /// <summary>Escolhe um sítio de fundação distinto e válido de forma determinística (Fase 15.1,
 /// Stage 4, T11, LWV-04.2) — nunca reutiliza a célula de uma cidade existente.

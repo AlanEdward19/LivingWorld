@@ -1,8 +1,10 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Llm;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
 
-namespace LivingWorld.Tests.Behavior;
+namespace LivingWorld.Tests.Unit.Behavior.Decision;
 
 /// <summary>Fase 16.3 T31 (COH-51/52): <see cref="PressureModel.DerivePressures"/>.</summary>
 public class PressureModelTests

@@ -1,6 +1,8 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Infrastructure.EfCore;
+using LivingWorld.Infrastructure.Records;
 
-namespace LivingWorld.Infrastructure;
+namespace LivingWorld.Infrastructure.Repositories;
 
 /// <summary>Implementação EF Core de <see cref="IPeriodTemplateRepository"/> (Fase 13, T4). Mesmo
 /// molde de <see cref="SqliteWorldRepository"/> — nenhum recurso exclusivo de SQLite entra no

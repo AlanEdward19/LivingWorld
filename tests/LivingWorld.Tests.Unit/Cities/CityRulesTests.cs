@@ -1,6 +1,8 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Unit.Cities;
 
 /// <summary>Fase 8, T2 (CITY-02, CITY-05, CITY-07, CITY-08): <see cref="CityRules"/> —
 /// cenário-driven, todo limiar/peso/duração validado, mesmo padrão de <see cref="EconomyRules"/>.</summary>

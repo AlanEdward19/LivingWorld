@@ -1,6 +1,9 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation.History;
+namespace LivingWorld.Simulation.History.Books;
 
 /// <summary>Redescoberta de livro perdido via evento agendado (Fase 10, HIST-09 AC3) — nunca
 /// sorteio implícito por tick.</summary>

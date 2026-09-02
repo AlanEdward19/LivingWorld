@@ -1,6 +1,6 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population;
 
-namespace LivingWorld.Tests.Performance;
+namespace LivingWorld.Tests.LongRunning.Performance;
 
 public class LazyNeedTests
 {

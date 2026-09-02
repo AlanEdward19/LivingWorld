@@ -1,7 +1,16 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Cities.Spatial;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Tests.Unit.Cities.Founding;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Unit.Cities;
 
 /// <summary>Fase 15.1, T45 (backend-gaps.md G4): footprint por material, bounds de cidade e
 /// posição/orientação de prédio — geometria canônica que T20 vai expor na projeção. Autoria
@@ -15,7 +24,7 @@ public class BuildingFootprintAndPlacementTests
         Base: 1.0, AltitudeWeight: 0.5, TerrainWeight: new Dictionary<int, double> { [1] = 1.0 });
 
     /// <summary>Mesmo helper de <see cref="Cities.CityOccupancyTests"/>/<see
-    /// cref="Cities.OverflowPlacerTests"/>: um <see cref="WorldState"/> com um mapa real de
+    /// cref="OverflowPlacerTests"/>: um <see cref="WorldState"/> com um mapa real de
     /// dimensões controladas, necessário pros testes de CITYGROW-02b (o anel de overflow agora
     /// respeita <c>world.Map.Width/Height</c> de verdade).</summary>
     private static WorldState BuildWorldWithMap(int width, int height, ulong seed)

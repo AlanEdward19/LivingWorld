@@ -1,10 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LivingWorld.Tests.Visual;
+namespace LivingWorld.Tests.Integration.Visual;
 
 /// <summary>Fase 15, T5 (VTT-03): <c>GET /visual/subscribe</c> no escopo city entrega a projeção
 /// de cidade — drill-down do mapa-múndi (T4) pra dentro de uma cidade específica pela mesma rota

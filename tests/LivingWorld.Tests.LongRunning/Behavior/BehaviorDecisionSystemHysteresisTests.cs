@@ -1,8 +1,14 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
-using LivingWorld.Tests.Baselines;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Population;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
+using LivingWorld.Tests.Shared.Baselines;
 
-namespace LivingWorld.Tests.Behavior;
+namespace LivingWorld.Tests.LongRunning.Behavior;
 
 /// <summary>Fase 4, task 13: histerese (NEEDS-12), terminação da seleção de ação (NEEDS-09) e
 /// ausência de deadlock de rotina (NEEDS-13) do <see cref="BehaviorDecisionSystem"/>.</summary>

@@ -1,7 +1,10 @@
 using System.Collections.Immutable;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation.Behavior;
+namespace LivingWorld.Simulation.Behavior.Decision;
 
 /// <summary>Roteia wakes só para NPCs relevantes a um <see cref="WorldEvent"/> (Fase 16.3 P2a,
 /// COH-43 / doc#59) — localização, household, relação, dependência de intent, magnitude

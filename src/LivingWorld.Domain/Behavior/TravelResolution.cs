@@ -1,4 +1,8 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.Geography.Spatial;
+
+namespace LivingWorld.Domain.Behavior;
 
 /// <summary>Converte <see cref="MovementCost.Between"/> em ticks de deslocamento (Fase 4, task
 /// 11/NEEDS-14): função pura, sem estado — reusada pelo <c>BehaviorDecisionSystem</c>.</summary>

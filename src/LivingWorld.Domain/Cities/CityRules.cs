@@ -1,4 +1,8 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Cities;
 
 /// <summary>Todo limiar/peso/duração de crescimento, migração, fundação e materialização da Fase
 /// 8, cenário-driven (R3) — nenhum literal em C#, mesmo padrão de <see cref="EconomyRules"/>/

@@ -1,8 +1,10 @@
-using LivingWorld.Api.Visual;
+using LivingWorld.Api.Visual.Scope;
 using LivingWorld.Infrastructure;
-using LivingWorld.Simulation;
+using LivingWorld.Infrastructure.EventLog;
+using LivingWorld.Simulation.Hosting;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Api;
+namespace LivingWorld.Api.World;
 
 public sealed record CreateWorldRequest(string ScenarioJson, string Name);
 

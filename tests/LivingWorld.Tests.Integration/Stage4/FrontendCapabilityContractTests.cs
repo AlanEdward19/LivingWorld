@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
-using LivingWorld.Api.Visual;
+using LivingWorld.Api.Visual.Catalogs;
 
-namespace LivingWorld.Tests.Stage4;
+namespace LivingWorld.Tests.Integration.Stage4;
 
 public sealed class FrontendCapabilityContractTests
 {

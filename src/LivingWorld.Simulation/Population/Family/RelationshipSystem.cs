@@ -1,6 +1,9 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Population.Family;
 
 /// <summary>Forma e evolui relações por convivência diária (Fase 7, T11, FAM-01..05) — único
 /// sistema que escreve em <see cref="WorldState.Relationships"/>.</summary>

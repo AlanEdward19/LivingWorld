@@ -1,4 +1,8 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Cities.Buildings;
 
 /// <summary>Obra em progresso na fila de uma <see cref="City"/> (Fase 8, T3, CITY-03) —
 /// <see cref="Advance"/> consome um tick da receita declarada em <see cref="BuildingRecipe.TicksToBuild"/>,

@@ -1,10 +1,10 @@
 using System.Net;
 using LivingWorld.Api.Visual.Layers;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LivingWorld.Tests.Visual;
+namespace LivingWorld.Tests.Integration.Visual;
 
 /// <summary>Fase 15, T9 (VTT-02, VTT-06, VTT-10..16): gate de fechamento — documento OpenAPI
 /// servido de verdade (fonte dos tipos TS gerados por <c>scripts/generate-web-types.sh</c>),

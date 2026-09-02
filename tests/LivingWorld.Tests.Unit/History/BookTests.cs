@@ -1,10 +1,15 @@
 using System.Diagnostics;
-using LivingWorld.Domain;
-using LivingWorld.Infrastructure;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.History;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Infrastructure.EventLog;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History.Books;
+using LivingWorld.Simulation.History.Distortion;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Unit.History;
 
 /// <summary>Fase 10, T12: <see cref="Book"/> e <see cref="BookOperations"/> (HIST-09 AC1, AC2).</summary>
 public class BookTests

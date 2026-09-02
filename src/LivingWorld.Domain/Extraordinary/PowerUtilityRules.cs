@@ -1,4 +1,7 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Extraordinary;
 
 /// <summary>Pesos cenário-driven para converter <c>PowerOpportunity</c> em utility
 /// comparável com ActionType fixos (Fase 16.3 P1d, COH-31) — mesmo template de

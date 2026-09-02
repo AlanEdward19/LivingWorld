@@ -1,8 +1,12 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Narrative;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Narrative;
+namespace LivingWorld.Tests.Unit.Narrative;
 
 /// <summary>Fase 12, T6: <see cref="ChronicleGenerationSystem"/> (NARR-05..08 + edge case de
 /// concorrência/idempotência e "nunca no tick diário").</summary>

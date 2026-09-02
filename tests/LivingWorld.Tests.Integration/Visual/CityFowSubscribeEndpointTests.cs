@@ -1,9 +1,12 @@
 using System.Net.Http.Json;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LivingWorld.Tests.Visual;
+namespace LivingWorld.Tests.Integration.Visual;
 
 /// <summary>Fase 15, T7 (VTT-08, VTT-09): drill-down de cidade (T5) por <c>/visual/subscribe</c>
 /// aplica FOW quando <c>mode=Player</c> — só residentes dentro do raio do <c>playerNpcId</c>

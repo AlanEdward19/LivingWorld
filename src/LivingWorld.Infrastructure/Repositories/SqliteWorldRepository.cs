@@ -1,7 +1,9 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Infrastructure.EfCore;
+using LivingWorld.Infrastructure.Records;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Infrastructure;
+namespace LivingWorld.Infrastructure.Repositories;
 
 /// <summary>Implementação EF Core de <see cref="IWorldRepository"/> (task 8/9). Nenhum recurso
 /// exclusivo de SQLite entra no mapeamento (ADR-0002) — trocar de provider é trocar a

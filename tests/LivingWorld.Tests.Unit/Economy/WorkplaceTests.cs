@@ -1,6 +1,9 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Tests.Economy;
+namespace LivingWorld.Tests.Unit.Economy;
 
 /// <summary>Fase 5, T4: <see cref="Workplace"/> — vagas finitas (ECON-20), capacidade/perda de
 /// estoque (ECON-02), estoque nunca negativo.</summary>

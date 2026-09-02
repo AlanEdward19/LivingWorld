@@ -1,4 +1,5 @@
 using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
 
 namespace LivingWorld.Simulation.Visibility;
 

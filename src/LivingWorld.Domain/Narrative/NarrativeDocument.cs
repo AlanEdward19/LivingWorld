@@ -1,3 +1,5 @@
+using LivingWorld.Domain.Shared;
+
 namespace LivingWorld.Domain.Narrative;
 
 /// <summary>Documento narrativo publicado (Fase 12, NARR-01) — prosa final mais os claims

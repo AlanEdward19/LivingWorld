@@ -1,9 +1,19 @@
 using System.Text.Json;
 using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Infrastructure;
+using LivingWorld.Infrastructure.EfCore;
+using LivingWorld.Infrastructure.EventLog;
+using LivingWorld.Infrastructure.Repositories;
 using LivingWorld.Simulation;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.History;
+using LivingWorld.Simulation.History.Books;
+using LivingWorld.Simulation.History.Distortion;
 using LivingWorld.Simulation.Llm;
+using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Workers;
 using Microsoft.EntityFrameworkCore;
 

@@ -1,6 +1,12 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Inheritance;
 
 /// <summary>Modo de transferência de vínculos sociais (REALISM-29) em instanciação.</summary>
 public enum BondTransferMode

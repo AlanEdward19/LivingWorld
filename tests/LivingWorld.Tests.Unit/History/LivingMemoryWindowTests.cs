@@ -1,9 +1,10 @@
 using System.Diagnostics;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.History;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Unit.History;
 
 /// <summary>Fase 10, T5: <see cref="LivingMemoryWindow"/> (HIST-01 AC3).</summary>
 public class LivingMemoryWindowTests

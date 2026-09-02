@@ -1,8 +1,8 @@
-using LivingWorld.Simulation.History;
+using LivingWorld.Simulation.History.Queries;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Unit.History;
 
 /// <summary>Fase 10, T16: par de mutação da fronteira Verdade/Crença (HIST-18).</summary>
 public class HistoryQuerySeparationMutationTests

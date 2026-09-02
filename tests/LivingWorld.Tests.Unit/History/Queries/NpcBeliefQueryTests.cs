@@ -1,8 +1,13 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.History;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History.Books;
+using LivingWorld.Simulation.History.Queries;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Unit.History.Queries;
 
 /// <summary>Fase 11, T4 (LLM-05/06), story "Contexto por crença e memória do NPC": <see
 /// cref="NpcBeliefQuery"/> só agrega o cânone de crença da cidade do NPC (<see

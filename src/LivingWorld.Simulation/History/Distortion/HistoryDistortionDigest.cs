@@ -1,8 +1,11 @@
 using System.Security.Cryptography;
 using System.Text;
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Simulation.History;
+namespace LivingWorld.Simulation.History.Distortion;
 
 /// <summary>Digest determinístico da cadeia de distorção (Fase 10, HIST-05/HIST-06) — usado
 /// pelos testes de dois processos.</summary>

@@ -1,6 +1,11 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Fauna;
+using LivingWorld.Domain.Flora;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Ecology;
 
 /// <summary>Semeadura determinística de fauna/flora para cenários de referência e escala
 /// (Fase 16.4, T21/T22). Posições derivadas do grid — nunca RNG solto.</summary>

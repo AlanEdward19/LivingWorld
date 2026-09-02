@@ -1,6 +1,9 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Inheritance;
 
 /// <summary>Resultado dos dois rolls de herança de poder (EVO-10, EVO-15, EVO-16).
 /// Descritores por caminho entram em T8–T10.</summary>

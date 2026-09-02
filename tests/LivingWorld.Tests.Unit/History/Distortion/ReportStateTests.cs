@@ -1,8 +1,9 @@
 using System.Reflection;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.History.Distortion;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Unit.History.Distortion;
 
 /// <summary>Fase 10, T7: <see cref="ReportState"/> + <see cref="ReportId"/> (HIST-01 AC4).</summary>
 public class ReportStateTests

@@ -1,6 +1,6 @@
 using LivingWorld.Domain.Llm;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Llm;
 
 /// <summary>Motivo da rejeição total de uma <see cref="LlmResponse"/> (Fase 11, LLM-07/08) —
 /// nunca um bool solto, mesmo espírito de <c>ConversationStartDecision</c>.</summary>

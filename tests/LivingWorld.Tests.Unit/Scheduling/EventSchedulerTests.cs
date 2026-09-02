@@ -1,6 +1,6 @@
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.Unit.Scheduling;
 
 public class EventSchedulerTests
 {

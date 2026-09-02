@@ -1,6 +1,8 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation.History;
+namespace LivingWorld.Simulation.History.Queries;
 
 /// <summary>Único ponto de acesso ao <see cref="Fact"/> bruto (Fase 10, T14, HIST-15) —
 /// motor/debug/autor. Nunca referenciado por handlers de jogo (HIST-17).</summary>

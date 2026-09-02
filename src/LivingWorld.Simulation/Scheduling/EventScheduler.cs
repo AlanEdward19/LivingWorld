@@ -1,4 +1,4 @@
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Scheduling;
 
 /// <summary>Fila de eventos futuros indexada por tick alvo. Empate no mesmo tick desempata por
 /// <see cref="ScheduledEvent.Id"/>, nunca por ordem de inserção (docs/domain/time-and-ticks.md).</summary>

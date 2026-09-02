@@ -1,6 +1,8 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Fauna;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
 
-namespace LivingWorld.Tests.Extraordinary;
+namespace LivingWorld.Tests.Unit.Extraordinary;
 
 /// <summary>T3 — <see cref="Animal.Energy"/> como <see cref="LazyNeed"/> (pré-requisito REALISM-01).</summary>
 public sealed class AnimalEnergyTests

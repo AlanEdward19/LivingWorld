@@ -1,4 +1,6 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Extraordinary;
 
 /// <summary>Id monotônico de encontro de combate multi-round (Fase 16.4, REALISM-16).</summary>
 public readonly record struct CombatEncounterId(long Value);

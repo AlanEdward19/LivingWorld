@@ -1,6 +1,9 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Simulation.History;
+namespace LivingWorld.Simulation.History.Books;
 
 /// <summary>Cânone limitado por comunidade (Fase 10, HIST-08 AC2) — no máximo N relatos vivos
 /// por <see cref="City"/>; despejo pelo menor peso.</summary>

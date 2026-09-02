@@ -1,4 +1,7 @@
-namespace LivingWorld.Simulation;
+using LivingWorld.Simulation.Extraordinary.Inheritance;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+
+namespace LivingWorld.Simulation.Extraordinary.Engine;
 
 /// <summary>
 /// Resolve o prefixo mais específico. Dois registros no mesmo prefixo falham na construção

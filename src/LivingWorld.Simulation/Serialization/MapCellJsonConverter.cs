@@ -1,8 +1,10 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Serialization;
 
 /// <summary><see cref="MapCell.Temperature"/> é função pura de bioma/altitude (PWR-74) —
 /// recomputável → não persiste nem entra no payload canônico (ADR-0014). Overlay causal mora

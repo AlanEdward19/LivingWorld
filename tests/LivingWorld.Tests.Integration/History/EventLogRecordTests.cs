@@ -1,9 +1,12 @@
-using LivingWorld.Domain;
-using LivingWorld.Infrastructure;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Infrastructure.EfCore;
+using LivingWorld.Infrastructure.Records;
+using LivingWorld.Infrastructure.Repositories;
+using LivingWorld.Simulation.Core;
 using Microsoft.EntityFrameworkCore;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Integration.History;
 
 /// <summary>COH-04: EventLogRecord persiste EventId/CauseEventId/SourceSystem nullable ao lado
 /// de Sequence (sem Sqlite:Autoincrement — ADR-0002).</summary>

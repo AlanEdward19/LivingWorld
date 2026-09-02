@@ -1,4 +1,6 @@
-namespace LivingWorld.Simulation;
+using LivingWorld.Simulation.Core;
+
+namespace LivingWorld.Simulation.Hosting;
 
 /// <summary>Controles do hospedeiro (task 6): pausa, velocidade, avanço rápido. Nada aqui é
 /// estado do mundo — por isso não aparece em <see cref="WorldState"/> nem no snapshot.</summary>

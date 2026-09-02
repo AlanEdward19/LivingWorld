@@ -1,6 +1,6 @@
 using LivingWorld.Api.Visual.Layers;
 
-namespace LivingWorld.Api.Visual;
+namespace LivingWorld.Api.Visual.Scope;
 
 /// <summary>Fase 15, T1 (VTT-01, VTT-04): payload completo de um escopo/modo num cursor,
 /// com as camadas ativas selecionadas pelo viewer. <typeparamref name="TPayload"/> é a

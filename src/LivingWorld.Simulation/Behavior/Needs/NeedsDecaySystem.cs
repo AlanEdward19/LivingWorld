@@ -1,6 +1,12 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Population.Lifecycle;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Behavior.Needs;
 
 /// <summary>Decai as 4 necessidades por tick Hourly, dispara objetivo em 0 (via
 /// <see cref="Npc.HasUrgentNeed"/>) e mata por fome sustentada (Fase 4, task 10 —

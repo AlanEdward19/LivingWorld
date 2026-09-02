@@ -1,11 +1,17 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
 using LivingWorld.Domain.Llm;
 using LivingWorld.Domain.Narrative;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History.Books;
+using LivingWorld.Simulation.History.Queries;
 using LivingWorld.Simulation.Narrative;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Narrative;
+namespace LivingWorld.Tests.Integration.Narrative;
 
 /// <summary>Fase 12, T10 (NARR-05..12 + critérios de sucesso da fase): fechamento de determinismo
 /// e custo — llm-on/off preserva `eventIds`/cadeia de distorção (só a prosa varia), leitura nunca

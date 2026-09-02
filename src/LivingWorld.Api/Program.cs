@@ -1,13 +1,28 @@
 using LivingWorld.AI;
-using LivingWorld.Api;
+using LivingWorld.Api.Authoring;
+using LivingWorld.Api.Conversation;
+using LivingWorld.Api.Narrative;
+using LivingWorld.Api.Observation;
+using LivingWorld.Api.Periods;
 using LivingWorld.Api.Realtime;
 using LivingWorld.Api.Simulation;
 using LivingWorld.Api.VisualInput;
-using LivingWorld.Domain;
+using LivingWorld.Api.Watchlist;
+using LivingWorld.Api.World;
+using LivingWorld.Domain.History;
 using LivingWorld.Domain.Llm;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Infrastructure;
-using LivingWorld.Simulation;
+using LivingWorld.Infrastructure.EfCore;
+using LivingWorld.Infrastructure.EventLog;
+using LivingWorld.Infrastructure.Repositories;
+using LivingWorld.Simulation.Authoring;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Hosting;
+using LivingWorld.Simulation.Llm;
 using LivingWorld.Simulation.Narrative;
+using LivingWorld.Simulation.Scenarios;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -169,4 +184,7 @@ app.MapObservationScopeEndpoints(worldHost);
 
 app.Run();
 
-public partial class Program;
+namespace LivingWorld.Api
+{
+    public partial class Program;
+}

@@ -1,8 +1,10 @@
-using LivingWorld.Api.Visual;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Api.Visual.Catalogs;
+using LivingWorld.Api.Visual.Scope;
+using LivingWorld.Domain.History;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Stage4;
+namespace LivingWorld.Tests.Integration.Stage4;
 
 /// <summary>T26 / LWV-07.3: timeline labels for the birth/death family stay audience-safe
 /// and match the web animation catalog a11y strings.</summary>

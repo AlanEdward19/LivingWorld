@@ -1,11 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
-using LivingWorld.Api;
-using LivingWorld.Simulation;
+using LivingWorld.Api.World;
+using LivingWorld.Simulation.Hosting;
+using LivingWorld.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.Integration.World;
 
 /// <summary>Fase 15.1, T42 (ADR-0017): <c>POST /worlds/create</c> passa a aceitar e persistir o
 /// nome do mundo e a devolver identidade (<c>WorldId</c>, <c>Tick</c>, <c>InitialScope</c>) além

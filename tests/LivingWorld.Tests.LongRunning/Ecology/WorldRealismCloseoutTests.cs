@@ -1,8 +1,12 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Ecology;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.History;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Ecology;
 using LivingWorld.Simulation.Geography;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Ecology;
+namespace LivingWorld.Tests.LongRunning.Ecology;
 
 /// <summary>T22 closeout (agente): cenário de referência com fauna/flora/clima e 0 poderes.
 /// Smoke curto prova variação auditável; 10 anos = Category=Scenario (AD-029 — 100 anos fica

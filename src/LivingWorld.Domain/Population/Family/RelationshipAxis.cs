@@ -1,4 +1,7 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Population.Skills;
+
+namespace LivingWorld.Domain.Population.Family;
 
 /// <summary>Os 4 eixos numéricos de uma <see cref="Relationship"/> (Fase 7, T1) — nunca uma
 /// flag booleana de "amizade" (FAM-01). Modelo de decisão do motor, não conteúdo de cenário

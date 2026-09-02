@@ -1,7 +1,7 @@
 using System.Text.Json;
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.Unit.Population;
 
 [CollectionDefinition(Name, DisableParallelization = true)]
 public sealed class PopulationBaselineCollection

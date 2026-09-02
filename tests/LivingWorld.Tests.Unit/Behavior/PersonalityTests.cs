@@ -1,6 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Tests.Behavior;
+namespace LivingWorld.Tests.Unit.Behavior;
 
 /// <summary>Fase 4, task 1: os 10 traços de <see cref="Personality"/> validados em
 /// <c>[0,100]</c> — base para NEEDS-06/NEEDS-08 (peso de personalidade no utility AI).</summary>

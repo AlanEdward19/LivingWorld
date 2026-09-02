@@ -1,6 +1,10 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Cities;
 
 // SPEC_DEVIATION (Fase 8, T11): design.md/tasks.md não definem a fórmula exata de
 // "comida/moradia/segurança abaixo do limiar" — só que o limiar/taxa vêm de CityRules (R3).

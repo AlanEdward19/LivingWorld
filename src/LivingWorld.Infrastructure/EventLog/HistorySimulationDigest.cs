@@ -1,10 +1,11 @@
 using System.Security.Cryptography;
 using System.Text;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.History;
+using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.History;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Infrastructure;
+namespace LivingWorld.Infrastructure.EventLog;
 
 /// <summary>Digest determinístico dos sistemas de história da Fase 10 — usado pelos testes de
 /// dois processos (mesmo padrão de <c>ScenarioRunner.RunAndHash</c>).</summary>

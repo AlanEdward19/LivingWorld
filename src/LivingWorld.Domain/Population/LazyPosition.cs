@@ -1,4 +1,7 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Population;
 
 /// <summary>Posição no grid para recomputação cosmética lazy (Fase 28, LOD-10) — mesmo espaço que
 /// <see cref="CellCoord"/>, tipo distinto para a camada aproximada.</summary>

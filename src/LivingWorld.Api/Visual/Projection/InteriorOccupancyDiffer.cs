@@ -1,6 +1,6 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Api.Visual;
+namespace LivingWorld.Api.Visual.Projection;
 
 /// <summary>Diferença entre dois <see cref="InteriorSnapshot.Occupants"/> (Fase 15.1, T47) — as
 /// 4 transições do bullet do backend-gaps.md: entrar, mover (mesmo andar, célula diferente),

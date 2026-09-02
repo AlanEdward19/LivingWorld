@@ -4,11 +4,31 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Ecology;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Fauna;
+using LivingWorld.Domain.Flora;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
 using LivingWorld.Domain.Llm;
+using LivingWorld.Domain.Performance;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Scheduling;
+using LivingWorld.Simulation.Serialization;
 using LivingWorld.Simulation.Snapshot;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Core;
 
 /// <summary>Serialização completa do mundo (task 7) e as duas funções de hash (ADR-0006):
 /// canônico (o que alimenta decisão) e volátil (o resto). Ambas construídas por reflexão sobre

@@ -1,6 +1,9 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History.Distortion;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History.Distortion;
 
-namespace LivingWorld.Simulation.History;
+namespace LivingWorld.Simulation.History.Queries;
 
 /// <summary>Único ponto de acesso à crença de um NPC ou comunidade (Fase 10, T15,
 /// HIST-16) — resolve o <see cref="ReportState"/> vigente no cânone e materializa o

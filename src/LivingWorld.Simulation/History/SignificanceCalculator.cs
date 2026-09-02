@@ -1,4 +1,7 @@
 using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.History;
 

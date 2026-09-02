@@ -1,6 +1,7 @@
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.Integration.Core;
 
 /// <summary>Task 14: assert genérico sobre <see cref="MonotonicFields"/> — nenhum contador
 /// regride e nenhum NPC vivo perde idade entre duas amostras. Gate: 1 mês; 1 ano em Scenario.</summary>

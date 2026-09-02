@@ -1,3 +1,5 @@
+using LivingWorld.Domain.Shared;
+
 namespace LivingWorld.Domain.Narrative;
 
 /// <summary>Rascunho estruturado pré-renderização (Fase 12, NARR-01/NARR-05) — saída do

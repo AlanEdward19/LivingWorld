@@ -1,4 +1,8 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Behavior;
 
 /// <summary>Qualidade de recuperação por tipo de lugar de descanso (Fase 15.1, Stage 4, T12,
 /// LWV-03.1). <see cref="GroundEfficiency"/> substitui o papel de

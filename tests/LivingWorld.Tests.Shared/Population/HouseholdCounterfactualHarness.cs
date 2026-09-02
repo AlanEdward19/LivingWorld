@@ -1,7 +1,16 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Labor;
+using LivingWorld.Simulation.Population.Lifecycle;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.Shared.Population;
 
 /// <summary>Fase 7, T22 (FAM-24, FAM-25): contrafactual rico/pobre com o mesmo genoma
 /// (<c>Vitality</c>/<see cref="RateGene"/>) — só composição de teste, sem mudar produção

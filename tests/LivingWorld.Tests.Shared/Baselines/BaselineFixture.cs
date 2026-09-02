@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace LivingWorld.Tests.Baselines;
+namespace LivingWorld.Tests.Shared.Baselines;
 
 /// <summary>Roda um valor por seed contra um baseline gravado em disco. Regravar é comando
 /// explícito (<see cref="Record"/>) — nunca efeito colateral de <see cref="AssertMatches"/>.</summary>

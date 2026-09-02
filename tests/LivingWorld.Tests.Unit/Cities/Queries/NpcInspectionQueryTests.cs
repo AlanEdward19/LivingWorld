@@ -1,7 +1,11 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Unit.Cities.Queries;
 
 /// <summary>Fase 8, T14 (CITY-06): <see cref="NpcInspectionQuery"/> — única fonte de consulta de
 /// inspeção compartilhada entre API e CLI. Falha para id morto/inexistente (AC #3 da story P1);

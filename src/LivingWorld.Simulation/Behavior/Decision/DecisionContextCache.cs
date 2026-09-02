@@ -1,8 +1,12 @@
 using System.Runtime.CompilerServices;
-using LivingWorld.Domain;
 using LivingWorld.Domain.Llm;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Extraordinary.Opportunity;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Behavior.Decision;
 
 /// <summary>Categorias de <see cref="DecisionContext"/> com dirty-flag independente
 /// (Fase 16.3 P2a, COH-45 / doc#60) — mesmo espírito touch-on-mutate de PERF-12.</summary>

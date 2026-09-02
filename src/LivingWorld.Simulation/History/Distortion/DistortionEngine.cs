@@ -1,6 +1,9 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation.History;
+namespace LivingWorld.Simulation.History.Distortion;
 
 /// <summary>Operadores de distorção determinísticos (Fase 10, HIST-05/HIST-06) — dispatch
 /// explícito por enum, RNG derivado de <c>(ReportId, hop)</c>.</summary>

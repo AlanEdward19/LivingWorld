@@ -1,6 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Scheduling;
 
 /// <summary>Sistema trivial (task 11): só conta quantas vezes rodou em cada frequência.
 /// Prova agendamento e determinismo — descartável quando a Fase 3 chegar com sistemas reais.</summary>

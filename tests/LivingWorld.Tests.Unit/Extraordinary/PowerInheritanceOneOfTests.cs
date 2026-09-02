@@ -1,7 +1,8 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Extraordinary.Inheritance;
 
-namespace LivingWorld.Tests.Extraordinary;
+namespace LivingWorld.Tests.Unit.Extraordinary;
 
 /// <summary>T9 / EVO-12: caminho "um só" — exatamente um pai, cópia fiel.</summary>
 public sealed class PowerInheritanceOneOfTests

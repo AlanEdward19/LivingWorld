@@ -1,6 +1,13 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Fauna;
+using LivingWorld.Domain.Flora;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Performance;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation.Population;
+namespace LivingWorld.Simulation.Population.Archive;
 
 /// <summary>Arquivo frio (tier-2) de NPCs/fauna/flora mortos há muito tempo (Fase 9 PERF-10,
 /// REALISM-21).</summary>

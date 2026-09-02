@@ -2,9 +2,10 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json.Nodes;
-using LivingWorld.Api;
+using LivingWorld.Api.World;
+using LivingWorld.Tests.Shared;
 
-namespace LivingWorld.Tests.Periods;
+namespace LivingWorld.Tests.Integration.Periods;
 
 /// <summary>Fase 13, T6 (PERIOD-04..06, PERIOD-07..10): <c>POST /worlds/start</c> resolve um
 /// template já cadastrado por <c>POST /periods</c> e inicializa mundo com a seed pedida.

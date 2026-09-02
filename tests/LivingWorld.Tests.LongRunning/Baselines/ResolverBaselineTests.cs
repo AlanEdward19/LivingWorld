@@ -1,7 +1,7 @@
-using LivingWorld.Domain;
-using LivingWorld.Tests.Baselines;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Tests.Shared.Baselines;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.LongRunning.Baselines;
 
 /// <summary>Uso real da infra de baseline (task 7) sobre o primitivo que já existe na Fase 0:
 /// o Resolver. 20 seeds, dificuldade e modificador fixos — baseline gravado em

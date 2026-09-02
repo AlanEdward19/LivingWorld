@@ -1,6 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Unit.History;
 
 /// <summary>Fase 10, T6: <see cref="TransmissionMediumType"/> + <see cref="MediumFidelity"/> (HIST-08).</summary>
 public class TransmissionMediumTests

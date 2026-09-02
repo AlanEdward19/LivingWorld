@@ -1,7 +1,9 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Geography;
+namespace LivingWorld.Tests.Unit.Geography.Map;
 
 /// <summary>Fase 2, task 2/4/5: geração procedural determinística, detecção de
 /// <see cref="TerrainType.Unset"/> e cobertura de região por enumeração completa.</summary>

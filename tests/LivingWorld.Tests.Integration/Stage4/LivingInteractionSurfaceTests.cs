@@ -1,10 +1,18 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
 using LivingWorld.Domain.Llm;
 using LivingWorld.Domain.Narrative;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Llm;
 using LivingWorld.Simulation.Narrative;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Stage4;
+namespace LivingWorld.Tests.Integration.Stage4;
 
 /// <summary>Fase 15.1, T7 (LWV-05, "Chronicle, biography, conversation, and period surfaces in
 /// the selected context"): a query/pipeline por trás de cada um dos quatro endpoints reusados

@@ -1,4 +1,4 @@
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Geography.Map;
 
 /// <summary>Célula do grid (task 1): terreno, bioma, altitude, água e recursos disponíveis.
 /// Value object imutável — sem referência a UI. <see cref="Temperature"/> é base gerada de

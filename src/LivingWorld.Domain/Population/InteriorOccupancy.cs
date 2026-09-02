@@ -1,4 +1,8 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Population;
 
 /// <summary>Escopo de interior de um NPC (Fase 15.1, T47/ADR-0018): prédio, andar e célula
 /// local. Sempre tudo-ou-nada (um único campo nulável em <see cref="Npc.Interior"/>, nunca 3

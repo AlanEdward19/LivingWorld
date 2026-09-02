@@ -1,8 +1,8 @@
 using LivingWorld.Api.Visual.NpcTokens;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Visual;
+namespace LivingWorld.Tests.Unit.Visual.NpcTokens;
 
 /// <summary>Fase 15, T6 (VTT-14..16): <see cref="NpcTokenComposer"/> — determinístico por estado
 /// canônico (mesmo NPC no mesmo estado sempre gera o mesmo token), e só as camadas de profissão

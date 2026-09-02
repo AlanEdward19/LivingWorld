@@ -1,6 +1,6 @@
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.Unit.Population;
 
 /// <summary>Fase 6, T13: rede de segurança de cobertura (mesmo padrão de
 /// <c>PersonalityWeightingTests.Every_personality_trait_has_at_least_one_influence_table_entry</c>) —

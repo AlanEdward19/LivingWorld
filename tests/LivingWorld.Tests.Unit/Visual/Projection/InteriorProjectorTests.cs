@@ -1,8 +1,11 @@
-using LivingWorld.Api.Visual;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Api.Visual.Projection;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Visual;
+namespace LivingWorld.Tests.Unit.Visual.Projection;
 
 /// <summary>Fase 15, T5 (VTT-03); ocupação real desde Fase 15.1, T47 (G7): identidade do prédio
 /// é real (cidade/tipo) e <c>Occupants</c> lista todo NPC vivo cujo <c>Npc.Interior</c> aponta

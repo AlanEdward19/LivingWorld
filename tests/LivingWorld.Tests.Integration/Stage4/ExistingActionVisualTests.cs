@@ -1,7 +1,8 @@
 using System.Text.RegularExpressions;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.History;
 
-namespace LivingWorld.Tests.Stage4;
+namespace LivingWorld.Tests.Integration.Stage4;
 
 /// <summary>T8 + T28 (LWV-07.5): completude cross-language do catálogo unificado
 /// <c>web/src/map-engine/npcAnimationCatalog.ts</c> contra <see cref="ActionType"/> real.

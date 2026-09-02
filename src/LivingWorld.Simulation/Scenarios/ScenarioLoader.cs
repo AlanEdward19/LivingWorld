@@ -1,6 +1,9 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Geography;
+using LivingWorld.Simulation.Population;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Scenarios;
 
 /// <summary>Monta um mundo completo a partir de um único JSON de cenário (task 7): geografia
 /// (<see cref="MapScenarioLoader"/>) e população (<see cref="PopulationScenarioLoader"/>) lidos

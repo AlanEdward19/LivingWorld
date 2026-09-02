@@ -1,4 +1,6 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography.Map;
+
+namespace LivingWorld.Domain.Geography.Spatial;
 
 /// <summary>Custo de deslocamento entre duas células (task 3): distância euclidiana × peso
 /// médio de terreno, mais penalidade de subida. Direcional por construção: subir custa mais

@@ -1,8 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Serialization;
 
 /// <summary>System.Text.Json só serializa chave de dicionário nativamente pra string/enum —
 /// <see cref="RelationshipKey"/> (Fase 7, T8: <c>WorldState.Relationships</c>) precisa do mesmo

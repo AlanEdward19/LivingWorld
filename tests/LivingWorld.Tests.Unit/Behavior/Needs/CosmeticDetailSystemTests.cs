@@ -1,9 +1,15 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.Behavior;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Observation;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Behavior;
+namespace LivingWorld.Tests.Unit.Behavior.Needs;
 
 /// <summary>Fase 28, T5 (LOD-10..12): <see cref="CosmeticDetailSystem"/> — posição lazy vs.
 /// exata, promoção com fórmula fechada, RNG <c>StreamFor("cosmetic")</c> e exclusividade de

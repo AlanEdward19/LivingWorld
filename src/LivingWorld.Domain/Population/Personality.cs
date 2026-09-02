@@ -1,4 +1,6 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Population;
 
 /// <summary>Personalidade do NPC (Fase 4, task 1): os 10 traços de <c>docs/domain/npc.md</c>,
 /// cada um em <c>[0,100]</c>. Sistemas ordinários não a alteram após o nascimento; a única

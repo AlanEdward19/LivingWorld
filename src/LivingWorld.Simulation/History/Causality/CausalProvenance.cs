@@ -1,6 +1,8 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation.History;
+namespace LivingWorld.Simulation.History.Causality;
 
 /// <summary>Resolução sob demanda de <c>RootCauseEventId</c> (COH-02) — percorre
 /// <see cref="WorldEvent.CauseEventId"/> sem grafo persistido à parte.</summary>

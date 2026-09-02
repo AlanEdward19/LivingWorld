@@ -1,7 +1,8 @@
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Ecology;
 using LivingWorld.Simulation.Geography;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Ecology;
+namespace LivingWorld.Tests.Unit.Ecology;
 
 /// <summary>REALISM-20 — ordem fixa fauna → flora → temperatura em DefaultSystems.</summary>
 public sealed class WorldRealismOrderTests

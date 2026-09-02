@@ -1,7 +1,10 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Simulation.Cities.Founding;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Integration.Cities;
 
 /// <summary>Fase 8, T20 (CITY-08): fundação com gatilho já satisfeito, rodada como cenário vivo
 /// (via <see cref="WorldClock"/>, não uma chamada direta a <c>Tick</c>/<c>HandleEvent</c> como em

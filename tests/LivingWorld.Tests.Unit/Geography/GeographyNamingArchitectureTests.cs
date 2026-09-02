@@ -1,4 +1,4 @@
-namespace LivingWorld.Tests.Geography;
+namespace LivingWorld.Tests.Unit.Geography;
 
 /// <summary>Fase 2, critério final: nome de terreno, bioma ou recurso não pode aparecer como
 /// literal em <c>src/LivingWorld.Domain</c> ou <c>src/LivingWorld.Simulation</c> — o motor só

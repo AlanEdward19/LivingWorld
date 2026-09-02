@@ -1,7 +1,19 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Culture;
 using LivingWorld.Simulation.Periods;
+using LivingWorld.Simulation.Population;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Scenarios;
 
 /// <summary>Monta um mundo completo a partir de um <c>periodDefinition</c> (Fase 13, T3):
 /// substitui a integração parcial de <see cref="ScenarioLoader"/> (que ainda não plugava

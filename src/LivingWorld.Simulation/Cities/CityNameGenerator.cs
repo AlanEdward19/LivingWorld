@@ -1,4 +1,8 @@
-namespace LivingWorld.Simulation;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities.Founding;
+using LivingWorld.Simulation.Core;
+
+namespace LivingWorld.Simulation.Cities;
 
 /// <summary>Nome determinístico por composição de sílabas (Fase 15.1, T44; ADR-0013 — "sem LLM,
 /// o motor gera um nome determinístico por composição", listado ali como fallback obrigatório
@@ -26,6 +30,6 @@ public static class CityNameGenerator
         return name.ToString();
     }
 
-    private static int NextIndex(LivingWorld.Domain.WorldRng rng, int exclusiveUpperBound) =>
+    private static int NextIndex(WorldRng rng, int exclusiveUpperBound) =>
         (int)(rng.NextDouble() * exclusiveUpperBound);
 }

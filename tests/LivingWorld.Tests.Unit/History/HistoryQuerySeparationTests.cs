@@ -1,4 +1,4 @@
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Unit.History;
 
 /// <summary>Fase 10, T16: separação estrutural Verdade/Crença (HIST-17).</summary>
 public class HistoryQuerySeparationTests

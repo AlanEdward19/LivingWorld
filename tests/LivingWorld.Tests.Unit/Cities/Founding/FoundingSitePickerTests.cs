@@ -1,7 +1,12 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Spatial;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Cities.Founding;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Unit.Cities.Founding;
 
 /// <summary>Post-ship fix (user-reported, 2026-08-23, "cidades coladas"): <see
 /// cref="FoundingSitePicker"/> agora exige o mesmo espaçamento mínimo (<see

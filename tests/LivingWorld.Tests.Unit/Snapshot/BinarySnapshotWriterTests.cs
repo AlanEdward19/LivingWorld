@@ -1,7 +1,8 @@
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Simulation.Snapshot;
 
-namespace LivingWorld.Tests.Snapshot;
+namespace LivingWorld.Tests.Unit.Snapshot;
 
 public class BinarySnapshotWriterTests
 {

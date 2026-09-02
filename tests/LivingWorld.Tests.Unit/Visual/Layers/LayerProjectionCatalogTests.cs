@@ -1,6 +1,6 @@
 using LivingWorld.Api.Visual.Layers;
 
-namespace LivingWorld.Tests.Visual;
+namespace LivingWorld.Tests.Unit.Visual.Layers;
 
 /// <summary>Fase 15, T1 (VTT-04): o catálogo deve listar exatamente as camadas derivadas
 /// definidas pela spec (terreno, bioma, rios, montanhas, recursos, estradas, fronteiras,

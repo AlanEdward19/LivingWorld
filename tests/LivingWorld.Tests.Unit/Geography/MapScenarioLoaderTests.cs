@@ -1,7 +1,7 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Simulation.Geography;
 
-namespace LivingWorld.Tests.Geography;
+namespace LivingWorld.Tests.Unit.Geography;
 
 /// <summary>Fase 2, task 5/6: carregamento de cenário — autoral ou por seed, com validação
 /// que falha rápido nomeando o campo, e a cidade fora do grid não cria o mundo.</summary>

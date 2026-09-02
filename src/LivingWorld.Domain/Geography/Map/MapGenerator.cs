@@ -1,4 +1,6 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Geography.Map;
 
 /// <summary>Gerador procedural de mapa (task 5): mesma seed → mesmo mapa, sempre via
 /// <see cref="WorldRng"/> (nunca System.Random). Garante zero células <see cref="TerrainType.Unset"/> —

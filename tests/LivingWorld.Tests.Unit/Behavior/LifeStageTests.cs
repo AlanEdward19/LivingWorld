@@ -1,6 +1,6 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population.Body;
 
-namespace LivingWorld.Tests.Behavior;
+namespace LivingWorld.Tests.Unit.Behavior;
 
 /// <summary>Fase 4, task 3: <see cref="LifeStageRules"/> resolve <see cref="LifeStage"/> a
 /// partir de limiares do cenário (nunca constante em C#, R3) — base para a rotina diária

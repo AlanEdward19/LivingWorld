@@ -1,7 +1,15 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Engine;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Extraordinary;
+namespace LivingWorld.Tests.Unit.Extraordinary.Mechanics;
 
 public sealed class GravityMechanicTests
 {
@@ -96,7 +104,7 @@ public sealed class GravityMechanicTests
             ExtraordinaryMechanicRegistry.Default.Resolve("gravity.target:3"));
     }
 
-    private static (WorldState World, Npc Npc) WorldWith(
+    private static (WorldState World, Domain.Population.Npc Npc) WorldWith(
         IReadOnlyList<string> effects, CellCoord origin, WorldMap? map = null)
     {
         var descriptor = new PowerDescriptor(

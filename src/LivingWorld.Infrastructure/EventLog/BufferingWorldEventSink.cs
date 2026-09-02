@@ -1,6 +1,6 @@
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Infrastructure;
+namespace LivingWorld.Infrastructure.EventLog;
 
 /// <summary>Acumula eventos de história em memória entre duas fronteiras de snapshot (task 10)
 /// — o banco só é tocado quando <see cref="DrainAll"/> é escrito, nunca durante o tick

@@ -1,6 +1,9 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Unit.Cities;
 
 /// <summary>Fase 8, T3 (CITY-03): <see cref="BuildingRecipe"/>/<see cref="ConstructionProject"/> —
 /// receita rejeita insumo negativo/duração não positiva; obra decrementa ticks sem passar de zero.</summary>

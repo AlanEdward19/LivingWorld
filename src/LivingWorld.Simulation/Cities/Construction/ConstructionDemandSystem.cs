@@ -1,7 +1,12 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation.Economy;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Labor;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Cities.Construction;
 
 /// <summary>Abre obras quando a cidade tem déficit de moradia ou de vagas de emprego e insumo
 /// suficiente (Fase 15.1, Stage 4, T10, LWV-04.1) — demanda vira fila canônica, nunca spawn

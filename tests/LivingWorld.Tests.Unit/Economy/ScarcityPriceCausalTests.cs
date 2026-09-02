@@ -1,6 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Tests.Shared.Economy;
 
-namespace LivingWorld.Tests.Economy;
+namespace LivingWorld.Tests.Unit.Economy;
 
 /// <summary>Fase 5, T25 (ECON-25): par base/tratamento na mesma seed — tratamento corta a
 /// produção de trigo pela metade a partir de <c>t0</c>. <c>preçoTrat[t] &gt; preçoBase[t]</c> em

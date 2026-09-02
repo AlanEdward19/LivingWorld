@@ -1,7 +1,11 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Simulation.Cities.Founding;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Cities;
+namespace LivingWorld.Tests.Unit.Cities.Founding;
 
 /// <summary>Fase 8, T13 (CITY-08): <see cref="SettlementFoundingSystem"/> — todos os limiares
 /// batidos agenda a fundação em exatamente <see cref="CityRules.OrganizationTicks"/>; soma de

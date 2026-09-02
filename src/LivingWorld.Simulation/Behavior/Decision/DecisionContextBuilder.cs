@@ -1,8 +1,15 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Llm;
-using LivingWorld.Simulation.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Extraordinary.Opportunity;
+using LivingWorld.Simulation.History.Queries;
+using LivingWorld.Simulation.Llm;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Behavior.Decision;
 
 /// <summary>Constrói <see cref="DecisionContext"/> on-demand por wake (Fase 16.3 P1b, COH-11).
 /// Não persiste; não referencia o <see cref="WorldState"/> no tipo resultante.</summary>

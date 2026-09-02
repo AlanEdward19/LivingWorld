@@ -1,9 +1,13 @@
 using System.Reflection;
-using LivingWorld.Domain;
-using LivingWorld.Simulation.Behavior;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Observation;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Cities.Construction;
 
 // SPEC_DEVIATION (Fase 8, T9): "líder de assentamento" (papel formal citado no design/roadmap)
 // não tem campo nenhum em City (Foundation/T1 não declarou CityGovernment/Leader — nenhum

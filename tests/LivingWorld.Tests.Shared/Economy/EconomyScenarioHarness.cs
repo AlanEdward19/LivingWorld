@@ -1,8 +1,12 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Market;
+using LivingWorld.Simulation.Economy.Production;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Economy;
+namespace LivingWorld.Tests.Shared.Economy;
 
 /// <summary>Decorator causal que escala somente o incremento de estoque produzido pelo sistema
 /// envolvido. Medir o contador global confundia colheita com comida criada por casamento/processos

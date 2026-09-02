@@ -1,7 +1,13 @@
 using System.Globalization;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Population.Skills;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 
 /// <summary>
 /// <c>skill.copy:&lt;skillId&gt;</c> copia o valor pontual do alvo no portador.

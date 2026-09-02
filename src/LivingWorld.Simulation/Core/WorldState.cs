@@ -1,13 +1,35 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Cognition;
+using LivingWorld.Domain.Ecology;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Fauna;
+using LivingWorld.Domain.Flora;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
 using LivingWorld.Domain.Llm;
-
-using LivingWorld.Simulation.Behavior;
+using LivingWorld.Domain.Performance;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
 using LivingWorld.Simulation.History;
+using LivingWorld.Simulation.Hosting;
 using LivingWorld.Simulation.Observation;
-using LivingWorld.Simulation.Population;
+using LivingWorld.Simulation.Population.Archive;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 using LivingWorld.Simulation.Snapshot;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Core;
 
 /// <summary>Estado do mundo — tudo que precisa sobreviver a um snapshot (task 7). Controles de
 /// host (pausa, velocidade) ficam fora de propósito: são estado do hospedeiro, não do mundo
@@ -668,7 +690,7 @@ public sealed class WorldState
         if (_npcWakeEventIdByNpc.TryGetValue(npcId, out var oldId))
             _scheduler.Cancel(oldId);
 
-        var evt = ctx.ScheduleEvent(targetTick, Behavior.NpcWakeScheduler.SystemName, npcId.ToString());
+        var evt = ctx.ScheduleEvent(targetTick, NpcWakeScheduler.SystemName, npcId.ToString());
         _npcWakeEventIdByNpc[npcId] = evt.Id;
     }
 

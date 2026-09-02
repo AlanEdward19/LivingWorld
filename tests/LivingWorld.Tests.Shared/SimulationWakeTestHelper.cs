@@ -1,7 +1,7 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.Shared;
 
 /// <summary>Acorda NPCs no lote Hourly quando testes chamam sistemas sem <see cref="WorldClock"/>.</summary>
 public static class SimulationWakeTestHelper

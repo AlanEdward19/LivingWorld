@@ -1,9 +1,10 @@
-using LivingWorld.Domain;
-using LivingWorld.Infrastructure;
+using LivingWorld.Domain.History;
+using LivingWorld.Infrastructure.EfCore;
+using LivingWorld.Infrastructure.Records;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Integration.History;
 
 /// <summary>Fase 10, T3: append-only real da tabela de fatos (HIST-02 AC2).</summary>
 public class FactAppendOnlyTests

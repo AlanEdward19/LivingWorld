@@ -1,4 +1,7 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Geography.Map;
 
 /// <summary>Pathfinding mínimo entre locais (task 3): Dijkstra sobre o grid com
 /// <see cref="MovementCost"/> como peso de aresta (8-vizinhança). Base de rota comercial

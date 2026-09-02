@@ -1,6 +1,10 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Population.Lifecycle;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Population.Family;
 
 /// <summary>Dissolução de <see cref="Household"/> vazio — extraído de <see cref="NpcDeath.Apply"/>
 /// (Fase 7, T12) para reuso por morte, casamento e redistribuição de órfãos.</summary>

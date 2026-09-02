@@ -1,7 +1,10 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Extraordinary.Culture;
+using LivingWorld.Simulation.Extraordinary.Engine;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Extraordinary.Systems;
 
-namespace LivingWorld.Tests.Extraordinary;
+namespace LivingWorld.Tests.Unit.Extraordinary.Culture;
 
 public sealed class ExtraordinaryScenarioLoaderTests
 {

@@ -1,9 +1,15 @@
-using LivingWorld.Api.Visual;
 using LivingWorld.Api.Visual.Layers;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Api.Visual.Projection;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Visual;
+namespace LivingWorld.Tests.Unit.Visual.Projection;
 
 /// <summary>Fase 15, T4 (VTT-01, VTT-04, VTT-06): <see cref="GlobalProjector"/> — cidades com
 /// população agregada, NPCs materializados fora da própria cidade marcados como "externos", e
@@ -166,5 +172,5 @@ public class GlobalProjectorTests
     }
 
     private static long CityPopulationQuery(WorldState world, CityId cityId) =>
-        LivingWorld.Simulation.CityPopulationQuery.Population(world, cityId);
+        Simulation.Cities.Queries.CityPopulationQuery.Population(world, cityId);
 }

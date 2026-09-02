@@ -1,9 +1,15 @@
 using System.Reflection;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.History;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History.Books;
+using LivingWorld.Simulation.History.Distortion;
+using LivingWorld.Simulation.History.Queries;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Unit.History.Queries;
 
 /// <summary>Fase 10, T15: <see cref="HistoryBeliefQuery"/> + <see cref="DistortionEngine.Materialize"/>
 /// (HIST-16, HIST-19).</summary>

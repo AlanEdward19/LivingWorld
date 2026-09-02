@@ -1,6 +1,10 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation.Behavior;
+namespace LivingWorld.Simulation.Behavior.Resolvers;
 
 /// <summary>Resolve o lugar de descanso do NPC (Fase 15.1, Stage 4, T12, LWV-03.1): cama do
 /// household se existir, senão a moradia, senão o chão no local atual. Sem caminho válido o

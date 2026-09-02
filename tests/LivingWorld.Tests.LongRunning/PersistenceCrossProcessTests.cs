@@ -1,7 +1,8 @@
 using System.Diagnostics;
-using LivingWorld.Simulation;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.LongRunning;
 
 /// <summary>Task 10: salvar no tick T, reabrir em outro processo e rodar até T+extra dá o mesmo
 /// hash de rodar direto — mesmo padrão de <see cref="DeterminismTwoProcessTests"/> (AD-020),

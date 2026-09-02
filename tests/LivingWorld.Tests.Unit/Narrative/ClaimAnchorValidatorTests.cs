@@ -1,8 +1,7 @@
-using LivingWorld.Domain;
 using LivingWorld.Domain.Narrative;
 using LivingWorld.Simulation.Narrative;
 
-namespace LivingWorld.Tests.Narrative;
+namespace LivingWorld.Tests.Unit.Narrative;
 
 /// <summary>Fase 12, T3: <see cref="ClaimAnchorValidator"/> (NARR-01..04).</summary>
 public class ClaimAnchorValidatorTests

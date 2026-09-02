@@ -1,9 +1,10 @@
 using System.Collections.Concurrent;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Hosting;
 using LivingWorld.Simulation.Observation;
 
-namespace LivingWorld.Api;
+namespace LivingWorld.Api.Observation;
 
 /// <summary>Espelha <c>SpaceId</c> do cliente — mesmo vocabulário, sem tradução (Fase 28, LOD-04).</summary>
 public sealed record ObservationScopeDto(string Kind, string? CityId = null, string? BuildingId = null);

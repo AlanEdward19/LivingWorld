@@ -1,4 +1,5 @@
 using LivingWorld.Domain;
+using LivingWorld.Domain.Population;
 
 namespace LivingWorld.Api.Visual.NpcTokens;
 

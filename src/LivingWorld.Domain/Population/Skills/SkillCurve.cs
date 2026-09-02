@@ -1,4 +1,4 @@
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Population.Skills;
 
 /// <summary>Curva de retornos decrescentes de ganho de habilidade (Fase 6, task 2, SKILL-02) —
 /// função pura, sem estado, testável isolada sem <c>ScenarioRunner</c> e sem seed.</summary>

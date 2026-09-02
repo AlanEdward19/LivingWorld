@@ -1,14 +1,21 @@
 using System.Net;
 using System.Net.Http.Json;
 using LivingWorld.Api;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Api.Observation;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Tests.Shared;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LivingWorld.Tests.Api;
+namespace LivingWorld.Tests.Integration.Api.Observation;
 
 /// <summary>Fase 28, T8 (LOD-04): <c>POST /observation/scope</c> alimenta
 /// <see cref="LivingWorld.Simulation.Observation.ObservationRegistry"/> com validação de borda e

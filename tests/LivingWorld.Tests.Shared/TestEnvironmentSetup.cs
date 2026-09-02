@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.Shared;
 
 /// <summary>Bugfix real (usuário, 2026-08-15 / 2026-08-25): testes de API flaky em lote
 /// quando rodados depois de <c>run.cmd</c> (ou na janela filha do API) — o script exporta

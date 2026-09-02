@@ -1,8 +1,12 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Llm;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Llm;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Llm;
+namespace LivingWorld.Tests.Unit.Llm;
 
 /// <summary>Fase 11, roadmap itens 1/2 (LLM-04/05): modelo de memória do NPC (5 categorias),
 /// classificação canônico/volátil por limiar do cenário (ADR-0014) e <see cref="MemoryRecall"/>

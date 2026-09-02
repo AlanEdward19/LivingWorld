@@ -1,7 +1,9 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.Unit.Core;
 
 /// <summary>Fase 7, T8 (FAM-01, FAM-02, FAM-05): coleção canônica de <c>Relationship</c> +
 /// <c>FamilyRules</c> canônico em <c>WorldState</c>.</summary>

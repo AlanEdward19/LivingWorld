@@ -1,7 +1,9 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Culture;
 
 /// <summary>Valida o bloco extraordinário antes de qualquer estado runtime existir.</summary>
 public static class ExtraordinaryScenarioLoader

@@ -1,9 +1,13 @@
-using LivingWorld.Domain;
-using LivingWorld.Infrastructure;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.History;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Infrastructure.EventLog;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History.Distortion;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Unit.History.Distortion;
 
 /// <summary>Fase 10, T10: <see cref="FactToReportConversionScheduler"/> (HIST-03).</summary>
 public class FactToReportConversionSchedulerTests

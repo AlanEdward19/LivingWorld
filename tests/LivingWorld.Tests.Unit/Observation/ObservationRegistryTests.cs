@@ -1,8 +1,14 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Observation;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Observation;
+namespace LivingWorld.Tests.Unit.Observation;
 
 /// <summary>Fase 28, T2 (LOD-01, LOD-04): <see cref="ObservationRegistry"/> — união de escopos
 /// multi-fonte e não-participação no hash canônico.</summary>

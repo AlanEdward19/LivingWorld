@@ -1,4 +1,6 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+
+namespace LivingWorld.Domain.Cities.Spatial;
 
 /// <summary>Extensão de uma cidade no grid do mundo (Fase 15.1, T45).</summary>
 public readonly record struct CityBounds(CellCoord Origin, int Width, int Height)

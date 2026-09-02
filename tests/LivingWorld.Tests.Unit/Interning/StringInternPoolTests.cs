@@ -1,6 +1,6 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Tests.Interning;
+namespace LivingWorld.Tests.Unit.Interning;
 
 public class StringInternPoolTests
 {

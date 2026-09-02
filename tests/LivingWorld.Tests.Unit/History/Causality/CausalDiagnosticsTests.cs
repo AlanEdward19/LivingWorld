@@ -1,8 +1,9 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
-using LivingWorld.Simulation.History;
+using LivingWorld.Domain.History;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History.Causality;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.History;
+namespace LivingWorld.Tests.Unit.History.Causality;
 
 /// <summary>COH-62: CausalDepth e SystemsTouchedByCausalChain sobre CauseEventId.</summary>
 public class CausalDiagnosticsTests

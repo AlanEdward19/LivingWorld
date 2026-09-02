@@ -1,7 +1,10 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Serialization;
 
-namespace LivingWorld.Tests;
+namespace LivingWorld.Tests.LongRunning.Serialization;
 
 /// <summary>Task 12: sweep genérico limpo ao fim de todo cenário, e reprova se algum tipo de id
 /// do assembly Domain não tiver resolver registrado (R5 — nunca "auditoria de código").

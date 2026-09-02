@@ -1,9 +1,12 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Llm;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Llm;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Llm;
+namespace LivingWorld.Tests.Unit.Llm;
 
 /// <summary>Fase 11, roadmap item 10 (LLM-17..19, spec.md story "Compactação de memória em
 /// lote"): <see cref="MemoryCompactionJob"/> reduz a contagem de memórias voláteis de um NPC sem

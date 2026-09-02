@@ -1,7 +1,8 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation.Behavior;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Core;
 
 /// <summary>Avança o mundo em ticks de 1 hora. Ordem de execução dos sistemas é a ordem
 /// declarada na lista recebida no construtor — nunca ordem de registro acidental ou de

@@ -1,6 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Tests.Behavior;
+namespace LivingWorld.Tests.Unit.Behavior;
 
 /// <summary>Fase 4, task 4: <see cref="NeedsRules"/> valida cada parâmetro numérico do
 /// utility AI, nomeando o campo fora de faixa — base para NEEDS-01/02/03/09/12/15.</summary>

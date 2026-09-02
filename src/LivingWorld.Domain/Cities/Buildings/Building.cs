@@ -1,4 +1,7 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Cities.Buildings;
 
 /// <summary>Edifício concluído de uma <see cref="City"/> (Fase 8, T3, CITY-03). Mesmo molde de
 /// <see cref="Workplace"/>: identidade + tipo do catálogo (<see cref="CityCatalog"/>). <see

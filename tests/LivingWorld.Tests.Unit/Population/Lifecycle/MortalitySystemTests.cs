@@ -1,7 +1,14 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Population.Lifecycle;
+using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.Unit.Population.Lifecycle;
 
 /// <summary>Fase 7, T9 (FAM-21): <see cref="MortalitySystem.SchedulePlannedDeath"/> passa o
 /// multiplicador de <c>Vitality</c> (<see cref="FamilyRules.EffectiveVitalityMultiplier"/>) para

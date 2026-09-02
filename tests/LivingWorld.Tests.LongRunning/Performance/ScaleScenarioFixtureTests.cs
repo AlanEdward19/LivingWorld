@@ -1,4 +1,6 @@
-namespace LivingWorld.Tests.Performance;
+using LivingWorld.Tests.Shared.Performance;
+
+namespace LivingWorld.Tests.LongRunning.Performance;
 
 [Collection(ScalePerformanceCollection.Name)]
 public class ScaleScenarioFixtureTests

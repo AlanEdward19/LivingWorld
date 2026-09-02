@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Shared;
 
 /// <summary>Grandeza monetária inteira (unidades, não centavos flutuantes). Nunca negativa.</summary>
 public readonly record struct Money

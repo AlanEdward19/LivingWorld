@@ -1,13 +1,46 @@
-using LivingWorld.Domain;
-
-using LivingWorld.Simulation.Economy;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Ecology;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Performance;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Cities.Founding;
+using LivingWorld.Simulation.Cities.Migration;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Ecology;
+using LivingWorld.Simulation.Economy.Labor;
+using LivingWorld.Simulation.Economy.Market;
+using LivingWorld.Simulation.Economy.Production;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Extraordinary.Systems;
 using LivingWorld.Simulation.Geography;
-using LivingWorld.Simulation.History;
+using LivingWorld.Simulation.History.Books;
+using LivingWorld.Simulation.History.Distortion;
+using LivingWorld.Simulation.Llm;
 using LivingWorld.Simulation.Narrative;
 using LivingWorld.Simulation.Periods;
 using LivingWorld.Simulation.Population;
+using LivingWorld.Simulation.Population.Archive;
+using LivingWorld.Simulation.Population.Family;
+using LivingWorld.Simulation.Population.Lifecycle;
+using LivingWorld.Simulation.Population.Skills;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Scenarios;
 
 /// <summary>Monta o cenário "default" (vila medieval: 24h/dia, 30 dias/mês, 12 meses/ano, 100
 /// NPCs iniciais) e roda N ticks, devolvendo os dois hashes. Usado pelos testes de determinismo

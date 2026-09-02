@@ -1,6 +1,15 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Labor;
+using LivingWorld.Simulation.Economy.Production;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Population.Skills;
 
 /// <summary>Ganho de habilidade por prática no trabalho (Fase 6, T8, SKILL-03) — único ponto
 /// que lê <see cref="Npc.RateGene"/> pra fonte <see cref="SkillGainSource.Practice"/>. <c>Daily</c>

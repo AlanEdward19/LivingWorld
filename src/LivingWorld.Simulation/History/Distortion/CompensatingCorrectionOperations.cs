@@ -1,6 +1,9 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation.History;
+namespace LivingWorld.Simulation.History.Distortion;
 
 /// <summary>Aplica correção compensatória ao esqueleto (Fase 10, HIST-24) — append-only.</summary>
 public static class CompensatingCorrectionOperations

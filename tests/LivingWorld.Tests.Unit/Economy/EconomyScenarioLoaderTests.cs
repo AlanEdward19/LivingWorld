@@ -1,8 +1,9 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Economy;
 
-namespace LivingWorld.Tests.Economy;
+namespace LivingWorld.Tests.Unit.Economy;
 
 /// <summary>Fase 5, T13: carga de EconomyRules/EconomyCatalog/Workplaces iniciais do cenário —
 /// mesmo padrão de BehaviorScenarioLoaderTests, campo obrigatório ausente nomeia o campo.</summary>

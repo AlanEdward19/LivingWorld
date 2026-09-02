@@ -1,6 +1,6 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 
 /// <summary>Marca o token de área no descritor; a expansão de alvos vive em <see cref="AreaTargetResolver"/>.</summary>
 public sealed class AreaSelectorMechanic : ExtraordinaryMechanic

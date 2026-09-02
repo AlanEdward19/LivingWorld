@@ -1,7 +1,10 @@
 using System.Globalization;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 
 /// <summary>
 /// Gravidade pessoal. <c>gravity.self:&lt;mult&gt;</c> (0 = sem peso, 1 = normal, &gt;1 = mais

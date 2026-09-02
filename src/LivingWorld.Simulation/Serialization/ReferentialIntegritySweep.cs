@@ -1,8 +1,14 @@
 using System.Collections;
 using System.Reflection;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Fauna;
+using LivingWorld.Domain.Flora;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Serialization;
 
 /// <summary>Sweep genérico de integridade referencial (task 12): por reflexão sobre o grafo
 /// público de <see cref="WorldState"/>, garante que toda referência a um id aponta para uma

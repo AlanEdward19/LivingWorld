@@ -1,9 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace LivingWorld.Tests.Visual;
+namespace LivingWorld.Tests.Integration.Visual;
 
 /// <summary>Fase 15, T7 (spec.md story "Modo personagem com FOW", AC1; edge case "movimento
 /// inválido"): <c>POST /visual/player/{id}/move</c> — válido move de verdade e publica delta
@@ -60,7 +62,7 @@ public class VisualInputEndpointTests : IClassFixture<LivingWorldApiFactory>
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    private (long NpcId, LivingWorld.Domain.CellCoord Location) GetFirstNpcLocation()
+    private (long NpcId, CellCoord Location) GetFirstNpcLocation()
     {
         using var scope = _factory.Services.CreateScope();
         var world = scope.ServiceProvider.GetRequiredService<WorldState>();

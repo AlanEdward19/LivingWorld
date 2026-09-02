@@ -1,6 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Tests.Population;
+namespace LivingWorld.Tests.Unit.Population.Family;
 
 /// <summary>Fase 7, T3 (FAM-01, FAM-05): par ordenado — A→B e B→A nunca colidem.</summary>
 public class RelationshipKeyTests

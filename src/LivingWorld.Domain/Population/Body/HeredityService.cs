@@ -1,4 +1,8 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Population.Body;
 
 /// <summary>Funções puras de hereditariedade da Fase 7 (T6, sem estado, mesmo molde de
 /// <see cref="SkillCurve"/>): <c>Vitality</c> genético herdado dos pais + mutação, e

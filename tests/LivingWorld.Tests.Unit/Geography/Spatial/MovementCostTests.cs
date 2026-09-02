@@ -1,6 +1,8 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.Geography.Spatial;
 
-namespace LivingWorld.Tests.Geography;
+namespace LivingWorld.Tests.Unit.Geography.Spatial;
 
 /// <summary>Fase 2, task 3: propriedades do custo de deslocamento — simetria quando a
 /// altitude é igual, direção quando não é, e efeito de terreno com braço de controle

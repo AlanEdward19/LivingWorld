@@ -1,6 +1,10 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Spatial;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Cities.Founding;
 
 // SPEC_DEVIATION (dynamic-city-growth, T2): mesmo motivo de CityOccupancy.cs — design.md declara
 // este tipo em src/LivingWorld.Domain/Cities/, mas WorldState só existe em

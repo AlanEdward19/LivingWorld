@@ -1,6 +1,14 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Production;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Population.Skills;
 
 /// <summary>As 5 fontes "sociais" de ganho de habilidade (Fase 6, T9, SKILL-04..08): treino
 /// deliberado, escola, aprendizado parental, observação, tutoria mestre-&gt;aprendiz. Um único

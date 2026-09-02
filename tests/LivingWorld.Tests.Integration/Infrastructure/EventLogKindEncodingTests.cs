@@ -1,9 +1,12 @@
-using LivingWorld.Domain;
-using LivingWorld.Infrastructure;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Infrastructure.EfCore;
+using LivingWorld.Infrastructure.Records;
+using LivingWorld.Infrastructure.Repositories;
+using LivingWorld.Simulation.Core;
 using Microsoft.EntityFrameworkCore;
 
-namespace LivingWorld.Tests.Infrastructure;
+namespace LivingWorld.Tests.Integration.Infrastructure;
 
 public class EventLogKindEncodingTests
 {

@@ -1,8 +1,11 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Simulation.Behavior;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Behavior;
+namespace LivingWorld.Tests.Unit.Behavior;
 
 /// <summary>Task 8: carga de <see cref="NeedsRules"/> + <see cref="ActionCatalog"/> a partir do
 /// JSON de cenário, mesmo padrão de <c>PopulationScenarioLoaderTests</c> — campo obrigatório

@@ -1,9 +1,16 @@
-using LivingWorld.Api.Visual;
 using LivingWorld.Api.Visual.Layers;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Api.Visual.Projection;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
 
-namespace LivingWorld.Tests.Visual;
+namespace LivingWorld.Tests.Unit.Visual.Projection;
 
 /// <summary>Fase 15, T5 (VTT-03, VTT-05, VTT-11): <see cref="CityProjector"/> — moradores
 /// materializados com posição/atividade, prédios da cidade, e camadas locais (sempre não
