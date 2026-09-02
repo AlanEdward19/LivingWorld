@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <!-- ponytail: TestEnvironmentSetup's ModuleInitializer is a test-only convenience; CA2255
+         only fires here because this is a plain library, not a runnable test project. -->
+    <NoWarn>$(NoWarn);CA2255</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.4" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.6.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\LivingWorld.Domain\LivingWorld.Domain.csproj" />
+    <ProjectReference Include="..\..\src\LivingWorld.Simulation\LivingWorld.Simulation.csproj" />
+    <ProjectReference Include="..\..\src\LivingWorld.Infrastructure\LivingWorld.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\LivingWorld.Api\LivingWorld.Api.csproj" />
+  </ItemGroup>
+
+</Project>

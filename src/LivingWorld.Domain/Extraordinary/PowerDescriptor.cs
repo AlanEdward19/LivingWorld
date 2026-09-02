@@ -1,4 +1,8 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Extraordinary;
 
 /// <summary>
 /// Capacidade extraordinária autorada como dados composicionais. Os textos são ids de catálogo

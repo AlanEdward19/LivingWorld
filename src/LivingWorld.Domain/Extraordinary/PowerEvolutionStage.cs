@@ -1,4 +1,4 @@
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Extraordinary;
 
 /// <summary>
 /// Estágio de evolução de um poder: limiar(es) opcional(is) de idade e/ou uso e o conjunto de

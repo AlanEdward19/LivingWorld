@@ -1,4 +1,8 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Performance;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Extraordinary;
 
 /// <summary>Parâmetros cenário-driven da herança de poder (Fase 16.2, EVO-10) — roll 1
 /// (ocorre herança?) e pesos dos 3 caminhos (ambos / um só / mistura). Mesmo padrão de

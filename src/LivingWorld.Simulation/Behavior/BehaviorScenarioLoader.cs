@@ -1,7 +1,10 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Population;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Behavior;
 
 /// <summary>Dado de comportamento resolvido de um cenário (task 8): parâmetros do utility AI
 /// (<see cref="NeedsRules"/>) e o catálogo de ações/rotina (<see cref="ActionCatalog"/>).</summary>

@@ -1,4 +1,6 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Population;
+
+namespace LivingWorld.Domain.Behavior;
 
 /// <summary>Estado do intent persistente do NPC (Fase 16.3 P2a, COH-41) — paralelo a
 /// <see cref="Npc.CurrentAction"/>, mas em nível de plano (não só a ação imediata).</summary>

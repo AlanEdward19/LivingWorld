@@ -1,4 +1,9 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Economy;
 
 /// <summary>Todo parâmetro numérico da economia (Fase 5), cenário-driven (R3) — nenhum literal
 /// em C#, mesmo padrão de <see cref="NeedsRules"/>.</summary>

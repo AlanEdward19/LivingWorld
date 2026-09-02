@@ -1,6 +1,7 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Llm;
 
 /// <summary>Sessão de conversa jogador↔NPC (Fase 11, LLM-03) — nunca canônica: vive só em
 /// memória do <see cref="ConversationSessionStore"/>, fora do snapshot/hash do mundo (mesma

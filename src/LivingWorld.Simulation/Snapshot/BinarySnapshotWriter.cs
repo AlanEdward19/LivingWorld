@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Text;
 using System.Text.Json.Nodes;
+using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Snapshot;
 

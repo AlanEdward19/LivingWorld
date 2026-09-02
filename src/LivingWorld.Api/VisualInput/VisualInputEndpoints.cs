@@ -1,7 +1,11 @@
 using LivingWorld.Api.Realtime;
 using LivingWorld.Api.Visual;
+using LivingWorld.Api.Visual.Scope;
 using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation;
+using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Visibility;
 
 namespace LivingWorld.Api.VisualInput;

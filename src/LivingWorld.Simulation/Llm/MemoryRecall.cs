@@ -1,7 +1,8 @@
-using LivingWorld.Domain;
 using LivingWorld.Domain.Llm;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Llm;
 
 /// <summary>Recuperação ponderada de memória de um NPC (Fase 11, roadmap item 2, LLM-04/05) —
 /// pontua por importância + recência + relevância (pesos em <see cref="LlmRules"/> do cenário) e

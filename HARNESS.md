@@ -8,7 +8,7 @@
 - **Tipagem**: C#/.NET 10, `Nullable` + `TreatWarningsAsErrors` (`Directory.Build.props`) —
   type-check é sensor grátis embutido no `build.sh`.
 - **Fronteiras de módulo**: claras (`Domain` puro → `Simulation` → `AI`/`Infrastructure` →
-  `Api`/`Workers`), reforçadas por `tests/LivingWorld.Tests/ArchitectureTests.cs`.
+  `Api`/`Workers`), reforçadas por `tests/LivingWorld.Tests.Unit/ArchitectureTests.cs`.
 - **Convenções fortes**: xUnit, EF Core (migração versionada), entrada única por
   `scripts/*.sh` — baixa superfície para o agente inventar comando novo.
 - **Situação**: legado relativo (Fases 0–4 fechadas, ~37 ADs, 15 ADRs). Fase 5 (Economia) é
@@ -30,17 +30,19 @@
 - `scripts/verify-mutation.sh` — prova que o gate reprova de verdade (3 mutantes: `Random`
   em `Domain`, assert invertido, `.md` de 200 linhas); caro, roda manual.
 - `Directory.Build.props` + `BannedSymbols.txt` +
-  `tests/LivingWorld.Tests/BannedApiAnalyzerTests.cs` — `Random`/`DateTime.Now`/`Guid.NewGuid()`
+  `tests/LivingWorld.Tests.Unit/BannedApiAnalyzerTests.cs` — `Random`/`DateTime.Now`/`Guid.NewGuid()`
   em `Domain`/`Simulation` é **erro de compilação**, não convenção.
-- `GoldenHashesTests.cs` + `Behavior/UtilityAiHashScenarioTests.cs` — hash de mundo
+- `tests/LivingWorld.Tests.LongRunning/GoldenHashesTests.cs` +
+  `tests/LivingWorld.Tests.Integration/Behavior/UtilityAiHashScenarioTests.cs` — hash de mundo
   versionado; desligar um sistema tem de mudar o hash.
-- `WorldSnapshotTests.cs` — reflexão sobre os campos de `WorldState`: campo não classificado
-  canônico/volátil reprova.
-- `ReferentialIntegritySweepTests.cs` + `src/LivingWorld.Simulation/ReferentialIntegritySweep.cs`
-  — sweep genérico por reflexão sobre todos os tipos de ID.
-- `ArchitectureTests.cs`, `Population/PopulationArchitectureTests.cs`,
-  `Geography/GeographyNamingArchitectureTests.cs` — fronteiras de camada, sem literal de
-  apresentação no motor. (todos em `tests/LivingWorld.Tests/`)
+- `WorldSnapshotTests.cs` (Unit) — reflexão sobre os campos de `WorldState`: campo não
+  classificado canônico/volátil reprova.
+- `tests/LivingWorld.Tests.LongRunning/Serialization/ReferentialIntegritySweepTests.cs` +
+  `src/LivingWorld.Simulation/ReferentialIntegritySweep.cs` — sweep genérico por reflexão sobre
+  todos os tipos de ID.
+- `ArchitectureTests.cs`, `Geography/GeographyNamingArchitectureTests.cs` (em
+  `tests/LivingWorld.Tests.Unit/`), `tests/LivingWorld.Tests.LongRunning/Population/PopulationArchitectureTests.cs`
+  — fronteiras de camada, sem literal de apresentação no motor.
 - `.specs/lessons.json`/`LESSONS.md` (auto-mantido por `scripts/lessons.py`) — lição
   confirmada vira guia; candidata fica em quarentena até corroborar em 2 features.
 

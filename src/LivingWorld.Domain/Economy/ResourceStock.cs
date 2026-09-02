@@ -1,4 +1,8 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Economy;
 
 /// <summary>Clamp de capacidade + perda reportada (Fase 5, T18) fatorado de
 /// <see cref="Workplace"/> (T4) pra ser reusado por <see cref="Household"/> — os dois guardam

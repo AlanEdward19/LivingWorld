@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Simulation.Periods;
 

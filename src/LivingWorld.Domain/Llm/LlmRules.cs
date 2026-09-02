@@ -1,4 +1,7 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Llm;
 
 /// <summary>Resultado de <c>StartConversation(npcId)</c> (Fase 11, LLM-01) — motivo determinístico
 /// de recusa, nunca um bool solto de "aceitou/recusou".</summary>

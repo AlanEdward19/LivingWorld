@@ -1,7 +1,14 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Population;
+using LivingWorld.Simulation.Serialization;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Economy;
 
 /// <summary>Dado de economia resolvido de um cenário (Fase 5, T13): <see cref="EconomyRules"/>,
 /// <see cref="EconomyCatalog"/> e os <see cref="Workplace"/> iniciais (sem id atribuído ainda —

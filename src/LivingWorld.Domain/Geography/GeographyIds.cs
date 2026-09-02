@@ -1,4 +1,4 @@
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Geography;
 
 /// <summary>Coordenada de célula no grid (task 1). Não é pixel nem posição de render —
 /// é índice discreto consultado pelo motor.</summary>

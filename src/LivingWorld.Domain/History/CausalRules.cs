@@ -1,4 +1,7 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.History;
 
 /// <summary>Limites de proveniência causal (COH-02) — cenário-driven, mesmo padrão de
 /// <see cref="NeedsRules.MaxActionSelectionSteps"/>.</summary>

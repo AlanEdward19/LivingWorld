@@ -1,6 +1,13 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Ecology;
+using LivingWorld.Domain.Fauna;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Ecology;
 
 /// <summary>Ciclo de vida base da fauna — fome, reprodução e predação (Fase 16.4). Roda com
 /// <c>Extraordinary.Enabled == false</c>; poderes modulam, não substituem (REALISM-06).</summary>

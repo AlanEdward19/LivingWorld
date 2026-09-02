@@ -1,7 +1,13 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Spatial;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Cities;
 
 /// <summary>Dado de cidades resolvido de um cenário (Fase 8, T7): <see cref="CityRules"/>,
 /// <see cref="CityCatalog"/> e as <see cref="City"/> iniciais (sem id atribuído ainda — quem

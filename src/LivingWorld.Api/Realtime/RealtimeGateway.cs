@@ -1,7 +1,9 @@
 using System.Threading.Channels;
 using LivingWorld.Api.Visual;
 using LivingWorld.Api.Visual.Layers;
+using LivingWorld.Api.Visual.Scope;
 using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Api.Realtime;
 

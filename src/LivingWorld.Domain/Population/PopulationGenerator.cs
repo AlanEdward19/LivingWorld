@@ -1,4 +1,9 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Population;
 
 /// <summary>Gerador de população inicial (task 6): pirâmide etária coerente — crianças, jovens,
 /// adultos e idosos, sexo 50/50, casais pareados e crianças distribuídas em households. Nada de

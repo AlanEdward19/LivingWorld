@@ -1,4 +1,7 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Cognition;
 
 /// <summary>Entrada de rastro de decisão com tick de gravação (Fase 28, COG-01).</summary>
 public sealed record TraceEntry(long Tick, DecisionTrace Trace);

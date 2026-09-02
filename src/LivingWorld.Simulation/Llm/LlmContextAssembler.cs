@@ -1,8 +1,9 @@
-using LivingWorld.Domain;
 using LivingWorld.Domain.Llm;
-using LivingWorld.Simulation.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History.Queries;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Llm;
 
 /// <summary>Monta o <see cref="LlmContext"/> de um turno de conversa (Fase 11, LLM-05/06) — só a
 /// partir do conhecimento do próprio NPC: <see cref="NpcBeliefQuery"/> para crença (nunca

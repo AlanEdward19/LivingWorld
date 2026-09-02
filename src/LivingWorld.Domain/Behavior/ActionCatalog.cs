@@ -1,4 +1,8 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Behavior;
 
 /// <summary>Slot de rotina diária (Fase 4, task 2): profissão específica ou <c>null</c> ("any"
 /// — mesmo padrão de vazio-é-sem-restrição de <see cref="PopulationCatalog"/>), estágio de

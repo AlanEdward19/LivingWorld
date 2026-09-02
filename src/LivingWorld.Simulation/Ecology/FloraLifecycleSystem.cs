@@ -1,6 +1,13 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Ecology;
+using LivingWorld.Domain.Flora;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Ecology;
 
 /// <summary>Ciclo de vida base da flora — avanço de estágio por temperatura/estação (Fase 16.4).
 /// Roda com <c>Extraordinary.Enabled == false</c>; <c>flora.growth-rate</c> multiplica a taxa

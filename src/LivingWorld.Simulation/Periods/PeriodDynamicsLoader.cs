@@ -1,5 +1,10 @@
 using System.Text.Json.Nodes;
 using LivingWorld.Domain;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior;
+using LivingWorld.Simulation.Population;
 
 namespace LivingWorld.Simulation.Periods;
 

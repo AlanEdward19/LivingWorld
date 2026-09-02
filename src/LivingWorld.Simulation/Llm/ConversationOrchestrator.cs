@@ -1,7 +1,9 @@
-using LivingWorld.Domain;
 using LivingWorld.Domain.Llm;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Llm;
 
 /// <summary>Pipeline completo de um turno de conversa (Fase 11, LLM-09/10/11):
 /// <see cref="ConversationSessionStore"/> (registra o turno) -> <see cref="LlmContextAssembler"/>

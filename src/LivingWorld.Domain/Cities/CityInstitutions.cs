@@ -1,4 +1,4 @@
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Cities;
 
 // SPEC_DEVIATION (Fase 8, fix round 1, gap 1 — CITY-01 AC1): design.md Tech Decisions prometia
 // estes 3 records vazios/stub para satisfazer "task 1 pede que existam", sem inventar

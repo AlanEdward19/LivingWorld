@@ -1,4 +1,6 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+
+namespace LivingWorld.Domain.Population;
 
 /// <summary>Sexo biológico do NPC (task 1). Não é dado de cenário — ao contrário de cultura,
 /// profissão etc., não varia por conteúdo medieval vs. sci-fi.</summary>

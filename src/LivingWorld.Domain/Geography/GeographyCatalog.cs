@@ -1,4 +1,4 @@
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Geography;
 
 /// <summary>Catálogo de ids de terreno/bioma/recurso válidos para um cenário (task 2). O motor
 /// só conhece ids — nome e apresentação são dado de cliente (Fase 14), nunca literal aqui.

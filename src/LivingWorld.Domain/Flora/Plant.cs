@@ -1,4 +1,7 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Ecology;
+using LivingWorld.Domain.Geography;
+
+namespace LivingWorld.Domain.Flora;
 
 /// <summary>Organismo vegetal individual (PWR-101). Não substitui o estoque econômico de cultivo.</summary>
 public readonly record struct PlantId(long Value)

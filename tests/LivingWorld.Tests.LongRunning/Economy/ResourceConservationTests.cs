@@ -1,0 +1,91 @@
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scenarios;
+
+namespace LivingWorld.Tests.LongRunning.Economy;
+
+/// <summary>Fase 5, T24 — segundo critério mais importante da fase: para cada recurso,
+/// <c>inicial + produzido == consumido + estocado + perdido</c>, exato, amostrado ao longo do
+/// horizonte (ECON-15). "Perdido" soma todo <see cref="WorldEventKind.ResourceLost"/> (excesso de
+/// capacidade e spoilage, mesmo evento pros dois — <see cref="ProductionSystem"/>). "Estocado"
+/// soma <see cref="Workplace.Stock"/> + <see cref="Household.Stock"/> de todo mundo.
+/// <c>Buy</c> só transfere estoque entre os dois, nunca consome (T23/instrumentação em
+/// <see cref="BehaviorDecisionSystem.ApplyEat"/>), então não perturba a conta.
+/// Gate: 1 mês; 1/10 anos em <c>Category=Scenario</c>.</summary>
+public class ResourceConservationTests
+{
+    private const long OneMonthInHours = 30 * 24;
+    private const long OneYearInHours = 12 * 30 * 24;
+    private const long TenYearsInHours = 10 * OneYearInHours;
+    private const long SampleEveryHours = 24;
+
+    private sealed class LossTrackingSink : IWorldEventSink
+    {
+        public Dictionary<int, long> LostByResource { get; } = [];
+
+        public void Record(WorldEvent evt)
+        {
+            if (evt.Kind != WorldEventKind.ResourceLost) return;
+            var parts = evt.Payload!.Split('|');
+            int resourceId = int.Parse(parts[1]);
+            long amount = long.Parse(parts[2]);
+            LostByResource[resourceId] = LostByResource.GetValueOrDefault(resourceId) + amount;
+        }
+    }
+
+    private static long TotalStocked(WorldState world, ResourceType resource) =>
+        world.Workplaces.Sum(w => w.Stock.GetValueOrDefault(resource)) +
+        world.Households.Sum(h => h.Stock.GetValueOrDefault(resource));
+
+    [Fact]
+    public void Produced_equals_consumed_plus_stocked_plus_lost_every_sample_over_1_month_for_every_resource()
+    {
+        AssertResourceConservation(OneMonthInHours);
+    }
+
+    [Trait("Category", "Scenario")]
+    [Fact]
+    public void Produced_equals_consumed_plus_stocked_plus_lost_every_sample_over_1_year_for_every_resource()
+    {
+        AssertResourceConservation(OneYearInHours);
+    }
+
+    [Trait("Category", "Scenario")]
+    [Fact]
+    public void Produced_equals_consumed_plus_stocked_plus_lost_every_sample_over_10_years_for_every_resource()
+    {
+        AssertResourceConservation(TenYearsInHours);
+    }
+
+    private static void AssertResourceConservation(long ticks)
+    {
+        var sink = new LossTrackingSink();
+        var (world, clock) = ScenarioRunner.Create(seed: 42, initialPopulation: 20);
+        clock = new WorldClock(ScenarioRunner.DefaultSystems(), clock.MaxIterationsPerTick, sink);
+
+        var resources = new[] { new ResourceType(1), new ResourceType(2), new ResourceType(4) };
+        var initialStock = resources.ToDictionary(r => r, r => TotalStocked(world, r));
+
+        for (long tick = 0; tick < ticks; tick++)
+        {
+            clock.Tick(world);
+
+            if ((tick + 1) % SampleEveryHours != 0 && tick + 1 != ticks)
+                continue;
+
+            foreach (var resource in resources)
+            {
+                long produced = world.ResourceProduced.GetValueOrDefault(resource);
+                long consumed = world.ResourceConsumed.GetValueOrDefault(resource);
+                long stocked = TotalStocked(world, resource);
+                long lost = sink.LostByResource.GetValueOrDefault(resource.Id);
+
+                long left = initialStock[resource] + produced;
+                long right = consumed + stocked + lost;
+                Assert.True(left == right,
+                    $"tick {world.CurrentDate.TotalHours} resource {resource.Id}: inicial({initialStock[resource]})+produzido({produced}) = {left} != consumido({consumed})+estocado({stocked})+perdido({lost}) = {right}");
+            }
+        }
+    }
+}

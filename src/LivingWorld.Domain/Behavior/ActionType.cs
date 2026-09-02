@@ -1,4 +1,4 @@
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Behavior;
 
 /// <summary>Catálogo fechado de ações candidatas da Fase 4 (task 2) — não é conteúdo de
 /// cenário: é o próprio modelo de decisão, por isso é <c>enum</c> com valor estável. O valor

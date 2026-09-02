@@ -1,4 +1,4 @@
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Cities;
 
 /// <summary>Massa de NPCs agregados (não materializados) de uma <see cref="City"/> (Fase 8,
 /// approach A): contagem + somas de riqueza/saúde. Nunca cacheado por fora — só existe para o

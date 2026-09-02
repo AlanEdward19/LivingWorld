@@ -1,4 +1,4 @@
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.History;
 
 /// <summary>O que aconteceu no esqueleto imutável do log Tier A (ADR-0006). Vive em Domain para
 /// que <see cref="Fact"/> não dependa de Simulation.</summary>

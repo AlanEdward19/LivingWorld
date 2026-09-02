@@ -1,4 +1,7 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Population;
 
 /// <summary>Catálogo de ids de cultura/profissão/tipo-de-local válidos para um cenário
 /// (task 7) — mesmo padrão de <see cref="GeographyCatalog"/>. Conjunto vazio = sem restrição

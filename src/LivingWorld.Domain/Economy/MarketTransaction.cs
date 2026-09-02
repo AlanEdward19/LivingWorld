@@ -1,4 +1,7 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Economy;
 
 /// <summary>Estado imutável de uma transação de mercado em andamento — todo campo é struct
 /// imutável, então "aplicar sobre uma cópia" é literalmente construir um <see

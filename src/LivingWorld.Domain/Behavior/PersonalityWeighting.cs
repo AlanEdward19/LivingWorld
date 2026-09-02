@@ -1,6 +1,7 @@
 using System.Reflection;
+using LivingWorld.Domain.Population;
 
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Behavior;
 
 /// <summary>Peso de personalidade no utility AI (Fase 4, task 5): <c>peso = 1 + (traço/100 −
 /// 0.5) × influência[traço][ação]</c>. A fórmula e a tabela de influência são o modelo de

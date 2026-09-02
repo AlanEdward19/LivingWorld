@@ -1,4 +1,6 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.History;
 
 /// <summary>Objeto do mundo que carrega um relato por meio Livro/Crônica (Fase 10, HIST-09) —
 /// pode ser copiado (com erro de copista), perdido e redescoberto por evento declarado. A linha

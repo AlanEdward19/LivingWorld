@@ -1,4 +1,8 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Behavior;
 
 /// <summary>Limiares de relevância do Attention Router (Fase 16.3 P2a, COH-43 / doc#59) —
 /// cenário-driven, mesmo template de <see cref="BodyRules"/>/<see cref="CausalRules"/>:

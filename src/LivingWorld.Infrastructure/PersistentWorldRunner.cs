@@ -1,5 +1,9 @@
 using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Infrastructure.EventLog;
+using LivingWorld.Infrastructure.Repositories;
 using LivingWorld.Simulation;
+using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Infrastructure;
 
