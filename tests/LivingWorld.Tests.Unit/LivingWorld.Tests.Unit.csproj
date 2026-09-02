@@ -1,0 +1,48 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.4" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.6.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="NetArchTest.Rules" Version="1.3.2" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="4.14.0" IncludeAssets="all" ExcludeAssets="none" GeneratePathProperty="true" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- PackageReference acima só traz o pacote como analyzer; para instanciar o analyzer
+         em memória no teste de mutação (task 5), referenciamos os DLLs diretamente. -->
+    <Reference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers">
+      <HintPath>$(PkgMicrosoft_CodeAnalysis_BannedApiAnalyzers)\analyzers\dotnet\cs\Microsoft.CodeAnalysis.BannedApiAnalyzers.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="Microsoft.CodeAnalysis.CSharp.BannedApiAnalyzers">
+      <HintPath>$(PkgMicrosoft_CodeAnalysis_BannedApiAnalyzers)\analyzers\dotnet\cs\Microsoft.CodeAnalysis.CSharp.BannedApiAnalyzers.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\LivingWorld.Domain\LivingWorld.Domain.csproj" />
+    <ProjectReference Include="..\..\src\LivingWorld.Simulation\LivingWorld.Simulation.csproj" />
+    <ProjectReference Include="..\..\src\LivingWorld.Infrastructure\LivingWorld.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\LivingWorld.AI\LivingWorld.AI.csproj" />
+    <ProjectReference Include="..\..\src\LivingWorld.Api\LivingWorld.Api.csproj" />
+    <ProjectReference Include="..\..\src\LivingWorld.Workers\LivingWorld.Workers.csproj" />
+    <ProjectReference Include="..\LivingWorld.Tests.Shared\LivingWorld.Tests.Shared.csproj" />
+  </ItemGroup>
+
+</Project>
