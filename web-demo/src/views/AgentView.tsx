@@ -8,6 +8,7 @@ import { Popup, Drawer } from "../components/ContextOverlay";
 import { BackButton, EntityRow, RelationshipRow, SectionHeader, SectionLink, StatusChips } from "../components/InspectorPrimitives";
 import { FamilyTree } from "./FamilyTree";
 import { modeStore } from "../state/modeStore";
+import { CognitionPanel } from "../cognition/CognitionPanel";
 
 export interface AgentViewProps {
   fixture: WorldFixture;
@@ -27,6 +28,7 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
   const [openPopup, setOpenPopup] = useState<OpenPopup>(null);
   const [popupAnchor, setPopupAnchor] = useState<DOMRect | null>(null);
   const [showFamilyTree, setShowFamilyTree] = useState(false);
+  const [showMind, setShowMind] = useState(false);
 
   function openPopupAt(kind: Exclude<OpenPopup, null>, event: MouseEvent<HTMLButtonElement>) {
     setPopupAnchor(event.currentTarget.getBoundingClientRect());
@@ -122,6 +124,16 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
           <SectionHeader title="Why?" />
           <p data-testid="why-summary">{agent.whyFactors.length} contributing factors</p>
           <SectionLink onClick={(e) => openPopupAt("why", e)}>Explain decision →</SectionLink>
+        </>
+      )}
+
+      {agent.cognitionTrace && agent.cognitionTrace.length > 0 && (
+        <>
+          <SectionHeader title="Mind" />
+          <p data-testid="mind-summary">{agent.cognitionTrace.length} decisions traced</p>
+          <SectionLink testId="open-mind-drawer" onClick={() => setShowMind(true)}>
+            Open decision trace →
+          </SectionLink>
         </>
       )}
 
@@ -250,6 +262,12 @@ export function AgentView({ fixture, nav, agentId }: AgentViewProps) {
               nav.replace({ kind: "agent", id });
             }}
           />
+        </Drawer>
+      )}
+
+      {showMind && (
+        <Drawer title={`${agent.name}'s mind`} onClose={() => setShowMind(false)}>
+          <CognitionPanel entries={agent.cognitionTrace ?? []} />
         </Drawer>
       )}
 

@@ -102,6 +102,11 @@ export function MainMenu({ onNavigate }: { onNavigate: (path: string) => void })
               </button>
             )}
 
+            <button type="button" data-testid="action-sandbox" disabled={exiting} onClick={() => onNavigate("/sandbox")}>
+              <span>Cognition Sandbox</span>
+              <small>Watch synthetic minds think</small>
+            </button>
+
             <button type="button" data-testid="action-settings" disabled={exiting} onClick={() => onNavigate("/settings")}>
               Settings
             </button>
