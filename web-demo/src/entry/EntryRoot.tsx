@@ -7,6 +7,7 @@ import { SettingsView } from "./SettingsView";
 import { WorldCreatorShell } from "./creator/WorldCreatorShell";
 import { NotFoundScreen } from "./WorldNotFound";
 import { App } from "../App";
+import { SandboxView } from "../cognition/SandboxView";
 
 const router = new EntryRouter();
 
@@ -61,6 +62,7 @@ export function EntryRoot() {
         {screen.kind === "worlds" && <WorldLibrary onNavigate={navigate} />}
         {screen.kind === "settings" && <SettingsView onNavigate={navigate} />}
         {screen.kind === "world" && <WorldScreen worldId={screen.worldId} onNavigate={navigate} />}
+        {screen.kind === "sandbox" && <SandboxView onNavigate={navigate} />}
       </div>
     </EntryServicesProvider>
   );

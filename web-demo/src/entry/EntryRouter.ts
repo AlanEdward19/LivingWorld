@@ -3,7 +3,8 @@ export type EntryScreen =
   | { kind: "create"; draftId?: string }
   | { kind: "worlds" }
   | { kind: "settings" }
-  | { kind: "world"; worldId: string };
+  | { kind: "world"; worldId: string }
+  | { kind: "sandbox" };
 
 function parsePath(pathname: string): EntryScreen {
   const segments = pathname.split("/").filter(Boolean);
@@ -17,6 +18,8 @@ function parsePath(pathname: string): EntryScreen {
       return id ? { kind: "world", worldId: id } : { kind: "worlds" };
     case "settings":
       return { kind: "settings" };
+    case "sandbox":
+      return { kind: "sandbox" };
     default:
       return { kind: "main-menu" };
   }

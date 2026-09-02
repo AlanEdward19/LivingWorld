@@ -329,6 +329,62 @@ export const WORLD_FIXTURE: WorldFixture = {
         { text: "grain prices rose", linkedEventId: "evt-grain-prices-rose" },
         { text: "she is hungry", linkedEventId: "evt-mira-very-hungry" },
       ],
+      // "Mind" section (Fase 28 viz) — same grain-crisis story the Why? panel above already
+      // tells, walked forward tick by tick: hunger/price pressure rising, a failed purchase
+      // blocking the obvious opportunity, then falling back to rationing at home.
+      cognitionTrace: [
+        {
+          tick: 4180,
+          trace: {
+            wakeReason: 1, // UrgentNeed
+            previousIntent: "Working the bakery counter",
+            topPressures: [
+              { kind: "Hunger", intensity: 0.62, factors: ["missed breakfast", "long shift ahead"] },
+              { kind: "FinancialStrain", intensity: 0.45, factors: ["grain price up"] },
+            ],
+            knownOpportunities: [{ kind: "BuyGrain", attractiveness: 0.7, detail: "market stall open" }],
+            winner: "Looking for affordable grain",
+            winningUtility: 0.68,
+            topPositiveFactors: ["stall still had stock this morning"],
+            topNegativeFactors: ["price up since last week"],
+            blockingFactors: [],
+            knownAlternatives: ["Rationing household grain", "Working the bakery counter"],
+          },
+        },
+        {
+          tick: 4184,
+          trace: {
+            wakeReason: 3, // EventRouted
+            previousIntent: "Looking for affordable grain",
+            topPressures: [
+              { kind: "Hunger", intensity: 0.7, factors: ["still hasn't eaten"] },
+              { kind: "FinancialStrain", intensity: 0.8, factors: ["grain price up", "wages unchanged"] },
+            ],
+            knownOpportunities: [],
+            winner: "Rationing household grain",
+            winningUtility: 0.41,
+            topPositiveFactors: [],
+            topNegativeFactors: ["household purchase failed", "grain now unaffordable at market price"],
+            blockingFactors: ["not enough coin for market price"],
+            knownAlternatives: ["Looking for affordable grain"],
+          },
+        },
+        {
+          tick: 4191,
+          trace: {
+            wakeReason: 2, // ActionCompleted
+            previousIntent: "Rationing household grain",
+            topPressures: [{ kind: "Hunger", intensity: 0.55, factors: ["partially fed by ration"] }],
+            knownOpportunities: [{ kind: "WorkShift", attractiveness: 0.5, detail: "bakery reopens at dawn" }],
+            winner: "Working reduced bakery hours",
+            winningUtility: 0.52,
+            topPositiveFactors: ["ration held through the shift"],
+            topNegativeFactors: ["reduced hours cut into pay"],
+            blockingFactors: [],
+            knownAlternatives: ["Rationing household grain"],
+          },
+        },
+      ],
     },
     {
       id: "tomas-valen",

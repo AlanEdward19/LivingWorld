@@ -122,6 +122,12 @@ export interface NeedsFixture {
   social: number;
 }
 
+/** Phase 28 decision trace, fixture-shaped — see `cognition/types.ts` for the field-by-field
+ * mirror of the real backend contract (`DecisionTrace.cs`/`NpcCognitionLog.cs`). Re-exported here
+ * so `AgentFixture` doesn't duplicate the type. */
+import type { CognitionTraceEntry as CognitionTraceEntryFixture } from "../cognition/types";
+export type { CognitionTraceEntryFixture };
+
 export interface AgentFixture {
   id: string;
   name: string;
@@ -152,6 +158,9 @@ export interface AgentFixture {
   recentLifeEvents: string[];
   lifeMilestones: { label: string; approxDate: string }[]; // pra Life View
   whyFactors: { text: string; linkedEventId?: string }[]; // painel Why?
+  /** "Mind" section (Fase 28 viz) — omitted/empty means no trace recorded, same semantics as the
+   * real `NpcCognitionLog` returning nothing for an NPC that's never been observed. */
+  cognitionTrace?: CognitionTraceEntryFixture[];
 }
 
 /** Doc §173: routine (sem acento) → notable (acento pequeno) → major (borda de acento) →
