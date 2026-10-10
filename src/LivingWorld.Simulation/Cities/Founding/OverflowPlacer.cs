@@ -10,15 +10,15 @@ namespace LivingWorld.Simulation.Cities.Founding;
 // este tipo em src/LivingWorld.Domain/Cities/, mas WorldState só existe em
 // LivingWorld.Simulation (Domain não referencia Simulation).
 
-/// <summary>Busca em anéis crescentes a partir da borda dos bounds da cidade (dynamic-city-growth,
-/// T2, CITYGROW-02) — quando <see cref="CityOccupancy.FindFreeCellInBounds"/> não acha célula
+/// <summary>Busca em anéis crescentes a partir da borda dos bounds da cidade — quando
+/// <see cref="CityOccupancy.FindFreeCellInBounds"/> não acha célula
 /// livre dentro dos bounds atuais, este é o fallback: primeira célula livre fora deles, raio
 /// crescente, ordem angular determinística por <see cref="BuildingId"/> (mesmo estilo de
 /// <c>BuildingPlacementResolver.DerivedPosition</c>, generalizado pra um raio que cresce em vez de
 /// fixo).</summary>
 public static class OverflowPlacer
 {
-    // dynamic-city-growth, fix (major, CITYGROW-02b): o raio agora TEM teto, amarrado ao mapa
+    // fix (major): o raio agora TEM teto, amarrado ao mapa
     // real (world.Map.Width/Height) -- antes crescia sem limite e podia devolver uma célula fora
     // do mapa (negativa ou >= largura/altura) num mundo totalmente construído, "posicionando" em
     // vez de corretamente recusar. `null` significa exatamente isso: nenhuma célula livre em

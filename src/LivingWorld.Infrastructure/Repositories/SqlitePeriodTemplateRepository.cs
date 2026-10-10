@@ -4,9 +4,9 @@ using LivingWorld.Infrastructure.Records;
 
 namespace LivingWorld.Infrastructure.Repositories;
 
-/// <summary>Implementação EF Core de <see cref="IPeriodTemplateRepository"/> (Fase 13, T4). Mesmo
+/// <summary>Implementação EF Core de <see cref="IPeriodTemplateRepository"/>. Mesmo
 /// molde de <see cref="SqliteWorldRepository"/> — nenhum recurso exclusivo de SQLite entra no
-/// mapeamento (ADR-0002).</summary>
+/// mapeamento.</summary>
 public sealed class SqlitePeriodTemplateRepository(WorldDbContext context) : IPeriodTemplateRepository
 {
     public Result<Unit> Save(PeriodTemplateRecord template)
@@ -22,14 +22,10 @@ public sealed class SqlitePeriodTemplateRepository(WorldDbContext context) : IPe
     }
 
     public PeriodTemplateRecord? FindLatestVersion(string periodId) =>
-        context.PeriodTemplates
-            .Where(t => t.PeriodId == periodId)
-            .OrderByDescending(t => t.Version)
-            .FirstOrDefault();
+        VersionedQuery.Latest(context.PeriodTemplates, t => t.PeriodId == periodId, t => t.Version);
 
     public PeriodTemplateRecord? Find(string periodId, int version) =>
-        context.PeriodTemplates
-            .SingleOrDefault(t => t.PeriodId == periodId && t.Version == version);
+        VersionedQuery.Exact(context.PeriodTemplates, t => t.PeriodId == periodId && t.Version == version);
 
     public IReadOnlyList<PeriodTemplateRecord> ListLatestPerPeriod() =>
         context.PeriodTemplates

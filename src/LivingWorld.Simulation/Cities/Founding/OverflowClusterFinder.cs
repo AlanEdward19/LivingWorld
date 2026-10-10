@@ -14,8 +14,8 @@ namespace LivingWorld.Simulation.Cities.Founding;
 // reais deles (via CityOccupancy, que precisa de WorldState) e a população real (Npcs vivos em
 // WorldState.Npcs), e WorldState só existe em LivingWorld.Simulation.
 
-/// <summary>Agrupa os prédios de overflow de uma cidade (dynamic-city-growth, T6, CITYGROW-04) —
-/// "overflow" aqui significa: não absorvido pelos bounds crescidos da própria cidade
+/// <summary>Agrupa os prédios de overflow de uma cidade — "overflow" aqui significa: não
+/// absorvido pelos bounds crescidos da própria cidade
 /// (<see cref="CityOccupancy.ResolveGrownBounds"/>) e fora do alcance de absorção de toda cidade
 /// existente (nunca um cluster que já deveria só estender uma cidade vizinha, spec Edge Cases).
 /// Membresia de cluster é por distância mútua (encadeada/transitiva) — dois prédios de overflow no
@@ -79,7 +79,7 @@ public static class OverflowClusterFinder
             .ToList();
     }
 
-    // internal (era private) — dynamic-city-growth post-ship fix, T7b/CITYGROW-04: reusado por
+    // internal (era private) — reusado por
     // SpatialSettlementFoundingSystem.HandleEvent pra reverificar, no disparo do evento (não só no
     // agendamento), que o cluster ainda está fora do alcance de absorção de toda cidade existente
     // -- mesmo motivo que já reverifica o limiar de concentração ali: outras cidades podem ter

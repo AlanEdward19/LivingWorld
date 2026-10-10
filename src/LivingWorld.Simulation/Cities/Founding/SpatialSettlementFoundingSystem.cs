@@ -10,8 +10,8 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Cities.Founding;
 
-/// <summary>Checa mensalmente se algum cluster de prédios de overflow de uma cidade (dynamic-city-growth,
-/// T7, CITYGROW-04) já reúne população materializada suficiente pra fundar uma cidade nova — a
+/// <summary>Checa mensalmente se algum cluster de prédios de overflow de uma cidade já reúne
+/// população materializada suficiente pra fundar uma cidade nova — a
 /// MESMA fórmula/limiar que <see cref="SettlementFoundingSystem"/> já usa pra fundação normal
 /// (<c>população / (população + 1) &gt;= CityRules.FoundingConcentrationThreshold</c>), nunca um
 /// limiar mais fraco por contagem de prédios (spec: "1 casa não funda uma cidade, 1 pessoa não
@@ -41,7 +41,7 @@ public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
             {
                 if (cluster.Buildings.Any(b => b.ClusterFoundingScheduledAtTick is not null))
                     continue; // já agendado (mesmo cluster ou um que o sobrepõe), não reagenda
-                if (!ClearsConcentrationThreshold(cluster.Population, rules))
+                if (!FoundingConcentration.ClearsThreshold(cluster.Population, rules))
                     continue; // prédios sem (ou com poucos) residentes reais nunca fundam nada
 
                 string payload = $"{city.Id.Value}|{string.Join(",", cluster.Buildings.Select(b => b.Id.Value))}";
@@ -83,7 +83,7 @@ public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
 
         var clusterBounds = OverflowClusterFinder.UnionBounds(ownedBoxes);
         long population = world.Npcs.Count(npc => npc.IsAlive && clusterBounds.Contains(npc.CurrentLocation));
-        if (!ClearsConcentrationThreshold(population, world.CityRules))
+        if (!FoundingConcentration.ClearsThreshold(population, world.CityRules))
             return; // cluster esvaziou durante a espera — dropado silenciosamente, nunca força uma cidade injustificada
 
         // Post-ship fix (Fix 2, 2026-08-23): a distância de absorção só era checada no AGENDAMENTO
@@ -161,9 +161,6 @@ public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
             }
         }
     }
-
-    private static bool ClearsConcentrationThreshold(long population, CityRules rules) =>
-        population / (population + 1.0) >= rules.FoundingConcentrationThreshold;
 
     private static void ScheduleAdjacentDaughterMerges(WorldState world, TickContext ctx, CityRules rules)
     {

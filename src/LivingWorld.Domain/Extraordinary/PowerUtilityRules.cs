@@ -4,7 +4,7 @@ using LivingWorld.Domain.Shared;
 namespace LivingWorld.Domain.Extraordinary;
 
 /// <summary>Pesos cenário-driven para converter <c>PowerOpportunity</c> em utility
-/// comparável com ActionType fixos (Fase 16.3 P1d, COH-31) — mesmo template de
+/// comparável com ActionType fixos — mesmo template de
 /// <see cref="PowerInheritanceRules"/>/<see cref="FamilyRules"/>: validação em
 /// <see cref="Create"/>, <see cref="Default"/> documentado.</summary>
 /// <remarks>
@@ -58,5 +58,5 @@ public sealed record PowerUtilityRules(
 
     /// <summary>Usa a regra declarada; se ausente, devolve <see cref="Default"/>.</summary>
     public static PowerUtilityRules Resolve(PowerUtilityRules? declared) =>
-        declared ?? Default;
+        ScenarioRuleDefaults.Resolve(declared, Default);
 }

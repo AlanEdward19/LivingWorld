@@ -4,7 +4,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Extraordinary;
 
-/// <summary>Parâmetros cenário-driven da herança de poder (Fase 16.2, EVO-10) — roll 1
+/// <summary>Parâmetros cenário-driven da herança de poder — roll 1
 /// (ocorre herança?) e pesos dos 3 caminhos (ambos / um só / mistura). Mesmo padrão de
 /// <see cref="FamilyRules"/>/<see cref="PerfRules"/>: validação em <see cref="Create"/>,
 /// default documentado quando o cenário omite a regra.</summary>
@@ -70,5 +70,5 @@ public sealed record PowerInheritanceRules(
     /// <summary>Usa a regra declarada pelo cenário; se ausente, devolve
     /// <see cref="Default"/> — nunca falha por omissão.</summary>
     public static PowerInheritanceRules Resolve(PowerInheritanceRules? declared) =>
-        declared ?? Default;
+        ScenarioRuleDefaults.Resolve(declared, Default);
 }
