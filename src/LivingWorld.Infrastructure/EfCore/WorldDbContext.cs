@@ -3,8 +3,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LivingWorld.Infrastructure.EfCore;
 
-/// <summary>Mapeamento EF Core do mundo (task 8): só snapshot + event log (ADR-0006) — o mundo
-/// não é salvo NPC a NPC. Nenhum recurso exclusivo de SQLite (ADR-0002): tipos simples, sem
+/// <summary>Mapeamento EF Core do mundo: só snapshot + event log — o mundo
+/// não é salvo NPC a NPC. Nenhum recurso exclusivo de SQLite: tipos simples, sem
 /// <c>datetime()</c> nem autoincremento composto.</summary>
 public sealed class WorldDbContext(DbContextOptions<WorldDbContext> options) : DbContext(options)
 {

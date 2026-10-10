@@ -3,7 +3,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Behavior;
 
-/// <summary>Todo parâmetro numérico do utility AI e das necessidades (Fase 4, task 4),
+/// <summary>Todo parâmetro numérico do utility AI e das necessidades,
 /// cenário-driven — nenhum literal em C# (R3), mesmo padrão de
 /// <see cref="PopulationRules"/>.</summary>
 public sealed record NeedsRules(

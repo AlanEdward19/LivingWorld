@@ -2,7 +2,7 @@ using LivingWorld.Domain.Geography;
 
 namespace LivingWorld.Domain.Cities.Spatial;
 
-/// <summary>Extensão de uma cidade no grid do mundo (Fase 15.1, T45).</summary>
+/// <summary>Extensão de uma cidade no grid do mundo.</summary>
 public readonly record struct CityBounds(CellCoord Origin, int Width, int Height)
 {
     public bool Contains(CellCoord cell) =>
@@ -10,7 +10,7 @@ public readonly record struct CityBounds(CellCoord Origin, int Width, int Height
         cell.Y >= Origin.Y && cell.Y < Origin.Y + Height;
 }
 
-/// <summary>Resolve os bounds de uma cidade (Fase 15.1, T45; G4/backend-gaps.md). Nenhum cenário
+/// <summary>Resolve os bounds de uma cidade. Nenhum cenário
 /// autora tamanho de cidade hoje — <see cref="IsDerived"/> é sempre <c>true</c> por ora.
 ///
 /// Bugfix real (usuário, 2026-08-13, rodada 1): a fórmula original era um tamanho FIXO de

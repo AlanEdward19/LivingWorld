@@ -2,7 +2,7 @@ using LivingWorld.Domain.Geography.Map;
 
 namespace LivingWorld.Domain.Geography.Spatial;
 
-/// <summary>Custo de deslocamento entre duas células (task 3): distância euclidiana × peso
+/// <summary>Custo de deslocamento entre duas células: distância euclidiana × peso
 /// médio de terreno, mais penalidade de subida. Direcional por construção: subir custa mais
 /// que descer a mesma diferença de altitude; sem diferença de altitude, é simétrico.</summary>
 public static class MovementCost

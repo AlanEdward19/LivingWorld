@@ -6,7 +6,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Simulation.Geography;
 
-/// <summary>Carrega o mapa de um cenário (task 5): autoral, se o JSON traz "Cells", ou
+/// <summary>Carrega o mapa de um cenário: autoral, se o JSON traz "Cells", ou
 /// procedural a partir de "Seed", se não traz. Validação na borda — todo erro vira
 /// <see cref="Result{T}"/> apontando o campo, nunca exceção nem null.</summary>
 public static class MapScenarioLoader

@@ -5,8 +5,8 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Economy.Market;
 
-/// <summary>Recalcula <see cref="Workplace.Prices"/> por oferta/demanda (Fase 5, ECON-23/24),
-/// <c>Daily</c>. Respeita <see cref="EconomyRules.Enabled"/> (ECON-05).</summary>
+/// <summary>Recalcula <see cref="Workplace.Prices"/> por oferta/demanda,
+/// <c>Daily</c>. Respeita <see cref="EconomyRules.Enabled"/>.</summary>
 public sealed class MarketPricingSystem : ISimulationSystem
 {
     public const string SystemName = "economy-market-pricing";

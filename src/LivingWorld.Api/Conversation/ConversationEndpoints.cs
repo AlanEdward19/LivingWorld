@@ -22,16 +22,15 @@ public sealed record ConversationEndRequest(long SessionId);
 
 public sealed record ConversationEndResponse(string Result);
 
-/// <summary>Fase 11, T7 (LLM-01..03, story "Sessão de conversa segura", todas as ACs): liga os
-/// endpoints HTTP ao pipeline já pronto (T2 <see cref="ConversationSessionStore"/>, T6 <see
-/// cref="ConversationOrchestrator"/>) — nenhuma lógica de decisão nova aqui, só tradução
+/// <summary>Liga os endpoints HTTP ao pipeline já pronto (<see cref="ConversationSessionStore"/>,
+/// <see cref="ConversationOrchestrator"/>) — nenhuma lógica de decisão nova aqui, só tradução
 /// request/response e os 404/409 que a spec pede.</summary>
 public static class ConversationEndpoints
 {
-    // ponytail: expiração e allowed-intents/actions reais (AllowedActionsContext(npc,ctx)) ficam
-    // fora do escopo desta task — todas as tasks T1-T6 marcam isso "fora do escopo desta task".
-    // Lista vazia de ações é a opção mais restritiva (nenhuma ação de mundo liberada por padrão)
-    // até uma task futura definir a fonte real; intents são só o vocabulário mínimo do fallback.
+    // ponytail: expiração e allowed-intents/actions reais (AllowedActionsContext(npc,ctx)) ainda
+    // não estão implementados. Lista vazia de ações é a opção mais restritiva (nenhuma ação de
+    // mundo liberada por padrão) até uma implementação futura definir a fonte real; intents são
+    // só o vocabulário mínimo do fallback.
     private const long ExpireAfterTicks = 100;
     private static readonly string[] AllowedIntents = ["greet", "ask", "farewell"];
     private static readonly string[] AllowedActions = [];
@@ -39,7 +38,7 @@ public static class ConversationEndpoints
     private static readonly NeedsRules NeedsRules = ScenarioRunner.DefaultNeedsRules;
 
     // Sleep é a única ação declarada Forbidden: não dá para acordar alguém para conversar
-    // (mesmo raciocínio do exemplo usado nos testes de T2/T3). Todo o resto é Compatible.
+    // (mesmo raciocínio do exemplo usado nos testes). Todo o resto é Compatible.
     private static readonly LlmRules ConversationLlmRules = LlmRules.Create(
         hostileTrustThreshold: 10,
         actionCompatibility: Enum.GetValues<ActionType>().ToDictionary(
@@ -97,8 +96,8 @@ public static class ConversationEndpoints
 
     // ponytail: `WorldState.Rng`/`.Scheduler` são `internal` (só Simulation/LivingWorld.Tests via
     // InternalsVisibleTo) — Api não pode pegar os streams/scheduler reais do mundo sem uma nova
-    // API pública em WorldState.cs, fora do escopo desta task (só arquivos de Api). Nenhum código
-    // de conversa (T1-T6) consome `ctx.Rng(...)`, e `ctx.ScheduleEvent` só grava num scheduler
+    // API pública em WorldState.cs, fora do escopo deste arquivo (só arquivos de Api). Nenhum
+    // código de conversa consome `ctx.Rng(...)`, e `ctx.ScheduleEvent` só grava num scheduler
     // descartável — sem custo, porque este host ainda não roda `WorldClock` (mesma limitação já
     // registrada no SPEC_DEVIATION de `Program.cs`: mundo efêmero, sem loop de tick). O tick
     // corrente (`ctx.CurrentTick`) continua correto porque vem de `world.CurrentDate`, não do

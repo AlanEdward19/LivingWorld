@@ -4,11 +4,11 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Economy;
 
-/// <summary>Clamp de capacidade + perda reportada (Fase 5, T18) fatorado de
-/// <see cref="Workplace"/> (T4) pra ser reusado por <see cref="Household"/> — os dois guardam
+/// <summary>Clamp de capacidade + perda reportada, fatorado de
+/// <see cref="Workplace"/> pra ser reusado por <see cref="Household"/> — os dois guardam
 /// estoque como <c>Dictionary&lt;ResourceType, long&gt;</c> e precisam da mesma garantia:
 /// <see cref="Deposit"/> nunca excede a capacidade declarada (excedente é perda **registrada**,
-/// devolvida ao chamador — nunca sumiço silencioso, ECON-02); <see cref="Withdraw"/> nunca deixa
+/// devolvida ao chamador — nunca sumiço silencioso); <see cref="Withdraw"/> nunca deixa
 /// o estoque negativo.</summary>
 public static class ResourceStock
 {

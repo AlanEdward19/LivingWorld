@@ -5,7 +5,7 @@ using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Economy.Market;
 
-/// <summary>Mercado mais próximo por célula de origem, recomputado uma vez por tick (PERF-05).</summary>
+/// <summary>Mercado mais próximo por célula de origem, recomputado uma vez por tick.</summary>
 public sealed class MarketIndex
 {
     private readonly Dictionary<CellCoord, Workplace?> _nearestByOrigin;

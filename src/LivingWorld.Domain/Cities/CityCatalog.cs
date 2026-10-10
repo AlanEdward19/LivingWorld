@@ -4,11 +4,11 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Cities;
 
-/// <summary>Local de trabalho provisionado ao concluir um edifício (Fase 15.1, Stage 4, T10,
-/// LWV-04.1) — opcional; ausente significa só moradia/infraestrutura.</summary>
+/// <summary>Local de trabalho provisionado ao concluir um edifício
+/// — opcional; ausente significa só moradia/infraestrutura.</summary>
 public sealed record WorkplaceProvision(int LocationTypeId, int MaxVacancies);
 
-/// <summary>Receita de construção de um tipo de edifício (Fase 8, T3, CITY-03): insumo total,
+/// <summary>Receita de construção de um tipo de edifício: insumo total,
 /// duração em ticks e capacidade de moradia provida ao concluir. Mesmo padrão de validação de
 /// <see cref="ProductionRecipe.Create"/>.</summary>
 public sealed record BuildingRecipe(
@@ -39,7 +39,7 @@ public sealed record BuildingRecipe(
     }
 }
 
-/// <summary>Catálogo de tipo de edifício por período (Fase 8, T3, AD-023): id-only, sem
+/// <summary>Catálogo de tipo de edifício por período: id-only, sem
 /// nome/apresentação no engine — mesmo padrão de <see cref="EconomyCatalog"/>.</summary>
 public sealed record CityCatalog(IReadOnlyDictionary<int, BuildingRecipe> BuildingRecipes)
 {

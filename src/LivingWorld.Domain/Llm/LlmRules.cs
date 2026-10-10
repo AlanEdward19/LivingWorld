@@ -3,7 +3,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Llm;
 
-/// <summary>Resultado de <c>StartConversation(npcId)</c> (Fase 11, LLM-01) — motivo determinístico
+/// <summary>Resultado de <c>StartConversation(npcId)</c> — motivo determinístico
 /// de recusa, nunca um bool solto de "aceitou/recusou".</summary>
 public enum ConversationStartDecision
 {
@@ -14,7 +14,7 @@ public enum ConversationStartDecision
 }
 
 /// <summary>Compatibilidade entre conversar e a <see cref="ActionType"/> corrente do NPC
-/// (Fase 11, LLM-02) — política oportunista: só <see cref="Forbidden"/> impede aceitar a
+/// — política oportunista: só <see cref="Forbidden"/> impede aceitar a
 /// conversa; <see cref="RequiresPause"/> aceita e pausa a ação, <see cref="Compatible"/> aceita
 /// e mantém a ação rodando.</summary>
 public enum ConversationCompatibility
@@ -24,8 +24,8 @@ public enum ConversationCompatibility
     Forbidden,
 }
 
-/// <summary>Parâmetros de disponibilidade social para conversa com LLM (Fase 11, LLM-01/02) e
-/// pesos/limiar de memória (Fase 11, roadmap itens 1/2, LLM-04/05) — cenário-driven, nenhum
+/// <summary>Parâmetros de disponibilidade social para conversa com LLM e
+/// pesos/limiar de memória — cenário-driven, nenhum
 /// literal em C#, mesmo padrão de <see cref="NeedsRules"/>. Os quatro últimos parâmetros têm
 /// default para não quebrar chamadas existentes de <see cref="Create"/> anteriores a esta
 /// task.</summary>
@@ -37,7 +37,7 @@ public enum ConversationCompatibility
 /// <param name="RecallRelevanceWeight">Peso da sobreposição de termos com a consulta no
 /// score.</param>
 /// <param name="CanonicalMemoryImportanceThreshold">Memória com importância >= este limiar é
-/// canônica (<see cref="CanonicalAttribute"/>, ADR-0014); abaixo é volátil e compactável
+/// canônica (<see cref="CanonicalAttribute"/>); abaixo é volátil e compactável
 /// livremente.</param>
 public sealed record LlmRules(
     double HostileTrustThreshold,

@@ -6,8 +6,8 @@ using LivingWorld.Simulation.Extraordinary.Mechanics;
 
 namespace LivingWorld.Simulation.Serialization;
 
-/// <summary><see cref="MapCell.Temperature"/> é função pura de bioma/altitude (PWR-74) —
-/// recomputável → não persiste nem entra no payload canônico (ADR-0014). Overlay causal mora
+/// <summary><see cref="MapCell.Temperature"/> é função pura de bioma/altitude —
+/// recomputável → não persiste nem entra no payload canônico. Overlay causal mora
 /// em <see cref="EnvironmentTemperatureAdjustment"/>. Omite ~4 bytes×células do snapshot/hash.</summary>
 public sealed class MapCellJsonConverter : JsonConverter<MapCell>
 {

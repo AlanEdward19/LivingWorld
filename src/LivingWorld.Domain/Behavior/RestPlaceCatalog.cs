@@ -4,8 +4,8 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Behavior;
 
-/// <summary>Qualidade de recuperação por tipo de lugar de descanso (Fase 15.1, Stage 4, T12,
-/// LWV-03.1). <see cref="GroundEfficiency"/> substitui o papel de
+/// <summary>Qualidade de recuperação por tipo de lugar de descanso.
+/// <see cref="GroundEfficiency"/> substitui o papel de
 /// <c>NeedsRules.HomelessSleepEfficiency</c> in-place — sem contrato v2 paralelo.</summary>
 public enum RestPlaceKind
 {

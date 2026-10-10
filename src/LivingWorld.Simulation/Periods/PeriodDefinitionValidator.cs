@@ -1,4 +1,3 @@
-using LivingWorld.Domain;
 using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Extraordinary;
 using LivingWorld.Domain.Geography.Map;
@@ -14,9 +13,9 @@ using LivingWorld.Simulation.Population;
 
 namespace LivingWorld.Simulation.Periods;
 
-/// <summary>Definição completa de período validada (Fase 13, T2): agrega o resultado de todos os
+/// <summary>Definição completa de período validada: agrega o resultado de todos os
 /// loaders de cenário existentes + <see cref="PeriodDynamicsData"/>. É o que
-/// <c>ScenarioLoaderV2</c> (T3) e a rota de cadastro (T5) consomem — nunca constrói mundo
+/// <c>ScenarioLoaderV2</c> e a rota de cadastro consomem — nunca constrói mundo
 /// parcial: ou tudo valida, ou <see cref="PeriodDefinitionValidator.Validate"/> falha.</summary>
 public sealed record PeriodDefinition(
     WorldMap Map,
@@ -30,15 +29,15 @@ public sealed record PeriodDefinition(
     IReadOnlyList<ProcessRecipe> ProcessRecipes,
     ExtraordinaryScenarioData Extraordinary);
 
-/// <summary>Orquestra a validação de um <c>periodDefinition</c> (Fase 13, T2): encadeia
+/// <summary>Orquestra a validação de um <c>periodDefinition</c>: encadeia
 /// <see cref="MapScenarioLoader"/>, <see cref="PopulationScenarioLoader"/>,
 /// <see cref="BehaviorScenarioLoader"/>, <see cref="EconomyScenarioLoader"/>,
 /// <see cref="CityScenarioLoader"/>, <see cref="PeriodDynamicsLoader"/> e <see
 /// cref="PeriodDescriptorsLoader"/> — cada um já valida sua própria forma — e então checa
 /// referências cruzadas entre <see cref="PeriodDynamicsData"/> e o
-/// <see cref="PopulationCatalog"/> resolvido (PERIOD-07..10: id de profissão citado num viés, ou
+/// <see cref="PopulationCatalog"/> resolvido (id de profissão citado num viés, ou
 /// toda <c>SourceProfessionIds</c> de uma regra de transformação, precisa existir no catálogo do
-/// período — <c>TargetProfessionIds</c> fica de fora dessa checagem de propósito, Fase 13 T13:
+/// período — <c>TargetProfessionIds</c> fica de fora dessa checagem de propósito:
 /// o alvo de Emerge/Merge/Split pode ser justamente uma profissão que ainda não existe).
 /// Falha em qualquer etapa interrompe a cadeia — nunca produz uma <see cref="PeriodDefinition"/>
 /// parcial.</summary>
@@ -101,7 +100,7 @@ public static class PeriodDefinitionValidator
             if (!catalog.IsValidProfession(new ProfessionType(bias.ProfessionId)))
                 return $"Dynamics.ProfessionBiases[]: ProfessionId {bias.ProfessionId} não existe em ProfessionIds";
 
-        // Fase 13, T13: só SourceProfessionIds precisa já existir no catálogo — o destino de
+        // Só SourceProfessionIds precisa já existir no catálogo — o destino de
         // Emerge/Merge/Split é o ponto de virar profissão nova (ou reaproveitar uma já existente),
         // exigir que já exista tornaria "Emerge" sem sentido (o alvo já estaria disponível pro
         // sorteio antes da regra disparar).

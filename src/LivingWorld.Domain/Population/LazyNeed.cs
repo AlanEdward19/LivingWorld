@@ -1,6 +1,6 @@
 namespace LivingWorld.Domain.Population;
 
-/// <summary>Necessidade com decaimento linear lazy (Fase 9, PERF-09) — valor materializado só
+/// <summary>Necessidade com decaimento linear lazy — valor materializado só
 /// em <see cref="ValueAt"/>, nunca escrito por tick.</summary>
 public readonly record struct LazyNeed(double ValueAtLastEvent, long TickOfLastEvent, double DecayRatePerTick)
 {

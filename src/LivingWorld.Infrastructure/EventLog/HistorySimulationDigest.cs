@@ -7,7 +7,7 @@ using LivingWorld.Simulation.Scenarios;
 
 namespace LivingWorld.Infrastructure.EventLog;
 
-/// <summary>Digest determinístico dos sistemas de história da Fase 10 — usado pelos testes de
+/// <summary>Digest determinístico dos sistemas de história — usado pelos testes de
 /// dois processos (mesmo padrão de <c>ScenarioRunner.RunAndHash</c>).</summary>
 public static class HistorySimulationDigest
 {

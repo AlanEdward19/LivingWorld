@@ -10,7 +10,7 @@ using LivingWorld.Simulation.Serialization;
 
 namespace LivingWorld.Simulation.Economy;
 
-/// <summary>Dado de economia resolvido de um cenário (Fase 5, T13): <see cref="EconomyRules"/>,
+/// <summary>Dado de economia resolvido de um cenário: <see cref="EconomyRules"/>,
 /// <see cref="EconomyCatalog"/> e os <see cref="Workplace"/> iniciais (sem id atribuído ainda —
 /// quem consome chama <see cref="WorldState.NextWorkplaceIdAndAdvance"/> ao adicionar cada um,
 /// mesmo padrão de <see cref="PopulationScenarioLoader"/> pra NPC).</summary>
@@ -25,8 +25,8 @@ public sealed record InitialWorkplace(
     IReadOnlyDictionary<ResourceType, long> Stock, Money Treasury, IReadOnlyDictionary<ResourceType, long> Prices);
 
 /// <summary>Carrega <see cref="EconomyRules"/>/<see cref="EconomyCatalog"/>/<see
-/// cref="Workplace"/> iniciais de um cenário (Fase 5, T13): nenhum parâmetro econômico
-/// hardcoded em C# (R3). Mesmo padrão manual-parse + <see cref="Result{T}"/> de <see
+/// cref="Workplace"/> iniciais de um cenário: nenhum parâmetro econômico
+/// hardcoded em C#. Mesmo padrão manual-parse + <see cref="Result{T}"/> de <see
 /// cref="BehaviorScenarioLoader"/> — campo obrigatório ausente nomeia o campo no erro.</summary>
 public static class EconomyScenarioLoader
 {

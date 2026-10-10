@@ -1,17 +1,16 @@
 namespace LivingWorld.Domain.History;
 
-/// <summary>O que aconteceu no esqueleto imutável do log Tier A (ADR-0006). Vive em Domain para
+/// <summary>O que aconteceu no esqueleto imutável do log Tier A. Vive em Domain para
 /// que <see cref="Fact"/> não dependa de Simulation.</summary>
 public enum WorldEventKind
 {
     Birth,
     Death,
 
-    /// <summary>Morte por fome sustentada (Fase 4) — kind próprio, não <see cref="Death"/> com
+    /// <summary>Morte por fome sustentada — kind próprio, não <see cref="Death"/> com
     /// causa no payload.</summary>
     Starvation,
 
-    // Fase 5 (Economia)
     Hired,
     Fired,
     WageUnpaid,
@@ -19,44 +18,41 @@ public enum WorldEventKind
     Minted,
     Destroyed,
 
-    /// <summary>Casamento (Fase 7) — payload <c>spouseAId|spouseBId</c>.</summary>
+    /// <summary>Casamento — payload <c>spouseAId|spouseBId</c>.</summary>
     Marriage,
 
-    /// <summary>Cortejo iniciado (Fase 7) — payload <c>npcAId|npcBId</c>.</summary>
+    /// <summary>Cortejo iniciado — payload <c>npcAId|npcBId</c>.</summary>
     CourtshipStarted,
 
-    /// <summary>Cortejo rejeitado (Fase 7).</summary>
     CourtshipRejected,
 
-    /// <summary>Cortejo concluído (Fase 7) — emitido antes de <see cref="Marriage"/>.</summary>
+    /// <summary>Cortejo concluído — emitido antes de <see cref="Marriage"/>.</summary>
     CourtshipSucceeded,
 
-    /// <summary>Morte materna no parto (Fase 7).</summary>
     MaternalDeath,
 
-    /// <summary>Nascimento morto (Fase 7).</summary>
     StillBirth,
 
-    /// <summary>Fato registrado no esqueleto (Fase 10, HIST-01) — meta-evento quando o
+    /// <summary>Fato registrado no esqueleto — meta-evento quando o
     /// <see cref="Fact"/> entra na coleção canônica.</summary>
     FactRecorded,
 
-    /// <summary>Fato convertido em relato hop-0 (Fase 10, HIST-03) — payload
+    /// <summary>Fato convertido em relato hop-0 — payload
     /// <c>reportId|factId|communityId</c>.</summary>
     ReportConverted,
 
-    /// <summary>Livro perdido (Fase 10, HIST-09) — payload <c>bookId|tick</c>.</summary>
+    /// <summary>Livro perdido — payload <c>bookId|tick</c>.</summary>
     BookLost,
 
-    /// <summary>Livro perdido redescoberto por evento agendado (Fase 10, HIST-09) — payload
+    /// <summary>Livro perdido redescoberto por evento agendado — payload
     /// <c>bookId|tick</c>.</summary>
     BookRediscovered,
 
-    /// <summary>Correção compensatória do esqueleto (Fase 10, HIST-24) — payload
+    /// <summary>Correção compensatória do esqueleto — payload
     /// <c>correctsFactId|correctedPayload|reason</c>.</summary>
     CompensatingCorrection,
 
-    /// <summary>Fundação de assentamento (Fase 15.1, LWV-04.6) — cidade nova a partir da mãe.</summary>
+    /// <summary>Fundação de assentamento — cidade nova a partir da mãe.</summary>
     SettlementFounded,
 
     /// <summary>Uma cidade-filha adjacente foi absorvida pela cidade-mãe (FixT18).</summary>
@@ -110,37 +106,37 @@ public enum WorldEventKind
     /// <summary>Consequência declarada de uma resolução extraordinária não plena.</summary>
     ExtraordinaryFailureApplied,
 
-    /// <summary>Confronto NPC-vs-NPC resolvido por poder (Fase 16.1, PWR-63) ou encontro
-    /// multi-round encerrado (Fase 16.4).</summary>
+    /// <summary>Confronto NPC-vs-NPC resolvido por poder ou encontro
+    /// multi-round encerrado.</summary>
     CombatResolved,
 
-    /// <summary>Encontro multi-round iniciado via <c>combat.engage:</c> (AD-010 / REALISM-16)
+    /// <summary>Encontro multi-round iniciado via <c>combat.engage:</c>
     /// — payload: encounterId|attackerId|defenderId.</summary>
     CombatEncounterStarted,
 
-    /// <summary>Um round de encontro processado (REALISM-17) — payload:
+    /// <summary>Um round de encontro processado — payload:
     /// encounterId|round|attackerHp|defenderHp.</summary>
     CombatRound,
 
-    /// <summary>Instanciação de NPC via poder (clone/split/reincarnate, PWR-107).</summary>
+    /// <summary>Instanciação de NPC via poder (clone/split/reincarnate).</summary>
     NpcInstantiated,
 
-    /// <summary>Troca de identidade observável (possessão/body-swap, PWR-108).</summary>
+    /// <summary>Troca de identidade observável (possessão/body-swap).</summary>
     IdentityChanged,
 
-    /// <summary>Herança de poder no nascimento (Fase 16.2, EVO-10) — payload:
+    /// <summary>Herança de poder no nascimento — payload:
     /// childId|parentAId|parentBId|outcome|descriptorIdsCsv</summary>
     PowerInherited,
 
-    /// <summary>Agent escolheu/executou UsePower via utility AI (Fase 16.3 P1d, COH-33) —
+    /// <summary>Agent escolheu/executou UsePower via utility AI —
     /// payload: npcId|powerId|mechanicToken. CauseEventId aponta ao evento de decisão.</summary>
     PowerInvoked,
 
-    /// <summary>Planta atingiu estágio de maturidade/produção (Fase 16.4, REALISM-07) —
+    /// <summary>Planta atingiu estágio de maturidade/produção —
     /// payload: plantId.</summary>
     PlantMatured,
 
-    /// <summary>Hospedeiro retomou controle de possessão (Fase 16.4, REALISM-33/34) —
+    /// <summary>Hospedeiro retomou controle de possessão —
     /// payload: <c>hostId|possessorId|possession-resisted</c>.</summary>
     PossessionResisted,
 }

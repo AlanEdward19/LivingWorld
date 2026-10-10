@@ -5,7 +5,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Population.Family;
 
-/// <summary>Família como unidade (task 3): residência, membros e chefe. Nascimento entra,
+/// <summary>Família como unidade: residência, membros e chefe. Nascimento entra,
 /// morte remove; sem membros, <see cref="IsEmpty"/> sinaliza dissolução para quem gerencia a
 /// lista em <c>WorldState</c> — o tipo em si não se autodestrói (não tem acesso à coleção que
 /// o contém).</summary>
@@ -24,17 +24,17 @@ public sealed class Household
     [JsonIgnore]
     public bool IsEmpty => _members.Count == 0;
 
-    // Fase 5 (T18): estoque de comida/água da residência — de onde Eat retira antes de restaurar
+    // Estoque de comida/água da residência — de onde Eat retira antes de restaurar
     // Hunger/Thirst. Sem capacidade declarada (EconomyRules só declara capacidade por
-    // (ResourceType, LocationType) de Workplace, T4) — residência não tem teto nesta fase.
+    // (ResourceType, LocationType) de Workplace) — residência não tem teto.
     private readonly Dictionary<ResourceType, long> _stock;
     public IReadOnlyDictionary<ResourceType, long> Stock => _stock;
 
-    /// <summary>Cidade onde o household reside (Fase 8, T4, CITY-01). Mutável só por
+    /// <summary>Cidade onde o household reside. Mutável só por
     /// <see cref="JoinCity"/> — mesmo espírito de <see cref="Npc.City"/>.</summary>
     public CityId City { get; private set; }
 
-    /// <summary>Destino de migração em andamento (Fase 15.1, Stage 4, T11, LWV-04.2) — enquanto
+    /// <summary>Destino de migração em andamento — enquanto
     /// preenchido, <see cref="City"/> continua sendo a origem até todos os membros chegarem.</summary>
     public CityId? PendingRelocationCity { get; private set; }
 
@@ -74,7 +74,7 @@ public sealed class Household
             Head = _members.OrderBy(m => m.Value).First();
     }
 
-    /// <summary>Muda a cidade do household (Fase 8, T4, CITY-01/CITY-07) — mesmo SPEC_DEVIATION de
+    /// <summary>Muda a cidade do household — mesmo SPEC_DEVIATION de
     /// <see cref="Npc.JoinCity"/>: sem lista de membros a limpar, um único mutador basta.</summary>
     public void JoinCity(CityId city) => City = city;
 
@@ -94,7 +94,7 @@ public sealed class Household
     }
 
     /// <summary>Inicia migração para <paramref name="destination"/> sem mudar <see cref="City"/>
-    /// até a chegada (Fase 15.1, Stage 4, T11).</summary>
+    /// até a chegada.</summary>
     public void BeginRelocation(CityId destination) => PendingRelocationCity = destination;
 
     /// <summary>Conclui migração após chegada de todos os membros vivos.</summary>

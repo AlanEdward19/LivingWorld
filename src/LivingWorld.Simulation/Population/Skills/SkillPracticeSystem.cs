@@ -11,7 +11,7 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Population.Skills;
 
-/// <summary>Ganho de habilidade por prática no trabalho (Fase 6, T8, SKILL-03) — único ponto
+/// <summary>Ganho de habilidade por prática no trabalho — único ponto
 /// que lê <see cref="Npc.RateGene"/> pra fonte <see cref="SkillGainSource.Practice"/>. <c>Daily</c>
 /// (design.md): roda logo depois de <see cref="EmploymentSystem"/> e antes de <see
 /// cref="ProductionSystem"/>, pra que a produção do mesmo dia já leia a habilidade
@@ -33,7 +33,7 @@ public sealed class SkillPracticeSystem : ISimulationSystem
     /// exceção (mesmo padrão de <see cref="ProductionSystem"/> pulando Workplace sem recipe).</summary>
     public void Tick(WorldState world, TickContext ctx)
     {
-        if (!_rules.Enabled) return; // SKILL-01: flag de teste desliga o sistema (T19)
+        if (!_rules.Enabled) return; // flag de teste desliga o sistema
 
         foreach (var npc in world.Npcs.OrderBy(n => n.Id.Value))
         {

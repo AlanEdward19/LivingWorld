@@ -5,7 +5,7 @@ using LivingWorld.Simulation.Observation;
 
 namespace LivingWorld.Simulation.Behavior.Needs;
 
-/// <summary>Camada cosmética observacional (Fase 28, T5, LOD-10..12) — promove/rebaixa só posição
+/// <summary>Camada cosmética observacional — promove/rebaixa só posição
 /// exata e micro-ação; nunca eventos de vida.</summary>
 public enum CosmeticDetailLayer
 {

@@ -36,7 +36,7 @@ public sealed class FloraMechanic : ExtraordinaryMechanic
                && multiplier >= 0;
     }
 
-    /// <summary>Multiplicador de <c>flora.growth-rate</c> sobre a taxa de base (REALISM-11).
+    /// <summary>Multiplicador de <c>flora.growth-rate</c> sobre a taxa de base.
     /// Sem poder ativo (ou extraordinário desligado) retorna 1 — nunca substitui o cálculo
     /// de temperatura/estação.</summary>
     internal static double GrowthRateMultiplier(WorldState world, Plant plant)

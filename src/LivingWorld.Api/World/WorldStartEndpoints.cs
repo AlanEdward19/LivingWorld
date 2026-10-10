@@ -7,7 +7,7 @@ public sealed record StartWorldRequest(string PeriodId, ulong Seed);
 
 public sealed record StartWorldResponse(string PeriodId, ulong Seed, int NpcCount);
 
-/// <summary>Fase 13, T6 (PERIOD-04..06, PERIOD-07..10): <c>POST /worlds/start</c> inicializa um
+/// <summary><c>POST /worlds/start</c> inicializa um
 /// mundo a partir de um template já cadastrado (<see cref="IPeriodTemplateRepository"/>) pelo
 /// mesmo pipeline de <see cref="WorldStartService"/> — nenhuma regra de bootstrap nova aqui, só
 /// tradução request/response e o 404 quando o <c>PeriodId</c> não está registrado.</summary>

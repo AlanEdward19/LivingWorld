@@ -7,8 +7,8 @@ using LivingWorld.Simulation.Scenarios;
 
 namespace LivingWorld.Simulation.Ecology;
 
-/// <summary>Semeadura determinística de fauna/flora para cenários de referência e escala
-/// (Fase 16.4, T21/T22). Posições derivadas do grid — nunca RNG solto.</summary>
+/// <summary>Semeadura determinística de fauna/flora para cenários de referência e escala.
+/// Posições derivadas do grid — nunca RNG solto.</summary>
 public static class EcologyScenarioSeeder
 {
     /// <summary>Vila default (objetivo #1): população modesta perto do núcleo.</summary>

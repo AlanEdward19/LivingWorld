@@ -7,12 +7,12 @@ using LivingWorld.Simulation.Scheduling;
 namespace LivingWorld.Simulation.Population.Family;
 
 /// <summary>Dissolução de <see cref="Household"/> vazio — extraído de <see cref="NpcDeath.Apply"/>
-/// (Fase 7, T12) para reuso por morte, casamento e redistribuição de órfãos.</summary>
+/// para reuso por morte, casamento e redistribuição de órfãos.</summary>
 public static class HouseholdCleanup
 {
     /// <summary>Se <paramref name="household"/> ainda tem membros, não faz nada. Caso contrário,
     /// registra estoque residual como <see cref="WorldEventKind.ResourceLost"/>, remove o household
-    /// do mundo e limpa referências órfãs em NPCs (mesma disciplina de Fase 5/3).</summary>
+    /// do mundo e limpa referências órfãs em NPCs.</summary>
     public static void DissolveIfEmpty(WorldState world, TickContext ctx, Household household)
     {
         if (!household.IsEmpty) return;

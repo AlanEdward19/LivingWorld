@@ -9,14 +9,14 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Ecology;
 
-/// <summary>Ciclo de vida base da flora — avanço de estágio por temperatura/estação (Fase 16.4).
+/// <summary>Ciclo de vida base da flora — avanço de estágio por temperatura/estação.
 /// Roda com <c>Extraordinary.Enabled == false</c>; <c>flora.growth-rate</c> multiplica a taxa
-/// de base, nunca a substitui (REALISM-07/08/11). Produção deposita no workplace/CropBatch
-/// existente; reprodução brota em espaço livre (REALISM-09/10).</summary>
+/// de base, nunca a substitui. Produção deposita no workplace/CropBatch
+/// existente; reprodução brota em espaço livre.</summary>
 public sealed class FloraLifecycleSystem : ISimulationSystem
 {
     public const string SystemName = "flora-lifecycle";
-    /// <summary>Teto leve (REALISM-19): evita crescimento ilimitado em horizontes longos.</summary>
+    /// <summary>Teto leve: evita crescimento ilimitado em horizontes longos.</summary>
     public const int MaxAliveFlora = 800;
 
     public string Name => SystemName;
@@ -28,9 +28,9 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
         TryReproduce(world, ctx);
     }
 
-    /// <summary>REALISM-07/08/11: avança (ou reverte) estágio conforme temperatura efetiva;
+    /// <summary>Avança (ou reverte) estágio conforme temperatura efetiva;
     /// poder multiplica a taxa de base. Ao atingir maturidade, deposita yield no workplace
-    /// da célula (REALISM-09) — nunca cria estoque keyed por <see cref="Plant"/>.</summary>
+    /// da célula — nunca cria estoque keyed por <see cref="Plant"/>.</summary>
     public static void AdvanceStage(WorldState world, TickContext ctx)
     {
         var rulesBySpecies = IndexRules(world);
@@ -66,7 +66,7 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
         }
     }
 
-    /// <summary>REALISM-10: planta madura com espaço livre compatível brota nova planta
+    /// <summary>Planta madura com espaço livre compatível brota nova planta
     /// (RNG semeado por stream).</summary>
     public static void TryReproduce(WorldState world, TickContext ctx)
     {
@@ -178,8 +178,8 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
         return cells;
     }
 
-    /// <summary>REALISM-21: remove do hot e grava resumo frio imediato (Plant não carrega
-    /// DeathTick — contrato T7; fauna usa idade via ColdArchiveSystem).</summary>
+    /// <summary>Remove do hot e grava resumo frio imediato (Plant não carrega
+    /// DeathTick; fauna usa idade via ColdArchiveSystem).</summary>
     internal static void Kill(WorldState world, TickContext ctx, Plant plant)
     {
         world.ColdArchive.ArchivePlantOnDeath(plant, ctx.CurrentTick);

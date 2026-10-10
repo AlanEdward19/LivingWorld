@@ -12,7 +12,7 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Cities.Construction;
 
-/// <summary>Avança a fila FIFO de construção de cada cidade (Fase 8, T10, CITY-03): consome o
+/// <summary>Avança a fila FIFO de construção de cada cidade: consome o
 /// insumo da <see cref="City.Stock"/> proporcionalmente aos ticks já decorridos da receita —
 /// pausa (nunca reverte progresso já pago) quando o insumo do tick não está disponível.</summary>
 public sealed class ConstructionSystem : ISimulationSystem
@@ -28,12 +28,12 @@ public sealed class ConstructionSystem : ISimulationSystem
 
         foreach (var city in world.ActiveCities())
         {
-            // dynamic-city-growth AD-007: FIFO entre projetos não-travados, mas um projeto já
+            // FIFO entre projetos não-travados, mas um projeto já
             // pago (TicksRemaining == 0) cujo placement falhou por escassez de terra fica
             // "travado" na sua posição e é tentado de novo a custo zero todo tick, sem bloquear
             // quem vem depois dele -- só o PRIMEIRO projeto ainda não totalmente pago recebe o
-            // orçamento de recursos deste tick (mesmo teto de "um projeto por cidade por tick" da
-            // Fase 8, só mudou qual projeto se qualifica).
+            // orçamento de recursos deste tick (mesmo teto de "um projeto por cidade por tick" de
+            // sempre, só mudou qual projeto se qualifica).
             foreach (var project in city.ConstructionQueue.ToList())
             {
                 if (!world.CityCatalog.BuildingRecipes.TryGetValue(project.BuildingTypeId, out var recipe)) continue;
@@ -90,15 +90,15 @@ public sealed class ConstructionSystem : ISimulationSystem
 
         if (recipe.Workplace is { } workplaceRecipe)
         {
-            // dynamic-city-growth, round-3 fix D: resolve a posição ANTES de criar/adicionar o
+            // Resolve a posição ANTES de criar/adicionar o
             // Building -- com um candidato descartável (id só espiado via world.NextBuildingId,
             // nunca avançado se a resolução falhar) -- pra não deixar um Building órfão sem
             // Workplace acumulando a cada retry.
             var candidate = new Building(new BuildingId(world.NextBuildingId), city.Id, project.BuildingTypeId, ctx.CurrentTick);
-            // dynamic-city-growth, T3/T4b: Resolve agora precisa dos bounds atuais da cidade pra
-            // tentar uma célula livre antes de cair no overflow (CITYGROW-01/02);
+            // Resolve precisa dos bounds atuais da cidade pra
+            // tentar uma célula livre antes de cair no overflow;
             // ResolveGrownBounds já realimenta os boxes de overflow das próprias buildings pra
-            // que os bounds cresçam de verdade (CITYGROW-03/05).
+            // que os bounds cresçam de verdade.
             long population = CityPopulationQuery.Population(world, city.Id);
             var bounds = CityOccupancy.ResolveGrownBounds(world, city, population).Bounds;
             if (BuildingPlacementResolver.Resolve(candidate, city, world, bounds) is not { } resolved) return false;
@@ -158,7 +158,7 @@ public sealed class ConstructionSystem : ISimulationSystem
         return due;
     }
 
-    /// <summary>Inicia uma obra (Fase 8, T10, CITY-03) — falha sem mutar nada quando a cidade não
+    /// <summary>Inicia uma obra — falha sem mutar nada quando a cidade não
     /// tem, agora, o insumo total da receita (Done-when 1); insumo é consumido ao longo dos
     /// ticks pelo <see cref="Tick"/>, não aqui.</summary>
     public static Result<Unit> StartConstruction(WorldState world, CityId cityId, int buildingTypeId)

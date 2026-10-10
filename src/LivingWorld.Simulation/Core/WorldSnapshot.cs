@@ -30,7 +30,7 @@ using LivingWorld.Simulation.Snapshot;
 
 namespace LivingWorld.Simulation.Core;
 
-/// <summary>Serialização completa do mundo (task 7) e as duas funções de hash (ADR-0006):
+/// <summary>Serialização completa do mundo e as duas funções de hash:
 /// canônico (o que alimenta decisão) e volátil (o resto). Ambas construídas por reflexão sobre
 /// as propriedades públicas de <see cref="WorldState"/> — um campo novo sem
 /// <see cref="CanonicalAttribute"/> nem <see cref="VolatileAttribute"/> não entra em nenhum
@@ -68,8 +68,7 @@ public static class WorldSnapshot
     public static string CanonicalHash(WorldState world) =>
         Snapshot.IncrementalHasher.Compute(world, useCache: true);
 
-    /// <summary>Mesmo resultado que <see cref="CanonicalHash"/> via fragmentos por entidade
-    /// (PERF-12).</summary>
+    /// <summary>Mesmo resultado que <see cref="CanonicalHash"/> via fragmentos por entidade.</summary>
     internal static string CanonicalHashFromEntityParts(WorldState world) =>
         Snapshot.IncrementalHasher.Compute(world, useCache: true);
 

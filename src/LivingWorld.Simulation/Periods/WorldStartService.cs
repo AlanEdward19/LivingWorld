@@ -1,12 +1,11 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Scenarios;
 
 namespace LivingWorld.Simulation.Periods;
 
-/// <summary>Bootstrap de mundo a partir de um template registrado (Fase 13, T6): resolve o
+/// <summary>Bootstrap de mundo a partir de um template registrado: resolve o
 /// payload por <see cref="PeriodId"/>, sobrepõe a <c>Seed</c> pedida e roda o mesmo pipeline de
 /// <see cref="ScenarioLoaderV2"/> dos templates base — nenhum caminho separado pra período
 /// cadastrado via API vs. período de arquivo.</summary>

@@ -4,7 +4,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Cities.Buildings;
 
-/// <summary>Planta determinística por prédio (Fase 15.1, T45; porta canônica do placeholder
+/// <summary>Planta determinística por prédio (porta canônica do placeholder
 /// client-side em `web/src/map-engine/buildingFootprint.ts`): retângulo ou L (nunca aleatório —
 /// mesmo <see cref="BuildingId"/>+<see cref="Building.BuildingTypeId"/> sempre a mesma planta),
 /// parede com material por paridade de tipo, e exatamente uma porta que **sempre** pertence ao

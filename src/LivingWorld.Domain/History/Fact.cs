@@ -2,7 +2,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.History;
 
-/// <summary>Esqueleto imutável Tier A de um fato histórico (Fase 10, HIST-01) — quem, o quê,
+/// <summary>Esqueleto imutável Tier A de um fato histórico — quem, o quê,
 /// onde, quando, significância. Nunca mutado após a escrita; entra no hash via
 /// <c>WorldState.Facts</c>.</summary>
 public sealed record Fact(

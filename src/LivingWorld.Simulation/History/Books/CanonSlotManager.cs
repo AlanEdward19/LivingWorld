@@ -5,7 +5,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Simulation.History.Books;
 
-/// <summary>Cânone limitado por comunidade (Fase 10, HIST-08 AC2) — no máximo N relatos vivos
+/// <summary>Cânone limitado por comunidade — no máximo N relatos vivos
 /// por <see cref="City"/>; despejo pelo menor peso.</summary>
 public static class CanonSlotManager
 {

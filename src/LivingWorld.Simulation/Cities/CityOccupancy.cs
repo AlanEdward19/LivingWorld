@@ -25,7 +25,7 @@ public static class CityOccupancy
 
     /// <summary>True quando nenhum prédio já existente na mesma cidade ocupa alguma célula do
     /// footprint candidato (já traduzido para coordenadas absolutas). <paramref name="placingId"/>
-    /// é o <see cref="BuildingId"/> do prédio sendo posicionado agora, se houver um — T3/CITYGROW-01:
+    /// é o <see cref="BuildingId"/> do prédio sendo posicionado agora, se houver um —
     /// sem ele, um vizinho ainda sem posição autorada seria contado pelo anel-hash legado em vez
     /// da posição real que <see cref="BuildingPlacementResolver.Resolve"/> escolheria pra ele,
     /// deixando dois prédios "derivados" na mesma cidade livres pra colidir entre si (bug real,
@@ -83,7 +83,7 @@ public static class CityOccupancy
     internal static List<CellCoord> Translate(IReadOnlyList<CellCoord> shape, CellCoord origin) =>
         shape.Select(c => new CellCoord(c.X + origin.X, c.Y + origin.Y)).ToList();
 
-    /// <summary>dynamic-city-growth, T4b (CITYGROW-03/05): uma <see cref="CityBounds"/> por
+    /// <summary>Uma <see cref="CityBounds"/> por
     /// prédio da cidade — sua posição real (<see cref="Building.Position"/>) quando autorada,
     /// senão re-derivada via <see cref="BuildingPlacementResolver.Resolve"/> (nunca persistida,
     /// mesma convenção de <see cref="Building"/>). É o insumo que <see cref="CityBoundsResolver.Resolve"/>
@@ -102,7 +102,7 @@ public static class CityOccupancy
         var result = new List<(Building Building, CityBounds Box)>();
         foreach (var building in world.Buildings.Where(b => b.City == city.Id))
         {
-            // CITYGROW-02b: null = escassez de terra pra este prédio -- excluído da lista de
+            // null = escassez de terra pra este prédio -- excluído da lista de
             // footprints em vez de derrubar a resolução inteira dos outros prédios da cidade.
             CellCoord? position = building.Position
                 ?? BuildingPlacementResolver.Resolve(building, city, world, populationBounds)?.Position;
@@ -227,7 +227,7 @@ public static class CityOccupancy
             else
                 position = LegacyRingFallback(building.Id, city.Location);
 
-            // CITYGROW-02b: escassez de terra pra este vizinho -- não há onde contá-lo como
+            // Escassez de terra pra este vizinho -- não há onde contá-lo como
             // ocupado, então ele simplesmente não entra no conjunto (mesmo "fica sem posição
             // por esta chamada" do resto do fix, nunca um crash).
             if (position is null) continue;

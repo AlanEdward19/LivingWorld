@@ -9,7 +9,7 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Economy.Production;
 
-/// <summary>Scheduler de processos materiais estagiados (Fase 15.1, Stage 4, T14–T17):
+/// <summary>Scheduler de processos materiais estagiados:
 /// reserva insumos ao iniciar, devolve no cancelamento/morte, cria a saída só na conclusão.</summary>
 public sealed class ResourceProcessSystem : ISimulationSystem
 {

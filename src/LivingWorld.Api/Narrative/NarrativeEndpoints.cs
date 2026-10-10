@@ -15,12 +15,12 @@ public sealed record BiographyResponse(long NpcId, string Prose, IReadOnlyList<N
 
 public sealed record ReportResponse(long ReportId, long OriginFactId, string Medium, double Confidence);
 
-/// <summary>Fase 12, T7 (NARR-19..21, story "Endpoints de leitura narrativa"): liga os endpoints
+/// <summary>Liga os endpoints
 /// HTTP ao pipeline já pronto (<see cref="WindowedHistoryAggregator"/>/<see cref="ChronicleGenerationSystem"/>,
 /// <see cref="NpcBiographyQuery"/>, <see cref="NarrativeRenderer"/>, <see cref="HistoryBeliefQuery"/>)
 /// — mesmo padrão de <see cref="ConversationEndpoints"/>: nenhuma lógica de decisão nova aqui, só
 /// tradução request/response. Todas as consultas passam por crença (<see cref="HistoryBeliefQuery"/>),
-/// nunca por <see cref="HistoryTruthQuery"/> — jogo só lê crença (NARR-15, rules/llm-boundary.md).</summary>
+/// nunca por <see cref="HistoryTruthQuery"/> — jogo só lê crença (rules/llm-boundary.md).</summary>
 public static class NarrativeEndpoints
 {
     public static void MapNarrativeEndpoints(this WebApplication app, WorldHost host, ChronicleGenerationSystem chronicles)

@@ -5,8 +5,8 @@ using LivingWorld.Simulation.History.Distortion;
 
 namespace LivingWorld.Simulation.History.Queries;
 
-/// <summary>Único ponto de acesso à crença de um NPC ou comunidade (Fase 10, T15,
-/// HIST-16) — resolve o <see cref="ReportState"/> vigente no cânone e materializa o
+/// <summary>Único ponto de acesso à crença de um NPC ou comunidade
+/// — resolve o <see cref="ReportState"/> vigente no cânone e materializa o
 /// <see cref="DistortedReport"/> sob demanda, nunca o fato bruto.</summary>
 public static class HistoryBeliefQuery
 {
@@ -49,7 +49,7 @@ public static class HistoryBeliefQuery
         if (npc is not null)
             return Result<CityId>.Ok(npc.City);
 
-        // Pool agregado (AD-068): o id endereçável é o próximo que MaterializeOne emitiria.
+        // Pool agregado: o id endereçável é o próximo que MaterializeOne emitiria.
         if (believerId.Value == world.NextNpcId)
         {
             var city = world.Cities.FirstOrDefault(c => c.AggregatePool.Count > 0);

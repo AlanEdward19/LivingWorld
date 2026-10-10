@@ -12,13 +12,13 @@ namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 /// Possessão contínua e troca de corpo. Decisões do possuído delegam ao portador/regras
 /// declaradas; o log causal atribui ações ao possuído. Identidade mutada via
 /// <see cref="WorldEventKind.IdentityChanged"/>.
-/// AD-071 (<c>docs/decisions-log.md</c>): resistência à possessão modula por
+/// Resistência à possessão modula por
 /// <see cref="Npc.Vitality"/> — atributo genético já causal (mortalidade/concepção), sem
 /// campo novo.
 /// </summary>
 public sealed class ControlMechanic : ExtraordinaryMechanic
 {
-    /// <summary>Atributo de hospedeiro usado por <see cref="TryResist"/> (AD-071).</summary>
+    /// <summary>Atributo de hospedeiro usado por <see cref="TryResist"/>.</summary>
     public const string PossessionResistanceAttribute = nameof(Npc.Vitality);
 
     public const string PossessToken = "control.possess";
@@ -102,7 +102,7 @@ public sealed class ControlMechanic : ExtraordinaryMechanic
         ClearSwap(world, partnerId);
     }
 
-    /// <summary>REALISM-33: roll determinístico por tick para cada hospedeiro possuído.</summary>
+    /// <summary>Roll determinístico por tick para cada hospedeiro possuído.</summary>
     internal static void ApplyPossessionResistance(WorldState world, TickContext ctx)
     {
         if (!world.Extraordinary.Enabled) return;
@@ -118,7 +118,7 @@ public sealed class ControlMechanic : ExtraordinaryMechanic
         }
     }
 
-    /// <summary>Roll modulado por <see cref="Npc.Vitality"/> (AD-071); sucesso limpa
+    /// <summary>Roll modulado por <see cref="Npc.Vitality"/>; sucesso limpa
     /// <see cref="ExtraordinaryCarrierState.PossessedBy"/> como em
     /// <see cref="RevertIfCeased"/>.</summary>
     internal static bool TryResist(

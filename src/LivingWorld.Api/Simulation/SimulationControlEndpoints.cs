@@ -1,4 +1,3 @@
-using LivingWorld.Simulation;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Hosting;
 
@@ -8,11 +7,11 @@ public sealed record SetSpeedRequest(double TicksPerSecond);
 
 public sealed record SimulationStatusResponse(bool IsPaused, double TicksPerSecond, long Tick, long Year);
 
-/// <summary>Fase 15.1, T1 (VTT2-27..30): tradução fina de <see cref="SimulationHost"/> sobre HTTP
+/// <summary>Tradução fina de <see cref="SimulationHost"/> sobre HTTP
 /// — nenhuma regra nova aqui, a validação de velocidade já existe em
 /// <c>SimulationHost.SetSpeed</c>. <c>step</c> só faz sentido pausado (409 caso contrário) e
 /// avança o mundo canônico chamando <see cref="WorldClock.Tick"/> diretamente, o mesmo relógio
-/// que o loop de tempo real (T3) vai dirigir automaticamente.</summary>
+/// que o loop de tempo real vai dirigir automaticamente.</summary>
 public static class SimulationControlEndpoints
 {
     public static void MapSimulationControlEndpoints(this WebApplication app)

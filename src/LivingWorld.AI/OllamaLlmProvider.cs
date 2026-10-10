@@ -5,17 +5,17 @@ using LivingWorld.Domain.Llm;
 
 namespace LivingWorld.AI;
 
-/// <summary>Provider real de produção (ADR-0016): transporte puro contra um Ollama local rodando
+/// <summary>Provider real de produção: transporte puro contra um Ollama local rodando
 /// <c>qwen3.5:4b</c> (Q4_K_M). Só monta a requisição e faz o parse da resposta — nenhuma decisão
 /// de jogo mora aqui (rules/llm-boundary.md); validação e aplicação continuam em T5/T6
 /// (<c>LlmResponseValidator</c>/<c>ConversationEffectsApplier</c>), fora desta classe.</summary>
 public sealed class OllamaLlmProvider : ILlmProvider
 {
-    // ponytail: sem digest fixo aqui (ADR-0016 recomenda fixar tag+digest do modelo, mas o
+    // ponytail: sem digest fixo aqui (recomenda-se fixar tag+digest do modelo, mas o
     // digest exato depende do pull local do operador) — só a tag é fixada, nunca "latest".
     private const string ModelId = "qwen3.5:4b";
 
-    // Determinismo (ADR-0016): temperature 0 + seed fixa. Não é bit-exact entre versões/drivers/
+    // Determinismo: temperature 0 + seed fixa. Não é bit-exact entre versões/drivers/
     // hardware — só o DTO aprovado entra no replay (motor, fora desta classe).
     private const int Seed = 1;
 
@@ -83,10 +83,10 @@ public sealed class OllamaLlmProvider : ILlmProvider
         return string.Join(" ", lines);
     }
 
-    /// <summary>Mapeamento schema Ollama -> <see cref="LlmResponse"/>: o ADR-0016 não propõe
-    /// <c>intent</c> nem <c>memoryCandidates</c> no schema estruturado, então <c>Intent</c> vira o
+    /// <summary>Mapeamento schema Ollama -> <see cref="LlmResponse"/>: o schema estruturado não propõe
+    /// <c>intent</c> nem <c>memoryCandidates</c>, então <c>Intent</c> vira o
     /// <c>type</c> da primeira ação proposta (ou string vazia sem nenhuma) e
-    /// <c>MemoryCandidates</c> fica sempre vazio — o schema do ADR não propõe memórias novas.
+    /// <c>MemoryCandidates</c> fica sempre vazio — o schema não propõe memórias novas.
     /// <c>proposedActions</c> (type+magnitude) vira string "TYPE:magnitude" (ações NONE são
     /// descartadas, "nenhuma ação" não é uma ação real).</summary>
     private static LlmResponse ToLlmResponse(OllamaStructuredOutput dto)
@@ -110,7 +110,7 @@ public sealed class OllamaLlmProvider : ILlmProvider
 
     // INCERTEZA (documentada em vez de assumida como fato): não confirmado contra uma instância
     // real do Ollama se `/api/chat` aceita este JSON Schema completo em `format` ou só a string
-    // `"json"` — o ADR-0016 descreve a config recomendada, mas isto só roda de verdade contra o
+    // `"json"` — a config recomendada só roda de verdade contra o
     // servidor depois. Os testes aqui cobrem só o contrato de montagem/parse, não a API real.
     private static readonly JsonElement ResponseSchema = JsonSerializer.Deserialize<JsonElement>("""
     {

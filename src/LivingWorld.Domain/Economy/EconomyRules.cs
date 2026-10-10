@@ -5,7 +5,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Economy;
 
-/// <summary>Todo parâmetro numérico da economia (Fase 5), cenário-driven (R3) — nenhum literal
+/// <summary>Todo parâmetro numérico da economia é cenário-driven — nenhum literal
 /// em C#, mesmo padrão de <see cref="NeedsRules"/>.</summary>
 public sealed record EconomyRules(
     bool Enabled,
@@ -58,7 +58,7 @@ public sealed record EconomyRules(
             : long.MaxValue;
 
     /// <summary>Default de <see cref="WorldState"/> pra cenário que ainda não declara economia
-    /// (T10) — <see cref="Enabled"/> falso, nenhum recurso/preço/salário. Nunca usado por um
+    /// — <see cref="Enabled"/> falso, nenhum recurso/preço/salário. Nunca usado por um
     /// cenário real (todo cenário econômico chama <see cref="Create"/> com valores dele).</summary>
     public static readonly EconomyRules Disabled = new(
         Enabled: false, FoodResourceId: 0, WaterResourceId: 0,

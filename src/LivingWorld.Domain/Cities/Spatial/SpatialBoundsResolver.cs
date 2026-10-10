@@ -5,10 +5,10 @@ using LivingWorld.Domain.Geography.Spatial;
 
 namespace LivingWorld.Domain.Cities.Spatial;
 
-/// <summary>Resolução de bounds unificada pelos três níveis de <see cref="SpaceKind"/> (Fase
-/// 15.1, T46/ADR-0018) — nenhuma fórmula nova: World vem de <see cref="WorldMap"/>, City delega
-/// a <see cref="CityBoundsResolver"/> (T45), Building usa as dimensões do próprio footprint
-/// (T45) — não existe um segundo número de "tamanho do prédio" no domínio.</summary>
+/// <summary>Resolução de bounds unificada pelos três níveis de <see cref="SpaceKind"/>
+/// — nenhuma fórmula nova: World vem de <see cref="WorldMap"/>, City delega
+/// a <see cref="CityBoundsResolver"/>, Building usa as dimensões do próprio footprint
+/// — não existe um segundo número de "tamanho do prédio" no domínio.</summary>
 public static class SpatialBoundsResolver
 {
     public static CityBounds ResolveWorld(WorldMap map) => new(new CellCoord(0, 0), map.Width, map.Height);

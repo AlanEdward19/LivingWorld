@@ -16,7 +16,7 @@ public sealed class WorldRng
     /// <summary>Cópia no ponto atual da sequência. Sorteios no fork não avançam este stream.</summary>
     public WorldRng Fork() => new(_state);
 
-    /// <summary>Deriva um stream independente para uma entidade/sistema (ADR-0005):
+    /// <summary>Deriva um stream independente para uma entidade/sistema:
     /// mesma seed base + mesma stream key = mesma sequência, sem afetar outros streams.</summary>
     public WorldRng Derive(long streamKey)
     {

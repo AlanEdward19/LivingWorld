@@ -5,7 +5,7 @@ using LivingWorld.Domain.Geography;
 namespace LivingWorld.Simulation.Serialization;
 
 /// <summary>System.Text.Json só serializa chave de dicionário nativamente pra string/enum. A
-/// economia (Fase 5) usa <see cref="ResourceType"/> (T4: <c>Workplace.Stock</c>/<c>Prices</c>) e
+/// economia usa <see cref="ResourceType"/> (T4: <c>Workplace.Stock</c>/<c>Prices</c>) e
 /// o par <c>(ResourceId, LocationTypeId)</c> (T2: <c>EconomyRules.CapacityByResourceLocation</c>)
 /// como chave — os dois conversores abaixo ensinam o round-trip do snapshot (T12) a ler/escrever
 /// essas chaves como propriedade de objeto JSON.</summary>

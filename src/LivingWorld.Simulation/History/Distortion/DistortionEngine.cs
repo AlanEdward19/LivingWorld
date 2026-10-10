@@ -5,12 +5,12 @@ using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.History.Distortion;
 
-/// <summary>Operadores de distorção determinísticos (Fase 10, HIST-05/HIST-06) — dispatch
-/// explícito por enum, RNG derivado de <c>(ReportId, hop)</c>.</summary>
+/// <summary>Operadores de distorção determinísticos — dispatch explícito por enum, RNG
+/// derivado de <c>(ReportId, hop)</c>.</summary>
 public static class DistortionEngine
 {
     /// <summary>Probe opcional para testes — lança se algum caminho invocar LLM durante
-    /// distorção (HIST-06 AC3).</summary>
+    /// distorção.</summary>
     public static Action? LlmInvocationProbe;
 
     private static readonly IReadOnlyDictionary<DistortionOperator, double> DistanceDeltaByOperator =
@@ -35,7 +35,7 @@ public static class DistortionEngine
             MoralSeed: InitialMoralSeedFromPayload(fact.Payload),
             DistanceFromFact: 0);
 
-    /// <summary>COH-13: cues de escassez/fome reconhecidos no scoring de Buy precisam
+    /// <summary>Cues de escassez/fome reconhecidos no scoring de Buy precisam
     /// sobreviver no MoralizedNarrativeSeed — senão crença canônica nunca altera a decisão.</summary>
     private static string InitialMoralSeedFromPayload(string payload)
     {

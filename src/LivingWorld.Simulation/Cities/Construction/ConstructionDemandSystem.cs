@@ -9,7 +9,7 @@ using LivingWorld.Simulation.Scheduling;
 namespace LivingWorld.Simulation.Cities.Construction;
 
 /// <summary>Abre obras quando a cidade tem déficit de moradia ou de vagas de emprego e insumo
-/// suficiente (Fase 15.1, Stage 4, T10, LWV-04.1) — demanda vira fila canônica, nunca spawn
+/// suficiente — demanda vira fila canônica, nunca spawn
 /// instantâneo nem trabalho fingido sem workplace real.</summary>
 public sealed class ConstructionDemandSystem : ISimulationSystem
 {

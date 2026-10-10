@@ -12,7 +12,7 @@ public enum VarianceProfileKind
     Raro,
 }
 
-/// <summary>Perfil de variância é dado de cenário (ADR-0011), não constante de código —
+/// <summary>Perfil de variância é dado de cenário, não constante de código —
 /// por isso nasce de um <see cref="VarianceProfileCatalog"/> declarado, nunca de um enum fixo
 /// de nomes.</summary>
 public sealed record VarianceProfile(string Name, VarianceProfileKind Kind, int SuccessMargin, int PartialMargin)

@@ -6,7 +6,7 @@ using LivingWorld.Simulation.Scheduling;
 namespace LivingWorld.Simulation.Cities.Migration;
 
 /// <summary>Conclui migração de household só quando todos os membros vivos chegam ao destino
-/// (Fase 15.1, Stage 4, T11, LWV-04.2) — nunca troca <see cref="Npc.City"/> no meio do
+/// — nunca troca <see cref="Npc.City"/> no meio do
 /// deslocamento.</summary>
 public sealed class RelocationArrivalSystem : ISimulationSystem
 {

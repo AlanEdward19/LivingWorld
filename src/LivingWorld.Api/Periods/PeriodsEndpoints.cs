@@ -8,15 +8,15 @@ namespace LivingWorld.Api.Periods;
 
 public sealed record CreatePeriodRequest(string PeriodId, int Version, JsonElement PeriodDefinition, string Source);
 
-/// <summary>T44b: <see cref="Width"/>/<see cref="Height"/> do mapa desse template — sem isso o
+/// <summary><see cref="Width"/>/<see cref="Height"/> do mapa desse template — sem isso o
 /// World Creator não sabia que tamanho de mundo cada template gera antes de escolhê-lo (só
 /// depois de já ter carregado o `PeriodDefinition` inteiro via `GET /periods/{id}`).</summary>
 public sealed record PeriodSummaryResponse(string PeriodId, int Version, string Source, DateTime CreatedAtUtc, int Width, int Height);
 
 public sealed record PeriodDetailResponse(string PeriodId, int Version, string Source, DateTime CreatedAtUtc, JsonElement PeriodDefinition);
 
-/// <summary>Fase 13, T12/T14 (PERIOD-22..23): catálogo de ids ativos de um período registrado —
-/// o motor decide só por id (AD-023/AD-025); <see cref="ProfessionNames"/>/<see cref="SkillNames"/>
+/// <summary>Catálogo de ids ativos de um período registrado —
+/// o motor decide só por id; <see cref="ProfessionNames"/>/<see cref="SkillNames"/>
 /// devolvem o nome (id → nome) só pros ids que o período declarou com nome.</summary>
 public sealed record PeriodCatalogResponse(
     string PeriodId,
@@ -27,7 +27,7 @@ public sealed record PeriodCatalogResponse(
     IReadOnlyDictionary<int, string> SkillNames,
     PeriodDescriptors Descriptors);
 
-/// <summary>Fase 13, T5 (PERIOD-07..10, story "Cadastro de período personalizado"): <c>POST
+/// <summary><c>POST
 /// /periods</c> valida (<see cref="PeriodDefinitionValidator"/>) e persiste (<see
 /// cref="IPeriodTemplateRepository"/>) um período; <c>GET /periods</c>/<c>GET /periods/{id}</c>
 /// leem o catálogo registrado. Mesmo padrão de <see cref="ConversationEndpoints"/> — tradução

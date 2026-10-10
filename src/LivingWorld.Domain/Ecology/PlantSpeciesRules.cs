@@ -1,6 +1,6 @@
 namespace LivingWorld.Domain.Ecology;
 
-/// <summary>Parâmetros de ciclo de vida por espécie vegetal (Fase 16.4) — consumido só por
+/// <summary>Parâmetros de ciclo de vida por espécie vegetal — consumido só por
 /// <c>FloraLifecycleSystem</c>.</summary>
 public sealed record PlantSpeciesRules(
     string Species,

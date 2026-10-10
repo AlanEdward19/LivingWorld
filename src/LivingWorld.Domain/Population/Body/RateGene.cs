@@ -3,7 +3,7 @@ using LivingWorld.Domain.Shared;
 namespace LivingWorld.Domain.Population.Body;
 
 /// <summary>Multiplicador de <b>taxa</b> de ganho de habilidade — nunca de valor inicial
-/// (Fase 6, Assunção A1: modelo simplificado de gene único, Fase 7 pode expandir). Sempre
+/// (Assunção A1: modelo simplificado de gene único, pode ser expandido depois). Sempre
 /// positivo: nunca 0 nem negativo, mesmo depois de mutação extrema na herança.</summary>
 public sealed record RateGene(double Value)
 {

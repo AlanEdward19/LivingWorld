@@ -1,8 +1,8 @@
 namespace LivingWorld.Domain.Geography.Map;
 
-/// <summary>Célula do grid (task 1): terreno, bioma, altitude, água e recursos disponíveis.
+/// <summary>Célula do grid: terreno, bioma, altitude, água e recursos disponíveis.
 /// Value object imutável — sem referência a UI. <see cref="Temperature"/> é base gerada de
-/// bioma/altitude (PWR-74), recomputável — o snapshot JSON omite o campo e reidrata via
+/// bioma/altitude, recomputável — o snapshot JSON omite o campo e reidrata via
 /// <see cref="WithDerivedTemperature"/> (não é identidade canônica independente; overlays
 /// causais vivem em <c>EnvironmentTemperatureAdjustment</c>).</summary>
 public sealed record MapCell(
@@ -29,12 +29,12 @@ public sealed record MapCell(
         10f + biome.Id * 2f - altitude;
 }
 
-/// <summary>Região: agrupa células e é a unidade de consulta (task 1/4).</summary>
+/// <summary>Região: agrupa células e é a unidade de consulta.</summary>
 public sealed record Region(RegionId Id, IReadOnlyList<CellCoord> Cells);
 
-/// <summary>Âncora de assentamento (task 6): referência a uma célula do grid — crescer, migrar
-/// e fundar é Fase 8. <see cref="Id"/>/<see cref="Orientation"/>/<see cref="Streets"/> (Fase
-/// 15.1, T44) são autoria opcional do World Creator: sem eles, o assentamento ainda funciona
+/// <summary>Âncora de assentamento: referência a uma célula do grid — crescer, migrar
+/// e fundar ficam fora desta classe. <see cref="Id"/>/<see cref="Orientation"/>/<see cref="Streets"/>
+/// são autoria opcional do World Creator: sem eles, o assentamento ainda funciona
 /// como âncora simples (id vazio, sem rotação, sem rua declarada).</summary>
 public sealed record SettlementAnchor(
     string Name, CellCoord Cell, string Id = "", int Orientation = 0, IReadOnlyList<CellCoord>? Streets = null)

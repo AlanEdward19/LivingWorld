@@ -1,9 +1,9 @@
 namespace LivingWorld.Infrastructure.Records;
 
-/// <summary>Linha de persistência de um template de período (Fase 13, T4): payload JSON
+/// <summary>Linha de persistência de um template de período: payload JSON
 /// canônico versionado (design.md). Chave composta (<see cref="PeriodId"/>, <see cref="Version"/>)
 /// — mesmo padrão de chave composta de <see cref="WorldSnapshotRecord"/> — nunca sobrescreve uma
-/// versão já registrada (PERIOD-07..10: conflito de versão é rejeitado, nunca silenciosamente
+/// versão já registrada (conflito de versão é rejeitado, nunca silenciosamente
 /// substituído).</summary>
 public sealed class PeriodTemplateRecord
 {

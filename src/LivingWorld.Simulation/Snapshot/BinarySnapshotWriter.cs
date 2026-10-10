@@ -5,7 +5,7 @@ using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Snapshot;
 
-/// <summary>Snapshot canônico binário posicional (PERF-11).</summary>
+/// <summary>Snapshot canônico binário posicional.</summary>
 public sealed class BinarySnapshotWriter
 {
     private static readonly byte[] Magic = "LWSNAP1\0"u8.ToArray();

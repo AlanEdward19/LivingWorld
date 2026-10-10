@@ -2,10 +2,10 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Population.Skills;
 
-/// <summary>Todo parâmetro numérico de habilidade (Fase 6), cenário-driven (R3) — nenhum
+/// <summary>Todo parâmetro numérico de habilidade, cenário-driven (R3) — nenhum
 /// literal em C#, mesmo padrão de <see cref="NeedsRules"/>/<see cref="EconomyRules"/>: teto
 /// compartilhado por todas as habilidades, taxa-base por fonte de ganho, o mapeamento de qual
-/// habilidade cada profissão pratica, e (Fase 13, T11b) qual id de habilidade conta como
+/// habilidade cada profissão pratica, e qual id de habilidade conta como
 /// "ensino" pro multiplicador de tutoria — antes um literal (<c>SkillType.Teaching</c>) em
 /// <see cref="SkillTeachingSystem"/>, agora declarado aqui, mesmo padrão de
 /// <see cref="SkillByProfession"/>.</summary>

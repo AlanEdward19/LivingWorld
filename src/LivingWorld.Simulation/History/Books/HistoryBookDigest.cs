@@ -11,7 +11,7 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.History.Books;
 
-/// <summary>Digest determinístico de livros (Fase 10, HIST-09) — usado pelos testes de dois
+/// <summary>Digest determinístico de livros — usado pelos testes de dois
 /// processos.</summary>
 public static class HistoryBookDigest
 {

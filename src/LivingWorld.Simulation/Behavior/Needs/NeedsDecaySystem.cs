@@ -9,8 +9,8 @@ using LivingWorld.Simulation.Scheduling;
 namespace LivingWorld.Simulation.Behavior.Needs;
 
 /// <summary>Decai as 4 necessidades por tick Hourly, dispara objetivo em 0 (via
-/// <see cref="Npc.HasUrgentNeed"/>) e mata por fome sustentada (Fase 4, task 10 —
-/// NEEDS-01/02/03). Com <see cref="LazyNeed"/> (Fase 9), decaimento é pull-only — este sistema
+/// <see cref="Npc.HasUrgentNeed"/>) e mata por fome sustentada.
+/// Com <see cref="LazyNeed"/>, decaimento é pull-only — este sistema
 /// só trata fome zero sustentada.</summary>
 public sealed class NeedsDecaySystem : ISimulationSystem
 {

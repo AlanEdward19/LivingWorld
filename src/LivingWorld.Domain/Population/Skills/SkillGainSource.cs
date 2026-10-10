@@ -1,7 +1,7 @@
 namespace LivingWorld.Domain.Population.Skills;
 
-/// <summary>Catálogo fechado das 6 fontes de ganho de habilidade da Fase 6 (task 3) —
-/// cada uma com taxa e requisito próprios (SKILL-03..08).</summary>
+/// <summary>Catálogo fechado das 6 fontes de ganho de habilidade —
+/// cada uma com taxa e requisito próprios.</summary>
 public enum SkillGainSource
 {
     Practice = 0,

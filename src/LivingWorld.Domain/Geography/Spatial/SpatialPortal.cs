@@ -4,7 +4,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Geography.Spatial;
 
-/// <summary>Espaço de origem/destino de um <see cref="PortalEndpoint"/> (Fase 15.1, T21). Anotado
+/// <summary>Espaço de origem/destino de um <see cref="PortalEndpoint"/>. Anotado
 /// com <see cref="JsonStringEnumConverter"/> diretamente no tipo — sem essa conversão o cliente
 /// (que só entende os literais "World"/"City"/"Building" do contrato TS
 /// <c>web/src/data/contracts.ts</c>) receberia um índice numérico.</summary>
@@ -20,8 +20,7 @@ public enum PortalSpaceKind
 /// dentro dele (vazia para <see cref="PortalSpaceKind.World"/>, que é único) e a célula local.</summary>
 public sealed record PortalEndpoint(PortalSpaceKind Space, string RefId, CellCoord Cell);
 
-/// <summary>Entrada/saída nomeada de um espaço, como dado canônico de domínio (Fase 15.1, T21,
-/// OQ-2 — spec.md "SpatialPortal como conceito canônico de domínio"). Mesmo molde declarativo de
+/// <summary>Entrada/saída nomeada de um espaço, como dado canônico de domínio. Mesmo molde declarativo de
 /// <see cref="SettlementAnchor"/> (<see cref="MapCell"/>): âncora nomeada, sem comportamento.
 /// <see cref="Id"/> é string autorada pelo cenário (não um contador do <c>WorldState</c>, ao
 /// contrário de <see cref="BuildingId"/>/<see cref="WorkplaceId"/>) — mesma razão de

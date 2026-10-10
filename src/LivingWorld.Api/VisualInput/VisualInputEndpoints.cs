@@ -1,19 +1,16 @@
 using LivingWorld.Api.Realtime;
-using LivingWorld.Api.Visual;
 using LivingWorld.Api.Visual.Scope;
-using LivingWorld.Domain;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Shared;
-using LivingWorld.Simulation;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Visibility;
 
 namespace LivingWorld.Api.VisualInput;
 
-/// <summary>Fase 15, T7 (spec.md story "Modo personagem com FOW", AC1): intenção de movimento —
+/// <summary>Intenção de movimento —
 /// só <c>/move</c> tem critério de aceite na spec (click/WASD, validação server-side, delta
-/// publicado). <c>/interact</c> do design.md não tem nenhum AC que defina comportamento
-/// esperado — implementá-lo agora seria um "what if" sem lastro em spec (Check C de tasks.md);
+/// publicado). <c>/interact</c> do design.md não tem nenhum critério que defina comportamento
+/// esperado — implementá-lo agora seria um "what if" sem lastro em spec;
 /// fica deferido até a spec definir o que "interagir" significa.</summary>
 public sealed record PlayerMoveRequest(int TargetX, int TargetY, string InputMode);
 

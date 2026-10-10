@@ -4,7 +4,7 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Population.Archive;
 
-/// <summary>Arquiva NPCs/fauna/flora mortos antigos no tier frio (PERF-10, REALISM-21).</summary>
+/// <summary>Arquiva NPCs/fauna/flora mortos antigos no tier frio.</summary>
 public sealed class ColdArchiveSystem : ISimulationSystem
 {
     public const string SystemName = "population-cold-archive";

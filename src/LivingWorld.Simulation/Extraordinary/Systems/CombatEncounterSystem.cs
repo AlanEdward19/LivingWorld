@@ -10,13 +10,13 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Extraordinary.Systems;
 
-/// <summary>Combate multi-round com estado persistente em <see cref="WorldState"/> (REALISM-16+).
+/// <summary>Combate multi-round com estado persistente em <see cref="WorldState"/>.
 /// Base de simulação — roda com <c>Extraordinary.Enabled == false</c> quando chamado direto.</summary>
 public static class CombatEncounterSystem
 {
     public const string SystemName = "combat-encounter";
 
-    /// <summary>AD-010 / REALISM-16: cria encontro Active que persiste entre ticks.</summary>
+    /// <summary>Cria encontro Active que persiste entre ticks.</summary>
     public static CombatEncounterId StartEncounter(
         WorldState world, NpcId attacker, NpcId defender, int magnitude, TickContext tick)
     {
@@ -31,7 +31,7 @@ public static class CombatEncounterSystem
         return id;
     }
 
-    /// <summary>REALISM-17/18/24: um round — dano acumulado via Resolver/DamageOf, morte imediata,
+    /// <summary>Um round — dano acumulado via Resolver/DamageOf, morte imediata,
     /// fuga abaixo do limiar; teto de rounds força resolução (nunca loop infinito).</summary>
     public static CombatRoundOutcome ProcessRound(WorldState world, CombatEncounterId id, TickContext tick)
     {
@@ -51,7 +51,7 @@ public static class CombatEncounterSystem
         var rules = world.CombatRules;
         int roundNumber = encounter.RoundsElapsed + 1;
 
-        // Fuga antes do golpe se abaixo do limiar (REALISM-24).
+        // Fuga antes do golpe se abaixo do limiar.
         if (TryFlee(world, tick, encounter, attacker, defender, rules, roundNumber))
             return CombatRoundOutcome.Fled;
 

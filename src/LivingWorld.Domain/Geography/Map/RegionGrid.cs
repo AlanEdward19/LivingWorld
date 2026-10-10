@@ -1,7 +1,7 @@
 namespace LivingWorld.Domain.Geography.Map;
 
 /// <summary>Particionamento determinístico de um grid width×height em regiões de blocos
-/// regionSize×regionSize (task 1/4). Não depende de RNG — mesma entrada, mesma partição
+/// regionSize×regionSize. Não depende de RNG — mesma entrada, mesma partição
 /// sempre. Reusado pelo gerador procedural e pelo carregamento de mapa autoral.</summary>
 public static class RegionGrid
 {

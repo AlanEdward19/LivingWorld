@@ -2,10 +2,10 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Api.Visual.Projection;
 
-/// <summary>Diferença entre dois <see cref="InteriorSnapshot.Occupants"/> (Fase 15.1, T47) — as
+/// <summary>Diferença entre dois <see cref="InteriorSnapshot.Occupants"/> — as
 /// 4 transições do bullet do backend-gaps.md: entrar, mover (mesmo andar, célula diferente),
-/// trocar andar, sair. Bloco pronto para o transporte genérico de delta (T2/T3, ainda não
-/// construído) consumir; esta task só garante que a transição é *observável*, não constrói o
+/// trocar andar, sair. Bloco pronto para o transporte genérico de delta (ainda não
+/// construído) consumir; isso só garante que a transição é *observável*, não constrói o
 /// pipe de tempo real.</summary>
 public sealed record InteriorOccupancyDelta(
     IReadOnlyList<InteriorOccupant> Entered,

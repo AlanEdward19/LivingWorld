@@ -10,7 +10,7 @@ using LivingWorld.Simulation.Scenarios;
 
 namespace LivingWorld.Simulation.Behavior.Decision;
 
-/// <summary>Contadores de redecisão (Fase 16.3 P2a, COH-44/45 / doc#85/98) — decisions e
+/// <summary>Contadores de redecisão — decisions e
 /// wakeups por agent-day; comparação full-reconsideration vs event-driven.</summary>
 public sealed class DecisionMetrics
 {

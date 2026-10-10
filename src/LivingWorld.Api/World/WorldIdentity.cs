@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 
 namespace LivingWorld.Api.World;
 
-/// <summary>Identidade pública e determinística de um mundo criado (T42/ADR-0017): hash puro da
+/// <summary>Identidade pública e determinística de um mundo criado: hash puro da
 /// seed, nunca persistida — recomputável a qualquer momento, nunca dessincroniza do snapshot
 /// porque não é parte dele.</summary>
 public static class WorldIdentity

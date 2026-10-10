@@ -6,7 +6,7 @@ using LivingWorld.Simulation.Core;
 namespace LivingWorld.Simulation.Economy.Production;
 
 /// <summary>Projeção de processos materiais, carga em trânsito e cultivos
-/// (Fase 15.1, Stage 4, T15–T17) — progresso visual derivado do estado canônico.</summary>
+/// — progresso visual derivado do estado canônico.</summary>
 public static class ResourceProcessPresentation
 {
     public const long ProcessIdOffset = 2_000_000;

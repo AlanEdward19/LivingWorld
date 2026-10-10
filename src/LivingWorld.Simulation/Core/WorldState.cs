@@ -31,7 +31,7 @@ using LivingWorld.Simulation.Snapshot;
 
 namespace LivingWorld.Simulation.Core;
 
-/// <summary>Estado do mundo — tudo que precisa sobreviver a um snapshot (task 7). Controles de
+/// <summary>Estado do mundo — tudo que precisa sobreviver a um snapshot. Controles de
 /// host (pausa, velocidade) ficam fora de propósito: são estado do hospedeiro, não do mundo
 /// (ver <see cref="SimulationHost"/>).</summary>
 public sealed class WorldState
@@ -45,11 +45,11 @@ public sealed class WorldState
     [Canonical] public WorldDate CurrentDate { get; internal set; }
     [Canonical] public long NextEventId => _nextEventId;
 
-    /// <summary>Contador monotônico de <see cref="WorldEvent.EventId"/> (COH-01 / AD-013) —
+    /// <summary>Contador monotônico de <see cref="WorldEvent.EventId"/> —
     /// irmão de <see cref="NextEventId"/>; nunca reaproveita o contador de <c>ScheduledEvent</c>.</summary>
     [Canonical] public long NextHistoryEventId => _nextHistoryEventId;
 
-    /// <summary>Linha temporal deste mundo (ADR-0009). O hash canônico é por branch: dois
+    /// <summary>Linha temporal deste mundo. O hash canônico é por branch: dois
     /// branches com conteúdo idêntico têm hashes distintos.</summary>
     [Canonical] public BranchId BranchId { get; }
 
@@ -63,71 +63,71 @@ public sealed class WorldState
     [Canonical]
     public IReadOnlyList<ScheduledEvent> PendingEvents => _scheduler.Snapshot();
 
-    /// <summary>Geografia do mundo (Fase 2) — grid, regiões, custo de deslocamento. Entra no
-    /// hash canônico: mudar o mapa muda o mundo (task 7).</summary>
+    /// <summary>Geografia do mundo — grid, regiões, custo de deslocamento. Entra no
+    /// hash canônico: mudar o mapa muda o mundo.</summary>
     [Canonical] public WorldMap Map { get; }
 
-    /// <summary>Ids de cultura/profissão/tipo-de-local válidos para este cenário (Fase 3, task 7)
+    /// <summary>Ids de cultura/profissão/tipo-de-local válidos para este cenário
     /// — decide quem pode nascer com qual cultura e barra literal de conteúdo em C#.</summary>
     [Canonical] public PopulationCatalog PopulationCatalog { get; }
 
-    /// <summary>Tabela de vida e janela de fertilidade do cenário (Fase 3, task 5) — alimenta
+    /// <summary>Tabela de vida e janela de fertilidade do cenário — alimenta
     /// toda decisão de nascimento e morte.</summary>
     [Canonical] public PopulationRules PopulationRules { get; }
 
-    /// <summary>Parâmetros cenário-driven do utility AI/necessidades (Fase 4, task 4/9) —
+    /// <summary>Parâmetros cenário-driven do utility AI/necessidades —
     /// decaimento, limiar de urgência, histerese. Entra no hash canônico: desligar/mudar o
     /// utility AI muda o mundo (NEEDS-04).</summary>
     [Canonical] public NeedsRules NeedsRules { get; }
 
-    /// <summary>Eficiência de recuperação por tipo de lugar de descanso (Fase 15.1, Stage 4,
-    /// T12, LWV-03.1). <see cref="RestPlaceCatalog.GroundEfficiency"/> é o destino in-place de
+    /// <summary>Eficiência de recuperação por tipo de lugar de descanso.
+    /// <see cref="RestPlaceCatalog.GroundEfficiency"/> é o destino in-place de
     /// <see cref="NeedsRules.HomelessSleepEfficiency"/>.</summary>
     [Canonical] public RestPlaceCatalog RestPlaceCatalog { get; }
 
-    /// <summary>Catálogo de ações e rotina diária do cenário (Fase 4, task 2/9).</summary>
+    /// <summary>Catálogo de ações e rotina diária do cenário.</summary>
     [Canonical] public ActionCatalog ActionCatalog { get; }
 
-    /// <summary>Limiares de idade que resolvem <see cref="LifeStage"/> do cenário (Fase 4, task
-    /// 3/12) — nunca hardcoded (R3). Necessário para a rotina diária (<see cref="BehaviorDecisionSystem"/>)
+    /// <summary>Limiares de idade que resolvem <see cref="LifeStage"/> do cenário
+    /// — nunca hardcoded (R3). Necessário para a rotina diária (<see cref="BehaviorDecisionSystem"/>)
     /// resolver `(Profession, LifeStage, hora)`.</summary>
     [Canonical] public LifeStageRules LifeStageRules { get; }
 
-    /// <summary>Parâmetros cenário-driven da economia (Fase 5, T2) — capacidade, perda, salário,
-    /// preço. <see cref="EconomyRules.Enabled"/> falso equivale a "economia não existe" (ECON-05:
-    /// desligar muda o hash porque as coleções abaixo ficam sempre vazias nesse cenário).</summary>
+    /// <summary>Parâmetros cenário-driven da economia — capacidade, perda, salário,
+    /// preço. <see cref="EconomyRules.Enabled"/> falso equivale a "economia não existe"
+    /// (desligar muda o hash porque as coleções abaixo ficam sempre vazias nesse cenário).</summary>
     [Canonical] public EconomyRules EconomyRules { get; }
 
-    /// <summary>Recipe de produção por local e vínculo profissão→local do cenário (Fase 5, T3).</summary>
+    /// <summary>Recipe de produção por local e vínculo profissão→local do cenário.</summary>
     [Canonical] public EconomyCatalog EconomyCatalog { get; }
 
-    /// <summary>Todo peso/limiar/duração/flag da Fase 7 (Relações e Famílias, T4) — mesmo grupo de
+    /// <summary>Todo peso/limiar/duração/flag de relações e famílias — mesmo grupo de
     /// <see cref="NeedsRules"/>/<see cref="EconomyRules"/>: cenário-driven, entra no hash canônico
     /// porque decide todo evento de relação/cortejo/concepção.</summary>
     [Canonical] public FamilyRules FamilyRules { get; }
 
-    /// <summary>Parâmetros cenário-driven do corpo mínimo causal (Fase 16.3, COH-21) —
+    /// <summary>Parâmetros cenário-driven do corpo mínimo causal —
     /// distribuição de Height/Weight/MuscleMass. <see cref="BodyRules.Enabled"/> falso
     /// mantém os campos gerados mas multiplicadores de BodyMechanic neutros 1.0.</summary>
     [Canonical] public BodyRules BodyRules { get; }
 
-    // SPEC_DEVIATION (Fase 8, T9): design.md/tasks.md pressupõem `world.CityRules`/
-    // `world.CityCatalog` (todo sistema da Fase 8 lê threshold/receita por eles), mas T1-T8
-    // (Foundation) nunca os wireou em WorldState — só criaram os tipos e o loader. Sem isso,
-    // nenhum sistema de T9 em diante teria como ler CityRules.Enabled/limiares. Mesmo padrão de
+    // SPEC_DEVIATION: design.md/tasks.md pressupõem `world.CityRules`/
+    // `world.CityCatalog` (todo sistema de cidades lê threshold/receita por eles), mas o trabalho
+    // de fundação nunca os wireou em WorldState — só criaram os tipos e o loader. Sem isso,
+    // nenhum sistema de cidade teria como ler CityRules.Enabled/limiares. Mesmo padrão de
     // EconomyRules/EconomyCatalog acima.
 
-    /// <summary>Todo limiar/peso/duração de crescimento/migração/fundação/materialização da Fase
-    /// 8 (T2) — cenário-driven, mesmo grupo de <see cref="FamilyRules"/>.</summary>
+    /// <summary>Todo limiar/peso/duração de crescimento/migração/fundação/materialização de cidade
+    /// — cenário-driven, mesmo grupo de <see cref="FamilyRules"/>.</summary>
     [Canonical] public CityRules CityRules { get; }
 
-    /// <summary>Receita de construção por tipo de edifício da Fase 8 (T3).</summary>
+    /// <summary>Receita de construção por tipo de edifício.</summary>
     [Canonical] public CityCatalog CityCatalog { get; }
 
-    /// <summary>Tetos de custo e arquivamento frio (Fase 9, PERF-03) — cenário-driven.</summary>
+    /// <summary>Tetos de custo e arquivamento frio — cenário-driven.</summary>
     [Canonical] public PerfRules PerfRules { get; }
 
-    /// <summary>Parâmetros cenário-driven da história degradável (Fase 10, HIST-08) — limiar,
+    /// <summary>Parâmetros cenário-driven da história degradável — limiar,
     /// cânone, meios e distorção. <see cref="HistoryRules.Enabled"/> falso equivale a "história
     /// desligada".</summary>
     [Canonical] public HistoryRules HistoryRules { get; }
@@ -170,20 +170,19 @@ public sealed class WorldState
     public IReadOnlyList<EnvironmentTemperatureAdjustment> EnvironmentTemperatureAdjustments =>
         _environmentTemperatureAdjustments;
 
-    /// <summary>Regras de ciclo de vida por espécie animal (Fase 16.4) — config de cenário.</summary>
+    /// <summary>Regras de ciclo de vida por espécie animal — config de cenário.</summary>
     [Canonical] public IReadOnlyList<AnimalSpeciesRules> AnimalSpeciesRules { get; }
 
-    /// <summary>Regras de ciclo de vida por espécie vegetal (Fase 16.4) — config de cenário.</summary>
+    /// <summary>Regras de ciclo de vida por espécie vegetal — config de cenário.</summary>
     [Canonical] public IReadOnlyList<PlantSpeciesRules> PlantSpeciesRules { get; }
 
-    /// <summary>Curvas sazonais de delta de temperatura por bioma (Fase 16.4).</summary>
     [Canonical] public IReadOnlyList<BiomeSeasonTemperatureRules> BiomeSeasonTemperatureRules { get; }
 
     private readonly List<CombatEncounter> _combatEncounters;
     private readonly Dictionary<CombatEncounterId, CombatEncounter> _combatEncountersById;
     private long _nextCombatEncounterId;
 
-    /// <summary>Encontros de combate multi-round (Fase 16.4, REALISM-16) — AD-010 via
+    /// <summary>Encontros de combate multi-round — via
     /// <c>combat.engage:</c>.</summary>
     [Canonical] public IReadOnlyList<CombatEncounter> CombatEncounters => _combatEncounters;
     [Canonical] public long NextCombatEncounterId => _nextCombatEncounterId;
@@ -191,14 +190,14 @@ public sealed class WorldState
     /// <summary>Teto de rounds e limiar de fuga (cenário).</summary>
     [Canonical] public CombatRules CombatRules { get; }
 
-    /// <summary>Nome escolhido pelo usuário na criação (Fase 15.1, T42/ADR-0017) — cosmético,
-    /// nenhuma decisão de sistema lê nome de mundo (ADR-0014), por isso volátil.</summary>
+    /// <summary>Nome escolhido pelo usuário na criação — cosmético,
+    /// nenhuma decisão de sistema lê nome de mundo, por isso volátil.</summary>
     [Volatile] public string Name { get; private set; }
 
     private readonly List<Fact> _facts;
     private long _nextFactId;
 
-    /// <summary>Fatos imutáveis do esqueleto (Fase 10, HIST-01) — append-only na simulação.</summary>
+    /// <summary>Fatos imutáveis do esqueleto — append-only na simulação.</summary>
     [Canonical] public IReadOnlyList<Fact> Facts => _facts;
 
     [Canonical] public long NextFactId => _nextFactId;
@@ -211,11 +210,11 @@ public sealed class WorldState
     private readonly List<Book> _books;
     private long _nextBookId;
 
-    /// <summary>Relatos registrados no mundo (Fase 10) — inclui relatos fora do cânone vivo
+    /// <summary>Relatos registrados no mundo — inclui relatos fora do cânone vivo
     /// (ex.: referenciados por <see cref="Books"/> após despejo).</summary>
     [Canonical] public IReadOnlyList<ReportState> Reports => _reports;
 
-    /// <summary>Livros como objetos do mundo (Fase 10, HIST-09).</summary>
+    /// <summary>Livros como objetos do mundo.</summary>
     [Canonical] public IReadOnlyList<Book> Books => _books;
 
     [Canonical] public long NextBookId => _nextBookId;
@@ -224,8 +223,8 @@ public sealed class WorldState
     private readonly List<NpcMemory> _volatileMemories;
     private long _nextMemoryId;
 
-    /// <summary>Memórias de NPC (Fase 11, roadmap itens 1/2) com importância >= limiar do
-    /// cenário no momento em que foram registradas (ADR-0014) — alimenta <c>Recall</c> e o
+    /// <summary>Memórias de NPC com importância >= limiar do
+    /// cenário no momento em que foram registradas — alimenta <c>Recall</c> e o
     /// prompt da LLM, por isso decide.</summary>
     [Canonical] public IReadOnlyList<NpcMemory> CanonicalMemories => _canonicalMemories;
 
@@ -242,32 +241,32 @@ public sealed class WorldState
     private readonly List<Npc> _npcWakeBatch = [];
     private readonly Dictionary<long, long> _npcWakeEventIdByNpc = [];
 
-    /// <summary>NPCs que acordam neste tick (PERF-08) — derivado, fora do hash canônico.</summary>
+    /// <summary>NPCs que acordam neste tick — derivado, fora do hash canônico.</summary>
     [Volatile, Ephemeral] public IReadOnlyList<Npc> NpcWakeBatch => _npcWakeBatch;
 
     [Volatile] public ColdTierArchive ColdArchive { get; private set; }
 
-    /// <summary>Rastro de decisão por NPC (Fase 28, COG-01) — side-store não-canônico.</summary>
+    /// <summary>Rastro de decisão por NPC — side-store não-canônico.</summary>
     [Volatile, Ephemeral] public NpcCognitionLog CognitionLog { get; } = new();
 
-    /// <summary>União dos escopos de observação ativos (Fase 28, LOD-04).</summary>
+    /// <summary>União dos escopos de observação ativos.</summary>
     [Volatile, Ephemeral] public ObservationRegistry ObservationRegistry { get; } = new();
 
-    /// <summary>Camada cosmética lazy/exata por observação (Fase 28, T5).</summary>
+    /// <summary>Camada cosmética lazy/exata por observação.</summary>
     [Volatile, Ephemeral] public CosmeticDetailSystem CosmeticDetail { get; private set; } = null!;
 
     [Volatile] internal CanonicalHashCache CanonicalHashCache { get; } = new();
 
     private readonly Dictionary<RelationshipKey, Relationship> _relationships;
 
-    /// <summary>Uma <see cref="Relationship"/> por par ordenado, criada sob demanda (Fase 7, T8,
-    /// AD-052: "quem nunca se encontra nunca se conhece" — FAM-02). Este dicionário **é** a
+    /// <summary>Uma <see cref="Relationship"/> por par ordenado, criada sob demanda
+    /// ("quem nunca se encontra nunca se conhece"). Este dicionário **é** a
     /// coleção canônica, sem lista paralela: não há iteração ordenada por id sequencial fazendo
     /// sentido para um par (quem precisar de determinismo ordena por
     /// <c>(From.Value, To.Value)</c> na hora, ex. <c>RelationshipSystem</c>/hash).</summary>
     [Canonical] public IReadOnlyDictionary<RelationshipKey, Relationship> Relationships => _relationships;
 
-    /// <summary>Único ponto de criação de uma <see cref="Relationship"/> (AD-052) — cria só na
+    /// <summary>Único ponto de criação de uma <see cref="Relationship"/> — cria só na
     /// primeira chamada para a chave; chamadas seguintes devolvem a mesma instância.</summary>
     internal Relationship GetOrCreateRelationship(RelationshipKey key, long now)
     {
@@ -289,19 +288,19 @@ public sealed class WorldState
     private Money _moneyMinted;
     private Money _moneyDestroyed;
 
-    /// <summary>Massa monetária cunhada desde a origem do mundo (Fase 5, ECON-26/27) — nunca
+    /// <summary>Massa monetária cunhada desde a origem do mundo — nunca
     /// alterada implicitamente por transação/salário, só por <see cref="Mint"/> nomeado.</summary>
     [Canonical] public Money MoneyMinted => _moneyMinted;
 
-    /// <summary>Massa monetária destruída desde a origem do mundo (Fase 5, ECON-26/27) — a
+    /// <summary>Massa monetária destruída desde a origem do mundo — a
     /// invariante de conservação é <c>saldo_total == inicial + MoneyMinted - MoneyDestroyed</c>.</summary>
     [Canonical] public Money MoneyDestroyed => _moneyDestroyed;
 
     private readonly Dictionary<ResourceType, long> _resourceProduced = [];
     private readonly Dictionary<ResourceType, long> _resourceConsumed = [];
 
-    /// <summary>Contador auditável de produção bruta por recurso desde a origem do mundo (Fase 5,
-    /// T24, ECON-15) — nunca influencia decisão nenhuma (por isso <see cref="VolatileAttribute"/>,
+    /// <summary>Contador auditável de produção bruta por recurso desde a origem do mundo
+    /// — nunca influencia decisão nenhuma (por isso <see cref="VolatileAttribute"/>,
     /// não entra no hash canônico), só sustenta a invariante
     /// <c>produzido == consumido + estocado + perdido</c> que os testes de conservação checam.
     /// Incrementado por <c>ProductionSystem</c> a cada depósito bem-sucedido.</summary>
@@ -319,13 +318,12 @@ public sealed class WorldState
     public void RecordResourceConsumed(ResourceType resource, long amount) =>
         _resourceConsumed[resource] = _resourceConsumed.GetValueOrDefault(resource) + amount;
 
-    /// <summary>Todo NPC já existiu, vivo ou morto (Fase 3) — referência histórica não pode
+    /// <summary>Todo NPC já existiu, vivo ou morto — referência histórica não pode
     /// virar ponteiro solto (critério "nenhum evento após tick de morte referencia o NPC" exige
     /// que o NPC continue existindo para o sweep referencial provar isso).</summary>
     [Canonical] public IReadOnlyList<Npc> Npcs => _npcs;
 
-    /// <summary>Households vivos — dissolvido (<see cref="Household.IsEmpty"/>) sai da lista
-    /// (task 3).</summary>
+    /// <summary>Households vivos — dissolvido (<see cref="Household.IsEmpty"/>) sai da lista.</summary>
     [Canonical] public IReadOnlyList<Household> Households => _households;
 
     [Canonical] public long NextNpcId => _nextNpcId;
@@ -335,7 +333,7 @@ public sealed class WorldState
     private readonly Dictionary<WorkplaceId, Workplace> _workplaceById;
     private long _nextWorkplaceId;
 
-    /// <summary>Local de produção/estoque/mercado (Fase 5, T4) — mesmo molde de <see
+    /// <summary>Local de produção/estoque/mercado — mesmo molde de <see
     /// cref="Households"/> (lista + dono canônico).</summary>
     [Canonical] public IReadOnlyList<Workplace> Workplaces => _workplaces;
 
@@ -347,7 +345,7 @@ public sealed class WorldState
     private readonly Dictionary<BuildingId, Building> _buildingById;
     private long _nextBuildingId;
 
-    /// <summary>Cidade (Fase 8, T5) — mesmo molde de <see cref="Households"/>/<see
+    /// <summary>Cidade — mesmo molde de <see cref="Households"/>/<see
     /// cref="Workplaces"/> (lista + dono canônico).</summary>
     [Canonical] public IReadOnlyList<City> Cities => _cities;
 
@@ -355,7 +353,7 @@ public sealed class WorldState
     /// <see cref="Cities"/> para preservar referências históricas.</summary>
     public IEnumerable<City> ActiveCities() => _cities.Where(city => city.MergedIntoCityId is null);
 
-    /// <summary>Edifício concluído (Fase 8, T5) — mesmo molde de <see cref="Cities"/>.</summary>
+    /// <summary>Edifício concluído — mesmo molde de <see cref="Cities"/>.</summary>
     [Canonical] public IReadOnlyList<Building> Buildings => _buildings;
 
     /// <summary><see cref="BuildingId"/> é monotônico como <see cref="WorkplaceId"/> — só este
@@ -366,16 +364,16 @@ public sealed class WorldState
 
     private readonly List<SpatialPortal> _portals;
 
-    /// <summary>Entradas/saídas nomeadas de espaço (Fase 15.1, T21, OQ-2) — dado descritivo, sem
+    /// <summary>Entradas/saídas nomeadas de espaço — dado descritivo, sem
     /// contador próprio: <see cref="SpatialPortal.Id"/> é autorado pelo cenário, mesmo molde de
-    /// <see cref="SettlementAnchor.Id"/>. Nenhum sistema de simulação lê esta coleção nesta fase
+    /// <see cref="SettlementAnchor.Id"/>. Nenhum sistema de simulação lê esta coleção
     /// (fronteira estrita de spec.md); só <c>ScenarioLoaderV2</c> autora e a projeção da API lê.</summary>
     [Canonical] public IReadOnlyList<SpatialPortal> Portals => _portals;
 
     private readonly List<RestPlace> _restPlaces;
     private long _nextRestPlaceId;
 
-    /// <summary>Camas/móveis de descanso no mundo (Fase 15.1, Stage 4, T12). Chão e moradia não
+    /// <summary>Camas/móveis de descanso no mundo. Chão e moradia não
     /// entram aqui: são derivados do NPC sem household e de <see cref="Household.Location"/>.</summary>
     [Canonical] public IReadOnlyList<RestPlace> RestPlaces => _restPlaces;
 
@@ -396,7 +394,7 @@ public sealed class WorldState
     [Canonical] public IReadOnlyList<CropBatch> CropBatches => _cropBatches;
     [Canonical] public long NextCropBatchId => _nextCropBatchId;
 
-    /// <summary>Contador do sistema de exemplo (task 11) — descartável na Fase 3. Nenhuma
+    /// <summary>Contador do sistema de exemplo — descartável quando sistemas reais o substituírem. Nenhuma
     /// decisão lê este campo, por isso é volátil.</summary>
     [Volatile]
     public IReadOnlyDictionary<TickFrequency, long> ExampleTickCounts => _exampleTickCounts;
@@ -508,7 +506,7 @@ public sealed class WorldState
         BindNpcCanonicalNotifiers();
     }
 
-    /// <summary>Reconstrói a partir de um snapshot (task 7/8) — rehidratação.</summary>
+    /// <summary>Reconstrói a partir de um snapshot — rehidratação.</summary>
     public WorldState(
         WorldCalendar calendar,
         WorldDate currentDate,
@@ -676,7 +674,7 @@ public sealed class WorldState
     internal long NextEventIdAndAdvance() => _nextEventId++;
 
     /// <summary>Único ponto de mint de <see cref="WorldEvent.EventId"/> — monotônico e
-    /// determinístico entre processos (AD-013).</summary>
+    /// determinístico entre processos.</summary>
     internal long NextHistoryEventIdAndAdvance() => _nextHistoryEventId++;
 
     internal void IncrementExampleCount(TickFrequency frequency) => _exampleTickCounts[frequency]++;
@@ -741,7 +739,7 @@ public sealed class WorldState
         MarkCanonicalPropertyDirty(nameof(Households));
     }
 
-    /// <summary>Household sem membros é dissolvido (task 3) — sai da lista canônica.</summary>
+    /// <summary>Household sem membros é dissolvido — sai da lista canônica.</summary>
     internal void RemoveHousehold(HouseholdId id)
     {
         _households.RemoveAll(h => h.Id == id);
@@ -749,7 +747,7 @@ public sealed class WorldState
         MarkCanonicalPropertyDirty(nameof(Households));
     }
 
-    // SPEC_DEVIATION (Fase 8, T9): design.md não previa remover uma linha de Npc — mas
+    // SPEC_DEVIATION: design.md não previa remover uma linha de Npc — mas
     // Dematerialize (approach A) exige exatamente isso ("remover a linha do store"). Mirror de
     // RemoveHousehold; só MaterializationSystem chama.
     internal void RemoveNpc(NpcId id)
@@ -959,15 +957,15 @@ public sealed class WorldState
     }
     public Building? FindBuilding(BuildingId id) => _buildingById.GetValueOrDefault(id);
 
-    /// <summary>Único ponto de autoria de <see cref="SpatialPortal"/> (Fase 15.1, T21) — só
+    /// <summary>Único ponto de autoria de <see cref="SpatialPortal"/> — só
     /// <c>ScenarioLoaderV2</c> chama, no mesmo momento em que autora <see cref="City"/>/
     /// <see cref="Building"/>. Sem <c>FindPortal</c>/remoção: portal é dado descritivo estático do
-    /// cenário, nenhum sistema desta fase o edita depois de carregado.</summary>
+    /// cenário, nenhum sistema o edita depois de carregado.</summary>
     public void AddPortal(SpatialPortal portal)
     {
         _portals.Add(portal);
         // Portals is cold (not HotProperties): must invalidate fragment cache after mutation
-        // or CanonicalHash after AddPortal stays stale (PERF-12 IncrementalHasher).
+        // or CanonicalHash after AddPortal stays stale.
         CanonicalHashCache.MarkPropertyDirty(nameof(Portals));
     }
 
@@ -1060,8 +1058,8 @@ public sealed class WorldState
         return null;
     }
 
-    /// <summary>Único ponto de criação de <see cref="NpcMemory"/> (Fase 11, roadmap itens 1/2)
-    /// — a classificação canônico/volátil (ADR-0014) é decidida aqui, uma vez, contra
+    /// <summary>Único ponto de criação de <see cref="NpcMemory"/>
+    /// — a classificação canônico/volátil é decidida aqui, uma vez, contra
     /// <paramref name="canonicalImportanceThreshold"/> (vem de <c>LlmRules</c> do cenário no
     /// chamador, mesmo padrão de <c>ConversationAvailabilityPolicy</c>: a regra nunca mora em
     /// <see cref="WorldState"/>, só o efeito de aplicá-la).</summary>
@@ -1076,8 +1074,8 @@ public sealed class WorldState
             _volatileMemories.Add(memory);
     }
 
-    /// <summary>Único ponto de mutação de <see cref="VolatileMemories"/> por compactação (Fase 11,
-    /// roadmap item 10, LLM-17..19, <c>MemoryCompactionJob</c>) — troca um grupo de memórias
+    /// <summary>Único ponto de mutação de <see cref="VolatileMemories"/> por compactação
+    /// (<c>MemoryCompactionJob</c>) — troca um grupo de memórias
     /// voláteis por um resumo. Não passa por <see cref="AddNpcMemory"/>/<c>_nextMemoryId</c> de
     /// propósito: <see cref="NextMemoryId"/> é <see cref="CanonicalAttribute"/> e compactação
     /// precisa deixar o hash canônico intacto (spec.md, "hash canônico permanece idêntico"), por
@@ -1091,7 +1089,7 @@ public sealed class WorldState
     }
 
     /// <summary>Deriva um <see cref="CityId"/> novo a partir do stream de RNG dedicado
-    /// <c>"city-founding"</c> (Fase 8, T5) — <c>Guid.NewGuid()</c> é banido em Domain/Simulation
+    /// <c>"city-founding"</c> — <c>Guid.NewGuid()</c> é banido em Domain/Simulation
     /// (rules/simulation-determinism.md); mesma seed produz sempre o mesmo <see cref="CityId"/>
     /// na mesma posição do stream.</summary>
     public CityId NextCityId() => new(NextGuidFromRng());
@@ -1109,8 +1107,8 @@ public sealed class WorldState
         return new Guid(bytes);
     }
 
-    /// <summary>Cunhagem explícita e rara (task 10) — nunca chamada implicitamente por
-    /// <see cref="MarketTransaction"/>/salário, só por um evento nomeado (AD-042).</summary>
+    /// <summary>Cunhagem explícita e rara — nunca chamada implicitamente por
+    /// <see cref="MarketTransaction"/>/salário, só por um evento nomeado.</summary>
     public void Mint(TickContext ctx, Money amount, string reason)
     {
         _moneyMinted += amount;

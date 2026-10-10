@@ -1,7 +1,7 @@
 namespace LivingWorld.Domain.Population.Skills;
 
-/// <summary>Habilidades de um <c>Npc</c> (Fase 6, task 4; Fase 13, T11b: catálogo aberto por id
-/// — mesmo padrão de <see cref="PopulationCatalog.ProfessionWeights"/>). Cada uma um <c>double</c>
+/// <summary>Habilidades de um <c>Npc</c> — catálogo aberto por id
+/// (mesmo padrão de <see cref="PopulationCatalog.ProfessionWeights"/>). Cada uma um <c>double</c>
 /// em <c>[0, cap]</c>, habilidade nunca gerada vale 0 (nunca lança exceção, nunca precisa de lista
 /// prévia de ids). Imutável: todo ganho passa por <see cref="WithGain"/>, que devolve uma nova
 /// instância.</summary>
@@ -15,8 +15,8 @@ public sealed class SkillSet
 
     public SkillSet(IReadOnlyDictionary<int, double> values) => Values = values;
 
-    /// <summary>Nenhuma habilidade ainda ganhada — <see cref="Get"/> devolve 0 pra qualquer id
-    /// (SKILL-01). Substitui o antigo <c>SkillSet.Initial(0)</c>: sem catálogo fechado, não há
+    /// <summary>Nenhuma habilidade ainda ganhada — <see cref="Get"/> devolve 0 pra qualquer id.
+    /// Substitui o antigo <c>SkillSet.Initial(0)</c>: sem catálogo fechado, não há
     /// lista de ids pra pré-popular.</summary>
     public static readonly SkillSet Empty = new(new Dictionary<int, double>());
 
@@ -24,7 +24,7 @@ public sealed class SkillSet
 
     /// <summary>Aplica <paramref name="delta"/> à habilidade <paramref name="type"/>, clampado em
     /// <c>[0, cap]</c> — ganho no teto é absorvido sem exceção e sem efeito colateral em outra
-    /// habilidade (SKILL-12). Devolve uma nova instância; as demais habilidades são
+    /// habilidade. Devolve uma nova instância; as demais habilidades são
     /// preservadas.</summary>
     public SkillSet WithGain(SkillType type, double delta, double cap)
     {

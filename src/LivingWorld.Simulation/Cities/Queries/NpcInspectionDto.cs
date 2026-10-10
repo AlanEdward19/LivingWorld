@@ -36,9 +36,9 @@ public sealed record NpcFoodStatusDto(
     long RemainingHours,
     bool Blocked);
 
-/// <summary>Retrato somente-leitura de um NPC vivo para inspeção (Fase 8, T14, CITY-06) —
-/// identidade, família, profissão, atributos e rotina. "Memórias" é sempre lista vazia nesta
-/// fase: sistema de memória individual é Fase 10/11 (AD-068, design.md Tech Decisions); o campo
+/// <summary>Retrato somente-leitura de um NPC vivo para inspeção —
+/// identidade, família, profissão, atributos e rotina. "Memórias" é sempre lista vazia: sistema
+/// de memória individual ainda não existe (design.md Tech Decisions); o campo
 /// existe como contrato futuro-compatível, sem inventar dado que o motor ainda não produz.</summary>
 public sealed record NpcInspectionDto(
     NpcId Id,
@@ -72,7 +72,7 @@ public sealed record NpcInspectionDto(
     // GlobalProjector/LivingScopeProjector (NpcScopeResolver), agora também aqui — cliente usa
     // pra saber que o NPC seguido cruzou de cidade pro mundo (ou vice-versa) e trocar de tela.
     NpcScope CurrentScope,
-    // Fase 28 T10 (COG-10, COG-12, COG-13): rastro de decisão do side-store — leitura pura,
+    // Rastro de decisão do side-store — leitura pura,
     // lista vazia explícita quando não há entradas; nunca recalculado aqui.
     IReadOnlyList<TraceEntry> CognitionTrace,
     NpcRestStatusDto? Rest = null,

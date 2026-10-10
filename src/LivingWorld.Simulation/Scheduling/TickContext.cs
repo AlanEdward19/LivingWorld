@@ -10,13 +10,12 @@ public sealed class TickContext(WorldState world, WorldRngRegistry rng, EventSch
 {
     public long CurrentTick => world.CurrentDate.TotalHours;
 
-    /// <summary>Registra um evento de história (task 8/10) — sem-op no sink se ninguém persiste,
-    /// mas sempre minta <see cref="WorldEvent.EventId"/> (COH-01). Compat: call sites legados
+    /// <summary>Registra um evento de história — sem-op no sink se ninguém persiste,
+    /// mas sempre gera <see cref="WorldEvent.EventId"/>. Compat: call sites legados
     /// usam <c>SourceSystem = "Unknown"</c> e sem causa.</summary>
     public long LogEvent(WorldEventKind kind, string payload) =>
         LogEvent(kind, payload, sourceSystem: "Unknown", causeEventId: null);
 
-    /// <summary>Registra evento com proveniência causal explícita (COH-01/COH-03).</summary>
     public long LogEvent(WorldEventKind kind, string payload, string sourceSystem, long? causeEventId = null)
     {
         var eventId = world.NextHistoryEventIdAndAdvance();
@@ -24,7 +23,7 @@ public sealed class TickContext(WorldState world, WorldRngRegistry rng, EventSch
         return eventId;
     }
 
-    /// <summary>RNG derivado do stream desta chave (ADR-0005). Streams independentes:
+    /// <summary>RNG derivado do stream desta chave. Streams independentes:
     /// consumir um stream novo não desloca a sequência dos outros.</summary>
     public WorldRng Rng(string streamKey) => rng.Stream(streamKey);
 

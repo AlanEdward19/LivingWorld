@@ -5,7 +5,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.History;
 
-/// <summary>Parâmetros cenário-driven da história degradável (Fase 10, HIST-08) — limiar de
+/// <summary>Parâmetros cenário-driven da história degradável — limiar de
 /// significância, cânone por comunidade, fidelidade por meio, operadores e pesos de despejo.
 /// Mesmo padrão de <see cref="EconomyRules"/>/<see cref="PerfRules"/>.</summary>
 public sealed record HistoryRules(

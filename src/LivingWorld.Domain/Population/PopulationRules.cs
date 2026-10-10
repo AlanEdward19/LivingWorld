@@ -3,9 +3,9 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Population;
 
-/// <summary>Regras demográficas do cenário (task 5/tasks fora-de-escopo da Fase 3): tabela de
+/// <summary>Regras demográficas do cenário: tabela de
 /// vida e janela de fertilidade. Reprodução aqui é regra do cenário, não escolha do NPC — a
-/// janela varia por espécie/cultura, por isso é dado, nunca constante de código (task 7).</summary>
+/// janela varia por espécie/cultura, por isso é dado, nunca constante de código.</summary>
 public sealed record PopulationRules(
     LifeTable LifeTable,
     int FertilityMinAge,

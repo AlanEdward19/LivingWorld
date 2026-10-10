@@ -12,9 +12,8 @@ public enum SendMessageResult { Ok, SessionNotFound, SessionInactive }
 
 public enum EndConversationResult { Ok, SessionNotFound }
 
-/// <summary>Ciclo start/send/end de uma <see cref="ConversationSession"/> (Fase 11, LLM-03,
-/// story "Sessão de conversa segura" ACs 1-3). Expiração é agendada via <see
-/// cref="TickContext.ScheduleEvent"/> — nunca varredura por tick (design.md, reuso de <see
+/// <summary>Ciclo start/send/end de uma <see cref="ConversationSession"/>. Expiração é agendada via <see
+/// cref="TickContext.ScheduleEvent"/> — nunca varredura por tick (reuso de <see
 /// cref="EventScheduler"/>). Implementa <see cref="ISimulationSystem"/> só para receber o
 /// evento de expiração agendado por si mesmo; não faz trabalho nenhum por tick.</summary>
 public sealed class ConversationSessionStore : ISimulationSystem
@@ -40,8 +39,8 @@ public sealed class ConversationSessionStore : ISimulationSystem
     public IReadOnlyList<(long TurnId, string PlayerText)> TurnsOf(long sessionId) =>
         _turnsBySession.TryGetValue(sessionId, out var turns) ? turns : [];
 
-    /// <summary>AC1: avalia disponibilidade social do NPC no tick atual (<see
-    /// cref="ConversationAvailabilityPolicy"/>, LLM-01/02) e, só se aceito, abre a sessão e
+    /// <summary>Avalia disponibilidade social do NPC no tick atual (<see
+    /// cref="ConversationAvailabilityPolicy"/>) e, só se aceito, abre a sessão e
     /// agenda a expiração <paramref name="expireAfterTicks"/> à frente.</summary>
     public (ConversationStartDecision Decision, ConversationSession? Session) StartConversation(
         Npc npc, NeedsRules needsRules, LlmRules llmRules, Relationship? relationshipToInitiator,

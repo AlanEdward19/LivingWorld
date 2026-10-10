@@ -2,7 +2,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Performance;
 
-/// <summary>Tetos de custo e janela de arquivamento frio (Fase 9, PERF-03) — cenário-driven,
+/// <summary>Tetos de custo e janela de arquivamento frio — cenário-driven,
 /// nunca literal em teste de sensor.</summary>
 public sealed record PerfRules(
     double MaxMicrosPerAliveNpcTick,
@@ -32,8 +32,8 @@ public sealed record PerfRules(
             coldArchiveAfterYears));
     }
 
-    /// <summary>Default do cenário medieval — tetos do sensor (PERF-16). Bytes/NPC/ano medido
-    /// com fauna/flora horária + mapa default (~62k–76k); 4000 era pré-ecologia (16.4).</summary>
+    /// <summary>Default do cenário medieval — tetos do sensor. Bytes/NPC/ano medido
+    /// com fauna/flora horária + mapa default (~62k–76k); 4000 era pré-ecologia.</summary>
     public static readonly PerfRules Default = Create(
         maxMicrosPerAliveNpcTick: 15.0,
         maxBytesAllocPerTick: 400_000,
@@ -41,7 +41,7 @@ public sealed record PerfRules(
         coldArchiveAfterYears: 10).Value
         ?? throw new InvalidOperationException("PerfRules.Default inválida — bug no cenário");
 
-    /// <summary>Tetos iniciais do sensor de escala (PERF-02) antes de apertar com PERF-16 — medidos
+    /// <summary>Tetos iniciais do sensor de escala, antes de apertar — medidos
     /// no cenário estável, não no default colapsado.</summary>
     public static readonly PerfRules ScaleSensorInitial = Create(
         maxMicrosPerAliveNpcTick: 500.0,

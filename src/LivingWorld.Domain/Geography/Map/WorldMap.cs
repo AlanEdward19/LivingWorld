@@ -2,11 +2,11 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Geography.Map;
 
-/// <summary>Geografia do mundo (Fase 2): grid de células, regiões, catálogo, custo de
+/// <summary>Geografia do mundo: grid de células, regiões, catálogo, custo de
 /// deslocamento e âncoras de assentamento. Value-object-like — imutável após construção.
 /// Os índices de consulta (célula→região, região→vizinhas) são reconstruídos a cada
 /// construção/rehidratação a partir dos dados canônicos abaixo; nunca são, eles próprios,
-/// serializados — não há nada extra para classificar como volátil no hash (task 4).</summary>
+/// serializados — não há nada extra para classificar como volátil no hash.</summary>
 public sealed class WorldMap
 {
     public int Width { get; }
@@ -51,7 +51,7 @@ public sealed class WorldMap
 
     public IReadOnlyList<RegionId> NeighborsOf(RegionId region) => _neighborsByRegion[region];
 
-    /// <summary>Constrói e valida (task 5/6): falha rápido no primeiro campo inválido,
+    /// <summary>Constrói e valida: falha rápido no primeiro campo inválido,
     /// nomeando o campo — nunca explode depois de o mundo já existir.</summary>
     public static Result<WorldMap> Create(
         int width, int height, ulong seed, GeographyCatalog catalog, CostWeights cost,

@@ -2,7 +2,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Extraordinary;
 
-/// <summary>Id monotônico de encontro de combate multi-round (Fase 16.4, REALISM-16).</summary>
+/// <summary>Id monotônico de encontro de combate multi-round.</summary>
 public readonly record struct CombatEncounterId(long Value);
 
 /// <summary>Estado de um encontro ativo ou encerrado.</summary>

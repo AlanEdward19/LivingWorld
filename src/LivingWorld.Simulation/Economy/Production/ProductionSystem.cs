@@ -12,12 +12,11 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Economy.Production;
 
-/// <summary>Converte trabalho + recipe em saída de estoque por <see cref="Workplace"/> (Fase 5,
-/// ECON-06/07/08), <c>Daily</c> (AD-042). Respeita <see cref="EconomyRules.Enabled"/>
-/// (ECON-05). Fase 6, T10 (SKILL-10/11): quando <see cref="SkillsRules"/> é informado, escala
-/// <c>produced</c> pela habilidade média dos trabalhadores presentes antes de contar o bruto —
-/// <c>null</c> (default) preserva o comportamento da Fase 5 byte-a-byte (nenhum cenário
-/// existente injeta habilidade ainda, wiring fica pra T12).</summary>
+/// <summary>Converte trabalho + recipe em saída de estoque por <see cref="Workplace"/>,
+/// <c>Daily</c>. Respeita <see cref="EconomyRules.Enabled"/>. Quando <see cref="SkillsRules"/>
+/// é informado, escala <c>produced</c> pela habilidade média dos trabalhadores presentes antes
+/// de contar o bruto — <c>null</c> (default) preserva o comportamento anterior byte-a-byte
+/// (nenhum cenário existente injeta habilidade ainda).</summary>
 public sealed class ProductionSystem : ISimulationSystem
 {
     public const string SystemName = "economy-production";
@@ -53,11 +52,11 @@ public sealed class ProductionSystem : ISimulationSystem
         SkillsRules? skillsRules, VacancyIndex vacancyIndex)
     {
         var presentWorkers = vacancyIndex.PresentWorkersAt(workplace);
-        if (presentWorkers.Count == 0) return; // ECON-07: sem trabalhador presente, produção 0
+        if (presentWorkers.Count == 0) return;
 
         if (recipe.RequiresCellResource is { } requiredResource
             && !world.Map.CellAt(workplace.Location).Resources.Any(r => r.Id == requiredResource))
-            return; // ECON-08: recipe exige recurso de célula ausente, produção 0
+            return;
 
         int effectiveWorkers = Math.Min(presentWorkers.Count, recipe.MaxWorkersPerCycle);
 
@@ -87,14 +86,14 @@ public sealed class ProductionSystem : ISimulationSystem
 
             var resource = new ResourceType(resourceId);
             long produced = (long)(perWorker * scale * skillMultiplier * strengthMultiplier * workCapacityMultiplier);
-            world.RecordResourceProduced(resource, produced); // ECON-15: conta o bruto, antes do clamp de capacidade
+            world.RecordResourceProduced(resource, produced); // conta o bruto, antes do clamp de capacidade
             long lost = workplace.Deposit(resource, produced, rules);
             if (lost > 0)
                 ctx.LogEvent(WorldEventKind.ResourceLost, $"{workplace.Id.Value}|{resourceId}|{lost}", sourceSystem: "ProductionSystem");
         }
     }
 
-    /// <summary>SKILL-10/11: 1.0 (neutro, byte-idêntico à Fase 5) sem <see cref="SkillsRules"/>
+    /// <summary>1.0 (neutro, byte-idêntico ao comportamento sem skills) sem <see cref="SkillsRules"/>
     /// ou sem nenhum trabalhador presente com profissão mapeada; senão
     /// <c>1 + habilidadeMédia/Cap</c> — dono melhor produz mais, nunca menos que o baseline.</summary>
     private static double SkillMultiplierOf(IReadOnlyList<Npc> presentWorkers, SkillsRules? skillsRules)
@@ -114,7 +113,7 @@ public sealed class ProductionSystem : ISimulationSystem
         return 1.0 + (sum / mapped) / skillsRules.Cap;
     }
 
-    /// <summary>PWR-53: segundo multiplicador de <c>attribute.strength</c> sobre a taxa de
+    /// <summary>Segundo multiplicador de <c>attribute.strength</c> sobre a taxa de
     /// skill/RateGene — média dos trabalhadores que entram em <paramref name="scale"/>.</summary>
     private static double StrengthMultiplierOf(WorldState world, IReadOnlyList<Npc> presentWorkers, int scale)
     {
@@ -127,7 +126,7 @@ public sealed class ProductionSystem : ISimulationSystem
         return sum / count;
     }
 
-    /// <summary>COH-22: 4º fator — média de <see cref="BodyMechanic.WorkCapacityMultiplier"/>
+    /// <summary>4º fator — média de <see cref="BodyMechanic.WorkCapacityMultiplier"/>
     /// sobre os trabalhadores em <paramref name="scale"/> (neutro 1.0 se BodyRules off).</summary>
     private static double WorkCapacityMultiplierOf(WorldState world, IReadOnlyList<Npc> presentWorkers, int scale)
     {

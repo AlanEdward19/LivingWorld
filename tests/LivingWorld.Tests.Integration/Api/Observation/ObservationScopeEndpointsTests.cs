@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using LivingWorld.Api;
 using LivingWorld.Api.Observation;
 using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Cities.Buildings;
