@@ -24,8 +24,123 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
 
     public void Tick(WorldState world, TickContext ctx)
     {
+        var state = States.GetValue(world, _ => new FastState());
+        long tick = ctx.CurrentTick;
+        if (state.TrySkip(world, tick))
+            return;
+
+        state.Flush(world);
         AdvanceStage(world, ctx);
         TryReproduce(world, ctx);
+        state.Rebuild(world, tick);
+    }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<WorldState, FastState> States = new();
+
+    /// <summary>Avanço adiado. Entre eventos de planta (maturidade/morte) e enquanto o clima, a lista de
+    /// plantas e os poderes não mudam, cada planta ganha o mesmo <c>delta</c> a cada tick — então o tick
+    /// só conta, e <c>estágio += delta × ticks</c> é aplicado quando alguém lê a flora (ver
+    /// <see cref="WorldState.Flora"/>) ou no tick em que um evento passa a ser possível, que roda o caminho
+    /// normal inteiro. O resultado em qualquer ponto observável é idêntico ao do avanço tick a tick.</summary>
+    private sealed class FastState
+    {
+        private const long NoEvent = long.MaxValue;
+
+        private bool _valid;
+        private long _floraVersion;
+        private long _temperatureVersion;
+        private long _validFrom;
+        private long _validUntil;
+        private int[] _deltas = [];
+        private long _horizon;   // ticks até o primeiro evento possível (contados desde a última materialização)
+        private int _pending;    // ticks já contados e ainda não aplicados às plantas
+        private Action? _flush;
+
+        public bool TrySkip(WorldState world, long tick)
+        {
+            if (!_valid
+                || world.FloraMutationVersion != _floraVersion
+                || world.TemperatureAdjustmentsVersion != _temperatureVersion
+                || tick < _validFrom || tick >= _validUntil
+                || world.Extraordinary.Enabled
+                || !ReproductionIsNoOp(world))
+                return false;
+
+            // O próximo incremento seria o de índice _pending + 1; se ele já alcança o horizonte, vira tick normal.
+            if (_pending + 1 >= _horizon)
+                return false;
+
+            _pending++;
+            world.FloraPendingFlush = _flush ??= () => Flush(world);
+            return true;
+        }
+
+        /// <summary>Aplica os ticks contados. Chamado pela leitura da flora e antes de um tick normal.</summary>
+        public void Flush(WorldState world)
+        {
+            world.FloraPendingFlush = null;
+            if (_pending == 0) return;
+            int ticks = _pending;
+            _pending = 0;
+            _horizon = _horizon == NoEvent ? NoEvent : _horizon - ticks;
+            world.ApplyFloraStageDeltas(_deltas, ticks);
+        }
+
+        public void Rebuild(WorldState world, long tick)
+        {
+            _valid = false;
+            if (world.Extraordinary.Enabled || !ReproductionIsNoOp(world))
+                return;
+
+            var rulesBySpecies = IndexRules(world);
+            var field = EnvironmentTemperatureMechanic.FieldAt(world, tick);
+            var plants = world.Flora;
+            var deltas = new int[plants.Count];
+            long horizon = NoEvent;
+
+            for (int i = 0; i < deltas.Length; i++)
+            {
+                var plant = plants[i];
+                if (!rulesBySpecies.TryGetValue(plant.Species, out var rules))
+                    continue;
+
+                int delta = (int)Math.Floor(BaseGrowthRate(field.At(plant.Position), rules) * 1.0);
+                deltas[i] = delta;
+                if (delta == 0) continue;
+
+                long ticksToEvent;
+                if (delta > 0)
+                {
+                    if (plant.GrowthStage >= rules.MaturityStage) continue; // já madura: sem novo evento
+                    ticksToEvent = ((long)rules.MaturityStage - plant.GrowthStage + delta - 1) / delta;
+                }
+                else
+                {
+                    // morre no primeiro tick em que estágio + k × delta < 0
+                    ticksToEvent = plant.GrowthStage < 0 ? 1 : plant.GrowthStage / -(long)delta + 1;
+                }
+
+                horizon = Math.Min(horizon, ticksToEvent);
+            }
+
+            _deltas = deltas;
+            _horizon = horizon;
+            _pending = 0;
+            _floraVersion = world.FloraMutationVersion;
+            _temperatureVersion = world.TemperatureAdjustmentsVersion;
+            _validFrom = tick;
+            _validUntil = field.ValidUntil;
+            _valid = true;
+        }
+
+        /// <summary>Reprodução não faz nada: lotada (teto) ou nenhuma espécie com chance de brotar.</summary>
+        private static bool ReproductionIsNoOp(WorldState world)
+        {
+            if (world.FloraCount >= MaxAliveFlora) return true;
+            foreach (var rules in world.PlantSpeciesRules)
+                if (rules.ReproduceProbability > 0) return false;
+            return true;
+        }
     }
 
     /// <summary>Avança (ou reverte) estágio conforme temperatura efetiva;

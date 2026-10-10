@@ -3,12 +3,15 @@ using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Cities.Spatial;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Shared;
+using LivingWorld.Infrastructure.EventLog;
 using LivingWorld.Simulation.Cities;
 using LivingWorld.Simulation.Cities.Construction;
 using LivingWorld.Simulation.Cities.Founding;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Ecology;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
 using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Tests.Unit.Performance;
 
@@ -100,6 +103,70 @@ public class OptimizationEquivalenceTests
                 .ToList();
             Assert.Equal(expected, world.RelationshipTargetsOf(npc.Id).Select(t => t.Value));
         }
+    }
+
+    // --- Avanço adiado da flora ---
+
+    /// <summary>Referência: o avanço tick a tick de sempre, pelas funções públicas que mantêm essa semântica.</summary>
+    private sealed class EagerFloraSystem : ISimulationSystem
+    {
+        public string Name => FloraLifecycleSystem.SystemName;
+        public TickFrequency Frequency => TickFrequency.Hourly;
+
+        public void Tick(WorldState world, TickContext ctx)
+        {
+            FloraLifecycleSystem.AdvanceStage(world, ctx);
+            FloraLifecycleSystem.TryReproduce(world, ctx);
+        }
+    }
+
+    [Theory]
+    [InlineData(1UL)]
+    [InlineData(3UL)]
+    public void Deferred_flora_advance_matches_the_eager_reference_at_every_sampled_read(ulong seed)
+    {
+        var (lazyWorld, _) = ScenarioRunner.Create(seed);
+        var (eagerWorld, _) = ScenarioRunner.Create(seed);
+        var lazySink = new BufferingWorldEventSink();
+        var eagerSink = new BufferingWorldEventSink();
+        var lazyClock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: lazySink);
+        var eagerClock = new WorldClock(
+            ScenarioRunner.DefaultSystems().Select(s => s is FloraLifecycleSystem ? new EagerFloraSystem() : s).ToList(),
+            sink: eagerSink);
+        var worlds = new[] { lazyWorld, eagerWorld };
+        var region = lazyWorld.Map.Regions[0].Id;
+
+        // A flora começa pequena e só lota (~dia 90): daí em diante o caminho adiado trabalha sozinho.
+        // Eventos externos depois disso o obrigam a notar mudanças e a sair/voltar do regime de reprodução.
+        for (int step = 0; step < 200 * 24; step++)
+        {
+            lazyClock.Run(lazyWorld, 1);
+            eagerClock.Run(eagerWorld, 1);
+
+            if (step == 120 * 24)
+                foreach (var world in worlds)
+                    world.AddEnvironmentTemperatureAdjustment(
+                        new EnvironmentTemperatureAdjustment(region, 40f, world.CurrentDate.TotalHours + 20 * 24));
+
+            if (step == 150 * 24 || step == 170 * 24)
+            {
+                int toRemove = step == 150 * 24 ? 30 : 100;
+                foreach (var world in worlds)
+                    foreach (var plant in world.Flora.Take(toRemove).ToList())
+                        world.RemovePlant(plant.Id);
+            }
+
+            // Leituras em ticks arbitrários (forçam a materialização) e depois longos trechos sem leitura.
+            if (step % 53 == 0 || step % 701 == 0 || step % 1913 == 0)
+                Assert.Equal(
+                    eagerWorld.Flora.Select(p => (p.Id.Value, p.GrowthStage)),
+                    lazyWorld.Flora.Select(p => (p.Id.Value, p.GrowthStage)));
+        }
+
+        Assert.Equal(WorldSnapshot.CanonicalHash(eagerWorld), WorldSnapshot.CanonicalHash(lazyWorld));
+        Assert.Equal(
+            eagerSink.DrainAll().Select(e => (e.Tick, e.Kind, e.Payload)),
+            lazySink.DrainAll().Select(e => (e.Tick, e.Kind, e.Payload)));
     }
 
     // --- Listas ordenadas de flora e fauna ---

@@ -56,6 +56,9 @@ public sealed class EnvironmentTemperatureMechanic : ExtraordinaryMechanic
         private long _validUntil = long.MinValue;
         private readonly Dictionary<RegionId, float> _deltas = new();
 
+        /// <summary>Primeiro tick em que a tabela atual deixa de valer (vencimento de um ajuste ativo).</summary>
+        internal long ValidUntil => _validUntil;
+
         /// <summary>A tabela de deltas por região vale enquanto a lista de ajustes não muda e nenhum
         /// ajuste ativo vence — o tick sozinho não a invalida (antes era refeita por tick/região).</summary>
         internal void Refresh(long currentTick)

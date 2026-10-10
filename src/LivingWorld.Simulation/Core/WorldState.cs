@@ -159,7 +159,39 @@ public sealed class WorldState
     private long _nextPlantId;
 
     /// <summary>Plantas individuais (PWR-101). Distintas do estoque de <c>CropSystem</c>.</summary>
-    [Canonical] public IReadOnlyList<Plant> Flora => _flora;
+    [Canonical] public IReadOnlyList<Plant> Flora { get { SyncFlora(); return _flora; } }
+
+    // Avanço de estágio adiado (FloraLifecycleSystem): enquanto nenhum evento de planta é possível, o
+    // sistema só conta ticks; quem lê ou muda a flora materializa o pendente antes. Estado derivado.
+    internal Action? FloraPendingFlush;
+
+    /// <summary>Muda a cada inclusão/troca/remoção de planta feita de fora do avanço adiado.</summary>
+    internal long FloraMutationVersion;
+
+    /// <summary>Quantidade de plantas, sem forçar a materialização do estágio.</summary>
+    internal int FloraCount => _flora.Count;
+
+    private void SyncFlora()
+    {
+        var flush = FloraPendingFlush;
+        if (flush is null) return;
+        FloraPendingFlush = null;
+        flush();
+    }
+
+    /// <summary>Aplica <c>estágio += delta × ticks</c> a cada planta, na ordem da lista, sem passar pelas
+    /// APIs de mutação (que sincronizam e invalidam). Só o avanço adiado chama.</summary>
+    internal void ApplyFloraStageDeltas(int[] deltas, int ticks)
+    {
+        for (int i = 0; i < deltas.Length; i++)
+        {
+            if (deltas[i] == 0) continue;
+            var plant = _flora[i];
+            var advanced = plant with { GrowthStage = unchecked(plant.GrowthStage + deltas[i] * ticks) };
+            _flora[i] = advanced;
+            _floraById[advanced.Id] = advanced;
+        }
+    }
     [Canonical] public long NextPlantId => _nextPlantId;
 
     private readonly List<EnvironmentTemperatureAdjustment> _environmentTemperatureAdjustments;
@@ -892,14 +924,22 @@ public sealed class WorldState
 
     public void AddPlant(Plant plant)
     {
+        SyncFlora();
+        FloraMutationVersion++;
         _floraById[plant.Id] = plant;
         InsertSortedById(_flora, plant, p => p.Id.Value);
     }
 
-    public Plant? FindPlant(PlantId id) => _floraById.GetValueOrDefault(id);
+    public Plant? FindPlant(PlantId id)
+    {
+        SyncFlora();
+        return _floraById.GetValueOrDefault(id);
+    }
 
     internal void ReplacePlant(Plant plant)
     {
+        SyncFlora();
+        FloraMutationVersion++;
         _floraById[plant.Id] = plant;
         ReplaceSortedById(_flora, plant, p => p.Id.Value);
     }
@@ -908,6 +948,8 @@ public sealed class WorldState
     /// onde está); se o índice não bater com o Id, cai no caminho por busca.</summary>
     internal void ReplacePlantAt(int index, Plant plant)
     {
+        SyncFlora();
+        FloraMutationVersion++;
         if ((uint)index < (uint)_flora.Count && _flora[index].Id == plant.Id)
         {
             _flora[index] = plant;
@@ -921,6 +963,8 @@ public sealed class WorldState
 
     internal void RemovePlant(PlantId id)
     {
+        SyncFlora();
+        FloraMutationVersion++;
         RemoveSortedById(_flora, id.Value, p => p.Id.Value);
         _floraById.Remove(id);
     }
