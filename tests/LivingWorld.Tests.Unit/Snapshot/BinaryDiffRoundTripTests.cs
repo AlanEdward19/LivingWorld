@@ -36,6 +36,7 @@ public class BinaryDiffRoundTripTests
     }
 
     [Fact]
+    [Trait("Category", "Scenario")]
     public void Delta_round_trip_after_10_years_incremental_hash_matches_recomputed_from_scratch()
     {
         var (world, clock) = ScenarioRunner.Create(seed: 202, initialPopulation: 20);

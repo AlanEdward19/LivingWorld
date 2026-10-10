@@ -5,13 +5,14 @@ dá saída 0/1 estável para os eval gates.
 
 | Script | Faz | Flags |
 |---|---|---|
-| `test.sh` | `dotnet test` (exclui `Category=Scenario` por padrão) | `--watch`, `--filter <padrão>` |
+| `test.sh` | `dotnet test` Release, Unit sem `Category=Scenario` (~1 min) | `--watch`, `--filter <padrão>`, `--scenarios`, `--all`, `--project integration\|longrunning` |
 | `lint.sh` | `dotnet format` | `--fix` (aplica) |
-| `build.sh` | `dotnet build -c Release -warnaserror` | — |
+| `build.sh` | `dotnet build -c Release -warnaserror` (sem web) | — |
 | `check-docs.sh` | Falha se algum `.md` passar de 100 linhas | — |
-| `verify.sh` | **Gate**: check-docs + build + lint + test | — |
+| `verify.sh` | **Gate**: check-docs + build + lint + test rápido | `--full` (+ cenários pesados) |
 
 Rode via `bash scripts/<x>.sh` (Git Bash no Windows).
-Cenários longos (100 anos) ficam fora do gate: `bash scripts/test.sh --filter Category=Scenario`.
+Cenários pesados ficam fora do gate: `bash scripts/test.sh --scenarios` (Unit) ou `--project longrunning`.
+Teste novo que passe de ~5 s ganha `[Trait("Category", "Scenario")]`.
 
 Comando novo que você repetiria → vira script aqui.

@@ -10,7 +10,7 @@ conteúdo de ADR para dentro dele.
 |---|---|---|
 | [0001](ADR-0001-monolito-modular-dotnet.md) | Monólito modular em .NET 10, uma solution, camadas por projeto | aceito |
 | [0002](ADR-0002-sqlite-agora-postgres-depois.md) | SQLite agora, Postgres depois — sem recurso exclusivo de SQLite | aceito |
-| [0003](ADR-0003-cliente-web-react-ts.md) | Cliente web em React + TypeScript, separado da API | aceito |
+| [0003](ADR-0003-cliente-web-react-ts.md) | Cliente web em React + TypeScript, separado da API | substituído pelo 0022 |
 | [0004](ADR-0004-abstracao-de-provider-llm.md) | Interface `ILlmProvider` agora, provider concreto na Fase 11 | aceito |
 | [0005](ADR-0005-simulacao-deterministica-semeada.md) | Simulação determinística com RNG semeado por stream | aceito |
 | [0006](ADR-0006-snapshot-mais-event-log.md) | Persistência por snapshot periódico + event log append-only | aceito |
@@ -29,3 +29,4 @@ conteúdo de ADR para dentro dele.
 | [0019](ADR-0019-cidade-fundida-como-tombstone-historico.md) | Cidade fundida sai da simulação ativa, mas permanece como tombstone histórico | aceito |
 | [0020](ADR-0020-mapa-inicial-dimensionado-pela-populacao.md) | Mapa procedural inicial reserva espaço físico conforme a população | aceito |
 | [0021](ADR-0021-locomocao-e-construtos-extraordinarios.md) | Potência estende movimento e ocupação existentes | aceito |
+| [0022](ADR-0022-godot-substitui-cliente-web.md) | Godot como motor gráfico; cliente web aposentado do gate | aceito |

@@ -15,6 +15,7 @@ public class IncrementalHasherTests
     }
 
     [Fact]
+    [Trait("Category", "Scenario")]
     public void Incremental_matches_canonical_hash_after_many_ticks()
     {
         var (world, clock) = ScenarioRunner.Create(seed: 42, initialPopulation: 100);

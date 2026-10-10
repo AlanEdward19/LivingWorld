@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Eval gate: docs + build + lint + test. Saída 0 = pode concluir. Uso: bash scripts/verify.sh
+# Eval gate: docs + build + lint + test rápido. Saída 0 = pode concluir. Uso: bash scripts/verify.sh [--full]
+#   --full  também roda os cenários pesados (Category=Scenario) do projeto Unit — nightly/antes de fechar fase.
+# O cliente web foi aposentado do gate (migração para Godot): build/test/tipos TS não rodam mais aqui.
 set -euo pipefail
 cd "$(dirname "$0")"
-./check-docs.sh
-./build.sh
-./lint.sh
-./test.sh
-# Fase 15, T9: tipos TS do cliente web nunca driftam do contrato real da API sem reprovar o gate.
-[ -f ../web/package.json ] && ./generate-web-types.sh --check
+bash check-docs.sh
+bash build.sh
+bash lint.sh
+bash test.sh
+[ "${1:-}" = "--full" ] && bash test.sh --scenarios
 echo "verify: OK"

@@ -4,6 +4,10 @@ Fonte única de continuidade. Quem entra numa área nova **lê este arquivo prim
 Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
+- **Última coisa concluída (2026-10-10)**: otimização de DX/perf em `claude/inspiring-allen-qj41zx`
+  (AD-074, ADR-0022). Gate rápido ~1 min (era horas); mês de sim ≈19x mais rápido, hashes
+  idênticos. Web fora do gate. **Próxima unidade**: spec do cliente Godot (substitui Fase 15);
+  decidir remoção de `web/`, `web-demo/`, `scripts/generate-web-types.sh`.
 - **Última coisa concluída (2026-09-01)**: Fase 28 fechada — cognição inspecionável, LOD
   observacional (mundo/cidade/interior), compressão de estado frio, painel web "ver o cérebro",
   sandbox de decisão. Branch `feat/phase-28-cognition` com gate verde; worktrees intermediárias

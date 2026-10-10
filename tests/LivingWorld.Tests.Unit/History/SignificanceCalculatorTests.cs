@@ -1,9 +1,9 @@
-using System.Diagnostics;
 using LivingWorld.Domain.History;
 using LivingWorld.Infrastructure.EventLog;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.History;
 using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Tests.Shared;
 using LivingWorld.Tests.Shared.Baselines;
 
 namespace LivingWorld.Tests.Unit.History;
@@ -64,6 +64,7 @@ public class SignificanceCalculatorTests
     public void Record_history_collapse_baseline() => RecordCollapseBaseline();
 
     [Fact]
+    [Trait("Category", "Scenario")]
     public void Collapse_rate_matches_baseline_for_twenty_seeds()
     {
         var rules = HistoryRules.Default;
@@ -108,37 +109,8 @@ public class SignificanceCalculatorTests
         BaselineFixture.Record(BaselinesDir, "history-collapse", actual);
     }
 
-    private static string RunDigestInSeparateProcess(string command, ulong seed, long ticks)
-    {
-        var psi = new ProcessStartInfo
-        {
-            FileName = "dotnet",
-            Arguments = $"\"{WorkersDllPath}\" {command} {seed} {ticks}",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-        };
-
-        using var process = Process.Start(psi) ?? throw new InvalidOperationException("falha ao iniciar processo");
-        string output = process.StandardOutput.ReadToEnd();
-        string error = process.StandardError.ReadToEnd();
-        process.WaitForExit();
-        Assert.True(process.ExitCode == 0, $"processo saiu com {process.ExitCode}: {error}");
-        return output.Trim();
-    }
-
-    private static readonly string WorkersDllPath = FindWorkersDll();
-
-    private static string FindWorkersDll()
-    {
-        var configuration = AppContext.BaseDirectory.Contains($"{Path.DirectorySeparatorChar}Release{Path.DirectorySeparatorChar}")
-            ? "Release"
-            : "Debug";
-        var path = Path.Combine(FindRepoRoot(), "src", "LivingWorld.Workers", "bin", configuration, "net10.0", "LivingWorld.Workers.dll");
-        if (!File.Exists(path))
-            throw new FileNotFoundException($"LivingWorld.Workers.dll não encontrado em {path}", path);
-        return path;
-    }
+    private static string RunDigestInSeparateProcess(string command, ulong seed, long ticks) =>
+        WorkersProcess.RunDigest($"{command} {seed} {ticks}");
 
     private static string FindRepoRoot()
     {
