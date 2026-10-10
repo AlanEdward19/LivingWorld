@@ -5,8 +5,11 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
 - **Última coisa concluída (2026-10-10)**: otimização de DX/perf em `claude/inspiring-allen-qj41zx`
-  (AD-074, ADR-0022). Gate rápido ~1 min (era horas); mês de sim ≈19x mais rápido, hashes
-  idênticos. Web fora do gate. **Próxima unidade**: spec do cliente Godot (substitui Fase 15);
+  (AD-074/075, ADR-0022). Gate rápido ~1 min (era horas); ano de sim default ~57 s → ~0,1–1 s
+  (plano por ano), criação de mundo 10k 28 s → 2 s, hashes idênticos. Web fora do gate.
+  Falhas PRÉ-EXISTENTES no LongRunning (não são regressão): 3 goldens desatualizados,
+  `Ten_k`/`Storage_cost` (população do fixture de escala colapsa), 2 testes de nascimento (contam
+  `Birth` de planta/animal). O cenário default fica com 1 NPC viva a partir do ano ~8. **Próxima unidade**: spec do cliente Godot (substitui Fase 15);
   decidir remoção de `web/`, `web-demo/`, `scripts/generate-web-types.sh`.
 - **Última coisa concluída (2026-09-01)**: Fase 28 fechada — cognição inspecionável, LOD
   observacional (mundo/cidade/interior), compressão de estado frio, painel web "ver o cérebro",

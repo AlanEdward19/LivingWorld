@@ -14,5 +14,6 @@ dá saída 0/1 estável para os eval gates.
 Rode via `bash scripts/<x>.sh` (Git Bash no Windows).
 Cenários pesados ficam fora do gate: `bash scripts/test.sh --scenarios` (Unit) ou `--project longrunning`.
 Teste novo que passe de ~5 s ganha `[Trait("Category", "Scenario")]`.
+`--project longrunning` (100 anos, golden hashes, escala): ~12 min, ver STATE.md para as falhas conhecidas.
 
 Comando novo que você repetiria → vira script aqui.
