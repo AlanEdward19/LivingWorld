@@ -172,15 +172,17 @@ public class FamilyPairedScenarioTests
     [Trait("Category", "Scenario")]
     public void Final_population_over_20_seeds_stays_alive_and_near_committed_average_baseline()
     {
-        var counts = new List<int>();
-        for (int seed = 1; seed <= 20; seed++)
+        // Cada seed é um mundo independente: roda em paralelo, resultado indexado pela seed.
+        var counts = new int[20];
+        Parallel.For(1, 21, seed =>
         {
             var (world, clock) = ScenarioRunner.Create((ulong)seed);
             clock.Run(world, HorizonHours);
-            int alive = world.Npcs.Count(n => n.IsAlive);
-            Assert.True(alive > 0, $"seed {seed}: extinção total — Fase 7 não pode apagar a vila");
-            counts.Add(alive);
-        }
+            counts[seed - 1] = world.Npcs.Count(n => n.IsAlive);
+        });
+
+        for (int seed = 1; seed <= 20; seed++)
+            Assert.True(counts[seed - 1] > 0, $"seed {seed}: extinção total — Fase 7 não pode apagar a vila");
 
         double average = counts.Average();
         WarnIfPopulationAverageDeviates(average);
@@ -231,8 +233,10 @@ public class FamilyPairedScenarioTests
     [Trait("Category", "Scenario")]
     public void Vitality_cv_paired_difference_between_real_and_neutral_drift_across_20_seeds_bootstrap_ci95()
     {
-        var diffs = new List<double>();
-        for (int seed = 1; seed <= 20; seed++)
+        // Cada seed (e cada braço) é um mundo independente: roda em paralelo, resultado indexado pela seed
+        // — a lista de diferenças segue a ordem das seeds, igual à execução sequencial.
+        var diffArray = new double[20];
+        Parallel.For(1, 21, seed =>
         {
             var (worldReal, clockReal) = ScenarioRunner.Create((ulong)seed);
             clockReal.Run(worldReal, HorizonHours);
@@ -242,8 +246,9 @@ public class FamilyPairedScenarioTests
             clockNeutral.Run(worldNeutral, HorizonHours);
             double cvNeutral = CoefficientOfVariation(worldNeutral.Npcs.Where(n => n.IsAlive).Select(n => n.Vitality));
 
-            diffs.Add(cvReal - cvNeutral);
-        }
+            diffArray[seed - 1] = cvReal - cvNeutral;
+        });
+        var diffs = diffArray.ToList();
 
         var bootstrapRng = new WorldRng(20260728);
         var (low, high) = BootstrapMeanCi95(diffs, bootstrapRng);
