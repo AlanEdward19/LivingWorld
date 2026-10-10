@@ -53,7 +53,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         var catalog = world.ActionCatalog;
         long now = ctx.CurrentTick;
         var marketIndex = MarketIndex.BuildForTick(world);
-        var vacancyIndex = VacancyIndex.BuildForTick(world);
+        var vacancyIndex = VacancyWeights.BuildForTick(world);
         var targets = TargetsForTick(world);
 
         // Índice de ocupação construído uma vez por tick (O(população)), não por NPC — a versão
@@ -794,7 +794,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     private static ProfessionType? NoneIfSentinel(ProfessionType profession) =>
         profession == ProfessionType.None ? null : profession;
 
-    private void EvaluateProfessionSwitch(WorldState world, Npc npc, VacancyIndex vacancyIndex)
+    private void EvaluateProfessionSwitch(WorldState world, Npc npc, VacancyWeights vacancyIndex)
     {
         if (_skillsRules is not { } rules) return;
         if (world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate)) != LifeStage.Adult) return;
@@ -819,7 +819,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     }
 
     private static double ProfessionScoreOf(
-        WorldState world, Npc npc, SkillsRules rules, EconomyCatalog catalog, int professionId, VacancyIndex vacancyIndex)
+        WorldState world, Npc npc, SkillsRules rules, EconomyCatalog catalog, int professionId, VacancyWeights vacancyIndex)
     {
         double skillWeight = rules.SkillByProfession.TryGetValue(professionId, out var skillType)
             ? 1.0 + npc.Skills.Get(skillType) / rules.Cap
@@ -830,7 +830,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         return skillWeight * personalityWeight * vacancyWeight;
     }
 
-    private static double VacancyWeightOf(EconomyCatalog catalog, int professionId, VacancyIndex vacancyIndex)
+    private static double VacancyWeightOf(EconomyCatalog catalog, int professionId, VacancyWeights vacancyIndex)
     {
         if (!catalog.LocationTypeByProfession.TryGetValue(professionId, out var locationTypeId)) return 1.0;
         return vacancyIndex.VacancyWeightForLocationType(locationTypeId);

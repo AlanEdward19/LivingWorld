@@ -99,6 +99,13 @@ public static class CityOccupancy
     public static IReadOnlyList<(Building Building, CityBounds Box)> OwnedBuildingFootprintBoxesWithOwners(
         WorldState world, City city, CityBounds populationBounds)
     {
+        // As caixas só dependem dos prédios da cidade e dos bounds por população — exatamente o que o
+        // plano memoizado valida. Enquanto o plano não muda, a lista pronta vale.
+        var siblings = world.Buildings.Where(b => b.City == city.Id).OrderBy(b => b.Id.Value).ToArray();
+        var plan = PlanFor(world, city, populationBounds, siblings);
+        if (plan.Boxes is { } cached)
+            return cached;
+
         var result = new List<(Building Building, CityBounds Box)>();
         foreach (var building in world.Buildings.Where(b => b.City == city.Id))
         {
@@ -123,6 +130,8 @@ public static class CityOccupancy
 
             result.Add((building, new CityBounds(new CellCoord(minX, minY), maxX - minX + 1, maxY - minY + 1)));
         }
+
+        plan.Boxes = result;
         return result;
     }
 
@@ -272,6 +281,8 @@ public static class CityOccupancy
         public long[] Ids = [];
         public CellCoord?[] Derived = [];
         public HashSet<CellCoord> Occupied = new();
+        /// <summary>Caixas de footprint dos prédios da cidade para estes bounds; descartadas quando o plano muda.</summary>
+        public List<(Building Building, CityBounds Box)>? Boxes;
         /// <summary>Por forma de prédio (tipo, orientação): marcos (id do passo, raio) — no passo desse id
         /// todo anel de raio menor já estava inteiramente ocupado para a forma. A ocupação só cresce ao
         /// longo do passe, então o marco continua valendo para qualquer resolução de id maior ou igual
@@ -354,6 +365,8 @@ public static class CityOccupancy
 
         if (start == siblings.Length && plan.Ids.Length == siblings.Length)
             return plan;
+
+        plan.Boxes = null;
 
         var ids = new long[siblings.Length];
         var derived = new CellCoord?[siblings.Length];
