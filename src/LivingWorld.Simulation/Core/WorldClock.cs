@@ -29,6 +29,7 @@ public sealed class WorldClock(IReadOnlyList<ISimulationSystem> systems, int max
         bool isDayBoundary = world.CurrentDate.Hour == 0;
         bool isMonthBoundary = isDayBoundary && world.CurrentDate.Day == 0;
         bool isYearBoundary = isMonthBoundary && world.CurrentDate.Month == 0;
+        bool isMidshift = world.CurrentDate.Hour == world.CurrentDate.Calendar.HoursPerDay * 10 / 24;
 
         foreach (var system in systems)
         {
@@ -38,6 +39,7 @@ public sealed class WorldClock(IReadOnlyList<ISimulationSystem> systems, int max
                 TickFrequency.Daily => isDayBoundary,
                 TickFrequency.Monthly => isMonthBoundary,
                 TickFrequency.Yearly => isYearBoundary,
+                TickFrequency.Midshift => isMidshift,
                 _ => throw new ArgumentOutOfRangeException(nameof(system.Frequency)),
             };
             if (runsThisTick)

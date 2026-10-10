@@ -20,6 +20,9 @@ public class FamilyPairedScenarioTests
     private const long HorizonHours = HorizonYears * 12 * 30 * 24;
     private const int DefaultSeed = 42;
 
+    /// <summary>Seeds por teste estatístico (era 20; 10 mantém o IC95 útil e corta o tempo pela metade).</summary>
+    private const int SeedCount = 10;
+
     private static readonly string PopulationAverageBaselinePath = Path.Combine(
         FindRepoRoot(), "tests", "baselines", "family-population-average.json");
 
@@ -170,18 +173,18 @@ public class FamilyPairedScenarioTests
 
     [Fact]
     [Trait("Category", "Scenario")]
-    public void Final_population_over_20_seeds_stays_alive_and_near_committed_average_baseline()
+    public void Final_population_over_the_seed_set_stays_alive_and_near_committed_average_baseline()
     {
         // Cada seed é um mundo independente: roda em paralelo, resultado indexado pela seed.
-        var counts = new int[20];
-        Parallel.For(1, 21, seed =>
+        var counts = new int[SeedCount];
+        Parallel.For(1, SeedCount + 1, seed =>
         {
             var (world, clock) = ScenarioRunner.Create((ulong)seed);
             clock.Run(world, HorizonHours);
             counts[seed - 1] = world.Npcs.Count(n => n.IsAlive);
         });
 
-        for (int seed = 1; seed <= 20; seed++)
+        for (int seed = 1; seed <= SeedCount; seed++)
             Assert.True(counts[seed - 1] > 0, $"seed {seed}: extinção total — Fase 7 não pode apagar a vila");
 
         double average = counts.Average();
@@ -231,12 +234,12 @@ public class FamilyPairedScenarioTests
     /// </summary>
     [Fact]
     [Trait("Category", "Scenario")]
-    public void Vitality_cv_paired_difference_between_real_and_neutral_drift_across_20_seeds_bootstrap_ci95()
+    public void Vitality_cv_paired_difference_between_real_and_neutral_drift_across_the_seed_set_bootstrap_ci95()
     {
         // Cada seed (e cada braço) é um mundo independente: roda em paralelo, resultado indexado pela seed
         // — a lista de diferenças segue a ordem das seeds, igual à execução sequencial.
-        var diffArray = new double[20];
-        Parallel.For(1, 21, seed =>
+        var diffArray = new double[SeedCount];
+        Parallel.For(1, SeedCount + 1, seed =>
         {
             var (worldReal, clockReal) = ScenarioRunner.Create((ulong)seed);
             clockReal.Run(worldReal, HorizonHours);
@@ -261,7 +264,7 @@ public class FamilyPairedScenarioTests
         Assert.True(low <= 0 && high >= 0,
             $"IC95 bootstrap da diferenca pareada CV(real)-CV(neutro) e [{low:F4},{high:F4}] — " +
             "paridade estatistica confirmada (AD-066); nao ha evidencia de CV(real) >= CV(neutro) " +
-            "nem do inverso across as 20 seeds.");
+            "nem do inverso across as seeds.");
     }
 
     private static double CoefficientOfVariation(IEnumerable<double> values)

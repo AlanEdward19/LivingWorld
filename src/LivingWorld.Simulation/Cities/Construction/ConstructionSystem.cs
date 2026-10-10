@@ -20,7 +20,7 @@ public sealed class ConstructionSystem : ISimulationSystem
     public const string SystemName = "cities-construction";
 
     public string Name => SystemName;
-    public TickFrequency Frequency => TickFrequency.Daily;
+    public TickFrequency Frequency => TickFrequency.Midshift;
 
     public void Tick(WorldState world, TickContext ctx)
     {

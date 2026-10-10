@@ -26,7 +26,7 @@ public sealed class ProductionSystem : ISimulationSystem
     public ProductionSystem(SkillsRules? skillsRules = null) => _skillsRules = skillsRules;
 
     public string Name => SystemName;
-    public TickFrequency Frequency => TickFrequency.Daily;
+    public TickFrequency Frequency => TickFrequency.Midshift;
 
     public void Tick(WorldState world, TickContext ctx)
     {

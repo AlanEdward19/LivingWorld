@@ -20,7 +20,7 @@ public sealed class CropSystem : ISimulationSystem
     public const long DefaultHarvestPerWorker = 10;
 
     public string Name => SystemName;
-    public TickFrequency Frequency => TickFrequency.Daily;
+    public TickFrequency Frequency => TickFrequency.Midshift;
 
     public void Tick(WorldState world, TickContext ctx)
     {

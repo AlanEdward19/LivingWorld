@@ -136,7 +136,7 @@ public static class ScenarioRunner
     private static readonly CostWeights DefaultCostWeights = new(
         // O grid procedural cresceu para materializar casas/workplaces; 1h por célula fazia uma
         // travessia urbana ocupar dias. Cada célula default representa 30 minutos de caminhada.
-        Base: 0.5, AltitudeWeight: 0.05,
+        Base: 0.05, AltitudeWeight: 0.05,
         TerrainWeight: new Dictionary<int, double> { [1] = 1.0, [2] = 1.5, [3] = 3.0 });
 
     public static WorldMap DefaultMap(ulong seed) =>
@@ -184,7 +184,8 @@ public static class ScenarioRunner
         ]).Value ?? throw new InvalidOperationException("life table default inválida — bug no cenário, não no gerador");
 
     public static readonly PopulationRules DefaultPopulationRules = PopulationRules.Create(
-        DefaultLifeTable, fertilityMinAge: 16, fertilityMaxAge: 45, annualConceptionChance: 0.25, gestationDays: 270)
+        DefaultLifeTable, fertilityMinAge: 16, fertilityMaxAge: 45, annualConceptionChance: 0.25, gestationDays: 270,
+        conditionalInitialMortality: true)
         .Value ?? throw new InvalidOperationException("population rules default inválida — bug no cenário, não no gerador");
 
     // Conteúdo real do cenário medieval: decaimento por hora tal que sede

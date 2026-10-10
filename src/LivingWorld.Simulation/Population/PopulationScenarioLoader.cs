@@ -79,8 +79,13 @@ public static class PopulationScenarioLoader
                 return Result<PopulationScenarioData>.Fail("MaxAliveNpcs: deve ser > 0");
         }
 
+        // Opcional: a morte planejada de quem já nasceu é sorteada condicionada à idade atual.
+        bool conditionalInitialMortality = root["ConditionalInitialMortality"] is JsonValue conditionalNode
+            && conditionalNode.TryGetValue<bool>(out var conditionalValue) && conditionalValue;
+
         var rulesResult = PopulationRules.Create(
-            lifeTableResult.Value!, fertilityMinAge, fertilityMaxAge, conceptionChance, gestationDays, maxAliveNpcs);
+            lifeTableResult.Value!, fertilityMinAge, fertilityMaxAge, conceptionChance, gestationDays, maxAliveNpcs,
+            conditionalInitialMortality);
         if (!rulesResult.IsSuccess)
             return Result<PopulationScenarioData>.Fail(rulesResult.Error!);
 

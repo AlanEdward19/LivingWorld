@@ -22,7 +22,7 @@ public sealed class ExtraordinaryLocomotionTests
     [Fact]
     public void Manifested_speed_moves_three_physical_cells_in_one_hour_without_teleporting_to_goal()
     {
-        var (world, npc) = WorldWith("movement.speed-multiplier:3", new CellCoord(0, 0));
+        var (world, npc) = WorldWith("movement.speed-multiplier:3", new CellCoord(0, 0), FlatMap());
         var profile = ExtraordinaryLocomotion.Resolve(world, npc);
 
         var result = ExtraordinaryLocomotion.Advance(
@@ -119,7 +119,7 @@ public sealed class ExtraordinaryLocomotionTests
     public void Behavior_travel_advances_a_manifested_speedster_through_authoritative_cells()
     {
         var (world, npc) = WorldWith(
-            "movement.speed-multiplier:3", new CellCoord(0, 0), costs: ["carrier.sleep:7"]);
+            "movement.speed-multiplier:3", new CellCoord(0, 0), FlatMap(), costs: ["carrier.sleep:7"]);
         var household = new Household(
             new HouseholdId(1), new CellCoord(5, 0), npc.Id, [npc.Id]);
         npc.JoinHousehold(household.Id);
@@ -160,18 +160,21 @@ public sealed class ExtraordinaryLocomotionTests
         return (world, npc);
     }
 
-    private static WorldMap Map(Func<CellCoord, int> terrainOf)
+    // Mapa plano e uniforme: a rota reta esperada não depende dos pesos de custo do cenário default.
+    private static WorldMap FlatMap() => Map(_ => 1, size: 8);
+
+    private static WorldMap Map(Func<CellCoord, int> terrainOf, int size = 3)
     {
         var catalog = new GeographyCatalog([1, 2], [], []);
         var cost = new CostWeights(1, 0, new Dictionary<int, double> { [1] = 1, [2] = 5 });
         var cells = new List<MapCell>();
-        for (int y = 0; y < 3; y++)
-            for (int x = 0; x < 3; x++)
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
             {
                 var coord = new CellCoord(x, y);
                 cells.Add(MapCell.WithDerivedTemperature(
                     coord, new TerrainType(terrainOf(coord)), default, 0, false, []));
             }
-        return WorldMap.Create(3, 3, 1, catalog, cost, cells, RegionGrid.Partition(3, 3, 3), []).Value!;
+        return WorldMap.Create(size, size, 1, catalog, cost, cells, RegionGrid.Partition(size, size, size), []).Value!;
     }
 }

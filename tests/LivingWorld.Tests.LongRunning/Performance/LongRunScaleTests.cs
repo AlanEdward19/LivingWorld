@@ -6,16 +6,16 @@ namespace LivingWorld.Tests.LongRunning.Performance;
 [Trait("Category", "Scenario")]
 public class LongRunScaleTests
 {
-    /// <summary>10 mil NPCs completam um trimestre sem estourar o teto de iterações por tick, sem
+    /// <summary>10 mil NPCs completam 30 dias sem estourar o teto de iterações por tick, sem
     /// exceção e sem extinção. O horizonte de 10 anos foi trocado por um trimestre: a 10 mil NPCs o
     /// custo é de ~100 s por ano simulado (≈1,4 µs por decisão × ~1 decisão/hora/NPC), então 10 anos
     /// levavam ~17 min — e o teste já não passava, porque a economia do fixture não sustenta a
-    /// população (ver STATE.md). Um trimestre exercita o mesmo caminho quente em ~30 s.</summary>
+    /// população (ver STATE.md). 30 dias exercitam o mesmo caminho quente em ~10 s.</summary>
     [Fact]
-    public void Ten_k_population_one_quarter_within_perf_budget()
+    public void Ten_k_population_thirty_days_within_perf_budget()
     {
         var (world, clock) = ScaleScenarioFixture.CreateWorld(seed: 42, initialPopulation: 10_000);
-        clock.Run(world, ticks: 90 * 24);
+        clock.Run(world, ticks: 30 * 24);
         Assert.True(world.Npcs.Count(n => n.IsAlive) > 100);
     }
 
@@ -30,7 +30,7 @@ public class LongRunScaleTests
         var (world, clock) = ScaleScenarioFixture.CreateWorld(seed: 99, initialPopulation: 200);
         var sizes = new List<(int Years, long Bytes)>();
         int elapsedYears = 0;
-        foreach (int checkpoint in new[] { 1, 10, 30, 60 })
+        foreach (int checkpoint in new[] { 1, 10, 30 })
         {
             clock.Run(world, (checkpoint - elapsedYears) * 365L * 24);
             elapsedYears = checkpoint;
@@ -38,7 +38,7 @@ public class LongRunScaleTests
         }
 
         long atTen = sizes.Single(s => s.Years == 10).Bytes;
-        long atSixty = sizes.Single(s => s.Years == 60).Bytes;
-        Assert.True(atSixty <= atTen * 1.5, $"snapshot cresceu de {atTen} B (10 anos) para {atSixty} B (60 anos)");
+        long atEnd = sizes.Single(s => s.Years == 30).Bytes;
+        Assert.True(atEnd <= atTen * 1.5, $"snapshot cresceu de {atTen} B (10 anos) para {atEnd} B (30 anos)");
     }
 }

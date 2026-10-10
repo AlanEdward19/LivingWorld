@@ -16,9 +16,10 @@ using LivingWorld.Simulation.Scheduling;
 namespace LivingWorld.Tests.Unit.Performance;
 
 /// <summary>Provas de que as estruturas de aceleração (índices, memos, caches) são só isso: cada uma
-/// é comparada com a definição direta que ela substitui, e o conjunto é preso a hashes do mundo
-/// gerados pelo código anterior às otimizações. Mudar o comportamento da simulação de propósito exige
-/// atualizar os hashes; qualquer outra mudança que os quebre é regressão.</summary>
+/// é comparada com a definição direta que ela substitui, e o conjunto é preso a hashes do mundo.
+/// Os hashes foram gravados no código anterior às otimizações (equivalência provada) e regravados
+/// quando o comportamento mudou de propósito (mortalidade condicional, Midshift, custo de célula
+/// 0.05 — AD-077). Mudar a simulação de propósito exige atualizá-los; qualquer outra quebra é regressão.</summary>
 public class OptimizationEquivalenceTests
 {
     private const long OneYearInHours = 360L * 24;
@@ -26,9 +27,9 @@ public class OptimizationEquivalenceTests
     // --- Hashes do mundo preservados ---
 
     [Theory]
-    [InlineData(1UL, "a9925574cf9bd8ac71032d74f5482d052f84acbdfae57ebdc4a97fed776ced74", "e15ed8df02767221d83020c9686c7bd45e03f65f4ea392565c8fe754f979c92c")]
-    [InlineData(2UL, "eb0721058f1fdb5c772c905f147936a189488b7e0ea0e3fdea32c350171e78c8", "81b929f36b32d3963a3e72161a526a6862becbd365be8bb5a2434546103c286a")]
-    public void Default_scenario_ninety_days_keeps_the_hashes_recorded_before_the_optimizations(
+    [InlineData(1UL, "b542fd67f1bf5c13fe5a00aef553c517c59902d9767260197c6ec3abfb5a6519", "b90cc84734d902a84026e19cc5e448082cbdde63c1959729bfd15fea41ecb40e")]
+    [InlineData(2UL, "010f9de092e419e9a68028ac96c003a6a7d040c80794d9e5d4983bac3411e154", "3f10d9a4abd886847893b5403d2740fb2c5714543781d14f0263ffe9a1aed8b5")]
+    public void Default_scenario_ninety_days_keeps_the_recorded_hashes(
         ulong seed, string canonical, string volatileHash)
     {
         var (actualCanonical, actualVolatile) = ScenarioRunner.RunAndHash(seed, 90 * 24);
