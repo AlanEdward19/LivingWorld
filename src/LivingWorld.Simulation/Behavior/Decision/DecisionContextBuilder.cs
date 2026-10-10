@@ -1,6 +1,7 @@
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Llm;
 using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Needs;
 using LivingWorld.Simulation.Core;
@@ -92,11 +93,12 @@ public static class DecisionContextBuilder
             return Array.Empty<RelationshipFact>();
 
         var facts = new List<RelationshipFact>();
-        // Filtra antes de ordenar: ordenar o dicionário inteiro por NPC era O(R log R) por decisão.
-        foreach (var (key, rel) in world.Relationships.Where(kv => kv.Key.From == npcId).OrderBy(kv => kv.Key.To.Value))
+        // Índice por NPC (já ordenado por To): O(grau) por decisão, não O(relações do mundo).
+        foreach (var to in world.RelationshipTargetsOf(npcId))
         {
+            var rel = world.Relationships[new RelationshipKey(npcId, to)];
             facts.Add(new RelationshipFact(
-                key.To,
+                to,
                 (int)Math.Round(rel.Trust),
                 (int)Math.Round(rel.Affection),
                 (int)Math.Round(rel.Respect),

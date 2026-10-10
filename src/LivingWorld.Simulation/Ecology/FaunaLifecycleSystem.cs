@@ -184,10 +184,14 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
         ctx.LogEvent(kind, animal.Id.Value.ToString(), sourceSystem: SystemName);
     }
 
+    // As regras de espécie são imutáveis por mundo: indexa uma vez por instância da lista, não por tick.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<
+        IReadOnlyList<AnimalSpeciesRules>, Dictionary<string, AnimalSpeciesRules>> RulesIndexCache = new();
+
     internal static Dictionary<string, AnimalSpeciesRules> IndexRules(WorldState world) =>
-        world.AnimalSpeciesRules
+        RulesIndexCache.GetValue(world.AnimalSpeciesRules, rules => rules
             .GroupBy(r => r.Species, StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal));
 
     public static int Chebyshev(CellCoord a, CellCoord b) =>
         Math.Max(Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y));

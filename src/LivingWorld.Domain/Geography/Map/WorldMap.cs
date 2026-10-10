@@ -39,6 +39,44 @@ public sealed class WorldMap
         _cellByCoord = cells.ToDictionary(c => c.Coord);
         _regionByCell = regions.SelectMany(r => r.Cells.Select(c => (c, r.Id))).ToDictionary(t => t.c, t => t.Id);
         _neighborsByRegion = BuildNeighbors(regions, _regionByCell);
+
+        // Grade densa (índice y*Width+x) para a leitura quente de clima por célula: o mapa é
+        // imutável e validado como grid completo, então array substitui dois lookups de dicionário.
+        _tempGrid = new float[width * height];
+        _regionGrid = new int[width * height];
+        Array.Fill(_regionGrid, int.MinValue);
+        foreach (var cell in cells)
+        {
+            if (cell.Coord.X < 0 || cell.Coord.X >= width || cell.Coord.Y < 0 || cell.Coord.Y >= height) continue;
+            int index = cell.Coord.Y * width + cell.Coord.X;
+            _tempGrid[index] = cell.Temperature;
+            if (_regionByCell.TryGetValue(cell.Coord, out var region))
+                _regionGrid[index] = region.Value;
+        }
+    }
+
+    private readonly float[] _tempGrid;
+    private readonly int[] _regionGrid;
+
+    /// <summary>Temperatura base e região da célula, em O(1). False se a célula não existe ou não
+    /// pertence a região — o mesmo caso em que <see cref="TryGetCell"/>/<see cref="RegionOf"/> não resolveriam.</summary>
+    public bool TryGetBaseClimate(CellCoord coord, out float temperature, out RegionId region)
+    {
+        if (coord.X >= 0 && coord.X < Width && coord.Y >= 0 && coord.Y < Height)
+        {
+            int index = coord.Y * Width + coord.X;
+            int regionValue = _regionGrid[index];
+            if (regionValue != int.MinValue)
+            {
+                temperature = _tempGrid[index];
+                region = new RegionId(regionValue);
+                return true;
+            }
+        }
+
+        temperature = 0;
+        region = default;
+        return false;
     }
 
     /// <summary>Memo de <see cref="MapPathfinder.ShortestCost"/>: o mapa é imutável, então o menor

@@ -55,7 +55,7 @@ public sealed class SkillTeachingSystem : ISimulationSystem
             GainFromDeliberateTraining(world, npc);
             GainFromSchool(world, npc);
             GainFromParental(world, npc);
-            GainFromObservation(world, living, npc);
+            GainFromObservation(world, npc);
             GainFromTutoring(world, npc);
         }
     }
@@ -131,13 +131,19 @@ public sealed class SkillTeachingSystem : ISimulationSystem
     /// <c>ponytail:</c> varredura O(n²) por local — aceitável na escala atual da população;
     /// revisitar (indexar por <see cref="Npc.CurrentLocation"/>) se a população crescer o
     /// bastante pra pesar no perfil.</summary>
-    private void GainFromObservation(WorldState world, IReadOnlyList<Npc> living, Npc observer)
+    private void GainFromObservation(WorldState world, Npc observer)
     {
-        var observed = living.FirstOrDefault(other =>
-            other.Id != observer.Id &&
-            other.Id != observer.Mentor &&
-            other.CurrentAction == ActionType.Work &&
-            other.CurrentLocation == observer.CurrentLocation);
+        // Só quem está na mesma célula importa: o índice espacial evita varrer a população inteira por
+        // observador. O primeiro por Id (a ordem original da varredura) é o de menor Id entre os candidatos.
+        Npc? observed = null;
+        foreach (var other in world.AliveNpcIndex.At(observer.CurrentLocation))
+        {
+            if (other.Id == observer.Id || other.Id == observer.Mentor || other.CurrentAction != ActionType.Work)
+                continue;
+            if (observed is null || other.Id.Value < observed.Id.Value)
+                observed = other;
+        }
+
         if (observed is null) return;
         if (!_rules.SkillByProfession.TryGetValue(observed.Profession.Id, out var skillType)) return;
 

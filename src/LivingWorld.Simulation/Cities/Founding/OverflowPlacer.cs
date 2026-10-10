@@ -26,14 +26,20 @@ public static class OverflowPlacer
     // trata isso como escassez de terra e simplesmente deixa o prédio sem posição por esta
     // chamada (ver design.md, Error Handling Strategy).
     public static CellCoord? ResolveOverflowPosition(
-        WorldState world, City city, CityBounds bounds, BuildingId id, IReadOnlyList<CellCoord> footprintShape)
+        WorldState world, City city, CityBounds bounds, BuildingId id, IReadOnlyList<CellCoord> footprintShape) =>
+        ResolveOverflowPosition(world, city, bounds, id, footprintShape, 1, out _);
+
+    internal static CellCoord? ResolveOverflowPosition(
+        WorldState world, City city, CityBounds bounds, BuildingId id, IReadOnlyList<CellCoord> footprintShape,
+        int startRadius, out int foundRadius)
     {
         // dynamic-city-growth, fix (blocker): antes, cada célula do anel chamava
         // CityOccupancy.IsFree, que recomputava a ocupação da cidade inteira do zero -- em cima da
         // recursão de OccupiedCellsOfCity, isso tornava o overflow O(anel * 2^N). O conjunto
         // ocupado é o mesmo pra toda a busca do anel, então computa uma vez só.
         var occupied = CityOccupancy.OccupiedCellsOfCity(world, city, bounds, id);
-        return ResolveOverflowPositionGiven(occupied, bounds, id, footprintShape, world.Map.Width, world.Map.Height);
+        return ResolveOverflowPositionGiven(
+            occupied, bounds, id, footprintShape, world.Map.Width, world.Map.Height, startRadius, out foundRadius);
     }
 
     /// <summary>Mesma busca em anéis crescentes de <see cref="ResolveOverflowPosition"/>, mas
@@ -48,12 +54,20 @@ public static class OverflowPlacer
     /// nada, é escassez de terra real).</summary>
     internal static CellCoord? ResolveOverflowPositionGiven(
         HashSet<CellCoord> occupied, CityBounds bounds, BuildingId id, IReadOnlyList<CellCoord> footprintShape,
-        int mapWidth, int mapHeight)
+        int mapWidth, int mapHeight) =>
+        ResolveOverflowPositionGiven(occupied, bounds, id, footprintShape, mapWidth, mapHeight, 1, out _);
+
+    /// <summary><paramref name="startRadius"/> permite pular anéis que o chamador já sabe inteiramente
+    /// ocupados para esta forma (a ocupação só cresce dentro de um passe). <paramref name="foundRadius"/>
+    /// é o raio do anel onde achou (ou além do último, se não achou) — todo anel menor falhou.</summary>
+    internal static CellCoord? ResolveOverflowPositionGiven(
+        HashSet<CellCoord> occupied, CityBounds bounds, BuildingId id, IReadOnlyList<CellCoord> footprintShape,
+        int mapWidth, int mapHeight, int startRadius, out int foundRadius)
     {
         ulong hash = StableHash.Mix(id.Value);
         int maxRadius = mapWidth + mapHeight;
 
-        for (int radius = 1; radius <= maxRadius; radius++)
+        for (int radius = Math.Max(1, startRadius); radius <= maxRadius; radius++)
         {
             var ring = RingCells(bounds, radius);
             int offset = (int)(hash % (ulong)ring.Count);
@@ -62,9 +76,13 @@ public static class OverflowPlacer
                 var origin = ring[(offset + i) % ring.Count];
                 var candidate = CityOccupancy.Translate(footprintShape, origin);
                 if (candidate.All(cell => WithinMap(cell, mapWidth, mapHeight)) && candidate.All(cell => !occupied.Contains(cell)))
+                {
+                    foundRadius = radius;
                     return origin;
+                }
             }
         }
+        foundRadius = maxRadius + 1;
         return null;
     }
 

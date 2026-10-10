@@ -21,10 +21,30 @@ public static class BuildingFootprintGenerator
         return (int)(h % 4) * 90;
     }
 
+    // Função pura de (id, tipo, orientação normalizada): memoizada, pois a planta de cada prédio é
+    // relida a cada tick por vários sistemas (ocupação, colocação, locomoção). Teto evita crescer sem
+    // limite em mundos com milhões de prédios.
+    private const int MaxCachedFootprints = 100_000;
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<
+        (long Id, int Type, int Orientation), IReadOnlyList<FootprintCell>> Cache = new();
+
     public static IReadOnlyList<FootprintCell> Generate(
         BuildingId buildingId, int buildingTypeId, int? orientation = null)
     {
-        int normalizedOrientation = NormalizeOrientation(orientation ?? 0);
+        var key = (buildingId.Value, buildingTypeId, NormalizeOrientation(orientation ?? 0));
+        if (Cache.TryGetValue(key, out var cached))
+            return cached;
+
+        var footprint = Compute(buildingId, buildingTypeId, key.Item3);
+        if (Cache.Count >= MaxCachedFootprints)
+            Cache.Clear();
+        Cache[key] = footprint;
+        return footprint;
+    }
+
+    private static IReadOnlyList<FootprintCell> Compute(
+        BuildingId buildingId, int buildingTypeId, int normalizedOrientation)
+    {
 
         var wallMaterial = buildingTypeId % 2 == 0 ? BuildingMaterial.StoneWall : BuildingMaterial.WoodWall;
         // A casa inicial precisa de uma célula interna real, mas não pode dominar visualmente a

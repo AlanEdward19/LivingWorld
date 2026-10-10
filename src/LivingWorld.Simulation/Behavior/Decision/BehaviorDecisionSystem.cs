@@ -716,12 +716,31 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     private static ActionType ApplyPerception(WorldState world, Npc npc, ActionType candidate)
     {
         int radius = AttributeMechanic.PerceptionRadius(world, npc);
+        if (radius < 0) return candidate;
+
         bool threat = false;
         bool otherNpc = false;
-        foreach (var other in world.Npcs)
+        var index = world.AliveNpcIndex;
+        var origin = npc.CurrentLocation;
+        long window = (2L * radius + 1) * (2L * radius + 1);
+        if (window >= index.Alive.Count)
         {
-            if (!other.IsAlive || other.Id == npc.Id) continue;
-            if (Chebyshev(npc.CurrentLocation, other.CurrentLocation) > radius) continue;
+            // Raio grande: varrer os vivos custa menos que visitar a janela inteira de células.
+            foreach (var other in index.Alive)
+                Observe(other);
+        }
+        else
+        {
+            for (int dy = -radius; dy <= radius; dy++)
+                for (int dx = -radius; dx <= radius; dx++)
+                    foreach (var other in index.At(new CellCoord(origin.X + dx, origin.Y + dy)))
+                        Observe(other);
+        }
+
+        void Observe(Npc other)
+        {
+            if (other.Id == npc.Id) return;
+            if (Chebyshev(origin, other.CurrentLocation) > radius) return;
             otherNpc = true;
             if (other.Health <= 1)
                 threat = true;

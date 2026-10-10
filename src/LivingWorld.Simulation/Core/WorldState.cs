@@ -274,8 +274,37 @@ public sealed class WorldState
         {
             relationship = Relationship.Initial(now);
             _relationships[key] = relationship;
+            IndexRelationshipTarget(key);
         }
         return relationship;
+    }
+
+    // Índice derivado de _relationships: alvos (To) de cada From, ordenados por To. Permite ler as
+    // relações de um NPC em O(grau) em vez de varrer o dicionário inteiro (crescia ~O(n²) com os anos).
+    private readonly Dictionary<NpcId, List<NpcId>> _relationshipTargetsByFrom = [];
+
+    /// <summary>Alvos das relações já existentes de <paramref name="from"/>, em ordem crescente de Id.</summary>
+    internal IReadOnlyList<NpcId> RelationshipTargetsOf(NpcId from) =>
+        _relationshipTargetsByFrom.TryGetValue(from, out var targets) ? targets : [];
+
+    private void IndexRelationshipTarget(RelationshipKey key)
+    {
+        if (!_relationshipTargetsByFrom.TryGetValue(key.From, out var targets))
+            _relationshipTargetsByFrom[key.From] = targets = [];
+        int lo = 0, hi = targets.Count;
+        while (lo < hi)
+        {
+            int mid = (lo + hi) >>> 1;
+            if (targets[mid].Value < key.To.Value) lo = mid + 1; else hi = mid;
+        }
+        targets.Insert(lo, key.To);
+    }
+
+    private void UnindexRelationshipTarget(RelationshipKey key)
+    {
+        if (!_relationshipTargetsByFrom.TryGetValue(key.From, out var targets)) return;
+        targets.Remove(key.To);
+        if (targets.Count == 0) _relationshipTargetsByFrom.Remove(key.From);
     }
 
     private readonly List<Npc> _npcs;
@@ -612,6 +641,8 @@ public sealed class WorldState
         FamilyRules = familyRules ?? FamilyRules.Disabled;
         BodyRules = bodyRules ?? BodyRules.Default;
         _relationships = relationships is null ? [] : new Dictionary<RelationshipKey, Relationship>(relationships);
+        foreach (var key in _relationships.Keys)
+            IndexRelationshipTarget(key);
         _cities = (cities ?? []).ToList();
         _cityById = ToLookup(_cities, c => c.Id);
         _buildings = (buildings ?? []).ToList();
@@ -786,8 +817,10 @@ public sealed class WorldState
     internal int RemoveRelationshipsBetween(NpcId first, NpcId second)
     {
         int removed = 0;
-        if (_relationships.Remove(new RelationshipKey(first, second))) removed++;
-        if (_relationships.Remove(new RelationshipKey(second, first))) removed++;
+        var forward = new RelationshipKey(first, second);
+        var backward = new RelationshipKey(second, first);
+        if (_relationships.Remove(forward)) { removed++; UnindexRelationshipTarget(forward); }
+        if (_relationships.Remove(backward)) { removed++; UnindexRelationshipTarget(backward); }
         return removed;
     }
 
@@ -802,9 +835,14 @@ public sealed class WorldState
     internal bool RemoveExtraordinaryConstruct(long id) =>
         _extraordinaryConstructs.RemoveAll(construct => construct.Id == id) > 0;
 
+    /// <summary>Muda a cada alteração da lista de ajustes de temperatura — invalida o memo por região
+    /// de <see cref="EnvironmentTemperatureMechanic"/>. Contador interno, fora do estado do mundo.</summary>
+    internal long TemperatureAdjustmentsVersion { get; private set; }
+
     internal void AddEnvironmentTemperatureAdjustment(EnvironmentTemperatureAdjustment adjustment)
     {
         _environmentTemperatureAdjustments.Add(adjustment);
+        TemperatureAdjustmentsVersion++;
         CanonicalHashCache.MarkPropertyDirty(nameof(EnvironmentTemperatureAdjustments));
     }
 
@@ -815,6 +853,7 @@ public sealed class WorldState
             adjustment => adjustment.UntilTick == Geography.TemperatureSeasonSystem.SeasonalUntilTick);
         foreach (var adjustment in replacements)
             _environmentTemperatureAdjustments.Add(adjustment);
+        TemperatureAdjustmentsVersion++;
         CanonicalHashCache.MarkPropertyDirty(nameof(EnvironmentTemperatureAdjustments));
     }
 
@@ -839,8 +878,8 @@ public sealed class WorldState
 
     internal void ReplaceAnimal(Animal animal)
     {
-        RemoveSortedById(_fauna, animal.Id.Value, a => a.Id.Value);
-        AddAnimal(animal);
+        _faunaById[animal.Id] = animal;
+        ReplaceSortedById(_fauna, animal, a => a.Id.Value);
     }
 
     internal void RemoveAnimal(AnimalId id)
@@ -861,8 +900,23 @@ public sealed class WorldState
 
     internal void ReplacePlant(Plant plant)
     {
-        RemoveSortedById(_flora, plant.Id.Value, p => p.Id.Value);
-        AddPlant(plant);
+        _floraById[plant.Id] = plant;
+        ReplaceSortedById(_flora, plant, p => p.Id.Value);
+    }
+
+    /// <summary>Troca a planta na posição conhecida <paramref name="index"/> (quem varre a lista sabe
+    /// onde está); se o índice não bater com o Id, cai no caminho por busca.</summary>
+    internal void ReplacePlantAt(int index, Plant plant)
+    {
+        if ((uint)index < (uint)_flora.Count && _flora[index].Id == plant.Id)
+        {
+            _flora[index] = plant;
+            _floraById[plant.Id] = plant;
+        }
+        else
+        {
+            ReplacePlant(plant);
+        }
     }
 
     internal void RemovePlant(PlantId id)
@@ -884,6 +938,17 @@ public sealed class WorldState
 
     private static void InsertSortedById<T>(List<T> sorted, T item, Func<T, long> idOf) =>
         sorted.Insert(LowerBoundById(sorted, idOf(item), idOf), item);
+
+    /// <summary>Mesmo Id = mesma posição ordenada: troca no lugar, sem deslocar o resto da lista.</summary>
+    private static void ReplaceSortedById<T>(List<T> sorted, T item, Func<T, long> idOf)
+    {
+        long id = idOf(item);
+        int index = LowerBoundById(sorted, id, idOf);
+        if (index < sorted.Count && idOf(sorted[index]) == id)
+            sorted[index] = item;
+        else
+            sorted.Insert(index, item);
+    }
 
     private static void RemoveSortedById<T>(List<T> sorted, long id, Func<T, long> idOf)
     {

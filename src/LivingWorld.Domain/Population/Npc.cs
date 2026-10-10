@@ -24,6 +24,12 @@ public sealed class Npc
     public Action<NpcId>? CanonicalMutationNotifier { get; set; }
     private void TouchCanonical() => CanonicalMutationNotifier?.Invoke(Id);
 
+    /// <summary>Avisa o índice espacial de NPCs vivos (derivado) da posição anterior sempre que
+    /// <see cref="MoveTo"/> muda <see cref="CurrentLocation"/>. Mesmo molde de
+    /// <see cref="CanonicalMutationNotifier"/>: um mundo dono por instância de NPC.</summary>
+    [JsonIgnore]
+    public Action<Npc, CellCoord>? LocationObserver { get; set; }
+
     public NpcId Id { get; }
     public string Name { get; }
     public Sex Sex { get; }
@@ -367,7 +373,10 @@ public sealed class Npc
     /// ainda (deslocamento com custo vem depois).</summary>
     public void MoveTo(CellCoord destination, long tick)
     {
+        var previous = CurrentLocation;
         CurrentLocation = destination;
+        if (previous != destination)
+            LocationObserver?.Invoke(this, previous);
         TouchCanonical();
     }
 

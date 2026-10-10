@@ -34,22 +34,62 @@ public sealed class EnvironmentTemperatureMechanic : ExtraordinaryMechanic
                 new EnvironmentTemperatureAdjustment(region, delta, untilTick))));
     }
 
-    public static float EffectiveTemperature(WorldState world, CellCoord coord, long currentTick)
-    {
-        if (!world.Map.TryGetCell(coord, out var cell))
-            return 0;
+    public static float EffectiveTemperature(WorldState world, CellCoord coord, long currentTick) =>
+        FieldAt(world, currentTick).At(coord);
 
-        var region = world.Map.RegionOf(coord);
-        float delta = 0;
-        foreach (var adjustment in world.EnvironmentTemperatureAdjustments)
+    /// <summary>Campo de temperatura do tick: base da célula + soma dos ajustes ativos da região.
+    /// Quem varre muitas células no mesmo tick (flora, cultivo) pega o campo uma vez e consulta
+    /// <see cref="TemperatureField.At"/> — antes cada consulta varria todos os ajustes sazonais.
+    /// A soma por região segue a ordem da lista, então o float é idêntico ao da varredura.</summary>
+    internal static TemperatureField FieldAt(WorldState world, long currentTick)
+    {
+        var field = Fields.GetValue(world, w => new TemperatureField(w));
+        field.Refresh(currentTick);
+        return field;
+    }
+
+    internal sealed class TemperatureField(WorldState world)
+    {
+        private long _tick = long.MinValue;
+        private long _version = -1;
+        private long _validFrom = long.MaxValue;
+        private long _validUntil = long.MinValue;
+        private readonly Dictionary<RegionId, float> _deltas = new();
+
+        /// <summary>A tabela de deltas por região vale enquanto a lista de ajustes não muda e nenhum
+        /// ajuste ativo vence — o tick sozinho não a invalida (antes era refeita por tick/região).</summary>
+        internal void Refresh(long currentTick)
         {
-            if (adjustment.Region != region || adjustment.UntilTick <= currentTick)
-                continue;
-            delta += adjustment.Delta;
+            _tick = currentTick;
+            if (_version == world.TemperatureAdjustmentsVersion && currentTick >= _validFrom && currentTick < _validUntil)
+                return;
+
+            _deltas.Clear();
+            _version = world.TemperatureAdjustmentsVersion;
+            _validFrom = currentTick;
+            _validUntil = long.MaxValue;
+            // Uma passada, na ordem da lista: a soma por região é a mesma de varrer a lista inteira
+            // para cada região (float idêntico), mas custa O(ajustes) em vez de O(regiões × ajustes).
+            foreach (var adjustment in world.EnvironmentTemperatureAdjustments)
+            {
+                if (adjustment.UntilTick <= currentTick)
+                    continue;
+                _deltas[adjustment.Region] = _deltas.GetValueOrDefault(adjustment.Region) + adjustment.Delta;
+                if (adjustment.UntilTick < _validUntil)
+                    _validUntil = adjustment.UntilTick;
+            }
         }
 
-        return cell.Temperature + delta;
+        internal float At(CellCoord coord)
+        {
+            if (!world.Map.TryGetBaseClimate(coord, out float baseTemperature, out var region))
+                return 0;
+
+            return baseTemperature + _deltas.GetValueOrDefault(region);
+        }
     }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<WorldState, TemperatureField> Fields = new();
 
     internal static bool TryParse(
         string declaration, out RegionId region, out float delta, out long durationTicks)

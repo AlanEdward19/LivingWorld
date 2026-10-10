@@ -35,14 +35,33 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
     {
         var rulesBySpecies = IndexRules(world);
         long tick = ctx.CurrentTick;
+        var temperature = EnvironmentTemperatureMechanic.FieldAt(world, tick);
+        // Quase toda planta repete a espécie da anterior (mesma instância de string).
+        string? lastSpecies = null;
+        PlantSpeciesRules? lastRules = null;
 
-        foreach (var plant in world.Flora.ToArray())
+        bool powersActive = world.Extraordinary.Enabled;
+        var snapshot = world.Flora.ToArray();
+        int removed = 0;
+
+        for (int i = 0; i < snapshot.Length; i++)
         {
-            if (!rulesBySpecies.TryGetValue(plant.Species, out var rules))
+            var plant = snapshot[i];
+            PlantSpeciesRules? rules;
+            if (ReferenceEquals(plant.Species, lastSpecies))
+                rules = lastRules;
+            else
+            {
+                rulesBySpecies.TryGetValue(plant.Species, out rules);
+                lastSpecies = plant.Species;
+                lastRules = rules;
+            }
+
+            if (rules is null)
                 continue;
 
-            double baseRate = BaseGrowthRate(world, plant, rules, tick);
-            double multiplier = FloraMechanic.GrowthRateMultiplier(world, plant);
+            double baseRate = BaseGrowthRate(temperature.At(plant.Position), rules);
+            double multiplier = powersActive ? FloraMechanic.GrowthRateMultiplier(world, plant) : 1;
             int delta = (int)Math.Floor(baseRate * multiplier);
             if (delta == 0)
                 continue;
@@ -51,10 +70,11 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
             if (nextStage < 0)
             {
                 Kill(world, ctx, plant);
+                removed++;
                 continue;
             }
 
-            world.ReplacePlant(plant with { GrowthStage = nextStage });
+            world.ReplacePlantAt(i - removed, plant with { GrowthStage = nextStage });
             if (plant.GrowthStage < rules.MaturityStage && nextStage >= rules.MaturityStage)
             {
                 ctx.LogEvent(
@@ -75,9 +95,7 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
 
         var rulesBySpecies = IndexRules(world);
         long tick = ctx.CurrentTick;
-        var occupied = world.Flora
-            .Select(p => p.Position)
-            .ToHashSet();
+        HashSet<CellCoord>? occupied = null;
 
         foreach (var plant in world.Flora.ToArray())
         {
@@ -93,6 +111,7 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
             if (roll >= rules.ReproduceProbability)
                 continue;
 
+            occupied ??= world.Flora.Select(p => p.Position).ToHashSet();
             var freeCells = FreeCompatibleCells(world, plant.Position, rules.ReproduceRadius, occupied);
             if (freeCells.Count == 0)
                 continue;
@@ -116,11 +135,11 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
     /// <summary>Taxa de base: positiva dentro da faixa (escala com conforto térmico);
     /// negativa fora da faixa (reverte — nunca avança normalmente).</summary>
     public static double BaseGrowthRate(
-        WorldState world, Plant plant, PlantSpeciesRules rules, long currentTick)
-    {
-        float temp = EnvironmentTemperatureMechanic.EffectiveTemperature(
-            world, plant.Position, currentTick);
+        WorldState world, Plant plant, PlantSpeciesRules rules, long currentTick) =>
+        BaseGrowthRate(EnvironmentTemperatureMechanic.FieldAt(world, currentTick).At(plant.Position), rules);
 
+    private static double BaseGrowthRate(float temp, PlantSpeciesRules rules)
+    {
         if (temp < rules.MinToleratedTemp || temp > rules.MaxToleratedTemp)
             return -1;
 
@@ -187,8 +206,12 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
         ctx.LogEvent(WorldEventKind.Death, plant.Id.Value.ToString(), sourceSystem: SystemName);
     }
 
+    // As regras de espécie são imutáveis por mundo: indexa uma vez por instância da lista, não por tick.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<
+        IReadOnlyList<PlantSpeciesRules>, Dictionary<string, PlantSpeciesRules>> RulesIndexCache = new();
+
     internal static Dictionary<string, PlantSpeciesRules> IndexRules(WorldState world) =>
-        world.PlantSpeciesRules
+        RulesIndexCache.GetValue(world.PlantSpeciesRules, rules => rules
             .GroupBy(r => r.Species, StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal));
 }

@@ -40,7 +40,7 @@ public static class BuildingPlacementResolver
         int orientation = BuildingFootprintGenerator.DerivedOrientation(building.Id, building.BuildingTypeId);
         var shape = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId, orientation).Select(c => c.Cell).ToList();
         var origin = CityOccupancy.FindFreeCellInBounds(world, city, bounds, shape, building.Id)
-            ?? OverflowPlacer.ResolveOverflowPosition(world, city, bounds, building.Id, shape);
+            ?? CityOccupancy.ResolveOverflowWithMarks(world, city, bounds, building, shape);
 
         return origin is { } resolved ? (resolved, orientation, true) : null;
     }

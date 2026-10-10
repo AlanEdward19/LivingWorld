@@ -41,16 +41,39 @@ public static class PersonalityWeighting
 
     public static bool HasInfluenceEntry(string traitName) => Influence.ContainsKey(traitName);
 
+    /// <summary>Termos (acessor do traço, coeficiente) de cada ação, já resolvidos, na mesma ordem de
+    /// <see cref="AllTraitNames"/> — a soma em ponto flutuante é idêntica à varredura por nome, sem os
+    /// lookups de string por traço a cada decisão.</summary>
+    private static readonly (Func<Personality, int> Trait, double Coefficient)[][] TermsByAction = BuildTerms();
+
+    private static (Func<Personality, int>, double)[][] BuildTerms()
+    {
+        int size = Enum.GetValues<ActionType>().Max(a => (int)a) + 1;
+        var terms = new (Func<Personality, int>, double)[size][];
+        for (int action = 0; action < size; action++)
+        {
+            var list = new List<(Func<Personality, int>, double)>();
+            foreach (var traitName in AllTraitNames)
+            {
+                if (!Influence.TryGetValue(traitName, out var actionInfluence)) continue;
+                if (!actionInfluence.TryGetValue((ActionType)action, out double coefficient)) continue;
+
+                list.Add((AccessorOf(traitName), coefficient));
+            }
+            terms[action] = list.ToArray();
+        }
+        return terms;
+    }
+
     public static double WeightOf(Personality personality, ActionType action)
     {
         double weight = 1.0;
-        foreach (var traitName in AllTraitNames)
-        {
-            if (!Influence.TryGetValue(traitName, out var actionInfluence)) continue;
-            if (!actionInfluence.TryGetValue(action, out double coefficient)) continue;
+        int index = (int)action;
+        if ((uint)index >= (uint)TermsByAction.Length)
+            return weight;
 
-            weight += (TraitValueOf(personality, traitName) / 100.0 - 0.5) * coefficient;
-        }
+        foreach (var (trait, coefficient) in TermsByAction[index])
+            weight += (trait(personality) / 100.0 - 0.5) * coefficient;
         return weight;
     }
 
@@ -59,18 +82,18 @@ public static class PersonalityWeighting
     /// reprova em runtime), mas o caminho quente (um `WeightOf` por ação por NPC vivo por tick
     /// Hourly) deixa de pagar `PropertyInfo.GetValue` reflexivo — medido como o maior custo do
     /// sistema em população grande (ver STATE.md).</summary>
-    private static int TraitValueOf(Personality p, string traitName) => traitName switch
+    private static Func<Personality, int> AccessorOf(string traitName) => traitName switch
     {
-        nameof(Personality.Extroversion) => p.Extroversion,
-        nameof(Personality.Agreeableness) => p.Agreeableness,
-        nameof(Personality.Conscientiousness) => p.Conscientiousness,
-        nameof(Personality.EmotionalStability) => p.EmotionalStability,
-        nameof(Personality.Openness) => p.Openness,
-        nameof(Personality.Ambition) => p.Ambition,
-        nameof(Personality.Loyalty) => p.Loyalty,
-        nameof(Personality.Altruism) => p.Altruism,
-        nameof(Personality.Impulsivity) => p.Impulsivity,
-        nameof(Personality.RiskAversion) => p.RiskAversion,
-        _ => throw new ArgumentOutOfRangeException(nameof(traitName), traitName, "traço sem acesso direto declarado"),
+        nameof(Personality.Extroversion) => p => p.Extroversion,
+        nameof(Personality.Agreeableness) => p => p.Agreeableness,
+        nameof(Personality.Conscientiousness) => p => p.Conscientiousness,
+        nameof(Personality.EmotionalStability) => p => p.EmotionalStability,
+        nameof(Personality.Openness) => p => p.Openness,
+        nameof(Personality.Ambition) => p => p.Ambition,
+        nameof(Personality.Loyalty) => p => p.Loyalty,
+        nameof(Personality.Altruism) => p => p.Altruism,
+        nameof(Personality.Impulsivity) => p => p.Impulsivity,
+        nameof(Personality.RiskAversion) => p => p.RiskAversion,
+        _ => _ => throw new ArgumentOutOfRangeException(nameof(traitName), traitName, "traço sem acesso direto declarado"),
     };
 }
