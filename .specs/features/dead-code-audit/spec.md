@@ -6,11 +6,20 @@ O projeto passou por 28 fases de desenvolvimento agent-driven. Ao longo do camin
 
 ## Goals
 
-- [ ] Inventariar todo código em `src/` que não tem consumidor real (nem produção, nem teste) — candidato a remoção direta
-- [ ] Inventariar pares/famílias de versões antigas coexistindo com a versão nova (padrão `XxxV2`, `XxxLegacy`, sufixos numéricos, ou nomes que sugerem substituição) e documentar quem ainda consome cada uma
-- [ ] Inventariar comentários/`<summary>` que citam fase/task/ADR/ID de requisito como conteúdo principal em vez de explicar o WHY do comportamento, e propor a reescrita descritiva
-- [ ] Inventariar duplicação de lógica que poderia virar uma única abstração, sem quebrar comportamento
-- [ ] Entregar um relatório priorizado (arquivo/linha, evidência, ação recomendada) para o usuário decidir o que remover/reescrever — este spec **não altera nada sozinho**
+### Auditoria (concluída — ver `.specs/features/dead-code-audit/report.md`)
+
+- [x] Inventariar todo código em `src/` que não tem consumidor real (nem produção, nem teste) — candidato a remoção direta
+- [x] Inventariar pares/famílias de versões antigas coexistindo com a versão nova (padrão `XxxV2`, `XxxLegacy`, sufixos numéricos, ou nomes que sugerem substituição) e documentar quem ainda consome cada uma
+- [x] Inventariar comentários/`<summary>` que citam fase/task/ADR/ID de requisito como conteúdo principal em vez de explicar o WHY do comportamento, e propor a reescrita descritiva
+- [x] Inventariar duplicação de lógica que poderia virar uma única abstração, sem quebrar comportamento
+- [x] Entregar um relatório priorizado (arquivo/linha, evidência, ação recomendada)
+
+### Execução (esta rodada — escopo confirmado com o usuário contra risco de quebrar Fase 28 e fases recentes)
+
+- [x] Remover `ScenarioLoader` (v1) (`DecisionMetrics` mantido, ver P5) — zero consumidor de produção confirmado, sem relação com nenhuma entrega de fase ativa
+- [x] Plugar `ColdTierPersistence`/`ColdTierArchive` no ciclo real de save/resume — fecha o gap descoberto de que a compressão de estado frio prometida pela Fase 28 (T1-T3, T20/CMP-01/05) nunca foi chamada em produção
+- [x] Consolidar as 4 duplicações de alta confiança do relatório sem mudar comportamento observável (byte-idêntico em golden/scale-sensor onde aplicável)
+- [x] Reescrever/remover os comentários fase/task identificados como citação-pura (sem WHY), e podar a citação (mantendo o WHY) nos demais — mesmo comportamento observável, comentário que explica o presente em vez de arquivar o passado
 
 ## Out of Scope
 
@@ -18,13 +27,15 @@ Excluído explicitamente desta rodada. Documentado pra não crescer escopo.
 
 | Item | Motivo |
 | --- | --- |
-| Executar a remoção do código identificado | Fase separada, sob aprovação item a item do usuário (fora do "apenas Specify" pedido) |
-| Reescrever de fato os comentários identificados como poluição de fase/task | Mesmo motivo — o relatório lista e propõe a versão descritiva, a aplicação em massa é execução futura aprovada pelo usuário |
-| Auditar `tests/` em busca de testes redundantes/obsoletos | Foco é código de produção (`src/`); testes órfãos de uma classe removida são consequência natural da remoção, tratados junto quando a remoção acontecer |
-| Refatoração de estilo/nomenclatura sem relação com uso morto ou comentário poluído | Fora do objetivo "mesmo resultado, menos código, comentário que ajuda" |
+| Auditar `tests/` em busca de testes redundantes/obsoletos além dos diretamente órfãos das remoções acima | Foco é código de produção (`src/`); testes órfãos de uma classe removida são consequência natural da remoção, tratados junto quando a remoção acontece |
+| Refatoração de estilo/nomenclatura sem relação com uso morto, gap de fase ou comentário poluído | Fora do objetivo "mesmo resultado, menos código, comentário que ajuda" |
 | Arquivos gerados (`obj/`, `bin/`, `EfCore/Migrations/*.Designer.cs`, `*.g.cs`) | Não são código de autoria manual; migrations do EF nunca são "mortas" mesmo sem uso ativo (histórico de schema) |
 | Dependências de pacote NuGet não usadas | Fora do escopo "classes/código", é auditoria de outra natureza |
 | Remover a referência a fase/task de commits, PRs ou `.specs/` histórico | Esses lugares são o registro de projeto por natureza — o problema é comentário **dentro do código-fonte**, não a existência de histórico em si |
+| Remover `DecisionSandbox`/`DecisionSandboxRequest`/`DecisionSandboxResult` | É a própria entrega da Fase 28 (T12/T13) — ferramenta de autoria/pesquisa fora do relógio do mundo; uso só-teste é o comportamento esperado do próprio critério de aceite da fase, não código morto |
+| Remover `WorldDbContextFactory` | Descoberto por convenção pelo `dotnet ef migrations` (`IDesignTimeDbContextFactory<T>`) — zero referência textual é esperado, não é sinal de morte |
+| Decidir o destino de `ExampleCounterSystem` e `Worker` (Workers) | Registrados no relatório como observação para decisão futura do usuário — não fazem parte do escopo de execução confirmado desta rodada |
+| Reescrita linha-a-linha de todos os ~888 comentários fase/task em uma única tarefa monolítica | Volume distribuído por 6 projetos; tasks.md quebra por projeto/subpasta para manter tarefas atômicas e revisáveis |
 
 ---
 
@@ -110,6 +121,81 @@ Excluído explicitamente desta rodada. Documentado pra não crescer escopo.
 
 ---
 
+### P5: Remover código morto confirmado ⭐ Execução — `ScenarioLoader` CONCLUÍDA, `DecisionMetrics` CANCELADA
+
+**Status real (verificado tentando executar, não só por grep):**
+
+- `ScenarioLoader` (v1): **concluída.** Migrar `PopulationArchitectureTests.cs` pra `ScenarioLoaderV2` falhou de início — o schema V2 (`EconomyEnabled`, dezenas de campos Economy/City/Behavior/Dynamics) não existia nos JSONs legados. Resolvido migrando o conteúdo: `scenarios/default.json` e `scenarios/test-scifi.json` ganharam os blocos Economy/City/Dynamics completos (a pedido explícito do usuário) e tiveram o mapa redimensionado (20x20 e 40x40) pra caber o footprint dos workplaces autorados. `ScenarioLoader` v1 removido do código. Testes rodados nesta sessão: `LongRunning` (4/4, sem `Category=Scenario`) e `Unit` Periods/CityAndBuildingAuthoring/BehaviorScenarioLoader (121/121) verdes. `Integration` completo e `Category=Scenario` ficam para o usuário rodar (AD-009).
+- `DecisionMetrics`/`ModeRun`/`ModeComparison`: **cancelada, não é dead code.** `LivingVillageScenarioTests.cs:73-99` (`Doc85_metrics_baseline_is_collected_for_test_living_village`, `Category=Scenario`) usa `DecisionMetrics.CompareFullVsEventDriven` com asserts reais — cai no caso já previsto pela P1 AC3 (consumidor de teste real ≠ código morto). Removido do escopo de execução.
+
+**User Story (histórica, não executada)**: Como mantenedor, quero que `ScenarioLoader` (v1) e `DecisionMetrics`/`ModeRun`/`ModeComparison` saiam do código, para não manter caminho sem consumidor de produção.
+
+**Why P5**: Achado de menor risco NA AUDITORIA — a tentativa real de execução revelou que ambos exigem trabalho fora do escopo de "limpeza" (reescrita de cenário JSON) ou não deveriam ser removidos (consumidor de teste real). Nenhuma ação de remoção acontece nesta rodada para os dois itens abaixo.
+
+**Acceptance Criteria**:
+
+1. WHEN `ScenarioLoader.LoadWorld` é removido THEN `tests/LivingWorld.Tests.LongRunning/Population/PopulationArchitectureTests.cs` SHALL já ter migrado para `ScenarioLoaderV2.LoadWorld` (mesmo comportamento observável do teste) antes da remoção
+2. WHEN `DecisionMetrics` (+ `ModeRun`/`ModeComparison`) é removido THEN todo teste que só cobre essa classe (`DecisionMetricsTests.cs`) SHALL ser removido junto; `LivingVillageScenarioTests.cs` (que também referencia a classe) SHALL ser ajustado para não quebrar
+3. WHEN a remoção termina THEN a build da solução inteira SHALL compilar sem referência pendente a `ScenarioLoader`/`DecisionMetrics` em `src/` ou `tests/`
+4. WHEN o gate rápido (`scripts/test.sh`) roda após a remoção THEN SHALL passar sem nenhum teste novo falhando
+
+**Independent Test**: `dotnet build LivingWorld.sln` limpo + `bash scripts/test.sh` verde após as duas remoções.
+
+---
+
+### P6: Plugar compressão de estado frio em produção ⭐ Execução
+
+**User Story**: Como mantenedor, quero que `ColdTierPersistence`/`ColdTierArchive` realmente participem do ciclo de save/resume do mundo, para que a promessa da Fase 28 (compressão reduz custo real em disco) seja verdadeira em produção, não só em teste isolado.
+
+**Why P6**: Achado crítico desta rodada — gap real entre o que a Fase 28 declarou fechado (`verify.sh` verde) e o que o código de produção realmente executa. Decisão do usuário: plugar, não remover.
+
+**Acceptance Criteria**:
+
+1. WHEN o mundo é salvo via `PersistentWorldRunner`/`SqliteWorldRepository` (ciclo real, não teste direto da classe) THEN `WorldState.ColdArchive` SHALL ser persistido em disco via `ColdTierPersistence.Save`, não descartado
+2. WHEN o mundo é retomado (`persist-resume`, ou reidratação equivalente via Api) THEN `ColdTierPersistence.Load` SHALL popular `WorldState.ColdArchive` — dado frio sobrevive a um restart de processo real, não só ao teste unitário da classe
+3. WHEN a compressão é plugada THEN o round-trip (salvar → carregar → mundo idêntico) SHALL continuar valendo no ciclo real, com o mesmo teste de round-trip de `ColdTierPersistenceTests.cs` cobrindo agora o caminho de produção (não só a chamada direta)
+4. WHEN o sensor de escala/bytes-por-NPC (Fase 9/28) roda após a mudança THEN SHALL continuar dentro do teto declarado — se o teto mudar por efeito legítimo da compressão agora ativa, a mudança SHALL virar decisão registrada em `.specs/STATE.md` (padrão AD-014..017), nunca silenciosa
+5. WHEN o formato binário de `ColdTierPersistence` já grava um `Magic`/`FormatVersion` próprio THEN a integração SHALL reutilizar esse contrato existente sem reinventar serialização
+
+**Independent Test**: Rodar `persist-save` seguido de `persist-resume` (CLI de `LivingWorld.Workers`) num cenário com NPCs mortos arquivados no cold tier; confirmar que o arquivo de cold tier existe em disco após o save e que o resume relê exatamente os mesmos dados (comparação de hash/conteúdo).
+
+---
+
+### P7: Consolidar duplicações confirmadas ⭐ Execução
+
+**User Story**: Como mantenedor, quero que as 4 duplicações de alta confiança do relatório virem uma implementação compartilhada, sem mudar nenhum resultado observável.
+
+**Why P7**: Reduz superfície de manutenção com risco controlado — todas as 4 já têm justificativa concreta e comportamento hoje idêntico entre os pares.
+
+**Acceptance Criteria**:
+
+1. WHEN `SqliteWorldRepository` e `SqlitePeriodTemplateRepository` passam a compartilhar o helper de "latest por chave composta"/"lookup exato por versão" THEN as duas consultas SHALL retornar exatamente os mesmos registros de antes (mesma query, mesma ordenação)
+2. WHEN `GlobalLayerBuilder` e `CityLayerBuilder` passam a compartilhar o switch-com-fallback THEN a mensagem de `ArgumentOutOfRangeException` e o comportamento de cada `VisualLayerId` SHALL permanecer idêntico
+3. WHEN `SettlementFoundingSystem` e `SpatialSettlementFoundingSystem` passam a compartilhar o helper de threshold+scheduling THEN a fórmula de `CityRules.FoundingConcentrationThreshold`/`OrganizationTicks` SHALL produzir o mesmo tick de fundação de antes (byte-idêntico no golden, se aplicável)
+4. WHEN `AttentionRules`/`PowerUtilityRules`/`PowerInheritanceRules`/`BodyRules` passam a usar um `Resolve<T>(declared, default)` genérico THEN o valor resolvido para cada regra SHALL ser idêntico ao método específico removido
+5. WHEN qualquer uma das 4 consolidações altera um hash canônico (golden/scale-sensor) THEN a mudança SHALL ser tratada como regressão a investigar, nunca regravada sem confirmar que é efeito puramente estrutural (mesmo valor, caminho de código diferente)
+
+**Independent Test**: Golden hash (`tests/golden/world-hashes.json`) e `scale-sensor.json` batem exatamente com o valor pré-consolidação após cada uma das 4 mudanças, rodadas isoladamente.
+
+---
+
+### P8: Higiene de comentários fase/task ⭐ Execução
+
+**User Story**: Como mantenedor, quero que os comentários identificados no relatório como citação-pura sejam reescritos/removidos, e os demais tenham só a citação podada (WHY preservado), para que o código se leia sozinho.
+
+**Why P8**: Segundo pedido explícito do usuário, maior volume (~888 ocorrências / ~193 arquivos) — sem risco funcional (comentário não afeta comportamento), mas precisa de tarefas por projeto/subpasta para ficar revisável.
+
+**Acceptance Criteria**:
+
+1. WHEN um comentário do relatório está classificado "citação-pura, sem WHY" THEN SHALL ser reescrito com a versão sugerida no relatório ou removido, nunca deixado como estava
+2. WHEN um comentário está classificado "citação + WHY" THEN SHALL manter a explicação técnica (invariante/constraint/motivo) e remover só o trecho de fase/task/ADR/ID
+3. WHEN a limpeza de um projeto termina THEN `dotnet build` desse projeto SHALL continuar limpo (comentário não compila, mas `<summary>` malformado quebra doc-gen se configurado — checar)
+4. WHEN a limpeza termina em todos os 6 projetos THEN uma nova varredura do mesmo padrão (`Fase N|task N|ADR-NNNN|XXXX-NN`) SHALL retornar só os casos explicitamente fora de escopo (nenhum dos ~888 originais sobra sem justificativa)
+
+**Independent Test**: Re-rodar o grep do padrão fase/task em `src/LivingWorld.Domain/History/WorldEventKind.cs` (arquivo 100% citação-pura no relatório) e confirmar zero ocorrência remanescente.
+
+---
+
 ## Edge Cases
 
 - WHEN um tipo é público apenas para ser testado (não usado por nenhum outro tipo de produção) THEN o relatório SHALL diferenciar esse caso ("só existe pra ser testado" não é o mesmo que "código morto" — pode ser um value object/DTO legítimo)
@@ -123,31 +209,59 @@ Excluído explicitamente desta rodada. Documentado pra não crescer escopo.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| AUDIT-01 | P1: Inventário sem consumidor | Execute | Pending |
-| AUDIT-02 | P1: Inventário sem consumidor | Execute | Pending |
-| AUDIT-03 | P1: Inventário sem consumidor | Execute | Pending |
-| AUDIT-04 | P2: Versões antigas coexistindo | Execute | Pending |
-| AUDIT-05 | P2: Versões antigas coexistindo | Execute | Pending |
-| AUDIT-06 | P2: Versões antigas coexistindo | Execute | Pending |
-| AUDIT-07 | P3: Higiene de comentários | Execute | Pending |
-| AUDIT-08 | P3: Higiene de comentários | Execute | Pending |
-| AUDIT-09 | P3: Higiene de comentários | Execute | Pending |
-| AUDIT-10 | P3: Higiene de comentários | Execute | Pending |
-| AUDIT-11 | P4: Oportunidades de consolidação | Execute | Pending |
-| AUDIT-12 | P4: Oportunidades de consolidação | Execute | Pending |
+| AUDIT-01 | P1: Inventário sem consumidor | Specify | Verified |
+| AUDIT-02 | P1: Inventário sem consumidor | Specify | Verified |
+| AUDIT-03 | P1: Inventário sem consumidor | Specify | Verified |
+| AUDIT-04 | P2: Versões antigas coexistindo | Specify | Verified |
+| AUDIT-05 | P2: Versões antigas coexistindo | Specify | Verified |
+| AUDIT-06 | P2: Versões antigas coexistindo | Specify | Verified |
+| AUDIT-07 | P3: Higiene de comentários | Specify | Verified |
+| AUDIT-08 | P3: Higiene de comentários | Specify | Verified |
+| AUDIT-09 | P3: Higiene de comentários | Specify | Verified |
+| AUDIT-10 | P3: Higiene de comentários | Specify | Verified |
+| AUDIT-11 | P4: Oportunidades de consolidação | Specify | Verified |
+| AUDIT-12 | P4: Oportunidades de consolidação | Specify | Verified |
+| EXEC-01 | P5: Remover código morto confirmado | Design | Implemented — gate completo pendente (usuário) |
+| EXEC-02 | P5: Remover código morto confirmado | Design | Dropped — DecisionMetrics tem consumidor de teste real |
+| EXEC-03 | P5: Remover código morto confirmado | Design | Implemented — gate completo pendente (usuário) |
+| EXEC-04 | P5: Remover código morto confirmado | Design | Implemented — gate completo pendente (usuário) |
+| EXEC-05 | P6: Plugar compressão de estado frio | Design | Implemented — gate completo pendente (usuário) |
+| EXEC-06 | P6: Plugar compressão de estado frio | Design | Implemented — gate completo pendente (usuário) |
+| EXEC-07 | P6: Plugar compressão de estado frio | Design | Implemented — gate completo pendente (usuário) |
+| EXEC-08 | P6: Plugar compressão de estado frio | Design | Implemented — gate completo pendente (usuário) |
+| EXEC-09 | P6: Plugar compressão de estado frio | Design | Implemented — gate completo pendente (usuário) |
+| EXEC-10 | P7: Consolidar duplicações confirmadas | Design | Implemented — gate completo pendente (usuário) |
+| EXEC-11 | P7: Consolidar duplicações confirmadas | Design | Implemented — gate completo pendente (usuário) |
+| EXEC-12 | P7: Consolidar duplicações confirmadas | Design | Implemented — gate completo pendente (usuário) |
+| EXEC-13 | P7: Consolidar duplicações confirmadas | Design | Implemented — gate completo pendente (usuário) |
+| EXEC-14 | P7: Consolidar duplicações confirmadas | Design | Implemented — gate completo pendente (usuário) |
+| EXEC-15 | P8: Higiene de comentários fase/task | Design | Implemented — gate completo pendente (usuário) |
+| EXEC-16 | P8: Higiene de comentários fase/task | Design | Implemented — gate completo pendente (usuário) |
+| EXEC-17 | P8: Higiene de comentários fase/task | Design | Implemented — gate completo pendente (usuário) |
+| EXEC-18 | P8: Higiene de comentários fase/task | Design | Implemented — gate completo pendente (usuário) |
 
-**ID format:** `AUDIT-NN`
+**ID format:** `AUDIT-NN` (fase Specify, concluída) / `EXEC-NN` (fase de execução, esta rodada)
 
 **Status values:** Pending → In Design → In Tasks → Implementing → Verified
 
-**Coverage:** 12 total, 0 mapped to tasks (Tasks phase pulada — escopo Medium, passos viram implícitos no Execute), 12 unmapped ⚠️ (esperado nesta etapa; mapeamento acontece ao entrar em Execute)
+**Coverage:** 30 total (12 AUDIT verificados na auditoria + 18 EXEC desta rodada), tasks.md efêmero removido ao fim (convenção do repo); EXEC-02 dropped, demais implementados — falta só o gate completo (usuário).
 
 ---
 
 ## Success Criteria
 
-- [ ] Todo tipo público de `src/` (6 projetos) foi classificado em uma das categorias: usado / sem consumidor / par vN / candidato a consolidação / verificar manualmente
-- [ ] Todo comentário/`<summary>` casando com o padrão fase/task/ADR/ID de requisito em `src/` foi listado com contagem por projeto e proposta de reescrita ou remoção
-- [ ] O relatório final não recomenda remoção de nada que ainda tenha consumidor de produção real, nem remoção de explicação técnica real (WHY) junto de uma citação de fase
+**Auditoria (concluída):**
+- [x] Todo tipo público de `src/` (6 projetos) foi classificado em uma das categorias: usado / sem consumidor / par vN / candidato a consolidação / verificar manualmente
+- [x] Todo comentário/`<summary>` casando com o padrão fase/task/ADR/ID de requisito em `src/` foi listado com contagem por projeto e proposta de reescrita ou remoção
+- [x] O relatório final não recomenda remoção de nada que ainda tenha consumidor de produção real, nem remoção de explicação técnica real (WHY) junto de uma citação de fase
+- [x] O caso `ScenarioLoader`/`ScenarioLoaderV2` aparece no relatório com a contagem real de consumidores de cada lado (achado: premissa original do spec estava desatualizada, corrigida no relatório)
+- [x] Zero código ou comentário alterado na rodada de auditoria
+
+**Execução (esta rodada):**
+- [x] `ScenarioLoader` (v1) removido (`DecisionMetrics` mantido — consumidor de teste real), build limpa, gate rápido verde
+- [ ] `ColdTierPersistence`/`ColdTierArchive` plugados no ciclo real de save/resume — round-trip provado fora do teste direto da classe
+- [ ] As 4 consolidações de alta confiança aplicadas sem mudar nenhum hash canônico (golden/scale-sensor) fora de uma mudança explicitamente decidida e registrada
+- [ ] Comentários fase/task tratados em todos os 6 projetos conforme classificação do relatório (citação-pura → reescrito/removido; citação+WHY → citação podada, WHY mantido)
+- [ ] Nenhuma fase anterior (16.x, 28, dynamic-city-growth) perde comportamento observável — mesmos testes de golden/scale-sensor/scenario que já passavam continuam passando
 - [ ] O caso `ScenarioLoader`/`ScenarioLoaderV2` citado pelo usuário aparece no relatório com a contagem real de consumidores de cada lado
 - [ ] Zero código ou comentário é alterado nesta rodada — entregável é só o relatório (mudança fica para uma execução futura, aprovada item a item)
