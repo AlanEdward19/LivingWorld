@@ -453,6 +453,20 @@ public sealed class WorldState
     private long _nextCropBatchId;
 
     [Canonical] public IReadOnlyList<CropBatch> CropBatches => _cropBatches;
+
+    // Lotes ainda não colhidos, na ordem de inserção. Lotes colhidos são terminais e se acumulam em
+    // CropBatches para sempre (estado canônico); varrê-los a cada dia tornava o custo quadrático no
+    // tempo. Índice derivado, compactado de forma preguiçosa.
+    private readonly List<CropBatch> _activeCropBatches = new();
+
+    internal IReadOnlyList<CropBatch> ActiveCropBatches
+    {
+        get
+        {
+            _activeCropBatches.RemoveAll(crop => crop.Status == CropStatus.Harvested);
+            return _activeCropBatches;
+        }
+    }
     [Canonical] public long NextCropBatchId => _nextCropBatchId;
 
     /// <summary>Contador do sistema de exemplo — descartável quando sistemas reais o substituírem. Nenhuma
@@ -559,6 +573,7 @@ public sealed class WorldState
         _resourceProcesses = (resourceProcesses ?? []).ToList();
         _nextResourceProcessId = _resourceProcesses.Count == 0 ? 0 : _resourceProcesses.Max(process => process.Id.Value) + 1;
         _cropBatches = (cropBatches ?? []).ToList();
+        _activeCropBatches.AddRange(_cropBatches.Where(crop => crop.Status != CropStatus.Harvested));
         _nextCropBatchId = _cropBatches.Count == 0 ? 0 : _cropBatches.Max(crop => crop.Id.Value) + 1;
         AliveNpcIndex = AliveNpcIndex.RebuildFrom(this);
         HistoryIndex = HistoryIndex.RebuildFrom(this);
@@ -688,6 +703,7 @@ public sealed class WorldState
         _resourceProcesses = (resourceProcesses ?? []).ToList();
         _nextResourceProcessId = nextResourceProcessId;
         _cropBatches = (cropBatches ?? []).ToList();
+        _activeCropBatches.AddRange(_cropBatches.Where(crop => crop.Status != CropStatus.Harvested));
         _nextCropBatchId = nextCropBatchId;
         CityRules = cityRules ?? CityRules.Disabled;
         CityCatalog = cityCatalog ?? CityCatalog.Empty;
@@ -1119,11 +1135,13 @@ public sealed class WorldState
     public void AddCropBatch(CropBatch crop)
     {
         _cropBatches.Add(crop);
+        if (crop.Status != CropStatus.Harvested)
+            _activeCropBatches.Add(crop);
         _nextCropBatchId = Math.Max(_nextCropBatchId, crop.Id.Value + 1);
     }
 
     public CropBatch? FindCropAt(CellCoord plot) =>
-        _cropBatches.FirstOrDefault(crop => crop.Plot == plot && crop.Status != CropStatus.Harvested);
+        ActiveCropBatches.FirstOrDefault(crop => crop.Plot == plot);
 
     internal FactId NextFactIdAndAdvance() => new(_nextFactId++);
 

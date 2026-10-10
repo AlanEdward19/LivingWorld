@@ -54,7 +54,8 @@ public sealed class MortalitySystem : ISimulationSystem
             senescenceRateMultiplier = carrier.SenescenceRateMultiplier;
         }
         int deathAge = MortalityPlanner.RollDeathAge(
-            rng, world.PopulationRules.LifeTable, npc.Health, vitalityMultiplier, senescenceRateMultiplier);
+            rng, world.PopulationRules.LifeTable, npc.Health, vitalityMultiplier, senescenceRateMultiplier,
+            aliveAtAgeYears: world.PopulationRules.ConditionalInitialMortality ? npc.AgeYears(world.CurrentDate) : 0);
         long deathTick = npc.BirthDate.AddYears(deathAge).TotalHours;
         if (deathTick <= world.CurrentDate.TotalHours)
             deathTick = world.CurrentDate.TotalHours + 1;

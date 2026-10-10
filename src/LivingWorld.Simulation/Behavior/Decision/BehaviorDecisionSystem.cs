@@ -804,9 +804,11 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
         ProfessionType? best = null;
         double bestScore = double.NegativeInfinity;
-        foreach (var professionId in catalog.LocationTypeByProfession.Keys.OrderBy(id => id))
+        // Igual para todas as profissões: calculado uma vez por avaliação, não por profissão.
+        double personalityWeight = PersonalityWeighting.WeightOf(npc.Personality, ActionType.Work);
+        foreach (var professionId in SortedProfessionIds(catalog))
         {
-            double score = ProfessionScoreOf(world, npc, rules, catalog, professionId, vacancyIndex);
+            double score = ProfessionScoreOf(npc, rules, catalog, professionId, vacancyIndex, personalityWeight);
             if (score > bestScore)
             {
                 bestScore = score;
@@ -818,13 +820,19 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             npc.SwitchProfession(candidate);
     }
 
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<EconomyCatalog, int[]> SortedProfessions = new();
+
+    /// <summary>Ids de profissão do catálogo em ordem crescente (o catálogo é imutável: ordena uma vez).</summary>
+    private static int[] SortedProfessionIds(EconomyCatalog catalog) =>
+        SortedProfessions.GetValue(catalog, c => c.LocationTypeByProfession.Keys.OrderBy(id => id).ToArray());
+
     private static double ProfessionScoreOf(
-        WorldState world, Npc npc, SkillsRules rules, EconomyCatalog catalog, int professionId, VacancyWeights vacancyIndex)
+        Npc npc, SkillsRules rules, EconomyCatalog catalog, int professionId, VacancyWeights vacancyIndex,
+        double personalityWeight)
     {
         double skillWeight = rules.SkillByProfession.TryGetValue(professionId, out var skillType)
             ? 1.0 + npc.Skills.Get(skillType) / rules.Cap
             : 1.0;
-        double personalityWeight = PersonalityWeighting.WeightOf(npc.Personality, ActionType.Work);
         double vacancyWeight = VacancyWeightOf(catalog, professionId, vacancyIndex);
 
         return skillWeight * personalityWeight * vacancyWeight;

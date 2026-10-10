@@ -37,6 +37,45 @@ public class OptimizationEquivalenceTests
         Assert.Equal(volatileHash, actualVolatile);
     }
 
+    // --- Hash de stream sem alocação ---
+
+    [Fact]
+    public void StreamFor_matches_the_named_stream_of_the_interpolated_key_for_any_purpose_and_id()
+    {
+        var purposes = new[] { "flora-reproduce", "mortality", "natality-1-2", "", "ação-ç", "x-" };
+        var ids = new long[] { 0, 1, 9, 10, 99, 100, 123_456_789, 1_000_000L * 7 + 3, long.MaxValue, -1, -42, long.MinValue };
+
+        foreach (var purpose in purposes)
+            foreach (var id in ids)
+            {
+                var direct = new WorldRngRegistry(77).StreamFor(purpose, id);
+                var named = new WorldRngRegistry(77).Stream($"{purpose}-{id}");
+                Assert.Equal(named.NextDouble(), direct.NextDouble());
+                Assert.Equal(named.NextDouble(), direct.NextDouble());
+            }
+    }
+
+    // --- Mortalidade condicional da população inicial (flag, desligada por padrão) ---
+
+    [Fact]
+    public void Conditional_initial_mortality_keeps_the_seeded_population_from_dying_in_the_first_hour()
+    {
+        int AliveAfterTwoDays(bool conditional)
+        {
+            var rules = ScenarioRunner.DefaultPopulationRules with { ConditionalInitialMortality = conditional };
+            var (world, clock) = ScenarioRunner.Create(1, populationRules: rules);
+            clock.Run(world, 48);
+            return world.Npcs.Count(n => n.IsAlive);
+        }
+
+        int legacy = AliveAfterTwoDays(conditional: false);
+        int conditional = AliveAfterTwoDays(conditional: true);
+
+        // Legado: quem recebe idade de morte menor que a atual morre 1 hora depois (~30% da vila).
+        Assert.True(legacy <= 80, $"esperava mortes imediatas no comportamento legado (vivos: {legacy})");
+        Assert.True(conditional >= 95, $"flag ligada não deveria matar a população inicial (vivos: {conditional})");
+    }
+
     // --- Índice espacial de NPCs vivos ---
 
     [Fact]

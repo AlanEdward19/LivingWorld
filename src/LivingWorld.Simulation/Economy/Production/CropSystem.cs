@@ -26,7 +26,8 @@ public sealed class CropSystem : ISimulationSystem
     {
         if (!world.EconomyRules.Enabled) return;
 
-        foreach (var crop in world.CropBatches.OrderBy(item => item.Id.Value))
+        // Só lotes não colhidos podem amadurecer; cada um é independente, então a ordem não importa.
+        foreach (var crop in world.ActiveCropBatches)
         {
             if (crop.Status == CropStatus.Growing && ctx.CurrentTick >= crop.MatureAtTick)
                 crop.MarkMature();

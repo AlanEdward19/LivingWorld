@@ -30,6 +30,7 @@ public class GoldenHashesTests
             new("default", 42, 3650, ScenarioRunner.RunAndHash(42, 3650).Item1),
             new("default", 43, 3650, ScenarioRunner.RunAndHash(43, 3650).Item1),
             new("default", 42, 100, ScenarioRunner.RunAndHash(42, 100).Item1),
+            new("default", 42, 17280, ScenarioRunner.RunAndHash(42, 17280).Item1), // 2 anos
         };
         File.WriteAllText(GoldenPath, JsonSerializer.Serialize(entries, new JsonSerializerOptions { WriteIndented = true }));
     }

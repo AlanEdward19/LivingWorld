@@ -45,6 +45,9 @@ public sealed class AttributeMechanic : ExtraordinaryMechanic
     /// próprio tile a distância 0). Com <c>attribute.perception</c>, o maior raio declarado.</summary>
     public static int PerceptionRadius(WorldState world, Npc npc)
     {
+        if (world.ExtraordinaryCarriers.Count == 0)
+            return 1;
+
         var carrier = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npc.Id);
         if (carrier is not { IsManifested: true })
             return 1;
