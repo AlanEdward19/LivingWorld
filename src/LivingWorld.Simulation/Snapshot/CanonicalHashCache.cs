@@ -2,7 +2,7 @@ using System.Text.Json.Nodes;
 
 namespace LivingWorld.Simulation.Snapshot;
 
-/// <summary>Cache volátil de fragmentos JSON canônicos (PERF-12). Não entra no snapshot.</summary>
+/// <summary>Cache volátil de fragmentos JSON canônicos. Não entra no snapshot.</summary>
 internal sealed class CanonicalHashCache
 {
     private readonly Dictionary<string, JsonNode?> _propertyNodes = new(StringComparer.Ordinal);

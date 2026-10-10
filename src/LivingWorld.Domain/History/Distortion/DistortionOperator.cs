@@ -1,6 +1,6 @@
 namespace LivingWorld.Domain.History.Distortion;
 
-/// <summary>Operadores de distorção determinística (Fase 10, HIST-05) — lista fechada de 8
+/// <summary>Operadores de distorção determinística — lista fechada de 8
 /// transformações; probabilidade por operador vem de <see cref="HistoryRules"/>.</summary>
 public enum DistortionOperator
 {

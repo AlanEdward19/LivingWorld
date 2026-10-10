@@ -7,14 +7,14 @@ using LivingWorld.Simulation.Geography;
 
 namespace LivingWorld.Simulation.Population;
 
-/// <summary>Dado de população resolvido de um cenário (task 7): catálogo, tabela de vida,
+/// <summary>Dado de população resolvido de um cenário: catálogo, tabela de vida,
 /// regras de fertilidade, tamanho e local da população inicial. Mesmo padrão de
 /// <see cref="MapScenarioLoader"/> — o motor só vê isto depois de validado na borda.</summary>
 public sealed record PopulationScenarioData(
     PopulationCatalog Catalog, LifeTable LifeTable, PopulationRules Rules,
     int InitialPopulation, CultureId Culture, CellCoord Village, long MaxBytesPerNpcPerYear);
 
-/// <summary>Carrega população de um cenário (task 7): profissão, recurso e tipo de local vêm
+/// <summary>Carrega população de um cenário: profissão, recurso e tipo de local vêm
 /// só daqui — nunca de enum em C#. Validação na borda, erro nomeia o campo.</summary>
 public static class PopulationScenarioLoader
 {

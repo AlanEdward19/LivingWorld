@@ -4,8 +4,8 @@ using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Infrastructure.Repositories;
 
-/// <summary>Persistência de snapshot + event log (ADR-0006). <see cref="BranchId"/> é parâmetro
-/// explícito de todo método (ADR-0009) — nunca implícito nem ambiente. Um teste de arquitetura
+/// <summary>Persistência de snapshot + event log. <see cref="BranchId"/> é parâmetro
+/// explícito de todo método — nunca implícito nem ambiente. Um teste de arquitetura
 /// (LivingWorld.Tests) reprova qualquer método público desta interface sem esse parâmetro.</summary>
 public interface IWorldRepository
 {

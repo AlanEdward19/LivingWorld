@@ -6,12 +6,12 @@ using LivingWorld.Simulation.Observation;
 
 namespace LivingWorld.Api.Observation;
 
-/// <summary>Espelha <c>SpaceId</c> do cliente — mesmo vocabulário, sem tradução (Fase 28, LOD-04).</summary>
+/// <summary>Espelha <c>SpaceId</c> do cliente — mesmo vocabulário, sem tradução.</summary>
 public sealed record ObservationScopeDto(string Kind, string? CityId = null, string? BuildingId = null);
 
 public sealed record ObservationScopeRequest(string SourceId, ObservationScopeDto? Scope);
 
-/// <summary>Fase 28, T8 (LOD-04): traduz <c>POST /observation/scope</c> para
+/// <summary>Traduz <c>POST /observation/scope</c> para
 /// <see cref="ObservationRegistry.SetScope"/>/<see cref="ObservationRegistry.ClearScope"/> —
 /// validação de borda na API; heartbeat com timeout configurável remove fontes stale.</summary>
 public static class ObservationScopeEndpoints

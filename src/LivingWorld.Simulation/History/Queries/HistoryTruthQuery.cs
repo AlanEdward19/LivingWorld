@@ -4,8 +4,8 @@ using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.History.Queries;
 
-/// <summary>Único ponto de acesso ao <see cref="Fact"/> bruto (Fase 10, T14, HIST-15) —
-/// motor/debug/autor. Nunca referenciado por handlers de jogo (HIST-17).</summary>
+/// <summary>Único ponto de acesso ao <see cref="Fact"/> bruto —
+/// motor/debug/autor. Nunca referenciado por handlers de jogo.</summary>
 public static class HistoryTruthQuery
 {
     public static Result<Fact> GetFact(WorldState world, FactId id)

@@ -1,4 +1,3 @@
-using LivingWorld.Domain;
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
@@ -6,7 +5,7 @@ using LivingWorld.Simulation.Core;
 namespace LivingWorld.Simulation.Narrative;
 
 /// <summary>Monta a linha do tempo de um NPC a partir dos <see cref="Fact"/>s em que ele participa
-/// (Fase 12, NARR-16..17) — reusa <see cref="HistoryIndex.ByEntity"/> (mesma disciplina de custo
+/// — reusa <see cref="HistoryIndex.ByEntity"/> (mesma disciplina de custo
 /// de <see cref="WindowedHistoryAggregator"/>, evita varrer <c>WorldState.Facts</c> por completo).
 /// Ordena por tick crescente (desempate por <see cref="FactId"/>, para determinismo) e corta todo
 /// evento posterior ao tick de morte do NPC — a biografia de alguém morto para no fim da vida

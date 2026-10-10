@@ -18,8 +18,8 @@ namespace LivingWorld.Simulation.Cities.Queries;
 // SPEC_DEVIATION já registrado em CityPopulationQuery.cs: LivingWorld.Domain não referencia
 // LivingWorld.Simulation, e WorldState só existe em Simulation. Vive aqui.
 
-/// <summary>Único ponto de consulta de inspeção de NPC (Fase 8, T14, CITY-06). <see
-/// cref="Inspect"/> (Fase 15.1, T49/backend-gaps.md G9) é leitura pura — nunca materializa, nunca
+/// <summary>Único ponto de consulta de inspeção de NPC. <see
+/// cref="Inspect"/> é leitura pura — nunca materializa, nunca
 /// muta hash/pool/tick/eventos; falha para um id ainda anônimo no pool agregado (não existe DTO
 /// individual pra devolver — só a coleta de <see cref="AggregatePopulationPool"/>, sem identidade
 /// própria até materializar). <see cref="MaterializeAndInspect"/> é o comando explícito e
@@ -92,9 +92,9 @@ public static class NpcInspectionQuery
         var city = world.FindCity(npc.City);
         if (city is null) return new NpcScope(NpcScopeKind.World, null);
 
-        // dynamic-city-growth, T4b: ResolveGrownBounds realimenta os boxes de overflow das
-        // próprias buildings da cidade pra que os bounds usados aqui reflitam o crescimento real
-        // (CITYGROW-03/05), mesma fonte que GlobalProjector/LivingScopeProjector já usam.
+        // ResolveGrownBounds realimenta os boxes de overflow das
+        // próprias buildings da cidade pra que os bounds usados aqui reflitam o crescimento real,
+        // mesma fonte que GlobalProjector/LivingScopeProjector já usam.
         var bounds = CityOccupancy.ResolveGrownBounds(world, city, CityPopulationQuery.Population(world, npc.City)).Bounds;
         return NpcScopeResolver.Resolve(npc, bounds);
     }

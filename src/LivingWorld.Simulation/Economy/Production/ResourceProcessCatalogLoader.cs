@@ -4,7 +4,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Simulation.Economy.Production;
 
-/// <summary>Carrega catálogo de recursos/processos estagiados (Fase 15.1, Stage 4, T14).
+/// <summary>Carrega catálogo de recursos/processos estagiados.
 /// Seções opcionais: cenário legado sem <c>Resources</c>/<c>ProcessRecipes</c> continua válido.</summary>
 public static class ResourceProcessCatalogLoader
 {

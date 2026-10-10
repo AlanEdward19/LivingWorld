@@ -5,7 +5,7 @@ using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.History.Distortion;
 
-/// <summary>Aplica correção compensatória ao esqueleto (Fase 10, HIST-24) — append-only.</summary>
+/// <summary>Aplica correção compensatória ao esqueleto — append-only.</summary>
 public static class CompensatingCorrectionOperations
 {
     public static Result<CompensatingCorrection> Apply(

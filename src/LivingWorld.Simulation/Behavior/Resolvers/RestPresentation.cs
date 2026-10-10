@@ -5,7 +5,7 @@ using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Behavior.Resolvers;
 
-/// <summary>Projeção de descanso (Fase 15.1, Stage 4, T13, LWV-03.1/LWV-06): qualidade, lugar,
+/// <summary>Projeção de descanso: qualidade, lugar,
 /// duração restante e bloqueio — só enquanto a ação canônica é <see cref="ActionType.Sleep"/>.</summary>
 public static class RestPresentation
 {

@@ -5,7 +5,7 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Population.Family;
 
-/// <summary>Forma e evolui relações por convivência diária (Fase 7, T11, FAM-01..05) — único
+/// <summary>Forma e evolui relações por convivência diária — único
 /// sistema que escreve em <see cref="WorldState.Relationships"/>.</summary>
 public sealed class RelationshipSystem : ISimulationSystem
 {

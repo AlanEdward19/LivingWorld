@@ -11,7 +11,7 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Cities.Migration;
 
-// SPEC_DEVIATION (Fase 8, T12): design.md não define a fórmula de pontuação por cidade — só que
+// SPEC_DEVIATION: design.md não define a fórmula de pontuação por cidade — só que
 // os 4 fatores (emprego, comida, segurança, laços familiares) são pesados por CityRules (R3).
 // Cada fator normalizado em [0,1], score = soma dos pesos * nível:
 //   - Emprego: fração de materializados da cidade com Npc.Employer != null (sem materializado,
@@ -25,9 +25,8 @@ namespace LivingWorld.Simulation.Cities.Migration;
 // sozinho, motivo para abandonar uma vida estável.
 
 /// <summary>Household/NPC materializado decide migrar pesando emprego/comida/segurança/laços
-/// familiares (Fase 8, T12, CITY-07) — inicia deslocamento para o destino; <see
-/// cref="RelocationArrivalSystem"/> só muda <see cref="CityId"/> na chegada (Fase 15.1, T11,
-/// LWV-04.2).</summary>
+/// familiares — inicia deslocamento para o destino; <see
+/// cref="RelocationArrivalSystem"/> só muda <see cref="CityId"/> na chegada.</summary>
 public sealed class MigrationSystem : ISimulationSystem
 {
     public const string SystemName = "cities-migration";

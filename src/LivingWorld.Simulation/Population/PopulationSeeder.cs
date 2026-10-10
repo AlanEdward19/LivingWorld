@@ -12,9 +12,9 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Population;
 
-/// <summary>Gera a população inicial (task 6) e registra em <see cref="WorldState"/>: chama o
+/// <summary>Gera a população inicial e registra em <see cref="WorldState"/>: chama o
 /// gerador puro do Domain, adiciona NPCs/households e agenda a morte de cada um — nenhum deles
-/// nasce sem um evento de óbito já na fila (task 4).</summary>
+/// nasce sem um evento de óbito já na fila.</summary>
 public static class PopulationSeeder
 {
     internal const int InitialHouseBuildingTypeId = -1;

@@ -5,7 +5,7 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.History.Books;
 
-/// <summary>Redescoberta de livro perdido via evento agendado (Fase 10, HIST-09 AC3) — nunca
+/// <summary>Redescoberta de livro perdido via evento agendado — nunca
 /// sorteio implícito por tick.</summary>
 public sealed class BookRediscoverySystem : ISimulationSystem
 {

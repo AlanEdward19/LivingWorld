@@ -3,13 +3,12 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using LivingWorld.Domain;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Snapshot;
 
-/// <summary>Hash canônico incremental por entidade (PERF-12).</summary>
+/// <summary>Hash canônico incremental por entidade.</summary>
 public static class IncrementalHasher
 {
     private static readonly HashSet<string> HotProperties = new(StringComparer.Ordinal)
@@ -62,7 +61,7 @@ public static class IncrementalHasher
     public static string Compute(WorldState world, bool useCache = true) =>
         HashJson(BuildCanonicalJson(world, useCache));
 
-    /// <summary>Verifica equivalência incremental vs hash recomputado do zero (PERF-12).</summary>
+    /// <summary>Verifica equivalência incremental vs hash recomputado do zero.</summary>
     public static bool MatchesCanonical(WorldState world) =>
         Compute(world, useCache: false) == Compute(world, useCache: true);
 

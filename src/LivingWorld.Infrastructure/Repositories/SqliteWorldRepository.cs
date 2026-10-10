@@ -5,8 +5,8 @@ using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Infrastructure.Repositories;
 
-/// <summary>Implementação EF Core de <see cref="IWorldRepository"/> (task 8/9). Nenhum recurso
-/// exclusivo de SQLite entra no mapeamento (ADR-0002) — trocar de provider é trocar a
+/// <summary>Implementação EF Core de <see cref="IWorldRepository"/>. Nenhum recurso
+/// exclusivo de SQLite entra no mapeamento — trocar de provider é trocar a
 /// connection string do <see cref="WorldDbContext"/>.</summary>
 public sealed class SqliteWorldRepository(WorldDbContext context) : IWorldRepository
 {
@@ -82,13 +82,10 @@ public sealed class SqliteWorldRepository(WorldDbContext context) : IWorldReposi
     }
 
     public WorldSnapshotRecord? LoadLatestSnapshot(BranchId branch) =>
-        context.Snapshots
-            .Where(s => s.BranchId == branch.Value)
-            .OrderByDescending(s => s.Tick)
-            .FirstOrDefault();
+        VersionedQuery.Latest(context.Snapshots, s => s.BranchId == branch.Value, s => s.Tick);
 
     public WorldSnapshotRecord? LoadSnapshotAt(BranchId branch, long tick) =>
-        context.Snapshots.SingleOrDefault(s => s.BranchId == branch.Value && s.Tick == tick);
+        VersionedQuery.Exact(context.Snapshots, s => s.BranchId == branch.Value && s.Tick == tick);
 
     public IReadOnlyList<EventLogRecord> LoadEvents(BranchId branch)
     {

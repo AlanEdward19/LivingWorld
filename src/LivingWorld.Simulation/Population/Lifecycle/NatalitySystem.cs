@@ -13,7 +13,7 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Population.Lifecycle;
 
-/// <summary>Concepção anual entre cônjuges casados (Fase 7, T17) — agenda parto com riqueza
+/// <summary>Concepção anual entre cônjuges casados — agenda parto com riqueza
 /// capturada na concepção; risco de parto e hereditariedade no <see cref="HandleEvent"/>.</summary>
 public sealed class NatalitySystem : ISimulationSystem
 {
@@ -140,7 +140,7 @@ public sealed class NatalitySystem : ISimulationSystem
         NpcWakeScheduler.ScheduleWake(world, ctx, baby.Id.Value, world.CurrentDate.TotalHours + 1);
     }
 
-    /// <summary>EVO-10: se ambos os pais são portadores, resolve herança e audita
+    /// <summary>Se ambos os pais são portadores, resolve herança e audita
     /// <see cref="WorldEventKind.PowerInherited"/>. Sem dois portadores — no-op O(1).</summary>
     internal static void TryApplyPowerInheritance(
         WorldState world, TickContext ctx, Npc baby, NpcId motherId, NpcId fatherId,

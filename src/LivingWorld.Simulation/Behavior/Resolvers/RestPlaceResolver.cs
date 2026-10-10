@@ -6,7 +6,7 @@ using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Behavior.Resolvers;
 
-/// <summary>Resolve o lugar de descanso do NPC (Fase 15.1, Stage 4, T12, LWV-03.1): cama do
+/// <summary>Resolve o lugar de descanso do NPC: cama do
 /// household se existir, senão a moradia, senão o chão no local atual. Sem caminho válido o
 /// chamador bloqueia — nunca teleporta nem aplica sono remoto.</summary>
 public static class RestPlaceResolver

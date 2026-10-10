@@ -9,13 +9,13 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Ecology;
 
-/// <summary>Ciclo de vida base da fauna — fome, reprodução e predação (Fase 16.4). Roda com
-/// <c>Extraordinary.Enabled == false</c>; poderes modulam, não substituem (REALISM-06).</summary>
+/// <summary>Ciclo de vida base da fauna — fome, reprodução e predação. Roda com
+/// <c>Extraordinary.Enabled == false</c>; poderes modulam, não substituem.</summary>
 public sealed class FaunaLifecycleSystem : ISimulationSystem
 {
     public const string SystemName = "fauna-lifecycle";
     public const double PredationEnergyGain = 40;
-    /// <summary>Teto leve (REALISM-19): evita explosão O(n²) de reprodução em horizontes longos.</summary>
+    /// <summary>Teto leve: evita explosão O(n²) de reprodução em horizontes longos.</summary>
     public const int MaxAliveFauna = 400;
 
     public string Name => SystemName;
@@ -28,7 +28,7 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
         TryPredate(world, ctx);
     }
 
-    /// <summary>REALISM-01/02: decai energia por espécie; energia 0 → morte + evento causal.</summary>
+    /// <summary>Decai energia por espécie; energia 0 → morte + evento causal.</summary>
     public static void ApplyHunger(WorldState world, TickContext ctx)
     {
         var rulesBySpecies = IndexRules(world);
@@ -54,7 +54,7 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
         }
     }
 
-    /// <summary>REALISM-03: par elegível (mesma espécie, raio, energia) gera filhote próximo.</summary>
+    /// <summary>Par elegível (mesma espécie, raio, energia) gera filhote próximo.</summary>
     public static void TryReproduce(WorldState world, TickContext ctx)
     {
         if (world.Fauna.Count(a => a.IsAlive) >= MaxAliveFauna)
@@ -135,7 +135,7 @@ public sealed class FaunaLifecycleSystem : ISimulationSystem
         return candidates[index];
     }
 
-    /// <summary>REALISM-04: predador consome presa no raio; sem PredatorOf é no-op.</summary>
+    /// <summary>Predador consome presa no raio; sem PredatorOf é no-op.</summary>
     public static void TryPredate(WorldState world, TickContext ctx)
     {
         if (!world.AnimalSpeciesRules.Any(r =>

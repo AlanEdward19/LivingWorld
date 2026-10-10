@@ -4,7 +4,7 @@ using LivingWorld.Domain.Population.Skills;
 namespace LivingWorld.Domain.Population.Family;
 
 /// <summary>Os 4 eixos (Confiança, Afeto, Respeito, Dívida) de A→B — nunca o mesmo objeto usado
-/// para B→A (Fase 7, T5, FAM-01). Classe mutável (não <c>record</c>): os eixos mudam com
+/// para B→A. Classe mutável (não <c>record</c>): os eixos mudam com
 /// frequência alta (<c>Daily</c>) para até milhares de pares — um <c>record with</c> a cada dia
 /// seria alocação desnecessária (mesmo raciocínio de <see cref="SkillSet"/> vs
 /// <see cref="Personality"/>, Tech Decision do design).</summary>
@@ -21,7 +21,7 @@ public sealed class Relationship
     public long LastContactTick { get; private set; }
 
     /// <summary>Não-pública, mas anotada para <c>System.Text.Json</c> reidratar o snapshot
-    /// (Fase 7, T8) — nenhum construtor público é exposto de propósito, todo caminho de produção
+    /// — nenhum construtor público é exposto de propósito, todo caminho de produção
     /// passa por <see cref="Initial"/> (o encontro nunca começa em valor alto).</summary>
     [JsonConstructor]
     private Relationship(double trust, double affection, double respect, double debt, long lastContactTick)
@@ -38,7 +38,7 @@ public sealed class Relationship
     /// evolução real vem do primeiro <see cref="ApplyEvent"/> que o chamador aplicar em seguida.</summary>
     public static Relationship Initial(long firstContactTick) => new(AxisMin, AxisMin, AxisMin, AxisMin, firstContactTick);
 
-    /// <summary>Cópia com eixos explícitos (instanciação clone/split, REALISM-29) — clamp
+    /// <summary>Cópia com eixos explícitos (instanciação clone/split) — clamp
     /// <c>[0,100]</c>, mesmo piso/teto de <see cref="Set"/>.</summary>
     public static Relationship FromAxes(
         double trust, double affection, double respect, double debt, long firstContactTick) =>
@@ -72,7 +72,7 @@ public sealed class Relationship
         }
     }
 
-    /// <summary>Aplica o delta declarado do evento a cada eixo que ele afeta (FAM-03), clamped a
+    /// <summary>Aplica o delta declarado do evento a cada eixo que ele afeta, clamped a
     /// <c>[0,100]</c>. Eixos sem delta declarado para este evento (delta 0) ficam inalterados.</summary>
     public void ApplyEvent(RelationshipEventType type, FamilyRules rules)
     {
@@ -85,7 +85,7 @@ public sealed class Relationship
     }
 
     /// <summary>Decai todos os eixos em direção a <see cref="FamilyRules.NeutralAxisValue"/> por
-    /// <see cref="FamilyRules.DecayPerDay"/> (FAM-04) — nunca ultrapassa o neutro (não oscila em
+    /// <see cref="FamilyRules.DecayPerDay"/> — nunca ultrapassa o neutro (não oscila em
     /// torno dele): um eixo acima do neutro nunca cai abaixo dele num único decaimento, e
     /// vice-versa.</summary>
     public void DecayTowardNeutral(FamilyRules rules)
@@ -104,7 +104,7 @@ public sealed class Relationship
 
     public void MarkContact(long tick) => LastContactTick = tick;
 
-    /// <summary>Copia os 4 eixos de <paramref name="source"/> (REALISM-29: transferência de
+    /// <summary>Copia os 4 eixos de <paramref name="source"/> (transferência de
     /// vínculos em clone/split) — não altera <see cref="LastContactTick"/> (o chamador marca
     /// contato no tick atual).</summary>
     public void CopyAxesFrom(Relationship source)

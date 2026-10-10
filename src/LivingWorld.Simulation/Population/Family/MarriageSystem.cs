@@ -7,7 +7,7 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Population.Family;
 
-/// <summary>Casamento monogâmico (Fase 7, T15, FAM-12, AD-060) — helper estático reusado por
+/// <summary>Casamento monogâmico — helper estático reusado por
 /// <see cref="CourtshipSystem"/>.</summary>
 public static class MarriageSystem
 {

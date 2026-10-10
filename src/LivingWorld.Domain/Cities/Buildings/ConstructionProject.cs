@@ -4,7 +4,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Cities.Buildings;
 
-/// <summary>Obra em progresso na fila de uma <see cref="City"/> (Fase 8, T3, CITY-03) —
+/// <summary>Obra em progresso na fila de uma <see cref="City"/> —
 /// <see cref="Advance"/> consome um tick da receita declarada em <see cref="BuildingRecipe.TicksToBuild"/>,
 /// nunca abaixo de zero (a conclusão é decidida pelo chamador ao ver <see cref="TicksRemaining"/> == 0,
 /// mesmo espírito de <see cref="ResourceStock.Withdraw"/> não deixar estoque negativo).</summary>
@@ -26,12 +26,12 @@ public sealed class ConstructionProject(
 
     public void JoinCity(CityId city) => City = city;
 
-    // SPEC_DEVIATION (Fase 8, T10): design.md declara Consumed só como dado de construção
+    // SPEC_DEVIATION: design.md declara Consumed só como dado de construção
     // (imutável). ConstructionSystem precisa registrar consumo tick a tick (AC "consumido ao
     // longo dos ticks") — sem mutador, Consumed nunca sairia de vazio.
 
-    /// <summary>Acumula o consumo de <paramref name="resource"/> neste tick (Fase 8, T10,
-    /// CITY-03) — só <see cref="ConstructionSystem"/> chama.</summary>
+    /// <summary>Acumula o consumo de <paramref name="resource"/> neste tick
+    /// — só <see cref="ConstructionSystem"/> chama.</summary>
     public void RecordConsumption(ResourceType resource, long amount) =>
         _consumed[resource] = _consumed.GetValueOrDefault(resource) + amount;
 }

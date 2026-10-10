@@ -1,12 +1,10 @@
-using LivingWorld.Domain;
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.History;
 
-/// <summary>Calcula significância (0–1) na escrita e decide o que vira <see cref="Fact"/>
-/// (Fase 10, HIST-01/HIST-02).</summary>
+/// <summary>Calcula significância (0–1) na escrita e decide o que vira <see cref="Fact"/>.</summary>
 public static class SignificanceCalculator
 {
     private static readonly IReadOnlyDictionary<WorldEventKind, double> BaseWeightByKind =

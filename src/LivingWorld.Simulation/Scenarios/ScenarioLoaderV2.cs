@@ -15,14 +15,12 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Scenarios;
 
-/// <summary>Monta um mundo completo a partir de um <c>periodDefinition</c> (Fase 13, T3):
-/// substitui a integração parcial de <see cref="ScenarioLoader"/> (que ainda não plugava
-/// comportamento/economia/cidades/dinâmica) por um pipeline único via
+/// <summary>Monta um mundo completo a partir de um <c>periodDefinition</c> via
 /// <see cref="PeriodDefinitionValidator"/> — mapa, população, comportamento, economia, cidades e
 /// vieses/regras de transformação vêm todos do mesmo período, nenhum cai em default hardcoded
-/// quando o campo está presente no JSON. <see cref="ScenarioLoader"/> continua existindo e
-/// intocado — cenários legados (<c>scenarios/default.json</c>, <c>scenarios/test-scifi.json</c>)
-/// não declaram Economy/Cities/Dynamics e continuam passando por ele.</summary>
+/// quando o campo está presente no JSON. Único loader de cenário do projeto — todo cenário em
+/// <c>scenarios/*.json</c> (incluindo <c>default.json</c>/<c>test-scifi.json</c>) declara os
+/// blocos Economy/Cities/Dynamics e passa por aqui.</summary>
 public static class ScenarioLoaderV2
 {
     public static Result<(WorldState World, WorldClock Clock)> LoadWorld(string json, int maxIterationsPerTick = 1000)
@@ -34,7 +32,7 @@ public static class ScenarioLoaderV2
         var definition = definitionResult.Value!;
         var population = definition.Population;
 
-        // Fase 13, T10: viés declarado em Dynamics.ProfessionBiases vira peso real de sorteio
+        // Viés declarado em Dynamics.ProfessionBiases vira peso real de sorteio
         // (PopulationCatalog.RollProfession) — sem bias declarado, catálogo original passa
         // adiante sem cópia, sorteio continua uniforme.
         var catalog = definition.Dynamics.ProfessionBiases.Count == 0
@@ -212,7 +210,7 @@ public static class ScenarioLoaderV2
                 employees: [], workplace.Stock, workplace.Treasury, workplace.Prices, city.Id));
         }
 
-        // Fase 15.1, T21: portal é dado descritivo — resolve RefIndex autorado pro RefId real
+        // Portal é dado descritivo — resolve RefIndex autorado pro RefId real
         // (mesmo padrão de createdCityIds[building.CityIndex] acima) depois que cidades/prédios
         // já têm id, e autora via AddPortal, único ponto de mutação da coleção.
         foreach (var portal in definition.City.Portals)
@@ -221,7 +219,7 @@ public static class ScenarioLoaderV2
                 ResolvePortalEndpoint(portal.From, createdCityIds, createdBuildingIds),
                 ResolvePortalEndpoint(portal.To, createdCityIds, createdBuildingIds)));
 
-        // Fase 13, T13: PeriodEvolutionSystem primeiro na lista — regra de transformação muda o
+        // PeriodEvolutionSystem primeiro na lista — regra de transformação muda o
         // catálogo antes de qualquer sistema do mesmo tick sortear profissão por ele
         // (NatalitySystem/MaterializationSystem/PopulationSeeder).
         IReadOnlyList<ISimulationSystem> systems =

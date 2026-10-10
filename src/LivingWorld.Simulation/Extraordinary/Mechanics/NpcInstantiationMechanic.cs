@@ -12,7 +12,7 @@ using LivingWorld.Simulation.Scheduling;
 namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 
 /// <summary>
-/// Instanciação de NPC via poder (PWR-104..107). Prefixos longos para não colidir com
+/// Instanciação de NPC via poder. Prefixos longos para não colidir com
 /// <see cref="NpcStatMechanic"/> (<c>npc.</c>).
 /// </summary>
 public static class NpcInstantiationMechanic
@@ -31,13 +31,13 @@ public static class NpcInstantiationMechanic
         if (allowed < split)
             RecordSplitCapCut(world, ctx, npc.Id, requested: split, allowed: allowed);
 
-        // REALISM-27: cada filho herda fração proporcional 1/N do pedido original (não do allowed),
+        // Cada filho herda fração proporcional 1/N do pedido original (não do allowed),
         // pra skill refletir a divisão declarada mesmo quando o teto corta nascimentos.
         double splitWeight = split > 0 ? 1.0 / split : 0.0;
         var splitIds = new List<NpcId>(allowed);
         for (int i = 0; i < allowed; i++)
             splitIds.Add(InstantiateCopy(world, ctx, npc, "split-on-death", skillWeight: splitWeight).Id);
-        // REALISM-29: Preserve — cada novo NPC mantém os vínculos originais (explícito, não omissão).
+        // Preserve — cada novo NPC mantém os vínculos originais (explícito, não omissão).
         NpcInstantiationHeredity.TransferBonds(world, npc, splitIds, BondTransferMode.Preserve);
 
         int reincarnate = DeclaredMagnitudeSum(world, npc, "npc.reincarnate:");
@@ -73,14 +73,14 @@ public static class NpcInstantiationMechanic
             return;
 
         baby.RewritePersonality(BlendPersonality(pending.Personality, baby.Personality, pending.FractionPercent));
-        // REALISM-28: peso w_gene-equivalente (fraction/100), mesma fórmula de InheritSkills.
+        // Peso w_gene-equivalente (fraction/100), mesma fórmula de InheritSkills.
         double weight = pending.FractionPercent / 100.0;
         var inherited = NpcInstantiationHeredity.InheritSkills(
             new SkillSet(pending.Skills), weight, ctx.StreamFor("inherit-skills", baby.Id.Value));
         foreach (var (skillId, value) in inherited.Values.OrderBy(pair => pair.Key))
             baby.GainSkill(new SkillType(skillId), value, 100);
 
-        // REALISM-29: None — vínculos do doador não sobrevivem (explícito, não omissão).
+        // None — vínculos do doador não sobrevivem (explícito, não omissão).
         if (world.FindNpc(carrier.CarrierId) is { } donor)
             NpcInstantiationHeredity.TransferBonds(world, donor, [baby.Id], BondTransferMode.None);
 
@@ -95,7 +95,7 @@ public static class NpcInstantiationMechanic
     {
         var id = AllocateNpcId(world);
         var personality = CopyPersonality(source.Personality);
-        // REALISM-26 (weight=1) / REALISM-27 (weight=1/N): InheritSkills, não cópia crua.
+        // weight=1 na cópia direta, weight=1/N no split: InheritSkills, não cópia crua.
         var skills = NpcInstantiationHeredity.InheritSkills(
             source.Skills, skillWeight, ctx.StreamFor("inherit-skills", id.Value));
         var clone = new Npc(

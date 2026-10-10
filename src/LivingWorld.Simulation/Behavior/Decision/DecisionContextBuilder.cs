@@ -11,7 +11,7 @@ using LivingWorld.Simulation.Llm;
 
 namespace LivingWorld.Simulation.Behavior.Decision;
 
-/// <summary>Constrói <see cref="DecisionContext"/> on-demand por wake (Fase 16.3 P1b, COH-11).
+/// <summary>Constrói <see cref="DecisionContext"/> on-demand por wake.
 /// Não persiste; não referencia o <see cref="WorldState"/> no tipo resultante.</summary>
 public static class DecisionContextBuilder
 {
@@ -84,8 +84,8 @@ public static class DecisionContextBuilder
     internal static IReadOnlyList<RelationshipFact> BuildRelationshipSlice(WorldState world, Npc npc) =>
         KnownRelationshipsOf(world, npc.Id);
 
-    /// <summary>Relações A→* já existentes (lazy AD-061) — nunca cria entrada nova a partir
-    /// da decisão (COH-14).</summary>
+    /// <summary>Relações A→* já existentes (lazy) — nunca cria entrada nova a partir
+    /// da decisão.</summary>
     private static IReadOnlyList<RelationshipFact> KnownRelationshipsOf(WorldState world, NpcId npcId)
     {
         if (world.Relationships.Count == 0)

@@ -4,7 +4,7 @@ using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.History.Queries;
 
-/// <summary>Reconstrói linhagem a partir do esqueleto (Fase 10, HIST-22/23) — nunca tabela
+/// <summary>Reconstrói linhagem a partir do esqueleto — nunca tabela
 /// paralela.</summary>
 public static class LineageQuery
 {

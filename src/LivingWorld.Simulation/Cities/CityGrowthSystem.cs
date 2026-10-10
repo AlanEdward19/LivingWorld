@@ -6,7 +6,7 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Cities;
 
-// SPEC_DEVIATION (Fase 8, T11): design.md/tasks.md não definem a fórmula exata de
+// SPEC_DEVIATION: design.md/tasks.md não definem a fórmula exata de
 // "comida/moradia/segurança abaixo do limiar" — só que o limiar/taxa vêm de CityRules (R3).
 // Interpretação escolhida, ancorada em dado já existente (nenhum literal novo além da convenção
 // de normalização 0-100, que não é limiar — os limiares continuam 100% CityRules):
@@ -21,8 +21,8 @@ namespace LivingWorld.Simulation.Cities;
 // soma (evitaria contar a mesma pressão duas vezes).
 
 /// <summary>Emigração agregada do pool de uma cidade quando comida/moradia/segurança caem abaixo
-/// do limiar do cenário (Fase 8, T11, CITY-02) — nunca tira NPC materializado (isso é
-/// <c>MigrationSystem</c>, T12).</summary>
+/// do limiar do cenário — nunca tira NPC materializado (isso é
+/// <c>MigrationSystem</c>).</summary>
 public sealed class CityGrowthSystem : ISimulationSystem
 {
     public const string SystemName = "cities-growth";

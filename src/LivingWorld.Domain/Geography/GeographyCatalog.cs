@@ -1,7 +1,7 @@
 namespace LivingWorld.Domain.Geography;
 
-/// <summary>Catálogo de ids de terreno/bioma/recurso válidos para um cenário (task 2). O motor
-/// só conhece ids — nome e apresentação são dado de cliente (Fase 14), nunca literal aqui.
+/// <summary>Catálogo de ids de terreno/bioma/recurso válidos para um cenário. O motor
+/// só conhece ids — nome e apresentação são dado de cliente, nunca literal aqui.
 /// <see cref="TerrainType.Unset"/> nunca é um id válido do catálogo.</summary>
 public sealed record GeographyCatalog(
     HashSet<int> TerrainIds,
@@ -17,7 +17,7 @@ public sealed record GeographyCatalog(
         ResourceIds.Count == 0 || ResourceIds.Contains(resource.Id);
 }
 
-/// <summary>Tabela de pesos de custo de deslocamento (task 3), vinda do cenário: base por
+/// <summary>Tabela de pesos de custo de deslocamento, vinda do cenário: base por
 /// distância, peso por unidade de altitude subida e multiplicador por terreno.</summary>
 public sealed record CostWeights(double Base, double AltitudeWeight, IReadOnlyDictionary<int, double> TerrainWeight)
 {

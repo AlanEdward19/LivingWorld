@@ -1,4 +1,3 @@
-using LivingWorld.Api;
 using LivingWorld.Domain.History;
 using LivingWorld.Infrastructure.EventLog;
 using LivingWorld.Simulation.Core;

@@ -9,7 +9,7 @@ using LivingWorld.Simulation.Extraordinary.Systems;
 namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 
 /// <summary>
-/// Confronto NPC-vs-NPC. AD-010 (<c>.specs/STATE.md</c>): <c>combat.strike:&lt;magnitude&gt;</c>
+/// Confronto NPC-vs-NPC. <c>combat.strike:&lt;magnitude&gt;</c>
 /// permanece resolução imediata single-shot; multi-round entra por <c>combat.engage:</c>
 /// criando <see cref="CombatEncounter"/> persistente via <see cref="CombatEncounterSystem"/>.
 /// </summary>
@@ -17,7 +17,7 @@ public sealed class CombatMechanic : ExtraordinaryMechanic
 {
     public const string StrikePrefix = "combat.strike:";
 
-    /// <summary>Token multi-round (AD-010) — não reusa <see cref="StrikePrefix"/>.</summary>
+    /// <summary>Token multi-round — não reusa <see cref="StrikePrefix"/>.</summary>
     public const string EngagePrefix = "combat.engage:";
 
     public override string Prefix => "combat.";
@@ -67,7 +67,7 @@ public sealed class CombatMechanic : ExtraordinaryMechanic
         }));
     }
 
-    /// <summary>AD-010: inicia encontro persistente — sem dano imediato de strike.</summary>
+    /// <summary>Inicia encontro persistente — sem dano imediato de strike.</summary>
     private static Result<PreparedMutation?> PrepareEngage(
         ExtraordinaryMechanicContext ctx, string declaration)
     {

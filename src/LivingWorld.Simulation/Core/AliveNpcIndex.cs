@@ -2,7 +2,7 @@ using LivingWorld.Domain.Population;
 
 namespace LivingWorld.Simulation.Core;
 
-/// <summary>NPCs vivos em ordem de id — derivado, fora do hash canônico (PERF-07).</summary>
+/// <summary>NPCs vivos em ordem de id — derivado, fora do hash canônico.</summary>
 public sealed class AliveNpcIndex
 {
     private readonly List<Npc> _alive;

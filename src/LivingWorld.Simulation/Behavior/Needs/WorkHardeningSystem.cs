@@ -8,7 +8,7 @@ using LivingWorld.Simulation.Scheduling;
 namespace LivingWorld.Simulation.Behavior.Needs;
 
 /// <summary>Crescimento lento de <see cref="Npc.MuscleMass"/> sob trabalho físico pesado
-/// sustentado (Fase 16.3, COH-24) — categoria SLOW (<c>Daily</c>), mesmo espírito de
+/// sustentado — categoria SLOW (<c>Daily</c>), mesmo espírito de
 /// <see cref="SkillPracticeSystem"/>. Delega a mutação a
 /// <see cref="BodyMechanic.ApplyWorkHardening"/>.</summary>
 public sealed class WorkHardeningSystem : ISimulationSystem

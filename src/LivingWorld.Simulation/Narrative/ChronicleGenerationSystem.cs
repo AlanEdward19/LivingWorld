@@ -1,4 +1,3 @@
-using LivingWorld.Domain;
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.Narrative;
 using LivingWorld.Domain.Shared;
@@ -7,7 +6,7 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Narrative;
 
-/// <summary>Job periódico de crônicas (Fase 12, NARR-05..08) — publica, por cidade, a crônica da
+/// <summary>Job periódico de crônicas — publica, por cidade, a crônica da
 /// janela do mês recém-fechado, reaproveitando <see cref="WindowedHistoryAggregator"/> (top-K
 /// fatos por significância) e <see cref="NarrativeRenderer"/> (template determinístico, sem LLM).
 /// <see cref="Frequency"/> é <see cref="TickFrequency.Monthly"/> — nunca diário (spec.md Edge
@@ -19,7 +18,7 @@ namespace LivingWorld.Simulation.Narrative;
 /// documento já publicado, nunca duplica. Estado próprio do sistema (não em <see
 /// cref="WorldState"/>) — mesmo molde de <see
 /// cref="LivingWorld.Simulation.Llm.ConversationSessionStore"/>: reprocessar do zero após religar
-/// produz a mesma crônica a partir dos mesmos <see cref="Fact"/>s (NARR-08), então não há nada
+/// produz a mesma crônica a partir dos mesmos <see cref="Fact"/>s, então não há nada
 /// que precise sobreviver ao snapshot.</summary>
 public sealed class ChronicleGenerationSystem : ISimulationSystem
 {

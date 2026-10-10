@@ -7,7 +7,7 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.History.Books;
 
-/// <summary>Operações sobre <see cref="Book"/> (Fase 10, HIST-09) — cópia com erro de copista
+/// <summary>Operações sobre <see cref="Book"/> — cópia com erro de copista
 /// e perda sem apagar a linha.</summary>
 public static class BookOperations
 {

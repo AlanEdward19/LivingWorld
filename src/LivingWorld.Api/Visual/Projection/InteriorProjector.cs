@@ -6,11 +6,11 @@ using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Api.Visual.Projection;
 
-/// <summary>Ocupante projetado de um interior (Fase 15.1, T47) — id do NPC + andar/célula
+/// <summary>Ocupante projetado de um interior — id do NPC + andar/célula
 /// locais, mesmo shape que <see cref="InteriorOccupancy"/> sem expor tipo de Domain cru.</summary>
 public sealed record InteriorOccupant(NpcId Npc, FloorLevel Floor, CellCoord LocalCell);
 
-/// <summary>Fase 15, T5 (VTT-03); ocupação real desde Fase 15.1, T47 (G7): <see
+/// <summary><see
 /// cref="Occupants"/> lista todo NPC vivo com <see cref="Npc.Interior"/> apontando para
 /// este prédio — <see cref="OccupancyModeled"/> passa a <c>true</c> agora que existe dado real
 /// por trás.</summary>

@@ -10,7 +10,7 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Economy.Production;
 
-/// <summary>Cultivo estagiado <c>plant→water→mature→harvest</c> (Fase 15.1, Stage 4, T17).
+/// <summary>Cultivo estagiado <c>plant→water→mature→harvest</c>.
 /// Substitui o trigo instantâneo da fazenda default; colheita antecipada é rejeitada.</summary>
 public sealed class CropSystem : ISimulationSystem
 {
@@ -82,7 +82,7 @@ public sealed class CropSystem : ISimulationSystem
         }
     }
 
-    /// <summary>PWR-76: o cultivo lê a temperatura da célula; a fórmula de rendimento não muda nesta fase.</summary>
+    /// <summary>O cultivo lê a temperatura da célula; a fórmula de rendimento não muda com ela.</summary>
     public static float ReadCellTemperature(WorldState world, CellCoord cell, long currentTick) =>
         EnvironmentTemperatureMechanic.EffectiveTemperature(world, cell, currentTick);
 

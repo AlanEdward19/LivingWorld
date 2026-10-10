@@ -9,7 +9,7 @@ using LivingWorld.Simulation.Economy;
 
 namespace LivingWorld.Simulation.Cities;
 
-/// <summary>Dado de cidades resolvido de um cenário (Fase 8, T7): <see cref="CityRules"/>,
+/// <summary>Dado de cidades resolvido de um cenário: <see cref="CityRules"/>,
 /// <see cref="CityCatalog"/> e as <see cref="City"/> iniciais (sem id atribuído ainda — quem
 /// consome chama <see cref="WorldState.NextCityId"/> ao adicionar cada uma, mesmo padrão de
 /// <see cref="EconomyScenarioLoader"/> pra Workplace).</summary>
@@ -19,7 +19,7 @@ public sealed record CityScenarioData(
 
 /// <summary>Uma <see cref="City"/> ainda sem <see cref="CityId"/> — o cenário declara o
 /// conteúdo, o mundo atribui o id na hora de adicionar. <see cref="Name"/> vazio significa "o
-/// cenário não autorou um nome" (Fase 15.1, T44) — quem consome resolve o fallback
+/// cenário não autorou um nome" — quem consome resolve o fallback
 /// determinístico (<see cref="CityNameGenerator"/>), o loader nunca sorteia nada.
 /// <see cref="InitialPopulation"/> nulo significa "sem valor autorado" — <c>ScenarioLoaderV2</c>
 /// divide o restante de <c>Population.InitialPopulation</c> igualmente entre as cidades sem
@@ -27,13 +27,13 @@ public sealed record CityScenarioData(
 /// crescimento de <see cref="CityBoundsResolver"/>, só a população com que cada cidade nasce).</summary>
 public sealed record InitialCity(CellCoord Location, long FoundedAtTick, AggregatePopulationPool AggregatePool, string Name = "", int? InitialPopulation = null);
 
-/// <summary>Prédio autorado no World Creator (Fase 15.1, T44) — ainda sem <see
+/// <summary>Prédio autorado no World Creator — ainda sem <see
 /// cref="BuildingId"/>/<see cref="CityId"/> reais: <see cref="CityIndex"/> referencia a posição
 /// do prédio dentro de <see cref="CityScenarioData.Cities"/>, já validada em bounds por
 /// <see cref="CityScenarioLoader.Load"/>.</summary>
 public sealed record AuthoredBuilding(int CityIndex, int BuildingTypeId, CellCoord Position, int Orientation);
 
-/// <summary>Um lado de um <see cref="AuthoredPortal"/> (Fase 15.1, T21) — <see cref="RefIndex"/>
+/// <summary>Um lado de um <see cref="AuthoredPortal"/> — <see cref="RefIndex"/>
 /// referencia a posição do endpoint dentro de <see cref="CityScenarioData.Cities"/> (quando
 /// <see cref="Space"/> é <see cref="PortalSpaceKind.City"/>) ou <see
 /// cref="CityScenarioData.Buildings"/> (quando <see cref="PortalSpaceKind.Building"/>); ignorado
@@ -41,13 +41,13 @@ public sealed record AuthoredBuilding(int CityIndex, int BuildingTypeId, CellCoo
 /// <see cref="AuthoredBuilding.CityIndex"/>: id real só existe depois que o mundo atribui.</summary>
 public sealed record AuthoredPortalEndpoint(PortalSpaceKind Space, int RefIndex, CellCoord Cell);
 
-/// <summary>Portal autorado no cenário (Fase 15.1, T21, OQ-2) — mesmo papel de <see
+/// <summary>Portal autorado no cenário — mesmo papel de <see
 /// cref="AuthoredBuilding"/>: ainda sem <see cref="PortalEndpoint.RefId"/> real, resolvido por
 /// <c>ScenarioLoaderV2</c> depois que cidades/prédios ganham id.</summary>
 public sealed record AuthoredPortal(string Id, string Label, AuthoredPortalEndpoint From, AuthoredPortalEndpoint To);
 
 /// <summary>Carrega <see cref="CityRules"/>/<see cref="CityCatalog"/>/<see cref="City"/> iniciais
-/// de um cenário (Fase 8, T7): nenhum parâmetro de cidade hardcoded em C# (R3). Mesmo padrão
+/// de um cenário: nenhum parâmetro de cidade hardcoded em C# (R3). Mesmo padrão
 /// manual-parse + <see cref="Result{T}"/> de <see cref="EconomyScenarioLoader"/> — campo
 /// obrigatório ausente nomeia o campo no erro.</summary>
 public static class CityScenarioLoader
@@ -209,7 +209,7 @@ public static class CityScenarioLoader
         return Result<IReadOnlyList<InitialCity>>.Ok(cities);
     }
 
-    /// <summary>Prédios autorados (Fase 15.1, T44): valida bounds (célula dentro do mapa),
+    /// <summary>Prédios autorados: valida bounds (célula dentro do mapa),
     /// overlap (duas células iguais entre prédios) e referência (índice de cidade existente) —
     /// falha na borda, nomeando o campo, nunca ao adicionar o prédio ao mundo.</summary>
     private static Result<IReadOnlyList<AuthoredBuilding>> ParseBuildings(JsonObject root, int mapWidth, int mapHeight, int cityCount)
@@ -248,7 +248,7 @@ public static class CityScenarioLoader
         return Result<IReadOnlyList<AuthoredBuilding>>.Ok(buildings);
     }
 
-    /// <summary>Portais autorados (Fase 15.1, T21): campo opcional — cenário sem <c>Portals</c>
+    /// <summary>Portais autorados: campo opcional — cenário sem <c>Portals</c>
     /// declarado continua válido (spec.md AC4), mesmo padrão de <see cref="ParseBuildings"/> pra
     /// "Buildings" ausente. Cada endpoint referencia índice de cidade/prédio já parseado (mesma
     /// validação de referência de <see cref="AuthoredBuilding.CityIndex"/>).</summary>

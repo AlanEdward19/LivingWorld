@@ -4,7 +4,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Population.Body;
 
-/// <summary>Parâmetros cenário-driven do corpo mínimo causal (Fase 16.3, COH-21) —
+/// <summary>Parâmetros cenário-driven do corpo mínimo causal —
 /// distribuição truncada de <c>Height</c>/<c>Weight</c>/<c>MuscleMass</c> na criação do NPC.
 /// Mesmo template de <see cref="FamilyRules"/>/<see cref="PowerInheritanceRules"/>:
 /// validação em <see cref="Create"/>, <see cref="Default"/> documentado.</summary>
@@ -92,5 +92,5 @@ public sealed record BodyRules(
     public static readonly BodyRules Disabled = Default with { Enabled = false };
 
     /// <summary>Usa a regra declarada; se ausente, devolve <see cref="Default"/>.</summary>
-    public static BodyRules Resolve(BodyRules? declared) => declared ?? Default;
+    public static BodyRules Resolve(BodyRules? declared) => ScenarioRuleDefaults.Resolve(declared, Default);
 }

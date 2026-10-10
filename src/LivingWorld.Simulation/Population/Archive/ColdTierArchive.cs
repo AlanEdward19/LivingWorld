@@ -9,8 +9,7 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Population.Archive;
 
-/// <summary>Arquivo frio (tier-2) de NPCs/fauna/flora mortos há muito tempo (Fase 9 PERF-10,
-/// REALISM-21).</summary>
+/// <summary>Arquivo frio (tier-2) de NPCs/fauna/flora mortos há muito tempo.</summary>
 public sealed class ColdTierArchive
 {
     private readonly Dictionary<long, NpcSummary> _byId = new();
@@ -53,12 +52,26 @@ public sealed class ColdTierArchive
         return true;
     }
 
-    /// <summary>REALISM-21: flora sai do hot na morte e entra no arquivo frio na hora
-    /// (sem DeathTick no record Plant — contrato T7).</summary>
+    /// <summary>Flora sai do hot na morte e entra no arquivo frio na hora
+    /// (sem DeathTick no record Plant).</summary>
     public void ArchivePlantOnDeath(Plant plant, long deathTick)
     {
         _plantsById[plant.Id.Value] = new PlantSummary(
             plant.Id, plant.Species, plant.Position, plant.GrowthStage, deathTick);
+    }
+
+    /// <summary>Snapshot somente-leitura de todo NPC arquivado — fonte pra persistência em disco
+    /// (<c>ColdTierPersistence.Save</c>), nunca mutado diretamente.</summary>
+    public IReadOnlyDictionary<long, NpcSummary> AllNpcSummaries => _byId;
+
+    /// <summary>Substitui todo o arquivo de NPCs pelo conteúdo reidratado de disco — usado só na
+    /// carga de um snapshot (<c>PersistentWorldRunner.LoadLatest/LoadAt</c>), nunca durante o
+    /// tick. Não afeta fauna/flora arquivados (formato de disco atual só cobre NPC).</summary>
+    public void RestoreNpcSummaries(IReadOnlyDictionary<long, NpcSummary> entries)
+    {
+        _byId.Clear();
+        foreach (var (id, summary) in entries)
+            _byId[id] = summary;
     }
 
     public NpcSummary? Lookup(long npcId) => _byId.GetValueOrDefault(npcId);

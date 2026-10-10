@@ -2,7 +2,7 @@ using LivingWorld.Domain.Behavior;
 
 namespace LivingWorld.Domain.Cognition;
 
-/// <summary>Motivo do wake que disparou a decisão (Fase 16.3 P2b, COH-54) — volátil,
+/// <summary>Motivo do wake que disparou a decisão — volátil,
 /// só entra no <see cref="DecisionTrace"/>.</summary>
 public enum WakeReason
 {

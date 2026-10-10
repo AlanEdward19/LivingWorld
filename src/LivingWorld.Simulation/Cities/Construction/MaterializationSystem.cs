@@ -9,15 +9,14 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Cities.Construction;
 
-// SPEC_DEVIATION (Fase 8, T9): "líder de assentamento" (papel formal citado no design/roadmap)
-// não tem campo nenhum em City (Foundation/T1 não declarou CityGovernment/Leader — nenhum
-// critério de verificação da Fase 8 exige esse campo). Papel formal checado aqui é só o que já
-// existe no domínio: chefe de household (Household.Head) e mestre de ofício (alguém referenciado
-// como Mentor por outro Npc). Adicionar liderança de cidade exigiria um campo novo em City fora
-// do escopo desta task (T9 só lista MaterializationSystem.cs).
+// SPEC_DEVIATION: "líder de assentamento" (papel formal citado no design/roadmap)
+// não tem campo nenhum em City (nenhum CityGovernment/Leader declarado). Papel formal checado
+// aqui é só o que já existe no domínio: chefe de household (Household.Head) e mestre de ofício
+// (alguém referenciado como Mentor por outro Npc). Adicionar liderança de cidade exigiria um
+// campo novo em City fora do escopo deste sistema.
 
 /// <summary>Materializa/desmaterializa NPCs entre o <see cref="AggregatePopulationPool"/> de uma
-/// cidade e uma linha real em <c>WorldState.Npcs</c> (Fase 8, T9, CITY-04/CITY-05, approach A).
+/// cidade e uma linha real em <c>WorldState.Npcs</c>.
 /// <see cref="Tick"/> (Daily) desmaterializa por ociosidade quem não ocupa papel formal.</summary>
 public sealed class MaterializationSystem : ISimulationSystem
 {
@@ -49,7 +48,7 @@ public sealed class MaterializationSystem : ISimulationSystem
         }
     }
 
-    /// <summary>LOD observacional (Fase 28, T4, LOD-01..03): detalhe cosmético pleno só com
+    /// <summary>LOD observacional: detalhe cosmético pleno só com
     /// escopo <see cref="ScopeKind.World"/> ou <see cref="ScopeKind.Building"/> do prédio
     /// ocupado; NPC em rua com escopo de cidade; prédio não enquadrado numa cidade observada
     /// fica aproximado. Fora de qualquer escopo: agregado (sem camada cosmética ativa).</summary>
@@ -114,7 +113,7 @@ public sealed class MaterializationSystem : ISimulationSystem
         return scopes.Values.ToList();
     }
 
-    /// <summary>Papel formal (Fase 8, T9, CITY-05) — ver SPEC_DEVIATION acima sobre liderança de
+    /// <summary>Papel formal — ver SPEC_DEVIATION acima sobre liderança de
     /// cidade não modelada.</summary>
     public static bool HasFormalRole(WorldState world, NpcId npcId) =>
         world.Households.Any(h => h.Head == npcId)
@@ -123,9 +122,9 @@ public sealed class MaterializationSystem : ISimulationSystem
 
     /// <summary>Materializa 1 NPC do pool agregado de <paramref name="cityId"/>: debita
     /// exatamente 1 do <see cref="AggregatePopulationPool"/> e cria exatamente 1 linha de <see
-    /// cref="Npc"/> (CITY-04). Atributos sorteados a partir das médias agregadas da cidade
+    /// cref="Npc"/>. Atributos sorteados a partir das médias agregadas da cidade
     /// (Assumption confirmada: "sorteio livre a partir das faixas/estatísticas agregadas").
-    /// <paramref name="specificId"/> materializa exatamente aquele id reservado (T50, clique do
+    /// <paramref name="specificId"/> materializa exatamente aquele id reservado (clique do
     /// usuário num membro específico do pool); omitido, materializa qualquer um (o último
     /// reservado) — comportamento de sempre pra quem só quer "materialize alguém desta cidade".</summary>
     public static Result<Npc> MaterializeOne(WorldState world, TickContext ctx, CityId cityId, NpcId? specificId = null)
@@ -165,7 +164,7 @@ public sealed class MaterializationSystem : ISimulationSystem
         return Result<Npc>.Ok(npc);
     }
 
-    /// <summary>Desmaterializa: devolve riqueza/saúde ao pool e remove a linha (CITY-04). Só
+    /// <summary>Desmaterializa: devolve riqueza/saúde ao pool e remove a linha. Só
     /// aceita NPC nascido do próprio pool (<see cref="Npc.MaterializedAtTick"/> não nulo) — NPC
     /// original (seed/nascimento) pode ter laços históricos (pai/mãe/cônjuge) que virariam
     /// ponteiro solto se removido (invariante de <c>WorldState.Npcs</c>), então nunca é
@@ -185,8 +184,7 @@ public sealed class MaterializationSystem : ISimulationSystem
         return Result<Unit>.Ok(Unit.Value);
     }
 
-    // DESIGN (Fase 8, fix round 1, gap 2 — CITY-05 AC2; T50 reabre e resolve de verdade):
-    // approach A (design.md) não atribuía NpcId a membro do AggregatePopulationPool — só existia
+    // DESIGN: approach A (design.md) não atribuía NpcId a membro do AggregatePopulationPool — só existia
     // contagem+somas, nunca identidade individual, tornando "consultar um NPC agregado por id"
     // estruturalmente impossível.
     //

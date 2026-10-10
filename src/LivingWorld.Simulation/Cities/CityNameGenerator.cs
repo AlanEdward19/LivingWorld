@@ -4,8 +4,8 @@ using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Cities;
 
-/// <summary>Nome determinístico por composição de sílabas (Fase 15.1, T44; ADR-0013 — "sem LLM,
-/// o motor gera um nome determinístico por composição", listado ali como fallback obrigatório
+/// <summary>Nome determinístico por composição de sílabas ("sem LLM,
+/// o motor gera um nome determinístico por composição", fallback obrigatório
 /// de gramática procedural). Usado quando o cenário não autora um nome para a cidade e quando
 /// <see cref="SettlementFoundingSystem"/> funda uma nova durante a simulação — stream de RNG
 /// dedicado (<c>"city-naming"</c>), separado de <c>"city-founding"</c> para não deslocar a

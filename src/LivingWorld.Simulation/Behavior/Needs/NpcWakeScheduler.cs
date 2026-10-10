@@ -8,9 +8,9 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Behavior.Needs;
 
-/// <summary>Agenda acordar NPC no tick em que a ação termina ou uma necessidade cruza limiar
-/// (Fase 9, PERF-08). Fase 16.3 P2a: também agenda wakes event-driven via
-/// <see cref="AttentionRouter"/> (COH-43/44).</summary>
+/// <summary>Agenda acordar NPC no tick em que a ação termina ou uma necessidade cruza limiar.
+/// Também agenda wakes event-driven via
+/// <see cref="AttentionRouter"/>.</summary>
 public static class NpcWakeScheduler
 {
     public const string SystemName = "npc-wake";

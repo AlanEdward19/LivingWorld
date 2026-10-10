@@ -10,7 +10,7 @@ using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Serialization;
 
-/// <summary>Sweep genérico de integridade referencial (task 12): por reflexão sobre o grafo
+/// <summary>Sweep genérico de integridade referencial: por reflexão sobre o grafo
 /// público de <see cref="WorldState"/>, garante que toda referência a um id aponta para uma
 /// entidade que existe. Cobertura cresce sozinha a cada fase nova — um tipo de id novo sem
 /// entrada em <see cref="ValidIdResolvers"/> reprova o teste de cobertura
@@ -20,14 +20,14 @@ public static class ReferentialIntegritySweep
     /// <summary>Como obter o conjunto de ids válidos de cada tipo, dado o mundo. Tipo ainda sem
     /// uso real resolve para conjunto vazio — vazio e sem-referência passa por vacuidade, o
     /// esperado.</summary>
-    // Fase 8, T6: CityId agora resolve contra world.Cities de verdade. O sentinela
-    // default(CityId) continua aceito além dos ids reais — Foundation (T1-T8) não liga nenhum
-    // sistema que atribua cidade de verdade a Npc/Household ainda (isso entra em fases
-    // seguintes/CityScenarioLoader), então todo Npc/Household do cenário default carrega o
+    // CityId resolve contra world.Cities de verdade. O sentinela
+    // default(CityId) continua aceito além dos ids reais — nenhum
+    // sistema atribui cidade de verdade a Npc/Household ainda (isso entra via
+    // CityScenarioLoader), então todo Npc/Household do cenário default carrega o
     // sentinela "ainda sem cidade atribuída", que não é um ponteiro solto — é a ausência
     // documentada de atribuição, distinta de apontar para uma cidade removida/inexistente.
     // BuildingId/LocationId seguem sem uso real (nenhum campo do domínio guarda um valor desses
-    // tipos ainda) — vazio por vacuidade, mesmo padrão anterior à Fase 8.
+    // tipos ainda) — vazio por vacuidade.
     private static readonly Dictionary<Type, Func<WorldState, HashSet<object>>> ValidIdResolvers = new()
     {
         [typeof(NpcId)] = w => w.Npcs.Select(n => (object)n.Id).ToHashSet(),
@@ -47,14 +47,14 @@ public static class ReferentialIntegritySweep
             .Concat(w.Cities.SelectMany(c => c.CanonSlots).Select(r => (object)r.Id))
             .ToHashSet(),
         [typeof(BookId)] = w => w.Books.Select(b => (object)b.Id).ToHashSet(),
-        // Fase 12: NarrativeDocument.Id vive dentro de ChronicleGenerationSystem (chave
+        // NarrativeDocument.Id vive dentro de ChronicleGenerationSystem (chave
         // (local, período)), não em WorldState — nenhum campo do domínio hoje guarda uma
         // referência a NarrativeId, então vazio por vacuidade, mesmo padrão de LocationId.
         [typeof(NarrativeId)] = _ => [],
         [typeof(AnimalId)] = w => w.Fauna.Select(animal => (object)animal.Id).ToHashSet(),
         [typeof(PlantId)] = w => w.Flora.Select(plant => (object)plant.Id).ToHashSet(),
         [typeof(CombatEncounterId)] = w => w.CombatEncounters.Select(e => (object)e.Id).ToHashSet(),
-        // Fase 28: rotas cosméticas vivem em CosmeticDetail (efêmero) — nenhum campo canônico
+        // Rotas cosméticas vivem em CosmeticDetail (efêmero) — nenhum campo canônico
         // referencia RouteId ainda; vazio por vacuidade até haver consumidor causal real.
         [typeof(RouteId)] = _ => [],
     };

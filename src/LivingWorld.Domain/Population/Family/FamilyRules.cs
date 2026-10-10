@@ -6,9 +6,9 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Population.Family;
 
-/// <summary>Todo peso/limiar/duração/flag da Fase 7 (Relações e Famílias), cenário-driven (R3)
+/// <summary>Todo peso/limiar/duração/flag de Relações e Famílias, cenário-driven (R3)
 /// — nenhum literal em C#, mesmo padrão de <see cref="NeedsRules"/>/<see cref="EconomyRules"/>/
-/// <see cref="SkillsRules"/> (T4, AD-053).</summary>
+/// <see cref="SkillsRules"/>.</summary>
 public sealed record FamilyRules(
     IReadOnlyDictionary<(RelationshipEventType Type, RelationshipAxis Axis), double> RelationshipDeltas,
     double DecayPerDay,
@@ -128,7 +128,7 @@ public sealed record FamilyRules(
             vitalityMortalitySelectionEnabled, maxCohabitationGroupSize));
     }
 
-    /// <summary>Delta declarado para o par (evento, eixo) — FAM-03. Sem entrada correspondente
+    /// <summary>Delta declarado para o par (evento, eixo). Sem entrada correspondente
     /// (não deveria acontecer após <see cref="Create"/> validar cobertura total), devolve 0.</summary>
     public double RelationshipEventDelta(RelationshipEventType type, RelationshipAxis axis) =>
         RelationshipDeltas.TryGetValue((type, axis), out var delta) ? delta : 0.0;
@@ -141,9 +141,9 @@ public sealed record FamilyRules(
     /// <summary>Multiplicador de mortalidade a partir de <c>Vitality</c> — <c>Vitality</c> acima
     /// do meio da escala reduz o multiplicador, abaixo aumenta; nunca produz saída negativa
     /// (Error Handling do design). Chamado por <c>MortalityPlanner</c>/<c>MortalitySystem</c>
-    /// (T9) quando <see cref="VitalityMortalitySelectionEnabled"/> é verdadeiro; com a flag
-    /// desligada, <c>MortalitySystem</c> passa <c>1.0</c> direto sem chamar este método (AD-065 —
-    /// split de <see cref="NeutralDriftEnabled"/>, que hoje controla só escolha de parceiro).</summary>
+    /// quando <see cref="VitalityMortalitySelectionEnabled"/> é verdadeiro; com a flag
+    /// desligada, <c>MortalitySystem</c> passa <c>1.0</c> direto sem chamar este método (split
+    /// de <see cref="NeutralDriftEnabled"/>, que hoje controla só escolha de parceiro).</summary>
     public double EffectiveVitalityMultiplier(double vitality)
     {
         double centered = (MidpointValue - vitality) / MidpointValue;
@@ -151,7 +151,7 @@ public sealed record FamilyRules(
         return Math.Max(multiplier, 0.0);
     }
 
-    /// <summary>Aplica o peso do canal ambiental (<c>Upbringing</c>) ao salário (AD-062) — sem-op
+    /// <summary>Aplica o peso do canal ambiental (<c>Upbringing</c>) ao salário — sem-op
     /// se <see cref="EnvironmentalWealthChannelEnabled"/> for falso. <paramref name="upbringing"/>
     /// é clampado a <c>[0,100]</c> antes de aplicar o peso, defesa contra valor fora de faixa
     /// (Error Handling do design) — <c>Upbringing</c> acima do meio da escala paga mais, abaixo
@@ -167,7 +167,7 @@ public sealed record FamilyRules(
     }
 
     /// <summary>Default de <see cref="WorldState"/> para cenário/teste que ainda não declara
-    /// família (T8) — mesmo espírito de <see cref="EconomyRules.Disabled"/>: todo delta/peso em
+    /// família — mesmo espírito de <see cref="EconomyRules.Disabled"/>: todo delta/peso em
     /// zero, faixas mínimas válidas (satisfazem <see cref="Create"/> sem precisar chamá-lo aqui,
     /// mesmo atalho de construção direta do record que <c>EconomyRules.Disabled</c> usa). Nunca
     /// usado por um cenário real (todo cenário de família chama <see cref="Create"/> com valores

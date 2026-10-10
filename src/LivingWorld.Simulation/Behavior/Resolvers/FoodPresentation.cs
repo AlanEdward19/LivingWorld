@@ -6,7 +6,7 @@ using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Behavior.Resolvers;
 
-/// <summary>Projeção de alimentação (Fase 15.1, Stage 4, LWV-03.2/LWV-06): recurso, preparo cru vs
+/// <summary>Projeção de alimentação: recurso, preparo cru vs
 /// preparado, duração restante e bloqueio — só enquanto a ação canônica é <see cref="ActionType.Eat"/>.</summary>
 public static class FoodPresentation
 {

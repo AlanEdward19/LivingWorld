@@ -81,9 +81,9 @@ public static class LivingScopeProjector
         VisualScope scope,
         IReadOnlyList<WorldEvent>? events = null)
     {
-        // dynamic-city-growth, T4b: ResolveGrownBounds alimenta os boxes de overflow das próprias
-        // buildings da cidade de volta pra Resolve, fazendo os bounds realmente crescerem
-        // (CITYGROW-03/05), não só no teste unitário de T4.
+        // ResolveGrownBounds alimenta os boxes de overflow das próprias
+        // buildings da cidade de volta pra Resolve, fazendo os bounds realmente crescerem,
+        // não só no teste unitário.
         var cityBounds = world.ActiveCities().ToDictionary(
             city => city.Id,
             city => CityOccupancy.ResolveGrownBounds(world, city, CityPopulationQuery.Population(world, city.Id)).Bounds);
@@ -115,9 +115,9 @@ public static class LivingScopeProjector
                 .Select(building =>
                 {
                     var city = world.FindActiveCity(cityId)!;
-                    // dynamic-city-growth, T3: mesmos bounds já resolvidos acima (cityBounds) —
+                    // Mesmos bounds já resolvidos acima (cityBounds) —
                     // Resolve precisa deles pra tentar uma célula livre antes do overflow.
-                    // CITYGROW-02b: null = escassez de terra pra este prédio agora — excluído
+                    // null = escassez de terra pra este prédio agora — excluído
                     // desta resposta em vez de derrubar o escopo inteiro; nunca persistido.
                     if (BuildingPlacementResolver.Resolve(building, city, world, cityBounds[cityId]) is not { } resolved)
                         return null;
@@ -263,7 +263,7 @@ public static class LivingScopeProjector
             _ => false,
         };
 
-    // T50: mesmo critério geométrico de NpcScopeResolver (Domain) — cidade não encontrada nunca
+    // Mesmo critério geométrico de NpcScopeResolver (Domain) — cidade não encontrada nunca
     // deveria acontecer pra um NPC vivo, mas cai em "fora" (World) em vez de lançar.
     private static bool IsNpcInScope(
         WorldState world,

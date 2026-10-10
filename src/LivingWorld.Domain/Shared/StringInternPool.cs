@@ -1,7 +1,7 @@
 namespace LivingWorld.Domain.Shared;
 
 /// <summary>Deduplica strings repetidas (profissão, traço, tag de evento) com ids inteiros
-/// estáveis — Fase 28, CMP-03. Determinístico na ordem de primeiro uso; não thread-safe.</summary>
+/// estáveis. Determinístico na ordem de primeiro uso; não thread-safe.</summary>
 public sealed class StringInternPool
 {
     private readonly Dictionary<string, int> _indexByValue = new(StringComparer.Ordinal);

@@ -1,6 +1,6 @@
 namespace LivingWorld.Infrastructure.Records;
 
-/// <summary>Linha append-only da tabela de fatos (Fase 10, HIST-02) — imutável; corrigir
+/// <summary>Linha append-only da tabela de fatos — imutável; corrigir
 /// história é evento compensatório novo, nunca <c>UPDATE</c>.</summary>
 public sealed class FactLogRecord
 {

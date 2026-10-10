@@ -24,11 +24,11 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Behavior.Decision;
 
-/// <summary>Escolhe a ação do tick de cada NPC vivo (Fase 4 — NEEDS-05..16): rotina diária por
+/// <summary>Escolhe a ação do tick de cada NPC vivo: rotina diária por
 /// padrão, utility AI só quando alguma necessidade supera o limiar de urgência do cenário, com
 /// bônus de continuidade (histerese), conclusão de ação ao atingir a duração máxima declarada, e
 /// deslocamento com custo real quando a ação vencedora exige um local diferente do atual.
-/// <c>Sleep</c> usa um lugar de descanso alcançável (chão/moradia/cama, T12); sem caminho o NPC
+/// <c>Sleep</c> usa um lugar de descanso alcançável (chão/moradia/cama); sem caminho o NPC
 /// bloqueia no local atual em vez de teleportar.</summary>
 public sealed class BehaviorDecisionSystem : ISimulationSystem
 {
@@ -72,7 +72,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         // ambiente na mesma hora). Sem isso, CityPopulationQuery.Population (O(população)) era
         // chamada a cada NPC dentro de MoveOneAmbientStep. A contagem não muda dentro do próprio
         // tick por causa de passeio ambiente (só afeta CurrentLocation, não City), então o
-        // resultado é idêntico ao recalculado por chamada (PERF-06/07).
+        // resultado é idêntico ao recalculado por chamada.
         var cityPopulationCache = new Dictionary<CityId, long>();
         var cityBoundsCache = new Dictionary<CityId, CityBounds>();
 
@@ -147,7 +147,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
     internal static IEnumerable<Npc> TargetsForTick(WorldState world) => world.NpcWakeBatch;
 
-    /// <summary>Fase 28 T6 (COG-02): só grava rastro quando o NPC está materializado (linha em
+    /// <summary>Só grava rastro quando o NPC está materializado (linha em
     /// <see cref="WorldState.Npcs"/>) e dentro do escopo observacional com detalhe cosmético
     /// pleno — ver <see cref="MaterializationSystem.HasFullCosmeticDetail"/>; nunca para pool
     /// agregado nem NPC aproximado (ex.: interior sem escopo de prédio).</summary>
@@ -184,7 +184,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
         if (now - npc.ActionStartedAtTick < catalog.MaxDurationHours[action]) return false;
 
-        // LWV-02.3 (T9): sem workplace real (Employer nulo), Work nunca fabrica deslocamento —
+        // Sem workplace real (Employer nulo), Work nunca fabrica deslocamento —
         // NPC bloqueado fica onde está em vez de "trabalhar" andando à toa sem destino nenhum.
         if (action is ActionType.Idle or ActionType.Socialize || (action == ActionType.Work && npc.Employer is not null))
             MoveOneAmbientStep(world, npc, ctx, now, action, occupancy, cityPopulationCache, cityBoundsCache);
@@ -197,7 +197,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     /// isso, um NPC que já andou nesta rodada continuaria "fantasma" na célula antiga pros
     /// próximos NPCs avaliados no mesmo `Tick` (ou "preso" na nova, bloqueando a si mesmo).</summary>
     /// <summary>População da cidade memoizada por tick — ver comentário no início de
-    /// <see cref="Tick"/> (PERF-06/07).</summary>
+    /// <see cref="Tick"/>.</summary>
     private static long PopulationOf(WorldState world, CityId city, Dictionary<CityId, long> cache)
     {
         if (!cache.TryGetValue(city, out var population))
@@ -216,9 +216,9 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         WorldState world, Npc npc, TickContext ctx, long tick, ActionType action, HashSet<CellCoord> occupancy,
         Dictionary<CityId, long> cityPopulationCache, Dictionary<CityId, CityBounds> cityBoundsCache)
     {
-        // dynamic-city-growth, T4b: ResolveGrownBounds realimenta os boxes de overflow das
+        // ResolveGrownBounds realimenta os boxes de overflow das
         // próprias buildings da cidade, então o passeio ambiente já respeita os bounds crescidos
-        // (CITYGROW-03/05) em vez do teto só-população de antes.
+        // em vez do teto só-população de antes.
         CityBounds? homeBounds = null;
         if (world.FindCity(npc.City) is { } city)
         {
@@ -501,8 +501,8 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         PendingPowerInvocation? PendingPower,
         DecisionTrace Trace);
 
-    /// <summary>Escolhe ação por utility e expõe <see cref="DecisionTrace"/> volátil (COH-54).
-    /// Foresight (REALISM-31/32, AD-011) entra via <see cref="DecisionContext.ForesightPreviews"/>
+    /// <summary>Escolhe ação por utility e expõe <see cref="DecisionTrace"/> volátil.
+    /// Foresight entra via <see cref="DecisionContext.ForesightPreviews"/>
     /// — dicionário vazio compartilhado no caminho comum, sem parâmetro paralelo omnisciente.</summary>
     internal static UtilityDecision SelectByUtility(
         DecisionContext ctx, NeedsRules rules, EconomyRules economy, ActionType? continuityAction,
@@ -629,7 +629,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             KnownAlternatives: alternatives);
     }
 
-    /// <summary>Utility de candidato dinâmico de poder (COH-33 / AD-012):
+    /// <summary>Utility de candidato dinâmico de poder:
     /// <c>Urgency×w − Cost×w − Risk×w + Reliability×w</c>.</summary>
     internal static double PowerOpportunityUtility(
         PowerOpportunity opp, DecisionContext ctx, PowerUtilityRules rules)
@@ -666,7 +666,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         return urgency;
     }
 
-    /// <summary>Fator de utility a partir do preview de foresight (REALISM-31):
+    /// <summary>Fator de utility a partir do preview de foresight:
     /// desfecho ruim → fator &lt; 1; sucesso → fator ≥ 1; PartialSuccess neutro.</summary>
     internal static double ForesightUtilityFactor(ResolutionResult preview) => preview switch
     {

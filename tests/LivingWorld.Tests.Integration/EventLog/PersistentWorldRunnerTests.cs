@@ -1,9 +1,11 @@
+using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Infrastructure;
 using LivingWorld.Infrastructure.EfCore;
 using LivingWorld.Infrastructure.EventLog;
 using LivingWorld.Infrastructure.Repositories;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Population.Archive;
 using LivingWorld.Simulation.Scenarios;
 using Microsoft.EntityFrameworkCore;
 
@@ -104,6 +106,57 @@ public class PersistentWorldRunnerTests
         {
             File.Delete(dbPath);
         }
+    }
+
+    [Fact]
+    public void Cold_tier_archive_survives_a_snapshot_and_resume_cycle_through_a_real_coldtier_file()
+    {
+        string coldTierPath = Path.Combine(Path.GetTempPath(), $"livingworld-coldtier-{Guid.NewGuid():N}.bin");
+        try
+        {
+            using var context = OpenInMemoryDb();
+            var coldTier = new ColdTierPersistence(coldTierPath);
+            var runner = new PersistentWorldRunner(
+                new SqliteWorldRepository(context), BranchId.Root, snapshotIntervalTicks: 1, coldTier);
+            var sink = new BufferingWorldEventSink();
+            var (world, _) = ScenarioRunner.Create(Seed);
+
+            // Arquivamento natural exige anos de simulação (rules.ColdArchiveAfterYears) — injeta
+            // direto no arquivo frio pra testar só a fiação save/load, sem rodar T=anos de tick.
+            world.ColdArchive.RestoreNpcSummaries(new Dictionary<long, ColdTierArchive.NpcSummary>
+            {
+                [1] = new(new NpcId(1), "Aldric", Sex.Male, WorldDate.Epoch(world.Calendar).AddYears(-60),
+                    WorldDate.Epoch(world.Calendar).AddYears(-10), new CultureId(1), new ProfessionType(1)),
+            });
+            var archived = world.ColdArchive.AllNpcSummaries;
+            runner.Snapshot(world, sink);
+
+            var resumed = new PersistentWorldRunner(
+                new SqliteWorldRepository(context), BranchId.Root, snapshotIntervalTicks: 1, coldTier).LoadLatest()!;
+
+            Assert.Equal(archived.Count, resumed.ColdArchive.AllNpcSummaries.Count);
+            foreach (var (id, summary) in archived)
+                Assert.Equal(summary, resumed.ColdArchive.Lookup(id));
+        }
+        finally
+        {
+            File.Delete(coldTierPath);
+        }
+    }
+
+    [Fact]
+    public void Snapshot_without_a_coldtier_configured_behaves_exactly_as_before_this_change()
+    {
+        using var context = OpenInMemoryDb();
+        var runner = new PersistentWorldRunner(new SqliteWorldRepository(context), BranchId.Root, snapshotIntervalTicks: 1);
+        var sink = new BufferingWorldEventSink();
+        var (world, clock) = ScenarioRunner.Create(Seed);
+        clock.Run(world, T);
+
+        runner.Snapshot(world, sink);
+        var resumed = runner.LoadLatest()!;
+
+        Assert.Empty(resumed.ColdArchive.AllNpcSummaries);
     }
 
     private static WorldDbContext OpenInMemoryDb()

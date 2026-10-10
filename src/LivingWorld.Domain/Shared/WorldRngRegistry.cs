@@ -1,7 +1,7 @@
 namespace LivingWorld.Domain.Shared;
 
-/// <summary>Um stream de <see cref="WorldRng"/> por chave, derivado uma única vez da seed raiz
-/// (ADR-0005). O stream persiste e avança ao longo da run; a raiz nunca é consumida
+/// <summary>Um stream de <see cref="WorldRng"/> por chave, derivado uma única vez da seed raiz.
+/// O stream persiste e avança ao longo da run; a raiz nunca é consumida
 /// diretamente (só serve de fonte para <see cref="WorldRng.Derive"/>), então adicionar um
 /// stream novo não desloca a sequência dos streams já existentes.</summary>
 public sealed class WorldRngRegistry
@@ -29,7 +29,7 @@ public sealed class WorldRngRegistry
     }
 
     /// <summary>Stream de rolagem única derivado de <c>(seed, purpose, id)</c> sem persistir no
-    /// snapshot (PERF-13) — mesma sequência inicial que <see cref="Stream"/> produziria.</summary>
+    /// snapshot — mesma sequência inicial que <see cref="Stream"/> produziria.</summary>
     public WorldRng StreamFor(string purpose, long id) =>
         _root.Derive(StableHash($"{purpose}-{id}"));
 
@@ -39,7 +39,7 @@ public sealed class WorldRngRegistry
 
     /// <summary>Hash FNV-1a de 64 bits: estável entre processos, ao contrário de
     /// <see cref="string.GetHashCode()"/>, que .NET randomiza por processo. Exposto como
-    /// <c>internal</c> (task 7) para código Domain puro sem <see cref="WorldRngRegistry"/> à
+    /// <c>internal</c> para código Domain puro sem <see cref="WorldRngRegistry"/> à
     /// mão (ex.: <c>PopulationGenerator</c>, que só recebe um <see cref="WorldRng"/> já
     /// derivado) montar sub-streams nomeados a partir dele, mesma convenção de chave usada
     /// aqui.</summary>

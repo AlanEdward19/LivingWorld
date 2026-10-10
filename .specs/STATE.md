@@ -311,6 +311,14 @@
 - **Date**: 2026-08-27
 - **Status**: active
 
+### AD-034
+- **Decision**: `ScenarioLoaderV2` é o único loader de cenário. `ScenarioLoader` (v1, só mapa+população) foi removido; `scenarios/default.json` (mapa 20x20) e `scenarios/test-scifi.json` (mapa 40x40) migraram pro schema completo (blocos Economy/Cities/Dynamics). `PersistentWorldRunner` ganhou `ColdTierPersistence?` opcional (arquivo `<db>.coldtier`, só NPCs): salva em `Snapshot`, reidrata em `LoadLatest/LoadAt`; banco `:memory:` não persiste cold tier. `DecisionMetrics` e `DecisionSandbox` ficam (consumidor real só em teste, por desenho da Fase 16.3/28).
+- **Reason**: auditoria `.specs/features/dead-code-audit/` — v1 sem consumidor de produção; cold tier da Fase 28 (T20) existia e era testado mas nenhum caminho real de save/resume o chamava, então restart perdia o arquivo frio.
+- **Trade-off**: mapas maiores nos 2 cenários (10x10 não comportava o footprint dos workplaces autorados). Fauna/flora arquivados continuam só em memória (formato de disco cobre NPC). Golden/scale-sensor não foram regravados nesta rodada — o usuário confirma no gate.
+- **Scope**: `src/LivingWorld.Simulation/Scenarios/`, `src/LivingWorld.Infrastructure/PersistentWorldRunner.cs`, Api/Workers `Program.cs`, `scenarios/*.json`.
+- **Date**: 2026-10-10
+- **Status**: active
+
 ## Handoff
 
 - **Feature**: Body→combat sizing (AD-031) — **done** on `feat/body-combat-sizing`

@@ -3,7 +3,7 @@ using LivingWorld.Domain.Population;
 
 namespace LivingWorld.Domain.Fauna;
 
-/// <summary>Entidade animal mínima (PWR-77). Não é NPC: sem personalidade, profissão ou família.</summary>
+/// <summary>Entidade animal mínima. Não é NPC: sem personalidade, profissão ou família.</summary>
 public readonly record struct AnimalId(long Value)
 {
     public override string ToString() => $"animal-{Value}";

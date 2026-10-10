@@ -27,7 +27,7 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Fase 15, T9: documento OpenAPI (/openapi/v1.json) — fonte pros tipos TS do cliente web,
+// Documento OpenAPI (/openapi/v1.json) — fonte pros tipos TS do cliente web,
 // gerados por scripts/generate-web-types.sh a partir deste endpoint.
 builder.Services.AddOpenApi();
 
@@ -40,14 +40,18 @@ var worldDbOptions = new DbContextOptionsBuilder<WorldDbContext>().UseSqlite(wor
 using (var migrationContext = new WorldDbContext(worldDbOptions))
     migrationContext.Database.Migrate();
 
-// Fase 15, T2 (VTT-01..03): host canônico compartilhado — resolve o SPEC_DEVIATION de Fase 8,
-// T15 (mundo efêmero recriado a cada start) carregando o snapshot mais recente de um
-// IWorldRepository real; sem snapshot salvo ainda (primeiro start), cria o cenário default e
-// já persiste, para o host nunca ficar sem lastro no repositório. `historyRules:
-// HistoryRules.Default` liga a separação Crença/Verdade (Fase 12, T7) que GET
+// Host canônico compartilhado — resolve o mundo efêmero recriado a cada start carregando o
+// snapshot mais recente de um IWorldRepository real; sem snapshot salvo ainda (primeiro
+// start), cria o cenário default e já persiste, para o host nunca ficar sem lastro no
+// repositório. `historyRules: HistoryRules.Default` liga a separação Crença/Verdade que GET
 // /narratives/reports precisa para calcular confiança.
 var worldRepository = new SqliteWorldRepository(new WorldDbContext(worldDbOptions));
-var worldRunner = new PersistentWorldRunner(worldRepository, BranchId.Root, snapshotIntervalTicks: 24);
+// Arquivo frio (ColdTierArchive) só persiste em disco quando o banco também é um arquivo real —
+// ":memory:" (default de teste/dev) não ganha cold tier, mesmo comportamento de antes desta
+// mudança; arquivo real (run.cmd) deriva o caminho do cold tier do mesmo arquivo do banco.
+var worldDataSource = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(worldConnectionString).DataSource;
+var worldColdTier = worldDataSource is (":memory:" or "") ? null : new ColdTierPersistence(worldDataSource + ".coldtier");
+var worldRunner = new PersistentWorldRunner(worldRepository, BranchId.Root, snapshotIntervalTicks: 24, worldColdTier);
 var worldSink = new BufferingWorldEventSink();
 
 // Sessões e crônicas vivem em memória, mas a instância consultada pelos endpoints precisa ser
@@ -67,13 +71,13 @@ if (world is null)
     // Bugfix real (usuário, 2026-08-15): o comentário acima sempre disse "já persiste", mas
     // nada chamava Snapshot aqui — só `PersistentWorldRunner.Run` salva, e só a cada 24 ticks
     // (`snapshotIntervalTicks`). Um mundo recém-criado, reiniciado antes do tick 24 (ou nunca
-    // tickado, TICK_LOOP_ENABLED=false), perdia o "canônico compartilhado" que T2 prometia —
+    // tickado, TICK_LOOP_ENABLED=false), perdia o "canônico compartilhado" que este host promete —
     // reiniciar sorteava outro mundo do zero. Salva o snapshot inicial imediatamente.
     worldRunner.Snapshot(world, worldSink);
 }
 
-// Fase 16, T2: snapshot extraordinário ligado precisa reconstruir o mesmo registro seletivo;
-// o relógio não pode ser composto antes de sabermos qual mundo persistido foi carregado.
+// Snapshot extraordinário ligado precisa reconstruir o mesmo registro seletivo; o relógio
+// não pode ser composto antes de sabermos qual mundo persistido foi carregado.
 var worldClock = new WorldClock(
     ScenarioRunner.DefaultSystems(
         conversationSessions: sessions, chronicles: chronicles, extraordinary: world.Extraordinary),
@@ -85,14 +89,14 @@ var worldClock = new WorldClock(
 // `WorldCreateEndpoints` via `host.Replace`.
 var worldHost = new WorldHost(world, worldClock);
 
-// SimulationHost fica pronto no DI para pausa/velocidade/avanço (task 6) e para o gateway
-// realtime (T3) — este host ainda não ticka automaticamente (decisão explícita: T2 troca a
-// origem do mundo por persistência real, tick em tempo real fica para uma task futura).
+// SimulationHost fica pronto no DI para pausa/velocidade/avanço e para o gateway realtime —
+// este host ainda não ticka automaticamente (decisão explícita: troca a origem do mundo por
+// persistência real primeiro, tick em tempo real fica para depois).
 var simulationHost = new SimulationHost(worldHost);
 
-// Fase 15, T3 (VTT-02, VTT-10): gateway realtime lê o mesmo relógio do host canônico acima —
-// nunca dirige tick nem escreve no mundo (Publish só é chamado pelos projectors futuros com o
-// resultado de uma leitura já feita).
+// Gateway realtime lê o mesmo relógio do host canônico acima — nunca dirige tick nem escreve
+// no mundo (Publish só é chamado pelos projectors futuros com o resultado de uma leitura já
+// feita).
 var realtimeGateway = new RealtimeGateway(() => worldHost.Current.CurrentDate.TotalHours);
 
 // Registrados no DI (em vez de campos `static` em `Program`) para que cada instância de
@@ -115,10 +119,10 @@ builder.Services.AddSingleton(realtimeGateway);
 builder.Services.AddSingleton(sessions);
 builder.Services.AddSingleton(chronicles);
 
-// Fase 15.1, T3 (VTT2-26): registrado sempre (resolvível/testável direto via TickLoopService),
-// mas só roda sozinho como IHostedService com TICK_LOOP_ENABLED=true — desabilitado por default
-// pra nenhuma WebApplicationFactory de teste existente ganhar um mundo mudando sozinho embaixo
-// dela (mesmo motivo documentado em WorldHost/Program.cs:71-74).
+// Registrado sempre (resolvível/testável direto via TickLoopService), mas só roda sozinho
+// como IHostedService com TICK_LOOP_ENABLED=true — desabilitado por default pra nenhuma
+// WebApplicationFactory de teste existente ganhar um mundo mudando sozinho embaixo dela (mesmo
+// motivo documentado em WorldHost/Program.cs:71-74).
 builder.Services.AddSingleton<TickLoopService>();
 if (builder.Configuration["TICK_LOOP_ENABLED"] == "true")
     builder.Services.AddHostedService(sp => sp.GetRequiredService<TickLoopService>());
@@ -143,17 +147,16 @@ app.MapGet("/npcs/{id:long}", (long id) =>
     return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound();
 });
 
-// Fase 15.1, T49 (backend-gaps.md G9): comando explícito e nomeado — o GET acima nunca
-// materializa; quem precisa do detalhe completo de um id ainda anônimo no pool agregado chama
-// esta rota de propósito.
+// Comando explícito e nomeado — o GET acima nunca materializa; quem precisa do detalhe
+// completo de um id ainda anônimo no pool agregado chama esta rota de propósito.
 app.MapPost("/npcs/{id:long}/materialize", (long id) =>
 {
     var result = NpcInspectionQuery.MaterializeAndInspect(worldHost.Current, new NpcId(id));
     return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound();
 });
 
-// LLM_PROVIDER escolhe o provider real de diálogo (ADR-0016); default "fake" para não mudar
-// nenhum comportamento existente (gate/testes seguem sempre em FakeLlmProvider, T9).
+// LLM_PROVIDER escolhe o provider real de diálogo; default "fake" para não mudar nenhum
+// comportamento existente (gate/testes seguem sempre em FakeLlmProvider).
 ILlmProvider llmProvider = builder.Configuration["LLM_PROVIDER"] switch
 {
     "ollama" => new OllamaLlmProvider(new HttpClient()),
@@ -164,9 +167,9 @@ ILlmProvider llmProvider = builder.Configuration["LLM_PROVIDER"] switch
 var effects = new ConversationEffectsApplier();
 var orchestrator = new ConversationOrchestrator(
     sessions, effects, llmProvider,
-    // União do vocabulário original (FakeLlmProvider) com o enum do schema Ollama (ADR-0016) —
-    // superset nunca deixa passar uma emoção inválida, só evita rejeitar toda resposta real do
-    // Ollama por causa de um vocabulário pensado só para o fake.
+    // União do vocabulário original (FakeLlmProvider) com o enum do schema Ollama — superset
+    // nunca deixa passar uma emoção inválida, só evita rejeitar toda resposta real do Ollama
+    // por causa de um vocabulário pensado só para o fake.
     knownEmotions: ["neutral", "concerned", "happy", "annoyed", "curious", "afraid", "friendly", "angry", "sad", "suspicious"],
     budgetPerInteraction: TimeSpan.FromSeconds(5));
 app.MapConversationEndpoints(worldHost, sessions, orchestrator);

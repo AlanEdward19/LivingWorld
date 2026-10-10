@@ -9,8 +9,7 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Population.Family;
 
-/// <summary>Score de atração, gates de elegibilidade e cortejo agendado (Fase 7, T16,
-/// FAM-06..11).</summary>
+/// <summary>Score de atração, gates de elegibilidade e cortejo agendado.</summary>
 public sealed class CourtshipSystem : ISimulationSystem
 {
     public const string SystemName = "population-courtship";
@@ -340,9 +339,9 @@ public sealed class CourtshipSystem : ISimulationSystem
         return (wealth + profession) / 2.0;
     }
 
-    // ponytail: normaliza sobre os mesmos 13 ids fixos da Fase 6 (0..12) — teto histórico
+    // ponytail: normaliza sobre os mesmos 13 ids fixos (0..12) — teto histórico
     // preservado como constante de normalização, não decisão sobre quais habilidades existem
-    // (Fase 13 abriu SkillType/SkillSet pra id livre, mas nenhum período hoje declara catálogo
+    // (SkillType/SkillSet aceitam id livre, mas nenhum período hoje declara catálogo
     // de habilidades maior/menor que esse). Se um período vier a declarar mais/menos
     // habilidades relevantes pro score de atração, virar contagem data-driven (ex.: via
     // SkillsRules) é o upgrade natural.

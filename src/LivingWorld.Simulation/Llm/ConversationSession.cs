@@ -3,7 +3,7 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Llm;
 
-/// <summary>Sessão de conversa jogador↔NPC (Fase 11, LLM-03) — nunca canônica: vive só em
+/// <summary>Sessão de conversa jogador↔NPC — nunca canônica: vive só em
 /// memória do <see cref="ConversationSessionStore"/>, fora do snapshot/hash do mundo (mesma
 /// lógica de "conversa não é fato do mundo" do design). <see cref="SessionId"/> é <c>long</c>
 /// monotônico do próprio store — nunca <c>Guid.NewGuid()</c> (banido em Domain/Simulation,

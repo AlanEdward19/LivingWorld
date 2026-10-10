@@ -3,7 +3,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Population;
 
-/// <summary>Posição no grid para recomputação cosmética lazy (Fase 28, LOD-10) — mesmo espaço que
+/// <summary>Posição no grid para recomputação cosmética lazy — mesmo espaço que
 /// <see cref="CellCoord"/>, tipo distinto para a camada aproximada.</summary>
 public readonly record struct Position(int X, int Y)
 {
@@ -38,13 +38,13 @@ public readonly record struct MovementRoute(
 }
 
 /// <summary>Consulta de rotas cosméticas sem acoplar Domain a Simulation — implementado por
-/// <c>WorldState</c> (T5) ou por stubs de teste.</summary>
+/// <c>WorldState</c> ou por stubs de teste.</summary>
 public interface ILazyPositionWorld
 {
     bool TryGetRoute(RouteId routeId, out MovementRoute route);
 }
 
-/// <summary>Posição cosmética lazy (Fase 28, LOD-10) — valor materializado só em
+/// <summary>Posição cosmética lazy — valor materializado só em
 /// <see cref="ValueAt"/>, nunca escrito por tick quando o NPC está fora de escopo observado.</summary>
 public readonly record struct LazyPosition(Position LastKnown, long TickOfLastEvent, RouteId? PendingRoute)
 {

@@ -7,7 +7,7 @@ using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Economy.Production;
 
-/// <summary>Cadeia de água <c>travel→collect→carry→deliver</c> (Fase 15.1, Stage 4, T15).
+/// <summary>Cadeia de água <c>travel→collect→carry→deliver</c>.
 /// Fonte é célula com <see cref="MapCell.HasWater"/>; quantidade só entra no estoque na entrega.</summary>
 public static class WaterLogistics
 {

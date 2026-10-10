@@ -11,9 +11,9 @@ namespace LivingWorld.Simulation.Population.Lifecycle;
 
 /// <summary>Mata um NPC e limpa a referência de household — único ponto que faz as duas coisas
 /// juntas, reusado por todo sistema que pode matar um NPC (<see cref="MortalitySystem"/>,
-/// <see cref="NeedsDecaySystem"/>). Antes da Fase 4 só a mortalidade por idade matava NPC;
+/// <see cref="NeedsDecaySystem"/>). Antes só a mortalidade por idade matava NPC;
 /// morte por fome sustentada chamava <c>Npc.Die</c> direto e pulava a limpeza de household —
-/// achado pelo mesmo tipo de invariante que o sweep referencial (task 12, Fase 3) já cobria
+/// achado pelo mesmo tipo de invariante que o sweep referencial já cobria
 /// para dissolução. Corrigido na raiz (função compartilhada) em vez de duplicar a limpeza em
 /// cada sistema que mata NPC.</summary>
 public static class NpcDeath

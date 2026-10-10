@@ -2,10 +2,10 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Population.Body;
 
-/// <summary>Faixa etária com mortalidade anual base (task 5), dado de cenário.</summary>
+/// <summary>Faixa etária com mortalidade anual base, dado de cenário.</summary>
 public sealed record LifeTableBracket(int MinAgeYears, int MaxAgeYears, double BaseAnnualMortality);
 
-/// <summary>Tabela de vida (task 5): mortalidade por faixa etária e longevidade máxima
+/// <summary>Tabela de vida: mortalidade por faixa etária e longevidade máxima
 /// explícita. Entrada de cenário deve passar por <see cref="Create"/>, que valida cobertura
 /// contígua das faixas antes de construir.</summary>
 public sealed class LifeTable
@@ -52,8 +52,8 @@ public sealed class LifeTable
     /// <summary>Probabilidade de morte no ano corrente. Saúde pior (menor) aumenta a mortalidade
     /// base; ao atingir <see cref="MaxLongevityYears"/> a morte é certa (100%) — sem isso a
     /// tabela poderia "truncar cedo" sem nunca garantir o teto de vida do cenário.
-    /// <paramref name="vitalityMultiplier"/> (Fase 7, T9) escala o resultado — default
-    /// <c>1.0</c> preserva o comportamento anterior a T9 (AD-050); sempre clampado a
+    /// <paramref name="vitalityMultiplier"/> escala o resultado — default
+    /// <c>1.0</c> preserva o comportamento anterior à introdução deste fator; sempre clampado a
     /// <c>[0,1]</c>, nunca produz probabilidade fora de faixa.</summary>
     public double AnnualMortality(int ageYears, int health, double vitalityMultiplier = 1.0)
     {

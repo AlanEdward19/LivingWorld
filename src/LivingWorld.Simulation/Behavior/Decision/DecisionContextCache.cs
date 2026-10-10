@@ -8,8 +8,8 @@ using LivingWorld.Simulation.Extraordinary.Opportunity;
 
 namespace LivingWorld.Simulation.Behavior.Decision;
 
-/// <summary>Categorias de <see cref="DecisionContext"/> com dirty-flag independente
-/// (Fase 16.3 P2a, COH-45 / doc#60) — mesmo espírito touch-on-mutate de PERF-12.</summary>
+/// <summary>Categorias de <see cref="DecisionContext"/> com dirty-flag independente por categoria
+/// — mesmo espírito touch-on-mutate usado em outras estruturas dirty-tracked do mundo.</summary>
 [Flags]
 public enum DecisionContextCategory
 {
@@ -123,7 +123,7 @@ public static class DecisionContextCache
             ? PowerOpportunityProvider.ApplicableTo(world, npc, tick)
             : prev.PowerOpportunities;
 
-        // Foresight é volátil por tick (REALISM-30) — sempre relê; não entra no dirty-flag.
+        // Foresight é volátil por tick — sempre relê; não entra no dirty-flag.
         var foresight = ForesightMechanic.PreviewsFor(world, npc.Id, tick);
 
         var merged = new DecisionContext(

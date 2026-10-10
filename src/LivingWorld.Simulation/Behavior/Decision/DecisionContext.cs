@@ -10,10 +10,10 @@ using LivingWorld.Simulation.Extraordinary.Opportunity;
 
 namespace LivingWorld.Simulation.Behavior.Decision;
 
-/// <summary>Snapshot efêmero por (NpcId, wake) para scoring de decisão (Fase 16.3 P1b,
-/// COH-11) — nunca persistido, nunca <c>[Canonical]</c>, nunca carrega referência a
+/// <summary>Snapshot efêmero por (NpcId, wake) para scoring de decisão — nunca persistido, nunca
+/// <c>[Canonical]</c>, nunca carrega referência a
 /// <see cref="WorldState"/>. Coleções são listas vazias quando sem fatores, nunca <c>null</c>.
-/// <see cref="ForesightPreviews"/> (REALISM-30/31, AD-011) é volátil por tick; omitido/
+/// <see cref="ForesightPreviews"/> é volátil por tick; omitido/
 /// <c>null</c> ≡ <see cref="ForesightMechanic.EmptyPreviews"/> (sem alocação no caminho comum).</summary>
 public sealed record DecisionContext(
     NpcId NpcId,

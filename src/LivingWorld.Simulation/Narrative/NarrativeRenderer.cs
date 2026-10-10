@@ -1,4 +1,3 @@
-using LivingWorld.Domain;
 using LivingWorld.Domain.Llm;
 using LivingWorld.Domain.Narrative;
 using LivingWorld.Domain.Shared;
@@ -6,8 +5,8 @@ using LivingWorld.Simulation.Llm;
 
 namespace LivingWorld.Simulation.Narrative;
 
-/// <summary>Renderiza um <see cref="NarrativeDraft"/> em <see cref="NarrativeDocument"/> (Fase 12,
-/// NARR-08/NARR-12) — template determinístico é o caminho padrão e o fallback; a LLM (opcional,
+/// <summary>Renderiza um <see cref="NarrativeDraft"/> em <see cref="NarrativeDocument"/>
+/// — template determinístico é o caminho padrão e o fallback; a LLM (opcional,
 /// <c>rules/llm-boundary.md</c>) só reescreve a prosa dos claims já aprovados, nunca decide quais
 /// claims existem. Mesmo espírito de <see cref="LivingWorld.Simulation.Llm.ConversationOrchestrator"/>:
 /// provider indisponível, erro, ou saída que introduz numeral/nome órfão (<see
@@ -51,7 +50,7 @@ public static class NarrativeRenderer
     }
 
     /// <summary>Concatena o texto dos claims aprovados, na ordem recebida — mesma entrada, mesma
-    /// saída (NARR-08). Sem claims aprovados, usa um aviso fixo sem numeral/nome próprio, para
+    /// saída. Sem claims aprovados, usa um aviso fixo sem numeral/nome próprio, para
     /// nunca reprovar a própria ancoragem que ele mesmo deveria satisfazer.</summary>
     private static string RenderTemplate(IReadOnlyList<NarrativeClaim> approvedClaims) =>
         approvedClaims.Count == 0

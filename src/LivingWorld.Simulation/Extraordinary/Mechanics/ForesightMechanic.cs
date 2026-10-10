@@ -10,7 +10,7 @@ using LivingWorld.Simulation.Scheduling;
 namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 
 /// <summary>
-/// Precognição probabilística (PWR-120..122 / REALISM-30): <c>foresight.preview:&lt;evento&gt;</c>
+/// Precognição probabilística: <c>foresight.preview:&lt;evento&gt;</c>
 /// roda <see cref="Resolver.Resolve"/> no mesmo cálculo que o evento usaria agora,
 /// num RNG forked — sem mutar estado canônico e sem gravar <see cref="Fact"/>.
 /// Quando <c>evento</c> é um <see cref="ActionType"/>, o <see cref="ResolutionResult"/>
@@ -21,7 +21,7 @@ public sealed class ForesightMechanic : ExtraordinaryMechanic
     public const string PreviewPrefix = "foresight.preview:";
 
     /// <summary>Dicionário vazio compartilhado — caminho comum sem foresight (sem alocação).
-    /// REALISM-32 / Risk design hot-path.</summary>
+    /// Risk design hot-path.</summary>
     public static readonly IReadOnlyDictionary<ActionType, ResolutionResult> EmptyPreviews =
         new Dictionary<ActionType, ResolutionResult>();
 
@@ -61,7 +61,7 @@ public sealed class ForesightMechanic : ExtraordinaryMechanic
         }));
     }
 
-    /// <summary>Previews do portador no tick corrente (REALISM-30). Volátil — não entra no
+    /// <summary>Previews do portador no tick corrente. Volátil — não entra no
     /// hash canônico. Tick diferente ou sem entradas → <see cref="EmptyPreviews"/>.</summary>
     public static IReadOnlyDictionary<ActionType, ResolutionResult> PreviewsFor(
         WorldState world, NpcId carrier, long tick)

@@ -7,9 +7,9 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Economy.Labor;
 
-/// <summary>Liga NPC adulto desempregado a um <see cref="Workplace"/> com vaga livre (Fase 5,
-/// ECON-18/19/20), <c>Daily</c> (AD-042 — vaga não precisa reagir por hora). Respeita
-/// <see cref="EconomyRules.Enabled"/> (ECON-05: desligar a economia desliga este sistema
+/// <summary>Liga NPC adulto desempregado a um <see cref="Workplace"/> com vaga livre,
+/// <c>Daily</c> (vaga não precisa reagir por hora). Respeita
+/// <see cref="EconomyRules.Enabled"/> (desligar a economia desliga este sistema
 /// também).</summary>
 public sealed class EmploymentSystem : ISimulationSystem
 {
@@ -25,7 +25,7 @@ public sealed class EmploymentSystem : ISimulationSystem
         var vacancyIndex = VacancyIndex.BuildForTick(world);
 
         // Desliga primeiro quem ficou órfão (Workplace sumiu ou o próprio NPC morreu) — nunca um
-        // Npc.Employer aponta pra Workplace inexistente ao fim do tick (ECON-20/ECON-04).
+        // Npc.Employer aponta pra Workplace inexistente ao fim do tick.
         foreach (var npc in world.AliveNpcIndex.Alive)
         {
             if (npc.Employer is not { } employerId) continue;

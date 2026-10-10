@@ -5,8 +5,8 @@ using LivingWorld.Simulation.Scenarios;
 
 namespace LivingWorld.Simulation.History.Distortion;
 
-/// <summary>Digest determinístico de correção compensatória (Fase 10, HIST-24) — usado pelos
-/// testes de dois processos.</summary>
+/// <summary>Digest determinístico de correção compensatória — usado pelos testes de dois
+/// processos.</summary>
 public static class HistoryCorrectionDigest
 {
     public static string Compute(ulong seed)

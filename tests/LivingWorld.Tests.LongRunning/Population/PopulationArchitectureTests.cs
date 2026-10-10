@@ -60,7 +60,7 @@ public class PopulationArchitectureTests
     {
         const long sampleEveryHours = 24;
         string json = File.ReadAllText(Path.Combine(FindRepoRoot(), "scenarios", "test-scifi.json"));
-        var result = ScenarioLoader.LoadWorld(json);
+        var result = ScenarioLoaderV2.LoadWorld(json);
         Assert.True(result.IsSuccess, result.Error);
 
         var (world, clock) = result.Value;
@@ -85,7 +85,7 @@ public class PopulationArchitectureTests
     public void Default_scenario_file_loads_and_matches_ScenarioRunner_defaults()
     {
         string json = File.ReadAllText(Path.Combine(FindRepoRoot(), "scenarios", "default.json"));
-        var result = ScenarioLoader.LoadWorld(json);
+        var result = ScenarioLoaderV2.LoadWorld(json);
         Assert.True(result.IsSuccess, result.Error);
         Assert.Equal(20, result.Value.World.Npcs.Count);
     }

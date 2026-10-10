@@ -7,9 +7,9 @@ using LivingWorld.Simulation.Extraordinary.Systems;
 
 namespace LivingWorld.Simulation.Extraordinary.Opportunity;
 
-/// <summary>Expõe powers aplicáveis do portador como candidatos de utility (Fase 16.3 P1d,
-/// COH-31/32). Filtra por Mode (<see cref="ExtraordinaryInvocationEngine.IsAvailable"/>)
-/// e por estágio de evolução (16.2 <c>CurrentStageIndex</c>/<c>Stages</c>).</summary>
+/// <summary>Expõe powers aplicáveis do portador como candidatos de utility.
+/// Filtra por Mode (<see cref="ExtraordinaryInvocationEngine.IsAvailable"/>)
+/// e por estágio de evolução (<c>CurrentStageIndex</c>/<c>Stages</c>).</summary>
 public static class PowerOpportunityProvider
 {
     /// <summary>Origem padrão da decisão do Agent — só Modes Active/Conditional entram.</summary>

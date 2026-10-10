@@ -1,15 +1,13 @@
 using LivingWorld.Api.Realtime;
-using LivingWorld.Api.Visual;
 using LivingWorld.Api.Visual.Scope;
 using LivingWorld.Infrastructure;
 using LivingWorld.Infrastructure.EventLog;
-using LivingWorld.Simulation;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Hosting;
 
 namespace LivingWorld.Api.Simulation;
 
-/// <summary>Fase 15.1, T3 (VTT2-26): decide QUANDO chamar <see cref="WorldClock.Tick"/> — nunca
+/// <summary>Decide QUANDO chamar <see cref="WorldClock.Tick"/> — nunca
 /// O QUE o tick faz (essa fronteira é de <c>rules/simulation-determinism.md</c>: o loop só
 /// dirige o relógio, todo o comportamento de simulação continua em <see cref="WorldClock"/> e
 /// nos <c>ISimulationSystem</c>). Roda no ritmo de <see cref="SimulationHost.TicksPerSecond"/>
@@ -78,7 +76,7 @@ public sealed class TickLoopService(
         foreach (var scopeKey in gateway.SubscribedScopeKeys)
         {
             if (scopeKey != "world" && !scopeKey.StartsWith("city:", StringComparison.Ordinal))
-                continue; // T3 cobre World/City; escopos Interior ficam fora do escopo desta task.
+                continue; // Só cobre escopos World/City; Interior ainda não publica delta aqui.
 
             var scope = ParseScope(scopeKey);
             var state = LivingScopeProjector.Build(world, scope, sink.EventsAt(tick));

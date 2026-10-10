@@ -2,7 +2,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Population.Body;
 
-/// <summary>Estágio de vida do NPC (Fase 4, task 3), usado pela rotina diária
+/// <summary>Estágio de vida do NPC, usado pela rotina diária
 /// (<c>ActionCatalog.RoutineOf</c>) — nunca a idade bruta.</summary>
 public enum LifeStage
 {

@@ -9,7 +9,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Cities;
 
-/// <summary>Cidade (Fase 8, T1, CITY-01/CITY-04): população/riqueza/saúde/desigualdade nunca são
+/// <summary>Cidade: população/riqueza/saúde/desigualdade nunca são
 /// campo escrito à mão — nascem sempre de <see cref="CityPopulationQuery"/> sobre
 /// <c>WorldState.Npcs</c> (filtrado por <see cref="CityId"/>) + <see cref="AggregatePool"/>.
 /// Mesmo molde de <see cref="Household"/>/<see cref="Workplace"/>: construtor único de
@@ -23,56 +23,55 @@ public sealed class City
     public CityId? MergedIntoCityId { get; private set; }
     public long? MergeScheduledAtTick { get; private set; }
 
-    /// <summary>Nome canônico (Fase 15.1, T44): autorado no World Creator, ou composto por
-    /// <c>CityNameGenerator</c> (ADR-0013, gramática procedural) quando a simulação funda a
+    /// <summary>Nome canônico: autorado no World Creator, ou composto por
+    /// <c>CityNameGenerator</c> (gramática procedural) quando a simulação funda a
     /// cidade (SettlementFoundingSystem) ou quando o cenário não declara um.</summary>
     public string Name { get; }
 
     public AggregatePopulationPool AggregatePool { get; private set; }
 
-    // SPEC_DEVIATION (Fase 8, fix round 1, gap 1 — CITY-01 AC1): design.md prometia estes 3
-    // campos como stub vazio (task 1 só pede que "existam"). Sempre a mesma instância singleton
-    // — nenhum estado a carregar, então não afeta round-trip/conservação (CITY-04 AC3).
+    // SPEC_DEVIATION: design.md prometia estes 3 campos como stub vazio. Sempre a mesma
+    // instância singleton — nenhum estado a carregar, então não afeta round-trip/conservação.
     public CityGovernment Government => CityGovernment.Empty;
     public CityCulture Culture => CityCulture.Empty;
     public CityTechnology Technology => CityTechnology.Empty;
 
-    // SPEC_DEVIATION (Fase 8, T10): design.md declara City.ConstructionQueue/BuildingIds, mas T1
-    // (Foundation) não os incluiu. ConstructionSystem precisa de uma fila e de um estoque de
+    // SPEC_DEVIATION: design.md declara City.ConstructionQueue/BuildingIds, mas a foundation
+    // não os incluiu. ConstructionSystem precisa de uma fila e de um estoque de
     // insumo por cidade para existir — BuildingIds não é necessário (world.Buildings já filtra
     // por Building.City, mesmo padrão de CityPopulationQuery filtrando Npcs por Npc.City).
 
     private readonly Dictionary<ResourceType, long> _stock;
 
-    /// <summary>Insumo de construção da cidade (Fase 8, T10, CITY-03) — mesmo molde de
+    /// <summary>Insumo de construção da cidade — mesmo molde de
     /// <see cref="Household.Stock"/>, sem capacidade declarada nesta fase.</summary>
     public IReadOnlyDictionary<ResourceType, long> Stock => _stock;
 
     private readonly List<ConstructionProject> _constructionQueue;
 
-    /// <summary>Fila FIFO de obras em progresso (Fase 8, T10, CITY-03) — <see
+    /// <summary>Fila FIFO de obras em progresso — <see
     /// cref="ConstructionSystem"/> só avança a cabeça da fila.</summary>
     public IReadOnlyList<ConstructionProject> ConstructionQueue => _constructionQueue;
 
     private readonly List<ReportState> _canonSlots;
 
-    /// <summary>Relatos vivos no cânone desta comunidade (Fase 10, HIST-08) — no máximo
+    /// <summary>Relatos vivos no cânone desta comunidade — no máximo
     /// <see cref="HistoryRules.CanonSizePerCommunity"/>.</summary>
     public IReadOnlyList<ReportState> CanonSlots => _canonSlots;
 
-    // SPEC_DEVIATION (Fase 8, T13): SettlementFoundingSystem agenda um evento único (mesmo padrão
+    // SPEC_DEVIATION: SettlementFoundingSystem agenda um evento único (mesmo padrão
     // de MortalitySystem.SchedulePlannedDeath) e não pode agendar duas vezes pra mesma cidade
     // enquanto o primeiro ainda não disparou — sem um marcador, o Monthly Tick reagendaria todo
     // mês enquanto os limiares continuarem batidos.
 
-    /// <summary>Tick em que a fundação de assentamento foi agendada (Fase 8, T13, CITY-08) —
+    /// <summary>Tick em que a fundação de assentamento foi agendada —
     /// null enquanto nenhuma fundação estiver pendente. Impede reagendar a mesma cidade.</summary>
     public long? FoundingScheduledAtTick { get; private set; }
 
     private readonly List<NpcId> _poolNpcIds;
 
-    /// <summary>Ids reservados e ainda não materializados de <see cref="AggregatePool"/> (T50,
-    /// reabre CITY-05 AC2) — sempre <c>_poolNpcIds.Count == AggregatePool.Count</c>. Cada membro
+    /// <summary>Ids reservados e ainda não materializados de <see cref="AggregatePool"/>
+    /// — sempre <c>_poolNpcIds.Count == AggregatePool.Count</c>. Cada membro
     /// do pool passa a ter identidade estável clicável antes de materializar, mantida em lockstep
     /// pelos mesmos métodos que já mexem em <see cref="AggregatePool"/> (nenhum ponto de
     /// crescimento/encolhimento novo, só os que já existiam: carga de cenário, materializar,
@@ -173,7 +172,7 @@ public sealed class City
         return Result<Unit>.Ok(Unit.Value);
     }
 
-    /// <summary>Emigração agregada (Fase 8, T11, CITY-02): reduz <see cref="AggregatePool"/> por
+    /// <summary>Emigração agregada: reduz <see cref="AggregatePool"/> por
     /// saída anônima — diferente de <see cref="Materialize"/>, nunca cria um <see cref="Npc"/>
     /// (ninguém "chega" em lugar nenhum, o grupo só sai da conta, incluindo os ids reservados dos
     /// que saíram — T50: descartados, nunca reaproveitados). Remove a média per-head de
@@ -197,7 +196,7 @@ public sealed class City
     }
 
     /// <summary>Extrai o <see cref="AggregatePool"/> inteiro (e os ids reservados de <see
-    /// cref="PoolNpcIds"/>) e zera esta cidade (Fase 8, T13, CITY-08) — usado pela fundação de
+    /// cref="PoolNpcIds"/>) e zera esta cidade — usado pela fundação de
     /// assentamento pra mover toda a massa não-materializada pra uma cidade nova sem criar nem
     /// destruir nada (quem chama deposita os valores devolvidos na cidade nova).</summary>
     public (AggregatePopulationPool Pool, IReadOnlyList<NpcId> PoolNpcIds) ExtractEntirePool()

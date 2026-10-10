@@ -49,26 +49,26 @@ public static class ScenarioRunner
 {
     public const int DefaultInitialPopulation = 100;
 
-    /// <summary>Teto de bytes/NPC/ano do cenário default (task 13) — delega a
-    /// <see cref="DefaultPerfRules"/> (Fase 9, PERF-03).</summary>
+    /// <summary>Teto de bytes/NPC/ano do cenário default — delega a
+    /// <see cref="DefaultPerfRules"/>.</summary>
     public static long DefaultMaxBytesPerNpcPerYear => DefaultPerfRules.MaxBytesPerAliveNpcPerYear;
 
     public static readonly PerfRules DefaultPerfRules = PerfRules.Default;
 
     public static WorldCalendar DefaultCalendar { get; } = new(HoursPerDay: 24, DaysPerMonth: 30, MonthsPerYear: 12);
 
-    /// <summary>Ordem (Fase 4, task 15): decaimento de necessidade roda antes da decisão de
+    /// <summary>Ordem: decaimento de necessidade roda antes da decisão de
     /// ação no mesmo tick — senão <see cref="BehaviorDecisionSystem"/> decidiria com o dado de
     /// necessidade do tick anterior. Ambos entram depois de Mortalidade/Natalidade (NPC recém
     /// nascido/morto neste tick já participa da conta certa: morto não decide, nascido decai a
-    /// partir do próprio nascimento). Fase 5 (T20): os 4 sistemas de economia entram depois de
+    /// partir do próprio nascimento). Os 4 sistemas de economia entram depois de
     /// <see cref="BehaviorDecisionSystem"/>, nessa ordem — quem contratou hoje já pode produzir
     /// no mesmo dia (Employment antes de Production); preço reage ao estoque já atualizado
     /// (Production antes de MarketPricing); salário é o último evento do mês sobre o Treasury
-    /// que a produção/venda alimentou o mês inteiro. Fase 6 (T12): <see
+    /// que a produção/venda alimentou o mês inteiro. <see
     /// cref="SkillPracticeSystem"/> e <see cref="SkillTeachingSystem"/> entram entre Employment e
     /// Production — quem contratou hoje já pratica hoje, e a produção do mesmo dia já lê a
-    /// habilidade atualizada (mesmo raciocínio de Employment-antes-de-Production). Fase 7 (T19):
+    /// habilidade atualizada (mesmo raciocínio de Employment-antes-de-Production).
     /// <see cref="RelationshipSystem"/> entra depois de <see cref="EmploymentSystem"/> (convivência
     /// em workplace/household alimenta relações antes da prática de habilidade); <see
     /// cref="CourtshipSystem"/> entra antes de <see cref="NatalitySystem"/> (casal formado no
@@ -164,12 +164,12 @@ public static class ScenarioRunner
 
     public static readonly CellCoord DefaultVillageLocation = new(5, 5);
 
-    // Profissão 1 = lavrador, 2 = ferreiro (nome só neste comentário — o motor só vê o id,
-    // AD-023/AD-025). Sorteadas por peso uniforme na criação do NPC (Fase 4, task 7).
+    // Profissão 1 = lavrador, 2 = ferreiro (nome só neste comentário — o motor só vê o id).
+    // Sorteadas por peso uniforme na criação do NPC.
     public static readonly PopulationCatalog DefaultPopulationCatalog = new(
         CultureIds: new HashSet<int> { 1 }, ProfessionIds: new HashSet<int> { 1, 2 }, LocationTypeIds: new HashSet<int>());
 
-    // Mortalidade infantil alta (task 5) e longevidade máxima explícita: quem sobrevive à
+    // Mortalidade infantil alta e longevidade máxima explícita: quem sobrevive à
     // infância tem risco baixo até a velhice, onde sobe de novo.
     private static readonly LifeTable DefaultLifeTable = LifeTable.Create(
         maxLongevityYears: 90,
@@ -187,7 +187,7 @@ public static class ScenarioRunner
         DefaultLifeTable, fertilityMinAge: 16, fertilityMaxAge: 45, annualConceptionChance: 0.25, gestationDays: 270)
         .Value ?? throw new InvalidOperationException("population rules default inválida — bug no cenário, não no gerador");
 
-    // Conteúdo real do cenário medieval (Fase 4, task 15): decaimento por hora tal que sede
+    // Conteúdo real do cenário medieval: decaimento por hora tal que sede
     // (33h) e sono (67h) esgotam antes de fome (50h) sem comer/dormir — pressão de sobrevivência
     // mensurável em dias, não em minutos.
     public static readonly NeedsRules DefaultNeedsRules = NeedsRules.Create(
@@ -201,7 +201,7 @@ public static class ScenarioRunner
     public static readonly LifeStageRules DefaultLifeStageRules = LifeStageRules.Create(childMaxAge: 14, adultMaxAge: 64)
         .Value ?? throw new InvalidOperationException("life stage rules default inválida — bug no cenário, não no gerador");
 
-    // Fase 6 (T12): teto único (task 1 do roadmap) compartilhado pelas 13 habilidades; taxas-base
+    // Teto único compartilhado pelas 13 habilidades; taxas-base
     // por fonte — Tutoring/Parental maiores que Observation (mestre dedicado ensina melhor que
     // colega de trabalho, mesmo raciocínio de SkillTeachingSystem.GainFromTutoring); lavrador
     // (profissão 1) pratica Agriculture, ferreiro (profissão 2) pratica Craft, mesmo par de
@@ -253,7 +253,7 @@ public static class ScenarioRunner
                 deltas[(type, axis)] = 0;
         deltas[(RelationshipEventType.Cohabitation, RelationshipAxis.Trust)] = 1.5;
         deltas[(RelationshipEventType.Cohabitation, RelationshipAxis.Affection)] = 1.0;
-        // Conversa validada com o jogador (Fase 11, retrofit T6, LLM-09 AC3): ganho leve de
+        // Conversa validada com o jogador: ganho leve de
         // Trust/Affection por turno, menor que Cohabitation (convivência diária pesa mais que um
         // único turno de diálogo); Respect/Debt ficam no default 0 (conversa não demonstra
         // competência nem cria obrigação).
@@ -262,7 +262,7 @@ public static class ScenarioRunner
         return deltas;
     }
 
-    // Rotina real do cenário medieval (Fase 4, task 15): lavrador/ferreiro trabalham de dia em
+    // Rotina real do cenário medieval: lavrador/ferreiro trabalham de dia em
     // turnos distintos, adulto sem profissão específica (sentinela ProfessionType.None cai no
     // slot "any") segue o mesmo turno via slot any; todo mundo dorme à noite por estágio de
     // vida (janela sem wraparound — ActionCatalog.RoutineOf não entende hora que cruza meia-noite,
@@ -295,12 +295,12 @@ public static class ScenarioRunner
         defaultAction: ActionType.Idle)
         .Value ?? throw new InvalidOperationException("action catalog default inválido — bug no cenário, não no gerador");
 
-    // Conteúdo real do cenário medieval (Fase 5, T20): trigo (1) e água (2) são o alimento/água
-    // que Eat consome (ECON-16/17); ferro (4) é o produto da ferraria. Fazenda e ferraria são
-    // sua própria loja (AD-043 — um Workplace só, papel de produção+mercado decidido por
+    // Conteúdo real do cenário medieval: trigo (1) e água (2) são o alimento/água
+    // que Eat consome; ferro (4) é o produto da ferraria. Fazenda e ferraria são
+    // sua própria loja (um Workplace só, papel de produção+mercado decidido por
     // MarketLocationTypeIds, não uma classe Market separada) — profissão 1 (lavrador) trabalha
-    // na fazenda, profissão 2 (ferreiro) na ferraria, mesmo par já usado pela rotina (task 15).
-    // Sem recurso de célula exigido: DefaultCatalog (Geografia, Fase 2) não declara recurso
+    // na fazenda, profissão 2 (ferreiro) na ferraria, mesmo par já usado pela rotina.
+    // Sem recurso de célula exigido: DefaultCatalog (Geografia) não declara recurso
     // natural nenhum (ResourceIds vazio) — exigir um aqui travaria toda produção em silêncio.
     public static readonly EconomyRules DefaultEconomyRules = EconomyRules.Create(
         enabled: true, foodResourceId: 1, waterResourceId: 2,
@@ -349,7 +349,7 @@ public static class ScenarioRunner
         ProcessRecipe.Create(ProcessKind.Plant, new Dictionary<int, long>(), 1, 1, null, 1).Value!,
     ];
 
-    /// <summary>Espécies animais do cenário medieval default (Fase 16.4) — lobo/coelho pra
+    /// <summary>Espécies animais do cenário medieval default — lobo/coelho pra
     /// futura <c>FaunaLifecycleSystem</c>.</summary>
     public static readonly IReadOnlyList<AnimalSpeciesRules> DefaultAnimalSpeciesRules =
     [
@@ -359,7 +359,7 @@ public static class ScenarioRunner
             ReproduceProbability: 0.18, PredatorOf: null, PredationProbability: 0),
     ];
 
-    /// <summary>Espécies vegetais do cenário medieval default (Fase 16.4) — trigo alinhado ao
+    /// <summary>Espécies vegetais do cenário medieval default — trigo alinhado ao
     /// recurso alimentício <see cref="DefaultEconomyRules.FoodResourceId"/>.</summary>
     public static readonly IReadOnlyList<PlantSpeciesRules> DefaultPlantSpeciesRules =
     [
@@ -368,13 +368,13 @@ public static class ScenarioRunner
     ];
 
     /// <summary>Delta sazonal por bioma (4 estações) — bioma 1 do default tem amplitude
-    /// temperada; REALISM-12/13 exigem variação ao longo do ano.</summary>
+    /// temperada, com variação ao longo do ano.</summary>
     public static readonly IReadOnlyList<BiomeSeasonTemperatureRules> DefaultBiomeSeasonTemperatureRules =
     [
         new(BiomeId: 1, SeasonDeltas: [-6f, 0f, 10f, 2f]),
     ];
 
-    /// <summary>Receitas com tetos de trabalhadores altos para cenário de escala (PERF-01).</summary>
+    /// <summary>Receitas com tetos de trabalhadores altos para cenário de escala.</summary>
     public static EconomyCatalog ScaleEconomyCatalog(int workerCapMultiplier)
     {
         int mult = Math.Max(1, workerCapMultiplier);
@@ -404,7 +404,7 @@ public static class ScenarioRunner
     {
         int mult = Math.Max(1, vacancyMultiplier);
         // Treasury inicial grande (capital de giro do dono, estado inicial declarado — não
-        // cunhagem, ECON-26/27 continua íntegro): folha de ~36 empregados a 90-110/mês esgotaria
+        // cunhagem): folha de ~36 empregados a 90-110/mês esgotaria
         // um treasury pequeno bem antes da receita de venda (compras em lote esporádicas)
         // acompanhar, gerando WageUnpaid em cascata e, por tabela, fome real generalizada.
         var farmLocation = PlaceDefaultWorkplaceBuilding(world, city, buildingTypeId: 1);
@@ -456,7 +456,7 @@ public static class ScenarioRunner
     }
 
     /// <summary><paramref name="economyRules"/> permite ao harness de teste base/tratamento
-    /// (T25/ECON-28) variar só um parâmetro (ex.: capacidade de um recurso) sem duplicar o resto
+    /// variar só um parâmetro (ex.: capacidade de um recurso) sem duplicar o resto
     /// da montagem do cenário — default é <see cref="DefaultEconomyRules"/>, ninguém fora de
     /// teste precisa informar.</summary>
     public static (WorldState World, WorldClock Clock) Create(

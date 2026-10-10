@@ -9,7 +9,7 @@ public sealed class EventScheduler
     // Só o tick é necessário pra achar o bucket em Cancel — o índice dentro do bucket nunca era
     // lido em lugar nenhum (só escrito), então recalculá-lo com Sort()+FindIndex() a cada
     // Schedule (e reindexar o bucket inteiro a cada Cancel) era trabalho puro sem consumidor.
-    // Achado no profiling do PERF-06/07 (baseline-timings.md T2 revisado): com população grande,
+    // Achado no profiling: com população grande,
     // muitos NPCs reagendam por hora e o bucket do mesmo tick cresce — o Sort() completo por
     // inserção dominava o custo do tick (O(k log k) por chamada, k = eventos nesse tick).
     private readonly Dictionary<long, long> _tickById = new();
@@ -88,7 +88,7 @@ public sealed class EventScheduler
         _byTick.TryGetValue(tick, out var bucket) ? bucket : [];
 
     /// <summary>Todos os eventos ainda pendentes, ordenados por tick e depois por ID —
-    /// para snapshot (task 7).</summary>
+    /// para snapshot.</summary>
     public IReadOnlyList<ScheduledEvent> Snapshot() =>
         _byTick.OrderBy(kv => kv.Key)
             .SelectMany(kv => kv.Value.OrderBy(e => e.Id))

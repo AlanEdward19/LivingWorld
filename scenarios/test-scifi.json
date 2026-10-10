@@ -1,7 +1,7 @@
 {
   "_comment": "Cenário deliberadamente alienígena (task 7 da Fase 3): prova que motor não conhece nome de profissão/recurso/tipo-de-local. Piloto=20, técnico=21, plasma=7, liga=8, hangar=1, posto-de-comando=2 — só nomes aqui, nunca em src/.",
-  "Width": 10,
-  "Height": 10,
+  "Width": 40,
+  "Height": 40,
   "Seed": 7,
   "RegionSize": 5,
   "TerrainIds": [1, 2, 3],
@@ -59,5 +59,87 @@
     { "ProfessionId": null, "Stage": "Elder", "HourStart": 20, "HourEnd": 23, "Action": "Sleep" },
     { "ProfessionId": null, "Stage": "Elder", "HourStart": 0, "HourEnd": 5, "Action": "Sleep" }
   ],
-  "DefaultAction": "Idle"
+  "DefaultAction": "Idle",
+
+  "EconomyEnabled": true,
+  "FoodResourceId": 7,
+  "WaterResourceId": 8,
+  "PriceSensitivity": 0.2,
+  "CapacityByResourceLocation": { "7,1": 1000, "8,2": 1000 },
+  "SpoilagePerDayByResource": { "7": 0.01 },
+  "WageByProfession": { "20": 95, "21": 100 },
+  "PriceFloor": { "7": 1, "8": 1 },
+  "PriceCeiling": { "7": 20, "8": 15 },
+  "DemandBaselinePerNpc": { "7": 0.5, "8": 0.3 },
+  "Recipes": {
+    "1": {
+      "Inputs": {},
+      "Outputs": { "7": 10 },
+      "RequiresCellResource": null,
+      "MaxWorkersPerCycle": 60
+    },
+    "2": {
+      "Inputs": {},
+      "Outputs": { "8": 5 },
+      "RequiresCellResource": null,
+      "MaxWorkersPerCycle": 40
+    }
+  },
+  "MarketLocationTypeIds": [1, 2],
+  "LocationTypeByProfession": { "20": 1, "21": 2 },
+  "Workplaces": [
+    {
+      "LocationTypeId": 1,
+      "X": 4,
+      "Y": 5,
+      "MaxVacancies": 50,
+      "Treasury": 500000,
+      "Stock": {},
+      "Prices": { "7": 5 }
+    },
+    {
+      "LocationTypeId": 2,
+      "X": 6,
+      "Y": 5,
+      "MaxVacancies": 50,
+      "Treasury": 500000,
+      "Stock": {},
+      "Prices": { "8": 5 }
+    }
+  ],
+
+  "CitiesEnabled": true,
+  "FoodShortageThreshold": 0.1,
+  "HousingShortageThreshold": 0.1,
+  "SecurityShortageThreshold": 0.1,
+  "EmigrationRatePerDeficitUnit": 0.1,
+  "MigrationEmploymentWeight": 0.1,
+  "MigrationFoodWeight": 0.1,
+  "MigrationSecurityWeight": 0.1,
+  "MigrationFamilyTiesWeight": 0.1,
+  "FoundingConcentrationThreshold": 0.1,
+  "FoundingResourceThreshold": 0.1,
+  "FoundingRouteThreshold": 0.1,
+  "FoundingDefensibilityThreshold": 0.1,
+  "FoundingLeadershipThreshold": 0.1,
+  "OrganizationTicks": 1,
+  "MaterializationIdleTicksBeforeEligible": 1,
+  "BuildingRecipes": {},
+  "Cities": [
+    {
+      "Name": "posto-orbital",
+      "X": 5,
+      "Y": 5,
+      "FoundedAtTick": 0,
+      "AggregatePool": { "Count": 0, "WealthSum": 0, "HealthSum": 0 }
+    }
+  ],
+
+  "Dynamics": {
+    "ProfessionBiases": [
+      { "ProfessionId": 20, "Weight": 1.0 },
+      { "ProfessionId": 21, "Weight": 1.0 }
+    ],
+    "TransformationRules": []
+  }
 }

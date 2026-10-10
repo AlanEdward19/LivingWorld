@@ -8,8 +8,8 @@ using LivingWorld.Simulation.Scheduling;
 namespace LivingWorld.Simulation.Economy.Labor;
 
 /// <summary>Paga salário mensal do <see cref="Workplace.Treasury"/> ao <see cref="Npc.Wallet"/>
-/// de cada empregado (Fase 5, ECON-21/22), <c>Monthly</c>. Respeita <see
-/// cref="EconomyRules.Enabled"/> (ECON-05).</summary>
+/// de cada empregado, <c>Monthly</c>. Respeita <see
+/// cref="EconomyRules.Enabled"/>.</summary>
 public sealed class WagePaymentSystem : ISimulationSystem
 {
     public const string SystemName = "economy-wage-payment";
@@ -37,7 +37,7 @@ public sealed class WagePaymentSystem : ISimulationSystem
                 if (!debited.IsSuccess)
                 {
                     ctx.LogEvent(WorldEventKind.WageUnpaid, $"{npc.Id.Value}|{workplace.Id.Value}|{wageAmount}", sourceSystem: "WagePaymentSystem");
-                    continue; // ECON-22: nem Treasury nem Wallet mudam neste caso
+                    continue; // nem Treasury nem Wallet mudam neste caso
                 }
 
                 npc.CreditWallet(wage);

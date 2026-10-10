@@ -8,7 +8,7 @@ using LivingWorld.Simulation.Extraordinary.Mechanics;
 
 namespace LivingWorld.Simulation.Extraordinary.Inheritance;
 
-/// <summary>Modo de transferência de vínculos sociais (REALISM-29) em instanciação.</summary>
+/// <summary>Modo de transferência de vínculos sociais em instanciação.</summary>
 public enum BondTransferMode
 {
     /// <summary><c>npc.clone</c> — cópia independente dos vínculos do original.</summary>
@@ -21,7 +21,7 @@ public enum BondTransferMode
     None,
 }
 
-/// <summary>Herança de skill e vínculos para clone/split/reincarnate (REALISM-26..29).
+/// <summary>Herança de skill e vínculos para clone/split/reincarnate.
 /// Reusa a fórmula de <see cref="RateGene.Inherit"/>/<see cref="HeredityService.InheritVitality"/>
 /// e <see cref="WorldState.Relationships"/> — sem stores paralelos.</summary>
 public static class NpcInstantiationHeredity
@@ -50,7 +50,7 @@ public static class NpcInstantiationHeredity
     }
 
     /// <summary>Transfere vínculos de <paramref name="source"/> para cada alvo conforme
-    /// <paramref name="mode"/> — nunca omite por omissão (REALISM-29).</summary>
+    /// <paramref name="mode"/> — nunca omite por omissão.</summary>
     public static void TransferBonds(
         WorldState world, Npc source, IReadOnlyList<NpcId> targets, BondTransferMode mode)
     {

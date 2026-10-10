@@ -1,10 +1,9 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain;
 using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Simulation.Snapshot;
 
-/// <summary>Interning de strings repetidas no JSON do snapshot (Fase 28 T16, CMP-03): profissão
+/// <summary>Interning de strings repetidas no JSON do snapshot: profissão
 /// (tags <c>profession:</c>), traço (listas de fatores) e tag de evento
 /// (<c>SystemName</c>, <c>SourceSystem</c>, <c>Kind</c>).</summary>
 internal static class SnapshotStringInterning

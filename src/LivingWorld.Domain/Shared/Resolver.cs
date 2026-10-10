@@ -9,7 +9,7 @@ public enum ResolutionResult
     CriticalSuccess,
 }
 
-/// <summary>O "d20" do projeto (ADR-0011): primitivo único usado por todo sistema que decide
+/// <summary>O "d20" do projeto: primitivo único usado por todo sistema que decide
 /// algo incerto. Todo sorteio vem do <see cref="WorldRng"/> do mundo, nunca de RNG solto.</summary>
 public static class Resolver
 {

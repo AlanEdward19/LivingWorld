@@ -14,7 +14,7 @@ public sealed record PreviewSettlement(string Name, int X, int Y);
 public sealed record PreviewWorldResponse(
     int Width, int Height, IReadOnlyList<PreviewCell> Cells, IReadOnlyList<PreviewSettlement> Settlements, string SpatialHash);
 
-/// <summary>Preview canônico de cenário (Fase 15.1, T43/backend-gaps.md G2): usa o mesmo
+/// <summary>Preview canônico de cenário: usa o mesmo
 /// <see cref="MapScenarioLoader"/> que <c>ScenarioLoaderV2.LoadWorld</c> (via
 /// <c>PeriodDefinitionValidator</c>) consome no create — sem isso o World Creator mostra uma
 /// aproximação client-side (<c>creatorWorldVisuals.ts</c>) desconectada do mapa real que

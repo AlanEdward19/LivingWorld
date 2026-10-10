@@ -5,10 +5,10 @@ using LivingWorld.Simulation.History.Queries;
 
 namespace LivingWorld.Simulation.Llm;
 
-/// <summary>Monta o <see cref="LlmContext"/> de um turno de conversa (Fase 11, LLM-05/06) — só a
+/// <summary>Monta o <see cref="LlmContext"/> de um turno de conversa — só a
 /// partir do conhecimento do próprio NPC: <see cref="NpcBeliefQuery"/> para crença (nunca
-/// <c>HistoryTruthQuery</c>/<c>WorldState</c> global) e <see cref="MemoryRecall"/> (roadmap item
-/// 2) para memória recuperada. Quem monta o resumo/ações permitidas fora da crença
+/// <c>HistoryTruthQuery</c>/<c>WorldState</c> global) e <see cref="MemoryRecall"/>
+/// para memória recuperada. Quem monta o resumo/ações permitidas fora da crença
 /// (personalidade, profissão, `AllowedActions(npc, ctx)`) é responsabilidade do chamador — este
 /// assembler só liga crença + memória ao transporte (<see cref="LlmContext"/>) sem reimplementar
 /// nada que já exista.</summary>
@@ -37,7 +37,7 @@ public static class LlmContextAssembler
             SessionOpenedAtTick: session.OpenedAtTick);
     }
 
-    /// <summary>Mesmo funil, para o caso de uso de narrativa (Fase 12, NARR-12) — a LLM só
+    /// <summary>Mesmo funil, para o caso de uso de narrativa — a LLM só
     /// reescreve a prosa dos claims já aprovados (ancorados em evento), sem sessão de NPC nem
     /// crença/memória envolvidas.</summary>
     public static LlmContext AssembleForNarrative(IReadOnlyList<string> approvedClaimTexts) =>

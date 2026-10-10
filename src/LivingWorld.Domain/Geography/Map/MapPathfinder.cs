@@ -3,9 +3,9 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Geography.Map;
 
-/// <summary>Pathfinding mínimo entre locais (task 3): Dijkstra sobre o grid com
+/// <summary>Pathfinding mínimo entre locais: Dijkstra sobre o grid com
 /// <see cref="MovementCost"/> como peso de aresta (8-vizinhança). Base de rota comercial
-/// (Fase 5) e migração (Fase 8) — nada além do custo total do menor caminho.</summary>
+/// e migração — nada além do custo total do menor caminho.</summary>
 public static class MapPathfinder
 {
     private static readonly int[] Dx = [1, -1, 0, 0, 1, 1, -1, -1];

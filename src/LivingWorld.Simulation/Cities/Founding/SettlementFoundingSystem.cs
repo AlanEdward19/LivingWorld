@@ -7,7 +7,7 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Cities.Founding;
 
-// SPEC_DEVIATION (Fase 8, T13): design.md lista 5 limiares de fundação (concentração, recurso,
+// SPEC_DEVIATION: design.md lista 5 limiares de fundação (concentração, recurso,
 // rota, defensabilidade, liderança), mas nenhum sistema de Foundation produz dado real pra
 // recurso/rota/defensabilidade/liderança (nenhum mapa de recurso natural ligado a cidade, nenhuma
 // rota, nenhum conceito de defensabilidade ou liderança formal de assentamento). Só concentração é
@@ -18,7 +18,7 @@ namespace LivingWorld.Simulation.Cities.Founding;
 // monotônica pura da população, sem novo limiar mágico — o limiar real continua só
 // FoundingConcentrationThreshold (CityRules).
 
-/// <summary>Checa limiares de fundação de assentamento mensalmente (Fase 8, T13, CITY-08); ao
+/// <summary>Checa limiares de fundação de assentamento mensalmente; ao
 /// bater todos, agenda um evento único em <c>now + CityRules.OrganizationTicks</c> (mesmo padrão
 /// de <see cref="MortalitySystem.SchedulePlannedDeath"/>); ao disparar, funda uma <see
 /// cref="City"/> nova e move o <see cref="AggregatePopulationPool"/> inteiro da cidade-mãe pra
@@ -68,19 +68,13 @@ public sealed class SettlementFoundingSystem : ISimulationSystem
 
     private static bool AllThresholdsMet(WorldState world, CityRules rules, City city)
     {
-        double concentration = ConcentrationLevel(world, city.Id);
+        long population = CityPopulationQuery.Population(world, city.Id);
         const double unmeasuredLevel = 1.0; // ver SPEC_DEVIATION acima
 
-        return concentration >= rules.FoundingConcentrationThreshold
+        return FoundingConcentration.ClearsThreshold(population, rules)
             && unmeasuredLevel >= rules.FoundingResourceThreshold
             && unmeasuredLevel >= rules.FoundingRouteThreshold
             && unmeasuredLevel >= rules.FoundingDefensibilityThreshold
             && unmeasuredLevel >= rules.FoundingLeadershipThreshold;
-    }
-
-    private static double ConcentrationLevel(WorldState world, CityId cityId)
-    {
-        long population = CityPopulationQuery.Population(world, cityId);
-        return population / (population + 1.0);
     }
 }

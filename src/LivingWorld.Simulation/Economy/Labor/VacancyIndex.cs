@@ -5,7 +5,7 @@ using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Economy.Labor;
 
-/// <summary>Vagas abertas e workplaces com vaga por tipo de local, recomputado uma vez por dia (PERF-06).</summary>
+/// <summary>Vagas abertas e workplaces com vaga por tipo de local, recomputado uma vez por dia.</summary>
 public sealed class VacancyIndex
 {
     private readonly Dictionary<int, (int Open, int Total)> _slotsByLocationType;

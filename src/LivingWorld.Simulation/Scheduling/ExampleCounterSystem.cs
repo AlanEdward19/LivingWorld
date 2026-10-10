@@ -3,8 +3,8 @@ using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Scheduling;
 
-/// <summary>Sistema trivial (task 11): só conta quantas vezes rodou em cada frequência.
-/// Prova agendamento e determinismo — descartável quando a Fase 3 chegar com sistemas reais.</summary>
+/// <summary>Sistema placeholder/exemplo: só conta quantas vezes rodou em cada frequência.
+/// Serve para provar o agendamento e o determinismo do scheduler.</summary>
 public sealed class ExampleCounterSystem(TickFrequency frequency) : ISimulationSystem
 {
     public string Name => $"example-counter-{frequency}";

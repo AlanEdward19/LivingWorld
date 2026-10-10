@@ -2,7 +2,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Population;
 
-/// <summary>Personalidade do NPC (Fase 4, task 1): os 10 traços de <c>docs/domain/npc.md</c>,
+/// <summary>Personalidade do NPC: os 10 traços de <c>docs/domain/npc.md</c>,
 /// cada um em <c>[0,100]</c>. Sistemas ordinários não a alteram após o nascimento; a única
 /// exceção é uma intervenção explícita de autoria que substitui o conjunto validado inteiro.
 /// Modula profissão, relações e decisão momento a momento sempre como peso, nunca como trava.</summary>
@@ -39,7 +39,7 @@ public sealed record Personality(
     }
 
     /// <summary>Sorteia os 10 traços por 10 rolls independentes do stream de RNG recebido
-    /// (task 7) — cada roll é uma chamada sequencial de <see cref="WorldRng.NextDouble"/>, mesma
+    /// — cada roll é uma chamada sequencial de <see cref="WorldRng.NextDouble"/>, mesma
     /// convenção de <c>PopulationGenerator.RollAge</c>. Sempre em faixa válida, então
     /// <c>Create</c> nunca falha aqui.</summary>
     public static Personality RollFrom(WorldRng rng) => Create(

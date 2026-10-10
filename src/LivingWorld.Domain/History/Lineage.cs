@@ -2,7 +2,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.History;
 
-/// <summary>Linhagem derivada do esqueleto (Fase 10, HIST-22) — nunca tabela paralela.</summary>
+/// <summary>Linhagem derivada do esqueleto — nunca tabela paralela.</summary>
 public sealed record Lineage(
     NpcId Descendant,
     IReadOnlyList<LineageGeneration> Generations);

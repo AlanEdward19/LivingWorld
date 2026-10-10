@@ -2,7 +2,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.History.Distortion;
 
-/// <summary>Relato distorcido materializado sob demanda (Fase 10, Opção C) — volátil, nunca
+/// <summary>Relato distorcido materializado sob demanda — volátil, nunca
 /// serializado no snapshot canônico.</summary>
 public sealed record DistortedReport(
     ReportId ReportId,

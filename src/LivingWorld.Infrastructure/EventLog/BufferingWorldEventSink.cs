@@ -2,7 +2,7 @@ using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Infrastructure.EventLog;
 
-/// <summary>Acumula eventos de história em memória entre duas fronteiras de snapshot (task 10)
+/// <summary>Acumula eventos de história em memória entre duas fronteiras de snapshot
 /// — o banco só é tocado quando <see cref="DrainAll"/> é escrito, nunca durante o tick
 /// (rules/database-entities.md: "zero round-trips de banco durante o tick").</summary>
 public sealed class BufferingWorldEventSink : IWorldEventSink

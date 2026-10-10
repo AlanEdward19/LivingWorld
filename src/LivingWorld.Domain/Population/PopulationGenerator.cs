@@ -5,7 +5,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Population;
 
-/// <summary>Gerador de população inicial (task 6): pirâmide etária coerente — crianças, jovens,
+/// <summary>Gerador de população inicial: pirâmide etária coerente — crianças, jovens,
 /// adultos e idosos, sexo 50/50, casais pareados e crianças distribuídas em households. Nada de
 /// N adultos da mesma idade. Puro: toda aleatoriedade vem do <see cref="WorldRng"/> recebido.</summary>
 public static class PopulationGenerator
@@ -15,8 +15,8 @@ public static class PopulationGenerator
 
     private sealed record AgeBracket(int MinAge, int MaxAge, double Weight);
 
-    // Pesos da pirâmide etária: algoritmo interno, não dado de cenário (task 6 não pede
-    // configuração de pirâmide — só "coerente"). Elder é limitado por MaxLongevityYears abaixo.
+    // Pesos da pirâmide etária: algoritmo interno, não dado de cenário — a geração pede só
+    // "coerente", não uma pirâmide configurável. Elder é limitado por MaxLongevityYears abaixo.
     private static readonly AgeBracket[] Pyramid =
     [
         new(0, 14, 0.28),
@@ -48,20 +48,20 @@ public static class PopulationGenerator
             int health = ageYears >= 60 ? Math.Clamp(100 - (ageYears - 59) * 2, 40, 100) : 100;
             var npcId = new NpcId(nextNpcId++);
 
-            // Streams próprios por NPC (task 7, ADR-0005) — derivados do stream "population-init"
+            // Streams próprios por NPC — derivados do stream "population-init"
             // já recebido em rng, nunca um novo WorldRng raiz. WorldRngRegistry.StableHash garante
             // a mesma chave string→long usada por TickContext.Rng, então nascimento em runtime
             // (NatalitySystem) e geração inicial produzem streams com a mesma convenção.
             var personality = Personality.RollFrom(rng.Derive(WorldRngRegistry.StableHash($"personality-{npcId.Value}")));
             var profession = catalog.RollProfession(rng.Derive(WorldRngRegistry.StableHash($"profession-{npcId.Value}")));
-            // Fase 6 (SKILL-01/09): população seed não tem pais conhecidos — RollInitial em vez
+            // População seed não tem pais conhecidos — RollInitial em vez
             // de Inherit, mesmo stream próprio por NPC de personalidade/profissão acima.
             var rateGene = RateGene.RollInitial(rng.Derive(WorldRngRegistry.StableHash($"rategene-{npcId.Value}")));
             var vitality = HeredityService.RollInitialVitality(
                 rng.Derive(WorldRngRegistry.StableHash($"vitality-{npcId.Value}")));
             var upbringing = HeredityService.RollInitialUpbringing(
                 rng.Derive(WorldRngRegistry.StableHash($"upbringing-{npcId.Value}")));
-            // Fase 16.3 (COH-21): corpo mínimo — streams irmãos height-/weight-/musclemass-.
+            // Corpo mínimo — streams irmãos height-/weight-/musclemass-.
             var height = BodyGeneration.RollHeight(
                 rng.Derive(WorldRngRegistry.StableHash($"height-{npcId.Value}")), body);
             var weight = BodyGeneration.RollWeight(

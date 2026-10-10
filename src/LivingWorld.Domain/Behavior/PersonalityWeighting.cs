@@ -3,7 +3,7 @@ using LivingWorld.Domain.Population;
 
 namespace LivingWorld.Domain.Behavior;
 
-/// <summary>Peso de personalidade no utility AI (Fase 4, task 5): <c>peso = 1 + (traço/100 −
+/// <summary>Peso de personalidade no utility AI: <c>peso = 1 + (traço/100 −
 /// 0.5) × influência[traço][ação]</c>. A fórmula e a tabela de influência são o modelo de
 /// decisão em si (algoritmo), não conteúdo de cenário — por isso vivem em código, nunca em
 /// JSON (mesmo status que a fórmula de utilidade).</summary>

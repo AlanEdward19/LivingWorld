@@ -14,7 +14,7 @@ public enum ColdTierCompressionCodec : byte
 }
 
 /// <summary>Persiste <see cref="ColdTierArchive.NpcSummary"/> comprimido em disco com
-/// dicionário de strings (Fase 28, T20, CMP-01/05).</summary>
+/// dicionário de strings.</summary>
 public sealed class ColdTierPersistence
 {
     private static readonly byte[] Magic = "LWCLD1\0"u8.ToArray();

@@ -7,8 +7,8 @@ using LivingWorld.Simulation.Scenarios;
 
 namespace LivingWorld.Simulation.History.Distortion;
 
-/// <summary>Digest determinístico da cadeia de distorção (Fase 10, HIST-05/HIST-06) — usado
-/// pelos testes de dois processos.</summary>
+/// <summary>Digest determinístico da cadeia de distorção — usado pelos testes de dois
+/// processos.</summary>
 public static class HistoryDistortionDigest
 {
     public static string Compute(ulong seed, HistoryRules rules)

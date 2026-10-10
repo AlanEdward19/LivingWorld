@@ -3,10 +3,10 @@ using LivingWorld.Infrastructure.Records;
 
 namespace LivingWorld.Infrastructure.Repositories;
 
-/// <summary>Persistência de templates oficiais de período (Fase 13, T4). <see
+/// <summary>Persistência de templates oficiais de período. <see
 /// cref="Save"/> nunca sobrescreve uma versão já registrada — conflito de versão vira
-/// <see cref="Result{T}.Fail"/> determinístico (PERIOD-07..10), quem chama decide o código HTTP
-/// (409 na rota de cadastro, T5).</summary>
+/// <see cref="Result{T}.Fail"/> determinístico, quem chama decide o código HTTP
+/// (409 na rota de cadastro).</summary>
 public interface IPeriodTemplateRepository
 {
     Result<Unit> Save(PeriodTemplateRecord template);
