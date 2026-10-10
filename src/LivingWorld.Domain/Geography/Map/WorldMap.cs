@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Geography.Map;
@@ -39,6 +40,11 @@ public sealed class WorldMap
         _regionByCell = regions.SelectMany(r => r.Cells.Select(c => (c, r.Id))).ToDictionary(t => t.c, t => t.Id);
         _neighborsByRegion = BuildNeighbors(regions, _regionByCell);
     }
+
+    /// <summary>Memo de <see cref="MapPathfinder.ShortestCost"/>: o mapa é imutável, então o menor
+    /// custo entre duas células nunca muda. Consultado por NPC a cada decisão; sem isso, cada
+    /// consulta rodava um Dijkstra completo.</summary>
+    internal ConcurrentDictionary<(CellCoord Start, CellCoord Goal), Result<double>> ShortestCostCache { get; } = new();
 
     public MapCell CellAt(CellCoord coord) => _cellByCoord[coord];
 

@@ -826,25 +826,26 @@ public sealed class WorldState
 
     internal AnimalId NextAnimalIdAndAdvance() => new(_nextAnimalId++);
 
+    // Fauna e flora ficam sempre ordenadas por Id (invariante do construtor). Add/Replace/Remove
+    // preservam a ordem por busca binária — O(log n) + deslocamento, em vez de RemoveAll + Sort
+    // completo por entidade, que tornava o tick horário O(n² log n).
     public void AddAnimal(Animal animal)
     {
-        _fauna.Add(animal);
         _faunaById[animal.Id] = animal;
-        _fauna.Sort((left, right) => left.Id.Value.CompareTo(right.Id.Value));
+        InsertSortedById(_fauna, animal, a => a.Id.Value);
     }
 
     public Animal? FindAnimal(AnimalId id) => _faunaById.GetValueOrDefault(id);
 
     internal void ReplaceAnimal(Animal animal)
     {
-        _fauna.RemoveAll(existing => existing.Id == animal.Id);
-        _faunaById.Remove(animal.Id);
+        RemoveSortedById(_fauna, animal.Id.Value, a => a.Id.Value);
         AddAnimal(animal);
     }
 
     internal void RemoveAnimal(AnimalId id)
     {
-        _fauna.RemoveAll(existing => existing.Id == id);
+        RemoveSortedById(_fauna, id.Value, a => a.Id.Value);
         _faunaById.Remove(id);
     }
 
@@ -852,24 +853,43 @@ public sealed class WorldState
 
     public void AddPlant(Plant plant)
     {
-        _flora.Add(plant);
         _floraById[plant.Id] = plant;
-        _flora.Sort((left, right) => left.Id.Value.CompareTo(right.Id.Value));
+        InsertSortedById(_flora, plant, p => p.Id.Value);
     }
 
     public Plant? FindPlant(PlantId id) => _floraById.GetValueOrDefault(id);
 
     internal void ReplacePlant(Plant plant)
     {
-        _flora.RemoveAll(existing => existing.Id == plant.Id);
-        _floraById.Remove(plant.Id);
+        RemoveSortedById(_flora, plant.Id.Value, p => p.Id.Value);
         AddPlant(plant);
     }
 
     internal void RemovePlant(PlantId id)
     {
-        _flora.RemoveAll(existing => existing.Id == id);
+        RemoveSortedById(_flora, id.Value, p => p.Id.Value);
         _floraById.Remove(id);
+    }
+
+    private static int LowerBoundById<T>(List<T> sorted, long id, Func<T, long> idOf)
+    {
+        int lo = 0, hi = sorted.Count;
+        while (lo < hi)
+        {
+            int mid = (lo + hi) >>> 1;
+            if (idOf(sorted[mid]) < id) lo = mid + 1; else hi = mid;
+        }
+        return lo;
+    }
+
+    private static void InsertSortedById<T>(List<T> sorted, T item, Func<T, long> idOf) =>
+        sorted.Insert(LowerBoundById(sorted, idOf(item), idOf), item);
+
+    private static void RemoveSortedById<T>(List<T> sorted, long id, Func<T, long> idOf)
+    {
+        int index = LowerBoundById(sorted, id, idOf);
+        while (index < sorted.Count && idOf(sorted[index]) == id)
+            sorted.RemoveAt(index);
     }
 
     internal CombatEncounterId NextCombatEncounterIdAndAdvance() => new(_nextCombatEncounterId++);

@@ -496,10 +496,16 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             ? city.Location
             : null;
 
-    internal readonly record struct UtilityDecision(
-        ActionType Action,
-        PendingPowerInvocation? PendingPower,
-        DecisionTrace Trace);
+    /// <summary>O rastro é montado sob demanda: quase nenhuma decisão é gravada no
+    /// <see cref="NpcCognitionLog"/>, e derivar pressões/oportunidades custava mais que a
+    /// própria escolha da ação.</summary>
+    internal readonly struct UtilityDecision(
+        ActionType action, PendingPowerInvocation? pendingPower, Func<DecisionTrace> trace)
+    {
+        public ActionType Action { get; } = action;
+        public PendingPowerInvocation? PendingPower { get; } = pendingPower;
+        public DecisionTrace Trace => trace();
+    }
 
     /// <summary>Escolhe ação por utility e expõe <see cref="DecisionTrace"/> volátil.
     /// Foresight entra via <see cref="DecisionContext.ForesightPreviews"/>
@@ -559,8 +565,9 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             }
         }
 
-        var trace = BuildDecisionTrace(ctx, wakeReason, previousIntent, best, bestScore, scored);
-        return new UtilityDecision(best, bestPending, trace);
+        return new UtilityDecision(
+            best, bestPending,
+            () => BuildDecisionTrace(ctx, wakeReason, previousIntent, best, bestScore, scored));
     }
 
     private static DecisionTrace BuildDecisionTrace(

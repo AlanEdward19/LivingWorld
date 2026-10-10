@@ -92,9 +92,9 @@ public static class DecisionContextBuilder
             return Array.Empty<RelationshipFact>();
 
         var facts = new List<RelationshipFact>();
-        foreach (var (key, rel) in world.Relationships.OrderBy(kv => kv.Key.To.Value))
+        // Filtra antes de ordenar: ordenar o dicionário inteiro por NPC era O(R log R) por decisão.
+        foreach (var (key, rel) in world.Relationships.Where(kv => kv.Key.From == npcId).OrderBy(kv => kv.Key.To.Value))
         {
-            if (key.From != npcId) continue;
             facts.Add(new RelationshipFact(
                 key.To,
                 (int)Math.Round(rel.Trust),

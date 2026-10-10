@@ -36,7 +36,7 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
         var rulesBySpecies = IndexRules(world);
         long tick = ctx.CurrentTick;
 
-        foreach (var plant in world.Flora.OrderBy(p => p.Id.Value).ToList())
+        foreach (var plant in world.Flora.ToArray())
         {
             if (!rulesBySpecies.TryGetValue(plant.Species, out var rules))
                 continue;
@@ -79,7 +79,7 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
             .Select(p => p.Position)
             .ToHashSet();
 
-        foreach (var plant in world.Flora.OrderBy(p => p.Id.Value).ToList())
+        foreach (var plant in world.Flora.ToArray())
         {
             if (!rulesBySpecies.TryGetValue(plant.Species, out var rules))
                 continue;

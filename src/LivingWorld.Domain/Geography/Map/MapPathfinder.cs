@@ -11,7 +11,22 @@ public static class MapPathfinder
     private static readonly int[] Dx = [1, -1, 0, 0, 1, 1, -1, -1];
     private static readonly int[] Dy = [0, 0, 1, -1, 1, -1, 1, -1];
 
+    private const int MaxCachedCosts = 250_000;
+
     public static Result<double> ShortestCost(WorldMap map, CellCoord start, CellCoord goal)
+    {
+        var cache = map.ShortestCostCache;
+        if (cache.TryGetValue((start, goal), out var cached))
+            return cached;
+
+        var result = ComputeShortestCost(map, start, goal);
+        if (cache.Count >= MaxCachedCosts)
+            cache.Clear();
+        cache[(start, goal)] = result;
+        return result;
+    }
+
+    private static Result<double> ComputeShortestCost(WorldMap map, CellCoord start, CellCoord goal)
     {
         if (!map.TryGetCell(start, out _)) return Result<double>.Fail($"start: célula {start} fora do grid");
         if (!map.TryGetCell(goal, out _)) return Result<double>.Fail($"goal: célula {goal} fora do grid");
