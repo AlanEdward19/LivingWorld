@@ -59,7 +59,7 @@ public class NarrativeSecurityTests
     [Fact]
     public void NarrativeEndpoints_source_never_references_HistoryTruthQuery()
     {
-        string file = Path.Combine(FindRepoRoot(), "src", "LivingWorld.Api", "NarrativeEndpoints.cs");
+        string file = Path.Combine(FindRepoRoot(), "src", "LivingWorld.Api", "Narrative", "NarrativeEndpoints.cs");
         Assert.False(ReferencesIdentifier(file, "HistoryTruthQuery"),
             "NarrativeEndpoints.cs referencia HistoryTruthQuery — endpoints de jogo só podem ler crença");
     }
