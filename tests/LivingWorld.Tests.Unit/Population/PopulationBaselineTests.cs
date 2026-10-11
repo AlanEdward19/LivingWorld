@@ -32,7 +32,7 @@ public class PopulationBaselineTests
         var counts = new int[20];
         var options = new ParallelOptions
         {
-            MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount - 2, 1, 8),
+            MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount, 1, 8),
         };
         Parallel.For(0, counts.Length, options, index =>
             counts[index] = FinalPopulation((ulong)(index + 1)));
