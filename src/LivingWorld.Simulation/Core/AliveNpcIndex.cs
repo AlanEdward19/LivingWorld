@@ -23,6 +23,7 @@ public sealed class AliveNpcIndex
     /// <summary>Vivos com saúde ≤ <see cref="EndangeredHealth"/> (perigo observável). Mantido por
     /// <see cref="Npc.HealthObserver"/>: zero na imensa maioria dos ticks, e então nenhuma varredura de
     /// vizinhança pode encontrar ameaça.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
     public int EndangeredCount { get; private set; }
 
     public const int EndangeredHealth = 1;
