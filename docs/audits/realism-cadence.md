@@ -36,6 +36,17 @@ Leitura:
 - Espaçar também as necessidades de sobrevivência (K ≥ 4) começa a custar: mais episódios críticos. Rejeitado.
 - Ganho de CPU é modesto em escala (−14%): lá o custo é dominado por deslocamento e economia, não por despertar. O argumento da mudança é realismo, não velocidade.
 
+## Segunda rodada (AD-081): solidão crítica a cada 3 h
+Com a solidão ≤ 20 ainda respondendo por ~30% dos despertares, medi o intervalo de reavaliação dela:
+
+| Intervalo | Trabalho 9–15 h | Sono 23–4 h | Latência média / p95 | Episódios críticos | CPU |
+|---|---|---|---|---|---|
+| 1 h (antes) | 78% | 75% | 3,8 / 8 | 92 | 0,42 ms/NPC-dia |
+| **3 h (adotado)** | 78% | 75% | 3,8 / 8 | 93 | 0,37 (−12%) |
+| 6 h | 78% | 75% | 3,7 / 8 | 92 | 0,36 |
+
+Reavaliar com espera crescente as necessidades de **sobrevivência** (backoff 3–4 h) piorou o ritmo (sono noturno 75%→72%, episódios críticos 93→97) e foi rejeitado.
+
 ## Alternativas avaliadas e não adotadas
 - **Refeições em horário fixo na rotina (almoço 12 h, jantar 19 h).** Medido: o NPC passa a comer com fome 96. `Eat` repõe fome **e** sede por completo e o decaimento (2/h e 3/h) está calibrado para ~1 refeição/dia, então refeição fixa dobra o consumo sem melhorar o comportamento. Exige recalibrar porções/decaimento: decisão de design.
 - **Despertar só por evento/limiar (sem ritmo)**: deixaria o dia depender só de necessidades; perde a rotina. Descartado.

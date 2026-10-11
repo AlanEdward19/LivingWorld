@@ -8,9 +8,10 @@
 | Otimizações sem mudar comportamento (AD-074/075/076) | **6,8 min** | hashes idênticos ao código original |
 | + P1 + P2 + P3 | 4,8 min | medido **com a população morrendo de fome** (mundo pequeno = barato) |
 | + P1–P3 + B1 + Midshift + realismo (AD-077/078), sem corte novo | 25 min | a população sobrevive, então o custo acompanha os vivos |
-| + `One_sim_year` sem 5.000 NPCs (aplicado) | **12 min** (soma 26,7 min de teste) | 111 passam, 0 falham, 7 ignorados |
+| + `One_sim_year` sem 5.000 NPCs (aplicado) | 12 min (soma 26,7 min de teste) | 111 passam, 0 falham, 7 ignorados |
+| + otimizações de decisão (AD-081) | **4 min 50 s** (soma 12,2 min) | 110 passam, 7 ignorados; população saudável (o custo que antes era de 25 min) |
 
-Maiores restantes: `Ten_k` 346 s, `Population_100x` 289 s, sensor 5k 193 s, `FamilyPaired` Vitality 103 s, `BytesPerNpc` 92 s.
+Maiores restantes: `Population_100x` 121 s, `Ten_k` 91 s, `LifeTable100Years` 79 s, `BytesPerNpc` 63 s, `FamilyPaired` Vitality 58 s. P5–P7 deixam de ser necessárias para a meta de 5 min; ficam como folga opcional.
 
 ## Corte aplicado depois de B1
 | # | Ajuste | Ganho | Impacto |

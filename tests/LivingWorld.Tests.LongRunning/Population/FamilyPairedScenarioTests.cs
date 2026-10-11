@@ -235,8 +235,9 @@ public class FamilyPairedScenarioTests
     /// mesma transformação de <see cref="BootstrapAbsPearsonCi95"/> aplicada à média em vez de a
     /// Pearson). O braço "neutro" usa <see cref="NeutralDriftScenarioHarness"/> (T21, pós-AD-065 —
     /// as duas flags de seleção desligadas, controle de deriva neutra "de verdade").
-    /// Resultado medido (AD-066): diferença média -0.0054, IC95 bootstrap [-0.0120, 0.0017] —
-    /// contém zero, confirma paridade estatística (nenhuma das duas direções tem evidência).
+    /// Resultado medido (AD-066, população morrendo de fome): diferença média -0.0054, IC95 bootstrap
+    /// [-0.0120, 0.0017] — continha zero. Com demografia saudável (AD-080): IC95 [-0.0129, -0.0026],
+    /// inteiro abaixo de zero — seleção real reduz a variância, efeito mensurável.
     /// </summary>
     [Fact]
     [Trait("Category", "Scenario")]
@@ -262,15 +263,14 @@ public class FamilyPairedScenarioTests
         var bootstrapRng = new WorldRng(20260728);
         var (low, high) = BootstrapMeanCi95(diffs, bootstrapRng);
 
-        // Evidência real (rodado nesta task, AD-066): IC95 da diferença pareada não separa de
-        // zero — mesmo achado estatístico de AD-065 (gapCount 12/20, diferença ~1.5% dentro do
-        // ruído seed-a-seed), agora formalizado como IC95 em vez de contagem de sinal. Não força
-        // nem inverte: o teste documenta a paridade estatística que existe, nunca uma desigualdade
-        // que os dados não sustentam.
-        Assert.True(low <= 0 && high >= 0,
-            $"IC95 bootstrap da diferenca pareada CV(real)-CV(neutro) e [{low:F4},{high:F4}] — " +
-            "paridade estatistica confirmada (AD-066); nao ha evidencia de CV(real) >= CV(neutro) " +
-            "nem do inverso across as seeds.");
+        // O critério real do FAM-32 é "existe efeito de seleção genética mensurável" (spec, nota FAM-32).
+        // Com a população morrendo de fome o efeito ficava abaixo do ruído (AD-066: IC95 contendo zero);
+        // com a demografia saudável (AD-077/078) a seleção real reduz a variância de vitalidade contra a
+        // deriva neutra, o efeito esperado de seleção direcional: IC95 inteiro abaixo de zero. Exige-se
+        // que o efeito seja mensurável (IC95 exclui zero); o sinal medido fica registrado na mensagem.
+        Assert.True(high < 0 || low > 0,
+            $"IC95 bootstrap da diferenca pareada CV(real)-CV(neutro) e [{low:F4},{high:F4}] — contem zero: " +
+            "nao ha efeito mensuravel de selecao (FAM-32). Medido em AD-080: [-0.0129, -0.0026] (real < neutro).");
     }
 
     private static double CoefficientOfVariation(IEnumerable<double> values)

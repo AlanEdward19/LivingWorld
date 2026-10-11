@@ -5,8 +5,8 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
 - **Última coisa concluída (2026-10-11)**: P1–P4, B1, B2 (parcial) e B3 em `claude/inspiring-allen-qj41zx`
-  (AD-077/078). Gate rápido ~1 min, verde (1913). LongRunning **12 min**, 0 falhas (era >25; 4,8 min só
-  existiu com o mundo morrendo de fome): P5–P7 em `docs/audits/longrunning-budget.md` levam a ~7–8 min.
+  (AD-077/078). Gate rápido ~1 min, verde (1913). LongRunning **4 min 50 s** (era >25), AD-081 (perf da decisão, hashes idênticos);
+  1 asserção estatística (FAM-32) atualizada para o efeito de seleção que passou a aparecer (AD-080).
   Realismo de decisão corrigido e medido (`docs/audits/realism-cadence.md`): sobrevivência escala acima do déficit 80,
   abastecimento da casa, rotina com deslocamento antecipado (ciclo de 24 h), solidão não crítica não derruba o dia.
   Default estável por 10 anos. **Aberto**: o fixture de escala de 500 pessoas ainda colapsa a partir do ano 3

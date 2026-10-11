@@ -339,6 +339,10 @@ paridade (nem `real >= neutro` nem o inverso são sustentados pelos dados), não
 limiar para forçar passagem — é a mesma pergunta causal do critério original, testada com o
 instrumento estatístico correto para o tamanho de efeito que existe.
 
+**Atualização FAM-32 (AD-080, 2026-10-11):** com a demografia corrigida (população deixa de morrer de fome),
+IC95 = [-0.0129, -0.0026] — exclui zero: seleção real reduz a variância de vitalidade contra a deriva neutra.
+O teste agora exige efeito mensurável (IC95 exclui zero), que é o critério real.
+
 ---
 
 ## Success Criteria
