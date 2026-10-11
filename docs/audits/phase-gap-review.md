@@ -18,6 +18,14 @@ Itens que exigem decisão de escopo/arquitetura (AGENTS.md → "PERGUNTE QUANDO"
 - [x] F2 — hash de mapa: mesma seed igual, seed distinta difere, literal preso da seed 42 (`MapHashTests`).
 - [x] Pins de `OptimizationEquivalenceTests` regravados (seeds 1 e 2): o hash atual é idêntico em 4a86dbf (commit que gravou as pins) e no HEAD, em Debug e Release, então as pins nunca bateram nesta máquina; determinismo em 2 processos segue verde.
 
+## Fechadas na segunda rodada (AD-089, medidas antes/depois)
+- [x] F4 sede/exaustão têm consequência (morte por sede; saúde por privação de sono). Social em 0 segue sem consequência.
+- [x] F6 tutoria roda de verdade (mestre por oficina, formatura, treino de `TeachingSkill`).
+- [x] F7 evento Help e eixos Respeito/Dívida; Trade e Betrayal seguem sem fonte (mercado é NPC↔oficina; traição é Fase 23).
+- [x] F1 `ExampleCounterSystem` fora da produção. [x] F11 expiração de sessão sem id canônico.
+- Perf igual (0,642 → 0,617 µs/NPC-tick, ruído ±0,04; alocação e snapshot idênticos); vila −3,6% no ano 10.
+- Não feito (precisa spec): madeira/pedra/profissões, Trade no log, snapshot binário real.
+
 ## Abertas — critério mais fraco que o roadmap (sem AD registrando o desvio)
 - F4 histerese 20/20 virou média+folga; teto p99 tautológico (`BehaviorDecisionSystemHysteresisTests`).
 - F5 preço sob escassez: "todo tick" → "nunca menor e maior algum dia" (`ScarcityPriceCausalTests`).

@@ -1,5 +1,4 @@
 using LivingWorld.Domain.Extraordinary;
-using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Decision;
 using LivingWorld.Simulation.Behavior.Needs;
 using LivingWorld.Simulation.Cities;
