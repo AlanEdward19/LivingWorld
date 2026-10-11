@@ -1,11 +1,8 @@
 using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Cities;
-using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Ecology;
 using LivingWorld.Domain.Economy;
-using LivingWorld.Domain.Extraordinary;
 using LivingWorld.Domain.Geography;
-using LivingWorld.Domain.Geography.Map;
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.Performance;
 using LivingWorld.Domain.Population;
@@ -13,39 +10,16 @@ using LivingWorld.Domain.Population.Body;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Population.Skills;
 using LivingWorld.Domain.Shared;
-using LivingWorld.Simulation.Behavior.Decision;
-using LivingWorld.Simulation.Behavior.Needs;
-using LivingWorld.Simulation.Cities;
-using LivingWorld.Simulation.Cities.Construction;
-using LivingWorld.Simulation.Cities.Founding;
-using LivingWorld.Simulation.Cities.Migration;
-using LivingWorld.Simulation.Cities.Queries;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Ecology;
-using LivingWorld.Simulation.Economy.Labor;
-using LivingWorld.Simulation.Economy.Market;
-using LivingWorld.Simulation.Economy.Production;
-using LivingWorld.Simulation.Extraordinary.Mechanics;
-using LivingWorld.Simulation.Extraordinary.Systems;
-using LivingWorld.Simulation.Geography;
-using LivingWorld.Simulation.History.Books;
-using LivingWorld.Simulation.History.Distortion;
-using LivingWorld.Simulation.Llm;
-using LivingWorld.Simulation.Narrative;
-using LivingWorld.Simulation.Periods;
 using LivingWorld.Simulation.Population;
-using LivingWorld.Simulation.Population.Archive;
-using LivingWorld.Simulation.Population.Family;
-using LivingWorld.Simulation.Population.Lifecycle;
-using LivingWorld.Simulation.Population.Skills;
-using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Scenarios;
 
 /// <summary>Monta o cenário "default" (vila medieval: 24h/dia, 30 dias/mês, 12 meses/ano, 100
 /// NPCs iniciais) e roda N ticks, devolvendo os dois hashes. Usado pelos testes de determinismo
 /// (mesmo processo e entre processos, via LivingWorld.Workers) e pelos golden hashes.</summary>
-public static class ScenarioRunner
+public static partial class ScenarioRunner
 {
     public const int DefaultInitialPopulation = 100;
 
@@ -57,80 +31,6 @@ public static class ScenarioRunner
 
     public static WorldCalendar DefaultCalendar { get; } = new(HoursPerDay: 24, DaysPerMonth: 30, MonthsPerYear: 12);
 
-    /// <summary>Ordem: decaimento de necessidade roda antes da decisão de
-    /// ação no mesmo tick — senão <see cref="BehaviorDecisionSystem"/> decidiria com o dado de
-    /// necessidade do tick anterior. Ambos entram depois de Mortalidade/Natalidade (NPC recém
-    /// nascido/morto neste tick já participa da conta certa: morto não decide, nascido decai a
-    /// partir do próprio nascimento). Os 4 sistemas de economia entram depois de
-    /// <see cref="BehaviorDecisionSystem"/>, nessa ordem — quem contratou hoje já pode produzir
-    /// no mesmo dia (Employment antes de Production); preço reage ao estoque já atualizado
-    /// (Production antes de MarketPricing); salário é o último evento do mês sobre o Treasury
-    /// que a produção/venda alimentou o mês inteiro. <see
-    /// cref="SkillPracticeSystem"/> e <see cref="SkillTeachingSystem"/> entram entre Employment e
-    /// Production — quem contratou hoje já pratica hoje, e a produção do mesmo dia já lê a
-    /// habilidade atualizada (mesmo raciocínio de Employment-antes-de-Production).
-    /// <see cref="RelationshipSystem"/> entra depois de <see cref="EmploymentSystem"/> (convivência
-    /// em workplace/household alimenta relações antes da prática de habilidade); <see
-    /// cref="CourtshipSystem"/> entra antes de <see cref="NatalitySystem"/> (casal formado no
-    /// cortejo é quem a natalidade consome via <c>Npc.Spouse</c>).</summary>
-    public static IReadOnlyList<ISimulationSystem> DefaultSystems(
-        IReadOnlyList<PeriodTransformationRule>? periodTransformationRules = null,
-        ConversationSessionStore? conversationSessions = null,
-        ChronicleGenerationSystem? chronicles = null,
-        ExtraordinaryScenarioData? extraordinary = null)
-    {
-        var systems = new List<ISimulationSystem>
-        {
-        new PeriodEvolutionSystem(periodTransformationRules ?? []),
-        new ExampleCounterSystem(TickFrequency.Hourly),
-        new ExampleCounterSystem(TickFrequency.Daily),
-        new ExampleCounterSystem(TickFrequency.Monthly),
-        new ExampleCounterSystem(TickFrequency.Yearly),
-        new MortalitySystem(),
-        new FactToReportConversionScheduler(),
-        new BookRediscoverySystem(),
-        new ColdArchiveSystem(),
-        new CourtshipSystem(),
-        new NatalitySystem(),
-        new NeedsDecaySystem(),
-        new BehaviorDecisionSystem(DefaultSkillsRules),
-        new ResourceProcessSystem(),
-        new EmploymentSystem(),
-        new RelationshipSystem(),
-        new MutualAidSystem(),
-        new SkillPracticeSystem(DefaultSkillsRules),
-        new SkillTeachingSystem(DefaultSkillsRules, DefaultLifeStageRules),
-        new WorkHardeningSystem(),
-        new ProductionSystem(DefaultSkillsRules),
-        new FaunaLifecycleSystem(),
-        new FloraLifecycleSystem(),
-        new TemperatureSeasonSystem(),
-        new CropSystem(),
-        new MarketPricingSystem(),
-        new WagePaymentSystem(),
-        new CityGrowthSystem(),
-        new ConstructionDemandSystem(),
-        new ConstructionSystem(),
-        new MigrationSystem(),
-        new RelocationArrivalSystem(),
-        new MaterializationSystem(),
-        new SettlementFoundingSystem(),
-        new SpatialSettlementFoundingSystem(),
-        chronicles ?? new ChronicleGenerationSystem(),
-        conversationSessions ?? new ConversationSessionStore(),
-        };
-        if (extraordinary?.Enabled == true)
-        {
-            systems.Add(new ExtraordinaryStateSystem());
-            systems.Add(new ExtraordinaryPowerStageSystem());
-            systems.Add(new ExtraordinaryPassiveTickSystem());
-            systems.Add(new DimensionPortalSystem());
-            systems.Add(new FaunaDominateSystem());
-            systems.Add(new FloraGrowthSystem());
-        }
-        return systems;
-    }
-
     private static readonly GeographyCatalog DefaultCatalog = new(
         TerrainIds: new HashSet<int> { 1, 2, 3 }, BiomeIds: new HashSet<int> { 1 }, ResourceIds: new HashSet<int>());
 
@@ -139,27 +39,6 @@ public static class ScenarioRunner
         // travessia urbana ocupar dias. Cada célula default representa 30 minutos de caminhada.
         Base: 0.05, AltitudeWeight: 0.05,
         TerrainWeight: new Dictionary<int, double> { [1] = 1.0, [2] = 1.5, [3] = 3.0 });
-
-    public static WorldMap DefaultMap(ulong seed) =>
-        MapGenerator.Generate(seed, width: 10, height: 10, regionSize: 5, DefaultCatalog, DefaultCostWeights, [])
-            .Value ?? throw new InvalidOperationException("gerador default falhou — bug no gerador, não no cenário");
-
-    internal static int InitialMapSideForPopulation(int initialPopulation)
-    {
-        const int regionSize = 5;
-        const int maxBuildingFootprintCells = 6 * 5;
-        long buildingSlots = Math.Max(0, (long)initialPopulation) + 2;
-        int requiredSide = (int)Math.Ceiling(Math.Sqrt(buildingSlots * maxBuildingFootprintCells));
-        int roundedSide = ((requiredSide + regionSize - 1) / regionSize) * regionSize;
-        return Math.Max(10, roundedSide);
-    }
-
-    internal static WorldMap InitialMap(ulong seed, int initialPopulation)
-    {
-        int side = InitialMapSideForPopulation(initialPopulation);
-        return MapGenerator.Generate(seed, side, side, regionSize: 5, DefaultCatalog, DefaultCostWeights, [])
-            .Value ?? throw new InvalidOperationException("gerador de mapa inicial falhou — bug no gerador, não no cenário");
-    }
 
     public static readonly CultureId DefaultCulture = new(1);
 
@@ -394,67 +273,6 @@ public static class ScenarioRunner
             },
             MarketLocationTypeIds: DefaultEconomyCatalog.MarketLocationTypeIds,
             LocationTypeByProfession: DefaultEconomyCatalog.LocationTypeByProfession);
-    }
-
-    /// <summary>Fazenda e ferraria iniciais, sem empregado (contratados pelo <see
-    /// cref="EmploymentSystem"/> no primeiro Daily), sem estoque (produzido pelo <see
-    /// cref="ProductionSystem"/>). Preço inicial 5 (não 1, o piso): <see
-    /// cref="MarketPricingSystem"/> é multiplicativo — arredondado pra inteiro, preço 1 nunca sai
-    /// do lugar de verdade (fator 0.8 ou 1.2 sobre 1 arredonda de volta pra 1), escondendo
-    /// qualquer sinal de escassez/fartura (achado escrevendo o teste causal de T25).</summary>
-    private static void SeedDefaultWorkplaces(WorldState world, City city, int vacancyMultiplier = 1)
-    {
-        int mult = Math.Max(1, vacancyMultiplier);
-        // Treasury inicial grande (capital de giro do dono, estado inicial declarado — não
-        // cunhagem): folha de ~36 empregados a 90-110/mês esgotaria
-        // um treasury pequeno bem antes da receita de venda (compras em lote esporádicas)
-        // acompanhar, gerando WageUnpaid em cascata e, por tabela, fome real generalizada.
-        var farmLocation = PlaceDefaultWorkplaceBuilding(world, city, buildingTypeId: 1);
-        world.AddWorkplace(new Workplace(
-            world.NextWorkplaceIdAndAdvance(), new LocationType(1), farmLocation, maxVacancies: 80 * mult,
-            employees: [], stock: new Dictionary<ResourceType, long>(), treasury: new Money(500_000),
-            prices: new Dictionary<ResourceType, long> { [new ResourceType(1)] = 5, [new ResourceType(2)] = 5 },
-            city: city.Id));
-        var forgeLocation = PlaceDefaultWorkplaceBuilding(world, city, buildingTypeId: 2);
-        world.AddWorkplace(new Workplace(
-            world.NextWorkplaceIdAndAdvance(), new LocationType(2), forgeLocation, maxVacancies: 40 * mult,
-            employees: [], stock: new Dictionary<ResourceType, long>(), treasury: new Money(500_000),
-            prices: new Dictionary<ResourceType, long> { [new ResourceType(4)] = 5 }, city: city.Id));
-    }
-
-    private static CellCoord PlaceDefaultWorkplaceBuilding(WorldState world, City city, int buildingTypeId)
-    {
-        var candidate = new Building(
-            new BuildingId(world.NextBuildingId), city.Id, buildingTypeId, world.CurrentDate.TotalHours);
-        long population = CityPopulationQuery.Population(world, city.Id);
-        var bounds = CityOccupancy.ResolveGrownBounds(world, city, population).Bounds;
-        var resolved = BuildingPlacementResolver.Resolve(candidate, city, world, bounds)
-            ?? throw new InvalidOperationException("No free cell is available for a default workplace building.");
-
-        world.AddBuilding(new Building(
-            world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId, world.CurrentDate.TotalHours,
-            resolved.Position, resolved.Orientation));
-        return resolved.Position;
-    }
-
-    /// <summary>Trigo/água de despensa + moeda no bolso pra cada NPC/Household inicial —
-    /// ponte pro primeiro salário (<see cref="WagePaymentSystem"/> é Monthly): sem isso, todo
-    /// mundo bate fome/sede zero e morre de fome (NEEDS-03) bem antes do primeiro emprego
-    /// (<see cref="EmploymentSystem"/>, Daily) gerar produção e renda de verdade — o cenário
-    /// default se extinguiria em semanas, não sobreviveria os 100 anos do objetivo #1.
-    /// Quantidade cobre só o mês de bootstrap; da­í em diante o ciclo emprego→produção→salário→
-    /// compra é quem sustenta.</summary>
-    private static void SeedInitialEconomyBuffer(WorldState world)
-    {
-        foreach (var household in world.Households)
-        {
-            long bootstrapUnits = 50L * household.Members.Count;
-            household.Deposit(new ResourceType(1), bootstrapUnits); // trigo
-            household.Deposit(new ResourceType(2), bootstrapUnits); // água
-        }
-
-        foreach (var npc in world.Npcs)
-            npc.CreditWallet(new Money(50));
     }
 
     /// <summary><paramref name="economyRules"/> permite ao harness de teste base/tratamento

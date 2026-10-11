@@ -10,6 +10,7 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
   parentes, viagem com motivo, despertar na chegada. Fixture de 500 estável por 10+ anos; default estável.
   Realismo de decisão corrigido e medido (`docs/audits/realism-cadence.md`).
   FAM-32: efeito de seleção real mas pequeno (−0,0041, z = −4,0 em 160 seeds); o gate com 10 seeds só barra o sinal contrário.
+  Integração (AD-084..087): sistemas se declaram (`LivingCapability`/`RunsAfter`), contrato da API congelado em `tests/contracts/`, `verify.sh --full/--nightly` + CI, arquivos grandes em `partial`.
   Ocupação da cidade incremental feita (criar 10k NPCs: 24 s → 5 s). O resto é simulação de 10 anos × ~10 testes;
   chegar a ~2 min exigiria tirar 10k/100x do conjunto padrão (ver `longrunning-budget.md`).
   Spec de veículos emergentes (sem código): `.specs/features/emergent-vehicles/` (AD-079).
