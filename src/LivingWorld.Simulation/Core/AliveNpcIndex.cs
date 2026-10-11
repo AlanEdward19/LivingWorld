@@ -103,7 +103,11 @@ public sealed class AliveNpcIndex
         if (!_byCell.TryGetValue(cell, out var bucket)) return;
         int i = bucket.IndexOf(npc);
         if (i < 0) return;
-        bucket.RemoveAt(i);
+        // A ordem do balde não é especificada: trocar pelo último evita deslocar centenas de referências
+        // (a fazenda concentra o turno inteiro numa célula).
+        int last = bucket.Count - 1;
+        bucket[i] = bucket[last];
+        bucket.RemoveAt(last);
         if (bucket.Count == 0)
             _byCell.Remove(cell);
     }
