@@ -282,6 +282,34 @@ public class OptimizationEquivalenceTests
         AssertAllMatch();
     }
 
+    // --- Relações conhecidas preguiçosas ---
+
+    [Fact]
+    public void Lazy_relationship_facts_match_the_materialized_list_and_the_bond_probe_matches_Any()
+    {
+        var (world, clock) = ScenarioRunner.Create(7);
+        clock.Run(world, 120 * 24);
+        Assert.True(world.Relationships.Count > 0, "o cenário precisa ter relações para o teste medir algo");
+
+        int withFacts = 0;
+        foreach (var npc in world.Npcs.Where(n => n.IsAlive))
+        {
+            var materialized = DecisionContextBuilder.MaterializeKnownRelationships(world, npc.Id);
+            if (materialized.Length > 0) withFacts++;
+
+            foreach (int minimum in new[] { 0, 20, 50, 60, 70, 100, 101 })
+            {
+                // sonda antes de materializar e depois: os dois caminhos têm de concordar com Any
+                var probeFirst = new LazyRelationshipFacts(world, npc.Id);
+                bool expected = materialized.Any(r => r.Trust >= minimum || r.Affection >= minimum);
+                Assert.Equal(expected, probeFirst.AnyBondAtLeast(minimum));
+                Assert.Equal(materialized, probeFirst.ToArray());
+                Assert.Equal(expected, probeFirst.AnyBondAtLeast(minimum));
+            }
+        }
+        Assert.True(withFacts > 0);
+    }
+
     // --- Alcançabilidade por componente conexa ---
 
     [Fact]

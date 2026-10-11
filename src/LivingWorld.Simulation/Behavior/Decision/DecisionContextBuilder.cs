@@ -31,7 +31,7 @@ public static class DecisionContextBuilder
         var household = BuildHouseholdSlice(world, npc);
         var memories = BuildMemorySlice(world, npc, needs, llmRules);
         var beliefs = BuildBeliefSlice(world, npc);
-        var relationships = BuildRelationshipSlice(world, npc);
+        var relationships = new LazyRelationshipFacts(world, npc.Id);
 
         return new DecisionContext(
             npc.Id,
@@ -62,10 +62,9 @@ public static class DecisionContextBuilder
         if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } h)
             return null;
 
-        return new HouseholdSnapshot(
-            h.Id,
-            new Dictionary<ResourceType, long>(h.Stock),
-            h.Members.ToList());
+        // Visões somente-leitura do próprio domicílio, sem copiar estoque e membros a cada decisão: o
+        // contexto vive só durante a decisão (nada muta o domicílio entre montá-lo e usá-lo).
+        return new HouseholdSnapshot(h.Id, h.Stock, h.Members);
     }
 
     internal static IReadOnlyList<NpcMemory> BuildMemorySlice(
@@ -88,25 +87,33 @@ public static class DecisionContextBuilder
 
     /// <summary>Relações A→* já existentes (lazy) — nunca cria entrada nova a partir
     /// da decisão.</summary>
-    private static IReadOnlyList<RelationshipFact> KnownRelationshipsOf(WorldState world, NpcId npcId)
+    private static IReadOnlyList<RelationshipFact> KnownRelationshipsOf(WorldState world, NpcId npcId) =>
+        MaterializeKnownRelationships(world, npcId);
+
+    internal static RelationshipFact[] MaterializeKnownRelationships(WorldState world, NpcId npcId)
     {
         if (world.Relationships.Count == 0)
-            return Array.Empty<RelationshipFact>();
+            return [];
 
-        var facts = new List<RelationshipFact>();
         // Índice por NPC (já ordenado por To): O(grau) por decisão, não O(relações do mundo).
-        foreach (var to in world.RelationshipTargetsOf(npcId))
+        var targets = world.RelationshipTargetsOf(npcId);
+        if (targets.Count == 0)
+            return [];
+
+        var facts = new RelationshipFact[targets.Count];
+        for (int i = 0; i < facts.Length; i++)
         {
+            var to = targets[i];
             var rel = world.Relationships[new RelationshipKey(npcId, to)];
-            facts.Add(new RelationshipFact(
+            facts[i] = new RelationshipFact(
                 to,
                 (int)Math.Round(rel.Trust),
                 (int)Math.Round(rel.Affection),
                 (int)Math.Round(rel.Respect),
-                (int)Math.Round(rel.Debt)));
+                (int)Math.Round(rel.Debt));
         }
 
-        return facts.Count == 0 ? Array.Empty<RelationshipFact>() : facts.ToArray();
+        return facts;
     }
 
     /// <summary>Query bag-of-words derivada do need com maior déficit (COH-12) — alimenta

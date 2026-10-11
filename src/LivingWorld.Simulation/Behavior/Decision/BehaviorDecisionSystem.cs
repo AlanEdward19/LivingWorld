@@ -774,10 +774,15 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                 ContainsAny(m.Content, "traído", "traido", "betray", "threat", "perigo", "danger")) => factorBonus,
             ActionType.Buy when ctx.RelevantBeliefs.Any(b =>
                 ContainsAny(b, "scarcity", "escassez", "fome", "hunger", "food")) => factorBonus,
-            ActionType.Socialize when ctx.KnownRelationships.Any(r => r.Trust >= 60 || r.Affection >= 60) => factorBonus,
+            ActionType.Socialize when HasStrongBond(ctx.KnownRelationships) => factorBonus,
             _ => 0.0,
         };
     }
+
+    private static bool HasStrongBond(IReadOnlyList<RelationshipFact> known) =>
+        known is LazyRelationshipFacts lazy
+            ? lazy.AnyBondAtLeast(60)
+            : known.Any(r => r.Trust >= 60 || r.Affection >= 60);
 
     private static bool ContainsAny(string text, params string[] tokens)
     {
