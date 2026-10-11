@@ -12,9 +12,9 @@ using LivingWorld.Simulation.Scheduling;
 namespace LivingWorld.Tests.Unit.Llm;
 
 /// <summary>Fase 11, LLM-03, story "Sessão de conversa segura" (ACs 1-3): ciclo
-/// start/send/end de <see cref="ConversationSessionStore"/> — expiração agendada via <see
-/// cref="EventScheduler"/>/<see cref="TickContext.ScheduleEvent"/>, nunca varredura por tick
-/// (integração real com o scheduler, não chamada direta a <c>HandleEvent</c>).</summary>
+/// start/send/end de <see cref="ConversationSessionStore"/> — expiração via <see
+/// cref="ConversationSessionStore.Tick"/>, preguiçosa e sem tocar o mundo, nunca evento agendado
+/// (sem id de evento canônico consumido).</summary>
 public class ConversationSessionStoreTests
 {
     private static readonly WorldCalendar Calendar = new(24, 30, 12);
@@ -60,16 +60,13 @@ public class ConversationSessionStoreTests
         return (world, ctx, npc);
     }
 
-    /// <summary>Avança o mundo em ticks de 1 hora, despachando eventos vencidos por tick — mesmo
-    /// papel de <see cref="WorldClock"/>, mas restrito ao(s) sistema(s) sob teste.</summary>
+    /// <summary>Avança o mundo em ticks de 1 hora, rodando o <see cref="ConversationSessionStore.Tick"/>.</summary>
     private static void AdvanceTicks(WorldState world, TickContext ctx, ConversationSessionStore store, long ticks)
     {
         for (long i = 0; i < ticks; i++)
         {
             world.CurrentDate = world.CurrentDate.AddHours(1);
-            foreach (var evt in world.Scheduler.PopDue(world.CurrentDate.TotalHours))
-                if (evt.SystemName == ConversationSessionStore.SystemName)
-                    store.HandleEvent(world, ctx, evt);
+            store.Tick(world, ctx);
         }
     }
 
@@ -159,7 +156,7 @@ public class ConversationSessionStoreTests
     }
 
     [Fact]
-    public void Session_expires_by_scheduled_event_not_before_its_target_tick()
+    public void Session_expires_at_its_target_tick_and_not_before()
     {
         var (world, ctx, npc) = BuildWorld();
         var store = new ConversationSessionStore();
@@ -184,5 +181,28 @@ public class ConversationSessionStoreTests
 
         Assert.False(store.Find(session.SessionId)!.IsActive);
         Assert.Single(store.TurnsOf(session.SessionId));
+    }
+
+    [Fact]
+    public void Starting_a_conversation_does_not_consume_a_canonical_event_id()
+    {
+        var (world, ctx, npc) = BuildWorld();
+        long before = world.NextEventId;
+
+        new ConversationSessionStore().StartConversation(npc, MakeNeedsRules(), MakeLlmRules(), null, ctx, expireAfterTicks: 5);
+
+        Assert.Equal(before, world.NextEventId);
+    }
+
+    [Fact]
+    public void Sending_after_the_expiry_tick_is_rejected_even_without_any_tick_running()
+    {
+        var (world, ctx, npc) = BuildWorld();
+        var store = new ConversationSessionStore();
+        var (_, session) = store.StartConversation(npc, MakeNeedsRules(), MakeLlmRules(), null, ctx, expireAfterTicks: 3);
+        world.CurrentDate = world.CurrentDate.AddHours(3);
+
+        Assert.Equal(SendMessageResult.SessionInactive, store.SendPlayerMessage(session!.SessionId, "oi", ctx));
+        Assert.False(store.Find(session.SessionId)!.IsActive);
     }
 }
