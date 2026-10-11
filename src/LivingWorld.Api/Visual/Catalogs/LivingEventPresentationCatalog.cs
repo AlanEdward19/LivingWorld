@@ -12,6 +12,8 @@ public static class LivingEventPresentationCatalog
             [WorldEventKind.Birth] = "Um novo habitante nasceu",
             [WorldEventKind.Death] = "Um habitante faleceu",
             [WorldEventKind.Starvation] = "A fome causou uma morte",
+            [WorldEventKind.Dehydration] = "A sede causou uma morte",
+            [WorldEventKind.Exhaustion] = "A exaustão causou uma morte",
             [WorldEventKind.Hired] = "Um habitante começou um novo trabalho",
             [WorldEventKind.Fired] = "Um vínculo de trabalho terminou",
             [WorldEventKind.WageUnpaid] = "Um pagamento de salário ficou pendente",

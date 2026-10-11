@@ -13,6 +13,8 @@ public static class SignificanceCalculator
             [WorldEventKind.Birth] = 0.85,
             [WorldEventKind.Death] = 0.90,
             [WorldEventKind.Starvation] = 0.75,
+            [WorldEventKind.Dehydration] = 0.75,
+            [WorldEventKind.Exhaustion] = 0.75,
             [WorldEventKind.Marriage] = 0.80,
             [WorldEventKind.MaternalDeath] = 0.85,
             [WorldEventKind.StillBirth] = 0.70,
