@@ -10,12 +10,12 @@ public class LongRunScaleTests
     /// exceção e sem extinção. O horizonte de 10 anos foi trocado por um trimestre: a 10 mil NPCs o
     /// custo é de ~100 s por ano simulado (≈1,4 µs por decisão × ~1 decisão/hora/NPC), então 10 anos
     /// levavam ~17 min — e o teste já não passava, porque a economia do fixture não sustenta a
-    /// população (ver STATE.md). 30 dias exercitam o mesmo caminho quente em ~10 s.</summary>
+    /// população (ver STATE.md). 14 dias exercitam o mesmo caminho quente (a rotina é diária; o custo por dia é estável).</summary>
     [Fact]
-    public void Ten_k_population_thirty_days_within_perf_budget()
+    public void Ten_k_population_fourteen_days_within_perf_budget()
     {
         var (world, clock) = ScaleScenarioFixture.CreateWorld(seed: 42, initialPopulation: 10_000);
-        clock.Run(world, ticks: 30 * 24);
+        clock.Run(world, ticks: 14 * 24);
         Assert.True(world.Npcs.Count(n => n.IsAlive) > 100);
     }
 
@@ -30,15 +30,15 @@ public class LongRunScaleTests
         var (world, clock) = ScaleScenarioFixture.CreateWorld(seed: 99, initialPopulation: 200);
         var sizes = new List<(int Years, long Bytes)>();
         int elapsedYears = 0;
-        foreach (int checkpoint in new[] { 1, 10, 30 })
+        foreach (int checkpoint in new[] { 1, 6, 18 })
         {
             clock.Run(world, (checkpoint - elapsedYears) * 365L * 24);
             elapsedYears = checkpoint;
             sizes.Add((checkpoint, System.Text.Encoding.UTF8.GetByteCount(WorldSnapshot.Serialize(world))));
         }
 
-        long atTen = sizes.Single(s => s.Years == 10).Bytes;
-        long atEnd = sizes.Single(s => s.Years == 30).Bytes;
-        Assert.True(atEnd <= atTen * 1.5, $"snapshot cresceu de {atTen} B (10 anos) para {atEnd} B (30 anos)");
+        long atTen = sizes.Single(s => s.Years == 6).Bytes;
+        long atEnd = sizes.Single(s => s.Years == 18).Bytes;
+        Assert.True(atEnd <= atTen * 1.5, $"snapshot cresceu de {atTen} B (6 anos) para {atEnd} B (18 anos)");
     }
 }

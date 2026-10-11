@@ -102,7 +102,7 @@ public class PopulationScenarioTests
     public void Population_100x_the_initial_size_does_not_exceed_the_tick_iteration_budget()
     {
         var (world, clock) = ScenarioRunner.Create(seed: 1, maxIterationsPerTick: 1000, initialPopulation: 10_000);
-        clock.Run(world, OneYearInHours); // não deve lançar TickBudgetExceededException (o teto estoura nos primeiros dias, não em décadas)
+        clock.Run(world, OneYearInHours / 4); // não deve lançar TickBudgetExceededException (o teto estoura nos primeiros dias, não em décadas)
         Assert.True(world.Npcs.Count >= 10_000);
     }
 

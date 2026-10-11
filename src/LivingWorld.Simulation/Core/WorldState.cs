@@ -454,9 +454,9 @@ public sealed class WorldState
 
     [Canonical] public IReadOnlyList<CropBatch> CropBatches => _cropBatches;
 
-    // Lotes ainda não colhidos, na ordem de inserção. Lotes colhidos são terminais e se acumulam em
-    // CropBatches para sempre (estado canônico); varrê-los a cada dia tornava o custo quadrático no
-    // tempo. Índice derivado, compactado de forma preguiçosa.
+    // Lotes ainda não colhidos, na ordem de inserção. Um lote colhido é terminal e não é lido por
+    // ninguém (o rendimento já foi contabilizado): sai de CropBatches na colheita, para o snapshot não
+    // crescer com os anos. Índice derivado, compactado de forma preguiçosa.
     private readonly List<CropBatch> _activeCropBatches = new();
 
     internal IReadOnlyList<CropBatch> ActiveCropBatches
@@ -1156,6 +1156,12 @@ public sealed class WorldState
         if (crop.Status != CropStatus.Harvested)
             _activeCropBatches.Add(crop);
         _nextCropBatchId = Math.Max(_nextCropBatchId, crop.Id.Value + 1);
+    }
+
+    /// <summary>Retira da lista canônica um lote já colhido (estado terminal sem leitores).</summary>
+    internal void RetireHarvestedCropBatch(CropBatch crop)
+    {
+        if (crop.Status == CropStatus.Harvested) _cropBatches.Remove(crop);
     }
 
     public CropBatch? FindCropAt(CellCoord plot) =>

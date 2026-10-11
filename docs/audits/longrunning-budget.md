@@ -24,8 +24,11 @@ Aplicadas: P1, P2, P3 (aprovadas) e P4.
 |---|---|---|---|
 | P5 | `Ten_k`: 30 → 14 dias | ~−3 min de teste | cobre menos dias de escala; custo/dia é plano, a medida por NPC-dia não muda |
 | P6 | `Population_100x`: 1 ano → 90 dias | ~−3,5 min | o teto de iterações por tick estoura nos primeiros dias (P1) |
-| P7 | Sensor 5k: mês → 14 dias | ~−1,5 min | baseline de escala regravado em 14 dias |
-Com P5–P7 o relógio deve ficar em torno de 7–8 min; abaixo de 5 min exigiria também tirar 10k/100x do conjunto padrão e deixá-los em `--scenarios` noturno.
+| P7 | Sensor 5k: mês → 14 dias | ~−1,5 min | **Não aplicado**: o baseline por NPC-ano depende do horizonte; mexer regrava o sensor sem ganho de cobertura |
+Com P5–P7 o relógio devia ficar em torno de 7–8 min; abaixo de 5 min exigiria também tirar 10k/100x do conjunto padrão e deixá-los em `--scenarios` noturno.
+
+### Rodada final (AD-083)
+Medida de partida: 5 min 7 s (808 s de CPU em 4 núcleos), 3 falhas por a população agora sobreviver. Aplicado: P5 (`Ten_k` 14 dias), P6 (`Population_100x` 90 dias), longevidade de 100 anos para ao bater 90% do máximo (a maior idade só cresce), saturação do snapshot em 1/6/18 anos, e o vazamento real (lote colhido ficava no snapshot) corrigido na origem. Resultado em `STATE.md`.
 
 ### P1–P3 (aplicadas)
 | # | Ajuste | Ganho medido | Impacto |
