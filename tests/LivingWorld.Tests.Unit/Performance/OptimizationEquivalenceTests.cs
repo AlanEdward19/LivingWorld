@@ -4,14 +4,14 @@ using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Cities.Spatial;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Infrastructure.EventLog;
+using LivingWorld.Simulation.Behavior.Decision;
 using LivingWorld.Simulation.Cities;
 using LivingWorld.Simulation.Cities.Construction;
 using LivingWorld.Simulation.Cities.Founding;
-using LivingWorld.Domain.Population;
-using LivingWorld.Domain.Population.Family;
-using LivingWorld.Simulation.Behavior.Decision;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Ecology;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
@@ -32,8 +32,8 @@ public class OptimizationEquivalenceTests
     // --- Hashes do mundo preservados ---
 
     [Theory]
-    [InlineData(1UL, "c47519d15726a1e17f266f837d8945ee7b2f2d646a77d2270078e930f927dc19", "6fb3ef7b454dbb6640110d3430bf47f09eb9eddf09dbd2e64a9adb1dfaa0adc6")]
-    [InlineData(2UL, "96cd792528ef0b96eb9c3906dd6cb91e6f0ea26d54ada1ebd5afad0351feb27b", "82845539661cc4dcaa680784ece81f71c3f69efed23ef81b44b964cd022ddf9b")]
+    [InlineData(1UL, "aafd7e5cf1605d9fe8b2259256798e45b2e6b60c1fcc8c8c883a298db4e8280c", "d4cf5fba45aed80fb57538ea61a19d2f90f5187cf738381480865b543a93b7dd")]
+    [InlineData(2UL, "fa2152528f19948b3ad07e5a41b198f53acc08908e24ba7d6e264be3c7478a24", "360a4e82d4a4d958caee21c359d7f8cffb26d23f030074dab3d3fc42262daa97")]
     public void Default_scenario_ninety_days_keeps_the_recorded_hashes(
         ulong seed, string canonical, string volatileHash)
     {

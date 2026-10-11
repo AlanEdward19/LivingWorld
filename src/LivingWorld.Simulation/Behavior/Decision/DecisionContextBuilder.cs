@@ -1,4 +1,3 @@
-using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Llm;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Family;

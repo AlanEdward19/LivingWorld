@@ -834,7 +834,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                     foreach (var other in index.At(new CellCoord(origin.X + dx, origin.Y + dy)))
                         if (Observe(other)) goto scanned;
         }
-        scanned:
+    scanned:
 
         // Devolve true quando o resultado já está decidido e o restante da varredura não pode mudá-lo:
         // ameaça → Travel; sem ninguém em perigo, um vizinho basta para Socializar (raio > 1).
