@@ -199,5 +199,6 @@ func apply_names(names: Dictionary) -> void:
 
 func _process(delta: float) -> void:
 	for actor in occupant_nodes.values():
+		actor.advance_motion(delta)
 		if actor.visible:
-			actor.advance(delta)
+			actor.animate(delta)

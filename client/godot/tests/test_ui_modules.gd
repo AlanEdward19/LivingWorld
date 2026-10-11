@@ -332,7 +332,9 @@ func test_crowd_uses_simple_actors_when_far_and_detail_when_near() -> void:
 	eq(simple.size(), 200, "multidão com câmera longe: todos em versão simples")
 	for actor in simple.slice(0, 5):
 		check(not actor._arms[0].visible and not actor._legs[0].visible, "sem braços e pernas")
-		eq(actor._torso.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "sem sombra própria")
+		for part in actor._shadow_parts:
+			eq(part.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "tronco, cabeça e cabelo sem sombra própria")
+		eq(actor._shadow_parts.size(), 3, "são três peças que projetam sombra")
 
 	view.far_zoom = false
 	view._process(0.016)
@@ -345,4 +347,67 @@ func test_crowd_uses_simple_actors_when_far_and_detail_when_near() -> void:
 	view.far_zoom = true
 	view._process(0.016)
 	eq(view.npc_nodes.values().filter(func(a): return a.far_lod).size(), 0, "multidão pequena mantém o detalhe")
+	view.free()
+
+
+func _crowd_view(count: int) -> Object:
+	var WorldView := preload("res://Scenes/world_view.gd")
+	var store := Store.new()
+	var view := WorldView.new()
+	view.bind(store, ActionLabels.new())
+	for i in count:
+		store.npcs[i] = {"id": i, "cell": Vector2i(i % 30, i / 30), "action": 5, "city": ""}
+	view._rebuild_npcs()
+	view.view_center = Vector3(15, 0, 15)
+	view.view_radius = 100.0
+	return view
+
+
+func test_crowd_threshold_is_exactly_150() -> void:
+	for count in [150, 151]:
+		var view = _crowd_view(count)
+		view.far_zoom = true
+		view._process(0.016)
+		var simple: int = view.npc_nodes.values().filter(func(a): return a.far_lod).size()
+		eq(simple, 0 if count == 150 else 151, "com %d NPCs e câmera longe" % count)
+		view.free()
+
+
+func test_walking_takes_the_same_time_in_a_crowd_and_alone() -> void:
+	var alone = _crowd_view(5)
+	var crowd = _crowd_view(300)
+	for view in [alone, crowd]:
+		view.far_zoom = false
+		view.npc_nodes[0].move_to(Vector2i(20, 20), 1.0)
+		for i in 30:
+			view._process(1.0 / 60.0)
+	check(is_equal_approx(alone.npc_nodes[0]._t, 0.5), "sozinho: meio passo em meio segundo (%s)" % alone.npc_nodes[0]._t)
+	check(is_equal_approx(crowd.npc_nodes[0]._t, alone.npc_nodes[0]._t), "multidão: mesmo ritmo (%s)" % crowd.npc_nodes[0]._t)
+	alone.free()
+	crowd.free()
+
+
+func test_scenes_drive_actor_animation_every_frame() -> void:
+	var view = _crowd_view(5)
+	var actor = view.npc_nodes[0]
+	var clock_before: float = actor._clock
+	view._process(0.1)
+	check(actor._clock > clock_before, "o mundo anima os NPCs à vista a cada quadro")
+
+	var InteriorView := preload("res://Scenes/interior_view.gd")
+	var interior := InteriorView.new()
+	var cells: Array = []
+	for y in 3:
+		for x in 3:
+			cells.append({"cell": {"x": x, "y": y}, "material": 3})
+	interior.show_interior({"floors": 2, "layout": [{"level": 0, "cells": cells}, {"level": 1, "cells": cells}], "occupants": [
+		{"npc": {"value": 1}, "floor": {"value": 0}, "localCell": {"x": 1, "y": 1}, "action": 2},
+		{"npc": {"value": 2}, "floor": {"value": 1}, "localCell": {"x": 1, "y": 1}, "action": 2}]}, Vector2i(0, 0), ActionLabels.new())
+	interior.set_floor(0)
+	var visible_actor = interior.occupant_nodes[1]
+	var hidden_actor = interior.occupant_nodes[2]
+	interior._process(0.1)
+	check(visible_actor._clock > 0.0, "o interior anima quem está no andar visível")
+	eq(hidden_actor._clock, 0.0, "e não gasta tempo com quem está em outro andar")
+	interior.free()
 	view.free()

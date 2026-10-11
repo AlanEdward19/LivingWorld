@@ -13,6 +13,8 @@ static var _materials: Dictionary = {}
 
 var npc_id := 0
 var far_lod := false
+var _shadow_parts: Array[MeshInstance3D] = []
+var _anim_accum := 0.0
 var cell := Vector2i.ZERO
 var action := -1
 var pose := Anim.NEUTRAL_POSE
@@ -113,6 +115,7 @@ func _build() -> void:
 		m.height = 0.55
 		return m)
 	_torso = _part(_body, torso_mesh, _shirt, Vector3(0, 0.62, 0))
+	_shadow_parts.append(_torso)
 	_head = Node3D.new()
 	_head.position = Vector3(0, 0.98, 0)
 	_body.add_child(_head)
@@ -123,7 +126,7 @@ func _build() -> void:
 		m.radial_segments = 12
 		m.rings = 6
 		return m)
-	_part(_head, head_mesh, skin, Vector3.ZERO)
+	_shadow_parts.append(_part(_head, head_mesh, skin, Vector3.ZERO))
 	var hair_mesh := _shared_mesh("hair", func():
 		var m := SphereMesh.new()
 		m.radius = 0.14
@@ -131,7 +134,7 @@ func _build() -> void:
 		m.radial_segments = 12
 		m.rings = 6
 		return m)
-	_part(_head, hair_mesh, hair, Vector3(0, 0.04, -0.02))
+	_shadow_parts.append(_part(_head, hair_mesh, hair, Vector3(0, 0.04, -0.02)))
 	for side in [-1, 1]:
 		_arms.append(_limb(_body, Vector3(side * 0.22, 0.82, 0), Vector3(0.08, 0.34, 0.08), _shirt))
 		_legs.append(_limb(self, Vector3(side * 0.08, 0.36, 0), Vector3(0.1, 0.36, 0.1), pants))
@@ -263,7 +266,8 @@ func set_far(value: bool) -> void:
 	far_lod = value
 	for limb in _arms + _legs:
 		limb.visible = not value
-	_torso.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if value else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	for part in _shadow_parts:
+		part.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if value else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	if value:
 		_reset_pose()
 
@@ -333,26 +337,38 @@ func set_hovered(hovered: bool) -> void:
 	_refresh_label()
 
 
-func advance(dt: float) -> void:
-	if far_lod:
-		advance_cheap(dt)
-		return
-	_clock += dt
+## Movimento (posição e rumo): roda todo quadro para todo NPC, assim a caminhada dura exatamente o passo do servidor.
+func advance_motion(dt: float) -> void:
 	if _t < 1.0:
 		_t = minf(1.0, _t + dt / _duration)
 		position = _from.lerp(_to, _t)
 		var heading := _to - _from
-		if heading.length() > 0.01:
+		if heading.length() > 0.01 and not far_lod:
 			rotation.y = lerp_angle(rotation.y, atan2(heading.x, heading.z), minf(1.0, dt * 10.0))
-	_animate()
 
 
-## Fora da vista: só segue o movimento, sem montar pose (barato).
-func advance_cheap(dt: float) -> void:
+## Pose: só quando o NPC está à vista; `dt` pode ser o tempo acumulado de quadros pulados.
+func animate(dt: float) -> void:
 	_clock += dt
-	if _t < 1.0:
-		_t = minf(1.0, _t + dt / _duration)
-		position = _from.lerp(_to, _t)
+	if not far_lod:
+		_animate()
+
+
+func advance(dt: float) -> void:
+	advance_motion(dt)
+	animate(dt)
+
+
+## Chamado todo quadro pelo dono da cena: movimento sempre; pose só quando `due` (o tempo pulado se acumula).
+func tick(dt: float, near: bool, due: bool) -> void:
+	advance_motion(dt)
+	if not near:
+		_anim_accum = 0.0
+		return
+	_anim_accum += dt
+	if due:
+		animate(_anim_accum)
+		_anim_accum = 0.0
 
 
 func _reset_pose() -> void:

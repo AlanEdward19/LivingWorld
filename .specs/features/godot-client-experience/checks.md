@@ -3,7 +3,7 @@
 Profile: light
 Plan: `.specs/features/godot-client-experience/plan.md`
 
-14 checks in 5 slices · 0 one-way doors · 0 open
+17 checks in 5 slices · 0 one-way doors · 0 open
 
 ## Checks
 
@@ -50,8 +50,17 @@ Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_ambience_lev
 Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_m_key_toggles_ambience_mute"`
 
 ### E5 - Multidão
-**C14** - Com 200 NPCs e câmera longe todos viram versão simples (sem braços, pernas nem sombra); câmera perto devolve o detalhe; com 20 NPCs nunca simplifica (AC 5.1, 5.2)
+**C14** - Com 200 NPCs e câmera longe todos viram versão simples (sem braços, pernas, e tronco, cabeça e cabelo sem sombra); câmera perto devolve o detalhe; com 20 NPCs nunca simplifica (AC 5.1, 5.2)
 Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_crowd_uses_simple_actors_when_far_and_detail_when_near"`
+
+**C15** - O limite é exato: 150 NPCs com câmera longe mantêm o detalhe, 151 viram versão simples (AC 5.1, 5.2)
+Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_crowd_threshold_is_exactly_150"`
+
+**C16** - Uma caminhada de 1 s chega a meio passo em meio segundo, sozinha e numa multidão de 300 (AC 5.1)
+Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_walking_takes_the_same_time_in_a_crowd_and_alone"`
+
+**C17** - O mundo e o interior animam os NPCs a cada quadro, e o interior não gasta tempo com quem está em outro andar (AC 5.1)
+Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_scenes_drive_actor_animation_every_frame"`
 
 ### E3 - Ficha
 **C8** - As cinco barras mostram saúde 90, fome 80, sede 70, sono 60 e social 50 vindos de `GET /npcs/7` (AC 3.1)

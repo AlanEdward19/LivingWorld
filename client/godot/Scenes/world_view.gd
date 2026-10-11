@@ -443,9 +443,4 @@ func _process(delta: float) -> void:
 		var actor = npc_nodes[id]
 		actor.set_far(far_now)
 		var near: bool = actor.position.distance_to(view_center) <= view_radius
-		if not near:
-			actor.advance_cheap(delta)
-		elif crowded and (id + _frame) % 2 == 1:
-			actor.advance_cheap(delta)
-		else:
-			actor.advance(delta * (2.0 if crowded else 1.0))
+		actor.tick(delta, near, not crowded or (id + _frame) % 2 == 0)
