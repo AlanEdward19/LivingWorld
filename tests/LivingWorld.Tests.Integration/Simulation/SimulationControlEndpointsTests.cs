@@ -161,6 +161,9 @@ public class SimulationControlEndpointsTests : IClassFixture<LivingWorldApiFacto
         var gateway = _factory.Services.GetRequiredService<LivingWorld.Api.Realtime.RealtimeGateway>();
         var scope = new LivingWorld.Api.Visual.Scope.VisualScope(LivingWorld.Api.Visual.Scope.VisualScopeKind.World, "");
         var (reader, unsubscribe) = gateway.SubscribeChannel(scope);
+        var cityId = _factory.Services.GetRequiredService<WorldHost>().Current.ActiveCities().First().Id;
+        var cityScope = new LivingWorld.Api.Visual.Scope.VisualScope(LivingWorld.Api.Visual.Scope.VisualScopeKind.City, cityId.ToString());
+        var (cityReader, cityUnsubscribe) = gateway.SubscribeChannel(cityScope);
         var client = _factory.CreateClient();
         await client.PostAsync("/simulation/pause", null);
         try
@@ -172,10 +175,14 @@ public class SimulationControlEndpointsTests : IClassFixture<LivingWorldApiFacto
             Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/simulation/advance-year", null)).StatusCode);
             Assert.True(reader.TryRead(out var afterYear), "advance-year publica um delta para quem assina");
             Assert.Equal(afterStep.ToCursor.Sequence + 1, afterYear!.ToCursor.Sequence);
+            Assert.True(cityReader.TryRead(out var cityAfterStep), "o escopo Cidade também recebe o delta do step");
+            Assert.Equal(cityScope.ScopeKey, cityAfterStep!.ToCursor.ScopeKey);
+            Assert.True(cityReader.TryRead(out _), "e o do advance-year");
         }
         finally
         {
             unsubscribe();
+            cityUnsubscribe();
             await client.PostAsync("/simulation/resume", null);
         }
     }

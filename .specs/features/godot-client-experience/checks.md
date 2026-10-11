@@ -39,14 +39,15 @@ Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_actor_name_l
 Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_status_drives_sky_and_minimap_drives_camera"`
 
 ### E4 - Vida ambiente
-**C11** - A porta de um prédio tem poste de luz apagado de dia (tick 12) e aceso à noite (tick 23) (AC 4.1)
+**C11** - A porta de um prédio tem poste de luz apagado ao meio-dia, aceso às 23 h, e com brilho intermediário às 18 h e às 5 h (AC 4.1)
 Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_door_gets_a_lamp_that_lights_at_night"`
 
 **C12** - As nuvens andam, só projetam sombra e reentram pelo lado oposto (AC 4.2)
 Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_clouds_drift_and_wrap"`
 
-**C13** - Pássaros de dia sem grilos, grilos à noite sem pássaros, vento maior à noite, e M silencia (AC 4.3)
+**C13** - Pássaros de dia sem grilos, grilos à noite sem pássaros, vento maior à noite, e o volume do player cai ao silenciar e volta ao religar (AC 4.3)
 Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_ambience_levels_follow_daylight_and_mute"`
+Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_m_key_toggles_ambience_mute"`
 
 ### E3 - Ficha
 **C8** - As cinco barras mostram saúde 90, fome 80, sede 70, sono 60 e social 50 vindos de `GET /npcs/7` (AC 3.1)

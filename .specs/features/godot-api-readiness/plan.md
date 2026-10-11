@@ -64,7 +64,7 @@ Um prédio expõe seus andares, paredes, portas e escadas.
 1. WHEN `GET /visual/catalog/actions` é chamado THEN the system SHALL devolver um item por valor de `ActionType`, sem lacuna nem duplicata.
 2. IF um novo valor de `ActionType` não tem rótulo THEN the build SHALL falhar no teste de cobertura.
 ### S4: Relógio avisa quem assina (P2)
-1. WHEN `POST /simulation/step` ou `/simulation/advance-year` responde `200` THEN the system SHALL publicar um delta com `sequence` seguinte para cada escopo com assinante.
+1. WHEN `POST /simulation/step` ou `/simulation/advance-year` responde `200` THEN the system SHALL publicar um delta com `sequence` seguinte para cada escopo Mundo ou Cidade com assinante (o interior não publica delta; o cliente o relê).
 
 ## Out of scope
 | Excluded | Why |

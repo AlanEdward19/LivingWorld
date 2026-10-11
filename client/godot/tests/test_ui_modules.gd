@@ -245,9 +245,30 @@ func test_ambience_levels_follow_daylight_and_mute() -> void:
 	check(midnight.wind > noon.wind, "o vento é mais audível à noite")
 
 	var ambience := Ambience.new()
+	tree.root.add_child(ambience) # na árvore o player de áudio existe
+	var player: AudioStreamPlayer = ambience._player
+	var audible_db := player.volume_db
+	check(audible_db > -40.0, "som audível por padrão: %s dB" % audible_db)
+
 	ambience.set_muted(true)
-	eq(ambience.muted, true)
-	ambience.free()
+	check(player.volume_db <= -70.0, "mudo: volume praticamente zero (%s dB)" % player.volume_db)
+	ambience.set_muted(false)
+	eq(player.volume_db, audible_db, "desmutar devolve o volume")
+	ambience.queue_free()
+
+
+func test_m_key_toggles_ambience_mute() -> void:
+	var app = await _app_with(_online_transport())
+	var key := InputEventKey.new()
+	key.pressed = true
+	key.keycode = KEY_M
+
+	app._unhandled_input(key)
+	eq(app.ambience.muted, true, "M silencia")
+	check(app.ambience._player.volume_db <= -70.0, "e o volume cai")
+	app._unhandled_input(key)
+	eq(app.ambience.muted, false, "M de novo religa")
+	app.queue_free()
 
 
 func test_clouds_drift_and_wrap() -> void:
@@ -282,8 +303,14 @@ func test_door_gets_a_lamp_that_lights_at_night() -> void:
 	cycle.bind(sun, Environment.new(), view.window_material, view.lamp_material)
 	cycle.sync(12.0, 1.0, true)
 	eq(view.lamp_material.emission_energy_multiplier, 0.0, "poste apagado de dia")
+	cycle.sync(18.0, 1.0, true)
+	var dusk: float = view.lamp_material.emission_energy_multiplier
 	cycle.sync(23.0, 1.0, true)
-	check(view.lamp_material.emission_energy_multiplier > 2.0, "poste aceso à noite")
+	var night: float = view.lamp_material.emission_energy_multiplier
+	check(night > 2.0, "poste aceso à noite")
+	check(dusk > 0.0 and dusk < night, "no entardecer o poste acende aos poucos: %s < %s" % [dusk, night])
+	cycle.sync(5.0, 1.0, true)
+	check(view.lamp_material.emission_energy_multiplier > 0.0 and view.lamp_material.emission_energy_multiplier < night, "e apaga aos poucos ao amanhecer")
 	node.free()
 	sun.free()
 	cycle.free()

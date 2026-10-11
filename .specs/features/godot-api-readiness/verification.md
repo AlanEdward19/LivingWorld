@@ -2,21 +2,48 @@
 
 **Verdict**: PASS
 **Profile**: light
-**Diff range**: a39e0bf..0cff1cc
-**Round**: 3 - scoped
+**Diff range**: a39e0bf..ca7d493 (S4 lands in 36187d2; ca7d493 touches no .NET file)
+**Round**: 4 - scoped
 **Verifier**: independent sub-agent (author != verifier)
 
-Scope: checks C1-C12, C18, C19 of `checks.md` (the range also carries `npc-building-occupancy`, judged
-elsewhere). Round 2 was verified at `9bdc54d` (FAIL on C7 only); the fix diff is `9bdc54d..0cff1cc`
-(`git show HEAD`): `NpcDirectoryEndpointTests.cs` (test `Dead_npcs_are_excluded_and_name_ties_break_by_id`
-rewritten), `checks.md` (C7 gains a second Proof line), and the previous report. No `src/` file changed.
-All proofs re-run in full at HEAD `0cff1cc` after `scripts/build.sh` (exit 0), batched in 2 invocations:
-unit 8 passed / integration 16 passed, 0 failed. Each proof re-run alone to attribute counts: unit
-1,1,1,1,3,1; integration C2/C6 HTTP 1, C7 1+1, C8 1, C9 3, C10 1, C11 1, C12 1, C18 6, C19 1. None "No test".
+## Round 4 - scoped
+
+Verified at `ca7d493`. Scope: the new slice S4 / check C20 (commit `36187d2`: `TickLoopService.PublishDeltas()`
+made public, `SimulationControlEndpoints` step and advance-year call it, new integration test, `checks.md` +C20
+and a Coverage row, `plan.md` +AC 4.1). Everything else carried from `0cff1cc` (round 3 PASS); `36187d2` touches
+no file cited by C1-C12, C18, C19. Regression: all proofs re-run at `ca7d493` after `bash scripts/build.sh`
+(exit 0) in 2 batched invocations - unit (6 proofs) `Passed 8, Failed 0`; integration (10 proofs incl. C20)
+`Passed 17, Failed 0` (round 3 had 16; +1 is C20). C20 re-run alone: `Passed 1`. The integration factory does
+not start the background loop (`src/LivingWorld.Api/Program.cs:128` gates the hosted service on
+`TICK_LOOP_ENABLED=true`), so the deltas the test reads can only come from the endpoints.
+
+| Check | Claim | Proof run | Evidence | Result |
+| --- | --- | --- | --- | --- |
+| C20 | With a World-scope subscriber, step and advance-year each deliver a delta whose `ToCursor.Sequence` is the previous plus 1 | `--project integration ...SimulationControlEndpointsTests.Step_and_advance_year_publish_a_delta_to_subscribers` 1 passed (also in the batch of 17) | `tests/LivingWorld.Tests.Integration/Simulation/SimulationControlEndpointsTests.cs:169` - `Assert.True(reader.TryRead(out var afterStep), ...)`; `:170` - `Assert.Equal(afterStep!.FromCursor.Sequence + 1, afterStep.ToCursor.Sequence)`; `:173` - `Assert.True(reader.TryRead(out var afterYear), ...)`; `:174` - `Assert.Equal(afterStep.ToCursor.Sequence + 1, afterYear!.ToCursor.Sequence)`. Production: `src/LivingWorld.Api/Simulation/SimulationControlEndpoints.cs:46`, `:56` call `loop.PublishDeltas()`; `src/LivingWorld.Api/Simulation/TickLoopService.cs:74` | PASS |
+
+### Faults (round 4)
+
+Scratch `git worktree add --detach` of `ca7d493` in the session scratchpad; real tree `git status --porcelain`
+empty before and after; worktree removed and pruned (`git worktree list` back to one).
+
+| Mutant | Location | Proof | Killed |
+| --- | --- | --- | --- |
+| M-A1 delete `loop.PublishDeltas();` from step | `src/LivingWorld.Api/Simulation/SimulationControlEndpoints.cs:46` | C20 failed at `:169` "step publica um delta para quem assina" | yes |
+| M-A2 delete `loop.PublishDeltas();` from advance-year | `src/LivingWorld.Api/Simulation/SimulationControlEndpoints.cs:56` | C20 failed at `:173` "advance-year publica um delta para quem assina" | yes |
+
+### Round 4 notes (non-blocking)
+
+1. Precision gap between AC 4.1 and C20: the AC says "cada escopo com assinante"; C20 proves the World scope only. City goes through the same `PublishDeltas` loop (`TickLoopService.cs:80-84`), and Interior is skipped by design (`:82-83`, pre-existing), so the AC wording over-promises for Interior.
+2. C20 checks delivery and sequence continuity, not that the delta carries the post-step tick (`ToCursor.Tick`); a delta published before the clock moved would still pass.
+
+## Round 3 record (carried from 0cff1cc)
+
+Rows C1-C12, C18, C19 below are carried from 0cff1cc; their proofs were re-run green at `ca7d493` in round 4
+(batches above) and no cited file changed since.
 
 ## Checks
 
-Verified at `0cff1cc` (every proof re-run). Citations refreshed for the one file the fix touched
+Carried from 0cff1cc (round 3: verified at `0cff1cc`, every proof re-run). Citations refreshed for the one file the fix touched
 (`NpcDirectoryEndpointTests.cs`, rows C7-C10); other citations carried from `9bdc54d` - those files are
 unchanged by the fix.
 
@@ -74,6 +101,10 @@ None blocking. Residual notes:
 
 ## Gate
 
-`bash scripts/build.sh` exit 0; `bash scripts/test.sh --filter "<6 unit proofs>"` - 8 passed, 0 failed;
+Round 4 at `ca7d493`: `bash scripts/build.sh` exit 0; `bash scripts/test.sh --filter "<6 unit proofs>"` - 8 passed,
+0 failed; `bash scripts/test.sh --project integration --filter "<10 integration proofs incl. C20>"` - 17 passed,
+0 failed; C20 alone 1 passed. `scripts/verify.sh` not run (out of verifier scope).
+
+Round 3 (carried from 0cff1cc): `bash scripts/build.sh` exit 0; `bash scripts/test.sh --filter "<6 unit proofs>"` - 8 passed, 0 failed;
 `bash scripts/test.sh --project integration --filter "<9 integration proofs>"` - 16 passed, 0 failed; per-proof
 re-runs all passed. `scripts/verify.sh` not run (out of verifier scope).

@@ -54,7 +54,7 @@ Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~
 
 ### S4 - Relógio
 
-**C20** - Com um assinante no escopo Mundo, `step` e `advance-year` entregam cada um um delta cujo `ToCursor.Sequence` é o anterior mais 1 (AC 4.1)
+**C20** - Com assinantes nos escopos Mundo e Cidade, `step` e `advance-year` entregam cada um um delta cujo `ToCursor.Sequence` é o anterior mais 1 (AC 4.1)
 Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~SimulationControlEndpointsTests.Step_and_advance_year_publish_a_delta_to_subscribers"`
 
 ### Transversal · 2 files · 20 KB · ~4k
