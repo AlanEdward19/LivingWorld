@@ -51,8 +51,10 @@ Reavaliar com espera crescente as necessidades de **sobrevivência** (backoff 3�
 - **Refeições em horário fixo na rotina (almoço 12 h, jantar 19 h).** Medido: o NPC passa a comer com fome 96. `Eat` repõe fome **e** sede por completo e o decaimento (2/h e 3/h) está calibrado para ~1 refeição/dia, então refeição fixa dobra o consumo sem melhorar o comportamento. Exige recalibrar porções/decaimento: decisão de design.
 - **Despertar só por evento/limiar (sem ritmo)**: deixaria o dia depender só de necessidades; perde a rotina. Descartado.
 
-## Resíduo conhecido (não corrigido)
-- **Fixture de 500 pessoas ainda colapsa a partir do ano 3** (500 → ~265 no ano 4). Não é falta de comida (o estoque da fazenda fica no teto de 50.000): é a economia do fixture. Com oferta 5× acima do consumo o preço fica no piso (1), a receita da fazenda (~24 moedas por pessoa por mês) não cobre a folha de 300 empregados (150 por mês), o caixa chega a zero e os salários passam a ser pagos por ordem de id; casas sem renda passam fome enquanto outras acumulam milhares. Reduzir o salário piora (a renda deixa de sustentar a família). Opções, todas decisão de design: pagamento proporcional quando o caixa é curto; compartilhamento de renda dentro do domicílio/parentela; lavoura de subsistência por domicílio; empregador que ajusta emprego e produção ao que vende.
+## Resíduo conhecido
+- **Fixture de 500 pessoas: resolvido (AD-082).** A causa era a folha por ordem de id com o caixa a zero; agora o
+  pagamento é proporcional, parentes com reserva ajudam quem não tem comida (`MutualAidSystem`) e a viagem vai ao
+  destino do motivo. Estável por 10+ anos (440–520); picos de ~40 mortes por fome em alguns anos.
 - Quem come só quando uma necessidade fica urgente: latência média de 3,8 h entre cruzar 30 e comer (p95 8 h) porque `Work` ainda disputa com `Eat` abaixo do limiar crítico.
-- No fixture de escala 27% da população está em `Travel` (casas espalhadas a dezenas de células de uma única fazenda); é layout, não motor.
-- Os 24–29 óbitos por fome do ano 1 do default (de 100 iniciais) vêm do estado inicial sincronizado (todos começam com as mesmas necessidades).
+- No fixture de escala ~21% da população está em `Travel` (casas espalhadas a dezenas de células de uma única fazenda); é layout, não motor.
+- Os 21–23 óbitos do ano 1 do default (de 100 iniciais) são equilíbrio malthusiano do estado inicial sincronizado.

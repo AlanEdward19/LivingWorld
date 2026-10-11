@@ -68,6 +68,8 @@ que **já existiu**, não com o vivo — em 2 anos-sim os mortos já são metade
   não podem deixar id referenciado por vivo fora do mundo.
 - **Orçamento de escala provado uma vez**: 10k NPCs por 10 anos dentro do teto de tempo e disco,
   em execução manual registrada no `STATE.md` (o gate de rotina fica no sensor barato).
+  *Registro (AD-083/088): o sensor de snapshot cobre 12 anos (não 100) e 10k NPCs roda 14 dias, ambos com
+  `Category=Heavy` fora do `--project longrunning` padrão (`--heavy`/`--nightly`). Os 10 anos a 10k seguem sem registro.*
 
 ## Fora do escopo
 LOD de materialização (agregado vs indivíduo) é **Fase 8**, task 6 — esta fase abarata o NPC

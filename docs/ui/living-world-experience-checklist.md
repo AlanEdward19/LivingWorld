@@ -1,3 +1,6 @@
+> **Histórico**: aplicado à demo `web-demo/`, removida em 2026-10-11 (ADR-0022). Vale como lista de qualidade para o
+> cliente Godot, não como estado do repositório.
+
 # Living World Experience Checklist — índice
 
 Checklist aplicado à demo `web-demo/`, derivado de **Living World — Frontend Experience &

@@ -4,6 +4,10 @@ Auditoria estática (sem rodar testes) das fases `fechada`: 0–9, 11, 13, 28. C
 abaixo é lacuna real vs. `docs/roadmap/phase-NN-*.md`. Fechadas nesta branch: **[x]**.
 Itens que exigem decisão de escopo/arquitetura (AGENTS.md → "PERGUNTE QUANDO") ficam em **D**.
 
+> **Antes de "corrigir" qualquer item que toque comportamento do NPC, economia, população ou testes de escala, leia a
+> seção "Decisões já tomadas" abaixo.** Vários critérios "mais fracos" são consequência de mudanças deliberadas
+> (AD-077..088) e reverter o código para casar com o roadmap quebraria a vila.
+
 ## Fechadas nesta branch
 - [x] F2 — `Cities[]` fora do grid rejeitada no load (`CityScenarioLoader`).
 - [x] F3 — hash canônico distinto por `BranchId`; teste de reflexão: todo método de `IWorldRepository` recebe `BranchId`.
@@ -52,7 +56,24 @@ Itens que exigem decisão de escopo/arquitetura (AGENTS.md → "PERGUNTE QUANDO"
 - Remover `ExampleCounterSystem` (muda todos os goldens).
 - Specs `.specs/features/phase-{04,05,07,08,09,11}` com tabelas "Pending" — marcar Verified só após os itens acima.
 
-## Falha pré-existente em `develop`
-`OptimizationEquivalenceTests.Default_scenario_ninety_days_keeps_the_recorded_hashes` (seeds 1 e 2)
-falha sem nenhuma mudança desta branch: hashes gravados estão defasados. Regravar exige
-decidir se a mudança de hash foi intencional (AD-081/083 diziam "hashes idênticos").
+## Decisões já tomadas (não reverter sem decisão nova)
+| Item da revisão | O que mudou e por quê | Onde está registrado |
+|---|---|---|
+| F4 histerese 20/20 → média | A rotina guia o dia (trocas marcadas pelo relógio, iguais nos dois braços); a histerese só atua nas decisões por urgência. Medido: −0,74 de ~110 trocas/dia, z = −4, 15/20 seeds. **"20/20" não é atendido** | AD-088, `phase-04-needs.md` |
+| F5 salário parcial, não "byte-idêntico" | Caixa **zero** continua evento + saldos idênticos (teste `…empty_treasury…`). Caixa parcial paga a mesma fração a todos; antes os últimos por id ficavam sem renda e a vila passava fome | AD-082, `phase-05-economy.md` |
+| F3–F5/F9 horizontes menores | Orçamento de tempo dos testes de escala (`Ten_k` 14 dias, `Population_100x` 30 dias, saturação de snapshot em 12 anos); `Category=Heavy` só com `--heavy`/`--nightly`. O sensor de crescimento achou um vazamento real (lote colhido ficava no snapshot) | AD-083, AD-086, `longrunning-budget.md` |
+| F7 FAM-32 | **Aberto, não resolvido**: com a vila saudável CV(real) < CV(neutro) por 0,0041 (z = −4,0, 160 seeds). O roadmap reprova isso; AD-080 tratou como "efeito esperado" por engano | AD-088, spec da Fase 7 |
+| F7 nascimentos | Tolerância da contagem de nascimentos 100% → 150%: natalidade bruta ~45‰ com a população sobrevivendo | AD-082, `FamilyPairedScenarioTests` |
+| F3 mortalidade inicial | `ConditionalInitialMortality` ligada: adulto não morre 1 h depois por sorteio de idade menor que a atual | AD-077 |
+| F1 `ExampleCounterSystem` | Continua em produção e no hash; só ganhou `[LivingCapability]` (diagnóstico). Remover muda todos os goldens (D) | AD-084 |
+| F1/F9 estrutura | Sistemas se declaram (`LivingCapability`/`RunsAfter`); `BehaviorDecisionSystem`, `WorldState` e `ScenarioRunner` são `partial` por responsabilidade (mesmas linhas) | AD-084, AD-087 |
+| Cliente web | Removido (`web/`, `web-demo/`, gerador de tipos, testes que liam TypeScript). Contrato em `tests/contracts/` | ADR-0022, AD-085 |
+
+## Falha apontada como pré-existente: não se reproduz
+`OptimizationEquivalenceTests.Default_scenario_ninety_days_keeps_the_recorded_hashes` (seeds 1 e 2) **passa** no HEAD
+desta branch: os pins foram regravados no commit do lote colhido (AD-083, que muda o hash canônico de propósito; AD-081
+é que garantia hashes idênticos). Se falhar em outro checkout, é build antigo — rode `bash scripts/build.sh` antes.
+
+## Achados desta revisão sobre a própria revisão
+- A branch falhava `lint.sh` (ordem de imports em `BranchHashTests`); corrigido. CI (`ci.yml`) roda `verify.sh`.
+- O agente rodou só análise estática: nenhum item acima foi reproduzido por teste, exceto os três fechados.

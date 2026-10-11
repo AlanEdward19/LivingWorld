@@ -239,7 +239,7 @@ public class FamilyPairedScenarioTests
     /// as duas flags de seleção desligadas, controle de deriva neutra "de verdade").
     /// Resultado medido (AD-066, população morrendo de fome): diferença média -0.0054, IC95 bootstrap
     /// [-0.0120, 0.0017] — continha zero. Com demografia saudável a seleção real reduz a variância
-    /// (AD-082: -0.0041 em 160 seeds, z = -4.0), mas o efeito é pequeno demais para o conjunto do gate.
+    /// (AD-088: -0.0041 em 160 seeds, z = -4.0) — o roadmap pede o contrário, FAM-32 segue aberto.
     /// </summary>
     [Fact]
     [Trait("Category", "Scenario")]
@@ -265,15 +265,14 @@ public class FamilyPairedScenarioTests
         var bootstrapRng = new WorldRng(20260728);
         var (low, high) = BootstrapMeanCi95(diffs, bootstrapRng);
 
-        // O critério do FAM-32 é "existe efeito de seleção mensurável". O efeito é pequeno: medido fora do
-        // gate com 160 seeds (AD-082) a diferença média é -0.0041 (EP 0.0010, z = -4.0; 97/160 seeds
-        // negativas). Com SeedCount seeds o EP (~0.0025) é do tamanho do efeito, então exigir "IC95 exclui
-        // zero" aqui seria sorteio. O gate barato garante a direção que importa: a seleção real não pode
-        // AUMENTAR a variância de vitalidade contra a deriva neutra (IC95 inteiro abaixo da tolerância).
+        // O roadmap (Fase 7) reprova quando a diversidade real fica ABAIXO do controle neutro. Com a vila saudável isso
+        // acontece: -0.0041 (EP 0.0010, z = -4.0) em 160 seeds, medido fora do gate (AD-088) — FAM-32 está ABERTO, não
+        // atendido. Com SeedCount seeds o EP (~0.0025) é do tamanho do efeito, então este gate só barra o sinal
+        // contrário: a seleção real não pode AUMENTAR a variância de vitalidade além da tolerância.
         const double Tolerance = 0.006;
         Assert.True(high < Tolerance,
             $"IC95 bootstrap da diferenca pareada CV(real)-CV(neutro) e [{low:F4},{high:F4}] — selecao real " +
-            $"aumentou a variancia de vitalidade acima da tolerancia {Tolerance} (FAM-32). Medido em AD-082 (160 seeds): -0.0041 +- 0.0010.");
+            $"aumentou a variancia de vitalidade acima da tolerancia {Tolerance} (FAM-32). Medido em AD-088 (160 seeds): -0.0041 +- 0.0010 (abaixo do controle: critério do roadmap aberto).");
     }
 
     private static double CoefficientOfVariation(IEnumerable<double> values)

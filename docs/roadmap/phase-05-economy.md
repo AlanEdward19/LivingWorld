@@ -52,6 +52,8 @@ mais nesta fase importa.
   falha se algum passo declarado ficar sem caso.
 - **Salário sem caixa é evento, não silêncio**: empregador sem saldo emite o evento de
   salário não pago **e** deixa os dois saldos byte-idênticos.
+  *Registro (AD-082/088): caixa zero continua assim (teste). Caixa parcial, abaixo da folha, paga a mesma fração a
+  todos e emite o evento pelo restante — antes pagava por ordem de id.*
 - Todo NPC empregado aponta para um local de trabalho que **existe**; nenhum local tem mais
   empregados que vagas. Checado a cada tick em 10 anos.
 - **Cadeia completa com controle**: par base/tratamento na mesma seed, tratamento = quebra

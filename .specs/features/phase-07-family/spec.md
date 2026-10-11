@@ -339,9 +339,13 @@ paridade (nem `real >= neutro` nem o inverso são sustentados pelos dados), não
 limiar para forçar passagem — é a mesma pergunta causal do critério original, testada com o
 instrumento estatístico correto para o tamanho de efeito que existe.
 
-**Atualização FAM-32 (AD-080, 2026-10-11):** com a demografia corrigida (população deixa de morrer de fome),
-IC95 = [-0.0129, -0.0026] — exclui zero: seleção real reduz a variância de vitalidade contra a deriva neutra.
-O teste agora exige efeito mensurável (IC95 exclui zero), que é o critério real.
+**Atualização FAM-32 (AD-080, corrigida por AD-088, 2026-10-11):** com a demografia corrigida (a população deixa de
+morrer de fome) a diferença pareada deixa de ser ruído: −0,0041 (EP 0,0010, z = −4,0, 160 seeds; 97/160 seeds
+negativas). Isto **não atende** o roadmap, que reprova justamente quando a diversidade real fica *abaixo* do controle
+neutro: a seleção direcional reduz o CV de vitalidade em ~1,3%. AD-080 chamou o sinal de "efeito mensurável
+esperado" e o aceitou; foi um erro de leitura do critério. Com 10 seeds o EP (~0,0025) é do tamanho do efeito, então o
+gate só barra o sinal contrário (IC95 superior < +0,006). Status: **aberto** — decidir entre ajustar o modelo
+(seleção menos forte, mais mutação) ou reescrever o critério por ADR.
 
 ---
 
