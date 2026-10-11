@@ -1116,6 +1116,24 @@ public sealed class WorldState
 
     internal RestPlaceId NextRestPlaceIdAndAdvance() => new(_nextRestPlaceId++);
 
+    private readonly Dictionary<HouseholdId, RestPlace> _bedByHousehold = new();
+    private int _bedsIndexedCount;
+
+    /// <summary>Cama de menor id do domicílio (a mesma que <c>Where(Bed &amp;&amp; dono).OrderBy(Id).First()</c>
+    /// devolveria), sem varrer todas as camas. Índice derivado: <see cref="RestPlaces"/> só cresce por
+    /// <see cref="AddRestPlace"/>, então basta indexar o que entrou desde a última consulta.</summary>
+    internal RestPlace? BedOf(HouseholdId household)
+    {
+        for (; _bedsIndexedCount < _restPlaces.Count; _bedsIndexedCount++)
+        {
+            var place = _restPlaces[_bedsIndexedCount];
+            if (place.Kind != RestPlaceKind.Bed) continue;
+            if (!_bedByHousehold.TryGetValue(place.OwnerHousehold, out var known) || place.Id.Value < known.Id.Value)
+                _bedByHousehold[place.OwnerHousehold] = place;
+        }
+        return _bedByHousehold.GetValueOrDefault(household);
+    }
+
     public void AddRestPlace(RestPlace place)
     {
         _restPlaces.Add(place);

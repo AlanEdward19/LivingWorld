@@ -26,6 +26,41 @@ public static class MapPathfinder
         return result;
     }
 
+    /// <summary>Existe caminho entre as células? Equivale a <c>ShortestCost(...).IsSuccess</c> — toda célula
+    /// vizinha existente é transitável a custo finito, então alcançável é "mesma componente conexa" — sem
+    /// rodar um Dijkstra por consulta (a origem muda a cada passo do NPC, então o memo de custo falha muito).</summary>
+    public static bool IsReachable(WorldMap map, CellCoord start, CellCoord goal)
+    {
+        var labels = map.ComponentLabels;
+        return labels.TryGetValue(start, out var from) && labels.TryGetValue(goal, out var to) && from == to;
+    }
+
+    internal static Dictionary<CellCoord, int> LabelComponents(WorldMap map)
+    {
+        var labels = new Dictionary<CellCoord, int>();
+        int next = 0;
+        var stack = new Stack<CellCoord>();
+        foreach (var cell in map.Cells)
+        {
+            if (labels.ContainsKey(cell.Coord)) continue;
+            labels[cell.Coord] = next;
+            stack.Push(cell.Coord);
+            while (stack.Count > 0)
+            {
+                var current = stack.Pop();
+                for (int i = 0; i < Dx.Length; i++)
+                {
+                    var neighbor = new CellCoord(current.X + Dx[i], current.Y + Dy[i]);
+                    if (labels.ContainsKey(neighbor) || !map.TryGetCell(neighbor, out _)) continue;
+                    labels[neighbor] = next;
+                    stack.Push(neighbor);
+                }
+            }
+            next++;
+        }
+        return labels;
+    }
+
     private static Result<double> ComputeShortestCost(WorldMap map, CellCoord start, CellCoord goal)
     {
         if (!map.TryGetCell(start, out _)) return Result<double>.Fail($"start: célula {start} fora do grid");

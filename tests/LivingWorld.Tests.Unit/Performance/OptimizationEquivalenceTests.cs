@@ -1,7 +1,9 @@
+using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Cities.Spatial;
 using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Infrastructure.EventLog;
 using LivingWorld.Simulation.Cities;
@@ -223,6 +225,60 @@ public class OptimizationEquivalenceTests
         Assert.Equal(world.Fauna.Select(a => a.Id.Value).OrderBy(v => v), world.Fauna.Select(a => a.Id.Value));
         Assert.All(world.Flora, plant => Assert.Equal(plant, world.FindPlant(plant.Id)));
         Assert.All(world.Fauna, animal => Assert.Equal(animal, world.FindAnimal(animal.Id)));
+    }
+
+    // --- Alcançabilidade por componente conexa ---
+
+    [Fact]
+    public void Reachability_by_connected_component_matches_the_shortest_path_search()
+    {
+        var map = ScenarioRunner.DefaultMap(7);
+        var cells = new List<CellCoord>();
+        for (int x = 0; x < map.Width; x += 11)
+            for (int y = 0; y < map.Height; y += 9)
+                cells.Add(new CellCoord(x, y));
+        cells.AddRange([new(-1, 0), new(0, -1), new(map.Width, 0), new(0, map.Height), new(999, 999)]);
+
+        foreach (var from in cells)
+            foreach (var to in cells)
+                Assert.Equal(
+                    MapPathfinder.ShortestCost(map, from, to).IsSuccess, MapPathfinder.IsReachable(map, from, to));
+    }
+
+    // --- Cama por domicílio ---
+
+    [Fact]
+    public void Bed_index_matches_the_linear_scan_with_beds_added_between_queries()
+    {
+        var (world, _) = ScenarioRunner.Create(7);
+        var households = world.Households.Take(3).Select(h => h.Id).ToList();
+        long nextId = 1000;
+
+        void AddPlace(RestPlaceKind kind, HouseholdId owner, long id) =>
+            world.AddRestPlace(new RestPlace(new RestPlaceId(id), kind, new CellCoord(1, 1), owner));
+
+        void AssertIndexMatchesScan()
+        {
+            foreach (var household in households)
+            {
+                var expected = world.RestPlaces
+                    .Where(place => place.Kind == RestPlaceKind.Bed && place.OwnerHousehold == household)
+                    .OrderBy(place => place.Id.Value)
+                    .FirstOrDefault();
+                Assert.Same(expected, world.BedOf(household));
+            }
+        }
+
+        AssertIndexMatchesScan();
+        AddPlace(RestPlaceKind.Bed, households[0], nextId + 5);
+        AddPlace(RestPlaceKind.Dwelling, households[1], nextId + 1);
+        AssertIndexMatchesScan();
+        AddPlace(RestPlaceKind.Bed, households[0], nextId + 2); // id menor que a cama já indexada
+        AddPlace(RestPlaceKind.Bed, households[1], nextId + 9);
+        AddPlace(RestPlaceKind.Bed, households[0], nextId + 7);
+        AssertIndexMatchesScan();
+        Assert.Equal(nextId + 2, world.BedOf(households[0])!.Id.Value);
+        Assert.Null(world.BedOf(households[2]));
     }
 
     // --- Menor custo memoizado ---

@@ -84,6 +84,14 @@ public sealed class WorldMap
     /// consulta rodava um Dijkstra completo.</summary>
     internal ConcurrentDictionary<(CellCoord Start, CellCoord Goal), Result<double>> ShortestCostCache { get; } = new();
 
+    private Lazy<Dictionary<CellCoord, int>>? _componentLabels;
+
+    /// <summary>Componente conexa (8-vizinhança, mesma do pathfinder) de cada célula, calculada uma vez:
+    /// o mapa é imutável. Alcançar uma célula a partir de outra é pertencer à mesma componente.</summary>
+    internal Dictionary<CellCoord, int> ComponentLabels =>
+        (_componentLabels ??= new Lazy<Dictionary<CellCoord, int>>(
+            () => MapPathfinder.LabelComponents(this), LazyThreadSafetyMode.ExecutionAndPublication)).Value;
+
     public MapCell CellAt(CellCoord coord) => _cellByCoord[coord];
 
     public bool TryGetCell(CellCoord coord, out MapCell cell) => _cellByCoord.TryGetValue(coord, out cell!);
