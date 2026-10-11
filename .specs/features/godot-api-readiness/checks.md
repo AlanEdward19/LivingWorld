@@ -14,11 +14,12 @@ Proof: `bash scripts/test.sh --filter "FullyQualifiedName~BuildingLayoutGenerato
 
 **C2** - O escopo Interior devolve `layout` com, por andar, cada célula e seu `BuildingMaterial` (AC 1.2)
 Proof: `bash scripts/test.sh --filter "FullyQualifiedName~InteriorProjectorTests.Layout_lists_cells_with_material_per_floor"`
+Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~ApiContractTests.City_and_interior_shapes_match_the_committed_contract"` (HTTP: `layout.floors` = nº de `floorLayouts`)
 
 **C3** - Com `Floors` > 1, cada andar tem exatamente 1 célula `Stair` e ela está no mesmo `(x,y)` em todos os andares (AC 1.3)
 Proof: `bash scripts/test.sh --filter "FullyQualifiedName~BuildingLayoutGeneratorTests.Multi_floor_has_one_stair_at_same_xy"`
 
-**C4** - Todo ocupante do snapshot Interior tem `Floor` em `[0, Floors-1]` (AC 1.4)
+**C4** - Todo ocupante (um no térreo e um no andar 1) do snapshot Interior tem `Floor` em `[0, Floors-1]` (AC 1.4)
 Proof: `bash scripts/test.sh --filter "FullyQualifiedName~InteriorProjectorTests.Occupant_floor_within_building_floors"`
 
 **C5** - Entrar com andar fora de `[0, Floors-1]` devolve falha e `Hash(world)` não muda (AC 1.5)
@@ -26,10 +27,11 @@ Proof: `bash scripts/test.sh --filter "FullyQualifiedName~InteriorEntryTests.Flo
 
 **C6** - O escopo Cidade traz em cada prédio `floors` e a planta do térreo (AC 1.6)
 Proof: `bash scripts/test.sh --filter "FullyQualifiedName~CityProjectorTests.Building_marker_has_floors_and_ground_footprint"`
+Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~ApiContractTests.City_and_interior_shapes_match_the_committed_contract"` (HTTP: `floors` ≥ 1 e `groundFootprint` com porta)
 
 ### S2 - Lista de NPCs · 3 files · 12 KB · ~4k
 
-**C7** - `GET /npcs?cityId=X` devolve só vivos da cidade X, ordenados por `name` e depois `id`; cidade sem NPC dá `items: []`, `total: 0` (AC 2.1)
+**C7** - `GET /npcs?cityId=X` devolve só vivos da cidade X (um morto é semeado), ordenados por `name` e, em empate, por `id`; cidade sem NPC dá `items: []`, `total: 0` (AC 2.1)
 Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~NpcDirectoryEndpointTests.City_filter_returns_living_sorted"`
 
 **C8** - `q=ana` acha "Ana" e "ANA", sem diferenciar maiúsculas (AC 2.2)
@@ -54,7 +56,7 @@ Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~
 **C18** - O contrato regravado em `tests/contracts/` (`openapi.v1.json`, `shape.*.json`) bate com as rotas e respostas novas (Surface)
 Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~ApiContractTests"`
 
-**C19** - Assinar escopo sem permissão continua respondendo `403` sem corpo (Surface, status 403)
+**C19** - O `403` existente do escopo Mundo para jogador segue intacto (não-regressão; o plano não lista 403 em Cidade/Interior)
 Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~RealtimeGatewayEndpointTests.Subscribe_to_world_scope_as_player_is_denied_with_403_and_no_body"`
 
 ## Coverage
@@ -64,7 +66,7 @@ Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~
 | `ActionType` (8) | C11 e C12, ambos table-driven sobre todos os 8 por reflexão | - |
 | `GET /npcs` statuses (2) | 200 C7 · 400 C9 | - |
 | `GET /visual/catalog/actions` statuses (1) | 200 C11 | - |
-| `GET /visual/subscribe` statuses (2) | 200 C2 · 403 C19 | - |
+| `GET /visual/subscribe` statuses (1) | 200 C2 | - |
 | derivação por prédio (3) | piso ≥ 1 C1 · escada C3 · andar do ocupante C4 | - |
 | contrato congelado (2 arquivos) | `openapi.v1.json` C18 · `shape.*.json` C18 | - |
 
@@ -76,7 +78,7 @@ Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~
 - validation: C9
 - failure modes: C5
 - idempotency: n/a - as rotas novas são `GET` sem efeito
-- authorization: existing - `RealtimeGateway.Authorize` cobre `/visual/*`; `/npcs` é leitura sem papel
+- authorization: existing - `RealtimeGateway.Authorize` cobre subscribe/replay/sse/ws; `/npcs` e `/visual/catalog/actions` são leituras públicas como `GET /npcs/{id}`
 - concurrency: n/a - leitura de `WorldState` no mesmo ponto das rotas `/npcs/{id}` existentes
 - data lifecycle: n/a - nada persistido nesta entrega
 - dependency failure: n/a - sem serviço externo

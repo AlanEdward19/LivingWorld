@@ -21,16 +21,18 @@ Proof: `bash scripts/test.sh --filter "FullyQualifiedName~ScenarioLoaderV2Tests.
 **C4** - O workplace criado pela conclusão de obra tem `Building` igual ao prédio construído (AC 1.2, construção)
 Proof: `bash scripts/test.sh --filter "FullyQualifiedName~ConstructionSystemTests.Completing_project_leaves_a_land_scarce_workplace_queued_and_completes_once_land_is_available"`
 
-**C5** - `Dwelling` apontando para `BuildingId` inexistente faz `ReferentialIntegritySweep.Check` devolver erro (AC 1.3)
+**C5** - `Dwelling` ou `Workplace.Building` apontando para `BuildingId` inexistente fazem `ReferentialIntegritySweep.Check` devolver erro (AC 1.3)
 Proof: `bash scripts/test.sh --filter "FullyQualifiedName~BuildingLinkTests.Referential_sweep_fails_for_a_dwelling_that_does_not_exist"`
+Proof: `bash scripts/test.sh --filter "FullyQualifiedName~BuildingLinkTests.Referential_sweep_fails_for_a_workplace_building_that_does_not_exist"`
 
 **C6** - Serializar e desserializar preserva `Dwelling` e `Workplace.Building`; snapshot sem os campos carrega `null` (AC 1.4)
 Proof: `bash scripts/test.sh --filter "FullyQualifiedName~BuildingLinkTests.Snapshot_round_trip_keeps_links_and_missing_fields_load_as_null"`
 
 ### S2 - Ocupação · 3 files · 14 KB · ~4k
 
-**C7** - `Sleep` na célula do household com `Dwelling` deixa `Interior.Building == Dwelling`, andar em `[0, Floors-1]` (AC 2.1)
+**C7** - `Sleep` na célula do household com `Dwelling` deixa `Interior.Building == Dwelling`, andar em `[0, Floors-1]`; moradores de casas de 2 andares aparecem nos andares 0 e 1 (AC 2.1)
 Proof: `bash scripts/test.sh --filter "FullyQualifiedName~BuildingOccupancySystemTests.Sleep_enters_the_dwelling_when_at_the_household_cell"`
+Proof: `bash scripts/test.sh --filter "FullyQualifiedName~BuildingOccupancySystemTests.Sleepers_spread_over_the_floors_of_a_multi_floor_house"`
 
 **C8** - `Work` na célula do workplace com `Building` deixa `Interior.Building == Workplace.Building`, andar 0 (AC 2.2)
 Proof: `bash scripts/test.sh --filter "FullyQualifiedName~BuildingOccupancySystemTests.Work_enters_the_workplace_building_on_the_ground_floor"`
@@ -47,8 +49,9 @@ Proof: `bash scripts/test.sh --filter "FullyQualifiedName~BuildingOccupancySyste
 **C12** - Duas execuções da seed 77 por 14 dias dão o mesmo `Interior` de todo NPC dentro de um prédio, e há pelo menos um (AC 2.5)
 Proof: `bash scripts/test.sh --filter "FullyQualifiedName~BuildingOccupancySystemTests.Same_seed_same_interior_assignments"`
 
-**C13** - `Dwelling` para prédio inexistente mantém o NPC fora (AC 2.3, falha)
+**C13** - `Dwelling` para prédio inexistente mantém o NPC fora, e NPC morto sai do prédio (AC 2.3, falha)
 Proof: `bash scripts/test.sh --filter "FullyQualifiedName~BuildingOccupancySystemTests.Dead_npc_or_missing_building_stays_outside"`
+Proof: `bash scripts/test.sh --filter "FullyQualifiedName~BuildingOccupancySystemTests.Dead_npc_is_taken_out_of_the_building"`
 
 ## Coverage
 

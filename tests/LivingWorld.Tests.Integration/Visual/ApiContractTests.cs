@@ -54,10 +54,17 @@ public class ApiContractTests
         var buildings = city["payload"]!["buildings"]!.AsArray();
         Assert.NotEmpty(buildings);
         AssertMatchesContract("shape.city-subscribe.json", ShapeOf(city));
+        foreach (var marker in buildings)
+        {
+            Assert.True(marker!["floors"]!.GetValue<int>() >= 1);
+            Assert.Contains(marker["groundFootprint"]!.AsArray(), c => c!["material"]!.GetValue<int>() == 2); // Door
+        }
 
         string buildingId = buildings[0]!["id"]!["value"]!.ToString();
         var interior = JsonNode.Parse(await client.GetStringAsync($"/visual/subscribe?scope=Interior&refId={buildingId}&mode=Spectator"))!;
         AssertMatchesContract("shape.interior-subscribe.json", ShapeOf(interior));
+        var layout = interior["payload"]!["layout"]!;
+        Assert.Equal(layout["floors"]!.GetValue<int>(), layout["floorLayouts"]!.AsArray().Count);
     }
 
     /// <summary>Estrutura sem valores: objeto → propriedades ordenadas; lista → forma do primeiro elemento

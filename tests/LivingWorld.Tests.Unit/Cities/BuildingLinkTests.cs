@@ -1,5 +1,7 @@
 using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Scenarios;
@@ -52,6 +54,18 @@ public class BuildingLinkTests
         Assert.Empty(ReferentialIntegritySweep.Check(world));
 
         world.Households[0].LiveIn(new BuildingId(9_999_999));
+
+        Assert.NotEmpty(ReferentialIntegritySweep.Check(world));
+    }
+
+    [Fact]
+    public void Referential_sweep_fails_for_a_workplace_building_that_does_not_exist()
+    {
+        var world = ScenarioRunner.Create(seed: 31, initialPopulation: 40).World;
+        var legacy = new Workplace(
+            world.NextWorkplaceIdAndAdvance(), new LocationType(1), new CellCoord(0, 0), 1, employees: [],
+            new Dictionary<ResourceType, long>(), Money.Zero, new Dictionary<ResourceType, long>(), building: new BuildingId(9_999_999));
+        world.AddWorkplace(legacy);
 
         Assert.NotEmpty(ReferentialIntegritySweep.Check(world));
     }

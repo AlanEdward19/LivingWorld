@@ -41,6 +41,15 @@
         },
         "type": "object"
       },
+      "CityId": {
+        "properties": {
+          "value": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "ConversationEndRequest": {
         "properties": {
           "sessionId": {
@@ -188,6 +197,76 @@
         "type": "object"
       },
       "JsonElement": {},
+      "NpcDirectoryItem": {
+        "properties": {
+          "action": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActionType"
+              }
+            ]
+          },
+          "cityId": {
+            "$ref": "#/components/schemas/CityId"
+          },
+          "id": {
+            "$ref": "#/components/schemas/NpcId"
+          },
+          "location": {
+            "$ref": "#/components/schemas/CellCoord"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "cityId",
+          "action",
+          "location"
+        ],
+        "type": "object"
+      },
+      "NpcDirectoryPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/NpcDirectoryItem"
+            },
+            "type": "array"
+          },
+          "total": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "NpcId": {
+        "properties": {
+          "value": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "type": "object"
+      },
       "ObservationScopeDto": {
         "properties": {
           "buildingId": {
@@ -874,7 +953,24 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NpcDirectoryPage"
+                }
+              }
+            },
             "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
           }
         },
         "tags": [

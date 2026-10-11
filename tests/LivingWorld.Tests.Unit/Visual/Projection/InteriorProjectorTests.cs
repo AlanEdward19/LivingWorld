@@ -83,9 +83,17 @@ public class InteriorProjectorTests
         var stair = BuildingLayoutGenerator.Generate(building).FloorLayouts[1].Cells.Single(c => c.Material == BuildingMaterial.Stair).Cell;
         Assert.True(LivingWorld.Simulation.Cities.InteriorEntry.TryEnter(world, walker, building.Id, new FloorLevel(1), stair).IsSuccess);
 
+        var ground = BuildingLayoutGenerator.Generate(building).FloorLayouts[0].Cells.Single(c => c.Material == BuildingMaterial.Door).Cell;
+        var second = new LivingWorld.Domain.Population.Npc(
+            world.NextNpcIdAndAdvance(), "caio", Sex.Male, WorldDate.Epoch(new WorldCalendar(24, 30, 12)), new CultureId(1), new CellCoord(0, 0),
+            motherId: null, fatherId: null, household: null, health: 100, personality: Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!,
+            profession: new ProfessionType(1), currentLocation: new CellCoord(0, 0), city: building.City);
+        world.AddNpc(second);
+        Assert.True(LivingWorld.Simulation.Cities.InteriorEntry.TryEnter(world, second, building.Id, FloorLevel.Ground, ground).IsSuccess);
+
         var snapshot = InteriorProjector.Build(world, building.Id).Value!;
 
-        var occupant = Assert.Single(snapshot.Occupants);
-        Assert.InRange(occupant.Floor.Value, 0, snapshot.Layout.Floors - 1);
+        Assert.Equal(new[] { 0, 1 }, snapshot.Occupants.Select(o => o.Floor.Value).Order());
+        Assert.All(snapshot.Occupants, o => Assert.InRange(o.Floor.Value, 0, snapshot.Layout.Floors - 1));
     }
 }

@@ -18,7 +18,9 @@ public class NpcDirectoryEndpointTests : IClassFixture<LivingWorldApiFactory>
 
     public NpcDirectoryEndpointTests(LivingWorldApiFactory factory) => _factory = factory;
 
-    private CityId SeedCity(params string[] names)
+    private CityId SeedCity(params string[] names) => SeedCity(deadNames: [], names);
+
+    private CityId SeedCity(string[] deadNames, string[] names)
     {
         using var scope = _factory.Services.CreateScope();
         var world = scope.ServiceProvider.GetRequiredService<WorldState>();
@@ -32,6 +34,16 @@ public class NpcDirectoryEndpointTests : IClassFixture<LivingWorldApiFactory>
                 personality: Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!,
                 profession: new ProfessionType(1), currentLocation: new CellCoord(0, 0), city: city.Id);
             world.AddNpc(npc);
+        }
+        foreach (var name in deadNames)
+        {
+            var dead = new Npc(
+                world.NextNpcIdAndAdvance(), name, Sex.Male, WorldDate.Epoch(new WorldCalendar(24, 30, 12)), new CultureId(1),
+                new CellCoord(0, 0), motherId: null, fatherId: null, household: null, health: 100,
+                personality: Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!,
+                profession: new ProfessionType(1), currentLocation: new CellCoord(0, 0), city: city.Id);
+            world.AddNpc(dead);
+            dead.Die(WorldDate.Epoch(new WorldCalendar(24, 30, 12)));
         }
         return city.Id;
     }
@@ -57,6 +69,22 @@ public class NpcDirectoryEndpointTests : IClassFixture<LivingWorldApiFactory>
         Assert.Equal(3, page.GetProperty("total").GetInt32());
         Assert.Equal(0, emptyPage.GetProperty("items").GetArrayLength());
         Assert.Equal(0, emptyPage.GetProperty("total").GetInt32());
+    }
+
+    [Fact]
+    public async Task Dead_npcs_are_excluded_and_name_ties_break_by_id()
+    {
+        var city = SeedCity(deadNames: ["Zed"], names: ["Ana", "Ana", "Bia"]);
+
+        var page = await GetPage($"cityId={city.Value}");
+        var items = page.GetProperty("items").EnumerateArray().ToArray();
+
+        Assert.Equal(3, page.GetProperty("total").GetInt32());
+        Assert.DoesNotContain(items, i => i.GetProperty("name").GetString() == "Zed");
+        var anaIds = items.Where(i => i.GetProperty("name").GetString() == "Ana")
+            .Select(i => i.GetProperty("id").GetProperty("value").GetInt64()).ToArray();
+        Assert.Equal(anaIds.Order().ToArray(), anaIds);
+        Assert.Equal(city.Value.ToString(), items[0].GetProperty("cityId").GetProperty("value").GetString());
     }
 
     [Fact]

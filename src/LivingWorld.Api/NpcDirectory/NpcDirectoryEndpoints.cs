@@ -5,7 +5,7 @@ using LivingWorld.Simulation.Hosting;
 
 namespace LivingWorld.Api.NpcDirectory;
 
-public sealed record NpcDirectoryItem(NpcId Id, string Name, CityId City, ActionType? Action, CellCoord Location);
+public sealed record NpcDirectoryItem(NpcId Id, string Name, CityId CityId, ActionType? Action, CellCoord Location);
 
 public sealed record NpcDirectoryPage(IReadOnlyList<NpcDirectoryItem> Items, int Total);
 
@@ -35,5 +35,7 @@ public static class NpcDirectoryEndpoints
                 .Select(n => new NpcDirectoryItem(n.Id, n.Name, n.City, n.CurrentAction, n.CurrentLocation))
                 .ToArray();
             return Results.Ok(new NpcDirectoryPage(items, matches.Length));
-        });
+        })
+        .Produces<NpcDirectoryPage>(StatusCodes.Status200OK)
+        .Produces<string>(StatusCodes.Status400BadRequest);
 }

@@ -128,4 +128,37 @@ public class BuildingOccupancySystemTests
 
         Assert.Null(npc.Interior);
     }
+
+    [Fact]
+    public void Dead_npc_is_taken_out_of_the_building()
+    {
+        var (world, npc) = Setup();
+        npc.SetCurrentAction(ActionType.Sleep, 0);
+        Tick(world);
+        Assert.NotNull(npc.Interior);
+
+        npc.Die(world.CurrentDate);
+        Tick(world);
+
+        Assert.Null(npc.Interior);
+    }
+
+    [Fact]
+    public void Sleepers_spread_over_the_floors_of_a_multi_floor_house()
+    {
+        var world = ScenarioRunner.Create(seed: 41, initialPopulation: 40).World;
+        var floors = new HashSet<int>();
+        foreach (var household in world.Households.Where(h => h.Dwelling is not null))
+            foreach (var npc in world.Npcs.Where(n => n.Household == household.Id))
+            {
+                npc.MoveTo(household.Location, 0);
+                npc.SetCurrentAction(ActionType.Sleep, 0);
+            }
+
+        Tick(world);
+
+        foreach (var npc in world.Npcs.Where(n => n.Interior is not null)) floors.Add(npc.Interior!.Floor.Value);
+        Assert.Contains(0, floors);
+        Assert.Contains(1, floors);
+    }
 }
