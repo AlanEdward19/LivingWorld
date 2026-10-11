@@ -24,6 +24,8 @@ Proof: `bash scripts/client-test.sh --filter "test_cursor_stream::test_403_is_ac
 
 **C5** - Resposta com campo ausente ou de tipo diferente de `tests/contracts/shape.*.json` é rejeitada (AC 1.5)
 Proof: `bash scripts/client-test.sh --filter "test_shape_validator::test_rejects_missing_and_mistyped_fields"`
+Proof: `bash scripts/client-test.sh --filter "test_shape_validator::test_api_client_rejects_mistyped_status"`
+Proof: `bash scripts/client-test.sh --filter "test_shape_validator::test_stream_rejects_mistyped_snapshot"`
 
 ### S2 - Mundo isométrico 3D · client/godot/Scenes
 **C6** - Snapshot do mundo cria um nó por cidade na `location` e um por NPC externo (AC 2.1)
@@ -60,10 +62,13 @@ Proof: `bash scripts/client-test.sh --filter "test_interior_view::test_floor_swi
 
 **C16** - Sair restaura o exterior e a assinatura anterior (AC 4.4)
 Proof: `bash scripts/client-test.sh --filter "test_app::test_exit_restores_exterior_and_scope"`
+Proof: `bash scripts/client-test.sh --filter "test_app::test_exit_returns_to_the_previous_city_scope"`
 
 ### S5 - Consulta e relógio
 **C17** - A lista pagina `GET /npcs` com `q`, `skip` e `take` ≤ 200 e mostra "nenhum NPC" quando vazia (AC 5.1)
 Proof: `bash scripts/client-test.sh --filter "test_panels::test_npc_list_paginates_and_searches"`
+Proof: `bash scripts/client-test.sh --filter "test_panels::test_failed_list_shows_error_not_empty"`
+Proof: `bash scripts/client-test.sh --filter "test_panels::test_list_filters_by_city_scope"`
 
 **C18** - Selecionar um NPC busca `GET /npcs/{id}` e o destaca na cena (AC 5.2)
 Proof: `bash scripts/client-test.sh --filter "test_panels::test_select_npc_fetches_and_highlights"`
@@ -79,6 +84,7 @@ Proof: `bash scripts/client-test.sh --filter "test_clock_panel::test_buttons_cal
 
 **C22** - Servidor fora do ar mostra "sem conexão" e repete com espera 1, 2, 4, 8 s limitada a 8 s (AC 5.6)
 Proof: `bash scripts/client-test.sh --filter "test_cursor_stream::test_offline_backoff_is_capped"`
+Proof: `bash scripts/client-test.sh --filter "test_app::test_offline_shows_banner_text_and_recovers"`
 
 ## Coverage
 
@@ -109,4 +115,5 @@ Proof: `bash scripts/client-test.sh --filter "test_cursor_stream::test_offline_b
 - S1 = 12k, S2 = 20k, S3 = 8k, S4 = 14k, S5 = 14k, total ≈ 68k, abaixo do budget de 150k - one builder
 - Mechanism: one builder
 - **Settled mid-build:** NPCs da cidade vêm de `livingState.npcs` (mesma fonte dos deltas); o interior é relido a cada 1 s porque o servidor não publica delta de interior; `step`/`+1 ano` reassinam o escopo porque não publicam delta; `InteriorOccupant` ganhou `action` (API)
+- **Round 2:** `ApiClient` valida toda resposta com forma congelada (status, catálogo, lista, interior, cidade); a lista segue o escopo atual e distingue erro de vazio; C16 cobre voltar à cidade; C22 afirma o texto do aviso
 - **Abandoned:** nada

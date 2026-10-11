@@ -13,6 +13,8 @@ var floor_label: Label
 var _container: SubViewportContainer
 var _viewport: SubViewport
 var _camera: Camera3D
+var _sun: DirectionalLight3D
+var _environment: Environment
 var _source: Camera3D
 
 
@@ -54,16 +56,16 @@ void fragment() {
 	_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	_camera.far = 400.0
 	_viewport.add_child(_camera)
-	var sun := DirectionalLight3D.new()
-	sun.rotation = Vector3(deg_to_rad(-55), deg_to_rad(30), 0)
-	_viewport.add_child(sun)
+	_sun = DirectionalLight3D.new()
+	_sun.rotation = Vector3(deg_to_rad(-55), deg_to_rad(30), 0)
+	_viewport.add_child(_sun)
 	var environment := WorldEnvironment.new()
-	environment.environment = Environment.new()
-	environment.environment.background_mode = Environment.BG_CLEAR_COLOR
-	environment.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.environment.ambient_light_color = Color(0.75, 0.75, 0.8)
-	environment.environment.ambient_light_energy = 0.7
+	_environment = Environment.new()
+	_environment.background_mode = Environment.BG_CLEAR_COLOR
+	_environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	environment.environment = _environment
 	_viewport.add_child(environment)
+	set_daylight(1.0)
 	interior_view = InteriorView.new()
 	_viewport.add_child(interior_view)
 	floor_label = Label.new()
@@ -82,6 +84,14 @@ func enter(info: Dictionary, origin: Vector2i, labels, source_camera: Camera3D) 
 	active = true
 	_update_floor_label()
 	_sync_camera()
+
+
+## Luz do interior segue o dia: de noite fica à luz de lamparina (quente e baixa).
+func set_daylight(light: float) -> void:
+	_sun.light_energy = 0.25 + 0.75 * light
+	_sun.light_color = Color(1.0, 0.78, 0.55).lerp(Color(1, 0.97, 0.92), light)
+	_environment.ambient_light_color = Color(0.85, 0.65, 0.5).lerp(Color(0.75, 0.75, 0.8), light)
+	_environment.ambient_light_energy = 0.55 + 0.15 * light
 
 
 func leave() -> void:

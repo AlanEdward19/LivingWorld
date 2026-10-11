@@ -13,6 +13,7 @@ var kind := ""
 var map_size := Vector2i.ZERO
 var rivers: Dictionary = {} ## Vector2i -> true
 var terrain: Dictionary = {} ## Vector2i -> int (id de terreno), vem do mundo e persiste entre escopos
+var names: Dictionary = {} ## npc id -> nome (vem de GET /npcs)
 var cities: Dictionary = {} ## id (String) -> {id,name,location,population,bounds:Rect2i}
 var npcs: Dictionary = {} ## id (int) -> {id,cell,action,city}
 var buildings: Dictionary = {} ## id (int) -> {id,type,cell,orientation,floors,footprint:Array}

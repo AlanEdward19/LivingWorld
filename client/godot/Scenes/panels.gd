@@ -1,13 +1,13 @@
 extends RefCounted
 ## Painéis de consulta (UI de espectador): lista de NPCs, ficha de NPC, ficha de cidade e relógio.
-## Cada painel é um Control com API pública simples; todos os dados vêm do servidor por `transport`.
+## Cada painel é um Control com API pública simples; todos os dados vêm do servidor pelo `api` (ApiClient).
 
 const PAGE_SIZE := 50
 
 
 class NpcListPanel extends PanelContainer:
 	signal npc_selected(id: int)
-	var transport
+	var api
 	var rows: Array = [] ## [{id, name}]
 	var total := 0
 	var query := ""
@@ -17,6 +17,7 @@ class NpcListPanel extends PanelContainer:
 	var _search: LineEdit
 	var _page_label: Label
 	var city_filter := ""
+	var failed := false
 
 	func _init() -> void:
 		custom_minimum_size = Vector2(280, 0)
@@ -64,15 +65,11 @@ class NpcListPanel extends PanelContainer:
 		await load_page()
 
 	func load_page() -> void:
-		var path := "/npcs?skip=%d&take=%d" % [skip, PAGE_SIZE]
-		if query != "":
-			path += "&q=" + query.uri_encode()
-		if city_filter != "":
-			path += "&cityId=" + city_filter.uri_encode()
-		var response: Dictionary = await transport.request("GET", path)
+		var response: Dictionary = await api.npc_page(query, skip, PAGE_SIZE, city_filter)
 		rows.clear()
 		_list.clear()
-		if response.status != 200 or not (response.body is Dictionary):
+		failed = not response.ok
+		if failed:
 			total = 0
 		else:
 			total = int(response.body.total)
@@ -80,34 +77,71 @@ class NpcListPanel extends PanelContainer:
 				var id: int = int(item.id.value)
 				rows.append({"id": id, "name": item.name})
 				_list.add_item("%s  #%d" % [item.name, id])
+		empty_label.text = "erro ao carregar a lista" if failed else "nenhum NPC"
 		empty_label.visible = rows.is_empty()
 		_page_label.text = "%d–%d de %d" % [skip + 1 if total > 0 else 0, skip + rows.size(), total]
 
 
 class NpcDetailPanel extends PanelContainer:
 	signal highlight(id: int)
-	var transport
+	signal follow_requested(id: int)
+	var api
+	var labels
 	var npc_id := -1
 	var text := ""
-	var _label: RichTextLabel
+	var bars: Dictionary = {} ## "Fome" -> ProgressBar
+	var _title: Label
+	var _subtitle: Label
+	var _grid: VBoxContainer
 
 	func _init() -> void:
-		custom_minimum_size = Vector2(280, 0)
-		_label = RichTextLabel.new()
-		_label.fit_content = true
-		_label.bbcode_enabled = true
-		add_child(_label)
+		custom_minimum_size = Vector2(290, 0)
+		var box := VBoxContainer.new()
+		add_child(box)
+		_title = Label.new()
+		_title.add_theme_font_size_override("font_size", 20)
+		box.add_child(_title)
+		_subtitle = Label.new()
+		_subtitle.modulate = Color(1, 1, 1, 0.75)
+		box.add_child(_subtitle)
+		_grid = VBoxContainer.new()
+		box.add_child(_grid)
+		for spec in ["Saúde", "Fome", "Sede", "Sono", "Social"]:
+			var row := HBoxContainer.new()
+			var name := Label.new()
+			name.text = spec
+			name.custom_minimum_size.x = 56
+			row.add_child(name)
+			var bar := ProgressBar.new()
+			bar.max_value = 100
+			bar.show_percentage = false
+			bar.custom_minimum_size = Vector2(150, 14)
+			bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			row.add_child(bar)
+			_grid.add_child(row)
+			bars[spec] = bar
+		var follow := Button.new()
+		follow.text = "Seguir (F)"
+		follow.pressed.connect(func(): follow_requested.emit(npc_id))
+		box.add_child(follow)
 		visible = false
 
 	func show_npc(id: int) -> void:
-		var response: Dictionary = await transport.request("GET", "/npcs/%d" % id)
-		if response.status != 200 or not (response.body is Dictionary):
+		var response: Dictionary = await api.npc_detail(id)
+		if not response.ok or not (response.body is Dictionary):
 			return
 		npc_id = id
 		var npc: Dictionary = response.body
+		var action_text := ""
+		if labels != null and npc.get("currentAction") != null:
+			action_text = labels.label_for(int(npc.currentAction))
+		_title.text = npc.name
+		_subtitle.text = "%d anos%s" % [int(npc.ageYears), (" · " + action_text) if action_text != "" else ""]
+		var values := {"Saúde": npc.health, "Fome": npc.hunger, "Sede": npc.thirst, "Sono": npc.sleep, "Social": npc.social}
+		for key in values:
+			bars[key].value = float(values[key])
+			bars[key].modulate = Color("5fb36b") if float(values[key]) >= 40.0 else Color("d9a441") if float(values[key]) >= 20.0 else Color("d9534f")
 		text = "%s\nIdade %d · saúde %d\nFome %d · Sede %d · Sono %d · Social %d" % [
-			npc.name, int(npc.ageYears), int(npc.health), int(npc.hunger), int(npc.thirst), int(npc.sleep), int(npc.social)]
-		_label.text = "[b]%s[/b]\nIdade %d · saúde %d\nFome %d · Sede %d · Sono %d · Social %d" % [
 			npc.name, int(npc.ageYears), int(npc.health), int(npc.hunger), int(npc.thirst), int(npc.sleep), int(npc.social)]
 		visible = true
 		highlight.emit(id)
@@ -115,14 +149,20 @@ class NpcDetailPanel extends PanelContainer:
 
 class CityPanel extends PanelContainer:
 	var text := ""
-	var _label: RichTextLabel
+	var _title: Label
+	var _body: Label
 
 	func _init() -> void:
-		custom_minimum_size = Vector2(280, 0)
-		_label = RichTextLabel.new()
-		_label.fit_content = true
-		_label.bbcode_enabled = true
-		add_child(_label)
+		custom_minimum_size = Vector2(290, 0)
+		var box := VBoxContainer.new()
+		add_child(box)
+		_title = Label.new()
+		_title.add_theme_font_size_override("font_size", 20)
+		box.add_child(_title)
+		_body = Label.new()
+		_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_body.custom_minimum_size.x = 270
+		box.add_child(_body)
 		visible = false
 
 	## `info` = WorldStore.city: {name, indicators:{population, wealth, health, inequality, economy, housing}}
@@ -132,20 +172,24 @@ class CityPanel extends PanelContainer:
 		text = "%s\nPopulação %d\nRiqueza %d · Saúde %d\nDesigualdade %s · Economia %d · Habitação %d" % [
 			name, int(indicators.population), int(indicators.wealth), int(indicators.health),
 			str(snappedf(float(indicators.inequality), 0.01)), int(indicators.economy), int(indicators.housing)]
-		_label.text = "[b]%s[/b]\n%s" % [name, text.get_slice("\n", 1) + "\n" + text.get_slice("\n", 2) + "\n" + text.get_slice("\n", 3)]
+		_title.text = name
+		_body.text = text.substr(text.find("\n") + 1)
 		visible = true
 
 
 class ClockPanel extends HBoxContainer:
-	var transport
+	const SPEEDS: Array[float] = [1.0, 4.0, 12.0, 48.0, 200.0]
+	var api
 	var status: Dictionary = {}
 	var status_text := ""
 	var _label: Label
-	var _speed: SpinBox
-	signal changed()
 	var _timer: Timer
+	var _speed_buttons: Array = []
+	signal changed()
+	signal status_changed(status: Dictionary)
 
 	func _init() -> void:
+		add_theme_constant_override("separation", 4)
 		_label = Label.new()
 		add_child(_label)
 		for spec in [["⏸", "pause"], ["▶", "resume"], ["Passo", "step"], ["+1 ano", "advance-year"]]:
@@ -154,14 +198,14 @@ class ClockPanel extends HBoxContainer:
 			var action: String = spec[1]
 			button.pressed.connect(func(): command(action))
 			add_child(button)
-		_speed = SpinBox.new()
-		_speed.min_value = 0.25
-		_speed.max_value = 1000
-		_speed.step = 0.25
-		_speed.value = 1
-		_speed.suffix = " t/s"
-		_speed.value_changed.connect(func(v: float): set_speed(v))
-		add_child(_speed)
+		for speed in SPEEDS:
+			var button := Button.new()
+			button.text = "%d×" % int(speed)
+			button.toggle_mode = true
+			var value: float = speed
+			button.pressed.connect(func(): set_speed(value))
+			add_child(button)
+			_speed_buttons.append(button)
 		_timer = Timer.new()
 		_timer.wait_time = 1.0
 		_timer.autostart = true
@@ -169,20 +213,23 @@ class ClockPanel extends HBoxContainer:
 		add_child(_timer)
 
 	func command(action: String) -> void:
-		await transport.request("POST", "/simulation/" + action)
+		await api.clock_command(action)
 		await refresh()
 		changed.emit()
 
 	func set_speed(ticks_per_second: float) -> void:
-		await transport.request("POST", "/simulation/speed", {"ticksPerSecond": ticks_per_second})
+		await api.set_speed(ticks_per_second)
 		await refresh()
 
 	func refresh() -> void:
-		var response: Dictionary = await transport.request("GET", "/simulation/status")
-		if response.status != 200 or not (response.body is Dictionary):
+		var response: Dictionary = await api.clock_status()
+		if not response.ok:
 			status_text = "sem conexão"
 		else:
 			status = response.body
 			status_text = "%s · %s ticks/s · tick %d · ano %d" % [
 				"PAUSADO" if status.isPaused else "rodando", str(status.ticksPerSecond), int(status.tick), int(status.year)]
+			for i in _speed_buttons.size():
+				_speed_buttons[i].button_pressed = is_equal_approx(SPEEDS[i], float(status.ticksPerSecond))
+			status_changed.emit(status)
 		_label.text = status_text

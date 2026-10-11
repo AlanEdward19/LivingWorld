@@ -57,6 +57,55 @@ func test_enter_subscribes_and_dims_exterior() -> void:
 	app.queue_free()
 
 
+func _city() -> Dictionary:
+	var env := Fx.snapshot(0, {
+		"id": {"value": "city-a"}, "name": "Alfa", "location": {"x": 1, "y": 1}, "aggregatePool": {}, "residents": [],
+		"pendingResidentIds": [], "buildings": [], "layers": {}, "portals": [],
+		"indicators": {"population": 3, "wealth": 1, "health": 1, "inequality": 0, "economy": 1, "housing": 0},
+		"livingState": {"npcs": []}, "bounds": {"x": 0, "y": 0, "width": 2, "height": 2}, "boundsAreDerived": true}, "City")
+	env.scope.kind = 1
+	return env
+
+
+func test_exit_returns_to_the_previous_city_scope() -> void:
+	var transport = _transport()
+	transport.on("GET /visual/subscribe?scope=City", {"status": 200, "body": _city()})
+	var app = await _app(transport)
+	await app.enter_scope("City", "city-a")
+	await app.enter_building(4)
+	var before: int = transport.count_calls("GET /visual/subscribe?scope=City")
+
+	await app.exit_building()
+
+	eq(transport.count_calls("GET /visual/subscribe?scope=City"), before + 1, "volta à CIDADE, não ao mundo")
+	eq(app.store.kind, "City")
+	eq(app.list_panel.city_filter, "city-a", "a lista segue o escopo atual")
+	app.queue_free()
+
+
+func test_offline_shows_banner_text_and_recovers() -> void:
+	var transport := FakeTransport.new()
+	var attempts: Array = []
+	transport.on("GET /visual/subscribe", func(_p):
+		attempts.append(1)
+		if attempts.size() < 3:
+			return {"status": 0, "body": null}
+		return {"status": 200, "body": _world()})
+	transport.on("GET /visual/catalog/actions", {"status": 200, "body": []})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 0, "year": 0}})
+	var app := App.new()
+	tree.root.add_child(app)
+	var seen: Array = []
+	await app.start(transport, false, func(seconds: float):
+		seen.append("%s|%s|%s" % [app.banner.visible, app.banner.text, seconds]))
+
+	check(seen[0].begins_with("true|sem conexão"), "o aviso 'sem conexão' aparece: " + seen[0])
+	check("nova tentativa em 1 s" in seen[0], "mostra a espera: " + seen[0])
+	check("em 2 s" in seen[1], seen[1])
+	eq(app.banner.visible, false, "o aviso some ao reconectar")
+	app.queue_free()
+
+
 func test_exit_restores_exterior_and_scope() -> void:
 	var transport := _transport()
 	var app = await _app(transport)

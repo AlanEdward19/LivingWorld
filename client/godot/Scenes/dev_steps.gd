@@ -59,5 +59,24 @@ static func run(app: Node, steps: Array) -> void:
 				for wall in view._walls:
 					heights[snappedf(wall.mesh.size.y, 0.01)] = heights.get(snappedf(wall.mesh.size.y, 0.01), 0) + 1
 				print("walls: n=", view._walls.size(), " heights=", heights, " dir=", view._view_dir, " center=", view._center)
+			"click", "dblclick", "hover":
+				var xy: PackedStringArray = arg.split(",")
+				var position := Vector2(float(xy[0]), float(xy[1]))
+				var move := InputEventMouseMotion.new()
+				move.position = position
+				move.global_position = position
+				Input.parse_input_event(move)
+				await app.get_tree().process_frame
+				if name != "hover":
+					var press := InputEventMouseButton.new()
+					press.position = position
+					press.global_position = position
+					press.button_index = MOUSE_BUTTON_LEFT
+					press.pressed = true
+					press.double_click = name == "dblclick"
+					Input.parse_input_event(press)
+					await app.get_tree().process_frame
+				await app.get_tree().create_timer(0.3).timeout
+				print("hover: ", app.hover_text.replace("\n", " | "))
 			"quit":
 				app.get_tree().quit()

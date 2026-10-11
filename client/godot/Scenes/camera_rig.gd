@@ -20,6 +20,8 @@ var city_at: Callable = func(_point: Vector3) -> String: return ""
 
 var camera: Camera3D
 var following: Node3D = null
+var _goal := Vector3.ZERO
+var _goal_active := false
 var _requested := false
 var _pivot: Node3D
 
@@ -48,6 +50,7 @@ func pan(screen_delta: Vector2) -> void:
 	var right := Vector3.RIGHT.rotated(Vector3.UP, yaw)
 	var forward := Vector3.FORWARD.rotated(Vector3.UP, yaw)
 	following = null
+	_goal_active = false
 	target += (right * -screen_delta.x + forward * screen_delta.y) * scale
 	_apply()
 
@@ -77,7 +80,12 @@ func set_scope(kind: String) -> void:
 
 
 func focus(point: Vector3) -> void:
-	target = point
+	_goal = point
+	_goal_active = true
+
+
+func set_zoom(size: float) -> void:
+	zoom_size = clampf(size, min_size, max_size)
 	_apply()
 
 
@@ -90,6 +98,11 @@ func release() -> void:
 
 
 func _process(delta: float) -> void:
+	if _goal_active:
+		target = target.lerp(_goal, clampf(delta * 5.0, 0.0, 1.0))
+		_apply()
+		if target.distance_to(_goal) < 0.02:
+			_goal_active = false
 	if following != null and is_instance_valid(following):
 		target = target.lerp(following.position, clampf(delta * 6.0, 0.0, 1.0))
 		_apply()

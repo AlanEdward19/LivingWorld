@@ -135,6 +135,7 @@ func set_occupants(occupants: Array) -> void:
 			actor = NpcActor.new()
 			add_child(actor)
 			actor.setup(id, cell, action, _labels)
+			actor.enable_bed(true)
 			occupant_nodes[id] = actor
 		elif actor.action != action:
 			actor.set_action(action, _labels)
@@ -188,3 +189,9 @@ func set_view_direction(direction: Vector3) -> void:
 		box.size = Vector3(box.size.x, height, box.size.z)
 		var wall_node: Node3D = wall.node
 		wall_node.position = Vector3(wall_node.position.x, height / 2.0, wall_node.position.z)
+
+
+func apply_names(names: Dictionary) -> void:
+	for id in occupant_nodes:
+		if names.has(id):
+			occupant_nodes[id].set_display_name(names[id])

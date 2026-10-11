@@ -4,6 +4,7 @@ extends Node3D
 
 const Grid := preload("res://Scenes/grid.gd")
 const NpcActor := preload("res://Scenes/npc_actor.gd")
+const Scenery := preload("res://Scenes/scenery.gd")
 
 const TERRAIN_COLORS: Array[Color] = [
 	Color("6aa84f"), Color("c9b777"), Color("7a8a5a"), Color("8a8f98"), Color("4a7fa8"), Color("a67c52"),
@@ -20,6 +21,7 @@ var store
 var labels
 
 var terrain_root: Node3D
+var scenery
 var city_nodes: Dictionary = {} ## id -> Node3D
 var npc_nodes: Dictionary = {} ## id -> NpcActor
 var building_nodes: Dictionary = {} ## id -> Node3D
@@ -76,11 +78,12 @@ func _rebuild_terrain() -> void:
 	var index := 0
 	for cell in store.terrain:
 		var id: int = store.terrain[cell]
-		multi.set_instance_transform(index, Transform3D(Basis(), Grid.to_world(cell, -0.15)))
+		var bed_drop := -0.13 if store.rivers.has(cell) else 0.0
+		multi.set_instance_transform(index, Transform3D(Basis(), Grid.to_world(cell, -0.15 + bed_drop)))
 		var shade := 0.94 + float((cell.x * 7 + cell.y * 13) % 5) * 0.03
 		var color: Color = TERRAIN_COLORS[(id - 1) % TERRAIN_COLORS.size()] * shade
 		if store.rivers.has(cell):
-			color = Color("4a86b8") * shade
+			color = Color("6d7f5a") * shade # leito sob a água
 		multi.set_instance_color(index, color)
 		index += 1
 	var instance := MultiMeshInstance3D.new()
@@ -99,6 +102,13 @@ func _rebuild_terrain() -> void:
 	shape.position = Vector3(store.map_size.x / 2.0, -0.15, store.map_size.y / 2.0)
 	picker.add_child(shape)
 	terrain_root.add_child(picker)
+	var rects: Array = []
+	for id in store.cities:
+		rects.append(store.cities[id].bounds)
+	scenery = Scenery.new()
+	scenery.name = "Scenery"
+	terrain_root.add_child(scenery)
+	scenery.build(store.terrain, store.rivers, rects)
 
 
 func _rebuild_cities() -> void:
@@ -153,49 +163,168 @@ func _rebuild_buildings() -> void:
 		building_nodes[id] = node
 
 
+const WALL_COLORS := {
+	0: Color("a9a399"), # pedra
+	1: Color("b88f62"), # madeira
+}
+const ROOF_COLORS: Array[Color] = [Color("a14f3d"), Color("6b5b73"), Color("7d6a45"), Color("8c4a32")]
+const DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+
+var window_material: StandardMaterial3D = _make_window_material()
+
+
+func _make_window_material() -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color("2b3a4a")
+	material.emission_enabled = true
+	material.emission = Color("ffd27a")
+	material.emission_energy_multiplier = 0.0
+	material.roughness = 0.2
+	return material
+
+
 func _make_building(info: Dictionary) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Building_%d" % info.id
 	root.set_meta("building_id", info.id)
-	var height: float = info.floors * FLOOR_HEIGHT
-	var stone := _flat_material(Color("9a948a"))
-	var wood := _flat_material(Color("a27b52"))
-	var roof := _flat_material(Color("8a4b3c"))
+	var floors: int = info.floors
+	var height: float = floors * FLOOR_HEIGHT
+	var cells := {}
+	for entry in info.footprint:
+		cells[info.cell + entry.cell] = entry.material
+	var roof_color: Color = ROOF_COLORS[info.type % ROOF_COLORS.size()] if info.type >= 0 else ROOF_COLORS[0]
+	var trim := _flat_material(Color("5d4a3a"))
 	var door := _flat_material(Color("3b2a20"))
+	var step := _flat_material(Color("8d8579"))
+	var wall_materials := {0: _flat_material(WALL_COLORS[0]), 1: _flat_material(WALL_COLORS[1])}
 	var min_cell := Vector2i(1 << 20, 1 << 20)
 	var max_cell := Vector2i(-(1 << 20), -(1 << 20))
-	for entry in info.footprint:
-		var cell: Vector2i = info.cell + entry.cell
+	for cell in cells:
 		min_cell = Vector2i(mini(min_cell.x, cell.x), mini(min_cell.y, cell.y))
 		max_cell = Vector2i(maxi(max_cell.x, cell.x), maxi(max_cell.y, cell.y))
-		var box := MeshInstance3D.new()
-		var mesh := BoxMesh.new()
-		match entry.material:
+		var material: int = cells[cell]
+		match material:
 			MATERIAL_WALL_STONE, MATERIAL_WALL_WOOD:
-				mesh.size = Vector3(Grid.CELL, height, Grid.CELL)
-				box.material_override = stone if entry.material == MATERIAL_WALL_STONE else wood
-				box.position = Grid.to_world(cell, height / 2.0)
+				_box(root, Vector3(1.0, height, 1.0), Grid.to_world(cell, height / 2.0), wall_materials[material])
+				_box(root, Vector3(1.04, 0.12, 1.04), Grid.to_world(cell, 0.06), trim) # rodapé
+				for level in range(1, floors):
+					_box(root, Vector3(1.03, 0.07, 1.03), Grid.to_world(cell, level * FLOOR_HEIGHT), trim) # friso entre andares
+				for dir in DIRS:
+					if cells.has(cell + dir):
+						continue
+					for level in floors:
+						if Scenery.cell_hash(cell, level * 4 + DIRS.find(dir) + 11) < 0.5:
+							var outward := Vector3(dir.x, 0, dir.y) * 0.505
+							var window := _box(root, Vector3(0.36 if dir.x == 0 else 0.04, 0.36, 0.36 if dir.y == 0 else 0.04),
+								Grid.to_world(cell, level * FLOOR_HEIGHT + 0.58) + outward, window_material)
+							window.name = "Window"
 			MATERIAL_DOOR:
-				mesh.size = Vector3(Grid.CELL, height * 0.7, Grid.CELL)
-				box.material_override = door
-				box.position = Grid.to_world(cell, height * 0.35)
+				_box(root, Vector3(1.0, height, 1.0), Grid.to_world(cell, height / 2.0), wall_materials[0])
+				for dir in DIRS:
+					if not cells.has(cell + dir):
+						var outward := Vector3(dir.x, 0, dir.y)
+						var size := Vector3(0.56 if dir.x == 0 else 0.1, 0.78, 0.56 if dir.y == 0 else 0.1)
+						_box(root, size, Grid.to_world(cell, 0.39) + outward * 0.5, door).name = "Door"
+						_box(root, Vector3(0.9 if dir.x == 0 else 0.3, 0.06, 0.9 if dir.y == 0 else 0.3),
+							Grid.to_world(cell, 0.03) + outward * 0.78, step)
 			_:
-				mesh.size = Vector3(Grid.CELL, 0.12, Grid.CELL)
-				box.material_override = roof
-				box.position = Grid.to_world(cell, height)
-		box.mesh = mesh
-		root.add_child(box)
+				pass
+	var span := max_cell - min_cell + Vector2i.ONE
+	var rectangular: bool = cells.size() == span.x * span.y
+	var roof := _flat_material(roof_color)
+	if rectangular:
+		var prism := PrismMesh.new()
+		var along_x := span.x >= span.y
+		prism.size = Vector3((span.x if along_x else span.y) + 0.4, 0.75, (span.y if along_x else span.x) + 0.4)
+		var ridge := MeshInstance3D.new()
+		ridge.mesh = prism
+		ridge.material_override = roof
+		ridge.name = "Roof"
+		ridge.position = Vector3(min_cell.x + span.x / 2.0, height + 0.375, min_cell.y + span.y / 2.0)
+		if not along_x:
+			ridge.rotation.y = PI / 2.0
+		root.add_child(ridge)
+	else:
+		for cell in cells:
+			var pyramid := CylinderMesh.new()
+			pyramid.top_radius = 0.0
+			pyramid.bottom_radius = 0.78
+			pyramid.height = 0.62
+			pyramid.radial_segments = 4
+			var node := MeshInstance3D.new()
+			node.mesh = pyramid
+			node.material_override = roof
+			node.rotation.y = PI / 4.0
+			node.position = Grid.to_world(cell, height + 0.31)
+			node.name = "Roof"
+			root.add_child(node)
+	if info.type == -1:
+		var chimney_cell: Vector2i = min_cell
+		_box(root, Vector3(0.22, 0.7, 0.22), Grid.to_world(chimney_cell, height + 0.55) + Vector3(0.1, 0, 0.1), _flat_material(Color("7a6a5c")))
+		root.add_child(_smoke(Grid.to_world(chimney_cell, height + 0.95) + Vector3(0.1, 0, 0.1)))
 	var body := StaticBody3D.new()
 	body.set_meta("building_id", info.id)
 	var shape := CollisionShape3D.new()
 	var collider := BoxShape3D.new()
-	var span := max_cell - min_cell + Vector2i.ONE
-	collider.size = Vector3(span.x, height, span.y)
+	collider.size = Vector3(span.x, height + 0.6, span.y)
 	shape.shape = collider
-	shape.position = Vector3(min_cell.x + span.x / 2.0, height / 2.0, min_cell.y + span.y / 2.0)
+	shape.position = Vector3(min_cell.x + span.x / 2.0, (height + 0.6) / 2.0, min_cell.y + span.y / 2.0)
 	body.add_child(shape)
 	root.add_child(body)
 	return root
+
+
+func _box(parent: Node3D, size: Vector3, at: Vector3, material: Material) -> MeshInstance3D:
+	var node := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	node.mesh = mesh
+	node.material_override = material
+	node.position = at
+	parent.add_child(node)
+	return node
+
+
+func _smoke(at: Vector3) -> GPUParticles3D:
+	var particles := GPUParticles3D.new()
+	particles.name = "Smoke"
+	particles.position = at
+	particles.amount = 12
+	particles.lifetime = 3.5
+	particles.local_coords = false
+	var process := ParticleProcessMaterial.new()
+	process.direction = Vector3(0.3, 1, 0.1)
+	process.spread = 12.0
+	process.initial_velocity_min = 0.25
+	process.initial_velocity_max = 0.45
+	process.gravity = Vector3(0.12, 0.05, 0)
+	process.scale_min = 0.5
+	process.scale_max = 1.1
+	var curve := Curve.new()
+	curve.add_point(Vector2(0, 0.3))
+	curve.add_point(Vector2(1, 1.6))
+	var scale_texture := CurveTexture.new()
+	scale_texture.curve = curve
+	process.scale_curve = scale_texture
+	var fade := Gradient.new()
+	fade.set_color(0, Color(0.85, 0.85, 0.85, 0.55))
+	fade.set_color(1, Color(0.85, 0.85, 0.85, 0.0))
+	var ramp := GradientTexture1D.new()
+	ramp.gradient = fade
+	process.color_ramp = ramp
+	particles.process_material = process
+	var puff := SphereMesh.new()
+	puff.radius = 0.12
+	puff.height = 0.24
+	puff.radial_segments = 8
+	puff.rings = 4
+	var puff_material := StandardMaterial3D.new()
+	puff_material.vertex_color_use_as_albedo = true
+	puff_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	puff_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	puff.material = puff_material
+	particles.draw_pass_1 = puff
+	return particles
 
 
 func _flat_material(color: Color) -> StandardMaterial3D:
@@ -217,6 +346,8 @@ func _spawn_npc(info: Dictionary) -> void:
 	add_child(actor)
 	actor.setup(info.id, info.cell, info.action, labels)
 	actor.set_selected(info.id == _selected_npc)
+	if store.names.has(info.id):
+		actor.set_display_name(store.names[info.id])
 	npc_nodes[info.id] = actor
 
 
@@ -252,3 +383,14 @@ func city_at(point: Vector3) -> String:
 		if (store.cities[id].bounds as Rect2i).has_point(cell):
 			return id
 	return ""
+
+
+func apply_names() -> void:
+	for id in npc_nodes:
+		if store.names.has(id):
+			npc_nodes[id].set_display_name(store.names[id])
+
+
+func hover_npc(id: int) -> void:
+	for key in npc_nodes:
+		npc_nodes[key].set_hovered(key == id)
