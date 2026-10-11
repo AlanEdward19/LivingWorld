@@ -60,9 +60,14 @@ public static class NpcWakeScheduler
         long? eventDrivenWakeTick = null, long? travelArrivalTick = null)
     {
         long next = long.MaxValue;
-        next = Math.Min(next, NextThresholdCrossing(npc.HungerNeed, now, needsRules.UrgencyThreshold));
-        next = Math.Min(next, NextThresholdCrossing(npc.ThirstNeed, now, needsRules.UrgencyThreshold));
-        next = Math.Min(next, NextThresholdCrossing(npc.SleepNeed, now, needsRules.UrgencyThreshold));
+        // Comer, comprar (ou ir comprar) atendem fome e sede; dormir (ou ir para a cama) atende o sono.
+        var current = npc.CurrentAction;
+        var purpose = current == ActionType.Travel ? npc.TravelPurpose : current;
+        bool feeding = purpose is ActionType.Eat or ActionType.Buy;
+        bool resting = purpose == ActionType.Sleep;
+        next = Math.Min(next, NextNeedWake(npc.HungerNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: feeding));
+        next = Math.Min(next, NextNeedWake(npc.ThirstNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: feeding));
+        next = Math.Min(next, NextNeedWake(npc.SleepNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: resting));
         next = Math.Min(next, NextSocialWake(npc.SocialNeed, now, needsRules.UrgencyThreshold));
 
         if (npc.CurrentAction is { } action)
@@ -115,6 +120,15 @@ public static class NpcWakeScheduler
         long? travelArrivalTick = null) =>
         ScheduleWake(world, ctx, npc.Id.Value, ComputeNextWakeTick(
             npc, needsRules, catalog, now, world, travelArrivalTick: travelArrivalTick));
+
+    /// <summary>Despertar por necessidade. Quem já está fazendo o que atende a necessidade (comer, dormir) não a
+    /// reavalia a cada hora enquanto a ação não termina — a ação em curso é a resposta, e o fim dela acorda o
+    /// NPC. Uma necessidade que ainda vai cruzar o limiar continua acordando-o no cruzamento.</summary>
+    private static long NextNeedWake(LazyNeed need, long nowTick, double urgencyThreshold, bool servedByCurrentAction)
+    {
+        long crossing = NextThresholdCrossing(need, nowTick, urgencyThreshold);
+        return servedByCurrentAction && crossing <= nowTick ? long.MaxValue : crossing;
+    }
 
     /// <summary>Solidão não é necessidade de sobrevivência: enquanto não for crítica, não obriga o NPC a
     /// redecidir toda hora (quem se sente sozinho às 15 h não larga o turno; socializa na janela da rotina).
