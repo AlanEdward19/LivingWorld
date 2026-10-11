@@ -3,12 +3,12 @@
 Profile: light
 Plan: `.specs/features/godot-client-experience/plan.md`
 
-8 checks in 3 slices · 0 one-way doors · 0 open
+10 checks in 3 slices · 0 one-way doors · 0 open
 
 ## Checks
 
 ### E1 - Tempo e luz
-**C1** - Tick 12 dá luz de meio-dia e janelas apagadas; tick 23 dá noite e janelas acesas (AC 1.1)
+**C1** - Tick 12 dá sol forte, céu claro e janelas apagadas; tick 7 sol mais fraco e mais quente; tick 23 luar azulado fraco, céu escuro, sol em outra posição e janelas acesas (AC 1.1)
 Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_day_cycle_follows_server_hour"`
 
 **C2** - Pausado a hora não anda; a 4 ticks/s avança 4 h em 1 s e vira o dia (AC 1.2, 1.3)
@@ -27,11 +27,18 @@ Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_delta_events
 **C6** - No máximo 5 avisos visíveis e o histórico guarda todos (AC 2.3)
 Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_toasts_keep_five_and_full_history"`
 
-**C7** - O carregamento some após o primeiro snapshot e o nome de `GET /npcs` chega ao NPC na cena (AC 2.4, 2.5)
+**C7** - O carregamento fica visível sem snapshot, some quando o primeiro chega, e o nome de `GET /npcs` chega ao NPC na cena (AC 2.4, 2.5)
 Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_loading_overlay_until_first_snapshot_and_names_load"`
+Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_loading_visible_until_first_snapshot"`
+
+**C9** - O nome do NPC só aparece sob o cursor ou selecionado, com o texto do nome (AC 2.5)
+Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_actor_name_label_shows_on_hover_and_selection"`
+
+**C10** - O tick do status vira a hora do céu e da barra superior (06:00, Amanhecer), e o minimapa leva a câmera à célula pedida (AC 1.1, 2.2)
+Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_status_drives_sky_and_minimap_drives_camera"`
 
 ### E3 - Ficha
-**C8** - As barras mostram saúde 90, fome 80 e social 50 vindos de `GET /npcs/7` (AC 3.1)
+**C8** - As cinco barras mostram saúde 90, fome 80, sede 70, sono 60 e social 50 vindos de `GET /npcs/7` (AC 3.1)
 Proof: `bash scripts/client-test.sh --filter "test_panels::test_select_npc_fetches_and_highlights"`
 
 ## Coverage

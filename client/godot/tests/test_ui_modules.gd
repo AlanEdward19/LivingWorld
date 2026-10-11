@@ -7,6 +7,8 @@ const Store := preload("res://Store/world_store.gd")
 const App := preload("res://Scenes/app.gd")
 const FakeTransport := preload("res://tests/fake_transport.gd")
 const Fx := preload("res://tests/fixtures.gd")
+const NpcActor := preload("res://Scenes/npc_actor.gd")
+const ActionLabels := preload("res://Store/action_labels.gd")
 
 
 func _cycle() -> Array:
@@ -24,9 +26,16 @@ func test_day_cycle_follows_server_hour() -> void:
 	var sun: DirectionalLight3D = setup[1]
 	var window: StandardMaterial3D = setup[2]
 
+	var environment: Environment = setup[3]
 	cycle.sync(12.0, 1.0, true)
 	check(cycle.daylight() > 0.95, "meio-dia é claro")
-	check(sun.light_energy > 0.9, "sol forte ao meio-dia")
+	var noon_energy := sun.light_energy
+	cycle.sync(7.0, 1.0, true)
+	check(sun.light_energy < noon_energy - 0.2, "o sol da manhã é mais fraco que o do meio-dia: %s vs %s" % [sun.light_energy, noon_energy])
+	check(sun.light_color.g < 0.97, "o sol baixo é mais quente")
+	cycle.sync(12.0, 1.0, true)
+	check(environment.background_color.is_equal_approx(Color("a9c7d8")), "céu de dia")
+	var noon_rotation := sun.rotation
 	eq(window.emission_energy_multiplier, 0.0, "janelas apagadas de dia")
 	eq(cycle.phase_name(), "Dia")
 
@@ -35,6 +44,10 @@ func test_day_cycle_follows_server_hour() -> void:
 	check(window.emission_energy_multiplier > 1.0, "janelas acesas de noite")
 	eq(cycle.phase_name(), "Noite")
 	eq(cycle.clock_text(), "23:00")
+	check(sun.light_energy < 0.6, "luar fraco à noite: %s" % sun.light_energy)
+	check(sun.light_color.b > sun.light_color.r, "luz azulada à noite")
+	check(environment.background_color.v < 0.3, "céu escuro à noite")
+	check(sun.rotation != noon_rotation, "o sol mudou de posição")
 
 	cycle.sync(6.0, 1.0, true)
 	eq(cycle.phase_name(), "Amanhecer")
@@ -148,4 +161,55 @@ func test_delta_events_become_toasts_with_server_text() -> void:
 	app._on_delta(Fx.delta(0, 1, {"events": [{"tick": 5, "kind": 3, "label": "Nasceu uma criança", "location": null}]}))
 
 	eq(app.toasts.visible_texts(), ["Nasceu uma criança"], "o texto do aviso vem do servidor")
+	app.queue_free()
+
+
+func test_actor_name_label_shows_on_hover_and_selection() -> void:
+	var actor := NpcActor.new()
+	actor.setup(3, Vector2i(0, 0), 2, ActionLabels.new())
+	actor.set_display_name("Ana")
+	var label: Label3D = actor._label
+	eq(label.visible, false, "sem hover nem seleção o nome fica escondido")
+
+	actor.set_hovered(true)
+	eq(label.visible, true, "sob o cursor mostra o nome")
+	check("Ana" in label.text, "o texto traz o nome: " + label.text)
+	actor.set_hovered(false)
+	eq(label.visible, false)
+
+	actor.set_selected(true)
+	eq(label.visible, true, "selecionado mostra o nome")
+	actor.set_selected(false)
+	eq(label.visible, false)
+	actor.free()
+
+
+func test_loading_visible_until_first_snapshot() -> void:
+	var transport := FakeTransport.new()
+	var attempts: Array = []
+	transport.on("GET /visual/subscribe", func(_p):
+		attempts.append(1)
+		return {"status": 0, "body": null} if attempts.size() < 2 else {"status": 200, "body": _online_transport().routes["GET /visual/subscribe?scope=World"].body})
+	transport.on("GET /visual/catalog/actions", {"status": 200, "body": []})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 0, "year": 0}})
+	var app := App.new()
+	tree.root.add_child(app)
+	var seen: Array = []
+	await app.start(transport, false, func(_s): seen.append(app.loading.visible))
+
+	eq(seen, [true], "a tela de carregamento aparece enquanto não há snapshot")
+	eq(app.loading.visible, false, "e some quando o primeiro chega")
+	app.queue_free()
+
+
+func test_status_drives_sky_and_minimap_drives_camera() -> void:
+	var app = await _app_with(_online_transport())
+
+	eq(app.day_cycle.hour, 6.0, "a hora do céu vem do tick do status (30 -> 06:00)")
+	check("06:00" in app.time_label.text and "Amanhecer" in app.time_label.text, "a barra mostra a hora: " + app.time_label.text)
+
+	app.minimap.pan_requested.emit(Vector3(12.0, 0, 9.0))
+	for i in 120:
+		app.rig._process(0.05)
+	check(app.rig.target.distance_to(Vector3(12.0, 0, 9.0)) < 0.1, "o minimapa leva a câmera: %s" % app.rig.target)
 	app.queue_free()

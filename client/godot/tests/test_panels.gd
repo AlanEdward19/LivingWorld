@@ -59,6 +59,8 @@ func test_select_npc_fetches_and_highlights() -> void:
 	check("Ana" in panel.text and "31" in panel.text, "mostra os dados recebidos")
 	eq(panel.bars["Fome"].value, 80.0, "a barra de fome mostra o valor do servidor")
 	eq(panel.bars["Saúde"].value, 90.0)
+	eq(panel.bars["Sede"].value, 70.0)
+	eq(panel.bars["Sono"].value, 60.0)
 	eq(panel.bars["Social"].value, 50.0)
 	panel.free()
 
