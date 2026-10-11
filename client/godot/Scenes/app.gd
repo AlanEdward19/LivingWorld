@@ -271,6 +271,10 @@ func _update_time_label(status: Dictionary = {}) -> void:
 func _process(delta: float) -> void:
 	if time_label != null and day_cycle != null:
 		_update_time_label()
+	if world_view != null and rig != null:
+		world_view.view_center = rig.target
+		world_view.view_radius = rig.zoom_size * 1.5
+		world_view.far_zoom = rig.zoom_size > 16.0
 	if minimap != null:
 		minimap.set_camera_target(rig.target)
 		stage.set_daylight(day_cycle.daylight())

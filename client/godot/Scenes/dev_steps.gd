@@ -78,5 +78,28 @@ static func run(app: Node, steps: Array) -> void:
 					await app.get_tree().process_frame
 				await app.get_tree().create_timer(0.3).timeout
 				print("hover: ", app.hover_text.replace("\n", " | "))
+			"stress":
+				# Carga sintética: N NPCs andando pelo mapa para medir quadros por segundo.
+				var count := int(arg)
+				var rng := RandomNumberGenerator.new()
+				rng.seed = 7
+				for i in count:
+					var cell := Vector2i(rng.randi_range(0, 29), rng.randi_range(0, 29))
+					app.store.npcs[100000 + i] = {"id": 100000 + i, "cell": cell, "action": rng.randi_range(0, 7), "city": ""}
+				app.world_view._rebuild_npcs()
+				var frames := 0
+				var elapsed := 0.0
+				while elapsed < 4.0:
+					await app.get_tree().process_frame
+					elapsed += app.get_process_delta_time()
+					frames += 1
+					if frames % 30 == 0:
+						for i in count:
+							var id := 100000 + i
+							var from_cell: Vector2i = app.store.npcs[id].cell
+							var to_cell := Vector2i(clampi(from_cell.x + rng.randi_range(-1, 1), 0, 29), clampi(from_cell.y + rng.randi_range(-1, 1), 0, 29))
+							app.store.npcs[id].cell = to_cell
+							app.store.npc_changed.emit(id, from_cell, to_cell, app.store.npcs[id].action)
+				print("stress: npcs=", count, " fps=", snappedf(frames / elapsed, 0.1), " (monitor ", Performance.get_monitor(Performance.TIME_FPS), ")")
 			"quit":
 				app.get_tree().quit()

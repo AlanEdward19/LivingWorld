@@ -26,6 +26,10 @@ var city_nodes: Dictionary = {} ## id -> Node3D
 var npc_nodes: Dictionary = {} ## id -> NpcActor
 var building_nodes: Dictionary = {} ## id -> Node3D
 var _selected_npc := -1
+var view_center := Vector3(15, 0, 15) ## o app informa o ponto de vista
+var view_radius := 40.0 ## raio (em células) dentro do qual NPCs animam por inteiro
+var far_zoom := false ## câmera longe: NPCs em versão simples
+var _frame := 0
 
 
 func bind(p_store, p_labels) -> void:
@@ -427,3 +431,21 @@ func apply_names() -> void:
 func hover_npc(id: int) -> void:
 	for key in npc_nodes:
 		npc_nodes[key].set_hovered(key == id)
+
+
+## Anima só o que se vê: NPC dentro do raio da câmera monta pose completa (alternando metades em
+## multidões); fora dele só interpola a posição. Mantém 500 NPCs fluidos.
+func _process(delta: float) -> void:
+	_frame += 1
+	var crowded := npc_nodes.size() > 150
+	var far_now := far_zoom and crowded
+	for id in npc_nodes:
+		var actor = npc_nodes[id]
+		actor.set_far(far_now)
+		var near: bool = actor.position.distance_to(view_center) <= view_radius
+		if not near:
+			actor.advance_cheap(delta)
+		elif crowded and (id + _frame) % 2 == 1:
+			actor.advance_cheap(delta)
+		else:
+			actor.advance(delta * (2.0 if crowded else 1.0))

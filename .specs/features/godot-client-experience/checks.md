@@ -3,7 +3,7 @@
 Profile: light
 Plan: `.specs/features/godot-client-experience/plan.md`
 
-13 checks in 4 slices · 0 one-way doors · 0 open
+14 checks in 5 slices · 0 one-way doors · 0 open
 
 ## Checks
 
@@ -48,6 +48,10 @@ Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_clouds_drift
 **C13** - Pássaros de dia sem grilos, grilos à noite sem pássaros, vento maior à noite, e o volume do player cai ao silenciar e volta ao religar (AC 4.3)
 Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_ambience_levels_follow_daylight_and_mute"`
 Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_m_key_toggles_ambience_mute"`
+
+### E5 - Multidão
+**C14** - Com 200 NPCs e câmera longe todos viram versão simples (sem braços, pernas nem sombra); câmera perto devolve o detalhe; com 20 NPCs nunca simplifica (AC 5.1, 5.2)
+Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_crowd_uses_simple_actors_when_far_and_detail_when_near"`
 
 ### E3 - Ficha
 **C8** - As cinco barras mostram saúde 90, fome 80, sede 70, sono 60 e social 50 vindos de `GET /npcs/7` (AC 3.1)

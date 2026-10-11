@@ -46,6 +46,9 @@ O mundo mostra a hora e a luz acompanha o relógio do servidor.
 1. WHILE é noite plena (23 h) the client SHALL manter os postes das portas acesos, e apagados ao meio-dia, com brilho crescente no entardecer e decrescente no amanhecer.
 2. WHILE o mundo está aberto the client SHALL mover as sombras de nuvens e reentrar a nuvem pelo lado oposto ao sair do mapa, sem desenhar a nuvem.
 3. WHEN a luz do dia muda THEN the client SHALL trocar a camada de som: pássaros de dia, grilos à noite, e M SHALL silenciar.
+### E5: Multidão (P2)
+1. WHILE há mais de 150 NPCs e a câmera está longe (zoom > 16) the client SHALL desenhar cada NPC só com tronco e cabeça, sem sombra própria.
+2. WHEN a câmera se aproxima OR há 150 NPCs ou menos THEN the client SHALL devolver o NPC ao detalhe completo.
 ### E3: Ficha do NPC (P2)
 1. WHEN o usuário seleciona um NPC THEN the client SHALL mostrar barras de saúde, fome, sede, sono e social com os valores de `GET /npcs/{id}`.
 
@@ -61,6 +64,8 @@ O mundo mostra a hora e a luz acompanha o relógio do servidor.
 | --- | --- | --- | --- |
 | Hora do dia | `tick % 24` | O cenário padrão usa `WorldCalendar(24,30,12)` | n |
 | Ids de terreno | Paleta fixa por id; rios da camada `Rivers` | A API não serve nome de terreno | n |
+| Brilho dos postes | Sobe e desce com a luz do dia (não liga e desliga) | Evita um salto às 19 h; pedido literal era noite = aceso | n |
+| Desempenho | Medido com `--steps "stress:500"`: 77 FPS longe, 52 FPS perto (M1 Pro) | Sem baseline versionado ainda | n |
 
 **Open questions:** none - all resolved or logged above.
 

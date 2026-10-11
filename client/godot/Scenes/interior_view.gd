@@ -195,3 +195,9 @@ func apply_names(names: Dictionary) -> void:
 	for id in occupant_nodes:
 		if names.has(id):
 			occupant_nodes[id].set_display_name(names[id])
+
+
+func _process(delta: float) -> void:
+	for actor in occupant_nodes.values():
+		if actor.visible:
+			actor.advance(delta)

@@ -172,19 +172,18 @@ func test_actor_name_label_shows_on_hover_and_selection() -> void:
 	var actor := NpcActor.new()
 	actor.setup(3, Vector2i(0, 0), 2, ActionLabels.new())
 	actor.set_display_name("Ana")
-	var label: Label3D = actor._label
-	eq(label.visible, false, "sem hover nem seleção o nome fica escondido")
+	eq(actor.label_visible(), false, "sem hover nem seleção o nome fica escondido")
 
 	actor.set_hovered(true)
-	eq(label.visible, true, "sob o cursor mostra o nome")
-	check("Ana" in label.text, "o texto traz o nome: " + label.text)
+	eq(actor.label_visible(), true, "sob o cursor mostra o nome")
+	check("Ana" in actor.label_text_shown(), "o texto traz o nome: " + actor.label_text_shown())
 	actor.set_hovered(false)
-	eq(label.visible, false)
+	eq(actor.label_visible(), false)
 
 	actor.set_selected(true)
-	eq(label.visible, true, "selecionado mostra o nome")
+	eq(actor.label_visible(), true, "selecionado mostra o nome")
 	actor.set_selected(false)
-	eq(label.visible, false)
+	eq(actor.label_visible(), false)
 	actor.free()
 
 
@@ -314,4 +313,36 @@ func test_door_gets_a_lamp_that_lights_at_night() -> void:
 	node.free()
 	sun.free()
 	cycle.free()
+	view.free()
+
+
+func test_crowd_uses_simple_actors_when_far_and_detail_when_near() -> void:
+	var WorldView := preload("res://Scenes/world_view.gd")
+	var store := Store.new()
+	var labels := ActionLabels.new()
+	var view := WorldView.new()
+	view.bind(store, labels)
+	for i in 200:
+		store.npcs[i] = {"id": i, "cell": Vector2i(i % 30, i / 30), "action": 5, "city": ""}
+	view._rebuild_npcs()
+
+	view.far_zoom = true
+	view._process(0.016)
+	var simple := view.npc_nodes.values().filter(func(a): return a.far_lod)
+	eq(simple.size(), 200, "multidão com câmera longe: todos em versão simples")
+	for actor in simple.slice(0, 5):
+		check(not actor._arms[0].visible and not actor._legs[0].visible, "sem braços e pernas")
+		eq(actor._torso.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "sem sombra própria")
+
+	view.far_zoom = false
+	view._process(0.016)
+	eq(view.npc_nodes.values().filter(func(a): return a.far_lod).size(), 0, "câmera perto: detalhe completo")
+	check(view.npc_nodes[0]._arms[0].visible, "os braços voltam")
+
+	# poucos NPCs nunca viram versão simples, mesmo com a câmera longe
+	for i in range(20, 200):
+		view._on_npc_removed(i)
+	view.far_zoom = true
+	view._process(0.016)
+	eq(view.npc_nodes.values().filter(func(a): return a.far_lod).size(), 0, "multidão pequena mantém o detalhe")
 	view.free()
