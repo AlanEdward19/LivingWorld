@@ -74,16 +74,33 @@ public class NpcDirectoryEndpointTests : IClassFixture<LivingWorldApiFactory>
     [Fact]
     public async Task Dead_npcs_are_excluded_and_name_ties_break_by_id()
     {
-        var city = SeedCity(deadNames: ["Zed"], names: ["Ana", "Ana", "Bia"]);
+        var city = SeedCity(deadNames: ["Zed"], names: ["Bia"]);
+        // Dois "Ana": o de id MAIOR entra primeiro na lista do mundo, então só o desempate por id os ordena.
+        long highId, lowId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var world = scope.ServiceProvider.GetRequiredService<WorldState>();
+            var low = world.NextNpcIdAndAdvance();
+            var high = world.NextNpcIdAndAdvance();
+            lowId = low.Value;
+            highId = high.Value;
+            foreach (var id in new[] { high, low })
+                world.AddNpc(new Npc(
+                    id, "Ana", Sex.Female, WorldDate.Epoch(new WorldCalendar(24, 30, 12)), new CultureId(1),
+                    new CellCoord(0, 0), motherId: null, fatherId: null, household: null, health: 100,
+                    personality: Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!,
+                    profession: new ProfessionType(1), currentLocation: new CellCoord(0, 0), city: city));
+        }
 
         var page = await GetPage($"cityId={city.Value}");
         var items = page.GetProperty("items").EnumerateArray().ToArray();
 
         Assert.Equal(3, page.GetProperty("total").GetInt32());
         Assert.DoesNotContain(items, i => i.GetProperty("name").GetString() == "Zed");
-        var anaIds = items.Where(i => i.GetProperty("name").GetString() == "Ana")
-            .Select(i => i.GetProperty("id").GetProperty("value").GetInt64()).ToArray();
-        Assert.Equal(anaIds.Order().ToArray(), anaIds);
+        Assert.Equal(
+            new[] { lowId, highId },
+            items.Where(i => i.GetProperty("name").GetString() == "Ana")
+                .Select(i => i.GetProperty("id").GetProperty("value").GetInt64()).ToArray());
         Assert.Equal(city.Value.ToString(), items[0].GetProperty("cityId").GetProperty("value").GetString());
     }
 

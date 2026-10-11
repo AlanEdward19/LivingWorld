@@ -33,6 +33,7 @@ Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~
 
 **C7** - `GET /npcs?cityId=X` devolve só vivos da cidade X (um morto é semeado), ordenados por `name` e, em empate, por `id`; cidade sem NPC dá `items: []`, `total: 0` (AC 2.1)
 Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~NpcDirectoryEndpointTests.City_filter_returns_living_sorted"`
+Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~NpcDirectoryEndpointTests.Dead_npcs_are_excluded_and_name_ties_break_by_id"`
 
 **C8** - `q=ana` acha "Ana" e "ANA", sem diferenciar maiúsculas (AC 2.2)
 Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~NpcDirectoryEndpointTests.Query_is_case_insensitive"`
