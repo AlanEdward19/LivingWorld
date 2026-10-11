@@ -632,13 +632,6 @@ public class OptimizationEquivalenceTests
         Building? visitor = null;
         for (int i = 0; i < 45; i++)
         {
-            if (i == 10)
-            {
-                // Visitante de outra cidade, o mais novo do mundo; entra na cidade na rodada seguinte com Id
-                // maior que todo irmão atual, mas posição ANTIGA na lista do mundo.
-                visitor = new Building(world.NextBuildingIdAndAdvance(), other.Id, 1, 0, new CellCoord(50, 50));
-                world.AddBuilding(visitor);
-            }
             if (i == 11) visitor!.JoinCity(city.Id);
             if (i == 28) spare = world.NextBuildingIdAndAdvance();
             // Bounds que alternam entre dois valores e crescem, como população × bounds crescidos.
@@ -665,6 +658,13 @@ public class OptimizationEquivalenceTests
                 world.AddBuilding(new Building(spare, city.Id, 2, 0, early));
             }
             world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, 1 + i % 3, 0, authored));
+            if (i == 10)
+            {
+                // Visitante de outra cidade, o mais novo do mundo; entra na cidade na rodada seguinte com Id
+                // maior que todo irmão atual, mas posição ANTIGA na lista do mundo.
+                visitor = new Building(world.NextBuildingIdAndAdvance(), other.Id, 1, 0, new CellCoord(50, 50));
+                world.AddBuilding(visitor);
+            }
 
             var actualBoxes = CityOccupancy.OwnedBuildingFootprintBoxesWithOwners(world, city, bounds).ToList();
             var expectedBoxes = new List<(Building, CityBounds)>();
