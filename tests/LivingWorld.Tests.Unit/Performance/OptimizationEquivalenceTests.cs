@@ -340,20 +340,37 @@ public class OptimizationEquivalenceTests
         var (world, _) = ScenarioRunner.Create(7);
         var ids = world.Npcs.Select(n => n.Id).Take(4).ToList();
         var owner = ids[0];
+        bool Probe(NpcId who) => new LazyRelationshipFacts(world, who).AnyBondAtLeast(60);
 
-        var strong = world.GetOrCreateRelationship(new RelationshipKey(owner, ids[1]), 0);
-        strong.CopyAxesFrom(Relationship.FromAxes(70, 0, 0, 0, 0));
-        Assert.True(new LazyRelationshipFacts(world, owner).AnyBondAtLeast(60));
-        Assert.True(new LazyRelationshipFacts(world, owner).AnyBondAtLeast(60));   // reaproveitada
+        // Fontes criadas antes: copiar eixos não pode contar com o construtor para invalidar o cache.
+        var strongAxes = Relationship.FromAxes(70, 0, 0, 0, 0);
+        var weakAxes = Relationship.FromAxes(10, 0, 0, 0, 0);
+        var affectionAxes = Relationship.FromAxes(0, 65, 0, 0, 0);
 
-        strong.CopyAxesFrom(Relationship.FromAxes(10, 0, 0, 0, 0));                 // eixo muda → invalida
-        Assert.False(new LazyRelationshipFacts(world, owner).AnyBondAtLeast(60));
+        var rel = world.GetOrCreateRelationship(new RelationshipKey(owner, ids[1]), 0);
+        rel.CopyAxesFrom(strongAxes);
+        Assert.True(Probe(owner));
+        Assert.True(Probe(owner));                      // reaproveitada
 
-        var added = world.GetOrCreateRelationship(new RelationshipKey(owner, ids[2]), 0); // novo alvo
-        Assert.False(new LazyRelationshipFacts(world, owner).AnyBondAtLeast(60));
-        added.CopyAxesFrom(Relationship.FromAxes(0, 65, 0, 0, 0));
-        Assert.True(new LazyRelationshipFacts(world, owner).AnyBondAtLeast(60));
-        Assert.False(new LazyRelationshipFacts(world, ids[3]).AnyBondAtLeast(60));  // outro dono não herda
+        rel.CopyAxesFrom(weakAxes);                     // CopyAxesFrom invalida
+        Assert.False(Probe(owner));
+
+        var added = world.GetOrCreateRelationship(new RelationshipKey(owner, ids[2]), 0);
+        Assert.False(Probe(owner));                     // novo alvo
+        added.CopyAxesFrom(affectionAxes);
+        Assert.True(Probe(owner));
+        Assert.False(Probe(ids[3]));                    // outro dono não herda a resposta
+
+        // Set (via evento de relação): sobe a confiança até cruzar o limiar, sem construir nada novo.
+        var rules = world.FamilyRules;
+        var type = Enum.GetValues<RelationshipEventType>()
+            .First(t => rules.RelationshipEventDelta(t, RelationshipAxis.Trust) > 0);
+        double delta = rules.RelationshipEventDelta(type, RelationshipAxis.Trust);
+        var eventRel = world.GetOrCreateRelationship(new RelationshipKey(ids[3], ids[0]), 0);
+        eventRel.CopyAxesFrom(Relationship.FromAxes(60 - delta, 0, 0, 0, 0));
+        Assert.False(Probe(ids[3]));
+        eventRel.ApplyEvent(type, rules);
+        Assert.True(Probe(ids[3]));
     }
 
     // --- Alcançabilidade por componente conexa ---
