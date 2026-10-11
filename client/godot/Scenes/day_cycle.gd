@@ -7,6 +7,7 @@ const HOURS_PER_DAY := 24.0
 var sun: DirectionalLight3D
 var environment: Environment
 var window_material: StandardMaterial3D
+var lamp_material: StandardMaterial3D
 
 var hour := 9.0 ## hora do dia, 0–24
 var _tick := 0.0
@@ -15,10 +16,11 @@ var _paused := true
 var _synced_at := 0.0
 
 
-func bind(p_sun: DirectionalLight3D, p_environment: Environment, p_window_material: StandardMaterial3D) -> void:
+func bind(p_sun: DirectionalLight3D, p_environment: Environment, p_window_material: StandardMaterial3D, p_lamp_material: StandardMaterial3D = null) -> void:
 	sun = p_sun
 	environment = p_environment
 	window_material = p_window_material
+	lamp_material = p_lamp_material
 	_apply()
 
 
@@ -53,7 +55,7 @@ func phase_name() -> String:
 		return "Amanhecer"
 	if hour >= 8.0 and hour < 17.0:
 		return "Dia"
-	if hour >= 17.0 and hour < 20.0:
+	if hour >= 17.0 and hour < 19.0:
 		return "Entardecer"
 	return "Noite"
 
@@ -86,3 +88,5 @@ func _apply() -> void:
 	environment.ambient_light_energy = 0.55 + 0.1 * light
 	if window_material != null:
 		window_material.emission_energy_multiplier = (1.0 - light) * 1.3
+	if lamp_material != null:
+		lamp_material.emission_energy_multiplier = (1.0 - light) * 3.0

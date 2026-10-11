@@ -3,7 +3,7 @@
 Profile: light
 Plan: `.specs/features/godot-client-experience/plan.md`
 
-10 checks in 3 slices · 0 one-way doors · 0 open
+13 checks in 4 slices · 0 one-way doors · 0 open
 
 ## Checks
 
@@ -37,6 +37,16 @@ Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_actor_name_l
 
 **C10** - O tick do status vira a hora do céu e da barra superior (06:00, Amanhecer), e o minimapa leva a câmera à célula pedida (AC 1.1, 2.2)
 Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_status_drives_sky_and_minimap_drives_camera"`
+
+### E4 - Vida ambiente
+**C11** - A porta de um prédio tem poste de luz apagado de dia (tick 12) e aceso à noite (tick 23) (AC 4.1)
+Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_door_gets_a_lamp_that_lights_at_night"`
+
+**C12** - As nuvens andam, só projetam sombra e reentram pelo lado oposto (AC 4.2)
+Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_clouds_drift_and_wrap"`
+
+**C13** - Pássaros de dia sem grilos, grilos à noite sem pássaros, vento maior à noite, e M silencia (AC 4.3)
+Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_ambience_levels_follow_daylight_and_mute"`
 
 ### E3 - Ficha
 **C8** - As cinco barras mostram saúde 90, fome 80, sede 70, sono 60 e social 50 vindos de `GET /npcs/7` (AC 3.1)

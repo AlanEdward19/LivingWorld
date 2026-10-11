@@ -114,6 +114,6 @@ Proof: `bash scripts/client-test.sh --filter "test_app::test_offline_shows_banne
 
 - S1 = 12k, S2 = 20k, S3 = 8k, S4 = 14k, S5 = 14k, total ≈ 68k, abaixo do budget de 150k - one builder
 - Mechanism: one builder
-- **Settled mid-build:** NPCs da cidade vêm de `livingState.npcs` (mesma fonte dos deltas); o interior é relido a cada 1 s porque o servidor não publica delta de interior; `step`/`+1 ano` reassinam o escopo porque não publicam delta; `InteriorOccupant` ganhou `action` (API)
+- **Settled mid-build:** NPCs da cidade vêm de `livingState.npcs` (mesma fonte dos deltas); o interior é relido a cada 1 s porque o servidor não publica delta de interior; `step`/`+1 ano` agora publicam delta no servidor (`godot-api-readiness` C20), então o cliente não reassina; `InteriorOccupant` ganhou `action` (API)
 - **Round 2:** `ApiClient` valida toda resposta com forma congelada (status, catálogo, lista, interior, cidade); a lista segue o escopo atual e distingue erro de vazio; C16 cobre voltar à cidade; C22 afirma o texto do aviso
 - **Abandoned:** nada

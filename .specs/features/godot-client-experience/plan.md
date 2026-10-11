@@ -42,13 +42,17 @@ O mundo mostra a hora e a luz acompanha o relógio do servidor.
 3. WHEN chega um delta com `events` THEN the client SHALL avisar com o texto `label` do servidor e guardar até 5 visíveis e todo o histórico.
 4. WHILE não chegou o primeiro snapshot the client SHALL mostrar a tela de carregamento.
 5. WHEN a lista `GET /npcs` chega THEN the client SHALL mostrar o nome sobre o NPC selecionado ou sob o cursor.
+### E4: Vida ambiente (P2)
+1. WHEN é noite (hora ≥ 19 ou < 5) THEN the client SHALL acender os postes de luz das portas, e apagá-los de dia.
+2. WHILE o mundo está aberto the client SHALL mover as sombras de nuvens e reentrar a nuvem pelo lado oposto ao sair do mapa, sem desenhar a nuvem.
+3. WHEN a luz do dia muda THEN the client SHALL trocar a camada de som: pássaros de dia, grilos à noite, e M SHALL silenciar.
 ### E3: Ficha do NPC (P2)
 1. WHEN o usuário seleciona um NPC THEN the client SHALL mostrar barras de saúde, fome, sede, sono e social com os valores de `GET /npcs/{id}`.
 
 ## Out of scope
 | Excluded | Why |
 | --- | --- |
-| Som, música, arte final, modelos importados | Assets provisórios procedurais; troca de arte é fase própria |
+| Música, arte final, modelos importados | Assets provisórios procedurais; troca de arte é fase própria |
 | Calendário do cenário (meses) | O servidor não serve a duração do dia; o cliente assume 24 h |
 | Mobília e cômodos do interior | Apresentação futura; só cama (sono) e ferramenta (trabalho) seguem a ação |
 

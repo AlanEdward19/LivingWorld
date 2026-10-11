@@ -171,6 +171,16 @@ const ROOF_COLORS: Array[Color] = [Color("a14f3d"), Color("6b5b73"), Color("7d6a
 const DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 
 var window_material: StandardMaterial3D = _make_window_material()
+var lamp_material: StandardMaterial3D = _make_lamp_material()
+
+
+func _make_lamp_material() -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color("fff1c4")
+	material.emission_enabled = true
+	material.emission = Color("ffc860")
+	material.emission_energy_multiplier = 0.0
+	return material
 
 
 func _make_window_material() -> StandardMaterial3D:
@@ -227,6 +237,7 @@ func _make_building(info: Dictionary) -> Node3D:
 						_box(root, size, Grid.to_world(cell, 0.39) + outward * 0.5, door).name = "Door"
 						_box(root, Vector3(0.9 if dir.x == 0 else 0.3, 0.06, 0.9 if dir.y == 0 else 0.3),
 							Grid.to_world(cell, 0.03) + outward * 0.78, step)
+						_lamp_post(root, Grid.to_world(cell) + outward * 1.15 + Vector3(outward.z, 0, outward.x) * 0.5)
 			_:
 				pass
 	var span := max_cell - min_cell + Vector2i.ONE
@@ -272,6 +283,28 @@ func _make_building(info: Dictionary) -> Node3D:
 	body.add_child(shape)
 	root.add_child(body)
 	return root
+
+
+func _lamp_post(parent: Node3D, at: Vector3) -> void:
+	var post := MeshInstance3D.new()
+	var pole := CylinderMesh.new()
+	pole.top_radius = 0.025
+	pole.bottom_radius = 0.035
+	pole.height = 0.85
+	post.mesh = pole
+	post.material_override = _flat_material(Color("3d3a36"))
+	post.position = at + Vector3(0, 0.425, 0)
+	post.name = "LampPost"
+	parent.add_child(post)
+	var bulb := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.1
+	sphere.height = 0.2
+	bulb.mesh = sphere
+	bulb.material_override = lamp_material
+	bulb.position = at + Vector3(0, 0.9, 0)
+	bulb.name = "Lamp"
+	parent.add_child(bulb)
 
 
 func _box(parent: Node3D, size: Vector3, at: Vector3, material: Material) -> MeshInstance3D:

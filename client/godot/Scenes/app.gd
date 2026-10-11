@@ -15,6 +15,8 @@ const DayCycle := preload("res://Scenes/day_cycle.gd")
 const UiTheme := preload("res://Scenes/ui_theme.gd")
 const Minimap := preload("res://Scenes/minimap.gd")
 const Toasts := preload("res://Scenes/toasts.gd")
+const SkyLife := preload("res://Scenes/sky_life.gd")
+const Ambience := preload("res://Scenes/ambience.gd")
 const DevSteps := preload("res://Scenes/dev_steps.gd")
 
 var transport
@@ -28,6 +30,8 @@ var stage
 var day_cycle
 var minimap
 var toasts
+var sky_life
+var ambience
 var clock_panel
 var list_panel
 var npc_panel
@@ -109,9 +113,14 @@ func _build_scene() -> void:
 	_environment.ssao_intensity = 1.6
 	world_environment.environment = _environment
 	add_child(world_environment)
+	sky_life = SkyLife.new()
+	add_child(sky_life)
+	sky_life.build(Vector2(30, 30))
+	ambience = Ambience.new()
+	add_child(ambience)
 	day_cycle = DayCycle.new()
 	add_child(day_cycle)
-	day_cycle.bind(_sun, _environment, world_view.window_material)
+	day_cycle.bind(_sun, _environment, world_view.window_material, world_view.lamp_material)
 
 
 func _build_ui() -> void:
@@ -150,7 +159,6 @@ func _build_ui() -> void:
 	bar.add_child(right_spacer)
 	clock_panel = Panels.ClockPanel.new()
 	clock_panel.api = api
-	clock_panel.changed.connect(func(): _resubscribe_after_clock_command())
 	clock_panel.status_changed.connect(_on_clock_status)
 	bar.add_child(clock_panel)
 
@@ -207,7 +215,7 @@ func _build_ui() -> void:
 	_ui.add_child(toasts)
 
 	var help := Label.new()
-	help.text = "Botão direito: mover · Shift+botão direito: girar · Roda: zoom · Q/E: girar · L: pessoas · F: seguir · Esc: voltar · PgUp/PgDn: andar · clique: selecionar/entrar"
+	help.text = "Botão direito: mover · Shift+botão direito: girar · Roda: zoom · Q/E: girar · L: pessoas · F: seguir · Esc: voltar · PgUp/PgDn: andar · M: som · clique: selecionar/entrar"
 	help.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	help.offset_top = -30
 	help.offset_left = 10
@@ -266,6 +274,7 @@ func _process(delta: float) -> void:
 	if minimap != null:
 		minimap.set_camera_target(rig.target)
 		stage.set_daylight(day_cycle.daylight())
+		ambience.daylight = day_cycle.daylight()
 	_hover_clock += delta
 	if _hover_clock >= 0.07:
 		_hover_clock = 0.0
@@ -312,6 +321,7 @@ func _on_snapshot(envelope: Dictionary) -> void:
 		_first_snapshot = true
 		loading.visible = false
 		minimap.rebuild()
+		sky_life.build(Vector2(store.map_size))
 		_load_names()
 	if kind == "Interior":
 		if stage.active and stage.interior_view.floor_count == int(store.interior.floors):
@@ -362,14 +372,6 @@ func _on_connection(state: String, retry_in: float) -> void:
 		loading.visible = not _first_snapshot
 		if not _first_snapshot:
 			(loading.get_child(0) as Label).text = "Sem conexão com o servidor…\nnova tentativa em %d s" % int(retry_in)
-
-
-func _resubscribe_after_clock_command() -> void:
-	# `step` e `advance-year` não publicam delta (o servidor só publica no laço de tempo real):
-	# reassina o escopo atual para mostrar o estado novo.
-	if stage.active:
-		return
-	await stream.subscribe(_world_ref[0], _world_ref[1])
 
 
 # --- interior ------------------------------------------------------------
@@ -484,6 +486,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					exit_building()
 				elif store.kind == "City":
 					enter_scope("World", "")
+			KEY_M:
+				ambience.set_muted(not ambience.muted)
 			KEY_L:
 				list_panel.visible = not list_panel.visible
 				if list_panel.visible and list_panel.rows.is_empty():

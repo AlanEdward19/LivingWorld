@@ -19,6 +19,21 @@ jobs:
           dotnet-version: 10.0.x
       - run: bash scripts/verify.sh
 
+  client:
+    # Cliente Godot (ADR-0022): fora do gate .NET; roda os testes headless do GDScript.
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: 4.7.2-stable
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instala o Godot (headless)
+        run: |
+          curl -fsSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q godot.zip
+          mkdir -p "$HOME/bin" && mv "Godot_v${GODOT_VERSION}_linux.x86_64" "$HOME/bin/godot" && chmod +x "$HOME/bin/godot"
+      - run: GODOT_BIN="$HOME/bin/godot" bash scripts/client-test.sh
+
   nightly:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest

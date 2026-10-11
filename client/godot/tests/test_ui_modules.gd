@@ -51,6 +51,10 @@ func test_day_cycle_follows_server_hour() -> void:
 
 	cycle.sync(6.0, 1.0, true)
 	eq(cycle.phase_name(), "Amanhecer")
+	cycle.sync(18.0, 1.0, true)
+	eq(cycle.phase_name(), "Entardecer")
+	cycle.sync(19.25, 1.0, true)
+	eq(cycle.phase_name(), "Noite", "a noite começa junto com o luar (19 h)")
 	for node in setup:
 		if node is Node:
 			node.free()
@@ -230,3 +234,57 @@ func test_loading_visible_during_normal_startup() -> void:
 	eq(seen, [true], "durante o carregamento normal a tela de espera está visível")
 	eq(app.loading.visible, false, "some quando o snapshot chega")
 	app.queue_free()
+
+
+func test_ambience_levels_follow_daylight_and_mute() -> void:
+	var Ambience := preload("res://Scenes/ambience.gd")
+	var noon: Dictionary = Ambience.levels(1.0)
+	var midnight: Dictionary = Ambience.levels(0.0)
+	check(noon.birds > 0.9 and noon.crickets == 0.0, "de dia: pássaros, sem grilos")
+	check(midnight.crickets > 0.9 and midnight.birds == 0.0, "de noite: grilos, sem pássaros")
+	check(midnight.wind > noon.wind, "o vento é mais audível à noite")
+
+	var ambience := Ambience.new()
+	ambience.set_muted(true)
+	eq(ambience.muted, true)
+	ambience.free()
+
+
+func test_clouds_drift_and_wrap() -> void:
+	var SkyLife := preload("res://Scenes/sky_life.gd")
+	var sky := SkyLife.new()
+	sky.build(Vector2(30, 30))
+	eq(sky.clouds.size(), SkyLife.CLOUD_COUNT)
+	var before: float = sky.clouds[0].position.x
+	for puff in sky.clouds[0].get_children():
+		eq((puff as GeometryInstance3D).cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY, "só a sombra aparece, a nuvem não tapa a vista")
+
+	sky.advance(2.0)
+	check(sky.clouds[0].position.x > before, "a nuvem andou")
+	sky.clouds[0].position.x = 30.0 * 1.3 + 1.0
+	sky.advance(0.1)
+	check(sky.clouds[0].position.x < 0.0, "ao sair do mapa a nuvem volta pelo outro lado")
+	sky.free()
+
+
+func test_door_gets_a_lamp_that_lights_at_night() -> void:
+	var WorldView := preload("res://Scenes/world_view.gd")
+	var view := WorldView.new()
+	var building := {"id": 1, "type": -1, "cell": Vector2i(2, 2), "floors": 1, "orientation": 0, "footprint": [
+		{"cell": Vector2i(0, 0), "material": 1}, {"cell": Vector2i(1, 0), "material": 1}, {"cell": Vector2i(2, 0), "material": 1},
+		{"cell": Vector2i(0, 1), "material": 1}, {"cell": Vector2i(1, 1), "material": 3}, {"cell": Vector2i(2, 1), "material": 1},
+		{"cell": Vector2i(0, 2), "material": 1}, {"cell": Vector2i(1, 2), "material": 2}, {"cell": Vector2i(2, 2), "material": 1}]}
+	var node: Node3D = view._make_building(building)
+	check(node.get_node_or_null("Lamp") != null, "há um poste de luz na porta")
+
+	var sun := DirectionalLight3D.new()
+	var cycle := DayCycle.new()
+	cycle.bind(sun, Environment.new(), view.window_material, view.lamp_material)
+	cycle.sync(12.0, 1.0, true)
+	eq(view.lamp_material.emission_energy_multiplier, 0.0, "poste apagado de dia")
+	cycle.sync(23.0, 1.0, true)
+	check(view.lamp_material.emission_energy_multiplier > 2.0, "poste aceso à noite")
+	node.free()
+	sun.free()
+	cycle.free()
+	view.free()
