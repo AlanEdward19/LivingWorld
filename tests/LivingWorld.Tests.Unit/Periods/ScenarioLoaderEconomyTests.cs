@@ -59,9 +59,17 @@ public class ScenarioLoaderEconomyTests
         var rules = world.EconomyRules;
         var recipes = world.EconomyCatalog.Recipes.Values.ToList();
 
+        // Todo recurso que o cenário menciona em qualquer lugar, nao so os que tem preco declarado.
         var resources = rules.PriceFloor.Keys
+            .Concat(rules.PriceCeiling.Keys)
+            .Concat(rules.DemandBaselinePerNpc.Keys)
+            .Concat(rules.CapacityByResourceLocation.Keys.Select(k => k.ResourceId))
+            .Concat(recipes.SelectMany(r => r.Outputs.Keys))
+            .Concat(recipes.SelectMany(r => r.Inputs.Keys))
+            .Concat(world.CityCatalog.BuildingRecipes.Values.SelectMany(r => r.Inputs.Keys.Select(k => k.Id)))
             .Concat([rules.FoodResourceId, rules.WaterResourceId])
             .Distinct().ToList();
+        Assert.DoesNotContain(4, resources); // ferro vive so no fixture do gate (premissa do plano)
         Assert.Contains(3, resources);
         Assert.Contains(5, resources);
 

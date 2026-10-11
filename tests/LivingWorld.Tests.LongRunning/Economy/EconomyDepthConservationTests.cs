@@ -47,10 +47,13 @@ public class EconomyDepthConservationTests
         + world.Households.Sum(h => h.Stock.GetValueOrDefault(resource))
         + world.Cities.Sum(c => c.Stock.GetValueOrDefault(resource));
 
-    [Fact]
-    public void Money_and_every_resource_are_conserved_at_every_daily_sample_over_ten_years()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void Money_and_every_resource_are_conserved_at_every_daily_sample_over_ten_years(int seed)
     {
-        var (world, clock, sink) = Load(seed: 2, population: 40);
+        var (world, clock, sink) = Load(seed, population: 40);
         long initialMoney = TotalMoney(world);
         var resources = new[] { 1, 2, 3, 5 }.Select(id => new ResourceType(id)).ToList();
         var initialStock = resources.ToDictionary(r => r, r => Stocked(world, r));
@@ -72,6 +75,13 @@ public class EconomyDepthConservationTests
                 Assert.True(left == right, $"tick {tick}, recurso {resource.Id}: {left} != {right}");
             }
         }
+
+        // A conservacao nao vale se os caminhos estiverem parados: producao, compra da cidade e obra se mexeram.
+        Assert.True(world.ResourceProduced.GetValueOrDefault(new ResourceType(3)) > 0, "madeira nunca produzida");
+        Assert.True(world.ResourceProduced.GetValueOrDefault(new ResourceType(5)) > 0, "pedra nunca produzida");
+        Assert.True(world.ResourceConsumed.GetValueOrDefault(new ResourceType(3)) > 0, "madeira nunca consumida em obra");
+        Assert.True(world.ResourceConsumed.GetValueOrDefault(new ResourceType(5)) > 0, "pedra nunca consumida em obra");
+        Assert.True(world.Cities.Sum(c => c.Treasury.Amount) < 20000, "a cidade nunca comprou material");
     }
 
     [Fact]
