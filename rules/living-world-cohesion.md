@@ -43,6 +43,13 @@ mortalidade, etc.), com cadeia causal auditável.
 3. Há `Fact`/`WorldEvent` com causa quando a transição importa?
 4. Sensor/audit: CAUSAL, não PRESENTATION_ONLY?
 
+## Como adicionar um sistema (AD-084)
+1. Classe `ISimulationSystem` com `[LivingCapability("ID", Events = [...], Consumers = [...])]` e, se a causalidade
+   exigir, `[RunsAfter(typeof(X))]` — o catálogo de capacidades é derivado daí.
+2. Uma linha em `ScenarioRunner.DefaultSystems` (a posição na lista é a ordem real; o teste confere os `RunsAfter`).
+3. Evento novo: acrescentar ao fim de `WorldEventKind` e apresentar em `LivingEventPresentationCatalog`.
+4. Teste que prova o efeito (desligar muda o hash); o `Every_simulation_system_declares_its_capability` reprova esquecimento.
+
 ## Ver também
 `docs/audits/living-world-cohesion-audit.md` · `.specs/features/phase-16-3-world-cohesion/` ·
 AD-011..013 em `.specs/STATE.md` · `rules/simulation-determinism.md` · `rules/llm-boundary.md`
