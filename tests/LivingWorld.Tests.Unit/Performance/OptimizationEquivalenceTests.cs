@@ -334,6 +334,28 @@ public class OptimizationEquivalenceTests
         Assert.False(new LazyRelationshipFacts(world, ids[1]).AnyBondAtLeast(0));
     }
 
+    [Fact]
+    public void Bond_probe_memo_follows_every_change_of_the_relationships_it_summarizes()
+    {
+        var (world, _) = ScenarioRunner.Create(7);
+        var ids = world.Npcs.Select(n => n.Id).Take(4).ToList();
+        var owner = ids[0];
+
+        var strong = world.GetOrCreateRelationship(new RelationshipKey(owner, ids[1]), 0);
+        strong.CopyAxesFrom(Relationship.FromAxes(70, 0, 0, 0, 0));
+        Assert.True(new LazyRelationshipFacts(world, owner).AnyBondAtLeast(60));
+        Assert.True(new LazyRelationshipFacts(world, owner).AnyBondAtLeast(60));   // reaproveitada
+
+        strong.CopyAxesFrom(Relationship.FromAxes(10, 0, 0, 0, 0));                 // eixo muda → invalida
+        Assert.False(new LazyRelationshipFacts(world, owner).AnyBondAtLeast(60));
+
+        var added = world.GetOrCreateRelationship(new RelationshipKey(owner, ids[2]), 0); // novo alvo
+        Assert.False(new LazyRelationshipFacts(world, owner).AnyBondAtLeast(60));
+        added.CopyAxesFrom(Relationship.FromAxes(0, 65, 0, 0, 0));
+        Assert.True(new LazyRelationshipFacts(world, owner).AnyBondAtLeast(60));
+        Assert.False(new LazyRelationshipFacts(world, ids[3]).AnyBondAtLeast(60));  // outro dono não herda
+    }
+
     // --- Alcançabilidade por componente conexa ---
 
     [Fact]

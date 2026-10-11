@@ -35,12 +35,34 @@ internal sealed class LazyRelationshipFacts(WorldState world, NpcId owner) : IRe
         }
 
         if (world.Relationships.Count == 0) return false;
-        foreach (var to in world.RelationshipTargetsOf(owner))
+        var targets = world.RelationshipTargetsOf(owner);
+
+        // A resposta só depende dos eixos das relações do dono e de quais elas são: enquanto nenhum eixo
+        // de nenhuma relação mudou (AxesVersion) e o dono tem os mesmos alvos, vale a última resposta.
+        // As relações mudam em lote no tick diário, então a maioria dos despertares do dia reaproveita.
+        var memo = Memos.GetOrCreateValue(world);
+        var key = (owner, minimum);
+        long version = Relationship.AxesVersion;
+        if (memo.TryGetValue(key, out var known) && known.Version == version && known.Targets == targets.Count)
+            return known.Result;
+
+        bool result = false;
+        foreach (var to in targets)
         {
             var rel = world.Relationships[new RelationshipKey(owner, to)];
             if ((int)Math.Round(rel.Trust) >= minimum || (int)Math.Round(rel.Affection) >= minimum)
-                return true;
+            {
+                result = true;
+                break;
+            }
         }
-        return false;
+
+        memo[key] = new BondMemo(version, targets.Count, result);
+        return result;
     }
+
+    private readonly record struct BondMemo(long Version, int Targets, bool Result);
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<
+        WorldState, Dictionary<(NpcId Owner, int Minimum), BondMemo>> Memos = new();
 }
