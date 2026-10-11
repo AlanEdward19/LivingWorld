@@ -196,7 +196,7 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
                     WorldEventKind.PlantMatured,
                     plant.Id.Value.ToString(),
                     sourceSystem: SystemName);
-                DepositYield(world, plant, rules);
+                DepositYield(world, ctx, plant, rules);
             }
         }
     }
@@ -268,7 +268,7 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
         return 1.0 + 2.0 * Math.Clamp(comfort, 0, 1);
     }
 
-    internal static void DepositYield(WorldState world, Plant plant, PlantSpeciesRules rules)
+    internal static void DepositYield(WorldState world, TickContext ctx, Plant plant, PlantSpeciesRules rules)
     {
         if (!world.EconomyRules.Enabled)
             return;
@@ -284,7 +284,11 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
         if (workplace is null)
             return;
 
-        workplace.Deposit(resource, yield, world.EconomyRules);
+        long lost = workplace.Deposit(resource, yield, world.EconomyRules);
+        if (lost > 0)
+            ctx.LogEvent(
+                WorldEventKind.ResourceLost,
+                $"{workplace.Id.Value}|{rules.CropResourceId}|{lost}", sourceSystem: SystemName);
         world.RecordResourceProduced(resource, yield);
     }
 

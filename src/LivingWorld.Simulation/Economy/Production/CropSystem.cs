@@ -1,5 +1,6 @@
 using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
@@ -46,7 +47,11 @@ public sealed class CropSystem : ISimulationSystem
             if (crop is { } harvestable && harvestable.IsHarvestable(ctx.CurrentTick))
             {
                 long yield = DefaultHarvestPerWorker * workers.Count;
-                workplace.Deposit(new ResourceType(harvestable.CropResourceId), yield, world.EconomyRules);
+                long lost = workplace.Deposit(new ResourceType(harvestable.CropResourceId), yield, world.EconomyRules);
+                if (lost > 0)
+                    ctx.LogEvent(
+                        WorldEventKind.ResourceLost,
+                        $"{workplace.Id.Value}|{harvestable.CropResourceId}|{lost}", sourceSystem: SystemName);
                 world.RecordResourceProduced(new ResourceType(harvestable.CropResourceId), yield);
                 harvestable.MarkHarvested();
 
