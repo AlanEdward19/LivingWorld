@@ -138,7 +138,7 @@ public class MutualAidSystemTests
     public void A_household_that_has_money_or_food_is_not_helped()
     {
         var scene = Build(helperAltruism: 100, helperWallet: 5000);
-        scene.Recipient.CreditWallet(new Money(500));   // pode comprar o que precisa
+        scene.Recipient.CreditWallet(new Money(20));   // 4 dias de compra = 16: a casa se vira, mesmo faltando para uma semana (28)
 
         Assert.DoesNotContain(RunDays(scene, days: 30), e => e.Kind == WorldEventKind.AidGiven);
 
