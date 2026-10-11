@@ -650,6 +650,7 @@ public class OptimizationEquivalenceTests
             if (i >= 30) bounds = new CityBounds(new CellCoord(26, 26), 8, 8);
             world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, 1 + i % 3, 0, authored));
 
+            var actualBoxes = CityOccupancy.OwnedBuildingFootprintBoxesWithOwners(world, city, bounds).ToList();
             var expectedBoxes = new List<(Building, CityBounds)>();
             foreach (var building in world.Buildings.Where(b => b.City == city.Id))
             {
@@ -663,7 +664,7 @@ public class OptimizationEquivalenceTests
                 expectedBoxes.Add((building, new CityBounds(new CellCoord(minX, minY), cells.Max(c => c.X) - minX + 1, cells.Max(c => c.Y) - minY + 1)));
             }
 
-            Assert.Equal(expectedBoxes, CityOccupancy.OwnedBuildingFootprintBoxesWithOwners(world, city, bounds).ToList());
+            Assert.Equal(expectedBoxes, actualBoxes);
 
             // As caixas vêm antes da ocupação: é a ordem do posicionamento real, em que as caixas do passo
             // anterior ainda estão memoizadas quando o prédio novo chega.
