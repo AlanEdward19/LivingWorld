@@ -101,10 +101,23 @@ public static class CityOccupancy
     {
         // As caixas só dependem dos prédios da cidade e dos bounds por população — exatamente o que o
         // plano memoizado valida. Enquanto o plano não muda, a lista pronta vale.
+        // Atalho exato: nenhum prédio criado ou trocado de cidade desde que as caixas foram calculadas para
+        // estes mesmos bounds ⇒ o mesmo conjunto de prédios ⇒ o mesmo plano. Evita filtrar e ordenar todos os
+        // prédios do mundo a cada chamada (uma por tick e cidade).
+        if (Plans.GetOrCreateValue(world).TryGetValue(city.Id, out var known)
+            && known.Boxes is { } fast && known.BoxesLayoutVersion == Building.LayoutVersion
+            && known.Bounds == populationBounds
+            && known.MapWidth == world.Map.Width && known.MapHeight == world.Map.Height)
+            return fast;
+
+        long layoutVersion = Building.LayoutVersion;
         var siblings = world.Buildings.Where(b => b.City == city.Id).OrderBy(b => b.Id.Value).ToArray();
         var plan = PlanFor(world, city, populationBounds, siblings);
         if (plan.Boxes is { } cached)
+        {
+            plan.BoxesLayoutVersion = layoutVersion;
             return cached;
+        }
 
         var result = new List<(Building Building, CityBounds Box)>();
         foreach (var building in world.Buildings.Where(b => b.City == city.Id))
@@ -132,6 +145,7 @@ public static class CityOccupancy
         }
 
         plan.Boxes = result;
+        plan.BoxesLayoutVersion = layoutVersion;
         return result;
     }
 
@@ -283,6 +297,8 @@ public static class CityOccupancy
         public HashSet<CellCoord> Occupied = new();
         /// <summary>Caixas de footprint dos prédios da cidade para estes bounds; descartadas quando o plano muda.</summary>
         public List<(Building Building, CityBounds Box)>? Boxes;
+        /// <summary><see cref="Building.LayoutVersion"/> em que <see cref="Boxes"/> foi calculado.</summary>
+        public long BoxesLayoutVersion;
         /// <summary>Por forma de prédio (tipo, orientação): marcos (id do passo, raio) — no passo desse id
         /// todo anel de raio menor já estava inteiramente ocupado para a forma. A ocupação só cresce ao
         /// longo do passe, então o marco continua valendo para qualquer resolução de id maior ou igual
