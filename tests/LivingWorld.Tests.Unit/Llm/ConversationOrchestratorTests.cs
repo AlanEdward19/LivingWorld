@@ -136,6 +136,60 @@ public class ConversationOrchestratorTests
         Assert.Empty(world.CanonicalMemories.Concat(world.VolatileMemories));
     }
 
+    /// <summary>Abrir sessão e errar o turno não mexem no mundo: o hash é igual ao de uma execução em que
+    /// ninguém conversou (a expiração é preguiçosa e não consome id de evento canônico).</summary>
+    [Fact]
+    public async Task Opening_a_session_and_a_throwing_provider_leave_the_world_hash_equal_to_a_run_without_conversation()
+    {
+        const long Ticks = 48;
+        var (control, controlClock) = ScenarioRunner.Create(seed: 9, initialPopulation: 20);
+        controlClock.Run(control, Ticks);
+
+        var (world, clock) = ScenarioRunner.Create(seed: 9, initialPopulation: 20);
+        clock.Run(world, Ticks / 2);
+        var npc = world.Npcs.First(n => n.IsAlive);
+        var ctx = new TickContext(world, new WorldRngRegistry(1), new EventScheduler());
+        var store = new ConversationSessionStore();
+        var (decision, session) = store.StartConversation(npc, world.NeedsRules, MakeLlmRules(), null, ctx, expireAfterTicks: 100);
+        Assert.Equal(ConversationStartDecision.Accepted, decision);
+        var provider = new ScriptedProvider((_, _) => throw new InvalidOperationException("provider caiu"));
+        var orchestrator = new ConversationOrchestrator(store, new ConversationEffectsApplier(), provider, KnownEmotions, TimeSpan.FromSeconds(5));
+        var turn = await orchestrator.SendMessageAsync(world, npc, session!, "oi", ["greet"], [], ctx);
+        Assert.Contains(npc.Name, turn.Dialogue);
+        clock.Run(world, Ticks - Ticks / 2);
+
+        Assert.Equal(WorldSnapshot.CanonicalHash(control), WorldSnapshot.CanonicalHash(world));
+    }
+
+    [Fact]
+    public async Task Throwing_provider_mid_run_leaves_the_world_hash_equal_to_a_run_without_the_turn()
+    {
+        const long Ticks = 48;
+        static (WorldState World, WorldClock Clock, Npc Npc, ConversationSessionStore Store, ConversationSession Session, TickContext Ctx) Open()
+        {
+            var (world, clock) = ScenarioRunner.Create(seed: 9, initialPopulation: 20);
+            clock.Run(world, Ticks / 2);
+            var npc = world.Npcs.First(n => n.IsAlive);
+            var ctx = new TickContext(world, new WorldRngRegistry(1), new EventScheduler());
+            var store = new ConversationSessionStore();
+            var (decision, session) = store.StartConversation(npc, world.NeedsRules, MakeLlmRules(), null, ctx, expireAfterTicks: 100);
+            Assert.Equal(ConversationStartDecision.Accepted, decision);
+            return (world, clock, npc, store, session!, ctx);
+        }
+
+        var control = Open();
+        control.Clock.Run(control.World, Ticks - Ticks / 2);
+
+        var treated = Open();
+        var provider = new ScriptedProvider((_, _) => throw new InvalidOperationException("provider caiu"));
+        var orchestrator = new ConversationOrchestrator(treated.Store, new ConversationEffectsApplier(), provider, KnownEmotions, TimeSpan.FromSeconds(5));
+        var turn = await orchestrator.SendMessageAsync(treated.World, treated.Npc, treated.Session, "oi", ["greet"], [], treated.Ctx);
+        Assert.Contains(treated.Npc.Name, turn.Dialogue);
+        treated.Clock.Run(treated.World, Ticks - Ticks / 2);
+
+        Assert.Equal(WorldSnapshot.CanonicalHash(control.World), WorldSnapshot.CanonicalHash(treated.World));
+    }
+
     [Fact]
     public async Task Message_on_unknown_session_falls_back_without_calling_the_provider()
     {

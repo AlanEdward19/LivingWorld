@@ -1,5 +1,9 @@
 # Fase 15 — Mapa visual VTT 2D
 
+> **Cliente web removido (ADR-0022, 2026-10-11).** O contrato com o cliente é a API do motor (`tests/contracts/`); a UI é
+> o Godot (`.specs/features/godot-client/`). Itens de React/TypeScript/Vite abaixo são histórico.
+
+
 **Objetivo**: transformar o mundo já existente em uma visualização 2D estilo VTT com
 **dois modos**: (1) espectador/admin com visão global viva do mundo e (2) jogador em
 personagem com visão limitada por conhecimento e fog of war. Tudo em tempo real, sem

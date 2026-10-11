@@ -65,6 +65,7 @@ public sealed class ConstructionSystem : ISimulationSystem
                     foreach (var (resource, amount) in due)
                     {
                         city.WithdrawStock(resource, amount);
+                        world.RecordResourceConsumed(resource, amount);
                         project.RecordConsumption(resource, amount);
                     }
 

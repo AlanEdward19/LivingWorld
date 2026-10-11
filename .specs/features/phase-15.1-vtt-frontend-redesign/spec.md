@@ -1,5 +1,9 @@
 # Fase 15.1 (Redesign do frontend VTT) Specification
 
+> **Cliente web removido (ADR-0022, 2026-10-11).** O contrato com o cliente é a API do motor (`tests/contracts/`); a UI é
+> o Godot (`.specs/features/godot-client/`). Itens de React/TypeScript/Vite abaixo são histórico.
+
+
 ## Problem Statement
 
 A Fase 15 entregou um cliente web funcional (React+TS em `web/`, realtime WS/SSE, projeções por escopo, FOW, tokens de NPC) e o usuário rejeitou o resultado como produto: a experiência é "admin dashboard + formulário de configuração", não "construir e observar um mundo". Três falhas estruturais sustentam essa rejeição, todas verificadas no código: (1) **não existe câmera** — `GridCanvas.tsx` só tem botões `+`/`−` de zoom (`web/src/components/GridCanvas.tsx:161-178`), sem pan, sem wheel, sem zoom focado no cursor; (2) **nada se move** — o processo da API nunca avança o tick (`src/LivingWorld.Api/Program.cs:52-55`: "este host ainda não ticka automaticamente"), e o único `RealtimeGateway.Publish` do sistema é disparado por um POST de movimento manual (`src/LivingWorld.Api/VisualInput/VisualInputEndpoints.cs:32`); (3) **cidade é um ponto e prédio não tem posição** — `City.Location` é um único `CellCoord` (`src/LivingWorld.Domain/Cities/City.cs:11`) e `Building` não tem coordenada nenhuma (`src/LivingWorld.Domain/Cities/Building.cs:6-12`), então o cliente inventa um anel de layout (`web/src/components/CityView.tsx:38-50`).

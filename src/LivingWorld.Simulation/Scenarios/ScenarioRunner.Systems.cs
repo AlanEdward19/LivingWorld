@@ -1,5 +1,4 @@
 using LivingWorld.Domain.Extraordinary;
-using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Decision;
 using LivingWorld.Simulation.Behavior.Needs;
 using LivingWorld.Simulation.Cities;
@@ -10,6 +9,7 @@ using LivingWorld.Simulation.Ecology;
 using LivingWorld.Simulation.Economy.Labor;
 using LivingWorld.Simulation.Economy.Market;
 using LivingWorld.Simulation.Economy.Production;
+using LivingWorld.Simulation.Economy.Supply;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
 using LivingWorld.Simulation.Extraordinary.Systems;
 using LivingWorld.Simulation.Geography;
@@ -54,10 +54,6 @@ public static partial class ScenarioRunner
         var systems = new List<ISimulationSystem>
         {
         new PeriodEvolutionSystem(periodTransformationRules ?? []),
-        new ExampleCounterSystem(TickFrequency.Hourly),
-        new ExampleCounterSystem(TickFrequency.Daily),
-        new ExampleCounterSystem(TickFrequency.Monthly),
-        new ExampleCounterSystem(TickFrequency.Yearly),
         new MortalitySystem(),
         new FactToReportConversionScheduler(),
         new BookRediscoverySystem(),
@@ -74,6 +70,7 @@ public static partial class ScenarioRunner
         new SkillPracticeSystem(DefaultSkillsRules),
         new SkillTeachingSystem(DefaultSkillsRules, DefaultLifeStageRules),
         new WorkHardeningSystem(),
+        new InputSupplySystem(),
         new ProductionSystem(DefaultSkillsRules),
         new FaunaLifecycleSystem(),
         new FloraLifecycleSystem(),

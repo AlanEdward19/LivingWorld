@@ -4,6 +4,7 @@ using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Cities.Queries;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Economy.Labor;
+using LivingWorld.Simulation.Economy.Supply;
 using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Cities.Construction;
@@ -12,6 +13,7 @@ namespace LivingWorld.Simulation.Cities.Construction;
 /// suficiente — demanda vira fila canônica, nunca spawn
 /// instantâneo nem trabalho fingido sem workplace real.</summary>
 [LivingCapability("CITY_CONSTRUCTION", Consumers = ["inspector.city.construction"])]
+[RunsAfter(typeof(InputSupplySystem))]
 public sealed class ConstructionDemandSystem : ISimulationSystem
 {
     public const string SystemName = "cities-construction-demand";

@@ -54,6 +54,8 @@ casais, tendo filhos e produzindo linhagens rastreáveis que não colapsam em cl
   *Registro: 100 anos são ~4 gerações; com `Ne` entre 20 e 50, a perda esperada por deriva
   é de 3,9% a 9,6%. Um limiar de "≥ 50% da variância inicial" passaria com o modelo
   genético completamente quebrado. O teste real é o contraste com o controle, não o nível.*
+  *Registro (AD-088): **não atendido** com a vila saudável — CV(real) − CV(neutro) = −0,0041 (z = −4,0, 160
+  seeds): a seleção real reduz a diversidade. O gate de 10 seeds só barra o sinal contrário. Decisão em aberto.*
 - **Correlação genética × sucesso, teto derivado**: bootstrap de `|r|` sobre 20 seeds. Exige
   (a) `r` significativo, `p < 0.05`, e (b) o IC95 de `|r|` **inteiramente abaixo** do `|r|`
   medido no mesmo mundo com o canal ambiental **desligado**. Sem `0 < |r|` (tautológico) e

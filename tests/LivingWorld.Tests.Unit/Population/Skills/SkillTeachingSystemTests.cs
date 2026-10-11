@@ -260,4 +260,45 @@ public class SkillTeachingSystemTests
         Assert.Null(apprentice.Mentor);
         Assert.Equal(0, apprentice.Skills.Get(new SkillType(0)));
     }
+
+    // --- Mestre escolhido pela oficina ---
+
+    [Fact]
+    public void Best_skilled_coworker_becomes_mentor_of_a_much_less_skilled_one_and_stops_at_the_gap()
+    {
+        var world = BuildWorld();
+        var employer = AddWorkplace(world);
+        var skill = new SkillType(0);
+        var master = MakeNpc(world, 40, new ProfessionType(1), new CellCoord(1, 1), employer: employer);
+        var apprentice = MakeNpc(world, 25, new ProfessionType(1), new CellCoord(1, 1), employer: employer);
+        var peer = MakeNpc(world, 30, new ProfessionType(1), new CellCoord(1, 1), employer: employer);
+        master.GainSkill(skill, 80, 100);
+        peer.GainSkill(skill, 75, 100);
+
+        new SkillTeachingSystem(Rules, ScenarioRunner.DefaultLifeStageRules).Tick(world, Ctx(world));
+
+        Assert.Equal(master.Id, apprentice.Mentor);
+        Assert.Null(peer.Mentor); // a 5 pontos do mestre: sem distância para ensinar
+        Assert.Null(master.Mentor);
+        Assert.True(apprentice.Skills.Get(skill) > 0);
+    }
+
+    [Fact]
+    public void Apprentice_graduates_when_reaching_the_master_and_other_workplaces_never_mix()
+    {
+        var world = BuildWorld();
+        var shopA = AddWorkplace(world);
+        var shopB = AddWorkplace(world);
+        var skill = new SkillType(0);
+        var master = MakeNpc(world, 40, new ProfessionType(1), new CellCoord(1, 1), employer: shopA);
+        var stranger = MakeNpc(world, 25, new ProfessionType(1), new CellCoord(1, 1), employer: shopB);
+        var apprentice = MakeNpc(world, 25, new ProfessionType(1), new CellCoord(1, 1), employer: shopA, mentor: master.Id);
+        master.GainSkill(skill, 50, 100);
+        apprentice.GainSkill(skill, 50, 100);
+
+        new SkillTeachingSystem(Rules, ScenarioRunner.DefaultLifeStageRules).Tick(world, Ctx(world));
+
+        Assert.Null(apprentice.Mentor);
+        Assert.Null(stranger.Mentor);
+    }
 }

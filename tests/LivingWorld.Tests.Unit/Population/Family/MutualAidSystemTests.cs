@@ -112,6 +112,20 @@ public class MutualAidSystemTests
     }
 
     [Fact]
+    public void Being_helped_raises_the_recipients_trust_respect_and_debt_toward_the_helper_only()
+    {
+        var scene = Build(helperAltruism: 100, helperWallet: 1000);
+
+        RunDays(scene, days: 3);
+
+        var toHelper = scene.World.Relationships[new RelationshipKey(scene.Recipient.Id, scene.Helper.Id)];
+        Assert.True(toHelper.Debt > 0);
+        Assert.True(toHelper.Trust > 0);
+        Assert.True(toHelper.Respect > 0);
+        Assert.False(scene.World.Relationships.ContainsKey(new RelationshipKey(scene.Helper.Id, scene.Recipient.Id)));
+    }
+
+    [Fact]
     public void A_selfish_relative_never_helps_however_rich()
     {
         var scene = Build(helperAltruism: 0, helperWallet: 100_000);

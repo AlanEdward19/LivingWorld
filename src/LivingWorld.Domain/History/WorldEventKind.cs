@@ -143,4 +143,10 @@ public enum WorldEventKind
     /// <summary>Ajuda mútua: alguém deu dinheiro a uma casa em necessidade — payload
     /// <c>ajudanteId|receptorId|valor</c>.</summary>
     AidGiven,
+
+    /// <summary>Morte por sede sustentada — payload: npcId (mesmo molde de <see cref="Starvation"/>).</summary>
+    Dehydration,
+
+    /// <summary>Morte por privação de sono sustentada — payload: npcId.</summary>
+    Exhaustion,
 }

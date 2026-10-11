@@ -1,5 +1,9 @@
 # Fase 15 (Mapa visual VTT 2D) Specification
 
+> **Cliente web removido (ADR-0022, 2026-10-11).** O contrato com o cliente é a API do motor (`tests/contracts/`); a UI é
+> o Godot (`.specs/features/godot-client/`). Itens de React/TypeScript/Vite abaixo são histórico.
+
+
 ## Problem Statement
 Hoje o mundo existe só em backend e não há uma visualização viva para acompanhar cidade, NPCs e eventos. Precisamos de um cliente React + TypeScript em VTT 2D, em tempo real e com dois modos (espectador/admin e personagem), incluindo fog of war, navegação até interiores e camadas derivadas (terreno, rios, clima etc.), sem criar uma segunda fonte de verdade.
 

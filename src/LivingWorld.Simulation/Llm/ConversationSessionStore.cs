@@ -12,10 +12,11 @@ public enum SendMessageResult { Ok, SessionNotFound, SessionInactive }
 
 public enum EndConversationResult { Ok, SessionNotFound }
 
-/// <summary>Ciclo start/send/end de uma <see cref="ConversationSession"/>. Expiração é agendada via <see
-/// cref="TickContext.ScheduleEvent"/> — nunca varredura por tick (reuso de <see
-/// cref="EventScheduler"/>). Implementa <see cref="ISimulationSystem"/> só para receber o
-/// evento de expiração agendado por si mesmo; não faz trabalho nenhum por tick.</summary>
+/// <summary>Ciclo start/send/end de uma <see cref="ConversationSession"/>. A expiração é preguiçosa e
+/// não toca o mundo: cada sessão guarda o tick em que vence (só neste store, fora do snapshot) e é encerrada
+/// no primeiro <see cref="SendPlayerMessage"/> ou <see cref="Tick"/> depois dele. Antes, agendar o evento
+/// consumia um id canônico do mundo — abrir uma conversa mudava o hash. Implementa <see
+/// cref="ISimulationSystem"/> só para o <see cref="Tick"/>, que varre apenas as sessões ativas.</summary>
 [LivingCapability("CONVERSATION", Consumers = ["interaction.conversation"])]
 public sealed class ConversationSessionStore : ISimulationSystem
 {
@@ -23,6 +24,7 @@ public sealed class ConversationSessionStore : ISimulationSystem
 
     private readonly Dictionary<long, ConversationSession> _sessions = new();
     private readonly Dictionary<long, List<(long TurnId, string PlayerText)>> _turnsBySession = new();
+    private readonly Dictionary<long, long> _expiresAtTick = new();
     private long _nextSessionId;
     private long _nextTurnId;
 
@@ -31,6 +33,16 @@ public sealed class ConversationSessionStore : ISimulationSystem
 
     public void Tick(WorldState world, TickContext ctx)
     {
+        if (_expiresAtTick.Count == 0) return;
+        foreach (var sessionId in _expiresAtTick.Where(e => e.Value <= ctx.CurrentTick).Select(e => e.Key).ToList())
+            Expire(sessionId);
+    }
+
+    private void Expire(long sessionId)
+    {
+        _expiresAtTick.Remove(sessionId);
+        if (_sessions.TryGetValue(sessionId, out var session) && session.IsActive)
+            _sessions[sessionId] = session.Ended();
     }
 
     public ConversationSession? Find(long sessionId) => _sessions.GetValueOrDefault(sessionId);
@@ -55,7 +67,7 @@ public sealed class ConversationSessionStore : ISimulationSystem
         var session = new ConversationSession(sessionId, npc.Id, ctx.CurrentTick, ctx.CurrentTick, IsActive: true);
         _sessions[sessionId] = session;
         _turnsBySession[sessionId] = [];
-        ctx.ScheduleEvent(ctx.CurrentTick + expireAfterTicks, SystemName, sessionId.ToString());
+        _expiresAtTick[sessionId] = ctx.CurrentTick + expireAfterTicks;
 
         return (ConversationStartDecision.Accepted, session);
     }
@@ -67,6 +79,11 @@ public sealed class ConversationSessionStore : ISimulationSystem
     {
         if (!_sessions.TryGetValue(sessionId, out var session))
             return SendMessageResult.SessionNotFound;
+        if (_expiresAtTick.TryGetValue(sessionId, out var expiresAt) && expiresAt <= ctx.CurrentTick)
+        {
+            Expire(sessionId);
+            return SendMessageResult.SessionInactive;
+        }
         if (!session.IsActive)
             return SendMessageResult.SessionInactive;
 
@@ -79,16 +96,8 @@ public sealed class ConversationSessionStore : ISimulationSystem
     public EndConversationResult EndConversation(long sessionId)
     {
         if (!_sessions.TryGetValue(sessionId, out var session)) return EndConversationResult.SessionNotFound;
+        _expiresAtTick.Remove(sessionId);
         _sessions[sessionId] = session.Ended();
         return EndConversationResult.Ok;
-    }
-
-    /// <summary>Dispara na expiração agendada (nunca varredura por tick) — mesmo efeito de <see
-    /// cref="EndConversation"/>, histórico preservado.</summary>
-    public void HandleEvent(WorldState world, TickContext ctx, ScheduledEvent evt)
-    {
-        if (!long.TryParse(evt.Payload, out var sessionId)) return;
-        if (_sessions.TryGetValue(sessionId, out var session) && session.IsActive)
-            _sessions[sessionId] = session.Ended();
     }
 }

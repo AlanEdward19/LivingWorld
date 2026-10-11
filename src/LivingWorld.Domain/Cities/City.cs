@@ -47,6 +47,21 @@ public sealed class City
     /// <see cref="Household.Stock"/>, sem capacidade declarada nesta fase.</summary>
     public IReadOnlyDictionary<ResourceType, long> Stock => _stock;
 
+    /// <summary>Caixa da cidade, com que ela compra material de obra das oficinas (<c>InputSupplySystem</c>).
+    /// Nasce de dotação declarada no cenário; nunca fica negativo.</summary>
+    public Money Treasury { get; private set; }
+
+    public void CreditTreasury(Money amount) => Treasury += amount;
+
+    /// <summary>Falha deixa <see cref="Treasury"/> idêntico ao estado anterior.</summary>
+    public Result<Money> TryDebitTreasury(Money amount)
+    {
+        var result = Treasury.TryDebit(amount);
+        if (result.IsSuccess)
+            Treasury = result.Value;
+        return result;
+    }
+
     private readonly List<ConstructionProject> _constructionQueue;
 
     /// <summary>Fila FIFO de obras em progresso — <see
@@ -88,7 +103,8 @@ public sealed class City
         string name = "",
         IReadOnlyList<NpcId>? poolNpcIds = null,
         CityId? mergedIntoCityId = null,
-        long? mergeScheduledAtTick = null)
+        long? mergeScheduledAtTick = null,
+        Money treasury = default)
     {
         Id = id;
         Location = location;
@@ -103,6 +119,7 @@ public sealed class City
         _poolNpcIds = (poolNpcIds ?? []).ToList();
         MergedIntoCityId = mergedIntoCityId;
         MergeScheduledAtTick = mergeScheduledAtTick;
+        Treasury = treasury;
     }
 
     public void SetCanonSlots(IReadOnlyList<ReportState> slots)

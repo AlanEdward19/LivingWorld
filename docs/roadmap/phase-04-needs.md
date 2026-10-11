@@ -37,6 +37,8 @@ urgência sabe interromper.
   `trocas_com < trocas_sem` em **20/20**. O teto absoluto de trocas por dia é o percentil
   99 das 20 seeds, gravado em `tests/baselines/action-switches.json`; número mágico no
   texto do critério é proibido.
+  *Registro (AD-088): com o dia guiado pela rotina o efeito da histerese ficou pequeno (−0,7% das trocas, z = −4,
+  15/20 seeds); o gate usa a média de 20 seeds. "20/20" não é mais atendido.*
 - **Fome mata em prazo derivado**: `X = ceil(100 / taxaDecaimentoFome)` lido do cenário em
   runtime. NPC sem acesso a comida morre em `[X, X+1]` ticks, com `causa == Starvation`
   registrada no event log — datável, não "em algum momento".

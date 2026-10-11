@@ -10,9 +10,9 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Tests.Unit.Economy.Labor;
 
-/// <summary>Fase 5, T17: <see cref="WagePaymentSystem"/> — caixa suficiente paga todo mundo,
-/// caixa insuficiente emite <see cref="WorldEventKind.WageUnpaid"/> sem alterar nenhum saldo
-/// (ECON-21/22).</summary>
+/// <summary>Fase 5, T17: <see cref="WagePaymentSystem"/> — caixa suficiente paga todo mundo; caixa zero emite
+/// <see cref="WorldEventKind.WageUnpaid"/> e deixa os saldos como estavam; caixa parcial paga a mesma fração a todos
+/// e registra o atraso do restante (ECON-21/22, AD-082).</summary>
 public class WagePaymentSystemTests
 {
     private static readonly WorldCalendar Calendar = new(24, 30, 12);
@@ -93,6 +93,26 @@ public class WagePaymentSystemTests
         Assert.Equal(new Money(10), e1.Wallet);
         Assert.Equal(Money.Zero, workplace.Treasury);
         Assert.Equal(new Money(10), e1.Wallet + workplace.Treasury);   // nada foi criado
+        Assert.Contains(sink.Events, e => e.Kind == WorldEventKind.WageUnpaid);
+    }
+
+    /// <summary>Critério do roadmap (Fase 5): empregador sem saldo emite o evento de salário não pago e deixa os dois
+    /// saldos byte-idênticos. A folha proporcional (AD-082) não pode transformar caixa zero em pagamento.</summary>
+    [Fact]
+    public void Workplace_with_empty_treasury_emits_WageUnpaid_and_leaves_both_balances_untouched()
+    {
+        var world = BuildWorld();
+        var e1 = MakeEmployee(world);
+        var workplace = MakeWorkplace(world, Money.Zero, e1.Id);
+        e1.Hire(workplace.Id);
+        var walletBefore = e1.Wallet;
+        var sink = new RecordingSink();
+        var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
+
+        new WagePaymentSystem().Tick(world, ctx);
+
+        Assert.Equal(walletBefore, e1.Wallet);
+        Assert.Equal(Money.Zero, workplace.Treasury);
         Assert.Contains(sink.Events, e => e.Kind == WorldEventKind.WageUnpaid);
     }
 

@@ -27,8 +27,8 @@ public sealed class MarketIndex
         _map = map;
     }
 
-    /// <summary>Mercado mais próximo que de fato tem algo a vender (estoque de pelo menos um dos
-    /// <paramref name="resources"/>); ir ao mercado mais perto que está vazio não alimenta ninguém.
+    /// <summary>Mercado mais próximo que de fato tem algo a vender (estoque e preço de pelo menos um dos
+    /// <paramref name="resources"/>; estoque sem preço é só sobra de outra coisa, não é venda); ir ao mercado mais perto que está vazio não alimenta ninguém.
     /// Sem nenhum com estoque, cai no mais próximo.</summary>
     public Workplace? NearestSelling(CellCoord origin, params ResourceType[] resources)
     {
@@ -39,7 +39,8 @@ public sealed class MarketIndex
         {
             bool sells = false;
             foreach (var resource in resources)
-                if (market.Stock.GetValueOrDefault(resource) > 0) { sells = true; break; }
+                if (market.Stock.GetValueOrDefault(resource) > 0
+                    && market.Prices.TryGetValue(resource, out var price) && price > 0) { sells = true; break; }
             if (!sells) continue;
 
             long ticks = TravelResolution.TicksBetween(_map, origin, market.Location);

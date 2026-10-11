@@ -1,5 +1,9 @@
 # Fase 16.3-web — World Explorer UX Demo Specification
 
+> **Cliente web removido (ADR-0022, 2026-10-11).** O contrato com o cliente é a API do motor (`tests/contracts/`); a UI é
+> o Godot (`.specs/features/godot-client/`). Itens de React/TypeScript/Vite abaixo são histórico.
+
+
 Fonte: `Fase pós-16.2 — Living World Cohesion_ Causalidade, Agência, Atenção, Complexidade e Experiência.md` (doc do usuário, seções 101-148 — referenciadas abaixo como `doc#N`) + `.specs/features/phase-16-3-world-cohesion/spec.md` (Out of Scope: "web vira spec própria").
 
 ## Problem Statement

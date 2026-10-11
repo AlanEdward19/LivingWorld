@@ -79,6 +79,17 @@ public class LlmResponseValidatorTests
     }
 
     [Fact]
+    public void Intent_outside_allowed_intents_is_rejected_entirely()
+    {
+        var response = new LlmResponse("oi", "neutral", "attack", [], []);
+
+        var result = LlmResponseValidator.Validate(response, MakeContext(), KnownEmotions);
+
+        Assert.False(result.IsValid);
+        Assert.Equal(LlmValidationFailure.IntentNotAllowed, result.Failure);
+    }
+
+    [Fact]
     public void Action_inside_allowed_actions_is_accepted()
     {
         var response = new LlmResponse("oi", "neutral", "greet", ["greet", "trade"], []);

@@ -158,6 +158,62 @@ public class NeedsDecaySystemTests
     }
 
     [Fact]
+    public void Npc_dies_of_dehydration_after_thirst_stays_at_zero_for_the_time_it_takes_to_drain_it()
+    {
+        var rules = MakeRules(hungerDecay: 0, thirstDecay: 10);
+        var (world, _, npc) = BuildWorld(seed: 1, rules);
+        var sink = new RecordingSink();
+        var clock = new WorldClock([new NeedsDecaySystem()], sink: sink);
+
+        clock.Run(world, ticks: 9);
+        Assert.True(npc.IsAlive);
+        clock.Run(world, ticks: 11);
+
+        Assert.False(npc.IsAlive);
+        var death = Assert.Single(sink.Events, e => e.Kind == WorldEventKind.Dehydration);
+        Assert.Equal(npc.Id.Value.ToString(), death.Payload);
+        Assert.DoesNotContain(sink.Events, e => e.Kind == WorldEventKind.Starvation);
+    }
+
+    [Fact]
+    public void Drinking_before_the_deadline_resets_the_dehydration_clock()
+    {
+        var rules = MakeRules(thirstDecay: 10);
+        var (world, _, npc) = BuildWorld(seed: 1, rules);
+        var clock = new WorldClock([new NeedsDecaySystem()]);
+
+        clock.Run(world, ticks: 15);
+        npc.SetThirst(100, world.CurrentDate.TotalHours);
+        clock.Run(world, ticks: 15);
+
+        Assert.True(npc.IsAlive);
+    }
+
+    [Fact]
+    public void Sleep_deprivation_drains_health_then_kills_with_exhaustion_and_rest_stops_it()
+    {
+        var rules = MakeRules(sleepDecay: 10);
+        var (world, _, npc) = BuildWorld(seed: 1, rules);
+        var sink = new RecordingSink();
+        var clock = new WorldClock([new NeedsDecaySystem()], sink: sink);
+
+        clock.Run(world, ticks: 15);
+        Assert.Equal(100, npc.Health);
+        clock.Run(world, ticks: 10);
+        Assert.True(npc.Health < 100);
+
+        npc.SetSleep(100, world.CurrentDate.TotalHours);
+        int healthAfterRest = npc.Health;
+        clock.Run(world, ticks: 5);
+        Assert.Equal(healthAfterRest, npc.Health);
+
+        npc.SetSleep(0, world.CurrentDate.TotalHours);
+        clock.Run(world, ticks: 80);
+        Assert.False(npc.IsAlive);
+        Assert.Single(sink.Events, e => e.Kind == WorldEventKind.Exhaustion);
+    }
+
+    [Fact]
     public void Same_seed_produces_identical_world_hash_and_a_different_seed_diverges()
     {
         static string RunWithNeedsDecay(ulong seed)

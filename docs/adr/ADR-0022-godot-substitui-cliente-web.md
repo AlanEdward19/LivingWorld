@@ -28,5 +28,7 @@ A spec do cliente Godot é o próximo passo e substitui o escopo da Fase 15.
 - **Positivas**: gate sem Node; `verify.sh` mais curto; cliente alinhado ao que o produto precisa.
 - **Negativas / trade-offs**: tipos do cliente deixam de ser gerados do OpenAPI até a spec
   do Godot definir o formato do contrato (C# do Godot pode referenciar projetos .NET direto).
-- **Follow-ups**: spec do cliente Godot; decidir remoção de `web/`, `web-demo/` e
-  `scripts/generate-web-types.sh`.
+- **Follow-ups**: spec do cliente Godot (feita: `.specs/features/godot-client/spec.md`); remoção de `web/`,
+  `web-demo/` e `scripts/generate-web-types.sh` (feita em 2026-10-11, junto com os testes que liam o TypeScript).
+  Contrato do motor com qualquer cliente: `tests/contracts/` (AD-085). Specs antigas do web (fases 15, 15.1,
+  16-3-web) ficam como histórico, não como requisito.

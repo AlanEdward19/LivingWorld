@@ -181,6 +181,18 @@ public class CityAndBuildingAuthoringTests
     }
 
     [Fact]
+    public void Authored_city_outside_the_map_grid_fails_at_load()
+    {
+        var root = ValidRoot();
+        root["Cities"]![0]!["X"] = 10;
+
+        var result = CityScenarioLoader.Load(root.ToJsonString(), mapWidth: 10, mapHeight: 10);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("fora do grid", result.Error);
+    }
+
+    [Fact]
     public void Two_authored_buildings_on_the_same_cell_fail_as_overlap()
     {
         var root = ValidRoot();

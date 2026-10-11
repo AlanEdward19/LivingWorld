@@ -110,6 +110,9 @@ public sealed class MutualAidSystem : ISimulationSystem
 
             recipient.CreditWallet(new Money(give));
             deficit -= give;
+            var gratitude = world.GetOrCreateRelationship(new RelationshipKey(recipient.Id, helper.Id), ctx.CurrentTick);
+            gratitude.ApplyEvent(RelationshipEventType.Help, world.FamilyRules);
+            gratitude.MarkContact(ctx.CurrentTick);
             ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{recipient.Id.Value}|{give}", sourceSystem: SystemName);
         }
     }

@@ -53,12 +53,12 @@ public class PeriodCatalogTests
     [Fact]
     public void From_exposes_profession_ids_from_population_catalog()
     {
-        var root = FullValidRoot(); // scenarios/default.json declara ProfessionIds = [1, 2]
+        var root = FullValidRoot(); // scenarios/default.json declara ProfessionIds = [1, 2, 3, 4]
 
         var definition = PeriodDefinitionValidator.Validate(root.ToJsonString()).Value!;
         var catalog = PeriodCatalog.From(definition);
 
-        Assert.Equal([1, 2], catalog.ProfessionIds);
+        Assert.Equal([1, 2, 3, 4], catalog.ProfessionIds);
     }
 
     [Fact]

@@ -7,6 +7,7 @@ using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Needs;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Economy.Labor;
+using LivingWorld.Simulation.Economy.Supply;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
 using LivingWorld.Simulation.Population.Skills;
 using LivingWorld.Simulation.Scheduling;
@@ -22,6 +23,7 @@ namespace LivingWorld.Simulation.Economy.Production;
 [RunsAfter(typeof(EmploymentSystem))]
 [RunsAfter(typeof(SkillPracticeSystem))]
 [RunsAfter(typeof(SkillTeachingSystem))]
+[RunsAfter(typeof(InputSupplySystem))]
 public sealed class ProductionSystem : ISimulationSystem
 {
     public const string SystemName = "economy-production";
@@ -77,7 +79,10 @@ public sealed class ProductionSystem : ISimulationSystem
         if (scale <= 0 && recipe.Inputs.Count > 0) return;
 
         foreach (var (resourceId, perWorker) in recipe.Inputs)
+        {
             workplace.Withdraw(new ResourceType(resourceId), perWorker * scale);
+            world.RecordResourceConsumed(new ResourceType(resourceId), perWorker * scale);
+        }
 
         double skillMultiplier = SkillMultiplierOf(presentWorkers, skillsRules);
         double strengthMultiplier = StrengthMultiplierOf(world, presentWorkers, scale);

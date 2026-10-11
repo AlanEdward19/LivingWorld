@@ -28,7 +28,36 @@ public sealed class NeedsDecaySystem : ISimulationSystem
         long now = ctx.CurrentTick;
 
         foreach (var npc in world.Npcs.Where(n => n.IsAlive))
+        {
             HandleStarvation(world, ctx, npc, rules, now);
+            if (!npc.IsAlive) continue;
+            HandleDehydration(world, ctx, npc, rules, now);
+            if (!npc.IsAlive) continue;
+            HandleExhaustion(world, ctx, npc, rules, now);
+        }
+    }
+
+    /// <summary>Sede em 0 pelo tempo que ela leva para ir de 100 a 0 mata (mesmo molde da fome, mas
+    /// a sede decai mais rápido, então mata antes). Derivado do <see cref="LazyNeed"/>: sem estado novo.</summary>
+    private static void HandleDehydration(WorldState world, TickContext ctx, Npc npc, NeedsRules rules, long now)
+    {
+        if (rules.ThirstDecayPerHour <= 0) return;
+        long survivalTicks = (long)Math.Ceiling(100.0 / rules.ThirstDecayPerHour);
+        if (npc.ThirstNeed.TicksAtZero(now) >= survivalTicks)
+            NpcDeath.Apply(world, ctx, npc, WorldEventKind.Dehydration);
+    }
+
+    /// <summary>Sono em 0 por mais que o tempo de 100 a 0 tira 2 de saúde por hora; saúde 0 é morte por
+    /// exaustão. O sono restaurado (necessidade &gt; 0) interrompe a perda — a saúde volta pelos meios de sempre.</summary>
+    private static void HandleExhaustion(WorldState world, TickContext ctx, Npc npc, NeedsRules rules, long now)
+    {
+        if (rules.SleepDecayPerHour <= 0) return;
+        long graceTicks = (long)Math.Ceiling(100.0 / rules.SleepDecayPerHour);
+        if (npc.SleepNeed.TicksAtZero(now) < graceTicks) return;
+
+        npc.SetHealth(npc.Health - 2);
+        if (npc.Health <= 0)
+            NpcDeath.Apply(world, ctx, npc, WorldEventKind.Exhaustion);
     }
 
     /// <summary>NEEDS-03: fome em 0 por <c>X = ceil(100 / HungerDecayPerHour)</c> ticks
