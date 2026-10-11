@@ -154,4 +154,29 @@ public class SimulationControlEndpointsTests : IClassFixture<LivingWorldApiFacto
 
         Assert.Equal(hashBefore, WorldSnapshot.CanonicalHash(world));
     }
+
+    [Fact]
+    public async Task Step_and_advance_year_publish_a_delta_to_subscribers()
+    {
+        var gateway = _factory.Services.GetRequiredService<LivingWorld.Api.Realtime.RealtimeGateway>();
+        var scope = new LivingWorld.Api.Visual.Scope.VisualScope(LivingWorld.Api.Visual.Scope.VisualScopeKind.World, "");
+        var (reader, unsubscribe) = gateway.SubscribeChannel(scope);
+        var client = _factory.CreateClient();
+        await client.PostAsync("/simulation/pause", null);
+        try
+        {
+            Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/simulation/step", null)).StatusCode);
+            Assert.True(reader.TryRead(out var afterStep), "step publica um delta para quem assina");
+            Assert.Equal(afterStep!.FromCursor.Sequence + 1, afterStep.ToCursor.Sequence);
+
+            Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/simulation/advance-year", null)).StatusCode);
+            Assert.True(reader.TryRead(out var afterYear), "advance-year publica um delta para quem assina");
+            Assert.Equal(afterStep.ToCursor.Sequence + 1, afterYear!.ToCursor.Sequence);
+        }
+        finally
+        {
+            unsubscribe();
+            await client.PostAsync("/simulation/resume", null);
+        }
+    }
 }

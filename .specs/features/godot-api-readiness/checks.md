@@ -3,7 +3,7 @@
 Profile: light
 Plan: `.specs/features/godot-api-readiness/plan.md`
 
-14 checks in 3 slices · 3 one-way doors · 0 open
+15 checks in 4 slices · 3 one-way doors · 0 open
 
 ## Checks
 
@@ -52,6 +52,11 @@ Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~
 **C12** - Um `ActionType` sem rótulo faz o teste de cobertura falhar (AC 3.2)
 Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~ActionLabelCatalogTests.Every_enum_member_has_label"`
 
+### S4 - Relógio
+
+**C20** - Com um assinante no escopo Mundo, `step` e `advance-year` entregam cada um um delta cujo `ToCursor.Sequence` é o anterior mais 1 (AC 4.1)
+Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~SimulationControlEndpointsTests.Step_and_advance_year_publish_a_delta_to_subscribers"`
+
 ### Transversal · 2 files · 20 KB · ~4k
 
 **C18** - O contrato regravado em `tests/contracts/` (`openapi.v1.json`, `shape.*.json`) bate com as rotas e respostas novas (Surface)
@@ -67,6 +72,7 @@ Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~
 | `ActionType` (8) | C11 e C12, ambos table-driven sobre todos os 8 por reflexão | - |
 | `GET /npcs` statuses (2) | 200 C7 · 400 C9 | - |
 | `GET /visual/catalog/actions` statuses (1) | 200 C11 | - |
+| comandos de relógio que publicam delta (2) | step C20 · advance-year C20 | - |
 | `GET /visual/subscribe` statuses (1) | 200 C2 | - |
 | derivação por prédio (3) | piso ≥ 1 C1 · escada C3 · andar do ocupante C4 | - |
 | contrato congelado (2 arquivos) | `openapi.v1.json` C18 · `shape.*.json` C18 | - |

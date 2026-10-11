@@ -69,6 +69,10 @@ public sealed class TickLoopService(
             runner.Snapshot(world, sink);
     }
 
+    /// <summary>Publica o delta dos escopos com assinante para o estado atual do mundo. Público para que
+    /// <c>step</c> e <c>advance-year</c> (que avançam o relógio fora do laço) também avisem os clientes.</summary>
+    public void PublishDeltas() => PublishDeltas(worldHost.Current);
+
     private void PublishDeltas(WorldState world)
     {
         long tick = world.CurrentDate.TotalHours;

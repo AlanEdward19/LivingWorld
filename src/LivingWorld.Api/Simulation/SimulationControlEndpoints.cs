@@ -37,21 +37,23 @@ public static class SimulationControlEndpoints
             return Results.Ok();
         });
 
-        app.MapPost("/simulation/step", (SimulationHost host, WorldHost worldHost) =>
+        app.MapPost("/simulation/step", (SimulationHost host, WorldHost worldHost, TickLoopService loop) =>
         {
             if (!host.IsPaused)
                 return Results.Conflict("Step só é permitido com a simulação pausada.");
 
             worldHost.Clock.Tick(worldHost.Current);
+            loop.PublishDeltas();
             return Results.Ok();
         });
 
-        app.MapPost("/simulation/advance-year", (SimulationHost host) =>
+        app.MapPost("/simulation/advance-year", (SimulationHost host, TickLoopService loop) =>
         {
             if (!host.IsPaused)
                 return Results.Conflict("Avanço anual só é permitido com a simulação pausada.");
 
             host.FastForwardOneYear();
+            loop.PublishDeltas();
             return Results.Ok();
         });
 
