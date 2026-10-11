@@ -10,6 +10,7 @@ using LivingWorld.Simulation.Cities;
 using LivingWorld.Simulation.Cities.Construction;
 using LivingWorld.Simulation.Cities.Founding;
 using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
 using LivingWorld.Simulation.Behavior.Decision;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Ecology;
@@ -311,6 +312,26 @@ public class OptimizationEquivalenceTests
             }
         }
         Assert.True(withFacts > 0);
+    }
+
+    [Fact]
+    public void Bond_probe_is_exact_at_the_boundary_for_each_axis()
+    {
+        var (world, _) = ScenarioRunner.Create(7);
+        var ids = world.Npcs.Select(n => n.Id).Take(4).ToList();
+
+        // n0→n1: só a confiança chega a 40; n2→n3: só o afeto chega a 40.
+        world.GetOrCreateRelationship(new RelationshipKey(ids[0], ids[1]), 0)
+            .CopyAxesFrom(Relationship.FromAxes(40, 10, 0, 0, 0));
+        world.GetOrCreateRelationship(new RelationshipKey(ids[2], ids[3]), 0)
+            .CopyAxesFrom(Relationship.FromAxes(10, 40, 0, 0, 0));
+
+        foreach (var owner in new[] { ids[0], ids[2] })
+        {
+            Assert.True(new LazyRelationshipFacts(world, owner).AnyBondAtLeast(40));
+            Assert.False(new LazyRelationshipFacts(world, owner).AnyBondAtLeast(41));
+        }
+        Assert.False(new LazyRelationshipFacts(world, ids[1]).AnyBondAtLeast(0));
     }
 
     // --- Alcançabilidade por componente conexa ---
