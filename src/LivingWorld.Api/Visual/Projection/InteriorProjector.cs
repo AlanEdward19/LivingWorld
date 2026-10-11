@@ -1,3 +1,4 @@
+using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Geography.Spatial;
 using LivingWorld.Domain.Population;
@@ -14,7 +15,8 @@ public sealed record InteriorOccupant(NpcId Npc, FloorLevel Floor, CellCoord Loc
 /// cref="Occupants"/> lista todo NPC vivo com <see cref="Npc.Interior"/> apontando para
 /// este prédio — <see cref="OccupancyModeled"/> passa a <c>true</c> agora que existe dado real
 /// por trás.</summary>
-public sealed record InteriorSnapshot(BuildingId Id, CityId City, int BuildingTypeId, bool OccupancyModeled, IReadOnlyList<InteriorOccupant> Occupants);
+public sealed record InteriorSnapshot(BuildingId Id, CityId City, int BuildingTypeId, bool OccupancyModeled, IReadOnlyList<InteriorOccupant> Occupants,
+    BuildingLayout Layout);
 
 public static class InteriorProjector
 {
@@ -28,6 +30,7 @@ public static class InteriorProjector
             .Select(n => new InteriorOccupant(n.Id, n.Interior!.Floor, n.Interior!.LocalCell))
             .ToArray();
 
-        return Result<InteriorSnapshot>.Ok(new InteriorSnapshot(building.Id, building.City, building.BuildingTypeId, OccupancyModeled: true, occupants));
+        return Result<InteriorSnapshot>.Ok(new InteriorSnapshot(building.Id, building.City, building.BuildingTypeId, OccupancyModeled: true, occupants,
+            BuildingLayoutGenerator.Generate(building)));
     }
 }

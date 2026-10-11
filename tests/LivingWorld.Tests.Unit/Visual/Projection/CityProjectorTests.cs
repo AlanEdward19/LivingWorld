@@ -230,4 +230,19 @@ public class CityProjectorTests
 
         Assert.Empty(result.Value!.Portals);
     }
+
+    [Fact]
+    public void Building_marker_has_floors_and_ground_footprint()
+    {
+        var (world, city, _) = MakeWorldWithCity();
+
+        var created = world.Buildings.Last(b => b.City == city.Id);
+        var marker = CityProjector.Build(world, city.Id).Value!.Buildings.Single(b => b.Id == created.Id);
+
+        Assert.Equal(BuildingLayoutGenerator.FloorsOf(created.Id, created.BuildingTypeId), marker.Floors);
+        Assert.True(marker.Floors > 1);
+        Assert.NotNull(marker.GroundFootprint);
+        Assert.Contains(marker.GroundFootprint!, c => c.Material == BuildingMaterial.Door);
+        Assert.Contains(marker.GroundFootprint!, c => c.Material == BuildingMaterial.Stair);
+    }
 }

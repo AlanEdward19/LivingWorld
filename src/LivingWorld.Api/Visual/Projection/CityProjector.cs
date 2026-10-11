@@ -25,7 +25,8 @@ public sealed record CityResidentMarker(
 /// determinístico e estável por <see cref="BuildingId"/>, nunca a posição derivada do índice de
 /// iteração que o anel client-side usa hoje.</summary>
 public sealed record CityBuildingMarker(
-    BuildingId Id, int BuildingTypeId, CellCoord Location, bool LocationIsDerived, int Orientation = 0);
+    BuildingId Id, int BuildingTypeId, CellCoord Location, bool LocationIsDerived, int Orientation = 0,
+    int Floors = 1, IReadOnlyList<FootprintCell>? GroundFootprint = null);
 
 /// <summary>Os 6 indicadores que <see
 /// cref="CityPopulationQuery"/> já calcula, hoje inacessíveis ao cliente. <see
@@ -79,8 +80,8 @@ public static class CityProjector
             {
                 if (BuildingPlacementResolver.Resolve(b, city, world, boundsForPlacement) is not { } resolved)
                     return null;
-                var footprint = BuildingFootprintGenerator
-                    .Generate(b.Id, b.BuildingTypeId, resolved.Orientation)
+                var layout = BuildingLayoutGenerator.Generate(b.Id, b.BuildingTypeId, resolved.Orientation);
+                var footprint = layout.FloorLayouts[0].Cells
                     .Select(cell => new CellCoord(
                         resolved.Position.X + cell.Cell.X,
                         resolved.Position.Y + cell.Cell.Y));
@@ -88,7 +89,8 @@ public static class CityProjector
                 // desenhado como se estivesse dentro do grid desta cidade antes disso.
                 if (!footprint.All(boundsForPlacement.Contains)) return null;
                 return new CityBuildingMarker(
-                    b.Id, b.BuildingTypeId, resolved.Position, resolved.IsDerived, resolved.Orientation);
+                    b.Id, b.BuildingTypeId, resolved.Position, resolved.IsDerived, resolved.Orientation,
+                    layout.Floors, layout.FloorLayouts[0].Cells);
             })
             .OfType<CityBuildingMarker>()
             .ToList();

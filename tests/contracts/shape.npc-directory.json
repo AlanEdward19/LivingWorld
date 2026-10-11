@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "action": "null",
+      "city": {
+        "value": "string"
+      },
+      "id": {
+        "value": "number"
+      },
+      "location": {
+        "x": "number",
+        "y": "number"
+      },
+      "name": "string"
+    }
+  ],
+  "total": "number"
+}

@@ -1,0 +1,44 @@
+{
+  "activeLayers": [
+    "number"
+  ],
+  "cursor": {
+    "scopeKey": "string",
+    "sequence": "number",
+    "tick": "number"
+  },
+  "mode": "number",
+  "payload": {
+    "buildingTypeId": "number",
+    "city": {
+      "value": "string"
+    },
+    "id": {
+      "value": "number"
+    },
+    "layout": {
+      "floorLayouts": [
+        {
+          "cells": [
+            {
+              "cell": {
+                "x": "number",
+                "y": "number"
+              },
+              "material": "number"
+            }
+          ],
+          "level": "number"
+        }
+      ],
+      "floors": "number"
+    },
+    "occupancyModeled": "boolean",
+    "occupants": "[]"
+  },
+  "scope": {
+    "kind": "number",
+    "refId": "string",
+    "scopeKey": "string"
+  }
+}

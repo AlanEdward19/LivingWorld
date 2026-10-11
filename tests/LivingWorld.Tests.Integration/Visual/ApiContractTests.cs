@@ -27,6 +27,8 @@ public class ApiContractTests
     }
 
     [Theory]
+    [InlineData("npc-directory", "/npcs?take=1")]
+    [InlineData("action-catalog", "/visual/catalog/actions")]
     [InlineData("world-subscribe", "/visual/subscribe?scope=World&mode=Spectator")]
     [InlineData("simulation-status", "/simulation/status")]
     public async Task Response_shape_matches_the_committed_contract(string name, string url)
@@ -36,6 +38,26 @@ public class ApiContractTests
 
         var shape = ShapeOf(JsonNode.Parse(await response.Content.ReadAsStringAsync()));
         AssertMatchesContract($"shape.{name}.json", shape);
+    }
+
+    /// <summary>Escopos Cidade e Interior do primeiro prédio do mundo canônico: a forma inclui `floors`,
+    /// `groundFootprint` e `layout` que o cliente 3D consome.</summary>
+    [Fact]
+    public async Task City_and_interior_shapes_match_the_committed_contract()
+    {
+        var client = _factory.CreateClient();
+        var world = JsonNode.Parse(await client.GetStringAsync("/visual/subscribe?scope=World&mode=Spectator"))!;
+        string cityId = world["payload"]!["cities"]![0]!["id"]!["value"]!.ToString();
+
+        var cityText = await client.GetStringAsync($"/visual/subscribe?scope=City&refId={cityId}&mode=Spectator");
+        var city = JsonNode.Parse(cityText)!;
+        var buildings = city["payload"]!["buildings"]!.AsArray();
+        Assert.NotEmpty(buildings);
+        AssertMatchesContract("shape.city-subscribe.json", ShapeOf(city));
+
+        string buildingId = buildings[0]!["id"]!["value"]!.ToString();
+        var interior = JsonNode.Parse(await client.GetStringAsync($"/visual/subscribe?scope=Interior&refId={buildingId}&mode=Spectator"))!;
+        AssertMatchesContract("shape.interior-subscribe.json", ShapeOf(interior));
     }
 
     /// <summary>Estrutura sem valores: objeto → propriedades ordenadas; lista → forma do primeiro elemento
