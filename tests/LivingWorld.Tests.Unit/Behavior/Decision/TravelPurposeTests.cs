@@ -5,6 +5,7 @@ using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Behavior.Needs;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Simulation.Scheduling;
@@ -91,6 +92,24 @@ public class TravelPurposeTests
         var (workWorld, worker) = Build(ActionType.Work);
         // já está no trabalho: o destino do motivo é a própria célula, então vale a ordem de antes (casa)
         Assert.NotEqual(MarketCell, ArrivalOf(workWorld, worker));
+    }
+
+    [Fact]
+    public void A_traveller_wakes_when_the_trip_ends_not_when_the_actions_maximum_duration_does()
+    {
+        var (world, npc) = Build(purpose: null);
+        npc.SetCurrentAction(ActionType.Travel, tick: 0);   // acabou de partir do trabalho; hora 0 = rotina de dormir
+        long ticks = TravelResolution.TicksBetween(world.Map, WorkCell, HomeCell);
+        long maxDuration = world.ActionCatalog.MaxDurationHours[ActionType.Travel];
+        Assert.True(ticks < maxDuration, "o trajeto do teste precisa ser mais curto que a duração máxima");
+
+        SimulationWakeTestHelper.Wake(world, npc);
+        new BehaviorDecisionSystem().Tick(world, new TickContext(world, world.Rng, world.Scheduler));
+
+        bool WakesAt(long tick) => world.Scheduler.PeekDue(tick)
+            .Any(e => e.SystemName == NpcWakeScheduler.SystemName && e.Payload == npc.Id.Value.ToString());
+        Assert.True(WakesAt(ticks), $"devia acordar na chegada (tick {ticks})");
+        Assert.False(WakesAt(maxDuration), "não devia esperar a duração máxima da ação");
     }
 
     [Fact]
