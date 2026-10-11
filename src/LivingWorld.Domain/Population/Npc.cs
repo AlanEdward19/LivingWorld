@@ -86,6 +86,15 @@ public sealed class Npc
     public PendingPowerInvocation? PendingPowerInvocation { get; set; }
 
     public long? HungerZeroSinceTick { get; private set; }
+
+    /// <summary>Tick da última troca de emprego (0 = nunca trocou): base da carência entre trocas.</summary>
+    public long LastJobChangeTick { get; private set; }
+
+    public void MarkJobChange(long tick)
+    {
+        LastJobChangeTick = tick;
+        TouchCanonical();
+    }
     public bool IsGhost { get; private set; }
 
     /// <summary>Nulo enquanto <see cref="Household"/> existir. <see cref="LeaveHousehold"/>
@@ -161,7 +170,8 @@ public sealed class Npc
         bool isGhost = false,
         double height = 1.70, double weight = 68.0, double muscleMass = 28.0,
         ActionType? currentIntent = null, long intentStartedTick = 0,
-        string? intentTarget = null, IntentStatus? intentStatus = null, ActionType? travelPurpose = null)
+        string? intentTarget = null, IntentStatus? intentStatus = null, ActionType? travelPurpose = null,
+        long lastJobChangeTick = 0)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -195,6 +205,7 @@ public sealed class Npc
         IntentTarget = intentTarget;
         IntentStatus = intentStatus;
         HungerZeroSinceTick = hungerZeroSinceTick;
+        LastJobChangeTick = lastJobChangeTick;
         IsGhost = isGhost;
         HomelessSince = homelessSince;
         PregnantUntil = pregnantUntil;

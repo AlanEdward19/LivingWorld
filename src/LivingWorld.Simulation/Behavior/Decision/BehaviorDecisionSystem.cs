@@ -60,7 +60,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
         var catalog = world.ActionCatalog;
         long now = ctx.CurrentTick;
         var marketIndex = MarketIndex.BuildForTick(world);
-        var vacancyIndex = VacancyWeights.BuildForTick(world);
+        var laborIndex = LaborValueIndex.BuildForTick(world);
         var targets = TargetsForTick(world);
 
         // Índice de ocupação construído uma vez por tick (O(população)), não por NPC — a versão
@@ -88,7 +88,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
             var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
             bool possessed = ControlMechanic.IsPossessed(world, npc);
             if (!possessed)
-                EvaluateProfessionSwitch(world, npc, vacancyIndex, stage);
+                EvaluateProfessionSwitch(world, ctx, npc, laborIndex, stage);
 
             bool justCompleted = TryCompleteAction(
                 world, npc, rules, catalog, now, marketIndex, ctx, occupancy,

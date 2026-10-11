@@ -118,6 +118,43 @@ public class EconomyDepthScenarioTests
         Assert.True(fewer >= 18, $"obras a menos so em {fewer}/20 seeds");
     }
 
+    // --- labor-allocation sobre o cenario ao vivo ---
+
+    private static (WorldState World, WorldClock Clock) LoadWith(int seed, int population, Action<JsonObject>? tweak = null)
+    {
+        var node = JsonNode.Parse(File.ReadAllText(Path.Combine(FindRepoRoot(), "scenarios", "default.json")))!.AsObject();
+        node["Seed"] = seed;
+        node["InitialPopulation"] = population;
+        tweak?.Invoke(node);
+        var loaded = ScenarioLoaderV2.LoadWorld(node.ToJsonString());
+        Assert.True(loaded.IsSuccess, loaded.Error);
+        return loaded.Value;
+    }
+
+    private static int EmployeesAt(WorldState world, int locationType) =>
+        world.Workplaces.Where(w => w.LocationType.Id == locationType).Sum(w => w.Employees.Count);
+
+    [Fact]
+    public void Sawmill_and_quarry_get_workers_within_90_days_with_the_default_twenty_npcs()
+    {
+        int staffed = 0;
+        for (int seed = 1; seed <= 20; seed++)
+        {
+            var (world, clock) = LoadWith(seed, population: 20);
+            bool sawmill = false, quarry = false;
+            for (int day = 0; day < 90; day++)
+            {
+                clock.Run(world, 24);
+                sawmill |= EmployeesAt(world, 3) >= 1;
+                quarry |= EmployeesAt(world, 4) >= 1;
+            }
+
+            if (sawmill && quarry) staffed++;
+        }
+
+        Assert.True(staffed >= 18, $"serraria e pedreira com gente em so {staffed}/20 seeds");
+    }
+
     private static string FindRepoRoot()
     {
         var dir = AppContext.BaseDirectory;

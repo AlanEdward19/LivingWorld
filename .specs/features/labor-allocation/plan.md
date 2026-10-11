@@ -23,7 +23,7 @@ Reaproveita `Workplace.Prices` (atualizado pelo `MarketPricingSystem`), as recei
 `Workplace.Fire/Hire` e `Npc.Fire/Hire`, em vez de criar um mercado de trabalho paralelo.
 
 1. `BehaviorDecisionSystem` (exists) - hourly, chama a avaliação de ofício de cada adulto
-2. `LaborValueIndex` (new, no door - placement per conventions) - uma vez por tick, valor do trabalho de um trabalhador por oficina: soma de saída da receita × preço local, limitada por vaga
+2. `LaborValueIndex` (new, no door - placement per conventions) - uma vez por dia, valor do trabalho de um trabalhador por oficina: saída da receita × preço local × parcela vendável (estoque cheio vale quase nada), menos o insumo ao preço-piso, mínimo 1
 3. `EvaluateProfessionSwitch` (exists) - compara o valor da oficina atual com o da melhor oficina com vaga real, na mesma cidade
 4. `JobMove` (new, door 1) - troca atômica: sai da oficina atual e entra na nova no mesmo tick, grava o tick da troca
 5. `EmploymentSystem` (exists) - continua contratando desempregados por profissão
@@ -36,6 +36,7 @@ Reaproveita `Workplace.Prices` (atualizado pelo `MarketPricingSystem`), as recei
 | domain | `Npc.Profession` passa a seguir o emprego: quem muda de oficina muda de ofício junto; hoje troca sozinho. Quem lê hoje: rotina (`RoutineOf`), `SkillPracticeSystem`, `WagePaymentSystem` |
 | stored data | campo canônico novo `LastJobChangeTick` no NPC; snapshots antigos carregam como 0; goldens e pins regravados uma vez |
 | scenarios | gate (`ScenarioRunner`) e `default.json` mudam de comportamento: o empate-pelo-menor-id deixa de existir |
+| domain | `MarketIndex.NearestSelling` exige preço além de estoque (achado: a forja com 10 de trigo sem preço atraía quem ia comprar) |
 
 ## Relations
 
