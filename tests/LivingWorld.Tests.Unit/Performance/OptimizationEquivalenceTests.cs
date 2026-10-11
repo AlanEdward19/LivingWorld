@@ -627,6 +627,7 @@ public class OptimizationEquivalenceTests
         world.AddCity(city);
         world.AddCity(other);
 
+        CellCoord? derived = null;
         for (int i = 0; i < 45; i++)
         {
             // Bounds que alternam entre dois valores e crescem, como população × bounds crescidos.
@@ -638,9 +639,19 @@ public class OptimizationEquivalenceTests
             if (i % 5 == 2)
                 world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), other.Id, 1, 0, new CellCoord(2 + i % 4, 2)));
 
-            // Autorados, exceto um no meio que depende da busca (derivado) e passa a invalidar o atalho.
+            // Prédio que troca de cidade no meio (a lista da cidade encolhe e depois volta a crescer).
+            if (i == 20) world.Buildings.First(b => b.City == city.Id).JoinCity(other.Id);
+            if (i == 38) world.Buildings.First(b => b.City == other.Id && b.Position is { X: < 8 }).JoinCity(city.Id);
+
+            // Autorados, exceto um no meio que depende da busca (derivado); depois dele, com os mesmos
+            // bounds, cada autorado cai exatamente em cima da posição que o derivado ocupava, empurrando-o.
             CellCoord? authored = i == 30 ? null : new CellCoord(8 + (i * 3) % 40, 8 + (i * 7) % 40);
+            if (i > 30 && i < 38 && derived is { } spot) authored = spot;
+            if (i >= 30) bounds = new CityBounds(new CellCoord(26, 26), 8, 8);
             world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, 1 + i % 3, 0, authored));
+
+            if (i >= 30 && i < 37)
+                derived = BuildingPlacementResolver.Resolve(world.Buildings.First(b => b.Position is null && b.City == city.Id), city, world, bounds)?.Position;
 
             var placing = new BuildingId(world.Buildings.Max(b => b.Id.Value) + 1);
             Assert.True(
