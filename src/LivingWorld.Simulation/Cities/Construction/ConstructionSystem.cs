@@ -15,6 +15,7 @@ namespace LivingWorld.Simulation.Cities.Construction;
 /// <summary>Avança a fila FIFO de construção de cada cidade: consome o
 /// insumo da <see cref="City.Stock"/> proporcionalmente aos ticks já decorridos da receita —
 /// pausa (nunca reverte progresso já pago) quando o insumo do tick não está disponível.</summary>
+[LivingCapability("CONSTRUCTION")]
 public sealed class ConstructionSystem : ISimulationSystem
 {
     public const string SystemName = "cities-construction";

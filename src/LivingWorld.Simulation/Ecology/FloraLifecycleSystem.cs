@@ -13,6 +13,7 @@ namespace LivingWorld.Simulation.Ecology;
 /// Roda com <c>Extraordinary.Enabled == false</c>; <c>flora.growth-rate</c> multiplica a taxa
 /// de base, nunca a substitui. Produção deposita no workplace/CropBatch
 /// existente; reprodução brota em espaço livre.</summary>
+[LivingCapability("FLORA", Events = [WorldEventKind.PlantMatured], Consumers = ["map.flora"])]
 public sealed class FloraLifecycleSystem : ISimulationSystem
 {
     public const string SystemName = "flora-lifecycle";

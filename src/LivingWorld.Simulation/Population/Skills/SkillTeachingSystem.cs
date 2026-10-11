@@ -5,6 +5,7 @@ using LivingWorld.Domain.Population.Skills;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Decision;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Labor;
 using LivingWorld.Simulation.Economy.Production;
 using LivingWorld.Simulation.Scheduling;
 
@@ -23,6 +24,8 @@ namespace LivingWorld.Simulation.Population.Skills;
 /// tempo livre (<see cref="ActionType.Idle"/>) com saldo suficiente pro custo nominal (paga pela
 /// própria profissão); School = criança com profissão mapeada, sem custo nem teto de vaga (Out
 /// of Scope já cobre "sem prédio nem capacidade").</summary>
+[LivingCapability("SKILLS")]
+[RunsAfter(typeof(EmploymentSystem))]
 public sealed class SkillTeachingSystem : ISimulationSystem
 {
     public const string SystemName = "population-skill-teaching";

@@ -11,6 +11,7 @@ namespace LivingWorld.Simulation.Behavior.Needs;
 /// sustentado — categoria SLOW (<c>Daily</c>), mesmo espírito de
 /// <see cref="SkillPracticeSystem"/>. Delega a mutação a
 /// <see cref="BodyMechanic.ApplyWorkHardening"/>.</summary>
+[LivingCapability("SKILLS")]
 public sealed class WorkHardeningSystem : ISimulationSystem
 {
     public const string SystemName = "behavior-work-hardening";

@@ -2,6 +2,7 @@ using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population.Body;
 using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Scheduling;
 
@@ -11,6 +12,8 @@ namespace LivingWorld.Simulation.Economy.Labor;
 /// <c>Daily</c> (vaga não precisa reagir por hora). Respeita
 /// <see cref="EconomyRules.Enabled"/> (desligar a economia desliga este sistema
 /// também).</summary>
+[LivingCapability("EMPLOYMENT", Events = [WorldEventKind.Hired, WorldEventKind.Fired], Consumers = ["inspector.employment"])]
+[RunsAfter(typeof(BehaviorDecisionSystem))]
 public sealed class EmploymentSystem : ISimulationSystem
 {
     public const string SystemName = "economy-employment";

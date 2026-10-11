@@ -11,6 +11,7 @@ namespace LivingWorld.Simulation.Ecology;
 
 /// <summary>Ciclo de vida base da fauna — fome, reprodução e predação. Roda com
 /// <c>Extraordinary.Enabled == false</c>; poderes modulam, não substituem.</summary>
+[LivingCapability("FAUNA", Consumers = ["map.fauna"])]
 public sealed class FaunaLifecycleSystem : ISimulationSystem
 {
     public const string SystemName = "fauna-lifecycle";

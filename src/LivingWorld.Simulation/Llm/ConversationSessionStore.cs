@@ -16,6 +16,7 @@ public enum EndConversationResult { Ok, SessionNotFound }
 /// cref="TickContext.ScheduleEvent"/> — nunca varredura por tick (reuso de <see
 /// cref="EventScheduler"/>). Implementa <see cref="ISimulationSystem"/> só para receber o
 /// evento de expiração agendado por si mesmo; não faz trabalho nenhum por tick.</summary>
+[LivingCapability("CONVERSATION", Consumers = ["interaction.conversation"])]
 public sealed class ConversationSessionStore : ISimulationSystem
 {
     public const string SystemName = "llm-conversation-expiry";

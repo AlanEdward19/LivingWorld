@@ -16,6 +16,8 @@ namespace LivingWorld.Simulation.Population.Skills;
 /// (design.md): roda logo depois de <see cref="EmploymentSystem"/> e antes de <see
 /// cref="ProductionSystem"/>, pra que a produção do mesmo dia já leia a habilidade
 /// atualizada.</summary>
+[LivingCapability("SKILLS", Consumers = ["inspector.npc.skills"])]
+[RunsAfter(typeof(EmploymentSystem))]
 public sealed class SkillPracticeSystem : ISimulationSystem
 {
     public const string SystemName = "population-skill-practice";

@@ -23,6 +23,7 @@ namespace LivingWorld.Simulation.Cities;
 /// <summary>Emigração agregada do pool de uma cidade quando comida/moradia/segurança caem abaixo
 /// do limiar do cenário — nunca tira NPC materializado (isso é
 /// <c>MigrationSystem</c>).</summary>
+[LivingCapability("CITY_GROWTH", Consumers = ["inspector.city.growth"])]
 public sealed class CityGrowthSystem : ISimulationSystem
 {
     public const string SystemName = "cities-growth";

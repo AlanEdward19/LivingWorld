@@ -11,6 +11,7 @@ namespace LivingWorld.Simulation.Periods;
 /// reatribui NPCs cuja profissão deixa de existir, sem precisar de estado novo em
 /// <see cref="WorldState"/>: cada regra é guardada pela própria pertença ao catálogo — uma vez
 /// aplicada, a pré-condição vira falsa e a regra nunca reaplica.</summary>
+[LivingCapability("PERIOD", Consumers = ["hud.period"])]
 public sealed class PeriodEvolutionSystem(IReadOnlyList<PeriodTransformationRule> rules) : ISimulationSystem
 {
     public const string SystemName = "period-evolution";

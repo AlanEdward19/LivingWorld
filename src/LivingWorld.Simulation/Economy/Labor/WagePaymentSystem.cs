@@ -3,6 +3,7 @@ using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Market;
 using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Economy.Labor;
@@ -10,6 +11,8 @@ namespace LivingWorld.Simulation.Economy.Labor;
 /// <summary>Paga salário mensal do <see cref="Workplace.Treasury"/> ao <see cref="Npc.Wallet"/>
 /// de cada empregado, <c>Monthly</c>. Respeita <see
 /// cref="EconomyRules.Enabled"/>.</summary>
+[LivingCapability("WAGES", Events = [WorldEventKind.WageUnpaid], Consumers = ["timeline.wages"])]
+[RunsAfter(typeof(MarketPricingSystem))]
 public sealed class WagePaymentSystem : ISimulationSystem
 {
     public const string SystemName = "economy-wage-payment";

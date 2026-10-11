@@ -3,6 +3,7 @@ using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Decision;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
 using LivingWorld.Simulation.Scheduling;
@@ -11,6 +12,8 @@ namespace LivingWorld.Simulation.Economy.Production;
 
 /// <summary>Scheduler de processos materiais estagiados:
 /// reserva insumos ao iniciar, devolve no cancelamento/morte, cria a saída só na conclusão.</summary>
+[LivingCapability("PRODUCTION")]
+[RunsAfter(typeof(BehaviorDecisionSystem))]
 public sealed class ResourceProcessSystem : ISimulationSystem
 {
     public const string SystemName = "resource-process";

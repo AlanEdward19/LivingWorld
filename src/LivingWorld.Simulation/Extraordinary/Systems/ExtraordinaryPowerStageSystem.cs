@@ -10,6 +10,7 @@ namespace LivingWorld.Simulation.Extraordinary.Systems;
 /// Reavalia estágios de evolução por idade e/ou uso (EVO-01..03, EVO-05). Estágio 0 permanece
 /// nos efeitos base do descritor; limiares com idade+uso exigem ambos (AND estrito).
 /// </summary>
+[LivingCapability("EXTRAORDINARY")]
 public sealed class ExtraordinaryPowerStageSystem : ISimulationSystem
 {
     public const string SystemName = "ExtraordinaryPowerStage";

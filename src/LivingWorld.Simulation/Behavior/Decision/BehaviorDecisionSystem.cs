@@ -30,6 +30,8 @@ namespace LivingWorld.Simulation.Behavior.Decision;
 /// deslocamento com custo real quando a ação vencedora exige um local diferente do atual.
 /// <c>Sleep</c> usa um lugar de descanso alcançável (chão/moradia/cama); sem caminho o NPC
 /// bloqueia no local atual em vez de teleportar.</summary>
+[LivingCapability("BEHAVIOR", Consumers = ["map.npc.action"])]
+[RunsAfter(typeof(NeedsDecaySystem))]
 public sealed class BehaviorDecisionSystem : ISimulationSystem
 {
     public const string SystemName = "behavior-decision";

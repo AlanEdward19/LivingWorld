@@ -14,6 +14,8 @@ namespace LivingWorld.Simulation.Population.Family;
 /// generosos. Egoístas deixam parentes passarem necessidade; generosos se empobrecem pelos seus.
 /// O dinheiro só muda de carteira (nada é cunhado) e cada ajuda grava um evento com a origem.
 /// Consumidor causal: a carteira recebida vira compra de comida pela decisão de abastecimento.</summary>
+[LivingCapability("RELATIONSHIPS")]
+[RunsAfter(typeof(RelationshipSystem))]
 public sealed class MutualAidSystem : ISimulationSystem
 {
     public const string SystemName = "population-mutual-aid";

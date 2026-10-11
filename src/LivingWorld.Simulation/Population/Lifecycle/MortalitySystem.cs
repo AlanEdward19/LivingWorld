@@ -10,6 +10,7 @@ namespace LivingWorld.Simulation.Population.Lifecycle;
 /// <summary>Morte por idade como evento agendado — nenhuma varredura por tick. A
 /// idade de morte é resolvida por antecipação (<see cref="MortalityPlanner"/>) no nascimento;
 /// este sistema só executa o que já foi decidido, no tick certo.</summary>
+[LivingCapability("DEATH", Events = [WorldEventKind.Death, WorldEventKind.Starvation], Consumers = ["timeline.death"])]
 public sealed class MortalitySystem : ISimulationSystem
 {
     public const string SystemName = "population-mortality";

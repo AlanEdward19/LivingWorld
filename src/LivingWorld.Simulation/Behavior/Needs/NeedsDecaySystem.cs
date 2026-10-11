@@ -12,6 +12,9 @@ namespace LivingWorld.Simulation.Behavior.Needs;
 /// <see cref="Npc.HasUrgentNeed"/>) e mata por fome sustentada.
 /// Com <see cref="LazyNeed"/>, decaimento é pull-only — este sistema
 /// só trata fome zero sustentada.</summary>
+[LivingCapability("NEEDS", Consumers = ["inspector.npc.needs"])]
+[RunsAfter(typeof(MortalitySystem))]
+[RunsAfter(typeof(NatalitySystem))]
 public sealed class NeedsDecaySystem : ISimulationSystem
 {
     public const string SystemName = "needs-decay";

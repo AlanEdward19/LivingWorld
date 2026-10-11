@@ -21,6 +21,7 @@ namespace LivingWorld.Simulation.Cities.Founding;
 /// cluster capturado. Ao disparar, reverifica o limiar (o cluster pode ter esvaziado durante a
 /// espera) e, se ainda válido, funda a <see cref="City"/> no centroide do cluster, reatribuindo
 /// prédios e households/Npcs geometricamente dentro dos bounds iniciais da cidade nova.</summary>
+[LivingCapability("FOUNDING")]
 public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
 {
     public const string SystemName = "cities-spatial-settlement-founding";

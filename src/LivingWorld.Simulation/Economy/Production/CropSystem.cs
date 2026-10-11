@@ -13,6 +13,7 @@ namespace LivingWorld.Simulation.Economy.Production;
 
 /// <summary>Cultivo estagiado <c>plant→water→mature→harvest</c>.
 /// Substitui o trigo instantâneo da fazenda default; colheita antecipada é rejeitada.</summary>
+[LivingCapability("CROPS", Consumers = ["map.crop"])]
 public sealed class CropSystem : ISimulationSystem
 {
     public const string SystemName = "crop-lifecycle";
