@@ -297,7 +297,10 @@ public class OptimizationEquivalenceTests
             var materialized = DecisionContextBuilder.MaterializeKnownRelationships(world, npc.Id);
             if (materialized.Length > 0) withFacts++;
 
-            foreach (int minimum in new[] { 0, 20, 50, 60, 70, 100, 101 })
+            // inclui os próprios valores como mínimo: é neles que "maior ou igual" difere de "maior"
+            var minimums = new[] { 0, 60, 100, 101 }
+                .Concat(materialized.SelectMany(r => new[] { r.Trust, r.Affection })).Distinct();
+            foreach (int minimum in minimums)
             {
                 // sonda antes de materializar e depois: os dois caminhos têm de concordar com Any
                 var probeFirst = new LazyRelationshipFacts(world, npc.Id);
