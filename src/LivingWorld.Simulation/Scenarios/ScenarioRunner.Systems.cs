@@ -54,10 +54,6 @@ public static partial class ScenarioRunner
         var systems = new List<ISimulationSystem>
         {
         new PeriodEvolutionSystem(periodTransformationRules ?? []),
-        new ExampleCounterSystem(TickFrequency.Hourly),
-        new ExampleCounterSystem(TickFrequency.Daily),
-        new ExampleCounterSystem(TickFrequency.Monthly),
-        new ExampleCounterSystem(TickFrequency.Yearly),
         new MortalitySystem(),
         new FactToReportConversionScheduler(),
         new BookRediscoverySystem(),

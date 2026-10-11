@@ -4,7 +4,8 @@ using LivingWorld.Simulation.Core;
 namespace LivingWorld.Simulation.Scheduling;
 
 /// <summary>Sistema placeholder/exemplo: só conta quantas vezes rodou em cada frequência.
-/// Serve para provar o agendamento e o determinismo do scheduler.</summary>
+/// Serve para provar o agendamento e o determinismo do scheduler nos testes do relógio;
+/// fora da composição de produção (o mundo não carrega mais contadores de diagnóstico).</summary>
 [LivingCapability("EXAMPLE_COUNTER", DiagnosticReason = "Scheduler instrumentation; it neither describes nor changes the simulated world.")]
 public sealed class ExampleCounterSystem(TickFrequency frequency) : ISimulationSystem
 {

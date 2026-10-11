@@ -32,7 +32,8 @@ public class WorldClockTests
     [Fact]
     public void Hourly_system_runs_every_tick()
     {
-        var (world, clock) = ScenarioRunner.Create(seed: 1);
+        var (world, _) = ScenarioRunner.Create(seed: 1);
+        var clock = new WorldClock([new ExampleCounterSystem(TickFrequency.Hourly)]);
         clock.Run(world, ticks: 500);
 
         Assert.Equal(500, world.ExampleTickCounts[TickFrequency.Hourly]);
