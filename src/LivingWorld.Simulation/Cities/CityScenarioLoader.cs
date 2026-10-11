@@ -72,7 +72,7 @@ public static class CityScenarioLoader
         if (!catalogResult.IsSuccess)
             return Result<CityScenarioData>.Fail(catalogResult.Error!);
 
-        var citiesResult = ParseCities(root);
+        var citiesResult = ParseCities(root, mapWidth, mapHeight);
         if (!citiesResult.IsSuccess)
             return Result<CityScenarioData>.Fail(citiesResult.Error!);
 
@@ -171,7 +171,7 @@ public static class CityScenarioLoader
         return Result<CityCatalog>.Ok(new CityCatalog(recipes));
     }
 
-    private static Result<IReadOnlyList<InitialCity>> ParseCities(JsonObject root)
+    private static Result<IReadOnlyList<InitialCity>> ParseCities(JsonObject root, int mapWidth, int mapHeight)
     {
         if (root["Cities"] is not JsonArray citiesNode)
             return Result<IReadOnlyList<InitialCity>>.Fail("Cities: campo obrigatório ausente");
@@ -186,6 +186,8 @@ public static class CityScenarioLoader
                 return Result<IReadOnlyList<InitialCity>>.Fail("Cities[].X: campo obrigatório ausente ou inválido");
             if (!TryGetInt(city, "Y", out var y))
                 return Result<IReadOnlyList<InitialCity>>.Fail("Cities[].Y: campo obrigatório ausente ou inválido");
+            if (x < 0 || x >= mapWidth || y < 0 || y >= mapHeight)
+                return Result<IReadOnlyList<InitialCity>>.Fail($"Cities[].Location: célula ({x},{y}) fora do grid {mapWidth}x{mapHeight}");
             if (!TryGetLong(city, "FoundedAtTick", out var foundedAtTick))
                 return Result<IReadOnlyList<InitialCity>>.Fail("Cities[].FoundedAtTick: campo obrigatório ausente ou inválido");
 

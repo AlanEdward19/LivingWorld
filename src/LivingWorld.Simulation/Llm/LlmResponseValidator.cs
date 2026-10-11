@@ -11,6 +11,7 @@ public enum LlmValidationFailure
     UnknownEmotion,
     Truncated,
     ActionNotAllowed,
+    IntentNotAllowed,
 }
 
 /// <summary>Turno já validado, pronto para <c>ConversationEffectsApplier</c> (T6) — mesmo molde
@@ -53,6 +54,10 @@ public static class LlmResponseValidator
         var allowedActions = context.AllowedActions ?? [];
         if (response.ProposedActions.Any(action => !allowedActions.Contains(action)))
             return Reject(LlmValidationFailure.ActionNotAllowed);
+
+        var allowedIntents = context.AllowedIntents ?? [];
+        if (allowedIntents.Count > 0 && !allowedIntents.Contains(response.Intent))
+            return Reject(LlmValidationFailure.IntentNotAllowed);
 
         return new LlmValidationResult(true, LlmValidationFailure.None, ToTurn(response));
     }
