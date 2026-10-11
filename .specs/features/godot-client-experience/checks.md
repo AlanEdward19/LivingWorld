@@ -30,6 +30,7 @@ Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_toasts_keep_
 **C7** - O carregamento fica visível sem snapshot, some quando o primeiro chega, e o nome de `GET /npcs` chega ao NPC na cena (AC 2.4, 2.5)
 Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_loading_overlay_until_first_snapshot_and_names_load"`
 Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_loading_visible_until_first_snapshot"`
+Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_loading_visible_during_normal_startup"`
 
 **C9** - O nome do NPC só aparece sob o cursor ou selecionado, com o texto do nome (AC 2.5)
 Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_actor_name_label_shows_on_hover_and_selection"`

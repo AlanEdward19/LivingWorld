@@ -213,3 +213,20 @@ func test_status_drives_sky_and_minimap_drives_camera() -> void:
 		app.rig._process(0.05)
 	check(app.rig.target.distance_to(Vector3(12.0, 0, 9.0)) < 0.1, "o minimapa leva a câmera: %s" % app.rig.target)
 	app.queue_free()
+
+
+func test_loading_visible_during_normal_startup() -> void:
+	var transport := _online_transport()
+	var snapshot: Dictionary = transport.routes["GET /visual/subscribe?scope=World"].body
+	var app := App.new()
+	var seen: Array = []
+	transport.on("GET /visual/subscribe?scope=World", func(_p):
+		seen.append(app.loading.visible) # o servidor está de pé, mas o snapshot ainda não chegou à tela
+		return {"status": 200, "body": snapshot})
+	tree.root.add_child(app)
+
+	await app.start(transport, false)
+
+	eq(seen, [true], "durante o carregamento normal a tela de espera está visível")
+	eq(app.loading.visible, false, "some quando o snapshot chega")
+	app.queue_free()
