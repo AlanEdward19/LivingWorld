@@ -84,7 +84,7 @@ public class EventLogRecordTests
             "Autoincrement",
             File.ReadAllText(Path.Combine(
                 FindRepoRoot(),
-                "src/LivingWorld.Infrastructure/Migrations/20260826020000_AddEventLogCausalProvenance.cs")),
+                "src/LivingWorld.Infrastructure/EfCore/Migrations/20260826020000_AddEventLogCausalProvenance.cs")),
             StringComparison.OrdinalIgnoreCase);
     }
 

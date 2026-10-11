@@ -14,6 +14,7 @@ namespace LivingWorld.Simulation.Extraordinary.Systems;
 /// Ponto único de aquisição e manifestação extraordinária. Regras são dados de cenário;
 /// condições leem apenas relógio e estado canônico do portador.
 /// </summary>
+[LivingCapability("EXTRAORDINARY", Events = [WorldEventKind.ExtraordinaryUseAttempted, WorldEventKind.ExtraordinaryCostPaid, WorldEventKind.ExtraordinaryEffectApplied, WorldEventKind.ExtraordinaryUseFailed, WorldEventKind.ExtraordinaryFailureApplied, WorldEventKind.ExtraordinaryAcquired, WorldEventKind.ExtraordinaryAcquisitionFailed, WorldEventKind.ExtraordinaryManifested, WorldEventKind.ExtraordinaryDormant, WorldEventKind.ExtraordinaryCulturalReaction, WorldEventKind.ExtraordinaryConstructCreated, WorldEventKind.ExtraordinaryConstructDamaged, WorldEventKind.ExtraordinaryConstructRemoved, WorldEventKind.ExtraordinaryRevoked, WorldEventKind.CombatResolved, WorldEventKind.CombatEncounterStarted, WorldEventKind.CombatRound, WorldEventKind.PossessionResisted, WorldEventKind.NpcInstantiated, WorldEventKind.IdentityChanged, WorldEventKind.PowerInherited, WorldEventKind.PowerInvoked], Consumers = ["inspector.npc.extraordinary", "map.extraordinary.construct"])]
 public sealed class ExtraordinaryStateSystem : ISimulationSystem
 {
     public const string SystemName = "ExtraordinaryState";

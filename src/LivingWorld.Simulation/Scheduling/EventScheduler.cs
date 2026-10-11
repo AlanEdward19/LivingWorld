@@ -4,7 +4,9 @@ namespace LivingWorld.Simulation.Scheduling;
 /// <see cref="ScheduledEvent.Id"/>, nunca por ordem de inserção (docs/domain/time-and-ticks.md).</summary>
 public sealed class EventScheduler
 {
-    private readonly SortedDictionary<long, List<ScheduledEvent>> _byTick = new();
+    // Acesso é sempre por tick exato (Schedule/Cancel/PopDue); a ordem global só importa em
+    // Snapshot(), que ordena. Árvore ordenada custava O(log T) por Schedule, no caminho mais quente.
+    private readonly Dictionary<long, List<ScheduledEvent>> _byTick = new();
 
     // Só o tick é necessário pra achar o bucket em Cancel — o índice dentro do bucket nunca era
     // lido em lugar nenhum (só escrito), então recalculá-lo com Sort()+FindIndex() a cada
@@ -82,7 +84,7 @@ public sealed class EventScheduler
         return bucket;
     }
 
-    public bool HasDue(long tick) => _byTick.ContainsKey(tick) && _byTick[tick].Count > 0;
+    public bool HasDue(long tick) => _byTick.TryGetValue(tick, out var bucket) && bucket.Count > 0;
 
     public IReadOnlyList<ScheduledEvent> PeekDue(long tick) =>
         _byTick.TryGetValue(tick, out var bucket) ? bucket : [];

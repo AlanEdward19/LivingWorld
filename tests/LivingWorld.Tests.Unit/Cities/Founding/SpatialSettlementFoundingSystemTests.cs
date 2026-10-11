@@ -502,6 +502,7 @@ public class SpatialSettlementFoundingSystemTests
     }
 
     [Fact]
+    [Trait("Category", "Scenario")]
     public void Merge_state_survives_snapshot_round_trip_before_and_after_confirmation()
     {
         var world = MakeWorld(MakeRules(organizationTicks: 10), seed: 915);

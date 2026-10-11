@@ -27,6 +27,7 @@ namespace LivingWorld.Simulation.Cities.Migration;
 /// <summary>Household/NPC materializado decide migrar pesando emprego/comida/segurança/laços
 /// familiares — inicia deslocamento para o destino; <see
 /// cref="RelocationArrivalSystem"/> só muda <see cref="CityId"/> na chegada.</summary>
+[LivingCapability("MIGRATION", Consumers = ["map.migration"])]
 public sealed class MigrationSystem : ISimulationSystem
 {
     public const string SystemName = "cities-migration";

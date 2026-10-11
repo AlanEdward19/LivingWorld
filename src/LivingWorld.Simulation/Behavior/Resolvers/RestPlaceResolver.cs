@@ -16,10 +16,7 @@ public static class RestPlaceResolver
         var catalog = world.RestPlaceCatalog;
         if (npc.Household is { } householdId && world.FindHousehold(householdId) is { } household)
         {
-            var bed = world.RestPlaces
-                .Where(place => place.Kind == RestPlaceKind.Bed && place.OwnerHousehold == householdId)
-                .OrderBy(place => place.Id.Value)
-                .FirstOrDefault();
+            var bed = world.BedOf(householdId);
             if (bed is not null)
                 return new RestPlaceRef(RestPlaceKind.Bed, bed.Id.Value, bed.Location, catalog.BedEfficiency);
 
@@ -30,5 +27,5 @@ public static class RestPlaceResolver
     }
 
     public static bool IsReachable(WorldMap map, CellCoord origin, CellCoord destination) =>
-        origin == destination || MapPathfinder.ShortestCost(map, origin, destination).IsSuccess;
+        origin == destination || MapPathfinder.IsReachable(map, origin, destination);
 }

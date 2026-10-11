@@ -139,4 +139,8 @@ public enum WorldEventKind
     /// <summary>Hospedeiro retomou controle de possessão —
     /// payload: <c>hostId|possessorId|possession-resisted</c>.</summary>
     PossessionResisted,
+
+    /// <summary>Ajuda mútua: alguém deu dinheiro a uma casa em necessidade — payload
+    /// <c>ajudanteId|receptorId|valor</c>.</summary>
+    AidGiven,
 }

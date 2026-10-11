@@ -10,6 +10,7 @@ namespace LivingWorld.Simulation.Extraordinary.Systems;
 /// Reinvoca poderes <c>Mode=Passive</c> a cada tick Hourly enquanto manifestados.
 /// Custo insuficiente pula o tick (log causal do motor) sem revogar o poder.
 /// </summary>
+[LivingCapability("EXTRAORDINARY")]
 public sealed class ExtraordinaryPassiveTickSystem : ISimulationSystem
 {
     public const string SystemName = "ExtraordinaryPassiveTick";

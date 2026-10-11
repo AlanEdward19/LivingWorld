@@ -34,6 +34,7 @@ public class FamineCausalChainTests
     }
 
     [Fact]
+    [Trait("Category", "Scenario")]
     public void Famine_raises_the_hungry_count_above_the_scenarios_threshold_in_10_of_10_seeds()
     {
         int seedsWhereTreatmentHigher = 0;

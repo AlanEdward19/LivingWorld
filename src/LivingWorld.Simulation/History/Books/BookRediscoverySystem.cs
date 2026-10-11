@@ -7,6 +7,7 @@ namespace LivingWorld.Simulation.History.Books;
 
 /// <summary>Redescoberta de livro perdido via evento agendado — nunca
 /// sorteio implícito por tick.</summary>
+[LivingCapability("HISTORY_BOOK", Events = [WorldEventKind.BookLost, WorldEventKind.BookRediscovered], Consumers = ["timeline.books"])]
 public sealed class BookRediscoverySystem : ISimulationSystem
 {
     public const string SystemName = "history-book-rediscovery";

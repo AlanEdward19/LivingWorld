@@ -114,7 +114,7 @@ public class CropLifecycleTests
         Assert.True(harvested.IsSuccess);
         Finish(world, harvested.Value!);
 
-        Assert.Equal(CropStatus.Harvested, world.CropBatches[0].Status);
+        Assert.Empty(world.CropBatches); // lote colhido é terminal e sai do estado canônico
         Assert.Equal(10, household.Stock[Wheat]);
         Assert.Equal(10, world.ResourceProduced[Wheat]);
         Assert.Equal(3, household.Stock[Water]);
@@ -211,5 +211,17 @@ public class CropLifecycleTests
         var replayed = LivingDeltaReducer.Apply(before, ScopeDeltaBuilder.Diff(3, before, after));
 
         Assert.Equal(after, replayed);
+    }
+
+    [Fact]
+    public void Harvested_batches_do_not_accumulate_in_the_world_over_a_year()
+    {
+        var (world, clock) = ScenarioRunner.Create(seed: 5);
+        clock.Run(world, 365L * 24);
+
+        Assert.DoesNotContain(world.CropBatches, crop => crop.Status == CropStatus.Harvested);
+        Assert.True(world.CropBatches.Count <= world.Workplaces.Count,
+            $"{world.CropBatches.Count} lotes para {world.Workplaces.Count} locais de trabalho");
+        Assert.True(world.NextCropBatchId > world.CropBatches.Count, "o contador de ids segue avançando");
     }
 }

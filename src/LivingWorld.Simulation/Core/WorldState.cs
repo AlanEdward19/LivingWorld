@@ -34,7 +34,7 @@ namespace LivingWorld.Simulation.Core;
 /// <summary>Estado do mundo — tudo que precisa sobreviver a um snapshot. Controles de
 /// host (pausa, velocidade) ficam fora de propósito: são estado do hospedeiro, não do mundo
 /// (ver <see cref="SimulationHost"/>).</summary>
-public sealed class WorldState
+public sealed partial class WorldState
 {
     private readonly WorldRngRegistry _rng;
     private readonly EventScheduler _scheduler;
@@ -159,8 +159,17 @@ public sealed class WorldState
     private long _nextPlantId;
 
     /// <summary>Plantas individuais (PWR-101). Distintas do estoque de <c>CropSystem</c>.</summary>
-    [Canonical] public IReadOnlyList<Plant> Flora => _flora;
-    [Canonical] public long NextPlantId => _nextPlantId;
+    [Canonical] public IReadOnlyList<Plant> Flora { get { SyncFlora(); return _flora; } }
+
+    // Avanço de estágio adiado (FloraLifecycleSystem): enquanto nenhum evento de planta é possível, o
+    // sistema só conta ticks; quem lê ou muda a flora materializa o pendente antes. Estado derivado.
+    internal Action? FloraPendingFlush;
+
+    /// <summary>Muda a cada inclusão/troca/remoção de planta feita de fora do avanço adiado.</summary>
+    internal long FloraMutationVersion;
+
+    /// <summary>Quantidade de plantas, sem forçar a materialização do estágio.</summary>
+    internal int FloraCount => _flora.Count;
 
     private readonly List<EnvironmentTemperatureAdjustment> _environmentTemperatureAdjustments;
 
@@ -266,17 +275,9 @@ public sealed class WorldState
     /// <c>(From.Value, To.Value)</c> na hora, ex. <c>RelationshipSystem</c>/hash).</summary>
     [Canonical] public IReadOnlyDictionary<RelationshipKey, Relationship> Relationships => _relationships;
 
-    /// <summary>Único ponto de criação de uma <see cref="Relationship"/> — cria só na
-    /// primeira chamada para a chave; chamadas seguintes devolvem a mesma instância.</summary>
-    internal Relationship GetOrCreateRelationship(RelationshipKey key, long now)
-    {
-        if (!_relationships.TryGetValue(key, out var relationship))
-        {
-            relationship = Relationship.Initial(now);
-            _relationships[key] = relationship;
-        }
-        return relationship;
-    }
+    // Índice derivado de _relationships: alvos (To) de cada From, ordenados por To. Permite ler as
+    // relações de um NPC em O(grau) em vez de varrer o dicionário inteiro (crescia ~O(n²) com os anos).
+    private readonly Dictionary<NpcId, List<NpcId>> _relationshipTargetsByFrom = [];
 
     private readonly List<Npc> _npcs;
     private readonly Dictionary<NpcId, Npc> _npcById;
@@ -312,23 +313,6 @@ public sealed class WorldState
     /// bem-sucedida.</summary>
     [Volatile] public IReadOnlyDictionary<ResourceType, long> ResourceConsumed => _resourceConsumed;
 
-    public void RecordResourceProduced(ResourceType resource, long amount) =>
-        _resourceProduced[resource] = _resourceProduced.GetValueOrDefault(resource) + amount;
-
-    public void RecordResourceConsumed(ResourceType resource, long amount) =>
-        _resourceConsumed[resource] = _resourceConsumed.GetValueOrDefault(resource) + amount;
-
-    /// <summary>Todo NPC já existiu, vivo ou morto — referência histórica não pode
-    /// virar ponteiro solto (critério "nenhum evento após tick de morte referencia o NPC" exige
-    /// que o NPC continue existindo para o sweep referencial provar isso).</summary>
-    [Canonical] public IReadOnlyList<Npc> Npcs => _npcs;
-
-    /// <summary>Households vivos — dissolvido (<see cref="Household.IsEmpty"/>) sai da lista.</summary>
-    [Canonical] public IReadOnlyList<Household> Households => _households;
-
-    [Canonical] public long NextNpcId => _nextNpcId;
-    [Canonical] public long NextHouseholdId => _nextHouseholdId;
-
     private readonly List<Workplace> _workplaces;
     private readonly Dictionary<WorkplaceId, Workplace> _workplaceById;
     private long _nextWorkplaceId;
@@ -348,19 +332,6 @@ public sealed class WorldState
     /// <summary>Cidade — mesmo molde de <see cref="Households"/>/<see
     /// cref="Workplaces"/> (lista + dono canônico).</summary>
     [Canonical] public IReadOnlyList<City> Cities => _cities;
-
-    /// <summary>Cidades que ainda participam de decisões e projeções. Tombstones continuam em
-    /// <see cref="Cities"/> para preservar referências históricas.</summary>
-    public IEnumerable<City> ActiveCities() => _cities.Where(city => city.MergedIntoCityId is null);
-
-    /// <summary>Edifício concluído — mesmo molde de <see cref="Cities"/>.</summary>
-    [Canonical] public IReadOnlyList<Building> Buildings => _buildings;
-
-    /// <summary><see cref="BuildingId"/> é monotônico como <see cref="WorkplaceId"/> — só este
-    /// contador precisa sobreviver ao snapshot. <see cref="CityId"/>/<see cref="LocationId"/> não
-    /// têm contador: nascem do stream de RNG dedicado (<see cref="NextCityId"/>), já coberto pelo
-    /// snapshot de <see cref="RngStreams"/>.</summary>
-    [Canonical] public long NextBuildingId => _nextBuildingId;
 
     private readonly List<SpatialPortal> _portals;
 
@@ -392,6 +363,20 @@ public sealed class WorldState
     private long _nextCropBatchId;
 
     [Canonical] public IReadOnlyList<CropBatch> CropBatches => _cropBatches;
+
+    // Lotes ainda não colhidos, na ordem de inserção. Um lote colhido é terminal e não é lido por
+    // ninguém (o rendimento já foi contabilizado): sai de CropBatches na colheita, para o snapshot não
+    // crescer com os anos. Índice derivado, compactado de forma preguiçosa.
+    private readonly List<CropBatch> _activeCropBatches = new();
+
+    internal IReadOnlyList<CropBatch> ActiveCropBatches
+    {
+        get
+        {
+            _activeCropBatches.RemoveAll(crop => crop.Status == CropStatus.Harvested);
+            return _activeCropBatches;
+        }
+    }
     [Canonical] public long NextCropBatchId => _nextCropBatchId;
 
     /// <summary>Contador do sistema de exemplo — descartável quando sistemas reais o substituírem. Nenhuma
@@ -498,6 +483,7 @@ public sealed class WorldState
         _resourceProcesses = (resourceProcesses ?? []).ToList();
         _nextResourceProcessId = _resourceProcesses.Count == 0 ? 0 : _resourceProcesses.Max(process => process.Id.Value) + 1;
         _cropBatches = (cropBatches ?? []).ToList();
+        _activeCropBatches.AddRange(_cropBatches.Where(crop => crop.Status != CropStatus.Harvested));
         _nextCropBatchId = _cropBatches.Count == 0 ? 0 : _cropBatches.Max(crop => crop.Id.Value) + 1;
         AliveNpcIndex = AliveNpcIndex.RebuildFrom(this);
         HistoryIndex = HistoryIndex.RebuildFrom(this);
@@ -612,6 +598,8 @@ public sealed class WorldState
         FamilyRules = familyRules ?? FamilyRules.Disabled;
         BodyRules = bodyRules ?? BodyRules.Default;
         _relationships = relationships is null ? [] : new Dictionary<RelationshipKey, Relationship>(relationships);
+        foreach (var key in _relationships.Keys)
+            IndexRelationshipTarget(key);
         _cities = (cities ?? []).ToList();
         _cityById = ToLookup(_cities, c => c.Id);
         _buildings = (buildings ?? []).ToList();
@@ -625,6 +613,7 @@ public sealed class WorldState
         _resourceProcesses = (resourceProcesses ?? []).ToList();
         _nextResourceProcessId = nextResourceProcessId;
         _cropBatches = (cropBatches ?? []).ToList();
+        _activeCropBatches.AddRange(_cropBatches.Where(crop => crop.Status != CropStatus.Harvested));
         _nextCropBatchId = nextCropBatchId;
         CityRules = cityRules ?? CityRules.Disabled;
         CityCatalog = cityCatalog ?? CityCatalog.Empty;
@@ -679,424 +668,44 @@ public sealed class WorldState
 
     internal void IncrementExampleCount(TickFrequency frequency) => _exampleTickCounts[frequency]++;
 
-    internal void ClearNpcWakeBatch() => _npcWakeBatch.Clear();
+    /// <summary>Muda a cada alteração da lista de ajustes de temperatura — invalida o memo por região
+    /// de <see cref="EnvironmentTemperatureMechanic"/>. Contador interno, fora do estado do mundo.</summary>
+    internal long TemperatureAdjustmentsVersion { get; private set; }
 
-    internal void AddNpcWake(Npc npc) => _npcWakeBatch.Add(npc);
-
-    internal void ReplaceNpcWake(TickContext ctx, long npcId, long targetTick)
+    private static int LowerBoundById<T>(List<T> sorted, long id, Func<T, long> idOf)
     {
-        if (_npcWakeEventIdByNpc.TryGetValue(npcId, out var oldId))
-            _scheduler.Cancel(oldId);
-
-        var evt = ctx.ScheduleEvent(targetTick, NpcWakeScheduler.SystemName, npcId.ToString());
-        _npcWakeEventIdByNpc[npcId] = evt.Id;
-    }
-
-    internal void ClearNpcWakeEvent(long npcId) => _npcWakeEventIdByNpc.Remove(npcId);
-
-    internal NpcId NextNpcIdAndAdvance() => new(_nextNpcId++);
-    internal HouseholdId NextHouseholdIdAndAdvance() => new(_nextHouseholdId++);
-
-    /// <summary>Reserva <paramref name="count"/> ids em lote (T50) — usado só na carga de
-    /// cenário, pra dar a cada membro do <see cref="AggregatePopulationPool"/> autorado um
-    /// <see cref="NpcId"/> estável antes de qualquer materialização. Mesmo contador de
-    /// <see cref="NextNpcIdAndAdvance"/>, só avançado de uma vez em vez de um por vez.</summary>
-    internal IReadOnlyList<NpcId> ReserveNpcIdBlock(long count)
-    {
-        var ids = new List<NpcId>();
-        for (long i = 0; i < count; i++)
-            ids.Add(NextNpcIdAndAdvance());
-        return ids;
-    }
-
-    /// <summary>Sincroniza o contador depois de um lote gerado fora do tick (seed inicial),
-    /// que consome ids diretamente do <see cref="PopulationGenerator"/> em vez de um por vez.</summary>
-    internal void AdvanceNpcIdTo(long value)
-    {
-        _nextNpcId = Math.Max(_nextNpcId, value);
-        MarkCanonicalPropertyDirty(nameof(NextNpcId));
-    }
-
-    internal void AdvanceHouseholdIdTo(long value)
-    {
-        _nextHouseholdId = Math.Max(_nextHouseholdId, value);
-        MarkCanonicalPropertyDirty(nameof(NextHouseholdId));
-    }
-
-    internal void AddNpc(Npc npc)
-    {
-        npc.CanonicalMutationNotifier = MarkNpcCanonicalDirty;
-        _npcs.Add(npc);
-        _npcById[npc.Id] = npc;
-        AliveNpcIndex.OnBorn(npc);
-        CanonicalHashCache.MarkNpcsStructureDirty();
-    }
-
-    internal void AddHousehold(Household household)
-    {
-        _households.Add(household);
-        _householdById[household.Id] = household;
-        MarkCanonicalPropertyDirty(nameof(Households));
-    }
-
-    /// <summary>Household sem membros é dissolvido — sai da lista canônica.</summary>
-    internal void RemoveHousehold(HouseholdId id)
-    {
-        _households.RemoveAll(h => h.Id == id);
-        _householdById.Remove(id);
-        MarkCanonicalPropertyDirty(nameof(Households));
-    }
-
-    // SPEC_DEVIATION: design.md não previa remover uma linha de Npc — mas
-    // Dematerialize (approach A) exige exatamente isso ("remover a linha do store"). Mirror de
-    // RemoveHousehold; só MaterializationSystem chama.
-    internal void RemoveNpc(NpcId id)
-    {
-        if (_npcById.TryGetValue(id, out var npc) && npc.IsAlive)
-            AliveNpcIndex.OnDied(npc);
-        _npcs.RemoveAll(n => n.Id == id);
-        _npcById.Remove(id);
-        CanonicalHashCache.MarkNpcsStructureDirty();
-    }
-
-    private void BindNpcCanonicalNotifiers()
-    {
-        foreach (var npc in _npcs)
-            npc.CanonicalMutationNotifier = MarkNpcCanonicalDirty;
-    }
-
-    private void MarkNpcCanonicalDirty(NpcId id) => CanonicalHashCache.MarkNpcDirty(id.Value);
-
-    internal void MarkCanonicalPropertyDirty(string propertyName) =>
-        CanonicalHashCache.MarkPropertyDirty(propertyName);
-
-    internal Npc? FindNpc(NpcId id) => _npcById.GetValueOrDefault(id);
-    internal Household? FindHousehold(HouseholdId id) => _householdById.GetValueOrDefault(id);
-
-    internal void UpsertExtraordinaryCarrier(ExtraordinaryCarrierState carrier)
-    {
-        _extraordinaryCarriers.RemoveAll(existing => existing.CarrierId == carrier.CarrierId);
-        _extraordinaryCarriers.Add(carrier);
-        _extraordinaryCarriers.Sort((left, right) => left.CarrierId.Value.CompareTo(right.CarrierId.Value));
-    }
-
-    internal bool RemoveExtraordinaryCarrier(NpcId carrierId) =>
-        _extraordinaryCarriers.RemoveAll(existing => existing.CarrierId == carrierId) > 0;
-
-    internal int RemoveRelationshipsBetween(NpcId first, NpcId second)
-    {
-        int removed = 0;
-        if (_relationships.Remove(new RelationshipKey(first, second))) removed++;
-        if (_relationships.Remove(new RelationshipKey(second, first))) removed++;
-        return removed;
-    }
-
-    internal long NextExtraordinaryConstructIdAndAdvance() => _nextExtraordinaryConstructId++;
-
-    internal void AddExtraordinaryConstruct(ExtraordinaryConstruct construct)
-    {
-        _extraordinaryConstructs.Add(construct);
-        _extraordinaryConstructs.Sort((left, right) => left.Id.CompareTo(right.Id));
-    }
-
-    internal bool RemoveExtraordinaryConstruct(long id) =>
-        _extraordinaryConstructs.RemoveAll(construct => construct.Id == id) > 0;
-
-    internal void AddEnvironmentTemperatureAdjustment(EnvironmentTemperatureAdjustment adjustment)
-    {
-        _environmentTemperatureAdjustments.Add(adjustment);
-        CanonicalHashCache.MarkPropertyDirty(nameof(EnvironmentTemperatureAdjustments));
-    }
-
-    internal void ReplaceSeasonalEnvironmentTemperatureAdjustments(
-        IReadOnlyList<EnvironmentTemperatureAdjustment> replacements)
-    {
-        _environmentTemperatureAdjustments.RemoveAll(
-            adjustment => adjustment.UntilTick == Geography.TemperatureSeasonSystem.SeasonalUntilTick);
-        foreach (var adjustment in replacements)
-            _environmentTemperatureAdjustments.Add(adjustment);
-        CanonicalHashCache.MarkPropertyDirty(nameof(EnvironmentTemperatureAdjustments));
-    }
-
-    internal void ReplaceExtraordinaryConstruct(ExtraordinaryConstruct construct)
-    {
-        RemoveExtraordinaryConstruct(construct.Id);
-        AddExtraordinaryConstruct(construct);
-    }
-
-    internal AnimalId NextAnimalIdAndAdvance() => new(_nextAnimalId++);
-
-    public void AddAnimal(Animal animal)
-    {
-        _fauna.Add(animal);
-        _faunaById[animal.Id] = animal;
-        _fauna.Sort((left, right) => left.Id.Value.CompareTo(right.Id.Value));
-    }
-
-    public Animal? FindAnimal(AnimalId id) => _faunaById.GetValueOrDefault(id);
-
-    internal void ReplaceAnimal(Animal animal)
-    {
-        _fauna.RemoveAll(existing => existing.Id == animal.Id);
-        _faunaById.Remove(animal.Id);
-        AddAnimal(animal);
-    }
-
-    internal void RemoveAnimal(AnimalId id)
-    {
-        _fauna.RemoveAll(existing => existing.Id == id);
-        _faunaById.Remove(id);
-    }
-
-    internal PlantId NextPlantIdAndAdvance() => new(_nextPlantId++);
-
-    public void AddPlant(Plant plant)
-    {
-        _flora.Add(plant);
-        _floraById[plant.Id] = plant;
-        _flora.Sort((left, right) => left.Id.Value.CompareTo(right.Id.Value));
-    }
-
-    public Plant? FindPlant(PlantId id) => _floraById.GetValueOrDefault(id);
-
-    internal void ReplacePlant(Plant plant)
-    {
-        _flora.RemoveAll(existing => existing.Id == plant.Id);
-        _floraById.Remove(plant.Id);
-        AddPlant(plant);
-    }
-
-    internal void RemovePlant(PlantId id)
-    {
-        _flora.RemoveAll(existing => existing.Id == id);
-        _floraById.Remove(id);
-    }
-
-    internal CombatEncounterId NextCombatEncounterIdAndAdvance() => new(_nextCombatEncounterId++);
-
-    public void AddCombatEncounter(CombatEncounter encounter)
-    {
-        _combatEncounters.Add(encounter);
-        _combatEncountersById[encounter.Id] = encounter;
-        _combatEncounters.Sort((left, right) => left.Id.Value.CompareTo(right.Id.Value));
-        CanonicalHashCache.MarkPropertyDirty(nameof(CombatEncounters));
-        CanonicalHashCache.MarkPropertyDirty(nameof(NextCombatEncounterId));
-    }
-
-    public CombatEncounter? FindCombatEncounter(CombatEncounterId id) =>
-        _combatEncountersById.GetValueOrDefault(id);
-
-    internal void ReplaceCombatEncounter(CombatEncounter encounter)
-    {
-        _combatEncounters.RemoveAll(existing => existing.Id == encounter.Id);
-        _combatEncountersById.Remove(encounter.Id);
-        AddCombatEncounter(encounter);
-    }
-
-    public bool IsExtraordinaryConstructCell(CellCoord cell) =>
-        _extraordinaryConstructs.Any(construct => construct.Footprint.Contains(cell));
-
-    internal WorkplaceId NextWorkplaceIdAndAdvance() => new(_nextWorkplaceId++);
-
-    public void AddWorkplace(Workplace workplace)
-    {
-        _workplaces.Add(workplace);
-        _workplaceById[workplace.Id] = workplace;
-    }
-
-    public Workplace? FindWorkplace(WorkplaceId id) => _workplaceById.GetValueOrDefault(id);
-
-    internal BuildingId NextBuildingIdAndAdvance() => new(_nextBuildingId++);
-
-    public void AddCity(City city)
-    {
-        _cities.Add(city);
-        _cityById[city.Id] = city;
-    }
-
-    public void AddBuilding(Building building)
-    {
-        _buildings.Add(building);
-        _buildingById[building.Id] = building;
-    }
-
-    public City? FindCity(CityId id) => _cityById.GetValueOrDefault(id);
-    public City? FindActiveCity(CityId id)
-    {
-        var city = FindCity(id);
-        var visited = new HashSet<CityId>();
-        while (city?.MergedIntoCityId is { } target && visited.Add(city.Id))
-            city = FindCity(target);
-        return city is { MergedIntoCityId: null } ? city : null;
-    }
-
-    internal void MergeCityInto(City daughter, City mother)
-    {
-        foreach (var building in _buildings.Where(building => building.City == daughter.Id).OrderBy(building => building.Id.Value))
-            building.JoinCity(mother.Id);
-        foreach (var workplace in _workplaces.Where(workplace => workplace.City == daughter.Id).OrderBy(workplace => workplace.Id.Value))
-            workplace.JoinCity(mother.Id);
-        foreach (var household in _households.OrderBy(household => household.Id.Value))
-            household.ReplaceCityReference(daughter.Id, mother.Id);
-        foreach (var npc in _npcs.Where(npc => npc.City == daughter.Id).OrderBy(npc => npc.Id.Value))
-            npc.JoinCity(mother.Id);
-
-        foreach (var stock in daughter.ExtractEntireStock().OrderBy(entry => entry.Key.Id))
-            mother.DepositStock(stock.Key, stock.Value);
-
-        foreach (var project in daughter.ConstructionQueue.ToList())
+        int lo = 0, hi = sorted.Count;
+        while (lo < hi)
         {
-            daughter.RemoveConstructionProject(project);
-            project.JoinCity(mother.Id);
-            mother.EnqueueConstruction(project);
+            int mid = (lo + hi) >>> 1;
+            if (idOf(sorted[mid]) < id) lo = mid + 1; else hi = mid;
         }
-
-        var (pool, poolNpcIds) = daughter.ExtractEntirePool();
-        mother.AbsorbPool(pool, poolNpcIds);
-        daughter.MarkMergedInto(mother.Id);
-    }
-    public Building? FindBuilding(BuildingId id) => _buildingById.GetValueOrDefault(id);
-
-    /// <summary>Único ponto de autoria de <see cref="SpatialPortal"/> — só
-    /// <c>ScenarioLoaderV2</c> chama, no mesmo momento em que autora <see cref="City"/>/
-    /// <see cref="Building"/>. Sem <c>FindPortal</c>/remoção: portal é dado descritivo estático do
-    /// cenário, nenhum sistema o edita depois de carregado.</summary>
-    public void AddPortal(SpatialPortal portal)
-    {
-        _portals.Add(portal);
-        // Portals is cold (not HotProperties): must invalidate fragment cache after mutation
-        // or CanonicalHash after AddPortal stays stale.
-        CanonicalHashCache.MarkPropertyDirty(nameof(Portals));
+        return lo;
     }
 
-    internal RestPlaceId NextRestPlaceIdAndAdvance() => new(_nextRestPlaceId++);
+    private static void InsertSortedById<T>(List<T> sorted, T item, Func<T, long> idOf) =>
+        sorted.Insert(LowerBoundById(sorted, idOf(item), idOf), item);
 
-    public void AddRestPlace(RestPlace place)
+    /// <summary>Mesmo Id = mesma posição ordenada: troca no lugar, sem deslocar o resto da lista.</summary>
+    private static void ReplaceSortedById<T>(List<T> sorted, T item, Func<T, long> idOf)
     {
-        _restPlaces.Add(place);
-        _nextRestPlaceId = Math.Max(_nextRestPlaceId, place.Id.Value + 1);
-    }
-
-    internal ResourceProcessId NextResourceProcessIdAndAdvance() => new(_nextResourceProcessId++);
-
-    public void AddResourceProcess(ResourceProcess process)
-    {
-        _resourceProcesses.Add(process);
-        _nextResourceProcessId = Math.Max(_nextResourceProcessId, process.Id.Value + 1);
-    }
-
-    internal CropBatchId NextCropBatchIdAndAdvance() => new(_nextCropBatchId++);
-
-    public void AddCropBatch(CropBatch crop)
-    {
-        _cropBatches.Add(crop);
-        _nextCropBatchId = Math.Max(_nextCropBatchId, crop.Id.Value + 1);
-    }
-
-    public CropBatch? FindCropAt(CellCoord plot) =>
-        _cropBatches.FirstOrDefault(crop => crop.Plot == plot && crop.Status != CropStatus.Harvested);
-
-    internal FactId NextFactIdAndAdvance() => new(_nextFactId++);
-
-    internal ReportId NextReportIdAndAdvance() => new(_nextReportId++);
-
-    internal BookId NextBookIdAndAdvance() => new(_nextBookId++);
-
-    internal void RegisterReport(ReportState report)
-    {
-        _reports.Add(report);
-        HistoryIndex.OnReportAdded(report, this);
-    }
-
-    internal ReportState? FindReport(ReportId id)
-    {
-        foreach (var report in _reports)
-        {
-            if (report.Id == id)
-                return report;
-        }
-        return null;
-    }
-
-    internal void AddBook(Book book) => _books.Add(book);
-
-    internal Book? FindBook(BookId id)
-    {
-        foreach (var book in _books)
-        {
-            if (book.Id == id)
-                return book;
-        }
-        return null;
-    }
-
-    internal void ReplaceBook(Book updated)
-    {
-        for (int i = 0; i < _books.Count; i++)
-        {
-            if (_books[i].Id == updated.Id)
-            {
-                _books[i] = updated;
-                return;
-            }
-        }
-    }
-
-    internal void AddFact(Fact fact)
-    {
-        _facts.Add(fact);
-        HistoryIndex.OnFactAdded(fact);
-    }
-
-    internal Fact? FindFact(FactId id)
-    {
-        foreach (var fact in _facts)
-        {
-            if (fact.Id == id)
-                return fact;
-        }
-        return null;
-    }
-
-    /// <summary>Único ponto de criação de <see cref="NpcMemory"/>
-    /// — a classificação canônico/volátil é decidida aqui, uma vez, contra
-    /// <paramref name="canonicalImportanceThreshold"/> (vem de <c>LlmRules</c> do cenário no
-    /// chamador, mesmo padrão de <c>ConversationAvailabilityPolicy</c>: a regra nunca mora em
-    /// <see cref="WorldState"/>, só o efeito de aplicá-la).</summary>
-    internal void AddNpcMemory(
-        NpcId ownerId, MemoryCategory category, string content, int importance, long originTick,
-        IReadOnlyList<NpcId> participants, CellCoord location, int canonicalImportanceThreshold)
-    {
-        var memory = new NpcMemory(_nextMemoryId++, ownerId, category, content, importance, originTick, participants, location);
-        if (importance >= canonicalImportanceThreshold)
-            _canonicalMemories.Add(memory);
+        long id = idOf(item);
+        int index = LowerBoundById(sorted, id, idOf);
+        if (index < sorted.Count && idOf(sorted[index]) == id)
+            sorted[index] = item;
         else
-            _volatileMemories.Add(memory);
+            sorted.Insert(index, item);
     }
 
-    /// <summary>Único ponto de mutação de <see cref="VolatileMemories"/> por compactação
-    /// (<c>MemoryCompactionJob</c>) — troca um grupo de memórias
-    /// voláteis por um resumo. Não passa por <see cref="AddNpcMemory"/>/<c>_nextMemoryId</c> de
-    /// propósito: <see cref="NextMemoryId"/> é <see cref="CanonicalAttribute"/> e compactação
-    /// precisa deixar o hash canônico intacto (spec.md, "hash canônico permanece idêntico"), por
-    /// isso <paramref name="replacement"/> reaproveita o <see cref="NpcMemory.Id"/> de uma das
-    /// memórias removidas em vez de tirar um id novo do contador compartilhado.</summary>
-    internal void ReplaceVolatileMemories(IReadOnlyList<long> idsToRemove, NpcMemory replacement)
+    private static void RemoveSortedById<T>(List<T> sorted, long id, Func<T, long> idOf)
     {
-        var idSet = idsToRemove.ToHashSet();
-        _volatileMemories.RemoveAll(m => idSet.Contains(m.Id));
-        _volatileMemories.Add(replacement);
+        int index = LowerBoundById(sorted, id, idOf);
+        while (index < sorted.Count && idOf(sorted[index]) == id)
+            sorted.RemoveAt(index);
     }
 
-    /// <summary>Deriva um <see cref="CityId"/> novo a partir do stream de RNG dedicado
-    /// <c>"city-founding"</c> — <c>Guid.NewGuid()</c> é banido em Domain/Simulation
-    /// (rules/simulation-determinism.md); mesma seed produz sempre o mesmo <see cref="CityId"/>
-    /// na mesma posição do stream.</summary>
-    public CityId NextCityId() => new(NextGuidFromRng());
-
-    /// <summary>Espelha <see cref="NextCityId"/> para <see cref="LocationId"/> — mesmo stream
-    /// dedicado, próximo par de sorteios.</summary>
-    public LocationId NextLocationId() => new(NextGuidFromRng());
+    private readonly Dictionary<HouseholdId, RestPlace> _bedByHousehold = new();
+    private int _bedsIndexedCount;
 
     private Guid NextGuidFromRng()
     {
@@ -1105,38 +714,6 @@ public sealed class WorldState
         BitConverter.GetBytes(rng.NextDouble()).CopyTo(bytes, 0);
         BitConverter.GetBytes(rng.NextDouble()).CopyTo(bytes, 8);
         return new Guid(bytes);
-    }
-
-    /// <summary>Cunhagem explícita e rara — nunca chamada implicitamente por
-    /// <see cref="MarketTransaction"/>/salário, só por um evento nomeado.</summary>
-    public void Mint(TickContext ctx, Money amount, string reason)
-    {
-        _moneyMinted += amount;
-        ctx.LogEvent(WorldEventKind.Minted, $"{amount.Amount}|{reason}", sourceSystem: "WorldState");
-    }
-
-    /// <summary>Retira massa da circulação (ex.: arquivo frio) — incrementa
-    /// <see cref="MoneyDestroyed"/> sem o teto de <see cref="Destroy"/> (que só desfaz cunhagem).</summary>
-    internal void BurnCirculatingMoney(TickContext ctx, Money amount, string reason)
-    {
-        if (amount.Amount <= 0) return;
-        _moneyDestroyed += amount;
-        ctx.LogEvent(WorldEventKind.Destroyed, $"{amount.Amount}|{reason}", sourceSystem: "WorldState");
-    }
-
-    /// <summary>Destruição explícita e rara — falha (mesmo padrão de <see
-    /// cref="Money.TryDebit"/>) se exceder a massa monetária líquida já cunhada
-    /// (<see cref="MoneyMinted"/> - <see cref="MoneyDestroyed"/>), nunca altera o contador nesse
-    /// caso.</summary>
-    public Result<Unit> Destroy(TickContext ctx, Money amount, string reason)
-    {
-        var netSupply = _moneyMinted.Amount - _moneyDestroyed.Amount;
-        if (amount.Amount > netSupply)
-            return Result<Unit>.Fail("insufficient_money_supply");
-
-        _moneyDestroyed += amount;
-        ctx.LogEvent(WorldEventKind.Destroyed, $"{amount.Amount}|{reason}", sourceSystem: "WorldState");
-        return Result<Unit>.Ok(Unit.Value);
     }
 
     /// <summary>Último-vence em vez de <c>ToDictionary</c> (que reprova em id duplicado) — a

@@ -14,13 +14,15 @@ public static class MortalityPlanner
     /// chamador (<c>SchedulePlannedDeath</c>) e não entra neste laço.</summary>
     public static int RollDeathAge(
         WorldRng rng, LifeTable table, int health,
-        double vitalityMultiplier = 1.0, double senescenceRateMultiplier = 1.0)
+        double vitalityMultiplier = 1.0, double senescenceRateMultiplier = 1.0,
+        int aliveAtAgeYears = 0)
     {
         if (senescenceRateMultiplier <= 0.0)
             return table.MaxLongevityYears;
 
-        double biologicalAge = 0;
-        int calendarYears = 0;
+        // aliveAtAgeYears > 0: o NPC já está vivo nessa idade, então o sorteio começa dela (condicional).
+        double biologicalAge = aliveAtAgeYears;
+        int calendarYears = aliveAtAgeYears;
         while (biologicalAge < table.MaxLongevityYears)
         {
             double p = table.AnnualMortality((int)biologicalAge, health, vitalityMultiplier);

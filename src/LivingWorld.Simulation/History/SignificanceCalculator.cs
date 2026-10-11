@@ -17,6 +17,7 @@ public static class SignificanceCalculator
             [WorldEventKind.MaternalDeath] = 0.85,
             [WorldEventKind.StillBirth] = 0.70,
             [WorldEventKind.CourtshipSucceeded] = 0.55,
+            [WorldEventKind.AidGiven] = 0.40,
             [WorldEventKind.Hired] = 0.35,
             [WorldEventKind.Fired] = 0.40,
             [WorldEventKind.WageUnpaid] = 0.45,

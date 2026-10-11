@@ -96,8 +96,9 @@ só se precisar do porquê, não do quê.
 | `.specs/features/*/validation.md` (verificador independente) | sensor | inferencial | fim de feature spec-driven | sim |
 
 ## 4. Posicionamento no ciclo de vida ("keep quality left")
-- **Antes de "pronto"**: `bash scripts/verify.sh` (exclui `Category=Scenario`).
+- **Antes de "pronto"**: `bash scripts/verify.sh` (exclui `Category=Scenario`). Antes de fechar fase: `verify.sh --full` (+ cenários, Integration, LongRunning); noturno: `--nightly` (+ `Category=Heavy`). CI em `.github/workflows/ci.yml`.
 - **Manual/caro**: `scripts/verify-mutation.sh`; `scripts/test.sh --filter Category=Scenario`.
+- **Cenários por projeto** (medido, 4 núcleos): Unit `--scenarios` ~55 s; Integration `--project integration` ~50 s; LongRunning `--project longrunning` ~3 min (pula `Category=Heavy`); `--heavy` soma 10 mil NPCs / 100x / sensor de 5 mil (~50 s).
 - **Contínuo/drift**: `.specs/lessons.py` entre features; revisão de performance agendada ao
   fechar a Fase 8 (`ROADMAP.md`).
 

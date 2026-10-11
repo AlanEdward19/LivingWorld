@@ -1,6 +1,6 @@
-using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Llm;
 using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Needs;
 using LivingWorld.Simulation.Core;
@@ -30,7 +30,7 @@ public static class DecisionContextBuilder
         var household = BuildHouseholdSlice(world, npc);
         var memories = BuildMemorySlice(world, npc, needs, llmRules);
         var beliefs = BuildBeliefSlice(world, npc);
-        var relationships = BuildRelationshipSlice(world, npc);
+        var relationships = new LazyRelationshipFacts(world, npc.Id);
 
         return new DecisionContext(
             npc.Id,
@@ -44,7 +44,8 @@ public static class DecisionContextBuilder
             PowerOpportunities: PowerOpportunityProvider.ApplicableTo(world, npc, tick),
             npc.Personality,
             npc.CurrentAction,
-            ForesightPreviews: ForesightMechanic.PreviewsFor(world, npc.Id, tick));
+            ForesightPreviews: ForesightMechanic.PreviewsFor(world, npc.Id, tick),
+            WalletAmount: npc.Wallet.Amount);
     }
 
     internal static BodySnapshot BuildBodySlice(WorldState world, Npc npc) =>
@@ -60,10 +61,9 @@ public static class DecisionContextBuilder
         if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } h)
             return null;
 
-        return new HouseholdSnapshot(
-            h.Id,
-            new Dictionary<ResourceType, long>(h.Stock),
-            h.Members.ToList());
+        // Visões somente-leitura do próprio domicílio, sem copiar estoque e membros a cada decisão: o
+        // contexto vive só durante a decisão (nada muta o domicílio entre montá-lo e usá-lo).
+        return new HouseholdSnapshot(h.Id, h.Stock, h.Members);
     }
 
     internal static IReadOnlyList<NpcMemory> BuildMemorySlice(
@@ -86,24 +86,33 @@ public static class DecisionContextBuilder
 
     /// <summary>Relações A→* já existentes (lazy) — nunca cria entrada nova a partir
     /// da decisão.</summary>
-    private static IReadOnlyList<RelationshipFact> KnownRelationshipsOf(WorldState world, NpcId npcId)
+    private static IReadOnlyList<RelationshipFact> KnownRelationshipsOf(WorldState world, NpcId npcId) =>
+        MaterializeKnownRelationships(world, npcId);
+
+    internal static RelationshipFact[] MaterializeKnownRelationships(WorldState world, NpcId npcId)
     {
         if (world.Relationships.Count == 0)
-            return Array.Empty<RelationshipFact>();
+            return [];
 
-        var facts = new List<RelationshipFact>();
-        foreach (var (key, rel) in world.Relationships.OrderBy(kv => kv.Key.To.Value))
+        // Índice por NPC (já ordenado por To): O(grau) por decisão, não O(relações do mundo).
+        var targets = world.RelationshipTargetsOf(npcId);
+        if (targets.Count == 0)
+            return [];
+
+        var facts = new RelationshipFact[targets.Count];
+        for (int i = 0; i < facts.Length; i++)
         {
-            if (key.From != npcId) continue;
-            facts.Add(new RelationshipFact(
-                key.To,
+            var to = targets[i];
+            var rel = world.Relationships[new RelationshipKey(npcId, to)];
+            facts[i] = new RelationshipFact(
+                to,
                 (int)Math.Round(rel.Trust),
                 (int)Math.Round(rel.Affection),
                 (int)Math.Round(rel.Respect),
-                (int)Math.Round(rel.Debt)));
+                (int)Math.Round(rel.Debt));
         }
 
-        return facts.Count == 0 ? Array.Empty<RelationshipFact>() : facts.ToArray();
+        return facts;
     }
 
     /// <summary>Query bag-of-words derivada do need com maior déficit (COH-12) — alimenta

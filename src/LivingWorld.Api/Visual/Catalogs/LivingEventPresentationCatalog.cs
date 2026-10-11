@@ -19,6 +19,7 @@ public static class LivingEventPresentationCatalog
             [WorldEventKind.Minted] = "Novas moedas entraram em circulação",
             [WorldEventKind.Destroyed] = "Moedas saíram de circulação",
             [WorldEventKind.Marriage] = "Um casamento foi celebrado",
+            [WorldEventKind.AidGiven] = "Alguém ajudou uma família em necessidade",
             [WorldEventKind.CourtshipStarted] = "Um cortejo começou",
             [WorldEventKind.CourtshipRejected] = "Um cortejo não foi correspondido",
             [WorldEventKind.CourtshipSucceeded] = "Um cortejo foi correspondido",

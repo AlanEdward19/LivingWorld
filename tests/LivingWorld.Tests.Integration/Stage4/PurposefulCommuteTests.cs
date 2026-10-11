@@ -231,13 +231,18 @@ public class PurposefulCommuteTests
         }
         Assert.Equal(work, npc.CurrentLocation); // chegou e trabalha, ainda dentro da janela de Work
 
-        for (int i = 0; i < 20; i++) // atravessa a virada pra Sleep e a volta — ver comentário do teste anterior
+        // Atravessa a virada pra Sleep e a volta. O NPC passa a sair antes do turno seguinte (tempo de
+        // trajeto antecipado), então 20 h depois já está a caminho do trabalho de novo: o que se prova
+        // é que chegou em casa e dormiu lá, não onde está ao fim da janela.
+        bool sleptAtHome = false;
+        for (int i = 0; i < 20; i++)
         {
             clock.Tick(world);
             NpcWakeScheduler.ScheduleWake(world, ctx, npc.Id.Value, world.CurrentDate.TotalHours + 1);
+            sleptAtHome |= npc.CurrentLocation == home && npc.CurrentAction == ActionType.Sleep;
         }
 
-        Assert.Equal(home, npc.CurrentLocation);
+        Assert.True(sleptAtHome);
         // A volta em si nunca é instantânea: se fosse teleporte, um único tick bastaria mesmo
         // partindo do zero — a mesma rota de ida (ticksNeeded > 1) vale pra volta.
         Assert.True(ticksNeeded > 1);

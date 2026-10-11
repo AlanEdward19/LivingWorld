@@ -27,8 +27,8 @@
 ## Projeto
 - **Propósito**: simulador persistente de sociedades, populações e indivíduos. O mundo
   avança sem jogador. O motor determinístico é a **fonte da verdade**; a LLM só interpreta.
-- **Alvo**: API .NET + workers de simulação + cliente web React (mapa 2D). Unreal depois.
-- **Stack**: .NET 10 / C# · SQLite (→ Postgres) · React+TS · Arquitetura: monólito modular por camadas.
+- **Alvo**: API .NET + workers de simulação + cliente gráfico **Godot** (ADR-0022; web aposentado). Unreal depois.
+- **Stack**: .NET 10 / C# · SQLite (→ Postgres) · Godot · Arquitetura: monólito modular por camadas.
 - **Objetivo técnico #1**: 100 NPCs numa vila medieval por 100 anos, sem LLM, com famílias,
   profissões, economia, nascimentos, mortes e evolução de habilidades preservados.
 

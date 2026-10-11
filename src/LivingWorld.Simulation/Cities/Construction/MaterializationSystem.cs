@@ -18,6 +18,7 @@ namespace LivingWorld.Simulation.Cities.Construction;
 /// <summary>Materializa/desmaterializa NPCs entre o <see cref="AggregatePopulationPool"/> de uma
 /// cidade e uma linha real em <c>WorldState.Npcs</c>.
 /// <see cref="Tick"/> (Daily) desmaterializa por ociosidade quem não ocupa papel formal.</summary>
+[LivingCapability("MATERIALIZATION", Consumers = ["hud.materialization"])]
 public sealed class MaterializationSystem : ISimulationSystem
 {
     public const string SystemName = "cities-materialization";

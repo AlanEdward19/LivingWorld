@@ -1,4 +1,5 @@
 using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.History;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Cities.Queries;
 using LivingWorld.Simulation.Core;
@@ -23,6 +24,7 @@ namespace LivingWorld.Simulation.Cities.Founding;
 /// de <see cref="MortalitySystem.SchedulePlannedDeath"/>); ao disparar, funda uma <see
 /// cref="City"/> nova e move o <see cref="AggregatePopulationPool"/> inteiro da cidade-mãe pra
 /// ela, preservando a soma de população.</summary>
+[LivingCapability("FOUNDING", Events = [WorldEventKind.SettlementFounded, WorldEventKind.CityMerged], Consumers = ["map.founding"])]
 public sealed class SettlementFoundingSystem : ISimulationSystem
 {
     public const string SystemName = "cities-settlement-founding";

@@ -12,6 +12,9 @@ public static class MemoryRecall
 {
     public static IReadOnlyList<NpcMemory> Recall(WorldState world, NpcId npcId, string query, int n, LlmRules rules)
     {
+        if (world.CanonicalMemories.Count == 0 && world.VolatileMemories.Count == 0)
+            return [];
+
         long now = world.CurrentDate.TotalHours;
 
         return world.CanonicalMemories.Concat(world.VolatileMemories)

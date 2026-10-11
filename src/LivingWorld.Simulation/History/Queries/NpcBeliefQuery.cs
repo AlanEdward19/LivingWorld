@@ -22,6 +22,8 @@ public static class NpcBeliefQuery
         var city = world.FindCity(npc.City);
         if (city is null) return [];
 
+        if (city.CanonSlots.Count == 0) return [];
+
         var beliefs = new List<string>();
         foreach (var slot in city.CanonSlots)
         {

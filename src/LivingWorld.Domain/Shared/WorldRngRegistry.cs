@@ -31,7 +31,51 @@ public sealed class WorldRngRegistry
     /// <summary>Stream de rolagem única derivado de <c>(seed, purpose, id)</c> sem persistir no
     /// snapshot — mesma sequência inicial que <see cref="Stream"/> produziria.</summary>
     public WorldRng StreamFor(string purpose, long id) =>
-        _root.Derive(StableHash($"{purpose}-{id}"));
+        _root.Derive(StableHashOfPurposeAndId(purpose, id));
+
+    /// <summary>Mesmo valor de <c>StableHash($"{purpose}-{id}")</c>, sem montar a string nem o array de bytes
+    /// (chamado por rolagem, em laços quentes). Só o caso ASCII com id não negativo é acelerado; o resto
+    /// cai na definição original, que depende da cultura corrente para o sinal.</summary>
+    internal static long StableHashOfPurposeAndId(string purpose, long id)
+    {
+        if (id < 0 || !IsAscii(purpose))
+            return StableHash($"{purpose}-{id}");
+
+        ulong hash = 14695981039346656037UL;
+        foreach (char c in purpose)
+        {
+            hash ^= c;
+            hash *= 1099511628211UL;
+        }
+
+        hash ^= '-';
+        hash *= 1099511628211UL;
+
+        Span<char> digits = stackalloc char[20];
+        int length = 0;
+        ulong value = (ulong)id;
+        do
+        {
+            digits[length++] = (char)('0' + (int)(value % 10));
+            value /= 10;
+        }
+        while (value != 0);
+
+        for (int i = length - 1; i >= 0; i--)
+        {
+            hash ^= digits[i];
+            hash *= 1099511628211UL;
+        }
+
+        return unchecked((long)hash);
+    }
+
+    private static bool IsAscii(string text)
+    {
+        foreach (char c in text)
+            if (c >= 0x80) return false;
+        return true;
+    }
 
     /// <summary>Ordenado por chave — nunca por ordem de inserção/hash de dicionário.</summary>
     public IReadOnlyList<RngStreamState> Snapshot() =>

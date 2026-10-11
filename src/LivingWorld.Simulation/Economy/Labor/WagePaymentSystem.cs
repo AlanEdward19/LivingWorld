@@ -3,6 +3,7 @@ using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Market;
 using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Economy.Labor;
@@ -10,6 +11,8 @@ namespace LivingWorld.Simulation.Economy.Labor;
 /// <summary>Paga salário mensal do <see cref="Workplace.Treasury"/> ao <see cref="Npc.Wallet"/>
 /// de cada empregado, <c>Monthly</c>. Respeita <see
 /// cref="EconomyRules.Enabled"/>.</summary>
+[LivingCapability("WAGES", Events = [WorldEventKind.WageUnpaid], Consumers = ["timeline.wages"])]
+[RunsAfter(typeof(MarketPricingSystem))]
 public sealed class WagePaymentSystem : ISimulationSystem
 {
     public const string SystemName = "economy-wage-payment";
@@ -25,6 +28,8 @@ public sealed class WagePaymentSystem : ISimulationSystem
 
         foreach (var workplace in world.Workplaces.OrderBy(w => w.Id.Value))
         {
+            // Salários devidos neste mês, em ordem de id (determinístico).
+            var due = new List<(Npc Npc, Money Wage)>();
             foreach (var employeeId in workplace.Employees.OrderBy(id => id.Value))
             {
                 var npc = world.FindNpc(employeeId);
@@ -32,15 +37,25 @@ public sealed class WagePaymentSystem : ISimulationSystem
                 if (!rules.WageByProfession.TryGetValue(npc.Profession.Id, out var wageAmount)) continue;
 
                 double adjustedAmount = world.FamilyRules.ApplyUpbringingWeight(wageAmount, npc.Upbringing);
-                var wage = new Money((long)Math.Round(adjustedAmount));
-                var debited = workplace.TryDebitTreasury(wage);
-                if (!debited.IsSuccess)
-                {
-                    ctx.LogEvent(WorldEventKind.WageUnpaid, $"{npc.Id.Value}|{workplace.Id.Value}|{wageAmount}", sourceSystem: "WagePaymentSystem");
-                    continue; // nem Treasury nem Wallet mudam neste caso
-                }
+                due.Add((npc, new Money((long)Math.Round(adjustedAmount))));
+            }
 
-                npc.CreditWallet(wage);
+            long totalDue = due.Sum(d => d.Wage.Amount);
+            if (totalDue <= 0) continue;
+
+            // Caixa curto: todos recebem a mesma fração do que lhes é devido (empregador que não fecha a folha
+            // atrasa e parcela para todos), em vez de os primeiros por id levarem tudo e os últimos nada.
+            double fraction = workplace.Treasury.Amount >= totalDue ? 1.0 : (double)workplace.Treasury.Amount / totalDue;
+            foreach (var (npc, wage) in due)
+            {
+                var pay = fraction >= 1.0 ? wage : new Money((long)Math.Floor(wage.Amount * fraction));
+                if (pay.Amount < wage.Amount)
+                    ctx.LogEvent(WorldEventKind.WageUnpaid, $"{npc.Id.Value}|{workplace.Id.Value}|{wage.Amount - pay.Amount}", sourceSystem: "WagePaymentSystem");
+                if (pay.Amount <= 0) continue;
+
+                var debited = workplace.TryDebitTreasury(pay);
+                if (!debited.IsSuccess) continue;
+                npc.CreditWallet(pay);
             }
         }
     }

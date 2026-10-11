@@ -1,12 +1,15 @@
 using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Production;
 using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Economy.Market;
 
 /// <summary>Recalcula <see cref="Workplace.Prices"/> por oferta/demanda,
 /// <c>Daily</c>. Respeita <see cref="EconomyRules.Enabled"/>.</summary>
+[LivingCapability("MARKET", Consumers = ["inspector.market"])]
+[RunsAfter(typeof(ProductionSystem))]
 public sealed class MarketPricingSystem : ISimulationSystem
 {
     public const string SystemName = "economy-market-pricing";

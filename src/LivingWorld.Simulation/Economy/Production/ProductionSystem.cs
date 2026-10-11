@@ -8,6 +8,7 @@ using LivingWorld.Simulation.Behavior.Needs;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Economy.Labor;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Population.Skills;
 using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Economy.Production;
@@ -17,6 +18,10 @@ namespace LivingWorld.Simulation.Economy.Production;
 /// é informado, escala <c>produced</c> pela habilidade média dos trabalhadores presentes antes
 /// de contar o bruto — <c>null</c> (default) preserva o comportamento anterior byte-a-byte
 /// (nenhum cenário existente injeta habilidade ainda).</summary>
+[LivingCapability("PRODUCTION", Events = [WorldEventKind.ResourceLost], Consumers = ["inspector.production"])]
+[RunsAfter(typeof(EmploymentSystem))]
+[RunsAfter(typeof(SkillPracticeSystem))]
+[RunsAfter(typeof(SkillTeachingSystem))]
 public sealed class ProductionSystem : ISimulationSystem
 {
     public const string SystemName = "economy-production";
@@ -26,7 +31,7 @@ public sealed class ProductionSystem : ISimulationSystem
     public ProductionSystem(SkillsRules? skillsRules = null) => _skillsRules = skillsRules;
 
     public string Name => SystemName;
-    public TickFrequency Frequency => TickFrequency.Daily;
+    public TickFrequency Frequency => TickFrequency.Midshift;
 
     public void Tick(WorldState world, TickContext ctx)
     {

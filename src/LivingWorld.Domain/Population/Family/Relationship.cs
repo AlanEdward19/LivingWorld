@@ -13,6 +13,16 @@ public sealed class Relationship
     private const double AxisMin = 0.0;
     private const double AxisMax = 100.0;
 
+    private static long s_axesVersion;
+
+    /// <summary>Contador monotônico, de todo o processo, incrementado em toda criação ou mudança de eixo de
+    /// qualquer relação. Serve só para invalidar caches derivados (<c>"alguém tem vínculo forte?"</c>):
+    /// se não mudou desde a última consulta, nenhum eixo de nenhuma relação mudou.</summary>
+    [JsonIgnore]
+    public static long AxesVersion => Volatile.Read(ref s_axesVersion);
+
+    private static void TouchAxes() => Interlocked.Increment(ref s_axesVersion);
+
     public double Trust { get; private set; }
     public double Affection { get; private set; }
     public double Respect { get; private set; }
@@ -31,6 +41,7 @@ public sealed class Relationship
         Respect = respect;
         Debt = debt;
         LastContactTick = lastContactTick;
+        TouchAxes();
     }
 
     /// <summary>Relação recém-criada por um primeiro encontro — todos os eixos no piso mínimo da
@@ -60,6 +71,7 @@ public sealed class Relationship
 
     private void Set(RelationshipAxis axis, double value)
     {
+        TouchAxes();
         double clamped = Math.Clamp(value, AxisMin, AxisMax);
         switch (axis)
         {
@@ -109,6 +121,7 @@ public sealed class Relationship
     /// contato no tick atual).</summary>
     public void CopyAxesFrom(Relationship source)
     {
+        TouchAxes();
         Trust = source.Trust;
         Affection = source.Affection;
         Respect = source.Respect;

@@ -9,12 +9,15 @@ using LivingWorld.Simulation.Behavior.Needs;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Extraordinary.Inheritance;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Population.Family;
 using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Population.Lifecycle;
 
 /// <summary>Concepção anual entre cônjuges casados — agenda parto com riqueza
 /// capturada na concepção; risco de parto e hereditariedade no <see cref="HandleEvent"/>.</summary>
+[LivingCapability("BIRTH", Events = [WorldEventKind.Birth, WorldEventKind.MaternalDeath, WorldEventKind.StillBirth], Consumers = ["timeline.birth"])]
+[RunsAfter(typeof(CourtshipSystem))]
 public sealed class NatalitySystem : ISimulationSystem
 {
     public const string SystemName = "population-natality";

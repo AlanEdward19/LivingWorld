@@ -14,7 +14,13 @@ public sealed record PopulationRules(
     int GestationDays,
     /// <summary>Teto de NPCs vivos (natalidade + split-on-death). Default
     /// <see cref="int.MaxValue"/> = sem teto (comportamento legado).</summary>
-    int MaxAliveNpcs = int.MaxValue)
+    int MaxAliveNpcs = int.MaxValue,
+    /// <summary>Quando ligado, a idade de morte planejada de um NPC que já nasceu (população inicial,
+    /// fundação, clone) é sorteada <em>condicionada a ele estar vivo na idade atual</em>. Desligado
+    /// (default, comportamento legado) o sorteio parte da idade 0 e um adulto pode receber idade de
+    /// morte menor que a atual — e morre uma hora depois.</summary>
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    bool ConditionalInitialMortality = false)
 {
     public static Result<PopulationRules> Create(
         LifeTable lifeTable,
@@ -22,7 +28,8 @@ public sealed record PopulationRules(
         int fertilityMaxAge,
         double annualConceptionChance,
         int gestationDays,
-        int maxAliveNpcs = int.MaxValue)
+        int maxAliveNpcs = int.MaxValue,
+        bool conditionalInitialMortality = false)
     {
         if (fertilityMinAge < 0 || fertilityMaxAge < fertilityMinAge)
             return Result<PopulationRules>.Fail("FertilityMinAge/FertilityMaxAge: janela inválida");
@@ -35,7 +42,8 @@ public sealed record PopulationRules(
 
         return Result<PopulationRules>.Ok(
             new PopulationRules(
-                lifeTable, fertilityMinAge, fertilityMaxAge, annualConceptionChance, gestationDays, maxAliveNpcs));
+                lifeTable, fertilityMinAge, fertilityMaxAge, annualConceptionChance, gestationDays, maxAliveNpcs,
+                conditionalInitialMortality));
     }
 
     public bool IsFertileAge(int ageYears) => ageYears >= FertilityMinAge && ageYears <= FertilityMaxAge;

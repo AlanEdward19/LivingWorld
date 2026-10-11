@@ -11,6 +11,7 @@ namespace LivingWorld.Simulation.Cities.Construction;
 /// <summary>Abre obras quando a cidade tem déficit de moradia ou de vagas de emprego e insumo
 /// suficiente — demanda vira fila canônica, nunca spawn
 /// instantâneo nem trabalho fingido sem workplace real.</summary>
+[LivingCapability("CITY_CONSTRUCTION", Consumers = ["inspector.city.construction"])]
 public sealed class ConstructionDemandSystem : ISimulationSystem
 {
     public const string SystemName = "cities-construction-demand";

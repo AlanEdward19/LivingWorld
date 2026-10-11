@@ -100,6 +100,7 @@ public sealed class FloraMechanic : ExtraordinaryMechanic
 /// <summary>Registro extraordinário legado. O avanço de estágio passou a
 /// <see cref="FloraLifecycleSystem"/> (taxa base × multiplicador de poder); este sistema
 /// não muta flora — evita dobro de avanço quando ambos estão no clock.</summary>
+[LivingCapability("EXTRAORDINARY")]
 public sealed class FloraGrowthSystem : ISimulationSystem
 {
     public const string SystemName = "ExtraordinaryFlora";

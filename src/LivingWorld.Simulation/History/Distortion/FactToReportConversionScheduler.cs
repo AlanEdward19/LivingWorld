@@ -9,6 +9,7 @@ namespace LivingWorld.Simulation.History.Distortion;
 
 /// <summary>Converte fato em relato hop-0 quando a última testemunha morre — via
 /// <see cref="EventScheduler"/>, nunca varredura por tick.</summary>
+[LivingCapability("HISTORY_FACT", Events = [WorldEventKind.FactRecorded, WorldEventKind.ReportConverted, WorldEventKind.CompensatingCorrection], Consumers = ["timeline.knowledge"])]
 public sealed class FactToReportConversionScheduler : ISimulationSystem
 {
     public const string SystemName = "history-fact-to-report";

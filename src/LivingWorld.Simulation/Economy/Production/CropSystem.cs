@@ -1,5 +1,6 @@
 using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
@@ -12,6 +13,7 @@ namespace LivingWorld.Simulation.Economy.Production;
 
 /// <summary>Cultivo estagiado <c>plant→water→mature→harvest</c>.
 /// Substitui o trigo instantâneo da fazenda default; colheita antecipada é rejeitada.</summary>
+[LivingCapability("CROPS", Consumers = ["map.crop"])]
 public sealed class CropSystem : ISimulationSystem
 {
     public const string SystemName = "crop-lifecycle";
@@ -20,13 +22,14 @@ public sealed class CropSystem : ISimulationSystem
     public const long DefaultHarvestPerWorker = 10;
 
     public string Name => SystemName;
-    public TickFrequency Frequency => TickFrequency.Daily;
+    public TickFrequency Frequency => TickFrequency.Midshift;
 
     public void Tick(WorldState world, TickContext ctx)
     {
         if (!world.EconomyRules.Enabled) return;
 
-        foreach (var crop in world.CropBatches.OrderBy(item => item.Id.Value))
+        // Só lotes não colhidos podem amadurecer; cada um é independente, então a ordem não importa.
+        foreach (var crop in world.ActiveCropBatches)
         {
             if (crop.Status == CropStatus.Growing && ctx.CurrentTick >= crop.MatureAtTick)
                 crop.MarkMature();
@@ -45,9 +48,14 @@ public sealed class CropSystem : ISimulationSystem
             if (crop is { } harvestable && harvestable.IsHarvestable(ctx.CurrentTick))
             {
                 long yield = DefaultHarvestPerWorker * workers.Count;
-                workplace.Deposit(new ResourceType(harvestable.CropResourceId), yield, world.EconomyRules);
+                long lost = workplace.Deposit(new ResourceType(harvestable.CropResourceId), yield, world.EconomyRules);
+                if (lost > 0)
+                    ctx.LogEvent(
+                        WorldEventKind.ResourceLost,
+                        $"{workplace.Id.Value}|{harvestable.CropResourceId}|{lost}", sourceSystem: SystemName);
                 world.RecordResourceProduced(new ResourceType(harvestable.CropResourceId), yield);
                 harvestable.MarkHarvested();
+                world.RetireHarvestedCropBatch(harvestable);
 
                 // Replanta no mesmo tick da colheita — sem isso o plantio só acontecia no
                 // próximo Tick() (FindCropAt já ignora lotes colhidos), somando um dia ocioso
@@ -140,5 +148,6 @@ public sealed class CropSystem : ISimulationSystem
         household.Deposit(process.Output, process.OutputQuantity);
         world.RecordResourceProduced(process.Output, process.OutputQuantity);
         crop.MarkHarvested();
+        world.RetireHarvestedCropBatch(crop);
     }
 }

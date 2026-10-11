@@ -10,6 +10,7 @@ namespace LivingWorld.Simulation.Population.Lifecycle;
 /// <summary>Morte por idade como evento agendado — nenhuma varredura por tick. A
 /// idade de morte é resolvida por antecipação (<see cref="MortalityPlanner"/>) no nascimento;
 /// este sistema só executa o que já foi decidido, no tick certo.</summary>
+[LivingCapability("DEATH", Events = [WorldEventKind.Death, WorldEventKind.Starvation], Consumers = ["timeline.death"])]
 public sealed class MortalitySystem : ISimulationSystem
 {
     public const string SystemName = "population-mortality";
@@ -54,7 +55,8 @@ public sealed class MortalitySystem : ISimulationSystem
             senescenceRateMultiplier = carrier.SenescenceRateMultiplier;
         }
         int deathAge = MortalityPlanner.RollDeathAge(
-            rng, world.PopulationRules.LifeTable, npc.Health, vitalityMultiplier, senescenceRateMultiplier);
+            rng, world.PopulationRules.LifeTable, npc.Health, vitalityMultiplier, senescenceRateMultiplier,
+            aliveAtAgeYears: world.PopulationRules.ConditionalInitialMortality ? npc.AgeYears(world.CurrentDate) : 0);
         long deathTick = npc.BirthDate.AddYears(deathAge).TotalHours;
         if (deathTick <= world.CurrentDate.TotalHours)
             deathTick = world.CurrentDate.TotalHours + 1;

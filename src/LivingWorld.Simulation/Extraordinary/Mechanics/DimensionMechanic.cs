@@ -198,6 +198,7 @@ public sealed class DimensionMechanic : ExtraordinaryMechanic
 }
 
 /// <summary>Detecta NPCs nas células do portal a cada hora e reusa o teleporte existente.</summary>
+[LivingCapability("EXTRAORDINARY")]
 public sealed class DimensionPortalSystem : ISimulationSystem
 {
     public const string SystemName = "DimensionPortal";

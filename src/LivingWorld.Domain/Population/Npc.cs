@@ -24,6 +24,17 @@ public sealed class Npc
     public Action<NpcId>? CanonicalMutationNotifier { get; set; }
     private void TouchCanonical() => CanonicalMutationNotifier?.Invoke(Id);
 
+    /// <summary>Avisa o índice espacial de NPCs vivos (derivado) da posição anterior sempre que
+    /// <see cref="MoveTo"/> muda <see cref="CurrentLocation"/>. Mesmo molde de
+    /// <see cref="CanonicalMutationNotifier"/>: um mundo dono por instância de NPC.</summary>
+    [JsonIgnore]
+    public Action<Npc, CellCoord>? LocationObserver { get; set; }
+
+    /// <summary>Notifica <c>(npc, saúdeAnterior)</c> quando <see cref="SetHealth"/> muda a saúde — único
+    /// caminho de mutação, o que permite ao índice de vivos contar quem está em perigo sem varrer o mundo.</summary>
+    [JsonIgnore]
+    public Action<Npc, int>? HealthObserver { get; set; }
+
     public NpcId Id { get; }
     public string Name { get; }
     public Sex Sex { get; }
@@ -52,6 +63,19 @@ public sealed class Npc
     /// <summary>Intent de plano persistente — granularidade de
     /// <see cref="ActionType"/> + target opcional; sobrevive além da ação imediata.</summary>
     public ActionType? CurrentIntent { get; private set; }
+
+    /// <summary>Por que o NPC está viajando — a ação (Work, Sleep, Buy) que o refino de localização trocou por
+    /// <see cref="ActionType.Travel"/>. Sem o motivo, o destino seguia uma ordem fixa (cama, trabalho,
+    /// mercado) e quem saía para comprar comida no trabalho era levado para casa, e de casa ao trabalho,
+    /// sem nunca chegar ao mercado. Nulo quando não viaja.</summary>
+    public ActionType? TravelPurpose { get; private set; }
+
+    public void SetTravelPurpose(ActionType? purpose)
+    {
+        if (TravelPurpose == purpose) return;
+        TravelPurpose = purpose;
+        TouchCanonical();
+    }
     public long IntentStartedTick { get; private set; }
     public string? IntentTarget { get; private set; }
     public IntentStatus? IntentStatus { get; private set; }
@@ -137,7 +161,7 @@ public sealed class Npc
         bool isGhost = false,
         double height = 1.70, double weight = 68.0, double muscleMass = 28.0,
         ActionType? currentIntent = null, long intentStartedTick = 0,
-        string? intentTarget = null, IntentStatus? intentStatus = null)
+        string? intentTarget = null, IntentStatus? intentStatus = null, ActionType? travelPurpose = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -165,6 +189,7 @@ public sealed class Npc
         CurrentLocation = currentLocation;
         CurrentAction = currentAction;
         ActionStartedAtTick = actionStartedAtTick;
+        TravelPurpose = travelPurpose;
         CurrentIntent = currentIntent;
         IntentStartedTick = intentStartedTick;
         IntentTarget = intentTarget;
@@ -334,7 +359,10 @@ public sealed class Npc
 
     public void SetHealth(int health)
     {
+        int previous = Health;
         Health = Math.Clamp(health, 0, 100);
+        if (previous != Health)
+            HealthObserver?.Invoke(this, previous);
         TouchCanonical();
     }
 
@@ -367,7 +395,10 @@ public sealed class Npc
     /// ainda (deslocamento com custo vem depois).</summary>
     public void MoveTo(CellCoord destination, long tick)
     {
+        var previous = CurrentLocation;
         CurrentLocation = destination;
+        if (previous != destination)
+            LocationObserver?.Invoke(this, previous);
         TouchCanonical();
     }
 
@@ -375,6 +406,8 @@ public sealed class Npc
     {
         CurrentAction = action;
         ActionStartedAtTick = tick;
+        if (action != ActionType.Travel)
+            TravelPurpose = null;
         if (action != ActionType.UsePower)
             PendingPowerInvocation = null;
         TouchCanonical();

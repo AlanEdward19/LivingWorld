@@ -34,6 +34,7 @@
   "FertilityMaxAge": 45,
   "AnnualConceptionChance": 0.25,
   "GestationDays": 270,
+  "ConditionalInitialMortality": true,
   "MaxBytesPerNpcPerYear": 4000,
 
   "HungerDecayPerHour": 2.0,

@@ -77,6 +77,7 @@ public sealed class FaunaMechanic : ExtraordinaryMechanic
 }
 
 /// <summary>Move animais dominados um passo em direção ao portador a cada tick horário.</summary>
+[LivingCapability("EXTRAORDINARY")]
 public sealed class FaunaDominateSystem : ISimulationSystem
 {
     public const string SystemName = "ExtraordinaryFauna";

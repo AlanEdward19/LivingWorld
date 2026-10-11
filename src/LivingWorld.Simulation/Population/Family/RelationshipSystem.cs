@@ -1,12 +1,16 @@
+using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Labor;
 using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Population.Family;
 
 /// <summary>Forma e evolui relações por convivência diária — único
 /// sistema que escreve em <see cref="WorldState.Relationships"/>.</summary>
+[LivingCapability("RELATIONSHIPS", Events = [WorldEventKind.Marriage, WorldEventKind.AidGiven, WorldEventKind.CourtshipStarted, WorldEventKind.CourtshipRejected, WorldEventKind.CourtshipSucceeded], Consumers = ["inspector.npc.relationships"])]
+[RunsAfter(typeof(EmploymentSystem))]
 public sealed class RelationshipSystem : ISimulationSystem
 {
     public const string SystemName = "population-relationship";

@@ -8,6 +8,7 @@ namespace LivingWorld.Simulation.Geography;
 
 /// <summary>Aplica delta sazonal por região/bioma via <see
 /// cref="EnvironmentTemperatureAdjustment"/>.</summary>
+[LivingCapability("GEO", Consumers = ["map.geography"])]
 public sealed class TemperatureSeasonSystem : ISimulationSystem
 {
     public const string SystemName = "temperature-season";

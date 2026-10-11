@@ -99,23 +99,71 @@ public static class CityOccupancy
     public static IReadOnlyList<(Building Building, CityBounds Box)> OwnedBuildingFootprintBoxesWithOwners(
         WorldState world, City city, CityBounds populationBounds)
     {
-        var result = new List<(Building Building, CityBounds Box)>();
-        foreach (var building in world.Buildings.Where(b => b.City == city.Id))
+        // As caixas só dependem dos prédios da cidade e dos bounds por população — exatamente o que o
+        // plano memoizado valida. Enquanto o plano não muda, a lista pronta vale.
+        // Atalho exato: nenhum prédio criado ou trocado de cidade desde que as caixas foram calculadas para
+        // estes mesmos bounds ⇒ o mesmo conjunto de prédios ⇒ o mesmo plano. Evita filtrar e ordenar todos os
+        // prédios do mundo a cada chamada (uma por tick e cidade).
+        if (Plans.GetOrCreateValue(world).TryGetValue(city.Id, out var known)
+            && known.Boxes is { } fast && known.BoxesLayoutVersion == Building.LayoutVersion
+            && known.Bounds == populationBounds
+            && known.MapWidth == world.Map.Width && known.MapHeight == world.Map.Height)
+            return fast;
+
+        long layoutVersion = Building.LayoutVersion;
+        var siblings = SiblingsOf(world, city);
+
+        // Caixas anteriores, se o plano continuar o mesmo objeto (só entraram prédios no fim) e todos os
+        // prédios do plano tiverem posição autorada: a caixa de cada um depende só da própria posição e
+        // forma, então as já calculadas continuam valendo e só os acrescentados no mundo são medidos.
+        var previous = Plans.GetOrCreateValue(world).TryGetValue(city.Id, out var before) ? before : null;
+        var previousBoxes = previous?.Boxes;
+        int previousWorldCount = previous?.BoxesWorldCount ?? 0;
+        long previousVersion = previous?.BoxesLayoutVersion ?? -1;
+
+        var plan = PlanFor(world, city, populationBounds, siblings);
+        if (plan.Boxes is { } cached)
         {
+            plan.BoxesLayoutVersion = layoutVersion;
+            plan.BoxesWorldCount = world.Buildings.Count;
+            return cached;
+        }
+
+        var all = world.Buildings;
+        bool incremental = previousBoxes is not null && ReferenceEquals(plan, previous) && !plan.HasDerived
+            && previousWorldCount <= all.Count && layoutVersion - previousVersion == all.Count - previousWorldCount;
+
+        var result = incremental ? new List<(Building Building, CityBounds Box)>(previousBoxes!) : new List<(Building Building, CityBounds Box)>();
+        for (int index = incremental ? previousWorldCount : 0; index < all.Count; index++)
+        {
+            var building = all[index];
+            if (building.City != city.Id) continue;
+
             // null = escassez de terra pra este prédio -- excluído da lista de
             // footprints em vez de derrubar a resolução inteira dos outros prédios da cidade.
             CellCoord? position = building.Position
                 ?? BuildingPlacementResolver.Resolve(building, city, world, populationBounds)?.Position;
             if (position is null) continue;
 
-            var shape = BuildingFootprintGenerator.Generate(building).Select(c => c.Cell).ToList();
-            var cells = Translate(shape, position.Value);
-            if (cells.Count == 0) continue;
+            var footprint = BuildingFootprintGenerator.Generate(building);
+            if (footprint.Count == 0) continue;
 
-            int minX = cells.Min(c => c.X), minY = cells.Min(c => c.Y);
-            int maxX = cells.Max(c => c.X), maxY = cells.Max(c => c.Y);
+            int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
+            foreach (var footprintCell in footprint)
+            {
+                int x = footprintCell.Cell.X + position.Value.X, y = footprintCell.Cell.Y + position.Value.Y;
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+            }
+
             result.Add((building, new CityBounds(new CellCoord(minX, minY), maxX - minX + 1, maxY - minY + 1)));
         }
+
+        plan.Boxes = result;
+        plan.BoxesLayoutVersion = layoutVersion;
+        plan.BoxesWorldCount = all.Count;
         return result;
     }
 
@@ -205,37 +253,264 @@ public static class CityOccupancy
     /// anel (a outra metade do mesmo bug).</summary>
     internal static HashSet<CellCoord> OccupiedCellsOfCity(WorldState world, City city, CityBounds bounds, BuildingId? placingId)
     {
-        var occupied = new HashSet<CellCoord>();
-        var siblings = world.Buildings.Where(b => b.City == city.Id);
-        if (placingId is { } selfId)
+        var siblings = SiblingsOf(world, city);
+
+        if (placingId is not { } selfId)
         {
-            siblings = siblings
-                .Where(b => b.Id.Value != selfId.Value) // nunca o próprio prédio sendo posicionado
-                .Where(b => b.Position is not null || b.Id.Value < selfId.Value); // exclui "futuro" sem posição autorada
+            // Sem prédio em posicionamento: anel-hash legado para todos os que não têm posição autorada.
+            var legacy = new HashSet<CellCoord>();
+            foreach (var building in siblings)
+                AddFootprint(legacy, building, building.Position ?? LegacyRingFallback(building.Id, city.Location));
+            return legacy;
         }
 
-        foreach (var building in siblings.OrderBy(b => b.Id.Value))
-        {
-            var shape = BuildingFootprintGenerator.Generate(building).Select(c => c.Cell).ToList();
+        // A posição derivada de um prédio depende só dos de Id menor (passe ascendente) e dos bounds,
+        // nunca de qual prédio está sendo posicionado agora — então o passe é memoizado por cidade e
+        // só estendido quando entram prédios novos no fim. O conjunto devolvido é montado a partir das
+        // posições já derivadas, sem repetir busca de célula livre / anel de overflow por vizinho.
+        var plan = PlanFor(world, city, bounds, siblings);
 
+        // Nenhum vizinho excluído (o prédio ainda não está na lista e não há "futuro" sem posição):
+        // o conjunto é exatamente o do plano. Devolvido sem cópia — todo chamador só lê, e usa
+        // antes de qualquer nova chamada que possa estender o plano.
+        bool anyExcluded = false;
+        foreach (var building in siblings)
+        {
+            if (building.Id.Value == selfId.Value || (building.Position is null && building.Id.Value > selfId.Value))
+            {
+                anyExcluded = true;
+                break;
+            }
+        }
+
+        if (!anyExcluded)
+            return plan.Occupied;
+
+        var occupied = new HashSet<CellCoord>();
+        for (int i = 0; i < siblings.Length; i++)
+        {
+            var building = siblings[i];
+            if (building.Id.Value == selfId.Value) continue; // nunca o próprio prédio sendo posicionado
+            if (building.Position is null && building.Id.Value > selfId.Value) continue; // "futuro" sem posição autorada
+
+            // Escassez de terra pra este vizinho: não entra no conjunto (nunca um crash).
+            if ((building.Position ?? plan.Derived[i]) is not { } position) continue;
+            AddFootprint(occupied, building, position);
+        }
+        return occupied;
+    }
+
+    private static void AddFootprint(HashSet<CellCoord> occupied, Building building, CellCoord position)
+    {
+        foreach (var footprintCell in BuildingFootprintGenerator.Generate(building))
+            occupied.Add(new CellCoord(footprintCell.Cell.X + position.X, footprintCell.Cell.Y + position.Y));
+    }
+
+    private sealed class PlacementPlan
+    {
+        public CityBounds Bounds;
+        public int MapWidth, MapHeight;
+        public long[] Ids = [];
+        public CellCoord?[] Derived = [];
+        public HashSet<CellCoord> Occupied = new();
+        /// <summary>Caixas de footprint dos prédios da cidade para estes bounds; descartadas quando o plano muda.</summary>
+        public List<(Building Building, CityBounds Box)>? Boxes;
+        /// <summary><see cref="Building.LayoutVersion"/> em que <see cref="Boxes"/> foi calculado.</summary>
+        public long BoxesLayoutVersion;
+        /// <summary>Quantos prédios o mundo tinha quando <see cref="Boxes"/> foi calculado.</summary>
+        public int BoxesWorldCount;
+        /// <summary>Algum prédio do plano não tinha posição autorada (a posição vem da busca, não do dado).</summary>
+        public bool HasDerived;
+        /// <summary>Por forma de prédio (tipo, orientação): marcos (id do passo, raio) — no passo desse id
+        /// todo anel de raio menor já estava inteiramente ocupado para a forma. A ocupação só cresce ao
+        /// longo do passe, então o marco continua valendo para qualquer resolução de id maior ou igual
+        /// (cuja ocupação é superconjunto da do passo). Raios crescem junto com os ids.</summary>
+        public readonly Dictionary<(int Type, int Orientation), List<(long Id, int Radius)>> OverflowMarks = new();
+
+        public int StartRadiusFor((int Type, int Orientation) shapeKey, long id)
+        {
+            if (!OverflowMarks.TryGetValue(shapeKey, out var marks)) return 1;
+            for (int i = marks.Count - 1; i >= 0; i--)
+                if (marks[i].Id <= id) return marks[i].Radius;
+            return 1;
+        }
+
+        public void Mark((int Type, int Orientation) shapeKey, long id, int radius)
+        {
+            if (!OverflowMarks.TryGetValue(shapeKey, out var marks))
+                OverflowMarks[shapeKey] = marks = new();
+            if (marks.Count == 0 || radius > marks[^1].Radius)
+                marks.Add((id, radius));
+        }
+    }
+
+    private static (int Type, int Orientation) ShapeKeyOf(Building building) =>
+        (building.BuildingTypeId, building.Orientation ?? BuildingFootprintGenerator.DerivedOrientation(building.Id, building.BuildingTypeId));
+
+    /// <summary>Busca de overflow de <paramref name="building"/> começando no marco do plano memoizado
+    /// da cidade (anéis menores já falharam para a forma, com ocupação que é subconjunto da atual) e
+    /// gravando o novo marco. Resultado idêntico ao da busca desde o raio 1.</summary>
+    internal static CellCoord? ResolveOverflowWithMarks(
+        WorldState world, City city, CityBounds bounds, Building building, IReadOnlyList<CellCoord> shape)
+    {
+        PlacementPlan? plan = null;
+        if (Plans.TryGetValue(world, out var byCity) && byCity.TryGetValue(city.Id, out var cached)
+            && cached.Bounds == bounds && cached.MapWidth == world.Map.Width && cached.MapHeight == world.Map.Height)
+            plan = cached;
+
+        var shapeKey = ShapeKeyOf(building);
+        int start = plan?.StartRadiusFor(shapeKey, building.Id.Value) ?? 1;
+        var position = OverflowPlacer.ResolveOverflowPosition(world, city, bounds, building.Id, shape, start, out int found);
+        plan?.Mark(shapeKey, building.Id.Value, found);
+        return position;
+    }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<
+        WorldState, Dictionary<CityId, PlacementPlan>> Plans = new();
+
+    private sealed class SiblingCache
+    {
+        public Building[] Siblings = [];
+        public int WorldCount;
+        public long LayoutVersion = -1;
+    }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<
+        WorldState, Dictionary<CityId, SiblingCache>> SiblingCaches = new();
+
+    /// <summary>Prédios da cidade ordenados por Id. Os prédios só são acrescentados ao mundo, e qualquer
+    /// troca de cidade ou prédio de outro mundo move <see cref="Building.LayoutVersion"/> além do número
+    /// de acréscimos; então, quando a versão andou exatamente o que a lista cresceu e os novos têm Id
+    /// maior que o último, basta anexar os novos da cidade. Qualquer outro caso refaz a ordenação.</summary>
+    private static Building[] SiblingsOf(WorldState world, City city)
+    {
+        var byCity = SiblingCaches.GetOrCreateValue(world);
+        if (!byCity.TryGetValue(city.Id, out var cache))
+            byCity[city.Id] = cache = new SiblingCache();
+
+        var all = world.Buildings;
+        long version = Building.LayoutVersion;
+        if (cache.LayoutVersion == version && cache.WorldCount == all.Count)
+            return cache.Siblings;
+
+        int added = all.Count - cache.WorldCount;
+        if (cache.LayoutVersion >= 0 && added > 0 && version - cache.LayoutVersion == added)
+        {
+            long lastId = cache.Siblings.Length == 0 ? long.MinValue : cache.Siblings[^1].Id.Value;
+            var extra = new List<Building>();
+            bool ordered = true;
+            for (int i = cache.WorldCount; i < all.Count; i++)
+            {
+                var building = all[i];
+                if (building.City != city.Id) continue;
+                if (building.Id.Value <= lastId) { ordered = false; break; }
+                lastId = building.Id.Value;
+                extra.Add(building);
+            }
+
+            if (ordered)
+            {
+                var merged = new Building[cache.Siblings.Length + extra.Count];
+                cache.Siblings.CopyTo(merged, 0);
+                extra.CopyTo(merged, cache.Siblings.Length);
+                cache.Siblings = merged;
+                cache.WorldCount = all.Count;
+                cache.LayoutVersion = version;
+                return merged;
+            }
+        }
+
+        cache.Siblings = all.Where(b => b.City == city.Id).OrderBy(b => b.Id.Value).ToArray();
+        cache.WorldCount = all.Count;
+        cache.LayoutVersion = version;
+        return cache.Siblings;
+    }
+
+    /// <summary>Passe ascendente por Id sobre os prédios da cidade: cada prédio sem posição autorada
+    /// ocupa a primeira célula livre dos bounds, senão a do anel de overflow, contra o que os de Id
+    /// menor já ocupam. Reaproveita o passe anterior quando só entraram prédios no fim da lista.</summary>
+    private static PlacementPlan PlanFor(WorldState world, City city, CityBounds bounds, Building[] siblings)
+    {
+        var byCity = Plans.GetOrCreateValue(world);
+        byCity.TryGetValue(city.Id, out var plan);
+
+        int reusable = 0;
+        // Com todos os prédios do plano autorados, a ocupação não depende dos bounds (só as posições
+        // derivadas dependem): o plano é reaproveitado sob bounds novos, só descartando os marcos de anel,
+        // que valem para uns bounds específicos. Sem isso, alternar entre os bounds por população e os
+        // bounds crescidos refazia o passe inteiro a cada chamada.
+        if (plan is not null && plan.MapWidth == world.Map.Width && plan.MapHeight == world.Map.Height
+            && (plan.Bounds == bounds || !plan.HasDerived))
+        {
+            if (plan.Bounds != bounds)
+            {
+                plan.Bounds = bounds;
+                plan.OverflowMarks.Clear();
+            }
+
+            while (reusable < plan.Ids.Length && reusable < siblings.Length && plan.Ids[reusable] == siblings[reusable].Id.Value)
+                reusable++;
+            // Só vale se TODO o passe anterior continua válido (prédios novos apenas no fim).
+            if (reusable != plan.Ids.Length)
+                plan = null;
+        }
+        else
+        {
+            plan = null;
+        }
+
+        int start = 0;
+        if (plan is null)
+        {
+            plan = new PlacementPlan { Bounds = bounds, MapWidth = world.Map.Width, MapHeight = world.Map.Height };
+            byCity[city.Id] = plan;
+        }
+        else
+        {
+            start = plan.Ids.Length;
+        }
+
+        if (start == siblings.Length && plan.Ids.Length == siblings.Length)
+            return plan;
+
+        plan.Boxes = null;
+
+        var ids = new long[siblings.Length];
+        var derived = new CellCoord?[siblings.Length];
+        Array.Copy(plan.Ids, ids, start);
+        Array.Copy(plan.Derived, derived, start);
+
+        for (int i = start; i < siblings.Length; i++)
+        {
+            var building = siblings[i];
+            ids[i] = building.Id.Value;
             CellCoord? position;
             if (building.Position is { } authored)
                 position = authored;
-            else if (placingId is not null)
-                position = ScanForFreeOrigin(occupied, bounds, shape)
-                    ?? OverflowPlacer.ResolveOverflowPositionGiven(occupied, bounds, building.Id, shape, world.Map.Width, world.Map.Height);
             else
-                position = LegacyRingFallback(building.Id, city.Location);
+            {
+                var shape = BuildingFootprintGenerator.Generate(building).Select(c => c.Cell).ToList();
+                position = ScanForFreeOrigin(plan.Occupied, bounds, shape);
+                if (position is null)
+                {
+                    var shapeKey = ShapeKeyOf(building);
+                    position = OverflowPlacer.ResolveOverflowPositionGiven(
+                        plan.Occupied, bounds, building.Id, shape, world.Map.Width, world.Map.Height,
+                        plan.StartRadiusFor(shapeKey, building.Id.Value), out int foundRadius);
+                    plan.Mark(shapeKey, building.Id.Value, foundRadius);
+                }
 
-            // Escassez de terra pra este vizinho -- não há onde contá-lo como
-            // ocupado, então ele simplesmente não entra no conjunto (mesmo "fica sem posição
-            // por esta chamada" do resto do fix, nunca um crash).
-            if (position is null) continue;
+                derived[i] = position;
+                plan.HasDerived = true;
+            }
 
-            foreach (var cell in Translate(shape, position.Value))
-                occupied.Add(cell);
+            if (position is { } resolved)
+                AddFootprint(plan.Occupied, building, resolved);
         }
-        return occupied;
+
+        plan.Ids = ids;
+        plan.Derived = derived;
+        return plan;
     }
 
     private static HashSet<CellCoord> OccupiedCellsLegacy(IEnumerable<Building> buildings, WorldState world)

@@ -4,6 +4,17 @@ Fonte única de continuidade. Quem entra numa área nova **lê este arquivo prim
 Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
+- **Última coisa concluída (2026-10-11)**: P1–P4, B1, B2 (parcial) e B3 em `claude/inspiring-allen-qj41zx`
+  (AD-077/078). Gate rápido ~1 min, verde (1930). LongRunning **~3 min** (`Category=Heavy` fora do padrão; `--heavy` soma ~50 s). Cenários: Unit ~1,5 min, Integration ~50 s, tudo verde (era >25; 4 min 50 s antes da rodada final), verde, 111 testes.
+  AD-081/083 (perf, hashes idênticos exceto o lote colhido). Economia que sustenta a vila (AD-082): folha proporcional, ajuda mútua entre
+  parentes, viagem com motivo, despertar na chegada. Fixture de 500 estável por 10+ anos; default estável.
+  Realismo de decisão corrigido e medido (`docs/audits/realism-cadence.md`).
+  FAM-32: efeito de seleção real mas pequeno (−0,0041, z = −4,0 em 160 seeds); o gate com 10 seeds só barra o sinal contrário.
+  Integração (AD-084..087): sistemas se declaram (`LivingCapability`/`RunsAfter`), contrato da API congelado em `tests/contracts/`, `verify.sh --full/--nightly` + CI, arquivos grandes em `partial`.
+  Ocupação da cidade incremental feita (criar 10k NPCs: 24 s → 5 s). O resto é simulação de 10 anos × ~10 testes;
+  chegar a ~2 min exigiria tirar 10k/100x do conjunto padrão (ver `longrunning-budget.md`).
+  Spec de veículos emergentes (sem código): `.specs/features/emergent-vehicles/` (AD-079).
+  `web/`, `web-demo/` e `scripts/generate-web-types.sh` removidos (ADR-0022); spec do cliente Godot em `.specs/features/godot-client/spec.md` (contrato congelado em `tests/contracts/`, `ApiContractTests`); **próxima unidade**: implementar o cliente de contrato.
 - **Última coisa concluída (2026-09-01)**: Fase 28 fechada — cognição inspecionável, LOD
   observacional (mundo/cidade/interior), compressão de estado frio, painel web "ver o cérebro",
   sandbox de decisão. Branch `feat/phase-28-cognition` com gate verde; worktrees intermediárias

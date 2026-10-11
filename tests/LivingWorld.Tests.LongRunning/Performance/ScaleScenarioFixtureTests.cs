@@ -23,8 +23,9 @@ public class ScaleScenarioFixtureTests
 
     [Theory]
     [Trait("Category", "Scenario")]
+    // 5.000 NPCs por 1 ano custavam 13 min (a população sobrevive, então o custo acompanha os vivos);
+    // a escala grande segue coberta pelo sensor de 30 dias (ScaleScenarioSensorTests) e por Ten_k.
     [InlineData(ScaleScenarioFixture.PopulationSmall)]
-    [InlineData(ScaleScenarioFixture.PopulationLarge)]
     public void One_sim_year_keeps_alive_population_above_twenty_percent_of_initial(int initialPopulation)
     {
         var (world, clock) = ScaleScenarioFixture.CreateWorld(seed: 42, initialPopulation);

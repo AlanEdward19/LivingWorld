@@ -8,6 +8,7 @@ namespace LivingWorld.Simulation.Cities.Migration;
 /// <summary>Conclui migração de household só quando todos os membros vivos chegam ao destino
 /// — nunca troca <see cref="Npc.City"/> no meio do
 /// deslocamento.</summary>
+[LivingCapability("MIGRATION")]
 public sealed class RelocationArrivalSystem : ISimulationSystem
 {
     public const string SystemName = "cities-relocation-arrival";

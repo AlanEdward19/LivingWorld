@@ -16,6 +16,8 @@ namespace LivingWorld.Simulation.Population.Skills;
 /// (design.md): roda logo depois de <see cref="EmploymentSystem"/> e antes de <see
 /// cref="ProductionSystem"/>, pra que a produção do mesmo dia já leia a habilidade
 /// atualizada.</summary>
+[LivingCapability("SKILLS", Consumers = ["inspector.npc.skills"])]
+[RunsAfter(typeof(EmploymentSystem))]
 public sealed class SkillPracticeSystem : ISimulationSystem
 {
     public const string SystemName = "population-skill-practice";
@@ -25,7 +27,7 @@ public sealed class SkillPracticeSystem : ISimulationSystem
     public SkillPracticeSystem(SkillsRules rules) => _rules = rules;
 
     public string Name => SystemName;
-    public TickFrequency Frequency => TickFrequency.Daily;
+    public TickFrequency Frequency => TickFrequency.Midshift;
 
     /// <summary>NPC empregado, em ação Work, presente no próprio <see cref="Workplace"/> ganha a
     /// habilidade mapeada pela profissão (<see cref="SkillsRules.SkillByProfession"/>). Sem

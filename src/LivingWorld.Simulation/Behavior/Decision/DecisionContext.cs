@@ -27,7 +27,8 @@ public sealed record DecisionContext(
     IReadOnlyList<PowerOpportunity> PowerOpportunities,
     Personality Personality,
     ActionType? CurrentAction,
-    IReadOnlyDictionary<ActionType, ResolutionResult>? ForesightPreviews = null);
+    IReadOnlyDictionary<ActionType, ResolutionResult>? ForesightPreviews = null,
+    long WalletAmount = 0);
 
 public readonly record struct NeedsSnapshot(int Hunger, int Thirst, int Sleep, int Social);
 

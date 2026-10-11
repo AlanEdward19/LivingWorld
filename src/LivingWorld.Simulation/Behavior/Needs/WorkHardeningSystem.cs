@@ -11,12 +11,13 @@ namespace LivingWorld.Simulation.Behavior.Needs;
 /// sustentado — categoria SLOW (<c>Daily</c>), mesmo espírito de
 /// <see cref="SkillPracticeSystem"/>. Delega a mutação a
 /// <see cref="BodyMechanic.ApplyWorkHardening"/>.</summary>
+[LivingCapability("SKILLS")]
 public sealed class WorkHardeningSystem : ISimulationSystem
 {
     public const string SystemName = "behavior-work-hardening";
 
     public string Name => SystemName;
-    public TickFrequency Frequency => TickFrequency.Daily;
+    public TickFrequency Frequency => TickFrequency.Midshift;
 
     /// <summary>NPC empregado, em ação Work, presente no próprio Workplace — ganha um delta
     /// diário de MuscleMass até o teto do cenário. Sem BodyRules.Enabled — no-op.</summary>

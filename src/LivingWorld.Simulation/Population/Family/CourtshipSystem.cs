@@ -10,6 +10,7 @@ using LivingWorld.Simulation.Scheduling;
 namespace LivingWorld.Simulation.Population.Family;
 
 /// <summary>Score de atração, gates de elegibilidade e cortejo agendado.</summary>
+[LivingCapability("RELATIONSHIPS")]
 public sealed class CourtshipSystem : ISimulationSystem
 {
     public const string SystemName = "population-courtship";

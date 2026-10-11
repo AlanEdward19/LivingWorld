@@ -73,13 +73,30 @@ public static class ReferentialIntegritySweep
     {
         var validSets = ValidIdResolvers.ToDictionary(kv => kv.Key, kv => kv.Value(world));
         var violations = new List<string>();
-        Walk(world, "world", validSets, violations, []);
+        Visit(world, null, "world", -1, validSets, violations, new HashSet<object>(ReferenceEqualityComparer.Instance));
         return violations;
     }
 
-    private static void Walk(
-        object? value, string path, Dictionary<Type, HashSet<object>> validSets,
-        List<string> violations, HashSet<object> visited)
+    /// <summary>Caminho até o nó visitado (<c>world.Npcs[3].Employer</c>). Só vira texto quando há
+    /// violação, e só se aloca para nós internos — montar uma string por elemento do mundo inteiro era
+    /// o custo dominante do sweep.</summary>
+    private sealed class PathNode(PathNode? parent, string? property, int index)
+    {
+        public string Render() =>
+            (parent?.Render() ?? "") + (property is null ? $"[{index}]" : parent is null ? property : "." + property);
+    }
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<Type, PropertyInfo[]> PropertiesByType = new();
+
+    private static PropertyInfo[] PropertiesOf(Type type) =>
+        PropertiesByType.GetOrAdd(type, t => t
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(prop => prop.GetIndexParameters().Length == 0)
+            .ToArray());
+
+    private static void Visit(
+        object? value, PathNode? parent, string? property, int index,
+        Dictionary<Type, HashSet<object>> validSets, List<string> violations, HashSet<object> visited)
     {
         if (value is null) return;
         var type = value.GetType();
@@ -87,34 +104,39 @@ public static class ReferentialIntegritySweep
         if (validSets.TryGetValue(type, out var validSet))
         {
             if (!validSet.Contains(value))
-                violations.Add($"{path}: {type.Name} '{value}' não existe no mundo");
+                violations.Add($"{new PathNode(parent, property, index).Render()}: {type.Name} '{value}' não existe no mundo");
             return; // Id é folha — não desce nos campos internos dele
         }
 
         if (type.IsPrimitive || value is string || type.IsEnum) return;
+
+        // Delegates (notificadores de NPC) e objetos de reflexão não carregam estado de domínio:
+        // descer neles percorria o grafo de metadados do .NET inteiro (dezenas de milhões de nós).
+        if (value is Delegate || value is MemberInfo || value is Type || value is Assembly || value is Module) return;
+
+        var path = new PathNode(parent, property, index);
 
         if (value is IEnumerable enumerable)
         {
             int i = 0;
             foreach (var item in enumerable)
             {
-                Walk(item, $"{path}[{i}]", validSets, violations, visited);
+                Visit(item, path, null, i, validSets, violations, visited);
                 i++;
             }
             return;
         }
 
         // Ciclo só é possível entre referências (classes) — value types não criam ciclo real,
-        // e comparar boxed structs por igualdade de valor daria falso positivo de "já visitado".
+        // e boxed structs comparados por valor dariam falso positivo de "já visitado".
         if (!type.IsValueType && !visited.Add(value)) return;
 
-        foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        foreach (var prop in PropertiesOf(type))
         {
-            if (prop.GetIndexParameters().Length > 0) continue;
             object? propValue;
             try { propValue = prop.GetValue(value); }
             catch { continue; }
-            Walk(propValue, $"{path}.{prop.Name}", validSets, violations, visited);
+            Visit(propValue, path, prop.Name, -1, validSets, violations, visited);
         }
     }
 }

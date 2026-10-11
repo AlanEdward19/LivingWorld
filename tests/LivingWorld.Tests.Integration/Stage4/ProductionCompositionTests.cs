@@ -1,28 +1,14 @@
 using LivingWorld.Api.Visual.Catalogs;
 using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Shared;
-using LivingWorld.Simulation.Behavior.Decision;
-using LivingWorld.Simulation.Behavior.Needs;
 using LivingWorld.Simulation.Cities;
 using LivingWorld.Simulation.Cities.Construction;
 using LivingWorld.Simulation.Cities.Founding;
 using LivingWorld.Simulation.Cities.Migration;
 using LivingWorld.Simulation.Core;
-using LivingWorld.Simulation.Ecology;
-using LivingWorld.Simulation.Economy.Labor;
-using LivingWorld.Simulation.Economy.Market;
-using LivingWorld.Simulation.Economy.Production;
-using LivingWorld.Simulation.Geography;
-using LivingWorld.Simulation.History.Books;
-using LivingWorld.Simulation.History.Distortion;
 using LivingWorld.Simulation.Hosting;
 using LivingWorld.Simulation.Llm;
 using LivingWorld.Simulation.Narrative;
-using LivingWorld.Simulation.Periods;
-using LivingWorld.Simulation.Population.Archive;
-using LivingWorld.Simulation.Population.Family;
-using LivingWorld.Simulation.Population.Lifecycle;
-using LivingWorld.Simulation.Population.Skills;
 using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Simulation.Scheduling;
 using LivingWorld.Tests.Shared;
@@ -36,42 +22,6 @@ public sealed class ProductionCompositionTests
     private readonly LivingWorldApiFactory _factory;
 
     public ProductionCompositionTests(LivingWorldApiFactory factory) => _factory = factory;
-
-    private static readonly Type[] ExpectedLivingOrder =
-    [
-        typeof(PeriodEvolutionSystem),
-        typeof(MortalitySystem),
-        typeof(FactToReportConversionScheduler),
-        typeof(BookRediscoverySystem),
-        typeof(ColdArchiveSystem),
-        typeof(CourtshipSystem),
-        typeof(NatalitySystem),
-        typeof(NeedsDecaySystem),
-        typeof(BehaviorDecisionSystem),
-        typeof(ResourceProcessSystem),
-        typeof(EmploymentSystem),
-        typeof(RelationshipSystem),
-        typeof(SkillPracticeSystem),
-        typeof(SkillTeachingSystem),
-        typeof(WorkHardeningSystem),
-        typeof(ProductionSystem),
-        typeof(FaunaLifecycleSystem),
-        typeof(FloraLifecycleSystem),
-        typeof(TemperatureSeasonSystem),
-        typeof(CropSystem),
-        typeof(MarketPricingSystem),
-        typeof(WagePaymentSystem),
-        typeof(CityGrowthSystem),
-        typeof(ConstructionDemandSystem),
-        typeof(ConstructionSystem),
-        typeof(MigrationSystem),
-        typeof(RelocationArrivalSystem),
-        typeof(MaterializationSystem),
-        typeof(SettlementFoundingSystem),
-        typeof(SpatialSettlementFoundingSystem),
-        typeof(ChronicleGenerationSystem),
-        typeof(ConversationSessionStore),
-    ];
 
     [Fact]
     public void Api_world_clock_contains_every_living_system_exactly_once()
@@ -95,13 +45,34 @@ public sealed class ProductionCompositionTests
     }
 
     [Fact]
-    public void Production_living_system_order_is_explicit_and_stable()
+    public void Default_system_order_satisfies_every_declared_RunsAfter_constraint()
     {
-        var actual = ScenarioRunner.DefaultSystems()
-            .Where(system => system is not ExampleCounterSystem)
-            .Select(system => system.GetType());
+        var order = ScenarioRunner.DefaultSystems(extraordinary: new LivingWorld.Domain.Extraordinary.ExtraordinaryScenarioData(enabled: true, descriptors: []))
+            .Select(system => system.GetType())
+            .ToList();
 
-        Assert.Equal(ExpectedLivingOrder, actual);
+        var violations = new List<string>();
+        foreach (var type in order)
+            foreach (var attribute in type.GetCustomAttributes(typeof(RunsAfterAttribute), inherit: false).Cast<RunsAfterAttribute>())
+            {
+                int predecessorAt = order.IndexOf(attribute.Predecessor);
+                if (predecessorAt < 0 || predecessorAt > order.IndexOf(type))
+                    violations.Add($"{type.Name} deve rodar depois de {attribute.Predecessor.Name}");
+            }
+
+        Assert.Empty(violations);
+        Assert.Contains(order, type => type.GetCustomAttributes(typeof(RunsAfterAttribute), false).Length > 0);
+    }
+
+    [Fact]
+    public void Every_simulation_system_declares_its_capability()
+    {
+        var undeclared = typeof(ISimulationSystem).Assembly.GetTypes()
+            .Where(type => typeof(ISimulationSystem).IsAssignableFrom(type) && type is { IsClass: true, IsAbstract: false })
+            .Where(type => type.GetCustomAttributes(typeof(LivingCapabilityAttribute), inherit: false).Length == 0)
+            .Select(type => type.Name);
+
+        Assert.Empty(undeclared);
     }
 
     [Fact]

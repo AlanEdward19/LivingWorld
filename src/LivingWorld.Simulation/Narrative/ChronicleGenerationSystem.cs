@@ -20,6 +20,7 @@ namespace LivingWorld.Simulation.Narrative;
 /// cref="LivingWorld.Simulation.Llm.ConversationSessionStore"/>: reprocessar do zero após religar
 /// produz a mesma crônica a partir dos mesmos <see cref="Fact"/>s, então não há nada
 /// que precise sobreviver ao snapshot.</summary>
+[LivingCapability("NARRATIVE", Consumers = ["inspector.narrative"])]
 public sealed class ChronicleGenerationSystem : ISimulationSystem
 {
     public const string SystemName = "narrative-chronicle-generation";

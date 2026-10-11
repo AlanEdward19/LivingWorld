@@ -36,7 +36,8 @@ public static class ScaleScenarioFixture
         ]).Value ?? throw new InvalidOperationException("scale life table inválida");
 
     public static readonly PopulationRules ScalePopulationRules = PopulationRules.Create(
-        ScaleLifeTable, fertilityMinAge: 16, fertilityMaxAge: 45, annualConceptionChance: 0.22, gestationDays: 270)
+        ScaleLifeTable, fertilityMinAge: 16, fertilityMaxAge: 45, annualConceptionChance: 0.22, gestationDays: 270,
+        conditionalInitialMortality: true)
         .Value ?? throw new InvalidOperationException("scale population rules inválida");
 
     public static readonly EconomyRules ScaleEconomyRules = EconomyRules.Create(
