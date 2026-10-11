@@ -30,6 +30,11 @@ public sealed class Npc
     [JsonIgnore]
     public Action<Npc, CellCoord>? LocationObserver { get; set; }
 
+    /// <summary>Notifica <c>(npc, saúdeAnterior)</c> quando <see cref="SetHealth"/> muda a saúde — único
+    /// caminho de mutação, o que permite ao índice de vivos contar quem está em perigo sem varrer o mundo.</summary>
+    [JsonIgnore]
+    public Action<Npc, int>? HealthObserver { get; set; }
+
     public NpcId Id { get; }
     public string Name { get; }
     public Sex Sex { get; }
@@ -340,7 +345,10 @@ public sealed class Npc
 
     public void SetHealth(int health)
     {
+        int previous = Health;
         Health = Math.Clamp(health, 0, 100);
+        if (previous != Health)
+            HealthObserver?.Invoke(this, previous);
         TouchCanonical();
     }
 

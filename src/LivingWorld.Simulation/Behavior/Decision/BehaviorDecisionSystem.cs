@@ -791,37 +791,48 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
     /// <summary>PWR-56..58: considera NPCs/perigo no raio Chebyshev do portador (1 = adjacência
     /// sem poder). Perigo observável = saúde ≤ 1; percepção &gt; 1 aproxima socialmente.</summary>
-    private static ActionType ApplyPerception(WorldState world, Npc npc, ActionType candidate)
+    private static ActionType ApplyPerception(WorldState world, Npc npc, ActionType candidate) =>
+        ApplyPerceptionWithin(world, npc, candidate, AttributeMechanic.PerceptionRadius(world, npc));
+
+    internal static ActionType ApplyPerceptionWithin(WorldState world, Npc npc, ActionType candidate, int radius)
     {
-        int radius = AttributeMechanic.PerceptionRadius(world, npc);
         if (radius < 0) return candidate;
+
+        var index = world.AliveNpcIndex;
+        // Sem ninguém em perigo no mundo não há ameaça a achar; com raio ≤ 1 a mera presença de outros
+        // também não muda nada (só raio > 1 aproxima socialmente): o resultado é o candidato.
+        bool anyEndangered = index.EndangeredCount > 0;
+        if (!anyEndangered && radius <= 1) return candidate;
 
         bool threat = false;
         bool otherNpc = false;
-        var index = world.AliveNpcIndex;
         var origin = npc.CurrentLocation;
         long window = (2L * radius + 1) * (2L * radius + 1);
         if (window >= index.Alive.Count)
         {
             // Raio grande: varrer os vivos custa menos que visitar a janela inteira de células.
             foreach (var other in index.Alive)
-                Observe(other);
+                if (Observe(other)) break;
         }
         else
         {
             for (int dy = -radius; dy <= radius; dy++)
                 for (int dx = -radius; dx <= radius; dx++)
                     foreach (var other in index.At(new CellCoord(origin.X + dx, origin.Y + dy)))
-                        Observe(other);
+                        if (Observe(other)) goto scanned;
         }
+        scanned:
 
-        void Observe(Npc other)
+        // Devolve true quando o resultado já está decidido e o restante da varredura não pode mudá-lo:
+        // ameaça → Travel; sem ninguém em perigo, um vizinho basta para Socializar (raio > 1).
+        bool Observe(Npc other)
         {
-            if (other.Id == npc.Id) return;
-            if (Chebyshev(origin, other.CurrentLocation) > radius) return;
+            if (other.Id == npc.Id) return false;
+            if (Chebyshev(origin, other.CurrentLocation) > radius) return false;
             otherNpc = true;
-            if (other.Health <= 1)
+            if (other.Health <= AliveNpcIndex.EndangeredHealth)
                 threat = true;
+            return threat || (!anyEndangered && radius > 1);
         }
 
         if (threat) return ActionType.Travel;

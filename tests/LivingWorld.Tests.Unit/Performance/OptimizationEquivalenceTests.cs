@@ -9,6 +9,8 @@ using LivingWorld.Infrastructure.EventLog;
 using LivingWorld.Simulation.Cities;
 using LivingWorld.Simulation.Cities.Construction;
 using LivingWorld.Simulation.Cities.Founding;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Behavior.Decision;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Ecology;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
@@ -225,6 +227,59 @@ public class OptimizationEquivalenceTests
         Assert.Equal(world.Fauna.Select(a => a.Id.Value).OrderBy(v => v), world.Fauna.Select(a => a.Id.Value));
         Assert.All(world.Flora, plant => Assert.Equal(plant, world.FindPlant(plant.Id)));
         Assert.All(world.Fauna, animal => Assert.Equal(animal, world.FindAnimal(animal.Id)));
+    }
+
+    // --- Percepção sem varrer o balde inteiro ---
+
+    private static ActionType ReferencePerception(WorldState world, Npc npc, ActionType candidate, int radius)
+    {
+        if (radius < 0) return candidate;
+        bool threat = false, otherNpc = false;
+        foreach (var other in world.Npcs.Where(n => n.IsAlive))
+        {
+            if (other.Id == npc.Id) continue;
+            if (Math.Max(Math.Abs(npc.CurrentLocation.X - other.CurrentLocation.X),
+                    Math.Abs(npc.CurrentLocation.Y - other.CurrentLocation.Y)) > radius) continue;
+            otherNpc = true;
+            if (other.Health <= 1) threat = true;
+        }
+        if (threat) return ActionType.Travel;
+        if (otherNpc && radius > 1) return ActionType.Socialize;
+        return candidate;
+    }
+
+    [Fact]
+    public void Perception_with_early_exits_matches_the_full_scan_for_every_radius_and_health_mix()
+    {
+        var (world, clock) = ScenarioRunner.Create(7);
+        clock.Run(world, 200 * 24);
+        var alive = world.Npcs.Where(n => n.IsAlive).ToList();
+        Assert.True(alive.Count > 10);
+
+        void AssertAllMatch()
+        {
+            Assert.Equal(world.Npcs.Count(n => n.IsAlive && n.Health <= 1), world.AliveNpcIndex.EndangeredCount);
+            foreach (var npc in alive.Where(n => n.IsAlive))
+                foreach (int radius in new[] { -1, 0, 1, 2, 3, 8, 60 })
+                    foreach (var candidate in new[] { ActionType.Work, ActionType.Idle })
+                        Assert.Equal(
+                            ReferencePerception(world, npc, candidate, radius),
+                            BehaviorDecisionSystem.ApplyPerceptionWithin(world, npc, candidate, radius));
+        }
+
+        AssertAllMatch();                                   // ninguém em perigo
+        alive[0].SetHealth(1);                              // um em perigo
+        AssertAllMatch();
+        alive[1].SetHealth(0);
+        alive[2].SetHealth(50);
+        AssertAllMatch();                                   // vários
+        alive[0].SetHealth(80);                             // recupera
+        AssertAllMatch();
+        var victim = alive[3];
+        victim.SetHealth(1);
+        victim.Die(world.CurrentDate);
+        world.AliveNpcIndex.OnDied(victim);                 // morrer em perigo sai da conta
+        AssertAllMatch();
     }
 
     // --- Alcançabilidade por componente conexa ---

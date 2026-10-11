@@ -20,6 +20,13 @@ public sealed class AliveNpcIndex
 
     public IReadOnlyList<Npc> Alive => _alive;
 
+    /// <summary>Vivos com saúde ≤ <see cref="EndangeredHealth"/> (perigo observável). Mantido por
+    /// <see cref="Npc.HealthObserver"/>: zero na imensa maioria dos ticks, e então nenhuma varredura de
+    /// vizinhança pode encontrar ameaça.</summary>
+    public int EndangeredCount { get; private set; }
+
+    public const int EndangeredHealth = 1;
+
     /// <summary>NPCs vivos na célula (ordem do bucket não especificada). Vazio se nenhum.</summary>
     public IReadOnlyList<Npc> At(CellCoord cell) =>
         _byCell.TryGetValue(cell, out var bucket) ? bucket : Array.Empty<Npc>();
@@ -58,12 +65,23 @@ public sealed class AliveNpcIndex
     {
         AddToBucket(npc, npc.CurrentLocation);
         npc.LocationObserver = OnMoved;
+        npc.HealthObserver = OnHealthChanged;
+        if (npc.Health <= EndangeredHealth) EndangeredCount++;
     }
 
     private void Untrack(Npc npc)
     {
         RemoveFromBucket(npc, npc.CurrentLocation);
         npc.LocationObserver = null;
+        npc.HealthObserver = null;
+        if (npc.Health <= EndangeredHealth) EndangeredCount--;
+    }
+
+    private void OnHealthChanged(Npc npc, int previous)
+    {
+        bool was = previous <= EndangeredHealth;
+        bool now = npc.Health <= EndangeredHealth;
+        if (was != now) EndangeredCount += now ? 1 : -1;
     }
 
     private void OnMoved(Npc npc, CellCoord previous)

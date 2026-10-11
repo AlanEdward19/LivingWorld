@@ -116,8 +116,15 @@ public static class NpcWakeScheduler
     {
         long crossing = NextThresholdCrossing(social, nowTick, urgencyThreshold);
         if (crossing > nowTick) return crossing;
-        return social.ValueAt(nowTick) <= BehaviorDecisionSystem.SocialCriticalNeed ? crossing : long.MaxValue;
+        return social.ValueAt(nowTick) <= BehaviorDecisionSystem.SocialCriticalNeed
+            ? nowTick + SocialRewakeHours
+            : long.MaxValue;
     }
+
+    /// <summary>Quem está muito sozinho repensa isso de tempos em tempos, não a cada hora: solidão varia
+    /// em dias. Medido (<c>docs/audits/realism-cadence.md</c>): 3 h deixa trabalho, sono e latência
+    /// das necessidades idênticos e tira ~20% dos despertares.</summary>
+    private const long SocialRewakeHours = 3;
 
     public static long NextThresholdCrossing(LazyNeed need, long nowTick, double urgencyThreshold)
     {
