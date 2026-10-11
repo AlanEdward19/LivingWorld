@@ -149,6 +149,52 @@ public class LaborAllocationTests
     }
 
     [Fact]
+    public void Exactly_the_margin_stays_and_one_unit_above_it_moves()
+    {
+        var (world, a, b) = Build(priceA: 100, priceB: 125); // exatamente 1,25x
+        var npc = AddAdult(world, a, profession: 1);
+        AlignToReviewHour(world, npc);
+        Evaluate(world);
+        Assert.Equal(a.Id, npc.Employer);
+
+        b.SetPrice(new ResourceType(8), 126);
+        world.CurrentDate = world.CurrentDate.AddDays(1);
+        AlignToReviewHour(world, npc);
+        Evaluate(world);
+        Assert.Equal(b.Id, npc.Employer);
+    }
+
+    [Fact]
+    public void Cooldown_blocks_until_the_thirtieth_day_and_releases_on_it()
+    {
+        var (world, a, b) = Build(priceA: 5, priceB: 50);
+        var npc = AddAdult(world, a, profession: 1);
+        world.CurrentDate = world.CurrentDate.AddDays(60);
+        AlignToReviewHour(world, npc);
+        npc.MarkJobChange(world.CurrentDate.TotalHours - 30 * 24 + 1); // faltam 1 hora
+        Evaluate(world);
+        Assert.Equal(a.Id, npc.Employer);
+
+        npc.MarkJobChange(world.CurrentDate.TotalHours - 30 * 24); // exatamente 30 dias
+        Evaluate(world);
+        Assert.Equal(b.Id, npc.Employer);
+    }
+
+    [Fact]
+    public void A_market_holding_leftover_stock_with_no_price_is_not_a_seller()
+    {
+        var (world, farm, forge) = Build(priceA: 5, priceB: 5);
+        farm.SetPrice(new ResourceType(1), 5);
+        farm.Deposit(new ResourceType(1), 10, world.EconomyRules);
+        forge.Deposit(new ResourceType(1), 10, world.EconomyRules); // sobra de trigo na forja, sem preço de trigo
+        var index = LivingWorld.Simulation.Economy.Market.MarketIndex.BuildForTick(world);
+
+        var nearest = index.NearestSelling(Spot, new ResourceType(1), new ResourceType(2));
+
+        Assert.Equal(farm.Id, nearest!.Id);
+    }
+
+    [Fact]
     public void Move_is_atomic_one_fired_and_one_hired_in_the_same_tick()
     {
         var (world, a, b) = Build(priceA: 5, priceB: 50);

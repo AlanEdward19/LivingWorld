@@ -3,7 +3,7 @@
 Profile: light
 Plan: `.specs/features/labor-allocation/plan.md`
 
-12 checks in 4 slices · 1 one-way door · 0 open
+13 checks in 4 slices · 1 one-way door · 0 open
 
 ## Checks
 
@@ -16,7 +16,7 @@ Proof: `dotnet test tests/LivingWorld.Tests.Unit -c Release --filter "FullyQuali
 Proof: `dotnet test tests/LivingWorld.Tests.Unit -c Release --filter "FullyQualifiedName~LaborAllocationTests.Margin_of_1_25_decides_the_move"`
 
 **C3** - A job change 29 days ago blocks a new move; 31 days ago allows it (AC 3)
-Proof: `dotnet test tests/LivingWorld.Tests.Unit -c Release --filter "FullyQualifiedName~LaborAllocationTests.A_recent_change_blocks_a_new_move_for_thirty_days"`
+Proof: `dotnet test tests/LivingWorld.Tests.Unit -c Release --filter "FullyQualifiedName~LaborAllocationTests.A_recent_change_blocks_a_new_move_for_thirty_days|FullyQualifiedName~LaborAllocationTests.Cooldown_blocks_until_the_thirtieth_day_and_releases_on_it"`
 
 ### S2 - Preço move gente
 
@@ -51,6 +51,9 @@ Proof: `dotnet test tests/LivingWorld.Tests.LongRunning -c Release --filter "Ful
 **C12** - µs per NPC-tick of the 1,000-NPC fixture is at most 105% of `develop` (a39e0bf) and allocation per tick at most 110% (AC 12, allocation limit renegotiated, see Deviations)
 Proof: `dotnet test tests/LivingWorld.Tests.LongRunning -c Release --filter "FullyQualifiedName~MeasureHarness"` run alternating base and head; numbers go in `verification.md`
 
+**C13** - A market holding leftover stock with no price is not chosen as the nearest seller (`MarketIndex.NearestSelling`, the bug found while measuring)
+Proof: `dotnet test tests/LivingWorld.Tests.Unit -c Release --filter "FullyQualifiedName~LaborAllocationTests.A_market_holding_leftover_stock_with_no_price_is_not_a_seller"`
+
 ## Coverage
 
 | Set (size) | Member -> proof | Unproven |
@@ -84,6 +87,8 @@ Proof: `dotnet test tests/LivingWorld.Tests.LongRunning -c Release --filter "Ful
 - AC 8 said "at 90 days"; the labor market oscillates with a period near 60 days (wood and stone glut, prices fall, workers return), so a single-day sample is arbitrary. C9 asserts "within 90 days".
 - AC 9 and AC 10 assumed no fall. They fall: gate village 373 -> 325 (-13%) and live 31 -> 20 (3 seeds, 20 NPCs, noise-dominated). Causes found: the old behavior paid every farm worker the smith wage (110 instead of 90) because the trade flipped without the job, and `MarketIndex.NearestSelling` sent forge workers to a forge holding 10 leftover wheat with no price (a real bug, fixed: stock without price is not a sale). The floor is re-recorded after the feature; the pre-feature numbers stay in AD-091.
 - AC 12: allocation per tick rose 8.8% (504 KB -> 548 KB) because more NPCs now actually work and buy (3% from the market fix, the rest from earlier hiring). µs per NPC-tick did not rise. The limit became 110%.
+
+- AC 10 (live world >= 100%) has no check: 3 seeds of 20 NPCs sum 31 -> 20 and are noise-dominated (single deaths move a seed by 30%); `tests/baselines/live-default-population.json` is re-recorded [3,10,7] and is only informational. C11 measures 3 years x 5 seeds, not 10 years: the move counter is flat after year 1.
 
 ## Handoff
 
