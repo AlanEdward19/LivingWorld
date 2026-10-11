@@ -69,13 +69,12 @@ public static class OverflowPlacer
 
         for (int radius = Math.Max(1, startRadius); radius <= maxRadius; radius++)
         {
-            var ring = RingCells(bounds, radius);
-            int offset = (int)(hash % (ulong)ring.Count);
-            for (int i = 0; i < ring.Count; i++)
+            int count = RingCount(bounds, radius);
+            int offset = (int)(hash % (ulong)count);
+            for (int i = 0; i < count; i++)
             {
-                var origin = ring[(offset + i) % ring.Count];
-                var candidate = CityOccupancy.Translate(footprintShape, origin);
-                if (candidate.All(cell => WithinMap(cell, mapWidth, mapHeight)) && candidate.All(cell => !occupied.Contains(cell)))
+                var origin = RingCellAt(bounds, radius, (offset + i) % count);
+                if (FitsAt(footprintShape, origin, occupied, mapWidth, mapHeight))
                 {
                     foundRadius = radius;
                     return origin;
@@ -86,29 +85,44 @@ public static class OverflowPlacer
         return null;
     }
 
+    /// <summary>O footprint inteiro, transladado para <paramref name="origin"/>, cai no mapa e em
+    /// células livres. Sem lista intermediária: o laço de anéis chama isto milhões de vezes.</summary>
+    private static bool FitsAt(
+        IReadOnlyList<CellCoord> shape, CellCoord origin, HashSet<CellCoord> occupied, int mapWidth, int mapHeight)
+    {
+        for (int i = 0; i < shape.Count; i++)
+        {
+            var cell = new CellCoord(shape[i].X + origin.X, shape[i].Y + origin.Y);
+            if (!WithinMap(cell, mapWidth, mapHeight)) return false;
+        }
+        for (int i = 0; i < shape.Count; i++)
+        {
+            if (occupied.Contains(new CellCoord(shape[i].X + origin.X, shape[i].Y + origin.Y))) return false;
+        }
+        return true;
+    }
+
     private static bool WithinMap(CellCoord cell, int mapWidth, int mapHeight) =>
         cell.X >= 0 && cell.X < mapWidth && cell.Y >= 0 && cell.Y < mapHeight;
 
-    /// <summary>Perímetro do retângulo dos bounds expandido por <paramref name="radius"/> células
-    /// em cada direção — o "anel" a essa distância da borda atual.</summary>
-    private static List<CellCoord> RingCells(CityBounds bounds, int radius)
+    // O anel é o perímetro do retângulo dos bounds expandido por `radius` células em cada direção.
+    // Ordem (contrato com o hash de posicionamento): para cada x, (x, minY) e (x, maxY); depois, para
+    // cada y interno, (minX, y) e (maxX, y). Acesso por índice, sem materializar a lista.
+    private static int RingCount(CityBounds bounds, int radius) =>
+        2 * (bounds.Width + 2 * radius) + 2 * (bounds.Height + 2 * radius - 2);
+
+    private static CellCoord RingCellAt(CityBounds bounds, int radius, int index)
     {
         int minX = bounds.Origin.X - radius;
         int maxX = bounds.Origin.X + bounds.Width - 1 + radius;
         int minY = bounds.Origin.Y - radius;
         int maxY = bounds.Origin.Y + bounds.Height - 1 + radius;
 
-        var cells = new List<CellCoord>();
-        for (int x = minX; x <= maxX; x++)
-        {
-            cells.Add(new CellCoord(x, minY));
-            cells.Add(new CellCoord(x, maxY));
-        }
-        for (int y = minY + 1; y <= maxY - 1; y++)
-        {
-            cells.Add(new CellCoord(minX, y));
-            cells.Add(new CellCoord(maxX, y));
-        }
-        return cells;
+        int horizontal = 2 * (maxX - minX + 1);
+        if (index < horizontal)
+            return new CellCoord(minX + index / 2, index % 2 == 0 ? minY : maxY);
+
+        int j = index - horizontal;
+        return new CellCoord(j % 2 == 0 ? minX : maxX, minY + 1 + j / 2);
     }
 }

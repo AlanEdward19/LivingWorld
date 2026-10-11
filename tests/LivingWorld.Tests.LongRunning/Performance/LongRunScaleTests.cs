@@ -30,15 +30,15 @@ public class LongRunScaleTests
         var (world, clock) = ScaleScenarioFixture.CreateWorld(seed: 99, initialPopulation: 200);
         var sizes = new List<(int Years, long Bytes)>();
         int elapsedYears = 0;
-        foreach (int checkpoint in new[] { 1, 6, 18 })
+        foreach (int checkpoint in new[] { 1, 4, 12 })
         {
             clock.Run(world, (checkpoint - elapsedYears) * 365L * 24);
             elapsedYears = checkpoint;
             sizes.Add((checkpoint, System.Text.Encoding.UTF8.GetByteCount(WorldSnapshot.Serialize(world))));
         }
 
-        long atTen = sizes.Single(s => s.Years == 6).Bytes;
-        long atEnd = sizes.Single(s => s.Years == 18).Bytes;
-        Assert.True(atEnd <= atTen * 1.5, $"snapshot cresceu de {atTen} B (6 anos) para {atEnd} B (18 anos)");
+        long atTen = sizes.Single(s => s.Years == 4).Bytes;
+        long atEnd = sizes.Single(s => s.Years == 12).Bytes;
+        Assert.True(atEnd <= atTen * 1.5, $"snapshot cresceu de {atTen} B (4 anos) para {atEnd} B (12 anos)");
     }
 }

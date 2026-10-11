@@ -374,6 +374,52 @@ public class OptimizationEquivalenceTests
         Assert.True(Probe(ids[3]));
     }
 
+    // --- Busca em anel sem lista ---
+
+    private static CellCoord? ReferenceRingSearch(
+        HashSet<CellCoord> occupied, CityBounds bounds, BuildingId id, IReadOnlyList<CellCoord> shape, int width, int height)
+    {
+        ulong hash = StableHash.Mix(id.Value);
+        for (int radius = 1; radius <= width + height; radius++)
+        {
+            int minX = bounds.Origin.X - radius, maxX = bounds.Origin.X + bounds.Width - 1 + radius;
+            int minY = bounds.Origin.Y - radius, maxY = bounds.Origin.Y + bounds.Height - 1 + radius;
+            var ring = new List<CellCoord>();
+            for (int x = minX; x <= maxX; x++) { ring.Add(new CellCoord(x, minY)); ring.Add(new CellCoord(x, maxY)); }
+            for (int y = minY + 1; y <= maxY - 1; y++) { ring.Add(new CellCoord(minX, y)); ring.Add(new CellCoord(maxX, y)); }
+            int offset = (int)(hash % (ulong)ring.Count);
+            for (int i = 0; i < ring.Count; i++)
+            {
+                var origin = ring[(offset + i) % ring.Count];
+                var cells = shape.Select(c => new CellCoord(c.X + origin.X, c.Y + origin.Y)).ToList();
+                if (cells.All(c => c.X >= 0 && c.X < width && c.Y >= 0 && c.Y < height) && cells.All(c => !occupied.Contains(c)))
+                    return origin;
+            }
+        }
+        return null;
+    }
+
+    [Fact]
+    public void Ring_search_matches_the_list_based_definition_on_crowded_and_edge_maps()
+    {
+        var shape = new List<CellCoord> { new(0, 0), new(1, 0), new(2, 0), new(0, 1), new(1, 1), new(2, 1), new(0, 2), new(1, 2), new(2, 2) };
+        var rng = new Random(11);
+        for (int trial = 0; trial < 60; trial++)
+        {
+            int width = 18 + trial % 7, height = 16 + trial % 5;
+            var bounds = new CityBounds(new CellCoord(4 + trial % 5, 3 + trial % 4), 4 + trial % 3, 3 + trial % 4);
+            var occupied = new HashSet<CellCoord>();
+            for (int k = 0; k < 40 + trial * 6; k++) occupied.Add(new CellCoord(rng.Next(-2, width + 2), rng.Next(-2, height + 2)));
+
+            for (long id = 1; id <= 12; id++)
+            {
+                var expected = ReferenceRingSearch(occupied, bounds, new BuildingId(id), shape, width, height);
+                var actual = OverflowPlacer.ResolveOverflowPositionGiven(occupied, bounds, new BuildingId(id), shape, width, height);
+                Assert.Equal(expected, actual);
+            }
+        }
+    }
+
     // --- Rotina em tabela ---
 
     [Fact]
