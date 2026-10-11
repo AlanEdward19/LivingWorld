@@ -28,7 +28,7 @@ Aplicadas: P1, P2, P3 (aprovadas) e P4.
 Com P5–P7 o relógio devia ficar em torno de 7–8 min; abaixo de 5 min exigiria também tirar 10k/100x do conjunto padrão e deixá-los em `--scenarios` noturno.
 
 ### Rodada final (AD-083)
-Medida de partida: 5 min 7 s (808 s de CPU em 4 núcleos), 3 falhas por a população agora sobreviver. Aplicado: P5 (`Ten_k` 14 dias), P6 (`Population_100x` 30 dias), longevidade de 100 anos para ao bater 90% do máximo (a maior idade só cresce), saturação do snapshot em 1/4/12 anos, e o vazamento real (lote colhido ficava no snapshot) corrigido na origem. Resultado em `STATE.md`.
+Medida de partida: 5 min 7 s (808 s de CPU em 4 núcleos), 3 falhas por a população agora sobreviver. Aplicado: P5 (`Ten_k` 14 dias), P6 (`Population_100x` 30 dias), longevidade de 100 anos para ao bater 90% do máximo (a maior idade só cresce), saturação do snapshot em 1/4/12 anos, e o vazamento real (lote colhido ficava no snapshot) corrigido na origem. Resultado: 5 min 7 s → 3 min 44 s, 111 verdes. Mais um passo: a busca em anel do posicionamento deixou de montar listas (criar 10k NPCs: 24 s → ~10 s, hash idêntico).
 
 ### P1–P3 (aplicadas)
 | # | Ajuste | Ganho medido | Impacto |

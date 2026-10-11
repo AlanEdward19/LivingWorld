@@ -5,13 +5,13 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
 - **Última coisa concluída (2026-10-11)**: P1–P4, B1, B2 (parcial) e B3 em `claude/inspiring-allen-qj41zx`
-  (AD-077/078). Gate rápido ~1 min, verde (1913). LongRunning **4 min 50 s** (era >25), AD-081 (perf da decisão, hashes idênticos);
-  1 asserção estatística (FAM-32) atualizada para o efeito de seleção que passou a aparecer (AD-080).
-  Realismo de decisão corrigido e medido (`docs/audits/realism-cadence.md`): sobrevivência escala acima do déficit 80,
-  abastecimento da casa, rotina com deslocamento antecipado (ciclo de 24 h), solidão não crítica não derruba o dia.
-  Default estável por 10 anos. **Aberto**: o fixture de escala de 500 pessoas ainda colapsa a partir do ano 3
-  (economia insolvente: oferta 5× a demanda, preço no piso, folha > receita) — decisão de design em
-  `realism-cadence.md` (pagamento proporcional, renda compartilhada no domicílio, lavoura de subsistência).
+  (AD-077/078). Gate rápido ~1 min, verde (1930). LongRunning **3 min 44 s** (era >25; 4 min 50 s antes da rodada final), verde, 111 testes.
+  AD-081/083 (perf, hashes idênticos exceto o lote colhido). Economia que sustenta a vila (AD-082): folha proporcional, ajuda mútua entre
+  parentes, viagem com motivo, despertar na chegada. Fixture de 500 estável por 10+ anos; default estável.
+  Realismo de decisão corrigido e medido (`docs/audits/realism-cadence.md`).
+  FAM-32: efeito de seleção real mas pequeno (−0,0041, z = −4,0 em 160 seeds); o gate com 10 seeds só barra o sinal contrário.
+  Próximo corte de tempo (~2 min) exigiria tirar 10k/100x do conjunto padrão ou criação incremental da ocupação da cidade
+  (criar 10k NPCs ainda gasta ~10 s, quadrático em `CityOccupancy`).
   Spec de veículos emergentes (sem código): `.specs/features/emergent-vehicles/` (AD-079).
   Também pendente: decidir remoção de `web/`, `web-demo/`, `scripts/generate-web-types.sh`; **próxima unidade**: spec do cliente Godot.
 - **Última coisa concluída (2026-09-01)**: Fase 28 fechada — cognição inspecionável, LOD
