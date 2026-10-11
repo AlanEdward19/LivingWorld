@@ -4,6 +4,7 @@ Fonte única de continuidade. Quem entra numa área nova **lê este arquivo prim
 Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
+- **Em andamento (2026-10-11)**: Godot — specs lean em `.specs/features/`: `godot-api-readiness` (API antes do cliente), `npc-building-occupancy` (vínculo `Household.Dwelling`/`Workplace.Building` + `BuildingOccupancySystem`) e `godot-client` (GDScript, 3D isométrico, interior multi-andar). API e ocupação implementadas, `verify.sh --full` verde; goldens e `OptimizationEquivalenceTests` regravados (este já falhava no `develop` limpo). **Próxima unidade**: Verifier independente das duas features, depois implementar o cliente Godot (`client/godot/`).
 - **Última coisa concluída (2026-10-11)**: P1–P4, B1, B2 (parcial) e B3 em `claude/inspiring-allen-qj41zx`
   (AD-077/078). Gate rápido ~1 min, verde (1930). LongRunning **~3 min** (`Category=Heavy` fora do padrão; `--heavy` soma ~50 s). Cenários: Unit ~1,5 min, Integration ~50 s, tudo verde (era >25; 4 min 50 s antes da rodada final), verde, 111 testes.
   AD-081/083 (perf, hashes idênticos exceto o lote colhido). Economia que sustenta a vila (AD-082): folha proporcional, ajuda mútua entre
