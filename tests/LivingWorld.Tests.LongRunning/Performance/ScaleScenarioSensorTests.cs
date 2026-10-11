@@ -57,6 +57,7 @@ public class ScaleScenarioSensorTests
 
     [Theory]
     [Trait("Category", "Scenario")]
+    [Trait("Category", "Heavy")]
     [InlineData(ScaleScenarioFixture.PopulationLarge)]
     public void One_month_large_population_stays_within_recorded_baseline(int initialPopulation)
     {

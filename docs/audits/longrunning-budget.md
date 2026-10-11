@@ -33,7 +33,8 @@ Medida de partida: 5 min 7 s (808 s de CPU em 4 núcleos), 3 falhas por a popula
 ### O que sobra e o que não vale a pena
 - O custo restante é simular 10 anos do cenário padrão em ~10 testes (≈ 9 s cada, sem concorrência); 70–80% é `behavior-decision`, ~3.000 despertares por NPC-ano a ~2 µs. Reduzir despertares de sobrevivência custa realismo (`realism-cadence.md`).
 - Medido e descartado: `TieredPGO=false` e `ConcurrentGarbageCollection=false` nos testes (suíte 227 s → 271–278 s, pior); o `EventScheduler.Schedule` que o perfil por amostragem acusava custa 4% (33 ms de 806 ms por ano), era viés de amostragem.
-- Ainda possível, com perda de cobertura: tirar os testes de 10 mil NPCs do conjunto padrão (`--scenarios` noturno).
+- Feito: `Category=Heavy` (10 mil NPCs 14 dias, `Population_100x`, sensor de 5 mil) fica fora do `--project longrunning` padrão e entra com `--heavy` (~50 s). LongRunning padrão ~3 min (183 s), 108 testes.
+- Rodar os cenários de verdade achou 5 falhas que o gate padrão não vê (`verify.sh` exclui `Category=Scenario` e não roda Integration): 2 baselines (população, colapso da história) regravadas, a ordem de sistemas sem `MutualAidSystem`, um caminho de migração antigo e o teste da volta para casa (agora o NPC já sai para o turno seguinte).
 
 ### P1–P3 (aplicadas)
 | # | Ajuste | Ganho medido | Impacto |

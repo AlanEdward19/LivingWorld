@@ -5,7 +5,7 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
 - **Última coisa concluída (2026-10-11)**: P1–P4, B1, B2 (parcial) e B3 em `claude/inspiring-allen-qj41zx`
-  (AD-077/078). Gate rápido ~1 min, verde (1930). LongRunning **3 min 25 s** (era >25; 4 min 50 s antes da rodada final), verde, 111 testes.
+  (AD-077/078). Gate rápido ~1 min, verde (1930). LongRunning **~3 min** (`Category=Heavy` fora do padrão; `--heavy` soma ~50 s). Cenários: Unit ~1,5 min, Integration ~50 s, tudo verde (era >25; 4 min 50 s antes da rodada final), verde, 111 testes.
   AD-081/083 (perf, hashes idênticos exceto o lote colhido). Economia que sustenta a vila (AD-082): folha proporcional, ajuda mútua entre
   parentes, viagem com motivo, despertar na chegada. Fixture de 500 estável por 10+ anos; default estável.
   Realismo de decisão corrigido e medido (`docs/audits/realism-cadence.md`).

@@ -98,6 +98,7 @@ public class PopulationScenarioTests
     }
 
     [Trait("Category", "Scenario")]
+    [Trait("Category", "Heavy")]
     [Fact]
     public void Population_100x_the_initial_size_does_not_exceed_the_tick_iteration_budget()
     {

@@ -12,6 +12,7 @@ public class LongRunScaleTests
     /// levavam ~17 min — e o teste já não passava, porque a economia do fixture não sustenta a
     /// população (ver STATE.md). 14 dias exercitam o mesmo caminho quente (a rotina é diária; o custo por dia é estável).</summary>
     [Fact]
+    [Trait("Category", "Heavy")]
     public void Ten_k_population_fourteen_days_within_perf_budget()
     {
         var (world, clock) = ScaleScenarioFixture.CreateWorld(seed: 42, initialPopulation: 10_000);

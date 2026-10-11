@@ -98,6 +98,7 @@ só se precisar do porquê, não do quê.
 ## 4. Posicionamento no ciclo de vida ("keep quality left")
 - **Antes de "pronto"**: `bash scripts/verify.sh` (exclui `Category=Scenario`).
 - **Manual/caro**: `scripts/verify-mutation.sh`; `scripts/test.sh --filter Category=Scenario`.
+- **Cenários por projeto** (medido, 4 núcleos): Unit `--scenarios` ~1,5 min; Integration `--project integration` ~50 s; LongRunning `--project longrunning` ~3 min (pula `Category=Heavy`); `--heavy` soma 10 mil NPCs / 100x / sensor de 5 mil (~50 s).
 - **Contínuo/drift**: `.specs/lessons.py` entre features; revisão de performance agendada ao
   fechar a Fase 8 (`ROADMAP.md`).
 

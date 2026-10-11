@@ -51,6 +51,7 @@ public sealed class ProductionCompositionTests
         typeof(ResourceProcessSystem),
         typeof(EmploymentSystem),
         typeof(RelationshipSystem),
+        typeof(MutualAidSystem),
         typeof(SkillPracticeSystem),
         typeof(SkillTeachingSystem),
         typeof(WorkHardeningSystem),
