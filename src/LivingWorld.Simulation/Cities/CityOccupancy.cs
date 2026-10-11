@@ -111,17 +111,34 @@ public static class CityOccupancy
             return fast;
 
         long layoutVersion = Building.LayoutVersion;
-        var siblings = world.Buildings.Where(b => b.City == city.Id).OrderBy(b => b.Id.Value).ToArray();
+        var siblings = SiblingsOf(world, city);
+
+        // Caixas anteriores, se o plano continuar o mesmo objeto (só entraram prédios no fim) e todos os
+        // prédios do plano tiverem posição autorada: a caixa de cada um depende só da própria posição e
+        // forma, então as já calculadas continuam valendo e só os acrescentados no mundo são medidos.
+        var previous = Plans.GetOrCreateValue(world).TryGetValue(city.Id, out var before) ? before : null;
+        var previousBoxes = previous?.Boxes;
+        int previousWorldCount = previous?.BoxesWorldCount ?? 0;
+        long previousVersion = previous?.BoxesLayoutVersion ?? -1;
+
         var plan = PlanFor(world, city, populationBounds, siblings);
         if (plan.Boxes is { } cached)
         {
             plan.BoxesLayoutVersion = layoutVersion;
+            plan.BoxesWorldCount = world.Buildings.Count;
             return cached;
         }
 
-        var result = new List<(Building Building, CityBounds Box)>();
-        foreach (var building in world.Buildings.Where(b => b.City == city.Id))
+        var all = world.Buildings;
+        bool incremental = previousBoxes is not null && ReferenceEquals(plan, previous) && !plan.HasDerived
+            && previousWorldCount <= all.Count && layoutVersion - previousVersion == all.Count - previousWorldCount;
+
+        var result = incremental ? new List<(Building Building, CityBounds Box)>(previousBoxes!) : new List<(Building Building, CityBounds Box)>();
+        for (int index = incremental ? previousWorldCount : 0; index < all.Count; index++)
         {
+            var building = all[index];
+            if (building.City != city.Id) continue;
+
             // null = escassez de terra pra este prédio -- excluído da lista de
             // footprints em vez de derrubar a resolução inteira dos outros prédios da cidade.
             CellCoord? position = building.Position
@@ -146,6 +163,7 @@ public static class CityOccupancy
 
         plan.Boxes = result;
         plan.BoxesLayoutVersion = layoutVersion;
+        plan.BoxesWorldCount = all.Count;
         return result;
     }
 
@@ -235,7 +253,7 @@ public static class CityOccupancy
     /// anel (a outra metade do mesmo bug).</summary>
     internal static HashSet<CellCoord> OccupiedCellsOfCity(WorldState world, City city, CityBounds bounds, BuildingId? placingId)
     {
-        var siblings = world.Buildings.Where(b => b.City == city.Id).OrderBy(b => b.Id.Value).ToArray();
+        var siblings = SiblingsOf(world, city);
 
         if (placingId is not { } selfId)
         {
@@ -299,6 +317,10 @@ public static class CityOccupancy
         public List<(Building Building, CityBounds Box)>? Boxes;
         /// <summary><see cref="Building.LayoutVersion"/> em que <see cref="Boxes"/> foi calculado.</summary>
         public long BoxesLayoutVersion;
+        /// <summary>Quantos prédios o mundo tinha quando <see cref="Boxes"/> foi calculado.</summary>
+        public int BoxesWorldCount;
+        /// <summary>Algum prédio do plano não tinha posição autorada (a posição vem da busca, não do dado).</summary>
+        public bool HasDerived;
         /// <summary>Por forma de prédio (tipo, orientação): marcos (id do passo, raio) — no passo desse id
         /// todo anel de raio menor já estava inteiramente ocupado para a forma. A ocupação só cresce ao
         /// longo do passe, então o marco continua valendo para qualquer resolução de id maior ou igual
@@ -346,6 +368,64 @@ public static class CityOccupancy
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<
         WorldState, Dictionary<CityId, PlacementPlan>> Plans = new();
 
+    private sealed class SiblingCache
+    {
+        public Building[] Siblings = [];
+        public int WorldCount;
+        public long LayoutVersion = -1;
+    }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<
+        WorldState, Dictionary<CityId, SiblingCache>> SiblingCaches = new();
+
+    /// <summary>Prédios da cidade ordenados por Id. Os prédios só são acrescentados ao mundo, e qualquer
+    /// troca de cidade ou prédio de outro mundo move <see cref="Building.LayoutVersion"/> além do número
+    /// de acréscimos; então, quando a versão andou exatamente o que a lista cresceu e os novos têm Id
+    /// maior que o último, basta anexar os novos da cidade. Qualquer outro caso refaz a ordenação.</summary>
+    private static Building[] SiblingsOf(WorldState world, City city)
+    {
+        var byCity = SiblingCaches.GetOrCreateValue(world);
+        if (!byCity.TryGetValue(city.Id, out var cache))
+            byCity[city.Id] = cache = new SiblingCache();
+
+        var all = world.Buildings;
+        long version = Building.LayoutVersion;
+        if (cache.LayoutVersion == version && cache.WorldCount == all.Count)
+            return cache.Siblings;
+
+        int added = all.Count - cache.WorldCount;
+        if (cache.LayoutVersion >= 0 && added > 0 && version - cache.LayoutVersion == added)
+        {
+            long lastId = cache.Siblings.Length == 0 ? long.MinValue : cache.Siblings[^1].Id.Value;
+            var extra = new List<Building>();
+            bool ordered = true;
+            for (int i = cache.WorldCount; i < all.Count; i++)
+            {
+                var building = all[i];
+                if (building.City != city.Id) continue;
+                if (building.Id.Value <= lastId) { ordered = false; break; }
+                lastId = building.Id.Value;
+                extra.Add(building);
+            }
+
+            if (ordered)
+            {
+                var merged = new Building[cache.Siblings.Length + extra.Count];
+                cache.Siblings.CopyTo(merged, 0);
+                extra.CopyTo(merged, cache.Siblings.Length);
+                cache.Siblings = merged;
+                cache.WorldCount = all.Count;
+                cache.LayoutVersion = version;
+                return merged;
+            }
+        }
+
+        cache.Siblings = all.Where(b => b.City == city.Id).OrderBy(b => b.Id.Value).ToArray();
+        cache.WorldCount = all.Count;
+        cache.LayoutVersion = version;
+        return cache.Siblings;
+    }
+
     /// <summary>Passe ascendente por Id sobre os prédios da cidade: cada prédio sem posição autorada
     /// ocupa a primeira célula livre dos bounds, senão a do anel de overflow, contra o que os de Id
     /// menor já ocupam. Reaproveita o passe anterior quando só entraram prédios no fim da lista.</summary>
@@ -355,8 +435,19 @@ public static class CityOccupancy
         byCity.TryGetValue(city.Id, out var plan);
 
         int reusable = 0;
-        if (plan is not null && plan.Bounds == bounds && plan.MapWidth == world.Map.Width && plan.MapHeight == world.Map.Height)
+        // Com todos os prédios do plano autorados, a ocupação não depende dos bounds (só as posições
+        // derivadas dependem): o plano é reaproveitado sob bounds novos, só descartando os marcos de anel,
+        // que valem para uns bounds específicos. Sem isso, alternar entre os bounds por população e os
+        // bounds crescidos refazia o passe inteiro a cada chamada.
+        if (plan is not null && plan.MapWidth == world.Map.Width && plan.MapHeight == world.Map.Height
+            && (plan.Bounds == bounds || !plan.HasDerived))
         {
+            if (plan.Bounds != bounds)
+            {
+                plan.Bounds = bounds;
+                plan.OverflowMarks.Clear();
+            }
+
             while (reusable < plan.Ids.Length && reusable < siblings.Length && plan.Ids[reusable] == siblings[reusable].Id.Value)
                 reusable++;
             // Só vale se TODO o passe anterior continua válido (prédios novos apenas no fim).
@@ -410,6 +501,7 @@ public static class CityOccupancy
                 }
 
                 derived[i] = position;
+                plan.HasDerived = true;
             }
 
             if (position is { } resolved)

@@ -618,6 +618,52 @@ public class OptimizationEquivalenceTests
         Assert.True(overflowed >= 20, $"overflow não foi exercitado o bastante ({overflowed}/40)");
     }
 
+    [Fact]
+    public void Incremental_occupancy_and_boxes_match_the_from_scratch_definition_under_changing_bounds()
+    {
+        var world = BuildWorldWithMap(width: 60, height: 60, seed: 41);
+        var city = new City(world.NextCityId(), new CellCoord(30, 30), 0, null, AggregatePopulationPool.Empty);
+        var other = new City(world.NextCityId(), new CellCoord(5, 5), 0, null, AggregatePopulationPool.Empty);
+        world.AddCity(city);
+        world.AddCity(other);
+
+        for (int i = 0; i < 45; i++)
+        {
+            // Bounds que alternam entre dois valores e crescem, como população × bounds crescidos.
+            var bounds = i % 2 == 0
+                ? new CityBounds(new CellCoord(26, 26), 8, 8)
+                : new CityBounds(new CellCoord(24 - i % 3, 25), 12 + i % 4, 10);
+
+            // Prédio de outra cidade no meio (muda a lista do mundo sem mudar esta cidade).
+            if (i % 5 == 2)
+                world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), other.Id, 1, 0, new CellCoord(2 + i % 4, 2)));
+
+            // Autorados, exceto um no meio que depende da busca (derivado) e passa a invalidar o atalho.
+            CellCoord? authored = i == 30 ? null : new CellCoord(8 + (i * 3) % 40, 8 + (i * 7) % 40);
+            world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, 1 + i % 3, 0, authored));
+
+            var placing = new BuildingId(world.Buildings.Max(b => b.Id.Value) + 1);
+            Assert.True(
+                ReferenceOccupied(world, city, bounds, placing).SetEquals(CityOccupancy.OccupiedCellsOfCity(world, city, bounds, placing)),
+                $"ocupação difere na rodada {i}");
+
+            var expectedBoxes = new List<(Building, CityBounds)>();
+            foreach (var building in world.Buildings.Where(b => b.City == city.Id))
+            {
+                CellCoord? position = building.Position
+                    ?? BuildingPlacementResolver.Resolve(building, city, world, bounds)?.Position;
+                if (position is null) continue;
+                var cells = BuildingFootprintGenerator.Generate(building)
+                    .Select(c => new CellCoord(c.Cell.X + position.Value.X, c.Cell.Y + position.Value.Y)).ToList();
+                if (cells.Count == 0) continue;
+                int minX = cells.Min(c => c.X), minY = cells.Min(c => c.Y);
+                expectedBoxes.Add((building, new CityBounds(new CellCoord(minX, minY), cells.Max(c => c.X) - minX + 1, cells.Max(c => c.Y) - minY + 1)));
+            }
+
+            Assert.Equal(expectedBoxes, CityOccupancy.OwnedBuildingFootprintBoxesWithOwners(world, city, bounds).ToList());
+        }
+    }
+
     private static readonly GeographyCatalog TinyCatalog = new(
         TerrainIds: new HashSet<int> { 1 }, BiomeIds: new HashSet<int> { 1 }, ResourceIds: new HashSet<int>());
 
