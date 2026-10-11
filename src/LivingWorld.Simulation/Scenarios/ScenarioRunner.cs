@@ -140,6 +140,12 @@ public static partial class ScenarioRunner
         // competência nem cria obrigação).
         deltas[(RelationshipEventType.Conversation, RelationshipAxis.Trust)] = 0.5;
         deltas[(RelationshipEventType.Conversation, RelationshipAxis.Affection)] = 0.5;
+        // Ser socorrido cria gratidão e obrigação: a relação de quem recebeu com quem ajudou ganha confiança,
+        // afeto, respeito e dívida (Debt). Aplicado só no sentido receptor→ajudante (MutualAidSystem).
+        deltas[(RelationshipEventType.Help, RelationshipAxis.Trust)] = 2.0;
+        deltas[(RelationshipEventType.Help, RelationshipAxis.Affection)] = 2.0;
+        deltas[(RelationshipEventType.Help, RelationshipAxis.Respect)] = 1.0;
+        deltas[(RelationshipEventType.Help, RelationshipAxis.Debt)] = 3.0;
         return deltas;
     }
 
