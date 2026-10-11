@@ -650,14 +650,6 @@ public class OptimizationEquivalenceTests
             if (i >= 30) bounds = new CityBounds(new CellCoord(26, 26), 8, 8);
             world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, 1 + i % 3, 0, authored));
 
-            if (i >= 30 && i < 37)
-                derived = BuildingPlacementResolver.Resolve(world.Buildings.First(b => b.Position is null && b.City == city.Id), city, world, bounds)?.Position;
-
-            var placing = new BuildingId(world.Buildings.Max(b => b.Id.Value) + 1);
-            Assert.True(
-                ReferenceOccupied(world, city, bounds, placing).SetEquals(CityOccupancy.OccupiedCellsOfCity(world, city, bounds, placing)),
-                $"ocupação difere na rodada {i}");
-
             var expectedBoxes = new List<(Building, CityBounds)>();
             foreach (var building in world.Buildings.Where(b => b.City == city.Id))
             {
@@ -672,6 +664,16 @@ public class OptimizationEquivalenceTests
             }
 
             Assert.Equal(expectedBoxes, CityOccupancy.OwnedBuildingFootprintBoxesWithOwners(world, city, bounds).ToList());
+
+            // As caixas vêm antes da ocupação: é a ordem do posicionamento real, em que as caixas do passo
+            // anterior ainda estão memoizadas quando o prédio novo chega.
+            var placing = new BuildingId(world.Buildings.Max(b => b.Id.Value) + 1);
+            Assert.True(
+                ReferenceOccupied(world, city, bounds, placing).SetEquals(CityOccupancy.OccupiedCellsOfCity(world, city, bounds, placing)),
+                $"ocupação difere na rodada {i}");
+
+            if (i >= 30 && i < 37)
+                derived = BuildingPlacementResolver.Resolve(world.Buildings.First(b => b.Position is null && b.City == city.Id), city, world, bounds)?.Position;
         }
     }
 
