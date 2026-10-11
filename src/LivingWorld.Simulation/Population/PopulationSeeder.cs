@@ -24,11 +24,12 @@ public static class PopulationSeeder
         var placementCity = ResolvePlacementCity(world, city, villageLocation);
 
         var rng = world.Rng.Stream("population-init");
+        var houseIds = new List<BuildingId>();
         var generated = PopulationGenerator.GenerateInitial(
             rng, world.CurrentDate, count, culture, villageLocation, world.PopulationRules.LifeTable,
             world.PopulationCatalog, world.NextNpcId, world.NextHouseholdId, placementCity.Id,
             householdLocationsFactory: householdCount => PlaceHouseholdBuildings(
-                world, placementCity, count, householdCount),
+                world, placementCity, count, householdCount, houseIds),
             bodyRules: world.BodyRules);
 
         foreach (var npc in generated.Npcs)
@@ -36,8 +37,12 @@ public static class PopulationSeeder
             npc.ConfigureNeedDecay(world.NeedsRules, world.CurrentDate.TotalHours);
             world.AddNpc(npc);
         }
-        foreach (var household in generated.Households)
-            world.AddHousehold(household);
+        for (int i = 0; i < generated.Households.Count; i++)
+        {
+            // Mesma ordem de householdLocationsFactory: a casa i pertence ao household i.
+            generated.Households[i].LiveIn(houseIds[i]);
+            world.AddHousehold(generated.Households[i]);
+        }
 
         world.AdvanceNpcIdTo(generated.NextNpcId);
         world.AdvanceHouseholdIdTo(generated.NextHouseholdId);
@@ -76,7 +81,7 @@ public static class PopulationSeeder
     // da borda) — mesmo padrão de peek-id/adicionar-incremental de ConstructionSystem.CompleteProject,
     // pra que Resolve veja as casas já colocadas neste lote como ocupadas.
     private static IReadOnlyList<CellCoord> PlaceHouseholdBuildings(
-        WorldState world, City city, int population, int householdCount)
+        WorldState world, City city, int population, int householdCount, List<BuildingId> houseIds)
     {
         var locations = new List<CellCoord>(householdCount);
         for (int i = 0; i < householdCount; i++)
@@ -96,9 +101,11 @@ public static class PopulationSeeder
                 ? (resolved.Position, resolved.Orientation)
                 : (CityOccupancy.LegacyRingFallback(candidate.Id, city.Location), 0);
 
-            world.AddBuilding(new Building(
+            var house = new Building(
                 world.NextBuildingIdAndAdvance(), city.Id, InitialHouseBuildingTypeId,
-                world.CurrentDate.TotalHours, position, orientation));
+                world.CurrentDate.TotalHours, position, orientation);
+            world.AddBuilding(house);
+            houseIds.Add(house.Id);
             // Household.Location é o destino real de sono/retorno. A origem do footprint é uma
             // célula de parede; guardar essa origem fazia o NPC parar "na casa", mas nunca entrar.
             // Casas 3x3 sempre têm exatamente uma célula Floor, rotacionada junto com a planta.

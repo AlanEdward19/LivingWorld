@@ -38,9 +38,14 @@ public sealed class Household
     /// preenchido, <see cref="City"/> continua sendo a origem até todos os membros chegarem.</summary>
     public CityId? PendingRelocationCity { get; private set; }
 
+    /// <summary>Prédio onde o household mora; <c>null</c> quando nasceu sem casa (casamento,
+    /// redistribuição). <see cref="Location"/> continua sendo a célula de sono, dentro deste prédio.</summary>
+    public BuildingId? Dwelling { get; private set; }
+
     public Household(
         HouseholdId id, CellCoord location, NpcId head, IReadOnlyList<NpcId> members,
-        IReadOnlyDictionary<ResourceType, long>? stock = null, CityId city = default, CityId? pendingRelocationCity = null)
+        IReadOnlyDictionary<ResourceType, long>? stock = null, CityId city = default, CityId? pendingRelocationCity = null,
+        BuildingId? dwelling = null)
     {
         if (!members.Contains(head))
             throw new ArgumentException("Head precisa estar entre os Members", nameof(head));
@@ -51,7 +56,10 @@ public sealed class Household
         _stock = new Dictionary<ResourceType, long>(stock ?? new Dictionary<ResourceType, long>());
         City = city;
         PendingRelocationCity = pendingRelocationCity;
+        Dwelling = dwelling;
     }
+
+    public void LiveIn(BuildingId building) => Dwelling = building;
 
     /// <summary>Sem capacidade declarada nesta fase — devolve sempre 0 de perda
     /// (<see cref="ResourceStock.Deposit"/> com capacidade ilimitada).</summary>

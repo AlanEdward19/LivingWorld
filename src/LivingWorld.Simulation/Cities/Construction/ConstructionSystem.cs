@@ -110,7 +110,7 @@ public sealed class ConstructionSystem : ISimulationSystem
                 world.NextWorkplaceIdAndAdvance(), new LocationType(workplaceRecipe.LocationTypeId), resolved.Position,
                 workplaceRecipe.MaxVacancies, employees: [], stock: new Dictionary<ResourceType, long>(),
                 treasury: Money.Zero, prices: CopyPricesFromExisting(world, workplaceRecipe.LocationTypeId),
-                city: city.Id));
+                city: city.Id, building: building.Id));
         }
         else
         {

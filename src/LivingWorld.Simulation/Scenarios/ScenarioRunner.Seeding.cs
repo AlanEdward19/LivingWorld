@@ -52,20 +52,21 @@ public static partial class ScenarioRunner
         // cunhagem): folha de ~36 empregados a 90-110/mês esgotaria
         // um treasury pequeno bem antes da receita de venda (compras em lote esporádicas)
         // acompanhar, gerando WageUnpaid em cascata e, por tabela, fome real generalizada.
-        var farmLocation = PlaceDefaultWorkplaceBuilding(world, city, buildingTypeId: 1);
+        var (farmLocation, farmBuilding) = PlaceDefaultWorkplaceBuilding(world, city, buildingTypeId: 1);
         world.AddWorkplace(new Workplace(
             world.NextWorkplaceIdAndAdvance(), new LocationType(1), farmLocation, maxVacancies: 80 * mult,
             employees: [], stock: new Dictionary<ResourceType, long>(), treasury: new Money(500_000),
             prices: new Dictionary<ResourceType, long> { [new ResourceType(1)] = 5, [new ResourceType(2)] = 5 },
-            city: city.Id));
-        var forgeLocation = PlaceDefaultWorkplaceBuilding(world, city, buildingTypeId: 2);
+            city: city.Id, building: farmBuilding));
+        var (forgeLocation, forgeBuilding) = PlaceDefaultWorkplaceBuilding(world, city, buildingTypeId: 2);
         world.AddWorkplace(new Workplace(
             world.NextWorkplaceIdAndAdvance(), new LocationType(2), forgeLocation, maxVacancies: 40 * mult,
             employees: [], stock: new Dictionary<ResourceType, long>(), treasury: new Money(500_000),
-            prices: new Dictionary<ResourceType, long> { [new ResourceType(4)] = 5 }, city: city.Id));
+            prices: new Dictionary<ResourceType, long> { [new ResourceType(4)] = 5 }, city: city.Id,
+            building: forgeBuilding));
     }
 
-    private static CellCoord PlaceDefaultWorkplaceBuilding(WorldState world, City city, int buildingTypeId)
+    private static (CellCoord Position, BuildingId Building) PlaceDefaultWorkplaceBuilding(WorldState world, City city, int buildingTypeId)
     {
         var candidate = new Building(
             new BuildingId(world.NextBuildingId), city.Id, buildingTypeId, world.CurrentDate.TotalHours);
@@ -74,10 +75,11 @@ public static partial class ScenarioRunner
         var resolved = BuildingPlacementResolver.Resolve(candidate, city, world, bounds)
             ?? throw new InvalidOperationException("No free cell is available for a default workplace building.");
 
-        world.AddBuilding(new Building(
+        var building = new Building(
             world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId, world.CurrentDate.TotalHours,
-            resolved.Position, resolved.Orientation));
-        return resolved.Position;
+            resolved.Position, resolved.Orientation);
+        world.AddBuilding(building);
+        return (resolved.Position, building.Id);
     }
 
     /// <summary>Trigo/água de despensa + moeda no bolso pra cada NPC/Household inicial —

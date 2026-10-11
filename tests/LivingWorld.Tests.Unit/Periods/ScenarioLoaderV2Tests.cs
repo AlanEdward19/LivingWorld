@@ -283,6 +283,17 @@ public class ScenarioLoaderV2Tests
     }
 
     [Fact]
+    public void Authored_workplace_links_to_its_building()
+    {
+        var root = FullValidRoot();
+        root["InitialPopulation"] = 0;
+
+        var (world, _) = ScenarioLoaderV2.LoadWorld(root.ToJsonString()).Value;
+
+        Assert.Equal(Assert.Single(world.Buildings).Id, Assert.Single(world.Workplaces).Building);
+    }
+
+    [Fact]
     public void Authored_workplace_free_location_is_preserved_by_its_building()
     {
         var root = FullValidRoot();

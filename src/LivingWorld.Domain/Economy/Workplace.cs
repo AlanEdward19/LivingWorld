@@ -23,6 +23,10 @@ public sealed class Workplace
     /// mudança.</summary>
     public CityId City { get; private set; }
 
+    /// <summary>Prédio onde este local funciona; <c>null</c> para workplace legado sem edifício.
+    /// <see cref="Location"/> é a origem do footprint desse prédio.</summary>
+    public BuildingId? Building { get; private set; }
+
     private readonly List<NpcId> _employees;
     public IReadOnlyList<NpcId> Employees => _employees;
 
@@ -40,7 +44,7 @@ public sealed class Workplace
     public Workplace(
         WorkplaceId id, LocationType locationType, CellCoord location, int maxVacancies,
         IReadOnlyList<NpcId> employees, IReadOnlyDictionary<ResourceType, long> stock, Money treasury,
-        IReadOnlyDictionary<ResourceType, long> prices, CityId city = default)
+        IReadOnlyDictionary<ResourceType, long> prices, CityId city = default, BuildingId? building = null)
     {
         Id = id;
         LocationType = locationType;
@@ -51,6 +55,7 @@ public sealed class Workplace
         Treasury = treasury;
         _prices = new Dictionary<ResourceType, long>(prices);
         City = city;
+        Building = building;
     }
 
     /// <summary>Falha quando <see cref="Employees"/> já está no teto de

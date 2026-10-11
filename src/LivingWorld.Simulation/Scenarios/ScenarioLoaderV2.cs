@@ -202,12 +202,14 @@ public static class ScenarioLoaderV2
                 orientation = resolved.Value.Orientation;
             }
 
-            world.AddBuilding(new Building(
+            var workplaceBuilding = new Building(
                 world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId, completedAtTick: 0,
-                position, orientation));
+                position, orientation);
+            world.AddBuilding(workplaceBuilding);
             world.AddWorkplace(new Workplace(
                 world.NextWorkplaceIdAndAdvance(), workplace.LocationType, position, workplace.MaxVacancies,
-                employees: [], workplace.Stock, workplace.Treasury, workplace.Prices, city.Id));
+                employees: [], workplace.Stock, workplace.Treasury, workplace.Prices, city.Id,
+                building: workplaceBuilding.Id));
         }
 
         // Portal é dado descritivo — resolve RefIndex autorado pro RefId real

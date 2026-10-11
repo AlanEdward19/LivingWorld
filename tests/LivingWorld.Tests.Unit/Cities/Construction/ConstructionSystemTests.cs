@@ -248,6 +248,7 @@ public class ConstructionSystemTests
         Assert.Empty(freeCity.ConstructionQueue); // completou e desenfileirou
         var workplace = Assert.Single(freeWorld.Workplaces);
         Assert.Equal(1, workplace.MaxVacancies);
+        Assert.Equal(Assert.Single(freeWorld.Buildings).Id, workplace.Building);
     }
 
     // --- dynamic-city-growth, AD-007: um projeto travado (escassez de terra) não pode mais

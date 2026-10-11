@@ -66,6 +66,7 @@ public static partial class ScenarioRunner
         new NatalitySystem(),
         new NeedsDecaySystem(),
         new BehaviorDecisionSystem(DefaultSkillsRules),
+        new BuildingOccupancySystem(),
         new ResourceProcessSystem(),
         new EmploymentSystem(),
         new RelationshipSystem(),
