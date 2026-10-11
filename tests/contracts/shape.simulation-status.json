@@ -1,0 +1,6 @@
+{
+  "isPaused": "boolean",
+  "tick": "number",
+  "ticksPerSecond": "number",
+  "year": "number"
+}

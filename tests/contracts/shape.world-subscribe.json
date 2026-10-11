@@ -1,0 +1,160 @@
+{
+  "activeLayers": [
+    "number"
+  ],
+  "cursor": {
+    "scopeKey": "string",
+    "sequence": "number",
+    "tick": "number"
+  },
+  "mode": "number",
+  "payload": {
+    "activeEvents": "[]",
+    "cities": [
+      {
+        "bounds": {
+          "height": "number",
+          "width": "number",
+          "x": "number",
+          "y": "number"
+        },
+        "boundsAreDerived": "boolean",
+        "id": {
+          "value": "string"
+        },
+        "knownCarrierCount": "number",
+        "location": {
+          "x": "number",
+          "y": "number"
+        },
+        "name": "string",
+        "population": "number"
+      }
+    ],
+    "externalNpcs": [
+      {
+        "id": {
+          "value": "number"
+        },
+        "location": {
+          "x": "number",
+          "y": "number"
+        }
+      }
+    ],
+    "height": "number",
+    "layers": {
+      "Biome": {
+        "isModeled": "boolean",
+        "payload": [
+          {
+            "key": {
+              "x": "number",
+              "y": "number"
+            },
+            "value": {
+              "id": "number"
+            }
+          }
+        ]
+      },
+      "Borders": {
+        "isModeled": "boolean",
+        "payload": "null"
+      },
+      "Climate": {
+        "isModeled": "boolean",
+        "payload": "null"
+      },
+      "Kingdoms": {
+        "isModeled": "boolean",
+        "payload": "null"
+      },
+      "Mountains": {
+        "isModeled": "boolean",
+        "payload": "null"
+      },
+      "Resources": {
+        "isModeled": "boolean",
+        "payload": "[]"
+      },
+      "Rivers": {
+        "isModeled": "boolean",
+        "payload": [
+          {
+            "x": "number",
+            "y": "number"
+          }
+        ]
+      },
+      "Roads": {
+        "isModeled": "boolean",
+        "payload": "null"
+      },
+      "Terrain": {
+        "isModeled": "boolean",
+        "payload": [
+          {
+            "key": {
+              "x": "number",
+              "y": "number"
+            },
+            "value": {
+              "id": "number"
+            }
+          }
+        ]
+      }
+    },
+    "livingState": {
+      "buildings": "[]",
+      "cities": [
+        {
+          "bounds": {
+            "height": "number",
+            "width": "number",
+            "x": "number",
+            "y": "number"
+          },
+          "foundedFromCityId": "null",
+          "id": {
+            "value": "string"
+          },
+          "location": {
+            "x": "number",
+            "y": "number"
+          },
+          "name": "string",
+          "population": "number"
+        }
+      ],
+      "events": "[]",
+      "indicators": "[]",
+      "npcs": [
+        {
+          "city": {
+            "value": "string"
+          },
+          "currentAction": "null",
+          "extraordinary": "null",
+          "id": {
+            "value": "number"
+          },
+          "location": {
+            "x": "number",
+            "y": "number"
+          },
+          "relocationDestination": "null"
+        }
+      ],
+      "processes": "[]"
+    },
+    "portals": "[]",
+    "width": "number"
+  },
+  "scope": {
+    "kind": "number",
+    "refId": "string",
+    "scopeKey": "string"
+  }
+}
