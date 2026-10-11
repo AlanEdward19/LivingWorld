@@ -52,6 +52,7 @@ public sealed class SkillTeachingSystem : ISimulationSystem
         if (!_rules.Enabled) return; // flag de teste desliga o sistema
 
         var living = world.Npcs.Where(n => n.IsAlive).OrderBy(n => n.Id.Value).ToList();
+        AssignMentors(world, living);
 
         foreach (var npc in living)
         {
@@ -61,6 +62,43 @@ public sealed class SkillTeachingSystem : ISimulationSystem
             GainFromObservation(world, npc);
             GainFromTutoring(world, npc);
         }
+    }
+
+    /// <summary>Menor distância de habilidade (fração do teto) para um colega virar mestre de outro.</summary>
+    private const double MentorMinGapOfCap = 0.15;
+
+    /// <summary>Em cada oficina, o empregado mais habilidoso na própria profissão vira mestre dos colegas da
+    /// mesma profissão que estão ao menos <see cref="MentorMinGapOfCap"/> do teto abaixo dele e ainda sem
+    /// mestre. Uma passada pela população; só adultos empregados participam. Escolha determinística: maior
+    /// habilidade, desempate pelo menor Id.</summary>
+    private void AssignMentors(WorldState world, List<Npc> living)
+    {
+        Dictionary<(WorkplaceId, int), Npc>? masters = null;
+        foreach (var npc in living)
+        {
+            if (npc.Employer is not { } employer || npc.Mentor is not null) continue;
+            if (!_rules.SkillByProfession.TryGetValue(npc.Profession.Id, out var skill)) continue;
+            if (StageOf(world, npc) != LifeStage.Adult) continue;
+            masters ??= BestPerWorkplace(world, living);
+            if (!masters.TryGetValue((employer, npc.Profession.Id), out var master) || master.Id == npc.Id) continue;
+            if (master.Skills.Get(skill) - npc.Skills.Get(skill) < MentorMinGapOfCap * _rules.Cap) continue;
+            npc.AssignMentor(master.Id);
+        }
+    }
+
+    private Dictionary<(WorkplaceId, int), Npc> BestPerWorkplace(WorldState world, List<Npc> living)
+    {
+        var best = new Dictionary<(WorkplaceId, int), Npc>();
+        foreach (var npc in living)
+        {
+            if (npc.Employer is not { } employer) continue;
+            if (!_rules.SkillByProfession.TryGetValue(npc.Profession.Id, out var skill)) continue;
+            if (StageOf(world, npc) != LifeStage.Adult) continue;
+            var key = (employer, npc.Profession.Id);
+            if (!best.TryGetValue(key, out var current) || npc.Skills.Get(skill) > current.Skills.Get(skill))
+                best[key] = npc; // living vem ordenado por Id: empate fica com o menor Id
+        }
+        return best;
     }
 
     private LifeStage StageOf(WorldState world, Npc npc) => _lifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
@@ -174,10 +212,20 @@ public sealed class SkillTeachingSystem : ISimulationSystem
         if (!_rules.SkillByProfession.TryGetValue(master.Profession.Id, out var skillType)) return;
 
         double masterSkill = Math.Min(master.Skills.Get(skillType), _rules.Cap);
+        if (apprentice.Skills.Get(skillType) >= masterSkill)
+        {
+            apprentice.ClearMentor(); // alcançou o mestre: formado
+            return;
+        }
+
         double masterTeaching = master.Skills.Get(_rules.TeachingSkill);
         double masterFactor = (masterSkill / _rules.Cap) * (1.0 + masterTeaching / _rules.Cap);
 
         double baseGain = _rules.Gain(apprentice.Skills.Get(skillType), SkillGainSource.Tutoring, apprentice.RateGene.Value);
         apprentice.GainSkill(skillType, baseGain * masterFactor, _rules.Cap);
+
+        // Ensinar também treina o ensino: o mestre ganha em TeachingSkill pela taxa de prática.
+        double teachGain = _rules.Gain(masterTeaching, SkillGainSource.Practice, master.RateGene.Value);
+        master.GainSkill(_rules.TeachingSkill, teachGain, _rules.Cap);
     }
 }
