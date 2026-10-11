@@ -32,10 +32,10 @@ Proof: `dotnet test tests/LivingWorld.Tests.Unit -c Release --filter "FullyQuali
 ### S3 - A cidade compra material · 5 files · 60 KB · ~16k
 
 **C7** - A missing input is bought from a workplace of the same city: the amount is the smaller of the shortfall and the seller's stock, at the seller's price, debited from the buyer's treasury (AC 7)
-Proof: `dotnet test tests/LivingWorld.Tests.Unit -c Release --filter "FullyQualifiedName~InputSupplyTests.City_buys_the_smaller_of_shortfall_and_seller_stock_at_seller_price"`
+Proof: `dotnet test tests/LivingWorld.Tests.Unit -c Release --filter "FullyQualifiedName~InputSupplyTests.City_buys_the_smaller_of_shortfall_and_seller_stock_at_seller_price|FullyQualifiedName~InputSupplyTests.Workplace_buys_three_days_of_inputs_from_a_neighbour_at_the_neighbour_price"`
 
 **C8** - A treasury that cannot pay transfers 0 and leaves the canonical hash identical (AC 8)
-Proof: `dotnet test tests/LivingWorld.Tests.Unit -c Release --filter "FullyQualifiedName~InputSupplyTests.Insufficient_treasury_transfers_nothing_and_keeps_the_hash"`
+Proof: `dotnet test tests/LivingWorld.Tests.Unit -c Release --filter "FullyQualifiedName~InputSupplyTests.Insufficient_treasury_transfers_nothing_and_keeps_the_hash|FullyQualifiedName~InputSupplyTests.Treasury_covering_part_of_the_shortfall_buys_only_the_affordable_units"`
 
 **C9** - With the default catalog, a house build withdraws exactly the recipe Inputs from `City.Stock` (AC 9)
 Proof: `dotnet test tests/LivingWorld.Tests.Integration -c Release --filter "FullyQualifiedName~EconomyDepthScenarioTests.House_build_consumes_exactly_the_recipe_from_city_stock"`

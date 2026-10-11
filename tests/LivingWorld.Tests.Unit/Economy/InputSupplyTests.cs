@@ -167,6 +167,19 @@ public class InputSupplyTests
     }
 
     [Fact]
+    public void Treasury_covering_part_of_the_shortfall_buys_only_the_affordable_units()
+    {
+        var (world, city) = BuildWorld(HouseCatalog(wood: 20), cityTreasury: 10);
+        var sawmill = AddWorkplace(world, city, locationType: 3, wood: 15, price: 4);
+
+        new InputSupplySystem().Tick(world, Ctx(world));
+
+        Assert.Equal(2, city.Stock[Wood]);              // 10 / 4 = 2 unidades
+        Assert.Equal(2, city.Treasury.Amount);
+        Assert.Equal(13, sawmill.Stock[Wood]);
+    }
+
+    [Fact]
     public void City_treasury_round_trips_and_old_snapshots_load_as_zero()
     {
         var (world, _) = BuildWorld(cityTreasury: 1234);
