@@ -12,6 +12,7 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
   Default estável por 10 anos. **Aberto**: o fixture de escala de 500 pessoas ainda colapsa a partir do ano 3
   (economia insolvente: oferta 5× a demanda, preço no piso, folha > receita) — decisão de design em
   `realism-cadence.md` (pagamento proporcional, renda compartilhada no domicílio, lavoura de subsistência).
+  Spec de veículos emergentes (sem código): `.specs/features/emergent-vehicles/` (AD-079).
   Também pendente: decidir remoção de `web/`, `web-demo/`, `scripts/generate-web-types.sh`; **próxima unidade**: spec do cliente Godot.
 - **Última coisa concluída (2026-09-01)**: Fase 28 fechada — cognição inspecionável, LOD
   observacional (mundo/cidade/interior), compressão de estado frio, painel web "ver o cérebro",
