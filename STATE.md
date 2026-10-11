@@ -4,14 +4,15 @@ Fonte única de continuidade. Quem entra numa área nova **lê este arquivo prim
 Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
-- **Última coisa concluída (2026-10-10)**: otimização de DX/perf em `claude/inspiring-allen-qj41zx`
-  (AD-074/075, ADR-0022). Gate rápido ~1 min (era horas); ano de sim default ~57 s → ~0,1–1 s
-  (plano por ano), criação de mundo 10k 28 s → 2 s, hashes idênticos. Web fora do gate.
-  LongRunning: 6,8 min (era >25). Goldens e testes de escala regravados; restam 2 testes de nascimento
-  (contam `Birth` de planta/animal — falham no commit original também) e 1 sensor de tempo flutuante.
-  Propostas pendentes de decisão (cortes de escopo P1–P3 → 4,8 min; comportamento B1–B3):
-  `docs/audits/longrunning-budget.md`. O cenário default fica com 1 NPC viva a partir do ano ~8. **Próxima unidade**: spec do cliente Godot (substitui Fase 15);
-  decidir remoção de `web/`, `web-demo/`, `scripts/generate-web-types.sh`.
+- **Última coisa concluída (2026-10-11)**: P1–P4, B1, B2 (parcial) e B3 em `claude/inspiring-allen-qj41zx`
+  (AD-077/078). Gate rápido ~1 min, verde (1913). LongRunning **12 min**, 0 falhas (era >25; 4,8 min só
+  existiu com o mundo morrendo de fome): P5–P7 em `docs/audits/longrunning-budget.md` levam a ~7–8 min.
+  Realismo de decisão corrigido e medido (`docs/audits/realism-cadence.md`): sobrevivência escala acima do déficit 80,
+  abastecimento da casa, rotina com deslocamento antecipado (ciclo de 24 h), solidão não crítica não derruba o dia.
+  Default estável por 10 anos. **Aberto**: o fixture de escala de 500 pessoas ainda colapsa a partir do ano 3
+  (economia insolvente: oferta 5× a demanda, preço no piso, folha > receita) — decisão de design em
+  `realism-cadence.md` (pagamento proporcional, renda compartilhada no domicílio, lavoura de subsistência).
+  Também pendente: decidir remoção de `web/`, `web-demo/`, `scripts/generate-web-types.sh`; **próxima unidade**: spec do cliente Godot.
 - **Última coisa concluída (2026-09-01)**: Fase 28 fechada — cognição inspecionável, LOD
   observacional (mundo/cidade/interior), compressão de estado frio, painel web "ver o cérebro",
   sandbox de decisão. Branch `feat/phase-28-cognition` com gate verde; worktrees intermediárias

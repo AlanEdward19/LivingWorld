@@ -6,10 +6,27 @@
 |---|---|---|
 | Antes de qualquer otimização | > 25 min (não concluía) | `Ten_k` sozinho: 23 min |
 | Otimizações sem mudar comportamento (AD-074/075/076) | **6,8 min** | hashes idênticos ao código original |
-| + P1 + P2 (abaixo) | 5,3 min | medido |
-| + P1 + P2 + P3 (abaixo) | **4,8 min** | medido |
+| + P1 + P2 + P3 | 4,8 min | medido **com a população morrendo de fome** (mundo pequeno = barato) |
+| + P1–P3 + B1 + Midshift + realismo (AD-077/078), sem corte novo | 25 min | a população sobrevive, então o custo acompanha os vivos |
+| + `One_sim_year` sem 5.000 NPCs (aplicado) | **12 min** (soma 26,7 min de teste) | 111 passam, 0 falham, 7 ignorados |
 
-## Propostas que mudam o que o teste cobre (não aplicadas)
+Maiores restantes: `Ten_k` 346 s, `Population_100x` 289 s, sensor 5k 193 s, `FamilyPaired` Vitality 103 s, `BytesPerNpc` 92 s.
+
+## Corte aplicado depois de B1
+| # | Ajuste | Ganho | Impacto |
+|---|---|---|---|
+| P4 | `One_sim_year…`: remover 5.000 NPCs (ficou só 1.000) | −13 min de teste, 25 → 12 min de relógio | A escala grande segue coberta pelo sensor de 30 dias e por `Ten_k`; perde-se "5k sobrevive a 1 ano" |
+
+## Propostas que mudam o que o teste cobre
+Aplicadas: P1, P2, P3 (aprovadas) e P4.
+| # | Ajuste | Ganho estimado | Impacto |
+|---|---|---|---|
+| P5 | `Ten_k`: 30 → 14 dias | ~−3 min de teste | cobre menos dias de escala; custo/dia é plano, a medida por NPC-dia não muda |
+| P6 | `Population_100x`: 1 ano → 90 dias | ~−3,5 min | o teto de iterações por tick estoura nos primeiros dias (P1) |
+| P7 | Sensor 5k: mês → 14 dias | ~−1,5 min | baseline de escala regravado em 14 dias |
+Com P5–P7 o relógio deve ficar em torno de 7–8 min; abaixo de 5 min exigiria também tirar 10k/100x do conjunto padrão e deixá-los em `--scenarios` noturno.
+
+### P1–P3 (aplicadas)
 | # | Ajuste | Ganho medido | Impacto |
 |---|---|---|---|
 | P1 | `Population_100x…tick_iteration_budget`: 10 → 1 ano | −1,5 min | O teto de iterações por tick estoura nos primeiros dias, não em décadas; perde-se só a garantia de "10 anos sem estourar" |
@@ -21,9 +38,9 @@
 dentro da suíte, com carga, às vezes passa de 0,65. Não é regressão.
 
 ## Falhas que já existiam (confirmadas no commit original)
-`Birth_count…` e `Every_birth…` contam `WorldEventKind.Birth` de plantas/animais como nascimentos de NPC.
+`Birth_count…` e `Every_birth…` contavam `WorldEventKind.Birth` de plantas/animais como nascimentos de NPC — **corrigido** (filtro por `NatalitySystem`; idade na concepção sem `AgeYears`, que congela na morte).
 
-## Propostas de comportamento do motor (não aplicadas)
+## Propostas de comportamento do motor (B1 e B2 aplicadas; ver AD-077/078 e `realism-cadence.md`)
 | # | Achado | Proposta | Impacto no comportamento atual |
 |---|---|---|---|
 | B1 | `RollDeathAge` parte da idade 0 para todo NPC: um adulto sorteado com idade de morte menor que a atual morre 1 h depois (40–100% do "ano 1") | Ligar `PopulationRules.ConditionalInitialMortality` (já implementada, desligada) no cenário default e no fixture de escala | População inicial sobrevive ao ano 1 (default: 43 → ~80 vivos). Muda **todos** os hashes, goldens e baselines |
