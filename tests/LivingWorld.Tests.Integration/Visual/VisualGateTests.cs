@@ -7,14 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace LivingWorld.Tests.Integration.Visual;
 
 /// <summary>Fase 15, T9 (VTT-02, VTT-06, VTT-10..16): gate de fechamento — documento OpenAPI
-/// servido de verdade (fonte dos tipos TS gerados por <c>scripts/generate-web-types.sh</c>),
-/// todo <see cref="VisualLayerId"/> do catálogo coberto por exatamente um builder, e leitura em
-/// todo escopo/replay nunca escreve no mundo. A prova de que <c>scripts/generate-web-types.sh
-/// --check</c> reprova em mutação foi verificada manualmente nesta sessão (adicionar uma rota
-/// nova sem regenerar o arquivo committed faz o script sair com 1 e mostrar o diff) — reproduzir
-/// isso aqui exigiria subir um processo dotnet + npx dentro do teste, o que quebraria o
-/// isolamento/velocidade do resto da suíte; o teste D abaixo cobre a mesma garantia de forma
-/// hermética (o arquivo committed precisa mencionar toda rota /visual/* conhecida).</summary>
+/// servido de verdade, todo <see cref="VisualLayerId"/> do catálogo coberto por exatamente um builder,
+/// e leitura em todo escopo/replay nunca escreve no mundo.</summary>
 [Collection(ApiEndpointCollection.Name)]
 public class VisualGateTests
 {
@@ -67,30 +61,5 @@ public class VisualGateTests
         await client.GetAsync("/visual/replay?scope=World&mode=Spectator&sinceTick=0&sinceSequence=0");
 
         Assert.Equal(hashBefore, WorldSnapshot.CanonicalHash(world));
-    }
-
-    [Theory]
-    [InlineData("/visual/subscribe")]
-    [InlineData("/visual/replay")]
-    [InlineData("/visual/sse")]
-    [InlineData("/visual/ws")]
-    [InlineData("/visual/player/{id}/move")]
-    public void Generated_web_types_file_mentions_every_known_visual_route(string routeFragment)
-    {
-        string repoRoot = FindRepoRoot();
-        string generatedFile = Path.Combine(repoRoot, "web", "src", "generated", "api-types.ts");
-        Assert.True(File.Exists(generatedFile), $"{generatedFile} não existe — rode scripts/generate-web-types.sh");
-
-        string content = File.ReadAllText(generatedFile);
-        string routeKey = routeFragment.Replace("{id}", "{id}");
-        Assert.Contains(routeKey, content);
-    }
-
-    private static string FindRepoRoot()
-    {
-        var dir = AppContext.BaseDirectory;
-        while (dir is not null && !File.Exists(Path.Combine(dir, "LivingWorld.sln")))
-            dir = Directory.GetParent(dir)?.FullName;
-        return dir ?? throw new InvalidOperationException("LivingWorld.sln não encontrado a partir de " + AppContext.BaseDirectory);
     }
 }

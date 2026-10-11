@@ -27,8 +27,7 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Documento OpenAPI (/openapi/v1.json) — fonte pros tipos TS do cliente web,
-// gerados por scripts/generate-web-types.sh a partir deste endpoint.
+// Documento OpenAPI (/openapi/v1.json) — contrato para clientes externos (Godot, ADR-0022).
 builder.Services.AddOpenApi();
 
 // Testes continuam isolados em memória quando não configuram conexão. O app iniciado por

@@ -49,23 +49,4 @@ public sealed class LifecycleEventLabelContractTests
         Assert.Equal(cell, visuals.Single(evt => evt.Kind == WorldEventKind.Death).Location);
         Assert.Equal(cell, visuals.Single(evt => evt.Kind == WorldEventKind.Birth).Location);
     }
-
-    [Fact]
-    public void Web_animation_catalog_a11y_labels_match_the_presentation_catalog()
-    {
-        var catalog = File.ReadAllText(Path.Combine(FindRepoRoot(), "web", "src", "map-engine", "npcAnimationCatalog.ts"));
-        foreach (var (kind, label) in Lifecycle)
-        {
-            Assert.Contains(label, catalog, StringComparison.Ordinal);
-            Assert.Contains($"{(int)kind}: spec(", catalog, StringComparison.Ordinal);
-        }
-    }
-
-    private static string FindRepoRoot()
-    {
-        var dir = AppContext.BaseDirectory;
-        while (dir is not null && !File.Exists(Path.Combine(dir, "LivingWorld.sln")))
-            dir = Directory.GetParent(dir)?.FullName;
-        return dir ?? throw new InvalidOperationException("LivingWorld.sln não encontrado a partir de " + AppContext.BaseDirectory);
-    }
 }

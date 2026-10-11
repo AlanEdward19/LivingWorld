@@ -13,7 +13,7 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
   Ocupação da cidade incremental feita (criar 10k NPCs: 24 s → 5 s). O resto é simulação de 10 anos × ~10 testes;
   chegar a ~2 min exigiria tirar 10k/100x do conjunto padrão (ver `longrunning-budget.md`).
   Spec de veículos emergentes (sem código): `.specs/features/emergent-vehicles/` (AD-079).
-  Também pendente: decidir remoção de `web/`, `web-demo/`, `scripts/generate-web-types.sh`; **próxima unidade**: spec do cliente Godot.
+  `web/`, `web-demo/` e `scripts/generate-web-types.sh` removidos (ADR-0022); **próxima unidade**: spec do cliente Godot.
 - **Última coisa concluída (2026-09-01)**: Fase 28 fechada — cognição inspecionável, LOD
   observacional (mundo/cidade/interior), compressão de estado frio, painel web "ver o cérebro",
   sandbox de decisão. Branch `feat/phase-28-cognition` com gate verde; worktrees intermediárias
