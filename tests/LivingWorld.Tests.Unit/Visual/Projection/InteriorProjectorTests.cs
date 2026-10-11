@@ -96,4 +96,22 @@ public class InteriorProjectorTests
         Assert.Equal(new[] { 0, 1 }, snapshot.Occupants.Select(o => o.Floor.Value).Order());
         Assert.All(snapshot.Occupants, o => Assert.InRange(o.Floor.Value, 0, snapshot.Layout.Floors - 1));
     }
+
+    [Fact]
+    public void Occupant_carries_the_npc_current_action()
+    {
+        var (world, building) = WorldWithBuilding(typeId: -1);
+        var walker = new Npc(
+            world.NextNpcIdAndAdvance(), "dani", Sex.Female, WorldDate.Epoch(new WorldCalendar(24, 30, 12)), new CultureId(1), new CellCoord(0, 0),
+            motherId: null, fatherId: null, household: null, health: 100, personality: Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!,
+            profession: new ProfessionType(1), currentLocation: new CellCoord(0, 0), city: building.City);
+        world.AddNpc(walker);
+        walker.SetCurrentAction(LivingWorld.Domain.Behavior.ActionType.Work, 0);
+        var door = BuildingLayoutGenerator.Generate(building).FloorLayouts[0].Cells.Single(c => c.Material == BuildingMaterial.Door).Cell;
+        Assert.True(LivingWorld.Simulation.Cities.InteriorEntry.TryEnter(world, walker, building.Id, FloorLevel.Ground, door).IsSuccess);
+
+        var occupant = Assert.Single(InteriorProjector.Build(world, building.Id).Value!.Occupants);
+
+        Assert.Equal(LivingWorld.Domain.Behavior.ActionType.Work, occupant.Action);
+    }
 }

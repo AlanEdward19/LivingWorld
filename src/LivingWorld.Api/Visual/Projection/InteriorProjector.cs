@@ -1,3 +1,4 @@
+using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Geography.Spatial;
@@ -9,7 +10,7 @@ namespace LivingWorld.Api.Visual.Projection;
 
 /// <summary>Ocupante projetado de um interior — id do NPC + andar/célula
 /// locais, mesmo shape que <see cref="InteriorOccupancy"/> sem expor tipo de Domain cru.</summary>
-public sealed record InteriorOccupant(NpcId Npc, FloorLevel Floor, CellCoord LocalCell);
+public sealed record InteriorOccupant(NpcId Npc, FloorLevel Floor, CellCoord LocalCell, ActionType? Action = null);
 
 /// <summary><see
 /// cref="Occupants"/> lista todo NPC vivo com <see cref="Npc.Interior"/> apontando para
@@ -27,7 +28,7 @@ public static class InteriorProjector
 
         var occupants = world.Npcs
             .Where(n => n.IsAlive && n.Interior is { } interior && interior.Building == buildingId)
-            .Select(n => new InteriorOccupant(n.Id, n.Interior!.Floor, n.Interior!.LocalCell))
+            .Select(n => new InteriorOccupant(n.Id, n.Interior!.Floor, n.Interior!.LocalCell, n.CurrentAction))
             .ToArray();
 
         return Result<InteriorSnapshot>.Ok(new InteriorSnapshot(building.Id, building.City, building.BuildingTypeId, OccupancyModeled: true, occupants,

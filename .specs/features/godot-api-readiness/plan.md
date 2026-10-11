@@ -33,7 +33,7 @@ Reusa `BuildingFootprintGenerator` (planta determinística pura) e `InteriorProj
 ## Surface
 | Route | In | Out | Status |
 | --- | --- | --- | --- |
-| `GET /visual/subscribe` (scope Interior) | `scope`, `refId`, `mode` | `layout` (andares, células com material, escadas) · `occupants` | `200` |
+| `GET /visual/subscribe` (scope Interior) | `scope`, `refId`, `mode` | `layout` (andares, células com material, escadas) · `occupants` (npc, andar, célula, ação) | `200` |
 | `GET /visual/subscribe` (scope City) | `scope`, `refId`, `mode` | cada prédio ganha `floors` e `groundFootprint` do térreo | `200` |
 | `GET /npcs` | `cityId?`, `q?`, `skip`, `take` | `items[id, name, cityId, action, location]` · `total` | `200`, `400` |
 | `GET /visual/catalog/actions` | none | `[actionType, label]` por `ActionType` | `200` |
