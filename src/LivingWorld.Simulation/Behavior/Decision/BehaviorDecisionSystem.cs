@@ -299,16 +299,19 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             homeBounds = cached;
         }
 
-        var allNeighbors = Enumerable.Range(-1, 3)
-            .SelectMany(dy => Enumerable.Range(-1, 3).Select(dx => new CellCoord(
-                npc.CurrentLocation.X + dx,
-                npc.CurrentLocation.Y + dy)))
-            .Where(cell => cell != npc.CurrentLocation && world.Map.TryGetCell(cell, out _))
-            .Where(cell => !world.IsExtraordinaryConstructCell(cell))
-            .Where(cell => homeBounds is null || homeBounds.Value.Contains(cell))
-            .OrderBy(cell => cell.Y)
-            .ThenBy(cell => cell.X)
-            .ToList();
+        // Vizinhos válidos em ordem (Y, X) crescente — o próprio laço dy→dx já gera essa ordem.
+        Span<CellCoord> neighbors = stackalloc CellCoord[8];
+        int count = 0;
+        for (int dy = -1; dy <= 1; dy++)
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                if (dx == 0 && dy == 0) continue;
+                var cell = new CellCoord(npc.CurrentLocation.X + dx, npc.CurrentLocation.Y + dy);
+                if (!world.Map.TryGetCell(cell, out _)) continue;
+                if (world.IsExtraordinaryConstructCell(cell)) continue;
+                if (homeBounds is { } bounds && !bounds.Contains(cell)) continue;
+                neighbors[count++] = cell;
+            }
 
         // Passeio ambiente é a única fonte de posições "livres" (sem destino declarado como
         // household/workplace, que legitimamente hospedam vários NPCs na mesma célula) — por
@@ -316,12 +319,17 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         // visualmente). Em população densa isso pode esvaziar TODOS os 8 vizinhos de uma vez —
         // o NPC precisa continuar andando em vez de travar, então cai pra "qualquer vizinho
         // válido" quando não sobra nenhum livre.
-        var candidates = allNeighbors.Where(cell => !occupancy.Contains(cell)).ToList();
-        if (candidates.Count == 0) candidates = allNeighbors;
-        if (candidates.Count == 0) return;
+        Span<CellCoord> free = stackalloc CellCoord[8];
+        int freeCount = 0;
+        for (int i = 0; i < count; i++)
+            if (!occupancy.Contains(neighbors[i]))
+                free[freeCount++] = neighbors[i];
+
+        var candidates = freeCount > 0 ? free[..freeCount] : neighbors[..count];
+        if (candidates.Length == 0) return;
 
         var rng = ctx.Rng($"ambient-{action}-{npc.Id.Value}");
-        int index = Math.Min((int)(rng.NextDouble() * candidates.Count), candidates.Count - 1);
+        int index = Math.Min((int)(rng.NextDouble() * candidates.Length), candidates.Length - 1);
         MoveTracked(npc, candidates[index], tick, occupancy);
     }
 
