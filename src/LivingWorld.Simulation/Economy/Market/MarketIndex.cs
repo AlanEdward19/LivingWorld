@@ -15,11 +15,42 @@ public sealed class MarketIndex
 {
     private readonly HashSet<CellCoord> _origins;
     private readonly Dictionary<CellCoord, Workplace?> _nearestByOrigin;
+    private readonly Workplace[] _markets;
+    private readonly WorldMap _map;
 
-    private MarketIndex(HashSet<CellCoord> origins, Dictionary<CellCoord, Workplace?> nearestByOrigin)
+    private MarketIndex(
+        HashSet<CellCoord> origins, Dictionary<CellCoord, Workplace?> nearestByOrigin, Workplace[] markets, WorldMap map)
     {
         _origins = origins;
         _nearestByOrigin = nearestByOrigin;
+        _markets = markets;
+        _map = map;
+    }
+
+    /// <summary>Mercado mais próximo que de fato tem algo a vender (estoque de pelo menos um dos
+    /// <paramref name="resources"/>); ir ao mercado mais perto que está vazio não alimenta ninguém.
+    /// Sem nenhum com estoque, cai no mais próximo.</summary>
+    public Workplace? NearestSelling(CellCoord origin, params ResourceType[] resources)
+    {
+        Workplace? best = null;
+        long bestTicks = long.MaxValue;
+        long bestId = long.MaxValue;
+        foreach (var market in _markets)
+        {
+            bool sells = false;
+            foreach (var resource in resources)
+                if (market.Stock.GetValueOrDefault(resource) > 0) { sells = true; break; }
+            if (!sells) continue;
+
+            long ticks = TravelResolution.TicksBetween(_map, origin, market.Location);
+            if (ticks < bestTicks || (ticks == bestTicks && market.Id.Value < bestId))
+            {
+                bestTicks = ticks;
+                bestId = market.Id.Value;
+                best = market;
+            }
+        }
+        return best ?? NearestTo(origin);
     }
 
     public Workplace? NearestTo(CellCoord origin) =>
@@ -67,7 +98,7 @@ public sealed class MarketIndex
                 memo.Nearest[origin] = NearestMarket(map, origin, memo.Markets);
         }
 
-        return new MarketIndex(origins, memo.Nearest);
+        return new MarketIndex(origins, memo.Nearest, memo.Markets, map);
     }
 
     /// <summary>Compara o conjunto atual de mercados com o memo sem alocar. Só vale quando

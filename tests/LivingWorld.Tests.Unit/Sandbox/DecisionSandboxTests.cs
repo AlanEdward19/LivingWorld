@@ -56,7 +56,7 @@ public sealed class DecisionSandboxTests
         var ctx = HungryCtx(beliefs: ["the market has food stock today"]);
         var result = DecisionSandbox.Decide(ctx, UrgentRules(), EnabledEconomy());
 
-        Assert.NotEqual(default(ActionType), result.Action);
+        Assert.True(Enum.IsDefined(result.Action));
         Assert.Equal(result.Action, result.Trace.Winner);
         Assert.True(result.Trace.WinningUtility > double.NegativeInfinity);
         Assert.NotEmpty(result.Trace.TopPressures);

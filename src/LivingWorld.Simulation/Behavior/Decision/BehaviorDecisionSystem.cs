@@ -36,6 +36,17 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
     private const double NonNeedBaselineUtility = 50.0;
 
+    /// <summary>Déficit a partir do qual uma necessidade de sobrevivência (fome, sede, sono) deixa de
+    /// competir como "mais uma preferência" e passa a escalar: ninguém trabalha até morrer de sede só
+    /// porque a personalidade pesa muito em Work (peso até ~2,3 × 50 já passa de 100, o teto linear).</summary>
+    private const int CriticalDeficit = 80;
+    private const double CriticalEscalation = 3.0;
+
+    /// <summary>Despensa que uma ida ao mercado tenta formar e abaixo da qual a casa pede reposição.</summary>
+    private const int ProvisionTargetDays = 2;
+    private const int PurchaseDaysOfSupply = 4;
+    private const long MinimumPurchaseQuantity = 10;
+
     private static readonly ActionType[] AllActions = Enum.GetValues<ActionType>()
         .Where(a => a != ActionType.UsePower)
         .ToArray();
@@ -103,11 +114,11 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                 var continuityAction = justCompleted ? null : npc.CurrentAction;
 
                 var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
-                var routineAction = catalog.RoutineOf(NoneIfSentinel(npc.Profession), stage, world.CurrentDate.Hour);
+                var routineAction = RoutineWithCommuteLead(world, npc, catalog, stage);
 
                 PendingPowerInvocation? pendingPower = null;
                 ActionType candidate;
-                if (npc.HasUrgentNeed(rules, now))
+                if (HasUrgentNeedForDecision(npc, rules, now))
                 {
                     var decision = SelectByUtility(
                         DecisionContextBuilder.Build(world, npc, now),
@@ -146,6 +157,63 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     }
 
     internal static IEnumerable<Npc> TargetsForTick(WorldState world) => world.NpcWakeBatch;
+
+    /// <summary>Necessidade urgente que faz o NPC largar a rotina: fome, sede e sono sempre; solidão só
+    /// quando crítica — quem se sente um pouco sozinho no meio do turno continua a rotina do dia
+    /// (e socializa na janela dela), como qualquer pessoa.</summary>
+    private static bool HasUrgentNeedForDecision(Npc npc, NeedsRules rules, long now)
+    {
+        if (!npc.HasUrgentNeed(rules, now)) return false;
+        return IsUrgent(npc.HungerAt(now), rules) || IsUrgent(npc.ThirstAt(now), rules)
+            || IsUrgent(npc.SleepAt(now), rules) || npc.SocialAt(now) <= SocialCriticalNeed;
+    }
+
+    private static bool IsUrgent(int need, NeedsRules rules) => need == 0 || 100 - need > rules.UrgencyThreshold;
+
+    /// <summary>Necessidade social abaixo da qual a solidão deixa de ser preferência e força a decisão.</summary>
+    internal const int SocialCriticalNeed = 20;
+
+    /// <summary>Rotina do horário atual, mas saindo cedo: quem tem de estar no trabalho (ou em casa para
+    /// dormir) às X horas parte já na hora X menos o tempo de deslocamento, e não só quando o turno
+    /// começa — senão cada trajeto empurra o dia para a frente e o ciclo deixa de ser de 24 h.</summary>
+    private static ActionType RoutineWithCommuteLead(WorldState world, Npc npc, ActionCatalog catalog, LifeStage stage)
+    {
+        var profession = NoneIfSentinel(npc.Profession);
+        var date = world.CurrentDate;
+        var routine = catalog.RoutineOf(profession, stage, date.Hour);
+
+        if (routine != ActionType.Work
+            && WorkDestinationOf(world, npc) is { } workplace
+            && LeadHoursTo(world, npc, workplace) is > 0 and var workLead
+            && catalog.RoutineOf(profession, stage, HourAfter(date, workLead)) == ActionType.Work)
+            return ActionType.Work;
+
+        if (routine != ActionType.Sleep && routine != ActionType.Work
+            && SleepDestinationOf(world, npc) is { } bed
+            && LeadHoursTo(world, npc, bed) is > 0 and var bedLead
+            && catalog.RoutineOf(profession, stage, HourAfter(date, bedLead)) == ActionType.Sleep)
+            return ActionType.Sleep;
+
+        return routine;
+    }
+
+    /// <summary>Horas de deslocamento até onde <paramref name="action"/> acontece (trabalho ou cama);
+    /// 0 para as demais ações ou quando o NPC já está lá.</summary>
+    internal static long CommuteLeadHours(WorldState world, Npc npc, ActionType action) => action switch
+    {
+        ActionType.Work when WorkDestinationOf(world, npc) is { } workplace => LeadHoursTo(world, npc, workplace),
+        ActionType.Sleep when SleepDestinationOf(world, npc) is { } bed => LeadHoursTo(world, npc, bed),
+        _ => 0,
+    };
+
+    private static long LeadHoursTo(WorldState world, Npc npc, CellCoord destination) =>
+        destination == npc.CurrentLocation
+            ? 0
+            : TravelResolution.TicksBetween(world.Map, npc.CurrentLocation, destination,
+                BodyMechanic.MovementCostMultiplier(world, npc));
+
+    private static int HourAfter(WorldDate date, long hours) =>
+        (int)((date.TotalHours + hours) % date.Calendar.HoursPerDay);
 
     /// <summary>Só grava rastro quando o NPC está materializado (linha em
     /// <see cref="WorldState.Npcs"/>) e dentro do escopo observacional com detalhe cosmético
@@ -427,7 +495,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     private static bool TryApplyBuy(WorldState world, Npc npc, MarketIndex marketIndex)
     {
         if (!world.EconomyRules.Enabled) return false;
-        var market = marketIndex.NearestTo(npc.CurrentLocation);
+        var market = NearestEssentialsMarket(world, npc, marketIndex);
         if (market is null) return false; // vendedor indisponível
         if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household)
             return false;
@@ -439,7 +507,10 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             var resource = new ResourceType(resourceId);
             if (!market.Prices.TryGetValue(resource, out var unitPrice) || unitPrice <= 0) continue;
 
-            const long quantity = 10;
+            // Compra de domicílio, como uma ida real ao mercado: cobre ~4 dias de cada membro
+            // (mínimo 10), limitada ao que a carteira paga.
+            long quantity = Math.Max(MinimumPurchaseQuantity, household.Members.Count * PurchaseDaysOfSupply);
+            quantity = Math.Max(1, Math.Min(quantity, npc.Wallet.Amount / unitPrice));
             var ctx = new TransactionContext(
                 npc.Wallet, market.Treasury, market.Stock.GetValueOrDefault(resource),
                 household.Stock.GetValueOrDefault(resource), resource, unitPrice, quantity);
@@ -478,7 +549,14 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     }
 
     private static CellCoord? BuyDestinationOf(WorldState world, Npc npc, MarketIndex marketIndex) =>
-        marketIndex.NearestTo(npc.CurrentLocation)?.Location;
+        NearestEssentialsMarket(world, npc, marketIndex)?.Location;
+
+    /// <summary>Mercado mais próximo com comida ou água em estoque — quem vai comprar não vai à
+    /// ferraria só porque ela fica mais perto.</summary>
+    private static Workplace? NearestEssentialsMarket(WorldState world, Npc npc, MarketIndex marketIndex) =>
+        marketIndex.NearestSelling(
+            npc.CurrentLocation,
+            new ResourceType(world.EconomyRules.FoodResourceId), new ResourceType(world.EconomyRules.WaterResourceId));
 
     private static CellCoord? TravelDestinationOf(WorldState world, Npc npc, MarketIndex marketIndex) =>
         RelocationDestinationOf(world, npc) is { } relocationDest
@@ -757,7 +835,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     private static double UtilityBaseOf(DecisionContext ctx, ActionType action, EconomyRules economy) => action switch
     {
         ActionType.Eat => EatUtilityOf(ctx, economy),
-        ActionType.Sleep => Deficit(ctx.Needs.Sleep),
+        ActionType.Sleep => SurvivalDeficit(ctx.Needs.Sleep),
         ActionType.Socialize => Deficit(ctx.Needs.Social),
         ActionType.Buy => BuyUtilityOf(ctx, economy),
         ActionType.Work or ActionType.Travel or ActionType.Idle => NonNeedBaselineUtility,
@@ -767,7 +845,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
     private static double EatUtilityOf(DecisionContext ctx, EconomyRules economy)
     {
-        double deficit = Math.Max(Deficit(ctx.Needs.Hunger), Deficit(ctx.Needs.Thirst));
+        double deficit = Math.Max(SurvivalDeficit(ctx.Needs.Hunger), SurvivalDeficit(ctx.Needs.Thirst));
         if (!economy.Enabled) return deficit;
         if (ctx.Household is not { } household) return deficit;
 
@@ -782,14 +860,38 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
         if (ctx.Household is not { } household)
             return NonNeedBaselineUtility;
 
-        bool needsFood = household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId)) < 1;
-        bool needsWater = household.Stock.GetValueOrDefault(new ResourceType(economy.WaterResourceId)) < 1;
-        if (!needsFood && !needsWater) return NonNeedBaselineUtility;
+        long food = household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId));
+        long water = household.Stock.GetValueOrDefault(new ResourceType(economy.WaterResourceId));
+        bool needsFood = food < 1;
+        bool needsWater = water < 1;
+        double provision = ProvisionPressureOf(ctx, household, Math.Min(food, water));
+        if (!needsFood && !needsWater) return Math.Max(NonNeedBaselineUtility, provision);
 
-        return Math.Max(needsFood ? Deficit(ctx.Needs.Hunger) : 0, needsWater ? Deficit(ctx.Needs.Thirst) : 0);
+        double own = Math.Max(needsFood ? SurvivalDeficit(ctx.Needs.Hunger) : 0, needsWater ? SurvivalDeficit(ctx.Needs.Thirst) : 0);
+        return Math.Max(own, provision);
+    }
+
+    /// <summary>Quem tem dinheiro abastece a casa antes de ela esvaziar, e não só quando sente fome
+    /// (crianças sem renda dependem disso): sobe de ~55 com 2 dias de estoque por membro até 130 com
+    /// a despensa vazia — acima do que o peso de personalidade dá a Work.</summary>
+    private static double ProvisionPressureOf(DecisionContext ctx, HouseholdSnapshot household, long scarcestStock)
+    {
+        if (ctx.WalletAmount < 1) return 0;
+        int members = Math.Max(1, household.Members.Count);
+        double daysPerMember = (double)scarcestStock / members;
+        double shortfall = 1.0 - daysPerMember / ProvisionTargetDays;
+        return shortfall <= 0 ? 0 : 55 + 75 * Math.Min(1.0, shortfall);
     }
 
     private static int Deficit(int need) => 100 - need;
+
+    /// <summary>Déficit linear até <see cref="CriticalDeficit"/>; acima dele cada ponto vale
+    /// <c>1 + CriticalEscalation</c> — a urgência dispara quando a necessidade vira crítica.</summary>
+    private static double SurvivalDeficit(int need)
+    {
+        int deficit = Deficit(need);
+        return deficit <= CriticalDeficit ? deficit : deficit + (deficit - CriticalDeficit) * CriticalEscalation;
+    }
 
     private static ProfessionType? NoneIfSentinel(ProfessionType profession) =>
         profession == ProfessionType.None ? null : profession;

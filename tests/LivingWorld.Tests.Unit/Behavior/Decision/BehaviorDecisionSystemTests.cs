@@ -350,8 +350,8 @@ public class BehaviorDecisionSystemTests
         bool isSocializeTrait = SocializeTraits.Contains(trait);
         var rules = MakeRules(urgencyThreshold: 40);
         var catalog = MakeCatalogWithOpenWorkShift();
-        int social = isSocializeTrait ? 50 : 100; // déficit 50 (gatilho + concorrente de Socialize)
-        int sleep = isSocializeTrait ? 100 : 55; // déficit 45 (gatilho que não interfere no par sob teste)
+        int social = isSocializeTrait ? 50 : 100; // déficit 50 (concorrente de Socialize; solidão não crítica não dispara a decisão)
+        int sleep = 55; // déficit 45: gatilho de urgência que não interfere no par sob teste
 
         for (ulong seed = 1; seed <= 10; seed++)
         {

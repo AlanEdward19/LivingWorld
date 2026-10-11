@@ -63,13 +63,15 @@ public static class NpcWakeScheduler
         next = Math.Min(next, NextThresholdCrossing(npc.HungerNeed, now, needsRules.UrgencyThreshold));
         next = Math.Min(next, NextThresholdCrossing(npc.ThirstNeed, now, needsRules.UrgencyThreshold));
         next = Math.Min(next, NextThresholdCrossing(npc.SleepNeed, now, needsRules.UrgencyThreshold));
-        next = Math.Min(next, NextThresholdCrossing(npc.SocialNeed, now, needsRules.UrgencyThreshold));
+        next = Math.Min(next, NextSocialWake(npc.SocialNeed, now, needsRules.UrgencyThreshold));
 
         if (npc.CurrentAction is { } action)
         {
             long actionEnd = npc.ActionStartedAtTick + catalog.MaxDurationHours[action];
             next = Math.Min(next, actionEnd);
         }
+
+        next = Math.Min(next, NextRoutineBoundaryWake(npc, catalog, now, world));
 
         if (eventDrivenWakeTick is { } attentionTick)
             next = Math.Min(next, attentionTick);
@@ -87,9 +89,35 @@ public static class NpcWakeScheduler
         return next;
     }
 
+    /// <summary>Próxima fronteira da rotina (troca de ação), menos o tempo de deslocamento quando a nova
+    /// ação é ir trabalhar ou dormir em outro lugar: quem sai de casa para chegar às 6 h acorda a tempo.</summary>
+    private static long NextRoutineBoundaryWake(Npc npc, ActionCatalog catalog, long now, WorldState world)
+    {
+        var date = world.CurrentDate;
+        var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(date));
+        var profession = npc.Profession == ProfessionType.None ? (ProfessionType?)null : npc.Profession;
+        int hoursPerDay = date.Calendar.HoursPerDay;
+        int hour = date.Hour;
+
+        int untilChange = RoutineBoundaries.HoursUntilChange(catalog, profession, stage, hour, hoursPerDay);
+        var upcoming = catalog.RoutineOf(profession, stage, (hour + untilChange) % hoursPerDay);
+        long lead = BehaviorDecisionSystem.CommuteLeadHours(world, npc, upcoming);
+        return now + Math.Max(1, untilChange - lead);
+    }
+
     public static void RescheduleAfterHour(
         WorldState world, TickContext ctx, Npc npc, NeedsRules needsRules, ActionCatalog catalog, long now) =>
         ScheduleWake(world, ctx, npc.Id.Value, ComputeNextWakeTick(npc, needsRules, catalog, now, world));
+
+    /// <summary>Solidão não é necessidade de sobrevivência: enquanto não for crítica, não obriga o NPC a
+    /// redecidir toda hora (quem se sente sozinho às 15 h não larga o turno; socializa na janela da rotina).
+    /// Reavaliar a cada hora por causa dela era o maior gerador de despertares e quebrava o ritmo do dia.</summary>
+    private static long NextSocialWake(LazyNeed social, long nowTick, double urgencyThreshold)
+    {
+        long crossing = NextThresholdCrossing(social, nowTick, urgencyThreshold);
+        if (crossing > nowTick) return crossing;
+        return social.ValueAt(nowTick) <= BehaviorDecisionSystem.SocialCriticalNeed ? crossing : long.MaxValue;
+    }
 
     public static long NextThresholdCrossing(LazyNeed need, long nowTick, double urgencyThreshold)
     {
