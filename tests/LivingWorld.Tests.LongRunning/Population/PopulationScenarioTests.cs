@@ -82,10 +82,16 @@ public class PopulationScenarioTests
         var (world, clock) = ScenarioRunner.Create(seed: 1, initialPopulation: 0);
         Assert.Empty(world.Npcs);
 
+        var hashBefore = WorldSnapshot.CanonicalHash(world);
+
         clock.Run(world, 1000);
 
         Assert.Empty(world.Npcs);
         Assert.Empty(world.Households);
+        var (replayed, replayClock) = ScenarioRunner.Create(seed: 1, initialPopulation: 0);
+        replayClock.Run(replayed, 1000);
+        Assert.Equal(WorldSnapshot.CanonicalHash(world), WorldSnapshot.CanonicalHash(replayed));
+        Assert.NotEqual(hashBefore, WorldSnapshot.CanonicalHash(world));
     }
 
     [Fact]

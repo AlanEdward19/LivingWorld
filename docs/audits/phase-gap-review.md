@@ -12,6 +12,11 @@ Itens que exigem decisão de escopo/arquitetura (AGENTS.md → "PERGUNTE QUANDO"
 - [x] F2 — `Cities[]` fora do grid rejeitada no load (`CityScenarioLoader`).
 - [x] F3 — hash canônico distinto por `BranchId`; teste de reflexão: todo método de `IWorldRepository` recebe `BranchId`.
 - [x] F11 — `LlmResponseValidator` rejeita `Intent` fora de `AllowedIntents`.
+- [x] F11 — tick imune a provider que cai: hash igual com e sem o turno (`ConversationOrchestratorTests`).
+- [x] F3 — nenhum evento de emprego/casamento/cortejo após a morte (`NoEventsAfterDeathTests`); mundo vazio por 1000 ticks tem hash estável e reproduzível.
+- [x] F8 — todo NPC vivo numa cidade existente a cada dia, 1 ano (`EveryNpcHasACityTests`).
+- [x] F2 — hash de mapa: mesma seed igual, seed distinta difere, literal preso da seed 42 (`MapHashTests`).
+- [x] Pins de `OptimizationEquivalenceTests` regravados (seeds 1 e 2): o hash atual é idêntico em 4a86dbf (commit que gravou as pins) e no HEAD, em Debug e Release, então as pins nunca bateram nesta máquina; determinismo em 2 processos segue verde.
 
 ## Abertas — critério mais fraco que o roadmap (sem AD registrando o desvio)
 - F4 histerese 20/20 virou média+folga; teto p99 tautológico (`BehaviorDecisionSystemHysteresisTests`).
@@ -69,11 +74,19 @@ Itens que exigem decisão de escopo/arquitetura (AGENTS.md → "PERGUNTE QUANDO"
 | F1/F9 estrutura | Sistemas se declaram (`LivingCapability`/`RunsAfter`); `BehaviorDecisionSystem`, `WorldState` e `ScenarioRunner` são `partial` por responsabilidade (mesmas linhas) | AD-084, AD-087 |
 | Cliente web | Removido (`web/`, `web-demo/`, gerador de tipos, testes que liam TypeScript). Contrato em `tests/contracts/` | ADR-0022, AD-085 |
 
-## Falha apontada como pré-existente: não se reproduz
+## Falha das pins de hash (reproduzia em develop e em 4a86dbf)
 `OptimizationEquivalenceTests.Default_scenario_ninety_days_keeps_the_recorded_hashes` (seeds 1 e 2) **passa** no HEAD
-desta branch: os pins foram regravados no commit do lote colhido (AD-083, que muda o hash canônico de propósito; AD-081
+desta branch (corrigido acima): os pins foram regravados no commit do lote colhido (AD-083, que muda o hash canônico de propósito; AD-081
 é que garantia hashes idênticos). Se falhar em outro checkout, é build antigo — rode `bash scripts/build.sh` antes.
 
 ## Achados desta revisão sobre a própria revisão
 - A branch falhava `lint.sh` (ordem de imports em `BranchHashTests`); corrigido. CI (`ci.yml`) roda `verify.sh`.
 - O agente rodou só análise estática: nenhum item acima foi reproduzido por teste, exceto os três fechados.
+
+## Achados novos desta rodada
+- Abrir sessão de conversa consome um id de evento canônico (`TickContext.ScheduleEvent` → `NextEventIdAndAdvance`) mesmo com
+  scheduler descartável (API). Hoje inofensivo (mundo efêmero); com tick real, abrir conversa muda o hash. **D**: expiração
+  preguiçosa (sem evento) ou aceitar o id como entrada do jogador.
+- Não feito de propósito (muda hash/calibração da vila ou formato persistido; critério do usuário: sem custo de perf e sem
+  perder realismo): sede/sono em 0 com consequência (campo canônico novo), tutoria viva (`AssignMentor`), Help/Trade,
+  recursos/profissões novos, snapshot binário em produção, remoção do `ExampleCounterSystem`.

@@ -136,6 +136,38 @@ public class ConversationOrchestratorTests
         Assert.Empty(world.CanonicalMemories.Concat(world.VolatileMemories));
     }
 
+    /// <summary>Abrir sessão agenda a expiração e consome um id de evento canônico (decisão de design,
+    /// ver docs/audits/phase-gap-review.md) — por isso o braço de controle também abre a sessão;
+    /// o que não pode mexer no mundo é o turno com provider que cai.</summary>
+    [Fact]
+    public async Task Throwing_provider_mid_run_leaves_the_world_hash_equal_to_a_run_without_the_turn()
+    {
+        const long Ticks = 48;
+        static (WorldState World, WorldClock Clock, Npc Npc, ConversationSessionStore Store, ConversationSession Session, TickContext Ctx) Open()
+        {
+            var (world, clock) = ScenarioRunner.Create(seed: 9, initialPopulation: 20);
+            clock.Run(world, Ticks / 2);
+            var npc = world.Npcs.First(n => n.IsAlive);
+            var ctx = new TickContext(world, new WorldRngRegistry(1), new EventScheduler());
+            var store = new ConversationSessionStore();
+            var (decision, session) = store.StartConversation(npc, world.NeedsRules, MakeLlmRules(), null, ctx, expireAfterTicks: 100);
+            Assert.Equal(ConversationStartDecision.Accepted, decision);
+            return (world, clock, npc, store, session!, ctx);
+        }
+
+        var control = Open();
+        control.Clock.Run(control.World, Ticks - Ticks / 2);
+
+        var treated = Open();
+        var provider = new ScriptedProvider((_, _) => throw new InvalidOperationException("provider caiu"));
+        var orchestrator = new ConversationOrchestrator(treated.Store, new ConversationEffectsApplier(), provider, KnownEmotions, TimeSpan.FromSeconds(5));
+        var turn = await orchestrator.SendMessageAsync(treated.World, treated.Npc, treated.Session, "oi", ["greet"], [], treated.Ctx);
+        Assert.Contains(treated.Npc.Name, turn.Dialogue);
+        treated.Clock.Run(treated.World, Ticks - Ticks / 2);
+
+        Assert.Equal(WorldSnapshot.CanonicalHash(control.World), WorldSnapshot.CanonicalHash(treated.World));
+    }
+
     [Fact]
     public async Task Message_on_unknown_session_falls_back_without_calling_the_provider()
     {
