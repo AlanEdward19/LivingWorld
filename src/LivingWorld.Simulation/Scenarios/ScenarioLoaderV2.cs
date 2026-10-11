@@ -73,7 +73,7 @@ public static class ScenarioLoaderV2
             var poolNpcIds = world.ReserveNpcIdBlock(city.AggregatePool.Count);
             var createdCity = new City(
                 world.NextCityId(), city.Location, city.FoundedAtTick, foundedFromCityId: null, city.AggregatePool,
-                name: name, poolNpcIds: poolNpcIds);
+                name: name, poolNpcIds: poolNpcIds, treasury: city.Treasury);
             world.AddCity(createdCity);
             createdCityIds.Add(createdCity.Id);
         }
@@ -156,6 +156,9 @@ public static class ScenarioLoaderV2
                 }
             }
         }
+
+        if (world.EconomyRules.Enabled && population.InitialPopulation > 0)
+            ScenarioRunner.SeedInitialEconomyBuffer(world);
 
         ExtraordinaryPrevalenceSeeder.Seed(world);
 

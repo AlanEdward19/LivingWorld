@@ -87,13 +87,15 @@ public static partial class ScenarioRunner
     /// default se extinguiria em semanas, não sobreviveria os 100 anos do objetivo #1.
     /// Quantidade cobre só o mês de bootstrap; da­í em diante o ciclo emprego→produção→salário→
     /// compra é quem sustenta.</summary>
-    private static void SeedInitialEconomyBuffer(WorldState world)
+    internal static void SeedInitialEconomyBuffer(WorldState world)
     {
+        var food = new ResourceType(world.EconomyRules.FoodResourceId);
+        var water = new ResourceType(world.EconomyRules.WaterResourceId);
         foreach (var household in world.Households)
         {
             long bootstrapUnits = 50L * household.Members.Count;
-            household.Deposit(new ResourceType(1), bootstrapUnits); // trigo
-            household.Deposit(new ResourceType(2), bootstrapUnits); // água
+            household.Deposit(food, bootstrapUnits);
+            household.Deposit(water, bootstrapUnits);
         }
 
         foreach (var npc in world.Npcs)

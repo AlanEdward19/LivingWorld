@@ -9,6 +9,7 @@ using LivingWorld.Simulation.Ecology;
 using LivingWorld.Simulation.Economy.Labor;
 using LivingWorld.Simulation.Economy.Market;
 using LivingWorld.Simulation.Economy.Production;
+using LivingWorld.Simulation.Economy.Supply;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
 using LivingWorld.Simulation.Extraordinary.Systems;
 using LivingWorld.Simulation.Geography;
@@ -68,6 +69,7 @@ public static partial class ScenarioRunner
         new SkillPracticeSystem(DefaultSkillsRules),
         new SkillTeachingSystem(DefaultSkillsRules, DefaultLifeStageRules),
         new WorkHardeningSystem(),
+        new InputSupplySystem(),
         new ProductionSystem(DefaultSkillsRules),
         new FaunaLifecycleSystem(),
         new FloraLifecycleSystem(),

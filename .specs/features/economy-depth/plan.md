@@ -16,10 +16,10 @@ Quando isto entrar, faltar madeira ou pedra atrasa obras e aperta a moradia, e o
 Reaproveita `ProductionSystem`, `MarketPricingSystem`, `ConstructionDemandSystem` e `ConstructionSystem` em vez
 de criar economia paralela.
 
-1. `ScenarioRunner.DefaultEconomyRules` e `DefaultEconomyCatalog` (exists) - declaram recursos 3 e 5, receitas e salários
-2. `SeedDefaultWorkplaces` (exists) - cria serraria e pedreira por cidade; `EmploymentSystem` (exists) contrata lenhador e pedreiro
+1. `scenarios/default.json` (exists, o cenário ao vivo carregado por `ScenarioLoaderV2`) - declara recursos 3 e 5, receitas, salários, serraria e pedreira
+2. `ScenarioLoaderV2` (exists) - monta oficinas e tesouro da cidade; `EmploymentSystem` (exists) contrata lenhador e pedreiro
 3. `ProductionSystem` (exists) - consome `Inputs` e deposita saída no estoque da oficina; `MarketPricingSystem` (exists) precifica
-4. `ConstructionSupplySystem` (new, door 2) - leva insumo faltante do estoque de oficinas da cidade ao `City.Stock`, pago pela cidade
+4. `InputSupplySystem` (new, door 2) - Daily: leva insumo faltante do estoque de outras oficinas da cidade à oficina (paga pelo tesouro dela) e ao `City.Stock` (paga pelo `City.Treasury`)
 5. `ConstructionDemandSystem` e `ConstructionSystem` (exists) - abrem a obra e retiram `Inputs` de `City.Stock`
 
 ## Impact
@@ -29,6 +29,7 @@ de criar economia paralela.
 | domain | novos termos de cenário: madeira (recurso 3), pedra (recurso 5), serraria (local 3), pedreira (local 4), lenhador (profissão 3), pedreiro (profissão 4) |
 | domain | `City.Stock` passa a ser alimentado por compra, não só por fundação; quem lê hoje: `ConstructionSystem`, `LivingScopeState`, inspeção da cidade |
 | stored data | mundos salvos antes não têm oficinas novas nem tesouro de cidade: nada a migrar, leitor assume vazio; goldens e pins de hash regravados uma vez |
+| scenarios | `ScenarioRunner` (fixture do gate, cidades desligadas) fica sem recursos novos; só `scenarios/default.json` ganha conteúdo. Achado: mundos do `ScenarioLoaderV2` não recebiam a reserva inicial (AD-046) e morriam no 1º ano; o loader passa a semear |
 
 ## Relations
 
@@ -121,14 +122,12 @@ O ferreiro deixa de ser coleta pura: consome ferro e madeira.
 | Assumption | Chosen default | Rationale | Confirmed? |
 | --- | --- | --- | --- |
 | de onde vem o dinheiro do tesouro da cidade | dotação inicial declarada no cenário, sem imposto | imposto exige `Mint/Destroy` de produção, hoje sem fonte | n |
-| peso inicial no sorteio de profissão | lenhador e pedreiro com metade do peso de lavrador | mantém a vila alimentada (AD-046) | n |
+| peso inicial no sorteio de profissão | lenhador e pedreiro com metade do peso de lavrador (`Dynamics.ProfessionBiases`) | mantém a vila alimentada (AD-046) | n |
+| reserva inicial no loader | o `ScenarioLoaderV2` semeia a mesma reserva do `ScenarioRunner` (50 por membro, 50 de moeda) | sem ela o mundo ao vivo morre em dias (medido: 0 vivos no ano 1, 3 seeds) | n |
+| ferreiro e ferro | fora do cenário ao vivo; o ferro segue só no fixture do gate | o cenário ao vivo não tem forja; ECOD-06 vale para o catálogo dele | n |
 | reserva inicial de madeira e pedra por oficina | igual à de trigo por casa (50) | construção só começa depois do primeiro ciclo sem isso | n |
 
-**Open questions:** 1 - bloqueia os critérios 7 e 8.
-
-| # | Kind | Question | Until answered |
-| --- | --- | --- | --- |
-| 1 | blocks | a cidade paga o insumo com tesouro próprio (recomendado, reaproveita preço) ou recebe sem pagar | critério 7 e 8 |
+**Open questions:** none - all resolved or logged above (a cidade paga com tesouro próprio: confirmado pelo usuário, opção recomendada).
 
 ## Observable
 

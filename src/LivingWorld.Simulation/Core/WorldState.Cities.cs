@@ -67,6 +67,9 @@ public sealed partial class WorldState
             mother.EnqueueConstruction(project);
         }
 
+        var daughterTreasury = daughter.Treasury;
+        if (daughterTreasury.Amount > 0 && daughter.TryDebitTreasury(daughterTreasury).IsSuccess)
+            mother.CreditTreasury(daughterTreasury);
         var (pool, poolNpcIds) = daughter.ExtractEntirePool();
         mother.AbsorbPool(pool, poolNpcIds);
         daughter.MarkMergedInto(mother.Id);

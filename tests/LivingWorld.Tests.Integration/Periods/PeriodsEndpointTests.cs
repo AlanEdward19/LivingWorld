@@ -185,7 +185,7 @@ public class PeriodsEndpointTests : IClassFixture<LivingWorldApiFactory>
         var body = await response.Content.ReadFromJsonAsync<PeriodCatalogResponse>();
         Assert.NotNull(body);
         Assert.Equal("catalog-endpoint-period", body!.PeriodId);
-        Assert.Equal([1, 2], body.ProfessionIds); // scenarios/default.json declara ProfessionIds = [1, 2]
+        Assert.Equal([1, 2, 3, 4], body.ProfessionIds); // scenarios/default.json declara ProfessionIds = [1, 2, 3, 4]
         Assert.Equal([7], body.SkillIds);
     }
 

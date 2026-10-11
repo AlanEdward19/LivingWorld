@@ -66,6 +66,10 @@ public sealed class SettlementFoundingSystem : ISimulationSystem
             world.NextCityId(), foundingSite.Value, ctx.CurrentTick, motherCityId, extractedPool,
             name: CityNameGenerator.Generate(world), poolNpcIds: extractedPoolNpcIds);
         world.AddCity(newCity);
+        // Dotação de fundação: a cidade nova recebe metade do caixa da mãe (só muda de dono, nada é cunhado).
+        var dotation = new Money(motherCity.Treasury.Amount / 2);
+        if (dotation.Amount > 0 && motherCity.TryDebitTreasury(dotation).IsSuccess)
+            newCity.CreditTreasury(dotation);
     }
 
     private static bool AllThresholdsMet(WorldState world, CityRules rules, City city)

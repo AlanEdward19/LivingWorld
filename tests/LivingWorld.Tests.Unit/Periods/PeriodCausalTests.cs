@@ -22,6 +22,7 @@ public class PeriodCausalTests
         string defaultJson = File.ReadAllText(Path.Combine(FindRepoRoot(), "scenarios", "default.json"));
         var root = JsonNode.Parse(defaultJson)!.AsObject();
         root["ProfessionIds"] = new JsonArray(1, 2);
+        root["Dynamics"] = new JsonObject { ["ProfessionBiases"] = new JsonArray(), ["TransformationRules"] = new JsonArray() };
 
         root["EconomyEnabled"] = false;
         root["FoodResourceId"] = 1;

@@ -115,6 +115,10 @@ public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
             world.NextCityId(), centroid, ctx.CurrentTick, motherCityId, AggregatePopulationPool.Empty,
             name: CityNameGenerator.Generate(world));
         world.AddCity(newCity);
+        // Dotação de fundação: a cidade nova recebe metade do caixa da mãe (só muda de dono, nada é cunhado).
+        var dotation = new Money(motherCity.Treasury.Amount / 2);
+        if (dotation.Amount > 0 && motherCity.TryDebitTreasury(dotation).IsSuccess)
+            newCity.CreditTreasury(dotation);
 
         foreach (var building in buildings)
             building.JoinCity(newCity.Id);

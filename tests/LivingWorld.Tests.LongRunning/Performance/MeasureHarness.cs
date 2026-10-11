@@ -62,6 +62,33 @@ public class MeasureHarness
                 + $"meanSkillSum={skill:F1} withMentor={living.Count(n => n.Mentor is not null)} ms={sw.ElapsedMilliseconds} "
                 + $"events={string.Join(",", sink.Counts.OrderBy(k => k.Key).Select(k => $"{k.Key}:{k.Value}"))}");
         }
+
+        // Mundo "ao vivo": scenarios/default.json pelo ScenarioLoaderV2 (cidades ligadas), 10 anos × 3 seeds.
+        string json = File.ReadAllText(Path.Combine(RepoRoot(), "scenarios", "default.json"));
+        for (int seed = 1; seed <= 3; seed++)
+        {
+            var node = System.Text.Json.Nodes.JsonNode.Parse(json)!.AsObject();
+            node["Seed"] = seed;
+            var loaded = ScenarioLoaderV2.LoadWorld(node.ToJsonString());
+            Assert.True(loaded.IsSuccess, loaded.Error);
+            var (world, clock) = loaded.Value;
+            var marks = new List<int>();
+            var sw = Stopwatch.StartNew();
+            for (int year = 1; year <= 10; year++)
+            {
+                clock.Run(world, 360 * 24);
+                marks.Add(world.Npcs.Count(n => n.IsAlive));
+            }
+            sw.Stop();
+            sb.AppendLine($"live seed={seed} alive@1..10y=[{string.Join(",", marks)}] cities={world.ActiveCities().Count()} buildings={world.Buildings.Count} workplaces={world.Workplaces.Count} ms={sw.ElapsedMilliseconds}");
+        }
         File.WriteAllText(Environment.GetEnvironmentVariable("LW_MEASURE_OUT") ?? Path.Combine(Path.GetTempPath(), "lw-measure.txt"), sb.ToString());
+    }
+
+    private static string RepoRoot()
+    {
+        var dir = AppContext.BaseDirectory;
+        while (dir is not null && !File.Exists(Path.Combine(dir, "LivingWorld.sln"))) dir = Directory.GetParent(dir)?.FullName;
+        return dir ?? throw new InvalidOperationException("LivingWorld.sln não encontrado");
     }
 }

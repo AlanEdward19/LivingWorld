@@ -25,7 +25,7 @@ public sealed record CityScenarioData(
 /// divide o restante de <c>Population.InitialPopulation</c> igualmente entre as cidades sem
 /// valor explícito, exatamente como fazia antes desse campo existir (não muda a fórmula de
 /// crescimento de <see cref="CityBoundsResolver"/>, só a população com que cada cidade nasce).</summary>
-public sealed record InitialCity(CellCoord Location, long FoundedAtTick, AggregatePopulationPool AggregatePool, string Name = "", int? InitialPopulation = null);
+public sealed record InitialCity(CellCoord Location, long FoundedAtTick, AggregatePopulationPool AggregatePool, string Name = "", int? InitialPopulation = null, Money Treasury = default);
 
 /// <summary>Prédio autorado no World Creator — ainda sem <see
 /// cref="BuildingId"/>/<see cref="CityId"/> reais: <see cref="CityIndex"/> referencia a posição
@@ -205,7 +205,11 @@ public static class CityScenarioLoader
             if (initialPopulation is < 0)
                 return Result<IReadOnlyList<InitialCity>>.Fail("Cities[].InitialPopulation: não pode ser negativo");
 
-            cities.Add(new InitialCity(new CellCoord(x, y), foundedAtTick, new AggregatePopulationPool(count, wealthSum, healthSum), name, initialPopulation));
+            long treasury = TryGetLong(city, "Treasury", out var declaredTreasury) ? declaredTreasury : 0;
+            if (treasury < 0)
+                return Result<IReadOnlyList<InitialCity>>.Fail("Cities[].Treasury: não pode ser negativo");
+
+            cities.Add(new InitialCity(new CellCoord(x, y), foundedAtTick, new AggregatePopulationPool(count, wealthSum, healthSum), name, initialPopulation, new Money(treasury)));
         }
 
         return Result<IReadOnlyList<InitialCity>>.Ok(cities);
