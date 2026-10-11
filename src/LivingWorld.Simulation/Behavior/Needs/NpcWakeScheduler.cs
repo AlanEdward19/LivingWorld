@@ -1,5 +1,6 @@
 using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Decision;
 using LivingWorld.Simulation.Core;
@@ -57,7 +58,7 @@ public static class NpcWakeScheduler
 
     public static long ComputeNextWakeTick(
         Npc npc, NeedsRules needsRules, ActionCatalog catalog, long now, WorldState world,
-        long? eventDrivenWakeTick = null, long? travelArrivalTick = null)
+        long? eventDrivenWakeTick = null, long? travelArrivalTick = null, LifeStage? lifeStage = null)
     {
         long next = long.MaxValue;
         // Comer, comprar (ou ir comprar) atendem fome e sede; dormir (ou ir para a cama) atende o sono.
@@ -76,7 +77,7 @@ public static class NpcWakeScheduler
             next = Math.Min(next, actionEnd);
         }
 
-        next = Math.Min(next, NextRoutineBoundaryWake(npc, catalog, now, world));
+        next = Math.Min(next, NextRoutineBoundaryWake(npc, catalog, now, world, lifeStage));
 
         // Quem está a caminho acorda ao chegar, não ao fim da duração máxima da ação: sem isso toda viagem
         // de 1–2 h só terminava às 4 h, e o trajeto comia o dia.
@@ -101,25 +102,26 @@ public static class NpcWakeScheduler
 
     /// <summary>Próxima fronteira da rotina (troca de ação), menos o tempo de deslocamento quando a nova
     /// ação é ir trabalhar ou dormir em outro lugar: quem sai de casa para chegar às 6 h acorda a tempo.</summary>
-    private static long NextRoutineBoundaryWake(Npc npc, ActionCatalog catalog, long now, WorldState world)
+    private static long NextRoutineBoundaryWake(
+        Npc npc, ActionCatalog catalog, long now, WorldState world, LifeStage? knownStage)
     {
         var date = world.CurrentDate;
-        var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(date));
+        var stage = knownStage ?? world.LifeStageRules.LifeStageOf(npc.AgeYears(date));
         var profession = npc.Profession == ProfessionType.None ? (ProfessionType?)null : npc.Profession;
         int hoursPerDay = date.Calendar.HoursPerDay;
         int hour = date.Hour;
 
         int untilChange = RoutineBoundaries.HoursUntilChange(catalog, profession, stage, hour, hoursPerDay);
-        var upcoming = catalog.RoutineOf(profession, stage, (hour + untilChange) % hoursPerDay);
+        var upcoming = RoutineBoundaries.RoutineAt(catalog, profession, stage, (hour + untilChange) % hoursPerDay, hoursPerDay);
         long lead = BehaviorDecisionSystem.CommuteLeadHours(world, npc, upcoming);
         return now + Math.Max(1, untilChange - lead);
     }
 
     public static void RescheduleAfterHour(
         WorldState world, TickContext ctx, Npc npc, NeedsRules needsRules, ActionCatalog catalog, long now,
-        long? travelArrivalTick = null) =>
+        long? travelArrivalTick = null, LifeStage? lifeStage = null) =>
         ScheduleWake(world, ctx, npc.Id.Value, ComputeNextWakeTick(
-            npc, needsRules, catalog, now, world, travelArrivalTick: travelArrivalTick));
+            npc, needsRules, catalog, now, world, travelArrivalTick: travelArrivalTick, lifeStage: lifeStage));
 
     /// <summary>Despertar por necessidade. Quem já está fazendo o que atende a necessidade (comer, dormir) não a
     /// reavalia a cada hora enquanto a ação não termina — a ação em curso é a resposta, e o fim dela acorda o

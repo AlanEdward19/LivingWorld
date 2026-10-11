@@ -12,19 +12,27 @@ namespace LivingWorld.Simulation.Behavior.Needs;
 /// o sono vai até o fim das 8 h mesmo que o turno comece antes, e o ciclo diário deriva.</summary>
 internal static class RoutineBoundaries
 {
-    private static readonly ConditionalWeakTable<ActionCatalog, ConcurrentDictionary<(int Profession, LifeStage Stage), int[]>> Tables = new();
+    private sealed record Table(ActionType[] Actions, int[] UntilChange);
+
+    private static readonly ConditionalWeakTable<ActionCatalog, ConcurrentDictionary<(int Profession, LifeStage Stage), Table>> Tables = new();
+
+    private static Table TableFor(ActionCatalog catalog, ProfessionType? profession, LifeStage stage, int hoursPerDay) =>
+        Tables.GetValue(catalog, _ => new())
+            .GetOrAdd((profession?.Id ?? -1, stage), _ => Build(catalog, profession, stage, hoursPerDay));
+
+    /// <summary>Ação de rotina da hora — a mesma de <see cref="ActionCatalog.RoutineOf"/>, lida de uma tabela de
+    /// 24 horas montada uma vez por (profissão, fase): a busca por faixas rodava várias vezes por despertar.</summary>
+    public static ActionType RoutineAt(
+        ActionCatalog catalog, ProfessionType? profession, LifeStage stage, int hour, int hoursPerDay) =>
+        TableFor(catalog, profession, stage, hoursPerDay).Actions[hour % hoursPerDay];
 
     /// <summary>Horas até a ação de rotina diferir da atual (1..<paramref name="hoursPerDay"/>);
     /// <c>hoursPerDay</c> quando a rotina é constante o dia todo.</summary>
     public static int HoursUntilChange(
         ActionCatalog catalog, ProfessionType? profession, LifeStage stage, int hour, int hoursPerDay)
-    {
-        var perCatalog = Tables.GetValue(catalog, _ => new());
-        var table = perCatalog.GetOrAdd((profession?.Id ?? -1, stage), _ => Build(catalog, profession, stage, hoursPerDay));
-        return table[hour % hoursPerDay];
-    }
+        => TableFor(catalog, profession, stage, hoursPerDay).UntilChange[hour % hoursPerDay];
 
-    private static int[] Build(ActionCatalog catalog, ProfessionType? profession, LifeStage stage, int hoursPerDay)
+    private static Table Build(ActionCatalog catalog, ProfessionType? profession, LifeStage stage, int hoursPerDay)
     {
         var actions = new ActionType[hoursPerDay];
         for (int h = 0; h < hoursPerDay; h++)
@@ -37,6 +45,6 @@ internal static class RoutineBoundaries
             while (ahead < hoursPerDay && actions[(h + ahead) % hoursPerDay] == actions[h]) ahead++;
             untilChange[h] = ahead;
         }
-        return untilChange;
+        return new Table(actions, untilChange);
     }
 }

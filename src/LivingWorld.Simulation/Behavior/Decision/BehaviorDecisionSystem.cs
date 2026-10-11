@@ -89,9 +89,10 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
 
         foreach (var npc in targets)
         {
+            var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
             bool possessed = ControlMechanic.IsPossessed(world, npc);
             if (!possessed)
-                EvaluateProfessionSwitch(world, npc, vacancyIndex);
+                EvaluateProfessionSwitch(world, npc, vacancyIndex, stage);
 
             bool justCompleted = TryCompleteAction(
                 world, npc, rules, catalog, now, marketIndex, ctx, occupancy,
@@ -114,7 +115,6 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             {
                 var continuityAction = justCompleted ? null : npc.CurrentAction;
 
-                var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
                 var routineAction = RoutineWithCommuteLead(world, npc, catalog, stage);
 
                 PendingPowerInvocation? pendingPower = null;
@@ -159,7 +159,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
             if (npc.CurrentAction == ActionType.Travel)
                 npc.SetTravelPurpose(travelPurpose);
             NpcWakeScheduler.RescheduleAfterHour(
-                world, ctx, npc, rules, catalog, now, TravelArrivalTick(world, npc, marketIndex));
+                world, ctx, npc, rules, catalog, now, TravelArrivalTick(world, npc, marketIndex), stage);
         }
     }
 
@@ -201,18 +201,19 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     {
         var profession = NoneIfSentinel(npc.Profession);
         var date = world.CurrentDate;
-        var routine = catalog.RoutineOf(profession, stage, date.Hour);
+        int hoursPerDay = date.Calendar.HoursPerDay;
+        var routine = RoutineBoundaries.RoutineAt(catalog, profession, stage, date.Hour, hoursPerDay);
 
         if (routine != ActionType.Work
             && WorkDestinationOf(world, npc) is { } workplace
             && LeadHoursTo(world, npc, workplace) is > 0 and var workLead
-            && catalog.RoutineOf(profession, stage, HourAfter(date, workLead)) == ActionType.Work)
+            && RoutineBoundaries.RoutineAt(catalog, profession, stage, HourAfter(date, workLead), hoursPerDay) == ActionType.Work)
             return ActionType.Work;
 
         if (routine != ActionType.Sleep && routine != ActionType.Work
             && SleepDestinationOf(world, npc) is { } bed
             && LeadHoursTo(world, npc, bed) is > 0 and var bedLead
-            && catalog.RoutineOf(profession, stage, HourAfter(date, bedLead)) == ActionType.Sleep)
+            && RoutineBoundaries.RoutineAt(catalog, profession, stage, HourAfter(date, bedLead), hoursPerDay) == ActionType.Sleep)
             return ActionType.Sleep;
 
         return routine;
@@ -957,10 +958,10 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     private static ProfessionType? NoneIfSentinel(ProfessionType profession) =>
         profession == ProfessionType.None ? null : profession;
 
-    private void EvaluateProfessionSwitch(WorldState world, Npc npc, VacancyWeights vacancyIndex)
+    private void EvaluateProfessionSwitch(WorldState world, Npc npc, VacancyWeights vacancyIndex, LifeStage stage)
     {
         if (_skillsRules is not { } rules) return;
-        if (world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate)) != LifeStage.Adult) return;
+        if (stage != LifeStage.Adult) return;
 
         var catalog = world.EconomyCatalog;
         if (catalog.LocationTypeByProfession.Count == 0) return;

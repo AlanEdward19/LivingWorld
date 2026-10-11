@@ -9,6 +9,7 @@ using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Infrastructure.EventLog;
 using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Behavior.Needs;
 using LivingWorld.Simulation.Cities;
 using LivingWorld.Simulation.Cities.Construction;
 using LivingWorld.Simulation.Cities.Founding;
@@ -371,6 +372,32 @@ public class OptimizationEquivalenceTests
         Assert.False(Probe(ids[3]));
         eventRel.ApplyEvent(type, rules);
         Assert.True(Probe(ids[3]));
+    }
+
+    // --- Rotina em tabela ---
+
+    [Fact]
+    public void Routine_table_matches_the_slot_search_for_every_profession_stage_and_hour()
+    {
+        var catalog = ScenarioRunner.DefaultActionCatalog;
+        int hoursPerDay = ScenarioRunner.DefaultCalendar.HoursPerDay;
+        var professions = new ProfessionType?[] { null, new ProfessionType(1), new ProfessionType(2), new ProfessionType(99) };
+
+        foreach (var profession in professions)
+            foreach (var stage in Enum.GetValues<LivingWorld.Domain.Population.Body.LifeStage>())
+                for (int hour = 0; hour < hoursPerDay; hour++)
+                {
+                    Assert.Equal(
+                        catalog.RoutineOf(profession, stage, hour),
+                        RoutineBoundaries.RoutineAt(catalog, profession, stage, hour, hoursPerDay));
+
+                    // horas até a rotina mudar: a primeira hora seguinte cuja ação difere, ou o dia todo
+                    int expected = 1;
+                    while (expected < hoursPerDay
+                        && catalog.RoutineOf(profession, stage, (hour + expected) % hoursPerDay) == catalog.RoutineOf(profession, stage, hour))
+                        expected++;
+                    Assert.Equal(expected, RoutineBoundaries.HoursUntilChange(catalog, profession, stage, hour, hoursPerDay));
+                }
     }
 
     // --- Alcançabilidade por componente conexa ---
