@@ -28,7 +28,12 @@ Aplicadas: P1, P2, P3 (aprovadas) e P4.
 Com P5–P7 o relógio devia ficar em torno de 7–8 min; abaixo de 5 min exigiria também tirar 10k/100x do conjunto padrão e deixá-los em `--scenarios` noturno.
 
 ### Rodada final (AD-083)
-Medida de partida: 5 min 7 s (808 s de CPU em 4 núcleos), 3 falhas por a população agora sobreviver. Aplicado: P5 (`Ten_k` 14 dias), P6 (`Population_100x` 30 dias), longevidade de 100 anos para ao bater 90% do máximo (a maior idade só cresce), saturação do snapshot em 1/4/12 anos, e o vazamento real (lote colhido ficava no snapshot) corrigido na origem. Resultado: 5 min 7 s → 3 min 44 s, 111 verdes. Mais um passo: a busca em anel do posicionamento deixou de montar listas (criar 10k NPCs: 24 s → ~10 s, hash idêntico).
+Medida de partida: 5 min 7 s (808 s de CPU em 4 núcleos), 3 falhas por a população agora sobreviver. Aplicado: P5 (`Ten_k` 14 dias), P6 (`Population_100x` 30 dias), longevidade de 100 anos para ao bater 90% do máximo (a maior idade só cresce), saturação do snapshot em 1/4/12 anos, e o vazamento real (lote colhido ficava no snapshot) corrigido na origem. Resultado: 5 min 7 s → 3 min 44 s, 111 verdes. Depois: a busca em anel do posicionamento deixou de montar listas e a ocupação da cidade ficou incremental (irmãos, caixas e plano sob bounds novos): criar 10k NPCs 24 s → 5 s, hash idêntico; LongRunning 3 min 25 s.
+
+### O que sobra e o que não vale a pena
+- O custo restante é simular 10 anos do cenário padrão em ~10 testes (≈ 9 s cada, sem concorrência); 70–80% é `behavior-decision`, ~3.000 despertares por NPC-ano a ~2 µs. Reduzir despertares de sobrevivência custa realismo (`realism-cadence.md`).
+- Medido e descartado: `TieredPGO=false` e `ConcurrentGarbageCollection=false` nos testes (suíte 227 s → 271–278 s, pior); o `EventScheduler.Schedule` que o perfil por amostragem acusava custa 4% (33 ms de 806 ms por ano), era viés de amostragem.
+- Ainda possível, com perda de cobertura: tirar os testes de 10 mil NPCs do conjunto padrão (`--scenarios` noturno).
 
 ### P1–P3 (aplicadas)
 | # | Ajuste | Ganho medido | Impacto |

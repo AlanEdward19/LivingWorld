@@ -5,13 +5,13 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
 - **Última coisa concluída (2026-10-11)**: P1–P4, B1, B2 (parcial) e B3 em `claude/inspiring-allen-qj41zx`
-  (AD-077/078). Gate rápido ~1 min, verde (1930). LongRunning **3 min 44 s** (era >25; 4 min 50 s antes da rodada final), verde, 111 testes.
+  (AD-077/078). Gate rápido ~1 min, verde (1930). LongRunning **3 min 25 s** (era >25; 4 min 50 s antes da rodada final), verde, 111 testes.
   AD-081/083 (perf, hashes idênticos exceto o lote colhido). Economia que sustenta a vila (AD-082): folha proporcional, ajuda mútua entre
   parentes, viagem com motivo, despertar na chegada. Fixture de 500 estável por 10+ anos; default estável.
   Realismo de decisão corrigido e medido (`docs/audits/realism-cadence.md`).
   FAM-32: efeito de seleção real mas pequeno (−0,0041, z = −4,0 em 160 seeds); o gate com 10 seeds só barra o sinal contrário.
-  Próximo corte de tempo (~2 min) exigiria tirar 10k/100x do conjunto padrão ou criação incremental da ocupação da cidade
-  (criar 10k NPCs ainda gasta ~10 s, quadrático em `CityOccupancy`).
+  Ocupação da cidade incremental feita (criar 10k NPCs: 24 s → 5 s). O resto é simulação de 10 anos × ~10 testes;
+  chegar a ~2 min exigiria tirar 10k/100x do conjunto padrão (ver `longrunning-budget.md`).
   Spec de veículos emergentes (sem código): `.specs/features/emergent-vehicles/` (AD-079).
   Também pendente: decidir remoção de `web/`, `web-demo/`, `scripts/generate-web-types.sh`; **próxima unidade**: spec do cliente Godot.
 - **Última coisa concluída (2026-09-01)**: Fase 28 fechada — cognição inspecionável, LOD
