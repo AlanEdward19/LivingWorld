@@ -152,7 +152,7 @@ public class WagePaymentUpbringingTests
     }
 
     [Fact]
-    public void Insufficient_treasury_for_upbringing_adjusted_wage_emits_WageUnpaid_without_creating_money()
+    public void Insufficient_treasury_for_upbringing_adjusted_wage_pays_the_balance_and_emits_WageUnpaid_without_creating_money()
     {
         var rules = MakeFamilyRules(environmentalWealthChannelEnabled: true);
         var world = BuildWorld(rules);
@@ -165,9 +165,9 @@ public class WagePaymentUpbringingTests
 
         new WagePaymentSystem().Tick(world, new TickContext(world, world.Rng, world.Scheduler, sink));
 
-        Assert.Equal(Money.Zero, employee.Wallet);
-        Assert.Equal(new Money(adjusted - 1), workplace.Treasury);
-        Assert.Equal(before, TotalMoney(world));
+        Assert.Equal(new Money(adjusted - 1), employee.Wallet);   // paga o que o caixa tem
+        Assert.Equal(Money.Zero, workplace.Treasury);
+        Assert.Equal(before, TotalMoney(world));                  // sem criar dinheiro
         Assert.Contains(sink.Events, e => e.Kind == WorldEventKind.WageUnpaid);
     }
 

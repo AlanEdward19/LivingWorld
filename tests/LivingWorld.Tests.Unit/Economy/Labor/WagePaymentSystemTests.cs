@@ -75,14 +75,11 @@ public class WagePaymentSystemTests
         Assert.Equal(new Money(40), workplace.Treasury);
     }
 
-    /// <summary>Sensor de mutação (R5): também prova o critério "desligar a checagem de saldo
-    /// faz o teste cair" — removendo o guard de <c>WagePaymentSystem</c> que impede pagar sem
-    /// débito bem-sucedido, <c>e1.Wallet</c> deixaria de ser <see cref="Money.Zero"/> (dinheiro
-    /// criado do nada), e este assert reprovaria imediatamente. Confirmado manualmente durante a
-    /// verificação independente da Fase 5 (removendo o <c>continue</c> pós-<c>WageUnpaid</c>):
-    /// 2 testes falharam na hora.</summary>
+    /// <summary>Caixa menor que a folha: o empregador paga o que tem (nunca cunha moeda) e o restante fica em
+    /// atraso, registrado em <see cref="WorldEventKind.WageUnpaid"/>. Sensor de mutação (R5): sem o débito do
+    /// caixa no pagamento, a soma carteira + caixa passaria do total anterior (dinheiro criado do nada).</summary>
     [Fact]
-    public void Workplace_with_insufficient_treasury_emits_WageUnpaid_and_leaves_balances_untouched()
+    public void Workplace_with_insufficient_treasury_pays_what_it_has_and_emits_WageUnpaid_for_the_shortfall()
     {
         var world = BuildWorld();
         var e1 = MakeEmployee(world);
@@ -93,16 +90,16 @@ public class WagePaymentSystemTests
 
         new WagePaymentSystem().Tick(world, ctx);
 
-        Assert.Equal(Money.Zero, e1.Wallet);
-        Assert.Equal(new Money(10), workplace.Treasury);
+        Assert.Equal(new Money(10), e1.Wallet);
+        Assert.Equal(Money.Zero, workplace.Treasury);
+        Assert.Equal(new Money(10), e1.Wallet + workplace.Treasury);   // nada foi criado
         Assert.Contains(sink.Events, e => e.Kind == WorldEventKind.WageUnpaid);
     }
 
-    /// <summary>Sensor: dois empregados, caixa cobre só o primeiro — prova que a falha do
-    /// segundo é isolada (não corrompe nem reverte o pagamento já feito ao primeiro), o mesmo
-    /// tipo de garantia que <see cref="Money.TryDebit"/> já dá por unidade.</summary>
+    /// <summary>Dois empregados de mesmo salário e caixa para metade da folha: cada um recebe a mesma fração,
+    /// e não o primeiro por id o salário inteiro e o segundo nada. Cada atraso gera seu evento.</summary>
     [Fact]
-    public void Partial_treasury_pays_the_first_employee_and_leaves_the_second_untouched_and_unpaid()
+    public void Partial_treasury_pays_every_employee_the_same_fraction_and_reports_each_shortfall()
     {
         var world = BuildWorld();
         var e1 = MakeEmployee(world);
@@ -115,11 +112,12 @@ public class WagePaymentSystemTests
 
         new WagePaymentSystem().Tick(world, ctx);
 
-        Assert.Equal(new Money(30), e1.Wallet);
-        Assert.Equal(Money.Zero, e2.Wallet);
+        Assert.Equal(new Money(15), e1.Wallet);
+        Assert.Equal(new Money(15), e2.Wallet);
         Assert.Equal(Money.Zero, workplace.Treasury);
-        var unpaid = Assert.Single(sink.Events, e => e.Kind == WorldEventKind.WageUnpaid);
-        Assert.Equal("WagePaymentSystem", unpaid.SourceSystem);
+        var unpaid = sink.Events.Where(e => e.Kind == WorldEventKind.WageUnpaid).ToList();
+        Assert.Equal(2, unpaid.Count);
+        Assert.All(unpaid, e => Assert.Equal("WagePaymentSystem", e.SourceSystem));
     }
 
     private sealed class RecordingSink : IWorldEventSink

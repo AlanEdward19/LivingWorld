@@ -57,7 +57,7 @@ public static class NpcWakeScheduler
 
     public static long ComputeNextWakeTick(
         Npc npc, NeedsRules needsRules, ActionCatalog catalog, long now, WorldState world,
-        long? eventDrivenWakeTick = null)
+        long? eventDrivenWakeTick = null, long? travelArrivalTick = null)
     {
         long next = long.MaxValue;
         next = Math.Min(next, NextThresholdCrossing(npc.HungerNeed, now, needsRules.UrgencyThreshold));
@@ -72,6 +72,11 @@ public static class NpcWakeScheduler
         }
 
         next = Math.Min(next, NextRoutineBoundaryWake(npc, catalog, now, world));
+
+        // Quem está a caminho acorda ao chegar, não ao fim da duração máxima da ação: sem isso toda viagem
+        // de 1–2 h só terminava às 4 h, e o trajeto comia o dia.
+        if (travelArrivalTick is { } arrival)
+            next = Math.Min(next, arrival);
 
         if (eventDrivenWakeTick is { } attentionTick)
             next = Math.Min(next, attentionTick);
@@ -106,8 +111,10 @@ public static class NpcWakeScheduler
     }
 
     public static void RescheduleAfterHour(
-        WorldState world, TickContext ctx, Npc npc, NeedsRules needsRules, ActionCatalog catalog, long now) =>
-        ScheduleWake(world, ctx, npc.Id.Value, ComputeNextWakeTick(npc, needsRules, catalog, now, world));
+        WorldState world, TickContext ctx, Npc npc, NeedsRules needsRules, ActionCatalog catalog, long now,
+        long? travelArrivalTick = null) =>
+        ScheduleWake(world, ctx, npc.Id.Value, ComputeNextWakeTick(
+            npc, needsRules, catalog, now, world, travelArrivalTick: travelArrivalTick));
 
     /// <summary>Solidão não é necessidade de sobrevivência: enquanto não for crítica, não obriga o NPC a
     /// redecidir toda hora (quem se sente sozinho às 15 h não larga o turno; socializa na janela da rotina).

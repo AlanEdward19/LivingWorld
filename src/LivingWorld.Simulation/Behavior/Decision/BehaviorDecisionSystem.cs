@@ -98,6 +98,7 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                 cityPopulationCache, cityBoundsCache);
 
             ActionType chosen;
+            ActionType? travelPurpose = null;
             if (possessed && ControlMechanic.TryDelegatedAction(world, npc, justCompleted, out var delegated))
             {
                 chosen = delegated;
@@ -141,6 +142,9 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                 candidate = ApplyPerception(world, npc, candidate);
 
                 chosen = ResolveWithStepCap(npc.Id.Value, candidate, world, npc, marketIndex, rules.MaxActionSelectionSteps);
+                travelPurpose = chosen == ActionType.Travel && candidate is ActionType.Work or ActionType.Sleep or ActionType.Buy
+                    ? candidate
+                    : null;
 
                 if (justCompleted || chosen != npc.CurrentAction)
                 {
@@ -152,11 +156,28 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
                 }
             }
 
-            NpcWakeScheduler.RescheduleAfterHour(world, ctx, npc, rules, catalog, now);
+            if (npc.CurrentAction == ActionType.Travel)
+                npc.SetTravelPurpose(travelPurpose);
+            NpcWakeScheduler.RescheduleAfterHour(
+                world, ctx, npc, rules, catalog, now, TravelArrivalTick(world, npc, marketIndex));
         }
     }
 
     internal static IEnumerable<Npc> TargetsForTick(WorldState world) => world.NpcWakeBatch;
+
+    /// <summary>Tick em que a viagem em curso chega ao destino (mesma conta de <see cref="TryCompleteAction"/>);
+    /// nulo se o NPC não está viajando ou se anda por poder extraordinário, que avança passo a passo.</summary>
+    private static long? TravelArrivalTick(WorldState world, Npc npc, MarketIndex marketIndex)
+    {
+        if (npc.CurrentAction != ActionType.Travel) return null;
+        if (TravelDestinationOf(world, npc, marketIndex) is not { } destination || destination == npc.CurrentLocation)
+            return null;
+        if (ExtraordinaryLocomotion.Resolve(world, npc).HasModifier) return null;
+
+        long ticksNeeded = TravelResolution.TicksBetween(
+            world.Map, npc.CurrentLocation, destination, BodyMechanic.MovementCostMultiplier(world, npc));
+        return npc.ActionStartedAtTick + ticksNeeded;
+    }
 
     /// <summary>Necessidade urgente que faz o NPC largar a rotina: fome, sede e sono sempre; solidão só
     /// quando crítica — quem se sente um pouco sozinho no meio do turno continua a rotina do dia
@@ -569,11 +590,27 @@ public sealed class BehaviorDecisionSystem : ISimulationSystem
     private static CellCoord? TravelDestinationOf(WorldState world, Npc npc, MarketIndex marketIndex) =>
         RelocationDestinationOf(world, npc) is { } relocationDest
             ? relocationDest
-            : SleepDestinationOf(world, npc) is { } sleepDest && sleepDest != npc.CurrentLocation
-                ? sleepDest
-                : WorkDestinationOf(world, npc) is { } workDest && workDest != npc.CurrentLocation
-                    ? workDest
-                    : BuyDestinationOf(world, npc, marketIndex);
+            : PurposeDestinationOf(world, npc, marketIndex) is { } purposeDest
+                ? purposeDest
+                : SleepDestinationOf(world, npc) is { } sleepDest && sleepDest != npc.CurrentLocation
+                    ? sleepDest
+                    : WorkDestinationOf(world, npc) is { } workDest && workDest != npc.CurrentLocation
+                        ? workDest
+                        : BuyDestinationOf(world, npc, marketIndex);
+
+    /// <summary>Destino do motivo da viagem (ir comprar, trabalhar ou dormir); nulo se o motivo é outro ou o
+    /// NPC já está lá — e então vale a ordem de antes.</summary>
+    private static CellCoord? PurposeDestinationOf(WorldState world, Npc npc, MarketIndex marketIndex)
+    {
+        var destination = npc.TravelPurpose switch
+        {
+            ActionType.Buy => BuyDestinationOf(world, npc, marketIndex),
+            ActionType.Work => WorkDestinationOf(world, npc),
+            ActionType.Sleep => SleepDestinationOf(world, npc),
+            _ => null,
+        };
+        return destination is { } cell && cell != npc.CurrentLocation ? cell : null;
+    }
 
     private static CellCoord? RelocationDestinationOf(WorldState world, Npc npc) =>
         npc.Household is { } householdId

@@ -97,6 +97,7 @@ public static class ScenarioRunner
         new ResourceProcessSystem(),
         new EmploymentSystem(),
         new RelationshipSystem(),
+        new MutualAidSystem(),
         new SkillPracticeSystem(DefaultSkillsRules),
         new SkillTeachingSystem(DefaultSkillsRules, DefaultLifeStageRules),
         new WorkHardeningSystem(),
