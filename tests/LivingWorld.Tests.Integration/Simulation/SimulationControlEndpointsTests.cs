@@ -177,7 +177,9 @@ public class SimulationControlEndpointsTests : IClassFixture<LivingWorldApiFacto
             Assert.Equal(afterStep.ToCursor.Sequence + 1, afterYear!.ToCursor.Sequence);
             Assert.True(cityReader.TryRead(out var cityAfterStep), "o escopo Cidade também recebe o delta do step");
             Assert.Equal(cityScope.ScopeKey, cityAfterStep!.ToCursor.ScopeKey);
-            Assert.True(cityReader.TryRead(out _), "e o do advance-year");
+            Assert.Equal(cityAfterStep.FromCursor.Sequence + 1, cityAfterStep.ToCursor.Sequence);
+            Assert.True(cityReader.TryRead(out var cityAfterYear), "e o do advance-year");
+            Assert.Equal(cityAfterStep.ToCursor.Sequence + 1, cityAfterYear!.ToCursor.Sequence);
         }
         finally
         {
