@@ -628,8 +628,19 @@ public class OptimizationEquivalenceTests
         world.AddCity(other);
 
         CellCoord? derived = null;
+        BuildingId spare = default;
+        Building? visitor = null;
         for (int i = 0; i < 45; i++)
         {
+            if (i == 10)
+            {
+                // Visitante de outra cidade, o mais novo do mundo; entra na cidade na rodada seguinte com Id
+                // maior que todo irmão atual, mas posição ANTIGA na lista do mundo.
+                visitor = new Building(world.NextBuildingIdAndAdvance(), other.Id, 1, 0, new CellCoord(50, 50));
+                world.AddBuilding(visitor);
+            }
+            if (i == 11) visitor!.JoinCity(city.Id);
+            if (i == 28) spare = world.NextBuildingIdAndAdvance();
             // Bounds que alternam entre dois valores e crescem, como população × bounds crescidos.
             var bounds = i % 2 == 0
                 ? new CityBounds(new CellCoord(26, 26), 8, 8)
@@ -647,7 +658,12 @@ public class OptimizationEquivalenceTests
             // bounds, cada autorado cai exatamente em cima da posição que o derivado ocupava, empurrando-o.
             CellCoord? authored = i == 30 ? null : new CellCoord(8 + (i * 3) % 40, 8 + (i * 7) % 40);
             if (i > 30 && i < 38 && derived is { } spot) authored = spot;
-            if (i >= 30) bounds = new CityBounds(new CellCoord(26, 26), 8, 8);
+            if (i >= 30) bounds = i < 40 ? new CityBounds(new CellCoord(26, 26), 8, 8) : new CityBounds(new CellCoord(20, 20), 16, 16);
+            if (i == 33 && derived is { } early)
+            {
+                // Id menor que o de todos os já posicionados depois dele: entra no meio da ordem por Id.
+                world.AddBuilding(new Building(spare, city.Id, 2, 0, early));
+            }
             world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, 1 + i % 3, 0, authored));
 
             var actualBoxes = CityOccupancy.OwnedBuildingFootprintBoxesWithOwners(world, city, bounds).ToList();
