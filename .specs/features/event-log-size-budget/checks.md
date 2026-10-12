@@ -64,6 +64,7 @@ Proof: `dotnet test tests/LivingWorld.Tests.LongRunning -c Release --filter "Ful
 - The aggregate is stored as the noise kind with `SourceSystem = EventLogCompactor` and payload `count|sum`, not as a new event kind (no enum or catalog change); the sum is the last numeric field of the payload (amount or value).
 - Only three kinds are noise (ResourceLost, WageUnpaid, PlantMatured); Hired and Fired (about 14 B/NPC/year) stay because they are the employment history.
 - The sensor counts kind plus payload bytes, like the existing snapshot sensors; fixed columns (tick, sequence, ids) are excluded.
+- The aggregate `sum` adds the last numeric payload field across workplaces and resources (a total, not per resource); a payload without a numeric tail adds 0 (tested). Aggregates carry `EventId = 0` and no cause: no reader of persisted noise rows exists.
 - A pre-existing bug was fixed on the way (C6): out-of-order batches decoded wrong kinds.
 
 ## Handoff

@@ -74,4 +74,13 @@ public class EventLogCompactorTests
             EventLogCompactor.Compact(mixed, Calendar).Select(e => (e.Tick, e.Kind, e.Payload)).ToArray(),
             EventLogCompactor.Compact(mixed, Calendar).Select(e => (e.Tick, e.Kind, e.Payload)).ToArray());
     }
+
+    [Fact]
+    public void A_payload_without_a_numeric_tail_counts_the_event_and_adds_zero_to_the_sum()
+    {
+        var compacted = EventLogCompactor.Compact(
+            [new WorldEvent(5, WorldEventKind.PlantMatured, "no-number-here", 1), new WorldEvent(6, WorldEventKind.PlantMatured, "7|x", 2)], Calendar);
+
+        Assert.Equal("2|0", Assert.Single(compacted).Payload);
+    }
 }
