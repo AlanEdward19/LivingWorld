@@ -46,38 +46,45 @@ public sealed record Personality(
         RollTrait(rng), RollTrait(rng), RollTrait(rng), RollTrait(rng), RollTrait(rng),
         RollTrait(rng), RollTrait(rng), RollTrait(rng), RollTrait(rng), RollTrait(rng)).Value!;
 
-    /// <summary>Herança de personalidade (personality-heredity): cada traço do filho é
-    /// <c>h × (média dos pais + ruído) + (1 − h) × sorteio independente</c>, cortado em [0,100], com
-    /// <c>h</c> = <paramref name="heritability"/> e ruído uniforme de ±<see cref="InheritanceNoise"/> pontos. Os 10 sorteios
-    /// independentes saem sempre primeiro, do mesmo stream e na mesma ordem de <see cref="RollFrom"/>; com <c>h = 0</c> nenhum
-    /// outro número é sorteado e o resultado é byte a byte o do sorteio independente (o comportamento de antes).</summary>
+    /// <summary>Herança de personalidade (personality-heredity), modelo infinitesimal que preserva a variância: o componente
+    /// herdado de cada traço é a média dos pais mais uma segregação uniforme de ±<see cref="InheritanceNoise"/> pontos (variância
+    /// da metade da população), e o filho é <c>50 + h × (herdado − 50) + √(1 − h²) × (sorteio − 50)</c>, cortado em [0,100], com
+    /// <c>h</c> = <paramref name="heritability"/>. A variância da população fica a mesma de geração em geração (a média simples
+    /// dos pais a reduzia pela metade por geração) e irmãos correlacionam em <c>h²/2</c>. Os 10 sorteios independentes saem
+    /// sempre primeiro, do mesmo stream e na mesma ordem de <see cref="RollFrom"/>; com <c>h = 0</c> nenhum outro número é
+    /// sorteado e o resultado é byte a byte o do sorteio independente (o comportamento de antes).</summary>
     public static Personality Inherit(Personality mother, Personality father, WorldRng rng, double heritability)
     {
         var rolled = RollFrom(rng);
         if (heritability <= 0) return rolled;
 
         double h = Math.Min(1.0, heritability);
+        double independent = Math.Sqrt(1 - h * h);
         return Create(
-            Mix(h, mother.Extroversion, father.Extroversion, rolled.Extroversion, rng),
-            Mix(h, mother.Agreeableness, father.Agreeableness, rolled.Agreeableness, rng),
-            Mix(h, mother.Conscientiousness, father.Conscientiousness, rolled.Conscientiousness, rng),
-            Mix(h, mother.EmotionalStability, father.EmotionalStability, rolled.EmotionalStability, rng),
-            Mix(h, mother.Openness, father.Openness, rolled.Openness, rng),
-            Mix(h, mother.Ambition, father.Ambition, rolled.Ambition, rng),
-            Mix(h, mother.Loyalty, father.Loyalty, rolled.Loyalty, rng),
-            Mix(h, mother.Altruism, father.Altruism, rolled.Altruism, rng),
-            Mix(h, mother.Impulsivity, father.Impulsivity, rolled.Impulsivity, rng),
-            Mix(h, mother.RiskAversion, father.RiskAversion, rolled.RiskAversion, rng)).Value!;
+            Mix(h, independent, mother.Extroversion, father.Extroversion, rolled.Extroversion, rng),
+            Mix(h, independent, mother.Agreeableness, father.Agreeableness, rolled.Agreeableness, rng),
+            Mix(h, independent, mother.Conscientiousness, father.Conscientiousness, rolled.Conscientiousness, rng),
+            Mix(h, independent, mother.EmotionalStability, father.EmotionalStability, rolled.EmotionalStability, rng),
+            Mix(h, independent, mother.Openness, father.Openness, rolled.Openness, rng),
+            Mix(h, independent, mother.Ambition, father.Ambition, rolled.Ambition, rng),
+            Mix(h, independent, mother.Loyalty, father.Loyalty, rolled.Loyalty, rng),
+            Mix(h, independent, mother.Altruism, father.Altruism, rolled.Altruism, rng),
+            Mix(h, independent, mother.Impulsivity, father.Impulsivity, rolled.Impulsivity, rng),
+            Mix(h, independent, mother.RiskAversion, father.RiskAversion, rolled.RiskAversion, rng)).Value!;
     }
 
-    /// <summary>Pontos de ruído (para cima ou para baixo) somados à média dos pais antes da mistura.</summary>
-    public const double InheritanceNoise = 10.0;
+    /// <summary>Meia-largura, em pontos, da segregação uniforme somada à média dos pais: variância de metade da de um traço
+    /// sorteado em [0,100] (≈ 850), ou seja √(3 × 850 / 2).</summary>
+    public const double InheritanceNoise = 35.7;
 
-    private static int Mix(double h, int mother, int father, int rolled, WorldRng rng)
+    private const double Midpoint = 50.0;
+
+    private static int Mix(double h, double independent, int mother, int father, int rolled, WorldRng rng)
     {
         double noise = (rng.NextDouble() * 2 - 1) * InheritanceNoise;
         double inherited = (mother + father) / 2.0 + noise;
-        return Math.Clamp((int)Math.Round(h * inherited + (1 - h) * rolled), 0, 100);
+        double value = Midpoint + h * (inherited - Midpoint) + independent * (rolled - Midpoint);
+        return Math.Clamp((int)Math.Round(value, MidpointRounding.AwayFromZero), 0, 100);
     }
 
     private static int RollTrait(WorldRng rng) => Math.Min((int)(rng.NextDouble() * 101), 100);

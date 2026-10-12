@@ -36,7 +36,7 @@ public class PersonalityInheritanceTests
             {
                 var mother = Personality.RollFrom(Stream(seed, 1000 + id));
                 var father = Personality.RollFrom(Stream(seed, 2000 + id));
-                var child = Personality.Inherit(mother, father, Stream(seed, id), heritability: 0.5);
+                var child = Personality.Inherit(mother, father, Stream(seed, id), heritability: 0.7);
 
                 Assert.All(Traits(child), trait => Assert.InRange(trait, 0, 100));
             }
@@ -58,8 +58,8 @@ public class PersonalityInheritanceTests
         var father = Personality.RollFrom(Stream(5, 2));
 
         Assert.Equal(
-            Personality.Inherit(mother, father, Stream(7, 42), heritability: 0.5),
-            Personality.Inherit(mother, father, Stream(7, 42), heritability: 0.5));
+            Personality.Inherit(mother, father, Stream(7, 42), heritability: 0.7),
+            Personality.Inherit(mother, father, Stream(7, 42), heritability: 0.7));
     }
 
     [Fact]
@@ -73,8 +73,8 @@ public class PersonalityInheritanceTests
         var second = new List<Personality>();
         for (int i = 0; i <= pairs; i++)
         {
-            first.Add(Personality.Inherit(parents[i].Mother, parents[i].Father, Stream(11, 2 * i), 0.5));
-            second.Add(Personality.Inherit(parents[i].Mother, parents[i].Father, Stream(11, 2 * i + 1), 0.5));
+            first.Add(Personality.Inherit(parents[i].Mother, parents[i].Father, Stream(11, 2 * i), 0.7));
+            second.Add(Personality.Inherit(parents[i].Mother, parents[i].Father, Stream(11, 2 * i + 1), 0.7));
         }
 
         var sibling = Enumerable.Range(0, pairs).Select(i => Distance(first[i], second[i])).ToArray();
@@ -126,5 +126,49 @@ public class PersonalityInheritanceTests
     {
         double mean = values.Average();
         return values.Sum(v => (v - mean) * (v - mean)) / (values.Count - 1);
+    }
+
+    [Fact]
+    public void The_population_variance_of_a_trait_is_preserved_across_generations()
+    {
+        // 6 gerações com pareamento aleatório e h = 0,7: a variância fica perto da de um sorteio independente (~850)
+        var generation = Enumerable.Range(0, 400).Select(i => Personality.RollFrom(Stream(31, i))).ToList();
+        double first = Variance(generation.Select(p => (double)p.Ambition).ToArray());
+        for (int g = 0; g < 6; g++)
+        {
+            var next = new List<Personality>();
+            for (int i = 0; i < 400; i++)
+            {
+                var mother = generation[(i * 7 + g) % 400];
+                var father = generation[(i * 13 + 5 * g + 1) % 400];
+                next.Add(Personality.Inherit(mother, father, Stream(31, 1000 * (g + 1) + i), 0.7));
+            }
+
+            generation = next;
+        }
+
+        double last = Variance(generation.Select(p => (double)p.Ambition).ToArray());
+        Assert.InRange(last / first, 0.8, 1.2);
+    }
+
+    [Fact]
+    public void A_child_with_an_unknown_father_inherits_from_the_mother_and_stays_in_range()
+    {
+        var mother = Personality.Create(90, 90, 90, 90, 90, 90, 90, 90, 90, 90).Value!;
+
+        var children = Enumerable.Range(0, 300).Select(i => Personality.Inherit(mother, mother, Stream(41, i), 0.7)).ToList();
+
+        Assert.All(children, c => Assert.All(Traits(c), t => Assert.InRange(t, 0, 100)));
+        Assert.True(children.Average(c => c.Ambition) > 60, "a média dos filhos de uma mãe nos 90 fica acima do meio");
+    }
+
+    [Fact]
+    public void The_scenario_weight_survives_a_snapshot_round_trip()
+    {
+        var (world, _) = LivingWorld.Simulation.Scenarios.ScenarioRunner.Create(seed: 3, initialPopulation: 5);
+
+        var restored = LivingWorld.Simulation.Core.WorldSnapshot.Deserialize(LivingWorld.Simulation.Core.WorldSnapshot.Serialize(world));
+
+        Assert.Equal(0.7, restored.FamilyRules.PersonalityHeritability);
     }
 }

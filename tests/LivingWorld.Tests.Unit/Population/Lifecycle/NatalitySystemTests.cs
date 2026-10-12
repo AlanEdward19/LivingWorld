@@ -368,7 +368,7 @@ public class NatalitySystemTests
     }
 
     [Fact]
-    public void A_baby_of_two_average_parents_gets_an_average_personality_when_the_scenario_declares_full_heritability()
+    public void A_baby_of_two_average_parents_stays_within_the_segregation_range_when_the_scenario_declares_full_heritability()
     {
         var (world, ctx, mother, father, household) = BuildWorldWithMarriedCouple(
             new PopulationCatalog(new HashSet<int>(), new HashSet<int>(), new HashSet<int>()), seed: 21,
@@ -376,11 +376,11 @@ public class NatalitySystemTests
 
         var baby = TriggerBirth(world, ctx, mother.Id, father.Id, household.Id);
 
-        // pais com todos os traços em 50 e ruído de ±10: o filho fica em 40 a 60 (um sorteio independente quase nunca ficaria)
+        // pais com todos os traços em 50, h = 1: o filho é a média mais segregação de ±35,7, ou seja 14 a 86 (um sorteio independente sairia do intervalo em ~28% dos traços)
         Assert.All(
             new[] { baby.Personality.Extroversion, baby.Personality.Agreeableness, baby.Personality.Conscientiousness, baby.Personality.EmotionalStability,
                 baby.Personality.Openness, baby.Personality.Ambition, baby.Personality.Loyalty, baby.Personality.Altruism,
                 baby.Personality.Impulsivity, baby.Personality.RiskAversion },
-            trait => Assert.InRange(trait, 40, 60));
+            trait => Assert.InRange(trait, 14, 86));
     }
 }
