@@ -44,7 +44,7 @@ Proof: `bash scripts/client-test.sh --filter "test_shape_validator::test_stream_
 **C10** - Um assinante WebSocket do escopo Interior recebe o frame de delta com `upserts` e `toCursor` após o snapshot (Surface 101)
 Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~InteriorDeltaTests.Websocket_subscriber_receives_the_interior_delta_frame"`
 
-**C11** - Quem assina de novo um interior recebe todos os ocupantes no primeiro delta, porque o servidor esquece o estado de escopos sem assinante (assumption do plano)
+**C11** - Quem assina de novo um interior recebe todos os ocupantes no primeiro delta, porque o servidor esquece o estado do interior que ficou sem assinante entre dois publicados (assumption do plano; mundo e cidade não mudam)
 Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~InteriorDeltaTests.Resubscribing_starts_from_every_occupant_again"`
 
 ## Coverage
