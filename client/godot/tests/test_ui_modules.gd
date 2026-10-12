@@ -459,3 +459,24 @@ func test_app_wires_lamps_ambience_sky_and_camera_feed() -> void:
 	check(absf(app.ambience.daylight - app.day_cycle.daylight()) < 0.001, "o som segue a luz do dia")
 	eq(app.sky_life.map_size, Vector2(app.store.map_size), "as nuvens usam o tamanho real do mapa")
 	app.queue_free()
+
+
+func test_calendar_from_server_drives_hour_and_day() -> void:
+	var setup := _cycle()
+	var cycle = setup[0]
+	var calendar := {"hoursPerDay": 12, "daysPerMonth": 10, "monthsPerYear": 4}
+
+	cycle.sync(18.0, 1.0, true, calendar)
+	eq(cycle.clock_text(), "12:00", "tick 18 num dia de 12 h é meio-dia")
+	eq(cycle.phase_name(), "Dia")
+	cycle.sync(12.0, 1.0, true, calendar)
+	eq(cycle.clock_text(), "00:00", "tick 12 é meia-noite")
+
+	var date: Dictionary = cycle.date_parts(12.0 * 10.0 * 4.0 * 2.0 + 12.0 * 10.0 + 12.0 * 3.0)
+	eq(date, {"year": 2, "month": 2, "day": 4}, "ano, mês e dia pelo calendário do servidor")
+	var default_cycle := DayCycle.new()
+	eq(default_cycle.date_parts(24.0 * 30.0 * 12.0 + 24.0 * 31.0), {"year": 1, "month": 2, "day": 2}, "sem calendário usa 24/30/12")
+	default_cycle.free()
+	for node in setup:
+		if node is Node:
+			node.free()

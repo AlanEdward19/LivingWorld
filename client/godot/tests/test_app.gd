@@ -67,6 +67,41 @@ func _city() -> Dictionary:
 	return env
 
 
+func _interior_delta(from_seq: int, to_seq: int, upserts: Array, removed: Array) -> Dictionary:
+	var env := Fx.delta(from_seq, to_seq)
+	env.scope.kind = 2
+	env.payload = {"tick": 10 + to_seq, "upserts": upserts, "removed": removed}
+	return env
+
+
+func test_interior_delta_updates_occupants_without_polling() -> void:
+	var transport = _transport()
+	var app = await _app_with_transport(transport)
+	await app.enter_building(4)
+	var calls_before: int = transport.count_calls("GET /visual/subscribe?scope=Interior")
+	eq(app.stage.interior_view.occupant_nodes.keys(), [1], "o snapshot trouxe um ocupante")
+
+	app.stream.delta_applied.emit(_interior_delta(0, 1, [
+		{"npc": {"value": 2}, "floor": {"value": 0}, "localCell": {"x": 1, "y": 1}, "action": 2}], []))
+	eq(app.stage.interior_view.occupant_nodes.keys().size(), 2, "quem entrou aparece")
+
+	app.stream.delta_applied.emit(_interior_delta(1, 2, [
+		{"npc": {"value": 2}, "floor": {"value": 0}, "localCell": {"x": 1, "y": 1}, "action": 1}], []))
+	eq(app.stage.interior_view.occupant_nodes[2].action, 1, "mudar de ação atualiza o NPC")
+
+	app.stream.delta_applied.emit(_interior_delta(2, 3, [], [{"value": 1}]))
+	eq(app.stage.interior_view.occupant_nodes.keys(), [2], "quem saiu some")
+	eq(transport.count_calls("GET /visual/subscribe?scope=Interior"), calls_before, "nenhuma releitura do snapshot")
+	app.queue_free()
+
+
+func _app_with_transport(transport) -> Node:
+	var app := App.new()
+	tree.root.add_child(app)
+	await app.start(transport, false)
+	return app
+
+
 func test_exit_returns_to_the_previous_city_scope() -> void:
 	var transport = _transport()
 	transport.on("GET /visual/subscribe?scope=City", {"status": 200, "body": _city()})

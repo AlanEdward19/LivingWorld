@@ -48,7 +48,6 @@ var selected_npc := -1
 var _previous_scope := ["World", ""]
 var _world_ref := ["World", ""]
 var _interior_building := -1
-var _interior_timer: Timer
 var _names_timer: Timer
 var _ui: Control
 var _hover_clock := 0.0
@@ -81,6 +80,7 @@ func start(p_transport, validate_shapes: bool = true, sleeper: Callable = Callab
 		stream.sleeper = sleeper
 	stream.snapshot_received.connect(_on_snapshot)
 	stream.delta_applied.connect(_on_delta)
+	store.interior_changed.connect(_on_interior_changed)
 	stream.connection_changed.connect(_on_connection)
 	stream.access_denied.connect(func(): banner.text = "acesso negado a este escopo"; banner.visible = true)
 	var catalog: Dictionary = await api.action_catalog()
@@ -241,10 +241,6 @@ func _build_ui() -> void:
 	loading.add_child(loading_label)
 	_ui.add_child(loading)
 
-	_interior_timer = Timer.new()
-	_interior_timer.wait_time = 1.0
-	_interior_timer.timeout.connect(_poll_interior)
-	add_child(_interior_timer)
 	_names_timer = Timer.new()
 	_names_timer.wait_time = 20.0
 	_names_timer.autostart = true
@@ -255,7 +251,7 @@ func _build_ui() -> void:
 # --- relógio, eventos, nomes -----------------------------------------------
 
 func _on_clock_status(status: Dictionary) -> void:
-	day_cycle.sync(float(status.tick), float(status.ticksPerSecond), bool(status.isPaused))
+	day_cycle.sync(float(status.tick), float(status.ticksPerSecond), bool(status.isPaused), status)
 	_update_time_label(status)
 
 
@@ -263,9 +259,9 @@ func _update_time_label(status: Dictionary = {}) -> void:
 	var s: Dictionary = status if not status.is_empty() else clock_panel.status
 	if s.is_empty():
 		return
-	var day := int(float(s.tick) / 24.0) % 360 + 1
-	time_label.text = "Ano %d · Dia %d · %s · %s%s" % [int(s.year), day, day_cycle.clock_text(), day_cycle.phase_name(),
-		"  ⏸" if s.isPaused else ""]
+	var date: Dictionary = day_cycle.date_parts(float(s.tick))
+	time_label.text = "Ano %d · Mês %d · Dia %d · %s · %s%s" % [int(s.year), date.month, date.day, day_cycle.clock_text(),
+		day_cycle.phase_name(), "  ⏸" if s.isPaused else ""]
 
 
 func _process(delta: float) -> void:
@@ -397,24 +393,18 @@ func _enter_interior_view() -> void:
 	if marker != null:
 		rig.focus(Vector3(origin.x + 1.5, 0, origin.y + 1.5))
 		rig.set_zoom(7.0)
-	_interior_timer.start()
 
 
 func exit_building() -> void:
 	if not stage.active:
 		return
-	_interior_timer.stop()
 	stage.leave()
 	_interior_building = -1
 	await stream.subscribe(_previous_scope[0], _previous_scope[1])
 
 
-func _poll_interior() -> void:
-	if not stage.active:
-		return
-	var response: Dictionary = await api.interior_snapshot(_interior_building)
-	if response.ok and stage.active:
-		store.apply_snapshot(response.body)
+func _on_interior_changed() -> void:
+	if stage.active:
 		stage.interior_view.set_occupants(store.interior.occupants)
 		stage.interior_view.apply_names(store.names)
 

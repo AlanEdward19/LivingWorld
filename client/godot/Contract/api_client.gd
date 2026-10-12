@@ -59,7 +59,7 @@ func npc_page(query: String, skip: int, take: int, city_id: String = "") -> Dict
 
 
 func npc_detail(id: int) -> Dictionary:
-	return await _fetch("/npcs/%d" % id)
+	return await _fetch("/npcs/%d" % id, "npc-detail")
 
 
 func interior_snapshot(building_id: int) -> Dictionary:

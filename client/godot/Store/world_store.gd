@@ -6,6 +6,7 @@ signal reloaded(kind: String)
 signal npc_changed(id: int, from_cell: Vector2i, to_cell: Vector2i, action: int)
 signal npc_removed(id: int)
 signal cities_changed()
+signal interior_changed()
 
 const NO_ACTION := -1
 
@@ -134,6 +135,9 @@ func _building(id: int, marker: Dictionary) -> Dictionary:
 
 func apply_delta(envelope: Dictionary) -> void:
 	var delta: Dictionary = envelope.payload
+	if delta.has("upserts"): # delta de interior
+		_apply_interior_delta(delta)
+		return
 	for visual in delta.get("npcUpserts", []):
 		var id: int = id_of(visual.id)
 		var cell := cell_of(visual.location)
@@ -167,3 +171,17 @@ func apply_delta(envelope: Dictionary) -> void:
 		for removed in delta.cityRemoved:
 			cities.erase(id_of(removed))
 		cities_changed.emit()
+
+
+## Delta de interior: `upserts` (entrou ou mudou) e `removed` (saiu), por id de NPC.
+func _apply_interior_delta(delta: Dictionary) -> void:
+	var occupants: Array = interior.get("occupants", [])
+	var by_npc := {}
+	for occupant in occupants:
+		by_npc[int(id_of(occupant.npc))] = occupant
+	for removed in delta.get("removed", []):
+		by_npc.erase(int(id_of(removed)))
+	for upsert in delta.get("upserts", []):
+		by_npc[int(id_of(upsert.npc))] = upsert
+	interior["occupants"] = by_npc.values()
+	interior_changed.emit()

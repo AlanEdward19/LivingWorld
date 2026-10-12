@@ -56,7 +56,7 @@ func _sample_for(shape: Variant) -> Variant:
 
 func test_api_client_rejects_mistyped_status() -> void:
 	var transport := FakeTransport.new()
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": "sim", "ticksPerSecond": 1.0, "tick": 1, "year": 0}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": "sim", "ticksPerSecond": 1.0, "tick": 1, "year": 0, "hoursPerDay": 24, "daysPerMonth": 30, "monthsPerYear": 12}})
 	var api := ApiClient.new(transport)
 	var errors: Array = []
 	api.contract_error.connect(func(_route, e): errors.append(e))
@@ -66,7 +66,7 @@ func test_api_client_rejects_mistyped_status() -> void:
 	eq(response.ok, false, "campo de tipo errado (isPaused como texto) é rejeitado")
 	eq(errors.size(), 1, "o erro de contrato é anunciado")
 
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 1, "year": 0}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 1, "year": 0, "hoursPerDay": 24, "daysPerMonth": 30, "monthsPerYear": 12}})
 	var good: Dictionary = await api.clock_status()
 	eq(good.ok, true, "resposta fiel ao contrato passa")
 
@@ -83,3 +83,52 @@ func test_stream_rejects_mistyped_snapshot() -> void:
 	await stream.subscribe("World")
 
 	eq(snapshots.size(), 0, "snapshot com campo de tipo errado é descartado")
+
+
+func test_api_client_validates_npc_detail_shape() -> void:
+	var shape = ShapeValidator.load_shape("npc-detail")
+	check(shape != null, "contrato npc-detail existe")
+	var good := {}
+	for key in shape:
+		good[key] = _sample_for(shape[key])
+	var transport := FakeTransport.new()
+	transport.on("GET /npcs/7", {"status": 200, "body": good})
+	var api := ApiClient.new(transport)
+
+	eq((await api.npc_detail(7)).ok, true, "resposta fiel ao contrato passa")
+
+	var broken: Dictionary = good.duplicate(true)
+	broken.erase("name")
+	transport.on("GET /npcs/7", {"status": 200, "body": broken})
+	eq((await api.npc_detail(7)).ok, false, "campo ausente é rejeitado")
+
+
+func test_stream_discards_a_delta_that_breaks_the_contract() -> void:
+	var transport := FakeTransport.new()
+	transport.on("GET /visual/subscribe", {"status": 200, "body": Fx.snapshot()})
+	transport.on("GET /visual/replay", {"status": 200, "body": []})
+	var stream = CursorStream.new(transport, tree)
+	stream.validate_shapes = false # o snapshot sintético não cumpre o contrato; só o delta é julgado
+	await stream.subscribe("World")
+	stream.validate_shapes = true
+	var applied: Array = []
+	var errors: Array = []
+	stream.delta_applied.connect(func(e): applied.append(e))
+	stream.contract_error.connect(func(e): errors.append(e))
+
+	var shape = ShapeValidator.load_shape("visual-delta")
+	var good := {}
+	for key in shape:
+		good[key] = _sample_for(shape[key])
+	good.fromCursor.sequence = 0
+	good.toCursor.sequence = 1
+	transport.channels[0].push(good)
+	eq(applied.size(), 1, "delta fiel ao contrato é aplicado")
+
+	var broken: Dictionary = good.duplicate(true)
+	broken.fromCursor.sequence = 1
+	broken.toCursor.sequence = 2
+	broken.payload.erase("npcUpserts")
+	transport.channels[0].push(broken)
+	eq(applied.size(), 1, "delta sem campo do contrato é descartado")
+	eq(errors.size(), 1, "e o erro de contrato é anunciado")
