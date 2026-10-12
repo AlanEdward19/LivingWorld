@@ -159,12 +159,10 @@ public sealed partial class BehaviorDecisionSystem
             return true;
         }
 
-        if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household)
-            return false;
-
+        var household = npc.Household is { } householdId ? world.FindHousehold(householdId) : null;
         bool fed = false;
-        var meal = FoodResolver.ResolveMeal(world, household);
-        if (meal.Id > 0 && household.Withdraw(meal, 1).IsSuccess)
+        var meal = household is null ? new ResourceType(econ.FoodResourceId) : FoodResolver.ResolveMeal(world, household);
+        if (meal.Id > 0 && (household?.Withdraw(meal, 1).IsSuccess == true || TryRation(world, npc, meal)))
         {
             npc.SetHunger(100, tick);
             world.RecordResourceConsumed(meal, 1);
@@ -172,7 +170,7 @@ public sealed partial class BehaviorDecisionSystem
         }
 
         var water = new ResourceType(econ.WaterResourceId);
-        if (household.Withdraw(water, 1).IsSuccess)
+        if (household?.Withdraw(water, 1).IsSuccess == true || TryRation(world, npc, water))
         {
             npc.SetThirst(100, tick);
             world.RecordResourceConsumed(water, 1);
@@ -180,6 +178,16 @@ public sealed partial class BehaviorDecisionSystem
         }
 
         return fed;
+    }
+
+    /// <summary>Ração do empregador: quem está no próprio local de trabalho e a despensa de casa não tem o que comer ou
+    /// beber retira uma unidade do estoque da oficina (o poço e o celeiro da propriedade). Sem isso o lavrador morria de
+    /// sede ao lado de mil de água por estar sem moeda no bolso. Só serve quem está lá e só o que a oficina tem.</summary>
+    private static bool TryRation(WorldState world, Npc npc, ResourceType resource)
+    {
+        if (npc.Employer is not { } employerId || world.FindWorkplace(employerId) is not { } workplace) return false;
+        if (workplace.Location != npc.CurrentLocation) return false;
+        return workplace.Withdraw(resource, 1).IsSuccess;
     }
 
     private static bool TryApplyBuy(WorldState world, Npc npc, MarketIndex marketIndex)
@@ -213,9 +221,30 @@ public sealed partial class BehaviorDecisionSystem
             market.CreditTreasury(price);
             household.Deposit(resource, quantity);
             bought = true;
+            NoteTrade(world, npc, market, resource, quantity, price.Amount);
         }
 
         return bought;
+    }
+
+    /// <summary>Registra a compra que fechou: soma ao agregado do dia da oficina, e o comprador passa a ter relação de
+    /// negócio com quem atende (Trade). O primeiro contato do par vira evento, na hora seguinte, pelo
+    /// <c>TradeLedgerSystem</c>. Sem atendente presente, só o livro.</summary>
+    private static void NoteTrade(WorldState world, Npc buyer, Workplace market, ResourceType resource, long quantity, long value)
+    {
+        long hours = world.CurrentDate.TotalHours;
+        world.RecordTrade(market.Id, resource, hours / world.CurrentDate.Calendar.HoursPerDay, quantity, value);
+
+        var attendant = LivingWorld.Simulation.Economy.Trade.TradeLedgerSystem.AttendantAt(world, market);
+        if (attendant is null || attendant.Id == buyer.Id) return;
+
+        var key = new LivingWorld.Domain.Population.Family.RelationshipKey(buyer.Id, attendant.Id);
+        bool firstContact = !world.Relationships.ContainsKey(key);
+        var relationship = world.GetOrCreateRelationship(key, hours);
+        relationship.ApplyEvent(LivingWorld.Domain.Population.Family.RelationshipEventType.Trade, world.FamilyRules);
+        relationship.MarkContact(hours);
+        if (firstContact)
+            world.PendingTradeContacts.Add(new(buyer.Id, attendant.Id, market.Id, resource.Id, value));
     }
 
     private static ActionType RefineForLocation(WorldState world, Npc npc, ActionType candidate, MarketIndex marketIndex) => candidate switch

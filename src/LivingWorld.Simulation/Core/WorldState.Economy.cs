@@ -96,4 +96,95 @@ public sealed partial class WorldState
         ctx.LogEvent(WorldEventKind.Destroyed, $"{amount.Amount}|{reason}", sourceSystem: "WorldState");
         return Result<Unit>.Ok(Unit.Value);
     }
+
+    // --- livro de trocas ---
+
+    /// <summary>Janela, em dias, em que o livro guarda o detalhe diário antes de compactar em mês.</summary>
+    public const int TradeLedgerDetailDays = 60;
+
+    /// <summary>Soma uma compra ao agregado do dia da oficina e do recurso. Chamado só depois de a transação fechar:
+    /// compra recusada não passa por aqui, então o livro e o hash ficam como estavam.</summary>
+    public void RecordTrade(WorkplaceId workplace, ResourceType resource, long day, long quantity, long value)
+    {
+        int index = IndexOfTrade(workplace, resource.Id, day, monthly: false);
+        if (index < 0)
+        {
+            _tradeLedger.Add(new TradeAggregate(workplace, resource.Id, day, false, quantity, value, 1));
+            _tradeLedger.Sort(TradeOrder);
+        }
+        else
+        {
+            var current = _tradeLedger[index];
+            _tradeLedger[index] = current with
+            {
+                Quantity = current.Quantity + quantity,
+                Value = current.Value + value,
+                Purchases = current.Purchases + 1,
+            };
+        }
+
+        CanonicalHashCache.MarkPropertyDirty(nameof(TradeLedger));
+    }
+
+    /// <summary>Dobra em mês os dias mais velhos que a janela de detalhe: o livro fica limitado (dias da janela mais um
+    /// agregado por mês, oficina e recurso) em vez de crescer com o tempo.</summary>
+    public void CompactTradeLedger(long today)
+    {
+        long cutoff = today - TradeLedgerDetailDays;
+        int daysPerMonth = Calendar.DaysPerMonth;
+        bool changed = false;
+        for (int i = _tradeLedger.Count - 1; i >= 0; i--)
+        {
+            var entry = _tradeLedger[i];
+            if (entry.Monthly || entry.Period > cutoff) continue;
+
+            _tradeLedger.RemoveAt(i);
+            long month = entry.Period / daysPerMonth;
+            int target = IndexOfTrade(entry.Workplace, entry.ResourceId, month, monthly: true);
+            if (target < 0)
+                _tradeLedger.Add(new TradeAggregate(entry.Workplace, entry.ResourceId, month, true, entry.Quantity, entry.Value, entry.Purchases));
+            else
+            {
+                var merged = _tradeLedger[target];
+                _tradeLedger[target] = merged with
+                {
+                    Quantity = merged.Quantity + entry.Quantity,
+                    Value = merged.Value + entry.Value,
+                    Purchases = merged.Purchases + entry.Purchases,
+                };
+            }
+
+            changed = true;
+        }
+
+        if (!changed) return;
+        _tradeLedger.Sort(TradeOrder);
+        CanonicalHashCache.MarkPropertyDirty(nameof(TradeLedger));
+    }
+
+    /// <summary>Agregados diários da oficina no intervalo de dias (inclusive), em ordem de dia e recurso. O que já foi
+    /// compactado em mês não volta como dia.</summary>
+    public IReadOnlyList<TradeAggregate> TradesOf(WorkplaceId workplace, long fromDay, long toDay) =>
+        _tradeLedger.Where(e => e.Workplace == workplace && !e.Monthly && e.Period >= fromDay && e.Period <= toDay).ToList();
+
+    private int IndexOfTrade(WorkplaceId workplace, int resourceId, long period, bool monthly)
+    {
+        for (int i = 0; i < _tradeLedger.Count; i++)
+        {
+            var e = _tradeLedger[i];
+            if (e.Workplace == workplace && e.ResourceId == resourceId && e.Period == period && e.Monthly == monthly) return i;
+        }
+
+        return -1;
+    }
+
+    private static int TradeOrder(TradeAggregate a, TradeAggregate b)
+    {
+        int byKind = a.Monthly.CompareTo(b.Monthly);
+        if (byKind != 0) return byKind;
+        int byWorkplace = a.Workplace.Value.CompareTo(b.Workplace.Value);
+        if (byWorkplace != 0) return byWorkplace;
+        int byPeriod = a.Period.CompareTo(b.Period);
+        return byPeriod != 0 ? byPeriod : a.ResourceId.CompareTo(b.ResourceId);
+    }
 }

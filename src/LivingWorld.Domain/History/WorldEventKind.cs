@@ -149,4 +149,8 @@ public enum WorldEventKind
 
     /// <summary>Morte por privação de sono sustentada — payload: npcId.</summary>
     Exhaustion,
+
+    /// <summary>Primeiro contato de compra entre comprador e quem atende a oficina — payload:
+    /// <c>compradorId|atendenteId|oficinaId|recursoId|valor</c>.</summary>
+    Trade,
 }

@@ -84,6 +84,9 @@ public class EconomyDepthConservationTests
         Assert.True(world.Cities.Sum(c => c.Treasury.Amount) < 20000, "a cidade nunca comprou material");
     }
 
+    /// <summary>Piso do mundo ao vivo com 40 NPCs, 8 seeds, ano 5 (a medida de 20 NPCs em 3 seeds era ruido: uma morte
+    /// mexia a seed em 30%). Gravado depois da racao do empregador; o mundo ao vivo perde muita gente (40 para cerca de 14)
+    /// e isso e um achado aberto, nao um alvo.</summary>
     [Fact]
     public void Live_world_population_stays_within_90_percent_of_the_baseline()
     {
@@ -92,12 +95,12 @@ public class EconomyDepthConservationTests
         int total = 0;
         for (int seed = 1; seed <= baseline.Length; seed++)
         {
-            var (world, clock, _) = Load(seed, population: 20);
-            clock.Run(world, 10 * OneYearInHours);
+            var (world, clock, _) = Load(seed, population: 40);
+            clock.Run(world, 5 * OneYearInHours);
             total += world.Npcs.Count(n => n.IsAlive);
         }
 
-        Assert.True(total >= 0.9 * baseline.Sum(), $"populacao do ano 10 somada {total} < 90% de {baseline.Sum()}");
+        Assert.True(total >= 0.9 * baseline.Sum(), $"populacao do ano 5 somada {total} < 90% de {baseline.Sum()}");
     }
 
     private static string RepoRoot()

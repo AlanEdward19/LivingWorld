@@ -10,6 +10,7 @@ using LivingWorld.Simulation.Economy.Labor;
 using LivingWorld.Simulation.Economy.Market;
 using LivingWorld.Simulation.Economy.Production;
 using LivingWorld.Simulation.Economy.Supply;
+using LivingWorld.Simulation.Economy.Trade;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
 using LivingWorld.Simulation.Extraordinary.Systems;
 using LivingWorld.Simulation.Geography;
@@ -62,6 +63,7 @@ public static partial class ScenarioRunner
         new NatalitySystem(),
         new NeedsDecaySystem(),
         new BehaviorDecisionSystem(DefaultSkillsRules),
+        new TradeLedgerSystem(),
         new BuildingOccupancySystem(),
         new ResourceProcessSystem(),
         new EmploymentSystem(),

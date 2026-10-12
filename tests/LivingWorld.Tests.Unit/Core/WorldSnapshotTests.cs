@@ -110,6 +110,8 @@ public class WorldSnapshotTests
             world.NextWorkplaceIdAndAdvance(), new LocationType(1), ScenarioRunner.DefaultVillageLocation, maxVacancies: 1,
             employees: [], stock: new Dictionary<ResourceType, long> { [new ResourceType(1)] = 5 }, treasury: new Money(10),
             prices: new Dictionary<ResourceType, long> { [new ResourceType(1)] = 2 }));
+        // trade-ledger: livro vazio não tem folha primitiva pro mutador genérico perturbar.
+        world.RecordTrade(world.Workplaces[0].Id, new ResourceType(1), day: 3, quantity: 2, value: 4);
         // Fase 8 (T5): força ao menos uma City/Building não-vazia — mesmo motivo do Workplace
         // acima (coleção vazia não tem folha primitiva pro mutador genérico perturbar).
         var city = world.ActiveCities().Single();

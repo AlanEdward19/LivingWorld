@@ -194,6 +194,15 @@ public sealed partial class WorldState
     /// <summary>Encontros de combate multi-round — via
     /// <c>combat.engage:</c>.</summary>
     [Canonical] public IReadOnlyList<CombatEncounter> CombatEncounters => _combatEncounters;
+
+    /// <summary>Livro de trocas das oficinas (ver <see cref="TradeAggregate"/>), canônico e limitado: dia a dia na
+    /// janela de detalhe, mês a mês depois dela.</summary>
+    [Canonical] public IReadOnlyList<TradeAggregate> TradeLedger => _tradeLedger;
+    private readonly List<TradeAggregate> _tradeLedger;
+
+    /// <summary>Primeiros contatos de compra ainda sem evento (ver <c>TradeLedgerSystem</c>). Volátil: o sistema a esvazia
+    /// a cada hora, então só uma hora de contatos se perde se o mundo for salvo no meio.</summary>
+    internal List<LivingWorld.Simulation.Economy.Trade.TradeContact> PendingTradeContacts { get; } = [];
     [Canonical] public long NextCombatEncounterId => _nextCombatEncounterId;
 
     /// <summary>Teto de rounds e limiar de fuga (cenário).</summary>
@@ -417,7 +426,8 @@ public sealed partial class WorldState
         IReadOnlyList<BiomeSeasonTemperatureRules>? biomeSeasonTemperatureRules = null,
         IReadOnlyList<CombatEncounter>? combatEncounters = null,
         long nextCombatEncounterId = 0,
-        CombatRules? combatRules = null)
+        CombatRules? combatRules = null,
+        IReadOnlyList<TradeAggregate>? tradeLedger = null)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -456,6 +466,7 @@ public sealed partial class WorldState
         _combatEncountersById = ToLookup(_combatEncounters, e => e.Id);
         _nextCombatEncounterId = nextCombatEncounterId;
         CombatRules = combatRules ?? CombatRules.Default;
+        _tradeLedger = (tradeLedger ?? []).ToList();
         Name = name;
         _facts = [];
         _reports = [];
@@ -563,7 +574,8 @@ public sealed partial class WorldState
         long nextHistoryEventId = 0,
         IReadOnlyList<CombatEncounter>? combatEncounters = null,
         long nextCombatEncounterId = 0,
-        CombatRules? combatRules = null)
+        CombatRules? combatRules = null,
+        IReadOnlyList<TradeAggregate>? tradeLedger = null)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -637,6 +649,7 @@ public sealed partial class WorldState
         _combatEncountersById = ToLookup(_combatEncounters, e => e.Id);
         _nextCombatEncounterId = nextCombatEncounterId;
         CombatRules = combatRules ?? CombatRules.Default;
+        _tradeLedger = (tradeLedger ?? []).ToList();
         _facts = (facts ?? []).ToList();
         _nextFactId = nextFactId;
         _nextReportId = nextReportId;

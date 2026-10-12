@@ -155,6 +155,34 @@ public class EconomyDepthScenarioTests
         Assert.True(staffed >= 18, $"serraria e pedreira com gente em so {staffed}/20 seeds");
     }
 
+    /// <summary>Quebra de poço: a água por trabalhador cai a zero. A água encarece e o trabalho na fazenda passa a valer
+    /// mais que no controle, então a fatia da população que trabalha lá é maior (fatia, não contagem: sem água morre
+    /// gente, e uma população menor confundiria a comparação).</summary>
+    [Fact]
+    public void A_dry_well_raises_the_share_of_people_working_the_farm_above_the_control()
+    {
+        int more = 0;
+        for (int seed = 1; seed <= 20; seed++)
+        {
+            var (control, controlClock) = LoadWith(seed, population: 40);
+            var (dry, dryClock) = LoadWith(seed, population: 40, node =>
+                node["Recipes"]!["1"]!["Outputs"] = new JsonObject { ["1"] = 10, ["2"] = 0 });
+            double controlShare = 0, dryShare = 0;
+            for (int day = 0; day < 300; day++)
+            {
+                controlClock.Run(control, 24);
+                dryClock.Run(dry, 24);
+                if (day < 100) continue;
+                controlShare += (double)EmployeesAt(control, 1) / Math.Max(1, control.Npcs.Count(n => n.IsAlive));
+                dryShare += (double)EmployeesAt(dry, 1) / Math.Max(1, dry.Npcs.Count(n => n.IsAlive));
+            }
+
+            if (dryShare > controlShare) more++;
+        }
+
+        Assert.True(more >= 18, $"fatia maior na fazenda so em {more}/20 seeds");
+    }
+
     private static string FindRepoRoot()
     {
         var dir = AppContext.BaseDirectory;

@@ -24,7 +24,7 @@ Itens que exigem decisão de escopo/arquitetura (AGENTS.md → "PERGUNTE QUANDO"
 - [x] F7 evento Help e eixos Respeito/Dívida; Trade e Betrayal seguem sem fonte (mercado é NPC↔oficina; traição é Fase 23).
 - [x] F1 `ExampleCounterSystem` fora da produção. [x] F11 expiração de sessão sem id canônico.
 - Perf igual (0,642 → 0,617 µs/NPC-tick; alocação e snapshot idênticos); vila −3,6% no ano 10.
-- [x] `economy-depth` (AD-090) e `labor-allocation` (AD-091) implementadas. Faltam: `.specs/features/{trade-ledger,snapshot-positional-binary}/plan.md`.
+- [x] `economy-depth` (AD-090), `labor-allocation` (AD-091, fechada no AD-092) e `trade-ledger` (AD-092). Falta: `.specs/features/snapshot-positional-binary/plan.md` (issue 21).
 
 ## Abertas — critério mais fraco que o roadmap (sem AD registrando o desvio)
 - F4 histerese 20/20 virou média+folga; teto p99 tautológico (`BehaviorDecisionSystemHysteresisTests`).
