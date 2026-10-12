@@ -189,4 +189,43 @@ public sealed partial class WorldState
         int byPeriod = a.Period.CompareTo(b.Period);
         return byPeriod != 0 ? byPeriod : a.ResourceId.CompareTo(b.ResourceId);
     }
+
+    // --- livro do tesouro ---
+
+    /// <summary>Soma ao livro da cidade no mês de <paramref name="tick"/> o que entrou e o que saiu do tesouro.</summary>
+    public void RecordTreasury(CityId city, long tick, long revenue, long spending)
+    {
+        if (revenue == 0 && spending == 0) return;
+
+        long month = tick / Calendar.HoursPerMonth;
+        int index = _treasuryLedger.FindIndex(e => e.City == city && e.Month == month);
+        if (index < 0)
+        {
+            var created = new TreasuryAggregate(city, month, revenue, spending);
+            int at = _treasuryLedger.BinarySearch(created, Comparer<TreasuryAggregate>.Create(TreasuryOrder));
+            _treasuryLedger.Insert(at < 0 ? ~at : at, created);
+        }
+        else
+        {
+            var current = _treasuryLedger[index];
+            _treasuryLedger[index] = current with { Revenue = current.Revenue + revenue, Spending = current.Spending + spending };
+        }
+
+        CanonicalHashCache.MarkPropertyDirty(nameof(TreasuryLedger));
+    }
+
+    /// <summary>Meses da cidade no intervalo de dias (inclusive), em ordem de mês.</summary>
+    public IReadOnlyList<TreasuryAggregate> TreasuryOf(CityId city, long fromDay, long toDay)
+    {
+        long daysPerMonth = Calendar.DaysPerMonth;
+        return _treasuryLedger
+            .Where(e => e.City == city && (e.Month + 1) * daysPerMonth > fromDay && e.Month * daysPerMonth <= toDay)
+            .ToList();
+    }
+
+    private static int TreasuryOrder(TreasuryAggregate a, TreasuryAggregate b)
+    {
+        int byCity = a.City.Value.CompareTo(b.City.Value);
+        return byCity != 0 ? byCity : a.Month.CompareTo(b.Month);
+    }
 }

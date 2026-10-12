@@ -55,7 +55,19 @@ public sealed class WagePaymentSystem : ISimulationSystem
 
                 var debited = workplace.TryDebitTreasury(pay);
                 if (!debited.IsSuccess) continue;
-                npc.CreditWallet(pay);
+
+                // A cidade do empregador retém a alíquota do que o empregador pagou: o líquido vai ao empregado e o resto ao
+                // tesouro da cidade, então a moeda total não muda (AD-098). Oficina sem cidade não retém.
+                long tax = rules.WageTaxRate > 0 && world.FindCity(workplace.City) is { } city
+                    ? (long)Math.Floor(pay.Amount * rules.WageTaxRate)
+                    : 0;
+                if (tax > 0)
+                {
+                    world.FindCity(workplace.City)!.CreditTreasury(new Money(tax));
+                    world.RecordTreasury(workplace.City, ctx.CurrentTick, revenue: tax, spending: 0);
+                }
+
+                npc.CreditWallet(new Money(pay.Amount - tax));
             }
         }
     }

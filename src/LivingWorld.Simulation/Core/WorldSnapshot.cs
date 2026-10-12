@@ -252,6 +252,10 @@ public static class WorldSnapshot
             node.TryGetPropertyValue("TradeLedger", out var tradeNode) && tradeNode is not null
                 ? tradeNode.Deserialize<List<TradeAggregate>>(JsonOptions)!
                 : [];
+        var treasuryLedger =
+            node.TryGetPropertyValue("TreasuryLedger", out var treasuryNode) && treasuryNode is not null
+                ? treasuryNode.Deserialize<List<TreasuryAggregate>>(JsonOptions)!
+                : [];
 
         return new WorldState(
             calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
@@ -266,7 +270,7 @@ public static class WorldSnapshot
             extraordinaryConstructs, nextExtraordinaryConstructId,
             fauna, nextAnimalId, flora, nextPlantId, environmentTemperatureAdjustments,
             animalSpeciesRules, plantSpeciesRules, biomeSeasonTemperatureRules,
-            nextHistoryEventId, combatEncounters, nextCombatEncounterId, combatRules, tradeLedger);
+            nextHistoryEventId, combatEncounters, nextCombatEncounterId, combatRules, tradeLedger, treasuryLedger);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)

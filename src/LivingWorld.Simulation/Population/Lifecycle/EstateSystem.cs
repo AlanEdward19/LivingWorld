@@ -84,6 +84,7 @@ public static class EstateSystem
 
         _ = dead.TryDebitWallet(new Money(wallet));
         city.CreditTreasury(new Money(wallet));
+        world.RecordTreasury(city.Id, world.CurrentDate.TotalHours, revenue: wallet, spending: 0);
         return wallet;
     }
 

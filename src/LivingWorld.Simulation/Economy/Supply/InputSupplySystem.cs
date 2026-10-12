@@ -54,6 +54,7 @@ public sealed class InputSupplySystem : ISimulationSystem
                 if (bought <= 0) continue;
                 city.TryDebitTreasury(paid);
                 city.DepositStock(resource, bought);
+                world.RecordTreasury(city.Id, ctx.CurrentTick, revenue: 0, spending: paid.Amount);
             }
         }
     }

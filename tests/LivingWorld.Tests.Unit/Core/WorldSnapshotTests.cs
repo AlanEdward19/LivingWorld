@@ -116,6 +116,8 @@ public class WorldSnapshotTests
         // acima (coleção vazia não tem folha primitiva pro mutador genérico perturbar).
         var city = world.ActiveCities().Single();
         world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId: 1, completedAtTick: 0));
+        // taxes-treasury: livro do tesouro vazio não tem folha primitiva pro mutador genérico perturbar.
+        world.RecordTreasury(city.Id, tick: 5, revenue: 3, spending: 1);
         // Fase 15.1 T12: RestPlaces vazio não tem folha primitiva pro mutador genérico.
         var restHousehold = world.Households[0];
         world.AddRestPlace(new RestPlace(

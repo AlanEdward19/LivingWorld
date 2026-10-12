@@ -33,6 +33,7 @@ public static class IncrementalHasher
         nameof(WorldState.Flora),
         nameof(WorldState.CombatEncounters),
         nameof(WorldState.TradeLedger),
+        nameof(WorldState.TreasuryLedger),
         nameof(WorldState.EnvironmentTemperatureAdjustments),
         nameof(WorldState.Facts),
         nameof(WorldState.Reports),

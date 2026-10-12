@@ -211,7 +211,8 @@ public static partial class ScenarioRunner
         priceFloor: new Dictionary<int, long> { [1] = 1, [2] = 1, [4] = 1 },
         priceCeiling: new Dictionary<int, long> { [1] = 20, [2] = 15, [4] = 80 },
         priceSensitivity: 0.2,
-        demandBaselinePerNpc: new Dictionary<int, double> { [1] = 0.5, [2] = 0.3 })
+        demandBaselinePerNpc: new Dictionary<int, double> { [1] = 0.5, [2] = 0.3 },
+        wageTaxRate: 0.05) // a cidade retém 5% do salário (AD-098)
         .Value ?? throw new InvalidOperationException("economy rules default inválida — bug no cenário, não no gerador");
 
     public static readonly EconomyCatalog DefaultEconomyCatalog = new(

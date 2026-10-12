@@ -72,7 +72,8 @@ public class EconomyDepthScenarioTests
 
         new WagePaymentSystem().Tick(world, new TickContext(world, world.Rng, world.Scheduler));
 
-        Assert.Equal(before + 95, worker.Wallet.Amount);
+        long tax = world.FindCity(sawmill.City) is null ? 0 : (long)Math.Floor(95 * world.EconomyRules.WageTaxRate); // a cidade retém a alíquota (AD-098)
+        Assert.Equal(before + 95 - tax, worker.Wallet.Amount);
         var lumberjack = new LivingWorld.Domain.Population.ProfessionType(3);
         Assert.Equal(ActionType.Work, world.ActionCatalog.RoutineOf(lumberjack, LifeStage.Adult, hour: 9));
         Assert.NotEqual(ActionType.Work, world.ActionCatalog.RoutineOf(lumberjack, LifeStage.Adult, hour: 20));

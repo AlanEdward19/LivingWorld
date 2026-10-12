@@ -200,6 +200,11 @@ public sealed partial class WorldState
     [Canonical] public IReadOnlyList<TradeAggregate> TradeLedger => _tradeLedger;
     private readonly List<TradeAggregate> _tradeLedger;
 
+    /// <summary>Livro do tesouro das cidades (receita e gasto por mês, ver <see cref="TreasuryAggregate"/>), canônico e
+    /// limitado a um registro por cidade e mês.</summary>
+    [Canonical] public IReadOnlyList<TreasuryAggregate> TreasuryLedger => _treasuryLedger;
+    private readonly List<TreasuryAggregate> _treasuryLedger;
+
     /// <summary>Primeiros contatos de compra ainda sem evento (ver <c>TradeLedgerSystem</c>). Volátil: o sistema a esvazia
     /// a cada hora, então só uma hora de contatos se perde se o mundo for salvo no meio.</summary>
     internal List<LivingWorld.Simulation.Economy.Trade.TradeContact> PendingTradeContacts { get; } = [];
@@ -427,7 +432,8 @@ public sealed partial class WorldState
         IReadOnlyList<CombatEncounter>? combatEncounters = null,
         long nextCombatEncounterId = 0,
         CombatRules? combatRules = null,
-        IReadOnlyList<TradeAggregate>? tradeLedger = null)
+        IReadOnlyList<TradeAggregate>? tradeLedger = null,
+        IReadOnlyList<TreasuryAggregate>? treasuryLedger = null)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -467,6 +473,7 @@ public sealed partial class WorldState
         _nextCombatEncounterId = nextCombatEncounterId;
         CombatRules = combatRules ?? CombatRules.Default;
         _tradeLedger = (tradeLedger ?? []).ToList();
+        _treasuryLedger = (treasuryLedger ?? []).ToList();
         Name = name;
         _facts = [];
         _reports = [];
@@ -575,7 +582,8 @@ public sealed partial class WorldState
         IReadOnlyList<CombatEncounter>? combatEncounters = null,
         long nextCombatEncounterId = 0,
         CombatRules? combatRules = null,
-        IReadOnlyList<TradeAggregate>? tradeLedger = null)
+        IReadOnlyList<TradeAggregate>? tradeLedger = null,
+        IReadOnlyList<TreasuryAggregate>? treasuryLedger = null)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -650,6 +658,7 @@ public sealed partial class WorldState
         _nextCombatEncounterId = nextCombatEncounterId;
         CombatRules = combatRules ?? CombatRules.Default;
         _tradeLedger = (tradeLedger ?? []).ToList();
+        _treasuryLedger = (treasuryLedger ?? []).ToList();
         _facts = (facts ?? []).ToList();
         _nextFactId = nextFactId;
         _nextReportId = nextReportId;
