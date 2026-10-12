@@ -26,10 +26,16 @@ internal static class RoutineBoundaries
         ProfessionType? profession, LifeStage stage, int hoursPerDay)
     {
         var key = (profession?.Id ?? -1, stage);
-        return tables.TryGetValue(key, out var table)
-            ? table
-            : tables.GetOrAdd(key, _ => Build(catalog, profession, stage, hoursPerDay));
+        return tables.TryGetValue(key, out var table) ? table : AddTable(tables, key, catalog, profession, stage, hoursPerDay);
     }
+
+    /// <summary>Caminho raro (primeira vez do par). Fica em método próprio porque o compilador aloca o fecho de um lambda
+    /// no início do método que o declara: com o lambda em <c>TableFor</c>, todo despertar pagava o fecho mesmo com a
+    /// tabela pronta (o maior alocador do tick: 16% dos bytes a 10.000 NPCs).</summary>
+    private static Table AddTable(
+        ConcurrentDictionary<(int Profession, LifeStage Stage), Table> tables, (int, LifeStage) key, ActionCatalog catalog,
+        ProfessionType? profession, LifeStage stage, int hoursPerDay) =>
+        tables.GetOrAdd(key, _ => Build(catalog, profession, stage, hoursPerDay));
 
     /// <summary>Ação de rotina da hora — a mesma de <see cref="ActionCatalog.RoutineOf"/>, lida de uma tabela de
     /// 24 horas montada uma vez por (profissão, fase): a busca por faixas rodava várias vezes por despertar.</summary>

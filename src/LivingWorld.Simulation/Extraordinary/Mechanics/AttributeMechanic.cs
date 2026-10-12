@@ -1,4 +1,5 @@
 using System.Globalization;
+using LivingWorld.Domain.Extraordinary;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
@@ -52,6 +53,13 @@ public sealed class AttributeMechanic : ExtraordinaryMechanic
         if (carrier is not { IsManifested: true })
             return 1;
 
+        return DeclaredPerceptionRadius(world, carrier);
+    }
+
+    /// <summary>Fora de <see cref="PerceptionRadius"/> porque o lambda captura <paramref name="carrier"/> e o compilador
+    /// aloca o fecho no início do método que o declara: todo NPC sem poder pagava o fecho a cada decisão.</summary>
+    private static int DeclaredPerceptionRadius(WorldState world, ExtraordinaryCarrierState carrier)
+    {
         int radius = 1;
         bool found = false;
         foreach (var effect in world.Extraordinary.Descriptors
@@ -77,6 +85,12 @@ public sealed class AttributeMechanic : ExtraordinaryMechanic
         if (carrier is not { IsManifested: true })
             return 1;
 
+        return DeclaredProduct(world, carrier, token);
+    }
+
+    /// <summary>Ver <see cref="DeclaredPerceptionRadius"/>: o fecho do lambda só nasce para quem tem poder manifesto.</summary>
+    private static double DeclaredProduct(WorldState world, ExtraordinaryCarrierState carrier, string token)
+    {
         double product = 1;
         bool found = false;
         foreach (var effect in world.Extraordinary.Descriptors

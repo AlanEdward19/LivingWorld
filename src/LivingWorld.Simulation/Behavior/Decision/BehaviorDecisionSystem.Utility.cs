@@ -34,14 +34,16 @@ public sealed partial class BehaviorDecisionSystem
         DecisionContext ctx, NeedsRules rules, EconomyRules economy, ActionType? continuityAction,
         PowerUtilityRules? powerRules = null,
         WakeReason wakeReason = WakeReason.UrgentNeed,
-        ActionType? previousIntent = null)
+        ActionType? previousIntent = null,
+        bool captureTrace = true)
     {
         var utilityRules = PowerUtilityRules.Resolve(powerRules);
         var foresight = ctx.ForesightPreviews ?? ForesightMechanic.EmptyPreviews;
         var best = ActionType.Eat;
         double bestScore = double.NegativeInfinity;
         PendingPowerInvocation? bestPending = null;
-        var scored = new List<(ActionType Action, double Score)>(AllActions.Length + ctx.PowerOpportunities.Count);
+        // O rastro só é montado para quem é gravado no log de cognição; sem ele, nada de lista, fecho nem delegate por decisão
+        var scored = captureTrace ? new List<(ActionType Action, double Score)>(AllActions.Length + ctx.PowerOpportunities.Count) : null;
 
         foreach (var action in AllActions)
         {
@@ -52,7 +54,7 @@ public sealed partial class BehaviorDecisionSystem
             if (rules.HysteresisEnabled && continuityAction == action)
                 score += rules.ContinuityBonus;
 
-            scored.Add((action, score));
+            scored?.Add((action, score));
             if (score > bestScore)
             {
                 bestScore = score;
@@ -75,7 +77,7 @@ public sealed partial class BehaviorDecisionSystem
                 continue;
             }
 
-            scored.Add((ActionType.UsePower, score));
+            scored?.Add((ActionType.UsePower, score));
             if (score > bestScore)
             {
                 bestScore = score;
@@ -85,10 +87,20 @@ public sealed partial class BehaviorDecisionSystem
             }
         }
 
-        return new UtilityDecision(
-            best, bestPending,
-            () => BuildDecisionTrace(ctx, wakeReason, previousIntent, best, bestScore, scored));
+        if (scored is null)
+            return new UtilityDecision(best, bestPending, NoTrace);
+
+        return TracedDecision(ctx, wakeReason, previousIntent, best, bestScore, scored, bestPending);
     }
+
+    private static readonly Func<DecisionTrace> NoTrace = static () =>
+        throw new InvalidOperationException("decisão sem captura de rastro (captureTrace: false)");
+
+    /// <summary>Em método próprio: o compilador aloca o fecho no início do método que o declara.</summary>
+    private static UtilityDecision TracedDecision(
+        DecisionContext ctx, WakeReason wakeReason, ActionType? previousIntent, ActionType best, double bestScore,
+        List<(ActionType Action, double Score)> scored, PendingPowerInvocation? bestPending) =>
+        new(best, bestPending, () => BuildDecisionTrace(ctx, wakeReason, previousIntent, best, bestScore, scored));
 
     private static DecisionTrace BuildDecisionTrace(
         DecisionContext ctx,

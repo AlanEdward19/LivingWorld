@@ -1,4 +1,3 @@
-using System.Reflection;
 using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
@@ -58,11 +57,14 @@ public sealed class MaterializationSystem : ISimulationSystem
         ArgumentNullException.ThrowIfNull(world);
         ArgumentNullException.ThrowIfNull(npc);
 
-        var scopes = GetActiveScopes(world.ObservationRegistry);
+        var scopes = world.ObservationRegistry.ActiveScopes;
         if (scopes.Count == 0)
             return false;
 
-        if (scopes.Any(s => s.Kind == ScopeKind.World))
+        bool worldScope = false;
+        foreach (var scope in scopes)
+            if (scope.Kind == ScopeKind.World) { worldScope = true; break; }
+        if (worldScope)
             return world.ObservationRegistry.IsObserved(npc, world);
 
         if (!world.ObservationRegistry.IsObserved(npc, world))
@@ -71,9 +73,10 @@ public sealed class MaterializationSystem : ISimulationSystem
         if (npc.Interior is not { Building: var buildingId })
             return true;
 
-        return scopes.Any(s => s.Kind == ScopeKind.Building
-            && s.CityId == npc.City
-            && s.BuildingId == buildingId);
+        foreach (var scope in scopes)
+            if (scope.Kind == ScopeKind.Building && scope.CityId == npc.City && scope.BuildingId == buildingId)
+                return true;
+        return false;
     }
 
     private static void SyncCosmeticLayers(WorldState world, long tick)
@@ -103,15 +106,6 @@ public sealed class MaterializationSystem : ISimulationSystem
             world.CosmeticDetail.OnPromoted(npc, world, tick);
         else if (!wantFull && state.Layer == CosmeticDetailLayer.FullDetail)
             world.CosmeticDetail.OnDemoted(npc, tick);
-    }
-
-    private static IReadOnlyList<SpaceScope> GetActiveScopes(ObservationRegistry registry)
-    {
-        var field = typeof(ObservationRegistry).GetField("_scopesBySource", BindingFlags.Instance | BindingFlags.NonPublic);
-        if (field?.GetValue(registry) is not Dictionary<string, SpaceScope> scopes)
-            return Array.Empty<SpaceScope>();
-
-        return scopes.Values.ToList();
     }
 
     /// <summary>Papel formal — ver SPEC_DEVIATION acima sobre liderança de

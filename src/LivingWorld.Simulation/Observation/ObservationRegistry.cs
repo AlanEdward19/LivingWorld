@@ -30,6 +30,10 @@ public sealed class ObservationRegistry
         _scopesBySource[sourceId] = scope;
     }
 
+    /// <summary>Escopos ativos sem copiar: quem decide o nível de detalhe de um NPC consulta isto a cada decisão, e a cópia
+    /// (reflexão mais <c>ToList</c>) era alocação por NPC por tick mesmo sem nenhum escopo.</summary>
+    internal Dictionary<string, SpaceScope>.ValueCollection ActiveScopes => _scopesBySource.Values;
+
     public void ClearScope(string sourceId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceId);

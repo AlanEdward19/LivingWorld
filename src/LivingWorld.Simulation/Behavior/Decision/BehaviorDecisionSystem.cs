@@ -59,6 +59,10 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
 
     private readonly SkillsRules? _skillsRules;
 
+    // Reaproveitado a cada tick (o tick é serial e o conjunto só vive dentro dele): criar e redimensionar um conjunto novo
+    // com a posição de todos os NPCs vivos era 5% dos bytes alocados por tick a 10.000 NPCs.
+    private readonly HashSet<CellCoord> _occupancy = [];
+
     public BehaviorDecisionSystem(SkillsRules? skillsRules = null) => _skillsRules = skillsRules;
 
     public string Name => SystemName;
@@ -77,7 +81,8 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
         // anterior escaneava todo mundo dentro de cada passeio ambiente e virava O(n²), inviável
         // acima de ~1000 NPCs (LIVE-POLISH: perf sensor). Mantido atualizado a cada `MoveTo` desta
         // função pra ordem dentro do próprio tick continuar correta.
-        var occupancy = new HashSet<CellCoord>();
+        var occupancy = _occupancy;
+        occupancy.Clear();
         foreach (var other in world.Npcs)
             if (other.IsAlive)
                 occupancy.Add(other.CurrentLocation);
@@ -127,17 +132,19 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 ActionType candidate;
                 if (HasUrgentNeedForDecision(npc, rules, now))
                 {
+                    bool recordTrace = ShouldRecordCognitionTrace(world, npc);
                     var decision = SelectByUtility(
                         DecisionContextBuilder.Build(world, npc, now, provisionTargetDays: ProvisionTargetFor(world, npc, marketIndex)),
                         rules,
                         world.EconomyRules,
                         continuityAction,
                         wakeReason: justCompleted ? WakeReason.ActionCompleted : WakeReason.UrgentNeed,
-                        previousIntent: npc.CurrentIntent);
+                        previousIntent: npc.CurrentIntent,
+                        captureTrace: recordTrace);
                     candidate = decision.Action;
                     pendingPower = decision.PendingPower;
 
-                    if (ShouldRecordCognitionTrace(world, npc))
+                    if (recordTrace)
                         world.CognitionLog.Record(npc.Id, now, decision.Trace);
                 }
                 else

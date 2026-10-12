@@ -11,7 +11,8 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 
-public sealed record ExtraordinaryLocomotionProfile(
+/// <summary>Struct: resolvido por NPC a cada deslocamento (quase sempre sem modificador), não vale uma alocação.</summary>
+public readonly record struct ExtraordinaryLocomotionProfile(
     bool HasModifier,
     bool CanFly,
     double SpeedMultiplier);
