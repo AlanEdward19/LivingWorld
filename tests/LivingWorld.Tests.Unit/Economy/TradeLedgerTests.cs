@@ -146,7 +146,8 @@ public class TradeLedgerTests
         Assert.False(world.Relationships.ContainsKey(new RelationshipKey(buyer.Id, absent.Id)));
         Assert.False(world.Relationships.ContainsKey(new RelationshipKey(buyer.Id, other.Id)));
         var trade = Assert.Single(sink.Events, e => e.Kind == WorldEventKind.Trade);
-        Assert.Equal($"{buyer.Id.Value}|{attendant.Id.Value}|{shop.Id.Value}|1|{trade.Payload.Split('|')[4]}", trade.Payload);
+        long firstValue = world.TradesOf(shop.Id, 0, 0).Single(e => e.ResourceId == 1).Value / 2; // duas compras de trigo no dia
+        Assert.Equal($"{buyer.Id.Value}|{attendant.Id.Value}|{shop.Id.Value}|1|{firstValue}", trade.Payload);
     }
 
     [Fact]

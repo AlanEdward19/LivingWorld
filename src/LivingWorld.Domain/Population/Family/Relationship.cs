@@ -60,6 +60,9 @@ public sealed class Relationship
             Math.Clamp(debt, AxisMin, AxisMax),
             firstContactTick);
 
+    /// <summary>Eixos em array fixo: <c>Enum.GetValues&lt;T&gt;()</c> aloca um array novo a cada chamada, e isto roda por par e por compra.</summary>
+    private static readonly RelationshipAxis[] Axes = Enum.GetValues<RelationshipAxis>();
+
     public double Get(RelationshipAxis axis) => axis switch
     {
         RelationshipAxis.Trust => Trust,
@@ -88,7 +91,7 @@ public sealed class Relationship
     /// <c>[0,100]</c>. Eixos sem delta declarado para este evento (delta 0) ficam inalterados.</summary>
     public void ApplyEvent(RelationshipEventType type, FamilyRules rules)
     {
-        foreach (var axis in Enum.GetValues<RelationshipAxis>())
+        foreach (var axis in Axes)
         {
             double delta = rules.RelationshipEventDelta(type, axis);
             if (delta != 0)
@@ -102,7 +105,7 @@ public sealed class Relationship
     /// vice-versa.</summary>
     public void DecayTowardNeutral(FamilyRules rules)
     {
-        foreach (var axis in Enum.GetValues<RelationshipAxis>())
+        foreach (var axis in Axes)
         {
             double current = Get(axis);
             double neutral = rules.NeutralAxisValue;

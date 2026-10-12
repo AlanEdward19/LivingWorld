@@ -109,8 +109,10 @@ public sealed partial class WorldState
         int index = IndexOfTrade(workplace, resource.Id, day, monthly: false);
         if (index < 0)
         {
-            _tradeLedger.Add(new TradeAggregate(workplace, resource.Id, day, false, quantity, value, 1));
-            _tradeLedger.Sort(TradeOrder);
+            // Lista ordenada: insere no lugar em vez de reordenar tudo a cada agregado novo.
+            var created = new TradeAggregate(workplace, resource.Id, day, false, quantity, value, 1);
+            int at = _tradeLedger.BinarySearch(created, Comparer<TradeAggregate>.Create(TradeOrder));
+            _tradeLedger.Insert(at < 0 ? ~at : at, created);
         }
         else
         {

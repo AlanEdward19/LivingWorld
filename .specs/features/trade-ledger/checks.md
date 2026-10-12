@@ -81,6 +81,8 @@ Proof: `dotnet test tests/LivingWorld.Tests.Integration -c Release --filter "Ful
 - AC 4 said the event fires for a purchase above the day's p90 **or** at first contact. Only first contact became an event: a p90 needs the day's distribution, an extra store for an event that adds little over the aggregate. Relation growth (AC 5) happens on every purchase.
 - The ledger counts purchases, not distinct buyers (the record does not keep who bought); recorded in `TradeAggregate`.
 - AC 3 was proven against the shop treasury and the buyer's wallet of the same transaction (C1); a whole-world money identity would need to separate sales from wages and is already covered by the money conservation tests.
+- AC 9 says "two processes"; C3 runs twice in one process (the two-process determinism tests already cover the whole canonical hash, which includes the ledger).
+- The sensor bytes baseline (scale-sensor.json) was re-recorded in the same commit: +0.5% (129,633 -> 130,314 B/NPC/year), inside the 110% limit.
 - AC 8's allocation limit was measured against the branch head before the ledger, after the allocation fixes (see AD-092).
 
 ## Handoff

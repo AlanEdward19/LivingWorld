@@ -3,8 +3,8 @@ using LivingWorld.Simulation.Scenarios;
 
 namespace LivingWorld.Tests.LongRunning.Economy;
 
-/// <summary>trade-ledger C8: em 3 anos o livro continua limitado (janela de 60 dias mais um agregado por mes, oficina e
-/// recurso) e o dinheiro que ele registra bate com o que as oficinas receberam dos compradores.</summary>
+/// <summary>trade-ledger C7: em 3 anos, amostrado no fim de cada ano, o livro continua limitado (janela de 60 dias mais um agregado
+/// por mes, oficina e recurso), foi compactado em meses e todo agregado tem quantidade, valor e compras positivos.</summary>
 public class TradeLedgerLongRunTests
 {
     private const long OneYearInHours = 12 * 30 * 24;
