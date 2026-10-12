@@ -134,17 +134,49 @@ public class InteriorDeltaTests : IClassFixture<LivingWorldApiFactory>
         var wsClient = _factory.Server.CreateWebSocketClient();
         var uri = new UriBuilder(new Uri(_factory.Server.BaseAddress, $"/visual/ws?scope=Interior&refId={building.Id.Value}&mode=Spectator")) { Scheme = "ws" }.Uri;
         using var socket = await wsClient.ConnectAsync(uri, CancellationToken.None);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var buffer = new byte[65536];
-        await socket.ReceiveAsync(buffer, CancellationToken.None); // snapshot inicial
+        await socket.ReceiveAsync(buffer, timeout.Token); // snapshot inicial
         Assert.True(InteriorEntry.TryEnter(world, npcs[0], building.Id, FloorLevel.Ground, Door(building)).IsSuccess);
         try
         {
             _factory.Services.GetRequiredService<TickLoopService>().PublishDeltas();
-            var result = await socket.ReceiveAsync(buffer, CancellationToken.None);
+            var result = await socket.ReceiveAsync(buffer, timeout.Token);
             var json = Encoding.UTF8.GetString(buffer, 0, result.Count);
 
             Assert.Contains("\"upserts\"", json);
             Assert.Contains("\"toCursor\"", json);
+        }
+        finally { npcs[0].ExitBuilding(); }
+    }
+
+    [Fact]
+    public void Resubscribing_starts_from_every_occupant_again()
+    {
+        var (world, _, npcs, _) = Setup();
+        // outro prédio: o teste do WebSocket pode deixar assinatura pendente no primeiro
+        var building = world.Buildings.Skip(1).First();
+        var scope = new VisualScope(VisualScopeKind.Interior, building.Id.Value.ToString());
+        var gateway = _factory.Services.GetRequiredService<RealtimeGateway>();
+        var loop = _factory.Services.GetRequiredService<TickLoopService>();
+        Assert.True(InteriorEntry.TryEnter(world, npcs[0], building.Id, FloorLevel.Ground, Door(building)).IsSuccess);
+        try
+        {
+            var (first, unsubscribeFirst) = gateway.SubscribeChannel(scope);
+            loop.PublishDeltas();
+            first.TryRead(out _);
+            unsubscribeFirst();
+            loop.PublishDeltas(); // sem assinante: o servidor esquece o estado anterior
+
+            var (second, unsubscribeSecond) = gateway.SubscribeChannel(scope);
+            try
+            {
+                loop.PublishDeltas();
+                Assert.True(second.TryRead(out var envelope));
+                var delta = Assert.IsType<InteriorTickDelta>(envelope!.Payload);
+                Assert.Equal(npcs[0].Id, Assert.Single(delta.Upserts).Npc);
+            }
+            finally { unsubscribeSecond(); }
         }
         finally { npcs[0].ExitBuilding(); }
     }

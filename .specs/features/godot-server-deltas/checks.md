@@ -3,7 +3,7 @@
 Profile: light
 Plan: `.specs/features/godot-server-deltas/plan.md`
 
-10 checks in 3 slices · 2 one-way doors · 0 open
+11 checks in 3 slices · 2 one-way doors · 0 open
 
 ## Checks
 
@@ -23,6 +23,7 @@ Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~
 ### S2 - Calendário e contrato
 **C5** - `GET /simulation/status` traz `hoursPerDay`, `daysPerMonth` e `monthsPerYear` iguais aos de `WorldState.Calendar` (AC 4)
 Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~SimulationControlEndpointsTests.Status_serves_the_world_calendar"`
+Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~SimulationControlEndpointsTests.Status_serves_a_non_default_calendar"` (mundo 12/10/4, para distinguir do valor padrão)
 
 **C6** - Os arquivos `shape.npc-detail.json`, `shape.visual-delta.json` e `shape.interior-delta.json` existem e batem com as respostas (AC 5)
 Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~ApiContractTests"`
@@ -38,9 +39,13 @@ Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_calendar_fro
 Proof: `bash scripts/client-test.sh --filter "test_shape_validator::test_api_client_validates_npc_detail_shape"`
 Proof: `bash scripts/client-test.sh --filter "test_shape_validator::test_api_client_rejects_mistyped_status"`
 Proof: `bash scripts/client-test.sh --filter "test_shape_validator::test_stream_discards_a_delta_that_breaks_the_contract"`
+Proof: `bash scripts/client-test.sh --filter "test_shape_validator::test_stream_validates_interior_deltas_and_accepts_null_action"`
 
 **C10** - Um assinante WebSocket do escopo Interior recebe o frame de delta com `upserts` e `toCursor` após o snapshot (Surface 101)
 Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~InteriorDeltaTests.Websocket_subscriber_receives_the_interior_delta_frame"`
+
+**C11** - Quem assina de novo um interior recebe todos os ocupantes no primeiro delta, porque o servidor esquece o estado de escopos sem assinante (assumption do plano)
+Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~InteriorDeltaTests.Resubscribing_starts_from_every_occupant_again"`
 
 ## Coverage
 
@@ -52,6 +57,7 @@ Proof: `bash scripts/test.sh --project integration --filter "FullyQualifiedName~
 | `GET /simulation/status` statuses (1) | 200 C5 | - |
 | `GET /visual/ws` interior statuses (1) | 101 C10 | - |
 
+- Os contratos gravam campos nulos do motor (ação, cidade, local do evento) como `null`, que aceita qualquer valor; o tipo desses campos não é imposto pelo cliente
 - Claims que citam rota ou campo (C1, C4, C5, C6) têm prova que atravessa o gateway ou o host HTTP
 - Nenhum outro check afirma mais que o caso único que sua prova exercita
 

@@ -200,4 +200,22 @@ public class SimulationControlEndpointsTests : IClassFixture<LivingWorldApiFacto
         Assert.Equal(calendar.DaysPerMonth, status.DaysPerMonth);
         Assert.Equal(calendar.MonthsPerYear, status.MonthsPerYear);
     }
+
+    [Fact]
+    public async Task Status_serves_a_non_default_calendar()
+    {
+        var host = _factory.Services.GetRequiredService<WorldHost>();
+        var (world, clock) = LivingWorld.Simulation.Scenarios.ScenarioRunner.Create(
+            seed: 3, initialPopulation: 5, calendar: new LivingWorld.Domain.Shared.WorldCalendar(12, 10, 4));
+        host.Replace(world, clock);
+        try
+        {
+            var status = await _factory.CreateClient().GetFromJsonAsync<SimulationStatusResponse>("/simulation/status");
+
+            Assert.Equal(12, status!.HoursPerDay);
+            Assert.Equal(10, status.DaysPerMonth);
+            Assert.Equal(4, status.MonthsPerYear);
+        }
+        finally { _factory.ResetCanonicalWorld(); }
+    }
 }

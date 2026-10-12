@@ -291,7 +291,7 @@ public static partial class ScenarioRunner
         PopulationRules? populationRules = null, int workplaceVacancyMultiplier = 1,
         EconomyCatalog? economyCatalog = null, HistoryRules? historyRules = null,
         IReadOnlyList<AnimalSpeciesRules>? animalSpeciesRules = null,
-        IReadOnlyList<PlantSpeciesRules>? plantSpeciesRules = null)
+        IReadOnlyList<PlantSpeciesRules>? plantSpeciesRules = null, WorldCalendar? calendar = null)
     {
         var rules = economyRules ?? DefaultEconomyRules;
         var family = familyRules ?? DefaultFamilyRules;
@@ -300,7 +300,7 @@ public static partial class ScenarioRunner
         var catalog = economyCatalog ?? DefaultEconomyCatalog;
         var history = historyRules ?? HistoryRules.Disabled;
         var world = new WorldState(
-            DefaultCalendar, seed, InitialMap(seed, initialPopulation), DefaultPopulationCatalog, population,
+            calendar ?? DefaultCalendar, seed, InitialMap(seed, initialPopulation), DefaultPopulationCatalog, population,
             DefaultNeedsRules, DefaultActionCatalog, DefaultLifeStageRules,
             economyRules: rules, economyCatalog: catalog, familyRules: family, perfRules: perf,
             historyRules: history, processRecipes: DefaultProcessRecipes,

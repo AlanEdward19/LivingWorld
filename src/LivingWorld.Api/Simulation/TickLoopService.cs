@@ -79,8 +79,13 @@ public sealed class TickLoopService(
     private void PublishDeltas(WorldState world)
     {
         long tick = world.CurrentDate.TotalHours;
+        var subscribed = gateway.SubscribedScopeKeys;
 
-        foreach (var scopeKey in gateway.SubscribedScopeKeys)
+        // Escopo sem assinante esquece o último estado: quem assinar de novo recomeça de todos os ocupantes/entidades.
+        foreach (var stale in _lastInterior.Keys.Where(k => !subscribed.Contains(k)).ToArray()) _lastInterior.Remove(stale);
+        foreach (var stale in _lastStates.Keys.Where(k => !subscribed.Contains(k)).ToArray()) _lastStates.Remove(stale);
+
+        foreach (var scopeKey in subscribed)
         {
             if (scopeKey.StartsWith("interior:", StringComparison.Ordinal))
             {

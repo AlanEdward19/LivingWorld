@@ -82,7 +82,7 @@ public class ApiContractTests
         var city = new LivingWorld.Domain.Shared.CityId(Guid.Parse("11111111-1111-1111-1111-111111111111"));
         var delta = new LivingWorld.Api.Visual.Scope.ScopeTickDelta(
             4,
-            [new LivingWorld.Api.Visual.Scope.NpcVisual(npc, cell, LivingWorld.Domain.Behavior.ActionType.Work, city)],
+            [new LivingWorld.Api.Visual.Scope.NpcVisual(npc, cell, null, null)],
             [npc],
             [new LivingWorld.Api.Visual.Scope.CityVisual(city, "Alfa", cell, 10, new LivingWorld.Api.Visual.Projection.CellBounds(0, 0, 2, 2))],
             [city],
@@ -91,12 +91,12 @@ public class ApiContractTests
             [new LivingWorld.Api.Visual.Scope.ProcessVisual(1, "rest", 1, 0.5, "sleep-bed")],
             [1L],
             [new LivingWorld.Api.Visual.Scope.IndicatorUpdate("population", 10)],
-            [new LivingWorld.Api.Visual.Scope.NotableVisualEvent(4, LivingWorld.Domain.History.WorldEventKind.Marriage, "Casamento", cell)]);
+            [new LivingWorld.Api.Visual.Scope.NotableVisualEvent(4, LivingWorld.Domain.History.WorldEventKind.Marriage, "Casamento", null)]);
         var world = new LivingWorld.Api.Visual.Scope.VisualDeltaEnvelope<object?>(scope, from, to, delta);
         var interior = new LivingWorld.Api.Visual.Scope.VisualDeltaEnvelope<object?>(
             new LivingWorld.Api.Visual.Scope.VisualScope(LivingWorld.Api.Visual.Scope.VisualScopeKind.Interior, "7"), from, to,
             new LivingWorld.Api.Visual.Projection.InteriorTickDelta(4,
-                [new LivingWorld.Api.Visual.Projection.InteriorOccupant(npc, new LivingWorld.Domain.Geography.Spatial.FloorLevel(1), cell, LivingWorld.Domain.Behavior.ActionType.Sleep)],
+                [new LivingWorld.Api.Visual.Projection.InteriorOccupant(npc, new LivingWorld.Domain.Geography.Spatial.FloorLevel(1), cell, null)],
                 [new LivingWorld.Domain.Shared.NpcId(2)]));
 
         AssertMatchesContract("shape.visual-delta.json", ShapeOf(JsonNode.Parse(JsonSerializer.Serialize(world, options))));

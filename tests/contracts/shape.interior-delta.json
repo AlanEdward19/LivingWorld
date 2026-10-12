@@ -13,7 +13,7 @@
     "tick": "number",
     "upserts": [
       {
-        "action": "number",
+        "action": "null",
         "floor": {
           "value": "number"
         },

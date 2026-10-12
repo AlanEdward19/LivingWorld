@@ -55,10 +55,7 @@
       {
         "kind": "number",
         "label": "string",
-        "location": {
-          "x": "number",
-          "y": "number"
-        },
+        "location": "null",
         "tick": "number"
       }
     ],
@@ -86,10 +83,8 @@
     ],
     "npcUpserts": [
       {
-        "city": {
-          "value": "string"
-        },
-        "currentAction": "number",
+        "city": "null",
+        "currentAction": "null",
         "extraordinary": "null",
         "id": {
           "value": "number"
