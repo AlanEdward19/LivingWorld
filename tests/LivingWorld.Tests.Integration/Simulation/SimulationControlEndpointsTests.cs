@@ -188,4 +188,16 @@ public class SimulationControlEndpointsTests : IClassFixture<LivingWorldApiFacto
             await client.PostAsync("/simulation/resume", null);
         }
     }
+
+    [Fact]
+    public async Task Status_serves_the_world_calendar()
+    {
+        var calendar = _factory.Services.GetRequiredService<WorldHost>().Current.Calendar;
+
+        var status = await _factory.CreateClient().GetFromJsonAsync<SimulationStatusResponse>("/simulation/status");
+
+        Assert.Equal(calendar.HoursPerDay, status!.HoursPerDay);
+        Assert.Equal(calendar.DaysPerMonth, status.DaysPerMonth);
+        Assert.Equal(calendar.MonthsPerYear, status.MonthsPerYear);
+    }
 }

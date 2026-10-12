@@ -1,0 +1,40 @@
+{
+  "fromCursor": {
+    "scopeKey": "string",
+    "sequence": "number",
+    "tick": "number"
+  },
+  "payload": {
+    "removed": [
+      {
+        "value": "number"
+      }
+    ],
+    "tick": "number",
+    "upserts": [
+      {
+        "action": "number",
+        "floor": {
+          "value": "number"
+        },
+        "localCell": {
+          "x": "number",
+          "y": "number"
+        },
+        "npc": {
+          "value": "number"
+        }
+      }
+    ]
+  },
+  "scope": {
+    "kind": "number",
+    "refId": "string",
+    "scopeKey": "string"
+  },
+  "toCursor": {
+    "scopeKey": "string",
+    "sequence": "number",
+    "tick": "number"
+  }
+}

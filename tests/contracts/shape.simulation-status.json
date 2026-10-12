@@ -1,5 +1,8 @@
 {
+  "daysPerMonth": "number",
+  "hoursPerDay": "number",
   "isPaused": "boolean",
+  "monthsPerYear": "number",
   "tick": "number",
   "ticksPerSecond": "number",
   "year": "number"

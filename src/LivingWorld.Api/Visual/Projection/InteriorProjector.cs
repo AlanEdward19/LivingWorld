@@ -19,6 +19,20 @@ public sealed record InteriorOccupant(NpcId Npc, FloorLevel Floor, CellCoord Loc
 public sealed record InteriorSnapshot(BuildingId Id, CityId City, int BuildingTypeId, bool OccupancyModeled, IReadOnlyList<InteriorOccupant> Occupants,
     BuildingLayout Layout);
 
+/// <summary>Delta de um interior: quem entrou ou mudou (andar, célula ou ação) vem completo em
+/// <see cref="Upserts"/>; quem saiu, em <see cref="Removed"/>. Um único caminho para o cliente aplicar.</summary>
+public sealed record InteriorTickDelta(long Tick, IReadOnlyList<InteriorOccupant> Upserts, IReadOnlyList<NpcId> Removed)
+{
+    public static InteriorTickDelta Diff(long tick, IReadOnlyList<InteriorOccupant> before, IReadOnlyList<InteriorOccupant> after)
+    {
+        var beforeByNpc = before.ToDictionary(o => o.Npc);
+        var afterIds = after.Select(o => o.Npc).ToHashSet();
+        var upserts = after.Where(a => !beforeByNpc.TryGetValue(a.Npc, out var b) || b != a).ToArray();
+        var removed = before.Where(b => !afterIds.Contains(b.Npc)).Select(b => b.Npc).ToArray();
+        return new InteriorTickDelta(tick, upserts, removed);
+    }
+}
+
 public static class InteriorProjector
 {
     public static Result<InteriorSnapshot> Build(WorldState world, BuildingId buildingId)

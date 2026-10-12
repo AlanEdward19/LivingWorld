@@ -1,5 +1,7 @@
 using LivingWorld.Api.Realtime;
+using LivingWorld.Api.Visual.Projection;
 using LivingWorld.Api.Visual.Scope;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Infrastructure;
 using LivingWorld.Infrastructure.EventLog;
 using LivingWorld.Simulation.Core;
@@ -23,6 +25,7 @@ public sealed class TickLoopService(
     BufferingWorldEventSink sink) : IHostedService
 {
     private readonly Dictionary<string, LivingScopeState> _lastStates = new();
+    private readonly Dictionary<string, IReadOnlyList<InteriorOccupant>> _lastInterior = new();
     private CancellationTokenSource? _cts;
     private Task? _loopTask;
 
@@ -79,8 +82,14 @@ public sealed class TickLoopService(
 
         foreach (var scopeKey in gateway.SubscribedScopeKeys)
         {
+            if (scopeKey.StartsWith("interior:", StringComparison.Ordinal))
+            {
+                PublishInterior(world, scopeKey, tick);
+                continue;
+            }
+
             if (scopeKey != "world" && !scopeKey.StartsWith("city:", StringComparison.Ordinal))
-                continue; // Só cobre escopos World/City; Interior ainda não publica delta aqui.
+                continue;
 
             var scope = ParseScope(scopeKey);
             var state = LivingScopeProjector.Build(world, scope, sink.EventsAt(tick));
@@ -92,6 +101,19 @@ public sealed class TickLoopService(
             _lastStates[scopeKey] = state;
             gateway.Publish(scope, delta);
         }
+    }
+
+    private void PublishInterior(WorldState world, string scopeKey, long tick)
+    {
+        string refId = scopeKey["interior:".Length..];
+        if (!long.TryParse(refId, out var buildingValue)) return;
+        var snapshot = InteriorProjector.Build(world, new BuildingId(buildingValue));
+        if (!snapshot.IsSuccess) return; // prédio inexistente: nada a publicar, o laço segue
+
+        var before = _lastInterior.TryGetValue(scopeKey, out var previous) ? previous : [];
+        var delta = InteriorTickDelta.Diff(tick, before, snapshot.Value!.Occupants);
+        _lastInterior[scopeKey] = snapshot.Value.Occupants;
+        gateway.Publish(new VisualScope(VisualScopeKind.Interior, refId), delta);
     }
 
     private static VisualScope ParseScope(string scopeKey) =>

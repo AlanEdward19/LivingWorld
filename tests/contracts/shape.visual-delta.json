@@ -1,0 +1,138 @@
+{
+  "fromCursor": {
+    "scopeKey": "string",
+    "sequence": "number",
+    "tick": "number"
+  },
+  "payload": {
+    "buildingRemoved": [
+      {
+        "value": "number"
+      }
+    ],
+    "buildingUpserts": [
+      {
+        "buildingTypeId": "number",
+        "cityId": {
+          "value": "string"
+        },
+        "id": {
+          "value": "number"
+        },
+        "location": {
+          "x": "number",
+          "y": "number"
+        },
+        "orientation": "number"
+      }
+    ],
+    "cityRemoved": [
+      {
+        "value": "string"
+      }
+    ],
+    "cityUpserts": [
+      {
+        "bounds": {
+          "height": "number",
+          "width": "number",
+          "x": "number",
+          "y": "number"
+        },
+        "foundedFromCityId": "null",
+        "id": {
+          "value": "string"
+        },
+        "location": {
+          "x": "number",
+          "y": "number"
+        },
+        "name": "string",
+        "population": "number"
+      }
+    ],
+    "events": [
+      {
+        "kind": "number",
+        "label": "string",
+        "location": {
+          "x": "number",
+          "y": "number"
+        },
+        "tick": "number"
+      }
+    ],
+    "indicators": [
+      {
+        "key": "string",
+        "value": "number"
+      }
+    ],
+    "moved": [
+      {
+        "location": {
+          "x": "number",
+          "y": "number"
+        },
+        "npcId": {
+          "value": "number"
+        }
+      }
+    ],
+    "npcRemoved": [
+      {
+        "value": "number"
+      }
+    ],
+    "npcUpserts": [
+      {
+        "city": {
+          "value": "string"
+        },
+        "currentAction": "number",
+        "extraordinary": "null",
+        "id": {
+          "value": "number"
+        },
+        "location": {
+          "x": "number",
+          "y": "number"
+        },
+        "relocationDestination": "null"
+      }
+    ],
+    "processRemoved": [
+      "number"
+    ],
+    "processUpserts": [
+      {
+        "appearanceToken": "null",
+        "descriptorKey": "string",
+        "footprint": "null",
+        "id": "number",
+        "kind": "string",
+        "location": "null",
+        "progress": "number",
+        "quality": "null",
+        "remainingHours": "null",
+        "targetId": "number"
+      }
+    ],
+    "removed": [
+      {
+        "value": "number"
+      }
+    ],
+    "tick": "number"
+  },
+  "scope": {
+    "kind": "number",
+    "refId": "string",
+    "scopeKey": "string"
+  },
+  "toCursor": {
+    "scopeKey": "string",
+    "sequence": "number",
+    "tick": "number"
+  }
+}
