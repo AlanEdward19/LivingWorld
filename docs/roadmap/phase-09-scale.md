@@ -13,7 +13,7 @@ menos de 1 GB em disco.
 | Alocação por NPC-tick | 150–320 B (8,4 GB/ano a 5.000 NPCs) | ~0 B em regime permanente |
 | RAM residente por entidade NPC | ~5,6 KB | ≤ 500 B |
 | Snapshot por NPC | ~900 B (JSON), mundo inteiro a cada snapshot | ≤ 100 B/NPC vivo, só o que sujou |
-| Event log | 350–900 B por NPC vivo por ano | ≤ 50 B/NPC vivo/ano após compactação |
+| Event log | 350–900 B por NPC vivo por ano (medido: ~85 B, sem compactação, a 1.000 NPCs) | ≤ 50 B/NPC vivo/ano após compactação (medido: ~25 B, AD-097) |
 | Custo de snapshot a 5.000 NPCs | serializar 90 ms + hash 81 ms | ≤ 10 ms combinados |
 
 Extrapolação do problema (10k vivos, 100 anos): hoje ~6 ms/tick × 864k ticks ≈ **1,4 h de CPU**

@@ -36,6 +36,27 @@ if (args.Length == 3 && args[0] == "snapshot-bytes")
     return 0;
 }
 
+// SHA-256 do event log compactado (lotes mensais) depois de <ticks>: o teste de dois processos exige o mesmo agregado.
+// `dotnet <dll> eventlog-digest <seed> <ticks>`.
+if (args.Length == 3 && args[0] == "eventlog-digest")
+{
+    var (world, baseClock) = ScenarioRunner.Create(ulong.Parse(args[1]), initialPopulation: 40);
+    var buffer = new BufferingWorldEventSink();
+    var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, buffer);
+    var lines = new List<string>();
+    long total = long.Parse(args[2]);
+    for (long t = 1; t <= total; t++)
+    {
+        clock.Tick(world);
+        if (t % world.Calendar.HoursPerMonth == 0 || t == total)
+            lines.AddRange(LivingWorld.Infrastructure.EventLog.EventLogCompactor.Compact(buffer.DrainAll(), world.Calendar)
+                .Select(e => $"{e.Tick}|{e.Kind}|{e.Payload}|{e.SourceSystem}"));
+    }
+
+    Console.WriteLine(Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(string.Join((char)10, lines)))));
+    return 0;
+}
+
 // `dotnet <dll> history-significance-digest <seed> <ticks>`.
 if (args.Length == 3 && args[0] == "history-significance-digest")
 {

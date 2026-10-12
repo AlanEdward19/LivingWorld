@@ -49,6 +49,16 @@ public class DeterminismTwoProcessTests
     }
 
     [Fact]
+    public void Same_seed_writes_the_same_compacted_event_log_across_two_separate_processes()
+    {
+        string a = RunCommand("eventlog-digest 5 4320");
+        string b = RunCommand("eventlog-digest 5 4320");
+
+        Assert.Equal(64, a.Length);
+        Assert.Equal(a, b);
+    }
+
+    [Fact]
     public void Different_seeds_produce_different_canonical_hashes_across_processes()
     {
         var (canonicalA, _) = RunInSeparateProcess(seed: 42, ticks: 400);

@@ -38,7 +38,7 @@ public sealed class PersistentWorldRunner(
     {
         lock (_repositoryGate)
         {
-            var events = sink.DrainAll();
+            var events = EventLogCompactor.Compact(sink.DrainAll(), world.Calendar);
             long tick = world.CurrentDate.TotalHours;
             byte[] block;
             long? baseTick = null;
