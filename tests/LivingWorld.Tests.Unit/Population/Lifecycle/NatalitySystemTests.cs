@@ -2,6 +2,7 @@ using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Body;
 using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Population.Skills;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Population.Lifecycle;
@@ -348,5 +349,20 @@ public class NatalitySystemTests
 
         Assert.InRange(baby.Vitality, 0, 100);
         Assert.NotEqual(50.0, baby.Vitality);
+    }
+
+    [Fact]
+    public void A_baby_is_born_without_skills_even_when_both_parents_are_masters()
+    {
+        var (world, ctx, mother, father, household) = BuildWorldWithMarriedCouple(
+            new PopulationCatalog(new HashSet<int>(), new HashSet<int>(), new HashSet<int>()), seed: 11);
+        var skillsRules = ScenarioRunner.DefaultSkillsRules;
+        mother.GainSkill(new SkillType(0), skillsRules.Cap * 0.9, skillsRules.Cap);
+        father.GainSkill(new SkillType(0), skillsRules.Cap * 0.9, skillsRules.Cap);
+        Assert.True(mother.Skills.Get(new SkillType(0)) > 0);
+
+        var baby = TriggerBirth(world, ctx, mother.Id, father.Id, household.Id);
+
+        Assert.Equal(0, baby.Skills.Get(new SkillType(0))); // habilidade é aprendida, não herdada (SKILL-09)
     }
 }

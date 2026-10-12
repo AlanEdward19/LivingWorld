@@ -37,12 +37,17 @@ mais nesta fase importa.
 - **Conservação de dinheiro**: `soma de todas as moedas do mundo == inicial + cunhado -
   destruído`, exato, até a última unidade. Gate: 10 anos com o assert rodando **a cada
   tick**. Nightly: 100 anos, mesmo assert, `Category=Scenario`.
+  *Registro (AD-083/095): o gate amostra por dia (1 mês no gate, 10 anos em `Scenario`, 100 anos em `Heavy`/nightly) por
+  orçamento de tempo; a soma conta carteiras, tesouros de oficina e de cidade.*
 - **Conservação de recursos**: para cada recurso, `produzido == consumido + estocado +
   perdido`, exato. Mesmo regime — a cada tick em 10 anos no gate, 100 anos em nightly.
 - **Escassez empurra o preço, com braço de controle**: par (base, tratamento) na **mesma
   seed**, tratamento = produção de trigo cortada pela metade a partir de `t0`. Assert
   `preçoTrat[t] > preçoBase[t]` em **todo** tick de `[t0, t0+30]`. Repetido em 10 seeds,
   exigindo **10/10**. Direção, sem magnitude e sem prazo inventado.
+  *Registro (AD-095): "todo tick" é impossível por construção (dia 0 empata e, depois de poucos dias, os dois braços
+  convergem ao piso de preço). O critério vigente: o tratamento nunca fica abaixo da base e fica acima em algum dia da
+  janela, 10/10 seeds; a mutação "preço não reage à escassez" reprova.*
 - **Débito além do saldo é rejeitado sem efeito colateral**: a operação retorna `Failure`
   **e** o saldo do comprador e o estoque do vendedor ficam **byte-idênticos** ao estado
   anterior. (Não se testa "saldo não fica negativo" — `Money` já é não-negativo na Fase 0.)

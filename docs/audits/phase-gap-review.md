@@ -26,13 +26,11 @@ Itens que exigem decisão de escopo/arquitetura (AGENTS.md → "PERGUNTE QUANDO"
 - Perf igual (0,642 → 0,617 µs/NPC-tick; alocação e snapshot idênticos); vila −3,6% no ano 10.
 - [x] `economy-depth` (AD-090), `labor-allocation` (AD-091, fechada no AD-092) e `trade-ledger` (AD-092). Falta: `.specs/features/snapshot-positional-binary/plan.md` (issue 21).
 
-## Abertas — critério mais fraco que o roadmap (sem AD registrando o desvio)
-- F4 histerese 20/20 virou média+folga; teto p99 tautológico (`BehaviorDecisionSystemHysteresisTests`).
-- F5 preço sob escassez: "todo tick" → "nunca menor e maior algum dia" (`ScarcityPriceCausalTests`).
-- F5 salário não pago: pagamento parcial, não "byte-idêntico".
-- F3–F5 gates de 10 anos/todo tick → 1 mês/amostragem diária; conservação em 20 NPCs.
-- F7 FAM-32/33/34/35: critério reescrito; `OverlapCoefficient` sem chamador; baseline só de 1 valor.
-- F6 testes "20 seeds" vácuos (nenhum sistema de skill lê RNG); herança de skill tautológica.
+## Fechadas na terceira rodada (AD-095): critérios fracos
+- [x] F4 histerese: média estritamente menor e 12/20 seeds; teto físico no lugar do percentil tautológico; "20/20" registrado como não atendido.
+- [x] F5 preço sob escassez e salário parcial: critério reescrito no roadmap com AD-082/095; gates por amostragem diária com AD-083.
+- [x] F7 `OverlapCoefficient` sem chamador removido; FAM-32 segue aberto (AD-088, D).
+- [x] F6 "20 seeds" vácuos trocados por variação real de taxa, mestre e gene; recém-nascido sem habilidade provado no `NatalitySystem`.
 
 ## Abertas — entregue como stub (sem consumidor causal)
 - F0 perfis Agregado/Raro; perfis de variância não vêm do cenário.

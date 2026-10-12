@@ -15,9 +15,9 @@ namespace LivingWorld.Tests.LongRunning.Population;
 /// <summary>Fase 6, T14+: os cenários pareados/estatísticos do roadmap caros o bastante (20-200
 /// unidades simuladas) pra ficar fora do gate padrão — <c>[Trait("Category","Scenario")]</c>,
 /// filtrado por <c>scripts/test.sh</c>, rodado por <c>scripts/test.sh --filter Category=Scenario</c>.
-/// Usa <see cref="SkillScenarioHarness"/> — nenhum sistema de habilidade lê <see cref="WorldRng"/>,
-/// então "N seeds" aqui cumpre a letra do critério do roadmap sem produzir resultado diferente por
-/// seed.</summary>
+/// Usa <see cref="SkillScenarioHarness"/> — nenhum sistema de habilidade lê <see cref="WorldRng"/>, então varrer
+/// seeds seria vácuo (mesmo resultado 20 vezes). Os "20 de 20" variam o que de fato muda o resultado: taxa de prática,
+/// nível do mestre e gene de taxa (AD-095).</summary>
 public class PairedScenarioTests
 {
     private const int DaysPerYear = 360; // ScenarioRunner.DefaultCalendar: 30 dias x 12 meses
@@ -49,7 +49,7 @@ public class PairedScenarioTests
 
     [Fact]
     [Trait("Category", "Scenario")]
-    public void Specialist_ends_with_higher_final_skill_than_switcher_in_20_of_20_seeds()
+    public void Specialist_ends_with_higher_final_skill_than_switcher_across_20_practice_rates()
     {
         // T14 usa uma SkillsRules só de teste (SkillScenarioHarness.MakePracticeOnlyRules) — o
         // baseRateBySource[Practice] do cenário default (0.3, tau ~333 dias) satura os dois braços
@@ -57,16 +57,15 @@ public class PairedScenarioTests
         // escondendo a diferença especialista/trocador (achado rodando o teste na prática — mesmo
         // espírito de calibração de AD-046/048 na Fase 5). Taxa 0.03 aqui (tau ~3333 dias) deixa os
         // dois braços em ~66-88% do teto aos 20 anos, onde a diferença é observável.
-        var rules = SkillScenarioHarness.MakePracticeOnlyRules(practiceRate: 0.03);
-
         int wins = 0;
         var ratios = new List<double>();
-        for (ulong seed = 1; seed <= 20; seed++)
+        for (int step = 0; step < 20; step++)
         {
-            double specialist = FinalSkillAfterYears(seed, rules, switchesEveryTwoYears: false, years: 20);
-            double switcher = FinalSkillAfterYears(seed, rules, switchesEveryTwoYears: true, years: 20);
+            var rules = SkillScenarioHarness.MakePracticeOnlyRules(practiceRate: 0.02 + 0.001 * step); // 0.020 a 0.039
+            double specialist = FinalSkillAfterYears(seed: 1, rules, switchesEveryTwoYears: false, years: 20);
+            double switcher = FinalSkillAfterYears(seed: 1, rules, switchesEveryTwoYears: true, years: 20);
             if (specialist > switcher) wins++;
-            ratios.Add(specialist / switcher);
+            if (Math.Abs(0.02 + 0.001 * step - 0.03) < 1e-9) ratios.Add(specialist / switcher); // a taxa do baseline gravado
         }
 
         Assert.Equal(20, wins);
@@ -127,14 +126,15 @@ public class PairedScenarioTests
 
     [Fact]
     [Trait("Category", "Scenario")]
-    public void Apprentice_of_top_of_range_master_ends_with_higher_skill_than_apprentice_of_bottom_of_range_master_in_20_of_20_seeds()
+    public void Apprentice_of_a_better_master_ends_with_higher_skill_than_apprentice_of_a_bottom_of_range_master_across_20_master_levels()
     {
         double cap = ScenarioRunner.DefaultSkillsRules.Cap;
         int wins = 0;
-        for (ulong seed = 1; seed <= 20; seed++)
+        for (int step = 0; step < 20; step++)
         {
-            double topApprentice = ApprenticeFinalSkillAfterDays(seed, masterSkillLevel: cap * 0.9, days: 2 * DaysPerYear);
-            double bottomApprentice = ApprenticeFinalSkillAfterDays(seed, masterSkillLevel: cap * 0.1, days: 2 * DaysPerYear);
+            double betterMaster = cap * (0.5 + 0.025 * step); // 0.50 a 0.975 do teto
+            double topApprentice = ApprenticeFinalSkillAfterDays(1, masterSkillLevel: betterMaster, days: 2 * DaysPerYear);
+            double bottomApprentice = ApprenticeFinalSkillAfterDays(1, masterSkillLevel: cap * 0.1, days: 2 * DaysPerYear);
             if (topApprentice > bottomApprentice) wins++;
         }
         Assert.Equal(20, wins);
@@ -159,13 +159,13 @@ public class PairedScenarioTests
 
     [Fact]
     [Trait("Category", "Scenario")]
-    public void Different_rate_genes_produce_different_skill_under_identical_practice_in_20_of_20_seeds()
+    public void Different_rate_genes_produce_different_skill_under_identical_practice_across_20_gene_values()
     {
         int wins = 0;
-        for (ulong seed = 1; seed <= 20; seed++)
+        for (int step = 0; step < 20; step++)
         {
-            double skillA = SkillAfterPractice(seed, new RateGene(1.0), days: DaysPerYear);
-            double skillB = SkillAfterPractice(seed, new RateGene(1.5), days: DaysPerYear);
+            double skillA = SkillAfterPractice(1, new RateGene(1.0), days: DaysPerYear);
+            double skillB = SkillAfterPractice(1, new RateGene(1.1 + 0.025 * step), days: DaysPerYear);
             if (skillA != skillB) wins++;
         }
         Assert.Equal(20, wins);
@@ -173,13 +173,14 @@ public class PairedScenarioTests
 
     [Fact]
     [Trait("Category", "Scenario")]
-    public void Identical_rate_genes_produce_byte_identical_skill_under_identical_practice_in_20_of_20_seeds()
+    public void Identical_rate_genes_produce_byte_identical_skill_under_identical_practice_across_20_gene_values()
     {
         int wins = 0;
-        for (ulong seed = 1; seed <= 20; seed++)
+        for (int step = 0; step < 20; step++)
         {
-            double skillA = SkillAfterPractice(seed, new RateGene(1.0), days: DaysPerYear);
-            double skillB = SkillAfterPractice(seed, new RateGene(1.0), days: DaysPerYear);
+            double gene = 0.8 + 0.05 * step;
+            double skillA = SkillAfterPractice(1, new RateGene(gene), days: DaysPerYear);
+            double skillB = SkillAfterPractice(1, new RateGene(gene), days: DaysPerYear);
             if (skillA == skillB) wins++;
         }
         Assert.Equal(20, wins);

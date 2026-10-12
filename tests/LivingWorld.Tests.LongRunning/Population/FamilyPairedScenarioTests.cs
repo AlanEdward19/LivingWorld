@@ -494,26 +494,6 @@ public class FamilyPairedScenarioTests
         return medians.Max() - medians.Min();
     }
 
-    /// <summary>Coeficiente de sobreposição (OVL) via histograma compartilhado de 20 bins — padrão
-    /// não-paramétrico de overlap de duas amostras (soma dos mínimos por bin das densidades
-    /// empíricas), mais fiel que comparar só a faixa min/max.</summary>
-    private static double OverlapCoefficient(IReadOnlyList<double> a, IReadOnlyList<double> b, int bins = 20)
-    {
-        double lo = Math.Min(a.Min(), b.Min());
-        double hi = Math.Max(a.Max(), b.Max());
-        if (hi <= lo) return 1.0;
-
-        var histA = new int[bins];
-        var histB = new int[bins];
-        foreach (var v in a) histA[Math.Clamp((int)((v - lo) / (hi - lo) * bins), 0, bins - 1)]++;
-        foreach (var v in b) histB[Math.Clamp((int)((v - lo) / (hi - lo) * bins), 0, bins - 1)]++;
-
-        double overlap = 0;
-        for (int i = 0; i < bins; i++)
-            overlap += Math.Min(histA[i] / (double)a.Count, histB[i] / (double)b.Count);
-        return overlap;
-    }
-
     // --- T31 (FAM-36) ---
 
     // SPEC_DEVIATION: tasks.md aponta FamilyHashSensorTests.cs como Where do T31; a instrução de
