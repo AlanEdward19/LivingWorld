@@ -123,7 +123,8 @@ public static partial class ScenarioRunner
         upbringingWealthWeight: 0.6,
         environmentalWealthChannelEnabled: true,
         neutralDriftEnabled: false,
-        vitalityMortalitySelectionEnabled: true).Value
+        vitalityMortalitySelectionEnabled: true,
+        personalityHeritability: 0.5).Value
         ?? throw new InvalidOperationException("family rules default inválida — bug no cenário, não no gerador");
 
     private static Dictionary<(RelationshipEventType, RelationshipAxis), double> BuildDefaultRelationshipDeltas()

@@ -33,8 +33,8 @@ public class OptimizationEquivalenceTests
     // --- Hashes do mundo preservados ---
 
     [Theory]
-    [InlineData(1UL, "6375b9d2b4707ef51120dc97bcaa5b39b424ee3779f406c52a20647f9c537559", "6db359bd9a3d2c4cd0a612a99098705d5821dff719307c42b5ece239dcadbb28")]
-    [InlineData(2UL, "713e2380a9a647f66b6cdd2dc8d6539a60b5e56cea8fadf40d640698f03859e8", "c9e83c6a3e477b08cb611362909e79c0a1ef91fab253fac8d631568903f53767")]
+    [InlineData(1UL, "b871a4383b67403dca57d32d0e5b59cf6ec07bb550458423b212851a1e314cec", "6db359bd9a3d2c4cd0a612a99098705d5821dff719307c42b5ece239dcadbb28")]
+    [InlineData(2UL, "fbda88189a3427dc29bb56583460482e4c27f411d327db8f226aad5e128d4994", "c9e83c6a3e477b08cb611362909e79c0a1ef91fab253fac8d631568903f53767")]
     public void Default_scenario_ninety_days_keeps_the_recorded_hashes(
         ulong seed, string canonical, string volatileHash)
     {

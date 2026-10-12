@@ -28,7 +28,7 @@ public class NatalitySystemTests
     private static readonly Personality SomePersonality =
         Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!;
 
-    private static FamilyRules PermissiveFamilyRules() =>
+    private static FamilyRules PermissiveFamilyRules(double personalityHeritability = 0.0) =>
         FamilyRules.Create(
             relationshipDeltas: ZeroDeltas(),
             decayPerDay: 0,
@@ -50,7 +50,8 @@ public class NatalitySystemTests
             upbringingWealthWeight: 0.2,
             environmentalWealthChannelEnabled: false,
             neutralDriftEnabled: false,
-            vitalityMortalitySelectionEnabled: true).Value!;
+            vitalityMortalitySelectionEnabled: true,
+            personalityHeritability: personalityHeritability).Value!;
 
     private static Dictionary<(RelationshipEventType, RelationshipAxis), double> ZeroDeltas()
     {
@@ -364,5 +365,22 @@ public class NatalitySystemTests
         var baby = TriggerBirth(world, ctx, mother.Id, father.Id, household.Id);
 
         Assert.Equal(0, baby.Skills.Get(new SkillType(0))); // habilidade é aprendida, não herdada (SKILL-09)
+    }
+
+    [Fact]
+    public void A_baby_of_two_average_parents_gets_an_average_personality_when_the_scenario_declares_full_heritability()
+    {
+        var (world, ctx, mother, father, household) = BuildWorldWithMarriedCouple(
+            new PopulationCatalog(new HashSet<int>(), new HashSet<int>(), new HashSet<int>()), seed: 21,
+            familyRules: PermissiveFamilyRules(personalityHeritability: 1.0));
+
+        var baby = TriggerBirth(world, ctx, mother.Id, father.Id, household.Id);
+
+        // pais com todos os traços em 50 e ruído de ±10: o filho fica em 40 a 60 (um sorteio independente quase nunca ficaria)
+        Assert.All(
+            new[] { baby.Personality.Extroversion, baby.Personality.Agreeableness, baby.Personality.Conscientiousness, baby.Personality.EmotionalStability,
+                baby.Personality.Openness, baby.Personality.Ambition, baby.Personality.Loyalty, baby.Personality.Altruism,
+                baby.Personality.Impulsivity, baby.Personality.RiskAversion },
+            trait => Assert.InRange(trait, 40, 60));
     }
 }
