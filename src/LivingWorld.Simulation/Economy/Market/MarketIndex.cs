@@ -54,6 +54,32 @@ public sealed class MarketIndex
         return best ?? NearestTo(origin);
     }
 
+    /// <summary>Mesma busca de <see cref="NearestSelling(CellCoord, ResourceType[])"/> para dois recursos, sem alocar o
+    /// array de parâmetros (a reposição da despensa consulta isso a cada despertar).</summary>
+    public Workplace? NearestSelling(CellCoord origin, ResourceType first, ResourceType second)
+    {
+        Workplace? best = null;
+        long bestTicks = long.MaxValue;
+        long bestId = long.MaxValue;
+        foreach (var market in _markets)
+        {
+            if (!Sells(market, first) && !Sells(market, second)) continue;
+
+            long ticks = TravelTicksCache.Between(_map, origin, market.Location);
+            if (ticks < bestTicks || (ticks == bestTicks && market.Id.Value < bestId))
+            {
+                bestTicks = ticks;
+                bestId = market.Id.Value;
+                best = market;
+            }
+        }
+
+        return best ?? NearestTo(origin);
+    }
+
+    private static bool Sells(Workplace market, ResourceType resource) =>
+        market.Stock.GetValueOrDefault(resource) > 0 && market.Prices.TryGetValue(resource, out var price) && price > 0;
+
     public Workplace? NearestTo(CellCoord origin) =>
         _origins.Contains(origin) && _nearestByOrigin.TryGetValue(origin, out var market) ? market : null;
 

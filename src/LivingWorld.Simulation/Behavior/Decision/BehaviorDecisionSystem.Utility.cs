@@ -255,7 +255,13 @@ public sealed partial class BehaviorDecisionSystem
 
         bool hasFood = household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId)) >= 1;
         bool hasWater = household.Stock.GetValueOrDefault(new ResourceType(economy.WaterResourceId)) >= 1;
-        return hasFood || hasWater ? deficit : NonNeedBaselineUtility / 2;
+        if (!hasFood && !hasWater) return NonNeedBaselineUtility / 2;
+
+        // Comer só vale pela necessidade que a despensa consegue servir: com comida e sem água, a sede crítica não
+        // faz de Comer a melhor ação (era assim que o NPC ficava "comendo" ao lado do mercado até morrer de sede).
+        double servable = Math.Max(
+            hasFood ? SurvivalDeficit(ctx.Needs.Hunger) : 0, hasWater ? SurvivalDeficit(ctx.Needs.Thirst) : 0);
+        return servable;
     }
 
     private static double BuyUtilityOf(DecisionContext ctx, EconomyRules economy)
@@ -283,7 +289,7 @@ public sealed partial class BehaviorDecisionSystem
         if (ctx.WalletAmount < 1) return 0;
         int members = Math.Max(1, household.Members.Count);
         double daysPerMember = (double)scarcestStock / members;
-        double shortfall = 1.0 - daysPerMember / ProvisionTargetDays;
+        double shortfall = 1.0 - daysPerMember / ctx.ProvisionTargetDays;
         return shortfall <= 0 ? 0 : 55 + 75 * Math.Min(1.0, shortfall);
     }
 

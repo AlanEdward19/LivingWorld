@@ -41,7 +41,17 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
     /// <summary>Despensa que uma ida ao mercado tenta formar e abaixo da qual a casa pede reposição.</summary>
     private const int ProvisionTargetDays = 2;
     private const int PurchaseDaysOfSupply = 4;
+
+    /// <summary>Quem mora longe do mercado repõe a despensa para a ida e a volta, não só para o dia: cada dia de caminho
+    /// (ida e volta) soma um dia à meta, e a compra cobre a meta mais uma folga.</summary>
+    private const int ProvisionSlackDays = 2;
+    private const int MaxProvisionDays = 14;
+
+    /// <summary>Fração da meta de dias abaixo da qual a casa sai para repor.</summary>
+    private const double RestockShortfall = 0.5;
     private const long MinimumPurchaseQuantity = 10;
+    private const int WellDaysOfSupply = 2;
+    private const long WellMinimumDraw = 4;
 
     private static readonly ActionType[] AllActions = Enum.GetValues<ActionType>()
         .Where(a => a != ActionType.UsePower)
@@ -118,7 +128,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 if (HasUrgentNeedForDecision(npc, rules, now))
                 {
                     var decision = SelectByUtility(
-                        DecisionContextBuilder.Build(world, npc, now),
+                        DecisionContextBuilder.Build(world, npc, now, provisionTargetDays: ProvisionTargetFor(world, npc, marketIndex)),
                         rules,
                         world.EconomyRules,
                         continuityAction,
@@ -132,7 +142,10 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 }
                 else
                 {
-                    candidate = routineAction;
+                    // despensa baixa para a distância do mercado: quem tem dinheiro vai repor sem esperar a sede (à noite dorme)
+                    candidate = routineAction != ActionType.Sleep && NeedsRestocking(world, npc, marketIndex)
+                        ? ActionType.Buy
+                        : routineAction;
                 }
 
                 candidate = ApplyPerception(world, npc, candidate);

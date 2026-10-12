@@ -195,6 +195,7 @@ public sealed partial class BehaviorDecisionSystem
         if (!world.EconomyRules.Enabled) return false;
         var market = NearestEssentialsMarket(world, npc, marketIndex);
         if (market is null) return false; // vendedor indisponível
+        if (market.Location != npc.CurrentLocation) return false; // comprar é estar no mercado, não pedir de longe
         if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household)
             return false;
 
@@ -205,9 +206,19 @@ public sealed partial class BehaviorDecisionSystem
             var resource = new ResourceType(resourceId);
             if (!market.Prices.TryGetValue(resource, out var unitPrice) || unitPrice <= 0) continue;
 
+            // Água é bem comum: quem não tem uma moeda para pagar ainda enche o balde no poço da aldeia (a oficina que a
+            // tira da terra), em vez de morrer de sede ao lado dela. Comida continua paga.
+            if (resourceId == econ.WaterResourceId && npc.Wallet.Amount < unitPrice)
+            {
+                bought |= DrawFromWell(market, household, resource);
+                continue;
+            }
+
             // Compra de domicílio, como uma ida real ao mercado: cobre ~4 dias de cada membro
-            // (mínimo 10), limitada ao que a carteira paga.
-            long quantity = Math.Max(MinimumPurchaseQuantity, household.Members.Count * PurchaseDaysOfSupply);
+            // (mínimo 10) e, com o mercado longe de casa, a ida e a volta; limitada ao que a carteira paga.
+            int purchaseDays = PurchaseDaysFor(
+                TravelTicksCache.Between(world.Map, household.Location, market.Location), world.CurrentDate.Calendar.HoursPerDay);
+            long quantity = Math.Max(MinimumPurchaseQuantity, household.Members.Count * purchaseDays);
             quantity = Math.Max(1, Math.Min(quantity, npc.Wallet.Amount / unitPrice));
             var ctx = new TransactionContext(
                 npc.Wallet, market.Treasury, market.Stock.GetValueOrDefault(resource),
@@ -225,6 +236,27 @@ public sealed partial class BehaviorDecisionSystem
         }
 
         return bought;
+    }
+
+    /// <summary>Dias de despensa que uma compra cobre: o mínimo de sempre, ou a meta mais a ida e a volta (e uma folga) quando
+    /// o mercado fica longe de casa, limitado a <see cref="MaxProvisionDays"/>.</summary>
+    internal static int PurchaseDaysFor(long homeTicks, int hoursPerDay)
+    {
+        double tripDays = 2.0 * homeTicks / hoursPerDay;
+        return (int)Math.Min(MaxProvisionDays, Math.Max(PurchaseDaysOfSupply, Math.Ceiling(ProvisionTargetDays + tripDays) + ProvisionSlackDays));
+    }
+
+    /// <summary>Poço da aldeia: sem dinheiro, a casa leva água para uns dias de graça, só o que o estoque da oficina tem.
+    /// O estoque muda de lugar (oficina para despensa), nada some nem nasce.</summary>
+    private static bool DrawFromWell(Workplace well, LivingWorld.Domain.Population.Family.Household household, ResourceType water)
+    {
+        // só enche o que falta: casa com a água dos próximos dias não esvazia o estoque do dono do poço
+        long wanted = Math.Max(WellMinimumDraw, household.Members.Count * WellDaysOfSupply) - household.Stock.GetValueOrDefault(water);
+        long quantity = Math.Min(well.Stock.GetValueOrDefault(water), wanted);
+        if (quantity <= 0 || !well.Withdraw(water, quantity).IsSuccess) return false;
+
+        household.Deposit(water, quantity);
+        return true;
     }
 
     /// <summary>Registra a compra que fechou: soma ao agregado do dia da oficina, e o comprador passa a ter relação de

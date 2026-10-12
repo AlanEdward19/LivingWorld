@@ -85,22 +85,24 @@ public class EconomyDepthConservationTests
     }
 
     /// <summary>Piso do mundo ao vivo com 40 NPCs, 8 seeds, ano 5 (a medida de 20 NPCs em 3 seeds era ruido: uma morte
-    /// mexia a seed em 30%). Gravado depois da racao do empregador; o mundo ao vivo perde muita gente (40 para cerca de 14)
-    /// e isso e um achado aberto, nao um alvo.</summary>
+    /// mexia a seed em 30%). Regravado em AD-093 (compra so no mercado, poco, reposicao pela distancia, custo de
+    /// deslocamento de vila): o mundo ao vivo passou de 14 para cerca de 29 de 40 no ano 5.</summary>
     [Fact]
     public void Live_world_population_stays_within_90_percent_of_the_baseline()
     {
         var baseline = JsonSerializer.Deserialize<int[]>(
             File.ReadAllText(Path.Combine(RepoRoot(), "tests", "baselines", "live-default-population.json")))!;
         int total = 0;
+        var perSeed = new List<int>();
         for (int seed = 1; seed <= baseline.Length; seed++)
         {
             var (world, clock, _) = Load(seed, population: 40);
             clock.Run(world, 5 * OneYearInHours);
-            total += world.Npcs.Count(n => n.IsAlive);
+            perSeed.Add(world.Npcs.Count(n => n.IsAlive));
+            total += perSeed[^1];
         }
 
-        Assert.True(total >= 0.9 * baseline.Sum(), $"populacao do ano 5 somada {total} < 90% de {baseline.Sum()}");
+        Assert.True(total >= 0.9 * baseline.Sum(), $"populacao do ano 5 somada {total} [{string.Join(',', perSeed)}] < 90% de {baseline.Sum()}");
     }
 
     private static string RepoRoot()
