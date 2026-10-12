@@ -129,4 +129,43 @@ public class WageTaxTests
         Assert.Equal(0.05, restored.EconomyRules.WageTaxRate);
         Assert.Equal(WorldSnapshot.CanonicalHash(world), WorldSnapshot.CanonicalHash(restored));
     }
+
+    [Theory]
+    [InlineData(-0.01)]
+    [InlineData(0.51)]
+    [InlineData(double.NaN)]
+    public void A_rate_outside_zero_to_half_is_rejected(double rate)
+    {
+        var result = EconomyRules.Create(
+            true, 1, 2, new Dictionary<(int, int), long>(), new Dictionary<int, double>(), new Dictionary<int, long>(),
+            new Dictionary<int, long>(), new Dictionary<int, long>(), 0, new Dictionary<int, double>(), wageTaxRate: rate);
+
+        Assert.False(result.IsSuccess);
+    }
+
+    [Fact]
+    public void A_pay_under_twenty_at_five_percent_withholds_nothing_because_the_tax_is_floored()
+    {
+        var (world, city, shop, worker) = Build(taxRate: 0.05, employerCash: 19);
+        worker.SwitchProfession(new ProfessionType(1));
+
+        Pay(world); // o salário é 200, mas o empregador só tem 19: paga 19 e retém floor(0,95) = 0
+
+        Assert.Equal(19, worker.Wallet.Amount);
+        Assert.Equal(0, city.Treasury.Amount);
+        Assert.Empty(world.TreasuryLedger);
+    }
+
+    [Fact]
+    public void The_treasury_query_includes_a_month_that_touches_the_interval_edges()
+    {
+        var (world, city, _, _) = Build(taxRate: 0.05);
+        world.RecordTreasury(city.Id, 0, revenue: 1, spending: 0);                       // mês 0: dias 0 a 29
+        world.RecordTreasury(city.Id, Calendar.HoursPerMonth, revenue: 2, spending: 0);  // mês 1: dias 30 a 59
+
+        Assert.Single(world.TreasuryOf(city.Id, 29, 29));   // último dia do mês 0
+        Assert.Single(world.TreasuryOf(city.Id, 30, 30));   // primeiro dia do mês 1
+        Assert.Equal(2, world.TreasuryOf(city.Id, 29, 30).Count);
+        Assert.Empty(world.TreasuryOf(city.Id, 60, 90));
+    }
 }

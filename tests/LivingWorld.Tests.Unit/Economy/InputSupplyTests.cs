@@ -166,6 +166,21 @@ public class InputSupplyTests
     }
 
     [Fact]
+    public void A_work_postponed_for_lack_of_treasury_starts_once_revenue_arrives()
+    {
+        var (world, city) = BuildWorld(HouseCatalog(wood: 20), cityTreasury: 3);
+        AddWorkplace(world, city, locationType: 3, wood: 15, price: 4);
+        new InputSupplySystem().Tick(world, Ctx(world));
+        Assert.False(city.Stock.ContainsKey(Wood)); // adiada: sem tesouro, nada muda
+
+        city.CreditTreasury(new Money(1000)); // chega receita (imposto, espólio)
+        new InputSupplySystem().Tick(world, Ctx(world));
+
+        Assert.Equal(15, city.Stock[Wood]); // o material da obra foi comprado
+        Assert.Equal(60, Assert.Single(world.TreasuryLedger).Spending);
+    }
+
+    [Fact]
     public void Insufficient_treasury_transfers_nothing_and_keeps_the_hash()
     {
         var (world, city) = BuildWorld(HouseCatalog(wood: 20), cityTreasury: 3);

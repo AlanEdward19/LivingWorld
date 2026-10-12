@@ -48,7 +48,7 @@ public sealed record EconomyRules(
             if (wage < 0)
                 return Result<EconomyRules>.Fail($"WageByProfession[{profession}]: deve ser >= 0");
 
-        if (wageTaxRate is < 0 or > 0.5)
+        if (!(wageTaxRate >= 0 && wageTaxRate <= 0.5)) // também recusa NaN
             return Result<EconomyRules>.Fail("WageTaxRate: deve estar entre 0 e 0,5");
 
         return Result<EconomyRules>.Ok(new EconomyRules(

@@ -18,8 +18,8 @@ Proof: `dotnet test tests/LivingWorld.Tests.Unit -c Release --filter "FullyQuali
 **C3** - Over 1, 10 and 100 simulated years the money identity `wallets + workplace and city treasuries == initial + minted - destroyed` holds on every sample (AC 3)
 Proof: `dotnet test tests/LivingWorld.Tests.LongRunning -c Release --filter "FullyQualifiedName~MoneyConservationTests|FullyQualifiedName~EconomyDepthConservationTests"`
 
-**C4** - A city with too little treasury for a work's material buys nothing and the world hash is unchanged (AC 2)
-Proof: `dotnet test tests/LivingWorld.Tests.Unit -c Release --filter "FullyQualifiedName~InputSupplyTests.Insufficient_treasury"`
+**C4** - A city with too little treasury for a work's material buys nothing and the world hash is unchanged; the postponed purchase happens once revenue arrives (AC 2, AC 4)
+Proof: `dotnet test tests/LivingWorld.Tests.Unit -c Release --filter "FullyQualifiedName~InputSupplyTests.Insufficient_treasury|FullyQualifiedName~InputSupplyTests.A_work_postponed"`
 
 ### S2 - Gasto vira cidade
 
@@ -68,6 +68,7 @@ Proof: `dotnet test tests/LivingWorld.Tests.LongRunning -c Release --filter "Ful
 - The route answers 400 for an inverted interval besides 200 and 404 (same as the trade route).
 - The city can also receive the estate of a dead NPC without heirs (estate-inheritance); that revenue is recorded in the same ledger.
 - The spending side is the existing material purchase for works (AD-090); no new "wall" or "well" building recipe was added: those are scenario data (`BuildingRecipes`).
+- A rate outside 0 to 0.5 (NaN included) is rejected by `EconomyRules.Create`, and a non-numeric `WageTaxRate` in a scenario is an error (both tested); a missing field means 0.
 - The default rate (5%) re-recorded goldens, pins and the contract on purpose.
 
 ## Handoff
