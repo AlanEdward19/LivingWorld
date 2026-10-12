@@ -49,7 +49,7 @@ public static class NpcInstantiationMechanic
             CopyPersonality(npc.Personality),
             reincarnate,
             ctx.CurrentTick);
-        var carrier = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npc.Id);
+        var carrier = world.CarrierOf(npc.Id);
         if (carrier is null)
         {
             world.UpsertExtraordinaryCarrier(new ExtraordinaryCarrierState(
@@ -109,7 +109,7 @@ public static class NpcInstantiationMechanic
         MortalitySystem.SchedulePlannedDeath(world, ctx, clone);
         NpcWakeScheduler.ScheduleWake(world, ctx, clone.Id.Value, world.CurrentDate.TotalHours + 1);
 
-        var sourceState = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == source.Id);
+        var sourceState = world.CarrierOf(source.Id);
         if (sourceState is not null)
         {
             var appearance = new ExtraordinaryAppearanceState(
@@ -175,7 +175,7 @@ public static class NpcInstantiationMechanic
 
     private static int DeclaredMagnitudeSum(WorldState world, Npc npc, string tokenPrefix)
     {
-        var carrier = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npc.Id);
+        var carrier = world.CarrierOf(npc.Id);
         if (carrier is null)
             return 0;
 

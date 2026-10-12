@@ -48,7 +48,7 @@ public sealed class AttributeMechanic : ExtraordinaryMechanic
         if (world.ExtraordinaryCarriers.Count == 0)
             return 1;
 
-        var carrier = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npc.Id);
+        var carrier = world.CarrierOf(npc.Id);
         if (carrier is not { IsManifested: true })
             return 1;
 
@@ -73,7 +73,7 @@ public sealed class AttributeMechanic : ExtraordinaryMechanic
 
     private static double ProductMultiplier(WorldState world, Npc npc, string token)
     {
-        var carrier = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npc.Id);
+        var carrier = world.CarrierOf(npc.Id);
         if (carrier is not { IsManifested: true })
             return 1;
 

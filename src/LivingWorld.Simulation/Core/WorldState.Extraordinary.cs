@@ -56,6 +56,27 @@ public sealed partial class WorldState
         AddCombatEncounter(encounter);
     }
 
-    public bool IsExtraordinaryConstructCell(CellCoord cell) =>
-        _extraordinaryConstructs.Any(construct => construct.Footprint.Contains(cell));
+    public bool IsExtraordinaryConstructCell(CellCoord cell)
+    {
+        // Laço sem lambda: roda por NPC e por passo; o lambda capturava a célula e alocava a cada chamada.
+        for (int i = 0; i < _extraordinaryConstructs.Count; i++)
+            if (_extraordinaryConstructs[i].Footprint.Contains(cell)) return true;
+        return false;
+    }
+
+    /// <summary>Estado de portador de poder do NPC, ou nulo. A lista é ordenada por id: busca binária, e sem portador
+    /// nenhum (o caso comum) não aloca nada — antes cada consulta alocava lambda e delegate.</summary>
+    public ExtraordinaryCarrierState? CarrierOf(NpcId id)
+    {
+        int low = 0, high = _extraordinaryCarriers.Count - 1;
+        while (low <= high)
+        {
+            int mid = (low + high) >> 1;
+            long value = _extraordinaryCarriers[mid].CarrierId.Value;
+            if (value == id.Value) return _extraordinaryCarriers[mid];
+            if (value < id.Value) low = mid + 1; else high = mid - 1;
+        }
+
+        return null;
+    }
 }

@@ -112,7 +112,7 @@ public sealed class MindMechanic : ExtraordinaryMechanic
     }
 
     private static ExtraordinaryCarrierState CarrierStateOf(WorldState world, Npc npc) =>
-        world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npc.Id)
+        world.CarrierOf(npc.Id)
         ?? new ExtraordinaryCarrierState(
             npc.Id, [], false, "dormant",
             new ExtraordinaryAppearanceState(1, "", ""), null, 1);
@@ -137,7 +137,7 @@ public sealed class MindMechanic : ExtraordinaryMechanic
 
     private static string MemoryPayload(WorldState world, Npc target)
     {
-        var state = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == target.Id);
+        var state = world.CarrierOf(target.Id);
         var forgotten = state?.ForgottenFactIds;
         var implanted = state?.ImplantedFactIds;
         var ids = world.Facts
@@ -205,7 +205,7 @@ public sealed class MindMechanic : ExtraordinaryMechanic
 
     private static void RememberPreAlteration(WorldState world, Npc caster, Npc target, string traitName)
     {
-        var existing = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == caster.Id);
+        var existing = world.CarrierOf(caster.Id);
         if (existing is null) return;
         var traits = existing.PreAlterationTraits is { } previous
             ? previous.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal)

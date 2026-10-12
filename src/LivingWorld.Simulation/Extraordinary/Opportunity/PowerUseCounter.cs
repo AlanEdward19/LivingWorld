@@ -10,7 +10,7 @@ public static class PowerUseCounter
 {
     public static void RecordSuccessfulUse(WorldState world, NpcId carrierId)
     {
-        var carrier = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == carrierId);
+        var carrier = world.CarrierOf(carrierId);
         if (carrier is null) return;
 
         world.UpsertExtraordinaryCarrier(carrier with { UseCount = carrier.UseCount + 1 });

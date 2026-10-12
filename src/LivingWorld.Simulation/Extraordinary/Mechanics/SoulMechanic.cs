@@ -42,7 +42,7 @@ public sealed class SoulMechanic : ExtraordinaryMechanic
 
     private static bool CarriesPersistAsGhost(WorldState world, Npc npc)
     {
-        var carrier = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npc.Id);
+        var carrier = world.CarrierOf(npc.Id);
         if (carrier is null) return false;
         return world.Extraordinary.Descriptors.Any(descriptor =>
             carrier.PowerIds.Contains(descriptor.Id, StringComparer.Ordinal)

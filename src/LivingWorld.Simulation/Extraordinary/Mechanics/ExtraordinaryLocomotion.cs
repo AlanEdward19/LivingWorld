@@ -94,7 +94,7 @@ public static class ExtraordinaryLocomotion
     private static bool TryPayMovementCosts(
         WorldState world, Npc npc, long tick, TickContext? ctx)
     {
-        var carrier = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npc.Id);
+        var carrier = world.CarrierOf(npc.Id);
         if (carrier is not { IsManifested: true }) return true;
         var declarations = world.Extraordinary.Descriptors
             .Where(descriptor => carrier.PowerIds.Contains(descriptor.Id, StringComparer.Ordinal)
