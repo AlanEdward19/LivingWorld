@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json.Nodes;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Scenarios;
@@ -22,29 +21,15 @@ public class BinarySnapshotWriterDiffTests
         return (baseline, world, npc.Id.Value);
     }
 
-    private static string ReadDeltaJson(MemoryStream ms)
+    /// <summary>A árvore do diff (Entities/Keys/Removed/Props/Order) tal como foi gravada.</summary>
+    private static JsonObject ReadDelta(MemoryStream ms)
     {
-        ms.Position = 0;
-        var magic = new byte[8];
-        ms.ReadExactly(magic);
-        Assert.Equal("LWSNAP1\0"u8.ToArray(), magic);
-        Assert.Equal(1, ms.ReadByte());
-
-        var countBuf = new byte[4];
-        ms.ReadExactly(countBuf);
-        int count = BitConverter.ToInt32(countBuf);
-        for (int i = 0; i < count; i++)
-        {
-            var idBuf = new byte[8];
-            ms.ReadExactly(idBuf);
-        }
-
-        ms.ReadExactly(countBuf);
-        int jsonLen = BitConverter.ToInt32(countBuf);
-        var jsonBytes = new byte[jsonLen];
-        ms.ReadExactly(jsonBytes);
-        return Encoding.UTF8.GetString(jsonBytes);
+        var data = ms.ToArray();
+        Assert.True(PositionalSnapshot.IsDelta(data));
+        return PositionalTreeCodec.Decode(data.AsSpan(9))!.AsObject();
     }
+
+    private static JsonArray DeltaNpcs(MemoryStream ms) => ReadDelta(ms)["Entities"]!["Npcs"]!.AsArray();
 
     [Fact]
     public void Delta_round_trip_preserves_canonical_hash()
@@ -66,8 +51,7 @@ public class BinarySnapshotWriterDiffTests
         using var ms = new MemoryStream();
         writer.WriteDelta(current, baseline, new HashSet<long> { npcId }, ms);
 
-        var json = JsonNode.Parse(ReadDeltaJson(ms))!.AsObject();
-        var diffNpc = json["Npcs"]!.AsArray().Single()!.AsObject();
+        var diffNpc = DeltaNpcs(ms).Single()!.AsObject();
 
         Assert.True(diffNpc.ContainsKey("Id"));
         Assert.True(diffNpc.ContainsKey("Health"));
@@ -84,8 +68,7 @@ public class BinarySnapshotWriterDiffTests
 
         using var deltaMs = new MemoryStream();
         writer.WriteDelta(current, baseline, new HashSet<long> { npcId }, deltaMs);
-        var deltaJson = ReadDeltaJson(deltaMs);
-        var deltaNpc = JsonNode.Parse(deltaJson)!["Npcs"]!.AsArray().Single()!.ToJsonString();
+        var deltaNpc = DeltaNpcs(deltaMs).Single()!.ToJsonString();
 
         var fullNpc = JsonNode.Parse(WorldSnapshot.Serialize(current))!["Npcs"]!.AsArray()
             .First(n => n!["Id"]!["Value"]!.GetValue<long>() == npcId)!
@@ -123,7 +106,7 @@ public class BinarySnapshotWriterDiffTests
         using var ms = new MemoryStream();
         writer.WriteDelta(world, baseline, new HashSet<long> { newborn.Id.Value }, ms);
 
-        var diffNpc = JsonNode.Parse(ReadDeltaJson(ms))!["Npcs"]!.AsArray().Single()!.AsObject();
+        var diffNpc = DeltaNpcs(ms).Single()!.AsObject();
         var fullNpc = JsonNode.Parse(WorldSnapshot.Serialize(world))!["Npcs"]!.AsArray()
             .First(n => n!["Id"]!["Value"]!.GetValue<long>() == newborn.Id.Value)!
             .AsObject();
@@ -160,44 +143,26 @@ public class BinarySnapshotWriterDiffTests
         using var ms = new MemoryStream();
         writer.WriteDelta(current, baseline, new HashSet<long> { npcId }, ms);
 
-        ms.Position = 0;
-        var magic = new byte[8];
-        ms.ReadExactly(magic);
-        Assert.Equal("LWSNAP1\0"u8.ToArray(), magic);
-        Assert.Equal(1, ms.ReadByte());
+        var data = ms.ToArray();
+        Assert.Equal("LWSNAP2\0"u8.ToArray(), data[..8]);
+        Assert.Equal(1, data[8]);
     }
 
     [Fact]
-    public void Delta_dirty_set_lists_all_dirty_npc_ids()
+    public void Delta_compares_only_the_dirty_npcs()
     {
         var (world, _) = ScenarioRunner.Create(seed: 31, initialPopulation: 4);
         var baseline = Clone(world);
         var id0 = world.Npcs[0].Id.Value;
-        var id2 = world.Npcs[2].Id.Value;
         world.Npcs[0].SetHealth(5);
-        world.Npcs[2].SetHealth(6);
+        world.Npcs[2].SetHealth(6); // mudou, mas não está no conjunto de sujos
 
         var writer = new BinarySnapshotWriter();
         using var ms = new MemoryStream();
-        writer.WriteDelta(world, baseline, new HashSet<long> { id0, id2 }, ms);
+        writer.WriteDelta(world, baseline, new HashSet<long> { id0 }, ms);
 
-        ms.Position = 8;
-        Assert.Equal(1, ms.ReadByte());
-        var countBuf = new byte[4];
-        ms.ReadExactly(countBuf);
-        int count = BitConverter.ToInt32(countBuf);
-        Assert.Equal(2, count);
-
-        var ids = new List<long>();
-        for (int i = 0; i < count; i++)
-        {
-            var idBuf = new byte[8];
-            ms.ReadExactly(idBuf);
-            ids.Add(BitConverter.ToInt64(idBuf));
-        }
-
-        Assert.Contains(id0, ids);
-        Assert.Contains(id2, ids);
+        var ids = DeltaNpcs(ms).Select(n => n!["Id"]!["Value"]!.GetValue<long>()).ToList();
+        Assert.Equal([id0], ids);
     }
 
     [Fact]
@@ -208,7 +173,7 @@ public class BinarySnapshotWriterDiffTests
         using var ms = new MemoryStream();
         writer.WriteDelta(current, baseline, new HashSet<long> { npcId }, ms);
 
-        var npcs = JsonNode.Parse(ReadDeltaJson(ms))!["Npcs"]!.AsArray();
+        var npcs = DeltaNpcs(ms);
         Assert.Single(npcs);
         Assert.Equal(npcId, npcs[0]!["Id"]!["Value"]!.GetValue<long>());
     }
@@ -233,7 +198,7 @@ public class BinarySnapshotWriterDiffTests
     }
 
     [Fact]
-    public void Delta_empty_field_diff_when_dirty_npc_has_no_changes()
+    public void Delta_has_no_entry_for_a_dirty_npc_that_did_not_change()
     {
         var (world, _) = ScenarioRunner.Create(seed: 43, initialPopulation: 3);
         var baseline = Clone(world);
@@ -243,9 +208,7 @@ public class BinarySnapshotWriterDiffTests
         using var ms = new MemoryStream();
         writer.WriteDelta(world, baseline, new HashSet<long> { npcId }, ms);
 
-        var diffNpc = JsonNode.Parse(ReadDeltaJson(ms))!["Npcs"]!.AsArray().Single()!.AsObject();
-        Assert.True(diffNpc.ContainsKey("Id"));
-        Assert.False(diffNpc.ContainsKey("Health"));
+        Assert.False(ReadDelta(ms)["Entities"]!.AsObject().ContainsKey("Npcs"));
     }
 
     [Fact]

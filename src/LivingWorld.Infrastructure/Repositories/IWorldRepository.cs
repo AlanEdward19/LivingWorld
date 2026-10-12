@@ -11,10 +11,11 @@ public interface IWorldRepository
 {
     /// <summary>Salva o snapshot e os eventos de história acumulados desde o último, numa única
     /// transação (rules/database-entities.md: "escrita em lote, dentro de uma transação por tick
-    /// persistido").</summary>
+    /// persistido"). Com <paramref name="binary"/> o snapshot vai no bloco posicional (e <paramref name="json"/>
+    /// pode ficar vazio); <paramref name="baseTick"/> marca o bloco como diff daquela base.</summary>
     void SaveSnapshotWithEvents(
         BranchId branch, long tick, string json, string canonicalHash, string volatileHash,
-        IReadOnlyList<WorldEvent> events);
+        IReadOnlyList<WorldEvent> events, byte[]? binary = null, long? baseTick = null);
 
     WorldSnapshotRecord? LoadLatestSnapshot(BranchId branch);
 

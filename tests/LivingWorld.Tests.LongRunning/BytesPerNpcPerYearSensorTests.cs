@@ -35,7 +35,7 @@ public class BytesPerNpcPerYearSensorTests
 
         runner.Run(world, clock, sink, Ticks);
 
-        long snapshotBytes = Encoding.UTF8.GetByteCount(repository.LoadLatestSnapshot(BranchId.Root)!.Json);
+        long snapshotBytes = repository.LoadLatestSnapshot(BranchId.Root)!.Binary!.Length;
         long eventBytes = repository.LoadEvents(BranchId.Root)
             .Sum(e => Encoding.UTF8.GetByteCount(e.Kind) + Encoding.UTF8.GetByteCount(e.Payload));
 

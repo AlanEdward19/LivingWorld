@@ -12,7 +12,7 @@ public sealed class SqliteWorldRepository(WorldDbContext context) : IWorldReposi
 {
     public void SaveSnapshotWithEvents(
         BranchId branch, long tick, string json, string canonicalHash, string volatileHash,
-        IReadOnlyList<WorldEvent> events)
+        IReadOnlyList<WorldEvent> events, byte[]? binary = null, long? baseTick = null)
     {
         // Tick zero representa a criação de um novo mundo no slot único. Snapshots mais altos
         // pertencem ao mundo anterior e, se sobreviverem, LoadLatest() os escolherá no próximo
@@ -36,6 +36,8 @@ public sealed class SqliteWorldRepository(WorldDbContext context) : IWorldReposi
             existing.Json = json;
             existing.CanonicalHash = canonicalHash;
             existing.VolatileHash = volatileHash;
+            existing.Binary = binary;
+            existing.BaseTick = baseTick;
         }
         else
         {
@@ -46,6 +48,8 @@ public sealed class SqliteWorldRepository(WorldDbContext context) : IWorldReposi
                 Json = json,
                 CanonicalHash = canonicalHash,
                 VolatileHash = volatileHash,
+                Binary = binary,
+                BaseTick = baseTick,
             });
         }
 

@@ -25,6 +25,17 @@ if (args.Length == 3 && args[0] == "hash")
     return 0;
 }
 
+// SHA-256 do bloco binário posicional (formato v2) do mundo depois de <ticks>: o teste de dois processos exige bytes
+// idênticos. `dotnet <dll> snapshot-bytes <seed> <ticks>`.
+if (args.Length == 3 && args[0] == "snapshot-bytes")
+{
+    var (world, clock) = ScenarioRunner.Create(ulong.Parse(args[1]), initialPopulation: 20);
+    clock.Run(world, long.Parse(args[2]));
+    var block = LivingWorld.Simulation.Snapshot.PositionalSnapshot.EncodeFull(world, out _);
+    Console.WriteLine(Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(block)));
+    return 0;
+}
+
 // `dotnet <dll> history-significance-digest <seed> <ticks>`.
 if (args.Length == 3 && args[0] == "history-significance-digest")
 {

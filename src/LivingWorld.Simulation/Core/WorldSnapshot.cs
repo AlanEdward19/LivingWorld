@@ -75,15 +75,22 @@ public static class WorldSnapshot
     public static string VolatileHash(WorldState world) =>
         Hash(BuildJson(world, static p => p.GetCustomAttribute<VolatileAttribute>() is not null));
 
-    public static WorldState Deserialize(string json)
+    public static WorldState Deserialize(string json) => FromNode(JsonNode.Parse(json)!.AsObject());
+
+    /// <summary>Árvore persistível do mundo, sem o interning de strings: é a forma que o codec posicional e os diffs
+    /// consomem (a tabela de strings do binário já deduplica).</summary>
+    internal static JsonObject BuildPersistentTree(WorldState world) =>
+        BuildJson(world, static p => p.GetCustomAttribute<EphemeralAttribute>() is null);
+
+    /// <summary>Reidrata o mundo de uma árvore já em memória (leitor binário), sem passar por texto JSON.</summary>
+    internal static WorldState FromNode(JsonObject node)
     {
-        var node = JsonNode.Parse(json)!.AsObject();
         SnapshotStringInterning.Resolve(node);
 
         var calendar = node["Calendar"].Deserialize<WorldCalendar>(JsonOptions)!;
-        var totalHours = node["CurrentDate"]!["TotalHours"]!.GetValue<long>();
+        var totalHours = node["CurrentDate"]!["TotalHours"]!.Deserialize<long>();
         var currentDate = new WorldDate(calendar, totalHours);
-        var seed = node["Seed"]!.GetValue<ulong>();
+        var seed = node["Seed"]!.Deserialize<ulong>();
         var map = node["Map"].Deserialize<WorldMap>(JsonOptions)!;
         var populationCatalog = node["PopulationCatalog"].Deserialize<PopulationCatalog>(JsonOptions)!;
         var populationRules = node["PopulationRules"].Deserialize<PopulationRules>(JsonOptions)!;
@@ -92,23 +99,23 @@ public static class WorldSnapshot
         var lifeStageRules = node["LifeStageRules"].Deserialize<LifeStageRules>(JsonOptions)!;
         var rngStreams = node["RngStreams"].Deserialize<List<RngStreamState>>(JsonOptions)!;
         var pendingEvents = node["PendingEvents"].Deserialize<List<ScheduledEvent>>(JsonOptions)!;
-        var nextEventId = node["NextEventId"]!.GetValue<long>();
+        var nextEventId = node["NextEventId"]!.Deserialize<long>();
         var nextHistoryEventId = node.TryGetPropertyValue("NextHistoryEventId", out var nextHistoryNode)
             && nextHistoryNode is not null
-            ? nextHistoryNode.GetValue<long>()
+            ? nextHistoryNode.Deserialize<long>()
             : 0L;
         var exampleCounts = node["ExampleTickCounts"].Deserialize<Dictionary<TickFrequency, long>>(JsonOptions)!;
         var npcs = node["Npcs"].Deserialize<List<Npc>>(JsonOptions)!;
         var households = node["Households"].Deserialize<List<Household>>(JsonOptions)!;
-        var nextNpcId = node["NextNpcId"]!.GetValue<long>();
-        var nextHouseholdId = node["NextHouseholdId"]!.GetValue<long>();
-        var branchId = new BranchId(node["BranchId"]!["Value"]!.GetValue<long>());
-        var moneyMinted = new Money(node["MoneyMinted"]!["Amount"]!.GetValue<long>());
-        var moneyDestroyed = new Money(node["MoneyDestroyed"]!["Amount"]!.GetValue<long>());
+        var nextNpcId = node["NextNpcId"]!.Deserialize<long>();
+        var nextHouseholdId = node["NextHouseholdId"]!.Deserialize<long>();
+        var branchId = new BranchId(node["BranchId"]!["Value"]!.Deserialize<long>());
+        var moneyMinted = new Money(node["MoneyMinted"]!["Amount"]!.Deserialize<long>());
+        var moneyDestroyed = new Money(node["MoneyDestroyed"]!["Amount"]!.Deserialize<long>());
         var economyRules = node["EconomyRules"].Deserialize<EconomyRules>(JsonOptions)!;
         var economyCatalog = node["EconomyCatalog"].Deserialize<EconomyCatalog>(JsonOptions)!;
         var workplaces = node["Workplaces"].Deserialize<List<Workplace>>(JsonOptions)!;
-        var nextWorkplaceId = node["NextWorkplaceId"]!.GetValue<long>();
+        var nextWorkplaceId = node["NextWorkplaceId"]!.Deserialize<long>();
         var familyRules = node["FamilyRules"].Deserialize<FamilyRules>(JsonOptions)!;
         var bodyRules = node.TryGetPropertyValue("BodyRules", out var bodyNode) && bodyNode is not null
             ? bodyNode.Deserialize<BodyRules>(JsonOptions)!
@@ -116,7 +123,7 @@ public static class WorldSnapshot
         var relationships = node["Relationships"].Deserialize<Dictionary<RelationshipKey, Relationship>>(JsonOptions)!;
         var cities = node["Cities"].Deserialize<List<City>>(JsonOptions)!;
         var buildings = node["Buildings"].Deserialize<List<Building>>(JsonOptions)!;
-        var nextBuildingId = node["NextBuildingId"]!.GetValue<long>();
+        var nextBuildingId = node["NextBuildingId"]!.Deserialize<long>();
         var cityRules = node["CityRules"].Deserialize<CityRules>(JsonOptions)!;
         var cityCatalog = node["CityCatalog"].Deserialize<CityCatalog>(JsonOptions)!;
         var perfRules = node.TryGetPropertyValue("PerfRules", out var perfNode) && perfNode is not null
@@ -129,10 +136,10 @@ public static class WorldSnapshot
             ? factsNode.Deserialize<List<Fact>>(JsonOptions)!
             : [];
         var nextFactId = node.TryGetPropertyValue("NextFactId", out var nextFactNode) && nextFactNode is not null
-            ? nextFactNode.GetValue<long>()
+            ? nextFactNode.Deserialize<long>()
             : 0L;
         var nextReportId = node.TryGetPropertyValue("NextReportId", out var nextReportNode) && nextReportNode is not null
-            ? nextReportNode.GetValue<long>()
+            ? nextReportNode.Deserialize<long>()
             : 0L;
         var reports = node.TryGetPropertyValue("Reports", out var reportsNode) && reportsNode is not null
             ? reportsNode.Deserialize<List<ReportState>>(JsonOptions)!
@@ -141,7 +148,7 @@ public static class WorldSnapshot
             ? booksNode.Deserialize<List<Book>>(JsonOptions)!
             : [];
         var nextBookId = node.TryGetPropertyValue("NextBookId", out var nextBookNode) && nextBookNode is not null
-            ? nextBookNode.GetValue<long>()
+            ? nextBookNode.Deserialize<long>()
             : 0L;
         var canonicalMemories = node.TryGetPropertyValue("CanonicalMemories", out var canonicalMemoriesNode) && canonicalMemoriesNode is not null
             ? canonicalMemoriesNode.Deserialize<List<NpcMemory>>(JsonOptions)!
@@ -150,7 +157,7 @@ public static class WorldSnapshot
             ? volatileMemoriesNode.Deserialize<List<NpcMemory>>(JsonOptions)!
             : [];
         var nextMemoryId = node.TryGetPropertyValue("NextMemoryId", out var nextMemoryIdNode) && nextMemoryIdNode is not null
-            ? nextMemoryIdNode.GetValue<long>()
+            ? nextMemoryIdNode.Deserialize<long>()
             : 0L;
         var name = node.TryGetPropertyValue("Name", out var nameNode) && nameNode is not null
             ? nameNode.GetValue<string>()
@@ -165,7 +172,7 @@ public static class WorldSnapshot
             ? restPlacesNode.Deserialize<List<RestPlace>>(JsonOptions)!
             : [];
         var nextRestPlaceId = node.TryGetPropertyValue("NextRestPlaceId", out var nextRestPlaceNode) && nextRestPlaceNode is not null
-            ? nextRestPlaceNode.GetValue<long>()
+            ? nextRestPlaceNode.Deserialize<long>()
             : 0L;
         var resourceCatalog = node.TryGetPropertyValue("ResourceCatalog", out var resourceCatalogNode) && resourceCatalogNode is not null
             ? resourceCatalogNode.Deserialize<ResourceCatalog>(JsonOptions)!
@@ -177,13 +184,13 @@ public static class WorldSnapshot
             ? resourceProcessesNode.Deserialize<List<ResourceProcess>>(JsonOptions)!
             : [];
         var nextResourceProcessId = node.TryGetPropertyValue("NextResourceProcessId", out var nextProcessNode) && nextProcessNode is not null
-            ? nextProcessNode.GetValue<long>()
+            ? nextProcessNode.Deserialize<long>()
             : 0L;
         var cropBatches = node.TryGetPropertyValue("CropBatches", out var cropBatchesNode) && cropBatchesNode is not null
             ? cropBatchesNode.Deserialize<List<CropBatch>>(JsonOptions)!
             : [];
         var nextCropBatchId = node.TryGetPropertyValue("NextCropBatchId", out var nextCropNode) && nextCropNode is not null
-            ? nextCropNode.GetValue<long>()
+            ? nextCropNode.Deserialize<long>()
             : 0L;
         var extraordinary = node.TryGetPropertyValue("Extraordinary", out var extraordinaryNode) && extraordinaryNode is not null
             ? extraordinaryNode.Deserialize<ExtraordinaryScenarioData>(JsonOptions)!
@@ -196,19 +203,19 @@ public static class WorldSnapshot
             : [];
         var nextExtraordinaryConstructId = node.TryGetPropertyValue(
             "NextExtraordinaryConstructId", out var nextConstructNode) && nextConstructNode is not null
-            ? nextConstructNode.GetValue<long>()
+            ? nextConstructNode.Deserialize<long>()
             : 0L;
         var fauna = node.TryGetPropertyValue("Fauna", out var faunaNode) && faunaNode is not null
             ? faunaNode.Deserialize<List<Animal>>(JsonOptions)!
             : [];
         var nextAnimalId = node.TryGetPropertyValue("NextAnimalId", out var nextAnimalNode) && nextAnimalNode is not null
-            ? nextAnimalNode.GetValue<long>()
+            ? nextAnimalNode.Deserialize<long>()
             : 0L;
         var flora = node.TryGetPropertyValue("Flora", out var floraNode) && floraNode is not null
             ? floraNode.Deserialize<List<Plant>>(JsonOptions)!
             : [];
         var nextPlantId = node.TryGetPropertyValue("NextPlantId", out var nextPlantNode) && nextPlantNode is not null
-            ? nextPlantNode.GetValue<long>()
+            ? nextPlantNode.Deserialize<long>()
             : 0L;
         var environmentTemperatureAdjustments =
             node.TryGetPropertyValue("EnvironmentTemperatureAdjustments", out var temperatureNode)
@@ -235,7 +242,7 @@ public static class WorldSnapshot
         var nextCombatEncounterId =
             node.TryGetPropertyValue("NextCombatEncounterId", out var nextCombatNode)
             && nextCombatNode is not null
-                ? nextCombatNode.GetValue<long>()
+                ? nextCombatNode.Deserialize<long>()
                 : 0L;
         var combatRules =
             node.TryGetPropertyValue("CombatRules", out var combatRulesNode) && combatRulesNode is not null

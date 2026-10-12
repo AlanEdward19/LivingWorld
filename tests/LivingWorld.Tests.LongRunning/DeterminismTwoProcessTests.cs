@@ -19,6 +19,36 @@ public class DeterminismTwoProcessTests
     }
 
     [Fact]
+    public void Same_seed_writes_identical_positional_snapshot_bytes_across_two_separate_processes()
+    {
+        string a = RunCommand("snapshot-bytes 5 2160");
+        string b = RunCommand("snapshot-bytes 5 2160");
+
+        Assert.Equal(64, a.Length);
+        Assert.Equal(a, b);
+        Assert.NotEqual(a, RunCommand("snapshot-bytes 6 2160"));
+    }
+
+    private static string RunCommand(string arguments)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = "dotnet",
+            Arguments = $"\"{WorkersDllPath}\" {arguments}",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+
+        using var process = Process.Start(psi) ?? throw new InvalidOperationException("falha ao iniciar processo do cenário");
+        string output = process.StandardOutput.ReadToEnd();
+        string error = process.StandardError.ReadToEnd();
+        process.WaitForExit();
+        Assert.True(process.ExitCode == 0, $"processo do cenário saiu com {process.ExitCode}: {error}");
+        return output.Trim();
+    }
+
+    [Fact]
     public void Different_seeds_produce_different_canonical_hashes_across_processes()
     {
         var (canonicalA, _) = RunInSeparateProcess(seed: 42, ticks: 400);
