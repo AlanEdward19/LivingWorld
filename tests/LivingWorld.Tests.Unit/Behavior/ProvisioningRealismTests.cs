@@ -216,4 +216,21 @@ public class ProvisioningRealismTests
         var emptied = MarketIndex.BuildForTick(world);
         Assert.Equal(emptied.NearestSelling(new CellCoord(0, 0), Wheat, Water)?.Id, emptied.NearestSelling(new CellCoord(0, 0), new[] { Wheat, Water })?.Id);
     }
+
+    [Fact]
+    public void A_decision_without_trace_capture_picks_the_same_action_and_never_exposes_a_trace()
+    {
+        var (world, _, buyer, _) = Build(npcAt: new CellCoord(5, 5), homeAt: new CellCoord(5, 5), wallet: 100, pantry: 0);
+        buyer.SetThirst(0, 0);
+        var context = DecisionContextBuilder.Build(world, buyer, 0);
+
+        var captured = BehaviorDecisionSystem.SelectByUtility(context, world.NeedsRules, world.EconomyRules, continuityAction: null);
+        var plain = BehaviorDecisionSystem.SelectByUtility(
+            context, world.NeedsRules, world.EconomyRules, continuityAction: null, captureTrace: false);
+
+        Assert.Equal(captured.Action, plain.Action);
+        Assert.Equal(captured.PendingPower, plain.PendingPower);
+        Assert.NotNull(captured.Trace);
+        Assert.Throws<InvalidOperationException>(() => plain.Trace);
+    }
 }

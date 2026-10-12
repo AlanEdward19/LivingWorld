@@ -62,6 +62,8 @@ Proof: `dotnet test tests/LivingWorld.Tests.Unit -c Release --filter "FullyQuali
 
 - AC 1 (time at 10,000 within 110% of 1,000) is not met and is not reachable without a data-oriented layout (which changes serialization and the hash): per-system time per NPC roughly doubles between 1,000 and 3,000 NPCs for every system, including `needs-decay`, a plain loop (cache effect), then stays flat (10,000 within +3% of 5,000). Measured after the work: 0.92 µs at 1,000 and 1.69 µs at 10,000 (1.8x), against 5.7 and 2.03 µs before the warm-up fix of the profile. The criterion becomes "flat beyond the knee" (C2) with AD-096.
 - `RescheduleBatchParallel` was not adopted: rescheduling is about 10% of the tick and the serial tick keeps the hash independent of thread timing (ADR-0005); no gain justifies the determinism proof.
+- Each profiled world is warmed for 3 days before counting: the relationship and index dictionaries double in size during the first days at 10,000 NPCs, which is growth, not steady-state cost (without it 10,000 read 1.112x of 1,000 in allocation).
+- The sensor's `BytesPerAliveNpcPerYear` moved slightly (43,863 to 43,870 and 56,845 to 56,829, within 1%) with identical hashes: the baseline was recorded before later behavior commits (AD-093, AD-094).
 - The sensor's `MicrosPerAliveNpcTick` baseline is informational (it is a cold single run; the asserted values are bytes and the ceilings).
 - The reusable `HashSet` in `BehaviorDecisionSystem` is an instance field: valid because one clock ticks one world at a time.
 

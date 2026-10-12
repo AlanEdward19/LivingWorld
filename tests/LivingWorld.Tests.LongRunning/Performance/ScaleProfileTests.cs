@@ -30,11 +30,16 @@ public class ScaleProfileTests
         public void HandleEvent(WorldState world, TickContext ctx, ScheduledEvent evt) => inner.HandleEvent(world, ctx, evt);
     }
 
-    private static (double TotalMicros, Dictionary<string, double> BySystem, double AllocPerNpcTick) Profile(int population, int days)
+    private static (double TotalMicros, Dictionary<string, double> BySystem, double AllocPerNpcTick) Profile(int population, int days, int warmDays = 0)
     {
         var (world, clock) = ScaleScenarioFixture.CreateWorld(42, population);
         var ticks = new Dictionary<string, long>();
         var timed = new WorldClock([.. clock.Systems.Select(s => (ISimulationSystem)new TimedSystem(s, ticks))], clock.MaxIterationsPerTick);
+
+        // dias de aquecimento do próprio mundo: os dicionários que crescem com a população (relações, índices) dobram de tamanho
+        // nos primeiros dias e isso não é custo de regime
+        for (int t = 0; t < warmDays * 24; t++) timed.Tick(world);
+        ticks.Clear();
 
         GC.Collect();
         long allocBefore = GC.GetTotalAllocatedBytes(precise: true);
@@ -84,9 +89,9 @@ public class ScaleProfileTests
     public void Allocation_is_flat_across_scale_and_time_is_flat_beyond_the_cache_knee()
     {
         for (int warm = 0; warm < 3; warm++) _ = Profile(1_000, days: 10);
-        var small = Profile(1_000, days: 14);
-        var mid = Profile(5_000, days: 14);
-        var large = Profile(10_000, days: 7);
+        var small = Profile(1_000, days: 14, warmDays: 3);
+        var mid = Profile(5_000, days: 14, warmDays: 3);
+        var large = Profile(10_000, days: 7, warmDays: 3);
 
         Assert.True(large.AllocPerNpcTick <= 1.10 * small.AllocPerNpcTick,
             $"alocação a 10.000 ({large.AllocPerNpcTick:F0} B/NPC-tick) passa de 110% da de 1.000 ({small.AllocPerNpcTick:F0})");
