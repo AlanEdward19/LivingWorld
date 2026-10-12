@@ -81,7 +81,8 @@ public class EconomyDepthConservationTests
         Assert.True(world.ResourceProduced.GetValueOrDefault(new ResourceType(5)) > 0, "pedra nunca produzida");
         Assert.True(world.ResourceConsumed.GetValueOrDefault(new ResourceType(3)) > 0, "madeira nunca consumida em obra");
         Assert.True(world.ResourceConsumed.GetValueOrDefault(new ResourceType(5)) > 0, "pedra nunca consumida em obra");
-        Assert.True(world.Cities.Sum(c => c.Treasury.Amount) < 20000, "a cidade nunca comprou material");
+        // (a cidade passou a receber o espólio de quem morre sem herdeiro, então o tesouro final não prova mais a compra:
+        // a madeira e a pedra consumidas em obra acima já provam)
     }
 
     /// <summary>Piso do mundo ao vivo com 40 NPCs, 8 seeds, ano 5 (a medida de 20 NPCs em 3 seeds era ruido: uma morte

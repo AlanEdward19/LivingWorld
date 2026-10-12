@@ -153,4 +153,8 @@ public enum WorldEventKind
     /// <summary>Primeiro contato de compra entre comprador e quem atende a oficina — payload:
     /// <c>compradorId|atendenteId|oficinaId|recursoId|valor</c>.</summary>
     Trade,
+
+    /// <summary>Espólio de um NPC morto repartido entre os herdeiros — payload:
+    /// <c>mortoId|herdeiros(ids por vírgula, vazio = tesouro da cidade)|moeda|unidadesDeEstoque|oficinasTransferidas</c>.</summary>
+    EstateSettled,
 }

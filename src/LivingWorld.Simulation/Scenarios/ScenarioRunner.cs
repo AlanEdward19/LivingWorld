@@ -149,6 +149,9 @@ public static partial class ScenarioRunner
         // Comprar de alguém é negócio repetido: confiança e respeito crescem devagar, a cada compra, com quem atende.
         deltas[(RelationshipEventType.Trade, RelationshipAxis.Trust)] = 0.5;
         deltas[(RelationshipEventType.Trade, RelationshipAxis.Respect)] = 0.2;
+        // Herdar de quem morreu: gratidão e saudade, uma vez por morte.
+        deltas[(RelationshipEventType.Inheritance, RelationshipAxis.Trust)] = 1.0;
+        deltas[(RelationshipEventType.Inheritance, RelationshipAxis.Affection)] = 1.5;
         return deltas;
     }
 
