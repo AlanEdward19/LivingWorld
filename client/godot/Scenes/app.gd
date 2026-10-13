@@ -11,6 +11,7 @@ const Store := preload("res://Store/world_store.gd")
 const ActionLabels := preload("res://Store/action_labels.gd")
 const WorldView := preload("res://Scenes/world_view.gd")
 const CameraRig := preload("res://Scenes/camera_rig.gd")
+const NpcActor := preload("res://Scenes/npc_actor.gd")
 const InteriorStage := preload("res://Scenes/interior_stage.gd")
 const Panels := preload("res://Scenes/panels.gd")
 const DayCycle := preload("res://Scenes/day_cycle.gd")
@@ -191,6 +192,7 @@ func _build_ui() -> void:
 	npc_panel = Panels.NpcDetailPanel.new()
 	npc_panel.api = api
 	npc_panel.labels = labels
+	npc_panel.name_of = func(id: int) -> String: return String(store.names.get(id, "NPC %d" % id))
 	npc_panel.highlight.connect(func(id: int): _highlight(id))
 	npc_panel.model_known.connect(_apply_model)
 	store.npc_changed.connect(_on_focus_action)
@@ -266,6 +268,8 @@ func _build_ui() -> void:
 
 func _on_clock_status(status: Dictionary) -> void:
 	day_cycle.sync(float(status.tick), float(status.ticksPerSecond), bool(status.isPaused))
+	NpcActor.frozen = bool(status.isPaused)
+	sky_life.paused = bool(status.isPaused)
 	_update_time_label(status)
 
 
@@ -276,6 +280,10 @@ func _update_time_label(status: Dictionary = {}) -> void:
 	var date: Dictionary = day_cycle.date_parts(float(s.tick))
 	time_label.text = "Ano %d · Mês %d · Dia %d · %s · %s%s" % [int(s.year), date.month, date.day, day_cycle.clock_text(),
 		day_cycle.phase_name(), "  ⏸" if s.isPaused else ""]
+
+
+func _exit_tree() -> void:
+	NpcActor.frozen = false # o estado pausado é do servidor, não deve vazar para o próximo mundo
 
 
 func _process(delta: float) -> void:
@@ -531,7 +539,29 @@ func _unhandled_input(event: InputEvent) -> void:
 		_pick(event.position, event.double_click)
 
 
+## NPC visível mais próximo do clique (em pixels da tela), -1 se nenhum: NPC é pequeno e o raio costuma
+## acertar o telhado ou o chão ao lado dele, então o clique perto do NPC vale como clique nele.
+func nearest_npc(screen_position: Vector2, max_distance: float = 32.0) -> int:
+	var camera: Camera3D = rig.camera
+	var best := -1
+	var best_distance := max_distance
+	for id in world_view.npc_nodes:
+		var actor: Node3D = world_view.npc_nodes[id]
+		var point := actor.global_position + Vector3(0, 0.6, 0)
+		if not actor.visible or camera.is_position_behind(point):
+			continue
+		var distance := camera.unproject_position(point).distance_to(screen_position)
+		if distance < best_distance:
+			best_distance = distance
+			best = id
+	return best
+
+
 func _pick(screen_position: Vector2, double_click: bool) -> void:
+	var near_npc := nearest_npc(screen_position)
+	if near_npc >= 0:
+		select_npc(near_npc)
+		return
 	var hit := _raycast(screen_position)
 	if hit.is_empty():
 		return

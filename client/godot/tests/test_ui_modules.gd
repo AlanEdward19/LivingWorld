@@ -480,3 +480,19 @@ func test_calendar_from_server_drives_hour_and_day() -> void:
 	for node in setup:
 		if node is Node:
 			node.free()
+
+
+func test_click_near_an_npc_selects_it_over_the_building_behind() -> void:
+	var app := App.new()
+	tree.root.add_child(app)
+	var fake := FakeTransport.new()
+	await app.start(fake, false)
+	var actor := NpcActor.new()
+	app.world_view.add_child(actor)
+	actor.setup(7, Vector2i(2, 2), 5, app.labels)
+	app.world_view.npc_nodes[7] = actor
+	app.rig.camera.current = true
+	var point: Vector2 = app.rig.camera.unproject_position(actor.global_position + Vector3(0, 0.6, 0))
+	eq(app.nearest_npc(point + Vector2(10, 5)), 7, "perto do NPC acha o NPC")
+	eq(app.nearest_npc(point + Vector2(300, 300)), -1, "longe não acha ninguém")
+	app.free()

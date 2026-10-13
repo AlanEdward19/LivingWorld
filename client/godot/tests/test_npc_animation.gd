@@ -49,3 +49,31 @@ func test_label_comes_from_server_catalog() -> void:
 	for word in ["Dormindo", "Trabalhando", "Comendo", "Viajando"]:
 		check(not (word in source), "texto de ação '%s' não está escrito no cliente" % word)
 	actor.free()
+
+
+func test_sleeping_legs_lie_at_the_hips_not_standing() -> void:
+	var actor := NpcActor.new()
+	actor.setup(3, Vector2i(1, 1), 1, _labels())
+	actor.advance(0.1)
+	for leg in actor._legs:
+		check(absf(leg.rotation.x + PI / 2.0) < 0.01, "perna deitada")
+		check(leg.position.y < 0.3, "perna desceu até a altura do corpo deitado")
+	actor.set_action(5, _labels())
+	actor.advance(0.1)
+	for leg in actor._legs:
+		check(absf(leg.position.y - 0.36) < 0.001, "de pé, a perna volta ao quadril")
+	actor.free()
+
+
+func test_frozen_world_stops_walking_and_animation() -> void:
+	var actor := NpcActor.new()
+	actor.setup(4, Vector2i(0, 0), 4, _labels())
+	actor.move_to(Vector2i(3, 0), 2.0)
+	NpcActor.frozen = true
+	var before := actor.position
+	actor.advance(1.0)
+	eq(actor.position, before, "pausado: não anda")
+	actor.move_to(Vector2i(5, 0), 2.0)
+	eq(actor.is_moving(), false, "passo manual pausado: aparece no destino")
+	NpcActor.frozen = false
+	actor.free()

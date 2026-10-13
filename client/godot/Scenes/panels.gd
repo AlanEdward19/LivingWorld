@@ -83,14 +83,20 @@ class NpcListPanel extends PanelContainer:
 
 
 class NpcDetailPanel extends PanelContainer:
+	const _TRAITS := {"extroversion": "extrovertido", "agreeableness": "amigável", "conscientiousness": "disciplinado",
+		"emotionalStability": "estável", "openness": "curioso", "ambition": "ambicioso", "loyalty": "leal",
+		"altruism": "altruísta", "impulsivity": "impulsivo", "riskAversion": "cauteloso"}
 	signal highlight(id: int)
 	signal follow_requested(id: int)
 	signal model_known(id: int, profession: int, age_years: float)
 	var api
 	var labels
+	var name_of: Callable = func(id: int) -> String: return "NPC %d" % id
 	var npc_id := -1
 	var text := ""
+	var details_text := ""
 	var bars: Dictionary = {} ## "Fome" -> ProgressBar
+	var _details: Label
 	var _title: Label
 	var _subtitle: Label
 	var _grid: VBoxContainer
@@ -121,6 +127,11 @@ class NpcDetailPanel extends PanelContainer:
 			row.add_child(bar)
 			_grid.add_child(row)
 			bars[spec] = bar
+		_details = Label.new()
+		_details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_details.custom_minimum_size.x = 270
+		_details.modulate = Color(1, 1, 1, 0.85)
+		box.add_child(_details)
 		var follow := Button.new()
 		follow.text = "Seguir (F)"
 		follow.pressed.connect(func(): follow_requested.emit(npc_id))
@@ -144,10 +155,44 @@ class NpcDetailPanel extends PanelContainer:
 			bars[key].modulate = Color("5fb36b") if float(values[key]) >= 40.0 else Color("d9a441") if float(values[key]) >= 20.0 else Color("d9534f")
 		text = "%s\nIdade %d · saúde %d\nFome %d · Sede %d · Sono %d · Social %d" % [
 			npc.name, int(npc.ageYears), int(npc.health), int(npc.hunger), int(npc.thirst), int(npc.sleep), int(npc.social)]
+		details_text = _describe(npc)
+		_details.text = details_text
 		visible = true
 		highlight.emit(id)
 		var profession = npc.get("profession")
 		model_known.emit(id, int(profession.id) if profession is Dictionary else -1, float(npc.ageYears))
+
+
+	## Ficha em linhas curtas: quem é, de quem é parente, onde trabalha, o que sabe e como é.
+	func _describe(npc: Dictionary) -> String:
+		var lines: Array[String] = []
+		var profession = npc.get("profession")
+		lines.append("%s · profissão %s" % ["Mulher" if int(npc.get("sex", 0)) == 0 else "Homem", str(int(profession.id)) if profession is Dictionary else "—"])
+		var spouse = npc.get("spouse")
+		if spouse is Dictionary:
+			lines.append("Cônjuge: %s" % name_of.call(int(spouse.value)))
+		for parent in [["Mãe", npc.get("motherId")], ["Pai", npc.get("fatherId")]]:
+			if parent[1] is Dictionary:
+				lines.append("%s: %s" % [parent[0], name_of.call(int(parent[1].value))])
+		var household = npc.get("household")
+		if household is Dictionary:
+			lines.append("Casa nº %d" % int(household.value))
+		if npc.get("employer") is Dictionary:
+			lines.append("Trabalha no local %d" % int(npc.employer.value))
+		var skills: Dictionary = npc.get("skills", {}).get("values", {})
+		if not skills.is_empty():
+			var parts: Array[String] = []
+			for key in skills:
+				parts.append("%s %d%%" % [key, int(float(skills[key]) * 100.0)])
+			lines.append("Habilidades: " + ", ".join(parts))
+		var personality: Dictionary = npc.get("personality", {})
+		var traits: Array = personality.keys()
+		traits.sort_custom(func(a, b) -> bool: return float(personality[a]) > float(personality[b]))
+		if traits.size() >= 2:
+			lines.append("Traços fortes: %s, %s" % [_TRAITS.get(traits[0], traits[0]), _TRAITS.get(traits[1], traits[1])])
+		if not npc.get("powerIds", []).is_empty():
+			lines.append("Poderes: %d" % npc.powerIds.size())
+		return "\n".join(lines)
 
 
 class CityPanel extends PanelContainer:
