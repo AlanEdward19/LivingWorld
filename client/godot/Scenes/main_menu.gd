@@ -8,6 +8,7 @@ signal world_ready() ## há um mundo no servidor para jogar (continuado ou recé
 const UiTheme := preload("res://Scenes/ui_theme.gd")
 const WorldEditor := preload("res://Scenes/world_editor.gd")
 const WorldTouchup := preload("res://Scenes/world_touchup.gd")
+const FamilyBuilder := preload("res://Scenes/family_builder.gd")
 
 const TERRAIN_COLORS: Array[Color] = [
 	Color("5f8f4e"), Color("c9b26b"), Color("7b8b6f"), Color("8a7a66"), Color("4f7a64"), Color("a8a39a"),
@@ -26,6 +27,10 @@ var seed_value := 1
 var draft := "" ## cenário do período em texto cru, com as personalizações aplicadas (ver WorldEditor)
 var selected_settlement := 0 ## linha cujo ponto o clique na prévia move
 var touchup
+var family_builder
+var professions: Dictionary = {} ## id -> nome, do catálogo do período escolhido
+var family_label: Label
+var building_rows: VBoxContainer
 var custom_box: VBoxContainer
 var settlement_rows: VBoxContainer
 var width_spin: SpinBox
@@ -261,6 +266,12 @@ func _build_custom_panel(parent: Control) -> void:
 	settlement_rows = VBoxContainer.new()
 	custom_box.add_child(settlement_rows)
 	_button("+ Assentamento", custom_box, _add_settlement)
+	_label("Prédios (locais de trabalho)", 14, custom_box)
+	building_rows = VBoxContainer.new()
+	custom_box.add_child(building_rows)
+	_button("+ Prédio", custom_box, _add_building)
+	family_label = _label("", 14, custom_box)
+	_button("Criar famílias e pessoas…", custom_box, show_family_builder)
 
 
 func _edit(new_draft: String) -> void:
@@ -287,6 +298,9 @@ func _sync_custom() -> void:
 	selected_settlement = clampi(selected_settlement, 0, maxi(values.settlements.size() - 1, 0))
 	for i in values.settlements.size():
 		_settlement_row(i, values.settlements[i], values)
+	_sync_buildings(values)
+	var family_count: int = WorldEditor.read_households(draft).size()
+	family_label.text = "%d família(s) autorada(s); a população inicial sorteada continua (zere-a para só as suas)." % family_count if family_count > 0 else ""
 
 
 func _settlement_row(index: int, entry: Dictionary, values: Dictionary) -> void:
@@ -315,6 +329,91 @@ func _settlement_row(index: int, entry: Dictionary, values: Dictionary) -> void:
 	remove.disabled = values.settlements.size() <= 1
 	remove.pressed.connect(func(): _remove_settlement(index))
 	row.add_child(remove)
+
+
+func _sync_buildings(values: Dictionary) -> void:
+	for child in building_rows.get_children():
+		child.queue_free()
+	var types: Array[int] = WorldEditor.building_types(draft)
+	var list: Array = WorldEditor.read_workplaces(draft)
+	for i in list.size():
+		var row := HBoxContainer.new()
+		building_rows.add_child(row)
+		var type_pick := OptionButton.new()
+		for type_id in types:
+			type_pick.add_item("tipo %d" % type_id, type_id)
+		type_pick.select(maxi(type_pick.get_item_index(int(list[i].get("LocationTypeId", 0))), 0))
+		type_pick.item_selected.connect(func(index: int): _change_building(i, {"LocationTypeId": type_pick.get_item_id(index)}))
+		row.add_child(type_pick)
+		for axis in ["X", "Y"]:
+			var spin := SpinBox.new()
+			spin.min_value = 0
+			spin.max_value = (values.width if axis == "X" else values.height) - 1
+			spin.set_value_no_signal(int(list[i].get(axis, 0)))
+			spin.value_changed.connect(func(v: float): _change_building(i, {axis: int(v)}))
+			row.add_child(spin)
+		var vacancies := SpinBox.new()
+		vacancies.min_value = 1
+		vacancies.max_value = 100
+		vacancies.prefix = "vagas "
+		vacancies.set_value_no_signal(int(list[i].get("MaxVacancies", 1)))
+		vacancies.value_changed.connect(func(v: float): _change_building(i, {"MaxVacancies": int(v)}))
+		row.add_child(vacancies)
+		var remove := Button.new()
+		remove.text = "✕"
+		remove.pressed.connect(func(): _remove_building(i))
+		row.add_child(remove)
+
+
+func _change_building(index: int, changes: Dictionary) -> void:
+	var list: Array = WorldEditor.read_workplaces(draft)
+	if index < list.size():
+		list[index].merge(changes, true)
+		_edit(WorldEditor.with_workplaces(draft, list))
+
+
+func _add_building() -> void:
+	var list: Array = WorldEditor.read_workplaces(draft)
+	var values: Dictionary = WorldEditor.read(draft)
+	var types: Array[int] = WorldEditor.building_types(draft)
+	if types.is_empty():
+		message_label.text = "Este período não define tipos de prédio."
+		return
+	var clone: Dictionary = (list[0] as Dictionary).duplicate(true) if not list.is_empty() else {"Treasury": 100000, "Stock": {}, "Prices": {}}
+	clone.merge({"LocationTypeId": types[0], "X": values.width / 2, "Y": values.height / 2, "MaxVacancies": 6}, true)
+	list.append(clone)
+	_edit(WorldEditor.with_workplaces(draft, list))
+	_sync_custom()
+
+
+func _remove_building(index: int) -> void:
+	var list: Array = WorldEditor.read_workplaces(draft)
+	if index < list.size():
+		list.remove_at(index)
+		_edit(WorldEditor.with_workplaces(draft, list))
+		_sync_custom()
+
+
+func show_family_builder() -> void:
+	new_world_screen.visible = false
+	family_builder = FamilyBuilder.new()
+	var settlement_names: Array[String] = []
+	for settlement in WorldEditor.read(draft).settlements:
+		settlement_names.append(settlement.name)
+	add_child(family_builder)
+	family_builder.setup(WorldEditor.read_households(draft), professions, settlement_names)
+	family_builder.done.connect(func(families: Array):
+		draft = WorldEditor.with_households(draft, families)
+		_close_family_builder())
+	family_builder.cancelled.connect(_close_family_builder)
+
+
+func _close_family_builder() -> void:
+	family_builder.queue_free()
+	family_builder = null
+	new_world_screen.visible = true
+	_sync_custom()
+	_refresh_preview()
 
 
 func _change_settlement(index: int, changes: Dictionary) -> void:
@@ -426,8 +525,11 @@ func _select_period(id: String) -> void:
 	if selected_period != id:
 		return # escolheu outro período enquanto este carregava
 	if catalog.ok:
-		var professions: Array = catalog.body.professionNames.values()
-		period_info.text = "Profissões: %s" % (", ".join(professions) if not professions.is_empty() else "%d no total" % catalog.body.professionIds.size())
+		professions.clear()
+		for profession_id in catalog.body.professionIds:
+			professions[int(profession_id)] = String(catalog.body.professionNames.get(str(int(profession_id)), "Profissão %d" % int(profession_id)))
+		var names: Array = professions.values()
+		period_info.text = "Profissões: %s" % ", ".join(names)
 	else:
 		period_info.text = ""
 	await _refresh_preview()

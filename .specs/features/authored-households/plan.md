@@ -1,4 +1,4 @@
-# Authored households [Estado: Spec - fatia 3 do menu (criar famílias e NPCs estilo Sims, no novo mundo)]
+# Authored households [Estado: Implementado (servidor + menu), verificado contra a API real em 2026-10-13]
 
 ## Problem
 

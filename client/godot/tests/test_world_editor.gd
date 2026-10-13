@@ -89,3 +89,70 @@ func test_touchup_rewrites_personality_through_authoring_route() -> void:
 	check("PUT /authoring/npcs/1/personality" in transport.calls, "chamou a rota de autoria")
 	check("aplicada" in touchup.message.text, "avisa o resultado")
 	touchup.free()
+
+
+const FamilyBuilder := preload("res://Scenes/family_builder.gd")
+const JsonRaw := preload("res://Contract/json_raw.gd")
+
+
+func _family() -> Array:
+	return [{"settlement": "vila", "members": [
+		{"name": "Ana", "sex": "Female", "age": 34, "profession": 1, "personality": {"Extroversion": 90}, "spouse": 1, "mother": -1, "father": -1},
+		{"name": "Beto", "sex": "Male", "age": 36, "profession": 2, "personality": null, "spouse": 0, "mother": -1, "father": -1},
+		{"name": "Cai", "sex": "Male", "age": 6, "profession": 1, "personality": null, "spouse": -1, "mother": 0, "father": 1},
+	]}]
+
+
+func test_set_member_inserts_when_absent_and_replaces_when_present() -> void:
+	var added := JsonRaw.set_member('{"A":1}', "B", "[2]")
+	eq(added, '{"A":1,"B":[2]}', "acrescenta antes do fecha-chaves")
+	eq(JsonRaw.set_member(added, "B", "[3]"), '{"A":1,"B":[3]}', "troca quando existe")
+
+
+func test_households_round_trip_as_integers() -> void:
+	var out: String = WorldEditor.with_households(SCENARIO, _family())
+	check('"AuthoredHouseholds":[{"Settlement":"vila","Members":[' in out, "bloco acrescentado")
+	check('"AgeYears":34' in out and '"Spouse":1' in out and '"Mother":0' in out, "inteiros e vínculos")
+	check('"Personality":{"Extroversion":90,"Agreeableness":50' in out, "personalidade completa com padrão 50")
+	check(not (".0" in out.replace("0.25", "")), "nenhum inteiro virou decimal")
+	var back: Array = WorldEditor.read_households(out)
+	eq(back.size(), 1, "uma família")
+	eq(back[0].members[2].mother, 0, "vínculo lido de volta")
+	eq(back[0].members[1].personality, null, "personalidade sorteada continua ausente")
+
+
+func test_workplaces_keep_untouched_fields_and_integers() -> void:
+	var text := '{"Workplaces":[{"LocationTypeId":1,"X":4,"Y":5,"MaxVacancies":16,"Treasury":500000,"Stock":{"3":30},"Prices":{"1":5}}],"LocationTypeIds":[1,2]}'
+	var list: Array = WorldEditor.read_workplaces(text)
+	list[0].MaxVacancies = 20
+	var out: String = WorldEditor.with_workplaces(text, list)
+	check('"MaxVacancies":20' in out and '"Treasury":500000' in out and '"Stock":{"3":30}' in out, "campos preservados")
+	check(not (".0" in out), "sem decimais")
+	eq(WorldEditor.building_types(text), [1, 2] as Array[int], "tipos do cenário")
+
+
+func test_builder_validates_like_the_server() -> void:
+	var builder := FamilyBuilder.new()
+	builder.setup(_family(), {1: "A", 2: "B"}, ["vila"])
+	eq(builder.validation_error(), "", "família coerente passa")
+	builder.families[0].members[2].mother = 1 # mãe que é homem
+	check("Mãe" in builder.validation_error(), "mãe precisa ser mulher mais velha")
+	builder.families[0].members[2].mother = 0
+	builder.families[0].members[0].age = 5
+	builder.families[0].members[1].age = 6
+	check("adulto" in builder.validation_error(), "família sem adulto")
+	builder.free()
+
+
+func test_builder_removing_a_member_fixes_links() -> void:
+	var builder := FamilyBuilder.new()
+	builder.setup(_family(), {1: "A"}, [])
+	tree.root.add_child(builder)
+	builder.member_index = 0
+	builder.remove_member()
+	var members: Array = builder.families[0].members
+	eq(members.size(), 2, "removeu Ana")
+	eq(members[0].spouse, -1, "cônjuge sem par")
+	eq(members[1].mother, -1, "mãe removida zera o vínculo")
+	eq(members[1].father, 0, "pai desce um índice")
+	builder.free()

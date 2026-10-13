@@ -41,6 +41,17 @@ static func replace_member(text: String, key: String, raw_value: String) -> Stri
 	return text.substr(0, span.x) + raw_value + text.substr(span.y)
 
 
+## Troca o membro do topo `key` ou, se não existe, o acrescenta antes do `}` final do objeto raiz.
+static func set_member(text: String, key: String, raw_value: String) -> String:
+	if member_span(text, key).x >= 0:
+		return replace_member(text, key, raw_value)
+	var close := text.rfind("}")
+	if close < 0:
+		return text
+	var before := text.substr(0, close).rstrip(" \t\n\r")
+	return before + ',"%s":%s' % [key, raw_value] + text.substr(close)
+
+
 static func _string_end(text: String, open_quote: int) -> int:
 	var i := open_quote + 1
 	while i < text.length():

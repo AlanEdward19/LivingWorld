@@ -1,4 +1,4 @@
-# Godot main menu [Estado: Fatias 1 e 2 implementadas; fatias 3+ por vir]
+# Godot main menu [Estado: Fatias 1, 2 e 3 implementadas; fatias 4+ por vir]
 
 ## Problem
 
@@ -57,8 +57,8 @@ O cenário é texto cru editado só nos membros do topo (`world_editor.gd`); o s
 | --- | --- | --- |
 | tamanho do mapa, população, natalidade, longevidade | membros do cenário (feito) | - |
 | posicionar assentamentos | `Settlements[{Name,X,Y}]` (feito; ruas/orientação não editadas) | - |
-| posicionar prédios um a um | não: o servidor gera a planta da cidade (`city-house-layout`) | cenário aceitar `Buildings` ou rota de colocação |
-| criar famílias e NPCs personalizados | não: o cenário só tem `InitialPopulation`; as rotas de autoria agem em NPC existente | rota/cenário de `Npcs`/`Households` (contrato novo) |
+| posicionar prédios do catálogo | `Workplaces` (tipo, posição, vagas), com colocação segura no servidor (feito, fatia 3); a planta é do servidor | editor de plantas (fase posterior) |
+| criar famílias e NPCs personalizados | `AuthoredHouseholds` no cenário (feito, fatia 3, ADR-0024, spec `authored-households`) | NPC com o mundo rodando (fase posterior) |
 | criar poderes novos | catálogo vem do cenário (`Extraordinary`); o cliente só concede os existentes | editor de `PowerDescriptor` no cenário |
 | personalidade de NPC | `PUT /authoring/npcs/{id}/personality` (feito) | - |
 
