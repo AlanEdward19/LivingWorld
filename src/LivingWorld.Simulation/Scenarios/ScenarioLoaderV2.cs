@@ -157,7 +157,24 @@ public static class ScenarioLoaderV2
             }
         }
 
-        if (world.EconomyRules.Enabled && population.InitialPopulation > 0)
+        // Famílias autoradas (ADR-0024), depois da população sorteada: sem o bloco nada muda (hash preservado).
+        var authoredResult = AuthoredHouseholdsLoader.Load(
+            System.Text.Json.Nodes.JsonNode.Parse(json)!.AsObject(), population.Catalog,
+            population.LifeTable.MaxLongevityYears, definition.Map.Settlements.Select(s => s.Name).ToList());
+        if (!authoredResult.IsSuccess)
+            return Result<(WorldState, WorldClock)>.Fail(authoredResult.Error!);
+        foreach (var family in authoredResult.Value!)
+        {
+            var home = family.Settlement is null
+                ? world.ActiveCities().FirstOrDefault(c => c.Location == population.Village)
+                : world.ActiveCities().FirstOrDefault(c => c.Location == definition.Map.Settlements.First(s => s.Name == family.Settlement).Cell);
+            if (home is null)
+                return Result<(WorldState, WorldClock)>.Fail(
+                    $"AuthoredHouseholds: o assentamento '{family.Settlement ?? "inicial"}' não tem cidade no cenário");
+            PopulationSeeder.SeedAuthored(world, family, population.Culture, home.Location, home);
+        }
+
+        if (world.EconomyRules.Enabled && (population.InitialPopulation > 0 || authoredResult.Value!.Count > 0))
             ScenarioRunner.SeedInitialEconomyBuffer(world);
 
         ExtraordinaryPrevalenceSeeder.Seed(world);

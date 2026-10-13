@@ -32,6 +32,26 @@ public static class PopulationSeeder
                 world, placementCity, count, householdCount, houseIds),
             bodyRules: world.BodyRules);
 
+        Register(world, generated, houseIds);
+    }
+
+    /// <summary>Famílias autoradas (ADR-0024): mesma colocação de casa e mesma agenda de óbito/despertar da população
+    /// sorteada. Cada família mora na cidade do seu assentamento (ou na da vila inicial).</summary>
+    public static void SeedAuthored(
+        WorldState world, AuthoredHousehold household, CultureId culture, CellCoord villageLocation, City city)
+    {
+        var rng = world.Rng.Stream("population-authored");
+        var houseIds = new List<BuildingId>();
+        var generated = PopulationGenerator.GenerateAuthored(
+            rng, world.CurrentDate, [household], culture, villageLocation, world.NextNpcId, world.NextHouseholdId, city.Id,
+            householdLocationsFactory: householdCount => PlaceHouseholdBuildings(
+                world, city, household.Members.Count, householdCount, houseIds),
+            bodyRules: world.BodyRules);
+        Register(world, generated, houseIds);
+    }
+
+    private static void Register(WorldState world, PopulationGenerator.GeneratedPopulation generated, List<BuildingId> houseIds)
+    {
         foreach (var npc in generated.Npcs)
         {
             npc.ConfigureNeedDecay(world.NeedsRules, world.CurrentDate.TotalHours);
