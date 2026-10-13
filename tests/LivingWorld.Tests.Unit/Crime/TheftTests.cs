@@ -90,6 +90,37 @@ public class TheftTests
     }
 
     [Fact]
+    public void A_pantry_stock_or_a_housemate_with_coin_does_not_make_a_victim_or_a_motive()
+    {
+        var world = NewWorld(Rules());
+        var home = new HouseholdId(1);
+        Npc InHome()
+        {
+            var npc = new Npc(
+                world.NextNpcIdAndAdvance(), "npc", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-25), new CultureId(1),
+                Here, null, null, household: home, health: 100, personality: Criminal,
+                profession: new ProfessionType(1), currentLocation: Here);
+            world.AddNpc(npc);
+            return npc;
+        }
+        var thief = InHome();
+        var housemate = InHome();
+        housemate.CreditWallet(new Money(50));
+        var household = new Household(home, Here, thief.Id, [thief.Id, housemate.Id]);
+        world.AddHousehold(household);
+        thief.SetHunger(10, 0);
+        thief.SetThirst(10, 0);
+
+        Assert.False(TheftResolver.Wants(world, thief, 0)); // só há a coin da própria casa
+
+        Add(world, Honest, wallet: 50);
+        Assert.True(TheftResolver.Wants(world, thief, 0)); // um estranho com moeda, despensa vazia
+
+        household.Deposit(new ResourceType(world.EconomyRules.FoodResourceId), 1);
+        Assert.False(TheftResolver.Wants(world, thief, 0)); // despensa com comida: não precisa roubar
+    }
+
+    [Fact]
     public void Nobody_steals_when_the_scenario_has_no_theft_and_a_victim_is_needed()
     {
         var off = NewWorld();

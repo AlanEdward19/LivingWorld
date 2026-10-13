@@ -21,6 +21,11 @@ public sealed partial class WorldState
         return index < 0 ? 1000 : _climateYears[index].FactorMilli;
     }
 
+    /// <summary>Fator de safra no ponto e no tick; com clima desligado volta 1000 sem tocar no mapa (caminho quente da colheita),
+    /// e um ponto fora de qualquer região vale 1000 em vez de estourar.</summary>
+    public int ClimateFactorAt(CellCoord at, long tick) =>
+        !ClimateRules.Enabled || !Map.TryGetBaseClimate(at, out _, out var region) ? 1000 : ClimateFactorMilli(region, ClimateYearOf(tick));
+
     /// <summary>Grava o fator do (região, ano); um fator por par, nunca reescrito depois de sorteado.</summary>
     public void SetClimateYear(RegionId region, long year, int factorMilli)
     {

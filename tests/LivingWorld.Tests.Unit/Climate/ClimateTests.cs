@@ -72,6 +72,17 @@ public class ClimateTests
     }
 
     [Fact]
+    public void Invalid_scenario_bounds_never_draw_a_negative_factor()
+    {
+        var world = NewWorld(new ClimateRules(true, -500, -900));
+
+        for (long year = 1; year <= 5; year++) Draw(world, year);
+
+        Assert.NotEmpty(world.ClimateYears);
+        Assert.All(world.ClimateYears, c => Assert.True(c.FactorMilli >= 0));
+    }
+
+    [Fact]
     public void Old_years_leave_the_ledger_so_it_stays_bounded()
     {
         var world = NewWorld(new ClimateRules(true, 300, 1500));

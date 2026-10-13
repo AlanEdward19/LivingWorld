@@ -58,14 +58,39 @@ public class DiseaseTests
         var a = Add(world, Here);
         Add(world, Here);
         world.AddInfection(a.Id, 1, endTick: 1000);
-        string before = WorldSnapshot.CanonicalHash(world);
-
         Day(world);
 
         Assert.False(world.DiseaseRules.Enabled);
         Assert.Single(world.Infections);
         Assert.Equal(1000, world.Infections[0].EndTick);
-        Assert.NotNull(before);
+        Assert.Empty(world.Immunities);
+        var (defaultWorld, _) = ScenarioRunner.Create(1);
+        Assert.False(defaultWorld.DiseaseRules.Enabled);
+    }
+
+    [Fact]
+    public void A_disabled_system_allocates_nothing_per_tick_even_with_many_npcs()
+    {
+        var world = NewWorld();
+        for (int i = 0; i < 1000; i++) Add(world, Here);
+        var system = new OutbreakSystem();
+        var ctx = new TickContext(world, world.Rng, world.Scheduler, new RecordingSink());
+        system.Tick(world, ctx); // aquece
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 1000; i++) system.Tick(world, ctx);
+
+        Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
+    }
+
+    [Fact]
+    public void A_nan_outbreak_chance_never_starts_an_outbreak()
+    {
+        var world = NewWorld(Rules(threshold: 2, outbreakChance: double.NaN));
+        for (int i = 0; i < 5; i++) Add(world, Here);
+
+        for (int day = 0; day < 5; day++) Day(world);
+
+        Assert.Empty(world.Infections);
     }
 
     [Fact]
@@ -204,18 +229,21 @@ public class DiseaseTests
     public void The_village_with_a_moderate_disease_keeps_seventy_percent_of_the_control_population_over_five_years_in_eight_seeds()
     {
         var disease = new DiseaseRules(true, [new DiseaseProfile(1, 0.08, 0.15, 6, 180)], OutbreakPopulationThreshold: 20, OutbreakDailyChance: 0.01);
-        long control = 0, sick = 0;
+        long control = 0, sick = 0, outbreaks = 0;
         for (ulong seed = 1; seed <= 8; seed++)
         {
             var (plain, plainClock) = ScenarioRunner.Create(seed);
             plainClock.Run(plain, 5 * 12 * 30 * 24);
             control += plain.Npcs.Count(n => n.IsAlive);
 
-            var (ill, illClock) = ScenarioRunner.Create(seed, diseaseRules: disease);
-            illClock.Run(ill, 5 * 12 * 30 * 24);
+            var (ill, _) = ScenarioRunner.Create(seed, diseaseRules: disease);
+            var counter = new RecordingSink();
+            new WorldClock(ScenarioRunner.DefaultSystems(), sink: counter).Run(ill, 5 * 12 * 30 * 24);
+            outbreaks += counter.Events.Count(e => e.Kind == WorldEventKind.OutbreakStarted);
             sick += ill.Npcs.Count(n => n.IsAlive);
         }
 
+        Assert.True(outbreaks > 0, "nenhum surto aconteceu: o teste não mediu nada");
         Assert.True(sick >= 0.7 * control, $"população final com doença {sick} contra controle {control}");
     }
 }

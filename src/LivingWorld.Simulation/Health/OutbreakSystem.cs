@@ -91,7 +91,7 @@ public sealed class OutbreakSystem : ISimulationSystem
         foreach (var profile in rules.Diseases.OrderBy(d => d.Id))
         {
             if (world.Infections.Any(i => i.Disease == profile.Id)) continue;
-            if (ctx.Rng($"outbreak-{profile.Id}-{day}").NextDouble() >= rules.OutbreakDailyChance) continue;
+            if (!(ctx.Rng($"outbreak-{profile.Id}-{day}").NextDouble() < rules.OutbreakDailyChance)) continue; // negado: NaN nunca dispara
 
             // a maior cidade acima do limiar (empate: menor id de cidade), e nela o paciente zero é sorteado entre os vivos
             var crowded = world.Npcs.Where(n => n.IsAlive).GroupBy(n => n.City)

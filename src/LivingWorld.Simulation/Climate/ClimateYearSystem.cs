@@ -20,11 +20,13 @@ public sealed class ClimateYearSystem : ISimulationSystem
         var rules = world.ClimateRules;
         if (!rules.Enabled) return;
 
+        // limites inválidos do cenário (negativo, máximo abaixo do mínimo) não podem virar colheita negativa
+        int min = Math.Max(0, rules.MinMilli), max = Math.Max(min, rules.MaxMilli);
         long year = world.ClimateYearOf(ctx.CurrentTick);
         foreach (var region in world.Map.Regions.OrderBy(r => r.Id.Value))
         {
             double roll = ctx.Rng($"climate-{region.Id.Value}-{year}").NextDouble();
-            world.SetClimateYear(region.Id, year, rules.MinMilli + (int)Math.Round(roll * (rules.MaxMilli - rules.MinMilli)));
+            world.SetClimateYear(region.Id, year, min + (int)Math.Round(roll * (max - min)));
         }
 
         world.PurgeClimateYearsBefore(year - WorldState.ClimateYearsKept);
