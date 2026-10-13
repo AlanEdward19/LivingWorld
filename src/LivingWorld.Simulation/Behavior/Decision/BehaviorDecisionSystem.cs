@@ -24,7 +24,7 @@ namespace LivingWorld.Simulation.Behavior.Decision;
 /// deslocamento com custo real quando a ação vencedora exige um local diferente do atual.
 /// <c>Sleep</c> usa um lugar de descanso alcançável (chão/moradia/cama); sem caminho o NPC
 /// bloqueia no local atual em vez de teleportar.</summary>
-[LivingCapability("BEHAVIOR", Consumers = ["map.npc.action"])]
+[LivingCapability("BEHAVIOR", Events = [WorldEventKind.TheftDiscovered], Consumers = ["map.npc.action"])]
 [RunsAfter(typeof(NeedsDecaySystem))]
 public sealed partial class BehaviorDecisionSystem : ISimulationSystem
 {
@@ -54,7 +54,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
     private const long WellMinimumDraw = 4;
 
     private static readonly ActionType[] AllActions = Enum.GetValues<ActionType>()
-        .Where(a => a != ActionType.UsePower)
+        .Where(a => a is not (ActionType.UsePower or ActionType.Steal))
         .ToArray();
 
     private readonly SkillsRules? _skillsRules;
@@ -130,7 +130,8 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
 
                 PendingPowerInvocation? pendingPower = null;
                 ActionType candidate;
-                if (HasUrgentNeedForDecision(npc, rules, now))
+                bool urgent = HasUrgentNeedForDecision(npc, rules, now);
+                if (urgent)
                 {
                     bool recordTrace = ShouldRecordCognitionTrace(world, npc);
                     var decision = SelectByUtility(
@@ -156,6 +157,8 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 }
 
                 candidate = ApplyPerception(world, npc, candidate);
+                if (urgent && world.TheftRules.Enabled && TheftResolver.Wants(world, npc, now))
+                    candidate = ActionType.Steal; // desespero + temperamento + alguém com moeda ao lado
 
                 chosen = ResolveWithStepCap(npc.Id.Value, candidate, world, npc, marketIndex, rules.MaxActionSelectionSteps);
                 travelPurpose = chosen == ActionType.Travel && candidate is ActionType.Work or ActionType.Sleep or ActionType.Buy
@@ -216,7 +219,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
             return true;
         }
 
-        if (now - npc.ActionStartedAtTick < catalog.MaxDurationHours[action]) return false;
+        if (now - npc.ActionStartedAtTick < catalog.DurationOf(action)) return false;
 
         // Sem workplace real (Employer nulo), Work nunca fabrica deslocamento —
         // NPC bloqueado fica onde está em vez de "trabalhar" andando à toa sem destino nenhum.

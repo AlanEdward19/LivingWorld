@@ -20,4 +20,8 @@ public enum ActionType
     /// <summary>Usar um poder extraordinário — o poder específico
     /// vive em <c>Npc.PendingPowerInvocation</c>, não neste enum.</summary>
     UsePower = 7,
+
+    /// <summary>Furtar moeda de alguém na mesma célula (crime-and-theft); só entra por <c>TheftResolver</c>, nunca pela utility
+    /// geral, e a duração é opcional no catálogo (1 hora quando omitida).</summary>
+    Steal = 8,
 }

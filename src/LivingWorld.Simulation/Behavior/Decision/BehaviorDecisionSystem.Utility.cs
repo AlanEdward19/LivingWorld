@@ -256,6 +256,7 @@ public sealed partial class BehaviorDecisionSystem
         ActionType.Buy => BuyUtilityOf(ctx, economy),
         ActionType.Work or ActionType.Travel or ActionType.Idle => NonNeedBaselineUtility,
         ActionType.UsePower => 0.0, // só vence via candidatos PowerOpportunity (T22)
+        ActionType.Steal => 0.0, // só entra por TheftResolver.Wants
         _ => throw new ArgumentOutOfRangeException(nameof(action), action, "ActionType desconhecido"),
     };
 

@@ -153,6 +153,10 @@ public static partial class ScenarioRunner
         // Herdar de quem morreu: gratidão e saudade, uma vez por morte.
         deltas[(RelationshipEventType.Inheritance, RelationshipAxis.Trust)] = 1.0;
         deltas[(RelationshipEventType.Inheritance, RelationshipAxis.Affection)] = 1.5;
+        // Ser furtado e descobrir quem foi: a vítima perde confiança, afeto e respeito pelo ladrão (só no sentido vítima→ladrão).
+        deltas[(RelationshipEventType.Betrayal, RelationshipAxis.Trust)] = -8.0;
+        deltas[(RelationshipEventType.Betrayal, RelationshipAxis.Affection)] = -5.0;
+        deltas[(RelationshipEventType.Betrayal, RelationshipAxis.Respect)] = -3.0;
         return deltas;
     }
 
@@ -172,6 +176,7 @@ public static partial class ScenarioRunner
             [ActionType.Idle] = 2,
             [ActionType.Buy] = 2,
             [ActionType.UsePower] = 1,
+            [ActionType.Steal] = 1,
         },
         routineSlots:
         [
@@ -301,7 +306,8 @@ public static partial class ScenarioRunner
         IReadOnlyList<AnimalSpeciesRules>? animalSpeciesRules = null,
         IReadOnlyList<PlantSpeciesRules>? plantSpeciesRules = null,
         LivingWorld.Domain.Health.DiseaseRules? diseaseRules = null,
-        LivingWorld.Domain.Climate.ClimateRules? climateRules = null)
+        LivingWorld.Domain.Climate.ClimateRules? climateRules = null,
+        LivingWorld.Domain.Crime.TheftRules? theftRules = null)
     {
         var rules = economyRules ?? DefaultEconomyRules;
         var family = familyRules ?? DefaultFamilyRules;
@@ -316,7 +322,7 @@ public static partial class ScenarioRunner
             historyRules: history, processRecipes: DefaultProcessRecipes,
             animalSpeciesRules: animalSpeciesRules ?? DefaultAnimalSpeciesRules,
             plantSpeciesRules: plantSpeciesRules ?? DefaultPlantSpeciesRules,
-            biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules, diseaseRules: diseaseRules, climateRules: climateRules);
+            biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules, diseaseRules: diseaseRules, climateRules: climateRules, theftRules: theftRules);
         var initialCity = new City(
             world.NextCityId(), DefaultVillageLocation, world.CurrentDate.TotalHours,
             foundedFromCityId: null, AggregatePopulationPool.Empty);

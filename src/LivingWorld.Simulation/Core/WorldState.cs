@@ -3,6 +3,7 @@ using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Climate;
 using LivingWorld.Domain.Cognition;
+using LivingWorld.Domain.Crime;
 using LivingWorld.Domain.Ecology;
 using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Extraordinary;
@@ -209,6 +210,9 @@ public sealed partial class WorldState
 
     /// <summary>Regras de doença do cenário (disease-epidemics); desligadas por padrão.</summary>
     [Canonical] public DiseaseRules DiseaseRules { get; }
+
+    /// <summary>Regras de furto do cenário (crime-and-theft); desligado por padrão: ninguém furta.</summary>
+    [Canonical] public TheftRules TheftRules { get; }
 
     /// <summary>Infecções ativas, ordenadas por NPC e doença.</summary>
     [Canonical] public IReadOnlyList<Infection> Infections => _infections;
@@ -458,7 +462,8 @@ public sealed partial class WorldState
         IReadOnlyList<Infection>? infections = null,
         IReadOnlyList<Immunity>? immunities = null,
         ClimateRules? climateRules = null,
-        IReadOnlyList<ClimateYear>? climateYears = null)
+        IReadOnlyList<ClimateYear>? climateYears = null,
+        TheftRules? theftRules = null)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -503,6 +508,7 @@ public sealed partial class WorldState
         _infections = (infections ?? []).ToList();
         _immunities = (immunities ?? []).ToList();
         ClimateRules = climateRules ?? ClimateRules.Disabled;
+        TheftRules = theftRules ?? TheftRules.Disabled;
         _climateYears = (climateYears ?? []).ToList();
         Name = name;
         _facts = [];
@@ -618,7 +624,8 @@ public sealed partial class WorldState
         IReadOnlyList<Infection>? infections = null,
         IReadOnlyList<Immunity>? immunities = null,
         ClimateRules? climateRules = null,
-        IReadOnlyList<ClimateYear>? climateYears = null)
+        IReadOnlyList<ClimateYear>? climateYears = null,
+        TheftRules? theftRules = null)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -698,6 +705,7 @@ public sealed partial class WorldState
         _infections = (infections ?? []).ToList();
         _immunities = (immunities ?? []).ToList();
         ClimateRules = climateRules ?? ClimateRules.Disabled;
+        TheftRules = theftRules ?? TheftRules.Disabled;
         _climateYears = (climateYears ?? []).ToList();
         _facts = (facts ?? []).ToList();
         _nextFactId = nextFactId;

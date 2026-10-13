@@ -19,6 +19,7 @@ public static class SignificanceCalculator
             [WorldEventKind.EstateSettled] = 0.45,
             [WorldEventKind.Disease] = 0.8,
             [WorldEventKind.OutbreakStarted] = 0.7,
+            [WorldEventKind.TheftDiscovered] = 0.4,
             [WorldEventKind.Marriage] = 0.80,
             [WorldEventKind.MaternalDeath] = 0.85,
             [WorldEventKind.StillBirth] = 0.70,

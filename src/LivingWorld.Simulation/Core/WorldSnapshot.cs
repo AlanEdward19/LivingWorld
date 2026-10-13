@@ -8,6 +8,7 @@ using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Climate;
+using LivingWorld.Domain.Crime;
 using LivingWorld.Domain.Ecology;
 using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Extraordinary;
@@ -274,6 +275,10 @@ public static class WorldSnapshot
             node.TryGetPropertyValue("ClimateRules", out var climateRulesNode) && climateRulesNode is not null
                 ? climateRulesNode.Deserialize<ClimateRules>(JsonOptions)!
                 : ClimateRules.Disabled;
+        var theftRules =
+            node.TryGetPropertyValue("TheftRules", out var theftRulesNode) && theftRulesNode is not null
+                ? theftRulesNode.Deserialize<TheftRules>(JsonOptions)!
+                : TheftRules.Disabled;
         var climateYears =
             node.TryGetPropertyValue("ClimateYears", out var climateYearsNode) && climateYearsNode is not null
                 ? climateYearsNode.Deserialize<List<ClimateYear>>(JsonOptions)!
@@ -292,7 +297,7 @@ public static class WorldSnapshot
             extraordinaryConstructs, nextExtraordinaryConstructId,
             fauna, nextAnimalId, flora, nextPlantId, environmentTemperatureAdjustments,
             animalSpeciesRules, plantSpeciesRules, biomeSeasonTemperatureRules,
-            nextHistoryEventId, combatEncounters, nextCombatEncounterId, combatRules, tradeLedger, treasuryLedger, diseaseRules, infections, immunities, climateRules, climateYears);
+            nextHistoryEventId, combatEncounters, nextCombatEncounterId, combatRules, tradeLedger, treasuryLedger, diseaseRules, infections, immunities, climateRules, climateYears, theftRules);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)

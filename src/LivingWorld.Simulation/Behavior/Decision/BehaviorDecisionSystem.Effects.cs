@@ -35,6 +35,9 @@ public sealed partial class BehaviorDecisionSystem
             case ActionType.UsePower:
                 ApplyUsePower(world, npc, tick, ctx);
                 break;
+            case ActionType.Steal:
+                TheftResolver.Resolve(world, npc, tick, ctx);
+                break;
         }
     }
 

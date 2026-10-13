@@ -79,6 +79,18 @@ if (args.Length == 3 && args[0] == "climate-hash")
     return 0;
 }
 
+// Hash canônico de uma vila com furto ligado (desespero, temperamento, sorteio, descoberta): o teste de dois processos exige o
+// mesmo hash. `dotnet <dll> theft-hash <seed> <ticks>`.
+if (args.Length == 3 && args[0] == "theft-hash")
+{
+    var (world, _) = ScenarioRunner.Create(ulong.Parse(args[1]), theftRules: new LivingWorld.Domain.Crime.TheftRules(true, 90, 0.9, 0.6, 0.5, 0.5, -1, 0.25));
+    int thefts = 0;
+    var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: new TheftCounter(() => thefts++));
+    clock.Run(world, long.Parse(args[2]));
+    Console.WriteLine($"{WorldSnapshot.CanonicalHash(world)};{thefts}");
+    return 0;
+}
+
 // `dotnet <dll> history-significance-digest <seed> <ticks>`.
 if (args.Length == 3 && args[0] == "history-significance-digest")
 {
@@ -215,3 +227,11 @@ builder.Services.AddHostedService<Worker>();
 var host = builder.Build();
 host.Run();
 return 0;
+
+internal sealed class TheftCounter(Action onTheft) : LivingWorld.Simulation.Core.IWorldEventSink
+{
+    public void Record(LivingWorld.Simulation.Core.WorldEvent evt)
+    {
+        if (evt.Kind == LivingWorld.Domain.History.WorldEventKind.TheftDiscovered) onTheft();
+    }
+}

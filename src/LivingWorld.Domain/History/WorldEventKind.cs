@@ -163,4 +163,7 @@ public enum WorldEventKind
 
     /// <summary>Um surto começou numa cidade — payload: <c>doençaId|pacienteZeroId|cidadeId</c>.</summary>
     OutbreakStarted,
+
+    /// <summary>Furto descoberto (pego em flagrante ou denunciado) — payload: <c>ladraoId|vitimaId|moeda|1 se levou, 0 se falhou</c>.</summary>
+    TheftDiscovered,
 }
