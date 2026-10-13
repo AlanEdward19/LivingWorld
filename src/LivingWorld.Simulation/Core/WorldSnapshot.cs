@@ -15,6 +15,7 @@ using LivingWorld.Domain.Flora;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Geography.Map;
 using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.Health;
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.History.Distortion;
 using LivingWorld.Domain.Llm;
@@ -256,6 +257,18 @@ public static class WorldSnapshot
             node.TryGetPropertyValue("TreasuryLedger", out var treasuryNode) && treasuryNode is not null
                 ? treasuryNode.Deserialize<List<TreasuryAggregate>>(JsonOptions)!
                 : [];
+        var diseaseRules =
+            node.TryGetPropertyValue("DiseaseRules", out var diseaseRulesNode) && diseaseRulesNode is not null
+                ? diseaseRulesNode.Deserialize<DiseaseRules>(JsonOptions)!
+                : DiseaseRules.Disabled;
+        var infections =
+            node.TryGetPropertyValue("Infections", out var infectionsNode) && infectionsNode is not null
+                ? infectionsNode.Deserialize<List<Infection>>(JsonOptions)!
+                : [];
+        var immunities =
+            node.TryGetPropertyValue("Immunities", out var immunitiesNode) && immunitiesNode is not null
+                ? immunitiesNode.Deserialize<List<Immunity>>(JsonOptions)!
+                : [];
 
         return new WorldState(
             calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
@@ -270,7 +283,7 @@ public static class WorldSnapshot
             extraordinaryConstructs, nextExtraordinaryConstructId,
             fauna, nextAnimalId, flora, nextPlantId, environmentTemperatureAdjustments,
             animalSpeciesRules, plantSpeciesRules, biomeSeasonTemperatureRules,
-            nextHistoryEventId, combatEncounters, nextCombatEncounterId, combatRules, tradeLedger, treasuryLedger);
+            nextHistoryEventId, combatEncounters, nextCombatEncounterId, combatRules, tradeLedger, treasuryLedger, diseaseRules, infections, immunities);
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)

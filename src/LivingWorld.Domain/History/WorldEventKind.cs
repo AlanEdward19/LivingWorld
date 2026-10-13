@@ -157,4 +157,10 @@ public enum WorldEventKind
     /// <summary>Espólio de um NPC morto repartido entre os herdeiros — payload:
     /// <c>mortoId|herdeiros(ids por vírgula, vazio = tesouro da cidade)|moeda|unidadesDeEstoque|oficinasTransferidas</c>.</summary>
     EstateSettled,
+
+    /// <summary>Morte por doença — payload: <c>npcId|doençaId</c>.</summary>
+    Disease,
+
+    /// <summary>Um surto começou numa cidade — payload: <c>doençaId|pacienteZeroId|cidadeId</c>.</summary>
+    OutbreakStarted,
 }

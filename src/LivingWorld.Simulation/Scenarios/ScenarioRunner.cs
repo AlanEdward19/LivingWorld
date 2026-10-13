@@ -299,7 +299,8 @@ public static partial class ScenarioRunner
         PopulationRules? populationRules = null, int workplaceVacancyMultiplier = 1,
         EconomyCatalog? economyCatalog = null, HistoryRules? historyRules = null,
         IReadOnlyList<AnimalSpeciesRules>? animalSpeciesRules = null,
-        IReadOnlyList<PlantSpeciesRules>? plantSpeciesRules = null)
+        IReadOnlyList<PlantSpeciesRules>? plantSpeciesRules = null,
+        LivingWorld.Domain.Health.DiseaseRules? diseaseRules = null)
     {
         var rules = economyRules ?? DefaultEconomyRules;
         var family = familyRules ?? DefaultFamilyRules;
@@ -314,7 +315,7 @@ public static partial class ScenarioRunner
             historyRules: history, processRecipes: DefaultProcessRecipes,
             animalSpeciesRules: animalSpeciesRules ?? DefaultAnimalSpeciesRules,
             plantSpeciesRules: plantSpeciesRules ?? DefaultPlantSpeciesRules,
-            biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules);
+            biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules, diseaseRules: diseaseRules);
         var initialCity = new City(
             world.NextCityId(), DefaultVillageLocation, world.CurrentDate.TotalHours,
             foundedFromCityId: null, AggregatePopulationPool.Empty);

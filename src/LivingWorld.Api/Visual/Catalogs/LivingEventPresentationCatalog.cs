@@ -16,6 +16,8 @@ public static class LivingEventPresentationCatalog
             [WorldEventKind.Exhaustion] = "A exaustão causou uma morte",
             [WorldEventKind.Trade] = "Dois habitantes passaram a fazer negócio",
             [WorldEventKind.EstateSettled] = "Os bens de um morto foram repartidos entre herdeiros",
+            [WorldEventKind.Disease] = "Uma doença causou uma morte",
+            [WorldEventKind.OutbreakStarted] = "Um surto de doença começou na cidade",
             [WorldEventKind.Hired] = "Um habitante começou um novo trabalho",
             [WorldEventKind.Fired] = "Um vínculo de trabalho terminou",
             [WorldEventKind.WageUnpaid] = "Um pagamento de salário ficou pendente",

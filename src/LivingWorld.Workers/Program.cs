@@ -57,6 +57,18 @@ if (args.Length == 3 && args[0] == "eventlog-digest")
     return 0;
 }
 
+// Hash canônico de uma vila com doença ligada (surto por densidade, contágio, cura e morte): o teste de dois processos exige o
+// mesmo hash. `dotnet <dll> disease-hash <seed> <ticks>`.
+if (args.Length == 3 && args[0] == "disease-hash")
+{
+    var disease = new LivingWorld.Domain.Health.DiseaseRules(
+        true, [new LivingWorld.Domain.Health.DiseaseProfile(1, 0.08, 0.15, 6, 180)], OutbreakPopulationThreshold: 20, OutbreakDailyChance: 0.02);
+    var (world, clock) = ScenarioRunner.Create(ulong.Parse(args[1]), diseaseRules: disease);
+    clock.Run(world, long.Parse(args[2]));
+    Console.WriteLine($"{WorldSnapshot.CanonicalHash(world)};{world.Infections.Count};{world.Npcs.Count(n => !n.IsAlive)}");
+    return 0;
+}
+
 // `dotnet <dll> history-significance-digest <seed> <ticks>`.
 if (args.Length == 3 && args[0] == "history-significance-digest")
 {

@@ -118,6 +118,9 @@ public class WorldSnapshotTests
         world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId: 1, completedAtTick: 0));
         // taxes-treasury: livro do tesouro vazio não tem folha primitiva pro mutador genérico perturbar.
         world.RecordTreasury(city.Id, tick: 5, revenue: 3, spending: 1);
+        // disease-epidemics: infecções e imunidades vazias não têm folha primitiva pro mutador genérico.
+        world.AddInfection(world.Npcs[0].Id, disease: 1, endTick: 100);
+        world.SetImmunity(world.Npcs[1].Id, disease: 1, untilTick: 200);
         // Fase 15.1 T12: RestPlaces vazio não tem folha primitiva pro mutador genérico.
         var restHousehold = world.Households[0];
         world.AddRestPlace(new RestPlace(

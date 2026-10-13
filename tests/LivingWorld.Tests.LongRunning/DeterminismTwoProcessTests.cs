@@ -59,6 +59,16 @@ public class DeterminismTwoProcessTests
     }
 
     [Fact]
+    public void Same_seed_writes_the_same_epidemic_across_two_separate_processes()
+    {
+        string a = RunCommand("disease-hash 5 8640");
+        string b = RunCommand("disease-hash 5 8640");
+
+        Assert.Equal(a, b);
+        Assert.True(int.Parse(a.Split(';')[2]) > 0, "a vila não teve nenhuma morte: o teste não mediu nada");
+    }
+
+    [Fact]
     public void Different_seeds_produce_different_canonical_hashes_across_processes()
     {
         var (canonicalA, _) = RunInSeparateProcess(seed: 42, ticks: 400);

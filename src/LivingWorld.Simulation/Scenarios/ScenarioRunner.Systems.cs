@@ -14,6 +14,7 @@ using LivingWorld.Simulation.Economy.Trade;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
 using LivingWorld.Simulation.Extraordinary.Systems;
 using LivingWorld.Simulation.Geography;
+using LivingWorld.Simulation.Health;
 using LivingWorld.Simulation.History.Books;
 using LivingWorld.Simulation.History.Distortion;
 using LivingWorld.Simulation.Llm;
@@ -56,6 +57,7 @@ public static partial class ScenarioRunner
         {
         new PeriodEvolutionSystem(periodTransformationRules ?? []),
         new MortalitySystem(),
+        new OutbreakSystem(),
         new FactToReportConversionScheduler(),
         new BookRediscoverySystem(),
         new ColdArchiveSystem(),
