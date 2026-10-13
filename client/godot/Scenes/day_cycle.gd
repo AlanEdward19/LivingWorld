@@ -1,6 +1,6 @@
 extends Node
 ## Ciclo dia/noite dirigido pelo relógio do servidor: o cliente só interpola entre as leituras de
-## `/simulation/status` (tick = hora do mundo, dia de 24 h). Pausado, o céu para onde o servidor parou.
+## `/simulation/status` (tick = hora do mundo; o tamanho do dia vem de `GET /world/calendar`). Pausado, o céu para onde o servidor parou.
 
 const CLOCK_HOURS := 24.0 ## a luz e o relógio de parede sempre usam 24 h; o calendário do mundo só fixa quantos ticks formam um dia
 

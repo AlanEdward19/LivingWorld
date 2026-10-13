@@ -638,7 +638,7 @@ Uma linha por diretório de `.specs/features` em formato antigo; rastreio em cad
 - emergence-first-slice | Spec | plano sem checks nem código
 - god-console | Spec | plano sem checks nem código
 - godot-art-audio-pass | Spec | plano sem checks nem código
-- godot-server-deltas | Spec | plano sem checks nem código
+- godot-server-deltas | Entregue | servidor (develop) e cliente Godot; ver checks.md e verification.md
 - history-narrative-close | Spec | plano sem checks nem código
 - player-incarnation | Spec | plano sem checks nem código
 - specs-closeout | Entregue | só documentação; ver checks.md e verification.md
