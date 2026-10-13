@@ -1,3 +1,5 @@
+> **Estado: Parcial** (specs-closeout 2026-10-12) - 30/31 requisitos verificados por teste; COG-11 (painel visual) sem cliente web (aposentado) nem painel Godot, so a API entregue.
+
 # Fase 28 — Cognição e LOD observacional — Specification
 
 ## Problem Statement
@@ -307,37 +309,37 @@ decisão.
 
 | ID | Story | Status |
 | --- | --- | --- |
-| COG-01 | P1: Rastro — grava necessidade/traço/memória/descarte em escopo observado | Done |
-| COG-02 | P1: Rastro — zero gravação fora de escopo observado | Done |
-| COG-03 | P1: Rastro — determinismo por seed | Done |
-| COG-04 | P1: Rastro — descarte FIFO ao exceder janela | Done |
-| COG-10 | P1: Painel — dados via API, sem recálculo no cliente | Done |
-| COG-11 | P1: Painel — visual navegável dentro da janela retida | Done |
-| COG-12 | P1: Painel — estado vazio explícito, nunca inventado | Done |
-| COG-13 | P1: Painel — leitura idempotente | Done |
-| COG-20 | P1: Watchlist — janela curta default para não marcados | Done |
-| COG-21 | P1: Watchlist — histórico completo comprimido a partir da marca, não retroativo | Done |
-| COG-22 | P1: Watchlist — desmarcar preserva acumulado | Done |
-| COG-23 | P1: Watchlist — custo proporcional a marcados, não à população total | Done |
-| LOD-01 | P2: Escopos — mundo inalterado (comportamento já existente) | Done |
-| LOD-02 | P2: Escopos — cidade rebaixa prédio não enquadrado a LAZY | Done |
-| LOD-03 | P2: Escopos — interior enquadrado roda SEMPRE-TICK com rastro | Done |
-| LOD-04 | P2: Escopos — lugar em detalhe é união dos escopos de toda fonte ativa | Done |
-| LOD-05 | P2: Escopos — nunca dois níveis ativos simultâneos | Done |
-| LOD-10 | P2: Recompute — fórmula fechada exata na promoção | Done |
-| LOD-11 | P2: Recompute — RNG sob demanda reproduz sequência idêntica | Done |
-| LOD-12 | P2: Recompute — braços LAZY e SEMPRE-TICK convergem byte-idêntico | Done |
-| LOD-20 | P2: Sensor — custo observado vs. aproximado reportado separadamente | Done |
-| LOD-21 | P2: Sensor — reprova acima da fração declarada | Done |
-| LOD-22 | P2: Sensor — confirma zero custo de rastro fora de escopo | Done |
-| CMP-01 | P2: Compressão — log frio delta/dicionário | Done |
-| CMP-02 | P2: Compressão — snapshot histórico como diff | Done |
-| CMP-03 | P2: Compressão — interning de string compartilhada | Done |
-| CMP-04 | P2: Compressão — round-trip byte-idêntico | Done |
-| CMP-05 | P2: Compressão — bytes/NPC/ano dentro do teto da Fase 9 | Done |
-| SBX-01 | P3: Sandbox — mesmo motor, sem tocar mundo | Done |
-| SBX-02 | P3: Sandbox — isolamento de escrita testável | Done |
-| SBX-03 | P3: Sandbox — determinismo do sandbox | Done |
+| COG-01 | P1: Rastro — grava necessidade/traço/memória/descarte em escopo observado | Verified - LivingWorld.Tests.Unit/Behavior/BehaviorDecisionSystemCognitionTests.Urgent_need_on_materialized_npc_records_trace |
+| COG-02 | P1: Rastro — zero gravação fora de escopo observado | Verified - BehaviorDecisionSystemCognitionTests.Aggregated_pool_ids_receive_no_cognition_entries; LivingWorld.Tests.LongRunning/Performance/ObservationalLodSensorTests.Cognition_log_has_zero_entries_outside_observation_scope |
+| COG-03 | P1: Rastro — determinismo por seed | Verified - BehaviorDecisionSystemCognitionTests.Same_seed_produces_identical_cognition_log |
+| COG-04 | P1: Rastro — descarte FIFO ao exceder janela | Verified - LivingWorld.Tests.Unit/Cognition/NpcCognitionLogTests.Record_fifo_drops_oldest_when_window_exceeded |
+| COG-10 | P1: Painel — dados via API, sem recálculo no cliente | Verified - LivingWorld.Tests.Integration/Api/NpcCognitionTraceApiTests.GetNpc_cognition_trace_matches_recent_entries_from_log |
+| COG-11 | P1: Painel — visual navegável dentro da janela retida | Pending - painel web removido (ADR-0022, web/ so tem dist); sem painel no client Godot; so a API devolve o traco ordenado (GetNpc_returns_cognition_trace_in_chronological_order) |
+| COG-12 | P1: Painel — estado vazio explícito, nunca inventado | Verified - LivingWorld.Tests.Integration/Api/NpcCognitionTraceApiTests.GetNpc_returns_empty_cognition_trace_when_npc_has_no_entries (nivel API) |
+| COG-13 | P1: Painel — leitura idempotente | Verified - NpcCognitionTraceApiTests.GetNpc_is_idempotent_for_cognition_trace_within_same_tick, GetNpc_does_not_mutate_cognition_log_on_read |
+| COG-20 | P1: Watchlist — janela curta default para não marcados | Verified - LivingWorld.Tests.Unit/Cognition/NpcCognitionLogTests.Record_default_window_is_fifty_entries |
+| COG-21 | P1: Watchlist — histórico completo comprimido a partir da marca, não retroativo | Verified - NpcCognitionLogTests.MarkWatchlisted_is_not_retroactive..., MarkWatchlisted_retains_all_entries...; LivingWorld.Tests.Integration/Api/Watchlist/WatchlistEndpointsTests |
+| COG-22 | P1: Watchlist — desmarcar preserva acumulado | Verified - NpcCognitionLogTests.Unmark_preserves_accumulated_history |
+| COG-23 | P1: Watchlist — custo proporcional a marcados, não à população total | Verified - NpcCognitionLogTests.Retention_cost_is_bounded_for_unmarked_npcs_and_grows_only_for_watchlisted |
+| LOD-01 | P2: Escopos — mundo inalterado (comportamento já existente) | Verified - LivingWorld.Tests.Unit/Observation/ObservationRegistryTests.World_scope_observes_every_npc |
+| LOD-02 | P2: Escopos — cidade rebaixa prédio não enquadrado a LAZY | Verified - LivingWorld.Tests.Unit/Cities/MaterializationObservationTests.City_scope_leaves_unframed_building_in_approximate_cosmetic_layer |
+| LOD-03 | P2: Escopos — interior enquadrado roda SEMPRE-TICK com rastro | Verified - BehaviorDecisionSystemCognitionTests.Interior_npc_records_trace_when_building_scope_added |
+| LOD-04 | P2: Escopos — lugar em detalhe é união dos escopos de toda fonte ativa | Verified - LivingWorld.Tests.Unit/Observation/ObservationRegistryTests.Union_of_multiple_sources_observes_if_any_source_covers_the_npc |
+| LOD-05 | P2: Escopos — nunca dois níveis ativos simultâneos | Verified - LivingWorld.Tests.Unit/Behavior/Needs/CosmeticDetailSystemTests.Promotion_and_demotion_never_keep_both_layers_active |
+| LOD-10 | P2: Recompute — fórmula fechada exata na promoção | Verified - CosmeticDetailSystemTests.OnPromoted_recalculates_position_from_closed_formula_exactly |
+| LOD-11 | P2: Recompute — RNG sob demanda reproduz sequência idêntica | Verified - CosmeticDetailSystemTests.Lazy_period_does_not_consume_cosmetic_rng_until_promotion, StreamFor_uses_cosmetic_purpose_and_npc_id |
+| LOD-12 | P2: Recompute — braços LAZY e SEMPRE-TICK convergem byte-idêntico | Verified - LivingWorld.Tests.Unit/Observation/CosmeticEquivalenceTests (10 de 10 seeds) |
+| LOD-20 | P2: Sensor — custo observado vs. aproximado reportado separadamente | Verified - LivingWorld.Tests.LongRunning/Performance/ObservationalLodSensorTests.Observational_lod_sensor_reports_observed_and_approximate_micros_separately |
+| LOD-21 | P2: Sensor — reprova acima da fração declarada | Verified - ObservationalLodSensorTests.Approximate_cosmetic_cost_stays_within_declared_fraction_of_observed |
+| LOD-22 | P2: Sensor — confirma zero custo de rastro fora de escopo | Verified - ObservationalLodSensorTests.Cognition_log_has_zero_entries_outside_observation_scope |
+| CMP-01 | P2: Compressão — log frio delta/dicionário | Verified - LivingWorld.Tests.Integration/Infrastructure/EventLogKindEncodingTests + src/LivingWorld.Infrastructure/Records/EventLogKindEncoding.cs; tests/baselines/event-log-bytes.json |
+| CMP-02 | P2: Compressão — snapshot histórico como diff | Verified - LivingWorld.Tests.Unit/Snapshot/BinarySnapshotWriterDiffTests (Delta_is_smaller_than_full_npc_entity) |
+| CMP-03 | P2: Compressão — interning de string compartilhada | Verified - LivingWorld.Tests.Unit/Interning/StringInternPoolTests, Snapshot/SnapshotStringInterningTests |
+| CMP-04 | P2: Compressão — round-trip byte-idêntico | Verified - LivingWorld.Tests.Unit/Snapshot/BinaryDiffRoundTripTests (Chained_delta_round_trips_over_10_years...) |
+| CMP-05 | P2: Compressão — bytes/NPC/ano dentro do teto da Fase 9 | Verified - LivingWorld.Tests.LongRunning/BytesPerNpcPerYearSensorTests.Ten_year_run_stays_under_the_scenario_declared_bytes_per_npc_per_year_cap |
+| SBX-01 | P3: Sandbox — mesmo motor, sem tocar mundo | Verified - LivingWorld.Tests.Unit/Sandbox/DecisionSandboxTests.Decide_does_not_mutate_WorldState_canonical_hash |
+| SBX-02 | P3: Sandbox — isolamento de escrita testável | Verified - LivingWorld.Tests.Unit/Sandbox/DecisionSandboxIsolationTests (5 cenarios, hash inalterado) |
+| SBX-03 | P3: Sandbox — determinismo do sandbox | Verified - LivingWorld.Tests.Unit/Sandbox/DecisionSandboxTests.Same_synthetic_stimulus_produces_identical_decision |
 
 **Coverage**: 30 total. Todas as decisões de Assumptions confirmadas — sem bloqueio pra Design.
 

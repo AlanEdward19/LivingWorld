@@ -16,6 +16,11 @@ public sealed class EventScheduler
     // inserção dominava o custo do tick (O(k log k) por chamada, k = eventos nesse tick).
     private readonly Dictionary<long, long> _tickById = new();
 
+    // Baldes devolvidos por quem já despachou o tick: reaproveitar a lista (e a capacidade que ela já cresceu) evita criar e
+    // redimensionar uma lista nova a cada hora simulada (os baldes de tick têm centenas de acordares).
+    private readonly Stack<List<ScheduledEvent>> _spare = new();
+    private const int MaxSpareBuckets = 8;
+
     public EventScheduler()
     {
     }
@@ -30,7 +35,7 @@ public sealed class EventScheduler
     {
         if (!_byTick.TryGetValue(evt.TargetTick, out var bucket))
         {
-            bucket = [];
+            bucket = _spare.Count > 0 ? _spare.Pop() : [];
             _byTick[evt.TargetTick] = bucket;
         }
 
@@ -68,7 +73,10 @@ public sealed class EventScheduler
         bucket.RemoveAt(pos);
         _tickById.Remove(id);
         if (bucket.Count == 0)
+        {
             _byTick.Remove(tick);
+            if (_spare.Count < MaxSpareBuckets) _spare.Push(bucket); // balde esvaziado a cancelamentos: reaproveita a capacidade
+        }
 
         return true;
     }
@@ -82,6 +90,16 @@ public sealed class EventScheduler
         foreach (var evt in bucket)
             _tickById.Remove(evt.Id);
         return bucket;
+    }
+
+    /// <summary>Devolve o balde de <see cref="PopDue"/> depois de despachado, para o próximo tick reaproveitá-lo. Quem não
+    /// chama continua certo (a lista só vira lixo); quem chama não pode mais ler a lista.</summary>
+    public void Release(IReadOnlyList<ScheduledEvent> popped)
+    {
+        if (popped is not List<ScheduledEvent> list || _spare.Count >= MaxSpareBuckets) return;
+
+        list.Clear();
+        _spare.Push(list);
     }
 
     public bool HasDue(long tick) => _byTick.TryGetValue(tick, out var bucket) && bucket.Count > 0;

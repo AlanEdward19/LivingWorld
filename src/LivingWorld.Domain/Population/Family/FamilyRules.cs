@@ -31,7 +31,8 @@ public sealed record FamilyRules(
     bool EnvironmentalWealthChannelEnabled,
     bool NeutralDriftEnabled,
     bool VitalityMortalitySelectionEnabled,
-    int MaxCohabitationGroupSize = int.MaxValue)
+    int MaxCohabitationGroupSize = int.MaxValue,
+    double PersonalityHeritability = 0.0)
 {
     /// <summary>Ponto médio do eixo de <see cref="Relationship"/>/<c>Vitality</c>/<c>Upbringing</c>
     /// (escala <c>[0,100]</c>) usado como centro das fórmulas de <see cref="EffectiveVitalityMultiplier"/>
@@ -61,7 +62,8 @@ public sealed record FamilyRules(
         bool environmentalWealthChannelEnabled,
         bool neutralDriftEnabled,
         bool vitalityMortalitySelectionEnabled,
-        int maxCohabitationGroupSize = int.MaxValue)
+        int maxCohabitationGroupSize = int.MaxValue,
+        double personalityHeritability = 0.0)
     {
         foreach (var type in Enum.GetValues<RelationshipEventType>())
             foreach (var axis in Enum.GetValues<RelationshipAxis>())
@@ -119,13 +121,16 @@ public sealed record FamilyRules(
         if (maxCohabitationGroupSize <= 0)
             return Result<FamilyRules>.Fail("MaxCohabitationGroupSize: deve ser > 0");
 
+        if (!(personalityHeritability >= 0 && personalityHeritability <= 1))
+            return Result<FamilyRules>.Fail("PersonalityHeritability: deve estar entre 0 e 1");
+
         return Result<FamilyRules>.Ok(new FamilyRules(
             relationshipDeltas, decayPerDay, contactLossThresholdDays, neutralAxisValue, attractionWeights,
             courtshipThreshold, courtshipDurationDays, marriageInitialStock, conceptionHealthFloor,
             conceptionRelationshipFloor, conceptionResourceFloor, maternalDeathRisk, infantDeathRisk,
             vitalityMotherWeight, vitalityFatherWeight, vitalityMutationStdDev, vitalityMortalityWeight,
             upbringingWealthWeight, environmentalWealthChannelEnabled, neutralDriftEnabled,
-            vitalityMortalitySelectionEnabled, maxCohabitationGroupSize));
+            vitalityMortalitySelectionEnabled, maxCohabitationGroupSize, personalityHeritability));
     }
 
     /// <summary>Delta declarado para o par (evento, eixo). Sem entrada correspondente

@@ -12,7 +12,7 @@ public sealed class SqliteWorldRepository(WorldDbContext context) : IWorldReposi
 {
     public void SaveSnapshotWithEvents(
         BranchId branch, long tick, string json, string canonicalHash, string volatileHash,
-        IReadOnlyList<WorldEvent> events)
+        IReadOnlyList<WorldEvent> events, byte[]? binary = null, long? baseTick = null)
     {
         // Tick zero representa a criação de um novo mundo no slot único. Snapshots mais altos
         // pertencem ao mundo anterior e, se sobreviverem, LoadLatest() os escolherá no próximo
@@ -36,6 +36,8 @@ public sealed class SqliteWorldRepository(WorldDbContext context) : IWorldReposi
             existing.Json = json;
             existing.CanonicalHash = canonicalHash;
             existing.VolatileHash = volatileHash;
+            existing.Binary = binary;
+            existing.BaseTick = baseTick;
         }
         else
         {
@@ -46,6 +48,8 @@ public sealed class SqliteWorldRepository(WorldDbContext context) : IWorldReposi
                 Json = json,
                 CanonicalHash = canonicalHash,
                 VolatileHash = volatileHash,
+                Binary = binary,
+                BaseTick = baseTick,
             });
         }
 
@@ -58,8 +62,11 @@ public sealed class SqliteWorldRepository(WorldDbContext context) : IWorldReposi
                 .ThenBy(l => l.Sequence)
                 .Select(l => l.Kind));
 
+        // O tipo é gravado como índice do pool na ordem de gravação e lido na ordem (tick, sequência): se um lote traz eventos
+        // fora de ordem de tick, gravar na ordem de emissão faz a leitura atribuir índices a tipos errados. Ordenar por tick
+        // (estável) antes de gravar mantém as duas ordens iguais.
         var sequenceByTick = new Dictionary<long, int>();
-        foreach (var evt in events)
+        foreach (var evt in events.OrderBy(e => e.Tick))
         {
             int sequence = sequenceByTick.GetValueOrDefault(evt.Tick);
             sequenceByTick[evt.Tick] = sequence + 1;

@@ -41,9 +41,9 @@ public sealed class ControlMechanic : ExtraordinaryMechanic
     internal static bool IsPossessed(WorldState world, Npc npc)
     {
         if (!world.Extraordinary.Enabled) return false;
-        var possessed = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npc.Id);
+        var possessed = world.CarrierOf(npc.Id);
         if (possessed?.PossessedBy is not { } ownerId) return false;
-        var owner = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == ownerId);
+        var owner = world.CarrierOf(ownerId);
         return owner is { IsManifested: true };
     }
 
@@ -237,13 +237,13 @@ public sealed class ControlMechanic : ExtraordinaryMechanic
 
     private static void ClearSwap(WorldState world, NpcId id)
     {
-        var state = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == id);
+        var state = world.CarrierOf(id);
         if (state is null) return;
         world.UpsertExtraordinaryCarrier(state with { BodySwapPartner = null, ImpersonatingId = null });
     }
 
     internal static ExtraordinaryCarrierState CarrierOf(WorldState world, Npc npc) =>
-        world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npc.Id)
+        world.CarrierOf(npc.Id)
         ?? new ExtraordinaryCarrierState(
             npc.Id, [], false, "dormant",
             new ExtraordinaryAppearanceState(1, "", ""), null, 1);

@@ -1,3 +1,5 @@
+> **Estado: Parcial** (specs-closeout 2026-10-12) - fase fechada (AD-070); sensor, lazy needs, wake, arquivo frio, snapshot binario e paralelismo provados; PERF-12 (hash sujo) e metas finais pendentes (ver closeout.md).
+
 # Fase 9 — Escala e armazenamento — Specification
 
 ## Problem Statement

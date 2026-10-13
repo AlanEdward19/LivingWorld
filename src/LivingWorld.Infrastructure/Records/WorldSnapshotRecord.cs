@@ -11,4 +11,11 @@ public sealed class WorldSnapshotRecord
     public required string Json { get; set; }
     public required string CanonicalHash { get; set; }
     public required string VolatileHash { get; set; }
+
+    /// <summary>Bloco binário posicional (<c>PositionalSnapshot</c>); nulo nas linhas antigas, que só têm
+    /// <see cref="Json"/>. Nas linhas novas <see cref="Json"/> fica vazio.</summary>
+    public byte[]? Binary { get; set; }
+
+    /// <summary>Tick da linha-base completa sobre a qual este bloco é um diff; nulo quando o bloco é completo.</summary>
+    public long? BaseTick { get; set; }
 }

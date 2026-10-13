@@ -1,5 +1,7 @@
 using LivingWorld.Api.Realtime;
+using LivingWorld.Api.Visual.Projection;
 using LivingWorld.Api.Visual.Scope;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Infrastructure;
 using LivingWorld.Infrastructure.EventLog;
 using LivingWorld.Simulation.Core;
@@ -23,6 +25,7 @@ public sealed class TickLoopService(
     BufferingWorldEventSink sink) : IHostedService
 {
     private readonly Dictionary<string, LivingScopeState> _lastStates = new();
+    private readonly Dictionary<string, IReadOnlyList<InteriorOccupant>> _lastInteriors = new();
     private CancellationTokenSource? _cts;
     private Task? _loopTask;
 
@@ -77,10 +80,17 @@ public sealed class TickLoopService(
     {
         long tick = world.CurrentDate.TotalHours;
 
-        foreach (var scopeKey in gateway.SubscribedScopeKeys)
+        var subscribed = gateway.SubscribedScopeKeys;
+        foreach (var scopeKey in subscribed)
         {
+            if (scopeKey.StartsWith("interior:", StringComparison.Ordinal))
+            {
+                PublishInterior(world, scopeKey, tick);
+                continue;
+            }
+
             if (scopeKey != "world" && !scopeKey.StartsWith("city:", StringComparison.Ordinal))
-                continue; // Só cobre escopos World/City; Interior ainda não publica delta aqui.
+                continue;
 
             var scope = ParseScope(scopeKey);
             var state = LivingScopeProjector.Build(world, scope, sink.EventsAt(tick));
@@ -92,6 +102,25 @@ public sealed class TickLoopService(
             _lastStates[scopeKey] = state;
             gateway.Publish(scope, delta);
         }
+
+        if (_lastInteriors.Count > 0)
+            foreach (var gone in _lastInteriors.Keys.Where(key => !subscribed.Contains(key)).ToList())
+                _lastInteriors.Remove(gone); // sem assinante, o próximo a assinar começa de uma base nova
+    }
+
+    /// <summary>Delta de interior: diferença das ocupações entre dois ticks, publicada só quando mudou.</summary>
+    private void PublishInterior(WorldState world, string scopeKey, long tick)
+    {
+        if (!long.TryParse(scopeKey["interior:".Length..], out long id)) return;
+        var built = InteriorProjector.BuildOccupants(world, new BuildingId(id));
+        if (built is null) return;
+
+        var before = _lastInteriors.TryGetValue(scopeKey, out var previous) ? previous : [];
+        _lastInteriors[scopeKey] = built;
+        var diff = InteriorOccupancyDiffer.Diff(before, built);
+        var delta = new InteriorTickDelta(tick, new BuildingId(id), diff.Entered, diff.Moved, diff.ChangedFloor, diff.Exited);
+        if (!delta.IsEmpty)
+            gateway.Publish(new VisualScope(VisualScopeKind.Interior, id.ToString()), delta);
     }
 
     private static VisualScope ParseScope(string scopeKey) =>

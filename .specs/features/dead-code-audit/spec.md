@@ -1,3 +1,5 @@
+> **Estado: Parcial** (specs-closeout 2026-10-12) - auditoria e maior parte da execucao confirmadas no codigo; gate/build/golden pendentes, ver closeout.md.
+
 # Dead Code Audit Specification
 
 ## Problem Statement
@@ -209,18 +211,18 @@ Excluído explicitamente desta rodada. Documentado pra não crescer escopo.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| AUDIT-01 | P1: Inventário sem consumidor | Specify | Verified |
-| AUDIT-02 | P1: Inventário sem consumidor | Specify | Verified |
-| AUDIT-03 | P1: Inventário sem consumidor | Specify | Verified |
-| AUDIT-04 | P2: Versões antigas coexistindo | Specify | Verified |
-| AUDIT-05 | P2: Versões antigas coexistindo | Specify | Verified |
-| AUDIT-06 | P2: Versões antigas coexistindo | Specify | Verified |
-| AUDIT-07 | P3: Higiene de comentários | Specify | Verified |
-| AUDIT-08 | P3: Higiene de comentários | Specify | Verified |
-| AUDIT-09 | P3: Higiene de comentários | Specify | Verified |
-| AUDIT-10 | P3: Higiene de comentários | Specify | Verified |
-| AUDIT-11 | P4: Oportunidades de consolidação | Specify | Verified |
-| AUDIT-12 | P4: Oportunidades de consolidação | Specify | Verified |
+| AUDIT-01 | P1: Inventário sem consumidor | Specify | Verified - report.md, closeout.md |
+| AUDIT-02 | P1: Inventário sem consumidor | Specify | Verified - report.md, closeout.md |
+| AUDIT-03 | P1: Inventário sem consumidor | Specify | Verified - report.md, closeout.md |
+| AUDIT-04 | P2: Versões antigas coexistindo | Specify | Verified - report.md, closeout.md |
+| AUDIT-05 | P2: Versões antigas coexistindo | Specify | Verified - report.md, closeout.md |
+| AUDIT-06 | P2: Versões antigas coexistindo | Specify | Verified - report.md, closeout.md |
+| AUDIT-07 | P3: Higiene de comentários | Specify | Verified - report.md, closeout.md |
+| AUDIT-08 | P3: Higiene de comentários | Specify | Verified - report.md, closeout.md |
+| AUDIT-09 | P3: Higiene de comentários | Specify | Verified - report.md, closeout.md |
+| AUDIT-10 | P3: Higiene de comentários | Specify | Verified - report.md, closeout.md |
+| AUDIT-11 | P4: Oportunidades de consolidação | Specify | Verified - report.md, closeout.md |
+| AUDIT-12 | P4: Oportunidades de consolidação | Specify | Verified - report.md, closeout.md |
 | EXEC-01 | P5: Remover código morto confirmado | Design | Implemented — gate completo pendente (usuário) |
 | EXEC-02 | P5: Remover código morto confirmado | Design | Dropped — DecisionMetrics tem consumidor de teste real |
 | EXEC-03 | P5: Remover código morto confirmado | Design | Implemented — gate completo pendente (usuário) |

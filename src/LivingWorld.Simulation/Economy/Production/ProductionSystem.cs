@@ -95,7 +95,11 @@ public sealed class ProductionSystem : ISimulationSystem
                 continue;
 
             var resource = new ResourceType(resourceId);
-            long produced = (long)(perWorker * scale * skillMultiplier * strengthMultiplier * workCapacityMultiplier);
+            // o ano de safra da região só mexe no alimento (a água do poço não depende de chuva neste modelo)
+            double climate = resourceId == rules.FoodResourceId
+                ? world.ClimateFactorAt(workplace.Location, ctx.CurrentTick) / 1000.0
+                : 1.0;
+            long produced = (long)(perWorker * scale * skillMultiplier * strengthMultiplier * workCapacityMultiplier * climate);
             world.RecordResourceProduced(resource, produced); // conta o bruto, antes do clamp de capacidade
             long lost = workplace.Deposit(resource, produced, rules);
             if (lost > 0)

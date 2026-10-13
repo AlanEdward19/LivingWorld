@@ -15,18 +15,19 @@ public static class PersonalityWeighting
     private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<ActionType, double>> Influence =
         new Dictionary<string, IReadOnlyDictionary<ActionType, double>>
         {
-            [nameof(Personality.Conscientiousness)] = new Dictionary<ActionType, double> { [ActionType.Work] = 1.0 },
+            [nameof(Personality.Conscientiousness)] = new Dictionary<ActionType, double> { [ActionType.Work] = 1.0, [ActionType.Steal] = -1.0 },
             [nameof(Personality.Ambition)] = new Dictionary<ActionType, double> { [ActionType.Work] = 1.0 },
             [nameof(Personality.Extroversion)] = new Dictionary<ActionType, double> { [ActionType.Socialize] = 1.0 },
             [nameof(Personality.Openness)] = new Dictionary<ActionType, double> { [ActionType.Socialize] = 1.0 },
-            [nameof(Personality.Altruism)] = new Dictionary<ActionType, double> { [ActionType.Socialize] = 1.0 },
+            [nameof(Personality.Altruism)] = new Dictionary<ActionType, double> { [ActionType.Socialize] = 1.0, [ActionType.Steal] = -1.0 },
             [nameof(Personality.Loyalty)] = new Dictionary<ActionType, double> { [ActionType.Work] = 1.0 },
             [nameof(Personality.Impulsivity)] = new Dictionary<ActionType, double>
             {
                 [ActionType.Idle] = 1.0,
                 [ActionType.Work] = -1.0,
+                [ActionType.Steal] = 1.0,
             },
-            [nameof(Personality.RiskAversion)] = new Dictionary<ActionType, double> { [ActionType.Travel] = -1.0 },
+            [nameof(Personality.RiskAversion)] = new Dictionary<ActionType, double> { [ActionType.Travel] = -1.0, [ActionType.Steal] = -1.0 },
             [nameof(Personality.EmotionalStability)] = new Dictionary<ActionType, double> { [ActionType.Idle] = -1.0 },
             [nameof(Personality.Agreeableness)] = new Dictionary<ActionType, double> { [ActionType.Socialize] = 1.0 },
         };

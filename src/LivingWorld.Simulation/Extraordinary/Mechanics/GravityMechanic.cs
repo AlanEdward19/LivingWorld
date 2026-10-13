@@ -50,7 +50,7 @@ public sealed class GravityMechanic : ExtraordinaryMechanic
 
     internal static ExtraordinaryLocomotionProfile ResolveProfile(WorldState world, Npc npc)
     {
-        var carrier = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npc.Id);
+        var carrier = world.CarrierOf(npc.Id);
         bool canFly = false;
         double dash = 1;
         double weight = ComposeWeight(world, carrier, ref canFly, ref dash);

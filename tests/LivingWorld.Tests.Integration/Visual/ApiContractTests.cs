@@ -31,6 +31,7 @@ public class ApiContractTests
     [InlineData("action-catalog", "/visual/catalog/actions")]
     [InlineData("world-subscribe", "/visual/subscribe?scope=World&mode=Spectator")]
     [InlineData("simulation-status", "/simulation/status")]
+    [InlineData("world-calendar", "/world/calendar")]
     public async Task Response_shape_matches_the_committed_contract(string name, string url)
     {
         var response = await _factory.CreateClient().GetAsync(url);
@@ -38,6 +39,21 @@ public class ApiContractTests
 
         var shape = ShapeOf(JsonNode.Parse(await response.Content.ReadAsStringAsync()));
         AssertMatchesContract($"shape.{name}.json", shape);
+    }
+
+    /// <summary>`GET /npcs/{id}` é a ficha que o cliente abre ao clicar num NPC: forma congelada, 404 para id inexistente.</summary>
+    [Fact]
+    public async Task Npc_inspection_shape_matches_the_committed_contract_and_an_unknown_id_is_404()
+    {
+        var client = _factory.CreateClient();
+        var directory = JsonNode.Parse(await client.GetStringAsync("/npcs?take=1"))!;
+        long id = directory["items"]![0]!["id"]!["value"]!.GetValue<long>();
+
+        var response = await client.GetAsync($"/npcs/{id}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        AssertMatchesContract("shape.npc-inspect.json", ShapeOf(JsonNode.Parse(await response.Content.ReadAsStringAsync())));
+
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/npcs/987654321")).StatusCode);
     }
 
     /// <summary>Escopos Cidade e Interior do primeiro prédio do mundo canônico: a forma inclui `floors`,

@@ -1,3 +1,5 @@
+> **Estado: Parcial** (specs-closeout 2026-10-12) - 3 de 5 criterios com teste (HOUSE-01/02/05); HOUSE-03 e HOUSE-04 sem prova encontrada. Ver closeout.md.
+
 # City house layout — acceptance anchor
 
 ## Scope

@@ -1,3 +1,5 @@
+> **Estado: Parcial** (specs-closeout 2026-10-12) - Portais canônicos e backend provados; redesign do cliente web retirado (ADR-0022), UI no Godot.
+
 # Fase 15.1 (Redesign do frontend VTT) Specification
 
 > **Cliente web removido (ADR-0022, 2026-10-11).** O contrato com o cliente é a API do motor (`tests/contracts/`); a UI é
@@ -383,22 +385,22 @@ porta antes/depois; somente o tint atmosférico pode mudar.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| VTT2-01..05 | P1: Map Engine com câmera de verdade | Design | Pending |
-| VTT2-06..10 | P1: Espaços hierárquicos e navegação Observer | Design | Pending |
-| VTT2-11..15 | P1: NPCs em movimento com interpolação visual | Design | Pending |
-| VTT2-68..72 | P1: NPC como pawn visual determinístico em SVG | Ajuste visual | Pending |
-| VTT2-73..78 | P1: Mundo e cidades como paisagem top-down viva | Ajuste visual | Pending |
-| VTT2-16..21 | P1: Selecionar ≠ navegar ≠ agir + inspector flutuante | Design | Pending |
-| VTT2-22..25 | P1: Inspector de NPC e Cidade com dados reais | Design | Pending |
-| VTT2-26..31 | P1: Controles de tempo | Design | Pending |
-| VTT2-32..36 | P1: Separação Simulation / View / Selection | Design | Pending |
-| **VTT2-62..67** | **P1: SpatialPortal como conceito canônico de domínio** | Design | Pending |
-| VTT2-37..41 | P2: LOD por zoom com nível agregado | - | Pending |
-| VTT2-42..45 | P2: Cidade com footprint espacial (API-derived, OQ-1 resolvida) | - | Pending |
-| VTT2-46..48 | P2: Layers/overlays selecionáveis | - | Pending |
-| VTT2-49..52 | P2: Follow | - | Pending |
-| VTT2-53..59 | P2: World Creator — presets e editor visual | - | Pending |
-| VTT2-60..61 | P3: BuildingSpace | - | Pending |
+| VTT2-01..05 | P1: Map Engine com câmera de verdade | Design | Deferred - cliente web removido (ADR-0022); UI no Godot (.specs/features/godot-client/) |
+| VTT2-06..10 | P1: Espaços hierárquicos e navegação Observer | Design | Deferred - cliente web removido (ADR-0022); UI no Godot (.specs/features/godot-client/) |
+| VTT2-11..15 | P1: NPCs em movimento com interpolação visual | Design | Deferred - cliente web removido (ADR-0022); UI no Godot (.specs/features/godot-client/) |
+| VTT2-68..72 | P1: NPC como pawn visual determinístico em SVG | Ajuste visual | Deferred - cliente web removido (ADR-0022); UI no Godot (.specs/features/godot-client/) |
+| VTT2-73..78 | P1: Mundo e cidades como paisagem top-down viva | Ajuste visual | Deferred - cliente web removido (ADR-0022); UI no Godot (.specs/features/godot-client/) |
+| VTT2-16..21 | P1: Selecionar ≠ navegar ≠ agir + inspector flutuante | Design | Deferred - cliente web removido (ADR-0022); UI no Godot (.specs/features/godot-client/) |
+| VTT2-22..25 | P1: Inspector de NPC e Cidade com dados reais | Design | Pending - dados da API (NpcLivingInspectorTests, ApiContractTests Npc_inspection_shape...); inspector era UI web (ADR-0022) |
+| VTT2-26..31 | P1: Controles de tempo | Design | Pending - backend provado (tests/LivingWorld.Tests.Integration/Simulation/SimulationControlEndpointsTests.cs, TickLoopServiceTests.cs, TickLoopHashInvarianceTests.cs); controles/HUD de tempo eram do cliente web (ADR-0022) |
+| VTT2-32..36 | P1: Separação Simulation / View / Selection | Design | Pending - invariância de hash por leitura provada (VisualGateTests Reading_and_subscribing_..._never_changes_the_canonical_hash); separação Simulation/View/Selection era do cliente web (ADR-0022) |
+| **VTT2-62..67** | **P1: SpatialPortal como conceito canônico de domínio** | Design | Verified - tests/LivingWorld.Tests.Unit/Core/WorldSnapshotTests.cs (Round_tripping_a_world_with_portals..., Adding_a_portal_is_the_only_source_of_divergence), Unit/Visual/Projection/CityProjectorTests.cs e GlobalProjectorTests.cs (portais); item AC5 (navegação no cliente) deferido ao Godot |
+| VTT2-37..41 | P2: LOD por zoom com nível agregado | - | Deferred - cliente web removido (ADR-0022); UI no Godot (.specs/features/godot-client/) |
+| VTT2-42..45 | P2: Cidade com footprint espacial (API-derived, OQ-1 resolvida) | - | Pending - bounds derivados na API provados (GlobalProjectorTests Build_includes_the_citys_derived_bounds_matching_SpatialBoundsResolver); render do footprint no cliente web obsoleto (ADR-0022) |
+| VTT2-46..48 | P2: Layers/overlays selecionáveis | - | Deferred - cliente web removido (ADR-0022); UI no Godot (.specs/features/godot-client/) |
+| VTT2-49..52 | P2: Follow | - | Deferred - cliente web removido (ADR-0022); UI no Godot (.specs/features/godot-client/) |
+| VTT2-53..59 | P2: World Creator — presets e editor visual | - | Pending - criação de mundo no backend em tests/LivingWorld.Tests.Integration/World/WorldCreateEndpointsTests.cs; presets/editor visual eram do cliente web (ADR-0022) |
+| VTT2-60..61 | P3: BuildingSpace | - | Deferred - cliente web removido (ADR-0022); UI no Godot (.specs/features/godot-client/) |
 
 **ID format:** `VTT2-[NUMBER]` — prefixo novo para não colidir com os `VTT-NN` da Fase 15.
 

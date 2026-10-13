@@ -7,8 +7,8 @@
   "BiomeIds": [1],
   "ResourceIds": [],
   "CostWeights": {
-    "Base": 1.0,
-    "AltitudeWeight": 0.5,
+    "Base": 0.3,
+    "AltitudeWeight": 0.05,
     "TerrainWeight": { "1": 1.0, "2": 1.5, "3": 3.0 }
   },
   "Settlements": [{ "Name": "vila", "X": 5, "Y": 5 }],
@@ -69,6 +69,7 @@
   "FoodResourceId": 1,
   "WaterResourceId": 2,
   "PriceSensitivity": 0.2,
+  "WageTaxRate": 0.05,
   "CapacityByResourceLocation": { "1,1": 1000, "2,1": 1000, "3,3": 1000, "5,4": 1000 },
   "SpoilagePerDayByResource": { "1": 0.01 },
   "WageByProfession": { "1": 90, "2": 110, "3": 95, "4": 100 },

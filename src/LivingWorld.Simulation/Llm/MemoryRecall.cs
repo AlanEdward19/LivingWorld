@@ -15,6 +15,13 @@ public static class MemoryRecall
         if (world.CanonicalMemories.Count == 0 && world.VolatileMemories.Count == 0)
             return [];
 
+        return RecallScored(world, npcId, query, n, rules);
+    }
+
+    /// <summary>Em método próprio: os lambdas capturam os parâmetros e o compilador aloca o fecho no início do método que os
+    /// declara, então o retorno rápido acima pagava o fecho a cada decisão (5% dos bytes alocados por tick a 10.000 NPCs).</summary>
+    private static IReadOnlyList<NpcMemory> RecallScored(WorldState world, NpcId npcId, string query, int n, LlmRules rules)
+    {
         long now = world.CurrentDate.TotalHours;
 
         return world.CanonicalMemories.Concat(world.VolatileMemories)

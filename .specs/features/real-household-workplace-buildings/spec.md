@@ -1,3 +1,5 @@
+> **Estado: Entregue** (specs-closeout 2026-10-12) - 8/8 HOMEWORK verificados em testes unit (PopulationSeeder, ScenarioRunner, ScenarioLoaderV2, BuildingLink).
+
 # Real Household & Workplace Buildings Specification
 
 ## Problem Statement
@@ -131,14 +133,14 @@ equals that workplace's `Location`.
 
 | Requirement ID | Story | Phase | Status |
 | --------------- | ----- | ------ | ------- |
-| HOMEWORK-01 | P1: Households get a real placed house | Design | Pending |
-| HOMEWORK-02 | P1: Households get a real placed house | Design | Pending |
-| HOMEWORK-03 | P1: Households get a real placed house | Design | Pending |
-| HOMEWORK-04 | P1: Households get a real placed house | Design | Pending |
-| HOMEWORK-05 | P1: Workplaces get a real placed building | Design | Pending |
-| HOMEWORK-06 | P1: Workplaces get a real placed building | Design | Pending |
-| HOMEWORK-07 | P1: Workplaces get a real placed building | Design | Pending |
-| HOMEWORK-08 | P1: Workplaces get a real placed building | Design | Pending |
+| HOMEWORK-01 | P1: Households get a real placed house | Design | Verified - tests/LivingWorld.Tests.Unit/Population/PopulationSeederTests.cs (SeedInitial_creates_exactly_one_matching_building_per_household) |
+| HOMEWORK-02 | P1: Households get a real placed house | Design | Verified - tests/LivingWorld.Tests.Unit/Cities/BuildingLinkTests.cs (Seeded_household_dwelling_is_its_house_building_containing_the_bed_cell; location is the bed cell inside the house, link refined from the literal "equals Position") |
+| HOMEWORK-03 | P1: Households get a real placed house | Design | Verified - src/LivingWorld.Api/Visual/Projection/CityProjector.cs renders world.Buildings; tests/LivingWorld.Tests.Unit/Cities/CityGrownBoundsTests.cs (CityProjector_Build_*) |
+| HOMEWORK-04 | P1: Households get a real placed house | Design | Verified - tests/LivingWorld.Tests.Unit/Population/PopulationSeederTests.cs (SeedInitial_never_reuses_a_house_position, ..._footprints_do_not_overlap) |
+| HOMEWORK-05 | P1: Workplaces get a real placed building | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/ScenarioRunnerWorkplaceBuildingTests.cs (Create_default_workplaces_each_have_one_building_at_their_location) |
+| HOMEWORK-06 | P1: Workplaces get a real placed building | Design | Verified - tests/LivingWorld.Tests.Unit/Periods/ScenarioLoaderV2Tests.cs (Authored_workplace_links_to_its_building, Authored_workplace_collision_resolves_to_non_overlapping_buildings) |
+| HOMEWORK-07 | P1: Workplaces get a real placed building | Design | Verified - tests/LivingWorld.Tests.Unit/Cities/Construction/ConstructionSystemTests.cs (construction path untouched; Stuck_workplace_project_does_not_block_a_house_project...) |
+| HOMEWORK-08 | P1: Workplaces get a real placed building | Design | Verified - tests/LivingWorld.Tests.Unit/Cities/BuildingLinkTests.cs (Default_seeded_workplaces_link_to_their_buildings), ScenarioLoaderV2Tests (Authored_workplace_free_location_is_preserved_by_its_building) |
 
 **ID format:** `HOMEWORK-NN`, one per acceptance criterion above (in order).
 

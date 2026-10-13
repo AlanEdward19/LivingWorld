@@ -34,14 +34,16 @@ public sealed partial class BehaviorDecisionSystem
         DecisionContext ctx, NeedsRules rules, EconomyRules economy, ActionType? continuityAction,
         PowerUtilityRules? powerRules = null,
         WakeReason wakeReason = WakeReason.UrgentNeed,
-        ActionType? previousIntent = null)
+        ActionType? previousIntent = null,
+        bool captureTrace = true)
     {
         var utilityRules = PowerUtilityRules.Resolve(powerRules);
         var foresight = ctx.ForesightPreviews ?? ForesightMechanic.EmptyPreviews;
         var best = ActionType.Eat;
         double bestScore = double.NegativeInfinity;
         PendingPowerInvocation? bestPending = null;
-        var scored = new List<(ActionType Action, double Score)>(AllActions.Length + ctx.PowerOpportunities.Count);
+        // O rastro só é montado para quem é gravado no log de cognição; sem ele, nada de lista, fecho nem delegate por decisão
+        var scored = captureTrace ? new List<(ActionType Action, double Score)>(AllActions.Length + ctx.PowerOpportunities.Count) : null;
 
         foreach (var action in AllActions)
         {
@@ -52,7 +54,7 @@ public sealed partial class BehaviorDecisionSystem
             if (rules.HysteresisEnabled && continuityAction == action)
                 score += rules.ContinuityBonus;
 
-            scored.Add((action, score));
+            scored?.Add((action, score));
             if (score > bestScore)
             {
                 bestScore = score;
@@ -75,7 +77,7 @@ public sealed partial class BehaviorDecisionSystem
                 continue;
             }
 
-            scored.Add((ActionType.UsePower, score));
+            scored?.Add((ActionType.UsePower, score));
             if (score > bestScore)
             {
                 bestScore = score;
@@ -85,10 +87,20 @@ public sealed partial class BehaviorDecisionSystem
             }
         }
 
-        return new UtilityDecision(
-            best, bestPending,
-            () => BuildDecisionTrace(ctx, wakeReason, previousIntent, best, bestScore, scored));
+        if (scored is null)
+            return new UtilityDecision(best, bestPending, NoTrace);
+
+        return TracedDecision(ctx, wakeReason, previousIntent, best, bestScore, scored, bestPending);
     }
+
+    private static readonly Func<DecisionTrace> NoTrace = static () =>
+        throw new InvalidOperationException("decisão sem captura de rastro (captureTrace: false)");
+
+    /// <summary>Em método próprio: o compilador aloca o fecho no início do método que o declara.</summary>
+    private static UtilityDecision TracedDecision(
+        DecisionContext ctx, WakeReason wakeReason, ActionType? previousIntent, ActionType best, double bestScore,
+        List<(ActionType Action, double Score)> scored, PendingPowerInvocation? bestPending) =>
+        new(best, bestPending, () => BuildDecisionTrace(ctx, wakeReason, previousIntent, best, bestScore, scored));
 
     private static DecisionTrace BuildDecisionTrace(
         DecisionContext ctx,
@@ -244,6 +256,7 @@ public sealed partial class BehaviorDecisionSystem
         ActionType.Buy => BuyUtilityOf(ctx, economy),
         ActionType.Work or ActionType.Travel or ActionType.Idle => NonNeedBaselineUtility,
         ActionType.UsePower => 0.0, // só vence via candidatos PowerOpportunity (T22)
+        ActionType.Steal => 0.0, // só entra por TheftResolver.Wants
         _ => throw new ArgumentOutOfRangeException(nameof(action), action, "ActionType desconhecido"),
     };
 
@@ -255,7 +268,13 @@ public sealed partial class BehaviorDecisionSystem
 
         bool hasFood = household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId)) >= 1;
         bool hasWater = household.Stock.GetValueOrDefault(new ResourceType(economy.WaterResourceId)) >= 1;
-        return hasFood || hasWater ? deficit : NonNeedBaselineUtility / 2;
+        if (!hasFood && !hasWater) return NonNeedBaselineUtility / 2;
+
+        // Comer só vale pela necessidade que a despensa consegue servir: com comida e sem água, a sede crítica não
+        // faz de Comer a melhor ação (era assim que o NPC ficava "comendo" ao lado do mercado até morrer de sede).
+        double servable = Math.Max(
+            hasFood ? SurvivalDeficit(ctx.Needs.Hunger) : 0, hasWater ? SurvivalDeficit(ctx.Needs.Thirst) : 0);
+        return servable;
     }
 
     private static double BuyUtilityOf(DecisionContext ctx, EconomyRules economy)
@@ -283,7 +302,7 @@ public sealed partial class BehaviorDecisionSystem
         if (ctx.WalletAmount < 1) return 0;
         int members = Math.Max(1, household.Members.Count);
         double daysPerMember = (double)scarcestStock / members;
-        double shortfall = 1.0 - daysPerMember / ProvisionTargetDays;
+        double shortfall = 1.0 - daysPerMember / ctx.ProvisionTargetDays;
         return shortfall <= 0 ? 0 : 55 + 75 * Math.Min(1.0, shortfall);
     }
 

@@ -10,7 +10,7 @@ namespace LivingWorld.Simulation.Population.Lifecycle;
 /// <summary>Morte por idade como evento agendado — nenhuma varredura por tick. A
 /// idade de morte é resolvida por antecipação (<see cref="MortalityPlanner"/>) no nascimento;
 /// este sistema só executa o que já foi decidido, no tick certo.</summary>
-[LivingCapability("DEATH", Events = [WorldEventKind.Death, WorldEventKind.Starvation, WorldEventKind.Dehydration, WorldEventKind.Exhaustion], Consumers = ["timeline.death"])]
+[LivingCapability("DEATH", Events = [WorldEventKind.Death, WorldEventKind.Starvation, WorldEventKind.Dehydration, WorldEventKind.Exhaustion, WorldEventKind.EstateSettled, WorldEventKind.Disease], Consumers = ["timeline.death"])]
 public sealed class MortalitySystem : ISimulationSystem
 {
     public const string SystemName = "population-mortality";
@@ -47,7 +47,7 @@ public sealed class MortalitySystem : ISimulationSystem
         // Lê o multiplicador já agregado (mínimo entre poderes manifestos) no
         // estado do portador. Multiplicador 0 = não envelhece — não agenda morte por idade.
         double senescenceRateMultiplier = 1.0;
-        var carrier = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npc.Id);
+        var carrier = world.CarrierOf(npc.Id);
         if (carrier is { IsManifested: true })
         {
             if (carrier.SenescenceRateMultiplier <= 0.0)

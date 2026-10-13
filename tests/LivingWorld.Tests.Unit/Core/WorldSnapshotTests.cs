@@ -110,10 +110,19 @@ public class WorldSnapshotTests
             world.NextWorkplaceIdAndAdvance(), new LocationType(1), ScenarioRunner.DefaultVillageLocation, maxVacancies: 1,
             employees: [], stock: new Dictionary<ResourceType, long> { [new ResourceType(1)] = 5 }, treasury: new Money(10),
             prices: new Dictionary<ResourceType, long> { [new ResourceType(1)] = 2 }));
+        // trade-ledger: livro vazio não tem folha primitiva pro mutador genérico perturbar.
+        world.RecordTrade(world.Workplaces[0].Id, new ResourceType(1), day: 3, quantity: 2, value: 4);
         // Fase 8 (T5): força ao menos uma City/Building não-vazia — mesmo motivo do Workplace
         // acima (coleção vazia não tem folha primitiva pro mutador genérico perturbar).
         var city = world.ActiveCities().Single();
         world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId: 1, completedAtTick: 0));
+        // taxes-treasury: livro do tesouro vazio não tem folha primitiva pro mutador genérico perturbar.
+        world.RecordTreasury(city.Id, tick: 5, revenue: 3, spending: 1);
+        // disease-epidemics: infecções e imunidades vazias não têm folha primitiva pro mutador genérico.
+        world.AddInfection(world.Npcs[0].Id, disease: 1, endTick: 100);
+        world.SetImmunity(world.Npcs[1].Id, disease: 1, untilTick: 200);
+        // weather-drought: ano de safra vazio não tem folha primitiva pro mutador genérico.
+        world.SetClimateYear(world.Map.Regions[0].Id, year: 2, factorMilli: 800);
         // Fase 15.1 T12: RestPlaces vazio não tem folha primitiva pro mutador genérico.
         var restHousehold = world.Households[0];
         world.AddRestPlace(new RestPlace(

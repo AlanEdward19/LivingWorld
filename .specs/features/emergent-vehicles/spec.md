@@ -1,3 +1,5 @@
+> **Estado: Spec** (specs-closeout 2026-10-12) - plano apenas; nenhuma implementacao de veiculos em src/ ou tests/ (ver closeout.md).
+
 # Veículos emergentes — Specification
 
 > **Spec, não gate. Sem implementação.** Depende da Fase 24 (tecnologia como composição, limiar

@@ -109,7 +109,10 @@ public sealed class NatalitySystem : ISimulationSystem
         var sex = ctx.Rng($"natality-sex-{motherId.Value}-{evt.Id}").NextDouble() < 0.5 ? Sex.Female : Sex.Male;
         var babyId = world.NextNpcIdAndAdvance();
 
-        var personality = Personality.RollFrom(ctx.StreamFor("personality", babyId.Value));
+        // a personalidade mistura a dos pais com sorteio próprio, no peso do cenário (personality-heredity, AD-099)
+        var personality = Personality.Inherit(
+            mother.Personality, father?.Personality ?? mother.Personality, ctx.StreamFor("personality", babyId.Value),
+            familyRules.PersonalityHeritability);
         var profession = world.PopulationCatalog.RollProfession(ctx.StreamFor("profession", babyId.Value));
         var rateGene = RateGene.Inherit(
             mother.RateGene, father?.RateGene ?? mother.RateGene, ctx.StreamFor("rategene", babyId.Value));

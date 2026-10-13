@@ -24,7 +24,7 @@ namespace LivingWorld.Simulation.Behavior.Decision;
 /// deslocamento com custo real quando a ação vencedora exige um local diferente do atual.
 /// <c>Sleep</c> usa um lugar de descanso alcançável (chão/moradia/cama); sem caminho o NPC
 /// bloqueia no local atual em vez de teleportar.</summary>
-[LivingCapability("BEHAVIOR", Consumers = ["map.npc.action"])]
+[LivingCapability("BEHAVIOR", Events = [WorldEventKind.TheftDiscovered], Consumers = ["map.npc.action"])]
 [RunsAfter(typeof(NeedsDecaySystem))]
 public sealed partial class BehaviorDecisionSystem : ISimulationSystem
 {
@@ -41,13 +41,27 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
     /// <summary>Despensa que uma ida ao mercado tenta formar e abaixo da qual a casa pede reposição.</summary>
     private const int ProvisionTargetDays = 2;
     private const int PurchaseDaysOfSupply = 4;
+
+    /// <summary>Quem mora longe do mercado repõe a despensa para a ida e a volta, não só para o dia: cada dia de caminho
+    /// (ida e volta) soma um dia à meta, e a compra cobre a meta mais uma folga.</summary>
+    private const int ProvisionSlackDays = 2;
+    private const int MaxProvisionDays = 14;
+
+    /// <summary>Fração da meta de dias abaixo da qual a casa sai para repor.</summary>
+    private const double RestockShortfall = 0.5;
     private const long MinimumPurchaseQuantity = 10;
+    private const int WellDaysOfSupply = 2;
+    private const long WellMinimumDraw = 4;
 
     private static readonly ActionType[] AllActions = Enum.GetValues<ActionType>()
-        .Where(a => a != ActionType.UsePower)
+        .Where(a => a is not (ActionType.UsePower or ActionType.Steal))
         .ToArray();
 
     private readonly SkillsRules? _skillsRules;
+
+    // Reaproveitado a cada tick (o tick é serial e o conjunto só vive dentro dele): criar e redimensionar um conjunto novo
+    // com a posição de todos os NPCs vivos era 5% dos bytes alocados por tick a 10.000 NPCs.
+    private readonly HashSet<CellCoord> _occupancy = [];
 
     public BehaviorDecisionSystem(SkillsRules? skillsRules = null) => _skillsRules = skillsRules;
 
@@ -67,7 +81,8 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
         // anterior escaneava todo mundo dentro de cada passeio ambiente e virava O(n²), inviável
         // acima de ~1000 NPCs (LIVE-POLISH: perf sensor). Mantido atualizado a cada `MoveTo` desta
         // função pra ordem dentro do próprio tick continuar correta.
-        var occupancy = new HashSet<CellCoord>();
+        var occupancy = _occupancy;
+        occupancy.Clear();
         foreach (var other in world.Npcs)
             if (other.IsAlive)
                 occupancy.Add(other.CurrentLocation);
@@ -115,27 +130,35 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
 
                 PendingPowerInvocation? pendingPower = null;
                 ActionType candidate;
-                if (HasUrgentNeedForDecision(npc, rules, now))
+                bool urgent = HasUrgentNeedForDecision(npc, rules, now);
+                if (urgent)
                 {
+                    bool recordTrace = ShouldRecordCognitionTrace(world, npc);
                     var decision = SelectByUtility(
-                        DecisionContextBuilder.Build(world, npc, now),
+                        DecisionContextBuilder.Build(world, npc, now, provisionTargetDays: ProvisionTargetFor(world, npc, marketIndex)),
                         rules,
                         world.EconomyRules,
                         continuityAction,
                         wakeReason: justCompleted ? WakeReason.ActionCompleted : WakeReason.UrgentNeed,
-                        previousIntent: npc.CurrentIntent);
+                        previousIntent: npc.CurrentIntent,
+                        captureTrace: recordTrace);
                     candidate = decision.Action;
                     pendingPower = decision.PendingPower;
 
-                    if (ShouldRecordCognitionTrace(world, npc))
+                    if (recordTrace)
                         world.CognitionLog.Record(npc.Id, now, decision.Trace);
                 }
                 else
                 {
-                    candidate = routineAction;
+                    // despensa baixa para a distância do mercado: quem tem dinheiro vai repor sem esperar a sede (à noite dorme)
+                    candidate = routineAction != ActionType.Sleep && NeedsRestocking(world, npc, marketIndex)
+                        ? ActionType.Buy
+                        : routineAction;
                 }
 
                 candidate = ApplyPerception(world, npc, candidate);
+                if (urgent && world.TheftRules.Enabled && TheftResolver.Wants(world, npc, now))
+                    candidate = ActionType.Steal; // desespero + temperamento + alguém com moeda ao lado
 
                 chosen = ResolveWithStepCap(npc.Id.Value, candidate, world, npc, marketIndex, rules.MaxActionSelectionSteps);
                 travelPurpose = chosen == ActionType.Travel && candidate is ActionType.Work or ActionType.Sleep or ActionType.Buy
@@ -196,7 +219,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
             return true;
         }
 
-        if (now - npc.ActionStartedAtTick < catalog.MaxDurationHours[action]) return false;
+        if (now - npc.ActionStartedAtTick < catalog.DurationOf(action)) return false;
 
         // Sem workplace real (Employer nulo), Work nunca fabrica deslocamento —
         // NPC bloqueado fica onde está em vez de "trabalhar" andando à toa sem destino nenhum.

@@ -7,6 +7,8 @@ using LivingWorld.Api.Observation;
 using LivingWorld.Api.Periods;
 using LivingWorld.Api.Realtime;
 using LivingWorld.Api.Simulation;
+using LivingWorld.Api.Trade;
+using LivingWorld.Api.Treasury;
 using LivingWorld.Api.Visual.Catalogs;
 using LivingWorld.Api.VisualInput;
 using LivingWorld.Api.Watchlist;
@@ -142,6 +144,20 @@ app.MapOpenApi();
 
 app.MapGet("/", () => "Hello World!");
 
+// Calendário do cenário: o cliente não assume mais dia de 24 h nem mês de 30 dias (godot-server-deltas, contrato congelado).
+app.MapGet("/world/calendar", () =>
+{
+    var calendar = worldHost.Current.CurrentDate.Calendar;
+    return Results.Ok(new
+    {
+        hoursPerDay = calendar.HoursPerDay,
+        daysPerMonth = calendar.DaysPerMonth,
+        monthsPerYear = calendar.MonthsPerYear,
+        hoursPerMonth = calendar.HoursPerMonth,
+        hoursPerYear = calendar.HoursPerYear,
+    });
+});
+
 app.MapGet("/npcs/{id:long}", (long id) =>
 {
     var result = NpcInspectionQuery.Inspect(worldHost.Current, new NpcId(id));
@@ -183,6 +199,8 @@ app.MapSimulationControlEndpoints();
 app.MapRealtimeEndpoints();
 app.MapActionLabelEndpoints();
 app.MapNpcDirectoryEndpoints(worldHost);
+app.MapTradeEndpoints(worldHost);
+app.MapTreasuryEndpoints(worldHost);
 app.MapVisualInputEndpoints();
 app.MapAuthoringEndpoints();
 app.MapWatchlistEndpoints(worldHost);

@@ -24,7 +24,7 @@ public static class ExtraordinaryNpcVisualProjector
 {
     public static ExtraordinaryNpcVisual? Build(WorldState world, NpcId npcId)
     {
-        var carrier = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npcId);
+        var carrier = world.CarrierOf(npcId);
         if (carrier is null) return null;
         var npc = world.FindNpc(npcId);
         var locomotion = npc is null

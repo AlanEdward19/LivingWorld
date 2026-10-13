@@ -1,0 +1,66 @@
+{
+  "actionStartedAtTick": "number",
+  "actionTarget": "null",
+  "ageYears": "number",
+  "beliefs": "[]",
+  "city": {
+    "value": "string"
+  },
+  "cognitionTrace": "[]",
+  "culture": {
+    "id": "number"
+  },
+  "currentAction": "null",
+  "currentLocation": {
+    "x": "number",
+    "y": "number"
+  },
+  "currentScope": {
+    "cityId": {
+      "value": "string"
+    },
+    "kind": "number"
+  },
+  "employer": "null",
+  "fatherId": "null",
+  "food": "null",
+  "health": "number",
+  "household": {
+    "value": "number"
+  },
+  "hunger": "number",
+  "id": {
+    "value": "number"
+  },
+  "lod": "number",
+  "memories": "[]",
+  "motherId": "null",
+  "name": "string",
+  "personality": {
+    "agreeableness": "number",
+    "altruism": "number",
+    "ambition": "number",
+    "conscientiousness": "number",
+    "emotionalStability": "number",
+    "extroversion": "number",
+    "impulsivity": "number",
+    "loyalty": "number",
+    "openness": "number",
+    "riskAversion": "number"
+  },
+  "powerIds": "[]",
+  "profession": {
+    "id": "number"
+  },
+  "rest": "null",
+  "sex": "number",
+  "skills": {
+    "values": {}
+  },
+  "sleep": "number",
+  "social": "number",
+  "spouse": {
+    "value": "number"
+  },
+  "thirst": "number"
+}

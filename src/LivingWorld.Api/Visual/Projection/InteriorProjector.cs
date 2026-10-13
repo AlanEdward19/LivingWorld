@@ -21,6 +21,16 @@ public sealed record InteriorSnapshot(BuildingId Id, CityId City, int BuildingTy
 
 public static class InteriorProjector
 {
+    /// <summary>Só os ocupantes (sem a planta): o que o delta de interior compara a cada tick. Nulo se o prédio não existe.</summary>
+    public static IReadOnlyList<InteriorOccupant>? BuildOccupants(WorldState world, BuildingId buildingId)
+    {
+        if (!world.Buildings.Any(b => b.Id == buildingId)) return null;
+        return world.Npcs
+            .Where(n => n.IsAlive && n.Interior is { } interior && interior.Building == buildingId)
+            .Select(n => new InteriorOccupant(n.Id, n.Interior!.Floor, n.Interior!.LocalCell, n.CurrentAction))
+            .ToArray();
+    }
+
     public static Result<InteriorSnapshot> Build(WorldState world, BuildingId buildingId)
     {
         var building = world.Buildings.FirstOrDefault(b => b.Id == buildingId);

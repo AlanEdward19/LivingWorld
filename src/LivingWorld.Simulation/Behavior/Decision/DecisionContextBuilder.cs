@@ -18,7 +18,8 @@ public static class DecisionContextBuilder
     /// <summary>Máximo de memórias recuperadas por wake (P1b; dirty-cache em P2a).</summary>
     public const int DefaultMemoryRecallCount = 5;
 
-    public static DecisionContext Build(WorldState world, Npc npc, long tick, LlmRules? llmRules = null)
+    public static DecisionContext Build(
+        WorldState world, Npc npc, long tick, LlmRules? llmRules = null, double provisionTargetDays = 2.0)
     {
         var needs = new NeedsSnapshot(
             npc.HungerAt(tick),
@@ -45,7 +46,8 @@ public static class DecisionContextBuilder
             npc.Personality,
             npc.CurrentAction,
             ForesightPreviews: ForesightMechanic.PreviewsFor(world, npc.Id, tick),
-            WalletAmount: npc.Wallet.Amount);
+            WalletAmount: npc.Wallet.Amount,
+            ProvisionTargetDays: provisionTargetDays);
     }
 
     internal static BodySnapshot BuildBodySlice(WorldState world, Npc npc) =>

@@ -11,7 +11,8 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 
-public sealed record ExtraordinaryLocomotionProfile(
+/// <summary>Struct: resolvido por NPC a cada deslocamento (quase sempre sem modificador), não vale uma alocação.</summary>
+public readonly record struct ExtraordinaryLocomotionProfile(
     bool HasModifier,
     bool CanFly,
     double SpeedMultiplier);
@@ -94,7 +95,7 @@ public static class ExtraordinaryLocomotion
     private static bool TryPayMovementCosts(
         WorldState world, Npc npc, long tick, TickContext? ctx)
     {
-        var carrier = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npc.Id);
+        var carrier = world.CarrierOf(npc.Id);
         if (carrier is not { IsManifested: true }) return true;
         var declarations = world.Extraordinary.Descriptors
             .Where(descriptor => carrier.PowerIds.Contains(descriptor.Id, StringComparer.Ordinal)

@@ -18,8 +18,8 @@ Reaproveita `MarketTransaction` (já atômica) e o `ctx.LogEvent` existente; nen
 
 1. `BehaviorDecisionSystem.TryApplyBuy` (exists) - decide a compra e chama `MarketTransaction.Execute`
 2. `MarketTransaction` (exists) - muda os 4 saldos de forma atômica
-3. `TradeLedger` (new, door 1) - acumula por dia e por (oficina, recurso) quantidade, valor e compradores; emite `Trade` só para compra relevante
-4. `TradeLedgerSystem` (new, no door - placement per conventions) - Daily, fecha o dia e grava o agregado no cânone
+3. `WorldState.RecordTrade` (exists, extended - door 1) - acumula por dia e por (oficina, recurso) quantidade, valor e compras; compacta em mês depois de 60 dias
+4. `TradeLedgerSystem` (new, no door - placement per conventions) - Hourly, grava o evento `Trade` do primeiro contato comprador-atendente e compacta o livro na virada do dia
 5. `RelationshipSystem` (exists) - `ApplyEvent(Trade)` entre comprador e o empregado que atende
 
 ## Impact
@@ -50,7 +50,7 @@ One-way constraints: um agregado por (oficina, recurso, dia) (door 1).
 
 | One-way door | Literal shape | Alternative rejected |
 | --- | --- | --- |
-| 1. forma do registro | agregado diário por (oficina, recurso) no estado canônico, mais evento `Trade` só para compra acima do p90 do dia da oficina ou primeiro contato comprador-atendente | um evento por compra: cerca de 1 evento por NPC por dia estoura o teto de bytes por NPC por ano |
+| 1. forma do registro | agregado por (oficina, recurso, dia) no estado canônico, dobrado em mês depois de 60 dias, mais evento `Trade` só no primeiro contato comprador-atendente | um evento por compra: cerca de 1 evento por NPC por dia estoura o teto de bytes por NPC por ano |
 
 - Nada mais aqui é difícil de reverter
 
@@ -70,7 +70,7 @@ One-way constraints: um agregado por (oficina, recurso, dia) (door 1).
 
 **Acceptance Criteria**
 
-4. WHEN a compra passa do p90 do dia da oficina ou é o primeiro contato comprador-atendente THEN the system SHALL emitir `Trade` com `compradorId|atendenteId|recurso|valor`
+4. WHEN a compra é o primeiro contato comprador-atendente THEN the system SHALL emitir `Trade` com `compradorId|atendenteId|oficinaId|recursoId|valor` (o p90 do dia ficou fora: ver Deviations em checks.md)
 5. WHEN há `Trade` com atendente NPC THEN the system SHALL aplicar `ApplyEvent(Trade)` ao comprador sobre o atendente, com deltas declarados no cenário
 6. WHERE a oficina não tem empregado THEN the system SHALL registrar só o agregado, sem evento de relação
 
@@ -108,7 +108,7 @@ One-way constraints: um agregado por (oficina, recurso, dia) (door 1).
 | Assumption | Chosen default | Rationale | Confirmed? |
 | --- | --- | --- | --- |
 | contraparte da compra | empregado de menor id presente na oficina na hora | determinístico, sem dono NPC (AD-044) | n |
-| limiar de relevância | p90 do valor das compras do dia na oficina | evita escolher número mágico | n |
+| limiar de relevância | nenhum: só o primeiro contato do par vira evento | o agregado já guarda o valor; o p90 exigiria guardar a distribuição do dia | n |
 
 **Open questions:** none - all resolved or logged above.
 

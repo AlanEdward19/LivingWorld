@@ -14,7 +14,8 @@ public enum RestPlaceKind
     Bed = 2,
 }
 
-public sealed record RestPlaceRef(RestPlaceKind Kind, long TargetId, CellCoord Location, double RecoveryEfficiency);
+/// <summary>Struct: o resolvedor devolve um por NPC a cada decisão de dormir; como classe era 7% dos bytes alocados por tick.</summary>
+public readonly record struct RestPlaceRef(RestPlaceKind Kind, long TargetId, CellCoord Location, double RecoveryEfficiency);
 
 /// <summary>Cama/móvel de descanso no mundo. Chão e moradia não precisam de linha: o chão é o
 /// local atual do sem-teto, a moradia é <see cref="Household.Location"/>.</summary>

@@ -81,23 +81,29 @@ public class EconomyDepthConservationTests
         Assert.True(world.ResourceProduced.GetValueOrDefault(new ResourceType(5)) > 0, "pedra nunca produzida");
         Assert.True(world.ResourceConsumed.GetValueOrDefault(new ResourceType(3)) > 0, "madeira nunca consumida em obra");
         Assert.True(world.ResourceConsumed.GetValueOrDefault(new ResourceType(5)) > 0, "pedra nunca consumida em obra");
-        Assert.True(world.Cities.Sum(c => c.Treasury.Amount) < 20000, "a cidade nunca comprou material");
+        // (a cidade passou a receber o espólio de quem morre sem herdeiro, então o tesouro final não prova mais a compra:
+        // a madeira e a pedra consumidas em obra acima já provam)
     }
 
+    /// <summary>Piso do mundo ao vivo com 40 NPCs, 8 seeds, ano 5 (a medida de 20 NPCs em 3 seeds era ruido: uma morte
+    /// mexia a seed em 30%). Regravado em AD-093 (compra so no mercado, poco, reposicao pela distancia, custo de
+    /// deslocamento de vila): o mundo ao vivo passou de 14 para cerca de 29 de 40 no ano 5.</summary>
     [Fact]
     public void Live_world_population_stays_within_90_percent_of_the_baseline()
     {
         var baseline = JsonSerializer.Deserialize<int[]>(
             File.ReadAllText(Path.Combine(RepoRoot(), "tests", "baselines", "live-default-population.json")))!;
         int total = 0;
+        var perSeed = new List<int>();
         for (int seed = 1; seed <= baseline.Length; seed++)
         {
-            var (world, clock, _) = Load(seed, population: 20);
-            clock.Run(world, 10 * OneYearInHours);
-            total += world.Npcs.Count(n => n.IsAlive);
+            var (world, clock, _) = Load(seed, population: 40);
+            clock.Run(world, 5 * OneYearInHours);
+            perSeed.Add(world.Npcs.Count(n => n.IsAlive));
+            total += perSeed[^1];
         }
 
-        Assert.True(total >= 0.9 * baseline.Sum(), $"populacao do ano 10 somada {total} < 90% de {baseline.Sum()}");
+        Assert.True(total >= 0.9 * baseline.Sum(), $"populacao do ano 5 somada {total} [{string.Join(',', perSeed)}] < 90% de {baseline.Sum()}");
     }
 
     private static string RepoRoot()
