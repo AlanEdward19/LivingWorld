@@ -3,7 +3,7 @@
 Profile: light
 Plan: `.specs/features/godot-server-deltas/plan.md`
 
-10 checks in 3 slices · 2 one-way doors · 0 open
+11 checks in 3 slices · 2 one-way doors · 0 open
 
 ## Checks
 
@@ -33,6 +33,9 @@ Proof: `dotnet test tests/LivingWorld.Tests.Integration -c Release --filter "Ful
 
 **C7** - O cliente aplica o delta de interior (`entered`, `moved`, `exited`) à store e à cena sem pedir `GET /visual/subscribe` de novo (AC 6)
 Proof: `bash scripts/client-test.sh --filter "test_app::test_interior_delta_updates_occupants_without_polling"`
+
+**C11** - Um ocupante em `changedFloor` muda de andar na store e na cena (andar e altura), sem releitura (AC 6)
+Proof: `bash scripts/client-test.sh --filter "test_app::test_interior_delta_moves_an_occupant_to_another_floor"`
 
 **C8** - O delta de interior inclui como `moved` o ocupante que só mudou de ação (mesmo andar e célula), e não inclui quem não mudou (AC 1)
 Proof: `bash scripts/test.sh --filter "FullyQualifiedName~InteriorOccupancyTests.Diff_reports_an_action_change_in_the_same_cell_as_moved"`

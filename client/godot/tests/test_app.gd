@@ -95,6 +95,23 @@ func test_interior_delta_updates_occupants_without_polling() -> void:
 	app.queue_free()
 
 
+func test_interior_delta_moves_an_occupant_to_another_floor() -> void:
+	var transport = _transport()
+	var app = await _app_with_transport(transport)
+	await app.enter_building(4)
+	var actor = app.stage.interior_view.occupant_nodes[1]
+	eq(actor.get_meta("floor"), 1, "o snapshot põe o ocupante 1 no andar 1")
+
+	var env := _interior_delta(0, 1, [], [], [])
+	env.payload.changedFloor = [{"npc": {"value": 1}, "floor": {"value": 0}, "localCell": {"x": 1, "y": 1}, "action": null}]
+	app.stream.delta_applied.emit(env)
+
+	eq(app.store.interior.occupants[0].floor.value, 0, "a store registra o andar novo")
+	eq(app.stage.interior_view.occupant_nodes[1].get_meta("floor"), 0, "a cena também")
+	eq(app.stage.interior_view.occupant_nodes[1].position.y, 0.0, "e a altura do ocupante muda")
+	app.queue_free()
+
+
 func _app_with_transport(transport) -> Node:
 	var app := App.new()
 	tree.root.add_child(app)

@@ -10,7 +10,7 @@ var window_material: StandardMaterial3D
 var lamp_material: StandardMaterial3D
 
 var hour := 9.0 ## hora do dia, 0–24
-var hours_per_day := 24.0 ## vem de /simulation/status
+var hours_per_day := 24.0 ## vem de GET /world/calendar
 var days_per_month := 30
 var months_per_year := 12
 var _tick := 0.0

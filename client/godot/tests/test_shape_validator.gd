@@ -56,7 +56,7 @@ func _sample_for(shape: Variant) -> Variant:
 
 func test_api_client_rejects_mistyped_status() -> void:
 	var transport := FakeTransport.new()
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": "sim", "ticksPerSecond": 1.0, "tick": 1, "year": 0, "hoursPerDay": 24, "daysPerMonth": 30, "monthsPerYear": 12}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": "sim", "ticksPerSecond": 1.0, "tick": 1, "year": 0}})
 	var api := ApiClient.new(transport)
 	var errors: Array = []
 	api.contract_error.connect(func(_route, e): errors.append(e))
@@ -66,7 +66,7 @@ func test_api_client_rejects_mistyped_status() -> void:
 	eq(response.ok, false, "campo de tipo errado (isPaused como texto) é rejeitado")
 	eq(errors.size(), 1, "o erro de contrato é anunciado")
 
-	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 1, "year": 0, "hoursPerDay": 24, "daysPerMonth": 30, "monthsPerYear": 12}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 1, "year": 0}})
 	var good: Dictionary = await api.clock_status()
 	eq(good.ok, true, "resposta fiel ao contrato passa")
 
