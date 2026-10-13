@@ -32,6 +32,8 @@ var _head: Node3D
 var _arms: Array[Node3D] = []
 var _legs: Array[Node3D] = []
 var _tool: Node3D
+var _hat: MeshInstance3D
+var _hair_mesh: MeshInstance3D
 var _bed: Node3D
 var _label: Label3D
 var _bubble: Label3D
@@ -134,7 +136,8 @@ func _build() -> void:
 		m.radial_segments = 12
 		m.rings = 6
 		return m)
-	_shadow_parts.append(_part(_head, hair_mesh, hair, Vector3(0, 0.04, -0.02)))
+	_hair_mesh = _part(_head, hair_mesh, hair, Vector3(0, 0.04, -0.02))
+	_shadow_parts.append(_hair_mesh)
 	for side in [-1, 1]:
 		_arms.append(_limb(_body, Vector3(side * 0.22, 0.82, 0), Vector3(0.08, 0.34, 0.08), _shirt))
 		_legs.append(_limb(self, Vector3(side * 0.08, 0.36, 0), Vector3(0.1, 0.36, 0.1), pants))
@@ -249,6 +252,37 @@ func _text(at: Vector3, size: int, color: Color) -> Label3D:
 	label.no_depth_test = true
 	add_child(label)
 	return label
+
+
+## Modelo por profissão e idade vindo do catálogo: camisa e chapéu da profissão, escala e cabelo da idade.
+## Só mexe em materiais próprios do NPC e em um chapéu opcional; o corpo base continua o mesmo.
+func apply_model(catalog, profession: int, age_years: float) -> void:
+	var by_profession: Dictionary = catalog.profession_model(profession)
+	if by_profession.has("shirt"):
+		_shirt.albedo_color = Color(String(by_profession.shirt))
+	_set_hat(String(by_profession.get("hat", "none")))
+	var by_age: Dictionary = catalog.age_model(age_years)
+	scale = Vector3.ONE * float(by_age.get("scale", 1.0))
+	if by_age.has("hair") and _hair_mesh != null:
+		_hair_mesh.material_override = _shared_mat(Color(String(by_age.hair)))
+
+
+func _set_hat(kind: String) -> void:
+	if _hat != null:
+		_hat.free()
+		_hat = null
+	if kind == "none":
+		return
+	var mesh := CylinderMesh.new()
+	if kind == "straw":
+		mesh.top_radius = 0.12
+		mesh.bottom_radius = 0.24
+		mesh.height = 0.06
+	else:
+		mesh.top_radius = 0.13
+		mesh.bottom_radius = 0.15
+		mesh.height = 0.1
+	_hat = _part(_head, mesh, _shared_mat(Color("6b4a2b") if kind == "straw" else Color("3b3f46")), Vector3(0, 0.16, 0))
 
 
 func set_action(new_action: int, labels) -> void:

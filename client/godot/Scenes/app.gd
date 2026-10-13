@@ -17,6 +17,7 @@ const Minimap := preload("res://Scenes/minimap.gd")
 const Toasts := preload("res://Scenes/toasts.gd")
 const SkyLife := preload("res://Scenes/sky_life.gd")
 const Ambience := preload("res://Scenes/ambience.gd")
+const AssetCatalog := preload("res://Scenes/asset_catalog.gd")
 const DevSteps := preload("res://Scenes/dev_steps.gd")
 
 var transport
@@ -32,6 +33,7 @@ var minimap
 var toasts
 var sky_life
 var ambience
+var catalog = AssetCatalog.load_default()
 var clock_panel
 var list_panel
 var npc_panel
@@ -120,6 +122,7 @@ func _build_scene() -> void:
 	add_child(sky_life)
 	sky_life.build(Vector2(30, 30))
 	ambience = Ambience.new()
+	ambience.catalog = catalog
 	add_child(ambience)
 	day_cycle = DayCycle.new()
 	add_child(day_cycle)
@@ -183,6 +186,8 @@ func _build_ui() -> void:
 	npc_panel.api = api
 	npc_panel.labels = labels
 	npc_panel.highlight.connect(func(id: int): _highlight(id))
+	npc_panel.model_known.connect(_apply_model)
+	store.npc_changed.connect(_on_focus_action)
 	npc_panel.follow_requested.connect(func(_id: int): follow_selected())
 	side.add_child(npc_panel)
 	city_panel = Panels.CityPanel.new()
@@ -277,7 +282,7 @@ func _process(delta: float) -> void:
 	if minimap != null:
 		minimap.set_camera_target(rig.target)
 		stage.set_daylight(day_cycle.daylight())
-		ambience.daylight = day_cycle.daylight()
+		ambience.set_daylight(day_cycle.daylight())
 	_hover_clock += delta
 	if _hover_clock >= 0.07:
 		_hover_clock = 0.0
@@ -390,7 +395,8 @@ func enter_building(building_id: int) -> void:
 func _enter_interior_view() -> void:
 	var marker = store.buildings.get(_interior_building, null)
 	var origin: Vector2i = marker.cell if marker != null else Vector2i.ZERO
-	stage.enter(store.interior, origin, labels, rig.camera)
+	stage.interior_view.catalog = catalog
+	stage.enter(store.interior, origin, labels, rig.camera, int(marker.type) if marker != null else -1)
 	stage.interior_view.apply_names(store.names)
 	breadcrumb.text = "%s › Edifício %d" % [breadcrumb.text.get_slice(" › Edifício", 0), _interior_building]
 	if marker != null:
@@ -416,6 +422,19 @@ func _on_interior_changed() -> void:
 
 func select_npc(id: int) -> void:
 	await npc_panel.show_npc(id)
+
+
+## NPC em foco mudou de ação: toca o som do catálogo (só o selecionado, para não virar barulho de multidão).
+func _on_focus_action(id: int, _from: Vector2i, _to: Vector2i, action: int) -> void:
+	if id == selected_npc:
+		ambience.play_action(action)
+
+
+## Modelo do NPC (profissão e idade) só chega com o detalhe dele; os demais ficam no corpo base.
+func _apply_model(id: int, profession: int, age_years: float) -> void:
+	var actor = world_view.npc_nodes.get(id)
+	if actor != null:
+		actor.apply_model(catalog, profession, age_years)
 
 
 func _highlight(id: int) -> void:

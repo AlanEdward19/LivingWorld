@@ -1,4 +1,4 @@
-# Godot art audio pass [Estado: Spec - plano sem checks nem código (specs-closeout 2026-10-12)]
+# Godot art audio pass [Estado: Implementado no cliente (2026-10-13); falta medir stress:500 e verificação independente]
 
 ## Problem
 

@@ -1,0 +1,42 @@
+{
+  "_comment": "Catalogo de assets do cliente. Chave ausente cai no procedural; 'file' ausente ou inexistente tambem (OGG em res://assets/).",
+  "actions": {
+    "0": {"sound": "munch"}, "1": {"sound": "snore"}, "2": {"sound": "tool"}, "3": {"sound": "murmur"},
+    "4": {"sound": "step"}, "5": {}, "6": {"sound": "coin"}, "7": {"sound": "hum"}
+  },
+  "sounds": {
+    "munch": {"freq": 220.0, "len": 0.12, "noise": 0.5}, "snore": {"freq": 90.0, "len": 0.35, "noise": 0.2},
+    "tool": {"freq": 520.0, "len": 0.08, "noise": 0.1}, "murmur": {"freq": 160.0, "len": 0.25, "noise": 0.4},
+    "step": {"freq": 110.0, "len": 0.06, "noise": 0.7}, "coin": {"freq": 1400.0, "len": 0.1, "noise": 0.0},
+    "hum": {"freq": 330.0, "len": 0.4, "noise": 0.0}
+  },
+  "furniture": {
+    "default": ["table", "bench", "crate"],
+    "1": ["counter", "shelf", "crate", "barrel"],
+    "2": ["table", "bench", "barrel"],
+    "3": ["bed", "table", "chest"],
+    "4": ["anvil", "shelf", "barrel", "crate"],
+    "10": ["bed", "bed", "table", "chest"],
+    "11": ["counter", "table", "shelf", "crate"]
+  },
+  "pieces": {
+    "table": {"size": [0.8, 0.4, 0.5], "color": "8a6a43"}, "bench": {"size": [0.7, 0.25, 0.25], "color": "7a5a38"},
+    "crate": {"size": [0.4, 0.4, 0.4], "color": "a27b52"}, "barrel": {"size": [0.35, 0.5, 0.35], "color": "6b4a2b"},
+    "counter": {"size": [0.9, 0.45, 0.3], "color": "5c4630"}, "shelf": {"size": [0.7, 0.8, 0.2], "color": "6f5436"},
+    "bed": {"size": [0.5, 0.2, 0.9], "color": "d8cfb8"}, "chest": {"size": [0.5, 0.3, 0.3], "color": "4f3a26"},
+    "anvil": {"size": [0.35, 0.3, 0.2], "color": "5b6068"}
+  },
+  "models": {
+    "ages": [
+      {"under": 12.0, "scale": 0.7}, {"under": 18.0, "scale": 0.88},
+      {"under": 60.0, "scale": 1.0}, {"under": 999.0, "scale": 0.96, "hair": "b9b9b9"}
+    ],
+    "professions": {
+      "default": {"shirt": "7a8b99", "hat": "none"},
+      "1": {"shirt": "8f6b3a", "hat": "straw"}, "2": {"shirt": "6a8f4a", "hat": "straw"},
+      "3": {"shirt": "9a4a3a", "hat": "cap"}, "4": {"shirt": "5a5a66", "hat": "cap"},
+      "5": {"shirt": "4a6a9a", "hat": "cap"}, "6": {"shirt": "8a5a8a", "hat": "none"},
+      "20": {"shirt": "3a8fa0", "hat": "cap"}, "21": {"shirt": "a08f3a", "hat": "none"}
+    }
+  }
+}
