@@ -2,6 +2,8 @@ extends Node
 ## Raiz do cliente: liga transporte, assinatura, store, cenas e painéis. Só leitura do mundo:
 ## o único que escreve no servidor são os comandos explícitos do relógio.
 
+signal menu_requested() ## F10 ou o botão Menu: o Boot volta ao menu principal
+
 const CursorStream := preload("res://Contract/cursor_stream.gd")
 const HttpTransport := preload("res://Contract/http_transport.gd")
 const ApiClient := preload("res://Contract/api_client.gd")
@@ -167,6 +169,10 @@ func _build_ui() -> void:
 	clock_panel.api = api
 	clock_panel.status_changed.connect(_on_clock_status)
 	bar.add_child(clock_panel)
+	var menu_button := Button.new()
+	menu_button.text = "☰ Menu (F10)"
+	menu_button.pressed.connect(func(): menu_requested.emit())
+	bar.add_child(menu_button)
 
 	banner = Label.new()
 	banner.visible = false
@@ -502,6 +508,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					exit_building()
 				elif store.kind == "City":
 					enter_scope("World", "")
+			KEY_F10:
+				menu_requested.emit()
 			KEY_M:
 				ambience.set_muted(not ambience.muted)
 			KEY_L:

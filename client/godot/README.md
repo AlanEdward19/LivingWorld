@@ -5,6 +5,8 @@ determinismo; este projeto só desenha o que a API projeta. Godot 4.7 (qualquer 
 
 ## Rodar
 
+Atalho: `bash scripts/play.sh` sobe a API (mundo vivo) e abre o cliente no **menu principal** (Continuar · Novo mundo · F10 volta ao menu). Manualmente:
+
 ```bash
 # 1. API (outro terminal) — porta 5214
 ConnectionStrings__World="Data Source=/tmp/lw.db" TICK_LOOP_ENABLED=true dotnet run --project src/LivingWorld.Api -c Release --urls http://localhost:5214

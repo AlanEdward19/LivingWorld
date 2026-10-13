@@ -4,6 +4,7 @@ extends RefCounted
 ## `{ok, status, body}` e nunca montam rota nem leem código HTTP.
 
 const ShapeValidator := preload("res://Contract/shape_validator.gd")
+const JsonRaw := preload("res://Contract/json_raw.gd")
 
 signal contract_error(route: String, errors: Array)
 
@@ -72,3 +73,32 @@ func interior_snapshot(building_id: int) -> Dictionary:
 
 func city_snapshot(city_id: String) -> Dictionary:
 	return await _fetch("/visual/subscribe?scope=City&refId=%s&mode=Spectator" % city_id.uri_encode(), "city-subscribe")
+
+
+# --- mundos e períodos (menu principal) ---------------------------------------
+
+func periods() -> Dictionary:
+	return await _fetch("/periods")
+
+
+func period_catalog(period_id: String) -> Dictionary:
+	return await _fetch("/periods/%s/catalog" % period_id.uri_encode())
+
+
+## Cenário do período como TEXTO cru (ver JsonRaw), com a seed trocada; "" se o período não carregou.
+func period_scenario(period_id: String, seed_value: int) -> String:
+	var response: Dictionary = await transport.request("GET", "/periods/%s" % period_id.uri_encode())
+	if response.status != 200:
+		return ""
+	var scenario: String = JsonRaw.member(String(response.get("text", "")), "periodDefinition")
+	return JsonRaw.replace_member(scenario, "Seed", str(seed_value)) if scenario != "" else ""
+
+
+func world_preview(scenario_json: String) -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/worlds/preview", {"scenarioJson": scenario_json})
+	return {"ok": response.status == 200, "status": response.status, "body": response.body}
+
+
+func world_create(scenario_json: String, world_name: String) -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/worlds/create", {"scenarioJson": scenario_json, "name": world_name})
+	return {"ok": response.status == 200, "status": response.status, "body": response.body}
