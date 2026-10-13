@@ -21,7 +21,7 @@ ConnectionStrings__World="Data Source=/tmp/lw.db" TICK_LOOP_ENABLED=true dotnet 
 | Entrar numa casa | clique no prédio (andares: PgUp/PgDn) · Esc sai |
 | Pessoas | L abre a lista (segue a cidade em foco) · clique num NPC · botão Seguir ou F |
 | Orientação | passe o mouse (dica) · minimapa (clique/arraste) · avisos de eventos |
-| Som | ambiente procedural (vento, pássaros de dia, grilos à noite) · M silencia |
+| Som | ambiente procedural com fade ao trocar de período, som da ação do NPC selecionado (catálogo `assets.json`) · M silencia |
 | Relógio | pausa, passo, +1 ano e velocidades 1× a 200× na barra; o céu segue a hora do mundo |
 
 ## Estrutura

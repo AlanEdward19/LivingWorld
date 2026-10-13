@@ -76,9 +76,9 @@ void fragment() {
 	add_child(floor_label)
 
 
-func enter(info: Dictionary, origin: Vector2i, labels, source_camera: Camera3D) -> void:
+func enter(info: Dictionary, origin: Vector2i, labels, source_camera: Camera3D, building_type: int = -1) -> void:
 	_source = source_camera
-	interior_view.show_interior(info, origin, labels)
+	interior_view.show_interior(info, origin, labels, building_type)
 	dim_rect.visible = true
 	_container.visible = true
 	active = true

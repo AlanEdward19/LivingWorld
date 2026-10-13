@@ -4,6 +4,7 @@ extends Node3D
 
 const Grid := preload("res://Scenes/grid.gd")
 const NpcActor := preload("res://Scenes/npc_actor.gd")
+const AssetCatalog := preload("res://Scenes/asset_catalog.gd")
 
 const FLOOR_HEIGHT := 1.0
 const WALL_HEIGHT := 0.9
@@ -18,6 +19,8 @@ var floor_count := 0
 var current_floor := 0
 var floor_nodes: Dictionary = {} ## nível -> Node3D
 var roof: Node3D
+var catalog = AssetCatalog.new() ## mobília por tipo de prédio; o app injeta o catálogo carregado
+var furniture: Node3D
 var occupant_nodes: Dictionary = {} ## npc_id -> NpcActor
 var _occupants: Array = []
 var _labels
@@ -27,7 +30,7 @@ var _view_dir := Vector3.ZERO
 
 
 ## `info` = WorldStore.interior: {building, floors, layout:[{level, cells:[{cell, material}]}], occupants}
-func show_interior(info: Dictionary, p_origin: Vector2i, labels) -> void:
+func show_interior(info: Dictionary, p_origin: Vector2i, labels, building_type: int = -1) -> void:
 	_clear()
 	origin = p_origin
 	_labels = labels
@@ -59,8 +62,51 @@ func show_interior(info: Dictionary, p_origin: Vector2i, labels) -> void:
 		slab.position = Grid.to_world(cell)
 		roof.add_child(slab)
 	add_child(roof)
+	_place_furniture(info, building_type)
 	set_occupants(info.occupants)
 	set_floor(floor_count - 1 if current_floor >= floor_count else current_floor)
+
+
+## Mobília do catálogo para o tipo do prédio, no térreo: peças em células de piso escolhidas pela
+## semente da posição do prédio (mesma casa, mesma disposição). Nunca ocupa parede, porta ou escada.
+func _place_furniture(info: Dictionary, building_type: int) -> void:
+	var ground: Node3D = floor_nodes.get(0)
+	if ground == null or info.layout.is_empty():
+		return
+	var free_cells: Array[Vector2i] = []
+	for entry in info.layout[0].cells:
+		if int(entry.material) not in [WALL_STONE, WALL_WOOD, DOOR, STAIR]:
+			free_cells.append(Vector2i(int(entry.cell.x), int(entry.cell.y)))
+	free_cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
+	if free_cells.is_empty():
+		return
+	furniture = Node3D.new()
+	furniture.name = "Furniture"
+	ground.add_child(furniture)
+	var seed_value := origin.x * 31 + origin.y
+	var stride := maxi(free_cells.size() / 5, 1)
+	var used := {}
+	var index := 0
+	for piece_id in catalog.furniture_for(building_type):
+		var slot := (seed_value + index * stride) % free_cells.size()
+		while used.has(slot) and used.size() < free_cells.size():
+			slot = (slot + 1) % free_cells.size()
+		used[slot] = true
+		_add_piece(String(piece_id), origin + free_cells[slot])
+		index += 1
+
+
+func _add_piece(piece_id: String, cell: Vector2i) -> void:
+	var spec: Dictionary = catalog.piece(piece_id)
+	var size: Array = spec.size
+	var node := MeshInstance3D.new()
+	node.name = piece_id
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(size[0], size[1], size[2])
+	node.mesh = mesh
+	node.material_override = _material(Color(String(spec.color)))
+	node.position = Grid.to_world(cell, size[1] / 2.0)
+	furniture.add_child(node)
 
 
 func _add_cell(parent: Node3D, entry: Dictionary, level: int) -> void:
@@ -109,6 +155,7 @@ func _clear() -> void:
 	for actor in occupant_nodes.values():
 		actor.free()
 	occupant_nodes.clear()
+	furniture = null # filho do térreo, já liberado com ele
 
 
 ## Andar visível = `level`: andares acima e o teto somem; só os ocupantes desse andar aparecem.

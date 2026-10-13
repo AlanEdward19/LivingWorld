@@ -85,6 +85,7 @@ class NpcListPanel extends PanelContainer:
 class NpcDetailPanel extends PanelContainer:
 	signal highlight(id: int)
 	signal follow_requested(id: int)
+	signal model_known(id: int, profession: int, age_years: float)
 	var api
 	var labels
 	var npc_id := -1
@@ -145,6 +146,8 @@ class NpcDetailPanel extends PanelContainer:
 			npc.name, int(npc.ageYears), int(npc.health), int(npc.hunger), int(npc.thirst), int(npc.sleep), int(npc.social)]
 		visible = true
 		highlight.emit(id)
+		var profession = npc.get("profession")
+		model_known.emit(id, int(profession.id) if profession is Dictionary else -1, float(npc.ageYears))
 
 
 class CityPanel extends PanelContainer:
