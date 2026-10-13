@@ -26,6 +26,9 @@ public enum RelationshipEventType
     Help,
     Trade,
     Conversation,
+
+    /// <summary>Herdar de alguém que morreu: gratidão e laço com quem deixou os bens.</summary>
+    Inheritance,
 }
 
 /// <summary>Os 6 fatores que compõem o score de atração de cortejo — cada um

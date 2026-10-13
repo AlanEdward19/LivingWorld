@@ -28,10 +28,10 @@ public class ApiContractTests
 
     [Theory]
     [InlineData("npc-directory", "/npcs?take=1")]
-    [InlineData("npc-detail", "/npcs/0")]
     [InlineData("action-catalog", "/visual/catalog/actions")]
     [InlineData("world-subscribe", "/visual/subscribe?scope=World&mode=Spectator")]
     [InlineData("simulation-status", "/simulation/status")]
+    [InlineData("world-calendar", "/world/calendar")]
     public async Task Response_shape_matches_the_committed_contract(string name, string url)
     {
         var response = await _factory.CreateClient().GetAsync(url);
@@ -39,6 +39,21 @@ public class ApiContractTests
 
         var shape = ShapeOf(JsonNode.Parse(await response.Content.ReadAsStringAsync()));
         AssertMatchesContract($"shape.{name}.json", shape);
+    }
+
+    /// <summary>`GET /npcs/{id}` é a ficha que o cliente abre ao clicar num NPC: forma congelada, 404 para id inexistente.</summary>
+    [Fact]
+    public async Task Npc_inspection_shape_matches_the_committed_contract_and_an_unknown_id_is_404()
+    {
+        var client = _factory.CreateClient();
+        var directory = JsonNode.Parse(await client.GetStringAsync("/npcs?take=1"))!;
+        long id = directory["items"]![0]!["id"]!["value"]!.GetValue<long>();
+
+        var response = await client.GetAsync($"/npcs/{id}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        AssertMatchesContract("shape.npc-inspect.json", ShapeOf(JsonNode.Parse(await response.Content.ReadAsStringAsync())));
+
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/npcs/987654321")).StatusCode);
     }
 
     /// <summary>Escopos Cidade e Interior do primeiro prédio do mundo canônico: a forma inclui `floors`,
@@ -92,12 +107,12 @@ public class ApiContractTests
             [1L],
             [new LivingWorld.Api.Visual.Scope.IndicatorUpdate("population", 10)],
             [new LivingWorld.Api.Visual.Scope.NotableVisualEvent(4, LivingWorld.Domain.History.WorldEventKind.Marriage, "Casamento", null)]);
+        var occupant = new LivingWorld.Api.Visual.Projection.InteriorOccupant(npc, new LivingWorld.Domain.Geography.Spatial.FloorLevel(1), cell, null);
         var world = new LivingWorld.Api.Visual.Scope.VisualDeltaEnvelope<object?>(scope, from, to, delta);
         var interior = new LivingWorld.Api.Visual.Scope.VisualDeltaEnvelope<object?>(
             new LivingWorld.Api.Visual.Scope.VisualScope(LivingWorld.Api.Visual.Scope.VisualScopeKind.Interior, "7"), from, to,
-            new LivingWorld.Api.Visual.Projection.InteriorTickDelta(4,
-                [new LivingWorld.Api.Visual.Projection.InteriorOccupant(npc, new LivingWorld.Domain.Geography.Spatial.FloorLevel(1), cell, null)],
-                [new LivingWorld.Domain.Shared.NpcId(2)]));
+            new LivingWorld.Api.Visual.Scope.InteriorTickDelta(4, new LivingWorld.Domain.Shared.BuildingId(7),
+                [occupant], [occupant], [occupant], [new LivingWorld.Domain.Shared.NpcId(2)]));
 
         AssertMatchesContract("shape.visual-delta.json", ShapeOf(JsonNode.Parse(JsonSerializer.Serialize(world, options))));
         AssertMatchesContract("shape.interior-delta.json", ShapeOf(JsonNode.Parse(JsonSerializer.Serialize(interior, options))));

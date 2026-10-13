@@ -58,18 +58,12 @@ public class BehaviorDecisionSystemHysteresisTests
         return switches / (double)WindowDays;
     }
 
-    private static double Percentile99(IReadOnlyList<double> sortedAscending)
-    {
-        int index = Math.Clamp((int)Math.Ceiling(0.99 * sortedAscending.Count) - 1, 0, sortedAscending.Count - 1);
-        return sortedAscending[index];
-    }
-
-    /// <summary>Média sobre 20 seeds contra o braço de controle. Com o dia guiado pela rotina (trocas
-    /// marcadas pelo relógio, iguais nos dois braços), a histerese só atua nas decisões por urgência e o
-    /// efeito por seed ficou menor que o ruído caótico da trajetória (±4 trocas/dia): "em toda seed" deixou
-    /// de ser um critério estatisticamente sustentável, a média continua sendo.</summary>
+    /// <summary>Histerese reduz as trocas de ação contra o braço de controle: média estritamente menor, sem folga, e menor
+    /// em pelo menos 12 de 20 seeds (AD-088 mediu -0,74 de ~110 trocas/dia, z = -4, 15/20; o critério original "20/20" não é
+    /// atendido porque a rotina guia o dia e a histerese só atua nas decisões por urgência, ver AD-095). Com histerese
+    /// desligada o teste reprova: a diferença some.</summary>
     [Fact]
-    public void Hysteresis_does_not_increase_mean_action_switches_against_a_control_arm_over_20_seeds()
+    public void Hysteresis_lowers_mean_action_switches_against_a_control_arm_and_in_most_of_20_seeds()
     {
         var withHysteresis = new List<double>();
         var withoutHysteresis = new List<double>();
@@ -79,13 +73,11 @@ public class BehaviorDecisionSystemHysteresisTests
             withoutHysteresis.Add(SwitchesPerDay(seed, hysteresisEnabled: false));
         }
 
-        Assert.True(withHysteresis.Average() <= withoutHysteresis.Average() + SwitchSlackPerDay(),
-            $"média de trocas/dia com histerese ({withHysteresis.Average():0.0}) não deveria exceder a do controle ({withoutHysteresis.Average():0.0}) além da folga ({SwitchSlackPerDay():0.0})");
+        int fewer = withHysteresis.Zip(withoutHysteresis, (with, without) => with < without).Count(x => x);
+        Assert.True(withHysteresis.Average() < withoutHysteresis.Average(),
+            $"média de trocas/dia com histerese ({withHysteresis.Average():0.00}) deveria ficar abaixo da do controle ({withoutHysteresis.Average():0.00})");
+        Assert.True(fewer >= 12, $"só {fewer}/20 seeds tiveram menos trocas com histerese (mínimo 12, AD-088 mediu 15)");
     }
-
-    /// <summary>Wake esparso mais o deslocamento casa↔destino pode deslocar até três decisões
-    /// (saída, viagem e chegada) por NPC na janela; a folga continua constante por população.</summary>
-    private static double SwitchSlackPerDay() => 3 * 20 / (double)WindowDays;
 
     /// <summary>Regravação manual (mesmo padrão de <c>PopulationBaselineTests.ZZZ_record_baseline</c>):
     /// remove o Skip, roda uma vez pra (re)gravar <c>tests/baselines/action-switches.json</c>,
@@ -98,15 +90,16 @@ public class BehaviorDecisionSystemHysteresisTests
     }
 
     [Fact]
-    public void Action_switches_per_day_with_hysteresis_matches_the_recorded_baseline_and_stays_at_or_under_its_99th_percentile()
+    public void Action_switches_per_day_with_hysteresis_matches_the_recorded_baseline_and_stays_under_the_physical_ceiling()
     {
         var perSeed = Enumerable.Range(1, 20).ToDictionary(seed => seed, seed => SwitchesPerDay((ulong)seed, hysteresisEnabled: true));
 
         BaselineFixture.AssertMatches(BaselinesDir, "action-switches", perSeed);
 
-        double ceiling = Percentile99(perSeed.Values.OrderBy(v => v).ToArray());
+        // teto físico, independente dos dados: com 20 NPCs, ninguém troca de ação mais de uma vez a cada duas horas em média
+        const double ceiling = 20 * 24 / 2.0;
         foreach (var (seed, value) in perSeed)
-            Assert.True(value <= ceiling, $"seed {seed}: trocas/dia ({value}) excede o teto absoluto (percentil 99 = {ceiling})");
+            Assert.True(value <= ceiling, $"seed {seed}: trocas/dia ({value}) excede o teto físico ({ceiling})");
     }
 
     /// <summary>NEEDS-09: o teto de passos é um <c>for</c> limitado a <c>maxSteps</c> iterações —

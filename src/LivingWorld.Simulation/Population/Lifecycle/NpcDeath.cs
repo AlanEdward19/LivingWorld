@@ -22,6 +22,7 @@ public static class NpcDeath
     {
         NpcInstantiationMechanic.OnCarrierDeath(world, ctx, npc);
         npc.Die(world.CurrentDate);
+        EstateSystem.Settle(world, ctx, npc);
         SoulMechanic.OnCarrierDeath(world, npc);
         world.AliveNpcIndex.OnDied(npc);
         ctx.LogEvent(kind, npc.Id.Value.ToString(), sourceSystem: "NpcDeath");

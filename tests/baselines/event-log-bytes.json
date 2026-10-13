@@ -1,0 +1,14 @@
+{
+  "AidGiven": 0.77,
+  "CourtshipRejected": 2.14,
+  "CourtshipStarted": 0.7,
+  "Death": 1.52,
+  "EstateSettled": 1.13,
+  "Fired": 4.05,
+  "Hired": 10.48,
+  "PlantMatured": 0.02,
+  "ResourceLost": 0.28,
+  "Starvation": 2.56,
+  "Trade": 1.49,
+  "WageUnpaid": 0.08
+}

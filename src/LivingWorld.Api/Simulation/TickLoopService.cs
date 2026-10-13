@@ -25,7 +25,7 @@ public sealed class TickLoopService(
     BufferingWorldEventSink sink) : IHostedService
 {
     private readonly Dictionary<string, LivingScopeState> _lastStates = new();
-    private readonly Dictionary<string, IReadOnlyList<InteriorOccupant>> _lastInterior = new();
+    private readonly Dictionary<string, IReadOnlyList<InteriorOccupant>> _lastInteriors = new();
     private CancellationTokenSource? _cts;
     private Task? _loopTask;
 
@@ -79,11 +79,8 @@ public sealed class TickLoopService(
     private void PublishDeltas(WorldState world)
     {
         long tick = world.CurrentDate.TotalHours;
+
         var subscribed = gateway.SubscribedScopeKeys;
-
-        // Interior sem assinante esquece o último estado: quem assinar de novo recomeça de todos os ocupantes.
-        foreach (var stale in _lastInterior.Keys.Where(k => !subscribed.Contains(k)).ToArray()) _lastInterior.Remove(stale);
-
         foreach (var scopeKey in subscribed)
         {
             if (scopeKey.StartsWith("interior:", StringComparison.Ordinal))
@@ -105,19 +102,25 @@ public sealed class TickLoopService(
             _lastStates[scopeKey] = state;
             gateway.Publish(scope, delta);
         }
+
+        if (_lastInteriors.Count > 0)
+            foreach (var gone in _lastInteriors.Keys.Where(key => !subscribed.Contains(key)).ToList())
+                _lastInteriors.Remove(gone); // sem assinante, o próximo a assinar começa de uma base nova
     }
 
+    /// <summary>Delta de interior: diferença das ocupações entre dois ticks, publicada só quando mudou.</summary>
     private void PublishInterior(WorldState world, string scopeKey, long tick)
     {
-        string refId = scopeKey["interior:".Length..];
-        if (!long.TryParse(refId, out var buildingValue)) return;
-        var snapshot = InteriorProjector.Build(world, new BuildingId(buildingValue));
-        if (!snapshot.IsSuccess) return; // prédio inexistente: nada a publicar, o laço segue
+        if (!long.TryParse(scopeKey["interior:".Length..], out long id)) return;
+        var built = InteriorProjector.BuildOccupants(world, new BuildingId(id));
+        if (built is null) return;
 
-        var before = _lastInterior.TryGetValue(scopeKey, out var previous) ? previous : [];
-        var delta = InteriorTickDelta.Diff(tick, before, snapshot.Value!.Occupants);
-        _lastInterior[scopeKey] = snapshot.Value.Occupants;
-        gateway.Publish(new VisualScope(VisualScopeKind.Interior, refId), delta);
+        var before = _lastInteriors.TryGetValue(scopeKey, out var previous) ? previous : [];
+        _lastInteriors[scopeKey] = built;
+        var diff = InteriorOccupancyDiffer.Diff(before, built);
+        var delta = new InteriorTickDelta(tick, new BuildingId(id), diff.Entered, diff.Moved, diff.ChangedFloor, diff.Exited);
+        if (!delta.IsEmpty)
+            gateway.Publish(new VisualScope(VisualScopeKind.Interior, id.ToString()), delta);
     }
 
     private static VisualScope ParseScope(string scopeKey) =>

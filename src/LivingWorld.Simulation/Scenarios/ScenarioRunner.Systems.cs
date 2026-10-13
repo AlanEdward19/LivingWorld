@@ -5,14 +5,17 @@ using LivingWorld.Simulation.Cities;
 using LivingWorld.Simulation.Cities.Construction;
 using LivingWorld.Simulation.Cities.Founding;
 using LivingWorld.Simulation.Cities.Migration;
+using LivingWorld.Simulation.Climate;
 using LivingWorld.Simulation.Ecology;
 using LivingWorld.Simulation.Economy.Labor;
 using LivingWorld.Simulation.Economy.Market;
 using LivingWorld.Simulation.Economy.Production;
 using LivingWorld.Simulation.Economy.Supply;
+using LivingWorld.Simulation.Economy.Trade;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
 using LivingWorld.Simulation.Extraordinary.Systems;
 using LivingWorld.Simulation.Geography;
+using LivingWorld.Simulation.Health;
 using LivingWorld.Simulation.History.Books;
 using LivingWorld.Simulation.History.Distortion;
 using LivingWorld.Simulation.Llm;
@@ -54,7 +57,9 @@ public static partial class ScenarioRunner
         var systems = new List<ISimulationSystem>
         {
         new PeriodEvolutionSystem(periodTransformationRules ?? []),
+        new ClimateYearSystem(),
         new MortalitySystem(),
+        new OutbreakSystem(),
         new FactToReportConversionScheduler(),
         new BookRediscoverySystem(),
         new ColdArchiveSystem(),
@@ -62,6 +67,7 @@ public static partial class ScenarioRunner
         new NatalitySystem(),
         new NeedsDecaySystem(),
         new BehaviorDecisionSystem(DefaultSkillsRules),
+        new TradeLedgerSystem(),
         new BuildingOccupancySystem(),
         new ResourceProcessSystem(),
         new EmploymentSystem(),

@@ -149,4 +149,21 @@ public enum WorldEventKind
 
     /// <summary>Morte por privação de sono sustentada — payload: npcId.</summary>
     Exhaustion,
+
+    /// <summary>Primeiro contato de compra entre comprador e quem atende a oficina — payload:
+    /// <c>compradorId|atendenteId|oficinaId|recursoId|valor</c>.</summary>
+    Trade,
+
+    /// <summary>Espólio de um NPC morto repartido entre os herdeiros — payload:
+    /// <c>mortoId|herdeiros(ids por vírgula, vazio = tesouro da cidade)|moeda|unidadesDeEstoque|oficinasTransferidas</c>.</summary>
+    EstateSettled,
+
+    /// <summary>Morte por doença — payload: <c>npcId|doençaId</c>.</summary>
+    Disease,
+
+    /// <summary>Um surto começou numa cidade — payload: <c>doençaId|pacienteZeroId|cidadeId</c>.</summary>
+    OutbreakStarted,
+
+    /// <summary>Furto descoberto (pego em flagrante ou denunciado) — payload: <c>ladraoId|vitimaId|moeda|1 se levou, 0 se falhou</c>.</summary>
+    TheftDiscovered,
 }

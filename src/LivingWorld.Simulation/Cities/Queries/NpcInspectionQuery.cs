@@ -141,7 +141,7 @@ public static class NpcInspectionQuery
         world.CognitionLog.RecentEntries(id, int.MaxValue);
 
     private static IReadOnlyList<string> PowerIdsOf(WorldState world, NpcId id) =>
-        world.ExtraordinaryCarriers.FirstOrDefault(carrier => carrier.CarrierId == id)?.PowerIds
+        world.CarrierOf(id)?.PowerIds
         ?? [];
 
     private static NpcActionTargetDto? TargetOf(Npc npc) => npc.CurrentAction switch

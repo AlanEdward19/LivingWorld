@@ -108,7 +108,7 @@ public static class ExtraordinaryInvocationEngine
         if (!world.Extraordinary.Enabled)
             return Result<InvocationPlan>.Fail("Extraordinary.Enabled: false");
 
-        var carrierState = world.ExtraordinaryCarriers.FirstOrDefault(c => c.CarrierId == invocation.CarrierId);
+        var carrierState = world.CarrierOf(invocation.CarrierId);
         if (carrierState is null || !carrierState.PowerIds.Contains(invocation.PowerId, StringComparer.Ordinal))
             return Result<InvocationPlan>.Fail("Carrier.PowerIds: poder não adquirido");
 
@@ -268,7 +268,7 @@ public static class ExtraordinaryInvocationEngine
 
     private static int ResolveVulnerabilityFactor(WorldState world, Npc subject, string type)
     {
-        var carrier = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == subject.Id);
+        var carrier = world.CarrierOf(subject.Id);
         if (carrier is null)
             return 1;
         var tags = carrier.PowerIds

@@ -63,7 +63,7 @@ public static class PowerInheritanceResolver
 
     internal static bool IsPowerCarrier(WorldState world, NpcId npcId)
     {
-        var carrier = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npcId);
+        var carrier = world.CarrierOf(npcId);
         return carrier is not null && carrier.PowerIds.Count > 0;
     }
 
@@ -188,7 +188,7 @@ public static class PowerInheritanceResolver
 
     static IReadOnlyList<PowerDescriptor> LookupDescriptors(WorldState world, NpcId npcId)
     {
-        var carrier = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npcId);
+        var carrier = world.CarrierOf(npcId);
         if (carrier is null || carrier.PowerIds.Count == 0)
             return [];
 

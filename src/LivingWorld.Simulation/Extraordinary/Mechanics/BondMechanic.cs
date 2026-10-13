@@ -158,7 +158,7 @@ public sealed class BondMechanic : ExtraordinaryMechanic
     }
 
     private static ExtraordinaryCarrierState? CarrierState(WorldState world, NpcId id) =>
-        world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == id);
+        world.CarrierOf(id);
 
     private static void UndoBond(WorldState world, ExtraordinaryCarrierState? state)
     {

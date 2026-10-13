@@ -91,7 +91,7 @@ public sealed class LuckMechanic : ExtraordinaryMechanic
 
     private static int CapacityBonus(WorldState world, Npc carrier)
     {
-        var state = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == carrier.Id);
+        var state = world.CarrierOf(carrier.Id);
         if (state is not { IsManifested: true }) return 0;
 
         int bonus = 0;
@@ -112,7 +112,7 @@ public sealed class LuckMechanic : ExtraordinaryMechanic
 
     private static int ActiveCurse(WorldState world, Npc carrier, long currentTick)
     {
-        var state = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == carrier.Id);
+        var state = world.CarrierOf(carrier.Id);
         if (state is null || state.LuckCurseUntilTick <= currentTick) return 0;
         return state.LuckCurseAmount;
     }

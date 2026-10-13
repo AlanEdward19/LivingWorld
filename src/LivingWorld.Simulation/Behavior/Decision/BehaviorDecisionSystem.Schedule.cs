@@ -1,4 +1,5 @@
 using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Body;
@@ -35,6 +36,57 @@ public sealed partial class BehaviorDecisionSystem
         if (!npc.HasUrgentNeed(rules, now)) return false;
         return IsUrgent(npc.HungerAt(now), rules) || IsUrgent(npc.ThirstAt(now), rules)
             || IsUrgent(npc.SleepAt(now), rules) || npc.SocialAt(now) <= SocialCriticalNeed;
+    }
+
+    /// <summary>Quem tem dinheiro (pelo menos o preço de uma unidade) e vê a despensa da casa abaixo de metade da meta de
+    /// dias (que cresce com a distância até o mercado) vai repor já, sem esperar a sede apertar: com o mercado a dias de
+    /// caminho, esperar a sede urgente para só então partir era morrer na estrada. Rejeita barato quando a despensa está
+    /// cheia. Sem estado: só lê o mundo, então reabrir o mundo no meio do dia decide igual à execução contínua.</summary>
+    internal static bool NeedsRestocking(WorldState world, Npc npc, MarketIndex marketIndex)
+    {
+        var economy = world.EconomyRules;
+        if (!economy.Enabled || npc.Wallet.Amount < 1) return false;
+        if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household) return false;
+
+        long scarcest = Math.Min(
+            household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId)),
+            household.Stock.GetValueOrDefault(new ResourceType(economy.WaterResourceId)));
+        int members = Math.Max(1, household.Members.Count);
+        if (scarcest >= (long)members * MaxProvisionDays) return false; // despensa cheia mesmo para o mercado mais longe
+
+        var market = NearestProvisionMarket(world, household, marketIndex);
+        if (market is null || npc.Wallet.Amount < CheapestEssentialPrice(economy, market)) return false;
+
+        return (double)scarcest / members < ProvisionTargetAt(world, household, market) * RestockShortfall;
+    }
+
+    /// <summary>Meta de dias de despensa do domicílio do NPC (a padrão sem domicílio ou sem mercado).</summary>
+    internal static double ProvisionTargetFor(WorldState world, Npc npc, MarketIndex marketIndex) =>
+        npc.Household is { } householdId && world.FindHousehold(householdId) is { } household
+            ? ProvisionTargetAt(world, household, NearestProvisionMarket(world, household, marketIndex))
+            : ProvisionTargetDays;
+
+    private static Workplace? NearestProvisionMarket(
+        WorldState world, LivingWorld.Domain.Population.Family.Household household, MarketIndex marketIndex) =>
+        marketIndex.NearestSelling(
+            household.Location, new ResourceType(world.EconomyRules.FoodResourceId), new ResourceType(world.EconomyRules.WaterResourceId));
+
+    private static double ProvisionTargetAt(
+        WorldState world, LivingWorld.Domain.Population.Family.Household household, Workplace? market)
+    {
+        if (market is null) return ProvisionTargetDays;
+
+        long ticks = TravelTicksCache.Between(world.Map, household.Location, market.Location);
+        return Math.Min(MaxProvisionDays, ProvisionTargetDays + 2.0 * ticks / world.CurrentDate.Calendar.HoursPerDay);
+    }
+
+    /// <summary>Menor preço positivo entre comida e água no mercado: com menos que isso na carteira a ida não compra nada.</summary>
+    private static long CheapestEssentialPrice(EconomyRules economy, Workplace market)
+    {
+        long cheapest = long.MaxValue;
+        foreach (int id in new[] { economy.FoodResourceId, economy.WaterResourceId })
+            if (market.Prices.TryGetValue(new ResourceType(id), out var price) && price > 0 && price < cheapest) cheapest = price;
+        return cheapest == long.MaxValue ? 0 : cheapest;
     }
 
     private static bool IsUrgent(int need, NeedsRules rules) => need == 0 || 100 - need > rules.UrgencyThreshold;

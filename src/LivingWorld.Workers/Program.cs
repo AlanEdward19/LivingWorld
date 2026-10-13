@@ -25,6 +25,72 @@ if (args.Length == 3 && args[0] == "hash")
     return 0;
 }
 
+// SHA-256 do bloco binário posicional (formato v2) do mundo depois de <ticks>: o teste de dois processos exige bytes
+// idênticos. `dotnet <dll> snapshot-bytes <seed> <ticks>`.
+if (args.Length == 3 && args[0] == "snapshot-bytes")
+{
+    var (world, clock) = ScenarioRunner.Create(ulong.Parse(args[1]), initialPopulation: 20);
+    clock.Run(world, long.Parse(args[2]));
+    var block = LivingWorld.Simulation.Snapshot.PositionalSnapshot.EncodeFull(world, out _);
+    Console.WriteLine(Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(block)));
+    return 0;
+}
+
+// SHA-256 do event log compactado (lotes mensais) depois de <ticks>: o teste de dois processos exige o mesmo agregado.
+// `dotnet <dll> eventlog-digest <seed> <ticks>`.
+if (args.Length == 3 && args[0] == "eventlog-digest")
+{
+    var (world, baseClock) = ScenarioRunner.Create(ulong.Parse(args[1]), initialPopulation: 40);
+    var buffer = new BufferingWorldEventSink();
+    var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, buffer);
+    var lines = new List<string>();
+    long total = long.Parse(args[2]);
+    for (long t = 1; t <= total; t++)
+    {
+        clock.Tick(world);
+        if (t % world.Calendar.HoursPerMonth == 0 || t == total)
+            lines.AddRange(LivingWorld.Infrastructure.EventLog.EventLogCompactor.Compact(buffer.DrainAll(), world.Calendar)
+                .Select(e => $"{e.Tick}|{e.Kind}|{e.Payload}|{e.SourceSystem}"));
+    }
+
+    Console.WriteLine(Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(string.Join((char)10, lines)))));
+    return 0;
+}
+
+// Hash canônico de uma vila com doença ligada (surto por densidade, contágio, cura e morte): o teste de dois processos exige o
+// mesmo hash. `dotnet <dll> disease-hash <seed> <ticks>`.
+if (args.Length == 3 && args[0] == "disease-hash")
+{
+    var disease = new LivingWorld.Domain.Health.DiseaseRules(
+        true, [new LivingWorld.Domain.Health.DiseaseProfile(1, 0.08, 0.15, 6, 180)], OutbreakPopulationThreshold: 20, OutbreakDailyChance: 0.02);
+    var (world, clock) = ScenarioRunner.Create(ulong.Parse(args[1]), diseaseRules: disease);
+    clock.Run(world, long.Parse(args[2]));
+    Console.WriteLine($"{WorldSnapshot.CanonicalHash(world)};{world.Infections.Count};{world.Npcs.Count(n => !n.IsAlive)}");
+    return 0;
+}
+
+// Hash canônico de uma vila com clima ligado (anos de safra por região): o teste de dois processos exige o mesmo hash.
+// `dotnet <dll> climate-hash <seed> <ticks>`.
+if (args.Length == 3 && args[0] == "climate-hash")
+{
+    var (world, clock) = ScenarioRunner.Create(ulong.Parse(args[1]), climateRules: new LivingWorld.Domain.Climate.ClimateRules(true, 300, 1500));
+    clock.Run(world, long.Parse(args[2]));
+    Console.WriteLine($"{WorldSnapshot.CanonicalHash(world)};{world.ClimateYears.Count}");
+    return 0;
+}
+
+// Hash canônico de uma vila com furto ligado (desespero, temperamento, sorteio, descoberta): o teste de dois processos exige o
+// mesmo hash. `dotnet <dll> theft-hash <seed> <ticks>`.
+if (args.Length == 3 && args[0] == "theft-hash")
+{
+    var (world, _) = ScenarioRunner.Create(ulong.Parse(args[1]), theftRules: new LivingWorld.Domain.Crime.TheftRules(true, 90, 0.9, 0.6, 0.5, 0.5, -1, 0.25));
+    int thefts = 0;
+    var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: new TheftCounter(() => thefts++));
+    clock.Run(world, long.Parse(args[2]));
+    Console.WriteLine($"{WorldSnapshot.CanonicalHash(world)};{thefts}");
+    return 0;
+}
+
 // `dotnet <dll> history-significance-digest <seed> <ticks>`.
 if (args.Length == 3 && args[0] == "history-significance-digest")
 {
@@ -161,3 +227,11 @@ builder.Services.AddHostedService<Worker>();
 var host = builder.Build();
 host.Run();
 return 0;
+
+internal sealed class TheftCounter(Action onTheft) : LivingWorld.Simulation.Core.IWorldEventSink
+{
+    public void Record(LivingWorld.Simulation.Core.WorldEvent evt)
+    {
+        if (evt.Kind == LivingWorld.Domain.History.WorldEventKind.TheftDiscovered) onTheft();
+    }
+}

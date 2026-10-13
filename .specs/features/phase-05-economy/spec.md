@@ -1,3 +1,5 @@
+> **Estado: Parcial** (specs-closeout 2026-10-12) - Fase fechada; 25 requisitos com teste rastreavel, 4 sem prova direta encontrada.
+
 # Fase 5 — Economia — Specification
 
 ## Problem Statement
@@ -366,35 +368,35 @@ par base/tratamento (quebra de safra) mostra contagem de NPCs famintos maior no 
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| ECON-01 | P1: Recursos e estoque | Design | Pending |
-| ECON-02 | P1: Recursos e estoque | Design | Pending |
-| ECON-03 | P1: Recursos e estoque | Design | Pending |
-| ECON-04 | P1: Recursos e estoque | Design | Pending |
-| ECON-05 | P1: Recursos e estoque | Design | Pending |
-| ECON-06 | P1: Produção | Design | Pending |
-| ECON-07 | P1: Produção | Design | Pending |
-| ECON-08 | P1: Produção | Design | Pending |
-| ECON-09 | P1: Transação atômica | Design | Pending |
-| ECON-10 | P1: Transação atômica | Design | Pending |
-| ECON-11 | P1: Transação atômica | Design | Pending |
-| ECON-12 | P1: Transação atômica | Design | Pending |
-| ECON-13 | P1: Transação atômica | Design | Pending |
-| ECON-14 | P1: Conservação | Design | Pending |
-| ECON-15 | P1: Conservação | Design | Pending |
-| ECON-16 | P1: Consumo diário | Design | Pending |
-| ECON-17 | P1: Consumo diário | Design | Pending |
-| ECON-18 | P2: Emprego | Design | Pending |
-| ECON-19 | P2: Emprego | Design | Pending |
-| ECON-20 | P2: Emprego | Design | Pending |
-| ECON-21 | P2: Salário | Design | Pending |
-| ECON-22 | P2: Salário | Design | Pending |
-| ECON-23 | P2: Mercado/preço | Design | Pending |
-| ECON-24 | P2: Mercado/preço | Design | Pending |
-| ECON-25 | P2: Mercado/preço | Design | Pending |
-| ECON-26 | P2: Cunhagem/destruição | Design | Pending |
-| ECON-27 | P2: Cunhagem/destruição | Design | Pending |
-| ECON-28 | P2: Cenário base/tratamento | Design | Pending |
-| ECON-29 | P2: Cenário base/tratamento | Design | Pending |
+| ECON-01 | P1: Recursos e estoque | Design | Pending - sem teste dedicado; tipo int/long so por construcao do codigo |
+| ECON-02 | P1: Recursos e estoque | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/WorkplaceTests.cs |
+| ECON-03 | P1: Recursos e estoque | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/Production/ProductionSystemTests.cs (Spoilage_reduces_stock_by_declared_rate_and_zero_rate_leaves_stock_untouched) |
+| ECON-04 | P1: Recursos e estoque | Design | Pending - existe tests/LivingWorld.Tests.LongRunning/Serialization/ReferentialIntegritySweepTests.cs, mas cobertura de WorkplaceId nao confirmada |
+| ECON-05 | P1: Recursos e estoque | Design | Verified - tests/LivingWorld.Tests.Integration/Economy/EconomyHashScenarioTests.cs |
+| ECON-06 | P1: Produção | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/EconomyCatalogTests.cs |
+| ECON-07 | P1: Produção | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/Production/ProductionSystemTests.cs |
+| ECON-08 | P1: Produção | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/Production/ProductionSystemTests.cs (Workplace_requiring_absent_cell_resource_produces_zero_even_with_worker_present) |
+| ECON-09 | P1: Transação atômica | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/MarketTransactionTests.cs (Execute_happy_path) + EatAndBuyBehaviorTests.cs |
+| ECON-10 | P1: Transação atômica | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/MarketTransactionTests.cs (AllStepIndexes via MarketTransaction.Steps.Count) |
+| ECON-11 | P1: Transação atômica | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/MarketTransactionTests.cs (Execute_fails_and_leaves_nothing_observable_when_buyer_funds_insufficient) |
+| ECON-12 | P1: Transação atômica | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/MarketTransactionTests.cs (Execute_aborts_at_the_injected_step_with_no_partial_effect) |
+| ECON-13 | P1: Transação atômica | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/MarketTransactionTests.cs (theory itera Steps.Count) |
+| ECON-14 | P1: Conservação | Design | Verified - tests/LivingWorld.Tests.LongRunning/Economy/MoneyConservationTests.cs |
+| ECON-15 | P1: Conservação | Design | Verified - tests/LivingWorld.Tests.LongRunning/Economy/ResourceConservationTests.cs |
+| ECON-16 | P1: Consumo diário | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/EatAndBuyBehaviorTests.cs |
+| ECON-17 | P1: Consumo diário | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/EatAndBuyBehaviorTests.cs (Eat_with_no_food_in_stock_completes_without_restoring_hunger_and_without_exception) |
+| ECON-18 | P2: Emprego | Design | Verified - tests/LivingWorld.Tests.LongRunning/Economy/Labor/EmploymentSystemTests.cs |
+| ECON-19 | P2: Emprego | Design | Pending - morte coberta (EmploymentSystemTests.Dead_employee_is_fired...); demissao por falta de caixa nao encontrada |
+| ECON-20 | P2: Emprego | Design | Verified - tests/LivingWorld.Tests.LongRunning/Economy/Labor/EmploymentSystemTests.cs + tests/LivingWorld.Tests.Unit/Economy/WorkplaceTests.cs |
+| ECON-21 | P2: Salário | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/Labor/WagePaymentSystemTests.cs |
+| ECON-22 | P2: Salário | Design | Pending - WageUnpaid e saldos intactos cobertos (WagePaymentSystemTests); teste de mutacao por flag nao encontrado |
+| ECON-23 | P2: Mercado/preço | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/Market/MarketPricingSystemTests.cs |
+| ECON-24 | P2: Mercado/preço | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/Market/MarketPricingSystemTests.cs (Price_never_leaves_the_declared_floor_ceiling_range) |
+| ECON-25 | P2: Mercado/preço | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/ScarcityPriceCausalTests.cs |
+| ECON-26 | P2: Cunhagem/destruição | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/MoneySupplyTests.cs |
+| ECON-27 | P2: Cunhagem/destruição | Design | Verified - tests/LivingWorld.Tests.LongRunning/Economy/MoneyConservationTests.cs (esperado = inicial + MoneyMinted - MoneyDestroyed) |
+| ECON-28 | P2: Cenário base/tratamento | Design | Verified - tests/LivingWorld.Tests.Integration/Scenario/LivingVillageScenarioTests.cs + tests/LivingWorld.Tests.Shared/Economy/EconomyScenarioHarness.cs |
+| ECON-29 | P2: Cenário base/tratamento | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/FamineCausalChainTests.cs |
 
 **ID format:** `ECON-NN`.
 

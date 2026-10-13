@@ -1,0 +1,7 @@
+{
+  "daysPerMonth": "number",
+  "hoursPerDay": "number",
+  "hoursPerMonth": "number",
+  "hoursPerYear": "number",
+  "monthsPerYear": "number"
+}

@@ -273,7 +273,8 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
     {
         if (!world.EconomyRules.Enabled)
             return;
-        long yield = (long)Math.Floor(rules.YieldPerMaturePlant);
+        // o ano de safra da região multiplica a colheita (weather-drought): seca corta, fartura soma; sem clima vale 1000
+        long yield = (long)Math.Floor(rules.YieldPerMaturePlant * world.ClimateFactorAt(plant.Position, ctx.CurrentTick) / 1000.0);
         if (yield <= 0)
             return;
 

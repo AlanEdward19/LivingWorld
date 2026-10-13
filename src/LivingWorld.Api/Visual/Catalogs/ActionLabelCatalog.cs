@@ -18,6 +18,7 @@ public static class ActionLabelCatalog
         ActionType.Idle => "Parado",
         ActionType.Buy => "Comprando",
         ActionType.UsePower => "Usando um poder",
+        ActionType.Steal => "Furtando",
         _ => throw new ArgumentOutOfRangeException(nameof(action), action, "ActionType sem rótulo de apresentação"),
     };
 

@@ -86,8 +86,8 @@ func test_stream_rejects_mistyped_snapshot() -> void:
 
 
 func test_api_client_validates_npc_detail_shape() -> void:
-	var shape = ShapeValidator.load_shape("npc-detail")
-	check(shape != null, "contrato npc-detail existe")
+	var shape = ShapeValidator.load_shape("npc-inspect")
+	check(shape != null, "contrato npc-inspect existe")
 	var good := {}
 	for key in shape:
 		good[key] = _sample_for(shape[key])
@@ -151,7 +151,7 @@ func test_stream_validates_interior_deltas_and_accepts_null_action() -> void:
 	var good := {}
 	for key in shape:
 		good[key] = _sample_for(shape[key])
-	good.payload.upserts[0].action = null # ação nula é legítima no motor (NPC sem ação)
+	good.payload.entered[0].action = null # ação nula é legítima no motor (NPC sem ação)
 	good.fromCursor.sequence = 0
 	good.toCursor.sequence = 1
 	transport.channels[0].push(good)
@@ -160,7 +160,7 @@ func test_stream_validates_interior_deltas_and_accepts_null_action() -> void:
 	var broken: Dictionary = good.duplicate(true)
 	broken.fromCursor.sequence = 1
 	broken.toCursor.sequence = 2
-	broken.payload.erase("removed")
+	broken.payload.erase("exited")
 	transport.channels[0].push(broken)
-	eq(applied.size(), 1, "delta de interior sem `removed` é descartado")
+	eq(applied.size(), 1, "delta de interior sem `exited` é descartado")
 	eq(errors.size(), 1, "e o erro de contrato é anunciado")

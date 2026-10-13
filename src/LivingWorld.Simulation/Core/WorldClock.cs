@@ -60,12 +60,15 @@ public sealed class WorldClock(IReadOnlyList<ISimulationSystem> systems, int max
             if (++iterations > maxIterationsPerTick)
                 throw new TickBudgetExceededException(lastSystem ?? "(desconhecido)", maxIterationsPerTick);
 
-            foreach (var evt in world.Scheduler.PopDue(tick))
+            var due = world.Scheduler.PopDue(tick);
+            foreach (var evt in due)
             {
                 lastSystem = evt.SystemName;
                 if (_byName.TryGetValue(evt.SystemName, out var system))
                     system.HandleEvent(world, ctx, evt);
             }
+
+            world.Scheduler.Release(due);
         }
     }
 }

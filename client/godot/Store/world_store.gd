@@ -135,7 +135,7 @@ func _building(id: int, marker: Dictionary) -> Dictionary:
 
 func apply_delta(envelope: Dictionary) -> void:
 	var delta: Dictionary = envelope.payload
-	if delta.has("upserts"): # delta de interior
+	if delta.has("entered"): # delta de interior
 		_apply_interior_delta(delta)
 		return
 	for visual in delta.get("npcUpserts", []):
@@ -173,15 +173,17 @@ func apply_delta(envelope: Dictionary) -> void:
 		cities_changed.emit()
 
 
-## Delta de interior: `upserts` (entrou ou mudou) e `removed` (saiu), por id de NPC.
+## Delta de interior do servidor: `entered`, `moved` (célula OU ação mudou), `changedFloor` e `exited`.
+## As três primeiras trazem o ocupante completo; `exited` traz só o id.
 func _apply_interior_delta(delta: Dictionary) -> void:
 	var occupants: Array = interior.get("occupants", [])
 	var by_npc := {}
 	for occupant in occupants:
 		by_npc[int(id_of(occupant.npc))] = occupant
-	for removed in delta.get("removed", []):
-		by_npc.erase(int(id_of(removed)))
-	for upsert in delta.get("upserts", []):
-		by_npc[int(id_of(upsert.npc))] = upsert
+	for exited in delta.get("exited", []):
+		by_npc.erase(int(id_of(exited)))
+	for key in ["entered", "moved", "changedFloor"]:
+		for occupant in delta.get(key, []):
+			by_npc[int(id_of(occupant.npc))] = occupant
 	interior["occupants"] = by_npc.values()
 	interior_changed.emit()

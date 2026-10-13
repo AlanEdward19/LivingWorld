@@ -1,7 +1,9 @@
 using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Climate;
 using LivingWorld.Domain.Cognition;
+using LivingWorld.Domain.Crime;
 using LivingWorld.Domain.Ecology;
 using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Extraordinary;
@@ -10,6 +12,7 @@ using LivingWorld.Domain.Flora;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Geography.Map;
 using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.Health;
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.History.Distortion;
 using LivingWorld.Domain.Llm;
@@ -194,6 +197,41 @@ public sealed partial class WorldState
     /// <summary>Encontros de combate multi-round — via
     /// <c>combat.engage:</c>.</summary>
     [Canonical] public IReadOnlyList<CombatEncounter> CombatEncounters => _combatEncounters;
+
+    /// <summary>Livro de trocas das oficinas (ver <see cref="TradeAggregate"/>), canônico e limitado: dia a dia na
+    /// janela de detalhe, mês a mês depois dela.</summary>
+    [Canonical] public IReadOnlyList<TradeAggregate> TradeLedger => _tradeLedger;
+    private readonly List<TradeAggregate> _tradeLedger;
+
+    /// <summary>Livro do tesouro das cidades (receita e gasto por mês, ver <see cref="TreasuryAggregate"/>), canônico e
+    /// limitado a um registro por cidade e mês.</summary>
+    [Canonical] public IReadOnlyList<TreasuryAggregate> TreasuryLedger => _treasuryLedger;
+    private readonly List<TreasuryAggregate> _treasuryLedger;
+
+    /// <summary>Regras de doença do cenário (disease-epidemics); desligadas por padrão.</summary>
+    [Canonical] public DiseaseRules DiseaseRules { get; }
+
+    /// <summary>Regras de furto do cenário (crime-and-theft); desligado por padrão: ninguém furta.</summary>
+    [Canonical] public TheftRules TheftRules { get; }
+
+    /// <summary>Infecções ativas, ordenadas por NPC e doença.</summary>
+    [Canonical] public IReadOnlyList<Infection> Infections => _infections;
+    private readonly List<Infection> _infections;
+
+    /// <summary>Regras de clima do cenário (weather-drought); desligado por padrão (todo ano vale 1000).</summary>
+    [Canonical] public ClimateRules ClimateRules { get; }
+
+    /// <summary>Anos de safra recentes por região, ordenados por região e ano (os antigos saem sozinhos).</summary>
+    [Canonical] public IReadOnlyList<ClimateYear> ClimateYears => _climateYears;
+    private readonly List<ClimateYear> _climateYears;
+
+    /// <summary>Imunidades vigentes, ordenadas por NPC e doença.</summary>
+    [Canonical] public IReadOnlyList<Immunity> Immunities => _immunities;
+    private readonly List<Immunity> _immunities;
+
+    /// <summary>Primeiros contatos de compra ainda sem evento (ver <c>TradeLedgerSystem</c>). Volátil: o sistema a esvazia
+    /// a cada hora, então só uma hora de contatos se perde se o mundo for salvo no meio.</summary>
+    internal List<LivingWorld.Simulation.Economy.Trade.TradeContact> PendingTradeContacts { get; } = [];
     [Canonical] public long NextCombatEncounterId => _nextCombatEncounterId;
 
     /// <summary>Teto de rounds e limiar de fuga (cenário).</summary>
@@ -417,7 +455,15 @@ public sealed partial class WorldState
         IReadOnlyList<BiomeSeasonTemperatureRules>? biomeSeasonTemperatureRules = null,
         IReadOnlyList<CombatEncounter>? combatEncounters = null,
         long nextCombatEncounterId = 0,
-        CombatRules? combatRules = null)
+        CombatRules? combatRules = null,
+        IReadOnlyList<TradeAggregate>? tradeLedger = null,
+        IReadOnlyList<TreasuryAggregate>? treasuryLedger = null,
+        DiseaseRules? diseaseRules = null,
+        IReadOnlyList<Infection>? infections = null,
+        IReadOnlyList<Immunity>? immunities = null,
+        ClimateRules? climateRules = null,
+        IReadOnlyList<ClimateYear>? climateYears = null,
+        TheftRules? theftRules = null)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -456,6 +502,14 @@ public sealed partial class WorldState
         _combatEncountersById = ToLookup(_combatEncounters, e => e.Id);
         _nextCombatEncounterId = nextCombatEncounterId;
         CombatRules = combatRules ?? CombatRules.Default;
+        _tradeLedger = (tradeLedger ?? []).ToList();
+        _treasuryLedger = (treasuryLedger ?? []).ToList();
+        DiseaseRules = diseaseRules ?? DiseaseRules.Disabled;
+        _infections = (infections ?? []).ToList();
+        _immunities = (immunities ?? []).ToList();
+        ClimateRules = climateRules ?? ClimateRules.Disabled;
+        TheftRules = theftRules ?? TheftRules.Disabled;
+        _climateYears = (climateYears ?? []).ToList();
         Name = name;
         _facts = [];
         _reports = [];
@@ -563,7 +617,15 @@ public sealed partial class WorldState
         long nextHistoryEventId = 0,
         IReadOnlyList<CombatEncounter>? combatEncounters = null,
         long nextCombatEncounterId = 0,
-        CombatRules? combatRules = null)
+        CombatRules? combatRules = null,
+        IReadOnlyList<TradeAggregate>? tradeLedger = null,
+        IReadOnlyList<TreasuryAggregate>? treasuryLedger = null,
+        DiseaseRules? diseaseRules = null,
+        IReadOnlyList<Infection>? infections = null,
+        IReadOnlyList<Immunity>? immunities = null,
+        ClimateRules? climateRules = null,
+        IReadOnlyList<ClimateYear>? climateYears = null,
+        TheftRules? theftRules = null)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -637,6 +699,14 @@ public sealed partial class WorldState
         _combatEncountersById = ToLookup(_combatEncounters, e => e.Id);
         _nextCombatEncounterId = nextCombatEncounterId;
         CombatRules = combatRules ?? CombatRules.Default;
+        _tradeLedger = (tradeLedger ?? []).ToList();
+        _treasuryLedger = (treasuryLedger ?? []).ToList();
+        DiseaseRules = diseaseRules ?? DiseaseRules.Disabled;
+        _infections = (infections ?? []).ToList();
+        _immunities = (immunities ?? []).ToList();
+        ClimateRules = climateRules ?? ClimateRules.Disabled;
+        TheftRules = theftRules ?? TheftRules.Disabled;
+        _climateYears = (climateYears ?? []).ToList();
         _facts = (facts ?? []).ToList();
         _nextFactId = nextFactId;
         _nextReportId = nextReportId;

@@ -28,7 +28,8 @@ public sealed record DecisionContext(
     Personality Personality,
     ActionType? CurrentAction,
     IReadOnlyDictionary<ActionType, ResolutionResult>? ForesightPreviews = null,
-    long WalletAmount = 0);
+    long WalletAmount = 0,
+    double ProvisionTargetDays = 2.0);
 
 public readonly record struct NeedsSnapshot(int Hunger, int Thirst, int Sleep, int Social);
 

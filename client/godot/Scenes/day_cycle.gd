@@ -27,10 +27,16 @@ func bind(p_sun: DirectionalLight3D, p_environment: Environment, p_window_materi
 	_apply()
 
 
-func sync(tick: float, ticks_per_second: float, paused: bool, calendar: Dictionary = {}) -> void:
+## Calendário do cenário (`GET /world/calendar`): quantos ticks formam dia, mês e ano.
+func set_calendar(calendar: Dictionary) -> void:
 	hours_per_day = float(calendar.get("hoursPerDay", hours_per_day))
 	days_per_month = int(calendar.get("daysPerMonth", days_per_month))
 	months_per_year = int(calendar.get("monthsPerYear", months_per_year))
+
+
+func sync(tick: float, ticks_per_second: float, paused: bool, calendar: Dictionary = {}) -> void:
+	if not calendar.is_empty():
+		set_calendar(calendar)
 	_tick = tick
 	_ticks_per_second = ticks_per_second
 	_paused = paused

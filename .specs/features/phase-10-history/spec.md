@@ -1,3 +1,5 @@
+> **Estado: Entregue** (specs-closeout 2026-10-12) - 26/26 requisitos com teste em tests/ (esqueleto, distorcao, canone, livros, verdade vs crenca, indices, linhagem, replay); ROADMAP.md ainda marca a fase como pendente.
+
 # Fase 10 (História degradável) Specification
 
 ## Problem Statement
@@ -317,32 +319,32 @@ Each requirement gets a unique ID for tracking across design, tasks, and validat
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| HIST-01 | P1: Fato imutável e sua conversão em relato | Design | Pending |
-| HIST-02 | P1: Fato imutável e sua conversão em relato | Design | Pending |
-| HIST-03 | P1: Fato imutável e sua conversão em relato | Design | Pending |
-| HIST-04 | P1: Fato imutável e sua conversão em relato | Design | Pending |
-| HIST-05 | P1: Distorção determinística por salto de transmissão | Design | Pending |
-| HIST-06 | P1: Distorção determinística por salto de transmissão | Design | Pending |
-| HIST-07 | P1: Distorção determinística por salto de transmissão | Design | Pending |
-| HIST-08 | P1: Meios de transmissão e cânone limitado por comunidade | Design | Pending |
-| HIST-09 | P1: Meios de transmissão e cânone limitado por comunidade | Design | Pending |
-| HIST-10 | P1: Meios de transmissão e cânone limitado por comunidade | Design | Pending |
-| HIST-11 | P1: Meios de transmissão e cânone limitado por comunidade | Design | Pending |
-| HIST-12 | P1: Livros como objetos do mundo | Design | Pending |
-| HIST-13 | P1: Livros como objetos do mundo | Design | Pending |
-| HIST-14 | P1: Livros como objetos do mundo | Design | Pending |
-| HIST-15 | P1: Duas consultas separadas — Verdade e Crença | Design | Pending |
-| HIST-16 | P1: Duas consultas separadas — Verdade e Crença | Design | Pending |
-| HIST-17 | P1: Duas consultas separadas — Verdade e Crença | Design | Pending |
-| HIST-18 | P1: Duas consultas separadas — Verdade e Crença | Design | Pending |
-| HIST-19 | P1: Duas consultas separadas — Verdade e Crença | Design | Pending |
-| HIST-20 | P2: Índices de consulta por ano, entidade e tipo | Design | Pending |
-| HIST-21 | P2: Índices de consulta por ano, entidade e tipo | Design | Pending |
-| HIST-22 | P2: Dinastias e linhagens derivadas, correção por evento compensatório | Design | Pending |
-| HIST-23 | P2: Dinastias e linhagens derivadas, correção por evento compensatório | Design | Pending |
-| HIST-24 | P2: Dinastias e linhagens derivadas, correção por evento compensatório | Design | Pending |
-| HIST-25 | P2: Dinastias e linhagens derivadas, correção por evento compensatório | Design | Pending |
-| HIST-26 | P3: Reidratação e replay produzem o mesmo `Hash(world)` | Design | Pending |
+| HIST-01 | P1: Fato imutável e sua conversão em relato | Design | Verified - LivingWorld.Tests.Unit/History/FactTests, SignificanceCalculatorTests (TryRecord_creates_intact_fact...) |
+| HIST-02 | P1: Fato imutável e sua conversão em relato | Design | Verified - LivingWorld.Tests.Integration/History/FactAppendOnlyTests (Direct_update/delete_on_fact_log_is_rejected) |
+| HIST-03 | P1: Fato imutável e sua conversão em relato | Design | Verified - LivingWorld.Tests.Unit/History/LivingMemoryWindowTests |
+| HIST-04 | P1: Fato imutável e sua conversão em relato | Design | Verified - LivingWorld.Tests.Unit/History/Distortion/FactToReportConversionSchedulerTests |
+| HIST-05 | P1: Distorção determinística por salto de transmissão | Design | Verified - LivingWorld.Tests.Unit/History/Distortion/DistortionEngineTests (Apply_is_deterministic_for_each_operator) |
+| HIST-06 | P1: Distorção determinística por salto de transmissão | Design | Verified - LivingWorld.Tests.Unit/History/Distortion/DistortionEngineTests (digest identico em dois processos) |
+| HIST-07 | P1: Distorção determinística por salto de transmissão | Design | Verified - LivingWorld.Tests.Unit/History/Distortion/DistortionEngineTests (Five_hop_chain..., DistortionEngine_does_not_reference_llm_assembly) |
+| HIST-08 | P1: Meios de transmissão e cânone limitado por comunidade | Design | Verified - LivingWorld.Tests.Unit/History/TransmissionMediumTests |
+| HIST-09 | P1: Meios de transmissão e cânone limitado por comunidade | Design | Verified - LivingWorld.Tests.Unit/History/Books/CanonSlotManagerTests (Admit_evicts_lowest_weight...) |
+| HIST-10 | P1: Meios de transmissão e cânone limitado por comunidade | Design | Verified - LivingWorld.Tests.LongRunning/History/CanonBoundedOverTimeTests (Canon_size_stays_at_ceiling_across_horizons...) |
+| HIST-11 | P1: Meios de transmissão e cânone limitado por comunidade | Design | Verified - CanonBoundedOverTimeTests.Bytes_per_retained_report_matches_baseline_for_twenty_seeds + tests/baselines/canon-bytes-per-report.json |
+| HIST-12 | P1: Livros como objetos do mundo | Design | Verified - LivingWorld.Tests.Unit/History/BookTests (Copy_creates_new_book_with_scribe_error...) |
+| HIST-13 | P1: Livros como objetos do mundo | Design | Verified - LivingWorld.Tests.Unit/History/BookTests (MarkLost_keeps_row_readable...) |
+| HIST-14 | P1: Livros como objetos do mundo | Design | Verified - LivingWorld.Tests.Unit/History/Books/BookRediscoverySystemTests |
+| HIST-15 | P1: Duas consultas separadas — Verdade e Crença | Design | Verified - LivingWorld.Tests.Unit/History/HistoryQuerySeparationTests/GuardTests/MutationTests, Llm/TruthVsBeliefBoundarySecurityTests |
+| HIST-16 | P1: Duas consultas separadas — Verdade e Crença | Design | Verified - LivingWorld.Tests.Unit/History/HistoryQuerySeparationTests/GuardTests/MutationTests, Llm/TruthVsBeliefBoundarySecurityTests |
+| HIST-17 | P1: Duas consultas separadas — Verdade e Crença | Design | Verified - LivingWorld.Tests.Unit/History/HistoryQuerySeparationTests/GuardTests/MutationTests, Llm/TruthVsBeliefBoundarySecurityTests |
+| HIST-18 | P1: Duas consultas separadas — Verdade e Crença | Design | Verified - LivingWorld.Tests.Unit/History/HistoryQuerySeparationTests/GuardTests/MutationTests, Llm/TruthVsBeliefBoundarySecurityTests |
+| HIST-19 | P1: Duas consultas separadas — Verdade e Crença | Design | Verified - LivingWorld.Tests.Unit/History/Queries/NpcBeliefQueryTests (BeliefOf_truth_and_belief_diverge_when_hops_distort) |
+| HIST-20 | P2: Índices de consulta por ano, entidade e tipo | Design | Verified - LivingWorld.Tests.Unit/History/HistoryIndexTests + tests/baselines/history-index.json |
+| HIST-21 | P2: Índices de consulta por ano, entidade e tipo | Design | Verified - LivingWorld.Tests.Unit/History/HistoryIndexTests (Query_reads_match_baseline_for_twenty_seeds) |
+| HIST-22 | P2: Dinastias e linhagens derivadas, correção por evento compensatório | Design | Verified - LivingWorld.Tests.Unit/History/Queries/LineageQueryTests (ReconstructFrom_*) |
+| HIST-23 | P2: Dinastias e linhagens derivadas, correção por evento compensatório | Design | Verified - LivingWorld.Tests.Unit/History/Queries/LineageQueryTests (ReconstructFrom_*) |
+| HIST-24 | P2: Dinastias e linhagens derivadas, correção por evento compensatório | Design | Verified - LivingWorld.Tests.Unit/History/Distortion/CompensatingCorrectionTests |
+| HIST-25 | P2: Dinastias e linhagens derivadas, correção por evento compensatório | Design | Verified - LivingWorld.Tests.Unit/History/Distortion/CompensatingCorrectionTests |
+| HIST-26 | P3: Reidratação e replay produzem o mesmo `Hash(world)` | Design | Verified - LivingWorld.Tests.Integration/History/HistorySnapshotReplayTests |
 
 **ID format:** `HIST-[NUMBER]`
 

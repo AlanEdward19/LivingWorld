@@ -38,7 +38,7 @@ public sealed class SkillMechanic : ExtraordinaryMechanic
     /// </summary>
     public static double ManifestedLearnRate(WorldState world, Npc npc)
     {
-        var carrier = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npc.Id);
+        var carrier = world.CarrierOf(npc.Id);
         if (carrier is not { IsManifested: true }) return 1;
 
         double rate = 1;

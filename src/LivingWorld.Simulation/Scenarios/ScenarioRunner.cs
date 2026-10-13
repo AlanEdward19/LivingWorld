@@ -123,7 +123,8 @@ public static partial class ScenarioRunner
         upbringingWealthWeight: 0.6,
         environmentalWealthChannelEnabled: true,
         neutralDriftEnabled: false,
-        vitalityMortalitySelectionEnabled: true).Value
+        vitalityMortalitySelectionEnabled: true,
+        personalityHeritability: 0.7).Value
         ?? throw new InvalidOperationException("family rules default inválida — bug no cenário, não no gerador");
 
     private static Dictionary<(RelationshipEventType, RelationshipAxis), double> BuildDefaultRelationshipDeltas()
@@ -146,6 +147,16 @@ public static partial class ScenarioRunner
         deltas[(RelationshipEventType.Help, RelationshipAxis.Affection)] = 2.0;
         deltas[(RelationshipEventType.Help, RelationshipAxis.Respect)] = 1.0;
         deltas[(RelationshipEventType.Help, RelationshipAxis.Debt)] = 3.0;
+        // Comprar de alguém é negócio repetido: confiança e respeito crescem devagar, a cada compra, com quem atende.
+        deltas[(RelationshipEventType.Trade, RelationshipAxis.Trust)] = 0.5;
+        deltas[(RelationshipEventType.Trade, RelationshipAxis.Respect)] = 0.2;
+        // Herdar de quem morreu: gratidão e saudade, uma vez por morte.
+        deltas[(RelationshipEventType.Inheritance, RelationshipAxis.Trust)] = 1.0;
+        deltas[(RelationshipEventType.Inheritance, RelationshipAxis.Affection)] = 1.5;
+        // Ser furtado e descobrir quem foi: a vítima perde confiança, afeto e respeito pelo ladrão (só no sentido vítima→ladrão).
+        deltas[(RelationshipEventType.Betrayal, RelationshipAxis.Trust)] = -8.0;
+        deltas[(RelationshipEventType.Betrayal, RelationshipAxis.Affection)] = -5.0;
+        deltas[(RelationshipEventType.Betrayal, RelationshipAxis.Respect)] = -3.0;
         return deltas;
     }
 
@@ -165,6 +176,7 @@ public static partial class ScenarioRunner
             [ActionType.Idle] = 2,
             [ActionType.Buy] = 2,
             [ActionType.UsePower] = 1,
+            [ActionType.Steal] = 1,
         },
         routineSlots:
         [
@@ -205,7 +217,8 @@ public static partial class ScenarioRunner
         priceFloor: new Dictionary<int, long> { [1] = 1, [2] = 1, [4] = 1 },
         priceCeiling: new Dictionary<int, long> { [1] = 20, [2] = 15, [4] = 80 },
         priceSensitivity: 0.2,
-        demandBaselinePerNpc: new Dictionary<int, double> { [1] = 0.5, [2] = 0.3 })
+        demandBaselinePerNpc: new Dictionary<int, double> { [1] = 0.5, [2] = 0.3 },
+        wageTaxRate: 0.05) // a cidade retém 5% do salário (AD-098)
         .Value ?? throw new InvalidOperationException("economy rules default inválida — bug no cenário, não no gerador");
 
     public static readonly EconomyCatalog DefaultEconomyCatalog = new(
@@ -291,7 +304,10 @@ public static partial class ScenarioRunner
         PopulationRules? populationRules = null, int workplaceVacancyMultiplier = 1,
         EconomyCatalog? economyCatalog = null, HistoryRules? historyRules = null,
         IReadOnlyList<AnimalSpeciesRules>? animalSpeciesRules = null,
-        IReadOnlyList<PlantSpeciesRules>? plantSpeciesRules = null, WorldCalendar? calendar = null)
+        IReadOnlyList<PlantSpeciesRules>? plantSpeciesRules = null,
+        LivingWorld.Domain.Health.DiseaseRules? diseaseRules = null,
+        LivingWorld.Domain.Climate.ClimateRules? climateRules = null,
+        LivingWorld.Domain.Crime.TheftRules? theftRules = null)
     {
         var rules = economyRules ?? DefaultEconomyRules;
         var family = familyRules ?? DefaultFamilyRules;
@@ -300,13 +316,13 @@ public static partial class ScenarioRunner
         var catalog = economyCatalog ?? DefaultEconomyCatalog;
         var history = historyRules ?? HistoryRules.Disabled;
         var world = new WorldState(
-            calendar ?? DefaultCalendar, seed, InitialMap(seed, initialPopulation), DefaultPopulationCatalog, population,
+            DefaultCalendar, seed, InitialMap(seed, initialPopulation), DefaultPopulationCatalog, population,
             DefaultNeedsRules, DefaultActionCatalog, DefaultLifeStageRules,
             economyRules: rules, economyCatalog: catalog, familyRules: family, perfRules: perf,
             historyRules: history, processRecipes: DefaultProcessRecipes,
             animalSpeciesRules: animalSpeciesRules ?? DefaultAnimalSpeciesRules,
             plantSpeciesRules: plantSpeciesRules ?? DefaultPlantSpeciesRules,
-            biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules);
+            biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules, diseaseRules: diseaseRules, climateRules: climateRules, theftRules: theftRules);
         var initialCity = new City(
             world.NextCityId(), DefaultVillageLocation, world.CurrentDate.TotalHours,
             foundedFromCityId: null, AggregatePopulationPool.Empty);

@@ -1,3 +1,5 @@
+> **Estado: Parcial** (specs-closeout 2026-10-12) - Backend provado; HUD/render deferidos ao Godot (ADR-0022); ver closeout.md.
+
 # Phase 15.1 Live Polish Specification
 
 > **Cliente web removido (ADR-0022, 2026-10-11).** O contrato com o cliente é a API do motor (`tests/contracts/`); a UI é

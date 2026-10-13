@@ -1,76 +1,95 @@
-# Servidor empurra interior, calendário e contrato (issue #39)
+# Godot server deltas [Estado: Spec - plano sem checks nem código (specs-closeout 2026-10-12)]
 
 ## Problem
-O cliente Godot relê o snapshot do interior a cada 1 s porque o servidor só publica delta de mundo e cidade; assume dia de
-24 h porque o calendário do cenário não é servido; e `GET /npcs/{id}` e os deltas não têm forma congelada em `tests/contracts/`.
-Quem paga: o interior atrasa até 1 s e custa uma leitura completa por segundo; um cenário com outro calendário mostra a hora
-errada; mudar o delta quebra o cliente sem que nenhum teste avise. Sem medida de custo registrada.
-Ao entregar, o interior atualiza no mesmo tick, a hora usa o calendário do cenário e o contrato dessas rotas está congelado.
+
+`STATE.md` registra pendências do cliente Godot: o servidor não publica delta de interior nem de `step`, então o cliente relê o snapshot do interior a cada 1 s (`.specs/features/godot-client/plan.md`, premissa "Interior ao vivo"), e `GET /npcs/{id}` e os deltas não têm forma congelada em `tests/contracts/`. O calendário do cenário (meses) também não é servido, e o cliente assume dia de 24 h.
+
+O custo é tráfego e latência a mais por cliente e risco de o contrato mudar sob o cliente. Evidência: `STATE.md` (Handoff), planos `godot-client` e `godot-client-experience`.
+
+Quando isto entrar, o servidor empurra delta de interior e de passo, serve o calendário do cenário, e o contrato dessas rotas fica congelado.
 
 ## Flow
-Reusa `RealtimeGateway` (cursor, replay) e `InteriorProjector`; só acrescenta um escopo ao laço que já publica.
-1. `TickLoopService` (exists) - para cada escopo `interior:<id>` com assinante, projeta os ocupantes e publica `InteriorTickDelta`
-2. `RealtimeGateway` (exists) - atribui `sequence`, guarda no log e entrega ao canal e ao `replay`
-3. `SimulationControlEndpoints` (exists) - `GET /simulation/status` passa a trazer o calendário de `WorldState`
-4. `ApiContractTests` (exists) - congela `shape.npc-detail`, `shape.visual-delta`, `shape.interior-delta`
-5. Cliente (exists) - `WorldStore` aplica o delta de interior; o `App` deixa de reler; `DayCycle` usa `hoursPerDay`
+
+Reaproveita o canal realtime existente de mundo e cidade; só soma tipos de delta e congela o contrato.
+
+1. `VisualDeltaPublisher` (exists, extended - door 1) - publica delta de interior e de passo no mesmo canal
+2. `GET /world/calendar` (new, door 2) - meses por ano, dias por mês, horas por dia
+3. `GET /npcs/{id}` (exists, extended, door 2) - forma congelada
+4. `tests/contracts/` (exists) - snapshot do contrato por rota
+5. `world_store.gd` (exists, extended) - consome o delta e deixa de reler o interior
 
 ## Impact
+
 | Front | What changes |
 | --- | --- |
-| domain | existing term: `hoursPerDay` - deixa de ser 24 fixo no cliente; quem lê hoje: `DayCycle` e a barra de hora |
-| stored data | nothing to migrate: só leitura |
+| domain | termo: delta de interior; quem lê hoje o snapshot do interior: `interior_view.gd` e `world_store.gd` |
+| stored data | none - projeção, nada canônico; hash idêntico |
 
 ## Relations
-`None - no stored-data shape change`
+
+None - nenhuma entidade persistida; só projeção.
 
 ## Surface
+
 | Route | In | Out | Status |
 | --- | --- | --- | --- |
-| `GET /visual/ws` (scope Interior) | `scope`, `refId`, `mode` | delta `{upserts[npc, floor, localCell, action], removed[npc]}` | `101`, `403` |
-| `GET /simulation/status` | none | `isPaused`, `ticksPerSecond`, `tick`, `year`, `hoursPerDay`, `daysPerMonth`, `monthsPerYear` | `200` |
+| `GET /world/calendar` | nenhum | meses por ano, dias por mês, horas por dia | 200 |
+| `GET /npcs/{id}` | `id` | NPC com forma congelada | 200, 404 |
 
 ## Landing
+
 | One-way door | Literal shape | Alternative rejected |
 | --- | --- | --- |
-| 1 Forma do delta de interior | `InteriorTickDelta(tick, upserts[], removed[])` com o `InteriorOccupant` completo | diff em 4 listas (entrou, moveu, trocou andar, saiu): o cliente teria de juntar quatro caminhos e ainda perderia a mudança de ação |
-| 2 Calendário no status | três inteiros ao lado de `tick` e `year` | rota nova: mais uma chamada por segundo só para três números |
+| 1. forma do delta | delta de interior com `buildingId`, andar e lista de NPCs com ação e posição, mesmo envelope dos deltas existentes | reler o snapshot: o que o cliente faz hoje, custo por cliente |
+| 2. contrato congelado | rota e DTO entram em `tests/contracts/` e só mudam por AD | contrato implícito: quebra o cliente sem aviso |
+
+- Nada mais aqui Ã© difÃ­cil de reverter
 
 ## Criteria
-### S1: Delta de interior (P1)
-O interior atualiza no mesmo tick.
+
+### S1: Delta de interior e passo (P1)
+
 **Acceptance Criteria**
-1. WHEN um NPC entra, sai, muda de andar, de célula ou de ação num prédio com assinante THEN the system SHALL publicar um delta com `upserts` e `removed` desse prédio no mesmo tick.
-2. IF o prédio do escopo não existe THEN the system SHALL não publicar delta nem derrubar o laço.
-3. The delta de interior SHALL carregar `sequence` e `replay` como os de mundo e cidade.
-### S2: Calendário e contrato (P1)
-A hora vem do cenário e o contrato fica congelado.
+
+1. WHEN um NPC muda de ação ou posição dentro de um prédio observado THEN the system SHALL publicar o delta de interior no canal em até 1 tick
+2. The system SHALL manter o hash canônico igual com e sem cliente conectado
+
+**Independent test:** cliente de teste conectado por 1 h simulada.
+
+### S2: Calendário e NPC (P1)
+
 **Acceptance Criteria**
-4. WHEN `GET /simulation/status` responde THEN the system SHALL trazer `hoursPerDay`, `daysPerMonth` e `monthsPerYear` do calendário do mundo.
-5. The contract SHALL congelar a forma de `GET /npcs/{id}`, do delta de mundo/cidade e do delta de interior em `tests/contracts/`.
-### S3: Cliente (P2)
-O cliente usa o que o servidor entrega.
-**Acceptance Criteria**
-6. WHILE o interior está aberto the client SHALL aplicar o delta de interior sem reler o snapshot.
-7. WHILE o relógio informa `hoursPerDay` the client SHALL calcular a hora e o dia com ele.
+
+3. WHEN `GET /world/calendar` é chamado THEN the system SHALL responder 200 com a duração do dia e do mês do cenário
+4. IF o NPC não existe THEN the system SHALL responder 404
+5. The system SHALL falhar `ApiContractTests` se a forma de uma rota congelada mudar
+6. WHEN o delta chega THEN the system SHALL atualizar o interior sem reler o snapshot
+7. The system SHALL manter os testes de `scripts/client-test.sh` verdes
+
+**Independent test:** chamada HTTP e teste de contrato. `bash scripts/client-test.sh`.
 
 ## Out of scope
+
 | Excluded | Why |
 | --- | --- |
-| Delta de interior para NPC que anda dentro do prédio | O motor só muda andar e célula na entrada; movimento interno é fase própria |
-| Nomes de meses | O calendário serve só as três durações |
+| arte final e som | plano `godot-art-audio-pass` |
+| modo jogador | plano `player-incarnation` |
 
 ## Assumptions
+
 | Assumption | Chosen default | Rationale | Confirmed? |
 | --- | --- | --- | --- |
-| Primeiro delta de um escopo | Traz todos os ocupantes | O snapshot já os tem; reenviar é idempotente e mais simples que lembrar o que o cliente viu | n |
+| canal | o mesmo WebSocket atual | não cria canal novo | n |
 
 **Open questions:** none - all resolved or logged above.
 
 ## Observable
+
 | Surface | Decision | Landing |
 | --- | --- | --- |
-| API `GET /visual/ws` interior | acesso negado | existing - `403` do `RealtimeGateway.Authorize` |
+| API `/world/calendar` e `/npcs/{id}` | error shape and codes | AC 4 |
 
 ## Sources
-- Issue #39; `.specs/features/godot-client/plan.md` (premissa "Interior ao vivo")
+
+- `STATE.md` - Handoff do cliente Godot
+- `.specs/features/godot-client/plan.md`

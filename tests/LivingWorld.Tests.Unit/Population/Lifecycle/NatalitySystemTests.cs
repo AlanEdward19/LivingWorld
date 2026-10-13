@@ -2,6 +2,7 @@ using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Body;
 using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Population.Skills;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Population.Lifecycle;
@@ -27,7 +28,7 @@ public class NatalitySystemTests
     private static readonly Personality SomePersonality =
         Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!;
 
-    private static FamilyRules PermissiveFamilyRules() =>
+    private static FamilyRules PermissiveFamilyRules(double personalityHeritability = 0.0) =>
         FamilyRules.Create(
             relationshipDeltas: ZeroDeltas(),
             decayPerDay: 0,
@@ -49,7 +50,8 @@ public class NatalitySystemTests
             upbringingWealthWeight: 0.2,
             environmentalWealthChannelEnabled: false,
             neutralDriftEnabled: false,
-            vitalityMortalitySelectionEnabled: true).Value!;
+            vitalityMortalitySelectionEnabled: true,
+            personalityHeritability: personalityHeritability).Value!;
 
     private static Dictionary<(RelationshipEventType, RelationshipAxis), double> ZeroDeltas()
     {
@@ -348,5 +350,37 @@ public class NatalitySystemTests
 
         Assert.InRange(baby.Vitality, 0, 100);
         Assert.NotEqual(50.0, baby.Vitality);
+    }
+
+    [Fact]
+    public void A_baby_is_born_without_skills_even_when_both_parents_are_masters()
+    {
+        var (world, ctx, mother, father, household) = BuildWorldWithMarriedCouple(
+            new PopulationCatalog(new HashSet<int>(), new HashSet<int>(), new HashSet<int>()), seed: 11);
+        var skillsRules = ScenarioRunner.DefaultSkillsRules;
+        mother.GainSkill(new SkillType(0), skillsRules.Cap * 0.9, skillsRules.Cap);
+        father.GainSkill(new SkillType(0), skillsRules.Cap * 0.9, skillsRules.Cap);
+        Assert.True(mother.Skills.Get(new SkillType(0)) > 0);
+
+        var baby = TriggerBirth(world, ctx, mother.Id, father.Id, household.Id);
+
+        Assert.Equal(0, baby.Skills.Get(new SkillType(0))); // habilidade é aprendida, não herdada (SKILL-09)
+    }
+
+    [Fact]
+    public void A_baby_of_two_average_parents_stays_within_the_segregation_range_when_the_scenario_declares_full_heritability()
+    {
+        var (world, ctx, mother, father, household) = BuildWorldWithMarriedCouple(
+            new PopulationCatalog(new HashSet<int>(), new HashSet<int>(), new HashSet<int>()), seed: 21,
+            familyRules: PermissiveFamilyRules(personalityHeritability: 1.0));
+
+        var baby = TriggerBirth(world, ctx, mother.Id, father.Id, household.Id);
+
+        // pais com todos os traços em 50, h = 1: o filho é a média mais segregação de ±35,7, ou seja 14 a 86 (um sorteio independente sairia do intervalo em ~28% dos traços)
+        Assert.All(
+            new[] { baby.Personality.Extroversion, baby.Personality.Agreeableness, baby.Personality.Conscientiousness, baby.Personality.EmotionalStability,
+                baby.Personality.Openness, baby.Personality.Ambition, baby.Personality.Loyalty, baby.Personality.Altruism,
+                baby.Personality.Impulsivity, baby.Personality.RiskAversion },
+            trait => Assert.InRange(trait, 14, 86));
     }
 }

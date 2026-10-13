@@ -1,3 +1,5 @@
+> **Estado: Parcial** (specs-closeout 2026-10-12) - 33 de 34 REALISM com testes; REALISM-22 (Fact por transição) só atendido como WorldEvent; validação PASS com closeout de 10 anos (AD-029/030).
+
 # Fase 16.4 — World Realism (Ecologia Autônoma + Aprofundamento de Mecânicas Ocas)
 
 ## Problem Statement
@@ -315,40 +317,40 @@ no mesmo seed/cenário.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| REALISM-01 | P1: Fauna | Design | Pending |
-| REALISM-02 | P1: Fauna | Design | Pending |
-| REALISM-03 | P1: Fauna | Design | Pending |
-| REALISM-04 | P1: Fauna | Design | Pending |
-| REALISM-05 | P1: Fauna | Design | Pending |
-| REALISM-06 | P1: Fauna | Design | Pending |
-| REALISM-07 | P1: Flora | Design | Pending |
-| REALISM-08 | P1: Flora | Design | Pending |
-| REALISM-09 | P1: Flora | Design | Pending |
-| REALISM-10 | P1: Flora | Design | Pending |
-| REALISM-11 | P1: Flora | Design | Pending |
-| REALISM-12 | P1: Temperatura | Design | Pending |
-| REALISM-13 | P1: Temperatura | Design | Pending |
-| REALISM-14 | P1: Temperatura | Design | Pending |
-| REALISM-15 | P1: Temperatura | Design | Pending |
-| REALISM-16 | P2: Combate | Design | Pending |
-| REALISM-17 | P2: Combate | Design | Pending |
-| REALISM-18 | P2: Combate | Design | Pending |
-| REALISM-24 | P2: Combate | Design | Pending |
-| REALISM-25 | P2: Combate | Design | Pending |
-| REALISM-26 | P2: Instanciação | Design | Pending |
-| REALISM-27 | P2: Instanciação | Design | Pending |
-| REALISM-28 | P2: Instanciação | Design | Pending |
-| REALISM-29 | P2: Instanciação | Design | Pending |
-| REALISM-30 | P2: Foresight | Design | Pending |
-| REALISM-31 | P2: Foresight | Design | Pending |
-| REALISM-32 | P2: Foresight | Design | Pending |
-| REALISM-33 | P3: Possessão | Design | Pending |
-| REALISM-34 | P3: Possessão | Design | Pending |
-| REALISM-19 | Dimensão: Failure states | Design | Pending |
-| REALISM-20 | Dimensão: Concurrency/ordering | Design | Pending |
-| REALISM-21 | Dimensão: Data lifecycle | Design | Pending |
-| REALISM-22 | Dimensão: Observability | Design | Pending |
-| REALISM-23 | Dimensão: State-transition integrity | Design | Pending |
+| REALISM-01 | P1: Fauna | Design | Verified - Ecology/FaunaLifecycleHungerTests, Ecology/SpeciesRulesTests |
+| REALISM-02 | P1: Fauna | Design | Verified - Ecology/FaunaLifecycleHungerTests (morte por fome) |
+| REALISM-03 | P1: Fauna | Design | Verified - Ecology/FaunaLifecycleReproduceTests |
+| REALISM-04 | P1: Fauna | Design | Verified - Ecology/FaunaLifecyclePredationTests |
+| REALISM-05 | P1: Fauna | Design | Verified - Extraordinary/FaunaPowerCompatibilityTests |
+| REALISM-06 | P1: Fauna | Design | Verified - Ecology/FaunaLifecyclePredationTests + Extraordinary/FaunaPowerCompatibilityTests (dominate/infect coexistem) |
+| REALISM-07 | P1: Flora | Design | Verified - Ecology/FloraLifecycleAdvanceTests |
+| REALISM-08 | P1: Flora | Design | Verified - Ecology/FloraLifecycleAdvanceTests (Outside_tolerance_never_advances_normally) |
+| REALISM-09 | P1: Flora | Design | Verified - Ecology/FloraLifecycleProduceReproduceTests |
+| REALISM-10 | P1: Flora | Design | Verified - Ecology/FloraLifecycleProduceReproduceTests |
+| REALISM-11 | P1: Flora | Design | Verified - Extraordinary/Mechanics/FloraMechanicTests |
+| REALISM-12 | P1: Temperatura | Design | Verified - Ecology/TemperatureSeasonSystemTests |
+| REALISM-13 | P1: Temperatura | Design | Verified - Ecology/TemperatureSeasonSystemTests (curva sazonal sem poder) |
+| REALISM-14 | P1: Temperatura | Design | Verified - Ecology/TemperatureSeasonSystemTests (estacoes opostas) |
+| REALISM-15 | P1: Temperatura | Design | Verified - Ecology/TemperatureSeasonSystemTests (delta de poder soma ao sazonal) |
+| REALISM-16 | P2: Combate | Design | Verified - Extraordinary/CombatEncounterPersistenceTests |
+| REALISM-17 | P2: Combate | Design | Verified - Extraordinary/CombatEncounterProcessRoundTests |
+| REALISM-18 | P2: Combate | Design | Verified - Extraordinary/CombatEncounterProcessRoundTests |
+| REALISM-24 | P2: Combate | Design | Verified - Extraordinary/CombatEncounterIndependentTests |
+| REALISM-25 | P2: Combate | Design | Verified - Extraordinary/CombatStrikeEngageContractTests |
+| REALISM-26 | P2: Instanciação | Design | Verified - Extraordinary/Mechanics/NpcInstantiationMechanicTests |
+| REALISM-27 | P2: Instanciação | Design | Verified - Extraordinary/Mechanics/NpcInstantiationMechanicTests (split) |
+| REALISM-28 | P2: Instanciação | Design | Verified - Extraordinary/Mechanics/NpcInstantiationMechanicTests (bonds) |
+| REALISM-29 | P2: Instanciação | Design | Verified - Extraordinary/Mechanics/NpcInstantiationMechanicTests (reincarnate sem vinculos) |
+| REALISM-30 | P2: Foresight | Design | Verified - Extraordinary/Mechanics/ForesightMechanicTests |
+| REALISM-31 | P2: Foresight | Design | Verified - Extraordinary/Mechanics/ForesightMechanicTests |
+| REALISM-32 | P2: Foresight | Design | Verified - Extraordinary/Mechanics/ForesightMechanicTests, Tests.LongRunning/Performance/ForesightHotPathAllocTests |
+| REALISM-33 | P3: Possessão | Design | Verified - Extraordinary/PossessionResistanceTests, PossessionResistanceContractTests |
+| REALISM-34 | P3: Possessão | Design | Verified - Extraordinary/PossessionResistanceTests (Possession_resistance_clears_possessed_by...) |
+| REALISM-19 | Dimensão: Failure states | Design | Verified - Ecology/EcologyPopulationCapTests |
+| REALISM-20 | Dimensão: Concurrency/ordering | Design | Verified - Ecology/WorldRealismOrderTests |
+| REALISM-21 | Dimensão: Data lifecycle | Design | Verified - Ecology/EcologyColdArchiveTests |
+| REALISM-22 | Dimensão: Observability | Design | Pending - transições geram WorldEvent via LogEvent (não Fact imutável como o spec pede); validação arquivada marcou como parcial |
+| REALISM-23 | Dimensão: State-transition integrity | Design | Verified - Ecology/EcologyTransitionGuardTests |
 
 **Coverage:** 34 total, 0 mapped to tasks (Tasks phase ainda não rodou), 0 unmapped ⚠️
 (todos endereçados por uma story ou dimensão — nenhum item solto).

@@ -1,3 +1,5 @@
+> **Estado: Parcial** (specs-closeout 2026-10-12) - 7/8 grupos verificados; falta teste que prove o guia para IA externa (PERIOD-12); ROADMAP.md marca a fase como fechada.
+
 # Fase 13 (Multiplos periodos) Specification
 
 ## Problem Statement
@@ -91,14 +93,14 @@ A Fase 3 já permite cenário como dado, mas o conceito de "período" ainda corr
 ## Requirement Traceability
 | Requirement ID | Story | Status |
 | --- | --- | --- |
-| PERIOD-01..03 | Período como startpoint dinâmico | Pending |
-| PERIOD-04..06 | Extensibilidade por dados | Pending |
-| PERIOD-07..10 | Cadastro de período personalizado | Pending |
-| PERIOD-11..13 | Documentação para IA externa | Pending |
-| PERIOD-14..16 | Determinismo e causalidade de vieses | Pending |
-| PERIOD-17..18 | Pacotes de referência como regressão | Pending |
-| PERIOD-19..21 | Habilidade como catálogo aberto | Pending |
-| PERIOD-22..23 | Leitura do catálogo ativo | Pending |
+| PERIOD-01..03 | Período como startpoint dinâmico | Verified - LivingWorld.Tests.Unit/Periods/PeriodDynamicsLoaderTests, PeriodEvolutionSystemTests, PeriodDefinitionValidatorTests |
+| PERIOD-04..06 | Extensibilidade por dados | Verified - LivingWorld.Tests.Unit/Periods/PeriodArchitectureTests, PeriodCatalogTests, LivingWorld.Tests.Integration/Periods/WorldStartEndpointTests |
+| PERIOD-07..10 | Cadastro de período personalizado | Verified - LivingWorld.Tests.Integration/Periods/PeriodsEndpointTests (POST 201/400/409), WorldStartEndpointTests, LivingWorld.Tests.Unit/Periods/WorldStartServiceTests |
+| PERIOD-11..13 | Documentação para IA externa | Pending - guia docs/domain/period-authoring*.md existe (11, 13), mas nenhum teste prova que o payload do guia e aceito por POST /periods (12) |
+| PERIOD-14..16 | Determinismo e causalidade de vieses | Verified - LivingWorld.Tests.Unit/Periods/PeriodDeterminismTests, PeriodCausalTests, PeriodEvolutionHorizonBaselineTests (+ tests/baselines/period-evolution-horizon.json) |
+| PERIOD-17..18 | Pacotes de referência como regressão | Verified - LivingWorld.Tests.Unit/Periods/ReferencePeriodTemplatesTests, LivingWorld.Tests.Integration/Periods/DefaultPeriodSeederTests |
+| PERIOD-19..21 | Habilidade como catálogo aberto | Verified - LivingWorld.Tests.Unit/Periods/SkillArchitectureTests, PeriodDynamicsLoaderTests |
+| PERIOD-22..23 | Leitura do catálogo ativo | Verified - LivingWorld.Tests.Integration/Periods/PeriodsEndpointTests (Get_periods_catalog_*), LivingWorld.Tests.Unit/Periods/PeriodCatalogTests |
 
 ## Success Criteria
 - [ ] Qualquer período novo pode ser adicionado como dados sem alteração de código de domínio/simulação.

@@ -30,3 +30,4 @@ conteúdo de ADR para dentro dele.
 | [0020](ADR-0020-mapa-inicial-dimensionado-pela-populacao.md) | Mapa procedural inicial reserva espaço físico conforme a população | aceito |
 | [0021](ADR-0021-locomocao-e-construtos-extraordinarios.md) | Potência estende movimento e ocupação existentes | aceito |
 | [0022](ADR-0022-godot-substitui-cliente-web.md) | Godot como motor gráfico; cliente web aposentado do gate | aceito |
+| [0023](ADR-0023-snapshot-binario-posicional.md) | Snapshot binário posicional, base completa mais diffs por campo | aceito |

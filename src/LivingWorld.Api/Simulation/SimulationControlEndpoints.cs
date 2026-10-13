@@ -5,8 +5,7 @@ namespace LivingWorld.Api.Simulation;
 
 public sealed record SetSpeedRequest(double TicksPerSecond);
 
-public sealed record SimulationStatusResponse(
-    bool IsPaused, double TicksPerSecond, long Tick, long Year, int HoursPerDay, int DaysPerMonth, int MonthsPerYear);
+public sealed record SimulationStatusResponse(bool IsPaused, double TicksPerSecond, long Tick, long Year);
 
 /// <summary>Tradução fina de <see cref="SimulationHost"/> sobre HTTP
 /// — nenhuma regra nova aqui, a validação de velocidade já existe em
@@ -63,9 +62,6 @@ public static class SimulationControlEndpoints
                 host.IsPaused,
                 host.TicksPerSecond,
                 worldHost.Current.CurrentDate.TotalHours,
-                worldHost.Current.CurrentDate.Year,
-                worldHost.Current.Calendar.HoursPerDay,
-                worldHost.Current.Calendar.DaysPerMonth,
-                worldHost.Current.Calendar.MonthsPerYear)));
+                worldHost.Current.CurrentDate.Year)));
     }
 }

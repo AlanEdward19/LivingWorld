@@ -69,6 +69,29 @@ public class EventLogKindEncodingTests
     }
 
     [Fact]
+    public void Repository_round_trip_decodes_kinds_correctly_when_a_batch_arrives_out_of_tick_order()
+    {
+        using var context = OpenDb();
+        var repository = new SqliteWorldRepository(context);
+        var events = new List<WorldEvent>
+        {
+            new(5, WorldEventKind.Death, "late-1", EventId: 1),
+            new(5, WorldEventKind.Birth, "late-2", EventId: 2),
+            new(1, WorldEventKind.Birth, "early-1", EventId: 3),
+            new(1, WorldEventKind.Death, "early-2", EventId: 4),
+            new(3, WorldEventKind.Death, "mid", EventId: 5),
+        };
+
+        repository.SaveSnapshotWithEvents(
+            BranchId.Root, tick: 5, json: "{}", canonicalHash: "c", volatileHash: "v", events);
+
+        var loaded = repository.LoadEvents(BranchId.Root);
+        Assert.Equal(
+            [("early-1", "Birth"), ("early-2", "Death"), ("mid", "Death"), ("late-1", "Death"), ("late-2", "Birth")],
+            loaded.Select(e => (e.Payload, e.Kind)).ToArray());
+    }
+
+    [Fact]
     public void Repository_round_trip_interns_repeated_kinds_on_disk()
     {
         using var context = OpenDb();

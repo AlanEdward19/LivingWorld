@@ -86,6 +86,9 @@ func start(p_transport, validate_shapes: bool = true, sleeper: Callable = Callab
 	var catalog: Dictionary = await api.action_catalog()
 	if catalog.ok:
 		labels.load_from(catalog.body)
+	var calendar: Dictionary = await api.world_calendar()
+	if calendar.ok:
+		day_cycle.set_calendar(calendar.body)
 	await clock_panel.refresh()
 	await stream.subscribe("World")
 
@@ -251,7 +254,7 @@ func _build_ui() -> void:
 # --- relógio, eventos, nomes -----------------------------------------------
 
 func _on_clock_status(status: Dictionary) -> void:
-	day_cycle.sync(float(status.tick), float(status.ticksPerSecond), bool(status.isPaused), status)
+	day_cycle.sync(float(status.tick), float(status.ticksPerSecond), bool(status.isPaused))
 	_update_time_label(status)
 
 

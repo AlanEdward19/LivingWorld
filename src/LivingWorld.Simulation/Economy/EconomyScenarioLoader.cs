@@ -81,9 +81,13 @@ public static class EconomyScenarioLoader
         if (!TryGetIntDoubleMap(root, "DemandBaselinePerNpc", out var demand))
             return Result<EconomyRules>.Fail("DemandBaselinePerNpc: campo obrigatório ausente ou inválido");
 
+        double taxRate = 0.0;
+        if (root["WageTaxRate"] is { } taxNode && !(taxNode is JsonValue taxValue && taxValue.TryGetValue<double>(out taxRate)))
+            return Result<EconomyRules>.Fail("WageTaxRate: deve ser um número");
+
         return EconomyRules.Create(
             enabled, foodResourceId, waterResourceId, capacity, spoilage, wage, priceFloor, priceCeiling,
-            priceSensitivity, demand);
+            priceSensitivity, demand, taxRate);
     }
 
     private static Result<EconomyCatalog> ParseCatalog(JsonObject root)

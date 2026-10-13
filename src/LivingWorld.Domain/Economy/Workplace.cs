@@ -27,6 +27,11 @@ public sealed class Workplace
     /// <see cref="Location"/> é a origem do footprint desse prédio.</summary>
     public BuildingId? Building { get; private set; }
 
+    /// <summary>Dono da oficina (estate-inheritance): quem herda o espólio dele herda também a oficina. Só entra por
+    /// autoria do cenário ou por herança; <c>null</c> é oficina sem dono (comum, da cidade).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public NpcId? Owner { get; private set; }
+
     private readonly List<NpcId> _employees;
     public IReadOnlyList<NpcId> Employees => _employees;
 
@@ -44,7 +49,8 @@ public sealed class Workplace
     public Workplace(
         WorkplaceId id, LocationType locationType, CellCoord location, int maxVacancies,
         IReadOnlyList<NpcId> employees, IReadOnlyDictionary<ResourceType, long> stock, Money treasury,
-        IReadOnlyDictionary<ResourceType, long> prices, CityId city = default, BuildingId? building = null)
+        IReadOnlyDictionary<ResourceType, long> prices, CityId city = default, BuildingId? building = null,
+        NpcId? owner = null)
     {
         Id = id;
         LocationType = locationType;
@@ -56,6 +62,7 @@ public sealed class Workplace
         _prices = new Dictionary<ResourceType, long>(prices);
         City = city;
         Building = building;
+        Owner = owner;
     }
 
     /// <summary>Falha quando <see cref="Employees"/> já está no teto de
@@ -73,6 +80,8 @@ public sealed class Workplace
     public void Fire(NpcId npc) => _employees.Remove(npc);
 
     public void JoinCity(CityId city) => City = city;
+
+    public void AssignOwner(NpcId? owner) => Owner = owner;
 
     /// <summary>Soma até o limite de <see cref="EconomyRules.CapacityOf"/>; devolve as unidades
     /// perdidas por excesso de capacidade — nunca descartadas em silêncio, o chamador

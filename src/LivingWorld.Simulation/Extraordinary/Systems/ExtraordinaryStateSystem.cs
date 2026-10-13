@@ -81,7 +81,7 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
             return;
         }
 
-        var existing = world.ExtraordinaryCarriers.FirstOrDefault(carrier => carrier.CarrierId == npcId);
+        var existing = world.CarrierOf(npcId);
         if (existing?.PowerIds.Contains(powerId, StringComparer.Ordinal) == true) return;
 
         var powerIds = (existing?.PowerIds ?? []).Append(powerId)
@@ -111,7 +111,7 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
         if (!world.Extraordinary.Descriptors.Any(item => string.Equals(item.Id, powerId, StringComparison.Ordinal)))
             return Result<ExtraordinaryCarrierState>.Fail("PowerId: descritor ausente");
 
-        var existing = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npcId);
+        var existing = world.CarrierOf(npcId);
         var ids = (existing?.PowerIds ?? []).Append(powerId)
             .Distinct(StringComparer.Ordinal).OrderBy(id => id, StringComparer.Ordinal).ToList();
         var resolved = Resolve(world, npc, ids);
@@ -124,7 +124,7 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
         WorldState world, TickContext ctx, NpcId npcId, string powerId)
     {
         var npc = world.FindNpc(npcId);
-        var existing = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npcId);
+        var existing = world.CarrierOf(npcId);
         if (npc is null || existing is null || !existing.PowerIds.Contains(powerId, StringComparer.Ordinal))
             return Result<ExtraordinaryCarrierState?>.Fail("PowerId: poder não pertence ao NPC");
         var ids = existing.PowerIds.Where(id => !string.Equals(id, powerId, StringComparison.Ordinal)).ToList();
@@ -145,7 +145,7 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
         var appearance = active.Select(descriptor => descriptor.Appearance).FirstOrDefault(value => value is not null);
         var need = active.Select(descriptor => descriptor.NeedSubstitution).FirstOrDefault(value => value is not null);
         double senescence = active.Count == 0 ? 1 : active.Min(descriptor => descriptor.SenescenceRateMultiplier);
-        var existing = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npc.Id);
+        var existing = world.CarrierOf(npc.Id);
         return new ExtraordinaryCarrierState(
             npc.Id,
             powerIds.OrderBy(id => id, StringComparer.Ordinal).ToList(),

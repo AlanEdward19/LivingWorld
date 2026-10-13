@@ -1,3 +1,5 @@
+> **Estado: Spec** (specs-closeout 2026-10-12) - registrada so na etapa Specify; per-edge growth nao existe em `CityBoundsResolver` (ver closeout.md).
+
 # Directional City Bounds Growth Specification
 
 **Status**: Recorded (Specify only) — not yet Designed/Tasked/Executed, per user's explicit

@@ -83,6 +83,10 @@ public class ScaleScenarioSensorTests
         AssertInRelativeBand(
             sample.BytesPerAliveNpcPerYear, baseline.BytesPerAliveNpcPerYear, 0.01);
 
+        // snapshot-positional-binary AC 4: no fixture de 1.000 NPCs, no máximo 50% dos 131.737 B/NPC/ano medidos em JSON
+        if (initialPopulation == ScaleScenarioFixture.PopulationSmall)
+            Assert.True(sample.BytesPerAliveNpcPerYear <= 0.5 * 131_737, $"{sample.BytesPerAliveNpcPerYear:F0} B/NPC/ano passa de 50% de 131.737");
+
         var rules = PerfRules.ScaleSensorInitial;
         Assert.True(
             sample.MicrosPerAliveNpcTick <= rules.MaxMicrosPerAliveNpcTick,
@@ -159,7 +163,7 @@ public class ScaleScenarioSensorTests
         runner.Run(world, clock, sink, OneMonthTicks);
 
         int alive = Math.Max(1, world.Npcs.Count(n => n.IsAlive));
-        long snapshotBytes = Encoding.UTF8.GetByteCount(repository.LoadLatestSnapshot(BranchId.Root)!.Json);
+        long snapshotBytes = repository.LoadLatestSnapshot(BranchId.Root)!.Binary!.Length;
         long eventBytes = repository.LoadEvents(BranchId.Root)
             .Sum(e => Encoding.UTF8.GetByteCount(e.Kind) + Encoding.UTF8.GetByteCount(e.Payload));
 

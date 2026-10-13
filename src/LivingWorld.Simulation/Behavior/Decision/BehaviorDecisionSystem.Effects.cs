@@ -35,6 +35,9 @@ public sealed partial class BehaviorDecisionSystem
             case ActionType.UsePower:
                 ApplyUsePower(world, npc, tick, ctx);
                 break;
+            case ActionType.Steal:
+                TheftResolver.Resolve(world, npc, tick, ctx);
+                break;
         }
     }
 
@@ -159,12 +162,10 @@ public sealed partial class BehaviorDecisionSystem
             return true;
         }
 
-        if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household)
-            return false;
-
+        var household = npc.Household is { } householdId ? world.FindHousehold(householdId) : null;
         bool fed = false;
-        var meal = FoodResolver.ResolveMeal(world, household);
-        if (meal.Id > 0 && household.Withdraw(meal, 1).IsSuccess)
+        var meal = household is null ? new ResourceType(econ.FoodResourceId) : FoodResolver.ResolveMeal(world, household);
+        if (meal.Id > 0 && (household?.Withdraw(meal, 1).IsSuccess == true || TryRation(world, npc, meal)))
         {
             npc.SetHunger(100, tick);
             world.RecordResourceConsumed(meal, 1);
@@ -172,7 +173,7 @@ public sealed partial class BehaviorDecisionSystem
         }
 
         var water = new ResourceType(econ.WaterResourceId);
-        if (household.Withdraw(water, 1).IsSuccess)
+        if (household?.Withdraw(water, 1).IsSuccess == true || TryRation(world, npc, water))
         {
             npc.SetThirst(100, tick);
             world.RecordResourceConsumed(water, 1);
@@ -182,11 +183,22 @@ public sealed partial class BehaviorDecisionSystem
         return fed;
     }
 
+    /// <summary>Ração do empregador: quem está no próprio local de trabalho e a despensa de casa não tem o que comer ou
+    /// beber retira uma unidade do estoque da oficina (o poço e o celeiro da propriedade). Sem isso o lavrador morria de
+    /// sede ao lado de mil de água por estar sem moeda no bolso. Só serve quem está lá e só o que a oficina tem.</summary>
+    private static bool TryRation(WorldState world, Npc npc, ResourceType resource)
+    {
+        if (npc.Employer is not { } employerId || world.FindWorkplace(employerId) is not { } workplace) return false;
+        if (workplace.Location != npc.CurrentLocation) return false;
+        return workplace.Withdraw(resource, 1).IsSuccess;
+    }
+
     private static bool TryApplyBuy(WorldState world, Npc npc, MarketIndex marketIndex)
     {
         if (!world.EconomyRules.Enabled) return false;
         var market = NearestEssentialsMarket(world, npc, marketIndex);
         if (market is null) return false; // vendedor indisponível
+        if (market.Location != npc.CurrentLocation) return false; // comprar é estar no mercado, não pedir de longe
         if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household)
             return false;
 
@@ -197,9 +209,19 @@ public sealed partial class BehaviorDecisionSystem
             var resource = new ResourceType(resourceId);
             if (!market.Prices.TryGetValue(resource, out var unitPrice) || unitPrice <= 0) continue;
 
+            // Água é bem comum: quem não tem uma moeda para pagar ainda enche o balde no poço da aldeia (a oficina que a
+            // tira da terra), em vez de morrer de sede ao lado dela. Comida continua paga.
+            if (resourceId == econ.WaterResourceId && npc.Wallet.Amount < unitPrice)
+            {
+                bought |= DrawFromWell(market, household, resource);
+                continue;
+            }
+
             // Compra de domicílio, como uma ida real ao mercado: cobre ~4 dias de cada membro
-            // (mínimo 10), limitada ao que a carteira paga.
-            long quantity = Math.Max(MinimumPurchaseQuantity, household.Members.Count * PurchaseDaysOfSupply);
+            // (mínimo 10) e, com o mercado longe de casa, a ida e a volta; limitada ao que a carteira paga.
+            int purchaseDays = PurchaseDaysFor(
+                TravelTicksCache.Between(world.Map, household.Location, market.Location), world.CurrentDate.Calendar.HoursPerDay);
+            long quantity = Math.Max(MinimumPurchaseQuantity, household.Members.Count * purchaseDays);
             quantity = Math.Max(1, Math.Min(quantity, npc.Wallet.Amount / unitPrice));
             var ctx = new TransactionContext(
                 npc.Wallet, market.Treasury, market.Stock.GetValueOrDefault(resource),
@@ -213,9 +235,51 @@ public sealed partial class BehaviorDecisionSystem
             market.CreditTreasury(price);
             household.Deposit(resource, quantity);
             bought = true;
+            NoteTrade(world, npc, market, resource, quantity, price.Amount);
         }
 
         return bought;
+    }
+
+    /// <summary>Dias de despensa que uma compra cobre: o mínimo de sempre, ou a meta mais a ida e a volta (e uma folga) quando
+    /// o mercado fica longe de casa, limitado a <see cref="MaxProvisionDays"/>.</summary>
+    internal static int PurchaseDaysFor(long homeTicks, int hoursPerDay)
+    {
+        double tripDays = 2.0 * homeTicks / hoursPerDay;
+        return (int)Math.Min(MaxProvisionDays, Math.Max(PurchaseDaysOfSupply, Math.Ceiling(ProvisionTargetDays + tripDays) + ProvisionSlackDays));
+    }
+
+    /// <summary>Poço da aldeia: sem dinheiro, a casa leva água para uns dias de graça, só o que o estoque da oficina tem.
+    /// O estoque muda de lugar (oficina para despensa), nada some nem nasce.</summary>
+    private static bool DrawFromWell(Workplace well, LivingWorld.Domain.Population.Family.Household household, ResourceType water)
+    {
+        // só enche o que falta: casa com a água dos próximos dias não esvazia o estoque do dono do poço
+        long wanted = Math.Max(WellMinimumDraw, household.Members.Count * WellDaysOfSupply) - household.Stock.GetValueOrDefault(water);
+        long quantity = Math.Min(well.Stock.GetValueOrDefault(water), wanted);
+        if (quantity <= 0 || !well.Withdraw(water, quantity).IsSuccess) return false;
+
+        household.Deposit(water, quantity);
+        return true;
+    }
+
+    /// <summary>Registra a compra que fechou: soma ao agregado do dia da oficina, e o comprador passa a ter relação de
+    /// negócio com quem atende (Trade). O primeiro contato do par vira evento, na hora seguinte, pelo
+    /// <c>TradeLedgerSystem</c>. Sem atendente presente, só o livro.</summary>
+    private static void NoteTrade(WorldState world, Npc buyer, Workplace market, ResourceType resource, long quantity, long value)
+    {
+        long hours = world.CurrentDate.TotalHours;
+        world.RecordTrade(market.Id, resource, hours / world.CurrentDate.Calendar.HoursPerDay, quantity, value);
+
+        var attendant = LivingWorld.Simulation.Economy.Trade.TradeLedgerSystem.AttendantAt(world, market);
+        if (attendant is null || attendant.Id == buyer.Id) return;
+
+        var key = new LivingWorld.Domain.Population.Family.RelationshipKey(buyer.Id, attendant.Id);
+        bool firstContact = !world.Relationships.ContainsKey(key);
+        var relationship = world.GetOrCreateRelationship(key, hours);
+        relationship.ApplyEvent(LivingWorld.Domain.Population.Family.RelationshipEventType.Trade, world.FamilyRules);
+        relationship.MarkContact(hours);
+        if (firstContact)
+            world.PendingTradeContacts.Add(new(buyer.Id, attendant.Id, market.Id, resource.Id, value));
     }
 
     private static ActionType RefineForLocation(WorldState world, Npc npc, ActionType candidate, MarketIndex marketIndex) => candidate switch

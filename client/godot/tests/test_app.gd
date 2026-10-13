@@ -67,10 +67,10 @@ func _city() -> Dictionary:
 	return env
 
 
-func _interior_delta(from_seq: int, to_seq: int, upserts: Array, removed: Array) -> Dictionary:
+func _interior_delta(from_seq: int, to_seq: int, entered: Array, moved: Array, exited: Array) -> Dictionary:
 	var env := Fx.delta(from_seq, to_seq)
 	env.scope.kind = 2
-	env.payload = {"tick": 10 + to_seq, "upserts": upserts, "removed": removed}
+	env.payload = {"tick": 10 + to_seq, "buildingId": {"value": 4}, "entered": entered, "moved": moved, "changedFloor": [], "exited": exited}
 	return env
 
 
@@ -82,14 +82,14 @@ func test_interior_delta_updates_occupants_without_polling() -> void:
 	eq(app.stage.interior_view.occupant_nodes.keys(), [1], "o snapshot trouxe um ocupante")
 
 	app.stream.delta_applied.emit(_interior_delta(0, 1, [
-		{"npc": {"value": 2}, "floor": {"value": 0}, "localCell": {"x": 1, "y": 1}, "action": 2}], []))
+		{"npc": {"value": 2}, "floor": {"value": 0}, "localCell": {"x": 1, "y": 1}, "action": 2}], [], []))
 	eq(app.stage.interior_view.occupant_nodes.keys().size(), 2, "quem entrou aparece")
 
-	app.stream.delta_applied.emit(_interior_delta(1, 2, [
+	app.stream.delta_applied.emit(_interior_delta(1, 2, [], [
 		{"npc": {"value": 2}, "floor": {"value": 0}, "localCell": {"x": 1, "y": 1}, "action": 1}], []))
 	eq(app.stage.interior_view.occupant_nodes[2].action, 1, "mudar de ação atualiza o NPC")
 
-	app.stream.delta_applied.emit(_interior_delta(2, 3, [], [{"value": 1}]))
+	app.stream.delta_applied.emit(_interior_delta(2, 3, [], [], [{"value": 1}]))
 	eq(app.stage.interior_view.occupant_nodes.keys(), [2], "quem saiu some")
 	eq(transport.count_calls("GET /visual/subscribe?scope=Interior"), calls_before, "nenhuma releitura do snapshot")
 	app.queue_free()
@@ -153,4 +153,15 @@ func test_exit_restores_exterior_and_scope() -> void:
 	eq(app.stage.active, false)
 	eq(transport.count_calls("GET /visual/subscribe?scope=World"), before + 1, "volta à assinatura anterior (Mundo)")
 	eq(app.store.kind, "World")
+	app.queue_free()
+
+
+func test_calendar_comes_from_world_calendar_route() -> void:
+	var transport = _transport()
+	transport.on("GET /world/calendar", {"status": 200, "body": {"daysPerMonth": 10, "hoursPerDay": 12, "hoursPerMonth": 120, "hoursPerYear": 480, "monthsPerYear": 4}})
+	var app = await _app(transport)
+
+	eq(app.day_cycle.hours_per_day, 12.0, "o dia do céu usa o calendário do servidor")
+	eq(app.day_cycle.days_per_month, 10)
+	eq(app.day_cycle.months_per_year, 4)
 	app.queue_free()

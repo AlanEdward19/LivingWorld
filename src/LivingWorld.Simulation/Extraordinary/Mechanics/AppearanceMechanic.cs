@@ -47,7 +47,7 @@ public sealed class AppearanceMechanic : ExtraordinaryMechanic
     {
         if (previous.ImpersonatingId is not { } impersonated) return;
         if (previous.BodySwapPartner is not null) return;
-        var state = world.ExtraordinaryCarriers.FirstOrDefault(item => item.CarrierId == npc.Id);
+        var state = world.CarrierOf(npc.Id);
         if (state is null) return;
         world.UpsertExtraordinaryCarrier(state with { ImpersonatingId = null });
         ctx.LogEvent(WorldEventKind.IdentityChanged, $"{npc.Id.Value}|{impersonated.Value}|impersonate-revert", sourceSystem: "AppearanceMechanic");

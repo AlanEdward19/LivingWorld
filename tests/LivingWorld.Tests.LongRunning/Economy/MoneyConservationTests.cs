@@ -16,7 +16,8 @@ public class MoneyConservationTests
     private const long SampleEveryHours = 24;
 
     private static long TotalMoney(WorldState world) =>
-        world.Npcs.Sum(n => n.Wallet.Amount) + world.Workplaces.Sum(w => w.Treasury.Amount);
+        world.Npcs.Sum(n => n.Wallet.Amount) + world.Workplaces.Sum(w => w.Treasury.Amount)
+        + world.Cities.Sum(c => c.Treasury.Amount);
 
     [Fact]
     public void Total_money_is_conserved_every_sample_over_1_month()
