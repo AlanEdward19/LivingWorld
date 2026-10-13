@@ -1,3 +1,5 @@
+> **Estado: Entregue** (specs-closeout 2026-10-12) - 5/5 CITYGROW verificados por testes unit em Cities/ e Cities/Founding; entregue 2026-08-23 (PASS, STATE.md).
+
 # Dynamic City Growth Specification
 
 ## Problem Statement
@@ -148,11 +150,11 @@ event pipeline.
 
 | Requirement ID | Story                  | Phase  | Status  |
 | --------------- | ----------------------- | ------ | ------- |
-| CITYGROW-01     | P1: Overflow placement + city growth | Verified | ✅ Verified |
-| CITYGROW-02     | P1: Overflow placement + city growth | Verified | ✅ Verified |
-| CITYGROW-03     | P1: Overflow placement + city growth | Verified | ✅ Verified |
-| CITYGROW-04     | P1: Overflow placement + city growth | Verified | ✅ Verified |
-| CITYGROW-05     | P1: Overflow placement + city growth | Verified | ✅ Verified |
+| CITYGROW-01     | P1: Overflow placement + city growth | Verified | Verified - tests/LivingWorld.Tests.Unit/Cities/BuildingFootprintAndPlacementTests.cs (Resolve_places_inside_the_citys_current_bounds_when_a_free_cell_exists_there), CityOccupancyTests |
+| CITYGROW-02     | P1: Overflow placement + city growth | Verified | Verified - BuildingFootprintAndPlacementTests (Resolve_falls_back_to_the_overflow_ring..., Resolve_returns_null_when_the_whole_map_has_no_free_cell_anywhere), Founding/OverflowPlacerTests |
+| CITYGROW-03     | P1: Overflow placement + city growth | Verified | Verified - tests/LivingWorld.Tests.Unit/Cities/CityGrownBoundsTests.cs; BuildingFootprintAndPlacementTests (Resolve_grows_bounds_to_include_an_overflow_building_within_the_absorption_ring) |
+| CITYGROW-04     | P1: Overflow placement + city growth | Verified | Verified - tests/LivingWorld.Tests.Unit/Cities/Founding/SpatialSettlementFoundingSystemTests.cs + OverflowClusterFinderTests |
+| CITYGROW-05     | P1: Overflow placement + city growth | Verified | Verified - CityGrownBoundsTests (CityProjector_Build_reports_bounds_grown...; growth only extends bounds, buildings not moved) |
 
 **ID format:** `CITYGROW-NN`, one per acceptance criterion above (in order).
 
@@ -161,8 +163,6 @@ event pipeline.
 **Coverage:** 5 total, 5 mapped to tasks, 0 unmapped — see `validation.md` for the full round 1-4
 Verifier history and `.specs/STATE.md`'s AD-007 for the one deliberate spec amendment made along
 the way.
-
-**Coverage:** 5 total, 0 mapped to tasks, 5 unmapped ⚠️ (Design/Tasks not yet run)
 
 ---
 

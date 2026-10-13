@@ -1,3 +1,5 @@
+> **Estado: Entregue** (specs-closeout 2026-10-12) - 6/6 grupos de requisitos com testes; ROADMAP.md ainda marca a fase como pendente.
+
 # Fase 12 (Narrativa) Specification
 
 ## Problem Statement
@@ -82,12 +84,12 @@ A fase 10 introduz fatos e relatos degradáveis, mas o mundo ainda não transfor
 ## Requirement Traceability
 | Requirement ID | Story | Status |
 | --- | --- | --- |
-| NARR-01..04 | Narrativa ancorada em eventos | Pending |
-| NARR-05..08 | Crônica periódica por relevância histórica | Pending |
-| NARR-09..12 | Relato único com distorção determinística | Pending |
-| NARR-13..15 | Crença separada de verdade | Pending |
-| NARR-16..18 | Biografia de NPC | Pending |
-| NARR-19..21 | Endpoints de leitura narrativa | Pending |
+| NARR-01..04 | Narrativa ancorada em eventos | Verified - LivingWorld.Tests.Unit/Narrative/ClaimAnchorValidatorTests, NarrativeRendererTests, NarrativeSecurityTests (par de mutacao) |
+| NARR-05..08 | Crônica periódica por relevância histórica | Verified - LivingWorld.Tests.Unit/Narrative/WindowedHistoryAggregatorTests, ChronicleGenerationSystemTests |
+| NARR-09..12 | Relato único com distorção determinística | Verified - LivingWorld.Tests.Integration/Narrative/NarrativeScenarioTests (LLM on/off identico, mesma seed), LivingWorld.Tests.Unit/History/Distortion/DistortionEngineTests.Five_hop_chain... |
+| NARR-13..15 | Crença separada de verdade | Verified - LivingWorld.Tests.Unit/Narrative/BeliefAssimilationServiceTests, NarrativeSecurityTests |
+| NARR-16..18 | Biografia de NPC | Verified - LivingWorld.Tests.Unit/Narrative/NpcBiographyQueryTests, LivingWorld.Tests.Integration/Narrative/NarrativeEndpointTests (Biographies_*) |
+| NARR-19..21 | Endpoints de leitura narrativa | Verified - LivingWorld.Tests.Integration/Narrative/NarrativeEndpointTests (Chronicles_/Biographies_/Reports_endpoint_*) |
 
 ## Success Criteria
 - [ ] Toda narrativa publicada tem cobertura de claims ancorados e reprova automaticamente em ausência de evidência.

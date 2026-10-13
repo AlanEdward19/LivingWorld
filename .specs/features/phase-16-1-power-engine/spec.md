@@ -1,3 +1,5 @@
+> **Estado: Parcial** (specs-closeout 2026-10-12) - 95 de 97 requisitos entregues com testes (registro de mecânicas, 30+ mecânicas); PWR-40/41 adiados; motor segue registro C# fechado, ver closeout.md.
+
 # Fase 16.1 — Motor de Poder Genérico (Especificação)
 
 ## Problem Statement

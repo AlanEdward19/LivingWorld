@@ -1,4 +1,4 @@
-# Emergence first slice
+# Emergence first slice [Estado: Spec - plano sem checks nem código (specs-closeout 2026-10-12)]
 
 ## Problem
 

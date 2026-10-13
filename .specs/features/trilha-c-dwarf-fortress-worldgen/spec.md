@@ -1,3 +1,5 @@
+> **Estado: Spec (nao implementado)** (specs-closeout 2026-10-12) - 0/15 WGN verificados; so existe advance-year de 1 ano; tela web deferida (ADR-0022, Godot).
+
 # Trilha C — Geração de História do Mundo (estilo Dwarf Fortress)
 
 ## Problem Statement
@@ -147,20 +149,20 @@ eventos consistente com o caminho final.
 
 | ID | Story | Status |
 | --- | --- | --- |
-| WGN-01 | P1: Avanço parametrizado — anos configuráveis | Pending |
-| WGN-02 | P1: Avanço parametrizado — rejeita years inválido | Pending |
-| WGN-03 | P1: Avanço parametrizado — chronicle reflete sem flush extra | Pending |
-| WGN-10 | P1: Navegação — `LoadAt` sobre branch efêmero, nunca o raiz | Pending |
-| WGN-11 | P1: Navegação — "iniciar simulação" promove o branch efêmero a save real | Pending |
-| WGN-12 | P1: Navegação — fluxo linear sem regressão | Pending |
-| WGN-20 | P1: Eventos — `CivilizationFounded` | Pending |
-| WGN-21 | P1: Eventos — `War` (conflito sustentado) | Pending |
-| WGN-22 | P1: Eventos — `DynastyRise` | Pending |
-| WGN-23 | P1: Eventos — chronicle narra os novos kinds | Pending |
-| WGN-30 | P1: Tela — ordem preset→história→editor | Pending |
-| WGN-31 | P1: Tela — avançar N anos atualiza contador+feed | Pending |
-| WGN-32 | P1: Tela — retroceder reflete estado do ano | Pending |
-| WGN-33 | P1: Tela — câmera livre reusa engine de render existente | Pending |
-| WGN-34 | P1: Tela — "iniciar simulação" fecha a fase e promove o branch | Pending |
+| WGN-01 | P1: Avanço parametrizado — anos configuráveis | Pending - so existe `POST /simulation/advance-year` (1 ano fixo, `SimulationControlEndpoints.cs`); sem parametro `years` |
+| WGN-02 | P1: Avanço parametrizado — rejeita years inválido | Pending - sem endpoint parametrizado, sem validacao de `years` |
+| WGN-03 | P1: Avanço parametrizado — chronicle reflete sem flush extra | Pending - nao ha avanco parametrizado para provar; chronicle existe mas ligacao nao testada |
+| WGN-10 | P1: Navegação — `LoadAt` sobre branch efêmero, nunca o raiz | Pending - nenhum endpoint de navegacao nem branch efemero em src/LivingWorld.Api |
+| WGN-11 | P1: Navegação — "iniciar simulação" promove o branch efêmero a save real | Pending - nenhuma promocao de branch efemero a save real |
+| WGN-12 | P1: Navegação — fluxo linear sem regressão | Pending - sem fluxo novo; fluxo linear atual nao regrediu mas nada o prova nesta spec |
+| WGN-20 | P1: Eventos — `CivilizationFounded` | Pending - `WorldEventKind.CivilizationFounded` nao existe em src/ |
+| WGN-21 | P1: Eventos — `War` (conflito sustentado) | Pending - `WorldEventKind.War` nao existe em src/ |
+| WGN-22 | P1: Eventos — `DynastyRise` | Pending - `WorldEventKind.DynastyRise` nao existe em src/ |
+| WGN-23 | P1: Eventos — chronicle narra os novos kinds | Pending - dependente de WGN-20..22, ausentes |
+| WGN-30 | P1: Tela — ordem preset→história→editor | Deferred - cliente web aposentado (ADR-0022), alvo agora Godot; tela nao existe |
+| WGN-31 | P1: Tela — avançar N anos atualiza contador+feed | Deferred - idem WGN-30 (web aposentado; sem UI nem endpoint) |
+| WGN-32 | P1: Tela — retroceder reflete estado do ano | Deferred - idem WGN-30 |
+| WGN-33 | P1: Tela — câmera livre reusa engine de render existente | Deferred - idem WGN-30 |
+| WGN-34 | P1: Tela — "iniciar simulação" fecha a fase e promove o branch | Deferred - idem WGN-30 |
 
 **Coverage**: 14 total, 0 excluídos (nenhuma exclusão nesta spec além do Out of Scope acima).

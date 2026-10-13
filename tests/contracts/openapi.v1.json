@@ -1830,6 +1830,18 @@
         ]
       }
     },
+    "/world/calendar": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
     "/worlds/create": {
       "post": {
         "requestBody": {

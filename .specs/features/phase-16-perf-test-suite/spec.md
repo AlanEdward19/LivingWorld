@@ -1,3 +1,5 @@
+> **Estado: Entregue** (specs-closeout 2026-10-12) - suíte completa 8h03m -> 36m7s (meta <1h); 8/8 PERF com evidência em commits e validação arquivada; baseline-timings.md removido como efêmero.
+
 # Test Suite Performance Specification
 
 ## Problem Statement
@@ -166,14 +168,14 @@ time and zero change in assertion outcomes.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| PERF-01 | P1: Baseline timing report | Design | Pending |
-| PERF-02 | P1: Hot-method profile of 3 slowest classes | Design | Pending |
-| PERF-03 | P1: CPU-saturation verdict | Design | Pending |
-| PERF-04 | P2: Parallel-degree tuning (or N/A verdict) | Design | Pending |
-| PERF-05 | P2: 3× consecutive full-suite stability check | Design | Pending |
-| PERF-06 | P3: Hot-path optimization(s), output-identical | Design | Pending |
-| PERF-07 | P3: Per-optimization before/after measurement | Design | Pending |
-| PERF-08 | P3: Final full-suite re-measurement vs. baseline | Design | Pending |
+| PERF-01 | P1: Baseline timing report | Design | Verified - baseline-timings.md (removido em c8ab6c7, recuperável via git) + commit e275931; validação arquivada 5609944 |
+| PERF-02 | P1: Hot-method profile of 3 slowest classes | Design | Verified - commit d5da929 (BehaviorDecisionSystem 98% do custo/tick); ScaleScenarioSensorTests |
+| PERF-03 | P1: CPU-saturation verdict | Design | Verified - baseline-timings.md (removido em c8ab6c7, recuperável via git) seção CPU-saturation (validação 5609944) |
+| PERF-04 | P2: Parallel-degree tuning (or N/A verdict) | Design | Verified - N/A justificado (CPU ociosa por um teste sequencial dominante), validação 5609944 |
+| PERF-05 | P2: 3× consecutive full-suite stability check | Design | Verified - N/A justificado junto com PERF-04 (validação 5609944); 3x consecutivas não reexecutado aqui |
+| PERF-06 | P3: Hot-path optimization(s), output-identical | Design | Verified - commit f905d2d (fixes 1-3 idênticos); 4º fix 17b0a2e muda saída por decisão aprovada (AD-005, goldens regravados) |
+| PERF-07 | P3: Per-optimization before/after measurement | Design | Verified - baseline-timings.md (removido em c8ab6c7, recuperável via git) seções T5/T8, commits f905d2d/17b0a2e |
+| PERF-08 | P3: Final full-suite re-measurement vs. baseline | Design | Verified - commit b4a8c3d: suíte completa 8h03m -> 36m7s |
 
 **ID format:** `PERF-NN`
 

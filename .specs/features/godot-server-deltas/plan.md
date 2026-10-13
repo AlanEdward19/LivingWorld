@@ -1,4 +1,4 @@
-# Godot server deltas
+# Godot server deltas [Estado: Spec - plano sem checks nem código (specs-closeout 2026-10-12)]
 
 ## Problem
 

@@ -1,3 +1,5 @@
+> **Estado: Parcial** (specs-closeout 2026-10-12) - arquitetura entregue e verificada, mas efeitos/custos seguem switch C# fechado (reabertura pendente, sem motor dinamico/catalogo web).
+
 # Phase 16 — Potência
 
 ## Problema e objetivo
@@ -77,14 +79,14 @@ Critérios de fechamento do roadmap: [spec-closeout.md](spec-closeout.md).
 
 | ID | Design | Task | Status |
 |---|---|---|---|
-| POW-01, POW-03 | borda + plano vazio | T1 | Verified |
-| POW-02 | modelo composicional | T1 | Verified |
-| POW-04 | registro runtime | T2 | Verified |
-| POW-05 | aplicação/custos | T3 | Implemented |
-| POW-06 | aquisição/manifestação | T4 | Implemented |
-| POW-07 | estado consultável | T2 | Verified |
-| POW-08 | predisposição herdável, poder não herdado | T6 | Verified |
-| POW-09 | cinco fixtures nominais de regressão | T7 | Implemented |
-| POW-10 | locomoção física e projeção visual | T8 | Implemented |
-| POW-11 | ocupação temporária e conservação | T9 | Implemented |
-| POW-12 | comandos de autoria e UX operacional | T10 | Verified |
+| POW-01, POW-03 | borda + plano vazio | T1 | Verified - ExtraordinaryIntegrationTests.Disabled_configuration_registers_no_system_enabled_registers_exactly_one |
+| POW-02 | modelo composicional | T1 | Verified - ExtraordinaryIntegrationTests.Optional_state_contract_parses_appearance_need_senescence_and_manifestation_condition |
+| POW-04 | registro runtime | T2 | Verified - ExtraordinaryMechanicRegistryTests |
+| POW-05 | aplicação/custos | T3 | Verified - ExtraordinaryInvocationEngineTests (custo/resolucao) + ExtraordinaryConstructTests |
+| POW-06 | aquisição/manifestação | T4 | Verified - ExtraordinaryArchetypeScenarioTests.Fixed_archetype_acquires_manifests_and_invokes_through_generic_engine |
+| POW-07 | estado consultável | T2 | Verified - ExtraordinaryStateTransitionTests + ExtraordinaryCarrierStateEvolutionTests |
+| POW-08 | predisposição herdável, poder não herdado | T6 | Verified - ExtraordinaryHeredityTests |
+| POW-09 | cinco fixtures nominais de regressão | T7 | Verified - ExtraordinaryArchetypeScenarioTests (5 arquetipos nominais) |
+| POW-10 | locomoção física e projeção visual | T8 | Verified - ExtraordinaryLocomotionTests + ExtraordinaryVisualProjectionTests |
+| POW-11 | ocupação temporária e conservação | T9 | Verified - ExtraordinaryConstructTests (ocupacao/conservacao sem vazamento economico) |
+| POW-12 | comandos de autoria e UX operacional | T10 | Verified - Integration/Authoring/AuthoringEndpointTests (Extraordinary) |

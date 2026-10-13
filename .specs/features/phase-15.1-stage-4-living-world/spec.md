@@ -1,3 +1,5 @@
+> **Estado: Parcial** (specs-closeout 2026-10-12) - Cadeias de motor/API provadas por testes Stage4; animações e UI deferidas ao Godot (ADR-0022); ver closeout.md.
+
 # Phase 15.1 — Stage 4: Living World Integration Specification
 
 > **Cliente web removido (ADR-0022, 2026-10-11).** O contrato com o cliente é a API do motor (`tests/contracts/`); a UI é

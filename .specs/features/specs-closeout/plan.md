@@ -1,3 +1,5 @@
+> **Estado: Entregue** (2026-10-12) - estados declarados, rastreio conferido, efêmeros removidos
+
 # Specs closeout
 
 ## Problem

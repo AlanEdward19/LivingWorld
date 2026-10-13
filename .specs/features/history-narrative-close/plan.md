@@ -1,4 +1,4 @@
-# History narrative close
+# History narrative close [Estado: Spec - plano sem checks nem código (specs-closeout 2026-10-12)]
 
 ## Problem
 
