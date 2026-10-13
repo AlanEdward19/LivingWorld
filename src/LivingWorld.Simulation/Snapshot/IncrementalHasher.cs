@@ -36,6 +36,7 @@ public static class IncrementalHasher
         nameof(WorldState.TreasuryLedger),
         nameof(WorldState.Infections),
         nameof(WorldState.Immunities),
+        nameof(WorldState.ClimateYears),
         nameof(WorldState.EnvironmentTemperatureAdjustments),
         nameof(WorldState.Facts),
         nameof(WorldState.Reports),

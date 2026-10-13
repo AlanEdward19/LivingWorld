@@ -47,7 +47,9 @@ public sealed class CropSystem : ISimulationSystem
             var crop = world.FindCropAt(workplace.Location);
             if (crop is { } harvestable && harvestable.IsHarvestable(ctx.CurrentTick))
             {
-                long yield = DefaultHarvestPerWorker * workers.Count;
+                // o ano de safra da região multiplica a colheita (weather-drought): seca corta, fartura soma; sem clima vale 1000
+                long yield = (long)Math.Floor(
+                    DefaultHarvestPerWorker * workers.Count * world.ClimateFactorMilli(world.Map.RegionOf(workplace.Location), world.ClimateYearOf(ctx.CurrentTick)) / 1000.0);
                 long lost = workplace.Deposit(new ResourceType(harvestable.CropResourceId), yield, world.EconomyRules);
                 if (lost > 0)
                     ctx.LogEvent(

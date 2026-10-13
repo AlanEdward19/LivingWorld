@@ -1,6 +1,7 @@
 using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Climate;
 using LivingWorld.Domain.Cognition;
 using LivingWorld.Domain.Ecology;
 using LivingWorld.Domain.Economy;
@@ -212,6 +213,13 @@ public sealed partial class WorldState
     /// <summary>Infecções ativas, ordenadas por NPC e doença.</summary>
     [Canonical] public IReadOnlyList<Infection> Infections => _infections;
     private readonly List<Infection> _infections;
+
+    /// <summary>Regras de clima do cenário (weather-drought); desligado por padrão (todo ano vale 1000).</summary>
+    [Canonical] public ClimateRules ClimateRules { get; }
+
+    /// <summary>Anos de safra recentes por região, ordenados por região e ano (os antigos saem sozinhos).</summary>
+    [Canonical] public IReadOnlyList<ClimateYear> ClimateYears => _climateYears;
+    private readonly List<ClimateYear> _climateYears;
 
     /// <summary>Imunidades vigentes, ordenadas por NPC e doença.</summary>
     [Canonical] public IReadOnlyList<Immunity> Immunities => _immunities;
@@ -448,7 +456,9 @@ public sealed partial class WorldState
         IReadOnlyList<TreasuryAggregate>? treasuryLedger = null,
         DiseaseRules? diseaseRules = null,
         IReadOnlyList<Infection>? infections = null,
-        IReadOnlyList<Immunity>? immunities = null)
+        IReadOnlyList<Immunity>? immunities = null,
+        ClimateRules? climateRules = null,
+        IReadOnlyList<ClimateYear>? climateYears = null)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -492,6 +502,8 @@ public sealed partial class WorldState
         DiseaseRules = diseaseRules ?? DiseaseRules.Disabled;
         _infections = (infections ?? []).ToList();
         _immunities = (immunities ?? []).ToList();
+        ClimateRules = climateRules ?? ClimateRules.Disabled;
+        _climateYears = (climateYears ?? []).ToList();
         Name = name;
         _facts = [];
         _reports = [];
@@ -604,7 +616,9 @@ public sealed partial class WorldState
         IReadOnlyList<TreasuryAggregate>? treasuryLedger = null,
         DiseaseRules? diseaseRules = null,
         IReadOnlyList<Infection>? infections = null,
-        IReadOnlyList<Immunity>? immunities = null)
+        IReadOnlyList<Immunity>? immunities = null,
+        ClimateRules? climateRules = null,
+        IReadOnlyList<ClimateYear>? climateYears = null)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -683,6 +697,8 @@ public sealed partial class WorldState
         DiseaseRules = diseaseRules ?? DiseaseRules.Disabled;
         _infections = (infections ?? []).ToList();
         _immunities = (immunities ?? []).ToList();
+        ClimateRules = climateRules ?? ClimateRules.Disabled;
+        _climateYears = (climateYears ?? []).ToList();
         _facts = (facts ?? []).ToList();
         _nextFactId = nextFactId;
         _nextReportId = nextReportId;

@@ -69,6 +69,16 @@ if (args.Length == 3 && args[0] == "disease-hash")
     return 0;
 }
 
+// Hash canônico de uma vila com clima ligado (anos de safra por região): o teste de dois processos exige o mesmo hash.
+// `dotnet <dll> climate-hash <seed> <ticks>`.
+if (args.Length == 3 && args[0] == "climate-hash")
+{
+    var (world, clock) = ScenarioRunner.Create(ulong.Parse(args[1]), climateRules: new LivingWorld.Domain.Climate.ClimateRules(true, 300, 1500));
+    clock.Run(world, long.Parse(args[2]));
+    Console.WriteLine($"{WorldSnapshot.CanonicalHash(world)};{world.ClimateYears.Count}");
+    return 0;
+}
+
 // `dotnet <dll> history-significance-digest <seed> <ticks>`.
 if (args.Length == 3 && args[0] == "history-significance-digest")
 {

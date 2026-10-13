@@ -5,6 +5,7 @@ using LivingWorld.Simulation.Cities;
 using LivingWorld.Simulation.Cities.Construction;
 using LivingWorld.Simulation.Cities.Founding;
 using LivingWorld.Simulation.Cities.Migration;
+using LivingWorld.Simulation.Climate;
 using LivingWorld.Simulation.Ecology;
 using LivingWorld.Simulation.Economy.Labor;
 using LivingWorld.Simulation.Economy.Market;
@@ -56,6 +57,7 @@ public static partial class ScenarioRunner
         var systems = new List<ISimulationSystem>
         {
         new PeriodEvolutionSystem(periodTransformationRules ?? []),
+        new ClimateYearSystem(),
         new MortalitySystem(),
         new OutbreakSystem(),
         new FactToReportConversionScheduler(),
