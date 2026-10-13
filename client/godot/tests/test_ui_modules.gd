@@ -411,3 +411,72 @@ func test_scenes_drive_actor_animation_every_frame() -> void:
 	eq(hidden_actor._clock, 0.0, "e não gasta tempo com quem está em outro andar")
 	interior.free()
 	view.free()
+
+
+func test_lamp_brightness_ramps_monotonically_through_dusk_and_dawn() -> void:
+	var material := StandardMaterial3D.new()
+	var cycle := DayCycle.new()
+	var sun := DirectionalLight3D.new()
+	cycle.bind(sun, Environment.new(), StandardMaterial3D.new(), material)
+	var dusk: Array = []
+	for hour in [16.0, 17.0, 18.0, 19.0, 20.0, 23.0]:
+		cycle.sync(hour, 1.0, true)
+		dusk.append(material.emission_energy_multiplier)
+	for i in range(1, dusk.size()):
+		check(dusk[i] >= dusk[i - 1], "do fim da tarde à noite o poste só aumenta: %s" % [dusk])
+	var dawn: Array = []
+	for hour in [3.0, 5.0, 6.0, 7.0, 9.0]:
+		cycle.sync(hour, 1.0, true)
+		dawn.append(material.emission_energy_multiplier)
+	for i in range(1, dawn.size()):
+		check(dawn[i] <= dawn[i - 1], "da madrugada ao dia o poste só diminui: %s" % [dawn])
+	sun.free()
+	cycle.free()
+
+
+func test_muted_ambience_produces_no_audio() -> void:
+	var Ambience := preload("res://Scenes/ambience.gd")
+	var ambience := Ambience.new()
+	tree.root.add_child(ambience)
+	ambience.set_muted(true)
+	var before: float = ambience._noise
+	ambience._process(0.5)
+	eq(ambience._noise, before, "mudo não gera nenhuma amostra")
+	ambience.queue_free()
+
+
+func test_app_wires_lamps_ambience_sky_and_camera_feed() -> void:
+	var app = await _app_with(_online_transport())
+
+	eq(app.day_cycle.lamp_material, app.world_view.lamp_material, "o ciclo do dia acende os postes do mundo")
+	eq(app.day_cycle.window_material, app.world_view.window_material, "e as janelas")
+	app.rig.focus(Vector3(9, 0, 9))
+	for i in 100:
+		app.rig._process(0.05)
+	app._process(0.1)
+	check(app.world_view.view_center.distance_to(app.rig.target) < 0.01, "a cena sabe para onde a câmera olha")
+	eq(app.world_view.far_zoom, app.rig.zoom_size > 16.0, "e se está longe")
+	check(absf(app.ambience.daylight - app.day_cycle.daylight()) < 0.001, "o som segue a luz do dia")
+	eq(app.sky_life.map_size, Vector2(app.store.map_size), "as nuvens usam o tamanho real do mapa")
+	app.queue_free()
+
+
+func test_calendar_from_server_drives_hour_and_day() -> void:
+	var setup := _cycle()
+	var cycle = setup[0]
+	var calendar := {"hoursPerDay": 12, "daysPerMonth": 10, "monthsPerYear": 4}
+
+	cycle.sync(18.0, 1.0, true, calendar)
+	eq(cycle.clock_text(), "12:00", "tick 18 num dia de 12 h é meio-dia")
+	eq(cycle.phase_name(), "Dia")
+	cycle.sync(12.0, 1.0, true, calendar)
+	eq(cycle.clock_text(), "00:00", "tick 12 é meia-noite")
+
+	var date: Dictionary = cycle.date_parts(12.0 * 10.0 * 4.0 * 2.0 + 12.0 * 10.0 + 12.0 * 3.0)
+	eq(date, {"year": 2, "month": 2, "day": 4}, "ano, mês e dia pelo calendário do servidor")
+	var default_cycle := DayCycle.new()
+	eq(default_cycle.date_parts(24.0 * 30.0 * 12.0 + 24.0 * 31.0), {"year": 1, "month": 2, "day": 2}, "sem calendário usa 24/30/12")
+	default_cycle.free()
+	for node in setup:
+		if node is Node:
+			node.free()

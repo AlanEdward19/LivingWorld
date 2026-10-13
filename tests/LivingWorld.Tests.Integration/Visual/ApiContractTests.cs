@@ -83,6 +83,41 @@ public class ApiContractTests
         Assert.Equal(layout["floors"]!.GetValue<int>(), layout["floorLayouts"]!.AsArray().Count);
     }
 
+    /// <summary>Forma dos deltas empurrados por WebSocket/SSE: montados à mão com um elemento em cada lista para
+    /// a gravação mostrar o formato dos itens (o envelope é o mesmo que o gateway serializa).</summary>
+    [Fact]
+    public void Delta_shapes_match_the_committed_contract()
+    {
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        var scope = new LivingWorld.Api.Visual.Scope.VisualScope(LivingWorld.Api.Visual.Scope.VisualScopeKind.World, "");
+        var from = new LivingWorld.Api.Visual.Scope.VisualCursor(3, "world", 4);
+        var to = new LivingWorld.Api.Visual.Scope.VisualCursor(4, "world", 5);
+        var npc = new LivingWorld.Domain.Shared.NpcId(1);
+        var cell = new LivingWorld.Domain.Geography.CellCoord(2, 3);
+        var city = new LivingWorld.Domain.Shared.CityId(Guid.Parse("11111111-1111-1111-1111-111111111111"));
+        var delta = new LivingWorld.Api.Visual.Scope.ScopeTickDelta(
+            4,
+            [new LivingWorld.Api.Visual.Scope.NpcVisual(npc, cell, null, null)],
+            [npc],
+            [new LivingWorld.Api.Visual.Scope.CityVisual(city, "Alfa", cell, 10, new LivingWorld.Api.Visual.Projection.CellBounds(0, 0, 2, 2))],
+            [city],
+            [new LivingWorld.Api.Visual.Scope.BuildingVisual(new LivingWorld.Domain.Shared.BuildingId(7), city, -1, cell, 90)],
+            [new LivingWorld.Domain.Shared.BuildingId(7)],
+            [new LivingWorld.Api.Visual.Scope.ProcessVisual(1, "rest", 1, 0.5, "sleep-bed")],
+            [1L],
+            [new LivingWorld.Api.Visual.Scope.IndicatorUpdate("population", 10)],
+            [new LivingWorld.Api.Visual.Scope.NotableVisualEvent(4, LivingWorld.Domain.History.WorldEventKind.Marriage, "Casamento", null)]);
+        var occupant = new LivingWorld.Api.Visual.Projection.InteriorOccupant(npc, new LivingWorld.Domain.Geography.Spatial.FloorLevel(1), cell, null);
+        var world = new LivingWorld.Api.Visual.Scope.VisualDeltaEnvelope<object?>(scope, from, to, delta);
+        var interior = new LivingWorld.Api.Visual.Scope.VisualDeltaEnvelope<object?>(
+            new LivingWorld.Api.Visual.Scope.VisualScope(LivingWorld.Api.Visual.Scope.VisualScopeKind.Interior, "7"), from, to,
+            new LivingWorld.Api.Visual.Scope.InteriorTickDelta(4, new LivingWorld.Domain.Shared.BuildingId(7),
+                [occupant], [occupant], [occupant], [new LivingWorld.Domain.Shared.NpcId(2)]));
+
+        AssertMatchesContract("shape.visual-delta.json", ShapeOf(JsonNode.Parse(JsonSerializer.Serialize(world, options))));
+        AssertMatchesContract("shape.interior-delta.json", ShapeOf(JsonNode.Parse(JsonSerializer.Serialize(interior, options))));
+    }
+
     /// <summary>Estrutura sem valores: objeto → propriedades ordenadas; lista → forma do primeiro elemento
     /// ("[]" quando vazia); folha → tipo JSON. Dois mundos diferentes têm a mesma forma.</summary>
     internal static JsonNode ShapeOf(JsonNode? node) => node switch

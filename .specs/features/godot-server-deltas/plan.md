@@ -64,7 +64,7 @@ None - nenhuma entidade persistida; só projeção.
 4. IF o NPC não existe THEN the system SHALL responder 404
 5. The system SHALL falhar `ApiContractTests` se a forma de uma rota congelada mudar
 6. WHEN o delta chega THEN the system SHALL atualizar o interior sem reler o snapshot
-7. The system SHALL manter os 40 testes de `scripts/client-test.sh` verdes
+7. The system SHALL manter os testes de `scripts/client-test.sh` verdes
 
 **Independent test:** chamada HTTP e teste de contrato. `bash scripts/client-test.sh`.
 

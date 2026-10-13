@@ -45,6 +45,10 @@ func set_speed(ticks_per_second: float) -> Dictionary:
 	return await transport.request("POST", "/simulation/speed", {"ticksPerSecond": ticks_per_second})
 
 
+func world_calendar() -> Dictionary:
+	return await _fetch("/world/calendar", "world-calendar")
+
+
 func action_catalog() -> Dictionary:
 	return await _fetch("/visual/catalog/actions", "action-catalog")
 
@@ -59,7 +63,7 @@ func npc_page(query: String, skip: int, take: int, city_id: String = "") -> Dict
 
 
 func npc_detail(id: int) -> Dictionary:
-	return await _fetch("/npcs/%d" % id)
+	return await _fetch("/npcs/%d" % id, "npc-inspect")
 
 
 func interior_snapshot(building_id: int) -> Dictionary:

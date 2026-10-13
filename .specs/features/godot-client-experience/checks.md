@@ -3,7 +3,7 @@
 Profile: light
 Plan: `.specs/features/godot-client-experience/plan.md`
 
-17 checks in 5 slices · 0 one-way doors · 0 open
+18 checks in 5 slices · 0 one-way doors · 0 open
 
 ## Checks
 
@@ -41,6 +41,7 @@ Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_status_drive
 ### E4 - Vida ambiente
 **C11** - A porta de um prédio tem poste de luz apagado ao meio-dia, aceso às 23 h, e com brilho intermediário às 18 h e às 5 h (AC 4.1)
 Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_door_gets_a_lamp_that_lights_at_night"`
+Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_lamp_brightness_ramps_monotonically_through_dusk_and_dawn"`
 
 **C12** - As nuvens andam, só projetam sombra e reentram pelo lado oposto (AC 4.2)
 Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_clouds_drift_and_wrap"`
@@ -48,6 +49,7 @@ Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_clouds_drift
 **C13** - Pássaros de dia sem grilos, grilos à noite sem pássaros, vento maior à noite, e o volume do player cai ao silenciar e volta ao religar (AC 4.3)
 Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_ambience_levels_follow_daylight_and_mute"`
 Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_m_key_toggles_ambience_mute"`
+Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_muted_ambience_produces_no_audio"`
 
 ### E5 - Multidão
 **C14** - Com 200 NPCs e câmera longe todos viram versão simples (sem braços, pernas, e tronco, cabeça e cabelo sem sombra); câmera perto devolve o detalhe; com 20 NPCs nunca simplifica (AC 5.1, 5.2)
@@ -61,6 +63,9 @@ Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_walking_take
 
 **C17** - O mundo e o interior animam os NPCs a cada quadro, e o interior não gasta tempo com quem está em outro andar (AC 5.1)
 Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_scenes_drive_actor_animation_every_frame"`
+
+**C18** - O `App` liga o ciclo do dia aos materiais de janela e poste do mundo, informa à cena o ponto e a distância da câmera, alimenta o som com a luz do dia e dimensiona as nuvens pelo mapa real (AC 1.1, 4.1, 4.2, 4.3, 5.1)
+Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_app_wires_lamps_ambience_sky_and_camera_feed"`
 
 ### E3 - Ficha
 **C8** - As cinco barras mostram saúde 90, fome 80, sede 70, sono 60 e social 50 vindos de `GET /npcs/7` (AC 3.1)

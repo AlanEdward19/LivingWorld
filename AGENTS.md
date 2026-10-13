@@ -12,6 +12,9 @@
 - Rode tarefa repetível por `bash scripts/<x>.sh`. Nunca monte `dotnet test` na mão.
 - Antes de dizer "pronto": `bash scripts/verify.sh` deve sair 0.
 - Toda aleatoriedade vem de RNG semeado do mundo. Ver `rules/simulation-determinism.md`.
+- **Foco do produto (vale para toda entrega):** realismo da simulação, ótima UX/experiência do usuário e
+  **desempenho sem regressão**. Uma melhoria de realismo ou UX não pode custar FPS (cliente) nem custo por
+  NPC-tick (motor): meça antes e depois e registre o número (`client/godot/README.md`, `--steps "stress:500"`).
 
 **PERGUNTE QUANDO**
 - For apagar/renomear spec, design ou doc; alterar migração aplicada; mudar contrato público.

@@ -185,4 +185,19 @@ public class InteriorOccupancyTests
         Assert.Equal([floorChangedAfter], delta.ChangedFloor);
         Assert.Equal([exited.Npc], delta.Exited);
     }
+
+    [Fact]
+    public void Diff_reports_an_action_change_in_the_same_cell_as_moved()
+    {
+        var working = new InteriorOccupant(new NpcId(1), FloorLevel.Ground, new CellCoord(2, 2), LivingWorld.Domain.Behavior.ActionType.Work);
+        var eating = working with { Action = LivingWorld.Domain.Behavior.ActionType.Eat };
+
+        var delta = InteriorOccupancyDiffer.Diff([working], [eating]);
+
+        Assert.Equal([eating], delta.Moved);
+        Assert.Empty(delta.Entered);
+        Assert.Empty(delta.ChangedFloor);
+        Assert.Empty(delta.Exited);
+        Assert.Empty(InteriorOccupancyDiffer.Diff([working], [working]).Moved);
+    }
 }

@@ -13,6 +13,7 @@ signal contract_error(errors: Array)
 
 const BACKOFF_SECONDS: Array[float] = [1.0, 2.0, 4.0, 8.0]
 const SHAPE_BY_SCOPE := {"World": "world-subscribe", "City": "city-subscribe", "Interior": "interior-subscribe"}
+const DELTA_SHAPE_BY_SCOPE := {"World": "visual-delta", "City": "visual-delta", "Interior": "interior-delta"}
 
 var transport
 var scope_kind := ""
@@ -108,6 +109,17 @@ func _shape_ok(envelope: Dictionary) -> bool:
 	return false
 
 
+func _delta_shape_ok(envelope: Dictionary) -> bool:
+	var shape = ShapeValidator.load_shape(DELTA_SHAPE_BY_SCOPE.get(scope_kind, ""))
+	if shape == null:
+		return true
+	var errors := ShapeValidator.validate(envelope, shape)
+	if errors.is_empty():
+		return true
+	contract_error.emit(errors)
+	return false
+
+
 func _on_message(generation: int, data: Variant) -> void:
 	if generation != _generation or not (data is Dictionary):
 		return
@@ -118,6 +130,8 @@ func _on_message(generation: int, data: Variant) -> void:
 
 
 func _on_delta(generation: int, envelope: Dictionary) -> void:
+	if validate_shapes and not _delta_shape_ok(envelope):
+		return # delta fora do contrato: descarta; a lacuna de sequência dispara o replay no próximo
 	var from_seq: int = int(envelope.fromCursor.sequence)
 	var to_seq: int = int(envelope.toCursor.sequence)
 	var last: int = int(cursor.get("sequence", 0))

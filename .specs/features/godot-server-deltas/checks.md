@@ -3,7 +3,7 @@
 Profile: light
 Plan: `.specs/features/godot-server-deltas/plan.md`
 
-6 checks in 2 slices · 2 one-way doors · 1 open (client side, see Out of scope)
+11 checks in 3 slices · 2 one-way doors · 0 open
 
 ## Checks
 
@@ -29,11 +29,32 @@ Proof: `dotnet test tests/LivingWorld.Tests.Integration -c Release --filter "Ful
 **C5** - The OpenAPI document and every frozen shape fail the contract tests when a frozen route changes (AC 5)
 Proof: `dotnet test tests/LivingWorld.Tests.Integration -c Release --filter "FullyQualifiedName~ApiContractTests"`
 
+### S3 - Cliente (AC 6; o AC 7 é o job `client` do CI, que roda `scripts/client-test.sh` inteiro)
+
+**C7** - O cliente aplica o delta de interior (`entered`, `moved`, `exited`) à store e à cena sem pedir `GET /visual/subscribe` de novo (AC 6)
+Proof: `bash scripts/client-test.sh --filter "test_app::test_interior_delta_updates_occupants_without_polling"`
+
+**C11** - Um ocupante em `changedFloor` muda de andar na store e na cena (andar e altura), sem releitura (AC 6)
+Proof: `bash scripts/client-test.sh --filter "test_app::test_interior_delta_moves_an_occupant_to_another_floor"`
+
+**C8** - O delta de interior inclui como `moved` o ocupante que só mudou de ação (mesmo andar e célula), e não inclui quem não mudou (AC 1)
+Proof: `bash scripts/test.sh --filter "FullyQualifiedName~InteriorOccupancyTests.Diff_reports_an_action_change_in_the_same_cell_as_moved"`
+
+**C9** - O cliente lê `GET /world/calendar` e usa as durações do cenário para hora, dia, mês e ano; sem calendário vale 24/30/12 (AC 3)
+Proof: `bash scripts/client-test.sh --filter "test_app::test_calendar_comes_from_world_calendar_route"`
+Proof: `bash scripts/client-test.sh --filter "test_ui_modules::test_calendar_from_server_drives_hour_and_day"`
+
+**C10** - O `ApiClient` valida `GET /npcs/{id}` contra `shape.npc-inspect.json` e o stream descarta delta de mundo, cidade ou interior que quebre o contrato, aceitando ação nula (AC 5)
+Proof: `bash scripts/client-test.sh --filter "test_shape_validator::test_api_client_validates_npc_detail_shape"`
+Proof: `bash scripts/client-test.sh --filter "test_shape_validator::test_stream_discards_a_delta_that_breaks_the_contract"`
+Proof: `bash scripts/client-test.sh --filter "test_shape_validator::test_stream_validates_interior_deltas_and_accepts_null_action"`
+
 ## Coverage
 
 | Set (size) | Member -> proof | Unproven |
 | --- | --- | --- |
 | door 2: frozen routes (2) | calendar C3 · npc inspect C4 | - |
+| deltas congelados no cliente (3) | mundo C10 · cidade C10 · interior C10 | - |
 | interior transitions (4) | entered C6 · moved C6 · changed floor C6 · exited C6 | - |
 
 - Claims naming a status code or response shape: C3 (200 and shape), C4 (200, 404 and shape)
@@ -53,5 +74,4 @@ Proof: `dotnet test tests/LivingWorld.Tests.Integration -c Release --filter "Ful
 
 ## Out of scope
 
-- Godot client consuming the delta (AC 6), `client-test.sh` (AC 7) and reading the calendar - open, tracked in the issue for this spec
 - final art and sound; player mode - see the plan

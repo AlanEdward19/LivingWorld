@@ -1,8 +1,8 @@
 extends Node
 ## Ciclo dia/noite dirigido pelo relógio do servidor: o cliente só interpola entre as leituras de
-## `/simulation/status` (tick = hora do mundo, dia de 24 h). Pausado, o céu para onde o servidor parou.
+## `/simulation/status` (tick = hora do mundo; o tamanho do dia vem de `GET /world/calendar`). Pausado, o céu para onde o servidor parou.
 
-const HOURS_PER_DAY := 24.0
+const CLOCK_HOURS := 24.0 ## a luz e o relógio de parede sempre usam 24 h; o calendário do mundo só fixa quantos ticks formam um dia
 
 var sun: DirectionalLight3D
 var environment: Environment
@@ -10,6 +10,9 @@ var window_material: StandardMaterial3D
 var lamp_material: StandardMaterial3D
 
 var hour := 9.0 ## hora do dia, 0–24
+var hours_per_day := 24.0 ## vem de GET /world/calendar
+var days_per_month := 30
+var months_per_year := 12
 var _tick := 0.0
 var _ticks_per_second := 1.0
 var _paused := true
@@ -24,12 +27,21 @@ func bind(p_sun: DirectionalLight3D, p_environment: Environment, p_window_materi
 	_apply()
 
 
-func sync(tick: float, ticks_per_second: float, paused: bool) -> void:
+## Calendário do cenário (`GET /world/calendar`): quantos ticks formam dia, mês e ano.
+func set_calendar(calendar: Dictionary) -> void:
+	hours_per_day = float(calendar.get("hoursPerDay", hours_per_day))
+	days_per_month = int(calendar.get("daysPerMonth", days_per_month))
+	months_per_year = int(calendar.get("monthsPerYear", months_per_year))
+
+
+func sync(tick: float, ticks_per_second: float, paused: bool, calendar: Dictionary = {}) -> void:
+	if not calendar.is_empty():
+		set_calendar(calendar)
 	_tick = tick
 	_ticks_per_second = ticks_per_second
 	_paused = paused
 	_synced_at = Time.get_ticks_msec() / 1000.0
-	hour = fmod(tick, HOURS_PER_DAY)
+	hour = _hour_of(tick)
 	_apply()
 
 
@@ -37,7 +49,7 @@ func advance(seconds: float) -> void:
 	if _paused:
 		return
 	_tick += seconds * _ticks_per_second
-	hour = fmod(_tick, HOURS_PER_DAY)
+	hour = _hour_of(_tick)
 	_apply()
 
 
@@ -46,6 +58,21 @@ func _process(delta: float) -> void:
 
 
 ## 0 = noite plena, 1 = meio-dia.
+func _hour_of(tick: float) -> float:
+	return fmod(tick, hours_per_day) / hours_per_day * CLOCK_HOURS
+
+
+## Ano, mês e dia (a partir de 1) do tick, pelo calendário que o servidor informou.
+func date_parts(tick: float) -> Dictionary:
+	var day_index := int(tick / hours_per_day)
+	var days_per_year := days_per_month * months_per_year
+	return {
+		"year": day_index / days_per_year,
+		"month": (day_index % days_per_year) / days_per_month + 1,
+		"day": day_index % days_per_month + 1,
+	}
+
+
 func daylight() -> float:
 	return clampf(sin((hour - 5.0) / 14.0 * PI) * 1.5 + 0.1, 0.0, 1.0)
 

@@ -82,7 +82,7 @@ Camada única que entrega estado correto e em ordem.
 | Canal de deltas | WebSocket; SSE de reserva | Servidor declara WS como primário | n |
 | Arte inicial | Low-poly estilizado com placeholders | Arte final é troca de assets | n |
 | CI do cliente | Job separado com Godot headless (`scripts/client-test.sh`), fora de `verify.sh` | ADR-0022 tirou toolchain extra do gate | n |
-| Interior ao vivo | Relê o snapshot do interior a cada 1 s | O servidor só publica delta de mundo e cidade | n |
+| Interior ao vivo | Aplica o delta de interior do servidor | `godot-server-deltas` (issue #39) | n |
 | Só-leitura | 1 h simulada conectado não altera o hash canônico (exceto relógio) | Prova que o cliente não escreve | n |
 
 **Open questions:** none - all resolved or logged above.

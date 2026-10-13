@@ -83,3 +83,84 @@ func test_stream_rejects_mistyped_snapshot() -> void:
 	await stream.subscribe("World")
 
 	eq(snapshots.size(), 0, "snapshot com campo de tipo errado é descartado")
+
+
+func test_api_client_validates_npc_detail_shape() -> void:
+	var shape = ShapeValidator.load_shape("npc-inspect")
+	check(shape != null, "contrato npc-inspect existe")
+	var good := {}
+	for key in shape:
+		good[key] = _sample_for(shape[key])
+	var transport := FakeTransport.new()
+	transport.on("GET /npcs/7", {"status": 200, "body": good})
+	var api := ApiClient.new(transport)
+
+	eq((await api.npc_detail(7)).ok, true, "resposta fiel ao contrato passa")
+
+	var broken: Dictionary = good.duplicate(true)
+	broken.erase("name")
+	transport.on("GET /npcs/7", {"status": 200, "body": broken})
+	eq((await api.npc_detail(7)).ok, false, "campo ausente é rejeitado")
+
+
+func test_stream_discards_a_delta_that_breaks_the_contract() -> void:
+	var transport := FakeTransport.new()
+	transport.on("GET /visual/subscribe", {"status": 200, "body": Fx.snapshot()})
+	transport.on("GET /visual/replay", {"status": 200, "body": []})
+	var stream = CursorStream.new(transport, tree)
+	stream.validate_shapes = false # o snapshot sintético não cumpre o contrato; só o delta é julgado
+	await stream.subscribe("World")
+	stream.validate_shapes = true
+	var applied: Array = []
+	var errors: Array = []
+	stream.delta_applied.connect(func(e): applied.append(e))
+	stream.contract_error.connect(func(e): errors.append(e))
+
+	var shape = ShapeValidator.load_shape("visual-delta")
+	var good := {}
+	for key in shape:
+		good[key] = _sample_for(shape[key])
+	good.fromCursor.sequence = 0
+	good.toCursor.sequence = 1
+	transport.channels[0].push(good)
+	eq(applied.size(), 1, "delta fiel ao contrato é aplicado")
+
+	var broken: Dictionary = good.duplicate(true)
+	broken.fromCursor.sequence = 1
+	broken.toCursor.sequence = 2
+	broken.payload.erase("npcUpserts")
+	transport.channels[0].push(broken)
+	eq(applied.size(), 1, "delta sem campo do contrato é descartado")
+	eq(errors.size(), 1, "e o erro de contrato é anunciado")
+
+
+func test_stream_validates_interior_deltas_and_accepts_null_action() -> void:
+	var transport := FakeTransport.new()
+	transport.on("GET /visual/subscribe", {"status": 200, "body": Fx.snapshot(0, null, "Interior")})
+	transport.on("GET /visual/replay", {"status": 200, "body": []})
+	var stream = CursorStream.new(transport, tree)
+	stream.validate_shapes = false
+	await stream.subscribe("Interior", "7")
+	stream.validate_shapes = true
+	var applied: Array = []
+	var errors: Array = []
+	stream.delta_applied.connect(func(e): applied.append(e))
+	stream.contract_error.connect(func(e): errors.append(e))
+
+	var shape = ShapeValidator.load_shape("interior-delta")
+	var good := {}
+	for key in shape:
+		good[key] = _sample_for(shape[key])
+	good.payload.entered[0].action = null # ação nula é legítima no motor (NPC sem ação)
+	good.fromCursor.sequence = 0
+	good.toCursor.sequence = 1
+	transport.channels[0].push(good)
+	eq(applied.size(), 1, "delta de interior com ação nula é aceito")
+
+	var broken: Dictionary = good.duplicate(true)
+	broken.fromCursor.sequence = 1
+	broken.toCursor.sequence = 2
+	broken.payload.erase("exited")
+	transport.channels[0].push(broken)
+	eq(applied.size(), 1, "delta de interior sem `exited` é descartado")
+	eq(errors.size(), 1, "e o erro de contrato é anunciado")
