@@ -64,7 +64,7 @@ O mundo mostra a hora e a luz acompanha o relógio do servidor.
 | --- | --- | --- | --- |
 | Hora do dia | `tick % 24` | O cenário padrão usa `WorldCalendar(24,30,12)` | n |
 | Ids de terreno | Paleta fixa por id; rios da camada `Rivers` | A API não serve nome de terreno | n |
-| Brilho dos postes | Sobe e desce com a luz do dia (não liga e desliga) | Evita um salto às 19 h; pedido literal era noite = aceso | n |
+| Brilho dos postes | Sobe e desce com a luz do dia (não liga e desliga) | Evita um salto às 19 h; pedido literal era noite = aceso | y |
 | Desempenho | Medido com `--steps "stress:500"`: 77 FPS longe, 52 FPS perto (M1 Pro) | Sem baseline versionado ainda | n |
 
 **Open questions:** none - all resolved or logged above.

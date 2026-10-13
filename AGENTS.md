@@ -15,7 +15,6 @@
 - **Foco do produto (vale para toda entrega):** realismo da simulação, ótima UX/experiência do usuário e
   **desempenho sem regressão**. Uma melhoria de realismo ou UX não pode custar FPS (cliente) nem custo por
   NPC-tick (motor): meça antes e depois e registre o número (`client/godot/README.md`, `--steps "stress:500"`).
-- Issues: trabalhe **uma por vez** e espere o usuário liberar a próxima.
 
 **PERGUNTE QUANDO**
 - For apagar/renomear spec, design ou doc; alterar migração aplicada; mudar contrato público.
