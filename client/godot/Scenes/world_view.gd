@@ -9,6 +9,8 @@ const Scenery := preload("res://Scenes/scenery.gd")
 const TERRAIN_COLORS: Array[Color] = [
 	Color("6aa84f"), Color("c9b777"), Color("7a8a5a"), Color("8a8f98"), Color("4a7fa8"), Color("a67c52"),
 ]
+const STREET_COLOR := Color("8f8574")
+const YARD_COLOR := Color("6e5c45")
 const MATERIAL_WALL_STONE := 0
 const MATERIAL_WALL_WOOD := 1
 const MATERIAL_DOOR := 2
@@ -28,6 +30,7 @@ var building_nodes: Dictionary = {} ## id -> Node3D
 var _selected_npc := -1
 var view_center := Vector3(15, 0, 15) ## o app informa o ponto de vista
 var view_radius := 40.0 ## raio (em células) dentro do qual NPCs animam por inteiro
+var bubble_zoom := false ## mapa-múndi muito afastado: NPCs viram bolhas
 var far_zoom := false ## câmera longe: NPCs em versão simples
 var _frame := 0
 
@@ -80,6 +83,7 @@ func _rebuild_terrain() -> void:
 	multi.mesh = mesh
 	multi.instance_count = store.terrain.size()
 	var index := 0
+	var paved := _settlement_cells()
 	for cell in store.terrain:
 		var id: int = store.terrain[cell]
 		var bed_drop := -0.13 if store.rivers.has(cell) else 0.0
@@ -88,6 +92,8 @@ func _rebuild_terrain() -> void:
 		var color: Color = TERRAIN_COLORS[(id - 1) % TERRAIN_COLORS.size()] * shade
 		if store.rivers.has(cell):
 			color = Color("6d7f5a") * shade # leito sob a água
+		elif paved.has(cell):
+			color = paved[cell] * (0.92 + float((cell.x + cell.y) % 2) * 0.1) # xadrez de pedra: rua e quintal
 		multi.set_instance_color(index, color)
 		index += 1
 	var instance := MultiMeshInstance3D.new()
@@ -113,6 +119,24 @@ func _rebuild_terrain() -> void:
 	scenery.name = "Scenery"
 	terrain_root.add_child(scenery)
 	scenery.build(store.terrain, store.rivers, rects)
+
+
+## Dentro de um assentamento o chão deixa de ser mato: ruas de pedra e terra batida sob os prédios.
+## Só cor de instância do terreno (custo zero); no mapa-múndi devolve vazio e o chão segue natural.
+func _settlement_cells() -> Dictionary:
+	var cells := {}
+	if store.kind != "City" or not store.city.has("bounds"):
+		return cells
+	var bounds: Rect2i = store.city.bounds
+	var yard := {}
+	for building in store.buildings.values():
+		for entry in building.footprint:
+			yard[entry.cell] = true
+	for x in range(bounds.position.x, bounds.end.x):
+		for y in range(bounds.position.y, bounds.end.y):
+			var cell := Vector2i(x, y)
+			cells[cell] = STREET_COLOR if not yard.has(cell) else YARD_COLOR
+	return cells
 
 
 func _rebuild_cities() -> void:
@@ -442,5 +466,6 @@ func _process(delta: float) -> void:
 	for id in npc_nodes:
 		var actor = npc_nodes[id]
 		actor.set_far(far_now)
-		var near: bool = actor.position.distance_to(view_center) <= view_radius
+		actor.set_bubble(bubble_zoom)
+		var near: bool = not bubble_zoom and actor.position.distance_to(view_center) <= view_radius
 		actor.tick(delta, near, not crowded or (id + _frame) % 2 == 0)

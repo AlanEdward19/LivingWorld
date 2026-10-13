@@ -102,3 +102,19 @@ func world_preview(scenario_json: String) -> Dictionary:
 func world_create(scenario_json: String, world_name: String) -> Dictionary:
 	var response: Dictionary = await transport.request("POST", "/worlds/create", {"scenarioJson": scenario_json, "name": world_name})
 	return {"ok": response.status == 200, "status": response.status, "body": response.body}
+
+
+# --- retoques do mundo recém-criado (autoria) ---------------------------------
+
+func power_catalog() -> Dictionary:
+	return await _fetch("/authoring/extraordinary/catalog")
+
+
+func grant_power(npc_id: int, power_id: String) -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/authoring/npcs/%d/extraordinary/grant" % npc_id, {"powerId": power_id})
+	return {"ok": response.status == 200, "status": response.status, "body": response.body}
+
+
+func rewrite_personality(npc_id: int, values: Dictionary) -> Dictionary:
+	var response: Dictionary = await transport.request("PUT", "/authoring/npcs/%d/personality" % npc_id, values)
+	return {"ok": response.status == 200, "status": response.status, "body": response.body}

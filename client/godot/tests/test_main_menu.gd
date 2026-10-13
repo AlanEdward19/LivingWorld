@@ -19,6 +19,8 @@ func _transport(online: bool = true) -> RefCounted:
 		"cells": [{"x": 0, "y": 0, "terrain": 0, "hasWater": false, "altitude": 0}, {"x": 1, "y": 0, "terrain": 1, "hasWater": true, "altitude": 0}],
 		"settlements": [{"name": "vila", "x": 0, "y": 0}]}})
 	transport.on("POST /worlds/create", {"status": 200, "body": {"npcCount": 3}})
+	transport.on("GET /npcs?", {"status": 200, "body": {"total": 0, "items": []}})
+	transport.on("GET /authoring/extraordinary/catalog", {"status": 200, "body": []})
 	return transport
 
 
@@ -74,9 +76,12 @@ func test_new_world_lists_periods_previews_and_creates() -> void:
 	eq(menu.create_button.disabled, false, "nome e período habilitam Criar")
 	var fired := [false]
 	menu.world_ready.connect(func(): fired[0] = true)
+	menu.api.validate_shapes = false
 	await menu._on_create()
 	check("POST /worlds/create" in transport.calls, "chamou /worlds/create")
-	eq(fired[0], true, "mundo criado entra no jogo")
+	check(menu.touchup != null, "mundo criado abre os retoques")
+	menu.touchup.finished.emit()
+	eq(fired[0], true, "terminar os retoques entra no jogo")
 	menu.free()
 
 

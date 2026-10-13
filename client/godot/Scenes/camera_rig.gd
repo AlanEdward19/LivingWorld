@@ -12,6 +12,7 @@ var yaw := deg_to_rad(45.0)
 var zoom_size := 22.0
 var min_size := 3.0
 var max_size := 48.0
+var bubble_size := 29.0 ## acima disso, no mapa-múndi, NPC vira bolha
 var city_enter_size := 9.0
 var city_exit_size := 13.0
 var scope_kind := "World"
@@ -20,6 +21,7 @@ var city_at: Callable = func(_point: Vector3) -> String: return ""
 
 var camera: Camera3D
 var following: Node3D = null
+var _zoom_goal := 22.0 ## alvo do zoom suave (roda do mouse); `zoom_by` vai direto
 var _goal := Vector3.ZERO
 var _goal_active := false
 var _requested := false
@@ -60,9 +62,30 @@ func orbit(delta_yaw: float) -> void:
 	_apply()
 
 
+## Alcance do zoom acompanha o tamanho do mapa: tudo visível no máximo; a bolha começa em 60% dele.
+func fit_to_map(map_cells: int) -> void:
+	max_size = maxf(48.0, map_cells * 1.4)
+	bubble_size = maxf(24.0, max_size * 0.6)
+	_zoom_goal = clampf(_zoom_goal, min_size, max_size)
+
+
 func zoom_by(factor: float) -> void:
-	zoom_size = clampf(zoom_size * factor, min_size, max_size)
+	_zoom_goal = clampf(zoom_size * factor, min_size, max_size)
+	_apply_zoom(_zoom_goal)
+
+
+## Roda do mouse: soma ao alvo e o `_process` aproxima o zoom devagar (zoom contínuo, sem saltos).
+func zoom_smooth(factor: float) -> void:
+	_zoom_goal = clampf(_zoom_goal * factor, min_size, max_size)
+
+
+func _apply_zoom(size: float) -> void:
+	zoom_size = clampf(size, min_size, max_size)
 	_apply()
+	_check_scope()
+
+
+func _check_scope() -> void:
 	if scope_kind == "World" and not _requested and zoom_size <= city_enter_size:
 		var city_id: String = city_at.call(target)
 		if city_id != "":
@@ -85,8 +108,8 @@ func focus(point: Vector3) -> void:
 
 
 func set_zoom(size: float) -> void:
-	zoom_size = clampf(size, min_size, max_size)
-	_apply()
+	_zoom_goal = clampf(size, min_size, max_size)
+	_apply_zoom(_zoom_goal)
 
 
 func follow(node: Node3D) -> void:
@@ -98,6 +121,8 @@ func release() -> void:
 
 
 func _process(delta: float) -> void:
+	if absf(_zoom_goal - zoom_size) > 0.001:
+		_apply_zoom(zoom_size * pow(_zoom_goal / zoom_size, clampf(delta * 9.0, 0.0, 1.0)))
 	if _goal_active:
 		target = target.lerp(_goal, clampf(delta * 5.0, 0.0, 1.0))
 		_apply()
@@ -116,9 +141,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			pan(event.relative)
 	elif event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			zoom_by(0.9)
+			zoom_smooth(0.85)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			zoom_by(1.1)
+			zoom_smooth(1.18)
 	elif event is InputEventKey and event.pressed:
 		match event.keycode:
 			KEY_Q: orbit(deg_to_rad(15))

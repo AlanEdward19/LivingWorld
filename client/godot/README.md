@@ -5,7 +5,7 @@ determinismo; este projeto só desenha o que a API projeta. Godot 4.7 (qualquer 
 
 ## Rodar
 
-Atalho: `bash scripts/play.sh` sobe a API (mundo vivo) e abre o cliente no **menu principal** (Continuar · Novo mundo · F10 volta ao menu). Manualmente:
+Atalho: `bash scripts/play.sh` sobe a API (mundo vivo) e abre o cliente no **menu principal** (Continuar · Novo mundo · F10 volta ao menu; Novo mundo tem "Personalizar" e, depois de criar, "Retoques"). Manualmente:
 
 ```bash
 # 1. API (outro terminal) — porta 5214

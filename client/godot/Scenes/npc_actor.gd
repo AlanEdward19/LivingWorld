@@ -16,6 +16,8 @@ static var _materials: Dictionary = {}
 
 var npc_id := 0
 var far_lod := false
+var bubble := false ## mapa-múndi muito afastado: só uma bolha colorida, sem corpo
+var _bubble_node: MeshInstance3D
 var _shadow_parts: Array[MeshInstance3D] = []
 var _anim_accum := 0.0
 var cell := Vector2i.ZERO
@@ -309,6 +311,35 @@ func set_far(value: bool) -> void:
 		_reset_pose()
 
 
+## Bolha de longe: esconde corpo e pernas e mostra uma esfera na cor da camisa (nada de animar nem sombrear).
+func set_bubble(value: bool) -> void:
+	if bubble == value:
+		return
+	bubble = value
+	_body.visible = not value
+	for leg in _legs:
+		leg.visible = not value
+	if value:
+		if _bubble_node == null:
+			_bubble_node = MeshInstance3D.new()
+			_bubble_node.mesh = _shared_mesh("bubble", func():
+				var m := SphereMesh.new()
+				m.radius = 0.35
+				m.height = 0.7
+				m.radial_segments = 8
+				m.rings = 4
+				return m)
+			var material := _shared_mat(_shirt.albedo_color.lightened(0.15))
+			_bubble_node.material_override = material
+			_bubble_node.position.y = 0.4
+			_bubble_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			add_child(_bubble_node)
+		_bubble_node.visible = true
+		_reset_pose()
+	elif _bubble_node != null:
+		_bubble_node.visible = false
+
+
 func _sync_props() -> void:
 	if pose == "work" or _tool != null:
 		_get_tool().visible = pose == "work"
@@ -394,7 +425,7 @@ func animate(dt: float) -> void:
 	if frozen:
 		return
 	_clock += dt
-	if not far_lod:
+	if not far_lod and not bubble:
 		_animate()
 
 

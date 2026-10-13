@@ -6,6 +6,8 @@ extends Control
 signal world_ready() ## há um mundo no servidor para jogar (continuado ou recém-criado)
 
 const UiTheme := preload("res://Scenes/ui_theme.gd")
+const WorldEditor := preload("res://Scenes/world_editor.gd")
+const WorldTouchup := preload("res://Scenes/world_touchup.gd")
 
 const TERRAIN_COLORS: Array[Color] = [
 	Color("5f8f4e"), Color("c9b26b"), Color("7b8b6f"), Color("8a7a66"), Color("4f7a64"), Color("a8a39a"),
@@ -21,6 +23,16 @@ var period_ids: Array[String] = []
 var selected_period := ""
 var world_name := ""
 var seed_value := 1
+var draft := "" ## cenário do período em texto cru, com as personalizações aplicadas (ver WorldEditor)
+var selected_settlement := 0 ## linha cujo ponto o clique na prévia move
+var touchup
+var custom_box: VBoxContainer
+var settlement_rows: VBoxContainer
+var width_spin: SpinBox
+var height_spin: SpinBox
+var population_spin: SpinBox
+var conception_spin: SpinBox
+var longevity_spin: SpinBox
 var server_online := false
 
 var title_screen: Control
@@ -164,8 +176,9 @@ func _build_new_world_screen() -> void:
 	left.add_child(period_list)
 	period_info = Label.new()
 	period_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	period_info.custom_minimum_size.y = 70
+	period_info.custom_minimum_size.y = 40
 	left.add_child(period_info)
+	_build_custom_panel(left)
 
 	var right := VBoxContainer.new()
 	right.custom_minimum_size.x = 500
@@ -187,12 +200,14 @@ func _build_new_world_screen() -> void:
 	seed_edit.text_submitted.connect(func(_t: String): _commit_seed())
 	seed_edit.focus_exited.connect(_commit_seed)
 	seed_row.add_child(seed_edit)
-	_button("🎲", seed_row, func(): _roll_seed(); _refresh_preview())
+	_button("🎲", seed_row, func(): _roll_seed(); _edit(WorldEditor.with_seed(draft, seed_value)))
 	preview_rect = TextureRect.new()
 	preview_rect.custom_minimum_size = Vector2(500, 260)
 	preview_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	preview_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	preview_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	preview_rect.mouse_filter = Control.MOUSE_FILTER_STOP
+	preview_rect.gui_input.connect(_on_preview_input)
 	right.add_child(preview_rect)
 	preview_note = Label.new()
 	preview_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -208,6 +223,144 @@ func _build_new_world_screen() -> void:
 	create_button = _button("Criar mundo", actions, _on_create)
 	create_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	create_button.disabled = true
+
+
+func _spin(label_text: String, parent: Control, low: float, high: float, step: float, on_change: Callable) -> SpinBox:
+	var row := HBoxContainer.new()
+	parent.add_child(row)
+	var label := Label.new()
+	label.text = label_text
+	label.custom_minimum_size.x = 150
+	row.add_child(label)
+	var spin := SpinBox.new()
+	spin.min_value = low
+	spin.max_value = high
+	spin.step = step
+	spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	spin.value_changed.connect(on_change)
+	row.add_child(spin)
+	return spin
+
+
+## Personalização do cenário: mapa, população, natalidade, longevidade e assentamentos (clique na prévia move o marcado).
+func _build_custom_panel(parent: Control) -> void:
+	var toggle := CheckButton.new()
+	toggle.text = "Personalizar o mundo"
+	parent.add_child(toggle)
+	custom_box = VBoxContainer.new()
+	custom_box.visible = false
+	custom_box.add_theme_constant_override("separation", 4)
+	parent.add_child(custom_box)
+	toggle.toggled.connect(func(on: bool): custom_box.visible = on)
+	width_spin = _spin("Largura do mapa", custom_box, WorldEditor.MIN_SIDE, WorldEditor.MAX_SIDE, 1, func(_v): _apply_size())
+	height_spin = _spin("Altura do mapa", custom_box, WorldEditor.MIN_SIDE, WorldEditor.MAX_SIDE, 1, func(_v): _apply_size())
+	population_spin = _spin("População inicial", custom_box, 1, WorldEditor.MAX_POPULATION, 1, func(v): _edit(WorldEditor.with_population(draft, int(v))))
+	conception_spin = _spin("Natalidade anual", custom_box, 0.0, 1.0, 0.05, func(v): _edit(WorldEditor.with_conception(draft, v)))
+	longevity_spin = _spin("Longevidade máxima", custom_box, 30, 150, 1, func(v): _edit(WorldEditor.with_longevity(draft, int(v))))
+	_label("Assentamentos (◎ marca o que o clique no mapa move)", 14, custom_box)
+	settlement_rows = VBoxContainer.new()
+	custom_box.add_child(settlement_rows)
+	_button("+ Assentamento", custom_box, _add_settlement)
+
+
+func _edit(new_draft: String) -> void:
+	draft = new_draft
+	_refresh_preview()
+
+
+func _apply_size() -> void:
+	draft = WorldEditor.with_size(draft, int(width_spin.value), int(height_spin.value))
+	_sync_custom()
+	_refresh_preview()
+
+
+## Preenche os controles a partir do rascunho sem disparar os sinais de edição.
+func _sync_custom() -> void:
+	var values: Dictionary = WorldEditor.read(draft)
+	width_spin.set_value_no_signal(values.width)
+	height_spin.set_value_no_signal(values.height)
+	population_spin.set_value_no_signal(values.population)
+	conception_spin.set_value_no_signal(values.conception)
+	longevity_spin.set_value_no_signal(values.longevity)
+	for child in settlement_rows.get_children():
+		child.queue_free()
+	selected_settlement = clampi(selected_settlement, 0, maxi(values.settlements.size() - 1, 0))
+	for i in values.settlements.size():
+		_settlement_row(i, values.settlements[i], values)
+
+
+func _settlement_row(index: int, entry: Dictionary, values: Dictionary) -> void:
+	var row := HBoxContainer.new()
+	settlement_rows.add_child(row)
+	var name_edit_row := LineEdit.new()
+	name_edit_row.text = entry.name
+	name_edit_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_edit_row.text_submitted.connect(func(text: String): _change_settlement(index, {"name": text}))
+	row.add_child(name_edit_row)
+	for axis in ["x", "y"]:
+		var spin := SpinBox.new()
+		spin.min_value = 0
+		spin.max_value = (values.width if axis == "x" else values.height) - 1
+		spin.set_value_no_signal(entry[axis])
+		spin.value_changed.connect(func(v: float): _change_settlement(index, {axis: int(v)}))
+		row.add_child(spin)
+	var mark := Button.new()
+	mark.text = "◎"
+	mark.toggle_mode = true
+	mark.button_pressed = index == selected_settlement
+	mark.pressed.connect(func(): selected_settlement = index; _sync_custom())
+	row.add_child(mark)
+	var remove := Button.new()
+	remove.text = "✕"
+	remove.disabled = values.settlements.size() <= 1
+	remove.pressed.connect(func(): _remove_settlement(index))
+	row.add_child(remove)
+
+
+func _change_settlement(index: int, changes: Dictionary) -> void:
+	var list: Array = WorldEditor.read(draft).settlements
+	if index >= list.size():
+		return
+	list[index].merge(changes, true)
+	_edit(WorldEditor.with_settlements(draft, list))
+	_sync_custom()
+
+
+func _add_settlement() -> void:
+	var values: Dictionary = WorldEditor.read(draft)
+	var list: Array = values.settlements
+	list.append({"name": "assentamento %d" % (list.size() + 1), "x": values.width / 2, "y": values.height / 2})
+	selected_settlement = list.size() - 1
+	_edit(WorldEditor.with_settlements(draft, list))
+	_sync_custom()
+
+
+func _remove_settlement(index: int) -> void:
+	var list: Array = WorldEditor.read(draft).settlements
+	if list.size() <= 1 or index >= list.size():
+		return
+	list.remove_at(index)
+	_edit(WorldEditor.with_settlements(draft, list))
+	_sync_custom()
+
+
+## Clique na prévia: move o assentamento marcado para a célula clicada.
+func _on_preview_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		var cell := preview_cell_at(event.position)
+		if cell.x >= 0:
+			_change_settlement(selected_settlement, {"x": cell.x, "y": cell.y})
+
+
+## Célula do mapa sob um ponto do TextureRect da prévia (imagem centralizada, sem distorção); (-1,-1) fora do mapa.
+func preview_cell_at(point: Vector2) -> Vector2i:
+	var values: Dictionary = WorldEditor.read(draft)
+	var scale := minf(preview_rect.size.x / values.width, preview_rect.size.y / values.height)
+	var offset := (preview_rect.size - Vector2(values.width, values.height) * scale) / 2.0
+	var local := (point - offset) / scale
+	if local.x < 0 or local.y < 0 or local.x >= values.width or local.y >= values.height:
+		return Vector2i(-1, -1)
+	return Vector2i(int(local.x), int(local.y))
 
 
 func _roll_name() -> void:
@@ -228,7 +381,7 @@ func _commit_seed() -> void:
 	seed_edit.text = str(parsed)
 	if parsed != seed_value:
 		seed_value = parsed
-		_refresh_preview()
+		_edit(WorldEditor.with_seed(draft, seed_value))
 
 
 func _refresh_create() -> void:
@@ -263,6 +416,12 @@ func _select_period(id: String) -> void:
 		(period_list.get_child(i) as Button).button_pressed = period_ids[i] == id
 	_refresh_create()
 	period_info.text = "Carregando…"
+	var scenario: String = await api.period_scenario(id, seed_value)
+	if selected_period != id:
+		return
+	draft = scenario
+	if draft != "":
+		_sync_custom()
 	var catalog: Dictionary = await api.period_catalog(id)
 	if selected_period != id:
 		return # escolheu outro período enquanto este carregava
@@ -280,13 +439,12 @@ func _refresh_preview() -> void:
 	_preview_generation += 1
 	var generation := _preview_generation
 	preview_note.text = "Gerando prévia…"
-	var scenario: String = await api.period_scenario(selected_period, seed_value)
-	var response: Dictionary = await api.world_preview(scenario) if scenario != "" else {"ok": false}
+	var response: Dictionary = await api.world_preview(draft) if draft != "" else {"ok": false}
 	if generation != _preview_generation:
 		return # uma prévia mais nova já está a caminho
 	if not response.ok:
 		preview_rect.texture = null
-		preview_note.text = "Prévia indisponível"
+		preview_note.text = "Prévia indisponível: %s" % str(response.get("body", "")).left(80)
 		return
 	preview_rect.texture = ImageTexture.create_from_image(preview_image(response.body))
 	preview_note.text = "%d×%d células · %d assentamentos" % [int(response.body.width), int(response.body.height), response.body.settlements.size()]
@@ -305,6 +463,16 @@ static func preview_image(body: Dictionary) -> Image:
 	return image
 
 
+## Retoques depois de criado: personalidade e poderes de NPCs do mundo recém-criado (rotas de autoria).
+func show_touchup() -> void:
+	new_world_screen.visible = false
+	touchup = WorldTouchup.new()
+	touchup.api = api
+	touchup.finished.connect(func(): touchup.queue_free(); world_ready.emit())
+	add_child(touchup)
+	await touchup.load_npcs()
+
+
 func _on_continue() -> void:
 	world_ready.emit()
 
@@ -315,11 +483,10 @@ func _on_create() -> void:
 	_busy = true
 	_refresh_create()
 	message_label.text = ""
-	var scenario: String = await api.period_scenario(selected_period, seed_value)
-	var response: Dictionary = await api.world_create(scenario, world_name.strip_edges()) if scenario != "" else {"ok": false, "body": "período indisponível"}
+	var response: Dictionary = await api.world_create(draft, world_name.strip_edges()) if draft != "" else {"ok": false, "body": "período indisponível"}
 	_busy = false
 	_refresh_create()
 	if response.ok:
-		world_ready.emit()
+		await show_touchup()
 	else:
 		message_label.text = "Não foi possível criar o mundo: %s" % str(response.body)

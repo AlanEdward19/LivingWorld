@@ -1,4 +1,4 @@
-# Godot main menu [Estado: Fatia 1 implementada; fatias 2+ por vir]
+# Godot main menu [Estado: Fatias 1 e 2 implementadas; fatias 3+ por vir]
 
 ## Problem
 
@@ -40,6 +40,29 @@ Só cliente; o servidor decide o mundo (ADR-0022).
 2. WHEN abre Novo mundo THEN SHALL listar os períodos do servidor com a prévia do mapa da seed escolhida
 3. WHEN Criar tem sucesso THEN SHALL entrar na simulação; em erro SHALL mostrar a mensagem do servidor e ficar
 4. WHEN F10 THEN SHALL voltar ao menu sem fechar o servidor
+
+### S2: Personalizar o mundo antes e depois de criar (P1)
+
+O cenário é texto cru editado só nos membros do topo (`world_editor.gd`); o servidor valida na prévia e na criação.
+
+5. WHEN o usuário muda mapa, população, natalidade, longevidade ou assentamentos THEN o cenário enviado SHALL levar
+   essas mudanças (inteiros continuam inteiros) e a prévia SHALL refletir o mesmo rascunho
+6. WHEN clica na prévia THEN o assentamento marcado SHALL ir para a célula; o primeiro é a aldeia inicial
+7. WHEN o mundo é criado THEN SHALL abrir os retoques: reescrever a personalidade (10 traços) de um NPC e conceder
+   poder do catálogo do mundo (`/authoring/...`); sem poderes no cenário, o seletor fica desabilitado e diz isso
+
+**O que o backend permite hoje (só cliente) x o que exige endpoint novo**
+
+| Pedido | Hoje | Exigiria |
+| --- | --- | --- |
+| tamanho do mapa, população, natalidade, longevidade | membros do cenário (feito) | - |
+| posicionar assentamentos | `Settlements[{Name,X,Y}]` (feito; ruas/orientação não editadas) | - |
+| posicionar prédios um a um | não: o servidor gera a planta da cidade (`city-house-layout`) | cenário aceitar `Buildings` ou rota de colocação |
+| criar famílias e NPCs personalizados | não: o cenário só tem `InitialPopulation`; as rotas de autoria agem em NPC existente | rota/cenário de `Npcs`/`Households` (contrato novo) |
+| criar poderes novos | catálogo vem do cenário (`Extraordinary`); o cliente só concede os existentes | editor de `PowerDescriptor` no cenário |
+| personalidade de NPC | `PUT /authoring/npcs/{id}/personality` (feito) | - |
+
+Contrato novo é decisão do dono do projeto (AGENTS.md: perguntar antes).
 
 ## Out of scope (fatias seguintes, cada uma com spec)
 

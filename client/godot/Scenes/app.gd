@@ -293,6 +293,7 @@ func _process(delta: float) -> void:
 		world_view.view_center = rig.target
 		world_view.view_radius = rig.zoom_size * 1.5
 		world_view.far_zoom = rig.zoom_size > 16.0
+		world_view.bubble_zoom = store.kind == "World" and rig.zoom_size > rig.bubble_size
 	if minimap != null:
 		minimap.set_camera_target(rig.target)
 		stage.set_daylight(day_cycle.daylight())
@@ -344,6 +345,7 @@ func _on_snapshot(envelope: Dictionary) -> void:
 		loading.visible = false
 		minimap.rebuild()
 		sky_life.build(Vector2(store.map_size))
+		rig.fit_to_map(maxi(store.map_size.x, store.map_size.y))
 		_load_names()
 	if kind == "Interior":
 		if stage.active and stage.interior_view.floor_count == int(store.interior.floors):
