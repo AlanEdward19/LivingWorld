@@ -1,4 +1,4 @@
-# Player incarnation [Estado: Spec - plano sem checks nem código (specs-closeout 2026-10-12)]
+# Player incarnation [Estado: Entregue - Npc.ControllerId, PlayerCommands, /players/* (AD-111, 2026-10-14)]
 
 ## Problem
 
@@ -15,7 +15,7 @@ Reaproveita a decisão por ação do NPC; o controlador externo substitui só a 
 1. `POST /players/{npcId}/incarnate` (new, door 1) - valida e marca o controlador
 2. `BehaviorDecisionSystem` (exists, extended) - pula a escolha autônoma de NPC com controlador
 3. `HouseholdRedistribution` (exists) - o desaparecimento reaproveita herança e vaga reaberta
-4. `PlayerDisappearanceSystem` (new) - no logout emite o evento e libera o controlador
+4. `PlayerCommands.Logout` (new, comando externo e não sistema de tick) - emite o evento, libera o controlador, emprego e casa, e registra a falta nos vínculos próximos
 5. `WorldEventLog` (exists) - grava o desaparecimento
 
 ## Impact

@@ -167,6 +167,18 @@ public enum WorldEventKind
     /// <summary>Furto descoberto (pego em flagrante ou denunciado) — payload: <c>ladraoId|vitimaId|moeda|1 se levou, 0 se falhou</c>.</summary>
     TheftDiscovered,
 
+    /// <summary>Um jogador assumiu um NPC — payload: <c>npcId|jogadorId</c>.</summary>
+    PlayerIncarnated,
+
+    /// <summary>O jogador saiu e o NPC desapareceu — payload: <c>npcId|jogadorId|cidadeId|vinculosProximos</c>.</summary>
+    PlayerDisappeared,
+
+    /// <summary>Um vínculo próximo reencontrou o desaparecido — payload: <c>npcId|buscadorId|dias</c>.</summary>
+    DisappearedFound,
+
+    /// <summary>A procura acabou sem achar e quem ficou segue em frente — payload: <c>npcId|vinculosProximos|dias</c>.</summary>
+    SearchGaveUp,
+
     /// <summary>Aluguel de hospedagem não pago no mês — payload: <c>domicilioId|predioId|valorDevido|mesesDeAtraso</c>.</summary>
     RentUnpaid,
 

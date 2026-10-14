@@ -10,6 +10,10 @@ public static class LivingEventPresentationCatalog
         new Dictionary<WorldEventKind, string>
         {
             [WorldEventKind.Birth] = "Um novo habitante nasceu",
+            [WorldEventKind.PlayerIncarnated] = "Alguém assumiu o rumo de um habitante",
+            [WorldEventKind.PlayerDisappeared] = "Um habitante desapareceu sem deixar rastro",
+            [WorldEventKind.DisappearedFound] = "Alguém reencontrou um desaparecido",
+            [WorldEventKind.SearchGaveUp] = "A procura por um desaparecido chegou ao fim",
             [WorldEventKind.Death] = "Um habitante faleceu",
             [WorldEventKind.Starvation] = "A fome causou uma morte",
             [WorldEventKind.Dehydration] = "A sede causou uma morte",

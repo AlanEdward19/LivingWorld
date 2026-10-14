@@ -202,6 +202,17 @@
         ],
         "type": "object"
       },
+      "IncarnateRequest": {
+        "properties": {
+          "playerId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "playerId"
+        ],
+        "type": "object"
+      },
       "InvokePowerRequest": {
         "properties": {
           "powerId": {
@@ -452,6 +463,20 @@
           "altruism",
           "impulsivity",
           "riskAversion"
+        ],
+        "type": "object"
+      },
+      "PlayerActionRequest": {
+        "properties": {
+          "action": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "action"
         ],
         "type": "object"
       },
@@ -1437,6 +1462,94 @@
           {
             "in": "path",
             "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/players/{npcId}/incarnate": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "npcId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncarnateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/players/{playerId}/action": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "playerId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlayerActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/players/{playerId}/logout": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "playerId",
             "required": true,
             "schema": {
               "type": "string"

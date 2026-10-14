@@ -95,6 +95,51 @@ public sealed class Npc
         LastJobChangeTick = tick;
         TouchCanonical();
     }
+    /// <summary>Quem conduz a escolha de ação deste NPC (um jogador, Fase 25); nulo = só o motor. Nunca um tipo de NPC
+    /// à parte: o controlador troca apenas a escolha, a resolução segue a mesma. Omitido do hash enquanto nulo.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ControllerId { get; private set; }
+
+    /// <summary>Ação que o controlador pediu; vale no lugar da escolha autônoma até ser trocada ou limpa.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ActionType? ControlledAction { get; private set; }
+
+    /// <summary>Tick em que o jogador saiu e o NPC passou a ser dado como desaparecido (o NPC segue vivo e simulado).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? DisappearedAtTick { get; private set; }
+
+    public Result<Unit> Incarnate(string controllerId)
+    {
+        if (!IsAlive) return Result<Unit>.Fail("Npc: morto");
+        if (ControllerId is not null) return Result<Unit>.Fail("Npc: já tem controlador");
+        ControllerId = controllerId;
+        DisappearedAtTick = null; // quem volta a ser conduzido deixou de estar desaparecido
+        TouchCanonical();
+        return Result<Unit>.Ok(Unit.Value);
+    }
+
+    public void SetControlledAction(ActionType? action)
+    {
+        ControlledAction = action;
+        TouchCanonical();
+    }
+
+    /// <summary>O jogador saiu: solta o controlador e marca o desaparecimento. Não congela nem remove o NPC.</summary>
+    public void Disappear(long tick)
+    {
+        ControllerId = null;
+        ControlledAction = null;
+        DisappearedAtTick = tick;
+        TouchCanonical();
+    }
+
+    /// <summary>Alguém o reencontrou: deixa de estar desaparecido.</summary>
+    public void Reappear()
+    {
+        DisappearedAtTick = null;
+        TouchCanonical();
+    }
+
     public bool IsGhost { get; private set; }
 
     /// <summary>Nulo enquanto <see cref="Household"/> existir. <see cref="LeaveHousehold"/>
@@ -171,7 +216,8 @@ public sealed class Npc
         double height = 1.70, double weight = 68.0, double muscleMass = 28.0,
         ActionType? currentIntent = null, long intentStartedTick = 0,
         string? intentTarget = null, IntentStatus? intentStatus = null, ActionType? travelPurpose = null,
-        long lastJobChangeTick = 0)
+        long lastJobChangeTick = 0,
+        string? controllerId = null, ActionType? controlledAction = null, long? disappearedAtTick = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -206,6 +252,9 @@ public sealed class Npc
         IntentStatus = intentStatus;
         HungerZeroSinceTick = hungerZeroSinceTick;
         LastJobChangeTick = lastJobChangeTick;
+        ControllerId = controllerId;
+        ControlledAction = controlledAction;
+        DisappearedAtTick = disappearedAtTick;
         IsGhost = isGhost;
         HomelessSince = homelessSince;
         PregnantUntil = pregnantUntil;

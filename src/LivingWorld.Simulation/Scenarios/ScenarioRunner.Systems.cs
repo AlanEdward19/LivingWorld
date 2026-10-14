@@ -22,6 +22,7 @@ using LivingWorld.Simulation.History.Distortion;
 using LivingWorld.Simulation.Llm;
 using LivingWorld.Simulation.Narrative;
 using LivingWorld.Simulation.Periods;
+using LivingWorld.Simulation.Players;
 using LivingWorld.Simulation.Population.Archive;
 using LivingWorld.Simulation.Population.Family;
 using LivingWorld.Simulation.Population.Lifecycle;
@@ -95,6 +96,7 @@ public static partial class ScenarioRunner
         new MaterializationSystem(),
         new SettlementFoundingSystem(),
         new SpatialSettlementFoundingSystem(),
+        new PlayerSearchSystem(),
         chronicles ?? new ChronicleGenerationSystem(),
         conversationSessions ?? new ConversationSessionStore(),
         };

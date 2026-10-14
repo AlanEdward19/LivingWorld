@@ -11,6 +11,10 @@ public static class SignificanceCalculator
         new Dictionary<WorldEventKind, double>
         {
             [WorldEventKind.Birth] = 0.85,
+            [WorldEventKind.PlayerIncarnated] = 0.3,
+            [WorldEventKind.PlayerDisappeared] = 0.85,
+            [WorldEventKind.DisappearedFound] = 0.7,
+            [WorldEventKind.SearchGaveUp] = 0.6,
             [WorldEventKind.Death] = 0.90,
             [WorldEventKind.Starvation] = 0.75,
             [WorldEventKind.Dehydration] = 0.75,
