@@ -72,7 +72,9 @@ public static class AdminEndpoints
         });
     }
 
-    private static AdminAccess? Authorize(HttpContext http, IConfiguration config) =>
+    /// <summary>Credencial de admin da requisição, ou nulo (a rota responde 403). Também guarda as rotas de controle do relógio
+    /// em <c>/simulation/*</c>: pausa e velocidade são globais e exclusivas do admin (ADR-0015).</summary>
+    public static AdminAccess? Authorize(HttpContext http, IConfiguration config) =>
         AdminAccess.TryGrant(
             http.Request.Headers[TokenHeader].FirstOrDefault(), config["ADMIN_TOKEN"], http.Request.Headers[ActorHeader].FirstOrDefault());
 

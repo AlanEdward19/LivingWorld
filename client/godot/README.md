@@ -9,10 +9,12 @@ Atalho: `bash scripts/play.sh` sobe a API (mundo vivo) e abre o cliente no **men
 
 ```bash
 # 1. API (outro terminal) — porta 5214
-ConnectionStrings__World="Data Source=/tmp/lw.db" TICK_LOOP_ENABLED=true dotnet run --project src/LivingWorld.Api -c Release --urls http://localhost:5214
+ADMIN_TOKEN=dev ConnectionStrings__World="Data Source=/tmp/lw.db" TICK_LOOP_ENABLED=true dotnet run --project src/LivingWorld.Api -c Release --urls http://localhost:5214
 # 2. Cliente
-/Applications/Godot_mono.app/Contents/MacOS/Godot --path client/godot
+LW_ADMIN_TOKEN=dev /Applications/Godot_mono.app/Contents/MacOS/Godot --path client/godot
 ```
+
+Pausa, velocidade, passo e +1 ano são do admin (ADR-0015): a API exige `X-Admin-Token` igual a `ADMIN_TOKEN` e o cliente manda o valor de `LW_ADMIN_TOKEN` (o `play.sh` gera um por sessão). Sem o token esses botões recebem 403 e nada muda.
 
 ## Controles
 

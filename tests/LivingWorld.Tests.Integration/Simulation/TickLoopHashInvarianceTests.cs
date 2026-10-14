@@ -37,7 +37,7 @@ public class TickLoopHashInvarianceTests : IClassFixture<LivingWorldApiFactory>
         var simulationHostB = _factory.Services.GetRequiredService<SimulationHost>();
         var loopB = _factory.Services.GetRequiredService<TickLoopService>();
         var gatewayB = _factory.Services.GetRequiredService<RealtimeGateway>();
-        var client = _factory.CreateClient();
+        var client = _factory.CreateAdminClient();
         simulationHostB.Resume();
 
         var worldScope = new VisualScope(VisualScopeKind.World, "");

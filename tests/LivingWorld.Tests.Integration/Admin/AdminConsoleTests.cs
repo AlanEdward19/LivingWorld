@@ -81,7 +81,8 @@ public class AdminConsoleTests
     [Fact]
     public async Task With_no_token_configured_the_console_stays_closed()
     {
-        using var factory = new LivingWorldApiFactory();
+        using var factory = new LivingWorldApiFactory().WithWebHostBuilder(b => b.ConfigureAppConfiguration((_, c) =>
+            c.AddInMemoryCollection(new Dictionary<string, string?> { ["ADMIN_TOKEN"] = "" })));
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add(AdminEndpoints.TokenHeader, "qualquer");
 
