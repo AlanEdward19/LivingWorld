@@ -21,6 +21,7 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
   sandbox de decisão. Branch `feat/phase-28-cognition` com gate verde; worktrees intermediárias
   `LivingWorld-28-t*` removidas; efêmeros spec-driven (tasks/validation de fases entregues,
   parallel-execution) limpos.
+- **Concluído (2026-10-14)**: #58 fatia 1, painel "ver o cérebro" no Godot (`feat/godot-brain-panel`, Verifier PASS); sandbox "E se…?" (fatia 2) pede rota nova + ADR. Próximo: #59 (telas do cliente, fatia A).
 - **Próxima unidade**: merge de `feat/phase-28-cognition` em `main` (PR) ou iniciar próxima fase
   do roadmap conforme prioridade.
 - **Última coisa concluída (2026-08-23)**: `dynamic-city-growth` FixT17 — causa raiz real da saga

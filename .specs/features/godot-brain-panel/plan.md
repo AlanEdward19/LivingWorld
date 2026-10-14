@@ -1,4 +1,4 @@
-# Godot brain panel (COG-11) [Estado: Implementado, aguardando Verifier independente (2026-10-14)]
+# Godot brain panel (COG-11) [Estado: Verificado, PASS (3ª rodada do Verifier, 2026-10-14)]
 
 Issue #58, fatia 1. A fatia 2 (sandbox "E se…?") fica de fora: exige rota nova (contrato público → perguntar + ADR).
 
