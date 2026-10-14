@@ -1,4 +1,4 @@
-# Godot conversa com NPC [Estado: Implementado, aguardando Verifier independente (2026-10-14)]
+# Godot conversa com NPC [Estado: Verificado, PASS (4ª rodada do Verifier, 2026-10-14)]
 
 Issue #59, fatia A. Fecha o objetivo técnico #3 ("conversar com NPC") no cliente. Nenhuma rota nova.
 
