@@ -236,3 +236,52 @@ func test_returning_to_the_menu_ends_the_open_conversation_once() -> void:
 
 	eq(transport.bodies["POST /conversations/end"], [{"sessionId": 4}], "voltar ao menu encerra a conversa uma vez")
 	app.queue_free()
+
+
+func test_esc_inside_the_text_field_ends_the_conversation_once() -> void:
+	var transport := _accepting()
+	var window := _window(transport)
+	await window.start(7, "Ana")
+	var esc := InputEventKey.new()
+	esc.keycode = KEY_ESCAPE
+	esc.pressed = true
+
+	window.input.gui_input.emit(esc)
+	await tree.process_frame
+
+	eq(window.is_open, false, "Esc com o foco no campo encerra")
+	eq(transport.count_calls("POST /conversations/end"), 1)
+	window.free()
+
+
+func test_a_5xx_on_send_warns_and_leaves_the_window_usable() -> void:
+	var transport := _accepting()
+	transport.on("POST /conversations/send", {"status": 500, "body": null})
+	var window := _window(transport)
+	var warnings: Array = []
+	window.warning.connect(func(text: String): warnings.append(text))
+	await window.start(7, "Ana")
+
+	await window.send("Olá")
+
+	eq(warnings.size(), 1, "avisa o erro")
+	check("erro 500" in warnings[0], warnings[0])
+	eq(window.is_open, true, "a janela segue aberta")
+	eq(window.waiting, false, "pode tentar de novo")
+	window.free()
+
+
+func test_api_rejects_start_and_send_bodies_that_break_the_frozen_shape() -> void:
+	var transport := FakeTransport.new()
+	transport.on("POST /conversations/start", {"status": 200, "body": {"sessionId": 3}})
+	transport.on("POST /conversations/send", {"status": 200, "body": {"dialogue": "oi", "intent": "greet", "proposedActions": []}})
+	var api := ApiClient.new(transport) # validate_shapes ligado
+	var errors: Array = []
+	api.contract_error.connect(func(route: String, _e: Array): errors.append(route))
+
+	var started: Dictionary = await api.conversation_start(7)
+	var sent: Dictionary = await api.conversation_send(3, "oi")
+
+	eq(started.ok, false, "start sem 'decision' reprova")
+	eq(sent.ok, false, "send sem 'emotion' reprova")
+	eq(errors, ["/conversations/start", "/conversations/send"])

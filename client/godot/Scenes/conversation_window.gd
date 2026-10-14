@@ -105,7 +105,8 @@ func start(id: int, name: String) -> void:
 	_title.text = "Conversando com %s" % name
 	_rebuild()
 	_set_status("")
-	input.grab_focus()
+	if is_inside_tree():
+		input.grab_focus()
 
 
 func send(text: String) -> void:
