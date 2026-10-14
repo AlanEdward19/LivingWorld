@@ -25,8 +25,7 @@ public sealed class SimulationHost(WorldHost host)
 
     public void Pause()
     {
-        IsPaused = true;
-        AdminPause = null;
+        IsPaused = true; // não mexe em AdminPause: uma pausa comum nunca remove o teto de uma pausa de admin
     }
 
     public void Resume()
