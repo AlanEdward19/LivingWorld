@@ -1,4 +1,4 @@
-# History narrative close [Estado: Spec - plano sem checks nem código (specs-closeout 2026-10-12)]
+# History narrative close [Estado: Entregue - endpoints /history/*, descarte logado de claim órfão e provas S1/S2 (2026-10-14)]
 
 ## Problem
 

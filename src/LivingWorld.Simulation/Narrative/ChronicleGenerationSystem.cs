@@ -34,6 +34,14 @@ public sealed class ChronicleGenerationSystem : ISimulationSystem
     /// <summary>Crônicas publicadas até agora (uma por chave `(local, periodStart, periodEnd)`).</summary>
     public IReadOnlyCollection<NarrativeDocument> Chronicles => _published.Values;
 
+    private readonly List<ClaimDiscard> _discarded = new();
+
+    /// <summary>Registro dos claims descartados por falta de ancoragem (sem `eventIds`), na ordem em
+    /// que apareceram — a crônica nunca os publica, mas o descarte fica auditável.</summary>
+    public IReadOnlyList<ClaimDiscard> DiscardedClaims => _discarded;
+
+    public sealed record ClaimDiscard(CityId? Location, long PeriodStart, long PeriodEnd, NarrativeClaim Claim, string Reason);
+
     /// <summary>Fecha a janela do mês que acabou de terminar e publica a crônica de cada cidade
     /// conhecida. Sem janela fechada ainda (menos de um mês desde a origem do mundo) ou sem
     /// cidade nenhuma, não publica nada — nunca produz preenchimento genérico sem fato algum.</summary>
@@ -65,10 +73,24 @@ public sealed class ChronicleGenerationSystem : ISimulationSystem
             .Select(f => new NarrativeClaim(
                 $"{f.Kind} (evento {f.Id.Value}): {f.Payload}", (IReadOnlyList<long>)[f.Id.Value]))
             .ToList();
-        var draft = new NarrativeDraft(location, periodStartTick, periodEndTick, claims);
+        return Publish(new NarrativeDraft(location, periodStartTick, periodEndTick, claims));
+    }
+
+    /// <summary>Publica o rascunho: todo claim sem `eventIds` é descartado e registrado em
+    /// <see cref="DiscardedClaims"/> antes de renderizar. Idempotente por `(local, janela)`.</summary>
+    public NarrativeDocument Publish(NarrativeDraft draft)
+    {
+        var key = (draft.Location, draft.PeriodStartTick, draft.PeriodEndTick);
+        if (_published.TryGetValue(key, out var existing))
+            return existing;
+
+        var outcome = ClaimAnchorValidator.ValidateClaims(draft.Claims);
+        foreach (var failure in outcome.Rejected)
+            _discarded.Add(new ClaimDiscard(draft.Location, draft.PeriodStartTick, draft.PeriodEndTick, failure.Claim, failure.Reason));
 
         var document = NarrativeRenderer
-            .RenderAsync(new NarrativeId(_nextNarrativeId++), NarrativeType.Chronicle, draft)
+            .RenderAsync(new NarrativeId(_nextNarrativeId++), NarrativeType.Chronicle,
+                draft with { Claims = outcome.Approved })
             .GetAwaiter().GetResult();
 
         _published[key] = document;
