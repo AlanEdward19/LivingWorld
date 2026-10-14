@@ -61,7 +61,6 @@ public static partial class ScenarioRunner
         new ClimateYearSystem(),
         new MortalitySystem(),
         new OutbreakSystem(),
-        new PlayerSearchSystem(),
         new FactToReportConversionScheduler(),
         new BookRediscoverySystem(),
         new ColdArchiveSystem(),
@@ -95,6 +94,7 @@ public static partial class ScenarioRunner
         new MaterializationSystem(),
         new SettlementFoundingSystem(),
         new SpatialSettlementFoundingSystem(),
+        new PlayerSearchSystem(),
         chronicles ?? new ChronicleGenerationSystem(),
         conversationSessions ?? new ConversationSessionStore(),
         };

@@ -79,16 +79,6 @@ public class DeterminismTwoProcessTests
     }
 
     [Fact]
-    public void Same_seed_writes_the_same_thefts_across_two_separate_processes()
-    {
-        string a = RunCommand("theft-hash 5 8640");
-        string b = RunCommand("theft-hash 5 8640");
-
-        Assert.Equal(a, b);
-        Assert.True(int.Parse(a.Split(';')[1]) > 0, "nenhum furto descoberto: o teste não mediu nada");
-    }
-
-    [Fact]
     public void Same_seed_replays_an_incarnation_and_a_disappearance_across_two_separate_processes()
     {
         string a = RunCommand("player-hash 5 2000");
@@ -96,6 +86,16 @@ public class DeterminismTwoProcessTests
 
         Assert.Equal(a, b);
         Assert.NotEqual("", a.Split(';')[1]);
+    }
+
+    [Fact]
+    public void Same_seed_writes_the_same_thefts_across_two_separate_processes()
+    {
+        string a = RunCommand("theft-hash 5 8640");
+        string b = RunCommand("theft-hash 5 8640");
+
+        Assert.Equal(a, b);
+        Assert.True(int.Parse(a.Split(';')[1]) > 0, "nenhum furto descoberto: o teste não mediu nada");
     }
 
     [Fact]
