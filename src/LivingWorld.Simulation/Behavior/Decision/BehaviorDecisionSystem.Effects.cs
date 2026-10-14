@@ -224,7 +224,7 @@ public sealed partial class BehaviorDecisionSystem
             // tira da terra), em vez de morrer de sede ao lado dela. Comida continua paga.
             if (resourceId == econ.WaterResourceId && npc.Wallet.Amount < unitPrice)
             {
-                bought |= DrawFromWell(market, household, resource);
+                bought |= DrawFromWell(world, market, household, resource);
                 continue;
             }
 
@@ -261,16 +261,22 @@ public sealed partial class BehaviorDecisionSystem
         return (int)Math.Min(MaxProvisionDays, Math.Max(PurchaseDaysOfSupply, Math.Ceiling(ProvisionTargetDays + tripDays) + ProvisionSlackDays));
     }
 
-    /// <summary>Poço da aldeia: sem dinheiro, a casa leva água para uns dias de graça, só o que o estoque da oficina tem.
-    /// O estoque muda de lugar (oficina para despensa), nada some nem nasce.</summary>
-    private static bool DrawFromWell(Workplace well, LivingWorld.Domain.Population.Family.Household household, ResourceType water)
+    /// <summary>Poço da aldeia: sem dinheiro, a casa leva água para uns dias de graça, só o que o estoque da oficina tem, e só de
+    /// uma oficina cuja receita produz água (um mercado qualquer não dá água). O estoque muda de lugar (oficina para despensa),
+    /// nada some nem nasce, e a retirada entra no livro de trocas com valor 0 (não é venda, mas é movimento).</summary>
+    private static bool DrawFromWell(
+        WorldState world, Workplace well, LivingWorld.Domain.Population.Family.Household household, ResourceType water)
     {
+        if (!world.EconomyCatalog.Recipes.TryGetValue(well.LocationType.Id, out var recipe) || !recipe.Outputs.ContainsKey(water.Id))
+            return false;
+
         // só enche o que falta: casa com a água dos próximos dias não esvazia o estoque do dono do poço
         long wanted = Math.Max(WellMinimumDraw, household.Members.Count * WellDaysOfSupply) - household.Stock.GetValueOrDefault(water);
         long quantity = Math.Min(well.Stock.GetValueOrDefault(water), wanted);
         if (quantity <= 0 || !well.Withdraw(water, quantity).IsSuccess) return false;
 
         household.Deposit(water, quantity);
+        world.RecordTrade(well.Id, water, world.CurrentDate.TotalHours / world.CurrentDate.Calendar.HoursPerDay, quantity, 0);
         return true;
     }
 

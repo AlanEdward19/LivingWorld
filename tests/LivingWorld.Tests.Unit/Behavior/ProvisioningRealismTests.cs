@@ -30,13 +30,21 @@ public class ProvisioningRealismTests
         priceSensitivity: 0, demandBaselinePerNpc: new Dictionary<int, double>()).Value!;
 
     private static (WorldState World, Workplace Shop, Npc Buyer, Household Home) Build(
-        CellCoord npcAt, CellCoord homeAt, long wallet, long pantry = 0, int extraMembers = 0)
+        CellCoord npcAt, CellCoord homeAt, long wallet, long pantry = 0, int extraMembers = 0, bool shopProducesWater = true)
     {
         var world = new WorldState(
             Calendar, 1, ScenarioRunner.DefaultMap(1), ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules, economyRules: Economy(), familyRules: ScenarioRunner.DefaultFamilyRules,
-            economyCatalog: new EconomyCatalog(new Dictionary<int, ProductionRecipe>(), [1], new Dictionary<int, int>()));
+            economyCatalog: new EconomyCatalog(
+                shopProducesWater
+                    ? new Dictionary<int, ProductionRecipe>
+                    {
+                        [1] = ProductionRecipe.Create(
+                            new Dictionary<int, long>(), new Dictionary<int, long> { [1] = 10, [2] = 8 }, null, 10).Value!,
+                    }
+                    : new Dictionary<int, ProductionRecipe>(),
+                [1], new Dictionary<int, int>()));
         var shop = new Workplace(
             world.NextWorkplaceIdAndAdvance(), new LocationType(1), Market, 5, employees: [],
             stock: new Dictionary<ResourceType, long> { [Wheat] = 1000, [Water] = 1000 }, treasury: Money.Zero,
@@ -97,7 +105,11 @@ public class ProvisioningRealismTests
         Assert.Equal(1000, shop.Stock[Wheat]);
         Assert.Equal(Money.Zero, shop.Treasury);
         Assert.Equal(0, buyer.Wallet.Amount);
-        Assert.Empty(world.TradeLedger); // não é venda: o poço não fatura
+        // não é venda: o poço não fatura nada, mas a retirada fica no livro com valor 0
+        var entry = Assert.Single(world.TradeLedger);
+        Assert.Equal(Water.Id, entry.ResourceId);
+        Assert.Equal(0, entry.Value);
+        Assert.Equal(6, entry.Quantity);
     }
 
     [Fact]
@@ -232,5 +244,42 @@ public class ProvisioningRealismTests
         Assert.Equal(captured.PendingPower, plain.PendingPower);
         Assert.NotNull(captured.Trace);
         Assert.Throws<InvalidOperationException>(() => plain.Trace);
+    }
+
+    [Fact]
+    public void A_market_whose_recipe_does_not_produce_water_gives_no_free_water()
+    {
+        var (world, shop, buyer, home) = Build(
+            npcAt: Market, homeAt: new CellCoord(5, 5), wallet: 0, shopProducesWater: false);
+
+        Buy(world, buyer);
+
+        Assert.Equal(0, home.Stock.GetValueOrDefault(Water));
+        Assert.Equal(1000, shop.Stock[Water]);
+        Assert.Empty(world.TradeLedger);
+    }
+
+    [Fact]
+    public void A_wallet_that_covers_only_water_still_restocks_but_the_purchase_stays_within_the_wallet()
+    {
+        var (world, _, buyer, home) = Build(npcAt: Market, homeAt: Market, wallet: 3, pantry: 0); // água 3, trigo 4
+        Assert.True(BehaviorDecisionSystem.NeedsRestocking(world, buyer, MarketIndex.BuildForTick(world)));
+
+        Buy(world, buyer);
+
+        Assert.Equal(0, buyer.Wallet.Amount);
+        Assert.Equal(1, home.Stock.GetValueOrDefault(Water));
+        Assert.Equal(0, home.Stock.GetValueOrDefault(Wheat));
+    }
+
+    [Theory]
+    [InlineData(1, true)]   // 1 dia por pessoa, longe do mercado: abaixo da metade da meta
+    [InlineData(2, false)]  // metade da meta (~3-4 dias) já está coberta
+    [InlineData(14, false)] // despensa cheia para o mercado mais longe
+    public void Restocking_at_a_fixed_distance_depends_only_on_the_days_in_the_pantry(int pantryPerMember, bool expected)
+    {
+        var (world, _, buyer, _) = Build(npcAt: Far, homeAt: Far, wallet: 100, pantry: pantryPerMember);
+
+        Assert.Equal(expected, BehaviorDecisionSystem.NeedsRestocking(world, buyer, MarketIndex.BuildForTick(world)));
     }
 }
