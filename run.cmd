@@ -6,6 +6,8 @@ cd /d "%~dp0"
 if not exist "worlds" mkdir "worlds"
 set "ConnectionStrings__World=Data Source=%CD%\worlds\livingworld.db"
 set "TICK_LOOP_ENABLED=true"
+REM Pausa/velocidade/passo exigem token de admin (ADR-0015). O cliente Godot le o mesmo valor em LW_ADMIN_TOKEN.
+if not defined ADMIN_TOKEN set "ADMIN_TOKEN=local-dev-admin"
 
 echo [api] abrindo janela...
 REM Bugfix real (usuario, 2026-08-13): sem TICK_LOOP_ENABLED=true o relogio da simulacao nunca

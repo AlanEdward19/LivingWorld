@@ -12,6 +12,7 @@ public sealed class WorldDbContext(DbContextOptions<WorldDbContext> options) : D
     public DbSet<EventLogRecord> EventLog => Set<EventLogRecord>();
     public DbSet<FactLogRecord> FactLog => Set<FactLogRecord>();
     public DbSet<PeriodTemplateRecord> PeriodTemplates => Set<PeriodTemplateRecord>();
+    public DbSet<AdminAuditRecord> AdminAudit => Set<AdminAuditRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -31,6 +32,13 @@ public sealed class WorldDbContext(DbContextOptions<WorldDbContext> options) : D
         {
             e.HasKey(f => new { f.BranchId, f.FactId });
             e.HasIndex(f => f.BranchId);
+        });
+
+        modelBuilder.Entity<AdminAuditRecord>(e =>
+        {
+            e.ToTable("AdminAudit");
+            e.HasKey(a => new { a.BranchId, a.Sequence });
+            e.HasIndex(a => a.BranchId);
         });
 
         modelBuilder.Entity<PeriodTemplateRecord>(e =>

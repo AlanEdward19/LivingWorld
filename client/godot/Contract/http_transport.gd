@@ -36,6 +36,10 @@ func request(method: String, path: String, body: Variant = null) -> Dictionary:
 	add_child(http)
 	var verbs := {"GET": HTTPClient.METHOD_GET, "POST": HTTPClient.METHOD_POST, "PUT": HTTPClient.METHOD_PUT, "DELETE": HTTPClient.METHOD_DELETE}
 	var headers := PackedStringArray(["Content-Type: application/json", "Accept: application/json"])
+	# Pausa, velocidade e passo são do admin (ADR-0015): play.sh sobe a API com ADMIN_TOKEN e o cliente com o mesmo valor.
+	var admin_token := OS.get_environment("LW_ADMIN_TOKEN")
+	if admin_token != "":
+		headers.append("X-Admin-Token: " + admin_token)
 	var payload := "" if body == null else JSON.stringify(body)
 	if http.request(base_url + path, headers, verbs[method], payload) != OK:
 		http.queue_free()

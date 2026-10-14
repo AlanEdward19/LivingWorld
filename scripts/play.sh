@@ -6,6 +6,10 @@ cd "$(dirname "$0")/.."
 GODOT="${GODOT_BIN:-/Applications/Godot_mono.app/Contents/MacOS/Godot}"
 DB="${LW_DB:-/tmp/lw-play.db}"
 PORT=5214
+# Pausa/velocidade/passo exigem token de admin (ADR-0015): um por sessão, igual na API e no cliente.
+ADMIN_TOKEN="${ADMIN_TOKEN:-$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')}"
+export ADMIN_TOKEN
+export LW_ADMIN_TOKEN="$ADMIN_TOKEN"
 ConnectionStrings__World="Data Source=$DB" TICK_LOOP_ENABLED=true \
   dotnet run --project src/LivingWorld.Api -c Release --urls "http://localhost:$PORT" &
 API_PID=$!
