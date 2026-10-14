@@ -194,7 +194,6 @@ var orchestrator = new ConversationOrchestrator(
     budgetPerInteraction: TimeSpan.FromSeconds(5));
 app.MapConversationEndpoints(worldHost, sessions, orchestrator);
 app.MapNarrativeEndpoints(worldHost, chronicles);
-app.MapPlayerEndpoints(worldHost, playerService);
 app.MapPeriodsEndpoints();
 app.MapWorldStartEndpoints();
 app.MapWorldCreateEndpoints(worldHost, worldRunner, worldSink);
@@ -205,6 +204,7 @@ app.MapActionLabelEndpoints();
 app.MapNpcDirectoryEndpoints(worldHost);
 app.MapTradeEndpoints(worldHost);
 app.MapTreasuryEndpoints(worldHost);
+app.MapPlayerEndpoints(worldHost, playerService);
 app.MapVisualInputEndpoints();
 app.MapAuthoringEndpoints();
 app.MapWatchlistEndpoints(worldHost);
