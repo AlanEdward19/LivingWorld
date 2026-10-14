@@ -113,6 +113,7 @@ public sealed class Npc
         if (!IsAlive) return Result<Unit>.Fail("Npc: morto");
         if (ControllerId is not null) return Result<Unit>.Fail("Npc: já tem controlador");
         ControllerId = controllerId;
+        DisappearedAtTick = null; // quem volta a ser conduzido deixou de estar desaparecido
         TouchCanonical();
         return Result<Unit>.Ok(Unit.Value);
     }
