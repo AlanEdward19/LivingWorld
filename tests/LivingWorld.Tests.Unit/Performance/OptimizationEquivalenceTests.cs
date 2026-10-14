@@ -33,13 +33,8 @@ public class OptimizationEquivalenceTests
     // --- Hashes do mundo preservados ---
 
     [Theory]
-<<<<<<< HEAD
-    [InlineData(1UL, "31aa4e37bea74a55eab00ad2cf2d5facc61056540042f3f3fd2d71e0b38316e8", "69f97d0a721cabc8ed387be6ce44943e657ac415cf0812a54342f9abfcb135e4")]
-    [InlineData(2UL, "f3a12112374ffb370e1f5f110ffde10c3cacda887de88c642cf0d4cb85d76feb", "52172cd4c95ef0ae57fc703eb3ed4703048e91222eb34c3890fd3eca82d44d27")]
-=======
-    [InlineData(1UL, "84d12ce6b93d784833d37b2f666f4ec07c3bb5aae06322e6195c5c1ae72c68f5", "69f97d0a721cabc8ed387be6ce44943e657ac415cf0812a54342f9abfcb135e4")]
-    [InlineData(2UL, "feecdc6c2b0f6564cb5bec9f7edeb4728ac1cf98a5d979809809b6e67bdf3b10", "52172cd4c95ef0ae57fc703eb3ed4703048e91222eb34c3890fd3eca82d44d27")]
->>>>>>> fix/village-well
+    [InlineData(1UL, "96b783d299ca510ece1ff3b245771837e3e04b3d578220c7cb4e41c9c152c7ba", "69f97d0a721cabc8ed387be6ce44943e657ac415cf0812a54342f9abfcb135e4")]
+    [InlineData(2UL, "1da8746d2249e92fb45ee4131d845b8047089681f120117328b95a28d2249992", "52172cd4c95ef0ae57fc703eb3ed4703048e91222eb34c3890fd3eca82d44d27")]
     public void Default_scenario_ninety_days_keeps_the_recorded_hashes(
         ulong seed, string canonical, string volatileHash)
     {

@@ -3,21 +3,13 @@
     "Scenario": "default",
     "Seed": 42,
     "Ticks": 3650,
-<<<<<<< HEAD
-    "CanonicalHash": "ad30ef5a11e87408d2f307b674250d522370d47c549214b2f4994518ed9f62e0"
-=======
-    "CanonicalHash": "d3b415e9451be9a5ae5f83410b126abae06b7d28c4a6e8a54efbf469f9b81158"
->>>>>>> fix/village-well
+    "CanonicalHash": "087fef10ac61a2d65447acbbf72b47e883b45d67d444623223d9cec616b48319"
   },
   {
     "Scenario": "default",
     "Seed": 43,
     "Ticks": 3650,
-<<<<<<< HEAD
-    "CanonicalHash": "4723f7f89bf00486013ae286da054df12d77625a5c6d4b5f3c7dc701f7e3e893"
-=======
-    "CanonicalHash": "25ffa0ea62be03cf68e7c157a451ba442bc884e1dcda741d03c1f1a6c776ced8"
->>>>>>> fix/village-well
+    "CanonicalHash": "b3c004265bb1cdd3aa19cd5a620a8bca4a9c69904891e500dc4757376aed87e7"
   },
   {
     "Scenario": "default",
@@ -29,10 +21,6 @@
     "Scenario": "default",
     "Seed": 42,
     "Ticks": 17280,
-<<<<<<< HEAD
-    "CanonicalHash": "87d50bdcbbc9e7b4e05bcef50172fa3e5979bf587d634553f348e3418145089b"
-=======
-    "CanonicalHash": "3730e12ff51db9ade05c671bb0ba7278b18ba685fd1dd22034bac0a8de9246c5"
->>>>>>> fix/village-well
+    "CanonicalHash": "841c3710010a9f0ec179054e58dc09960b83df09c1d17af73abdf745603e52c0"
   }
 ]
