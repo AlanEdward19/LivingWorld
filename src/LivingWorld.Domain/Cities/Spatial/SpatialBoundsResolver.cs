@@ -14,8 +14,8 @@ public static class SpatialBoundsResolver
     public static CityBounds ResolveWorld(WorldMap map) => new(new CellCoord(0, 0), map.Width, map.Height);
 
     // dynamic-city-growth, T4b: repassa os dois parâmetros opcionais que CityBoundsResolver.Resolve
-    // já define (T4) — sem eles aqui, todo call site real ficava travado no comportamento
-    // "sem overflow" de sempre, mesmo depois de T4 tornar Resolve capaz de crescer.
+    // já define — sem eles aqui, todo call site real ficava travado no comportamento
+    // "sem overflow" de sempre, mesmo depois de Resolve ficar capaz de crescer.
     // Post-ship fix: repassa o novo parâmetro opcional otherCityBoundsToAvoid que
     // CityBoundsResolver.Resolve ganhou — mesmo padrão de repasse já usado pelos dois anteriores.
     public static (CityBounds Bounds, bool IsDerived) ResolveCity(

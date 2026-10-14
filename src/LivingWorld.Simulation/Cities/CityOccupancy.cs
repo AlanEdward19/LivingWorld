@@ -10,12 +10,12 @@ using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Cities;
 
-// SPEC_DEVIATION (dynamic-city-growth, T1/T3): design.md declara este tipo em
+// SPEC_DEVIATION (dynamic-city-growth): design.md declara este tipo em
 // src/LivingWorld.Domain/Cities/ — mas LivingWorld.Domain não referencia LivingWorld.Simulation
 // (é o inverso: Simulation -> Domain, ver os .csproj), e WorldState só existe em Simulation.
 // Mesmo motivo/precedente já documentado em CityPopulationQuery.cs. Vive aqui, mesmo pacote.
 
-/// <summary>Ocupação real de uma cidade (dynamic-city-growth, T1/T3): responde "esta célula/este
+/// <summary>Ocupação real de uma cidade (dynamic-city-growth): responde "esta célula/este
 /// footprint está livre?" varrendo <see cref="WorldState.Buildings"/> filtrado por
 /// <see cref="Building.City"/> — nenhum grid próprio persistido, mesma filosofia "bounds/posição
 /// são sempre derivados" de <see cref="CityBoundsResolver"/>.</summary>
@@ -33,7 +33,7 @@ public static class CityOccupancy
     /// sem ele, um vizinho ainda sem posição autorada seria contado pelo anel-hash legado em vez
     /// da posição real que <see cref="BuildingPlacementResolver.Resolve"/> escolheria pra ele,
     /// deixando dois prédios "derivados" na mesma cidade livres pra colidir entre si (bug real,
-    /// pego pelo teste de não-colisão de T3).</summary>
+    /// pego pelo teste de não-colisão).</summary>
     public static bool IsFree(
         WorldState world, City city, CityBounds bounds, IReadOnlyList<CellCoord> candidateFootprint, BuildingId? placingId = null)
     {
@@ -129,12 +129,12 @@ public static class CityOccupancy
     /// senão re-derivada via <see cref="BuildingPlacementResolver.Resolve"/> (nunca persistida,
     /// mesma convenção de <see cref="Building"/>). É o insumo que <see cref="CityBoundsResolver.Resolve"/>
     /// precisa em <paramref name="populationBounds"/>'s caller pra crescer os bounds pra além do
-    /// teto de população — sem isso, T4's parâmetro `ownedBuildingFootprintBoxes` só era exercitado
+    /// teto de população — sem isso, o parâmetro `ownedBuildingFootprintBoxes` só era exercitado
     /// por teste unitário, nunca pelo tick/API reais.</summary>
     public static IReadOnlyList<CityBounds> OwnedBuildingFootprintBoxes(WorldState world, City city, CityBounds populationBounds) =>
         OwnedBuildingFootprintBoxesWithOwners(world, city, populationBounds).Select(p => p.Box).ToList();
 
-    /// <summary>dynamic-city-growth, T6: mesma coisa que <see cref="OwnedBuildingFootprintBoxes"/>,
+    /// <summary>dynamic-city-growth: mesma coisa que <see cref="OwnedBuildingFootprintBoxes"/>,
     /// mas emparelhada com o <see cref="Building"/> de origem — <see cref="OverflowClusterFinder"/>
     /// precisa do prédio em si (pra marcar/reatribuir), não só do box.</summary>
     public static IReadOnlyList<(Building Building, CityBounds Box)> OwnedBuildingFootprintBoxesWithOwners(
@@ -265,8 +265,8 @@ public static class CityOccupancy
         return new CellCoord(cityLocation.X + dx, cityLocation.Y + dy);
     }
 
-    /// <summary>Ocupação de uma única cidade, coerente com a decisão real de posicionamento
-    /// (T3): cada vizinho sem posição autorada é resolvido na mesma ordem causal que <see
+    /// <summary>Ocupação de uma única cidade, coerente com a decisão real de posicionamento:
+    /// cada vizinho sem posição autorada é resolvido na mesma ordem causal que <see
     /// cref="BuildingPlacementResolver.Resolve"/> usaria (livre nos bounds, senão anel de
     /// overflow) — nunca o anel-hash legado sozinho, que ignoraria a busca por célula livre e
     /// deixaria dois prédios derivados colidirem.

@@ -57,7 +57,7 @@ public sealed class WagePaymentSystem : ISimulationSystem
                 if (!debited.IsSuccess) continue;
 
                 // A cidade do empregador retém a alíquota do que o empregador pagou: o líquido vai ao empregado e o resto ao
-                // tesouro da cidade, então a moeda total não muda (AD-098). Oficina sem cidade não retém.
+                // tesouro da cidade, então a moeda total não muda. Oficina sem cidade não retém.
                 long tax = rules.WageTaxRate > 0 && world.FindCity(workplace.City) is { } city
                     ? (long)Math.Floor(pay.Amount * rules.WageTaxRate)
                     : 0;

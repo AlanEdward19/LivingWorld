@@ -13,8 +13,7 @@ public enum CosmeticDetailLayer
     FullDetail,
 }
 
-/// <summary>Estado cosmético por NPC — mutuamente exclusivo entre camada aproximada e detalhe pleno
-/// (LOD-05).</summary>
+/// <summary>Estado cosmético por NPC — mutuamente exclusivo entre camada aproximada e detalhe pleno.</summary>
 public sealed record CosmeticNpcState(
     LazyPosition LazyPosition,
     CosmeticDetailLayer Layer,
@@ -106,7 +105,7 @@ public sealed class CosmeticDetailSystem(ObservationRegistry observation) : ILaz
     }
 
     /// <summary>Promove para detalhe pleno: recalcula posição pela fórmula fechada e resolve
-    /// micro-ação pendente via <see cref="WorldRngRegistry.StreamFor"/> (LOD-10, LOD-11).</summary>
+    /// micro-ação pendente via <see cref="WorldRngRegistry.StreamFor"/>.</summary>
     public void OnPromoted(Npc npc, WorldState world, long tick)
     {
         ArgumentNullException.ThrowIfNull(npc);
@@ -132,7 +131,7 @@ public sealed class CosmeticDetailSystem(ObservationRegistry observation) : ILaz
         };
     }
 
-    /// <summary>Rebaixa para camada aproximada — nunca mantém as duas camadas ativas (LOD-05).</summary>
+    /// <summary>Rebaixa para camada aproximada — nunca mantém as duas camadas ativas.</summary>
     public void OnDemoted(Npc npc, long tick)
     {
         ArgumentNullException.ThrowIfNull(npc);

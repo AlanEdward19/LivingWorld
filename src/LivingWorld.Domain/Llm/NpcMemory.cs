@@ -19,7 +19,7 @@ public enum MemoryCategory
 /// importância (0-100), tick de origem, participantes e local, para <c>Recall</c> pontuar
 /// por importância + recência + relevância. Vive em <c>WorldState</c>:
 /// acima do limiar do cenário (<see cref="LlmRules.CanonicalMemoryImportanceThreshold"/>) é
-/// canônica, abaixo é volátil e compactável livremente (T10, futuro).</summary>
+/// canônica, abaixo é volátil e compactável livremente (futuro).</summary>
 public sealed record NpcMemory(
     long Id,
     NpcId OwnerId,

@@ -156,7 +156,7 @@ public sealed class City
 
     public void EnqueueConstruction(ConstructionProject project) => _constructionQueue.Add(project);
 
-    /// <summary>Remove uma obra concluída da fila — dynamic-city-growth AD-007: uma obra
+    /// <summary>Remove uma obra concluída da fila — dynamic-city-growth: uma obra
     /// travada por escassez de terra pode ficar presa em qualquer posição da fila (não só a
     /// cabeça), então o chamador (<see cref="ConstructionSystem"/>) precisa remover a instância
     /// específica, não sempre o índice 0. Igualdade por referência (<see cref="ConstructionProject"/>
@@ -165,7 +165,7 @@ public sealed class City
 
     /// <summary>Materializar debita exatamente 1 do <see cref="AggregatePool"/>, as massas
     /// informadas, e remove <paramref name="id"/> de <see cref="PoolNpcIds"/> — falha sem mutar
-    /// quando <paramref name="id"/> não está reservado neste pool (T50: id precisa ser um dos
+    /// quando <paramref name="id"/> não está reservado neste pool (id precisa ser um dos
     /// reservados, não um <see cref="NpcId"/> qualquer).</summary>
     public Result<Unit> Materialize(NpcId id, long wealth, long health)
     {
@@ -179,7 +179,7 @@ public sealed class City
 
     /// <summary>Desmaterializar devolve exatamente 1 ao <see cref="AggregatePool"/>, as massas
     /// informadas, e devolve o próprio <paramref name="id"/> do NPC que está saindo pra <see
-    /// cref="PoolNpcIds"/> (mesmo id, nunca um novo — T50) — sempre sucesso (o inverso de
+    /// cref="PoolNpcIds"/> (mesmo id, nunca um novo) — sempre sucesso (o inverso de
     /// <see cref="Materialize"/> nunca esvazia nada).</summary>
     public Result<Unit> Dematerialize(NpcId id, long wealth, long health)
     {
@@ -192,7 +192,7 @@ public sealed class City
     /// <summary>Emigração agregada: reduz <see cref="AggregatePool"/> por
     /// saída anônima — diferente de <see cref="Materialize"/>, nunca cria um <see cref="Npc"/>
     /// (ninguém "chega" em lugar nenhum, o grupo só sai da conta, incluindo os ids reservados dos
-    /// que saíram — T50: descartados, nunca reaproveitados). Remove a média per-head de
+    /// que saíram — descartados, nunca reaproveitados). Remove a média per-head de
     /// riqueza/saúde junto, senão a média do pool subiria artificialmente a cada emigração. Falha
     /// sem mutar se <paramref name="headcount"/> exceder o que existe no pool.</summary>
     public Result<Unit> Emigrate(long headcount)

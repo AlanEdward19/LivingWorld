@@ -117,8 +117,8 @@ public static class DecisionContextBuilder
         return facts;
     }
 
-    /// <summary>Query bag-of-words derivada do need com maior déficit (COH-12) — alimenta
-    /// <see cref="MemoryRecall.Recall"/>; lista vazia de memórias/crenças é OK (COH-16).</summary>
+    /// <summary>Query bag-of-words derivada do need com maior déficit — alimenta
+    /// <see cref="MemoryRecall.Recall"/>; lista vazia de memórias/crenças é OK.</summary>
     internal static string DeriveActiveNeedQuery(NeedsSnapshot needs)
     {
         int hunger = 100 - needs.Hunger;

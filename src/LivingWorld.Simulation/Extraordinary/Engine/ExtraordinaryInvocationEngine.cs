@@ -370,7 +370,7 @@ public static class ExtraordinaryInvocationEngine
     }
 
     /// <summary>Disponibilidade por Mode × origem × manifestação — compartilhado com
-    /// <see cref="PowerOpportunityProvider"/> (COH-31).</summary>
+    /// <see cref="PowerOpportunityProvider"/>.</summary>
     internal static bool IsAvailable(
         string mode, ExtraordinaryInvocationOrigin origin, bool isManifested) => mode switch
         {

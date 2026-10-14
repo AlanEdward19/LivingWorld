@@ -9,7 +9,7 @@ namespace LivingWorld.Simulation.Behavior.Decision;
 // Parte de BehaviorDecisionSystem — percepção do entorno que muda o candidato.
 public sealed partial class BehaviorDecisionSystem
 {
-    /// <summary>PWR-56..58: considera NPCs/perigo no raio Chebyshev do portador (1 = adjacência
+    /// <summary>Considera NPCs/perigo no raio Chebyshev do portador (1 = adjacência
     /// sem poder). Perigo observável = saúde ≤ 1; percepção &gt; 1 aproxima socialmente.</summary>
     private static ActionType ApplyPerception(WorldState world, Npc npc, ActionType candidate) =>
         ApplyPerceptionWithin(world, npc, candidate, AttributeMechanic.PerceptionRadius(world, npc));

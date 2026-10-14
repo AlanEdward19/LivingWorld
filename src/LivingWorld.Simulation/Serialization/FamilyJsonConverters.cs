@@ -6,7 +6,7 @@ using LivingWorld.Domain.Shared;
 namespace LivingWorld.Simulation.Serialization;
 
 /// <summary>System.Text.Json só serializa chave de dicionário nativamente pra string/enum —
-/// <see cref="RelationshipKey"/> (T8: <c>WorldState.Relationships</c>) precisa do mesmo
+/// <see cref="RelationshipKey"/> (<c>WorldState.Relationships</c>) precisa do mesmo
 /// tratamento que <see cref="ResourceTypeKeyConverter"/> já dá a <c>ResourceType</c>.</summary>
 public sealed class RelationshipKeyConverter : JsonConverter<RelationshipKey>
 {

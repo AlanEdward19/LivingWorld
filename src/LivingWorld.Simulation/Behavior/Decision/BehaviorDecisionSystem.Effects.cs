@@ -44,14 +44,14 @@ public sealed partial class BehaviorDecisionSystem
     }
 
     /// <summary>Executa o PendingPowerInvocation via motor extraordinário e registra
-    /// <see cref="WorldEventKind.PowerInvoked"/> com proveniência (COH-33).</summary>
+    /// <see cref="WorldEventKind.PowerInvoked"/> com proveniência.</summary>
     private static void ApplyUsePower(WorldState world, Npc npc, long tick, TickContext ctx)
     {
         var pending = npc.PendingPowerInvocation;
         npc.PendingPowerInvocation = null;
         if (pending is null) return;
 
-        // Decisão (raiz) + PowerInvoked com CauseEventId apontando pra ela (COH-33 AC).
+        // Decisão (raiz) + PowerInvoked com CauseEventId apontando pra ela.
         long decisionEventId = ctx.LogEvent(
             WorldEventKind.PowerInvoked,
             $"{npc.Id.Value}|{pending.PowerId}|decision",
@@ -113,14 +113,14 @@ public sealed partial class BehaviorDecisionSystem
         npc.SetSleep((int)(100 * rest.RecoveryEfficiency), tick);
     }
 
-    /// <summary>COH-42: falha local tenta alternativa (Buy↔Eat/estoque) antes de
+    /// <summary>Falha local tenta alternativa (Buy↔Eat/estoque) antes de
     /// <see cref="IntentStatus.Invalidated"/>.</summary>
     private static void ApplyFoodPlan(
         WorldState world, Npc npc, MarketIndex marketIndex, long tick, ActionType primary) =>
         ResolveFoodPlan(world, npc, marketIndex, tick, primary);
 
     /// <summary>Resolve Buy/Eat com alternativas; retorna o status final do Intent quando
-    /// um plano alimentar estava em curso (para testes T26).</summary>
+    /// um plano alimentar estava em curso (para testes).</summary>
     internal static IntentStatus? ResolveFoodPlan(
         WorldState world, Npc npc, MarketIndex marketIndex, long tick, ActionType primary)
     {

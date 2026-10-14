@@ -41,13 +41,13 @@ O número é **identidade**, não ordem. Só a trilha núcleo é sequencial.
 | 7 | [Relações e famílias](docs/roadmap/phase-07-family.md) | Confiança, atração, casamento, reprodução, hereditariedade | fechada |
 | 8 | [Cidades](docs/roadmap/phase-08-cities.md) | Crescimento, edifícios, migração, fundação de assentamentos, inspeção por CLI/API | fechada |
 | 9 | [Escala e armazenamento](docs/roadmap/phase-09-scale.md) | Custo por NPC-tick, decisão por evento, decaimento preguiçoso, snapshot delta/binário, arquivo frio de mortos, sensor de escala | fechada |
-| 10 | [História degradável](docs/roadmap/phase-10-history.md) | Fato, relato, distorção por transmissão, cânone limitado, verdade vs crença | pendente |
+| 10 | [História degradável](docs/roadmap/phase-10-history.md) | Fato, relato, distorção por transmissão, cânone limitado, verdade vs crença | fechada |
 | 11 | [Interação com LLM](docs/roadmap/phase-11-llm.md) | Contexto, diálogo, validação, memória, relação | fechada |
-| 12 | [Narrativa](docs/roadmap/phase-12-narrative.md) | Resumos, jornais, rumores, biografias, crônicas | pendente |
+| 12 | [Narrativa](docs/roadmap/phase-12-narrative.md) | Resumos, jornais, rumores, biografias, crônicas | fechada |
 | 13 | [Múltiplos períodos](docs/roadmap/phase-13-periods.md) | Módulos de conteúdo: pré-histórico, moderno, futurista, criaturas | fechada |
 | 14 | [Unreal](docs/roadmap/phase-14-unreal.md) | Cliente 3D, personagens, voz, animação | adiada (não iniciada) |
-| 15 | [Mapa visual](docs/roadmap/phase-15-map-visual.md) | Cliente React+TS VTT 2D realtime: camadas + espectador + FOW | pendente |
-| 16 | [Potência](docs/roadmap/phase-16-powers.md) | Extraordinário opcional por mundo: modificador unificado, custo/rolagem/fraqueza opcionais, aquisição declarativa | spec |
+| 15 | [Mapa visual](docs/roadmap/phase-15-map-visual.md) | Cliente React+TS VTT 2D realtime: camadas + espectador + FOW | parcial (servidor/FOW/tokens prontos; cliente migrou ao Godot, ADR-0022) |
+| 16 | [Potência](docs/roadmap/phase-16-powers.md) | Extraordinário opcional por mundo: modificador unificado, custo/rolagem/fraqueza opcionais, aquisição declarativa | parcial (efeitos e custos ainda em switch C# fechado; reabertura pendente) |
 | 17 | [Divindade](docs/roadmap/phase-17-divinity.md) | Deuses, culto, economia de crença, cisma, deus falso, ser cultuado ≠ ganhar poder | spec |
 | 18 | [Linhas temporais](docs/roadmap/phase-18-timelines.md) | Ramificação, inércia histórica, âncora e coleta de branch | spec |
 | 19 | [Cosmos e contato](docs/roadmap/phase-19-cosmos.md) | Sistema estelar, órbitas, aliens como cultura, colônias | spec |
@@ -59,7 +59,7 @@ O número é **identidade**, não ordem. Só a trilha núcleo é sequencial.
 | 25 | [Jogadores](docs/roadmap/phase-25-players.md) | Encarnação, offline vira desaparecimento, espectador, multiplayer | spec |
 | 26 | [Console e modo god](docs/roadmap/phase-26-console.md) | Pausa, velocidade, busca, eventos marcantes, reescrita + rebuild | spec |
 | 27 | [Motor cinematográfico](docs/roadmap/phase-27-cinematics.md) | Assistir a uma vida: texto → 2D → caminho para 3D | spec |
-| 28 | [Cognição e LOD observacional](docs/roadmap/phase-28-cognition.md) | Motor de decisão inspecionável (estímulo→decisão) com painel "ver o cérebro", compressão de estado frio, LOD por três escopos de observação (mundo/cidade/interior) | fechada |
+| 28 | [Cognição e LOD observacional](docs/roadmap/phase-28-cognition.md) | Motor de decisão inspecionável (estímulo→decisão) com painel "ver o cérebro", compressão de estado frio, LOD por três escopos de observação (mundo/cidade/interior) | parcial (API e LOD prontos; falta o painel visual COG-11 no cliente Godot) |
 
 ## Regras do roadmap
 - Uma fase só fecha com `bash scripts/verify.sh` em 0 **e** os critérios da fase provados
@@ -76,7 +76,7 @@ O número é **identidade**, não ordem. Só a trilha núcleo é sequencial.
 - **A Fase 9 não desliza.** Ela não fecha objetivo, mas fixa o teto de custo (tempo por
   NPC-tick e bytes por NPC vivo) que toda fase seguinte gasta. Adiar é pagar o mesmo
   trabalho depois, sobre o dobro de sistemas.
-- **Status `spec` significa bloqueada.** Fases 16–27 têm objetivo, tasks e intenção de
+- **Status `spec` significa bloqueada.** Fases 17–27 têm objetivo, tasks e intenção de
   critério, mas os critérios finais só são escritos sob `rules/eval-criteria.md` quando a
   fase é ativada — e nenhuma delas começa antes da Fase 8 fechar. Ativar uma fase `spec`
   fora de ordem é decisão de escopo: registre em `STATE.md` antes.

@@ -5,8 +5,8 @@ using LivingWorld.Simulation.Extraordinary.Mechanics;
 
 namespace LivingWorld.Simulation.Extraordinary.Inheritance;
 
-/// <summary>Resultado dos dois rolls de herança de poder (EVO-10, EVO-15, EVO-16).
-/// Descritores por caminho entram em T8–T10.</summary>
+/// <summary>Resultado dos dois rolls de herança de poder.
+/// Descritores por caminho entram junto com os caminhos de herança.</summary>
 public enum PowerInheritanceOutcome
 {
     Both,
@@ -19,7 +19,7 @@ public sealed record PowerInheritanceDecision(
     bool Occurred,
     PowerInheritanceOutcome? Outcome);
 
-/// <summary>Roll 1 (ocorre?) + roll 2 (ambos / um só / mistura) — EVO-10/15/16.
+/// <summary>Roll 1 (ocorre?) + roll 2 (ambos / um só / mistura).
 /// Sem os dois pais portadores, nenhum roll executa (checagem O(1)).</summary>
 public static class PowerInheritanceResolver
 {
@@ -84,7 +84,7 @@ public static class PowerInheritanceResolver
         return PowerInheritanceOutcome.Mixed;
     }
 
-    /// <summary>EVO-11: filho recebe cópias dos descritores de A e B, completos e
+    /// <summary>Filho recebe cópias dos descritores de A e B, completos e
     /// independentes — sem fusão nem alteração. Nova lista; records imutáveis.</summary>
     public static IReadOnlyList<PowerDescriptor> ApplyBoth(
         IReadOnlyList<PowerDescriptor> parentA,
@@ -99,7 +99,7 @@ public static class PowerInheritanceResolver
         return result;
     }
 
-    /// <summary>EVO-12: filho recebe exatamente um dos pais, inalterado.
+    /// <summary>Filho recebe exatamente um dos pais, inalterado.
     /// Qual pai: <see cref="DeterministicChoice"/> com <see cref="OneOfParentSalt"/>.</summary>
     public static IReadOnlyList<PowerDescriptor> ApplyOneOf(
         IReadOnlyList<PowerDescriptor> parentA,
@@ -115,7 +115,7 @@ public static class PowerInheritanceResolver
         return new List<PowerDescriptor>(chosen);
     }
 
-    /// <summary>Decide + aplica Both / OneOf / Mixed (EVO-11..14).</summary>
+    /// <summary>Decide + aplica Both / OneOf / Mixed.</summary>
     public static IReadOnlyList<PowerDescriptor> ResolveDescriptors(
         ulong worldSeed,
         NpcId childId,
@@ -148,7 +148,7 @@ public static class PowerInheritanceResolver
         return ApplyOutcome(decision, world.Seed, childId, parentA, parentB);
     }
 
-    /// <summary>EVO-13: mistura o primeiro descritor de cada pai via
+    /// <summary>Mistura o primeiro descritor de cada pai via
     /// <see cref="MixDescriptorBuilder"/>. Inválido → lista vazia (filho sem poder).</summary>
     public static IReadOnlyList<PowerDescriptor> ApplyMixed(
         IReadOnlyList<PowerDescriptor> parentA,

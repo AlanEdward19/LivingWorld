@@ -217,7 +217,7 @@ public sealed partial class BehaviorDecisionSystem
         _ => 1.0,
     };
 
-    /// <summary>Bônus só quando memória/crença/relação estão presentes (COH-13/14) —
+    /// <summary>Bônus só quando memória/crença/relação estão presentes —
     /// listas vazias → 0, comportamento idêntico ao pré-DecisionContext (golden preservado).</summary>
     private static double ContextFactorBonus(DecisionContext ctx, ActionType action)
     {
@@ -255,7 +255,7 @@ public sealed partial class BehaviorDecisionSystem
         ActionType.Socialize => Deficit(ctx.Needs.Social),
         ActionType.Buy => BuyUtilityOf(ctx, economy),
         ActionType.Work or ActionType.Travel or ActionType.Idle => NonNeedBaselineUtility,
-        ActionType.UsePower => 0.0, // só vence via candidatos PowerOpportunity (T22)
+        ActionType.UsePower => 0.0, // só vence via candidatos PowerOpportunity
         ActionType.Steal => 0.0, // só entra por TheftResolver.Wants
         _ => throw new ArgumentOutOfRangeException(nameof(action), action, "ActionType desconhecido"),
     };

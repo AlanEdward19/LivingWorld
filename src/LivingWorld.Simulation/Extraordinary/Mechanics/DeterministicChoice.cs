@@ -4,7 +4,7 @@ using LivingWorld.Domain.Shared;
 namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 
 /// <summary>
-/// Escolha pura e reproduzível: <c>hash(seed, npcId, salt) → [0,1)</c> (EVO-16).
+/// Escolha pura e reproduzível: <c>hash(seed, npcId, salt) → [0,1)</c>.
 /// Usado nos rolls de herança e em escolhas internas do caminho "mistura".
 /// Nunca System.Random, <c>HashCode.Combine</c> ou <c>string.GetHashCode</c>.
 /// </summary>

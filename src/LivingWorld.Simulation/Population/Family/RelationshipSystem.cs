@@ -40,7 +40,7 @@ public sealed class RelationshipSystem : ISimulationSystem
         // (sem RNG, sem side effect cruzado com outras entradas), então o estado final não
         // depende da ordem de iteração — só o resultado de Hash(world) importa, e ele é idêntico
         // com ou sem ordenação. Ordenar 16M+ relações por dia (achado real em cenários de 10k
-        // pop, baseline-timings.md T2 revisado) era custo puro sem efeito observável.
+        // pop, baseline-timings.md revisado) era custo puro sem efeito observável.
         long lossThresholdHours = (long)rules.ContactLossThresholdDays * world.CurrentDate.Calendar.HoursPerDay;
         foreach (var (_, relationship) in world.Relationships)
         {
@@ -75,7 +75,7 @@ public sealed class RelationshipSystem : ISimulationSystem
         // Grupo maior que o teto — cenário de escala industrial: `ScenarioRunner.ScaleEconomyCatalog`
         // permite até 8.000 trabalhadores simultâneos num único workplace, e o par-a-par acima
         // seria 8.000² = 64 milhões de pares NAQUELE workplace, NAQUELE dia (achado real, ver
-        // baseline-timings.md fase 16, T5). Cada membro forma laço só com uma janela fixa de
+        // baseline-timings.md, fase 16). Cada membro forma laço só com uma janela fixa de
         // vizinhos por Id (determinístico — mesma seed, mesmo resultado; sem RNG) em vez de todo
         // mundo: O(k x teto) em vez de O(k²), e também mais plausível socialmente (ninguém convive
         // de verdade com milhares de colegas ao mesmo tempo).

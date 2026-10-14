@@ -12,7 +12,7 @@ using LivingWorld.Simulation.Scheduling;
 namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 
 /// <summary>
-/// Caminho "mistura" (EVO-13/14/21): recombina eixos Source/Effects/Costs/Conditions/
+/// Caminho "mistura": recombina eixos Source/Effects/Costs/Conditions/
 /// AcquisitionRules. Mesma chave de mecânica agrega magnitude (soma, sem teto); chave só de
 /// um pai é incluída (listas CSV). Eixos singulares em conflito usam
 /// <see cref="DeterministicChoice"/>. Resultado inválido no contrato 16.1 → <c>null</c>

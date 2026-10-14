@@ -8,7 +8,7 @@ using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Cities.Founding;
 
-// SPEC_DEVIATION (dynamic-city-growth, T6): design.md declara este tipo em
+// SPEC_DEVIATION (dynamic-city-growth): design.md declara este tipo em
 // src/LivingWorld.Domain/Cities/ — mesmo motivo já documentado em CityOccupancy.cs/
 // OverflowPlacer.cs/BuildingPlacementResolver.cs: agrupar prédios de overflow exige as posições
 // reais deles (via CityOccupancy, que precisa de WorldState) e a população real (Npcs vivos em
@@ -101,7 +101,7 @@ public static class OverflowClusterFinder
         inner.Origin.X + inner.Width <= outer.Origin.X + outer.Width &&
         inner.Origin.Y + inner.Height <= outer.Origin.Y + outer.Height;
 
-    /// <summary>dynamic-city-growth, T7: exposta (não privada) porque <c>SpatialSettlementFoundingSystem</c>
+    /// <summary>dynamic-city-growth: exposta (não privada) porque <c>SpatialSettlementFoundingSystem</c>
     /// precisa reconstruir a mesma caixa a partir dos ids capturados no payload, na re-verificação
     /// no disparo do evento (o cluster pode ter mudado de composição entre o agendamento e o
     /// disparo).</summary>

@@ -128,7 +128,7 @@ public sealed class ConstructionSystem : ISimulationSystem
             : new Dictionary<ResourceType, long>(existing.Prices);
     }
 
-    /// <summary>PWR-53: portador com <c>attribute.strength</c> em Work na cidade acelera o
+    /// <summary>Portador com <c>attribute.strength</c> em Work na cidade acelera o
     /// consumo de insumo (passos inteiros; 1.0 = um tick de obra, como hoje).</summary>
     private static int ConstructionWorkSteps(WorldState world, City city)
     {

@@ -7,7 +7,7 @@ namespace LivingWorld.AI;
 
 /// <summary>Provider real de produção: transporte puro contra um Ollama local rodando
 /// <c>qwen3.5:4b</c> (Q4_K_M). Só monta a requisição e faz o parse da resposta — nenhuma decisão
-/// de jogo mora aqui (rules/llm-boundary.md); validação e aplicação continuam em T5/T6
+/// de jogo mora aqui (rules/llm-boundary.md); validação e aplicação continuam no orquestrador de conversa
 /// (<c>LlmResponseValidator</c>/<c>ConversationEffectsApplier</c>), fora desta classe.</summary>
 public sealed class OllamaLlmProvider : ILlmProvider
 {
@@ -33,7 +33,7 @@ public sealed class OllamaLlmProvider : ILlmProvider
         var request = BuildRequest(context);
 
         // Erro de rede, timeout, JSON inválido ou fora do schema: propaga. Quem chama
-        // (ConversationOrchestrator, T6) já trata qualquer exceção daqui com fallback
+        // (ConversationOrchestrator) já trata qualquer exceção daqui com fallback
         // determinístico — este provider nunca "conserta" uma resposta ruim.
         using var httpResponse = await _httpClient.PostAsJsonAsync(_endpoint, request, JsonOptions, cancellationToken);
         httpResponse.EnsureSuccessStatusCode();

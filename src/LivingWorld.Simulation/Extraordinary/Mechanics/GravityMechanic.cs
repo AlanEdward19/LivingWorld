@@ -9,7 +9,7 @@ namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 /// <summary>
 /// Gravidade pessoal. <c>gravity.self:&lt;mult&gt;</c> (0 = sem peso, 1 = normal, &gt;1 = mais
 /// pesado) e <c>gravity.target:&lt;mult&gt;</c> no alvo. <c>movement.flight</c> /
-/// <c>movement.speed-multiplier</c> são sinônimos de <c>gravity.self</c> (PWR-72).
+/// <c>movement.speed-multiplier</c> são sinônimos de <c>gravity.self</c>.
 /// </summary>
 public sealed class GravityMechanic : ExtraordinaryMechanic
 {
@@ -60,7 +60,7 @@ public sealed class GravityMechanic : ExtraordinaryMechanic
     }
 
     /// <summary>Produto de gravidade não-nula (peso) × alvo. Voo e speed-multiplier ficam
-    /// eixos separados para <c>movement.flight</c>+<c>speed-multiplier</c> (PWR-72).</summary>
+    /// eixos separados para <c>movement.flight</c>+<c>speed-multiplier</c>.</summary>
     internal static double Compose(WorldState world, ExtraordinaryCarrierState? carrier)
     {
         bool canFly = false;

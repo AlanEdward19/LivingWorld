@@ -127,7 +127,7 @@ public sealed class DecisionMetrics
                     }
                 }
 
-                // Intent Active válido e sem evento/need → NÃO reconsidera (COH-44).
+                // Intent Active válido e sem evento/need → NÃO reconsidera.
                 targets = wakeIds
                     .Select(id => world.FindNpc(new NpcId(id)))
                     .Where(n => n is { IsAlive: true })
@@ -140,7 +140,7 @@ public sealed class DecisionMetrics
                 var beforeIntent = npc!.IntentStatus;
                 var beforeAction = npc.CurrentAction;
 
-                // Persistência de Intent (COH-41/44): Active Buy permanece; reconsideração
+                // Persistência de Intent: Active Buy permanece; reconsideração
                 // full que reafirma o mesmo plano não muda o estado canônico.
                 if (npc.IntentStatus == IntentStatus.Active && npc.CurrentIntent == ActionType.Buy)
                 {
@@ -166,7 +166,7 @@ public sealed class DecisionMetrics
     }
 
     /// <summary>Fingerprint canônico leve do estado observável de decisão (não o hash
-    /// IncrementalHasher — só intents/ações/needs relevantes a COH-44).</summary>
+    /// IncrementalHasher — só intents/ações/needs relevantes à persistência de Intent).</summary>
     public static string Fingerprint(WorldState world)
     {
         var sb = new StringBuilder();

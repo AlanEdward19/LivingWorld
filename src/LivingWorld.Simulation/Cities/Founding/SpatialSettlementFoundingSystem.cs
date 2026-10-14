@@ -132,7 +132,7 @@ public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
                      .OrderBy(workplace => workplace.Id.Value))
             workplace.JoinCity(newCity.Id);
 
-        // dynamic-city-growth, T7: "bounds iniciais da cidade nova" = a própria caixa do cluster
+        // dynamic-city-growth: "bounds iniciais da cidade nova" = a própria caixa do cluster
         // (não um box só-população, que pode ficar menor que o cluster que a fundou e nem conter
         // os prédios/households que a fundaram) — mesmo espírito de bounds.Contains(location) de
         // NpcScopeResolver, aplicado aqui à geometria real que já existe.

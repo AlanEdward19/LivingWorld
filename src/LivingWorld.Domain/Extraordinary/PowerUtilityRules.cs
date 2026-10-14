@@ -8,7 +8,7 @@ namespace LivingWorld.Domain.Extraordinary;
 /// <see cref="PowerInheritanceRules"/>/<see cref="FamilyRules"/>: validação em
 /// <see cref="Create"/>, <see cref="Default"/> documentado.</summary>
 /// <remarks>
-/// Defaults documentados (design 16.3 AD-012):
+/// Defaults documentados (design 16.3):
 /// <list type="bullet">
 /// <item><see cref="CostWeight"/> = 1.0 — custo estimado penaliza utility 1:1.</item>
 /// <item><see cref="RiskWeight"/> = 1.0 — risco estimado penaliza utility 1:1.</item>

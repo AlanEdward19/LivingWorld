@@ -66,7 +66,7 @@ public sealed class NeedsDecaySystem : ISimulationSystem
             NpcDeath.Apply(world, ctx, npc, WorldEventKind.Exhaustion);
     }
 
-    /// <summary>NEEDS-03: fome em 0 por <c>X = ceil(100 / HungerDecayPerHour)</c> ticks
+    /// <summary>Fome em 0 por <c>X = ceil(100 / HungerDecayPerHour)</c> ticks
     /// consecutivos mata o NPC. <c>HungerDecayPerHour == 0</c> é o edge case declarado no spec
     /// ("fome nunca decai, NPC nunca morre de fome") — sem taxa não há prazo de sobrevivência
     /// para derivar, então a checagem é pulada.</summary>

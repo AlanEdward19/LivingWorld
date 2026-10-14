@@ -183,10 +183,10 @@ public sealed class MaterializationSystem : ISimulationSystem
     // contagem+somas, nunca identidade individual, tornando "consultar um NPC agregado por id"
     // estruturalmente impossível.
     //
-    // Uma primeira tentativa (rejeitada, comentário histórico removido em T50) tentou uma FAIXA
+    // Uma primeira tentativa (rejeitada, comentário histórico removido) tentou uma FAIXA
     // contígua de NpcId por cidade — quebra porque o contador global é consumido por dois fluxos
     // intercalados (nascimentos a cada tick, materialização sob demanda), então um range simples
-    // não fecha. Escolha final (T50): cada cidade guarda uma LISTA de ids já reservados (<see
+    // não fecha. Escolha final: cada cidade guarda uma LISTA de ids já reservados (<see
     // cref="City.PoolNpcIds"/>, não um range) — cresce só nos 3 pontos que já mexiam no pool
     // (carga de cenário em lote, desmaterialização devolvendo o próprio id de quem saiu, fundação
     // de assentamento transferindo a lista inteira) e encolhe nos que já existiam (materializar,

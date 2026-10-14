@@ -19,12 +19,12 @@ conferido contra o codigo atual. Nenhum teste/gate foi executado nesta passada (
 | EXEC-11 (Global/CityLayerBuilder compartilhados) | Verified | `LayerBuildResult.OutOfScope` (`LayerBuildResult.cs:21`) chamado por `GlobalLayerBuilder.cs:35` e `CityLayerBuilder.cs:18` |
 | EXEC-12 (threshold de fundacao compartilhado) | Verified | `Simulation/Cities/Founding/FoundingConcentration.cs` usado por `SettlementFoundingSystem` e `SpatialSettlementFoundingSystem` |
 | EXEC-13 (`Resolve<T>` generico) | Verified | `Domain/Shared/ScenarioRuleDefaults.cs`; usado em AttentionRules, PowerUtilityRules, PowerInheritanceRules, BodyRules |
-| EXEC-14 (hash golden inalterado) | Pending - os goldens foram regravados em 2026-10-13 (AD-108, log/cosseno deterministicos), entao ja nao comparam com o valor pre-consolidacao; `GoldenHashesTests` e scale-sensor passam com os novos |
+| EXEC-14 (hash golden inalterado) | Verified | Commit da consolidacao `1c4dc21` contra o pai `d00af93`, mesma maquina e mesmo harness: `CanonicalHash` e `VolatileHash` de `ScenarioRunner.Create` nas seeds 1, 2 e 42 em 0/100/2160/8640 ticks (12 linhas) identicos; medido 2026-10-14 |
 | EXEC-15 (citacao-pura reescrita) | Verified | grep `Fase N`/`Phase N` em src/*.cs (sem obj/bin/Migrations) = 0; `WorldEventKind.cs` = 0 |
-| EXEC-16 (WHY preservado) | Pending - qualidade do texto restante nao revisada |
+| EXEC-16 (WHY preservado) | Verified | 2026-10-14: ~110 citacoes restantes em comentarios de `src/` (tasks `T50`, `ADR-00NN`, `AD-0NN`, ids `COH-`/`EVO-`/`PWR-`/`LOD-`/`NEEDS-`) podadas so no trecho da citacao; o motivo tecnico ficou. Diff conferido linha a linha (maiusculas e pontuacao ajustadas) e build/lint/testes verdes |
 | EXEC-17 (build limpo por projeto) | Verified | `bash scripts/build.sh` e `lint.sh` saem 0 com 0 erros (verify.sh --full, 2026-10-13) |
-| EXEC-18 (re-varredura sem sobra) | Verified | mesmo grep: 0 ocorrencias de `Fase N` em src/ (padrao `task N`/`ADR-NNNN` nao varrido) |
+| EXEC-18 (re-varredura sem sobra) | Verified | 2026-10-14: varredura de `Fase/Phase N`, `task N`/`T<n>`, `ADR-NNNN`, `AD-NNN` e `XXX-NN` em comentarios de `src/` (linha inteira e fim de linha, sem bin/obj/Migrations) = 0 |
 
-Resumo EXEC (18, 2026-10-13): 15 Verified, 1 Deferred, 2 Pending (EXEC-14 perdeu a referencia pre-consolidacao; EXEC-16 qualidade de texto, nao medivel).
+Resumo EXEC (18, 2026-10-14): 17 Verified, 1 Deferred (EXEC-02), 0 Pending.
 Itens fora de escopo declarados no spec (Worker, ExampleCounterSystem, DecisionSandbox) seguem
 como decisao futura do usuario; `ExampleCounterSystem.cs` ainda existe em `Simulation/Scheduling`.

@@ -15,7 +15,7 @@ public interface IPeriodTemplateRepository
 
     PeriodTemplateRecord? Find(string periodId, int version);
 
-    /// <summary>Catálogo de períodos registrados (T5, <c>GET /periods</c>): a versão mais recente
+    /// <summary>Catálogo de períodos registrados (<c>GET /periods</c>): a versão mais recente
     /// de cada <see cref="PeriodTemplateRecord.PeriodId"/> distinto.</summary>
     IReadOnlyList<PeriodTemplateRecord> ListLatestPerPeriod();
 }

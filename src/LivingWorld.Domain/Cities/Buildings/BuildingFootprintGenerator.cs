@@ -11,7 +11,7 @@ namespace LivingWorld.Domain.Cities.Buildings;
 /// footprint (diferente do placeholder client-side, que às vezes fica sem porta se a célula
 /// preferida não for parede — aqui a porta cai no fallback determinístico mais próximo quando a
 /// preferida não existe, nunca fica ausente). Sem parâmetro de andar: a função não lê tick nem
-/// estado do mundo, então "estável entre snapshots, ticks e andares" (T45) é consequência direta
+/// estado do mundo, então "estável entre snapshots, ticks e andares" é consequência direta
 /// de ser pura.</summary>
 public static class BuildingFootprintGenerator
 {
@@ -72,7 +72,7 @@ public static class BuildingFootprintGenerator
         int doorX = isLShape ? width / 4 : width / 2;
         int doorIndex = cells.FindIndex(c => c.IsWall && c.X == doorX && c.Y == height - 1);
         if (doorIndex < 0)
-            // Fallback determinístico (garante que a porta SEMPRE existe, T45): primeira parede
+            // Fallback determinístico (garante que a porta SEMPRE existe): primeira parede
             // na borda inferior, senão a primeira parede da planta, em ordem estável (y desc, x asc).
             doorIndex = cells
                 .Select((c, i) => (c, i))

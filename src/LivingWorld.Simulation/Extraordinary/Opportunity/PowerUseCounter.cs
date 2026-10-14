@@ -4,7 +4,7 @@ using LivingWorld.Simulation.Core;
 namespace LivingWorld.Simulation.Extraordinary.Opportunity;
 
 /// <summary>
-/// Incrementa o contador de uso por invocação bem-sucedida (EVO-04). Falhas nunca contam.
+/// Incrementa o contador de uso por invocação bem-sucedida. Falhas nunca contam.
 /// </summary>
 public static class PowerUseCounter
 {
