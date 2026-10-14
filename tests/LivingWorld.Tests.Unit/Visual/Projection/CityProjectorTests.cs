@@ -30,6 +30,23 @@ public class CityProjectorTests
         return (world, city, resident);
     }
 
+    /// <summary>Cidade vazia sobre terra seca com um único prédio sem posição autorada. O posicionamento recusa
+    /// água e exige folga entre prédios, então os testes de "o prédio derivado aparece" precisam de uma cidade
+    /// onde sobre espaço dentro dos bounds (os 3x3 mínimos), não do mundo semeado, cujos bounds já estão cheios.</summary>
+    private static (WorldState World, City City, Building Building) MakeDryCityWithOneUnauthoredBuilding()
+    {
+        var world = ScenarioRunner.Create(seed: 11, initialPopulation: 80).World;
+        var center = Enumerable.Range(2, world.Map.Width - 4)
+            .SelectMany(x => Enumerable.Range(2, world.Map.Height - 4).Select(y => new CellCoord(x, y)))
+            .First(c => !world.Map.Cells.Any(cell => cell.HasWater && Math.Abs(cell.Coord.X - c.X) <= 2 && Math.Abs(cell.Coord.Y - c.Y) <= 2)
+                && !world.Buildings.Any(b => b.Position is { } p && Math.Abs(p.X - c.X) <= 6 && Math.Abs(p.Y - c.Y) <= 6));
+        var city = new City(world.NextCityId(), center, 0, null, AggregatePopulationPool.Empty);
+        world.AddCity(city);
+        var building = new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId: -1, completedAtTick: 0);
+        world.AddBuilding(building);
+        return (world, city, building);
+    }
+
     [Fact]
     public void Build_returns_failure_for_a_city_id_that_does_not_exist()
     {
@@ -69,8 +86,7 @@ public class CityProjectorTests
     [Fact]
     public void Build_resolves_an_unauthored_buildings_location_as_derived_and_stable()
     {
-        var (world, city, _) = MakeWorldWithCity();
-        var engineBuilding = world.Buildings.Single(building => building.City == city.Id && building.Position is null);
+        var (world, city, engineBuilding) = MakeDryCityWithOneUnauthoredBuilding();
 
         var marker = CityProjector.Build(world, city.Id).Value!.Buildings.Single(building => building.Id == engineBuilding.Id);
 
@@ -234,9 +250,7 @@ public class CityProjectorTests
     [Fact]
     public void Building_marker_has_floors_and_ground_footprint()
     {
-        var (world, city, _) = MakeWorldWithCity();
-
-        var created = world.Buildings.Last(b => b.City == city.Id);
+        var (world, city, created) = MakeDryCityWithOneUnauthoredBuilding();
         var marker = CityProjector.Build(world, city.Id).Value!.Buildings.Single(b => b.Id == created.Id);
 
         Assert.Equal(BuildingLayoutGenerator.FloorsOf(created.Id, created.BuildingTypeId), marker.Floors);

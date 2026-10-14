@@ -12,6 +12,9 @@ public enum RestPlaceKind
     Ground = 0,
     Dwelling = 1,
     Bed = 2,
+
+    /// <summary>Quarto alugado por diária numa hospedagem, longe de casa (lodging-and-rent); recupera como a moradia.</summary>
+    Lodging = 3,
 }
 
 /// <summary>Struct: o resolvedor devolve um por NPC a cada decisão de dormir; como classe era 7% dos bytes alocados por tick.</summary>
@@ -48,7 +51,7 @@ public sealed record RestPlaceCatalog(double GroundEfficiency, double DwellingEf
     public double EfficiencyOf(RestPlaceKind kind) => kind switch
     {
         RestPlaceKind.Ground => GroundEfficiency,
-        RestPlaceKind.Dwelling => DwellingEfficiency,
+        RestPlaceKind.Dwelling or RestPlaceKind.Lodging => DwellingEfficiency,
         RestPlaceKind.Bed => BedEfficiency,
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "RestPlaceKind desconhecido"),
     };

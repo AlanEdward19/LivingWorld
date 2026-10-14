@@ -5,6 +5,7 @@ using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Resolvers;
+using LivingWorld.Simulation.Cities;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Economy.Market;
 using LivingWorld.Simulation.Extraordinary.Engine;
@@ -99,6 +100,14 @@ public sealed partial class BehaviorDecisionSystem
     {
         var rest = RestPlaceResolver.Resolve(world, npc);
         if (rest.Location != npc.CurrentLocation) return;
+
+        // Diária de hospedagem (lodging-and-rent): paga ao fim da noite; sem pagar, dorme no chão onde está.
+        if (rest.Kind == RestPlaceKind.Lodging
+            && !(GuestLodging.FindRoom(world, npc, world.FindHousehold(npc.Household!.Value)!.Location) is { } room && GuestLodging.TryCharge(npc, room)))
+        {
+            npc.SetSleep((int)(100 * world.RestPlaceCatalog.GroundEfficiency), tick);
+            return;
+        }
 
         npc.SetSleep((int)(100 * rest.RecoveryEfficiency), tick);
     }

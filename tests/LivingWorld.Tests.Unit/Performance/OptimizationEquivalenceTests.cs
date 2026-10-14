@@ -25,7 +25,7 @@ namespace LivingWorld.Tests.Unit.Performance;
 /// é comparada com a definição direta que ela substitui, e o conjunto é preso a hashes do mundo.
 /// Os hashes foram gravados no código anterior às otimizações (equivalência provada) e regravados
 /// quando o comportamento mudou de propósito (mortalidade condicional, Midshift, custo de célula
-/// 0.05, urgência de sobrevivência, abastecimento, rotina com deslocamento antecipado — AD-077/AD-078). Mudar a simulação de propósito exige atualizá-los; qualquer outra quebra é regressão.</summary>
+/// 0.05, urgência de sobrevivência, abastecimento, rotina com deslocamento antecipado — AD-077/AD-078; folga mínima e água no posicionamento de prédios — AD-104; campos de aluguel no domicílio — AD-105). Mudar a simulação de propósito exige atualizá-los; qualquer outra quebra é regressão.</summary>
 public class OptimizationEquivalenceTests
 {
     private const long OneYearInHours = 360L * 24;
@@ -33,8 +33,8 @@ public class OptimizationEquivalenceTests
     // --- Hashes do mundo preservados ---
 
     [Theory]
-    [InlineData(1UL, "7a17f193cfdff0ed4c5f5dc93c53eca949e7c236a3578da93d4046b4b2a91ae1", "6db359bd9a3d2c4cd0a612a99098705d5821dff719307c42b5ece239dcadbb28")]
-    [InlineData(2UL, "80a72032721bb4659bd07641822c0a40bea63bde97e024b609685b4a35e8689d", "c9e83c6a3e477b08cb611362909e79c0a1ef91fab253fac8d631568903f53767")]
+    [InlineData(1UL, "2d503a00a1c7da572f448ab3ba037c79761e002fa0ef239545c87dfa8a83a55f", "872469088e632c287524c77ddcf07bc3b97c828444f780fe6a57d1dc0f72b322")]
+    [InlineData(2UL, "a5ca9ef688b7a86eda506a839101619c3c397b15a98e7d2880742d936cbdd9ff", "607ff699e7d94fc38d00390c3c5a86f6f82b0e244f2db4a2bf8f3fe356293718")]
     public void Default_scenario_ninety_days_keeps_the_recorded_hashes(
         ulong seed, string canonical, string volatileHash)
     {
@@ -605,8 +605,7 @@ public class OptimizationEquivalenceTests
             var next = new Building(world.NextBuildingIdAndAdvance(), city.Id, new[] { -1, 3, 4 }[round % 3], 0);
             var shape = BuildingFootprintGenerator.Generate(next).Select(c => c.Cell).ToList();
             var occupied = ReferenceOccupied(world, city, bounds, next.Id);
-            var expected = ReferenceScan(occupied, bounds, shape)
-                ?? OverflowPlacer.ResolveOverflowPositionGiven(occupied, bounds, next.Id, shape, world.Map.Width, world.Map.Height);
+            var expected = ReferencePlacement(occupied, bounds, next.Id, shape, world.Map);
 
             var resolved = BuildingPlacementResolver.Resolve(next, city, world, bounds);
 
@@ -724,8 +723,7 @@ public class OptimizationEquivalenceTests
         {
             var shape = BuildingFootprintGenerator.Generate(building).Select(c => c.Cell).ToList();
             CellCoord? position = building.Position
-                ?? ReferenceScan(occupied, bounds, shape)
-                ?? OverflowPlacer.ResolveOverflowPositionGiven(occupied, bounds, building.Id, shape, world.Map.Width, world.Map.Height);
+                ?? ReferencePlacement(occupied, bounds, building.Id, shape, world.Map);
             if (position is null) continue;
 
             foreach (var cell in shape)
@@ -735,13 +733,38 @@ public class OptimizationEquivalenceTests
         return occupied;
     }
 
-    private static CellCoord? ReferenceScan(HashSet<CellCoord> occupied, CityBounds bounds, IReadOnlyList<CellCoord> shape)
+    /// <summary>Definição direta da regra de posicionamento: dentro dos bounds, nenhuma célula do footprint
+    /// em água, nenhuma célula ocupada nem vizinha (folga de <see cref="CityOccupancy.MinGap"/>) a ele.</summary>
+    /// <summary>Degraus de relaxamento: 0 = folga e sem água; 1 = encostando, sem água; 2 = só sem sobreposição.
+    /// Cada degrau varre os bounds e depois o anel; só desce quando o anterior não achou nada.</summary>
+    private static CellCoord? ReferencePlacement(
+        HashSet<CellCoord> occupied, CityBounds bounds, BuildingId id, IReadOnlyList<CellCoord> shape,
+        LivingWorld.Domain.Geography.Map.WorldMap map)
     {
+        for (int level = 0; level < 3; level++)
+        {
+            var found = ReferenceScan(occupied, bounds, shape, map, level)
+                ?? OverflowPlacer.ResolveOverflowPositionGiven(
+                    occupied, bounds, id, shape, map.Width, map.Height, 1, out _, PlacementPolicy.For(map, level));
+            if (found is not null) return found;
+        }
+        return null;
+    }
+
+    private static CellCoord? ReferenceScan(
+        HashSet<CellCoord> occupied, CityBounds bounds, IReadOnlyList<CellCoord> shape, LivingWorld.Domain.Geography.Map.WorldMap map,
+        int level)
+    {
+        int gap = level == 0 ? CityOccupancy.MinGap : 0;
         for (int y = bounds.Origin.Y; y < bounds.Origin.Y + bounds.Height; y++)
             for (int x = bounds.Origin.X; x < bounds.Origin.X + bounds.Width; x++)
             {
                 var candidate = shape.Select(c => new CellCoord(c.X + x, c.Y + y)).ToList();
-                if (candidate.All(bounds.Contains) && candidate.All(cell => !occupied.Contains(cell)))
+                bool touching = candidate.Any(c => Enumerable.Range(-gap, 2 * gap + 1)
+                    .Any(dx => Enumerable.Range(-gap, 2 * gap + 1)
+                        .Any(dy => occupied.Contains(new CellCoord(c.X + dx, c.Y + dy)))));
+                bool onWater = level < 2 && candidate.Any(c => map.TryGetCell(c, out var cell) && cell.HasWater);
+                if (candidate.All(bounds.Contains) && !touching && !onWater)
                     return new CellCoord(x, y);
             }
 

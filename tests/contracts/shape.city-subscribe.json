@@ -42,7 +42,9 @@
           "y": "number"
         },
         "locationIsDerived": "boolean",
-        "orientation": "number"
+        "lodging": "null",
+        "orientation": "number",
+        "value": "number"
       }
     ],
     "id": {

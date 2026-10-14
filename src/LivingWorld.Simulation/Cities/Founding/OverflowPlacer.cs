@@ -27,11 +27,11 @@ public static class OverflowPlacer
     // chamada (ver design.md, Error Handling Strategy).
     public static CellCoord? ResolveOverflowPosition(
         WorldState world, City city, CityBounds bounds, BuildingId id, IReadOnlyList<CellCoord> footprintShape) =>
-        ResolveOverflowPosition(world, city, bounds, id, footprintShape, 1, out _);
+        ResolveOverflowPosition(world, city, bounds, id, footprintShape, 1, out _, 0);
 
     internal static CellCoord? ResolveOverflowPosition(
         WorldState world, City city, CityBounds bounds, BuildingId id, IReadOnlyList<CellCoord> footprintShape,
-        int startRadius, out int foundRadius)
+        int startRadius, out int foundRadius, int level)
     {
         // dynamic-city-growth, fix (blocker): antes, cada célula do anel chamava
         // CityOccupancy.IsFree, que recomputava a ocupação da cidade inteira do zero -- em cima da
@@ -39,7 +39,8 @@ public static class OverflowPlacer
         // ocupado é o mesmo pra toda a busca do anel, então computa uma vez só.
         var occupied = CityOccupancy.OccupiedCellsOfCity(world, city, bounds, id);
         return ResolveOverflowPositionGiven(
-            occupied, bounds, id, footprintShape, world.Map.Width, world.Map.Height, startRadius, out foundRadius);
+            occupied, bounds, id, footprintShape, world.Map.Width, world.Map.Height, startRadius, out foundRadius,
+            PlacementPolicy.For(world.Map, level));
     }
 
     /// <summary>Mesma busca em anéis crescentes de <see cref="ResolveOverflowPosition"/>, mas
@@ -55,15 +56,16 @@ public static class OverflowPlacer
     internal static CellCoord? ResolveOverflowPositionGiven(
         HashSet<CellCoord> occupied, CityBounds bounds, BuildingId id, IReadOnlyList<CellCoord> footprintShape,
         int mapWidth, int mapHeight) =>
-        ResolveOverflowPositionGiven(occupied, bounds, id, footprintShape, mapWidth, mapHeight, 1, out _);
+        ResolveOverflowPositionGiven(occupied, bounds, id, footprintShape, mapWidth, mapHeight, 1, out _, PlacementPolicy.None);
 
     /// <summary><paramref name="startRadius"/> permite pular anéis que o chamador já sabe inteiramente
     /// ocupados para esta forma (a ocupação só cresce dentro de um passe). <paramref name="foundRadius"/>
     /// é o raio do anel onde achou (ou além do último, se não achou) — todo anel menor falhou.</summary>
     internal static CellCoord? ResolveOverflowPositionGiven(
         HashSet<CellCoord> occupied, CityBounds bounds, BuildingId id, IReadOnlyList<CellCoord> footprintShape,
-        int mapWidth, int mapHeight, int startRadius, out int foundRadius)
+        int mapWidth, int mapHeight, int startRadius, out int foundRadius, PlacementPolicy policy)
     {
+        var halo = policy.HaloOf(footprintShape);
         ulong hash = StableHash.Mix(id.Value);
         int maxRadius = mapWidth + mapHeight;
 
@@ -74,7 +76,7 @@ public static class OverflowPlacer
             for (int i = 0; i < count; i++)
             {
                 var origin = RingCellAt(bounds, radius, (offset + i) % count);
-                if (FitsAt(footprintShape, origin, occupied, mapWidth, mapHeight))
+                if (FitsAt(footprintShape, halo, origin, occupied, mapWidth, mapHeight, policy))
                 {
                     foundRadius = radius;
                     return origin;
@@ -88,18 +90,15 @@ public static class OverflowPlacer
     /// <summary>O footprint inteiro, transladado para <paramref name="origin"/>, cai no mapa e em
     /// células livres. Sem lista intermediária: o laço de anéis chama isto milhões de vezes.</summary>
     private static bool FitsAt(
-        IReadOnlyList<CellCoord> shape, CellCoord origin, HashSet<CellCoord> occupied, int mapWidth, int mapHeight)
+        IReadOnlyList<CellCoord> shape, CellCoord[] halo, CellCoord origin, HashSet<CellCoord> occupied,
+        int mapWidth, int mapHeight, PlacementPolicy policy)
     {
         for (int i = 0; i < shape.Count; i++)
         {
             var cell = new CellCoord(shape[i].X + origin.X, shape[i].Y + origin.Y);
             if (!WithinMap(cell, mapWidth, mapHeight)) return false;
         }
-        for (int i = 0; i < shape.Count; i++)
-        {
-            if (occupied.Contains(new CellCoord(shape[i].X + origin.X, shape[i].Y + origin.Y))) return false;
-        }
-        return true;
+        return policy.Allows(shape, halo, origin, occupied);
     }
 
     private static bool WithinMap(CellCoord cell, int mapWidth, int mapHeight) =>

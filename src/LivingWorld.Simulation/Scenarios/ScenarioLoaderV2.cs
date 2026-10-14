@@ -100,16 +100,17 @@ public static class ScenarioLoaderV2
         // (population.Village) ganhava população — as demais nasciam sempre com 0 moradores.
         // Distribui population.InitialPopulation por TODAS as cidades autoradas (resto pra vila
         // inicial), não precisa ser exatamente igual entre elas, só nenhuma ficar zerada à toa.
+        int homeCityIndex = -1;
+        var seedTargets = new List<(CellCoord Location, CityId Id)>();
         if (population.InitialPopulation > 0)
         {
-            int homeCityIndex = definition.City.Cities
+            homeCityIndex = definition.City.Cities
                 .Select((c, index) => (c.Location, index))
                 .Where(c => c.Location == population.Village)
                 .Select(c => c.index)
                 .DefaultIfEmpty(-1)
                 .First();
 
-            var seedTargets = new List<(CellCoord Location, CityId Id)>();
             for (int i = 0; i < definition.City.Cities.Count; i++)
                 seedTargets.Add((definition.City.Cities[i].Location, createdCityIds[i]));
 
@@ -122,7 +123,65 @@ public static class ScenarioLoaderV2
                 homeCityIndex = seedTargets.Count;
                 seedTargets.Add((homeCity.Location, homeCity.Id));
             }
+        }
 
+        // As oficinas autoradas ocupam o terreno ANTES das casas semeadas: com a população já assentada o mapa pequeno
+        // (presets 10x10 e 20x20) não tinha mais célula livre e o cenário falhava com "nenhuma célula livre".
+        foreach (var workplace in definition.Economy.Workplaces)
+        {
+            if (!world.ActiveCities().Any())
+            {
+                // SPEC_DEVIATION: um cenário autorado sem nenhuma cidade não oferece a entidade
+                // proprietária exigida pelo placement. Mantém o workplace legado sem Building,
+                // em vez de inventar uma cidade que o JSON não declarou.
+                world.AddWorkplace(new Workplace(
+                    world.NextWorkplaceIdAndAdvance(), workplace.LocationType, workplace.Location,
+                    workplace.MaxVacancies, employees: [], workplace.Stock, workplace.Treasury, workplace.Prices));
+                continue;
+            }
+
+            var city = NearestCity(world.ActiveCities(), workplace.Location);
+            int buildingTypeId = workplace.LocationType.Id;
+            var candidateId = new BuildingId(world.NextBuildingId);
+            var candidateShape = BuildingFootprintGenerator.Generate(candidateId, buildingTypeId, orientation: 0)
+                .Select(cell => cell.Cell)
+                .ToList();
+            long cityPopulation = CityPopulationQuery.Population(world, city.Id);
+            var bounds = CityOccupancy.ResolveGrownBounds(world, city, cityPopulation).Bounds;
+            var authoredFootprint = candidateShape
+                .Select(cell => new CellCoord(workplace.Location.X + cell.X, workplace.Location.Y + cell.Y))
+                .ToList();
+
+            CellCoord position;
+            int orientation;
+            if (CityOccupancy.IsFree(world, city, bounds, authoredFootprint, candidateId))
+            {
+                position = workplace.Location;
+                orientation = 0;
+            }
+            else
+            {
+                var candidate = new Building(candidateId, city.Id, buildingTypeId, completedAtTick: 0);
+                var resolved = BuildingPlacementResolver.Resolve(candidate, city, world, bounds);
+                if (resolved is null)
+                    return Result<(WorldState, WorldClock)>.Fail(
+                        "Workplaces: nenhuma célula livre para posicionar o edifício autorado");
+                position = resolved.Value.Position;
+                orientation = resolved.Value.Orientation;
+            }
+
+            var workplaceBuilding = new Building(
+                world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId, completedAtTick: 0,
+                position, orientation);
+            world.AddBuilding(workplaceBuilding);
+            world.AddWorkplace(new Workplace(
+                world.NextWorkplaceIdAndAdvance(), workplace.LocationType, position, workplace.MaxVacancies,
+                employees: [], workplace.Stock, workplace.Treasury, workplace.Prices, city.Id,
+                building: workplaceBuilding.Id));
+        }
+
+        if (population.InitialPopulation > 0)
+        {
             // Cidade autorada com `InitialPopulation` explícito nasce com esse valor; o resto do
             // total continua dividido igualmente entre as demais (resto da divisão pra vila-sede,
             // como sempre) — dá controle de tamanho inicial por assentamento sem mexer na fórmula
@@ -178,59 +237,6 @@ public static class ScenarioLoaderV2
             ScenarioRunner.SeedInitialEconomyBuffer(world);
 
         ExtraordinaryPrevalenceSeeder.Seed(world);
-
-        foreach (var workplace in definition.Economy.Workplaces)
-        {
-            if (!world.ActiveCities().Any())
-            {
-                // SPEC_DEVIATION: um cenário autorado sem nenhuma cidade não oferece a entidade
-                // proprietária exigida pelo placement. Mantém o workplace legado sem Building,
-                // em vez de inventar uma cidade que o JSON não declarou.
-                world.AddWorkplace(new Workplace(
-                    world.NextWorkplaceIdAndAdvance(), workplace.LocationType, workplace.Location,
-                    workplace.MaxVacancies, employees: [], workplace.Stock, workplace.Treasury, workplace.Prices));
-                continue;
-            }
-
-            var city = NearestCity(world.ActiveCities(), workplace.Location);
-            int buildingTypeId = workplace.LocationType.Id;
-            var candidateId = new BuildingId(world.NextBuildingId);
-            var candidateShape = BuildingFootprintGenerator.Generate(candidateId, buildingTypeId, orientation: 0)
-                .Select(cell => cell.Cell)
-                .ToList();
-            long cityPopulation = CityPopulationQuery.Population(world, city.Id);
-            var bounds = CityOccupancy.ResolveGrownBounds(world, city, cityPopulation).Bounds;
-            var authoredFootprint = candidateShape
-                .Select(cell => new CellCoord(workplace.Location.X + cell.X, workplace.Location.Y + cell.Y))
-                .ToList();
-
-            CellCoord position;
-            int orientation;
-            if (CityOccupancy.IsFree(world, city, bounds, authoredFootprint, candidateId))
-            {
-                position = workplace.Location;
-                orientation = 0;
-            }
-            else
-            {
-                var candidate = new Building(candidateId, city.Id, buildingTypeId, completedAtTick: 0);
-                var resolved = BuildingPlacementResolver.Resolve(candidate, city, world, bounds);
-                if (resolved is null)
-                    return Result<(WorldState, WorldClock)>.Fail(
-                        "Workplaces: nenhuma célula livre para posicionar o edifício autorado");
-                position = resolved.Value.Position;
-                orientation = resolved.Value.Orientation;
-            }
-
-            var workplaceBuilding = new Building(
-                world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId, completedAtTick: 0,
-                position, orientation);
-            world.AddBuilding(workplaceBuilding);
-            world.AddWorkplace(new Workplace(
-                world.NextWorkplaceIdAndAdvance(), workplace.LocationType, position, workplace.MaxVacancies,
-                employees: [], workplace.Stock, workplace.Treasury, workplace.Prices, city.Id,
-                building: workplaceBuilding.Id));
-        }
 
         // Portal é dado descritivo — resolve RefIndex autorado pro RefId real
         // (mesmo padrão de createdCityIds[building.CityIndex] acima) depois que cidades/prédios

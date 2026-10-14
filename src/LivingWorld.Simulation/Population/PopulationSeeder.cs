@@ -116,28 +116,55 @@ public static class PopulationSeeder
             // uses for a building with nowhere else to go (never fails, may overlap): a household
             // still needs SOME location to exist (unlike a workplace, it can't just be skipped),
             // and land scarcity should degrade its exact position, never crash world loading.
-            var (position, orientation) = BuildingPlacementResolver.Resolve(candidate, city, world, bounds)
-                is { } resolved
+            var placement = BuildingPlacementResolver.Resolve(candidate, city, world, bounds);
+
+            // city-building-separation: sem terra livre a casa não vira um prédio empilhado sobre outro;
+            // ela se estende para cima — o domicílio passa a morar num andar livre de uma casa que já existe
+            // (uma casa de N andares abriga até N domicílios).
+            if (placement is null && FindDwellingWithFreeFloor(world, city, houseIds) is { } shared)
+            {
+                houseIds.Add(shared.Building.Id);
+                locations.Add(DwellingCapacity.InteriorCellOf(shared.Building, shared.Building.Position!.Value));
+                continue;
+            }
+
+            var (position, orientation) = placement is { } resolved
                 ? (resolved.Position, resolved.Orientation)
-                : (CityOccupancy.LegacyRingFallback(candidate.Id, city.Location), 0);
+                : (ClampFootprintIntoMap(world, candidate, CityOccupancy.LegacyRingFallback(candidate.Id, city.Location)), 0);
 
             var house = new Building(
                 world.NextBuildingIdAndAdvance(), city.Id, InitialHouseBuildingTypeId,
                 world.CurrentDate.TotalHours, position, orientation);
             world.AddBuilding(house);
             houseIds.Add(house.Id);
-            // Household.Location é o destino real de sono/retorno. A origem do footprint é uma
-            // célula de parede; guardar essa origem fazia o NPC parar "na casa", mas nunca entrar.
-            // Casas 3x3 sempre têm exatamente uma célula Floor, rotacionada junto com a planta.
-            var interior = BuildingFootprintGenerator
-                .Generate(candidate.Id, InitialHouseBuildingTypeId, orientation)
-                .Where(cell => cell.Material == BuildingMaterial.Floor)
-                .OrderBy(cell => cell.Cell.Y)
-                .ThenBy(cell => cell.Cell.X)
-                .Select(cell => new CellCoord(position.X + cell.Cell.X, position.Y + cell.Cell.Y))
-                .First();
-            locations.Add(interior);
+            locations.Add(DwellingCapacity.InteriorCellOf(house, position));
         }
         return locations;
+    }
+
+    /// <summary>Último recurso da semeadura: o anel legado ignora o mapa, então a origem é puxada para que o
+    /// footprint inteiro fique dentro dele (nada nasce fora do mundo, mesmo quando falta terra).</summary>
+    private static CellCoord ClampFootprintIntoMap(WorldState world, Building house, CellCoord origin)
+    {
+        var shape = BuildingFootprintGenerator.Generate(house.Id, house.BuildingTypeId, orientation: 0);
+        int width = shape.Max(c => c.Cell.X) + 1, height = shape.Max(c => c.Cell.Y) + 1;
+        return new CellCoord(
+            Math.Clamp(origin.X, 0, Math.Max(0, world.Map.Width - width)),
+            Math.Clamp(origin.Y, 0, Math.Max(0, world.Map.Height - height)));
+    }
+
+    /// <summary>Primeira casa da cidade (por Id) com andar sobrando: moradores atuais, mais os domicílios já
+    /// atribuídos neste lote, abaixo do número de andares. Só considera casas com posição gravada.</summary>
+    private static (Building Building, int Tenants)? FindDwellingWithFreeFloor(WorldState world, City city, List<BuildingId> batchHouseIds)
+    {
+        foreach (var house in world.Buildings
+                     .Where(b => b.City == city.Id && b.BuildingTypeId == InitialHouseBuildingTypeId && b.Position is not null)
+                     .OrderBy(b => b.Id.Value))
+        {
+            int floors = DwellingCapacity.Of(world, house);
+            int tenants = world.Households.Count(h => h.Dwelling == house.Id) + batchHouseIds.Count(id => id == house.Id);
+            if (tenants < floors) return (house, tenants);
+        }
+        return null;
     }
 }

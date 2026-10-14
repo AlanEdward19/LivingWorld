@@ -166,4 +166,10 @@ public enum WorldEventKind
 
     /// <summary>Furto descoberto (pego em flagrante ou denunciado) — payload: <c>ladraoId|vitimaId|moeda|1 se levou, 0 se falhou</c>.</summary>
     TheftDiscovered,
+
+    /// <summary>Aluguel de hospedagem não pago no mês — payload: <c>domicilioId|predioId|valorDevido|mesesDeAtraso</c>.</summary>
+    RentUnpaid,
+
+    /// <summary>Domicílio despejado por atraso de aluguel — payload: <c>domicilioId|predioId</c>.</summary>
+    Evicted,
 }

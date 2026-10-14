@@ -39,8 +39,12 @@ public static class BuildingPlacementResolver
 
         int orientation = BuildingFootprintGenerator.DerivedOrientation(building.Id, building.BuildingTypeId);
         var shape = BuildingFootprintGenerator.Generate(building.Id, building.BuildingTypeId, orientation).Select(c => c.Cell).ToList();
-        var origin = CityOccupancy.FindFreeCellInBounds(world, city, bounds, shape, building.Id)
-            ?? CityOccupancy.ResolveOverflowWithMarks(world, city, bounds, building, shape);
+        // Degraus de relaxamento (PlacementPolicy.LevelCount): folga e sem água; depois encostando; por fim a
+        // regra antiga. Desce só quando o degrau anterior não achou terra em nenhum lugar do mapa.
+        CellCoord? origin = null;
+        for (int level = 0; level < PlacementPolicy.LevelCount && origin is null; level++)
+            origin = CityOccupancy.FindFreeCellInBounds(world, city, bounds, shape, building.Id, level)
+                ?? CityOccupancy.ResolveOverflowWithMarks(world, city, bounds, building, shape, level);
 
         return origin is { } resolved ? (resolved, orientation, true) : null;
     }

@@ -2,6 +2,7 @@ using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Geography.Map;
 using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Cities;
 using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Behavior.Resolvers;
@@ -14,8 +15,11 @@ public static class RestPlaceResolver
     public static RestPlaceRef Resolve(WorldState world, Npc npc)
     {
         var catalog = world.RestPlaceCatalog;
-        if (npc.Household is { } householdId && world.FindHousehold(householdId) is { } household)
+        if (npc.Household is { } householdId && world.FindHousehold(householdId) is { IsHomeless: false } household)
         {
+            if (GuestLodging.Exists(world) && GuestLodging.FindRoom(world, npc, household.Location) is { } room)
+                return new RestPlaceRef(RestPlaceKind.Lodging, room.Building.Id.Value, room.Cell, catalog.EfficiencyOf(RestPlaceKind.Lodging));
+
             var bed = world.BedOf(householdId);
             if (bed is not null)
                 return new RestPlaceRef(RestPlaceKind.Bed, bed.Id.Value, bed.Location, catalog.BedEfficiency);

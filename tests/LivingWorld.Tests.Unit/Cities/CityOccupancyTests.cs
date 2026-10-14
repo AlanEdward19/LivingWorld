@@ -49,6 +49,17 @@ public class CityOccupancyTests
         throw new InvalidOperationException("nenhum footprint rectangular encontrado no intervalo testado");
     }
 
+    /// <summary>Canto de uma região seca (sem água) de <paramref name="width"/> x <paramref name="height"/> no mapa —
+    /// o posicionamento recusa água, então os testes de "cabe aqui" precisam de terra firme.</summary>
+    private static CellCoord FindDryOrigin(WorldState world, int width, int height)
+    {
+        for (int y = 0; y + height <= world.Map.Height; y++)
+            for (int x = 0; x + width <= world.Map.Width; x++)
+                if (!world.Map.Cells.Any(c => c.HasWater && c.Coord.X >= x && c.Coord.X < x + width && c.Coord.Y >= y && c.Coord.Y < y + height))
+                    return new CellCoord(x, y);
+        throw new InvalidOperationException("mapa de teste sem região seca do tamanho pedido");
+    }
+
     // --- IsFree ---
 
     [Fact]
@@ -131,12 +142,13 @@ public class CityOccupancyTests
     public void FindFreeCellInBounds_returns_an_in_bounds_free_origin_when_bounds_have_room_beyond_the_existing_building()
     {
         var (rectId, rectShape, w, h) = FindRectangularFootprint(typeId: 5);
-        var world = ScenarioRunner.Create(seed: 605, initialPopulation: 0).World;
+        var world = BuildWorldWithMap(40, 40, seed: 605);
+        var dry = FindDryOrigin(world, w * 2 + 2, h + 2);
         var city = new City(world.NextCityId(), new CellCoord(50, 50), 0, null, AggregatePopulationPool.Empty);
         world.AddCity(city);
-        var rectBuilding = new Building(rectId, city.Id, buildingTypeId: 5, completedAtTick: 0, position: new CellCoord(0, 0), orientation: 0);
+        var rectBuilding = new Building(rectId, city.Id, buildingTypeId: 5, completedAtTick: 0, position: dry, orientation: 0);
         world.AddBuilding(rectBuilding);
-        var bounds = new CityBounds(new CellCoord(0, 0), w * 2, h); // espaço extra ao lado do prédio existente
+        var bounds = new CityBounds(dry, w * 2 + CityOccupancy.MinGap, h); // espaço extra ao lado do prédio existente, com a folga mínima
 
         var found = CityOccupancy.FindFreeCellInBounds(world, city, bounds, rectShape);
 
@@ -144,6 +156,21 @@ public class CityOccupancyTests
         var translated = CityOccupancy.Translate(rectShape, found!.Value);
         Assert.True(translated.All(bounds.Contains));
         Assert.True(CityOccupancy.IsFree(world, city, bounds, translated));
+    }
+
+    [Fact]
+    public void FindFreeCellInBounds_refuses_a_spot_that_would_touch_the_existing_building()
+    {
+        var (rectId, rectShape, w, h) = FindRectangularFootprint(typeId: 5);
+        var world = BuildWorldWithMap(40, 40, seed: 605);
+        var dry = FindDryOrigin(world, w * 2 + 2, h + 2);
+        var city = new City(world.NextCityId(), new CellCoord(50, 50), 0, null, AggregatePopulationPool.Empty);
+        world.AddCity(city);
+        world.AddBuilding(new Building(rectId, city.Id, buildingTypeId: 5, completedAtTick: 0, position: dry, orientation: 0));
+        var bounds = new CityBounds(dry, w * 2, h); // só cabe encostado: sem a folga mínima
+
+        Assert.Null(CityOccupancy.FindFreeCellInBounds(world, city, bounds, rectShape));
+        Assert.NotNull(CityOccupancy.FindFreeCellInBounds(world, city, bounds, rectShape, level: 1)); // degrau relaxado aceita encostar
     }
 
     // --- IsLandScarce ---

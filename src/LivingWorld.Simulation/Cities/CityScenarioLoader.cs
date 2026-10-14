@@ -161,7 +161,47 @@ public static class CityScenarioLoader
                 workplace = new WorkplaceProvision(locationTypeId, maxVacancies);
             }
 
-            var recipeResult = BuildingRecipe.Create(inputs, ticksToBuild, housingCapacity, workplace);
+            LodgingTerms? lodging = null;
+            if (recipeNode["Lodging"] is JsonObject lodgingNode)
+            {
+                if (!TryGetLong(lodgingNode, "RentPerMonth", out var rent))
+                    return Result<CityCatalog>.Fail($"BuildingRecipes[{key}].Lodging.RentPerMonth: campo obrigatório ausente ou inválido");
+                if (!TryGetInt(lodgingNode, "GraceMonths", out var graceMonths))
+                    return Result<CityCatalog>.Fail($"BuildingRecipes[{key}].Lodging.GraceMonths: campo obrigatório ausente ou inválido");
+                long nightlyRate = 0;
+                int guestMinDistance = 0;
+                if (lodgingNode["NightlyRate"] is not null && !TryGetLong(lodgingNode, "NightlyRate", out nightlyRate))
+                    return Result<CityCatalog>.Fail($"BuildingRecipes[{key}].Lodging.NightlyRate: valor inválido");
+                if (lodgingNode["GuestMinDistance"] is not null && !TryGetInt(lodgingNode, "GuestMinDistance", out guestMinDistance))
+                    return Result<CityCatalog>.Fail($"BuildingRecipes[{key}].Lodging.GuestMinDistance: valor inválido");
+                lodging = new LodgingTerms(rent, graceMonths, nightlyRate, guestMinDistance);
+            }
+
+            PricingTerms? pricing = null;
+            if (recipeNode["Pricing"] is JsonObject pricingNode)
+            {
+                if (!TryGetLong(pricingNode, "BaseValue", out var baseValue))
+                    return Result<CityCatalog>.Fail($"BuildingRecipes[{key}].Pricing.BaseValue: campo obrigatório ausente ou inválido");
+                string? invalidField = null;
+                double Optional(string name, double fallback)
+                {
+                    if (pricingNode[name] is null) return fallback;
+                    if (TryGetDouble(pricingNode, name, out var value)) return value;
+                    invalidField ??= name;
+                    return fallback;
+                }
+
+                int radius = 0;
+                if (pricingNode["AmenityRadius"] is not null && !TryGetInt(pricingNode, "AmenityRadius", out radius))
+                    invalidField = "AmenityRadius";
+                pricing = new PricingTerms(
+                    baseValue, Optional("RentYieldPerMonth", 0), Optional("CentralityWeight", 0), Optional("AmenityWeight", 0), radius,
+                    Optional("WaterfrontWeight", 0), Optional("DemandSensitivity", 0), Optional("MinMultiplier", 1), Optional("MaxMultiplier", 1));
+                if (invalidField is not null)
+                    return Result<CityCatalog>.Fail($"BuildingRecipes[{key}].Pricing.{invalidField}: valor inválido");
+            }
+
+            var recipeResult = BuildingRecipe.Create(inputs, ticksToBuild, housingCapacity, workplace, lodging, pricing);
             if (!recipeResult.IsSuccess)
                 return Result<CityCatalog>.Fail($"BuildingRecipes[{key}]: {recipeResult.Error}");
 
