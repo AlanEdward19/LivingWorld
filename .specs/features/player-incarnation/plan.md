@@ -1,4 +1,4 @@
-# Player incarnation [Estado: Spec - plano sem checks nem código (specs-closeout 2026-10-12)]
+# Player incarnation [Estado: Entregue - Npc.ControllerId, PlayerCommands, /players/* (AD-111, 2026-10-14)]
 
 ## Problem
 

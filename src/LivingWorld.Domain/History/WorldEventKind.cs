@@ -172,4 +172,10 @@ public enum WorldEventKind
 
     /// <summary>Domicílio despejado por atraso de aluguel — payload: <c>domicilioId|predioId</c>.</summary>
     Evicted,
+
+    /// <summary>Um jogador assumiu um NPC — payload: <c>npcId|jogadorId</c>.</summary>
+    PlayerIncarnated,
+
+    /// <summary>O jogador saiu e o NPC desapareceu — payload: <c>npcId|jogadorId|cidadeId|vinculosProximos</c>.</summary>
+    PlayerDisappeared,
 }

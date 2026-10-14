@@ -91,6 +91,25 @@ if (args.Length == 3 && args[0] == "theft-hash")
     return 0;
 }
 
+// Hash canônico de uma vila em que um jogador encarna um NPC, pede ação e sai (desaparecimento): o teste de dois processos exige o
+// mesmo hash. `dotnet <dll> player-hash <seed> <ticks>`.
+if (args.Length == 3 && args[0] == "player-hash")
+{
+    var (world, _) = ScenarioRunner.Create(ulong.Parse(args[1]));
+    var sink = new BufferingWorldEventSink();
+    var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink);
+    clock.Run(world, 96);
+    var npc = world.Npcs.First(n => n.IsAlive && n.Employer is not null && n.Household is not null);
+    var players = new LivingWorld.Simulation.Players.PlayerService(sink);
+    players.Incarnate(world, npc.Id, "alan");
+    players.Act(world, "alan", LivingWorld.Domain.Behavior.ActionType.Idle);
+    clock.Run(world, 48);
+    players.Logout(world, "alan");
+    clock.Run(world, long.Parse(args[2]));
+    Console.WriteLine($"{WorldSnapshot.CanonicalHash(world)};{npc.DisappearedAtTick}");
+    return 0;
+}
+
 // `dotnet <dll> history-significance-digest <seed> <ticks>`.
 if (args.Length == 3 && args[0] == "history-significance-digest")
 {

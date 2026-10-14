@@ -89,6 +89,16 @@ public class DeterminismTwoProcessTests
     }
 
     [Fact]
+    public void Same_seed_replays_an_incarnation_and_a_disappearance_across_two_separate_processes()
+    {
+        string a = RunCommand("player-hash 5 2000");
+        string b = RunCommand("player-hash 5 2000");
+
+        Assert.Equal(a, b);
+        Assert.NotEqual("", a.Split(';')[1]);
+    }
+
+    [Fact]
     public void Different_seeds_produce_different_canonical_hashes_across_processes()
     {
         var (canonicalA, _) = RunInSeparateProcess(seed: 42, ticks: 400);
