@@ -172,3 +172,67 @@ func _find_button(node: Node, text: String) -> Button:
 		if found != null:
 			return found
 	return null
+
+
+func test_emotion_is_shown_with_portuguese_name_and_colour() -> void:
+	var window := _window(_accepting())
+	await window.start(7, "Ana")
+	await window.send("Olá")
+
+	var label: Label = window._line_node(window.lines[1])
+
+	check("(feliz)" in label.text and "Bom dia!" in label.text, "nome da emoção em português: " + label.text)
+	eq(label.get_theme_color("font_color"), Color("7ccf88"), "cor da emoção")
+	check(not (window._line_node(window.lines[0]) as Label).has_theme_color_override("font_color"), "fala do jogador sem cor de emoção")
+	window.free()
+
+
+func test_reply_deadline_is_the_server_budget_plus_margin() -> void:
+	var window := _window(_accepting())
+	eq(window._deadline.wait_time, 8.0, "5 s do servidor + margem")
+	check(window._deadline.one_shot, "prazo único")
+	window.free()
+
+
+func test_a_malformed_start_reply_is_rejected_by_the_frozen_shape() -> void:
+	var transport := FakeTransport.new()
+	transport.on("POST /conversations/start", {"status": 200, "body": {"sessionId": 3}})
+	var window := ConversationWindow.new()
+	window.api = ApiClient.new(transport) # validate_shapes ligado
+	var warnings: Array = []
+	window.warning.connect(func(text: String): warnings.append(text))
+
+	await window.start(7, "Ana")
+
+	eq(window.is_open, false, "resposta fora do contrato não abre a janela")
+	eq(warnings.size(), 1)
+	window.free()
+
+
+func test_open_window_makes_no_requests_while_frames_pass() -> void:
+	var transport := _accepting()
+	var window := _window(transport)
+	tree.root.add_child(window)
+	await window.start(7, "Ana")
+	var before: int = transport.calls.size()
+	for i in 5:
+		await tree.process_frame
+	eq(transport.calls.size(), before, "nenhuma requisição por frame")
+	window.free()
+
+
+func test_returning_to_the_menu_ends_the_open_conversation_once() -> void:
+	var transport := FakeTransport.new()
+	transport.on("GET /visual/catalog/actions", {"status": 200, "body": []})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 0, "year": 0}})
+	transport.on("POST /conversations/start", {"status": 200, "body": {"decision": "Accepted", "sessionId": 4}})
+	transport.on("POST /conversations/end", {"status": 200, "body": {"result": "Ok"}})
+	var app := App.new()
+	tree.root.add_child(app)
+	await app.start(transport, false)
+	await app.talk_to(7)
+
+	await app.release_observation()
+
+	eq(transport.bodies["POST /conversations/end"], [{"sessionId": 4}], "voltar ao menu encerra a conversa uma vez")
+	app.queue_free()

@@ -67,6 +67,10 @@ func _init() -> void:
 	input.placeholder_text = "diga algo…"
 	input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	input.text_submitted.connect(func(text: String): send(text))
+	input.gui_input.connect(func(event: InputEvent):
+		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			input.accept_event()
+			end_conversation())
 	row.add_child(input)
 	_send_button = Button.new()
 	_send_button.text = "Enviar"
