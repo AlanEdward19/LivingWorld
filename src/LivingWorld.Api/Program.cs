@@ -1,10 +1,12 @@
 using LivingWorld.AI;
+using LivingWorld.Api.Admin;
 using LivingWorld.Api.Authoring;
 using LivingWorld.Api.Conversation;
 using LivingWorld.Api.Narrative;
 using LivingWorld.Api.NpcDirectory;
 using LivingWorld.Api.Observation;
 using LivingWorld.Api.Periods;
+using LivingWorld.Api.Players;
 using LivingWorld.Api.Realtime;
 using LivingWorld.Api.Simulation;
 using LivingWorld.Api.Trade;
@@ -117,6 +119,8 @@ builder.Services.AddSingleton(worldRunner);
 builder.Services.AddSingleton(worldClock);
 builder.Services.AddSingleton(worldSink);
 builder.Services.AddSingleton(new WorldAuthoringService(worldSink));
+var playerService = new LivingWorld.Simulation.Players.PlayerService(worldSink);
+builder.Services.AddSingleton(playerService);
 builder.Services.AddSingleton(simulationHost);
 builder.Services.AddSingleton(realtimeGateway);
 builder.Services.AddSingleton(sessions);
@@ -132,6 +136,7 @@ if (builder.Configuration["TICK_LOOP_ENABLED"] == "true")
 
 builder.Services.AddDbContext<WorldDbContext>(o => o.UseSqlite(worldDbConnection));
 builder.Services.AddScoped<IPeriodTemplateRepository, SqlitePeriodTemplateRepository>();
+builder.Services.AddScoped<AdminAuditStore>();
 
 var app = builder.Build();
 
@@ -191,20 +196,31 @@ var orchestrator = new ConversationOrchestrator(
     budgetPerInteraction: TimeSpan.FromSeconds(5));
 app.MapConversationEndpoints(worldHost, sessions, orchestrator);
 app.MapNarrativeEndpoints(worldHost, chronicles);
+app.MapHistoryEndpoints(worldHost);
 app.MapPeriodsEndpoints();
 app.MapWorldStartEndpoints();
 app.MapWorldCreateEndpoints(worldHost, worldRunner, worldSink);
 app.MapWorldPreviewEndpoints();
+app.MapCultureTechnologyEndpoints(worldHost);
 app.MapSimulationControlEndpoints();
 app.MapRealtimeEndpoints();
 app.MapActionLabelEndpoints();
 app.MapNpcDirectoryEndpoints(worldHost);
 app.MapTradeEndpoints(worldHost);
 app.MapTreasuryEndpoints(worldHost);
+app.MapPlayerEndpoints(worldHost, playerService);
 app.MapVisualInputEndpoints();
 app.MapAuthoringEndpoints();
 app.MapWatchlistEndpoints(worldHost);
 app.MapObservationScopeEndpoints(worldHost);
+app.MapAdminEndpoints(worldHost, simulationHost);
+simulationHost.OnPauseExpired = pause =>
+{
+    using var scope = app.Services.CreateScope();
+    scope.ServiceProvider.GetRequiredService<AdminAuditStore>().Append(
+        BranchId.Root, worldHost.Current.CurrentDate.TotalHours, "system", "world.pause-expired", "world",
+        $"actor={pause.Actor};reason={pause.Reason};maxTicks={pause.MaxTicks}");
+};
 
 app.Run();
 

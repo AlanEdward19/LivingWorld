@@ -10,6 +10,10 @@ namespace LivingWorld.Simulation.Core;
 // Parte de WorldState — operações sobre fatos, relatos, livros e memórias. O estado (campos e propriedades) fica em WorldState.cs.
 public sealed partial class WorldState
 {
+    internal void AddTechnology(LivingWorld.Domain.Emergence.Technology technology) => _technologies.Add(technology);
+
+    internal void ReplaceTechnology(int index, LivingWorld.Domain.Emergence.Technology technology) => _technologies[index] = technology;
+
     internal FactId NextFactIdAndAdvance() => new(_nextFactId++);
 
     internal ReportId NextReportIdAndAdvance() => new(_nextReportId++);

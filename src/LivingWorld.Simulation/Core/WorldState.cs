@@ -6,6 +6,7 @@ using LivingWorld.Domain.Cognition;
 using LivingWorld.Domain.Crime;
 using LivingWorld.Domain.Ecology;
 using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Emergence;
 using LivingWorld.Domain.Extraordinary;
 using LivingWorld.Domain.Fauna;
 using LivingWorld.Domain.Flora;
@@ -213,6 +214,13 @@ public sealed partial class WorldState
 
     /// <summary>Regras de furto do cenário (crime-and-theft); desligado por padrão: ninguém furta.</summary>
     [Canonical] public TheftRules TheftRules { get; }
+
+    /// <summary>Regras da emergência aberta (emergence-first-slice); desligadas por padrão: nenhuma tecnologia emerge.</summary>
+    [Canonical] public EmergenceRules EmergenceRules { get; }
+
+    /// <summary>Tecnologias por cultura, na ordem de descoberta; identificadas só pelo vetor (ADR-0013).</summary>
+    [Canonical] public IReadOnlyList<Technology> Technologies => _technologies;
+    private readonly List<Technology> _technologies;
 
     /// <summary>Infecções ativas, ordenadas por NPC e doença.</summary>
     [Canonical] public IReadOnlyList<Infection> Infections => _infections;
@@ -463,7 +471,9 @@ public sealed partial class WorldState
         IReadOnlyList<Immunity>? immunities = null,
         ClimateRules? climateRules = null,
         IReadOnlyList<ClimateYear>? climateYears = null,
-        TheftRules? theftRules = null)
+        TheftRules? theftRules = null,
+        EmergenceRules? emergenceRules = null,
+        IReadOnlyList<Technology>? technologies = null)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -509,6 +519,8 @@ public sealed partial class WorldState
         _immunities = (immunities ?? []).ToList();
         ClimateRules = climateRules ?? ClimateRules.Disabled;
         TheftRules = theftRules ?? TheftRules.Disabled;
+        EmergenceRules = emergenceRules ?? EmergenceRules.Disabled;
+        _technologies = (technologies ?? []).ToList();
         _climateYears = (climateYears ?? []).ToList();
         Name = name;
         _facts = [];
@@ -625,7 +637,9 @@ public sealed partial class WorldState
         IReadOnlyList<Immunity>? immunities = null,
         ClimateRules? climateRules = null,
         IReadOnlyList<ClimateYear>? climateYears = null,
-        TheftRules? theftRules = null)
+        TheftRules? theftRules = null,
+        EmergenceRules? emergenceRules = null,
+        IReadOnlyList<Technology>? technologies = null)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -706,6 +720,8 @@ public sealed partial class WorldState
         _immunities = (immunities ?? []).ToList();
         ClimateRules = climateRules ?? ClimateRules.Disabled;
         TheftRules = theftRules ?? TheftRules.Disabled;
+        EmergenceRules = emergenceRules ?? EmergenceRules.Disabled;
+        _technologies = (technologies ?? []).ToList();
         _climateYears = (climateYears ?? []).ToList();
         _facts = (facts ?? []).ToList();
         _nextFactId = nextFactId;

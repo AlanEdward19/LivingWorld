@@ -17,6 +17,40 @@ namespace LivingWorld.Infrastructure.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.0");
 
+            modelBuilder.Entity("LivingWorld.Infrastructure.Records.AdminAuditRecord", b =>
+                {
+                    b.Property<long>("BranchId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("Sequence")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Actor")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Detail")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Target")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Tick")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("BranchId", "Sequence");
+
+                    b.HasIndex("BranchId");
+
+                    b.ToTable("AdminAudit");
+                });
+
             modelBuilder.Entity("LivingWorld.Infrastructure.Records.EventLogRecord", b =>
                 {
                     b.Property<long>("BranchId")

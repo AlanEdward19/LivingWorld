@@ -9,10 +9,12 @@ Atalho: `bash scripts/play.sh` sobe a API (mundo vivo) e abre o cliente no **men
 
 ```bash
 # 1. API (outro terminal) — porta 5214
-ConnectionStrings__World="Data Source=/tmp/lw.db" TICK_LOOP_ENABLED=true dotnet run --project src/LivingWorld.Api -c Release --urls http://localhost:5214
+ADMIN_TOKEN=dev ConnectionStrings__World="Data Source=/tmp/lw.db" TICK_LOOP_ENABLED=true dotnet run --project src/LivingWorld.Api -c Release --urls http://localhost:5214
 # 2. Cliente
-/Applications/Godot_mono.app/Contents/MacOS/Godot --path client/godot
+LW_ADMIN_TOKEN=dev /Applications/Godot_mono.app/Contents/MacOS/Godot --path client/godot
 ```
+
+Pausa, velocidade, passo e +1 ano são do admin (ADR-0015): a API exige `X-Admin-Token` igual a `ADMIN_TOKEN` e o cliente manda o valor de `LW_ADMIN_TOKEN` (o `play.sh` gera um por sessão). Sem o token esses botões recebem 403 e nada muda.
 
 ## Controles
 
@@ -42,3 +44,4 @@ Capturas e demos automáticas: `-- --steps "wait:2;city;wait:1;shot:/tmp/a.png;q
 `-- --steps "wait:2;stress:500;quit"` põe 500 NPCs andando e imprime os quadros por segundo. Medido num M1 Pro: ~77 FPS com a câmera longe (NPCs simplificados) e ~52 FPS perto. Acima de 150 NPCs e zoom longe, o NPC vira tronco e cabeça; fora da vista só interpola a posição.
 
 Zoom LOD (2026-10-13, M1 Pro, `stress:500`, câmera padrão): antes 78,1 / 77,8 / 78,6 FPS; depois 78,4 / 78,9 / 76,9 (teto de 79 pelo vsync, ruído de ±1). No mapa-múndi afastado os NPCs viram bolhas (acima de 60% do zoom máximo).
+Arte e áudio (2026-10-14, M1 Pro, `stress:500`, câmera padrão, API local): 75,8 / 77,2 / 75,3 FPS (teto de 77-79 pelo vsync), contra 76,9-78,9 antes do catálogo: dentro de ±3 e bem acima dos 50 FPS exigidos.

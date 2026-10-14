@@ -7,6 +7,7 @@ using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Needs;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Economy.Market;
+using LivingWorld.Simulation.Emergence;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
 
 namespace LivingWorld.Simulation.Behavior.Decision;
@@ -76,7 +77,8 @@ public sealed partial class BehaviorDecisionSystem
     {
         if (market is null) return ProvisionTargetDays;
 
-        long ticks = TravelTicksCache.Between(world.Map, household.Location, market.Location);
+        long ticks = Mobility.Apply(
+            TravelTicksCache.Between(world.Map, household.Location, market.Location), Mobility.BonusPct(world, household.City));
         return Math.Min(MaxProvisionDays, ProvisionTargetDays + 2.0 * ticks / world.CurrentDate.Calendar.HoursPerDay);
     }
 

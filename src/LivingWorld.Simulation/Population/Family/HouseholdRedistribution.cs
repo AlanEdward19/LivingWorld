@@ -96,7 +96,7 @@ public static class HouseholdRedistribution
         }
     }
 
-    private static void CreateUnitaryHousehold(WorldState world, Npc child)
+    internal static void CreateUnitaryHousehold(WorldState world, Npc child)
     {
         var householdId = world.NextHouseholdIdAndAdvance();
         var household = new Household(householdId, child.CurrentLocation, child.Id, [child.Id]);

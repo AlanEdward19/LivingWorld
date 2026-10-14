@@ -20,6 +20,17 @@ namespace LivingWorld.Tests.Shared;
 /// ScenarioRunner + DI. Um host <b>não</b> é thread-safe para mutação/leitura concorrente.</summary>
 public sealed class LivingWorldApiFactory : WebApplicationFactory<Program>
 {
+    /// <summary>Token de admin dos testes; as rotas de controle do relógio exigem <c>X-Admin-Token</c> com este valor.</summary>
+    public const string AdminToken = "test-admin-token";
+
+    /// <summary>Cliente já autenticado como admin.</summary>
+    public HttpClient CreateAdminClient()
+    {
+        var client = CreateClient();
+        client.DefaultRequestHeaders.Add("X-Admin-Token", AdminToken);
+        return client;
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureAppConfiguration((_, config) =>
@@ -28,6 +39,7 @@ public sealed class LivingWorldApiFactory : WebApplicationFactory<Program>
             {
                 ["ConnectionStrings:World"] = "Data Source=:memory:",
                 ["TICK_LOOP_ENABLED"] = "false",
+                ["ADMIN_TOKEN"] = AdminToken,
             });
         });
     }

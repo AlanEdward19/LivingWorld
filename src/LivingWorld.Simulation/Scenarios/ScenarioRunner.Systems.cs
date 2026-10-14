@@ -12,6 +12,7 @@ using LivingWorld.Simulation.Economy.Market;
 using LivingWorld.Simulation.Economy.Production;
 using LivingWorld.Simulation.Economy.Supply;
 using LivingWorld.Simulation.Economy.Trade;
+using LivingWorld.Simulation.Emergence;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
 using LivingWorld.Simulation.Extraordinary.Systems;
 using LivingWorld.Simulation.Geography;
@@ -21,6 +22,7 @@ using LivingWorld.Simulation.History.Distortion;
 using LivingWorld.Simulation.Llm;
 using LivingWorld.Simulation.Narrative;
 using LivingWorld.Simulation.Periods;
+using LivingWorld.Simulation.Players;
 using LivingWorld.Simulation.Population.Archive;
 using LivingWorld.Simulation.Population.Family;
 using LivingWorld.Simulation.Population.Lifecycle;
@@ -60,6 +62,7 @@ public static partial class ScenarioRunner
         new ClimateYearSystem(),
         new MortalitySystem(),
         new OutbreakSystem(),
+        new TechDiscoverySystem(),
         new FactToReportConversionScheduler(),
         new BookRediscoverySystem(),
         new ColdArchiveSystem(),
@@ -93,6 +96,7 @@ public static partial class ScenarioRunner
         new MaterializationSystem(),
         new SettlementFoundingSystem(),
         new SpatialSettlementFoundingSystem(),
+        new PlayerSearchSystem(),
         chronicles ?? new ChronicleGenerationSystem(),
         conversationSessions ?? new ConversationSessionStore(),
         };

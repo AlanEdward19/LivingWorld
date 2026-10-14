@@ -163,6 +163,9 @@ public class WorldSnapshotTests
             CreatedAtTick: world.CurrentDate.TotalHours,
             LastHopTick: world.CurrentDate.TotalHours);
         world.RegisterReport(report);
+        world.AddTechnology(new LivingWorld.Domain.Emergence.Technology(
+            world.Npcs[0].Culture, "mobility", new LivingWorld.Domain.Emergence.TechnologyVector([2, 3, 4]), 5,
+            world.Npcs[0].City, null, [world.Npcs[0].City]));
         world.AddBook(new Book(
             world.NextBookIdAndAdvance(),
             report.Id,

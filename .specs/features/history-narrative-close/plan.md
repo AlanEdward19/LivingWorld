@@ -1,4 +1,4 @@
-# History narrative close [Estado: Spec - plano sem checks nem código (specs-closeout 2026-10-12)]
+# History narrative close [Estado: Entregue - endpoints /history/*, descarte logado de claim órfão e provas S1/S2 (2026-10-14)]
 
 ## Problem
 
@@ -38,8 +38,8 @@ One-way constraints: fato nunca é alterado depois de escrito; relato guarda pro
 
 | Route | In | Out | Status |
 | --- | --- | --- | --- |
-| `GET /history/truth` | `scope`, `fromTick` | fatos do esqueleto | 200, 403 |
-| `GET /history/beliefs` | `communityId` | relatos vivos | 200, 404 |
+| `GET /history/truth` | `scope`, `fromTick`, cabeçalho `X-Engine-Scope` (= `HISTORY_ENGINE_SCOPE_TOKEN`) | fatos do esqueleto | 200, 403 |
+| `GET /history/beliefs` | `communityId` | relatos vivos | 200, 400 (sem `communityId`), 404 |
 
 ## Landing
 

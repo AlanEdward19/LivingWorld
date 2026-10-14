@@ -21,7 +21,7 @@ public class SimulationControlEndpointsTests : IClassFixture<LivingWorldApiFacto
     [Fact]
     public async Task Pause_marks_status_as_paused()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateAdminClient();
 
         var pauseResponse = await client.PostAsync("/simulation/pause", null);
         Assert.Equal(HttpStatusCode.OK, pauseResponse.StatusCode);
@@ -35,7 +35,7 @@ public class SimulationControlEndpointsTests : IClassFixture<LivingWorldApiFacto
     [Fact]
     public async Task Resume_clears_paused_status()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateAdminClient();
         await client.PostAsync("/simulation/pause", null);
 
         var resumeResponse = await client.PostAsync("/simulation/resume", null);
@@ -48,7 +48,7 @@ public class SimulationControlEndpointsTests : IClassFixture<LivingWorldApiFacto
     [Fact]
     public async Task Speed_with_a_positive_value_updates_ticks_per_second()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateAdminClient();
 
         var response = await client.PostAsJsonAsync("/simulation/speed", new SetSpeedRequest(4.0));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -60,7 +60,7 @@ public class SimulationControlEndpointsTests : IClassFixture<LivingWorldApiFacto
     [Fact]
     public async Task Speed_with_a_non_positive_value_returns_400_and_does_not_change_ticks_per_second()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateAdminClient();
         await client.PostAsJsonAsync("/simulation/speed", new SetSpeedRequest(2.0));
 
         var response = await client.PostAsJsonAsync("/simulation/speed", new SetSpeedRequest(0.0));
@@ -73,7 +73,7 @@ public class SimulationControlEndpointsTests : IClassFixture<LivingWorldApiFacto
     [Fact]
     public async Task Step_while_paused_advances_the_world_clock_by_exactly_one_tick()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateAdminClient();
         await client.PostAsync("/simulation/pause", null);
 
         using var scope = _factory.Services.CreateScope();
@@ -92,7 +92,7 @@ public class SimulationControlEndpointsTests : IClassFixture<LivingWorldApiFacto
     [Fact]
     public async Task Step_while_running_returns_409_and_does_not_advance_the_clock()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateAdminClient();
         await client.PostAsync("/simulation/resume", null);
 
         using var scope = _factory.Services.CreateScope();
@@ -108,7 +108,7 @@ public class SimulationControlEndpointsTests : IClassFixture<LivingWorldApiFacto
     [Fact]
     public async Task Advance_year_while_paused_runs_exactly_one_calendar_year()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateAdminClient();
         await client.PostAsync("/simulation/pause", null);
 
         using var scope = _factory.Services.CreateScope();
@@ -124,7 +124,7 @@ public class SimulationControlEndpointsTests : IClassFixture<LivingWorldApiFacto
     [Fact]
     public async Task Advance_year_while_running_returns_409_without_advancing_the_clock()
     {
-        var client = _factory.CreateClient();
+        var client = _factory.CreateAdminClient();
         await client.PostAsync("/simulation/resume", null);
 
         using var scope = _factory.Services.CreateScope();
@@ -144,7 +144,7 @@ public class SimulationControlEndpointsTests : IClassFixture<LivingWorldApiFacto
         var world = scope.ServiceProvider.GetRequiredService<WorldState>();
         var hashBefore = WorldSnapshot.CanonicalHash(world);
 
-        var client = _factory.CreateClient();
+        var client = _factory.CreateAdminClient();
         for (int i = 0; i < 3; i++)
         {
             await client.PostAsync("/simulation/pause", null);
@@ -164,7 +164,7 @@ public class SimulationControlEndpointsTests : IClassFixture<LivingWorldApiFacto
         var cityId = _factory.Services.GetRequiredService<WorldHost>().Current.ActiveCities().First().Id;
         var cityScope = new LivingWorld.Api.Visual.Scope.VisualScope(LivingWorld.Api.Visual.Scope.VisualScopeKind.City, cityId.ToString());
         var (cityReader, cityUnsubscribe) = gateway.SubscribeChannel(cityScope);
-        var client = _factory.CreateClient();
+        var client = _factory.CreateAdminClient();
         await client.PostAsync("/simulation/pause", null);
         try
         {
@@ -187,5 +187,39 @@ public class SimulationControlEndpointsTests : IClassFixture<LivingWorldApiFacto
             cityUnsubscribe();
             await client.PostAsync("/simulation/resume", null);
         }
+    }
+
+    [Fact]
+    public async Task Clock_controls_without_the_admin_token_are_403_and_change_nothing()
+    {
+        var anonymous = _factory.CreateClient();
+        var host = _factory.Services.GetRequiredService<SimulationHost>();
+        host.Resume();
+        double speed = host.TicksPerSecond;
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await anonymous.PostAsync("/simulation/pause", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await anonymous.PostAsync("/simulation/resume", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await anonymous.PostAsJsonAsync("/simulation/speed", new SetSpeedRequest(9.0))).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await anonymous.PostAsync("/simulation/step", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await anonymous.PostAsync("/simulation/advance-year", null)).StatusCode);
+
+        Assert.False(host.IsPaused);
+        Assert.Equal(speed, host.TicksPerSecond);
+        Assert.Equal(HttpStatusCode.OK, (await anonymous.GetAsync("/simulation/status")).StatusCode); // leitura segue aberta
+    }
+
+    [Fact]
+    public async Task Pause_from_the_client_route_has_the_default_cap_and_is_audited()
+    {
+        var client = _factory.CreateAdminClient();
+        var host = _factory.Services.GetRequiredService<SimulationHost>();
+
+        await client.PostAsync("/simulation/pause", null);
+
+        long hoursPerDay = _factory.Services.GetRequiredService<WorldHost>().Current.Calendar.HoursPerDay;
+        Assert.Equal(hoursPerDay * SimulationHost.DefaultAdminPauseDays, host.AdminPause!.MaxTicks);
+        var audit = await client.GetFromJsonAsync<List<LivingWorld.Infrastructure.Records.AdminAuditRecord>>("/admin/audit");
+        Assert.Contains(audit!, a => a.Action == "world.pause");
+        await client.PostAsync("/simulation/resume", null);
     }
 }

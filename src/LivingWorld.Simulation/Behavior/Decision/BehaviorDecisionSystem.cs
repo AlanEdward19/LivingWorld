@@ -132,7 +132,12 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 PendingPowerInvocation? pendingPower = null;
                 ActionType candidate;
                 bool urgent = HasUrgentNeedForDecision(npc, rules, now);
-                if (urgent)
+                if (npc.ControlledAction is { } playerAction)
+                {
+                    // Controlador externo: troca só a escolha. A resolução abaixo (percepção, passos, viagem) é a de qualquer NPC.
+                    candidate = playerAction;
+                }
+                else if (urgent)
                 {
                     bool recordTrace = ShouldRecordCognitionTrace(world, npc);
                     var decision = SelectByUtility(
@@ -158,7 +163,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 }
 
                 candidate = ApplyPerception(world, npc, candidate);
-                if (urgent && world.TheftRules.Enabled && TheftResolver.Wants(world, npc, now, theftIndex))
+                if (urgent && npc.ControlledAction is null && world.TheftRules.Enabled && TheftResolver.Wants(world, npc, now, theftIndex))
                     candidate = ActionType.Steal; // desespero + temperamento + alguém com moeda ao lado
 
                 chosen = ResolveWithStepCap(npc.Id.Value, candidate, world, npc, marketIndex, rules.MaxActionSelectionSteps);
