@@ -6,12 +6,11 @@ nomes que só existem porque emergiram (Fase 24); listar eventos marcantes e ler
 com todos os documentos atrelados; e, só em modo god, **reescrever um fato**, o que
 **ramifica** (ADR-0008) e cria uma linha nova. Nunca `UPDATE` no passado.
 
-> **Spec, não gate.** Os critérios abaixo são a intenção; os critérios finais são escritos
-> sob `rules/eval-criteria.md` quando a fase for ativada. Não comece esta fase antes da
-> Fase 18 fechar.
+> **Status: parcial.** Entregue: pausa com teto, velocidade, busca de NPC e auditoria append-only (plano `.specs/features/god-console`, AD-112).
+> Resto: #62 (reescrita/diff dependem da Fase 18). As tasks não entregues continuam com critério de intenção; o critério final é escrito ao ativar a fatia (`rules/eval-criteria.md`).
 
 ## Tasks
-1. **Controles de tempo reusando a Fase 1**: pausar, retomar, velocidade em ticks por segundo
+1. *(entregue, AD-112)* **Controles de tempo reusando a Fase 1**: pausar, retomar, velocidade em ticks por segundo
    real, avanço de N ticks — **globais por branch e exclusivos do admin** (ADR-0015), com
    aviso a todo jogador conectado (Fase 25). Nada disso entra no snapshot: é estado do
    hospedeiro, não do mundo.
@@ -32,7 +31,7 @@ com todos os documentos atrelados; e, só em modo god, **reescrever um fato**, o
    intocada. Rebuild é o replay da linha nova, não uma edição da antiga.
 8. **Diff entre a linha original e a reconstruída**: divergência de estado e de eventos,
    amostrada por significância para que comparar séculos não vire um dump.
-9. **Auditoria em dois lugares** (ADR-0015): **leitura** (busca, inspeção, visão de verdade,
+9. *(parcial: store de leitura entregue, AD-112)* **Auditoria em dois lugares** (ADR-0015): **leitura** (busca, inspeção, visão de verdade,
    pausa, velocidade) vai para um store **separado**, fora do hash canônico, com o **mesmo**
    invariante append-only — o teste que exige `UPDATE` e `DELETE` falhando vale igual naquela
    tabela. **Intervenção** não tem trilha paralela: ela já é fato do mundo e ramifica

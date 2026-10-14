@@ -47,7 +47,7 @@ O número é **identidade**, não ordem. Só a trilha núcleo é sequencial.
 | 13 | [Múltiplos períodos](docs/roadmap/phase-13-periods.md) | Módulos de conteúdo: pré-histórico, moderno, futurista, criaturas | fechada |
 | 14 | [Unreal](docs/roadmap/phase-14-unreal.md) | Cliente 3D, personagens, voz, animação | adiada (não iniciada) |
 | 15 | [Mapa visual](docs/roadmap/phase-15-map-visual.md) | Cliente React+TS VTT 2D realtime: camadas + espectador + FOW | parcial (servidor/FOW/tokens prontos; cliente migrou ao Godot, ADR-0022) |
-| 16 | [Potência](docs/roadmap/phase-16-powers.md) | Extraordinário opcional por mundo: modificador unificado, custo/rolagem/fraqueza opcionais, aquisição declarativa | parcial (efeitos e custos ainda em switch C# fechado; reabertura pendente) |
+| 16 | [Potência](docs/roadmap/phase-16-powers.md) | Extraordinário opcional por mundo: modificador unificado, custo/rolagem/fraqueza opcionais, aquisição declarativa | parcial (efeitos e custos ainda em switch C# fechado; reabertura pendente, #64) |
 | 17 | [Divindade](docs/roadmap/phase-17-divinity.md) | Deuses, culto, economia de crença, cisma, deus falso, ser cultuado ≠ ganhar poder | spec |
 | 18 | [Linhas temporais](docs/roadmap/phase-18-timelines.md) | Ramificação, inércia histórica, âncora e coleta de branch | spec |
 | 19 | [Cosmos e contato](docs/roadmap/phase-19-cosmos.md) | Sistema estelar, órbitas, aliens como cultura, colônias | spec |
@@ -55,11 +55,11 @@ O número é **identidade**, não ordem. Só a trilha núcleo é sequencial.
 | 21 | [Ontogenia](docs/roadmap/phase-21-ontogeny.md) | Nascer sem saber nada, marcos, exposição, janelas críticas | spec |
 | 22 | [Imperfeição](docs/roadmap/phase-22-imperfection.md) | Defeitos, doenças, moral emergente, orientação e ocultação | spec |
 | 23 | [Intriga](docs/roadmap/phase-23-intrigue.md) | Segredo, persona/identidade, chantagem, traição, divulgação, rumor, investigação, conspiração | spec |
-| 24 | [Emergência aberta](docs/roadmap/phase-24-emergence.md) | Raças, tecnologias, ideologias, potências e contramedidas novas por composição | spec |
-| 25 | [Jogadores](docs/roadmap/phase-25-players.md) | Encarnação, offline vira desaparecimento, espectador, multiplayer | spec |
-| 26 | [Console e modo god](docs/roadmap/phase-26-console.md) | Pausa, velocidade, busca, eventos marcantes, reescrita + rebuild | spec |
+| 24 | [Emergência aberta](docs/roadmap/phase-24-emergence.md) | Raças, tecnologias, ideologias, potências e contramedidas novas por composição | parcial (tecnologia de mobilidade por composição entregue, AD-110; faltam raças, ideologias, potências, contramedidas, doença, nomeação, #61) |
+| 25 | [Jogadores](docs/roadmap/phase-25-players.md) | Encarnação, offline vira desaparecimento, espectador, multiplayer | parcial (encarnar/agir/logout + procura entregues, AD-111; faltam abandono declarado, retorno tardio, espectador, multiplayer/autenticação, paridade de potência, #63) |
+| 26 | [Console e modo god](docs/roadmap/phase-26-console.md) | Pausa, velocidade, busca, eventos marcantes, reescrita + rebuild | parcial (pausa com teto, velocidade, busca de NPC e auditoria entregues, AD-112; faltam índice de entidades/eventos, visão de Verdade no console, reescrita/diff — bloqueados pela Fase 18, #62) |
 | 27 | [Motor cinematográfico](docs/roadmap/phase-27-cinematics.md) | Assistir a uma vida: texto → 2D → caminho para 3D | spec |
-| 28 | [Cognição e LOD observacional](docs/roadmap/phase-28-cognition.md) | Motor de decisão inspecionável (estímulo→decisão) com painel "ver o cérebro", compressão de estado frio, LOD por três escopos de observação (mundo/cidade/interior) | parcial (API e LOD prontos; falta o painel visual COG-11 no cliente Godot) |
+| 28 | [Cognição e LOD observacional](docs/roadmap/phase-28-cognition.md) | Motor de decisão inspecionável (estímulo→decisão) com painel "ver o cérebro", compressão de estado frio, LOD por três escopos de observação (mundo/cidade/interior) | parcial (API e LOD prontos; falta o painel visual COG-11 no cliente Godot, #58) |
 
 ## Regras do roadmap
 - Uma fase só fecha com `bash scripts/verify.sh` em 0 **e** os critérios da fase provados

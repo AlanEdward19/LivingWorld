@@ -6,12 +6,11 @@ Fase 16 define para qualquer portador, sem exceção baseada em quem controla o 
 logout **não congela o personagem**: emite um evento de **desaparecimento**. O mundo segue,
 e quem convivia com ele dá falta, procura, chora, herda e ocupa a vaga que ele deixou.
 
-> **Spec, não gate.** Os critérios abaixo são a intenção; os critérios finais são escritos
-> sob `rules/eval-criteria.md` quando a fase for ativada. Não comece esta fase antes da
-> Fase 11 fechar.
+> **Status: parcial.** Entregue: encarnar, agir e logout como desaparecimento com procura (plano `.specs/features/player-incarnation`, AD-111).
+> Resto: #63. As tasks não entregues continuam com critério de intenção; o critério final é escrito ao ativar a fatia (`rules/eval-criteria.md`).
 
 ## Tasks
-1. **Encarnação**: assumir um NPC existente **ou** entrar como personagem novo. Nos dois
+1. *(parcial, AD-111)* **Encarnação**: assumir um NPC existente **ou** entrar como personagem novo. Nos dois
    casos a identidade sai da amostragem condicionada do LOD (Fase 8) — família, origem,
    profissão e histórico coerentes com o agregado de onde a pessoa veio. Entrar não cria
    gente do nada: materializar move, nunca cria.
@@ -19,9 +18,9 @@ e quem convivia com ele dá falta, procura, chora, herda e ocupa a vaga que ele 
    valem igual. Invocar potência passa pela mesma cadeia declarada da Fase 16 — mesmo
    descritor, mesma confiabilidade, mesmo custo quando existe. Nenhum sistema paralelo
    "modo jogador" para potência: trocar AI por controlador externo não altera a resolução.
-3. **Logout emite desaparecimento** no Tier A, não congelamento. O personagem some do lugar
+3. *(parcial, AD-111)* **Logout emite desaparecimento** no Tier A, não congelamento. O personagem some do lugar
    onde estava; o motor continua conduzindo os efeitos, nunca o personagem.
-4. **Reação ao sumiço, por proximidade**: quem tinha vínculo procura, sofre, e depois
+4. *(parcial, AD-111)* **Reação ao sumiço, por proximidade**: quem tinha vínculo procura, sofre, e depois
    segue — herança pela Fase 7, vaga de trabalho reaberta pela Fase 5, relato do
    desaparecimento entrando no cânone da Fase 10. A intensidade sai da força do vínculo.
 5. **Retorno tardio**: voltar depois de anos significa que você esteve desaparecido esse
