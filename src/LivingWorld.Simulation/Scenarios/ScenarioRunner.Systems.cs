@@ -84,6 +84,7 @@ public static partial class ScenarioRunner
         new CropSystem(),
         new MarketPricingSystem(),
         new WagePaymentSystem(),
+        new LodgingSystem(),
         new CityGrowthSystem(),
         new ConstructionDemandSystem(),
         new ConstructionSystem(),

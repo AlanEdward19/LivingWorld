@@ -34,7 +34,7 @@ class WsChannel extends "res://Contract/channel.gd":
 func request(method: String, path: String, body: Variant = null) -> Dictionary:
 	var http := HTTPRequest.new()
 	add_child(http)
-	var verbs := {"GET": HTTPClient.METHOD_GET, "POST": HTTPClient.METHOD_POST, "DELETE": HTTPClient.METHOD_DELETE}
+	var verbs := {"GET": HTTPClient.METHOD_GET, "POST": HTTPClient.METHOD_POST, "PUT": HTTPClient.METHOD_PUT, "DELETE": HTTPClient.METHOD_DELETE}
 	var headers := PackedStringArray(["Content-Type: application/json", "Accept: application/json"])
 	var payload := "" if body == null else JSON.stringify(body)
 	if http.request(base_url + path, headers, verbs[method], payload) != OK:
@@ -45,7 +45,7 @@ func request(method: String, path: String, body: Variant = null) -> Dictionary:
 	if done[0] != HTTPRequest.RESULT_SUCCESS:
 		return {"status": 0, "body": null}
 	var text: String = (done[3] as PackedByteArray).get_string_from_utf8()
-	return {"status": int(done[1]), "body": JSON.parse_string(text) if text != "" else null}
+	return {"status": int(done[1]), "body": JSON.parse_string(text) if text != "" else null, "text": text}
 
 
 func open_channel(path: String):

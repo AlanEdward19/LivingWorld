@@ -120,7 +120,7 @@ public sealed class MigrationSystem : ISimulationSystem
         WorldState world, CityRules rules, Household household, Npc head, bool landScarce,
         IReadOnlyList<City> activeCities)
     {
-        if (landScarce)
+        if (landScarce || household.IsHomeless)
             return true;
 
         long aliveMembers = household.Members.Count(id => world.FindNpc(id) is { IsAlive: true });

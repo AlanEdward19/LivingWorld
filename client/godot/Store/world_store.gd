@@ -17,7 +17,7 @@ var terrain: Dictionary = {} ## Vector2i -> int (id de terreno), vem do mundo e 
 var names: Dictionary = {} ## npc id -> nome (vem de GET /npcs)
 var cities: Dictionary = {} ## id (String) -> {id,name,location,population,bounds:Rect2i}
 var npcs: Dictionary = {} ## id (int) -> {id,cell,action,city}
-var buildings: Dictionary = {} ## id (int) -> {id,type,cell,orientation,floors,footprint:Array}
+var buildings: Dictionary = {} ## id (int) -> {id,type,cell,orientation,floors,footprint:Array,value:int,lodging:{units,occupied,rentPerMonth,nightlyRate}|null}
 var city: Dictionary = {} ## CitySnapshot do escopo cidade: {id,name,location,bounds,indicators}
 var interior: Dictionary = {} ## {building,city,floors,layout:Array[{level,cells}],occupants:Array}
 
@@ -129,7 +129,7 @@ func _building(id: int, marker: Dictionary) -> Dictionary:
 	return {
 		"id": id, "type": int(marker.buildingTypeId), "cell": cell_of(marker.location),
 		"orientation": int(marker.get("orientation", 0)), "floors": int(marker.get("floors", 1)),
-		"footprint": footprint,
+		"footprint": footprint, "value": int(marker.get("value", 0)), "lodging": marker.get("lodging"),
 	}
 
 
@@ -157,8 +157,10 @@ func apply_delta(envelope: Dictionary) -> void:
 			"buildingTypeId": upsert.buildingTypeId, "location": upsert.location, "orientation": upsert.get("orientation", 0),
 			"floors": known.floors if known != null else 1, "groundFootprint": null,
 		})
-		if known != null:
+		if known != null: # o delta só traz posição: o resto do que o snapshot trouxe continua valendo
 			buildings[id].footprint = known.footprint
+			buildings[id].value = known.value
+			buildings[id].lodging = known.lodging
 	for removed in delta.get("buildingRemoved", []):
 		buildings.erase(id_of(removed))
 	if delta.get("cityUpserts", []).size() > 0 or delta.get("cityRemoved", []).size() > 0:

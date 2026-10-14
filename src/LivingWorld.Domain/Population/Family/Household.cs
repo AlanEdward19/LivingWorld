@@ -42,10 +42,20 @@ public sealed class Household
     /// redistribuição). <see cref="Location"/> continua sendo a célula de sono, dentro deste prédio.</summary>
     public BuildingId? Dwelling { get; private set; }
 
+    /// <summary>Meses seguidos em que o chefe não pagou o aluguel da hospedagem; zera ao pagar.</summary>
+    public int RentArrearsMonths { get; private set; }
+
+    /// <summary>Tick do despejo; <c>null</c> enquanto nunca foi despejado ou já voltou a morar.
+    /// Despejado e sem <see cref="Dwelling"/> = sem teto.</summary>
+    public long? EvictedAtTick { get; private set; }
+
+    [JsonIgnore]
+    public bool IsHomeless => EvictedAtTick is not null && Dwelling is null;
+
     public Household(
         HouseholdId id, CellCoord location, NpcId head, IReadOnlyList<NpcId> members,
         IReadOnlyDictionary<ResourceType, long>? stock = null, CityId city = default, CityId? pendingRelocationCity = null,
-        BuildingId? dwelling = null)
+        BuildingId? dwelling = null, int rentArrearsMonths = 0, long? evictedAtTick = null)
     {
         if (!members.Contains(head))
             throw new ArgumentException("Head precisa estar entre os Members", nameof(head));
@@ -57,9 +67,34 @@ public sealed class Household
         City = city;
         PendingRelocationCity = pendingRelocationCity;
         Dwelling = dwelling;
+        RentArrearsMonths = rentArrearsMonths;
+        EvictedAtTick = evictedAtTick;
     }
 
     public void LiveIn(BuildingId building) => Dwelling = building;
+
+    /// <summary>Aluguel pago: zera o atraso.</summary>
+    public void PayRent() => RentArrearsMonths = 0;
+
+    /// <summary>Aluguel não pago neste mês; devolve o atraso acumulado.</summary>
+    public int RecordUnpaidRent() => ++RentArrearsMonths;
+
+    /// <summary>Perde a moradia por atraso: sem <see cref="Dwelling"/>, marcado como despejado em <paramref name="tick"/>.</summary>
+    public void Evict(long tick)
+    {
+        Dwelling = null;
+        RentArrearsMonths = 0;
+        EvictedAtTick = tick;
+    }
+
+    /// <summary>Passa a morar em <paramref name="building"/>, dormindo em <paramref name="interior"/>; encerra o despejo.</summary>
+    public void MoveIn(BuildingId building, CellCoord interior)
+    {
+        Dwelling = building;
+        Location = interior;
+        RentArrearsMonths = 0;
+        EvictedAtTick = null;
+    }
 
     /// <summary>Sem capacidade declarada nesta fase — devolve sempre 0 de perda
     /// (<see cref="ResourceStock.Deposit"/> com capacidade ilimitada).</summary>

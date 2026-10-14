@@ -100,16 +100,17 @@ public static class ScenarioLoaderV2
         // (population.Village) ganhava população — as demais nasciam sempre com 0 moradores.
         // Distribui population.InitialPopulation por TODAS as cidades autoradas (resto pra vila
         // inicial), não precisa ser exatamente igual entre elas, só nenhuma ficar zerada à toa.
+        int homeCityIndex = -1;
+        var seedTargets = new List<(CellCoord Location, CityId Id)>();
         if (population.InitialPopulation > 0)
         {
-            int homeCityIndex = definition.City.Cities
+            homeCityIndex = definition.City.Cities
                 .Select((c, index) => (c.Location, index))
                 .Where(c => c.Location == population.Village)
                 .Select(c => c.index)
                 .DefaultIfEmpty(-1)
                 .First();
 
-            var seedTargets = new List<(CellCoord Location, CityId Id)>();
             for (int i = 0; i < definition.City.Cities.Count; i++)
                 seedTargets.Add((definition.City.Cities[i].Location, createdCityIds[i]));
 
@@ -122,46 +123,10 @@ public static class ScenarioLoaderV2
                 homeCityIndex = seedTargets.Count;
                 seedTargets.Add((homeCity.Location, homeCity.Id));
             }
-
-            // Cidade autorada com `InitialPopulation` explícito nasce com esse valor; o resto do
-            // total continua dividido igualmente entre as demais (resto da divisão pra vila-sede,
-            // como sempre) — dá controle de tamanho inicial por assentamento sem mexer na fórmula
-            // de crescimento (CityBoundsResolver deriva o footprint da população atual, sempre).
-            var explicitShares = new Dictionary<int, int>();
-            for (int i = 0; i < definition.City.Cities.Count; i++)
-            {
-                var explicitPopulation = definition.City.Cities[i].InitialPopulation;
-                if (explicitPopulation is int share) explicitShares[i] = share;
-            }
-            long explicitTotal = explicitShares.Values.Sum();
-            var remainingTargets = Enumerable.Range(0, seedTargets.Count).Where(i => !explicitShares.ContainsKey(i)).ToList();
-            long remainingPopulation = Math.Max(0, population.InitialPopulation - explicitTotal);
-            int perCity = remainingTargets.Count > 0 ? (int)(remainingPopulation / remainingTargets.Count) : 0;
-            int remainder = remainingTargets.Count > 0 ? (int)(remainingPopulation % remainingTargets.Count) : 0;
-            int remainderTargetIndex = remainingTargets.Contains(homeCityIndex) ? homeCityIndex : remainingTargets.FirstOrDefault(-1);
-            for (int i = 0; i < seedTargets.Count; i++)
-            {
-                int share = explicitShares.TryGetValue(i, out var explicitShare)
-                    ? explicitShare
-                    : perCity + (i == remainderTargetIndex ? remainder : 0);
-                if (share <= 0) continue;
-                try
-                {
-                    PopulationSeeder.SeedInitial(
-                        world, share, population.Culture, seedTargets[i].Location, seedTargets[i].Id);
-                }
-                catch (InvalidOperationException ex)
-                {
-                    return Result<(WorldState, WorldClock)>.Fail($"Population: {ex.Message}");
-                }
-            }
         }
 
-        if (world.EconomyRules.Enabled && population.InitialPopulation > 0)
-            ScenarioRunner.SeedInitialEconomyBuffer(world);
-
-        ExtraordinaryPrevalenceSeeder.Seed(world);
-
+        // As oficinas autoradas ocupam o terreno ANTES das casas semeadas: com a população já assentada o mapa pequeno
+        // (presets 10x10 e 20x20) não tinha mais célula livre e o cenário falhava com "nenhuma célula livre".
         foreach (var workplace in definition.Economy.Workplaces)
         {
             if (!world.ActiveCities().Any())
@@ -214,6 +179,64 @@ public static class ScenarioLoaderV2
                 employees: [], workplace.Stock, workplace.Treasury, workplace.Prices, city.Id,
                 building: workplaceBuilding.Id));
         }
+
+        if (population.InitialPopulation > 0)
+        {
+            // Cidade autorada com `InitialPopulation` explícito nasce com esse valor; o resto do
+            // total continua dividido igualmente entre as demais (resto da divisão pra vila-sede,
+            // como sempre) — dá controle de tamanho inicial por assentamento sem mexer na fórmula
+            // de crescimento (CityBoundsResolver deriva o footprint da população atual, sempre).
+            var explicitShares = new Dictionary<int, int>();
+            for (int i = 0; i < definition.City.Cities.Count; i++)
+            {
+                var explicitPopulation = definition.City.Cities[i].InitialPopulation;
+                if (explicitPopulation is int share) explicitShares[i] = share;
+            }
+            long explicitTotal = explicitShares.Values.Sum();
+            var remainingTargets = Enumerable.Range(0, seedTargets.Count).Where(i => !explicitShares.ContainsKey(i)).ToList();
+            long remainingPopulation = Math.Max(0, population.InitialPopulation - explicitTotal);
+            int perCity = remainingTargets.Count > 0 ? (int)(remainingPopulation / remainingTargets.Count) : 0;
+            int remainder = remainingTargets.Count > 0 ? (int)(remainingPopulation % remainingTargets.Count) : 0;
+            int remainderTargetIndex = remainingTargets.Contains(homeCityIndex) ? homeCityIndex : remainingTargets.FirstOrDefault(-1);
+            for (int i = 0; i < seedTargets.Count; i++)
+            {
+                int share = explicitShares.TryGetValue(i, out var explicitShare)
+                    ? explicitShare
+                    : perCity + (i == remainderTargetIndex ? remainder : 0);
+                if (share <= 0) continue;
+                try
+                {
+                    PopulationSeeder.SeedInitial(
+                        world, share, population.Culture, seedTargets[i].Location, seedTargets[i].Id);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return Result<(WorldState, WorldClock)>.Fail($"Population: {ex.Message}");
+                }
+            }
+        }
+
+        // Famílias autoradas (ADR-0024), depois da população sorteada: sem o bloco nada muda (hash preservado).
+        var authoredResult = AuthoredHouseholdsLoader.Load(
+            System.Text.Json.Nodes.JsonNode.Parse(json)!.AsObject(), population.Catalog,
+            population.LifeTable.MaxLongevityYears, definition.Map.Settlements.Select(s => s.Name).ToList());
+        if (!authoredResult.IsSuccess)
+            return Result<(WorldState, WorldClock)>.Fail(authoredResult.Error!);
+        foreach (var family in authoredResult.Value!)
+        {
+            var home = family.Settlement is null
+                ? world.ActiveCities().FirstOrDefault(c => c.Location == population.Village)
+                : world.ActiveCities().FirstOrDefault(c => c.Location == definition.Map.Settlements.First(s => s.Name == family.Settlement).Cell);
+            if (home is null)
+                return Result<(WorldState, WorldClock)>.Fail(
+                    $"AuthoredHouseholds: o assentamento '{family.Settlement ?? "inicial"}' não tem cidade no cenário");
+            PopulationSeeder.SeedAuthored(world, family, population.Culture, home.Location, home);
+        }
+
+        if (world.EconomyRules.Enabled && (population.InitialPopulation > 0 || authoredResult.Value!.Count > 0))
+            ScenarioRunner.SeedInitialEconomyBuffer(world);
+
+        ExtraordinaryPrevalenceSeeder.Seed(world);
 
         // Portal é dado descritivo — resolve RefIndex autorado pro RefId real
         // (mesmo padrão de createdCityIds[building.CityIndex] acima) depois que cidades/prédios

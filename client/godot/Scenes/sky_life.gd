@@ -8,6 +8,7 @@ const HEIGHT := 14.0
 var map_size := Vector2(30, 30)
 var clouds: Array[Node3D] = []
 var speed := 0.35
+var paused := false ## simulação pausada: as nuvens também param
 
 
 func build(p_map_size: Vector2) -> void:
@@ -37,6 +38,8 @@ func build(p_map_size: Vector2) -> void:
 
 
 func advance(delta: float) -> void:
+	if paused:
+		return
 	for cloud in clouds:
 		cloud.position.x += speed * delta
 		if cloud.position.x > map_size.x * 1.3:

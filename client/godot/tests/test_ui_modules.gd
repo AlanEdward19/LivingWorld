@@ -155,6 +155,12 @@ func test_hover_text_comes_from_store_and_server_labels() -> void:
 	eq(app.describe_hit({"npc_id": 7}), "Ana\nTrabalhando", "nome + rótulo do servidor")
 	check("Edifício 4" in app.describe_hit({"building_id": 4}) and "2 andares" in app.describe_hit({"building_id": 4}))
 	check("Alfa" in app.describe_hit({"city_id": "c"}) and "12 hab." in app.describe_hit({"city_id": "c"}))
+	app.store.buildings[5] = {"id": 5, "type": 12, "cell": Vector2i(1, 1), "orientation": 0, "floors": 1, "footprint": [], "value": 12000,
+		"lodging": {"units": 3, "occupied": 2, "rentPerMonth": 120, "nightlyRate": 45}}
+	var inn_text: String = app.describe_hit({"building_id": 5})
+	check("2/3 vagas" in inn_text and "aluguel 120/mês" in inn_text and "diária 45" in inn_text and "valor 12000" in inn_text, "hospedagem mostra vagas, aluguel, diária e valor")
+	app.store.buildings[6] = {"id": 6, "type": 13, "cell": Vector2i(2, 2), "orientation": 0, "floors": 1, "footprint": [], "value": 5000, "lodging": null}
+	check("valor estimado 5000" in app.describe_hit({"building_id": 6}), "estabelecimento mostra o valor")
 	eq(app.describe_hit({}), "", "nada sob o cursor, nada de dica")
 	app.queue_free()
 
@@ -480,3 +486,19 @@ func test_calendar_from_server_drives_hour_and_day() -> void:
 	for node in setup:
 		if node is Node:
 			node.free()
+
+
+func test_click_near_an_npc_selects_it_over_the_building_behind() -> void:
+	var app := App.new()
+	tree.root.add_child(app)
+	var fake := FakeTransport.new()
+	await app.start(fake, false)
+	var actor := NpcActor.new()
+	app.world_view.add_child(actor)
+	actor.setup(7, Vector2i(2, 2), 5, app.labels)
+	app.world_view.npc_nodes[7] = actor
+	app.rig.camera.current = true
+	var point: Vector2 = app.rig.camera.unproject_position(actor.global_position + Vector3(0, 0.6, 0))
+	eq(app.nearest_npc(point + Vector2(10, 5)), 7, "perto do NPC acha o NPC")
+	eq(app.nearest_npc(point + Vector2(300, 300)), -1, "longe não acha ninguém")
+	app.free()

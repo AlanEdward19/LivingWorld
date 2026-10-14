@@ -23,6 +23,10 @@ public static class CityOccupancy
 {
     private const int LegacyRingRadius = 3;
 
+    /// <summary>Células livres exigidas entre o footprint de um prédio derivado e qualquer outro
+    /// (city-building-separation): sem isso as casas se fundem num bloco só.</summary>
+    public const int MinGap = 1;
+
     /// <summary>True quando nenhum prédio já existente na mesma cidade ocupa alguma célula do
     /// footprint candidato (já traduzido para coordenadas absolutas). <paramref name="placingId"/>
     /// é o <see cref="BuildingId"/> do prédio sendo posicionado agora, se houver um —
@@ -33,8 +37,10 @@ public static class CityOccupancy
     public static bool IsFree(
         WorldState world, City city, CityBounds bounds, IReadOnlyList<CellCoord> candidateFootprint, BuildingId? placingId = null)
     {
+        // Só sobreposição (regra antiga): quem pergunta aqui é a autoria, que tem precedência sobre folga e água.
         var occupied = OccupiedCellsOfCity(world, city, bounds, placingId);
-        return candidateFootprint.All(cell => !occupied.Contains(cell));
+        var policy = PlacementPolicy.None;
+        return policy.Allows(candidateFootprint, policy.HaloOf(candidateFootprint), new CellCoord(0, 0), occupied);
     }
 
     /// <summary>Primeira origem livre dentro de <paramref name="bounds"/>, varrida em ordem
@@ -42,10 +48,17 @@ public static class CityOccupancy
     /// do mundo sempre produzem a mesma origem. <c>null</c> quando os bounds estão totalmente
     /// ocupados.</summary>
     public static CellCoord? FindFreeCellInBounds(
-        WorldState world, City city, CityBounds bounds, IReadOnlyList<CellCoord> footprintShape, BuildingId? placingId = null)
+        WorldState world, City city, CityBounds bounds, IReadOnlyList<CellCoord> footprintShape, BuildingId? placingId = null,
+        int level = 0)
     {
         var occupied = OccupiedCellsOfCity(world, city, bounds, placingId);
-        return ScanForFreeOrigin(occupied, bounds, footprintShape);
+        // Só lê os marcos do passe (gravados com ocupação que é subconjunto desta): pular origens que já
+        // falharam antes não muda o resultado, só evita varrer de novo bounds já cheios.
+        int from = 0;
+        if (placingId is { } id && Plans.TryGetValue(world, out var byCity) && byCity.TryGetValue(city.Id, out var plan)
+            && plan.Bounds == bounds && plan.MapWidth == world.Map.Width && plan.MapHeight == world.Map.Height)
+            from = plan.ScanStartFor(ShapeHash(footprintShape, level), id.Value);
+        return ScanForFreeOriginFrom(occupied, bounds, footprintShape, PlacementPolicy.For(world.Map, level), from, out _);
     }
 
     /// <summary>True somente quando uma varredura do mapa inteiro (não só desta cidade — um
@@ -59,25 +72,53 @@ public static class CityOccupancy
     {
         var mapBounds = new CityBounds(new CellCoord(0, 0), world.Map.Width, world.Map.Height);
         var occupied = OccupiedCellsLegacy(world.Buildings, world);
-        return ScanForFreeOrigin(occupied, mapBounds, footprintShape) is null;
+        return ScanForFreeOrigin(occupied, mapBounds, footprintShape, PlacementPolicy.For(world.Map, PlacementPolicy.LevelCount - 1)) is null;
     }
 
     // ponytail: varredura O(área dos bounds), sem otimização de grid espacial — bounds de cidade
     // hoje são no máximo ~map/2 de lado (CityBoundsResolver), e IsLandScarce só roda quando a
     // cidade já esgotou seu próprio scan; adicionar índice espacial só se isso aparecer no
     // profiling em mapas grandes de verdade.
-    private static CellCoord? ScanForFreeOrigin(
-        HashSet<CellCoord> occupied, CityBounds bounds, IReadOnlyList<CellCoord> footprintShape)
+    internal static CellCoord? ScanForFreeOrigin(
+        HashSet<CellCoord> occupied, CityBounds bounds, IReadOnlyList<CellCoord> footprintShape, PlacementPolicy policy) =>
+        ScanForFreeOriginFrom(occupied, bounds, footprintShape, policy, 0, out _);
+
+    /// <summary>Varredura linha a linha a partir do índice <paramref name="startIndex"/> (linha * largura + coluna).
+    /// <paramref name="foundIndex"/> é o índice achado, ou a área dos bounds quando nenhuma origem serve.</summary>
+    internal static CellCoord? ScanForFreeOriginFrom(
+        HashSet<CellCoord> occupied, CityBounds bounds, IReadOnlyList<CellCoord> footprintShape, PlacementPolicy policy,
+        int startIndex, out int foundIndex)
     {
-        for (int y = bounds.Origin.Y; y < bounds.Origin.Y + bounds.Height; y++)
-            for (int x = bounds.Origin.X; x < bounds.Origin.X + bounds.Width; x++)
+        var halo = policy.HaloOf(footprintShape);
+        int area = bounds.Width * bounds.Height;
+        for (int index = Math.Max(0, startIndex); index < area; index++)
+        {
+            int x = bounds.Origin.X + index % bounds.Width;
+            int y = bounds.Origin.Y + index / bounds.Width;
+            bool inside = true;
+            for (int i = 0; i < footprintShape.Count && inside; i++)
+                inside = bounds.Contains(new CellCoord(footprintShape[i].X + x, footprintShape[i].Y + y));
+            var origin = new CellCoord(x, y);
+            if (inside && policy.Allows(footprintShape, halo, origin, occupied))
             {
-                var origin = new CellCoord(x, y);
-                var candidate = Translate(footprintShape, origin);
-                if (candidate.All(bounds.Contains) && candidate.All(cell => !occupied.Contains(cell)))
-                    return origin;
+                foundIndex = index;
+                return origin;
             }
+        }
+        foundIndex = area;
         return null;
+    }
+
+    /// <summary>Identidade da forma (células) para os marcos de varredura; independe de tipo e orientação.</summary>
+    internal static ulong ShapeHash(IReadOnlyList<CellCoord> shape, int level)
+    {
+        ulong hash = 1469598103934665603UL ^ ((ulong)level * 0x9E3779B97F4A7C15UL);
+        foreach (var cell in shape)
+        {
+            hash = (hash ^ (uint)cell.X) * 1099511628211UL;
+            hash = (hash ^ (uint)cell.Y) * 1099511628211UL;
+        }
+        return hash;
     }
 
     internal static List<CellCoord> Translate(IReadOnlyList<CellCoord> shape, CellCoord origin) =>
@@ -325,9 +366,54 @@ public static class CityOccupancy
         /// todo anel de raio menor já estava inteiramente ocupado para a forma. A ocupação só cresce ao
         /// longo do passe, então o marco continua valendo para qualquer resolução de id maior ou igual
         /// (cuja ocupação é superconjunto da do passo). Raios crescem junto com os ids.</summary>
-        public readonly Dictionary<(int Type, int Orientation), List<(long Id, int Radius)>> OverflowMarks = new();
+        public readonly Dictionary<(int Type, int Orientation, int Level), List<(long Id, int Radius)>> OverflowMarks = new();
 
-        public int StartRadiusFor((int Type, int Orientation) shapeKey, long id)
+        /// <summary>Por forma: marcos (id do passo, índice de varredura) — todo índice menor já falhou para a forma
+        /// naquele passo, e a ocupação só cresce ao longo do passe, então continua falhando para ids maiores.
+        /// Índice == área dos bounds significa varredura esgotada (cai direto no overflow).</summary>
+        private readonly Dictionary<ulong, List<(long Id, int Index)>> _scanMarks = new();
+
+        public int ScanStartFor(ulong shape, long id)
+        {
+            if (!_scanMarks.TryGetValue(shape, out var marks)) return 0;
+            for (int i = marks.Count - 1; i >= 0; i--)
+                if (marks[i].Id <= id) return marks[i].Index;
+            return 0;
+        }
+
+        public void MarkScan(ulong shape, long id, int index)
+        {
+            if (!_scanMarks.TryGetValue(shape, out var marks))
+                _scanMarks[shape] = marks = new();
+            if (marks.Count == 0 || index > marks[^1].Index)
+                marks.Add((id, index));
+        }
+
+        /// <summary>Bounds novos: os marcos de varredura (índices dos bounds antigos) caem, mas os de anel
+        /// sobrevivem encolhidos. Um anel de raio r' em torno dos bounds novos fica a no máximo r' + E de
+        /// distância dos bounds antigos (E = quanto os novos passam dos antigos em algum lado), então todo
+        /// anel de raio menor que (r − E) continua inteiramente ocupado.</summary>
+        public void ShiftMarksToBounds(CityBounds oldBounds, CityBounds newBounds)
+        {
+            _scanMarks.Clear();
+            int exceed = Math.Max(0, Math.Max(
+                Math.Max(oldBounds.Origin.X - newBounds.Origin.X, oldBounds.Origin.Y - newBounds.Origin.Y),
+                Math.Max(
+                    newBounds.Origin.X + newBounds.Width - (oldBounds.Origin.X + oldBounds.Width),
+                    newBounds.Origin.Y + newBounds.Height - (oldBounds.Origin.Y + oldBounds.Height))));
+            foreach (var key in OverflowMarks.Keys.ToList())
+            {
+                var shifted = new List<(long Id, int Radius)>();
+                foreach (var (id, radius) in OverflowMarks[key])
+                {
+                    int next = Math.Max(1, radius - exceed);
+                    if (shifted.Count == 0 || next > shifted[^1].Radius) shifted.Add((id, next));
+                }
+                OverflowMarks[key] = shifted;
+            }
+        }
+
+        public int StartRadiusFor((int Type, int Orientation, int Level) shapeKey, long id)
         {
             if (!OverflowMarks.TryGetValue(shapeKey, out var marks)) return 1;
             for (int i = marks.Count - 1; i >= 0; i--)
@@ -335,7 +421,7 @@ public static class CityOccupancy
             return 1;
         }
 
-        public void Mark((int Type, int Orientation) shapeKey, long id, int radius)
+        public void Mark((int Type, int Orientation, int Level) shapeKey, long id, int radius)
         {
             if (!OverflowMarks.TryGetValue(shapeKey, out var marks))
                 OverflowMarks[shapeKey] = marks = new();
@@ -344,23 +430,23 @@ public static class CityOccupancy
         }
     }
 
-    private static (int Type, int Orientation) ShapeKeyOf(Building building) =>
-        (building.BuildingTypeId, building.Orientation ?? BuildingFootprintGenerator.DerivedOrientation(building.Id, building.BuildingTypeId));
+    private static (int Type, int Orientation, int Level) ShapeKeyOf(Building building, int level) =>
+        (building.BuildingTypeId, building.Orientation ?? BuildingFootprintGenerator.DerivedOrientation(building.Id, building.BuildingTypeId), level);
 
     /// <summary>Busca de overflow de <paramref name="building"/> começando no marco do plano memoizado
     /// da cidade (anéis menores já falharam para a forma, com ocupação que é subconjunto da atual) e
     /// gravando o novo marco. Resultado idêntico ao da busca desde o raio 1.</summary>
     internal static CellCoord? ResolveOverflowWithMarks(
-        WorldState world, City city, CityBounds bounds, Building building, IReadOnlyList<CellCoord> shape)
+        WorldState world, City city, CityBounds bounds, Building building, IReadOnlyList<CellCoord> shape, int level = 0)
     {
         PlacementPlan? plan = null;
         if (Plans.TryGetValue(world, out var byCity) && byCity.TryGetValue(city.Id, out var cached)
             && cached.Bounds == bounds && cached.MapWidth == world.Map.Width && cached.MapHeight == world.Map.Height)
             plan = cached;
 
-        var shapeKey = ShapeKeyOf(building);
+        var shapeKey = ShapeKeyOf(building, level);
         int start = plan?.StartRadiusFor(shapeKey, building.Id.Value) ?? 1;
-        var position = OverflowPlacer.ResolveOverflowPosition(world, city, bounds, building.Id, shape, start, out int found);
+        var position = OverflowPlacer.ResolveOverflowPosition(world, city, bounds, building.Id, shape, start, out int found, level);
         plan?.Mark(shapeKey, building.Id.Value, found);
         return position;
     }
@@ -444,8 +530,8 @@ public static class CityOccupancy
         {
             if (plan.Bounds != bounds)
             {
+                plan.ShiftMarksToBounds(plan.Bounds, bounds);
                 plan.Bounds = bounds;
-                plan.OverflowMarks.Clear();
             }
 
             while (reusable < plan.Ids.Length && reusable < siblings.Length && plan.Ids[reusable] == siblings[reusable].Id.Value)
@@ -490,14 +576,24 @@ public static class CityOccupancy
             else
             {
                 var shape = BuildingFootprintGenerator.Generate(building).Select(c => c.Cell).ToList();
-                position = ScanForFreeOrigin(plan.Occupied, bounds, shape);
-                if (position is null)
+                // Degraus de relaxamento (ver PlacementPolicy.LevelCount): só desce quando o degrau
+                // anterior não achou terra em lugar nenhum do mapa.
+                position = null;
+                for (int level = 0; level < PlacementPolicy.LevelCount && position is null; level++)
                 {
-                    var shapeKey = ShapeKeyOf(building);
-                    position = OverflowPlacer.ResolveOverflowPositionGiven(
-                        plan.Occupied, bounds, building.Id, shape, world.Map.Width, world.Map.Height,
-                        plan.StartRadiusFor(shapeKey, building.Id.Value), out int foundRadius);
-                    plan.Mark(shapeKey, building.Id.Value, foundRadius);
+                    var policy = PlacementPolicy.For(world.Map, level);
+                    ulong shapeHash = ShapeHash(shape, level);
+                    position = ScanForFreeOriginFrom(
+                        plan.Occupied, bounds, shape, policy, plan.ScanStartFor(shapeHash, building.Id.Value), out int scanIndex);
+                    plan.MarkScan(shapeHash, building.Id.Value, scanIndex);
+                    if (position is null)
+                    {
+                        var shapeKey = ShapeKeyOf(building, level);
+                        position = OverflowPlacer.ResolveOverflowPositionGiven(
+                            plan.Occupied, bounds, building.Id, shape, world.Map.Width, world.Map.Height,
+                            plan.StartRadiusFor(shapeKey, building.Id.Value), out int foundRadius, policy);
+                        plan.Mark(shapeKey, building.Id.Value, foundRadius);
+                    }
                 }
 
                 derived[i] = position;

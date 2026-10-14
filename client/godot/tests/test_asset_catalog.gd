@@ -133,3 +133,14 @@ func test_npc_model_follows_profession_and_age() -> void:
 	child.apply_model(catalog, 999, 70.0)
 	check(child.scale.y < 1.0, "idoso é um pouco mais baixo")
 	child.free()
+
+
+func test_lodging_building_shows_one_bed_per_unit_and_a_price_line() -> void:
+	var view := InteriorView.new()
+	view.catalog = _catalog()
+	tree.root.add_child(view)
+	view.show_interior(_room(), Vector2i(10, 10), ActionLabels.new(), -1, 0)
+	var plain: int = view.furniture.get_child_count()
+	view.show_interior(_room(), Vector2i(10, 10), ActionLabels.new(), -1, 4)
+	eq(view.furniture.get_child_count(), plain + 4, "mais um leito por vaga de hospedagem")
+	view.free()

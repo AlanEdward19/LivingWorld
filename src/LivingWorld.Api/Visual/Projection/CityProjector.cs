@@ -26,7 +26,11 @@ public sealed record CityResidentMarker(
 /// iteração que o anel client-side usa hoje.</summary>
 public sealed record CityBuildingMarker(
     BuildingId Id, int BuildingTypeId, CellCoord Location, bool LocationIsDerived, int Orientation = 0,
-    int Floors = 1, IReadOnlyList<FootprintCell>? GroundFootprint = null);
+    int Floors = 1, IReadOnlyList<FootprintCell>? GroundFootprint = null, long Value = 0, LodgingMarker? Lodging = null);
+
+/// <summary>Hospedagem de um prédio (lodging-and-rent): vagas, vagas ocupadas por domicílios, aluguel mensal e diária de hoje —
+/// o preço já acompanha local e demanda. Só existe em prédio cujo tipo declara <c>Lodging</c>.</summary>
+public sealed record LodgingMarker(int Units, int Occupied, long RentPerMonth, long NightlyRate);
 
 /// <summary>Os 6 indicadores que <see
 /// cref="CityPopulationQuery"/> já calcula, hoje inacessíveis ao cliente. <see
@@ -74,6 +78,11 @@ public static class CityProjector
         // null = escassez de terra pra este prédio agora -- excluído dos
         // marcadores desta resposta em vez de derrubar a projeção inteira da cidade; nunca
         // persistido, então volta a aparecer assim que houver espaço de novo.
+        // Preço de imóvel só se calcula quando o cenário declara Pricing/Lodging: caminho rápido sem custo para os demais.
+        var recipes = world.CityCatalog.BuildingRecipes;
+        bool pricesBuildings = recipes.Values.Any(r => r.Pricing is not null || r.Lodging is not null);
+        var valuation = pricesBuildings ? new ValuationContext(world, city) : null;
+        var tenants = pricesBuildings ? DwellingCapacity.TenantsByBuilding(world) : null;
         var buildings = world.Buildings
             .Where(b => b.City == cityId)
             .Select(b =>
@@ -88,9 +97,20 @@ public static class CityProjector
                 // Overflow continua existindo no mundo e pode fundar/ser absorvido; apenas não é
                 // desenhado como se estivesse dentro do grid desta cidade antes disso.
                 if (!footprint.All(boundsForPlacement.Contains)) return null;
+                long value = 0;
+                LodgingMarker? lodging = null;
+                if (valuation is not null && recipes.TryGetValue(b.BuildingTypeId, out var recipe))
+                {
+                    value = BuildingValuation.ValueOf(valuation, b, recipe);
+                    if (recipe.Lodging is not null)
+                        lodging = new LodgingMarker(
+                            DwellingCapacity.Of(world, b), tenants!.GetValueOrDefault(b.Id),
+                            BuildingValuation.RentOf(valuation, b, recipe), BuildingValuation.NightlyOf(valuation, b, recipe));
+                }
+
                 return new CityBuildingMarker(
                     b.Id, b.BuildingTypeId, resolved.Position, resolved.IsDerived, resolved.Orientation,
-                    layout.Floors, layout.FloorLayouts[0].Cells);
+                    layout.Floors, layout.FloorLayouts[0].Cells, value, lodging);
             })
             .OfType<CityBuildingMarker>()
             .ToList();

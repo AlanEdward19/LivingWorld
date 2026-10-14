@@ -5,14 +5,19 @@ extends Node3D
 const Grid := preload("res://Scenes/grid.gd")
 const Anim := preload("res://Scenes/animation_catalog.gd")
 
+const LEG_X := 0.08
 const SKIN_TONES: Array[Color] = [Color("f1c9a5"), Color("e0ac7e"), Color("c68a5c"), Color("a06a44"), Color("7a4b30")]
 const HAIR_COLORS: Array[Color] = [Color("2b1b12"), Color("5a3a22"), Color("a0652a"), Color("d6b36a"), Color("8b8b8b"), Color("b5482a")]
 
+## Simulação pausada: ninguém anda nem anima (um passo manual leva o NPC direto ao destino).
+static var frozen := false
 static var _meshes: Dictionary = {}
 static var _materials: Dictionary = {}
 
 var npc_id := 0
 var far_lod := false
+var bubble := false ## mapa-múndi muito afastado: só uma bolha colorida, sem corpo
+var _bubble_node: MeshInstance3D
 var _shadow_parts: Array[MeshInstance3D] = []
 var _anim_accum := 0.0
 var cell := Vector2i.ZERO
@@ -306,6 +311,35 @@ func set_far(value: bool) -> void:
 		_reset_pose()
 
 
+## Bolha de longe: esconde corpo e pernas e mostra uma esfera na cor da camisa (nada de animar nem sombrear).
+func set_bubble(value: bool) -> void:
+	if bubble == value:
+		return
+	bubble = value
+	_body.visible = not value
+	for leg in _legs:
+		leg.visible = not value
+	if value:
+		if _bubble_node == null:
+			_bubble_node = MeshInstance3D.new()
+			_bubble_node.mesh = _shared_mesh("bubble", func():
+				var m := SphereMesh.new()
+				m.radius = 0.35
+				m.height = 0.7
+				m.radial_segments = 8
+				m.rings = 4
+				return m)
+			var material := _shared_mat(_shirt.albedo_color.lightened(0.15))
+			_bubble_node.material_override = material
+			_bubble_node.position.y = 0.4
+			_bubble_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			add_child(_bubble_node)
+		_bubble_node.visible = true
+		_reset_pose()
+	elif _bubble_node != null:
+		_bubble_node.visible = false
+
+
 func _sync_props() -> void:
 	if pose == "work" or _tool != null:
 		_get_tool().visible = pose == "work"
@@ -351,6 +385,9 @@ func move_to(new_cell: Vector2i, duration: float) -> void:
 	_to = Grid.to_world(new_cell)
 	_duration = maxf(duration, 0.001)
 	_t = 0.0
+	if frozen: # pausado (passo manual): sem caminhada, o NPC aparece no destino
+		position = _to
+		_t = 1.0
 
 
 func is_moving() -> bool:
@@ -373,6 +410,8 @@ func set_hovered(hovered: bool) -> void:
 
 ## Movimento (posição e rumo): roda todo quadro para todo NPC, assim a caminhada dura exatamente o passo do servidor.
 func advance_motion(dt: float) -> void:
+	if frozen:
+		return
 	if _t < 1.0:
 		_t = minf(1.0, _t + dt / _duration)
 		position = _from.lerp(_to, _t)
@@ -383,8 +422,10 @@ func advance_motion(dt: float) -> void:
 
 ## Pose: só quando o NPC está à vista; `dt` pode ser o tempo acumulado de quadros pulados.
 func animate(dt: float) -> void:
+	if frozen:
+		return
 	_clock += dt
-	if not far_lod:
+	if not far_lod and not bubble:
 		_animate()
 
 
@@ -411,6 +452,8 @@ func _reset_pose() -> void:
 	_head.rotation = Vector3.ZERO
 	for limb in _arms + _legs:
 		limb.rotation = Vector3.ZERO
+	for i in _legs.size():
+		_legs[i].position = Vector3(LEG_X * (-1 if i == 0 else 1), 0.36, 0)
 	_torso.scale = Vector3.ONE
 	_shirt.emission = Color.BLACK
 
@@ -432,6 +475,9 @@ func _animate() -> void:
 			_body.rotation.x = -PI / 2.0
 			_body.position = Vector3(0, 0.27, -0.28)
 			_head.rotation.x = 0.2
+			for i in _legs.size(): # deitadas junto ao quadril do corpo, em vez de em pé no chão
+				_legs[i].position = Vector3(LEG_X * (-1 if i == 0 else 1), 0.27, -0.64)
+				_legs[i].rotation.x = -PI / 2.0
 			var zzz := _get_zzz()
 			zzz.position = Vector3(0.1 + sin(_clock) * 0.05, 0.9 + fmod(_clock * 0.3, 0.6), 0)
 			zzz.modulate.a = 1.0 - fmod(_clock * 0.3, 0.6) / 0.6

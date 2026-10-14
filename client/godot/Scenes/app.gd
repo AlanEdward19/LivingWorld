@@ -2,6 +2,8 @@ extends Node
 ## Raiz do cliente: liga transporte, assinatura, store, cenas e painéis. Só leitura do mundo:
 ## o único que escreve no servidor são os comandos explícitos do relógio.
 
+signal menu_requested() ## F10 ou o botão Menu: o Boot volta ao menu principal
+
 const CursorStream := preload("res://Contract/cursor_stream.gd")
 const HttpTransport := preload("res://Contract/http_transport.gd")
 const ApiClient := preload("res://Contract/api_client.gd")
@@ -9,6 +11,7 @@ const Store := preload("res://Store/world_store.gd")
 const ActionLabels := preload("res://Store/action_labels.gd")
 const WorldView := preload("res://Scenes/world_view.gd")
 const CameraRig := preload("res://Scenes/camera_rig.gd")
+const NpcActor := preload("res://Scenes/npc_actor.gd")
 const InteriorStage := preload("res://Scenes/interior_stage.gd")
 const Panels := preload("res://Scenes/panels.gd")
 const DayCycle := preload("res://Scenes/day_cycle.gd")
@@ -167,6 +170,10 @@ func _build_ui() -> void:
 	clock_panel.api = api
 	clock_panel.status_changed.connect(_on_clock_status)
 	bar.add_child(clock_panel)
+	var menu_button := Button.new()
+	menu_button.text = "☰ Menu (F10)"
+	menu_button.pressed.connect(func(): menu_requested.emit())
+	bar.add_child(menu_button)
 
 	banner = Label.new()
 	banner.visible = false
@@ -185,6 +192,7 @@ func _build_ui() -> void:
 	npc_panel = Panels.NpcDetailPanel.new()
 	npc_panel.api = api
 	npc_panel.labels = labels
+	npc_panel.name_of = func(id: int) -> String: return String(store.names.get(id, "NPC %d" % id))
 	npc_panel.highlight.connect(func(id: int): _highlight(id))
 	npc_panel.model_known.connect(_apply_model)
 	store.npc_changed.connect(_on_focus_action)
@@ -260,6 +268,8 @@ func _build_ui() -> void:
 
 func _on_clock_status(status: Dictionary) -> void:
 	day_cycle.sync(float(status.tick), float(status.ticksPerSecond), bool(status.isPaused))
+	NpcActor.frozen = bool(status.isPaused)
+	sky_life.paused = bool(status.isPaused)
 	_update_time_label(status)
 
 
@@ -272,6 +282,10 @@ func _update_time_label(status: Dictionary = {}) -> void:
 		day_cycle.phase_name(), "  ⏸" if s.isPaused else ""]
 
 
+func _exit_tree() -> void:
+	NpcActor.frozen = false # o estado pausado é do servidor, não deve vazar para o próximo mundo
+
+
 func _process(delta: float) -> void:
 	if time_label != null and day_cycle != null:
 		_update_time_label()
@@ -279,6 +293,7 @@ func _process(delta: float) -> void:
 		world_view.view_center = rig.target
 		world_view.view_radius = rig.zoom_size * 1.5
 		world_view.far_zoom = rig.zoom_size > 16.0
+		world_view.bubble_zoom = store.kind == "World" and rig.zoom_size > rig.bubble_size
 	if minimap != null:
 		minimap.set_camera_target(rig.target)
 		stage.set_daylight(day_cycle.daylight())
@@ -330,6 +345,7 @@ func _on_snapshot(envelope: Dictionary) -> void:
 		loading.visible = false
 		minimap.rebuild()
 		sky_life.build(Vector2(store.map_size))
+		rig.fit_to_map(maxi(store.map_size.x, store.map_size.y))
 		_load_names()
 	if kind == "Interior":
 		if stage.active and stage.interior_view.floor_count == int(store.interior.floors):
@@ -396,7 +412,10 @@ func _enter_interior_view() -> void:
 	var marker = store.buildings.get(_interior_building, null)
 	var origin: Vector2i = marker.cell if marker != null else Vector2i.ZERO
 	stage.interior_view.catalog = catalog
-	stage.enter(store.interior, origin, labels, rig.camera, int(marker.type) if marker != null else -1)
+	var lodging = marker.get("lodging") if marker != null else null
+	stage.enter(
+		store.interior, origin, labels, rig.camera, int(marker.type) if marker != null else -1,
+		int(lodging.units) if lodging is Dictionary else 0)
 	stage.interior_view.apply_names(store.names)
 	breadcrumb.text = "%s › Edifício %d" % [breadcrumb.text.get_slice(" › Edifício", 0), _interior_building]
 	if marker != null:
@@ -458,11 +477,27 @@ func describe_hit(meta: Dictionary) -> String:
 	if meta.has("building_id"):
 		var building = store.buildings.get(meta.building_id)
 		var floors: int = building.floors if building != null else 1
-		return "Edifício %d · %d andar%s\nclique para entrar" % [meta.building_id, floors, "es" if floors > 1 else ""]
+		var text := "Edifício %d · %d andar%s" % [meta.building_id, floors, "es" if floors > 1 else ""]
+		return text + _price_lines(building) + "\nclique para entrar"
 	if meta.has("city_id"):
 		var city = store.cities.get(meta.city_id)
 		if city != null:
 			return "%s · %d hab.\nduplo clique para entrar" % [city.name if city.name != "" else "Cidade", city.population]
+	return ""
+
+
+## Preço do imóvel como o servidor calculou hoje (local e demanda já entram): hospedagem mostra vagas, aluguel e diária.
+func _price_lines(building) -> String:
+	if building == null:
+		return ""
+	var lodging = building.get("lodging")
+	if lodging is Dictionary:
+		var line := "\nHospedagem · %d/%d vagas · aluguel %d/mês" % [int(lodging.occupied), int(lodging.units), int(lodging.rentPerMonth)]
+		if int(lodging.nightlyRate) > 0:
+			line += " · diária %d" % int(lodging.nightlyRate)
+		return line + ("\nvalor %d" % int(building.value) if int(building.get("value", 0)) > 0 else "")
+	if int(building.get("value", 0)) > 0:
+		return "\nvalor estimado %d" % int(building.value)
 	return ""
 
 
@@ -502,6 +537,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					exit_building()
 				elif store.kind == "City":
 					enter_scope("World", "")
+			KEY_F10:
+				menu_requested.emit()
 			KEY_M:
 				ambience.set_muted(not ambience.muted)
 			KEY_L:
@@ -523,7 +560,29 @@ func _unhandled_input(event: InputEvent) -> void:
 		_pick(event.position, event.double_click)
 
 
+## NPC visível mais próximo do clique (em pixels da tela), -1 se nenhum: NPC é pequeno e o raio costuma
+## acertar o telhado ou o chão ao lado dele, então o clique perto do NPC vale como clique nele.
+func nearest_npc(screen_position: Vector2, max_distance: float = 32.0) -> int:
+	var camera: Camera3D = rig.camera
+	var best := -1
+	var best_distance := max_distance
+	for id in world_view.npc_nodes:
+		var actor: Node3D = world_view.npc_nodes[id]
+		var point := actor.global_position + Vector3(0, 0.6, 0)
+		if not actor.visible or camera.is_position_behind(point):
+			continue
+		var distance := camera.unproject_position(point).distance_to(screen_position)
+		if distance < best_distance:
+			best_distance = distance
+			best = id
+	return best
+
+
 func _pick(screen_position: Vector2, double_click: bool) -> void:
+	var near_npc := nearest_npc(screen_position)
+	if near_npc >= 0:
+		select_npc(near_npc)
+		return
 	var hit := _raycast(screen_position)
 	if hit.is_empty():
 		return
