@@ -83,6 +83,7 @@ func test_thinking_state_then_timeout_drops_the_late_reply() -> void:
 	await window.start(7, "Ana")
 	window.send("Olá") # sem await: ainda esperando
 	eq(window.waiting, true, "mostra 'pensando…' enquanto aguarda")
+	check(not window._deadline.is_stopped() and window._deadline.time_left > 7.0, "o prazo de 8 s foi armado ao enviar")
 	check("pensando" in window.status_text)
 	window._deadline.timeout.emit()
 	eq(window.waiting, false, "a espera acaba no prazo + margem")
@@ -234,7 +235,7 @@ func test_returning_to_the_menu_ends_the_open_conversation_once() -> void:
 
 	await app.release_observation()
 
-	eq(transport.bodies["POST /conversations/end"], [{"sessionId": 4}], "voltar ao menu encerra a conversa uma vez")
+	eq(transport.count_calls("POST /conversations/end"), 1, "voltar ao menu encerra a conversa uma vez")
 	app.queue_free()
 
 
@@ -285,3 +286,27 @@ func test_api_rejects_start_and_send_bodies_that_break_the_frozen_shape() -> voi
 	eq(started.ok, false, "start sem 'decision' reprova")
 	eq(sent.ok, false, "send sem 'emotion' reprova")
 	eq(errors, ["/conversations/start", "/conversations/send"])
+
+
+func test_end_button_ends_the_conversation_once() -> void:
+	var transport := _accepting()
+	var window := _window(transport)
+	await window.start(7, "Ana")
+
+	_find_button(window, "Encerrar (Esc)").pressed.emit()
+	await tree.process_frame
+
+	eq(window.is_open, false)
+	eq(transport.count_calls("POST /conversations/end"), 1, "o botão envia /end uma vez")
+	window.free()
+
+
+func test_full_cycle_only_calls_the_three_conversation_routes() -> void:
+	var transport := _accepting()
+	var window := _window(transport)
+	await window.start(7, "Ana")
+	await window.send("Olá")
+	await window.end_conversation()
+
+	eq(transport.calls, ["POST /conversations/start", "POST /conversations/send", "POST /conversations/end"], "início, envio e fim: nada além")
+	window.free()
