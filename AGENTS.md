@@ -16,6 +16,11 @@
   **desempenho sem regressão**. Uma melhoria de realismo ou UX não pode custar FPS (cliente) nem custo por
   NPC-tick (motor): meça antes e depois e registre o número (`client/godot/README.md`, `--steps "stress:500"`).
 
+- **Issues do GitHub (evita retrabalho):** antes de pegar uma issue, rode
+  `gh issue view <n> --json assignees,state` (e confira PR/branch aberto que cite `#<n>`). Se já houver
+  assignee ou PR em andamento, **não pegue** — escolha outra ou avise o usuário. Ao pegar, atribua o
+  usuário logado: `gh issue edit <n> --add-assignee @me`. Sem isso, não comece a trabalhar nela.
+
 **PERGUNTE QUANDO**
 - For apagar/renomear spec, design ou doc; alterar migração aplicada; mudar contrato público.
 - A tarefa exigir dependência nova ou decisão de arquitetura → registre ADR em `docs/adr/`.
