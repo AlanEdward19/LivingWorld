@@ -238,6 +238,27 @@ public class TechDiscoveryTests
 
     [Fact]
     [Trait("Category", "Scenario")]
+    public void Two_isolated_villages_keep_discovering_for_30_years_and_end_with_different_technology_sets()
+    {
+        int different = 0;
+        for (ulong seed = 1; seed <= 3; seed++)
+        {
+            string Technologies(ulong s)
+            {
+                var (world, clock) = Village(s, Pressured);
+                clock.Run(world, world.Calendar.HoursPerYear * 30);
+                Assert.True(world.Technologies.Count >= 3, "a vila deveria seguir descobrindo por 30 anos");
+                return string.Join(";", world.Technologies.Where(t => !t.IsVariation).Select(t => t.Vector.Key));
+            }
+
+            if (Technologies(seed) != Technologies(seed + 1000)) different++;
+        }
+
+        Assert.True(different >= 2, $"só {different}/3 pares divergiram em 30 anos");
+    }
+
+    [Fact]
+    [Trait("Category", "Scenario")]
     public void A_village_under_long_trip_pressure_discovers_deterministically_for_20_years_in_10_seeds()
     {
         for (ulong seed = 1; seed <= 10; seed++)
@@ -251,5 +272,54 @@ public class TechDiscoveryTests
             Assert.Equal(Keys(world), Keys(again));
             Assert.Equal(WorldSnapshot.CanonicalHash(world), WorldSnapshot.CanonicalHash(again));
         }
+    }
+
+    private static string DefaultScenarioWith(string? emergenceBlock)
+    {
+        var root = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(FindScenario("default.json")))!.AsObject();
+        root.Remove("Emergence");
+        if (emergenceBlock is not null) root["Emergence"] = System.Text.Json.Nodes.JsonNode.Parse(emergenceBlock);
+        return root.ToJsonString();
+    }
+
+    private static string FindScenario(string file)
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "scenarios", file))) dir = dir.Parent;
+        return Path.Combine(dir!.FullName, "scenarios", file);
+    }
+
+    [Fact]
+    public void The_scenario_declares_axes_and_novelty_threshold_and_the_loader_hands_them_to_the_world()
+    {
+        var withBlock = ScenarioLoaderV2.LoadWorld(DefaultScenarioWith(
+            """{ "Enabled": true, "AxisNames": ["pace", "load"], "AxisMax": 5, "NoveltyThreshold": 2, "PrototypeResourceCost": 7 }"""));
+        var without = ScenarioLoaderV2.LoadWorld(DefaultScenarioWith(null));
+
+        Assert.True(withBlock.IsSuccess, withBlock.Error);
+        var rules = withBlock.Value.World.EmergenceRules;
+        Assert.True(rules.Enabled);
+        Assert.Equal(["pace", "load"], rules.AxisNames);
+        Assert.Equal(5, rules.AxisMax);
+        Assert.Equal(2, rules.NoveltyThreshold);
+        Assert.Equal(7, rules.PrototypeResourceCost);
+        Assert.Equal(EmergenceRules.Mobility.PrototypeTicks, rules.PrototypeTicks); // campo ausente usa o padrão
+        Assert.True(without.IsSuccess, without.Error);
+        Assert.False(without.Value.World.EmergenceRules.Enabled);
+    }
+
+    [Theory]
+    [InlineData("""{ "AxisNames": ["pace"] }""")]
+    [InlineData("""{ "Enabled": true, "AxisNames": [] }""")]
+    [InlineData("""{ "Enabled": true, "AxisNames": ["a", "a"] }""")]
+    [InlineData("""{ "Enabled": true, "NoveltyThreshold": 0 }""")]
+    [InlineData("""{ "Enabled": true, "AxisMax": "alto" }""")]
+    [InlineData("""{ "Enabled": true, "PrototypeTicks": -5 }""")]
+    public void An_invalid_emergence_block_is_rejected_at_the_border(string block)
+    {
+        var result = ScenarioLoaderV2.LoadWorld(DefaultScenarioWith(block));
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("Emergence", result.Error, StringComparison.Ordinal);
     }
 }
