@@ -23,6 +23,7 @@ const Ambience := preload("res://Scenes/ambience.gd")
 const AssetCatalog := preload("res://Scenes/asset_catalog.gd")
 const DevSteps := preload("res://Scenes/dev_steps.gd")
 const BrainPanel := preload("res://Scenes/brain_panel.gd")
+const ConversationWindow := preload("res://Scenes/conversation_window.gd")
 const ScopeObserver := preload("res://Contract/scope_observer.gd")
 
 var transport
@@ -44,6 +45,7 @@ var list_panel
 var npc_panel
 var city_panel
 var brain_panel
+var conversation
 var observer
 var banner: Label
 var breadcrumb: Label
@@ -231,6 +233,17 @@ func _build_ui() -> void:
 	brain_panel.warning.connect(func(text: String): toasts.push(text))
 	_ui.add_child(brain_panel)
 	npc_panel.brain_requested.connect(func(id: int): open_brain(id))
+	conversation = ConversationWindow.new()
+	conversation.api = api
+	conversation.set_anchors_preset(Control.PRESET_FULL_RECT)
+	conversation.anchor_top = 1.0 # faixa fixa na base da tela
+	conversation.offset_left = 310
+	conversation.offset_right = -430
+	conversation.offset_top = -262
+	conversation.offset_bottom = -34
+	conversation.warning.connect(func(text: String): toasts.push(text))
+	_ui.add_child(conversation)
+	npc_panel.conversation_requested.connect(func(id: int): talk_to(id))
 
 	minimap = Minimap.new()
 	minimap.bind(store)
@@ -251,7 +264,7 @@ func _build_ui() -> void:
 	_ui.add_child(toasts)
 
 	var help := Label.new()
-	help.text = "Botão direito: mover · Shift+botão direito: girar · Roda: zoom · Q/E: girar · L: pessoas · F: seguir · B: cérebro do NPC · Esc: voltar · PgUp/PgDn: andar · M: som · clique: selecionar/entrar"
+	help.text = "Botão direito: mover · Shift+botão direito: girar · Roda: zoom · Q/E: girar · L: pessoas · F: seguir · B: cérebro do NPC · T: conversar · Esc: voltar · PgUp/PgDn: andar · M: som · clique: selecionar/entrar"
 	help.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	help.offset_top = -30
 	help.offset_left = 10
@@ -409,6 +422,8 @@ func _publish_observation(kind: String) -> void:
 
 ## Retira a fonte de observação antes de sair (menu principal); o servidor também a descarta em 30 s sem batimento.
 func release_observation() -> void:
+	if conversation != null:
+		await conversation.end_conversation()
 	if observer != null:
 		await observer.clear()
 
@@ -489,6 +504,11 @@ func select_npc(id: int) -> void:
 ## Abre o painel "Cérebro" do NPC (atalho B).
 func open_brain(id: int) -> void:
 	await brain_panel.open(id)
+
+
+## Pede a conversa com o NPC (atalho T); o servidor aceita ou recusa e a janela explica o motivo.
+func talk_to(id: int) -> void:
+	await conversation.start(id, String(store.names.get(id, "NPC %d" % id)))
 
 
 func _toggle_brain() -> void:
@@ -595,7 +615,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		match event.keycode:
 			KEY_ESCAPE:
-				if brain_panel.is_open:
+				if conversation.is_open:
+					conversation.end_conversation()
+				elif brain_panel.is_open:
 					brain_panel.close()
 				elif stage.active:
 					exit_building()
@@ -605,6 +627,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				menu_requested.emit()
 			KEY_B:
 				_toggle_brain()
+			KEY_T:
+				if selected_npc >= 0 and not conversation.input.has_focus():
+					talk_to(selected_npc)
 			KEY_M:
 				ambience.set_muted(not ambience.muted)
 			KEY_L:

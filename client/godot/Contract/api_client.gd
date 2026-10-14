@@ -79,6 +79,23 @@ func observation_scope(source_id: String, scope: Dictionary) -> Dictionary:
 	return {"ok": response.status == 200, "status": response.status, "body": response.body}
 
 
+# --- conversa com NPC (só estas três rotas escrevem; o cliente não aplica nada ao mundo) -----
+
+func conversation_start(npc_id: int) -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/conversations/start", {"npcId": npc_id})
+	return _checked("/conversations/start", {"status": response.status, "body": response.body}, "conversation-start")
+
+
+func conversation_send(session_id: int, message: String) -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/conversations/send", {"sessionId": session_id, "message": message})
+	return _checked("/conversations/send", {"status": response.status, "body": response.body}, "conversation-send")
+
+
+func conversation_end(session_id: int) -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/conversations/end", {"sessionId": session_id})
+	return {"ok": response.status == 200, "status": response.status, "body": response.body}
+
+
 func interior_snapshot(building_id: int) -> Dictionary:
 	return await _fetch("/visual/subscribe?scope=Interior&refId=%d&mode=Spectator" % building_id, "interior-subscribe")
 

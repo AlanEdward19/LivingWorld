@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using LivingWorld.Domain.Behavior;
@@ -71,6 +72,28 @@ public class ApiContractTests
         AssertMatchesContract("shape.npc-inspect.json", shape);
 
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/npcs/987654321")).StatusCode);
+    }
+
+    /// <summary>Conversa com NPC (#59 fatia A): forma de `start` e `send` que a janela do cliente interpreta.</summary>
+    [Fact]
+    public async Task Conversation_start_and_send_shapes_match_the_committed_contract()
+    {
+        var client = _factory.CreateClient();
+        var directory = JsonNode.Parse(await client.GetStringAsync("/npcs?take=1"))!;
+        long id = directory["items"]![0]!["id"]!["value"]!.GetValue<long>();
+
+        var start = await client.PostAsJsonAsync("/conversations/start", new { npcId = id });
+        Assert.Equal(HttpStatusCode.OK, start.StatusCode);
+        var started = ShapeOf(JsonNode.Parse(await start.Content.ReadAsStringAsync()))!;
+        long sessionId = JsonNode.Parse(await start.Content.ReadAsStringAsync())!["sessionId"]!.GetValue<long>();
+        started["sessionId"] = "null"; // nulo quando o NPC recusa
+        AssertMatchesContract("shape.conversation-start.json", started);
+
+        var send = await client.PostAsJsonAsync("/conversations/send", new { sessionId, message = "olá" });
+        Assert.Equal(HttpStatusCode.OK, send.StatusCode);
+        AssertMatchesContract("shape.conversation-send.json", ShapeOf(JsonNode.Parse(await send.Content.ReadAsStringAsync())));
+
+        await client.PostAsJsonAsync("/conversations/end", new { sessionId });
     }
 
     /// <summary>Escopos Cidade e Interior do primeiro prédio do mundo canônico: a forma inclui `floors`,

@@ -25,6 +25,7 @@ Pausa, velocidade, passo e +1 ano são do admin (ADR-0015): a API exige `X-Admin
 | Entrar numa casa | clique no prédio (andares: PgUp/PgDn) · Esc sai |
 | Pessoas | L abre a lista (segue a cidade em foco) · clique num NPC · botão Seguir ou F |
 | Cérebro do NPC | B (ou botão Cérebro na ficha) abre/fecha o painel das decisões do NPC selecionado: linha do tempo + fluxo Estímulo → Ponderação → Decisão · Vigiar retém o rastro inteiro · Esc fecha |
+| Conversar | T (ou botão Conversar na ficha) pede a conversa; o NPC pode recusar (ocupado, hostil, indisponível) · Enter envia · Esc encerra |
 | Orientação | passe o mouse (dica) · minimapa (clique/arraste) · avisos de eventos |
 | Som | ambiente procedural com fade ao trocar de período, som da ação do NPC selecionado (catálogo `assets.json`) · M silencia |
 | Relógio | pausa, passo, +1 ano e velocidades 1× a 200× na barra; o céu segue a hora do mundo |
@@ -49,3 +50,4 @@ Arte e áudio (2026-10-14, M1 Pro, `stress:500`, câmera padrão, API local): 75
 Painel Cérebro (2026-10-14, M1 Pro, `stress:500`, API local): sem painel 79,4 / 80,0 / 77,7 FPS; com o painel aberto num NPC 77,2 / 77,5 / 76,4 (média 77,0 contra 79,0: dentro de ±3; antes da mudança 77,3 / 78,3 / 75,6). O painel só busca `/npcs/{id}` quando a hora do mundo muda e fechado não faz requisição.
 
 O rastro de cognição só é gravado para NPC em escopo observado: `Contract/scope_observer.gd` publica o escopo da câmera (`POST /observation/scope`, batimento de 10 s, `null` ao voltar ao menu).
+Janela de conversa (2026-10-14, M1 Pro, `stress:500`, API local): sem janela 79,4 / 78,2 / 78,8 FPS; com a janela aberta 78,2 / 77,7 / 77,8 (dentro de ±3).

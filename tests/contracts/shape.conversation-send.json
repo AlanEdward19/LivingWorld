@@ -1,0 +1,6 @@
+{
+  "dialogue": "string",
+  "emotion": "string",
+  "intent": "string",
+  "proposedActions": "[]"
+}

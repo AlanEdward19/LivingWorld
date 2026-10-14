@@ -89,6 +89,7 @@ class NpcDetailPanel extends PanelContainer:
 	signal highlight(id: int)
 	signal follow_requested(id: int)
 	signal brain_requested(id: int)
+	signal conversation_requested(id: int)
 	signal model_known(id: int, profession: int, age_years: float)
 	var api
 	var labels
@@ -141,6 +142,10 @@ class NpcDetailPanel extends PanelContainer:
 		brain.text = "Cérebro (B)"
 		brain.pressed.connect(func(): brain_requested.emit(npc_id))
 		box.add_child(brain)
+		var talk := Button.new()
+		talk.text = "Conversar (T)"
+		talk.pressed.connect(func(): conversation_requested.emit(npc_id))
+		box.add_child(talk)
 		visible = false
 
 	func show_npc(id: int) -> void:
