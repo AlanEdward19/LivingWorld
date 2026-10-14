@@ -412,7 +412,10 @@ func _enter_interior_view() -> void:
 	var marker = store.buildings.get(_interior_building, null)
 	var origin: Vector2i = marker.cell if marker != null else Vector2i.ZERO
 	stage.interior_view.catalog = catalog
-	stage.enter(store.interior, origin, labels, rig.camera, int(marker.type) if marker != null else -1)
+	var lodging = marker.get("lodging") if marker != null else null
+	stage.enter(
+		store.interior, origin, labels, rig.camera, int(marker.type) if marker != null else -1,
+		int(lodging.units) if lodging is Dictionary else 0)
 	stage.interior_view.apply_names(store.names)
 	breadcrumb.text = "%s › Edifício %d" % [breadcrumb.text.get_slice(" › Edifício", 0), _interior_building]
 	if marker != null:
@@ -474,11 +477,27 @@ func describe_hit(meta: Dictionary) -> String:
 	if meta.has("building_id"):
 		var building = store.buildings.get(meta.building_id)
 		var floors: int = building.floors if building != null else 1
-		return "Edifício %d · %d andar%s\nclique para entrar" % [meta.building_id, floors, "es" if floors > 1 else ""]
+		var text := "Edifício %d · %d andar%s" % [meta.building_id, floors, "es" if floors > 1 else ""]
+		return text + _price_lines(building) + "\nclique para entrar"
 	if meta.has("city_id"):
 		var city = store.cities.get(meta.city_id)
 		if city != null:
 			return "%s · %d hab.\nduplo clique para entrar" % [city.name if city.name != "" else "Cidade", city.population]
+	return ""
+
+
+## Preço do imóvel como o servidor calculou hoje (local e demanda já entram): hospedagem mostra vagas, aluguel e diária.
+func _price_lines(building) -> String:
+	if building == null:
+		return ""
+	var lodging = building.get("lodging")
+	if lodging is Dictionary:
+		var line := "\nHospedagem · %d/%d vagas · aluguel %d/mês" % [int(lodging.occupied), int(lodging.units), int(lodging.rentPerMonth)]
+		if int(lodging.nightlyRate) > 0:
+			line += " · diária %d" % int(lodging.nightlyRate)
+		return line + ("\nvalor %d" % int(building.value) if int(building.get("value", 0)) > 0 else "")
+	if int(building.get("value", 0)) > 0:
+		return "\nvalor estimado %d" % int(building.value)
 	return ""
 
 

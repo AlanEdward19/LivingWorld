@@ -12,6 +12,7 @@ const WALL_STONE := 0
 const WALL_WOOD := 1
 const DOOR := 2
 const STAIR := 4
+const MAX_LODGING_BEDS := 12
 const CUTAWAY_HEIGHT := 0.22 ## paredes voltadas para a câmera ficam baixas para ver dentro
 
 var origin := Vector2i.ZERO ## célula do mundo onde começa a planta do prédio
@@ -30,7 +31,7 @@ var _view_dir := Vector3.ZERO
 
 
 ## `info` = WorldStore.interior: {building, floors, layout:[{level, cells:[{cell, material}]}], occupants}
-func show_interior(info: Dictionary, p_origin: Vector2i, labels, building_type: int = -1) -> void:
+func show_interior(info: Dictionary, p_origin: Vector2i, labels, building_type: int = -1, lodging_units: int = 0) -> void:
 	_clear()
 	origin = p_origin
 	_labels = labels
@@ -62,14 +63,14 @@ func show_interior(info: Dictionary, p_origin: Vector2i, labels, building_type: 
 		slab.position = Grid.to_world(cell)
 		roof.add_child(slab)
 	add_child(roof)
-	_place_furniture(info, building_type)
+	_place_furniture(info, building_type, lodging_units)
 	set_occupants(info.occupants)
 	set_floor(floor_count - 1 if current_floor >= floor_count else current_floor)
 
 
 ## Mobília do catálogo para o tipo do prédio, no térreo: peças em células de piso escolhidas pela
 ## semente da posição do prédio (mesma casa, mesma disposição). Nunca ocupa parede, porta ou escada.
-func _place_furniture(info: Dictionary, building_type: int) -> void:
+func _place_furniture(info: Dictionary, building_type: int, lodging_units: int = 0) -> void:
 	var ground: Node3D = floor_nodes.get(0)
 	if ground == null or info.layout.is_empty():
 		return
@@ -87,7 +88,12 @@ func _place_furniture(info: Dictionary, building_type: int) -> void:
 	var stride := maxi(free_cells.size() / 5, 1)
 	var used := {}
 	var index := 0
-	for piece_id in catalog.furniture_for(building_type):
+	var pieces: Array = catalog.furniture_for(building_type).duplicate()
+	for i in mini(lodging_units, MAX_LODGING_BEDS): # um leito por vaga de hospedagem, vinda do servidor
+		pieces.append("bed")
+	for piece_id in pieces:
+		if used.size() >= free_cells.size():
+			break # sem célula livre sobrando: nunca duas peças no mesmo lugar
 		var slot := (seed_value + index * stride) % free_cells.size()
 		while used.has(slot) and used.size() < free_cells.size():
 			slot = (slot + 1) % free_cells.size()
