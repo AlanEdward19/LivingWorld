@@ -63,7 +63,11 @@ public sealed class TickLoopService(
     /// ninguém está ouvindo nenhum escopo.</summary>
     public void RunOneCycle()
     {
-        if (simulationHost.IsPaused) return;
+        if (simulationHost.IsPaused)
+        {
+            simulationHost.CountPausedCycle();
+            return;
+        }
 
         var world = worldHost.Current;
         worldHost.Clock.Tick(world);

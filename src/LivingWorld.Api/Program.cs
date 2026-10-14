@@ -1,4 +1,5 @@
 using LivingWorld.AI;
+using LivingWorld.Api.Admin;
 using LivingWorld.Api.Authoring;
 using LivingWorld.Api.Conversation;
 using LivingWorld.Api.Narrative;
@@ -132,6 +133,7 @@ if (builder.Configuration["TICK_LOOP_ENABLED"] == "true")
 
 builder.Services.AddDbContext<WorldDbContext>(o => o.UseSqlite(worldDbConnection));
 builder.Services.AddScoped<IPeriodTemplateRepository, SqlitePeriodTemplateRepository>();
+builder.Services.AddScoped<AdminAuditStore>();
 
 var app = builder.Build();
 
@@ -191,6 +193,14 @@ var orchestrator = new ConversationOrchestrator(
     budgetPerInteraction: TimeSpan.FromSeconds(5));
 app.MapConversationEndpoints(worldHost, sessions, orchestrator);
 app.MapNarrativeEndpoints(worldHost, chronicles);
+app.MapAdminEndpoints(worldHost, simulationHost);
+simulationHost.OnPauseExpired = pause =>
+{
+    using var scope = app.Services.CreateScope();
+    scope.ServiceProvider.GetRequiredService<AdminAuditStore>().Append(
+        BranchId.Root, worldHost.Current.CurrentDate.TotalHours, "system", "world.pause-expired", "world",
+        $"actor={pause.Actor};reason={pause.Reason};maxTicks={pause.MaxTicks}");
+};
 app.MapPeriodsEndpoints();
 app.MapWorldStartEndpoints();
 app.MapWorldCreateEndpoints(worldHost, worldRunner, worldSink);

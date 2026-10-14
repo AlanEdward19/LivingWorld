@@ -1,4 +1,4 @@
-# God console [Estado: Spec - plano sem checks nem código (specs-closeout 2026-10-12)]
+# God console [Estado: Entregue - /admin/* com pausa de teto e AdminAudit append-only (AD-112, 2026-10-14)]
 
 ## Problem
 
