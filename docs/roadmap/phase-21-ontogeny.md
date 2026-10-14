@@ -8,9 +8,8 @@ learning**. Um modelo treinado por NPC seria caro, não-determinístico e quebra
 barata, é um **modelo de desenvolvimento**: curvas por marco, janelas de idade e entradas
 de exposição.
 
-> **Spec, não gate.** Os critérios abaixo são a intenção; os critérios finais são escritos
-> sob `rules/eval-criteria.md` quando a fase for ativada. Não comece esta fase antes da
-> Fase 7 fechar.
+> **Status: ativa (2026-10-14, #66).** Plano lean e critérios finais: `.specs/features/phase-21-ontogeny/plan.md`.
+> Os critérios abaixo são a intenção original; vale o `plan.md`.
 
 ## Tasks
 1. **Marco como dado de cenário**, nunca `enum` de código: eixos motor grosso, motor fino,

@@ -10,14 +10,14 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
   Fase 28 fechada no motor (API e LOD); falta só o painel visual (#58). Cliente web removido (ADR-0022).
 - **Abertas**: #57 roadmap/STATE em sincronia (esta entrega) · #58 painel COG-11 no Godot · #59 telas Godot para backend
   pronto · #60 provider de LLM de produção + custo (ADR-0016) · #61 Fase 24 resto · #62 Fase 26 resto (reescrita exige
-  Fase 18) · #63 Fase 25 resto · #64 Fase 16 efeitos/custos em switch fechado · #65 FAM-32 (AD-088) · #66 ordem das fases
-  14/15/17–23/27 · #67 verificação de `lodging-and-rent`/`godot-main-menu` · #68 interações presenciais ·
+  Fase 18) · #63 Fase 25 resto · #64 Fase 16 efeitos/custos em switch fechado · #65 FAM-32 (AD-088) · #66 (esta decisão) · #67 verificação de `lodging-and-rent`/`godot-main-menu` · #68 interações presenciais ·
   #46 criador de mundo · #47 criador procedural de objetos.
-- **Próxima unidade**: aguardando decisão #66 (ordem das fases `spec`). Até lá, só #58–#65, #67, #68.
+- **Decisão de escopo (2026-10-14, #66)**: ordem das fases `spec` = **21 → 22 → 23**, depois 18, 27 e 17/19/20.
+  Fase 14 substituída pelo Godot (ADR-0025, voz/Unreal adiados); Fase 15 fechada.
+- **Próxima unidade**: Fase 21a (#70) → 21b (#71) → 21c (#72); plano `.specs/features/phase-21-ontogeny/plan.md`.
 - **Pendência de CI**: goldens do cliente foram regravados num Mac arm64; rodar o CI antes do merge.
 - **Integração do extraordinário (2026-08-12)**: decisão **mista**, sem fase numerada nova para "super-heróis" —
   distribuída entre Fases 16, 17, 23, 24, 25, com toques em 10, 12, 22. ADR-0010 + `docs/domain/powers.md`.
-- **Decisão de escopo (2026-07-29)**: Fase 14 (Unreal) adiada; o cliente é Godot (ADR-0022). Formalização por ADR: #66.
 - **Dívida Fase 9**: PERF-12 hasher; `LongRunScaleTests` só nightly.
 - **Gate**: `bash scripts/verify.sh`. No Windows, Git bash. Sem `Category=Scenario` no rotina.
 - **População default ~40/100** após calibração econômica (Fase 5) — coerência, não "interessante".

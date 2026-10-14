@@ -45,20 +45,20 @@ O número é **identidade**, não ordem. Só a trilha núcleo é sequencial.
 | 11 | [Interação com LLM](docs/roadmap/phase-11-llm.md) | Contexto, diálogo, validação, memória, relação | fechada |
 | 12 | [Narrativa](docs/roadmap/phase-12-narrative.md) | Resumos, jornais, rumores, biografias, crônicas | fechada |
 | 13 | [Múltiplos períodos](docs/roadmap/phase-13-periods.md) | Módulos de conteúdo: pré-histórico, moderno, futurista, criaturas | fechada |
-| 14 | [Unreal](docs/roadmap/phase-14-unreal.md) | Cliente 3D, personagens, voz, animação | adiada (não iniciada) |
-| 15 | [Mapa visual](docs/roadmap/phase-15-map-visual.md) | Cliente React+TS VTT 2D realtime: camadas + espectador + FOW | parcial (servidor/FOW/tokens prontos; cliente migrou ao Godot, ADR-0022) |
+| 14 | [Unreal](docs/roadmap/phase-14-unreal.md) | Cliente 3D, personagens, voz, animação | substituída pelo Godot (ADR-0025); voz e Unreal adiados |
+| 15 | [Mapa visual](docs/roadmap/phase-15-map-visual.md) | Cliente React+TS VTT 2D realtime: camadas + espectador + FOW | fechada (servidor/FOW/tokens prontos; UI é o Godot, ADR-0022; telas em #58/#59) |
 | 16 | [Potência](docs/roadmap/phase-16-powers.md) | Extraordinário opcional por mundo: modificador unificado, custo/rolagem/fraqueza opcionais, aquisição declarativa | parcial (efeitos e custos ainda em switch C# fechado; reabertura pendente, #64) |
-| 17 | [Divindade](docs/roadmap/phase-17-divinity.md) | Deuses, culto, economia de crença, cisma, deus falso, ser cultuado ≠ ganhar poder | spec |
-| 18 | [Linhas temporais](docs/roadmap/phase-18-timelines.md) | Ramificação, inércia histórica, âncora e coleta de branch | spec |
-| 19 | [Cosmos e contato](docs/roadmap/phase-19-cosmos.md) | Sistema estelar, órbitas, aliens como cultura, colônias | spec |
-| 20 | [Trânsito interdimensional](docs/roadmap/phase-20-interdimensional.md) | Volta à linha de origem, catch-up preguiçoso de branch dormente | spec |
-| 21 | [Ontogenia](docs/roadmap/phase-21-ontogeny.md) | Nascer sem saber nada, marcos, exposição, janelas críticas | spec |
-| 22 | [Imperfeição](docs/roadmap/phase-22-imperfection.md) | Defeitos, doenças, moral emergente, orientação e ocultação | spec |
-| 23 | [Intriga](docs/roadmap/phase-23-intrigue.md) | Segredo, persona/identidade, chantagem, traição, divulgação, rumor, investigação, conspiração | spec |
+| 17 | [Divindade](docs/roadmap/phase-17-divinity.md) | Deuses, culto, economia de crença, cisma, deus falso, ser cultuado ≠ ganhar poder | adiada (depois de 18/27) |
+| 18 | [Linhas temporais](docs/roadmap/phase-18-timelines.md) | Ramificação, inércia histórica, âncora e coleta de branch | adiada (4ª; destrava #62 e 20) |
+| 19 | [Cosmos e contato](docs/roadmap/phase-19-cosmos.md) | Sistema estelar, órbitas, aliens como cultura, colônias | adiada (por último) |
+| 20 | [Trânsito interdimensional](docs/roadmap/phase-20-interdimensional.md) | Volta à linha de origem, catch-up preguiçoso de branch dormente | adiada (por último; exige 18) |
+| 21 | [Ontogenia](docs/roadmap/phase-21-ontogeny.md) | Nascer sem saber nada, marcos, exposição, janelas críticas | ativa (1ª; plano `.specs/features/phase-21-ontogeny/plan.md`, #66) |
+| 22 | [Imperfeição](docs/roadmap/phase-22-imperfection.md) | Defeitos, doenças, moral emergente, orientação e ocultação | próxima (2ª, depois da 21) |
+| 23 | [Intriga](docs/roadmap/phase-23-intrigue.md) | Segredo, persona/identidade, chantagem, traição, divulgação, rumor, investigação, conspiração | próxima (3ª, depois da 22) |
 | 24 | [Emergência aberta](docs/roadmap/phase-24-emergence.md) | Raças, tecnologias, ideologias, potências e contramedidas novas por composição | parcial (tecnologia de mobilidade por composição entregue, AD-110; faltam raças, ideologias, potências, contramedidas, doença, nomeação, #61) |
 | 25 | [Jogadores](docs/roadmap/phase-25-players.md) | Encarnação, offline vira desaparecimento, espectador, multiplayer | parcial (encarnar/agir/logout + procura entregues, AD-111; faltam abandono declarado, retorno tardio, espectador, multiplayer/autenticação, paridade de potência, #63) |
 | 26 | [Console e modo god](docs/roadmap/phase-26-console.md) | Pausa, velocidade, busca, eventos marcantes, reescrita + rebuild | parcial (pausa com teto, velocidade, busca de NPC e auditoria entregues, AD-112; faltam índice de entidades/eventos, visão de Verdade no console, reescrita/diff — bloqueados pela Fase 18, #62) |
-| 27 | [Motor cinematográfico](docs/roadmap/phase-27-cinematics.md) | Assistir a uma vida: texto → 2D → caminho para 3D | spec |
+| 27 | [Motor cinematográfico](docs/roadmap/phase-27-cinematics.md) | Assistir a uma vida: texto → 2D → caminho para 3D | adiada (5ª; exige 10 e 12) |
 | 28 | [Cognição e LOD observacional](docs/roadmap/phase-28-cognition.md) | Motor de decisão inspecionável (estímulo→decisão) com painel "ver o cérebro", compressão de estado frio, LOD por três escopos de observação (mundo/cidade/interior) | parcial (API e LOD prontos; falta o painel visual COG-11 no cliente Godot, #58) |
 
 ## Regras do roadmap
@@ -76,6 +76,7 @@ O número é **identidade**, não ordem. Só a trilha núcleo é sequencial.
 - **A Fase 9 não desliza.** Ela não fecha objetivo, mas fixa o teto de custo (tempo por
   NPC-tick e bytes por NPC vivo) que toda fase seguinte gasta. Adiar é pagar o mesmo
   trabalho depois, sobre o dobro de sistemas.
+- **Ordem decidida (2026-10-14, #66): 21 → 22 → 23, depois 18, 27, 17/19/20.** Fora dessa ordem exige nova decisão.
 - **Status `spec` significa bloqueada.** Fases 17–27 têm objetivo, tasks e intenção de
   critério, mas os critérios finais só são escritos sob `rules/eval-criteria.md` quando a
   fase é ativada — e nenhuma delas começa antes da Fase 8 fechar. Ativar uma fase `spec`
