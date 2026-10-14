@@ -191,11 +191,11 @@ var orchestrator = new ConversationOrchestrator(
     budgetPerInteraction: TimeSpan.FromSeconds(5));
 app.MapConversationEndpoints(worldHost, sessions, orchestrator);
 app.MapNarrativeEndpoints(worldHost, chronicles);
-app.MapCultureTechnologyEndpoints(worldHost);
 app.MapPeriodsEndpoints();
 app.MapWorldStartEndpoints();
 app.MapWorldCreateEndpoints(worldHost, worldRunner, worldSink);
 app.MapWorldPreviewEndpoints();
+app.MapCultureTechnologyEndpoints(worldHost);
 app.MapSimulationControlEndpoints();
 app.MapRealtimeEndpoints();
 app.MapActionLabelEndpoints();
