@@ -20,6 +20,8 @@ public static class SignificanceCalculator
             [WorldEventKind.Disease] = 0.8,
             [WorldEventKind.OutbreakStarted] = 0.7,
             [WorldEventKind.TheftDiscovered] = 0.4,
+            [WorldEventKind.TechnologyDiscovered] = 0.6,
+            [WorldEventKind.TechnologyAdopted] = 0.3,
             [WorldEventKind.RentUnpaid] = 0.35,
             [WorldEventKind.Evicted] = 0.65,
             [WorldEventKind.Marriage] = 0.80,

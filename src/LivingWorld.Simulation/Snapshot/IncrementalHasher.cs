@@ -38,6 +38,7 @@ public static class IncrementalHasher
         nameof(WorldState.Immunities),
         nameof(WorldState.ClimateYears),
         nameof(WorldState.EnvironmentTemperatureAdjustments),
+        nameof(WorldState.Technologies),
         nameof(WorldState.Facts),
         nameof(WorldState.Reports),
         nameof(WorldState.Books),

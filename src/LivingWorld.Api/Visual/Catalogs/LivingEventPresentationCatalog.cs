@@ -19,6 +19,8 @@ public static class LivingEventPresentationCatalog
             [WorldEventKind.Disease] = "Uma doença causou uma morte",
             [WorldEventKind.OutbreakStarted] = "Um surto de doença começou na cidade",
             [WorldEventKind.TheftDiscovered] = "Um furto foi descoberto",
+            [WorldEventKind.TechnologyDiscovered] = "Um povo descobriu um novo jeito de se deslocar",
+            [WorldEventKind.TechnologyAdopted] = "Uma cidade passou a usar uma técnica de deslocamento",
             [WorldEventKind.RentUnpaid] = "Um aluguel ficou em atraso",
             [WorldEventKind.Evicted] = "Uma família perdeu a moradia por falta de pagamento",
             [WorldEventKind.Hired] = "Um habitante começou um novo trabalho",

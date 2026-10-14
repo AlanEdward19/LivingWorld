@@ -8,6 +8,7 @@ using LivingWorld.Simulation.Behavior.Resolvers;
 using LivingWorld.Simulation.Cities;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Economy.Market;
+using LivingWorld.Simulation.Emergence;
 using LivingWorld.Simulation.Extraordinary.Engine;
 using LivingWorld.Simulation.Scheduling;
 
@@ -230,7 +231,8 @@ public sealed partial class BehaviorDecisionSystem
             // Compra de domicílio, como uma ida real ao mercado: cobre ~4 dias de cada membro
             // (mínimo 10) e, com o mercado longe de casa, a ida e a volta; limitada ao que a carteira paga.
             int purchaseDays = PurchaseDaysFor(
-                TravelTicksCache.Between(world.Map, household.Location, market.Location), world.CurrentDate.Calendar.HoursPerDay);
+                Mobility.Apply(TravelTicksCache.Between(world.Map, household.Location, market.Location), Mobility.BonusPct(world, household.City)),
+                world.CurrentDate.Calendar.HoursPerDay);
             long quantity = Math.Max(MinimumPurchaseQuantity, household.Members.Count * purchaseDays);
             quantity = Math.Max(1, Math.Min(quantity, npc.Wallet.Amount / unitPrice));
             var ctx = new TransactionContext(

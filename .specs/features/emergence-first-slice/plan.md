@@ -1,4 +1,4 @@
-# Emergence first slice [Estado: Spec - plano sem checks nem código (specs-closeout 2026-10-12)]
+# Emergence first slice [Estado: Entregue - TechDiscoverySystem, Mobility, GET /cultures/{id}/technologies (AD-110, 2026-10-14)]
 
 ## Problem
 
