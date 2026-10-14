@@ -193,14 +193,6 @@ var orchestrator = new ConversationOrchestrator(
     budgetPerInteraction: TimeSpan.FromSeconds(5));
 app.MapConversationEndpoints(worldHost, sessions, orchestrator);
 app.MapNarrativeEndpoints(worldHost, chronicles);
-app.MapAdminEndpoints(worldHost, simulationHost);
-simulationHost.OnPauseExpired = pause =>
-{
-    using var scope = app.Services.CreateScope();
-    scope.ServiceProvider.GetRequiredService<AdminAuditStore>().Append(
-        BranchId.Root, worldHost.Current.CurrentDate.TotalHours, "system", "world.pause-expired", "world",
-        $"actor={pause.Actor};reason={pause.Reason};maxTicks={pause.MaxTicks}");
-};
 app.MapPeriodsEndpoints();
 app.MapWorldStartEndpoints();
 app.MapWorldCreateEndpoints(worldHost, worldRunner, worldSink);
@@ -215,6 +207,14 @@ app.MapVisualInputEndpoints();
 app.MapAuthoringEndpoints();
 app.MapWatchlistEndpoints(worldHost);
 app.MapObservationScopeEndpoints(worldHost);
+app.MapAdminEndpoints(worldHost, simulationHost);
+simulationHost.OnPauseExpired = pause =>
+{
+    using var scope = app.Services.CreateScope();
+    scope.ServiceProvider.GetRequiredService<AdminAuditStore>().Append(
+        BranchId.Root, worldHost.Current.CurrentDate.TotalHours, "system", "world.pause-expired", "world",
+        $"actor={pause.Actor};reason={pause.Reason};maxTicks={pause.MaxTicks}");
+};
 
 app.Run();
 
