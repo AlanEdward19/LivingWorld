@@ -75,6 +75,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
         long now = ctx.CurrentTick;
         var marketIndex = MarketIndex.BuildForTick(world);
         var laborIndex = LaborValueIndex.BuildForTick(world);
+        var theftIndex = TheftIndex.BuildForTick(world);
         var targets = TargetsForTick(world);
 
         // Índice de ocupação construído uma vez por tick (O(população)), não por NPC — a versão
@@ -83,7 +84,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
         // função pra ordem dentro do próprio tick continuar correta.
         var occupancy = _occupancy;
         occupancy.Clear();
-        foreach (var other in world.Npcs)
+        foreach (var other in world.AliveNpcIndex.Alive)
             if (other.IsAlive)
                 occupancy.Add(other.CurrentLocation);
         foreach (var constructCell in world.ExtraordinaryConstructs.SelectMany(construct => construct.Footprint))
@@ -107,7 +108,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
 
             bool justCompleted = TryCompleteAction(
                 world, npc, rules, catalog, now, marketIndex, ctx, occupancy,
-                cityPopulationCache, cityBoundsCache);
+                cityPopulationCache, cityBoundsCache, theftIndex);
 
             ActionType chosen;
             ActionType? travelPurpose = null;
@@ -157,7 +158,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 }
 
                 candidate = ApplyPerception(world, npc, candidate);
-                if (urgent && world.TheftRules.Enabled && TheftResolver.Wants(world, npc, now))
+                if (urgent && world.TheftRules.Enabled && TheftResolver.Wants(world, npc, now, theftIndex))
                     candidate = ActionType.Steal; // desespero + temperamento + alguém com moeda ao lado
 
                 chosen = ResolveWithStepCap(npc.Id.Value, candidate, world, npc, marketIndex, rules.MaxActionSelectionSteps);
@@ -195,7 +196,8 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
     private static bool TryCompleteAction(
         WorldState world, Npc npc, NeedsRules rules, ActionCatalog catalog, long now,
         MarketIndex marketIndex, TickContext ctx, HashSet<CellCoord> occupancy,
-        Dictionary<CityId, long> cityPopulationCache, Dictionary<CityId, CityBounds> cityBoundsCache)
+        Dictionary<CityId, long> cityPopulationCache, Dictionary<CityId, CityBounds> cityBoundsCache,
+        TheftIndex? theftIndex)
     {
         if (npc.CurrentAction is not { } action) return false;
 
@@ -226,7 +228,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
         if (action is ActionType.Idle or ActionType.Socialize || (action == ActionType.Work && npc.Employer is not null))
             MoveOneAmbientStep(world, npc, ctx, now, action, occupancy, cityPopulationCache, cityBoundsCache);
 
-        ApplyActionEffect(world, npc, action, marketIndex, now, ctx);
+        ApplyActionEffect(world, npc, action, marketIndex, now, ctx, theftIndex);
         return true;
     }
 

@@ -259,9 +259,9 @@ public static class CityOccupancy
     internal static CellCoord LegacyRingFallback(BuildingId id, CellCoord cityLocation)
     {
         ulong h = StableHash.Mix(id.Value);
-        double angle = h % 3600 / 3600.0 * 2 * Math.PI;
-        int dx = (int)Math.Round(Math.Cos(angle) * LegacyRingRadius);
-        int dy = (int)Math.Round(Math.Sin(angle) * LegacyRingRadius);
+        double turns = h % 3600 / 3600.0;
+        int dx = (int)Math.Round(DeterministicMath.CosTurns(turns) * LegacyRingRadius);
+        int dy = (int)Math.Round(DeterministicMath.SinTurns(turns) * LegacyRingRadius);
         return new CellCoord(cityLocation.X + dx, cityLocation.Y + dy);
     }
 

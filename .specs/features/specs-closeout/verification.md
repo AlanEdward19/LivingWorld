@@ -32,3 +32,12 @@
 ## Gate
 
 No dotnet command was run (another agent builds in the tree); `verify.sh` not run.
+
+## Follow-up (issue #43, 2026-10-13)
+
+- Weak Verified rows re-run with real tests and now cite them by name: ECON-04/10..13/19, SKILL-15/16, FAM-25, LLM-14..16, phase-09 PERF-05/06/14, dead-code-audit EXEC-04/08/09/11/17. ECON-10/13 gained two tests; ECON-19 one.
+- Downgraded: phase-16 PERF-05 (Deferred, the 3x stability run never happened), phase-09 PERF-07 (Parcial: `BuildingOccupancySystem` still scans `world.Npcs`).
+- Cross-platform hashes: root cause was `Math.Log`/`Math.Cos` in `BodyGeneration` (1 ulp of one NPC's muscle mass). Fixed with `DeterministicMath` (AD-108); Windows and Linux musl now give identical hashes over a year for 3 seeds. Goldens and baselines re-recorded once. `verify.sh --full` exits 0.
+- Also fixed on the way: food price stuck at the floor (AD-109), `LLM-14` guard now real (`EgressGuard`, `LW_BLOCK_EGRESS=1` in `test.sh`).
+- `.specs/STATE.md` split into an index plus `.specs/state/*.md`; `check-docs.sh` covers them.
+- Left to the owner: ROADMAP status for phases 10, 12, 16, 28; EXEC-16 (text quality). The `real-household-workplace-buildings` T5 gate is superseded by the full gate above.

@@ -83,6 +83,15 @@ public class ScaleScenarioSensorTests
         AssertInRelativeBand(
             sample.BytesPerAliveNpcPerYear, baseline.BytesPerAliveNpcPerYear, 0.01);
 
+        // custo com doença, clima e furto desligados (o padrão): alocação por tick presa à baseline (+5%, estável entre máquinas);
+        // tempo só com folga larga (10x) porque µs varia com a máquina e a carga — pega regressão grosseira, não ruído.
+        Assert.True(
+            sample.BytesAllocPerTick <= baseline.BytesAllocPerTick * 1.05,
+            $"BytesAllocPerTick={sample.BytesAllocPerTick:F0} passa de 105% da baseline {baseline.BytesAllocPerTick:F0}");
+        Assert.True(
+            sample.MicrosPerAliveNpcTick <= baseline.MicrosPerAliveNpcTick * 10,
+            $"MicrosPerAliveNpcTick={sample.MicrosPerAliveNpcTick:F2} passa de 10x a baseline {baseline.MicrosPerAliveNpcTick:F2}");
+
         // snapshot-positional-binary AC 4: no fixture de 1.000 NPCs, no máximo 50% dos 131.737 B/NPC/ano medidos em JSON
         if (initialPopulation == ScaleScenarioFixture.PopulationSmall)
             Assert.True(sample.BytesPerAliveNpcPerYear <= 0.5 * 131_737, $"{sample.BytesPerAliveNpcPerYear:F0} B/NPC/ano passa de 50% de 131.737");

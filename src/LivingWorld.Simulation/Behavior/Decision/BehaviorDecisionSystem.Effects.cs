@@ -17,7 +17,8 @@ namespace LivingWorld.Simulation.Behavior.Decision;
 public sealed partial class BehaviorDecisionSystem
 {
     private static void ApplyActionEffect(
-        WorldState world, Npc npc, ActionType action, MarketIndex marketIndex, long tick, TickContext ctx)
+        WorldState world, Npc npc, ActionType action, MarketIndex marketIndex, long tick, TickContext ctx,
+        TheftIndex? theftIndex)
     {
         switch (action)
         {
@@ -37,7 +38,7 @@ public sealed partial class BehaviorDecisionSystem
                 ApplyUsePower(world, npc, tick, ctx);
                 break;
             case ActionType.Steal:
-                TheftResolver.Resolve(world, npc, tick, ctx);
+                TheftResolver.Resolve(world, npc, tick, ctx, theftIndex);
                 break;
         }
     }

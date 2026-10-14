@@ -25,7 +25,7 @@ namespace LivingWorld.Tests.Unit.Performance;
 /// é comparada com a definição direta que ela substitui, e o conjunto é preso a hashes do mundo.
 /// Os hashes foram gravados no código anterior às otimizações (equivalência provada) e regravados
 /// quando o comportamento mudou de propósito (mortalidade condicional, Midshift, custo de célula
-/// 0.05, urgência de sobrevivência, abastecimento, rotina com deslocamento antecipado — AD-077/AD-078; folga mínima e água no posicionamento de prédios — AD-104; campos de aluguel no domicílio — AD-105). Mudar a simulação de propósito exige atualizá-los; qualquer outra quebra é regressão.</summary>
+/// 0.05, urgência de sobrevivência, abastecimento, rotina com deslocamento antecipado — AD-077/AD-078; folga mínima e água no posicionamento de prédios — AD-104; campos de aluguel no domicílio — AD-105; log/cosseno determinísticos em vez da libm da plataforma — AD-108). Mudar a simulação de propósito exige atualizá-los; qualquer outra quebra é regressão.</summary>
 public class OptimizationEquivalenceTests
 {
     private const long OneYearInHours = 360L * 24;
@@ -33,8 +33,8 @@ public class OptimizationEquivalenceTests
     // --- Hashes do mundo preservados ---
 
     [Theory]
-    [InlineData(1UL, "2d503a00a1c7da572f448ab3ba037c79761e002fa0ef239545c87dfa8a83a55f", "872469088e632c287524c77ddcf07bc3b97c828444f780fe6a57d1dc0f72b322")]
-    [InlineData(2UL, "a5ca9ef688b7a86eda506a839101619c3c397b15a98e7d2880742d936cbdd9ff", "607ff699e7d94fc38d00390c3c5a86f6f82b0e244f2db4a2bf8f3fe356293718")]
+    [InlineData(1UL, "68dbab1cef186784a997342b3e2d78404092fd0b0ecb3d4446f59fa95c76375e", "69f97d0a721cabc8ed387be6ce44943e657ac415cf0812a54342f9abfcb135e4")]
+    [InlineData(2UL, "b39dadd318e130dd3416a3fd6785b6ec38a4f8c437b8e2ba4f3ca1654dbaad6c", "52172cd4c95ef0ae57fc703eb3ed4703048e91222eb34c3890fd3eca82d44d27")]
     public void Default_scenario_ninety_days_keeps_the_recorded_hashes(
         ulong seed, string canonical, string volatileHash)
     {

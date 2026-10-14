@@ -32,13 +32,14 @@ public class ProductionSystemTests
             priceSensitivity: 0,
             demandBaselinePerNpc: new Dictionary<int, double>()).Value!;
 
-    private static WorldState BuildWorld(EconomyCatalog catalog, EconomyRules? rules = null)
+    private static WorldState BuildWorld(
+        EconomyCatalog catalog, EconomyRules? rules = null, LivingWorld.Domain.Climate.ClimateRules? climate = null)
     {
         var map = ScenarioRunner.DefaultMap(1);
         return new WorldState(
             Calendar, 1, map, ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
             ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules,
-            economyRules: rules ?? MakeRules(), economyCatalog: catalog);
+            economyRules: rules ?? MakeRules(), economyCatalog: catalog, climateRules: climate);
     }
 
     private static Npc MakeWorker(WorldState world, CellCoord location)
@@ -71,6 +72,30 @@ public class ProductionSystemTests
         new ProductionSystem().Tick(world, ctx);
 
         Assert.True(workplace.Stock.GetValueOrDefault(new ResourceType(1)) > 0);
+    }
+
+    [Fact]
+    public void A_drought_year_cuts_the_food_output_of_a_recipe_but_not_the_water_when_there_are_no_plant_recipes()
+    {
+        var recipe = ProductionRecipe.Create(
+            new Dictionary<int, long>(), new Dictionary<int, long> { [1] = 10, [2] = 10 }, requiresCellResource: null, maxWorkersPerCycle: 1).Value!;
+        var catalog = new EconomyCatalog(new Dictionary<int, ProductionRecipe> { [1] = recipe }, [], new Dictionary<int, int>());
+        var location = new CellCoord(1, 1);
+        var world = BuildWorld(catalog, climate: new LivingWorld.Domain.Climate.ClimateRules(true, 500, 500));
+        var workplace = new Workplace(
+            world.NextWorkplaceIdAndAdvance(), new LocationType(1), location, maxVacancies: 1,
+            employees: [], stock: new Dictionary<ResourceType, long>(), treasury: Money.Zero, prices: new Dictionary<ResourceType, long>());
+        world.AddWorkplace(workplace);
+        var worker = MakeWorker(world, location);
+        workplace.Hire(worker.Id);
+        worker.Hire(workplace.Id);
+        world.SetClimateYear(world.Map.RegionOf(location), 0, 500);
+        var ctx = new TickContext(world, world.Rng, world.Scheduler);
+
+        new ProductionSystem().Tick(world, ctx);
+
+        Assert.Equal(5, workplace.Stock.GetValueOrDefault(new ResourceType(1))); // alimento: 10 x 500 / 1000
+        Assert.Equal(10, workplace.Stock.GetValueOrDefault(new ResourceType(2))); // água não depende de chuva
     }
 
     [Fact]

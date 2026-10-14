@@ -371,22 +371,22 @@ par base/tratamento (quebra de safra) mostra contagem de NPCs famintos maior no 
 | ECON-01 | P1: Recursos e estoque | Design | Pending - sem teste dedicado; tipo int/long so por construcao do codigo |
 | ECON-02 | P1: Recursos e estoque | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/WorkplaceTests.cs |
 | ECON-03 | P1: Recursos e estoque | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/Production/ProductionSystemTests.cs (Spoilage_reduces_stock_by_declared_rate_and_zero_rate_leaves_stock_untouched) |
-| ECON-04 | P1: Recursos e estoque | Design | Pending - existe tests/LivingWorld.Tests.LongRunning/Serialization/ReferentialIntegritySweepTests.cs, mas cobertura de WorkplaceId nao confirmada |
+| ECON-04 | P1: Recursos e estoque | Design | Verified - tests/LivingWorld.Tests.LongRunning/Serialization/ReferentialIntegritySweepTests.cs (An_npc_employer_pointing_to_a_nonexistent_workplace_is_flagged: sweep reprova WorkplaceId pendurado; ResourceType/LocationType sao ids de catalogo, nao referencias do mundo); rodado 2026-10-13 |
 | ECON-05 | P1: Recursos e estoque | Design | Verified - tests/LivingWorld.Tests.Integration/Economy/EconomyHashScenarioTests.cs |
 | ECON-06 | P1: Produção | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/EconomyCatalogTests.cs |
 | ECON-07 | P1: Produção | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/Production/ProductionSystemTests.cs |
 | ECON-08 | P1: Produção | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/Production/ProductionSystemTests.cs (Workplace_requiring_absent_cell_resource_produces_zero_even_with_worker_present) |
 | ECON-09 | P1: Transação atômica | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/MarketTransactionTests.cs (Execute_happy_path) + EatAndBuyBehaviorTests.cs |
-| ECON-10 | P1: Transação atômica | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/MarketTransactionTests.cs (AllStepIndexes via MarketTransaction.Steps.Count) |
-| ECON-11 | P1: Transação atômica | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/MarketTransactionTests.cs (Execute_fails_and_leaves_nothing_observable_when_buyer_funds_insufficient) |
-| ECON-12 | P1: Transação atômica | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/MarketTransactionTests.cs (Execute_aborts_at_the_injected_step_with_no_partial_effect) |
-| ECON-13 | P1: Transação atômica | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/MarketTransactionTests.cs (theory itera Steps.Count) |
+| ECON-10 | P1: Transação atômica | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/MarketTransactionTests.cs (Execute_is_the_ordered_application_of_the_enumerable_steps_list: Execute == aplicar Steps em ordem); rodado 2026-10-13 |
+| ECON-11 | P1: Transação atômica | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/MarketTransactionTests.cs (Execute_fails_and_leaves_nothing_observable_when_buyer_funds_insufficient); rodado 2026-10-13 |
+| ECON-12 | P1: Transação atômica | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/MarketTransactionTests.cs (Execute_aborts_at_the_injected_step_with_no_partial_effect, um caso por passo; compara carteiras/estoques do TransactionContext, nao Hash(world), pois a transacao e pura); rodado 2026-10-13 |
+| ECON-13 | P1: Transação atômica | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/MarketTransactionTests.cs (theory itera Steps.Count; Fault_injection_covers_exactly_the_steps_there_are fixa o limite 1..N); rodado 2026-10-13 |
 | ECON-14 | P1: Conservação | Design | Verified - tests/LivingWorld.Tests.LongRunning/Economy/MoneyConservationTests.cs |
 | ECON-15 | P1: Conservação | Design | Verified - tests/LivingWorld.Tests.LongRunning/Economy/ResourceConservationTests.cs |
 | ECON-16 | P1: Consumo diário | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/EatAndBuyBehaviorTests.cs |
 | ECON-17 | P1: Consumo diário | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/EatAndBuyBehaviorTests.cs (Eat_with_no_food_in_stock_completes_without_restoring_hunger_and_without_exception) |
 | ECON-18 | P2: Emprego | Design | Verified - tests/LivingWorld.Tests.LongRunning/Economy/Labor/EmploymentSystemTests.cs |
-| ECON-19 | P2: Emprego | Design | Pending - morte coberta (EmploymentSystemTests.Dead_employee_is_fired...); demissao por falta de caixa nao encontrada |
+| ECON-19 | P2: Emprego | Design | Verified - EmploymentSystemTests.Dead_employee_is_fired... (morte) e ...An_employee_whose_workplace_no_longer_exists_is_fired... (Workplace sumido): vinculo removido e `Fired` gravado; rodado 2026-10-13. Demissao por falta de caixa e so o exemplo do spec e nao existe como regra |
 | ECON-20 | P2: Emprego | Design | Verified - tests/LivingWorld.Tests.LongRunning/Economy/Labor/EmploymentSystemTests.cs + tests/LivingWorld.Tests.Unit/Economy/WorkplaceTests.cs |
 | ECON-21 | P2: Salário | Design | Verified - tests/LivingWorld.Tests.Unit/Economy/Labor/WagePaymentSystemTests.cs |
 | ECON-22 | P2: Salário | Design | Pending - WageUnpaid e saldos intactos cobertos (WagePaymentSystemTests); teste de mutacao por flag nao encontrado |

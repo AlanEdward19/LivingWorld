@@ -37,6 +37,28 @@ public class ClimateTests
     }
 
     [Fact]
+    public void A_disabled_system_allocates_nothing_per_tick_and_the_hot_path_factor_is_neutral()
+    {
+        var world = NewWorld();
+        var ctx = new TickContext(world, world.Rng, world.Scheduler);
+        var system = new ClimateYearSystem();
+        var at = new CellCoord(1, 1);
+        system.Tick(world, ctx); // aquece
+        world.ClimateFactorAt(at, 0);
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        long sum = 0;
+        for (int i = 0; i < 1000; i++)
+        {
+            system.Tick(world, ctx);
+            sum += world.ClimateFactorAt(at, i);
+        }
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(0, allocated);
+        Assert.Equal(1000L * 1000, sum);
+    }
+
+    [Fact]
     public void Each_region_gets_one_factor_per_year_inside_the_scenario_bounds_and_never_a_rewrite()
     {
         var world = NewWorld(new ClimateRules(true, 300, 1500));
@@ -133,7 +155,7 @@ public class ClimateTests
 
     [Fact]
     [Trait("Category", "Scenario")]
-    public void A_forced_drought_in_year_five_cuts_the_food_harvest_and_does_not_lower_the_price_and_the_village_survives_twenty_years()
+    public void A_forced_drought_in_year_five_cuts_the_food_harvest_and_raises_the_price_and_the_village_survives_twenty_years()
     {
         var (control, controlClock) = ScenarioRunner.Create(4, climateRules: new ClimateRules(true, 1000, 1000));
         var (dry, dryClock) = ScenarioRunner.Create(4, climateRules: new ClimateRules(true, 1000, 1000));
@@ -147,14 +169,20 @@ public class ClimateTests
         dryClock.Run(dry, 1);
         long ProducedBefore(WorldState w) => w.ResourceProduced.GetValueOrDefault(new ResourceType(w.EconomyRules.FoodResourceId));
         long controlStart = ProducedBefore(control), dryStart = ProducedBefore(dry);
-        controlClock.Run(control, YearHours / 2);
-        dryClock.Run(dry, YearHours / 2);
-
-        long controlHarvest = ProducedBefore(control) - controlStart, dryHarvest = ProducedBefore(dry) - dryStart;
         long FoodPrice(WorldState w) => w.Workplaces.Where(x => x.Prices.ContainsKey(new ResourceType(w.EconomyRules.FoodResourceId)))
             .Max(x => x.Prices[new ResourceType(w.EconomyRules.FoodResourceId)]);
+        long controlPeak = 0, dryPeak = 0;
+        for (int day = 0; day < YearHours / 2 / 24; day++) // o preço do alimento no pico do semestre
+        {
+            controlClock.Run(control, 24);
+            dryClock.Run(dry, 24);
+            controlPeak = Math.Max(controlPeak, FoodPrice(control));
+            dryPeak = Math.Max(dryPeak, FoodPrice(dry));
+        }
+
+        long controlHarvest = ProducedBefore(control) - controlStart, dryHarvest = ProducedBefore(dry) - dryStart;
         Assert.True(dryHarvest < 0.6 * controlHarvest, $"colheita com seca {dryHarvest} contra controle {controlHarvest}");
-        Assert.True(FoodPrice(dry) >= FoodPrice(control), $"preço com seca {FoodPrice(dry)} contra controle {FoodPrice(control)}");
+        Assert.True(dryPeak > controlPeak, $"pico de preço com seca {dryPeak} contra controle {controlPeak}");
 
         dryClock.Run(dry, 15 * YearHours - YearHours / 2);
         Assert.True(dry.Npcs.Count(n => n.IsAlive) > 0, "a vila se extinguiu depois da seca");

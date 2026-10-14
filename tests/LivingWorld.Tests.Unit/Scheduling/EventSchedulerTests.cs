@@ -71,4 +71,27 @@ public class EventSchedulerTests
 
         Assert.Equal([1, 2, 3], snapshot.Select(e => e.Id));
     }
+
+    [Fact]
+    public void Cancel_and_insertion_stay_ordered_and_correct_with_a_hundred_thousand_events_over_as_many_ticks()
+    {
+        // um Cancel que varresse os baldes (PERF-14) faria 50.000 x 100.000 buscas, bem acima do teto; por índice de id termina em ms
+        const int n = 100_000;
+        var scheduler = new EventScheduler();
+        for (int id = n; id >= 1; id--) // ids em ordem inversa: a inserção ordena
+            scheduler.Schedule(new ScheduledEvent(id, TargetTick: id, SystemName: "sys"));
+
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        int cancelled = 0;
+        for (int id = 1; id <= n; id += 2)
+            if (scheduler.Cancel(id)) cancelled++;
+        watch.Stop();
+
+        Assert.Equal(n / 2, cancelled);
+        Assert.False(scheduler.Cancel(1)); // já cancelado
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(2), $"{cancelled} cancelamentos levaram {watch.Elapsed}");
+        var remaining = scheduler.Snapshot();
+        Assert.Equal(n / 2, remaining.Count);
+        Assert.Equal(remaining.OrderBy(e => e.TargetTick).ThenBy(e => e.Id).Select(e => e.Id), remaining.Select(e => e.Id));
+    }
 }

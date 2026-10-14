@@ -30,6 +30,8 @@ public sealed class ProductionSystem : ISimulationSystem
 
     private readonly SkillsRules? _skillsRules;
 
+    private readonly List<KeyValuePair<ResourceType, long>> _stockBuffer = [];
+
     public ProductionSystem(SkillsRules? skillsRules = null) => _skillsRules = skillsRules;
 
     public string Name => SystemName;
@@ -153,9 +155,14 @@ public sealed class ProductionSystem : ISimulationSystem
         return sum / count;
     }
 
-    private static void ApplySpoilage(Workplace workplace, EconomyRules rules, TickContext ctx)
+    private void ApplySpoilage(Workplace workplace, EconomyRules rules, TickContext ctx)
     {
-        foreach (var (resource, amount) in workplace.Stock.ToList())
+        if (rules.SpoilagePerDayByResource.Count == 0) return;
+
+        // cópia reaproveitada (retirar durante a enumeração do estoque não pode); mesma ordem de antes
+        _stockBuffer.Clear();
+        _stockBuffer.AddRange(workplace.Stock);
+        foreach (var (resource, amount) in _stockBuffer)
         {
             if (!rules.SpoilagePerDayByResource.TryGetValue(resource.Id, out var rate) || rate <= 0) continue;
             long spoiled = (long)(amount * rate);

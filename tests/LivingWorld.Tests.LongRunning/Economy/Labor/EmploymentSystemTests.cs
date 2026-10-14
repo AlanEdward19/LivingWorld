@@ -211,4 +211,19 @@ public class EmploymentSystemTests
         public List<WorldEvent> Events { get; } = [];
         public void Record(WorldEvent evt) => Events.Add(evt);
     }
+
+    [Fact]
+    public void An_employee_whose_workplace_no_longer_exists_is_fired_on_the_next_tick_with_a_Fired_event()
+    {
+        var world = BuildWorld();
+        var npc = MakeAdult(world, new NpcId(1), new ProfessionType(1), new CellCoord(1, 1));
+        npc.Hire(new WorkplaceId(999)); // nenhum workplace com esse id: o vínculo é órfão
+        var sink = new RecordingSink();
+
+        new EmploymentSystem().Tick(world, new TickContext(world, world.Rng, world.Scheduler, sink));
+
+        Assert.Null(npc.Employer);
+        var fired = Assert.Single(sink.Events, e => e.Kind == WorldEventKind.Fired);
+        Assert.Equal($"{npc.Id.Value}|999", fired.Payload);
+    }
 }

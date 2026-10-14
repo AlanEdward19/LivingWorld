@@ -43,7 +43,9 @@ public sealed class MarketPricingSystem : ISimulationSystem
 
                 long floor = rules.PriceFloor.GetValueOrDefault(resource.Id, currentPrice);
                 long ceiling = rules.PriceCeiling.GetValueOrDefault(resource.Id, currentPrice);
-                long newPrice = Math.Clamp((long)Math.Round(currentPrice * factor), floor, ceiling);
+                // Escassez sobe pelo menos 1: com preço inteiro, round(1 x 1,2) = 1 prendia o preço no piso para sempre.
+                long scaled = factor > 1 ? (long)Math.Ceiling(currentPrice * factor) : (long)Math.Round(currentPrice * factor);
+                long newPrice = Math.Clamp(scaled, floor, ceiling);
 
                 workplace.SetPrice(resource, newPrice);
             }

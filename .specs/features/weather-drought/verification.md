@@ -29,3 +29,9 @@
 - Mutation probe (manual, reverted): ignoring the climate in `CropSystem` fails C6 (killed). Ignoring it in the `ProductionSystem` food output survives; that branch is unproven, and is skipped anyway when plant process recipes exist (the default). It is a Deviation, not an acceptance criterion, so it is left unproven.
 - AC 7 time per NPC-tick: `MeasureHarness` is not a gate and asserts nothing; only the hash and the early-return structure are proven.
 - C6 asserts only that the price does not fall (>=), weaker than AC 5 "price rises"; the claim text is honest about that.
+
+## Follow-up (issue #42)
+
+- Climate-off cost: `A_disabled_system_allocates_nothing_per_tick_and_the_hot_path_factor_is_neutral` (0 bytes over 1000 ticks of `ClimateYearSystem` plus `ClimateFactorAt`); time and per-tick allocation also pinned by `ScaleScenarioSensorTests`.
+- `ProductionSystem` food branch: now proven by `A_drought_year_cuts_the_food_output_of_a_recipe_but_not_the_water_when_there_are_no_plant_recipes` (mutation: neutral factor fails it).
+- AC 5 "price rises": was unprovable because `round(1 x 1.2)` = 1 kept the price at the floor with zero stock (found while trying to prove it). `MarketPricingSystem` now rounds scarcity up (AD-109) and C6 asserts the drought peak food price is strictly above the control's; mutation (back to `round`) fails it.

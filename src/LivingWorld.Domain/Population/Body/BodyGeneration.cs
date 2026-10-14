@@ -31,7 +31,7 @@ public static class BodyGeneration
         // Box-Muller: dois NextDouble → um z ~ N(0,1) determinístico.
         double u1 = Math.Max(rng.NextDouble(), 1e-12);
         double u2 = rng.NextDouble();
-        double z = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Cos(2.0 * Math.PI * u2);
+        double z = Math.Sqrt(-2.0 * DeterministicMath.Log(u1)) * DeterministicMath.CosTurns(u2);
         return Math.Clamp(mean + z * stdDev, min, max);
     }
 }

@@ -19,6 +19,8 @@ public sealed class NeedsDecaySystem : ISimulationSystem
 {
     public const string SystemName = "needs-decay";
 
+    private readonly List<Npc> _alive = [];
+
     public string Name => SystemName;
     public TickFrequency Frequency => TickFrequency.Hourly;
 
@@ -27,8 +29,12 @@ public sealed class NeedsDecaySystem : ISimulationSystem
         var rules = world.NeedsRules;
         long now = ctx.CurrentTick;
 
-        foreach (var npc in world.Npcs.Where(n => n.IsAlive))
+        // cópia dos vivos: a morte dentro do laço tira o NPC do índice; varrer só os vivos poupa os mortos acumulados em world.Npcs
+        _alive.Clear();
+        _alive.AddRange(world.AliveNpcIndex.Alive);
+        foreach (var npc in _alive)
         {
+            if (!npc.IsAlive) continue;
             HandleStarvation(world, ctx, npc, rules, now);
             if (!npc.IsAlive) continue;
             HandleDehydration(world, ctx, npc, rules, now);

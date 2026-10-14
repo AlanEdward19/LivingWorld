@@ -176,7 +176,7 @@ app.MapPost("/npcs/{id:long}/materialize", (long id) =>
 // comportamento existente (gate/testes seguem sempre em FakeLlmProvider).
 ILlmProvider llmProvider = builder.Configuration["LLM_PROVIDER"] switch
 {
-    "ollama" => new OllamaLlmProvider(new HttpClient()),
+    "ollama" => new OllamaLlmProvider(new HttpClient(LivingWorld.AI.EgressGuard.Handler())),
     "null" => new NullLlmProvider(),
     _ => new FakeLlmProvider(),
 };

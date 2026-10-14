@@ -30,3 +30,9 @@
 - C6 proves the guard effect on `TheftResolver.Resolve` only, not an end-to-end guarded village. Accepted at the resolver level.
 - Reviewed with no defect: loot capped by wallet via `Math.Min`; debit then credit conserves coin; NaN or negative `MaxLootFraction`, `BaseSuccess`, `GuardEffect` degrade to a failed or minimal theft, never coin creation; victim scan in id order; named per-(thief, tick) stream.
 - Known ceiling: `FindVictim` and `GuardsIn` scan all NPCs per desperate NPC when theft is on (O(n) each); off path costs one bool check.
+
+## Follow-up (issue #42)
+
+- C6 end to end: `A_village_with_guards_turns_the_attempts_into_failures_end_to_end_where_the_same_village_without_them_steals` runs a year through the decision system: without guards thefts succeed, with guards attempts happen and none succeeds.
+- Theft-off cost: `Without_theft_there_is_no_index_and_asking_to_steal_allocates_nothing_per_tick` (0 bytes over 1000 calls); time and per-tick allocation also pinned by `ScaleScenarioSensorTests`.
+- Cost ceiling lifted: `TheftIndex` (built once per tick, only with theft on) replaces the O(n) `FindVictim`/`GuardsIn` scans with a per-cell lookup and per-city guard counts; parity test `The_index_picks_the_same_victim_and_the_same_guards_as_the_full_scan`. Deviation: positions are those at the start of the tick (an NPC that walks into the cell mid-tick is a victim only from the next tick).

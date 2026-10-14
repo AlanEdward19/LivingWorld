@@ -178,6 +178,54 @@ public class TheftTests
     }
 
     [Fact]
+    public void The_index_picks_the_same_victim_and_the_same_guards_as_the_full_scan()
+    {
+        var world = NewWorld(Rules());
+        var thief = Add(world, Criminal);
+        thief.SetHunger(10, 0);
+        thief.SetThirst(10, 0);
+        Add(world, Honest, wallet: 30);
+        var richest = Add(world, Honest, wallet: 80);
+        Add(world, Honest, wallet: 80); // empate: vence o menor id
+        for (int i = 0; i < 3; i++) Add(world, Honest, profession: GuardId);
+        var index = TheftIndex.BuildForTick(world)!;
+
+        Assert.True(TheftResolver.Wants(world, thief, 0, index));
+        Assert.Equal(richest.Id, index.FindVictim(thief)!.Id);
+        Assert.Equal(3, index.GuardsIn(thief.City));
+
+        var scanned = NewWorld(Rules(success: 1.0, discovery: 0.0));
+        var indexed = NewWorld(Rules(success: 1.0, discovery: 0.0));
+        foreach (var w in new[] { scanned, indexed })
+        {
+            Add(w, Criminal);
+            Add(w, Honest, wallet: 100);
+        }
+        TheftResolver.Resolve(scanned, scanned.Npcs[0], 5, Ctx(scanned));
+        TheftResolver.Resolve(indexed, indexed.Npcs[0], 5, Ctx(indexed), TheftIndex.BuildForTick(indexed));
+        Assert.Equal(scanned.Npcs.Select(n => n.Wallet.Amount), indexed.Npcs.Select(n => n.Wallet.Amount));
+    }
+
+    [Fact]
+    public void Without_theft_there_is_no_index_and_asking_to_steal_allocates_nothing_per_tick()
+    {
+        var world = NewWorld();
+        var thief = Add(world, Criminal);
+        Add(world, Honest, wallet: 50);
+        thief.SetHunger(10, 0);
+        Assert.Null(TheftIndex.BuildForTick(world));
+        TheftResolver.Wants(world, thief, 0); // aquece
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        int wants = 0;
+        for (int i = 0; i < 1000; i++)
+            if (TheftResolver.Wants(world, thief, 0, TheftIndex.BuildForTick(world))) wants++;
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(0, allocated);
+        Assert.Equal(0, wants);
+    }
+
+    [Fact]
     public void The_same_world_gives_the_same_thefts()
     {
         static List<long> Run()
@@ -263,5 +311,38 @@ public class TheftTests
 
         Assert.True(world.Npcs.Any(n => n.IsAlive), "a vila se extinguiu");
         Assert.True(sink.Thefts > 0, "nenhum furto descoberto em um ano");
+    }
+
+    private sealed class OutcomeSink : IWorldEventSink
+    {
+        public int Succeeded { get; private set; }
+        public int Failed { get; private set; }
+        public void Record(WorldEvent evt)
+        {
+            if (evt.Kind != WorldEventKind.TheftDiscovered) return;
+            if (evt.Payload.EndsWith("|1")) Succeeded++; else Failed++;
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Scenario")]
+    public void A_village_with_guards_turns_the_attempts_into_failures_end_to_end_where_the_same_village_without_them_steals()
+    {
+        // descoberta 1.0: todo furto vira evento; o profissional 1 (a maioria da vila) passa a valer como guarda
+        (int Succeeded, int Failed) Year(int guardProfessionId)
+        {
+            var rules = new TheftRules(true, 90, 0.9, 0.6, 1.0, 0.5, guardProfessionId, 0.25);
+            var (world, _) = ScenarioRunner.Create(2, theftRules: rules);
+            var sink = new OutcomeSink();
+            new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink).Run(world, 12 * 30 * 24);
+            return (sink.Succeeded, sink.Failed);
+        }
+
+        var open = Year(-1);
+        var guarded = Year(1);
+
+        Assert.True(open.Succeeded > 0, $"sem guardas ninguém furtou ({open})");
+        Assert.True(guarded.Failed > 0, $"com guardas ninguém tentou ({guarded})");
+        Assert.Equal(0, guarded.Succeeded); // guardas demais: a chance de sucesso cai a zero
     }
 }
