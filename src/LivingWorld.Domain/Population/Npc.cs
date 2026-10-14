@@ -6,6 +6,7 @@ using LivingWorld.Domain.Extraordinary;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Geography.Map;
 using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.Ontogeny;
 using LivingWorld.Domain.Population.Body;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Population.Skills;
@@ -107,6 +108,18 @@ public sealed class Npc
     /// <summary>Tick em que o jogador saiu e o NPC passou a ser dado como desaparecido (o NPC segue vivo e simulado).</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public long? DisappearedAtTick { get; private set; }
+
+    /// <summary>Progresso de desenvolvimento por eixo (Fase 21). Nulo = desenvolvimento completo: sistema inerte;
+    /// <c>null</c> explícito no snapshot (não omitido): o delta binário só carrega campos presentes, e quem completa o
+    /// desenvolvimento passa de objeto a nulo. Só <c>MilestoneProgressSystem</c> e o nascimento gravam.</summary>
+    public DevelopmentState? Development { get; private set; }
+
+    public void SetDevelopment(DevelopmentState? state)
+    {
+        if (Equals(Development, state)) return;
+        Development = state;
+        TouchCanonical();
+    }
 
     public Result<Unit> Incarnate(string controllerId)
     {
@@ -217,7 +230,8 @@ public sealed class Npc
         ActionType? currentIntent = null, long intentStartedTick = 0,
         string? intentTarget = null, IntentStatus? intentStatus = null, ActionType? travelPurpose = null,
         long lastJobChangeTick = 0,
-        string? controllerId = null, ActionType? controlledAction = null, long? disappearedAtTick = null)
+        string? controllerId = null, ActionType? controlledAction = null, long? disappearedAtTick = null,
+        DevelopmentState? development = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -255,6 +269,7 @@ public sealed class Npc
         ControllerId = controllerId;
         ControlledAction = controlledAction;
         DisappearedAtTick = disappearedAtTick;
+        Development = development;
         IsGhost = isGhost;
         HomelessSince = homelessSince;
         PregnantUntil = pregnantUntil;

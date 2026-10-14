@@ -24,4 +24,8 @@ public enum ActionType
     /// <summary>Furtar moeda de alguém na mesma célula (crime-and-theft); só entra por <c>TheftResolver</c>, nunca pela utility
     /// geral, e a duração é opcional no catálogo (1 hora quando omitida).</summary>
     Steal = 8,
+
+    /// <summary>Chorar (Fase 21): o que um bebê faz quando a fome aperta e ele ainda não alcança nada além disso.
+    /// Compete pela utility como qualquer ação, pontuada pela fome; não existe script de bebê.</summary>
+    Cry = 9,
 }

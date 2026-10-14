@@ -25,7 +25,7 @@ namespace LivingWorld.Tests.Unit.Performance;
 /// é comparada com a definição direta que ela substitui, e o conjunto é preso a hashes do mundo.
 /// Os hashes foram gravados no código anterior às otimizações (equivalência provada) e regravados
 /// quando o comportamento mudou de propósito (mortalidade condicional, Midshift, custo de célula
-/// 0.05, urgência de sobrevivência, abastecimento, rotina com deslocamento antecipado — AD-077/AD-078; folga mínima e água no posicionamento de prédios — AD-104; campos de aluguel no domicílio — AD-105; log/cosseno determinísticos em vez da libm da plataforma — AD-108). Mudar a simulação de propósito exige atualizá-los; qualquer outra quebra é regressão.</summary>
+/// 0.05, urgência de sobrevivência, abastecimento, rotina com deslocamento antecipado — AD-077/AD-078; folga mínima e água no posicionamento de prédios — AD-104; campos de aluguel no domicílio — AD-105; ontogenia ligada por padrão, `Npc.Development` e `OntogenyRules` canônicos — AD-115; log/cosseno determinísticos em vez da libm da plataforma — AD-108). Mudar a simulação de propósito exige atualizá-los; qualquer outra quebra é regressão.</summary>
 public class OptimizationEquivalenceTests
 {
     private const long OneYearInHours = 360L * 24;
@@ -33,8 +33,8 @@ public class OptimizationEquivalenceTests
     // --- Hashes do mundo preservados ---
 
     [Theory]
-    [InlineData(1UL, "96b783d299ca510ece1ff3b245771837e3e04b3d578220c7cb4e41c9c152c7ba", "69f97d0a721cabc8ed387be6ce44943e657ac415cf0812a54342f9abfcb135e4")]
-    [InlineData(2UL, "1da8746d2249e92fb45ee4131d845b8047089681f120117328b95a28d2249992", "52172cd4c95ef0ae57fc703eb3ed4703048e91222eb34c3890fd3eca82d44d27")]
+    [InlineData(1UL, "9293520a8d48cbe90053e6a4c0201b2f282d0194b8f99a713d91de02bd3c704a", "f81878004bc3d13e690801588808f8a7531dfa462dcca06e73097d2185b1aef1")]
+    [InlineData(2UL, "e690dda3336eab84f841f1caa624f5655ab06dfd88666a55b2d153aefd841310", "b11f39fcbeb5996fc9168dd9ea0f5041bfea453fb34f06ec06ddc1aca7a3dbc1")]
     public void Default_scenario_ninety_days_keeps_the_recorded_hashes(
         ulong seed, string canonical, string volatileHash)
     {

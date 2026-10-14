@@ -25,7 +25,7 @@ public sealed record ActionCatalog(
     {
         foreach (var action in Enum.GetValues<ActionType>())
         {
-            if (action == ActionType.Steal && !maxDurationHours.ContainsKey(action)) continue; // opcional: cenários antigos seguem válidos
+            if (action is ActionType.Steal or ActionType.Cry && !maxDurationHours.ContainsKey(action)) continue; // opcionais: cenários antigos seguem válidos
             if (!maxDurationHours.TryGetValue(action, out int duration))
                 return Result<ActionCatalog>.Fail($"MaxDurationHours: falta duração declarada para {action}");
             if (duration <= 0)
@@ -35,7 +35,7 @@ public sealed record ActionCatalog(
         return Result<ActionCatalog>.Ok(new ActionCatalog(maxDurationHours, routineSlots, defaultAction));
     }
 
-    /// <summary>Duração da ação; <see cref="ActionType.Steal"/> sem declaração dura 1 hora.</summary>
+    /// <summary>Duração da ação; <see cref="ActionType.Steal"/> e <see cref="ActionType.Cry"/> sem declaração duram 1 hora.</summary>
     public int DurationOf(ActionType action) => MaxDurationHours.TryGetValue(action, out int hours) ? hours : 1;
 
     /// <summary>Resolve a ação de rotina: slot específico da profissão, senão slot "any"

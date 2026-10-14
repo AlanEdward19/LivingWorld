@@ -1,4 +1,4 @@
-# Fase 21 — Ontogenia [Estado: Ativo - plano; fatias 21a #70, 21b #71, 21c #72]
+# Fase 21 — Ontogenia [Estado: Ativo - 21a entregue (AD-115, ADR-0026); 21b #71, 21c #72]
 
 Substitui o formato antigo (`spec.md`/`design.md`/`tasks.md`, apagados em 2026-10-14 com aprovação do usuário; histórico no git).
 Decisões herdadas do design: marco é **filtro pré-utility** (não pontua zero), choro é
@@ -39,10 +39,17 @@ Gate: horizonte ≤ 10 anos; braços pareados na mesma seed, ≥ 20 seeds; limia
 10. **Todas** Determinismo em dois processos; `Cry`/marcos sem `Random`/`DateTime`; hash estável por golden.
 
 ## Portas de mão única
-Novo campo `DevelopmentState` no snapshot (formato do snapshot muda → ADR + pergunta ao usuário antes de codar 21a);
-novos `WorldEventKind`; `ActionCatalog` ganha dicionário obrigatório.
+Decididas na 21a (ADR-0026): `Npc.Development` canônico (null explícito = completo), `OntogenyRules` canônico, ontogenia ligada
+por padrão, `ActionType.Cry` (duração opcional). A 21b acrescenta teto de janela ao snapshot e a 21c `MilestoneProgressSum` no pool:
+novo ADR/pergunta em cada uma. As exigências por ação vivem em `OntogenyRules.Requirements` (cobertura por reflexão), não em `ActionCatalog`.
+
+## Dívida explícita da 21a
+`Cry` só tem consumidor na própria utility (o estado é visível no rastro da decisão). O consumidor causal — choro atendido pelo
+cuidador conta como contato de exposição — entra na 21b. Criança materializada do pool agregado nasce adulta (materialização
+sempre ≥ 18 anos); o resample por pool é da 21c. Viagem e compra que atendem uma intenção elegível são assistidas.
 
 ## Desempenho
+(21a medido: 101,6% µs/NPC-tick e 101,4% alocação contra a base; ver AD-115.)
 Sensor de escala antes/depois de cada fatia: µs/NPC-tick ≤ 103%, alocação/tick ≤ 102%, hash idêntico com flag desligada.
 Adulto fora de janela custa O(1) (`OntogenyLifecycleGate`).
 

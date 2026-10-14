@@ -35,7 +35,8 @@ public sealed partial class BehaviorDecisionSystem
         PowerUtilityRules? powerRules = null,
         WakeReason wakeReason = WakeReason.UrgentNeed,
         ActionType? previousIntent = null,
-        bool captureTrace = true)
+        bool captureTrace = true,
+        ActionEligibility eligibility = default)
     {
         var utilityRules = PowerUtilityRules.Resolve(powerRules);
         var foresight = ctx.ForesightPreviews ?? ForesightMechanic.EmptyPreviews;
@@ -47,7 +48,11 @@ public sealed partial class BehaviorDecisionSystem
 
         foreach (var action in AllActions)
         {
-            double score = UtilityBaseOf(ctx, action, economy) * PersonalityWeighting.WeightOf(ctx.Personality, action)
+            // Fase 21: quem ainda não alcançou o marco da ação nem a considera (filtro antes da pontuação, não nota zero).
+            if (!eligibility.Allows(action))
+                continue;
+
+            double score = UtilityBaseOf(ctx, action, economy, eligibility) * PersonalityWeighting.WeightOf(ctx.Personality, action)
                 + ContextFactorBonus(ctx, action);
             if (foresight.TryGetValue(action, out var preview))
                 score *= ForesightUtilityFactor(preview);
@@ -65,6 +70,9 @@ public sealed partial class BehaviorDecisionSystem
 
         foreach (var opp in ctx.PowerOpportunities)
         {
+            if (!eligibility.Allows(ActionType.UsePower))
+                break;
+
             // Spec edge: mechanic/candidate scoring failure is isolated — exclude this
             // opportunity from comparison; other candidates and fixed ActionTypes continue.
             double score;
@@ -248,7 +256,7 @@ public sealed partial class BehaviorDecisionSystem
         return false;
     }
 
-    private static double UtilityBaseOf(DecisionContext ctx, ActionType action, EconomyRules economy) => action switch
+    private static double UtilityBaseOf(DecisionContext ctx, ActionType action, EconomyRules economy, ActionEligibility eligibility) => action switch
     {
         ActionType.Eat => EatUtilityOf(ctx, economy),
         ActionType.Sleep => SurvivalDeficit(ctx.Needs.Sleep),
@@ -257,8 +265,17 @@ public sealed partial class BehaviorDecisionSystem
         ActionType.Work or ActionType.Travel or ActionType.Idle => NonNeedBaselineUtility,
         ActionType.UsePower => 0.0, // só vence via candidatos PowerOpportunity
         ActionType.Steal => 0.0, // só entra por TheftResolver.Wants
+        ActionType.Cry => CryUtilityOf(ctx, eligibility),
         _ => throw new ArgumentOutOfRangeException(nameof(action), action, "ActionType desconhecido"),
     };
+
+    /// <summary>Chorar vale a fome de quem ainda não tem palavras: o choro some conforme a linguagem aparece
+    /// (<c>1 − progresso de Language</c>), então não há script de bebê nem idade escrita aqui. Sem estado de
+    /// desenvolvimento (adulto) não pontua. Empata com Comer quando há mantimento, e Comer vence o empate (id menor).</summary>
+    private static double CryUtilityOf(DecisionContext ctx, ActionEligibility eligibility) =>
+        eligibility.IsDeveloping
+            ? SurvivalDeficit(ctx.Needs.Hunger) * (1.0 - eligibility.Language)
+            : 0.0;
 
     private static double EatUtilityOf(DecisionContext ctx, EconomyRules economy)
     {

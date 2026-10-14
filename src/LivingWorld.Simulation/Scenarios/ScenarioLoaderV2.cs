@@ -63,7 +63,8 @@ public static class ScenarioLoaderV2
             resourceCatalog: definition.ResourceCatalog,
             processRecipes: definition.ProcessRecipes,
             extraordinary: definition.Extraordinary,
-            emergenceRules: definition.Emergence);
+            emergenceRules: definition.Emergence,
+            ontogenyRules: definition.Ontogeny);
 
         var createdCityIds = new List<CityId>(definition.City.Cities.Count);
         foreach (var city in definition.City.Cities)

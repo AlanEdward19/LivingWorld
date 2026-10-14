@@ -75,3 +75,15 @@ quando não há dado) — o bloco inteiro é obrigatório, só o comportamento e
 | `Cities[]` | array de `{ X, Y, FoundedAtTick, AggregatePool: { Count, WealthSum, HealthSum } }` | sim |
 
 Mesma regra de `EconomyEnabled`: `CitiesEnabled: false` ainda exige os campos presentes.
+
+## Ontogenia (opcional)
+
+| Campo | Tipo | Obrigatório |
+|---|---|---|
+| `Ontogeny.Enabled` | bool | sim, se o bloco existir (`false` desliga) |
+| `Ontogeny.Milestones[]` | `{ Id, Axis, Threshold, WindowStartYears, WindowMedianYears, WindowLimitYears, Requires[] }` | não (padrão: marcos humanos) |
+| `Ontogeny.Requirements` | objeto `{ "AçãoDoMotor": { Axis, Threshold } }`, **uma entrada por ação** | não (padrão: humano) |
+
+Sem o bloco, valem os marcos humanos e a ontogenia fica ligada. `Axis` é um de `GrossMotor`, `FineMotor`, `Language`,
+`SelfCare`, `SocialCognition`, `Abstraction`. Cada eixo precisa de ao menos um marco e o último deve ter `Threshold` 1.
+`Threshold` 0 em `Requirements` = sempre elegível (o recém-nascido só chora, mama e dorme).

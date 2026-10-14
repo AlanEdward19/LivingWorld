@@ -68,6 +68,7 @@ public static partial class ScenarioRunner
         new ColdArchiveSystem(),
         new CourtshipSystem(),
         new NatalitySystem(),
+        new LivingWorld.Simulation.Ontogeny.MilestoneProgressSystem(),
         new NeedsDecaySystem(),
         new BehaviorDecisionSystem(DefaultSkillsRules),
         new TradeLedgerSystem(),
