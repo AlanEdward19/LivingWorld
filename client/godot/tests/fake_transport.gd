@@ -21,6 +21,7 @@ class FakeChannel extends "res://Contract/channel.gd":
 
 var routes: Dictionary = {} ## "GET /visual/subscribe" -> Dictionary{status, body} ou Callable -> Dictionary
 var calls: Array[String] = [] ## "GET /caminho?query"
+var bodies: Dictionary = {} ## "POST /caminho" -> lista dos corpos enviados
 var channels: Array = []
 
 
@@ -28,8 +29,10 @@ func on(key: String, response: Variant) -> void:
 	routes[key] = response
 
 
-func request(method: String, path: String, _body: Variant = null) -> Dictionary:
+func request(method: String, path: String, body: Variant = null) -> Dictionary:
 	calls.append("%s %s" % [method, path])
+	if body != null:
+		bodies.get_or_add("%s %s" % [method, path], []).append(body)
 	for key in routes:
 		var parts: PackedStringArray = key.split(" ", true, 1)
 		if parts[0] == method and path.begins_with(parts[1]):

@@ -67,6 +67,18 @@ func npc_detail(id: int) -> Dictionary:
 	return await _fetch("/npcs/%d" % id, "npc-inspect")
 
 
+## Marca (`on`) ou desmarca o NPC na watchlist: com ela o rastro de cognição é retido por inteiro.
+func watch_npc(id: int, on: bool) -> Dictionary:
+	var response: Dictionary = await transport.request("POST" if on else "DELETE", "/npcs/%d/watchlist" % id)
+	return {"ok": response.status == 200, "status": response.status, "body": response.body}
+
+
+## Publica o que a câmera observa (`scope` = {kind, cityId?, buildingId?}) ou, com `{}`, retira a fonte.
+func observation_scope(source_id: String, scope: Dictionary) -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/observation/scope", {"sourceId": source_id, "scope": scope if not scope.is_empty() else null})
+	return {"ok": response.status == 200, "status": response.status, "body": response.body}
+
+
 func interior_snapshot(building_id: int) -> Dictionary:
 	return await _fetch("/visual/subscribe?scope=Interior&refId=%d&mode=Spectator" % building_id, "interior-subscribe")
 

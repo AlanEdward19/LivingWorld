@@ -1,7 +1,12 @@
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cognition;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Hosting;
 using LivingWorld.Tests.Shared;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace LivingWorld.Tests.Integration.Visual;
 
@@ -49,9 +54,21 @@ public class ApiContractTests
         var directory = JsonNode.Parse(await client.GetStringAsync("/npcs?take=1"))!;
         long id = directory["items"]![0]!["id"]!["value"]!.GetValue<long>();
 
+        // O rastro de cognição só existe para NPC observado; grava um para a forma do item ficar congelada.
+        // `previousIntent` e `detail` são opcionais no servidor: nulos aqui, o contrato os trata como "qualquer valor".
+        _factory.Services.GetRequiredService<WorldHost>().Current.CognitionLog.Record(new NpcId(id), tick: 1, new DecisionTrace(
+            WakeReason.UrgentNeed, null, [new Pressure("AcquireFood", 60, ["Hunger"])], [new Opportunity("FoodAtMarket", 40)],
+            ActionType.Eat, 120, ["Hunger"], ["Distance"], ["Buy:outscored"], [ActionType.Work]));
+
         var response = await client.GetAsync($"/npcs/{id}");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        AssertMatchesContract("shape.npc-inspect.json", ShapeOf(JsonNode.Parse(await response.Content.ReadAsStringAsync())));
+        var shape = ShapeOf(JsonNode.Parse(await response.Content.ReadAsStringAsync()))!;
+        // Opcionais no servidor (HouseholdId?, NpcId? do cônjuge, CityId? do escopo): quem não os tem não pode ser
+        // reprovado pelo contrato, senão a ficha de um NPC solteiro nunca abre. "null" = qualquer valor.
+        shape["household"] = "null";
+        shape["spouse"] = "null";
+        shape["currentScope"]!["cityId"] = "null";
+        AssertMatchesContract("shape.npc-inspect.json", shape);
 
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/npcs/987654321")).StatusCode);
     }

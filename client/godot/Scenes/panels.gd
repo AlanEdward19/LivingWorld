@@ -88,6 +88,7 @@ class NpcDetailPanel extends PanelContainer:
 		"altruism": "altruísta", "impulsivity": "impulsivo", "riskAversion": "cauteloso"}
 	signal highlight(id: int)
 	signal follow_requested(id: int)
+	signal brain_requested(id: int)
 	signal model_known(id: int, profession: int, age_years: float)
 	var api
 	var labels
@@ -136,6 +137,10 @@ class NpcDetailPanel extends PanelContainer:
 		follow.text = "Seguir (F)"
 		follow.pressed.connect(func(): follow_requested.emit(npc_id))
 		box.add_child(follow)
+		var brain := Button.new()
+		brain.text = "Cérebro (B)"
+		brain.pressed.connect(func(): brain_requested.emit(npc_id))
+		box.add_child(brain)
 		visible = false
 
 	func show_npc(id: int) -> void:

@@ -22,6 +22,8 @@ const SkyLife := preload("res://Scenes/sky_life.gd")
 const Ambience := preload("res://Scenes/ambience.gd")
 const AssetCatalog := preload("res://Scenes/asset_catalog.gd")
 const DevSteps := preload("res://Scenes/dev_steps.gd")
+const BrainPanel := preload("res://Scenes/brain_panel.gd")
+const ScopeObserver := preload("res://Contract/scope_observer.gd")
 
 var transport
 var api
@@ -41,6 +43,8 @@ var clock_panel
 var list_panel
 var npc_panel
 var city_panel
+var brain_panel
+var observer
 var banner: Label
 var breadcrumb: Label
 var time_label: Label
@@ -79,6 +83,9 @@ func start(p_transport, validate_shapes: bool = true, sleeper: Callable = Callab
 	labels = ActionLabels.new()
 	_build_scene()
 	_build_ui()
+	observer = ScopeObserver.new()
+	observer.api = api
+	add_child(observer)
 	stream = CursorStream.new(transport, get_tree())
 	stream.validate_shapes = validate_shapes
 	if sleeper.is_valid():
@@ -212,6 +219,19 @@ func _build_ui() -> void:
 	list_panel.npc_selected.connect(func(id: int): select_npc(id))
 	_ui.add_child(list_panel)
 
+	brain_panel = BrainPanel.new()
+	brain_panel.api = api
+	brain_panel.labels = labels
+	brain_panel.date_of = _date_text
+	brain_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	brain_panel.offset_left = 310
+	brain_panel.offset_right = -316
+	brain_panel.offset_top = 64
+	brain_panel.offset_bottom = -272
+	brain_panel.warning.connect(func(text: String): toasts.push(text))
+	_ui.add_child(brain_panel)
+	npc_panel.brain_requested.connect(func(id: int): open_brain(id))
+
 	minimap = Minimap.new()
 	minimap.bind(store)
 	minimap.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
@@ -231,7 +251,7 @@ func _build_ui() -> void:
 	_ui.add_child(toasts)
 
 	var help := Label.new()
-	help.text = "Botão direito: mover · Shift+botão direito: girar · Roda: zoom · Q/E: girar · L: pessoas · F: seguir · Esc: voltar · PgUp/PgDn: andar · M: som · clique: selecionar/entrar"
+	help.text = "Botão direito: mover · Shift+botão direito: girar · Roda: zoom · Q/E: girar · L: pessoas · F: seguir · B: cérebro do NPC · Esc: voltar · PgUp/PgDn: andar · M: som · clique: selecionar/entrar"
 	help.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	help.offset_top = -30
 	help.offset_left = 10
@@ -268,6 +288,7 @@ func _build_ui() -> void:
 
 func _on_clock_status(status: Dictionary) -> void:
 	day_cycle.sync(float(status.tick), float(status.ticksPerSecond), bool(status.isPaused))
+	brain_panel.on_world_tick(int(status.tick))
 	NpcActor.frozen = bool(status.isPaused)
 	sky_life.paused = bool(status.isPaused)
 	_update_time_label(status)
@@ -339,6 +360,7 @@ func enter_scope(kind: String, ref_id: String) -> void:
 func _on_snapshot(envelope: Dictionary) -> void:
 	var kind := Store.scope_name(envelope.scope.kind)
 	store.apply_snapshot(envelope)
+	_publish_observation(kind)
 	banner.visible = false
 	if not _first_snapshot:
 		_first_snapshot = true
@@ -370,6 +392,25 @@ func _on_snapshot(envelope: Dictionary) -> void:
 		city_panel.visible = false
 		if rig.zoom_size < rig.city_exit_size + 1.0:
 			rig.set_zoom(22.0)
+
+
+## Conta ao servidor o que a câmera observa: só assim o rastro de cognição do NPC é gravado.
+func _publish_observation(kind: String) -> void:
+	match kind:
+		"World":
+			observer.set_scope("World")
+		"City":
+			observer.set_scope("City", String(store.city.get("id", "")))
+		"Interior":
+			var city_id := String(store.city.get("id", ""))
+			if city_id != "":
+				observer.set_scope("Building", city_id, str(_interior_building))
+
+
+## Retira a fonte de observação antes de sair (menu principal); o servidor também a descarta em 30 s sem batimento.
+func release_observation() -> void:
+	if observer != null:
+		await observer.clear()
 
 
 ## Retângulo que cobre os prédios da cidade (ou os limites dela, se ainda não há prédios).
@@ -441,6 +482,27 @@ func _on_interior_changed() -> void:
 
 func select_npc(id: int) -> void:
 	await npc_panel.show_npc(id)
+	if brain_panel.is_open:
+		open_brain(id)
+
+
+## Abre o painel "Cérebro" do NPC (atalho B).
+func open_brain(id: int) -> void:
+	await brain_panel.open(id)
+
+
+func _toggle_brain() -> void:
+	if brain_panel.is_open:
+		brain_panel.close()
+	elif selected_npc >= 0:
+		open_brain(selected_npc)
+
+
+## Data do mundo de um tick (calendário do servidor): "Ano 3 · Mês 2 · Dia 9 · 14:00".
+func _date_text(tick: int) -> String:
+	var date: Dictionary = day_cycle.date_parts(float(tick))
+	var hour := int(fmod(float(tick), day_cycle.hours_per_day) / day_cycle.hours_per_day * 24.0)
+	return "Ano %d · Mês %d · Dia %d · %02d:00" % [date.year, date.month, date.day, hour]
 
 
 ## NPC em foco mudou de ação: toca o som do catálogo (só o selecionado, para não virar barulho de multidão).
@@ -533,12 +595,16 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		match event.keycode:
 			KEY_ESCAPE:
-				if stage.active:
+				if brain_panel.is_open:
+					brain_panel.close()
+				elif stage.active:
 					exit_building()
 				elif store.kind == "City":
 					enter_scope("World", "")
 			KEY_F10:
 				menu_requested.emit()
+			KEY_B:
+				_toggle_brain()
 			KEY_M:
 				ambience.set_muted(not ambience.muted)
 			KEY_L:

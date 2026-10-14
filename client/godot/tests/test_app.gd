@@ -182,3 +182,23 @@ func test_calendar_comes_from_world_calendar_route() -> void:
 	eq(app.day_cycle.days_per_month, 10)
 	eq(app.day_cycle.months_per_year, 4)
 	app.queue_free()
+
+
+func test_camera_scope_is_published_to_the_observation_registry() -> void:
+	var transport = _transport()
+	transport.on("GET /visual/subscribe?scope=City", {"status": 200, "body": _city()})
+	transport.on("POST /observation/scope", {"status": 200, "body": null})
+	var app = await _app(transport)
+	var sent: Array = transport.bodies["POST /observation/scope"]
+	eq(sent.back().scope, {"kind": "World"}, "mundo-múndi")
+
+	await app.enter_scope("City", "city-a")
+	eq(sent.back().scope, {"kind": "City", "cityId": "city-a"}, "cidade em foco")
+	check(String(sent.back().sourceId).begins_with("godot-"), "fonte estável da sessão")
+
+	await app.enter_building(4)
+	eq(sent.back().scope, {"kind": "Building", "cityId": "city-a", "buildingId": "4"}, "interior aberto")
+
+	await app.release_observation()
+	eq(sent.back().scope, null, "sair retira a fonte")
+	app.queue_free()

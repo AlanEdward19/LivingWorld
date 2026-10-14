@@ -24,6 +24,7 @@ func _ready() -> void:
 
 func _show_menu() -> void:
 	if app != null:
+		await app.release_observation()
 		app.queue_free()
 		app = null
 	menu = MainMenu.new()

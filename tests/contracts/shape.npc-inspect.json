@@ -6,7 +6,45 @@
   "city": {
     "value": "string"
   },
-  "cognitionTrace": "[]",
+  "cognitionTrace": [
+    {
+      "tick": "number",
+      "trace": {
+        "blockingFactors": [
+          "string"
+        ],
+        "knownAlternatives": [
+          "number"
+        ],
+        "knownOpportunities": [
+          {
+            "attractiveness": "number",
+            "detail": "null",
+            "kind": "string"
+          }
+        ],
+        "previousIntent": "null",
+        "topNegativeFactors": [
+          "string"
+        ],
+        "topPositiveFactors": [
+          "string"
+        ],
+        "topPressures": [
+          {
+            "factors": [
+              "string"
+            ],
+            "intensity": "number",
+            "kind": "string"
+          }
+        ],
+        "wakeReason": "number",
+        "winner": "number",
+        "winningUtility": "number"
+      }
+    }
+  ],
   "culture": {
     "id": "number"
   },
@@ -16,18 +54,14 @@
     "y": "number"
   },
   "currentScope": {
-    "cityId": {
-      "value": "string"
-    },
+    "cityId": "null",
     "kind": "number"
   },
   "employer": "null",
   "fatherId": "null",
   "food": "null",
   "health": "number",
-  "household": {
-    "value": "number"
-  },
+  "household": "null",
   "hunger": "number",
   "id": {
     "value": "number"
@@ -59,8 +93,6 @@
   },
   "sleep": "number",
   "social": "number",
-  "spouse": {
-    "value": "number"
-  },
+  "spouse": "null",
   "thirst": "number"
 }
