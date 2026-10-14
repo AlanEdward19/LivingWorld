@@ -17,6 +17,8 @@
   provado independente de ordem (e com teste que prove).
 - Ponto flutuante: use `double` de forma consistente; não some em ordem variável.
   Grandezas de dinheiro e estoque são inteiras (centavos / unidades), nunca `float`.
+- **Sem `Math.Log/Exp/Pow/Sin/Cos/Tan/...` em `Domain`/`Simulation`.** A libm muda no último ulp entre Windows, Linux e macOS e o hash
+  deixa de bater entre máquinas (AD-108). Use `DeterministicMath` (só `+ - * /`); `DeterministicMathTests` varre `src/` e reprova.
 - Todo evento que muda o mundo é registrado no event log com o tick em que ocorreu.
 
 ## Teste obrigatório de qualquer sistema novo

@@ -211,14 +211,14 @@ public static partial class ScenarioRunner
         },
         spoilagePerDayByResource: new Dictionary<int, double> { [1] = 0.01 }, // só trigo estraga
                                                                               // Salário mensal precisa cobrir consumo diário (Eat gasta ~1 trigo + 1 água por vez,
-                                                                              // aproximadamente 1x/dia por NEEDS-01) a preço de mercado — ~60/mês de custo a preço 1-2,
+                                                                              // aproximadamente 1x/dia por necessidade) a preço de mercado — ~60/mês de custo a preço 1-2,
                                                                               // wage bem acima disso dá folga real, não só sobrevivência no fio da navalha.
         wageByProfession: new Dictionary<int, long> { [1] = 90, [2] = 110 },
         priceFloor: new Dictionary<int, long> { [1] = 1, [2] = 1, [4] = 1 },
         priceCeiling: new Dictionary<int, long> { [1] = 20, [2] = 15, [4] = 80 },
         priceSensitivity: 0.2,
         demandBaselinePerNpc: new Dictionary<int, double> { [1] = 0.5, [2] = 0.3 },
-        wageTaxRate: 0.05) // a cidade retém 5% do salário (AD-098)
+        wageTaxRate: 0.05) // a cidade retém 5% do salário
         .Value ?? throw new InvalidOperationException("economy rules default inválida — bug no cenário, não no gerador");
 
     public static readonly EconomyCatalog DefaultEconomyCatalog = new(

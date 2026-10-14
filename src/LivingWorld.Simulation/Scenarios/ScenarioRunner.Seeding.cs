@@ -44,7 +44,7 @@ public static partial class ScenarioRunner
     /// cref="ProductionSystem"/>). Preço inicial 5 (não 1, o piso): <see
     /// cref="MarketPricingSystem"/> é multiplicativo — arredondado pra inteiro, preço 1 nunca sai
     /// do lugar de verdade (fator 0.8 ou 1.2 sobre 1 arredonda de volta pra 1), escondendo
-    /// qualquer sinal de escassez/fartura (achado escrevendo o teste causal de T25).</summary>
+    /// qualquer sinal de escassez/fartura (achado escrevendo o teste causal).</summary>
     private static void SeedDefaultWorkplaces(WorldState world, City city, int vacancyMultiplier = 1)
     {
         int mult = Math.Max(1, vacancyMultiplier);
@@ -84,7 +84,7 @@ public static partial class ScenarioRunner
 
     /// <summary>Trigo/água de despensa + moeda no bolso pra cada NPC/Household inicial —
     /// ponte pro primeiro salário (<see cref="WagePaymentSystem"/> é Monthly): sem isso, todo
-    /// mundo bate fome/sede zero e morre de fome (NEEDS-03) bem antes do primeiro emprego
+    /// mundo bate fome/sede zero e morre de fome bem antes do primeiro emprego
     /// (<see cref="EmploymentSystem"/>, Daily) gerar produção e renda de verdade — o cenário
     /// default se extinguiria em semanas, não sobreviveria os 100 anos do objetivo #1.
     /// Quantidade cobre só o mês de bootstrap; da­í em diante o ciclo emprego→produção→salário→

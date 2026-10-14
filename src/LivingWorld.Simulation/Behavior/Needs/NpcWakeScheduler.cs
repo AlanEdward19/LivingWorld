@@ -46,7 +46,7 @@ public static class NpcWakeScheduler
         foreach (var npcId in routed.OrderBy(id => id.Value))
         {
             if (world.FindNpc(npcId) is not { IsAlive: true } npc) continue;
-            // COH-44: sem Intent válido, comportamento antigo (só threshold/fim de ação).
+            // sem Intent válido, comportamento antigo (só threshold/fim de ação).
             if (npc.IntentStatus != IntentStatus.Active) continue;
 
             long wakeAt = ComputeNextWakeTick(

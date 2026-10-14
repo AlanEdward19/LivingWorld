@@ -109,7 +109,7 @@ public sealed class NatalitySystem : ISimulationSystem
         var sex = ctx.Rng($"natality-sex-{motherId.Value}-{evt.Id}").NextDouble() < 0.5 ? Sex.Female : Sex.Male;
         var babyId = world.NextNpcIdAndAdvance();
 
-        // a personalidade mistura a dos pais com sorteio próprio, no peso do cenário (personality-heredity, AD-099)
+        // a personalidade mistura a dos pais com sorteio próprio, no peso do cenário (personality-heredity)
         var personality = Personality.Inherit(
             mother.Personality, father?.Personality ?? mother.Personality, ctx.StreamFor("personality", babyId.Value),
             familyRules.PersonalityHeritability);

@@ -47,4 +47,21 @@ public class NetworkEgressGuardTests
         var thrown = await Assert.ThrowsAsync<HttpRequestException>(() => client.GetAsync("http://example.com"));
         Assert.IsType<NetworkEgressBlockedException>(thrown.InnerException);
     }
+
+    [Fact]
+    public async Task The_real_guard_blocks_every_request_when_asked_to()
+    {
+        using var client = new HttpClient(LivingWorld.AI.EgressGuard.Handler(blocked: true));
+
+        await Assert.ThrowsAsync<LivingWorld.AI.EgressBlockedException>(() => client.GetAsync("http://example.com"));
+    }
+
+    [Fact]
+    public void The_gate_script_turns_the_guard_on_for_every_test_run()
+    {
+        var dir = AppContext.BaseDirectory;
+        while (!File.Exists(Path.Combine(dir, "LivingWorld.sln"))) dir = Directory.GetParent(dir)!.FullName;
+
+        Assert.Contains($"export {LivingWorld.AI.EgressGuard.EnvVar}=1", File.ReadAllText(Path.Combine(dir, "scripts", "test.sh")));
+    }
 }

@@ -69,4 +69,24 @@ public class MarketTransactionTests
         Assert.Equal(10, ctx.SellerStock);
         Assert.Equal(0, ctx.BuyerStock);
     }
+
+    [Fact]
+    public void Execute_is_the_ordered_application_of_the_enumerable_steps_list()
+    {
+        var expected = MakeContext();
+        foreach (var step in MarketTransaction.Steps)
+            expected = step.Apply(expected).Value!;
+
+        var result = MarketTransaction.Execute(MakeContext());
+
+        Assert.Equal(expected, result.Value);
+    }
+
+    [Fact]
+    public void Fault_injection_covers_exactly_the_steps_there_are_so_a_step_added_without_a_case_is_visible()
+    {
+        Assert.True(MarketTransaction.Steps.Count > 0);
+        Assert.True(MarketTransaction.Execute(MakeContext(), MarketTransaction.Steps.Count + 1).IsSuccess); // além do último passo nada é injetado
+        Assert.False(MarketTransaction.Execute(MakeContext(), MarketTransaction.Steps.Count).IsSuccess);   // o último passo é alcançável
+    }
 }

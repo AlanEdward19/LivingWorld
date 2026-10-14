@@ -1,4 +1,4 @@
-> **Estado: Parcial** (specs-closeout 2026-10-12) - auditoria e maior parte da execucao confirmadas no codigo; gate/build/golden pendentes, ver closeout.md.
+> **Estado: Entregue** (2026-10-14) - auditoria e execucao verificadas (gate completo, hash antes/depois da consolidacao, re-varredura de comentarios); EXEC-02 descartado por decisao, ver closeout.md.
 
 # Dead Code Audit Specification
 
@@ -223,30 +223,30 @@ Excluído explicitamente desta rodada. Documentado pra não crescer escopo.
 | AUDIT-10 | P3: Higiene de comentários | Specify | Verified - report.md, closeout.md |
 | AUDIT-11 | P4: Oportunidades de consolidação | Specify | Verified - report.md, closeout.md |
 | AUDIT-12 | P4: Oportunidades de consolidação | Specify | Verified - report.md, closeout.md |
-| EXEC-01 | P5: Remover código morto confirmado | Design | Implemented — gate completo pendente (usuário) |
+| EXEC-01 | P5: Remover código morto confirmado | Design | Verified - closeout.md (2026-10-14) |
 | EXEC-02 | P5: Remover código morto confirmado | Design | Dropped — DecisionMetrics tem consumidor de teste real |
-| EXEC-03 | P5: Remover código morto confirmado | Design | Implemented — gate completo pendente (usuário) |
-| EXEC-04 | P5: Remover código morto confirmado | Design | Implemented — gate completo pendente (usuário) |
-| EXEC-05 | P6: Plugar compressão de estado frio | Design | Implemented — gate completo pendente (usuário) |
-| EXEC-06 | P6: Plugar compressão de estado frio | Design | Implemented — gate completo pendente (usuário) |
-| EXEC-07 | P6: Plugar compressão de estado frio | Design | Implemented — gate completo pendente (usuário) |
-| EXEC-08 | P6: Plugar compressão de estado frio | Design | Implemented — gate completo pendente (usuário) |
-| EXEC-09 | P6: Plugar compressão de estado frio | Design | Implemented — gate completo pendente (usuário) |
-| EXEC-10 | P7: Consolidar duplicações confirmadas | Design | Implemented — gate completo pendente (usuário) |
-| EXEC-11 | P7: Consolidar duplicações confirmadas | Design | Implemented — gate completo pendente (usuário) |
-| EXEC-12 | P7: Consolidar duplicações confirmadas | Design | Implemented — gate completo pendente (usuário) |
-| EXEC-13 | P7: Consolidar duplicações confirmadas | Design | Implemented — gate completo pendente (usuário) |
-| EXEC-14 | P7: Consolidar duplicações confirmadas | Design | Implemented — gate completo pendente (usuário) |
-| EXEC-15 | P8: Higiene de comentários fase/task | Design | Implemented — gate completo pendente (usuário) |
-| EXEC-16 | P8: Higiene de comentários fase/task | Design | Implemented — gate completo pendente (usuário) |
-| EXEC-17 | P8: Higiene de comentários fase/task | Design | Implemented — gate completo pendente (usuário) |
-| EXEC-18 | P8: Higiene de comentários fase/task | Design | Implemented — gate completo pendente (usuário) |
+| EXEC-03 | P5: Remover código morto confirmado | Design | Verified - closeout.md (2026-10-14) |
+| EXEC-04 | P5: Remover código morto confirmado | Design | Verified - closeout.md (2026-10-14) |
+| EXEC-05 | P6: Plugar compressão de estado frio | Design | Verified - closeout.md (2026-10-14) |
+| EXEC-06 | P6: Plugar compressão de estado frio | Design | Verified - closeout.md (2026-10-14) |
+| EXEC-07 | P6: Plugar compressão de estado frio | Design | Verified - closeout.md (2026-10-14) |
+| EXEC-08 | P6: Plugar compressão de estado frio | Design | Verified - closeout.md (2026-10-14) |
+| EXEC-09 | P6: Plugar compressão de estado frio | Design | Verified - closeout.md (2026-10-14) |
+| EXEC-10 | P7: Consolidar duplicações confirmadas | Design | Verified - closeout.md (2026-10-14) |
+| EXEC-11 | P7: Consolidar duplicações confirmadas | Design | Verified - closeout.md (2026-10-14) |
+| EXEC-12 | P7: Consolidar duplicações confirmadas | Design | Verified - closeout.md (2026-10-14) |
+| EXEC-13 | P7: Consolidar duplicações confirmadas | Design | Verified - closeout.md (2026-10-14) |
+| EXEC-14 | P7: Consolidar duplicações confirmadas | Design | Verified - closeout.md (2026-10-14) |
+| EXEC-15 | P8: Higiene de comentários fase/task | Design | Verified - closeout.md (2026-10-14) |
+| EXEC-16 | P8: Higiene de comentários fase/task | Design | Verified - closeout.md (2026-10-14) |
+| EXEC-17 | P8: Higiene de comentários fase/task | Design | Verified - closeout.md (2026-10-14) |
+| EXEC-18 | P8: Higiene de comentários fase/task | Design | Verified - closeout.md (2026-10-14) |
 
 **ID format:** `AUDIT-NN` (fase Specify, concluída) / `EXEC-NN` (fase de execução, esta rodada)
 
 **Status values:** Pending → In Design → In Tasks → Implementing → Verified
 
-**Coverage:** 30 total (12 AUDIT verificados na auditoria + 18 EXEC desta rodada), tasks.md efêmero removido ao fim (convenção do repo); EXEC-02 dropped, demais implementados — falta só o gate completo (usuário).
+**Coverage:** 30 total (12 AUDIT verificados na auditoria + 18 EXEC desta rodada), tasks.md efêmero removido ao fim (convenção do repo); EXEC-02 dropped, demais verificados (closeout.md, 2026-10-14).
 
 ---
 

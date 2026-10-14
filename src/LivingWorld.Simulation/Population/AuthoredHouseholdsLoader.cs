@@ -4,7 +4,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Simulation.Population;
 
-/// <summary>Lê o bloco opcional <c>AuthoredHouseholds</c> do cenário (ADR-0024) e valida tudo na borda: o erro
+/// <summary>Lê o bloco opcional <c>AuthoredHouseholds</c> do cenário e valida tudo na borda: o erro
 /// nomeia o campo. Profissão e assentamento vêm do catálogo/mapa do próprio cenário, nunca de enum em C#.</summary>
 public static class AuthoredHouseholdsLoader
 {

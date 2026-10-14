@@ -9,7 +9,7 @@ namespace LivingWorld.Simulation.Llm;
 /// <summary>Aplica só os efeitos permitidos de um turno já validado:
 /// memória episódica canônica do NPC (<see cref="WorldState.AddNpcMemory"/>, T9b) e a relação
 /// NPC->jogador real (<see cref="Relationship"/>/<see cref="RelationshipKey"/>) — não mais
-/// uma lista efêmera por sessão nem um contador de trust dedicado (gap documentado do T6
+/// uma lista efêmera por sessão nem um contador de trust dedicado (gap documentado do aplicador
 /// original). O jogador não é um <see cref="Npc"/> de verdade, então não tem <see cref="NpcId"/>
 /// próprio: <see cref="PlayerNpcId"/> é um sentinela reservado (<c>NpcId(-1)</c>) que nunca colide
 /// com um NPC real, já que <see cref="WorldState.NextNpcIdAndAdvance"/> só produz ids >= 0.</summary>

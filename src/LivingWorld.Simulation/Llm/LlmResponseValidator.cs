@@ -14,7 +14,7 @@ public enum LlmValidationFailure
     IntentNotAllowed,
 }
 
-/// <summary>Turno já validado, pronto para <c>ConversationEffectsApplier</c> (T6) — mesmo molde
+/// <summary>Turno já validado, pronto para <c>ConversationEffectsApplier</c> — mesmo molde
 /// do <c>ValidatedLlmTurn</c> do design.md.</summary>
 public sealed record ValidatedLlmTurn(
     string Dialogue,

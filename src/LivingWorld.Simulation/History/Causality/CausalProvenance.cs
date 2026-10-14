@@ -4,7 +4,7 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.History.Causality;
 
-/// <summary>Resolução sob demanda de <c>RootCauseEventId</c> (COH-02) — percorre
+/// <summary>Resolução sob demanda de <c>RootCauseEventId</c> — percorre
 /// <see cref="WorldEvent.CauseEventId"/> sem grafo persistido à parte.</summary>
 public static class CausalProvenance
 {

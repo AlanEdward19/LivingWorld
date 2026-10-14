@@ -13,25 +13,25 @@ namespace LivingWorld.Simulation.Behavior.Decision;
 /// <summary>Furto (crime-and-theft). <see cref="Wants"/> decide se um NPC desesperado com o temperamento certo parte para o furto;
 /// <see cref="Resolve"/> o executa ao fim da ação: sorteio semeado do ladrão e da hora, sucesso reduzido por cada guarda da
 /// cidade, moeda que já existe mudando de carteira (nunca criada), e, se descoberto, <c>Betrayal</c> da vítima sobre o ladrão.
-/// Tudo em ordem de id, sem relógio nem ordem de dicionário.</summary>
+/// Tudo em ordem de id, sem relógio nem ordem de dicionário. Com <see cref="TheftIndex"/> a busca é por célula; sem ele, varre a população (testes).</summary>
 internal static class TheftResolver
 {
-    public static bool Wants(WorldState world, Npc npc, long now)
+    public static bool Wants(WorldState world, Npc npc, long now, TheftIndex? index = null)
     {
         var rules = world.TheftRules;
         if (!rules.Enabled || npc.Wallet.Amount >= 1) return false;
         if (Math.Min(npc.HungerAt(now), npc.ThirstAt(now)) > rules.DesperateBelow) return false;
         if (PersonalityWeighting.WeightOf(npc.Personality, ActionType.Steal) < rules.PersonalityThreshold) return false;
         if (HasProvisions(world, npc)) return false;
-        return FindVictim(world, npc) is not null;
+        return (index is null ? FindVictim(world, npc) : index.FindVictim(npc)) is not null;
     }
 
-    public static void Resolve(WorldState world, Npc thief, long tick, TickContext ctx)
+    public static void Resolve(WorldState world, Npc thief, long tick, TickContext ctx, TheftIndex? index = null)
     {
         var rules = world.TheftRules;
-        if (!rules.Enabled || FindVictim(world, thief) is not { } victim) return;
+        if (!rules.Enabled || (index is null ? FindVictim(world, thief) : index.FindVictim(thief)) is not { } victim) return;
 
-        double success = rules.BaseSuccess * Math.Max(0.0, 1.0 - GuardsIn(world, thief.City, rules) * rules.GuardEffect);
+        double success = rules.BaseSuccess * Math.Max(0.0, 1.0 - (index?.GuardsIn(thief.City) ?? GuardsIn(world, thief.City, rules)) * rules.GuardEffect);
         var rng = ctx.Rng($"theft-{thief.Id.Value}-{tick}");
         bool took = rng.NextDouble() < success;
         // quem falha é pego em flagrante; quem leva só é descoberto às vezes

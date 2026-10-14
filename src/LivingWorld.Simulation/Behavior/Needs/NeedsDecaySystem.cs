@@ -19,6 +19,8 @@ public sealed class NeedsDecaySystem : ISimulationSystem
 {
     public const string SystemName = "needs-decay";
 
+    private readonly List<Npc> _alive = [];
+
     public string Name => SystemName;
     public TickFrequency Frequency => TickFrequency.Hourly;
 
@@ -27,8 +29,12 @@ public sealed class NeedsDecaySystem : ISimulationSystem
         var rules = world.NeedsRules;
         long now = ctx.CurrentTick;
 
-        foreach (var npc in world.Npcs.Where(n => n.IsAlive))
+        // cópia dos vivos: a morte dentro do laço tira o NPC do índice; varrer só os vivos poupa os mortos acumulados em world.Npcs
+        _alive.Clear();
+        _alive.AddRange(world.AliveNpcIndex.Alive);
+        foreach (var npc in _alive)
         {
+            if (!npc.IsAlive) continue;
             HandleStarvation(world, ctx, npc, rules, now);
             if (!npc.IsAlive) continue;
             HandleDehydration(world, ctx, npc, rules, now);
@@ -60,7 +66,7 @@ public sealed class NeedsDecaySystem : ISimulationSystem
             NpcDeath.Apply(world, ctx, npc, WorldEventKind.Exhaustion);
     }
 
-    /// <summary>NEEDS-03: fome em 0 por <c>X = ceil(100 / HungerDecayPerHour)</c> ticks
+    /// <summary>Fome em 0 por <c>X = ceil(100 / HungerDecayPerHour)</c> ticks
     /// consecutivos mata o NPC. <c>HungerDecayPerHour == 0</c> é o edge case declarado no spec
     /// ("fome nunca decai, NPC nunca morre de fome") — sem taxa não há prazo de sobrevivência
     /// para derivar, então a checagem é pulada.</summary>

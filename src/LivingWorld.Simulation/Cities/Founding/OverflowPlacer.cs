@@ -6,7 +6,7 @@ using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Cities.Founding;
 
-// SPEC_DEVIATION (dynamic-city-growth, T2): mesmo motivo de CityOccupancy.cs — design.md declara
+// SPEC_DEVIATION (dynamic-city-growth): mesmo motivo de CityOccupancy.cs — design.md declara
 // este tipo em src/LivingWorld.Domain/Cities/, mas WorldState só existe em
 // LivingWorld.Simulation (Domain não referencia Simulation).
 

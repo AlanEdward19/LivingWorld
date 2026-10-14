@@ -236,8 +236,8 @@ do roadmap).
 | SKILL-12 | P1: Teto não move o mundo / flag off muda hash | Tasks T4,T19 | Verified - tests/LivingWorld.Tests.Unit/Population/Skills/SkillSetTests.cs |
 | SKILL-13 | P3: Escolha de profissão por score | Tasks T11 | Verified - tests/LivingWorld.Tests.Unit/Behavior/BehaviorDecisionSystemProfessionSwitchTests.cs |
 | SKILL-14 | P3: Troca de profissão — estagnação | Tasks T7,T11 | Verified - tests/LivingWorld.Tests.Unit/Population/NpcSkillMutatorsTests.cs |
-| SKILL-15 | P3: Cenário pareado especialista vs trocador | Tasks T14 | Verified - tests/LivingWorld.Tests.LongRunning/Population/PairedScenarioTests.cs |
-| SKILL-16 | P3: Cenário pareado mestre-topo vs mestre-piso | Tasks T15 | Verified - tests/LivingWorld.Tests.LongRunning/Population/PairedScenarioTests.cs |
+| SKILL-15 | P3: Cenário pareado especialista vs trocador | Tasks T14 | Verified - tests/LivingWorld.Tests.LongRunning/Population/PairedScenarioTests.cs (Specialist_ends_with_higher_final_skill_than_switcher_across_20_practice_rates); rodado 2026-10-13 |
+| SKILL-16 | P3: Cenário pareado mestre-topo vs mestre-piso | Tasks T15 | Verified - tests/LivingWorld.Tests.LongRunning/Population/PairedScenarioTests.cs (Apprentice_of_a_better_master_ends_with_higher_skill_than_apprentice_of_a_bottom_of_range_master_across_20_master_levels); rodado 2026-10-13 |
 
 **ID format:** `SKILL-NN`
 

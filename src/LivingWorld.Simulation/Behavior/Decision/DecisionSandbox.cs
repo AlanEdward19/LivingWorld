@@ -8,7 +8,7 @@ namespace LivingWorld.Simulation.Behavior.Decision;
 
 /// <summary>Ambiente isolado que roda o mesmo pipeline de
 /// <see cref="BehaviorDecisionSystem.SelectByUtility"/> com <see cref="DecisionContext"/>
-/// sintético — sem tocar <see cref="WorldState"/>, tick de mundo ou RNG de mundo (SBX-01).</summary>
+/// sintético — sem tocar <see cref="WorldState"/>, tick de mundo ou RNG de mundo.</summary>
 public static class DecisionSandbox
 {
     /// <summary>Executa o pipeline de utility com contexto sintético; nenhuma escrita em

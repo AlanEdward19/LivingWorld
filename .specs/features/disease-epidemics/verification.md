@@ -30,3 +30,7 @@
 - C6: the 70% check would pass with no outbreak at all. It now also requires `OutbreakStarted` events.
 - Bug: `OutbreakDailyChance = NaN` made `roll >= NaN` false, so an outbreak started every day. Comparison negated in `OutbreakSystem.cs`; test `A_nan_outbreak_chance_never_starts_an_outbreak`.
 - Noted, not changed: contagion is per shared map cell (plan said building); already recorded in checks Deviations.
+
+## Follow-up (issue #42)
+
+- C8 time: `ScaleScenarioSensorTests` now pins allocation per tick to the recorded baseline (+5%) and time per NPC-tick to 10x the baseline, on the default scale scenario (disease off). The microsecond bound is deliberately loose (machine noise); it catches gross regressions only.

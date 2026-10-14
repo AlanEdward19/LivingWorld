@@ -68,7 +68,7 @@ public static class ScenarioLoaderV2
         foreach (var city in definition.City.Cities)
         {
             string name = string.IsNullOrEmpty(city.Name) ? CityNameGenerator.Generate(world) : city.Name;
-            // T50: cidade autorada com pool não-vazio reserva um NpcId estável por membro,
+            // cidade autorada com pool não-vazio reserva um NpcId estável por membro,
             // clicável/materializável individualmente (antes só existia contagem+somas).
             var poolNpcIds = world.ReserveNpcIdBlock(city.AggregatePool.Count);
             var createdCity = new City(
@@ -216,7 +216,7 @@ public static class ScenarioLoaderV2
             }
         }
 
-        // Famílias autoradas (ADR-0024), depois da população sorteada: sem o bloco nada muda (hash preservado).
+        // Famílias autoradas, depois da população sorteada: sem o bloco nada muda (hash preservado).
         var authoredResult = AuthoredHouseholdsLoader.Load(
             System.Text.Json.Nodes.JsonNode.Parse(json)!.AsObject(), population.Catalog,
             population.LifeTable.MaxLongevityYears, definition.Map.Settlements.Select(s => s.Name).ToList());

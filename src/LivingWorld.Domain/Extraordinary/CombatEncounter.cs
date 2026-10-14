@@ -13,7 +13,7 @@ public enum CombatEncounterStatus
     Resolved,
 }
 
-/// <summary>Encontro persistente entre ticks — AD-010: criado por <c>combat.engage:</c>, não por
+/// <summary>Encontro persistente entre ticks — criado por <c>combat.engage:</c>, não por
 /// <c>combat.strike:</c>.</summary>
 public sealed record CombatEncounter(
     CombatEncounterId Id,

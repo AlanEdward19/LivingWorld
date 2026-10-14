@@ -1,6 +1,6 @@
 # Fase 28 — Cognição e LOD observacional
 
-**Status**: fechada (2026-09-01). Gate `verify.sh` verde; critérios cobertos por teste.
+**Status**: parcial. Fechada em 2026-09-01 com 30/31 requisitos por teste; COG-11 (painel visual "ver o cérebro") não existe no cliente Godot (o painel web foi aposentado, ADR-0022), só a API devolve o traço.
 
 **Objetivo**: (a) o utility AI da Fase 4 vira **inspecionável** — cada decisão relevante
 grava estímulo, ponderação e escolha como dado navegável, com painel web "ver o cérebro" e

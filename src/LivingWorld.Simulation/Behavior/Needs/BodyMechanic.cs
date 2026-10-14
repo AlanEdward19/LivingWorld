@@ -18,7 +18,7 @@ namespace LivingWorld.Simulation.Behavior.Needs;
 public static class BodyMechanic
 {
     /// <summary>Incremento diário de MuscleMass sob trabalho físico pesado sustentado
-    /// (categoria SLOW, COH-24) — kg por dia de Work presente no workplace.</summary>
+    /// (categoria SLOW) — kg por dia de Work presente no workplace.</summary>
     public const double DailyWorkHardeningDelta = 0.05;
 
     /// <summary>Capacidade de trabalho físico: cresce com <see cref="Npc.MuscleMass"/>
@@ -70,7 +70,7 @@ public static class BodyMechanic
         return Math.Clamp(1.0 - weightFactor - heightFactor, 0.5, 1.5);
     }
 
-    /// <summary>COH-24: incrementa <see cref="Npc.MuscleMass"/> lentamente após trabalho
+    /// <summary>Incrementa <see cref="Npc.MuscleMass"/> lentamente após trabalho
     /// físico pesado, clampado em <see cref="BodyRules.MuscleMassMax"/>. No-op se BodyRules
     /// desabilitado ou já no teto.</summary>
     public static void ApplyWorkHardening(WorldState world, Npc npc)

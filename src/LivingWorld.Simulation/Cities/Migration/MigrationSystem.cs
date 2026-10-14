@@ -49,7 +49,7 @@ public sealed class MigrationSystem : ISimulationSystem
     public string Name => SystemName;
     public TickFrequency Frequency => TickFrequency.Daily;
 
-    // dynamic-city-growth, T5 (Edge Case: mapa sem célula livre em lugar nenhum): footprint
+    // dynamic-city-growth (Edge Case: mapa sem célula livre em lugar nenhum): footprint
     // representativo de "casa" só pra sondar escassez de terra via CityOccupancy.IsLandScarce —
     // não corresponde a nenhum prédio real, é só uma sonda de tamanho plausível.
     private static readonly IReadOnlyList<CellCoord> LandScarcityProbeShape =
@@ -83,7 +83,7 @@ public sealed class MigrationSystem : ISimulationSystem
             if (!NeedsMigration(world, rules, household, head, landScarce, activeCities)) continue;
 
             City? bestCity = null;
-            // T5/CITYGROW edge case: mapa sem célula livre em lugar nenhum força o score de
+            // Edge case (dynamic-city-growth): mapa sem célula livre em lugar nenhum força o score de
             // "ficar" pro mínimo teórico, sem afetar o score de nenhuma cidade candidata.
             double bestScore = landScarce ? double.NegativeInfinity : ScoreOf(world, rules, household, currentCity);
 

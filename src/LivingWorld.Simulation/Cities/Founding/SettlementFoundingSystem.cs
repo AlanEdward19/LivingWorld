@@ -14,7 +14,7 @@ namespace LivingWorld.Simulation.Cities.Founding;
 // rota, nenhum conceito de defensabilidade ou liderança formal de assentamento). Só concentração é
 // mensurável (população da cidade). Os outros 4 ficam sempre satisfeitos (nível 1.0 >= qualquer
 // threshold em [0,1], mesma faixa validada por CityRules.Create) — vacuamente verdadeiros, mesmo
-// espírito do nível neutro de segurança em CityGrowthSystem/MigrationSystem (T11/T12), prontos
+// espírito do nível neutro de segurança em CityGrowthSystem/MigrationSystem, prontos
 // pra quando um sinal real existir. ConcentrationLevel = population / (population + 1): função
 // monotônica pura da população, sem novo limiar mágico — o limiar real continua só
 // FoundingConcentrationThreshold (CityRules).

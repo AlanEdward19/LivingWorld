@@ -74,7 +74,7 @@ public sealed class ConversationSessionStore : ISimulationSystem
 
     /// <summary>AC2: registra o turno do jogador com <c>TurnId</c> monotônico. A ligação com o
     /// pipeline contexto→LLM→validação→resposta não é responsabilidade deste store (fora do
-    /// escopo desta task — ver <c>ILlmProvider</c>/T3 e as tasks de validação futuras).</summary>
+    /// escopo deste tipo — ver <c>ILlmProvider</c> e a validação de resposta).</summary>
     public SendMessageResult SendPlayerMessage(long sessionId, string text, TickContext ctx)
     {
         if (!_sessions.TryGetValue(sessionId, out var session))

@@ -31,7 +31,7 @@ public enum DecisionContextCategory
 }
 
 /// <summary>Cache por-NPC de fatias de <see cref="DecisionContext"/> — reconstrói só
-/// categorias dirty desde o último wake (COH-45).</summary>
+/// categorias dirty desde o último wake.</summary>
 public static class DecisionContextCache
 {
     private sealed class Store

@@ -80,7 +80,7 @@ public sealed partial class WorldState
 
     /// <summary>Parâmetros cenário-driven do utility AI/necessidades —
     /// decaimento, limiar de urgência, histerese. Entra no hash canônico: desligar/mudar o
-    /// utility AI muda o mundo (NEEDS-04).</summary>
+    /// utility AI muda o mundo.</summary>
     [Canonical] public NeedsRules NeedsRules { get; }
 
     /// <summary>Eficiência de recuperação por tipo de lugar de descanso.
@@ -153,7 +153,7 @@ public sealed partial class WorldState
     private readonly Dictionary<AnimalId, Animal> _faunaById;
     private long _nextAnimalId;
 
-    /// <summary>Animais simulados mínimos (PWR-77). Não herdam IA de <see cref="Npc"/>.</summary>
+    /// <summary>Animais simulados mínimos. Não herdam IA de <see cref="Npc"/>.</summary>
     [Canonical] public IReadOnlyList<Animal> Fauna => _fauna;
     [Canonical] public long NextAnimalId => _nextAnimalId;
 
@@ -161,7 +161,7 @@ public sealed partial class WorldState
     private readonly Dictionary<PlantId, Plant> _floraById;
     private long _nextPlantId;
 
-    /// <summary>Plantas individuais (PWR-101). Distintas do estoque de <c>CropSystem</c>.</summary>
+    /// <summary>Plantas individuais. Distintas do estoque de <c>CropSystem</c>.</summary>
     [Canonical] public IReadOnlyList<Plant> Flora { get { SyncFlora(); return _flora; } }
 
     // Avanço de estágio adiado (FloraLifecycleSystem): enquanto nenhum evento de planta é possível, o
@@ -176,7 +176,7 @@ public sealed partial class WorldState
 
     private readonly List<EnvironmentTemperatureAdjustment> _environmentTemperatureAdjustments;
 
-    /// <summary>Ajustes regionais de temperatura (PWR-75). Overlay de duração; a base mora em
+    /// <summary>Ajustes regionais de temperatura. Overlay de duração; a base mora em
     /// <see cref="MapCell.Temperature"/>.</summary>
     [Canonical]
     public IReadOnlyList<EnvironmentTemperatureAdjustment> EnvironmentTemperatureAdjustments =>
@@ -275,7 +275,7 @@ public sealed partial class WorldState
     /// prompt da LLM, por isso decide.</summary>
     [Canonical] public IReadOnlyList<NpcMemory> CanonicalMemories => _canonicalMemories;
 
-    /// <summary>Memórias abaixo do limiar canônico — compactáveis livremente (T10, futuro) sem
+    /// <summary>Memórias abaixo do limiar canônico — compactáveis livremente (futuro) sem
     /// tocar o hash canônico.</summary>
     [Volatile] public IReadOnlyList<NpcMemory> VolatileMemories => _volatileMemories;
 
@@ -725,7 +725,7 @@ public sealed partial class WorldState
     internal WorldRngRegistry Rng => _rng;
     internal EventScheduler Scheduler => _scheduler;
 
-    /// <summary>Único ponto de mutação de <see cref="Name"/> (T42) — separado do construtor
+    /// <summary>Único ponto de mutação de <see cref="Name"/> — separado do construtor
     /// porque <see cref="ScenarioLoaderV2.LoadWorld"/> monta o mundo a partir do cenário e não
     /// conhece o nome escolhido na borda; quem chama (o endpoint de create) atribui depois.</summary>
     public void Rename(string name) => Name = name;

@@ -4,7 +4,7 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.History.Causality;
 
-/// <summary>Diagnósticos sobre cadeias <see cref="WorldEvent.CauseEventId"/> (COH-62 / doc#30–31).
+/// <summary>Diagnósticos sobre cadeias <see cref="WorldEvent.CauseEventId"/> (doc#30–31).
 /// Reusa o mesmo <c>maxDepth</c> guard de <see cref="CausalProvenance"/>.</summary>
 public static class CausalDiagnostics
 {

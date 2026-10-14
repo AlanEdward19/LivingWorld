@@ -16,7 +16,7 @@ public readonly record struct CityBounds(CellCoord Origin, int Width, int Height
 /// Bugfix real (usuário, 2026-08-13, rodada 1): a fórmula original era um tamanho FIXO de
 /// 34×24 células — herdada do placeholder client-side (`cityGroundBounds`) de quando cidade
 /// tinha seu próprio grid local pequeno. Coordenadas de cidade viraram absolutas (mesma escala
-/// do mapa-múndi, T46), então um tamanho fixo de 34×24 estourava qualquer mundo menor que isso
+/// do mapa-múndi), então um tamanho fixo de 34×24 estourava qualquer mundo menor que isso
 /// (10×10/20×20 — exatamente os presets Pequeno/Médio do World Creator).
 ///
 /// Bugfix real (usuário, 2026-08-13, rodada 2 — a rodada 1 ainda estourava): escalar só por
@@ -42,9 +42,9 @@ public static class CityBoundsResolver
         return Math.Min(populationSide, mapLimit);
     }
 
-    // SPEC_DEVIATION (dynamic-city-growth, T4): design.md suggested this method take a
+    // SPEC_DEVIATION (dynamic-city-growth): design.md suggested this method take a
     // WorldState (or IReadOnlyList<Building>) to inspect overflow buildings directly — but
-    // unlike CityOccupancy/OverflowPlacer/BuildingPlacementResolver (T1-T3), that would force
+    // unlike CityOccupancy/OverflowPlacer/BuildingPlacementResolver, that would force
     // this file to move to LivingWorld.Simulation (WorldState only exists there). Resolving an
     // engine-built building's actual position already requires WorldState (Building.Position
     // stays null for those, per Building.cs's own doc comment — position is always re-derived on
@@ -146,7 +146,7 @@ public static class CityBoundsResolver
     /// que <paramref name="absorptionRingCells"/> só neste caso extremo -- duas cidades fundadas
     /// patologicamente perto uma da outra) em vez de violar o tamanho mínimo viável que todo outro
     /// caminho deste arquivo já garante (mesma filosofia "declinar em vez de forçar resultado
-    /// degenerado" de <c>BuildingPlacementResolver</c>/AD-007: aqui não há um "null" pra devolver
+    /// degenerado" de <c>BuildingPlacementResolver</c>/dynamic-city-growth: aqui não há um "null" pra devolver
     /// -- toda cidade PRECISA de uma caixa --, então o menos degenerado é o piso de tamanho, não o
     /// gap).</summary>
     private static (CellCoord Origin, int Side) ClampSideAgainstOtherCities(

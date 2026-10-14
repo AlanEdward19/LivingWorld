@@ -67,7 +67,7 @@ public sealed partial class WorldState
     internal NpcId NextNpcIdAndAdvance() => new(_nextNpcId++);
     internal HouseholdId NextHouseholdIdAndAdvance() => new(_nextHouseholdId++);
 
-    /// <summary>Reserva <paramref name="count"/> ids em lote (T50) — usado só na carga de
+    /// <summary>Reserva <paramref name="count"/> ids em lote — usado só na carga de
     /// cenário, pra dar a cada membro do <see cref="AggregatePopulationPool"/> autorado um
     /// <see cref="NpcId"/> estável antes de qualquer materialização. Mesmo contador de
     /// <see cref="NextNpcIdAndAdvance"/>, só avançado de uma vez em vez de um por vez.</summary>

@@ -35,7 +35,7 @@ public static class PopulationSeeder
         Register(world, generated, houseIds);
     }
 
-    /// <summary>Famílias autoradas (ADR-0024): mesma colocação de casa e mesma agenda de óbito/despertar da população
+    /// <summary>Famílias autoradas: mesma colocação de casa e mesma agenda de óbito/despertar da população
     /// sorteada. Cada família mora na cidade do seu assentamento (ou na da vila inicial).</summary>
     public static void SeedAuthored(
         WorldState world, AuthoredHousehold household, CultureId culture, CellCoord villageLocation, City city)

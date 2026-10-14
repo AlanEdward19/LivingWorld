@@ -2,7 +2,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Domain.Health;
 
-/// <summary>Uma doença como vetor de eixos do cenário, sem nome fixo no código (ADR-0013): quanto contagia por dia de contato,
+/// <summary>Uma doença como vetor de eixos do cenário, sem nome fixo no código: quanto contagia por dia de contato,
 /// quanto mata ao fim, quanto dura e quanto de imunidade deixa.</summary>
 public sealed record DiseaseProfile(int Id, double ContagionPerContactDay, double Lethality, int DurationDays, int ImmunityDays);
 

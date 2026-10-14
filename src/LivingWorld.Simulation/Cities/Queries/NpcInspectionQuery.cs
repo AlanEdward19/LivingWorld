@@ -26,7 +26,7 @@ namespace LivingWorld.Simulation.Cities.Queries;
 /// nomeado que resolve isso, separado do GET.</summary>
 public static class NpcInspectionQuery
 {
-    /// <summary>Leitura pura (T49): idempotente, chamável quantas vezes quiser sem efeito
+    /// <summary>Leitura pura: idempotente, chamável quantas vezes quiser sem efeito
     /// colateral — mesmo NPC vivo/arquivado devolve sempre o mesmo DTO.</summary>
     public static Result<NpcInspectionDto> Inspect(WorldState world, NpcId id)
     {
@@ -37,7 +37,7 @@ public static class NpcInspectionQuery
         if (world.ColdArchive.Lookup(id.Value) is { } summary)
             return Result<NpcInspectionDto>.Ok(FromNpcSummary(world, summary));
 
-        // T50: id reservado num AggregatePopulationPool (City.PoolNpcIds) — leitura pura, nunca
+        // id reservado num AggregatePopulationPool (City.PoolNpcIds) — leitura pura, nunca
         // materializa (isso é MaterializeAndInspect); antes disso existir, qualquer id de pool
         // clicado caía sempre no Fail genérico abaixo.
         var pooledCity = world.ActiveCities().FirstOrDefault(c => c.PoolNpcIds.Contains(id));
@@ -47,7 +47,7 @@ public static class NpcInspectionQuery
         return Result<NpcInspectionDto>.Fail("Npc: não existe, está morto sem registro arquivado, ou ainda não foi materializado");
     }
 
-    /// <summary>Comando explícito (T49): materializa sob demanda (<see
+    /// <summary>Comando explícito: materializa sob demanda (<see
     /// cref="MaterializationSystem.EnsureMaterialized"/>, mesmas invariantes de sempre — só muta
     /// quando o id está pendente no pool agregado) e então devolve o mesmo DTO de <see
     /// cref="Inspect"/>. Nunca chamado implicitamente por um GET.</summary>
@@ -85,7 +85,7 @@ public static class NpcInspectionQuery
     }
 
     /// <summary>Mesmo critério geométrico de <c>GlobalProjector</c>/<c>LivingScopeProjector</c>
-    /// (T50, via <see cref="NpcScopeResolver"/>) — cidade não encontrada (não deveria acontecer
+    /// (via <see cref="NpcScopeResolver"/>) — cidade não encontrada (não deveria acontecer
     /// pra um NPC vivo) cai em World, nunca lança.</summary>
     private static NpcScope ResolveScope(WorldState world, Npc npc)
     {
@@ -116,7 +116,7 @@ public static class NpcInspectionQuery
             CognitionTrace: CognitionTraceOf(world, summary.Id));
     }
 
-    /// <summary>DTO mínimo pra um id ainda no pool agregado (T50) — mesmo espírito de placeholder
+    /// <summary>DTO mínimo pra um id ainda no pool agregado — mesmo espírito de placeholder
     /// de <see cref="FromNpcSummary"/>: atributos reais não existem até materializar, então vêm
     /// com valor neutro; só <see cref="NpcInspectionDto.Id"/>/<see cref="NpcInspectionDto.City"/>/
     /// <see cref="NpcInspectionDto.Lod"/> são de verdade.</summary>

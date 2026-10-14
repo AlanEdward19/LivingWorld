@@ -31,7 +31,7 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Documento OpenAPI (/openapi/v1.json) — contrato para clientes externos (Godot, ADR-0022).
+// Documento OpenAPI (/openapi/v1.json) — contrato para clientes externos (Godot).
 builder.Services.AddOpenApi();
 
 // Testes continuam isolados em memória quando não configuram conexão. O app iniciado por
@@ -176,7 +176,7 @@ app.MapPost("/npcs/{id:long}/materialize", (long id) =>
 // comportamento existente (gate/testes seguem sempre em FakeLlmProvider).
 ILlmProvider llmProvider = builder.Configuration["LLM_PROVIDER"] switch
 {
-    "ollama" => new OllamaLlmProvider(new HttpClient()),
+    "ollama" => new OllamaLlmProvider(new HttpClient(LivingWorld.AI.EgressGuard.Handler())),
     "null" => new NullLlmProvider(),
     _ => new FakeLlmProvider(),
 };

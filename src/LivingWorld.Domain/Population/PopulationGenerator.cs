@@ -86,7 +86,7 @@ public static class PopulationGenerator
         return new GeneratedPopulation(npcs, households, nextNpcId, nextHouseholdId);
     }
 
-    /// <summary>População autorada (ADR-0024): nome, sexo, idade, profissão, personalidade e parentesco vêm do autor;
+    /// <summary>População autorada: nome, sexo, idade, profissão, personalidade e parentesco vêm do autor;
     /// genes, corpo, vitalidade e criação seguem sorteados pelos mesmos streams por NPC do gerador inicial, então
     /// mesma seed + mesmo bloco = mesmo mundo. Cada família vira uma <see cref="Household"/> com a casa dada por
     /// <paramref name="householdLocationsFactory"/>; a cabeça é o membro adulto mais velho.</summary>

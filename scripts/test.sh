@@ -8,6 +8,7 @@
 #   --heavy       inclui os testes `Category=Heavy` (10 mil NPCs / 100x / sensor de 5 mil), que o longrunning pula por padrão
 # Release de propósito: reaproveita o build de `build.sh` (sem recompilar) e a simulação roda ~2x mais rápido.
 set -euo pipefail
+export LW_BLOCK_EGRESS=1 # LLM-14: o gate nunca sai para a rede (LivingWorld.AI.EgressGuard)
 cd "$(dirname "$0")/.."
 [ -f LivingWorld.sln ] || { echo "LivingWorld.sln não existe — rode a Fase 0 do ROADMAP.md" >&2; exit 1; }
 

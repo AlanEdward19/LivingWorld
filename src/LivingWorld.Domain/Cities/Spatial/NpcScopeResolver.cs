@@ -5,7 +5,7 @@ namespace LivingWorld.Domain.Cities.Spatial;
 
 public enum NpcScopeKind { World, City }
 
-/// <summary>Onde um NPC "está" pra fins de escopo visual (T50, bug "seguir NPC entre escopos") —
+/// <summary>Onde um NPC "está" pra fins de escopo visual (bug "seguir NPC entre escopos") —
 /// dentro dos bounds da própria cidade (<see cref="NpcScopeKind.City"/>) ou fora, viajando
 /// (<see cref="NpcScopeKind.World"/>). <see cref="CityId"/> só é populado no caso City.</summary>
 public readonly record struct NpcScope(NpcScopeKind Kind, CityId? CityId);
