@@ -24,6 +24,20 @@ public static class OntogenyMechanic
         return age >= rules.CompleteAtYears ? null : rules.StateAt(age);
     }
 
+    /// <summary>Um mês de desenvolvimento: exposição do mês (cuidador no domicílio) decide se a curva da idade rende. Quem passou da
+    /// idade em que tudo se completa e alcançou todos os eixos vira <c>null</c>; quem ficou com teto reduzido permanece com o estado
+    /// final (déficit permanente), sem mais avanço.</summary>
+    public static DevelopmentState? AdvanceOneMonth(WorldState world, Npc npc, DevelopmentState state)
+    {
+        var rules = world.OntogenyRules;
+        double now = EffectiveAgeYears(world, npc);
+        if (now >= rules.CompleteAtYears && !state.IsComplete) return state;
+        double monthYears = (double)npc.BirthDate.Calendar.HoursPerMonth / npc.BirthDate.Calendar.HoursPerYear * npc.RateGene.Value;
+        var next = rules.Advance(state, Math.Max(0, now - monthYears), now, ExposureAccumulator.HasCaregiver(world, npc));
+        if (now < rules.CompleteAtYears) return next;
+        return next.IsComplete ? null : next;
+    }
+
     /// <summary>O que o NPC já pode fazer, para a escolha por utility; <c>default</c> (nada restrito) para adulto ou ontogenia desligada.</summary>
     public static Behavior.Decision.ActionEligibility EligibilityFor(OntogenyRules rules, DevelopmentState? state) =>
         !rules.Enabled || state is null

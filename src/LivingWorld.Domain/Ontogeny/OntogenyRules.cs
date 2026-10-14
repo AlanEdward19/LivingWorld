@@ -5,8 +5,8 @@ using LivingWorld.Domain.Shared;
 namespace LivingWorld.Domain.Ontogeny;
 
 /// <summary>Regras de ontogenia do cenário (Fase 21): marcos (dado), o que cada ação exige e a curva de progresso.
-/// Não é machine learning: curva por marco + janela de idade. Na 21a o progresso acompanha a idade escalada pelo
-/// <c>RateGene</c> do NPC; a 21b troca isso por exposição. <see cref="Disabled"/> deixa todo mundo completo.</summary>
+/// Não é machine learning: curva por marco + janela de idade. O progresso acompanha a idade escalada pelo
+/// <c>RateGene</c> do NPC, mas só avança com exposição (convívio com cuidador); janela perdida reduz o teto para sempre (21b). <see cref="Disabled"/> deixa todo mundo completo.</summary>
 [JsonConverter(typeof(OntogenyRulesJsonConverter))]
 public sealed record OntogenyRules
 {
@@ -16,6 +16,12 @@ public sealed record OntogenyRules
     public IReadOnlyList<MilestoneDefinition> Milestones { get; }
     public IReadOnlyDictionary<ActionType, MilestoneRequirement> Requirements { get; }
 
+    /// <summary>Fração do atraso (curva da idade − progresso) que a exposição tardia recupera por mês; sempre limitada pelo teto.</summary>
+    public double LateRecoveryFactor { get; }
+
+    /// <summary>Fração da distância restante até 1 que continua alcançável depois que uma janela fecha sem o marco (o resto se perde para sempre).</summary>
+    public double MissedWindowKeep { get; }
+
     private readonly Dictionary<DevelopmentAxis, (double Age, double Progress)[]> _curves;
 
     /// <summary>Idade (anos, já escalada pela taxa) a partir da qual o desenvolvimento está completo em todos os eixos.</summary>
@@ -24,8 +30,11 @@ public sealed record OntogenyRules
     private OntogenyRules(
         bool enabled, IReadOnlyList<MilestoneDefinition> milestones,
         IReadOnlyDictionary<ActionType, MilestoneRequirement> requirements,
-        Dictionary<DevelopmentAxis, (double, double)[]> curves, double completeAt)
+        Dictionary<DevelopmentAxis, (double, double)[]> curves, double completeAt,
+        double lateRecoveryFactor, double missedWindowKeep)
     {
+        LateRecoveryFactor = lateRecoveryFactor;
+        MissedWindowKeep = missedWindowKeep;
         Enabled = enabled;
         Milestones = milestones;
         Requirements = requirements;
@@ -33,12 +42,20 @@ public sealed record OntogenyRules
         CompleteAtYears = completeAt;
     }
 
-    public static OntogenyRules Disabled { get; } = new(false, [], new Dictionary<ActionType, MilestoneRequirement>(), [], 0);
+    public static OntogenyRules Disabled { get; } = new(false, [], new Dictionary<ActionType, MilestoneRequirement>(), [], 0, DefaultLateRecovery, DefaultMissedWindowKeep);
+
+    /// <summary>Valores autorados do cenário padrão (não há medição humana que os fixe): os critérios comparam braços, nunca o número.</summary>
+    public const double DefaultLateRecovery = 0.25, DefaultMissedWindowKeep = 0.5;
 
     public static Result<OntogenyRules> Create(
         bool enabled, IReadOnlyList<MilestoneDefinition> milestones,
-        IReadOnlyDictionary<ActionType, MilestoneRequirement> requirements)
+        IReadOnlyDictionary<ActionType, MilestoneRequirement> requirements,
+        double lateRecoveryFactor = DefaultLateRecovery, double missedWindowKeep = DefaultMissedWindowKeep)
     {
+        if (lateRecoveryFactor is <= 0 or > 1)
+            return Result<OntogenyRules>.Fail("Ontogeny.LateRecoveryFactor: deve estar em (0,1]");
+        if (missedWindowKeep is <= 0 or >= 1)
+            return Result<OntogenyRules>.Fail("Ontogeny.MissedWindowKeep: deve estar em (0,1) — 1 não perderia nada e 0 tiraria tudo");
         foreach (var action in Enum.GetValues<ActionType>())
             if (!requirements.ContainsKey(action))
                 return Result<OntogenyRules>.Fail($"Ontogeny.Requirements: falta marco exigido para {action}");
@@ -81,12 +98,13 @@ public sealed record OntogenyRules
                 return Result<OntogenyRules>.Fail($"Ontogeny.Requirements[{action}]: nenhum marco do eixo {req.Axis} alcança {req.Threshold}");
         }
 
-        return Result<OntogenyRules>.Ok(Build(enabled, milestones, requirements));
+        return Result<OntogenyRules>.Ok(Build(enabled, milestones, requirements, lateRecoveryFactor, missedWindowKeep));
     }
 
     /// <summary>Sem validação: só para ler dado já gravado pelo próprio motor (snapshot). Quem aceita dado externo usa <see cref="Create"/>.</summary>
     internal static OntogenyRules Build(
-        bool enabled, IReadOnlyList<MilestoneDefinition> milestones, IReadOnlyDictionary<ActionType, MilestoneRequirement> requirements)
+        bool enabled, IReadOnlyList<MilestoneDefinition> milestones, IReadOnlyDictionary<ActionType, MilestoneRequirement> requirements,
+        double lateRecoveryFactor = DefaultLateRecovery, double missedWindowKeep = DefaultMissedWindowKeep)
     {
         var curves = new Dictionary<DevelopmentAxis, (double, double)[]>();
         double completeAt = 0;
@@ -99,7 +117,7 @@ public sealed record OntogenyRules
             curves[axis] = points.ToArray();
             completeAt = Math.Max(completeAt, onAxis[^1].WindowMedianYears);
         }
-        return new OntogenyRules(enabled, milestones, requirements, curves, completeAt);
+        return new OntogenyRules(enabled, milestones, requirements, curves, completeAt, lateRecoveryFactor, missedWindowKeep);
     }
 
     /// <summary>Progresso do eixo para uma idade efetiva (anos): interpolação linear entre as medianas dos marcos.</summary>
@@ -121,6 +139,35 @@ public sealed record OntogenyRules
         ProgressAt(DevelopmentAxis.GrossMotor, effectiveAgeYears), ProgressAt(DevelopmentAxis.FineMotor, effectiveAgeYears),
         ProgressAt(DevelopmentAxis.Language, effectiveAgeYears), ProgressAt(DevelopmentAxis.SelfCare, effectiveAgeYears),
         ProgressAt(DevelopmentAxis.SocialCognition, effectiveAgeYears), ProgressAt(DevelopmentAxis.Abstraction, effectiveAgeYears));
+
+    /// <summary>Avança um mês de desenvolvimento (puro, sem sorteio: a variação individual é o <c>RateGene</c>, que já escala as idades).
+    /// Com exposição o eixo ganha o que a curva da idade andou mais uma fração do atraso, até o teto; sem exposição não ganha nada.
+    /// Janela que fecha com o marco ainda fora do alcance reduz o teto do eixo de forma permanente.</summary>
+    public DevelopmentState Advance(DevelopmentState state, double previousAgeYears, double currentAgeYears, bool exposed)
+    {
+        foreach (var axis in Enum.GetValues<DevelopmentAxis>())
+        {
+            if (!_curves.ContainsKey(axis)) continue;
+            double before = ProgressAt(axis, previousAgeYears);
+            double after = ProgressAt(axis, currentAgeYears);
+            double ceiling = state.CeilingOf(axis);
+            double progress = state.Get(axis);
+
+            if (exposed)
+                progress = Math.Min(ceiling, progress + (after - before) + LateRecoveryFactor * Math.Max(0, before - progress));
+
+            foreach (var m in Milestones)
+            {
+                if (m.Axis != axis || m.WindowLimitYears <= previousAgeYears || m.WindowLimitYears > currentAgeYears) continue;
+                if (progress + 1e-9 >= m.Threshold) continue;
+                ceiling = Math.Min(ceiling, progress + (1.0 - progress) * MissedWindowKeep);
+                progress = Math.Min(progress, ceiling);
+            }
+
+            state = state.With(axis, progress).WithCeiling(axis, ceiling);
+        }
+        return state;
+    }
 
     /// <summary><c>null</c> (completo) ou ligado sempre elegível; senão compara o progresso do eixo com o limiar da ação.</summary>
     public bool IsEligible(DevelopmentState? state, ActionType action)

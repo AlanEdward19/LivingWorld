@@ -67,7 +67,13 @@ public static class OntogenyScenarioLoader
             }
         }
 
-        var created = OntogenyRules.Create(enabled, milestones, requirements);
+        double recovery = OntogenyRules.DefaultLateRecovery, keep = OntogenyRules.DefaultMissedWindowKeep;
+        if (block["LateRecoveryFactor"] is not null && !Dbl(block, "LateRecoveryFactor", out recovery))
+            return Result<OntogenyRules>.Fail("Ontogeny.LateRecoveryFactor: número inválido");
+        if (block["MissedWindowKeep"] is not null && !Dbl(block, "MissedWindowKeep", out keep))
+            return Result<OntogenyRules>.Fail("Ontogeny.MissedWindowKeep: número inválido");
+
+        var created = OntogenyRules.Create(enabled, milestones, requirements, recovery, keep);
         return created.IsSuccess ? created : Result<OntogenyRules>.Fail(created.Error!);
     }
 

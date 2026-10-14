@@ -1,4 +1,4 @@
-# Fase 21 — Ontogenia [Estado: Ativo - 21a entregue (AD-115, ADR-0026); 21b #71, 21c #72]
+# Fase 21 — Ontogenia [Estado: Ativo - 21a (AD-115) e 21b (AD-116, ADR-0027) entregues; 21c #72]
 
 Substitui o formato antigo (`spec.md`/`design.md`/`tasks.md`, apagados em 2026-10-14 com aprovação do usuário; histórico no git).
 Decisões herdadas do design: marco é **filtro pré-utility** (não pontua zero), choro é
@@ -17,7 +17,7 @@ trauma/doença regride com causa → adulto: sistema inerte.
 ## Fatias (uma issue, um PR cada, nesta ordem)
 - **21a Modelo**: marcos como dado de cenário (6 eixos, janelas, pré-requisitos), `ActionCatalog.RequiredMilestone`,
   `MilestoneEligibilityFilter`, `Cry`, `OntogenyLifecycleGate`, flag de desligar.
-- **21b Aquisição**: `ExposureAccumulator`, `MilestoneProgressSystem`, `WindowClosureSystem`, gene como taxa.
+- **21b Aquisição** (entregue, ADR-0027): `ExposureAccumulator` (adulto no domicílio), aquisição e janela dentro de `OntogenyRules.Advance`, gene como taxa; sem sorteio do `Resolver`.
 - **21c Idioma, regressão, agregado**: `LanguageFluencyResolver`, crença copiada pelo canal ambiental,
   `MilestoneRegressionSystem`, `MilestoneProgressSum` no pool + resample na materialização.
 
@@ -44,8 +44,8 @@ por padrão, `ActionType.Cry` (duração opcional). A 21b acrescenta teto de jan
 novo ADR/pergunta em cada uma. As exigências por ação vivem em `OntogenyRules.Requirements` (cobertura por reflexão), não em `ActionCatalog`.
 
 ## Dívida explícita da 21a
-`Cry` só tem consumidor na própria utility (o estado é visível no rastro da decisão). O consumidor causal — choro atendido pelo
-cuidador conta como contato de exposição — entra na 21b. Criança materializada do pool agregado nasce adulta (materialização
+`Cry` só tem consumidor na própria utility (o estado é visível no rastro da decisão). O choro atendido já equivale à presença do
+cuidador, que a 21b usa como exposição; um consumidor próprio do choro (acordar o cuidador) fica fora da Fase 21. Criança materializada do pool agregado nasce adulta (materialização
 sempre ≥ 18 anos); o resample por pool é da 21c. Viagem e compra que atendem uma intenção elegível são assistidas.
 
 ## Desempenho
