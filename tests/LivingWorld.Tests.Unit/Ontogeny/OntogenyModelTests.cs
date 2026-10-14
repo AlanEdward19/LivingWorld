@@ -122,6 +122,24 @@ public class OntogenyModelTests
         Assert.NotEqual(ActionType.Cry, decision.Action);
     }
 
+    // --- Camada de rotina/percepção/controlador externo ---
+
+    [Fact]
+    public void Routine_perception_and_controller_actions_above_the_milestone_fall_back_to_idle()
+    {
+        var world = ScenarioRunner.Create(seed: 7, initialPopulation: 0).World;
+        var baby = Birth(world, ageYears: 0.0);
+        baby.SetDevelopment(DevelopmentState.Newborn);
+        var adult = Birth(world, ageYears: world.OntogenyRules.CompleteAtYears + 1);
+
+        foreach (var action in Enum.GetValues<ActionType>())
+        {
+            var constrained = BehaviorDecisionSystem.ConstrainByDevelopment(world, baby, action);
+            Assert.Equal(InfantActions.Contains(action) ? action : ActionType.Idle, constrained);
+            Assert.Equal(action, BehaviorDecisionSystem.ConstrainByDevelopment(world, adult, action));
+        }
+    }
+
     // --- Estado por idade ---
 
     [Fact]
