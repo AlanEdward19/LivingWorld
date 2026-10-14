@@ -187,7 +187,7 @@ public class TechDiscoveryTests
     [Fact]
     public void Discovery_is_logged_without_a_name_and_changes_the_canonical_hash()
     {
-        var (on, clockOn) = Village(9, Pressured);
+        var (on, _) = Village(9, Pressured);
         var (off, clockOff) = Village(9, EmergenceRules.Disabled);
         var sink = new BufferingWorldEventSink();
         var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink);
@@ -198,7 +198,6 @@ public class TechDiscoveryTests
         Assert.Contains(sink.DrainAll(), e => e.Kind == WorldEventKind.TechnologyDiscovered);
         Assert.NotEqual(WorldSnapshot.CanonicalHash(off), WorldSnapshot.CanonicalHash(on));
         Assert.NotEmpty(on.Technologies);
-        _ = clockOn;
     }
 
     [Fact]
