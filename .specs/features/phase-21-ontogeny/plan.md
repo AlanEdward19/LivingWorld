@@ -48,6 +48,9 @@ novo ADR/pergunta em cada uma. As exigências por ação vivem em `OntogenyRules
 cuidador, que a 21b usa como exposição; um consumidor próprio do choro (acordar o cuidador) fica fora da Fase 21. Criança materializada do pool agregado nasce adulta (materialização
 sempre ≥ 18 anos); o resample por pool é da 21c. Viagem e compra que atendem uma intenção elegível são assistidas.
 
+Borda conhecida (verificação 21b): marcos com janela que fecha depois de `CompleteAtYears` (ex.: `social-adult`) não podem mais fechar para quem
+foi negligenciado; o estado congela ao passar da idade de conclusão. Olhar na 21c junto com a regressão.
+
 ## Desempenho
 (21a medido: 101,6% µs/NPC-tick e 101,4% alocação contra a base; ver AD-115.)
 Sensor de escala antes/depois de cada fatia: µs/NPC-tick ≤ 103%, alocação/tick ≤ 102%, hash idêntico com flag desligada.
