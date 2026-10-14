@@ -39,7 +39,7 @@ None - nothing consumed outside
 | --- | --- | --- |
 | 1. catálogo de assets | arquivo de dados `assets.json` por id de ação, tipo de prédio e profissão, com fallback para o procedural | assets citados direto no código GDScript: cada troca de arte vira edição de código |
 
-- Nada mais aqui Ã© difÃ­cil de reverter
+- Nada mais aqui é difícil de reverter
 
 ## Criteria
 
@@ -68,7 +68,7 @@ None - nothing consumed outside
 **Acceptance Criteria**
 
 7. The system SHALL manter o hash canônico inalterado após 1 h simulada conectado
-8. The system SHALL manter os 40 testes de `scripts/client-test.sh` verdes
+8. The system SHALL manter todos os testes de `scripts/client-test.sh` verdes (89 hoje)
 
 **Independent test:** `bash scripts/client-test.sh`.
 
