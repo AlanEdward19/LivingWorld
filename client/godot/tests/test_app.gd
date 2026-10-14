@@ -202,3 +202,19 @@ func test_camera_scope_is_published_to_the_observation_registry() -> void:
 	await app.release_observation()
 	eq(sent.back().scope, null, "sair retira a fonte")
 	app.queue_free()
+
+
+func test_open_brain_panel_refreshes_on_clock_tick_and_dates_use_the_server_calendar() -> void:
+	var transport = _transport()
+	transport.on("GET /npcs/7", Fx.npc_inspect([Fx.trace_entry(10, 0)]))
+	var app = await _app(transport)
+	await app.open_brain(7)
+	var before: int = transport.count_calls("GET /npcs/7")
+
+	app._on_clock_status({"tick": 55, "ticksPerSecond": 1.0, "isPaused": false, "year": 0})
+	await app.get_tree().process_frame
+
+	eq(transport.count_calls("GET /npcs/7"), before + 1, "a hora nova do relógio atualiza o painel aberto")
+	app.day_cycle.set_calendar({"hoursPerDay": 10, "daysPerMonth": 5, "monthsPerYear": 2})
+	eq(app._date_text(123), "Ano 1 · Mês 1 · Dia 3 · 07:00", "data pelo calendário do servidor, não 24 h/30 dias")
+	app.queue_free()

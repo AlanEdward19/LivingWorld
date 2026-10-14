@@ -54,6 +54,8 @@ Só cliente + 1 teste .NET; nenhuma rota nova, nada escrito no mundo além de wa
 
 ## Out of scope
 
+Retirar a fonte ao fechar a janela do jogo (só ao voltar ao menu; o servidor descarta a fonte em 30 s, mas só purga no próximo POST: comportamento já existente).
+
 Sandbox de decisão (fatia 2), recalcular utilidade no cliente, persistir ou gravar rastro de NPC não observado.
 
 ## Performance

@@ -50,6 +50,8 @@ func test_selecting_a_decision_draws_the_fixture_counts_and_highlights_the_winne
 
 	eq([panel.pressure_nodes.size(), panel.opportunity_nodes.size(), panel.alternative_nodes.size()], [3, 2, 2], "mais recente: 3/2/2")
 	check(panel.winner_node != null and panel.winner_node.has_meta("winner"), "vencedora destacada")
+	for node in panel.pressure_nodes + panel.opportunity_nodes + panel.alternative_nodes + [panel.winner_node]:
+		check(node.get_parent() != null, "o nó foi de fato posto na árvore do painel")
 	for node in panel.alternative_nodes:
 		check(node.modulate.a < 0.6, "alternativas esmaecidas")
 
@@ -192,3 +194,22 @@ func test_contract_does_not_require_optional_family_fields() -> void:
 	for key in ["spouse", "household"]:
 		eq(ApiClient.ShapeValidator.validate(body[key], shape[key]), [], "NPC sem %s não é reprovado" % key)
 	eq(ApiClient.ShapeValidator.validate(body.currentScope.cityId, shape.currentScope.cityId), [], "NPC sem cidade no escopo não é reprovado")
+
+
+func test_scope_observer_heartbeat_timer_fires_every_ten_seconds() -> void:
+	var transport := FakeTransport.new()
+	transport.on("POST /observation/scope", {"status": 200, "body": null})
+	var observer := ScopeObserver.new()
+	observer.api = _api(transport)
+	tree.root.add_child(observer)
+	await observer.set_scope("World")
+	var timer: Timer
+	for child in observer.get_children():
+		if child is Timer:
+			timer = child
+	check(timer != null and not timer.is_stopped() and is_equal_approx(timer.wait_time, 10.0), "Timer de 10 s rodando")
+	var before := transport.count_calls("POST /observation/scope")
+	timer.timeout.emit()
+	await tree.process_frame
+	eq(transport.count_calls("POST /observation/scope"), before + 1, "o fim do Timer reenvia o escopo")
+	observer.free()
