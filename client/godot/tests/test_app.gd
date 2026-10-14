@@ -218,3 +218,54 @@ func test_open_brain_panel_refreshes_on_clock_tick_and_dates_use_the_server_cale
 	app.day_cycle.set_calendar({"hoursPerDay": 10, "daysPerMonth": 5, "monthsPerYear": 2})
 	eq(app._date_text(123), "Ano 1 · Mês 1 · Dia 3 · 07:00", "data pelo calendário do servidor, não 24 h/30 dias")
 	app.queue_free()
+
+
+func _find_button(node: Node, text: String) -> Button:
+	for child in node.get_children():
+		if child is Button and child.text == text:
+			return child
+		var found := _find_button(child, text)
+		if found != null:
+			return found
+	return null
+
+
+func test_brain_button_and_b_key_open_and_close_the_panel_with_dated_timeline() -> void:
+	var transport = _transport()
+	transport.on("GET /npcs/7", Fx.npc_inspect([Fx.trace_entry(55, 0)]))
+	var app = await _app(transport)
+	app.day_cycle.set_calendar({"hoursPerDay": 10, "daysPerMonth": 5, "monthsPerYear": 2})
+	await app.select_npc(7)
+
+	_find_button(app.npc_panel, "Cérebro (B)").pressed.emit()
+	await app.get_tree().process_frame
+	eq(app.brain_panel.is_open, true, "o botão Cérebro abre o painel")
+	check("Ano 0 · Mês 2 · Dia 1 · 12:00" in app.brain_panel.timeline.get_item_text(0), "a linha do tempo usa a data do calendário: " + app.brain_panel.timeline.get_item_text(0))
+
+	var key := InputEventKey.new()
+	key.keycode = KEY_B
+	key.pressed = true
+	app._unhandled_input(key)
+	eq(app.brain_panel.is_open, false, "B fecha")
+	app._unhandled_input(key)
+	await app.get_tree().process_frame
+	eq(app.brain_panel.is_open, true, "B reabre para o NPC selecionado")
+	app.queue_free()
+
+
+class _StubApp extends Node:
+	var released := false
+
+	func release_observation() -> void:
+		released = true
+
+
+func test_returning_to_the_menu_retires_the_observation_source() -> void:
+	var boot = load("res://Scenes/boot.gd").new()
+	tree.root.add_child(boot)
+	var stub := _StubApp.new()
+	boot.app = stub
+	boot._transport = FakeTransport.new()
+	await boot._show_menu()
+	eq(stub.released, true, "voltar ao menu retira a fonte de observação")
+	boot.free()
