@@ -178,4 +178,10 @@ public enum WorldEventKind
 
     /// <summary>O jogador saiu e o NPC desapareceu — payload: <c>npcId|jogadorId|cidadeId|vinculosProximos</c>.</summary>
     PlayerDisappeared,
+
+    /// <summary>Um vínculo próximo reencontrou o desaparecido — payload: <c>npcId|buscadorId|dias</c>.</summary>
+    DisappearedFound,
+
+    /// <summary>A procura acabou sem achar e quem ficou segue em frente — payload: <c>npcId|vinculosProximos|dias</c>.</summary>
+    SearchGaveUp,
 }

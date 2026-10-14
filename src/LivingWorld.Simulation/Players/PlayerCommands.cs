@@ -72,6 +72,7 @@ public static class PlayerCommands
                 LlmRules.Default.CanonicalMemoryImportanceThreshold);
         }
 
+        PlayerSearchSystem.Begin(ctx, world, npc, bonds);
         ctx.LogEvent(
             WorldEventKind.PlayerDisappeared, $"{npc.Id.Value}|{playerId}|{npc.City.Value}|{bonds.Count}", sourceSystem: "PlayerCommands");
         return Result<Npc>.Ok(npc);
@@ -85,7 +86,8 @@ public static class PlayerCommands
         ctx.LogEvent(WorldEventKind.Fired, $"{npc.Id.Value}|{workplaceId.Value}", sourceSystem: "PlayerCommands");
     }
 
-    /// <summary>Mesma saída de casa da morte (<c>NpcDeath</c>): se sobrar só criança, a redistribuição de família assume.</summary>
+    /// <summary>Mesma saída de casa da morte (<c>NpcDeath</c>): se sobrar só criança, a redistribuição de família assume. O
+    /// desaparecido ganha um domicílio unitário próprio.</summary>
     private static void ReleaseHome(WorldState world, TickContext ctx, Npc npc)
     {
         if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household) return;
@@ -97,6 +99,10 @@ public static class PlayerCommands
             HouseholdRedistribution.HandleOrphaned(world, ctx, household, world.LifeStageRules, world.CurrentDate);
         else
             HouseholdCleanup.DissolveIfEmpty(world, ctx, household);
+
+        // Quem some segue vivendo em outro lugar, sozinho: o motor só come em casa, então sem domicílio próprio o desaparecido
+        // morreria de fome em poucos dias e não haveria o que procurar.
+        HouseholdRedistribution.CreateUnitaryHousehold(world, npc);
     }
 
     private static List<(NpcId Id, double Strength)> CloseBonds(WorldState world, Npc npc)

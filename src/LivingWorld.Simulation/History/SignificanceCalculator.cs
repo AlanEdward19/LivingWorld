@@ -22,6 +22,8 @@ public static class SignificanceCalculator
             [WorldEventKind.TheftDiscovered] = 0.4,
             [WorldEventKind.PlayerIncarnated] = 0.3,
             [WorldEventKind.PlayerDisappeared] = 0.85,
+            [WorldEventKind.DisappearedFound] = 0.7,
+            [WorldEventKind.SearchGaveUp] = 0.6,
             [WorldEventKind.RentUnpaid] = 0.35,
             [WorldEventKind.Evicted] = 0.65,
             [WorldEventKind.Marriage] = 0.80,

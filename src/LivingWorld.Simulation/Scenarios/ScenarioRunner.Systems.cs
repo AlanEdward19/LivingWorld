@@ -21,6 +21,7 @@ using LivingWorld.Simulation.History.Distortion;
 using LivingWorld.Simulation.Llm;
 using LivingWorld.Simulation.Narrative;
 using LivingWorld.Simulation.Periods;
+using LivingWorld.Simulation.Players;
 using LivingWorld.Simulation.Population.Archive;
 using LivingWorld.Simulation.Population.Family;
 using LivingWorld.Simulation.Population.Lifecycle;
@@ -60,6 +61,7 @@ public static partial class ScenarioRunner
         new ClimateYearSystem(),
         new MortalitySystem(),
         new OutbreakSystem(),
+        new PlayerSearchSystem(),
         new FactToReportConversionScheduler(),
         new BookRediscoverySystem(),
         new ColdArchiveSystem(),

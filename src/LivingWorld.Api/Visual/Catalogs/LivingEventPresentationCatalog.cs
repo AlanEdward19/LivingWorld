@@ -21,6 +21,8 @@ public static class LivingEventPresentationCatalog
             [WorldEventKind.TheftDiscovered] = "Um furto foi descoberto",
             [WorldEventKind.PlayerIncarnated] = "Alguém assumiu o rumo de um habitante",
             [WorldEventKind.PlayerDisappeared] = "Um habitante desapareceu sem deixar rastro",
+            [WorldEventKind.DisappearedFound] = "Alguém reencontrou um desaparecido",
+            [WorldEventKind.SearchGaveUp] = "A procura por um desaparecido chegou ao fim",
             [WorldEventKind.RentUnpaid] = "Um aluguel ficou em atraso",
             [WorldEventKind.Evicted] = "Uma família perdeu a moradia por falta de pagamento",
             [WorldEventKind.Hired] = "Um habitante começou um novo trabalho",

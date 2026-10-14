@@ -16,6 +16,13 @@ namespace LivingWorld.Tests.Unit.Players;
 /// <summary>player-incarnation (Fase 25): jogador é NPC com controlador externo; sair é desaparecer.</summary>
 public class PlayerIncarnationTests
 {
+    /// <summary>Guarda todos os eventos (o buffer comum só retém os mais recentes).</summary>
+    private sealed class AllEvents : IWorldEventSink
+    {
+        public List<WorldEvent> Events { get; } = [];
+        public void Record(WorldEvent evt) => Events.Add(evt);
+    }
+
     private static (WorldState World, WorldClock Clock, BufferingWorldEventSink Sink, TickContext Ctx) Village(ulong seed)
     {
         var (world, _) = ScenarioRunner.Create(seed);
@@ -126,7 +133,8 @@ public class PlayerIncarnationTests
         Assert.DoesNotContain(npc.Id, workplace.Employees);
         Assert.Null(npc.Employer);
         Assert.DoesNotContain(npc.Id, household.Members);
-        Assert.Null(npc.Household);
+        Assert.NotNull(npc.Household); // vive sozinho em outro domicílio
+        Assert.NotEqual(household.Id, npc.Household);
         Assert.All(family, id => Assert.Contains(
             world.CanonicalMemories.Concat(world.VolatileMemories),
             m => m.OwnerId == id && m.Participants.Contains(npc.Id) && m.Content.Contains("desapareceu", StringComparison.Ordinal)));
@@ -165,5 +173,98 @@ public class PlayerIncarnationTests
         Assert.Equal("alan", restored.FindNpc(npc.Id)!.ControllerId);
         Assert.Equal(ActionType.Work, restored.FindNpc(npc.Id)!.ControlledAction);
         Assert.Equal(WorldSnapshot.CanonicalHash(world), WorldSnapshot.CanonicalHash(restored));
+    }
+
+    private static (WorldState World, WorldClock Clock, AllEvents Sink, Npc Missing, List<Npc> Family) Disappeared(ulong seed)
+    {
+        var (world, _) = ScenarioRunner.Create(seed);
+        var sink = new AllEvents();
+        var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink);
+        clock.Run(world, 96);
+        var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
+        var npc = world.Npcs.First(n => n.IsAlive && n.Employer is not null && n.Household is not null
+            && world.FindHousehold(n.Household!.Value)!.Members.Count >= 3
+            && n.AgeYears(world.CurrentDate) is >= 22 and <= 35);
+        var family = world.FindHousehold(npc.Household!.Value)!.Members.Where(m => m != npc.Id).Select(m => world.FindNpc(m)!).ToList();
+        npc.CreditWallet(new LivingWorld.Domain.Shared.Money(5000)); // sem casa nem emprego, só quem tem moeda come durante a procura
+        Assert.True(PlayerCommands.Incarnate(world, ctx, npc.Id, "alan").IsSuccess);
+        Assert.True(PlayerCommands.Logout(world, ctx, "alan").IsSuccess);
+        sink.Events.Clear();
+        return (world, clock, sink, npc, family);
+    }
+
+    [Fact]
+    public void The_family_searches_and_the_missing_npc_is_found_deterministically()
+    {
+        (bool Found, long? Tick) Run()
+        {
+            var (world, clock, sink, missing, _) = Disappeared(5);
+            clock.Run(world, (PlayerSearchSystem.SearchDays + 1) * world.Calendar.HoursPerDay);
+            var events = sink.Events;
+            bool found = events.Any(e => e.Kind == WorldEventKind.DisappearedFound);
+            Assert.Equal(found, missing.DisappearedAtTick is null);
+            Assert.NotEqual(found, events.Any(e => e.Kind == WorldEventKind.SearchGaveUp)); // exatamente um desfecho
+            return (found, missing.DisappearedAtTick);
+        }
+
+        var first = Run();
+        Assert.Equal(first, Run());
+    }
+
+    [Fact]
+    public void A_found_npc_gets_a_memory_and_a_stronger_tie_with_the_finder()
+    {
+        for (ulong seed = 1; seed <= 12; seed++)
+        {
+            var (world, clock, sink, missing, family) = Disappeared(seed);
+            clock.Run(world, (PlayerSearchSystem.SearchDays + 1) * world.Calendar.HoursPerDay);
+            var found = sink.Events.FirstOrDefault(e => e.Kind == WorldEventKind.DisappearedFound);
+            if (found is null) continue;
+
+            long finderId = long.Parse(found.Payload.Split('|')[1]);
+            Assert.Contains(world.CanonicalMemories.Concat(world.VolatileMemories),
+                m => m.OwnerId.Value == finderId && m.Content.Contains("reencontrou", StringComparison.Ordinal));
+            Assert.Null(missing.DisappearedAtTick);
+            return;
+        }
+
+        Assert.Fail("nenhuma das 12 seeds terminou em reencontro");
+    }
+
+    [Fact]
+    public void When_nobody_can_search_the_family_gives_up_and_mourns_with_a_stronger_memory()
+    {
+        var (world, clock, sink, missing, family) = Disappeared(6);
+        var elsewhere = new LivingWorld.Domain.Cities.City(
+            world.NextCityId(), new LivingWorld.Domain.Geography.CellCoord(7, 7), 0, null, LivingWorld.Domain.Cities.AggregatePopulationPool.Empty);
+        world.AddCity(elsewhere);
+        foreach (var relative in family) relative.JoinCity(elsewhere.Id); // ninguém na cidade do desaparecido
+
+        clock.Run(world, (PlayerSearchSystem.SearchDays + 1) * world.Calendar.HoursPerDay);
+
+        var events = sink.Events;
+        Assert.DoesNotContain(events, e => e.Kind == WorldEventKind.DisappearedFound);
+        Assert.Contains(events, e => e.Kind == WorldEventKind.SearchGaveUp);
+        Assert.NotNull(missing.DisappearedAtTick);
+        Assert.All(family.Where(f => f.IsAlive), f => Assert.Contains(
+            world.CanonicalMemories.Concat(world.VolatileMemories),
+            m => m.OwnerId == f.Id && m.Content.Contains("deixou de procurar", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public void If_the_missing_npc_dies_during_the_search_the_search_ends_and_the_estate_is_settled()
+    {
+        var (world, clock, sink, missing, family) = Disappeared(7);
+        var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
+        missing.CreditWallet(new LivingWorld.Domain.Shared.Money(500));
+        long before = family.Sum(f => f.Wallet.Amount);
+
+        NpcDeath.Apply(world, ctx, missing, WorldEventKind.Death);
+        clock.Run(world, (PlayerSearchSystem.SearchDays + 1) * world.Calendar.HoursPerDay);
+
+        var events = sink.Events;
+        Assert.DoesNotContain(events, e => e.Kind is WorldEventKind.DisappearedFound or WorldEventKind.SearchGaveUp);
+        Assert.Contains(events, e => e.Kind == WorldEventKind.EstateSettled);
+        Assert.True(family.Sum(f => f.Wallet.Amount) >= before);
     }
 }

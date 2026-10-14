@@ -133,6 +133,13 @@ public sealed class Npc
         TouchCanonical();
     }
 
+    /// <summary>Alguém o reencontrou: deixa de estar desaparecido.</summary>
+    public void Reappear()
+    {
+        DisappearedAtTick = null;
+        TouchCanonical();
+    }
+
     public bool IsGhost { get; private set; }
 
     /// <summary>Nulo enquanto <see cref="Household"/> existir. <see cref="LeaveHousehold"/>
