@@ -196,6 +196,7 @@ app.MapPeriodsEndpoints();
 app.MapWorldStartEndpoints();
 app.MapWorldCreateEndpoints(worldHost, worldRunner, worldSink);
 app.MapWorldPreviewEndpoints();
+app.MapCultureTechnologyEndpoints(worldHost);
 app.MapSimulationControlEndpoints();
 app.MapRealtimeEndpoints();
 app.MapActionLabelEndpoints();

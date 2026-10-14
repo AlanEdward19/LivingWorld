@@ -91,6 +91,18 @@ if (args.Length == 3 && args[0] == "theft-hash")
     return 0;
 }
 
+// Hash canônico de uma vila com emergência ligada (pressão de trajeto, protótipo, vetor, adoção): o teste de dois processos exige o
+// mesmo hash e as mesmas tecnologias. `dotnet <dll> emergence-hash <seed> <ticks>`.
+if (args.Length == 3 && args[0] == "emergence-hash")
+{
+    var (world, clock) = ScenarioRunner.Create(
+        ulong.Parse(args[1]), emergenceRules: LivingWorld.Domain.Emergence.EmergenceRules.Mobility with { PressureTravelTicks = 2 });
+    world.ActiveCities().First().DepositStock(new LivingWorld.Domain.Geography.ResourceType(4), 5000);
+    clock.Run(world, long.Parse(args[2]));
+    Console.WriteLine($"{WorldSnapshot.CanonicalHash(world)};{world.Technologies.Count};{string.Join(',', world.Technologies.Select(t => t.Vector.Key))}");
+    return 0;
+}
+
 // `dotnet <dll> history-significance-digest <seed> <ticks>`.
 if (args.Length == 3 && args[0] == "history-significance-digest")
 {

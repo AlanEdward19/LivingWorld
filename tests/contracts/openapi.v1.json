@@ -1061,36 +1061,17 @@
         ]
       }
     },
-    "/history/beliefs": {
+    "/cultures/{id}/technologies": {
       "get": {
         "parameters": [
           {
-            "in": "query",
-            "name": "communityId",
+            "in": "path",
+            "name": "id",
+            "required": true,
             "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "tags": [
-          "LivingWorld.Api"
-        ]
-      }
-    },
-    "/history/truth": {
-      "get": {
-        "parameters": [
-          {
-            "in": "query",
-            "name": "scope",
-            "schema": {
-              "type": "string"
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
             }
           },
           {

@@ -12,6 +12,7 @@ using LivingWorld.Simulation.Economy.Market;
 using LivingWorld.Simulation.Economy.Production;
 using LivingWorld.Simulation.Economy.Supply;
 using LivingWorld.Simulation.Economy.Trade;
+using LivingWorld.Simulation.Emergence;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
 using LivingWorld.Simulation.Extraordinary.Systems;
 using LivingWorld.Simulation.Geography;
@@ -60,6 +61,7 @@ public static partial class ScenarioRunner
         new ClimateYearSystem(),
         new MortalitySystem(),
         new OutbreakSystem(),
+        new TechDiscoverySystem(),
         new FactToReportConversionScheduler(),
         new BookRediscoverySystem(),
         new ColdArchiveSystem(),

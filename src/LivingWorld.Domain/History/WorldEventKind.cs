@@ -172,4 +172,10 @@ public enum WorldEventKind
 
     /// <summary>Domicílio despejado por atraso de aluguel — payload: <c>domicilioId|predioId</c>.</summary>
     Evicted,
+
+    /// <summary>Uma cultura concluiu um protótipo — payload: <c>cidadeId|culturaId|vetor|vetorDaTecnologiaDeQueÉVariação (vazio se nova)</c>.</summary>
+    TechnologyDiscovered,
+
+    /// <summary>Uma cidade passou a usar uma tecnologia da sua cultura — payload: <c>cidadeId|culturaId|vetor</c>.</summary>
+    TechnologyAdopted,
 }
