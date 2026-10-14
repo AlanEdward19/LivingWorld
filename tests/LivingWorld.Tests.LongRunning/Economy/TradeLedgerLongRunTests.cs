@@ -26,9 +26,10 @@ public class TradeLedgerLongRunTests
         Assert.True(maxCount <= bound, $"livro chegou a {maxCount} agregados (teto {bound})");
         Assert.All(world.TradeLedger, e =>
         {
-            Assert.True(e.Quantity > 0 && e.Value > 0 && e.Purchases > 0);
-            Assert.True(e.Value >= e.Quantity); // preco minimo de 1 por unidade
+            // retirada do poço entra com valor 0 (issue 41): o agregado pode ter só água de graça ou misturar com vendas
+            Assert.True(e.Quantity > 0 && e.Value >= 0 && e.Purchases > 0);
         });
+        Assert.Contains(world.TradeLedger, e => e.Value >= e.Quantity && e.Value > 0); // vendas a preco minimo de 1 por unidade
         Assert.True(world.TradeLedger.Any(e => e.Monthly), "nada foi compactado em 3 anos");
     }
 }
