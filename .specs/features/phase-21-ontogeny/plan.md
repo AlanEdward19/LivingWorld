@@ -1,7 +1,7 @@
 # Fase 21 — Ontogenia [Estado: Ativo - plano; fatias 21a #70, 21b #71, 21c #72]
 
-Substitui o formato antigo (`spec.md`/`design.md`/`tasks.md` ficam até aprovação para apagar).
-Arquitetura e decisões vêm de `design.md`: marco é **filtro pré-utility** (não pontua zero), choro é
+Substitui o formato antigo (`spec.md`/`design.md`/`tasks.md`, apagados em 2026-10-14 com aprovação do usuário; histórico no git).
+Decisões herdadas do design: marco é **filtro pré-utility** (não pontua zero), choro é
 `ActionType` comum pontuado pela fome, criança agregada usa **resample** no pool, predisposição é o `Npc.RateGene`
 da Fase 6, sistema fica inerte após a última janela (`OntogenyLifecycleGate`).
 
