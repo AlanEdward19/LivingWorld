@@ -308,7 +308,8 @@ public static partial class ScenarioRunner
         LivingWorld.Domain.Health.DiseaseRules? diseaseRules = null,
         LivingWorld.Domain.Climate.ClimateRules? climateRules = null,
         LivingWorld.Domain.Crime.TheftRules? theftRules = null,
-        LivingWorld.Domain.Emergence.EmergenceRules? emergenceRules = null)
+        LivingWorld.Domain.Emergence.EmergenceRules? emergenceRules = null,
+        LivingWorld.Domain.Ontogeny.OntogenyRules? ontogenyRules = null)
     {
         var rules = economyRules ?? DefaultEconomyRules;
         var family = familyRules ?? DefaultFamilyRules;
@@ -323,7 +324,8 @@ public static partial class ScenarioRunner
             historyRules: history, processRecipes: DefaultProcessRecipes,
             animalSpeciesRules: animalSpeciesRules ?? DefaultAnimalSpeciesRules,
             plantSpeciesRules: plantSpeciesRules ?? DefaultPlantSpeciesRules,
-            biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules, diseaseRules: diseaseRules, climateRules: climateRules, theftRules: theftRules, emergenceRules: emergenceRules);
+            biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules, diseaseRules: diseaseRules, climateRules: climateRules, theftRules: theftRules, emergenceRules: emergenceRules,
+            ontogenyRules: ontogenyRules ?? LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human);
         var initialCity = new City(
             world.NextCityId(), DefaultVillageLocation, world.CurrentDate.TotalHours,
             foundedFromCityId: null, AggregatePopulationPool.Empty);

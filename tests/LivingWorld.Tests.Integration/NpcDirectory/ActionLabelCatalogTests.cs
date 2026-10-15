@@ -20,7 +20,7 @@ public class ActionLabelCatalogTests : IClassFixture<LivingWorldApiFactory>
 
         var served = items.EnumerateArray().Select(i => i.GetProperty("actionType").GetInt32()).ToArray();
         var expected = Enum.GetValues<ActionType>().Select(a => (int)a).Order().ToArray();
-        Assert.Equal(9, expected.Length);
+        Assert.Equal(10, expected.Length);
         Assert.Equal(expected, served.Order().ToArray());
         Assert.All(items.EnumerateArray(), i => Assert.False(string.IsNullOrWhiteSpace(i.GetProperty("label").GetString())));
     }

@@ -134,6 +134,8 @@ public sealed class NatalitySystem : ISimulationSystem
             height: height, weight: weight, muscleMass: muscleMass);
 
         world.AddNpc(baby);
+        if (world.OntogenyRules.Enabled)
+            baby.SetDevelopment(LivingWorld.Domain.Ontogeny.DevelopmentState.Newborn);
         baby.ConfigureNeedDecay(world.NeedsRules, world.CurrentDate.TotalHours);
         household.AddMember(baby.Id);
         long birthEventId = ctx.LogEvent(

@@ -23,6 +23,9 @@ public class FamilyPairedScenarioTests
     /// <summary>Seeds por teste estatístico (era 20; 10 mantém o IC95 útil e corta o tempo pela metade).</summary>
     private const int SeedCount = 10;
 
+    /// <summary>O IC95 de 10 seeds tem EP ~0,003 e oscila ±0,002 a cada mudança de comportamento (AD-093; ontogenia, AD-115): 20 seeds para o gate de vitalidade, mesma tolerância.</summary>
+    private const int VitalitySeedCount = 20;
+
     private static readonly string PopulationAverageBaselinePath = Path.Combine(
         FindRepoRoot(), "tests", "baselines", "family-population-average.json");
 
@@ -247,8 +250,8 @@ public class FamilyPairedScenarioTests
     {
         // Cada seed (e cada braço) é um mundo independente: roda em paralelo, resultado indexado pela seed
         // — a lista de diferenças segue a ordem das seeds, igual à execução sequencial.
-        var diffArray = new double[SeedCount];
-        Parallel.For(1, SeedCount + 1, seed =>
+        var diffArray = new double[VitalitySeedCount];
+        Parallel.For(1, VitalitySeedCount + 1, seed =>
         {
             var (worldReal, clockReal) = ScenarioRunner.Create((ulong)seed);
             clockReal.Run(worldReal, HorizonHours);

@@ -1,5 +1,7 @@
 # Revisão de trabalho pendente (2026-10-12)
 
+> **Superado em 2026-10-14:** todos os itens #20–#43 abaixo estão fechados; o pendente atual são as issues abertas (ver `STATE.md` § Handoff).
+
 Auditoria estática de `ROADMAP.md`, `docs/roadmap/`, `.specs/features/`, `docs/audits/phase-gap-review.md`,
 `STATE.md` e issues abertas. Cada item abaixo tem plano lean em `.specs/features/<slug>/plan.md` e uma issue.
 Já abertas antes (não duplicadas): #20 `trade-ledger`, #21 `snapshot-positional-binary`,

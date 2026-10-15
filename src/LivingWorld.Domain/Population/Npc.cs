@@ -6,6 +6,7 @@ using LivingWorld.Domain.Extraordinary;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Geography.Map;
 using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.Ontogeny;
 using LivingWorld.Domain.Population.Body;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Population.Skills;
@@ -108,6 +109,29 @@ public sealed class Npc
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public long? DisappearedAtTick { get; private set; }
 
+    /// <summary>Progresso de desenvolvimento por eixo (Fase 21). Nulo = desenvolvimento completo: sistema inerte;
+    /// <c>null</c> explícito no snapshot (não omitido): o delta binário só carrega campos presentes, e quem completa o
+    /// desenvolvimento passa de objeto a nulo. Só <c>MilestoneProgressSystem</c> e o nascimento gravam.</summary>
+    public DevelopmentState? Development { get; private set; }
+
+    /// <summary>Idioma em que a pessoa foi criada (cultura de quem a criou), gravado quando o desenvolvimento se completa; nulo = o da
+    /// própria <see cref="Culture"/>. Lido pelo cortejo (afinidade cultural).</summary>
+    public CultureId? NativeLanguage { get; private set; }
+
+    public void SetNativeLanguage(CultureId? culture)
+    {
+        if (NativeLanguage == culture) return;
+        NativeLanguage = culture;
+        TouchCanonical();
+    }
+
+    public void SetDevelopment(DevelopmentState? state)
+    {
+        if (Equals(Development, state)) return;
+        Development = state;
+        TouchCanonical();
+    }
+
     public Result<Unit> Incarnate(string controllerId)
     {
         if (!IsAlive) return Result<Unit>.Fail("Npc: morto");
@@ -159,7 +183,16 @@ public sealed class Npc
     // Genética/ambiente (imutáveis após nascimento, herdados por HeredityService),
     // cônjuge e cortejo em andamento.
     public double Vitality { get; }
-    public double Upbringing { get; }
+    public double Upbringing { get; private set; }
+
+    /// <summary>Só a criação adotiva (Fase 21d) a muda depois do nascimento; fora dela o valor é o herdado.</summary>
+    public void SetUpbringing(double value)
+    {
+        value = Math.Clamp(value, 0.0, 100.0);
+        if (value == Upbringing) return;
+        Upbringing = value;
+        TouchCanonical();
+    }
     public NpcId? Spouse { get; private set; }
     public NpcId? CourtingWith { get; private set; }
 
@@ -217,7 +250,8 @@ public sealed class Npc
         ActionType? currentIntent = null, long intentStartedTick = 0,
         string? intentTarget = null, IntentStatus? intentStatus = null, ActionType? travelPurpose = null,
         long lastJobChangeTick = 0,
-        string? controllerId = null, ActionType? controlledAction = null, long? disappearedAtTick = null)
+        string? controllerId = null, ActionType? controlledAction = null, long? disappearedAtTick = null,
+        DevelopmentState? development = null, CultureId? nativeLanguage = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -255,6 +289,8 @@ public sealed class Npc
         ControllerId = controllerId;
         ControlledAction = controlledAction;
         DisappearedAtTick = disappearedAtTick;
+        Development = development;
+        NativeLanguage = nativeLanguage;
         IsGhost = isGhost;
         HomelessSince = homelessSince;
         PregnantUntil = pregnantUntil;

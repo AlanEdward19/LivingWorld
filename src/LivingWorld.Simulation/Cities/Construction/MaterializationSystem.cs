@@ -169,6 +169,7 @@ public sealed class MaterializationSystem : ISimulationSystem
         var npc = world.FindNpc(npcId);
         if (npc is null || !npc.IsAlive) return Result<Unit>.Fail("Npc: não existe ou está morto");
         if (npc.MaterializedAtTick is null) return Result<Unit>.Fail("Npc: não veio do pool agregado, não elegível");
+        if (npc.Development is not null) return Result<Unit>.Fail("Npc: criança em desenvolvimento não vai ao pool agregado (Fase 21)");
         if (HasFormalRole(world, npcId)) return Result<Unit>.Fail("Npc: ocupa papel formal, não elegível");
 
         var city = world.FindCity(npc.City);

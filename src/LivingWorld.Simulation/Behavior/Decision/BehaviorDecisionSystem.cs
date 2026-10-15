@@ -147,7 +147,8 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                         continuityAction,
                         wakeReason: justCompleted ? WakeReason.ActionCompleted : WakeReason.UrgentNeed,
                         previousIntent: npc.CurrentIntent,
-                        captureTrace: recordTrace);
+                        captureTrace: recordTrace,
+                        eligibility: LivingWorld.Simulation.Ontogeny.OntogenyMechanic.EligibilityFor(world.OntogenyRules, npc.Development));
                     candidate = decision.Action;
                     pendingPower = decision.PendingPower;
 
@@ -157,12 +158,11 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 else
                 {
                     // despensa baixa para a distância do mercado: quem tem dinheiro vai repor sem esperar a sede (à noite dorme)
-                    candidate = routineAction != ActionType.Sleep && NeedsRestocking(world, npc, marketIndex)
-                        ? ActionType.Buy
-                        : routineAction;
+                    candidate = NonUrgentCandidate(world, npc, routineAction, stage, marketIndex);
                 }
 
                 candidate = ApplyPerception(world, npc, candidate);
+                candidate = ConstrainByDevelopment(world, npc, candidate);
                 if (urgent && npc.ControlledAction is null && world.TheftRules.Enabled && TheftResolver.Wants(world, npc, now, theftIndex))
                     candidate = ActionType.Steal; // desespero + temperamento + alguém com moeda ao lado
 
@@ -186,6 +186,16 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
             NpcWakeScheduler.RescheduleAfterHour(
                 world, ctx, npc, rules, catalog, now, TravelArrivalTick(world, npc, marketIndex), stage);
         }
+    }
+
+    /// <summary>Fase 21: rotina, percepção e controlador externo passam pelo mesmo marco que a utility. O marco vale para a <b>intenção</b>: a
+    /// viagem ou compra que o refino de local acrescenta para atender uma intenção elegível (ir à cama, à comida) é assistida — quem não anda é levado. Ação cujo
+    /// marco o NPC não alcançou vira Idle (sempre elegível). O choro por fome sai da utility, que é quem decide quando o bebê tem fome.</summary>
+    internal static ActionType ConstrainByDevelopment(WorldState world, Npc npc, ActionType action)
+    {
+        var ontogeny = world.OntogenyRules;
+        if (!ontogeny.Enabled || ontogeny.IsEligible(npc.Development, action)) return action;
+        return ActionType.Idle;
     }
 
     internal static IEnumerable<Npc> TargetsForTick(WorldState world) => world.NpcWakeBatch;

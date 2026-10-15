@@ -1,5 +1,7 @@
 # Fase 15 — Mapa visual VTT 2D
 
+> **Status: fechada (2026-10-14, #66).** Servidor, FOW e tokens prontos; a UI é o Godot (telas pendentes: #58, #59).
+
 > **Cliente web removido (ADR-0022, 2026-10-11).** O contrato com o cliente é a API do motor (`tests/contracts/`); a UI é
 > o Godot (`.specs/features/godot-client/`). Itens de React/TypeScript/Vite abaixo são histórico.
 

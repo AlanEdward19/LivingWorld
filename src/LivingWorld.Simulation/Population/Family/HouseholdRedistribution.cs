@@ -29,7 +29,7 @@ public static class HouseholdRedistribution
                 target.AddMember(child.Id);
                 child.JoinHousehold(targetId);
             }
-            else
+            else if (!OrphanCareSystem.TryTakeIn(world, ctx, child, detach: false))
                 CreateUnitaryHousehold(world, child);
         }
 
@@ -45,7 +45,7 @@ public static class HouseholdRedistribution
                 && lifeStageRules.LifeStageOf(npc.AgeYears(now)) is LifeStage.Adult or LifeStage.Elder;
         });
 
-    private static HouseholdId? TryFindRelativeHousehold(
+    internal static HouseholdId? TryFindRelativeHousehold(
         WorldState world, Npc child, LifeStageRules lifeStageRules, WorldDate now)
     {
         foreach (var relativeId in CandidateRelativeIds(child, world, lifeStageRules, now))
@@ -66,7 +66,7 @@ public static class HouseholdRedistribution
             .Distinct()
             .OrderBy(id => id.Value);
 
-    private static IEnumerable<NpcId> GrandparentIds(Npc child, WorldState world)
+    internal static IEnumerable<NpcId> GrandparentIds(Npc child, WorldState world)
     {
         foreach (var parentId in new[] { child.MotherId, child.FatherId })
         {

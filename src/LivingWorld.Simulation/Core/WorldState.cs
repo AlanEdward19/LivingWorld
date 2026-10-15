@@ -218,6 +218,9 @@ public sealed partial class WorldState
     /// <summary>Regras da emergência aberta (emergence-first-slice); desligadas por padrão: nenhuma tecnologia emerge.</summary>
     [Canonical] public EmergenceRules EmergenceRules { get; }
 
+    /// <summary>Marcos de desenvolvimento do cenário (ontogeny-model, Fase 21); desligadas por padrão no construtor, ligadas pelo cenário.</summary>
+    [Canonical] public LivingWorld.Domain.Ontogeny.OntogenyRules OntogenyRules { get; }
+
     /// <summary>Tecnologias por cultura, na ordem de descoberta; identificadas só pelo vetor (ADR-0013).</summary>
     [Canonical] public IReadOnlyList<Technology> Technologies => _technologies;
     private readonly List<Technology> _technologies;
@@ -477,6 +480,7 @@ public sealed partial class WorldState
         IReadOnlyList<ClimateYear>? climateYears = null,
         TheftRules? theftRules = null,
         EmergenceRules? emergenceRules = null,
+        LivingWorld.Domain.Ontogeny.OntogenyRules? ontogenyRules = null,
         IReadOnlyList<Technology>? technologies = null)
     {
         Calendar = calendar;
@@ -524,6 +528,7 @@ public sealed partial class WorldState
         ClimateRules = climateRules ?? ClimateRules.Disabled;
         TheftRules = theftRules ?? TheftRules.Disabled;
         EmergenceRules = emergenceRules ?? EmergenceRules.Disabled;
+        OntogenyRules = ontogenyRules ?? LivingWorld.Domain.Ontogeny.OntogenyRules.Disabled;
         _technologies = (technologies ?? []).ToList();
         _climateYears = (climateYears ?? []).ToList();
         Name = name;
@@ -643,6 +648,7 @@ public sealed partial class WorldState
         IReadOnlyList<ClimateYear>? climateYears = null,
         TheftRules? theftRules = null,
         EmergenceRules? emergenceRules = null,
+        LivingWorld.Domain.Ontogeny.OntogenyRules? ontogenyRules = null,
         IReadOnlyList<Technology>? technologies = null)
     {
         Calendar = calendar;
@@ -725,6 +731,7 @@ public sealed partial class WorldState
         ClimateRules = climateRules ?? ClimateRules.Disabled;
         TheftRules = theftRules ?? TheftRules.Disabled;
         EmergenceRules = emergenceRules ?? EmergenceRules.Disabled;
+        OntogenyRules = ontogenyRules ?? LivingWorld.Domain.Ontogeny.OntogenyRules.Disabled;
         _technologies = (technologies ?? []).ToList();
         _climateYears = (climateYears ?? []).ToList();
         _facts = (facts ?? []).ToList();

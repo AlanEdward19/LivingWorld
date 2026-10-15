@@ -152,7 +152,12 @@ public class MarriageSystemTests
     {
         var world = BuildWorld(RulesWithMarriageStock());
         var ctx = new TickContext(world, world.Rng, world.Scheduler);
-        var roommate = MakeNpc(world, Sex.Male);
+        var roommateId = world.NextNpcIdAndAdvance();
+        var roommate = new Npc( // adulto: o colega de casa que fica com o domicílio (a criança de idade 0 do MakeNpc seria levada junto)
+            roommateId, $"npc-{roommateId.Value}", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30), new CultureId(1), new CellCoord(0, 0),
+            motherId: null, fatherId: null, household: null, health: 100, personality: SomePersonality,
+            profession: new ProfessionType(1), currentLocation: new CellCoord(0, 0));
+        world.AddNpc(roommate);
         var a = MakeNpc(world, Sex.Male);
         var b = MakeNpc(world, Sex.Female);
         var shared = new Household(

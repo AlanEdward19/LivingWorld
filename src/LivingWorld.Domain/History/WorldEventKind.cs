@@ -190,4 +190,10 @@ public enum WorldEventKind
 
     /// <summary>Uma cidade passou a usar uma tecnologia da sua cultura — payload: <c>cidadeId|culturaId|vetor</c>.</summary>
     TechnologyAdopted,
+
+    /// <summary>Um marco de desenvolvimento regrediu por doença — payload: <c>npcId|eixo|antes|depois|doençaId</c>.</summary>
+    MilestoneRegressed,
+
+    /// <summary>Uma criança sem adulto no domicílio foi acolhida — payload: <c>criancaId|acolhedorId|domicilioId|vinculo</c> (parente, afeto ou comunidade).</summary>
+    OrphanTakenIn,
 }

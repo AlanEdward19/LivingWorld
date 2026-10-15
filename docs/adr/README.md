@@ -32,5 +32,10 @@ conteúdo de ADR para dentro dele.
 | [0022](ADR-0022-godot-substitui-cliente-web.md) | Godot como motor gráfico; cliente web aposentado do gate | aceito |
 | [0023](ADR-0023-snapshot-binario-posicional.md) | Snapshot binário posicional, base completa mais diffs por campo | aceito |
 | [0024](ADR-0024-familias-autoradas-no-cenario.md) | Famílias autoradas no cenário (`AuthoredHouseholds`), só ao criar mundo | aceito |
+| [0025](ADR-0025-godot-substitui-cliente-3d-da-fase-14.md) | Godot substitui o cliente 3D da Fase 14; Unreal e voz adiados | aceito |
 | [0026](ADR-0026-rota-decision-sandbox.md) | Rota `POST /npcs/{id}/decision-sandbox` ("E se…?", só leitura) | aceito |
 | [0027](ADR-0027-identidade-do-mundo-e-pausa-publica.md) | `GET /world/info`, `periodId` na criação e pausa de admin visível a todos | aceito |
+| [0028](ADR-0028-desenvolvimento-por-npc-no-snapshot.md) | Estado de desenvolvimento por NPC no snapshot; ontogenia ligada por padrão | aceito |
+| [0029](ADR-0029-janela-critica-e-exposicao-binaria.md) | Exposição binária, janela crítica por teto e aquisição sem sorteio | aceito |
+| [0030](ADR-0030-idioma-de-criacao-e-regressao-por-doenca.md) | Idioma de criação, regressão por doença e adultos no pool | aceito |
+| [0031](ADR-0031-acolhimento-de-orfaos-e-criacao-adotiva.md) | Acolhimento de órfãos, choro atendido, exposição graduada e criação adotiva | aceito |

@@ -77,7 +77,7 @@
 - **LLM**: propõe linguagem e intenção; o motor valida e aplica. Nunca o contrário.
 
 ## Harness
-- Manifesto: `HARNESS.md` (ainda não existe — gerar via `harness-engineering`).
+- Manifesto: `HARNESS.md`.
 - Eval gates (0/1): `scripts/verify.sh`. Memória/continuidade entre sessões: `STATE.md`.
 
 ## Política de commit e limpeza

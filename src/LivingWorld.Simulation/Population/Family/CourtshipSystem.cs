@@ -307,11 +307,15 @@ public sealed class CourtshipSystem : ISimulationSystem
             AttractionFactor.Health => (a.Health / HundredScale + b.Health / HundredScale) / 2.0,
             AttractionFactor.Status => (StatusFactor(a) + StatusFactor(b)) / 2.0,
             AttractionFactor.Skill => (SkillFactor(a) + SkillFactor(b)) / 2.0,
-            AttractionFactor.CulturalAffinity => a.Culture == b.Culture ? 1.0 : 0.0,
+            AttractionFactor.CulturalAffinity => CulturalAffinityOf(a, b),
             AttractionFactor.ExistingRelationship => ExistingRelationshipFactor(aToB, bToA),
             _ => 0.0,
         };
     }
+
+    /// <summary>Afinidade cultural pelo idioma que cada um fala (criação, Fase 21c), não pela etnia de nascimento.</summary>
+    internal static double CulturalAffinityOf(Npc a, Npc b) =>
+        LivingWorld.Simulation.Ontogeny.OntogenyMechanic.SpokenCulture(a) == LivingWorld.Simulation.Ontogeny.OntogenyMechanic.SpokenCulture(b) ? 1.0 : 0.0;
 
     private static double PairAgeFactor(Npc a, Npc b, PopulationRules rules, WorldDate now)
     {

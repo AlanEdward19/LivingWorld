@@ -61,6 +61,34 @@ public sealed partial class BehaviorDecisionSystem
         return (double)scarcest / members < ProvisionTargetAt(world, household, market) * RestockShortfall;
     }
 
+    /// <summary>Ação de quem não tem necessidade urgente: a da rotina, ou comprar quando a despensa baixa para a distância do mercado
+    /// (à noite dorme) ou quando o choro de uma criança da casa não pode esperar (aí levanta mesmo de madrugada).</summary>
+    internal static ActionType NonUrgentCandidate(
+        WorldState world, Npc npc, ActionType routineAction, LifeStage stage, MarketIndex marketIndex) =>
+        routineAction == ActionType.Sleep
+            ? CaregiverHearsCry(world, npc, stage) ? ActionType.Buy : routineAction // só aqui o choro muda algo: fora do sono a despensa vazia já manda comprar
+            : NeedsRestocking(world, npc, marketIndex) ? ActionType.Buy : routineAction;
+
+    /// <summary>Choro atendido (dívida da Fase 21): um adulto que está na mesma célula de uma criança do domicílio que chora — porque a despensa
+    /// não tem comida ou água para ela — levanta e vai comprar, mesmo na hora de dormir. Só vale com carteira para pagar.</summary>
+    internal static bool CaregiverHearsCry(WorldState world, Npc npc, LifeStage stage)
+    {
+        var economy = world.EconomyRules;
+        if (!economy.Enabled || !world.OntogenyRules.Enabled || stage == LifeStage.Child || npc.Wallet.Amount < 1) return false;
+        if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household) return false;
+        if (household.Members.Count < 2) return false;
+
+        bool pantryEmpty = household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId)) < 1
+            || household.Stock.GetValueOrDefault(new ResourceType(economy.WaterResourceId)) < 1;
+        if (!pantryEmpty) return false;
+
+        foreach (var memberId in household.Members)
+            if (memberId != npc.Id && world.FindNpc(memberId) is { IsAlive: true, CurrentAction: ActionType.Cry } baby
+                && baby.CurrentLocation == npc.CurrentLocation)
+                return true;
+        return false;
+    }
+
     /// <summary>Meta de dias de despensa do domicílio do NPC (a padrão sem domicílio ou sem mercado).</summary>
     internal static double ProvisionTargetFor(WorldState world, Npc npc, MarketIndex marketIndex) =>
         npc.Household is { } householdId && world.FindHousehold(householdId) is { } household

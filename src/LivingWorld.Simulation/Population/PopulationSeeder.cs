@@ -56,6 +56,7 @@ public static class PopulationSeeder
         {
             npc.ConfigureNeedDecay(world.NeedsRules, world.CurrentDate.TotalHours);
             world.AddNpc(npc);
+            LivingWorld.Simulation.Ontogeny.OntogenyMechanic.Initialize(world, npc);
         }
         for (int i = 0; i < generated.Households.Count; i++)
         {

@@ -28,7 +28,8 @@ public sealed record PeriodDefinition(
     ResourceCatalog ResourceCatalog,
     IReadOnlyList<ProcessRecipe> ProcessRecipes,
     ExtraordinaryScenarioData Extraordinary,
-    LivingWorld.Domain.Emergence.EmergenceRules Emergence);
+    LivingWorld.Domain.Emergence.EmergenceRules Emergence,
+    LivingWorld.Domain.Ontogeny.OntogenyRules Ontogeny);
 
 /// <summary>Orquestra a validação de um <c>periodDefinition</c>: encadeia
 /// <see cref="MapScenarioLoader"/>, <see cref="PopulationScenarioLoader"/>,
@@ -86,6 +87,10 @@ public static class PeriodDefinitionValidator
         if (!emergenceResult.IsSuccess)
             return Result<PeriodDefinition>.Fail(emergenceResult.Error!);
 
+        var ontogenyResult = LivingWorld.Simulation.Ontogeny.OntogenyScenarioLoader.Load(json);
+        if (!ontogenyResult.IsSuccess)
+            return Result<PeriodDefinition>.Fail(ontogenyResult.Error!);
+
         var population = populationResult.Value!;
         var dynamics = dynamicsResult.Value!;
 
@@ -96,7 +101,7 @@ public static class PeriodDefinitionValidator
         return Result<PeriodDefinition>.Ok(new PeriodDefinition(
             mapResult.Value!, population, behaviorResult.Value!, economyResult.Value!, cityResult.Value!, dynamics,
             descriptorsResult.Value!, resourcesResult.Value!.Catalog, resourcesResult.Value!.Recipes,
-            extraordinaryResult.Value!, emergenceResult.Value!));
+            extraordinaryResult.Value!, emergenceResult.Value!, ontogenyResult.Value!));
     }
 
     private static string? ValidateProfessionReferences(PopulationCatalog catalog, PeriodDynamicsData dynamics)
