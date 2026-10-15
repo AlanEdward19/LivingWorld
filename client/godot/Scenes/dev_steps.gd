@@ -2,7 +2,7 @@ extends RefCounted
 ## Roteiro de desenvolvimento para capturas e demonstrações automáticas:
 ##   godot --path client/godot -- --steps "wait:2;shot:/tmp/a.png;city;wait:2;shot:/tmp/b.png;enter:0;quit"
 ## Passos: wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
-##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · bio:ID · chronicle · reports · player:ID · act:Nome · admin:motivo (pausa com o console) · adminsearch:texto · follow · quit. Não é usado em produção (sem --steps nada roda).
+##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · bio:ID · chronicle · reports · player:ID · act:Nome · treasury · trades:ID · admin:motivo (pausa com o console) · adminsearch:texto · follow · quit. Não é usado em produção (sem --steps nada roda).
 
 
 static func parse(args: PackedStringArray) -> Array:
@@ -75,6 +75,13 @@ static func run(app: Node, steps: Array) -> void:
 				app.admin_window.tabs.current_tab = 1
 				app.admin_window.search_input.text = arg
 				await app.admin_window.search()
+			"treasury":
+				var cities: Array = app.store.cities.keys()
+				if cities.size() > 0:
+					await app.enter_scope("City", cities[0])
+					await app.economy.show_treasury(String(cities[0]), "Cidade")
+			"trades":
+				await app.open_trades(int(arg))
 			"talk":
 				await app.select_npc(int(arg))
 				await app.talk_to(int(arg))

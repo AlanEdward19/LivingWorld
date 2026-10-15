@@ -26,6 +26,7 @@ const BrainPanel := preload("res://Scenes/brain_panel.gd")
 const ConversationWindow := preload("res://Scenes/conversation_window.gd")
 const NarrativeWindow := preload("res://Scenes/narrative_window.gd")
 const AdminWindow := preload("res://Scenes/admin_window.gd")
+const EconomyWindow := preload("res://Scenes/economy_window.gd")
 const PlayerHud := preload("res://Scenes/player_hud.gd")
 const PlayerProfile := preload("res://Contract/player_profile.gd")
 const ScopeObserver := preload("res://Contract/scope_observer.gd")
@@ -53,6 +54,9 @@ var conversation
 var narrative
 var player_hud
 var admin_window
+var economy
+var period_id := "" ## período do mundo criado nesta sessão (o menu sabe); vazio se o mundo foi continuado
+var resource_names: Dictionary = {} ## id -> nome, do catálogo do período
 var admin_enabled := OS.get_environment("LW_ADMIN_TOKEN") != "" ## sem token o console nem aparece
 var pause_label: Label
 var player_id := ""
@@ -114,7 +118,20 @@ func start(p_transport, validate_shapes: bool = true, sleeper: Callable = Callab
 	if calendar.ok:
 		day_cycle.set_calendar(calendar.body)
 	await clock_panel.refresh()
+	await _load_resource_names()
 	await stream.subscribe("World")
+
+
+## Nomes de recurso do período do mundo criado agora (`descriptors.resource`); sem período conhecido ficam os números.
+func _load_resource_names() -> void:
+	resource_names = {}
+	if period_id == "":
+		return
+	var catalog: Dictionary = await api.period_catalog(period_id)
+	if not catalog.ok:
+		return
+	for descriptor in catalog.body.get("descriptors", {}).get("resource", []):
+		resource_names[int(descriptor.id)] = String(descriptor.name)
 
 
 func _build_scene() -> void:
@@ -302,6 +319,20 @@ func _build_ui() -> void:
 	admin_window.warning.connect(func(text: String): toasts.push(text))
 	admin_window.npc_selected.connect(func(id: int): select_npc(id))
 	_ui.add_child(admin_window)
+	economy = EconomyWindow.new()
+	economy.api = api
+	economy.calendar_of = func() -> Dictionary: return {"hoursPerDay": day_cycle.hours_per_day, "daysPerMonth": day_cycle.days_per_month, "monthsPerYear": day_cycle.months_per_year}
+	economy.date_of = _date_text
+	economy.resource_name_of = func(id: int) -> String: return String(resource_names.get(id, "recurso %d" % id))
+	economy.set_anchors_preset(Control.PRESET_FULL_RECT)
+	economy.offset_left = 310
+	economy.offset_right = -316
+	economy.offset_top = 130
+	economy.offset_bottom = -272
+	economy.warning.connect(func(text: String): toasts.push(text))
+	_ui.add_child(economy)
+	npc_panel.trades_requested.connect(func(workplace_id: int): open_trades(workplace_id))
+	city_panel.treasury_requested.connect(func(city_id: String): open_treasury(city_id))
 	npc_panel.biography_requested.connect(func(id: int): open_biography(id))
 	city_panel.chronicle_requested.connect(func(city_id: String): open_chronicle(city_id))
 	city_panel.beliefs_requested.connect(func(city_id: String): open_beliefs(city_id))
@@ -589,6 +620,16 @@ func _toggle_admin() -> void:
 		admin_window.open()
 
 
+func open_treasury(city_id: String) -> void:
+	if city_id != "":
+		await economy.show_treasury(city_id, city_panel.city_name)
+
+
+func open_trades(workplace_id: int) -> void:
+	if workplace_id >= 0:
+		await economy.show_trades(workplace_id, "local %d" % workplace_id)
+
+
 func open_biography(id: int) -> void:
 	await narrative.show_biography(id, String(store.names.get(id, "NPC %d" % id)))
 
@@ -719,7 +760,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		match event.keycode:
 			KEY_ESCAPE:
-				if admin_window.is_open:
+				if economy.is_open:
+					economy.close()
+				elif admin_window.is_open:
 					admin_window.close()
 				elif narrative.is_open:
 					narrative.close()

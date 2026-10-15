@@ -1,0 +1,13 @@
+{
+  "balance": "number",
+  "cityId": "string",
+  "fromDay": "number",
+  "months": [
+    {
+      "month": "number",
+      "revenue": "number",
+      "spending": "number"
+    }
+  ],
+  "toDay": "number"
+}

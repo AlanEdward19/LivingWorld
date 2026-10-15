@@ -1,0 +1,14 @@
+{
+  "days": [
+    {
+      "day": "number",
+      "purchases": "number",
+      "quantity": "number",
+      "resourceId": "number",
+      "value": "number"
+    }
+  ],
+  "fromDay": "number",
+  "toDay": "number",
+  "workplaceId": "number"
+}

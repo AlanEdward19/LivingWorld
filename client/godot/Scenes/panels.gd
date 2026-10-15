@@ -92,6 +92,9 @@ class NpcDetailPanel extends PanelContainer:
 	signal conversation_requested(id: int)
 	signal biography_requested(id: int)
 	signal incarnate_requested(id: int)
+	signal trades_requested(workplace_id: int)
+	var employer_id := -1
+	var trades_button: Button
 	signal model_known(id: int, profession: int, age_years: float)
 	var api
 	var labels
@@ -156,6 +159,11 @@ class NpcDetailPanel extends PanelContainer:
 		incarnate.text = "Encarnar (I)"
 		incarnate.pressed.connect(func(): incarnate_requested.emit(npc_id))
 		box.add_child(incarnate)
+		trades_button = Button.new()
+		trades_button.text = "Vendas do local de trabalho"
+		trades_button.visible = false
+		trades_button.pressed.connect(func(): trades_requested.emit(employer_id))
+		box.add_child(trades_button)
 		visible = false
 
 	func show_npc(id: int) -> void:
@@ -167,6 +175,8 @@ class NpcDetailPanel extends PanelContainer:
 		var action_text := ""
 		if labels != null and npc.get("currentAction") != null:
 			action_text = labels.label_for(int(npc.currentAction))
+		employer_id = int(npc.employer.value) if npc.get("employer") is Dictionary else -1
+		trades_button.visible = employer_id >= 0
 		_title.text = npc.name
 		_subtitle.text = "%d anos%s" % [int(npc.ageYears), (" · " + action_text) if action_text != "" else ""]
 		var values := {"Saúde": npc.health, "Fome": npc.hunger, "Sede": npc.thirst, "Sono": npc.sleep, "Social": npc.social}
@@ -218,6 +228,7 @@ class NpcDetailPanel extends PanelContainer:
 class CityPanel extends PanelContainer:
 	signal chronicle_requested(city_id: String)
 	signal beliefs_requested(city_id: String)
+	signal treasury_requested(city_id: String)
 	var text := ""
 	var city_id := ""
 	var city_name := ""
@@ -243,6 +254,10 @@ class CityPanel extends PanelContainer:
 		beliefs.text = "O que a cidade acredita"
 		beliefs.pressed.connect(func(): beliefs_requested.emit(city_id))
 		box.add_child(beliefs)
+		var treasury := Button.new()
+		treasury.text = "Tesouro"
+		treasury.pressed.connect(func(): treasury_requested.emit(city_id))
+		box.add_child(treasury)
 		visible = false
 
 	## `info` = WorldStore.city: {name, indicators:{population, wealth, health, inequality, economy, housing}}

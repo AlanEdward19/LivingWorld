@@ -46,10 +46,12 @@ func _show_menu() -> void:
 
 
 func _play() -> void:
+	var created_period: String = menu.selected_period if menu != null else ""
 	if menu != null:
 		menu.queue_free()
 		menu = null
 	app = App.new()
+	app.period_id = created_period
 	app.menu_requested.connect(_show_menu)
 	add_child(app)
 
