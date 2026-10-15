@@ -1,4 +1,4 @@
-# Godot materializar NPC do agregado [Estado: Implementado, aguardando Verifier independente (2026-10-15)]
+# Godot materializar NPC do agregado [Estado: Verificado, PASS (Verifier independente, 2026-10-15)]
 
 Issue #59, fatia H (última). Só cliente; nenhuma rota nova.
 
