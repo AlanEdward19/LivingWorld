@@ -25,6 +25,12 @@ public sealed record OntogenyRules
     /// <summary>Fração do progresso perdida por mês de doença (21c); marcos consolidados (janela fechada) formam um piso que não se perde.</summary>
     public double RegressionLoss { get; }
 
+    /// <summary>Exposição que um cuidador sozinho dá, em (0,1] (21d); vários se somam por <c>1 − Π(1 − atenção)</c>. 1,0 = a exposição binária da 21b.</summary>
+    public double AttentionPerCaregiver { get; }
+
+    /// <summary>Se a criança sem adulto é acolhida (na orfandade e no sweep mensal). Desligar devolve o comportamento anterior à issue #93: só parente próximo, senão domicílio unitário.</summary>
+    public bool OrphanCare { get; }
+
     private readonly Dictionary<DevelopmentAxis, (double Age, double Progress)[]> _curves;
 
     /// <summary>Idade (anos, já escalada pela taxa) a partir da qual o desenvolvimento está completo em todos os eixos.</summary>
@@ -34,9 +40,11 @@ public sealed record OntogenyRules
         bool enabled, IReadOnlyList<MilestoneDefinition> milestones,
         IReadOnlyDictionary<ActionType, MilestoneRequirement> requirements,
         Dictionary<DevelopmentAxis, (double, double)[]> curves, double completeAt,
-        double lateRecoveryFactor, double missedWindowKeep, double regressionLoss)
+        double lateRecoveryFactor, double missedWindowKeep, double regressionLoss, double attentionPerCaregiver, bool orphanCare)
     {
+        OrphanCare = orphanCare;
         RegressionLoss = regressionLoss;
+        AttentionPerCaregiver = attentionPerCaregiver;
         LateRecoveryFactor = lateRecoveryFactor;
         MissedWindowKeep = missedWindowKeep;
         Enabled = enabled;
@@ -46,17 +54,19 @@ public sealed record OntogenyRules
         CompleteAtYears = completeAt;
     }
 
-    public static OntogenyRules Disabled { get; } = new(false, [], new Dictionary<ActionType, MilestoneRequirement>(), [], 0, DefaultLateRecovery, DefaultMissedWindowKeep, DefaultRegressionLoss);
+    public static OntogenyRules Disabled { get; } = new(false, [], new Dictionary<ActionType, MilestoneRequirement>(), [], 0, DefaultLateRecovery, DefaultMissedWindowKeep, DefaultRegressionLoss, DefaultAttention, true);
 
     /// <summary>Valores autorados do cenário padrão (não há medição humana que os fixe): os critérios comparam braços, nunca o número.</summary>
-    public const double DefaultLateRecovery = 0.25, DefaultMissedWindowKeep = 0.5, DefaultRegressionLoss = 0.15;
+    public const double DefaultLateRecovery = 0.25, DefaultMissedWindowKeep = 0.5, DefaultRegressionLoss = 0.15, DefaultAttention = 1.0;
 
     public static Result<OntogenyRules> Create(
         bool enabled, IReadOnlyList<MilestoneDefinition> milestones,
         IReadOnlyDictionary<ActionType, MilestoneRequirement> requirements,
         double lateRecoveryFactor = DefaultLateRecovery, double missedWindowKeep = DefaultMissedWindowKeep,
-        double regressionLoss = DefaultRegressionLoss)
+        double regressionLoss = DefaultRegressionLoss, double attentionPerCaregiver = DefaultAttention, bool orphanCare = true)
     {
+        if (attentionPerCaregiver is <= 0 or > 1)
+            return Result<OntogenyRules>.Fail("Ontogeny.AttentionPerCaregiver: deve estar em (0,1]");
         if (regressionLoss is <= 0 or >= 1)
             return Result<OntogenyRules>.Fail("Ontogeny.RegressionLoss: deve estar em (0,1)");
         if (lateRecoveryFactor is <= 0 or > 1)
@@ -105,14 +115,14 @@ public sealed record OntogenyRules
                 return Result<OntogenyRules>.Fail($"Ontogeny.Requirements[{action}]: nenhum marco do eixo {req.Axis} alcança {req.Threshold}");
         }
 
-        return Result<OntogenyRules>.Ok(Build(enabled, milestones, requirements, lateRecoveryFactor, missedWindowKeep, regressionLoss));
+        return Result<OntogenyRules>.Ok(Build(enabled, milestones, requirements, lateRecoveryFactor, missedWindowKeep, regressionLoss, attentionPerCaregiver, orphanCare));
     }
 
     /// <summary>Sem validação: só para ler dado já gravado pelo próprio motor (snapshot). Quem aceita dado externo usa <see cref="Create"/>.</summary>
     internal static OntogenyRules Build(
         bool enabled, IReadOnlyList<MilestoneDefinition> milestones, IReadOnlyDictionary<ActionType, MilestoneRequirement> requirements,
         double lateRecoveryFactor = DefaultLateRecovery, double missedWindowKeep = DefaultMissedWindowKeep,
-        double regressionLoss = DefaultRegressionLoss)
+        double regressionLoss = DefaultRegressionLoss, double attentionPerCaregiver = DefaultAttention, bool orphanCare = true)
     {
         var curves = new Dictionary<DevelopmentAxis, (double, double)[]>();
         double completeAt = 0;
@@ -125,7 +135,7 @@ public sealed record OntogenyRules
             curves[axis] = points.ToArray();
             completeAt = Math.Max(completeAt, onAxis[^1].WindowMedianYears);
         }
-        return new OntogenyRules(enabled, milestones, requirements, curves, completeAt, lateRecoveryFactor, missedWindowKeep, regressionLoss);
+        return new OntogenyRules(enabled, milestones, requirements, curves, completeAt, lateRecoveryFactor, missedWindowKeep, regressionLoss, attentionPerCaregiver, orphanCare);
     }
 
     /// <summary>Progresso do eixo para uma idade efetiva (anos): interpolação linear entre as medianas dos marcos.</summary>
@@ -153,8 +163,23 @@ public sealed record OntogenyRules
     /// Janela que fecha com o marco ainda fora do alcance reduz o teto do eixo de forma permanente.</summary>
     public DevelopmentState Advance(
         DevelopmentState state, double previousAgeYears, double currentAgeYears, bool exposed,
-        IReadOnlyList<int>? caregiverCultures = null)
+        IReadOnlyList<int>? caregiverCultures = null) =>
+        Advance(state, previousAgeYears, currentAgeYears, exposed ? 1.0 : 0.0, caregiverCultures);
+
+    /// <summary>Exposição que <paramref name="caregivers"/> adultos dão no mês: <c>1 − Π(1 − atenção)</c>; 0 sem cuidador.</summary>
+    public double ExposureFor(int caregivers)
     {
+        double unreached = 1.0; // produto simples: a matemática do mundo não usa potência da plataforma (determinismo entre máquinas)
+        for (int i = 0; i < caregivers; i++) unreached *= 1.0 - AttentionPerCaregiver;
+        return caregivers <= 0 ? 0.0 : 1.0 - unreached;
+    }
+
+    /// <summary>Versão graduada (21d): <paramref name="exposure"/> em [0,1] escala o ganho do mês e a recuperação; 1 é a exposição plena.</summary>
+    public DevelopmentState Advance(
+        DevelopmentState state, double previousAgeYears, double currentAgeYears, double exposure,
+        IReadOnlyList<int>? caregiverCultures)
+    {
+        bool exposed = exposure > 0;
         double languageBefore = state.Language;
         foreach (var axis in Enum.GetValues<DevelopmentAxis>())
         {
@@ -165,7 +190,7 @@ public sealed record OntogenyRules
             double progress = state.Get(axis);
 
             if (exposed)
-                progress = Math.Min(ceiling, progress + (after - before) + LateRecoveryFactor * Math.Max(0, before - progress));
+                progress = Math.Min(ceiling, progress + exposure * ((after - before) + LateRecoveryFactor * Math.Max(0, before - progress)));
 
             foreach (var m in Milestones)
             {

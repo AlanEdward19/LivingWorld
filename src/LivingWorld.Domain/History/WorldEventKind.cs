@@ -193,4 +193,7 @@ public enum WorldEventKind
 
     /// <summary>Um marco de desenvolvimento regrediu por doença — payload: <c>npcId|eixo|antes|depois|doençaId</c>.</summary>
     MilestoneRegressed,
+
+    /// <summary>Uma criança sem adulto no domicílio foi acolhida — payload: <c>criancaId|acolhedorId|domicilioId|vinculo</c> (parente, afeto ou comunidade).</summary>
+    OrphanTakenIn,
 }

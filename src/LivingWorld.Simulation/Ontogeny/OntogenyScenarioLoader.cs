@@ -77,7 +77,15 @@ public static class OntogenyScenarioLoader
         if (block["RegressionLoss"] is not null && !Dbl(block, "RegressionLoss", out loss))
             return Result<OntogenyRules>.Fail("Ontogeny.RegressionLoss: número inválido");
 
-        var created = OntogenyRules.Create(enabled, milestones, requirements, recovery, keep, loss);
+        double attention = OntogenyRules.DefaultAttention;
+        if (block["AttentionPerCaregiver"] is not null && !Dbl(block, "AttentionPerCaregiver", out attention))
+            return Result<OntogenyRules>.Fail("Ontogeny.AttentionPerCaregiver: número inválido");
+
+        bool orphanCare = true;
+        if (block["OrphanCare"] is not null && !(block["OrphanCare"] is JsonValue ov && ov.TryGetValue(out orphanCare)))
+            return Result<OntogenyRules>.Fail("Ontogeny.OrphanCare: booleano inválido");
+
+        var created = OntogenyRules.Create(enabled, milestones, requirements, recovery, keep, loss, attention, orphanCare);
         return created.IsSuccess ? created : Result<OntogenyRules>.Fail(created.Error!);
     }
 

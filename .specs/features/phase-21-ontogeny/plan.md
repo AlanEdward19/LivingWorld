@@ -52,8 +52,9 @@ Borda conhecida (verificação 21b): marcos com janela que fecha depois de `Comp
 foi negligenciado; o estado congela ao passar da idade de conclusão. Olhar na 21c junto com a regressão.
 
 ## Dívida da Fase 21
-Resample de desenvolvimento no pool agregado (sem criança no pool), cópia de crença/traço por cuidador adotivo (`Upbringing` fixo no
-nascimento), consumidor próprio do `Cry`, exposição graduada e as mortes por desidratação que a 21a introduziu na vila.
+Quitada na issue #93 (`.specs/features/ontogeny-debts/plan.md`, AD-118, ADR-0029): acolhimento de órfãos, choro atendido, exposição
+graduada, criação adotiva e guarda do pool agregado. Resample no pool segue descartado: não há criança no pool (a guarda reativa o assunto).
+Mortes por desidratação: 9 → 1 em 5 seeds × 10 anos.
 
 ## Desempenho
 (21a medido: 101,6% µs/NPC-tick e 101,4% alocação contra a base; ver AD-115.)

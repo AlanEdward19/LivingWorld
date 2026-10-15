@@ -158,9 +158,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 else
                 {
                     // despensa baixa para a distância do mercado: quem tem dinheiro vai repor sem esperar a sede (à noite dorme)
-                    candidate = routineAction != ActionType.Sleep && NeedsRestocking(world, npc, marketIndex)
-                        ? ActionType.Buy
-                        : routineAction;
+                    candidate = NonUrgentCandidate(world, npc, routineAction, stage, marketIndex);
                 }
 
                 candidate = ApplyPerception(world, npc, candidate);

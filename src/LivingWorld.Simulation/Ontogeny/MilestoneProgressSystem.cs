@@ -22,9 +22,15 @@ public sealed class MilestoneProgressSystem : ISimulationSystem
     {
         if (!world.OntogenyRules.Enabled) return;
 
-        foreach (var npc in world.Npcs.OrderBy(n => n.Id.Value))
+        List<Npc>? growing = null;
+        foreach (var candidate in world.Npcs)
+            if (candidate.Development is not null && candidate.IsAlive) (growing ??= []).Add(candidate);
+        if (growing is null) return;
+        growing.Sort((a, b) => a.Id.Value.CompareTo(b.Id.Value)); // ordem por id só entre quem cresce
+
+        foreach (var npc in growing)
         {
-            if (npc.Development is not { } state || !npc.IsAlive) continue;
+            if (npc.Development is not { } state) continue;
             var advanced = OntogenyMechanic.AdvanceOneMonth(world, npc, state);
             if (advanced is not null && ActiveDisease(world, npc) is { } disease)
                 advanced = Regress(world, ctx, npc, advanced, disease);

@@ -11,18 +11,18 @@ public sealed class OntogenyRulesJsonConverter : JsonConverter<OntogenyRules>
     private sealed record Dto(
         bool Enabled, List<MilestoneDefinition> Milestones, Dictionary<ActionType, MilestoneRequirement> Requirements,
         double LateRecoveryFactor = OntogenyRules.DefaultLateRecovery, double MissedWindowKeep = OntogenyRules.DefaultMissedWindowKeep,
-        double RegressionLoss = OntogenyRules.DefaultRegressionLoss);
+        double RegressionLoss = OntogenyRules.DefaultRegressionLoss, double AttentionPerCaregiver = OntogenyRules.DefaultAttention, bool OrphanCare = true);
 
     public override OntogenyRules Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         var dto = JsonSerializer.Deserialize<Dto>(ref reader, options)
             ?? throw new JsonException("OntogenyRules: corpo vazio");
-        return OntogenyRules.Build(dto.Enabled, dto.Milestones, dto.Requirements, dto.LateRecoveryFactor, dto.MissedWindowKeep, dto.RegressionLoss);
+        return OntogenyRules.Build(dto.Enabled, dto.Milestones, dto.Requirements, dto.LateRecoveryFactor, dto.MissedWindowKeep, dto.RegressionLoss, dto.AttentionPerCaregiver, dto.OrphanCare);
     }
 
     public override void Write(Utf8JsonWriter writer, OntogenyRules value, JsonSerializerOptions options) =>
         JsonSerializer.Serialize(writer, new Dto(
             value.Enabled, value.Milestones.ToList(),
             value.Requirements.OrderBy(kv => kv.Key).ToDictionary(kv => kv.Key, kv => kv.Value),
-            value.LateRecoveryFactor, value.MissedWindowKeep, value.RegressionLoss), options);
+            value.LateRecoveryFactor, value.MissedWindowKeep, value.RegressionLoss, value.AttentionPerCaregiver, value.OrphanCare), options);
 }

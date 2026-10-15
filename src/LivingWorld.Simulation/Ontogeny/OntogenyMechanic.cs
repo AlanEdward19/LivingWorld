@@ -24,6 +24,30 @@ public static class OntogenyMechanic
         return age >= rules.CompleteAtYears ? null : rules.StateAt(age);
     }
 
+    /// <summary>Criação adotiva (dívida da Fase 21): enquanto cresce, o <c>Upbringing</c> da criança caminha para a média dos cuidadores que
+    /// <b>não são seus pais</b>, na proporção deles entre os cuidadores, da exposição e da fração do desenvolvimento que o mês representa. Com os pais
+    /// criando, nada muda — o valor do nascimento já vem deles.</summary>
+    internal static void AdoptUpbringing(WorldState world, Npc child, double exposure, double monthFraction)
+    {
+        if (exposure <= 0 || child.Household is not { } householdId || world.FindHousehold(householdId) is not { } household) return;
+
+        int caregivers = 0, adoptive = 0;
+        double sum = 0;
+        foreach (var memberId in household.Members.OrderBy(m => m.Value))
+        {
+            if (memberId == child.Id || world.FindNpc(memberId) is not { IsAlive: true } member) continue;
+            if (world.LifeStageRules.LifeStageOf(member.AgeYears(world.CurrentDate)) != Domain.Population.Body.LifeStage.Adult) continue;
+            caregivers++;
+            if (memberId == child.MotherId || memberId == child.FatherId) continue;
+            adoptive++;
+            sum += member.Upbringing;
+        }
+        if (adoptive == 0) return;
+
+        double weight = Math.Clamp((double)adoptive / caregivers * exposure * monthFraction, 0.0, 1.0);
+        child.SetUpbringing(child.Upbringing + (sum / adoptive - child.Upbringing) * weight);
+    }
+
     /// <summary>Idioma que a pessoa fala de fato: o de maior fluência enquanto cresce, depois o gravado ao completar, senão o da própria
     /// cultura. Criança criada por outra cultura fala a de quem a criou.</summary>
     public static CultureId SpokenCulture(Npc npc) =>
@@ -40,7 +64,8 @@ public static class OntogenyMechanic
         // Já passou da idade de conclusão no mês anterior e ficou incompleto: déficit permanente, o estado final não anda mais.
         if (now - monthYears >= rules.CompleteAtYears && !state.IsComplete) return state;
         var languages = ExposureAccumulator.CaregiverLanguages(world, npc);
-        var next = rules.Advance(state, Math.Max(0, now - monthYears), now, languages.Count > 0, languages);
+        var next = rules.Advance(state, Math.Max(0, now - monthYears), now, rules.ExposureFor(languages.Count), languages);
+        AdoptUpbringing(world, npc, rules.ExposureFor(languages.Count), monthYears / rules.CompleteAtYears);
         if (now < rules.CompleteAtYears) return next;
         if (!next.IsComplete) return next;
         if (next.Fluency?.Dominant() is { } dominant) npc.SetNativeLanguage(new CultureId(dominant));

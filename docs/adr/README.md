@@ -36,3 +36,4 @@ conteúdo de ADR para dentro dele.
 | [0026](ADR-0026-desenvolvimento-por-npc-no-snapshot.md) | Estado de desenvolvimento por NPC no snapshot; ontogenia ligada por padrão | aceito |
 | [0027](ADR-0027-janela-critica-e-exposicao-binaria.md) | Exposição binária, janela crítica por teto e aquisição sem sorteio | aceito |
 | [0028](ADR-0028-idioma-de-criacao-e-regressao-por-doenca.md) | Idioma de criação, regressão por doença e adultos no pool | aceito |
+| [0029](ADR-0029-acolhimento-de-orfaos-e-criacao-adotiva.md) | Acolhimento de órfãos, choro atendido, exposição graduada e criação adotiva | aceito |

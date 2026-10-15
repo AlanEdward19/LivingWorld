@@ -183,7 +183,16 @@ public sealed class Npc
     // Genética/ambiente (imutáveis após nascimento, herdados por HeredityService),
     // cônjuge e cortejo em andamento.
     public double Vitality { get; }
-    public double Upbringing { get; }
+    public double Upbringing { get; private set; }
+
+    /// <summary>Só a criação adotiva (Fase 21d) a muda depois do nascimento; fora dela o valor é o herdado.</summary>
+    public void SetUpbringing(double value)
+    {
+        value = Math.Clamp(value, 0.0, 100.0);
+        if (value == Upbringing) return;
+        Upbringing = value;
+        TouchCanonical();
+    }
     public NpcId? Spouse { get; private set; }
     public NpcId? CourtingWith { get; private set; }
 
