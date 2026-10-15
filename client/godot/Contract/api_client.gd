@@ -149,6 +149,16 @@ func admin_audit(actor: String, from_tick: int) -> Dictionary:
 	return await _fetch("/admin/audit?fromTick=%d" % from_tick, "admin-audit", {"X-Admin-Actor": actor})
 
 
+# --- economia (só leitura) ------------------------------------------------------------------
+
+func treasury(city_id: String) -> Dictionary:
+	return await _fetch("/cities/%s/treasury" % city_id.uri_encode(), "city-treasury")
+
+
+func workplace_trades(workplace_id: int) -> Dictionary:
+	return await _fetch("/workplaces/%d/trades" % workplace_id, "workplace-trades")
+
+
 # --- conversa com NPC (só estas três rotas escrevem; o cliente não aplica nada ao mundo) -----
 
 func conversation_start(npc_id: int) -> Dictionary:
