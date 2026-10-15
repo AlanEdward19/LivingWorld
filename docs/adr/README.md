@@ -41,3 +41,4 @@ conteúdo de ADR para dentro dele.
 | [0031](ADR-0031-acolhimento-de-orfaos-e-criacao-adotiva.md) | Acolhimento de órfãos, choro atendido, exposição graduada e criação adotiva | aceito |
 | [0032](ADR-0032-aparencia-herdada-e-autoria-de-pessoa.md) | Aparência herdada opt-in por período, habilidades iniciais autoradas, consumidor no cortejo | aceito |
 | [0033](ADR-0033-criacao-ao-vivo-de-familia-e-local-de-trabalho.md) | Criação ao vivo de família e local de trabalho por rotas de autoria de admin | aceito |
+| [0034](ADR-0034-catalogo-de-objetos-no-cenario.md) | Catálogo de objetos no cenário (formato versionado, interior servido por id) | aceito |

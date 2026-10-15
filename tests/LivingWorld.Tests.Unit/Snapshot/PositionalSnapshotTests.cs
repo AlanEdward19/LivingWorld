@@ -50,7 +50,8 @@ public class PositionalSnapshotTests
     [Fact]
     public void Every_persistable_world_property_is_in_the_encoded_tree()
     {
-        var (world, _) = ScenarioRunner.Create(seed: 7, initialPopulation: 8, appearanceRules: new AppearanceRules(0.6));
+        var (world, _) = ScenarioRunner.Create(seed: 7, initialPopulation: 8, appearanceRules: new AppearanceRules(0.6),
+            objectCatalog: LivingWorld.Tests.Unit.Objects.ObjectCatalogTests.SampleCatalog());
         var tree = WorldSnapshot.BuildPersistentTree(world);
 
         var expected = WorldSnapshot.ReflectedProperties

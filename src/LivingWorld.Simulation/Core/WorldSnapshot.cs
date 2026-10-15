@@ -291,6 +291,10 @@ public static class WorldSnapshot
             node.TryGetPropertyValue("OntogenyRules", out var ontogenyRulesNode) && ontogenyRulesNode is not null
                 ? ontogenyRulesNode.Deserialize<LivingWorld.Domain.Ontogeny.OntogenyRules>(JsonOptions)!
                 : LivingWorld.Domain.Ontogeny.OntogenyRules.Disabled;
+        var objectCatalog =
+            node.TryGetPropertyValue("ObjectCatalog", out var objectCatalogNode) && objectCatalogNode is not null
+                ? objectCatalogNode.Deserialize<LivingWorld.Domain.Objects.ObjectCatalog>(JsonOptions)
+                : null;
         var appearanceRules =
             node.TryGetPropertyValue("AppearanceRules", out var appearanceRulesNode) && appearanceRulesNode is not null
                 ? appearanceRulesNode.Deserialize<AppearanceRules>(JsonOptions)
@@ -317,7 +321,7 @@ public static class WorldSnapshot
             extraordinaryConstructs, nextExtraordinaryConstructId,
             fauna, nextAnimalId, flora, nextPlantId, environmentTemperatureAdjustments,
             animalSpeciesRules, plantSpeciesRules, biomeSeasonTemperatureRules,
-            nextHistoryEventId, combatEncounters, nextCombatEncounterId, combatRules, tradeLedger, treasuryLedger, diseaseRules, infections, immunities, climateRules, climateYears, theftRules, emergenceRules, ontogenyRules, technologies, appearanceRules);
+            nextHistoryEventId, combatEncounters, nextCombatEncounterId, combatRules, tradeLedger, treasuryLedger, diseaseRules, infections, immunities, climateRules, climateYears, theftRules, emergenceRules, ontogenyRules, technologies, appearanceRules, objectCatalog);
         rehydrated.AssignPeriod(periodId);
         return rehydrated;
     }

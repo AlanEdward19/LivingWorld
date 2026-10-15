@@ -311,7 +311,8 @@ public static partial class ScenarioRunner
         LivingWorld.Domain.Crime.TheftRules? theftRules = null,
         LivingWorld.Domain.Emergence.EmergenceRules? emergenceRules = null,
         LivingWorld.Domain.Ontogeny.OntogenyRules? ontogenyRules = null,
-        LivingWorld.Domain.Population.AppearanceRules? appearanceRules = null)
+        LivingWorld.Domain.Population.AppearanceRules? appearanceRules = null,
+        LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null)
     {
         var rules = economyRules ?? DefaultEconomyRules;
         var family = familyRules ?? DefaultFamilyRules;
@@ -328,7 +329,7 @@ public static partial class ScenarioRunner
             plantSpeciesRules: plantSpeciesRules ?? DefaultPlantSpeciesRules,
             biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules, diseaseRules: diseaseRules, climateRules: climateRules, theftRules: theftRules, emergenceRules: emergenceRules,
             ontogenyRules: ontogenyRules ?? LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human,
-            appearanceRules: appearanceRules);
+            appearanceRules: appearanceRules, objectCatalog: objectCatalog);
         var initialCity = new City(
             world.NextCityId(), DefaultVillageLocation, world.CurrentDate.TotalHours,
             foundedFromCityId: null, AggregatePopulationPool.Empty);
