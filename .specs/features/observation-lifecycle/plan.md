@@ -1,4 +1,4 @@
-# Ciclo de vida da observação [Estado: Implementado, aguardando Verifier independente (2026-10-14)]
+# Ciclo de vida da observação [Estado: Verificado, PASS (Verifier independente, 2026-10-15)]
 
 Limitação deixada pelas #58/#59 A: fechar a janela do jogo não retirava o escopo de observação nem
 encerrava a conversa, e o servidor só descartava fonte sumida no próximo POST de alguém.
