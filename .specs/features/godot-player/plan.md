@@ -1,4 +1,4 @@
-# Godot encarnar jogador [Estado: Implementado, aguardando Verifier independente (2026-10-14)]
+# Godot encarnar jogador [Estado: Verificado, PASS (Verifier independente, 2026-10-15)]
 
 Issue #59, fatia D. Só cliente + contratos congelados; nenhuma rota nova. Sem autenticação (#63): o `playerId` é local.
 
