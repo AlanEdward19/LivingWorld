@@ -1,9 +1,7 @@
 using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Geography;
-using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Hosting;
 using LivingWorld.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
