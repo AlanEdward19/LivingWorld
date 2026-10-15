@@ -85,6 +85,20 @@ func decision_sandbox(id: int, overrides: Dictionary) -> Dictionary:
 	return _checked("/npcs/%d/decision-sandbox" % id, {"status": response.status, "body": response.body}, "decision-sandbox")
 
 
+# --- narrativas (crenças da comunidade, nunca a verdade do motor) ------------------------------
+
+func biography(npc_id: int) -> Dictionary:
+	return await _fetch("/narratives/biographies/%d" % npc_id, "narrative-biography")
+
+
+func chronicle(city_id: String, period_start: int, period_end: int, top_k: int) -> Dictionary:
+	return await _fetch("/narratives/chronicles?location=%s&periodStart=%d&periodEnd=%d&topK=%d" % [city_id.uri_encode(), period_start, period_end, top_k], "narrative-chronicle")
+
+
+func reports() -> Dictionary:
+	return await _fetch("/narratives/reports", "narrative-reports")
+
+
 # --- conversa com NPC (só estas três rotas escrevem; o cliente não aplica nada ao mundo) -----
 
 func conversation_start(npc_id: int) -> Dictionary:

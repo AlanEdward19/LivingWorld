@@ -204,7 +204,7 @@ public class ApiContractTests
         return result;
     }
 
-    private static void AssertMatchesContract(string file, JsonNode actual)
+    internal static void AssertMatchesContract(string file, JsonNode actual)
     {
         string path = Path.Combine(FindRepoRoot(), "tests", "contracts", file);
         string text = actual.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n";

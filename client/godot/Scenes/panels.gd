@@ -90,6 +90,7 @@ class NpcDetailPanel extends PanelContainer:
 	signal follow_requested(id: int)
 	signal brain_requested(id: int)
 	signal conversation_requested(id: int)
+	signal biography_requested(id: int)
 	signal model_known(id: int, profession: int, age_years: float)
 	var api
 	var labels
@@ -146,6 +147,10 @@ class NpcDetailPanel extends PanelContainer:
 		talk.text = "Conversar (T)"
 		talk.pressed.connect(func(): conversation_requested.emit(npc_id))
 		box.add_child(talk)
+		var bio := Button.new()
+		bio.text = "Biografia"
+		bio.pressed.connect(func(): biography_requested.emit(npc_id))
+		box.add_child(bio)
 		visible = false
 
 	func show_npc(id: int) -> void:
@@ -206,7 +211,10 @@ class NpcDetailPanel extends PanelContainer:
 
 
 class CityPanel extends PanelContainer:
+	signal chronicle_requested(city_id: String)
 	var text := ""
+	var city_id := ""
+	var city_name := ""
 	var _title: Label
 	var _body: Label
 
@@ -221,12 +229,18 @@ class CityPanel extends PanelContainer:
 		_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_body.custom_minimum_size.x = 270
 		box.add_child(_body)
+		var chronicle := Button.new()
+		chronicle.text = "Crônica"
+		chronicle.pressed.connect(func(): chronicle_requested.emit(city_id))
+		box.add_child(chronicle)
 		visible = false
 
 	## `info` = WorldStore.city: {name, indicators:{population, wealth, health, inequality, economy, housing}}
 	func show_city(info: Dictionary) -> void:
 		var indicators: Dictionary = info.indicators
 		var name: String = info.name if info.name != "" else "Cidade"
+		city_id = String(info.get("id", ""))
+		city_name = name
 		text = "%s\nPopulação %d\nRiqueza %d · Saúde %d\nDesigualdade %s · Economia %d · Habitação %d" % [
 			name, int(indicators.population), int(indicators.wealth), int(indicators.health),
 			str(snappedf(float(indicators.inequality), 0.01)), int(indicators.economy), int(indicators.housing)]

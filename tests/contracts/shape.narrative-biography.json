@@ -1,0 +1,12 @@
+{
+  "claims": [
+    {
+      "eventIds": [
+        "number"
+      ],
+      "text": "string"
+    }
+  ],
+  "npcId": "number",
+  "prose": "string"
+}

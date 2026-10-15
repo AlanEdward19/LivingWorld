@@ -24,6 +24,7 @@ const AssetCatalog := preload("res://Scenes/asset_catalog.gd")
 const DevSteps := preload("res://Scenes/dev_steps.gd")
 const BrainPanel := preload("res://Scenes/brain_panel.gd")
 const ConversationWindow := preload("res://Scenes/conversation_window.gd")
+const NarrativeWindow := preload("res://Scenes/narrative_window.gd")
 const ScopeObserver := preload("res://Contract/scope_observer.gd")
 
 var transport
@@ -46,6 +47,7 @@ var npc_panel
 var city_panel
 var brain_panel
 var conversation
+var narrative
 var observer
 var banner: Label
 var breadcrumb: Label
@@ -244,6 +246,19 @@ func _build_ui() -> void:
 	conversation.warning.connect(func(text: String): toasts.push(text))
 	_ui.add_child(conversation)
 	npc_panel.conversation_requested.connect(func(id: int): talk_to(id))
+	narrative = NarrativeWindow.new()
+	narrative.api = api
+	narrative.calendar_of = func() -> Dictionary: return {"hoursPerDay": day_cycle.hours_per_day, "daysPerMonth": day_cycle.days_per_month, "monthsPerYear": day_cycle.months_per_year}
+	narrative.tick_now = func() -> int: return int(clock_panel.status.get("tick", 0))
+	narrative.set_anchors_preset(Control.PRESET_FULL_RECT)
+	narrative.offset_left = 310
+	narrative.offset_right = -316
+	narrative.offset_top = 64
+	narrative.offset_bottom = -272
+	narrative.warning.connect(func(text: String): toasts.push(text))
+	_ui.add_child(narrative)
+	npc_panel.biography_requested.connect(func(id: int): open_biography(id))
+	city_panel.chronicle_requested.connect(func(city_id: String): open_chronicle(city_id))
 
 	minimap = Minimap.new()
 	minimap.bind(store)
@@ -264,7 +279,7 @@ func _build_ui() -> void:
 	_ui.add_child(toasts)
 
 	var help := Label.new()
-	help.text = "Botão direito: mover · Shift+botão direito: girar · Roda: zoom · Q/E: girar · L: pessoas · F: seguir · B: cérebro do NPC · T: conversar · Esc: voltar · PgUp/PgDn: andar · M: som · clique: selecionar/entrar"
+	help.text = "Botão direito: mover · Shift+botão direito: girar · Roda: zoom · Q/E: girar · L: pessoas · F: seguir · B: cérebro do NPC · T: conversar · R: relatos · Esc: voltar · PgUp/PgDn: andar · M: som · clique: selecionar/entrar"
 	help.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	help.offset_top = -30
 	help.offset_left = 10
@@ -506,6 +521,22 @@ func open_brain(id: int) -> void:
 	await brain_panel.open(id)
 
 
+func open_biography(id: int) -> void:
+	await narrative.show_biography(id, String(store.names.get(id, "NPC %d" % id)))
+
+
+func open_chronicle(city_id: String) -> void:
+	if city_id != "":
+		await narrative.show_chronicle(city_id, city_panel.city_name)
+
+
+func _toggle_reports() -> void:
+	if narrative.is_open and narrative.mode == "reports":
+		narrative.close()
+	else:
+		narrative.show_reports()
+
+
 ## Pede a conversa com o NPC (atalho T); o servidor aceita ou recusa e a janela explica o motivo.
 func talk_to(id: int) -> void:
 	await conversation.start(id, String(store.names.get(id, "NPC %d" % id)))
@@ -615,7 +646,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		match event.keycode:
 			KEY_ESCAPE:
-				if conversation.is_open:
+				if narrative.is_open:
+					narrative.close()
+				elif conversation.is_open:
 					conversation.end_conversation()
 				elif brain_panel.is_open:
 					brain_panel.close()
@@ -627,6 +660,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				menu_requested.emit()
 			KEY_B:
 				_toggle_brain()
+			KEY_R:
+				_toggle_reports()
 			KEY_T:
 				if selected_npc >= 0 and not conversation.input.has_focus():
 					talk_to(selected_npc)
@@ -694,4 +729,4 @@ func _show_city_summary(city_id: String) -> void:
 	var response: Dictionary = await api.city_snapshot(city_id)
 	if response.ok and response.body.get("payload") != null:
 		var payload: Dictionary = response.body.payload
-		city_panel.show_city({"name": payload.name, "indicators": payload.indicators})
+		city_panel.show_city({"id": city_id, "name": payload.name, "indicators": payload.indicators})
