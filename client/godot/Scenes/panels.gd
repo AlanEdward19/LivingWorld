@@ -91,6 +91,7 @@ class NpcDetailPanel extends PanelContainer:
 	signal brain_requested(id: int)
 	signal conversation_requested(id: int)
 	signal biography_requested(id: int)
+	signal incarnate_requested(id: int)
 	signal model_known(id: int, profession: int, age_years: float)
 	var api
 	var labels
@@ -151,6 +152,10 @@ class NpcDetailPanel extends PanelContainer:
 		bio.text = "Biografia"
 		bio.pressed.connect(func(): biography_requested.emit(npc_id))
 		box.add_child(bio)
+		var incarnate := Button.new()
+		incarnate.text = "Encarnar (I)"
+		incarnate.pressed.connect(func(): incarnate_requested.emit(npc_id))
+		box.add_child(incarnate)
 		visible = false
 
 	func show_npc(id: int) -> void:

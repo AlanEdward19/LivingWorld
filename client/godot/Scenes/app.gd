@@ -25,6 +25,8 @@ const DevSteps := preload("res://Scenes/dev_steps.gd")
 const BrainPanel := preload("res://Scenes/brain_panel.gd")
 const ConversationWindow := preload("res://Scenes/conversation_window.gd")
 const NarrativeWindow := preload("res://Scenes/narrative_window.gd")
+const PlayerHud := preload("res://Scenes/player_hud.gd")
+const PlayerProfile := preload("res://Contract/player_profile.gd")
 const ScopeObserver := preload("res://Contract/scope_observer.gd")
 
 var transport
@@ -48,6 +50,8 @@ var city_panel
 var brain_panel
 var conversation
 var narrative
+var player_hud
+var player_id := ""
 var observer
 var banner: Label
 var breadcrumb: Label
@@ -211,6 +215,18 @@ func _build_ui() -> void:
 	side.add_child(npc_panel)
 	city_panel = Panels.CityPanel.new()
 	side.add_child(city_panel)
+	player_hud = PlayerHud.new()
+	player_hud.api = api
+	player_hud.labels = labels
+	player_hud.player_id = player_id if player_id != "" else PlayerProfile.load_or_create()
+	player_hud.warning.connect(func(text: String): toasts.push(text))
+	player_hud.released.connect(func(): rig.release())
+	player_hud.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	player_hud.offset_left = 310
+	player_hud.offset_right = -316
+	player_hud.offset_top = 60
+	_ui.add_child(player_hud)
+	npc_panel.incarnate_requested.connect(func(id: int): incarnate(id))
 
 	list_panel = Panels.NpcListPanel.new()
 	list_panel.api = api
@@ -230,7 +246,7 @@ func _build_ui() -> void:
 	brain_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	brain_panel.offset_left = 310
 	brain_panel.offset_right = -316
-	brain_panel.offset_top = 64
+	brain_panel.offset_top = 130
 	brain_panel.offset_bottom = -272
 	brain_panel.warning.connect(func(text: String): toasts.push(text))
 	_ui.add_child(brain_panel)
@@ -253,7 +269,7 @@ func _build_ui() -> void:
 	narrative.set_anchors_preset(Control.PRESET_FULL_RECT)
 	narrative.offset_left = 310
 	narrative.offset_right = -316
-	narrative.offset_top = 64
+	narrative.offset_top = 130
 	narrative.offset_bottom = -272
 	narrative.date_of = _date_text
 	narrative.warning.connect(func(text: String): toasts.push(text))
@@ -281,7 +297,7 @@ func _build_ui() -> void:
 	_ui.add_child(toasts)
 
 	var help := Label.new()
-	help.text = "Botão direito: mover · Shift+botão direito: girar · Roda: zoom · Q/E: girar · L: pessoas · F: seguir · B: cérebro do NPC · T: conversar · R: relatos · Esc: voltar · PgUp/PgDn: andar · M: som · clique: selecionar/entrar"
+	help.text = "Botão direito: mover · Shift+botão direito: girar · Roda: zoom · Q/E: girar · L: pessoas · F: seguir · B: cérebro do NPC · T: conversar · R: relatos · I: encarnar · Esc: voltar · PgUp/PgDn: andar · M: som · clique: selecionar/entrar"
 	help.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	help.offset_top = -30
 	help.offset_left = 10
@@ -319,6 +335,7 @@ func _build_ui() -> void:
 func _on_clock_status(status: Dictionary) -> void:
 	day_cycle.sync(float(status.tick), float(status.ticksPerSecond), bool(status.isPaused))
 	brain_panel.on_world_tick(int(status.tick))
+	player_hud.set_paused(bool(status.isPaused))
 	NpcActor.frozen = bool(status.isPaused)
 	sky_life.paused = bool(status.isPaused)
 	_update_time_label(status)
@@ -523,6 +540,14 @@ func open_brain(id: int) -> void:
 	await brain_panel.open(id)
 
 
+## Encarna o NPC (atalho I): o servidor decide se pode; a câmera passa a segui-lo.
+func incarnate(id: int) -> void:
+	if await player_hud.incarnate(id, String(store.names.get(id, "NPC %d" % id))):
+		selected_npc = id
+		if world_view.npc_nodes.has(id):
+			rig.follow(world_view.npc_nodes[id])
+
+
 func open_biography(id: int) -> void:
 	await narrative.show_biography(id, String(store.names.get(id, "NPC %d" % id)))
 
@@ -669,6 +694,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				_toggle_brain()
 			KEY_R:
 				_toggle_reports()
+			KEY_I:
+				if selected_npc >= 0 and not player_hud.is_active:
+					incarnate(selected_npc)
 			KEY_T:
 				if selected_npc >= 0 and not conversation.input.has_focus():
 					talk_to(selected_npc)

@@ -104,6 +104,24 @@ func beliefs(city_id: String) -> Dictionary:
 	return await _fetch("/history/beliefs?communityId=%s" % city_id.uri_encode(), "history-beliefs")
 
 
+# --- jogador encarnado (sem autenticação ainda, #63) -------------------------------------------
+
+func incarnate(npc_id: int, player_id: String) -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/players/%d/incarnate" % npc_id, {"playerId": player_id})
+	return _checked("/players/incarnate", {"status": response.status, "body": response.body}, "player-incarnate")
+
+
+## `action` = nome da ação (Eat, Sleep, Work, Socialize, Idle, Buy); "" devolve a escolha ao motor.
+func player_action(player_id: String, action: String) -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/players/%s/action" % player_id.uri_encode(), {"action": null if action == "" else action})
+	return _checked("/players/action", {"status": response.status, "body": response.body}, "player-action")
+
+
+func player_logout(player_id: String) -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/players/%s/logout" % player_id.uri_encode())
+	return _checked("/players/logout", {"status": response.status, "body": response.body}, "player-logout")
+
+
 # --- conversa com NPC (só estas três rotas escrevem; o cliente não aplica nada ao mundo) -----
 
 func conversation_start(npc_id: int) -> Dictionary:
