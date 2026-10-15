@@ -5,11 +5,12 @@ extends PanelContainer
 signal closed()
 signal warning(text: String)
 
-const AXES := [["pace", "Ritmo"], ["load", "Carga"], ["reach", "Alcance"]]
+const AXIS_LABELS := {"pace": "Ritmo", "load": "Carga", "reach": "Alcance"} ## nomes conhecidos; outros eixos do cenário aparecem como vieram
 
 var api
 var date_of: Callable = func(tick: int) -> String: return "tick %d" % tick
 var culture_id := -1
+var axis_names: Array = ["pace", "load", "reach"] ## do cenário (GET /world/info)
 var is_open := false
 var technologies: Array = []
 var rows: Array = [] ## [{title, detail, bars: Array}]
@@ -121,13 +122,14 @@ func _tech_node(tech: Dictionary, scale: float) -> Control:
 	box.add_child(info)
 	var bars: Array = []
 	var axis_labels: Array = []
-	for i in AXES.size():
+	for i in tech.vector.size():
 		var row := HBoxContainer.new()
 		var name := Label.new()
-		name.text = AXES[i][1]
+		var axis: String = String(axis_names[i]) if i < axis_names.size() else "eixo %d" % (i + 1)
+		name.text = AXIS_LABELS.get(axis, axis.capitalize())
 		name.custom_minimum_size.x = 70
 		row.add_child(name)
-		var value := float(tech.vector[i]) if i < tech.vector.size() else 0.0
+		var value := float(tech.vector[i])
 		var bar := ProgressBar.new()
 		bar.max_value = scale
 		bar.value = value

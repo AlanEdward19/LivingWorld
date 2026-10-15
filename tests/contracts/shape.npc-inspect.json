@@ -1,6 +1,9 @@
 {
   "actionStartedAtTick": "number",
-  "actionTarget": "null",
+  "actionTarget?": {
+    "id": "string",
+    "kind": "string"
+  },
   "ageYears": "number",
   "beliefs": "[]",
   "city": {
@@ -48,27 +51,42 @@
   "culture": {
     "id": "number"
   },
-  "currentAction": "null",
+  "currentAction?": "number",
   "currentLocation": {
     "x": "number",
     "y": "number"
   },
   "currentScope": {
-    "cityId": "null",
+    "cityId?": {
+      "value": "string"
+    },
     "kind": "number"
   },
-  "employer": "null",
-  "fatherId": "null",
-  "food": "null",
+  "employer?": {
+    "value": "number"
+  },
+  "fatherId?": {
+    "value": "number"
+  },
+  "food?": {
+    "blocked": "boolean",
+    "preparation": "number",
+    "remainingHours": "number",
+    "resourceId": "number"
+  },
   "health": "number",
-  "household": "null",
+  "household?": {
+    "value": "number"
+  },
   "hunger": "number",
   "id": {
     "value": "number"
   },
   "lod": "number",
   "memories": "[]",
-  "motherId": "null",
+  "motherId?": {
+    "value": "number"
+  },
   "name": "string",
   "personality": {
     "agreeableness": "number",
@@ -86,13 +104,24 @@
   "profession": {
     "id": "number"
   },
-  "rest": "null",
+  "rest?": {
+    "blocked": "boolean",
+    "kind": "number",
+    "location": {
+      "x": "number",
+      "y": "number"
+    },
+    "quality": "number",
+    "remainingHours": "number"
+  },
   "sex": "number",
   "skills": {
     "values": {}
   },
   "sleep": "number",
   "social": "number",
-  "spouse": "null",
+  "spouse?": {
+    "value": "number"
+  },
   "thirst": "number"
 }

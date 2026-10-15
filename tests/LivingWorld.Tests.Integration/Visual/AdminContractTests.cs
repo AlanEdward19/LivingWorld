@@ -44,8 +44,10 @@ public class AdminContractTests
     private static void AssertState(string file, JsonNode? body)
     {
         var shape = ApiContractTests.ShapeOf(body)!;
-        foreach (var optional in new[] { "actor", "reason", "maxTicks", "pausedAtTick" })
-            shape[optional] = "null";
+        ApiContractTests.Optional(shape, "actor", "string");
+        ApiContractTests.Optional(shape, "reason", "string");
+        ApiContractTests.Optional(shape, "maxTicks", "number");
+        ApiContractTests.Optional(shape, "pausedAtTick", "number");
         ApiContractTests.AssertMatchesContract(file, shape);
     }
 }

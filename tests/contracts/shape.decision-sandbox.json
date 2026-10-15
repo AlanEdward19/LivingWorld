@@ -8,7 +8,7 @@
       "number"
     ],
     "knownOpportunities": "[]",
-    "previousIntent": "null",
+    "previousIntent?": "number",
     "topNegativeFactors": [
       "string"
     ],

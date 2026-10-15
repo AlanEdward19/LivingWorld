@@ -5,7 +5,7 @@
     "discoveredAtTick": "number",
     "isVariation": "boolean",
     "key": "string",
-    "variationOfKey": "null",
+    "variationOfKey?": "string",
     "vector": [
       "number"
     ]

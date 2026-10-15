@@ -10,7 +10,7 @@
     },
     "changedFloor": [
       {
-        "action": "null",
+        "action?": "number",
         "floor": {
           "value": "number"
         },
@@ -25,7 +25,7 @@
     ],
     "entered": [
       {
-        "action": "null",
+        "action?": "number",
         "floor": {
           "value": "number"
         },
@@ -46,7 +46,7 @@
     "isEmpty": "boolean",
     "moved": [
       {
-        "action": "null",
+        "action?": "number",
         "floor": {
           "value": "number"
         },

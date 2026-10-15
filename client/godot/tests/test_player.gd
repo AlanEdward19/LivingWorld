@@ -97,8 +97,15 @@ func test_incarnate_errors_have_their_own_messages_and_leave_the_hud_closed() ->
 	check("morreu ou não existe" in warnings[2], warnings[2])
 	check("erro 500" in warnings[3], warnings[3])
 	eq(hud.is_active, false)
-	eq(hud.visible, false)
+	eq(hud.stale_session, true, "o 409 de 'já controla outro NPC' abre a oferta de sair; os demais erros não")
 	hud.free()
+
+	var closed := FakeTransport.new()
+	closed.on("POST /players/7/incarnate", {"status": 404, "body": {"error": "not_found: NPC ausente ou morto"}})
+	var other := _hud(closed)
+	await other.incarnate(7, "Ana")
+	eq(other.visible, false, "404 não abre o HUD")
+	other.free()
 
 
 func test_actions_post_the_name_and_the_engine_button_posts_null() -> void:
@@ -349,3 +356,76 @@ func test_an_active_hud_makes_no_requests_while_frames_pass() -> void:
 		await tree.process_frame
 	eq(transport.calls.size(), before, "nenhuma requisição por frame")
 	hud.free()
+
+
+func test_a_409_for_a_leftover_session_offers_to_leave_and_then_allows_incarnating_again() -> void:
+	var transport := _transport()
+	transport.on("POST /players/7/incarnate", {"status": 409, "body": {"error": "conflict: jogador já controla outro NPC"}})
+	var hud := _hud(transport)
+	var warnings: Array = []
+	hud.warning.connect(func(text: String): warnings.append(text))
+
+	var ok: bool = await hud.incarnate(7, "Ana")
+
+	eq(ok, false)
+	eq(hud.stale_session, true, "o servidor ainda liga este jogador a um NPC")
+	eq(hud.visible, true, "o HUD abre só para sair")
+	eq(hud.action_buttons["Eat"].disabled, true, "sem ações enquanto não sair")
+	check("ainda controla outro NPC" in hud.status_text, hud.status_text)
+	eq(hud.logout_button.disabled, false)
+
+	await hud.logout()
+	eq(transport.count_calls("POST /players/p-1/logout"), 1, "sair da sessão anterior")
+	eq(hud.stale_session, false)
+	eq(hud.visible, false)
+	check("liberado" in warnings.back(), warnings.back())
+
+	transport.on("POST /players/7/incarnate", {"status": 200, "body": {"npcId": 7, "playerId": "p-1"}})
+	eq(await hud.incarnate(7, "Ana"), true, "agora encarna")
+	eq(hud.action_buttons["Eat"].disabled, false, "ações liberadas de novo")
+	hud.free()
+
+
+func test_leaving_a_leftover_session_failure_keeps_the_offer() -> void:
+	var transport := _transport()
+	transport.on("POST /players/7/incarnate", {"status": 409, "body": {"error": "conflict: jogador já controla outro NPC"}})
+	transport.on("POST /players/p-1/logout", {"status": 500, "body": null})
+	var hud := _hud(transport)
+	var warnings: Array = []
+	hud.warning.connect(func(text: String): warnings.append(text))
+	await hud.incarnate(7, "Ana")
+
+	await hud.logout()
+
+	eq(hud.stale_session, true, "falhou: a oferta continua")
+	check("erro 500" in warnings.back(), warnings.back())
+	hud.free()
+
+
+func test_a_double_click_on_incarnate_sends_a_single_request() -> void:
+	var transport := SlowIncarnate.new()
+	transport.on("POST /players/7/incarnate", {"status": 200, "body": {"npcId": 7, "playerId": "p-1"}})
+	var hud := _hud(transport)
+
+	hud.incarnate(7, "Ana") # fica esperando
+	var second: bool = await hud.incarnate(7, "Ana")
+	eq(second, false, "o segundo clique é ignorado")
+	eq(transport.arrived, 1, "um único POST")
+	transport.release.emit()
+	await Engine.get_main_loop().process_frame
+	eq(hud.is_active, true)
+	var third: bool = await hud.incarnate(7, "Ana")
+	eq(third, false, "já encarnado: nada de novo POST")
+	eq(transport.arrived, 1)
+	hud.free()
+
+
+class SlowIncarnate extends "res://tests/fake_transport.gd":
+	signal release()
+	var arrived := 0
+
+	func request(method: String, path: String, body: Variant = null, extra_headers: Dictionary = {}) -> Dictionary:
+		if path.contains("/incarnate"):
+			arrived += 1
+			await release
+		return await super.request(method, path, body, extra_headers)

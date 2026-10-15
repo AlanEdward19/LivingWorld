@@ -179,13 +179,14 @@ func set_speed(ticks_per_second: float) -> void:
 		_fail(response)
 
 
-## Faixa do topo para TODOS quando o mundo está pausado: com os detalhes se foi este cliente que pausou.
-func pause_banner(paused: bool) -> String:
-	if not paused:
+## Faixa do topo para TODOS quando o mundo está pausado. Quem pausou e por quê vem de `GET /simulation/status` (ADR-0027), não
+## do que este cliente fez: vale também para a pausa de outro operador.
+func pause_banner(status: Dictionary) -> String:
+	if not bool(status.get("isPaused", false)):
 		return ""
-	if pause_info.is_empty():
+	if status.get("pausedBy") == null:
 		return "Mundo pausado"
-	return "Pausado por %s desde %s: %s" % [pause_info.actor, date_of.call(int(pause_info.pausedAtTick)), pause_info.reason]
+	return "Pausado por %s desde %s: %s" % [String(status.pausedBy), date_of.call(int(status.get("pausedAtTick", 0))), String(status.get("pauseReason", ""))]
 
 
 ## O relógio voltou a andar (retomada de outro operador ou teto vencido): esquece a pausa lembrada.

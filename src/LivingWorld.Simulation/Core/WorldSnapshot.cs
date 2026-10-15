@@ -166,6 +166,9 @@ public static class WorldSnapshot
         var name = node.TryGetPropertyValue("Name", out var nameNode) && nameNode is not null
             ? nameNode.GetValue<string>()
             : "";
+        var periodId = node.TryGetPropertyValue("PeriodId", out var periodIdNode) && periodIdNode is not null
+            ? periodIdNode.GetValue<string>()
+            : "";
         var portals = node.TryGetPropertyValue("Portals", out var portalsNode) && portalsNode is not null
             ? portalsNode.Deserialize<List<SpatialPortal>>(JsonOptions)!
             : [];
@@ -293,7 +296,7 @@ public static class WorldSnapshot
                 ? climateYearsNode.Deserialize<List<ClimateYear>>(JsonOptions)!
                 : [];
 
-        return new WorldState(
+        var rehydrated = new WorldState(
             calendar, currentDate, seed, map, populationCatalog, populationRules, needsRules, actionCatalog,
             lifeStageRules, rngStreams, pendingEvents, nextEventId, exampleCounts, npcs, households, nextNpcId,
             nextHouseholdId, branchId, moneyMinted, moneyDestroyed, economyRules, economyCatalog, workplaces,
@@ -307,6 +310,8 @@ public static class WorldSnapshot
             fauna, nextAnimalId, flora, nextPlantId, environmentTemperatureAdjustments,
             animalSpeciesRules, plantSpeciesRules, biomeSeasonTemperatureRules,
             nextHistoryEventId, combatEncounters, nextCombatEncounterId, combatRules, tradeLedger, treasuryLedger, diseaseRules, infections, immunities, climateRules, climateYears, theftRules, emergenceRules, technologies);
+        rehydrated.AssignPeriod(periodId);
+        return rehydrated;
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)

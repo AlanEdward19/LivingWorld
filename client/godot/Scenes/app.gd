@@ -57,7 +57,7 @@ var player_hud
 var admin_window
 var economy
 var technology
-var period_id := "" ## período do mundo criado nesta sessão (o menu sabe); vazio se o mundo foi continuado
+var period_id := "" ## período de origem do mundo em andamento (GET /world/info); vazio se desconhecido
 var resource_names: Dictionary = {} ## id -> nome, do catálogo do período
 var admin_enabled := OS.get_environment("LW_ADMIN_TOKEN") != "" ## sem token o console nem aparece
 var pause_label: Label
@@ -121,13 +121,19 @@ func start(p_transport, validate_shapes: bool = true, sleeper: Callable = Callab
 	if calendar.ok:
 		day_cycle.set_calendar(calendar.body)
 	await clock_panel.refresh()
-	await _load_resource_names()
+	await _load_world_info()
 	await stream.subscribe("World")
 
 
-## Nomes de recurso do período do mundo criado agora (`descriptors.resource`); sem período conhecido ficam os números.
-func _load_resource_names() -> void:
+## Identidade do mundo em andamento (`GET /world/info`): o período dá os nomes de recurso do catálogo e o cenário dá os rótulos
+## dos eixos de tecnologia. Período vazio (mundo criado sem ele) deixa os recursos como número.
+func _load_world_info() -> void:
 	resource_names = {}
+	var info: Dictionary = await api.world_info()
+	if not info.ok:
+		return
+	period_id = String(info.body.get("periodId", ""))
+	technology.axis_names = info.body.get("technologyAxes", [])
 	if period_id == "":
 		return
 	var catalog: Dictionary = await api.period_catalog(period_id)
@@ -413,7 +419,7 @@ func _on_clock_status(status: Dictionary) -> void:
 	player_hud.set_paused(bool(status.isPaused))
 	if not bool(status.isPaused):
 		admin_window.note_running()
-	pause_label.text = admin_window.pause_banner(bool(status.isPaused))
+	pause_label.text = admin_window.pause_banner(status)
 	pause_label.tooltip_text = pause_label.text
 	NpcActor.frozen = bool(status.isPaused)
 	sky_life.paused = bool(status.isPaused)

@@ -29,7 +29,7 @@ public class PlayerContractTests : IClassFixture<LivingWorldApiFactory>
         var action = await client.PostAsJsonAsync("/players/contrato/action", new { action = "Eat" });
         Assert.Equal(HttpStatusCode.OK, action.StatusCode);
         var actionShape = ApiContractTests.ShapeOf(JsonNode.Parse(await action.Content.ReadAsStringAsync()))!;
-        actionShape["action"] = "null"; // devolver a escolha ao motor responde action nulo
+        ApiContractTests.Optional(actionShape, "action", "string"); // devolver a escolha ao motor responde action nulo
         ApiContractTests.AssertMatchesContract("shape.player-action.json", actionShape);
 
         var logout = await client.PostAsync("/players/contrato/logout", null);

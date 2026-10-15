@@ -576,7 +576,6 @@ func show_touchup() -> void:
 
 
 func _on_continue() -> void:
-	selected_period = "" # o mundo continuado não nasceu do período que se olhou na tela de novo mundo
 	world_ready.emit()
 
 
@@ -586,7 +585,7 @@ func _on_create() -> void:
 	_busy = true
 	_refresh_create()
 	message_label.text = ""
-	var response: Dictionary = await api.world_create(draft, world_name.strip_edges()) if draft != "" else {"ok": false, "body": "período indisponível"}
+	var response: Dictionary = await api.world_create(draft, world_name.strip_edges(), selected_period) if draft != "" else {"ok": false, "body": "período indisponível"}
 	_busy = false
 	_refresh_create()
 	if response.ok:

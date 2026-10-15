@@ -106,14 +106,16 @@ func test_preview_image_paints_water_and_settlements() -> void:
 	eq(image.get_pixel(1, 0).to_html(false), MainMenu.WATER_COLOR.to_html(false), "água azul")
 
 
-func test_continuing_the_current_world_forgets_the_period_looked_at_in_new_world() -> void:
-	var menu := _menu(_transport())
-	var emitted: Array = []
-	menu.world_ready.connect(func(): emitted.append(true))
-	menu.selected_period = "medieval" # o menu seleciona o 1º período ao abrir "Novo mundo"
+func test_creating_a_world_sends_the_chosen_period_id() -> void:
+	var transport := _transport()
+	var menu := _menu(transport)
+	menu.selected_period = "medieval"
+	menu.draft = DEFINITION
+	menu.world_name = "Vale"
 
-	menu._on_continue()
+	await menu._on_create()
 
-	eq(menu.selected_period, "", "mundo continuado não carrega o período olhado na tela de novo mundo")
-	eq(emitted, [true])
+	var bodies: Array = transport.bodies.get("POST /worlds/create", [])
+	eq(bodies.size(), 1, "uma criação")
+	eq(bodies[0].get("periodId"), "medieval", "o período escolhido vai junto, para o servidor guardar")
 	menu.queue_free()

@@ -46,6 +46,11 @@ func set_speed(ticks_per_second: float) -> Dictionary:
 	return await transport.request("POST", "/simulation/speed", {"ticksPerSecond": ticks_per_second})
 
 
+## Identidade do mundo em andamento (ADR-0027): nome, período de origem ("" se desconhecido) e rótulos dos eixos de tecnologia.
+func world_info() -> Dictionary:
+	return await _fetch("/world/info", "world-info")
+
+
 func world_calendar() -> Dictionary:
 	return await _fetch("/world/calendar", "world-calendar")
 
@@ -219,8 +224,8 @@ func world_preview(scenario_json: String) -> Dictionary:
 	return {"ok": response.status == 200, "status": response.status, "body": response.body}
 
 
-func world_create(scenario_json: String, world_name: String) -> Dictionary:
-	var response: Dictionary = await transport.request("POST", "/worlds/create", {"scenarioJson": scenario_json, "name": world_name})
+func world_create(scenario_json: String, world_name: String, period_id: String = "") -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/worlds/create", {"scenarioJson": scenario_json, "name": world_name, "periodId": period_id})
 	return {"ok": response.status == 200, "status": response.status, "body": response.body}
 
 

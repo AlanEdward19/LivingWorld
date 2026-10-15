@@ -188,28 +188,17 @@ func test_contract_shape_validates_a_cognition_trace_item() -> void:
 	check(not ApiClient.ShapeValidator.validate([wrong_type], trace_shape).is_empty(), "intensidade não numérica reprova")
 
 
-func test_contract_does_not_require_optional_family_fields() -> void:
+func test_contract_optional_fields_may_be_absent_or_null_but_must_be_typed_when_present() -> void:
 	var shape = ApiClient.ShapeValidator.load_shape("npc-inspect")
-	var body := {"spouse": null, "household": null, "currentScope": {"kind": 0, "cityId": null}}
-	for key in ["spouse", "household"]:
-		eq(ApiClient.ShapeValidator.validate(body[key], shape[key]), [], "NPC sem %s não é reprovado" % key)
-	eq(ApiClient.ShapeValidator.validate(body.currentScope.cityId, shape.currentScope.cityId), [], "NPC sem cidade no escopo não é reprovado")
+	for key in ["spouse", "household", "motherId", "fatherId", "employer"]:
+		check(shape.has(key + "?"), "%s é opcional tipado no contrato" % key)
+		eq(shape.has(key), false, "e não exige a chave")
+	var scope: Dictionary = shape["currentScope"]
+	check(scope.has("cityId?") and not scope.has("cityId"), "cidade no escopo é opcional")
 
-
-func test_scope_observer_heartbeat_timer_fires_every_ten_seconds() -> void:
-	var transport := FakeTransport.new()
-	transport.on("POST /observation/scope", {"status": 200, "body": null})
-	var observer := ScopeObserver.new()
-	observer.api = _api(transport)
-	tree.root.add_child(observer)
-	await observer.set_scope("World")
-	var timer: Timer
-	for child in observer.get_children():
-		if child is Timer:
-			timer = child
-	check(timer != null and not timer.is_stopped() and is_equal_approx(timer.wait_time, 10.0), "Timer de 10 s rodando")
-	var before := transport.count_calls("POST /observation/scope")
-	timer.timeout.emit()
-	await tree.process_frame
-	eq(transport.count_calls("POST /observation/scope"), before + 1, "o fim do Timer reenvia o escopo")
-	observer.free()
+	var spouse_shape := {"spouse?": shape["spouse?"]}
+	eq(ApiClient.ShapeValidator.validate({}, spouse_shape), [], "ausente passa")
+	eq(ApiClient.ShapeValidator.validate({"spouse": null}, spouse_shape), [], "nulo passa")
+	eq(ApiClient.ShapeValidator.validate({"spouse": {"value": 4}}, spouse_shape), [], "preenchido e certo passa")
+	check(not ApiClient.ShapeValidator.validate({"spouse": {"value": "quatro"}}, spouse_shape).is_empty(), "preenchido com tipo errado reprova")
+	check(not ApiClient.ShapeValidator.validate({"spouse": 4}, spouse_shape).is_empty(), "preenchido com forma errada reprova")

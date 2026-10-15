@@ -255,3 +255,36 @@ func test_the_app_formats_technology_dates_with_the_server_calendar() -> void:
 
 	check("Ano 0 · Mês 1 · Dia 3" in app.technology.rows[0].detail, "tick 50 em data do calendário: " + app.technology.rows[0].detail)
 	app.queue_free()
+
+
+func test_axis_labels_follow_the_scenario_and_unknown_axes_appear_as_they_came() -> void:
+	var window := _window(_transport())
+	window.axis_names = ["pace", "peso", "reach"]
+
+	await window.show_culture(1)
+
+	eq(window.rows[0].axes, ["Ritmo", "Peso", "Alcance"], "eixo conhecido traduzido, desconhecido capitalizado, ordem do cenário")
+	window.free()
+
+
+func test_vectors_longer_than_the_scenario_axes_get_numbered_labels() -> void:
+	var transport := FakeTransport.new()
+	transport.on("GET /cultures/1/technologies", {"status": 200, "body": [{"category": "x", "vector": [1, 2, 3, 4], "key": "1.2.3.4", "discoveredAtTick": 5, "isVariation": false, "variationOfKey": null, "adoptedByCities": 1}]})
+	var window := _window(transport)
+
+	await window.show_culture(1)
+
+	eq(window.rows[0].axes, ["Ritmo", "Carga", "Alcance", "Eixo 4"])
+	window.free()
+
+
+func test_the_app_hands_the_scenario_axes_to_the_window() -> void:
+	var transport := _app_transport()
+	transport.on("GET /world/info", {"status": 200, "body": {"name": "Vale", "periodId": "", "technologyAxes": ["alfa", "beta"]}})
+	var app := App.new()
+	app.player_id = "p-1"
+	tree.root.add_child(app)
+	await app.start(transport, false)
+
+	eq(app.technology.axis_names, ["alfa", "beta"], "os eixos vêm de /world/info")
+	app.queue_free()

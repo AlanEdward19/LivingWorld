@@ -38,13 +38,22 @@ public class ApiContractTests
     [InlineData("world-subscribe", "/visual/subscribe?scope=World&mode=Spectator")]
     [InlineData("simulation-status", "/simulation/status")]
     [InlineData("world-calendar", "/world/calendar")]
+    [InlineData("world-info", "/world/info")]
     public async Task Response_shape_matches_the_committed_contract(string name, string url)
     {
         var response = await _factory.CreateClient().GetAsync(url);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var shape = ShapeOf(JsonNode.Parse(await response.Content.ReadAsStringAsync()));
-        AssertMatchesContract($"shape.{name}.json", shape);
+        if (name == "simulation-status")
+        {
+            // Quem pausou, por quê, desde quando e até quando só existem com o mundo pausado por admin (ADR-0027).
+            Optional(shape!, "pausedBy", "string");
+            Optional(shape!, "pauseReason", "string");
+            Optional(shape!, "pausedAtTick", "number");
+            Optional(shape!, "pauseMaxTicks", "number");
+        }
+        AssertMatchesContract($"shape.{name}.json", shape!);
     }
 
     /// <summary>`GET /npcs/{id}` é a ficha que o cliente abre ao clicar num NPC: forma congelada, 404 para id inexistente.</summary>
@@ -73,14 +82,33 @@ public class ApiContractTests
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/npcs/987654321")).StatusCode);
     }
 
-    /// <summary>Forma da ficha de NPC. Opcionais no servidor (HouseholdId?, NpcId? do cônjuge, CityId? do escopo): quem não os
-    /// tem não pode ser reprovado pelo contrato, senão a ficha de um NPC solteiro nunca abre. "null" = qualquer valor.</summary>
-    private static JsonNode InspectShape(JsonNode? body)
+    /// <summary>Campo opcional tipado: a chave vira <c>"campo?"</c> com a forma que ele tem quando vem preenchido. Pode faltar ou
+    /// vir nulo; se vier com valor tem de cumprir a forma (antes era <c>"null"</c>, que aceitava qualquer coisa).</summary>
+    internal static void Optional(JsonNode shape, string key, JsonNode typed)
+    {
+        var obj = shape.AsObject();
+        obj.Remove(key);
+        obj[key + "?"] = typed;
+        var sorted = Sorted(obj, v => v?.DeepClone());
+        obj.Clear();
+        foreach (var (k, v) in sorted.ToList()) { sorted.Remove(k); obj[k] = v; }
+    }
+
+    internal static JsonNode Id() => new JsonObject { ["value"] = "number" };
+
+    /// <summary>Forma da ficha de NPC. Opcionais no servidor (HouseholdId?, NpcId? do cônjuge, CityId? do escopo, empregador, ação
+    /// corrente...): quem não os tem não pode ser reprovado pelo contrato, senão a ficha de um NPC solteiro nunca abre.</summary>
+    internal static JsonNode InspectShape(JsonNode? body)
     {
         var shape = ShapeOf(body)!;
-        shape["household"] = "null";
-        shape["spouse"] = "null";
-        shape["currentScope"]!["cityId"] = "null";
+        foreach (var key in new[] { "household", "spouse", "motherId", "fatherId", "employer" })
+            Optional(shape, key, Id());
+        Optional(shape, "currentAction", "number");
+        Optional(shape, "actionTarget", new JsonObject { ["id"] = "string", ["kind"] = "string" });
+        Optional(shape, "rest", new JsonObject { ["blocked"] = "boolean", ["kind"] = "number", ["location"] = new JsonObject { ["x"] = "number", ["y"] = "number" }, ["quality"] = "number", ["remainingHours"] = "number" });
+        Optional(shape, "food", new JsonObject { ["blocked"] = "boolean", ["preparation"] = "number", ["remainingHours"] = "number", ["resourceId"] = "number" });
+        var scope = shape["currentScope"]!;
+        Optional(scope, "cityId", new JsonObject { ["value"] = "string" }); // CityId serializa o Guid como texto
         return shape;
     }
 
@@ -96,7 +124,7 @@ public class ApiContractTests
         Assert.Equal(HttpStatusCode.OK, start.StatusCode);
         var started = ShapeOf(JsonNode.Parse(await start.Content.ReadAsStringAsync()))!;
         long sessionId = JsonNode.Parse(await start.Content.ReadAsStringAsync())!["sessionId"]!.GetValue<long>();
-        started["sessionId"] = "null"; // nulo quando o NPC recusa
+        Optional(started, "sessionId", "number"); // nulo quando o NPC recusa
         AssertMatchesContract("shape.conversation-start.json", started);
 
         var send = await client.PostAsJsonAsync("/conversations/send", new { sessionId, message = "olá" });
@@ -118,7 +146,7 @@ public class ApiContractTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var shape = ShapeOf(JsonNode.Parse(await response.Content.ReadAsStringAsync()))!;
         // Opcionais/variáveis: nulos ou listas que podem vir vazias valem "qualquer valor/lista".
-        shape["trace"]!["previousIntent"] = "null";
+        Optional(shape["trace"]!, "previousIntent", "number");
         shape["trace"]!["knownOpportunities"] = "[]";
         AssertMatchesContract("shape.decision-sandbox.json", shape);
     }
@@ -214,8 +242,37 @@ public class ApiContractTests
         return result;
     }
 
+    /// <summary>Campos que a gravação viu nulos mas que têm forma conhecida quando preenchidos: viram opcionais tipados em qualquer
+    /// profundidade (ex.: `action` do diretório e dos deltas de interior, `lodging` dos prédios).</summary>
+    private static readonly Dictionary<string, (string Key, Func<JsonNode> Typed)[]> TypedOptionals = new()
+    {
+        ["shape.npc-directory.json"] = [("action", () => "number")],
+        ["shape.interior-delta.json"] = [("action", () => "number")],
+        ["shape.visual-delta.json"] = [("currentAction", () => "number")],
+        ["shape.city-subscribe.json"] = [("lodging", () => new JsonObject { ["nightlyRate"] = "number", ["occupied"] = "number", ["rentPerMonth"] = "number", ["units"] = "number" })],
+    };
+
+    private static void ApplyTypedOptionals(string file, JsonNode node)
+    {
+        if (!TypedOptionals.TryGetValue(file, out var rules)) return;
+        void Walk(JsonNode? n)
+        {
+            if (n is JsonObject obj)
+            {
+                foreach (var (key, typed) in rules)
+                    if (obj.TryGetPropertyValue(key, out var current) && current is JsonValue v && v.GetValueKind() == System.Text.Json.JsonValueKind.String && v.GetValue<string>() == "null")
+                        Optional(obj, key, typed());
+                foreach (var child in obj.Select(p => p.Value).ToList()) Walk(child);
+            }
+            else if (n is JsonArray arr)
+                foreach (var child in arr) Walk(child);
+        }
+        Walk(node);
+    }
+
     internal static void AssertMatchesContract(string file, JsonNode actual)
     {
+        ApplyTypedOptionals(file, actual);
         string path = Path.Combine(FindRepoRoot(), "tests", "contracts", file);
         string text = actual.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n";
         if (Record)

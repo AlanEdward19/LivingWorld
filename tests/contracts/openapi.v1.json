@@ -221,6 +221,12 @@
           "name": {
             "type": "string"
           },
+          "periodId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "scenarioJson": {
             "type": "string"
           }
@@ -2305,6 +2311,18 @@
       }
     },
     "/world/calendar": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/world/info": {
       "get": {
         "responses": {
           "200": {

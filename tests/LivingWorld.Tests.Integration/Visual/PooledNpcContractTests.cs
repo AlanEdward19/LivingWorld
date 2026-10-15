@@ -27,7 +27,13 @@ public class PooledNpcContractTests : IClassFixture<LivingWorldApiFactory>
                 if (value is not JsonObject actual) { errors.Add($"{path}: esperado objeto"); return; }
                 foreach (var (key, child) in expected)
                 {
-                    if (!actual.ContainsKey(key)) errors.Add($"{path}.{key}: campo ausente");
+                    if (key.EndsWith('?'))
+                    {
+                        // opcional tipado: pode faltar ou vir nulo; se vier com valor, cumpre a forma
+                        string real = key[..^1];
+                        if (actual.ContainsKey(real) && actual[real] is not null) Check(actual[real], child!, $"{path}.{real}", errors);
+                    }
+                    else if (!actual.ContainsKey(key)) errors.Add($"{path}.{key}: campo ausente");
                     else Check(actual[key], child!, $"{path}.{key}", errors);
                 }
                 break;

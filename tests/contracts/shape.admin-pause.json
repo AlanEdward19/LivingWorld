@@ -1,7 +1,7 @@
 {
-  "actor": "null",
+  "actor?": "string",
   "isPaused": "boolean",
-  "maxTicks": "null",
-  "pausedAtTick": "null",
-  "reason": "null"
+  "maxTicks?": "number",
+  "pausedAtTick?": "number",
+  "reason?": "string"
 }

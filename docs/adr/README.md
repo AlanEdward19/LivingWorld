@@ -33,3 +33,4 @@ conteúdo de ADR para dentro dele.
 | [0023](ADR-0023-snapshot-binario-posicional.md) | Snapshot binário posicional, base completa mais diffs por campo | aceito |
 | [0024](ADR-0024-familias-autoradas-no-cenario.md) | Famílias autoradas no cenário (`AuthoredHouseholds`), só ao criar mundo | aceito |
 | [0026](ADR-0026-rota-decision-sandbox.md) | Rota `POST /npcs/{id}/decision-sandbox` ("E se…?", só leitura) | aceito |
+| [0027](ADR-0027-identidade-do-mundo-e-pausa-publica.md) | `GET /world/info`, `periodId` na criação e pausa de admin visível a todos | aceito |

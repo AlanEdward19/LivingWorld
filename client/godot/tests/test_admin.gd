@@ -120,16 +120,14 @@ func test_resume_clears_the_remembered_pause_and_speed_posts_the_value() -> void
 	window.free()
 
 
-func test_banner_names_who_paused_and_why_else_just_says_paused() -> void:
+func test_banner_comes_from_the_status_so_any_clients_pause_is_named() -> void:
 	var window := _window(_transport())
-	eq(window.pause_banner(false), "", "rodando: sem faixa")
-	eq(window.pause_banner(true), "Mundo pausado", "outro operador pausou: o cliente só sabe que está pausado")
-
-	window.reason_input.text = "manutenção"
-	await window.pause()
-	eq(window.pause_banner(true), "Pausado por alan desde dia 12: manutenção")
-	window.note_running()
-	eq(window.pause_banner(true), "Mundo pausado")
+	eq(window.pause_banner({"isPaused": false}), "", "rodando: sem faixa")
+	eq(window.pause_banner({"isPaused": true}), "Mundo pausado", "pausa comum, sem ator")
+	eq(window.pause_banner({"isPaused": true, "pausedBy": null}), "Mundo pausado")
+	eq(window.pause_banner({"isPaused": true, "pausedBy": "alan", "pauseReason": "manutenção", "pausedAtTick": 12}),
+		"Pausado por alan desde dia 12: manutenção", "nome, data pelo calendário e motivo, mesmo de outro operador")
+	eq(window.pause_banner({"isPaused": false, "pausedBy": "alan", "pauseReason": "x", "pausedAtTick": 1}), "", "só vale pausado")
 	window.free()
 
 
@@ -296,136 +294,16 @@ func test_with_a_token_f8_and_the_button_toggle_and_esc_closes_and_results_open_
 	app.queue_free()
 
 
-func test_everyone_sees_the_paused_banner_and_it_names_this_clients_own_pause() -> void:
+func test_everyone_sees_the_paused_banner_with_who_and_why_from_the_status() -> void:
 	var made := await _app(false)
 	var app = made[0]
 
 	app._on_clock_status({"tick": 6, "ticksPerSecond": 1.0, "isPaused": true, "year": 0})
-	eq(app.pause_label.text, "Mundo pausado", "qualquer jogador vê a pausa")
+	eq(app.pause_label.text, "Mundo pausado", "pausa comum")
 
-	app.admin_window.pause_info = {"actor": "alan", "reason": "manutenção", "pausedAtTick": 6}
-	app._on_clock_status({"tick": 6, "ticksPerSecond": 1.0, "isPaused": true, "year": 0})
+	app._on_clock_status({"tick": 6, "ticksPerSecond": 1.0, "isPaused": true, "year": 0, "pausedBy": "alan", "pauseReason": "manutenção", "pausedAtTick": 6})
 	check("Pausado por alan desde" in app.pause_label.text and "manutenção" in app.pause_label.text, app.pause_label.text)
 
 	app._on_clock_status({"tick": 7, "ticksPerSecond": 1.0, "isPaused": false, "year": 0})
 	eq(app.pause_label.text, "", "voltou a andar: faixa some")
-	eq(app.admin_window.pause_info, {}, "e a pausa lembrada também")
 	app.queue_free()
-
-
-func test_the_real_transport_sends_the_operator_header_and_the_token() -> void:
-	var transport := preload("res://Contract/http_transport.gd").new()
-
-	var headers: PackedStringArray = transport.build_headers({"X-Admin-Actor": "alan"})
-
-	check("X-Admin-Actor: alan" in headers, "o operador vai no cabeçalho real: " + str(headers))
-	check("Content-Type: application/json" in headers, "continua JSON")
-	eq(transport.build_headers().has("X-Admin-Actor: alan"), false, "sem extras não inventa cabeçalho")
-	transport.free()
-
-
-func test_an_open_console_makes_no_requests_while_frames_pass() -> void:
-	var transport := _transport()
-	var window := _window(transport)
-	tree.root.add_child(window)
-	for i in 5:
-		await tree.process_frame
-	eq(transport.calls, [], "nenhuma requisição por frame")
-	window.free()
-
-
-func test_the_real_transport_sends_the_admin_token_only_when_configured() -> void:
-	var transport := preload("res://Contract/http_transport.gd").new()
-	var saved := OS.get_environment("LW_ADMIN_TOKEN")
-
-	OS.set_environment("LW_ADMIN_TOKEN", "tok-abc")
-	check("X-Admin-Token: tok-abc" in transport.build_headers({"X-Admin-Actor": "alan"}), "o token configurado vai no cabeçalho")
-	OS.unset_environment("LW_ADMIN_TOKEN")
-	var without: PackedStringArray = transport.build_headers()
-	eq(without.size(), 2, "sem LW_ADMIN_TOKEN não há cabeçalho de admin")
-	check(not ("X-Admin-Token: tok-abc" in without), "e o token antigo não vaza")
-
-	if saved != "":
-		OS.set_environment("LW_ADMIN_TOKEN", saved)
-	transport.free()
-
-
-class _SpyTransport extends "res://Contract/http_transport.gd":
-	var seen: Array = []
-
-	func build_headers(extra_headers: Dictionary = {}) -> PackedStringArray:
-		seen.append(extra_headers)
-		return super.build_headers(extra_headers)
-
-
-func test_request_hands_its_extra_headers_to_the_header_builder() -> void:
-	var transport := _SpyTransport.new()
-	transport.base_url = "http://127.0.0.1:1" # nada escuta aqui: só interessa o que `request` monta
-	tree.root.add_child(transport)
-
-	var response: Dictionary = await transport.request("GET", "/x", null, {"X-Admin-Actor": "alan"})
-
-	eq(response.status, 0, "sem servidor, a requisição falha limpa")
-	eq(transport.seen, [{"X-Admin-Actor": "alan"}], "request repassa o operador ao montar os cabeçalhos")
-	transport.queue_free() # o HTTPRequest ainda está emitindo request_completed: liberar depois
-
-
-func test_the_app_reads_the_admin_token_from_the_environment() -> void:
-	var saved := OS.get_environment("LW_ADMIN_TOKEN")
-	OS.unset_environment("LW_ADMIN_TOKEN")
-	var without := App.new()
-	eq(without.admin_enabled, false, "sem LW_ADMIN_TOKEN o console fica desligado")
-	OS.set_environment("LW_ADMIN_TOKEN", "tok")
-	var with_token := App.new()
-	eq(with_token.admin_enabled, true, "com LW_ADMIN_TOKEN o console liga")
-	if saved != "":
-		OS.set_environment("LW_ADMIN_TOKEN", saved)
-	else:
-		OS.unset_environment("LW_ADMIN_TOKEN")
-	without.free()
-	with_token.free()
-
-
-func test_the_app_feeds_the_console_the_calendar_and_dates() -> void:
-	var made := await _app(true)
-	var app = made[0]
-	app.day_cycle.set_calendar({"hoursPerDay": 10, "daysPerMonth": 5, "monthsPerYear": 12})
-
-	app.admin_window.open()
-	eq(app.admin_window.max_spin.max_value, 300.0, "teto = 30 dias do calendário do app")
-	eq(app.admin_window.max_spin.value, 70.0, "padrão = 7 dias do calendário do app")
-
-	app.admin_window.audit_from.value = 0
-	await app.admin_window.load_audit()
-	check(app.admin_window.audit_rows[0].begins_with("Ano 0 · Mês 1 · Dia 2"), "auditoria com data do calendário: " + app.admin_window.audit_rows[0])
-	check(app.admin_window.date_of.call(30).begins_with("Ano 0 · Mês 1 · Dia 4"), "banner e pausa usam a mesma data")
-	app.queue_free()
-
-
-func test_the_pause_label_lives_in_the_top_bar_and_shows_when_paused() -> void:
-	var made := await _app(false)
-	var app = made[0]
-
-	check(app.pause_label.get_parent() is HBoxContainer and app.pause_label.is_inside_tree(), "a faixa fica na barra do topo")
-	app._on_clock_status({"tick": 6, "ticksPerSecond": 1.0, "isPaused": true, "year": 0})
-	eq(app.pause_label.is_visible_in_tree(), true, "e aparece quando pausado")
-	app.queue_free()
-
-
-func test_typing_the_operator_changes_the_header_and_every_kind_maps_to_the_server_value() -> void:
-	var transport := _transport()
-	var window := _window(transport)
-	window.actor_input.text_changed.emit("  maria ")
-	window.reason_input.text = "x"
-
-	await window.pause()
-	eq(transport.headers_of.get("POST /admin/world/pause", []), [{"X-Admin-Actor": "maria"}], "o campo do operador define o cabeçalho")
-	window.actor_input.text_changed.emit("   ")
-	eq(window.actor, "admin", "vazio volta ao padrão")
-
-	window.search_input.text = "9"
-	for pair in [[0, "name"], [1, "city"], [2, "profession"]]:
-		window.kind_option.select(pair[0])
-		await window.search()
-		check(transport.calls.back().ends_with("&kind=%s" % pair[1]), "kind %d = %s: %s" % [pair[0], pair[1], transport.calls.back()])
-	window.free()

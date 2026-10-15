@@ -249,6 +249,10 @@ public sealed partial class WorldState
     /// nenhuma decisão de sistema lê nome de mundo, por isso volátil.</summary>
     [Volatile] public string Name { get; private set; }
 
+    /// <summary>Id do período (cenário de catálogo) de que o mundo nasceu, quando a criação o informou; vazio caso contrário.
+    /// Só rotula (o cliente usa para buscar os nomes do catálogo), nenhuma decisão o lê: volátil, fora do hash canônico.</summary>
+    [Volatile] public string PeriodId { get; private set; } = "";
+
     private readonly List<Fact> _facts;
     private long _nextFactId;
 
@@ -745,6 +749,9 @@ public sealed partial class WorldState
     /// porque <see cref="ScenarioLoaderV2.LoadWorld"/> monta o mundo a partir do cenário e não
     /// conhece o nome escolhido na borda; quem chama (o endpoint de create) atribui depois.</summary>
     public void Rename(string name) => Name = name;
+
+    /// <summary>Único ponto de mutação de <see cref="PeriodId"/>, chamado na criação (e ao reidratar o snapshot).</summary>
+    public void AssignPeriod(string periodId) => PeriodId = periodId;
 
     internal long NextEventIdAndAdvance() => _nextEventId++;
 

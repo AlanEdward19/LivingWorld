@@ -155,46 +155,30 @@ func test_a_late_reply_for_another_subject_is_dropped() -> void:
 	window.free()
 
 
-func test_resource_names_come_from_the_period_catalog_when_the_period_is_known() -> void:
+func test_resource_names_come_from_the_world_info_period_and_the_catalog() -> void:
 	var transport := _app_transport()
+	transport.on("GET /world/info", {"status": 200, "body": {"name": "Vale", "periodId": "vila-pequena", "technologyAxes": ["pace", "load", "reach"]}})
 	transport.on("GET /periods/vila-pequena/catalog", {"status": 200, "body": {"descriptors": {"resource": [{"id": 1, "name": "Trigo"}, {"id": 2, "name": "Água"}]}}})
 	var app := App.new()
-	app.period_id = "vila-pequena"
 	app.player_id = "p-1"
 	tree.root.add_child(app)
 	await app.start(transport, false)
 
+	eq(app.period_id, "vila-pequena", "o período vem do servidor, não do menu")
 	eq(app.resource_names, {1: "Trigo", 2: "Água"})
 	eq(app.economy.resource_name_of.call(1), "Trigo")
 	eq(app.economy.resource_name_of.call(9), "recurso 9")
 	app.queue_free()
 
 	var unknown := _app_transport()
+	unknown.on("GET /world/info", {"status": 200, "body": {"name": "Vale", "periodId": "", "technologyAxes": ["pace", "load", "reach"]}})
 	var other := App.new()
 	other.player_id = "p-1"
 	tree.root.add_child(other)
 	await other.start(unknown, false)
-	eq(other.resource_names, {}, "sem período conhecido, sem nomes (e sem pedir catálogo)")
+	eq(other.resource_names, {}, "período vazio: sem nomes (e sem pedir catálogo)")
 	eq(unknown.calls.filter(func(c: String) -> bool: return c.begins_with("GET /periods")), [])
 	other.queue_free()
-
-
-class _StubMenu extends Node:
-	var selected_period := "vila-pequena"
-
-
-func test_boot_hands_the_created_period_to_the_app() -> void:
-	var boot = load("res://Scenes/boot.gd").new()
-	boot.quit_fn = func(): pass
-	tree.root.add_child(boot)
-	boot.menu = _StubMenu.new()
-	boot.add_child(boot.menu)
-
-	await boot._play()
-
-	eq(boot.app.period_id, "vila-pequena", "o período escolhido no menu chega ao app")
-	boot.app.queue_free()
-	boot.free()
 
 
 func _find_button(node: Node, text: String) -> Button:

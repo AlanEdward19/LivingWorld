@@ -27,7 +27,7 @@ public class TechnologyContractTests : IClassFixture<LivingWorldApiFactory>
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var shape = ApiContractTests.ShapeOf(JsonNode.Parse(await response.Content.ReadAsStringAsync()))!;
-        shape[0]!["variationOfKey"] = "null"; // só as variações trazem a chave de origem
+        ApiContractTests.Optional(shape[0]!, "variationOfKey", "string"); // só as variações trazem a chave de origem
         ApiContractTests.AssertMatchesContract("shape.culture-technologies.json", shape);
     }
 }

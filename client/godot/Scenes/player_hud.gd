@@ -14,6 +14,7 @@ var player_id := ""
 var npc_id := -1
 var npc_name := ""
 var is_active := false
+var stale_session := false ## o servidor ainda liga este playerId a um NPC (cliente reiniciado): só dá para sair
 var current_action := ""
 var paused := false
 var action_buttons: Dictionary = {} ## "Eat" -> Button
@@ -77,8 +78,14 @@ func refresh_labels() -> void:
 
 ## Encarna o NPC; devolve true se o servidor aceitou.
 func incarnate(id: int, name: String) -> bool:
+	if _busy or is_active:
+		return false # outro pedido em andamento ou já encarnado: um clique a mais não vira segundo POST
+	_busy = true
 	var response: Dictionary = await api.incarnate(id, player_id)
+	_busy = false
 	if response.ok:
+		stale_session = false
+		_set_actions_enabled(true)
 		npc_id = id
 		npc_name = name
 		is_active = true
@@ -89,7 +96,10 @@ func incarnate(id: int, name: String) -> bool:
 		_sync_buttons()
 		refresh_labels()
 		return true
-	warning.emit(_incarnate_error(response))
+	var message := _incarnate_error(response)
+	if response.status == 409 and "outro NPC" in message:
+		_offer_release()
+	warning.emit(message)
 	return false
 
 
@@ -116,17 +126,41 @@ func act(action: String) -> void:
 
 
 func logout() -> void:
-	if not is_active or _busy:
+	if (not is_active and not stale_session) or _busy:
 		return
 	_busy = true
 	var response: Dictionary = await api.player_logout(player_id)
 	_busy = false
+	if stale_session and not is_active:
+		if response.ok or response.status == 404:
+			stale_session = false
+			_set_actions_enabled(true)
+			visible = false
+			warning.emit("Personagem anterior liberado. Pode encarnar de novo.")
+		else:
+			warning.emit("Não foi possível sair do personagem anterior (erro %d)." % response.status)
+		return
 	if response.ok and response.body is Dictionary:
 		_lost("%s desapareceu do mundo no tick %d. Não ficou congelado: o mundo seguiu." % [npc_name, int(response.body.get("disappearedAtTick", 0))])
 	elif response.status == 404:
 		_lost("Você não controla mais %s." % npc_name)
 	else:
 		warning.emit("Não foi possível sair (erro %d)." % response.status)
+
+
+## O servidor lembra deste `playerId` num NPC (o cliente reiniciou sem sair): oferece só "Sair do personagem anterior".
+func _offer_release() -> void:
+	stale_session = true
+	visible = true
+	_title.text = "Sessão anterior ativa"
+	_set_actions_enabled(false)
+	_set_status("Este jogador ainda controla outro NPC no servidor. Saia dele para encarnar de novo.")
+
+
+func _set_actions_enabled(enabled: bool) -> void:
+	for name in action_buttons:
+		action_buttons[name].disabled = not enabled
+	auto_button.disabled = not enabled
 
 
 func set_paused(value: bool) -> void:
