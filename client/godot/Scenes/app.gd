@@ -27,6 +27,7 @@ const ConversationWindow := preload("res://Scenes/conversation_window.gd")
 const NarrativeWindow := preload("res://Scenes/narrative_window.gd")
 const AdminWindow := preload("res://Scenes/admin_window.gd")
 const EconomyWindow := preload("res://Scenes/economy_window.gd")
+const TechnologyWindow := preload("res://Scenes/technology_window.gd")
 const PlayerHud := preload("res://Scenes/player_hud.gd")
 const PlayerProfile := preload("res://Contract/player_profile.gd")
 const ScopeObserver := preload("res://Contract/scope_observer.gd")
@@ -55,6 +56,7 @@ var narrative
 var player_hud
 var admin_window
 var economy
+var technology
 var period_id := "" ## período do mundo criado nesta sessão (o menu sabe); vazio se o mundo foi continuado
 var resource_names: Dictionary = {} ## id -> nome, do catálogo do período
 var admin_enabled := OS.get_environment("LW_ADMIN_TOKEN") != "" ## sem token o console nem aparece
@@ -331,6 +333,18 @@ func _build_ui() -> void:
 	economy.offset_bottom = -272
 	economy.warning.connect(func(text: String): toasts.push(text))
 	_ui.add_child(economy)
+	technology = TechnologyWindow.new()
+	technology.api = api
+	technology.date_of = _date_text
+	technology.set_anchors_preset(Control.PRESET_FULL_RECT)
+	technology.offset_left = 310
+	technology.offset_right = -316
+	technology.offset_top = 130
+	technology.offset_bottom = -272
+	technology.warning.connect(func(text: String): toasts.push(text))
+	_ui.add_child(technology)
+	npc_panel.culture_shown.connect(func(id: int): _probe_technologies(id))
+	npc_panel.technologies_requested.connect(func(id: int): technology.show_culture(id))
 	npc_panel.trades_requested.connect(func(workplace_id: int): open_trades(workplace_id))
 	city_panel.treasury_requested.connect(func(city_id: String): open_treasury(city_id))
 	npc_panel.biography_requested.connect(func(id: int): open_biography(id))
@@ -620,6 +634,13 @@ func _toggle_admin() -> void:
 		admin_window.open()
 
 
+## Mostra o botão de tecnologias só se a cultura do NPC selecionado já descobriu algo.
+func _probe_technologies(culture_id: int) -> void:
+	var response: Dictionary = await api.technologies(culture_id)
+	if culture_id == npc_panel.culture_id:
+		npc_panel.tech_button.visible = response.ok and not response.body.is_empty()
+
+
 func open_treasury(city_id: String) -> void:
 	if city_id != "":
 		await economy.show_treasury(city_id, city_panel.city_name)
@@ -760,7 +781,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		match event.keycode:
 			KEY_ESCAPE:
-				if economy.is_open:
+				if technology.is_open:
+					technology.close()
+				elif economy.is_open:
 					economy.close()
 				elif admin_window.is_open:
 					admin_window.close()
