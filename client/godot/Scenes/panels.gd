@@ -96,6 +96,7 @@ class NpcDetailPanel extends PanelContainer:
 	signal technologies_requested(culture_id: int)
 	signal warning(text: String)
 	var lod := 0
+	var _sheet_only: Array = [] ## botões e blocos que só fazem sentido para NPC detalhado (somem no morador anônimo)
 	var pooled_note: Label
 	var materialize_button: Button
 	signal culture_shown(culture_id: int)
@@ -163,22 +164,27 @@ class NpcDetailPanel extends PanelContainer:
 		follow.text = "Seguir (F)"
 		follow.pressed.connect(func(): follow_requested.emit(npc_id))
 		box.add_child(follow)
+		_sheet_only.append(follow)
 		var brain := Button.new()
 		brain.text = "Cérebro (B)"
 		brain.pressed.connect(func(): brain_requested.emit(npc_id))
 		box.add_child(brain)
+		_sheet_only.append(brain)
 		var talk := Button.new()
 		talk.text = "Conversar (T)"
 		talk.pressed.connect(func(): conversation_requested.emit(npc_id))
 		box.add_child(talk)
+		_sheet_only.append(talk)
 		var bio := Button.new()
 		bio.text = "Biografia"
 		bio.pressed.connect(func(): biography_requested.emit(npc_id))
 		box.add_child(bio)
+		_sheet_only.append(bio)
 		var incarnate := Button.new()
 		incarnate.text = "Encarnar (I)"
 		incarnate.pressed.connect(func(): incarnate_requested.emit(npc_id))
 		box.add_child(incarnate)
+		_sheet_only.append(incarnate)
 		trades_button = Button.new()
 		trades_button.text = "Vendas do local de trabalho"
 		trades_button.visible = false
@@ -217,17 +223,23 @@ class NpcDetailPanel extends PanelContainer:
 	func _present(id: int, npc: Dictionary) -> void:
 		npc_id = id
 		lod = int(npc.get("lod", 0))
-		pooled_note.visible = lod == 2
-		materialize_button.visible = lod == 2
+		var anonymous := lod == 2
+		pooled_note.visible = anonymous
+		materialize_button.visible = anonymous
+		_grid.visible = not anonymous
+		_details.visible = not anonymous
+		for control in _sheet_only:
+			control.visible = not anonymous
 		var action_text := ""
 		if labels != null and npc.get("currentAction") != null:
 			action_text = labels.label_for(int(npc.currentAction))
 		culture_id = int(npc.culture.id) if npc.get("culture") is Dictionary else -1
 		tech_button.visible = false
 		employer_id = int(npc.employer.value) if npc.get("employer") is Dictionary else -1
-		trades_button.visible = employer_id >= 0
-		_title.text = npc.name
-		_subtitle.text = "%d anos%s" % [int(npc.ageYears), (" · " + action_text) if action_text != "" else ""]
+		trades_button.visible = employer_id >= 0 and not anonymous
+		var named := String(npc.get("name", "")) != ""
+		_title.text = npc.name if named and not anonymous else "Morador anônimo #%d" % id
+		_subtitle.text = "faz parte da multidão da cidade" if anonymous else "%d anos%s" % [int(npc.ageYears), (" · " + action_text) if action_text != "" else ""]
 		var values := {"Saúde": npc.health, "Fome": npc.hunger, "Sede": npc.thirst, "Sono": npc.sleep, "Social": npc.social}
 		for key in values:
 			bars[key].value = float(values[key])

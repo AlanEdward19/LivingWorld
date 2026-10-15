@@ -90,7 +90,7 @@ func test_materialize_errors_warn_and_keep_the_anonymous_sheet() -> void:
 	check("não existe mais" in warnings[0], warnings[0])
 	check("erro 500" in warnings[1], warnings[1])
 	eq(panel.materialize_button.visible, true, "segue podendo tentar de novo")
-	eq(panel._title.text, "NPC 9")
+	eq(panel._title.text, "Morador anônimo #9")
 	panel.free()
 
 
@@ -108,7 +108,7 @@ func test_the_materialize_reply_is_checked_against_the_frozen_npc_shape() -> voi
 	await panel.materialize()
 
 	eq(warnings.size(), 1, "resposta fora do contrato vira aviso")
-	eq(panel._title.text, "NPC 9", "e não troca a ficha")
+	eq(panel._title.text, "Morador anônimo #9", "e não troca a ficha")
 	panel.free()
 
 
@@ -173,3 +173,24 @@ func test_the_app_wires_the_button_and_the_warning_toast() -> void:
 	await app.npc_panel.materialize()
 	check(app.toasts.history.any(func(t: String) -> bool: return "erro 500" in t), "o aviso chega ao toast: " + str(app.toasts.history))
 	app.queue_free()
+
+
+func test_an_anonymous_sheet_hides_the_meaningless_blocks_and_names_it_anonymous() -> void:
+	var transport := _transport()
+	var panel := _panel(transport)
+	await panel.show_npc(9)
+
+	eq(panel._title.text, "Morador anônimo #9", "sem nome real: título anônimo")
+	eq(panel._subtitle.text, "faz parte da multidão da cidade")
+	eq(panel._grid.visible, false, "sem barras de necessidades inventadas")
+	eq(panel._details.visible, false)
+	for control in panel._sheet_only:
+		eq(control.visible, false, "botão de NPC detalhado fica oculto no anônimo: " + control.text)
+	eq(panel.trades_button.visible, false)
+
+	await panel.materialize()
+	eq(panel._grid.visible, true, "materializado: barras voltam")
+	for control in panel._sheet_only:
+		eq(control.visible, true, "botões voltam: " + control.text)
+	eq(panel._title.text, "Ana de Verdade")
+	panel.free()

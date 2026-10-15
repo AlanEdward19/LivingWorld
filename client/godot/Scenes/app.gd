@@ -671,7 +671,7 @@ func _toggle_admin() -> void:
 func _probe_technologies(culture_id: int) -> void:
 	var response: Dictionary = await api.technologies(culture_id)
 	if culture_id == npc_panel.culture_id:
-		npc_panel.tech_button.visible = response.ok and not response.body.is_empty()
+		npc_panel.tech_button.visible = response.ok and not response.body.is_empty() and npc_panel.lod != 2
 
 
 func open_treasury(city_id: String) -> void:
