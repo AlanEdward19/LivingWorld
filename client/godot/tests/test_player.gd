@@ -57,9 +57,9 @@ func test_action_bar_has_exactly_the_choosable_actions_with_server_labels() -> v
 	await hud.incarnate(7, "Ana") # o catálogo do servidor chega depois da montagem: os rótulos se atualizam ao encarnar
 
 	eq(hud.action_buttons.keys(), ["Eat", "Sleep", "Work", "Socialize", "Idle", "Buy"], "exatamente PlayerCommands.Choosable")
-	eq(hud.action_buttons["Eat"].text, "Comer", "rótulo do catálogo do servidor")
-	eq(hud.action_buttons["Idle"].text, "Ficar parado")
-	eq(hud.action_buttons["Buy"].text, "Comprar")
+	var expected := {"Eat": "Comer", "Sleep": "Dormir", "Work": "Trabalhar", "Socialize": "Socializar", "Idle": "Ficar parado", "Buy": "Comprar"}
+	for name in expected:
+		eq(hud.action_buttons[name].text, expected[name], "%s usa o id certo do catálogo do servidor" % name)
 	hud.free()
 
 
@@ -268,3 +268,84 @@ func test_app_forwards_the_admin_pause_to_the_hud() -> void:
 	app._on_clock_status({"tick": 6, "ticksPerSecond": 1.0, "isPaused": false, "year": 0})
 	eq(app.player_hud._pause.visible, false)
 	app.queue_free()
+
+
+class SlowTransport extends "res://tests/fake_transport.gd":
+	signal release()
+	var arrived: Dictionary = {} ## caminho -> quantas requisições chegaram (antes de liberar a resposta)
+
+	func request(method: String, path: String, body: Variant = null) -> Dictionary:
+		if path.contains("/action") or path.contains("/logout"):
+			arrived[path] = int(arrived.get(path, 0)) + 1
+			await release
+		return await super.request(method, path, body)
+
+
+func test_a_second_click_while_waiting_does_not_send_another_request() -> void:
+	var transport := SlowTransport.new()
+	transport.on("POST /players/7/incarnate", {"status": 200, "body": {"npcId": 7, "playerId": "p-1"}})
+	transport.on("POST /players/p-1/action", {"status": 200, "body": {"playerId": "p-1", "action": "Eat"}})
+	transport.on("POST /players/p-1/logout", {"status": 200, "body": {"npcId": 7, "playerId": "p-1", "disappearedAtTick": 9}})
+	var hud := _hud(transport)
+	await hud.incarnate(7, "Ana")
+
+	hud.act("Eat")
+	hud.act("Work")
+	eq(transport.arrived.get("/players/p-1/action"), 1, "ação em andamento: o segundo clique é ignorado")
+	transport.release.emit()
+	await Engine.get_main_loop().process_frame
+
+	hud.logout()
+	hud.logout()
+	eq(transport.arrived.get("/players/p-1/logout"), 1, "idem para sair")
+	transport.release.emit()
+	await Engine.get_main_loop().process_frame
+	hud.free()
+
+
+func test_action_and_logout_bodies_outside_the_frozen_shapes_are_refused() -> void:
+	var transport := _transport()
+	var hud := _hud(transport, true)
+	var warnings: Array = []
+	hud.warning.connect(func(text: String): warnings.append(text))
+	await hud.incarnate(7, "Ana")
+
+	transport.on("POST /players/p-1/action", {"status": 200, "body": {"action": "Eat"}})
+	await hud.act("Eat")
+	eq(warnings.size(), 1, "ação fora do contrato avisa")
+	eq(hud.current_action, "", "e não vira escolha")
+
+	transport.on("POST /players/p-1/logout", {"status": 200, "body": {"npcId": 7}})
+	await hud.logout()
+	eq(hud.is_active, true, "logout fora do contrato não encerra")
+	eq(warnings.size(), 2)
+	hud.free()
+
+
+func test_a_server_error_on_an_action_is_not_reported_as_forbidden() -> void:
+	var transport := _transport()
+	var hud := _hud(transport)
+	var warnings: Array = []
+	hud.warning.connect(func(text: String): warnings.append(text))
+	await hud.incarnate(7, "Ana")
+
+	transport.on("POST /players/p-1/action", {"status": 500, "body": null})
+	await hud.act("Eat")
+	transport.on("POST /players/p-1/action", {"status": 400, "body": {"error": "x"}})
+	await hud.act("Eat")
+
+	check("erro 500" in warnings[0] and not ("não é permitida" in warnings[0]), warnings[0])
+	check("não é permitida" in warnings[1], warnings[1])
+	hud.free()
+
+
+func test_an_active_hud_makes_no_requests_while_frames_pass() -> void:
+	var transport := _transport()
+	var hud := _hud(transport)
+	tree.root.add_child(hud)
+	await hud.incarnate(7, "Ana")
+	var before: int = transport.calls.size()
+	for i in 5:
+		await tree.process_frame
+	eq(transport.calls.size(), before, "nenhuma requisição por frame")
+	hud.free()

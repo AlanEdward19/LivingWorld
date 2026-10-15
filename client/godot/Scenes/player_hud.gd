@@ -107,8 +107,11 @@ func act(action: String) -> void:
 		_set_status("Pedido: %s." % (action_text(action) if action != "" else "o motor decide"))
 	elif response.status == 404:
 		_lost("Você não controla mais %s." % npc_name)
+	elif response.status == 400:
+		warning.emit("Esta ação não é permitida agora (o servidor recusou).")
+		_sync_buttons()
 	else:
-		warning.emit("Esta ação não é permitida (erro %d)." % response.status)
+		warning.emit("Não foi possível pedir a ação (erro %d)." % response.status)
 		_sync_buttons()
 
 
