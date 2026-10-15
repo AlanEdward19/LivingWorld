@@ -9,7 +9,7 @@ namespace LivingWorld.Simulation.Ontogeny;
 /// <summary>Avança o desenvolvimento de quem ainda está crescendo (Fase 21, <c>Monthly</c>): a curva da idade (escalada pelo <c>RateGene</c>) só
 /// rende com exposição ao cuidador (21b), e janela de marco perdida reduz o teto do eixo. Ao completar todos os eixos o estado vira
 /// <c>null</c>. Consumidor causal: o filtro de elegibilidade de ações da decisão.</summary>
-[LivingCapability("ONTOGENY", Consumers = ["decision.eligibility"])]
+[LivingCapability("ONTOGENY", Events = [LivingWorld.Domain.History.WorldEventKind.MilestoneRegressed], Consumers = ["decision.eligibility", "timeline.development"])]
 [RunsAfter(typeof(NatalitySystem))]
 public sealed class MilestoneProgressSystem : ISimulationSystem
 {
