@@ -114,6 +114,17 @@ public sealed class Npc
     /// desenvolvimento passa de objeto a nulo. Só <c>MilestoneProgressSystem</c> e o nascimento gravam.</summary>
     public DevelopmentState? Development { get; private set; }
 
+    /// <summary>Idioma em que a pessoa foi criada (cultura de quem a criou), gravado quando o desenvolvimento se completa; nulo = o da
+    /// própria <see cref="Culture"/>. Lido pelo cortejo (afinidade cultural).</summary>
+    public CultureId? NativeLanguage { get; private set; }
+
+    public void SetNativeLanguage(CultureId? culture)
+    {
+        if (NativeLanguage == culture) return;
+        NativeLanguage = culture;
+        TouchCanonical();
+    }
+
     public void SetDevelopment(DevelopmentState? state)
     {
         if (Equals(Development, state)) return;
@@ -231,7 +242,7 @@ public sealed class Npc
         string? intentTarget = null, IntentStatus? intentStatus = null, ActionType? travelPurpose = null,
         long lastJobChangeTick = 0,
         string? controllerId = null, ActionType? controlledAction = null, long? disappearedAtTick = null,
-        DevelopmentState? development = null)
+        DevelopmentState? development = null, CultureId? nativeLanguage = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -270,6 +281,7 @@ public sealed class Npc
         ControlledAction = controlledAction;
         DisappearedAtTick = disappearedAtTick;
         Development = development;
+        NativeLanguage = nativeLanguage;
         IsGhost = isGhost;
         HomelessSince = homelessSince;
         PregnantUntil = pregnantUntil;

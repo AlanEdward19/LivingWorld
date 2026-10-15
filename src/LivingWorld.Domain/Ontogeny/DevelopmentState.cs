@@ -1,11 +1,12 @@
 namespace LivingWorld.Domain.Ontogeny;
 
 /// <summary>Progresso do NPC em cada eixo e o teto que ainda pode alcançar, ambos em [0,1]. O teto cai de forma permanente quando uma
-/// janela de marco fecha sem o marco (Fase 21b). <c>null</c> em <c>Npc.Development</c> = desenvolvimento completo (sistema inerte).</summary>
+/// janela de marco fecha sem o marco (21b). <c>Fluency</c> reparte o progresso de linguagem entre os idiomas de quem cria (21c); <c>null</c> = nenhum ainda. <c>null</c> em <c>Npc.Development</c> = desenvolvimento completo (sistema inerte).</summary>
 public sealed record DevelopmentState(
     double GrossMotor, double FineMotor, double Language, double SelfCare, double SocialCognition, double Abstraction,
     double GrossMotorCeiling = 1.0, double FineMotorCeiling = 1.0, double LanguageCeiling = 1.0,
-    double SelfCareCeiling = 1.0, double SocialCognitionCeiling = 1.0, double AbstractionCeiling = 1.0)
+    double SelfCareCeiling = 1.0, double SocialCognitionCeiling = 1.0, double AbstractionCeiling = 1.0,
+    LanguageFluency? Fluency = null)
 {
     public static DevelopmentState Newborn { get; } = new(0, 0, 0, 0, 0, 0);
 
@@ -55,5 +56,8 @@ public sealed record DevelopmentState(
 
     /// <summary>Todo eixo no máximo e sem teto reduzido: o NPC não tem mais nada a adquirir (vira <c>null</c> no <c>Npc</c>).</summary>
     public bool IsComplete =>
-        GrossMotor >= 1 && FineMotor >= 1 && Language >= 1 && SelfCare >= 1 && SocialCognition >= 1 && Abstraction >= 1;
+        GrossMotor >= Full && FineMotor >= Full && Language >= Full && SelfCare >= Full && SocialCognition >= Full && Abstraction >= Full;
+
+    /// <summary>Tolerância de ponto flutuante: a soma de ganhos mensais chega a 0,9999999999999999, que é 1 para todo efeito.</summary>
+    private const double Full = 1.0 - 1e-9;
 }

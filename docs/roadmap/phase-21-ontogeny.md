@@ -8,7 +8,7 @@ learning**. Um modelo treinado por NPC seria caro, não-determinístico e quebra
 barata, é um **modelo de desenvolvimento**: curvas por marco, janelas de idade e entradas
 de exposição.
 
-> **Status: ativa (2026-10-14, #66).** Plano lean e critérios finais: `.specs/features/phase-21-ontogeny/plan.md`.
+> **Status: fechada (2026-10-14; 21a–c, #70–#72).** Plano lean e critérios finais: `.specs/features/phase-21-ontogeny/plan.md`.
 > Os critérios abaixo são a intenção original; vale o `plan.md`.
 
 ## Tasks

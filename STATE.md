@@ -14,7 +14,7 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
   #46 criador de mundo · #47 criador procedural de objetos.
 - **Decisão de escopo (2026-10-14, #66)**: ordem das fases `spec` = **21 → 22 → 23**, depois 18, 27 e 17/19/20.
   Fase 14 substituída pelo Godot (ADR-0025, voz/Unreal adiados); Fase 15 fechada.
-- **Próxima unidade**: Fase 21c (#72); 21a (#70) e 21b (#71) entregues (AD-115/116, ADR-0026/0027); plano `.specs/features/phase-21-ontogeny/plan.md`.
+- **Próxima unidade**: Fase 22 (imperfeição; criar plano lean e issues por fatia). Fase 21 entregue (21a–c, AD-115..117, ADR-0026..0028); plano `.specs/features/phase-21-ontogeny/plan.md`.
 - **Pendência de CI**: goldens do cliente foram regravados num Mac arm64; rodar o CI antes do merge.
 - **Integração do extraordinário (2026-08-12)**: decisão **mista**, sem fase numerada nova para "super-heróis" —
   distribuída entre Fases 16, 17, 23, 24, 25, com toques em 10, 12, 22. ADR-0010 + `docs/domain/powers.md`.

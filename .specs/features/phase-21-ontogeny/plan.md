@@ -1,4 +1,4 @@
-# Fase 21 — Ontogenia [Estado: Ativo - 21a (AD-115) e 21b (AD-116, ADR-0027) entregues; 21c #72]
+# Fase 21 — Ontogenia [Estado: Ativo - Entregue - 21a (AD-115), 21b (AD-116, ADR-0027), 21c (AD-117, ADR-0028)]
 
 Substitui o formato antigo (`spec.md`/`design.md`/`tasks.md`, apagados em 2026-10-14 com aprovação do usuário; histórico no git).
 Decisões herdadas do design: marco é **filtro pré-utility** (não pontua zero), choro é
@@ -18,8 +18,8 @@ trauma/doença regride com causa → adulto: sistema inerte.
 - **21a Modelo**: marcos como dado de cenário (6 eixos, janelas, pré-requisitos), `ActionCatalog.RequiredMilestone`,
   `MilestoneEligibilityFilter`, `Cry`, `OntogenyLifecycleGate`, flag de desligar.
 - **21b Aquisição** (entregue, ADR-0027): `ExposureAccumulator` (adulto no domicílio), aquisição e janela dentro de `OntogenyRules.Advance`, gene como taxa; sem sorteio do `Resolver`.
-- **21c Idioma, regressão, agregado**: `LanguageFluencyResolver`, crença copiada pelo canal ambiental,
-  `MilestoneRegressionSystem`, `MilestoneProgressSum` no pool + resample na materialização.
+- **21c Idioma, regressão** (entregue, ADR-0028): fluência por cuidador (`Fluency`, `NativeLanguage`, consumidor no cortejo), regressão por doença
+  dentro de `MilestoneProgressSystem`. Pool agregado e crença copiada ficaram de fora (ver dívida).
 
 ## Critérios (EARS) — finais, sob `rules/eval-criteria.md`
 Gate: horizonte ≤ 10 anos; braços pareados na mesma seed, ≥ 20 seeds; limiares vêm do cenário `test-ontogeny`.
@@ -35,7 +35,7 @@ Gate: horizonte ≤ 10 anos; braços pareados na mesma seed, ≥ 20 seeds; limia
 7. **21c** Idioma: órfão criado por cuidador de outro idioma termina com fluência maior no idioma do cuidador
    (20/20) e fluência é 0 ao nascer.
 8. **21c** Toda queda de marco tem, no mesmo tick, evento de trauma/doença com causa; assert a cada tick (10 anos).
-9. **21c** Criança em pool agregado materializada duas vezes na mesma seed recebe o mesmo `DevelopmentState`.
+9. **21c** (adaptado) O pool agregado só tem adultos: toda pessoa materializada tem ≥ 18 anos e `Development` nulo.
 10. **Todas** Determinismo em dois processos; `Cry`/marcos sem `Random`/`DateTime`; hash estável por golden.
 
 ## Portas de mão única
@@ -50,6 +50,10 @@ sempre ≥ 18 anos); o resample por pool é da 21c. Viagem e compra que atendem 
 
 Borda conhecida (verificação 21b): marcos com janela que fecha depois de `CompleteAtYears` (ex.: `social-adult`) não podem mais fechar para quem
 foi negligenciado; o estado congela ao passar da idade de conclusão. Olhar na 21c junto com a regressão.
+
+## Dívida da Fase 21
+Resample de desenvolvimento no pool agregado (sem criança no pool), cópia de crença/traço por cuidador adotivo (`Upbringing` fixo no
+nascimento), consumidor próprio do `Cry`, exposição graduada e as mortes por desidratação que a 21a introduziu na vila.
 
 ## Desempenho
 (21a medido: 101,6% µs/NPC-tick e 101,4% alocação contra a base; ver AD-115.)

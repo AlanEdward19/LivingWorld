@@ -73,7 +73,11 @@ public static class OntogenyScenarioLoader
         if (block["MissedWindowKeep"] is not null && !Dbl(block, "MissedWindowKeep", out keep))
             return Result<OntogenyRules>.Fail("Ontogeny.MissedWindowKeep: número inválido");
 
-        var created = OntogenyRules.Create(enabled, milestones, requirements, recovery, keep);
+        double loss = OntogenyRules.DefaultRegressionLoss;
+        if (block["RegressionLoss"] is not null && !Dbl(block, "RegressionLoss", out loss))
+            return Result<OntogenyRules>.Fail("Ontogeny.RegressionLoss: número inválido");
+
+        var created = OntogenyRules.Create(enabled, milestones, requirements, recovery, keep, loss);
         return created.IsSuccess ? created : Result<OntogenyRules>.Fail(created.Error!);
     }
 

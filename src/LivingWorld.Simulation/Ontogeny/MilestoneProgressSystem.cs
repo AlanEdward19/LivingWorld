@@ -1,3 +1,5 @@
+using LivingWorld.Domain.Ontogeny;
+using LivingWorld.Domain.Population;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Population.Lifecycle;
 using LivingWorld.Simulation.Scheduling;
@@ -23,7 +25,31 @@ public sealed class MilestoneProgressSystem : ISimulationSystem
         foreach (var npc in world.Npcs.OrderBy(n => n.Id.Value))
         {
             if (npc.Development is not { } state || !npc.IsAlive) continue;
-            npc.SetDevelopment(OntogenyMechanic.AdvanceOneMonth(world, npc, state));
+            var advanced = OntogenyMechanic.AdvanceOneMonth(world, npc, state);
+            if (advanced is not null && ActiveDisease(world, npc) is { } disease)
+                advanced = Regress(world, ctx, npc, advanced, disease);
+            npc.SetDevelopment(advanced);
         }
+    }
+
+    /// <summary>Doença ativa do NPC (menor id de doença, para o desempate ser determinístico); nula se não há.</summary>
+    private static int? ActiveDisease(WorldState world, Npc npc)
+    {
+        int? disease = null;
+        foreach (var infection in world.Infections)
+            if (infection.Npc == npc.Id && (disease is null || infection.Disease < disease)) disease = infection.Disease;
+        return disease;
+    }
+
+    /// <summary>Regressão com causa nomeada: toda queda de marco vem junto de um evento no mesmo tick dizendo a doença.</summary>
+    private static DevelopmentState Regress(WorldState world, TickContext ctx, Npc npc, DevelopmentState state, int disease)
+    {
+        var lowered = world.OntogenyRules.Regress(state, OntogenyMechanic.EffectiveAgeYears(world, npc));
+        foreach (var axis in Enum.GetValues<DevelopmentAxis>())
+            if (lowered.Get(axis) < state.Get(axis))
+                ctx.LogEvent(
+                    LivingWorld.Domain.History.WorldEventKind.MilestoneRegressed,
+                    $"{npc.Id.Value}|{axis}|{state.Get(axis):R}|{lowered.Get(axis):R}|{disease}", sourceSystem: SystemName);
+        return lowered;
     }
 }

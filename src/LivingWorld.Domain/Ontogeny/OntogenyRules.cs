@@ -22,6 +22,9 @@ public sealed record OntogenyRules
     /// <summary>Fração da distância restante até 1 que continua alcançável depois que uma janela fecha sem o marco (o resto se perde para sempre).</summary>
     public double MissedWindowKeep { get; }
 
+    /// <summary>Fração do progresso perdida por mês de doença (21c); marcos consolidados (janela fechada) formam um piso que não se perde.</summary>
+    public double RegressionLoss { get; }
+
     private readonly Dictionary<DevelopmentAxis, (double Age, double Progress)[]> _curves;
 
     /// <summary>Idade (anos, já escalada pela taxa) a partir da qual o desenvolvimento está completo em todos os eixos.</summary>
@@ -31,8 +34,9 @@ public sealed record OntogenyRules
         bool enabled, IReadOnlyList<MilestoneDefinition> milestones,
         IReadOnlyDictionary<ActionType, MilestoneRequirement> requirements,
         Dictionary<DevelopmentAxis, (double, double)[]> curves, double completeAt,
-        double lateRecoveryFactor, double missedWindowKeep)
+        double lateRecoveryFactor, double missedWindowKeep, double regressionLoss)
     {
+        RegressionLoss = regressionLoss;
         LateRecoveryFactor = lateRecoveryFactor;
         MissedWindowKeep = missedWindowKeep;
         Enabled = enabled;
@@ -42,16 +46,19 @@ public sealed record OntogenyRules
         CompleteAtYears = completeAt;
     }
 
-    public static OntogenyRules Disabled { get; } = new(false, [], new Dictionary<ActionType, MilestoneRequirement>(), [], 0, DefaultLateRecovery, DefaultMissedWindowKeep);
+    public static OntogenyRules Disabled { get; } = new(false, [], new Dictionary<ActionType, MilestoneRequirement>(), [], 0, DefaultLateRecovery, DefaultMissedWindowKeep, DefaultRegressionLoss);
 
     /// <summary>Valores autorados do cenário padrão (não há medição humana que os fixe): os critérios comparam braços, nunca o número.</summary>
-    public const double DefaultLateRecovery = 0.25, DefaultMissedWindowKeep = 0.5;
+    public const double DefaultLateRecovery = 0.25, DefaultMissedWindowKeep = 0.5, DefaultRegressionLoss = 0.15;
 
     public static Result<OntogenyRules> Create(
         bool enabled, IReadOnlyList<MilestoneDefinition> milestones,
         IReadOnlyDictionary<ActionType, MilestoneRequirement> requirements,
-        double lateRecoveryFactor = DefaultLateRecovery, double missedWindowKeep = DefaultMissedWindowKeep)
+        double lateRecoveryFactor = DefaultLateRecovery, double missedWindowKeep = DefaultMissedWindowKeep,
+        double regressionLoss = DefaultRegressionLoss)
     {
+        if (regressionLoss is <= 0 or >= 1)
+            return Result<OntogenyRules>.Fail("Ontogeny.RegressionLoss: deve estar em (0,1)");
         if (lateRecoveryFactor is <= 0 or > 1)
             return Result<OntogenyRules>.Fail("Ontogeny.LateRecoveryFactor: deve estar em (0,1]");
         if (missedWindowKeep is <= 0 or >= 1)
@@ -98,13 +105,14 @@ public sealed record OntogenyRules
                 return Result<OntogenyRules>.Fail($"Ontogeny.Requirements[{action}]: nenhum marco do eixo {req.Axis} alcança {req.Threshold}");
         }
 
-        return Result<OntogenyRules>.Ok(Build(enabled, milestones, requirements, lateRecoveryFactor, missedWindowKeep));
+        return Result<OntogenyRules>.Ok(Build(enabled, milestones, requirements, lateRecoveryFactor, missedWindowKeep, regressionLoss));
     }
 
     /// <summary>Sem validação: só para ler dado já gravado pelo próprio motor (snapshot). Quem aceita dado externo usa <see cref="Create"/>.</summary>
     internal static OntogenyRules Build(
         bool enabled, IReadOnlyList<MilestoneDefinition> milestones, IReadOnlyDictionary<ActionType, MilestoneRequirement> requirements,
-        double lateRecoveryFactor = DefaultLateRecovery, double missedWindowKeep = DefaultMissedWindowKeep)
+        double lateRecoveryFactor = DefaultLateRecovery, double missedWindowKeep = DefaultMissedWindowKeep,
+        double regressionLoss = DefaultRegressionLoss)
     {
         var curves = new Dictionary<DevelopmentAxis, (double, double)[]>();
         double completeAt = 0;
@@ -117,7 +125,7 @@ public sealed record OntogenyRules
             curves[axis] = points.ToArray();
             completeAt = Math.Max(completeAt, onAxis[^1].WindowMedianYears);
         }
-        return new OntogenyRules(enabled, milestones, requirements, curves, completeAt, lateRecoveryFactor, missedWindowKeep);
+        return new OntogenyRules(enabled, milestones, requirements, curves, completeAt, lateRecoveryFactor, missedWindowKeep, regressionLoss);
     }
 
     /// <summary>Progresso do eixo para uma idade efetiva (anos): interpolação linear entre as medianas dos marcos.</summary>
@@ -143,8 +151,11 @@ public sealed record OntogenyRules
     /// <summary>Avança um mês de desenvolvimento (puro, sem sorteio: a variação individual é o <c>RateGene</c>, que já escala as idades).
     /// Com exposição o eixo ganha o que a curva da idade andou mais uma fração do atraso, até o teto; sem exposição não ganha nada.
     /// Janela que fecha com o marco ainda fora do alcance reduz o teto do eixo de forma permanente.</summary>
-    public DevelopmentState Advance(DevelopmentState state, double previousAgeYears, double currentAgeYears, bool exposed)
+    public DevelopmentState Advance(
+        DevelopmentState state, double previousAgeYears, double currentAgeYears, bool exposed,
+        IReadOnlyList<int>? caregiverCultures = null)
     {
+        double languageBefore = state.Language;
         foreach (var axis in Enum.GetValues<DevelopmentAxis>())
         {
             if (!_curves.ContainsKey(axis)) continue;
@@ -165,6 +176,35 @@ public sealed record OntogenyRules
             }
 
             state = state.With(axis, progress).WithCeiling(axis, ceiling);
+        }
+
+        // O ganho de linguagem do mês se reparte entre os idiomas de quem cria (um voto por cuidador): o idioma vem dos cuidadores, não da etnia.
+        double languageGain = state.Language - languageBefore;
+        if (exposed && languageGain > 0 && caregiverCultures is { Count: > 0 })
+        {
+            var fluency = state.Fluency ?? LanguageFluency.Empty;
+            foreach (int culture in caregiverCultures)
+                fluency = fluency.Add(culture, languageGain / caregiverCultures.Count);
+            state = state with { Fluency = fluency };
+        }
+        return state;
+    }
+
+    /// <summary>Um mês de doença: o progresso de cada eixo cai <see cref="RegressionLoss"/>, mas não abaixo do piso — o maior marco já
+    /// consolidado (atingido e com a janela fechada pela idade). O que ainda está dentro da janela é o que se perde. Puro.</summary>
+    public DevelopmentState Regress(DevelopmentState state, double currentAgeYears)
+    {
+        foreach (var axis in Enum.GetValues<DevelopmentAxis>())
+        {
+            double progress = state.Get(axis);
+            double floor = Milestones
+                .Where(m => m.Axis == axis && m.WindowLimitYears <= currentAgeYears && progress + 1e-9 >= m.Threshold)
+                .Select(m => m.Threshold).DefaultIfEmpty(0).Max();
+            double lowered = Math.Max(floor, progress * (1.0 - RegressionLoss));
+            if (lowered >= progress) continue;
+            if (axis == DevelopmentAxis.Language && progress > 0 && state.Fluency is { } fluency)
+                state = state with { Fluency = fluency.Scale(lowered / progress) };
+            state = state.With(axis, lowered);
         }
         return state;
     }

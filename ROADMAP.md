@@ -52,7 +52,7 @@ O número é **identidade**, não ordem. Só a trilha núcleo é sequencial.
 | 18 | [Linhas temporais](docs/roadmap/phase-18-timelines.md) | Ramificação, inércia histórica, âncora e coleta de branch | adiada (4ª; destrava #62 e 20) |
 | 19 | [Cosmos e contato](docs/roadmap/phase-19-cosmos.md) | Sistema estelar, órbitas, aliens como cultura, colônias | adiada (por último) |
 | 20 | [Trânsito interdimensional](docs/roadmap/phase-20-interdimensional.md) | Volta à linha de origem, catch-up preguiçoso de branch dormente | adiada (por último; exige 18) |
-| 21 | [Ontogenia](docs/roadmap/phase-21-ontogeny.md) | Nascer sem saber nada, marcos, exposição, janelas críticas | ativa (1ª; 21a e 21b entregues AD-115/116, falta 21c #72; plano `.specs/features/phase-21-ontogeny/plan.md`) |
+| 21 | [Ontogenia](docs/roadmap/phase-21-ontogeny.md) | Nascer sem saber nada, marcos, exposição, janelas críticas | fechada (21a–c entregues AD-115..117; dívida no plano `.specs/features/phase-21-ontogeny/plan.md`) |
 | 22 | [Imperfeição](docs/roadmap/phase-22-imperfection.md) | Defeitos, doenças, moral emergente, orientação e ocultação | próxima (2ª, depois da 21) |
 | 23 | [Intriga](docs/roadmap/phase-23-intrigue.md) | Segredo, persona/identidade, chantagem, traição, divulgação, rumor, investigação, conspiração | próxima (3ª, depois da 22) |
 | 24 | [Emergência aberta](docs/roadmap/phase-24-emergence.md) | Raças, tecnologias, ideologias, potências e contramedidas novas por composição | parcial (tecnologia de mobilidade por composição entregue, AD-110; faltam raças, ideologias, potências, contramedidas, doença, nomeação, #61) |

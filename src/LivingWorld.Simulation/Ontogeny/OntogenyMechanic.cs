@@ -24,6 +24,11 @@ public static class OntogenyMechanic
         return age >= rules.CompleteAtYears ? null : rules.StateAt(age);
     }
 
+    /// <summary>Idioma que a pessoa fala de fato: o de maior fluência enquanto cresce, depois o gravado ao completar, senão o da própria
+    /// cultura. Criança criada por outra cultura fala a de quem a criou.</summary>
+    public static CultureId SpokenCulture(Npc npc) =>
+        npc.Development?.Fluency?.Dominant() is { } dominant ? new CultureId(dominant) : npc.NativeLanguage ?? npc.Culture;
+
     /// <summary>Um mês de desenvolvimento: exposição do mês (cuidador no domicílio) decide se a curva da idade rende. Quem passou da
     /// idade em que tudo se completa e alcançou todos os eixos vira <c>null</c>; quem ficou com teto reduzido permanece com o estado
     /// final (déficit permanente), sem mais avanço.</summary>
@@ -31,11 +36,15 @@ public static class OntogenyMechanic
     {
         var rules = world.OntogenyRules;
         double now = EffectiveAgeYears(world, npc);
-        if (now >= rules.CompleteAtYears && !state.IsComplete) return state;
         double monthYears = (double)npc.BirthDate.Calendar.HoursPerMonth / npc.BirthDate.Calendar.HoursPerYear * npc.RateGene.Value;
-        var next = rules.Advance(state, Math.Max(0, now - monthYears), now, ExposureAccumulator.HasCaregiver(world, npc));
+        // Já passou da idade de conclusão no mês anterior e ficou incompleto: déficit permanente, o estado final não anda mais.
+        if (now - monthYears >= rules.CompleteAtYears && !state.IsComplete) return state;
+        var languages = ExposureAccumulator.CaregiverLanguages(world, npc);
+        var next = rules.Advance(state, Math.Max(0, now - monthYears), now, languages.Count > 0, languages);
         if (now < rules.CompleteAtYears) return next;
-        return next.IsComplete ? null : next;
+        if (!next.IsComplete) return next;
+        if (next.Fluency?.Dominant() is { } dominant) npc.SetNativeLanguage(new CultureId(dominant));
+        return null;
     }
 
     /// <summary>O que o NPC já pode fazer, para a escolha por utility; <c>default</c> (nada restrito) para adulto ou ontogenia desligada.</summary>

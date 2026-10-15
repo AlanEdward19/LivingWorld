@@ -85,6 +85,8 @@ Mesma regra de `EconomyEnabled`: `CitiesEnabled: false` ainda exige os campos pr
 | `Ontogeny.Requirements` | objeto `{ "AçãoDoMotor": { Axis, Threshold } }`, **uma entrada por ação** | não (padrão: humano) |
 | `Ontogeny.LateRecoveryFactor` | double em (0,1] | não (padrão 0,25): fração do atraso que a exposição tardia recupera por mês |
 | `Ontogeny.MissedWindowKeep` | double em (0,1) | não (padrão 0,5): fração do que falta até 1 que segue alcançável após perder a janela |
+| `Ontogeny.RegressionLoss` | double em (0,1) | não (padrão 0,15): fração do progresso perdida por mês de doença; marcos consolidados são o piso |
+| `Ontogeny.RegressionLoss` | double em (0,1) | não (padrão 0,15): fração do progresso perdida por mês de doença; marcos consolidados são o piso |
 
 Sem o bloco, valem os marcos humanos e a ontogenia fica ligada. `Axis` é um de `GrossMotor`, `FineMotor`, `Language`,
 `SelfCare`, `SocialCognition`, `Abstraction`. Cada eixo precisa de ao menos um marco e o último deve ter `Threshold` 1.
