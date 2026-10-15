@@ -201,6 +201,29 @@ public class OntogenyLanguageRegressionTests
     }
 
     [Fact]
+    public void The_floor_needs_a_milestone_that_is_both_attained_and_with_a_closed_window()
+    {
+        var rules = OntogenyDefaults.Human;
+        double walk = rules.Milestones.Single(m => m.Id == "walk").Threshold;   // limite 1,5 anos
+        double holdHead = rules.Milestones.Single(m => m.Id == "hold-head").Threshold; // limite 0,5
+        double sit = rules.Milestones.Single(m => m.Id == "sit").Threshold;     // limite 0,8
+
+        // Janela fechada mas marco NÃO atingido ('walk' aos 3 anos, progresso 0,3 < 0,6): não vira piso, só vale o último atingido.
+        var behind = rules.Regress(rules.StateAt(3.0).With(DevelopmentAxis.GrossMotor, 0.3), 3.0);
+        Assert.True(behind.GrossMotor < 0.3);
+        Assert.True(behind.GrossMotor >= holdHead);
+
+        // Marco atingido mas janela ainda ABERTA (aos 1,0 ano o limite de 'walk' é 1,5): não protege, o recente se perde até o último consolidado.
+        var recent = rules.Regress(rules.StateAt(1.0).With(DevelopmentAxis.GrossMotor, walk), 1.0);
+        Assert.True(recent.GrossMotor < walk);
+        Assert.True(recent.GrossMotor >= sit);
+
+        // Idade exatamente no limite: a janela fechou, o marco atingido já é piso.
+        var onTheLimit = rules.Regress(rules.StateAt(1.5).With(DevelopmentAxis.GrossMotor, walk), 1.5);
+        Assert.Equal(walk, onTheLimit.GrossMotor, 9);
+    }
+
+    [Fact]
     public void Full_development_tolerates_floating_point_and_the_last_monthly_step_is_not_lost()
     {
         var almost = new DevelopmentState(0.9999999999999999, 0.9999999999999998, 1, 1, 0.9999999999999999, 1);
