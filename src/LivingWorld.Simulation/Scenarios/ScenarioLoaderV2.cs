@@ -33,14 +33,15 @@ public static class ScenarioLoaderV2
         var population = definition.Population;
 
         // Viés declarado em Dynamics.ProfessionBiases vira peso real de sorteio
-        // (PopulationCatalog.RollProfession) — sem bias declarado, catálogo original passa
-        // adiante sem cópia, sorteio continua uniforme.
-        var catalog = definition.Dynamics.ProfessionBiases.Count == 0
+        // (PopulationCatalog.RollProfession). Peso 1.0 é o valor implícito de quem não está no
+        // dicionário, então só pesos != 1.0 entram: viés só de rótulo (Name) deixa o catálogo
+        // original passar sem cópia e o hash do mundo igual ao de um período sem Dynamics.
+        var weights = definition.Dynamics.ProfessionBiases
+            .Where(b => b.Weight != 1.0)
+            .ToDictionary(b => b.ProfessionId, b => b.Weight);
+        var catalog = weights.Count == 0
             ? population.Catalog
-            : population.Catalog with
-            {
-                ProfessionWeights = definition.Dynamics.ProfessionBiases.ToDictionary(b => b.ProfessionId, b => b.Weight),
-            };
+            : population.Catalog with { ProfessionWeights = weights };
 
         // Post-ship fix (bug real, "mesma seed, mundo diferente"): usava InitialMapForPopulation
         // pra silenciosamente REGERAR o mapa inteiro num tamanho maior sempre que a população
