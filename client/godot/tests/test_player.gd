@@ -274,11 +274,11 @@ class SlowTransport extends "res://tests/fake_transport.gd":
 	signal release()
 	var arrived: Dictionary = {} ## caminho -> quantas requisições chegaram (antes de liberar a resposta)
 
-	func request(method: String, path: String, body: Variant = null) -> Dictionary:
+	func request(method: String, path: String, body: Variant = null, extra_headers: Dictionary = {}) -> Dictionary:
 		if path.contains("/action") or path.contains("/logout"):
 			arrived[path] = int(arrived.get(path, 0)) + 1
 			await release
-		return await super.request(method, path, body)
+		return await super.request(method, path, body, extra_headers)
 
 
 func test_a_second_click_while_waiting_does_not_send_another_request() -> void:
