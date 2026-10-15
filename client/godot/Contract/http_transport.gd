@@ -31,7 +31,7 @@ class WsChannel extends "res://Contract/channel.gd":
 		peer.close()
 
 
-func request(method: String, path: String, body: Variant = null) -> Dictionary:
+func request(method: String, path: String, body: Variant = null, extra_headers: Dictionary = {}) -> Dictionary:
 	var http := HTTPRequest.new()
 	add_child(http)
 	var verbs := {"GET": HTTPClient.METHOD_GET, "POST": HTTPClient.METHOD_POST, "PUT": HTTPClient.METHOD_PUT, "DELETE": HTTPClient.METHOD_DELETE}
@@ -40,6 +40,8 @@ func request(method: String, path: String, body: Variant = null) -> Dictionary:
 	var admin_token := OS.get_environment("LW_ADMIN_TOKEN")
 	if admin_token != "":
 		headers.append("X-Admin-Token: " + admin_token)
+	for name in extra_headers:
+		headers.append("%s: %s" % [name, extra_headers[name]])
 	var payload := "" if body == null else JSON.stringify(body)
 	if http.request(base_url + path, headers, verbs[method], payload) != OK:
 		http.queue_free()

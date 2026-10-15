@@ -22,10 +22,10 @@ func _window(transport) -> Object:
 class SlowTransport extends "res://tests/fake_transport.gd":
 	signal release()
 
-	func request(method: String, path: String, body: Variant = null) -> Dictionary:
+	func request(method: String, path: String, body: Variant = null, extra_headers: Dictionary = {}) -> Dictionary:
 		if path.begins_with("/conversations/send"):
 			await release
-		return await super.request(method, path, body)
+		return await super.request(method, path, body, extra_headers)
 
 
 func _accepting(slow: bool = false) -> Object:

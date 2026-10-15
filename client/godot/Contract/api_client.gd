@@ -16,8 +16,8 @@ func _init(p_transport) -> void:
 	transport = p_transport
 
 
-func _fetch(path: String, shape_name: String = "") -> Dictionary:
-	var response: Dictionary = await transport.request("GET", path)
+func _fetch(path: String, shape_name: String = "", extra_headers: Dictionary = {}) -> Dictionary:
+	var response: Dictionary = await transport.request("GET", path, null, extra_headers)
 	return _checked(path, response, shape_name)
 
 
@@ -120,6 +120,33 @@ func player_action(player_id: String, action: String) -> Dictionary:
 func player_logout(player_id: String) -> Dictionary:
 	var response: Dictionary = await transport.request("POST", "/players/%s/logout" % player_id.uri_encode())
 	return _checked("/players/logout", {"status": response.status, "body": response.body}, "player-logout")
+
+
+# --- console de admin (ADR-0015): o token vem de LW_ADMIN_TOKEN no transporte; o ator vai no cabeçalho -------
+
+func _admin(method: String, path: String, actor: String, body: Variant, shape_name: String) -> Dictionary:
+	var response: Dictionary = await transport.request(method, path, body, {"X-Admin-Actor": actor})
+	return _checked(path, {"status": response.status, "body": response.body}, shape_name)
+
+
+func admin_pause(actor: String, reason: String, max_ticks: int) -> Dictionary:
+	return await _admin("POST", "/admin/world/pause", actor, {"reason": reason, "maxTicks": max_ticks}, "admin-pause")
+
+
+func admin_resume(actor: String) -> Dictionary:
+	return await _admin("POST", "/admin/world/resume", actor, null, "admin-pause")
+
+
+func admin_speed(actor: String, ticks_per_second: float) -> Dictionary:
+	return await _admin("POST", "/admin/world/speed", actor, {"ticksPerSecond": ticks_per_second}, "admin-pause")
+
+
+func admin_search(actor: String, query: String, kind: String) -> Dictionary:
+	return await _fetch("/admin/search?q=%s&kind=%s" % [query.uri_encode(), kind.uri_encode()], "admin-search", {"X-Admin-Actor": actor})
+
+
+func admin_audit(actor: String, from_tick: int) -> Dictionary:
+	return await _fetch("/admin/audit?fromTick=%d" % from_tick, "admin-audit", {"X-Admin-Actor": actor})
 
 
 # --- conversa com NPC (só estas três rotas escrevem; o cliente não aplica nada ao mundo) -----

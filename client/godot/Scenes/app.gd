@@ -25,6 +25,7 @@ const DevSteps := preload("res://Scenes/dev_steps.gd")
 const BrainPanel := preload("res://Scenes/brain_panel.gd")
 const ConversationWindow := preload("res://Scenes/conversation_window.gd")
 const NarrativeWindow := preload("res://Scenes/narrative_window.gd")
+const AdminWindow := preload("res://Scenes/admin_window.gd")
 const PlayerHud := preload("res://Scenes/player_hud.gd")
 const PlayerProfile := preload("res://Contract/player_profile.gd")
 const ScopeObserver := preload("res://Contract/scope_observer.gd")
@@ -51,6 +52,9 @@ var brain_panel
 var conversation
 var narrative
 var player_hud
+var admin_window
+var admin_enabled := OS.get_environment("LW_ADMIN_TOKEN") != "" ## sem token o console nem aparece
+var pause_label: Label
 var player_id := ""
 var observer
 var banner: Label
@@ -181,10 +185,22 @@ func _build_ui() -> void:
 	var right_spacer := Control.new()
 	right_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bar.add_child(right_spacer)
+	pause_label = Label.new()
+	pause_label.clip_text = true
+	pause_label.custom_minimum_size.x = 120
+	pause_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pause_label.size_flags_stretch_ratio = 4.0
+	pause_label.add_theme_color_override("font_color", Color("ffcf4a"))
+	bar.add_child(pause_label)
 	clock_panel = Panels.ClockPanel.new()
 	clock_panel.api = api
 	clock_panel.status_changed.connect(_on_clock_status)
 	bar.add_child(clock_panel)
+	if admin_enabled:
+		var console_button := Button.new()
+		console_button.text = "Console (F8)"
+		console_button.pressed.connect(func(): _toggle_admin())
+		bar.add_child(console_button)
 	var menu_button := Button.new()
 	menu_button.text = "☰ Menu (F10)"
 	menu_button.pressed.connect(func(): menu_requested.emit())
@@ -274,6 +290,18 @@ func _build_ui() -> void:
 	narrative.date_of = _date_text
 	narrative.warning.connect(func(text: String): toasts.push(text))
 	_ui.add_child(narrative)
+	admin_window = AdminWindow.new()
+	admin_window.api = api
+	admin_window.calendar_of = func() -> Dictionary: return {"hoursPerDay": day_cycle.hours_per_day}
+	admin_window.date_of = _date_text
+	admin_window.set_anchors_preset(Control.PRESET_FULL_RECT)
+	admin_window.offset_left = 310
+	admin_window.offset_right = -316
+	admin_window.offset_top = 130
+	admin_window.offset_bottom = -272
+	admin_window.warning.connect(func(text: String): toasts.push(text))
+	admin_window.npc_selected.connect(func(id: int): select_npc(id))
+	_ui.add_child(admin_window)
 	npc_panel.biography_requested.connect(func(id: int): open_biography(id))
 	city_panel.chronicle_requested.connect(func(city_id: String): open_chronicle(city_id))
 	city_panel.beliefs_requested.connect(func(city_id: String): open_beliefs(city_id))
@@ -336,6 +364,10 @@ func _on_clock_status(status: Dictionary) -> void:
 	day_cycle.sync(float(status.tick), float(status.ticksPerSecond), bool(status.isPaused))
 	brain_panel.on_world_tick(int(status.tick))
 	player_hud.set_paused(bool(status.isPaused))
+	if not bool(status.isPaused):
+		admin_window.note_running()
+	pause_label.text = admin_window.pause_banner(bool(status.isPaused))
+	pause_label.tooltip_text = pause_label.text
 	NpcActor.frozen = bool(status.isPaused)
 	sky_life.paused = bool(status.isPaused)
 	_update_time_label(status)
@@ -548,6 +580,15 @@ func incarnate(id: int) -> void:
 			rig.follow(world_view.npc_nodes[id])
 
 
+func _toggle_admin() -> void:
+	if not admin_enabled:
+		return
+	if admin_window.is_open:
+		admin_window.close()
+	else:
+		admin_window.open()
+
+
 func open_biography(id: int) -> void:
 	await narrative.show_biography(id, String(store.names.get(id, "NPC %d" % id)))
 
@@ -678,7 +719,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		match event.keycode:
 			KEY_ESCAPE:
-				if narrative.is_open:
+				if admin_window.is_open:
+					admin_window.close()
+				elif narrative.is_open:
 					narrative.close()
 				elif conversation.is_open:
 					conversation.end_conversation()
@@ -692,6 +735,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				menu_requested.emit()
 			KEY_B:
 				_toggle_brain()
+			KEY_F8:
+				_toggle_admin()
 			KEY_R:
 				_toggle_reports()
 			KEY_I:

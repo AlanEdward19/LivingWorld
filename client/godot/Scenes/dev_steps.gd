@@ -2,7 +2,7 @@ extends RefCounted
 ## Roteiro de desenvolvimento para capturas e demonstrações automáticas:
 ##   godot --path client/godot -- --steps "wait:2;shot:/tmp/a.png;city;wait:2;shot:/tmp/b.png;enter:0;quit"
 ## Passos: wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
-##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · bio:ID · chronicle · reports · player:ID · act:Nome · follow · quit. Não é usado em produção (sem --steps nada roda).
+##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · bio:ID · chronicle · reports · player:ID · act:Nome · admin:motivo (pausa com o console) · adminsearch:texto · follow · quit. Não é usado em produção (sem --steps nada roda).
 
 
 static func parse(args: PackedStringArray) -> Array:
@@ -66,6 +66,15 @@ static func run(app: Node, steps: Array) -> void:
 				await app.incarnate(int(arg))
 			"act":
 				await app.player_hud.act(arg)
+			"admin":
+				app.admin_window.open()
+				app.admin_window.reason_input.text = arg
+				await app.admin_window.pause()
+			"adminsearch":
+				app.admin_window.open()
+				app.admin_window.tabs.current_tab = 1
+				app.admin_window.search_input.text = arg
+				await app.admin_window.search()
 			"talk":
 				await app.select_npc(int(arg))
 				await app.talk_to(int(arg))

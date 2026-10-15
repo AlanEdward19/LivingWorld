@@ -166,10 +166,10 @@ func test_closed_window_makes_no_requests_and_a_late_reply_is_dropped() -> void:
 class SlowTransport extends "res://tests/fake_transport.gd":
 	signal release()
 
-	func request(method: String, path: String, body: Variant = null) -> Dictionary:
+	func request(method: String, path: String, body: Variant = null, extra_headers: Dictionary = {}) -> Dictionary:
 		if path.begins_with("/narratives/biographies/7"):
 			await release
-		return await super.request(method, path, body)
+		return await super.request(method, path, body, extra_headers)
 
 
 func test_a_reply_that_arrives_after_switching_subject_is_ignored() -> void:
