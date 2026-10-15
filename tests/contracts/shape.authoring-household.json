@@ -1,0 +1,7 @@
+{
+  "cityId": "string",
+  "householdId": "number",
+  "npcIds": [
+    "number"
+  ]
+}

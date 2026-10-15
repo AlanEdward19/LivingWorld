@@ -1,6 +1,9 @@
+using System.Text.Json.Nodes;
+using LivingWorld.Api.Admin;
 using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Shared;
+using LivingWorld.Infrastructure.Repositories;
 using LivingWorld.Simulation.Authoring;
 using LivingWorld.Simulation.Hosting;
 
@@ -45,6 +48,33 @@ public static class AuthoringEndpoints
         app.MapPost("/authoring/npcs/{id:long}/action",
             (long id, ForceActionRequest request, WorldHost host, WorldAuthoringService commands) =>
                 ResultOf(commands.ForceAction(host.Current, new NpcId(id), request.Action)));
+
+        // Criação ao vivo (ADR-0033): corpo = item do cenário; só com X-Admin-Token, auditada, recusada em pausa de admin.
+        app.MapPost("/authoring/households", (
+            HttpContext http, IConfiguration config, JsonObject body, WorldHost host, SimulationHost simulation,
+            WorldAuthoringService commands, AdminAuditStore audit) =>
+            LiveCreate(http, config, simulation, host, audit, "authoring.household",
+                () => commands.CreateHousehold(host.Current, body)));
+
+        app.MapPost("/authoring/workplaces", (
+            HttpContext http, IConfiguration config, JsonObject body, WorldHost host, SimulationHost simulation,
+            WorldAuthoringService commands, AdminAuditStore audit) =>
+            LiveCreate(http, config, simulation, host, audit, "authoring.workplace",
+                () => commands.CreateWorkplace(host.Current, body)));
+    }
+
+    private static IResult LiveCreate<T>(
+        HttpContext http, IConfiguration config, SimulationHost simulation, WorldHost host, AdminAuditStore audit,
+        string action, Func<Result<T>> create)
+    {
+        if (AdminEndpoints.Authorize(http, config) is not { } access) return Results.StatusCode(StatusCodes.Status403Forbidden);
+        if (simulation.AdminPause is not null)
+            return Results.Json(new { error = "o mundo está em pausa de admin" }, statusCode: StatusCodes.Status409Conflict);
+
+        var result = create();
+        long tick = host.Current.CurrentDate.TotalHours;
+        audit.Append(BranchId.Root, tick, access.Actor, action, "world", result.IsSuccess ? "ok" : $"rejected: {result.Error}");
+        return ResultOf(result);
     }
 
     private static IResult ResultOf<T>(Result<T> result) => result.IsSuccess

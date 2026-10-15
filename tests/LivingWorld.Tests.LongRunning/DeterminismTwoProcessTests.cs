@@ -119,6 +119,16 @@ public class DeterminismTwoProcessTests
     }
 
     [Fact]
+    public void Same_seed_and_live_creation_give_the_same_world_across_two_separate_processes()
+    {
+        string a = RunCommand("live-creation-hash 5 8760");
+        string b = RunCommand("live-creation-hash 5 8760");
+
+        Assert.Equal(a, b);
+        Assert.EndsWith(";2;1", a); // a família (2 pessoas) e o local de trabalho chegaram: o teste mediu a criação
+    }
+
+    [Fact]
     public void Different_seeds_produce_different_canonical_hashes_across_processes()
     {
         var (canonicalA, _) = RunInSeparateProcess(seed: 42, ticks: 400);

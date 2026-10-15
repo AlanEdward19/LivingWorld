@@ -130,6 +130,42 @@ static func with_households(text: String, families: Array) -> String:
 	return out
 
 
+## Corpo de `POST /authoring/households` (ADR-0033): um item de `AuthoredHouseholds` do cenário, com os inteiros como inteiros.
+## `family` é o mesmo formato de `with_households`; o assentamento vazio vira "vila inicial" (a cidade mais antiga).
+static func household_body(family: Dictionary) -> Dictionary:
+	var members: Array = []
+	for member in family.members:
+		var item := {"Name": String(member.name), "Sex": String(member.sex), "AgeYears": int(member.age), "ProfessionId": int(member.profession)}
+		if member.get("personality") is Dictionary:
+			var traits := {}
+			for trait_name in TRAITS:
+				traits[trait_name] = int(member.personality.get(trait_name, 50))
+			item["Personality"] = traits
+		if member.get("appearance") is Dictionary:
+			var genes := {}
+			for gene in GENES:
+				genes[gene] = int(member.appearance.get(gene, 50))
+			item["Appearance"] = genes
+		if member.get("skills") is Dictionary and not member.skills.is_empty():
+			var levels := {}
+			for skill_id in member.skills:
+				levels[str(int(skill_id))] = int(member.skills[skill_id])
+			item["Skills"] = levels
+		for link in [["Spouse", "spouse"], ["Mother", "mother"], ["Father", "father"]]:
+			if int(member.get(link[1], -1)) >= 0:
+				item[link[0]] = int(member[link[1]])
+		members.append(item)
+	var body := {"Members": members}
+	if String(family.get("settlement", "")) != "":
+		body["Settlement"] = String(family.settlement)
+	return body
+
+
+## Corpo de `POST /authoring/workplaces`: um item de `Workplaces` do cenário (estoque e preços vazios).
+static func workplace_body(location_type: int, cell: Vector2i, vacancies: int, treasury: int) -> Dictionary:
+	return {"LocationTypeId": location_type, "X": cell.x, "Y": cell.y, "MaxVacancies": vacancies, "Treasury": treasury, "Stock": {}, "Prices": {}}
+
+
 ## Famílias já presentes no rascunho, no mesmo formato de `with_households`.
 static func read_households(text: String) -> Array:
 	var families: Array = []

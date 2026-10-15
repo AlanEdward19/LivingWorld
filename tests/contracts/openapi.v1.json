@@ -339,6 +339,9 @@
         "type": "object"
       },
       "JsonElement": {},
+      "JsonObject": {
+        "type": "object"
+      },
       "NpcDirectoryItem": {
         "properties": {
           "action": {
@@ -978,6 +981,28 @@
         ]
       }
     },
+    "/authoring/households": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonObject"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
     "/authoring/npcs/{id}/action": {
       "post": {
         "parameters": [
@@ -1167,6 +1192,28 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/BreakRelationshipsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/authoring/workplaces": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonObject"
               }
             }
           },
