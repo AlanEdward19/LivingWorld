@@ -1,4 +1,4 @@
-# Godot crenças da cidade [Estado: Implementado, aguardando Verifier independente (2026-10-14)]
+# Godot crenças da cidade [Estado: Verificado, PASS (Verifier independente, 2026-10-15)]
 
 Issue #59, fatia C. Só cliente + contrato congelado; reaproveita a janela de narrativa da fatia B.
 
