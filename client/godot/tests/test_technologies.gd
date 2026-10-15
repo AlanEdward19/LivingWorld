@@ -208,3 +208,50 @@ func test_a_probe_error_hides_the_button_and_a_stale_probe_is_ignored() -> void:
 	await tree.process_frame
 	eq(app.npc_panel.tech_button.visible, false, "a resposta velha da cultura 1 não acende o botão da cultura 2")
 	app.queue_free()
+
+
+func test_a_server_error_in_the_probe_hides_the_button_for_real() -> void:
+	var transport := _app_transport()
+	var app := App.new()
+	app.player_id = "p-1"
+	tree.root.add_child(app)
+	await app.start(transport, false)
+	await app.select_npc(7)
+	await tree.process_frame
+	eq(app.npc_panel.tech_button.visible, true, "com tecnologias: botão")
+
+	transport.on("GET /cultures/1/technologies", {"status": 500, "body": null})
+	await app.select_npc(7)
+	await tree.process_frame
+	eq(app.npc_panel.tech_button.visible, false, "5xx na checagem: sem botão")
+	app.queue_free()
+
+
+func test_overlapping_requests_draw_only_the_latest_culture() -> void:
+	var transport := SlowTransport.new()
+	transport.on("GET /cultures/1/technologies", {"status": 200, "body": TECHS})
+	transport.on("GET /cultures/2/technologies", {"status": 200, "body": [TECHS[1]]})
+	var window := _window(transport)
+	window.show_culture(1) # fica esperando (transporte lento só para a cultura 1)
+	await window.show_culture(2)
+
+	transport.release.emit()
+	await Engine.get_main_loop().process_frame
+
+	eq(window.culture_id, 2)
+	eq(window.rows.size(), 1, "a resposta tardia da cultura 1 não se soma à da 2")
+	eq(window.rows[0].title, "Tecnologia 3.4.6 (variação de 2.4.6)")
+	window.free()
+
+
+func test_the_app_formats_technology_dates_with_the_server_calendar() -> void:
+	var transport := _app_transport()
+	var app := App.new()
+	app.player_id = "p-1"
+	tree.root.add_child(app)
+	await app.start(transport, false)
+
+	await app.technology.show_culture(1)
+
+	check("Ano 0 · Mês 1 · Dia 3" in app.technology.rows[0].detail, "tick 50 em data do calendário: " + app.technology.rows[0].detail)
+	app.queue_free()
