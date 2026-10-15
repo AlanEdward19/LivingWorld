@@ -1,4 +1,4 @@
-# Godot economia da cidade e vendas da oficina [Estado: Implementado, aguardando Verifier independente (2026-10-14)]
+# Godot economia da cidade e vendas da oficina [Estado: Verificado, PASS (Verifier independente, 2026-10-15)]
 
 Issue #59, fatia F. Só cliente + contratos congelados; nenhuma rota nova.
 
