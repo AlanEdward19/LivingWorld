@@ -269,3 +269,40 @@ func test_returning_to_the_menu_retires_the_observation_source() -> void:
 	await boot._show_menu()
 	eq(stub.released, true, "voltar ao menu retira a fonte de observação")
 	boot.free()
+
+
+func test_closing_the_window_releases_observation_before_quitting() -> void:
+	var boot = load("res://Scenes/boot.gd").new()
+	var stub := _StubApp.new()
+	boot.quit_fn = func(): pass # a _ready não deve pôr o quit real
+	tree.root.add_child(boot)
+	boot.app = stub
+	var quit_calls: Array = []
+	boot.quit_fn = func(): quit_calls.append(stub.released)
+
+	boot._notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
+	boot._notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
+	await tree.process_frame
+
+	eq(quit_calls, [true], "sai uma vez, depois de retirar a fonte")
+	boot.free()
+
+
+class _HangingApp extends Node:
+	func release_observation() -> void:
+		await Engine.get_main_loop().create_timer(60.0).timeout
+
+
+func test_closing_the_window_does_not_hang_when_the_server_does_not_answer() -> void:
+	var boot = load("res://Scenes/boot.gd").new()
+	tree.root.add_child(boot)
+	boot.app = _HangingApp.new()
+	var quit_calls: Array = []
+	boot.quit_fn = func(): quit_calls.append(true)
+
+	boot.quit_gracefully()
+	boot._quit_ready.emit() # o prazo de QUIT_GRACE vence
+	await tree.process_frame
+
+	eq(quit_calls, [true], "sai mesmo sem resposta do servidor")
+	boot.free()
