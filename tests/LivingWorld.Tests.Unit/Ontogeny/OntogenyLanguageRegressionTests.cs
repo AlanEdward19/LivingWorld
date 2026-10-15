@@ -1,3 +1,4 @@
+using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.Ontogeny;
@@ -5,10 +6,13 @@ using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Body;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities.Construction;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Observation;
 using LivingWorld.Simulation.Ontogeny;
 using LivingWorld.Simulation.Population.Family;
 using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Tests.Unit.Ontogeny;
 
@@ -181,17 +185,31 @@ public class OntogenyLanguageRegressionTests
     public void A_consolidated_milestone_is_a_floor_and_a_recent_one_is_lost()
     {
         var rules = OntogenyDefaults.Human;
-        // Aos 3 anos o marco 'walk' (limite 1,5) está consolidado; o progresso de Language ainda está dentro de janela aberta.
-        var state = rules.StateAt(3.0);
-        var sick = rules.Regress(state, 3.0);
+        double walk = rules.Milestones.Single(m => m.Id == "walk").Threshold; // janela fecha em 1,5 anos
+        // Aos 3 anos GrossMotor está exatamente no limiar de 'walk' (consolidado): perder 15% o levaria abaixo, o piso segura.
+        var atFloor = rules.StateAt(3.0).With(DevelopmentAxis.GrossMotor, walk);
+        var sick = rules.Regress(atFloor, 3.0);
+        Assert.Equal(walk, sick.GrossMotor, 9);
 
-        double walk = rules.Milestones.Single(m => m.Id == "walk").Threshold;
-        Assert.True(sick.GrossMotor >= walk);
-        Assert.True(sick.GrossMotor < state.GrossMotor);
-        Assert.True(sick.Language < state.Language);
+        // Language aos 3 anos ainda tem janela aberta no marco seguinte: o que passou do último consolidado se perde.
+        var recent = rules.StateAt(3.0);
+        Assert.True(rules.Regress(recent, 3.0).Language < recent.Language);
 
-        var onlyFloor = rules.Regress(rules.StateAt(0.4), 0.4);
-        Assert.All(Enum.GetValues<DevelopmentAxis>(), a => Assert.True(onlyFloor.Get(a) <= rules.StateAt(0.4).Get(a)));
+        // Sem nenhum marco consolidado (bebê), não há piso e tudo cai.
+        var baby = rules.StateAt(0.3);
+        Assert.True(rules.Regress(baby, 0.3).GrossMotor < baby.GrossMotor);
+    }
+
+    [Fact]
+    public void Full_development_tolerates_floating_point_and_the_last_monthly_step_is_not_lost()
+    {
+        var almost = new DevelopmentState(0.9999999999999999, 0.9999999999999998, 1, 1, 0.9999999999999999, 1);
+        Assert.True(almost.IsComplete);
+        Assert.False(DevelopmentState.Newborn.IsComplete);
+
+        var scene = Build(4, CultureB);
+        scene.RunMonths(23 * 12);
+        Assert.Null(scene.Child.Development);
     }
 
     [Fact]
@@ -207,15 +225,25 @@ public class OntogenyLanguageRegressionTests
     // --- Critério 9 (adaptado): o pool agregado só tem adultos ---
 
     [Fact]
-    public void Materialized_people_are_adults_so_the_aggregate_pool_never_needs_a_development_state()
+    public void Everyone_materialized_from_the_aggregate_pool_is_an_adult_without_a_development_state()
     {
-        var (world, clock) = ScenarioRunner.Create(seed: 42, initialPopulation: 40);
-        clock.Run(world, 10L * 360 * 24);
-
-        foreach (var npc in world.Npcs.Where(n => n.MaterializedAtTick is not null))
+        for (int seed = 1; seed <= Seeds; seed++)
         {
-            Assert.True(npc.AgeYears(world.CurrentDate) >= 18);
-            Assert.Null(npc.Development);
+            var (world, _) = ScenarioRunner.Create((ulong)seed, initialPopulation: 0, ontogenyRules: OntogenyDefaults.Human);
+            var pool = new AggregatePopulationPool(10, 1000, 800);
+            var city = new City(
+                world.NextCityId(), ScenarioRunner.DefaultVillageLocation, foundedAtTick: 0, foundedFromCityId: null,
+                aggregatePool: pool, poolNpcIds: world.ReserveNpcIdBlock(pool.Count));
+            world.AddCity(city);
+            world.ObservationRegistry.SetScope("test", SpaceScope.City(city.Id));
+            var ctx = new TickContext(world, world.Rng, world.Scheduler);
+
+            for (int i = 0; i < 10; i++)
+            {
+                var npc = MaterializationSystem.MaterializeOne(world, ctx, city.Id).Value!;
+                Assert.True(npc.AgeYears(world.CurrentDate) >= 18, $"seed {seed}");
+                Assert.Null(npc.Development);
+            }
         }
     }
 
