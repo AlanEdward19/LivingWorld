@@ -104,3 +104,18 @@ func test_preview_image_paints_water_and_settlements() -> void:
 		"settlements": [{"x": 0, "y": 0}]})
 	eq(image.get_pixel(0, 0).to_html(false), MainMenu.SETTLEMENT_COLOR.to_html(false), "assentamento amarelo")
 	eq(image.get_pixel(1, 0).to_html(false), MainMenu.WATER_COLOR.to_html(false), "água azul")
+
+
+func test_creating_a_world_sends_the_chosen_period_id() -> void:
+	var transport := _transport()
+	var menu := _menu(transport)
+	menu.selected_period = "medieval"
+	menu.draft = DEFINITION
+	menu.world_name = "Vale"
+
+	await menu._on_create()
+
+	var bodies: Array = transport.bodies.get("POST /worlds/create", [])
+	eq(bodies.size(), 1, "uma criação")
+	eq(bodies[0].get("periodId"), "medieval", "o período escolhido vai junto, para o servidor guardar")
+	menu.queue_free()

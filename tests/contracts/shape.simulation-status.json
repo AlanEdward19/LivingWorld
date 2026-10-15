@@ -1,5 +1,9 @@
 {
   "isPaused": "boolean",
+  "pauseMaxTicks?": "number",
+  "pauseReason?": "string",
+  "pausedAtTick?": "number",
+  "pausedBy?": "string",
   "tick": "number",
   "ticksPerSecond": "number",
   "year": "number"

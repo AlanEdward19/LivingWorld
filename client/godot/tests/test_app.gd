@@ -182,3 +182,137 @@ func test_calendar_comes_from_world_calendar_route() -> void:
 	eq(app.day_cycle.days_per_month, 10)
 	eq(app.day_cycle.months_per_year, 4)
 	app.queue_free()
+
+
+func test_camera_scope_is_published_to_the_observation_registry() -> void:
+	var transport = _transport()
+	transport.on("GET /visual/subscribe?scope=City", {"status": 200, "body": _city()})
+	transport.on("POST /observation/scope", {"status": 200, "body": null})
+	var app = await _app(transport)
+	var sent: Array = transport.bodies["POST /observation/scope"]
+	eq(sent.back().scope, {"kind": "World"}, "mundo-múndi")
+
+	await app.enter_scope("City", "city-a")
+	eq(sent.back().scope, {"kind": "City", "cityId": "city-a"}, "cidade em foco")
+	check(String(sent.back().sourceId).begins_with("godot-"), "fonte estável da sessão")
+
+	await app.enter_building(4)
+	eq(sent.back().scope, {"kind": "Building", "cityId": "city-a", "buildingId": "4"}, "interior aberto")
+
+	await app.release_observation()
+	eq(sent.back().scope, null, "sair retira a fonte")
+	app.queue_free()
+
+
+func test_open_brain_panel_refreshes_on_clock_tick_and_dates_use_the_server_calendar() -> void:
+	var transport = _transport()
+	transport.on("GET /npcs/7", Fx.npc_inspect([Fx.trace_entry(10, 0)]))
+	var app = await _app(transport)
+	await app.open_brain(7)
+	var before: int = transport.count_calls("GET /npcs/7")
+
+	app._on_clock_status({"tick": 55, "ticksPerSecond": 1.0, "isPaused": false, "year": 0})
+	await app.get_tree().process_frame
+
+	eq(transport.count_calls("GET /npcs/7"), before + 1, "a hora nova do relógio atualiza o painel aberto")
+	app.day_cycle.set_calendar({"hoursPerDay": 10, "daysPerMonth": 5, "monthsPerYear": 2})
+	eq(app._date_text(123), "Ano 1 · Mês 1 · Dia 3 · 07:00", "data pelo calendário do servidor, não 24 h/30 dias")
+	app.queue_free()
+
+
+func _find_button(node: Node, text: String) -> Button:
+	for child in node.get_children():
+		if child is Button and child.text == text:
+			return child
+		var found := _find_button(child, text)
+		if found != null:
+			return found
+	return null
+
+
+func test_brain_button_and_b_key_open_and_close_the_panel_with_dated_timeline() -> void:
+	var transport = _transport()
+	transport.on("GET /npcs/7", Fx.npc_inspect([Fx.trace_entry(55, 0)]))
+	var app = await _app(transport)
+	app.day_cycle.set_calendar({"hoursPerDay": 10, "daysPerMonth": 5, "monthsPerYear": 2})
+	await app.select_npc(7)
+
+	_find_button(app.npc_panel, "Cérebro (B)").pressed.emit()
+	await app.get_tree().process_frame
+	eq(app.brain_panel.is_open, true, "o botão Cérebro abre o painel")
+	check("Ano 0 · Mês 2 · Dia 1 · 12:00" in app.brain_panel.timeline.get_item_text(0), "a linha do tempo usa a data do calendário: " + app.brain_panel.timeline.get_item_text(0))
+
+	var key := InputEventKey.new()
+	key.keycode = KEY_B
+	key.pressed = true
+	app._unhandled_input(key)
+	eq(app.brain_panel.is_open, false, "B fecha")
+	app._unhandled_input(key)
+	await app.get_tree().process_frame
+	eq(app.brain_panel.is_open, true, "B reabre para o NPC selecionado")
+	app.queue_free()
+
+
+class _StubApp extends Node:
+	var released := false
+
+	func release_observation() -> void:
+		released = true
+
+
+func test_returning_to_the_menu_retires_the_observation_source() -> void:
+	var boot = load("res://Scenes/boot.gd").new()
+	tree.root.add_child(boot)
+	var stub := _StubApp.new()
+	boot.app = stub
+	boot._transport = FakeTransport.new()
+	await boot._show_menu()
+	eq(stub.released, true, "voltar ao menu retira a fonte de observação")
+	boot.free()
+
+
+func test_closing_the_window_releases_observation_before_quitting() -> void:
+	var boot = load("res://Scenes/boot.gd").new()
+	var stub := _StubApp.new()
+	boot.quit_fn = func(): pass # a _ready não deve pôr o quit real
+	tree.root.add_child(boot)
+	boot.app = stub
+	var quit_calls: Array = []
+	boot.quit_fn = func(): quit_calls.append(stub.released)
+
+	boot._notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
+	boot._notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
+	await tree.process_frame
+
+	eq(quit_calls, [true], "sai uma vez, depois de retirar a fonte")
+	boot.free()
+
+
+class _HangingApp extends Node:
+	func release_observation() -> void:
+		await Engine.get_main_loop().create_timer(60.0).timeout
+
+
+func test_closing_the_window_does_not_hang_when_the_server_does_not_answer() -> void:
+	var boot = load("res://Scenes/boot.gd").new()
+	var quit_calls: Array = []
+	boot.quit_fn = func(): quit_calls.append(true)
+	boot.quit_grace = 0.05
+	tree.root.add_child(boot)
+	boot.app = _HangingApp.new()
+	check(boot.QUIT_GRACE <= 2.0, "o teto real de espera é de no máximo 2 s")
+
+	boot.quit_gracefully()
+	eq(quit_calls, [], "ainda esperando o servidor")
+	await tree.create_timer(0.3).timeout
+
+	eq(quit_calls, [true], "o prazo vencido sai sozinho, sem ninguém liberar a espera")
+	boot.free()
+
+
+func test_the_window_close_request_is_intercepted_so_release_can_finish() -> void:
+	var boot = load("res://Scenes/boot.gd").new()
+	boot.quit_fn = func(): pass
+	tree.root.add_child(boot)
+	eq(boot.get_tree().auto_accept_quit, false, "sem isto o Godot sairia antes de retirar a fonte")
+	boot.free()

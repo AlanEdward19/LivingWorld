@@ -21,6 +21,7 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
   sandbox de decisão. Branch `feat/phase-28-cognition` com gate verde; worktrees intermediárias
   `LivingWorld-28-t*` removidas; efêmeros spec-driven (tasks/validation de fases entregues,
   parallel-execution) limpos.
+- **Concluído (2026-10-15)**: #58 (painel Cérebro, escopo de observação, sandbox "E se…?", ADR-0026) e #59 (conversa, narrativas, crenças, jogador, console admin, economia, tecnologias, materializar), cada fatia com Verifier PASS em `.specs/features/godot-*/verification.md`. Branches empilhadas até `feat/godot-materialize`; falta abrir os PRs. Dívidas: pausa pública com ator/motivo e período do mundo continuado pedem rota nova (issue própria); retomar sessão de jogador após reiniciar o cliente.
 - **Próxima unidade**: merge de `feat/phase-28-cognition` em `main` (PR) ou iniciar próxima fase
   do roadmap conforme prioridade.
 - **Última coisa concluída (2026-08-23)**: `dynamic-city-growth` FixT17 — causa raiz real da saga

@@ -42,7 +42,12 @@
           "y": "number"
         },
         "locationIsDerived": "boolean",
-        "lodging": "null",
+        "lodging?": {
+          "nightlyRate": "number",
+          "occupied": "number",
+          "rentPerMonth": "number",
+          "units": "number"
+        },
         "orientation": "number",
         "value": "number"
       }

@@ -20,6 +20,15 @@ public static class ObservationScopeEndpoints
 
     public static void MapObservationScopeEndpoints(this WebApplication app, WorldHost worldHost)
     {
+        // Fonte que sumiu (cliente fechado, rede caída) não pode ficar observando para sempre: a purga não
+        // espera o próximo POST de alguém, roda sozinha duas vezes por janela de heartbeat.
+        var purgeTimeout = TimeSpan.FromSeconds(app.Configuration.GetValue("Observation:HeartbeatTimeoutSeconds", 30));
+        var purgePeriod = TimeSpan.FromMilliseconds(Math.Max(250, purgeTimeout.TotalMilliseconds / 2));
+        var purgeTimer = new Timer(
+            _ => Trackers.GetOrAdd(worldHost, _ => new HeartbeatTracker()).PurgeStale(worldHost.Current.ObservationRegistry, purgeTimeout),
+            null, purgePeriod, purgePeriod);
+        app.Lifetime.ApplicationStopping.Register(purgeTimer.Dispose);
+
         app.MapPost("/observation/scope", (ObservationScopeRequest request, IConfiguration configuration) =>
         {
             if (string.IsNullOrWhiteSpace(request.SourceId))

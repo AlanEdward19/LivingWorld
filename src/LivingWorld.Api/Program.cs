@@ -8,6 +8,7 @@ using LivingWorld.Api.Observation;
 using LivingWorld.Api.Periods;
 using LivingWorld.Api.Players;
 using LivingWorld.Api.Realtime;
+using LivingWorld.Api.Sandbox;
 using LivingWorld.Api.Simulation;
 using LivingWorld.Api.Trade;
 using LivingWorld.Api.Treasury;
@@ -150,6 +151,19 @@ app.MapOpenApi();
 app.MapGet("/", () => "Hello World!");
 
 // Calendário do cenário: o cliente não assume mais dia de 24 h nem mês de 30 dias (godot-server-deltas, contrato congelado).
+// Identidade do mundo em andamento: o cliente descobre o período (nomes de catálogo) e os rótulos dos eixos de tecnologia sem
+// depender de ter criado o mundo nesta sessão (ADR-0027). `periodId` vazio = mundo criado sem informar o período.
+app.MapGet("/world/info", () =>
+{
+    var world = worldHost.Current;
+    return Results.Ok(new
+    {
+        name = world.Name,
+        periodId = world.PeriodId,
+        technologyAxes = world.EmergenceRules.AxisNames,
+    });
+});
+
 app.MapGet("/world/calendar", () =>
 {
     var calendar = worldHost.Current.CurrentDate.Calendar;
@@ -212,6 +226,7 @@ app.MapPlayerEndpoints(worldHost, playerService);
 app.MapVisualInputEndpoints();
 app.MapAuthoringEndpoints();
 app.MapWatchlistEndpoints(worldHost);
+app.MapDecisionSandboxEndpoints(worldHost);
 app.MapObservationScopeEndpoints(worldHost);
 app.MapAdminEndpoints(worldHost, simulationHost);
 simulationHost.OnPauseExpired = pause =>

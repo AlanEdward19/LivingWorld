@@ -8,7 +8,9 @@ namespace LivingWorld.Api.Simulation;
 
 public sealed record SetSpeedRequest(double TicksPerSecond);
 
-public sealed record SimulationStatusResponse(bool IsPaused, double TicksPerSecond, long Tick, long Year);
+public sealed record SimulationStatusResponse(
+    bool IsPaused, double TicksPerSecond, long Tick, long Year,
+    string? PausedBy = null, string? PauseReason = null, long? PausedAtTick = null, long? PauseMaxTicks = null);
 
 /// <summary>Tradução fina de <see cref="SimulationHost"/> sobre HTTP. Pausa, retomada, velocidade, passo e avanço de ano
 /// mexem no relógio de todo o branch, então são exclusivos do admin (ADR-0015): exigem <c>X-Admin-Token</c>, vão para a
@@ -79,6 +81,10 @@ public static class SimulationControlEndpoints
                 host.IsPaused,
                 host.TicksPerSecond,
                 worldHost.Current.CurrentDate.TotalHours,
-                worldHost.Current.CurrentDate.Year)));
+                worldHost.Current.CurrentDate.Year,
+                host.IsPaused ? host.AdminPause?.Actor : null,
+                host.IsPaused ? host.AdminPause?.Reason : null,
+                host.IsPaused ? host.AdminPause?.PausedAtTick : null,
+                host.IsPaused ? host.AdminPause?.MaxTicks : null)));
     }
 }

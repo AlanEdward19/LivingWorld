@@ -88,6 +88,22 @@ class NpcDetailPanel extends PanelContainer:
 		"altruism": "altruísta", "impulsivity": "impulsivo", "riskAversion": "cauteloso"}
 	signal highlight(id: int)
 	signal follow_requested(id: int)
+	signal brain_requested(id: int)
+	signal conversation_requested(id: int)
+	signal biography_requested(id: int)
+	signal incarnate_requested(id: int)
+	signal trades_requested(workplace_id: int)
+	signal technologies_requested(culture_id: int)
+	signal warning(text: String)
+	var lod := 0
+	var _sheet_only: Array = [] ## botões e blocos que só fazem sentido para NPC detalhado (somem no morador anônimo)
+	var pooled_note: Label
+	var materialize_button: Button
+	signal culture_shown(culture_id: int)
+	var culture_id := -1
+	var tech_button: Button
+	var employer_id := -1
+	var trades_button: Button
 	signal model_known(id: int, profession: int, age_years: float)
 	var api
 	var labels
@@ -111,6 +127,18 @@ class NpcDetailPanel extends PanelContainer:
 		_subtitle = Label.new()
 		_subtitle.modulate = Color(1, 1, 1, 0.75)
 		box.add_child(_subtitle)
+		pooled_note = Label.new()
+		pooled_note.text = "Este morador ainda é anônimo: faz parte da multidão da cidade."
+		pooled_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		pooled_note.custom_minimum_size.x = 270
+		pooled_note.add_theme_color_override("font_color", Color("ffcf4a"))
+		pooled_note.visible = false
+		box.add_child(pooled_note)
+		materialize_button = Button.new()
+		materialize_button.text = "Ver em detalhe"
+		materialize_button.visible = false
+		materialize_button.pressed.connect(func(): materialize())
+		box.add_child(materialize_button)
 		_grid = VBoxContainer.new()
 		box.add_child(_grid)
 		for spec in ["Saúde", "Fome", "Sede", "Sono", "Social"]:
@@ -136,19 +164,82 @@ class NpcDetailPanel extends PanelContainer:
 		follow.text = "Seguir (F)"
 		follow.pressed.connect(func(): follow_requested.emit(npc_id))
 		box.add_child(follow)
+		_sheet_only.append(follow)
+		var brain := Button.new()
+		brain.text = "Cérebro (B)"
+		brain.pressed.connect(func(): brain_requested.emit(npc_id))
+		box.add_child(brain)
+		_sheet_only.append(brain)
+		var talk := Button.new()
+		talk.text = "Conversar (T)"
+		talk.pressed.connect(func(): conversation_requested.emit(npc_id))
+		box.add_child(talk)
+		_sheet_only.append(talk)
+		var bio := Button.new()
+		bio.text = "Biografia"
+		bio.pressed.connect(func(): biography_requested.emit(npc_id))
+		box.add_child(bio)
+		_sheet_only.append(bio)
+		var incarnate := Button.new()
+		incarnate.text = "Encarnar (I)"
+		incarnate.pressed.connect(func(): incarnate_requested.emit(npc_id))
+		box.add_child(incarnate)
+		_sheet_only.append(incarnate)
+		trades_button = Button.new()
+		trades_button.text = "Vendas do local de trabalho"
+		trades_button.visible = false
+		trades_button.pressed.connect(func(): trades_requested.emit(employer_id))
+		box.add_child(trades_button)
+		tech_button = Button.new()
+		tech_button.text = "Tecnologias da cultura"
+		tech_button.visible = false # só aparece se a cultura já descobriu algo (o app confere)
+		tech_button.pressed.connect(func(): technologies_requested.emit(culture_id))
+		box.add_child(tech_button)
 		visible = false
 
 	func show_npc(id: int) -> void:
 		var response: Dictionary = await api.npc_detail(id)
 		if not response.ok or not (response.body is Dictionary):
 			return
+		_present(id, response.body)
+
+
+	## Comando explícito (nunca o GET): materializa o morador ainda anônimo do pool e mostra a ficha completa.
+	func materialize() -> void:
+		if npc_id < 0 or lod != 2:
+			return
+		var id := npc_id
+		var response: Dictionary = await api.materialize_npc(id)
+		if id != npc_id:
+			return # outro NPC foi selecionado durante a espera
+		if response.ok and response.body is Dictionary:
+			_present(id, response.body)
+		elif response.status == 404:
+			warning.emit("Este morador não pode ser detalhado: não existe mais.")
+		else:
+			warning.emit("Não foi possível detalhar este morador (erro %d)." % response.status)
+
+
+	func _present(id: int, npc: Dictionary) -> void:
 		npc_id = id
-		var npc: Dictionary = response.body
+		lod = int(npc.get("lod", 0))
+		var anonymous := lod == 2
+		pooled_note.visible = anonymous
+		materialize_button.visible = anonymous
+		_grid.visible = not anonymous
+		_details.visible = not anonymous
+		for control in _sheet_only:
+			control.visible = not anonymous
 		var action_text := ""
 		if labels != null and npc.get("currentAction") != null:
 			action_text = labels.label_for(int(npc.currentAction))
-		_title.text = npc.name
-		_subtitle.text = "%d anos%s" % [int(npc.ageYears), (" · " + action_text) if action_text != "" else ""]
+		culture_id = int(npc.culture.id) if npc.get("culture") is Dictionary else -1
+		tech_button.visible = false
+		employer_id = int(npc.employer.value) if npc.get("employer") is Dictionary else -1
+		trades_button.visible = employer_id >= 0 and not anonymous
+		var named := String(npc.get("name", "")) != ""
+		_title.text = npc.name if named and not anonymous else "Morador anônimo #%d" % id
+		_subtitle.text = "faz parte da multidão da cidade" if anonymous else "%d anos%s" % [int(npc.ageYears), (" · " + action_text) if action_text != "" else ""]
 		var values := {"Saúde": npc.health, "Fome": npc.hunger, "Sede": npc.thirst, "Sono": npc.sleep, "Social": npc.social}
 		for key in values:
 			bars[key].value = float(values[key])
@@ -159,6 +250,8 @@ class NpcDetailPanel extends PanelContainer:
 		_details.text = details_text
 		visible = true
 		highlight.emit(id)
+		if culture_id >= 0:
+			culture_shown.emit(culture_id)
 		var profession = npc.get("profession")
 		model_known.emit(id, int(profession.id) if profession is Dictionary else -1, float(npc.ageYears))
 
@@ -196,7 +289,15 @@ class NpcDetailPanel extends PanelContainer:
 
 
 class CityPanel extends PanelContainer:
+	signal chronicle_requested(city_id: String)
+	signal beliefs_requested(city_id: String)
+	signal treasury_requested(city_id: String)
+	signal anonymous_requested(npc_id: int)
+	var anonymous_ids: Array = [] ## moradores do pool ainda anônimos (pendingResidentIds do snapshot da cidade)
+	var anonymous_button: Button
 	var text := ""
+	var city_id := ""
+	var city_name := ""
 	var _title: Label
 	var _body: Label
 
@@ -211,12 +312,33 @@ class CityPanel extends PanelContainer:
 		_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_body.custom_minimum_size.x = 270
 		box.add_child(_body)
+		var chronicle := Button.new()
+		chronicle.text = "Crônica"
+		chronicle.pressed.connect(func(): chronicle_requested.emit(city_id))
+		box.add_child(chronicle)
+		var beliefs := Button.new()
+		beliefs.text = "O que a cidade acredita"
+		beliefs.pressed.connect(func(): beliefs_requested.emit(city_id))
+		box.add_child(beliefs)
+		var treasury := Button.new()
+		treasury.text = "Tesouro"
+		treasury.pressed.connect(func(): treasury_requested.emit(city_id))
+		box.add_child(treasury)
+		anonymous_button = Button.new()
+		anonymous_button.visible = false
+		anonymous_button.pressed.connect(func(): if not anonymous_ids.is_empty(): anonymous_requested.emit(int(anonymous_ids[0].value)))
+		box.add_child(anonymous_button)
 		visible = false
 
 	## `info` = WorldStore.city: {name, indicators:{population, wealth, health, inequality, economy, housing}}
 	func show_city(info: Dictionary) -> void:
 		var indicators: Dictionary = info.indicators
 		var name: String = info.name if info.name != "" else "Cidade"
+		city_id = String(info.get("id", ""))
+		city_name = name
+		anonymous_ids = info.get("pendingResidentIds", [])
+		anonymous_button.visible = not anonymous_ids.is_empty()
+		anonymous_button.text = "Conhecer um dos %d moradores anônimos" % anonymous_ids.size()
 		text = "%s\nPopulação %d\nRiqueza %d · Saúde %d\nDesigualdade %s · Economia %d · Habitação %d" % [
 			name, int(indicators.population), int(indicators.wealth), int(indicators.health),
 			str(snappedf(float(indicators.inequality), 0.01)), int(indicators.economy), int(indicators.housing)]

@@ -1,7 +1,13 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cognition;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Hosting;
 using LivingWorld.Tests.Shared;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace LivingWorld.Tests.Integration.Visual;
 
@@ -32,13 +38,22 @@ public class ApiContractTests
     [InlineData("world-subscribe", "/visual/subscribe?scope=World&mode=Spectator")]
     [InlineData("simulation-status", "/simulation/status")]
     [InlineData("world-calendar", "/world/calendar")]
+    [InlineData("world-info", "/world/info")]
     public async Task Response_shape_matches_the_committed_contract(string name, string url)
     {
         var response = await _factory.CreateClient().GetAsync(url);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var shape = ShapeOf(JsonNode.Parse(await response.Content.ReadAsStringAsync()));
-        AssertMatchesContract($"shape.{name}.json", shape);
+        if (name == "simulation-status")
+        {
+            // Quem pausou, por quê, desde quando e até quando só existem com o mundo pausado por admin (ADR-0027).
+            Optional(shape!, "pausedBy", "string");
+            Optional(shape!, "pauseReason", "string");
+            Optional(shape!, "pausedAtTick", "number");
+            Optional(shape!, "pauseMaxTicks", "number");
+        }
+        AssertMatchesContract($"shape.{name}.json", shape!);
     }
 
     /// <summary>`GET /npcs/{id}` é a ficha que o cliente abre ao clicar num NPC: forma congelada, 404 para id inexistente.</summary>
@@ -49,11 +64,96 @@ public class ApiContractTests
         var directory = JsonNode.Parse(await client.GetStringAsync("/npcs?take=1"))!;
         long id = directory["items"]![0]!["id"]!["value"]!.GetValue<long>();
 
+        // O rastro de cognição só existe para NPC observado; grava um para a forma do item ficar congelada.
+        // `previousIntent` e `detail` são opcionais no servidor: nulos aqui, o contrato os trata como "qualquer valor".
+        _factory.Services.GetRequiredService<WorldHost>().Current.CognitionLog.Record(new NpcId(id), tick: 1, new DecisionTrace(
+            WakeReason.UrgentNeed, null, [new Pressure("AcquireFood", 60, ["Hunger"])], [new Opportunity("FoodAtMarket", 40)],
+            ActionType.Eat, 120, ["Hunger"], ["Distance"], ["Buy:outscored"], [ActionType.Work]));
+
         var response = await client.GetAsync($"/npcs/{id}");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        AssertMatchesContract("shape.npc-inspect.json", ShapeOf(JsonNode.Parse(await response.Content.ReadAsStringAsync())));
+        AssertMatchesContract("shape.npc-inspect.json", InspectShape(JsonNode.Parse(await response.Content.ReadAsStringAsync())));
+
+        // `POST /npcs/{id}/materialize` (comando explícito do cliente, #59 fatia H) devolve a mesma ficha.
+        var materialized = await client.PostAsync($"/npcs/{id}/materialize", null);
+        Assert.Equal(HttpStatusCode.OK, materialized.StatusCode);
+        AssertMatchesContract("shape.npc-inspect.json", InspectShape(JsonNode.Parse(await materialized.Content.ReadAsStringAsync())));
 
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/npcs/987654321")).StatusCode);
+    }
+
+    /// <summary>Campo opcional tipado: a chave vira <c>"campo?"</c> com a forma que ele tem quando vem preenchido. Pode faltar ou
+    /// vir nulo; se vier com valor tem de cumprir a forma (antes era <c>"null"</c>, que aceitava qualquer coisa).</summary>
+    internal static void Optional(JsonNode shape, string key, JsonNode typed)
+    {
+        var obj = shape.AsObject();
+        // Se a resposta gravada trouxe o campo preenchido, a forma observada tem de ser exatamente a declarada: o opcional
+        // tipado não pode esconder um tipo errado do servidor.
+        if (obj.TryGetPropertyValue(key, out var observed) && observed is not null
+            && !(observed is JsonValue observedValue && observedValue.GetValueKind() == System.Text.Json.JsonValueKind.String && observedValue.GetValue<string>() == "null"))
+            Assert.Equal(Normalize(typed).ToJsonString(), Normalize(observed).ToJsonString());
+        obj.Remove(key);
+        obj[key + "?"] = typed;
+        var sorted = Sorted(obj, v => v?.DeepClone());
+        obj.Clear();
+        foreach (var (k, v) in sorted.ToList()) { sorted.Remove(k); obj[k] = v; }
+    }
+
+    internal static JsonNode Id() => new JsonObject { ["value"] = "number" };
+
+    /// <summary>Forma da ficha de NPC. Opcionais no servidor (HouseholdId?, NpcId? do cônjuge, CityId? do escopo, empregador, ação
+    /// corrente...): quem não os tem não pode ser reprovado pelo contrato, senão a ficha de um NPC solteiro nunca abre.</summary>
+    internal static JsonNode InspectShape(JsonNode? body)
+    {
+        var shape = ShapeOf(body)!;
+        foreach (var key in new[] { "household", "spouse", "motherId", "fatherId", "employer" })
+            Optional(shape, key, Id());
+        Optional(shape, "currentAction", "number");
+        Optional(shape, "actionTarget", new JsonObject { ["id"] = "string", ["kind"] = "string" });
+        Optional(shape, "rest", new JsonObject { ["blocked"] = "boolean", ["kind"] = "number", ["location"] = new JsonObject { ["x"] = "number", ["y"] = "number" }, ["quality"] = "number", ["remainingHours"] = "number" });
+        Optional(shape, "food", new JsonObject { ["blocked"] = "boolean", ["preparation"] = "number", ["remainingHours"] = "number", ["resourceId"] = "number" });
+        var scope = shape["currentScope"]!;
+        Optional(scope, "cityId", new JsonObject { ["value"] = "string" }); // CityId serializa o Guid como texto
+        return shape;
+    }
+
+    /// <summary>Conversa com NPC (#59 fatia A): forma de `start` e `send` que a janela do cliente interpreta.</summary>
+    [Fact]
+    public async Task Conversation_start_and_send_shapes_match_the_committed_contract()
+    {
+        var client = _factory.CreateClient();
+        var directory = JsonNode.Parse(await client.GetStringAsync("/npcs?take=1"))!;
+        long id = directory["items"]![0]!["id"]!["value"]!.GetValue<long>();
+
+        var start = await client.PostAsJsonAsync("/conversations/start", new { npcId = id });
+        Assert.Equal(HttpStatusCode.OK, start.StatusCode);
+        var started = ShapeOf(JsonNode.Parse(await start.Content.ReadAsStringAsync()))!;
+        long sessionId = JsonNode.Parse(await start.Content.ReadAsStringAsync())!["sessionId"]!.GetValue<long>();
+        Optional(started, "sessionId", "number"); // nulo quando o NPC recusa
+        AssertMatchesContract("shape.conversation-start.json", started);
+
+        var send = await client.PostAsJsonAsync("/conversations/send", new { sessionId, message = "olá" });
+        Assert.Equal(HttpStatusCode.OK, send.StatusCode);
+        AssertMatchesContract("shape.conversation-send.json", ShapeOf(JsonNode.Parse(await send.Content.ReadAsStringAsync())));
+
+        await client.PostAsJsonAsync("/conversations/end", new { sessionId });
+    }
+
+    /// <summary>"E se…?" do painel Cérebro (#58 fatia 2, ADR-0026): resposta com a mesma forma do rastro.</summary>
+    [Fact]
+    public async Task Decision_sandbox_shape_matches_the_committed_contract()
+    {
+        var client = _factory.CreateClient();
+        var directory = JsonNode.Parse(await client.GetStringAsync("/npcs?take=1"))!;
+        long id = directory["items"]![0]!["id"]!["value"]!.GetValue<long>();
+
+        var response = await client.PostAsJsonAsync($"/npcs/{id}/decision-sandbox", new { needs = new { hunger = 2 } });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var shape = ShapeOf(JsonNode.Parse(await response.Content.ReadAsStringAsync()))!;
+        // Opcionais/variáveis: nulos ou listas que podem vir vazias valem "qualquer valor/lista".
+        Optional(shape["trace"]!, "previousIntent", "number");
+        shape["trace"]!["knownOpportunities"] = "[]";
+        AssertMatchesContract("shape.decision-sandbox.json", shape);
     }
 
     /// <summary>Escopos Cidade e Interior do primeiro prédio do mundo canônico: a forma inclui `floors`,
@@ -147,8 +247,37 @@ public class ApiContractTests
         return result;
     }
 
-    private static void AssertMatchesContract(string file, JsonNode actual)
+    /// <summary>Campos que a gravação viu nulos mas que têm forma conhecida quando preenchidos: viram opcionais tipados em qualquer
+    /// profundidade (ex.: `action` do diretório e dos deltas de interior, `lodging` dos prédios).</summary>
+    private static readonly Dictionary<string, (string Key, Func<JsonNode> Typed)[]> TypedOptionals = new()
     {
+        ["shape.npc-directory.json"] = [("action", () => "number")],
+        ["shape.interior-delta.json"] = [("action", () => "number")],
+        ["shape.visual-delta.json"] = [("currentAction", () => "number")],
+        ["shape.city-subscribe.json"] = [("lodging", () => new JsonObject { ["nightlyRate"] = "number", ["occupied"] = "number", ["rentPerMonth"] = "number", ["units"] = "number" })],
+    };
+
+    private static void ApplyTypedOptionals(string file, JsonNode node)
+    {
+        if (!TypedOptionals.TryGetValue(file, out var rules)) return;
+        void Walk(JsonNode? n)
+        {
+            if (n is JsonObject obj)
+            {
+                foreach (var (key, typed) in rules)
+                    if (obj.TryGetPropertyValue(key, out var current) && current is JsonValue v && v.GetValueKind() == System.Text.Json.JsonValueKind.String && v.GetValue<string>() == "null")
+                        Optional(obj, key, typed());
+                foreach (var child in obj.Select(p => p.Value).ToList()) Walk(child);
+            }
+            else if (n is JsonArray arr)
+                foreach (var child in arr) Walk(child);
+        }
+        Walk(node);
+    }
+
+    internal static void AssertMatchesContract(string file, JsonNode actual)
+    {
+        ApplyTypedOptionals(file, actual);
         string path = Path.Combine(FindRepoRoot(), "tests", "contracts", file);
         string text = actual.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n";
         if (Record)

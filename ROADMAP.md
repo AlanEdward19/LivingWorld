@@ -41,9 +41,9 @@ O número é **identidade**, não ordem. Só a trilha núcleo é sequencial.
 | 7 | [Relações e famílias](docs/roadmap/phase-07-family.md) | Confiança, atração, casamento, reprodução, hereditariedade | fechada |
 | 8 | [Cidades](docs/roadmap/phase-08-cities.md) | Crescimento, edifícios, migração, fundação de assentamentos, inspeção por CLI/API | fechada |
 | 9 | [Escala e armazenamento](docs/roadmap/phase-09-scale.md) | Custo por NPC-tick, decisão por evento, decaimento preguiçoso, snapshot delta/binário, arquivo frio de mortos, sensor de escala | fechada |
-| 10 | [História degradável](docs/roadmap/phase-10-history.md) | Fato, relato, distorção por transmissão, cânone limitado, verdade vs crença | fechada |
-| 11 | [Interação com LLM](docs/roadmap/phase-11-llm.md) | Contexto, diálogo, validação, memória, relação | fechada |
-| 12 | [Narrativa](docs/roadmap/phase-12-narrative.md) | Resumos, jornais, rumores, biografias, crônicas | fechada |
+| 10 | [História degradável](docs/roadmap/phase-10-history.md) | Fato, relato, distorção por transmissão, cânone limitado, verdade vs crença | fechada (tela de crenças no cliente Godot, #59) |
+| 11 | [Interação com LLM](docs/roadmap/phase-11-llm.md) | Contexto, diálogo, validação, memória, relação | fechada (conversa no cliente Godot, #59) |
+| 12 | [Narrativa](docs/roadmap/phase-12-narrative.md) | Resumos, jornais, rumores, biografias, crônicas | fechada (biografia, crônica e relatos no cliente Godot, #59) |
 | 13 | [Múltiplos períodos](docs/roadmap/phase-13-periods.md) | Módulos de conteúdo: pré-histórico, moderno, futurista, criaturas | fechada |
 | 14 | [Unreal](docs/roadmap/phase-14-unreal.md) | Cliente 3D, personagens, voz, animação | adiada (não iniciada) |
 | 15 | [Mapa visual](docs/roadmap/phase-15-map-visual.md) | Cliente React+TS VTT 2D realtime: camadas + espectador + FOW | parcial (servidor/FOW/tokens prontos; cliente migrou ao Godot, ADR-0022) |
@@ -55,11 +55,11 @@ O número é **identidade**, não ordem. Só a trilha núcleo é sequencial.
 | 21 | [Ontogenia](docs/roadmap/phase-21-ontogeny.md) | Nascer sem saber nada, marcos, exposição, janelas críticas | spec |
 | 22 | [Imperfeição](docs/roadmap/phase-22-imperfection.md) | Defeitos, doenças, moral emergente, orientação e ocultação | spec |
 | 23 | [Intriga](docs/roadmap/phase-23-intrigue.md) | Segredo, persona/identidade, chantagem, traição, divulgação, rumor, investigação, conspiração | spec |
-| 24 | [Emergência aberta](docs/roadmap/phase-24-emergence.md) | Raças, tecnologias, ideologias, potências e contramedidas novas por composição | spec |
-| 25 | [Jogadores](docs/roadmap/phase-25-players.md) | Encarnação, offline vira desaparecimento, espectador, multiplayer | spec |
-| 26 | [Console e modo god](docs/roadmap/phase-26-console.md) | Pausa, velocidade, busca, eventos marcantes, reescrita + rebuild | spec |
+| 24 | [Emergência aberta](docs/roadmap/phase-24-emergence.md) | Raças, tecnologias, ideologias, potências e contramedidas novas por composição | parcial (primeira fatia: tecnologias por vetor; tela no cliente Godot, #59) |
+| 25 | [Jogadores](docs/roadmap/phase-25-players.md) | Encarnação, offline vira desaparecimento, espectador, multiplayer | parcial (encarnação e saída entregues, HUD no cliente Godot #59; faltam espectador e multiplayer) |
+| 26 | [Console e modo god](docs/roadmap/phase-26-console.md) | Pausa, velocidade, busca, eventos marcantes, reescrita + rebuild | parcial (pausa com teto, busca, velocidade e auditoria entregues, console no cliente Godot #59; faltam eventos marcantes e reescrita + rebuild) |
 | 27 | [Motor cinematográfico](docs/roadmap/phase-27-cinematics.md) | Assistir a uma vida: texto → 2D → caminho para 3D | spec |
-| 28 | [Cognição e LOD observacional](docs/roadmap/phase-28-cognition.md) | Motor de decisão inspecionável (estímulo→decisão) com painel "ver o cérebro", compressão de estado frio, LOD por três escopos de observação (mundo/cidade/interior) | parcial (API e LOD prontos; falta o painel visual COG-11 no cliente Godot) |
+| 28 | [Cognição e LOD observacional](docs/roadmap/phase-28-cognition.md) | Motor de decisão inspecionável (estímulo→decisão) com painel "ver o cérebro", compressão de estado frio, LOD por três escopos de observação (mundo/cidade/interior) | fechada (painel "ver o cérebro" no cliente Godot, #58) |
 
 ## Regras do roadmap
 - Uma fase só fecha com `bash scripts/verify.sh` em 0 **e** os critérios da fase provados

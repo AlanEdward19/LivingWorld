@@ -221,6 +221,12 @@
           "name": {
             "type": "string"
           },
+          "periodId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "scenarioJson": {
             "type": "string"
           }
@@ -229,6 +235,45 @@
           "scenarioJson",
           "name"
         ],
+        "type": "object"
+      },
+      "DecisionSandboxRequestDto": {
+        "properties": {
+          "continuityAction": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActionType"
+              }
+            ]
+          },
+          "needs": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SandboxNeedsDto"
+              }
+            ]
+          },
+          "personality": {
+            "additionalProperties": {
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            },
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        },
         "type": "object"
       },
       "ForceActionRequest": {
@@ -573,6 +618,47 @@
       },
       "ResolutionResult": {
         "type": "integer"
+      },
+      "SandboxNeedsDto": {
+        "properties": {
+          "hunger": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "sleep": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "social": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "thirst": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "type": "object"
       },
       "SetSpeedRequest": {
         "properties": {
@@ -1515,6 +1601,46 @@
         ]
       }
     },
+    "/npcs/{id}/decision-sandbox": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DecisionSandboxRequestDto"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
     "/npcs/{id}/materialize": {
       "post": {
         "parameters": [
@@ -2185,6 +2311,18 @@
       }
     },
     "/world/calendar": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/world/info": {
       "get": {
         "responses": {
           "200": {

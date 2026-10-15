@@ -84,7 +84,7 @@
     "npcUpserts": [
       {
         "city": "null",
-        "currentAction": "null",
+        "currentAction?": "number",
         "extraordinary": "null",
         "id": {
           "value": "number"

@@ -6,7 +6,7 @@ using LivingWorld.Simulation.Scenarios;
 
 namespace LivingWorld.Api.World;
 
-public sealed record CreateWorldRequest(string ScenarioJson, string Name);
+public sealed record CreateWorldRequest(string ScenarioJson, string Name, string? PeriodId = null);
 
 public sealed record CreateWorldResponse(int NpcCount, Guid WorldId, string Name, long Tick, string InitialScope);
 
@@ -29,6 +29,7 @@ public static class WorldCreateEndpoints
 
             var (world, clock) = result.Value!;
             world.Rename(request.Name);
+            world.AssignPeriod(request.PeriodId?.Trim() ?? "");
             host.Replace(world, clock);
             runner.Snapshot(world, sink);
 

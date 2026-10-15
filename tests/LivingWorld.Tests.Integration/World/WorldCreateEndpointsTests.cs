@@ -17,7 +17,7 @@ public class WorldCreateEndpointsTests : IClassFixture<LivingWorldApiFactory>
 
     public WorldCreateEndpointsTests(LivingWorldApiFactory factory) => _factory = factory;
 
-    private static JsonObject FullValidScenario(ulong seed)
+    internal static JsonObject FullValidScenario(ulong seed)
     {
         string defaultJson = File.ReadAllText(Path.Combine(FindRepoRoot(), "scenarios", "default.json"));
         var root = JsonNode.Parse(defaultJson)!.AsObject();
