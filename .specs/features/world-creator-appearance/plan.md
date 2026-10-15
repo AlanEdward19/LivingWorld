@@ -1,6 +1,6 @@
 # world-creator-appearance — #46 fatia 2 (aparência e habilidades da pessoa)
 
-Status: implementado, aguardando Verifier independente. ADR-0032. Branch `feat/world-creator`.
+Status: implementado; Verifier rodada 1 deu FAIL parcial (interior sem teste), corrigido; aguardando Verifier rodada 2. ADR-0032. Branch `feat/world-creator`.
 
 ## Problema
 Aparência era só do cliente (sorteio por `npc_id`); filhos não herdavam; o autor não escolhia aparência nem habilidades iniciais.
@@ -22,7 +22,8 @@ Bloco `Appearance` no período (opt-in) → fundadores sorteiam 4 genes `[0,100]
 
 ## Desempenho (registrado)
 - Cliente `stress:500` (3 rodadas): sorteio local 76,6/74,0/77,4; com genes 75,0/75,6/75,2 FPS (`client/godot/README.md`).
-- Motor: sensor de escala (`ScaleScenarioSensorTests`) passa 3/3 antes e depois; sem o bloco nenhum stream novo é aberto.
+- Motor, sem o bloco (1000 NPCs, 720 ticks, rodada estável, antes `0d0a056` → depois): 0,497 → 0,497 µs/NPC-tick (100%) e 172 295 → 172 350 B/tick (100,03%), dentro de 103%/102%; `ScaleScenarioSensorTests` passa. Hash idêntico em 2 processos.
+- Interior: `InteriorAppearanceTests` cobre snapshot e delta de interior (com e sem o bloco).
 
 ## Portas de mão única
 Rotas ganham `appearance` (omitido sem o bloco); formato do cenário ganha `Appearance`/`Skills`; `AttractionFactor.Appearance` no fim do enum.
