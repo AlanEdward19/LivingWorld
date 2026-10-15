@@ -1,4 +1,4 @@
-# Godot hardening das telas do backend [Estado: Implementado (rodada 2 do hardening), aguardando Verifier independente (2026-10-15)]
+# Godot hardening das telas do backend [Estado: Verificado, PASS (Verifier independente, rodadas 1 a 2c, 2026-10-15)]
 
 Fecha os buracos listados depois das #58/#59 (PRs #78 a #88). Sem rota nova.
 
@@ -61,7 +61,7 @@ fixture (morador do pool, interior, timeout de conversa, dados reais); FPS medid
 
 ## Testes removidos de propósito
 
-- `test_economy::test_boot_hands_the_created_period_to_the_app` e `test_main_menu::test_continuing_the_current_world_forgets_the_period...`: o período deixou de passar pelo Boot (agora vem de `GET /world/info`), então o `selected_period` do menu não chega mais ao app; o teste novo `test_creating_a_world_sends_the_chosen_period_id` cobre o envio na criação.
+- `test_economy::test_boot_hands_the_created_period_to_the_app` e `test_main_menu::test_continuing_the_current_world_forgets_the_period...`: o período deixou de passar pelo Boot (agora vem de `GET /world/info`), então o `selected_period` do menu não chega mais ao app; o teste novo `test_creating_a_world_sends_the_chosen_period_id` cobre o envio na criação. `test_resource_names_come_from_the_period_catalog_when_the_period_is_known` foi só renomeado para `..._from_the_world_info_period_and_the_catalog`.
 
 ## Out of scope
 
