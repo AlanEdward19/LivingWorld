@@ -21,5 +21,5 @@ morto, arquivado ou ainda no pool; 400 para valor fora da faixa, traço desconhe
 
 ## Consequências
 - **Positivas**: mesma função de utilidade do motor; só leitura, hash do mundo intocado.
-- **Negativas / trade-offs**: usa `ProvisionTargetDays` padrão (o motor usa o do mercado); sem foresight sintético.
+- **Negativas / trade-offs**: usa a mesma meta de provisão do motor (mercado mais próximo); sem foresight sintético.
 - **Follow-ups**: se algum dia o sandbox precisar de memória/crença sintética, estender o corpo (compatível).

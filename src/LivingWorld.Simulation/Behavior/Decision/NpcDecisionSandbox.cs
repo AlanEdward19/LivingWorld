@@ -2,6 +2,7 @@ using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Market;
 
 namespace LivingWorld.Simulation.Behavior.Decision;
 
@@ -35,13 +36,12 @@ public static class NpcDecisionSandbox
             if (value is < 0 or > 100)
                 return Result<DecisionSandboxResult>.Fail($"needs.{name}: fora de [0,100]");
 
-        var tick = world.CurrentDate.TotalHours;
-        var context = DecisionContextBuilder.Build(world, npc, tick);
-        context = context with
+        var real = BuildContext(world, npc);
+        var context = real with
         {
             Needs = new NeedsSnapshot(
-                overrides.Hunger ?? context.Needs.Hunger, overrides.Thirst ?? context.Needs.Thirst,
-                overrides.Sleep ?? context.Needs.Sleep, overrides.Social ?? context.Needs.Social),
+                overrides.Hunger ?? real.Needs.Hunger, overrides.Thirst ?? real.Needs.Thirst,
+                overrides.Sleep ?? real.Needs.Sleep, overrides.Social ?? real.Needs.Social),
             Personality = personality.Value!,
         };
 
@@ -50,6 +50,13 @@ public static class NpcDecisionSandbox
         return Result<DecisionSandboxResult>.Ok(
             DecisionSandbox.Decide(context, world.NeedsRules, world.EconomyRules, request));
     }
+
+    /// <summary>O contexto que o motor montaria agora para o NPC, com a mesma meta de provisão (que depende do mercado mais
+    /// próximo) usada em <see cref="BehaviorDecisionSystem"/>: o "E se…?" decide como o NPC decidiria de verdade.</summary>
+    internal static DecisionContext BuildContext(WorldState world, Npc npc) =>
+        DecisionContextBuilder.Build(
+            world, npc, world.CurrentDate.TotalHours,
+            provisionTargetDays: BehaviorDecisionSystem.ProvisionTargetFor(world, npc, MarketIndex.BuildForTick(world)));
 
     private static Result<Personality> ApplyPersonality(Personality current, IReadOnlyDictionary<string, int>? values)
     {

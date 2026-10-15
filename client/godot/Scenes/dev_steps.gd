@@ -2,7 +2,7 @@ extends RefCounted
 ## Roteiro de desenvolvimento para capturas e demonstrações automáticas:
 ##   godot --path client/godot -- --steps "wait:2;shot:/tmp/a.png;city;wait:2;shot:/tmp/b.png;enter:0;quit"
 ## Passos: wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
-##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · bio:ID · chronicle · reports · player:ID · act:Nome · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · quit. Não é usado em produção (sem --steps nada roda).
+##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · bio:ID · chronicle · reports · player:ID · act:Nome · size:LxA · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · quit. Não é usado em produção (sem --steps nada roda).
 
 
 static func parse(args: PackedStringArray) -> Array:
@@ -84,6 +84,10 @@ static func run(app: Node, steps: Array) -> void:
 				await app.open_trades(int(arg))
 			"tech":
 				await app.technology.show_culture(int(arg))
+			"size":
+				var wh: PackedStringArray = arg.split("x")
+				DisplayServer.window_set_size(Vector2i(int(wh[0]), int(wh[1])))
+				await app.get_tree().create_timer(0.5).timeout
 			"talk":
 				await app.select_npc(int(arg))
 				await app.talk_to(int(arg))
@@ -147,4 +151,5 @@ static func run(app: Node, steps: Array) -> void:
 							app.store.npc_changed.emit(id, from_cell, to_cell, app.store.npcs[id].action)
 				print("stress: npcs=", count, " fps=", snappedf(frames / elapsed, 0.1), " (monitor ", Performance.get_monitor(Performance.TIME_FPS), ")")
 			"quit":
+				await app.release_observation() # como fechar a janela: retira a fonte e encerra a conversa
 				app.get_tree().quit()

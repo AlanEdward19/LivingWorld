@@ -278,7 +278,10 @@ public class ObservationScopeEndpointsTests : IClassFixture<LivingWorldApiFactor
         await PostScopeAsync(client, "spectator-a", new ObservationScopeDto("City", cityA.Id.Value.ToString()));
         Assert.True(world.ObservationRegistry.IsObserved(inCityA, world));
 
-        await Task.Delay(2_500); // heartbeat 1 s + purga periódica; nenhum outro POST
+        // heartbeat de 1 s + purga periódica, sem nenhum outro POST: espera até 15 s em vez de uma folga fixa (não depende da carga da máquina)
+        var deadline = DateTime.UtcNow.AddSeconds(15);
+        while (world.ObservationRegistry.IsObserved(inCityA, world) && DateTime.UtcNow < deadline)
+            await Task.Delay(100);
 
         Assert.False(world.ObservationRegistry.IsObserved(inCityA, world));
     }

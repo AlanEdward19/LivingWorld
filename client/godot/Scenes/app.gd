@@ -101,6 +101,9 @@ func start(p_transport, validate_shapes: bool = true, sleeper: Callable = Callab
 	labels = ActionLabels.new()
 	_build_scene()
 	_build_ui()
+	var viewport := get_viewport()
+	layout_windows(viewport.get_visible_rect().size.x)
+	viewport.size_changed.connect(func(): layout_windows(viewport.get_visible_rect().size.x))
 	observer = ScopeObserver.new()
 	observer.api = api
 	add_child(observer)
@@ -344,7 +347,7 @@ func _build_ui() -> void:
 	technology.warning.connect(func(text: String): toasts.push(text))
 	_ui.add_child(technology)
 	npc_panel.culture_shown.connect(func(id: int): _probe_technologies(id))
-	npc_panel.technologies_requested.connect(func(id: int): technology.show_culture(id))
+	npc_panel.technologies_requested.connect(func(id: int): _show_technologies(id))
 	npc_panel.trades_requested.connect(func(workplace_id: int): open_trades(workplace_id))
 	city_panel.treasury_requested.connect(func(city_id: String): open_treasury(city_id))
 	npc_panel.warning.connect(func(text: String): toasts.push(text))
@@ -614,7 +617,32 @@ func select_npc(id: int) -> void:
 
 
 ## Abre o painel "Cérebro" do NPC (atalho B).
+## As cinco janelas de informação (cérebro, narrativa, economia, tecnologias, console) dividem a mesma área: abrir uma fecha as outras.
+func _info_windows() -> Array:
+	return [brain_panel, narrative, economy, technology, admin_window]
+
+
+func _exclusive(keep) -> void:
+	for window in _info_windows():
+		if window != keep and window.is_open:
+			window.close()
+
+
+## Largura curta: a janela cobre a lista da esquerda em vez de espremer o conteúdo; larga: fica entre os painéis laterais.
+func layout_windows(viewport_width: float) -> void:
+	var left := 310.0 if viewport_width >= 1400.0 else 8.0
+	for window in _info_windows():
+		window.offset_left = left
+		window.custom_minimum_size.y = 220
+
+
+func _show_technologies(culture_id: int) -> void:
+	_exclusive(technology)
+	await technology.show_culture(culture_id)
+
+
 func open_brain(id: int) -> void:
+	_exclusive(brain_panel)
 	await brain_panel.open(id)
 
 
@@ -632,6 +660,7 @@ func _toggle_admin() -> void:
 	if admin_window.is_open:
 		admin_window.close()
 	else:
+		_exclusive(admin_window)
 		admin_window.open()
 
 
@@ -644,25 +673,30 @@ func _probe_technologies(culture_id: int) -> void:
 
 func open_treasury(city_id: String) -> void:
 	if city_id != "":
+		_exclusive(economy)
 		await economy.show_treasury(city_id, city_panel.city_name)
 
 
 func open_trades(workplace_id: int) -> void:
 	if workplace_id >= 0:
+		_exclusive(economy)
 		await economy.show_trades(workplace_id, "local %d" % workplace_id)
 
 
 func open_biography(id: int) -> void:
+	_exclusive(narrative)
 	await narrative.show_biography(id, String(store.names.get(id, "NPC %d" % id)))
 
 
 func open_chronicle(city_id: String) -> void:
 	if city_id != "":
+		_exclusive(narrative)
 		await narrative.show_chronicle(city_id, city_panel.city_name)
 
 
 func open_beliefs(city_id: String) -> void:
 	if city_id != "":
+		_exclusive(narrative)
 		await narrative.show_beliefs(city_id, city_panel.city_name)
 
 
@@ -670,6 +704,7 @@ func _toggle_reports() -> void:
 	if narrative.is_open and narrative.mode == "reports":
 		narrative.close()
 	else:
+		_exclusive(narrative)
 		narrative.show_reports()
 
 

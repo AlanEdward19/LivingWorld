@@ -135,6 +135,21 @@ public sealed class DecisionSandboxEndpointTests : IClassFixture<LivingWorldApiF
     }
 
     [Fact]
+    public void Sandbox_context_uses_the_same_provision_target_as_the_engine()
+    {
+        AliveNpc();
+        var world = World;
+        var index = LivingWorld.Simulation.Economy.Market.MarketIndex.BuildForTick(world);
+        var living = world.Npcs.Where(n => n.IsAlive).ToList();
+
+        Assert.All(living, npc => Assert.Equal(
+            LivingWorld.Simulation.Behavior.Decision.BehaviorDecisionSystem.ProvisionTargetFor(world, npc, index),
+            LivingWorld.Simulation.Behavior.Decision.NpcDecisionSandbox.BuildContext(world, npc).ProvisionTargetDays));
+        Assert.Contains(living, npc => LivingWorld.Simulation.Behavior.Decision.BehaviorDecisionSystem.ProvisionTargetFor(world, npc, index)
+            != 2.0); // padrão do contexto: sem mercado a meta é a mesma, com mercado muda
+    }
+
+    [Fact]
     public async Task Dead_npc_is_404()
     {
         long id = AliveNpc();

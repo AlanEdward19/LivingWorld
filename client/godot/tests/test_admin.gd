@@ -367,7 +367,7 @@ func test_request_hands_its_extra_headers_to_the_header_builder() -> void:
 
 	eq(response.status, 0, "sem servidor, a requisição falha limpa")
 	eq(transport.seen, [{"X-Admin-Actor": "alan"}], "request repassa o operador ao montar os cabeçalhos")
-	transport.free()
+	transport.queue_free() # o HTTPRequest ainda está emitindo request_completed: liberar depois
 
 
 func test_the_app_reads_the_admin_token_from_the_environment() -> void:

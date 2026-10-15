@@ -40,7 +40,7 @@ Issue #58, fatia 2 (Fase 28 task 12). Rota nova = contrato público: decidida em
 
 ## Out of scope
 
-Memória/crença/foresight sintéticos; `ProvisionTargetDays` do mercado (usa o padrão); persistir simulações.
+Memória/crença/foresight sintéticos; persistir simulações. (A meta de provisão já é a do mercado, igual ao motor.)
 
 ## Performance
 
