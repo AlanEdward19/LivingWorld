@@ -1,0 +1,31 @@
+{
+  "action": "number",
+  "trace": {
+    "blockingFactors": [
+      "string"
+    ],
+    "knownAlternatives": [
+      "number"
+    ],
+    "knownOpportunities": "[]",
+    "previousIntent": "null",
+    "topNegativeFactors": [
+      "string"
+    ],
+    "topPositiveFactors": [
+      "string"
+    ],
+    "topPressures": [
+      {
+        "factors": [
+          "string"
+        ],
+        "intensity": "number",
+        "kind": "string"
+      }
+    ],
+    "wakeReason": "number",
+    "winner": "number",
+    "winningUtility": "number"
+  }
+}

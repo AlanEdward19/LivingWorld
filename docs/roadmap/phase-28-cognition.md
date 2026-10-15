@@ -1,6 +1,6 @@
 # Fase 28 — Cognição e LOD observacional
 
-**Status**: fechada. 2026-09-01: 30/31 requisitos; 2026-10-14: COG-11 (painel "ver o cérebro") entregue no cliente Godot (#58, `.specs/features/godot-brain-panel/`). Sandbox de decisão (task 12) ainda sem rota HTTP.
+**Status**: fechada. 2026-09-01: 30/31 requisitos; 2026-10-14: COG-11 (painel "ver o cérebro") entregue no cliente Godot (#58, `.specs/features/godot-brain-panel/`). Sandbox de decisão (task 12): `POST /npcs/{id}/decision-sandbox` (ADR-0026) e aba "E se…?" no cliente.
 
 **Objetivo**: (a) o utility AI da Fase 4 vira **inspecionável** — cada decisão relevante
 grava estímulo, ponderação e escolha como dado navegável, com painel web "ver o cérebro" e

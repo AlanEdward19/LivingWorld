@@ -55,4 +55,6 @@ static func trace_entry(tick: int, winner: int, pressures: int = 2, opportunitie
 static func npc_inspect(trace: Array, lod: int = 0) -> Dictionary:
 	return {"status": 200, "body": {
 		"name": "Ana", "ageYears": 31, "health": 90, "hunger": 80, "thirst": 70, "sleep": 60, "social": 50,
-		"lod": lod, "cognitionTrace": trace}}
+		"lod": lod, "cognitionTrace": trace,
+		"personality": {"extroversion": 50, "agreeableness": 50, "conscientiousness": 50, "emotionalStability": 50, "openness": 50,
+			"ambition": 50, "loyalty": 50, "altruism": 50, "impulsivity": 50, "riskAversion": 50}}}

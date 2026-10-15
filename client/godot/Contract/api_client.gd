@@ -79,6 +79,12 @@ func observation_scope(source_id: String, scope: Dictionary) -> Dictionary:
 	return {"ok": response.status == 200, "status": response.status, "body": response.body}
 
 
+## "E se…?" do painel Cérebro: o servidor roda a decisão do NPC com estímulos sobrepostos; nada é gravado.
+func decision_sandbox(id: int, overrides: Dictionary) -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/npcs/%d/decision-sandbox" % id, overrides)
+	return _checked("/npcs/%d/decision-sandbox" % id, {"status": response.status, "body": response.body}, "decision-sandbox")
+
+
 # --- conversa com NPC (só estas três rotas escrevem; o cliente não aplica nada ao mundo) -----
 
 func conversation_start(npc_id: int) -> Dictionary:

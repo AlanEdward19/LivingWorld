@@ -96,6 +96,23 @@ public class ApiContractTests
         await client.PostAsJsonAsync("/conversations/end", new { sessionId });
     }
 
+    /// <summary>"E se…?" do painel Cérebro (#58 fatia 2, ADR-0026): resposta com a mesma forma do rastro.</summary>
+    [Fact]
+    public async Task Decision_sandbox_shape_matches_the_committed_contract()
+    {
+        var client = _factory.CreateClient();
+        var directory = JsonNode.Parse(await client.GetStringAsync("/npcs?take=1"))!;
+        long id = directory["items"]![0]!["id"]!["value"]!.GetValue<long>();
+
+        var response = await client.PostAsJsonAsync($"/npcs/{id}/decision-sandbox", new { needs = new { hunger = 2 } });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var shape = ShapeOf(JsonNode.Parse(await response.Content.ReadAsStringAsync()))!;
+        // Opcionais/variáveis: nulos ou listas que podem vir vazias valem "qualquer valor/lista".
+        shape["trace"]!["previousIntent"] = "null";
+        shape["trace"]!["knownOpportunities"] = "[]";
+        AssertMatchesContract("shape.decision-sandbox.json", shape);
+    }
+
     /// <summary>Escopos Cidade e Interior do primeiro prédio do mundo canônico: a forma inclui `floors`,
     /// `groundFootprint` e `layout` que o cliente 3D consome.</summary>
     [Fact]

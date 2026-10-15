@@ -8,6 +8,7 @@ using LivingWorld.Api.Observation;
 using LivingWorld.Api.Periods;
 using LivingWorld.Api.Players;
 using LivingWorld.Api.Realtime;
+using LivingWorld.Api.Sandbox;
 using LivingWorld.Api.Simulation;
 using LivingWorld.Api.Trade;
 using LivingWorld.Api.Treasury;
@@ -212,6 +213,7 @@ app.MapPlayerEndpoints(worldHost, playerService);
 app.MapVisualInputEndpoints();
 app.MapAuthoringEndpoints();
 app.MapWatchlistEndpoints(worldHost);
+app.MapDecisionSandboxEndpoints(worldHost);
 app.MapObservationScopeEndpoints(worldHost);
 app.MapAdminEndpoints(worldHost, simulationHost);
 simulationHost.OnPauseExpired = pause =>

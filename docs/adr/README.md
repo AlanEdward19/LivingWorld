@@ -32,3 +32,4 @@ conteúdo de ADR para dentro dele.
 | [0022](ADR-0022-godot-substitui-cliente-web.md) | Godot como motor gráfico; cliente web aposentado do gate | aceito |
 | [0023](ADR-0023-snapshot-binario-posicional.md) | Snapshot binário posicional, base completa mais diffs por campo | aceito |
 | [0024](ADR-0024-familias-autoradas-no-cenario.md) | Famílias autoradas no cenário (`AuthoredHouseholds`), só ao criar mundo | aceito |
+| [0026](ADR-0026-rota-decision-sandbox.md) | Rota `POST /npcs/{id}/decision-sandbox` ("E se…?", só leitura) | aceito |

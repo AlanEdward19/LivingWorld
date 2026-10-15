@@ -10,6 +10,11 @@ const WAKE := {0: "motivo desconhecido", 1: "necessidade urgente", 2: "ação co
 const EMPTY_NO_TRACE := "Sem rastro: este NPC não está numa cidade/interior observado agora. Aproxime a câmera da cidade dele ou marque-o como vigiado."
 const EMPTY_GONE := "Este NPC morreu ou foi arquivado: não há mais decisões a mostrar."
 const EMPTY_ERROR := "Não foi possível carregar o cérebro deste NPC."
+const NEEDS := {"hunger": "Fome", "thirst": "Sede", "sleep": "Sono", "social": "Social"}
+const TRAITS := {"extroversion": "Extroversão", "agreeableness": "Amabilidade", "conscientiousness": "Disciplina",
+	"emotionalStability": "Estabilidade", "openness": "Abertura", "ambition": "Ambição", "loyalty": "Lealdade",
+	"altruism": "Altruísmo", "impulsivity": "Impulsividade", "riskAversion": "Cautela"}
+const SANDBOX_NOTE := "E se…? Mostra o que este NPC decidiria com estes estímulos. Nada muda no mundo."
 const BAR_FLOOR := 100.0 ## escala mínima das barras; cresce se o servidor mandar valor maior
 const GOOD := Color("7ccf88")
 const BAD := Color("e07a74")
@@ -32,6 +37,16 @@ var opportunity_nodes: Array = []
 var alternative_nodes: Array = []
 var winner_node: Control
 var watch_button: Button
+var sandbox_button: Button
+var sandbox_mode := false
+var sandbox_trace: Dictionary = {} ## última simulação ("E se…?"); vazio = fluxo real
+var need_sliders: Dictionary = {} ## "hunger" -> HSlider
+var trait_sliders: Dictionary = {} ## "ambition" -> HSlider
+var simulate_button: Button
+var _baseline: Dictionary = {} ## {needs: {...}, personality: {...}} do NPC agora
+var _sandbox_dirty := false
+var _sandbox_column: ScrollContainer
+var _sandbox_note: Label
 var _title: Label
 var _empty: Label
 var _flow_root: Control
@@ -77,6 +92,11 @@ func _init() -> void:
 	watch_button = Button.new()
 	watch_button.pressed.connect(func(): toggle_watch())
 	header.add_child(watch_button)
+	sandbox_button = Button.new()
+	sandbox_button.text = "E se…?"
+	sandbox_button.toggle_mode = true
+	sandbox_button.toggled.connect(func(on: bool): set_sandbox_mode(on))
+	header.add_child(sandbox_button)
 	var close_button := Button.new()
 	close_button.text = "Fechar (B)"
 	close_button.pressed.connect(func(): close())
@@ -88,6 +108,9 @@ func _init() -> void:
 	timeline.custom_minimum_size = Vector2(340, 0)
 	timeline.item_selected.connect(func(index: int): select_entry(index))
 	body.add_child(timeline)
+	_sandbox_column = _build_sandbox_column()
+	_sandbox_column.visible = false
+	body.add_child(_sandbox_column)
 	var right := VBoxContainer.new()
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_child(right)
@@ -118,6 +141,8 @@ func open(id: int) -> void:
 	entries = []
 	_last_tick = -1
 	_follow_latest = true
+	_sandbox_dirty = false
+	sandbox_trace = {}
 	await refresh(true)
 
 
@@ -150,6 +175,7 @@ func refresh(force: bool = false) -> void:
 		return
 	var npc: Dictionary = response.body
 	npc_name = String(npc.get("name", ""))
+	_load_baseline(npc)
 	_refresh_labels()
 	if int(npc.get("lod", 0)) == 1:
 		_show_empty(EMPTY_GONE)
@@ -163,6 +189,8 @@ func refresh(force: bool = false) -> void:
 	entries = trace.duplicate()
 	entries.reverse()
 	_rebuild_timeline()
+	if not sandbox_trace.is_empty():
+		return # uma simulação está na tela: a linha do tempo atualiza, o fluxo não muda sob o usuário
 	if entries.is_empty():
 		_show_empty(EMPTY_NO_TRACE)
 		return
@@ -220,6 +248,7 @@ func select_entry(index: int, user_choice: bool = true) -> void:
 	if user_choice:
 		_follow_latest = index == 0
 	selected = index
+	sandbox_trace = {}
 	if timeline.item_count > index:
 		timeline.select(index)
 	empty_text = ""
@@ -366,3 +395,133 @@ func _winner_node(trace: Dictionary) -> Control:
 func _redraw_lines() -> void:
 	if _lines != null:
 		_lines.queue_redraw.call_deferred()
+
+
+# --- "E se…?" (POST /npcs/{id}/decision-sandbox): o servidor roda o mesmo motor, nada é gravado ---------
+
+func _build_sandbox_column() -> ScrollContainer:
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(240, 0)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	var box := VBoxContainer.new()
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(box)
+	_sandbox_note = Label.new()
+	_sandbox_note.text = SANDBOX_NOTE
+	_sandbox_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_sandbox_note.custom_minimum_size.x = 220
+	_sandbox_note.modulate = Color(1, 1, 1, 0.75)
+	box.add_child(_sandbox_note)
+	simulate_button = Button.new()
+	simulate_button.text = "Simular"
+	simulate_button.pressed.connect(func(): simulate())
+	box.add_child(simulate_button)
+	var reset := Button.new()
+	reset.text = "Voltar aos valores do NPC"
+	reset.pressed.connect(func(): _apply_baseline(true))
+	box.add_child(reset)
+	for key in NEEDS:
+		box.add_child(_slider_row(NEEDS[key], key, need_sliders))
+	for key in TRAITS:
+		box.add_child(_slider_row(TRAITS[key], key, trait_sliders))
+	return scroll
+
+
+func _slider_row(title: String, key: String, group: Dictionary) -> Control:
+	var row := HBoxContainer.new()
+	var name := Label.new()
+	name.text = title
+	name.custom_minimum_size.x = 92
+	row.add_child(name)
+	var slider := HSlider.new()
+	slider.min_value = 0
+	slider.max_value = 100
+	slider.step = 1
+	slider.custom_minimum_size.x = 90
+	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(slider)
+	var value := Label.new()
+	value.custom_minimum_size.x = 28
+	value.text = "0"
+	row.add_child(value)
+	slider.value_changed.connect(func(v: float):
+		value.text = str(int(v))
+		_sandbox_dirty = true)
+	group[key] = slider
+	return row
+
+
+func set_sandbox_mode(on: bool) -> void:
+	sandbox_mode = on
+	sandbox_button.set_pressed_no_signal(on)
+	_sandbox_column.visible = on
+	timeline.visible = not on
+
+
+## Guarda os valores atuais do NPC e, se o usuário ainda não mexeu nos sliders, leva os sliders até eles.
+func _load_baseline(npc: Dictionary) -> void:
+	var personality: Dictionary = npc.get("personality", {})
+	_baseline = {
+		"needs": {"hunger": int(npc.get("hunger", 0)), "thirst": int(npc.get("thirst", 0)), "sleep": int(npc.get("sleep", 0)), "social": int(npc.get("social", 0))},
+		"personality": {},
+	}
+	for key in TRAITS:
+		_baseline.personality[key] = int(personality.get(key, 50))
+	if not _sandbox_dirty:
+		_apply_baseline(false)
+
+
+func _apply_baseline(reset_dirty: bool) -> void:
+	if _baseline.is_empty():
+		return
+	for key in need_sliders:
+		need_sliders[key].set_value_no_signal(_baseline.needs[key])
+		need_sliders[key].get_parent().get_child(2).text = str(_baseline.needs[key])
+	for key in trait_sliders:
+		trait_sliders[key].set_value_no_signal(_baseline.personality[key])
+		trait_sliders[key].get_parent().get_child(2).text = str(_baseline.personality[key])
+	if reset_dirty:
+		_sandbox_dirty = false
+
+
+## Só envia o que difere do NPC real; sem diferença, corpo vazio (o servidor usa o contexto real).
+func sandbox_body() -> Dictionary:
+	var needs := {}
+	for key in need_sliders:
+		if int(need_sliders[key].value) != int(_baseline.get("needs", {}).get(key, -1)):
+			needs[key] = int(need_sliders[key].value)
+	var personality := {}
+	for key in trait_sliders:
+		if int(trait_sliders[key].value) != int(_baseline.get("personality", {}).get(key, -1)):
+			personality[key] = int(trait_sliders[key].value)
+	var body := {}
+	if not needs.is_empty():
+		body["needs"] = needs
+	if not personality.is_empty():
+		body["personality"] = personality
+	return body
+
+
+func simulate() -> void:
+	if not is_open or npc_id < 0:
+		return
+	var id := npc_id
+	var response: Dictionary = await api.decision_sandbox(id, sandbox_body())
+	if id != npc_id or not is_open:
+		return
+	if response.ok and response.body is Dictionary:
+		var trace: Dictionary = response.body.trace.duplicate()
+		trace["winner"] = response.body.action
+		sandbox_trace = trace
+		selected = -1
+		timeline.deselect_all()
+		empty_text = ""
+		_empty.text = "Simulação (E se…?): nada foi gravado no mundo."
+		_empty.visible = true
+		_draw_flow(trace)
+	elif response.status == 404:
+		_show_empty(EMPTY_GONE)
+	elif response.status == 400:
+		warning.emit("Valores inválidos para a simulação: %s" % str(response.body.get("error", "")) if response.body is Dictionary else "Valores inválidos para a simulação.")
+	else:
+		warning.emit("Não foi possível simular (erro %d)." % response.status)
