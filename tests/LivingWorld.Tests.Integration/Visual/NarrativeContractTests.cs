@@ -21,6 +21,23 @@ public class NarrativeContractTests : IClassFixture<LivingWorldApiFactory>
     public NarrativeContractTests(LivingWorldApiFactory factory) => _factory = factory;
 
     [Fact]
+    public async Task History_beliefs_shape_matches_the_committed_contract()
+    {
+        var world = _factory.Services.GetRequiredService<WorldHost>().Current;
+        var city = world.ActiveCities().First();
+        var fact = new Fact(world.NextFactIdAndAdvance(), 3, WorldEventKind.Death, [], city.Id, 0.9, "p");
+        world.AddFact(fact);
+        CanonSlotManager.Admit(
+            city, new ReportState(world.NextReportIdAndAdvance(), fact.Id, city.Id, TransmissionMediumType.OralTradition, 2, 0.9, 3, 3),
+            world.HistoryRules, 3);
+
+        var response = await _factory.CreateClient().GetAsync($"/history/beliefs?communityId={city.Id.Value}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        ApiContractTests.AssertMatchesContract("shape.history-beliefs.json", ApiContractTests.ShapeOf(JsonNode.Parse(await response.Content.ReadAsStringAsync())));
+    }
+
+    [Fact]
     public async Task Biography_chronicle_and_reports_shapes_match_the_committed_contracts()
     {
         var world = _factory.Services.GetRequiredService<WorldHost>().Current;

@@ -255,10 +255,12 @@ func _build_ui() -> void:
 	narrative.offset_right = -316
 	narrative.offset_top = 64
 	narrative.offset_bottom = -272
+	narrative.date_of = _date_text
 	narrative.warning.connect(func(text: String): toasts.push(text))
 	_ui.add_child(narrative)
 	npc_panel.biography_requested.connect(func(id: int): open_biography(id))
 	city_panel.chronicle_requested.connect(func(city_id: String): open_chronicle(city_id))
+	city_panel.beliefs_requested.connect(func(city_id: String): open_beliefs(city_id))
 
 	minimap = Minimap.new()
 	minimap.bind(store)
@@ -528,6 +530,11 @@ func open_biography(id: int) -> void:
 func open_chronicle(city_id: String) -> void:
 	if city_id != "":
 		await narrative.show_chronicle(city_id, city_panel.city_name)
+
+
+func open_beliefs(city_id: String) -> void:
+	if city_id != "":
+		await narrative.show_beliefs(city_id, city_panel.city_name)
 
 
 func _toggle_reports() -> void:

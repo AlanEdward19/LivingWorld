@@ -212,6 +212,7 @@ class NpcDetailPanel extends PanelContainer:
 
 class CityPanel extends PanelContainer:
 	signal chronicle_requested(city_id: String)
+	signal beliefs_requested(city_id: String)
 	var text := ""
 	var city_id := ""
 	var city_name := ""
@@ -233,6 +234,10 @@ class CityPanel extends PanelContainer:
 		chronicle.text = "Crônica"
 		chronicle.pressed.connect(func(): chronicle_requested.emit(city_id))
 		box.add_child(chronicle)
+		var beliefs := Button.new()
+		beliefs.text = "O que a cidade acredita"
+		beliefs.pressed.connect(func(): beliefs_requested.emit(city_id))
+		box.add_child(beliefs)
 		visible = false
 
 	## `info` = WorldStore.city: {name, indicators:{population, wealth, health, inequality, economy, housing}}

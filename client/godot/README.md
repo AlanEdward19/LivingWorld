@@ -26,7 +26,7 @@ Pausa, velocidade, passo e +1 ano são do admin (ADR-0015): a API exige `X-Admin
 | Pessoas | L abre a lista (segue a cidade em foco) · clique num NPC · botão Seguir ou F |
 | Cérebro do NPC | B (ou botão Cérebro na ficha) abre/fecha o painel das decisões do NPC selecionado: linha do tempo + fluxo Estímulo → Ponderação → Decisão · Vigiar retém o rastro inteiro · **E se…?** simula a decisão com outros estímulos (nada é gravado) · Esc fecha |
 | Conversar | T (ou botão Conversar na ficha) pede a conversa; o NPC pode recusar (ocupado, hostil, indisponível) · Enter envia · Esc encerra |
-| Narrativas | botão Biografia na ficha do NPC · botão Crônica na ficha da cidade (mês/ano/década) · R lista os relatos que circulam, com a confiança de cada um · Esc fecha |
+| Narrativas | botão Biografia na ficha do NPC · botão Crônica na ficha da cidade (mês/ano/década) · R lista os relatos que circulam, com a confiança de cada um · botão O que a cidade acredita (crenças distorcidas e a distância do fato) · Esc fecha |
 | Orientação | passe o mouse (dica) · minimapa (clique/arraste) · avisos de eventos |
 | Som | ambiente procedural com fade ao trocar de período, som da ação do NPC selecionado (catálogo `assets.json`) · M silencia |
 | Relógio | pausa, passo, +1 ano e velocidades 1× a 200× na barra; o céu segue a hora do mundo |

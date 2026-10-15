@@ -13,6 +13,9 @@ const TOP_K := 5
 var api
 var calendar_of: Callable = func() -> Dictionary: return {"hoursPerDay": 24, "daysPerMonth": 30, "monthsPerYear": 12}
 var tick_now: Callable = func() -> int: return 0
+var date_of: Callable = func(tick: int) -> String: return "tick %d" % tick
+var beliefs: Array = []
+var belief_rows: Array = [] ## [{text, detail, bar}]
 var mode := "" ## biography | chronicle | reports
 var subject_id := ""
 var subject_name := ""
@@ -81,6 +84,10 @@ func show_chronicle(city_id: String, city_name: String) -> void:
 	await _open("chronicle", city_id, city_name)
 
 
+func show_beliefs(city_id: String, city_name: String) -> void:
+	await _open("beliefs", city_id, city_name)
+
+
 func show_reports() -> void:
 	await _open("reports", "", "")
 
@@ -123,6 +130,8 @@ func refresh() -> void:
 		"chronicle":
 			var period := period_ticks(period_kind)
 			response = await api.chronicle(subject_id, period[0], period[1], TOP_K)
+		"beliefs":
+			response = await api.beliefs(subject_id)
 		_:
 			response = await api.reports()
 	if mine != _request or not is_open:
@@ -137,7 +146,7 @@ func _open(p_mode: String, id: String, name: String) -> void:
 	is_open = true
 	visible = true
 	period_option.visible = mode == "chronicle"
-	_title.text = {"biography": "Biografia de %s" % name, "chronicle": "Crônica de %s" % name, "reports": "Relatos que circulam"}[mode]
+	_title.text = {"biography": "Biografia de %s" % name, "chronicle": "Crônica de %s" % name, "beliefs": "O que %s acredita" % name, "reports": "Relatos que circulam"}[mode]
 	_clear()
 	await refresh()
 
@@ -147,6 +156,8 @@ func _clear() -> void:
 	claims = []
 	reports = []
 	report_rows = []
+	beliefs = []
+	belief_rows = []
 	empty_text = ""
 	_prose.text = ""
 	_empty.text = ""
@@ -168,6 +179,9 @@ func _render(response: Dictionary) -> void:
 	if mode == "reports":
 		_render_reports(response.body)
 		return
+	if mode == "beliefs":
+		_render_beliefs(response.body)
+		return
 	prose = String(response.body.get("prose", ""))
 	claims = response.body.get("claims", [])
 	_prose.text = prose
@@ -185,6 +199,41 @@ func _render(response: Dictionary) -> void:
 		var events: Array = claim.get("eventIds", [])
 		label.text = "• %s%s" % [claim.text, "  [eventos: %s]" % ", ".join(events.map(func(e): return str(int(e)))) if not events.is_empty() else ""]
 		_list.add_child(label)
+
+
+## Crença = o que a comunidade acha que aconteceu (já distorcido), não o fato: magnitude, quando e quão longe da verdade.
+func _render_beliefs(items: Variant) -> void:
+	beliefs = items if items is Array else []
+	if beliefs.is_empty():
+		_say("%s ainda não guarda nenhuma crença sobre o passado." % subject_name)
+		return
+	for item in beliefs:
+		var box := VBoxContainer.new()
+		var title := Label.new()
+		title.text = String(item.seed)
+		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		title.custom_minimum_size.x = 560
+		box.add_child(title)
+		var row := HBoxContainer.new()
+		var detail := "magnitude %s · %s" % [str(snappedf(float(item.distortedMagnitude), 0.01)), date_of.call(int(item.distortedTick))]
+		var label := Label.new()
+		label.text = detail
+		label.custom_minimum_size.x = 300
+		label.modulate = Color(1, 1, 1, 0.8)
+		row.add_child(label)
+		var bar := ProgressBar.new()
+		bar.max_value = 100
+		bar.value = clampf(float(item.distanceFromFact), 0.0, 1.0) * 100.0
+		bar.show_percentage = false
+		bar.custom_minimum_size = Vector2(140, 14)
+		bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(bar)
+		var distance := Label.new()
+		distance.text = "distância do fato %d%%" % int(round(bar.value))
+		row.add_child(distance)
+		box.add_child(row)
+		_list.add_child(box)
+		belief_rows.append({"text": String(item.seed), "detail": detail, "bar": bar})
 
 
 func _render_reports(items: Variant) -> void:

@@ -99,6 +99,11 @@ func reports() -> Dictionary:
 	return await _fetch("/narratives/reports", "narrative-reports")
 
 
+## Crenças vivas da comunidade (nunca `/history/truth`: é rota de motor).
+func beliefs(city_id: String) -> Dictionary:
+	return await _fetch("/history/beliefs?communityId=%s" % city_id.uri_encode(), "history-beliefs")
+
+
 # --- conversa com NPC (só estas três rotas escrevem; o cliente não aplica nada ao mundo) -----
 
 func conversation_start(npc_id: int) -> Dictionary:
