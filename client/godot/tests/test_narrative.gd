@@ -242,7 +242,7 @@ func test_app_buttons_and_r_key_open_the_windows_and_esc_closes() -> void:
 	var app := App.new()
 	tree.root.add_child(app)
 	await app.start(transport, false)
-	app.day_cycle.set_calendar({"hoursPerDay": 10, "daysPerMonth": 5, "monthsPerYear": 2})
+	app.day_cycle.set_calendar({"hoursPerDay": 10, "daysPerMonth": 2, "monthsPerYear": 2}) # ano = 40 ticks
 	await app.select_npc(7)
 
 	_find_button(app.npc_panel, "Biografia").pressed.emit()
@@ -254,7 +254,7 @@ func test_app_buttons_and_r_key_open_the_windows_and_esc_closes() -> void:
 	_find_button(app.city_panel, "Crônica").pressed.emit()
 	await tree.process_frame
 	eq(app.narrative.mode, "chronicle")
-	check(transport.calls.any(func(c: String) -> bool: return c.contains("location=city-a&periodStart=0&periodEnd=77")), "usa o tick do relógio e o calendário: " + str(transport.calls))
+	check(transport.calls.any(func(c: String) -> bool: return c.contains("location=city-a&periodStart=37&periodEnd=77")), "usa o tick do relógio e o calendário: " + str(transport.calls))
 
 	var esc := InputEventKey.new()
 	esc.keycode = KEY_ESCAPE
@@ -271,3 +271,53 @@ func test_app_buttons_and_r_key_open_the_windows_and_esc_closes() -> void:
 	app._unhandled_input(r)
 	eq(app.narrative.is_open, false, "R de novo fecha")
 	app.queue_free()
+
+
+func _city_envelope() -> Dictionary:
+	var env := Fx.snapshot(0, {
+		"id": {"value": "city-b"}, "name": "Beta", "location": {"x": 1, "y": 1}, "aggregatePool": {}, "residents": [],
+		"pendingResidentIds": [], "buildings": [], "layers": {}, "portals": [],
+		"indicators": {"population": 3, "wealth": 1, "health": 1, "inequality": 0, "economy": 1, "housing": 0},
+		"livingState": {"npcs": []}, "bounds": {"x": 0, "y": 0, "width": 2, "height": 2}, "boundsAreDerived": true}, "City")
+	env.scope.kind = 1
+	return env
+
+
+func test_chronicle_button_gets_the_city_id_from_both_real_paths() -> void:
+	var transport := _app_transport()
+	transport.on("GET /visual/subscribe?scope=City", {"status": 200, "body": _city_envelope()})
+	var app := App.new()
+	tree.root.add_child(app)
+	await app.start(transport, false)
+
+	await app.enter_scope("City", "city-b") # snapshot de cidade -> show_city(store.city)
+	_find_button(app.city_panel, "Crônica").pressed.emit()
+	await tree.process_frame
+	check(transport.calls.any(func(c: String) -> bool: return c.contains("/narratives/chronicles?location=city-b")), "pelo escopo cidade: " + str(transport.calls))
+	eq(app.narrative.subject_name, "Beta")
+	app.narrative.close()
+
+	app.city_panel.show_city({"id": "", "name": "Zeta", "indicators": app.store.city.indicators}) # zera o id
+	await app._show_city_summary("city-c") # resumo pelo mapa-múndi
+	_find_button(app.city_panel, "Crônica").pressed.emit()
+	await tree.process_frame
+	check(transport.calls.any(func(c: String) -> bool: return c.contains("/narratives/chronicles?location=city-c")), "pelo resumo no mundo: " + str(transport.calls))
+	app.queue_free()
+
+
+func test_chronicle_outside_the_contract_and_closed_period_change() -> void:
+	var transport := _transport()
+	transport.on("GET /narratives/chronicles", {"status": 200, "body": {"id": 1, "claims": []}})
+	var window := _window(transport, true)
+	var warnings: Array = []
+	window.warning.connect(func(text: String): warnings.append(text))
+
+	await window.show_chronicle("city-a", "Alfa")
+	eq(warnings.size(), 1, "crônica fora do contrato vira aviso")
+	eq(window.claims.size(), 0)
+
+	window.close()
+	var before: int = transport.calls.size()
+	await window.set_period("decade")
+	eq(transport.calls.size(), before, "fechada, trocar o período não pede nada")
+	window.free()

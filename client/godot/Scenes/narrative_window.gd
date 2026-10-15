@@ -161,8 +161,9 @@ func _render(response: Dictionary) -> void:
 		_say("Sem biografia: este NPC não existe mais ou nunca foi registrado.")
 		return
 	if not response.ok:
-		_say("Não foi possível carregar (erro %d)." % response.status)
-		warning.emit("Não foi possível carregar a narrativa (erro %d)." % response.status)
+		var why := "resposta fora do formato esperado" if response.status == 200 else "erro %d" % response.status
+		_say("Não foi possível carregar (%s)." % why)
+		warning.emit("Não foi possível carregar a narrativa (%s)." % why)
 		return
 	if mode == "reports":
 		_render_reports(response.body)
