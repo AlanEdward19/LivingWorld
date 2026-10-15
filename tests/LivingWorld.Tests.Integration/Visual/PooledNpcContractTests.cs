@@ -19,7 +19,7 @@ public class PooledNpcContractTests : IClassFixture<LivingWorldApiFactory>
 
     /// <summary>Mesmas regras do <c>shape_validator.gd</c>: objeto exige as chaves, lista confere o 1º item, folha confere o tipo,
     /// <c>"null"</c> e <c>"[]"</c> aceitam o que o contrato gravou como opcional/vazio.</summary>
-    private static void Check(JsonNode? value, JsonNode shape, string path, List<string> errors)
+    internal static void Check(JsonNode? value, JsonNode shape, string path, List<string> errors)
     {
         switch (shape)
         {
@@ -89,6 +89,32 @@ public class PooledNpcContractTests : IClassFixture<LivingWorldApiFactory>
 
         var after = JsonNode.Parse(await client.GetStringAsync($"/npcs/{id}"))!;
         Assert.Equal(0, after["lod"]!.GetValue<int>());
+    }
+
+    /// <summary>Opcionais tipados com valor de verdade: depois de algumas horas simuladas há NPC com empregador, ação corrente e
+    /// descanso/comida preenchidos, e o servidor tem de devolvê-los na forma declarada em <c>shape.npc-inspect.json</c>.</summary>
+    [Fact]
+    public async Task Filled_optional_fields_of_living_npcs_match_the_typed_contract()
+    {
+        var host = _factory.Services.GetRequiredService<WorldHost>();
+        for (int i = 0; i < 72; i++) host.Clock.Tick(host.Current);
+        var client = _factory.CreateClient();
+        var shape = JsonNode.Parse(File.ReadAllText(Path.Combine(FindRepoRoot(), "tests", "contracts", "shape.npc-inspect.json")))!;
+        var seen = new HashSet<string>();
+
+        foreach (var npc in host.Current.Npcs.Where(n => n.IsAlive).Take(40))
+        {
+            var body = JsonNode.Parse(await client.GetStringAsync($"/npcs/{npc.Id.Value}"))!;
+            var errors = new List<string>();
+            Check(body, shape, "$", errors);
+            Assert.True(errors.Count == 0, $"NPC {npc.Id.Value}: " + string.Join("; ", errors));
+            foreach (var key in new[] { "employer", "currentAction", "household", "spouse", "motherId", "fatherId", "rest", "food", "actionTarget" })
+                if (body[key] is not null) seen.Add(key);
+        }
+
+        // Premissa: o teste só vale se ao menos os opcionais mais comuns vieram preenchidos em algum NPC.
+        Assert.Contains("currentAction", seen);
+        Assert.Contains("household", seen);
     }
 
     private static string FindRepoRoot()

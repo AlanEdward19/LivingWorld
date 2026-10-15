@@ -369,6 +369,7 @@ func test_a_409_for_a_leftover_session_offers_to_leave_and_then_allows_incarnati
 
 	eq(ok, false)
 	eq(hud.stale_session, true, "o servidor ainda liga este jogador a um NPC")
+	eq(hud.logout_button.text, "Sair do personagem anterior", "o botão diz de qual personagem se sai")
 	eq(hud.visible, true, "o HUD abre só para sair")
 	eq(hud.action_buttons["Eat"].disabled, true, "sem ações enquanto não sair")
 	check("ainda controla outro NPC" in hud.status_text, hud.status_text)
@@ -378,6 +379,7 @@ func test_a_409_for_a_leftover_session_offers_to_leave_and_then_allows_incarnati
 	eq(transport.count_calls("POST /players/p-1/logout"), 1, "sair da sessão anterior")
 	eq(hud.stale_session, false)
 	eq(hud.visible, false)
+	eq(hud.logout_button.text, "Sair do personagem", "e volta ao rótulo normal ao liberar")
 	check("liberado" in warnings.back(), warnings.back())
 
 	transport.on("POST /players/7/incarnate", {"status": 200, "body": {"npcId": 7, "playerId": "p-1"}})

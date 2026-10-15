@@ -59,6 +59,10 @@ fixture (morador do pool, interior, timeout de conversa, dados reais); FPS medid
 - `GET /world/info` real devolveu o período do mundo criado pelo cliente.
 - História/narrativas: mundo de 12 anos sem fatos nem relatos porque o `ScenarioLoaderV2` não liga `HistoryRules`; vira a issue #91 (fora do escopo do cliente).
 
+## Testes removidos de propósito
+
+- `test_economy::test_boot_hands_the_created_period_to_the_app` e `test_main_menu::test_continuing_the_current_world_forgets_the_period...`: o período deixou de passar pelo Boot (agora vem de `GET /world/info`), então o `selected_period` do menu não chega mais ao app; o teste novo `test_creating_a_world_sends_the_chosen_period_id` cobre o envio na criação.
+
 ## Out of scope
 
 Warning de âncoras do `loading` que já existe na `develop`; história vazia (#91); conversa com LLM real (#90).
