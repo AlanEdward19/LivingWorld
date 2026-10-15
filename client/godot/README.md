@@ -61,3 +61,4 @@ Narrativas (2026-10-14, M1 Pro com a máquina ocupada, `stress:500`): sem janela
 HUD do jogador (2026-10-14, M1 Pro com a máquina ocupada, `stress:500`): sem HUD 74,7 / 73,7 / 72,7 FPS; com o HUD ativo 73,1 / 73,6 / 72,6 (sem diferença).
 Console de admin (2026-10-14, M1 Pro com a máquina ocupada, `stress:500`): sem console 71,0 / 70,7 / 76,8 FPS; com a busca aberta 72,6 / 73,0 / 72,7 (sem diferença).
 Economia (2026-10-14, M1 Pro, `stress:500`): sem janela 74,0 / 75,0 / 76,2 FPS; com as vendas abertas 77,7 / 76,9 / 78,1 (sem regressão).
+Tecnologias (2026-10-14, M1 Pro, `stress:500`): sem janela 75,5 / 75,0 / 74,9 FPS; com a janela aberta 77,0 / 75,8 / 74,5 (sem regressão).

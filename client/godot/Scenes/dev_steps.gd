@@ -2,7 +2,7 @@ extends RefCounted
 ## Roteiro de desenvolvimento para capturas e demonstrações automáticas:
 ##   godot --path client/godot -- --steps "wait:2;shot:/tmp/a.png;city;wait:2;shot:/tmp/b.png;enter:0;quit"
 ## Passos: wait:s · shot:caminho · city (entra na 1ª cidade) · world · enter:ID · exit · floor:N · zoom:fator ·
-##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · bio:ID · chronicle · reports · player:ID · act:Nome · treasury · trades:ID · admin:motivo (pausa com o console) · adminsearch:texto · follow · quit. Não é usado em produção (sem --steps nada roda).
+##         yaw:graus · list · select:ID · brain:ID · whatif:fome · talk:ID · say:texto · bio:ID · chronicle · reports · player:ID · act:Nome · treasury · trades:ID · tech:CULTURA · admin:motivo (pausa com o console) · adminsearch:texto · follow · quit. Não é usado em produção (sem --steps nada roda).
 
 
 static func parse(args: PackedStringArray) -> Array:
@@ -82,6 +82,8 @@ static func run(app: Node, steps: Array) -> void:
 					await app.economy.show_treasury(String(cities[0]), "Cidade")
 			"trades":
 				await app.open_trades(int(arg))
+			"tech":
+				await app.technology.show_culture(int(arg))
 			"talk":
 				await app.select_npc(int(arg))
 				await app.talk_to(int(arg))

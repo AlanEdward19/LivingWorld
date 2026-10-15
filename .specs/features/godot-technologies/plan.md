@@ -41,4 +41,4 @@ Nomear tecnologias (LLM só rotula, ADR-0013), filtrar por `fromTick`.
 
 ## Performance
 
-Janela do mesmo tipo das fatias B/F (lista em `ScrollContainer`, sem `_process`): ver `godot-economy/plan.md`.
+M1 Pro, `stress:500`, 2026-10-14: sem janela 75,5 / 75,0 / 74,9; com a janela aberta 77,0 / 75,8 / 74,5 (sem regressão).
