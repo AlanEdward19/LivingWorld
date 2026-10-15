@@ -1,4 +1,4 @@
-# Sandbox de decisão "E se…?" [Estado: Implementado, aguardando Verifier independente (2026-10-14)]
+# Sandbox de decisão "E se…?" [Estado: Verificado, PASS (Verifier independente, 2026-10-15)]
 
 Issue #58, fatia 2 (Fase 28 task 12). Rota nova = contrato público: decidida em `docs/adr/ADR-0026-rota-decision-sandbox.md`
 (o usuário pediu implementar tudo sem supervisão).
