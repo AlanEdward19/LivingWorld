@@ -1,4 +1,4 @@
-# Godot hardening das telas do backend [Estado: Verificado, PASS (Verifier independente, 3 rodadas, 2026-10-15)]
+# Godot hardening das telas do backend [Estado: Implementado (rodada 2 do hardening), aguardando Verifier independente (2026-10-15)]
 
 Fecha os buracos listados depois das #58/#59 (PRs #78 a #88). Sem rota nova.
 
@@ -40,13 +40,25 @@ fixture (morador do pool, interior, timeout de conversa, dados reais); FPS medid
 
 **Independent test:** `bash scripts/client-test.sh --filter test_windows` e `dotnet test --filter "PooledNpcContractTests|DecisionSandboxEndpointTests"`.
 
+## Rodada 2 (dívidas da #77 e buracos restantes)
+
+7. WHEN o mundo é criado pelo menu THEN `POST /worlds/create` SHALL levar `periodId`; `GET /world/info` SHALL devolver `{name, periodId, technologyAxes}`; o período sobrevive a snapshot/reidratação sem mexer no hash canônico (ADR-0027)
+8. WHILE o mundo está pausado por admin THEN `GET /simulation/status` SHALL trazer `pausedBy/pauseReason/pausedAtTick/pauseMaxTicks` e a faixa do topo SHALL nomear quem pausou e por quê para QUALQUER cliente; sem pausa de admin os campos são nulos
+9. The system SHALL validar contratos com campo opcional tipado (chave `campo?`): ausente ou nulo passa, com valor tem de cumprir a forma; aplicado a ficha de NPC, status, admin, conversa, jogador, tecnologias, sandbox e diretório/deltas
+10. The system SHALL rotular os eixos de tecnologia pelo cenário (`technologyAxes`), com eixo desconhecido capitalizado e vetor maior que os eixos numerado
+11. IF o servidor ainda liga o `playerId` a um NPC (409 "já controla outro NPC") THEN o HUD SHALL oferecer só "Sair do personagem anterior"; duplo clique em Encarnar SHALL mandar um único POST
+12. The system SHALL levar da ficha da cidade a um morador anônimo (`pendingResidentIds`) até "Ver em detalhe"; a ficha anônima SHALL esconder barras e botões sem sentido
+13. The system SHALL refletir no `ROADMAP.md` as fases 10, 11, 12, 24, 25 e 26 com tela no cliente
+
 ## Provas com dados reais (2026-10-15)
 
 - Conversa: servidor atrasado em 12 s (proxy TCP) → a UI desistiu em exatamente 8 s, avisou e descartou a resposta tardia.
 - Interior: cliente dentro do prédio 3 publica escopo `Building`; rastro dos NPCs de dentro foi de 0 para 3-5 entradas.
 - Tesouro com dados reais de 3 anos de simulação; barras com preenchimento colorido (verde entrou, vermelho saiu).
-- Mundo da "grande metrópole": nenhum cenário padrão gera morador do pool, então a prova é o teste .NET do critério 5.
+- Morador do pool real: mundo criado com cidade autorada com `AggregatePool` (30 moradores); `GET /npcs/0` deu `lod` 2, a ficha mostrou o aviso e "Ver em detalhe" e o POST materializou (`lod` 0). Teste .NET do critério 5 cobre o contrato.
+- `GET /world/info` real devolveu o período do mundo criado pelo cliente.
+- História/narrativas: mundo de 12 anos sem fatos nem relatos porque o `ScenarioLoaderV2` não liga `HistoryRules`; vira a issue #91 (fora do escopo do cliente).
 
 ## Out of scope
 
-Rotas novas (issue #77), warning de âncoras do `loading` que já existe na `develop`.
+Warning de âncoras do `loading` que já existe na `develop`; história vazia (#91); conversa com LLM real (#90).
