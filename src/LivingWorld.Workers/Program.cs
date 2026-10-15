@@ -122,6 +122,17 @@ if (args.Length == 3 && args[0] == "emergence-hash")
     return 0;
 }
 
+// Hash canônico de uma vila com aparência herdada ligada: o teste de dois processos exige o mesmo hash. Imprime também quantos
+// nascidos têm genes de aparência. `dotnet <dll> appearance-hash <seed> <ticks>`.
+if (args.Length == 3 && args[0] == "appearance-hash")
+{
+    var (world, clock) = ScenarioRunner.Create(
+        ulong.Parse(args[1]), appearanceRules: new LivingWorld.Domain.Population.AppearanceRules(0.6));
+    clock.Run(world, long.Parse(args[2]));
+    Console.WriteLine($"{WorldSnapshot.CanonicalHash(world)};{world.Npcs.Count(n => n.MotherId is not null && n.Appearance is not null)}");
+    return 0;
+}
+
 // `dotnet <dll> history-significance-digest <seed> <ticks>`.
 if (args.Length == 3 && args[0] == "history-significance-digest")
 {

@@ -109,6 +109,16 @@ public class DeterminismTwoProcessTests
     }
 
     [Fact]
+    public void Same_seed_inherits_the_same_looks_across_two_separate_processes()
+    {
+        string a = RunCommand("appearance-hash 5 17280");
+        string b = RunCommand("appearance-hash 5 17280");
+
+        Assert.Equal(a, b);
+        Assert.True(int.Parse(a.Split(';')[1]) > 0, "nenhum nascido com aparência: o teste não mediu a herança");
+    }
+
+    [Fact]
     public void Different_seeds_produce_different_canonical_hashes_across_processes()
     {
         var (canonicalA, _) = RunInSeparateProcess(seed: 42, ticks: 400);

@@ -76,4 +76,6 @@ public sealed record NpcInspectionDto(
     // lista vazia explícita quando não há entradas; nunca recalculado aqui.
     IReadOnlyList<TraceEntry> CognitionTrace,
     NpcRestStatusDto? Rest = null,
-    NpcFoodStatusDto? Food = null);
+    NpcFoodStatusDto? Food = null,
+    // #46 fatia 2: genes de aparência; nulo (omitido) em mundo sem AppearanceRules
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] Appearance? Appearance = null);

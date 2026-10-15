@@ -47,6 +47,17 @@ public class DefaultPeriodSeederTests
     }
 
     [Fact]
+    public void SeedIfEmpty_gives_every_builtin_preset_inherited_looks()
+    {
+        foreach (var json in SeededPayloads())
+        {
+            var world = ScenarioLoaderV2.LoadWorld(json).Value.World;
+            Assert.NotNull(world.AppearanceRules);
+            Assert.All(world.Npcs, n => Assert.NotNull(n.Appearance));
+        }
+    }
+
+    [Fact]
     public void Profession_names_do_not_change_the_world_hash()
     {
         foreach (var json in SeededPayloads())

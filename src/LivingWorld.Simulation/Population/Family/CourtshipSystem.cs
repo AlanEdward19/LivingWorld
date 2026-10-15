@@ -122,6 +122,9 @@ public sealed class CourtshipSystem : ISimulationSystem
             double weight = rules.AttractionWeight(factor);
             if (weight == 0)
                 continue;
+            // sem aparência (mundo sem AppearanceRules) o fator não existe: não entra na média, o score é o de antes
+            if (factor == AttractionFactor.Appearance && (a.Appearance is null || b.Appearance is null))
+                continue;
 
             double normalized = NormalizeFactor(factor, a, b, aToB, bToA, populationRules, now);
             weightedSum += weight * normalized;
@@ -309,6 +312,7 @@ public sealed class CourtshipSystem : ISimulationSystem
             AttractionFactor.Skill => (SkillFactor(a) + SkillFactor(b)) / 2.0,
             AttractionFactor.CulturalAffinity => CulturalAffinityOf(a, b),
             AttractionFactor.ExistingRelationship => ExistingRelationshipFactor(aToB, bToA),
+            AttractionFactor.Appearance => Appearance.Similarity(a.Appearance!, b.Appearance!),
             _ => 0.0,
         };
     }

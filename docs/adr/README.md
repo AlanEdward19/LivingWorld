@@ -39,3 +39,4 @@ conteúdo de ADR para dentro dele.
 | [0029](ADR-0029-janela-critica-e-exposicao-binaria.md) | Exposição binária, janela crítica por teto e aquisição sem sorteio | aceito |
 | [0030](ADR-0030-idioma-de-criacao-e-regressao-por-doenca.md) | Idioma de criação, regressão por doença e adultos no pool | aceito |
 | [0031](ADR-0031-acolhimento-de-orfaos-e-criacao-adotiva.md) | Acolhimento de órfãos, choro atendido, exposição graduada e criação adotiva | aceito |
+| [0032](ADR-0032-aparencia-herdada-e-autoria-de-pessoa.md) | Aparência herdada opt-in por período, habilidades iniciais autoradas, consumidor no cortejo | aceito |

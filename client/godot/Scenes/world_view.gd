@@ -405,7 +405,7 @@ func _rebuild_npcs() -> void:
 func _spawn_npc(info: Dictionary) -> void:
 	var actor := NpcActor.new()
 	add_child(actor)
-	actor.setup(info.id, info.cell, info.action, labels)
+	actor.setup(info.id, info.cell, info.action, labels, info.get("look", {}))
 	actor.set_selected(info.id == _selected_npc)
 	if store.names.has(info.id):
 		actor.set_display_name(store.names[info.id])

@@ -61,6 +61,7 @@ public class NpcInspectionDtoCoverageTests
         // a todo campo acima.
         [nameof(NpcInspectionDto.CurrentScope)] = (dto, npc, world) => dto.CurrentScope.Equals(ExpectedScope(npc, world)),
         [nameof(NpcInspectionDto.Rest)] = (dto, npc, world) => Equals(dto.Rest, RestPresentation.Of(world, npc)),
+        [nameof(NpcInspectionDto.Appearance)] = (dto, npc, _) => Equals(dto.Appearance, npc.Appearance),
         [nameof(NpcInspectionDto.Food)] = (dto, npc, world) => Equals(dto.Food, FoodPresentation.Of(world, npc)),
         [nameof(NpcInspectionDto.CognitionTrace)] = (dto, npc, world) =>
             dto.CognitionTrace.SequenceEqual(world.CognitionLog.RecentEntries(npc.Id, int.MaxValue)),

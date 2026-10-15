@@ -86,7 +86,7 @@ func _load_world(payload: Dictionary) -> void:
 		actions[id_of(visual.id)] = visual.get("currentAction")
 	for marker in payload.externalNpcs:
 		var npc_id: int = id_of(marker.id)
-		npcs[npc_id] = _npc(npc_id, cell_of(marker.location), actions.get(npc_id), "")
+		npcs[npc_id] = _npc(npc_id, cell_of(marker.location), actions.get(npc_id), "", look_of(marker.get("appearance")))
 	cities_changed.emit()
 
 
@@ -103,7 +103,7 @@ func _load_city(payload: Dictionary) -> void:
 	var visible: Array = living.npcs if living != null and living.get("npcs") != null else payload.residents
 	for marker in visible:
 		var id: int = id_of(marker.id)
-		npcs[id] = _npc(id, cell_of(marker.location), marker.get("currentAction"), city.id)
+		npcs[id] = _npc(id, cell_of(marker.location), marker.get("currentAction"), city.id, look_of(marker.get("appearance")))
 	buildings.clear()
 	for marker in payload.buildings:
 		var id: int = id_of(marker.id)
@@ -118,8 +118,16 @@ func _load_interior(payload: Dictionary) -> void:
 	}
 
 
-func _npc(id: int, cell: Vector2i, action: Variant, city_id: String) -> Dictionary:
-	return {"id": id, "cell": cell, "action": NO_ACTION if action == null else int(action), "city": city_id}
+func _npc(id: int, cell: Vector2i, action: Variant, city_id: String, look: Dictionary = {}) -> Dictionary:
+	return {"id": id, "cell": cell, "action": NO_ACTION if action == null else int(action), "city": city_id, "look": look}
+
+
+## Genes de aparência do motor ({skinTone,...}) no formato do cliente; vazio quando o mundo não os tem.
+static func look_of(appearance: Variant) -> Dictionary:
+	if not appearance is Dictionary:
+		return {}
+	return {"skin_tone": int(appearance.skinTone), "hair_tone": int(appearance.hairTone),
+		"hair_curl": int(appearance.hairCurl), "build": int(appearance.build)}
 
 
 func _building(id: int, marker: Dictionary) -> Dictionary:
@@ -144,7 +152,7 @@ func apply_delta(envelope: Dictionary) -> void:
 		var action: int = NO_ACTION if visual.get("currentAction") == null else int(visual.currentAction)
 		var previous = npcs.get(id)
 		var from_cell: Vector2i = previous.cell if previous != null else cell
-		npcs[id] = _npc(id, cell, action, previous.city if previous != null else "")
+		npcs[id] = _npc(id, cell, action, previous.city if previous != null else "", previous.look if previous != null else {})
 		npc_changed.emit(id, from_cell, cell, action)
 	for removed in delta.get("npcRemoved", []):
 		var id: int = id_of(removed)

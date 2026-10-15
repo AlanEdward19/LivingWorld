@@ -7,6 +7,8 @@ signal done(families: Array)
 signal cancelled()
 
 const WorldEditor := preload("res://Scenes/world_editor.gd")
+const NpcActor := preload("res://Scenes/npc_actor.gd")
+const GENE_LABELS := ["Tom da pele", "Tom do cabelo", "Cabelo ondulado", "Porte"]
 const TRAIT_LABELS := ["Extroversão", "Amabilidade", "Disciplina", "Estabilidade", "Abertura", "Ambição", "Lealdade", "Altruísmo", "Impulsividade", "Aversão a risco"]
 
 var families: Array = []
@@ -26,6 +28,12 @@ var mother_pick: OptionButton
 var father_pick: OptionButton
 var sliders: Array[HSlider] = []
 var custom_personality: CheckBox
+var custom_appearance: CheckBox
+var gene_sliders: Array[HSlider] = []
+var skills: Dictionary = {} ## id (int) -> nome das habilidades que o período declara
+var skill_spins: Dictionary = {} ## id -> SpinBox (nível inicial 0–100; 0 = sem habilidade)
+var skills_box: VBoxContainer
+var preview_actor: Node3D
 var message: Label
 var _rows: Array = [] ## linhas da lista: [família, membro]
 var _loading := false
@@ -112,6 +120,31 @@ func _ready() -> void:
 		sliders.append(slider)
 	_button("Sortear personalidade", right, roll_personality)
 
+	custom_appearance = CheckBox.new()
+	custom_appearance.text = "Aparência própria (desmarcado = herdada ou sorteada pelo mundo)"
+	custom_appearance.toggled.connect(func(_on): _store())
+	right.add_child(custom_appearance)
+	for i in GENE_LABELS.size():
+		var gene_line := HBoxContainer.new()
+		right.add_child(gene_line)
+		var gene_label := Label.new()
+		gene_label.text = GENE_LABELS[i]
+		gene_label.custom_minimum_size.x = 130
+		gene_line.add_child(gene_label)
+		var gene_slider := HSlider.new()
+		gene_slider.min_value = 0
+		gene_slider.max_value = 100
+		gene_slider.step = 1
+		gene_slider.value = 50
+		gene_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		gene_slider.value_changed.connect(func(_v): _store())
+		gene_line.add_child(gene_slider)
+		gene_sliders.append(gene_slider)
+	_button("Sortear aparência", right, roll_appearance)
+	skills_box = VBoxContainer.new()
+	right.add_child(skills_box)
+	right.add_child(_build_preview())
+
 	message = Label.new()
 	message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	message.modulate = Color("e08a8a")
@@ -121,6 +154,7 @@ func _ready() -> void:
 	box.add_child(actions)
 	_button("Cancelar", actions, func(): cancelled.emit()).size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_button("Concluir", actions, finish).size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_rebuild_skills()
 	_refresh()
 
 
@@ -144,11 +178,56 @@ func _line(label_text: String, parent: Control, control: Control) -> Control:
 	return control
 
 
-## Define o catálogo (profissões e assentamentos) e as famílias de partida; chamado antes de mostrar.
-func setup(p_families: Array, p_professions: Dictionary, p_settlements: Array[String]) -> void:
+## Prévia 3D do boneco com a aparência escolhida (o mesmo ator do mundo, num viewport próprio).
+func _build_preview() -> Control:
+	var container := SubViewportContainer.new()
+	container.custom_minimum_size = Vector2(160, 190)
+	container.stretch = true
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(160, 190)
+	viewport.transparent_bg = true
+	container.add_child(viewport)
+	var camera := Camera3D.new()
+	viewport.add_child(camera)
+	camera.position = Vector3(0, 0.75, 2.1)
+	var light := DirectionalLight3D.new()
+	light.rotation_degrees = Vector3(-35, 25, 0)
+	viewport.add_child(light)
+	preview_actor = NpcActor.new()
+	viewport.add_child(preview_actor)
+	preview_actor.setup(0, Vector2i.ZERO, -1, null)
+	return container
+
+
+## Habilidades iniciais: um campo de nível por habilidade que o período declara (some se não declara nenhuma).
+func _rebuild_skills() -> void:
+	for child in skills_box.get_children():
+		child.queue_free()
+	skill_spins.clear()
+	skills_box.visible = not skills.is_empty()
+	for skill_id in skills:
+		var line := HBoxContainer.new()
+		skills_box.add_child(line)
+		var label := Label.new()
+		label.text = "Habilidade: %s" % skills[skill_id]
+		label.custom_minimum_size.x = 200
+		line.add_child(label)
+		var spin := SpinBox.new()
+		spin.min_value = 0
+		spin.max_value = 100
+		spin.value_changed.connect(func(_v): _store())
+		line.add_child(spin)
+		skill_spins[skill_id] = spin
+
+
+## Define o catálogo (profissões, assentamentos e habilidades) e as famílias de partida; chamado antes de mostrar.
+func setup(p_families: Array, p_professions: Dictionary, p_settlements: Array[String], p_skills: Dictionary = {}) -> void:
 	families = p_families.duplicate(true)
 	professions = p_professions
 	settlements = p_settlements
+	skills = p_skills
+	if is_node_ready():
+		_rebuild_skills()
 	family_index = 0
 	member_index = 0
 	if is_node_ready():
@@ -158,7 +237,8 @@ func setup(p_families: Array, p_professions: Dictionary, p_settlements: Array[St
 func new_member(adult: bool = true) -> Dictionary:
 	var profession := int(professions.keys()[0]) if not professions.is_empty() else 0
 	return {"name": "Pessoa %d" % (_member_total() + 1), "sex": "Female", "age": 28 if adult else 6,
-		"profession": profession, "personality": null, "spouse": -1, "mother": -1, "father": -1}
+		"profession": profession, "personality": null, "spouse": -1, "mother": -1, "father": -1,
+		"appearance": null, "skills": {}}
 
 
 func _member_total() -> int:
@@ -211,6 +291,15 @@ func roll_personality() -> void:
 	_store()
 
 
+func roll_appearance() -> void:
+	if families.is_empty():
+		return
+	custom_appearance.set_pressed_no_signal(true)
+	for slider in gene_sliders:
+		slider.set_value_no_signal(_rng.randi_range(0, 100))
+	_store()
+
+
 func _on_row_selected(index: int) -> void:
 	family_index = _rows[index][0]
 	member_index = _rows[index][1]
@@ -240,7 +329,7 @@ func _refresh() -> void:
 func _load_form() -> void:
 	_loading = true
 	var has_person := not families.is_empty()
-	for control in [name_edit, sex_pick, age_spin, profession_pick, settlement_pick, spouse_pick, mother_pick, father_pick, custom_personality]:
+	for control in [name_edit, sex_pick, age_spin, profession_pick, settlement_pick, spouse_pick, mother_pick, father_pick, custom_personality, custom_appearance]:
 		if control is LineEdit or control is SpinBox:
 			control.set("editable", has_person)
 		else:
@@ -266,7 +355,13 @@ func _load_form() -> void:
 		custom_personality.set_pressed_no_signal(person.personality is Dictionary)
 		for i in 10:
 			sliders[i].set_value_no_signal(float(person.personality.get(WorldEditor.TRAITS[i], 50)) if person.personality is Dictionary else 50.0)
+		custom_appearance.set_pressed_no_signal(person.get("appearance") is Dictionary)
+		for i in gene_sliders.size():
+			gene_sliders[i].set_value_no_signal(float(person.appearance.get(WorldEditor.GENES[i], 50)) if person.get("appearance") is Dictionary else 50.0)
+		for skill_id in skill_spins:
+			skill_spins[skill_id].set_value_no_signal(float(person.get("skills", {}).get(skill_id, 0)))
 	_loading = false
+	_update_preview()
 
 
 ## "Ninguém" + os outros membros da mesma família (o item guarda o índice do membro).
@@ -301,6 +396,32 @@ func _store() -> void:
 		person.personality = traits
 	else:
 		person.personality = null
+	if custom_appearance.button_pressed:
+		var genes := {}
+		for i in gene_sliders.size():
+			genes[WorldEditor.GENES[i]] = int(gene_sliders[i].value)
+		person.appearance = genes
+	else:
+		person.appearance = null
+	var levels := {}
+	for skill_id in skill_spins:
+		if int(skill_spins[skill_id].value) > 0:
+			levels[skill_id] = int(skill_spins[skill_id].value)
+	person.skills = levels
+	_update_preview()
+
+
+## Genes do formulário no formato do ator; sem aparência própria, o boneco volta ao sorteio local.
+func preview_look() -> Dictionary:
+	if not custom_appearance.button_pressed:
+		return {}
+	return {"skin_tone": int(gene_sliders[0].value), "hair_tone": int(gene_sliders[1].value),
+		"hair_curl": int(gene_sliders[2].value), "build": int(gene_sliders[3].value)}
+
+
+func _update_preview() -> void:
+	if preview_actor != null:
+		preview_actor.apply_look(preview_look())
 
 
 ## Cônjuge é recíproco: marcar um lado marca o outro (e desfaz o par anterior).

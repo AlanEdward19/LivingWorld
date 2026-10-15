@@ -140,6 +140,13 @@ public sealed record FamilyRules(
 
     /// <summary>Peso declarado do fator de atração; fator sem declaração no cenário pesa 0
     /// (mesmo espírito de <see cref="SkillsRules.Gain"/> com fonte sem taxa declarada).</summary>
+    /// <summary>Acrescenta o peso de <see cref="AttractionFactor.Appearance"/>. Cenário sem nenhum peso de atração
+    /// declarado (cortejo desligado) fica como está, senão ligar aparência ligaria o cortejo.</summary>
+    public FamilyRules WithAppearanceAttraction(double weight) =>
+        AttractionWeights.Count == 0 || weight <= 0
+            ? this
+            : this with { AttractionWeights = new Dictionary<AttractionFactor, double>(AttractionWeights) { [AttractionFactor.Appearance] = weight } };
+
     public double AttractionWeight(AttractionFactor factor) =>
         AttractionWeights.TryGetValue(factor, out var weight) ? weight : 0.0;
 

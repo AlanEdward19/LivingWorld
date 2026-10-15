@@ -65,7 +65,8 @@ public static class ScenarioLoaderV2
             processRecipes: definition.ProcessRecipes,
             extraordinary: definition.Extraordinary,
             emergenceRules: definition.Emergence,
-            ontogenyRules: definition.Ontogeny);
+            ontogenyRules: definition.Ontogeny,
+            appearanceRules: definition.Appearance);
 
         var createdCityIds = new List<CityId>(definition.City.Cities.Count);
         foreach (var city in definition.City.Cities)
@@ -222,7 +223,8 @@ public static class ScenarioLoaderV2
         // Famílias autoradas, depois da população sorteada: sem o bloco nada muda (hash preservado).
         var authoredResult = AuthoredHouseholdsLoader.Load(
             System.Text.Json.Nodes.JsonNode.Parse(json)!.AsObject(), population.Catalog,
-            population.LifeTable.MaxLongevityYears, definition.Map.Settlements.Select(s => s.Name).ToList());
+            population.LifeTable.MaxLongevityYears, definition.Map.Settlements.Select(s => s.Name).ToList(),
+            appearanceEnabled: definition.Appearance is not null);
         if (!authoredResult.IsSuccess)
             return Result<(WorldState, WorldClock)>.Fail(authoredResult.Error!);
         foreach (var family in authoredResult.Value!)

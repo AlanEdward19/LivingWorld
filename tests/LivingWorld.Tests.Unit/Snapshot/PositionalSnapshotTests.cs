@@ -1,4 +1,5 @@
 using System.Reflection;
+using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Scenarios;
@@ -49,7 +50,7 @@ public class PositionalSnapshotTests
     [Fact]
     public void Every_persistable_world_property_is_in_the_encoded_tree()
     {
-        var (world, _) = ScenarioRunner.Create(seed: 7, initialPopulation: 8);
+        var (world, _) = ScenarioRunner.Create(seed: 7, initialPopulation: 8, appearanceRules: new AppearanceRules(0.6));
         var tree = WorldSnapshot.BuildPersistentTree(world);
 
         var expected = WorldSnapshot.ReflectedProperties

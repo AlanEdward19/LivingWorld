@@ -291,6 +291,10 @@ public static class WorldSnapshot
             node.TryGetPropertyValue("OntogenyRules", out var ontogenyRulesNode) && ontogenyRulesNode is not null
                 ? ontogenyRulesNode.Deserialize<LivingWorld.Domain.Ontogeny.OntogenyRules>(JsonOptions)!
                 : LivingWorld.Domain.Ontogeny.OntogenyRules.Disabled;
+        var appearanceRules =
+            node.TryGetPropertyValue("AppearanceRules", out var appearanceRulesNode) && appearanceRulesNode is not null
+                ? appearanceRulesNode.Deserialize<AppearanceRules>(JsonOptions)
+                : null;
         var technologies =
             node.TryGetPropertyValue("Technologies", out var technologiesNode) && technologiesNode is not null
                 ? technologiesNode.Deserialize<List<Technology>>(JsonOptions)!
@@ -313,7 +317,7 @@ public static class WorldSnapshot
             extraordinaryConstructs, nextExtraordinaryConstructId,
             fauna, nextAnimalId, flora, nextPlantId, environmentTemperatureAdjustments,
             animalSpeciesRules, plantSpeciesRules, biomeSeasonTemperatureRules,
-            nextHistoryEventId, combatEncounters, nextCombatEncounterId, combatRules, tradeLedger, treasuryLedger, diseaseRules, infections, immunities, climateRules, climateYears, theftRules, emergenceRules, ontogenyRules, technologies);
+            nextHistoryEventId, combatEncounters, nextCombatEncounterId, combatRules, tradeLedger, treasuryLedger, diseaseRules, infections, immunities, climateRules, climateYears, theftRules, emergenceRules, ontogenyRules, technologies, appearanceRules);
         rehydrated.AssignPeriod(periodId);
         return rehydrated;
     }
@@ -325,10 +329,16 @@ public static class WorldSnapshot
         {
             if (!filter(prop)) continue;
             var value = prop.GetValue(world);
+            if (value is null && OmitsNull(prop)) continue;
             obj[prop.Name] = JsonSerializer.SerializeToNode(value, prop.PropertyType, JsonOptions);
         }
         return obj;
     }
+
+    /// <summary>Propriedade opcional marcada <c>WhenWritingNull</c>: nula, some do snapshot e dos hashes (hash igual ao de antes).</summary>
+    internal static bool OmitsNull(PropertyInfo prop) =>
+        prop.GetCustomAttribute<System.Text.Json.Serialization.JsonIgnoreAttribute>()?.Condition
+            == System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
 
     private static string Hash(JsonObject json)
     {

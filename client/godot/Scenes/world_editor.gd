@@ -80,10 +80,17 @@ const TRAITS: Array[String] = [
 ]
 
 
+const GENES: Array[String] = ["SkinTone", "HairTone", "HairCurl", "Build"]
+## Herdabilidade do bloco `Appearance` que o editor acrescenta quando alguém tem aparência própria (a dos presets).
+const APPEARANCE_BLOCK := '{"Heritability":0.6}'
+
+
 ## `families`: [{settlement: String, members: [{name, sex: "Female"|"Male", age, profession, personality: Dictionary|null,
-## spouse: int, mother: int, father: int}]}]; -1 = sem vínculo. Vazio remove o bloco do efeito (lista vazia).
+## spouse: int, mother: int, father: int, appearance: Dictionary|null, skills: Dictionary id->nível}]}]; -1 = sem vínculo.
+## Vazio remove o bloco do efeito (lista vazia). Aparência própria exige o bloco `Appearance` no período: é acrescentado se faltar.
 static func with_households(text: String, families: Array) -> String:
 	var family_items: Array[String] = []
+	var wants_appearance := false
 	for family in families:
 		var members: Array[String] = []
 		for member in family.members:
@@ -96,6 +103,19 @@ static func with_households(text: String, families: Array) -> String:
 				for trait_name in TRAITS:
 					traits.append('"%s":%d' % [trait_name, int(member.personality.get(trait_name, 50))])
 				fields.append('"Personality":{%s}' % ",".join(traits))
+			if member.get("appearance") is Dictionary:
+				var genes: Array[String] = []
+				for gene in GENES:
+					genes.append('"%s":%d' % [gene, int(member.appearance.get(gene, 50))])
+				fields.append('"Appearance":{%s}' % ",".join(genes))
+				wants_appearance = true
+			if member.get("skills") is Dictionary and not member.skills.is_empty():
+				var levels: Array[String] = []
+				var ids: Array = member.skills.keys()
+				ids.sort()
+				for skill_id in ids:
+					levels.append('"%d":%d' % [int(skill_id), int(member.skills[skill_id])])
+				fields.append('"Skills":{%s}' % ",".join(levels))
 			for link in [["Spouse", "spouse"], ["Mother", "mother"], ["Father", "father"]]:
 				if int(member.get(link[1], -1)) >= 0:
 					fields.append('"%s":%d' % [link[0], int(member[link[1]])])
@@ -104,7 +124,10 @@ static func with_households(text: String, families: Array) -> String:
 		if String(family.get("settlement", "")) != "":
 			head = '"Settlement":%s,%s' % [JSON.stringify(String(family.settlement)), head]
 		family_items.append("{" + head + "}")
-	return JsonRaw.set_member(text, "AuthoredHouseholds", "[" + ",".join(family_items) + "]")
+	var out := JsonRaw.set_member(text, "AuthoredHouseholds", "[" + ",".join(family_items) + "]")
+	if wants_appearance and JsonRaw.member(out, "Appearance") == "":
+		out = JsonRaw.set_member(out, "Appearance", APPEARANCE_BLOCK)
+	return out
 
 
 ## Famílias já presentes no rascunho, no mesmo formato de `with_households`.
@@ -119,7 +142,17 @@ static func read_households(text: String) -> Array:
 				personality = {}
 				for trait_name in TRAITS:
 					personality[trait_name] = int(person.Personality.get(trait_name, 50))
+			var appearance = null
+			if person.get("Appearance") is Dictionary:
+				appearance = {}
+				for gene in GENES:
+					appearance[gene] = int(person.Appearance.get(gene, 50))
+			var skills := {}
+			if person.get("Skills") is Dictionary:
+				for skill_id in person.Skills:
+					skills[int(skill_id)] = int(person.Skills[skill_id])
 			members.append({
+				"appearance": appearance, "skills": skills,
 				"name": String(person.get("Name", "")), "sex": String(person.get("Sex", "Female")),
 				"age": int(person.get("AgeYears", 20)), "profession": int(person.get("ProfessionId", 0)),
 				"personality": personality, "spouse": int(person.get("Spouse", -1)),

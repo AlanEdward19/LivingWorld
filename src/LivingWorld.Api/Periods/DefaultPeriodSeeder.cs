@@ -81,6 +81,8 @@ public static class DefaultPeriodSeeder
                     new JsonObject { ["SkillId"] = 0, ["Weight"] = 1.0, ["Name"] = "Agricultura" },
                     new JsonObject { ["SkillId"] = 7, ["Weight"] = 1.0, ["Name"] = "Artesanato" }),
             },
+            // Aparência herdada dos pais (#46 fatia 2, ADR-0032): os mundos criados pelo menu já nascem com genes de aparência.
+            ["Appearance"] = new JsonObject { ["Heritability"] = 0.6 },
             ["MaxLongevityYears"] = 90,
             ["LifeTableBrackets"] = new JsonArray(
                 new JsonObject { ["MinAgeYears"] = 0, ["MaxAgeYears"] = 1, ["BaseAnnualMortality"] = 0.08 },

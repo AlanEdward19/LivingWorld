@@ -118,6 +118,11 @@ public sealed class Npc
     /// própria <see cref="Culture"/>. Lido pelo cortejo (afinidade cultural).</summary>
     public CultureId? NativeLanguage { get; private set; }
 
+    /// <summary>Genes de aparência (#46 fatia 2). Nulo = mundo sem <c>AppearanceRules</c>: omitido do snapshot, hash igual ao de antes.
+    /// Gravado só na geração (ou autoria) e imutável depois.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Appearance? Appearance { get; private set; }
+
     public void SetNativeLanguage(CultureId? culture)
     {
         if (NativeLanguage == culture) return;
@@ -251,7 +256,7 @@ public sealed class Npc
         string? intentTarget = null, IntentStatus? intentStatus = null, ActionType? travelPurpose = null,
         long lastJobChangeTick = 0,
         string? controllerId = null, ActionType? controlledAction = null, long? disappearedAtTick = null,
-        DevelopmentState? development = null, CultureId? nativeLanguage = null)
+        DevelopmentState? development = null, CultureId? nativeLanguage = null, Appearance? appearance = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -291,6 +296,7 @@ public sealed class Npc
         DisappearedAtTick = disappearedAtTick;
         Development = development;
         NativeLanguage = nativeLanguage;
+        Appearance = appearance;
         IsGhost = isGhost;
         HomelessSince = homelessSince;
         PregnantUntil = pregnantUntil;
@@ -331,7 +337,7 @@ public sealed class Npc
         bool isGhost = false,
         double height = 1.70, double weight = 68.0, double muscleMass = 28.0,
         ActionType? currentIntent = null, long intentStartedTick = 0,
-        string? intentTarget = null, IntentStatus? intentStatus = null)
+        string? intentTarget = null, IntentStatus? intentStatus = null, Appearance? appearance = null)
         : this(
             id, name, sex, birthDate, culture, birthLocation, motherId, fatherId, household, health,
             personality, profession, currentLocation,
@@ -339,7 +345,7 @@ public sealed class Npc
             currentAction, actionStartedAtTick, hungerZeroSinceTick, homelessSince, pregnantUntil, deathDate,
             wallet, employer, skills, rateGene, mentor, vitality, upbringing, spouse, courtingWith, city, materializedAtTick, interior,
             carriedResourceId, carriedQuantity, carryCapacity, isGhost, height, weight, muscleMass,
-            currentIntent, intentStartedTick, intentTarget, intentStatus)
+            currentIntent, intentStartedTick, intentTarget, intentStatus, appearance: appearance)
     {
     }
 

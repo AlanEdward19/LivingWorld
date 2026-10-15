@@ -107,7 +107,8 @@ public static partial class ScenarioRunner
         decayPerDay: 0.25,
         contactLossThresholdDays: 30,
         neutralAxisValue: 50,
-        attractionWeights: Enum.GetValues<AttractionFactor>().ToDictionary(f => f, _ => 1.0),
+        // Appearance fica de fora: o peso só entra com AppearanceRules (WithAppearanceAttraction), senão o hash mudaria
+        attractionWeights: Enum.GetValues<AttractionFactor>().Where(f => f != AttractionFactor.Appearance).ToDictionary(f => f, _ => 1.0),
         courtshipThreshold: 0.55,
         courtshipDurationDays: 90,
         marriageInitialStock: new Dictionary<int, long> { [1] = 50, [2] = 50 },
@@ -309,7 +310,8 @@ public static partial class ScenarioRunner
         LivingWorld.Domain.Climate.ClimateRules? climateRules = null,
         LivingWorld.Domain.Crime.TheftRules? theftRules = null,
         LivingWorld.Domain.Emergence.EmergenceRules? emergenceRules = null,
-        LivingWorld.Domain.Ontogeny.OntogenyRules? ontogenyRules = null)
+        LivingWorld.Domain.Ontogeny.OntogenyRules? ontogenyRules = null,
+        LivingWorld.Domain.Population.AppearanceRules? appearanceRules = null)
     {
         var rules = economyRules ?? DefaultEconomyRules;
         var family = familyRules ?? DefaultFamilyRules;
@@ -325,7 +327,8 @@ public static partial class ScenarioRunner
             animalSpeciesRules: animalSpeciesRules ?? DefaultAnimalSpeciesRules,
             plantSpeciesRules: plantSpeciesRules ?? DefaultPlantSpeciesRules,
             biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules, diseaseRules: diseaseRules, climateRules: climateRules, theftRules: theftRules, emergenceRules: emergenceRules,
-            ontogenyRules: ontogenyRules ?? LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human);
+            ontogenyRules: ontogenyRules ?? LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human,
+            appearanceRules: appearanceRules);
         var initialCity = new City(
             world.NextCityId(), DefaultVillageLocation, world.CurrentDate.TotalHours,
             foundedFromCityId: null, AggregatePopulationPool.Empty);

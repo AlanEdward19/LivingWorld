@@ -113,6 +113,11 @@ public sealed class NatalitySystem : ISimulationSystem
         var personality = Personality.Inherit(
             mother.Personality, father?.Personality ?? mother.Personality, ctx.StreamFor("personality", babyId.Value),
             familyRules.PersonalityHeritability);
+        // aparência herdada dos pais; só com AppearanceRules (sem ele o stream nem é aberto: hash igual ao de antes)
+        var appearance = world.AppearanceRules is { } appearanceRules && mother.Appearance is { } motherLook
+            ? Appearance.Inherit(motherLook, father?.Appearance ?? motherLook, ctx.StreamFor("appearance", babyId.Value),
+                appearanceRules.Heritability)
+            : null;
         var profession = world.PopulationCatalog.RollProfession(ctx.StreamFor("profession", babyId.Value));
         var rateGene = RateGene.Inherit(
             mother.RateGene, father?.RateGene ?? mother.RateGene, ctx.StreamFor("rategene", babyId.Value));
@@ -131,7 +136,7 @@ public sealed class NatalitySystem : ISimulationSystem
             household.Id, health: 100,
             personality: personality, profession: profession, currentLocation: household.Location,
             rateGene: rateGene, vitality: vitality, upbringing: upbringing,
-            height: height, weight: weight, muscleMass: muscleMass);
+            height: height, weight: weight, muscleMass: muscleMass, appearance: appearance);
 
         world.AddNpc(baby);
         if (world.OntogenyRules.Enabled)

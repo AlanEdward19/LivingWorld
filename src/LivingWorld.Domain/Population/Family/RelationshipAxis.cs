@@ -42,4 +42,6 @@ public enum AttractionFactor
     Skill,
     CulturalAffinity,
     ExistingRelationship,
+    /// <summary>Semelhança de <c>Npc.Appearance</c> (#46 fatia 2); par em que alguém não tem aparência ignora o fator (nem entra na média).</summary>
+    Appearance,
 }

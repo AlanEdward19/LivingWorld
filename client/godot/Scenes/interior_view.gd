@@ -4,6 +4,7 @@ extends Node3D
 
 const Grid := preload("res://Scenes/grid.gd")
 const NpcActor := preload("res://Scenes/npc_actor.gd")
+const WorldStore := preload("res://Store/world_store.gd")
 const AssetCatalog := preload("res://Scenes/asset_catalog.gd")
 
 const FLOOR_HEIGHT := 1.0
@@ -187,7 +188,7 @@ func set_occupants(occupants: Array) -> void:
 		if actor == null:
 			actor = NpcActor.new()
 			add_child(actor)
-			actor.setup(id, cell, action, _labels)
+			actor.setup(id, cell, action, _labels, WorldStore.look_of(occupant.get("appearance")))
 			actor.enable_bed(true)
 			occupant_nodes[id] = actor
 		elif actor.action != action:

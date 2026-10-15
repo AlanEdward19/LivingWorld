@@ -77,6 +77,7 @@ public static class IncrementalHasher
         var obj = new JsonObject();
         foreach (var prop in CanonicalProperties)
         {
+            if (WorldSnapshot.OmitsNull(prop) && prop.GetValue(world) is null) continue;
             obj[prop.Name] = prop.Name == nameof(WorldState.Npcs)
                 ? BuildNpcsNode(world, useCache)
                 : GetPropertyNode(world, prop, useCache);
