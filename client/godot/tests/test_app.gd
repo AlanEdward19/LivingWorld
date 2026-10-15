@@ -295,14 +295,24 @@ class _HangingApp extends Node:
 
 func test_closing_the_window_does_not_hang_when_the_server_does_not_answer() -> void:
 	var boot = load("res://Scenes/boot.gd").new()
-	tree.root.add_child(boot)
-	boot.app = _HangingApp.new()
 	var quit_calls: Array = []
 	boot.quit_fn = func(): quit_calls.append(true)
+	boot.quit_grace = 0.05
+	tree.root.add_child(boot)
+	boot.app = _HangingApp.new()
+	check(boot.QUIT_GRACE <= 2.0, "o teto real de espera é de no máximo 2 s")
 
 	boot.quit_gracefully()
-	boot._quit_ready.emit() # o prazo de QUIT_GRACE vence
-	await tree.process_frame
+	eq(quit_calls, [], "ainda esperando o servidor")
+	await tree.create_timer(0.3).timeout
 
-	eq(quit_calls, [true], "sai mesmo sem resposta do servidor")
+	eq(quit_calls, [true], "o prazo vencido sai sozinho, sem ninguém liberar a espera")
+	boot.free()
+
+
+func test_the_window_close_request_is_intercepted_so_release_can_finish() -> void:
+	var boot = load("res://Scenes/boot.gd").new()
+	boot.quit_fn = func(): pass
+	tree.root.add_child(boot)
+	eq(boot.get_tree().auto_accept_quit, false, "sem isto o Godot sairia antes de retirar a fonte")
 	boot.free()

@@ -15,6 +15,7 @@ const QUIT_GRACE := 2.0 ## no máximo isto à espera do servidor ao fechar a jan
 var menu
 var app
 var quit_fn: Callable
+var quit_grace := QUIT_GRACE
 var _transport
 var _released := false
 var _quitting := false
@@ -67,7 +68,7 @@ func quit_gracefully() -> void:
 		_released = false
 		_release_app()
 		if not _released:
-			get_tree().create_timer(QUIT_GRACE).timeout.connect(func(): _quit_ready.emit())
+			get_tree().create_timer(quit_grace).timeout.connect(func(): _quit_ready.emit())
 			await _quit_ready
 	quit_fn.call()
 
