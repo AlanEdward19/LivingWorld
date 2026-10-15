@@ -86,6 +86,7 @@ func test_materialize_errors_warn_and_keep_the_anonymous_sheet() -> void:
 	transport.on("POST /npcs/9/materialize", {"status": 500, "body": null})
 	await panel.materialize()
 
+	eq(warnings.size(), 2, "cada falha avisa")
 	check("não existe mais" in warnings[0], warnings[0])
 	check("erro 500" in warnings[1], warnings[1])
 	eq(panel.materialize_button.visible, true, "segue podendo tentar de novo")
