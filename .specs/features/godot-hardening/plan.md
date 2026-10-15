@@ -1,4 +1,4 @@
-# Godot hardening das telas do backend [Estado: Implementado, aguardando Verifier independente (2026-10-15)]
+# Godot hardening das telas do backend [Estado: Verificado, PASS (Verifier independente, 3 rodadas, 2026-10-15)]
 
 Fecha os buracos listados depois das #58/#59 (PRs #78 a #88). Sem rota nova.
 
