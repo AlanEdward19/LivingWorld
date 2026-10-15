@@ -332,3 +332,19 @@ func test_an_open_console_makes_no_requests_while_frames_pass() -> void:
 		await tree.process_frame
 	eq(transport.calls, [], "nenhuma requisição por frame")
 	window.free()
+
+
+func test_the_real_transport_sends_the_admin_token_only_when_configured() -> void:
+	var transport := preload("res://Contract/http_transport.gd").new()
+	var saved := OS.get_environment("LW_ADMIN_TOKEN")
+
+	OS.set_environment("LW_ADMIN_TOKEN", "tok-abc")
+	check("X-Admin-Token: tok-abc" in transport.build_headers({"X-Admin-Actor": "alan"}), "o token configurado vai no cabeçalho")
+	OS.unset_environment("LW_ADMIN_TOKEN")
+	var without: PackedStringArray = transport.build_headers()
+	eq(without.size(), 2, "sem LW_ADMIN_TOKEN não há cabeçalho de admin")
+	check(not ("X-Admin-Token: tok-abc" in without), "e o token antigo não vaza")
+
+	if saved != "":
+		OS.set_environment("LW_ADMIN_TOKEN", saved)
+	transport.free()
