@@ -69,6 +69,21 @@ public sealed class LiveCreationTests
     }
 
     [Fact]
+    public void Authored_looks_and_skills_travel_through_the_live_route_when_the_period_has_the_block()
+    {
+        var (world, _) = ScenarioRunner.Create(seed: 21, initialPopulation: 30, appearanceRules: new LivingWorld.Domain.Population.AppearanceRules(0.6));
+        string body = "{\"Members\":[{\"Name\":\"Ana\",\"Sex\":\"Female\",\"AgeYears\":30,\"ProfessionId\":1," +
+            "\"Appearance\":{\"SkinTone\":12,\"HairTone\":34,\"HairCurl\":56,\"Build\":78},\"Skills\":{\"0\":40}}]}";
+
+        var created = WorldAuthoringCommands.CreateHousehold(world, Context(world), Body(body));
+
+        Assert.True(created.IsSuccess, created.Error);
+        var ana = world.FindNpc(new LivingWorld.Domain.Shared.NpcId(created.Value!.NpcIds[0]))!;
+        Assert.Equal(new LivingWorld.Domain.Population.Appearance(12, 34, 56, 78), ana.Appearance);
+        Assert.Equal(40, ana.Skills.Get(new LivingWorld.Domain.Population.Skills.SkillType(0)), 3);
+    }
+
+    [Fact]
     public void A_rejected_family_writes_nothing()
     {
         var (world, _) = Create();

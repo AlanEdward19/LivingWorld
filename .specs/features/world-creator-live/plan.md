@@ -1,6 +1,6 @@
 # world-creator-live — #46 fatia 4 (criar família e local de trabalho com o mundo rodando)
 
-Status: implementado, aguardando Verifier independente. ADR-0033. Branch `feat/world-creator`.
+Status: PASS (`verification.md`). ADR-0033. Branch `feat/world-creator`.
 
 ## Problema
 `AuthoredHouseholds`/`Workplaces` só valiam ao criar o mundo. Faltava criar gente e prédio no mundo vivo, com rastro causal e a mesma validação.
@@ -20,7 +20,7 @@ loaders do cenário → `PopulationSeeder.SeedAuthored` / `WorkplacePlacer` (ext
 - Cliente: corpos das rotas com inteiros como inteiros, resumo e recusas em palavras, botão que pede o criador (`test_live_creation.gd`).
 
 ## Desempenho
-Nenhum sistema novo no tick: o custo por NPC-tick só muda se a rota for chamada. Cliente: nada novo por quadro (aba só existe com token).
+Nenhum sistema novo no tick: o custo por NPC-tick só muda se a rota for chamada. Motor sem usar a rota (`ScenarioRunner.Create`, seed 42, 1000 NPCs, 720 ticks, medido pelo Verifier, `a366629` → HEAD): 0,508 → 0,509 µs/NPC-tick (100%) e 172 234 → 172 297 B/tick (100,04%), dentro de 103% / 102%. Cliente: nada novo por quadro (aba só existe com token).
 
 ## Portas de mão única
 Duas rotas, dois `WorldEventKind` no fim do enum, formato do corpo = cenário, `X-Admin-Token` obrigatório.
