@@ -1,4 +1,4 @@
-# Godot main menu [Estado: Fatias 1, 2 e 3 implementadas; fatias 4+ por vir]
+# Godot main menu [Estado: Fatias 1, 2 e 3 implementadas; telas de backend entregues pela #59]
 
 ## Problem
 
@@ -66,8 +66,12 @@ Contrato novo é decisão do dono do projeto (AGENTS.md: perguntar antes).
 
 ## Out of scope (fatias seguintes, cada uma com spec)
 
-Mundos salvos (lista/carregar: o backend só expõe o mundo atual), crônicas e biografias, conversa com NPC,
-autoria, vigiados, tesouraria e trocas, encarnar jogador.
+Mundos salvos (lista/carregar: o backend só expõe o mundo atual; ver #67).
+
+Entregues depois, cada uma com spec própria em `.specs/features/`: conversa com NPC (`godot-npc-conversation`),
+crônicas, biografias e relatos (`godot-narratives`), crenças (`godot-beliefs`), encarnar jogador (`godot-player`),
+console de admin (`godot-admin`), tesouraria e trocas (`godot-economy`), tecnologias (`godot-technologies`),
+materializar NPC (`godot-materialize`), vigiados e painel Cérebro (`godot-brain-panel`).
 
 ## Sources
 

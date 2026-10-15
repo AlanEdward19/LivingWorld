@@ -94,6 +94,10 @@ class NpcDetailPanel extends PanelContainer:
 	signal incarnate_requested(id: int)
 	signal trades_requested(workplace_id: int)
 	signal technologies_requested(culture_id: int)
+	signal warning(text: String)
+	var lod := 0
+	var pooled_note: Label
+	var materialize_button: Button
 	signal culture_shown(culture_id: int)
 	var culture_id := -1
 	var tech_button: Button
@@ -122,6 +126,18 @@ class NpcDetailPanel extends PanelContainer:
 		_subtitle = Label.new()
 		_subtitle.modulate = Color(1, 1, 1, 0.75)
 		box.add_child(_subtitle)
+		pooled_note = Label.new()
+		pooled_note.text = "Este morador ainda é anônimo: faz parte da multidão da cidade."
+		pooled_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		pooled_note.custom_minimum_size.x = 270
+		pooled_note.add_theme_color_override("font_color", Color("ffcf4a"))
+		pooled_note.visible = false
+		box.add_child(pooled_note)
+		materialize_button = Button.new()
+		materialize_button.text = "Ver em detalhe"
+		materialize_button.visible = false
+		materialize_button.pressed.connect(func(): materialize())
+		box.add_child(materialize_button)
 		_grid = VBoxContainer.new()
 		box.add_child(_grid)
 		for spec in ["Saúde", "Fome", "Sede", "Sono", "Social"]:
@@ -179,8 +195,30 @@ class NpcDetailPanel extends PanelContainer:
 		var response: Dictionary = await api.npc_detail(id)
 		if not response.ok or not (response.body is Dictionary):
 			return
+		_present(id, response.body)
+
+
+	## Comando explícito (nunca o GET): materializa o morador ainda anônimo do pool e mostra a ficha completa.
+	func materialize() -> void:
+		if npc_id < 0 or lod != 2:
+			return
+		var id := npc_id
+		var response: Dictionary = await api.materialize_npc(id)
+		if id != npc_id:
+			return # outro NPC foi selecionado durante a espera
+		if response.ok and response.body is Dictionary:
+			_present(id, response.body)
+		elif response.status == 404:
+			warning.emit("Este morador não pode ser detalhado: não existe mais.")
+		else:
+			warning.emit("Não foi possível detalhar este morador (erro %d)." % response.status)
+
+
+	func _present(id: int, npc: Dictionary) -> void:
 		npc_id = id
-		var npc: Dictionary = response.body
+		lod = int(npc.get("lod", 0))
+		pooled_note.visible = lod == 2
+		materialize_button.visible = lod == 2
 		var action_text := ""
 		if labels != null and npc.get("currentAction") != null:
 			action_text = labels.label_for(int(npc.currentAction))
