@@ -8,6 +8,10 @@ const Anim := preload("res://Scenes/animation_catalog.gd")
 const LEG_X := 0.08
 const SKIN_TONES: Array[Color] = [Color("f1c9a5"), Color("e0ac7e"), Color("c68a5c"), Color("a06a44"), Color("7a4b30")]
 const HAIR_COLORS: Array[Color] = [Color("2b1b12"), Color("5a3a22"), Color("a0652a"), Color("d6b36a"), Color("8b8b8b"), Color("b5482a")]
+## Rampas dos genes de aparência do motor (#46 fatia 2), do mais claro ao mais escuro.
+const SKIN_RAMP: Array[Color] = [Color("f6dcc2"), Color("f1c9a5"), Color("e0ac7e"), Color("c68a5c"), Color("a06a44"), Color("7a4b30"), Color("4e2f1f")]
+const HAIR_RAMP: Array[Color] = [Color("e9dcae"), Color("d6b36a"), Color("a0652a"), Color("5a3a22"), Color("2b1b12")]
+const GENE_STEP := 5 ## genes em passos de 5: no máximo 21 materiais por rampa, compartilhados entre todos os NPCs
 
 ## Simulação pausada: ninguém anda nem anima (um passo manual leva o NPC direto ao destino).
 static var frozen := false
@@ -23,6 +27,7 @@ var _anim_accum := 0.0
 var cell := Vector2i.ZERO
 var action := -1
 var pose := Anim.NEUTRAL_POSE
+var look: Dictionary = {} ## genes do motor {skin_tone, hair_tone, hair_curl, build}; vazio = sorteio local de sempre
 var label_text := ""
 var display_name := ""
 
@@ -39,6 +44,7 @@ var _legs: Array[Node3D] = []
 var _tool: Node3D
 var _hat: MeshInstance3D
 var _hair_mesh: MeshInstance3D
+var _skin_mesh: MeshInstance3D
 var _bed: Node3D
 var _label: Label3D
 var _bubble: Label3D
@@ -51,8 +57,9 @@ var _selected := false
 var _hovered := false
 
 
-func setup(id: int, p_cell: Vector2i, p_action: int, labels) -> void:
+func setup(id: int, p_cell: Vector2i, p_action: int, labels, p_look: Dictionary = {}) -> void:
 	npc_id = id
+	look = p_look
 	cell = p_cell
 	position = Grid.to_world(cell)
 	_from = position
@@ -66,6 +73,27 @@ func _mat(color: Color) -> StandardMaterial3D:
 	material.albedo_color = color
 	material.roughness = 0.85
 	return material
+
+
+## Cor numa rampa para um gene em [0,100], arredondado ao passo (cor igual = material compartilhado).
+static func ramp_color(ramp: Array[Color], gene: int) -> Color:
+	var snapped_gene := clampi(roundi(float(gene) / GENE_STEP) * GENE_STEP, 0, 100)
+	var position := float(snapped_gene) / 100.0 * (ramp.size() - 1)
+	var index := mini(int(position), ramp.size() - 2)
+	return ramp[index].lerp(ramp[index + 1], position - index)
+
+
+## Pele, cabelo, volume do cabelo e porte a partir dos genes; sem genes, não mexe em nada.
+func apply_look(p_look: Dictionary) -> void:
+	look = p_look
+	if look.is_empty() or _skin_mesh == null:
+		return
+	_skin_mesh.material_override = _shared_mat(ramp_color(SKIN_RAMP, int(look.skin_tone)))
+	_hair_mesh.material_override = _shared_mat(ramp_color(HAIR_RAMP, int(look.hair_tone)))
+	var curl := float(look.hair_curl) / 100.0
+	_hair_mesh.scale = Vector3(1.0 + 0.3 * curl, 1.0 + 0.35 * curl, 1.0 + 0.3 * curl)
+	var width := 0.85 + 0.4 * float(look.build) / 100.0
+	_torso.scale = Vector3(width, 1.0, width)
 
 
 ## Materiais sem emissão variável são compartilhados entre todos os NPCs (menos memória e trocas de estado).
@@ -133,7 +161,8 @@ func _build() -> void:
 		m.radial_segments = 12
 		m.rings = 6
 		return m)
-	_shadow_parts.append(_part(_head, head_mesh, skin, Vector3.ZERO))
+	_skin_mesh = _part(_head, head_mesh, skin, Vector3.ZERO)
+	_shadow_parts.append(_skin_mesh)
 	var hair_mesh := _shared_mesh("hair", func():
 		var m := SphereMesh.new()
 		m.radius = 0.14
@@ -146,6 +175,8 @@ func _build() -> void:
 	for side in [-1, 1]:
 		_arms.append(_limb(_body, Vector3(side * 0.22, 0.82, 0), Vector3(0.08, 0.34, 0.08), _shirt))
 		_legs.append(_limb(self, Vector3(side * 0.08, 0.36, 0), Vector3(0.1, 0.36, 0.1), pants))
+
+	apply_look(look)
 
 	var body := StaticBody3D.new()
 	body.set_meta("npc_id", npc_id)

@@ -30,7 +30,7 @@ public static class PopulationSeeder
             world.PopulationCatalog, world.NextNpcId, world.NextHouseholdId, placementCity.Id,
             householdLocationsFactory: householdCount => PlaceHouseholdBuildings(
                 world, placementCity, count, householdCount, houseIds),
-            bodyRules: world.BodyRules);
+            bodyRules: world.BodyRules, appearanceRules: world.AppearanceRules);
 
         Register(world, generated, houseIds);
     }
@@ -46,7 +46,7 @@ public static class PopulationSeeder
             rng, world.CurrentDate, [household], culture, villageLocation, world.NextNpcId, world.NextHouseholdId, city.Id,
             householdLocationsFactory: householdCount => PlaceHouseholdBuildings(
                 world, city, household.Members.Count, householdCount, houseIds),
-            bodyRules: world.BodyRules);
+            bodyRules: world.BodyRules, appearanceRules: world.AppearanceRules);
         Register(world, generated, houseIds);
     }
 

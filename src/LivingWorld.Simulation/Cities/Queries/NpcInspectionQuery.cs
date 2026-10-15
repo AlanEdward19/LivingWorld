@@ -81,7 +81,8 @@ public static class NpcInspectionQuery
             CurrentScope: ResolveScope(world, npc),
             CognitionTrace: CognitionTraceOf(world, npc.Id),
             Rest: RestPresentation.Of(world, npc),
-            Food: FoodPresentation.Of(world, npc));
+            Food: FoodPresentation.Of(world, npc),
+            Appearance: npc.Appearance);
     }
 
     /// <summary>Mesmo critério geométrico de <c>GlobalProjector</c>/<c>LivingScopeProjector</c>

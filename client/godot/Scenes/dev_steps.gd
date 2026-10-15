@@ -137,14 +137,19 @@ static func run(app: Node, steps: Array) -> void:
 					await app.get_tree().process_frame
 				await app.get_tree().create_timer(0.3).timeout
 				print("hover: ", app.hover_text.replace("\n", " | "))
-			"stress":
-				# Carga sintética: N NPCs andando pelo mapa para medir quadros por segundo.
+			"stress", "stress_look":
+				# Carga sintética: N NPCs andando pelo mapa para medir quadros por segundo. `stress_look` dá a cada um
+				# genes de aparência (como um mundo com o bloco Appearance); `stress` mantém o sorteio local de sempre.
 				var count := int(arg)
 				var rng := RandomNumberGenerator.new()
 				rng.seed = 7
 				for i in count:
 					var cell := Vector2i(rng.randi_range(0, 29), rng.randi_range(0, 29))
-					app.store.npcs[100000 + i] = {"id": 100000 + i, "cell": cell, "action": rng.randi_range(0, 7), "city": ""}
+					var look := {}
+					if name == "stress_look":
+						look = {"skin_tone": rng.randi_range(0, 100), "hair_tone": rng.randi_range(0, 100),
+							"hair_curl": rng.randi_range(0, 100), "build": rng.randi_range(0, 100)}
+					app.store.npcs[100000 + i] = {"id": 100000 + i, "cell": cell, "action": rng.randi_range(0, 7), "city": "", "look": look}
 				app.world_view._rebuild_npcs()
 				var frames := 0
 				var elapsed := 0.0

@@ -89,7 +89,7 @@ public class WorldSnapshotTests
             ScenarioRunner.DefaultCalendar, 42, ScenarioRunner.InitialMap(42, ScenarioRunner.DefaultInitialPopulation), ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules, economyRules: SampleEconomyRules, economyCatalog: SampleEconomyCatalog,
-            cityCatalog: SampleCityCatalog,
+            cityCatalog: SampleCityCatalog, appearanceRules: new LivingWorld.Domain.Population.AppearanceRules(0.6),
             resourceCatalog: new ResourceCatalog(new Dictionary<int, ResourceSpec>
             {
                 [1] = ResourceSpec.Create(1, PreparationState.Raw, edible: false).Value!,

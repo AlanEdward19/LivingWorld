@@ -10,7 +10,9 @@ namespace LivingWorld.Api.Visual.Projection;
 
 /// <summary>Ocupante projetado de um interior — id do NPC + andar/célula
 /// locais, mesmo shape que <see cref="InteriorOccupancy"/> sem expor tipo de Domain cru.</summary>
-public sealed record InteriorOccupant(NpcId Npc, FloorLevel Floor, CellCoord LocalCell, ActionType? Action = null);
+public sealed record InteriorOccupant(
+    NpcId Npc, FloorLevel Floor, CellCoord LocalCell, ActionType? Action = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Domain.Population.Appearance? Appearance = null);
 
 /// <summary><see
 /// cref="Occupants"/> lista todo NPC vivo com <see cref="Npc.Interior"/> apontando para
@@ -27,7 +29,7 @@ public static class InteriorProjector
         if (!world.Buildings.Any(b => b.Id == buildingId)) return null;
         return world.Npcs
             .Where(n => n.IsAlive && n.Interior is { } interior && interior.Building == buildingId)
-            .Select(n => new InteriorOccupant(n.Id, n.Interior!.Floor, n.Interior!.LocalCell, n.CurrentAction))
+            .Select(n => new InteriorOccupant(n.Id, n.Interior!.Floor, n.Interior!.LocalCell, n.CurrentAction, n.Appearance))
             .ToArray();
     }
 
@@ -38,7 +40,7 @@ public static class InteriorProjector
 
         var occupants = world.Npcs
             .Where(n => n.IsAlive && n.Interior is { } interior && interior.Building == buildingId)
-            .Select(n => new InteriorOccupant(n.Id, n.Interior!.Floor, n.Interior!.LocalCell, n.CurrentAction))
+            .Select(n => new InteriorOccupant(n.Id, n.Interior!.Floor, n.Interior!.LocalCell, n.CurrentAction, n.Appearance))
             .ToArray();
 
         return Result<InteriorSnapshot>.Ok(new InteriorSnapshot(building.Id, building.City, building.BuildingTypeId, OccupancyModeled: true, occupants,

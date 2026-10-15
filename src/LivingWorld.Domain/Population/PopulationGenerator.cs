@@ -30,7 +30,7 @@ public static class PopulationGenerator
         LifeTable lifeTable, PopulationCatalog catalog, long startingNpcId = 0, long startingHouseholdId = 0,
         CityId city = default,
         Func<int, IReadOnlyList<CellCoord>>? householdLocationsFactory = null,
-        BodyRules? bodyRules = null)
+        BodyRules? bodyRules = null, AppearanceRules? appearanceRules = null)
     {
         long nextNpcId = startingNpcId;
         long nextHouseholdId = startingHouseholdId;
@@ -69,12 +69,17 @@ public static class PopulationGenerator
             var muscleMass = BodyGeneration.RollMuscleMass(
                 rng.Derive(WorldRngRegistry.StableHash($"musclemass-{npcId.Value}")), body);
 
+            // stream próprio e só consultado com AppearanceRules: sem ele nenhum número é sorteado (hash igual ao de antes)
+            var appearance = appearanceRules is null
+                ? null
+                : Appearance.RollFrom(rng.Derive(WorldRngRegistry.StableHash($"appearance-{npcId.Value}")));
+
             var npc = new Npc(
                 npcId, $"npc-{culture.Id}-{npcs.Count}", sex, birthDate, culture, villageLocation,
                 motherId: null, fatherId: null, household: null, health,
                 personality: personality, profession: profession, currentLocation: villageLocation,
                 rateGene: rateGene, vitality: vitality, upbringing: upbringing, city: city,
-                height: height, weight: weight, muscleMass: muscleMass);
+                height: height, weight: weight, muscleMass: muscleMass, appearance: appearance);
 
             npcs.Add(npc);
             (ageYears >= 18 ? adults : children).Add(npc);
@@ -93,7 +98,8 @@ public static class PopulationGenerator
     public static GeneratedPopulation GenerateAuthored(
         WorldRng rng, WorldDate now, IReadOnlyList<AuthoredHousehold> authored, CultureId culture,
         CellCoord villageLocation, long startingNpcId, long startingHouseholdId, CityId city,
-        Func<int, IReadOnlyList<CellCoord>> householdLocationsFactory, BodyRules? bodyRules = null)
+        Func<int, IReadOnlyList<CellCoord>> householdLocationsFactory, BodyRules? bodyRules = null,
+        AppearanceRules? appearanceRules = null)
     {
         long nextNpcId = startingNpcId;
         long nextHouseholdId = startingHouseholdId;
@@ -118,6 +124,11 @@ public static class PopulationGenerator
                 var weight = BodyGeneration.RollWeight(rng.Derive(WorldRngRegistry.StableHash($"weight-{npcId.Value}")), body);
                 var muscleMass = BodyGeneration.RollMuscleMass(rng.Derive(WorldRngRegistry.StableHash($"musclemass-{npcId.Value}")), body);
 
+                // aparência autorada vence o sorteio; sem AppearanceRules ninguém tem aparência (o loader recusa o campo)
+                var appearance = appearanceRules is null
+                    ? null
+                    : person.Appearance ?? Appearance.RollFrom(rng.Derive(WorldRngRegistry.StableHash($"appearance-{npcId.Value}")));
+
                 var npc = new Npc(
                     npcId, person.Name, person.Sex, now.AddYears(-person.AgeYears), culture, villageLocation,
                     motherId: person.Mother is int m ? new NpcId(firstId + m) : null,
@@ -125,7 +136,10 @@ public static class PopulationGenerator
                     household: null, health,
                     personality: person.Personality ?? rolledPersonality, profession: new ProfessionType(person.ProfessionId),
                     currentLocation: villageLocation, rateGene: rateGene, vitality: vitality, upbringing: upbringing,
-                    city: city, height: height, weight: weight, muscleMass: muscleMass);
+                    city: city, height: height, weight: weight, muscleMass: muscleMass, appearance: appearance);
+                if (person.Skills is { } skills)
+                    foreach (var (skillId, level) in skills.OrderBy(kv => kv.Key))
+                        npc.GainSkill(new Skills.SkillType(skillId), level, SkillCap);
                 members.Add(npc);
                 npcs.Add(npc);
             }
@@ -154,6 +168,9 @@ public static class PopulationGenerator
         }
         return new GeneratedPopulation(npcs, households, nextNpcId, nextHouseholdId);
     }
+
+    /// <summary>Teto de nível de habilidade (mesma escala <c>[0,100]</c> do restante do motor).</summary>
+    public const double SkillCap = 100;
 
     private static int RollAge(WorldRng rng, int maxLongevityYears)
     {

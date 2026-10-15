@@ -18,7 +18,8 @@ namespace LivingWorld.Api.Visual.Projection;
 /// atividade atual, mesmo par de campos de <c>NpcInspectionDto</c> relevante pro mapa, sem o
 /// resto do detalhe de inspeção individual.</summary>
 public sealed record CityResidentMarker(
-    NpcId Id, CellCoord Location, ActionType? CurrentAction, ExtraordinaryNpcVisual? Extraordinary = null);
+    NpcId Id, CellCoord Location, ActionType? CurrentAction, ExtraordinaryNpcVisual? Extraordinary = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Domain.Population.Appearance? Appearance = null);
 
 /// <summary><see cref="Location"/>/<see cref="LocationIsDerived"/> vêm de
 /// <see cref="BuildingPlacementResolver.Resolve"/> — autoria tem precedência; sem ela, fallback
@@ -65,7 +66,7 @@ public static class CityProjector
         var residents = world.Npcs
             .Where(n => n.IsAlive && n.City == cityId)
             .Select(n => new CityResidentMarker(
-                n.Id, n.CurrentLocation, n.CurrentAction, ExtraordinaryNpcVisualProjector.Build(world, n.Id)))
+                n.Id, n.CurrentLocation, n.CurrentAction, ExtraordinaryNpcVisualProjector.Build(world, n.Id), n.Appearance))
             .ToList();
 
         // Bounds resolvidos antes dos marcadores de prédio -- Resolve agora precisa deles pra

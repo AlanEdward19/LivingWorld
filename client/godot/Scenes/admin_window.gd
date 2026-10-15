@@ -6,9 +6,11 @@ extends PanelContainer
 signal closed()
 signal warning(text: String)
 signal npc_selected(id: int)
+signal family_requested()
 
 const MAX_PAUSE_DAYS := 30 ## espelha SimulationHost.MaxAdminPauseDays; o servidor continua sendo o juiz (400)
 const DEFAULT_PAUSE_DAYS := 7
+const WorldEditor := preload("res://Scenes/world_editor.gd")
 const KINDS := [["name", "nome"], ["city", "cidade"], ["profession", "profissão (número)"]]
 
 var api
@@ -36,6 +38,15 @@ var result_list: ItemList
 var audit_from: SpinBox
 var audit_button: Button
 var tabs: TabContainer
+var create_state := ""
+var location_type_spin: SpinBox
+var cell_x_spin: SpinBox
+var cell_y_spin: SpinBox
+var vacancies_spin: SpinBox
+var treasury_spin: SpinBox
+var workplace_button: Button
+var family_button: Button
+var _create_state: Label
 var _state: Label
 var _search_state: Label
 var _audit_list: VBoxContainer
@@ -69,6 +80,7 @@ func _init() -> void:
 	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(tabs)
 	_build_world_tab()
+	_build_create_tab()
 	_build_search_tab()
 	_build_audit_tab()
 
@@ -200,6 +212,8 @@ func _failure(response: Dictionary) -> String:
 			return "Acesso negado: confira o token de admin (LW_ADMIN_TOKEN)."
 		400:
 			return "O servidor recusou: %s" % (String(response.body.get("error", "")) if response.body is Dictionary else "pedido inválido")
+		409:
+			return "O mundo está em pausa de admin: retome antes de criar."
 	return "Não foi possível concluir (erro %d)." % response.status
 
 
@@ -212,6 +226,85 @@ func _set_state(text: String) -> void:
 func _fail(response: Dictionary) -> void:
 	_set_state(_failure(response))
 	warning.emit(state_text)
+
+
+# --- criar com o mundo rodando (ADR-0033) -------------------------------------------
+
+func _build_create_tab() -> void:
+	var tab := VBoxContainer.new()
+	tab.name = "Criar"
+	tabs.add_child(tab)
+	var family_label := Label.new()
+	family_label.text = "Família e pessoas chegam à cidade mais antiga, com os mesmos campos do criador de mundo."
+	family_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tab.add_child(family_label)
+	family_button = Button.new()
+	family_button.text = "Criar família…"
+	family_button.pressed.connect(func(): family_requested.emit())
+	tab.add_child(family_button)
+	var place_label := Label.new()
+	place_label.text = "Local de trabalho"
+	tab.add_child(place_label)
+	location_type_spin = _spin(tab, "Tipo de local (número)", 1, 0, 999)
+	cell_x_spin = _spin(tab, "Célula X", 0, 0, 999)
+	cell_y_spin = _spin(tab, "Célula Y", 0, 0, 999)
+	vacancies_spin = _spin(tab, "Vagas", 4, 1, 999)
+	treasury_spin = _spin(tab, "Caixa inicial", 1000, 0, 100000000)
+	workplace_button = Button.new()
+	workplace_button.text = "Fundar local de trabalho"
+	workplace_button.pressed.connect(func(): create_workplace())
+	tab.add_child(workplace_button)
+	_create_state = Label.new()
+	_create_state.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_create_state.custom_minimum_size.x = 520
+	tab.add_child(_create_state)
+
+
+func _spin(parent: Control, text: String, value: float, minimum: float, maximum: float) -> SpinBox:
+	var row := HBoxContainer.new()
+	parent.add_child(row)
+	var label := Label.new()
+	label.text = text
+	label.custom_minimum_size.x = 170
+	row.add_child(label)
+	var spin := SpinBox.new()
+	spin.min_value = minimum
+	spin.max_value = maximum
+	spin.value = value
+	row.add_child(spin)
+	return spin
+
+
+## Uma chamada por família; o servidor valida tudo (o mesmo loader do cenário) e o resumo diz quantas chegaram.
+func create_households(families: Array) -> void:
+	var arrived := 0
+	var people := 0
+	for family in families:
+		var response: Dictionary = await api.admin_create_household(actor, WorldEditor.household_body(family))
+		if not response.ok:
+			_say_create(_failure(response) + (" (%d família(s) já tinham chegado)" % arrived if arrived > 0 else ""))
+			warning.emit(create_state)
+			return
+		arrived += 1
+		people += response.body.npcIds.size()
+	_say_create("%d família(s) chegaram (%d pessoa(s))." % [arrived, people] if arrived > 0 else "Nenhuma família para criar.")
+
+
+func create_workplace() -> void:
+	var body := WorldEditor.workplace_body(
+		int(location_type_spin.value), Vector2i(int(cell_x_spin.value), int(cell_y_spin.value)),
+		int(vacancies_spin.value), int(treasury_spin.value))
+	var response: Dictionary = await api.admin_create_workplace(actor, body)
+	if not response.ok:
+		_say_create(_failure(response))
+		warning.emit(create_state)
+		return
+	_say_create("Local de trabalho fundado na célula (%d, %d)." % [int(response.body.x), int(response.body.y)])
+
+
+func _say_create(text: String) -> void:
+	create_state = text
+	_create_state.text = text
 
 
 # --- busca -----------------------------------------------------------------------

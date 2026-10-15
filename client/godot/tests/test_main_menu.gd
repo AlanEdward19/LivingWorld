@@ -119,3 +119,25 @@ func test_creating_a_world_sends_the_chosen_period_id() -> void:
 	eq(bodies.size(), 1, "uma criação")
 	eq(bodies[0].get("periodId"), "medieval", "o período escolhido vai junto, para o servidor guardar")
 	menu.queue_free()
+
+
+func test_default_presets_catalog_shows_names_not_numbered_fallback() -> void:
+	# Mesmo formato que GET /periods/vila-pequena/catalog devolve com os presets padrão (#46 fatia 1).
+	var transport := _transport()
+	transport.on("GET /periods/medieval/catalog", {"status": 200, "body": {"professionIds": [1, 2],
+		"professionNames": {"1": "Lavrador", "2": "Artesão"}}})
+	var menu := _menu(transport)
+	await menu.show_new_world()
+	check("Lavrador" in menu.period_info.text and "Artesão" in menu.period_info.text, "mostra os dois nomes")
+	check(not ("Profissão " in menu.period_info.text), "nenhum 'Profissão N' com os presets padrão")
+	menu.free()
+
+
+func test_unnamed_profession_still_falls_back_to_numbered_label() -> void:
+	# Braço de controle: sem nome no catálogo, o rótulo numerado aparece (prova que o teste acima discrimina).
+	var transport := _transport()
+	transport.on("GET /periods/medieval/catalog", {"status": 200, "body": {"professionIds": [1, 2], "professionNames": {"1": "Lavrador"}}})
+	var menu := _menu(transport)
+	await menu.show_new_world()
+	check("Profissão 2" in menu.period_info.text, "id sem nome cai em 'Profissão 2'")
+	menu.free()

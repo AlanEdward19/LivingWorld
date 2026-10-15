@@ -23,7 +23,9 @@ public sealed record NpcVisual(
     ActionType? CurrentAction,
     CityId? City = null,
     CellCoord? RelocationDestination = null,
-    ExtraordinaryNpcVisual? Extraordinary = null);
+    ExtraordinaryNpcVisual? Extraordinary = null,
+    // #46 fatia 2: genes que o cliente usa para vestir o boneco; nulo em mundo sem AppearanceRules
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] Appearance? Appearance = null);
 public sealed record CityVisual(
     CityId Id, string Name, CellCoord Location, long Population, CellBounds Bounds,
     CityId? FoundedFromCityId = null);
@@ -93,7 +95,7 @@ public static class LivingScopeProjector
             .OrderBy(npc => npc.Id.Value)
             .Select(npc => new NpcVisual(
                 npc.Id, npc.CurrentLocation, npc.CurrentAction, npc.City, RelocationDestinationOf(world, npc),
-                ExtraordinaryNpcVisualProjector.Build(world, npc.Id)))
+                ExtraordinaryNpcVisualProjector.Build(world, npc.Id), npc.Appearance))
             .ToList();
 
         var cities = scope.Kind == VisualScopeKind.World

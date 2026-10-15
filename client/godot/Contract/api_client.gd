@@ -134,6 +134,15 @@ func _admin(method: String, path: String, actor: String, body: Variant, shape_na
 	return _checked(path, {"status": response.status, "body": response.body}, shape_name)
 
 
+## Criação ao vivo (ADR-0033): corpo = item do cenário; exige o token de admin e o mundo fora de pausa de admin.
+func admin_create_household(actor: String, body: Dictionary) -> Dictionary:
+	return await _admin("POST", "/authoring/households", actor, body, "authoring-household")
+
+
+func admin_create_workplace(actor: String, body: Dictionary) -> Dictionary:
+	return await _admin("POST", "/authoring/workplaces", actor, body, "authoring-workplace")
+
+
 func admin_pause(actor: String, reason: String, max_ticks: int) -> Dictionary:
 	return await _admin("POST", "/admin/world/pause", actor, {"reason": reason, "maxTicks": max_ticks}, "admin-pause")
 

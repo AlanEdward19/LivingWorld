@@ -29,6 +29,7 @@ var selected_settlement := 0 ## linha cujo ponto o clique na prévia move
 var touchup
 var family_builder
 var professions: Dictionary = {} ## id -> nome, do catálogo do período escolhido
+var skills: Dictionary = {} ## id -> nome das habilidades do catálogo (vazio se o período não declara nenhuma)
 var family_label: Label
 var building_rows: VBoxContainer
 var custom_box: VBoxContainer
@@ -401,7 +402,7 @@ func show_family_builder() -> void:
 	for settlement in WorldEditor.read(draft).settlements:
 		settlement_names.append(settlement.name)
 	add_child(family_builder)
-	family_builder.setup(WorldEditor.read_households(draft), professions, settlement_names)
+	family_builder.setup(WorldEditor.read_households(draft), professions, settlement_names, skills)
 	family_builder.done.connect(func(families: Array):
 		draft = WorldEditor.with_households(draft, families)
 		_close_family_builder())
@@ -528,6 +529,9 @@ func _select_period(id: String) -> void:
 		professions.clear()
 		for profession_id in catalog.body.professionIds:
 			professions[int(profession_id)] = String(catalog.body.professionNames.get(str(int(profession_id)), "Profissão %d" % int(profession_id)))
+		skills.clear()
+		for skill_id in catalog.body.get("skillIds", []):
+			skills[int(skill_id)] = String(catalog.body.get("skillNames", {}).get(str(int(skill_id)), "Habilidade %d" % int(skill_id)))
 		var names: Array = professions.values()
 		period_info.text = "Profissões: %s" % ", ".join(names)
 	else:

@@ -26,6 +26,7 @@ const BrainPanel := preload("res://Scenes/brain_panel.gd")
 const ConversationWindow := preload("res://Scenes/conversation_window.gd")
 const NarrativeWindow := preload("res://Scenes/narrative_window.gd")
 const AdminWindow := preload("res://Scenes/admin_window.gd")
+const FamilyBuilder := preload("res://Scenes/family_builder.gd")
 const EconomyWindow := preload("res://Scenes/economy_window.gd")
 const TechnologyWindow := preload("res://Scenes/technology_window.gd")
 const PlayerHud := preload("res://Scenes/player_hud.gd")
@@ -55,6 +56,9 @@ var conversation
 var narrative
 var player_hud
 var admin_window
+var professions: Dictionary = {} ## id -> nome, do catálogo do período do mundo em andamento
+var skills: Dictionary = {} ## id -> nome das habilidades do período
+var family_builder
 var economy
 var technology
 var period_id := "" ## período de origem do mundo em andamento (GET /world/info); vazio se desconhecido
@@ -141,6 +145,12 @@ func _load_world_info() -> void:
 		return
 	for descriptor in catalog.body.get("descriptors", {}).get("resource", []):
 		resource_names[int(descriptor.id)] = String(descriptor.name)
+	professions = {}
+	for profession_id in catalog.body.get("professionIds", []):
+		professions[int(profession_id)] = String(catalog.body.get("professionNames", {}).get(str(int(profession_id)), "Profissão %d" % int(profession_id)))
+	skills = {}
+	for skill_id in catalog.body.get("skillIds", []):
+		skills[int(skill_id)] = String(catalog.body.get("skillNames", {}).get(str(int(skill_id)), "Habilidade %d" % int(skill_id)))
 
 
 func _build_scene() -> void:
@@ -327,6 +337,7 @@ func _build_ui() -> void:
 	admin_window.offset_bottom = -272
 	admin_window.warning.connect(func(text: String): toasts.push(text))
 	admin_window.npc_selected.connect(func(id: int): select_npc(id))
+	admin_window.family_requested.connect(open_family_builder)
 	_ui.add_child(admin_window)
 	economy = EconomyWindow.new()
 	economy.api = api
@@ -656,6 +667,24 @@ func incarnate(id: int) -> void:
 		selected_npc = id
 		if world_view.npc_nodes.has(id):
 			rig.follow(world_view.npc_nodes[id])
+
+
+## Criar família com o mundo rodando (ADR-0033): o mesmo criador de pessoas, enviado ao servidor família a família.
+func open_family_builder() -> void:
+	if family_builder != null:
+		return
+	family_builder = FamilyBuilder.new()
+	family_builder.setup([], professions, [], skills)
+	_ui.add_child(family_builder)
+	family_builder.cancelled.connect(_close_family_builder)
+	family_builder.done.connect(func(families: Array):
+		_close_family_builder()
+		await admin_window.create_households(families))
+
+
+func _close_family_builder() -> void:
+	family_builder.queue_free()
+	family_builder = null
 
 
 func _toggle_admin() -> void:

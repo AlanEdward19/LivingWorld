@@ -11,8 +11,11 @@ public static class AuthoredHouseholdsLoader
     private static readonly string[] TraitNames =
         ["Extroversion", "Agreeableness", "Conscientiousness", "EmotionalStability", "Openness", "Ambition", "Loyalty", "Altruism", "Impulsivity", "RiskAversion"];
 
+    private static readonly string[] GeneNames = ["SkinTone", "HairTone", "HairCurl", "Build"];
+
     public static Result<IReadOnlyList<AuthoredHousehold>> Load(
-        JsonObject root, PopulationCatalog catalog, int maxLongevityYears, IReadOnlyCollection<string> settlementNames)
+        JsonObject root, PopulationCatalog catalog, int maxLongevityYears, IReadOnlyCollection<string> settlementNames,
+        bool appearanceEnabled = false)
     {
         if (root["AuthoredHouseholds"] is null) return Result<IReadOnlyList<AuthoredHousehold>>.Ok([]);
         if (root["AuthoredHouseholds"] is not JsonArray familiesNode)
@@ -32,7 +35,7 @@ public static class AuthoredHouseholdsLoader
             var members = new List<AuthoredPerson>();
             for (int m = 0; m < membersNode.Count; m++)
             {
-                var person = ReadPerson(membersNode[m], $"{at}.Members[{m}]", membersNode.Count, catalog, maxLongevityYears);
+                var person = ReadPerson(membersNode[m], $"{at}.Members[{m}]", membersNode.Count, catalog, maxLongevityYears, appearanceEnabled);
                 if (!person.IsSuccess) return Fail(person.Error!);
                 members.Add(person.Value!);
             }
@@ -45,7 +48,7 @@ public static class AuthoredHouseholdsLoader
     }
 
     private static Result<AuthoredPerson> ReadPerson(
-        JsonNode? node, string at, int memberCount, PopulationCatalog catalog, int maxLongevityYears)
+        JsonNode? node, string at, int memberCount, PopulationCatalog catalog, int maxLongevityYears, bool appearanceEnabled)
     {
         if (node is not JsonObject o) return Result<AuthoredPerson>.Fail($"{at}: precisa ser um objeto");
         string name = o["Name"]?.GetValue<string>() ?? "";
@@ -69,11 +72,41 @@ public static class AuthoredHouseholdsLoader
             personality = created.Value;
         }
 
+        Appearance? appearance = null;
+        if (o["Appearance"] is not null)
+        {
+            if (!appearanceEnabled)
+                return Result<AuthoredPerson>.Fail($"{at}.Appearance: o período não declara o bloco Appearance");
+            if (o["Appearance"] is not JsonObject genes) return Result<AuthoredPerson>.Fail($"{at}.Appearance: precisa ser um objeto");
+            var g = new int[4];
+            for (int i = 0; i < 4; i++)
+                if (genes[GeneNames[i]]?.GetValue<int>() is { } value) g[i] = value;
+                else return Result<AuthoredPerson>.Fail($"{at}.Appearance.{GeneNames[i]}: obrigatório");
+            var made = Appearance.Create(g[0], g[1], g[2], g[3]);
+            if (!made.IsSuccess) return Result<AuthoredPerson>.Fail($"{at}.Appearance.{made.Error}");
+            appearance = made.Value;
+        }
+
+        Dictionary<int, int>? skills = null;
+        if (o["Skills"] is not null)
+        {
+            if (o["Skills"] is not JsonObject skillsNode) return Result<AuthoredPerson>.Fail($"{at}.Skills: precisa ser um objeto id → nível");
+            skills = [];
+            foreach (var (key, levelNode) in skillsNode)
+            {
+                if (!int.TryParse(key, out int skillId) || skillId < 0)
+                    return Result<AuthoredPerson>.Fail($"{at}.Skills: id '{key}' inválido");
+                if (levelNode is not JsonValue lv || !lv.TryGetValue(out int level) || level is < 0 or > 100)
+                    return Result<AuthoredPerson>.Fail($"{at}.Skills.{key}: nível fora de [0,100]");
+                skills[skillId] = level;
+            }
+        }
+
         int? spouse = o["Spouse"]?.GetValue<int>(), mother = o["Mother"]?.GetValue<int>(), father = o["Father"]?.GetValue<int>();
         foreach (var (label, index) in new[] { ("Spouse", spouse), ("Mother", mother), ("Father", father) })
             if (index is { } i && (i < 0 || i >= memberCount))
                 return Result<AuthoredPerson>.Fail($"{at}.{label}: índice {i} não existe na família");
-        return Result<AuthoredPerson>.Ok(new AuthoredPerson(name, sex, age, profession, personality, spouse, mother, father));
+        return Result<AuthoredPerson>.Ok(new AuthoredPerson(name, sex, age, profession, personality, spouse, mother, father, appearance, skills));
     }
 
     private static string? ValidateLinks(List<AuthoredPerson> members, string at)

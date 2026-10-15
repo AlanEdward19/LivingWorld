@@ -69,6 +69,20 @@ public static class DefaultPeriodSeeder
             ["CultureIds"] = new JsonArray(1),
             ["ProfessionIds"] = new JsonArray(1, 2),
             ["LocationTypeIds"] = new JsonArray(),
+            // Nomes são só rótulo para o cliente (GET /periods/{id}/catalog). Peso 1.0 = o mesmo
+            // sorteio uniforme de antes (hash do mundo não muda). Habilidades 0 e 7 são as que
+            // ScenarioRunner liga às profissões 1 e 2.
+            ["Dynamics"] = new JsonObject
+            {
+                ["ProfessionBiases"] = new JsonArray(
+                    new JsonObject { ["ProfessionId"] = 1, ["Weight"] = 1.0, ["Name"] = "Lavrador" },
+                    new JsonObject { ["ProfessionId"] = 2, ["Weight"] = 1.0, ["Name"] = "Artesão" }),
+                ["SkillBiases"] = new JsonArray(
+                    new JsonObject { ["SkillId"] = 0, ["Weight"] = 1.0, ["Name"] = "Agricultura" },
+                    new JsonObject { ["SkillId"] = 7, ["Weight"] = 1.0, ["Name"] = "Artesanato" }),
+            },
+            // Aparência herdada dos pais (#46 fatia 2, ADR-0032): os mundos criados pelo menu já nascem com genes de aparência.
+            ["Appearance"] = new JsonObject { ["Heritability"] = 0.6 },
             ["MaxLongevityYears"] = 90,
             ["LifeTableBrackets"] = new JsonArray(
                 new JsonObject { ["MinAgeYears"] = 0, ["MaxAgeYears"] = 1, ["BaseAnnualMortality"] = 0.08 },

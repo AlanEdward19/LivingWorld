@@ -27,7 +27,8 @@ public sealed record GlobalCityMarker(
 /// <summary>NPC materializado fora da célula da própria cidade —
 /// "externo" no sentido do espectador global (spec.md: "NPCs externos agregados por LOD"),
 /// mostrado como marcador simplificado (só posição), nunca com o detalhe de <c>NpcInspectionDto</c>.</summary>
-public sealed record GlobalNpcMarker(NpcId Id, CellCoord Location);
+public sealed record GlobalNpcMarker(
+    NpcId Id, CellCoord Location, [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Domain.Population.Appearance? Appearance = null);
 
 /// <summary>Projeção do mapa-múndi simplificado. <c>ActiveEvents</c> fica sempre
 /// vazio por ora — o motor não tem noção de "evento em andamento" (só histórico ponto-a-ponto em
@@ -74,7 +75,7 @@ public static class GlobalProjector
         var externalNpcs = world.Npcs
             .Where(n => n.IsAlive && cityBoundsById.TryGetValue(n.City, out var home)
                 && NpcScopeResolver.Resolve(n, home).Kind == NpcScopeKind.World)
-            .Select(n => new GlobalNpcMarker(n.Id, n.CurrentLocation))
+            .Select(n => new GlobalNpcMarker(n.Id, n.CurrentLocation, n.Appearance))
             .ToList();
 
         var layers = GlobalLayerBuilder.SupportedLayers

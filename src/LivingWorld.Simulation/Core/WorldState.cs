@@ -221,6 +221,11 @@ public sealed partial class WorldState
     /// <summary>Marcos de desenvolvimento do cenário (ontogeny-model, Fase 21); desligadas por padrão no construtor, ligadas pelo cenário.</summary>
     [Canonical] public LivingWorld.Domain.Ontogeny.OntogenyRules OntogenyRules { get; }
 
+    /// <summary>Regras de aparência (#46 fatia 2). Nulo = mundo sem genes de aparência: omitido do snapshot e do hash canônico,
+    /// que ficam idênticos aos de antes (opt-in por período, ADR-0032).</summary>
+    [Canonical, System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public LivingWorld.Domain.Population.AppearanceRules? AppearanceRules { get; }
+
     /// <summary>Tecnologias por cultura, na ordem de descoberta; identificadas só pelo vetor (ADR-0013).</summary>
     [Canonical] public IReadOnlyList<Technology> Technologies => _technologies;
     private readonly List<Technology> _technologies;
@@ -481,7 +486,8 @@ public sealed partial class WorldState
         TheftRules? theftRules = null,
         EmergenceRules? emergenceRules = null,
         LivingWorld.Domain.Ontogeny.OntogenyRules? ontogenyRules = null,
-        IReadOnlyList<Technology>? technologies = null)
+        IReadOnlyList<Technology>? technologies = null,
+        LivingWorld.Domain.Population.AppearanceRules? appearanceRules = null)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -496,7 +502,7 @@ public sealed partial class WorldState
         BranchId = branchId;
         EconomyRules = economyRules ?? EconomyRules.Disabled;
         EconomyCatalog = economyCatalog ?? EconomyCatalog.Empty;
-        FamilyRules = familyRules ?? FamilyRules.Disabled;
+        FamilyRules = (familyRules ?? FamilyRules.Disabled).WithAppearanceAttraction(appearanceRules?.AttractionWeight ?? 0);
         BodyRules = bodyRules ?? BodyRules.Default;
         CityRules = cityRules ?? CityRules.Disabled;
         CityCatalog = cityCatalog ?? CityCatalog.Empty;
@@ -529,6 +535,7 @@ public sealed partial class WorldState
         TheftRules = theftRules ?? TheftRules.Disabled;
         EmergenceRules = emergenceRules ?? EmergenceRules.Disabled;
         OntogenyRules = ontogenyRules ?? LivingWorld.Domain.Ontogeny.OntogenyRules.Disabled;
+        AppearanceRules = appearanceRules;
         _technologies = (technologies ?? []).ToList();
         _climateYears = (climateYears ?? []).ToList();
         Name = name;
@@ -649,7 +656,8 @@ public sealed partial class WorldState
         TheftRules? theftRules = null,
         EmergenceRules? emergenceRules = null,
         LivingWorld.Domain.Ontogeny.OntogenyRules? ontogenyRules = null,
-        IReadOnlyList<Technology>? technologies = null)
+        IReadOnlyList<Technology>? technologies = null,
+        LivingWorld.Domain.Population.AppearanceRules? appearanceRules = null)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -681,7 +689,7 @@ public sealed partial class WorldState
         _workplaces = (workplaces ?? []).ToList();
         _workplaceById = ToLookup(_workplaces, w => w.Id);
         _nextWorkplaceId = nextWorkplaceId;
-        FamilyRules = familyRules ?? FamilyRules.Disabled;
+        FamilyRules = (familyRules ?? FamilyRules.Disabled).WithAppearanceAttraction(appearanceRules?.AttractionWeight ?? 0);
         BodyRules = bodyRules ?? BodyRules.Default;
         _relationships = relationships is null ? [] : new Dictionary<RelationshipKey, Relationship>(relationships);
         foreach (var key in _relationships.Keys)
@@ -732,6 +740,7 @@ public sealed partial class WorldState
         TheftRules = theftRules ?? TheftRules.Disabled;
         EmergenceRules = emergenceRules ?? EmergenceRules.Disabled;
         OntogenyRules = ontogenyRules ?? LivingWorld.Domain.Ontogeny.OntogenyRules.Disabled;
+        AppearanceRules = appearanceRules;
         _technologies = (technologies ?? []).ToList();
         _climateYears = (climateYears ?? []).ToList();
         _facts = (facts ?? []).ToList();

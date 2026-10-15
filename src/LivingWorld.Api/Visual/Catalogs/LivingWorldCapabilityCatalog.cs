@@ -32,7 +32,7 @@ public static class LivingWorldCapabilityCatalog
         Living("WATER", consumers: ["map.water"]),
         Living("MONEY", events: [WorldEventKind.Minted, WorldEventKind.Destroyed], consumers: ["timeline.money"]),
         Living("PLAYER", events: [WorldEventKind.PlayerIncarnated, WorldEventKind.PlayerDisappeared], consumers: ["map.npc.action"]),
-        Living("AUTHORING", events: [WorldEventKind.AuthoringCommandApplied, WorldEventKind.AuthoringCommandRejected], consumers: ["inspector.npc.authoring"]),
+        Living("AUTHORING", events: [WorldEventKind.AuthoringCommandApplied, WorldEventKind.AuthoringCommandRejected, WorldEventKind.AuthoredImmigration, WorldEventKind.AuthoredWorkplaceFounded], consumers: ["inspector.npc.authoring", "timeline.family"]),
     ];
 
     // Declarada depois de Standalone: os inicializadores estáticos rodam na ordem do texto.

@@ -122,6 +122,35 @@ if (args.Length == 3 && args[0] == "emergence-hash")
     return 0;
 }
 
+// Hash canônico de uma vila com aparência herdada ligada: o teste de dois processos exige o mesmo hash. Imprime também quantos
+// nascidos têm genes de aparência. `dotnet <dll> appearance-hash <seed> <ticks>`.
+if (args.Length == 3 && args[0] == "appearance-hash")
+{
+    var (world, clock) = ScenarioRunner.Create(
+        ulong.Parse(args[1]), appearanceRules: new LivingWorld.Domain.Population.AppearanceRules(0.6));
+    clock.Run(world, long.Parse(args[2]));
+    Console.WriteLine($"{WorldSnapshot.CanonicalHash(world)};{world.Npcs.Count(n => n.MotherId is not null && n.Appearance is not null)}");
+    return 0;
+}
+
+// Hash canônico de um mundo em que uma família e um local de trabalho autorados chegam em andamento (#46 fatia 4): o teste de dois
+// processos exige o mesmo hash. `dotnet <dll> live-creation-hash <seed> <ticks>`.
+if (args.Length == 3 && args[0] == "live-creation-hash")
+{
+    var (world, clock) = ScenarioRunner.Create(ulong.Parse(args[1]));
+    clock.Run(world, 240);
+    var live = new LivingWorld.Simulation.Authoring.WorldAuthoringService(new BufferingWorldEventSink());
+    var family = System.Text.Json.Nodes.JsonNode.Parse(
+        "{\"Members\":[{\"Name\":\"Ana\",\"Sex\":\"Female\",\"AgeYears\":30,\"ProfessionId\":1},{\"Name\":\"Cai\",\"Sex\":\"Male\",\"AgeYears\":5,\"ProfessionId\":1,\"Mother\":0}]}")!.AsObject();
+    var workplace = System.Text.Json.Nodes.JsonNode.Parse(
+        "{\"LocationTypeId\":1,\"X\":5,\"Y\":5,\"MaxVacancies\":4,\"Treasury\":1000,\"Stock\":{},\"Prices\":{}}")!.AsObject();
+    var arrived = live.CreateHousehold(world, family);
+    var founded = live.CreateWorkplace(world, workplace);
+    clock.Run(world, long.Parse(args[2]));
+    Console.WriteLine($"{WorldSnapshot.CanonicalHash(world)};{(arrived.IsSuccess ? arrived.Value!.NpcIds.Count : -1)};{(founded.IsSuccess ? 1 : 0)}");
+    return 0;
+}
+
 // `dotnet <dll> history-significance-digest <seed> <ticks>`.
 if (args.Length == 3 && args[0] == "history-significance-digest")
 {

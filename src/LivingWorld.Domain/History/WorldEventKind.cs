@@ -196,4 +196,10 @@ public enum WorldEventKind
 
     /// <summary>Uma criança sem adulto no domicílio foi acolhida — payload: <c>criancaId|acolhedorId|domicilioId|vinculo</c> (parente, afeto ou comunidade).</summary>
     OrphanTakenIn,
+
+    /// <summary>Uma família autorada chegou ao mundo em andamento (#46 fatia 4) — payload: <c>domicilioId|cidadeId|npcIds (separados por vírgula)</c>.</summary>
+    AuthoredImmigration,
+
+    /// <summary>Um local de trabalho autorado foi fundado no mundo em andamento — payload: <c>localId|cidadeId|tipo|x|y</c>.</summary>
+    AuthoredWorkplaceFounded,
 }

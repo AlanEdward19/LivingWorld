@@ -1,13 +1,11 @@
 using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Cities.Buildings;
-using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Geography.Spatial;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Cities;
-using LivingWorld.Simulation.Cities.Construction;
-using LivingWorld.Simulation.Cities.Queries;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy;
 using LivingWorld.Simulation.Extraordinary.Culture;
 using LivingWorld.Simulation.Periods;
 using LivingWorld.Simulation.Population;
@@ -33,14 +31,15 @@ public static class ScenarioLoaderV2
         var population = definition.Population;
 
         // Viés declarado em Dynamics.ProfessionBiases vira peso real de sorteio
-        // (PopulationCatalog.RollProfession) — sem bias declarado, catálogo original passa
-        // adiante sem cópia, sorteio continua uniforme.
-        var catalog = definition.Dynamics.ProfessionBiases.Count == 0
+        // (PopulationCatalog.RollProfession). Peso 1.0 é o valor implícito de quem não está no
+        // dicionário, então só pesos != 1.0 entram: viés só de rótulo (Name) deixa o catálogo
+        // original passar sem cópia e o hash do mundo igual ao de um período sem Dynamics.
+        var weights = definition.Dynamics.ProfessionBiases
+            .Where(b => b.Weight != 1.0)
+            .ToDictionary(b => b.ProfessionId, b => b.Weight);
+        var catalog = weights.Count == 0
             ? population.Catalog
-            : population.Catalog with
-            {
-                ProfessionWeights = definition.Dynamics.ProfessionBiases.ToDictionary(b => b.ProfessionId, b => b.Weight),
-            };
+            : population.Catalog with { ProfessionWeights = weights };
 
         // Post-ship fix (bug real, "mesma seed, mundo diferente"): usava InitialMapForPopulation
         // pra silenciosamente REGERAR o mapa inteiro num tamanho maior sempre que a população
@@ -64,7 +63,8 @@ public static class ScenarioLoaderV2
             processRecipes: definition.ProcessRecipes,
             extraordinary: definition.Extraordinary,
             emergenceRules: definition.Emergence,
-            ontogenyRules: definition.Ontogeny);
+            ontogenyRules: definition.Ontogeny,
+            appearanceRules: definition.Appearance);
 
         var createdCityIds = new List<CityId>(definition.City.Cities.Count);
         foreach (var city in definition.City.Cities)
@@ -131,55 +131,9 @@ public static class ScenarioLoaderV2
         // (presets 10x10 e 20x20) não tinha mais célula livre e o cenário falhava com "nenhuma célula livre".
         foreach (var workplace in definition.Economy.Workplaces)
         {
-            if (!world.ActiveCities().Any())
-            {
-                // SPEC_DEVIATION: um cenário autorado sem nenhuma cidade não oferece a entidade
-                // proprietária exigida pelo placement. Mantém o workplace legado sem Building,
-                // em vez de inventar uma cidade que o JSON não declarou.
-                world.AddWorkplace(new Workplace(
-                    world.NextWorkplaceIdAndAdvance(), workplace.LocationType, workplace.Location,
-                    workplace.MaxVacancies, employees: [], workplace.Stock, workplace.Treasury, workplace.Prices));
-                continue;
-            }
-
-            var city = NearestCity(world.ActiveCities(), workplace.Location);
-            int buildingTypeId = workplace.LocationType.Id;
-            var candidateId = new BuildingId(world.NextBuildingId);
-            var candidateShape = BuildingFootprintGenerator.Generate(candidateId, buildingTypeId, orientation: 0)
-                .Select(cell => cell.Cell)
-                .ToList();
-            long cityPopulation = CityPopulationQuery.Population(world, city.Id);
-            var bounds = CityOccupancy.ResolveGrownBounds(world, city, cityPopulation).Bounds;
-            var authoredFootprint = candidateShape
-                .Select(cell => new CellCoord(workplace.Location.X + cell.X, workplace.Location.Y + cell.Y))
-                .ToList();
-
-            CellCoord position;
-            int orientation;
-            if (CityOccupancy.IsFree(world, city, bounds, authoredFootprint, candidateId))
-            {
-                position = workplace.Location;
-                orientation = 0;
-            }
-            else
-            {
-                var candidate = new Building(candidateId, city.Id, buildingTypeId, completedAtTick: 0);
-                var resolved = BuildingPlacementResolver.Resolve(candidate, city, world, bounds);
-                if (resolved is null)
-                    return Result<(WorldState, WorldClock)>.Fail(
-                        "Workplaces: nenhuma célula livre para posicionar o edifício autorado");
-                position = resolved.Value.Position;
-                orientation = resolved.Value.Orientation;
-            }
-
-            var workplaceBuilding = new Building(
-                world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId, completedAtTick: 0,
-                position, orientation);
-            world.AddBuilding(workplaceBuilding);
-            world.AddWorkplace(new Workplace(
-                world.NextWorkplaceIdAndAdvance(), workplace.LocationType, position, workplace.MaxVacancies,
-                employees: [], workplace.Stock, workplace.Treasury, workplace.Prices, city.Id,
-                building: workplaceBuilding.Id));
+            var placed = WorkplacePlacer.Place(world, workplace);
+            if (!placed.IsSuccess)
+                return Result<(WorldState, WorldClock)>.Fail(placed.Error!);
         }
 
         if (population.InitialPopulation > 0)
@@ -221,7 +175,8 @@ public static class ScenarioLoaderV2
         // Famílias autoradas, depois da população sorteada: sem o bloco nada muda (hash preservado).
         var authoredResult = AuthoredHouseholdsLoader.Load(
             System.Text.Json.Nodes.JsonNode.Parse(json)!.AsObject(), population.Catalog,
-            population.LifeTable.MaxLongevityYears, definition.Map.Settlements.Select(s => s.Name).ToList());
+            population.LifeTable.MaxLongevityYears, definition.Map.Settlements.Select(s => s.Name).ToList(),
+            appearanceEnabled: definition.Appearance is not null);
         if (!authoredResult.IsSuccess)
             return Result<(WorldState, WorldClock)>.Fail(authoredResult.Error!);
         foreach (var family in authoredResult.Value!)
