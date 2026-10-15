@@ -1,4 +1,4 @@
-# Godot crônicas, biografias e relatos [Estado: Implementado, aguardando Verifier independente (2026-10-14)]
+# Godot crônicas, biografias e relatos [Estado: Verificado, PASS (Verifier independente, 2026-10-15)]
 
 Issue #59, fatia B. Só cliente (+ contratos congelados); nenhuma rota nova.
 
