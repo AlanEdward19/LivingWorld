@@ -39,6 +39,7 @@ func test_technologies_show_key_axes_as_bars_adoption_and_variation() -> void:
 	eq(window.rows[0].detail, "mobilidade · descoberta em dia 50 · adotada por 1 cidade")
 	eq(window.rows[1].detail, "mobilidade · descoberta em dia 80 · adotada por 3 cidades")
 	eq(window.rows[0].bars.size(), 3, "eixos ritmo, carga e alcance")
+	eq(window.rows[0].axes, ["Ritmo", "Carga", "Alcance"], "nomes dos eixos, na ordem do vetor")
 	eq([window.rows[0].bars[0].value, window.rows[0].bars[1].value, window.rows[0].bars[2].value], [2.0, 4.0, 6.0], "barras = eixos do vetor")
 	eq(window.rows[0].bars[0].max_value, 6.0, "escala = maior eixo da janela")
 	window.free()
@@ -138,4 +139,72 @@ func test_the_button_appears_only_when_the_culture_has_technologies() -> void:
 	await app.select_npc(8)
 	await tree.process_frame
 	eq(app.npc_panel.tech_button.visible, false, "trocar para cultura sem tecnologia esconde o botão")
+	app.queue_free()
+
+
+class SlowTransport extends "res://tests/fake_transport.gd":
+	signal release()
+
+	func request(method: String, path: String, body: Variant = null, extra_headers: Dictionary = {}) -> Dictionary:
+		if path.contains("/cultures/1/technologies"):
+			await release
+		return await super.request(method, path, body, extra_headers)
+
+
+func test_close_button_and_a_reply_that_arrives_after_closing() -> void:
+	var transport := SlowTransport.new()
+	transport.on("GET /cultures/1/technologies", {"status": 200, "body": TECHS})
+	var window := _window(transport)
+	window.show_culture(1) # fica esperando
+	_find_button(window, "Fechar (Esc)").pressed.emit()
+	eq(window.is_open, false, "o botão Fechar fecha")
+
+	transport.release.emit()
+	await Engine.get_main_loop().process_frame
+
+	eq(window.rows.size(), 0, "a resposta que chega depois de fechar não é desenhada")
+	window.free()
+
+
+func test_an_open_window_makes_no_requests_while_frames_pass() -> void:
+	var transport := _transport()
+	var window := _window(transport)
+	tree.root.add_child(window)
+	await window.show_culture(1)
+	var before: int = transport.calls.size()
+	for i in 5:
+		await tree.process_frame
+	eq(transport.calls.size(), before, "nenhuma requisição por frame")
+	window.free()
+
+
+func test_a_probe_error_hides_the_button_and_a_stale_probe_is_ignored() -> void:
+	var transport := _app_transport()
+	var slow := SlowTransport.new()
+	slow.routes = transport.routes.duplicate()
+	var app := App.new()
+	app.player_id = "p-1"
+	tree.root.add_child(app)
+	await app.start(slow, false)
+
+	await app.select_npc(7)
+	await tree.process_frame
+	slow.release.emit()
+	await tree.process_frame
+	eq(app.npc_panel.tech_button.visible, true, "cultura 1 com tecnologias")
+
+	slow.on("GET /cultures/1/technologies", {"status": 500, "body": null})
+	slow.release.emit()
+	await app.select_npc(7)
+	await tree.process_frame
+	eq(app.npc_panel.tech_button.visible, false, "erro na checagem: botão oculto")
+
+	slow.on("GET /cultures/1/technologies", {"status": 200, "body": TECHS})
+	app.select_npc(7) # a checagem da cultura 1 fica pendente (transporte lento)
+	await tree.process_frame
+	await app.select_npc(8) # o usuário troca para a cultura 2 (sem tecnologias)
+	await tree.process_frame
+	slow.release.emit() # a resposta antiga da cultura 1 chega agora
+	await tree.process_frame
+	eq(app.npc_panel.tech_button.visible, false, "a resposta velha da cultura 1 não acende o botão da cultura 2")
 	app.queue_free()

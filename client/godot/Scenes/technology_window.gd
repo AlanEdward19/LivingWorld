@@ -120,6 +120,7 @@ func _tech_node(tech: Dictionary, scale: float) -> Control:
 	info.modulate = Color(1, 1, 1, 0.8)
 	box.add_child(info)
 	var bars: Array = []
+	var axis_labels: Array = []
 	for i in AXES.size():
 		var row := HBoxContainer.new()
 		var name := Label.new()
@@ -139,7 +140,8 @@ func _tech_node(tech: Dictionary, scale: float) -> Control:
 		row.add_child(number)
 		box.add_child(row)
 		bars.append(bar)
-	rows.append({"title": title, "detail": detail, "bars": bars})
+		axis_labels.append(name.text)
+	rows.append({"title": title, "detail": detail, "bars": bars, "axes": axis_labels})
 	return box
 
 
