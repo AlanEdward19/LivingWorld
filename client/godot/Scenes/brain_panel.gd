@@ -105,7 +105,7 @@ func _init() -> void:
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(body)
 	timeline = ItemList.new()
-	timeline.custom_minimum_size = Vector2(340, 0)
+	timeline.custom_minimum_size = Vector2(300, 0)
 	timeline.item_selected.connect(func(index: int): select_entry(index))
 	body.add_child(timeline)
 	_sandbox_column = _build_sandbox_column()
@@ -123,7 +123,7 @@ func _init() -> void:
 	_flow_root.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	right.add_child(_flow_root)
 	_columns = HBoxContainer.new()
-	_columns.add_theme_constant_override("separation", 26)
+	_columns.add_theme_constant_override("separation", 16)
 	_columns.sort_children.connect(func(): _redraw_lines())
 	_flow_root.add_child(_columns)
 	_lines = FlowLines.new()

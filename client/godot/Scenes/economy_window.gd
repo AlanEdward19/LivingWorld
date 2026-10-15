@@ -168,7 +168,10 @@ func _bar(value: float, scale: float, color: Color) -> ProgressBar:
 	bar.value = value
 	bar.show_percentage = false
 	bar.custom_minimum_size = Vector2(220, 10)
-	bar.modulate = color
+	var fill := StyleBoxFlat.new() # só o preenchimento colorido: o fundo da barra continua legível
+	fill.bg_color = color
+	fill.set_corner_radius_all(3)
+	bar.add_theme_stylebox_override("fill", fill)
 	return bar
 
 

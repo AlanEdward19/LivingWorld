@@ -47,7 +47,10 @@ func test_treasury_calls_the_route_and_shows_balance_and_proportional_month_bars
 	eq(window.month_rows[0].revenue_bar.value, 50.0)
 	eq(window.month_rows[0].revenue_bar.max_value, 100.0, "escala = maior valor da janela")
 	eq(window.month_rows[1].spending_bar.value, 100.0)
-	check(window.month_rows[0].revenue_bar.modulate != window.month_rows[0].spending_bar.modulate, "entrou e saiu têm cores diferentes")
+	var in_color: Color = window.month_rows[0].revenue_bar.get_theme_stylebox("fill").bg_color
+	var out_color: Color = window.month_rows[0].spending_bar.get_theme_stylebox("fill").bg_color
+	check(in_color != out_color, "entrou e saiu têm cores diferentes")
+	check(in_color.g > in_color.r and out_color.r > out_color.g, "verde entrou, vermelho saiu")
 	window.free()
 
 
