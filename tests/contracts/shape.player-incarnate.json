@@ -1,0 +1,4 @@
+{
+  "npcId": "number",
+  "playerId": "string"
+}

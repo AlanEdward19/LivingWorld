@@ -1,8 +1,8 @@
-# ADR-0027: Exposição binária, janela crítica por teto e aquisição sem sorteio (Fase 21b)
+# ADR-0029: Exposição binária, janela crítica por teto e aquisição sem sorteio (Fase 21b)
 
 - **Status**: aceito
 - **Data**: 2026-10-14
-- **Decisores**: Alan (pediu a 21b, issue #71; follow-up já previsto no ADR-0026)
+- **Decisores**: Alan (pediu a 21b, issue #71; follow-up já previsto no ADR-0028)
 
 ## Contexto
 A 21b troca o progresso "por idade" da 21a por aquisição com exposição e janela crítica. O plano previa rolagem do `Resolver`

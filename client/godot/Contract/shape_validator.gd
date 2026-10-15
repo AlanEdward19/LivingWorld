@@ -3,6 +3,8 @@ extends RefCounted
 ## objeto -> propriedades obrigatórias; lista -> todo elemento tem a forma do primeiro;
 ## folha -> tipo JSON. Campo extra é aceito (compatibilidade para frente); campo ausente
 ## ou de tipo diferente é rejeitado. "null" e "[]" na gravação aceitam qualquer valor/lista.
+## Chave terminada em "?" é OPCIONAL TIPADA: pode faltar ou vir nula, mas se vier com valor tem de cumprir a forma
+## (ex.: "spouse?": {"value": "number"}).
 
 const CONTRACTS_DIR := "../../tests/contracts/"
 
@@ -31,7 +33,11 @@ static func _check(value: Variant, shape: Variant, path: String, errors: Array[S
 			errors.append("%s: esperado objeto, veio %s" % [path, type_string(typeof(value))])
 			return
 		for key in shape:
-			if not value.has(key):
+			if String(key).ends_with("?"):
+				var real := String(key).trim_suffix("?")
+				if value.has(real) and value[real] != null:
+					_check(value[real], shape[key], "%s.%s" % [path, real], errors)
+			elif not value.has(key):
 				errors.append("%s.%s: campo ausente" % [path, key])
 			else:
 				_check(value[key], shape[key], "%s.%s" % [path, key], errors)

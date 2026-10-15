@@ -260,4 +260,29 @@ public class ObservationScopeEndpointsTests : IClassFixture<LivingWorldApiFactor
 
         Assert.False(world.ObservationRegistry.IsObserved(inCityA, world));
     }
+
+    [Fact]
+    public async Task Silent_source_is_purged_without_any_new_post()
+    {
+        using var factory = new ShortHeartbeatApiFactory();
+        var client = factory.CreateClient();
+        WorldState world;
+        City cityA;
+        Npc inCityA;
+        using (var scope = factory.Services.CreateScope())
+        {
+            world = scope.ServiceProvider.GetRequiredService<WorldState>();
+            (cityA, _, _, inCityA, _, _) = BuildFixture(world);
+        }
+
+        await PostScopeAsync(client, "spectator-a", new ObservationScopeDto("City", cityA.Id.Value.ToString()));
+        Assert.True(world.ObservationRegistry.IsObserved(inCityA, world));
+
+        // heartbeat de 1 s + purga periódica, sem nenhum outro POST: espera até 15 s em vez de uma folga fixa (não depende da carga da máquina)
+        var deadline = DateTime.UtcNow.AddSeconds(15);
+        while (world.ObservationRegistry.IsObserved(inCityA, world) && DateTime.UtcNow < deadline)
+            await Task.Delay(100);
+
+        Assert.False(world.ObservationRegistry.IsObserved(inCityA, world));
+    }
 }

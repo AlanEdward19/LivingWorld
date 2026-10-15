@@ -1,0 +1,4 @@
+{
+  "decision": "string",
+  "sessionId?": "number"
+}

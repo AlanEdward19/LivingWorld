@@ -164,3 +164,19 @@ func test_stream_validates_interior_deltas_and_accepts_null_action() -> void:
 	transport.channels[0].push(broken)
 	eq(applied.size(), 1, "delta de interior sem `exited` é descartado")
 	eq(errors.size(), 1, "e o erro de contrato é anunciado")
+
+
+func test_world_info_and_pause_status_shapes_are_frozen() -> void:
+	var transport := FakeTransport.new()
+	transport.on("GET /world/info", {"status": 200, "body": {"name": "Vale", "periodId": "", "technologyAxes": ["pace"]}})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": true, "ticksPerSecond": 1.0, "tick": 3, "year": 0, "pausedBy": "alan", "pauseReason": "x", "pausedAtTick": 3, "pauseMaxTicks": 48}})
+	var api := ApiClient.new(transport)
+	eq((await api.world_info()).ok, true)
+	eq((await api.clock_status()).ok, true, "pausa de admin preenchida passa")
+
+	transport.on("GET /world/info", {"status": 200, "body": {"name": "Vale", "technologyAxes": ["pace"]}})
+	eq((await api.world_info()).ok, false, "sem periodId reprova")
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": true, "ticksPerSecond": 1.0, "tick": 3, "year": 0, "pausedBy": 7}})
+	eq((await api.clock_status()).ok, false, "pausedBy com tipo errado reprova (opcional tipado)")
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 3, "year": 0, "pausedBy": null}})
+	eq((await api.clock_status()).ok, true, "nulo passa")

@@ -72,9 +72,9 @@ o resultado aqui é um pouco pior (102%) mas dentro dos tetos. Folga pequena par
 ## Fechamento da Fase 21 (critérios 1-10)
 Testes correspondentes presentes: 1-3 `OntogenyModelTests` (reflexão/catálogo, nenhum NPC age acima do marco em 10 anos, mutação do filtro, recém-nascido só Cry/mamar/dormir, desligar muda hash);
 4-6 `OntogenyAcquisitionTests` (cuidador ausente, ordem prazo>tardia>nenhuma + mutação, gene como taxa); 7-9 `OntogenyLanguageRegressionTests`; 10 `DeterminismTwoProcessTests` + golden + `OptimizationEquivalenceTests`.
-ROADMAP linha 21 "fechada", STATE "Fase 21 entregue", docs/roadmap/phase-21-ontogeny.md "fechada", ADR-0028 (29 linhas) + índice, AD-117: coerentes. `check-docs: OK`.
+ROADMAP linha 21 "fechada", STATE "Fase 21 entregue", docs/roadmap/phase-21-ontogeny.md "fechada", ADR-0030 (29 linhas) + índice, AD-117: coerentes. `check-docs: OK`.
 Observação de processo: a issue exige parar e perguntar antes de mudar o formato do snapshot; `Npc.NativeLanguage`/`DevelopmentState.Fluency` mudam o snapshot (+1,1%).
-O ADR-0028 registra a decisão, mas não há evidência no repositório de aprovação prévia do usuário (o autor deve confirmar).
+O ADR-0030 registra a decisão, mas não há evidência no repositório de aprovação prévia do usuário (o autor deve confirmar).
 
 ## Veredito
 APROVADO COM RESSALVAS (nenhum FAIL funcional; 2 testes fracos e 1 defeito de doc):

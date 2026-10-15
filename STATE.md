@@ -7,14 +7,14 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 - **Fechado (2026-10-14)**: ADs 104–114 e as issues #20–#43 (incl. #25–#28, #40, #41): cliente Godot com arte/áudio,
   história e narrativa fechadas (Fases 10/12), primeira fatia de emergência (AD-110), encarnação de jogador (AD-111),
   console de admin com pausa de teto (AD-112), poço (AD-113), custo medido sem regressão (AD-114).
-  Fase 28 fechada no motor (API e LOD); falta só o painel visual (#58). Cliente web removido (ADR-0022).
-- **Abertas**: #57 roadmap/STATE em sincronia (esta entrega) · #58 painel COG-11 no Godot · #59 telas Godot para backend
-  pronto · #60 provider de LLM de produção + custo (ADR-0016) · #61 Fase 24 resto · #62 Fase 26 resto (reescrita exige
-  Fase 18) · #63 Fase 25 resto · #64 Fase 16 efeitos/custos em switch fechado · #65 FAM-32 (AD-088) · #66 (esta decisão) · #67 verificação de `lodging-and-rent`/`godot-main-menu` · #68 interações presenciais ·
-  #46 criador de mundo · #47 criador procedural de objetos.
+  Fase 28 fechada (motor e painel visual). Cliente web removido (ADR-0022).
+- **Abertas**: #60 provider de LLM de produção + custo (ADR-0016) · #61 Fase 24 resto · #62 Fase 26 resto (reescrita exige Fase 18) ·
+  #63 Fase 25 resto · #64 Fase 16 efeitos/custos em switch fechado · #65 FAM-32 (AD-088) · #67 verificação de `lodging-and-rent`/`godot-main-menu` ·
+  #68 interações presenciais · #46 criador de mundo · #47 criador procedural de objetos. Fechadas por este PR: #57, #66, #70–#72, #93.
 - **Decisão de escopo (2026-10-14, #66)**: ordem das fases `spec` = **21 → 22 → 23**, depois 18, 27 e 17/19/20.
   Fase 14 substituída pelo Godot (ADR-0025, voz/Unreal adiados); Fase 15 fechada.
-- **Próxima unidade**: Fase 22 (imperfeição; criar plano lean e issues por fatia). Fase 21 entregue (21a–c, AD-115..117, ADR-0026..0028); plano `.specs/features/phase-21-ontogeny/plan.md`.
+- **Próxima unidade**: Fase 22 (imperfeição; criar plano lean e issues por fatia). Fase 21 entregue com as dívidas (21a–c e #93, AD-115..118, ADR-0028..0031); plano `.specs/features/phase-21-ontogeny/plan.md`.
+- **Concluído (2026-10-15)**: #58 (painel Cérebro, escopo de observação, sandbox "E se…?", ADR-0026) e #59 (conversa, narrativas, crenças, jogador, console admin, economia, tecnologias, materializar), cada fatia com Verifier PASS em `.specs/features/godot-*/verification.md`. Branches empilhadas até `feat/godot-materialize`; falta abrir os PRs. Dívidas: pausa pública com ator/motivo e período do mundo continuado pedem rota nova (issue própria); retomar sessão de jogador após reiniciar o cliente.
 - **Pendência de CI**: goldens do cliente foram regravados num Mac arm64; rodar o CI antes do merge.
 - **Integração do extraordinário (2026-08-12)**: decisão **mista**, sem fase numerada nova para "super-heróis" —
   distribuída entre Fases 16, 17, 23, 24, 25, com toques em 10, 12, 22. ADR-0010 + `docs/domain/powers.md`.

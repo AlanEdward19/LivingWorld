@@ -1,4 +1,4 @@
-> **Estado: Parcial** (specs-closeout 2026-10-12) - 30/31 requisitos verificados por teste; COG-11 (painel visual) sem cliente web (aposentado) nem painel Godot, so a API entregue.
+> **Estado: Fechada** (2026-10-14) - 31/31 requisitos verificados; COG-11 pelo painel Godot (`.specs/features/godot-brain-panel/verification.md`, PASS).
 
 # Fase 28 — Cognição e LOD observacional — Specification
 
@@ -314,7 +314,7 @@ decisão.
 | COG-03 | P1: Rastro — determinismo por seed | Verified - BehaviorDecisionSystemCognitionTests.Same_seed_produces_identical_cognition_log |
 | COG-04 | P1: Rastro — descarte FIFO ao exceder janela | Verified - LivingWorld.Tests.Unit/Cognition/NpcCognitionLogTests.Record_fifo_drops_oldest_when_window_exceeded |
 | COG-10 | P1: Painel — dados via API, sem recálculo no cliente | Verified - LivingWorld.Tests.Integration/Api/NpcCognitionTraceApiTests.GetNpc_cognition_trace_matches_recent_entries_from_log |
-| COG-11 | P1: Painel — visual navegável dentro da janela retida | Pending - painel web removido (ADR-0022, web/ so tem dist); sem painel no client Godot; so a API devolve o traco ordenado (GetNpc_returns_cognition_trace_in_chronological_order) |
+| COG-11 | P1: Painel — visual navegável dentro da janela retida | Verified - painel Godot `client/godot/Scenes/brain_panel.gd`; client/godot/tests/test_brain_panel.gd; .specs/features/godot-brain-panel/verification.md |
 | COG-12 | P1: Painel — estado vazio explícito, nunca inventado | Verified - LivingWorld.Tests.Integration/Api/NpcCognitionTraceApiTests.GetNpc_returns_empty_cognition_trace_when_npc_has_no_entries (nivel API) |
 | COG-13 | P1: Painel — leitura idempotente | Verified - NpcCognitionTraceApiTests.GetNpc_is_idempotent_for_cognition_trace_within_same_tick, GetNpc_does_not_mutate_cognition_log_on_read |
 | COG-20 | P1: Watchlist — janela curta default para não marcados | Verified - LivingWorld.Tests.Unit/Cognition/NpcCognitionLogTests.Record_default_window_is_fifty_entries |

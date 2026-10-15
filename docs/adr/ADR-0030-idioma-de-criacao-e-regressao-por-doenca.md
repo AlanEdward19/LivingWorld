@@ -1,8 +1,8 @@
-# ADR-0028: Idioma de criação, regressão por doença e adultos no pool (Fase 21c)
+# ADR-0030: Idioma de criação, regressão por doença e adultos no pool (Fase 21c)
 
 - **Status**: aceito
 - **Data**: 2026-10-14
-- **Decisores**: Alan (pediu a 21c, issue #72; follow-up previsto nos ADR-0026/0027)
+- **Decisores**: Alan (pediu a 21c, issue #72; follow-up previsto nos ADR-0028/0027)
 
 ## Contexto
 A 21c fecha a Fase 21: a língua que a pessoa fala vem de quem a cria, não da etnia; doença regride o que ainda não se consolidou, com

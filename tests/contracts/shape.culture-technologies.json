@@ -1,0 +1,13 @@
+[
+  {
+    "adoptedByCities": "number",
+    "category": "string",
+    "discoveredAtTick": "number",
+    "isVariation": "boolean",
+    "key": "string",
+    "variationOfKey?": "string",
+    "vector": [
+      "number"
+    ]
+  }
+]

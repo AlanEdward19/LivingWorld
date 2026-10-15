@@ -1,4 +1,4 @@
-# Fase 21 — Ontogenia [Estado: Ativo - Entregue - 21a (AD-115), 21b (AD-116, ADR-0027), 21c (AD-117, ADR-0028)]
+# Fase 21 — Ontogenia [Estado: Ativo - Entregue - 21a (AD-115), 21b (AD-116, ADR-0029), 21c (AD-117, ADR-0030)]
 
 Substitui o formato antigo (`spec.md`/`design.md`/`tasks.md`, apagados em 2026-10-14 com aprovação do usuário; histórico no git).
 Decisões herdadas do design: marco é **filtro pré-utility** (não pontua zero), choro é
@@ -17,8 +17,8 @@ trauma/doença regride com causa → adulto: sistema inerte.
 ## Fatias (uma issue, um PR cada, nesta ordem)
 - **21a Modelo**: marcos como dado de cenário (6 eixos, janelas, pré-requisitos), `ActionCatalog.RequiredMilestone`,
   `MilestoneEligibilityFilter`, `Cry`, `OntogenyLifecycleGate`, flag de desligar.
-- **21b Aquisição** (entregue, ADR-0027): `ExposureAccumulator` (adulto no domicílio), aquisição e janela dentro de `OntogenyRules.Advance`, gene como taxa; sem sorteio do `Resolver`.
-- **21c Idioma, regressão** (entregue, ADR-0028): fluência por cuidador (`Fluency`, `NativeLanguage`, consumidor no cortejo), regressão por doença
+- **21b Aquisição** (entregue, ADR-0029): `ExposureAccumulator` (adulto no domicílio), aquisição e janela dentro de `OntogenyRules.Advance`, gene como taxa; sem sorteio do `Resolver`.
+- **21c Idioma, regressão** (entregue, ADR-0030): fluência por cuidador (`Fluency`, `NativeLanguage`, consumidor no cortejo), regressão por doença
   dentro de `MilestoneProgressSystem`. Pool agregado e crença copiada ficaram de fora (ver dívida).
 
 ## Critérios (EARS) — finais, sob `rules/eval-criteria.md`
@@ -39,7 +39,7 @@ Gate: horizonte ≤ 10 anos; braços pareados na mesma seed, ≥ 20 seeds; limia
 10. **Todas** Determinismo em dois processos; `Cry`/marcos sem `Random`/`DateTime`; hash estável por golden.
 
 ## Portas de mão única
-Decididas na 21a (ADR-0026): `Npc.Development` canônico (null explícito = completo), `OntogenyRules` canônico, ontogenia ligada
+Decididas na 21a (ADR-0028): `Npc.Development` canônico (null explícito = completo), `OntogenyRules` canônico, ontogenia ligada
 por padrão, `ActionType.Cry` (duração opcional). A 21b acrescenta teto de janela ao snapshot e a 21c `MilestoneProgressSum` no pool:
 novo ADR/pergunta em cada uma. As exigências por ação vivem em `OntogenyRules.Requirements` (cobertura por reflexão), não em `ActionCatalog`.
 
@@ -52,7 +52,7 @@ Borda conhecida (verificação 21b): marcos com janela que fecha depois de `Comp
 foi negligenciado; o estado congela ao passar da idade de conclusão. Olhar na 21c junto com a regressão.
 
 ## Dívida da Fase 21
-Quitada na issue #93 (`.specs/features/ontogeny-debts/plan.md`, AD-118, ADR-0029): acolhimento de órfãos, choro atendido, exposição
+Quitada na issue #93 (`.specs/features/ontogeny-debts/plan.md`, AD-118, ADR-0031): acolhimento de órfãos, choro atendido, exposição
 graduada, criação adotiva e guarda do pool agregado. Resample no pool segue descartado: não há criança no pool (a guarda reativa o assunto).
 Mortes por desidratação: 9 → 1 em 5 seeds × 10 anos.
 

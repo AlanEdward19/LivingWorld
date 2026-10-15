@@ -12,9 +12,9 @@ Branch `feat/ontogeny-acquisition` (525f585). Veredito: **PASS em todos os crit�
 ## Itens adicionais
 - Snapshot de adulto: PASS. `StateFor`/`AdvanceOneMonth` devolvem `null` ao completar (OntogenyMechanic.cs); teste do 21a (`OntogenyModelTests` ~242) asserta `Assert.Null` para adultos. Crescimento medido: 12.267 -> 12.364 B/vivo (+0,8%), vindo dos 6 tetos das crianças/déficits, não de adultos completos.
 - Teto só desce: PASS (`The_ceiling_only_ever_goes_down...` e `progress <= ceiling`; reprova na mutação 1).
-- Déficit permanente: PASS. `AdvanceOneMonth` mantém o estado se `now >= CompleteAtYears` e `!IsComplete`; ADR-0027 documenta o trade-off.
+- Déficit permanente: PASS. `AdvanceOneMonth` mantém o estado se `now >= CompleteAtYears` e `!IsComplete`; ADR-0029 documenta o trade-off.
 - Parâmetros validados: PASS. `Create` rejeita `LateRecoveryFactor` fora de (0,1] e `MissedWindowKeep` fora de (0,1) (OntogenyRules.cs:53-56); teste `Invalid_recovery_and_keep...`; loader e conversor JSON os leem. Documentados em docs/domain/period-authoring-schema.md:84-87.
-- ADR-0027 x código: PASS (exposição binária por adulto vivo no domicílio, sem sorteio, teto = p+(1-p)*Keep, 6 tetos, déficit mantém estado). AD-116 coerente.
+- ADR-0029 x código: PASS (exposição binária por adulto vivo no domicílio, sem sorteio, teto = p+(1-p)*Keep, 6 tetos, déficit mantém estado). AD-116 coerente.
 - Docs: PASS. `bash scripts/check-docs.sh` -> `check-docs: OK`; ADR 31 linhas, schema 91, plan 61.
 - Desempenho (MeasureHarness, 3 rodadas alternadas base/nova, mesma máquina):
   - µs/NPC-tick base 0,826 / 0,779 / 0,791 (média 0,799); nova 0,827 / 0,782 / 0,775 (média 0,795) = **99,5%** (teto 103%). Ruído entre rodadas da mesma base ~6%, maior que o efeito.
@@ -22,7 +22,7 @@ Branch `feat/ontogeny-acquisition` (525f585). Veredito: **PASS em todos os crit�
 - `bash scripts/verify.sh --full`: **exit 0** (`verify: OK`; LongRunning 128 passou, 8 skipped de gravação de baseline).
 
 ## Observações (não bloqueiam)
-1. A issue cita "Resolver perfil Agregado"; a entrega substitui por gene determinístico (ADR-0027, exigência do critério 6). Decisão registrada, coerente com o plan.md.
+1. A issue cita "Resolver perfil Agregado"; a entrega substitui por gene determinístico (ADR-0029, exigência do critério 6). Decisão registrada, coerente com o plan.md.
 2. Borda: com janela de marco cujo limite excede `CompleteAtYears` (ex.: `social-adult`, limite 18 > 13) e eixo ainda abaixo de 1 sem teto reduzido, `AdvanceOneMonth` congela o estado em `now >= CompleteAt` e a criança com cuidador tardio não completa esse último trecho (nem o teto desce). Efeito pequeno, sem teste; considerar na 21c.
 3. A mutação do critério 5 do próprio teste (`WindowLimitYears=99`) é complementar; a mutação no código real foi feita aqui e reprova.
 

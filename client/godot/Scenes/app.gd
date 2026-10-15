@@ -22,6 +22,15 @@ const SkyLife := preload("res://Scenes/sky_life.gd")
 const Ambience := preload("res://Scenes/ambience.gd")
 const AssetCatalog := preload("res://Scenes/asset_catalog.gd")
 const DevSteps := preload("res://Scenes/dev_steps.gd")
+const BrainPanel := preload("res://Scenes/brain_panel.gd")
+const ConversationWindow := preload("res://Scenes/conversation_window.gd")
+const NarrativeWindow := preload("res://Scenes/narrative_window.gd")
+const AdminWindow := preload("res://Scenes/admin_window.gd")
+const EconomyWindow := preload("res://Scenes/economy_window.gd")
+const TechnologyWindow := preload("res://Scenes/technology_window.gd")
+const PlayerHud := preload("res://Scenes/player_hud.gd")
+const PlayerProfile := preload("res://Contract/player_profile.gd")
+const ScopeObserver := preload("res://Contract/scope_observer.gd")
 
 var transport
 var api
@@ -41,6 +50,19 @@ var clock_panel
 var list_panel
 var npc_panel
 var city_panel
+var brain_panel
+var conversation
+var narrative
+var player_hud
+var admin_window
+var economy
+var technology
+var period_id := "" ## período de origem do mundo em andamento (GET /world/info); vazio se desconhecido
+var resource_names: Dictionary = {} ## id -> nome, do catálogo do período
+var admin_enabled := OS.get_environment("LW_ADMIN_TOKEN") != "" ## sem token o console nem aparece
+var pause_label: Label
+var player_id := ""
+var observer
 var banner: Label
 var breadcrumb: Label
 var time_label: Label
@@ -79,6 +101,10 @@ func start(p_transport, validate_shapes: bool = true, sleeper: Callable = Callab
 	labels = ActionLabels.new()
 	_build_scene()
 	_build_ui()
+	size_windows()
+	observer = ScopeObserver.new()
+	observer.api = api
+	add_child(observer)
 	stream = CursorStream.new(transport, get_tree())
 	stream.validate_shapes = validate_shapes
 	if sleeper.is_valid():
@@ -95,7 +121,26 @@ func start(p_transport, validate_shapes: bool = true, sleeper: Callable = Callab
 	if calendar.ok:
 		day_cycle.set_calendar(calendar.body)
 	await clock_panel.refresh()
+	await _load_world_info()
 	await stream.subscribe("World")
+
+
+## Identidade do mundo em andamento (`GET /world/info`): o período dá os nomes de recurso do catálogo e o cenário dá os rótulos
+## dos eixos de tecnologia. Período vazio (mundo criado sem ele) deixa os recursos como número.
+func _load_world_info() -> void:
+	resource_names = {}
+	var info: Dictionary = await api.world_info()
+	if not info.ok:
+		return
+	period_id = String(info.body.get("periodId", ""))
+	technology.axis_names = info.body.get("technologyAxes", [])
+	if period_id == "":
+		return
+	var catalog: Dictionary = await api.period_catalog(period_id)
+	if not catalog.ok:
+		return
+	for descriptor in catalog.body.get("descriptors", {}).get("resource", []):
+		resource_names[int(descriptor.id)] = String(descriptor.name)
 
 
 func _build_scene() -> void:
@@ -166,10 +211,22 @@ func _build_ui() -> void:
 	var right_spacer := Control.new()
 	right_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bar.add_child(right_spacer)
+	pause_label = Label.new()
+	pause_label.clip_text = true
+	pause_label.custom_minimum_size.x = 120
+	pause_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pause_label.size_flags_stretch_ratio = 4.0
+	pause_label.add_theme_color_override("font_color", Color("ffcf4a"))
+	bar.add_child(pause_label)
 	clock_panel = Panels.ClockPanel.new()
 	clock_panel.api = api
 	clock_panel.status_changed.connect(_on_clock_status)
 	bar.add_child(clock_panel)
+	if admin_enabled:
+		var console_button := Button.new()
+		console_button.text = "Console (F8)"
+		console_button.pressed.connect(func(): _toggle_admin())
+		bar.add_child(console_button)
 	var menu_button := Button.new()
 	menu_button.text = "☰ Menu (F10)"
 	menu_button.pressed.connect(func(): menu_requested.emit())
@@ -200,6 +257,18 @@ func _build_ui() -> void:
 	side.add_child(npc_panel)
 	city_panel = Panels.CityPanel.new()
 	side.add_child(city_panel)
+	player_hud = PlayerHud.new()
+	player_hud.api = api
+	player_hud.labels = labels
+	player_hud.player_id = player_id if player_id != "" else PlayerProfile.load_or_create()
+	player_hud.warning.connect(func(text: String): toasts.push(text))
+	player_hud.released.connect(func(): rig.release())
+	player_hud.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	player_hud.offset_left = 310
+	player_hud.offset_right = -316
+	player_hud.offset_top = 60
+	_ui.add_child(player_hud)
+	npc_panel.incarnate_requested.connect(func(id: int): incarnate(id))
 
 	list_panel = Panels.NpcListPanel.new()
 	list_panel.api = api
@@ -211,6 +280,85 @@ func _build_ui() -> void:
 	list_panel.offset_bottom = -272
 	list_panel.npc_selected.connect(func(id: int): select_npc(id))
 	_ui.add_child(list_panel)
+
+	brain_panel = BrainPanel.new()
+	brain_panel.api = api
+	brain_panel.labels = labels
+	brain_panel.date_of = _date_text
+	brain_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	brain_panel.offset_left = 310
+	brain_panel.offset_right = -316
+	brain_panel.offset_top = 130
+	brain_panel.offset_bottom = -272
+	brain_panel.warning.connect(func(text: String): toasts.push(text))
+	_ui.add_child(brain_panel)
+	npc_panel.brain_requested.connect(func(id: int): open_brain(id))
+	conversation = ConversationWindow.new()
+	conversation.api = api
+	conversation.set_anchors_preset(Control.PRESET_FULL_RECT)
+	conversation.anchor_top = 1.0 # faixa fixa na base da tela
+	conversation.offset_left = 310
+	conversation.offset_right = -430
+	conversation.offset_top = -262
+	conversation.offset_bottom = -34
+	conversation.warning.connect(func(text: String): toasts.push(text))
+	_ui.add_child(conversation)
+	npc_panel.conversation_requested.connect(func(id: int): talk_to(id))
+	narrative = NarrativeWindow.new()
+	narrative.api = api
+	narrative.calendar_of = func() -> Dictionary: return {"hoursPerDay": day_cycle.hours_per_day, "daysPerMonth": day_cycle.days_per_month, "monthsPerYear": day_cycle.months_per_year}
+	narrative.tick_now = func() -> int: return int(clock_panel.status.get("tick", 0))
+	narrative.set_anchors_preset(Control.PRESET_FULL_RECT)
+	narrative.offset_left = 310
+	narrative.offset_right = -316
+	narrative.offset_top = 130
+	narrative.offset_bottom = -272
+	narrative.date_of = _date_text
+	narrative.warning.connect(func(text: String): toasts.push(text))
+	_ui.add_child(narrative)
+	admin_window = AdminWindow.new()
+	admin_window.api = api
+	admin_window.calendar_of = func() -> Dictionary: return {"hoursPerDay": day_cycle.hours_per_day}
+	admin_window.date_of = _date_text
+	admin_window.set_anchors_preset(Control.PRESET_FULL_RECT)
+	admin_window.offset_left = 310
+	admin_window.offset_right = -316
+	admin_window.offset_top = 130
+	admin_window.offset_bottom = -272
+	admin_window.warning.connect(func(text: String): toasts.push(text))
+	admin_window.npc_selected.connect(func(id: int): select_npc(id))
+	_ui.add_child(admin_window)
+	economy = EconomyWindow.new()
+	economy.api = api
+	economy.calendar_of = func() -> Dictionary: return {"hoursPerDay": day_cycle.hours_per_day, "daysPerMonth": day_cycle.days_per_month, "monthsPerYear": day_cycle.months_per_year}
+	economy.date_of = _date_text
+	economy.resource_name_of = func(id: int) -> String: return String(resource_names.get(id, "recurso %d" % id))
+	economy.set_anchors_preset(Control.PRESET_FULL_RECT)
+	economy.offset_left = 310
+	economy.offset_right = -316
+	economy.offset_top = 130
+	economy.offset_bottom = -272
+	economy.warning.connect(func(text: String): toasts.push(text))
+	_ui.add_child(economy)
+	technology = TechnologyWindow.new()
+	technology.api = api
+	technology.date_of = _date_text
+	technology.set_anchors_preset(Control.PRESET_FULL_RECT)
+	technology.offset_left = 310
+	technology.offset_right = -316
+	technology.offset_top = 130
+	technology.offset_bottom = -272
+	technology.warning.connect(func(text: String): toasts.push(text))
+	_ui.add_child(technology)
+	npc_panel.culture_shown.connect(func(id: int): _probe_technologies(id))
+	npc_panel.technologies_requested.connect(func(id: int): _show_technologies(id))
+	npc_panel.trades_requested.connect(func(workplace_id: int): open_trades(workplace_id))
+	city_panel.treasury_requested.connect(func(city_id: String): open_treasury(city_id))
+	city_panel.anonymous_requested.connect(func(id: int): select_npc(id))
+	npc_panel.warning.connect(func(text: String): toasts.push(text))
+	npc_panel.biography_requested.connect(func(id: int): open_biography(id))
+	city_panel.chronicle_requested.connect(func(city_id: String): open_chronicle(city_id))
+	city_panel.beliefs_requested.connect(func(city_id: String): open_beliefs(city_id))
 
 	minimap = Minimap.new()
 	minimap.bind(store)
@@ -231,7 +379,7 @@ func _build_ui() -> void:
 	_ui.add_child(toasts)
 
 	var help := Label.new()
-	help.text = "Botão direito: mover · Shift+botão direito: girar · Roda: zoom · Q/E: girar · L: pessoas · F: seguir · Esc: voltar · PgUp/PgDn: andar · M: som · clique: selecionar/entrar"
+	help.text = "Botão direito: mover · Shift+botão direito: girar · Roda: zoom · Q/E: girar · L: pessoas · F: seguir · B: cérebro do NPC · T: conversar · R: relatos · I: encarnar · Esc: voltar · PgUp/PgDn: andar · M: som · clique: selecionar/entrar"
 	help.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	help.offset_top = -30
 	help.offset_left = 10
@@ -268,6 +416,12 @@ func _build_ui() -> void:
 
 func _on_clock_status(status: Dictionary) -> void:
 	day_cycle.sync(float(status.tick), float(status.ticksPerSecond), bool(status.isPaused))
+	brain_panel.on_world_tick(int(status.tick))
+	player_hud.set_paused(bool(status.isPaused))
+	if not bool(status.isPaused):
+		admin_window.note_running()
+	pause_label.text = admin_window.pause_banner(status)
+	pause_label.tooltip_text = pause_label.text
 	NpcActor.frozen = bool(status.isPaused)
 	sky_life.paused = bool(status.isPaused)
 	_update_time_label(status)
@@ -339,6 +493,7 @@ func enter_scope(kind: String, ref_id: String) -> void:
 func _on_snapshot(envelope: Dictionary) -> void:
 	var kind := Store.scope_name(envelope.scope.kind)
 	store.apply_snapshot(envelope)
+	_publish_observation(kind)
 	banner.visible = false
 	if not _first_snapshot:
 		_first_snapshot = true
@@ -370,6 +525,27 @@ func _on_snapshot(envelope: Dictionary) -> void:
 		city_panel.visible = false
 		if rig.zoom_size < rig.city_exit_size + 1.0:
 			rig.set_zoom(22.0)
+
+
+## Conta ao servidor o que a câmera observa: só assim o rastro de cognição do NPC é gravado.
+func _publish_observation(kind: String) -> void:
+	match kind:
+		"World":
+			observer.set_scope("World")
+		"City":
+			observer.set_scope("City", String(store.city.get("id", "")))
+		"Interior":
+			var city_id := String(store.city.get("id", ""))
+			if city_id != "":
+				observer.set_scope("Building", city_id, str(_interior_building))
+
+
+## Retira a fonte de observação antes de sair (menu principal); o servidor também a descarta em 30 s sem batimento.
+func release_observation() -> void:
+	if conversation != null:
+		await conversation.end_conversation()
+	if observer != null:
+		await observer.clear()
 
 
 ## Retângulo que cobre os prédios da cidade (ou os limites dela, se ainda não há prédios).
@@ -441,6 +617,118 @@ func _on_interior_changed() -> void:
 
 func select_npc(id: int) -> void:
 	await npc_panel.show_npc(id)
+	if brain_panel.is_open:
+		open_brain(id)
+
+
+## Abre o painel "Cérebro" do NPC (atalho B).
+## As cinco janelas de informação (cérebro, narrativa, economia, tecnologias, console) dividem a mesma área: abrir uma fecha as outras.
+func _info_windows() -> Array:
+	return [brain_panel, narrative, economy, technology, admin_window]
+
+
+func _exclusive(keep) -> void:
+	for window in _info_windows():
+		if window != keep and window.is_open:
+			window.close()
+
+
+## Altura mínima das janelas de informação. A largura não muda por tela: o projeto usa `canvas_items` com 1600 x 900 de base,
+## então a interface tem sempre 1600 unidades ou mais de largura (tela estreita só escala tudo para baixo).
+func size_windows() -> void:
+	for window in _info_windows():
+		window.custom_minimum_size.y = 220
+
+
+func _show_technologies(culture_id: int) -> void:
+	_exclusive(technology)
+	await technology.show_culture(culture_id)
+
+
+func open_brain(id: int) -> void:
+	_exclusive(brain_panel)
+	await brain_panel.open(id)
+
+
+## Encarna o NPC (atalho I): o servidor decide se pode; a câmera passa a segui-lo.
+func incarnate(id: int) -> void:
+	if await player_hud.incarnate(id, String(store.names.get(id, "NPC %d" % id))):
+		selected_npc = id
+		if world_view.npc_nodes.has(id):
+			rig.follow(world_view.npc_nodes[id])
+
+
+func _toggle_admin() -> void:
+	if not admin_enabled:
+		return
+	if admin_window.is_open:
+		admin_window.close()
+	else:
+		_exclusive(admin_window)
+		admin_window.open()
+
+
+## Mostra o botão de tecnologias só se a cultura do NPC selecionado já descobriu algo.
+func _probe_technologies(culture_id: int) -> void:
+	var response: Dictionary = await api.technologies(culture_id)
+	if culture_id == npc_panel.culture_id:
+		npc_panel.tech_button.visible = response.ok and not response.body.is_empty() and npc_panel.lod != 2
+
+
+func open_treasury(city_id: String) -> void:
+	if city_id != "":
+		_exclusive(economy)
+		await economy.show_treasury(city_id, city_panel.city_name)
+
+
+func open_trades(workplace_id: int) -> void:
+	if workplace_id >= 0:
+		_exclusive(economy)
+		await economy.show_trades(workplace_id, "local %d" % workplace_id)
+
+
+func open_biography(id: int) -> void:
+	_exclusive(narrative)
+	await narrative.show_biography(id, String(store.names.get(id, "NPC %d" % id)))
+
+
+func open_chronicle(city_id: String) -> void:
+	if city_id != "":
+		_exclusive(narrative)
+		await narrative.show_chronicle(city_id, city_panel.city_name)
+
+
+func open_beliefs(city_id: String) -> void:
+	if city_id != "":
+		_exclusive(narrative)
+		await narrative.show_beliefs(city_id, city_panel.city_name)
+
+
+func _toggle_reports() -> void:
+	if narrative.is_open and narrative.mode == "reports":
+		narrative.close()
+	else:
+		_exclusive(narrative)
+		narrative.show_reports()
+
+
+## Pede a conversa com o NPC (atalho T); o servidor aceita ou recusa e a janela explica o motivo.
+func talk_to(id: int) -> void:
+	await conversation.start(id, String(store.names.get(id, "NPC %d" % id)))
+
+
+func _toggle_brain() -> void:
+	if brain_panel.is_open:
+		brain_panel.close()
+	elif selected_npc >= 0:
+		open_brain(selected_npc)
+
+
+## Data do mundo de um tick (calendário do servidor): "Ano 3 · Mês 2 · Dia 9 · 14:00".
+func _date_text(tick: int) -> String:
+	var date: Dictionary = day_cycle.date_parts(float(tick))
+	var hour := int(fmod(float(tick), day_cycle.hours_per_day) / day_cycle.hours_per_day * 24.0)
+	return "Ano %d · Mês %d · Dia %d · %02d:00" % [date.year, date.month, date.day, hour]
 
 
 ## NPC em foco mudou de ação: toca o som do catálogo (só o selecionado, para não virar barulho de multidão).
@@ -533,12 +821,36 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		match event.keycode:
 			KEY_ESCAPE:
-				if stage.active:
+				if technology.is_open:
+					technology.close()
+				elif economy.is_open:
+					economy.close()
+				elif admin_window.is_open:
+					admin_window.close()
+				elif narrative.is_open:
+					narrative.close()
+				elif conversation.is_open:
+					conversation.end_conversation()
+				elif brain_panel.is_open:
+					brain_panel.close()
+				elif stage.active:
 					exit_building()
 				elif store.kind == "City":
 					enter_scope("World", "")
 			KEY_F10:
 				menu_requested.emit()
+			KEY_B:
+				_toggle_brain()
+			KEY_F8:
+				_toggle_admin()
+			KEY_R:
+				_toggle_reports()
+			KEY_I:
+				if selected_npc >= 0 and not player_hud.is_active:
+					incarnate(selected_npc)
+			KEY_T:
+				if selected_npc >= 0 and not conversation.input.has_focus():
+					talk_to(selected_npc)
 			KEY_M:
 				ambience.set_muted(not ambience.muted)
 			KEY_L:
@@ -603,4 +915,4 @@ func _show_city_summary(city_id: String) -> void:
 	var response: Dictionary = await api.city_snapshot(city_id)
 	if response.ok and response.body.get("payload") != null:
 		var payload: Dictionary = response.body.payload
-		city_panel.show_city({"name": payload.name, "indicators": payload.indicators})
+		city_panel.show_city({"id": city_id, "name": payload.name, "indicators": payload.indicators})

@@ -3,6 +3,19 @@ extends SceneTree
 ## Cada tests/test_*.gd define métodos test_* (podem usar await). Sai com 1 se algo falhar.
 
 
+const TEST_TIMEOUT := 60.0 ## segundos por teste
+
+
+## Erro de script (ex.: chamada em nulo) não derruba o teste sozinho: o motor só imprime e segue. Este Logger o captura
+## para o runner marcar o teste como FALHA em vez de `ok` (antes só o grep do client-test.sh barrava).
+class ScriptErrorLogger extends Logger:
+	var messages: Array[String] = []
+
+	func _log_error(_function: String, _file: String, _line: int, code: String, rationale: String, _editor_notify: bool, error_type: int, _script_backtraces: Array) -> void:
+		if error_type == ERROR_TYPE_SCRIPT:
+			messages.append(rationale if rationale != "" else code)
+
+
 func _init() -> void:
 	await process_frame # a árvore só existe de verdade após o primeiro frame
 	var filter := ""
@@ -13,6 +26,8 @@ func _init() -> void:
 	var file_filter := filter.get_slice("::", 0)
 	var test_filter := filter.get_slice("::", 1) if "::" in filter else ""
 
+	var script_errors := ScriptErrorLogger.new()
+	OS.add_logger(script_errors)
 	var passed := 0
 	var failed := 0
 	var ran := 0
@@ -34,7 +49,19 @@ func _init() -> void:
 			var instance = script.new()
 			instance.tree = self
 			ran += 1
+			var errors_before := script_errors.messages.size()
+			# Vigia: teste pendurado (await que nunca volta) derruba o runner com falha e nome, em vez de travar o gate.
+			var finished := [false]
+			var running := "%s::%s" % [name, method.name]
+			create_timer(TEST_TIMEOUT).timeout.connect(func():
+				if not finished[0]:
+					print("  FAIL %s (sem terminar em %d s)" % [running, int(TEST_TIMEOUT)])
+					print("client-test: teste pendurado")
+					quit(1))
 			await instance.call(method.name)
+			finished[0] = true
+			for message in script_errors.messages.slice(errors_before):
+				instance.failures.append("SCRIPT ERROR: " + message)
 			if instance.failures.is_empty():
 				passed += 1
 				print("  ok   %s::%s" % [name, method.name])

@@ -1,4 +1,4 @@
-# ADR-0026: Estado de desenvolvimento por NPC no snapshot (Fase 21)
+# ADR-0028: Estado de desenvolvimento por NPC no snapshot (Fase 21)
 
 - **Status**: aceito
 - **Data**: 2026-10-14

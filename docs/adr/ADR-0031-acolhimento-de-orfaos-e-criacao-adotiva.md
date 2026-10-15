@@ -1,11 +1,11 @@
-# ADR-0029: Acolhimento de órfãos, choro atendido, exposição graduada e criação adotiva
+# ADR-0031: Acolhimento de órfãos, choro atendido, exposição graduada e criação adotiva
 
 - **Status**: aceito
 - **Data**: 2026-10-15
 - **Decisores**: Alan (pediu quitar as dívidas da Fase 21, issue #93)
 
 ## Contexto
-A Fase 21 fechou com cinco dívidas (ADR-0028). Uma sonda em 5 seeds × 10 anos achou 9 mortes por desidratação, todas de criança órfã sozinha
+A Fase 21 fechou com cinco dívidas (ADR-0030). Uma sonda em 5 seeds × 10 anos achou 9 mortes por desidratação, todas de criança órfã sozinha
 num domicílio unitário: `HouseholdRedistribution` só acolhe com avós ou irmão adulto, e sem parente a criança fica só.
 
 ## Decisão
