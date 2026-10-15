@@ -159,6 +159,11 @@ func workplace_trades(workplace_id: int) -> Dictionary:
 	return await _fetch("/workplaces/%d/trades" % workplace_id, "workplace-trades")
 
 
+## Tecnologias emergidas da cultura (sem nome, só o vetor: ADR-0013).
+func technologies(culture_id: int) -> Dictionary:
+	return await _fetch("/cultures/%d/technologies" % culture_id, "culture-technologies")
+
+
 # --- conversa com NPC (só estas três rotas escrevem; o cliente não aplica nada ao mundo) -----
 
 func conversation_start(npc_id: int) -> Dictionary:

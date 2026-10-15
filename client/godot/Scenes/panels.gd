@@ -93,6 +93,10 @@ class NpcDetailPanel extends PanelContainer:
 	signal biography_requested(id: int)
 	signal incarnate_requested(id: int)
 	signal trades_requested(workplace_id: int)
+	signal technologies_requested(culture_id: int)
+	signal culture_shown(culture_id: int)
+	var culture_id := -1
+	var tech_button: Button
 	var employer_id := -1
 	var trades_button: Button
 	signal model_known(id: int, profession: int, age_years: float)
@@ -164,6 +168,11 @@ class NpcDetailPanel extends PanelContainer:
 		trades_button.visible = false
 		trades_button.pressed.connect(func(): trades_requested.emit(employer_id))
 		box.add_child(trades_button)
+		tech_button = Button.new()
+		tech_button.text = "Tecnologias da cultura"
+		tech_button.visible = false # só aparece se a cultura já descobriu algo (o app confere)
+		tech_button.pressed.connect(func(): technologies_requested.emit(culture_id))
+		box.add_child(tech_button)
 		visible = false
 
 	func show_npc(id: int) -> void:
@@ -175,6 +184,8 @@ class NpcDetailPanel extends PanelContainer:
 		var action_text := ""
 		if labels != null and npc.get("currentAction") != null:
 			action_text = labels.label_for(int(npc.currentAction))
+		culture_id = int(npc.culture.id) if npc.get("culture") is Dictionary else -1
+		tech_button.visible = false
 		employer_id = int(npc.employer.value) if npc.get("employer") is Dictionary else -1
 		trades_button.visible = employer_id >= 0
 		_title.text = npc.name
@@ -189,6 +200,8 @@ class NpcDetailPanel extends PanelContainer:
 		_details.text = details_text
 		visible = true
 		highlight.emit(id)
+		if culture_id >= 0:
+			culture_shown.emit(culture_id)
 		var profession = npc.get("profession")
 		model_known.emit(id, int(profession.id) if profession is Dictionary else -1, float(npc.ageYears))
 

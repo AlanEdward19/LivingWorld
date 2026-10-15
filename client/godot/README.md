@@ -30,6 +30,7 @@ Pausa, velocidade, passo e +1 ano são do admin (ADR-0015): a API exige `X-Admin
 | Jogar | I (ou botão Encarnar) toma o NPC selecionado; a faixa do topo pede a ação (só as que o motor aceita), "Deixar o motor decidir" ou Sair; sair faz o personagem desaparecer, não congelar. `playerId` local em `user://player.cfg` (sem login ainda) |
 | Console de admin | só com `LW_ADMIN_TOKEN` (o `play.sh` já define): F8 ou botão Console · abas Mundo (pausa com motivo e teto, retomar, velocidade), Busca (abre a ficha) e Auditoria · a barra do topo avisa todos quando o mundo está pausado |
 | Economia | botão Tesouro na ficha da cidade (saldo e barras de entrou/saiu por mês) · botão Vendas do local de trabalho na ficha de um NPC empregado (dia, recurso, quantidade, valor) · Esc fecha |
+| Tecnologias | botão Tecnologias da cultura na ficha do NPC (só aparece se a cultura já descobriu algo): chave, adoção e eixos ritmo/carga/alcance · Esc fecha |
 | Orientação | passe o mouse (dica) · minimapa (clique/arraste) · avisos de eventos |
 | Som | ambiente procedural com fade ao trocar de período, som da ação do NPC selecionado (catálogo `assets.json`) · M silencia |
 | Relógio | pausa, passo, +1 ano e velocidades 1× a 200× na barra; o céu segue a hora do mundo |
