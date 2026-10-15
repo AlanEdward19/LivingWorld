@@ -28,4 +28,6 @@ num domicílio unitário: `HouseholdRedistribution` só acolhe com avós ou irm�
 - **Positivas**: o mundo deixa de matar órfãos por falta de dono; cuidador adotivo passa a moldar idioma e criação.
 - **Negativas / trade-offs**: `Upbringing` deixa de ser imutável (o formato do snapshot não muda); o acolhimento escolhe por regra simples, sem
   disputa nem consentimento; a graduação é por número de cuidadores, não por qualidade.
+- **Notas**: `OrphanCare` vale mesmo com a ontogenia desligada (é regra de família, não de desenvolvimento); o controle `OrphanCare=false` isola o
+  sistema do órfão e mantém a correção do casamento. Por seed há ruído; o critério olha o saldo entre seeds, não cada uma.
 - **Follow-ups**: adoção formal com herança e direitos (Fase 7); resample no pool se criança puder entrar nele.

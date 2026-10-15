@@ -18,8 +18,9 @@ em domicílio unitário sem adulto.
 
 ## Critérios (EARS), braços pareados em 20 seeds, horizonte ≤ 10 anos
 1. WHEN uma criança fica sem adulto no domicílio e existe adulto vivo na cidade, ela SHALL ser acolhida até o fim do mês; em 10 anos de vila nenhuma
-   criança com adulto disponível na cidade termina o mês sem adulto no domicílio. Controle: sem o sistema, mortes de crianças órfãs por sede/fome
-   são maiores em ≥ 18/20 seeds. Mutação: desligar o sistema reprova.
+   criança com adulto disponível na cidade fica descoberta em duas viradas de mês seguidas (a morte dos pais dispara depois do sistema, então uma
+   é esperada). Controle (`OrphanCare=false`, 20 seeds × 6 anos): mortes de crianças por privação menores no total, em mais seeds do que as
+   que pioram (mundos divergem após a 1ª adoção: por seed há ruído; magnitude e ≥ 18/20 não são exigidos). Mutação: desligar o sistema reprova.
 2. WHEN a criança chora com a despensa sem comida ou água e há adulto co-localizado com carteira, ele SHALL escolher Comprar mesmo na hora de
    dormir; sem choro continua dormindo. Mutação: tirar o gancho reprova.
 3. WHEN `AttentionPerCaregiver` < 1, dois cuidadores SHALL render mais progresso que um, e com 1,0 o resultado é o da exposição binária.
