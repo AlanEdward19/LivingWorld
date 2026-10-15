@@ -150,6 +150,40 @@ public sealed class DecisionSandboxEndpointTests : IClassFixture<LivingWorldApiF
     }
 
     [Fact]
+    public void The_real_sandbox_path_decides_with_the_engines_provision_target()
+    {
+        AliveNpc();
+        var world = World;
+        string Json(object o) => System.Text.Json.JsonSerializer.Serialize(o);
+        var differing = 0;
+
+        foreach (var npc in world.Npcs.Where(n => n.IsAlive && n.Household is not null).ToList())
+        {
+            // Despensa vazia e dinheiro na mão: é aí que a meta de provisão pesa na decisão (ProvisionPressureOf).
+            var household = world.FindHousehold(npc.Household!.Value)!;
+            foreach (var (resource, amount) in household.Stock.ToList())
+                household.Withdraw(resource, amount);
+            // 1 dia de estoque por membro: abaixo da meta (~2 dias) por uma fração que depende da meta de cada lado.
+            household.Deposit(new LivingWorld.Domain.Geography.ResourceType(world.EconomyRules.FoodResourceId), household.Members.Count);
+            household.Deposit(new LivingWorld.Domain.Geography.ResourceType(world.EconomyRules.WaterResourceId), household.Members.Count);
+            npc.CreditWallet(new LivingWorld.Domain.Shared.Money(1_000));
+
+            var overrides = new LivingWorld.Simulation.Behavior.Decision.NpcSandboxOverrides(Hunger: 80, Thirst: 80, Sleep: 80, Social: 80);
+            var viaRoute = LivingWorld.Simulation.Behavior.Decision.NpcDecisionSandbox.Run(world, npc.Id, overrides).Value!;
+            var context = LivingWorld.Simulation.Behavior.Decision.NpcDecisionSandbox.BuildContext(world, npc);
+            var set = context with { Needs = new LivingWorld.Simulation.Behavior.Decision.NeedsSnapshot(80, 80, 80, 80) };
+            var request = new LivingWorld.Simulation.Behavior.Decision.DecisionSandboxRequest(ContinuityAction: npc.CurrentAction, PreviousIntent: npc.CurrentIntent);
+            var engine = LivingWorld.Simulation.Behavior.Decision.DecisionSandbox.Decide(set, world.NeedsRules, world.EconomyRules, request);
+            var withDefault = LivingWorld.Simulation.Behavior.Decision.DecisionSandbox.Decide(set with { ProvisionTargetDays = 2.0 }, world.NeedsRules, world.EconomyRules, request);
+
+            Assert.Equal(Json(engine.Trace), Json(viaRoute.Trace));
+            if (Json(engine.Trace) != Json(withDefault.Trace)) differing++;
+        }
+
+        Assert.True(differing > 0, "premissa: com a despensa vazia e dinheiro, a meta de provisão do motor muda o rastro de ao menos um NPC");
+    }
+
+    [Fact]
     public async Task Dead_npc_is_404()
     {
         long id = AliveNpc();
