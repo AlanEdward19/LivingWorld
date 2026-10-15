@@ -576,6 +576,7 @@ func show_touchup() -> void:
 
 
 func _on_continue() -> void:
+	selected_period = "" # o mundo continuado não nasceu do período que se olhou na tela de novo mundo
 	world_ready.emit()
 
 

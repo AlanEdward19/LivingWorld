@@ -246,3 +246,45 @@ func test_buttons_open_the_windows_and_the_workplace_button_only_shows_with_an_e
 	app._unhandled_input(esc)
 	eq(app.economy.is_open, false, "Esc fecha")
 	app.queue_free()
+
+
+func test_month_label_uses_the_calendars_months_per_year_and_numbers_say_in_and_out() -> void:
+	var transport := _transport()
+	var window := _window(transport)
+	window.calendar_of = func() -> Dictionary: return {"hoursPerDay": 10, "daysPerMonth": 5, "monthsPerYear": 4}
+
+	await window.show_treasury("city-a", "Alfa")
+
+	eq(window.month_rows[0].label, "Ano 0 · Mês 1")
+	eq(window.month_rows[1].label, "Ano 3 · Mês 2", "mês 13 com 4 meses por ano = ano 3, mês 2")
+	eq(window.month_rows[0].numbers, "+50  −25", "entrou, depois saiu")
+	eq(window.month_rows[1].numbers, "+10  −100")
+	window.free()
+
+
+func test_the_app_feeds_the_window_the_server_calendar_and_dates() -> void:
+	var transport := _app_transport()
+	var app := App.new()
+	app.player_id = "p-1"
+	tree.root.add_child(app)
+	await app.start(transport, false)
+	app.day_cycle.set_calendar({"hoursPerDay": 10, "daysPerMonth": 2, "monthsPerYear": 4})
+
+	await app.economy.show_treasury("city-a", "Alfa")
+	eq(app.economy.month_rows[1].label, "Ano 3 · Mês 2", "calendário do servidor (4 meses por ano), não 12 fixos")
+
+	await app.economy.show_trades(4, "local 4")
+	check(app.economy.trade_rows[0].text.begins_with("Ano 1 · Mês 2 · Dia 1"), "data de dia 10 pelo calendário do app (10 h/dia, 2 dias/mês, 4 meses/ano): " + app.economy.trade_rows[0].text)
+	app.queue_free()
+
+
+func test_an_open_economy_window_makes_no_requests_while_frames_pass() -> void:
+	var transport := _transport()
+	var window := _window(transport)
+	tree.root.add_child(window)
+	await window.show_treasury("city-a", "Alfa")
+	var before: int = transport.calls.size()
+	for i in 5:
+		await tree.process_frame
+	eq(transport.calls.size(), before, "nenhuma requisição por frame")
+	window.free()
