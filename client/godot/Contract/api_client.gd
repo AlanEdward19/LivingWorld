@@ -181,6 +181,12 @@ func conversation_end(session_id: int) -> Dictionary:
 	return {"ok": response.status == 200, "status": response.status, "body": response.body}
 
 
+## Comando explícito: transforma um morador anônimo do pool em NPC detalhado. O GET nunca faz isso.
+func materialize_npc(id: int) -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/npcs/%d/materialize" % id)
+	return _checked("/npcs/%d/materialize" % id, {"status": response.status, "body": response.body}, "npc-inspect")
+
+
 func interior_snapshot(building_id: int) -> Dictionary:
 	return await _fetch("/visual/subscribe?scope=Interior&refId=%d&mode=Spectator" % building_id, "interior-subscribe")
 

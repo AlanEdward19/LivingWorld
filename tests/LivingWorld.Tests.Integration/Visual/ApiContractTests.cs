@@ -63,15 +63,25 @@ public class ApiContractTests
 
         var response = await client.GetAsync($"/npcs/{id}");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var shape = ShapeOf(JsonNode.Parse(await response.Content.ReadAsStringAsync()))!;
-        // Opcionais no servidor (HouseholdId?, NpcId? do cônjuge, CityId? do escopo): quem não os tem não pode ser
-        // reprovado pelo contrato, senão a ficha de um NPC solteiro nunca abre. "null" = qualquer valor.
+        AssertMatchesContract("shape.npc-inspect.json", InspectShape(JsonNode.Parse(await response.Content.ReadAsStringAsync())));
+
+        // `POST /npcs/{id}/materialize` (comando explícito do cliente, #59 fatia H) devolve a mesma ficha.
+        var materialized = await client.PostAsync($"/npcs/{id}/materialize", null);
+        Assert.Equal(HttpStatusCode.OK, materialized.StatusCode);
+        AssertMatchesContract("shape.npc-inspect.json", InspectShape(JsonNode.Parse(await materialized.Content.ReadAsStringAsync())));
+
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/npcs/987654321")).StatusCode);
+    }
+
+    /// <summary>Forma da ficha de NPC. Opcionais no servidor (HouseholdId?, NpcId? do cônjuge, CityId? do escopo): quem não os
+    /// tem não pode ser reprovado pelo contrato, senão a ficha de um NPC solteiro nunca abre. "null" = qualquer valor.</summary>
+    private static JsonNode InspectShape(JsonNode? body)
+    {
+        var shape = ShapeOf(body)!;
         shape["household"] = "null";
         shape["spouse"] = "null";
         shape["currentScope"]!["cityId"] = "null";
-        AssertMatchesContract("shape.npc-inspect.json", shape);
-
-        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/npcs/987654321")).StatusCode);
+        return shape;
     }
 
     /// <summary>Conversa com NPC (#59 fatia A): forma de `start` e `send` que a janela do cliente interpreta.</summary>
