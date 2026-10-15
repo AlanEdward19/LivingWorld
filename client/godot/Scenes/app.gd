@@ -101,9 +101,7 @@ func start(p_transport, validate_shapes: bool = true, sleeper: Callable = Callab
 	labels = ActionLabels.new()
 	_build_scene()
 	_build_ui()
-	var viewport := get_viewport()
-	layout_windows(viewport.get_visible_rect().size.x)
-	viewport.size_changed.connect(func(): layout_windows(viewport.get_visible_rect().size.x))
+	size_windows()
 	observer = ScopeObserver.new()
 	observer.api = api
 	add_child(observer)
@@ -628,11 +626,10 @@ func _exclusive(keep) -> void:
 			window.close()
 
 
-## Largura curta: a janela cobre a lista da esquerda em vez de espremer o conteúdo; larga: fica entre os painéis laterais.
-func layout_windows(viewport_width: float) -> void:
-	var left := 310.0 if viewport_width >= 1400.0 else 8.0
+## Altura mínima das janelas de informação. A largura não muda por tela: o projeto usa `canvas_items` com 1600 x 900 de base,
+## então a interface tem sempre 1600 unidades ou mais de largura (tela estreita só escala tudo para baixo).
+func size_windows() -> void:
 	for window in _info_windows():
-		window.offset_left = left
 		window.custom_minimum_size.y = 220
 
 

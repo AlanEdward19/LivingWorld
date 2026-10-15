@@ -11,7 +11,7 @@ fixture (morador do pool, interior, timeout de conversa, dados reais); FPS medid
 ## Flow
 
 1. `tests/run.gd` (extended) - `Logger` do motor captura `SCRIPT ERROR` e o teste falha
-2. `Scenes/app.gd` (extended) - `_exclusive` (uma janela de informação por vez) e `layout_windows` (tela curta usa a largura)
+2. `Scenes/app.gd` (extended) - `_exclusive` (uma janela de informação por vez) e `size_windows` (altura mínima)
 3. `NpcDecisionSandbox.BuildContext` (new) - mesma meta de provisão (`ProvisionTargetFor`) do motor
 4. `PooledNpcContractTests` (new .NET) - morador do pool passa no contrato congelado da ficha; GET não materializa; POST materializa
 5. `ObservationScopeEndpointsTests` - purga por espera ativa (até 15 s) em vez de 2,5 s fixos
@@ -33,7 +33,7 @@ fixture (morador do pool, interior, timeout de conversa, dados reais); FPS medid
 
 1. WHEN um teste do cliente causa `SCRIPT ERROR` THEN o runner SHALL marcá-lo como FALHA (não `ok`)
 2. WHEN uma janela de informação abre THEN as outras quatro SHALL fechar; conversa e HUD do jogador não fecham por isso
-3. WHILE a tela tem menos de 1400 px THEN as janelas SHALL usar a largura (`offset_left` 8); com 1400 ou mais ficam entre os painéis (310); altura mínima 220
+3. The system SHALL dar às janelas de informação altura mínima 220; a largura não precisa de layout por tela (o canvas `canvas_items` 1600 x 900 tem sempre 1600 unidades ou mais de largura, e tela física estreita só escala a interface)
 4. The system SHALL montar o contexto do sandbox com a mesma meta de provisão do motor, para todo NPC vivo
 5. WHEN `/npcs/{id}` é de um morador do pool THEN SHALL ter `lod` 2 e passar no contrato `npc-inspect`; GET não materializa; POST materializa (`lod` 0)
 6. The system SHALL passar `stress:500` com cada tela aberta dentro de ±3 FPS da base (máquina ociosa, README § Desempenho)

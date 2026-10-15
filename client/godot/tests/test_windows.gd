@@ -71,14 +71,38 @@ func test_conversation_and_the_player_hud_are_not_closed_by_info_windows() -> vo
 	app.queue_free()
 
 
-func test_narrow_screens_let_windows_use_the_width_and_wide_ones_sit_between_the_side_panels() -> void:
+func test_windows_keep_a_minimum_height_and_the_same_margin_on_any_viewport() -> void:
 	var app := await _app()
-
-	app.layout_windows(1024.0)
 	for window in app._info_windows():
-		eq(window.offset_left, 8.0, "tela curta: janela ocupa a largura")
 		check(window.custom_minimum_size.y >= 220.0, "altura mínima")
-	app.layout_windows(1600.0)
-	for window in app._info_windows():
-		eq(window.offset_left, 310.0, "tela larga: entre os painéis laterais")
+		eq(window.offset_left, 310.0, "margem fixa: o canvas tem sempre 1600 unidades ou mais de largura")
+	app.queue_free()
+
+
+func test_every_entry_closes_the_window_that_was_open_and_the_player_hud_stays() -> void:
+	var app := await _app()
+	app.city_panel.show_city({"id": "city-a", "name": "Alfa", "indicators": {"population": 1, "wealth": 1, "health": 1, "inequality": 0.1, "economy": 1, "housing": 1}})
+	await app.select_npc(7)
+	var entries: Array = [
+		["brain", func(): await app.open_brain(7)],
+		["biografia", func(): await app.open_biography(7)],
+		["cronica", func(): await app.open_chronicle("city-a")],
+		["crencas", func(): await app.open_beliefs("city-a")],
+		["tesouro", func(): await app.open_treasury("city-a")],
+		["vendas", func(): await app.open_trades(4)],
+		["tecnologias", func(): await app._show_technologies(1)],
+		["console", func(): app._toggle_admin()],
+		["relatos", func(): app._toggle_reports()],
+	]
+	app.player_hud.visible = true
+	for first in entries:
+		for second in entries:
+			if first[0] == second[0]:
+				continue
+			await first[1].call()
+			await tree.process_frame
+			await second[1].call()
+			await tree.process_frame
+			eq(_open_count(app), 1, "%s depois de %s: só uma aberta" % [second[0], first[0]])
+	eq(app.player_hud.visible, true, "o HUD do jogador não é uma janela de informação")
 	app.queue_free()
