@@ -13,7 +13,7 @@ Criar `POST /npcs/{id}/decision-sandbox`. Corpo opcional: `needs` (hunger/thirst
 satisfeito, como na ficha), `personality` (qualquer dos 10 traços, 0–100) e `continuityAction` (ActionType).
 Resposta `{ action, trace }`, com `trace` na mesma forma de `cognitionTrace[].trace`. O servidor monta o
 `DecisionContext` real do NPC, aplica os overrides e roda `DecisionSandbox.Decide`. 404 para NPC inexistente,
-morto, arquivado ou ainda no pool; 400 para valor fora da faixa ou traço desconhecido.
+morto, arquivado ou ainda no pool; 400 para valor fora da faixa, traço desconhecido ou `continuityAction` inválida.
 
 ## Alternativas consideradas
 - Calcular no cliente — viola `rules/llm-boundary.md` e duplicaria o motor.

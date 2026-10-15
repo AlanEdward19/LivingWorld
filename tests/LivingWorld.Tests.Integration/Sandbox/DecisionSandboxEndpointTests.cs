@@ -60,6 +60,24 @@ public sealed class DecisionSandboxEndpointTests : IClassFixture<LivingWorldApiF
         Assert.Contains("AcquireFood", PressureKinds(starving));
     }
 
+    [Theory]
+    [InlineData("hunger")]
+    [InlineData("thirst")]
+    [InlineData("sleep")]
+    [InlineData("social")]
+    public async Task Each_need_override_changes_the_trace_when_it_alone_differs(string need)
+    {
+        long id = AliveNpc();
+        var client = _factory.CreateClient();
+        var satisfied = new[] { "hunger", "thirst", "sleep", "social" }.ToDictionary(n => n, _ => 100);
+        var lacking = new Dictionary<string, int>(satisfied) { [need] = 2 };
+
+        var fed = await PostAsync(client, id, new { needs = satisfied });
+        var short_ = await PostAsync(client, id, new { needs = lacking });
+
+        Assert.NotEqual(fed.GetProperty("trace").GetRawText(), short_.GetProperty("trace").GetRawText());
+    }
+
     [Fact]
     public async Task Personality_overrides_change_the_decision_trace()
     {

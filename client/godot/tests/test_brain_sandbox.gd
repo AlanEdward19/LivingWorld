@@ -157,3 +157,21 @@ func test_the_response_is_checked_against_the_frozen_shape() -> void:
 	eq(warnings.size(), 1, "resposta fora do contrato vira aviso")
 	eq(panel.sandbox_trace, {}, "e não é desenhada")
 	panel.free()
+
+
+func test_untouched_sliders_follow_the_npc_each_hour_and_touched_ones_stay() -> void:
+	var transport := FakeTransport.new()
+	var panel = await _opened(transport)
+	panel.need_sliders["hunger"].value = 5 # o usuário mexeu só na fome
+	panel.need_sliders["hunger"].value_changed.emit(5.0) # fora da árvore o Range não emite sozinho
+
+	var later := Fx.npc_inspect([Fx.trace_entry(10, 0)])
+	later.body.hunger = 40
+	later.body.thirst = 33
+	transport.on("GET /npcs/7", later)
+	await panel.on_world_tick(300)
+
+	eq(panel.need_sliders["hunger"].value, 5.0, "o que o usuário mexeu fica")
+	eq(panel.need_sliders["thirst"].value, 33.0, "o resto acompanha o NPC")
+	eq(panel.sandbox_body(), {"needs": {"hunger": 5}}, "e só a fome vai como override")
+	panel.free()

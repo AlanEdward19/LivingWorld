@@ -44,7 +44,7 @@ var need_sliders: Dictionary = {} ## "hunger" -> HSlider
 var trait_sliders: Dictionary = {} ## "ambition" -> HSlider
 var simulate_button: Button
 var _baseline: Dictionary = {} ## {needs: {...}, personality: {...}} do NPC agora
-var _sandbox_dirty := false
+var _touched: Dictionary = {} ## sliders que o usuário mexeu ("hunger", "ambition"…): o resto acompanha o NPC
 var _sandbox_column: ScrollContainer
 var _sandbox_note: Label
 var _title: Label
@@ -141,7 +141,7 @@ func open(id: int) -> void:
 	entries = []
 	_last_tick = -1
 	_follow_latest = true
-	_sandbox_dirty = false
+	_touched = {}
 	sandbox_trace = {}
 	await refresh(true)
 
@@ -446,7 +446,7 @@ func _slider_row(title: String, key: String, group: Dictionary) -> Control:
 	row.add_child(value)
 	slider.value_changed.connect(func(v: float):
 		value.text = str(int(v))
-		_sandbox_dirty = true)
+		_touched[key] = true)
 	group[key] = slider
 	return row
 
@@ -467,21 +467,23 @@ func _load_baseline(npc: Dictionary) -> void:
 	}
 	for key in TRAITS:
 		_baseline.personality[key] = int(personality.get(key, 50))
-	if not _sandbox_dirty:
-		_apply_baseline(false)
+	_apply_baseline(false)
 
 
-func _apply_baseline(reset_dirty: bool) -> void:
+## Leva os sliders ao NPC real: todos se `reset`, senão só os que o usuário ainda não mexeu.
+func _apply_baseline(reset: bool) -> void:
 	if _baseline.is_empty():
 		return
+	if reset:
+		_touched = {}
 	for key in need_sliders:
-		need_sliders[key].set_value_no_signal(_baseline.needs[key])
-		need_sliders[key].get_parent().get_child(2).text = str(_baseline.needs[key])
+		if not _touched.has(key):
+			need_sliders[key].set_value_no_signal(_baseline.needs[key])
+			need_sliders[key].get_parent().get_child(2).text = str(_baseline.needs[key])
 	for key in trait_sliders:
-		trait_sliders[key].set_value_no_signal(_baseline.personality[key])
-		trait_sliders[key].get_parent().get_child(2).text = str(_baseline.personality[key])
-	if reset_dirty:
-		_sandbox_dirty = false
+		if not _touched.has(key):
+			trait_sliders[key].set_value_no_signal(_baseline.personality[key])
+			trait_sliders[key].get_parent().get_child(2).text = str(_baseline.personality[key])
 
 
 ## Só envia o que difere do NPC real; sem diferença, corpo vazio (o servidor usa o contexto real).
