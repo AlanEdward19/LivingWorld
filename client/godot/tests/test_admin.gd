@@ -50,7 +50,7 @@ func test_pause_sends_reason_ceiling_and_the_operator_header() -> void:
 
 	await window.pause()
 
-	eq(transport.bodies["POST /admin/world/pause"], [{"reason": "manutenção", "maxTicks": 70}])
+	eq(transport.bodies.get("POST /admin/world/pause", []), [{"reason": "manutenção", "maxTicks": 70}])
 	eq(transport.headers_of.get("POST /admin/world/pause", []), [{"X-Admin-Actor": "alan"}], "o operador vai no cabeçalho")
 	check("Pausado por alan desde dia 12: manutenção" in window.state_text, window.state_text)
 	eq(window.pause_info.reason, "manutenção")
@@ -113,7 +113,7 @@ func test_resume_clears_the_remembered_pause_and_speed_posts_the_value() -> void
 	eq(transport.headers_of.get("POST /admin/world/resume", []), [{"X-Admin-Actor": "alan"}])
 
 	await window.set_speed(4.0)
-	eq(transport.bodies["POST /admin/world/speed"], [{"ticksPerSecond": 4.0}])
+	eq(transport.bodies.get("POST /admin/world/speed", []), [{"ticksPerSecond": 4.0}])
 	eq(transport.headers_of.get("POST /admin/world/speed", []), [{"X-Admin-Actor": "alan"}])
 	await window.set_speed(0.0)
 	eq(transport.count_calls("POST /admin/world/speed"), 1, "velocidade não positiva nem sai")
@@ -347,4 +347,24 @@ func test_the_real_transport_sends_the_admin_token_only_when_configured() -> voi
 
 	if saved != "":
 		OS.set_environment("LW_ADMIN_TOKEN", saved)
+	transport.free()
+
+
+class _SpyTransport extends "res://Contract/http_transport.gd":
+	var seen: Array = []
+
+	func build_headers(extra_headers: Dictionary = {}) -> PackedStringArray:
+		seen.append(extra_headers)
+		return super.build_headers(extra_headers)
+
+
+func test_request_hands_its_extra_headers_to_the_header_builder() -> void:
+	var transport := _SpyTransport.new()
+	transport.base_url = "http://127.0.0.1:1" # nada escuta aqui: só interessa o que `request` monta
+	tree.root.add_child(transport)
+
+	var response: Dictionary = await transport.request("GET", "/x", null, {"X-Admin-Actor": "alan"})
+
+	eq(response.status, 0, "sem servidor, a requisição falha limpa")
+	eq(transport.seen, [{"X-Admin-Actor": "alan"}], "request repassa o operador ao montar os cabeçalhos")
 	transport.free()
