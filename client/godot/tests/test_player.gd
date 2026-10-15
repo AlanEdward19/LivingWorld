@@ -427,5 +427,7 @@ class SlowIncarnate extends "res://tests/fake_transport.gd":
 	func request(method: String, path: String, body: Variant = null, extra_headers: Dictionary = {}) -> Dictionary:
 		if path.contains("/incarnate"):
 			arrived += 1
+			# solta sozinho em 0,5 s: um POST a mais (guard removido) vira falha de asserção, não um teste pendurado
+			Engine.get_main_loop().create_timer(0.5).timeout.connect(func(): release.emit(), CONNECT_ONE_SHOT)
 			await release
 		return await super.request(method, path, body, extra_headers)

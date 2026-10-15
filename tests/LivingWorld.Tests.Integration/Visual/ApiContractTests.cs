@@ -87,6 +87,11 @@ public class ApiContractTests
     internal static void Optional(JsonNode shape, string key, JsonNode typed)
     {
         var obj = shape.AsObject();
+        // Se a resposta gravada trouxe o campo preenchido, a forma observada tem de ser exatamente a declarada: o opcional
+        // tipado não pode esconder um tipo errado do servidor.
+        if (obj.TryGetPropertyValue(key, out var observed) && observed is not null
+            && !(observed is JsonValue observedValue && observedValue.GetValueKind() == System.Text.Json.JsonValueKind.String && observedValue.GetValue<string>() == "null"))
+            Assert.Equal(Normalize(typed).ToJsonString(), Normalize(observed).ToJsonString());
         obj.Remove(key);
         obj[key + "?"] = typed;
         var sorted = Sorted(obj, v => v?.DeepClone());

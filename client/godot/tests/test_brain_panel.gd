@@ -202,3 +202,22 @@ func test_contract_optional_fields_may_be_absent_or_null_but_must_be_typed_when_
 	eq(ApiClient.ShapeValidator.validate({"spouse": {"value": 4}}, spouse_shape), [], "preenchido e certo passa")
 	check(not ApiClient.ShapeValidator.validate({"spouse": {"value": "quatro"}}, spouse_shape).is_empty(), "preenchido com tipo errado reprova")
 	check(not ApiClient.ShapeValidator.validate({"spouse": 4}, spouse_shape).is_empty(), "preenchido com forma errada reprova")
+
+
+func test_scope_observer_heartbeat_timer_fires_every_ten_seconds() -> void:
+	var transport := FakeTransport.new()
+	transport.on("POST /observation/scope", {"status": 200, "body": null})
+	var observer := ScopeObserver.new()
+	observer.api = _api(transport)
+	tree.root.add_child(observer)
+	await observer.set_scope("World")
+	var timer: Timer
+	for child in observer.get_children():
+		if child is Timer:
+			timer = child
+	check(timer != null and not timer.is_stopped() and is_equal_approx(timer.wait_time, 10.0), "Timer de 10 s rodando")
+	var before := transport.count_calls("POST /observation/scope")
+	timer.timeout.emit()
+	await tree.process_frame
+	eq(transport.count_calls("POST /observation/scope"), before + 1, "o fim do Timer reenvia o escopo")
+	observer.free()

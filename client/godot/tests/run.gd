@@ -3,6 +3,9 @@ extends SceneTree
 ## Cada tests/test_*.gd define métodos test_* (podem usar await). Sai com 1 se algo falhar.
 
 
+const TEST_TIMEOUT := 60.0 ## segundos por teste
+
+
 ## Erro de script (ex.: chamada em nulo) não derruba o teste sozinho: o motor só imprime e segue. Este Logger o captura
 ## para o runner marcar o teste como FALHA em vez de `ok` (antes só o grep do client-test.sh barrava).
 class ScriptErrorLogger extends Logger:
@@ -47,7 +50,16 @@ func _init() -> void:
 			instance.tree = self
 			ran += 1
 			var errors_before := script_errors.messages.size()
+			# Vigia: teste pendurado (await que nunca volta) derruba o runner com falha e nome, em vez de travar o gate.
+			var finished := [false]
+			var running := "%s::%s" % [name, method.name]
+			create_timer(TEST_TIMEOUT).timeout.connect(func():
+				if not finished[0]:
+					print("  FAIL %s (sem terminar em %d s)" % [running, int(TEST_TIMEOUT)])
+					print("client-test: teste pendurado")
+					quit(1))
 			await instance.call(method.name)
+			finished[0] = true
 			for message in script_errors.messages.slice(errors_before):
 				instance.failures.append("SCRIPT ERROR: " + message)
 			if instance.failures.is_empty():

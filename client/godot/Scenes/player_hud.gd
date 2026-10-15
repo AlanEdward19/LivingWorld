@@ -134,6 +134,7 @@ func logout() -> void:
 	if stale_session and not is_active:
 		if response.ok or response.status == 404:
 			stale_session = false
+			logout_button.text = "Sair do personagem"
 			_set_actions_enabled(true)
 			visible = false
 			warning.emit("Personagem anterior liberado. Pode encarnar de novo.")
@@ -153,6 +154,7 @@ func _offer_release() -> void:
 	stale_session = true
 	visible = true
 	_title.text = "Sessão anterior ativa"
+	logout_button.text = "Sair do personagem anterior"
 	_set_actions_enabled(false)
 	_set_status("Este jogador ainda controla outro NPC no servidor. Saia dele para encarnar de novo.")
 

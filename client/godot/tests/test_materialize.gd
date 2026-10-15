@@ -223,3 +223,28 @@ func test_the_city_sheet_offers_to_meet_an_anonymous_resident_and_opens_its_shee
 	eq(app.npc_panel.lod, 2)
 	eq(app.npc_panel.materialize_button.visible, true, "e daí é só 'Ver em detalhe'")
 	app.queue_free()
+
+
+func test_the_technologies_button_stays_hidden_for_an_anonymous_resident() -> void:
+	var transport := _transport()
+	transport.on("GET /visual/catalog/actions", {"status": 200, "body": []})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 5, "year": 0}})
+	transport.on("GET /visual/subscribe?scope=World", {"status": 200, "body": Fx.snapshot(0, {
+		"width": 2, "height": 2, "cities": [], "externalNpcs": [], "activeEvents": [], "portals": [],
+		"layers": {"Terrain": {"isModeled": false, "payload": null}}, "livingState": {"npcs": []}}, "World")})
+	var anonymous := Fx.npc_inspect([], 2)
+	anonymous.body["culture"] = {"id": 1}
+	transport.on("GET /npcs/9", anonymous)
+	transport.on("GET /cultures/1/technologies", {"status": 200, "body": [{"category": "x", "vector": [1, 2, 3], "key": "1.2.3", "discoveredAtTick": 5, "isVariation": false, "variationOfKey": null, "adoptedByCities": 1}]})
+	var app := App.new()
+	app.player_id = "p-1"
+	tree.root.add_child(app)
+	await app.start(transport, false)
+
+	await app.select_npc(9)
+	await tree.process_frame
+	await tree.process_frame
+
+	check(transport.calls.has("GET /cultures/1/technologies"), "a cultura foi consultada")
+	eq(app.npc_panel.tech_button.visible, false, "a cultura tem tecnologias, mas o morador anônimo não mostra o botão")
+	app.queue_free()
