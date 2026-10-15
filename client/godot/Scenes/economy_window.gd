@@ -140,7 +140,7 @@ func _render_treasury(body: Dictionary) -> void:
 	for entry in months:
 		var row := _bar_row(month_label(int(entry.month)), float(entry.revenue), float(entry.spending), scale)
 		_list.add_child(row.node)
-		month_rows.append({"label": row.label, "revenue": int(entry.revenue), "spending": int(entry.spending), "revenue_bar": row.revenue_bar, "spending_bar": row.spending_bar})
+		month_rows.append({"numbers": row.numbers, "label": row.label, "revenue": int(entry.revenue), "spending": int(entry.spending), "revenue_bar": row.revenue_bar, "spending_bar": row.spending_bar})
 
 
 ## Duas barras por mês, proporcionais ao maior valor da janela: verde = entrou, vermelho = saiu.
@@ -159,7 +159,7 @@ func _bar_row(label_text: String, revenue: float, spending: float, scale: float)
 	var numbers := Label.new()
 	numbers.text = "+%d  −%d" % [int(revenue), int(spending)]
 	node.add_child(numbers)
-	return {"node": node, "label": label_text, "revenue_bar": revenue_bar, "spending_bar": spending_bar}
+	return {"node": node, "numbers": numbers.text, "label": label_text, "revenue_bar": revenue_bar, "spending_bar": spending_bar}
 
 
 func _bar(value: float, scale: float, color: Color) -> ProgressBar:
