@@ -51,7 +51,7 @@ func test_pause_sends_reason_ceiling_and_the_operator_header() -> void:
 	await window.pause()
 
 	eq(transport.bodies["POST /admin/world/pause"], [{"reason": "manutenção", "maxTicks": 70}])
-	eq(transport.headers_of["POST /admin/world/pause"], [{"X-Admin-Actor": "alan"}], "o operador vai no cabeçalho")
+	eq(transport.headers_of.get("POST /admin/world/pause", []), [{"X-Admin-Actor": "alan"}], "o operador vai no cabeçalho")
 	check("Pausado por alan desde dia 12: manutenção" in window.state_text, window.state_text)
 	eq(window.pause_info.reason, "manutenção")
 	window.free()
@@ -110,11 +110,11 @@ func test_resume_clears_the_remembered_pause_and_speed_posts_the_value() -> void
 	await window.resume()
 	eq(window.pause_info, {})
 	eq(window.state_text, "Mundo retomado.")
-	eq(transport.headers_of["POST /admin/world/resume"], [{"X-Admin-Actor": "alan"}])
+	eq(transport.headers_of.get("POST /admin/world/resume", []), [{"X-Admin-Actor": "alan"}])
 
 	await window.set_speed(4.0)
 	eq(transport.bodies["POST /admin/world/speed"], [{"ticksPerSecond": 4.0}])
-	eq(transport.headers_of["POST /admin/world/speed"], [{"X-Admin-Actor": "alan"}])
+	eq(transport.headers_of.get("POST /admin/world/speed", []), [{"X-Admin-Actor": "alan"}])
 	await window.set_speed(0.0)
 	eq(transport.count_calls("POST /admin/world/speed"), 1, "velocidade não positiva nem sai")
 	window.free()
@@ -142,7 +142,7 @@ func test_search_sends_query_kind_and_header_and_lists_hits() -> void:
 	await window.search()
 
 	eq(transport.calls, ["GET /admin/search?q=Ana%20Maria&kind=city"])
-	eq(transport.headers_of["GET /admin/search?q=Ana%20Maria&kind=city"], [{"X-Admin-Actor": "alan"}])
+	eq(transport.headers_of.get("GET /admin/search?q=Ana%20Maria&kind=city", []), [{"X-Admin-Actor": "alan"}])
 	eq(window.result_list.item_count, 2)
 	check("#4 · Ana · Alfa · ofício 2" in window.result_list.get_item_text(0), window.result_list.get_item_text(0))
 	check("sem cidade" in window.result_list.get_item_text(1) and "morto" in window.result_list.get_item_text(1), window.result_list.get_item_text(1))
@@ -185,7 +185,7 @@ func test_audit_table_has_who_when_action_and_target() -> void:
 	await window.load_audit()
 
 	eq(transport.calls, ["GET /admin/audit?fromTick=5"])
-	eq(transport.headers_of["GET /admin/audit?fromTick=5"], [{"X-Admin-Actor": "alan"}])
+	eq(transport.headers_of.get("GET /admin/audit?fromTick=5", []), [{"X-Admin-Actor": "alan"}])
 	eq(window.audit_rows, ["dia 12 · alan · world.pause · world · reason=x;maxTicks=70", "dia 30 · alan · world.resume · world"])
 
 	transport.on("GET /admin/audit", {"status": 200, "body": []})
@@ -311,3 +311,24 @@ func test_everyone_sees_the_paused_banner_and_it_names_this_clients_own_pause() 
 	eq(app.pause_label.text, "", "voltou a andar: faixa some")
 	eq(app.admin_window.pause_info, {}, "e a pausa lembrada também")
 	app.queue_free()
+
+
+func test_the_real_transport_sends_the_operator_header_and_the_token() -> void:
+	var transport := preload("res://Contract/http_transport.gd").new()
+
+	var headers: PackedStringArray = transport.build_headers({"X-Admin-Actor": "alan"})
+
+	check("X-Admin-Actor: alan" in headers, "o operador vai no cabeçalho real: " + str(headers))
+	check("Content-Type: application/json" in headers, "continua JSON")
+	eq(transport.build_headers().has("X-Admin-Actor: alan"), false, "sem extras não inventa cabeçalho")
+	transport.free()
+
+
+func test_an_open_console_makes_no_requests_while_frames_pass() -> void:
+	var transport := _transport()
+	var window := _window(transport)
+	tree.root.add_child(window)
+	for i in 5:
+		await tree.process_frame
+	eq(transport.calls, [], "nenhuma requisição por frame")
+	window.free()

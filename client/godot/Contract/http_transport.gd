@@ -31,17 +31,23 @@ class WsChannel extends "res://Contract/channel.gd":
 		peer.close()
 
 
-func request(method: String, path: String, body: Variant = null, extra_headers: Dictionary = {}) -> Dictionary:
-	var http := HTTPRequest.new()
-	add_child(http)
-	var verbs := {"GET": HTTPClient.METHOD_GET, "POST": HTTPClient.METHOD_POST, "PUT": HTTPClient.METHOD_PUT, "DELETE": HTTPClient.METHOD_DELETE}
+## Cabeçalhos de toda requisição: JSON, token de admin (se houver em LW_ADMIN_TOKEN) e os extras (ex.: X-Admin-Actor).
+## Pausa, velocidade e passo são do admin (ADR-0015): play.sh sobe a API com ADMIN_TOKEN e o cliente com o mesmo valor.
+func build_headers(extra_headers: Dictionary = {}) -> PackedStringArray:
 	var headers := PackedStringArray(["Content-Type: application/json", "Accept: application/json"])
-	# Pausa, velocidade e passo são do admin (ADR-0015): play.sh sobe a API com ADMIN_TOKEN e o cliente com o mesmo valor.
 	var admin_token := OS.get_environment("LW_ADMIN_TOKEN")
 	if admin_token != "":
 		headers.append("X-Admin-Token: " + admin_token)
 	for name in extra_headers:
 		headers.append("%s: %s" % [name, extra_headers[name]])
+	return headers
+
+
+func request(method: String, path: String, body: Variant = null, extra_headers: Dictionary = {}) -> Dictionary:
+	var http := HTTPRequest.new()
+	add_child(http)
+	var verbs := {"GET": HTTPClient.METHOD_GET, "POST": HTTPClient.METHOD_POST, "PUT": HTTPClient.METHOD_PUT, "DELETE": HTTPClient.METHOD_DELETE}
+	var headers := build_headers(extra_headers)
 	var payload := "" if body == null else JSON.stringify(body)
 	if http.request(base_url + path, headers, verbs[method], payload) != OK:
 		http.queue_free()
