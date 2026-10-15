@@ -354,6 +354,7 @@ func _build_ui() -> void:
 	npc_panel.technologies_requested.connect(func(id: int): _show_technologies(id))
 	npc_panel.trades_requested.connect(func(workplace_id: int): open_trades(workplace_id))
 	city_panel.treasury_requested.connect(func(city_id: String): open_treasury(city_id))
+	city_panel.anonymous_requested.connect(func(id: int): select_npc(id))
 	npc_panel.warning.connect(func(text: String): toasts.push(text))
 	npc_panel.biography_requested.connect(func(id: int): open_biography(id))
 	city_panel.chronicle_requested.connect(func(city_id: String): open_chronicle(city_id))

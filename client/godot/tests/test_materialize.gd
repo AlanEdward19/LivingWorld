@@ -194,3 +194,32 @@ func test_an_anonymous_sheet_hides_the_meaningless_blocks_and_names_it_anonymous
 		eq(control.visible, true, "botões voltam: " + control.text)
 	eq(panel._title.text, "Ana de Verdade")
 	panel.free()
+
+
+func test_the_city_sheet_offers_to_meet_an_anonymous_resident_and_opens_its_sheet() -> void:
+	var transport := _transport()
+	transport.on("GET /visual/catalog/actions", {"status": 200, "body": []})
+	transport.on("GET /simulation/status", {"status": 200, "body": {"isPaused": false, "ticksPerSecond": 1.0, "tick": 5, "year": 0}})
+	transport.on("GET /visual/subscribe?scope=World", {"status": 200, "body": Fx.snapshot(0, {
+		"width": 2, "height": 2, "cities": [], "externalNpcs": [], "activeEvents": [], "portals": [],
+		"layers": {"Terrain": {"isModeled": false, "payload": null}}, "livingState": {"npcs": []}}, "World")})
+	var app := App.new()
+	app.player_id = "p-1"
+	tree.root.add_child(app)
+	await app.start(transport, false)
+	var indicators := {"population": 1, "wealth": 1, "health": 1, "inequality": 0.1, "economy": 1, "housing": 1}
+
+	app.city_panel.show_city({"id": "c", "name": "Alfa", "indicators": indicators, "pendingResidentIds": []})
+	eq(app.city_panel.anonymous_button.visible, false, "sem moradores anônimos: sem botão")
+	app.city_panel.show_city({"id": "c", "name": "Alfa", "indicators": indicators, "pendingResidentIds": [{"value": 9}, {"value": 10}]})
+	eq(app.city_panel.anonymous_button.visible, true)
+	check("2 moradores anônimos" in app.city_panel.anonymous_button.text, app.city_panel.anonymous_button.text)
+
+	app.city_panel.anonymous_button.pressed.emit()
+	await tree.process_frame
+	await tree.process_frame
+
+	check(transport.calls.has("GET /npcs/9"), "abre a ficha do primeiro morador anônimo: " + str(transport.calls))
+	eq(app.npc_panel.lod, 2)
+	eq(app.npc_panel.materialize_button.visible, true, "e daí é só 'Ver em detalhe'")
+	app.queue_free()

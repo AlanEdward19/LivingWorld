@@ -292,6 +292,9 @@ class CityPanel extends PanelContainer:
 	signal chronicle_requested(city_id: String)
 	signal beliefs_requested(city_id: String)
 	signal treasury_requested(city_id: String)
+	signal anonymous_requested(npc_id: int)
+	var anonymous_ids: Array = [] ## moradores do pool ainda anônimos (pendingResidentIds do snapshot da cidade)
+	var anonymous_button: Button
 	var text := ""
 	var city_id := ""
 	var city_name := ""
@@ -321,6 +324,10 @@ class CityPanel extends PanelContainer:
 		treasury.text = "Tesouro"
 		treasury.pressed.connect(func(): treasury_requested.emit(city_id))
 		box.add_child(treasury)
+		anonymous_button = Button.new()
+		anonymous_button.visible = false
+		anonymous_button.pressed.connect(func(): if not anonymous_ids.is_empty(): anonymous_requested.emit(int(anonymous_ids[0].value)))
+		box.add_child(anonymous_button)
 		visible = false
 
 	## `info` = WorldStore.city: {name, indicators:{population, wealth, health, inequality, economy, housing}}
@@ -329,6 +336,9 @@ class CityPanel extends PanelContainer:
 		var name: String = info.name if info.name != "" else "Cidade"
 		city_id = String(info.get("id", ""))
 		city_name = name
+		anonymous_ids = info.get("pendingResidentIds", [])
+		anonymous_button.visible = not anonymous_ids.is_empty()
+		anonymous_button.text = "Conhecer um dos %d moradores anônimos" % anonymous_ids.size()
 		text = "%s\nPopulação %d\nRiqueza %d · Saúde %d\nDesigualdade %s · Economia %d · Habitação %d" % [
 			name, int(indicators.population), int(indicators.wealth), int(indicators.health),
 			str(snappedf(float(indicators.inequality), 0.01)), int(indicators.economy), int(indicators.housing)]
