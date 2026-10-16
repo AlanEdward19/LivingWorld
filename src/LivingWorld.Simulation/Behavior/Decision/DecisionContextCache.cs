@@ -128,7 +128,8 @@ public static class DecisionContextCache
 
         var merged = new DecisionContext(
             npc.Id, tick, needs, body, household, memories, beliefs, relationships, powers,
-            npc.Personality, npc.CurrentAction, foresight);
+            npc.Personality, npc.CurrentAction, foresight,
+            Comfort: LivingWorld.Simulation.Objects.ObjectUse.ComfortOf(world, npc));
 
         entry.Context = merged;
         entry.Dirty = DecisionContextCategory.None;

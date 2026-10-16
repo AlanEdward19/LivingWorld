@@ -18,7 +18,7 @@ public static class RestPresentation
         var rest = RestPlaceResolver.Resolve(world, npc);
         bool atPlace = rest.Location == npc.CurrentLocation;
         bool reachable = RestPlaceResolver.IsReachable(world.Map, npc.CurrentLocation, rest.Location);
-        long duration = world.ActionCatalog.MaxDurationHours.GetValueOrDefault(ActionType.Sleep, 1);
+        long duration = LivingWorld.Simulation.Objects.ObjectUse.DurationHours(world, npc, ActionType.Sleep, world.ActionCatalog);
         long elapsed = Math.Max(0, world.CurrentDate.TotalHours - npc.ActionStartedAtTick);
         long remaining = Math.Max(0, duration - elapsed);
 
@@ -28,7 +28,7 @@ public static class RestPresentation
     public static ProcessVisualSnapshot ToProcess(WorldState world, Npc npc)
     {
         var status = Of(world, npc) ?? throw new InvalidOperationException($"npc {npc.Id}: sem descanso ativo");
-        long duration = Math.Max(1, world.ActionCatalog.MaxDurationHours.GetValueOrDefault(ActionType.Sleep, 1));
+        long duration = Math.Max(1, LivingWorld.Simulation.Objects.ObjectUse.DurationHours(world, npc, ActionType.Sleep, world.ActionCatalog));
         double progress = 1.0 - status.RemainingHours / (double)duration;
         string kindKey = status.Kind.ToString().ToLowerInvariant();
         return new ProcessVisualSnapshot(

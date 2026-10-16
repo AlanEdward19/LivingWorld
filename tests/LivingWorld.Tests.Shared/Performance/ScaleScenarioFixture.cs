@@ -104,7 +104,8 @@ public static class ScaleScenarioFixture
             CropResourceId: 1, YieldPerMaturePlant: 10, ReproduceRadius: 2, ReproduceProbability: 0),
     ];
 
-    public static (WorldState World, WorldClock Clock) CreateWorld(ulong seed, int initialPopulation, HistoryRules? historyRules = null)
+    public static (WorldState World, WorldClock Clock) CreateWorld(
+        ulong seed, int initialPopulation, HistoryRules? historyRules = null, LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null)
     {
         int vacancyMult = Math.Max(1, initialPopulation / 100);
         var scenario = ScenarioRunner.Create(
@@ -118,7 +119,8 @@ public static class ScaleScenarioFixture
             workplaceVacancyMultiplier: vacancyMult,
             economyCatalog: ScenarioRunner.ScaleEconomyCatalog(vacancyMult),
             animalSpeciesRules: ScaleAnimalSpeciesRules,
-            plantSpeciesRules: ScalePlantSpeciesRules);
+            plantSpeciesRules: ScalePlantSpeciesRules,
+            objectCatalog: objectCatalog);
 
         // PERF-01 mede custo e estabilidade demográfica, não a capacidade de um único mercado
         // central alimentar uma metrópole. Depois que cada household ganhou residência física,

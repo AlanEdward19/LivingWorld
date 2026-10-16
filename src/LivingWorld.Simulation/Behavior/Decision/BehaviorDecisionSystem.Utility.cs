@@ -256,10 +256,10 @@ public sealed partial class BehaviorDecisionSystem
         return false;
     }
 
-    private static double UtilityBaseOf(DecisionContext ctx, ActionType action, EconomyRules economy, ActionEligibility eligibility) => action switch
+    internal static double UtilityBaseOf(DecisionContext ctx, ActionType action, EconomyRules economy, ActionEligibility eligibility) => action switch
     {
-        ActionType.Eat => EatUtilityOf(ctx, economy),
-        ActionType.Sleep => SurvivalDeficit(ctx.Needs.Sleep),
+        ActionType.Eat => EatUtilityOf(ctx, economy) * (1.0 + ctx.Comfort.Eat),
+        ActionType.Sleep => SurvivalDeficit(ctx.Needs.Sleep) * (1.0 + ctx.Comfort.Sleep),
         ActionType.Socialize => Deficit(ctx.Needs.Social),
         ActionType.Buy => BuyUtilityOf(ctx, economy),
         ActionType.Work or ActionType.Travel or ActionType.Idle => NonNeedBaselineUtility,

@@ -23,9 +23,12 @@ Blocos opcionais do período (ADR-0034, #47 fatia 1). Ausentes = comportamento e
 | `shape[].symmetry` | `none`, `x`, `z` ou `xz`: espelha a parte nos eixos citados |
 | `variationSeed` | 0 = forma exata; ≠ 0 = índice de variação (0–3) por posição, mesma seed, mesma variação |
 | `usePoints[]` | `name`, `offset` (3 números, a partir da base), `facing` (graus), `action` (id de `ActionType`, opcional) e `pose` (`idle\|walk\|sleep\|work\|eat\|socialize\|buy\|power`, opcional). Com `action`, o servidor põe quem faz essa ação no objeto (`usingObject`); sem `pose` vale a pose da ação (ADR-0037) |
+| `effects[]` | Tokens `alvo:magnitude`: `sleep:0.5`, `eat:1`. Magnitude > -1; a duração de dormir/comer em casa é dividida por (1 + magnitude), mínimo 1 h (ADR-0038) |
+| `interactions[]` | `{action, profession?, skill?:{id,min}}`. Sem a lista, serve a quem tem ponto de uso; com ela, só as ações listadas e quem cumpre os requisitos |
 | `Furnishings` | Chave `default` ou id do tipo de prédio → lista ordenada de ids |
 
 ## Onde vive
 `ObjectCatalogScenarioLoader` valida na borda; `WorldState.ObjectCatalog` guarda; `InteriorProjector` entrega `objects` no
 snapshot de interior (`/visual/subscribe?scope=Interior`); `client/godot/Scenes/object_factory.gd` desenha com mesh/material compartilhados.
 `DefaultObjects` traz a mobília que era do `assets.json`.
+O efeito vale para a moradia (`Household.Dwelling`) cujo tipo de prédio tem o objeto em `Furnishings` (os lares semeados têm tipo `-1`); a mobília padrão não declara efeitos, então o comportamento do mundo só muda quando o cenário os liga.

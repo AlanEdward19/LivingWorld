@@ -73,7 +73,7 @@ public static class NpcWakeScheduler
 
         if (npc.CurrentAction is { } action)
         {
-            long actionEnd = npc.ActionStartedAtTick + catalog.DurationOf(action);
+            long actionEnd = npc.ActionStartedAtTick + LivingWorld.Simulation.Objects.ObjectUse.DurationHours(world, npc, action, catalog);
             next = Math.Min(next, actionEnd);
         }
 
