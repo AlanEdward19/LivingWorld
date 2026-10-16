@@ -11,7 +11,7 @@ passar de 100, então o eixo de melhoria é o **tempo** para recuperar.
 
 ## Decisão
 - **Descritor** (campos opcionais e aditivos; `objectsFormat` continua 1; omitidos do snapshot quando ausentes, então o hash de catálogos antigos não muda):
-  - `effects`: tokens `alvo:magnitude` (formato da Fase 16). Alvos `sleep` e `eat`; magnitude finita e maior que -1.
+  - `effects`: tokens `alvo:magnitude` (formato da Fase 16). Alvos `sleep` e `eat`; magnitude finita e maior que -1, e a soma por alvo de um objeto também (senão a duração não teria fim); o motor ainda aplica um piso de -0,99.
   - `interactions`: `[{action, profession?, skill?:{id, min}}]`. Sem a lista, vale quem tem ponto de uso; com ela, só as ações listadas e quem cumpre
     profissão e habilidade mínima. "Dono" fica de fora (sem dono de objeto no mundo ainda).
 - **Efeito**: `ObjectUse.DurationHours` divide a duração da ação (catálogo de ações) por (1 + magnitude), mínimo 1 h, para Sleep e Eat quando o NPC está na

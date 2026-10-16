@@ -14,6 +14,9 @@ public readonly record struct ObjectComfort(float Sleep, float Eat);
 /// que isso tem. Determinístico e sem estado: lê o catálogo do mundo, o domicílio e a moradia do NPC. Sem catálogo, tudo é neutro.</summary>
 public static class ObjectUse
 {
+    /// <summary>Piso do bônus somado: o loader já recusa soma ≤ -1, e este piso garante que um catálogo vindo de snapshot nunca zere o divisor da duração.</summary>
+    private const double MinimumBonus = -0.99;
+
     /// <summary>Primeiro objeto, na ordem da mobília do tipo de prédio, com ponto de uso que atende à ação e que o NPC pode usar.</summary>
     public static ObjectDescriptor? Serving(ObjectCatalog catalog, int buildingTypeId, ActionType action, Npc? npc)
     {
@@ -65,7 +68,7 @@ public static class ObjectUse
         for (int i = 0; i < effects.Count; i++)
             if (effects[i].Target == target)
                 sum += effects[i].Magnitude;
-        return sum;
+        return Math.Max(sum, MinimumBonus);
     }
 
     /// <summary>Duração da ação em horas: a do catálogo de ações, dividida por (1 + efeito do objeto) para dormir e comer em casa (mínimo 1 h).

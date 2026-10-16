@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
 using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Objects;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Skills;
@@ -350,6 +351,49 @@ public class ObjectEffectsTests
     }
 
     [Fact]
+    public void The_meal_process_progress_uses_the_shortened_duration()
+    {
+        var (world, _) = World(3, Catalog(tableEffect: "eat:1.0"));
+        var npc = Resident(world);
+        PutAtHome(world, npc);
+        world.FindHousehold(npc.Household!.Value)!.Deposit(new ResourceType(world.EconomyRules.FoodResourceId), 50);
+        npc.SetCurrentAction(ActionType.Eat, world.CurrentDate.TotalHours);
+
+        var process = LivingWorld.Simulation.Behavior.Resolvers.FoodPresentation.ToProcess(world, npc);
+
+        Assert.Equal(0.0, process.Progress, 6);
+        Assert.Equal(1, process.Status.RemainingHours); // 2 h / (1 + 1.0): com a duração base seriam 2
+    }
+
+    [Fact]
+    public void Effects_on_one_target_whose_sum_reaches_minus_one_are_refused_so_a_sleep_always_ends()
+    {
+        var split = ObjectCatalogScenarioLoader.Load(Root(tweak: r => Piece(r, "bed")["effects"] = new JsonArray("sleep:-0.6", "sleep:-0.4")));
+        var heavy = ObjectCatalogScenarioLoader.Load(Root(tweak: r => Piece(r, "bed")["effects"] = new JsonArray("sleep:-0.7", "sleep:-0.7")));
+        var other = ObjectCatalogScenarioLoader.Load(Root(tweak: r => Piece(r, "bed")["effects"] = new JsonArray("sleep:-0.6", "eat:-0.6")));
+
+        Assert.False(split.IsSuccess);
+        Assert.Contains("soma", split.Error);
+        Assert.False(heavy.IsSuccess);
+        Assert.True(other.IsSuccess, "alvos diferentes não se somam");
+    }
+
+    [Fact]
+    public void A_catalog_that_slipped_past_the_loader_still_cannot_make_a_sleep_endless()
+    {
+        var bed = new ObjectDescriptor("bed", "bed", [new ObjectPart("box", [1.0, 1.0, 1.0], [0.0, 0.0, 0.0], "ffffff")], 0,
+            [new ObjectUsePoint("lie", [0.0, 0.0, 0.0], 0.0, (int)ActionType.Sleep, "sleep")], null, [new ObjectEffect("sleep", -1.0)]);
+        var forged = new ObjectCatalog(1, [bed], new Dictionary<string, IReadOnlyList<string>> { [HouseTypeId.ToString()] = ["bed"] });
+        var (world, _) = World(3, forged);
+        var npc = Resident(world);
+        PutAtHome(world, npc);
+
+        int hours = ObjectUse.DurationHours(world, npc, ActionType.Sleep, world.ActionCatalog);
+
+        Assert.InRange(hours, 8, 8 * 100);
+    }
+
+    [Fact]
     public void The_comfort_is_the_expectation_of_the_home_even_when_the_npc_is_away()
     {
         var (world, _) = World(3, Catalog(bedEffect: "sleep:0.5", tableEffect: "eat:0.25"));
@@ -426,12 +470,32 @@ public class ObjectEffectsTests
     {
         var (world, _) = World(3, Catalog(tableEffect: "eat:0.5"));
         var npc = Resident(world);
-        var plain = DecisionContextBuilder.Build(world, npc, tick: 5) with { Comfort = default, Needs = new NeedsSnapshot(30, 30, 100, 100) };
+        var plain = DecisionContextBuilder.Build(world, npc, tick: 5) with { Comfort = default, Needs = new NeedsSnapshot(30, 30, 30, 20) };
         var cozy = plain with { Comfort = new ObjectComfort(0f, 0.5f) };
+        double Utility(DecisionContext ctx, ActionType action) => BehaviorDecisionSystem.UtilityBaseOf(ctx, action, world.EconomyRules, default);
 
-        Assert.Equal(BehaviorDecisionSystem.UtilityBaseOf(plain, ActionType.Eat, world.EconomyRules, default) * 1.5, BehaviorDecisionSystem.UtilityBaseOf(cozy, ActionType.Eat, world.EconomyRules, default), 9);
-        Assert.Equal(BehaviorDecisionSystem.UtilityBaseOf(plain, ActionType.Sleep, world.EconomyRules, default), BehaviorDecisionSystem.UtilityBaseOf(cozy, ActionType.Sleep, world.EconomyRules, default));
-        Assert.Equal(BehaviorDecisionSystem.UtilityBaseOf(plain, ActionType.Socialize, world.EconomyRules, default), BehaviorDecisionSystem.UtilityBaseOf(cozy, ActionType.Socialize, world.EconomyRules, default));
+        Assert.True(Utility(plain, ActionType.Eat) > 0);
+        Assert.Equal(Utility(plain, ActionType.Eat) * 1.5, Utility(cozy, ActionType.Eat), 9);
+        Assert.True(Utility(plain, ActionType.Sleep) > 0 && Utility(plain, ActionType.Socialize) > 0, "as outras ações têm pontuação de verdade para comparar");
+        Assert.Equal(Utility(plain, ActionType.Sleep), Utility(cozy, ActionType.Sleep));
+    }
+
+    [Fact]
+    public void Neither_comfort_leaks_into_actions_it_is_not_about_nor_into_the_other_target()
+    {
+        var (world, _) = World(3, Catalog());
+        var plain = DecisionContextBuilder.Build(world, Resident(world), tick: 5) with { Comfort = default, Needs = new NeedsSnapshot(30, 30, 30, 20) };
+        var both = plain with { Comfort = new ObjectComfort(1f, 1f) };
+        var sleepOnly = plain with { Comfort = new ObjectComfort(1f, 0f) };
+        var eatOnly = plain with { Comfort = new ObjectComfort(0f, 1f) };
+        double Utility(DecisionContext ctx, ActionType action) => BehaviorDecisionSystem.UtilityBaseOf(ctx, action, world.EconomyRules, default);
+
+        foreach (var action in new[] { ActionType.Socialize, ActionType.Buy, ActionType.Work, ActionType.Travel, ActionType.Idle })
+            Assert.Equal(Utility(plain, action), Utility(both, action));
+        Assert.Equal(Utility(plain, ActionType.Eat), Utility(sleepOnly, ActionType.Eat));
+        Assert.Equal(Utility(plain, ActionType.Sleep), Utility(eatOnly, ActionType.Sleep));
+        Assert.Equal(Utility(plain, ActionType.Sleep) * 2.0, Utility(sleepOnly, ActionType.Sleep), 9);
+        Assert.Equal(Utility(plain, ActionType.Eat) * 2.0, Utility(eatOnly, ActionType.Eat), 9);
     }
 
     // ---- o mundo ----

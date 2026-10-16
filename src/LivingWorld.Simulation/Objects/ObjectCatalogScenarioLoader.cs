@@ -169,6 +169,8 @@ public static class ObjectCatalogScenarioLoader
                 || !double.IsFinite(magnitude) || magnitude <= -1.0)
                 return Result<IReadOnlyList<ObjectEffect>?>.Fail($"{path}: magnitude deve ser um número maior que -1");
             list.Add(new ObjectEffect(target, magnitude));
+            if (list.Where(e => e.Target == target).Sum(e => e.Magnitude) <= -1.0)
+                return Result<IReadOnlyList<ObjectEffect>?>.Fail($"{path}: a soma dos efeitos '{target}' do objeto deve ser maior que -1 (a duração deixaria de ter fim)");
         }
         return Result<IReadOnlyList<ObjectEffect>?>.Ok(list);
     }
