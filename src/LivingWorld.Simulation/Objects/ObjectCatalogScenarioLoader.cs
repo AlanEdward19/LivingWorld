@@ -41,7 +41,7 @@ public static class ObjectCatalogScenarioLoader
             if (root["Furnishings"] is not JsonObject table) return Fail("Furnishings: precisa ser um objeto");
             foreach (var (key, value) in table)
             {
-                if (key != "default" && !int.TryParse(key, out _)) return Fail($"Furnishings.{key}: a chave é 'default' ou o id do tipo de prédio");
+                if (key != "default" && !(int.TryParse(key, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int typeId) && typeId.ToString(System.Globalization.CultureInfo.InvariantCulture) == key)) return Fail($"Furnishings.{key}: a chave é 'default' ou o id do tipo de prédio");
                 if (value is not JsonArray ids) return Fail($"Furnishings.{key}: precisa ser uma lista de ids");
                 var list = new List<string>();
                 foreach (var node in ids)

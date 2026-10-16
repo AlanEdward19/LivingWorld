@@ -263,17 +263,133 @@ public class ObjectEffectsTests
         Assert.Equal(8, ObjectUse.DurationHours(restricted, resident, ActionType.Sleep, restricted.ActionCatalog));
     }
 
-    [Fact]
-    public void The_wake_scheduler_and_the_completion_check_agree_on_when_the_sleep_ends()
+    private static void RestEverything(Npc npc, long tick)
     {
-        var (world, _) = World(3, Catalog(bedEffect: "sleep:1.0"));
+        npc.SetSleep(100, tick);
+        npc.SetHunger(100, tick);
+        npc.SetThirst(100, tick);
+        npc.SetSocial(100, tick);
+    }
+
+    private static long WakeOfSleeper(ulong seed, ObjectCatalog catalog, long start)
+    {
+        var (world, _) = World(seed, catalog);
         var npc = Resident(world);
         PutAtHome(world, npc);
-        npc.SetCurrentAction(ActionType.Sleep, 100);
+        RestEverything(npc, start);
+        npc.SetCurrentAction(ActionType.Sleep, start);
+        return LivingWorld.Simulation.Behavior.Needs.NpcWakeScheduler.ComputeNextWakeTick(npc, world.NeedsRules, world.ActionCatalog, now: start, world);
+    }
 
-        long wake = LivingWorld.Simulation.Behavior.Needs.NpcWakeScheduler.ComputeNextWakeTick(npc, world.NeedsRules, world.ActionCatalog, now: 100, world);
+    [Fact]
+    public void The_wake_scheduler_wakes_the_sleeper_at_the_shortened_end_when_nothing_else_comes_first()
+    {
+        var starts = Enumerable.Range(0, 48).Select(i => 200L + i).ToList();
+        var plain = starts.Select(start => WakeOfSleeper(3, Catalog(bedEffect: "sleep:0"), start)).ToList();
+        var bed = starts.Select(start => WakeOfSleeper(3, Catalog(bedEffect: "sleep:1.0"), start)).ToList();
 
-        Assert.True(wake <= 100 + ObjectUse.DurationHours(world, npc, ActionType.Sleep, world.ActionCatalog));
+        Assert.All(starts.Zip(plain, bed), t => Assert.True(t.Third <= t.Second, "o efeito nunca atrasa o despertar"));
+        Assert.Contains(starts.Zip(plain, bed), t => t.Third == t.First + 4 && t.Second > t.Third);
+    }
+
+    [Fact]
+    public void No_sleep_or_meal_outlasts_its_shortened_duration_when_the_npc_is_at_home()
+    {
+        foreach (ulong seed in new ulong[] { 2, 3, 4 })
+        {
+            var (world, clock) = World(seed, Catalog(bedEffect: "sleep:1.0", tableEffect: "eat:1.0"), population: 30);
+            int checkedAtHome = 0;
+            for (int t = 0; t < 24 * 12; t++)
+            {
+                clock.Run(world, 1);
+                long now = world.CurrentDate.TotalHours;
+                foreach (var npc in world.Npcs)
+                {
+                    if (!npc.IsAlive || npc.CurrentAction is not ({ } action and (ActionType.Sleep or ActionType.Eat))) continue;
+                    if (npc.Household is not { } hid || world.FindHousehold(hid) is not { } household || npc.CurrentLocation != household.Location) continue;
+                    int allowed = ObjectUse.DurationHours(world, npc, action, world.ActionCatalog);
+                    checkedAtHome++;
+                    Assert.True(now - npc.ActionStartedAtTick <= allowed,
+                        $"seed {seed}: {action} do NPC {npc.Id.Value} dura {now - npc.ActionStartedAtTick} h e o permitido é {allowed} h");
+                }
+            }
+
+            Assert.True(checkedAtHome > 0, "ninguém dormiu nem comeu em casa na janela");
+        }
+    }
+
+    [Fact]
+    public void The_rest_and_meal_presentations_report_the_shortened_remaining_time()
+    {
+        var (world, _) = World(3, Catalog(bedEffect: "sleep:1.0", tableEffect: "eat:1.0"));
+        var npc = Resident(world);
+        PutAtHome(world, npc);
+        long now = world.CurrentDate.TotalHours;
+
+        npc.SetCurrentAction(ActionType.Sleep, now);
+        var rest = LivingWorld.Simulation.Behavior.Resolvers.RestPresentation.Of(world, npc)!;
+        npc.SetCurrentAction(ActionType.Eat, now);
+        var food = LivingWorld.Simulation.Behavior.Resolvers.FoodPresentation.Of(world, npc)!;
+
+        Assert.Equal(4, rest.RemainingHours);
+        Assert.Equal(1, food.RemainingHours);
+    }
+
+    [Fact]
+    public void The_process_progress_uses_the_shortened_duration()
+    {
+        var (world, clock) = World(3, Catalog(bedEffect: "sleep:1.0"));
+        var npc = Resident(world);
+        PutAtHome(world, npc);
+        npc.SetCurrentAction(ActionType.Sleep, world.CurrentDate.TotalHours - 2);
+
+        var process = LivingWorld.Simulation.Behavior.Resolvers.RestPresentation.ToProcess(world, npc);
+
+        Assert.Equal(0.5, process.Progress, 6);
+        _ = clock;
+    }
+
+    [Fact]
+    public void The_comfort_is_the_expectation_of_the_home_even_when_the_npc_is_away()
+    {
+        var (world, _) = World(3, Catalog(bedEffect: "sleep:0.5", tableEffect: "eat:0.25"));
+        var npc = Resident(world);
+        var home = world.FindHousehold(npc.Household!.Value)!.Location;
+        npc.MoveTo(new LivingWorld.Domain.Geography.CellCoord(home.X + 1, home.Y), world.CurrentDate.TotalHours);
+
+        Assert.Equal(new ObjectComfort(0.5f, 0.25f), ObjectUse.ComfortOf(world, npc));
+        Assert.Equal(8, ObjectUse.DurationHours(world, npc, ActionType.Sleep, world.ActionCatalog));
+    }
+
+    [Fact]
+    public void Two_effects_on_the_same_target_add_up()
+    {
+        var (world, _) = World(3, Catalog(tweak: r => Piece(r, "bed")["effects"] = new JsonArray("sleep:0.25", "sleep:0.75", "eat:5")));
+        var npc = Resident(world);
+        PutAtHome(world, npc);
+
+        Assert.Equal(4, ObjectUse.DurationHours(world, npc, ActionType.Sleep, world.ActionCatalog)); // 8 / (1 + 1.0)
+    }
+
+    [Fact]
+    public void A_listed_interaction_is_open_when_there_is_no_npc_to_check()
+    {
+        var bed = Catalog(tweak: r => Piece(r, "bed")["interactions"] = new JsonArray(new JsonObject { ["action"] = 1, ["profession"] = 2 })).Find("bed")!;
+
+        Assert.True(ObjectUse.Allows(bed, ActionType.Sleep, npc: null));
+        Assert.False(ObjectUse.Allows(bed, ActionType.Eat, npc: null));
+    }
+
+    [Fact]
+    public void Negative_requirement_ids_and_malformed_blocks_are_refused()
+    {
+        string? Error(Action<JsonObject> tweak) => ObjectCatalogScenarioLoader.Load(Root(tweak: tweak)).Error;
+
+        Assert.Contains("interactions[0].profession", Error(r => Piece(r, "bed")["interactions"] = new JsonArray(new JsonObject { ["action"] = 1, ["profession"] = -1 })));
+        Assert.Contains("interactions[0].skill.id", Error(r => Piece(r, "bed")["interactions"] = new JsonArray(new JsonObject { ["action"] = 1, ["skill"] = new JsonObject { ["id"] = -1, ["min"] = 1.0 } })));
+        Assert.Contains("interactions[0].skill.min", Error(r => Piece(r, "bed")["interactions"] = new JsonArray(new JsonObject { ["action"] = 1, ["skill"] = new JsonObject { ["id"] = 1, ["min"] = -0.5 } })));
+        Assert.Contains("effects", Error(r => Piece(r, "bed")["effects"] = "sleep:1"));
+        Assert.Contains("Furnishings.03", Error(r => ((JsonObject)r["Furnishings"]!)["03"] = new JsonArray("bed")));
     }
 
     // ---- decisão (oportunidade) ----
