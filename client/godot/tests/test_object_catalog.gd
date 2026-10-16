@@ -55,6 +55,23 @@ func test_interior_from_the_catalog_matches_the_assets_json_interior() -> void:
 		new_view.free()
 
 
+func test_the_view_draws_the_server_catalog_not_the_assets_json() -> void:
+	var info := _room()
+	info["objects"] = {"format": 1, "furniture": [{"id": "lamp", "variation": 2}, {"id": "lamp", "variation": 0}],
+		"catalog": [{"id": "lamp", "category": "light", "variationSeed": 7, "usePoints": [], "shape": [
+			{"shape": "cylinder", "size": [0.1, 0.6], "offset": [0.0, 0.3, 0.0], "color": "ff0000", "symmetry": "none"},
+			{"shape": "sphere", "size": [0.08], "offset": [0.2, 0.7, 0.0], "color": "00ff00", "symmetry": "x"}]}]}
+	var view := _show(info, 4)
+	eq(view.furniture.get_child_count(), 2, "duas lâmpadas do servidor, nada do assets.json")
+	var plain: Node3D = view.furniture.get_child(1)
+	var shaded: Node3D = view.furniture.get_child(0)
+	eq(plain.get_child_count(), 3, "cilindro + esfera espelhada em x")
+	check(plain.get_child(0).mesh is CylinderMesh, "forma do servidor")
+	eq((plain.get_child(0).material_override as StandardMaterial3D).albedo_color, Color("ff0000"), "cor do servidor")
+	check((shaded.get_child(0).material_override as StandardMaterial3D).albedo_color != Color("ff0000"), "variação 2 do servidor clareia a cor")
+	view.free()
+
+
 func test_without_objects_the_assets_json_fallback_is_used() -> void:
 	var view := _show(_room(), 4)
 	eq(view.furniture.get_child_count(), view.catalog.furniture_for(4).size(), "sem objects, mobília do assets.json")
