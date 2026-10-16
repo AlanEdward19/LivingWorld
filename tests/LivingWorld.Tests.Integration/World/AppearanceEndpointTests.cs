@@ -15,9 +15,9 @@ public class AppearanceEndpointTests : IClassFixture<LivingWorldApiFactory>
 
     public AppearanceEndpointTests(LivingWorldApiFactory factory) => _factory = factory;
 
-    private async Task<(HttpClient Client, long AnaId)> CreateWorld(bool withBlock)
+    private async Task<(HttpClient Client, long AnaId)> CreateWorld(bool withBlock, ulong seed)
     {
-        var scenario = WorldCreateEndpointsTests.FullValidScenario(seed: 31);
+        var scenario = WorldCreateEndpointsTests.FullValidScenario(seed);
         scenario["InitialPopulation"] = 5;
         if (withBlock) scenario["Appearance"] = JsonNode.Parse("{\"Heritability\":0.6}");
         string look = withBlock
@@ -36,7 +36,7 @@ public class AppearanceEndpointTests : IClassFixture<LivingWorldApiFactory>
     [Fact]
     public async Task Inspection_returns_the_authored_looks_and_skills()
     {
-        var (client, id) = await CreateWorld(withBlock: true);
+        var (client, id) = await CreateWorld(withBlock: true, seed: 31);
 
         var npc = JsonNode.Parse(await client.GetStringAsync($"/npcs/{id}"))!;
 
@@ -50,7 +50,7 @@ public class AppearanceEndpointTests : IClassFixture<LivingWorldApiFactory>
     [Fact]
     public async Task The_city_projection_carries_the_looks_for_the_client_to_dress_the_body()
     {
-        var (client, id) = await CreateWorld(withBlock: true);
+        var (client, id) = await CreateWorld(withBlock: true, seed: 32);
         var world = JsonNode.Parse(await client.GetStringAsync("/visual/subscribe?scope=World&mode=Spectator"))!;
         string cityId = world["payload"]!["cities"]![0]!["id"]!["value"]!.ToString();
 
@@ -63,7 +63,7 @@ public class AppearanceEndpointTests : IClassFixture<LivingWorldApiFactory>
     [Fact]
     public async Task Without_the_period_block_the_field_is_absent_everywhere()
     {
-        var (client, id) = await CreateWorld(withBlock: false);
+        var (client, id) = await CreateWorld(withBlock: false, seed: 33);
 
         Assert.DoesNotContain("appearance", await client.GetStringAsync($"/npcs/{id}"));
         var world = JsonNode.Parse(await client.GetStringAsync("/visual/subscribe?scope=World&mode=Spectator"))!;

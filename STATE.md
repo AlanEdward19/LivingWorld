@@ -16,7 +16,6 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 - **Próxima unidade**: Fase 22 (imperfeição; criar plano lean e issues por fatia). Fase 21 entregue com as dívidas (21a–c e #93, AD-115..118, ADR-0028..0031); plano `.specs/features/phase-21-ontogeny/plan.md`.
 - **Concluído (2026-10-15)**: #58 (painel Cérebro, escopo de observação, sandbox "E se…?", ADR-0026) e #59 (conversa, narrativas, crenças, jogador, console admin, economia, tecnologias, materializar), cada fatia com Verifier PASS em `.specs/features/godot-*/verification.md`. Branches empilhadas até `feat/godot-materialize`; falta abrir os PRs. Dívidas: pausa pública com ator/motivo e período do mundo continuado pedem rota nova (issue própria); retomar sessão de jogador após reiniciar o cliente.
 - **#46 criador de mundo (branch `feat/world-creator`, 2026-10-15)**: fatias 1 (nomes das profissões), 2 (aparência herdada opt-in + habilidades iniciais, ADR-0032) e 4 (criar família e local de trabalho com o mundo rodando, ADR-0033) feitas, planos em `.specs/features/profession-names/`, `world-creator-appearance/` e `world-creator-live/`. Faltam 3 (modelos, depende de #67), 5 (plantas, depende de #47) e 6 (poderes, depende de #64). Profissões/habilidades próprias e emergentes: #96.
-- **Pendência de CI**: goldens do cliente foram regravados num Mac arm64; rodar o CI antes do merge.
 - **Integração do extraordinário (2026-08-12)**: decisão **mista**, sem fase numerada nova para "super-heróis" —
   distribuída entre Fases 16, 17, 23, 24, 25, com toques em 10, 12, 22. ADR-0010 + `docs/domain/powers.md`.
 - **Dívida Fase 9**: PERF-12 hasher; `LongRunScaleTests` só nightly.
@@ -26,6 +25,8 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 - **Fase 13**: períodos = startpoints dinâmicos; autoria de catálogo sem runtime de IA interno.
 - **Eval**: `verify.sh`; `verify-mutation.sh` manual. Harness: [`HARNESS.md`](HARNESS.md).
 - **Budget**: nenhum loop autônomo ativo.
+
+- **Em andamento (#65/#67, 2026-10-15)**: branch `feat/issues-65-67`, planos `family-diversity-calibration` e `saved-worlds`; decisões aprovadas em ADR-0034/0035. Verifier inicial de hospedagem FAIL (lacunas e defeitos), correções em validação; novo Verifier independente obrigatório antes do PR. CI de develop confirmado verde (run 38823719663, commit 10bec92).
 
 ## Decisões (AD-NNN)
 Log completo em [docs/decisions-log.md](docs/decisions-log.md) — AD-001..048 (não duplique

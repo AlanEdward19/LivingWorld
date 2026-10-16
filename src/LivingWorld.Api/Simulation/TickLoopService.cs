@@ -1,8 +1,8 @@
 using LivingWorld.Api.Realtime;
 using LivingWorld.Api.Visual.Projection;
 using LivingWorld.Api.Visual.Scope;
+using LivingWorld.Api.World;
 using LivingWorld.Domain.Shared;
-using LivingWorld.Infrastructure;
 using LivingWorld.Infrastructure.EventLog;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Hosting;
@@ -21,7 +21,7 @@ public sealed class TickLoopService(
     WorldHost worldHost,
     SimulationHost simulationHost,
     RealtimeGateway gateway,
-    PersistentWorldRunner runner,
+    SavedWorldLibrary library,
     BufferingWorldEventSink sink) : IHostedService
 {
     private readonly Dictionary<string, LivingScopeState> _lastStates = new();
@@ -63,6 +63,11 @@ public sealed class TickLoopService(
     /// ninguém está ouvindo nenhum escopo.</summary>
     public void RunOneCycle()
     {
+        lock (library.Gate) RunLockedCycle();
+    }
+
+    private void RunLockedCycle()
+    {
         if (simulationHost.IsPaused)
         {
             simulationHost.CountPausedCycle();
@@ -73,7 +78,7 @@ public sealed class TickLoopService(
         worldHost.Clock.Tick(world);
         PublishDeltas(world);
         if (world.CurrentDate.TotalHours % 24 == 0)
-            runner.Snapshot(world, sink);
+            library.Save(world);
     }
 
     /// <summary>Publica o delta dos escopos com assinante para o estado atual do mundo. Público para que

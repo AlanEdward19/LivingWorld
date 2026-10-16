@@ -5,6 +5,8 @@ extends Control
 
 signal world_ready() ## há um mundo no servidor para jogar (continuado ou recém-criado)
 
+const SavedWorldsMenu := preload("res://Scenes/saved_worlds_menu.gd")
+
 const UiTheme := preload("res://Scenes/ui_theme.gd")
 const WorldEditor := preload("res://Scenes/world_editor.gd")
 const WorldTouchup := preload("res://Scenes/world_touchup.gd")
@@ -41,6 +43,7 @@ var conception_spin: SpinBox
 var longevity_spin: SpinBox
 var server_online := false
 
+var saved_worlds_screen: Control
 var title_screen: Control
 var new_world_screen: Control
 var status_label: Label
@@ -83,6 +86,9 @@ func refresh_server() -> void:
 
 
 func show_title() -> void:
+	if saved_worlds_screen != null:
+		saved_worlds_screen.queue_free()
+		saved_worlds_screen = null
 	title_screen.visible = true
 	new_world_screen.visible = false
 
@@ -157,6 +163,7 @@ func _build_title_screen() -> void:
 	box.add_child(gap)
 	continue_button = _button("Continuar mundo atual", box, _on_continue)
 	continue_button.disabled = true
+	_button("Carregar mundo", box, show_saved_worlds)
 	_button("Novo mundo", box, show_new_world)
 	_button("Sair", box, func(): get_tree().quit())
 	status_label = _label("Procurando o servidor…", 15, box)
@@ -596,3 +603,14 @@ func _on_create() -> void:
 		await show_touchup()
 	else:
 		message_label.text = "Não foi possível criar o mundo: %s" % str(response.body)
+
+
+func show_saved_worlds() -> void:
+	title_screen.visible = false
+	new_world_screen.visible = false
+	saved_worlds_screen = SavedWorldsMenu.new()
+	saved_worlds_screen.api = api
+	saved_worlds_screen.back.connect(show_title)
+	saved_worlds_screen.loaded.connect(func(): world_ready.emit())
+	add_child(saved_worlds_screen)
+	await saved_worlds_screen.refresh_worlds()

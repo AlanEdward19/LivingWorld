@@ -39,6 +39,7 @@ public class ApiContractTests
     [InlineData("simulation-status", "/simulation/status")]
     [InlineData("world-calendar", "/world/calendar")]
     [InlineData("world-info", "/world/info")]
+    [InlineData("saved-worlds", "/worlds")]
     public async Task Response_shape_matches_the_committed_contract(string name, string url)
     {
         var response = await _factory.CreateClient().GetAsync(url);

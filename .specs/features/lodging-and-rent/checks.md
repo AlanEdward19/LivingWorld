@@ -59,9 +59,21 @@ Proof: `bash scripts/compare-creation-cost.sh <checkout-develop>`
 
 ## Coverage
 
-Os critérios enumerados são 17; o plano legado não tem AC 8 e 9.
+No set rows - os critérios enumerados são 17; o plano legado não tem AC 8 e 9.
 Todos os números existentes foram preservados.
 
 ## Test policy
 
 Fronteiras/causalidade exigem mutação independente; não adotar relato do autor como prova.
+
+## Swept
+
+- validation: C17
+- failure modes: C2, C3, C14
+- idempotency: C13
+- authorization: n/a - não há operação remota no sistema
+- concurrency: C18 - relógio serial, processos independentes
+- data lifecycle: C4, C7
+- dependency failure: n/a - sistema puramente em memória
+- state transitions: C2, C3, C4
+- observability: C15, C16
