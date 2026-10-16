@@ -44,6 +44,30 @@ public class ObjectCatalogTests
         Assert.Equal(["table", "bench", "crate"], catalog.FurnishingFor(999));
     }
 
+    [Fact]
+    public void The_default_objects_match_the_assets_json_pieces_and_furnishings_exactly()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "LivingWorld.sln"))) dir = dir.Parent;
+        var assets = JsonNode.Parse(File.ReadAllText(Path.Combine(dir!.FullName, "client", "godot", "assets.json")))!.AsObject();
+        var catalog = ObjectCatalogScenarioLoader.Load(Root()).Value!;
+
+        var pieces = assets["pieces"]!.AsObject();
+        Assert.Equal(pieces.Count, catalog.Objects.Count);
+        foreach (var (id, spec) in pieces)
+        {
+            var part = catalog.Find(id)!.Shape.Single();
+            Assert.Equal(spec!["size"]!.AsArray().Select(n => (double)n!).ToArray(), part.Size);
+            Assert.Equal((string)spec["color"]!, part.Color);
+            Assert.Equal((double)spec["size"]![1]! / 2.0, part.Offset[1]);
+        }
+
+        var furniture = assets["furniture"]!.AsObject();
+        Assert.Equal(furniture.Count, catalog.Furnishings.Count);
+        foreach (var (key, ids) in furniture)
+            Assert.Equal(ids!.AsArray().Select(n => (string)n!).ToArray(), catalog.Furnishings[key]);
+    }
+
     [Theory]
     [InlineData("size", 0.0, "Objects[0].shape[0].size[0]")]
     [InlineData("size", -1.0, "Objects[0].shape[0].size[0]")]
