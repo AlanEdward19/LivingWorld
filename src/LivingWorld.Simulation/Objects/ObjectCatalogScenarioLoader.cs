@@ -90,7 +90,21 @@ public static class ObjectCatalogScenarioLoader
                 double facing = 0;
                 if (po["facing"] is not null && !(po["facing"] is JsonValue fv && fv.TryGetValue(out facing) && double.IsFinite(facing)))
                     return Result<ObjectDescriptor>.Fail($"{path}.facing: número inválido");
-                points.Add(new ObjectUsePoint(name, offset.Value!, facing));
+                int? action = null;
+                if (po["action"] is not null)
+                {
+                    if (po["action"] is not JsonValue av || !av.TryGetValue(out int actionId) || !Enum.IsDefined((LivingWorld.Domain.Behavior.ActionType)actionId))
+                        return Result<ObjectDescriptor>.Fail($"{path}.action: id de ActionType inválido");
+                    action = actionId;
+                }
+                string? pose = null;
+                if (po["pose"] is not null)
+                {
+                    if (!TryString(po["pose"], out var poseName) || !ObjectPoses.Known.Contains(poseName))
+                        return Result<ObjectDescriptor>.Fail($"{path}.pose: use {string.Join("|", ObjectPoses.Known)}");
+                    pose = poseName;
+                }
+                points.Add(new ObjectUsePoint(name, offset.Value!, facing, action, pose));
             }
         }
         return Result<ObjectDescriptor>.Ok(new ObjectDescriptor(id, category, parts, seed, points));

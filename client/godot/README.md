@@ -68,3 +68,4 @@ Aparência herdada (2026-10-15, M1 Pro, `stress:500`, API local, 3 rodadas): sor
 
 Mundos salvos e leitos (2026-10-15, M1 Pro, `stress:500`, API local): base 74,4 / 77,6 / 75,4 FPS; entrega 77,3 / 76,2 / 75,0. Medianas 75,4 → 76,2; sem regressão. Repetir com `bash scripts/client-stress.sh`.
 Catálogo de objetos (2026-10-15, #47 fatia 1, M1 Pro, `stress:500`, 3 rodadas): antes 66,8 (1ª execução do worktree, importação) / 76,7 / 76,0; depois 75,9 / 76,2 / 76,7 (sem regressão; a mobília só é instanciada ao abrir um interior, com mesh e material compartilhados por id e variação).
+Uso de objeto (2026-10-16, #47 fatia 2, M1 Pro com carga 8–11, `stress:500`, 3 rodadas): 77,8 / 72,9 / 74,9 FPS (a posição e a pose de uso só são resolvidas ao abrir ou atualizar um interior; nada novo por quadro na cidade).

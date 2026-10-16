@@ -22,7 +22,7 @@ Blocos opcionais do período (ADR-0034, #47 fatia 1). Ausentes = comportamento e
 | `shape[].offset` | Centro da parte relativo à base (chão) do objeto |
 | `shape[].symmetry` | `none`, `x`, `z` ou `xz`: espelha a parte nos eixos citados |
 | `variationSeed` | 0 = forma exata; ≠ 0 = índice de variação (0–3) por posição, mesma seed, mesma variação |
-| `usePoints` | Onde o corpo encosta; lido a partir da fatia 2 |
+| `usePoints[]` | `name`, `offset` (3 números, a partir da base), `facing` (graus), `action` (id de `ActionType`, opcional) e `pose` (`idle\|walk\|sleep\|work\|eat\|socialize\|buy\|power`, opcional). Com `action`, o servidor põe quem faz essa ação no objeto (`usingObject`); sem `pose` vale a pose da ação (ADR-0037) |
 | `Furnishings` | Chave `default` ou id do tipo de prédio → lista ordenada de ids |
 
 ## Onde vive

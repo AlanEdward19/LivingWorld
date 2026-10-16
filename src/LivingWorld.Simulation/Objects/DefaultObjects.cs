@@ -16,6 +16,16 @@ public static class DefaultObjects
         ("anvil", "tool", 0.35, 0.3, 0.2, "5b6068"),
     ];
 
+    /// <summary>Pontos de uso (#47 fatia 2): objeto → (nome, ActionType, pose, offset local, facing em graus). Ids de ação: Eat 0, Sleep 1, Work 2, Socialize 3.</summary>
+    private static readonly Dictionary<string, (string Name, int Action, string Pose, double X, double Y, double Z, double Facing)> UsePoints = new()
+    {
+        ["bed"] = ("lie", 1, "sleep", 0.0, 0.05, 0.3, 0.0),
+        ["table"] = ("eat", 0, "eat", 0.0, 0.0, 0.45, 180.0),
+        ["bench"] = ("sit", 3, "socialize", 0.0, 0.0, 0.3, 180.0),
+        ["anvil"] = ("hammer", 2, "work", 0.0, 0.0, 0.3, 180.0),
+        ["counter"] = ("serve", 2, "work", 0.0, 0.0, -0.35, 0.0),
+    };
+
     /// <summary>Acrescenta <c>objectsFormat</c>, <c>Objects</c> e <c>Furnishings</c> ao JSON do período.</summary>
     public static void AddTo(JsonObject root)
     {
@@ -33,6 +43,7 @@ public static class DefaultObjects
                     ["offset"] = new JsonArray(0.0, y / 2.0, 0.0),
                     ["color"] = color,
                 }),
+                ["usePoints"] = UsePointsOf(id),
             });
         root["objectsFormat"] = 1;
         root["Objects"] = objects;
@@ -47,6 +58,18 @@ public static class DefaultObjects
             ["11"] = Ids("counter", "table", "shelf", "crate"),
         };
     }
+
+    private static JsonArray UsePointsOf(string id) =>
+        UsePoints.TryGetValue(id, out var p)
+            ? new JsonArray(new JsonObject
+            {
+                ["name"] = p.Name,
+                ["offset"] = new JsonArray(p.X, p.Y, p.Z),
+                ["facing"] = p.Facing,
+                ["action"] = p.Action,
+                ["pose"] = p.Pose,
+            })
+            : new JsonArray();
 
     private static JsonArray Ids(params string[] ids) => new(ids.Select(id => (JsonNode?)JsonValue.Create(id)).ToArray());
 }
