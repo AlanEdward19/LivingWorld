@@ -23,6 +23,7 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 - **CI após #47**: `develop` verde no run `38885386561` (gate e cliente); integração com #65/#67 validada novamente antes de atualizar o PR.
 - **#47 fatia 2 (branch `feat/objetos-uso-fatia2`, sobre a fatia 1 já mergeada (#99), 2026-10-16)**: pontos de uso com `action`/`pose`, `usingObject` no interior e pose por (ação, objeto), ADR-0037; plano em `.specs/features/object-use/`. Faltam 3 a 6.
 - **#47 fatia 3 (branch `feat/objetos-efeitos-fatia3`, 2026-10-16)**: `effects` (`sleep:`/`eat:`), `interactions` (profissão/habilidade), duração de dormir e comer dividida pelo efeito, `Comfort` no `DecisionContext`, ADR-0038; plano em `.specs/features/object-effects/`. Faltam 4 (comida como objeto), 5 (invenções, depende da #61), 6 (mods).
+- **#47 fatia 4 (branch `feat/objetos-comida-fatia4`, 2026-10-16)**: recursos do cenário como objetos (`resourceId`, efeitos `hunger:`/`thirst:` = nível restaurado ao consumir), `TryApplyEat` lê o descritor, paridade de hash com os valores de hoje, ADR-0039; plano em `.specs/features/object-resources/`. Faltam 5 (invenções, depende da #61) e 6 (mods).
 - **Integração do extraordinário (2026-08-12)**: decisão **mista**, sem fase numerada nova para "super-heróis" —
   distribuída entre Fases 16, 17, 23, 24, 25, com toques em 10, 12, 22. ADR-0010 + `docs/domain/powers.md`.
 - **Dívida Fase 9**: PERF-12 hasher; `LongRunScaleTests` só nightly.

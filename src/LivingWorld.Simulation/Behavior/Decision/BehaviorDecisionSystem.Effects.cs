@@ -2,6 +2,7 @@ using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.History;
+using LivingWorld.Domain.Objects;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Resolvers;
@@ -10,6 +11,7 @@ using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Economy.Market;
 using LivingWorld.Simulation.Emergence;
 using LivingWorld.Simulation.Extraordinary.Engine;
+using LivingWorld.Simulation.Objects;
 using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Behavior.Decision;
@@ -178,7 +180,7 @@ public sealed partial class BehaviorDecisionSystem
         var meal = household is null ? new ResourceType(econ.FoodResourceId) : FoodResolver.ResolveMeal(world, household);
         if (meal.Id > 0 && (household?.Withdraw(meal, 1).IsSuccess == true || TryRation(world, npc, meal)))
         {
-            npc.SetHunger(100, tick);
+            npc.SetHunger(Math.Max(npc.HungerAt(tick), ObjectUse.ConsumeLevel(world, meal, ObjectEffectTargets.Hunger)), tick);
             world.RecordResourceConsumed(meal, 1);
             fed = true;
         }
@@ -186,7 +188,7 @@ public sealed partial class BehaviorDecisionSystem
         var water = new ResourceType(econ.WaterResourceId);
         if (household?.Withdraw(water, 1).IsSuccess == true || TryRation(world, npc, water))
         {
-            npc.SetThirst(100, tick);
+            npc.SetThirst(Math.Max(npc.ThirstAt(tick), ObjectUse.ConsumeLevel(world, water, ObjectEffectTargets.Thirst)), tick);
             world.RecordResourceConsumed(water, 1);
             fed = true;
         }

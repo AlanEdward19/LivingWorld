@@ -73,7 +73,7 @@ public class ObjectEffectsTests
     [Theory]
     [InlineData("sleep", "effects[0]")]
     [InlineData(":0.5", "effects[0]")]
-    [InlineData("fly:0.5", "alvo 'fly' desconhecido")]
+    [InlineData("fly:0.5", "alvo 'fly' inválido")]
     [InlineData("sleep:abc", "magnitude")]
     [InlineData("sleep:-1", "magnitude")]
     [InlineData("sleep:-3", "magnitude")]
