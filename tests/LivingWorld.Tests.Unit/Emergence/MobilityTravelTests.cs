@@ -110,4 +110,26 @@ public class MobilityTravelTests
         Assert.True(BehaviorDecisionSystem.CommuteLeadHours(world, npc, ActionType.Work) < leadBefore);
         Assert.True(BehaviorDecisionSystem.TravelArrivalTick(world, npc, index)!.Value < arrivalBefore);
     }
+
+    [Fact]
+    public void Household_relocation_trip_to_another_city_arrives_sooner_with_adopted_pace()
+    {
+        var (world, _) = ScenarioRunner.Create(3, emergenceRules: Rules);
+        var npc = world.Npcs.First(n => n.IsAlive && n.Household is not null);
+        var household = world.FindHousehold(npc.Household!.Value)!;
+        var far = new LivingWorld.Domain.Cities.City(
+            world.NextCityId(), new CellCoord(npc.CurrentLocation.X + 14, npc.CurrentLocation.Y + 14), 0, null,
+            LivingWorld.Domain.Cities.AggregatePopulationPool.Empty);
+        world.AddCity(far);
+        household.BeginRelocation(far.Id);
+        npc.SetCurrentAction(ActionType.Travel, 0);
+        var index = MarketIndex.BuildForTick(world);
+        long before = BehaviorDecisionSystem.TravelArrivalTick(world, npc, index)!.Value;
+
+        ForceAdoption(world);
+
+        long after = BehaviorDecisionSystem.TravelArrivalTick(world, npc, index)!.Value;
+        Assert.True(before > 2, $"arrival={before}");
+        Assert.True(after < before);
+    }
 }
