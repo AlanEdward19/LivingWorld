@@ -21,17 +21,10 @@ public static class GuestLodging
         public readonly Dictionary<CityId, ValuationContext> Contexts = new();
     }
 
-    private static readonly ConditionalWeakTable<WorldState, PriceCache> Caches = new();
+    private static ConditionalWeakTable<WorldState, PriceCache>? Caches;
 
-    private static readonly ConditionalWeakTable<CityCatalog, object> HasNightlyByCatalog = new();
-    private static readonly object Yes = new();
-    private static readonly object No = new();
-
-    /// <summary>Algum tipo do cenário tem diária? O catálogo é imutável, então a resposta vale para sempre e a consulta —
-    /// que roda a cada decisão de dormir — não aloca nem varre nada depois da primeira vez.</summary>
-    public static bool Exists(WorldState world) =>
-        ReferenceEquals(HasNightlyByCatalog.GetValue(world.CityCatalog, catalog =>
-            catalog.BuildingRecipes.Values.Any(recipe => recipe.Lodging is { NightlyRate: > 0 }) ? Yes : No), Yes);
+    /// <summary>Flag derivada no bootstrap: nenhuma varredura nem cache é alocado na consulta sem diária.</summary>
+    public static bool Exists(WorldState world) => world.CityCatalog.HasNightlyLodging;
 
     public readonly record struct Room(Building Building, Workplace Landlord, long Nightly, CellCoord Cell);
 
@@ -84,7 +77,7 @@ public static class GuestLodging
 
     private static long NightlyPrice(WorldState world, Building building, BuildingRecipe recipe)
     {
-        var cache = Caches.GetOrCreateValue(world);
+        var cache = LazyInitializer.EnsureInitialized(ref Caches).GetOrCreateValue(world);
         long hour = world.CurrentDate.TotalHours;
         if (cache.Hour != hour)
         {

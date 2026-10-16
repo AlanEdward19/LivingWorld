@@ -13,7 +13,6 @@ const WALL_STONE := 0
 const WALL_WOOD := 1
 const DOOR := 2
 const STAIR := 4
-const MAX_LODGING_BEDS := 12
 const CUTAWAY_HEIGHT := 0.22 ## paredes voltadas para a câmera ficam baixas para ver dentro
 
 var origin := Vector2i.ZERO ## célula do mundo onde começa a planta do prédio
@@ -69,41 +68,50 @@ func show_interior(info: Dictionary, p_origin: Vector2i, labels, building_type: 
 	set_floor(floor_count - 1 if current_floor >= floor_count else current_floor)
 
 
-## Mobília do catálogo para o tipo do prédio, no térreo: peças em células de piso escolhidas pela
-## semente da posição do prédio (mesma casa, mesma disposição). Nunca ocupa parede, porta ou escada.
+## Leitos usam o piso livre de todos os andares; outras peças do catálogo ficam no térreo.
+## Nunca ocupa parede, porta ou escada. Cada peça pertence ao andar para respeitar o corte de visão.
 func _place_furniture(info: Dictionary, building_type: int, lodging_units: int = 0) -> void:
-	var ground: Node3D = floor_nodes.get(0)
-	if ground == null or info.layout.is_empty():
-		return
-	var free_cells: Array[Vector2i] = []
-	for entry in info.layout[0].cells:
-		if int(entry.material) not in [WALL_STONE, WALL_WOOD, DOOR, STAIR]:
-			free_cells.append(Vector2i(int(entry.cell.x), int(entry.cell.y)))
-	free_cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
-	if free_cells.is_empty():
-		return
-	furniture = Node3D.new()
-	furniture.name = "Furniture"
-	ground.add_child(furniture)
-	var seed_value := origin.x * 31 + origin.y
-	var stride := maxi(free_cells.size() / 5, 1)
-	var used := {}
-	var index := 0
-	var pieces: Array = catalog.furniture_for(building_type).duplicate()
-	for i in mini(lodging_units, MAX_LODGING_BEDS): # um leito por vaga de hospedagem, vinda do servidor
-		pieces.append("bed")
-	for piece_id in pieces:
-		if used.size() >= free_cells.size():
-			break # sem célula livre sobrando: nunca duas peças no mesmo lugar
-		var slot := (seed_value + index * stride) % free_cells.size()
-		while used.has(slot) and used.size() < free_cells.size():
-			slot = (slot + 1) % free_cells.size()
-		used[slot] = true
-		_add_piece(String(piece_id), origin + free_cells[slot])
-		index += 1
+	var remaining := lodging_units
+	for floor_layout in info.layout:
+		var level := int(floor_layout.level)
+		var floor_node: Node3D = floor_nodes.get(level)
+		if floor_node == null or (level != 0 and remaining <= 0):
+			continue
+		var free_cells: Array[Vector2i] = []
+		for entry in floor_layout.cells:
+			if int(entry.material) not in [WALL_STONE, WALL_WOOD, DOOR, STAIR]:
+				free_cells.append(Vector2i(int(entry.cell.x), int(entry.cell.y)))
+		free_cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
+		if free_cells.is_empty():
+			continue
+		var floor_furniture := Node3D.new()
+		floor_furniture.name = "Furniture"
+		floor_node.add_child(floor_furniture)
+		if level == 0:
+			furniture = floor_furniture
+		var seed_value := origin.x * 31 + origin.y
+		var stride := maxi(free_cells.size() / 5, 1)
+		var used := {}
+		var index := 0
+		var pieces: Array = []
+		var beds := mini(remaining, free_cells.size())
+		remaining -= beds
+		for i in beds:
+			pieces.append("bed")
+		if level == 0:
+			pieces.append_array(catalog.furniture_for(building_type))
+		for piece_id in pieces:
+			if used.size() >= free_cells.size():
+				break
+			var slot := (seed_value + index * stride) % free_cells.size()
+			while used.has(slot) and used.size() < free_cells.size():
+				slot = (slot + 1) % free_cells.size()
+			used[slot] = true
+			_add_piece(String(piece_id), origin + free_cells[slot], floor_furniture)
+			index += 1
 
 
-func _add_piece(piece_id: String, cell: Vector2i) -> void:
+func _add_piece(piece_id: String, cell: Vector2i, parent: Node3D) -> void:
 	var spec: Dictionary = catalog.piece(piece_id)
 	var size: Array = spec.size
 	var node := MeshInstance3D.new()
@@ -113,7 +121,7 @@ func _add_piece(piece_id: String, cell: Vector2i) -> void:
 	node.mesh = mesh
 	node.material_override = _material(Color(String(spec.color)))
 	node.position = Grid.to_world(cell, size[1] / 2.0)
-	furniture.add_child(node)
+	parent.add_child(node)
 
 
 func _add_cell(parent: Node3D, entry: Dictionary, level: int) -> void:
