@@ -81,6 +81,17 @@ public static class ObjectUse
         return bonus == 0.0 ? baseHours : Math.Max(1, (int)Math.Ceiling(baseHours / (1.0 + bonus)));
     }
 
+    /// <summary>Nível a que consumir 1 unidade do recurso restaura a necessidade (0–100): o do descritor do recurso no catálogo,
+    /// ou 100 (a regra de sempre) sem catálogo, sem descritor ou sem o efeito (#47 fatia 4, ADR-0039). Nunca reduz a necessidade: o chamador usa max.</summary>
+    public static int ConsumeLevel(WorldState world, LivingWorld.Domain.Geography.ResourceType resource, string target)
+    {
+        if (world.ObjectCatalog is not { } catalog || catalog.ForResource(resource.Id) is not { Effects: { } effects }) return 100;
+        for (int i = 0; i < effects.Count; i++)
+            if (effects[i].Target == target)
+                return (int)Math.Round(effects[i].Magnitude, MidpointRounding.AwayFromZero);
+        return 100;
+    }
+
     public static ObjectComfort ComfortOf(WorldState world, Npc npc) =>
         world.ObjectCatalog is null
             ? default

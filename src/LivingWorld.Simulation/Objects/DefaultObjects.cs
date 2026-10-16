@@ -45,6 +45,10 @@ public static class DefaultObjects
                 }),
                 ["usePoints"] = UsePointsOf(id),
             });
+        // Recursos do cenário padrão como objetos (#47 fatia 4, ADR-0039): comida (1) e água (2) restauram a necessidade por inteiro,
+        // exatamente a regra de sempre; o autor muda o nível no cenário.
+        objects.Add(ResourceObject("food", 1, "sphere", new JsonArray(0.1), "d9b44a", "hunger:100"));
+        objects.Add(ResourceObject("water", 2, "cylinder", new JsonArray(0.06, 0.2), "4a90d9", "thirst:100"));
         root["objectsFormat"] = 1;
         root["Objects"] = objects;
         root["Furnishings"] = new JsonObject
@@ -70,6 +74,22 @@ public static class DefaultObjects
                 ["pose"] = p.Pose,
             })
             : new JsonArray();
+
+    private static JsonObject ResourceObject(string id, int resourceId, string shape, JsonArray size, string color, string effect) => new()
+    {
+        ["id"] = id,
+        ["category"] = "resource",
+        ["resourceId"] = resourceId,
+        ["variationSeed"] = 0,
+        ["shape"] = new JsonArray(new JsonObject
+        {
+            ["shape"] = shape,
+            ["size"] = size,
+            ["offset"] = new JsonArray(0.0, 0.1, 0.0),
+            ["color"] = color,
+        }),
+        ["effects"] = new JsonArray(effect),
+    };
 
     private static JsonArray Ids(params string[] ids) => new(ids.Select(id => (JsonNode?)JsonValue.Create(id)).ToArray());
 }

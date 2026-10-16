@@ -39,7 +39,8 @@ public class ObjectCatalogTests
     {
         var catalog = ObjectCatalogScenarioLoader.Load(Root()).Value!;
 
-        Assert.Equal(9, catalog.Objects.Count);
+        Assert.Equal(9, catalog.Objects.Count(o => o.ResourceId is null));
+        Assert.Equal(2, catalog.Objects.Count(o => o.ResourceId is not null));
         Assert.Equal(["bed", "table", "chest"], catalog.FurnishingFor(3));
         Assert.Equal(["table", "bench", "crate"], catalog.FurnishingFor(999));
     }
@@ -53,7 +54,7 @@ public class ObjectCatalogTests
         var catalog = ObjectCatalogScenarioLoader.Load(Root()).Value!;
 
         var pieces = assets["pieces"]!.AsObject();
-        Assert.Equal(pieces.Count, catalog.Objects.Count);
+        Assert.Equal(pieces.Count, catalog.Objects.Count(o => o.ResourceId is null));
         foreach (var (id, spec) in pieces)
         {
             var part = catalog.Find(id)!.Shape.Single();
@@ -167,7 +168,7 @@ public class ObjectCatalogTests
         var snapshot = InteriorProjector.Build(world, building.Id).Value!;
 
         Assert.Equal(["bed", "bed", "table", "chest"], snapshot.Objects!.Furniture.Select(p => p.Id));
-        Assert.Equal(9, snapshot.Objects.Catalog.Count);
+        Assert.Equal(11, snapshot.Objects.Catalog.Count); // 9 peças de mobília + os 2 recursos padrão
     }
 
     [Fact]

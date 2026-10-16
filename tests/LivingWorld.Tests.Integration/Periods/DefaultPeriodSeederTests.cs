@@ -64,7 +64,7 @@ public class DefaultPeriodSeederTests
         {
             var catalog = ScenarioLoaderV2.LoadWorld(json).Value.World.ObjectCatalog;
             Assert.NotNull(catalog);
-            Assert.Equal(9, catalog.Objects.Count);
+            Assert.Equal(9, catalog.Objects.Count(o => o.ResourceId is null));
             Assert.Equal(["bed", "bed", "table", "chest"], catalog.FurnishingFor(10));
             Assert.Equal(["table", "bench", "crate"], catalog.FurnishingFor(999));
         }

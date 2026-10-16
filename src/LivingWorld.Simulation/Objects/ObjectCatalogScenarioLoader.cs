@@ -32,6 +32,8 @@ public static class ObjectCatalogScenarioLoader
             var parsed = ParseObject(array[i], $"Objects[{i}]");
             if (!parsed.IsSuccess) return Fail(parsed.Error!);
             if (objects.Any(o => o.Id == parsed.Value!.Id)) return Fail($"Objects[{i}].id: '{parsed.Value!.Id}' duplicado");
+            if (parsed.Value!.ResourceId is int resourceId && objects.Any(o => o.ResourceId == resourceId))
+                return Fail($"Objects[{i}].resourceId: o recurso {resourceId} já tem descritor");
             objects.Add(parsed.Value!);
         }
 
@@ -109,9 +111,17 @@ public static class ObjectCatalogScenarioLoader
         }
         var interactions = ParseInteractions(o["interactions"], at);
         if (!interactions.IsSuccess) return Result<ObjectDescriptor>.Fail(interactions.Error!);
-        var effects = ParseEffects(o["effects"], at);
+        int? resourceId = null;
+        if (o["resourceId"] is not null)
+        {
+            if (o["resourceId"] is not JsonValue rv || !rv.TryGetValue(out int resource) || resource <= 0)
+                return Result<ObjectDescriptor>.Fail($"{at}.resourceId: id de recurso inteiro maior que 0");
+            resourceId = resource;
+        }
+
+        var effects = ParseEffects(o["effects"], at, isResource: resourceId is not null);
         if (!effects.IsSuccess) return Result<ObjectDescriptor>.Fail(effects.Error!);
-        return Result<ObjectDescriptor>.Ok(new ObjectDescriptor(id, category, parts, seed, points, interactions.Value, effects.Value));
+        return Result<ObjectDescriptor>.Ok(new ObjectDescriptor(id, category, parts, seed, points, interactions.Value, effects.Value, resourceId));
     }
 
     private static Result<IReadOnlyList<ObjectInteraction>?> ParseInteractions(JsonNode? node, string at)
@@ -149,7 +159,7 @@ public static class ObjectCatalogScenarioLoader
         return Result<IReadOnlyList<ObjectInteraction>?>.Ok(list);
     }
 
-    private static Result<IReadOnlyList<ObjectEffect>?> ParseEffects(JsonNode? node, string at)
+    private static Result<IReadOnlyList<ObjectEffect>?> ParseEffects(JsonNode? node, string at, bool isResource)
     {
         if (node is null) return Result<IReadOnlyList<ObjectEffect>?>.Ok(null);
         if (node is not JsonArray array) return Result<IReadOnlyList<ObjectEffect>?>.Fail($"{at}.effects: precisa ser uma lista");
@@ -163,10 +173,22 @@ public static class ObjectCatalogScenarioLoader
             if (cut <= 0)
                 return Result<IReadOnlyList<ObjectEffect>?>.Fail($"{path}: use 'alvo:magnitude'");
             var target = token[..cut];
-            if (!ObjectEffectTargets.Known.Contains(target))
-                return Result<IReadOnlyList<ObjectEffect>?>.Fail($"{path}: alvo '{target}' desconhecido (use {string.Join("|", ObjectEffectTargets.Known)})");
-            if (!double.TryParse(token[(cut + 1)..], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var magnitude)
-                || !double.IsFinite(magnitude) || magnitude <= -1.0)
+            var allowed = isResource ? ObjectEffectTargets.ResourceTargets : ObjectEffectTargets.Known;
+            if (!allowed.Contains(target))
+                return Result<IReadOnlyList<ObjectEffect>?>.Fail($"{path}: alvo '{target}' inválido para {(isResource ? "um objeto de recurso" : "um objeto sem resourceId")} (use {string.Join("|", allowed)})");
+            bool parsed = double.TryParse(token[(cut + 1)..], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var magnitude)
+                && double.IsFinite(magnitude);
+            if (isResource)
+            {
+                if (!parsed || magnitude < 0 || magnitude > 100)
+                    return Result<IReadOnlyList<ObjectEffect>?>.Fail($"{path}: o nível de '{target}' deve ser um número de 0 a 100");
+                if (list.Any(e => e.Target == target))
+                    return Result<IReadOnlyList<ObjectEffect>?>.Fail($"{path}: alvo '{target}' repetido no mesmo objeto");
+                list.Add(new ObjectEffect(target, magnitude));
+                continue;
+            }
+
+            if (!parsed || magnitude <= -1.0)
                 return Result<IReadOnlyList<ObjectEffect>?>.Fail($"{path}: magnitude deve ser um número maior que -1");
             list.Add(new ObjectEffect(target, magnitude));
             if (list.Where(e => e.Target == target).Sum(e => e.Magnitude) <= -1.0)
