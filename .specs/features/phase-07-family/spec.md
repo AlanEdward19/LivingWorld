@@ -1,9 +1,9 @@
-> **Estado: Parcial** (2026-10-15) — FAM-32 implementado em validação (ADR-0034); FAM-06/20/22 sem prova completa.
+> **Estado: Parcial** (2026-10-15) — FAM-32 Verified (ADR-0034 e Verifier independente PASS); FAM-06/20/22 sem prova completa.
 
 # Fase 7 — Relações e famílias — Specification
 
 Especificação preservada em partes curtas; este arquivo é seu índice permanente.
-FAM-32 está em revisão pela #65 e ADR-0034; as demais obrigações são preservadas.
+FAM-32 foi verificado pela #65 e ADR-0034; as demais obrigações são preservadas.
 
 ## Requisitos e desenho
 

@@ -113,6 +113,7 @@ public class LodgingSystemTests
     [InlineData(100, 1, 40, 0)]
     [InlineData(100, 1, -1, 3)]
     [InlineData(-1, 1, 0, 0)]
+    [InlineData(0, 0, 0, 0)]
     public void Loader_rejects_each_invalid_lodging_boundary(long rent, int grace, long nightly, int distance)
     {
         var root = DefaultRoot();
@@ -135,12 +136,11 @@ public class LodgingSystemTests
     [Fact]
     public void Loader_reads_lodging_terms_and_rejects_invalid_ones()
     {
-        var world = WorldWithInn();
+        var world = WorldWithInn(tune: recipe => recipe["Lodging"]!["GraceMonths"] = 0);
         var terms = world.CityCatalog.BuildingRecipes[InnTypeId].Lodging;
-        Assert.Equal(new LodgingTerms(Rent, 1), terms);
+        Assert.Equal(new LodgingTerms(Rent, 0), terms);
 
         var broken = DefaultRoot();
-        ((JsonArray)broken["Workplaces"]!).Add(new JsonObject());
         broken["BuildingRecipes"]!["13"] = new JsonObject
         {
             ["Inputs"] = new JsonObject(),
@@ -356,6 +356,14 @@ public class LodgingSystemTests
         var housedIndex = world.Households.OrderBy(h => h.Id.Value).Select((h, i) => (h, i))
             .First(x => x.i > 0 && x.h.Dwelling != Inn(world).Id && bounds.Contains(x.h.Location)).i;
         var housed = Tenant(world, housedIndex, wallet: 500);
+        // Mesma residência dentro dos bounds e comida suficiente: somente perder a moradia provoca a saída.
+        evicted.CompleteRelocation(home.Id, housed.Location);
+        var food = new ResourceType(world.EconomyRules.FoodResourceId);
+        evicted.Deposit(food, 100);
+        housed.Deposit(food, 100);
+        Assert.True(bounds.Contains(evicted.Location));
+        Assert.True(evicted.IsHomeless);
+        Assert.DoesNotContain(world.Workplaces, workplace => workplace.City == elsewhere.Id);
 
         new MigrationSystem().Tick(world, new TickContext(world, world.Rng, world.Scheduler));
 

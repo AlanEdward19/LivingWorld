@@ -1,4 +1,4 @@
-# FAM-32: diversidade calibrada [Estado: Implementado; verificação independente pendente]
+# FAM-32: diversidade calibrada [Estado: Verificado (2026-10-15)]
 
 ## Problem
 

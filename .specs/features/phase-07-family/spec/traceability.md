@@ -33,7 +33,7 @@
 | FAM-29 | Verificação: nenhum nascimento com mãe fora da janela de fertilidade | Design | Verified - tests/LivingWorld.Tests.LongRunning/Population/FamilyPairedScenarioTests.cs.Every_birth_in_horizon_has_valid_parents_alive_at_conception_and_fertile_mother_age |
 | FAM-30 | Verificação: incesto negativo (10 anos, zero casamentos 1º grau) | Design | Verified - tests/LivingWorld.Tests.LongRunning/Population/FamilyPairedScenarioTests.cs.Ten_years_default_scenario_has_zero_marriages_between_first_degree_relatives |
 | FAM-31 | Verificação: incesto positivo (cenário dedicado, rejeição `Incesto`) | Design | Verified - tests/LivingWorld.Tests.LongRunning/Population/FamilyPairedScenarioTests.cs.Dedicated_sibling_cohabitation_scenario_rejects_courtship_with_Incesto |
-| FAM-32 | Diversidade calibrada, controle negativo e piso positivo em 100 anos (ADR-0034) | Design | Implementing - FamilyDiversityCalibrationTests; baseline de 20 seeds gravado, verificação independente pendente |
+| FAM-32 | Diversidade calibrada, controle negativo e piso positivo em 100 anos (ADR-0034) | Design | Verified - FamilyDiversityCalibrationTests; baseline de 20 seeds e Verifier independente PASS em family-diversity-calibration/verification.md |
 | FAM-33 | Verificação: bootstrap `\|r\|` genética×sucesso, IC95 abaixo do mundo sem canal ambiental | Design | Verified - tests/LivingWorld.Tests.LongRunning/Population/FamilyPairedScenarioTests.cs.Environmental_channel_dilutes_vitality_wallet_correlation_below_channel_off_bootstrap_ci |
 | FAM-34 | Verificação: distância mesma-genética/seeds-ambientais ≥ distância mesma-ambiental/genéticas-diferentes | Design | Verified - tests/LivingWorld.Tests.LongRunning/Population/FamilyPairedScenarioTests.cs.Household_wealth_distance_is_at_least_as_large_as_genome_distance |
 | FAM-35 | Verificação: contrafactual household — medianas diferem e distribuições se sobrepõem (≥ overlap de genomas extremos) | Design | Verified - tests/LivingWorld.Tests.LongRunning/Population/FamilyPairedScenarioTests.cs.Rich_vs_poor_household_wealth_median_difference_bootstrap_ci95_excludes_zero |
@@ -43,4 +43,4 @@
 
 **Status values:** Pending → In Design → In Tasks → Implementing → Verified
 
-**Coverage (specs-closeout 2026-10-12):** 36 linhas — 32 Verified, 4 Pending (FAM-06, FAM-20, FAM-22, FAM-32).
+**Coverage (Verifier 2026-10-15):** 36 linhas — 33 Verified, 3 Pending (FAM-06, FAM-20, FAM-22).

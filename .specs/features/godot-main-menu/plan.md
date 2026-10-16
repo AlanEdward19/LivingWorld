@@ -1,4 +1,4 @@
-# Godot main menu [Estado: Fatias 1–3 implementadas; mundos salvos em validação (#67); telas de backend entregues pela #59]
+# Godot main menu [Estado: Fatias 1–3 implementadas; mundos salvos verificados (#67); telas de backend entregues pela #59]
 
 ## Problem
 
@@ -66,7 +66,7 @@ Contrato novo é decisão do dono do projeto (AGENTS.md: perguntar antes).
 
 ## Out of scope (fatias seguintes, cada uma com spec)
 
-Mundos salvos implementados em `.specs/features/saved-worlds/` (#67, ADR-0035): lista, carga e exclusão confirmada; verificação independente pendente.
+Mundos salvos implementados em `.specs/features/saved-worlds/` (#67, ADR-0035): lista, carga e exclusão confirmada; Verifier independente PASS em `saved-worlds/verification.md`.
 
 Entregues depois, cada uma com spec própria em `.specs/features/`: conversa com NPC (`godot-npc-conversation`),
 crônicas, biografias e relatos (`godot-narratives`), crenças (`godot-beliefs`), encarnar jogador (`godot-player`),

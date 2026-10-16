@@ -1,4 +1,4 @@
-# Mundos salvos [Estado: Implementado; verificação independente pendente]
+# Mundos salvos [Estado: Verificado (2026-10-15)]
 
 ## Problem
 

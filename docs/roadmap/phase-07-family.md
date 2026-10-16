@@ -3,6 +3,8 @@
 **Objetivo**: fecha o **objetivo técnico #1** — 100 NPCs rodam 100 anos sem LLM, formando
 casais, tendo filhos e produzindo linhagens rastreáveis que não colapsam em clones.
 
+**FAM-32 Verified (2026-10-15)**: prova independente em `family-diversity-calibration/verification.md`; FAM-06/20/22 permanecem pendentes na spec.
+
 ## Tasks
 1. **Relação com eixos numéricos**: confiança, afeto, respeito, dívida. Par ordenado
    (A→B) — relação não é simétrica. Evolui por evento (ajuda, traição, convívio,
