@@ -192,6 +192,27 @@ func test_using_object_without_a_placed_piece_falls_back_without_error() -> void
 	view.free()
 
 
+func test_lodging_beds_on_upper_floors_are_not_use_targets_but_ground_ones_are() -> void:
+	var info := _room()
+	info["objects"] = _objects([_point("sleep")], 1)
+	info["occupants"] = [_occupant(4, SLEEP, "bed", 0), _occupant(5, SLEEP, "bed", 1)]
+	var view := InteriorView.new()
+	view.catalog = AssetCatalog.load_default()
+	tree.root.add_child(view)
+
+	view.show_interior(info, Vector2i(10, 10), ActionLabels.new(), 3, 3)
+
+	var ground_beds: Array = view._object_bases["bed"]
+	eq(ground_beds.size(), 4, "3 leitos de hospedagem no térreo (1º andar de leitos) + 1 do catálogo; os do andar de cima não entram")
+	var sleeper_on_ground := false
+	for base in ground_beds:
+		if view.occupant_nodes[4].position.is_equal_approx(base + Vector3(0.0, 0.05, 0.3)):
+			sleeper_on_ground = true
+	check(sleeper_on_ground, "o dorminhoco do térreo está no ponto de uso de uma cama do térreo")
+	check(view.occupant_nodes[5].position.y >= 1.0 - 0.001 and view.occupant_nodes[5].use_bed, "o do andar de cima segue com a cama própria")
+	view.free()
+
+
 func test_the_store_keeps_using_object_from_snapshot_and_delta() -> void:
 	var store := preload("res://Store/world_store.gd").new()
 	store.interior = {"occupants": [_occupant(7, SLEEP, "bed")]}
