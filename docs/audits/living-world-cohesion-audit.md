@@ -26,6 +26,8 @@ Fonte: COH-61 / doc#22–23. Status pós P1–P2 (causal events, Body, DecisionC
 | MuscleMass | CAUSAL | Grows from heavy labor; `WorkCapacityMultiplier` + `CombatOffenseMultiplier` |
 | WorkCapacityMultiplier | CAUSAL | ProductionSystem output |
 | MovementCostMultiplier | CAUSAL | Travel time |
+| Tecnologia `pace` (eixo 0) | CAUSAL | `Mobility.TravelTicks`: todo `Travel` (trabalho, cama, mercado, visita, migração), #61 fatia A |
+| Tecnologia `load` / `reach` (eixos 1–2) | FUTURE_DEPENDENCY | Descobertos e adotados; sem consumidor (carga por ida, alcance de rota) — #61 |
 | Vitality | CAUSAL | Mortality / conception floors (pre-16.3) |
 | Upbringing | PARTIALLY_INTEGRATED | Wealth/wage channel; not yet full DecisionContext pressure |
 | Hunger/Thirst/Sleep/Social | CAUSAL | NeedsSnapshot + urgency wakes |

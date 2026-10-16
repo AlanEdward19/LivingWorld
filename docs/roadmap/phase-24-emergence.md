@@ -5,7 +5,7 @@ porque o motor as deriva por composição de eixos já declarados. A LLM só pro
 entidade emergente existe, funciona e entra na conta **antes de ter nome** (ADR-0013).
 Nomear é etiquetar o que o motor já instanciou — nunca criar fato.
 
-> **Status: parcial.** Entregue: tecnologia de mobilidade por composição (plano `.specs/features/emergence-first-slice`, AD-110).
+> **Status: parcial.** Entregue: tecnologia de mobilidade por composição (plano `.specs/features/emergence-first-slice`, AD-110) e consumo por todo deslocamento (`.specs/features/mobility-all-travel`, #61 fatia A).
 > Resto: #61. As tasks não entregues continuam com critério de intenção; o critério final é escrito ao ativar a fatia (`rules/eval-criteria.md`).
 
 ## Tasks
