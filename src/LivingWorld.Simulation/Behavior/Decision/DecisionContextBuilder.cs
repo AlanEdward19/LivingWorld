@@ -47,7 +47,8 @@ public static class DecisionContextBuilder
             npc.CurrentAction,
             ForesightPreviews: ForesightMechanic.PreviewsFor(world, npc.Id, tick),
             WalletAmount: npc.Wallet.Amount,
-            ProvisionTargetDays: provisionTargetDays);
+            ProvisionTargetDays: provisionTargetDays,
+            Comfort: LivingWorld.Simulation.Objects.ObjectUse.ComfortOf(world, npc));
     }
 
     internal static BodySnapshot BuildBodySlice(WorldState world, Npc npc) =>

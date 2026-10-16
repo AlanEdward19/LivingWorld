@@ -21,6 +21,23 @@ public class MeasureHarness
         public void Record(WorldEvent e) => Counts[e.Kind] = Counts.GetValueOrDefault(e.Kind) + 1;
     }
 
+    /// <summary>LW_MEASURE_OBJECTS=1 liga o catálogo de objetos com efeitos nos lares (mede o custo de ObjectUse); sem ele, como sempre.</summary>
+    private static LivingWorld.Domain.Objects.ObjectCatalog? MeasuredCatalog()
+    {
+        if (Environment.GetEnvironmentVariable("LW_MEASURE_OBJECTS") != "1") return null;
+        var root = new System.Text.Json.Nodes.JsonObject();
+        LivingWorld.Simulation.Objects.DefaultObjects.AddTo(root);
+        ((System.Text.Json.Nodes.JsonObject)root["Furnishings"]!)["-1"] = new System.Text.Json.Nodes.JsonArray("bed", "table");
+        foreach (var o in (System.Text.Json.Nodes.JsonArray)root["Objects"]!)
+        {
+            var id = (string)o!["id"]!;
+            if (id == "bed") o["effects"] = new System.Text.Json.Nodes.JsonArray("sleep:0.5");
+            if (id == "table") o["effects"] = new System.Text.Json.Nodes.JsonArray("eat:0.5");
+        }
+
+        return LivingWorld.Simulation.Objects.ObjectCatalogScenarioLoader.Load(root).Value;
+    }
+
     [Fact]
     public void Measure()
     {
@@ -29,7 +46,7 @@ public class MeasureHarness
         double bestMicros = double.MaxValue, alloc = 0;
         for (int run = 0; run < 3; run++)
         {
-            var (world, clock) = ScaleScenarioFixture.CreateWorld(42, 1000);
+            var (world, clock) = ScaleScenarioFixture.CreateWorld(42, 1000, objectCatalog: MeasuredCatalog());
             GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
             long alive = 0, before = GC.GetTotalAllocatedBytes(true);
             var sw = Stopwatch.StartNew();

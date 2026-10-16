@@ -237,6 +237,18 @@ public class ObjectUseTests
     }
 
     [Fact]
+    public void An_occupant_who_fails_the_objects_requirement_does_not_use_it_in_the_snapshot_either()
+    {
+        var restricted = ObjectCatalogScenarioLoader.Load(Root(r => ((JsonObject)((JsonArray)r["Objects"]!)
+            .Single(o => (string)o!["id"]! == "bed")!)["interactions"] = new JsonArray(new JsonObject { ["action"] = 1, ["profession"] = 2 }))).Value!;
+        var world = WorldWith(restricted);
+        var house = AddBuilding(world, typeId: 3);
+        var sleeper = Enter(world, house, "ana", ActionType.Sleep); // profissão 1: não cumpre o requisito
+
+        Assert.Null(Using(world, house, sleeper));
+    }
+
+    [Fact]
     public void A_use_point_without_an_action_attracts_nobody()
     {
         var world = WorldWith(ObjectCatalogScenarioLoader.Load(Root(r => BedPoint(r).Remove("action"))).Value!);

@@ -41,7 +41,7 @@ public static class ObjectCatalogScenarioLoader
             if (root["Furnishings"] is not JsonObject table) return Fail("Furnishings: precisa ser um objeto");
             foreach (var (key, value) in table)
             {
-                if (key != "default" && !int.TryParse(key, out _)) return Fail($"Furnishings.{key}: a chave é 'default' ou o id do tipo de prédio");
+                if (key != "default" && !(int.TryParse(key, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int typeId) && typeId.ToString(System.Globalization.CultureInfo.InvariantCulture) == key)) return Fail($"Furnishings.{key}: a chave é 'default' ou o id do tipo de prédio");
                 if (value is not JsonArray ids) return Fail($"Furnishings.{key}: precisa ser uma lista de ids");
                 var list = new List<string>();
                 foreach (var node in ids)
@@ -107,7 +107,72 @@ public static class ObjectCatalogScenarioLoader
                 points.Add(new ObjectUsePoint(name, offset.Value!, facing, action, pose));
             }
         }
-        return Result<ObjectDescriptor>.Ok(new ObjectDescriptor(id, category, parts, seed, points));
+        var interactions = ParseInteractions(o["interactions"], at);
+        if (!interactions.IsSuccess) return Result<ObjectDescriptor>.Fail(interactions.Error!);
+        var effects = ParseEffects(o["effects"], at);
+        if (!effects.IsSuccess) return Result<ObjectDescriptor>.Fail(effects.Error!);
+        return Result<ObjectDescriptor>.Ok(new ObjectDescriptor(id, category, parts, seed, points, interactions.Value, effects.Value));
+    }
+
+    private static Result<IReadOnlyList<ObjectInteraction>?> ParseInteractions(JsonNode? node, string at)
+    {
+        if (node is null) return Result<IReadOnlyList<ObjectInteraction>?>.Ok(null);
+        if (node is not JsonArray array) return Result<IReadOnlyList<ObjectInteraction>?>.Fail($"{at}.interactions: precisa ser uma lista");
+        var list = new List<ObjectInteraction>();
+        for (int i = 0; i < array.Count; i++)
+        {
+            var path = $"{at}.interactions[{i}]";
+            if (array[i] is not JsonObject o) return Result<IReadOnlyList<ObjectInteraction>?>.Fail($"{path}: objeto inválido");
+            if (o["action"] is not JsonValue av || !av.TryGetValue(out int action) || !Enum.IsDefined((LivingWorld.Domain.Behavior.ActionType)action))
+                return Result<IReadOnlyList<ObjectInteraction>?>.Fail($"{path}.action: id de ActionType inválido");
+            if (list.Any(x => x.Action == action)) return Result<IReadOnlyList<ObjectInteraction>?>.Fail($"{path}.action: ação {action} repetida");
+            int? profession = null;
+            if (o["profession"] is not null)
+            {
+                if (o["profession"] is not JsonValue pv || !pv.TryGetValue(out int professionId) || professionId < 0)
+                    return Result<IReadOnlyList<ObjectInteraction>?>.Fail($"{path}.profession: id inteiro inválido");
+                profession = professionId;
+            }
+            int? skillId = null;
+            double? skillMin = null;
+            if (o["skill"] is not null)
+            {
+                if (o["skill"] is not JsonObject skill || skill["id"] is not JsonValue sv || !sv.TryGetValue(out int id) || id < 0)
+                    return Result<IReadOnlyList<ObjectInteraction>?>.Fail($"{path}.skill.id: id inteiro obrigatório");
+                if (skill["min"] is not JsonValue mv || !mv.TryGetValue(out double min) || !double.IsFinite(min) || min < 0)
+                    return Result<IReadOnlyList<ObjectInteraction>?>.Fail($"{path}.skill.min: número maior ou igual a 0 obrigatório");
+                skillId = id;
+                skillMin = min;
+            }
+            list.Add(new ObjectInteraction(action, profession, skillId, skillMin));
+        }
+        return Result<IReadOnlyList<ObjectInteraction>?>.Ok(list);
+    }
+
+    private static Result<IReadOnlyList<ObjectEffect>?> ParseEffects(JsonNode? node, string at)
+    {
+        if (node is null) return Result<IReadOnlyList<ObjectEffect>?>.Ok(null);
+        if (node is not JsonArray array) return Result<IReadOnlyList<ObjectEffect>?>.Fail($"{at}.effects: precisa ser uma lista");
+        var list = new List<ObjectEffect>();
+        for (int i = 0; i < array.Count; i++)
+        {
+            var path = $"{at}.effects[{i}]";
+            string token = "";
+            int cut = -1;
+            if (TryString(array[i], out token)) cut = token.IndexOf(':');
+            if (cut <= 0)
+                return Result<IReadOnlyList<ObjectEffect>?>.Fail($"{path}: use 'alvo:magnitude'");
+            var target = token[..cut];
+            if (!ObjectEffectTargets.Known.Contains(target))
+                return Result<IReadOnlyList<ObjectEffect>?>.Fail($"{path}: alvo '{target}' desconhecido (use {string.Join("|", ObjectEffectTargets.Known)})");
+            if (!double.TryParse(token[(cut + 1)..], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var magnitude)
+                || !double.IsFinite(magnitude) || magnitude <= -1.0)
+                return Result<IReadOnlyList<ObjectEffect>?>.Fail($"{path}: magnitude deve ser um número maior que -1");
+            list.Add(new ObjectEffect(target, magnitude));
+            if (list.Where(e => e.Target == target).Sum(e => e.Magnitude) <= -1.0)
+                return Result<IReadOnlyList<ObjectEffect>?>.Fail($"{path}: a soma dos efeitos '{target}' do objeto deve ser maior que -1 (a duração deixaria de ter fim)");
+        }
+        return Result<IReadOnlyList<ObjectEffect>?>.Ok(list);
     }
 
     private static Result<ObjectPart> ParsePart(JsonNode? node, string at)

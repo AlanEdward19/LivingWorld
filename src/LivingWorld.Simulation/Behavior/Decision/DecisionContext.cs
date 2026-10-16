@@ -29,7 +29,8 @@ public sealed record DecisionContext(
     ActionType? CurrentAction,
     IReadOnlyDictionary<ActionType, ResolutionResult>? ForesightPreviews = null,
     long WalletAmount = 0,
-    double ProvisionTargetDays = 2.0);
+    double ProvisionTargetDays = 2.0,
+    LivingWorld.Simulation.Objects.ObjectComfort Comfort = default);
 
 public readonly record struct NeedsSnapshot(int Hunger, int Thirst, int Sleep, int Social);
 

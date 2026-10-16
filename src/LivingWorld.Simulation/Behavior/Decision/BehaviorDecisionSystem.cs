@@ -236,7 +236,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
             return true;
         }
 
-        if (now - npc.ActionStartedAtTick < catalog.DurationOf(action)) return false;
+        if (now - npc.ActionStartedAtTick < LivingWorld.Simulation.Objects.ObjectUse.DurationHours(world, npc, action, catalog)) return false;
 
         // Sem workplace real (Employer nulo), Work nunca fabrica deslocamento —
         // NPC bloqueado fica onde está em vez de "trabalhar" andando à toa sem destino nenhum.

@@ -16,7 +16,7 @@ public static class FoodPresentation
     {
         if (!npc.IsAlive || npc.CurrentAction != ActionType.Eat) return null;
 
-        long duration = world.ActionCatalog.MaxDurationHours.GetValueOrDefault(ActionType.Eat, 1);
+        long duration = LivingWorld.Simulation.Objects.ObjectUse.DurationHours(world, npc, ActionType.Eat, world.ActionCatalog);
         long elapsed = Math.Max(0, world.CurrentDate.TotalHours - npc.ActionStartedAtTick);
         long remaining = Math.Max(0, duration - elapsed);
 
@@ -37,7 +37,7 @@ public static class FoodPresentation
     public static FoodProcessSnapshot ToProcess(WorldState world, Npc npc)
     {
         var status = Of(world, npc) ?? throw new InvalidOperationException($"npc {npc.Id}: sem refeição ativa");
-        long duration = Math.Max(1, world.ActionCatalog.MaxDurationHours.GetValueOrDefault(ActionType.Eat, 1));
+        long duration = Math.Max(1, LivingWorld.Simulation.Objects.ObjectUse.DurationHours(world, npc, ActionType.Eat, world.ActionCatalog));
         double progress = 1.0 - status.RemainingHours / (double)duration;
         string descriptor = status.Preparation == PreparationState.Raw ? "eat-raw" : "eat-prepared";
         return new FoodProcessSnapshot(
