@@ -135,3 +135,48 @@ func test_the_store_keeps_the_objects_of_the_interior_snapshot() -> void:
 	eq(store.interior.objects, objects, "objects chega à vista do interior")
 	store._load_interior({"id": {"value": 4}, "city": {"value": "c"}, "layout": {"floors": 1, "floorLayouts": []}, "occupants": []})
 	eq(store.interior.objects, null, "sem objects no snapshot: nulo (fallback)")
+
+
+func test_each_primitive_gets_the_declared_dimensions() -> void:
+	var factory := ObjectFactory.new([{"id": "p", "category": "x", "variationSeed": 0, "usePoints": [], "shape": [
+		{"shape": "cylinder", "size": [0.2, 0.6], "offset": [0.0, 0.0, 0.0], "color": "aaaaaa", "symmetry": "none"},
+		{"shape": "sphere", "size": [0.3], "offset": [0.0, 0.0, 0.0], "color": "aaaaaa", "symmetry": "none"},
+		{"shape": "capsule", "size": [0.1, 0.5], "offset": [0.0, 0.0, 0.0], "color": "aaaaaa", "symmetry": "none"},
+		{"shape": "box", "size": [0.4, 0.5, 0.6], "offset": [0.0, 0.0, 0.0], "color": "aaaaaa", "symmetry": "none"}]}])
+	var node: Node3D = factory.build("p", 0)
+	var cylinder: CylinderMesh = node.get_child(0).mesh
+	near([cylinder.top_radius, cylinder.bottom_radius, cylinder.height], [0.2, 0.2, 0.6], "cilindro: raio e altura")
+	var sphere: SphereMesh = node.get_child(1).mesh
+	near([sphere.radius, sphere.height], [0.3, 0.6], "esfera: raio e diâmetro")
+	var capsule: CapsuleMesh = node.get_child(2).mesh
+	near([capsule.radius, capsule.height], [0.1, 0.5], "cápsula: raio e altura")
+	eq((node.get_child(3).mesh as BoxMesh).size, Vector3(0.4, 0.5, 0.6), "caixa")
+	node.free()
+
+
+func test_a_single_part_with_symmetry_is_mirrored() -> void:
+	var factory := ObjectFactory.new([{"id": "m", "category": "x", "variationSeed": 0, "usePoints": [], "shape": [
+		{"shape": "box", "size": [0.1, 0.1, 0.1], "offset": [0.2, 0.05, 0.0], "color": "aaaaaa", "symmetry": "x"}]}])
+	var node: Node3D = factory.build("m", 0)
+	eq(node.get_child_count(), 2, "uma parte com simetria x vira duas")
+	near([node.get_child(0).position.x, node.get_child(1).position.x], [0.2, -0.2], "espelhada em x")
+	node.free()
+
+
+func test_variation_lightens_the_color_by_a_fixed_step_and_unknown_ids_build_nothing() -> void:
+	var factory := ObjectFactory.new([{"id": "c", "category": "x", "variationSeed": 1, "usePoints": [], "shape": [
+		{"shape": "box", "size": [0.1, 0.1, 0.1], "offset": [0.0, 0.05, 0.0], "color": "804020", "symmetry": "none"}]}])
+	for variation in [0, 1, 3]:
+		var node: MeshInstance3D = factory.build("c", variation)
+		var expected := Color("804020") if variation == 0 else Color("804020").lightened(0.05 * variation)
+		eq((node.material_override as StandardMaterial3D).albedo_color, expected, "variação %d" % variation)
+		check(is_equal_approx((node.material_override as StandardMaterial3D).roughness, 0.9), "rugosidade de sempre")
+		node.free()
+	eq(factory.build("nao-existe", 0), null, "id fora do catálogo não constrói nada")
+
+
+func near(actual: Array, expected: Array, message: String) -> void:
+	var ok := actual.size() == expected.size()
+	for i in mini(actual.size(), expected.size()):
+		ok = ok and is_equal_approx(float(actual[i]), float(expected[i]))
+	check(ok, "%s esperado %s, veio %s" % [message, str(expected), str(actual)])

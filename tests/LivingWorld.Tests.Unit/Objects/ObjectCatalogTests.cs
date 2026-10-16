@@ -243,6 +243,87 @@ public class ObjectCatalogTests
         Assert.Contains("usePoints[0].offset", badPoint.Error);
     }
 
+    private static JsonObject Obj(JsonObject root, int index = 0) => (JsonObject)((JsonArray)root["Objects"]!)[index]!;
+
+    private static JsonObject UsePoint(string? name, JsonNode? offset, JsonNode? facing = null)
+    {
+        var point = new JsonObject { ["offset"] = offset };
+        if (name is not null) point["name"] = name;
+        if (facing is not null) point["facing"] = facing;
+        return point;
+    }
+
+    [Fact]
+    public void A_valid_use_point_is_kept_and_each_invalid_one_is_refused_for_its_own_reason()
+    {
+        var ok = ObjectCatalogScenarioLoader.Load(Root(r => Obj(r)["usePoints"] = new JsonArray(UsePoint("lie", new JsonArray(0.0, 0.2, 0.1), 90.0))));
+        var point = ok.Value!.Objects[0].UsePoints.Single();
+        Assert.Equal("lie", point.Name);
+        Assert.Equal([0.0, 0.2, 0.1], point.Offset);
+        Assert.Equal(90.0, point.Facing);
+
+        string? Error(JsonObject p) => ObjectCatalogScenarioLoader.Load(Root(r => Obj(r)["usePoints"] = new JsonArray(p))).Error;
+        Assert.Contains("usePoints[0].offset", Error(UsePoint("lie", new JsonArray(0.0, 0.2))));
+        Assert.Contains("usePoints[0].offset", Error(UsePoint("lie", new JsonArray(0.0, 0.2, 0.1, 0.0))));
+        Assert.Contains("usePoints[0].name", Error(UsePoint(null, new JsonArray(0.0, 0.2, 0.1))));
+        Assert.Contains("usePoints[0].name", Error(UsePoint("", new JsonArray(0.0, 0.2, 0.1))));
+        Assert.Contains("usePoints[0].facing", Error(UsePoint("lie", new JsonArray(0.0, 0.2, 0.1), "norte")));
+    }
+
+    [Theory]
+    [InlineData("cylinder", 2, true)]
+    [InlineData("cylinder", 3, false)]
+    [InlineData("cylinder", 1, false)]
+    [InlineData("sphere", 1, true)]
+    [InlineData("sphere", 2, false)]
+    [InlineData("capsule", 2, true)]
+    [InlineData("capsule", 1, false)]
+    [InlineData("box", 3, true)]
+    [InlineData("box", 2, false)]
+    public void Each_part_kind_takes_exactly_its_own_number_of_dimensions(string kind, int count, bool valid)
+    {
+        var result = ObjectCatalogScenarioLoader.Load(Root(r =>
+        {
+            var part = FirstPart(r);
+            part["shape"] = kind;
+            part["size"] = new JsonArray(Enumerable.Repeat(0.3, count).Select(d => (JsonNode?)JsonValue.Create(d)).ToArray());
+        }));
+
+        Assert.Equal(valid, result.IsSuccess);
+        if (!valid) Assert.Contains("shape[0].size", result.Error);
+    }
+
+    [Fact]
+    public void An_empty_shape_an_empty_id_an_empty_category_and_orphan_blocks_are_refused()
+    {
+        Assert.Contains("Objects[0].shape", ObjectCatalogScenarioLoader.Load(Root(r => Obj(r)["shape"] = new JsonArray())).Error);
+        Assert.Contains("Objects[0].id", ObjectCatalogScenarioLoader.Load(Root(r => Obj(r)["id"] = "")).Error);
+        Assert.Contains("Objects[0].category", ObjectCatalogScenarioLoader.Load(Root(r => Obj(r)["category"] = "")).Error);
+        Assert.Contains("Objects[0].variationSeed", ObjectCatalogScenarioLoader.Load(Root(r => Obj(r)["variationSeed"] = "x")).Error);
+        var orphan = new JsonObject { ["Furnishings"] = new JsonObject { ["default"] = new JsonArray() } };
+        Assert.False(ObjectCatalogScenarioLoader.Load(orphan).IsSuccess);
+    }
+
+    [Fact]
+    public void Furniture_variation_uses_the_seed_of_each_piece_not_the_first_ones()
+    {
+        var seeds = new Dictionary<string, int> { ["bed"] = 7, ["table"] = 11, ["chest"] = 5 };
+        var catalog = ObjectCatalogScenarioLoader.Load(Root(r =>
+        {
+            foreach (var o in (JsonArray)r["Objects"]!)
+                o!["variationSeed"] = seeds.GetValueOrDefault((string)o["id"]!, 0);
+        })).Value!;
+        var world = ScenarioRunner.Create(seed: 13, initialPopulation: 0, objectCatalog: catalog).World;
+        var building = AddBuilding(world, typeId: 10);
+
+        var furniture = InteriorProjector.Build(world, building.Id).Value!.Objects!.Furniture;
+
+        Assert.Equal(
+            furniture.Select((p, slot) => ObjectVariation.Index(seeds.GetValueOrDefault(p.Id, 0), slot)),
+            furniture.Select(p => p.Variation));
+        Assert.Contains(furniture, p => p.Variation != 0);
+    }
+
     [Fact]
     public void Furniture_variation_is_the_same_in_two_builds_and_stays_zero_for_seed_zero_pieces()
     {

@@ -71,6 +71,21 @@ public class DefaultPeriodSeederTests
     }
 
     [Fact]
+    public void An_invalid_Objects_block_makes_the_whole_period_invalid()
+    {
+        foreach (var json in SeededPayloads())
+        {
+            var broken = JsonNode.Parse(json)!.AsObject();
+            broken["objectsFormat"] = 2;
+
+            var result = PeriodDefinitionValidator.Validate(broken.ToJsonString());
+
+            Assert.False(result.IsSuccess);
+            Assert.Contains("objectsFormat", result.Error);
+        }
+    }
+
+    [Fact]
     public void Profession_names_do_not_change_the_world_hash()
     {
         foreach (var json in SeededPayloads())
