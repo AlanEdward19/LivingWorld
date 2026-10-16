@@ -46,6 +46,19 @@ public static class SignificanceCalculator
             [WorldEventKind.CompensatingCorrection] = 1.0,
         };
 
+    private static readonly double[] MaximumSignificanceByKind = Enum.GetValues<WorldEventKind>().Select(kind =>
+        BaseWeightByKind.GetValueOrDefault(kind, 0.5) * (kind switch
+        {
+            WorldEventKind.Birth => 0.95,
+            WorldEventKind.Marriage or WorldEventKind.CourtshipStarted or WorldEventKind.CourtshipSucceeded
+                or WorldEventKind.StillBirth or WorldEventKind.CourtshipRejected => 0.8,
+            _ => 0.65,
+        })).ToArray();
+
+    // Reject frequent low-weight events before splitting payloads or allocating event objects.
+    internal static bool CanMeetThreshold(WorldEventKind kind, HistoryRules rules) =>
+        MaximumSignificanceByKind[(int)kind] >= rules.SkeletonSignificanceThreshold;
+
     /// <summary>Significância determinística a partir do kind, participantes e escopo.</summary>
     public static double Compute(WorldEvent evt, WorldState world, HistoryRules rules)
     {

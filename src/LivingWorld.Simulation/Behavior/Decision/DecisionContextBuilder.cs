@@ -77,11 +77,8 @@ public static class DecisionContextBuilder
         return memories.Count == 0 ? Array.Empty<NpcMemory>() : memories.ToArray();
     }
 
-    internal static IReadOnlyList<string> BuildBeliefSlice(WorldState world, Npc npc)
-    {
-        var beliefs = NpcBeliefQuery.BeliefsOf(world, npc.Id);
-        return beliefs.Count == 0 ? Array.Empty<string>() : beliefs.ToArray();
-    }
+    internal static IReadOnlyList<string> BuildBeliefSlice(WorldState world, Npc npc) =>
+        NpcBeliefQuery.BeliefsOf(world, npc.Id);
 
     internal static IReadOnlyList<RelationshipFact> BuildRelationshipSlice(WorldState world, Npc npc) =>
         KnownRelationshipsOf(world, npc.Id);

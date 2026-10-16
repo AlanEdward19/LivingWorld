@@ -68,7 +68,7 @@ public sealed class City
     /// cref="ConstructionSystem"/> só avança a cabeça da fila.</summary>
     public IReadOnlyList<ConstructionProject> ConstructionQueue => _constructionQueue;
 
-    private readonly List<ReportState> _canonSlots;
+    private List<ReportState> _canonSlots;
 
     /// <summary>Relatos vivos no cânone desta comunidade — no máximo
     /// <see cref="HistoryRules.CanonSizePerCommunity"/>.</summary>
@@ -124,8 +124,8 @@ public sealed class City
 
     public void SetCanonSlots(IReadOnlyList<ReportState> slots)
     {
-        _canonSlots.Clear();
-        _canonSlots.AddRange(slots);
+        // Replace the list so derived belief caches can detect every canon change, including eviction.
+        _canonSlots = slots.ToList();
     }
 
     public void MarkFoundingScheduled(long tick) => FoundingScheduledAtTick = tick;

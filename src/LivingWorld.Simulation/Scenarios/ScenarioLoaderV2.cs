@@ -2,6 +2,7 @@ using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.History;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Cities;
 using LivingWorld.Simulation.Core;
@@ -57,6 +58,8 @@ public static class ScenarioLoaderV2
             definition.Behavior.NeedsRules, definition.Behavior.ActionCatalog,
             ScenarioRunner.DefaultLifeStageRules,
             economyRules: definition.Economy.Rules, economyCatalog: definition.Economy.Catalog,
+            // Include deaths from deprivation (0.414375) as well as ordinary deaths (0.49725).
+            historyRules: HistoryRules.Default with { SkeletonSignificanceThreshold = 0.4 },
             cityRules: definition.City.Rules, cityCatalog: definition.City.Catalog,
             restPlaceCatalog: definition.Behavior.RestPlaceCatalog,
             resourceCatalog: definition.ResourceCatalog,
