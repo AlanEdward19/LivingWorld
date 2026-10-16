@@ -28,7 +28,7 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 - **Eval**: `verify.sh`; `verify-mutation.sh` manual. Harness: [`HARNESS.md`](HARNESS.md).
 - **Budget**: nenhum loop autônomo ativo.
 
-- **Verificado (#65/#67, 2026-10-16)**: branch `feat/issues-65-67`, ADR-0036/0035. Relatórios independentes PASS em `family-diversity-calibration`, `lodging-and-rent` e `saved-worlds`; 20 seeds × 100 anos no cenário completo, mundos persistentes e provas causais de distância/SQL na composição API. Gate 2305/3 skips, integração completa 440, Godot 258. Entrega por PR para `develop`; fechamento das issues no merge.
+- **Verificado (#65/#67, 2026-10-16)**: branch `feat/issues-65-67`, ADR-0036/0035. Relatórios independentes PASS em `family-diversity-calibration`, `lodging-and-rent` e `saved-worlds`; 20 seeds × 100 anos no cenário completo, mundos persistentes e provas causais de distância/SQL na composição API. Após integrar #47: gate 2342/3 skips, integração completa 443, Godot 270; prova da resolução em `saved-worlds/merge-verification.md`. Entrega por PR para `develop`; fechamento das issues no merge.
 
 ## Decisões (AD-NNN)
 Log completo em [docs/decisions-log.md](docs/decisions-log.md) — AD-001..048 (não duplique
