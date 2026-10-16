@@ -1,6 +1,6 @@
 # object-catalog — #47 fatia 1 (formato de objeto + catálogo com fallback)
 
-Status: implementado, aguardando Verifier (`verification.md`). ADR-0034. Branch `feat/objetos-catalogo-fatia1`.
+Status: PASS (`verification.md`, 7º Verifier independente). ADR-0034. Branch `feat/objetos-catalogo-fatia1`.
 
 ## Problema
 Mobília é caixa colorida fixa no `assets.json` do cliente; não há modelo de objeto como dado. Sem ele, uso, efeitos, comida, invenções e mods (fatias 2–6) não têm onde pendurar.
