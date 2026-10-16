@@ -182,6 +182,22 @@ func test_reopening_another_building_forgets_the_previous_objects() -> void:
 	view.free()
 
 
+func test_reopening_a_building_that_also_has_a_bed_uses_only_its_own_bed() -> void:
+	var view := _view(_objects([_point("sleep")], 1), [_occupant(7, SLEEP, "bed")])
+	var first_base: Vector3 = view._object_bases["bed"][0]
+	var other := _room()
+	other["occupants"] = [_occupant(7, SLEEP, "bed")]
+	other["objects"] = _objects([_point("sleep")], 1)
+
+	view.show_interior(other, Vector2i(30, 30), ActionLabels.new(), 3)
+
+	var bases: Array = view._object_bases["bed"]
+	eq(bases.size(), 1, "só a cama do prédio atual")
+	check(not bases[0].is_equal_approx(first_base), "a base é a do 2º prédio")
+	check(view.occupant_nodes[7].position.is_equal_approx(bases[0] + Vector3(0.0, 0.05, 0.3)), "o NPC está na cama do 2º prédio")
+	view.free()
+
+
 func test_using_object_without_a_placed_piece_falls_back_without_error() -> void:
 	var objects := _objects([_point("sleep")], 0)
 	var view := _view(objects, [_occupant(7, SLEEP, "bed")])
@@ -200,10 +216,12 @@ func test_lodging_beds_on_upper_floors_are_not_use_targets_but_ground_ones_are()
 	view.catalog = AssetCatalog.load_default()
 	tree.root.add_child(view)
 
-	view.show_interior(info, Vector2i(10, 10), ActionLabels.new(), 3, 3)
+	view.show_interior(info, Vector2i(10, 10), ActionLabels.new(), 3, 30)
 
 	var ground_beds: Array = view._object_bases["bed"]
-	eq(ground_beds.size(), 4, "3 leitos de hospedagem no térreo (1º andar de leitos) + 1 do catálogo; os do andar de cima não entram")
+	var ground_cells := 25 # interior livre da sala 7x7; os leitos que sobram vão para o andar de cima
+	eq(ground_beds.size(), ground_cells, "só os leitos do térreo viram alvo de uso; os 5 do andar de cima não")
+	eq(view.floor_nodes[1].get_node("Furniture").get_child_count(), 5, "os leitos que sobraram foram para o andar 1")
 	var sleeper_on_ground := false
 	for base in ground_beds:
 		if view.occupant_nodes[4].position.is_equal_approx(base + Vector3(0.0, 0.05, 0.3)):
