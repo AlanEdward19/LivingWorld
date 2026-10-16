@@ -40,5 +40,5 @@ Evidências finais e verificação independente vivem na spec da issue #91.
 
 O baseline de colapso muda somente nas seeds 11 e 17 porque agora existem eventos
 ReportConverted (dois e um, respectivamente); comparação em cópia isolada confirmou
-que nenhum evento anterior foi alterado ou removido. O gravador existente regenerou
+que nenhum tick/kind/payload anterior foi alterado ou removido. O gravador existente regenerou
 o baseline sem alterar as asserções.

@@ -42,7 +42,7 @@ O Verifier registra a discriminação em scratch e o resultado independente em v
 ## Baseline histórico
 A develop original passa no baseline de colapso. A comparação isolada dos eventos
 antes/depois mostrou somente dois ReportConverted extras na seed 11 e um na seed 17,
-sem remoção ou alteração dos eventos anteriores. Baseline regenerado pelo comando
+sem remoção ou alteração de tick/kind/payload dos eventos anteriores. Baseline regenerado pelo comando
 existente `LW_RECORD_HISTORY_COLLAPSE=1 bash scripts/test.sh --scenarios --filter
 Record_history_collapse_when_explicitly_requested`, preservando o teste e suas asserções.
 
@@ -50,3 +50,8 @@ Record_history_collapse_when_explicitly_requested`, preservando o teste e suas a
 - `bash scripts/verify.sh`: 2352 passaram, 3 skips existentes, zero falhas.
 - `bash scripts/test.sh --project integration`: 448 passaram, zero falhas.
 - Sensor de dois processos: 1 passou; sensor de custo: 1 passou.
+
+## Verificação independente
+PASS em `validation.md`: nove critérios cobertos, três mutações detectadas,
+gate 2352/0, integração focada 12/0, determinismo 1/0.
+Medição independente: 0.786720 → 0.781674 µs/NPC-tick, razão 0.993586 ≤1.03.
