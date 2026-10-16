@@ -4,8 +4,16 @@ namespace LivingWorld.Domain.Objects;
 /// <c>Symmetry</c>: none | x | z | xz (a parte é espelhada nos eixos citados). Só dado de forma: quem desenha é o cliente.</summary>
 public sealed record ObjectPart(string Shape, IReadOnlyList<double> Size, IReadOnlyList<double> Offset, string Color, string Symmetry = "none");
 
-/// <summary>Onde o corpo encosta no objeto (offset local em metros) e para onde olha (graus em torno de Y). Consumido pela fatia 2.</summary>
-public sealed record ObjectUsePoint(string Name, IReadOnlyList<double> Offset, double Facing);
+/// <summary>Onde o corpo encosta no objeto (offset local em metros, a partir da base) e para onde olha (graus em torno de Y).
+/// <c>Action</c> (id de <c>ActionType</c>) é a ação que o ponto atende; <c>Pose</c> é a pose do NPC ali (vocabulário em <see cref="ObjectPoses"/>).
+/// Sem <c>Action</c> o ponto não atrai ninguém; sem <c>Pose</c> vale a pose da ação (#47 fatia 2, ADR-0037).</summary>
+public sealed record ObjectUsePoint(string Name, IReadOnlyList<double> Offset, double Facing, int? Action = null, string? Pose = null);
+
+/// <summary>Poses que o cliente sabe desenhar (espelha <c>animation_catalog.gd</c>; um teste confere a paridade).</summary>
+public static class ObjectPoses
+{
+    public static readonly IReadOnlyList<string> Known = ["idle", "walk", "sleep", "work", "eat", "socialize", "buy", "power"];
+}
 
 /// <summary>Descritor imutável de um objeto (#47 fatia 1, ADR-0034). <c>Category</c> é string do cenário, não enum.
 /// <c>VariationSeed</c> 0 = sem variação (forma exatamente a declarada).</summary>

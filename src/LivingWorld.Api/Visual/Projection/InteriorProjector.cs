@@ -12,7 +12,8 @@ namespace LivingWorld.Api.Visual.Projection;
 /// locais, mesmo shape que <see cref="InteriorOccupancy"/> sem expor tipo de Domain cru.</summary>
 public sealed record InteriorOccupant(
     NpcId Npc, FloorLevel Floor, CellCoord LocalCell, ActionType? Action = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Domain.Population.Appearance? Appearance = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] LivingWorld.Domain.Population.Appearance? Appearance = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? UsingObject = null);
 
 /// <summary><see
 /// cref="Occupants"/> lista todo NPC vivo com <see cref="Npc.Interior"/> apontando para
@@ -34,10 +35,12 @@ public static class InteriorProjector
     /// <summary>Só os ocupantes (sem a planta): o que o delta de interior compara a cada tick. Nulo se o prédio não existe.</summary>
     public static IReadOnlyList<InteriorOccupant>? BuildOccupants(WorldState world, BuildingId buildingId)
     {
-        if (!world.Buildings.Any(b => b.Id == buildingId)) return null;
+        var building = world.Buildings.FirstOrDefault(b => b.Id == buildingId);
+        if (building is null) return null;
+        var users = UsableObjects(world.ObjectCatalog, building.BuildingTypeId);
         return world.Npcs
             .Where(n => n.IsAlive && n.Interior is { } interior && interior.Building == buildingId)
-            .Select(n => new InteriorOccupant(n.Id, n.Interior!.Floor, n.Interior!.LocalCell, n.CurrentAction, n.Appearance))
+            .Select(n => new InteriorOccupant(n.Id, n.Interior!.Floor, n.Interior!.LocalCell, n.CurrentAction, n.Appearance, UsingObjectOf(users, n.CurrentAction)))
             .ToArray();
     }
 
@@ -46,14 +49,30 @@ public static class InteriorProjector
         var building = world.Buildings.FirstOrDefault(b => b.Id == buildingId);
         if (building is null) return Result<InteriorSnapshot>.Fail($"prédio {buildingId} não encontrado");
 
+        var users = UsableObjects(world.ObjectCatalog, building.BuildingTypeId);
         var occupants = world.Npcs
             .Where(n => n.IsAlive && n.Interior is { } interior && interior.Building == buildingId)
-            .Select(n => new InteriorOccupant(n.Id, n.Interior!.Floor, n.Interior!.LocalCell, n.CurrentAction, n.Appearance))
+            .Select(n => new InteriorOccupant(n.Id, n.Interior!.Floor, n.Interior!.LocalCell, n.CurrentAction, n.Appearance, UsingObjectOf(users, n.CurrentAction)))
             .ToArray();
 
         return Result<InteriorSnapshot>.Ok(new InteriorSnapshot(building.Id, building.City, building.BuildingTypeId, OccupancyModeled: true, occupants,
             BuildingLayoutGenerator.Generate(building), BuildObjects(world.ObjectCatalog, building.BuildingTypeId)));
     }
+
+    /// <summary>Ação → id do primeiro objeto da mobília do tipo de prédio (na ordem do catálogo) com um ponto de uso que a atende.
+    /// Vazio sem catálogo: ninguém "usa" nada e o cliente fica com a pose da ação (ADR-0037).</summary>
+    private static Dictionary<int, string> UsableObjects(LivingWorld.Domain.Objects.ObjectCatalog? catalog, int buildingTypeId)
+    {
+        var map = new Dictionary<int, string>();
+        if (catalog is null) return map;
+        foreach (var id in catalog.FurnishingFor(buildingTypeId))
+            foreach (var point in catalog.Find(id)?.UsePoints ?? [])
+                if (point.Action is int action) map.TryAdd(action, id);
+        return map;
+    }
+
+    private static string? UsingObjectOf(Dictionary<int, string> users, ActionType? action) =>
+        action is { } a && users.TryGetValue((int)a, out var id) ? id : null;
 
     private static InteriorObjects? BuildObjects(LivingWorld.Domain.Objects.ObjectCatalog? catalog, int buildingTypeId)
     {

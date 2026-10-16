@@ -21,6 +21,7 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 - **#46 criador de mundo (branch `feat/world-creator`, 2026-10-15)**: fatias 1 (nomes das profissões), 2 (aparência herdada opt-in + habilidades iniciais, ADR-0032) e 4 (criar família e local de trabalho com o mundo rodando, ADR-0033) feitas, planos em `.specs/features/profession-names/`, `world-creator-appearance/` e `world-creator-live/`. Faltam 3 (modelos, depende de #67), 5 (plantas, depende de #47) e 6 (poderes, depende de #64). Profissões/habilidades próprias e emergentes: #96.
 - **#47 objetos (branch `feat/objetos-catalogo-fatia1`, 2026-10-15)**: fatia 1 (formato `Objects`/`objectsFormat` + catálogo com fallback, mobília migrada, ADR-0034) feita; plano em `.specs/features/object-catalog/`. Faltam 2 (uso/animação), 3 (efeitos pelo motor), 4 (comida), 5 (invenções, depende da #61), 6 (mods).
 - **CI após #47**: `develop` verde no run `38885386561` (gate e cliente); integração com #65/#67 validada novamente antes de atualizar o PR.
+- **#47 fatia 2 (branch `feat/objetos-uso-fatia2`, sobre a fatia 1 já mergeada (#99), 2026-10-16)**: pontos de uso com `action`/`pose`, `usingObject` no interior e pose por (ação, objeto), ADR-0037; plano em `.specs/features/object-use/`. Faltam 3 a 6.
 - **Integração do extraordinário (2026-08-12)**: decisão **mista**, sem fase numerada nova para "super-heróis" —
   distribuída entre Fases 16, 17, 23, 24, 25, com toques em 10, 12, 22. ADR-0010 + `docs/domain/powers.md`.
 - **Dívida Fase 9**: PERF-12 hasher; `LongRunScaleTests` só nightly.

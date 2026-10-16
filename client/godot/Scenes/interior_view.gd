@@ -23,6 +23,8 @@ var floor_nodes: Dictionary = {} ## nível -> Node3D
 var roof: Node3D
 var catalog = AssetCatalog.new() ## mobília por tipo de prédio; o app injeta o catálogo carregado
 var furniture: Node3D
+var _object_bases: Dictionary = {} ## id do catálogo -> [Vector3] base (chão) de cada peça, na ordem de colocação (alvos de uso)
+var _use_points: Dictionary = {} ## id do catálogo -> pontos de uso do descritor
 var occupant_nodes: Dictionary = {} ## npc_id -> NpcActor
 var _occupants: Array = []
 var _labels
@@ -74,6 +76,9 @@ func show_interior(info: Dictionary, p_origin: Vector2i, labels, building_type: 
 func _place_furniture(info: Dictionary, building_type: int, lodging_units: int = 0) -> void:
 	var objects = info.get("objects")
 	var factory = ObjectFactory.new(objects.catalog) if objects is Dictionary else null
+	if factory != null:
+		for descriptor in objects.catalog:
+			_use_points[String(descriptor.id)] = descriptor.get("usePoints", [])
 	var remaining := lodging_units
 	for floor_layout in info.layout:
 		var level := int(floor_layout.level)
@@ -117,6 +122,8 @@ func _place_furniture(info: Dictionary, building_type: int, lodging_units: int =
 			used[slot] = true
 			if factory != null and factory.has(piece[0]):
 				_add_object(factory, piece[0], piece[1], origin + free_cells[slot], floor_furniture)
+				if level == 0: # só o térreo recebe uso (o servidor não diz o andar da peça)
+					_register_base(piece[0], origin + free_cells[slot])
 			else:
 				_add_piece(piece[0], origin + free_cells[slot], floor_furniture)
 			index += 1
@@ -126,6 +133,13 @@ func _add_object(factory, piece_id: String, variation: int, cell: Vector2i, pare
 	var node: Node3D = factory.build(piece_id, variation)
 	node.position += Grid.to_world(cell)
 	parent.add_child(node)
+
+
+## Guarda a base (chão) da peça do catálogo para o NPC que a usa ser posto no ponto de uso.
+func _register_base(piece_id: String, cell: Vector2i) -> void:
+	if not _object_bases.has(piece_id):
+		_object_bases[piece_id] = []
+	_object_bases[piece_id].append(Grid.to_world(cell))
 
 
 func _add_piece(piece_id: String, cell: Vector2i, parent: Node3D) -> void:
@@ -176,6 +190,8 @@ func _material(color: Color) -> StandardMaterial3D:
 
 
 func _clear() -> void:
+	_object_bases.clear()
+	_use_points.clear()
 	_walls.clear()
 	_view_dir = Vector3.ZERO
 	for node in floor_nodes.values():
@@ -203,28 +219,72 @@ func set_floor(level: int) -> void:
 func set_occupants(occupants: Array) -> void:
 	_occupants = occupants
 	var wanted := {}
+	var rank := _use_ranks(occupants)
 	for occupant in occupants:
 		var id: int = int(occupant.npc.value) if occupant.npc is Dictionary else int(occupant.npc)
 		wanted[id] = occupant
 		var cell: Vector2i = origin + Vector2i(int(occupant.localCell.x), int(occupant.localCell.y))
 		var level: int = int(occupant.floor.value) if occupant.floor is Dictionary else int(occupant.floor)
 		var action: int = -1 if occupant.get("action") == null else int(occupant.action)
+		var use := _use_of(occupant, id, action, level, rank)
 		var actor = occupant_nodes.get(id)
 		if actor == null:
 			actor = NpcActor.new()
 			add_child(actor)
 			actor.setup(id, cell, action, _labels, WorldStore.look_of(occupant.get("appearance")))
-			actor.enable_bed(true)
 			occupant_nodes[id] = actor
-		elif actor.action != action:
-			actor.set_action(action, _labels)
-		actor.position = Grid.to_world(cell, level * FLOOR_HEIGHT)
+		if actor.action != action or actor.use_pose != String(use.pose):
+			actor.set_action(action, _labels, String(use.pose))
+		actor.enable_bed(not use.active) # a cama do catálogo substitui a do NPC
+		actor.position = use.position if use.active else Grid.to_world(cell, level * FLOOR_HEIGHT)
+		actor.rotation.y = use.facing if use.active else actor.rotation.y
 		actor.set_meta("floor", level)
 	for id in occupant_nodes.keys():
 		if not wanted.has(id):
 			occupant_nodes[id].free()
 			occupant_nodes.erase(id)
 	_apply_occupant_visibility()
+
+
+## Posição na fila de cada objeto em uso (por id do NPC): o 1º usa a 1ª peça, o 2º a 2ª, voltando ao começo se faltar peça.
+func _use_ranks(occupants: Array) -> Dictionary:
+	var by_object := {}
+	for occupant in occupants:
+		var object_id = occupant.get("usingObject")
+		if object_id != null:
+			var npc_id: int = int(occupant.npc.value) if occupant.npc is Dictionary else int(occupant.npc)
+			by_object[String(object_id)] = by_object.get(String(object_id), []) + [npc_id]
+	var ranks := {}
+	for object_id in by_object:
+		var ids: Array = by_object[object_id]
+		ids.sort()
+		for i in ids.size():
+			ranks[ids[i]] = i
+	return ranks
+
+
+## {active, position, facing, pose}: onde o NPC fica e que pose faz usando o objeto que o servidor apontou; inativo
+## (sem objeto, sem peça colocada, outro andar ou sem ponto de uso) = posição e pose de sempre.
+func _use_of(occupant: Dictionary, npc_id: int, action: int, level: int, rank: Dictionary) -> Dictionary:
+	var none := {"active": false, "position": Vector3.ZERO, "facing": 0.0, "pose": ""}
+	var object_id = occupant.get("usingObject")
+	if object_id == null or level != 0 or not _object_bases.has(String(object_id)):
+		return none
+	var point := _use_point(String(object_id), action)
+	if point.is_empty():
+		return none
+	var bases: Array = _object_bases[String(object_id)]
+	var piece_base: Vector3 = bases[int(rank.get(npc_id, 0)) % bases.size()]
+	var offset: Array = point.offset
+	var base := piece_base + Vector3(float(offset[0]), float(offset[1]), float(offset[2]))
+	return {"active": true, "position": base, "facing": deg_to_rad(float(point.get("facing", 0.0))), "pose": point.get("pose", "")}
+
+
+func _use_point(object_id: String, action: int) -> Dictionary:
+	for point in _use_points.get(object_id, []):
+		if point.get("action") != null and int(point.action) == action:
+			return point
+	return {}
 
 
 func _apply_occupant_visibility() -> void:

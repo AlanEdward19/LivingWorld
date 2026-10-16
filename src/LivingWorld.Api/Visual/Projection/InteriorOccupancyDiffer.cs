@@ -27,7 +27,7 @@ public static class InteriorOccupancyDiffer
             .ToArray();
 
         var moved = after
-            .Where(a => beforeByNpc.TryGetValue(a.Npc, out var b) && b.Floor == a.Floor && (b.LocalCell != a.LocalCell || b.Action != a.Action))
+            .Where(a => beforeByNpc.TryGetValue(a.Npc, out var b) && b.Floor == a.Floor && (b.LocalCell != a.LocalCell || b.Action != a.Action || b.UsingObject != a.UsingObject))
             .ToArray();
 
         var exited = before.Where(b => !afterByNpc.ContainsKey(b.Npc)).Select(b => b.Npc).ToArray();
