@@ -1,24 +1,30 @@
 # Lodging and rent verification
 
-**Verdict**: FAIL
+**Verdict**: PASS
 **Profile**: standard
-**Diff range**: 10bec92325c274f9f630c69fea83062974d73779..2ab9fcbdbbc43b167b763f1ccf7553b0069e08f3
-**Round**: 1 - full, novo contexto
+**Diff range**: 10bec92325c274f9f630c69fea83062974d73779..18953eb1e930db62b3797c11148e85a2d7849a37
+**Round**: 2 - scoped, novo Verifier em contexto em branco
 **Verifier**: independent sub-agent (author != verifier), 2026-10-16 UTC
 
 ## Binding sources
 
+verified at 18953eb1e930db62b3797c11148e85a2d7849a37; decisões imutáveis carried from 2ab9fcbdbbc43b167b763f1ccf7553b0069e08f3.
+
 Issue #67 aberta por `gh issue view 67 --json title,body`; planos/checks completos, AD-104..107, `git show 8f046f9`, diff integral base..HEAD e regras indicadas lidos. Perfil standard; nenhuma fonte externa visual binding.
-O plano contém 17 critérios numerados (8/9 ausentes), não 19 critérios distintos. Nenhum relato anterior usado como prova.
+O plano contém 17 critérios numerados (8/9 ausentes), não 19 critérios distintos. Nesta rodada, só os PASS independentes da rodada 1 são carried, com proveniência; nenhum relato do autor foi aceito.
 
 ## Proof runs
 
-U = `bash scripts/test.sh --filter LodgingSystemTests`: 39/39, nomes individuais em `/private/tmp/lw67-final-unit-named.log`.
-D = `bash scripts/test.sh --project longrunning --filter 'Lodging_pricing_and_nightly_rates_are_deterministic_with_actual_rent_in_two_processes|ScaleScenarioSensorTests.One_month_scale_run_stays_within_recorded_baseline'`: 2/2; log `lw67-final-longrunning-named.log` no mesmo diretório.
-G = `bash scripts/client-test.sh`: 258/258. Além disso, proofs estreitos de mutação registrados em `/private/tmp/lw67-final-mutations/`.
+verified at 18953eb1e930db62b3797c11148e85a2d7849a37. Logs próprios `/private/tmp/lw67-r2-{unit,integration,longrunning,client,verify}.log`. Wrapper temporário de dotnet acrescentou apenas logger console normal aos scripts, exibindo cada teste.
+
+U = `bash scripts/test.sh --filter LodgingSystemTests`: 45/45, nomes individuais em `/private/tmp/lw67-r2-unit.log`.
+D = `bash scripts/test.sh --project longrunning --filter 'Lodging_pricing_and_nightly_rates_are_deterministic_with_actual_rent_in_two_processes|ScaleScenarioSensorTests.One_month_scale_run_stays_within_recorded_baseline'`: 2/2; log `lw67-r2-longrunning.log` no mesmo diretório.
+G = `bash scripts/client-test.sh`: 258/258. Além disso, proofs estreitos de mutação registrados em `/private/tmp/lw67-r2-mutations/`.
 Abreviações: UT=`tests/LivingWorld.Tests.Unit/Cities/LodgingSystemTests.cs`; GD=`client/godot/tests/`; LR=`tests/LivingWorld.Tests.LongRunning/`.
 
 ## Checks
+
+Provas completas verified at 18953eb1e930db62b3797c11148e85a2d7849a37; análise/assertions dos PASS anteriores carried from 2ab9fcbdbbc43b167b763f1ccf7553b0069e08f3. C13/C14/C16 (hospedagem) e C7 (mundos) foram reavaliados no novo HEAD.
 
 | Check | Claim | Proof run | Evidence | Result |
 | --- | --- | --- | --- | --- |
@@ -32,8 +38,8 @@ Abreviações: UT=`tests/LivingWorld.Tests.Unit/Cities/LodgingSystemTests.cs`; G
 | C10 | fórmula exata | U: Price_formula_includes_exact_centrality_amenity_waterfront_and_demand_terms | UT:264 `Assert.Equal((long)Math.Round(pricing.BaseValue * 2 * demand), BuildingValuation.ValueOf(context, building, centralRecipe))`; :271/:279 amenidade/água | PASS |
 | C11 | pressões e limites | U: Rent_rises_with_demand_and_stays_inside_the_scenario_limits + Establishments_have_a_dynamic_value_too_but_no_rent | UT:266 `Assert.Equal(LivingWorld.Simulation.Cities.Queries.CityPopulationQuery.Population(world, context.City.Id) / (double)vacancies, context.LabourPressure)`; :268 `Assert.Equal(need / 3.0, context.LodgingPressure)`; :490/:496 extremos | PASS |
 | C12 | aluguel de hoje | U: Dynamic_rent_is_what_the_tenant_actually_pays | UT:559 `Assert.Equal(800, world.FindNpc(household.Head)!.Wallet.Amount)`; :560 `Assert.Equal(treasury + 200, Landlord(world).Treasury.Amount)` | PASS |
-| C13 | diária após sono, apenas hospedagem mais perto | U: Completing_the_travellers_sleep_pays_once_at_the_action_boundary | UT:248/:250–251 tesouro antes/depois e conservação corretos; remover `distance >= homeDistance` não reprova nenhum dos 39 testes | FAIL |
-| C14 | distância mínima e fallback | U: A_traveller_near_home_or_too_poor_or_with_no_free_room_does_not_take_a_room | UT:616/:621/:626 `Assert.NotEqual(RestPlaceKind.Lodging, ...)`; remover GuestMinDistance mantém 39/39 | FAIL |
+| C13 | diária após sono e estritamente mais perto | U: Completing_the_travellers_sleep_pays_once_at_the_action_boundary + Nightly_lodging_must_be_strictly_closer_than_home | UT:248/250–251 conserva/paga; :645–647 casos 3/4/5 vs casa 4; :657 `Assert.Equal(eligible, GuestLodging.FindRoom(world, npc, household.Location).HasValue)`; :658 verifica resolver | PASS |
+| C14 | distância mínima estrita e fallback | U: A_traveller_near_home_or_too_poor_or_with_no_free_room_does_not_take_a_room + Nightly_lodging_requires_strictly_more_than_the_declared_distance | UT:616/621/626 fallback; :630–632 distância 2/3/4 vs limite 3; :640 `Assert.Equal(eligible, GuestLodging.FindRoom(world, npc, household.Location).HasValue)`; :641 verifica resolver | PASS |
 | C15 | vagas/aluguel/diária/valor | G: test_ui_modules::test_hover_text_comes_from_store_and_server_labels | GD:test_ui_modules.gd:161 `check("2/3 vagas" in inn_text and "aluguel 120/mês" in inn_text and "diária 45" in inn_text and "valor 12000" in inn_text, ...)` | PASS |
 | C16 | leitos até piso livre/andares | G: test_asset_catalog | GD:test_asset_catalog.gd:145 `eq(view.furniture.get_child_count(), plain + 4, ...)`; :162 `eq(beds, 18, ...)`; :179 `eq(ground.get_child_count() + upper.get_child_count(), 5, ...)` | PASS |
 | C17 | loader rejeita incoerência | U: Loader_rejects_each_invalid_lodging_boundary + Loader_rejects_each_inconsistent_pricing_field | UT:133/:178 `Assert.False(ScenarioLoaderV2.LoadWorld(root.ToJsonString()).IsSuccess)`; 5+10 casos | PASS |
@@ -42,41 +48,42 @@ Abreviações: UT=`tests/LivingWorld.Tests.Unit/Cities/LodgingSystemTests.cs`; G
 
 ## Coverage
 
+verified at 18953eb1e930db62b3797c11148e85a2d7849a37 nas linhas diária/visual/persistência; demais linhas carried from 2ab9fcbdbbc43b167b763f1ccf7553b0069e08f3 após confirmar zero alteração de produção/helpers/fixtures no fix.
+
 | Set (size) | Recomputed from | Member -> proof | Unproven |
 | --- | --- | --- | --- |
-| decisões de diária (5) | GuestLodging.cs:41–55 | rate/limite/comparação/vaga/dinheiro → C13/C14 e U sem diária | limite positivo ≤GuestMinDistance; hospedagem tão longe/mais longe que casa |
+| decisões de diária (5) | GuestLodging.cs:41–55 | rate/vaga/dinheiro → U; limite 2/3/4 → C14; proximidade 3/4/5 vs 4 → C13 | - |
 | validações (15 amostras) | CityCatalog.cs:53–83; UT:112–164 | 5 lodging + 10 pricing → C17 | - |
 | fórmula e pressões (5) | BuildingValuation.cs:77–86 | centralidade/amenidade/água/pressão de moradia/pressão laboral → C10/C11 | - |
 | visual (5) | app.gd:812–818; interior_view.gd:74–110 | vagas/aluguel/diária/valor/leitos → C15/C16 | - |
 
 ## Test policy rows
 
-Fronteiras/causalidade: não atendida integralmente; as contraprovas de C13/C14 sobrevivem. Níveis unit, ação no relógio, processo separado e Godot reais foram executados.
+verified at 18953eb1e930db62b3797c11148e85a2d7849a37 para todas as superfícies do fix; demais decisões e Swept existing carried from 2ab9fcbdbbc43b167b763f1ccf7553b0069e08f3.
+
+Fronteiras/causalidade: atendida; as quatro contraprovas de remoção/igualdade C13/C14 falham no novo HEAD. Níveis unit, ação no relógio, processo separado e Godot reais foram executados.
 Swept existing: nenhum item; n/a de autorização/dependência é coerente com motor em memória. Migração foi reprovada pela remoção exclusiva de IsHomeless.
 
 ## Faults injected
 
-Reprodução das contraprovas: `python3 /private/tmp/lw67-mutations.py` e `python3 /private/tmp/lw67-more.py` (scripts efêmeros preservados para auditoria).
-Scratch `/private/tmp/lw67-final-mutant`, restaurado por arquivo após cada run; real `git status --porcelain` vazio antes/depois. Mutantes compilaram e falharam por assertions quando marcados yes.
+verified at 18953eb1e930db62b3797c11148e85a2d7849a37; demais mutantes mortos carried from 2ab9fcbdbbc43b167b763f1ccf7553b0069e08f3 (mesma produção).
+Reprodução própria: `python3 /private/tmp/lw67-r2-mutations.py`; logs `/private/tmp/lw67-r2-mutations/` e `lw67-r2-mutation-results.log`.
+Scratch `/private/tmp/lw67-r2-mutant` em HEAD, cada arquivo restaurado; porcelain real vazio antes/depois das oito injeções. Nenhum erro de compilação contado como morte.
 | Mutation | Location | Killed |
 | --- | --- | --- |
-| débito omitido / evento errado / carência ignorada | LodgingSystem.cs:79/87/89 (L1/L2/L3) | yes |
-| pior preço / eficiência cama / sem migração por sem-teto | LodgingSystem.cs:117; RestPlaceResolver.cs:29; MigrationSystem.cs:123 (L4/L5/L6) | yes |
-| atraso indevido sem termos / centralidade zero / pressão constante | LodgingSystem.cs:28; BuildingValuation.cs:79/49 (L7/L10/L11) | yes |
-| preço fixo / diária sem débito / aceitar aluguel zero | LodgingSystem.cs:59; GuestLodging.cs:65; CityCatalog.cs:53 (L12/L13/L17) | yes |
-| sem guard de alocação / crédito com ProcessId / aluguel visual zero / sem leitos | LodgingSystem.cs:28/78; app.gd:812; interior_view.gd:74 (L19/L18/L15actual/L16) | yes |
-| retirar `homeDistance <= terms.GuestMinDistance` | GuestLodging.cs:45 (L14all); U inteiro 39/39, exit 0 | no |
-| retirar `distance >= homeDistance` | GuestLodging.cs:45 (L13closer); U inteiro 39/39, exit 0 | no |
+| remover limite mínimo; trocar <= por < | GuestLodging.cs:45; testes de distância, inclusive igualdade, falham | yes |
+| remover comparação com casa; trocar >= por > | GuestLodging.cs:45; testes de proximidade, inclusive igualdade, falham | yes |
+| omitir leitos | interior_view.gd:74; teste renomeado e outros dois falham (7 pass / 3 fail) | yes |
+| carried: débito/carência/evento/alocação/chão/migração/preço/loader/diária/determinismo/visual | rodada 1 em 2ab9fcb, mesmos arquivos de produção | yes |
 
 ## Gate and performance
 
-`bash scripts/verify.sh`: exit 0, 2299 passed / 3 skipped; `client-test.sh`: exit 0, 258 passed. Gera warnings de recursos Godot no encerramento, sem falhas de teste.
-Criação: 1955.349 → 1713.986 ms (-12.34%). Motor: 1.019 → 1.040 µs/NPC-tick (+2.06%); 255351 → 256245 B/tick (+0.35%).
-FPS gráfico stress:500: [73.7, 74.3, 69.7] → [73.7, 74.9, 74.1]; medianas 73.7 → 74.1.
-Reprodução própria serial: `bash scripts/compare-creation-cost.sh /private/tmp/lw67-final-base /private/tmp/lw67-final-creation-serial`; `bash scripts/client-stress.sh [base/client/godot]`; `bash scripts/compare-simulation-cost.sh /private/tmp/lw67-final-base /private/tmp/lw67-final-engine`.
-Medição inicial concorrente descartada antes da repetição serial. Logs e JSON de amostras em `/private/tmp/lw67-final-*`.
+Gates verified at 18953eb1e930db62b3797c11148e85a2d7849a37: `bash scripts/verify.sh` exit0, 2305 passed / 3 skipped; `bash scripts/client-test.sh` exit0, 258 passed. U 45/45; I 24/24; D 2/2, nomes individuais nos logs acima. Godot avisa recursos no encerramento, sem falha de teste.
+Desempenho carried from 2ab9fcbdbbc43b167b763f1ccf7553b0069e08f3: criação 1955.349 → 1713.986 ms (-12.34%); motor 1.019 → 1.040 µs/NPC-tick (+2.06%); 255351 → 256245 B/tick (+0.35%); FPS medianos 73.7 → 74.1.
+Proveniência: relatório round1 no git em 2ab9fcb, logs `/private/tmp/lw67-final-*`, comparações seriais por `compare-creation-cost.sh`, `compare-simulation-cost.sh`, `client-stress.sh`, base 10bec92. Fix só testes/docs, portanto sem impacto no executável/performance; sensor D rerodado verde no HEAD.
 
-## Ranked gaps
+## Issue completeness and scope
 
-1. C13/C14: acrescentar controles com hospedagem próxima quando distância de casa está positiva abaixo/no limiar; excluir hospedagem em distância igual/maior que casa. As duas remoções devem reprovar.
-2. Checks C15 aponta teste de leitos que não testa preço: trocar a prova por `test_ui_modules::test_hover_text_comes_from_store_and_server_labels` (mutação real detectada).
+verified at 18953eb1e930db62b3797c11148e85a2d7849a37: diff real 2ab9fcb..HEAD adiciona seis casos locais, sensor EF na API, renomeia teste Godot e corrige docs/checks; nenhum fixture/helper/shared config mudou. Distâncias C13/C14 e montagem API C7 agora comprovadas por mutação; zero pendência silenciosa.
+Cabeçalho/out-of-scope godot-main-menu e STATE são coerentes com validação pendente antes deste relatório. CI develop consultado via gh: run 38823719663 success; pendência removida. Atualizar planos para Verificado cabe ao orquestrador após este PASS.
+#65 carried from abbefa5: `git diff abbefa5..HEAD -- src tests/LivingWorld.Tests.LongRunning/Population tests/baselines/family-diversity.json` vazio; sem impacto na aprovação independente de família.

@@ -9,7 +9,7 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
   console de admin com pausa de teto (AD-112), poço (AD-113), custo medido sem regressão (AD-114).
   Fase 28 fechada (motor e painel visual). Cliente web removido (ADR-0022).
 - **Abertas**: #60 provider de LLM de produção + custo (ADR-0016) · #61 Fase 24 resto · #62 Fase 26 resto (reescrita exige Fase 18) ·
-  #63 Fase 25 resto · #64 Fase 16 efeitos/custos em switch fechado · #65 FAM-32 (AD-088) · #67 verificação de `lodging-and-rent`/`godot-main-menu` ·
+  #63 Fase 25 resto · #64 Fase 16 efeitos/custos em switch fechado ·
   #68 interações presenciais · #46 criador de mundo · #47 criador procedural de objetos. Fechadas por este PR: #57, #66, #70–#72, #93.
 - **Decisão de escopo (2026-10-14, #66)**: ordem das fases `spec` = **21 → 22 → 23**, depois 18, 27 e 17/19/20.
   Fase 14 substituída pelo Godot (ADR-0025, voz/Unreal adiados); Fase 15 fechada.
@@ -26,7 +26,7 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 - **Eval**: `verify.sh`; `verify-mutation.sh` manual. Harness: [`HARNESS.md`](HARNESS.md).
 - **Budget**: nenhum loop autônomo ativo.
 
-- **Em andamento (#65/#67, 2026-10-15)**: branch `feat/issues-65-67`, planos `family-diversity-calibration` e `saved-worlds`; decisões aprovadas em ADR-0034/0035. Diversidade: Verifier independente PASS. Hospedagem e mundos salvos: provas de distância e SQL na API corrigidas após FAIL; novo Verifier independente obrigatório antes do PR. CI de develop confirmado verde (run 38823719663, commit 10bec92).
+- **Verificado (#65/#67, 2026-10-16)**: branch `feat/issues-65-67`, ADR-0034/0035. Relatórios independentes PASS em `family-diversity-calibration`, `lodging-and-rent` e `saved-worlds`; 20 seeds × 100 anos no cenário completo, mundos persistentes e provas causais de distância/SQL na composição API. Gate 2305/3 skips, integração completa 440, Godot 258. Entrega por PR para `develop`; fechamento das issues no merge.
 
 ## Decisões (AD-NNN)
 Log completo em [docs/decisions-log.md](docs/decisions-log.md) — AD-001..048 (não duplique

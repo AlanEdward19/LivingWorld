@@ -1,4 +1,4 @@
-# Mundos salvos [Estado: Implementado; prova da composição API em validação]
+# Mundos salvos [Estado: Verificado (2026-10-16)]
 
 ## Problem
 
@@ -76,3 +76,7 @@ Motor, 3 pares alternados (máquina com carga): CPU 1,121 → 0,844 µs/NPC-tick
 alocação 255.345 → 256.189 B/tick (+0,33%); limites +3%/+2% preservados.
 Amostras CPU base: 0,872 / 1,121 / 1,209; entrega: 0,970 / 0,805 / 0,844.
 Reprodução: `bash scripts/compare-simulation-cost.sh <checkout-develop>`.
+
+Verifier, medição serial em 2ab9fcb, código produtivo preservado em 18953eb:
+CPU 1,019 → 1,040 µs/NPC-tick (+2,06%); alocação 255.351 → 256.245 B/tick (+0,35%).
+Criação 6.000: 1955,349 → 1713,986 ms; Godot: mediana 73,7 → 74,1 FPS.
