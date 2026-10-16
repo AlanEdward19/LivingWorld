@@ -11,7 +11,10 @@ const POSE_BY_ACTION := {
 const POSES: Array[String] = ["idle", "walk", "sleep", "work", "eat", "socialize", "buy", "power"]
 
 
-static func pose_for(action: int) -> String:
+## Pose do NPC: a que o objeto em uso declara (ponto de uso, ADR-0037) quando o cliente a conhece; senão a da ação.
+static func pose_for(action: int, use_pose: String = "") -> String:
+	if use_pose != "" and use_pose in POSES:
+		return use_pose
 	return POSE_BY_ACTION.get(action, NEUTRAL_POSE)
 
 

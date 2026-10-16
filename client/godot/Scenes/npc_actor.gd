@@ -52,6 +52,7 @@ var _zzz: Label3D
 var _ring: MeshInstance3D
 var _aura: MeshInstance3D
 var _shirt: StandardMaterial3D
+var use_pose := "" ## pose declarada pelo objeto em uso (vazio = pose da ação)
 var use_bed := false ## o interior liga: cama só dentro de casa
 var _selected := false
 var _hovered := false
@@ -321,9 +322,10 @@ func _set_hat(kind: String) -> void:
 	_hat = _part(_head, mesh, _shared_mat(Color("6b4a2b") if kind == "straw" else Color("3b3f46")), Vector3(0, 0.16, 0))
 
 
-func set_action(new_action: int, labels) -> void:
+func set_action(new_action: int, labels, p_use_pose: String = "") -> void:
 	action = new_action
-	pose = Anim.pose_for(new_action)
+	use_pose = p_use_pose
+	pose = Anim.pose_for(new_action, p_use_pose)
 	label_text = labels.label_for(new_action) if labels != null else ""
 	_refresh_label()
 	_sync_props()
