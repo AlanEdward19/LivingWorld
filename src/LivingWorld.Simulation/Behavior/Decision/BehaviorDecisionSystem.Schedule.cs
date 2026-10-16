@@ -24,8 +24,8 @@ public sealed partial class BehaviorDecisionSystem
             return null;
         if (ExtraordinaryLocomotion.Resolve(world, npc).HasModifier) return null;
 
-        long ticksNeeded = TravelResolution.TicksBetween(
-            world.Map, npc.CurrentLocation, destination, BodyMechanic.MovementCostMultiplier(world, npc));
+        long ticksNeeded = Mobility.TravelTicks(
+            world, npc, npc.CurrentLocation, destination, BodyMechanic.MovementCostMultiplier(world, npc));
         return npc.ActionStartedAtTick + ticksNeeded;
     }
 
@@ -161,7 +161,7 @@ public sealed partial class BehaviorDecisionSystem
     private static long LeadHoursTo(WorldState world, Npc npc, CellCoord destination) =>
         destination == npc.CurrentLocation
             ? 0
-            : TravelResolution.TicksBetween(world.Map, npc.CurrentLocation, destination,
+            : Mobility.TravelTicks(world, npc, npc.CurrentLocation, destination,
                 BodyMechanic.MovementCostMultiplier(world, npc));
 
     private static int HourAfter(WorldDate date, long hours) =>
