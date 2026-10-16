@@ -72,6 +72,7 @@ func test_a_sleeper_is_placed_at_the_beds_use_point_with_its_declared_pose() -> 
 	check(actor.position.is_equal_approx(bed_base + Vector3(0.0, 0.05, 0.3)), "no ponto de uso da cama: %s" % str(actor.position))
 	check(is_equal_approx(actor.rotation.y, deg_to_rad(90.0)), "virado como o ponto declara")
 	eq(actor.pose, "sleep", "pose declarada")
+	eq(actor.use_pose, "sleep", "o ator guarda a pose do objeto")
 	eq(actor.use_bed, false, "a cama do catálogo substitui a cama do NPC")
 	view.free()
 
@@ -160,6 +161,34 @@ func test_the_pose_changes_when_only_the_object_in_use_changes() -> void:
 	view.set_occupants([_occupant(7, SLEEP, "cot")])
 
 	eq(view.occupant_nodes[7].pose, "idle", "mesma ação, outro objeto, outra pose")
+	view.free()
+
+
+func test_reopening_another_building_forgets_the_previous_objects() -> void:
+	var view := _view(_objects([_point("sleep")]), [_occupant(7, SLEEP, "bed")])
+	check(view.occupant_nodes[7].use_pose == "sleep", "no 1º prédio, usa a cama")
+	var other := _room()
+	other["occupants"] = [_occupant(7, SLEEP, "bed")]
+	other["objects"] = {"format": 1, "furniture": [{"id": "cot", "variation": 0}], "catalog": [
+		{"id": "cot", "category": "bed", "variationSeed": 0, "usePoints": [], "shape": [
+			{"shape": "box", "size": [0.4, 0.1, 0.8], "offset": [0.0, 0.05, 0.0], "color": "aaaaaa", "symmetry": "none"}]}]}
+
+	view.show_interior(other, Vector2i(30, 30), ActionLabels.new(), 3)
+
+	var actor = view.occupant_nodes[7]
+	check(actor.position.is_equal_approx(preload("res://Scenes/grid.gd").to_world(Vector2i(31, 31))), "no 2º prédio, na célula do servidor, não na cama do 1º")
+	eq(actor.use_pose, "", "sem pose herdada do 1º prédio")
+	eq(actor.use_bed, true, "cama do NPC")
+	view.free()
+
+
+func test_using_object_without_a_placed_piece_falls_back_without_error() -> void:
+	var objects := _objects([_point("sleep")], 0)
+	var view := _view(objects, [_occupant(7, SLEEP, "bed")])
+	var actor = view.occupant_nodes[7]
+	check(actor.position.is_equal_approx(preload("res://Scenes/grid.gd").to_world(Vector2i(11, 11))), "peça não colocada: célula do servidor")
+	eq(actor.pose, "sleep", "pose da ação")
+	eq(actor.use_bed, true, "cama do NPC")
 	view.free()
 
 

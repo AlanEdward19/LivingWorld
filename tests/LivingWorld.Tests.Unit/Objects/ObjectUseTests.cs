@@ -223,6 +223,34 @@ public class ObjectUseTests
     }
 
     [Fact]
+    public void A_use_point_without_an_action_attracts_nobody()
+    {
+        var world = WorldWith(ObjectCatalogScenarioLoader.Load(Root(r => BedPoint(r).Remove("action"))).Value!);
+        var house = AddBuilding(world, typeId: 3);
+        var sleeper = Enter(world, house, "ana", ActionType.Sleep);
+
+        Assert.Null(Using(world, house, sleeper));
+    }
+
+    [Theory]
+    [InlineData("bed", "lie", 1, "sleep", 0.0, 0.05, 0.3, 0.0)]
+    [InlineData("table", "eat", 0, "eat", 0.0, 0.0, 0.45, 180.0)]
+    [InlineData("bench", "sit", 3, "socialize", 0.0, 0.0, 0.3, 180.0)]
+    [InlineData("anvil", "hammer", 2, "work", 0.0, 0.0, 0.3, 180.0)]
+    [InlineData("counter", "serve", 2, "work", 0.0, 0.0, -0.35, 0.0)]
+    public void Each_default_use_point_has_its_declared_name_action_pose_offset_and_facing(
+        string id, string name, int action, string pose, double x, double y, double z, double facing)
+    {
+        var point = ObjectCatalogScenarioLoader.Load(Root()).Value!.Find(id)!.UsePoints.Single();
+
+        Assert.Equal(name, point.Name);
+        Assert.Equal(action, point.Action);
+        Assert.Equal(pose, point.Pose);
+        Assert.Equal([x, y, z], point.Offset);
+        Assert.Equal(facing, point.Facing);
+    }
+
+    [Fact]
     public void The_default_use_points_serve_the_actions_their_pieces_are_for()
     {
         var catalog = ObjectCatalogScenarioLoader.Load(Root()).Value!;
