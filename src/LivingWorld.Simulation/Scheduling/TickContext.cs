@@ -1,6 +1,7 @@
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History;
 
 namespace LivingWorld.Simulation.Scheduling;
 
@@ -19,6 +20,13 @@ public sealed class TickContext(WorldState world, WorldRngRegistry rng, EventSch
     public long LogEvent(WorldEventKind kind, string payload, string sourceSystem, long? causeEventId = null)
     {
         var eventId = world.NextHistoryEventIdAndAdvance();
+        // Record before witness-loss handling, even when there is no external sink.
+        if (world.HistoryRules.Enabled && kind is not (WorldEventKind.FactRecorded
+            or WorldEventKind.ReportConverted or WorldEventKind.CompensatingCorrection
+            or WorldEventKind.PossessionResisted or WorldEventKind.NpcInstantiated)
+            && SignificanceCalculator.CanMeetThreshold(kind, world.HistoryRules))
+            SignificanceCalculator.TryRecord(
+                new WorldEvent(CurrentTick, kind, payload, eventId, causeEventId, sourceSystem), world, world.HistoryRules);
         sink?.Record(new WorldEvent(CurrentTick, kind, payload, eventId, causeEventId, sourceSystem));
         return eventId;
     }

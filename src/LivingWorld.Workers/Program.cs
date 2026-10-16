@@ -14,6 +14,22 @@ using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Workers;
 using Microsoft.EntityFrameworkCore;
 
+// Sensor da issue #91: usa o mesmo carregador dos mundos criados pelo menu.
+if (args.Length == 3 && args[0] == "catalog-history-hash")
+{
+    var directory = new DirectoryInfo(AppContext.BaseDirectory);
+    while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "LivingWorld.sln"))) directory = directory.Parent;
+    var root = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(
+        Path.Combine(directory!.FullName, "scenarios", "periods", "medieval.json")))!;
+    root["Seed"] = ulong.Parse(args[1]);
+    var result = ScenarioLoaderV2.LoadWorld(root.ToJsonString());
+    if (!result.IsSuccess) throw new InvalidOperationException(result.Error);
+    var (world, clock) = result.Value;
+    clock.Run(world, long.Parse(args[2]));
+    Console.WriteLine($"{WorldSnapshot.CanonicalHash(world)};{world.Facts.Count};{world.Reports.Count}");
+    return 0;
+}
+
 // Sensor entre processos com aluguel, preço dinâmico e diária ativos.
 if (args.Length == 3 && args[0] == "lodging-hash")
 {

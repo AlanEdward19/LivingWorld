@@ -4,6 +4,9 @@ Fonte única de continuidade. Quem entra numa área nova **lê este arquivo prim
 Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
+- **#91 (2026-10-16, `codex/issue-91`)**: história ligada nos mundos do catálogo, gravação síncrona de fatos,
+  relato de fome consumido pela utility de Buy e cache hop-0 dentro do teto de custo. ADR-0037;
+  spec/evidências em `.specs/features/issue-91-catalog-history/`. Gates e Verifier PASS; relatório `validation.md`, 3 mutações detectadas e custo 99,36% do controle.
 - **Fechado (2026-10-14)**: ADs 104–114 e as issues #20–#43 (incl. #25–#28, #40, #41): cliente Godot com arte/áudio,
   história e narrativa fechadas (Fases 10/12), primeira fatia de emergência (AD-110), encarnação de jogador (AD-111),
   console de admin com pausa de teto (AD-112), poço (AD-113), custo medido sem regressão (AD-114).

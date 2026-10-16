@@ -1,6 +1,7 @@
 using LivingWorld.Domain.Ecology;
 using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
 using LivingWorld.Domain.Performance;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Body;
@@ -103,12 +104,13 @@ public static class ScaleScenarioFixture
             CropResourceId: 1, YieldPerMaturePlant: 10, ReproduceRadius: 2, ReproduceProbability: 0),
     ];
 
-    public static (WorldState World, WorldClock Clock) CreateWorld(ulong seed, int initialPopulation)
+    public static (WorldState World, WorldClock Clock) CreateWorld(ulong seed, int initialPopulation, HistoryRules? historyRules = null)
     {
         int vacancyMult = Math.Max(1, initialPopulation / 100);
         var scenario = ScenarioRunner.Create(
             seed,
             initialPopulation: initialPopulation,
+            historyRules: historyRules,
             economyRules: ScaleEconomyRules,
             familyRules: ScaleFamilyRules,
             populationRules: ScalePopulationRules,

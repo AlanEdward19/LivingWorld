@@ -32,7 +32,8 @@ public static class DistortionEngine
             fact.Significance,
             fact.Tick,
             fact.Payload,
-            MoralSeed: InitialMoralSeedFromPayload(fact.Payload),
+            // Preserve the factual cause without inventing a market or an intention.
+            MoralSeed: fact.Kind == WorldEventKind.Starvation ? "hunger" : InitialMoralSeedFromPayload(fact.Payload),
             DistanceFromFact: 0);
 
     /// <summary>Cues de escassez/fome reconhecidos no scoring de Buy precisam

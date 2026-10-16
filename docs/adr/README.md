@@ -44,4 +44,5 @@ conteúdo de ADR para dentro dele.
 | [0034](ADR-0034-catalogo-de-objetos-no-cenario.md) | Catálogo de objetos no cenário (formato versionado, interior servido por id) | aceito |
 | [0035](ADR-0035-mundos-salvos-por-arquivo.md) | Mundos salvos em SQLite por mundo, identidade por seed e troca pausada | aceito |
 | [0036](ADR-0036-diversidade-genetica-calibrada.md) | Diversidade genética calibrada e correções demográficas de FAM-32 (antes 0034 nesta branch) | aceito |
-| [0037](ADR-0037-uso-de-objeto-pose-e-ponto-de-uso.md) | Uso de objeto: pose e ponto de uso declarados, objeto em uso informado pelo servidor | aceito |
+| [0037 — história](ADR-0037-historia-nos-mundos-do-catalogo.md) | História ligada no catálogo, gravação síncrona de fatos e crenças causais com custo limitado | aceito |
+| [0037 — objetos](ADR-0037-uso-de-objeto-pose-e-ponto-de-uso.md) | Uso de objeto: pose e ponto de uso declarados, objeto em uso informado pelo servidor | aceito |

@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.History.Distortion;
 using LivingWorld.Domain.Shared;
@@ -14,6 +15,9 @@ namespace LivingWorld.Simulation.History.Queries;
 /// slot pra iterar — fica fora do prompt sem checagem extra.</summary>
 public static class NpcBeliefQuery
 {
+    private sealed record CachedCanon(IReadOnlyList<ReportState> Slots, int FactCount, IReadOnlyList<string> Beliefs);
+    private static readonly ConditionalWeakTable<WorldState, Dictionary<CityId, CachedCanon>> Caches = new();
+
     public static IReadOnlyList<string> BeliefsOf(WorldState world, NpcId npcId)
     {
         var npc = world.FindNpc(npcId);
@@ -22,15 +26,24 @@ public static class NpcBeliefQuery
         var city = world.FindCity(npc.City);
         if (city is null) return [];
 
-        if (city.CanonSlots.Count == 0) return [];
+        if (!world.HistoryRules.Enabled || city.CanonSlots.Count == 0) return [];
+
+        var cache = Caches.GetOrCreateValue(world);
+        if (cache.TryGetValue(city.Id, out var cached)
+            && ReferenceEquals(cached.Slots, city.CanonSlots) && cached.FactCount == world.Facts.Count)
+            return cached.Beliefs;
 
         var beliefs = new List<string>();
         foreach (var slot in city.CanonSlots)
         {
             var belief = HistoryBeliefQuery.BeliefOf(world, city.Id, slot.OriginFactId);
-            if (belief.IsSuccess)
-                beliefs.Add(belief.Value!.MoralizedNarrativeSeed);
+            if (belief.IsSuccess && !string.IsNullOrEmpty(belief.Value!.MoralizedNarrativeSeed))
+                beliefs.Add(belief.Value.MoralizedNarrativeSeed);
         }
-        return beliefs;
+        // Hop-0 materialization is pure. Later hops consume distortion RNG, so keep their existing execution semantics.
+        IReadOnlyList<string> result = beliefs.Count == 0 ? Array.Empty<string>() : beliefs;
+        if (city.CanonSlots.All(slot => slot.HopCount == 0))
+            cache[city.Id] = new CachedCanon(city.CanonSlots, world.Facts.Count, result);
+        return result;
     }
 }

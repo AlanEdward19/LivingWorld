@@ -33,12 +33,6 @@ public static class HistorySimulationDigest
         var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink);
         clock.Run(world, ticks);
 
-        foreach (var evt in sink.DrainAll())
-        {
-            if (SignificanceCalculator.TryRecord(evt, world, rules).IsSuccess)
-                continue;
-        }
-
         var lines = world.Facts
             .OrderBy(f => f.Id.Value)
             .Select(f =>
@@ -56,9 +50,6 @@ public static class HistorySimulationDigest
         var (world, _) = ScenarioRunner.Create(seed, historyRules: rules);
         var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink);
         clock.Run(world, ticks);
-
-        foreach (var evt in sink.DrainAll())
-            SignificanceCalculator.TryRecord(evt, world, rules);
 
         var index = HistoryIndex.RebuildFrom(world);
         var lines = new List<string>();
