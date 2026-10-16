@@ -1,6 +1,4 @@
 using LivingWorld.Api.Visual.Scope;
-using LivingWorld.Infrastructure;
-using LivingWorld.Infrastructure.EventLog;
 using LivingWorld.Simulation.Hosting;
 using LivingWorld.Simulation.Scenarios;
 
@@ -17,7 +15,7 @@ public sealed record CreateWorldResponse(int NpcCount, Guid WorldId, string Name
 /// e o próximo snapshot automático.</summary>
 public static class WorldCreateEndpoints
 {
-    public static void MapWorldCreateEndpoints(this WebApplication app, WorldHost host, PersistentWorldRunner runner, BufferingWorldEventSink sink)
+    public static void MapWorldCreateEndpoints(this WebApplication app, WorldHost host, SavedWorldLibrary library, SimulationHost simulation)
     {
         app.MapPost("/worlds/create", (CreateWorldRequest request) =>
         {
@@ -30,8 +28,8 @@ public static class WorldCreateEndpoints
             var (world, clock) = result.Value!;
             world.Rename(request.Name);
             world.AssignPeriod(request.PeriodId?.Trim() ?? "");
-            host.Replace(world, clock);
-            runner.Snapshot(world, sink);
+            if (!library.Create(host, simulation, world, clock))
+                return Results.Conflict("Já existe um mundo salvo com esta seed. Carregue o mundo existente.");
 
             var initialScope = new VisualScope(VisualScopeKind.World, "").ScopeKey;
             return Results.Ok(new CreateWorldResponse(

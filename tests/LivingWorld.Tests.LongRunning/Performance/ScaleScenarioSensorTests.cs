@@ -75,6 +75,20 @@ public class ScaleScenarioSensorTests
         BaselineFixture.Record(BaselinesDir, "scale-sensor", actual);
     }
 
+    [Fact]
+    [Trait("Category", "Scenario")]
+    [Trait("Category", "Measure")]
+    public void Record_scale_storage_baseline_when_explicitly_requested()
+    {
+        if (Environment.GetEnvironmentVariable("LW_RECORD_SCALE_STORAGE") != "1") return;
+        string path = Path.Combine(BaselinesDir, "scale-sensor.json");
+        var baseline = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(path))!;
+        foreach (int population in new[] { ScaleScenarioFixture.PopulationSmall, ScaleScenarioFixture.PopulationLarge })
+            baseline[population.ToString()]!["BytesPerAliveNpcPerYear"] = MeasureDiskBytesPerAliveNpcPerYear(population);
+        // CPU e alocação continuam presos aos limites anteriores; só o novo grafo persistido é recalibrado.
+        File.WriteAllText(path, baseline.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
+    }
+
     private static void AssertWithinBaseline(int initialPopulation)
     {
         var sample = Measure(initialPopulation);

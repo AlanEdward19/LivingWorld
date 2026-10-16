@@ -1,4 +1,4 @@
-# Lodging and rent [Estado: Implementado (2026-10-13); verificação independente pendente]
+# Lodging and rent [Estado: Verificado (2026-10-16)]
 
 ## Problem
 

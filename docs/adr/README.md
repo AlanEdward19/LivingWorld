@@ -42,3 +42,5 @@ conteúdo de ADR para dentro dele.
 | [0032](ADR-0032-aparencia-herdada-e-autoria-de-pessoa.md) | Aparência herdada opt-in por período, habilidades iniciais autoradas, consumidor no cortejo | aceito |
 | [0033](ADR-0033-criacao-ao-vivo-de-familia-e-local-de-trabalho.md) | Criação ao vivo de família e local de trabalho por rotas de autoria de admin | aceito |
 | [0034](ADR-0034-catalogo-de-objetos-no-cenario.md) | Catálogo de objetos no cenário (formato versionado, interior servido por id) | aceito |
+| [0035](ADR-0035-mundos-salvos-por-arquivo.md) | Mundos salvos em SQLite por mundo, identidade por seed e troca pausada | aceito |
+| [0036](ADR-0036-diversidade-genetica-calibrada.md) | Diversidade genética calibrada e correções demográficas de FAM-32 (antes 0034 nesta branch) | aceito |

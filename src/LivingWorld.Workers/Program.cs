@@ -14,6 +14,13 @@ using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Workers;
 using Microsoft.EntityFrameworkCore;
 
+// Sensor entre processos com aluguel, preço dinâmico e diária ativos.
+if (args.Length == 3 && args[0] == "lodging-hash")
+{
+    Console.WriteLine(LodgingProbe.Run(ulong.Parse(args[1]), long.Parse(args[2])));
+    return 0;
+}
+
 // Modo CLI usado pelo teste de determinismo entre processos: calcula os
 // hashes de um cenário e sai, sem subir o host. `dotnet <dll> hash <seed> <ticks>`.
 if (args.Length == 3 && args[0] == "hash")

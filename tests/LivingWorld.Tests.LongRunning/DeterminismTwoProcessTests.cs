@@ -9,6 +9,16 @@ namespace LivingWorld.Tests.LongRunning;
 public class DeterminismTwoProcessTests
 {
     [Fact]
+    public void Lodging_pricing_and_nightly_rates_are_deterministic_with_actual_rent_in_two_processes()
+    {
+        string a = RunCommand("lodging-hash 42 720");
+        string b = RunCommand("lodging-hash 42 720");
+        Assert.Equal(a, b);
+        Assert.Equal(100, long.Parse(a.Split(';')[1]));
+        Assert.NotEqual(a, RunCommand("lodging-hash 43 720"));
+    }
+
+    [Fact]
     public void Same_seed_produces_identical_hashes_across_two_separate_processes()
     {
         var (canonicalA, volatileA) = RunInSeparateProcess(seed: 42, ticks: 400);

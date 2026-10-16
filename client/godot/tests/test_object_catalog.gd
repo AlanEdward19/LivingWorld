@@ -180,3 +180,44 @@ func near(actual: Array, expected: Array, message: String) -> void:
 	for i in mini(actual.size(), expected.size()):
 		ok = ok and is_equal_approx(float(actual[i]), float(expected[i]))
 	check(ok, "%s esperado %s, veio %s" % [message, str(expected), str(actual)])
+
+
+func test_server_objects_and_lodging_beds_share_the_available_floors() -> void:
+	for units in [2, 5]:
+		var cells := [{"cell": {"x": 0, "y": 0}, "material": 3}, {"cell": {"x": 1, "y": 0}, "material": 3}, {"cell": {"x": 2, "y": 0}, "material": 3}]
+		var info := {"floors": 2, "layout": [{"level": 0, "cells": cells}, {"level": 1, "cells": cells}], "occupants": [],
+			"objects": {"format": 1, "furniture": [{"id": "server_lamp", "variation": 2}], "catalog": [
+				{"id": "bed", "shape": [{"shape": "box", "size": [0.6, 0.4, 1.4], "offset": [0.0, 0.2, 0.0], "color": "ff0000", "symmetry": "none"}]},
+				{"id": "server_lamp", "shape": [{"shape": "box", "size": [0.2, 0.8, 0.2], "offset": [0.0, 0.4, 0.0], "color": "224466", "symmetry": "none"}]}]}}
+		var view := InteriorView.new()
+		view.catalog = AssetCatalog.load_default()
+		tree.root.add_child(view)
+		view.show_interior(info, Vector2i(10, 10), ActionLabels.new(), 4, units)
+		var beds := 0
+		var lamps := 0
+		var bed_mesh: Mesh
+		for floor_node in view.floor_nodes.values():
+			var pieces: Node3D = floor_node.get_node_or_null("Furniture")
+			if pieces == null:
+				continue
+			for piece in pieces.get_children():
+				if piece.mesh.size == Vector3(0.6, 0.4, 1.4):
+					beds += 1
+					if bed_mesh == null:
+						bed_mesh = piece.mesh
+					check(piece.mesh == bed_mesh, "leitos compartilham o mesh do servidor entre andares")
+				else:
+					lamps += 1
+					eq((piece.material_override as StandardMaterial3D).albedo_color, Color("224466").lightened(0.1), "variação da mobília enviada pelo servidor")
+		eq(beds, units, "leitos do catálogo para todas as vagas")
+		eq(lamps, 1 if units == 2 else 0, "mobília do servidor ocupa apenas piso térreo livre")
+		if units == 5:
+			var upper: Node3D = view.floor_nodes[1].get_node("Furniture")
+			eq(upper.get_child_count(), 2, "dois leitos ficam no andar superior")
+			view.set_floor(0)
+			for bed in upper.get_children():
+				check(not bed.is_visible_in_tree(), "corte esconde os leitos do andar superior")
+			view.set_floor(1)
+			for bed in upper.get_children():
+				check(bed.is_visible_in_tree(), "andar superior volta a mostrar os leitos")
+		view.free()

@@ -87,7 +87,7 @@ public class WorldCreateEndpointsTests : IClassFixture<LivingWorldApiFactory>
     }
 
     [Fact]
-    public async Task Create_with_the_same_seed_and_name_twice_returns_the_same_WorldId()
+    public async Task Create_with_the_same_seed_and_name_twice_returns_conflict_and_preserves_the_original()
     {
         var client = _factory.CreateClient();
         var scenario = FullValidScenario(seed: 777).ToJsonString();
@@ -96,9 +96,8 @@ public class WorldCreateEndpointsTests : IClassFixture<LivingWorldApiFactory>
         var second = await client.PostAsJsonAsync("/worlds/create", new CreateWorldRequest(scenario, "Aldeia"));
 
         var firstBody = await first.Content.ReadFromJsonAsync<CreateWorldResponse>();
-        var secondBody = await second.Content.ReadFromJsonAsync<CreateWorldResponse>();
-
-        Assert.Equal(firstBody!.WorldId, secondBody!.WorldId);
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+        Assert.Equal(WorldIdentity.WorldIdFor(777), firstBody!.WorldId);
     }
 
     [Fact]
@@ -106,8 +105,8 @@ public class WorldCreateEndpointsTests : IClassFixture<LivingWorldApiFactory>
     {
         var client = _factory.CreateClient();
 
-        var a = await client.PostAsJsonAsync("/worlds/create", new CreateWorldRequest(FullValidScenario(1).ToJsonString(), "A"));
-        var b = await client.PostAsJsonAsync("/worlds/create", new CreateWorldRequest(FullValidScenario(2).ToJsonString(), "B"));
+        var a = await client.PostAsJsonAsync("/worlds/create", new CreateWorldRequest(FullValidScenario(1001).ToJsonString(), "A"));
+        var b = await client.PostAsJsonAsync("/worlds/create", new CreateWorldRequest(FullValidScenario(1002).ToJsonString(), "B"));
 
         var bodyA = await a.Content.ReadFromJsonAsync<CreateWorldResponse>();
         var bodyB = await b.Content.ReadFromJsonAsync<CreateWorldResponse>();

@@ -252,3 +252,17 @@ func grant_power(npc_id: int, power_id: String) -> Dictionary:
 func rewrite_personality(npc_id: int, values: Dictionary) -> Dictionary:
 	var response: Dictionary = await transport.request("PUT", "/authoring/npcs/%d/personality" % npc_id, values)
 	return {"ok": response.status == 200, "status": response.status, "body": response.body}
+
+
+func saved_worlds() -> Dictionary:
+	return await _fetch("/worlds", "saved-worlds")
+
+
+func load_saved_world(id: String) -> Dictionary:
+	var response: Dictionary = await transport.request("POST", "/worlds/%s/load" % id.uri_encode())
+	return _checked("/worlds/load", response, "")
+
+
+func delete_saved_world(id: String) -> Dictionary:
+	var response: Dictionary = await transport.request("DELETE", "/worlds/%s" % id.uri_encode())
+	return {"ok": response.status == 204, "status": response.status, "body": response.body}

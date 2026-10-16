@@ -3,6 +3,8 @@
 **Objetivo**: fecha o **objetivo técnico #1** — 100 NPCs rodam 100 anos sem LLM, formando
 casais, tendo filhos e produzindo linhagens rastreáveis que não colapsam em clones.
 
+**FAM-32 Verified (2026-10-15)**: prova independente em `family-diversity-calibration/verification.md`; FAM-06/20/22 permanecem pendentes na spec.
+
 ## Tasks
 1. **Relação com eixos numéricos**: confiança, afeto, respeito, dívida. Par ordenado
    (A→B) — relação não é simétrica. Evolui por evento (ajuda, traição, convívio,
@@ -47,15 +49,17 @@ casais, tendo filhos e produzindo linhagens rastreáveis que não colapsam em cl
   (negativo) **e** cenário com dois irmãos adultos coabitando e compatíveis em tudo o mais,
   no qual o cortejo é rejeitado com motivo `Incesto` (positivo). Só o negativo passa também
   se irmãos nunca se encontrarem.
-- **Diversidade contra controle de deriva neutra**: **coeficiente de variação** por atributo
-  genético (variância bruta não é comparável entre populações de tamanhos diferentes),
-  comparado ao mesmo CV no cenário de deriva neutra com a mesma seed. Falha só se a
-  diversidade do mundo real ficar **abaixo** do controle neutro.
-  *Registro: 100 anos são ~4 gerações; com `Ne` entre 20 e 50, a perda esperada por deriva
-  é de 3,9% a 9,6%. Um limiar de "≥ 50% da variância inicial" passaria com o modelo
-  genético completamente quebrado. O teste real é o contraste com o controle, não o nível.*
-  *Registro (AD-088): **não atendido** com a vila saudável — CV(real) − CV(neutro) = −0,0041 (z = −4,0, 160
-  seeds): a seleção real reduz a diversidade. O gate de 10 seeds só barra o sinal contrário. Decisão em aberto.*
+- **Diversidade calibrada contra deriva neutra (FAM-32, ADR-0036)**: em 20 seeds pareadas e
+  10 anos, a média de `CV(Vitality real) − CV(Vitality neutro)` deve ficar na faixa
+  `média baseline ± ConfidenceZ × EP baseline`, calculada de `tests/baselines/family-diversity.json`.
+  `Openness`, sem seleção direta de mortalidade, é controle negativo: sua diferença média
+  deve ficar na faixa medida e seu IC95 pareado deve conter zero.
+  Em checkpoints anuais até 100 anos do cenário completo, o CV de Vitality e a população viva
+  não podem ficar abaixo dos mínimos empíricos das 20 seeds versionadas; o baseline exige
+  CV positivo e mais de um vivo. Seleção de mortalidade amplificada deve reprovar a mesma faixa.
+  *A seleção direcional pode reduzir variância; o critério antigo contra zero foi substituído
+  por decisão explícita do usuário (#65). Preservar a cidade ao nascer e casar corrige o
+  bloqueio de emprego da geração seguinte; contato no turno e parceiro compatível são causais.*
 - **Correlação genética × sucesso, teto derivado**: bootstrap de `|r|` sobre 20 seeds. Exige
   (a) `r` significativo, `p < 0.05`, e (b) o IC95 de `|r|` **inteiramente abaixo** do `|r|`
   medido no mesmo mundo com o canal ambiental **desligado**. Sem `0 < |r|` (tautológico) e

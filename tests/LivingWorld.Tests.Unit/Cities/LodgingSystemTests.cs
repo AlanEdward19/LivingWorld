@@ -8,6 +8,9 @@ using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
+using LivingWorld.Infrastructure.EventLog;
+using LivingWorld.Simulation.Behavior.Decision;
+using LivingWorld.Simulation.Behavior.Needs;
 using LivingWorld.Simulation.Behavior.Resolvers;
 using LivingWorld.Simulation.Cities;
 using LivingWorld.Simulation.Cities.Migration;
@@ -86,14 +89,58 @@ public class LodgingSystemTests
     }
 
     [Fact]
+    public void Without_lodging_the_monthly_system_allocates_nothing_and_preserves_the_hash()
+    {
+        var world = WorldWithInn(declareLodging: false);
+        var system = new LodgingSystem();
+        var context = new TickContext(world, world.Rng, world.Scheduler);
+        string beforeHash = WorldSnapshot.CanonicalHash(world);
+        bool nightly = false;
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 100; i++)
+        {
+            system.Tick(world, context);
+            nightly |= GuestLodging.Exists(world);
+        }
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.Equal(0, allocated);
+        Assert.False(nightly);
+        Assert.Equal(beforeHash, WorldSnapshot.CanonicalHash(world));
+    }
+
+    [Theory]
+    [InlineData(100, -1, 0, 0)]
+    [InlineData(100, 1, 40, 0)]
+    [InlineData(100, 1, -1, 3)]
+    [InlineData(-1, 1, 0, 0)]
+    [InlineData(0, 0, 0, 0)]
+    public void Loader_rejects_each_invalid_lodging_boundary(long rent, int grace, long nightly, int distance)
+    {
+        var root = DefaultRoot();
+        root["BuildingRecipes"]!["13"] = new JsonObject
+        {
+            ["Inputs"] = new JsonObject(),
+            ["TicksToBuild"] = 1,
+            ["HousingCapacityProvided"] = 2,
+            ["Lodging"] = new JsonObject
+            {
+                ["RentPerMonth"] = rent,
+                ["GraceMonths"] = grace,
+                ["NightlyRate"] = nightly,
+                ["GuestMinDistance"] = distance,
+            },
+        };
+        Assert.False(ScenarioLoaderV2.LoadWorld(root.ToJsonString()).IsSuccess);
+    }
+
+    [Fact]
     public void Loader_reads_lodging_terms_and_rejects_invalid_ones()
     {
-        var world = WorldWithInn();
+        var world = WorldWithInn(tune: recipe => recipe["Lodging"]!["GraceMonths"] = 0);
         var terms = world.CityCatalog.BuildingRecipes[InnTypeId].Lodging;
-        Assert.Equal(new LodgingTerms(Rent, 1), terms);
+        Assert.Equal(new LodgingTerms(Rent, 0), terms);
 
         var broken = DefaultRoot();
-        ((JsonArray)broken["Workplaces"]!).Add(new JsonObject());
         broken["BuildingRecipes"]!["13"] = new JsonObject
         {
             ["Inputs"] = new JsonObject(),
@@ -102,6 +149,134 @@ public class LodgingSystemTests
             ["Lodging"] = new JsonObject { ["RentPerMonth"] = 0, ["GraceMonths"] = 0 },
         };
         Assert.False(ScenarioLoaderV2.LoadWorld(broken.ToJsonString()).IsSuccess);
+    }
+
+    [Theory]
+    [InlineData("BaseValue", 0)]
+    [InlineData("RentYieldPerMonth", 0)]
+    [InlineData("RentYieldPerMonth", 2)]
+    [InlineData("CentralityWeight", -1)]
+    [InlineData("AmenityWeight", -1)]
+    [InlineData("AmenityRadius", -1)]
+    [InlineData("WaterfrontWeight", -1)]
+    [InlineData("DemandSensitivity", -1)]
+    [InlineData("MinMultiplier", 0)]
+    [InlineData("MaxMultiplier", 0)]
+    public void Loader_rejects_each_inconsistent_pricing_field(string field, double value)
+    {
+        var root = DefaultRoot();
+        var recipe = new JsonObject
+        {
+            ["Inputs"] = new JsonObject(),
+            ["TicksToBuild"] = 1,
+            ["HousingCapacityProvided"] = 2,
+            ["Lodging"] = new JsonObject { ["RentPerMonth"] = 100, ["GraceMonths"] = 1 },
+        };
+        WithPricing(recipe);
+        recipe["Pricing"]![field] = field is "BaseValue" or "AmenityRadius" ? JsonValue.Create((long)value) : JsonValue.Create(value);
+        root["BuildingRecipes"]!["13"] = recipe;
+        Assert.False(ScenarioLoaderV2.LoadWorld(root.ToJsonString()).IsSuccess);
+    }
+
+    [Fact]
+    public void Unpaid_and_evicted_events_include_the_actual_tick_and_household()
+    {
+        var world = WorldWithInn();
+        var household = Tenant(world, 0, 0);
+        household.LiveIn(Inn(world).Id);
+        var sink = new BufferingWorldEventSink();
+        var system = new LodgingSystem();
+        world.CurrentDate = world.CurrentDate.AddHours(world.Calendar.HoursPerMonth);
+        system.Tick(world, new TickContext(world, world.Rng, world.Scheduler, sink));
+        Assert.Contains(sink.DrainAll(), e => e.Kind == WorldEventKind.RentUnpaid
+            && e.Tick == world.CurrentDate.TotalHours && e.Payload!.StartsWith(household.Id.Value + "|"));
+        world.CurrentDate = world.CurrentDate.AddHours(world.Calendar.HoursPerMonth);
+        system.Tick(world, new TickContext(world, world.Rng, world.Scheduler, sink));
+        Assert.Equal(world.CurrentDate.TotalHours, household.EvictedAtTick);
+        Assert.Contains(sink.DrainAll(), e => e.Kind == WorldEventKind.Evicted && e.Tick == household.EvictedAtTick);
+    }
+
+    [Fact]
+    public void Homeless_families_choose_cheapest_then_id_without_exceeding_capacity()
+    {
+        var root = DefaultRoot();
+        foreach (int type in new[] { 13, 14 })
+        {
+            root["BuildingRecipes"]![type.ToString()] = new JsonObject
+            {
+                ["Inputs"] = new JsonObject(),
+                ["TicksToBuild"] = 1,
+                ["HousingCapacityProvided"] = 1,
+                ["Lodging"] = new JsonObject { ["RentPerMonth"] = 50, ["GraceMonths"] = 1 },
+            };
+            root["Workplaces"]!.AsArray().Add(new JsonObject
+            {
+                ["LocationTypeId"] = type,
+                ["X"] = type - 6,
+                ["Y"] = 9,
+                ["MaxVacancies"] = 1,
+                ["Treasury"] = 0,
+                ["Stock"] = new JsonObject(),
+                ["Prices"] = new JsonObject(),
+            });
+        }
+        var world = WorldWithInn(root);
+        var first = Tenant(world, 0, 500);
+        var second = Tenant(world, 1, 500);
+        first.Evict(1); second.Evict(1);
+        var cheap = world.Buildings.Where(b => b.BuildingTypeId is 13 or 14).OrderBy(b => b.Id.Value).ToArray();
+        Run(world);
+        Assert.Equal(cheap[0].Id, first.Dwelling);
+        Assert.Equal(cheap[1].Id, second.Dwelling);
+        Assert.Equal(DwellingCapacity.InteriorCellOf(cheap[0], cheap[0].Position!.Value), first.Location);
+        Assert.All(cheap, b => Assert.Single(world.Households, h => h.Dwelling == b.Id));
+    }
+
+    [Fact]
+    public void Completing_the_travellers_sleep_pays_once_at_the_action_boundary()
+    {
+        var world = WorldWithInn(tune: recipe => WithNightly(recipe));
+        var npc = Traveller(world, 500);
+        var room = GuestLodging.FindRoom(world, npc, world.FindHousehold(npc.Household!.Value)!.Location)!.Value;
+        npc.MoveTo(room.Cell, 0);
+        npc.SetCurrentAction(ActionType.Sleep, 0);
+        long before = TotalMoney(world), treasury = Landlord(world).Treasury.Amount;
+        var clock = new WorldClock([new BehaviorDecisionSystem()]);
+        int duration = world.ActionCatalog.DurationOf(ActionType.Sleep);
+        NpcWakeScheduler.ScheduleWake(world, new TickContext(world, world.Rng, world.Scheduler), npc.Id.Value, duration);
+        clock.Run(world, duration - 1);
+        Assert.Equal(treasury, Landlord(world).Treasury.Amount);
+        clock.Tick(world);
+        Assert.Equal(treasury + room.Nightly, Landlord(world).Treasury.Amount);
+        Assert.Equal(before, TotalMoney(world));
+    }
+
+    [Fact]
+    public void Price_formula_includes_exact_centrality_amenity_waterfront_and_demand_terms()
+    {
+        var world = WorldWithInn(tune: r => WithPricing(r, centrality: 1, amenity: 1, demand: 0.5, min: 0.1, max: 100));
+        var (context, recipe) = Valuation(world);
+        // No centro, centralidade exatamente 1; os outros pesos são isolados em braços próprios.
+        var building = new Building(new BuildingId(99999), context.City.Id, InnTypeId, 0, context.City.Location);
+        var pricing = recipe.Pricing! with { AmenityWeight = 0, WaterfrontWeight = 0 };
+        var centralRecipe = recipe with { Pricing = pricing };
+        double demand = 1 + pricing.DemandSensitivity * (context.LodgingPressure - 1);
+        Assert.Equal((long)Math.Round(pricing.BaseValue * 2 * demand), BuildingValuation.ValueOf(context, building, centralRecipe));
+        long vacancies = world.Workplaces.Where(w => w.City == context.City.Id).Sum(w => (long)w.MaxVacancies);
+        Assert.Equal(LivingWorld.Simulation.Cities.Queries.CityPopulationQuery.Population(world, context.City.Id) / (double)vacancies, context.LabourPressure);
+        long need = world.Households.Count(h => h.City == context.City.Id && (h.Dwelling is null || h.Dwelling == Inn(world).Id));
+        Assert.Equal(need / 3.0, context.LodgingPressure);
+        int amenities = Math.Min(5, world.Workplaces.Count(w => Math.Max(Math.Abs(w.Location.X - building.Position!.Value.X), Math.Abs(w.Location.Y - building.Position.Value.Y)) <= 30));
+        var amenityRecipe = recipe with { Pricing = pricing with { AmenityWeight = 1 } };
+        Assert.Equal((long)Math.Round(pricing.BaseValue * (2 + amenities / 5.0) * demand), BuildingValuation.ValueOf(context, building, amenityRecipe));
+        CellCoord? water = null;
+        for (int x = 0; x < world.Map.Width && water is null; x++)
+            for (int y = 0; y < world.Map.Height; y++)
+                if (world.Map.TryGetCell(new CellCoord(x, y), out var cell) && cell.HasWater) { water = new CellCoord(x, y); break; }
+        Assert.NotNull(water);
+        var waterside = new Building(new BuildingId(99998), context.City.Id, InnTypeId, 0, water);
+        var waterfrontRecipe = recipe with { Pricing = pricing with { CentralityWeight = 0, WaterfrontWeight = 1 } };
+        Assert.Equal((long)Math.Round(pricing.BaseValue * 2 * demand), BuildingValuation.ValueOf(context, waterside, waterfrontRecipe));
     }
 
     [Fact]
@@ -152,6 +327,7 @@ public class LodgingSystemTests
         var rest = RestPlaceResolver.Resolve(world, head);
 
         Assert.Equal(RestPlaceKind.Ground, rest.Kind);
+        Assert.Equal(world.RestPlaceCatalog.GroundEfficiency, rest.RecoveryEfficiency);
         Assert.True(household.IsHomeless);
     }
 
@@ -180,6 +356,14 @@ public class LodgingSystemTests
         var housedIndex = world.Households.OrderBy(h => h.Id.Value).Select((h, i) => (h, i))
             .First(x => x.i > 0 && x.h.Dwelling != Inn(world).Id && bounds.Contains(x.h.Location)).i;
         var housed = Tenant(world, housedIndex, wallet: 500);
+        // Mesma residência dentro dos bounds e comida suficiente: somente perder a moradia provoca a saída.
+        evicted.CompleteRelocation(home.Id, housed.Location);
+        var food = new ResourceType(world.EconomyRules.FoodResourceId);
+        evicted.Deposit(food, 100);
+        housed.Deposit(food, 100);
+        Assert.True(bounds.Contains(evicted.Location));
+        Assert.True(evicted.IsHomeless);
+        Assert.DoesNotContain(world.Workplaces, workplace => workplace.City == elsewhere.Id);
 
         new MigrationSystem().Tick(world, new TickContext(world, world.Rng, world.Scheduler));
 
@@ -440,6 +624,38 @@ public class LodgingSystemTests
         foreach (var household in full.Households.OrderBy(h => h.Id.Value).Skip(1).Take(3)) household.LiveIn(Inn(full).Id); // 3 vagas tomadas
         var late = Traveller(full, wallet: 500);
         Assert.NotEqual(RestPlaceKind.Lodging, RestPlaceResolver.Resolve(full, late).Kind);
+    }
+
+    [Theory]
+    [InlineData(2, false)]
+    [InlineData(3, false)]
+    [InlineData(4, true)]
+    public void Nightly_lodging_requires_strictly_more_than_the_declared_distance(int homeDistance, bool eligible)
+    {
+        var world = WorldWithInn(tune: recipe => WithNightly(recipe, minDistance: 3));
+        var npc = Traveller(world, wallet: 500);
+        var household = world.FindHousehold(npc.Household!.Value)!;
+        household.CompleteRelocation(household.City, new CellCoord(npc.CurrentLocation.X + homeDistance, npc.CurrentLocation.Y));
+
+        Assert.Equal(eligible, GuestLodging.FindRoom(world, npc, household.Location).HasValue);
+        Assert.Equal(eligible, RestPlaceResolver.Resolve(world, npc).Kind == RestPlaceKind.Lodging);
+    }
+
+    [Theory]
+    [InlineData(3, 4, true)]
+    [InlineData(4, 4, false)]
+    [InlineData(5, 4, false)]
+    public void Nightly_lodging_must_be_strictly_closer_than_home(int innDistance, int homeDistance, bool eligible)
+    {
+        var world = WorldWithInn(tune: recipe => WithNightly(recipe, minDistance: 3));
+        var npc = Traveller(world, wallet: 500);
+        var inn = Inn(world).Position!.Value;
+        npc.MoveTo(new CellCoord(inn.X, inn.Y + innDistance), tick: 0);
+        var household = world.FindHousehold(npc.Household!.Value)!;
+        household.CompleteRelocation(household.City, new CellCoord(npc.CurrentLocation.X + homeDistance, npc.CurrentLocation.Y));
+
+        Assert.Equal(eligible, GuestLodging.FindRoom(world, npc, household.Location).HasValue);
+        Assert.Equal(eligible, RestPlaceResolver.Resolve(world, npc).Kind == RestPlaceKind.Lodging);
     }
 
     [Fact]

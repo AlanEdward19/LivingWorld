@@ -90,6 +90,34 @@ public class RelationshipSystemTests
     private static void TickRelationships(WorldState world) =>
         new RelationshipSystem().Tick(world, new TickContext(world, world.Rng, world.Scheduler));
 
+    private sealed class Commuters(Npc a, Npc b, CellCoord workplace) : ISimulationSystem
+    {
+        public string Name => "test-commuters";
+        public TickFrequency Frequency => TickFrequency.Hourly;
+        public void Tick(WorldState world, TickContext ctx)
+        {
+            bool atWork = world.CurrentDate.Hour is >= 6 and < 18;
+            a.MoveTo(atWork ? workplace : new CellCoord(0, 0), ctx.CurrentTick);
+            b.MoveTo(atWork ? workplace : new CellCoord(5, 5), ctx.CurrentTick);
+        }
+    }
+
+    [Fact]
+    public void Coworkers_meeting_only_during_work_hours_form_relationships_through_the_world_clock()
+    {
+        var world = BuildWorld(RulesWith());
+        var location = new CellCoord(3, 3);
+        var a = MakeNpc(world, new CellCoord(0, 0));
+        var b = MakeNpc(world, new CellCoord(5, 5));
+        var workplace = new Workplace(world.NextWorkplaceIdAndAdvance(), new LocationType(1), location, 2,
+            [a.Id, b.Id], new Dictionary<ResourceType, long>(), Money.Zero, new Dictionary<ResourceType, long>());
+        world.AddWorkplace(workplace);
+        a.Hire(workplace.Id); b.Hire(workplace.Id);
+        new WorldClock([new Commuters(a, b, location), new RelationshipSystem()]).Run(world, Calendar.HoursPerDay);
+        Assert.True(world.Relationships.ContainsKey(new RelationshipKey(a.Id, b.Id)));
+        Assert.True(world.Relationships.ContainsKey(new RelationshipKey(b.Id, a.Id)));
+    }
+
     [Fact]
     public void Cohabiting_household_members_gain_bidirectional_relationship_entries()
     {

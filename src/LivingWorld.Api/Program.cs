@@ -82,6 +82,11 @@ if (world is null)
     worldRunner.Snapshot(world, worldSink);
 }
 
+var worldsDirectory = worldDataSource is (":memory:" or "") ? null :
+    builder.Configuration["WorldsDirectory"] ?? Path.Combine(Path.GetDirectoryName(Path.GetFullPath(worldDataSource))!, "worlds");
+var savedWorlds = new SavedWorldLibrary(worldsDirectory, worldSink);
+world = savedWorlds.Initialize(world, worldRepository);
+
 // Snapshot extraordinário ligado precisa reconstruir o mesmo registro seletivo; o relógio
 // não pode ser composto antes de sabermos qual mundo persistido foi carregado.
 var worldClock = new WorldClock(
@@ -115,9 +120,10 @@ builder.Services.AddSingleton(worldHost);
 // Scoped) porque alguns testes resolvem direto de `factory.Services` (root provider), que não
 // consegue instanciar um serviço Scoped fora de um scope.
 builder.Services.AddTransient(sp => sp.GetRequiredService<WorldHost>().Current);
-builder.Services.AddSingleton<IWorldRepository>(worldRepository);
-builder.Services.AddSingleton(worldRunner);
-builder.Services.AddSingleton(worldClock);
+builder.Services.AddSingleton(savedWorlds);
+builder.Services.AddTransient<IWorldRepository>(_ => savedWorlds.Repository);
+builder.Services.AddTransient(_ => savedWorlds.Runner);
+builder.Services.AddTransient(_ => worldHost.Clock);
 builder.Services.AddSingleton(worldSink);
 builder.Services.AddSingleton(new WorldAuthoringService(worldSink));
 var playerService = new LivingWorld.Simulation.Players.PlayerService(worldSink);
@@ -213,7 +219,9 @@ app.MapNarrativeEndpoints(worldHost, chronicles);
 app.MapHistoryEndpoints(worldHost);
 app.MapPeriodsEndpoints();
 app.MapWorldStartEndpoints();
-app.MapWorldCreateEndpoints(worldHost, worldRunner, worldSink);
+app.MapWorldCreateEndpoints(worldHost, savedWorlds, simulationHost);
+app.MapSavedWorldEndpoints(worldHost, savedWorlds, simulationHost, restored => new WorldClock(
+    ScenarioRunner.DefaultSystems(conversationSessions: sessions, chronicles: chronicles, extraordinary: restored.Extraordinary), sink: worldSink));
 app.MapWorldPreviewEndpoints();
 app.MapCultureTechnologyEndpoints(worldHost);
 app.MapSimulationControlEndpoints();
@@ -237,6 +245,11 @@ simulationHost.OnPauseExpired = pause =>
         $"actor={pause.Actor};reason={pause.Reason};maxTicks={pause.MaxTicks}");
 };
 
+app.Lifetime.ApplicationStopped.Register(() =>
+{
+    lock (savedWorlds.Gate) savedWorlds.Save(worldHost.Current);
+});
+app.Lifetime.ApplicationStopped.Register(worldDbConnection.Dispose);
 app.Run();
 
 namespace LivingWorld.Api

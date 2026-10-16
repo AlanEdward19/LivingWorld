@@ -10,6 +10,10 @@ dá saída 0/1 estável para os eval gates.
 | `build.sh` | `dotnet build -c Release -warnaserror` (sem web) | — |
 | `check-docs.sh` | Falha se algum `.md` passar de 100 linhas | — |
 | `close-issues-from-pr.sh` | Fecha as issues citadas (`Closes #N, #M`) no corpo de um PR; o workflow `close-issues.yml` o chama ao mergear em `develop` (o GitHub só fecha sozinho em `main`) | `--list` (só imprime os números) |
+| `client-stress.sh` | Três rodadas gráficas de 500 NPCs, API local já iniciada | `[caminho-do-cliente]` |
+| `compare-simulation-cost.sh` | Três pares alternados do MeasureHarness; tetos +3% CPU / +2% alocação | `<checkout-base> [saída]` |
+| `compare-creation-cost.sh` | Mede 6.000 NPCs em três pares de processos alternados; falha acima de +5% | `<checkout-base> [saída]` |
+| `refresh-world-hashes.sh` | Regrava explicitamente goldens e pins após mudança de comportamento registrada em AD/ADR | — |
 | `verify.sh` | **Gate**: check-docs + build + lint + test rápido | `--full` (+ cenários pesados) |
 
 Rode via `bash scripts/<x>.sh` (Git Bash no Windows).

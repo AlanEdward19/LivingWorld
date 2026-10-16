@@ -25,6 +25,23 @@ public class PositionalSnapshotPersistenceTests
     }
 
     [Fact]
+    public void Saving_the_same_nonzero_tick_repeatedly_never_creates_a_self_referencing_delta()
+    {
+        using var context = OpenInMemoryDb();
+        var repository = new SqliteWorldRepository(context);
+        var runner = new PersistentWorldRunner(repository, BranchId.Root, 24);
+        var (world, clock) = ScenarioRunner.Create(Seed);
+        clock.Run(world, 13);
+        var sink = new BufferingWorldEventSink();
+        string hash = WorldSnapshot.CanonicalHash(world);
+        runner.Snapshot(world, sink);
+        runner.Snapshot(world, sink);
+        var row = Assert.Single(context.Snapshots);
+        Assert.Null(row.BaseTick);
+        Assert.Equal(hash, WorldSnapshot.CanonicalHash(new PersistentWorldRunner(repository, BranchId.Root, 24).LoadLatest()!));
+    }
+
+    [Fact]
     public void The_runner_writes_a_full_base_then_diffs_and_starts_a_new_base_after_twelve_diffs()
     {
         using var context = OpenInMemoryDb();
@@ -33,6 +50,9 @@ public class PositionalSnapshotPersistenceTests
         var (world, _) = ScenarioRunner.Create(Seed);
         var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink);
 
+        // A primeira contratação e o primeiro encontro no turno expandem o estado legitimamente.
+        // Compara compactação incremental depois dessas duas fronteiras de bootstrap.
+        clock.Run(world, 2 * world.Calendar.HoursPerDay);
         runner.Snapshot(world, sink);
         runner.Run(world, clock, sink, 24 * 15);
 
@@ -41,7 +61,7 @@ public class PositionalSnapshotPersistenceTests
         Assert.All(rows, r => Assert.Equal(string.Empty, r.Json));
         Assert.All(rows, r => Assert.NotNull(r.Binary));
         Assert.Null(rows[0].BaseTick);
-        Assert.All(rows.Skip(1).Take(12), r => Assert.Equal(0, r.BaseTick));
+        Assert.All(rows.Skip(1).Take(12), r => Assert.Equal(rows[0].Tick, r.BaseTick));
         Assert.Null(rows[13].BaseTick); // 13ª gravação depois da base: base nova
         Assert.Equal(rows[13].Tick, rows[14].BaseTick);
         Assert.True(rows[1].Binary!.Length < rows[0].Binary!.Length);

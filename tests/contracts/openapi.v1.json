@@ -2381,6 +2381,18 @@
         ]
       }
     },
+    "/worlds": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
     "/worlds/create": {
       "post": {
         "requestBody": {
@@ -2437,6 +2449,52 @@
           },
           "required": true
         },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/worlds/{worldId}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "worldId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/worlds/{worldId}/load": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "worldId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK"

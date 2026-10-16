@@ -89,6 +89,13 @@ public sealed record BuildingRecipe(
 /// nome/apresentação no engine — mesmo padrão de <see cref="EconomyCatalog"/>.</summary>
 public sealed record CityCatalog(IReadOnlyDictionary<int, BuildingRecipe> BuildingRecipes)
 {
+    // Derivados do catálogo imutável, calculados no bootstrap e fora do snapshot/hash.
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool HasLodging { get; } = BuildingRecipes.Values.Any(recipe => recipe.Lodging is not null);
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool HasNightlyLodging { get; } = BuildingRecipes.Values.Any(recipe => recipe.Lodging is { NightlyRate: > 0 });
+
     /// <summary>Default de <see cref="WorldState"/> para cenário sem cidades declaradas — nenhuma
     /// receita de edifício.</summary>
     public static readonly CityCatalog Empty = new(new Dictionary<int, BuildingRecipe>());

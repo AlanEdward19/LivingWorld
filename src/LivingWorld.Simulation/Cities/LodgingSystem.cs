@@ -25,8 +25,12 @@ public sealed class LodgingSystem : ISimulationSystem
 
     public void Tick(WorldState world, TickContext ctx)
     {
-        if (!world.EconomyRules.Enabled) return;
+        if (!world.EconomyRules.Enabled || !world.CityCatalog.HasLodging) return;
+        TickLodgings(world, ctx);
+    }
 
+    private static void TickLodgings(WorldState world, TickContext ctx)
+    {
         var recipes = world.CityCatalog.BuildingRecipes;
         var landlords = new Dictionary<BuildingId, Workplace>();
         foreach (var workplace in world.Workplaces.OrderBy(w => w.Id.Value))

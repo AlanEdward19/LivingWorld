@@ -1,4 +1,5 @@
 using LivingWorld.Api.Admin;
+using LivingWorld.Api.World;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Infrastructure.Repositories;
 using LivingWorld.Simulation.Core;
@@ -52,28 +53,34 @@ public static class SimulationControlEndpoints
             return Results.Ok();
         });
 
-        app.MapPost("/simulation/step", (HttpContext http, IConfiguration config, AdminAuditStore audit, SimulationHost host, WorldHost worldHost, TickLoopService loop) =>
+        app.MapPost("/simulation/step", (HttpContext http, IConfiguration config, AdminAuditStore audit, SimulationHost host, WorldHost worldHost, TickLoopService loop, SavedWorldLibrary library) =>
         {
             if (AdminEndpoints.Authorize(http, config) is not { } access) return Results.StatusCode(StatusCodes.Status403Forbidden);
-            if (!host.IsPaused)
-                return Results.Conflict("Step só é permitido com a simulação pausada.");
+            lock (library.Gate)
+            {
+                if (!host.IsPaused)
+                    return Results.Conflict("Step só é permitido com a simulação pausada.");
 
-            worldHost.Clock.Tick(worldHost.Current);
-            loop.PublishDeltas();
-            audit.Append(BranchId.Root, worldHost.Current.CurrentDate.TotalHours, access.Actor, "world.step", "world", "");
-            return Results.Ok();
+                worldHost.Clock.Tick(worldHost.Current);
+                loop.PublishDeltas();
+                audit.Append(BranchId.Root, worldHost.Current.CurrentDate.TotalHours, access.Actor, "world.step", "world", "");
+                return Results.Ok();
+            }
         });
 
-        app.MapPost("/simulation/advance-year", (HttpContext http, IConfiguration config, AdminAuditStore audit, SimulationHost host, WorldHost worldHost, TickLoopService loop) =>
+        app.MapPost("/simulation/advance-year", (HttpContext http, IConfiguration config, AdminAuditStore audit, SimulationHost host, WorldHost worldHost, TickLoopService loop, SavedWorldLibrary library) =>
         {
             if (AdminEndpoints.Authorize(http, config) is not { } access) return Results.StatusCode(StatusCodes.Status403Forbidden);
-            if (!host.IsPaused)
-                return Results.Conflict("Avanço anual só é permitido com a simulação pausada.");
+            lock (library.Gate)
+            {
+                if (!host.IsPaused)
+                    return Results.Conflict("Avanço anual só é permitido com a simulação pausada.");
 
-            host.FastForwardOneYear();
-            loop.PublishDeltas();
-            audit.Append(BranchId.Root, worldHost.Current.CurrentDate.TotalHours, access.Actor, "world.advance-year", "world", "");
-            return Results.Ok();
+                host.FastForwardOneYear();
+                loop.PublishDeltas();
+                audit.Append(BranchId.Root, worldHost.Current.CurrentDate.TotalHours, access.Actor, "world.advance-year", "world", "");
+                return Results.Ok();
+            }
         });
 
         app.MapGet("/simulation/status", (SimulationHost host, WorldHost worldHost) =>

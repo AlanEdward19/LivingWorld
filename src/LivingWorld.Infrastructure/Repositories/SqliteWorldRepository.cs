@@ -8,7 +8,7 @@ namespace LivingWorld.Infrastructure.Repositories;
 /// <summary>Implementação EF Core de <see cref="IWorldRepository"/>. Nenhum recurso
 /// exclusivo de SQLite entra no mapeamento — trocar de provider é trocar a
 /// connection string do <see cref="WorldDbContext"/>.</summary>
-public sealed class SqliteWorldRepository(WorldDbContext context) : IWorldRepository
+public sealed class SqliteWorldRepository(WorldDbContext context, bool resetOnTickZero = true) : IWorldRepository
 {
     public void SaveSnapshotWithEvents(
         BranchId branch, long tick, string json, string canonicalHash, string volatileHash,
@@ -17,7 +17,7 @@ public sealed class SqliteWorldRepository(WorldDbContext context) : IWorldReposi
         // Tick zero representa a criação de um novo mundo no slot único. Snapshots mais altos
         // pertencem ao mundo anterior e, se sobreviverem, LoadLatest() os escolherá no próximo
         // boot em vez do mundo recém-criado.
-        if (tick == 0)
+        if (tick == 0 && resetOnTickZero)
         {
             context.Snapshots.RemoveRange(
                 context.Snapshots.Where(s => s.BranchId == branch.Value && s.Tick > 0));

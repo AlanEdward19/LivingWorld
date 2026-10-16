@@ -135,7 +135,7 @@ func test_npc_model_follows_profession_and_age() -> void:
 	child.free()
 
 
-func test_lodging_building_shows_one_bed_per_unit_and_a_price_line() -> void:
+func test_lodging_building_shows_one_bed_per_unit() -> void:
 	var view := InteriorView.new()
 	view.catalog = _catalog()
 	tree.root.add_child(view)
@@ -143,4 +143,38 @@ func test_lodging_building_shows_one_bed_per_unit_and_a_price_line() -> void:
 	var plain: int = view.furniture.get_child_count()
 	view.show_interior(_room(), Vector2i(10, 10), ActionLabels.new(), -1, 4)
 	eq(view.furniture.get_child_count(), plain + 4, "mais um leito por vaga de hospedagem")
+	view.free()
+
+
+func test_lodging_beds_fill_available_floor_without_an_extra_twelve_bed_limit() -> void:
+	var view := InteriorView.new()
+	view.catalog = _catalog()
+	tree.root.add_child(view)
+	var cells: Array = []
+	for x in 20:
+		cells.append({"cell": {"x": x, "y": 0}, "material": 3})
+	var room := {"floors": 1, "layout": [{"level": 0, "cells": cells}], "occupants": []}
+	view.show_interior(room, Vector2i(10, 10), ActionLabels.new(), -1, 18)
+	var beds := 0
+	for piece in view.furniture.get_children():
+		if String(piece.name).begins_with("bed") or String(piece.name).begins_with("@MeshInstance3D"):
+			beds += 1
+	eq(beds, 18, "dezoito vagas e piso livre devem produzir dezoito leitos")
+	view.free()
+
+
+func test_lodging_uses_free_floor_on_upper_storeys_when_ground_is_full() -> void:
+	var view := InteriorView.new()
+	view.catalog = _catalog()
+	tree.root.add_child(view)
+	var cells: Array = []
+	for x in 3:
+		cells.append({"cell": {"x": x, "y": 0}, "material": 3})
+	var room := {"floors": 2, "layout": [{"level": 0, "cells": cells}, {"level": 1, "cells": cells}], "occupants": []}
+	view.show_interior(room, Vector2i(10, 10), ActionLabels.new(), -1, 5)
+	var ground: Node3D = view.floor_nodes[0].get_node_or_null("Furniture")
+	var upper: Node3D = view.floor_nodes[1].get_node_or_null("Furniture")
+	check(upper != null, "piso livre do andar superior recebe leitos")
+	if upper != null:
+		eq(ground.get_child_count() + upper.get_child_count(), 5, "cinco vagas, cinco leitos")
 	view.free()

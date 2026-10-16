@@ -9,7 +9,7 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
   console de admin com pausa de teto (AD-112), poço (AD-113), custo medido sem regressão (AD-114).
   Fase 28 fechada (motor e painel visual). Cliente web removido (ADR-0022).
 - **Abertas**: #60 provider de LLM de produção + custo (ADR-0016) · #61 Fase 24 resto · #62 Fase 26 resto (reescrita exige Fase 18) ·
-  #63 Fase 25 resto · #64 Fase 16 efeitos/custos em switch fechado · #65 FAM-32 (AD-088) · #67 verificação de `lodging-and-rent`/`godot-main-menu` ·
+  #63 Fase 25 resto · #64 Fase 16 efeitos/custos em switch fechado ·
   #68 interações presenciais · #46 criador de mundo · #47 criador procedural de objetos. Fechadas por este PR: #57, #66, #70–#72, #93.
 - **Decisão de escopo (2026-10-14, #66)**: ordem das fases `spec` = **21 → 22 → 23**, depois 18, 27 e 17/19/20.
   Fase 14 substituída pelo Godot (ADR-0025, voz/Unreal adiados); Fase 15 fechada.
@@ -17,7 +17,7 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 - **Concluído (2026-10-15)**: #58 (painel Cérebro, escopo de observação, sandbox "E se…?", ADR-0026) e #59 (conversa, narrativas, crenças, jogador, console admin, economia, tecnologias, materializar), cada fatia com Verifier PASS em `.specs/features/godot-*/verification.md`. Branches empilhadas até `feat/godot-materialize`; falta abrir os PRs. Dívidas: pausa pública com ator/motivo e período do mundo continuado pedem rota nova (issue própria); retomar sessão de jogador após reiniciar o cliente.
 - **#46 criador de mundo (branch `feat/world-creator`, 2026-10-15)**: fatias 1 (nomes das profissões), 2 (aparência herdada opt-in + habilidades iniciais, ADR-0032) e 4 (criar família e local de trabalho com o mundo rodando, ADR-0033) feitas, planos em `.specs/features/profession-names/`, `world-creator-appearance/` e `world-creator-live/`. Faltam 3 (modelos, depende de #67), 5 (plantas, depende de #47) e 6 (poderes, depende de #64). Profissões/habilidades próprias e emergentes: #96.
 - **#47 objetos (branch `feat/objetos-catalogo-fatia1`, 2026-10-15)**: fatia 1 (formato `Objects`/`objectsFormat` + catálogo com fallback, mobília migrada, ADR-0034) feita; plano em `.specs/features/object-catalog/`. Faltam 2 (uso/animação), 3 (efeitos pelo motor), 4 (comida), 5 (invenções, depende da #61), 6 (mods).
-- **Pendência de CI**: goldens do cliente foram regravados num Mac arm64; rodar o CI antes do merge.
+- **CI após #47**: `develop` verde no run `38885386561` (gate e cliente); integração com #65/#67 validada novamente antes de atualizar o PR.
 - **Integração do extraordinário (2026-08-12)**: decisão **mista**, sem fase numerada nova para "super-heróis" —
   distribuída entre Fases 16, 17, 23, 24, 25, com toques em 10, 12, 22. ADR-0010 + `docs/domain/powers.md`.
 - **Dívida Fase 9**: PERF-12 hasher; `LongRunScaleTests` só nightly.
@@ -27,6 +27,8 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 - **Fase 13**: períodos = startpoints dinâmicos; autoria de catálogo sem runtime de IA interno.
 - **Eval**: `verify.sh`; `verify-mutation.sh` manual. Harness: [`HARNESS.md`](HARNESS.md).
 - **Budget**: nenhum loop autônomo ativo.
+
+- **Verificado (#65/#67, 2026-10-16)**: branch `feat/issues-65-67`, ADR-0036/0035. Relatórios independentes PASS em `family-diversity-calibration`, `lodging-and-rent` e `saved-worlds`; 20 seeds × 100 anos no cenário completo, mundos persistentes e provas causais de distância/SQL na composição API. Após integrar #47: gate 2342/3 skips, integração completa 443, Godot 270; prova da resolução em `saved-worlds/merge-verification.md`. Entrega por PR para `develop`; fechamento das issues no merge.
 
 ## Decisões (AD-NNN)
 Log completo em [docs/decisions-log.md](docs/decisions-log.md) — AD-001..048 (não duplique
