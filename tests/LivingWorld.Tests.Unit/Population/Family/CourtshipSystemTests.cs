@@ -105,6 +105,55 @@ public class CourtshipSystemTests
         ba.ApplyEvent(RelationshipEventType.Cohabitation, linkRules);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void A_one_way_relationship_counts_as_contact_in_either_direction_before_later_seekers(bool inbound)
+    {
+        var world = BuildWorld(RulesWith(courtshipThreshold: 0));
+        var first = MakeAdult(world, Sex.Male, new NpcId(1));
+        var later = MakeAdult(world, Sex.Male, new NpcId(2));
+        var candidate = MakeAdult(world, Sex.Female, new NpcId(3));
+        world.GetOrCreateRelationship(inbound ? new RelationshipKey(candidate.Id, first.Id)
+            : new RelationshipKey(first.Id, candidate.Id), world.CurrentDate.TotalHours);
+        LinkRelationship(world, later, candidate);
+        new CourtshipSystem().Tick(world, new TickContext(world, world.Rng, world.Scheduler));
+        Assert.Equal(candidate.Id, first.CourtingWith);
+        Assert.Null(later.CourtingWith);
+    }
+
+    [Theory]
+    [InlineData("sibling")]
+    [InlineData("same-sex")]
+    [InlineData("outside-fertility")]
+    public void An_incompatible_favourite_does_not_block_a_compatible_partner(string invalidKind)
+    {
+        var rules = RulesWith(courtshipThreshold: 0,
+            attractionWeights: Enum.GetValues<AttractionFactor>().ToDictionary(f => f,
+                f => f == AttractionFactor.ExistingRelationship ? 1.0 : 0.0));
+        var world = BuildWorld(rules);
+        var mother = new NpcId(100);
+        var father = new NpcId(101);
+        var seeker = MakeAdult(world, Sex.Male, new NpcId(1), mother, father);
+        var invalid = MakeAdult(world, invalidKind == "same-sex" ? Sex.Male : Sex.Female, new NpcId(2),
+            invalidKind == "sibling" ? mother : null, invalidKind == "sibling" ? father : null,
+            ageYears: invalidKind == "outside-fertility" ? 50 : 25);
+        var compatible = MakeAdult(world, Sex.Female, new NpcId(3), new NpcId(200), new NpcId(201));
+        var compatibleSibling = MakeAdult(world, Sex.Male, new NpcId(4), new NpcId(200), new NpcId(201));
+        LinkRelationship(world, compatible, compatibleSibling, trustDelta: 50);
+        LinkRelationship(world, seeker, invalid, trustDelta: 50);
+        LinkRelationship(world, seeker, compatible, trustDelta: 10);
+        Assert.True(CourtshipSystem.AttractionScore(seeker, invalid,
+            world.Relationships[new RelationshipKey(seeker.Id, invalid.Id)],
+            world.Relationships[new RelationshipKey(invalid.Id, seeker.Id)], rules, PopulationRules, world.CurrentDate)
+            > CourtshipSystem.AttractionScore(seeker, compatible,
+            world.Relationships[new RelationshipKey(seeker.Id, compatible.Id)],
+            world.Relationships[new RelationshipKey(compatible.Id, seeker.Id)], rules, PopulationRules, world.CurrentDate));
+        new CourtshipSystem().Tick(world, new TickContext(world, world.Rng, world.Scheduler));
+        Assert.Equal(compatible.Id, seeker.CourtingWith);
+        Assert.Null(invalid.CourtingWith);
+    }
+
     [Fact]
     public void Reject_sibling_pair_returns_Incesto()
     {

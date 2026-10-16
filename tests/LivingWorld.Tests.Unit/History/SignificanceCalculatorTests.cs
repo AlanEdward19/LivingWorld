@@ -63,6 +63,12 @@ public class SignificanceCalculatorTests
     [Fact(Skip = "Regravar: dotnet test --filter Record_history_collapse_baseline")]
     public void Record_history_collapse_baseline() => RecordCollapseBaseline();
 
+    [Fact, Trait("Category", "Scenario")]
+    public void Record_history_collapse_when_explicitly_requested()
+    {
+        if (Environment.GetEnvironmentVariable("LW_RECORD_HISTORY_COLLAPSE") == "1") RecordCollapseBaseline();
+    }
+
     [Fact]
     [Trait("Category", "Scenario")]
     public void Collapse_rate_matches_baseline_for_twenty_seeds()

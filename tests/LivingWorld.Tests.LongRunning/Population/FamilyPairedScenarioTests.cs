@@ -23,9 +23,6 @@ public class FamilyPairedScenarioTests
     /// <summary>Seeds por teste estatístico (era 20; 10 mantém o IC95 útil e corta o tempo pela metade).</summary>
     private const int SeedCount = 10;
 
-    /// <summary>O IC95 de 10 seeds tem EP ~0,003 e oscila ±0,002 a cada mudança de comportamento (AD-093; ontogenia, AD-115): 20 seeds para o gate de vitalidade, mesma tolerância.</summary>
-    private const int VitalitySeedCount = 20;
-
     private static readonly string PopulationAverageBaselinePath = Path.Combine(
         FindRepoRoot(), "tests", "baselines", "family-population-average.json");
 
@@ -231,79 +228,12 @@ public class FamilyPairedScenarioTests
                 $"{baseline.AveragePopulation:F1} gravado em {PopulationAverageBaselinePath} — revisar calibracao (nao falha o gate).");
     }
 
-    // --- T27 (FAM-32) ---
+    // --- T27 (FAM-32, ADR-0034) ---
 
-    /// <summary>FAM-32 reformulado (AD-066): não é mais uma desigualdade `CV(real) >= CV(neutro)`
-    /// em seed único — é o IC95 bootstrap da diferença pareada `CV(real,seed_i) -
-    /// CV(neutro,seed_i)` nas mesmas 20 seeds/horizonte de T26, contra zero (mesmo mecanismo de
-    /// FAM-33/T28: bootstrap percentile por reamostragem, <see cref="BootstrapMeanCi95"/> é a
-    /// mesma transformação de <see cref="BootstrapAbsPearsonCi95"/> aplicada à média em vez de a
-    /// Pearson). O braço "neutro" usa <see cref="NeutralDriftScenarioHarness"/> (T21, pós-AD-065 —
-    /// as duas flags de seleção desligadas, controle de deriva neutra "de verdade").
-    /// Resultado medido (AD-066, população morrendo de fome): diferença média -0.0054, IC95 bootstrap
-    /// [-0.0120, 0.0017] — continha zero. Com demografia saudável a seleção real reduz a variância
-    /// (AD-088: -0.0041 em 160 seeds, z = -4.0) — o roadmap pede o contrário, FAM-32 segue aberto.
-    /// </summary>
     [Fact]
     [Trait("Category", "Scenario")]
-    public void Vitality_cv_paired_difference_between_real_and_neutral_drift_across_the_seed_set_bootstrap_ci95()
-    {
-        // Cada seed (e cada braço) é um mundo independente: roda em paralelo, resultado indexado pela seed
-        // — a lista de diferenças segue a ordem das seeds, igual à execução sequencial.
-        var diffArray = new double[VitalitySeedCount];
-        Parallel.For(1, VitalitySeedCount + 1, seed =>
-        {
-            var (worldReal, clockReal) = ScenarioRunner.Create((ulong)seed);
-            clockReal.Run(worldReal, HorizonHours);
-            double cvReal = CoefficientOfVariation(worldReal.Npcs.Where(n => n.IsAlive).Select(n => n.Vitality));
-
-            var (worldNeutral, clockNeutral) = NeutralDriftScenarioHarness.Create((ulong)seed, neutralDriftEnabled: true);
-            clockNeutral.Run(worldNeutral, HorizonHours);
-            double cvNeutral = CoefficientOfVariation(worldNeutral.Npcs.Where(n => n.IsAlive).Select(n => n.Vitality));
-
-            diffArray[seed - 1] = cvReal - cvNeutral;
-        });
-        var diffs = diffArray.ToList();
-
-        var bootstrapRng = new WorldRng(20260728);
-        var (low, high) = BootstrapMeanCi95(diffs, bootstrapRng);
-
-        // O roadmap (Fase 7) reprova quando a diversidade real fica ABAIXO do controle neutro. Com a vila saudável isso
-        // acontece: -0.0041 (EP 0.0010, z = -4.0) em 160 seeds, medido fora do gate (AD-088) — FAM-32 está ABERTO, não
-        // atendido. Com SeedCount seeds o EP (~0.0025) é do tamanho do efeito, então este gate só barra o sinal
-        // contrário: a seleção real não pode AUMENTAR a variância de vitalidade além da tolerância.
-        const double Tolerance = 0.008; // AD-093: com 10 seeds o IC95 ficou em [-0.0061, 0.0062] (EP ~0.003); com 160 seeds, [-0.0037, -0.0012] (abaixo do controle, como em AD-088)
-        Assert.True(high < Tolerance,
-            $"IC95 bootstrap da diferenca pareada CV(real)-CV(neutro) e [{low:F4},{high:F4}] — selecao real " +
-            $"aumentou a variancia de vitalidade acima da tolerancia {Tolerance} (FAM-32). Medido em AD-088 (160 seeds): -0.0041 +- 0.0010 (abaixo do controle: critério do roadmap aberto).");
-    }
-
-    private static double CoefficientOfVariation(IEnumerable<double> values)
-    {
-        var list = values.ToList();
-        double mean = list.Average();
-        double sd = Math.Sqrt(list.Sum(v => Math.Pow(v - mean, 2)) / list.Count);
-        return sd / mean;
-    }
-
-    /// <summary>Bootstrap percentile da média de um conjunto pequeno de diferenças pareadas (20
-    /// seeds) — mesma reamostragem com reposição de <see cref="BootstrapAbsPearsonCi95"/> (FAM-33),
-    /// aplicada à média em vez de a `|Pearson|`.</summary>
-    private static (double Low, double High) BootstrapMeanCi95(
-        IReadOnlyList<double> diffs, WorldRng rng, int resamples = 2000)
-    {
-        int n = diffs.Count;
-        var means = new double[resamples];
-        for (int b = 0; b < resamples; b++)
-        {
-            double sum = 0;
-            for (int i = 0; i < n; i++)
-                sum += diffs[(int)(rng.NextDouble() * n)];
-            means[b] = sum / n;
-        }
-        Array.Sort(means);
-        return (means[(int)(0.025 * resamples)], means[(int)(0.975 * resamples) - 1]);
-    }
+    public void Vitality_cv_paired_difference_stays_in_the_calibrated_scenario_band() =>
+        FamilyDiversityCalibrationTests.AssertVitalityBand();
 
     // --- T28 (FAM-33) ---
 

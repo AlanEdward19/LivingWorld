@@ -117,6 +117,17 @@ public class NatalitySystemTests
     }
 
     [Fact]
+    public void A_newborn_keeps_the_mothers_city_instead_of_becoming_an_unemployable_cityless_adult()
+    {
+        var (world, ctx, mother, father, household) = BuildWorldWithMarriedCouple(ScenarioRunner.DefaultPopulationCatalog, 42);
+        var city = new CityId(new Guid("11111111-1111-1111-1111-111111111111"));
+        mother.JoinCity(city); father.JoinCity(city); household.JoinCity(city);
+        var baby = TriggerBirth(world, ctx, mother.Id, father.Id, household.Id);
+        Assert.Equal(city, baby.City);
+        Assert.Equal(household.City, baby.City);
+    }
+
+    [Fact]
     public void Baby_born_at_runtime_gets_a_real_personality_not_the_old_fixed_placeholder()
     {
         var (world, ctx, mother, father, household) = BuildWorldWithMarriedCouple(

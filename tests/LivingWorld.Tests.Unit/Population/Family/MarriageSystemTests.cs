@@ -84,6 +84,18 @@ public class MarriageSystemTests
     }
 
     [Fact]
+    public void A_married_household_keeps_its_heads_city_for_housing_and_descendants()
+    {
+        var world = BuildWorld(RulesWithMarriageStock());
+        var a = MakeNpc(world, Sex.Male);
+        var b = MakeNpc(world, Sex.Female);
+        var city = new CityId(new Guid("11111111-1111-1111-1111-111111111111"));
+        a.JoinCity(city); b.JoinCity(city);
+        MarriageSystem.Marry(world, new TickContext(world, world.Rng, world.Scheduler), a, b);
+        Assert.Equal(city, world.FindHousehold(a.Household!.Value)!.City);
+    }
+
+    [Fact]
     public void Marry_creates_new_household_with_marriage_initial_stock()
     {
         var rules = RulesWithMarriageStock(foodAmount: 150);

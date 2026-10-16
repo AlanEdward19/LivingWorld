@@ -138,6 +138,7 @@ public sealed class NatalitySystem : ISimulationSystem
             rateGene: rateGene, vitality: vitality, upbringing: upbringing,
             height: height, weight: weight, muscleMass: muscleMass, appearance: appearance);
 
+        baby.JoinCity(mother.City);
         world.AddNpc(baby);
         if (world.OntogenyRules.Enabled)
             baby.SetDevelopment(LivingWorld.Domain.Ontogeny.DevelopmentState.Newborn);

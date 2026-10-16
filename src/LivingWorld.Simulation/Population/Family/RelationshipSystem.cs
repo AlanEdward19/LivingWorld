@@ -1,3 +1,4 @@
+using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
@@ -13,27 +14,40 @@ namespace LivingWorld.Simulation.Population.Family;
 [RunsAfter(typeof(EmploymentSystem))]
 public sealed class RelationshipSystem : ISimulationSystem
 {
+    // Buffers derivados, reusados pelo relógio serial como os índices de BehaviorDecisionSystem.
+    private readonly List<Household> _households = [];
+    private readonly List<Workplace> _workplaces = [];
+    private readonly List<NpcId> _present = [];
+    private readonly List<NpcId> _alive = [];
+
     public const string SystemName = "population-relationship";
 
     public string Name => SystemName;
-    public TickFrequency Frequency => TickFrequency.Daily;
+    // Presença no trabalho deve ser observada durante o turno, como produção e prática.
+    public TickFrequency Frequency => TickFrequency.Midshift;
 
     public void Tick(WorldState world, TickContext ctx)
     {
         var rules = world.FamilyRules;
         long now = ctx.CurrentTick;
 
-        foreach (var household in world.Households.OrderBy(h => h.Id.Value))
+        _households.Clear();
+        _households.AddRange(world.Households);
+        _households.Sort((a, b) => a.Id.Value.CompareTo(b.Id.Value));
+        foreach (var household in _households)
             ApplyCohabitationForMembers(world, rules, now, household.Members);
 
-        foreach (var workplace in world.Workplaces.OrderBy(w => w.Id.Value))
+        _workplaces.Clear();
+        _workplaces.AddRange(world.Workplaces);
+        _workplaces.Sort((a, b) => a.Id.Value.CompareTo(b.Id.Value));
+        foreach (var workplace in _workplaces)
         {
-            var present = workplace.Employees
-                .OrderBy(id => id.Value)
-                .Where(id => world.FindNpc(id) is { IsAlive: true, CurrentLocation: var loc } npc
-                               && loc == workplace.Location)
-                .ToList();
-            ApplyCohabitationForMembers(world, rules, now, present);
+            _present.Clear();
+            foreach (var id in workplace.Employees)
+                if (world.FindNpc(id) is { IsAlive: true, CurrentLocation: var location } && location == workplace.Location)
+                    _present.Add(id);
+            _present.Sort((a, b) => a.Value.CompareTo(b.Value));
+            ApplyCohabitationForMembers(world, rules, now, _present);
         }
 
         // Sem OrderBy aqui de propósito: DecayTowardNeutral só lê/escreve o próprio Relationship
@@ -50,13 +64,14 @@ public sealed class RelationshipSystem : ISimulationSystem
         }
     }
 
-    private static void ApplyCohabitationForMembers(
+    private void ApplyCohabitationForMembers(
         WorldState world, FamilyRules rules, long now, IReadOnlyList<NpcId> memberIds)
     {
-        var alive = memberIds
-            .OrderBy(id => id.Value)
-            .Where(id => world.FindNpc(id) is { IsAlive: true })
-            .ToList();
+        var alive = _alive;
+        alive.Clear();
+        foreach (var id in memberIds)
+            if (world.FindNpc(id) is { IsAlive: true }) alive.Add(id);
+        alive.Sort((a, b) => a.Value.CompareTo(b.Value));
 
         if (alive.Count <= rules.MaxCohabitationGroupSize)
         {

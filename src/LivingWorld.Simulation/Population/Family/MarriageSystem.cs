@@ -26,7 +26,7 @@ public static class MarriageSystem
 
         var householdId = world.NextHouseholdIdAndAdvance();
         var household = new Household(
-            householdId, head.CurrentLocation, head.Id, [head.Id, other.Id], stock);
+            householdId, head.CurrentLocation, head.Id, [head.Id, other.Id], stock, city: head.City);
         world.AddHousehold(household);
 
         foreach (var (resource, amount) in stock)

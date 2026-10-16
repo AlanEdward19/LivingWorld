@@ -13,6 +13,8 @@ namespace LivingWorld.Simulation.Population.Family;
 [LivingCapability("RELATIONSHIPS")]
 public sealed class CourtshipSystem : ISimulationSystem
 {
+    private static readonly AttractionFactor[] AttractionFactors = Enum.GetValues<AttractionFactor>();
+    private static readonly RelationshipAxis[] RelationshipAxes = Enum.GetValues<RelationshipAxis>();
     public const string SystemName = "population-courtship";
 
     /// <summary>Escala compartilhada de normalização para eixos <c>[0,100]</c> (Health,
@@ -28,12 +30,16 @@ public sealed class CourtshipSystem : ISimulationSystem
         var populationRules = world.PopulationRules;
         var lifeStageRules = world.LifeStageRules;
         var now = world.CurrentDate;
+        Dictionary<NpcId, HashSet<NpcId>>? acquaintances = null;
 
         foreach (var seeker in world.Npcs
                      .Where(n => IsSeekerEligible(n, world, lifeStageRules, now))
                      .OrderBy(n => n.Id.Value))
         {
-            var candidates = CollectCandidates(world, seeker.Id, lifeStageRules, now);
+            // OrderBy materializa o filtro inicial; um pretendente anterior pode ter escolhido este NPC.
+            if (!IsSeekerEligible(seeker, world, lifeStageRules, now)) continue;
+            acquaintances ??= IndexAcquaintances(world);
+            var candidates = CollectCandidates(world, seeker.Id, lifeStageRules, now, acquaintances);
             if (candidates.Count == 0)
                 continue;
 
@@ -117,7 +123,7 @@ public sealed class CourtshipSystem : ISimulationSystem
         double totalWeight = 0;
         double weightedSum = 0;
 
-        foreach (var factor in Enum.GetValues<AttractionFactor>())
+        foreach (var factor in AttractionFactors)
         {
             double weight = rules.AttractionWeight(factor);
             if (weight == 0)
@@ -220,9 +226,13 @@ public sealed class CourtshipSystem : ISimulationSystem
     {
         Npc? best = null;
         double bestScore = double.NegativeInfinity;
+        bool hasCompatibleCandidate = candidates.Any(c => Reject(seeker, c, now, populationRules) is null);
 
         foreach (var candidate in candidates.OrderBy(c => c.Id.Value))
         {
+            // Um irmão ou parceiro fora da janela não pode bloquear todos os vínculos válidos.
+            // Sem alternativa válida, preserva a rejeição nomeada observável do melhor candidato.
+            if (hasCompatibleCandidate && Reject(seeker, candidate, now, populationRules) is not null) continue;
             var aToB = world.Relationships.GetValueOrDefault(new RelationshipKey(seeker.Id, candidate.Id));
             var bToA = world.Relationships.GetValueOrDefault(new RelationshipKey(candidate.Id, seeker.Id));
             double score = AttractionScore(seeker, candidate, aToB, bToA, familyRules, populationRules, now);
@@ -236,27 +246,31 @@ public sealed class CourtshipSystem : ISimulationSystem
         return best;
     }
 
-    private static List<Npc> CollectCandidates(
-        WorldState world, NpcId seekerId, LifeStageRules lifeStageRules, WorldDate now)
+    private static Dictionary<NpcId, HashSet<NpcId>> IndexAcquaintances(WorldState world)
     {
-        var seen = new HashSet<NpcId>();
-        var result = new List<Npc>();
-
-        foreach (var (key, _) in world.Relationships
-                     .OrderBy(pair => pair.Key.From.Value)
-                     .ThenBy(pair => pair.Key.To.Value))
+        var index = new Dictionary<NpcId, HashSet<NpcId>>();
+        // Índice derivado, sem efeitos no mundo; a ordem é aplicada antes de escolher um candidato.
+        foreach (var key in world.Relationships.Keys)
         {
-            NpcId? otherId = key.From == seekerId ? key.To : key.To == seekerId ? key.From : null;
-            if (otherId is not { } partnerId || !seen.Add(partnerId))
-                continue;
-
-            var candidate = world.FindNpc(partnerId);
-            if (candidate is null || !IsCandidateEligible(candidate, world, lifeStageRules, now))
-                continue;
-
-            result.Add(candidate);
+            if (!index.TryGetValue(key.From, out var from)) index[key.From] = from = [];
+            if (!index.TryGetValue(key.To, out var to)) index[key.To] = to = [];
+            from.Add(key.To);
+            to.Add(key.From);
         }
+        return index;
+    }
 
+    private static List<Npc> CollectCandidates(
+        WorldState world, NpcId seekerId, LifeStageRules lifeStageRules, WorldDate now,
+        Dictionary<NpcId, HashSet<NpcId>> acquaintances)
+    {
+        var result = new List<Npc>();
+        if (!acquaintances.TryGetValue(seekerId, out var known)) return result;
+        foreach (var partnerId in known.OrderBy(id => id.Value))
+        {
+            var candidate = world.FindNpc(partnerId);
+            if (candidate is not null && IsCandidateEligible(candidate, world, lifeStageRules, now)) result.Add(candidate);
+        }
         return result;
     }
 
@@ -374,9 +388,9 @@ public sealed class CourtshipSystem : ISimulationSystem
                 return 0.0;
 
             double sum = 0;
-            foreach (var axis in Enum.GetValues<RelationshipAxis>())
+            foreach (var axis in RelationshipAxes)
                 sum += rel.Get(axis) / HundredScale;
-            return sum / Enum.GetValues<RelationshipAxis>().Length;
+            return sum / RelationshipAxes.Length;
         }
 
         return (SideAverage(aToB) + SideAverage(bToA)) / 2.0;
