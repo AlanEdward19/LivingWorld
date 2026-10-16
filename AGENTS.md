@@ -12,6 +12,14 @@
 - Rode tarefa repetível por `bash scripts/<x>.sh`. Nunca monte `dotnet test` na mão.
 - Antes de dizer "pronto": `bash scripts/verify.sh` deve sair 0.
 - Toda aleatoriedade vem de RNG semeado do mundo. Ver `rules/simulation-determinism.md`.
+- **Foco do produto (vale para toda entrega):** realismo da simulação, ótima UX/experiência do usuário e
+  **desempenho sem regressão**. Uma melhoria de realismo ou UX não pode custar FPS (cliente) nem custo por
+  NPC-tick (motor): meça antes e depois e registre o número (`client/godot/README.md`, `--steps "stress:500"`).
+
+- **Issues do GitHub (evita retrabalho):** antes de pegar uma issue, rode
+  `gh issue view <n> --json assignees,state` (e confira PR/branch aberto que cite `#<n>`). Se já houver
+  assignee ou PR em andamento, **não pegue** — escolha outra ou avise o usuário. Ao pegar, atribua o
+  usuário logado: `gh issue edit <n> --add-assignee @me`. Sem isso, não comece a trabalhar nela.
 
 **PERGUNTE QUANDO**
 - For apagar/renomear spec, design ou doc; alterar migração aplicada; mudar contrato público.
@@ -27,8 +35,8 @@
 ## Projeto
 - **Propósito**: simulador persistente de sociedades, populações e indivíduos. O mundo
   avança sem jogador. O motor determinístico é a **fonte da verdade**; a LLM só interpreta.
-- **Alvo**: API .NET + workers de simulação + cliente web React (mapa 2D). Unreal depois.
-- **Stack**: .NET 10 / C# · SQLite (→ Postgres) · React+TS · Arquitetura: monólito modular por camadas.
+- **Alvo**: API .NET + workers de simulação + cliente gráfico **Godot** (ADR-0022; web aposentado). Unreal depois.
+- **Stack**: .NET 10 / C# · SQLite (→ Postgres) · Godot · Arquitetura: monólito modular por camadas.
 - **Objetivo técnico #1**: 100 NPCs numa vila medieval por 100 anos, sem LLM, com famílias,
   profissões, economia, nascimentos, mortes e evolução de habilidades preservados.
 
@@ -69,7 +77,7 @@
 - **LLM**: propõe linguagem e intenção; o motor valida e aplica. Nunca o contrário.
 
 ## Harness
-- Manifesto: `HARNESS.md` (ainda não existe — gerar via `harness-engineering`).
+- Manifesto: `HARNESS.md`.
 - Eval gates (0/1): `scripts/verify.sh`. Memória/continuidade entre sessões: `STATE.md`.
 
 ## Política de commit e limpeza

@@ -20,7 +20,8 @@ Cada escala é uma frequência de execução; um tick maior acontece "por cima" 
 | Escala | Passo | O que roda aqui |
 |---|---|---|
 | Hourly | 1 hora | Deslocamento, trabalho, sono, alimentação, eventos imediatos |
-| Daily | 1 dia | Necessidades, produção, consumo, relações, saúde, aprendizado |
+| Daily | 1 dia (hora 0) | Necessidades, consumo, relações, saúde |
+| Midshift | 1 dia (hora `HoursPerDay*10/24`, meio do turno) | Produção, colheita, prática/ensino de habilidade, endurecimento por trabalho, obra — sistemas que dependem de **quem está trabalhando agora**; à meia-noite ninguém está no posto |
 | Monthly | 1 mês | Salários, preços, migração, empregos, gravidez, comércio, criminalidade |
 | Yearly | 1 ano | Envelhecimento, nascimento, morte, educação, evolução de atributos, política, tecnologia |
 | Historic | décadas/séculos | Só agregado: dinastias, ascensão e queda, deslocamentos de povos |

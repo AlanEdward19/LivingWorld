@@ -1,0 +1,11 @@
+[
+  {
+    "createdAt": "number",
+    "currentDate": "number",
+    "lastSavedAtUtc": "string",
+    "name": "string",
+    "population": "number",
+    "seed": "number",
+    "worldId": "string"
+  }
+]

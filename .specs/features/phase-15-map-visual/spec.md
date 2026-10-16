@@ -1,4 +1,10 @@
+> **Estado: Parcial** (specs-closeout 2026-10-12) - Servidor/FOW/tokens provados; cliente React/VTT retirado (ADR-0022), UI migrou ao Godot.
+
 # Fase 15 (Mapa visual VTT 2D) Specification
+
+> **Cliente web removido (ADR-0022, 2026-10-11).** O contrato com o cliente é a API do motor (`tests/contracts/`); a UI é
+> o Godot (`.specs/features/godot-client/`). Itens de React/TypeScript/Vite abaixo são histórico.
+
 
 ## Problem Statement
 Hoje o mundo existe só em backend e não há uma visualização viva para acompanhar cidade, NPCs e eventos. Precisamos de um cliente React + TypeScript em VTT 2D, em tempo real e com dois modos (espectador/admin e personagem), incluindo fog of war, navegação até interiores e camadas derivadas (terreno, rios, clima etc.), sem criar uma segunda fonte de verdade.
@@ -106,11 +112,11 @@ Escopo adicional pedido pelo usuário depois do T8 original entregar só listas/
 ## Requirement Traceability
 | Requirement ID | Story | Status |
 | --- | --- | --- |
-| VTT-01..03 | Modo espectador/admin global | Pending |
-| VTT-04..06 | Camadas derivadas no mesmo grid | Pending |
-| VTT-07..09 | Modo personagem com FOW | Pending |
-| VTT-10..13 | Resolução por foco | Pending |
-| VTT-14..16 | Aparência inicial de NPC | Pending |
+| VTT-01..03 | Modo espectador/admin global | Pending - servidor provado (GlobalProjectorTests, RealtimeGatewayEndpointTests); marcadores de evento ausentes (Build_never_returns_active_events_yet); render no Godot (ADR-0022) |
+| VTT-04..06 | Camadas derivadas no mesmo grid | Pending - catálogo de 14 camadas e builders provados (LayerProjectionCatalogTests, VisualGateTests), várias camadas "not yet modeled"; renderers React obsoletos (ADR-0022) |
+| VTT-07..09 | Modo personagem com FOW | Verified - tests/LivingWorld.Tests.Unit/Visual/PlayerMovementValidatorTests.cs, PlayerVisibilityServiceTests.cs, CityVisibilityFilterTests.cs, Integration/Visual/VisualInputEndpointTests.cs, CityFowSubscribeEndpointTests.cs |
+| VTT-10..13 | Resolução por foco | Pending - projeções global/cidade/interior provadas (Global/City/InteriorProjectorTests); rebaixe de stream ao sair do escopo (VTT-13) sem teste dedicado |
+| VTT-14..16 | Aparência inicial de NPC | Verified - tests/LivingWorld.Tests.Unit/Visual/NpcTokens/NpcTokenComposerTests.cs (determinismo, só camadas do catálogo, profissão muda só roupa/acessório); composição visual do token no cliente migrou ao Godot |
 
 ## Success Criteria
 - [ ] Espectador vê mundo vivo com LOD simplificado no mapa-múndi e drill-down contínuo.

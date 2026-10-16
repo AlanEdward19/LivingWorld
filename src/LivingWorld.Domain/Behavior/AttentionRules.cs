@@ -1,6 +1,10 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Shared;
 
-/// <summary>Limiares de relevância do Attention Router (Fase 16.3 P2a, COH-43 / doc#59) —
+namespace LivingWorld.Domain.Behavior;
+
+/// <summary>Limiares de relevância do Attention Router —
 /// cenário-driven, mesmo template de <see cref="BodyRules"/>/<see cref="CausalRules"/>:
 /// validação em <see cref="Create"/>, <see cref="Default"/> documentado.</summary>
 /// <remarks>
@@ -62,5 +66,5 @@ public sealed record AttentionRules(
     public static readonly AttentionRules Disabled = Default with { Enabled = false };
 
     /// <summary>Usa a regra declarada; se ausente, devolve <see cref="Default"/>.</summary>
-    public static AttentionRules Resolve(AttentionRules? declared) => declared ?? Default;
+    public static AttentionRules Resolve(AttentionRules? declared) => ScenarioRuleDefaults.Resolve(declared, Default);
 }

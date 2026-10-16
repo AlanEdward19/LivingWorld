@@ -1,29 +1,33 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior;
+using LivingWorld.Simulation.Population;
 
 namespace LivingWorld.Simulation.Periods;
 
-/// <summary>Tipo de regra de transformação de profissão (Fase 13, T1): nascimento, fusão, divisão
+/// <summary>Tipo de regra de transformação de profissão: nascimento, fusão, divisão
 /// ou desaparecimento em runtime — nunca literal de período em <c>src/</c>, só o dado do
 /// cenário decide quando/quais.</summary>
 public enum PeriodTransformationKind { Emerge, Merge, Split, Disappear }
 
-/// <summary>Peso inicial de uma profissão no startpoint do período (PERIOD-01). Substitui o
+/// <summary>Peso inicial de uma profissão no startpoint do período. Substitui o
 /// sorteio uniforme de <see cref="PopulationCatalog.RollProfession"/> quando o período declara
 /// viés — o motor só vê o id, nunca um nome (mesmo contrato de <see cref="ProfessionType"/>).
-/// <see cref="Name"/> (Fase 13, T14/PERIOD-19/PERIOD-22..23) é opcional e puramente descritivo —
+/// <see cref="Name"/> é opcional e puramente descritivo —
 /// o motor nunca decide por ele, só armazena/devolve pra quem cadastrou o período nomear.</summary>
 public sealed record ProfessionBias(int ProfessionId, double Weight, string? Name = null);
 
-/// <summary>Peso inicial de uma habilidade no startpoint do período (PERIOD-01/PERIOD-19). Mesmo
+/// <summary>Peso inicial de uma habilidade no startpoint do período. Mesmo
 /// contrato de <see cref="ProfessionBias"/> — id inteiro aberto, nenhum nome fechado no motor
-/// (Fase 13, T11a/T11b — <see cref="SkillType"/> deixou de ser enum fechado). Ainda não aplicado
-/// em runtime — só <see cref="ProfessionBias"/> influencia o sorteio hoje (T10). <see
-/// cref="Name"/> (T14) é opcional e puramente descritivo, mesma regra de <see
+/// (<see cref="SkillType"/> deixou de ser enum fechado). Ainda não aplicado
+/// em runtime — só <see cref="ProfessionBias"/> influencia o sorteio hoje. <see
+/// cref="Name"/> é opcional e puramente descritivo, mesma regra de <see
 /// cref="ProfessionBias.Name"/>.</summary>
 public sealed record SkillBias(int SkillId, double Weight, string? Name = null);
 
-/// <summary>Regra declarada de evolução de profissão em runtime (PERIOD-02/03): cardinalidade de
+/// <summary>Regra declarada de evolução de profissão em runtime: cardinalidade de
 /// origem/destino varia por <see cref="Kind"/> e é validada em <see cref="PeriodDynamicsLoader"/>.
 /// Habilidades não entram aqui — <see cref="PeriodTransformationRule"/> só cobre profissão; uma
 /// regra de transformação de habilidade seria a mesma forma com ids de habilidade em vez de
@@ -34,7 +38,7 @@ public sealed record PeriodTransformationRule(
     IReadOnlyList<int> TargetProfessionIds,
     long? TriggerTick);
 
-/// <summary>Startpoint dinâmico de um período (PERIOD-01..03): vieses de profissão/habilidade +
+/// <summary>Startpoint dinâmico de um período: vieses de profissão/habilidade +
 /// regras de transformação. Bloco <c>Dynamics</c> é opcional no cenário — ausência equivale a
 /// "sem viés declarado, sem evolução de conteúdo", mesmo padrão optional-com-default-vazio de
 /// <see cref="PopulationScenarioLoader"/> pra conjuntos de id.</summary>
@@ -46,12 +50,12 @@ public sealed record PeriodDynamicsData(
     public static readonly PeriodDynamicsData Empty = new([], [], []);
 }
 
-/// <summary>Carrega o bloco <c>Dynamics</c> de um cenário (Fase 13, T1): mesmo padrão manual-parse
+/// <summary>Carrega o bloco <c>Dynamics</c> de um cenário: mesmo padrão manual-parse
 /// + <see cref="Result{T}"/> de <see cref="BehaviorScenarioLoader"/> — campo obrigatório ausente
 /// ou regra estruturalmente inválida nomeia o campo/índice no erro. Checks referenciais entre
 /// <see cref="PeriodDynamicsData"/> e os demais catálogos do período (ex.: id de profissão citado
 /// numa regra mas ausente do <see cref="PopulationCatalog"/>) ficam para
-/// <c>PeriodDefinitionValidator</c> (T2) — este loader só valida a forma do próprio bloco.</summary>
+/// <c>PeriodDefinitionValidator</c> — este loader só valida a forma do próprio bloco.</summary>
 public static class PeriodDynamicsLoader
 {
     public static Result<PeriodDynamicsData> Load(string json)

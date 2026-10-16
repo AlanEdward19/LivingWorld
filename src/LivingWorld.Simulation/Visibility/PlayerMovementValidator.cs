@@ -1,9 +1,11 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Visibility;
 
-/// <summary>Fase 15, T7 (spec.md story "Modo personagem com FOW", AC1; edge case "movimento
-/// inválido"): valida a intenção de movimento antes de qualquer mutação — nunca muta o mundo
+/// <summary>Valida a intenção de movimento antes de qualquer mutação — nunca muta o mundo
 /// quando rejeita (hash canônico inalterado). Um "passo" de clique/WASD só alcança célula
 /// adjacente (distância de Chebyshev 1); teleporte pelo mapa é rejeitado.</summary>
 public static class PlayerMovementValidator

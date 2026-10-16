@@ -24,6 +24,9 @@ motor nunca vê um nome de profissão/época — só ids inteiros que este perí
 |---|---|
 | [`period-authoring-schema.md`](period-authoring-schema.md) | Campos obrigatórios: mapa, população, comportamento, economia, cidades |
 | [`period-authoring-dynamics.md`](period-authoring-dynamics.md) | Bloco opcional `Dynamics` — vieses e regras de transformação de profissão/habilidade |
+| [`period-authoring-appearance.md`](period-authoring-appearance.md) | Bloco opcional `Appearance` e `Appearance`/`Skills` de pessoa autorada |
+| [`period-authoring-objects.md`](period-authoring-objects.md) | Blocos opcionais `Objects`/`Furnishings` (catálogo de objetos, #47) |
+| [`period-authoring-example.md`](period-authoring-example.md) | `periodDefinition` completo e válido (provado por teste contra `POST /periods`) |
 | [`period-authoring-flow.md`](period-authoring-flow.md) | Exemplos válido/inválido, fluxo de `POST /periods`/`POST /worlds/start`, checklist final |
 
 Referências de formato real: `scenarios/default.json`, `scenarios/test-scifi.json`, e os

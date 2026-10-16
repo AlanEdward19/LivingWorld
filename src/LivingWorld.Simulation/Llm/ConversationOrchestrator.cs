@@ -1,9 +1,11 @@
-using LivingWorld.Domain;
 using LivingWorld.Domain.Llm;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Llm;
 
-/// <summary>Pipeline completo de um turno de conversa (Fase 11, LLM-09/10/11):
+/// <summary>Pipeline completo de um turno de conversa:
 /// <see cref="ConversationSessionStore"/> (registra o turno) -> <see cref="LlmContextAssembler"/>
 /// (crença) -> <see cref="ILlmProvider"/> -> <see cref="LlmResponseValidator"/> -> válido aplica
 /// <see cref="ConversationEffectsApplier"/>, inválido usa <see cref="FallbackResponder"/>. Provider
@@ -47,13 +49,13 @@ public sealed class ConversationOrchestrator
             }
             catch (OperationCanceledException)
             {
-                // Orçamento por interação excedido (LLM-10 AC2): a chamada externa foi
+                // Orçamento por interação excedido: a chamada externa foi
                 // interrompida, nunca esperada até o fim.
                 return FallbackResponder.Respond(npc);
             }
             catch (Exception)
             {
-                // Provider indisponível/erro (LLM-11 AC1) — degrada, nunca trava o tick.
+                // Provider indisponível/erro — degrada, nunca trava o tick.
                 return FallbackResponder.Respond(npc);
             }
         }

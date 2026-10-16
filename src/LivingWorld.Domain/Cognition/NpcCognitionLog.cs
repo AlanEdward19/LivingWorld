@@ -1,6 +1,8 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
 
-/// <summary>Entrada de rastro de decisão com tick de gravação (Fase 28, COG-01).</summary>
+namespace LivingWorld.Domain.Cognition;
+
 public sealed record TraceEntry(long Tick, DecisionTrace Trace);
 
 /// <summary>Side-store do rastro de decisão por NPC — ring buffer curto (default 50) ou retenção

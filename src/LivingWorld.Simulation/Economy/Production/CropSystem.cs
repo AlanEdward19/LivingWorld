@@ -1,0 +1,155 @@
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Labor;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Scheduling;
+
+namespace LivingWorld.Simulation.Economy.Production;
+
+/// <summary>Cultivo estagiado <c>plant→water→mature→harvest</c>.
+/// Substitui o trigo instantâneo da fazenda default; colheita antecipada é rejeitada.</summary>
+[LivingCapability("CROPS", Consumers = ["map.crop"])]
+public sealed class CropSystem : ISimulationSystem
+{
+    public const string SystemName = "crop-lifecycle";
+    public const int DefaultFarmLocationTypeId = 1;
+    public const long DefaultMatureDelayTicks = 24;
+    public const long DefaultHarvestPerWorker = 10;
+
+    public string Name => SystemName;
+    public TickFrequency Frequency => TickFrequency.Midshift;
+
+    public void Tick(WorldState world, TickContext ctx)
+    {
+        if (!world.EconomyRules.Enabled) return;
+
+        // Só lotes não colhidos podem amadurecer; cada um é independente, então a ordem não importa.
+        foreach (var crop in world.ActiveCropBatches)
+        {
+            if (crop.Status == CropStatus.Growing && ctx.CurrentTick >= crop.MatureAtTick)
+                crop.MarkMature();
+        }
+
+        var vacancyIndex = VacancyIndex.BuildForTick(world);
+        foreach (var workplace in world.Workplaces.OrderBy(item => item.Id.Value))
+        {
+            if (workplace.LocationType.Id != DefaultFarmLocationTypeId) continue;
+            var workers = vacancyIndex.PresentWorkersAt(workplace);
+            if (workers.Count == 0) continue;
+
+            _ = ReadCellTemperature(world, workplace.Location, ctx.CurrentTick);
+
+            var crop = world.FindCropAt(workplace.Location);
+            if (crop is { } harvestable && harvestable.IsHarvestable(ctx.CurrentTick))
+            {
+                // o ano de safra da região multiplica a colheita (weather-drought): seca corta, fartura soma; sem clima vale 1000
+                long yield = (long)Math.Floor(
+                    DefaultHarvestPerWorker * workers.Count * world.ClimateFactorAt(workplace.Location, ctx.CurrentTick) / 1000.0);
+                long lost = workplace.Deposit(new ResourceType(harvestable.CropResourceId), yield, world.EconomyRules);
+                if (lost > 0)
+                    ctx.LogEvent(
+                        WorldEventKind.ResourceLost,
+                        $"{workplace.Id.Value}|{harvestable.CropResourceId}|{lost}", sourceSystem: SystemName);
+                world.RecordResourceProduced(new ResourceType(harvestable.CropResourceId), yield);
+                harvestable.MarkHarvested();
+                world.RetireHarvestedCropBatch(harvestable);
+
+                // Replanta no mesmo tick da colheita — sem isso o plantio só acontecia no
+                // próximo Tick() (FindCropAt já ignora lotes colhidos), somando um dia ocioso
+                // a cada ciclo e cortando a produção de comida pela metade sem motivo.
+                var replanted = CropBatch.Create(
+                    world.NextCropBatchIdAndAdvance(), world.EconomyRules.FoodResourceId, workplace.Location,
+                    ctx.CurrentTick, ctx.CurrentTick + DefaultMatureDelayTicks, waterRequired: 0);
+                if (replanted.IsSuccess)
+                    world.AddCropBatch(replanted.Value!);
+                continue;
+            }
+
+            if (crop is { } growing && growing.WaterDelivered < growing.WaterRequired)
+            {
+                var water = new ResourceType(world.EconomyRules.WaterResourceId);
+                long needed = growing.WaterRequired - growing.WaterDelivered;
+                long available = workplace.Stock.GetValueOrDefault(water);
+                long give = Math.Min(needed, available);
+                if (give > 0 && workplace.Withdraw(water, give).IsSuccess)
+                    growing.ReceiveWater(give);
+                continue;
+            }
+
+            if (crop is null)
+            {
+                var planted = CropBatch.Create(
+                    world.NextCropBatchIdAndAdvance(), world.EconomyRules.FoodResourceId, workplace.Location,
+                    ctx.CurrentTick, ctx.CurrentTick + DefaultMatureDelayTicks, waterRequired: 0);
+                if (planted.IsSuccess)
+                    world.AddCropBatch(planted.Value!);
+            }
+        }
+    }
+
+    /// <summary>O cultivo lê a temperatura da célula; a fórmula de rendimento não muda com ela.</summary>
+    public static float ReadCellTemperature(WorldState world, CellCoord cell, long currentTick) =>
+        EnvironmentTemperatureMechanic.EffectiveTemperature(world, cell, currentTick);
+
+    public static Result<ResourceProcess> Plant(WorldState world, Npc npc, long now, long matureDelayTicks, long waterRequired)
+    {
+        var recipe = ProcessRecipe.Create(
+            ProcessKind.Plant, new Dictionary<int, long>(), world.EconomyRules.FoodResourceId, 1, null,
+            durationTicks: 1).Value!;
+        var started = ResourceProcessSystem.Start(world, npc, recipe, now);
+        if (!started.IsSuccess) return started;
+
+        started.Value!.AttachCropPlan(matureDelayTicks, waterRequired);
+        return started;
+    }
+
+    public static Result<ResourceProcess> Water(WorldState world, Npc npc, long now, long quantity = 1)
+    {
+        var water = world.EconomyRules.WaterResourceId;
+        var recipe = ProcessRecipe.Create(
+            ProcessKind.WaterCrop, new Dictionary<int, long> { [water] = quantity }, water, quantity, null, 1).Value!;
+        return ResourceProcessSystem.Start(world, npc, recipe, now);
+    }
+
+    public static Result<ResourceProcess> Harvest(WorldState world, Npc npc, long now, long quantity)
+    {
+        var recipe = ProcessRecipe.Create(
+            ProcessKind.Harvest, new Dictionary<int, long>(), world.EconomyRules.FoodResourceId, quantity, null, 1).Value!;
+        return ResourceProcessSystem.Start(world, npc, recipe, now);
+    }
+
+    internal static void CompletePlant(WorldState world, ResourceProcess process, Npc? actor)
+    {
+        if (actor is null) return;
+        long matureDelay = Math.Max(1, process.CropMatureDelayTicks);
+        var crop = CropBatch.Create(
+            world.NextCropBatchIdAndAdvance(), process.Output.Id, actor.CurrentLocation,
+            process.StartedAtTick, process.StartedAtTick + matureDelay, process.CropWaterRequired);
+        if (crop.IsSuccess)
+            world.AddCropBatch(crop.Value!);
+    }
+
+    internal static void CompleteWater(WorldState world, ResourceProcess process, Npc? actor)
+    {
+        if (actor is null) return;
+        world.FindCropAt(actor.CurrentLocation)?.ReceiveWater(process.OutputQuantity);
+    }
+
+    internal static void CompleteHarvest(WorldState world, ResourceProcess process, Npc? actor, Household household)
+    {
+        if (actor is null) return;
+        var crop = world.FindCropAt(actor.CurrentLocation);
+        if (crop is null || !crop.IsHarvestable(process.CompletesAtTick))
+            return;
+
+        household.Deposit(process.Output, process.OutputQuantity);
+        world.RecordResourceProduced(process.Output, process.OutputQuantity);
+        crop.MarkHarvested();
+        world.RetireHarvestedCropBatch(crop);
+    }
+}

@@ -1,6 +1,6 @@
 # Fase 16 — Potência
 
-**Status**: concluída — spec/design/tasks e validação em `.specs/features/phase-16-powers/`.
+**Status**: parcial — arquitetura concluída (spec/design/tasks e validação em `.specs/features/phase-16-powers/`); efeitos e custos seguem switch C# fechado, reabertura abaixo.
 
 > **Reabertura pendente (2026-08-24)**: validação PASS cobriu arquitetura, mas `effects`/`costs`
 > ainda são switch C# fechado (`ExtraordinaryInvocationEngine` / `ExtraordinaryLocomotion` —

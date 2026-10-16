@@ -1,3 +1,5 @@
+> **Estado: Entregue** (specs-closeout 2026-10-12) - 15/15 EVO com testes em tests/LivingWorld.Tests.Unit/Extraordinary; validação PASS arquivada (2026-08-25).
+
 # Fase 16.2 — Power Evolution (Progressão + Mistura Genética de Poderes)
 
 ## Problem Statement
@@ -181,21 +183,21 @@ diferentes) produz um resultado válido nos 3 caminhos de herança.
 
 | ID | Story | Status |
 | --- | --- | --- |
-| EVO-01 | P1: Estágios — aplica o estágio mais alto atingido | Pending |
-| EVO-02 | P1: Estágios — estágio com idade+uso exige ambos (AND) | Pending |
-| EVO-03 | P1: Estágios — estágio 0 antes do primeiro limiar, nunca falha | Pending |
-| EVO-04 | P1: Estágios — contador de uso incrementa só em sucesso | Pending |
-| EVO-05 | P1: Estágios — determinismo por seed/histórico | Pending |
-| EVO-10 | P1: Herança — escolhe 1 dos 3 resultados deterministicamente, pesos configuráveis | Pending |
-| EVO-11 | P1: Herança — resultado "ambos" preserva os 2 descritores completos/independentes | Pending |
-| EVO-12 | P1: Herança — resultado "um só" copia fielmente o pai escolhido | Pending |
-| EVO-13 | P1: Herança — resultado "mistura" recombina eixos, magnitude pode somar sem teto | Pending |
-| EVO-14 | P1: Herança — todo resultado passa pela mesma validação de contrato | Pending |
-| EVO-15 | P1: Herança — sem os dois pais portadores, nenhuma herança | Pending |
-| EVO-16 | P1: Herança — determinismo por seed (resultado e descritor exatos) | Pending |
-| EVO-20 | P1: Cobertura — estágio funciona em qualquer mecânica, inclusive as de maior risco | Pending |
-| EVO-21 | P1: Cobertura — mistura entre mecânicas diferentes nunca gera erro de incompatibilidade | Pending |
-| EVO-22 | P1: Cobertura — matriz de teste cobre cada categoria de mecânica da 16.1 | Pending |
+| EVO-01 | P1: Estágios — aplica o estágio mais alto atingido | Verified - Systems/ExtraordinaryPowerStageSystemTests |
+| EVO-02 | P1: Estágios — estágio com idade+uso exige ambos (AND) | Verified - Systems/ExtraordinaryPowerStageSystemTests (AND idade+uso) |
+| EVO-03 | P1: Estágios — estágio 0 antes do primeiro limiar, nunca falha | Verified - Systems/ExtraordinaryPowerStageSystemTests (estagio 0) |
+| EVO-04 | P1: Estágios — contador de uso incrementa só em sucesso | Verified - Opportunity/PowerUseCounterTests |
+| EVO-05 | P1: Estágios — determinismo por seed/histórico | Verified - Systems/ExtraordinaryPowerStageSystemTests (execucoes identicas) |
+| EVO-10 | P1: Herança — escolhe 1 dos 3 resultados deterministicamente, pesos configuráveis | Verified - Inheritance/PowerInheritanceResolverTests, ExtraordinaryHeredityTests |
+| EVO-11 | P1: Herança — resultado "ambos" preserva os 2 descritores completos/independentes | Verified - PowerInheritanceBothTests |
+| EVO-12 | P1: Herança — resultado "um só" copia fielmente o pai escolhido | Verified - PowerInheritanceOneOfTests |
+| EVO-13 | P1: Herança — resultado "mistura" recombina eixos, magnitude pode somar sem teto | Verified - Mechanics/MixDescriptorBuilderTests (soma sem teto) |
+| EVO-14 | P1: Herança — todo resultado passa pela mesma validação de contrato | Verified - MixDescriptorBuilderTests, PowerEvolutionCoverageTests |
+| EVO-15 | P1: Herança — sem os dois pais portadores, nenhuma herança | Verified - PowerInheritanceResolverTests, PowerInheritanceNatalityTests |
+| EVO-16 | P1: Herança — determinismo por seed (resultado e descritor exatos) | Verified - PowerInheritanceResolverTests, DeterministicChoiceTests |
+| EVO-20 | P1: Cobertura — estágio funciona em qualquer mecânica, inclusive as de maior risco | Verified - PowerEvolutionCoverageTests |
+| EVO-21 | P1: Cobertura — mistura entre mecânicas diferentes nunca gera erro de incompatibilidade | Verified - MixDescriptorBuilderTests |
+| EVO-22 | P1: Cobertura — matriz de teste cobre cada categoria de mecânica da 16.1 | Verified - PowerEvolutionCoverageTests (matriz de categorias) |
 
 **Coverage**: 15 total. Todas as decisões de Assumptions confirmadas — sem bloqueio pra Design.
 

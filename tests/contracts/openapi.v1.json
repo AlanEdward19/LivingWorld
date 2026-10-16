@@ -1,0 +1,2519 @@
+{
+  "components": {
+    "schemas": {
+      "ActionType": {
+        "type": "integer"
+      },
+      "AdminPauseRequest": {
+        "properties": {
+          "maxTicks": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "reason",
+          "maxTicks"
+        ],
+        "type": "object"
+      },
+      "AdminSpeedRequest": {
+        "properties": {
+          "ticksPerSecond": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "ticksPerSecond"
+        ],
+        "type": "object"
+      },
+      "BreakRelationshipsRequest": {
+        "properties": {
+          "otherNpcId": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "otherNpcId"
+        ],
+        "type": "object"
+      },
+      "CellCoord": {
+        "properties": {
+          "x": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "y": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "CityId": {
+        "properties": {
+          "value": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "CityTreasury": {
+        "properties": {
+          "balance": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "cityId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "fromDay": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/TreasuryMonth"
+            },
+            "type": "array"
+          },
+          "toDay": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "cityId",
+          "balance",
+          "fromDay",
+          "toDay",
+          "months"
+        ],
+        "type": "object"
+      },
+      "ConversationEndRequest": {
+        "properties": {
+          "sessionId": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "sessionId"
+        ],
+        "type": "object"
+      },
+      "ConversationSendRequest": {
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "sessionId": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "sessionId",
+          "message"
+        ],
+        "type": "object"
+      },
+      "ConversationStartRequest": {
+        "properties": {
+          "npcId": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "npcId"
+        ],
+        "type": "object"
+      },
+      "CreatePeriodRequest": {
+        "properties": {
+          "periodDefinition": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "periodId": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "periodId",
+          "version",
+          "periodDefinition",
+          "source"
+        ],
+        "type": "object"
+      },
+      "CreateWorldRequest": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "periodId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "scenarioJson": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scenarioJson",
+          "name"
+        ],
+        "type": "object"
+      },
+      "DecisionSandboxRequestDto": {
+        "properties": {
+          "continuityAction": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActionType"
+              }
+            ]
+          },
+          "needs": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SandboxNeedsDto"
+              }
+            ]
+          },
+          "personality": {
+            "additionalProperties": {
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            },
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "ForceActionRequest": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ActionType"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "type": "object"
+      },
+      "IncarnateRequest": {
+        "properties": {
+          "playerId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "playerId"
+        ],
+        "type": "object"
+      },
+      "InvokePowerRequest": {
+        "properties": {
+          "powerId": {
+            "type": "string"
+          },
+          "resolution": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ResolutionResult"
+              }
+            ]
+          },
+          "targetCell": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CellCoord"
+              }
+            ]
+          },
+          "targetNpcId": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "powerId"
+        ],
+        "type": "object"
+      },
+      "JsonElement": {},
+      "JsonObject": {
+        "type": "object"
+      },
+      "NpcDirectoryItem": {
+        "properties": {
+          "action": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActionType"
+              }
+            ]
+          },
+          "cityId": {
+            "$ref": "#/components/schemas/CityId"
+          },
+          "id": {
+            "$ref": "#/components/schemas/NpcId"
+          },
+          "location": {
+            "$ref": "#/components/schemas/CellCoord"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "cityId",
+          "action",
+          "location"
+        ],
+        "type": "object"
+      },
+      "NpcDirectoryPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/NpcDirectoryItem"
+            },
+            "type": "array"
+          },
+          "total": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "NpcId": {
+        "properties": {
+          "value": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "ObservationScopeDto": {
+        "properties": {
+          "buildingId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cityId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kind": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
+      "ObservationScopeRequest": {
+        "properties": {
+          "scope": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ObservationScopeDto"
+              }
+            ]
+          },
+          "sourceId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sourceId",
+          "scope"
+        ],
+        "type": "object"
+      },
+      "PersonalityValues": {
+        "properties": {
+          "agreeableness": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "altruism": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "ambition": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "conscientiousness": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "emotionalStability": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "extroversion": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "impulsivity": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "loyalty": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "openness": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "riskAversion": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "extroversion",
+          "agreeableness",
+          "conscientiousness",
+          "emotionalStability",
+          "openness",
+          "ambition",
+          "loyalty",
+          "altruism",
+          "impulsivity",
+          "riskAversion"
+        ],
+        "type": "object"
+      },
+      "PlayerActionRequest": {
+        "properties": {
+          "action": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "type": "object"
+      },
+      "PlayerMoveRequest": {
+        "properties": {
+          "inputMode": {
+            "type": "string"
+          },
+          "targetX": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "targetY": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "targetX",
+          "targetY",
+          "inputMode"
+        ],
+        "type": "object"
+      },
+      "PowerCommandRequest": {
+        "properties": {
+          "powerId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "powerId"
+        ],
+        "type": "object"
+      },
+      "PreviewWorldRequest": {
+        "properties": {
+          "scenarioJson": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scenarioJson"
+        ],
+        "type": "object"
+      },
+      "ResolutionResult": {
+        "type": "integer"
+      },
+      "SandboxNeedsDto": {
+        "properties": {
+          "hunger": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "sleep": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "social": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "thirst": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "SetSpeedRequest": {
+        "properties": {
+          "ticksPerSecond": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "ticksPerSecond"
+        ],
+        "type": "object"
+      },
+      "StartWorldRequest": {
+        "properties": {
+          "periodId": {
+            "type": "string"
+          },
+          "seed": {
+            "format": "uint64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "periodId",
+          "seed"
+        ],
+        "type": "object"
+      },
+      "TradeDay": {
+        "properties": {
+          "day": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "purchases": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "quantity": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "resourceId": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "value": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "day",
+          "resourceId",
+          "quantity",
+          "value",
+          "purchases"
+        ],
+        "type": "object"
+      },
+      "TreasuryMonth": {
+        "properties": {
+          "month": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "revenue": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "spending": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "month",
+          "revenue",
+          "spending"
+        ],
+        "type": "object"
+      },
+      "ViewerMode": {
+        "type": "integer"
+      },
+      "VisualScopeKind": {
+        "type": "integer"
+      },
+      "WorkplaceTrades": {
+        "properties": {
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/TradeDay"
+            },
+            "type": "array"
+          },
+          "fromDay": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "toDay": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "workplaceId": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "workplaceId",
+          "fromDay",
+          "toDay",
+          "days"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "LivingWorld.Api | v1",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.1",
+  "paths": {
+    "/": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/admin/audit": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "fromTick",
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/admin/search": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/admin/world/pause": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminPauseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/admin/world/resume": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/admin/world/speed": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminSpeedRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/authoring/extraordinary/catalog": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/authoring/households": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonObject"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/authoring/npcs/{id}/action": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForceActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/authoring/npcs/{id}/extraordinary/grant": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PowerCommandRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/authoring/npcs/{id}/extraordinary/invoke": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvokePowerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/authoring/npcs/{id}/extraordinary/revoke": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PowerCommandRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/authoring/npcs/{id}/personality": {
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonalityValues"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/authoring/npcs/{id}/relationships/break": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BreakRelationshipsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/authoring/workplaces": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonObject"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/cities/{id}/treasury": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "fromDay",
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "toDay",
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CityTreasury"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/conversations/end": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationEndRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/conversations/send": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationSendRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/conversations/start": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationStartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/cultures/{id}/technologies": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "fromTick",
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/history/beliefs": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "communityId",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/history/truth": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scope",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "fromTick",
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/narratives/biographies/{npcId}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "npcId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/narratives/chronicles": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "location",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "periodStart",
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "periodEnd",
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "topK",
+            "schema": {
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/narratives/reports": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/npcs": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cityId",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "skip",
+            "schema": {
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "take",
+            "schema": {
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NpcDirectoryPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/npcs/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/npcs/{id}/decision-sandbox": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DecisionSandboxRequestDto"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/npcs/{id}/materialize": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/npcs/{id}/watchlist": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/observation/scope": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObservationScopeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/periods": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      },
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePeriodRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/periods/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/periods/{id}/catalog": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/players/{npcId}/incarnate": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "npcId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncarnateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/players/{playerId}/action": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "playerId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlayerActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/players/{playerId}/logout": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "playerId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/simulation/advance-year": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/simulation/pause": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/simulation/resume": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/simulation/speed": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetSpeedRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/simulation/status": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/simulation/step": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/visual/catalog/actions": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/visual/player/{id}/move": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlayerMoveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/visual/replay": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scope",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/VisualScopeKind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "refId",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mode",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ViewerMode"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sinceTick",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "sinceSequence",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/visual/sse": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scope",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/VisualScopeKind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "refId",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mode",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ViewerMode"
+            }
+          },
+          {
+            "in": "query",
+            "name": "playerNpcId",
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/visual/subscribe": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scope",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/VisualScopeKind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "refId",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mode",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ViewerMode"
+            }
+          },
+          {
+            "in": "query",
+            "name": "playerNpcId",
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/visual/ws": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scope",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/VisualScopeKind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "refId",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mode",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ViewerMode"
+            }
+          },
+          {
+            "in": "query",
+            "name": "playerNpcId",
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/workplaces/{id}/trades": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "fromDay",
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "toDay",
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkplaceTrades"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/world/calendar": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/world/info": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/worlds": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/worlds/create": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWorldRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/worlds/preview": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewWorldRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/worlds/start": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartWorldRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/worlds/{worldId}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "worldId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/worlds/{worldId}/load": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "worldId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost/"
+    }
+  ],
+  "tags": [
+    {
+      "name": "LivingWorld.Api"
+    }
+  ]
+}

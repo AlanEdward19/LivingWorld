@@ -1,0 +1,127 @@
+{
+  "actionStartedAtTick": "number",
+  "actionTarget?": {
+    "id": "string",
+    "kind": "string"
+  },
+  "ageYears": "number",
+  "beliefs": "[]",
+  "city": {
+    "value": "string"
+  },
+  "cognitionTrace": [
+    {
+      "tick": "number",
+      "trace": {
+        "blockingFactors": [
+          "string"
+        ],
+        "knownAlternatives": [
+          "number"
+        ],
+        "knownOpportunities": [
+          {
+            "attractiveness": "number",
+            "detail": "null",
+            "kind": "string"
+          }
+        ],
+        "previousIntent": "null",
+        "topNegativeFactors": [
+          "string"
+        ],
+        "topPositiveFactors": [
+          "string"
+        ],
+        "topPressures": [
+          {
+            "factors": [
+              "string"
+            ],
+            "intensity": "number",
+            "kind": "string"
+          }
+        ],
+        "wakeReason": "number",
+        "winner": "number",
+        "winningUtility": "number"
+      }
+    }
+  ],
+  "culture": {
+    "id": "number"
+  },
+  "currentAction?": "number",
+  "currentLocation": {
+    "x": "number",
+    "y": "number"
+  },
+  "currentScope": {
+    "cityId?": {
+      "value": "string"
+    },
+    "kind": "number"
+  },
+  "employer?": {
+    "value": "number"
+  },
+  "fatherId?": {
+    "value": "number"
+  },
+  "food?": {
+    "blocked": "boolean",
+    "preparation": "number",
+    "remainingHours": "number",
+    "resourceId": "number"
+  },
+  "health": "number",
+  "household?": {
+    "value": "number"
+  },
+  "hunger": "number",
+  "id": {
+    "value": "number"
+  },
+  "lod": "number",
+  "memories": "[]",
+  "motherId?": {
+    "value": "number"
+  },
+  "name": "string",
+  "personality": {
+    "agreeableness": "number",
+    "altruism": "number",
+    "ambition": "number",
+    "conscientiousness": "number",
+    "emotionalStability": "number",
+    "extroversion": "number",
+    "impulsivity": "number",
+    "loyalty": "number",
+    "openness": "number",
+    "riskAversion": "number"
+  },
+  "powerIds": "[]",
+  "profession": {
+    "id": "number"
+  },
+  "rest?": {
+    "blocked": "boolean",
+    "kind": "number",
+    "location": {
+      "x": "number",
+      "y": "number"
+    },
+    "quality": "number",
+    "remainingHours": "number"
+  },
+  "sex": "number",
+  "skills": {
+    "values": {}
+  },
+  "sleep": "number",
+  "social": "number",
+  "spouse?": {
+    "value": "number"
+  },
+  "thirst": "number"
+}

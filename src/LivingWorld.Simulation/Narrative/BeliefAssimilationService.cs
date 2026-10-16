@@ -1,16 +1,17 @@
-using LivingWorld.Domain;
 using LivingWorld.Domain.Llm;
-using LivingWorld.Simulation.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.History.Queries;
 
 namespace LivingWorld.Simulation.Narrative;
 
-/// <summary>Aplica limiar de confiança à assimilação de um relato por um NPC ouvinte (Fase 12,
-/// NARR-13..15) — só entra em memória semântica (<see cref="MemoryCategory.Semantic"/>) o relato
+/// <summary>Aplica limiar de confiança à assimilação de um relato por um NPC ouvinte
+/// — só entra em memória semântica (<see cref="MemoryCategory.Semantic"/>) o relato
 /// cuja confiança (derivada da distância crença-fato de <see cref="HistoryBeliefQuery"/>) alcança
 /// o limiar; abaixo dele, a exposição é apenas registrada no retorno, sem mutar a memória do
-/// ouvinte (spec.md Edge Cases). Único ponto de acesso é <see cref="HistoryBeliefQuery"/> — nunca
+/// ouvinte. Único ponto de acesso é <see cref="HistoryBeliefQuery"/> — nunca
 /// <see cref="HistoryTruthQuery"/> — então o fato canônico de origem nunca é lido nem alterado
-/// aqui (NARR-14/15, mesma fronteira Verdade/Crença de <c>rules/llm-boundary.md</c>).</summary>
+/// aqui (mesma fronteira Verdade/Crença de <c>rules/llm-boundary.md</c>).</summary>
 public static class BeliefAssimilationService
 {
     public sealed record AssimilationOutcome(bool Accepted, double Confidence, string Reason);

@@ -1,10 +1,10 @@
-using LivingWorld.Domain;
 using LivingWorld.Domain.Llm;
+using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Llm;
 
-/// <summary>Job batch periódico fora do caminho crítico do tick (Fase 11, roadmap item 10,
-/// LLM-17..19) — reduz a contagem de <see cref="WorldState.VolatileMemories"/> de um NPC
+/// <summary>Job batch periódico fora do caminho crítico do tick — reduz a contagem de
+/// <see cref="WorldState.VolatileMemories"/> de um NPC
 /// resumindo grupos antigos de baixa importância em um único registro por
 /// (dono, categoria). Nunca toca <see cref="WorldState.CanonicalMemories"/> (importância >=
 /// <see cref="LlmRules.CanonicalMemoryImportanceThreshold"/>): só itera

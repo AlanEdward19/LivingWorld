@@ -4,49 +4,36 @@ Fonte única de continuidade. Quem entra numa área nova **lê este arquivo prim
 Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
-- **Última coisa concluída (2026-09-01)**: Fase 28 fechada — cognição inspecionável, LOD
-  observacional (mundo/cidade/interior), compressão de estado frio, painel web "ver o cérebro",
-  sandbox de decisão. Branch `feat/phase-28-cognition` com gate verde; worktrees intermediárias
-  `LivingWorld-28-t*` removidas; efêmeros spec-driven (tasks/validation de fases entregues,
-  parallel-execution) limpos.
-- **Próxima unidade**: merge de `feat/phase-28-cognition` em `main` (PR) ou iniciar próxima fase
-  do roadmap conforme prioridade.
-- **Última coisa concluída (2026-08-23)**: `dynamic-city-growth` FixT17 — causa raiz real da saga
-  de hoje "cidades coladas/muralhas sobrepostas/população oscilando". `FoundingSitePicker.Pick`
-  excluía a cidade-mãe de QUALQUER checagem de espaçamento (não só do gap `AbsorptionRingCells`) —
-  como a mãe é quase sempre a única cidade próxima no instante da fundação, isso deixava o anel 1
-  aceitar o primeiro candidato, produzindo bounds literalmente sobrepostos (confirmado ao vivo:
-  mãe `Origin(4,4) 3x3`, filha `Origin(3,3) 3x3`). FixT8–FixT16 (mesmo dia) corrigiram sintomas
-  reais mas secundários (clamp entre cidades, re-check no disparo, decline fora do mapa, guarda
-  anti-poaching, histerese de migração, piso de tamanho mínimo) sem tocar essa causa raiz. Fix:
-  mãe continua isenta do gap `AbsorptionRingCells`, mas não mais isenta de overlap de área — `Pick`
-  agora rejeita qualquer candidato cujos bounds de fundação (população 0) sobreponham os bounds
-  atuais da mãe. `bash scripts/test.sh --filter "Category!=Scenario&FullyQualifiedName~Cities"` —
-  238 passed, 0 failed. Commit `6c335fa`. Detalhes:
-  `.specs/features/dynamic-city-growth/tasks.md` (FixT17).
-- **Última coisa concluída (2026-08-22)**: Fase 15.1 Stage 4 **T18–T28** (mapa + animações)
-  + re-verify **PASS**. Prédios nas coords da API; andaime; pawn+overlays; rotas de
-  migração; fundação visível; `NpcAnimationCatalog` + gate. Validação:
-  `.specs/features/phase-15.1-stage-4-living-world/validation.md` (142 .NET + 402 Vitest
-  Stage4; 3/3 sensores mortos). **Sem commit.** `verify.sh` não rodou (agente paralelo
-  em testes History/Llm/etc.). UAT visual adiado (usuário ausente).
-- **Adiado (T7)**: LWV-05.4 HUD de período — sem período canônico em `WorldState`.
-- **Antes**: T12–T17 rest/água/comida/cultivo; T9–T11 commute/construção/migração.
-- **Próxima unidade**: `bash scripts/verify.sh` quando o reparo de testes paralelo
-  terminar; commit da stage; nightly `Category=Scenario` com o usuário.
-- **Integração do extraordinário (2026-08-12)**: decisão **mista**, sem fase numerada nova
-  para "super-heróis"/"identidade secreta" — distribuída entre Fases 16, 17, 23, 24, 25, com
-  toques em 10, 12, 22. ADR-0010 + `docs/domain/powers.md`. Ver `ROADMAP.md` linhas 16/23.
-  Gap-check fases 0–9: `BranchId` (Fase 3) e primitivo de resolução (Fase 0) já existiam.
-- **Decisão de escopo (2026-07-29)**: **Fase 14 (Unreal) adiada**; Fase 15 é VTT 2D
-  realtime (resolução por foco visual; tick global contínuo).
+- **#91 (2026-10-16, `codex/issue-91`)**: história ligada nos mundos do catálogo, gravação síncrona de fatos,
+  relato de fome consumido pela utility de Buy e cache hop-0 dentro do teto de custo. ADR-0037;
+  spec/evidências em `.specs/features/issue-91-catalog-history/`. Gates e Verifier PASS; relatório `validation.md`, 3 mutações detectadas e custo 99,36% do controle.
+- **Fechado (2026-10-14)**: ADs 104–114 e as issues #20–#43 (incl. #25–#28, #40, #41): cliente Godot com arte/áudio,
+  história e narrativa fechadas (Fases 10/12), primeira fatia de emergência (AD-110), encarnação de jogador (AD-111),
+  console de admin com pausa de teto (AD-112), poço (AD-113), custo medido sem regressão (AD-114).
+  Fase 28 fechada (motor e painel visual). Cliente web removido (ADR-0022).
+- **Abertas**: #60 provider de LLM de produção + custo (ADR-0016) · #61 Fase 24 resto · #62 Fase 26 resto (reescrita exige Fase 18) ·
+  #63 Fase 25 resto · #64 Fase 16 efeitos/custos em switch fechado ·
+  #68 interações presenciais · #46 criador de mundo · #47 criador procedural de objetos. Fechadas por este PR: #57, #66, #70–#72, #93.
+- **Decisão de escopo (2026-10-14, #66)**: ordem das fases `spec` = **21 → 22 → 23**, depois 18, 27 e 17/19/20.
+  Fase 14 substituída pelo Godot (ADR-0025, voz/Unreal adiados); Fase 15 fechada.
+- **Próxima unidade**: Fase 22 (imperfeição; criar plano lean e issues por fatia). Fase 21 entregue com as dívidas (21a–c e #93, AD-115..118, ADR-0028..0031); plano `.specs/features/phase-21-ontogeny/plan.md`.
+- **Concluído (2026-10-15)**: #58 (painel Cérebro, escopo de observação, sandbox "E se…?", ADR-0026) e #59 (conversa, narrativas, crenças, jogador, console admin, economia, tecnologias, materializar), cada fatia com Verifier PASS em `.specs/features/godot-*/verification.md`. Branches empilhadas até `feat/godot-materialize`; falta abrir os PRs. Dívidas: pausa pública com ator/motivo e período do mundo continuado pedem rota nova (issue própria); retomar sessão de jogador após reiniciar o cliente.
+- **#46 criador de mundo (branch `feat/world-creator`, 2026-10-15)**: fatias 1 (nomes das profissões), 2 (aparência herdada opt-in + habilidades iniciais, ADR-0032) e 4 (criar família e local de trabalho com o mundo rodando, ADR-0033) feitas, planos em `.specs/features/profession-names/`, `world-creator-appearance/` e `world-creator-live/`. Faltam 3 (modelos, depende de #67), 5 (plantas, depende de #47) e 6 (poderes, depende de #64). Profissões/habilidades próprias e emergentes: #96.
+- **#47 objetos (branch `feat/objetos-catalogo-fatia1`, 2026-10-15)**: fatia 1 (formato `Objects`/`objectsFormat` + catálogo com fallback, mobília migrada, ADR-0034) feita; plano em `.specs/features/object-catalog/`. Faltam 2 (uso/animação), 3 (efeitos pelo motor), 4 (comida), 5 (invenções, depende da #61), 6 (mods).
+- **CI após #47**: `develop` verde no run `38885386561` (gate e cliente); integração com #65/#67 validada novamente antes de atualizar o PR.
+- **#47 fatia 2 (branch `feat/objetos-uso-fatia2`, sobre a fatia 1 já mergeada (#99), 2026-10-16)**: pontos de uso com `action`/`pose`, `usingObject` no interior e pose por (ação, objeto), ADR-0037; plano em `.specs/features/object-use/`. Faltam 3 a 6.
+- **#47 fatia 3 (branch `feat/objetos-efeitos-fatia3`, 2026-10-16)**: `effects` (`sleep:`/`eat:`), `interactions` (profissão/habilidade), duração de dormir e comer dividida pelo efeito, `Comfort` no `DecisionContext`, ADR-0038; plano em `.specs/features/object-effects/`. Faltam 4 (comida como objeto), 5 (invenções, depende da #61), 6 (mods).
+- **Integração do extraordinário (2026-08-12)**: decisão **mista**, sem fase numerada nova para "super-heróis" —
+  distribuída entre Fases 16, 17, 23, 24, 25, com toques em 10, 12, 22. ADR-0010 + `docs/domain/powers.md`.
 - **Dívida Fase 9**: PERF-12 hasher; `LongRunScaleTests` só nightly.
 - **Gate**: `bash scripts/verify.sh`. No Windows, Git bash. Sem `Category=Scenario` no rotina.
 - **População default ~40/100** após calibração econômica (Fase 5) — coerência, não "interessante".
-- Fases 0–8 fechadas (git log, AD-020..048, ADR-0001..0007). Fases 16–27 em `spec` (AD-010).
+- Fases 0–13 e 28 (motor) fechadas; 24–26 parciais; 14, 17–23, 27 sem implementação. Ver `ROADMAP.md`.
 - **Fase 13**: períodos = startpoints dinâmicos; autoria de catálogo sem runtime de IA interno.
 - **Eval**: `verify.sh`; `verify-mutation.sh` manual. Harness: [`HARNESS.md`](HARNESS.md).
 - **Budget**: nenhum loop autônomo ativo.
+
+- **Verificado (#65/#67, 2026-10-16)**: branch `feat/issues-65-67`, ADR-0036/0035. Relatórios independentes PASS em `family-diversity-calibration`, `lodging-and-rent` e `saved-worlds`; 20 seeds × 100 anos no cenário completo, mundos persistentes e provas causais de distância/SQL na composição API. Após integrar #47: gate 2342/3 skips, integração completa 443, Godot 270; prova da resolução em `saved-worlds/merge-verification.md`. Entrega por PR para `develop`; fechamento das issues no merge.
 
 ## Decisões (AD-NNN)
 Log completo em [docs/decisions-log.md](docs/decisions-log.md) — AD-001..048 (não duplique
@@ -71,11 +58,12 @@ depois. Onde o mecanismo já virou task, a fase está nomeada.
 | Conteúdo medieval calcificar em `src/` | Cenário `test-scifi` rodando no gate **desde a Fase 3** — se um cenário alienígena roda cedo, o medieval não enraíza. Elimina a dívida que a Fase 13 carregava | 3 |
 | Estado órfão entre subsistemas | Sweep de integridade referencial genérico, dirigido por reflexão sobre todos os tipos de ID — ganha cobertura sozinho a cada fase nova | 3 |
 | Verdade histórica vazar para o mundo do jogo | Consultas separadas (verdade vs crença) com teste de mutação: desligar a checagem tem de reprovar o critério | 10, 11 |
+| Admin distraído congela todos | Pausa de admin com teto (`maxTicks`) e retomada automática, auditada append-only (AD-112, ADR-0015) | 26 |
 
 ## Riscos ainda sem mecanismo
 | Risco | Por que segue aberto |
 |---|---|
-| Custo e latência de LLM em escala | Só dimensionável com provider real; decisão adiada para ADR-0008 na Fase 11 |
+| Custo e latência de LLM em escala | Só dimensionável com provider real; decisão em ADR-0016; sem provider de produção (#60) |
 | Balanceamento do mundo (economia estável, demografia plausível) | Nenhum gate prova que o mundo é *interessante*, só que é *coerente*. Exige julgamento humano |
 | **Escopo extra canibalizar o caminho crítico** | Mitigado por AD-010 (fases 16–19 bloqueadas até a 8), mas o risco é de disciplina, não de mecanismo. Nenhum gate impede alguém de começar a Fase 18 antes da hora |
 | Ramificação pura não entregar payoff narrativo | Mudar o passado não afeta a linha de origem (ADR-0008). O valor tem de vir de conhecimento atravessando linhas, perda permanente e comparação — nada disso está provado ainda |
@@ -83,5 +71,4 @@ depois. Onde o mecanismo já virou task, a fase está nomeada.
 | Catch-up longo estourar a paciência do jogador | ADR-0012 dá o mecanismo, não o orçamento. Voltar a um branch parado há 40 anos pode custar minutos. Pré-aquecimento é hipótese, não solução provada |
 | Emergência aberta produzir coisa implausível | ADR-0013 garante que o emergente é determinístico e composto, não que é *bom*. Nenhum gate distingue tecnologia plausível de monstro estatístico |
 | 28 fases | O escopo agora é muito maior que o objetivo #1. As trilhas (AD-012) organizam, mas não reduzem. Risco real é diluir esforço antes de fechar o núcleo |
-| Admin distraído congela todos | Pausa global é decisão (ADR-0015) e o poder é real. Limite de duração ficou como questão em aberto da Fase 26, sem mecanismo ainda |
 | Fidelidade perdida é perdida | Aceitar `LOD` como definição do mundo (ADR-0012) significa que um período que ninguém observou nunca pode ser ampliado. Coerente e irreversível — se incomodar depois, o custo é alto |

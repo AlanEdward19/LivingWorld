@@ -1,10 +1,22 @@
 using System.Text.Json.Serialization;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Extraordinary;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.Ontogeny;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Domain.Shared;
 
-namespace LivingWorld.Domain;
+namespace LivingWorld.Domain.Population;
 
-/// <summary>O indivíduo simulado: identidade, saúde, localização, necessidades (Fase 4),
+/// <summary>O indivíduo simulado: identidade, saúde, localização, necessidades,
 /// personalidade e profissão. Mutável (mesmo padrão de <c>WorldState</c>): idade nunca é campo
-/// que um sistema incrementa, é derivada de <see cref="AgeYears"/> (task 2). Reconstrutível por
+/// que um sistema incrementa, é derivada de <see cref="AgeYears"/>. Reconstrutível por
 /// inteiro a partir de um único construtor público — <c>System.Text.Json</c> usa esse
 /// construtor no round-trip do snapshot, então todo campo mutável precisa estar nele.</summary>
 public sealed class Npc
@@ -12,6 +24,17 @@ public sealed class Npc
     [JsonIgnore]
     public Action<NpcId>? CanonicalMutationNotifier { get; set; }
     private void TouchCanonical() => CanonicalMutationNotifier?.Invoke(Id);
+
+    /// <summary>Avisa o índice espacial de NPCs vivos (derivado) da posição anterior sempre que
+    /// <see cref="MoveTo"/> muda <see cref="CurrentLocation"/>. Mesmo molde de
+    /// <see cref="CanonicalMutationNotifier"/>: um mundo dono por instância de NPC.</summary>
+    [JsonIgnore]
+    public Action<Npc, CellCoord>? LocationObserver { get; set; }
+
+    /// <summary>Notifica <c>(npc, saúdeAnterior)</c> quando <see cref="SetHealth"/> muda a saúde — único
+    /// caminho de mutação, o que permite ao índice de vivos contar quem está em perigo sem varrer o mundo.</summary>
+    [JsonIgnore]
+    public Action<Npc, int>? HealthObserver { get; set; }
 
     public NpcId Id { get; }
     public string Name { get; }
@@ -27,7 +50,7 @@ public sealed class Npc
     public WorldDate? PregnantUntil { get; private set; }
     public WorldDate? DeathDate { get; private set; }
 
-    // Fase 4 (task 6) / Fase 9 (PERF-09): necessidades lazy — canônicas no snapshot.
+    // Necessidades lazy — canônicas no snapshot.
     public LazyNeed HungerNeed { get; private set; }
     public LazyNeed ThirstNeed { get; private set; }
     public LazyNeed SleepNeed { get; private set; }
@@ -38,44 +61,148 @@ public sealed class Npc
     public ActionType? CurrentAction { get; private set; }
     public long ActionStartedAtTick { get; private set; }
 
-    /// <summary>Intent de plano persistente (Fase 16.3 P2a, COH-41) — granularidade de
+    /// <summary>Intent de plano persistente — granularidade de
     /// <see cref="ActionType"/> + target opcional; sobrevive além da ação imediata.</summary>
     public ActionType? CurrentIntent { get; private set; }
+
+    /// <summary>Por que o NPC está viajando — a ação (Work, Sleep, Buy) que o refino de localização trocou por
+    /// <see cref="ActionType.Travel"/>. Sem o motivo, o destino seguia uma ordem fixa (cama, trabalho,
+    /// mercado) e quem saía para comprar comida no trabalho era levado para casa, e de casa ao trabalho,
+    /// sem nunca chegar ao mercado. Nulo quando não viaja.</summary>
+    public ActionType? TravelPurpose { get; private set; }
+
+    public void SetTravelPurpose(ActionType? purpose)
+    {
+        if (TravelPurpose == purpose) return;
+        TravelPurpose = purpose;
+        TouchCanonical();
+    }
     public long IntentStartedTick { get; private set; }
     public string? IntentTarget { get; private set; }
     public IntentStatus? IntentStatus { get; private set; }
 
-    /// <summary>Volátil (AD-026 / COH-33): PowerOpportunity vencedor quando
+    /// <summary>Volátil: PowerOpportunity vencedor quando
     /// <see cref="CurrentAction"/> é <see cref="ActionType.UsePower"/>. Nunca serializado.</summary>
     [JsonIgnore]
     public PendingPowerInvocation? PendingPowerInvocation { get; set; }
 
     public long? HungerZeroSinceTick { get; private set; }
+
+    /// <summary>Tick da última troca de emprego (0 = nunca trocou): base da carência entre trocas.</summary>
+    public long LastJobChangeTick { get; private set; }
+
+    public void MarkJobChange(long tick)
+    {
+        LastJobChangeTick = tick;
+        TouchCanonical();
+    }
+    /// <summary>Quem conduz a escolha de ação deste NPC (um jogador, Fase 25); nulo = só o motor. Nunca um tipo de NPC
+    /// à parte: o controlador troca apenas a escolha, a resolução segue a mesma. Omitido do hash enquanto nulo.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ControllerId { get; private set; }
+
+    /// <summary>Ação que o controlador pediu; vale no lugar da escolha autônoma até ser trocada ou limpa.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ActionType? ControlledAction { get; private set; }
+
+    /// <summary>Tick em que o jogador saiu e o NPC passou a ser dado como desaparecido (o NPC segue vivo e simulado).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? DisappearedAtTick { get; private set; }
+
+    /// <summary>Progresso de desenvolvimento por eixo (Fase 21). Nulo = desenvolvimento completo: sistema inerte;
+    /// <c>null</c> explícito no snapshot (não omitido): o delta binário só carrega campos presentes, e quem completa o
+    /// desenvolvimento passa de objeto a nulo. Só <c>MilestoneProgressSystem</c> e o nascimento gravam.</summary>
+    public DevelopmentState? Development { get; private set; }
+
+    /// <summary>Idioma em que a pessoa foi criada (cultura de quem a criou), gravado quando o desenvolvimento se completa; nulo = o da
+    /// própria <see cref="Culture"/>. Lido pelo cortejo (afinidade cultural).</summary>
+    public CultureId? NativeLanguage { get; private set; }
+
+    /// <summary>Genes de aparência (#46 fatia 2). Nulo = mundo sem <c>AppearanceRules</c>: omitido do snapshot, hash igual ao de antes.
+    /// Gravado só na geração (ou autoria) e imutável depois.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Appearance? Appearance { get; private set; }
+
+    public void SetNativeLanguage(CultureId? culture)
+    {
+        if (NativeLanguage == culture) return;
+        NativeLanguage = culture;
+        TouchCanonical();
+    }
+
+    public void SetDevelopment(DevelopmentState? state)
+    {
+        if (Equals(Development, state)) return;
+        Development = state;
+        TouchCanonical();
+    }
+
+    public Result<Unit> Incarnate(string controllerId)
+    {
+        if (!IsAlive) return Result<Unit>.Fail("Npc: morto");
+        if (ControllerId is not null) return Result<Unit>.Fail("Npc: já tem controlador");
+        ControllerId = controllerId;
+        DisappearedAtTick = null; // quem volta a ser conduzido deixou de estar desaparecido
+        TouchCanonical();
+        return Result<Unit>.Ok(Unit.Value);
+    }
+
+    public void SetControlledAction(ActionType? action)
+    {
+        ControlledAction = action;
+        TouchCanonical();
+    }
+
+    /// <summary>O jogador saiu: solta o controlador e marca o desaparecimento. Não congela nem remove o NPC.</summary>
+    public void Disappear(long tick)
+    {
+        ControllerId = null;
+        ControlledAction = null;
+        DisappearedAtTick = tick;
+        TouchCanonical();
+    }
+
+    /// <summary>Alguém o reencontrou: deixa de estar desaparecido.</summary>
+    public void Reappear()
+    {
+        DisappearedAtTick = null;
+        TouchCanonical();
+    }
+
     public bool IsGhost { get; private set; }
 
-    /// <summary>Nulo enquanto <see cref="Household"/> existir (NEEDS-16). <see cref="LeaveHousehold"/>
+    /// <summary>Nulo enquanto <see cref="Household"/> existir. <see cref="LeaveHousehold"/>
     /// grava o timestamp quando o household deixa de existir; <see cref="JoinHousehold"/> limpa.</summary>
     public WorldDate? HomelessSince { get; private set; }
 
-    // Fase 5 (T5): saldo pessoal e vínculo empregatício.
+    // Saldo pessoal e vínculo empregatício.
     public Money Wallet { get; private set; }
     public WorkplaceId? Employer { get; private set; }
 
-    // Fase 6 (T7): habilidade, gene de taxa (imutável após nascimento; Personality só tem a
+    // Habilidade, gene de taxa (imutável após nascimento; Personality só tem a
     // exceção explícita de autoria) e vínculo de tutoria mestre->aprendiz.
     public SkillSet Skills { get; private set; }
     public RateGene RateGene { get; }
     public NpcId? Mentor { get; private set; }
 
-    // Fase 7 (T7): genética/ambiente (imutáveis após nascimento, herdados por HeredityService),
+    // Genética/ambiente (imutáveis após nascimento, herdados por HeredityService),
     // cônjuge e cortejo em andamento.
     public double Vitality { get; }
-    public double Upbringing { get; }
+    public double Upbringing { get; private set; }
+
+    /// <summary>Só a criação adotiva (Fase 21d) a muda depois do nascimento; fora dela o valor é o herdado.</summary>
+    public void SetUpbringing(double value)
+    {
+        value = Math.Clamp(value, 0.0, 100.0);
+        if (value == Upbringing) return;
+        Upbringing = value;
+        TouchCanonical();
+    }
     public NpcId? Spouse { get; private set; }
     public NpcId? CourtingWith { get; private set; }
 
-    // Fase 16.3 (COH-21): corpo mínimo causal — Height/Weight imutáveis após nascimento;
-    // MuscleMass pode crescer lentamente com trabalho pesado (COH-24, BodyMechanic).
+    // Corpo mínimo causal — Height/Weight imutáveis após nascimento;
+    // MuscleMass pode crescer lentamente com trabalho pesado (BodyMechanic).
     /// <summary>Altura em metros, gerada via RNG semeado (<see cref="BodyGeneration"/>).</summary>
     public double Height { get; }
     /// <summary>Peso em kg, gerado via RNG semeado.</summary>
@@ -83,11 +210,11 @@ public sealed class Npc
     /// <summary>Massa muscular em kg — pode aumentar com trabalho pesado sustentado.</summary>
     public double MuscleMass { get; private set; }
 
-    /// <summary>Cidade onde o NPC vive (Fase 8, T4, CITY-01) — nunca "sem cidade"
-    /// (CITY-09: todo NPC vivo tem exatamente uma). Mutável só por <see cref="JoinCity"/>.</summary>
+    /// <summary>Cidade onde o NPC vive — nunca "sem cidade"
+    /// (todo NPC vivo tem exatamente uma). Mutável só por <see cref="JoinCity"/>.</summary>
     public CityId City { get; private set; }
 
-    // SPEC_DEVIATION (Fase 8, T9): design.md não declara este campo, mas a elegibilidade de
+    // SPEC_DEVIATION: design.md não declara este campo, mas a elegibilidade de
     // desmaterialização por ociosidade (CityRules.MaterializationIdleTicksBeforeEligible) exige
     // saber há quanto tempo o NPC está materializado — sem isso não há "ocioso" mensurável.
     // Null para todo NPC que nunca passou pelo pool agregado (seed inicial/nascimento): esses
@@ -95,10 +222,10 @@ public sealed class Npc
     // teto"). Só MaterializationSystem grava.
 
     /// <summary>Tick em que este NPC foi materializado a partir do <see
-    /// cref="AggregatePopulationPool"/> da cidade (Fase 8, T9, CITY-05).</summary>
+    /// cref="AggregatePopulationPool"/> da cidade.</summary>
     public long? MaterializedAtTick { get; private set; }
 
-    /// <summary>Ocupação de interior (Fase 15.1, T47) — <c>null</c> quando o NPC está em
+    /// <summary>Ocupação de interior — <c>null</c> quando o NPC está em
     /// escopo World/City. Nunca substitui <see cref="CurrentLocation"/>/<see cref="City"/>: a
     /// localização global continua a mesma independente de estar dentro de um prédio.</summary>
     public InteriorOccupancy? Interior { get; private set; }
@@ -126,7 +253,10 @@ public sealed class Npc
         bool isGhost = false,
         double height = 1.70, double weight = 68.0, double muscleMass = 28.0,
         ActionType? currentIntent = null, long intentStartedTick = 0,
-        string? intentTarget = null, IntentStatus? intentStatus = null)
+        string? intentTarget = null, IntentStatus? intentStatus = null, ActionType? travelPurpose = null,
+        long lastJobChangeTick = 0,
+        string? controllerId = null, ActionType? controlledAction = null, long? disappearedAtTick = null,
+        DevelopmentState? development = null, CultureId? nativeLanguage = null, Appearance? appearance = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -154,11 +284,19 @@ public sealed class Npc
         CurrentLocation = currentLocation;
         CurrentAction = currentAction;
         ActionStartedAtTick = actionStartedAtTick;
+        TravelPurpose = travelPurpose;
         CurrentIntent = currentIntent;
         IntentStartedTick = intentStartedTick;
         IntentTarget = intentTarget;
         IntentStatus = intentStatus;
         HungerZeroSinceTick = hungerZeroSinceTick;
+        LastJobChangeTick = lastJobChangeTick;
+        ControllerId = controllerId;
+        ControlledAction = controlledAction;
+        DisappearedAtTick = disappearedAtTick;
+        Development = development;
+        NativeLanguage = nativeLanguage;
+        Appearance = appearance;
         IsGhost = isGhost;
         HomelessSince = homelessSince;
         PregnantUntil = pregnantUntil;
@@ -199,7 +337,7 @@ public sealed class Npc
         bool isGhost = false,
         double height = 1.70, double weight = 68.0, double muscleMass = 28.0,
         ActionType? currentIntent = null, long intentStartedTick = 0,
-        string? intentTarget = null, IntentStatus? intentStatus = null)
+        string? intentTarget = null, IntentStatus? intentStatus = null, Appearance? appearance = null)
         : this(
             id, name, sex, birthDate, culture, birthLocation, motherId, fatherId, household, health,
             personality, profession, currentLocation,
@@ -207,7 +345,7 @@ public sealed class Npc
             currentAction, actionStartedAtTick, hungerZeroSinceTick, homelessSince, pregnantUntil, deathDate,
             wallet, employer, skills, rateGene, mentor, vitality, upbringing, spouse, courtingWith, city, materializedAtTick, interior,
             carriedResourceId, carriedQuantity, carryCapacity, isGhost, height, weight, muscleMass,
-            currentIntent, intentStartedTick, intentTarget, intentStatus)
+            currentIntent, intentStartedTick, intentTarget, intentStatus, appearance: appearance)
     {
     }
 
@@ -219,12 +357,12 @@ public sealed class Npc
         TouchCanonical();
     }
 
-    /// <summary>Recurso carregado em trânsito (Fase 15.1, Stage 4, T15). Zero significa as mãos
+    /// <summary>Recurso carregado em trânsito. Zero significa as mãos
     /// vazias — água/comida só entram no estoque alvo depois da entrega.</summary>
     public int CarriedResourceId { get; private set; }
     public long CarriedQuantity { get; private set; }
 
-    /// <summary>Teto base de carga (Fase 16.1). Poder <c>attribute.strength</c> multiplica na simulação, sem gravar o produto no NPC.</summary>
+    /// <summary>Teto base de carga. Poder <c>attribute.strength</c> multiplica na simulação, sem gravar o produto no NPC.</summary>
     public const long DefaultCarryCapacity = 10;
     public long CarryCapacity { get; private set; }
 
@@ -255,7 +393,7 @@ public sealed class Npc
     }
 
     /// <summary>Idade derivada de <paramref name="now"/> — nunca incrementada por sistema
-    /// nenhum (task 2/critério "idade responde ao relógio"). Congela na morte.</summary>
+    /// nenhum (idade responde ao relógio). Congela na morte.</summary>
     public int AgeYears(WorldDate now)
     {
         var end = DeathDate ?? now;
@@ -287,10 +425,10 @@ public sealed class Npc
     }
 
     /// <summary>Limpa a referência quando o household deixa de existir (dissolvido) — nunca
-    /// deixa <see cref="Household"/> apontando para um id removido do mundo (sweep referencial,
-    /// task 12). Enquanto o household ainda existir, a referência do NPC morto permanece: é
+    /// deixa <see cref="Household"/> apontando para um id removido do mundo (sweep referencial).
+    /// Enquanto o household ainda existir, a referência do NPC morto permanece: é
     /// residência histórica válida, não ponteiro solto. Marca <see cref="HomelessSince"/>
-    /// (NEEDS-16) no momento exato em que a referência é limpa.</summary>
+    /// no momento exato em que a referência é limpa.</summary>
     public void LeaveHousehold(WorldDate now)
     {
         Household = null;
@@ -323,7 +461,10 @@ public sealed class Npc
 
     public void SetHealth(int health)
     {
+        int previous = Health;
         Health = Math.Clamp(health, 0, 100);
+        if (previous != Health)
+            HealthObserver?.Invoke(this, previous);
         TouchCanonical();
     }
 
@@ -351,12 +492,15 @@ public sealed class Npc
         TouchCanonical();
     }
 
-    /// <summary>Atualiza o local corrente do NPC (task 6). <paramref name="tick"/> é aceito para
-    /// manter a assinatura pedida pelo design — nenhum sistema desta task consome esse valor
-    /// ainda (deslocamento com custo é T11/T14).</summary>
+    /// <summary>Atualiza o local corrente do NPC. <paramref name="tick"/> é aceito para
+    /// manter a assinatura pedida pelo design — nenhum sistema atual consome esse valor
+    /// ainda (deslocamento com custo vem depois).</summary>
     public void MoveTo(CellCoord destination, long tick)
     {
+        var previous = CurrentLocation;
         CurrentLocation = destination;
+        if (previous != destination)
+            LocationObserver?.Invoke(this, previous);
         TouchCanonical();
     }
 
@@ -364,34 +508,36 @@ public sealed class Npc
     {
         CurrentAction = action;
         ActionStartedAtTick = tick;
+        if (action != ActionType.Travel)
+            TravelPurpose = null;
         if (action != ActionType.UsePower)
             PendingPowerInvocation = null;
         TouchCanonical();
     }
 
-    /// <summary>Inicia ou substitui o intent de plano (COH-41) — status sempre Active.</summary>
+    /// <summary>Inicia ou substitui o intent de plano — status sempre Active.</summary>
     public void SetIntent(ActionType intent, long tick, string? target = null)
     {
         CurrentIntent = intent;
         IntentStartedTick = tick;
         IntentTarget = target;
-        IntentStatus = global::LivingWorld.Domain.IntentStatus.Active;
+        IntentStatus = global::LivingWorld.Domain.Behavior.IntentStatus.Active;
         TouchCanonical();
     }
 
     /// <summary>Active → Completed (objetivo atingido).</summary>
     public void CompleteIntent()
     {
-        if (IntentStatus != global::LivingWorld.Domain.IntentStatus.Active) return;
-        IntentStatus = global::LivingWorld.Domain.IntentStatus.Completed;
+        if (IntentStatus != global::LivingWorld.Domain.Behavior.IntentStatus.Active) return;
+        IntentStatus = global::LivingWorld.Domain.Behavior.IntentStatus.Completed;
         TouchCanonical();
     }
 
     /// <summary>Active → Invalidated (todas as alternativas do plano falharam).</summary>
     public void InvalidateIntent()
     {
-        if (IntentStatus != global::LivingWorld.Domain.IntentStatus.Active) return;
-        IntentStatus = global::LivingWorld.Domain.IntentStatus.Invalidated;
+        if (IntentStatus != global::LivingWorld.Domain.Behavior.IntentStatus.Active) return;
+        IntentStatus = global::LivingWorld.Domain.Behavior.IntentStatus.Invalidated;
         TouchCanonical();
     }
 
@@ -425,8 +571,8 @@ public sealed class Npc
         TouchCanonical();
     }
 
-    /// <summary>NEEDS-05: objetivo ativo e inspecionável — necessidade zerada dispara sempre
-    /// (NEEDS-02, independente do limiar configurado); necessidade cujo déficit (100 − valor)
+    /// <summary>Objetivo ativo e inspecionável — necessidade zerada dispara sempre
+    /// (independente do limiar configurado); necessidade cujo déficit (100 − valor)
     /// supera <see cref="NeedsRules.UrgencyThreshold"/> também é urgente.</summary>
     public bool HasUrgentNeed(NeedsRules rules, long tick = 0) =>
         IsUrgent(HungerAt(tick), rules) || IsUrgent(ThirstAt(tick), rules)
@@ -465,21 +611,21 @@ public sealed class Npc
         return result;
     }
 
-    /// <summary>Vínculo empregatício (ECON-18) — espelha <see cref="JoinHousehold"/>.</summary>
+    /// <summary>Vínculo empregatício — espelha <see cref="JoinHousehold"/>.</summary>
     public void Hire(WorkplaceId workplace)
     {
         Employer = workplace;
         TouchCanonical();
     }
 
-    /// <summary>Desliga o vínculo (ECON-19) — espelha <see cref="LeaveHousehold"/>.</summary>
+    /// <summary>Desliga o vínculo — espelha <see cref="LeaveHousehold"/>.</summary>
     public void Fire()
     {
         Employer = null;
         TouchCanonical();
     }
 
-    /// <summary>Troca de profissão (SKILL-14) — muda apenas <see cref="Profession"/>; nunca
+    /// <summary>Troca de profissão — muda apenas <see cref="Profession"/>; nunca
     /// toca <see cref="Skills"/>. Estagnação da habilidade antiga é ausência de ganho (ela só
     /// para de subir por prática porque deixa de ser a profissão corrente), não um reset nem um
     /// campo novo de "profissão antiga" (Tech Decision do design).</summary>
@@ -489,7 +635,7 @@ public sealed class Npc
         TouchCanonical();
     }
 
-    /// <summary>Aplica ganho de habilidade (SKILL-01/03..08) — delega o clamp de teto a <see
+    /// <summary>Aplica ganho de habilidade — delega o clamp de teto a <see
     /// cref="SkillSet.WithGain"/>; único ponto que reatribui <see cref="Skills"/> fora do
     /// construtor (mesmo padrão de mutador dedicado de <see cref="SetHunger"/> etc).</summary>
     public void GainSkill(SkillType type, double delta, double cap)
@@ -498,7 +644,7 @@ public sealed class Npc
         TouchCanonical();
     }
 
-    /// <summary>Vínculo de tutoria mestre->aprendiz (SKILL-08) — espelha <see cref="JoinHousehold"/>.</summary>
+    /// <summary>Vínculo de tutoria mestre->aprendiz — espelha <see cref="JoinHousehold"/>.</summary>
     public void AssignMentor(NpcId mentor)
     {
         Mentor = mentor;
@@ -513,18 +659,18 @@ public sealed class Npc
         TouchCanonical();
     }
 
-    /// <summary>Casamento (Fase 7, T7, FAM-12) — seta só o próprio lado do vínculo; quem chama
+    /// <summary>Casamento — seta só o próprio lado do vínculo; quem chama
     /// (<c>MarriageSystem.Marry</c>) é responsável por chamar duas vezes, uma para cada cônjuge.
-    /// Nunca há mutador de "divorciar" (AD-060): viuvez é lida (<see cref="Spouse"/> aponta a
+    /// Nunca há mutador de "divorciar": viuvez é lida (<see cref="Spouse"/> aponta a
     /// alguém com <c>IsAlive == false</c>), nunca limpa automaticamente — mesmo espírito de
-    /// <see cref="MotherId"/>/<see cref="FatherId"/> (AD-031, referência histórica válida).</summary>
+    /// <see cref="MotherId"/>/<see cref="FatherId"/> (referência histórica válida).</summary>
     public void Marry(NpcId spouse)
     {
         Spouse = spouse;
         TouchCanonical();
     }
 
-    /// <summary>Início de cortejo (Fase 7, T7) — espelha <see cref="AssignMentor"/>.</summary>
+    /// <summary>Início de cortejo — espelha <see cref="AssignMentor"/>.</summary>
     public void StartCourtship(NpcId partner)
     {
         CourtingWith = partner;
@@ -541,18 +687,18 @@ public sealed class Npc
     // SPEC_DEVIATION: design.md fala em JoinCity/LeaveCity espelhando JoinHousehold/LeaveHousehold.
     // Household mantém uma lista de membros (RemoveMember tem o que limpar); City não guarda
     // nenhuma lista de NPCs — a população é sempre derivada filtrando WorldState.Npcs por City
-    // (CityPopulationQuery, T8). Não há estado de "saída" para limpar, então um único mutador
-    // basta: MigrationSystem chama JoinCity(destino) no mesmo tick em que decide migrar (CITY-07),
+    // (CityPopulationQuery). Não há estado de "saída" para limpar, então um único mutador
+    // basta: MigrationSystem chama JoinCity(destino) no mesmo tick em que decide migrar,
     // nunca deixando o NPC num tick intermediário sem cidade (CityId nunca é nulo).
 
-    /// <summary>Muda a cidade do NPC (Fase 8, T4, CITY-01/CITY-07) — espelha <see cref="JoinHousehold"/>.</summary>
+    /// <summary>Muda a cidade do NPC — espelha <see cref="JoinHousehold"/>.</summary>
     public void JoinCity(CityId city)
     {
         City = city;
         TouchCanonical();
     }
 
-    /// <summary>Registra o tick de materialização (Fase 8, T9, CITY-05) — só
+    /// <summary>Registra o tick de materialização — só
     /// <c>MaterializationSystem</c> chama, na criação a partir do pool agregado.</summary>
     public void MarkMaterialized(long tick)
     {
@@ -560,7 +706,7 @@ public sealed class Npc
         TouchCanonical();
     }
 
-    /// <summary>Entra num prédio (Fase 15.1, T47) — nunca toca <see cref="CurrentLocation"/>/<see
+    /// <summary>Entra num prédio — nunca toca <see cref="CurrentLocation"/>/<see
     /// cref="City"/> (localização global preservada). Chamável de fora ou de dentro de outro
     /// prédio (troca direta, sem passar por <see cref="ExitBuilding"/> — mesmo espírito de <see
     /// cref="JoinCity"/>, nunca um tick intermediário "sem escopo").</summary>
@@ -570,7 +716,7 @@ public sealed class Npc
         TouchCanonical();
     }
 
-    /// <summary>Move dentro do mesmo prédio, mesmo andar (Fase 15.1, T47) — exige estar dentro
+    /// <summary>Move dentro do mesmo prédio, mesmo andar — exige estar dentro
     /// de um prédio (exclusividade de escopo: não existe "mover" sem "estar dentro").</summary>
     public void MoveWithinBuilding(CellCoord localCell)
     {
@@ -580,7 +726,7 @@ public sealed class Npc
         TouchCanonical();
     }
 
-    /// <summary>Troca de andar dentro do mesmo prédio (Fase 15.1, T47) — exige estar dentro de
+    /// <summary>Troca de andar dentro do mesmo prédio — exige estar dentro de
     /// um prédio; navegação em si é <see cref="FloorNavigator"/> (reversível), aqui só grava o
     /// resultado.</summary>
     public void ChangeFloor(FloorLevel floor, CellCoord localCell)
@@ -591,7 +737,7 @@ public sealed class Npc
         TouchCanonical();
     }
 
-    /// <summary>Sai do prédio, volta a escopo World/City (Fase 15.1, T47) — <see
+    /// <summary>Sai do prédio, volta a escopo World/City — <see
     /// cref="CurrentLocation"/>/<see cref="City"/> continuam intocados: nunca dependeram do
     /// interior pra existir.</summary>
     public void ExitBuilding()

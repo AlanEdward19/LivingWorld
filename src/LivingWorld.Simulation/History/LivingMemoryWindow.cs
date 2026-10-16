@@ -1,9 +1,10 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.History;
 
-/// <summary>Janela de memória viva (Fase 10, HIST-01 AC3): enquanto há testemunha, consulta
-/// resolve com fidelidade alta e enviesada, sem converter para relato.</summary>
+/// <summary>Janela de memória viva: enquanto há testemunha, consulta resolve com fidelidade
+/// alta e enviesada, sem converter para relato.</summary>
 public static class LivingMemoryWindow
 {
     private const double WitnessSignificanceBias = 0.05;

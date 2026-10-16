@@ -1,0 +1,51 @@
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Cities.Buildings;
+
+/// <summary>Edifício concluído de uma <see cref="City"/>. Mesmo molde de
+/// <see cref="Workplace"/>: identidade + tipo do catálogo (<see cref="CityCatalog"/>). <see
+/// cref="Position"/>/<see cref="Orientation"/> só existem para prédios
+/// autorados no World Creator — <c>null</c> para os que o motor constrói durante a simulação
+/// (<see cref="ConstructionSystem"/> ainda não escolhe posição/orientação, G4).</summary>
+public sealed class Building(
+    BuildingId id, CityId city, int buildingTypeId, long completedAtTick,
+    CellCoord? position = null, int? orientation = null, long? clusterFoundingScheduledAtTick = null)
+{
+    private static long s_layoutVersion = 1;
+
+    /// <summary>Contador monotônico, de todo o processo, incrementado quando um prédio é criado ou muda de
+    /// cidade — as únicas mudanças que alteram o conjunto de prédios de uma cidade. Serve só para invalidar
+    /// caches derivados do layout (caixas de footprint, limites crescidos).</summary>
+    public static long LayoutVersion => Volatile.Read(ref s_layoutVersion);
+
+    private static long TouchLayout(long value)
+    {
+        Interlocked.Increment(ref s_layoutVersion);
+        return value;
+    }
+
+    public BuildingId Id { get; } = id;
+    public CityId City { get; private set; } = city;
+    public int BuildingTypeId { get; } = buildingTypeId;
+    public long CompletedAtTick { get; } = TouchLayout(completedAtTick);
+    public CellCoord? Position { get; } = position;
+    public int? Orientation { get; } = orientation;
+
+    /// <summary>Tick em que a fundação de um cluster de overflow contendo este prédio foi agendada
+    /// — espelha <see cref="City.FoundingScheduledAtTick"/>.
+    /// <c>null</c> enquanto nenhuma fundação estiver pendente; impede que o mesmo cluster seja
+    /// agendado duas vezes.</summary>
+    public long? ClusterFoundingScheduledAtTick { get; private set; } = clusterFoundingScheduledAtTick;
+
+    public void MarkClusterFoundingScheduled(long tick) => ClusterFoundingScheduledAtTick = tick;
+
+    /// <summary>Muda a cidade proprietária do prédio —
+    /// espelha <see cref="Npc.JoinCity"/>/<see cref="Household.JoinCity"/>: usado quando um cluster
+    /// de overflow funda uma cidade nova e este prédio é reatribuído a ela.</summary>
+    public void JoinCity(CityId newCity)
+    {
+        City = newCity;
+        Interlocked.Increment(ref s_layoutVersion);
+    }
+}

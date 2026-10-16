@@ -1,8 +1,9 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Economy;
 
-/// <summary>População viva por região, recomputada uma vez por tick Daily (PERF-06).</summary>
+/// <summary>População viva por região, recomputada uma vez por tick Daily.</summary>
 public sealed class RegionPopulationIndex
 {
     private readonly Dictionary<RegionId, long> _aliveByRegionId;

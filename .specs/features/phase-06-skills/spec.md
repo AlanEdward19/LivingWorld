@@ -1,3 +1,5 @@
+> **Estado: Parcial** (specs-closeout 2026-10-12) - Fase fechada; 15 verificados, 1 adiado (SKILL-11, preco por qualidade).
+
 # Fase 6 — Habilidades e Aprendizado — Specification
 
 ## Problem Statement
@@ -220,22 +222,22 @@ do roadmap).
 
 | Requirement ID | Story | Phase | Status |
 |---|---|---|---|
-| SKILL-01 | P1: Habilidade sobe por prática | Tasks T1,T4,T6,T12,T13,T19 | ✅ Verified |
-| SKILL-02 | P2: Curva de retornos decrescentes | Tasks T2 | ✅ Verified |
-| SKILL-03 | P1/P3: Ganho por prática no trabalho + especialização compensa | Tasks T8,T14 | ✅ Verified |
-| SKILL-04 | P3: Treinamento deliberado | Tasks T9 | ✅ Verified |
-| SKILL-05 | P3: Escola | Tasks T9 | ✅ Verified |
-| SKILL-06 | P3: Aprendizado com os pais | Tasks T9 | ✅ Verified |
-| SKILL-07 | P3: Observação de quem trabalha perto | Tasks T9 | ✅ Verified |
-| SKILL-08 | P3: Tutoria mestre→aprendiz | Tasks T9,T15 | ✅ Verified |
-| SKILL-09 | P3: Gene de taxa — herdado, habilidade não | Tasks T5,T12,T16,T17 | ✅ Verified |
-| SKILL-10 | P1: Habilidade → produção (quantidade) | Tasks T10,T18 | ✅ Verified |
-| SKILL-11 | P1: Qualidade → preço via Fase 5 | — | ❌ Não implementado — débito técnico registrado na Assunção A3; canal de preço fica para fase futura (Fase 8/9), decisão do usuário |
-| SKILL-12 | P1: Teto não move o mundo / flag off muda hash | Tasks T4,T19 | ✅ Verified |
-| SKILL-13 | P3: Escolha de profissão por score | Tasks T11 | ✅ Verified |
-| SKILL-14 | P3: Troca de profissão — estagnação | Tasks T7,T11 | ✅ Verified |
-| SKILL-15 | P3: Cenário pareado especialista vs trocador | Tasks T14 | ✅ Verified |
-| SKILL-16 | P3: Cenário pareado mestre-topo vs mestre-piso | Tasks T15 | ✅ Verified |
+| SKILL-01 | P1: Habilidade sobe por prática | Tasks T1,T4,T6,T12,T13,T19 | Verified - tests/LivingWorld.Tests.LongRunning/Population/SkillHashSensorTests.cs |
+| SKILL-02 | P2: Curva de retornos decrescentes | Tasks T2 | Verified - tests/LivingWorld.Tests.Unit/Population/Skills/SkillCurveTests.cs |
+| SKILL-03 | P1/P3: Ganho por prática no trabalho + especialização compensa | Tasks T8,T14 | Verified - tests/LivingWorld.Tests.Unit/Population/Skills/SkillPracticeSystemTests.cs + tests/LivingWorld.Tests.LongRunning/Population/PairedScenarioTests.cs |
+| SKILL-04 | P3: Treinamento deliberado | Tasks T9 | Verified - tests/LivingWorld.Tests.Unit/Population/Skills/SkillTeachingSystemTests.cs |
+| SKILL-05 | P3: Escola | Tasks T9 | Verified - tests/LivingWorld.Tests.Unit/Population/Skills/SkillTeachingSystemTests.cs |
+| SKILL-06 | P3: Aprendizado com os pais | Tasks T9 | Verified - tests/LivingWorld.Tests.Unit/Population/Skills/SkillTeachingSystemTests.cs |
+| SKILL-07 | P3: Observação de quem trabalha perto | Tasks T9 | Verified - tests/LivingWorld.Tests.Unit/Population/Skills/SkillTeachingSystemTests.cs |
+| SKILL-08 | P3: Tutoria mestre→aprendiz | Tasks T9,T15 | Verified - tests/LivingWorld.Tests.Unit/Population/Skills/SkillTeachingSystemTests.cs + tests/LivingWorld.Tests.LongRunning/Population/PairedScenarioTests.cs |
+| SKILL-09 | P3: Gene de taxa — herdado, habilidade não | Tasks T5,T12,T16,T17 | Verified - tests/LivingWorld.Tests.Unit/Population/Body/RateGeneTests.cs + tests/LivingWorld.Tests.LongRunning/Population/PairedScenarioTests.cs |
+| SKILL-10 | P1: Habilidade → produção (quantidade) | Tasks T10,T18 | Verified - tests/LivingWorld.Tests.Integration/Economy/ProductionSystemSkillTests.cs |
+| SKILL-11 | P1: Qualidade → preço via Fase 5 | — | Deferred - debito tecnico registrado na Assuncao A3; preco nao reage a qualidade (decisao do usuario, fase futura 8/9) |
+| SKILL-12 | P1: Teto não move o mundo / flag off muda hash | Tasks T4,T19 | Verified - tests/LivingWorld.Tests.Unit/Population/Skills/SkillSetTests.cs |
+| SKILL-13 | P3: Escolha de profissão por score | Tasks T11 | Verified - tests/LivingWorld.Tests.Unit/Behavior/BehaviorDecisionSystemProfessionSwitchTests.cs |
+| SKILL-14 | P3: Troca de profissão — estagnação | Tasks T7,T11 | Verified - tests/LivingWorld.Tests.Unit/Population/NpcSkillMutatorsTests.cs |
+| SKILL-15 | P3: Cenário pareado especialista vs trocador | Tasks T14 | Verified - tests/LivingWorld.Tests.LongRunning/Population/PairedScenarioTests.cs (Specialist_ends_with_higher_final_skill_than_switcher_across_20_practice_rates); rodado 2026-10-13 |
+| SKILL-16 | P3: Cenário pareado mestre-topo vs mestre-piso | Tasks T15 | Verified - tests/LivingWorld.Tests.LongRunning/Population/PairedScenarioTests.cs (Apprentice_of_a_better_master_ends_with_higher_skill_than_apprentice_of_a_bottom_of_range_master_across_20_master_levels); rodado 2026-10-13 |
 
 **ID format:** `SKILL-NN`
 

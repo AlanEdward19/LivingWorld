@@ -2,7 +2,7 @@ using LivingWorld.Domain.Llm;
 
 namespace LivingWorld.AI;
 
-/// <summary>Provider determinístico e injetivo para testes e para o gate (ADR-0004): mesma
+/// <summary>Provider determinístico e injetivo para testes e para o gate: mesma
 /// entrada sempre dá a mesma saída; entradas distintas dão saídas distintas; nunca chama rede.</summary>
 public sealed class FakeLlmProvider : ILlmProvider
 {
@@ -10,7 +10,7 @@ public sealed class FakeLlmProvider : ILlmProvider
 
     public Task<LlmResponse> GetResponseAsync(LlmContext context, CancellationToken cancellationToken = default)
     {
-        // Fase 11 (LLM-04/05): os campos novos de LlmContext (crença, memória, ações
+        // Os campos novos de LlmContext (crença, memória, ações
         // permitidas, sessão) entram no hash também — senão dois contextos que só divergem
         // neles produziriam a mesma saída, quebrando a garantia "entradas distintas dão saídas
         // distintas" do resumo da classe.

@@ -1,7 +1,10 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Population;
 
 /// <summary>Catálogo de ids de cultura/profissão/tipo-de-local válidos para um cenário
-/// (task 7) — mesmo padrão de <see cref="GeographyCatalog"/>. Conjunto vazio = sem restrição
+/// — mesmo padrão de <see cref="GeographyCatalog"/>. Conjunto vazio = sem restrição
 /// declarada (id passa), igual à convenção já usada para bioma/recurso.</summary>
 public sealed record PopulationCatalog(
     HashSet<int> CultureIds,
@@ -17,11 +20,11 @@ public sealed record PopulationCatalog(
     public bool IsValidLocationType(LocationType type) =>
         LocationTypeIds.Count == 0 || LocationTypeIds.Contains(type.Id);
 
-    /// <summary>Sorteio entre <see cref="ProfessionIds"/> (task 7; Fase 13, T10: viés de
+    /// <summary>Sorteio entre <see cref="ProfessionIds"/> (viés de
     /// período) — ordenado antes do sorteio, nunca por ordem de iteração do
     /// <see cref="HashSet{T}"/> (não determinístico entre processos). Catálogo vazio retorna
     /// <see cref="ProfessionType.None"/>, nunca lança exceção. Sem <see cref="ProfessionWeights"/>
-    /// declarado (o caso comum, todo cenário anterior à Fase 13) o sorteio é uniforme, byte a
+    /// declarado (o caso comum, cenário sem viés de período) o sorteio é uniforme, byte a
     /// byte igual ao algoritmo original — profissão sem peso explícito em
     /// <see cref="ProfessionWeights"/> vale peso 1 (mesma chance de antes).</summary>
     public ProfessionType RollProfession(WorldRng rng)

@@ -1,6 +1,6 @@
 namespace LivingWorld.Api.Visual.Layers;
 
-/// <summary>Fase 15, T4 (VTT-04..06): resultado de montar uma camada derivada. Formato plano
+/// <summary>Resultado de montar uma camada derivada. Formato plano
 /// (discriminador + payload), não hierarquia de records — um record abstrato com subtipos não
 /// serializa os campos dos subtipos via <c>System.Text.Json</c> sem atributos de polimorfismo
 /// (o declared type do dicionário fica abstrato, então a reflexão padrão não vê propriedade
@@ -13,4 +13,10 @@ public sealed record LayerBuildResult(bool IsModeled, object? Payload)
     public static LayerBuildResult Available(object payload) => new(true, payload);
 
     public static readonly LayerBuildResult NotYetModeled = new(false, null);
+
+    /// <summary>Fallback compartilhado dos builders de camada (<c>GlobalLayerBuilder</c>/
+    /// <c>CityLayerBuilder</c>) pra um <see cref="VisualLayerId"/> que não pertence ao escopo de
+    /// quem chamou — mesmo formato de mensagem nos dois, um só lugar pra manter.</summary>
+    public static LayerBuildResult OutOfScope(VisualLayerId layerId, string scopeName) =>
+        throw new ArgumentOutOfRangeException(nameof(layerId), layerId, $"camada não pertence ao escopo {scopeName}");
 }

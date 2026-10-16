@@ -1,21 +1,21 @@
 using System.Text.RegularExpressions;
-using LivingWorld.Domain;
 using LivingWorld.Domain.Narrative;
+using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Simulation.Narrative;
 
 /// <summary>Reprova <see cref="NarrativeClaim"/>s sem ancoragem e bloqueia nome/número órfão na
-/// prosa final (Fase 12, NARR-01..04) — todo texto publicado precisa provar origem em algum
+/// prosa final — todo texto publicado precisa provar origem em algum
 /// evento referenciado por um claim aprovado.</summary>
 public static partial class ClaimAnchorValidator
 {
-    /// <summary>Um claim reprovado e o motivo (NARR-02 exige registro da falha de ancoragem).</summary>
+    /// <summary>Um claim reprovado e o motivo da reprovação.</summary>
     public sealed record AnchorFailure(NarrativeClaim Claim, string Reason);
 
     public sealed record ValidationOutcome(
         IReadOnlyList<NarrativeClaim> Approved, IReadOnlyList<AnchorFailure> Rejected);
 
-    /// <summary>NARR-02: descarta claims sem <see cref="NarrativeClaim.EventIds"/> não vazio,
+    /// <summary>Descarta claims sem <see cref="NarrativeClaim.EventIds"/> não vazio,
     /// registrando o motivo de cada reprovação. Claims aprovados preservam a ordem de entrada.</summary>
     public static ValidationOutcome ValidateClaims(IEnumerable<NarrativeClaim> claims)
     {
@@ -31,7 +31,7 @@ public static partial class ClaimAnchorValidator
         return new ValidationOutcome(approved, rejected);
     }
 
-    /// <summary>NARR-03/NARR-04: todo numeral e todo nome próprio (palavra capitalizada fora do
+    /// <summary>Todo numeral e todo nome próprio (palavra capitalizada fora do
     /// início de frase) presente em <paramref name="prose"/> precisa aparecer no texto de algum
     /// claim aprovado — a única fonte de conteúdo permitida. Retorna a primeira ocorrência órfã
     /// encontrada, se houver.</summary>

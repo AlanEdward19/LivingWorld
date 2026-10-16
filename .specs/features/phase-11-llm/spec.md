@@ -1,3 +1,5 @@
+> **Estado: Entregue** (specs-closeout 2026-10-12) - 6/6 grupos de requisitos com testes unit/integration; ROADMAP.md marca a fase como fechada.
+
 # Fase 11 (Interacao com LLM) Specification
 
 ## Problem Statement
@@ -82,12 +84,13 @@ A simulação já gera mundo coerente sem LLM, mas ainda falta conversa com NPC 
 ## Requirement Traceability
 | Requirement ID | Story | Status |
 | --- | --- | --- |
-| LLM-01..03 | Sessão de conversa segura | Pending |
-| LLM-04..06 | Contexto por crença e memória | Pending |
-| LLM-07..10 | Validação estrita e aplicação controlada | Pending |
-| LLM-11..13 | Fallback determinístico e resiliência | Pending |
-| LLM-14..16 | Segurança de rede e injeção | Pending |
-| LLM-17..19 | Compactação de memória em lote | Pending |
+| LLM-01..03 | Sessão de conversa segura | Verified - LivingWorld.Tests.Integration/Llm/ConversationEndpointTests, LivingWorld.Tests.Unit/Llm/ConversationSessionStoreTests, ConversationAvailabilityPolicyTests |
+| LLM-04..06 | Contexto por crença e memória | Verified - LivingWorld.Tests.Unit/Llm/LlmContextAssemblerTests, MemoryRecallTests, TruthVsBeliefBoundarySecurityTests |
+| LLM-07..10 | Validação estrita e aplicação controlada | Verified - LivingWorld.Tests.Unit/Llm/LlmResponseValidatorTests, ConversationOrchestratorTests (Happy_path..., Invalid_dto_falls_back...) |
+| LLM-11..13 | Fallback determinístico e resiliência | Verified - LivingWorld.Tests.Unit/Llm/ConversationOrchestratorTests (Provider_error_falls_back..., Budget_exceeded..., hash igual sem conversa) |
+| LLM-14 | Segurança de rede | Parcial - `LivingWorld.AI.EgressGuard` bloqueia toda requisicao do `HttpClient` do provider ollama (`Api/Program.cs`) e `scripts/test.sh` exporta `LW_BLOCK_EGRESS=1`; provado: NetworkEgressGuardTests.The_real_guard_blocks_every_request... e The_gate_script_turns_the_guard_on... (2026-10-13). Nao provado: que nenhum outro `HttpClient` dos testes saia para a rede |
+| LLM-15..16 | Injecao de prompt | Verified - LivingWorld.Tests.Unit/Llm/PromptInjectionSecurityTests (+ tests/fixtures/prompt-injection, 20+ casos); rodado 2026-10-13 |
+| LLM-17..19 | Compactação de memória em lote | Verified - LivingWorld.Tests.Unit/Llm/MemoryCompactionJobTests |
 
 ## Success Criteria
 - [ ] Conversa com NPC vivo funciona por endpoint sem acesso do jogo à consulta de Verdade.

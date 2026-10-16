@@ -1,13 +1,14 @@
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
-using LivingWorld.Api.Visual;
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Api.Visual.Projection;
+using LivingWorld.Api.Visual.Scope;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Api.Realtime;
 
-/// <summary>Fase 15, T3 (VTT-02, VTT-10): WebSocket primário (<c>/visual/ws</c>) + SSE fallback de
+/// <summary>WebSocket primário (<c>/visual/ws</c>) + SSE fallback de
 /// leitura (<c>/visual/sse</c>) para subscribe, mais <c>/visual/replay</c> HTTP para reconexão por
 /// cursor (spec.md edge case: reidratar sem escrita de mundo). Autorização (<see
 /// cref="RealtimeGateway.Authorize"/>) roda antes de qualquer upgrade/stream — escopo negado nunca
@@ -60,7 +61,7 @@ public static class RealtimeEndpoints
             }
         });
 
-        // Fase 15, T9: MapGet (não Map genérico) — o handshake de WebSocket é uma requisição GET
+        // MapGet (não Map genérico) — o handshake de WebSocket é uma requisição GET
         // com header Upgrade; MapGet é o verbo correto E o único que o gerador de OpenAPI
         // consegue documentar (Map genérico fica sem verbo, invisível pro doc).
         app.MapGet("/visual/ws", async (HttpContext http, VisualScopeKind scope, string? refId, ViewerMode mode, long? playerNpcId, RealtimeGateway gateway, WorldState world) =>
@@ -98,13 +99,13 @@ public static class RealtimeEndpoints
         });
     }
 
-    /// <summary>Fase 15, T4/T5/T7 (VTT-01, VTT-03, VTT-08, VTT-09, VTT-11): o snapshot inicial
+    /// <summary>O snapshot inicial
     /// carrega a projeção do escopo — montada sob demanda no subscribe, mesmo padrão de
     /// materialização sob demanda de <c>NpcInspectionQuery</c>. RefId inválido/inexistente (parse
     /// falho, cidade/prédio não encontrado) mantém <c>Payload</c> nulo em vez de forçar um novo
-    /// código de erro — T5 não pede um contrato de 404 por refId, só a projeção quando o escopo
-    /// resolve. Escopo city em modo Player aplica FOW (T7) centrado em <paramref
-    /// name="playerNpcId"/>; Spectator/admin sempre vê sem filtro (VTT-09).</summary>
+    /// código de erro — não há um contrato de 404 por refId, só a projeção quando o escopo
+    /// resolve. Escopo city em modo Player aplica FOW centrado em <paramref
+    /// name="playerNpcId"/>; Spectator/admin sempre vê sem filtro.</summary>
     private static VisualSnapshotEnvelope<object?> WithProjectedPayload(
         VisualSnapshotEnvelope<object?> envelope, WorldState world, long? playerNpcId)
     {
@@ -121,7 +122,7 @@ public static class RealtimeEndpoints
         return envelope with { Payload = payload };
     }
 
-    /// <summary>Fase 15, T7 (VTT-08, VTT-09): espectador/admin sempre recebe o snapshot completo
+    /// <summary>Espectador/admin sempre recebe o snapshot completo
     /// (override). Personagem sem <paramref name="playerNpcId"/> identificado não recebe nenhum
     /// morador — "área não descoberta" por padrão é mais seguro do que vazar tudo por engano.</summary>
     private static object? BuildCityPayload(WorldState world, CityId cityId, ViewerMode mode, long? playerNpcId)
@@ -136,7 +137,7 @@ public static class RealtimeEndpoints
         return CityVisibilityFilter.ApplyFog(result.Value!, player.CurrentLocation, adminOverride: false);
     }
 
-    // Fase 15, T8: mesma convenção de naming do HTTP /visual/subscribe (ASP.NET Web defaults =
+    // Mesma convenção de naming do HTTP /visual/subscribe (ASP.NET Web defaults =
     // camelCase) — sem isso, WS/SSE serializavam PascalCase por padrão do JsonSerializer.Serialize
     // sem opções, e o cliente (que só entende camelCase) não conseguia ler os frames.
     private static readonly JsonSerializerOptions WireOptions = new(JsonSerializerDefaults.Web);

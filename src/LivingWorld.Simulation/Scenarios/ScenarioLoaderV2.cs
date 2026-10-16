@@ -1,0 +1,238 @@
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy;
+using LivingWorld.Simulation.Extraordinary.Culture;
+using LivingWorld.Simulation.Periods;
+using LivingWorld.Simulation.Population;
+using LivingWorld.Simulation.Scheduling;
+
+namespace LivingWorld.Simulation.Scenarios;
+
+/// <summary>Monta um mundo completo a partir de um <c>periodDefinition</c> via
+/// <see cref="PeriodDefinitionValidator"/> — mapa, população, comportamento, economia, cidades e
+/// vieses/regras de transformação vêm todos do mesmo período, nenhum cai em default hardcoded
+/// quando o campo está presente no JSON. Único loader de cenário do projeto — todo cenário em
+/// <c>scenarios/*.json</c> (incluindo <c>default.json</c>/<c>test-scifi.json</c>) declara os
+/// blocos Economy/Cities/Dynamics e passa por aqui.</summary>
+public static class ScenarioLoaderV2
+{
+    public static Result<(WorldState World, WorldClock Clock)> LoadWorld(string json, int maxIterationsPerTick = 1000)
+    {
+        var definitionResult = PeriodDefinitionValidator.Validate(json);
+        if (!definitionResult.IsSuccess)
+            return Result<(WorldState, WorldClock)>.Fail(definitionResult.Error!);
+
+        var definition = definitionResult.Value!;
+        var population = definition.Population;
+
+        // Viés declarado em Dynamics.ProfessionBiases vira peso real de sorteio
+        // (PopulationCatalog.RollProfession). Peso 1.0 é o valor implícito de quem não está no
+        // dicionário, então só pesos != 1.0 entram: viés só de rótulo (Name) deixa o catálogo
+        // original passar sem cópia e o hash do mundo igual ao de um período sem Dynamics.
+        var weights = definition.Dynamics.ProfessionBiases
+            .Where(b => b.Weight != 1.0)
+            .ToDictionary(b => b.ProfessionId, b => b.Weight);
+        var catalog = weights.Count == 0
+            ? population.Catalog
+            : population.Catalog with { ProfessionWeights = weights };
+
+        // Post-ship fix (bug real, "mesma seed, mundo diferente"): usava InitialMapForPopulation
+        // pra silenciosamente REGERAR o mapa inteiro num tamanho maior sempre que a população
+        // autorada não garantia espaço de sobra pra cada household+workplace (mesmo num mapa
+        // 10x10 default com população modesta). MapGenerator consome um WorldRng(seed) sequencial
+        // célula a célula -- mudar width/height pra mesma seed produz um terreno totalmente
+        // diferente em toda célula, não só nas bordas novas, então a cidade autorada pelo usuário
+        // acabava sobre um terreno que ele nunca viu/escolheu. O mapa autorado (definition.Map)
+        // agora é usado exatamente como veio do JSON; escassez de espaço é responsabilidade do
+        // placement (BuildingPlacementResolver/OverflowPlacer), que já resolve isso sem regerar
+        // nada (célula livre nos bounds, senão anel de overflow, senão recusa/decline).
+        var world = new WorldState(
+            ScenarioRunner.DefaultCalendar, definition.Map.Seed, definition.Map,
+            catalog, population.Rules,
+            definition.Behavior.NeedsRules, definition.Behavior.ActionCatalog,
+            ScenarioRunner.DefaultLifeStageRules,
+            economyRules: definition.Economy.Rules, economyCatalog: definition.Economy.Catalog,
+            // Include deaths from deprivation (0.414375) as well as ordinary deaths (0.49725).
+            historyRules: HistoryRules.Default with { SkeletonSignificanceThreshold = 0.4 },
+            cityRules: definition.City.Rules, cityCatalog: definition.City.Catalog,
+            restPlaceCatalog: definition.Behavior.RestPlaceCatalog,
+            resourceCatalog: definition.ResourceCatalog,
+            processRecipes: definition.ProcessRecipes,
+            extraordinary: definition.Extraordinary,
+            emergenceRules: definition.Emergence,
+            ontogenyRules: definition.Ontogeny,
+            appearanceRules: definition.Appearance,
+            objectCatalog: definition.Objects);
+
+        var createdCityIds = new List<CityId>(definition.City.Cities.Count);
+        foreach (var city in definition.City.Cities)
+        {
+            string name = string.IsNullOrEmpty(city.Name) ? CityNameGenerator.Generate(world) : city.Name;
+            // cidade autorada com pool não-vazio reserva um NpcId estável por membro,
+            // clicável/materializável individualmente (antes só existia contagem+somas).
+            var poolNpcIds = world.ReserveNpcIdBlock(city.AggregatePool.Count);
+            var createdCity = new City(
+                world.NextCityId(), city.Location, city.FoundedAtTick, foundedFromCityId: null, city.AggregatePool,
+                name: name, poolNpcIds: poolNpcIds, treasury: city.Treasury);
+            world.AddCity(createdCity);
+            createdCityIds.Add(createdCity.Id);
+        }
+
+        var createdBuildingIds = new List<BuildingId>(definition.City.Buildings.Count);
+        foreach (var building in definition.City.Buildings)
+        {
+            var createdBuilding = new Building(
+                world.NextBuildingIdAndAdvance(), createdCityIds[building.CityIndex], building.BuildingTypeId,
+                completedAtTick: 0, position: building.Position, orientation: building.Orientation);
+            world.AddBuilding(createdBuilding);
+            createdBuildingIds.Add(createdBuilding.Id);
+        }
+
+        // Bugfix real (usuário, 2026-08-13): a população inicial nunca era vinculada a nenhuma
+        // cidade (Npc.City/Household.City ficavam no CityId default) — sumia de toda projeção
+        // (World filtra NPC externo por cidade conhecida, City filtra por Npc.City == cityId),
+        // então todo mundo criado (em branco ou por template) parecia sempre vazio, com a mesma
+        // única cidade fixa do formulário (population 0) e nenhum morador visível em lugar
+        // nenhum. Reusa a cidade autorada na mesma célula da vila inicial, se existir; senão
+        // funda uma nova ali — mesmo nome de fallback de SettlementFoundingSystem.
+        //
+        // Bugfix real (usuário, 2026-08-14): com 2+ assentamentos autorados, só a vila inicial
+        // (population.Village) ganhava população — as demais nasciam sempre com 0 moradores.
+        // Distribui population.InitialPopulation por TODAS as cidades autoradas (resto pra vila
+        // inicial), não precisa ser exatamente igual entre elas, só nenhuma ficar zerada à toa.
+        int homeCityIndex = -1;
+        var seedTargets = new List<(CellCoord Location, CityId Id)>();
+        if (population.InitialPopulation > 0)
+        {
+            homeCityIndex = definition.City.Cities
+                .Select((c, index) => (c.Location, index))
+                .Where(c => c.Location == population.Village)
+                .Select(c => c.index)
+                .DefaultIfEmpty(-1)
+                .First();
+
+            for (int i = 0; i < definition.City.Cities.Count; i++)
+                seedTargets.Add((definition.City.Cities[i].Location, createdCityIds[i]));
+
+            if (homeCityIndex < 0)
+            {
+                var homeCity = new City(
+                    world.NextCityId(), population.Village, foundedAtTick: 0, foundedFromCityId: null,
+                    new AggregatePopulationPool(0, 0, 0), name: CityNameGenerator.Generate(world));
+                world.AddCity(homeCity);
+                homeCityIndex = seedTargets.Count;
+                seedTargets.Add((homeCity.Location, homeCity.Id));
+            }
+        }
+
+        // As oficinas autoradas ocupam o terreno ANTES das casas semeadas: com a população já assentada o mapa pequeno
+        // (presets 10x10 e 20x20) não tinha mais célula livre e o cenário falhava com "nenhuma célula livre".
+        foreach (var workplace in definition.Economy.Workplaces)
+        {
+            var placed = WorkplacePlacer.Place(world, workplace);
+            if (!placed.IsSuccess)
+                return Result<(WorldState, WorldClock)>.Fail(placed.Error!);
+        }
+
+        if (population.InitialPopulation > 0)
+        {
+            // Cidade autorada com `InitialPopulation` explícito nasce com esse valor; o resto do
+            // total continua dividido igualmente entre as demais (resto da divisão pra vila-sede,
+            // como sempre) — dá controle de tamanho inicial por assentamento sem mexer na fórmula
+            // de crescimento (CityBoundsResolver deriva o footprint da população atual, sempre).
+            var explicitShares = new Dictionary<int, int>();
+            for (int i = 0; i < definition.City.Cities.Count; i++)
+            {
+                var explicitPopulation = definition.City.Cities[i].InitialPopulation;
+                if (explicitPopulation is int share) explicitShares[i] = share;
+            }
+            long explicitTotal = explicitShares.Values.Sum();
+            var remainingTargets = Enumerable.Range(0, seedTargets.Count).Where(i => !explicitShares.ContainsKey(i)).ToList();
+            long remainingPopulation = Math.Max(0, population.InitialPopulation - explicitTotal);
+            int perCity = remainingTargets.Count > 0 ? (int)(remainingPopulation / remainingTargets.Count) : 0;
+            int remainder = remainingTargets.Count > 0 ? (int)(remainingPopulation % remainingTargets.Count) : 0;
+            int remainderTargetIndex = remainingTargets.Contains(homeCityIndex) ? homeCityIndex : remainingTargets.FirstOrDefault(-1);
+            for (int i = 0; i < seedTargets.Count; i++)
+            {
+                int share = explicitShares.TryGetValue(i, out var explicitShare)
+                    ? explicitShare
+                    : perCity + (i == remainderTargetIndex ? remainder : 0);
+                if (share <= 0) continue;
+                try
+                {
+                    PopulationSeeder.SeedInitial(
+                        world, share, population.Culture, seedTargets[i].Location, seedTargets[i].Id);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return Result<(WorldState, WorldClock)>.Fail($"Population: {ex.Message}");
+                }
+            }
+        }
+
+        // Famílias autoradas, depois da população sorteada: sem o bloco nada muda (hash preservado).
+        var authoredResult = AuthoredHouseholdsLoader.Load(
+            System.Text.Json.Nodes.JsonNode.Parse(json)!.AsObject(), population.Catalog,
+            population.LifeTable.MaxLongevityYears, definition.Map.Settlements.Select(s => s.Name).ToList(),
+            appearanceEnabled: definition.Appearance is not null);
+        if (!authoredResult.IsSuccess)
+            return Result<(WorldState, WorldClock)>.Fail(authoredResult.Error!);
+        foreach (var family in authoredResult.Value!)
+        {
+            var home = family.Settlement is null
+                ? world.ActiveCities().FirstOrDefault(c => c.Location == population.Village)
+                : world.ActiveCities().FirstOrDefault(c => c.Location == definition.Map.Settlements.First(s => s.Name == family.Settlement).Cell);
+            if (home is null)
+                return Result<(WorldState, WorldClock)>.Fail(
+                    $"AuthoredHouseholds: o assentamento '{family.Settlement ?? "inicial"}' não tem cidade no cenário");
+            PopulationSeeder.SeedAuthored(world, family, population.Culture, home.Location, home);
+        }
+
+        if (world.EconomyRules.Enabled && (population.InitialPopulation > 0 || authoredResult.Value!.Count > 0))
+            ScenarioRunner.SeedInitialEconomyBuffer(world);
+
+        ExtraordinaryPrevalenceSeeder.Seed(world);
+
+        // Portal é dado descritivo — resolve RefIndex autorado pro RefId real
+        // (mesmo padrão de createdCityIds[building.CityIndex] acima) depois que cidades/prédios
+        // já têm id, e autora via AddPortal, único ponto de mutação da coleção.
+        foreach (var portal in definition.City.Portals)
+            world.AddPortal(new SpatialPortal(
+                portal.Id, portal.Label,
+                ResolvePortalEndpoint(portal.From, createdCityIds, createdBuildingIds),
+                ResolvePortalEndpoint(portal.To, createdCityIds, createdBuildingIds)));
+
+        // PeriodEvolutionSystem primeiro na lista — regra de transformação muda o
+        // catálogo antes de qualquer sistema do mesmo tick sortear profissão por ele
+        // (NatalitySystem/MaterializationSystem/PopulationSeeder).
+        IReadOnlyList<ISimulationSystem> systems =
+            ScenarioRunner.DefaultSystems(
+                definition.Dynamics.TransformationRules, extraordinary: definition.Extraordinary);
+
+        return Result<(WorldState, WorldClock)>.Ok((world, new WorldClock(systems, maxIterationsPerTick)));
+    }
+
+    private static City NearestCity(IEnumerable<City> cities, CellCoord location) =>
+        cities
+            .OrderBy(city => Math.Max(
+                Math.Abs(city.Location.X - location.X),
+                Math.Abs(city.Location.Y - location.Y)))
+            .ThenBy(city => city.Id.Value)
+            .First();
+
+    private static PortalEndpoint ResolvePortalEndpoint(
+        AuthoredPortalEndpoint endpoint, IReadOnlyList<CityId> createdCityIds, IReadOnlyList<BuildingId> createdBuildingIds) =>
+        endpoint.Space switch
+        {
+            PortalSpaceKind.World => new PortalEndpoint(PortalSpaceKind.World, "", endpoint.Cell),
+            PortalSpaceKind.City => new PortalEndpoint(PortalSpaceKind.City, createdCityIds[endpoint.RefIndex].ToString(), endpoint.Cell),
+            PortalSpaceKind.Building => new PortalEndpoint(PortalSpaceKind.Building, createdBuildingIds[endpoint.RefIndex].ToString(), endpoint.Cell),
+            _ => throw new ArgumentOutOfRangeException(nameof(endpoint)),
+        };
+}

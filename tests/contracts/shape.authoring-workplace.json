@@ -1,0 +1,7 @@
+{
+  "buildingId?": "number",
+  "cityId": "string",
+  "workplaceId": "number",
+  "x": "number",
+  "y": "number"
+}

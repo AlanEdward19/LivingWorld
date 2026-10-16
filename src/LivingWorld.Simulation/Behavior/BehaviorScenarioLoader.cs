@@ -1,14 +1,17 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Population;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Behavior;
 
-/// <summary>Dado de comportamento resolvido de um cenário (task 8): parâmetros do utility AI
+/// <summary>Dado de comportamento resolvido de um cenário: parâmetros do utility AI
 /// (<see cref="NeedsRules"/>) e o catálogo de ações/rotina (<see cref="ActionCatalog"/>).</summary>
 public sealed record BehaviorScenarioData(NeedsRules NeedsRules, ActionCatalog ActionCatalog, RestPlaceCatalog RestPlaceCatalog);
 
-/// <summary>Carrega <see cref="NeedsRules"/> e <see cref="ActionCatalog"/> de um cenário (task
-/// 8): nenhum parâmetro do utility AI hardcoded em C# (R3). Mesmo padrão de
+/// <summary>Carrega <see cref="NeedsRules"/> e <see cref="ActionCatalog"/> de um cenário:
+/// nenhum parâmetro do utility AI hardcoded em C# (R3). Mesmo padrão de
 /// <see cref="PopulationScenarioLoader"/> — parse manual por <see cref="JsonNode"/>, validação
 /// na borda, erro nomeia o campo ausente.</summary>
 public static class BehaviorScenarioLoader

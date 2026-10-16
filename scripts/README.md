@@ -5,13 +5,20 @@ dá saída 0/1 estável para os eval gates.
 
 | Script | Faz | Flags |
 |---|---|---|
-| `test.sh` | `dotnet test` (exclui `Category=Scenario` por padrão) | `--watch`, `--filter <padrão>` |
+| `test.sh` | `dotnet test` Release, Unit sem `Category=Scenario` (~1 min) | `--watch`, `--filter <padrão>`, `--scenarios`, `--all`, `--project integration\|longrunning` |
 | `lint.sh` | `dotnet format` | `--fix` (aplica) |
-| `build.sh` | `dotnet build -c Release -warnaserror` | — |
+| `build.sh` | `dotnet build -c Release -warnaserror` (sem web) | — |
 | `check-docs.sh` | Falha se algum `.md` passar de 100 linhas | — |
-| `verify.sh` | **Gate**: check-docs + build + lint + test | — |
+| `close-issues-from-pr.sh` | Fecha as issues citadas (`Closes #N, #M`) no corpo de um PR; o workflow `close-issues.yml` o chama ao mergear em `develop` (o GitHub só fecha sozinho em `main`) | `--list` (só imprime os números) |
+| `client-stress.sh` | Três rodadas gráficas de 500 NPCs, API local já iniciada | `[caminho-do-cliente]` |
+| `compare-simulation-cost.sh` | Três pares alternados do MeasureHarness; tetos +3% CPU / +2% alocação | `<checkout-base> [saída]` |
+| `compare-creation-cost.sh` | Mede 6.000 NPCs em três pares de processos alternados; falha acima de +5% | `<checkout-base> [saída]` |
+| `refresh-world-hashes.sh` | Regrava explicitamente goldens e pins após mudança de comportamento registrada em AD/ADR | — |
+| `verify.sh` | **Gate**: check-docs + build + lint + test rápido | `--full` (+ cenários pesados) |
 
 Rode via `bash scripts/<x>.sh` (Git Bash no Windows).
-Cenários longos (100 anos) ficam fora do gate: `bash scripts/test.sh --filter Category=Scenario`.
+Cenários pesados ficam fora do gate: `bash scripts/test.sh --scenarios` (Unit) ou `--project longrunning`.
+Teste novo que passe de ~5 s ganha `[Trait("Category", "Scenario")]`.
+`--project longrunning` (100 anos, golden hashes, escala): ~12 min, ver STATE.md para as falhas conhecidas.
 
 Comando novo que você repetiria → vira script aqui.

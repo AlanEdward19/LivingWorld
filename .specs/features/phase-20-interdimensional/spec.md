@@ -1,3 +1,5 @@
+> **Estado: Spec** (specs-closeout 2026-10-12) - Nada implementado; fase apenas especificada (criterios pendentes no ROADMAP).
+
 # Fase 20 — Trânsito interdimensional e catch-up — Specification
 
 ## Problem Statement

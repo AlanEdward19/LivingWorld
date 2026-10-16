@@ -1,11 +1,14 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.History;
 
 namespace LivingWorld.Simulation.Narrative;
 
 /// <summary>Agrega <see cref="Fact"/>s por `(local, período)` e ordena por significância antes
-/// da renderização textual (Fase 12, NARR-05..07). Reusa <see cref="HistoryIndex.ByYear"/> para
-/// não varrer <c>WorldState.Facts</c> por completo — mesma disciplina de custo da Fase 10.</summary>
+/// da renderização textual. Reusa <see cref="HistoryIndex.ByYear"/> para
+/// não varrer <c>WorldState.Facts</c> por completo — mesma disciplina de custo aplicada em
+/// outros pontos de consulta.</summary>
 public static class WindowedHistoryAggregator
 {
     /// <summary>Retorna os <paramref name="topK"/> fatos mais significativos de

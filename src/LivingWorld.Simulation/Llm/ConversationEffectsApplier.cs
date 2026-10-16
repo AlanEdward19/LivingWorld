@@ -1,12 +1,15 @@
-using LivingWorld.Domain;
 using LivingWorld.Domain.Llm;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Llm;
 
-/// <summary>Aplica só os efeitos permitidos de um turno já validado (Fase 11, LLM-09 AC3):
+/// <summary>Aplica só os efeitos permitidos de um turno já validado:
 /// memória episódica canônica do NPC (<see cref="WorldState.AddNpcMemory"/>, T9b) e a relação
-/// NPC->jogador real (<see cref="Relationship"/>/<see cref="RelationshipKey"/>, Fase 7) — não mais
-/// uma lista efêmera por sessão nem um contador de trust dedicado (gap documentado do T6
+/// NPC->jogador real (<see cref="Relationship"/>/<see cref="RelationshipKey"/>) — não mais
+/// uma lista efêmera por sessão nem um contador de trust dedicado (gap documentado do aplicador
 /// original). O jogador não é um <see cref="Npc"/> de verdade, então não tem <see cref="NpcId"/>
 /// próprio: <see cref="PlayerNpcId"/> é um sentinela reservado (<c>NpcId(-1)</c>) que nunca colide
 /// com um NPC real, já que <see cref="WorldState.NextNpcIdAndAdvance"/> só produz ids >= 0.</summary>

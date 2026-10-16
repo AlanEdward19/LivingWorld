@@ -26,15 +26,16 @@ estado reprodutível (mesma seed + mesmos ticks = mesmo mundo).
 
 ```bash
 bash scripts/build.sh          # build Release, warnings como erro
-bash scripts/test.sh           # testes (cenários longos ficam de fora)
+bash scripts/test.sh           # gate padrão: só LivingWorld.Tests.Unit (rápido)
 bash scripts/lint.sh --fix     # formatação
 bash scripts/verify.sh         # gate completo: docs + build + lint + test
 ```
 
-Cenários longos (ex.: 100 anos):
+Suítes fora do gate padrão (host/DB e cenários de horas/dias reais):
 
 ```bash
-bash scripts/test.sh --filter Category=Scenario
+dotnet test tests/LivingWorld.Tests.Integration
+dotnet test tests/LivingWorld.Tests.LongRunning --filter Category=Scenario
 ```
 
 Cenários de população ficam em `scenarios/` (ex.: `default.json`, `test-scifi.json`).
@@ -49,7 +50,10 @@ src/
   LivingWorld.Api/             # HTTP (fases posteriores)
   LivingWorld.AI/              # contrato LLM (fases posteriores)
   LivingWorld.Workers/         # workers de simulação
-tests/LivingWorld.Tests/
+tests/LivingWorld.Tests.Unit/         # gate padrão — rápido, sem host/DB/cenário longo
+tests/LivingWorld.Tests.Integration/  # host ASP.NET/DB/e2e curtos
+tests/LivingWorld.Tests.LongRunning/  # cenários de horas/dias reais (100 anos, multi-seed)
+tests/LivingWorld.Tests.Shared/       # fixtures/harnesses reusados pelos três acima
 docs/                          # domínio, ADRs, roadmap por fase
 rules/                         # regras operacionais para agentes de código
 ```

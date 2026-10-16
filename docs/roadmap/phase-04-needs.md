@@ -34,9 +34,11 @@ urgência sabe interromper.
   comida a 1 local de distância e turno aberto — escolhe **comer** no braço 90 e
   **trabalhar** no braço 10, em 10/10 seeds.
 - **Histerese com braço de controle**: par com/sem histerese, mesma seed, 20 seeds —
-  `trocas_com < trocas_sem` em **20/20**. O teto absoluto de trocas por dia é o percentil
-  99 das 20 seeds, gravado em `tests/baselines/action-switches.json`; número mágico no
-  texto do critério é proibido.
+  média de trocas por dia estritamente menor com histerese **e** menor em pelo menos 12 de 20 seeds; o baseline por
+  seed fica em `tests/baselines/action-switches.json` e o teto é físico (uma troca a cada duas horas por NPC), não o
+  percentil dos próprios dados.
+  *Registro (AD-088, AD-095): com o dia guiado pela rotina o efeito da histerese ficou pequeno (−0,7 de ~110 trocas/dia,
+  z = −4, 15/20 seeds). "20/20" deixou de ser o critério; o teste reprova se a histerese for desligada.*
 - **Fome mata em prazo derivado**: `X = ceil(100 / taxaDecaimentoFome)` lido do cenário em
   runtime. NPC sem acesso a comida morre em `[X, X+1]` ticks, com `causa == Starvation`
   registrada no event log — datável, não "em algum momento".

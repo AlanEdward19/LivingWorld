@@ -10,7 +10,7 @@ while IFS= read -r f; do
     echo "check-docs: $f tem $n linhas (teto $LIMIT) — quebre em .md menores + índice" >&2
     fail=1
   fi
-done < <(find . AGENTS.md ROADMAP.md STATE.md -maxdepth 0 -name '*.md' 2>/dev/null; \
-         find rules docs -name '*.md' 2>/dev/null)
+done < <(find . AGENTS.md ROADMAP.md STATE.md .specs/STATE.md -maxdepth 0 -name '*.md' 2>/dev/null; \
+         find rules docs .specs/state -name '*.md' 2>/dev/null)
 [ "$fail" = 0 ] && echo "check-docs: OK"
 exit $fail

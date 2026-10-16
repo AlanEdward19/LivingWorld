@@ -1,16 +1,24 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
 
-/// <summary>Qualidade de recuperação por tipo de lugar de descanso (Fase 15.1, Stage 4, T12,
-/// LWV-03.1). <see cref="GroundEfficiency"/> substitui o papel de
+namespace LivingWorld.Domain.Behavior;
+
+/// <summary>Qualidade de recuperação por tipo de lugar de descanso.
+/// <see cref="GroundEfficiency"/> substitui o papel de
 /// <c>NeedsRules.HomelessSleepEfficiency</c> in-place — sem contrato v2 paralelo.</summary>
 public enum RestPlaceKind
 {
     Ground = 0,
     Dwelling = 1,
     Bed = 2,
+
+    /// <summary>Quarto alugado por diária numa hospedagem, longe de casa (lodging-and-rent); recupera como a moradia.</summary>
+    Lodging = 3,
 }
 
-public sealed record RestPlaceRef(RestPlaceKind Kind, long TargetId, CellCoord Location, double RecoveryEfficiency);
+/// <summary>Struct: o resolvedor devolve um por NPC a cada decisão de dormir; como classe era 7% dos bytes alocados por tick.</summary>
+public readonly record struct RestPlaceRef(RestPlaceKind Kind, long TargetId, CellCoord Location, double RecoveryEfficiency);
 
 /// <summary>Cama/móvel de descanso no mundo. Chão e moradia não precisam de linha: o chão é o
 /// local atual do sem-teto, a moradia é <see cref="Household.Location"/>.</summary>
@@ -43,7 +51,7 @@ public sealed record RestPlaceCatalog(double GroundEfficiency, double DwellingEf
     public double EfficiencyOf(RestPlaceKind kind) => kind switch
     {
         RestPlaceKind.Ground => GroundEfficiency,
-        RestPlaceKind.Dwelling => DwellingEfficiency,
+        RestPlaceKind.Dwelling or RestPlaceKind.Lodging => DwellingEfficiency,
         RestPlaceKind.Bed => BedEfficiency,
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "RestPlaceKind desconhecido"),
     };

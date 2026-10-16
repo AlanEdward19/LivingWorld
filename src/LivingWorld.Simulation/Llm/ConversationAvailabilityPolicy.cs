@@ -1,9 +1,13 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Llm;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Simulation.Behavior.Decision;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Llm;
 
-/// <summary>Decide se um NPC aceita ou recusa `StartConversation` (Fase 11, LLM-01/02) — modelo
-/// oportunista (design.md): o NPC nunca é forçado a parar automaticamente; se aceitar, a ação
+/// <summary>Decide se um NPC aceita ou recusa `StartConversation` — modelo
+/// oportunista: o NPC nunca é forçado a parar automaticamente; se aceitar, a ação
 /// corrente segue rodando quando compatível, e só uma ação incompatível é candidata a pausa (a
 /// pausa em si é responsabilidade do chamador — esta política só informa a compatibilidade).</summary>
 public static class ConversationAvailabilityPolicy

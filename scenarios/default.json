@@ -1,14 +1,14 @@
 {
-  "Width": 10,
-  "Height": 10,
+  "Width": 20,
+  "Height": 20,
   "Seed": 1,
   "RegionSize": 5,
   "TerrainIds": [1, 2, 3],
   "BiomeIds": [1],
   "ResourceIds": [],
   "CostWeights": {
-    "Base": 1.0,
-    "AltitudeWeight": 0.5,
+    "Base": 0.3,
+    "AltitudeWeight": 0.05,
     "TerrainWeight": { "1": 1.0, "2": 1.5, "3": 3.0 }
   },
   "Settlements": [{ "Name": "vila", "X": 5, "Y": 5 }],
@@ -18,7 +18,7 @@
   "VillageX": 5,
   "VillageY": 5,
   "CultureIds": [1],
-  "ProfessionIds": [1, 2],
+  "ProfessionIds": [1, 2, 3, 4],
   "LocationTypeIds": [],
   "MaxLongevityYears": 90,
   "LifeTableBrackets": [
@@ -33,6 +33,7 @@
   "FertilityMaxAge": 45,
   "AnnualConceptionChance": 0.25,
   "GestationDays": 270,
+  "ConditionalInitialMortality": true,
   "MaxBytesPerNpcPerYear": 80000,
 
   "_professionComment": "1 = lavrador, 2 = ferreiro — nome só neste comentário, o motor só vê o id (AD-023/AD-025)",
@@ -51,6 +52,8 @@
   "RoutineSlots": [
     { "ProfessionId": 1, "Stage": "Adult", "HourStart": 6, "HourEnd": 14, "Action": "Work" },
     { "ProfessionId": 2, "Stage": "Adult", "HourStart": 7, "HourEnd": 15, "Action": "Work" },
+    { "ProfessionId": 3, "Stage": "Adult", "HourStart": 7, "HourEnd": 15, "Action": "Work" },
+    { "ProfessionId": 4, "Stage": "Adult", "HourStart": 8, "HourEnd": 16, "Action": "Work" },
     { "ProfessionId": null, "Stage": "Adult", "HourStart": 8, "HourEnd": 16, "Action": "Work" },
     { "ProfessionId": null, "Stage": "Adult", "HourStart": 18, "HourEnd": 20, "Action": "Socialize" },
     { "ProfessionId": null, "Stage": "Adult", "HourStart": 22, "HourEnd": 23, "Action": "Sleep" },
@@ -60,5 +63,114 @@
     { "ProfessionId": null, "Stage": "Elder", "HourStart": 21, "HourEnd": 23, "Action": "Sleep" },
     { "ProfessionId": null, "Stage": "Elder", "HourStart": 0, "HourEnd": 6, "Action": "Sleep" }
   ],
-  "DefaultAction": "Idle"
+  "DefaultAction": "Idle",
+
+  "EconomyEnabled": true,
+  "FoodResourceId": 1,
+  "WaterResourceId": 2,
+  "PriceSensitivity": 0.2,
+  "WageTaxRate": 0.05,
+  "CapacityByResourceLocation": { "1,1": 1000, "2,1": 1000, "3,3": 1000, "5,4": 1000 },
+  "SpoilagePerDayByResource": { "1": 0.01 },
+  "WageByProfession": { "1": 90, "2": 110, "3": 95, "4": 100 },
+  "PriceFloor": { "1": 1, "2": 1, "3": 1, "5": 1 },
+  "PriceCeiling": { "1": 20, "2": 15, "3": 40, "5": 60 },
+  "DemandBaselinePerNpc": { "1": 0.5, "2": 0.3, "3": 0.3, "5": 0.15 },
+  "Recipes": {
+    "1": {
+      "Inputs": {},
+      "Outputs": { "1": 10, "2": 8 },
+      "RequiresCellResource": null,
+      "MaxWorkersPerCycle": 16
+    },
+    "3": {
+      "Inputs": {},
+      "Outputs": { "3": 6 },
+      "RequiresCellResource": null,
+      "MaxWorkersPerCycle": 6
+    },
+    "4": {
+      "Inputs": {},
+      "Outputs": { "5": 4 },
+      "RequiresCellResource": null,
+      "MaxWorkersPerCycle": 6
+    }
+  },
+  "MarketLocationTypeIds": [1, 3, 4],
+  "LocationTypeByProfession": { "1": 1, "2": 1, "3": 3, "4": 4 },
+  "Workplaces": [
+    {
+      "LocationTypeId": 1,
+      "X": 4,
+      "Y": 5,
+      "MaxVacancies": 16,
+      "Treasury": 500000,
+      "Stock": {},
+      "Prices": { "1": 5, "2": 5 }
+    },
+    {
+      "LocationTypeId": 3,
+      "X": 6,
+      "Y": 5,
+      "MaxVacancies": 6,
+      "Treasury": 200000,
+      "Stock": { "3": 30 },
+      "Prices": { "3": 5 }
+    },
+    {
+      "LocationTypeId": 4,
+      "X": 5,
+      "Y": 6,
+      "MaxVacancies": 6,
+      "Treasury": 200000,
+      "Stock": { "5": 20 },
+      "Prices": { "5": 5 }
+    }
+  ],
+
+  "CitiesEnabled": true,
+  "FoodShortageThreshold": 0.1,
+  "HousingShortageThreshold": 0.1,
+  "SecurityShortageThreshold": 0.1,
+  "EmigrationRatePerDeficitUnit": 0.1,
+  "MigrationEmploymentWeight": 0.1,
+  "MigrationFoodWeight": 0.1,
+  "MigrationSecurityWeight": 0.1,
+  "MigrationFamilyTiesWeight": 0.1,
+  "FoundingConcentrationThreshold": 0.1,
+  "FoundingResourceThreshold": 0.1,
+  "FoundingRouteThreshold": 0.1,
+  "FoundingDefensibilityThreshold": 0.1,
+  "FoundingLeadershipThreshold": 0.1,
+  "OrganizationTicks": 1,
+  "MaterializationIdleTicksBeforeEligible": 1,
+  "BuildingRecipes": {
+    "10": { "Inputs": { "3": 20, "5": 10 }, "TicksToBuild": 48, "HousingCapacityProvided": 4 },
+    "11": {
+      "Inputs": { "3": 30, "5": 20 },
+      "TicksToBuild": 72,
+      "HousingCapacityProvided": 0,
+      "Workplace": { "LocationTypeId": 1, "MaxVacancies": 10 }
+    }
+  },
+  "Cities": [
+    {
+      "Name": "vila",
+      "X": 5,
+      "Y": 5,
+      "FoundedAtTick": 0,
+      "Treasury": 20000,
+      "AggregatePool": { "Count": 0, "WealthSum": 0, "HealthSum": 0 }
+    }
+  ],
+
+  "Dynamics": {
+    "ProfessionBiases": [
+      { "ProfessionId": 1, "Weight": 1.0 },
+      { "ProfessionId": 2, "Weight": 1.0 },
+      { "ProfessionId": 3, "Weight": 0.5 },
+      { "ProfessionId": 4, "Weight": 0.5 }
+    ],
+    "TransformationRules": []
+  }
 }

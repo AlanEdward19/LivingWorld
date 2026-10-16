@@ -1,3 +1,5 @@
+> **Status: substituída pelo [ADR-0025](../adr/ADR-0025-godot-substitui-cliente-3d-da-fase-14.md).** O Godot cobre o cliente 3D; voz e Unreal seguem adiados.
+
 # Fase 14 — Cliente Unreal
 
 **Objetivo**: existe um cliente 3D que mostra o mundo em locais, personagens e voz,

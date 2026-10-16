@@ -1,8 +1,11 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Economy;
 
 /// <summary>Estado imutável de uma transação de mercado em andamento — todo campo é struct
 /// imutável, então "aplicar sobre uma cópia" é literalmente construir um <see
-/// cref="TransactionContext"/> novo a cada passo (ECON-09/10/11/12/13). Nenhuma referência a
+/// cref="TransactionContext"/> novo a cada passo. Nenhuma referência a
 /// <c>Npc</c>/<c>Workplace</c> real é tocada até o commit final feito pelo chamador.</summary>
 public sealed record TransactionContext(
     Money BuyerWallet,
@@ -13,13 +16,13 @@ public sealed record TransactionContext(
     long UnitPrice,
     long Quantity);
 
-/// <summary>Um passo nomeado da transação — nome aparece na falha de fault-injection (ECON-12),
+/// <summary>Um passo nomeado da transação — nome aparece na falha de fault-injection,
 /// nunca um índice cru.</summary>
 public sealed record TransactionStep(string Name, Func<TransactionContext, Result<TransactionContext>> Apply);
 
 /// <summary>Transação atômica dinheiro↔recurso: compõe passos sobre um <see
 /// cref="TransactionContext"/> imutável e só expõe um resultado pronto pra commit depois que
-/// todos os passos tiverem sucedido — ou nenhum efeito, ou todos (ECON-09/10/11/12/13).</summary>
+/// todos os passos tiverem sucedido — ou nenhum efeito, ou todos.</summary>
 public static class MarketTransaction
 {
     public static readonly IReadOnlyList<TransactionStep> Steps = new[]
@@ -45,7 +48,7 @@ public static class MarketTransaction
 
     /// <summary>Aplica <see cref="Steps"/> em ordem sobre <paramref name="ctx"/>. Se <paramref
     /// name="failAtStep"/> (1-based) for informado, força <c>Result.Fail</c> nesse passo antes
-    /// de aplicá-lo — hook de teste pra fault-injection (ECON-12/13), nunca usado em
+    /// de aplicá-lo — hook de teste pra fault-injection, nunca usado em
     /// produção.</summary>
     public static Result<TransactionContext> Execute(TransactionContext ctx, int? failAtStep = null)
     {

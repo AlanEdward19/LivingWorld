@@ -1,21 +1,38 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.History;
 
-/// <summary>Calcula significância (0–1) na escrita e decide o que vira <see cref="Fact"/>
-/// (Fase 10, HIST-01/HIST-02).</summary>
+/// <summary>Calcula significância (0–1) na escrita e decide o que vira <see cref="Fact"/>.</summary>
 public static class SignificanceCalculator
 {
     private static readonly IReadOnlyDictionary<WorldEventKind, double> BaseWeightByKind =
         new Dictionary<WorldEventKind, double>
         {
             [WorldEventKind.Birth] = 0.85,
+            [WorldEventKind.PlayerIncarnated] = 0.3,
+            [WorldEventKind.PlayerDisappeared] = 0.85,
+            [WorldEventKind.DisappearedFound] = 0.7,
+            [WorldEventKind.SearchGaveUp] = 0.6,
             [WorldEventKind.Death] = 0.90,
             [WorldEventKind.Starvation] = 0.75,
+            [WorldEventKind.Dehydration] = 0.75,
+            [WorldEventKind.Exhaustion] = 0.75,
+            [WorldEventKind.Trade] = 0.30,
+            [WorldEventKind.EstateSettled] = 0.45,
+            [WorldEventKind.Disease] = 0.8,
+            [WorldEventKind.OutbreakStarted] = 0.7,
+            [WorldEventKind.TheftDiscovered] = 0.4,
+            [WorldEventKind.TechnologyDiscovered] = 0.6,
+            [WorldEventKind.TechnologyAdopted] = 0.3,
+            [WorldEventKind.RentUnpaid] = 0.35,
+            [WorldEventKind.Evicted] = 0.65,
             [WorldEventKind.Marriage] = 0.80,
             [WorldEventKind.MaternalDeath] = 0.85,
             [WorldEventKind.StillBirth] = 0.70,
             [WorldEventKind.CourtshipSucceeded] = 0.55,
+            [WorldEventKind.AidGiven] = 0.40,
             [WorldEventKind.Hired] = 0.35,
             [WorldEventKind.Fired] = 0.40,
             [WorldEventKind.WageUnpaid] = 0.45,
@@ -28,6 +45,19 @@ public static class SignificanceCalculator
             [WorldEventKind.ReportConverted] = 0.5,
             [WorldEventKind.CompensatingCorrection] = 1.0,
         };
+
+    private static readonly double[] MaximumSignificanceByKind = Enum.GetValues<WorldEventKind>().Select(kind =>
+        BaseWeightByKind.GetValueOrDefault(kind, 0.5) * (kind switch
+        {
+            WorldEventKind.Birth => 0.95,
+            WorldEventKind.Marriage or WorldEventKind.CourtshipStarted or WorldEventKind.CourtshipSucceeded
+                or WorldEventKind.StillBirth or WorldEventKind.CourtshipRejected => 0.8,
+            _ => 0.65,
+        })).ToArray();
+
+    // Reject frequent low-weight events before splitting payloads or allocating event objects.
+    internal static bool CanMeetThreshold(WorldEventKind kind, HistoryRules rules) =>
+        MaximumSignificanceByKind[(int)kind] >= rules.SkeletonSignificanceThreshold;
 
     /// <summary>Significância determinística a partir do kind, participantes e escopo.</summary>
     public static double Compute(WorldEvent evt, WorldState world, HistoryRules rules)

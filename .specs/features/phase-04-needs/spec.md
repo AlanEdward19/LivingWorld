@@ -1,3 +1,5 @@
+> **Estado: Parcial** (specs-closeout 2026-10-12) - Fase fechada; 15 requisitos com teste rastreavel, 1 pendente de prova por ID.
+
 # Fase 4 — Necessidades e rotina — Specification
 
 ## Problem Statement
@@ -190,22 +192,22 @@ sem exceção; consulta de NPCs `Homeless` retorna o conjunto esperado.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| NEEDS-01 | P1: Medidores | Design | Pending |
-| NEEDS-02 | P1: Medidores | Design | Pending |
-| NEEDS-03 | P1: Medidores | Design | Pending |
-| NEEDS-04 | P1: Medidores | Design | Pending |
-| NEEDS-05 | P2: Utility AI | Design | Pending |
-| NEEDS-06 | P2: Utility AI | Design | Pending |
-| NEEDS-07 | P2: Utility AI | Design | Pending |
-| NEEDS-08 | P2: Utility AI | Design | Pending |
-| NEEDS-09 | P2: Utility AI | Design | Pending |
-| NEEDS-10 | P2: Rotina | Design | Pending |
-| NEEDS-11 | P2: Rotina | Design | Pending |
-| NEEDS-12 | P2: Rotina | Design | Pending |
-| NEEDS-13 | P2: Rotina | Design | Pending |
-| NEEDS-14 | P2: Deslocamento/moradia | Design | Pending |
-| NEEDS-15 | P2: Deslocamento/moradia | Design | Pending |
-| NEEDS-16 | P2: Deslocamento/moradia | Design | Pending |
+| NEEDS-01 | P1: Medidores | Design | Verified - tests/LivingWorld.Tests.Unit/Behavior/NeedsRulesTests.cs |
+| NEEDS-02 | P1: Medidores | Design | Verified - tests/LivingWorld.Tests.Unit/Behavior/Needs/NeedsDecaySystemTests.cs |
+| NEEDS-03 | P1: Medidores | Design | Verified - tests/LivingWorld.Tests.Unit/Behavior/Needs/NeedsDecaySystemTests.cs |
+| NEEDS-04 | P1: Medidores | Design | Verified - tests/LivingWorld.Tests.Integration/Behavior/UtilityAiHashScenarioTests.cs |
+| NEEDS-05 | P2: Utility AI | Design | Verified - tests/LivingWorld.Tests.Unit/Behavior/Decision/BehaviorDecisionSystemTests.cs |
+| NEEDS-06 | P2: Utility AI | Design | Verified - tests/LivingWorld.Tests.Unit/Behavior/ActionCatalogTests.cs + tests/LivingWorld.Tests.Unit/Behavior/Decision/BehaviorDecisionSystemTests.cs |
+| NEEDS-07 | P2: Utility AI | Design | Verified - tests/LivingWorld.Tests.Unit/Behavior/Decision/BehaviorDecisionSystemTests.cs |
+| NEEDS-08 | P2: Utility AI | Design | Verified - tests/LivingWorld.Tests.Unit/Behavior/Decision/BehaviorDecisionSystemTests.cs + tests/LivingWorld.Tests.Unit/Behavior/PersonalityTests.cs |
+| NEEDS-09 | P2: Utility AI | Design | Verified - tests/LivingWorld.Tests.LongRunning/Behavior/BehaviorDecisionSystemHysteresisTests.cs |
+| NEEDS-10 | P2: Rotina | Design | Verified - tests/LivingWorld.Tests.Unit/Behavior/Decision/BehaviorDecisionSystemTests.cs (No_need_above_the_urgency_threshold_follows_the_declared_daily_routine) |
+| NEEDS-11 | P2: Rotina | Design | Pending - sem teste rastreavel que prove a urgencia sobrepondo a rotina fora do horario (so BehaviorDecisionSystemCognitionTests registra trace de urgencia) |
+| NEEDS-12 | P2: Rotina | Design | Verified - tests/LivingWorld.Tests.LongRunning/Behavior/BehaviorDecisionSystemHysteresisTests.cs |
+| NEEDS-13 | P2: Rotina | Design | Verified - tests/LivingWorld.Tests.LongRunning/Behavior/BehaviorDecisionSystemHysteresisTests.cs |
+| NEEDS-14 | P2: Deslocamento/moradia | Design | Verified - tests/LivingWorld.Tests.Unit/Behavior/TravelResolutionTests.cs |
+| NEEDS-15 | P2: Deslocamento/moradia | Design | Verified - tests/LivingWorld.Tests.Unit/Behavior/BehaviorDecisionSystemTravelTests.cs |
+| NEEDS-16 | P2: Deslocamento/moradia | Design | Verified - tests/LivingWorld.Tests.Unit/Behavior/BehaviorDecisionSystemTravelTests.cs |
 
 **Coverage:** 16 total, 16 mapped to design (pending tasks breakdown), 0 unmapped.
 

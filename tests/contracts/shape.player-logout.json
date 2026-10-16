@@ -1,0 +1,5 @@
+{
+  "disappearedAtTick": "number",
+  "npcId": "number",
+  "playerId": "string"
+}

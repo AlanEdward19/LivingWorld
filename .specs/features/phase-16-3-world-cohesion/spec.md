@@ -1,3 +1,5 @@
+> **Estado: Entregue** (specs-closeout 2026-10-12) - 37 de 37 COH com testes/auditoria; validação PASS arquivada (2026-08-26, 35/35 ACs + gate verde).
+
 # Fase 16.3 — Living World Cohesion Specification
 
 Fonte: `Fase pós-16.2 — Living World Cohesion_ Causalidade, Agência, Atenção, Complexidade e Experiência.md` (doc do usuário, 162 seções — referenciadas abaixo como `doc#N`).
@@ -194,43 +196,43 @@ Explicitamente excluído. Documentado para prevenir scope creep.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| COH-01 | P1a: Causal Event Provenance | Tasks | In Tasks |
-| COH-02 | P1a: Causal Event Provenance | Tasks | In Tasks |
-| COH-03 | P1a: Causal Event Provenance | Tasks | In Tasks |
-| COH-04 | P1a: Causal Event Provenance | Tasks | In Tasks |
-| COH-05 | P1a: Causal Event Provenance | Tasks | In Tasks |
-| COH-11 | P1b: Decision Context Integration | Tasks | In Tasks |
-| COH-12 | P1b: Decision Context Integration | Tasks | In Tasks |
-| COH-13 | P1b: Decision Context Integration | Tasks | In Tasks |
-| COH-14 | P1b: Decision Context Integration | Tasks | In Tasks |
-| COH-15 | P1b: Decision Context Integration | Tasks | In Tasks |
-| COH-16 | P1b: Decision Context Integration | Tasks | In Tasks |
-| COH-21 | P1c: Body/Health Minimal Causal System | Tasks | In Tasks |
-| COH-22 | P1c: Body/Health Minimal Causal System | Tasks | In Tasks |
-| COH-23 | P1c: Body/Health Minimal Causal System | Tasks | In Tasks |
-| COH-24 | P1c: Body/Health Minimal Causal System | Tasks | In Tasks |
-| COH-25 | P1c: Body/Health Minimal Causal System | Tasks | In Tasks |
-| COH-31 | P1d: Powers Full Utility Integration | Tasks | In Tasks |
-| COH-32 | P1d: Powers Full Utility Integration | Tasks | In Tasks |
-| COH-33 | P1d: Powers Full Utility Integration | Tasks | In Tasks |
-| COH-34 | P1d: Powers Full Utility Integration | Tasks | In Tasks |
-| COH-35 | P1d: Powers Full Utility Integration | Tasks | In Tasks |
-| COH-36 | P1d: Powers Full Utility Integration | Tasks | In Tasks |
-| COH-41 | P2a: Intent Persistence & Attention Router | Tasks | In Tasks |
-| COH-42 | P2a: Intent Persistence & Attention Router | Tasks | In Tasks |
-| COH-43 | P2a: Intent Persistence & Attention Router | Tasks | In Tasks |
-| COH-44 | P2a: Intent Persistence & Attention Router | Tasks | In Tasks |
-| COH-45 | P2a: Intent Persistence & Attention Router | Tasks | In Tasks |
-| COH-51 | P2b: Pressure / Opportunity Formalization | Tasks | In Tasks |
-| COH-52 | P2b: Pressure / Opportunity Formalization | Tasks | In Tasks |
-| COH-53 | P2b: Pressure / Opportunity Formalization | Tasks | In Tasks |
-| COH-54 | P2b: Pressure / Opportunity Formalization | Tasks | In Tasks |
-| COH-61 | P3: Diagnostics, Metrics & Vertical Validation Scenario | Tasks | In Tasks |
-| COH-62 | P3: Diagnostics, Metrics & Vertical Validation Scenario | Tasks | In Tasks |
-| COH-63 | P3: Diagnostics, Metrics & Vertical Validation Scenario | Tasks | In Tasks |
-| COH-64 | P3: Diagnostics, Metrics & Vertical Validation Scenario | Tasks | In Tasks |
-| COH-65 | P3: Diagnostics, Metrics & Vertical Validation Scenario | Tasks | In Tasks |
-| COH-66 | P3: Diagnostics, Metrics & Vertical Validation Scenario | Tasks | In Tasks |
+| COH-01 | P1a: Causal Event Provenance | Tasks | Verified - History/TickContextLogEventTests |
+| COH-02 | P1a: Causal Event Provenance | Tasks | Verified - History/Causality/CausalProvenanceTests |
+| COH-03 | P1a: Causal Event Provenance | Tasks | Verified - History/TickContextLogEventTests |
+| COH-04 | P1a: Causal Event Provenance | Tasks | Verified - Tests.Integration/History/EventLogRecordTests |
+| COH-05 | P1a: Causal Event Provenance | Tasks | Verified - History/CausalChainPilotTests |
+| COH-11 | P1b: Decision Context Integration | Tasks | Verified - Behavior/Decision/DecisionContextBuilderTests + BehaviorDecisionSystem.Utility.cs |
+| COH-12 | P1b: Decision Context Integration | Tasks | Verified - Behavior/Decision/DecisionContextBuilderTests |
+| COH-13 | P1b: Decision Context Integration | Tasks | Verified - Tests.Integration/Behavior/DecisionContextIntegrationTests |
+| COH-14 | P1b: Decision Context Integration | Tasks | Verified - Tests.Integration/Behavior/DecisionContextIntegrationTests (trust->Socialize) |
+| COH-15 | P1b: Decision Context Integration | Tasks | Verified - Tests.Integration/Behavior/DecisionContextIntegrationTests |
+| COH-16 | P1b: Decision Context Integration | Tasks | Verified - Tests.Integration/Behavior/DecisionContextIntegrationTests (contexto vazio) |
+| COH-21 | P1c: Body/Health Minimal Causal System | Tasks | Verified - Population/Body/BodyGenerationTests |
+| COH-22 | P1c: Body/Health Minimal Causal System | Tasks | Verified - Behavior/Needs/BodyMechanicTests, Economy/Production/ProductionSystemTests |
+| COH-23 | P1c: Body/Health Minimal Causal System | Tasks | Verified - Behavior/Needs/BodyMechanicTests |
+| COH-24 | P1c: Body/Health Minimal Causal System | Tasks | Verified - Behavior/Needs/BodyMechanicTests |
+| COH-25 | P1c: Body/Health Minimal Causal System | Tasks | Verified - docs/audits/living-world-cohesion-audit.md (FUTURE_DEPENDENCY registrado) |
+| COH-31 | P1d: Powers Full Utility Integration | Tasks | Verified - Behavior/Decision/BehaviorDecisionSystemTests (UsePower) |
+| COH-32 | P1d: Powers Full Utility Integration | Tasks | Verified - Extraordinary/Opportunity/PowerOpportunityProviderTests |
+| COH-33 | P1d: Powers Full Utility Integration | Tasks | Verified - Behavior/Decision/BehaviorDecisionSystemTests (PowerInvoked) |
+| COH-34 | P1d: Powers Full Utility Integration | Tasks | Verified - Extraordinary/PowerUtilityMigrationTests + STATE AD-011/AD-014 |
+| COH-35 | P1d: Powers Full Utility Integration | Tasks | Verified - Extraordinary/PowerUtilityMigrationTests |
+| COH-36 | P1d: Powers Full Utility Integration | Tasks | Verified - Extraordinary/PowerUtilityMigrationTests (possessao) |
+| COH-41 | P2a: Intent Persistence & Attention Router | Tasks | Verified - Behavior/AttentionRulesTests |
+| COH-42 | P2a: Intent Persistence & Attention Router | Tasks | Verified - Behavior/Decision/BehaviorDecisionSystemTests |
+| COH-43 | P2a: Intent Persistence & Attention Router | Tasks | Verified - Behavior/Decision/AttentionRouterTests |
+| COH-44 | P2a: Intent Persistence & Attention Router | Tasks | Verified - Behavior/Decision/DecisionMetricsTests |
+| COH-45 | P2a: Intent Persistence & Attention Router | Tasks | Verified - Behavior/Decision/DecisionContextCacheTests |
+| COH-51 | P2b: Pressure / Opportunity Formalization | Tasks | Verified - Behavior/Decision/PressureModelTests |
+| COH-52 | P2b: Pressure / Opportunity Formalization | Tasks | Verified - Behavior/Decision/PressureModelTests |
+| COH-53 | P2b: Pressure / Opportunity Formalization | Tasks | Verified - Behavior/Decision/OpportunityModelTests |
+| COH-54 | P2b: Pressure / Opportunity Formalization | Tasks | Verified - Behavior/DecisionTraceTests |
+| COH-61 | P3: Diagnostics, Metrics & Vertical Validation Scenario | Tasks | Verified - docs/audits/living-world-cohesion-audit.md |
+| COH-62 | P3: Diagnostics, Metrics & Vertical Validation Scenario | Tasks | Verified - History/Causality/CausalDiagnosticsTests |
+| COH-63 | P3: Diagnostics, Metrics & Vertical Validation Scenario | Tasks | Verified - Core/WorldClockTests |
+| COH-64 | P3: Diagnostics, Metrics & Vertical Validation Scenario | Tasks | Verified - Tests.Integration/Scenario/LivingVillageScenarioTests |
+| COH-65 | P3: Diagnostics, Metrics & Vertical Validation Scenario | Tasks | Verified - Tests.Integration/Scenario/LivingVillageScenarioTests |
+| COH-66 | P3: Diagnostics, Metrics & Vertical Validation Scenario | Tasks | Verified - gate verify.sh PASS registrado na validacao arquivada (2083 passed, 2026-08-26) + STATE AD-011..014; nao reexecutado aqui |
 
 **ID format:** `COH-[NUMBER]` (Cohesion), agrupado por dezena por story (01-05 = P1a, 11-16 = P1b, 21-25 = P1c, 31-36 = P1d, 41-45 = P2a, 51-54 = P2b, 61-66 = P3).
 

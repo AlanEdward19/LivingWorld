@@ -1,0 +1,11 @@
+[
+  {
+    "action": "string",
+    "actor": "string",
+    "branchId": "number",
+    "detail": "string",
+    "sequence": "number",
+    "target": "string",
+    "tick": "number"
+  }
+]

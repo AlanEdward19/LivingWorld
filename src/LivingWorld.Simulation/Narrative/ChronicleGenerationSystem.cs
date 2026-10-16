@@ -1,9 +1,12 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
 using LivingWorld.Domain.Narrative;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Narrative;
 
-/// <summary>Job periódico de crônicas (Fase 12, NARR-05..08) — publica, por cidade, a crônica da
+/// <summary>Job periódico de crônicas — publica, por cidade, a crônica da
 /// janela do mês recém-fechado, reaproveitando <see cref="WindowedHistoryAggregator"/> (top-K
 /// fatos por significância) e <see cref="NarrativeRenderer"/> (template determinístico, sem LLM).
 /// <see cref="Frequency"/> é <see cref="TickFrequency.Monthly"/> — nunca diário (spec.md Edge
@@ -15,8 +18,9 @@ namespace LivingWorld.Simulation.Narrative;
 /// documento já publicado, nunca duplica. Estado próprio do sistema (não em <see
 /// cref="WorldState"/>) — mesmo molde de <see
 /// cref="LivingWorld.Simulation.Llm.ConversationSessionStore"/>: reprocessar do zero após religar
-/// produz a mesma crônica a partir dos mesmos <see cref="Fact"/>s (NARR-08), então não há nada
+/// produz a mesma crônica a partir dos mesmos <see cref="Fact"/>s, então não há nada
 /// que precise sobreviver ao snapshot.</summary>
+[LivingCapability("NARRATIVE", Consumers = ["inspector.narrative"])]
 public sealed class ChronicleGenerationSystem : ISimulationSystem
 {
     public const string SystemName = "narrative-chronicle-generation";
@@ -29,6 +33,14 @@ public sealed class ChronicleGenerationSystem : ISimulationSystem
 
     /// <summary>Crônicas publicadas até agora (uma por chave `(local, periodStart, periodEnd)`).</summary>
     public IReadOnlyCollection<NarrativeDocument> Chronicles => _published.Values;
+
+    private readonly List<ClaimDiscard> _discarded = new();
+
+    /// <summary>Registro dos claims descartados por falta de ancoragem (sem `eventIds`), na ordem em
+    /// que apareceram — a crônica nunca os publica, mas o descarte fica auditável.</summary>
+    public IReadOnlyList<ClaimDiscard> DiscardedClaims => _discarded;
+
+    public sealed record ClaimDiscard(CityId? Location, long PeriodStart, long PeriodEnd, NarrativeClaim Claim, string Reason);
 
     /// <summary>Fecha a janela do mês que acabou de terminar e publica a crônica de cada cidade
     /// conhecida. Sem janela fechada ainda (menos de um mês desde a origem do mundo) ou sem
@@ -61,10 +73,24 @@ public sealed class ChronicleGenerationSystem : ISimulationSystem
             .Select(f => new NarrativeClaim(
                 $"{f.Kind} (evento {f.Id.Value}): {f.Payload}", (IReadOnlyList<long>)[f.Id.Value]))
             .ToList();
-        var draft = new NarrativeDraft(location, periodStartTick, periodEndTick, claims);
+        return Publish(new NarrativeDraft(location, periodStartTick, periodEndTick, claims));
+    }
+
+    /// <summary>Publica o rascunho: todo claim sem `eventIds` é descartado e registrado em
+    /// <see cref="DiscardedClaims"/> antes de renderizar. Idempotente por `(local, janela)`.</summary>
+    public NarrativeDocument Publish(NarrativeDraft draft)
+    {
+        var key = (draft.Location, draft.PeriodStartTick, draft.PeriodEndTick);
+        if (_published.TryGetValue(key, out var existing))
+            return existing;
+
+        var outcome = ClaimAnchorValidator.ValidateClaims(draft.Claims);
+        foreach (var failure in outcome.Rejected)
+            _discarded.Add(new ClaimDiscard(draft.Location, draft.PeriodStartTick, draft.PeriodEndTick, failure.Claim, failure.Reason));
 
         var document = NarrativeRenderer
-            .RenderAsync(new NarrativeId(_nextNarrativeId++), NarrativeType.Chronicle, draft)
+            .RenderAsync(new NarrativeId(_nextNarrativeId++), NarrativeType.Chronicle,
+                draft with { Claims = outcome.Approved })
             .GetAwaiter().GetResult();
 
         _published[key] = document;

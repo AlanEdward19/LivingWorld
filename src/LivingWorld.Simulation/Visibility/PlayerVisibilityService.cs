@@ -1,8 +1,8 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
 
 namespace LivingWorld.Simulation.Visibility;
 
-/// <summary>Fase 15, T7 (spec.md story "Modo personagem com FOW", AC1/AC3): visibilidade por
+/// <summary>Visibilidade por
 /// raio ao redor da posição atual do personagem. O motor não guarda histórico espacial por NPC
 /// (nenhuma "célula já visitada" persistida) — a segunda cláusula do AC2 ("áreas visitadas
 /// permanecem visíveis") fica deferida até o domínio ganhar memória espacial; hoje FOW é só

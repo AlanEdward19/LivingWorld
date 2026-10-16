@@ -1,16 +1,20 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Geography;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Population;
 
-/// <summary>Dado de população resolvido de um cenário (task 7): catálogo, tabela de vida,
+/// <summary>Dado de população resolvido de um cenário: catálogo, tabela de vida,
 /// regras de fertilidade, tamanho e local da população inicial. Mesmo padrão de
 /// <see cref="MapScenarioLoader"/> — o motor só vê isto depois de validado na borda.</summary>
 public sealed record PopulationScenarioData(
     PopulationCatalog Catalog, LifeTable LifeTable, PopulationRules Rules,
     int InitialPopulation, CultureId Culture, CellCoord Village, long MaxBytesPerNpcPerYear);
 
-/// <summary>Carrega população de um cenário (task 7): profissão, recurso e tipo de local vêm
+/// <summary>Carrega população de um cenário: profissão, recurso e tipo de local vêm
 /// só daqui — nunca de enum em C#. Validação na borda, erro nomeia o campo.</summary>
 public static class PopulationScenarioLoader
 {
@@ -75,8 +79,13 @@ public static class PopulationScenarioLoader
                 return Result<PopulationScenarioData>.Fail("MaxAliveNpcs: deve ser > 0");
         }
 
+        // Opcional: a morte planejada de quem já nasceu é sorteada condicionada à idade atual.
+        bool conditionalInitialMortality = root["ConditionalInitialMortality"] is JsonValue conditionalNode
+            && conditionalNode.TryGetValue<bool>(out var conditionalValue) && conditionalValue;
+
         var rulesResult = PopulationRules.Create(
-            lifeTableResult.Value!, fertilityMinAge, fertilityMaxAge, conceptionChance, gestationDays, maxAliveNpcs);
+            lifeTableResult.Value!, fertilityMinAge, fertilityMaxAge, conceptionChance, gestationDays, maxAliveNpcs,
+            conditionalInitialMortality);
         if (!rulesResult.IsSuccess)
             return Result<PopulationScenarioData>.Fail(rulesResult.Error!);
 

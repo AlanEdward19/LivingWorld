@@ -1,9 +1,16 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Population;
+using LivingWorld.Simulation.Serialization;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Economy;
 
-/// <summary>Dado de economia resolvido de um cenário (Fase 5, T13): <see cref="EconomyRules"/>,
+/// <summary>Dado de economia resolvido de um cenário: <see cref="EconomyRules"/>,
 /// <see cref="EconomyCatalog"/> e os <see cref="Workplace"/> iniciais (sem id atribuído ainda —
 /// quem consome chama <see cref="WorldState.NextWorkplaceIdAndAdvance"/> ao adicionar cada um,
 /// mesmo padrão de <see cref="PopulationScenarioLoader"/> pra NPC).</summary>
@@ -18,8 +25,8 @@ public sealed record InitialWorkplace(
     IReadOnlyDictionary<ResourceType, long> Stock, Money Treasury, IReadOnlyDictionary<ResourceType, long> Prices);
 
 /// <summary>Carrega <see cref="EconomyRules"/>/<see cref="EconomyCatalog"/>/<see
-/// cref="Workplace"/> iniciais de um cenário (Fase 5, T13): nenhum parâmetro econômico
-/// hardcoded em C# (R3). Mesmo padrão manual-parse + <see cref="Result{T}"/> de <see
+/// cref="Workplace"/> iniciais de um cenário: nenhum parâmetro econômico
+/// hardcoded em C#. Mesmo padrão manual-parse + <see cref="Result{T}"/> de <see
 /// cref="BehaviorScenarioLoader"/> — campo obrigatório ausente nomeia o campo no erro.</summary>
 public static class EconomyScenarioLoader
 {
@@ -74,9 +81,13 @@ public static class EconomyScenarioLoader
         if (!TryGetIntDoubleMap(root, "DemandBaselinePerNpc", out var demand))
             return Result<EconomyRules>.Fail("DemandBaselinePerNpc: campo obrigatório ausente ou inválido");
 
+        double taxRate = 0.0;
+        if (root["WageTaxRate"] is { } taxNode && !(taxNode is JsonValue taxValue && taxValue.TryGetValue<double>(out taxRate)))
+            return Result<EconomyRules>.Fail("WageTaxRate: deve ser um número");
+
         return EconomyRules.Create(
             enabled, foodResourceId, waterResourceId, capacity, spoilage, wage, priceFloor, priceCeiling,
-            priceSensitivity, demand);
+            priceSensitivity, demand, taxRate);
     }
 
     private static Result<EconomyCatalog> ParseCatalog(JsonObject root)
@@ -127,6 +138,33 @@ public static class EconomyScenarioLoader
         return Result<EconomyCatalog>.Ok(new EconomyCatalog(recipes, marketIds, locationByProfession));
     }
 
+    /// <summary>Um item de <c>Workplaces[]</c>; é o que o cenário e a rota ao vivo (#46 fatia 4) validam.</summary>
+    public static Result<InitialWorkplace> LoadWorkplace(JsonNode? node)
+    {
+        if (node is not JsonObject wp)
+            return Result<InitialWorkplace>.Fail("Workplaces: item inválido");
+
+        if (!TryGetInt(wp, "LocationTypeId", out var locationTypeId))
+            return Result<InitialWorkplace>.Fail("Workplaces[].LocationTypeId: campo obrigatório ausente ou inválido");
+        if (!TryGetInt(wp, "X", out var x))
+            return Result<InitialWorkplace>.Fail("Workplaces[].X: campo obrigatório ausente ou inválido");
+        if (!TryGetInt(wp, "Y", out var y))
+            return Result<InitialWorkplace>.Fail("Workplaces[].Y: campo obrigatório ausente ou inválido");
+        if (!TryGetInt(wp, "MaxVacancies", out var maxVacancies))
+            return Result<InitialWorkplace>.Fail("Workplaces[].MaxVacancies: campo obrigatório ausente ou inválido");
+        if (!TryGetLong(wp, "Treasury", out var treasury))
+            return Result<InitialWorkplace>.Fail("Workplaces[].Treasury: campo obrigatório ausente ou inválido");
+        if (treasury < 0)
+            return Result<InitialWorkplace>.Fail("Workplaces[].Treasury: não pode ser negativo");
+        if (!TryGetResourceLongMap(wp, "Stock", out var stock))
+            return Result<InitialWorkplace>.Fail("Workplaces[].Stock: campo obrigatório ausente ou inválido");
+        if (!TryGetResourceLongMap(wp, "Prices", out var prices))
+            return Result<InitialWorkplace>.Fail("Workplaces[].Prices: campo obrigatório ausente ou inválido");
+
+        return Result<InitialWorkplace>.Ok(new InitialWorkplace(
+            new LocationType(locationTypeId), new CellCoord(x, y), maxVacancies, stock, new Money(treasury), prices));
+    }
+
     private static Result<IReadOnlyList<InitialWorkplace>> ParseWorkplaces(JsonObject root)
     {
         if (root["Workplaces"] is not JsonArray workplacesNode)
@@ -135,26 +173,9 @@ public static class EconomyScenarioLoader
         var workplaces = new List<InitialWorkplace>();
         foreach (var node in workplacesNode)
         {
-            if (node is not JsonObject wp)
-                return Result<IReadOnlyList<InitialWorkplace>>.Fail("Workplaces: item inválido");
-
-            if (!TryGetInt(wp, "LocationTypeId", out var locationTypeId))
-                return Result<IReadOnlyList<InitialWorkplace>>.Fail("Workplaces[].LocationTypeId: campo obrigatório ausente ou inválido");
-            if (!TryGetInt(wp, "X", out var x))
-                return Result<IReadOnlyList<InitialWorkplace>>.Fail("Workplaces[].X: campo obrigatório ausente ou inválido");
-            if (!TryGetInt(wp, "Y", out var y))
-                return Result<IReadOnlyList<InitialWorkplace>>.Fail("Workplaces[].Y: campo obrigatório ausente ou inválido");
-            if (!TryGetInt(wp, "MaxVacancies", out var maxVacancies))
-                return Result<IReadOnlyList<InitialWorkplace>>.Fail("Workplaces[].MaxVacancies: campo obrigatório ausente ou inválido");
-            if (!TryGetLong(wp, "Treasury", out var treasury))
-                return Result<IReadOnlyList<InitialWorkplace>>.Fail("Workplaces[].Treasury: campo obrigatório ausente ou inválido");
-            if (!TryGetResourceLongMap(wp, "Stock", out var stock))
-                return Result<IReadOnlyList<InitialWorkplace>>.Fail("Workplaces[].Stock: campo obrigatório ausente ou inválido");
-            if (!TryGetResourceLongMap(wp, "Prices", out var prices))
-                return Result<IReadOnlyList<InitialWorkplace>>.Fail("Workplaces[].Prices: campo obrigatório ausente ou inválido");
-
-            workplaces.Add(new InitialWorkplace(
-                new LocationType(locationTypeId), new CellCoord(x, y), maxVacancies, stock, new Money(treasury), prices));
+            var parsed = LoadWorkplace(node);
+            if (!parsed.IsSuccess) return Result<IReadOnlyList<InitialWorkplace>>.Fail(parsed.Error!);
+            workplaces.Add(parsed.Value!);
         }
 
         return Result<IReadOnlyList<InitialWorkplace>>.Ok(workplaces);

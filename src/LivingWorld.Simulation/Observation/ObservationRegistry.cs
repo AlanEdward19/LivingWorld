@@ -1,11 +1,13 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Observation;
 
 public enum ScopeKind { World, City, Building }
 
 /// <summary>Espelha <c>SpaceId</c> do cliente (World / City / Building) — mesmo vocabulário,
-/// sem tradução na API (Fase 28, LOD-04).</summary>
+/// sem tradução na API.</summary>
 public readonly record struct SpaceScope(ScopeKind Kind, CityId? CityId = null, BuildingId? BuildingId = null)
 {
     public static SpaceScope World() => new(ScopeKind.World);
@@ -17,7 +19,7 @@ public readonly record struct SpaceScope(ScopeKind Kind, CityId? CityId = null, 
 }
 
 /// <summary>União dos escopos de toda fonte de observação ativa — não-canônico, não entra no
-/// hash do mundo (Fase 28, T2, LOD-04).</summary>
+/// hash do mundo.</summary>
 public sealed class ObservationRegistry
 {
     private readonly Dictionary<string, SpaceScope> _scopesBySource = new(StringComparer.Ordinal);
@@ -28,6 +30,10 @@ public sealed class ObservationRegistry
         _scopesBySource[sourceId] = scope;
     }
 
+    /// <summary>Escopos ativos sem copiar: quem decide o nível de detalhe de um NPC consulta isto a cada decisão, e a cópia
+    /// (reflexão mais <c>ToList</c>) era alocação por NPC por tick mesmo sem nenhum escopo.</summary>
+    internal Dictionary<string, SpaceScope>.ValueCollection ActiveScopes => _scopesBySource.Values;
+
     public void ClearScope(string sourceId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceId);
@@ -35,7 +41,7 @@ public sealed class ObservationRegistry
     }
 
     /// <summary>Verdadeiro se qualquer fonte ativa enquadra o lugar do <paramref name="npc"/>
-    /// (união, LOD-04).</summary>
+    /// (união).</summary>
     public bool IsObserved(Npc npc, WorldState world)
     {
         ArgumentNullException.ThrowIfNull(npc);

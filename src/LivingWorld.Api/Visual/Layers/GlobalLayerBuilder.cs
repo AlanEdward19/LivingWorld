@@ -1,9 +1,10 @@
-using LivingWorld.Domain;
-using LivingWorld.Simulation;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Api.Visual.Layers;
 
-/// <summary>Fase 15, T4 (VTT-04..06): camadas derivadas globais sobre o grid de <see
+/// <summary>Camadas derivadas globais sobre o grid de <see
 /// cref="WorldMap"/>. Terrain/Biome/Resources vêm direto de <c>MapCell</c>; Rivers usa
 /// <c>MapCell.HasWater</c> como aproximação (cobre lago/oceano também, não só rio — é o único
 /// sinal de água que o domínio tem hoje). Mountains/Roads/Borders/Kingdoms/Climate voltam <see
@@ -31,6 +32,6 @@ public static class GlobalLayerBuilder
             world.Map.Cells.Where(c => c.HasWater).Select(c => c.Coord).ToList()),
         VisualLayerId.Mountains or VisualLayerId.Roads or VisualLayerId.Borders
             or VisualLayerId.Kingdoms or VisualLayerId.Climate => LayerBuildResult.NotYetModeled,
-        _ => throw new ArgumentOutOfRangeException(nameof(layerId), layerId, "camada não pertence ao escopo global (T4)"),
+        _ => LayerBuildResult.OutOfScope(layerId, "global"),
     };
 }

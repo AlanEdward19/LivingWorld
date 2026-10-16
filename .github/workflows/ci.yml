@@ -1,0 +1,46 @@
+name: ci
+
+# Gate de rotina em todo push/PR; completo toda noite (cenários, integração, LongRunning e Heavy).
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+jobs:
+  gate:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: bash scripts/verify.sh
+
+  client:
+    # Cliente Godot (ADR-0022): fora do gate .NET; roda os testes headless do GDScript.
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: 4.7.2-stable
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instala o Godot (headless)
+        run: |
+          curl -fsSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q godot.zip
+          mkdir -p "$HOME/bin" && mv "Godot_v${GODOT_VERSION}_linux.x86_64" "$HOME/bin/godot" && chmod +x "$HOME/bin/godot"
+      - run: GODOT_BIN="$HOME/bin/godot" bash scripts/client-test.sh
+
+  nightly:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: bash scripts/verify.sh --nightly

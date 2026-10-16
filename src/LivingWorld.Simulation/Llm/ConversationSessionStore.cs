@@ -1,22 +1,30 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Llm;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scheduling;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Llm;
 
 public enum SendMessageResult { Ok, SessionNotFound, SessionInactive }
 
 public enum EndConversationResult { Ok, SessionNotFound }
 
-/// <summary>Ciclo start/send/end de uma <see cref="ConversationSession"/> (Fase 11, LLM-03,
-/// story "Sessão de conversa segura" ACs 1-3). Expiração é agendada via <see
-/// cref="TickContext.ScheduleEvent"/> — nunca varredura por tick (design.md, reuso de <see
-/// cref="EventScheduler"/>). Implementa <see cref="ISimulationSystem"/> só para receber o
-/// evento de expiração agendado por si mesmo; não faz trabalho nenhum por tick.</summary>
+/// <summary>Ciclo start/send/end de uma <see cref="ConversationSession"/>. A expiração é preguiçosa e
+/// não toca o mundo: cada sessão guarda o tick em que vence (só neste store, fora do snapshot) e é encerrada
+/// no primeiro <see cref="SendPlayerMessage"/> ou <see cref="Tick"/> depois dele. Antes, agendar o evento
+/// consumia um id canônico do mundo — abrir uma conversa mudava o hash. Implementa <see
+/// cref="ISimulationSystem"/> só para o <see cref="Tick"/>, que varre apenas as sessões ativas.</summary>
+[LivingCapability("CONVERSATION", Consumers = ["interaction.conversation"])]
 public sealed class ConversationSessionStore : ISimulationSystem
 {
     public const string SystemName = "llm-conversation-expiry";
 
     private readonly Dictionary<long, ConversationSession> _sessions = new();
     private readonly Dictionary<long, List<(long TurnId, string PlayerText)>> _turnsBySession = new();
+    private readonly Dictionary<long, long> _expiresAtTick = new();
     private long _nextSessionId;
     private long _nextTurnId;
 
@@ -25,6 +33,16 @@ public sealed class ConversationSessionStore : ISimulationSystem
 
     public void Tick(WorldState world, TickContext ctx)
     {
+        if (_expiresAtTick.Count == 0) return;
+        foreach (var sessionId in _expiresAtTick.Where(e => e.Value <= ctx.CurrentTick).Select(e => e.Key).ToList())
+            Expire(sessionId);
+    }
+
+    private void Expire(long sessionId)
+    {
+        _expiresAtTick.Remove(sessionId);
+        if (_sessions.TryGetValue(sessionId, out var session) && session.IsActive)
+            _sessions[sessionId] = session.Ended();
     }
 
     public ConversationSession? Find(long sessionId) => _sessions.GetValueOrDefault(sessionId);
@@ -34,8 +52,8 @@ public sealed class ConversationSessionStore : ISimulationSystem
     public IReadOnlyList<(long TurnId, string PlayerText)> TurnsOf(long sessionId) =>
         _turnsBySession.TryGetValue(sessionId, out var turns) ? turns : [];
 
-    /// <summary>AC1: avalia disponibilidade social do NPC no tick atual (<see
-    /// cref="ConversationAvailabilityPolicy"/>, LLM-01/02) e, só se aceito, abre a sessão e
+    /// <summary>Avalia disponibilidade social do NPC no tick atual (<see
+    /// cref="ConversationAvailabilityPolicy"/>) e, só se aceito, abre a sessão e
     /// agenda a expiração <paramref name="expireAfterTicks"/> à frente.</summary>
     public (ConversationStartDecision Decision, ConversationSession? Session) StartConversation(
         Npc npc, NeedsRules needsRules, LlmRules llmRules, Relationship? relationshipToInitiator,
@@ -49,18 +67,23 @@ public sealed class ConversationSessionStore : ISimulationSystem
         var session = new ConversationSession(sessionId, npc.Id, ctx.CurrentTick, ctx.CurrentTick, IsActive: true);
         _sessions[sessionId] = session;
         _turnsBySession[sessionId] = [];
-        ctx.ScheduleEvent(ctx.CurrentTick + expireAfterTicks, SystemName, sessionId.ToString());
+        _expiresAtTick[sessionId] = ctx.CurrentTick + expireAfterTicks;
 
         return (ConversationStartDecision.Accepted, session);
     }
 
     /// <summary>AC2: registra o turno do jogador com <c>TurnId</c> monotônico. A ligação com o
     /// pipeline contexto→LLM→validação→resposta não é responsabilidade deste store (fora do
-    /// escopo desta task — ver <c>ILlmProvider</c>/T3 e as tasks de validação futuras).</summary>
+    /// escopo deste tipo — ver <c>ILlmProvider</c> e a validação de resposta).</summary>
     public SendMessageResult SendPlayerMessage(long sessionId, string text, TickContext ctx)
     {
         if (!_sessions.TryGetValue(sessionId, out var session))
             return SendMessageResult.SessionNotFound;
+        if (_expiresAtTick.TryGetValue(sessionId, out var expiresAt) && expiresAt <= ctx.CurrentTick)
+        {
+            Expire(sessionId);
+            return SendMessageResult.SessionInactive;
+        }
         if (!session.IsActive)
             return SendMessageResult.SessionInactive;
 
@@ -73,16 +96,8 @@ public sealed class ConversationSessionStore : ISimulationSystem
     public EndConversationResult EndConversation(long sessionId)
     {
         if (!_sessions.TryGetValue(sessionId, out var session)) return EndConversationResult.SessionNotFound;
+        _expiresAtTick.Remove(sessionId);
         _sessions[sessionId] = session.Ended();
         return EndConversationResult.Ok;
-    }
-
-    /// <summary>Dispara na expiração agendada (nunca varredura por tick) — mesmo efeito de <see
-    /// cref="EndConversation"/>, histórico preservado.</summary>
-    public void HandleEvent(WorldState world, TickContext ctx, ScheduledEvent evt)
-    {
-        if (!long.TryParse(evt.Payload, out var sessionId)) return;
-        if (_sessions.TryGetValue(sessionId, out var session) && session.IsActive)
-            _sessions[sessionId] = session.Ended();
     }
 }

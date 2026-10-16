@@ -1,0 +1,359 @@
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Ecology;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Performance;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Population.Skills;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Ecology;
+using LivingWorld.Simulation.Population;
+
+namespace LivingWorld.Simulation.Scenarios;
+
+/// <summary>Monta o cenário "default" (vila medieval: 24h/dia, 30 dias/mês, 12 meses/ano, 100
+/// NPCs iniciais) e roda N ticks, devolvendo os dois hashes. Usado pelos testes de determinismo
+/// (mesmo processo e entre processos, via LivingWorld.Workers) e pelos golden hashes.</summary>
+public static partial class ScenarioRunner
+{
+    public const int DefaultInitialPopulation = 100;
+
+    /// <summary>Teto de bytes/NPC/ano do cenário default — delega a
+    /// <see cref="DefaultPerfRules"/>.</summary>
+    public static long DefaultMaxBytesPerNpcPerYear => DefaultPerfRules.MaxBytesPerAliveNpcPerYear;
+
+    public static readonly PerfRules DefaultPerfRules = PerfRules.Default;
+
+    public static WorldCalendar DefaultCalendar { get; } = new(HoursPerDay: 24, DaysPerMonth: 30, MonthsPerYear: 12);
+
+    private static readonly GeographyCatalog DefaultCatalog = new(
+        TerrainIds: new HashSet<int> { 1, 2, 3 }, BiomeIds: new HashSet<int> { 1 }, ResourceIds: new HashSet<int>());
+
+    private static readonly CostWeights DefaultCostWeights = new(
+        // O grid procedural cresceu para materializar casas/workplaces; 1h por célula fazia uma
+        // travessia urbana ocupar dias. Cada célula default representa 30 minutos de caminhada.
+        Base: 0.05, AltitudeWeight: 0.05,
+        TerrainWeight: new Dictionary<int, double> { [1] = 1.0, [2] = 1.5, [3] = 3.0 });
+
+    public static readonly CultureId DefaultCulture = new(1);
+
+    public static readonly CellCoord DefaultVillageLocation = new(5, 5);
+
+    // Profissão 1 = lavrador, 2 = ferreiro (nome só neste comentário — o motor só vê o id).
+    // Sorteadas por peso uniforme na criação do NPC.
+    public static readonly PopulationCatalog DefaultPopulationCatalog = new(
+        CultureIds: new HashSet<int> { 1 }, ProfessionIds: new HashSet<int> { 1, 2 }, LocationTypeIds: new HashSet<int>());
+
+    // Mortalidade infantil alta e longevidade máxima explícita: quem sobrevive à
+    // infância tem risco baixo até a velhice, onde sobe de novo.
+    private static readonly LifeTable DefaultLifeTable = LifeTable.Create(
+        maxLongevityYears: 90,
+        brackets:
+        [
+            new LifeTableBracket(0, 1, 0.08),
+            new LifeTableBracket(2, 14, 0.01),
+            new LifeTableBracket(15, 39, 0.004),
+            new LifeTableBracket(40, 59, 0.01),
+            new LifeTableBracket(60, 79, 0.04),
+            new LifeTableBracket(80, 89, 0.15),
+        ]).Value ?? throw new InvalidOperationException("life table default inválida — bug no cenário, não no gerador");
+
+    public static readonly PopulationRules DefaultPopulationRules = PopulationRules.Create(
+        DefaultLifeTable, fertilityMinAge: 16, fertilityMaxAge: 45, annualConceptionChance: 0.25, gestationDays: 270,
+        conditionalInitialMortality: true)
+        .Value ?? throw new InvalidOperationException("population rules default inválida — bug no cenário, não no gerador");
+
+    // Conteúdo real do cenário medieval: decaimento por hora tal que sede
+    // (33h) e sono (67h) esgotam antes de fome (50h) sem comer/dormir — pressão de sobrevivência
+    // mensurável em dias, não em minutos.
+    public static readonly NeedsRules DefaultNeedsRules = NeedsRules.Create(
+        hungerDecayPerHour: 2.0, thirstDecayPerHour: 3.0, sleepDecayPerHour: 1.5, socialDecayPerHour: 1.0,
+        urgencyThreshold: 70, maxActionSelectionSteps: 10, hysteresisEnabled: true,
+        continuityBonus: 5.0, homelessSleepEfficiency: 0.5)
+        .Value ?? throw new InvalidOperationException("needs rules default inválida — bug no cenário, não no gerador");
+
+    // Criança até 14 (mesmo corte de fertilidade mínima não se aplica ainda), adulto até 64,
+    // idoso dali em diante — coerente com DefaultLifeTable (mortalidade sobe de novo aos 60).
+    public static readonly LifeStageRules DefaultLifeStageRules = LifeStageRules.Create(childMaxAge: 14, adultMaxAge: 64)
+        .Value ?? throw new InvalidOperationException("life stage rules default inválida — bug no cenário, não no gerador");
+
+    // Teto único compartilhado pelas 13 habilidades; taxas-base
+    // por fonte — Tutoring/Parental maiores que Observation (mestre dedicado ensina melhor que
+    // colega de trabalho, mesmo raciocínio de SkillTeachingSystem.GainFromTutoring); lavrador
+    // (profissão 1) pratica Agriculture, ferreiro (profissão 2) pratica Craft, mesmo par de
+    // DefaultEconomyCatalog.LocationTypeByProfession.
+    public static readonly SkillsRules DefaultSkillsRules = SkillsRules.Create(
+        cap: 100,
+        baseRateBySource: new Dictionary<SkillGainSource, double>
+        {
+            [SkillGainSource.Practice] = 0.3,
+            [SkillGainSource.DeliberateTraining] = 0.4,
+            [SkillGainSource.School] = 0.2,
+            [SkillGainSource.Parental] = 0.15,
+            [SkillGainSource.Observation] = 0.05,
+            [SkillGainSource.Tutoring] = 0.25,
+        },
+        skillByProfession: new Dictionary<int, SkillType> { [1] = new SkillType(0), [2] = new SkillType(7) },
+        teachingSkill: new SkillType(6))
+        .Value ?? throw new InvalidOperationException("skills rules default inválida — bug no cenário, não no gerador");
+
+    public static readonly FamilyRules DefaultFamilyRules = FamilyRules.Create(
+        relationshipDeltas: BuildDefaultRelationshipDeltas(),
+        decayPerDay: 0.25,
+        contactLossThresholdDays: 30,
+        neutralAxisValue: 50,
+        // Appearance fica de fora: o peso só entra com AppearanceRules (WithAppearanceAttraction), senão o hash mudaria
+        attractionWeights: Enum.GetValues<AttractionFactor>().Where(f => f != AttractionFactor.Appearance).ToDictionary(f => f, _ => 1.0),
+        courtshipThreshold: 0.55,
+        courtshipDurationDays: 90,
+        marriageInitialStock: new Dictionary<int, long> { [1] = 50, [2] = 50 },
+        conceptionHealthFloor: 30,
+        conceptionRelationshipFloor: 20,
+        conceptionResourceFloor: new Dictionary<int, long> { [1] = 5, [2] = 5 },
+        maternalDeathRisk: 0.01,
+        infantDeathRisk: 0.03,
+        vitalityMotherWeight: 0.5,
+        vitalityFatherWeight: 0.5,
+        vitalityMutationStdDev: 5,
+        vitalityMortalityWeight: 0.4,
+        upbringingWealthWeight: 0.6,
+        environmentalWealthChannelEnabled: true,
+        neutralDriftEnabled: false,
+        vitalityMortalitySelectionEnabled: true,
+        personalityHeritability: 0.7).Value
+        ?? throw new InvalidOperationException("family rules default inválida — bug no cenário, não no gerador");
+
+    private static Dictionary<(RelationshipEventType, RelationshipAxis), double> BuildDefaultRelationshipDeltas()
+    {
+        var deltas = new Dictionary<(RelationshipEventType, RelationshipAxis), double>();
+        foreach (var type in Enum.GetValues<RelationshipEventType>())
+            foreach (var axis in Enum.GetValues<RelationshipAxis>())
+                deltas[(type, axis)] = 0;
+        deltas[(RelationshipEventType.Cohabitation, RelationshipAxis.Trust)] = 1.5;
+        deltas[(RelationshipEventType.Cohabitation, RelationshipAxis.Affection)] = 1.0;
+        // Conversa validada com o jogador: ganho leve de
+        // Trust/Affection por turno, menor que Cohabitation (convivência diária pesa mais que um
+        // único turno de diálogo); Respect/Debt ficam no default 0 (conversa não demonstra
+        // competência nem cria obrigação).
+        deltas[(RelationshipEventType.Conversation, RelationshipAxis.Trust)] = 0.5;
+        deltas[(RelationshipEventType.Conversation, RelationshipAxis.Affection)] = 0.5;
+        // Ser socorrido cria gratidão e obrigação: a relação de quem recebeu com quem ajudou ganha confiança,
+        // afeto, respeito e dívida (Debt). Aplicado só no sentido receptor→ajudante (MutualAidSystem).
+        deltas[(RelationshipEventType.Help, RelationshipAxis.Trust)] = 2.0;
+        deltas[(RelationshipEventType.Help, RelationshipAxis.Affection)] = 2.0;
+        deltas[(RelationshipEventType.Help, RelationshipAxis.Respect)] = 1.0;
+        deltas[(RelationshipEventType.Help, RelationshipAxis.Debt)] = 3.0;
+        // Comprar de alguém é negócio repetido: confiança e respeito crescem devagar, a cada compra, com quem atende.
+        deltas[(RelationshipEventType.Trade, RelationshipAxis.Trust)] = 0.5;
+        deltas[(RelationshipEventType.Trade, RelationshipAxis.Respect)] = 0.2;
+        // Herdar de quem morreu: gratidão e saudade, uma vez por morte.
+        deltas[(RelationshipEventType.Inheritance, RelationshipAxis.Trust)] = 1.0;
+        deltas[(RelationshipEventType.Inheritance, RelationshipAxis.Affection)] = 1.5;
+        // Ser furtado e descobrir quem foi: a vítima perde confiança, afeto e respeito pelo ladrão (só no sentido vítima→ladrão).
+        deltas[(RelationshipEventType.Betrayal, RelationshipAxis.Trust)] = -8.0;
+        deltas[(RelationshipEventType.Betrayal, RelationshipAxis.Affection)] = -5.0;
+        deltas[(RelationshipEventType.Betrayal, RelationshipAxis.Respect)] = -3.0;
+        return deltas;
+    }
+
+    // Rotina real do cenário medieval: lavrador/ferreiro trabalham de dia em
+    // turnos distintos, adulto sem profissão específica (sentinela ProfessionType.None cai no
+    // slot "any") segue o mesmo turno via slot any; todo mundo dorme à noite por estágio de
+    // vida (janela sem wraparound — ActionCatalog.RoutineOf não entende hora que cruza meia-noite,
+    // por isso duas janelas por estágio); fora essas janelas, Idle (DefaultAction).
+    public static readonly ActionCatalog DefaultActionCatalog = ActionCatalog.Create(
+        maxDurationHours: new Dictionary<ActionType, int>
+        {
+            [ActionType.Eat] = 2,
+            [ActionType.Sleep] = 8,
+            [ActionType.Work] = 8,
+            [ActionType.Socialize] = 3,
+            [ActionType.Travel] = 4,
+            [ActionType.Idle] = 2,
+            [ActionType.Buy] = 2,
+            [ActionType.UsePower] = 1,
+            [ActionType.Steal] = 1,
+        },
+        routineSlots:
+        [
+            new RoutineSlot(ProfessionId: 1, LifeStage.Adult, HourStart: 6, HourEnd: 14, ActionType.Work),
+            new RoutineSlot(ProfessionId: 2, LifeStage.Adult, HourStart: 7, HourEnd: 15, ActionType.Work),
+            new RoutineSlot(ProfessionId: null, LifeStage.Adult, HourStart: 8, HourEnd: 16, ActionType.Work),
+            new RoutineSlot(ProfessionId: null, LifeStage.Adult, HourStart: 18, HourEnd: 20, ActionType.Socialize),
+            new RoutineSlot(ProfessionId: null, LifeStage.Adult, HourStart: 22, HourEnd: 23, ActionType.Sleep),
+            new RoutineSlot(ProfessionId: null, LifeStage.Adult, HourStart: 0, HourEnd: 5, ActionType.Sleep),
+            new RoutineSlot(ProfessionId: null, LifeStage.Child, HourStart: 20, HourEnd: 23, ActionType.Sleep),
+            new RoutineSlot(ProfessionId: null, LifeStage.Child, HourStart: 0, HourEnd: 6, ActionType.Sleep),
+            new RoutineSlot(ProfessionId: null, LifeStage.Elder, HourStart: 21, HourEnd: 23, ActionType.Sleep),
+            new RoutineSlot(ProfessionId: null, LifeStage.Elder, HourStart: 0, HourEnd: 6, ActionType.Sleep),
+        ],
+        defaultAction: ActionType.Idle)
+        .Value ?? throw new InvalidOperationException("action catalog default inválido — bug no cenário, não no gerador");
+
+    // Conteúdo real do cenário medieval: trigo (1) e água (2) são o alimento/água
+    // que Eat consome; ferro (4) é o produto da ferraria. Fazenda e ferraria são
+    // sua própria loja (um Workplace só, papel de produção+mercado decidido por
+    // MarketLocationTypeIds, não uma classe Market separada) — profissão 1 (lavrador) trabalha
+    // na fazenda, profissão 2 (ferreiro) na ferraria, mesmo par já usado pela rotina.
+    // Sem recurso de célula exigido: DefaultCatalog (Geografia) não declara recurso
+    // natural nenhum (ResourceIds vazio) — exigir um aqui travaria toda produção em silêncio.
+    public static readonly EconomyRules DefaultEconomyRules = EconomyRules.Create(
+        enabled: true, foodResourceId: 1, waterResourceId: 2,
+        capacityByResourceLocation: new Dictionary<(int ResourceId, int LocationTypeId), long>
+        {
+            [(1, 1)] = 1000, // trigo na fazenda
+            [(2, 1)] = 1000, // água na fazenda (poço da propriedade)
+            [(4, 2)] = 1000, // ferro na ferraria
+        },
+        spoilagePerDayByResource: new Dictionary<int, double> { [1] = 0.01 }, // só trigo estraga
+                                                                              // Salário mensal precisa cobrir consumo diário (Eat gasta ~1 trigo + 1 água por vez,
+                                                                              // aproximadamente 1x/dia por necessidade) a preço de mercado — ~60/mês de custo a preço 1-2,
+                                                                              // wage bem acima disso dá folga real, não só sobrevivência no fio da navalha.
+        wageByProfession: new Dictionary<int, long> { [1] = 90, [2] = 110 },
+        priceFloor: new Dictionary<int, long> { [1] = 1, [2] = 1, [4] = 1 },
+        priceCeiling: new Dictionary<int, long> { [1] = 20, [2] = 15, [4] = 80 },
+        priceSensitivity: 0.2,
+        demandBaselinePerNpc: new Dictionary<int, double> { [1] = 0.5, [2] = 0.3 },
+        wageTaxRate: 0.05) // a cidade retém 5% do salário
+        .Value ?? throw new InvalidOperationException("economy rules default inválida — bug no cenário, não no gerador");
+
+    public static readonly EconomyCatalog DefaultEconomyCatalog = new(
+        Recipes: new Dictionary<int, ProductionRecipe>
+        {
+            // Fazenda produz trigo e água (poço da propriedade) — sem isso, sede nunca teria
+            // fonte nenhuma no cenário default e a vila se extinguiria por sede em qualquer
+            // horizonte longo, violando o objetivo #1 (100 anos coerente).
+            // MaxWorkersPerCycle acompanha MaxVacancies (SeedDefaultWorkplaces) — teto de vaga
+            // menor que o teto de produção deixaria gente contratada sem contar pra produção
+            // real, um gargalo artificial que a vila inteira sentiria (visto na prática: 100
+            // NPCs, só 15 vagas, população inteira morrendo de fome com celeiro cheio e sem
+            // vender nada).
+            [1] = ProductionRecipe.Create(
+                inputs: new Dictionary<int, long>(), outputs: new Dictionary<int, long> { [1] = 10, [2] = 8 },
+                requiresCellResource: null, maxWorkersPerCycle: 80)
+                .Value ?? throw new InvalidOperationException("recipe fazenda inválida"),
+            [2] = ProductionRecipe.Create(
+                inputs: new Dictionary<int, long>(), outputs: new Dictionary<int, long> { [4] = 5 },
+                requiresCellResource: null, maxWorkersPerCycle: 40)
+                .Value ?? throw new InvalidOperationException("recipe ferraria inválida"),
+        },
+        MarketLocationTypeIds: [1, 2],
+        LocationTypeByProfession: new Dictionary<int, int> { [1] = 1, [2] = 2 });
+
+    public static readonly IReadOnlyList<ProcessRecipe> DefaultProcessRecipes =
+    [
+        ProcessRecipe.Create(ProcessKind.Plant, new Dictionary<int, long>(), 1, 1, null, 1).Value!,
+    ];
+
+    /// <summary>Espécies animais do cenário medieval default — lobo/coelho pra
+    /// futura <c>FaunaLifecycleSystem</c>.</summary>
+    public static readonly IReadOnlyList<AnimalSpeciesRules> DefaultAnimalSpeciesRules =
+    [
+        new("wolf", HungerDecayPerTick: 0.5, ReproduceEnergyThreshold: 60, ReproduceRadius: 3,
+            ReproduceProbability: 0.12, PredatorOf: "rabbit", PredationProbability: 0.25),
+        new("rabbit", HungerDecayPerTick: 0.35, ReproduceEnergyThreshold: 50, ReproduceRadius: 2,
+            ReproduceProbability: 0.18, PredatorOf: null, PredationProbability: 0),
+    ];
+
+    /// <summary>Espécies vegetais do cenário medieval default — trigo alinhado ao
+    /// recurso alimentício <see cref="DefaultEconomyRules.FoodResourceId"/>.</summary>
+    public static readonly IReadOnlyList<PlantSpeciesRules> DefaultPlantSpeciesRules =
+    [
+        new("crop1", MinToleratedTemp: 5, MaxToleratedTemp: 35, MaturityStage: 3,
+            CropResourceId: 1, YieldPerMaturePlant: 10, ReproduceRadius: 2, ReproduceProbability: 0.2),
+    ];
+
+    /// <summary>Delta sazonal por bioma (4 estações) — bioma 1 do default tem amplitude
+    /// temperada, com variação ao longo do ano.</summary>
+    public static readonly IReadOnlyList<BiomeSeasonTemperatureRules> DefaultBiomeSeasonTemperatureRules =
+    [
+        new(BiomeId: 1, SeasonDeltas: [-6f, 0f, 10f, 2f]),
+    ];
+
+    /// <summary>Receitas com tetos de trabalhadores altos para cenário de escala.</summary>
+    public static EconomyCatalog ScaleEconomyCatalog(int workerCapMultiplier)
+    {
+        int mult = Math.Max(1, workerCapMultiplier);
+        return new EconomyCatalog(
+            Recipes: new Dictionary<int, ProductionRecipe>
+            {
+                [1] = ProductionRecipe.Create(
+                    inputs: new Dictionary<int, long>(), outputs: new Dictionary<int, long> { [1] = 10, [2] = 8 },
+                    requiresCellResource: null, maxWorkersPerCycle: 80 * mult)
+                    .Value ?? throw new InvalidOperationException("recipe fazenda inválida"),
+                [2] = ProductionRecipe.Create(
+                    inputs: new Dictionary<int, long>(), outputs: new Dictionary<int, long> { [4] = 5 },
+                    requiresCellResource: null, maxWorkersPerCycle: 40 * mult)
+                    .Value ?? throw new InvalidOperationException("recipe ferraria inválida"),
+            },
+            MarketLocationTypeIds: DefaultEconomyCatalog.MarketLocationTypeIds,
+            LocationTypeByProfession: DefaultEconomyCatalog.LocationTypeByProfession);
+    }
+
+    /// <summary><paramref name="economyRules"/> permite ao harness de teste base/tratamento
+    /// variar só um parâmetro (ex.: capacidade de um recurso) sem duplicar o resto
+    /// da montagem do cenário — default é <see cref="DefaultEconomyRules"/>, ninguém fora de
+    /// teste precisa informar.</summary>
+    public static (WorldState World, WorldClock Clock) Create(
+        ulong seed, int maxIterationsPerTick = 1000, int initialPopulation = DefaultInitialPopulation,
+        EconomyRules? economyRules = null, FamilyRules? familyRules = null, PerfRules? perfRules = null,
+        PopulationRules? populationRules = null, int workplaceVacancyMultiplier = 1,
+        EconomyCatalog? economyCatalog = null, HistoryRules? historyRules = null,
+        IReadOnlyList<AnimalSpeciesRules>? animalSpeciesRules = null,
+        IReadOnlyList<PlantSpeciesRules>? plantSpeciesRules = null,
+        LivingWorld.Domain.Health.DiseaseRules? diseaseRules = null,
+        LivingWorld.Domain.Climate.ClimateRules? climateRules = null,
+        LivingWorld.Domain.Crime.TheftRules? theftRules = null,
+        LivingWorld.Domain.Emergence.EmergenceRules? emergenceRules = null,
+        LivingWorld.Domain.Ontogeny.OntogenyRules? ontogenyRules = null,
+        LivingWorld.Domain.Population.AppearanceRules? appearanceRules = null,
+        LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null)
+    {
+        var rules = economyRules ?? DefaultEconomyRules;
+        var family = familyRules ?? DefaultFamilyRules;
+        var perf = perfRules ?? DefaultPerfRules;
+        var population = populationRules ?? DefaultPopulationRules;
+        var catalog = economyCatalog ?? DefaultEconomyCatalog;
+        var history = historyRules ?? HistoryRules.Disabled;
+        var world = new WorldState(
+            DefaultCalendar, seed, InitialMap(seed, initialPopulation), DefaultPopulationCatalog, population,
+            DefaultNeedsRules, DefaultActionCatalog, DefaultLifeStageRules,
+            economyRules: rules, economyCatalog: catalog, familyRules: family, perfRules: perf,
+            historyRules: history, processRecipes: DefaultProcessRecipes,
+            animalSpeciesRules: animalSpeciesRules ?? DefaultAnimalSpeciesRules,
+            plantSpeciesRules: plantSpeciesRules ?? DefaultPlantSpeciesRules,
+            biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules, diseaseRules: diseaseRules, climateRules: climateRules, theftRules: theftRules, emergenceRules: emergenceRules,
+            ontogenyRules: ontogenyRules ?? LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human,
+            appearanceRules: appearanceRules, objectCatalog: objectCatalog);
+        var initialCity = new City(
+            world.NextCityId(), DefaultVillageLocation, world.CurrentDate.TotalHours,
+            foundedFromCityId: null, AggregatePopulationPool.Empty);
+        world.AddCity(initialCity);
+        // A infraestrutura fundadora ocupa primeiro o núcleo urbano. Com residências físicas,
+        // criar milhares de casas antes empurrava fazenda/mercado e forja para a periferia,
+        // tornando o deslocamento longo demais para sustentar a produção da vila.
+        SeedDefaultWorkplaces(world, initialCity, workplaceVacancyMultiplier);
+        if (initialPopulation > 0)
+        {
+            PopulationSeeder.SeedInitial(
+                world, initialPopulation, DefaultCulture, DefaultVillageLocation, initialCity.Id);
+            SeedInitialEconomyBuffer(world);
+            if (initialPopulation == DefaultInitialPopulation)
+                EcologyScenarioSeeder.SeedDefault(world);
+        }
+
+        return (world, new WorldClock(DefaultSystems(), maxIterationsPerTick));
+    }
+
+    public static (string CanonicalHash, string VolatileHash) RunAndHash(ulong seed, long ticks)
+    {
+        var (world, clock) = Create(seed);
+        clock.Run(world, ticks);
+        return (WorldSnapshot.CanonicalHash(world), WorldSnapshot.VolatileHash(world));
+    }
+}

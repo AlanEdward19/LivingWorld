@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <!-- Fase 15, T9: documento OpenAPI servido em /openapi/v1.json — fonte pros tipos TS do
-         cliente web (scripts/generate-web-types.sh), sem duplicar contrato à mão. -->
+         clientes externos, sem duplicar contrato à mão. -->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
   </ItemGroup>
 

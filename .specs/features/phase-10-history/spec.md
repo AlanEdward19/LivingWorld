@@ -1,3 +1,5 @@
+> **Estado: Entregue** (specs-closeout 2026-10-12) - 26/26 requisitos com teste em tests/ (esqueleto, distorcao, canone, livros, verdade vs crenca, indices, linhagem, replay); ROADMAP.md ainda marca a fase como pendente.
+
 # Fase 10 (História degradável) Specification
 
 ## Problem Statement
@@ -13,16 +15,16 @@ relato. O NPC decide sobre a **crença**, nunca sobre o fato.
 
 ## Goals
 
-- [ ] Custo de armazenamento de história fica independente do tempo decorrido — cânone
-      limitado por comunidade, não por ano de mundo (a propriedade central do ADR-0007).
-- [ ] Toda distorção de relato é determinística e reproduzível — mesma seed produz o mesmo
+- [x] Custo de armazenamento de história fica independente do tempo decorrido — cânone
+      limitado por comunidade, não por ano de mundo (a propriedade central do ADR-0007). Prova: `CanonBoundedOverTimeTests.Canon_size_stays_at_ceiling_across_horizons_with_no_growth_trend` (50/100/200 anos).
+- [x] Toda distorção de relato é determinística e reproduzível — mesma seed produz o mesmo
       relato byte-idêntico em dois processos; a LLM nunca participa da distorção (ela não
       existe ainda nesta fase — mas o contrato já a impede de participar quando chegar na
-      Fase 11).
-- [ ] Nenhum caminho de jogo alcança a verdade do motor — só a crença, e a separação é
-      provada por enumeração exaustiva dos handlers da API de jogo, não por convenção.
-- [ ] Dinastias e linhagens são sempre deriváveis do esqueleto do fato, sem tabela paralela
-      e sem `UPDATE` no passado — correção é sempre evento compensatório anexado.
+      Fase 11). Prova: `DistortionEngineTests.Apply_is_deterministic_for_each_operator`, `DistortionEngine_does_not_reference_llm_assembly`.
+- [x] Nenhum caminho de jogo alcança a verdade do motor — só a crença, e a separação é
+      provada por enumeração exaustiva dos handlers da API de jogo, não por convenção. Prova: `HistoryQuerySeparationTests`/`GuardTests`/`MutationTests`.
+- [x] Dinastias e linhagens são sempre deriváveis do esqueleto do fato, sem tabela paralela
+      e sem `UPDATE` no passado — correção é sempre evento compensatório anexado. Prova: `LineageQueryTests.ReconstructFrom_*`, `CompensatingCorrectionTests`.
 
 ## Out of Scope
 
@@ -317,32 +319,32 @@ Each requirement gets a unique ID for tracking across design, tasks, and validat
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| HIST-01 | P1: Fato imutável e sua conversão em relato | Design | Pending |
-| HIST-02 | P1: Fato imutável e sua conversão em relato | Design | Pending |
-| HIST-03 | P1: Fato imutável e sua conversão em relato | Design | Pending |
-| HIST-04 | P1: Fato imutável e sua conversão em relato | Design | Pending |
-| HIST-05 | P1: Distorção determinística por salto de transmissão | Design | Pending |
-| HIST-06 | P1: Distorção determinística por salto de transmissão | Design | Pending |
-| HIST-07 | P1: Distorção determinística por salto de transmissão | Design | Pending |
-| HIST-08 | P1: Meios de transmissão e cânone limitado por comunidade | Design | Pending |
-| HIST-09 | P1: Meios de transmissão e cânone limitado por comunidade | Design | Pending |
-| HIST-10 | P1: Meios de transmissão e cânone limitado por comunidade | Design | Pending |
-| HIST-11 | P1: Meios de transmissão e cânone limitado por comunidade | Design | Pending |
-| HIST-12 | P1: Livros como objetos do mundo | Design | Pending |
-| HIST-13 | P1: Livros como objetos do mundo | Design | Pending |
-| HIST-14 | P1: Livros como objetos do mundo | Design | Pending |
-| HIST-15 | P1: Duas consultas separadas — Verdade e Crença | Design | Pending |
-| HIST-16 | P1: Duas consultas separadas — Verdade e Crença | Design | Pending |
-| HIST-17 | P1: Duas consultas separadas — Verdade e Crença | Design | Pending |
-| HIST-18 | P1: Duas consultas separadas — Verdade e Crença | Design | Pending |
-| HIST-19 | P1: Duas consultas separadas — Verdade e Crença | Design | Pending |
-| HIST-20 | P2: Índices de consulta por ano, entidade e tipo | Design | Pending |
-| HIST-21 | P2: Índices de consulta por ano, entidade e tipo | Design | Pending |
-| HIST-22 | P2: Dinastias e linhagens derivadas, correção por evento compensatório | Design | Pending |
-| HIST-23 | P2: Dinastias e linhagens derivadas, correção por evento compensatório | Design | Pending |
-| HIST-24 | P2: Dinastias e linhagens derivadas, correção por evento compensatório | Design | Pending |
-| HIST-25 | P2: Dinastias e linhagens derivadas, correção por evento compensatório | Design | Pending |
-| HIST-26 | P3: Reidratação e replay produzem o mesmo `Hash(world)` | Design | Pending |
+| HIST-01 | P1: Fato imutável e sua conversão em relato | Design | Verified - LivingWorld.Tests.Unit/History/FactTests, SignificanceCalculatorTests (TryRecord_creates_intact_fact...) |
+| HIST-02 | P1: Fato imutável e sua conversão em relato | Design | Verified - LivingWorld.Tests.Integration/History/FactAppendOnlyTests (Direct_update/delete_on_fact_log_is_rejected) |
+| HIST-03 | P1: Fato imutável e sua conversão em relato | Design | Verified - LivingWorld.Tests.Unit/History/LivingMemoryWindowTests |
+| HIST-04 | P1: Fato imutável e sua conversão em relato | Design | Verified - LivingWorld.Tests.Unit/History/Distortion/FactToReportConversionSchedulerTests |
+| HIST-05 | P1: Distorção determinística por salto de transmissão | Design | Verified - LivingWorld.Tests.Unit/History/Distortion/DistortionEngineTests (Apply_is_deterministic_for_each_operator) |
+| HIST-06 | P1: Distorção determinística por salto de transmissão | Design | Verified - LivingWorld.Tests.Unit/History/Distortion/DistortionEngineTests (digest identico em dois processos) |
+| HIST-07 | P1: Distorção determinística por salto de transmissão | Design | Verified - LivingWorld.Tests.Unit/History/Distortion/DistortionEngineTests (Five_hop_chain..., DistortionEngine_does_not_reference_llm_assembly) |
+| HIST-08 | P1: Meios de transmissão e cânone limitado por comunidade | Design | Verified - LivingWorld.Tests.Unit/History/TransmissionMediumTests |
+| HIST-09 | P1: Meios de transmissão e cânone limitado por comunidade | Design | Verified - LivingWorld.Tests.Unit/History/Books/CanonSlotManagerTests (Admit_evicts_lowest_weight...) |
+| HIST-10 | P1: Meios de transmissão e cânone limitado por comunidade | Design | Verified - LivingWorld.Tests.LongRunning/History/CanonBoundedOverTimeTests (Canon_size_stays_at_ceiling_across_horizons...) |
+| HIST-11 | P1: Meios de transmissão e cânone limitado por comunidade | Design | Verified - CanonBoundedOverTimeTests.Bytes_per_retained_report_matches_baseline_for_twenty_seeds + tests/baselines/canon-bytes-per-report.json |
+| HIST-12 | P1: Livros como objetos do mundo | Design | Verified - LivingWorld.Tests.Unit/History/BookTests (Copy_creates_new_book_with_scribe_error...) |
+| HIST-13 | P1: Livros como objetos do mundo | Design | Verified - LivingWorld.Tests.Unit/History/BookTests (MarkLost_keeps_row_readable...) |
+| HIST-14 | P1: Livros como objetos do mundo | Design | Verified - LivingWorld.Tests.Unit/History/Books/BookRediscoverySystemTests |
+| HIST-15 | P1: Duas consultas separadas — Verdade e Crença | Design | Verified - LivingWorld.Tests.Unit/History/HistoryQuerySeparationTests/GuardTests/MutationTests, Llm/TruthVsBeliefBoundarySecurityTests |
+| HIST-16 | P1: Duas consultas separadas — Verdade e Crença | Design | Verified - LivingWorld.Tests.Unit/History/HistoryQuerySeparationTests/GuardTests/MutationTests, Llm/TruthVsBeliefBoundarySecurityTests |
+| HIST-17 | P1: Duas consultas separadas — Verdade e Crença | Design | Verified - LivingWorld.Tests.Unit/History/HistoryQuerySeparationTests/GuardTests/MutationTests, Llm/TruthVsBeliefBoundarySecurityTests |
+| HIST-18 | P1: Duas consultas separadas — Verdade e Crença | Design | Verified - LivingWorld.Tests.Unit/History/HistoryQuerySeparationTests/GuardTests/MutationTests, Llm/TruthVsBeliefBoundarySecurityTests |
+| HIST-19 | P1: Duas consultas separadas — Verdade e Crença | Design | Verified - LivingWorld.Tests.Unit/History/Queries/HistoryBeliefQueryTests (BeliefOf_truth_and_belief_diverge_when_hops_distort) |
+| HIST-20 | P2: Índices de consulta por ano, entidade e tipo | Design | Verified - LivingWorld.Tests.Unit/History/HistoryIndexTests + tests/baselines/history-index.json |
+| HIST-21 | P2: Índices de consulta por ano, entidade e tipo | Design | Verified - LivingWorld.Tests.Unit/History/HistoryIndexTests (Query_reads_match_baseline_for_twenty_seeds) |
+| HIST-22 | P2: Dinastias e linhagens derivadas, correção por evento compensatório | Design | Verified - LivingWorld.Tests.Unit/History/Queries/LineageQueryTests (ReconstructFrom_*) |
+| HIST-23 | P2: Dinastias e linhagens derivadas, correção por evento compensatório | Design | Verified - LivingWorld.Tests.Unit/History/Queries/LineageQueryTests (ReconstructFrom_*) |
+| HIST-24 | P2: Dinastias e linhagens derivadas, correção por evento compensatório | Design | Verified - LivingWorld.Tests.Unit/History/Distortion/CompensatingCorrectionTests |
+| HIST-25 | P2: Dinastias e linhagens derivadas, correção por evento compensatório | Design | Verified - LivingWorld.Tests.Unit/History/Distortion/CompensatingCorrectionTests |
+| HIST-26 | P3: Reidratação e replay produzem o mesmo `Hash(world)` | Design | Verified - LivingWorld.Tests.Integration/History/HistorySnapshotReplayTests |
 
 **ID format:** `HIST-[NUMBER]`
 
@@ -356,29 +358,29 @@ Each requirement gets a unique ID for tracking across design, tasks, and validat
 
 How we know the feature is successful:
 
-- [ ] O cânone não cresce com o tempo: 50, 100 e 200 anos de mundo têm o mesmo teto de
-      relatos vivos por comunidade, sem tendência de crescimento (HIST-10).
-- [ ] Orçamento por relato medido em 10 anos fica dentro do baseline de 20 seeds — nenhum
-      valor chutado (HIST-11).
-- [ ] Colapso é seletivo: 100% dos eventos ≥ limiar sobrevivem íntegros; ≥ X% (do cenário)
-      dos abaixo do limiar são colapsados (HIST-02/HIST-05).
-- [ ] Consulta de linha do tempo é indexada, provado por contagem de linhas lidas, não por
-      milissegundos (HIST-20/HIST-21).
-- [ ] `UPDATE`/`DELETE` diretos na tabela de fatos falham ambos, testado por tentativa real
-      (HIST-02).
-- [ ] Distorção é determinística: mesma seed → relato byte-idêntico em dois processos; fake
-      LLM provider falha o teste se chamado durante a distorção (HIST-06/HIST-07).
-- [ ] Distância relato↔fato não decrescente ao longo dos saltos; nenhuma queda sem evento de
-      redescoberta declarado (HIST-07).
-- [ ] Verdade e crença divergem em ao menos um caso do cenário de teste (HIST-19).
-- [ ] Nenhum caminho de jogo alcança a consulta de Verdade — enumeração por reflexão sem
-      exceção, e o par de mutação (desligar a checagem) faz o critério falhar (HIST-17/HIST-18).
-- [ ] Crenças incompatíveis coexistem entre duas comunidades sobre o mesmo fato, cada NPC
-      decidindo de forma coerente com a própria crença (HIST-19).
-- [ ] Toda morte no esqueleto tem nascimento do mesmo `NpcId` em tick anterior; zero eventos
+- [x] O cânone não cresce com o tempo: 50, 100 e 200 anos de mundo têm o mesmo teto de
+      relatos vivos por comunidade, sem tendência de crescimento (HIST-10). Prova: `CanonBoundedOverTimeTests.Canon_size_stays_at_ceiling_across_horizons_with_no_growth_trend`.
+- [x] Orçamento por relato medido em 10 anos fica dentro do baseline de 20 seeds — nenhum
+      valor chutado (HIST-11). Prova: `CanonBoundedOverTimeTests.Bytes_per_retained_report_matches_baseline_for_twenty_seeds`.
+- [x] Colapso é seletivo: 100% dos eventos ≥ limiar sobrevivem íntegros; ≥ X% (do cenário)
+      dos abaixo do limiar são colapsados (HIST-02/HIST-05). Prova: `SignificanceCalculatorTests.TryRecord_collapses_*`, `CanonSlotManagerTests`.
+- [x] Consulta de linha do tempo é indexada, provado por contagem de linhas lidas, não por
+      milissegundos (HIST-20/HIST-21). Prova: `HistoryIndexTests` (+ `tests/baselines/history-index.json`).
+- [x] `UPDATE`/`DELETE` diretos na tabela de fatos falham ambos, testado por tentativa real
+      (HIST-02). Prova: `FactAppendOnlyTests` (Direct_update/delete_on_fact_log_is_rejected).
+- [x] Distorção é determinística: mesma seed → relato byte-idêntico em dois processos; fake
+      LLM provider falha o teste se chamado durante a distorção (HIST-06/HIST-07). Prova: `DistortionEngineTests` (digest em dois processos).
+- [x] Distância relato↔fato não decrescente ao longo dos saltos; nenhuma queda sem evento de
+      redescoberta declarado (HIST-07). Prova: `DistortionEngineTests.Five_hop_chain*`.
+- [x] Verdade e crença divergem em ao menos um caso do cenário de teste (HIST-19). Prova: `HistoryBeliefQueryTests.BeliefOf_truth_and_belief_diverge_when_hops_distort`.
+- [x] Nenhum caminho de jogo alcança a consulta de Verdade — enumeração por reflexão sem
+      exceção, e o par de mutação (desligar a checagem) faz o critério falhar (HIST-17/HIST-18). Prova: `HistoryQuerySeparationMutationTests`.
+- [x] Crenças incompatíveis coexistem entre duas comunidades sobre o mesmo fato, cada NPC
+      decidindo de forma coerente com a própria crença (HIST-19). Prova: `HistoryBeliefQueryTests.BeliefOf_diverges_between_two_communities_on_same_fact`.
+- [x] Toda morte no esqueleto tem nascimento do mesmo `NpcId` em tick anterior; zero eventos
       após a morte; linhagem reconstruída chega a um fundador sem buraco e sem ciclo
-      (HIST-22/HIST-23).
-- [ ] Evento compensatório aparece na consulta com a linha original ainda legível e marcada
-      (HIST-24).
-- [ ] Reidratar um snapshot e reaplicar o log a partir dele reproduz o mesmo `Hash(world)`
-      (HIST-26).
+      (HIST-22/HIST-23). Prova: `LineageQueryTests.ReconstructFrom_*`.
+- [x] Evento compensatório aparece na consulta com a linha original ainda legível e marcada
+      (HIST-24). Prova: `CompensatingCorrectionTests`.
+- [x] Reidratar um snapshot e reaplicar o log a partir dele reproduz o mesmo `Hash(world)`
+      (HIST-26). Prova: `HistorySnapshotReplayTests`.

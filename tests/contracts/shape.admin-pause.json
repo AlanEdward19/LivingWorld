@@ -1,0 +1,7 @@
+{
+  "actor?": "string",
+  "isPaused": "boolean",
+  "maxTicks?": "number",
+  "pausedAtTick?": "number",
+  "reason?": "string"
+}

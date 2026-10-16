@@ -1,12 +1,12 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population;
 
 namespace LivingWorld.Api.Visual.NpcTokens;
 
-/// <summary>Fase 15, T6 (VTT-14..16): compõe o token 2D determinístico de um NPC a partir do
+/// <summary>Compõe o token 2D determinístico de um NPC a partir do
 /// estado canônico — pura, sem RNG por chamada (mesmo NPC no mesmo estado sempre gera o mesmo
-/// token, VTT-15). Pele/cabelo/cor de acento derivam de <c>Npc.Id</c> (identidade, nunca muda em
+/// token). Pele/cabelo/cor de acento derivam de <c>Npc.Id</c> (identidade, nunca muda em
 /// vida); roupa/acessório derivam de <c>Npc.Profession</c> (só isso muda quando o NPC troca de
-/// profissão, VTT-16).</summary>
+/// profissão).</summary>
 public static class NpcTokenComposer
 {
     public static NpcTokenDescriptor Compose(Npc npc)

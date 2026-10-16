@@ -1,6 +1,8 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
 
-/// <summary>Id monotônico de encontro de combate multi-round (Fase 16.4, REALISM-16).</summary>
+namespace LivingWorld.Domain.Extraordinary;
+
+/// <summary>Id monotônico de encontro de combate multi-round.</summary>
 public readonly record struct CombatEncounterId(long Value);
 
 /// <summary>Estado de um encontro ativo ou encerrado.</summary>
@@ -11,7 +13,7 @@ public enum CombatEncounterStatus
     Resolved,
 }
 
-/// <summary>Encontro persistente entre ticks — AD-010: criado por <c>combat.engage:</c>, não por
+/// <summary>Encontro persistente entre ticks — criado por <c>combat.engage:</c>, não por
 /// <c>combat.strike:</c>.</summary>
 public sealed record CombatEncounter(
     CombatEncounterId Id,

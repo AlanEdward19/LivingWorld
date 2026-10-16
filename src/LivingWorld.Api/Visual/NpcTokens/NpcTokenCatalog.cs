@@ -1,8 +1,8 @@
 namespace LivingWorld.Api.Visual.NpcTokens;
 
-/// <summary>Fase 15, T6 (VTT-14, VTT-16): catálogo versionado de assets por camada. <c>OutfitLayers</c>/
+/// <summary>Catálogo versionado de assets por camada. <c>OutfitLayers</c>/
 /// <c>AccessoryLayers</c> são indexados pelo id numérico de <c>ProfessionType</c> (catálogo aberto,
-/// definido por período — Fase 13), não por nome semântico de profissão: não há mapeamento
+/// definido por período), não por nome semântico de profissão: não há mapeamento
 /// profissão→arte real ainda (nenhum asset pack desenhado por profissão), então cada id de
 /// profissão só recebe uma camada consistente e determinística do catálogo genérico — mesmo
 /// padrão de fallback do design.md pra asset sem dado específico.</summary>

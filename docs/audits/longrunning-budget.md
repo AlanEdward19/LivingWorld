@@ -1,0 +1,58 @@
+# LongRunning — orçamento de tempo (2026-10-10)
+
+`bash scripts/test.sh --project longrunning` — 138 testes, 4 núcleos, Release.
+
+| Estado | Relógio | Observação |
+|---|---|---|
+| Antes de qualquer otimização | > 25 min (não concluía) | `Ten_k` sozinho: 23 min |
+| Otimizações sem mudar comportamento (AD-074/075/076) | **6,8 min** | hashes idênticos ao código original |
+| + P1 + P2 + P3 | 4,8 min | medido **com a população morrendo de fome** (mundo pequeno = barato) |
+| + P1–P3 + B1 + Midshift + realismo (AD-077/078), sem corte novo | 25 min | a população sobrevive, então o custo acompanha os vivos |
+| + `One_sim_year` sem 5.000 NPCs (aplicado) | 12 min (soma 26,7 min de teste) | 111 passam, 0 falham, 7 ignorados |
+| + otimizações de decisão (AD-081) | **4 min 50 s** (soma 12,2 min) | 110 passam, 7 ignorados; população saudável (o custo que antes era de 25 min) |
+
+Maiores restantes: `Population_100x` 121 s, `Ten_k` 91 s, `LifeTable100Years` 79 s, `BytesPerNpc` 63 s, `FamilyPaired` Vitality 58 s. P5–P7 deixam de ser necessárias para a meta de 5 min; ficam como folga opcional.
+
+## Corte aplicado depois de B1
+| # | Ajuste | Ganho | Impacto |
+|---|---|---|---|
+| P4 | `One_sim_year…`: remover 5.000 NPCs (ficou só 1.000) | −13 min de teste, 25 → 12 min de relógio | A escala grande segue coberta pelo sensor de 30 dias e por `Ten_k`; perde-se "5k sobrevive a 1 ano" |
+
+## Propostas que mudam o que o teste cobre
+Aplicadas: P1, P2, P3 (aprovadas) e P4.
+| # | Ajuste | Ganho estimado | Impacto |
+|---|---|---|---|
+| P5 | `Ten_k`: 30 → 14 dias | ~−3 min de teste | cobre menos dias de escala; custo/dia é plano, a medida por NPC-dia não muda |
+| P6 | `Population_100x`: 1 ano → 30 dias | ~−3,5 min | o teto de iterações por tick estoura nos primeiros dias (P1) |
+| P7 | Sensor 5k: mês → 14 dias | ~−1,5 min | **Não aplicado**: o baseline por NPC-ano depende do horizonte; mexer regrava o sensor sem ganho de cobertura |
+Com P5–P7 o relógio devia ficar em torno de 7–8 min; abaixo de 5 min exigiria também tirar 10k/100x do conjunto padrão e deixá-los em `--scenarios` noturno.
+
+### Rodada final (AD-083)
+Medida de partida: 5 min 7 s (808 s de CPU em 4 núcleos), 3 falhas por a população agora sobreviver. Aplicado: P5 (`Ten_k` 14 dias), P6 (`Population_100x` 30 dias), longevidade de 100 anos para ao bater 90% do máximo (a maior idade só cresce), saturação do snapshot em 1/4/12 anos, e o vazamento real (lote colhido ficava no snapshot) corrigido na origem. Resultado: 5 min 7 s → 3 min 44 s, 111 verdes. Depois: a busca em anel do posicionamento deixou de montar listas e a ocupação da cidade ficou incremental (irmãos, caixas e plano sob bounds novos): criar 10k NPCs 24 s → 5 s, hash idêntico; LongRunning 3 min 25 s.
+
+### O que sobra e o que não vale a pena
+- O custo restante é simular 10 anos do cenário padrão em ~10 testes (≈ 9 s cada, sem concorrência); 70–80% é `behavior-decision`, ~3.000 despertares por NPC-ano a ~2 µs. Reduzir despertares de sobrevivência custa realismo (`realism-cadence.md`).
+- Medido e descartado: `TieredPGO=false` e `ConcurrentGarbageCollection=false` nos testes (suíte 227 s → 271–278 s, pior); o `EventScheduler.Schedule` que o perfil por amostragem acusava custa 4% (33 ms de 806 ms por ano), era viés de amostragem.
+- Feito: `Category=Heavy` (10 mil NPCs 14 dias, `Population_100x`, sensor de 5 mil) fica fora do `--project longrunning` padrão e entra com `--heavy` (~50 s). LongRunning padrão ~3 min (183 s), 108 testes.
+- Rodar os cenários de verdade achou 5 falhas que o gate padrão não vê (`verify.sh` exclui `Category=Scenario` e não roda Integration): 2 baselines (população, colapso da história) regravadas, a ordem de sistemas sem `MutualAidSystem`, um caminho de migração antigo e o teste da volta para casa (agora o NPC já sai para o turno seguinte).
+
+### P1–P3 (aplicadas)
+| # | Ajuste | Ganho medido | Impacto |
+|---|---|---|---|
+| P1 | `Population_100x…tick_iteration_budget`: 10 → 1 ano | −1,5 min | O teto de iterações por tick estoura nos primeiros dias, não em décadas; perde-se só a garantia de "10 anos sem estourar" |
+| P2 | `FamilyPaired` (população média e Vitality): 20 → 10 seeds | −0,5 min | IC95 bootstrap fica mais largo (mais difícil provar paridade); a média-base de `tests/baselines` deve ser regravada |
+| P3 | `Ten_k` 90 → 30 dias; `Serialized_size` 60 → 30 anos | −0,5 min | Cobre menos horizonte de escala/armazenamento; saturação do snapshot já é visível em 30 anos |
+
+## Flutuação conhecida
+`ObservationalLodSensorTests.Approximate_cosmetic_cost…` compara tempos medidos (ns/NPC-tick): isolado dá 0,27 (teto 0,65);
+dentro da suíte, com carga, às vezes passa de 0,65. Não é regressão.
+
+## Falhas que já existiam (confirmadas no commit original)
+`Birth_count…` e `Every_birth…` contavam `WorldEventKind.Birth` de plantas/animais como nascimentos de NPC — **corrigido** (filtro por `NatalitySystem`; idade na concepção sem `AgeYears`, que congela na morte).
+
+## Propostas de comportamento do motor (B1 e B2 aplicadas; ver AD-077/078 e `realism-cadence.md`)
+| # | Achado | Proposta | Impacto no comportamento atual |
+|---|---|---|---|
+| B1 | `RollDeathAge` parte da idade 0 para todo NPC: um adulto sorteado com idade de morte menor que a atual morre 1 h depois (40–100% do "ano 1") | Ligar `PopulationRules.ConditionalInitialMortality` (já implementada, desligada) no cenário default e no fixture de escala | População inicial sobrevive ao ano 1 (default: 43 → ~80 vivos). Muda **todos** os hashes, goldens e baselines |
+| B2 | A comida de plantas é depositada uma só vez por planta (`DepositYield`); produção ≈ 10–40% do consumo em escala; inanição passa a ser a causa dominante depois do 1º ano | Rebalancear produção/replantio (ou reserva) por tamanho de população | Sem isso a vila default fica com 1 NPC viva a partir do ano ~8 e `Ten_k`/`Storage` não medem escala estável. Muda economia e demografia |
+| B3 | Cada NPC acorda ~a cada 1,4 h (240 mil acordares/ano por 40 NPCs); é o custo intrínseco a 10 mil NPCs (~100 s por ano simulado) | Acordar por evento/necessidade (não por hora) quando ocioso | Mudaria a ordem das decisões: hashes e comportamento fino mudam; ganho potencial de várias vezes em escala |

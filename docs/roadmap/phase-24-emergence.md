@@ -5,15 +5,14 @@ porque o motor as deriva por composição de eixos já declarados. A LLM só pro
 entidade emergente existe, funciona e entra na conta **antes de ter nome** (ADR-0013).
 Nomear é etiquetar o que o motor já instanciou — nunca criar fato.
 
-> **Spec, não gate.** Os critérios abaixo são a intenção; os critérios finais são escritos
-> sob `rules/eval-criteria.md` quando a fase for ativada. Não comece esta fase antes da
-> Fase 13 fechar.
+> **Status: parcial.** Entregue: tecnologia de mobilidade por composição (plano `.specs/features/emergence-first-slice`, AD-110).
+> Resto: #61. As tasks não entregues continuam com critério de intenção; o critério final é escrito ao ativar a fatia (`rules/eval-criteria.md`).
 
 ## Tasks
 1. **Especiação como aritmética**: distância genética acumulada (Fase 7) + isolamento
    reprodutivo + pressão ambiental (Fase 2) cruzam um limiar declarado no cenário e o motor
    instancia uma subespécie. Nenhuma raça em `enum`, mesma regra da Fase 3 para profissão.
-2. **Tecnologia como composição**: nó novo = nós existentes + recursos disponíveis +
+2. *(parcial: mobilidade entregue, AD-110)* **Tecnologia como composição**: nó novo = nós existentes + recursos disponíveis +
    especialistas vivos + estabilidade da comunidade. Os pré-requisitos são **declarados** e
    consultáveis por reflexão — é o registro que sustenta o critério de pré-requisito.
 3. **Ideologia e religião**: mutação no vetor de valores culturais (`society.md`) + evento

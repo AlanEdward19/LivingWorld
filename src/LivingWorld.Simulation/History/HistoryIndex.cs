@@ -1,10 +1,12 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.History.Distortion;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.History;
 
-/// <summary>Índice derivado sobre <see cref="Fact"/>s e <see cref="ReportState"/>s (Fase 10,
-/// HIST-20/21) — consulta por ano/entidade/tipo sem varrer a base. Reconstruído na rehidratação,
-/// nunca serializado.</summary>
+/// <summary>Índice derivado sobre <see cref="Fact"/>s e <see cref="ReportState"/>s — consulta
+/// por ano/entidade/tipo sem varrer a base. Reconstruído na rehidratação, nunca serializado.</summary>
 public sealed class HistoryIndex
 {
     private readonly WorldCalendar _calendar;

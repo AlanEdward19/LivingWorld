@@ -1,12 +1,16 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.Geography.Spatial;
 
-/// <summary>Converte <see cref="MovementCost.Between"/> em ticks de deslocamento (Fase 4, task
-/// 11/NEEDS-14): função pura, sem estado — reusada pelo <c>BehaviorDecisionSystem</c>.</summary>
+namespace LivingWorld.Domain.Behavior;
+
+/// <summary>Converte <see cref="MovementCost.Between"/> em ticks de deslocamento:
+/// função pura, sem estado — reusada pelo <c>BehaviorDecisionSystem</c>.</summary>
 public static class TravelResolution
 {
     /// <summary>Locais distintos sempre consomem pelo menos 1 tick, mesmo com custo bruto
     /// abaixo de 1 (arredonda para cima); o mesmo local consome 0 ticks (sem deslocamento).
-    /// <paramref name="movementCostMultiplier"/> (COH-23) escala o custo do mapa — default
+    /// <paramref name="movementCostMultiplier"/> escala o custo do mapa — default
     /// 1.0 preserva call sites legados.</summary>
     public static long TicksBetween(
         WorldMap map, CellCoord origin, CellCoord destination, double movementCostMultiplier = 1.0)

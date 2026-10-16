@@ -1,8 +1,8 @@
 using LivingWorld.Domain.Llm;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Llm;
 
-/// <summary>Motivo da rejeição total de uma <see cref="LlmResponse"/> (Fase 11, LLM-07/08) —
+/// <summary>Motivo da rejeição total de uma <see cref="LlmResponse"/> —
 /// nunca um bool solto, mesmo espírito de <c>ConversationStartDecision</c>.</summary>
 public enum LlmValidationFailure
 {
@@ -11,9 +11,10 @@ public enum LlmValidationFailure
     UnknownEmotion,
     Truncated,
     ActionNotAllowed,
+    IntentNotAllowed,
 }
 
-/// <summary>Turno já validado, pronto para <c>ConversationEffectsApplier</c> (T6) — mesmo molde
+/// <summary>Turno já validado, pronto para <c>ConversationEffectsApplier</c> — mesmo molde
 /// do <c>ValidatedLlmTurn</c> do design.md.</summary>
 public sealed record ValidatedLlmTurn(
     string Dialogue,
@@ -24,16 +25,15 @@ public sealed record ValidatedLlmTurn(
 
 public sealed record LlmValidationResult(bool IsValid, LlmValidationFailure Failure, ValidatedLlmTurn? Turn);
 
-/// <summary>Pipeline único de validação da saída da LLM (Fase 11, LLM-07/08, story "Validação
-/// estrita e aplicação controlada" ACs 1-2; edge case "DTO sem dialogue, com emotion desconhecida
-/// ou com JSON truncado -> rejeitado inteiro"): schema (dialogue/emotion/coleções presentes) e
+/// <summary>Pipeline único de validação da saída da LLM (DTO sem dialogue, com emotion desconhecida
+/// ou com JSON truncado -> rejeitado inteiro): schema (dialogue/emotion/coleções presentes) e
 /// <c>proposedActions</c> subconjunto de <c>AllowedActions(npc, ctx)</c> (<see
 /// cref="LlmContext.AllowedActions"/>). Qualquer falha em qualquer etapa rejeita a resposta
 /// inteira — nunca autocorrige um campo isolado (rules/llm-boundary.md).</summary>
 public static class LlmResponseValidator
 {
-    /// <summary>Liga/desliga o validador — só para o par de mutação exigido pela spec (P2,
-    /// "flag de teste desliga validador -> critério de segurança deve falhar", LLM-14 AC3/T8).
+    /// <summary>Liga/desliga o validador — só para o par de mutação exigido pela spec
+    /// ("flag de teste desliga validador -> critério de segurança deve falhar").
     /// Nunca desligado em uso normal: todo caminho de produção deixa o valor default (ligado).</summary>
     public static bool EnforceValidation { get; set; } = true;
 
@@ -54,6 +54,10 @@ public static class LlmResponseValidator
         var allowedActions = context.AllowedActions ?? [];
         if (response.ProposedActions.Any(action => !allowedActions.Contains(action)))
             return Reject(LlmValidationFailure.ActionNotAllowed);
+
+        var allowedIntents = context.AllowedIntents ?? [];
+        if (allowedIntents.Count > 0 && !allowedIntents.Contains(response.Intent))
+            return Reject(LlmValidationFailure.IntentNotAllowed);
 
         return new LlmValidationResult(true, LlmValidationFailure.None, ToTurn(response));
     }

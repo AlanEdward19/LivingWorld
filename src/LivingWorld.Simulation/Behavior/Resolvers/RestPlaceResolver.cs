@@ -1,0 +1,35 @@
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Geography.Map;
+using LivingWorld.Domain.Population;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Core;
+
+namespace LivingWorld.Simulation.Behavior.Resolvers;
+
+/// <summary>Resolve o lugar de descanso do NPC: cama do
+/// household se existir, senão a moradia, senão o chão no local atual. Sem caminho válido o
+/// chamador bloqueia — nunca teleporta nem aplica sono remoto.</summary>
+public static class RestPlaceResolver
+{
+    public static RestPlaceRef Resolve(WorldState world, Npc npc)
+    {
+        var catalog = world.RestPlaceCatalog;
+        if (npc.Household is { } householdId && world.FindHousehold(householdId) is { IsHomeless: false } household)
+        {
+            if (GuestLodging.Exists(world) && GuestLodging.FindRoom(world, npc, household.Location) is { } room)
+                return new RestPlaceRef(RestPlaceKind.Lodging, room.Building.Id.Value, room.Cell, catalog.EfficiencyOf(RestPlaceKind.Lodging));
+
+            var bed = world.BedOf(householdId);
+            if (bed is not null)
+                return new RestPlaceRef(RestPlaceKind.Bed, bed.Id.Value, bed.Location, catalog.BedEfficiency);
+
+            return new RestPlaceRef(RestPlaceKind.Dwelling, householdId.Value, household.Location, catalog.DwellingEfficiency);
+        }
+
+        return new RestPlaceRef(RestPlaceKind.Ground, 0, npc.CurrentLocation, catalog.GroundEfficiency);
+    }
+
+    public static bool IsReachable(WorldMap map, CellCoord origin, CellCoord destination) =>
+        origin == destination || MapPathfinder.IsReachable(map, origin, destination);
+}

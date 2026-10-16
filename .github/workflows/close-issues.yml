@@ -1,0 +1,46 @@
+name: close-issues
+
+# O GitHub só fecha "Closes #N" quando o merge cai na branch padrão (main). O trabalho integra em develop,
+# então este workflow fecha as issues citadas no corpo de todo PR mergeado em develop.
+# pull_request_target: roda a versão do workflow que está na base (develop), sem executar código do PR
+# (nada é baixado do PR; o corpo entra por variável de ambiente, nunca interpolado no shell).
+on:
+  pull_request_target:
+    types: [closed]
+    branches: [develop]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "Número de um PR já mergeado em develop, para fechar as issues dele à mão"
+        required: true
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  close:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4 # sem `ref`: pull_request_target faz checkout da base (develop), onde o script existe; nunca do PR
+      - name: Lê o PR (manual)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ inputs.pr }}
+        run: |
+          echo "PR_NUMBER=$PR" >> "$GITHUB_ENV"
+          {
+            echo "PR_BODY<<__EOF__"
+            gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json body --jq .body
+            echo "__EOF__"
+          } >> "$GITHUB_ENV"
+      - name: Fecha as issues citadas
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ env.PR_NUMBER || github.event.pull_request.number }}
+          PR_BODY: ${{ env.PR_BODY || github.event.pull_request.body }}
+        run: bash scripts/close-issues-from-pr.sh

@@ -1,0 +1,162 @@
+{
+  "activeLayers": [
+    "number"
+  ],
+  "cursor": {
+    "scopeKey": "string",
+    "sequence": "number",
+    "tick": "number"
+  },
+  "mode": "number",
+  "payload": {
+    "aggregatePool": {
+      "count": "number",
+      "healthSum": "number",
+      "wealthSum": "number"
+    },
+    "bounds": {
+      "height": "number",
+      "width": "number",
+      "x": "number",
+      "y": "number"
+    },
+    "boundsAreDerived": "boolean",
+    "buildings": [
+      {
+        "buildingTypeId": "number",
+        "floors": "number",
+        "groundFootprint": [
+          {
+            "cell": {
+              "x": "number",
+              "y": "number"
+            },
+            "material": "number"
+          }
+        ],
+        "id": {
+          "value": "number"
+        },
+        "location": {
+          "x": "number",
+          "y": "number"
+        },
+        "locationIsDerived": "boolean",
+        "lodging?": {
+          "nightlyRate": "number",
+          "occupied": "number",
+          "rentPerMonth": "number",
+          "units": "number"
+        },
+        "orientation": "number",
+        "value": "number"
+      }
+    ],
+    "id": {
+      "value": "string"
+    },
+    "indicators": {
+      "economy": "number",
+      "health": "number",
+      "housing": "number",
+      "inequality": "number",
+      "population": "number",
+      "wealth": "number"
+    },
+    "layers": {
+      "Cities": {
+        "isModeled": "boolean",
+        "payload": "null"
+      },
+      "Climate": {
+        "isModeled": "boolean",
+        "payload": "null"
+      },
+      "Conflicts": {
+        "isModeled": "boolean",
+        "payload": "null"
+      },
+      "Migrations": {
+        "isModeled": "boolean",
+        "payload": "null"
+      },
+      "Routes": {
+        "isModeled": "boolean",
+        "payload": "null"
+      },
+      "Villages": {
+        "isModeled": "boolean",
+        "payload": "null"
+      }
+    },
+    "livingState": {
+      "buildings": [
+        {
+          "buildingTypeId": "number",
+          "cityId": {
+            "value": "string"
+          },
+          "id": {
+            "value": "number"
+          },
+          "location": {
+            "x": "number",
+            "y": "number"
+          },
+          "orientation": "number"
+        }
+      ],
+      "cities": "[]",
+      "events": "[]",
+      "indicators": [
+        {
+          "key": "string",
+          "value": "number"
+        }
+      ],
+      "npcs": [
+        {
+          "city": {
+            "value": "string"
+          },
+          "currentAction": "null",
+          "extraordinary": "null",
+          "id": {
+            "value": "number"
+          },
+          "location": {
+            "x": "number",
+            "y": "number"
+          },
+          "relocationDestination": "null"
+        }
+      ],
+      "processes": "[]"
+    },
+    "location": {
+      "x": "number",
+      "y": "number"
+    },
+    "name": "string",
+    "pendingResidentIds": "[]",
+    "portals": "[]",
+    "residents": [
+      {
+        "currentAction": "null",
+        "extraordinary": "null",
+        "id": {
+          "value": "number"
+        },
+        "location": {
+          "x": "number",
+          "y": "number"
+        }
+      }
+    ]
+  },
+  "scope": {
+    "kind": "number",
+    "refId": "string",
+    "scopeKey": "string"
+  }
+}

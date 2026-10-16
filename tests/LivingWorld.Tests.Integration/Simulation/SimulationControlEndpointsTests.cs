@@ -1,0 +1,225 @@
+using System.Net;
+using System.Net.Http.Json;
+using LivingWorld.Api.Simulation;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Hosting;
+using LivingWorld.Tests.Shared;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace LivingWorld.Tests.Integration.Simulation;
+
+/// <summary>Fase 15.1, T1 (VTT2-27..30): <c>POST /simulation/pause|resume|speed|step</c> e
+/// <c>GET /simulation/status</c> como tradução fina sobre <see cref="SimulationHost"/>. Factory
+/// própria — <c>advance-year</c> / step mutam o relógio e o mundo; não pode compartilhar a
+/// coleção de endpoints.</summary>
+public class SimulationControlEndpointsTests : IClassFixture<LivingWorldApiFactory>
+{
+    private readonly LivingWorldApiFactory _factory;
+
+    public SimulationControlEndpointsTests(LivingWorldApiFactory factory) => _factory = factory;
+
+    [Fact]
+    public async Task Pause_marks_status_as_paused()
+    {
+        var client = _factory.CreateAdminClient();
+
+        var pauseResponse = await client.PostAsync("/simulation/pause", null);
+        Assert.Equal(HttpStatusCode.OK, pauseResponse.StatusCode);
+
+        var status = await client.GetFromJsonAsync<SimulationStatusResponse>("/simulation/status");
+        Assert.True(status!.IsPaused);
+        Assert.Equal(_factory.Services.GetRequiredService<WorldHost>().Current.CurrentDate.TotalHours, status.Tick);
+        Assert.Equal(_factory.Services.GetRequiredService<WorldHost>().Current.CurrentDate.Year, status.Year);
+    }
+
+    [Fact]
+    public async Task Resume_clears_paused_status()
+    {
+        var client = _factory.CreateAdminClient();
+        await client.PostAsync("/simulation/pause", null);
+
+        var resumeResponse = await client.PostAsync("/simulation/resume", null);
+        Assert.Equal(HttpStatusCode.OK, resumeResponse.StatusCode);
+
+        var status = await client.GetFromJsonAsync<SimulationStatusResponse>("/simulation/status");
+        Assert.False(status!.IsPaused);
+    }
+
+    [Fact]
+    public async Task Speed_with_a_positive_value_updates_ticks_per_second()
+    {
+        var client = _factory.CreateAdminClient();
+
+        var response = await client.PostAsJsonAsync("/simulation/speed", new SetSpeedRequest(4.0));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var status = await client.GetFromJsonAsync<SimulationStatusResponse>("/simulation/status");
+        Assert.Equal(4.0, status!.TicksPerSecond);
+    }
+
+    [Fact]
+    public async Task Speed_with_a_non_positive_value_returns_400_and_does_not_change_ticks_per_second()
+    {
+        var client = _factory.CreateAdminClient();
+        await client.PostAsJsonAsync("/simulation/speed", new SetSpeedRequest(2.0));
+
+        var response = await client.PostAsJsonAsync("/simulation/speed", new SetSpeedRequest(0.0));
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var status = await client.GetFromJsonAsync<SimulationStatusResponse>("/simulation/status");
+        Assert.Equal(2.0, status!.TicksPerSecond);
+    }
+
+    [Fact]
+    public async Task Step_while_paused_advances_the_world_clock_by_exactly_one_tick()
+    {
+        var client = _factory.CreateAdminClient();
+        await client.PostAsync("/simulation/pause", null);
+
+        using var scope = _factory.Services.CreateScope();
+        var world = scope.ServiceProvider.GetRequiredService<WorldState>();
+        var before = world.CurrentDate.TotalHours;
+
+        var response = await client.PostAsync("/simulation/step", null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(before + 1, world.CurrentDate.TotalHours);
+        var status = await client.GetFromJsonAsync<SimulationStatusResponse>("/simulation/status");
+        Assert.Equal(before + 1, status!.Tick);
+        Assert.Equal(world.CurrentDate.Year, status.Year);
+    }
+
+    [Fact]
+    public async Task Step_while_running_returns_409_and_does_not_advance_the_clock()
+    {
+        var client = _factory.CreateAdminClient();
+        await client.PostAsync("/simulation/resume", null);
+
+        using var scope = _factory.Services.CreateScope();
+        var world = scope.ServiceProvider.GetRequiredService<WorldState>();
+        var before = world.CurrentDate.TotalHours;
+
+        var response = await client.PostAsync("/simulation/step", null);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(before, world.CurrentDate.TotalHours);
+    }
+
+    [Fact]
+    public async Task Advance_year_while_paused_runs_exactly_one_calendar_year()
+    {
+        var client = _factory.CreateAdminClient();
+        await client.PostAsync("/simulation/pause", null);
+
+        using var scope = _factory.Services.CreateScope();
+        var world = scope.ServiceProvider.GetRequiredService<WorldState>();
+        var before = world.CurrentDate.TotalHours;
+
+        var response = await client.PostAsync("/simulation/advance-year", null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(before + world.Calendar.HoursPerYear, world.CurrentDate.TotalHours);
+    }
+
+    [Fact]
+    public async Task Advance_year_while_running_returns_409_without_advancing_the_clock()
+    {
+        var client = _factory.CreateAdminClient();
+        await client.PostAsync("/simulation/resume", null);
+
+        using var scope = _factory.Services.CreateScope();
+        var world = scope.ServiceProvider.GetRequiredService<WorldState>();
+        var before = world.CurrentDate.TotalHours;
+
+        var response = await client.PostAsync("/simulation/advance-year", null);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(before, world.CurrentDate.TotalHours);
+    }
+
+    [Fact]
+    public async Task Pause_resume_and_speed_calls_never_change_the_canonical_hash()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var world = scope.ServiceProvider.GetRequiredService<WorldState>();
+        var hashBefore = WorldSnapshot.CanonicalHash(world);
+
+        var client = _factory.CreateAdminClient();
+        for (int i = 0; i < 3; i++)
+        {
+            await client.PostAsync("/simulation/pause", null);
+            await client.PostAsync("/simulation/resume", null);
+            await client.PostAsJsonAsync("/simulation/speed", new SetSpeedRequest(2.0 + i));
+        }
+
+        Assert.Equal(hashBefore, WorldSnapshot.CanonicalHash(world));
+    }
+
+    [Fact]
+    public async Task Step_and_advance_year_publish_a_delta_to_subscribers()
+    {
+        var gateway = _factory.Services.GetRequiredService<LivingWorld.Api.Realtime.RealtimeGateway>();
+        var scope = new LivingWorld.Api.Visual.Scope.VisualScope(LivingWorld.Api.Visual.Scope.VisualScopeKind.World, "");
+        var (reader, unsubscribe) = gateway.SubscribeChannel(scope);
+        var cityId = _factory.Services.GetRequiredService<WorldHost>().Current.ActiveCities().First().Id;
+        var cityScope = new LivingWorld.Api.Visual.Scope.VisualScope(LivingWorld.Api.Visual.Scope.VisualScopeKind.City, cityId.ToString());
+        var (cityReader, cityUnsubscribe) = gateway.SubscribeChannel(cityScope);
+        var client = _factory.CreateAdminClient();
+        await client.PostAsync("/simulation/pause", null);
+        try
+        {
+            Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/simulation/step", null)).StatusCode);
+            Assert.True(reader.TryRead(out var afterStep), "step publica um delta para quem assina");
+            Assert.Equal(afterStep!.FromCursor.Sequence + 1, afterStep.ToCursor.Sequence);
+
+            Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/simulation/advance-year", null)).StatusCode);
+            Assert.True(reader.TryRead(out var afterYear), "advance-year publica um delta para quem assina");
+            Assert.Equal(afterStep.ToCursor.Sequence + 1, afterYear!.ToCursor.Sequence);
+            Assert.True(cityReader.TryRead(out var cityAfterStep), "o escopo Cidade também recebe o delta do step");
+            Assert.Equal(cityScope.ScopeKey, cityAfterStep!.ToCursor.ScopeKey);
+            Assert.Equal(cityAfterStep.FromCursor.Sequence + 1, cityAfterStep.ToCursor.Sequence);
+            Assert.True(cityReader.TryRead(out var cityAfterYear), "e o do advance-year");
+            Assert.Equal(cityAfterStep.ToCursor.Sequence + 1, cityAfterYear!.ToCursor.Sequence);
+        }
+        finally
+        {
+            unsubscribe();
+            cityUnsubscribe();
+            await client.PostAsync("/simulation/resume", null);
+        }
+    }
+
+    [Fact]
+    public async Task Clock_controls_without_the_admin_token_are_403_and_change_nothing()
+    {
+        var anonymous = _factory.CreateClient();
+        var host = _factory.Services.GetRequiredService<SimulationHost>();
+        host.Resume();
+        double speed = host.TicksPerSecond;
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await anonymous.PostAsync("/simulation/pause", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await anonymous.PostAsync("/simulation/resume", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await anonymous.PostAsJsonAsync("/simulation/speed", new SetSpeedRequest(9.0))).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await anonymous.PostAsync("/simulation/step", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await anonymous.PostAsync("/simulation/advance-year", null)).StatusCode);
+
+        Assert.False(host.IsPaused);
+        Assert.Equal(speed, host.TicksPerSecond);
+        Assert.Equal(HttpStatusCode.OK, (await anonymous.GetAsync("/simulation/status")).StatusCode); // leitura segue aberta
+    }
+
+    [Fact]
+    public async Task Pause_from_the_client_route_has_the_default_cap_and_is_audited()
+    {
+        var client = _factory.CreateAdminClient();
+        var host = _factory.Services.GetRequiredService<SimulationHost>();
+
+        await client.PostAsync("/simulation/pause", null);
+
+        long hoursPerDay = _factory.Services.GetRequiredService<WorldHost>().Current.Calendar.HoursPerDay;
+        Assert.Equal(hoursPerDay * SimulationHost.DefaultAdminPauseDays, host.AdminPause!.MaxTicks);
+        var audit = await client.GetFromJsonAsync<List<LivingWorld.Infrastructure.Records.AdminAuditRecord>>("/admin/audit");
+        Assert.Contains(audit!, a => a.Action == "world.pause");
+        await client.PostAsync("/simulation/resume", null);
+    }
+}

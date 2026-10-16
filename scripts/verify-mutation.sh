@@ -20,7 +20,7 @@ EOF
 }
 
 mutate_inverted_assert() {
-  cat >> tests/LivingWorld.Tests/MutantInvertedAssertTests.cs << 'EOF'
+  cat >> tests/LivingWorld.Tests.Unit/MutantInvertedAssertTests.cs << 'EOF'
 using Xunit;
 namespace LivingWorld.Tests;
 public class MutantInvertedAssertTests { [Fact] public void Mutant() => Assert.True(false); }

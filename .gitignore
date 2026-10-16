@@ -13,3 +13,7 @@ dist/
 worlds/
 TestResults/
 *.tsbuildinfo
+
+client/godot/.godot/
+client/godot/*.uid
+client/godot/**/*.uid

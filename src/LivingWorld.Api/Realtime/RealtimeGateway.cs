@@ -1,27 +1,27 @@
 using System.Threading.Channels;
-using LivingWorld.Api.Visual;
 using LivingWorld.Api.Visual.Layers;
-using LivingWorld.Domain;
+using LivingWorld.Api.Visual.Scope;
+using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Api.Realtime;
 
-/// <summary>Fase 15, T3 (VTT-02, VTT-10): pub/sub por escopo com replay por cursor — a única
+/// <summary>Pub/sub por escopo com replay por cursor — a única
 /// porta de leitura visual em tempo real. Nunca escreve no <c>WorldState</c>; <see cref="Publish"/>
-/// só é chamado pelos projectors (T4/T5) com o resultado de uma leitura já feita.</summary>
+/// só é chamado pelos projectors com o resultado de uma leitura já feita.</summary>
 public sealed class RealtimeGateway(Func<long> currentTick, int retentionPerScope = 2000)
 {
     private readonly object _gate = new();
     private readonly Dictionary<string, List<VisualDeltaEnvelope<object?>>> _log = new();
     private readonly Dictionary<string, List<Channel<VisualDeltaEnvelope<object?>>>> _subscribers = new();
 
-    // Fase 15.1, T4: sequência acumulada por escopo, independente do que sobra em `_log` depois
+    // Sequência acumulada por escopo, independente do que sobra em `_log` depois
     // da poda — `entries.Count` deixou de ser um proxy seguro pro total histórico de publishes
     // assim que passamos a truncar o início da lista.
     private readonly Dictionary<string, long> _sequenceByScope = new();
 
-    /// <summary>Fase 15, edge case (spec.md): personagem não pode assinar o mapa-múndi global —
-    /// aquele escopo é espectador/admin (VTT-01). Única regra de permissão decidível sem depender
-    /// de FOW por conhecimento (T7).</summary>
+    /// <summary>Edge case (spec.md): personagem não pode assinar o mapa-múndi global —
+    /// aquele escopo é espectador/admin. Única regra de permissão decidível sem depender
+    /// de FOW por conhecimento.</summary>
     public Result<Unit> Authorize(VisualScope scope, ViewerMode mode) =>
         mode == ViewerMode.Player && scope.Kind == VisualScopeKind.World
             ? Result<Unit>.Fail("player mode não pode assinar o escopo world")
@@ -75,7 +75,7 @@ public sealed class RealtimeGateway(Func<long> currentTick, int retentionPerScop
     }
 
     /// <summary>Anexa uma entrada ao log do escopo e distribui para assinantes conectados
-    /// (T4/T5 chamam isso após montar a projeção de um tick). Fase 15.1, T4: escopo sem nenhum
+    /// (chamado pelos projectors após montar a projeção de um tick). Escopo sem nenhum
     /// assinante conectado agora não acumula histórico (early return); com assinante, o log é
     /// truncado a <c>retentionPerScope</c> entradas mais recentes — replay de quem está em dia
     /// continua correto (o <see cref="VisualCursor.Sequence"/> gravado em cada entrada é
@@ -105,8 +105,8 @@ public sealed class RealtimeGateway(Func<long> currentTick, int retentionPerScop
         }
     }
 
-    /// <summary>Fase 15.1, T3: escopos com pelo menos um assinante conectado agora — usado pelo
-    /// loop de tick (T3) pra publicar delta só onde alguém está ouvindo, nunca em todo escopo
+    /// <summary>Escopos com pelo menos um assinante conectado agora — usado pelo
+    /// loop de tick pra publicar delta só onde alguém está ouvindo, nunca em todo escopo
     /// existente no mundo.</summary>
     public IReadOnlyCollection<string> SubscribedScopeKeys
     {

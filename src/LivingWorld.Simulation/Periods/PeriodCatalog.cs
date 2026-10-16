@@ -1,10 +1,12 @@
+using LivingWorld.Domain.Population;
+
 namespace LivingWorld.Simulation.Periods;
 
-/// <summary>Catálogo ativo de um período validado (Fase 13, T12): ids de profissão declarados no
-/// bloco População (<see cref="LivingWorld.Domain.PopulationCatalog.ProfessionIds"/> — vazio
+/// <summary>Catálogo ativo de um período validado: ids de profissão declarados no
+/// bloco População (<see cref="PopulationCatalog.ProfessionIds"/> — vazio
 /// significa sem restrição, mesma convenção de sempre) + ids de habilidade referenciados no
-/// bloco <c>Dynamics</c> (<see cref="SkillBias"/>). O motor só decide por id (AD-023/AD-025);
-/// <see cref="ProfessionNames"/>/<see cref="SkillNames"/> (T14/PERIOD-22..23) só devolvem o nome
+/// bloco <c>Dynamics</c> (<see cref="SkillBias"/>). O motor só decide por id;
+/// <see cref="ProfessionNames"/>/<see cref="SkillNames"/> só devolvem o nome
 /// quando ele foi declarado num <see cref="ProfessionBias"/>/<see cref="SkillBias"/> do período —
 /// id sem viés nomeado não aparece nesses dicionários.</summary>
 public sealed record PeriodCatalog(

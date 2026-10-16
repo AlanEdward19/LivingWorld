@@ -1,0 +1,54 @@
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Production;
+using LivingWorld.Simulation.Scheduling;
+
+namespace LivingWorld.Simulation.Economy.Market;
+
+/// <summary>Recalcula <see cref="Workplace.Prices"/> por oferta/demanda,
+/// <c>Daily</c>. Respeita <see cref="EconomyRules.Enabled"/>.</summary>
+[LivingCapability("MARKET", Consumers = ["inspector.market"])]
+[RunsAfter(typeof(ProductionSystem))]
+public sealed class MarketPricingSystem : ISimulationSystem
+{
+    public const string SystemName = "economy-market-pricing";
+
+    public string Name => SystemName;
+    public TickFrequency Frequency => TickFrequency.Daily;
+
+    public void Tick(WorldState world, TickContext ctx)
+    {
+        if (!world.EconomyRules.Enabled) return;
+
+        var rules = world.EconomyRules;
+        var catalog = world.EconomyCatalog;
+        var populationIndex = RegionPopulationIndex.BuildForTick(world);
+
+        foreach (var workplace in world.Workplaces.OrderBy(w => w.Id.Value))
+        {
+            if (!catalog.MarketLocationTypeIds.Contains(workplace.LocationType.Id)) continue;
+
+            var region = world.Map.RegionOf(workplace.Location);
+            long populationInRegion = populationIndex.AliveInRegion(region);
+
+            foreach (var (resource, currentPrice) in workplace.Prices.ToList())
+            {
+                if (!rules.DemandBaselinePerNpc.TryGetValue(resource.Id, out var demandBaseline)) continue;
+
+                long supplyOffered = workplace.Stock.GetValueOrDefault(resource);
+                double demand = Math.Max(demandBaseline * populationInRegion, 0.0001);
+                double ratio = supplyOffered / demand;
+                double factor = 1 + rules.PriceSensitivity * (1 - ratio);
+
+                long floor = rules.PriceFloor.GetValueOrDefault(resource.Id, currentPrice);
+                long ceiling = rules.PriceCeiling.GetValueOrDefault(resource.Id, currentPrice);
+                // Escassez sobe pelo menos 1: com preço inteiro, round(1 x 1,2) = 1 prendia o preço no piso para sempre.
+                long scaled = factor > 1 ? (long)Math.Ceiling(currentPrice * factor) : (long)Math.Round(currentPrice * factor);
+                long newPrice = Math.Clamp(scaled, floor, ceiling);
+
+                workplace.SetPrice(resource, newPrice);
+            }
+        }
+    }
+}

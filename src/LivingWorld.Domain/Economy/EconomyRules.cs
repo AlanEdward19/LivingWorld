@@ -1,7 +1,13 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
 
-/// <summary>Todo parâmetro numérico da economia (Fase 5), cenário-driven (R3) — nenhum literal
-/// em C#, mesmo padrão de <see cref="NeedsRules"/>.</summary>
+namespace LivingWorld.Domain.Economy;
+
+/// <summary>Todo parâmetro numérico da economia é cenário-driven — nenhum literal
+/// em C#, mesmo padrão de <see cref="NeedsRules"/>. <c>WageTaxRate</c>: fração do salário que a cidade do empregador retém
+/// (0 = sem imposto).</summary>
 public sealed record EconomyRules(
     bool Enabled,
     int FoodResourceId,
@@ -12,7 +18,8 @@ public sealed record EconomyRules(
     IReadOnlyDictionary<int, long> PriceFloor,
     IReadOnlyDictionary<int, long> PriceCeiling,
     double PriceSensitivity,
-    IReadOnlyDictionary<int, double> DemandBaselinePerNpc)
+    IReadOnlyDictionary<int, double> DemandBaselinePerNpc,
+    double WageTaxRate = 0.0)
 {
     public static Result<EconomyRules> Create(
         bool enabled, int foodResourceId, int waterResourceId,
@@ -22,7 +29,8 @@ public sealed record EconomyRules(
         IReadOnlyDictionary<int, long> priceFloor,
         IReadOnlyDictionary<int, long> priceCeiling,
         double priceSensitivity,
-        IReadOnlyDictionary<int, double> demandBaselinePerNpc)
+        IReadOnlyDictionary<int, double> demandBaselinePerNpc,
+        double wageTaxRate = 0.0)
     {
         foreach (var (key, capacity) in capacityByResourceLocation)
             if (capacity < 0)
@@ -40,9 +48,12 @@ public sealed record EconomyRules(
             if (wage < 0)
                 return Result<EconomyRules>.Fail($"WageByProfession[{profession}]: deve ser >= 0");
 
+        if (!(wageTaxRate >= 0 && wageTaxRate <= 0.5)) // também recusa NaN
+            return Result<EconomyRules>.Fail("WageTaxRate: deve estar entre 0 e 0,5");
+
         return Result<EconomyRules>.Ok(new EconomyRules(
             enabled, foodResourceId, waterResourceId, capacityByResourceLocation, spoilagePerDayByResource,
-            wageByProfession, priceFloor, priceCeiling, priceSensitivity, demandBaselinePerNpc));
+            wageByProfession, priceFloor, priceCeiling, priceSensitivity, demandBaselinePerNpc, wageTaxRate));
     }
 
     /// <summary>Capacidade declarada para o par recurso/local; sem declaração, sem limite (o
@@ -53,7 +64,7 @@ public sealed record EconomyRules(
             : long.MaxValue;
 
     /// <summary>Default de <see cref="WorldState"/> pra cenário que ainda não declara economia
-    /// (T10) — <see cref="Enabled"/> falso, nenhum recurso/preço/salário. Nunca usado por um
+    /// — <see cref="Enabled"/> falso, nenhum recurso/preço/salário. Nunca usado por um
     /// cenário real (todo cenário econômico chama <see cref="Create"/> com valores dele).</summary>
     public static readonly EconomyRules Disabled = new(
         Enabled: false, FoodResourceId: 0, WaterResourceId: 0,

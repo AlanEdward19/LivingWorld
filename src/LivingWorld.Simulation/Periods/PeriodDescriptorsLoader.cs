@@ -1,9 +1,9 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain;
+using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Simulation.Periods;
 
-/// <summary>Descritor legível de um id de catálogo (Fase 15.1, T48/backend-gaps.md G8) — mesmo
+/// <summary>Descritor legível de um id de catálogo — mesmo
 /// contrato de <see cref="ProfessionBias.Name"/>/<see cref="SkillBias.Name"/>: puramente
 /// descritivo, o motor nunca decide por ele. <see cref="RangeMin"/>/<see cref="RangeMax"/>/<see
 /// cref="Unit"/> só fazem sentido para descritores numéricos (ex.: recurso com faixa/unidade de
@@ -11,7 +11,7 @@ namespace LivingWorld.Simulation.Periods;
 public sealed record CatalogDescriptor(
     int Id, string Name, string? Explanation = null, double? RangeMin = null, double? RangeMax = null, string? Unit = null);
 
-/// <summary>Catálogo visual legível do período (Fase 15.1, T48): um descritor só existe para um
+/// <summary>Catálogo visual legível do período: um descritor só existe para um
 /// id se o período o declarou explicitamente — id sem descritor declarado simplesmente não
 /// aparece em nenhuma destas listas (mesma regra de <see cref="ProfessionBias"/>/<see
 /// cref="SkillBias"/>: o motor nunca inventa rótulo).</summary>
@@ -27,7 +27,7 @@ public sealed record PeriodDescriptors(
     public static readonly PeriodDescriptors Empty = new([], [], [], [], [], [], []);
 }
 
-/// <summary>Carrega o bloco opcional <c>Descriptors</c> de um cenário (Fase 15.1, T48) — mesmo
+/// <summary>Carrega o bloco opcional <c>Descriptors</c> de um cenário — mesmo
 /// padrão manual-parse + <see cref="Result{T}"/> de <see cref="PeriodDynamicsLoader"/>. Ausente
 /// equivale a <see cref="PeriodDescriptors.Empty"/>, nunca a uma falha.</summary>
 public static class PeriodDescriptorsLoader

@@ -1,3 +1,5 @@
+> **Estado: Parcial** (specs-closeout 2026-10-12) - Backend de autoria testado (AUT-01..03); AUT-04 (UI de cliente) sem evidencia. Ver closeout.md.
+
 # NPC authoring tools
 
 ## Objetivo

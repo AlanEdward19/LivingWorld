@@ -1,3 +1,5 @@
+> **Estado: Spec** (specs-closeout 2026-10-12) - Nada implementado; fase apenas especificada (criterios pendentes no ROADMAP).
+
 # Fase 23 — Intriga — Specification
 
 ## Problem Statement

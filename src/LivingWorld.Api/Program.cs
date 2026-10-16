@@ -1,19 +1,40 @@
 using LivingWorld.AI;
-using LivingWorld.Api;
+using LivingWorld.Api.Admin;
+using LivingWorld.Api.Authoring;
+using LivingWorld.Api.Conversation;
+using LivingWorld.Api.Narrative;
+using LivingWorld.Api.NpcDirectory;
+using LivingWorld.Api.Observation;
+using LivingWorld.Api.Periods;
+using LivingWorld.Api.Players;
 using LivingWorld.Api.Realtime;
+using LivingWorld.Api.Sandbox;
 using LivingWorld.Api.Simulation;
+using LivingWorld.Api.Trade;
+using LivingWorld.Api.Treasury;
+using LivingWorld.Api.Visual.Catalogs;
 using LivingWorld.Api.VisualInput;
-using LivingWorld.Domain;
+using LivingWorld.Api.Watchlist;
+using LivingWorld.Api.World;
+using LivingWorld.Domain.History;
 using LivingWorld.Domain.Llm;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Infrastructure;
-using LivingWorld.Simulation;
+using LivingWorld.Infrastructure.EfCore;
+using LivingWorld.Infrastructure.EventLog;
+using LivingWorld.Infrastructure.Repositories;
+using LivingWorld.Simulation.Authoring;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Hosting;
+using LivingWorld.Simulation.Llm;
 using LivingWorld.Simulation.Narrative;
+using LivingWorld.Simulation.Scenarios;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Fase 15, T9: documento OpenAPI (/openapi/v1.json) — fonte pros tipos TS do cliente web,
-// gerados por scripts/generate-web-types.sh a partir deste endpoint.
+// Documento OpenAPI (/openapi/v1.json) — contrato para clientes externos (Godot).
 builder.Services.AddOpenApi();
 
 // Testes continuam isolados em memória quando não configuram conexão. O app iniciado por
@@ -25,14 +46,18 @@ var worldDbOptions = new DbContextOptionsBuilder<WorldDbContext>().UseSqlite(wor
 using (var migrationContext = new WorldDbContext(worldDbOptions))
     migrationContext.Database.Migrate();
 
-// Fase 15, T2 (VTT-01..03): host canônico compartilhado — resolve o SPEC_DEVIATION de Fase 8,
-// T15 (mundo efêmero recriado a cada start) carregando o snapshot mais recente de um
-// IWorldRepository real; sem snapshot salvo ainda (primeiro start), cria o cenário default e
-// já persiste, para o host nunca ficar sem lastro no repositório. `historyRules:
-// HistoryRules.Default` liga a separação Crença/Verdade (Fase 12, T7) que GET
+// Host canônico compartilhado — resolve o mundo efêmero recriado a cada start carregando o
+// snapshot mais recente de um IWorldRepository real; sem snapshot salvo ainda (primeiro
+// start), cria o cenário default e já persiste, para o host nunca ficar sem lastro no
+// repositório. `historyRules: HistoryRules.Default` liga a separação Crença/Verdade que GET
 // /narratives/reports precisa para calcular confiança.
 var worldRepository = new SqliteWorldRepository(new WorldDbContext(worldDbOptions));
-var worldRunner = new PersistentWorldRunner(worldRepository, BranchId.Root, snapshotIntervalTicks: 24);
+// Arquivo frio (ColdTierArchive) só persiste em disco quando o banco também é um arquivo real —
+// ":memory:" (default de teste/dev) não ganha cold tier, mesmo comportamento de antes desta
+// mudança; arquivo real (run.cmd) deriva o caminho do cold tier do mesmo arquivo do banco.
+var worldDataSource = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(worldConnectionString).DataSource;
+var worldColdTier = worldDataSource is (":memory:" or "") ? null : new ColdTierPersistence(worldDataSource + ".coldtier");
+var worldRunner = new PersistentWorldRunner(worldRepository, BranchId.Root, snapshotIntervalTicks: 24, worldColdTier);
 var worldSink = new BufferingWorldEventSink();
 
 // Sessões e crônicas vivem em memória, mas a instância consultada pelos endpoints precisa ser
@@ -52,13 +77,18 @@ if (world is null)
     // Bugfix real (usuário, 2026-08-15): o comentário acima sempre disse "já persiste", mas
     // nada chamava Snapshot aqui — só `PersistentWorldRunner.Run` salva, e só a cada 24 ticks
     // (`snapshotIntervalTicks`). Um mundo recém-criado, reiniciado antes do tick 24 (ou nunca
-    // tickado, TICK_LOOP_ENABLED=false), perdia o "canônico compartilhado" que T2 prometia —
+    // tickado, TICK_LOOP_ENABLED=false), perdia o "canônico compartilhado" que este host promete —
     // reiniciar sorteava outro mundo do zero. Salva o snapshot inicial imediatamente.
     worldRunner.Snapshot(world, worldSink);
 }
 
-// Fase 16, T2: snapshot extraordinário ligado precisa reconstruir o mesmo registro seletivo;
-// o relógio não pode ser composto antes de sabermos qual mundo persistido foi carregado.
+var worldsDirectory = worldDataSource is (":memory:" or "") ? null :
+    builder.Configuration["WorldsDirectory"] ?? Path.Combine(Path.GetDirectoryName(Path.GetFullPath(worldDataSource))!, "worlds");
+var savedWorlds = new SavedWorldLibrary(worldsDirectory, worldSink);
+world = savedWorlds.Initialize(world, worldRepository);
+
+// Snapshot extraordinário ligado precisa reconstruir o mesmo registro seletivo; o relógio
+// não pode ser composto antes de sabermos qual mundo persistido foi carregado.
 var worldClock = new WorldClock(
     ScenarioRunner.DefaultSystems(
         conversationSessions: sessions, chronicles: chronicles, extraordinary: world.Extraordinary),
@@ -70,14 +100,14 @@ var worldClock = new WorldClock(
 // `WorldCreateEndpoints` via `host.Replace`.
 var worldHost = new WorldHost(world, worldClock);
 
-// SimulationHost fica pronto no DI para pausa/velocidade/avanço (task 6) e para o gateway
-// realtime (T3) — este host ainda não ticka automaticamente (decisão explícita: T2 troca a
-// origem do mundo por persistência real, tick em tempo real fica para uma task futura).
+// SimulationHost fica pronto no DI para pausa/velocidade/avanço e para o gateway realtime —
+// este host ainda não ticka automaticamente (decisão explícita: troca a origem do mundo por
+// persistência real primeiro, tick em tempo real fica para depois).
 var simulationHost = new SimulationHost(worldHost);
 
-// Fase 15, T3 (VTT-02, VTT-10): gateway realtime lê o mesmo relógio do host canônico acima —
-// nunca dirige tick nem escreve no mundo (Publish só é chamado pelos projectors futuros com o
-// resultado de uma leitura já feita).
+// Gateway realtime lê o mesmo relógio do host canônico acima — nunca dirige tick nem escreve
+// no mundo (Publish só é chamado pelos projectors futuros com o resultado de uma leitura já
+// feita).
 var realtimeGateway = new RealtimeGateway(() => worldHost.Current.CurrentDate.TotalHours);
 
 // Registrados no DI (em vez de campos `static` em `Program`) para que cada instância de
@@ -90,26 +120,30 @@ builder.Services.AddSingleton(worldHost);
 // Scoped) porque alguns testes resolvem direto de `factory.Services` (root provider), que não
 // consegue instanciar um serviço Scoped fora de um scope.
 builder.Services.AddTransient(sp => sp.GetRequiredService<WorldHost>().Current);
-builder.Services.AddSingleton<IWorldRepository>(worldRepository);
-builder.Services.AddSingleton(worldRunner);
-builder.Services.AddSingleton(worldClock);
+builder.Services.AddSingleton(savedWorlds);
+builder.Services.AddTransient<IWorldRepository>(_ => savedWorlds.Repository);
+builder.Services.AddTransient(_ => savedWorlds.Runner);
+builder.Services.AddTransient(_ => worldHost.Clock);
 builder.Services.AddSingleton(worldSink);
 builder.Services.AddSingleton(new WorldAuthoringService(worldSink));
+var playerService = new LivingWorld.Simulation.Players.PlayerService(worldSink);
+builder.Services.AddSingleton(playerService);
 builder.Services.AddSingleton(simulationHost);
 builder.Services.AddSingleton(realtimeGateway);
 builder.Services.AddSingleton(sessions);
 builder.Services.AddSingleton(chronicles);
 
-// Fase 15.1, T3 (VTT2-26): registrado sempre (resolvível/testável direto via TickLoopService),
-// mas só roda sozinho como IHostedService com TICK_LOOP_ENABLED=true — desabilitado por default
-// pra nenhuma WebApplicationFactory de teste existente ganhar um mundo mudando sozinho embaixo
-// dela (mesmo motivo documentado em WorldHost/Program.cs:71-74).
+// Registrado sempre (resolvível/testável direto via TickLoopService), mas só roda sozinho
+// como IHostedService com TICK_LOOP_ENABLED=true — desabilitado por default pra nenhuma
+// WebApplicationFactory de teste existente ganhar um mundo mudando sozinho embaixo dela (mesmo
+// motivo documentado em WorldHost/Program.cs:71-74).
 builder.Services.AddSingleton<TickLoopService>();
 if (builder.Configuration["TICK_LOOP_ENABLED"] == "true")
     builder.Services.AddHostedService(sp => sp.GetRequiredService<TickLoopService>());
 
 builder.Services.AddDbContext<WorldDbContext>(o => o.UseSqlite(worldDbConnection));
 builder.Services.AddScoped<IPeriodTemplateRepository, SqlitePeriodTemplateRepository>();
+builder.Services.AddScoped<AdminAuditStore>();
 
 var app = builder.Build();
 
@@ -122,26 +156,52 @@ app.MapOpenApi();
 
 app.MapGet("/", () => "Hello World!");
 
+// Calendário do cenário: o cliente não assume mais dia de 24 h nem mês de 30 dias (godot-server-deltas, contrato congelado).
+// Identidade do mundo em andamento: o cliente descobre o período (nomes de catálogo) e os rótulos dos eixos de tecnologia sem
+// depender de ter criado o mundo nesta sessão (ADR-0027). `periodId` vazio = mundo criado sem informar o período.
+app.MapGet("/world/info", () =>
+{
+    var world = worldHost.Current;
+    return Results.Ok(new
+    {
+        name = world.Name,
+        periodId = world.PeriodId,
+        technologyAxes = world.EmergenceRules.AxisNames,
+    });
+});
+
+app.MapGet("/world/calendar", () =>
+{
+    var calendar = worldHost.Current.CurrentDate.Calendar;
+    return Results.Ok(new
+    {
+        hoursPerDay = calendar.HoursPerDay,
+        daysPerMonth = calendar.DaysPerMonth,
+        monthsPerYear = calendar.MonthsPerYear,
+        hoursPerMonth = calendar.HoursPerMonth,
+        hoursPerYear = calendar.HoursPerYear,
+    });
+});
+
 app.MapGet("/npcs/{id:long}", (long id) =>
 {
     var result = NpcInspectionQuery.Inspect(worldHost.Current, new NpcId(id));
     return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound();
 });
 
-// Fase 15.1, T49 (backend-gaps.md G9): comando explícito e nomeado — o GET acima nunca
-// materializa; quem precisa do detalhe completo de um id ainda anônimo no pool agregado chama
-// esta rota de propósito.
+// Comando explícito e nomeado — o GET acima nunca materializa; quem precisa do detalhe
+// completo de um id ainda anônimo no pool agregado chama esta rota de propósito.
 app.MapPost("/npcs/{id:long}/materialize", (long id) =>
 {
     var result = NpcInspectionQuery.MaterializeAndInspect(worldHost.Current, new NpcId(id));
     return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound();
 });
 
-// LLM_PROVIDER escolhe o provider real de diálogo (ADR-0016); default "fake" para não mudar
-// nenhum comportamento existente (gate/testes seguem sempre em FakeLlmProvider, T9).
+// LLM_PROVIDER escolhe o provider real de diálogo; default "fake" para não mudar nenhum
+// comportamento existente (gate/testes seguem sempre em FakeLlmProvider).
 ILlmProvider llmProvider = builder.Configuration["LLM_PROVIDER"] switch
 {
-    "ollama" => new OllamaLlmProvider(new HttpClient()),
+    "ollama" => new OllamaLlmProvider(new HttpClient(LivingWorld.AI.EgressGuard.Handler())),
     "null" => new NullLlmProvider(),
     _ => new FakeLlmProvider(),
 };
@@ -149,24 +209,50 @@ ILlmProvider llmProvider = builder.Configuration["LLM_PROVIDER"] switch
 var effects = new ConversationEffectsApplier();
 var orchestrator = new ConversationOrchestrator(
     sessions, effects, llmProvider,
-    // União do vocabulário original (FakeLlmProvider) com o enum do schema Ollama (ADR-0016) —
-    // superset nunca deixa passar uma emoção inválida, só evita rejeitar toda resposta real do
-    // Ollama por causa de um vocabulário pensado só para o fake.
+    // União do vocabulário original (FakeLlmProvider) com o enum do schema Ollama — superset
+    // nunca deixa passar uma emoção inválida, só evita rejeitar toda resposta real do Ollama
+    // por causa de um vocabulário pensado só para o fake.
     knownEmotions: ["neutral", "concerned", "happy", "annoyed", "curious", "afraid", "friendly", "angry", "sad", "suspicious"],
     budgetPerInteraction: TimeSpan.FromSeconds(5));
 app.MapConversationEndpoints(worldHost, sessions, orchestrator);
 app.MapNarrativeEndpoints(worldHost, chronicles);
+app.MapHistoryEndpoints(worldHost);
 app.MapPeriodsEndpoints();
 app.MapWorldStartEndpoints();
-app.MapWorldCreateEndpoints(worldHost, worldRunner, worldSink);
+app.MapWorldCreateEndpoints(worldHost, savedWorlds, simulationHost);
+app.MapSavedWorldEndpoints(worldHost, savedWorlds, simulationHost, restored => new WorldClock(
+    ScenarioRunner.DefaultSystems(conversationSessions: sessions, chronicles: chronicles, extraordinary: restored.Extraordinary), sink: worldSink));
 app.MapWorldPreviewEndpoints();
+app.MapCultureTechnologyEndpoints(worldHost);
 app.MapSimulationControlEndpoints();
 app.MapRealtimeEndpoints();
+app.MapActionLabelEndpoints();
+app.MapNpcDirectoryEndpoints(worldHost);
+app.MapTradeEndpoints(worldHost);
+app.MapTreasuryEndpoints(worldHost);
+app.MapPlayerEndpoints(worldHost, playerService);
 app.MapVisualInputEndpoints();
 app.MapAuthoringEndpoints();
 app.MapWatchlistEndpoints(worldHost);
+app.MapDecisionSandboxEndpoints(worldHost);
 app.MapObservationScopeEndpoints(worldHost);
+app.MapAdminEndpoints(worldHost, simulationHost);
+simulationHost.OnPauseExpired = pause =>
+{
+    using var scope = app.Services.CreateScope();
+    scope.ServiceProvider.GetRequiredService<AdminAuditStore>().Append(
+        BranchId.Root, worldHost.Current.CurrentDate.TotalHours, "system", "world.pause-expired", "world",
+        $"actor={pause.Actor};reason={pause.Reason};maxTicks={pause.MaxTicks}");
+};
 
+app.Lifetime.ApplicationStopped.Register(() =>
+{
+    lock (savedWorlds.Gate) savedWorlds.Save(worldHost.Current);
+});
+app.Lifetime.ApplicationStopped.Register(worldDbConnection.Dispose);
 app.Run();
 
-public partial class Program;
+namespace LivingWorld.Api
+{
+    public partial class Program;
+}

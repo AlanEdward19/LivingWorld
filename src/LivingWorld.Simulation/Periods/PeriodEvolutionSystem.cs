@@ -1,14 +1,17 @@
-using LivingWorld.Domain;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Periods;
 
 /// <summary>Executa as <see cref="PeriodTransformationRule"/> declaradas de um período em
-/// runtime (Fase 13, T13 — Goal #2 da fase: "profissões podem surgir, mudar e desaparecer em
-/// runtime"). Muta <see cref="PopulationCatalog.ProfessionIds"/> in-place (mesmo <c>HashSet</c>
+/// runtime. Muta <see cref="PopulationCatalog.ProfessionIds"/> in-place (mesmo <c>HashSet</c>
 /// vive a vida toda do mundo — <see cref="WorldState.PopulationCatalog"/> nunca é reatribuído) e
 /// reatribui NPCs cuja profissão deixa de existir, sem precisar de estado novo em
 /// <see cref="WorldState"/>: cada regra é guardada pela própria pertença ao catálogo — uma vez
 /// aplicada, a pré-condição vira falsa e a regra nunca reaplica.</summary>
+[LivingCapability("PERIOD", Consumers = ["hud.period"])]
 public sealed class PeriodEvolutionSystem(IReadOnlyList<PeriodTransformationRule> rules) : ISimulationSystem
 {
     public const string SystemName = "period-evolution";

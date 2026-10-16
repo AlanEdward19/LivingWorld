@@ -1,15 +1,26 @@
-using LivingWorld.Domain;
 using LivingWorld.Domain.Llm;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Core;
 
-namespace LivingWorld.Simulation;
+namespace LivingWorld.Simulation.Llm;
 
-/// <summary>Recuperação ponderada de memória de um NPC (Fase 11, roadmap item 2, LLM-04/05) —
+/// <summary>Recuperação ponderada de memória de um NPC —
 /// pontua por importância + recência + relevância (pesos em <see cref="LlmRules"/> do cenário) e
 /// desempata por <see cref="NpcMemory.Id"/>, para <c>Recall(npc, query, n)</c> devolver sempre a
-/// mesma ordem no mesmo mundo semeado (spec.md, critério de verificação).</summary>
+/// mesma ordem no mesmo mundo semeado.</summary>
 public static class MemoryRecall
 {
     public static IReadOnlyList<NpcMemory> Recall(WorldState world, NpcId npcId, string query, int n, LlmRules rules)
+    {
+        if (world.CanonicalMemories.Count == 0 && world.VolatileMemories.Count == 0)
+            return [];
+
+        return RecallScored(world, npcId, query, n, rules);
+    }
+
+    /// <summary>Em método próprio: os lambdas capturam os parâmetros e o compilador aloca o fecho no início do método que os
+    /// declara, então o retorno rápido acima pagava o fecho a cada decisão (5% dos bytes alocados por tick a 10.000 NPCs).</summary>
+    private static IReadOnlyList<NpcMemory> RecallScored(WorldState world, NpcId npcId, string query, int n, LlmRules rules)
     {
         long now = world.CurrentDate.TotalHours;
 

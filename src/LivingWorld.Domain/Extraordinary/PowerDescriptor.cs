@@ -1,4 +1,8 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Extraordinary;
 
 /// <summary>
 /// Capacidade extraordinária autorada como dados composicionais. Os textos são ids de catálogo
@@ -66,17 +70,17 @@ public sealed record ExtraordinaryCarrierState(
     int UseCount = 0,
     int CurrentStageIndex = 0);
 
-/// <summary>Fração de skills/traços a aplicar no próximo nascimento natural (PWR-106).</summary>
+/// <summary>Fração de skills/traços a aplicar no próximo nascimento natural.</summary>
 public sealed record PendingReincarnationPayload(
     IReadOnlyDictionary<int, double> Skills,
     Personality Personality,
     int FractionPercent,
     long QueuedTick);
 
-/// <summary>Recurso fora do estoque/mapa normal, associado ao portador (PWR-117).</summary>
+/// <summary>Recurso fora do estoque/mapa normal, associado ao portador.</summary>
 public sealed record DimensionalPocketEntry(int ResourceId, long Quantity);
 
-/// <summary>Portal bidirecional entre duas células enquanto o poder existir (PWR-118).</summary>
+/// <summary>Portal bidirecional entre duas células enquanto o poder existir.</summary>
 public sealed record DimensionalPortal(CellCoord CellA, CellCoord CellB, string PowerId, long SourceInvocationId);
 
 /// <summary>Footprint físico temporário criado por um efeito extraordinário genérico.</summary>

@@ -1,4 +1,10 @@
+> **Estado: Adiado** (specs-closeout 2026-10-12) - Demo web obsoleta: cliente web aposentado pelo ADR-0022 (substitui ADR-0003); intenção UX migra ao Godot.
+
 # Fase 16.3-web — World Explorer UX Demo Specification
+
+> **Cliente web removido (ADR-0022, 2026-10-11).** O contrato com o cliente é a API do motor (`tests/contracts/`); a UI é
+> o Godot (`.specs/features/godot-client/`). Itens de React/TypeScript/Vite abaixo são histórico.
+
 
 Fonte: `Fase pós-16.2 — Living World Cohesion_ Causalidade, Agência, Atenção, Complexidade e Experiência.md` (doc do usuário, seções 101-148 — referenciadas abaixo como `doc#N`) + `.specs/features/phase-16-3-world-cohesion/spec.md` (Out of Scope: "web vira spec própria").
 
@@ -137,26 +143,26 @@ Explicitamente excluído. Documentado para prevenir scope creep.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| WEBX-01 | P1: World Explorer — fluxo vertical | Tasks | Verified |
-| WEBX-02 | P1: World Explorer — fluxo vertical | Tasks | Verified |
-| WEBX-03 | P1: World Explorer — fluxo vertical | Tasks | Verified |
-| WEBX-04 | P1: World Explorer — fluxo vertical | Tasks | Verified |
-| WEBX-05 | P1: World Explorer — fluxo vertical | Tasks | Verified |
-| WEBX-06 | P1: World Explorer — fluxo vertical | Tasks | Verified |
-| WEBX-07 | P1: World Explorer — fluxo vertical | Tasks | Verified |
-| WEBX-08 | P1: World Explorer — fluxo vertical | Tasks | Verified |
-| WEBX-11 | P1b: Zoom Semântico + Redesenho de Tiles/Prédios/Cidades | Tasks | Verified |
-| WEBX-12 | P1b: Zoom Semântico + Redesenho de Tiles/Prédios/Cidades | Tasks | Verified |
-| WEBX-13 | P1b: Zoom Semântico + Redesenho de Tiles/Prédios/Cidades | Tasks | Verified |
-| WEBX-14 | P1b: Zoom Semântico + Redesenho de Tiles/Prédios/Cidades | Tasks | Verified |
-| WEBX-15 | P1b: Zoom Semântico + Redesenho de Tiles/Prédios/Cidades | Tasks | Verified |
-| WEBX-21 | P2: Timeline, Life, Follow, Feed | Tasks | Verified |
-| WEBX-22 | P2: Timeline, Life, Follow, Feed | Tasks | Verified |
-| WEBX-23 | P2: Timeline, Life, Follow, Feed | Tasks | Verified |
-| WEBX-24 | P2: Timeline, Life, Follow, Feed | Tasks | Verified |
-| WEBX-31 | P3: Threads, Experience/Debug, Search | Tasks | Verified |
-| WEBX-32 | P3: Threads, Experience/Debug, Search | Tasks | Verified |
-| WEBX-33 | P3: Threads, Experience/Debug, Search | Tasks | Verified |
+| WEBX-01 | P1: World Explorer — fluxo vertical | Tasks | Deferred - demo web offline entregue antes; código `web/` removido (ADR-0022), não reverificável; cliente agora Godot |
+| WEBX-02 | P1: World Explorer — fluxo vertical | Tasks | Deferred - demo web offline entregue antes; código `web/` removido (ADR-0022), não reverificável; cliente agora Godot |
+| WEBX-03 | P1: World Explorer — fluxo vertical | Tasks | Deferred - demo web offline entregue antes; código `web/` removido (ADR-0022), não reverificável; cliente agora Godot |
+| WEBX-04 | P1: World Explorer — fluxo vertical | Tasks | Deferred - demo web offline entregue antes; código `web/` removido (ADR-0022), não reverificável; cliente agora Godot |
+| WEBX-05 | P1: World Explorer — fluxo vertical | Tasks | Deferred - demo web offline entregue antes; código `web/` removido (ADR-0022), não reverificável; cliente agora Godot |
+| WEBX-06 | P1: World Explorer — fluxo vertical | Tasks | Deferred - demo web offline entregue antes; código `web/` removido (ADR-0022), não reverificável; cliente agora Godot |
+| WEBX-07 | P1: World Explorer — fluxo vertical | Tasks | Deferred - demo web offline entregue antes; código `web/` removido (ADR-0022), não reverificável; cliente agora Godot |
+| WEBX-08 | P1: World Explorer — fluxo vertical | Tasks | Deferred - demo web offline entregue antes; código `web/` removido (ADR-0022), não reverificável; cliente agora Godot |
+| WEBX-11 | P1b: Zoom Semântico + Redesenho de Tiles/Prédios/Cidades | Tasks | Deferred - demo web offline entregue antes; código `web/` removido (ADR-0022), não reverificável; cliente agora Godot |
+| WEBX-12 | P1b: Zoom Semântico + Redesenho de Tiles/Prédios/Cidades | Tasks | Deferred - demo web offline entregue antes; código `web/` removido (ADR-0022), não reverificável; cliente agora Godot |
+| WEBX-13 | P1b: Zoom Semântico + Redesenho de Tiles/Prédios/Cidades | Tasks | Deferred - demo web offline entregue antes; código `web/` removido (ADR-0022), não reverificável; cliente agora Godot |
+| WEBX-14 | P1b: Zoom Semântico + Redesenho de Tiles/Prédios/Cidades | Tasks | Deferred - demo web offline entregue antes; código `web/` removido (ADR-0022), não reverificável; cliente agora Godot |
+| WEBX-15 | P1b: Zoom Semântico + Redesenho de Tiles/Prédios/Cidades | Tasks | Deferred - demo web offline entregue antes; código `web/` removido (ADR-0022), não reverificável; cliente agora Godot |
+| WEBX-21 | P2: Timeline, Life, Follow, Feed | Tasks | Deferred - demo web offline entregue antes; código `web/` removido (ADR-0022), não reverificável; cliente agora Godot |
+| WEBX-22 | P2: Timeline, Life, Follow, Feed | Tasks | Deferred - demo web offline entregue antes; código `web/` removido (ADR-0022), não reverificável; cliente agora Godot |
+| WEBX-23 | P2: Timeline, Life, Follow, Feed | Tasks | Deferred - demo web offline entregue antes; código `web/` removido (ADR-0022), não reverificável; cliente agora Godot |
+| WEBX-24 | P2: Timeline, Life, Follow, Feed | Tasks | Deferred - demo web offline entregue antes; código `web/` removido (ADR-0022), não reverificável; cliente agora Godot |
+| WEBX-31 | P3: Threads, Experience/Debug, Search | Tasks | Deferred - demo web offline entregue antes; código `web/` removido (ADR-0022), não reverificável; cliente agora Godot |
+| WEBX-32 | P3: Threads, Experience/Debug, Search | Tasks | Deferred - demo web offline entregue antes; código `web/` removido (ADR-0022), não reverificável; cliente agora Godot |
+| WEBX-33 | P3: Threads, Experience/Debug, Search | Tasks | Deferred - demo web offline entregue antes; código `web/` removido (ADR-0022), não reverificável; cliente agora Godot |
 
 **ID format:** `WEBX-[NUMBER]` (World Explorer), agrupado por dezena (01-08 = P1, 11-14 = P1b, 21-24 = P2, 31-33 = P3).
 

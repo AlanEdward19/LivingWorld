@@ -1,6 +1,11 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Shared;
 
-/// <summary>Gerador de população inicial (task 6): pirâmide etária coerente — crianças, jovens,
+namespace LivingWorld.Domain.Population;
+
+/// <summary>Gerador de população inicial: pirâmide etária coerente — crianças, jovens,
 /// adultos e idosos, sexo 50/50, casais pareados e crianças distribuídas em households. Nada de
 /// N adultos da mesma idade. Puro: toda aleatoriedade vem do <see cref="WorldRng"/> recebido.</summary>
 public static class PopulationGenerator
@@ -10,8 +15,8 @@ public static class PopulationGenerator
 
     private sealed record AgeBracket(int MinAge, int MaxAge, double Weight);
 
-    // Pesos da pirâmide etária: algoritmo interno, não dado de cenário (task 6 não pede
-    // configuração de pirâmide — só "coerente"). Elder é limitado por MaxLongevityYears abaixo.
+    // Pesos da pirâmide etária: algoritmo interno, não dado de cenário — a geração pede só
+    // "coerente", não uma pirâmide configurável. Elder é limitado por MaxLongevityYears abaixo.
     private static readonly AgeBracket[] Pyramid =
     [
         new(0, 14, 0.28),
@@ -25,7 +30,7 @@ public static class PopulationGenerator
         LifeTable lifeTable, PopulationCatalog catalog, long startingNpcId = 0, long startingHouseholdId = 0,
         CityId city = default,
         Func<int, IReadOnlyList<CellCoord>>? householdLocationsFactory = null,
-        BodyRules? bodyRules = null)
+        BodyRules? bodyRules = null, AppearanceRules? appearanceRules = null)
     {
         long nextNpcId = startingNpcId;
         long nextHouseholdId = startingHouseholdId;
@@ -43,20 +48,20 @@ public static class PopulationGenerator
             int health = ageYears >= 60 ? Math.Clamp(100 - (ageYears - 59) * 2, 40, 100) : 100;
             var npcId = new NpcId(nextNpcId++);
 
-            // Streams próprios por NPC (task 7, ADR-0005) — derivados do stream "population-init"
+            // Streams próprios por NPC — derivados do stream "population-init"
             // já recebido em rng, nunca um novo WorldRng raiz. WorldRngRegistry.StableHash garante
             // a mesma chave string→long usada por TickContext.Rng, então nascimento em runtime
             // (NatalitySystem) e geração inicial produzem streams com a mesma convenção.
             var personality = Personality.RollFrom(rng.Derive(WorldRngRegistry.StableHash($"personality-{npcId.Value}")));
             var profession = catalog.RollProfession(rng.Derive(WorldRngRegistry.StableHash($"profession-{npcId.Value}")));
-            // Fase 6 (SKILL-01/09): população seed não tem pais conhecidos — RollInitial em vez
+            // População seed não tem pais conhecidos — RollInitial em vez
             // de Inherit, mesmo stream próprio por NPC de personalidade/profissão acima.
             var rateGene = RateGene.RollInitial(rng.Derive(WorldRngRegistry.StableHash($"rategene-{npcId.Value}")));
             var vitality = HeredityService.RollInitialVitality(
                 rng.Derive(WorldRngRegistry.StableHash($"vitality-{npcId.Value}")));
             var upbringing = HeredityService.RollInitialUpbringing(
                 rng.Derive(WorldRngRegistry.StableHash($"upbringing-{npcId.Value}")));
-            // Fase 16.3 (COH-21): corpo mínimo — streams irmãos height-/weight-/musclemass-.
+            // Corpo mínimo — streams irmãos height-/weight-/musclemass-.
             var height = BodyGeneration.RollHeight(
                 rng.Derive(WorldRngRegistry.StableHash($"height-{npcId.Value}")), body);
             var weight = BodyGeneration.RollWeight(
@@ -64,12 +69,17 @@ public static class PopulationGenerator
             var muscleMass = BodyGeneration.RollMuscleMass(
                 rng.Derive(WorldRngRegistry.StableHash($"musclemass-{npcId.Value}")), body);
 
+            // stream próprio e só consultado com AppearanceRules: sem ele nenhum número é sorteado (hash igual ao de antes)
+            var appearance = appearanceRules is null
+                ? null
+                : Appearance.RollFrom(rng.Derive(WorldRngRegistry.StableHash($"appearance-{npcId.Value}")));
+
             var npc = new Npc(
                 npcId, $"npc-{culture.Id}-{npcs.Count}", sex, birthDate, culture, villageLocation,
                 motherId: null, fatherId: null, household: null, health,
                 personality: personality, profession: profession, currentLocation: villageLocation,
                 rateGene: rateGene, vitality: vitality, upbringing: upbringing, city: city,
-                height: height, weight: weight, muscleMass: muscleMass);
+                height: height, weight: weight, muscleMass: muscleMass, appearance: appearance);
 
             npcs.Add(npc);
             (ageYears >= 18 ? adults : children).Add(npc);
@@ -80,6 +90,87 @@ public static class PopulationGenerator
 
         return new GeneratedPopulation(npcs, households, nextNpcId, nextHouseholdId);
     }
+
+    /// <summary>População autorada: nome, sexo, idade, profissão, personalidade e parentesco vêm do autor;
+    /// genes, corpo, vitalidade e criação seguem sorteados pelos mesmos streams por NPC do gerador inicial, então
+    /// mesma seed + mesmo bloco = mesmo mundo. Cada família vira uma <see cref="Household"/> com a casa dada por
+    /// <paramref name="householdLocationsFactory"/>; a cabeça é o membro adulto mais velho.</summary>
+    public static GeneratedPopulation GenerateAuthored(
+        WorldRng rng, WorldDate now, IReadOnlyList<AuthoredHousehold> authored, CultureId culture,
+        CellCoord villageLocation, long startingNpcId, long startingHouseholdId, CityId city,
+        Func<int, IReadOnlyList<CellCoord>> householdLocationsFactory, BodyRules? bodyRules = null,
+        AppearanceRules? appearanceRules = null)
+    {
+        long nextNpcId = startingNpcId;
+        long nextHouseholdId = startingHouseholdId;
+        var body = BodyRules.Resolve(bodyRules);
+        var npcs = new List<Npc>();
+        var groups = new List<List<Npc>>();
+
+        foreach (var family in authored)
+        {
+            long firstId = nextNpcId;
+            var members = new List<Npc>(family.Members.Count);
+            for (int i = 0; i < family.Members.Count; i++)
+            {
+                var person = family.Members[i];
+                var npcId = new NpcId(nextNpcId++);
+                int health = person.AgeYears >= 60 ? Math.Clamp(100 - (person.AgeYears - 59) * 2, 40, 100) : 100;
+                var rolledPersonality = Personality.RollFrom(rng.Derive(WorldRngRegistry.StableHash($"personality-{npcId.Value}")));
+                var rateGene = RateGene.RollInitial(rng.Derive(WorldRngRegistry.StableHash($"rategene-{npcId.Value}")));
+                var vitality = HeredityService.RollInitialVitality(rng.Derive(WorldRngRegistry.StableHash($"vitality-{npcId.Value}")));
+                var upbringing = HeredityService.RollInitialUpbringing(rng.Derive(WorldRngRegistry.StableHash($"upbringing-{npcId.Value}")));
+                var height = BodyGeneration.RollHeight(rng.Derive(WorldRngRegistry.StableHash($"height-{npcId.Value}")), body);
+                var weight = BodyGeneration.RollWeight(rng.Derive(WorldRngRegistry.StableHash($"weight-{npcId.Value}")), body);
+                var muscleMass = BodyGeneration.RollMuscleMass(rng.Derive(WorldRngRegistry.StableHash($"musclemass-{npcId.Value}")), body);
+
+                // aparência autorada vence o sorteio; sem AppearanceRules ninguém tem aparência (o loader recusa o campo)
+                var appearance = appearanceRules is null
+                    ? null
+                    : person.Appearance ?? Appearance.RollFrom(rng.Derive(WorldRngRegistry.StableHash($"appearance-{npcId.Value}")));
+
+                var npc = new Npc(
+                    npcId, person.Name, person.Sex, now.AddYears(-person.AgeYears), culture, villageLocation,
+                    motherId: person.Mother is int m ? new NpcId(firstId + m) : null,
+                    fatherId: person.Father is int f ? new NpcId(firstId + f) : null,
+                    household: null, health,
+                    personality: person.Personality ?? rolledPersonality, profession: new ProfessionType(person.ProfessionId),
+                    currentLocation: villageLocation, rateGene: rateGene, vitality: vitality, upbringing: upbringing,
+                    city: city, height: height, weight: weight, muscleMass: muscleMass, appearance: appearance);
+                if (person.Skills is { } skills)
+                    foreach (var (skillId, level) in skills.OrderBy(kv => kv.Key))
+                        npc.GainSkill(new Skills.SkillType(skillId), level, SkillCap);
+                members.Add(npc);
+                npcs.Add(npc);
+            }
+            for (int i = 0; i < family.Members.Count; i++)
+                if (family.Members[i].Spouse is int spouse && !members[i].Spouse.HasValue)
+                {
+                    members[i].Marry(members[spouse].Id);
+                    members[spouse].Marry(members[i].Id);
+                }
+            groups.Add(members);
+        }
+
+        var locations = householdLocationsFactory(groups.Count);
+        var households = new List<Household>(groups.Count);
+        for (int g = 0; g < groups.Count; g++)
+        {
+            var head = groups[g].OrderByDescending(n => n.AgeYears(now)).ThenBy(n => n.Id.Value).First();
+            var household = new Household(
+                new HouseholdId(nextHouseholdId++), locations[g], head.Id, groups[g].Select(m => m.Id).ToList(), city: city);
+            foreach (var member in groups[g])
+            {
+                member.JoinHousehold(household.Id);
+                member.MoveTo(locations[g], member.ActionStartedAtTick);
+            }
+            households.Add(household);
+        }
+        return new GeneratedPopulation(npcs, households, nextNpcId, nextHouseholdId);
+    }
+
+    /// <summary>Teto de nível de habilidade (mesma escala <c>[0,100]</c> do restante do motor).</summary>
+    public const double SkillCap = 100;
 
     private static int RollAge(WorldRng rng, int maxLongevityYears)
     {

@@ -1,4 +1,7 @@
-namespace LivingWorld.Domain;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Shared;
+
+namespace LivingWorld.Domain.Economy;
 
 public enum CropStatus
 {
@@ -7,7 +10,7 @@ public enum CropStatus
     Harvested = 2,
 }
 
-/// <summary>Lote plantado com maturação e demanda de água declaradas (Fase 15.1, Stage 4, T17).
+/// <summary>Lote plantado com maturação e demanda de água declaradas.
 /// Colheita só depois do tick de maturação e da água entregue — trigo instantâneo é proibido.</summary>
 public sealed class CropBatch
 {

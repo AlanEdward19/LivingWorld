@@ -1,3 +1,5 @@
+> **Estado: Entregue** (specs-closeout 2026-10-12) - fase 8 fechada no roadmap; 9/9 requisitos CITY com teste correspondente.
+
 # Fase 8 — Cidades Specification
 
 ## Problem Statement
@@ -279,15 +281,15 @@ em `≤ K` ticks e soma de população constante no split.
 
 | Requirement ID | Story | Phase | Status |
 |---|---|---|---|
-| CITY-01 | P1: Cidade como entidade agregada derivada | Tasks (T1,T5,T8) | In Tasks |
-| CITY-02 | P1: Crescimento e encolhimento | Tasks (T11,T19) | In Tasks |
-| CITY-03 | P1: Construção de edifícios | Tasks (T3,T10) | In Tasks |
-| CITY-04 | P1: Simulation LOD com conservação | Tasks (T1,T9,T17,T18,T22) | In Tasks |
-| CITY-05 | P1: Política de materialização | Tasks (T9) | In Tasks |
-| CITY-06 | P1: API + CLI de inspeção | Tasks (T14,T15,T16,T21) | In Tasks |
-| CITY-07 | P2: Migração multifatorial | Tasks (T12) | In Tasks |
-| CITY-08 | P2: Fundação de assentamento | Tasks (T13,T20) | In Tasks |
-| CITY-09 | Contagem independente de auditoria (todas as stories acima) | Tasks (T8,T17) | In Tasks |
+| CITY-01 | P1: Cidade como entidade agregada derivada | Tasks (T1,T5,T8) | Verified - tests/LivingWorld.Tests.Unit/Cities/CityTests.cs, WorldStateCitiesTests.cs; LongRunning/Population/EveryNpcHasACityTests.cs |
+| CITY-02 | P1: Crescimento e encolhimento | Tasks (T11,T19) | Verified - tests/LivingWorld.Tests.Unit/Cities/CityGrowthSystemTests.cs |
+| CITY-03 | P1: Construção de edifícios | Tasks (T3,T10) | Verified - tests/LivingWorld.Tests.Unit/Cities/Construction/ConstructionSystemTests.cs |
+| CITY-04 | P1: Simulation LOD com conservação | Tasks (T1,T9,T17,T18,T22) | Verified - tests/LivingWorld.Tests.LongRunning/Cities/LodConservationScenarioTests (10 e 100 anos) + Unit/Cities/MaterializationRoundTripTests |
+| CITY-05 | P1: Política de materialização | Tasks (T9) | Verified - tests/LivingWorld.Tests.Unit/Cities/Construction/MaterializationSystemTests.cs |
+| CITY-06 | P1: API + CLI de inspeção | Tasks (T14,T15,T16,T21) | Verified - tests/LivingWorld.Tests.Unit/Cities/InspectNpcCliTests.cs, Unit/Cities/Queries/NpcInspectionQueryTests.cs, Integration/Cities/NpcEndpointsTests.cs |
+| CITY-07 | P2: Migração multifatorial | Tasks (T12) | Verified - tests/LivingWorld.Tests.Unit/Cities/Migration/MigrationSystemTests.cs + Integration/Cities/FoodShortageMigrationScenarioTests |
+| CITY-08 | P2: Fundação de assentamento | Tasks (T13,T20) | Verified - tests/LivingWorld.Tests.Unit/Cities/Founding/SettlementFoundingSystemTests.cs + Integration/Cities/SettlementFoundingScenarioTests |
+| CITY-09 | Contagem independente de auditoria (todas as stories acima) | Tasks (T8,T17) | Verified - tests/LivingWorld.Tests.Unit/Cities/NpcInspectionDtoCoverageTests.All_100_living_npcs_match_the_engine_state_field_by_field_with_no_sampling |
 
 **ID format:** `CITY-NN`
 
