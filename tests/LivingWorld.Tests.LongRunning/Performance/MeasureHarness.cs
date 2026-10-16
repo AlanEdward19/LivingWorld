@@ -46,7 +46,7 @@ public class MeasureHarness
         double bestMicros = double.MaxValue, alloc = 0;
         for (int run = 0; run < 3; run++)
         {
-            var (world, clock) = ScaleScenarioFixture.CreateWorld(42, 1000, MeasuredCatalog());
+            var (world, clock) = ScaleScenarioFixture.CreateWorld(42, 1000, objectCatalog: MeasuredCatalog());
             GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
             long alive = 0, before = GC.GetTotalAllocatedBytes(true);
             var sw = Stopwatch.StartNew();
