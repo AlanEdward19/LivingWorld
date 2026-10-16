@@ -16,8 +16,8 @@ cidade do NPC (`Mobility.BonusPct`). Local distinto custa ≥ 1 tick; mesmo loca
 1. Com tecnologia `pace>0` adotada na cidade, `TravelTicks` de trajeto longo é menor que sem ela; adjacente ≥ 1; mesmo local 0.
 2. Mesma seed, base vs tratamento (tecnologia `[7,0,0]` adotada no tick 0), 30 dias: fração de NPC-horas em `Travel`
    menor no tratamento em ≥ 18/20 seeds (direção, não magnitude).
-3. Adoção força mudança do hash canônico em 10 anos (entra na conta).
-4. Mutação: remover o bônus em `TravelTicks` reprova 1 e 2 (verificado: 5/20 seeds).
+3. Mesma tecnologia no estado, `PaceBonusPctPerPoint` 0 vs padrão: hash canônico e rastro dos NPCs diferem em 10 anos.
+4. Mutação: remover o bônus em `TravelTicks`, ou voltar `TravelArrivalTick`/`LeadHoursTo` para `TicksBetween`, reprova ao menos um teste de `MobilityTravelTests` (o critério 3 compara bônus 0 vs adotado e confere o rastro dos NPCs).
 5. Sensor de escala ≤ 103% µs/NPC-tick e ≤ 102% alocação/tick.
 
 ## Eixos load e reach
