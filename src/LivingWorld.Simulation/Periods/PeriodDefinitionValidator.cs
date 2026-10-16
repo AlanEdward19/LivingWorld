@@ -30,7 +30,8 @@ public sealed record PeriodDefinition(
     ExtraordinaryScenarioData Extraordinary,
     LivingWorld.Domain.Emergence.EmergenceRules Emergence,
     LivingWorld.Domain.Ontogeny.OntogenyRules Ontogeny,
-    LivingWorld.Domain.Population.AppearanceRules? Appearance = null);
+    LivingWorld.Domain.Population.AppearanceRules? Appearance = null,
+    LivingWorld.Domain.Objects.ObjectCatalog? Objects = null);
 
 /// <summary>Orquestra a validação de um <c>periodDefinition</c>: encadeia
 /// <see cref="MapScenarioLoader"/>, <see cref="PopulationScenarioLoader"/>,
@@ -96,6 +97,10 @@ public static class PeriodDefinitionValidator
         if (!appearanceResult.IsSuccess)
             return Result<PeriodDefinition>.Fail(appearanceResult.Error!);
 
+        var objectsResult = LivingWorld.Simulation.Objects.ObjectCatalogScenarioLoader.Load(System.Text.Json.Nodes.JsonNode.Parse(json)!.AsObject());
+        if (!objectsResult.IsSuccess)
+            return Result<PeriodDefinition>.Fail(objectsResult.Error!);
+
         var population = populationResult.Value!;
         var dynamics = dynamicsResult.Value!;
 
@@ -106,7 +111,7 @@ public static class PeriodDefinitionValidator
         return Result<PeriodDefinition>.Ok(new PeriodDefinition(
             mapResult.Value!, population, behaviorResult.Value!, economyResult.Value!, cityResult.Value!, dynamics,
             descriptorsResult.Value!, resourcesResult.Value!.Catalog, resourcesResult.Value!.Recipes,
-            extraordinaryResult.Value!, emergenceResult.Value!, ontogenyResult.Value!, appearanceResult.Value));
+            extraordinaryResult.Value!, emergenceResult.Value!, ontogenyResult.Value!, appearanceResult.Value, objectsResult.Value));
     }
 
     private static Result<LivingWorld.Domain.Population.AppearanceRules?> ParseAppearance(string json) =>

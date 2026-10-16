@@ -90,6 +90,7 @@ public class WorldSnapshotTests
             ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules, economyRules: SampleEconomyRules, economyCatalog: SampleEconomyCatalog,
             cityCatalog: SampleCityCatalog, appearanceRules: new LivingWorld.Domain.Population.AppearanceRules(0.6),
+            objectCatalog: LivingWorld.Tests.Unit.Objects.ObjectCatalogTests.SampleCatalog(),
             resourceCatalog: new ResourceCatalog(new Dictionary<int, ResourceSpec>
             {
                 [1] = ResourceSpec.Create(1, PreparationState.Raw, edible: false).Value!,

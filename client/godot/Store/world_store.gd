@@ -115,6 +115,7 @@ func _load_interior(payload: Dictionary) -> void:
 	interior = {
 		"building": id_of(payload.id), "city": id_of(payload.city), "floors": int(layout.floors),
 		"layout": layout.floorLayouts, "occupants": payload.occupants,
+		"objects": payload.get("objects"), ## catálogo + mobília do servidor (ADR-0034); null = cai no assets.json
 	}
 
 

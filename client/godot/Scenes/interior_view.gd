@@ -6,6 +6,7 @@ const Grid := preload("res://Scenes/grid.gd")
 const NpcActor := preload("res://Scenes/npc_actor.gd")
 const WorldStore := preload("res://Store/world_store.gd")
 const AssetCatalog := preload("res://Scenes/asset_catalog.gd")
+const ObjectFactory := preload("res://Scenes/object_factory.gd")
 
 const FLOOR_HEIGHT := 1.0
 const WALL_HEIGHT := 0.9
@@ -89,18 +90,36 @@ func _place_furniture(info: Dictionary, building_type: int, lodging_units: int =
 	var stride := maxi(free_cells.size() / 5, 1)
 	var used := {}
 	var index := 0
-	var pieces: Array = catalog.furniture_for(building_type).duplicate()
+	# Catálogo do cenário (servidor) manda; sem ele, o assets.json do cliente (fallback). Cada item = [id, variação].
+	var objects = info.get("objects")
+	var factory = ObjectFactory.new(objects.catalog) if objects is Dictionary else null
+	var pieces: Array = []
+	if factory != null:
+		for placed in objects.furniture:
+			pieces.append([String(placed.id), int(placed.variation)])
+	else:
+		for piece_id in catalog.furniture_for(building_type):
+			pieces.append([String(piece_id), 0])
 	for i in mini(lodging_units, MAX_LODGING_BEDS): # um leito por vaga de hospedagem, vinda do servidor
-		pieces.append("bed")
-	for piece_id in pieces:
+		pieces.append(["bed", 0])
+	for piece in pieces:
 		if used.size() >= free_cells.size():
 			break # sem célula livre sobrando: nunca duas peças no mesmo lugar
 		var slot := (seed_value + index * stride) % free_cells.size()
 		while used.has(slot) and used.size() < free_cells.size():
 			slot = (slot + 1) % free_cells.size()
 		used[slot] = true
-		_add_piece(String(piece_id), origin + free_cells[slot])
+		if factory != null and factory.has(piece[0]):
+			_add_object(factory, piece[0], piece[1], origin + free_cells[slot])
+		else:
+			_add_piece(piece[0], origin + free_cells[slot])
 		index += 1
+
+
+func _add_object(factory, piece_id: String, variation: int, cell: Vector2i) -> void:
+	var node: Node3D = factory.build(piece_id, variation)
+	node.position += Grid.to_world(cell)
+	furniture.add_child(node)
 
 
 func _add_piece(piece_id: String, cell: Vector2i) -> void:
