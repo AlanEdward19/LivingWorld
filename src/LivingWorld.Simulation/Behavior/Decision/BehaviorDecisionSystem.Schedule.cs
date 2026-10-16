@@ -17,7 +17,7 @@ public sealed partial class BehaviorDecisionSystem
 {
     /// <summary>Tick em que a viagem em curso chega ao destino (mesma conta de <see cref="TryCompleteAction"/>);
     /// nulo se o NPC não está viajando ou se anda por poder extraordinário, que avança passo a passo.</summary>
-    private static long? TravelArrivalTick(WorldState world, Npc npc, MarketIndex marketIndex)
+    internal static long? TravelArrivalTick(WorldState world, Npc npc, MarketIndex marketIndex)
     {
         if (npc.CurrentAction != ActionType.Travel) return null;
         if (TravelDestinationOf(world, npc, marketIndex) is not { } destination || destination == npc.CurrentLocation)
