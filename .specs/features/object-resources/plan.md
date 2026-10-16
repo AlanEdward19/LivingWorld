@@ -1,6 +1,6 @@
 # object-resources — #47 fatia 4 (comida e recursos como objetos)
 
-Status: implementado, aguardando Verifier (`verification.md`). ADR-0039. Branch `feat/objetos-comida-fatia4` (as fatias 1–3 já estão na `develop`).
+Status: PASS (`verification.md`, Verifier independente). ADR-0039. Branch `feat/objetos-comida-fatia4` (as fatias 1–3 já estão na `develop`).
 
 ## Problema
 Comer restaura fome e sede sempre a 100 (fixo em `TryApplyEat`) e os recursos do cenário não têm forma nem efeito próprios. A fatia 4 faz o recurso virar objeto do catálogo, com o efeito ao consumir vindo do descritor, sem mudar a regra de hoje.

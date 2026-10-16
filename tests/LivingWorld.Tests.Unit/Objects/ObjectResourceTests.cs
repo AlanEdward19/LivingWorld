@@ -177,12 +177,15 @@ public class ObjectResourceTests
         Assert.Equal(30, ObjectUse.ConsumeLevel(world, new ResourceType(Food), ObjectEffectTargets.Thirst));
     }
 
-    [Fact]
-    public void The_level_rounds_halves_away_from_zero()
+    [Theory]
+    [InlineData("hunger:62.5", 63)]
+    [InlineData("hunger:62.3", 62)]
+    [InlineData("hunger:62.7", 63)]
+    public void The_level_rounds_to_the_nearest_whole_number_and_halves_away_from_zero(string token, int expected)
     {
-        var (world, _) = World(3, Catalog(foodEffect: "hunger:62.5"));
+        var (world, _) = World(3, Catalog(foodEffect: token));
 
-        Assert.Equal(63, ObjectUse.ConsumeLevel(world, new ResourceType(Food), ObjectEffectTargets.Hunger));
+        Assert.Equal(expected, ObjectUse.ConsumeLevel(world, new ResourceType(Food), ObjectEffectTargets.Hunger));
     }
 
     private static Npc Hungry(WorldState world, int hunger = 10, int thirst = 10)
