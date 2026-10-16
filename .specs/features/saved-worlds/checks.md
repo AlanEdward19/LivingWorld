@@ -25,6 +25,7 @@ Proof: `bash scripts/client-test.sh --filter test_saved_worlds`
 
 **C7** - Zero round-trips durante tick (AC 7)
 Proof: `bash scripts/test.sh --project integration --filter ZeroRoundTripsTests`
+Proof: `bash scripts/test.sh --project integration --filter ApiClockPersistenceBoundaryTests`
 
 **C8** - Gates e medidas antes/depois (AC 8)
 Proof: `bash scripts/test.sh --project longrunning --filter ScaleScenarioSensorTests.One_month_scale_run_stays_within_recorded_baseline`

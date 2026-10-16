@@ -135,7 +135,7 @@ func test_npc_model_follows_profession_and_age() -> void:
 	child.free()
 
 
-func test_lodging_building_shows_one_bed_per_unit_and_a_price_line() -> void:
+func test_lodging_building_shows_one_bed_per_unit() -> void:
 	var view := InteriorView.new()
 	view.catalog = _catalog()
 	tree.root.add_child(view)

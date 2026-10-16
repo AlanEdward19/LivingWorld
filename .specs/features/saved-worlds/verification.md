@@ -1,85 +1,80 @@
 # Saved worlds verification
 
-**Verdict**: PASS
+**Verdict**: FAIL
 **Profile**: standard
-**Diff range**: 10bec92325c274f9f630c69fea83062974d73779..abbefa5
-**Round**: 1 - full
+**Diff range**: 10bec92325c274f9f630c69fea83062974d73779..2ab9fcbdbbc43b167b763f1ccf7553b0069e08f3
+**Round**: 1 - full, novo contexto
 **Verifier**: independent sub-agent (author != verifier), 2026-10-16 UTC
 
 ## Binding sources
 
-Issues #65/#67 abertas via `gh issue view`; ADR-0035, planos/checks e startup lidos diretamente.
-Contrato por seed, SQLite por mundo, pausa e confirmação coincidem com a decisão aprovada.
+Issue #67 aberta via `gh`; planos/checks saved-worlds, godot-main-menu, ADR-0035, regras apontadas e diff completo base..HEAD lidos. Aprovações de contrato/arquitetura registradas no ADR. Não há fonte externa visual binding no perfil standard.
+
+## Proof runs
+
+I = `bash scripts/test.sh --project integration --filter 'SavedWorldEndpointsTests|SavedWorldLibraryTests|ZeroRoundTripsTests|ApiContractTests'`: 23/23, resultados individuais em `/private/tmp/lw67-final-integration-named.log`.
+D = `bash scripts/test.sh --project longrunning --filter 'Lodging_pricing_and_nightly_rates_are_deterministic_with_actual_rent_in_two_processes|ScaleScenarioSensorTests.One_month_scale_run_stays_within_recorded_baseline'`: 2/2.
+G = `bash scripts/client-test.sh`: 258/258. Abreviações: IT=`tests/LivingWorld.Tests.Integration/`; GD=`client/godot/tests/`; LR=`tests/LivingWorld.Tests.LongRunning/`.
 
 ## Checks
 
-Prefixo I=`tests/LivingWorld.Tests.Integration/World/`; G=`client/godot/tests/`.
-Rodado `bash scripts/test.sh --project integration --filter 'SavedWorld|ZeroRoundTripsTests'`: 10 passed, 0 failed.
-
 | Check | Claim | Proof run | Evidence | Result |
 | --- | --- | --- | --- | --- |
-| C1 | A/B listáveis e hash de A recuperado | SavedWorldEndpointsTests.Creating_B_preserves_A | I/SavedWorldEndpointsTests.cs:40 `Assert.Equal(hash, WorldSnapshot.CanonicalHash(host.Current))`; :41 `Assert.True(...IsPaused)` | PASS |
-| C2 | ausente 404 preserva mundo | Load_missing_world_keeps | I/SavedWorldEndpointsTests.cs:55 `Assert.Equal(HttpStatusCode.NotFound, ...)`; :56 hash igual | PASS |
-| C3 | DELETE 409/204/404 | Delete_guards_current | I/SavedWorldEndpointsTests.cs:65–67 códigos esperados; :69 `Assert.DoesNotContain(worlds!, w => w.Seed == 67003)` | PASS |
-| C4 | identidade duplicada 409, sem overwrite; 400 inválido | Duplicate_seed_is_rejected | I/SavedWorldEndpointsTests.cs:81 `Assert.Equal(HttpStatusCode.Conflict, ...)`; :82 hash igual; :84 BadRequest | PASS |
-| C5 | reinício, catálogo, legado e tick zero | Restart_preserves_catalog + An_existing_legacy_world, ticks 0/17 | I/SavedWorldEndpointsTests.cs:111 hash de reinício; :148 `e.EventId == 123 && e.Kind == "Marriage"`; :150–151 evento após recarga | PASS |
-| C6 | lista, carga, vazio, erro, busy, confirmação | client-test.sh completo | G/test_saved_worlds.gd:38 `check(not ("DELETE /worlds/a" in transport.calls), ...)`; :99 `eq(transport.calls.size(), 1, ...)`; :103 estado vazio | PASS |
-| C7 | zero SQL no tick | ZeroRoundTripsTests, mês e ano | tests/LivingWorld.Tests.Integration/ZeroRoundTripsTests.cs:48 `Assert.Equal(midpointCount, interceptor.Count)`; :53 exige sensor SQL ativo | PASS |
-| C8 | gates e custo antes/depois | verify.sh, client-test.sh, comparadores e stress | medidas próprias abaixo; ScaleScenarioSensorTests.cs:102/105 assertam alocação e CPU | PASS |
-
-A prova local `I/SavedWorldLibraryTests.cs:33–55` cobre transições sem HTTP, pausa anterior e falha ao montar relógio.
-Inicialização real conferida em `src/LivingWorld.Api/Program.cs:82–104`: catálogo inicializa antes do relógio.
-Tick serial e troca usam o mesmo `library.Gate`; gravação periódica vem depois de `worldHost.Clock.Tick` em TickLoopService.cs:74–77.
+| C1 | A/B preservados e roundtrip/pausa | I: SavedWorldEndpointsTests.Creating_B_preserves_A_and_loading_A_restores_its_hash | IT:World/SavedWorldEndpointsTests.cs:36–41 `Assert.Contains(worlds!, w => w.Name == "A" && w.CurrentDate == 35)`; `Assert.Equal(hash, WorldSnapshot.CanonicalHash(host.Current))`; `Assert.True(...IsPaused)` | PASS |
+| C2 | ausente 404 conserva hash | I: SavedWorldEndpointsTests.Load_missing_world_keeps_the_current_hash | IT:World/SavedWorldEndpointsTests.cs:55–56 `Assert.Equal(HttpStatusCode.NotFound, ...StatusCode)` / `Assert.Equal(before, WorldSnapshot.CanonicalHash(host.Current))` | PASS |
+| C3 | excluir 409/204/404 | I: SavedWorldEndpointsTests.Delete_guards_current_and_removes_only_the_requested_world | IT:World/SavedWorldEndpointsTests.cs:65–70 `Assert.Equal(HttpStatusCode.Conflict, ...StatusCode)`; NoContent/NotFound; `Assert.DoesNotContain(worlds!, w => w.Seed == 67003)` | PASS |
+| C4 | duplicado 409 sem sobrescrever; inválido400 | I: SavedWorldEndpointsTests.Duplicate_seed_is_rejected_without_overwriting | IT:World/SavedWorldEndpointsTests.cs:81–84 `Assert.Equal(HttpStatusCode.Conflict, ...StatusCode)`; `Assert.Equal(hash, WorldSnapshot.CanonicalHash(host.Current))`; `Assert.Equal(HttpStatusCode.BadRequest, ...StatusCode)` | PASS |
+| C5 | reinício, atual e legado | I: SavedWorldEndpointsTests.Restart_preserves_catalog_and_current_world + An_existing_legacy_world_is_imported_with_its_hash_and_historical_events | IT:World/SavedWorldEndpointsTests.cs:111 `Assert.True(hash == WorldSnapshot.CanonicalHash(host.Current), ...)`; :144 hash; :147–151 EventId123, Marriage após importação/carga | PASS |
+| C6 | lista/carga/confirmar/vazio/erro/carregando | G: test_saved_worlds (4 testes) | GD:test_saved_worlds.gd:35 `check(menu.confirmation.visible, ...)`; :36 sem DELETE; :40/:42 exclusão/vazio; :95 `check(menu.busy, ...)`; :96 Carregando; :99 só uma chamada | PASS |
+| C7 | persistência fora tick | I: ZeroRoundTripsTests (2 testes) | IT:ZeroRoundTripsTests.cs:49 `Assert.Equal(midpointCount, interceptor.Count)`; monta relógio próprio :41, nunca composição Program.cs:92/223; mutante nessa composição sobrevive | FAIL |
+| C8 | gates e sensores antes/depois | D: ScaleScenarioSensorTests.One_month_scale_run_stays_within_recorded_baseline + gates e comparações próprias | LR:Performance/ScaleScenarioSensorTests.cs:102/105 assert CPU/alocação; comparação estrita +3%/+2% abaixo | PASS |
 
 ## Coverage
 
 | Set (size) | Recomputed from | Member -> proof | Unproven |
 | --- | --- | --- | --- |
-| GET /worlds (1) | SavedWorldEndpoints.cs:11 | 200 C1 | - |
-| load (2) | SavedWorldEndpoints.cs:12–13 | 200 C1; 404 C2 | - |
-| delete (3) | SavedWorldLibrary.Delete | 204/404/409 C3 | - |
-| create (3) | WorldCreateEndpoints.cs:25–35 | 200 C1; 400/409 C4 | - |
-| legado (2) | issue + repositório tick-zero | tick 0/17 C5, evento 123 preservado | - |
-| menu (5) | plano AC6 | carregando, vazio, erro, lista/carga, confirmação C6 | - |
-| metadados (7) | ADR-0035 e shape.saved-worlds.json | ApiContractTests.Response_shape_matches_the_committed_contract: todos os campos | - |
+| GET /worlds (1 status; 7 campos DTO) | SavedWorldEndpoints.cs:11; SavedWorldLibrary.cs:15; ADR-0035 | 200 → C1; shape → I ApiContractTests.Response_shape_matches_the_committed_contract(saved-worlds) | - |
+| load (2) | SavedWorldEndpoints.cs:12–13 | 200 C1 / 404 C2 | - |
+| DELETE (3) | SavedWorldLibrary.cs:140–151 | 204/404/409 C3 | - |
+| create (3) | WorldCreateEndpoints.cs:23–32 | 200 C1 / 400 C4 / 409 C4 | - |
+| persistência (3 superfícies) | Program.cs:92/223; TickLoopService.cs:78–81 | salvar/trocar/reiniciar C1/C5; relógio efetivo do servidor | composição real do relógio e interceptor no consumidor API |
+| menu (6 estados) | saved_worlds_menu.gd:59–118 | lista/carga/confirmação/vazio/erro/loading C6 | - |
 
 ## Test policy rows
 
 | Row | Files it classifies | Required proof | Expectation met |
 | --- | --- | --- | --- |
-| Decisões observáveis | SavedWorldLibrary/Endpoints e menu | regra local, integração HTTP, transporte falso | yes |
-| Instrumentação | custo, round-trips e stress | consumidor e medições próprias | yes |
+| Decisões observáveis | SavedWorldLibrary / endpoints | borda I C1–5; local Library_lifecycle_preserves_saved_worlds_and_rejects_invalid_transitions_without_http | yes |
+| Instrumentação | Program.cs / TickLoopService / persistência | prova no consumidor efetivo | no — ZeroRoundTripsTests monta outro relógio; mutação de I/O no tick da API não é detectada |
 
-Swept existing: novas rotas usam a mesma política local anônima de create; nenhuma autorização preexistente foi removida.
-CI citado confirmado por `gh run view 38823719663`: commit 10bec92, job client success; pendência removida de STATE.
-`godot-main-menu/plan.md:69` aponta para a entrega de mundos salvos e mantém as demais telas na #59.
+Swept existing: endpoints locais de criação também não exigem autorização; `worldId:guid` impede caminho do cliente. Sem nova dependência/migração aplicada editada. Gate serializa troca/tick. Relógio novo recomposto ao carregar; banco anterior preservado.
 
 ## Faults injected
 
+Reprodução: `python3 /private/tmp/lw67-mutations.py` e `python3 /private/tmp/lw67-more.py`.
+Scratch `/private/tmp/lw67-final-mutant`; arquivos restaurados, real porcelain vazio antes/depois. Logs `/private/tmp/lw67-final-mutations/`.
 | Mutation | Location | Killed |
 | --- | --- | --- |
-| S1: remover save anterior | SavedWorldLibrary | yes - C1 |
-| S2: ausente retorna sucesso | SavedWorldLibrary.Load | yes - C2 |
-| S3: atual retorna 404 | SavedWorldLibrary.Delete | yes - C3 |
-| S4: seed repetida retorna sucesso | SavedWorldLibrary.Create | yes - C4 |
-| S5: ignorar catálogo no boot | SavedWorldLibrary.Initialize | yes - C5 |
-| S5legacy: reset destrutivo ao salvar tick zero | Open/resetOnTickZero | yes - C5, importação/histórico |
-| UI-S6 e UI-Sbusy: apagar sem diálogo e permitir ação duplicada | saved_worlds_menu.gd | yes - C6 |
-| S7boundary: persistir dentro do laço protegido | ZeroRoundTripsTests, scratch | yes - C7, sensor detecta SQL indevido |
-| S8cost: alocação regressiva no sistema social | RelationshipSystem | yes - C8, sensor de custo |
+| não salvar A antes de B | SavedWorldLibrary.cs:108 (S1) | yes |
+| ausente retorna sucesso | SavedWorldLibrary.cs:127 (S2) | yes |
+| permitir apagar atual | SavedWorldLibrary.cs:143 (S3) | yes |
+| desativar guard de seed repetida | SavedWorldLibrary.cs:107 (S4valid) | yes |
+| retornar legado em vez de snapshot salvo | SavedWorldLibrary.cs:55 (S5) | yes |
+| excluir antes de confirmar | saved_worlds_menu.gd:104 (S6) | yes |
+| anexar ISimulationSystem Hourly à composição API; Tick chama repository.LoadEvents(BranchId.Root) | Program.cs:94, classe temporária VerifierDatabaseTick (S7assembly); compilou, ZeroRoundTripsTests 2/2 exit0 | no |
 
-Scratchs isolados; baseline real `git status --porcelain` vazio, preservado até estes relatórios.
+Mutante S7assembly testa a montagem efetiva: a prova não a executa. Não foi observado I/O indevido na implementação atual; é uma lacuna de nível e discriminação. Tentativa S4 com constante false deu erro de compilação e foi descartada; S4valid compilou e caiu em assert de 409.
 
-## Gate
+## Gate and performance
 
-`bash scripts/verify.sh`: exit 0, 2298 passed / 3 skipped; `bash scripts/client-test.sh`: exit 0, 258 passed.
-`bash scripts/test.sh --project longrunning --filter 'FamilyDiversityCalibrationTests|FamilyPairedScenarioTests|DeterminismTwoProcessTests|ScaleScenarioSensorTests'`: 32 passed / 2 skipped, 17m27s; século completo e FAM-33/contrafactuais verdes.
-Integração: `--filter 'SavedWorld|ZeroRoundTripsTests'` 10 passed; `--filter 'ApiContractTests|WorldCreateEndpointsTests|PositionalSnapshotPersistenceTests'` 27 passed. Ambos por `bash scripts/test.sh --project integration`.
-`bash scripts/compare-creation-cost.sh /tmp/lw-verifier-base /tmp/verifier-creation-cost`: 2355,396 → 1929,044 ms (razão 0,819, limite 1,05).
-`bash scripts/compare-simulation-cost.sh /tmp/lw-verifier-base /tmp/verifier-simulation-cost`: 2,694 → 1,846 µs/NPC-tick; 255402 → 256268 B/tick (+0,339%, limite +2%).
-`bash scripts/client-stress.sh /tmp/lw-verifier-base/client/godot` e `bash scripts/client-stress.sh`: FPS 73,2/71,4/73,1 → 73,3/74,0/72,6; medianas 73,1 → 73,3. Carga concorrente: números não demonstram aceleração.
-Logs próprios em `/tmp/verifier-*`; medições por 3 pares/rodadas, base 10bec92. `WorldCreationCostTests` foi copiado à base somente como instrumentação, sem alterar o motor. Árvore real limpa antes/depois das mutações.
+`bash scripts/verify.sh`: exit0, 2299 passed / 3 skipped; `bash scripts/client-test.sh`: exit0, 258 passed. I 23/23 e D 2/2.
+Criação: 1955.349 → 1713.986 ms (-12.34%). Motor: 1.019 → 1.040 µs/NPC-tick (+2.06%); 255351 → 256245 B/tick (+0.35%).
+FPS gráfico stress:500: [73.7, 74.3, 69.7] → [73.7, 74.9, 74.1]; medianas 73.7 → 74.1.
+Comandos próprios serializados: `bash scripts/compare-creation-cost.sh /private/tmp/lw67-final-base /private/tmp/lw67-final-creation-serial`; `bash scripts/client-stress.sh [base/client/godot]`; `bash scripts/compare-simulation-cost.sh /private/tmp/lw67-final-base /private/tmp/lw67-final-engine`.
+Dados e logs completos `/private/tmp/lw67-final-*`; medição inicial concorrente descartada antes da repetição serial.
 
-## Status após aprovação
+## Issue completeness and ranked gaps
 
-Marcar plano mundos salvos verificado e atualizar main-menu/STATE quanto a esta fatia; #67 permanece aberta enquanto hospedagem tiver FAIL.
+1. C7: colocar o interceptor no relógio/host efetivamente montado pela API e exercitar tick fora de snapshot; I/O introduzido como sistema desse relógio deve reprovar.
+2. Parte1 #67 permanece FAIL por distâncias de diária; ver relatório lodging-and-rent. Cabeçalho godot-main-menu/out-of-scope atualizados; STATE removeu pendência CI, run develop 38823719663 success confirmado via gh.
+3. #65: relatório independente cobre até abbefa5; `git diff abbefa5..2ab9fcb -- src tests/LivingWorld.Tests.LongRunning/Population tests/baselines/family-diversity.json` vazio. Alterações posteriores só reforçam testes de hospedagem e docs; aprovação genética não foi reaberta.

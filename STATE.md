@@ -26,7 +26,7 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 - **Eval**: `verify.sh`; `verify-mutation.sh` manual. Harness: [`HARNESS.md`](HARNESS.md).
 - **Budget**: nenhum loop autônomo ativo.
 
-- **Em andamento (#65/#67, 2026-10-15)**: branch `feat/issues-65-67`, planos `family-diversity-calibration` e `saved-worlds`; decisões aprovadas em ADR-0034/0035. Diversidade e mundos salvos: Verifier independente PASS. Hospedagem: FAIL em provas C6/C17, testes corrigidos; novo Verifier independente obrigatório antes do PR. CI de develop confirmado verde (run 38823719663, commit 10bec92).
+- **Em andamento (#65/#67, 2026-10-15)**: branch `feat/issues-65-67`, planos `family-diversity-calibration` e `saved-worlds`; decisões aprovadas em ADR-0034/0035. Diversidade: Verifier independente PASS. Hospedagem e mundos salvos: provas de distância e SQL na API corrigidas após FAIL; novo Verifier independente obrigatório antes do PR. CI de develop confirmado verde (run 38823719663, commit 10bec92).
 
 ## Decisões (AD-NNN)
 Log completo em [docs/decisions-log.md](docs/decisions-log.md) — AD-001..048 (não duplique

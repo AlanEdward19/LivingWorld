@@ -38,14 +38,18 @@ Proof: `bash scripts/test.sh --filter "Dynamic_rent_is_what_the_tenant_actually_
 **C13** - Comportamento e fronteiras do AC 13
 Proof: `bash scripts/test.sh --filter "Completing_the_travellers_sleep_pays_once_at_the_action_boundary"`
 
+Proof: `bash scripts/test.sh --filter Nightly_lodging_must_be_strictly_closer_than_home`
+
 **C14** - Comportamento e fronteiras do AC 14
 Proof: `bash scripts/test.sh --filter "A_traveller_near_home_or_too_poor_or_with_no_free_room_does_not_take_a_room"`
+
+Proof: `bash scripts/test.sh --filter Nightly_lodging_requires_strictly_more_than_the_declared_distance`
 
 **C17** - Comportamento e fronteiras do AC 17
 Proof: `bash scripts/test.sh --filter "Loader_rejects_each_invalid_lodging_boundary|Loader_rejects_each_inconsistent_pricing_field"`
 
 **C15** - Preços e vagas visíveis (AC 15)
-Proof: `bash scripts/client-test.sh --filter test_asset_catalog::test_lodging_building_shows_one_bed_per_unit_and_a_price_line`
+Proof: `bash scripts/client-test.sh --filter test_ui_modules::test_hover_text_comes_from_store_and_server_labels`
 
 **C16** - Leitos até o piso livre, inclusive andares (AC 16)
 Proof: `bash scripts/client-test.sh --filter test_asset_catalog`

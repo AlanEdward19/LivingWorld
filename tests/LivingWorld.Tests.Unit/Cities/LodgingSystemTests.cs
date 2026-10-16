@@ -626,6 +626,38 @@ public class LodgingSystemTests
         Assert.NotEqual(RestPlaceKind.Lodging, RestPlaceResolver.Resolve(full, late).Kind);
     }
 
+    [Theory]
+    [InlineData(2, false)]
+    [InlineData(3, false)]
+    [InlineData(4, true)]
+    public void Nightly_lodging_requires_strictly_more_than_the_declared_distance(int homeDistance, bool eligible)
+    {
+        var world = WorldWithInn(tune: recipe => WithNightly(recipe, minDistance: 3));
+        var npc = Traveller(world, wallet: 500);
+        var household = world.FindHousehold(npc.Household!.Value)!;
+        household.CompleteRelocation(household.City, new CellCoord(npc.CurrentLocation.X + homeDistance, npc.CurrentLocation.Y));
+
+        Assert.Equal(eligible, GuestLodging.FindRoom(world, npc, household.Location).HasValue);
+        Assert.Equal(eligible, RestPlaceResolver.Resolve(world, npc).Kind == RestPlaceKind.Lodging);
+    }
+
+    [Theory]
+    [InlineData(3, 4, true)]
+    [InlineData(4, 4, false)]
+    [InlineData(5, 4, false)]
+    public void Nightly_lodging_must_be_strictly_closer_than_home(int innDistance, int homeDistance, bool eligible)
+    {
+        var world = WorldWithInn(tune: recipe => WithNightly(recipe, minDistance: 3));
+        var npc = Traveller(world, wallet: 500);
+        var inn = Inn(world).Position!.Value;
+        npc.MoveTo(new CellCoord(inn.X, inn.Y + innDistance), tick: 0);
+        var household = world.FindHousehold(npc.Household!.Value)!;
+        household.CompleteRelocation(household.City, new CellCoord(npc.CurrentLocation.X + homeDistance, npc.CurrentLocation.Y));
+
+        Assert.Equal(eligible, GuestLodging.FindRoom(world, npc, household.Location).HasValue);
+        Assert.Equal(eligible, RestPlaceResolver.Resolve(world, npc).Kind == RestPlaceKind.Lodging);
+    }
+
     [Fact]
     public void A_scenario_without_nightly_rate_never_offers_a_room()
     {

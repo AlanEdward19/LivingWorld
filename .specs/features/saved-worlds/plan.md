@@ -1,4 +1,4 @@
-# Mundos salvos [Estado: Verificado (2026-10-15)]
+# Mundos salvos [Estado: Implementado; prova da composição API em validação]
 
 ## Problem
 
