@@ -59,7 +59,9 @@ public class ObjectCatalogTests
             var part = catalog.Find(id)!.Shape.Single();
             Assert.Equal(spec!["size"]!.AsArray().Select(n => (double)n!).ToArray(), part.Size);
             Assert.Equal((string)spec["color"]!, part.Color);
-            Assert.Equal((double)spec["size"]![1]! / 2.0, part.Offset[1]);
+            Assert.Equal([0.0, (double)spec["size"]![1]! / 2.0, 0.0], part.Offset);
+            Assert.Equal("none", part.Symmetry);
+            Assert.Equal("box", part.Shape);
         }
 
         var furniture = assets["furniture"]!.AsObject();
@@ -198,6 +200,47 @@ public class ObjectCatalogTests
         Assert.Equal(0.9, (double)part["size"]![2]!);
         Assert.Equal(0.1, (double)part["offset"]![1]!);
         Assert.Equal("d8cfb8", (string)part["color"]!);
+    }
+
+    [Fact]
+    public void Furniture_variation_follows_the_variation_seed_of_each_descriptor_by_slot()
+    {
+        var seeded = ObjectCatalogScenarioLoader.Load(Root(r =>
+        {
+            foreach (var o in (JsonArray)r["Objects"]!) o!["variationSeed"] = 7;
+        })).Value!;
+        var world = ScenarioRunner.Create(seed: 13, initialPopulation: 0, objectCatalog: seeded).World;
+        var building = AddBuilding(world, typeId: 10);
+
+        var first = InteriorProjector.Build(world, building.Id).Value!.Objects!.Furniture;
+        var second = InteriorProjector.Build(world, building.Id).Value!.Objects!.Furniture;
+
+        Assert.Equal(first, second);
+        Assert.Equal(Enumerable.Range(0, 4).Select(slot => ObjectVariation.Index(7, slot)), first.Select(p => p.Variation));
+        Assert.Contains(first, p => p.Variation != 0);
+    }
+
+    [Theory]
+    [InlineData("color", "zzzzzz", "color")]
+    [InlineData("symmetry", "diagonal", "symmetry")]
+    public void An_invalid_color_or_symmetry_is_refused(string field, string value, string expected)
+    {
+        var result = ObjectCatalogScenarioLoader.Load(Root(r => FirstPart(r)[field] = value));
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains($"shape[0].{expected}", result.Error);
+    }
+
+    [Fact]
+    public void A_non_finite_number_a_bad_furnishing_key_and_a_bad_use_point_are_refused()
+    {
+        var infinite = ObjectCatalogScenarioLoader.Load(Root(r => ((JsonArray)FirstPart(r)["offset"]!)[0] = double.PositiveInfinity));
+        var badKey = ObjectCatalogScenarioLoader.Load(Root(r => ((JsonObject)r["Furnishings"]!)["castle"] = new JsonArray("bed")));
+        var badPoint = ObjectCatalogScenarioLoader.Load(Root(r => ((JsonObject)((JsonArray)r["Objects"]!)[0]!)["usePoints"] = new JsonArray(new JsonObject { ["name"] = "lie", ["offset"] = new JsonArray(0, 0) })));
+
+        Assert.Contains("shape[0].offset[0]", infinite.Error);
+        Assert.Contains("Furnishings.castle", badKey.Error);
+        Assert.Contains("usePoints[0].offset", badPoint.Error);
     }
 
     [Fact]
