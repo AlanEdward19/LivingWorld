@@ -322,6 +322,44 @@ public class ObjectCatalogTests
             furniture.Select((p, slot) => ObjectVariation.Index(seeds.GetValueOrDefault(p.Id, 0), slot)),
             furniture.Select(p => p.Variation));
         Assert.Contains(furniture, p => p.Variation != 0);
+        // se a seed de todas fosse a da primeira peça, o padrão seria outro: o teste distingue seed por peça de seed única
+        Assert.NotEqual(
+            furniture.Select(p => p.Variation),
+            furniture.Select((p, slot) => ObjectVariation.Index(seeds["bed"], slot)));
+    }
+
+    [Fact]
+    public void Variation_spreads_across_nearby_seeds_and_all_indexes_appear()
+    {
+        var patterns = Enumerable.Range(1, 8).Select(seed => string.Join(",", Enumerable.Range(0, 6).Select(slot => ObjectVariation.Index(seed, slot)))).Distinct();
+
+        Assert.True(patterns.Count() >= 4, "seeds vizinhas devem variar entre si");
+        Assert.Equal(ObjectVariation.Count, Enumerable.Range(1, 40).Select(seed => ObjectVariation.Index(seed, 0)).Distinct().Count());
+    }
+
+    [Fact]
+    public void Symmetry_and_category_are_read_from_the_scenario_for_every_allowed_value()
+    {
+        foreach (var symmetry in new[] { "none", "x", "z", "xz" })
+        {
+            var catalog = ObjectCatalogScenarioLoader.Load(Root(r =>
+            {
+                FirstPart(r)["symmetry"] = symmetry;
+                Obj(r)["category"] = "mobiliario-raro";
+            })).Value!;
+
+            Assert.Equal(symmetry, catalog.Objects[0].Shape[0].Symmetry);
+            Assert.Equal("mobiliario-raro", catalog.Objects[0].Category);
+            Assert.Equal("bench", catalog.Objects[1].Id);
+        }
+    }
+
+    [Fact]
+    public void The_color_is_exactly_six_hex_digits_and_stored_in_lower_case()
+    {
+        Assert.Equal("a1b2c3", ObjectCatalogScenarioLoader.Load(Root(r => FirstPart(r)["color"] = "A1B2C3")).Value!.Objects[0].Shape[0].Color);
+        Assert.False(ObjectCatalogScenarioLoader.Load(Root(r => FirstPart(r)["color"] = "abc")).IsSuccess);
+        Assert.False(ObjectCatalogScenarioLoader.Load(Root(r => FirstPart(r)["color"] = "a1b2c3d")).IsSuccess);
     }
 
     [Fact]

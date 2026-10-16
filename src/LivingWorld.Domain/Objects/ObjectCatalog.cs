@@ -38,8 +38,12 @@ public static class ObjectVariation
         if (variationSeed == 0) return 0;
         unchecked
         {
-            uint mixed = (uint)variationSeed * 2654435761u ^ (uint)(slot + 1) * 40503u;
-            mixed ^= mixed >> 15;
+            uint mixed = (uint)variationSeed * 2654435761u ^ (uint)(slot + 1) * 2246822519u;
+            mixed ^= mixed >> 16;
+            mixed *= 2246822507u;
+            mixed ^= mixed >> 13;
+            mixed *= 3266489909u;
+            mixed ^= mixed >> 16;
             return (int)(mixed % Count);
         }
     }
