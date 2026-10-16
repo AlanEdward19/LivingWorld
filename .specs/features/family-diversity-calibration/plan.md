@@ -25,7 +25,7 @@ None - sem nova API.
 
 | One-way door | Literal shape | Alternative rejected |
 | --- | --- | --- |
-| critério FAM-32 | faixa e piso medidos em tests/baselines/family-diversity.json | desigualdade contra zero: contradiz seleção direcional; ADR-0034 |
+| critério FAM-32 | faixa e piso medidos em tests/baselines/family-diversity.json | desigualdade contra zero: contradiz seleção direcional; ADR-0036 |
 
 ## Criteria
 
@@ -61,7 +61,7 @@ Open questions: none - decisões confirmadas pelo usuário.
 
 ## Sources
 
-- Issue #65, ADR-0034.
+- Issue #65, ADR-0036.
 - Decisões explícitas do usuário em 2026-10-15.
 
 ## Calibration

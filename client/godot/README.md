@@ -67,3 +67,4 @@ Consolidado (2026-10-15, M1 Pro, máquina ociosa, `stress:500`, API local, 3 rod
 Aparência herdada (2026-10-15, M1 Pro, `stress:500`, API local, 3 rodadas): sorteio local de sempre 76,6 / 74,0 / 77,4 FPS; com genes do motor em todos os NPCs (`stress_look`) 75,0 / 75,6 / 75,2 (média -0,7, dentro de ±3; materiais compartilhados por combinação, no máximo 21 de pele e 21 de cabelo).
 
 Mundos salvos e leitos (2026-10-15, M1 Pro, `stress:500`, API local): base 74,4 / 77,6 / 75,4 FPS; entrega 77,3 / 76,2 / 75,0. Medianas 75,4 → 76,2; sem regressão. Repetir com `bash scripts/client-stress.sh`.
+Catálogo de objetos (2026-10-15, #47 fatia 1, M1 Pro, `stress:500`, 3 rodadas): antes 66,8 (1ª execução do worktree, importação) / 76,7 / 76,0; depois 75,9 / 76,2 / 76,7 (sem regressão; a mobília só é instanciada ao abrir um interior, com mesh e material compartilhados por id e variação).

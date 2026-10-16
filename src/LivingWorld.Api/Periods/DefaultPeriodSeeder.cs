@@ -166,6 +166,8 @@ public static class DefaultPeriodSeeder
             ["Cities"] = new JsonArray(),
         };
 
+        // Mobília como dado de cenário (#47 fatia 1, ADR-0034): o interior sai do catálogo do mundo, não do assets.json do cliente.
+        LivingWorld.Simulation.Objects.DefaultObjects.AddTo(root);
         return root.ToJsonString();
     }
 }

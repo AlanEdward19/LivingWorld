@@ -49,7 +49,7 @@ casais, tendo filhos e produzindo linhagens rastreáveis que não colapsam em cl
   (negativo) **e** cenário com dois irmãos adultos coabitando e compatíveis em tudo o mais,
   no qual o cortejo é rejeitado com motivo `Incesto` (positivo). Só o negativo passa também
   se irmãos nunca se encontrarem.
-- **Diversidade calibrada contra deriva neutra (FAM-32, ADR-0034)**: em 20 seeds pareadas e
+- **Diversidade calibrada contra deriva neutra (FAM-32, ADR-0036)**: em 20 seeds pareadas e
   10 anos, a média de `CV(Vitality real) − CV(Vitality neutro)` deve ficar na faixa
   `média baseline ± ConfidenceZ × EP baseline`, calculada de `tests/baselines/family-diversity.json`.
   `Openness`, sem seleção direta de mortalidade, é controle negativo: sua diferença média

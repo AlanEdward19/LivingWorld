@@ -1,4 +1,4 @@
-# Histórico — substituído por ADR-0034 para FAM-32
+# Histórico — substituído por ADR-0036 para FAM-32
 
 **Nota FAM-32 (AD-066, 2026-07-28):** o critério nasceu como desigualdade determinística de
 seed único (`CV(real) >= CV(neutro)`, mesma seed). AD-064/AD-065 corrigiram um viés estrutural

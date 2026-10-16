@@ -4,7 +4,7 @@ using LivingWorld.Tests.Shared.Population;
 
 namespace LivingWorld.Tests.LongRunning.Population;
 
-/// <summary>FAM-32: faixa observada, controle negativo e piso empírico, ADR-0034.</summary>
+/// <summary>FAM-32: faixa observada, controle negativo e piso empírico, ADR-0036.</summary>
 public class FamilyDiversityCalibrationTests
 {
     public sealed record Sample(int Seed, double VitalityDifference, double OpennessDifference, double MinimumVitalityCv, int MinimumAlive, int FinalAlive);

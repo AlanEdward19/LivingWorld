@@ -47,6 +47,23 @@ public class SavedWorldEndpointsTests : IClassFixture<LivingWorldApiFactory>
     }
 
     [Fact]
+    public async Task Loading_a_saved_world_preserves_its_server_object_catalog()
+    {
+        var client = _factory.CreateClient();
+        var host = _factory.Services.GetRequiredService<WorldHost>();
+        var scenario = WorldCreateEndpointsTests.FullValidScenario(67109);
+        LivingWorld.Simulation.Objects.DefaultObjects.AddTo(scenario);
+        var request = new CreateWorldRequest(scenario.ToJsonString(), "Catálogo salvo");
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/worlds/create", request)).StatusCode);
+        Assert.NotNull(host.Current.ObjectCatalog);
+        host.Clock.Run(host.Current, 35);
+        string before = WorldSnapshot.CanonicalHash(host.Current);
+        Assert.Equal(HttpStatusCode.OK, (await Create(client, 67110, "Outro mundo")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/worlds/{WorldIdentity.WorldIdFor(67109)}/load", null)).StatusCode);
+        Assert.Equal(before, WorldSnapshot.CanonicalHash(host.Current));
+    }
+
+    [Fact]
     public async Task Load_missing_world_keeps_the_current_hash()
     {
         var client = _factory.CreateClient();

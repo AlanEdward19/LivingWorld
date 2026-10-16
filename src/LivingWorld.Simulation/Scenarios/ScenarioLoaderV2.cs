@@ -64,7 +64,8 @@ public static class ScenarioLoaderV2
             extraordinary: definition.Extraordinary,
             emergenceRules: definition.Emergence,
             ontogenyRules: definition.Ontogeny,
-            appearanceRules: definition.Appearance);
+            appearanceRules: definition.Appearance,
+            objectCatalog: definition.Objects);
 
         var createdCityIds = new List<CityId>(definition.City.Cities.Count);
         foreach (var city in definition.City.Cities)

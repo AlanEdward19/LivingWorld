@@ -9,7 +9,7 @@
 - [ ] FAM-32: contraste de CV de Vitality dentro da faixa medida em 20 seeds de
       `tests/baselines/family-diversity.json`, controle negativo de Openness compatível com zero,
       pisos positivos de CV/população nos checkpoints de 100 anos do cenário completo;
-      seleção amplificada deve reprovar (ADR-0034, substitui AD-066/088 para este critério).
+      seleção amplificada deve reprovar (ADR-0036, substitui AD-066/088 para este critério).
 - [ ] Correlação genética×sucesso tem IC95 do `\|r\|` inteiramente abaixo do mesmo mundo com o
       canal ambiental desligado — teto derivado, não inventado.
 - [ ] Contrafactual de household (rico vs pobre, mesmo genoma) mostra medianas diferentes e

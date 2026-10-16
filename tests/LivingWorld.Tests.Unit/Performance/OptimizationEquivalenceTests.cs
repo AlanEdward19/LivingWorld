@@ -25,7 +25,7 @@ namespace LivingWorld.Tests.Unit.Performance;
 /// é comparada com a definição direta que ela substitui, e o conjunto é preso a hashes do mundo.
 /// Os hashes foram gravados no código anterior às otimizações (equivalência provada) e regravados
 /// quando o comportamento mudou de propósito (mortalidade condicional, Midshift, custo de célula
-/// 0.05, urgência de sobrevivência, abastecimento, rotina com deslocamento antecipado — AD-077/AD-078; folga mínima e água no posicionamento de prédios — AD-104; campos de aluguel no domicílio — AD-105; log/cosseno determinísticos em vez da libm da plataforma — AD-108; hash VOLÁTIL regravado ao ganhar `WorldState.PeriodId` — ADR-0027, com o canônico idêntico). ontogenia ligada por padrão, `Npc.Development` e `OntogenyRules` canônicos, acolhimento de órfãos — AD-115..118; convivência no turno e cidade dos descendentes — AD-119 / ADR-0034. Mudar a simulação de propósito exige atualizá-los; qualquer outra quebra é regressão.</summary>
+/// 0.05, urgência de sobrevivência, abastecimento, rotina com deslocamento antecipado — AD-077/AD-078; folga mínima e água no posicionamento de prédios — AD-104; campos de aluguel no domicílio — AD-105; log/cosseno determinísticos em vez da libm da plataforma — AD-108; hash VOLÁTIL regravado ao ganhar `WorldState.PeriodId` — ADR-0027, com o canônico idêntico). ontogenia ligada por padrão, `Npc.Development` e `OntogenyRules` canônicos, acolhimento de órfãos — AD-115..118; convivência no turno e cidade dos descendentes — AD-119 / ADR-0036. Mudar a simulação de propósito exige atualizá-los; qualquer outra quebra é regressão.</summary>
 public class OptimizationEquivalenceTests
 {
     private const long OneYearInHours = 360L * 24;

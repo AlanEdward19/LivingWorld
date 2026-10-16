@@ -58,6 +58,34 @@ public class DefaultPeriodSeederTests
     }
 
     [Fact]
+    public void SeedIfEmpty_gives_every_builtin_preset_the_object_catalog_with_the_migrated_furniture()
+    {
+        foreach (var json in SeededPayloads())
+        {
+            var catalog = ScenarioLoaderV2.LoadWorld(json).Value.World.ObjectCatalog;
+            Assert.NotNull(catalog);
+            Assert.Equal(9, catalog.Objects.Count);
+            Assert.Equal(["bed", "bed", "table", "chest"], catalog.FurnishingFor(10));
+            Assert.Equal(["table", "bench", "crate"], catalog.FurnishingFor(999));
+        }
+    }
+
+    [Fact]
+    public void An_invalid_Objects_block_makes_the_whole_period_invalid()
+    {
+        foreach (var json in SeededPayloads())
+        {
+            var broken = JsonNode.Parse(json)!.AsObject();
+            broken["objectsFormat"] = 2;
+
+            var result = PeriodDefinitionValidator.Validate(broken.ToJsonString());
+
+            Assert.False(result.IsSuccess);
+            Assert.Contains("objectsFormat", result.Error);
+        }
+    }
+
+    [Fact]
     public void Profession_names_do_not_change_the_world_hash()
     {
         foreach (var json in SeededPayloads())

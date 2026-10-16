@@ -1,4 +1,4 @@
-# ADR-0034 — Diversidade genética calibrada (FAM-32)
+# ADR-0036 — Diversidade genética calibrada (FAM-32)
 
 ## Status
 Aceito pelo usuário em 2026-10-15, issue #65, opção B.
@@ -41,3 +41,7 @@ A implementação deve demonstrar discriminação antes de marcar FAM-32 Verifie
 
 ## Fontes
 - Issue #65; AD-088; decisão do usuário nesta sessão.
+
+## Identificador
+Renumerado de ADR-0034 para ADR-0036 na integração com #47, que já publicou ADR-0034.
+Os relatórios históricos mantêm a numeração válida no commit em que foram executados.

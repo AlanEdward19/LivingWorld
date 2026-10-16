@@ -19,7 +19,15 @@ public sealed record InteriorOccupant(
 /// este prédio — <see cref="OccupancyModeled"/> passa a <c>true</c> agora que existe dado real
 /// por trás.</summary>
 public sealed record InteriorSnapshot(BuildingId Id, CityId City, int BuildingTypeId, bool OccupancyModeled, IReadOnlyList<InteriorOccupant> Occupants,
-    BuildingLayout Layout);
+    BuildingLayout Layout,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] InteriorObjects? Objects = null);
+
+/// <summary>Peça de mobília: id do catálogo + índice de variação determinístico (ADR-0034). O cliente compartilha mesh/material por (Id, Variation).</summary>
+public sealed record PlacedObject(string Id, int Variation);
+
+/// <summary>Objetos do interior (#47 fatia 1): o catálogo do cenário e a mobília do tipo do prédio, em ordem. Ausente = mundo sem <c>Objects</c>
+/// (o cliente cai no <c>assets.json</c>).</summary>
+public sealed record InteriorObjects(int Format, IReadOnlyList<LivingWorld.Domain.Objects.ObjectDescriptor> Catalog, IReadOnlyList<PlacedObject> Furniture);
 
 public static class InteriorProjector
 {
@@ -44,6 +52,15 @@ public static class InteriorProjector
             .ToArray();
 
         return Result<InteriorSnapshot>.Ok(new InteriorSnapshot(building.Id, building.City, building.BuildingTypeId, OccupancyModeled: true, occupants,
-            BuildingLayoutGenerator.Generate(building)));
+            BuildingLayoutGenerator.Generate(building), BuildObjects(world.ObjectCatalog, building.BuildingTypeId)));
+    }
+
+    private static InteriorObjects? BuildObjects(LivingWorld.Domain.Objects.ObjectCatalog? catalog, int buildingTypeId)
+    {
+        if (catalog is null) return null;
+        var furniture = catalog.FurnishingFor(buildingTypeId)
+            .Select((id, slot) => new PlacedObject(id, LivingWorld.Domain.Objects.ObjectVariation.Index(catalog.Find(id)?.VariationSeed ?? 0, slot)))
+            .ToArray();
+        return new InteriorObjects(catalog.Format, catalog.Objects, furniture);
     }
 }

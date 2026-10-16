@@ -6,6 +6,7 @@ const Grid := preload("res://Scenes/grid.gd")
 const NpcActor := preload("res://Scenes/npc_actor.gd")
 const WorldStore := preload("res://Store/world_store.gd")
 const AssetCatalog := preload("res://Scenes/asset_catalog.gd")
+const ObjectFactory := preload("res://Scenes/object_factory.gd")
 
 const FLOOR_HEIGHT := 1.0
 const WALL_HEIGHT := 0.9
@@ -71,6 +72,8 @@ func show_interior(info: Dictionary, p_origin: Vector2i, labels, building_type: 
 ## Leitos usam o piso livre de todos os andares; outras peças do catálogo ficam no térreo.
 ## Nunca ocupa parede, porta ou escada. Cada peça pertence ao andar para respeitar o corte de visão.
 func _place_furniture(info: Dictionary, building_type: int, lodging_units: int = 0) -> void:
+	var objects = info.get("objects")
+	var factory = ObjectFactory.new(objects.catalog) if objects is Dictionary else null
 	var remaining := lodging_units
 	for floor_layout in info.layout:
 		var level := int(floor_layout.level)
@@ -97,18 +100,32 @@ func _place_furniture(info: Dictionary, building_type: int, lodging_units: int =
 		var beds := mini(remaining, free_cells.size())
 		remaining -= beds
 		for i in beds:
-			pieces.append("bed")
+			pieces.append(["bed", 0])
 		if level == 0:
-			pieces.append_array(catalog.furniture_for(building_type))
-		for piece_id in pieces:
+			if factory != null:
+				for placed in objects.furniture:
+					pieces.append([String(placed.id), int(placed.variation)])
+			else:
+				for piece_id in catalog.furniture_for(building_type):
+					pieces.append([String(piece_id), 0])
+		for piece in pieces:
 			if used.size() >= free_cells.size():
 				break
 			var slot := (seed_value + index * stride) % free_cells.size()
 			while used.has(slot) and used.size() < free_cells.size():
 				slot = (slot + 1) % free_cells.size()
 			used[slot] = true
-			_add_piece(String(piece_id), origin + free_cells[slot], floor_furniture)
+			if factory != null and factory.has(piece[0]):
+				_add_object(factory, piece[0], piece[1], origin + free_cells[slot], floor_furniture)
+			else:
+				_add_piece(piece[0], origin + free_cells[slot], floor_furniture)
 			index += 1
+
+
+func _add_object(factory, piece_id: String, variation: int, cell: Vector2i, parent: Node3D) -> void:
+	var node: Node3D = factory.build(piece_id, variation)
+	node.position += Grid.to_world(cell)
+	parent.add_child(node)
 
 
 func _add_piece(piece_id: String, cell: Vector2i, parent: Node3D) -> void:

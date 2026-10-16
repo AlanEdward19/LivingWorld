@@ -226,6 +226,11 @@ public sealed partial class WorldState
     [Canonical, System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public LivingWorld.Domain.Population.AppearanceRules? AppearanceRules { get; }
 
+    /// <summary>Catálogo de objetos (#47 fatia 1, ADR-0034): forma e mobília como dado. Nulo = cenário sem <c>Objects</c>: omitido do
+    /// snapshot e do hash canônico, idênticos aos de antes. Só apresentação nesta fatia (consumidor causal: fatia 3).</summary>
+    [Canonical, System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public LivingWorld.Domain.Objects.ObjectCatalog? ObjectCatalog { get; }
+
     /// <summary>Tecnologias por cultura, na ordem de descoberta; identificadas só pelo vetor (ADR-0013).</summary>
     [Canonical] public IReadOnlyList<Technology> Technologies => _technologies;
     private readonly List<Technology> _technologies;
@@ -487,7 +492,8 @@ public sealed partial class WorldState
         EmergenceRules? emergenceRules = null,
         LivingWorld.Domain.Ontogeny.OntogenyRules? ontogenyRules = null,
         IReadOnlyList<Technology>? technologies = null,
-        LivingWorld.Domain.Population.AppearanceRules? appearanceRules = null)
+        LivingWorld.Domain.Population.AppearanceRules? appearanceRules = null,
+        LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -536,6 +542,7 @@ public sealed partial class WorldState
         EmergenceRules = emergenceRules ?? EmergenceRules.Disabled;
         OntogenyRules = ontogenyRules ?? LivingWorld.Domain.Ontogeny.OntogenyRules.Disabled;
         AppearanceRules = appearanceRules;
+        ObjectCatalog = objectCatalog;
         _technologies = (technologies ?? []).ToList();
         _climateYears = (climateYears ?? []).ToList();
         Name = name;
@@ -657,7 +664,8 @@ public sealed partial class WorldState
         EmergenceRules? emergenceRules = null,
         LivingWorld.Domain.Ontogeny.OntogenyRules? ontogenyRules = null,
         IReadOnlyList<Technology>? technologies = null,
-        LivingWorld.Domain.Population.AppearanceRules? appearanceRules = null)
+        LivingWorld.Domain.Population.AppearanceRules? appearanceRules = null,
+        LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -741,6 +749,7 @@ public sealed partial class WorldState
         EmergenceRules = emergenceRules ?? EmergenceRules.Disabled;
         OntogenyRules = ontogenyRules ?? LivingWorld.Domain.Ontogeny.OntogenyRules.Disabled;
         AppearanceRules = appearanceRules;
+        ObjectCatalog = objectCatalog;
         _technologies = (technologies ?? []).ToList();
         _climateYears = (climateYears ?? []).ToList();
         _facts = (facts ?? []).ToList();
