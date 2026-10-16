@@ -159,6 +159,20 @@ public class ObjectUseTests
     }
 
     [Fact]
+    public void The_delta_source_uses_the_furniture_of_the_building_type_not_a_fixed_one()
+    {
+        var world = WorldWith(ObjectCatalogScenarioLoader.Load(Root()).Value!);
+        var shop = AddBuilding(world, typeId: 1);
+        var sleeper = Enter(world, shop, "ana", ActionType.Sleep);
+        var clerk = Enter(world, shop, "bia", ActionType.Work);
+
+        var occupants = InteriorProjector.BuildOccupants(world, shop.Id)!;
+
+        Assert.Null(occupants.Single(o => o.Npc == sleeper.Id).UsingObject);
+        Assert.Equal("counter", occupants.Single(o => o.Npc == clerk.Id).UsingObject);
+    }
+
+    [Fact]
     public void The_first_piece_in_furnishing_order_that_serves_the_action_wins()
     {
         var world = WorldWith(ObjectCatalogScenarioLoader.Load(Root(r => ((JsonObject)r["Furnishings"]!)["3"] = new JsonArray("anvil", "counter"))).Value!);

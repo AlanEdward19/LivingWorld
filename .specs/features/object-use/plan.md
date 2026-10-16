@@ -1,6 +1,6 @@
 # object-use — #47 fatia 2 (uso e animação atrelados ao objeto)
 
-Status: implementado, aguardando Verifier (`verification.md`). ADR-0037. Branch `feat/objetos-uso-fatia2`, empilhada na fatia 1 (PR #99).
+Status: PASS (`verification.md`, 2º Verifier independente). ADR-0037. Branch `feat/objetos-uso-fatia2`, sobre a fatia 1, já mergeada (PR #99).
 
 ## Problema
 A pose do NPC vem só da ação e a posição só da célula do servidor: dormir é "deitado em pé no chão com uma cama desenhada junto". O objeto não diz onde o corpo encosta nem que pose faz.
