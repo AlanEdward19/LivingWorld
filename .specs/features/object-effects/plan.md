@@ -1,6 +1,6 @@
 # object-effects — #47 fatia 3 (interações e efeitos aplicados pelo motor)
 
-Status: implementado, aguardando Verifier (`verification.md`). ADR-0038. Branch `feat/objetos-efeitos-fatia3` (a fatia 2 já está na `develop`, #101).
+Status: PASS (`verification.md`, 3º Verifier independente). ADR-0038. Branch `feat/objetos-efeitos-fatia3` (a fatia 2 já está na `develop`, #101).
 
 ## Problema
 Objeto só se desenha e se usa (fatias 1 e 2); nada no mundo muda por causa dele. Uma cama melhor não recupera o sono mais rápido e uma mesa não acelera a refeição.
