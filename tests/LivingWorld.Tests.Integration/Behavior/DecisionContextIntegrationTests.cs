@@ -103,7 +103,8 @@ public class DecisionContextIntegrationTests
     [Fact]
     public void Scarcity_belief_diverges_decision_toward_Buy()
     {
-        // Household com estoque: Eat leva o déficit de fome; Buy fica em baseline (50).
+        // Household com pouco estoque e dinheiro: Eat leva o déficit de fome; Buy fica abaixo dele.
+        // A crença só pesa para quem pode agir sobre ela (tem com que pagar e a despensa está abaixo da meta).
         // Crença canônica com cue "escassez" (+40 em Buy) faz Buy vencer — COH-13 Independent Test.
         var historyRules = HistoryRules.Create(
             enabled: true,
@@ -138,7 +139,7 @@ public class DecisionContextIntegrationTests
                 new NpcId(1), "npc", Sex.Male, WorldDate.Epoch(Calendar).AddYears(-30), new CultureId(1),
                 location, motherId: null, fatherId: null, household: null, health: 100,
                 personality: Neutral, profession: ProfessionType.None, currentLocation: location,
-                hunger: 20, thirst: 100, sleep: 100, social: 100, city: cityId);
+                hunger: 14, thirst: 100, sleep: 100, social: 100, city: cityId, wallet: new Money(100));
             world.AddNpc(npc);
             world.AdvanceNpcIdTo(2);
 
@@ -146,8 +147,8 @@ public class DecisionContextIntegrationTests
                 new HouseholdId(1), location, npc.Id, [npc.Id],
                 stock: new Dictionary<ResourceType, long>
                 {
-                    [food] = 5,
-                    [new ResourceType(2)] = 5, // água: sem isso BuyUtility cai a 0 (só sede “faltando”)
+                    [food] = 1,
+                    [new ResourceType(2)] = 1, // água: sem isso BuyUtility cai a 0 (só sede “faltando”)
                 });
             world.AddHousehold(household);
             npc.JoinHousehold(household.Id);
