@@ -1,5 +1,8 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json.Nodes;
+using LivingWorld.Api.World;
+using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Simulation.Hosting;
@@ -115,6 +118,62 @@ public class PooledNpcContractTests : IClassFixture<LivingWorldApiFactory>
         // Premissa: o teste só vale se ao menos os opcionais mais comuns vieram preenchidos em algum NPC.
         Assert.Contains("currentAction", seen);
         Assert.Contains("household", seen);
+    }
+
+    /// <summary>#92: observa refeições reais hora a hora, sem depender de um único instante da simulação.</summary>
+    [Fact]
+    public async Task Eating_npc_exposes_non_null_food_matching_the_typed_contract()
+    {
+        _factory.ResetCanonicalWorld();
+        var host = _factory.Services.GetRequiredService<WorldHost>();
+        var client = _factory.CreateClient();
+        var shape = JsonNode.Parse(File.ReadAllText(Path.Combine(FindRepoRoot(), "tests", "contracts", "shape.npc-inspect.json")))!;
+
+        for (int hour = 0; hour < 72; hour++)
+        {
+            host.Clock.Tick(host.Current);
+            foreach (var npc in host.Current.Npcs.Where(n => n.IsAlive && n.CurrentAction == ActionType.Eat))
+            {
+                var body = JsonNode.Parse(await client.GetStringAsync($"/npcs/{npc.Id.Value}"))!;
+                Assert.True(body["food"] is not null, $"NPC {npc.Id.Value} comendo na hora {hour + 1}: food ausente");
+                var errors = new List<string>();
+                Check(body, shape, "$", errors);
+                Assert.True(errors.Count == 0, string.Join("; ", errors));
+                return;
+            }
+        }
+
+        Assert.Fail("Nenhuma refeição observada em 72 horas simuladas (seed 1).");
+    }
+
+    /// <summary>#92: família autorada atravessa criação, consulta HTTP e contrato tipado com ambos os pais presentes.</summary>
+    [Fact]
+    public async Task Authored_child_exposes_both_parent_ids_matching_the_typed_contract()
+    {
+        var scenario = JsonNode.Parse(File.ReadAllText(Path.Combine(FindRepoRoot(), "scenarios", "default.json")))!.AsObject();
+        scenario["Seed"] = 92;
+        scenario["InitialPopulation"] = 0;
+        scenario["AuthoredHouseholds"] = JsonNode.Parse("""
+            [{"Members":[
+              {"Name":"Ana","Sex":"Female","AgeYears":34,"ProfessionId":1,"Spouse":1},
+              {"Name":"Beto","Sex":"Male","AgeYears":36,"ProfessionId":2,"Spouse":0},
+              {"Name":"Cai","Sex":"Male","AgeYears":6,"ProfessionId":1,"Mother":0,"Father":1}]}]
+            """);
+        var client = _factory.CreateClient();
+        var response = await client.PostAsJsonAsync("/worlds/create", new CreateWorldRequest(scenario.ToJsonString(), "Contrato de pais"));
+        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
+        var world = _factory.Services.GetRequiredService<WorldHost>().Current;
+        var child = world.Npcs.Single(n => n.Name == "Cai");
+        var body = JsonNode.Parse(await client.GetStringAsync($"/npcs/{child.Id.Value}"))!;
+        var shape = JsonNode.Parse(File.ReadAllText(Path.Combine(FindRepoRoot(), "tests", "contracts", "shape.npc-inspect.json")))!;
+
+        Assert.True(body["motherId"] is not null, "motherId ausente na ficha do filho autorado");
+        Assert.True(body["fatherId"] is not null, "fatherId ausente na ficha do filho autorado");
+        var errors = new List<string>();
+        Check(body, shape, "$", errors);
+        Assert.True(errors.Count == 0, string.Join("; ", errors));
+        Assert.Equal(world.Npcs.Single(n => n.Name == "Ana").Id.Value, body["motherId"]!["value"]!.GetValue<long>());
+        Assert.Equal(world.Npcs.Single(n => n.Name == "Beto").Id.Value, body["fatherId"]!["value"]!.GetValue<long>());
     }
 
     private static string FindRepoRoot()

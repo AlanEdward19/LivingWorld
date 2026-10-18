@@ -4,6 +4,9 @@ Fonte única de continuidade. Quem entra numa área nova **lê este arquivo prim
 Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
+- **#92 (2026-10-18, `codex/issue-92`)**: testes HTTP de refeição observada em até 72 horas
+  e pais de família autorada; contrato tipado sem mudança. Spec/evidências em
+  `.specs/features/issue-92-inspect-optionals/`.
 - **#91 (2026-10-16, `codex/issue-91`)**: história ligada nos mundos do catálogo, gravação síncrona de fatos,
   relato de fome consumido pela utility de Buy e cache hop-0 dentro do teto de custo. ADR-0037;
   spec/evidências em `.specs/features/issue-91-catalog-history/`. Gates e Verifier PASS; relatório `validation.md`, 3 mutações detectadas e custo 99,36% do controle.
