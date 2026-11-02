@@ -16,10 +16,11 @@
   **desempenho sem regressão**. Uma melhoria de realismo ou UX não pode custar FPS (cliente) nem custo por
   NPC-tick (motor): meça antes e depois e registre o número (`client/godot/README.md`, `--steps "stress:500"`).
 
-- **Issues do GitHub (evita retrabalho):** antes de pegar uma issue, rode
-  `gh issue view <n> --json assignees,state` (e confira PR/branch aberto que cite `#<n>`). Se já houver
-  assignee ou PR em andamento, **não pegue** — escolha outra ou avise o usuário. Ao pegar, atribua o
-  usuário logado: `gh issue edit <n> --add-assignee @me`. Sem isso, não comece a trabalhar nela.
+- **Issues do GitHub (evita retrabalho):** use `gh api` (REST); `gh issue view/edit` usam GraphQL e falham
+  na nuvem. Antes de pegar: `gh api repos/AlanEdward19/LivingWorld/issues/<n> -q '.state,.assignees[].login'`
+  e confira PR aberto que cite `#<n>`. Se houver assignee ou PR em andamento, **não pegue** — escolha outra ou
+  avise o usuário. Ao pegar, atribua-se: `gh api -X POST repos/AlanEdward19/LivingWorld/issues/<n>/assignees
+  -f "assignees[]=$(gh api user -q .login)"`. Branch base: **`main`** (`develop` não existe mais).
 
 **PERGUNTE QUANDO**
 - For apagar/renomear spec, design ou doc; alterar migração aplicada; mudar contrato público.
