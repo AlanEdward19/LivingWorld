@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Vulnerabilidade de segurança
+    url: https://github.com/AlanEdward19/LivingWorld/security/advisories/new
+    about: Reporte problemas de segurança em privado, não como issue pública.
