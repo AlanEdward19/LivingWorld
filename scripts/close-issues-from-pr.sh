@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Fecha as issues citadas com palavra de fechamento no corpo de um PR. O GitHub só faz isso sozinho quando o merge cai na branch
-# padrão (main); aqui o trabalho integra em develop, então o workflow `close-issues.yml` chama este script.
+# Fecha as issues citadas com palavra de fechamento no corpo de um PR mergeado em main (branch padrão). O GitHub só fecha sozinho
+# com uma palavra por issue; listas ("Closes #1, #2 e #3") ficariam abertas, então o workflow `close-issues.yml` chama este script.
 # Uso: PR_BODY="..." bash scripts/close-issues-from-pr.sh --list           # só imprime os números (testável, sem rede)
 #      PR_BODY="..." PR_NUMBER=94 GH_TOKEN=... bash scripts/close-issues-from-pr.sh   # fecha de verdade
 # Reconhece "Closes #1, #2 and #3", "Closes #1 e #2", "Fixes: #4", "resolved #5" (close/fix/resolve em qualquer flexão, sem diferenciar maiúsculas).
@@ -22,6 +22,6 @@ fi
 for n in $numbers; do
   state=$(gh issue view "$n" --json state --jq .state 2>/dev/null || echo MISSING)
   if [ "$state" != "OPEN" ]; then echo "close-issues: #$n já está $state, nada a fazer"; continue; fi
-  gh issue close "$n" --reason completed --comment "Fechada automaticamente: o PR #$PR_NUMBER foi mergeado em \`develop\` e cita esta issue." >/dev/null
+  gh issue close "$n" --reason completed --comment "Fechada automaticamente: o PR #$PR_NUMBER foi mergeado em \`main\` e cita esta issue." >/dev/null
   echo "close-issues: #$n fechada pelo PR #$PR_NUMBER"
 done
