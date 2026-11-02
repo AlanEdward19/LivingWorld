@@ -1,0 +1,47 @@
+name: Bug
+description: Algo não funciona como esperado
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: Obrigado por reportar! Procure nas issues existentes antes. Para problemas de segurança, veja o SECURITY.md.
+  - type: textarea
+    id: what
+    attributes:
+      label: O que aconteceu?
+      description: Descreva o bug e o que você esperava que acontecesse.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Como reproduzir
+      description: Cenário (`scenarios/...`), seed e quantos ticks/anos, se for simulação; tela e passos, se for o cliente.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Commit
+      description: "`git rev-parse --short HEAD`"
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options:
+        - Motor / simulação
+        - API
+        - Cliente Godot
+        - LLM / conversa
+        - Scripts / CI
+        - Documentação
+  - type: textarea
+    id: env
+    attributes:
+      label: Ambiente
+      description: Sistema operacional, versão do .NET e do Godot.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs, hashes ou prints
+      description: Remova segredos e dados privados antes.

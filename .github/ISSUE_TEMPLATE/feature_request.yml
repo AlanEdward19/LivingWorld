@@ -1,0 +1,28 @@
+name: Melhoria
+description: Sugira uma ideia ou melhoria
+labels: ["enhancement", "triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Que problema isso resolve?
+      description: O que você quer que o mundo faça (ou que você consiga fazer) e o que impede hoje.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposta
+      description: Quem produz o estado novo e quem o consome no motor? Como um teste provaria o efeito?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas consideradas
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribuição
+      options:
+        - label: Quero trabalhar nisso
