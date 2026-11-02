@@ -24,7 +24,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4 # sem `ref`: pull_request_target faz checkout da base (main), onde o script existe; nunca do PR
+      - uses: actions/checkout@v7 # sem `ref`: pull_request_target faz checkout da base (main), onde o script existe; nunca do PR
       - name: Lê o PR (manual)
         if: github.event_name == 'workflow_dispatch'
         env:
