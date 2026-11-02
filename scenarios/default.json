@@ -153,6 +153,7 @@
       "Workplace": { "LocationTypeId": 1, "MaxVacancies": 10 }
     }
   },
+  "Emergence": { "Enabled": true },
   "Cities": [
     {
       "Name": "vila",

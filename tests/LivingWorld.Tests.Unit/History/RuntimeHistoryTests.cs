@@ -1,4 +1,5 @@
 using LivingWorld.Domain.Behavior;
+using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.History.Distortion;
 using LivingWorld.Domain.Population;
@@ -81,7 +82,28 @@ public class RuntimeHistoryTests
         var onlyBuy = new ActionEligibility(uint.MaxValue ^ (1u << (int)ActionType.Buy), false, 1);
         double Score(DecisionContext context) => BehaviorDecisionSystem.SelectByUtility(
             context, world.NeedsRules, world.EconomyRules, null, eligibility: onlyBuy).Trace.WinningUtility;
-        Assert.Equal(40, Score(ctx) - Score(ctx with { RelevantBeliefs = [] }), precision: 8);
+        var withMoney = ctx with
+        {
+            WalletAmount = 100,
+            Household = ctx.Household! with { Stock = new Dictionary<ResourceType, long>() },
+        };
+        Assert.Equal(40, Score(withMoney) - Score(withMoney with { RelevantBeliefs = [] }), precision: 8);
+
+        // Sem com que pagar, ou com a despensa já acima da meta, a crença não tira ninguém do trabalho.
+        var broke = ctx with { WalletAmount = 0 };
+        Assert.Equal(0, Score(broke) - Score(broke with { RelevantBeliefs = [] }), precision: 8);
+        var stocked = withMoney with
+        {
+            Household = ctx.Household! with
+            {
+                Stock = new Dictionary<ResourceType, long>
+                {
+                    [new ResourceType(world.EconomyRules.FoodResourceId)] = 10_000,
+                    [new ResourceType(world.EconomyRules.WaterResourceId)] = 10_000,
+                },
+            },
+        };
+        Assert.Equal(0, Score(stocked) - Score(stocked with { RelevantBeliefs = [] }), precision: 8);
     }
 
     [Fact]

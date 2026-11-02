@@ -4,6 +4,9 @@ Fonte única de continuidade. Quem entra numa área nova **lê este arquivo prim
 Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
+- **#92 (2026-10-18, `codex/issue-92`)**: testes HTTP de refeição observada em até 72 horas
+  e pais de família autorada; contrato tipado sem mudança. Spec/evidências em
+  `.specs/features/issue-92-inspect-optionals/`.
 - **#91 (2026-10-16, `codex/issue-91`)**: história ligada nos mundos do catálogo, gravação síncrona de fatos,
   relato de fome consumido pela utility de Buy e cache hop-0 dentro do teto de custo. ADR-0037;
   spec/evidências em `.specs/features/issue-91-catalog-history/`. Gates e Verifier PASS; relatório `validation.md`, 3 mutações detectadas e custo 99,36% do controle.
@@ -23,6 +26,7 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 - **CI após #47**: `develop` verde no run `38885386561` (gate e cliente); integração com #65/#67 validada novamente antes de atualizar o PR.
 - **#47 fatia 2 (branch `feat/objetos-uso-fatia2`, sobre a fatia 1 já mergeada (#99), 2026-10-16)**: pontos de uso com `action`/`pose`, `usingObject` no interior e pose por (ação, objeto), ADR-0037; plano em `.specs/features/object-use/`. Faltam 3 a 6.
 - **#47 fatia 3 (branch `feat/objetos-efeitos-fatia3`, 2026-10-16)**: `effects` (`sleep:`/`eat:`), `interactions` (profissão/habilidade), duração de dormir e comer dividida pelo efeito, `Comfort` no `DecisionContext`, ADR-0038; plano em `.specs/features/object-effects/`. Faltam 4 (comida como objeto), 5 (invenções, depende da #61), 6 (mods).
+- **#47 fatia 4 (branch `feat/objetos-comida-fatia4`, 2026-10-16)**: recursos do cenário como objetos (`resourceId`, efeitos `hunger:`/`thirst:` = nível restaurado ao consumir), `TryApplyEat` lê o descritor, paridade de hash com os valores de hoje, ADR-0039; plano em `.specs/features/object-resources/`. Faltam 5 (invenções, depende da #61) e 6 (mods).
 - **Integração do extraordinário (2026-08-12)**: decisão **mista**, sem fase numerada nova para "super-heróis" —
   distribuída entre Fases 16, 17, 23, 24, 25, com toques em 10, 12, 22. ADR-0010 + `docs/domain/powers.md`.
 - **Dívida Fase 9**: PERF-12 hasher; `LongRunScaleTests` só nightly.
@@ -72,3 +76,4 @@ depois. Onde o mecanismo já virou task, a fase está nomeada.
 | Emergência aberta produzir coisa implausível | ADR-0013 garante que o emergente é determinístico e composto, não que é *bom*. Nenhum gate distingue tecnologia plausível de monstro estatístico |
 | 28 fases | O escopo agora é muito maior que o objetivo #1. As trilhas (AD-012) organizam, mas não reduzem. Risco real é diluir esforço antes de fechar o núcleo |
 | Fidelidade perdida é perdida | Aceitar `LOD` como definição do mundo (ADR-0012) significa que um período que ninguém observou nunca pode ser ampliado. Coerente e irreversível — se incomodar depois, o custo é alto |
+- **#61 fatia A (branch `feat/mobilidade-todo-deslocamento`, 2026-10-16)**: `Mobility.TravelTicks` aplica o bônus `pace` a todo `Travel` (trabalho, cama, mercado, visita, migração); `Emergence` ligado em `scenarios/default.json`; `load`/`reach` = FUTURE_DEPENDENCY no audit. Plano em `.specs/features/mobility-all-travel/`. Faltam fatias B–I.

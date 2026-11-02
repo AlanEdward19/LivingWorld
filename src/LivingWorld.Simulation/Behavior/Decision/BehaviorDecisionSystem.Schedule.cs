@@ -17,15 +17,15 @@ public sealed partial class BehaviorDecisionSystem
 {
     /// <summary>Tick em que a viagem em curso chega ao destino (mesma conta de <see cref="TryCompleteAction"/>);
     /// nulo se o NPC não está viajando ou se anda por poder extraordinário, que avança passo a passo.</summary>
-    private static long? TravelArrivalTick(WorldState world, Npc npc, MarketIndex marketIndex)
+    internal static long? TravelArrivalTick(WorldState world, Npc npc, MarketIndex marketIndex)
     {
         if (npc.CurrentAction != ActionType.Travel) return null;
         if (TravelDestinationOf(world, npc, marketIndex) is not { } destination || destination == npc.CurrentLocation)
             return null;
         if (ExtraordinaryLocomotion.Resolve(world, npc).HasModifier) return null;
 
-        long ticksNeeded = TravelResolution.TicksBetween(
-            world.Map, npc.CurrentLocation, destination, BodyMechanic.MovementCostMultiplier(world, npc));
+        long ticksNeeded = Mobility.TravelTicks(
+            world, npc, npc.CurrentLocation, destination, BodyMechanic.MovementCostMultiplier(world, npc));
         return npc.ActionStartedAtTick + ticksNeeded;
     }
 
@@ -161,7 +161,7 @@ public sealed partial class BehaviorDecisionSystem
     private static long LeadHoursTo(WorldState world, Npc npc, CellCoord destination) =>
         destination == npc.CurrentLocation
             ? 0
-            : TravelResolution.TicksBetween(world.Map, npc.CurrentLocation, destination,
+            : Mobility.TravelTicks(world, npc, npc.CurrentLocation, destination,
                 BodyMechanic.MovementCostMultiplier(world, npc));
 
     private static int HourAfter(WorldDate date, long hours) =>

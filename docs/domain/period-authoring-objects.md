@@ -25,6 +25,8 @@ Blocos opcionais do período (ADR-0034, #47 fatia 1). Ausentes = comportamento e
 | `usePoints[]` | `name`, `offset` (3 números, a partir da base), `facing` (graus), `action` (id de `ActionType`, opcional) e `pose` (`idle\|walk\|sleep\|work\|eat\|socialize\|buy\|power`, opcional). Com `action`, o servidor põe quem faz essa ação no objeto (`usingObject`); sem `pose` vale a pose da ação (ADR-0037) |
 | `effects[]` | Tokens `alvo:magnitude`: `sleep:0.5`, `eat:1`. Magnitude > -1 e soma por alvo > -1; a duração de dormir/comer em casa é dividida por (1 + magnitude), mínimo 1 h (ADR-0038) |
 | `interactions[]` | `{action, profession?, skill?:{id,min}}`. Sem a lista, serve a quem tem ponto de uso; com ela, só as ações listadas e quem cumpre os requisitos |
+| `resourceId` | Opcional (int > 0, único). O objeto descreve esse recurso do cenário; a forma segue obrigatória (ADR-0039) |
+| `effects[]` de recurso | Só `hunger:<n>` e `thirst:<n>` (n de 0 a 100, um de cada): nível a que a necessidade é restaurada ao consumir 1 unidade; nunca reduz. Sem descritor ou efeito vale 100, a regra de sempre |
 | `Furnishings` | Chave `default` ou id do tipo de prédio → lista ordenada de ids |
 
 ## Onde vive

@@ -13,6 +13,7 @@ using LivingWorld.Simulation.Cities.Queries;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Economy.Labor;
 using LivingWorld.Simulation.Economy.Market;
+using LivingWorld.Simulation.Emergence;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
 using LivingWorld.Simulation.Scheduling;
 
@@ -226,8 +227,8 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 return advance.Reached;
             }
 
-            long ticksNeeded = TravelResolution.TicksBetween(
-                world.Map, npc.CurrentLocation, destination,
+            long ticksNeeded = Mobility.TravelTicks(
+                world, npc, npc.CurrentLocation, destination,
                 BodyMechanic.MovementCostMultiplier(world, npc));
             if (now - npc.ActionStartedAtTick < ticksNeeded) return false;
             if (world.IsExtraordinaryConstructCell(destination)) return false;

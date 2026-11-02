@@ -53,7 +53,7 @@ public sealed partial class BehaviorDecisionSystem
                 continue;
 
             double score = UtilityBaseOf(ctx, action, economy, eligibility) * PersonalityWeighting.WeightOf(ctx.Personality, action)
-                + ContextFactorBonus(ctx, action);
+                + ContextFactorBonus(ctx, action, economy);
             if (foresight.TryGetValue(action, out var preview))
                 score *= ForesightUtilityFactor(preview);
             if (rules.HysteresisEnabled && continuityAction == action)
@@ -227,18 +227,30 @@ public sealed partial class BehaviorDecisionSystem
 
     /// <summary>Bônus só quando memória/crença/relação estão presentes —
     /// listas vazias → 0, comportamento idêntico ao pré-DecisionContext (golden preservado).</summary>
-    private static double ContextFactorBonus(DecisionContext ctx, ActionType action)
+    private static double ContextFactorBonus(DecisionContext ctx, ActionType action, EconomyRules economy)
     {
         const double factorBonus = 40.0;
         return action switch
         {
             ActionType.Travel when ctx.RelevantMemories.Any(m =>
                 ContainsAny(m.Content, "traído", "traido", "betray", "threat", "perigo", "danger")) => factorBonus,
-            ActionType.Buy when ctx.RelevantBeliefs.Any(b =>
+            ActionType.Buy when CanActOnScarcityBelief(ctx, economy) && ctx.RelevantBeliefs.Any(b =>
                 ContainsAny(b, "scarcity", "escassez", "fome", "hunger", "food")) => factorBonus,
             ActionType.Socialize when HasStrongBond(ctx.KnownRelationships) => factorBonus,
             _ => 0.0,
         };
+    }
+
+    /// <summary>A crença de escassez só leva ao mercado quem pode agir sobre ela: tem com que pagar e a despensa da casa está abaixo
+    /// da meta. Sem isso a crença tirava do trabalho (e da renda) quem não comprava nada, e a população do mundo ao vivo caía.</summary>
+    private static bool CanActOnScarcityBelief(DecisionContext ctx, EconomyRules economy)
+    {
+        if (ctx.WalletAmount < 1) return false;
+        if (!economy.Enabled || ctx.Household is not { } household) return true;
+        long scarcest = Math.Min(
+            household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId)),
+            household.Stock.GetValueOrDefault(new ResourceType(economy.WaterResourceId)));
+        return scarcest < Math.Max(1, household.Members.Count) * ctx.ProvisionTargetDays;
     }
 
     private static bool HasStrongBond(IReadOnlyList<RelationshipFact> known) =>

@@ -27,7 +27,13 @@ public static class ObjectEffectTargets
 {
     public const string Sleep = "sleep";
     public const string Eat = "eat";
+
+    /// <summary>Alvos de objetos de recurso (#47 fatia 4, ADR-0039): nível (0–100) a que a necessidade é restaurada ao consumir 1 unidade.</summary>
+    public const string Hunger = "hunger";
+    public const string Thirst = "thirst";
+
     public static readonly IReadOnlyList<string> Known = [Sleep, Eat];
+    public static readonly IReadOnlyList<string> ResourceTargets = [Hunger, Thirst];
 }
 
 /// <summary>Descritor imutável de um objeto (#47 fatia 1, ADR-0034). <c>Category</c> é string do cenário, não enum.
@@ -36,7 +42,8 @@ public static class ObjectEffectTargets
 public sealed record ObjectDescriptor(
     string Id, string Category, IReadOnlyList<ObjectPart> Shape, int VariationSeed, IReadOnlyList<ObjectUsePoint> UsePoints,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ObjectInteraction>? Interactions = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ObjectEffect>? Effects = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ObjectEffect>? Effects = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? ResourceId = null);
 
 /// <summary>Catálogo de objetos do cenário: descritores e a mobília por tipo de prédio (chave "default" ou o id numérico).
 /// Nulo no mundo = cenário sem <c>Objects</c>: omitido do snapshot e do hash (opt-in).</summary>
@@ -46,6 +53,9 @@ public sealed record ObjectCatalog(
     public const int CurrentFormat = 1;
 
     public ObjectDescriptor? Find(string id) => IndexOf(this).ById.GetValueOrDefault(id);
+
+    /// <summary>Descritor do recurso do cenário (objeto com <c>ResourceId</c>), ou nulo se o recurso não tem descritor.</summary>
+    public ObjectDescriptor? ForResource(int resourceId) => IndexOf(this).ByResource.GetValueOrDefault(resourceId);
 
     /// <summary>Ids de mobília do tipo de prédio; cai em "default"; vazio se nenhum dos dois existe.</summary>
     public IReadOnlyList<string> FurnishingFor(int buildingTypeId)
@@ -58,20 +68,25 @@ public sealed record ObjectCatalog(
 
     // Índices derivados fora do record (a igualdade de record compararia campos privados): o motor consulta o catálogo a cada
     // decisão de dormir/comer, então busca por id e por tipo de prédio não pode alocar nem varrer texto.
-    private sealed record Index(Dictionary<string, ObjectDescriptor> ById, Dictionary<int, IReadOnlyList<string>> ByType);
+    private sealed record Index(
+        Dictionary<string, ObjectDescriptor> ById, Dictionary<int, IReadOnlyList<string>> ByType, Dictionary<int, ObjectDescriptor> ByResource);
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ObjectCatalog, Index> Indexes = new();
 
     private static Index IndexOf(ObjectCatalog catalog) => Indexes.GetValue(catalog, static c =>
     {
         var byId = new Dictionary<string, ObjectDescriptor>(c.Objects.Count);
+        var byResource = new Dictionary<int, ObjectDescriptor>();
         for (int i = 0; i < c.Objects.Count; i++)
+        {
             byId.TryAdd(c.Objects[i].Id, c.Objects[i]);
+            if (c.Objects[i].ResourceId is int resourceId) byResource.TryAdd(resourceId, c.Objects[i]);
+        }
         var byType = new Dictionary<int, IReadOnlyList<string>>();
         foreach (var (key, ids) in c.Furnishings)
             if (int.TryParse(key, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int typeId))
                 byType[typeId] = ids;
-        return new Index(byId, byType);
+        return new Index(byId, byType, byResource);
     });
 }
 
