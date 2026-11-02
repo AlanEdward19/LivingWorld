@@ -9,7 +9,7 @@
 
   <!-- Domain e Simulation nunca sorteiam por fora do RNG do mundo nem leem relógio da máquina. -->
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'LivingWorld.Domain' Or '$(MSBuildProjectName)' == 'LivingWorld.Simulation'">
-    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="4.14.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" PrivateAssets="all" />
     <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" />
   </ItemGroup>
 </Project>
