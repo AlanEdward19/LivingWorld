@@ -1,88 +1,99 @@
 # Verificação independente da #114: fusão de cidade transfere a adoção
 
-Verifier sem autoria do código. Base `b29ed9f2`, HEAD verificado `9d6eb14e`. Sondas e mutações foram temporárias e
-removidas; a árvore ficou limpa antes deste commit. Custo (`compare-simulation-cost.sh`) adiado por instrução.
+Verifier sem autoria do código. Base `b29ed9f2`, HEAD verificado `143058c8`. Mutações e sonda foram temporárias e removidas;
+`git status` limpo antes deste commit. `compare-simulation-cost.sh` não rodado, por instrução (adiado para a integração).
+Transferência (em vez de reaprendizado) é o padrão proposto pela issue, pendente do dono; não avaliada como defeito.
 
-## Veredito: FAIL
+Nota de processo: um `grep` amplo exibiu 3 linhas da rodada anterior deste arquivo antes do fim da análise. O conteúdo
+completo só foi lido depois de todas as execuções; nenhum resultado abaixo vem dele.
 
-O fix em `MergeCityInto` está correto e cobre o caso central. O critério 2 da issue não está provado (F1) e existe um
-caminho que ainda coloca lápide em `AdoptedBy` (F2).
+## Veredito: PASS
+
+Todos os critérios da issue e do plano têm evidência própria; 12 de 12 mutações foram mortas por teste. Nenhum FAIL.
 
 ## Critérios da issue
 
 | # | Critério | Resultado | Evidência |
 |---|---|---|---|
-| 1 | Regressão: mãe herda, `BonusPct(mãe) > 0`, sem filha em `AdoptedBy` | PASS | `HandleEvent_transfers_...` passa; reprova sem o fix (M1) |
-| 2 | Nenhuma lápide em `AdoptedBy` em 10 anos, emergência e fundação ativas | **FAIL** | F1 e F2 abaixo |
-| 3 | Determinismo de dois processos | PASS | `--project longrunning`, filtro `DeterminismTwoProcess\|GoldenHashes`: 16 passam, 1 pulado (gravador de golden) |
-| 4 | Goldens inalterados | PASS | Mesma execução; `git diff --name-only b29ed9f2...HEAD` sem arquivo golden, baseline ou hash |
+| 1 | Regressão: filha adota `pace > 0`, mãe não; após a fusão `BonusPct(mãe) > 0` e filha fora de `AdoptedBy` | PASS | `HandleEvent_transfers_...` passa e reprova sem a troca (M1). Fusão real: `Tick` agenda e `HandleEvent` executa |
+| 2 | Nenhuma lápide em `AdoptedBy` em 10 anos, emergência e fundação ligadas | PASS | `MergedCityAdoptionScenarioTests`, 3 seeds, amostra diária: passa; reprova 3/3 com M1 e M10 (`Assert.DoesNotContain`). `default.json`: `Emergence.Enabled` e `CitiesEnabled` true |
+| 3 | Dois processos, mesma seed, mesmo hash | PASS | `DeterminismTwoProcessTests` passa; sonda abaixo cobre o caminho com fusão e tecnologia |
+| 4 | Goldens inalterados | PASS | `GoldenHashesTests` passa; `git diff b29ed9f2...HEAD -- tests/golden tests/baselines` vazio |
 
-## Demais pontos conferidos
+Execução: `test.sh --project longrunning`, filtro `GoldenHashes|DeterminismTwoProcess|MergedCityAdoption`: 19 passam,
+1 pulado (gravador de golden), 0 falhas.
 
-| Ponto | Resultado | Evidência |
-|---|---|---|
-| Sem duplicata quando a mãe já adotava | PASS | `HandleEvent_drops_...`; M3 e M9 reprovam |
-| `OriginCity` preservado | PASS | `WorldState.Cities.cs:93`; M7 reprova |
-| `CauseEventId` = `CityMerged` | PASS | `SpatialSettlementFoundingSystem.cs:207-210`; M5 reprova |
-| `SourceSystem` do sistema de fundação | PASS no código | `SpatialSettlementFoundingSystem.cs:210`; sem teste (O1) |
-| Ordem por índice da tecnologia | PASS no código | `WorldState.Cities.cs:85`; sem teste (O1) |
-| Outros chamadores de `MergeCityInto` | PASS | grep em `src`, `tests`, `client`: único chamador é `SpatialSettlementFoundingSystem.cs:202` |
-| Outros campos com `CityId` na lápide | PASS | grep em Domain e Simulation confere com a lista do plano; os restantes são históricos ou vivem na própria lápide |
-| `bash scripts/verify.sh` | PASS | saída 0; Unit 2461 passam, 3 pulados, 0 falhas; `verify: OK` |
+**Sonda de dois processos** (teste temporário, `default.json` com a injeção do cenário, 10 anos, duas invocações de
+`test.sh`). O teste existente usa `RunAndHash`, sem emergência, e não passaria por este caminho.
 
-## FAIL
+| Seed | Hash, processos A e B | Fusões / filhas com tecnologia fundidas | `adoptedTomb` / `dup` | Hash com M1 |
+|---|---|---|---|---|
+| 1 | `b95543ba...` idêntico | 1 / 1 | 0 / 0 | `acb8eeea...` (difere; `adoptedTomb` 1) |
+| 2 | `98d3ea21...` idêntico | 5 / 5 | 0 / 0 | `b2f85138...` (difere; `adoptedTomb` 5) |
 
-### F1: o teste do critério 2 passa de forma vazia
+`OriginCity` segue na lápide em 1 e 5 tecnologias. A transferência entra no hash e muda o mundo (seed 2: 8 contra 10
+tecnologias sem o fix). `Technologies` está em `HotProperties` (`IncrementalHasher.cs`), então não há hash obsoleto.
 
-`tests/LivingWorld.Tests.LongRunning/Emergence/MergedCityAdoptionScenarioTests.cs:50` só percorre `world.Technologies`,
-e no `default.json` essa lista fica vazia nos 3 seeds. O guarda da linha 55 exige fusão, não tecnologia adotada.
+## Critérios do plano
 
-| Sonda (10 anos, amostra diária, com o fix) | Fusões | Tecnologias | Fusões com filha adotante |
+| # | Critério | Resultado | Evidência |
 |---|---|---|---|
-| `default.json`, seeds 1 / 2 / 3 | 1 / 5 / 4 | 0 / 0 / 0 | 0 |
-| Emergência facilitada, seeds 1 a 20 | 0 a 7 | 9 a 31 | 0 |
+| C1 | Mãe herda, bônus > 0, filha sai | PASS | Critério 1; M1, M10 |
+| C2 | Mãe já adotava: perde só a filha, sem duplicata e sem evento | PASS | `HandleEvent_drops_...`; M2, M10, M11 |
+| C3 | `CauseEventId` = `CityMerged` | PASS | `SpatialSettlementFoundingSystem.cs:203-210`; M4 |
+| C4 / C4b | Sem lápide em 10 anos; não vácuo | PASS | Exige `mergedSeeded > 0`; a injeção põe filha adotante no caminho real da fusão; M1, M10 |
+| C5 | Determinismo e goldens; `OriginCity` intacto | PASS | Critérios 3 e 4; M8 |
+| C6 | Protótipo tardio: adota a cidade ativa, origem na filha | PASS | `TechDiscoverySystem.cs:95-97`; M7, M9 |
+| C7 | `SourceSystem` e ordem por índice testados | PASS | M5; `..._in_technology_index_order` usa vetores 9, 2, 5 fora de ordem; M6 |
 
-Com a transferência desligada (M1), o teste continua verde: 3 de 3. Não prova o critério.
+## Escritas em `AdoptedBy` e caminhos de lápide
 
-Correção viável, já medida: injetar uma tecnologia adotada por cada cidade-filha assim que ela surge, e exigir fusão com
-filha adotante. Seeds 1 a 20: com o fix, 0 dias com lápide em `AdoptedBy` e `TechnologyAdopted` causal em 19 de 20 seeds
-(o seed 5 não funde). Sem o fix, lápide em até 3540 dos 3600 dias nos seeds inspecionados (1, 10, 11 a 16).
+Grep em `src`: `new Technology(`, `AddTechnology`, `ReplaceTechnology`, `with { AdoptedBy`.
 
-### F2: protótipo da filha concluído depois da fusão cria lápide em `AdoptedBy`
+| Ponto | Conclusão |
+|---|---|
+| `TechDiscoverySystem.cs:96` (conclusão de protótipo) | Resolve com `FindActiveCity`, que segue a cadeia de fusões (`WorldState.Cities.cs:40-47`) |
+| `TechDiscoverySystem.cs:188` (`Spread`) | Só acrescenta de `ActiveCities()` (`:180`) |
+| `WorldState.Cities.cs:93` (fusão) | A mãe vem de `FindActiveCity` (`SpatialSettlementFoundingSystem.cs:195`); roda depois de `MarkMergedInto` |
+| Construtores de `WorldState` (`WorldState.cs:546`, `:753`) | Só restauram snapshot |
+| Fusão em cadeia | Uma mãe fundida depois transfere de novo; filha agendada com mãe já lápide resolve a ativa |
+| `MarkMergedInto` | Único chamador em `src`: `MergeCityInto` (`WorldState.Cities.cs:78`). Único chamador de `MergeCityInto`: `:202` do handler |
 
-`src/LivingWorld.Simulation/Emergence/TechDiscoverySystem.cs:93-94` cria a tecnologia com `[cityId]` a partir do payload
-agendado, sem resolver a cidade ativa. O protótipo leva `PrototypeTicks` (720 no padrão), e a fusão pode ocorrer nesse
-intervalo.
+## Outros campos com `CityId` (grep em Domain, Simulation e `WorldState`)
 
-Reprodução: sonda unitária funde a filha e chama `TechDiscoverySystem.HandleEvent` com o payload real de um protótipo
-dela. `Assert.DoesNotContain(daughter.Id, tech.AdoptedBy)` reprova, com o fix presente.
-
-Alcance: reproduzido no handler, não em execução completa. Nas 40 rodadas de sonda de 10 anos o caso não ocorreu
-(`pendingOnTombDays=0`), portanto é raro. Quando ocorre, repete o defeito da issue: lápide adotante e bônus ausente para
-os moradores.
-
-Correção: em `HandleEvent`, resolver com `world.FindActiveCity(cityId)` e usar a cidade ativa em `AdoptedBy`, mantendo
-`OriginCity` na filha; cobrir com teste.
+- Movidos: `Building`, `Workplace`, `Household.City` e `PendingRelocationCity` (`ReplaceCityReference`), `Npc`, `ConstructionProject`.
+- Histórico ou próprio da lápide: `OriginCity`, `FoundedFromCityId` (lido via `FindActiveCity`), `MergedIntoCityId`,
+  `TreasuryAggregate.City`, `Fact.Location`, `WitnessedAccount.Location`, `NarrativeDraft.Location`, `ReportState.CommunityId`.
+- `SpatialAddress.RefId` e portais: sem instância em tempo de execução para cidade fundada. Lista do plano confere (ver O1, O2).
 
 ## Mutações (restauradas com `git checkout`)
 
-| Mutação | Resultado | Teste que reprovou |
-|---|---|---|
-| M1 desliga a transferência | Morta | `transfers` e `drops`; **sobrevive** ao cenário de 10 anos (F1) |
-| M2 mantém a filha | Morta | `transfers` e `drops` |
-| M3 duplica a mãe | Morta | `drops` |
-| M4 omite `TechnologyAdopted` | Morta | `transfers` |
-| M5 remove a causa | Morta | `transfers` |
-| M6 troca `SourceSystem` | **Sobreviveu** | nenhum (O1) |
-| M7 reescreve `OriginCity` | Morta | `transfers` |
-| M8 inverte a ordem | **Sobreviveu** | nenhum (O1) |
-| M9 emite evento quando a mãe já sabia | Morta | `drops` |
+| Mutação | Morta por |
+|---|---|
+| M1 não troca a filha pela mãe | `transfers`, `drops`, `index_order`; cenário 3/3 |
+| M2 duplica a mãe | `drops` |
+| M3 omite `TechnologyAdopted` | `transfers`, `index_order` |
+| M4 causa errada (`mergedId - 1`) | `transfers` |
+| M5 `SourceSystem` errado | `transfers` |
+| M6 inverte a ordem | `index_order` |
+| M7 lápide adota no protótipo tardio | `Prototype_of_a_merged_city_...` |
+| M8 reescreve `OriginCity` na fusão | `transfers` |
+| M9 reescreve `OriginCity` no protótipo | `Prototype_of_a_merged_city_...` |
+| M10 mantém a lápide e soma a mãe | `transfers`, `drops`; cenário 3/3 |
+| M11 evento quando a mãe já sabia | `drops` |
+| M12 payload com a filha | `transfers` |
+
+**Gate:** `verify.sh` saiu 0 (`verify: OK`, 0 warnings, Unit 2463 passam, 3 pulados). `Category=Scenario` da fundação: 1 passa.
 
 ## Observações não bloqueantes
 
-- O1: `SourceSystem` e a ordem estão corretos no código, mas nenhum teste os protege (M6, M8). Basta asserir
-  `adopted.SourceSystem` e usar um caso com duas tecnologias.
-- O2: `plan.md` e AD-122 dizem que a transferência está pendente do dono; ele já a definiu como padrão.
-- O3: a issue diz que o cenário padrão não liga emergência. `scenarios/default.json` tem `Emergence.Enabled: true`; os
-  goldens usam `ScenarioRunner.RunAndHash`, sem emergência.
+- O1: `plan.md` diz que `ReportState.CommunityId` vive na lápide, mas ele também está em `WorldState.Reports`. O vínculo
+  segue coerente: `HistoryBeliefQuery` lê o cânone da própria comunidade.
+- O2: o cânone da filha fica na lápide e `NpcBeliefQuery.cs:26` lê a cidade atual, então quem migrou deixa de acessá-lo. É
+  decisão registrada no plano e a issue pede só conferir; lembra o defeito desta issue e pode merecer issue própria.
+- O3: o protótipo tardio dá a adoção à mãe sem `TechnologyAdopted`; só sai `TechnologyDiscovered` com a filha no payload,
+  como em toda descoberta. O plano e a issue não pedem mais.
 - O4: mundos salvos antes do fix mantêm lápides em `AdoptedBy`; não há migração. A issue não pede.
+- O5: o cenário de 10 anos fica em LongRunning, fora do `verify.sh` padrão (roda em `--full`). A prova rápida são os testes unitários.
+- O6: `main` já tem a #113; a mesclagem é limpa (`git merge-tree`), mas `docs/audits/causal-provenance-audit-city-history.md`
+  lista só `TechDiscoverySystem` como emissor de `TechnologyAdopted`. Atualizar ao integrar.
