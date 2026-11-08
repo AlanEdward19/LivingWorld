@@ -11,7 +11,7 @@ Caminhos relativos a `src/LivingWorld.Simulation/`.
 | `CityMerged` | T | `Cities/Founding/SpatialSettlementFoundingSystem.cs:203` | fundação da cidade-filha (`SettlementFounded`) |
 | `OutbreakStarted` | T | `Health/OutbreakSystem.cs:109` | condição de superlotação da cidade (`OvercrowdingBegan`) |
 | `TechnologyDiscovered` | T | `Emergence/TechDiscoverySystem.cs:96` | pressão de trajeto até o mercado, registrada como condição (`TravelPressureObserved`) |
-| `TechnologyAdopted` | T | `Emergence/TechDiscoverySystem.cs:188` | `TechnologyDiscovered` da cultura (e laço entre cidades) |
+| `TechnologyAdopted` | T | `Emergence/TechDiscoverySystem.cs:191`; `Cities/Founding/SpatialSettlementFoundingSystem.cs:209` (herança na fusão, #114: já com causa `CityMerged`) | `TechnologyDiscovered` da cultura (e laço entre cidades); na fusão, `CityMerged` |
 
 Migração e realocação (`Cities/Migration/MigrationSystem.cs`, `RelocationArrivalSystem.cs`) não
 têm kind nem emissor. Causa proximal futura: fator dominante do score (desemprego: último
