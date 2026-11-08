@@ -12,8 +12,18 @@ namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 /// </summary>
 public sealed class TransferMechanic : ExtraordinaryMechanic
 {
-    public override string Prefix => "transfer.";
+    public const string KeyPrefix = "transfer.";
+
+    public override string Prefix => KeyPrefix;
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+        NpcStatAccessors.All
+            .Select(stat => new ExtraordinaryPrimitive(
+                KeyPrefix + stat.Key, $"{KeyPrefix}{stat.Key}:<n>[:from-target]", false, "target"))
+            .Append(new ExtraordinaryPrimitive(
+                KeyPrefix + "lifespan-years", "transfer.lifespan-years:<anos>[:from-target]", false, "target"))
+            .ToList();
 
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
@@ -28,32 +38,23 @@ public sealed class TransferMechanic : ExtraordinaryMechanic
         if (parsed.Value.Key == "transfer.lifespan-years")
             return PrepareLifespan(ctx, declaration, fromTarget, parsed.Value.Amount);
 
-        string attribute = parsed.Value.Key switch
-        {
-            "transfer.health" => "health",
-            "transfer.hunger" => "hunger",
-            "transfer.thirst" => "thirst",
-            "transfer.sleep" => "sleep",
-            "transfer.social" => "social",
-            _ => "",
-        };
-        if (attribute.Length == 0)
+        if (!NpcStatAccessors.TryGet(parsed.Value.Key, KeyPrefix, out var stat))
             return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{parsed.Value.Key}'");
 
         var donor = fromTarget ? ctx.Target : ctx.Carrier;
         var recipient = fromTarget ? ctx.Carrier : ctx.Target;
         int amount = parsed.Value.Amount;
         long tick = ctx.Tick.CurrentTick;
-        long available = Read(donor, attribute, tick);
+        long available = stat.Read(donor, tick);
         if (available < amount)
             return Result<PreparedMutation?>.Fail($"Effects: saldo insuficiente para '{declaration}'");
 
         return Result<PreparedMutation?>.Ok(new PreparedMutation(declaration, resolution =>
         {
             int moved = ExtraordinaryMechanicSupport.ScaledAmount(amount, resolution);
-            Debit(donor, attribute, moved, tick);
-            int room = 100 - (int)Read(recipient, attribute, tick);
-            Credit(recipient, attribute, Math.Min(moved, Math.Max(0, room)), tick);
+            stat.SubtractRaw(donor, moved, tick);
+            int room = stat.Max - stat.Read(recipient, tick);
+            stat.AddClamped(recipient, Math.Min(moved, Math.Max(0, room)), tick);
         }));
     }
 
@@ -98,49 +99,5 @@ public sealed class TransferMechanic : ExtraordinaryMechanic
         if (tick <= current)
             tick = current + 1;
         ctx.ScheduleEvent(tick, MortalitySystem.SystemName, original.Payload);
-    }
-
-    private static long Read(Npc npc, string attribute, long tick) => attribute switch
-    {
-        "health" => npc.Health,
-        "hunger" => npc.HungerAt(tick),
-        "thirst" => npc.ThirstAt(tick),
-        "sleep" => npc.SleepAt(tick),
-        "social" => npc.SocialAt(tick),
-        _ => 0,
-    };
-
-    private static void Debit(Npc npc, string attribute, int amount, long tick)
-    {
-        switch (attribute)
-        {
-            case "health": npc.SetHealth(npc.Health - amount); break;
-            case "hunger": npc.SetHunger(npc.HungerAt(tick) - amount, tick); break;
-            case "thirst": npc.SetThirst(npc.ThirstAt(tick) - amount, tick); break;
-            case "sleep": npc.SetSleep(npc.SleepAt(tick) - amount, tick); break;
-            case "social": npc.SetSocial(npc.SocialAt(tick) - amount, tick); break;
-        }
-    }
-
-    private static void Credit(Npc npc, string attribute, int amount, long tick)
-    {
-        switch (attribute)
-        {
-            case "health":
-                npc.SetHealth(ExtraordinaryMechanicSupport.ClampNeed((long)npc.Health + amount));
-                break;
-            case "hunger":
-                npc.SetHunger(ExtraordinaryMechanicSupport.ClampNeed((long)npc.HungerAt(tick) + amount), tick);
-                break;
-            case "thirst":
-                npc.SetThirst(ExtraordinaryMechanicSupport.ClampNeed((long)npc.ThirstAt(tick) + amount), tick);
-                break;
-            case "sleep":
-                npc.SetSleep(ExtraordinaryMechanicSupport.ClampNeed((long)npc.SleepAt(tick) + amount), tick);
-                break;
-            case "social":
-                npc.SetSocial(ExtraordinaryMechanicSupport.ClampNeed((long)npc.SocialAt(tick) + amount), tick);
-                break;
-        }
     }
 }

@@ -18,6 +18,11 @@ public sealed class FloraMechanic : ExtraordinaryMechanic
     public override string Prefix => "flora.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+    [
+        new("flora.growth-rate:", "flora.growth-rate:<multiplicador>", false, "area"),
+    ];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {

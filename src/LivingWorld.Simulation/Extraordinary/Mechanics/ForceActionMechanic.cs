@@ -8,6 +8,11 @@ public sealed class ForceActionMechanic : ExtraordinaryMechanic
     public override string Prefix => "npc.force-action";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+    [
+        new("npc.force-action", "npc.force-action:<ActionType>", false, "target"),
+    ];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {

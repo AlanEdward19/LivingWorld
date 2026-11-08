@@ -21,6 +21,16 @@ public sealed class MindMechanic : ExtraordinaryMechanic
     public override string Prefix => "mind.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+    [
+        new("mind.read", "mind.read", false, "target"),
+        new("mind.read-memory", "mind.read-memory", false, "target"),
+        new("mind.commune", "mind.commune", false, "target"),
+        new("mind.erase-memory:", "mind.erase-memory:<memória>", false, "target"),
+        new("mind.implant-memory:", "mind.implant-memory:<memória>", false, "target"),
+        new("mind.alter-trait:", "mind.alter-trait:<traço>:<±n>", true, "target"),
+    ];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {

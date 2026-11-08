@@ -15,6 +15,14 @@ public sealed class AttributeMechanic : ExtraordinaryMechanic
     public override string Prefix => "attribute.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+    [
+        new("attribute.fertility", "attribute.fertility:<fator>", false, "carrier"),
+        new("attribute.strength", "attribute.strength:<fator>", false, "carrier"),
+        new("attribute.perception", "attribute.perception:<fator>", false, "carrier"),
+        new("attribute.reaction-speed", "attribute.reaction-speed:<fator>", false, "carrier"),
+    ];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {

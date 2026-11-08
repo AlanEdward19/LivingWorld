@@ -8,6 +8,12 @@ public sealed class AreaSelectorMechanic : ExtraordinaryMechanic
     public override string Prefix => "area:";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+    [
+        new("area:radius:", "area:radius:<n>", false, "area"),
+        new("area:region:", "area:region:<id>", false, "area"),
+    ];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
         => Result<PreparedMutation?>.Ok(null);

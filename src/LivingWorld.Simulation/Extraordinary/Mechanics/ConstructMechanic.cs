@@ -10,6 +10,11 @@ public sealed class ConstructMechanic : ExtraordinaryMechanic
     public override string Prefix => "construct.create";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+    [
+        new("construct.create", "construct.create:<L>x<A>:<durabilidade>:<horas>:<aparência>", false, "carrier"),
+    ];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {

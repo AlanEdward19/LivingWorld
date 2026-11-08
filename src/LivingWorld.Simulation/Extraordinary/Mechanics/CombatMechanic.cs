@@ -23,6 +23,12 @@ public sealed class CombatMechanic : ExtraordinaryMechanic
     public override string Prefix => "combat.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+    [
+        new("combat.strike:", "combat.strike:<dano>", false, "target"),
+        new("combat.engage:", "combat.engage:<rounds>", false, "target"),
+    ];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {

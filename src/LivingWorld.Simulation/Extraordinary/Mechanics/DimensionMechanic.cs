@@ -19,6 +19,12 @@ public sealed class DimensionMechanic : ExtraordinaryMechanic
     public override string Prefix => "dimension.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+    [
+        new("dimension.pocket-store", "dimension.pocket-store[:<n>]", false, "carrier"),
+        new("dimension.portal:", "dimension.portal:<xA>:<yA>:<xB>:<yB>", false, "world"),
+    ];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {

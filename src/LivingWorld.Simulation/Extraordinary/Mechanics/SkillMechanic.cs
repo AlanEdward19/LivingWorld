@@ -22,6 +22,12 @@ public sealed class SkillMechanic : ExtraordinaryMechanic
     public override string Prefix => "skill.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+    [
+        new("skill.copy:", "skill.copy:<skill>", false, "target"),
+        new("skill.learn-rate:", "skill.learn-rate:<n>", false, "carrier"),
+    ];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {

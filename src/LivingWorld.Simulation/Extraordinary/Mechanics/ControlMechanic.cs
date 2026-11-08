@@ -28,6 +28,12 @@ public sealed class ControlMechanic : ExtraordinaryMechanic
     public override string Prefix => "control.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+    [
+        new("control.possess", "control.possess[:<ActionType>...]", false, "target"),
+        new("control.body-swap", "control.body-swap", false, "target"),
+    ];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {

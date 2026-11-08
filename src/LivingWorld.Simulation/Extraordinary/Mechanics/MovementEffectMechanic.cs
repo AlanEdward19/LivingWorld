@@ -10,6 +10,12 @@ public sealed class MovementEffectMechanic : ExtraordinaryMechanic
     public override string Prefix => "movement.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+    [
+        new("movement.flight", "movement.flight:<n>", false, "carrier"),
+        new("movement.speed-multiplier", "movement.speed-multiplier:<n>", false, "carrier"),
+    ];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
         => Result<PreparedMutation?>.Ok(null);

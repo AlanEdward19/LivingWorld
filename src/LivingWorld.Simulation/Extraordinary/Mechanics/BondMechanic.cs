@@ -18,6 +18,13 @@ public sealed class BondMechanic : ExtraordinaryMechanic
     public override string Prefix => "bond.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+        NpcStatAccessors.All
+            .Select(stat => new ExtraordinaryPrimitive(
+                SharePrefix + stat.Key, $"{SharePrefix}{stat.Key}[:<proporção 1..100>]", false, "carrier"))
+            .Append(new ExtraordinaryPrimitive(OathPrefix, "bond.oath:<token de efeito>", false, "carrier"))
+            .ToList();
+
     internal static bool HasOathEffect(PowerDescriptor descriptor)
     {
         foreach (var effect in descriptor.Effects)
@@ -44,6 +51,7 @@ public sealed class BondMechanic : ExtraordinaryMechanic
     {
         if (!TryParseShare(declaration, out string attribute, out int proportion))
             return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
+        _ = NpcStatAccessors.TryGet(attribute, out var stat);
 
         var world = ctx.World;
         var carrier = ctx.Carrier;
@@ -57,15 +65,15 @@ public sealed class BondMechanic : ExtraordinaryMechanic
                 return;
             }
 
-            long carrierValue = Read(carrier, attribute, tick);
-            long partnerValue = Read(partner, attribute, tick);
+            long carrierValue = stat.Read(carrier, tick);
+            long partnerValue = stat.Read(partner, tick);
             long gap = Math.Abs(carrierValue - partnerValue);
             int reflected = (int)(gap * proportion / 100);
             if (reflected == 0) return;
             if (carrierValue < partnerValue)
-                Write(partner, attribute, partnerValue - reflected, tick);
+                stat.Write(partner, stat.Clamp(partnerValue - reflected), tick);
             else
-                Write(carrier, attribute, carrierValue - reflected, tick);
+                stat.Write(carrier, stat.Clamp(carrierValue - reflected), tick);
         }));
     }
 
@@ -142,7 +150,7 @@ public sealed class BondMechanic : ExtraordinaryMechanic
             attribute = spec;
         }
 
-        return attribute is "health" or "hunger" or "thirst" or "sleep" or "social";
+        return NpcStatAccessors.TryGet(attribute, out _);
     }
 
     private static bool TryLivingPartner(
@@ -169,28 +177,5 @@ public sealed class BondMechanic : ExtraordinaryMechanic
         var partnerState = CarrierState(world, id);
         if (partnerState is not null)
             world.UpsertExtraordinaryCarrier(partnerState with { BondPartnerId = null });
-    }
-
-    private static long Read(Npc npc, string attribute, long tick) => attribute switch
-    {
-        "health" => npc.Health,
-        "hunger" => npc.HungerAt(tick),
-        "thirst" => npc.ThirstAt(tick),
-        "sleep" => npc.SleepAt(tick),
-        "social" => npc.SocialAt(tick),
-        _ => 0,
-    };
-
-    private static void Write(Npc npc, string attribute, long value, long tick)
-    {
-        int clamped = ExtraordinaryMechanicSupport.ClampNeed(value);
-        switch (attribute)
-        {
-            case "health": npc.SetHealth(clamped); break;
-            case "hunger": npc.SetHunger(clamped, tick); break;
-            case "thirst": npc.SetThirst(clamped, tick); break;
-            case "sleep": npc.SetSleep(clamped, tick); break;
-            case "social": npc.SetSocial(clamped, tick); break;
-        }
     }
 }

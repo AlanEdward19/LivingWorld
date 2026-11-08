@@ -18,6 +18,11 @@ public sealed class EnvironmentTemperatureMechanic : ExtraordinaryMechanic
     public override string Prefix => "environment.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+    [
+        new("environment.temperature:", "environment.temperature:<região>:<delta>:<ticks>", true, "world"),
+    ];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {

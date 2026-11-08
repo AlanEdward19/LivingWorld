@@ -20,6 +20,12 @@ public sealed class FaunaMechanic : ExtraordinaryMechanic
     public override string Prefix => "fauna.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+    [
+        new("fauna.dominate:", "fauna.dominate:<raio|animal-N>", false, "area"),
+        new("fauna.infect-vector:", "fauna.infect-vector:<doença>", false, "area"),
+    ];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {

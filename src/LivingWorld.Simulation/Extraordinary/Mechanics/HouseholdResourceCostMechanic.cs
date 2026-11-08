@@ -7,6 +7,11 @@ public sealed class HouseholdResourceCostMechanic : ExtraordinaryMechanic
     public override string Prefix => "household.resource.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Cost;
 
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+    [
+        new("household.resource.", "household.resource.<id>:<n>", false, "household"),
+    ];
+
     public override Result<long> CostAvailable(ExtraordinaryMechanicContext ctx, string key)
     {
         if (!ExtraordinaryMechanicSupport.TryResource(key, out var resource))

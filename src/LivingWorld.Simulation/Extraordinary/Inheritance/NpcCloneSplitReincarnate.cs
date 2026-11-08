@@ -95,6 +95,11 @@ public sealed class NpcCloneMechanic : ExtraordinaryMechanic
     public override string Prefix => "npc.clone";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+    [
+        new("npc.clone", "npc.clone:<n>", false, "carrier"),
+    ];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
@@ -118,6 +123,11 @@ public sealed class NpcSplitOnDeathMechanic : ExtraordinaryMechanic
     public override string Prefix => "npc.split-on-death";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+    [
+        new("npc.split-on-death", "npc.split-on-death:<n>", false, "carrier"),
+    ];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
@@ -134,6 +144,11 @@ public sealed class NpcReincarnateMechanic : ExtraordinaryMechanic
 {
     public override string Prefix => "npc.reincarnate";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+    [
+        new("npc.reincarnate", "npc.reincarnate:<1..100>", false, "carrier"),
+    ];
 
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)

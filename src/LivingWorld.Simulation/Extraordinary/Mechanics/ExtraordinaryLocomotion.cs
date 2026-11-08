@@ -117,32 +117,23 @@ public static class ExtraordinaryLocomotion
         foreach (var group in parsed.GroupBy(item => item.Key, StringComparer.Ordinal))
         {
             long required = group.Sum(item => (long)item.Amount);
-            long available = group.Key switch
-            {
-                "carrier.health" => npc.Health,
-                "carrier.hunger" => npc.HungerAt(tick),
-                "carrier.thirst" => npc.ThirstAt(tick),
-                "carrier.sleep" => npc.SleepAt(tick),
-                "carrier.social" => npc.SocialAt(tick),
-                _ when TryHouseholdResource(group.Key, out var resource) && household is not null =>
-                    household.Stock.GetValueOrDefault(resource),
-                _ => -1,
-            };
+            long available = NpcStatAccessors.TryGet(group.Key, CarrierCostMechanic.KeyPrefix, out var stat)
+                ? stat.Read(npc, tick)
+                : TryHouseholdResource(group.Key, out var resource) && household is not null
+                    ? household.Stock.GetValueOrDefault(resource)
+                    : -1;
             if (available < required) return false;
         }
         foreach (var (token, key, amount) in parsed)
         {
-            switch (key)
+            if (NpcStatAccessors.TryGet(key, CarrierCostMechanic.KeyPrefix, out var stat))
             {
-                case "carrier.health": npc.SetHealth(npc.Health - amount); break;
-                case "carrier.hunger": npc.SetHunger(npc.HungerAt(tick) - amount, tick); break;
-                case "carrier.thirst": npc.SetThirst(npc.ThirstAt(tick) - amount, tick); break;
-                case "carrier.sleep": npc.SetSleep(npc.SleepAt(tick) - amount, tick); break;
-                case "carrier.social": npc.SetSocial(npc.SocialAt(tick) - amount, tick); break;
-                default:
-                    _ = TryHouseholdResource(key, out var resource);
-                    household!.Withdraw(resource, amount);
-                    break;
+                stat.SubtractRaw(npc, amount, tick);
+            }
+            else
+            {
+                _ = TryHouseholdResource(key, out var resource);
+                household!.Withdraw(resource, amount);
             }
             ctx?.LogEvent(WorldEventKind.ExtraordinaryCostPaid, $"{npc.Id.Value}|movement|{token}", sourceSystem: "ExtraordinaryLocomotion");
         }

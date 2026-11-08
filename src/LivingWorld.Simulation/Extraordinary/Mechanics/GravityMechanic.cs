@@ -23,6 +23,12 @@ public sealed class GravityMechanic : ExtraordinaryMechanic
     public override string Prefix => "gravity.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+    [
+        new("gravity.self", "gravity.self:<multiplicador>", false, "carrier"),
+        new("gravity.target", "gravity.target:<multiplicador>", false, "target"),
+    ];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
