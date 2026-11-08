@@ -1,88 +1,93 @@
-# Verificação independente: issue #113, fatia A
+# Verificação independente: issue #113, fatia A (rodada 2)
 
-Commit verificado: `10f5da56` (base `b29ed9f2`). Verifier sem participação na autoria.
+Commit verificado: `dfaba21b` (base `b29ed9f2`). Verifier sem participação na autoria; a conclusão
+abaixo foi formada antes de abrir a verificação anterior.
 
-## Veredito: FAIL (2 FAIL bloqueantes, 1 correção menor)
+## Veredito: FAIL (1 FAIL bloqueante, AC3)
 
-## Critérios
-| Id | Resultado | Evidência |
+| Critério | Resultado | Evidência |
 |---|---|---|
-| AC1 kind sem classificação reprova | PASS | M1, M2 e M5 abaixo; a mensagem lista o kind |
-| AC2 uma lista por kind, só kinds definidos | PASS | M3 e M4; parser próprio: enum 67, T 46, R 21, sem interseção, sem faltas |
-| AC3 auditoria com emissor por kind | **FAIL** | F1: emissores de `Death` e `Starvation` omitidos |
-| AC4 não muda o mundo | PASS | `git diff --name-status`: 7 arquivos novos e `decisions-log.md`; em `src/` só `CausalPolicy.cs` (sem referência em produção); nenhum `tests/baselines`, cenário ou golden. `GoldenHashesTests`: 4 passam, 1 skip |
-| AC5 docs até 100 linhas | PASS | `wc -l`: índice 55, partes 40/39/46, plano 62; `check-docs: OK` (só cobre `docs/`, `rules/`; plano medido por `wc`) |
-| Regra de causa no plano e em AD | PASS | `plan.md` § Rule; `AD-121` único em `docs/decisions-log.md` |
-| Classificação vive no código | PASS | `CausalPolicy.cs`; todos os exemplos de transformação e raiz da issue batem (exceto clima: não há kind) |
-| Comportamento novo tem teste (`rules/tests.md`) | **FAIL** | F2: `IsTransformation` sem teste, mutante M8 sobrevive |
-| Escopo só fatia A | PASS | Nenhum emissor, `NpcDeath` ou overload legado alterado; nenhum kind novo |
-| `bash scripts/verify.sh` | PASS | exit 0; `Passed: 2467, Skipped: 3, Failed: 0`; `verify: OK` |
-| Custo (`compare-simulation-cost.sh`) | Adiado | Fora desta verificação por instrução do orquestrador |
+| AC1 kind sem classificação reprova | PASS | M1, M2 e M13 reprovam `Every_world_event_kind_is_classified_as_root_or_transformation` |
+| AC2 uma lista por kind, só definidos | PASS | M3 (estático lança, 11/11 falham), M4 (kind 9999), M13 |
+| AC3 auditoria cobre os emissores | **FAIL** | 67/67 kinds têm linha, mas falta um emissor: ver abaixo |
+| AC4 mundo não muda | PASS | ver "Mundo inalterado" |
+| AC5 docs até 100 linhas | PASS | `check-docs: OK`; partes com 58, 50, 46 e 39 linhas |
+| Regra de causa no plano e em AD | PASS | `plan.md` § Rule; `docs/decisions-log.md` AD-121 |
+| Lista no código | PASS | `CausalPolicy.cs:23,52`: 46 T + 21 R = 67; enum tem 67 (script); sem sobra nem interseção |
+| Classificação casa com a issue | PASS | morte, fusão, fundação, emprego, despejo, surto, doença, tecnologia, herança, casamento e órfão são T; nascimento, imigração autorada e autoria são R |
+| Escopo | PASS | `git diff --name-status`: 8 arquivos novos, só `docs/decisions-log.md` modificado (+1 linha) |
+| `bash scripts/verify.sh` | PASS | rc=0; `Passed: 2470, Skipped: 3, Total: 2473`; 0 warnings; `verify: OK` |
+| Custo | não medido | `compare-simulation-cost.sh` adiado por instrução; não conta como FAIL |
 
-## FAIL
-**F1. Emissores omitidos pela auditoria.** Extração própria de todas as 96 ocorrências de `LogEvent(` em
-`src/`, cruzada com as citações por kind. Três chamadas não citadas no kind: uma é `Disease` `:50`, citada em
-prosa (ok); as outras duas são omissões reais:
-- `Ecology/FloraLifecycleSystem.cs:327`: `LogEvent(WorldEventKind.Death, ..., sourceSystem: SystemName)`, morte de planta, sem causa.
-- `Ecology/FaunaLifecycleSystem.cs:185`: `LogEvent(kind, ...)`, recebe `Starvation` de `:54` e `Death` de `:174`, sem causa.
+## FAIL: emissor omitido na auditoria
 
-Com isso, `docs/audits/causal-provenance-audit-life-economy.md:7` ("todas via `NpcDeath.Apply`") é falso.
-Os dois sistemas estão em `ScenarioRunner.Systems.cs:86-87`. A fatia D exigirá causa em todo `Death`/`Starvation`,
-e a fatia B só trata `NpcDeath`: fauna e flora ficariam descobertas.
-**Correção:** citar os emissores nas linhas `Death` e `Starvation`, corrigir o título da seção e dizer a causa
-proximal de morte animal/vegetal (ou registrar a decisão de tratá-las à parte).
+`src/LivingWorld.Infrastructure/EventLog/EventLogCompactor.cs:52`:
+`kept.Add(new WorldEvent(firstTick, (WorldEventKind)kind, ..., SourceSystem: AggregateSource))`.
 
-**F2. `CausalPolicy.IsTransformation` sem teste.** Mutante M8 inverte o método e os 8 testes passam.
-`grep` confirma: nenhuma outra referência a `CausalPolicy` em `src/` ou `tests/` fora do par novo. O plano o nomeia
-"fonte da verdade" das fatias B, C e D.
-**Correção:** em `CausalPolicyTests.cs`, cobrir `IsTransformation` (transformação, raiz e kind não classificado).
+- Kind passado por variável; `NoiseKinds` (`:18-21`) = `ResourceLost`, `WageUnpaid` (**T**), `PlantMatured`.
+- Caminho de produção: `PersistentWorldRunner.cs:41`, antes de gravar; também `Workers/Program.cs:75`.
+- O evento sai com `SourceSystem = "EventLogCompactor"`, `EventId = 0` e sem causa.
+- `grep -rn Compactor docs/audits/causal-provenance-audit*.md` não retorna nada. A linha de
+  `WageUnpaid` (`life-economy.md`) lista só `WagePaymentSystem.cs:53`, e a varredura declarada no
+  índice cobre apenas `LogEvent` e `NpcDeath.Apply`/`Kill`.
+- Por que importa: os `WageUnpaid` individuais somem do log persistido. A auditoria propõe
+  `WageUnpaid` como causa de `Fired`, `RentUnpaid` e `Starvation`, e essas cadeias não resolvem no
+  log gravado. O gate da fatia D, com sink de teste, não veria isso.
 
-**Correção menor.** `life-economy.md:14` diz "fonte `OutbreakSystem`"; o valor real é `health-outbreak` (`OutbreakSystem.cs:20`).
+**Correção necessária:** registrar o compactador nas linhas dos 3 kinds (fonte, sem causa,
+`EventId = 0`) e anotar para as fatias B e D o efeito sobre causas que apontam para kinds compactados.
 
-## Amostragem da auditoria
-Mecânico: as 101 citações `arquivo:linha` das três partes resolvem; 97 caem na linha do kind e 4 na abertura da
-chamada multilinha (kind na linha seguinte). Conferência manual de emissor, fonte e causa:
+## Inventário próprio
+Script sobre `src/`, com parênteses balanceados, em 93 chamadas `LogEvent` fora de `TickContext`:
+- Todas as 91 chamadas de kind literal estão na linha do kind correto da auditoria (arquivo:linha).
+- 2 chamadas por variável: `NpcDeath.cs:28` e `FaunaLifecycleSystem.cs:185`. Todos os chamadores
+  (`NpcDeath.Apply` ×8, `Kill` de fauna ×2, `Kill` de flora) constam da auditoria, com o kind certo.
+- Ternário `ExtraordinaryStateSystem.cs:53` (`Manifested`/`Dormant`): coberto nas duas linhas.
+- Sentido inverso: toda referência arquivo:linha da auditoria é emissão, ou é a nota declarada
+  (`SettlementFoundingSystem.cs:27`, `TickContext.cs:24`, `CompensatingCorrectionOperations.cs:31`,
+  `OutbreakSystem.cs:20`).
+- `SourceSystem`: nenhuma chamada usa o overload legado nem passa `"Unknown"`.
+- Causa: só 11 chamadas têm 4º argumento (`Effects:58,64`, `MatterTransmute:49`,
+  `ConstructOperations:30`, `StateSystem:96`, `Engine:68,80,93,390,399`, `Natality:190`), como a auditoria diz.
+- Migração não emite evento; `SettlementFounded` não tem emissor: confirmado.
 
-| Parte | Kind e citação | Fonte no código | Causa no código | OK |
-|---|---|---|---|---|
-| vida | `Starvation` `NeedsDecaySystem.cs:92` | `NpcDeath` | não | sim |
-| vida | `Fired` `EmploymentSystem.cs:40` | `EmploymentSystem` | não | sim |
-| vida | `Fired` `PlayerCommands.cs:86` | `PlayerCommands` | não | sim |
-| vida | `RentUnpaid` `LodgingSystem.cs:88` | `LodgingSystem` | não | sim |
-| vida | `Evicted` `LodgingSystem.cs:93` | `LodgingSystem` | não | sim |
-| vida | `EstateSettled` `EstateSystem.cs:47` | `SystemName` | não | sim |
-| vida | `TheftDiscovered` `TheftResolver.cs:53` | `BehaviorDecisionSystem.SystemName` | não | sim |
-| vida | `PowerInherited` `NatalitySystem.cs:191` | `NatalitySystem` | `causeEventId` | sim |
-| cidade | `CityMerged` `SpatialSettlementFoundingSystem.cs:203` | literal | não | sim |
-| cidade | `TechnologyDiscovered` `TechDiscoverySystem.cs:96` | `tech-discovery` | não | sim |
-| cidade | `PlayerDisappeared` `PlayerCommands.cs:77` | `PlayerCommands` | não | sim |
-| cidade | `BookLost` `BookOperations.cs:59` | `BookOperations` | não | sim |
-| cidade | `SettlementFounded` sem emissor | só `[LivingCapability]` `:27` | n/a | sim |
-| extra | `ExtraordinaryCostPaid` `ExtraordinaryInvocationEngine.cs:80` | `ExtraordinaryInvocationEngine` | `priorId` | sim |
-| extra | `ExtraordinaryCostPaid` `ExtraordinaryLocomotion.cs:147` | literal | não | sim |
-| extra | `ExtraordinaryManifested` `ExtraordinaryStateSystem.cs:53` / `:97` | `SystemName` | não / `acquiredId` | sim |
-| extra | `Minted` `MatterTransmuteMechanic.cs:50` | literal | `destroyedId` | sim |
-| extra | `ExtraordinaryConstructRemoved` `ExtraordinaryConstructOperations.cs:31` | literal | `damagedId` | sim |
+Amostra lida linha a linha (31 linhas, 3 partes): `MortalitySystem:31`, `NeedsDecay:92`, `Outbreak:51,109`,
+`Natality:93,191`, `WagePayment:53`, `Lodging:93`, `OrphanCare:78`, `Estate:47`, `Fauna:174`,
+`Flora:188,197`, `SpatialFounding:203`, `SettlementFounding:27`, `TechDiscovery:96,188`,
+`PlayerCommands:77`, `PlayerSearch:85`, `Authoring:104`, `FactToReport:72`, `BookRediscovery:44`,
+`WorldState.Economy:96`, `MatterTransmute:50`, `TradeLedger:34`, `Engine:400`,
+`ConstructOperations:31`, `StateSystem:97`, `CombatEncounter:113`, `Control:136`, `Effects:65`.
+Todas conferem. Fontes: `fauna-lifecycle`, `flora-lifecycle` e `health-outbreak` conferem com `SystemName`.
 
-Resumo do índice confirmado: nenhuma chamada de 2 argumentos (overload legado); passam causa só os emissores listados.
-Sem emissor confirmados: `SettlementFounded`, `FactRecorded`, `CompensatingCorrection`; migração não emite evento.
+## Mundo inalterado
+- `git diff --name-only b29ed9f2...HEAD | grep -E 'baseline|golden|hash|\.json$'`: vazio.
+- Nenhum emissor em `src/` mudou; o único `.cs` novo de produção é `CausalPolicy.cs`, sem referência
+  em `src/` fora dele mesmo. Goldens de LongRunning não rodaram (fora do `verify.sh` padrão).
 
-## Mutações (`bash scripts/test.sh --filter "FullyQualifiedName~CausalPolicyTests"`)
+## Mutações (`bash scripts/test.sh --filter FullyQualifiedName~CausalPolicyTests`; base: 11/11 passam)
 | Id | Mutação | Resultado |
 |---|---|---|
-| M0 | controle sem mutação | 8 passam |
-| M1 | remove `Trade` de `Roots` | 2 reprovam; lista `Trade` |
-| M2 | remove `Death` de `Transformations` | 3 reprovam; lista `Death` |
-| M3 | `Death` nas duas listas | 8 reprovam (`TypeInitializationException`) |
-| M4 | `(WorldEventKind)9999` em `Roots` | 2 reprovam; "9999 não existe no enum" |
-| M5 | kind novo no enum sem classificar | 2 reprovam; lista o kind |
-| M6 | `Birth` movido para `Transformations` | 1 reprova |
-| M7 | `RoleOf` assume `Root` para desconhecido | 1 reprova |
-| M8 | `IsTransformation` invertido | **sobrevive: 8 passam** (F2) |
+| M1 | remove `Hired` de T | reprova 2 |
+| M2 | remove `Minted` de R | reprova 2 |
+| M3 | `Birth` nas duas listas | reprova 11 (construtor estático) |
+| M4 | kind indefinido na lista | reprova 2 |
+| M5 | `IsTransformation` invertido | reprova 2 |
+| M6 | `IsTransformation` true para não classificado | reprova 1 |
+| M7 | `RoleOf` devolve Root por padrão | reprova 1 |
+| M8 | `RoleOf` invertido | reprova 5 |
+| M9 | `TransformationKinds` devolve raízes | reprova 2 |
+| M10 | `RootKinds` devolve transformações | reprova 2 |
+| M11 | `Death` movido para R | reprova 1 |
+| M12 | `Birth` movido para T | reprova 1 |
+| M13 | kind novo no enum | reprova 2 |
+| M14 | `Marriage` movido para R (sondagem) | **sobrevive** |
 
-Cada mutação restaurada com `git checkout --`; `git status --short` vazio ao final.
+Cada mutação restaurada com `git checkout -- <arquivo>`; `git status --short` vazio ao final.
 
-## Observações para as fatias B a D (não bloqueiam a A)
-- `Death` é T, mas a própria auditoria dá "idade: raiz natural"; o mesmo vale para `Fired` por comando do jogador e para o 1º `PowerInvoked` (`BehaviorDecisionSystem.Effects.cs:58`, `causeEventId: null`). O gate D precisa de exceção por emissor ou de outra classificação.
-- `EstateSettled` e `NpcInstantiated` por morte têm causa proposta `Death`, mas são emitidos antes dela (`NpcDeath.cs:23,25` antes de `:28`); reordenar muda ids de evento.
-- `CausalPolicy` ainda não tem consumidor de produção: registrar como `FUTURE_DEPENDENCY` em `living-world-cohesion-audit.md` ao fechar.
+## Observações (não bloqueiam)
+- M14: só 5 kinds têm papel fixado em teste. O plano aceita reclassificar trocando uma linha, mas
+  casamento e os demais kinds citados na issue poderiam entrar no `Theory`.
+- O índice diz que `SettlementFounded` só aparece na capacidade e no catálogo; há também o leitor
+  `LivingScopeState.cs:245`.
+- O índice diz que `"Unknown"` só existe como padrão; `SavedWorldLibrary.cs:61` também o usa ao importar.
+  Esse ponto e `HistoryDistortionDigest.cs:18` não geram evento novo no log, por isso não são FAIL.
