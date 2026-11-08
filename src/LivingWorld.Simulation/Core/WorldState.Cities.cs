@@ -46,7 +46,10 @@ public sealed partial class WorldState
         return city is { MergedIntoCityId: null } ? city : null;
     }
 
-    internal void MergeCityInto(City daughter, City mother)
+    /// <summary>Funde a filha na mãe. Devolve os índices das tecnologias que a mãe passou a adotar por herdar a adoção da
+    /// filha (a fusão transfere o conhecimento, #114): o chamador emite <c>TechnologyAdopted</c> com a causa. A lápide nunca
+    /// permanece em <c>AdoptedBy</c>; <c>OriginCity</c> segue apontando a filha (história).</summary>
+    internal IReadOnlyList<int> MergeCityInto(City daughter, City mother)
     {
         foreach (var building in _buildings.Where(building => building.City == daughter.Id).OrderBy(building => building.Id.Value))
             building.JoinCity(mother.Id);
@@ -73,6 +76,24 @@ public sealed partial class WorldState
         var (pool, poolNpcIds) = daughter.ExtractEntirePool();
         mother.AbsorbPool(pool, poolNpcIds);
         daughter.MarkMergedInto(mother.Id);
+        return TransferTechnologyAdoption(daughter.Id, mother.Id);
+    }
+
+    private List<int> TransferTechnologyAdoption(CityId daughter, CityId mother)
+    {
+        var inherited = new List<int>();
+        for (int index = 0; index < _technologies.Count; index++)
+        {
+            var tech = _technologies[index];
+            if (!tech.AdoptedBy.Contains(daughter)) continue;
+
+            bool motherKnew = tech.AdoptedBy.Contains(mother);
+            var adopters = tech.AdoptedBy.Where(city => city != daughter).ToList();
+            if (!motherKnew) adopters.Add(mother);
+            ReplaceTechnology(index, tech with { AdoptedBy = adopters });
+            if (!motherKnew) inherited.Add(index);
+        }
+        return inherited;
     }
     public Building? FindBuilding(BuildingId id) => _buildingById.GetValueOrDefault(id);
 

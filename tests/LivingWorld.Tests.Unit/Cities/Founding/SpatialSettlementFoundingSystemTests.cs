@@ -2,6 +2,7 @@ using LivingWorld.Api.Visual.Projection;
 using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Emergence;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Geography.Map;
 using LivingWorld.Domain.History;
@@ -15,6 +16,7 @@ using LivingWorld.Simulation.Cities.Founding;
 using LivingWorld.Simulation.Cities.Migration;
 using LivingWorld.Simulation.Cities.Queries;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Emergence;
 using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Simulation.Scheduling;
 
@@ -54,14 +56,15 @@ public class SpatialSettlementFoundingSystemTests
 
     // Mapa bem maior que map/2 pra nenhum teste bater no teto de borda por acidente (mesma tática
     // de OverflowClusterFinderTests/CityOccupancyTests).
-    private static WorldState MakeWorld(CityRules rules, ulong seed)
+    private static WorldState MakeWorld(CityRules rules, ulong seed, EmergenceRules? emergence = null)
     {
         var map = MapGenerator.Generate(seed, width: 300, height: 300, regionSize: 300, TinyCatalog, TinyCostWeights, [])
             .Value ?? throw new InvalidOperationException("mapa de teste inválido — bug no teste, não no gerador");
         return new WorldState(
             ScenarioRunner.DefaultCalendar, seed, map, ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules,
-            ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules, cityRules: rules);
+            ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules, cityRules: rules,
+            emergenceRules: emergence);
     }
 
     private static TickContext MakeCtx(WorldState world) => new(world, world.Rng, world.Scheduler);
@@ -499,6 +502,48 @@ public class SpatialSettlementFoundingSystemTests
         Assert.Equal(WorldEventKind.CityMerged, merged.Kind);
         Assert.Equal(world.CurrentDate.TotalHours, merged.Tick);
         Assert.Equal($"{daughter.Id.Value}|{mother.Id.Value}", merged.Payload);
+    }
+
+    private static (WorldState World, City Mother, City Daughter, Technology Tech) MergeWithTech(bool motherKnew, RecordingSink sink)
+    {
+        var world = MakeWorld(MakeRules(organizationTicks: 10), seed: 916, EmergenceRules.Mobility);
+        var mother = new City(world.NextCityId(), new CellCoord(100, 100), 0, null, AggregatePopulationPool.Empty);
+        var daughter = new City(world.NextCityId(), new CellCoord(105, 100), 1, mother.Id, AggregatePopulationPool.Empty);
+        world.AddCity(mother);
+        world.AddCity(daughter);
+        var adopters = motherKnew ? new List<CityId> { daughter.Id, mother.Id } : [daughter.Id];
+        world.AddTechnology(new Technology(
+            ScenarioRunner.DefaultCulture, EmergenceRules.MobilityCategory, new TechnologyVector([7, 0, 0]), 0,
+            daughter.Id, null, adopters));
+        var system = new SpatialSettlementFoundingSystem();
+        system.Tick(world, MakeCtx(world));
+        system.HandleEvent(world, new TickContext(world, world.Rng, world.Scheduler, sink), Assert.Single(world.PendingEvents));
+        return (world, mother, daughter, world.Technologies[0]);
+    }
+
+    [Fact]
+    public void HandleEvent_transfers_technology_adoption_from_daughter_to_mother_with_causal_event()
+    {
+        var sink = new RecordingSink();
+        var (world, mother, daughter, tech) = MergeWithTech(motherKnew: false, sink);
+
+        Assert.Equal([mother.Id], tech.AdoptedBy);
+        Assert.Equal(daughter.Id, tech.OriginCity);
+        Assert.True(Mobility.BonusPct(world, mother.Id) > 0);
+        var merged = Assert.Single(sink.Events, e => e.Kind == WorldEventKind.CityMerged);
+        var adopted = Assert.Single(sink.Events, e => e.Kind == WorldEventKind.TechnologyAdopted);
+        Assert.Equal(merged.EventId, adopted.CauseEventId);
+        Assert.StartsWith(mother.Id.Value.ToString(), adopted.Payload);
+    }
+
+    [Fact]
+    public void HandleEvent_drops_the_tombstone_without_duplicating_when_mother_already_adopted()
+    {
+        var sink = new RecordingSink();
+        var (_, mother, _, tech) = MergeWithTech(motherKnew: true, sink);
+
+        Assert.Equal([mother.Id], tech.AdoptedBy);
+        Assert.DoesNotContain(sink.Events, e => e.Kind == WorldEventKind.TechnologyAdopted);
     }
 
     [Fact]
