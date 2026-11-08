@@ -123,6 +123,26 @@ public class TechDiscoveryTests
     }
 
     [Fact]
+    public void Prototype_of_a_merged_city_concluding_later_is_adopted_by_the_absorbing_city_but_originates_in_the_daughter()
+    {
+        var (world, _) = Village(6, Pressured);
+        var mother = world.ActiveCities().First();
+        var daughter = new LivingWorld.Domain.Cities.City(
+            world.NextCityId(), new CellCoord(mother.Location.X + 5, mother.Location.Y), 1, mother.Id,
+            LivingWorld.Domain.Cities.AggregatePopulationPool.Empty);
+        world.AddCity(daughter);
+        daughter.MarkMergedInto(mother.Id);
+        var ctx = new TickContext(world, world.Rng, world.Scheduler, new BufferingWorldEventSink());
+
+        new TechDiscoverySystem().HandleEvent(
+            world, ctx, new ScheduledEvent(1, 1, TechDiscoverySystem.SystemName, $"{daughter.Id.Value}|1|5.5.5"));
+
+        var tech = Assert.Single(world.Technologies);
+        Assert.Equal([mother.Id], tech.AdoptedBy);
+        Assert.Equal(daughter.Id, tech.OriginCity);
+    }
+
+    [Fact]
     public void Technology_is_identified_by_vector_only_never_by_a_name()
     {
         Assert.Equal(new TechnologyVector([1, 2, 3]), new TechnologyVector([1, 2, 3]));

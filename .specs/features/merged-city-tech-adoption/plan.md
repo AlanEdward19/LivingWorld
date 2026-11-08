@@ -30,6 +30,12 @@ A fusão TRANSFERE a adoção (padrão proposto na #114): quem sabe a técnica m
 - C4: Nenhuma lápide em `AdoptedBy` a cada dia por 10 anos no `scenarios/default.json` (emergência e fundação ligadas),
   3 seeds. Teste: `MergedCityAdoptionScenarioTests` (LongRunning). Nota: nesses seeds há fusões (1 a 5) mas nenhuma
   tecnologia é descoberta em 10 anos, então C4 sozinho é fraco; a prova causal é C1 a C3.
+- C4b: o cenário injeta, a cada filha nova, uma tecnologia adotada só por ela e exige que alguma tenha sido fundida
+  (não vácuo). Reprova com a transferência desligada (verificado).
+- C6: WHEN um protótipo da filha conclui depois da fusão, `AdoptedBy` recebe a cidade ativa que a absorveu e
+  `OriginCity` fica na filha (`TechDiscoverySystem.HandleEvent`; único outro ponto, com `Spread`, que escreve em
+  `AdoptedBy`, e `Spread` só itera cidades ativas). Teste: `Prototype_of_a_merged_city_concluding_later_...`.
+- C7: `SourceSystem` do `TechnologyAdopted` da fusão e a ordem por índice da tecnologia são cobertos por teste.
 - C5: Determinismo e goldens inalterados: sem estado novo, só troca de elemento de lista existente; `OriginCity` intacto.
 
 ## Campos com CityId conferidos (Domain e WorldState)

@@ -534,6 +534,29 @@ public class SpatialSettlementFoundingSystemTests
         var adopted = Assert.Single(sink.Events, e => e.Kind == WorldEventKind.TechnologyAdopted);
         Assert.Equal(merged.EventId, adopted.CauseEventId);
         Assert.StartsWith(mother.Id.Value.ToString(), adopted.Payload);
+        Assert.Equal("SpatialSettlementFoundingSystem", adopted.SourceSystem);
+    }
+
+    [Fact]
+    public void HandleEvent_emits_inherited_adoptions_in_technology_index_order()
+    {
+        var world = MakeWorld(MakeRules(organizationTicks: 10), seed: 917, EmergenceRules.Mobility);
+        var mother = new City(world.NextCityId(), new CellCoord(100, 100), 0, null, AggregatePopulationPool.Empty);
+        var daughter = new City(world.NextCityId(), new CellCoord(105, 100), 1, mother.Id, AggregatePopulationPool.Empty);
+        world.AddCity(mother);
+        world.AddCity(daughter);
+        foreach (var axis in new[] { 9, 2, 5 }) // ordem de índice deliberadamente não ordenada por vetor
+            world.AddTechnology(new Technology(
+                ScenarioRunner.DefaultCulture, EmergenceRules.MobilityCategory, new TechnologyVector([axis, 0, 0]), 0,
+                daughter.Id, null, [daughter.Id]));
+        var sink = new RecordingSink();
+        var system = new SpatialSettlementFoundingSystem();
+        system.Tick(world, MakeCtx(world));
+        system.HandleEvent(world, new TickContext(world, world.Rng, world.Scheduler, sink), Assert.Single(world.PendingEvents));
+
+        var keys = sink.Events.Where(e => e.Kind == WorldEventKind.TechnologyAdopted)
+            .Select(e => e.Payload.Split('|')[2]).ToList();
+        Assert.Equal(["9.0.0", "2.0.0", "5.0.0"], keys);
     }
 
     [Fact]

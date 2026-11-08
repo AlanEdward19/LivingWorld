@@ -1,24 +1,17 @@
 using System.Text.Json.Nodes;
-using LivingWorld.Domain.History;
-using LivingWorld.Simulation.Core;
+using LivingWorld.Domain.Emergence;
+using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Scenarios;
 
 namespace LivingWorld.Tests.LongRunning.Emergence;
 
 /// <summary>#114: depois de qualquer fusão de cidade (ADR-0019), nenhuma tecnologia lista como adotante uma cidade fundida
-/// (lápide). Cenário vivo (<c>scenarios/default.json</c>, emergência e fundação ligadas), 10 anos, conferido a cada dia.</summary>
+/// (lápide). Cenário vivo (<c>scenarios/default.json</c>, emergência e fundação ligadas), 10 anos, conferido a cada dia.
+/// Nestes seeds nenhuma tecnologia emerge sozinha em 10 anos, então cada filha, assim que surge, recebe uma tecnologia
+/// adotada só por ela; o teste exige que alguma dessas filhas tenha sido fundida (caso não vácuo).</summary>
 public class MergedCityAdoptionScenarioTests
 {
     private const long TenYearsInHours = 10L * 12 * 30 * 24;
-
-    private sealed class MergeSink : IWorldEventSink
-    {
-        public int Merges { get; private set; }
-        public void Record(WorldEvent evt)
-        {
-            if (evt.Kind == WorldEventKind.CityMerged) Merges++;
-        }
-    }
 
     private static string RepoRoot()
     {
@@ -39,19 +32,30 @@ public class MergedCityAdoptionScenarioTests
         var loaded = ScenarioLoaderV2.LoadWorld(node.ToJsonString());
         Assert.True(loaded.IsSuccess, loaded.Error);
         var world = loaded.Value.World;
-        var sink = new MergeSink();
-        var clock = new WorldClock(loaded.Value.Clock.Systems, sink: sink);
+        var clock = loaded.Value.Clock;
+        var seeded = new HashSet<CityId>();
+        int axisCount = world.EmergenceRules.AxisCount;
 
         for (long hour = 0; hour < TenYearsInHours; hour += 24)
         {
             clock.Run(world, 24);
+            foreach (var daughter in world.Cities.Where(c => c.FoundedFromCityId is not null).OrderBy(c => c.Id.Value))
+            {
+                if (daughter.MergedIntoCityId is null && seeded.Add(daughter.Id))
+                {
+                    var axes = new int[axisCount];
+                    axes[0] = 1 + seeded.Count; // vetor distinto por filha
+                    world.AddTechnology(new Technology(
+                        ScenarioRunner.DefaultCulture, EmergenceRules.MobilityCategory, new TechnologyVector(axes),
+                        world.CurrentDate.TotalHours, daughter.Id, null, [daughter.Id]));
+                }
+            }
             var tombstones = world.Cities.Where(c => c.MergedIntoCityId is not null).Select(c => c.Id).ToHashSet();
             foreach (var tech in world.Technologies)
                 Assert.DoesNotContain(tech.AdoptedBy, tombstones.Contains);
         }
 
-        // Garante que o caminho de fusão foi exercitado (a descoberta de tecnologia em si é rara nestes seeds; a prova
-        // causal da transferência mora em SpatialSettlementFoundingSystemTests).
-        Assert.True(sink.Merges > 0, "o cenário não fundiu nenhuma cidade — a asserção seria vácua");
+        int mergedSeeded = world.Cities.Count(c => seeded.Contains(c.Id) && c.MergedIntoCityId is not null);
+        Assert.True(mergedSeeded > 0, "nenhuma filha com tecnologia adotada foi fundida — a asserção seria vácua");
     }
 }
