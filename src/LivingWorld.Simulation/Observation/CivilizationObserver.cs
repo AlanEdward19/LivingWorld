@@ -61,7 +61,7 @@ public sealed class CivilizationObserver
         long population = all.Materialized + all.Pool;
         worldMetrics["technologies"] = world.Technologies.Count(t => t.AdoptedBy.Count > 0);
         worldMetrics["cities_active"] = active.Count;
-        worldMetrics["cities_founded"] = active.Count(c => c.FoundedAtTick > _previousTick && c.FoundedAtTick <= tick);
+        worldMetrics["cities_founded"] = world.Cities.Count(c => c.FoundedAtTick > _previousTick && c.FoundedAtTick <= tick);
         worldMetrics["cities_merged"] = merged;
         worldMetrics["population_delta"] = population - _previousPopulation;
         worldMetrics["net_migration"] = population - _previousPopulation - all.Births + all.Deaths;
@@ -166,7 +166,7 @@ public sealed class CivilizationObserver
         private double LifeExpectancy(int bandYears)
         {
             int count = Math.Max(Ages.Count == 0 ? 0 : Ages.Max() / bandYears + 1, DeathsByBand.Count);
-            if (count == 0 || Ages.Count + Deaths == 0) return 0;
+            if (count == 0 || Deaths == 0) return 0;
 
             var bands = new List<AgeBand>();
             for (int i = 0; i < count; i++)

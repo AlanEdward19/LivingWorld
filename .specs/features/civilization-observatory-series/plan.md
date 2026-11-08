@@ -67,3 +67,15 @@ o orquestrador mede uma vez ao final. Tempo de parede não é critério agora (i
 
 CLI e JSON (fatia B), diversidade (C), cenário de referência (D), `CityIndicators` (E). Cultura, organizações,
 governo e crime entram como chaves novas quando as sub-issues existirem.
+
+## Correções após a verificação independente (F1 a F4)
+
+- **F1**: a conservação agora usa fonte independente do resíduo: população da série (`population_delta` contra a
+  diferença de `population`), braço sem emigração (`net_migration` = 0) e braço com emigração real (pool de 50, taxa
+  alta) em que `net_migration` = −(ids que saíram do pool sem virar NPC nem morto). `CivilizationConservationTests`.
+- **F2**: `cities_founded` conta em `world.Cities` (antes só ativas; cidade fundada e fundida no mesmo ano sumia).
+  Teste: Σ fundadas + iniciais = total de cidades; Σ fundidas = cidades com `MergedIntoCityId`. O baseline de
+  diversidade não usa essa chave (usa `cities_active`), então **não foi regravado**.
+- **F3**: testes de valor para causas, filtro de `SourceSystem`, idade, desemprego, oficinas, prédios, e₀ e fundidas
+  (`CivilizationObserverValueTests`). `life_expectancy_at_birth` agora é 0 em ano sem mortes (código e doc de acordo).
+- **F4**: `ArgumentOutOfRangeException` testada para seeds e anos ≤ 0.

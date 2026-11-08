@@ -49,18 +49,6 @@ public class CivilizationObserverTests
     }
 
     [Fact]
-    public void Population_change_equals_births_minus_deaths_plus_migration_and_migration_only_removes_people()
-    {
-        var run = ObservatoryFixture.Observed.Value.Run;
-        foreach (var year in run.Years)
-        {
-            var w = year.World;
-            Assert.Equal(w["population_delta"], w["births"] - w["deaths"] + w["net_migration"]);
-            Assert.True(w["net_migration"] <= 0, $"ano {year.Year}: migração líquida {w["net_migration"]} cria gente do nada");
-        }
-    }
-
-    [Fact]
     public void Deaths_by_cause_sum_to_deaths_in_every_city_and_year()
     {
         var run = ObservatoryFixture.Observed.Value.Run;

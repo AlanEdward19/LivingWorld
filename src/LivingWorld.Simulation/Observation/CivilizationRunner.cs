@@ -12,7 +12,8 @@ public static class CivilizationRunner
     /// <summary><paramref name="afterYear"/> recebe o mundo depois de cada amostra (asserts de teste).</summary>
     public static SeedRun Run(
         string scenarioJson, ulong seed, int years,
-        int ageBandYears = YearEventTally.DefaultAgeBandYears, Action<WorldState, WorldYearSample>? afterYear = null)
+        int ageBandYears = YearEventTally.DefaultAgeBandYears, Action<WorldState, WorldYearSample>? afterYear = null,
+        Action<WorldState>? onStart = null)
     {
         var root = JsonNode.Parse(scenarioJson)!.AsObject();
         root["Seed"] = seed;
@@ -23,6 +24,7 @@ public static class CivilizationRunner
         var tally = new YearEventTally(world, ageBandYears);
         var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, tally);
         var observer = new CivilizationObserver(world, tally);
+        onStart?.Invoke(world);
         var samples = new List<WorldYearSample>(years);
         for (int year = 1; year <= years; year++)
         {

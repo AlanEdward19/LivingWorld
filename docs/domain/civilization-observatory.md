@@ -38,7 +38,7 @@ Contrato congelado em `tests/contracts/shape.civ-report.json`. `final` resume o 
 | `births`, `deaths` | do ano, só NPC (sink de eventos `NatalitySystem` e `NpcDeath`) |
 | `deaths_hunger_thirst`, `deaths_disease`, `deaths_age`, `deaths_other` | por causa; somam `deaths` |
 | `age_mean`, `age_median` | idade dos materializados (o pool não tem idade) |
-| `life_expectancy_at_birth` | tábua de período do ano; 0 = indefinida; ruidosa em população pequena |
+| `life_expectancy_at_birth` | tábua de período do ano; 0 = indefinida (ano sem mortes); ruidosa em população pequena |
 | `gini` | carteiras materializadas + pool como um bloco uniforme |
 | `treasury` | tesouro da cidade (soma no mundo) |
 | `unemployment_rate` | adultos materializados sem `Employer` / adultos materializados |
