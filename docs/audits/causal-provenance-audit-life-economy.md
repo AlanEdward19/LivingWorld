@@ -20,7 +20,7 @@ Mortes de animal e planta **não** passam por `NpcDeath`: ver `Death` e `Starvat
 |---|---|---|---|---|---|
 | `Hired` | T | `Economy/Labor/EmploymentSystem.cs:55`; `Behavior/Decision/BehaviorDecisionSystem.Profession.cs:94` | sim | não | vaga aberta: `Fired`/`Death` do antecessor ou nova oficina |
 | `Fired` | T | `EmploymentSystem.cs:40`; `BehaviorDecisionSystem.Profession.cs:87`; `Players/PlayerCommands.cs:86` | sim | não | `WageUnpaid` (empregador sem caixa), troca de ofício (decisão) ou comando do jogador (raiz) |
-| `WageUnpaid` | T | `Economy/Labor/WagePaymentSystem.cs:53` | sim | não | tesouro da oficina vazio (condição `EmployerInsolvent`) |
+| `WageUnpaid` | T | `Economy/Labor/WagePaymentSystem.cs:53` | sim | não | tesouro da oficina vazio (condição `EmployerInsolvent`); no log gravado só resta o agregado do compactador (`EventLogCompactor.cs:52`, fonte `EventLogCompactor`, `EventId = 0`, sem causa) |
 | `RentUnpaid` | T | `Cities/LodgingSystem.cs:88` | sim | não | `Fired`/`WageUnpaid` que tirou a renda do household |
 | `Evicted` | T | `Cities/LodgingSystem.cs:93` | sim | não | último `RentUnpaid` do household (mesmo `LodgingSystem`) |
 | `EstateSettled` | T | `Population/Lifecycle/EstateSystem.cs:47` | sim | não | `Death` do falecido (na mesma chamada de `NpcDeath`) |
@@ -48,3 +48,7 @@ Mortes de animal e planta **não** passam por `NpcDeath`: ver `Death` e `Starvat
 - `EstateSettled` e `NpcInstantiated` (`OnCarrierDeath`) são emitidos **antes** da `Death` proposta
   como causa: `NpcDeath.cs:23,25` rodam antes do `LogEvent` em `:28`. Para apontar à `Death`,
   a fatia B terá de emitir a morte antes ou passar o id para dentro dessas chamadas.
+- Os `WageUnpaid` individuais **somem do log persistido** (`EventLogCompactor` roda em
+  `PersistentWorldRunner.cs:41` antes de gravar e em `Workers/Program.cs:75`; também agrega
+  `ResourceLost` e `PlantMatured`). Causas propostas que apontam para eles (`Fired`, `RentUnpaid`,
+  `Starvation`) não resolvem no log gravado, e um gate com sink de teste não enxerga isso.

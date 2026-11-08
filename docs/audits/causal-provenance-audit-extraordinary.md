@@ -6,8 +6,8 @@ Todos os emissores passam `SourceSystem` real. Caminhos relativos a `src/LivingW
 ## Ecologia, economia e contabilidade (raízes)
 | Kind | Papel | Emissor (arquivo:linha) | Causa hoje | Causa proximal correta |
 |---|---|---|---|---|
-| `PlantMatured` | R | `Ecology/FloraLifecycleSystem.cs:197` | não | raiz: crescimento por tempo |
-| `ResourceLost` | R | `Economy/Production/ProductionSystem.cs:108,172`; `CropSystem.cs:56`; `FloraLifecycleSystem.cs:292`; `Population/Family/HouseholdCleanup.cs:22` | não | raiz: perda/estrago contábil |
+| `PlantMatured` | R | `Ecology/FloraLifecycleSystem.cs:197` | não | raiz: crescimento por tempo; compactador: `Infrastructure/EventLog/EventLogCompactor.cs:52` (`NoiseKinds` `:18-21`) recria o kind agregado por mês, fonte `EventLogCompactor`, `EventId = 0`, sem causa. |
+| `ResourceLost` | R | `Economy/Production/ProductionSystem.cs:108,172`; `CropSystem.cs:56`; `FloraLifecycleSystem.cs:292`; `Population/Family/HouseholdCleanup.cs:22` | não | raiz: perda/estrago contábil; compactador: `Infrastructure/EventLog/EventLogCompactor.cs:52` (`NoiseKinds` `:18-21`) recria o kind agregado por mês, fonte `EventLogCompactor`, `EventId = 0`, sem causa. |
 | `Minted` | R | `Core/WorldState.Economy.cs:73`; `Extraordinary/Mechanics/MatterTransmuteMechanic.cs:50` | só na transmutação | raiz; na transmutação, o `Destroyed` pareado |
 | `Destroyed` | R | `WorldState.Economy.cs:82,96`; `MatterTransmuteMechanic.cs:47` | não | raiz: contabilidade |
 | `Trade` | R | `Economy/Trade/TradeLedgerSystem.cs:34` | não | raiz: primeiro contato de compra |

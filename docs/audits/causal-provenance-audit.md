@@ -27,7 +27,8 @@ mudado em emissor, e o hash canônico do mundo não muda nesta fatia.
 ## Resumo
 - Classificados: **46 transformações** e **21 raízes** (67 no total).
 - `SourceSystem`: **todo emissor atual passa um nome real**. Nenhum chamador usa o overload
-  legado `LogEvent(kind, payload)` (grep em `src/`); o `"Unknown"` só existe como padrão.
+  legado `LogEvent(kind, payload)` (grep em `src/`); o `"Unknown"` existe como padrão do overload legado e de `WorldEvent`, e é usado como
+  valor de reserva em `Api/World/SavedWorldLibrary.cs:61` (importação de log legado sem fonte).
 - Causa: só passam `CauseEventId` `PowerInvoked`, `PowerInherited`, a cadeia do
   `ExtraordinaryInvocationEngine`, `Minted` da transmutação, `ConstructRemoved` (dano) e
   `ExtraordinaryManifested` (após `Acquired`). **Todo o resto das transformações não passa causa.**
@@ -38,11 +39,20 @@ mudado em emissor, e o hash canônico do mundo não muda nesta fatia.
 
 ## Divergências com o texto da issue (para o dono)
 - `SettlementFounded` **não tem emissor**: só aparece no `[LivingCapability]` de
-  `SettlementFoundingSystem.cs:27` e no catálogo de apresentação. Só `CityMerged` é emitido.
+  `SettlementFoundingSystem.cs:27`, no catálogo de apresentação e em `Api/Visual/Scope/LivingScopeState.cs:245`
+  (que o fabrica para a UI a partir de `FoundedFromCityId`, sem evento no log). Só `CityMerged` é emitido.
 - `MigrationSystem` e `RelocationArrivalSystem` **não emitem evento algum**; migração hoje é
   invisível no log. A fatia C precisa criar o kind (a issue já prevê).
 - `FactRecorded` e `CompensatingCorrection` não passam por `LogEvent` (só criam `Fact`).
 - `DecisionMetrics.cs:96` monta um `WorldEvent` à mão para medir; não é emissor de produção.
+
+## Emissores que não passam por `LogEvent` (varredura de `new WorldEvent(` em todo `src/`)
+| Local | O que faz |
+|---|---|
+| `Scheduling/TickContext.cs:29,30` | o próprio `LogEvent`; único caminho de emissão do motor |
+| `Infrastructure/EventLog/EventLogCompactor.cs:52` | cria `WageUnpaid`/`ResourceLost`/`PlantMatured` agregados: fonte `EventLogCompactor`, `EventId = 0`, sem causa; produção (`PersistentWorldRunner.cs:41`, `Workers/Program.cs:75`) |
+| `Api/World/SavedWorldLibrary.cs:60` | reimporta log legado preservando id, causa e fonte (`"Unknown"` se nula) |
+| `Simulation/Behavior/Decision/DecisionMetrics.cs:96`, `History/Distortion/HistoryDistortionDigest.cs:18` | medição e digest de teste, não produção |
 
 ## Eventos de condição propostos (decisão do dono, nada criado)
 | Proposta | Granularidade | Serviria a |
