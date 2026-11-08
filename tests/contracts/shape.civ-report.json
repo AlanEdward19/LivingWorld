@@ -1,0 +1,191 @@
+{
+  "scenario": "string",
+  "seeds": [
+    {
+      "seed": "number",
+      "years": [
+        {
+          "cities": [
+            {
+              "id": "string",
+              "metrics": {
+                "age_mean": "number",
+                "age_median": "number",
+                "births": "number",
+                "buildings": "number",
+                "deaths": "number",
+                "deaths_age": "number",
+                "deaths_disease": "number",
+                "deaths_hunger_thirst": "number",
+                "deaths_other": "number",
+                "gini": "number",
+                "life_expectancy_at_birth": "number",
+                "population": "number",
+                "population_materialized": "number",
+                "population_pool": "number",
+                "technologies": "number",
+                "treasury": "number",
+                "unemployment_rate": "number",
+                "workshops": "number"
+              }
+            }
+          ],
+          "tick": "number",
+          "world": {
+            "age_mean": "number",
+            "age_median": "number",
+            "births": "number",
+            "buildings": "number",
+            "cities_active": "number",
+            "cities_founded": "number",
+            "cities_merged": "number",
+            "deaths": "number",
+            "deaths_age": "number",
+            "deaths_disease": "number",
+            "deaths_hunger_thirst": "number",
+            "deaths_other": "number",
+            "gini": "number",
+            "life_expectancy_at_birth": "number",
+            "net_migration": "number",
+            "population": "number",
+            "population_delta": "number",
+            "population_materialized": "number",
+            "population_pool": "number",
+            "population_unassigned": "number",
+            "technologies": "number",
+            "treasury": "number",
+            "unemployment_rate": "number",
+            "workshops": "number"
+          },
+          "year": "number"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "final": {
+      "age_mean": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "age_median": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "births": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "buildings": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "cities_active": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "cities_founded": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "cities_merged": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "deaths": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "deaths_age": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "deaths_disease": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "deaths_hunger_thirst": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "deaths_other": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "gini": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "life_expectancy_at_birth": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "net_migration": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "population": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "population_delta": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "population_materialized": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "population_pool": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "population_unassigned": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "technologies": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "treasury": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "unemployment_rate": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      },
+      "workshops": {
+        "max": "number",
+        "mean": "number",
+        "min": "number"
+      }
+    },
+    "seeds": "number",
+    "years": "number"
+  }
+}

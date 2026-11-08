@@ -17,3 +17,5 @@ TestResults/
 client/godot/.godot/
 client/godot/*.uid
 client/godot/**/*.uid
+
+artifacts/

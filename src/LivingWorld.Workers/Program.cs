@@ -14,6 +14,11 @@ using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Workers;
 using Microsoft.EntityFrameworkCore;
 
+// Observatório de civilização (issue #112): série anual por seed, sem persistência.
+// `dotnet <dll> civ-report <scenario-path> <seed-inicial> <seeds> <anos> <saida.json>`.
+if (args.Length == 6 && args[0] == "civ-report")
+    return CivilizationReportCommand.Run(args[1], ulong.Parse(args[2]), int.Parse(args[3]), int.Parse(args[4]), args[5]);
+
 // Sensor da issue #91: usa o mesmo carregador dos mundos criados pelo menu.
 if (args.Length == 3 && args[0] == "catalog-history-hash")
 {

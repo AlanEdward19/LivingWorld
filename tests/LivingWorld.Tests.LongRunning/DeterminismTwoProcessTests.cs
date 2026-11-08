@@ -99,6 +99,27 @@ public class DeterminismTwoProcessTests
     }
 
     [Fact]
+    public void Civ_report_writes_a_byte_identical_json_for_the_same_seeds_across_two_separate_processes()
+    {
+        string scenario = Path.Combine(FindRepoRoot(), "scenarios", "default.json");
+        string dir = Directory.CreateTempSubdirectory("civ-report").FullName;
+        try
+        {
+            string a = Path.Combine(dir, "a.json"), b = Path.Combine(dir, "b.json"), c = Path.Combine(dir, "c.json");
+            RunCommand($"civ-report \"{scenario}\" 3 2 2 \"{a}\"");
+            RunCommand($"civ-report \"{scenario}\" 3 2 2 \"{b}\"");
+            RunCommand($"civ-report \"{scenario}\" 4 2 2 \"{c}\"");
+
+            Assert.Equal(File.ReadAllBytes(a), File.ReadAllBytes(b));
+            Assert.NotEqual(File.ReadAllBytes(a), File.ReadAllBytes(c));
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Same_seed_writes_the_same_thefts_across_two_separate_processes()
     {
         string a = RunCommand("theft-hash 5 8640");
