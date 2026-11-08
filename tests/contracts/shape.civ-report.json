@@ -63,6 +63,18 @@
     }
   ],
   "summary": {
+    "diversity": {
+      "byMetric": {
+        "cities_active": "number",
+        "gini": "number",
+        "population": "number",
+        "technologies": "number",
+        "treasury_per_capita": "number"
+      },
+      "index": "number",
+      "seeds": "number",
+      "years": "number"
+    },
     "final": {
       "age_mean": {
         "max": "number",

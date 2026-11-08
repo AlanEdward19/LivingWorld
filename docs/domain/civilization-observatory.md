@@ -3,7 +3,7 @@
 Mede se o mundo está virando uma civilização: roda N seeds por X anos, sem persistência, e amostra o mundo
 ao fim de cada ano. **Só lê**: o hash canônico é o mesmo com e sem observatório. Código em
 `src/LivingWorld.Simulation/Observation/` (`CivilizationObserver`, `YearEventTally`, `LifeTable`,
-`WealthInequality`) e `src/LivingWorld.Workers/CivilizationReportCommand.cs`.
+`WealthInequality`, `TrajectoryDiversity`) e `src/LivingWorld.Workers/CivilizationReportCommand.cs`.
 
 ## Como rodar
 
@@ -24,7 +24,8 @@ calendário padrão de 12 meses × 30 dias × 24 horas).
       { "year": 1, "tick": 8640, "world": { metric: número },
         "cities": [ { "id": "<guid>", "metrics": { metric: número } } ] } ] } ],
   "summary": { "seeds": 20, "years": 10,
-               "final": { metric: { "min", "mean", "max" } } } }
+               "final": { metric: { "min", "mean", "max" } },
+               "diversity": { "index", "seeds", "years", "byMetric": { nome: número } } } }
 ```
 
 Contrato congelado em `tests/contracts/shape.civ-report.json`. `final` resume o último ano do mundo entre as seeds.
@@ -50,3 +51,11 @@ Só no mundo: `cities_active`, `cities_founded` (fundadas no ano), `cities_merge
 
 Extensão: cultura, organizações, governo e crime entram como chaves novas (`metric → valor`), sem migração.
 
+## Diversidade de trajetórias
+
+`TrajectoryDiversity.Compute` mede o quanto as seeds divergem. Para cada métrica (população, cidades ativas,
+Gini, tesouro per capita, tecnologias) cada série é dividida pela média absoluta de todas as seeds e anos
+(escala relativa); a distância entre duas seeds é a média, por ano, de `|a − b|`; o índice da métrica é a
+média sobre os pares de seeds, e o índice geral, a média das métricas. Mundo congelado dá 0; séries
+embaralhadas dão > 0. Baseline do gate em `tests/baselines/civilization-diversity.json` (20 seeds × 10 anos
+do cenário padrão), atualizável só por commit explícito; o cenário de referência de séculos é a fatia D.

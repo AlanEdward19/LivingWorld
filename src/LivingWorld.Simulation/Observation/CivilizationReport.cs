@@ -71,6 +71,16 @@ public static class CivilizationReport
         }
 
         w.WriteEndObject();
+
+        var diversity = TrajectoryDiversity.Compute(runs);
+        w.WriteStartObject("diversity");
+        w.WriteStartObject("byMetric");
+        foreach (var (name, value) in diversity.ByMetric) WriteNumber(w, name, value);
+        w.WriteEndObject();
+        WriteNumber(w, "index", diversity.Index);
+        w.WriteNumber("seeds", diversity.Seeds);
+        w.WriteNumber("years", diversity.Years);
+        w.WriteEndObject();
         w.WriteEndObject();
     }
 
