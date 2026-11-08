@@ -1,99 +1,90 @@
 # Verificação independente: observatório de civilização (#112, fatias A, B e C)
 
-**Veredito: FAIL** (F1 a F4; os demais critérios passam). Commit `f7adb403`, base `b29ed9f2`, Verifier sem autoria no código.
+**Veredito: FAIL** (F1 a F8, todos de poder de teste). Código verificado: `cee76be4`, base `b29ed9f2`. Verifier sem
+autoria. Nenhuma métrica saiu errada na recontagem independente; o que falta é teste que reprove quando ela errar.
 
-## Gates executados
+## Gates
 
 | Comando | Resultado |
 | --- | --- |
-| `bash scripts/verify.sh` | exit 0; Unit 2480 ok, 3 skip, 0 falhas |
+| `bash scripts/verify.sh` | exit 0; Unit 2491 ok, 3 skip, 0 falhas |
 | `bash scripts/test.sh --scenarios --filter ...CivilizationDiversityBaselineTests` | 3/3 ok |
 | `bash scripts/test.sh --project longrunning --filter ...Civ_report` | 1/1 ok |
-`compare-simulation-cost.sh` não rodado, por instrução (adiado para o fim da integração).
 
-## Fatia A: série anual
+`compare-simulation-cost.sh` e o critério de +5% não avaliados, por instrução (adiados para o fim da integração).
 
-| # | Critério | Status | Evidência |
-| --- | --- | --- | --- |
-| A1 | Hash igual com e sem observatório, 10 anos | PASS | `Observing_ten_years...` ok; M1 reprova |
-| A2 | Soma das cidades = total = vivos + pool | PASS | teste ok; M3 reprova; 400 amostras (20 seeds × 2 braços × 10 anos) sem divergência |
-| A3 | Nascimentos − mortes ± migração fecha com a variação | **FAIL (F1)** | identidade verdadeira nos dados, mas o teste é tautológico; M5 sobrevive |
-| A4 | Sink de nascimentos/mortes = estado | PASS | teste ok; conferido em 20 seeds por contagem própria |
-| A5 | Mortes por causa somam o total | PASS | soma ok; o mapeamento em si está em F3 |
-| A6 | Tábua de vida sintética (50, 280/11, 15) | PASS | valores conferidos à mão; M2 reprova |
-| A7 | Métricas pedidas pela issue, por cidade e total | **FAIL (F2, F3)** | `cities_founded` errado; vários valores sem teste |
-| A8 | Gini com pool como massa uniforme | PASS | fórmula de Lorenz conferida; 2 testes sintéticos |
-| A9 | Fórmula de e₀ ligada ao estado | PASS | recálculo independente a partir de `BirthDate`/`DeathDate`: 200 amostras, 0 divergências |
+## Critérios
 
-## Fatia B: CLI `civ-report`
-
-| # | Critério | Status | Evidência |
-| --- | --- | --- | --- |
-| B1 | Mesma seed em dois processos: JSON byte-idêntico | PASS | 20×10 duas vezes, sha256 `3b8f0d99...` igual, `cmp` ok; controle no teste; M12 reprova |
-| B2 | Paralelo = sequencial (sem estado compartilhado) | PASS | 20 processos de 1 seed = relatório paralelo, 0 divergências; M11 reprova |
-| B3 | Contrato do JSON | PASS | 2×2 e 20×10 ok; M10 reprova |
-| B4 | 20 seeds × 10 anos sem exceção | PASS | CLI exit 0; 20 seeds, 10 anos cada |
-| B5 | `seeds`/`anos` ≤ 0 falham com exceção | **FAIL (F4)** | comportamento existe (exit 134), mas sem teste; M9 sobrevive |
-| B6 | Cultura de formatação | PASS | `LC_ALL=pt_BR.UTF-8` gera arquivo byte-idêntico; 0 decimais com vírgula, 0 NaN/Inf |
-| B7 | Script e `scripts/README.md` | PASS | `civ-report.sh` roda; linha no README |
-
-Estado estático: só contadores de diagnóstico, versões com `Interlocked` e caches por instância. Ordem de `Dictionary` não chega à
-saída (somas comutativas, métricas por chave ordinal). `RescheduleBatchParallel` não tem chamador em `src/`.
-
-## Fatia C: diversidade
-
-| # | Critério | Status | Evidência |
-| --- | --- | --- | --- |
-| C1 | Mundo congelado = 0 | PASS | teste ok; M4b reprova |
-| C2 | Embaralhado > 0 | PASS | teste ok; M4a reprova |
-| C3 | Par à mão (população 1, geral 0,2) | PASS | conferido; M4a e M4b reprovam |
-| C4 | Unidade e ordem das seeds não mudam o índice | PASS | testes ok |
-| C5 | Baseline 20×10 | PASS | CLI reproduz `0.26875306511675806`; M13 reprova |
-| C6 | Sem limiar literal (R3) | PASS | valores vêm do baseline; `> 0` e `<= 0` são estruturais |
-
-## Escopo e goldens
-
-PASS. `tests/golden/world-hashes.json` não está no diff e `git diff --name-status` só traz arquivos novos mais `.gitignore`,
-`scripts/README.md`, `Program.cs` e `DeterminismTwoProcessTests.cs`. `src/LivingWorld.Domain` sem mudança. `artifacts/` no
-`.gitignore` se justifica: é a saída padrão de `civ-report.sh` e não há arquivo versionado nessa pasta.
-
-## Reprovações
-
-- **F1. Conservação tautológica.** `CivilizationObserver.cs:66-67` calcula `net_migration` como resíduo, então o assert de
-  `CivilizationObserverTests.cs:58` é identidade algébrica. O `<= 0` da linha 59 é trivial: a emigração real, medida com contador
-  temporário em `City.Emigrate`, foi 0 em todas as amostras do cenário padrão. Um vazamento de população seria rotulado como
-  migração. M5 (população deslocada por ano) passa 56/56. Mudar: medir a migração por fonte independente (`City.Emigrate` não emite
-  evento), ou exigir `net_migration == 0` num braço com `EmigrationRatePerDeficitUnit = 0`, e comparar `population_delta` com a
-  diferença da série de `population`.
-- **F2. `cities_founded` subconta.** `CivilizationObserver.cs:64` conta só `active`, e cidade fundada e fundida no mesmo ano some.
-  Contagem por `FoundedAtTick` sobre `world.Cities`: 91 reais contra 28 reportadas nas 20 linhas divergentes, todas no ano 1
-  (20/20 seeds; seed 7: 8 contra 1). Saldo também não fecha em seed 2 ano 8 e seed 10 ano 10. Mudar: contar em `world.Cities` e
-  testar o valor.
-- **F3. Valores sem teste (`rules/tests.md`).** M6 (fome/sede vira idade, `YearEventTally.cs:50`) passa 56/56: o teste de causas só
-  prova a soma. M7 (zera `age_mean`, `age_median`, `unemployment_rate`, `workshops`, `buildings`, `life_expectancy_at_birth`,
-  `cities_founded`, `cities_merged`) passa 56/56. M8 (remove o filtro de `SourceSystem`) passa 56/56: `default.json` não tem fauna,
-  e o `Birth` da fauna começa com id numérico que pode colidir com id de NPC. Mudar: testes de valor para o mapeamento, para essas
-  métricas e para o filtro.
-- **F4. Critério B5 sem teste.** `CivilizationReportCommand.cs:22-23` sem cobertura; M9 (remove as guardas) passa 56/56. Mudar:
-  teste de `ArgumentOutOfRangeException` para seeds e anos ≤ 0.
-
-## Mutações (restauradas uma a uma; `git status` limpo ao final)
-
-| Id | Mutação | Resultado |
+| Critério | Status | Evidência própria |
 | --- | --- | --- |
-| M1 | observador avança id no mundo | reprovou (hash, baseline) |
-| M2 / M3 | quebra `q` da tábua de vida / total ignora a primeira cidade | reprovou / reprovou |
-| M4a / M4b | distância zerada / ignora a outra seed | reprovou / reprovou |
-| M5 | desloca a população de delta e resíduo | **sobreviveu** (F1) |
-| M6 / M7 / M8 | mapeamento / valores zerados / filtro | **sobreviveram** (F3) |
-| M9 | remove guardas de argumento | **sobreviveu** (F4) |
-| M10 / M12 / M13 | renomeia chave do JSON / tempo de máquina no JSON / adultera o baseline | reprovou / reprovou / reprovou |
-| M11 | tally estático compartilhado | reprovou, só por `Births_and_deaths`; o teste paralelo não pegou |
+| A1 observatório não muda o hash | PASS | 20 seeds × 10 anos: `CanonicalHash` igual entre relógio próprio e `CivilizationRunner`; mutações de escrita mortas |
+| A2 soma das cidades = total | PASS | recontagem por ano, 20 seeds, mais 6 seeds × 5 anos com pool 50 e taxa 5.0 |
+| A2 conservação por fonte independente | PASS | `population_delta` = nascimentos − mortes + migração; `net_migration` = −(ids que saíram do pool); 0 no padrão, −50 com pool 50 |
+| A3 tábua sintética (50, 280/11, 15) | PASS | `CivilizationObserverTests.cs:60-79`; mutações em `q` e na faixa aberta mortas |
+| A nascimentos e mortes | PASS | sink bruto próprio, `BirthDate`/`DeathDate` e ids distintos batem em todo ano |
+| A causas, somam `deaths` | PASS valor; teste FAIL (F1) | sink bruto por `Kind` bate em 26 corridas |
+| A fundadas e fundidas | PASS | cidades novas por diferença de id e `MergedIntoCityId`: fundadas 1 a 9, fundidas 0 a 7 por seed |
+| A Gini, idade, desemprego, oficinas, prédios, tesouro | PASS valor; teste FAIL (F3, F5, F6) | Gini por dupla soma, fórmula distinta; demais recontados do estado |
+| A e₀ na série | PASS unitário; teste FAIL (F4) | só `LifeTable` tem poder; a exposição do observer não |
+| A formato aberto | PASS | `CivilizationSample.cs:5`, dicionário `metric → valor` |
+| B1 mesma seed, dois processos | PASS | 3 execuções de 20×10 pelo script: sha1 `e928739e…` idêntico; teste LongRunning tem controle de seed |
+| B2 20×10 sem exceção e contrato | PASS | `civ-report.sh` exit 0; `Twenty_seeds…matches_the_contract` ok; JSON com 20 seeds e 10 anos |
+| B `Parallel.For` sem estado compartilhado | PASS | paralelo e `DOTNET_PROCESSOR_COUNT=1` byte-idênticos; sink estático morto |
+| B cultura e ordem | PASS | pt_BR, C/invariante e de_DE idênticos, 0 decimais com vírgula; métricas por chave ordinal |
+| B guardas do CLI | PASS | seeds e anos: mutações mortas (`...ValueTests.cs:137-146`) |
+| C congelado = 0, embaralhado > 0 | PASS | `TrajectoryDiversityTests.cs:21-42`; `div-always-zero` morta |
+| C métrica e baseline de 20 seeds | PASS | recálculo em Python do JSON: índice 0,268753065 = baseline; `technologies` sem poder (F7) |
+| C baseline de referência | fora | depende da fatia D, por instrução |
+| R3 limiar literal | PASS | testes só têm valor feito à mão sobre entrada sintética, `> 0` de controle e baseline |
+| Goldens e escopo | PASS | `git diff --name-status`: 4 modificados (`.gitignore`, `scripts/README.md`, `Program.cs`, `DeterminismTwoProcessTests.cs`); único baseline é novo |
+| Determinismo no código | PASS | só `Math.Abs/Min/Max`; sem `Random`, `DateTime`, `Guid` em `Observation/` |
 
-## Observações (não reprovam)
+## FAIL
 
-- Custo do gate (+5%, critério comum da issue): sem antes/depois nos planos. Os 53 testes novos do gate somam 16 s isolados, contra
-  2 min 52 s do Unit com worktrees concorrentes. Medição inconclusiva: **pendente** para a integração.
-- O baseline roda em `Category=Scenario`: fora do `verify.sh` padrão do CI, dentro de `--full`/`--nightly`. A issue diz "(gate)".
-- Doc diz `life_expectancy_at_birth` "0 = indefinida", mas ano sem mortes dá valor artificial (67,5 na seed 1, ano 3).
-- `deaths_age` inclui combate: `WorldEventKind.Death` não distingue. Documentado no plano e coerente com "kinds existentes".
+- **F1 causas trocadas passam.** `CivilizationObserverValueTests.cs:36-47` injeta um evento por tipo, e `disease` e `age`
+  valem 1. Trocar os dois em `YearEventTally.cs:51-52` sobrevive. Usar contagens distintas por causa.
+- **F2 redistribuição de fusão sem teste.** Remover o laço de `CivilizationObserver.cs:37` sobrevive, apesar de ser
+  regra do plano. Criar teste com evento em cidade absorvida antes da amostra e exigir o total na absorvente.
+- **F3 pool no Gini e na série sem teste.** O issue exige Gini incluindo o pool. Omitir o pool ou dar peso 1 em
+  `CivilizationObserver.cs:102-103` sobrevive, e zerar `population_pool` (`:145`) também. O teste de
+  `WealthInequality` não passa pelo observer. Afirmar valor numa cidade com pool > 0.
+- **F4 exposição do e₀ sem poder.** `alive + deaths` em vez de `alive + deaths / 2.0` (`CivilizationObserver.cs:176`)
+  sobrevive: em `...ValueTests.cs:111-134` o morto de 9 anos é o único da faixa, `q` satura em 1 nos dois casos e o
+  morto de 21 anos não pesa mais. Usar mortes em faixa populosa, sem saturar.
+- **F5 oficinas e prédios por cidade.** Contar o mundo inteiro em cada cidade (`CivilizationObserver.cs:113-114`)
+  sobrevive: o fixture de `...ValueTests.cs:79-91` tem uma cidade só. Testar com duas ou mais cidades.
+- **F6 desemprego só de adultos.** Trocar o filtro de `CivilizationObserver.cs:95` por `true` sobrevive: no tick 0 todos
+  os adultos estão sem `Employer`, então a razão não muda com crianças. Usar adulto empregado no fixture.
+- **F7 tecnologias.** Zerar a chave em `CivilizationObserver.cs:62` ou `:160`, contar tudo em `:115` e tirar a série em
+  `TrajectoryDiversity.cs:23` sobrevivem. O baseline é 0 e `TrajectoryDiversityTests.cs:16` usa constante 1. Afirmar
+  com tecnologia adotada numa cidade, e com série variando por seed.
+- **F8 `population_unassigned` sem poder.** Trocar `CivilizationObserver.cs:68` por constante 0 sobrevive; o assert
+  `CivilizationObserverTests.cs:36` só compara com 0. Criar braço com NPC vivo fora de cidade ativa.
+
+## Mutações: 62 aplicadas, 48 mortas, 14 sobreviventes
+
+| Grupo | Mutações | Resultado |
+| --- | --- | --- |
+| Observador que escreve | tesouro creditado, RNG consumido | mortas (teste do hash) |
+| População | +1, deslocada por ano, `_previousPopulation` parado | mortas |
+| Causas | fome em outras; **disease↔age** | morta; **sobrevive (F1)** |
+| Filtro `SourceSystem` | nascimento, morte | mortas |
+| Fundações | só ativas, `>=` na janela | mortas |
+| Guardas do CLI | seeds, anos | mortas |
+| Sink e relatório | drain sem zerar (2), sink estático, chave renomeada, campo extra, seed deslocada, seed ignorada | mortas |
+| Fórmulas | `q`, faixa aberta, Gini invertido, mediana | mortas |
+| Diversidade | escala 1, distância 0, índice, Gini trocado, tesouro absoluto | mortas |
+| Métricas zeradas | 24 chaves | 20 mortas (Gini, tesouro e `cities_active` só no `Scenario`); 4 sobrevivem (F3, F7, F8) |
+| Demais sobreviventes | fusão, pool no Gini (2), exposição, oficinas, prédios, desemprego, série e cidade de tecnologia | F2 a F7 |
+
+Cada mutação restaurada com `git checkout -- <arquivo>`; `git status` limpo ao fim. Teste temporário de recontagem
+removido antes do gate.
+
+## Observações (não bloqueiam)
+
+- `net_migration` só é testado em 3 anos com pool 50; recontagem própria cobriu 20 seeds × 10 anos sem divergência.
+- `CivilizationObserverValueTests`: `Death` mapeia para `age` e inclui combate (documentado no plano).
+- O plano da fatia B diz que só há catálogos e `ConditionalWeakTable`, mas existem contadores de processo
+  (`Building.s_layoutVersion`, `Relationship.s_axesVersion`). Só invalidam cache; a equivalência paralelo/sequencial confirma.
+- `docs/README.md` não indexa `docs/domain/civilization-observatory.md`.
+- O baseline compara até 12 casas: qualquer mudança de regra exige regravar, o que o plano assume.
