@@ -90,8 +90,11 @@ public sealed class TechDiscoverySystem : ISimulationSystem
         }
         if (nearest >= rules.NoveltyThreshold) variationOf = null;
 
+        // Protótipo de uma cidade fundida depois de agendado: a origem segue sendo ela (história), mas quem adota é a
+        // cidade ativa que a absorveu, nunca a lápide (#114).
+        var adopter = world.FindActiveCity(cityId)?.Id ?? cityId;
         world.AddTechnology(new Technology(
-            culture, EmergenceRules.MobilityCategory, vector, ctx.CurrentTick, cityId, variationOf, [cityId]));
+            culture, EmergenceRules.MobilityCategory, vector, ctx.CurrentTick, cityId, variationOf, [adopter]));
         ctx.LogEvent(
             WorldEventKind.TechnologyDiscovered, $"{cityId.Value}|{culture.Id}|{vector.Key}|{variationOf ?? ""}",
             sourceSystem: SystemName);
