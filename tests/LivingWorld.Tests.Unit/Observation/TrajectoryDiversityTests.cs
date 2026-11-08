@@ -6,14 +6,15 @@ namespace LivingWorld.Tests.Unit.Observation;
 /// sem o par, "diversidade 0,3" não provaria que a métrica mede alguma coisa.</summary>
 public class TrajectoryDiversityTests
 {
-    private static SeedRun Run(ulong seed, double[] population, double[]? gini = null) => new(seed,
+    private static SeedRun Run(ulong seed, double[] population, double[]? gini = null, double[]? cities = null,
+        double[]? technologies = null, double[]? treasury = null) => new(seed,
         population.Select((p, i) => new WorldYearSample(i + 1, (i + 1) * 100L, new Dictionary<string, double>
         {
             ["population"] = p,
-            ["cities_active"] = 2,
+            ["cities_active"] = cities?[i] ?? 2,
             ["gini"] = gini?[i] ?? 0.4,
-            ["treasury"] = p * 10,
-            ["technologies"] = 1,
+            ["treasury"] = treasury?[i] ?? p * 10,
+            ["technologies"] = technologies?[i] ?? 1,
         }, [])).ToList());
 
     private static readonly double[] Curve = [10, 12, 15, 11, 9, 14];
@@ -58,6 +59,37 @@ public class TrajectoryDiversityTests
         var b = TrajectoryDiversity.Compute([Run(1, [1000, 3000]), Run(2, [3000, 1000])]);
 
         Assert.Equal(a.ByMetric["population"], b.ByMetric["population"], 12);
+    }
+
+    [Fact]
+    public void Each_metric_reads_its_own_series_and_only_that_one_moves_the_index()
+    {
+        double[] flat = [2, 2], up = [1, 3], down = [3, 1];
+        // Cada métrica varia sozinha entre duas seeds (curvas opostas): ela vale 1 e as outras quatro valem 0.
+        var cases = new (string Name, SeedRun A, SeedRun B)[]
+        {
+            ("population", Run(1, up), Run(2, down)),
+            ("cities_active", Run(1, flat, cities: up), Run(2, flat, cities: down)),
+            ("gini", Run(1, flat, gini: up), Run(2, flat, gini: down)),
+            ("technologies", Run(1, flat, technologies: up), Run(2, flat, technologies: down)),
+            ("treasury_per_capita", Run(1, flat, treasury: [10, 30]), Run(2, flat, treasury: [30, 10])),
+        };
+        foreach (var (name, a, b) in cases)
+        {
+            var result = TrajectoryDiversity.Compute([a, b]);
+            Assert.Equal(1.0, result.ByMetric[name], 12);
+            Assert.Equal(1, result.ByMetric.Count(kv => kv.Value > 0));
+            Assert.Equal(0.2, result.Index, 12);
+        }
+    }
+
+    [Fact]
+    public void A_technology_series_that_differs_by_seed_has_the_hand_computed_diversity()
+    {
+        // [0,1,2] contra [2,1,0]: escala 1, distância média (2 + 0 + 2) / 3.
+        var result = TrajectoryDiversity.Compute([Run(1, [5, 5, 5], technologies: [0, 1, 2]), Run(2, [5, 5, 5], technologies: [2, 1, 0])]);
+
+        Assert.Equal(4.0 / 3.0, result.ByMetric["technologies"], 12);
     }
 
     [Fact]

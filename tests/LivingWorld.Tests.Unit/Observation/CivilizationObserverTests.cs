@@ -25,6 +25,15 @@ public class CivilizationObserverTests
     }
 
     [Fact]
+    public void Samples_are_numbered_by_year_and_stamped_with_the_tick_at_the_end_of_that_year()
+    {
+        var run = ObservatoryFixture.Observed.Value.Run;
+        var hoursPerYear = ScenarioRunner.DefaultCalendar.HoursPerYear;
+        Assert.Equal(Enumerable.Range(1, ObservatoryFixture.GateYears), run.Years.Select(y => y.Year));
+        Assert.All(run.Years, y => Assert.Equal(y.Year * hoursPerYear, y.Tick));
+    }
+
+    [Fact]
     public void City_populations_sum_to_the_world_total_and_to_the_state_every_year()
     {
         var (run, checks, _) = ObservatoryFixture.Observed.Value;

@@ -79,3 +79,12 @@ governo e crime entram como chaves novas quando as sub-issues existirem.
 - **F3**: testes de valor para causas, filtro de `SourceSystem`, idade, desemprego, oficinas, prédios, e₀ e fundidas
   (`CivilizationObserverValueTests`). `life_expectancy_at_birth` agora é 0 em ano sem mortes (código e doc de acordo).
 - **F4**: `ArgumentOutOfRangeException` testada para seeds e anos ≤ 0.
+
+## Poder de teste (última rodada)
+
+22 mutações aplicadas à mão, uma a uma, todas reprovadas por ao menos um teste: troca disease/age e fome/sede;
+reatribuição de fusão; Gini sem pool e com peso 1; `population_pool` zerado; exposição `alive + deaths`; oficinas e
+prédios do mundo inteiro; filtro de adultos; tecnologias (mundo, cidade e chaves da diversidade); `population_unassigned`
+zerado; `age_mean` zerado; tesouro do mundo; `cities_active`; ano não incrementado; nascimentos não somados na fusão.
+Testes novos: `CivilizationScopeTests` (mundo de 3 anos com cidade B, pool, prédios, oficina, tecnologias, empregos,
+fusão, NPC fora de cidade ativa) e casos por métrica em `TrajectoryDiversityTests`.
