@@ -4,14 +4,15 @@ Parte de [causal-provenance-audit.md](causal-provenance-audit.md). Legenda: **T*
 **R** raiz. Fonte = `SourceSystem` real passado hoje; causa = `CauseEventId` passado hoje.
 Caminhos relativos a `src/LivingWorld.Simulation/`.
 
-## Mortes (todas via `NpcDeath.Apply`, `Population/Lifecycle/NpcDeath.cs:28`, fonte `NpcDeath`, sem causa)
+## Mortes de NPC (via `NpcDeath.Apply`, `Population/Lifecycle/NpcDeath.cs:28`, fonte `NpcDeath`, sem causa)
+Mortes de animal e planta **não** passam por `NpcDeath`: ver `Death` e `Starvation` abaixo.
 | Kind | Papel | Chamador (arquivo:linha) | Causa proximal correta |
 |---|---|---|---|
-| `Death` | T | `Population/Lifecycle/MortalitySystem.cs:31`; `Extraordinary/Systems/CombatEncounterSystem.cs:61,68` | idade: raiz natural; combate: `CombatRound`/`CombatResolved` que zerou a vida |
-| `Starvation` | T | `Behavior/Needs/NeedsDecaySystem.cs:92` | início da escassez de comida da cidade (condição) ou último `WageUnpaid`/`Evicted` do household |
+| `Death` | T | `Population/Lifecycle/MortalitySystem.cs:31`; `Extraordinary/Systems/CombatEncounterSystem.cs:61,68`; animal: `Ecology/FaunaLifecycleSystem.cs:174` (via `Kill` `:185`, fonte `fauna-lifecycle`); planta: `Ecology/FloraLifecycleSystem.cs:327` (via `Kill`, chamado em `:188`, fonte `flora-lifecycle`) | idade: raiz natural; combate: `CombatRound`/`CombatResolved` que zerou a vida; animal predado: evento de predação (não existe; hoje só o `Death` da presa); planta: raiz natural (fim do ciclo de vida) |
+| `Starvation` | T | `Behavior/Needs/NeedsDecaySystem.cs:92`; animal: `Ecology/FaunaLifecycleSystem.cs:54` (via `Kill` `:185`, fonte `fauna-lifecycle`) | NPC: início da escassez de comida da cidade (condição) ou último `WageUnpaid`/`Evicted` do household; animal: raiz (energia zerada por decaimento no tempo) |
 | `Dehydration` | T | `Behavior/Needs/NeedsDecaySystem.cs:53` | escassez de água da cidade (condição); mesmo fallback |
 | `Exhaustion` | T | `Behavior/Needs/NeedsDecaySystem.cs:66` | `Evicted` do household (sem teto) ou condição de sobrecarga de trabalho |
-| `Disease` | T | `Health/OutbreakSystem.cs:51` (evento extra em `:50`, fonte `OutbreakSystem`, sem causa) | `OutbreakStarted` da cidade |
+| `Disease` | T | `Health/OutbreakSystem.cs:51` (evento extra em `:50`, fonte `health-outbreak` (`OutbreakSystem.cs:20`), sem causa) | `OutbreakStarted` da cidade |
 | `MaternalDeath` | T | `Population/Lifecycle/NatalitySystem.cs:93` | evento do parto (`Birth`/`StillBirth`); hoje a morte é aplicada antes deles |
 
 ## Trabalho, renda e moradia
@@ -38,3 +39,12 @@ Caminhos relativos a `src/LivingWorld.Simulation/`.
 | `OrphanTakenIn` | T | `Population/Family/OrphanCareSystem.cs:78` | sim | não | `Death` do último cuidador da criança |
 | `PowerInherited` | T | `NatalitySystem.cs:191` | sim | **sim** (`Birth`) | `Birth` do filho (já correto) |
 | `MilestoneRegressed` | T | `Ontogeny/MilestoneProgressSystem.cs:57` | sim | não | `Disease` ou infecção que causou a regressão |
+
+## Notas para as fatias B a D
+- `Death`, `Fired` e `PowerInvoked` têm casos de **raiz legítimos** (morte por idade, planta ou
+  animal; demissão por comando do jogador; decisão que abre a cadeia). O kind está como
+  transformação em `CausalPolicy`, então o gate da fatia D precisa distinguir por emissor/motivo
+  (ou a fatia B exigir causa só nos emissores de NPC que a tenham) em vez de exigir causa de todo evento do kind.
+- `EstateSettled` e `NpcInstantiated` (`OnCarrierDeath`) são emitidos **antes** da `Death` proposta
+  como causa: `NpcDeath.cs:23,25` rodam antes do `LogEvent` em `:28`. Para apontar à `Death`,
+  a fatia B terá de emitir a morte antes ou passar o id para dentro dessas chamadas.

@@ -33,6 +33,9 @@ mudado em emissor, e o hash canônico do mundo não muda nesta fatia.
   `ExtraordinaryManifested` (após `Acquired`). **Todo o resto das transformações não passa causa.**
 - `NpcDeath.Apply` (`Population/Lifecycle/NpcDeath.cs:28`) não aceita causa: afeta 6 kinds de morte.
 
+- Varredura por grep de todo `LogEvent` e de `NpcDeath.Apply`/`Kill` em `src/` contra as partes:
+  as mortes de fauna e flora (`Kill`) foram incluídas em `Death` e `Starvation`.
+
 ## Divergências com o texto da issue (para o dono)
 - `SettlementFounded` **não tem emissor**: só aparece no `[LivingCapability]` de
   `SettlementFoundingSystem.cs:27` e no catálogo de apresentação. Só `CityMerged` é emitido.

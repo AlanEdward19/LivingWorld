@@ -35,6 +35,18 @@ public class CausalPolicyTests
         Assert.Equal(expected, CausalPolicy.RoleOf(kind));
 
     [Fact]
+    public void IsTransformation_is_true_for_every_transformation_kind() =>
+        Assert.All(CausalPolicy.TransformationKinds, k => Assert.True(CausalPolicy.IsTransformation(k), $"{k}"));
+
+    [Fact]
+    public void IsTransformation_is_false_for_every_root_kind() =>
+        Assert.All(CausalPolicy.RootKinds, k => Assert.False(CausalPolicy.IsTransformation(k), $"{k}"));
+
+    [Fact]
+    public void IsTransformation_is_false_for_an_unclassified_kind() =>
+        Assert.False(CausalPolicy.IsTransformation((WorldEventKind)9999));
+
+    [Fact]
     public void Unclassified_value_is_reported_as_null_not_defaulted_to_root() =>
         Assert.Null(CausalPolicy.RoleOf((WorldEventKind)9999));
 }
