@@ -7,6 +7,7 @@ using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Health;
 using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Simulation.Scheduling;
+using LivingWorld.Tests.Shared;
 
 namespace LivingWorld.Tests.Unit.Health;
 
@@ -230,18 +231,20 @@ public class DiseaseTests
     {
         var disease = new DiseaseRules(true, [new DiseaseProfile(1, 0.08, 0.15, 6, 180)], OutbreakPopulationThreshold: 20, OutbreakDailyChance: 0.01);
         long control = 0, sick = 0, outbreaks = 0;
-        for (ulong seed = 1; seed <= 8; seed++)
+        var perSeed = ParallelSeeds.Map(1, 8, seed =>
         {
             var (plain, plainClock) = ScenarioRunner.Create(seed);
             plainClock.Run(plain, 5 * 12 * 30 * 24);
-            control += plain.Npcs.Count(n => n.IsAlive);
+            long plainAlive = plain.Npcs.Count(n => n.IsAlive);
 
             var (ill, _) = ScenarioRunner.Create(seed, diseaseRules: disease);
             var counter = new RecordingSink();
             new WorldClock(ScenarioRunner.DefaultSystems(), sink: counter).Run(ill, 5 * 12 * 30 * 24);
-            outbreaks += counter.Events.Count(e => e.Kind == WorldEventKind.OutbreakStarted);
-            sick += ill.Npcs.Count(n => n.IsAlive);
-        }
+            return (Control: plainAlive,
+                Outbreaks: (long)counter.Events.Count(e => e.Kind == WorldEventKind.OutbreakStarted),
+                Sick: (long)ill.Npcs.Count(n => n.IsAlive));
+        });
+        foreach (var r in perSeed) { control += r.Control; outbreaks += r.Outbreaks; sick += r.Sick; }
 
         Assert.True(outbreaks > 0, "nenhum surto aconteceu: o teste não mediu nada");
         Assert.True(sick >= 0.7 * control, $"população final com doença {sick} contra controle {control}");

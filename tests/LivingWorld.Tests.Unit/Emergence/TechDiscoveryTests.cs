@@ -11,6 +11,7 @@ using LivingWorld.Simulation.Economy.Market;
 using LivingWorld.Simulation.Emergence;
 using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Simulation.Scheduling;
+using LivingWorld.Tests.Shared;
 
 namespace LivingWorld.Tests.Unit.Emergence;
 
@@ -218,20 +219,21 @@ public class TechDiscoveryTests
     [Trait("Category", "Scenario")]
     public void Isolated_cultures_solving_the_same_problem_diverge_in_at_least_half_of_the_seeds()
     {
-        int different = 0;
-        for (ulong seed = 1; seed <= 10; seed++)
+        string First(ulong s)
         {
-            string First(ulong s)
-            {
-                var (world, clock) = Village(s, Pressured);
-                clock.Run(world, world.Calendar.HoursPerYear * 2);
-                return world.Technologies.FirstOrDefault(t => !t.IsVariation)?.Vector.Key ?? "";
-            }
+            var (world, clock) = Village(s, Pressured);
+            clock.Run(world, world.Calendar.HoursPerYear * 2);
+            return world.Technologies.FirstOrDefault(t => !t.IsVariation)?.Vector.Key ?? "";
+        }
 
+        // Seeds independentes (mundo e RNG por instância): rodam em paralelo; a contagem é feita depois, em ordem.
+        var diverged = ParallelSeeds.Map(1, 10, seed =>
+        {
             string a = First(seed), b = First(seed + 1000);
             Assert.NotEqual("", a);
-            if (a != b) different++;
-        }
+            return a != b;
+        });
+        int different = diverged.Count(d => d);
 
         Assert.True(different >= 5, $"só {different}/10 seeds divergiram");
     }
@@ -240,19 +242,17 @@ public class TechDiscoveryTests
     [Trait("Category", "Scenario")]
     public void Two_isolated_villages_keep_discovering_for_30_years_and_end_with_different_technology_sets()
     {
-        int different = 0;
-        for (ulong seed = 1; seed <= 3; seed++)
+        string Technologies(ulong s)
         {
-            string Technologies(ulong s)
-            {
-                var (world, clock) = Village(s, Pressured);
-                clock.Run(world, world.Calendar.HoursPerYear * 30);
-                Assert.True(world.Technologies.Count >= 3, "a vila deveria seguir descobrindo por 30 anos");
-                return string.Join(";", world.Technologies.Where(t => !t.IsVariation).Select(t => t.Vector.Key));
-            }
-
-            if (Technologies(seed) != Technologies(seed + 1000)) different++;
+            var (world, clock) = Village(s, Pressured);
+            clock.Run(world, world.Calendar.HoursPerYear * 30);
+            Assert.True(world.Technologies.Count >= 3, "a vila deveria seguir descobrindo por 30 anos");
+            return string.Join(";", world.Technologies.Where(t => !t.IsVariation).Select(t => t.Vector.Key));
         }
+
+        // Cada vila (seed e seed+1000) é independente: as 6 corridas rodam em paralelo, a comparação vem depois.
+        var runs = ParallelSeeds.Map(1, 6, i => Technologies(i <= 3 ? i : i - 3 + 1000));
+        int different = Enumerable.Range(0, 3).Count(i => runs[i] != runs[i + 3]);
 
         Assert.True(different >= 2, $"só {different}/3 pares divergiram em 30 anos");
     }
@@ -261,7 +261,7 @@ public class TechDiscoveryTests
     [Trait("Category", "Scenario")]
     public void A_village_under_long_trip_pressure_discovers_deterministically_for_20_years_in_10_seeds()
     {
-        for (ulong seed = 1; seed <= 10; seed++)
+        ParallelSeeds.ForEach(1, 10, seed =>
         {
             var (world, clock) = Village(seed, Pressured);
             clock.Run(world, world.Calendar.HoursPerYear * 20);
@@ -271,7 +271,7 @@ public class TechDiscoveryTests
             Assert.NotEmpty(world.Technologies);
             Assert.Equal(Keys(world), Keys(again));
             Assert.Equal(WorldSnapshot.CanonicalHash(world), WorldSnapshot.CanonicalHash(again));
-        }
+        });
     }
 
     private static string DefaultScenarioWith(string? emergenceBlock)
