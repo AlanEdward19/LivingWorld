@@ -1,4 +1,6 @@
 using System.Text.Json.Nodes;
+using LivingWorld.Domain.Cities;
+using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Body;
@@ -132,6 +134,88 @@ public class CivilizationObserverValueTests
 
         Assert.Equal(Simulation.Observation.LifeTable.LifeExpectancyAtBirth(bands), actual, 9);
         Assert.True(actual > 0);
+    }
+
+    /// <summary>Duas cidades fundidas em cadeia (A absorvida por B, B absorvida pela cidade ativa) com mortes no mesmo ano; depois
+    /// todos os NPCs voltam à cidade ativa (como o estado fica quando o ano fecha). Índice = posição entre os vivos por id.</summary>
+    private static (WorldYearSample Sample, string Survivor) ChainMerged(params (int Npc, WorldEventKind Kind, bool InB)[] deaths)
+    {
+        var (world, tally, observer) = Fresh();
+        var people = Alive(world);
+        var survivor = people[0].City;
+        var a = new City(world.NextCityId(), new CellCoord(8, 8), 0, null, AggregatePopulationPool.Empty, name: "A");
+        world.AddCity(a);
+        var b = new City(world.NextCityId(), new CellCoord(9, 9), 0, null, AggregatePopulationPool.Empty, name: "B");
+        world.AddCity(b);
+        foreach (var (npc, kind, inB) in deaths)
+        {
+            people[npc].JoinCity(inB ? b.Id : a.Id);
+            tally.Record(Event(world, kind, people[npc], kind == WorldEventKind.Birth ? YearEventTally.BirthSource : YearEventTally.DeathSource));
+        }
+
+        foreach (var p in people) p.JoinCity(survivor);
+        a.MarkMergedInto(b.Id);
+        b.MarkMergedInto(survivor);
+        return (observer.Sample(world), survivor.ToString());
+    }
+
+    [Fact]
+    public void Deaths_and_causes_of_chained_merged_cities_add_up_in_the_surviving_city()
+    {
+        // Seed 2: vivos 13, 18, 19, 3, 15 têm idades fixas; o índice é o id do NPC.
+        // A (fundida em B): 13 idade, 18 doença, 3 idade; nascem 0 e 1. B (fundida na ativa): 19 idade, 15 doença; nasce 4.
+        var (sample, survivor) = ChainMerged((0, WorldEventKind.Birth, false), (1, WorldEventKind.Birth, false), (4, WorldEventKind.Birth, true),
+            (13, WorldEventKind.Death, false), (18, WorldEventKind.Disease, false), (3, WorldEventKind.Death, false),
+            (19, WorldEventKind.Death, true), (15, WorldEventKind.Disease, true));
+
+        var mine = sample.Cities.Single(c => c.Id == survivor).Metrics;
+        // Nascimentos: 2 (A) + 1 (B) = 3. Mortes: 3 (A) + 2 (B) = 5. Idade: 2 (A) + 1 (B) = 3. Doença: 1 (A) + 1 (B) = 2.
+        Assert.Equal(3, mine["births"]);
+        Assert.Equal(5, mine["deaths"]);
+        Assert.Equal(3, mine["deaths_age"]);
+        Assert.Equal(2, mine["deaths_disease"]);
+        Assert.Equal(0, mine["deaths_hunger_thirst"] + mine["deaths_other"]);
+        Assert.Equal(5, sample.World["deaths"]);
+        Assert.Equal(3, sample.World["deaths_age"]);
+        Assert.Equal(2, sample.World["deaths_disease"]);
+    }
+
+    [Fact]
+    public void Deaths_in_the_same_age_band_of_two_merged_cities_add_up_in_life_expectancy()
+    {
+        var people = Alive(Fresh().World);
+        var date = Fresh().World.CurrentDate;
+        Assert.All(new[] { 2, 8, 10 }, i => Assert.Equal(59, people[i].AgeYears(date)));
+
+        // A tem 1 morte e B tem 2 na faixa 11 (55-59 anos). Os 20 vivos voltam à cidade ativa; faixas de 5 anos.
+        var (sample, survivor) = ChainMerged(
+            (2, WorldEventKind.Death, false), (8, WorldEventKind.Death, true), (10, WorldEventKind.Death, true));
+
+        // Faixa 11 (última, aberta): 3 mortes; exposição = 3 vivos de 59 anos + 3/2 = 4,5; m = 3/4,5 = 2/3.
+        // Faixas 0-10 sem mortes: q = 0, l = 1, cada uma L = 5·(1+1)/2 = 5, total 11·5 = 55. Aberta: L = l/m = 1/(2/3) = 1,5.
+        // e0 = 56,5. Se a soma virasse atribuição, a faixa teria 1 ou 2 mortes (e0 = 58,5 ou 57).
+        Assert.Equal(56.5, sample.Cities.Single(c => c.Id == survivor).Metrics["life_expectancy_at_birth"], 9);
+        Assert.Equal(56.5, sample.World["life_expectancy_at_birth"], 9);
+    }
+
+    [Fact]
+    public void A_death_in_an_age_band_above_every_living_person_still_counts_in_life_expectancy()
+    {
+        var (world, tally, observer) = Fresh();
+        var people = Alive(world);
+        var home = people[0].City;
+        var elsewhere = new City(world.NextCityId(), new CellCoord(8, 8), 0, null, AggregatePopulationPool.Empty, name: "P");
+        world.AddCity(elsewhere);
+        Assert.All(new[] { 2, 8, 10 }, i => Assert.Equal(59, people[i].AgeYears(world.CurrentDate)));
+        Assert.Equal(53, people.Where(n => n.City == home && !new long[] { 2, 8, 10 }.Contains(n.Id.Value)).Max(n => n.AgeYears(world.CurrentDate)));
+        tally.Record(Event(world, WorldEventKind.Death, people[2], YearEventTally.DeathSource));
+        foreach (var i in new[] { 2, 8, 10 }) people[i].JoinCity(elsewhere.Id); // os de 59 anos saem: o mais velho que sobra tem 53 (faixa 10)
+
+        var mine = observer.Sample(world).Cities.Single(c => c.Id == home.ToString()).Metrics;
+
+        // Faixa 11 (55-59, acima de todo vivo da cidade): 1 morte, exposição 0 + 1/2 = 0,5, m = 2. Faixas 0-10 sem mortes:
+        // 11·5 = 55; a última, aberta, dá L = l/m = 1/2 = 0,5. e0 = 55,5. Sem contar a faixa da morte, a aberta seria a 10 e e0 = 52,5.
+        Assert.Equal(55.5, mine["life_expectancy_at_birth"], 9);
     }
 
     [Theory]
