@@ -199,8 +199,16 @@ public sealed class SpatialSettlementFoundingSystem : ISimulationSystem
             return;
         }
 
-        world.MergeCityInto(daughter, mother);
-        ctx.LogEvent(WorldEventKind.CityMerged, $"{daughter.Id.Value}|{mother.Id.Value}", sourceSystem: "SpatialSettlementFoundingSystem");
+        var inherited = world.MergeCityInto(daughter, mother);
+        long mergedId = ctx.LogEvent(
+            WorldEventKind.CityMerged, $"{daughter.Id.Value}|{mother.Id.Value}", sourceSystem: "SpatialSettlementFoundingSystem");
+        foreach (int index in inherited)
+        {
+            var tech = world.Technologies[index];
+            ctx.LogEvent(
+                WorldEventKind.TechnologyAdopted, $"{mother.Id.Value}|{tech.Culture.Id}|{tech.Vector.Key}",
+                sourceSystem: "SpatialSettlementFoundingSystem", causeEventId: mergedId);
+        }
     }
 
     private static bool AreAdjacent(WorldState world, City mother, City daughter, int ring)
