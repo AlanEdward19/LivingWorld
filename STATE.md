@@ -5,8 +5,10 @@ Não duplique conteúdo de `ROADMAP.md`, `AGENTS.md` ou `docs/` aqui — aponte.
 
 ## Handoff
 - **Mesclados na `main` local, sem push (2026-11-08/09), com Verifier PASS**: #113 fatia A (`CausalPolicy` + auditoria, AD-121), #114 (fusão transfere adoção, AD-122; padrão da issue, falta o dono confirmar), #97 A.1 (`ParallelSeeds`). Gate `--full` verde; custo 100,12% CPU e 100,02% alocação do controle b29ed9f2.
-- **#112 A–C mesclada na `main` local, sem push (2026-11-09), com Verifier PASS** de escopo restrito por decisão do dono (rodada 9, só F7 e gate). F8 (ordem da soma no resumo, 1 ulp) segue como observação; critério de gate +5% sem conclusão. Custo: 98,66% CPU e 99,99% alocação da `main` 38972071. Fatias D e E pendentes. Ver `.specs/features/civilization-observatory-series/verification.md`.
-- **Sem PASS, fora da `main`, branch preservada**: #64 (`worktree-agent-a23e4ef1c39710db9`; 3 rodadas, carga ainda diverge da invocação, ver `.specs/features/power-primitives-registry/verification.md`; carga e invocação precisam compartilhar o parser).
+- **#112 A–C mesclada na `main` local, sem push (2026-11-09), com Verifier PASS** de escopo restrito por decisão do dono (rodada 9, só F7 e gate). Custo: 98,66% CPU e 99,99% alocação da `main` 38972071; gate `verify.sh` +1,7% na mediana de 6 pares alternados (teto +5%). Ver `.specs/features/civilization-observatory-series/verification.md`.
+- **Também na `main` local, sem push (2026-11-09), com Verifier PASS**: #112 F8 e fatia E (`Health` média, indicadores sem fonte nulos, ADR-0042, AD-123); #64 (parser único, ADR-0040, AD-124; custo 100,96% CPU); bug de `LoadWorld` sem `FamilyRules` e outras regras (pins JSON regravados, AD-125); blocos `Disease`/`Climate`/`Theft` no cenário (ADR-0043).
+- **#112 fatia D BLOQUEADA**: `scenarios/test-civilization.json` existe, mas 20/20 seeds extinguem entre os anos 70 e 155 (teste Heavy com `Skip`, sem `Reference.Diversity`). Hipótese: formação de casais em `CourtshipSystem`; fome do ano 1 de 13–36% pelo buffer de um mês. Ver `.specs/features/civilization-observatory-series/plan-d.md`.
+- **Follow-ups da #64**: `gravity.target:Infinity` lança no `CanonicalHash` (`IncrementalHasher.cs:106`); `ExtraordinaryLocomotion.TryPayMovementCosts` ainda relê tokens de custo fora do parser.
 - **#92 (2026-10-18, `codex/issue-92`)**: testes HTTP de refeição observada em até 72 horas
   e pais de família autorada; contrato tipado sem mudança. Spec/evidências em
   `.specs/features/issue-92-inspect-optionals/`.
