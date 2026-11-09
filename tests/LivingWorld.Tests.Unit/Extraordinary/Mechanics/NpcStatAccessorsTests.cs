@@ -105,6 +105,20 @@ public sealed class NpcStatAccessorsTests
         }
     }
 
+    [Fact]
+    public void Add_clamped_saturates_at_the_range_for_extreme_magnitudes()
+    {
+        foreach (var stat in NpcStatAccessors.All)
+        {
+            var npc = DistinctNpc();
+            stat.AddClamped(npc, int.MaxValue, Tick);
+            Assert.Equal(stat.Max, stat.Read(npc, Tick));
+
+            stat.AddClamped(npc, int.MinValue, Tick);
+            Assert.Equal(stat.Min, stat.Read(npc, Tick));
+        }
+    }
+
     private static int Expected(string key) => 10 + NpcStatAccessors.All.Select(stat => stat.Key).ToList().IndexOf(key) * 10;
 
     private static void Distinct(Npc npc, int offset)

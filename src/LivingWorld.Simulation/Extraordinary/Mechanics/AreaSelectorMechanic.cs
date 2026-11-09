@@ -6,7 +6,7 @@ namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 /// para um token <c>area:...</c> que não tem forma de seletor (inerte).</summary>
 public readonly record struct AreaSelector(string Kind, int Value)
 {
-    public bool IsSelector => Kind.Length > 0;
+    public bool IsSelector => !string.IsNullOrEmpty(Kind);
 }
 
 /// <summary>Marca o token de área no descritor; a expansão de alvos vive em <see cref="AreaTargetResolver"/>.</summary>

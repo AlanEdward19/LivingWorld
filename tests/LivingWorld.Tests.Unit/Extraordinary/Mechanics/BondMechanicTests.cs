@@ -43,6 +43,18 @@ public sealed class BondMechanicTests
     }
 
     [Fact]
+    public void Share_pulls_the_carrier_down_when_the_carrier_is_the_healthier_side()
+    {
+        var (world, carrier, partner) = WorldWithShare("bond.share:health:50");
+        partner.SetHealth(40);
+
+        new ExtraordinaryPassiveTickSystem().Tick(
+            world, new TickContext(world, world.Rng, world.Scheduler));
+
+        Assert.Equal((70, 40), (carrier.Health, partner.Health));
+    }
+
+    [Fact]
     public void Share_bond_is_undone_when_the_partner_dies_and_stops_reflecting()
     {
         var (world, carrier, partner) = WorldWithShare("bond.share:health");
