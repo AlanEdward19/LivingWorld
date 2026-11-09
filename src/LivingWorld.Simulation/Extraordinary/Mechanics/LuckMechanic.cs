@@ -17,21 +17,38 @@ public sealed class LuckMechanic : ExtraordinaryMechanic
     public override string Prefix => "luck.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    /// <summary>Parser único de <c>luck.capacity-bonus:&lt;n&gt;</c> (lido também por <c>CapacityBonus</c>).</summary>
+    public static readonly ExtraordinaryPrimitive<int> CapacityBonusToken = new(
+        BonusPrefix, "luck.capacity-bonus:<n>", false, "carrier",
+        PrimitiveSyntax.From<int>(
+            ParseCapacityBonus, static _ => "Effects: luck.capacity-bonus exige magnitude positiva"));
+
+    /// <summary>Parser único de <c>luck.curse:&lt;n&gt;[:&lt;ticks&gt;]</c>.</summary>
+    public static readonly ExtraordinaryPrimitive<(int Amount, long DurationTicks)> Curse = new(
+        CursePrefix, "luck.curse:<n>[:<ticks>]", false, "target",
+        static token => ParseCurse(token, out int amount, out long duration)
+            ? Result<(int, long)>.Ok((amount, duration))
+            : Result<(int, long)>.Fail("Effects: luck.curse exige 'luck.curse:<n>' ou 'luck.curse:<n>:<ticks>'"));
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [CapacityBonusToken, Curse];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
         if (declaration.StartsWith(BonusPrefix, StringComparison.Ordinal))
         {
-            if (!TryParseCapacityBonus(declaration, out _))
-                return Result<PreparedMutation?>.Fail(
-                    "Effects: luck.capacity-bonus exige magnitude positiva");
-            return Result<PreparedMutation?>.Ok(null);
+            var bonus = CapacityBonusToken.Parse(declaration);
+            return bonus.IsSuccess
+                ? Result<PreparedMutation?>.Ok(null)
+                : Result<PreparedMutation?>.Fail(bonus.Error!);
         }
 
-        if (!declaration.StartsWith(CursePrefix, StringComparison.Ordinal)
-            || !TryParseCurse(declaration, out int amount, out long durationTicks))
-            return Result<PreparedMutation?>.Fail(
-                "Effects: luck.curse exige 'luck.curse:<n>' ou 'luck.curse:<n>:<ticks>'");
+        var curse = declaration.StartsWith(CursePrefix, StringComparison.Ordinal)
+            ? Curse.Parse(declaration)
+            : Result<(int, long)>.Fail("Effects: luck.curse exige 'luck.curse:<n>' ou 'luck.curse:<n>:<ticks>'");
+        if (!curse.IsSuccess)
+            return Result<PreparedMutation?>.Fail(curse.Error!);
+        var (amount, durationTicks) = curse.Value;
 
         var world = ctx.World;
         var target = ctx.Target;
@@ -59,7 +76,10 @@ public sealed class LuckMechanic : ExtraordinaryMechanic
     /// <summary>Bônus de um NPC que entra na rolagem como alvo, sem aplicar a maldição dele.</summary>
     internal static int ManifestedCapacityBonus(WorldState world, Npc npc) => CapacityBonus(world, npc);
 
-    internal static bool TryParseCapacityBonus(string declaration, out int amount)
+    internal static bool TryParseCapacityBonus(string declaration, out int amount) =>
+        CapacityBonusToken.TryParse(declaration, out amount);
+
+    private static bool ParseCapacityBonus(string declaration, out int amount)
     {
         amount = 0;
         if (!declaration.StartsWith(BonusPrefix, StringComparison.Ordinal)) return false;
@@ -69,6 +89,13 @@ public sealed class LuckMechanic : ExtraordinaryMechanic
     }
 
     internal static bool TryParseCurse(string declaration, out int amount, out long durationTicks)
+    {
+        bool ok = Curse.TryParse(declaration, out var parsed);
+        (amount, durationTicks) = parsed;
+        return ok;
+    }
+
+    private static bool ParseCurse(string declaration, out int amount, out long durationTicks)
     {
         amount = 0;
         durationTicks = 0;

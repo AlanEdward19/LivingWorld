@@ -36,16 +36,20 @@ public sealed class ForesightMechanic : ExtraordinaryMechanic
     public override string Prefix => "foresight.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    /// <summary>Parser único de <c>foresight.preview:&lt;evento&gt;</c> (evento = tudo após o prefixo, sem trim).</summary>
+    public static readonly ExtraordinaryPrimitive<string> Preview = new(
+        PreviewPrefix, "foresight.preview:<evento>", false, "target", PrimitiveSyntax.NonEmptyArgument(PreviewPrefix));
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [Preview];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        if (!declaration.StartsWith(PreviewPrefix, StringComparison.Ordinal)
-            || declaration.Length == PreviewPrefix.Length)
-        {
+        var preview = Preview.Parse(declaration);
+        if (!preview.IsSuccess)
             return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
-        }
 
-        string evento = declaration[PreviewPrefix.Length..];
+        string evento = preview.Value!;
         var world = ctx.World;
         var carrier = ctx.Carrier;
         var target = ctx.Target;

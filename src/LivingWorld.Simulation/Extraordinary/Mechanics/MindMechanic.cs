@@ -21,10 +21,44 @@ public sealed class MindMechanic : ExtraordinaryMechanic
     public override string Prefix => "mind.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    // Parsers únicos (carga e invocação). Estado do mundo (alvo fantasma, Fact existente) fica em Prepare*.
+    public static readonly ExtraordinaryPrimitive<bool> Read = Flag("mind.read");
+    public static readonly ExtraordinaryPrimitive<bool> ReadMemory = Flag("mind.read-memory");
+    public static readonly ExtraordinaryPrimitive<bool> Commune = Flag("mind.commune");
+
+    public static readonly ExtraordinaryPrimitive<FactId> Erase = FactToken(ErasePrefix);
+    public static readonly ExtraordinaryPrimitive<FactId> Implant = FactToken(ImplantPrefix);
+
+    /// <summary>Parser único de <c>mind.alter-trait:&lt;traço&gt;:&lt;±n&gt;</c>.</summary>
+    public static readonly ExtraordinaryPrimitive<(string Trait, int Amount)> AlterTrait = new(
+        "mind.alter-trait:", "mind.alter-trait:<traço>:<±n>", true, "target",
+        static token =>
+        {
+            const string alterPrefix = "mind.alter-trait:";
+            var parsed = ExtraordinaryMechanicSupport.ParseAmount(token, "Effects", allowSigned: true);
+            if (!parsed.IsSuccess) return Result<(string, int)>.Fail(parsed.Error!);
+            if (parsed.Value.Key.Length <= alterPrefix.Length
+                || !TryCanonicalTrait(parsed.Value.Key[alterPrefix.Length..], out string traitName))
+                return Result<(string, int)>.Fail($"Effects: alvo não suportado '{token}'");
+            return Result<(string, int)>.Ok((traitName, parsed.Value.Amount));
+        });
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+        [Read, ReadMemory, Commune, Erase, Implant, AlterTrait];
+
+    private static ExtraordinaryPrimitive<bool> Flag(string token) =>
+        new(token, token, false, "target", PrimitiveSyntax.Flag(token));
+
+    private static ExtraordinaryPrimitive<FactId> FactToken(string prefix) => new(
+        prefix, $"{prefix}<memória>", false, "target",
+        PrimitiveSyntax.From<FactId>(
+            (string token, out FactId id) => TryParseFactToken(token, prefix, out id),
+            static token => $"Effects: alvo não suportado '{token}'"));
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        if (declaration == "mind.read")
+        if (Read.Accepts(declaration))
         {
             var target = ctx.Target;
             long tick = ctx.Tick.CurrentTick;
@@ -32,9 +66,9 @@ public sealed class MindMechanic : ExtraordinaryMechanic
                 ctx.Tick.LogEvent(WorldEventKind.ExtraordinaryEffectApplied, ReadPayload(target, tick), sourceSystem: "MindMechanic")));
         }
 
-        if (declaration == "mind.read-memory")
+        if (ReadMemory.Accepts(declaration))
             return PrepareReadMemory(ctx, declaration);
-        if (declaration == "mind.commune")
+        if (Commune.Accepts(declaration))
         {
             if (!ctx.Target.IsGhost)
                 return Result<PreparedMutation?>.Fail("Effects: mind.commune exige alvo com IsGhost=true");
@@ -45,19 +79,12 @@ public sealed class MindMechanic : ExtraordinaryMechanic
         if (declaration.StartsWith(ImplantPrefix, StringComparison.Ordinal))
             return PrepareImplantMemory(ctx, declaration);
 
-        const string alterPrefix = "mind.alter-trait:";
-        if (!declaration.StartsWith(alterPrefix, StringComparison.Ordinal))
+        if (!declaration.StartsWith(AlterTrait.Head, StringComparison.Ordinal))
             return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
 
-        var parsed = ExtraordinaryMechanicSupport.ParseAmount(declaration, "Effects", allowSigned: true);
+        var parsed = AlterTrait.Parse(declaration);
         if (!parsed.IsSuccess) return Result<PreparedMutation?>.Fail(parsed.Error!);
-        if (parsed.Value.Key.Length <= alterPrefix.Length)
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
-        string traitToken = parsed.Value.Key[alterPrefix.Length..];
-        if (!TryCanonicalTrait(traitToken, out string traitName))
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
-
-        int amount = parsed.Value.Amount;
+        var (traitName, amount) = parsed.Value;
         var targetNpc = ctx.Target;
         return Result<PreparedMutation?>.Ok(new PreparedMutation(declaration, resolution =>
         {
@@ -80,8 +107,10 @@ public sealed class MindMechanic : ExtraordinaryMechanic
     private static Result<PreparedMutation?> PrepareEraseMemory(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        if (!TryParseFactToken(declaration, ErasePrefix, out var factId))
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
+        var erase = Erase.Parse(declaration);
+        if (!erase.IsSuccess)
+            return Result<PreparedMutation?>.Fail(erase.Error!);
+        var factId = erase.Value;
 
         var world = ctx.World;
         var target = ctx.Target;
@@ -96,8 +125,10 @@ public sealed class MindMechanic : ExtraordinaryMechanic
     private static Result<PreparedMutation?> PrepareImplantMemory(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        if (!TryParseFactToken(declaration, ImplantPrefix, out var factId))
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
+        var implant = Implant.Parse(declaration);
+        if (!implant.IsSuccess)
+            return Result<PreparedMutation?>.Fail(implant.Error!);
+        var factId = implant.Value;
         if (ctx.World.FindFact(factId) is null)
             return Result<PreparedMutation?>.Fail($"Effects: Fact '{factId.Value}' ausente");
 

@@ -135,6 +135,73 @@ public sealed class ExtraordinaryLocomotionTests
         Assert.Equal(93, npc.SleepAt(world.CurrentDate.TotalHours));
     }
 
+    [Fact]
+    public void Movement_cost_above_the_balance_blocks_the_step_and_debits_nothing()
+    {
+        var (world, npc) = WorldWith(
+            "movement.speed-multiplier:3", new CellCoord(0, 0), FlatMap(), costs: ["carrier.hunger:11"]);
+        npc.SetHunger(10, 0);
+
+        var result = ExtraordinaryLocomotion.Advance(
+            world, npc, new CellCoord(5, 0), tick: 0, [], ExtraordinaryLocomotion.Resolve(world, npc));
+
+        Assert.Equal((false, new CellCoord(0, 0), 10), (result.Moved, npc.CurrentLocation, npc.HungerAt(0)));
+    }
+
+    [Fact]
+    public void Movement_costs_on_the_same_stat_are_summed_against_the_balance()
+    {
+        var (world, npc) = WorldWith(
+            "movement.speed-multiplier:3", new CellCoord(0, 0), FlatMap(),
+            costs: ["carrier.thirst:6", "carrier.thirst:6"]);
+        npc.SetThirst(10, 0);
+
+        var result = ExtraordinaryLocomotion.Advance(
+            world, npc, new CellCoord(5, 0), tick: 0, [], ExtraordinaryLocomotion.Resolve(world, npc));
+
+        Assert.Equal((false, 10), (result.Moved, npc.ThirstAt(0)));
+    }
+
+    [Fact]
+    public void Movement_cost_equal_to_the_balance_is_paid_and_each_stat_is_debited_independently()
+    {
+        var (world, npc) = WorldWith(
+            "movement.speed-multiplier:3", new CellCoord(0, 0), FlatMap(),
+            costs: ["carrier.hunger:50", "carrier.thirst:4", "carrier.social:3", "carrier.health:2"]);
+        npc.SetHunger(50, 0);
+        npc.SetThirst(60, 0);
+        npc.SetSleep(70, 0);
+        npc.SetSocial(80, 0);
+        npc.SetHealth(90);
+
+        var result = ExtraordinaryLocomotion.Advance(
+            world, npc, new CellCoord(5, 0), tick: 0, [], ExtraordinaryLocomotion.Resolve(world, npc));
+
+        Assert.Equal((true, 0, 56, 70, 77, 88),
+            (result.Moved, npc.HungerAt(0), npc.ThirstAt(0), npc.SleepAt(0), npc.SocialAt(0), npc.Health));
+    }
+
+    [Theory]
+    [InlineData(2, true, 3L)]
+    [InlineData(6, false, 5L)]
+    public void Movement_cost_in_household_stock_is_debited_only_when_the_stock_covers_it(
+        int cost, bool moves, long stockAfter)
+    {
+        var (world, npc) = WorldWith(
+            "movement.speed-multiplier:3", new CellCoord(0, 0), FlatMap(),
+            costs: [$"household.resource.9:{cost}"]);
+        var household = new Household(
+            new HouseholdId(1), new CellCoord(0, 0), npc.Id, [npc.Id],
+            new Dictionary<ResourceType, long> { [new ResourceType(9)] = 5 });
+        npc.JoinHousehold(household.Id);
+        world.AddHousehold(household);
+
+        var result = ExtraordinaryLocomotion.Advance(
+            world, npc, new CellCoord(5, 0), tick: 0, [], ExtraordinaryLocomotion.Resolve(world, npc));
+
+        Assert.Equal((moves, stockAfter), (result.Moved, household.Stock[new ResourceType(9)]));
+    }
+
     private static (WorldState World, Npc Npc) WorldWith(
         string effect, CellCoord origin, WorldMap? map = null, bool manifested = true,
         IReadOnlyList<string>? costs = null)

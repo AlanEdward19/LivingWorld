@@ -48,4 +48,5 @@ conteúdo de ADR para dentro dele.
 | [0037 — objetos](ADR-0037-uso-de-objeto-pose-e-ponto-de-uso.md) | Uso de objeto: pose e ponto de uso declarados, objeto em uso informado pelo servidor | aceito |
 | [0038](ADR-0038-interacoes-e-efeitos-de-objeto-no-motor.md) | Interações e efeitos de objeto aplicados pelo motor (duração de dormir e comer, conforto na decisão) | aceito |
 | [0039](ADR-0039-recursos-do-cenario-como-objetos.md) | Recursos do cenário como objetos (efeito ao consumir vem do descritor) | aceito |
+| [0040](ADR-0040-parser-unico-de-primitivas-do-extraordinario.md) | Parser único por primitiva do extraordinário: a carga aceita o que a invocação aceita | aceito |
 | [0043](ADR-0043-blocos-de-doenca-clima-e-furto-no-cenario.md) | Blocos Disease, Climate e Theft no cenário JSON | aceito |

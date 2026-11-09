@@ -18,12 +18,18 @@ public sealed class SoulMechanic : ExtraordinaryMechanic
     public override string Prefix => "soul.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    public static readonly ExtraordinaryPrimitive<bool> PersistAsGhostToken = new(
+        PersistAsGhost, "soul.persist-as-ghost", false, "carrier", PrimitiveSyntax.Flag(PersistAsGhost));
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [PersistAsGhostToken];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        if (declaration != PersistAsGhost)
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
-        return Result<PreparedMutation?>.Ok(null);
+        var parsed = PersistAsGhostToken.Parse(declaration);
+        return parsed.IsSuccess
+            ? Result<PreparedMutation?>.Ok(null)
+            : Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
     }
 
     public static void OnCarrierDeath(WorldState world, Npc npc)

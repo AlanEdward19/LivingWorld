@@ -19,12 +19,34 @@ public sealed class DimensionMechanic : ExtraordinaryMechanic
     public override string Prefix => "dimension.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    /// <summary>Parser único de <c>dimension.pocket-store[:&lt;n&gt;]</c> (quantidade). Argumento
+    /// ausente, inválido ou não positivo move 1 unidade: a invocação o aceita assim (ADR-0040).</summary>
+    public static readonly ExtraordinaryPrimitive<int> PocketStore = new(
+        PocketStoreToken, "dimension.pocket-store[:<n>]", false, "carrier",
+        static token =>
+        {
+            if (token == PocketStoreToken) return Result<int>.Ok(1);
+            if (!token.StartsWith(PocketStoreToken + ":", StringComparison.Ordinal))
+                return Result<int>.Fail($"Effects: alvo não suportado '{token}'");
+            return Result<int>.Ok(
+                TryParseInt(token[(PocketStoreToken.Length + 1)..], out int quantity) && quantity > 0 ? quantity : 1);
+        });
+
+    /// <summary>Parser único de <c>dimension.portal:xA:yA:xB:yB</c> (duas células distintas).</summary>
+    public static readonly ExtraordinaryPrimitive<(CellCoord A, CellCoord B)> Portal = new(
+        PortalPrefix, "dimension.portal:<xA>:<yA>:<xB>:<yB>", false, "world",
+        static token => TryParsePortalCells(token, out var a, out var b) && a != b
+            ? Result<(CellCoord, CellCoord)>.Ok((a, b))
+            : Result<(CellCoord, CellCoord)>.Fail($"Effects: alvo não suportado '{token}'"));
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [PocketStore, Portal];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        if (string.Equals(declaration, PocketStoreToken, StringComparison.Ordinal)
-            || declaration.StartsWith(PocketStoreToken + ":", StringComparison.Ordinal))
-            return PreparePocketStore(ctx, declaration);
+        var pocket = PocketStore.Parse(declaration);
+        if (pocket.IsSuccess)
+            return PreparePocketStore(ctx, declaration, pocket.Value);
         if (declaration.StartsWith(PortalPrefix, StringComparison.Ordinal))
             return PreparePortal(ctx, declaration);
         return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
@@ -78,7 +100,7 @@ public sealed class DimensionMechanic : ExtraordinaryMechanic
     }
 
     private static Result<PreparedMutation?> PreparePocketStore(
-        ExtraordinaryMechanicContext ctx, string declaration)
+        ExtraordinaryMechanicContext ctx, string declaration, int qty)
     {
         var home = ctx.Carrier.Household is { } householdId
             ? ctx.World.FindHousehold(householdId)
@@ -113,11 +135,6 @@ public sealed class DimensionMechanic : ExtraordinaryMechanic
             }
 
             var stored = origin!.Value;
-            int qty = 1;
-            if (declaration.Length > PocketStoreToken.Length + 1
-                && TryParseInt(declaration[(PocketStoreToken.Length + 1)..], out int parsedQty)
-                && parsedQty > 0)
-                qty = parsedQty;
             var withdrawn = home.Withdraw(stored, qty);
             if (!withdrawn.IsSuccess) return;
             world.UpsertExtraordinaryCarrier(carrier with
@@ -130,10 +147,10 @@ public sealed class DimensionMechanic : ExtraordinaryMechanic
     private static Result<PreparedMutation?> PreparePortal(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        if (!TryParsePortalCells(declaration, out var cellA, out var cellB))
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
-        if (cellA == cellB)
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
+        var cells = Portal.Parse(declaration);
+        if (!cells.IsSuccess)
+            return Result<PreparedMutation?>.Fail(cells.Error!);
+        var (cellA, cellB) = cells.Value;
         if (!ctx.World.Map.TryGetCell(cellA, out _) || !ctx.World.Map.TryGetCell(cellB, out _))
             return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
 

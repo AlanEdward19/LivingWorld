@@ -23,14 +23,30 @@ public sealed class GravityMechanic : ExtraordinaryMechanic
     public override string Prefix => "gravity.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    /// <summary>Parser único de <c>gravity.self:&lt;m&gt;</c> (lido também por <c>ComposeWeight</c>).</summary>
+    public static readonly ExtraordinaryPrimitive<double> Self = Multiplier("gravity.self", "carrier");
+
+    /// <summary>Parser único de <c>gravity.target:&lt;m&gt;</c>.</summary>
+    public static readonly ExtraordinaryPrimitive<double> TargetToken = Multiplier("gravity.target", "target");
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [Self, TargetToken];
+
+    private static ExtraordinaryPrimitive<double> Multiplier(string key, string target) => new(
+        key, $"{key}:<multiplicador>", false, target,
+        PrimitiveSyntax.From<double>(
+            (string token, out double multiplier) => TryKeyMultiplier(token, key, out multiplier) && multiplier >= 0,
+            static token => $"Effects: alvo não suportado '{token}'"));
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        if (TryParseSelf(declaration, out _))
+        if (Self.Accepts(declaration))
             return Result<PreparedMutation?>.Ok(null);
 
-        if (!TryParseTarget(declaration, out double multiplier))
+        var gravity = TargetToken.Parse(declaration);
+        if (!gravity.IsSuccess)
             return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
+        double multiplier = gravity.Value;
 
         var world = ctx.World;
         var target = ctx.Target;
@@ -87,14 +103,13 @@ public sealed class GravityMechanic : ExtraordinaryMechanic
                         continue;
                     }
 
-                    if (!TryPositiveAmount(effect, out string key, out double amount))
-                        continue;
-                    if (key == "movement.flight")
+                    if (MovementEffectMechanic.Flight.TryParse(effect, out double flight))
                     {
                         canFly = true;
-                        dash = Math.Max(dash, amount);
+                        dash = Math.Max(dash, flight);
                     }
-                    else if (key == "movement.speed-multiplier") dash = Math.Max(dash, amount);
+                    else if (MovementEffectMechanic.SpeedMultiplier.TryParse(effect, out double speed))
+                        dash = Math.Max(dash, speed);
                 }
             }
         }
@@ -105,10 +120,10 @@ public sealed class GravityMechanic : ExtraordinaryMechanic
     }
 
     internal static bool TryParseSelf(string declaration, out double multiplier) =>
-        TryKeyMultiplier(declaration, "gravity.self", out multiplier) && multiplier >= 0;
+        Self.TryParse(declaration, out multiplier);
 
     internal static bool TryParseTarget(string declaration, out double multiplier) =>
-        TryKeyMultiplier(declaration, "gravity.target", out multiplier) && multiplier >= 0;
+        TargetToken.TryParse(declaration, out multiplier);
 
     private static bool TryKeyMultiplier(string declaration, string key, out double multiplier)
     {
@@ -117,16 +132,5 @@ public sealed class GravityMechanic : ExtraordinaryMechanic
         if (!declaration.StartsWith(prefix, StringComparison.Ordinal)) return false;
         return double.TryParse(
             declaration[prefix.Length..], NumberStyles.Float, CultureInfo.InvariantCulture, out multiplier);
-    }
-
-    private static bool TryPositiveAmount(string declaration, out string key, out double amount)
-    {
-        int separator = declaration.LastIndexOf(':');
-        key = separator > 0 ? declaration[..separator] : "";
-        amount = 0;
-        return separator > 0
-            && double.TryParse(
-                declaration[(separator + 1)..], NumberStyles.Float, CultureInfo.InvariantCulture, out amount)
-            && amount > 0;
     }
 }

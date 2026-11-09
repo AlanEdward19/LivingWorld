@@ -10,6 +10,20 @@ public sealed class ConstructMechanic : ExtraordinaryMechanic
     public override string Prefix => "construct.create";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    /// <summary>Construto lido de <c>construct.create:LxA:durabilidade:horas:aparência</c>.</summary>
+    public readonly record struct ConstructSpec(int Width, int Height, int Durability, long DurationHours, string Appearance);
+
+    /// <summary>Parser único de <c>construct.create</c> (carga e invocação). A fronteira do head é do
+    /// próprio parser, que apara o primeiro segmento.</summary>
+    public static readonly ExtraordinaryPrimitive<ConstructSpec> Create = new(
+        "construct.create", "construct.create:<L>x<A>:<durabilidade>:<horas>:<aparência>", false, "carrier",
+        static token => TryParse(token, out int width, out int height, out int durability, out long hours, out string appearance)
+            ? Result<ConstructSpec>.Ok(new ConstructSpec(width, height, durability, hours, appearance))
+            : Result<ConstructSpec>.Fail("Effects: construct.create exige 'LxA:durabilidade:horas:aparência' válida"),
+        looseHead: true);
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [Create];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
@@ -17,16 +31,10 @@ public sealed class ConstructMechanic : ExtraordinaryMechanic
         var invocation = ctx.Invocation;
         var target = ctx.Target;
         var tickCtx = ctx.Tick;
-        var parts = declaration.Split(':', StringSplitOptions.TrimEntries);
-        var dimensions = parts.Length == 5 ? parts[1].Split('x', StringSplitOptions.TrimEntries) : [];
-        if (dimensions.Length != 2
-            || !int.TryParse(dimensions[0], out int width) || width is < 1 or > 8
-            || !int.TryParse(dimensions[1], out int height) || height is < 1 or > 8
-            || !int.TryParse(parts[2], out int durability) || durability <= 0
-            || !long.TryParse(parts[3], out long durationHours) || durationHours <= 0
-            || string.IsNullOrWhiteSpace(parts[4]))
-            return Result<PreparedMutation?>.Fail(
-                "Effects: construct.create exige 'LxA:durabilidade:horas:aparência' válida");
+        var spec = Create.Parse(declaration);
+        if (!spec.IsSuccess)
+            return Result<PreparedMutation?>.Fail(spec.Error!);
+        var (width, height, durability, durationHours, appearanceToken) = spec.Value;
 
         var carrier = ctx.Carrier;
         int directionX = Math.Sign(target.CurrentLocation.X - carrier.CurrentLocation.X);
@@ -54,11 +62,31 @@ public sealed class ConstructMechanic : ExtraordinaryMechanic
             var construct = new ExtraordinaryConstruct(
                 id, invocation.CarrierId, invocation.PowerId, invocation.InvocationId,
                 origin, footprint, durability, durability,
-                tickCtx.CurrentTick, checked(tickCtx.CurrentTick + durationHours), parts[4]);
+                tickCtx.CurrentTick, checked(tickCtx.CurrentTick + durationHours), appearanceToken);
             world.AddExtraordinaryConstruct(construct);
             tickCtx.LogEvent(
                 WorldEventKind.ExtraordinaryConstructCreated,
                 $"{invocation.CarrierId.Value}|{invocation.InvocationId}|{invocation.PowerId}|{id}", sourceSystem: "ConstructMechanic");
         }));
+    }
+
+    private static bool TryParse(
+        string declaration, out int width, out int height, out int durability,
+        out long durationHours, out string appearance)
+    {
+        width = height = durability = 0;
+        durationHours = 0;
+        appearance = "";
+        var parts = declaration.Split(':', StringSplitOptions.TrimEntries);
+        var dimensions = parts.Length == 5 ? parts[1].Split('x', StringSplitOptions.TrimEntries) : [];
+        if (dimensions.Length != 2
+            || !int.TryParse(dimensions[0], out width) || width is < 1 or > 8
+            || !int.TryParse(dimensions[1], out height) || height is < 1 or > 8
+            || !int.TryParse(parts[2], out durability) || durability <= 0
+            || !long.TryParse(parts[3], out durationHours) || durationHours <= 0
+            || string.IsNullOrWhiteSpace(parts[4]))
+            return false;
+        appearance = parts[4];
+        return true;
     }
 }

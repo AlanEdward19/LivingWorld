@@ -2,6 +2,8 @@ using System.Text.Json.Nodes;
 using LivingWorld.Domain.Extraordinary;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Extraordinary.Engine;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
 
 namespace LivingWorld.Simulation.Extraordinary.Culture;
 
@@ -137,6 +139,11 @@ public static class ExtraordinaryScenarioLoader
             manifestationCondition = condition.Value;
         }
 
+        var knownEffects = ValidateTokens(id.Value!, "Effects", effects.Value!, ExtraordinaryMechanicKind.Effect);
+        if (!knownEffects.IsSuccess) return Result<PowerDescriptor>.Fail(knownEffects.Error!);
+        var knownCosts = ValidateTokens(id.Value!, "Costs", costs.Value!, ExtraordinaryMechanicKind.Cost);
+        if (!knownCosts.IsSuccess) return Result<PowerDescriptor>.Fail(knownCosts.Error!);
+
         return Result<PowerDescriptor>.Ok(new PowerDescriptor(
             id.Value!, source.Value!, effects.Value!, mode.Value!, costs.Value!, reliability.Value!,
             failures.Value, vulnerabilities.Value!, manifestations.Value!, acquisitions.Value!,
@@ -218,9 +225,24 @@ public static class ExtraordinaryScenarioLoader
     }
 
     /// <summary>
-    /// Token de efeito é dado de cenário: <c>mecânica.chave</c> ou <c>mecânica.chave:args...</c>.
-    /// O loader não interpreta o vocabulário — só rejeita vazio. Mecânica ausente falha na invocação.
+    /// Token de efeito/custo é dado de cenário (<c>mecânica.chave[:args]</c>). Além de não vazio, precisa
+    /// ser aceito por alguma mecânica registrada (<see cref="ExtraordinaryPrimitiveCatalog"/>): o erro
+    /// aparece na carga, citando descritor e token, e não só na invocação.
     /// </summary>
+    private static Result<string> ValidateTokens(
+        string descriptorId, string field, IReadOnlyList<string> tokens, ExtraordinaryMechanicKind kind)
+    {
+        foreach (var token in tokens)
+        {
+            var checkedToken = ExtraordinaryPrimitiveCatalog.Validate(
+                ExtraordinaryMechanicRegistry.Default, token, kind);
+            if (!checkedToken.IsSuccess)
+                return Result<string>.Fail(
+                    $"Extraordinary.Descriptors[{descriptorId}].{field}: {checkedToken.Error}");
+        }
+        return Result<string>.Ok(descriptorId);
+    }
+
     private static bool IsDeclarableToken(string effect) =>
         !string.IsNullOrWhiteSpace(effect);
 

@@ -3,7 +3,10 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json.Nodes;
 using LivingWorld.Api.Periods;
+using LivingWorld.Infrastructure.Records;
+using LivingWorld.Infrastructure.Repositories;
 using LivingWorld.Tests.Shared;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace LivingWorld.Tests.Integration.Periods;
 
@@ -164,6 +167,36 @@ public class PeriodsEndpointTests : IClassFixture<LivingWorldApiFactory>
         var response = await client.GetAsync("/periods/does-not-exist");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    // Fase 16 (#64): template salvo antes da validação de tokens não derruba o endpoint.
+
+    [Fact]
+    public async Task Get_periods_catalog_of_a_stored_template_that_no_longer_validates_returns_400()
+    {
+        var definition = FullValidPeriodDefinition();
+        definition["Extraordinary"] = JsonNode.Parse("""
+            {"Enabled":true,"Descriptors":[{"Id":"velho","Source":"s","Effects":["npc.mana:+5"],
+            "Mode":"Active","Reliability":"Guaranteed"}]}
+            """);
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var saved = scope.ServiceProvider.GetRequiredService<IPeriodTemplateRepository>().Save(
+                new PeriodTemplateRecord
+                {
+                    PeriodId = "stale-period",
+                    Version = 1,
+                    PayloadJson = definition.ToJsonString(),
+                    CreatedAtUtc = DateTime.UtcNow,
+                    Source = "test",
+                });
+            Assert.True(saved.IsSuccess, saved.Error);
+        }
+
+        var response = await _factory.CreateClient().GetAsync("/periods/stale-period/catalog");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("npc.mana:+5", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
     }
 
     // Fase 13, T12 (PERIOD-22..23): catálogo ativo de ids de um período registrado.
