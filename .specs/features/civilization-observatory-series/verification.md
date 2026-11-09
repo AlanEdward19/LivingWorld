@@ -1,95 +1,81 @@
-# Verificação independente final: observatório de civilização (#112, fatias A, B e C)
+# Verificação independente, rodada 4: observatório de civilização (#112, fatias A, B e C)
 
-**Veredito: FAIL** (F1 a F4, todos de poder de teste). Código verificado: `3fb9dd39`, base `b29ed9f2`. Verifier sem
-autoria. Nenhuma métrica saiu errada na recontagem independente: o código está certo, mas 13 de 117 mutações
-sobreviveram, e 10 delas mudam valor publicado que a issue pede ou que o plano define.
+**Veredito: FAIL** (F1, F2 e F3, os três de poder de teste). Código verificado: `c9055e0f`, base `b29ed9f2`.
+Verifier sem autoria; conclusão formada antes de abrir o `verification.md` anterior. A recontagem independente não
+achou nenhuma métrica errada: o código publicado está certo, mas três quebras reais em valor publicado passam em
+todos os testes. Medição de custo e critério de +5% adiados por decisão do orquestrador (fora desta rodada).
 
-## Evidência de execução
+## Falhas (bloqueantes)
 
-| Comando | Resultado |
-| --- | --- |
-| `bash scripts/verify.sh` | saída 0, `verify: OK`, Unit 2500 aprovados, 3 pulados, 0 reprovados |
-| `bash scripts/test.sh --scenarios --filter ...CivilizationDiversityBaselineTests` | saída 0, 3/3 |
-| `bash scripts/test.sh --project longrunning --filter ...Civ_report` | saída 0, 1/1 |
-| `bash scripts/civ-report.sh scenarios/default.json 1 20 10 <saída>` | saída 0, sem exceção |
-
-Custo (`compare-simulation-cost.sh`, +5% do gate): adiado para o fim da integração, por instrução; não avaliado.
+| Id | Onde | Mutação sobrevivente | Efeito publicado medido | O que falta |
+| --- | --- | --- | --- | --- |
+| F1 | `tests/LivingWorld.Tests.Unit/Observation/CivilizationConservationTests.cs:52` e `:68`; métrica em `CivilizationObserver.cs:67` | `- all.Births` → `+ all.Births` em `net_migration` | seed 1, ano 6: 0 → 2; 14 de 30 anos-seed mudam (seeds 1 a 3, 10 anos, `default.json`) | Os dois braços (seed 1, 3 anos) têm 0 nascimentos em todos os anos: o termo de nascimentos da conservação nunca é exercido. Usar braço com nascimentos, exigir `births > 0` e afirmar `net_migration` |
+| F2 | `tests/.../CivilizationObserverTests.cs:122`, `CivilizationScopeTests.cs:76`; código em `WealthInequality.cs:20` | `value * weight / wealth` → `value / wealth` | Gini 0,370 → 0,867 com pool de 50 (30 de 30 anos) | O bloco de peso > 1 do teste tem valor 0, e o teste de escopo compara com a própria `Gini`. Falta bloco de peso > 1 e valor > 0 contra resultado independente (a issue pede o pool no Gini) |
+| F3 | `YearEventTally.cs:14`; testes usam `tally.AgeBandYears` (`CivilizationObserverValueTests.cs:121`, `CivilizationScopeTests.cs:213`) | `DefaultAgeBandYears` 5 → 10 | e₀ 2,5 → 5 (seed 1, ano 1); 12 de 30 anos-seed mudam | O plano fixa faixas de 5 anos e nada prende a largura usada pelo CLI. Afirmar e₀ de uma corrida do `CivilizationRunner` contra tábua de 5 anos calculada à parte |
 
 ## Fatia A: série anual
 
-| Critério | Status | Evidência |
+| Critério | Resultado | Evidência |
 | --- | --- | --- |
-| Observatório não altera `CanonicalHash` | PASS | sonda própria, 8 seeds × 10 anos × 2 braços: hash igual com e sem; H01 e H02 reprovadas |
-| Só leitura, fora do tick | PASS | não é `ISimulationSystem`; `CivilizationObserver.cs` e `YearEventTally.cs` só leem |
-| Soma das cidades = total, em todo ano | PASS | 20 × 10: 200 anos, 0 divergências; sonda confere contra o estado |
-| Conservação por fonte independente do resíduo | PASS | sonda sobre o estado + `ColdArchive`: 0 divergências; 20 × 10: `net_migration` total 0; braço com pool: 400 emigrados |
-| `net_migration` ≤ 0, `population_unassigned` = 0 | PASS | 20 × 10 e sonda: nenhum ano viola |
-| Nascimentos e mortes por fonte independente | PASS | sonda por `BirthDate`/`DeathDate`: 30 e 76 (padrão), 26 e 93 (pool), 0 divergências |
-| Mortes por causa somam `deaths` | PASS | sink próprio por `Kind` + `SourceSystem`: 57 fome/sede, 19 idade, 0 divergências; C01 a C09 reprovadas |
-| `cities_founded` e `cities_merged` | PASS | ids novos e delta de `MergedIntoCityId` por ano: 37 e 25 (8 seeds), 0 divergências; 20 × 10: 93 e 63 |
-| Tábua de vida sintética (50, 280/11, 15) | PASS | 280/11 refeito à mão; L01 a L05 reprovadas. Truncamento de `q`: ver F1 |
-| Gini com pool uniforme | PASS | sonda por definição (Σ\|xi−xj\|/2n²μ), pool expandido, erro < 1e-9; G01 a G05 reprovadas |
-| Desemprego por adultos | FAIL | valor certo, sem teste sobre idosos: F2 |
-| Formato aberto, chaves documentadas | PASS | dicionário `metric → valor`; `docs/domain/civilization-observatory.md`, 61 linhas |
+| Observatório não altera `CanonicalHash` | PASS | Teste do gate; meu harness comparou relógio puro × `CivilizationRunner` em 6 seeds, 10 anos; O55 (escrita no tesouro) reprovada |
+| Não é `ISimulationSystem`, sem escrita nem evento | PASS | `CivilizationObserver.cs:12` e `YearEventTally.cs:12`; só leituras no código |
+| Soma das cidades = total; vivos + pool | PASS | 20 seeds × 10 anos no JSON (Python); `population_unassigned` = 0 em todo ano |
+| Conservação por fonte independente | PASS no valor, FAIL no teste (F1) | Harness: `population_delta` e `net_migration` = −(ids que saíram do pool sem virar NPC nem morto), 6 seeds; no JSON, `net_migration` = 0 em 200 anos-seed |
+| Nascimentos e mortes por fonte independente | PASS | `BirthDate`/`DeathDate` (estado + `ColdArchive`) × eventos crus, seeds 1, 2, 3, 7, 11, 19 |
+| Mortes por causa | PASS | Eventos crus com junção por id e tick no estado, 6 seeds; soma = `deaths` em todo ano e cidade |
+| `cities_founded`, `cities_merged` | PASS | Diferença anual de `world.Cities` e de `MergedIntoCityId`, 6 seeds. Único ponto de fusão: `WorldState.Cities.cs:49`, chamado por `SpatialSettlementFoundingSystem.cs:202` |
+| Tábua de vida | PASS no valor, FAIL no teste (F3) | Valores sintéticos 50, 280/11 e 15; e₀ recalculado à parte igual nas 6 seeds |
+| Gini com pool como bloco uniforme | PASS no valor, FAIL no teste (F2) | Diferença média absoluta (fórmula distinta) igual no mundo e por cidade, 6 seeds |
+| Formato aberto `metric → valor`, chaves documentadas | PASS | `CivilizationSample.cs`; `docs/domain/civilization-observatory.md` |
 
 ## Fatia B: CLI e relatório
 
-| Critério | Status | Evidência |
+| Critério | Resultado | Evidência |
 | --- | --- | --- |
-| Mesma seed em dois processos, JSON byte-idêntico | PASS | 20 × 10 com cultura `de_DE` e sem PGO: `cmp` idêntico, sha256 `54b07219...`; teste LongRunning verde |
-| Paralelo sem estado compartilhado | PASS | 20 processos de 1 seed = série do `Parallel.For`, seed a seed; R04 reprovada. Estáticos são imutáveis ou `ConditionalWeakTable` por instância |
-| Ordem de `Dictionary` e cultura no JSON | PASS | métricas por ordinal; máquina em pt-BR gera ponto decimal; JSON válido, sem NaN nem BOM |
-| 20 × 10 sem exceção, contrato válido | PASS | script saída 0; `Twenty_seeds_for_ten_years...` verde; B02 reprovada |
-| Guardas `seeds` e `anos` ≤ 0 | PASS | J05 e J06 reprovadas |
-| Script e README | PASS | `scripts/civ-report.sh`, linha em `scripts/README.md`; `5 3 2` gera seeds [5,6,7] × 2 anos |
-| Ordem dos argumentos do modo CLI | FAIL | correta hoje, sem teste: F3 |
-| Valores de `scenario`, `tick`, `summary` | FAIL | corretos hoje (recálculo em Python, 24 chaves, 0 divergências), sem teste: F4 |
+| Mesma seed em dois processos: JSON byte-idêntico | PASS | 3 processos, 20×10: sha256 `54b07219…`, com `pt_BR`+`Asia/Tokyo`, invariante+`C`; teste LongRunning passa |
+| Paralelo = sequencial | PASS | 20×10 com `degreeOfParallelism: 1` idêntico ao paralelo (`cmp`) |
+| 20 seeds × 10 anos sem exceção; contrato | PASS | `bash scripts/civ-report.sh`, saída 0; forma igual a `tests/contracts/shape.civ-report.json`; teste `Scenario` passa |
+| Estado estático compartilhado | PASS | `Building.s_layoutVersion` e `Relationship.s_axesVersion` são monotônicos com `Interlocked`: só invalidam a mais. Caches por `ConditionalWeakTable` ou função pura. Contadores de `DecisionContextCache` são diagnóstico |
+| Ordem de `Dictionary` e cultura | PASS | Iterações sobre dicionário só somam; métricas e `final` em ordem ordinal; `Utf8JsonWriter` independe de cultura (bytes acima) |
+| Duração ou data no JSON | PASS | Nenhum campo |
+| Script e README | PASS | `scripts/civ-report.sh`, `scripts/README.md` |
+| Sumário `final` | PASS | min, média e máx recalculados em Python para as 24 chaves |
 
 ## Fatia C: diversidade
 
-| Critério | Status | Evidência |
+| Critério | Resultado | Evidência |
 | --- | --- | --- |
-| Congelado = 0, embaralhado > 0 | PASS | `TrajectoryDiversityTests`; D07 a D12 reprovadas |
-| Fórmula e baseline de 20 seeds | PASS | reimplementação em Python bate com o baseline em 1e-12 (índice 0,268753...); B01 reprovada |
-| Cada métrica lê a própria série | PASS | D01 a D04 e D06 reprovadas |
-| R3, sem limiar literal | PASS | limiares vêm do baseline; literais de teste são entrada sintética ou valor feito à mão |
-| Baseline do cenário de referência | fora | depende da fatia D, por instrução |
+| Congelado = 0; embaralhado > 0 | PASS | `TrajectoryDiversityTests`; D06 a D13 reprovadas |
+| Fórmula documentada e valor à mão | PASS | Recalculada em Python: índice 0,268753 igual ao JSON e ao baseline (tolerância 1e-10) |
+| Baseline 20 seeds (parte do gate) | PASS | `tests/baselines/civilization-diversity.json`; parte de referência depende da fatia D, não exigida |
+| R3: sem limiar literal | PASS | Só invariantes (`> 0`, `== 0`), valores à mão e parâmetros de braço; alvo vem do baseline |
 
-## Escopo
+## Escopo e gate
 
-29 arquivos, 25 novos, 4 alterados, 2048 inserções e 0 remoções (`git diff --numstat`). Nenhum golden ou hash regravado:
-o único baseline tocado é `civilization-diversity.json`, novo. Fatias D e E intocadas.
+- Nenhum golden/hash regravado: em `tests/baselines` só um arquivo novo; `DeterminismTwoProcessTests.cs` só ganhou teste.
+- Diff sem extrapolação: nada em `src/LivingWorld.Api`, `src/LivingWorld.Domain` nem `scenarios/`.
+- `bash scripts/verify.sh` saiu 0 antes e depois das mutações: 2509 aprovados, 3 ignorados, 0 falhas.
+- `Category=Scenario` da entrega: 3 aprovados. LongRunning `Civ_report`: 1 aprovado.
 
 ## Mutações
 
-117 aplicadas uma a uma, escolhidas sem consultar rodadas anteriores, restauradas com `git checkout`; `git status` limpo
-ao final. 104 reprovadas (97 no gate rápido, 5 em `Scenario`, 2 em LongRunning); 13 sobreviveram. Cobertura: valor
-zerado (V), causa (C), escopo e soma (S), Gini e pool (G), tábua (L), fusão (F), filtros e drenagem (T), runner (R),
-hash (H), diversidade (D), JSON e CLI (J), baseline e contrato (B). V22 e V23 foram refeitas (a primeira forma não
-compilava; a segunda era equivalente).
+135 aplicadas (uma a uma, restauradas com `git checkout`, `git status` limpo no fim), cobrindo cada métrica e campo: 126
+reprovadas (D08 só pelo baseline `Scenario`), 9 sobreviventes. P3 (modo CLI não reconhecido) reprova, mas o teste
+travou porque o processo cai no modo host e `RunCommand` não tem prazo: reprovou depois que encerrei os processos.
 
-## FAIL
-
-- **F1, truncamento de `q` sem teste.** `src/LivingWorld.Simulation/Observation/LifeTable.cs:30`. Sem o `Math.Min`
-  (L10), nenhum teste reprova, e 117 de 700 valores do relatório 20 × 10 mudam, com e₀ negativa (seed 1, ano 1: 2,5 vira
-  −0,83; mínimo −37,8). Precisa de tábua sintética com faixa em que `n·m/2 > 1` e valor feito à mão.
-- **F2, idosos no denominador do desemprego sem teste.** `src/LivingWorld.Simulation/Observation/CivilizationObserver.cs:95`.
-  Com `!= LifeStage.Child` (S14), nenhum teste reprova, e 70 de 700 valores mudam (seed 2, ano 6: 0,0769 vira 0,0625). O
-  plano define adultos por `LifeStageRules`. Precisa de fixture com idoso sem emprego em `CivilizationScopeTests`.
-- **F3, ordem `<seeds> <anos>` do CLI sem teste.** `src/LivingWorld.Workers/Program.cs:20`. J16 (troca) sobrevive porque
-  o teste usa `3 2 2`, simétrico (`DeterminismTwoProcessTests.cs:109-111`), e só compara bytes. Precisa de argumentos
-  distintos e de conferir quantas seeds e quantos anos o JSON traz.
-- **F4, valores do JSON só têm teste de forma.** `src/LivingWorld.Simulation/Observation/CivilizationReport.cs:17,28,59-60,67-69`
-  e `src/LivingWorld.Workers/CivilizationReportCommand.cs:29`. Sobrevivem `scenario` com caminho absoluto (J02), `mean`,
-  `min` e `max` errados (J07 a J09), `summary.seeds` e `years` = 0 (J10, J11) e `tick` = 0 (J14). Precisa de teste de
-  valor em `CivilizationReportTests` para esses campos, contra `SeedRun` conhecido.
+| Sobrevivente | Classificação |
+| --- | --- |
+| O31, W05, T12 | **FAIL**: F1, F2 e F3 acima |
+| O27 (`<= tick` → `< tick` em fundadas) | Não bloqueante: exige fundação na virada do ano; fundação = virada de mês + `OrganizationTicks`, que vale 1 nos 3 cenários do repositório. Alcançável só com cenário próprio de múltiplo de mês |
+| O54 (`Technologies` em `Group.Add`) | Equivalente: `CivilizationObserver.cs:62` sobrescreve o valor do mundo |
+| R20 (ordem ordinal das métricas) | Detalhe: mesmas chaves e valores, saída ainda determinística |
+| D15 (`Take(years)`) | Inalcançável: o CLI dá o mesmo número de anos a toda seed |
+| D16 (ordenar seeds na diversidade) | Equivalente: distância simétrica e CLI já em ordem |
+| D18 (`Math.Abs` na escala) | Inalcançável: as séries publicadas não são negativas |
 
 ## Observações não bloqueantes
 
-- G06 (guarda de riqueza 0 no Gini) e D05 (guarda per capita): só agem com riqueza total 0 ou mundo extinto, ausentes
-  em 20 × 10. D05 vale cobrir na fatia D, em que extinção é plausível: `WriteNumber` zeraria o `Infinity` em silêncio.
-- D13 (`Min` → `Max` de anos): equivalente no caminho do CLI, em que toda seed tem os mesmos anos.
-- `deaths_age` inclui combate (`CombatEncounterSystem` usa `Death`): documentado no plano; a issue manda mapear por kind.
-- Clones de `NpcInstantiationMechanic` entram sem `Birth` e cairiam em `net_migration`: não ocorre no cenário padrão.
-- Os braços de `CivilizationConservationTests` têm 3 anos; a sonda deste Verifier cobriu 10 anos, sem divergência.
-- `cities_founded` e `cities_merged` só existem no mundo, não por cidade; não bloqueia o uso previsto.
+- `civilization-observatory-cli/plan.md` diz que nenhum sistema usa `Parallel`; `NpcWakeScheduler.cs:177` usa (cálculo puro por índice, sem efeito no determinismo).
+- Nenhum teste executa `scripts/civ-report.sh`; a ordem dos argumentos foi conferida à mão (execução acima).
+- O baseline roda em `Category=Scenario`, fora do `verify.sh` padrão (entra em `--full`), como o plano define.
+- `net_migration` é resíduo: outra origem de NPC sem `Birth` (ex.: `NpcInstantiationMechanic`) cairia nele.
