@@ -24,8 +24,20 @@ public static class CityPopulationQuery
     public static long Wealth(WorldState world, CityId city) =>
         MaterializedAlive(world, city).Sum(n => n.Wallet.Amount) + PoolOf(world, city).WealthSum;
 
-    public static long Health(WorldState world, CityId city) =>
+    /// <summary>Soma da saúde de todos os vivos da cidade (materializados + pool). É só o numerador
+    /// de <see cref="Health"/>; não é um indicador de cidade (somar saúde cresce com a população).</summary>
+    public static long HealthSum(WorldState world, CityId city) =>
         MaterializedAlive(world, city).Sum(n => (long)n.Health) + PoolOf(world, city).HealthSum;
+
+    /// <summary>Saúde MÉDIA por morador vivo: (saúde dos materializados + <c>HealthSum</c> do pool)
+    /// dividida por <see cref="Population"/> (materializados + pool, a mesma massa de
+    /// <see cref="Population"/>), em divisão real (sem truncar). Cidade sem nenhum vivo: 0 (não há
+    /// quem medir; mesma convenção de <see cref="Inequality"/>). Contrato: AD-121.</summary>
+    public static double Health(WorldState world, CityId city)
+    {
+        long population = Population(world, city);
+        return population == 0 ? 0.0 : (double)HealthSum(world, city) / population;
+    }
 
     /// <summary>Coeficiente de Gini sobre <see cref="Npc.Wallet"/> dos materializados (Tech
     /// Decision do design: o pool agregado entra só pela soma, não pela distribuição — Gini de
@@ -57,21 +69,9 @@ public static class CityPopulationQuery
         world.Buildings.Where(b => b.City == city)
             .Sum(b => world.CityCatalog.BuildingRecipes.TryGetValue(b.BuildingTypeId, out var recipe) ? recipe.HousingCapacityProvided : 0);
 
-    // SPEC_DEVIATION: design.md só declara sinal real
-    // pra Habitação (HousingCapacityProvided por receita). BuildingRecipe não tem campo
-    // distinto pra "provê segurança"/"provê educação"/"provê infraestrutura" e nenhum critério de
-    // verificação exige um — inventar um limiar/campo novo aqui seria requisito não
-    // pedido (R3, eval-criteria.md). Os três ficam como a contagem total de Building concluído da
-    // cidade: existe e é derivado, sem simular comportamento real (isso fica pra uma fase futura).
-
-    /// <summary>Segurança da cidade. Ver SPEC_DEVIATION acima.</summary>
-    public static long Security(WorldState world, CityId city) => BuildingCount(world, city);
-
-    /// <summary>Educação da cidade. Ver SPEC_DEVIATION acima.</summary>
-    public static long Education(WorldState world, CityId city) => BuildingCount(world, city);
-
-    /// <summary>Infraestrutura da cidade. Ver SPEC_DEVIATION acima.</summary>
-    public static long Infrastructure(WorldState world, CityId city) => BuildingCount(world, city);
+    // Segurança, Educação e Infraestrutura NÃO têm fonte: a contagem de prédios que ocupava o lugar
+    // fingia medir o que não mede (AD-121). Voltam quando #118, #122 e #124 derem fonte real; até lá o
+    // cliente recebe nulo ("não medido"), declarado em CityIndicatorSources (Api).
 
     public static bool HasFullCosmeticDetail(WorldState world, Npc npc) =>
         MaterializationSystem.HasFullCosmeticDetail(world, npc);
@@ -90,9 +90,6 @@ public static class CityPopulationQuery
     /// aproximada (ex.: dentro de prédio não enquadrado numa cidade observada).</summary>
     public static long CosmeticallyApproximatePopulation(WorldState world, CityId city) =>
         MaterializedAlive(world, city).LongCount(n => IsCosmeticallyObserved(world, n) && !HasFullCosmeticDetail(world, n));
-
-    private static long BuildingCount(WorldState world, CityId city) =>
-        world.Buildings.Count(b => b.City == city);
 
     private static IEnumerable<Npc> MaterializedAlive(WorldState world, CityId city) =>
         world.Npcs.Where(n => n.IsAlive && n.City == city);

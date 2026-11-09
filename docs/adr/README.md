@@ -48,3 +48,4 @@ conteúdo de ADR para dentro dele.
 | [0037 — objetos](ADR-0037-uso-de-objeto-pose-e-ponto-de-uso.md) | Uso de objeto: pose e ponto de uso declarados, objeto em uso informado pelo servidor | aceito |
 | [0038](ADR-0038-interacoes-e-efeitos-de-objeto-no-motor.md) | Interações e efeitos de objeto aplicados pelo motor (duração de dormir e comer, conforto na decisão) | aceito |
 | [0039](ADR-0039-recursos-do-cenario-como-objetos.md) | Recursos do cenário como objetos (efeito ao consumir vem do descritor) | aceito |
+| [0040](ADR-0040-indicadores-da-cidade-sem-fonte-ficam-nulos.md) | Indicadores da cidade: saúde é média; sem fonte fica nulo | aceito |

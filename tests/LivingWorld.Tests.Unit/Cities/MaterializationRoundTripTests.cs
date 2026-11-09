@@ -86,7 +86,7 @@ public class MaterializationRoundTripTests
         var ctx = new TickContext(world, world.Rng, world.Scheduler);
         long populationBefore = CityPopulationQuery.Population(world, city.Id);
         long wealthBefore = CityPopulationQuery.Wealth(world, city.Id);
-        long healthBefore = CityPopulationQuery.Health(world, city.Id);
+        double healthBefore = CityPopulationQuery.Health(world, city.Id);
         double inequalityBefore = CityPopulationQuery.Inequality(world, city.Id);
 
         var npc = MaterializationSystem.MaterializeOne(world, ctx, city.Id).Value!;
@@ -94,7 +94,7 @@ public class MaterializationRoundTripTests
 
         Assert.Equal(populationBefore, CityPopulationQuery.Population(world, city.Id));
         Assert.Equal(wealthBefore, CityPopulationQuery.Wealth(world, city.Id));
-        Assert.Equal(healthBefore, CityPopulationQuery.Health(world, city.Id));
+        Assert.Equal(healthBefore, CityPopulationQuery.Health(world, city.Id), precision: 9);
         Assert.Equal(inequalityBefore, CityPopulationQuery.Inequality(world, city.Id));
     }
 }

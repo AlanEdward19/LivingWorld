@@ -57,10 +57,13 @@
     },
     "indicators": {
       "economy": "number",
+      "education?": "number",
       "health": "number",
       "housing": "number",
       "inequality": "number",
+      "infrastructure?": "number",
       "population": "number",
+      "security?": "number",
       "wealth": "number"
     },
     "layers": {

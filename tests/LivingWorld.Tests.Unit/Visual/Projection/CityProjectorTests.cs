@@ -145,6 +145,10 @@ public class CityProjectorTests
         Assert.Equal(CityPopulationQuery.Inequality(world, city.Id), indicators.Inequality);
         Assert.Equal(CityPopulationQuery.Economy(world, city.Id), indicators.Economy);
         Assert.Equal(CityPopulationQuery.Housing(world, city.Id), indicators.Housing);
+        // Sem fonte (AD-121): nulo, nunca a contagem de prédios que fingia medir.
+        Assert.Null(indicators.Security);
+        Assert.Null(indicators.Education);
+        Assert.Null(indicators.Infrastructure);
     }
 
     [Fact]
@@ -171,7 +175,7 @@ public class CityProjectorTests
 
         Assert.Equal(0, indicators.Population);
         Assert.Equal(0, indicators.Wealth);
-        Assert.Equal(0, indicators.Health);
+        Assert.Equal(0.0, indicators.Health);
         Assert.Equal(0.0, indicators.Inequality);
         Assert.Equal(0, indicators.Economy);
         Assert.Equal(0, indicators.Housing);
