@@ -5,11 +5,13 @@ using LivingWorld.Domain.Extraordinary;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Geography.Map;
 using LivingWorld.Domain.Geography.Spatial;
+using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Decision;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Engine;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
 using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Simulation.Scheduling;
@@ -202,12 +204,134 @@ public sealed class ExtraordinaryLocomotionTests
         Assert.Equal((moves, stockAfter), (result.Moved, household.Stock[new ResourceType(9)]));
     }
 
+    [Fact]
+    public void Typed_movement_cost_loaded_and_charged_by_invocation_is_also_paid_by_locomotion()
+    {
+        var (world, npc) = WorldWith(
+            "movement.speed-multiplier:3", new CellCoord(0, 0), FlatMap(), costs: ["carrier.hunger:fire:5"]);
+        npc.SetHunger(50, 0);
+
+        var result = ExtraordinaryLocomotion.Advance(
+            world, npc, new CellCoord(5, 0), tick: 0, [], ExtraordinaryLocomotion.Resolve(world, npc));
+
+        Assert.Equal((true, 45), (result.Moved, npc.HungerAt(0)));
+    }
+
+    [Fact]
+    public void Typed_movement_cost_debits_the_same_scaled_amount_as_the_invocation()
+    {
+        string[] costs = ["carrier.hunger:fire:5"];
+        string[] vulnerabilities = ["fire:3"];
+        var (walked, walker) = WorldWith(
+            "movement.speed-multiplier:3", new CellCoord(0, 0), FlatMap(), costs: costs, vulnerabilities: vulnerabilities);
+        var (invoked, invoker) = WorldWith(
+            "movement.speed-multiplier:3", new CellCoord(0, 0), FlatMap(), costs: costs, vulnerabilities: vulnerabilities, mode: "Active");
+        walker.SetHunger(50, 0);
+        invoker.SetHunger(50, 0);
+
+        ExtraordinaryLocomotion.Advance(
+            walked, walker, new CellCoord(5, 0), tick: 0, [], ExtraordinaryLocomotion.Resolve(walked, walker));
+        var invocation = ExtraordinaryInvocationEngine.Invoke(
+            invoked, new TickContext(invoked, invoked.Rng, invoked.Scheduler),
+            new ExtraordinaryInvocation(1, invoker.Id, "locomotion", invoker.Id));
+
+        Assert.True(invocation.IsSuccess, invocation.Error);
+        Assert.Equal((35, 35), (walker.HungerAt(0), invoker.HungerAt(0)));
+    }
+
+    [Fact]
+    public void Typed_movement_cost_logs_the_scaled_token_and_untyped_cost_logs_its_declaration()
+    {
+        var (world, npc) = WorldWith(
+            "movement.speed-multiplier:3", new CellCoord(0, 0), FlatMap(),
+            costs: ["carrier.hunger:fire:5", "carrier.thirst:+4"], vulnerabilities: ["fire:3"]);
+        npc.SetHunger(50, 0);
+        npc.SetThirst(50, 0);
+        var sink = new RecordingSink();
+
+        ExtraordinaryLocomotion.Advance(
+            world, npc, new CellCoord(5, 0), tick: 0, [], ExtraordinaryLocomotion.Resolve(world, npc),
+            new TickContext(world, world.Rng, world.Scheduler, sink));
+
+        Assert.Equal(["1|movement|carrier.hunger:15", "1|movement|carrier.thirst:+4"],
+            sink.Events.Where(evt => evt.Kind == WorldEventKind.ExtraordinaryCostPaid).Select(evt => evt.Payload));
+    }
+
+    [Fact]
+    public void Typed_movement_cost_scaled_above_the_balance_blocks_the_step_and_debits_nothing()
+    {
+        var (world, npc) = WorldWith(
+            "movement.speed-multiplier:3", new CellCoord(0, 0), FlatMap(),
+            costs: ["carrier.hunger:fire:5"], vulnerabilities: ["fire:3"]);
+        npc.SetHunger(14, 0);
+
+        var result = ExtraordinaryLocomotion.Advance(
+            world, npc, new CellCoord(5, 0), tick: 0, [], ExtraordinaryLocomotion.Resolve(world, npc));
+
+        Assert.Equal((false, new CellCoord(0, 0), 14), (result.Moved, npc.CurrentLocation, npc.HungerAt(0)));
+    }
+
+    [Fact]
+    public void Typed_and_untyped_costs_on_the_same_stat_are_summed_against_the_balance()
+    {
+        var (world, npc) = WorldWith(
+            "movement.speed-multiplier:3", new CellCoord(0, 0), FlatMap(),
+            costs: ["carrier.thirst:fire:6", "carrier.thirst:6"]);
+        npc.SetThirst(10, 0);
+
+        var result = ExtraordinaryLocomotion.Advance(
+            world, npc, new CellCoord(5, 0), tick: 0, [], ExtraordinaryLocomotion.Resolve(world, npc));
+
+        Assert.Equal((false, 10), (result.Moved, npc.ThirstAt(0)));
+    }
+
+    [Fact]
+    public void Typed_movement_cost_in_household_stock_is_debited()
+    {
+        var (world, npc) = WorldWith(
+            "movement.speed-multiplier:3", new CellCoord(0, 0), FlatMap(),
+            costs: ["household.resource.9:fire:2"]);
+        var household = new Household(
+            new HouseholdId(1), new CellCoord(0, 0), npc.Id, [npc.Id],
+            new Dictionary<ResourceType, long> { [new ResourceType(9)] = 5 });
+        npc.JoinHousehold(household.Id);
+        world.AddHousehold(household);
+
+        var result = ExtraordinaryLocomotion.Advance(
+            world, npc, new CellCoord(5, 0), tick: 0, [], ExtraordinaryLocomotion.Resolve(world, npc));
+
+        Assert.Equal((true, 3L), (result.Moved, household.Stock[new ResourceType(9)]));
+    }
+
+    [Theory]
+    [InlineData("carrier.mana:5")]
+    [InlineData("carrier.mana:fire:5")]
+    [InlineData("carrier.hunger")]
+    [InlineData("carrier.hunger:abc")]
+    [InlineData("carrier.hunger:0")]
+    [InlineData("carrier.hunger:-5")]
+    [InlineData("carrier.hunger:7:3")]
+    [InlineData("household.resource.abc:1")]
+    [InlineData("household.resource.9:2")]
+    [InlineData("objeto.desconhecido:1")]
+    public void Invalid_or_unpayable_movement_cost_blocks_the_step_and_debits_nothing(string cost)
+    {
+        var (world, npc) = WorldWith(
+            "movement.speed-multiplier:3", new CellCoord(0, 0), FlatMap(), costs: [cost]);
+        npc.SetHunger(50, 0);
+
+        var result = ExtraordinaryLocomotion.Advance(
+            world, npc, new CellCoord(5, 0), tick: 0, [], ExtraordinaryLocomotion.Resolve(world, npc));
+
+        Assert.Equal((false, new CellCoord(0, 0), 50), (result.Moved, npc.CurrentLocation, npc.HungerAt(0)));
+    }
+
     private static (WorldState World, Npc Npc) WorldWith(
         string effect, CellCoord origin, WorldMap? map = null, bool manifested = true,
-        IReadOnlyList<string>? costs = null)
+        IReadOnlyList<string>? costs = null, IReadOnlyList<string>? vulnerabilities = null, string mode = "Passive")
     {
         var descriptor = new PowerDescriptor(
-            "locomotion", "test", [effect], "Passive", costs ?? [], "Guaranteed", [], [], [], []);
+            "locomotion", "test", [effect], mode, costs ?? [], "Guaranteed", [], vulnerabilities ?? [], [], []);
         var carrier = new ExtraordinaryCarrierState(
             new NpcId(1), [descriptor.Id], manifested, manifested ? "manifested" : "dormant",
             new ExtraordinaryAppearanceState(1, "", "trail"), null, 1);
@@ -225,6 +349,12 @@ public sealed class ExtraordinaryLocomotionTests
             ProfessionType.None, currentLocation: origin);
         world.AddNpc(npc);
         return (world, npc);
+    }
+
+    private sealed class RecordingSink : IWorldEventSink
+    {
+        public List<WorldEvent> Events { get; } = [];
+        public void Record(WorldEvent evt) => Events.Add(evt);
     }
 
     // Mapa plano e uniforme: a rota reta esperada não depende dos pesos de custo do cenário default.

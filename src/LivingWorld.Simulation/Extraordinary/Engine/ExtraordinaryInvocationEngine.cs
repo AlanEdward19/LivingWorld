@@ -266,7 +266,7 @@ public static class ExtraordinaryInvocationEngine
         return Result<(string, string, int)>.Ok((scaledDeclaration, strippedParsed.Value.Key, amount));
     }
 
-    private static int ResolveVulnerabilityFactor(WorldState world, Npc subject, string type)
+    internal static int ResolveVulnerabilityFactor(WorldState world, Npc subject, string type)
     {
         var carrier = world.CarrierOf(subject.Id);
         if (carrier is null)

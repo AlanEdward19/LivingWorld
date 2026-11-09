@@ -15,8 +15,18 @@ Oito rodadas de verificação acharam a mesma classe de bug: a carga aceita o qu
   `FloraMechanic`, `AreaTargetResolver`) também. A invocação fica só com o que depende do mundo (NPC, Fact, saldo, habilidade, alcance, mapa).
 - **A carga aceita exatamente o que a invocação aceita sintaticamente.** A única redução fora do parser é a forma tipada `chave:tipo:n`
   (`TrySplitTypedMagnitude`, a mesma do motor), e só onde o motor a aplica: `AllowTyped = false` para seletor de área, que o motor lê cru.
-- **Paridade de invocação**: nenhum token aceito hoje muda de comportamento; nenhum golden/baseline muda. Mensagens de erro da invocação foram mantidas.
+- **Paridade de invocação**: nenhum token aceito hoje muda de comportamento (exceto a emenda de valores não finitos abaixo); nenhum golden/baseline muda. Mensagens de erro da invocação foram mantidas.
 - **Catálogo**: `Listing` lista o que um editor deve oferecer. Um parser sem listagem é um token **tolerado**.
+
+## Valores não finitos (emenda: exceção à paridade)
+Regra: **nenhum valor não finito entra em estado canônico**. JSON não representa infinito nem NaN e `WorldSnapshot.CanonicalHash` lançava `ArgumentException` depois que um entrava.
+- **Recusados no parser** (carga e invocação), porque o valor chega ao estado: `gravity.target` (`GravityTargetMultiplier`), `environment.temperature` (delta, inclusive `NaN` e estouro de `float` como `1e39`)
+  e `skill.learn-rate` (no teto o ganho é 0 e `0 × infinito` grava `NaN` na habilidade). É mudança do que a carga aceita, feita de propósito: esses tokens quebravam o hash do mundo, então nenhum cenário funcional dependia deles.
+- **Saturado no leitor**: o produto de `skill.learn-rate` para em `double.MaxValue` a cada passo, porque fatores finitos (`1e308 × 1e308`) também estouram. Não há token a recusar nesse caso.
+- **Seguem aceitos** porque só alimentam valor volátil ou inteiro, nunca estado canônico: `movement.flight|speed-multiplier:Infinity`, `gravity.self:Infinity`, `flora.growth-rate:Infinity`, `attribute.*:Infinity`.
+- Recusar foi preferido a saturar no parser: saturar inventaria um significado para "infinito" (`1,8e308` guardado) em vez de avisar o autor na carga.
+
+`ExtraordinaryLocomotion` paga custos de movimento pelos mesmos parsers de custo e aplica a mesma redução tipada do motor (`carrier.hunger:fire:5` debita `5 × vulnerabilidade`).
 
 ## Lixo tolerado (paridade com ressalva)
 A invocação aceita sem efeito, e portanto a carga também aceita:
