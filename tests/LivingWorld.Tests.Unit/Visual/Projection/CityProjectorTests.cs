@@ -145,6 +145,29 @@ public class CityProjectorTests
         Assert.Equal(CityPopulationQuery.Inequality(world, city.Id), indicators.Inequality);
         Assert.Equal(CityPopulationQuery.Economy(world, city.Id), indicators.Economy);
         Assert.Equal(CityPopulationQuery.Housing(world, city.Id), indicators.Housing);
+        // Sem fonte (AD-123): nulo, nunca a contagem de prédios que fingia medir.
+        Assert.Null(indicators.Security);
+        Assert.Null(indicators.Education);
+        Assert.Null(indicators.Infrastructure);
+    }
+
+    [Fact]
+    public void Build_projects_health_as_the_unrounded_mean_when_it_is_fractional()
+    {
+        // Conta à mão: vivos 70 e 51 + pool (3 pessoas, soma 200) = 321 / 5 = 64,2.
+        // Floor daria 64 e Round também 64; o projetor não pode arredondar.
+        var world = ScenarioRunner.Create(seed: 51, initialPopulation: 2).World;
+        var city = new City(world.NextCityId(), new CellCoord(1, 1), 0, null, new AggregatePopulationPool(3, 0, 200));
+        world.AddCity(city);
+        var npcs = world.Npcs.ToList();
+        npcs[0].JoinCity(city.Id);
+        npcs[0].SetHealth(70);
+        npcs[1].JoinCity(city.Id);
+        npcs[1].SetHealth(51);
+
+        var indicators = CityProjector.Build(world, city.Id).Value!.Indicators;
+
+        Assert.Equal(64.2, indicators.Health, 9);
     }
 
     [Fact]
@@ -171,7 +194,7 @@ public class CityProjectorTests
 
         Assert.Equal(0, indicators.Population);
         Assert.Equal(0, indicators.Wealth);
-        Assert.Equal(0, indicators.Health);
+        Assert.Equal(0.0, indicators.Health);
         Assert.Equal(0.0, indicators.Inequality);
         Assert.Equal(0, indicators.Economy);
         Assert.Equal(0, indicators.Housing);

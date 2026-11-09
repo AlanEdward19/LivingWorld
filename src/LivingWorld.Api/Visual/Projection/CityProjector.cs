@@ -33,10 +33,14 @@ public sealed record CityBuildingMarker(
 /// o preço já acompanha local e demanda. Só existe em prédio cujo tipo declara <c>Lodging</c>.</summary>
 public sealed record LodgingMarker(int Units, int Occupied, long RentPerMonth, long NightlyRate);
 
-/// <summary>Os 6 indicadores que <see
-/// cref="CityPopulationQuery"/> já calcula, hoje inacessíveis ao cliente. <see
-/// cref="CityPopulationQuery"/> é a única fonte — nenhum indicador é recomputado aqui.</summary>
-public sealed record CityIndicators(long Population, long Wealth, long Health, double Inequality, long Economy, long Housing);
+/// <summary>Indicadores da cidade para o cliente. Todo indicador tem fonte declarada em
+/// <see cref="CityIndicatorSources"/> (um teste por reflexão reprova o que não tiver). Medidos vêm de
+/// <see cref="CityPopulationQuery"/>, a única fonte; nenhum é recomputado aqui. <c>Health</c> é a MÉDIA
+/// por morador vivo (materializados + pool). <c>Security</c>, <c>Education</c> e <c>Infrastructure</c>
+/// são sempre <c>null</c> ("não medido") até #118, #122 e #124 darem fonte real (AD-123).</summary>
+public sealed record CityIndicators(
+    long Population, long Wealth, double Health, double Inequality, long Economy, long Housing,
+    long? Security = null, long? Education = null, long? Infrastructure = null);
 
 public sealed record CitySnapshot(
     CityId Id,
@@ -132,7 +136,8 @@ public static class CityProjector
             CityPopulationQuery.Health(world, cityId),
             CityPopulationQuery.Inequality(world, cityId),
             CityPopulationQuery.Economy(world, cityId),
-            CityPopulationQuery.Housing(world, cityId));
+            CityPopulationQuery.Housing(world, cityId),
+            Security: null, Education: null, Infrastructure: null); // sem fonte: ver CityIndicatorSources
 
         // Mesma fonte do marcador no mapa-múndi (GlobalProjector) — sem isso o envelope visual
         // de dentro da cidade (CityView) usava um tamanho fixo (16x16, cityGroundBounds.ts)

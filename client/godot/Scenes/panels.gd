@@ -330,7 +330,13 @@ class CityPanel extends PanelContainer:
 		box.add_child(anonymous_button)
 		visible = false
 
-	## `info` = WorldStore.city: {name, indicators:{population, wealth, health, inequality, economy, housing}}
+	## Indicador nulo ou ausente = "não medido" (o servidor ainda não tem fonte): mostra "—", nunca 0.
+	static func _measured(indicators: Dictionary, key: String) -> String:
+		var value = indicators.get(key)
+		return "—" if value == null else str(int(value))
+
+	## `info` = WorldStore.city: {name, indicators:{population, wealth, health (média), inequality, economy, housing,
+	## security?, education?, infrastructure? (nulos = não medido)}}
 	func show_city(info: Dictionary) -> void:
 		var indicators: Dictionary = info.indicators
 		var name: String = info.name if info.name != "" else "Cidade"
@@ -339,9 +345,10 @@ class CityPanel extends PanelContainer:
 		anonymous_ids = info.get("pendingResidentIds", [])
 		anonymous_button.visible = not anonymous_ids.is_empty()
 		anonymous_button.text = "Conhecer um dos %d moradores anônimos" % anonymous_ids.size()
-		text = "%s\nPopulação %d\nRiqueza %d · Saúde %d\nDesigualdade %s · Economia %d · Habitação %d" % [
-			name, int(indicators.population), int(indicators.wealth), int(indicators.health),
-			str(snappedf(float(indicators.inequality), 0.01)), int(indicators.economy), int(indicators.housing)]
+		text = "%s\nPopulação %d\nRiqueza %d · Saúde (média) %s\nDesigualdade %s · Economia %d · Habitação %d\nSegurança %s · Educação %s · Infraestrutura %s" % [
+			name, int(indicators.population), int(indicators.wealth), str(snappedf(float(indicators.health), 0.1)),
+			str(snappedf(float(indicators.inequality), 0.01)), int(indicators.economy), int(indicators.housing),
+			_measured(indicators, "security"), _measured(indicators, "education"), _measured(indicators, "infrastructure")]
 		_title.text = name
 		_body.text = text.substr(text.find("\n") + 1)
 		visible = true

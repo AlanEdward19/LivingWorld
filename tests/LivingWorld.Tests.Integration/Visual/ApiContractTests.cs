@@ -255,7 +255,9 @@ public class ApiContractTests
         ["shape.npc-directory.json"] = [("action", () => "number")],
         ["shape.interior-delta.json"] = [("action", () => "number")],
         ["shape.visual-delta.json"] = [("currentAction", () => "number")],
-        ["shape.city-subscribe.json"] = [("lodging", () => new JsonObject { ["nightlyRate"] = "number", ["occupied"] = "number", ["rentPerMonth"] = "number", ["units"] = "number" })],
+        ["shape.city-subscribe.json"] = [("lodging", () => new JsonObject { ["nightlyRate"] = "number", ["occupied"] = "number", ["rentPerMonth"] = "number", ["units"] = "number" }),
+            // Indicadores sem fonte (AD-123): sempre nulos hoje; quando #118/#122/#124 derem fonte viram número.
+            ("security", () => "number"), ("education", () => "number"), ("infrastructure", () => "number")],
     };
 
     private static void ApplyTypedOptionals(string file, JsonNode node)
