@@ -20,7 +20,7 @@ public sealed class FloraMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("flora.growth-rate:", "flora.growth-rate:<multiplicador>", false, "area"),
+        new("flora.growth-rate:", "flora.growth-rate:<multiplicador>", false, "area", static token => TryParseGrowthRate(token, out _)),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(

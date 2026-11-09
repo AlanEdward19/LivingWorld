@@ -22,8 +22,8 @@ public sealed class FaunaMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("fauna.dominate:", "fauna.dominate:<raio|animal-N>", false, "area"),
-        new("fauna.infect-vector:", "fauna.infect-vector:<doença>", false, "area"),
+        new("fauna.dominate:", "fauna.dominate:<raio|animal-N>", false, "area", static token => TryParseDominate(token, out _, out _)),
+        new("fauna.infect-vector:", "fauna.infect-vector:<doença>", false, "area", static token => TryParseInfect(token, out _)),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(

@@ -24,8 +24,8 @@ public sealed class SkillMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("skill.copy:", "skill.copy:<skill>", false, "target"),
-        new("skill.learn-rate:", "skill.learn-rate:<n>", false, "carrier"),
+        new("skill.copy:", "skill.copy:<skill>", false, "target", static token => TryParseCopy(token, out _)),
+        new("skill.learn-rate:", "skill.learn-rate:<n>", false, "carrier", static token => TryParseLearnRate(token, out _)),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(
@@ -63,9 +63,7 @@ public sealed class SkillMechanic : ExtraordinaryMechanic
     private static Result<PreparedMutation?> PrepareCopy(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        if (!int.TryParse(
-                declaration[CopyPrefix.Length..], NumberStyles.Integer, CultureInfo.InvariantCulture, out int skillId)
-            || skillId < 0)
+        if (!TryParseCopy(declaration, out int skillId))
             return Result<PreparedMutation?>.Fail($"Effects: skill.copy exige um SkillType id inteiro '{declaration}'");
 
         var skillType = new SkillType(skillId);
@@ -100,5 +98,14 @@ public sealed class SkillMechanic : ExtraordinaryMechanic
                    CultureInfo.InvariantCulture,
                    out multiplier)
                && multiplier >= 0;
+    }
+
+    private static bool TryParseCopy(string declaration, out int skillId)
+    {
+        skillId = 0;
+        return declaration.StartsWith(CopyPrefix, StringComparison.Ordinal)
+            && int.TryParse(
+                declaration[CopyPrefix.Length..], NumberStyles.Integer, CultureInfo.InvariantCulture, out skillId)
+            && skillId >= 0;
     }
 }

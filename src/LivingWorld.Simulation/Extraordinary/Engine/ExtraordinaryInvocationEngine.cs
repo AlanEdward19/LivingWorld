@@ -318,19 +318,21 @@ public static class ExtraordinaryInvocationEngine
         return Result<IReadOnlyList<PreparedMutation>>.Ok(result);
     }
 
+    private static readonly string HealthFailureKey = CarrierCostMechanic.KeyPrefix + NpcStatAccessors.Health.Key;
+    private static readonly string HealthFailurePrefix = HealthFailureKey + ":";
+
     private static Result<IReadOnlyList<PreparedFailureMode>> PrepareFailureModes(
         IReadOnlyList<string> declarations, Npc carrier)
     {
         var result = new List<PreparedFailureMode>();
         foreach (var declaration in declarations)
         {
-            string healthKey = CarrierCostMechanic.KeyPrefix + NpcStatAccessors.Health.Key;
-            if (declaration.StartsWith(healthKey + ":", StringComparison.Ordinal))
+            if (declaration.StartsWith(HealthFailurePrefix, StringComparison.Ordinal))
             {
                 var parsed = ExtraordinaryMechanicSupport.ParseAmount(declaration, "FailureModes", allowSigned: false);
-                if (!parsed.IsSuccess || parsed.Value.Key != healthKey)
+                if (!parsed.IsSuccess || parsed.Value.Key != HealthFailureKey)
                     return Result<IReadOnlyList<PreparedFailureMode>>.Fail(
-                        parsed.Error ?? $"FailureModes: {healthKey} inválido");
+                        parsed.Error ?? $"FailureModes: {HealthFailureKey} inválido");
                 int amount = parsed.Value.Amount;
                 result.Add(new PreparedFailureMode(
                     declaration, () => carrier.SetHealth(Math.Max(0, carrier.Health - amount))));

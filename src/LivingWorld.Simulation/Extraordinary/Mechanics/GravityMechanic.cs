@@ -25,8 +25,8 @@ public sealed class GravityMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("gravity.self", "gravity.self:<multiplicador>", false, "carrier"),
-        new("gravity.target", "gravity.target:<multiplicador>", false, "target"),
+        new("gravity.self", "gravity.self:<multiplicador>", false, "carrier", static token => TryParseSelf(token, out _)),
+        new("gravity.target", "gravity.target:<multiplicador>", false, "target", static token => TryParseTarget(token, out _)),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(

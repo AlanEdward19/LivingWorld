@@ -90,10 +90,12 @@ public static class PeriodsEndpoints
             var template = repository.FindLatestVersion(id);
             if (template is null) return Results.NotFound();
 
-            // Já validado no cadastro (POST /periods) — Validate aqui só reconstrói o
-            // PeriodDefinition a partir do payload persistido, nunca deveria falhar.
-            var definition = PeriodDefinitionValidator.Validate(template.PayloadJson).Value!;
-            var catalog = PeriodCatalog.From(definition);
+            // Validate reconstrói o PeriodDefinition do payload persistido. Um template salvo antes de
+            // uma regra nova (ex.: token de poder que nenhuma mecânica aceita) deixa de validar:
+            // mesmo erro do POST em vez de exceção.
+            var validation = PeriodDefinitionValidator.Validate(template.PayloadJson);
+            if (!validation.IsSuccess) return Results.BadRequest(validation.Error);
+            var catalog = PeriodCatalog.From(validation.Value!);
 
             return Results.Ok(new PeriodCatalogResponse(
                 template.PeriodId, template.Version, catalog.ProfessionIds, catalog.SkillIds,

@@ -17,10 +17,10 @@ public sealed class AttributeMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("attribute.fertility", "attribute.fertility:<fator>", false, "carrier"),
-        new("attribute.strength", "attribute.strength:<fator>", false, "carrier"),
-        new("attribute.perception", "attribute.perception:<fator>", false, "carrier"),
-        new("attribute.reaction-speed", "attribute.reaction-speed:<fator>", false, "carrier"),
+        new("attribute.fertility", "attribute.fertility:<fator>", false, "carrier", static token => TryParseMultiplier(token, "attribute.fertility:", out _)),
+        new("attribute.strength", "attribute.strength:<fator>", false, "carrier", static token => TryParseMultiplier(token, "attribute.strength:", out _)),
+        new("attribute.perception", "attribute.perception:<fator>", false, "carrier", static token => TryParseRadius(token, out _)),
+        new("attribute.reaction-speed", "attribute.reaction-speed:<fator>", false, "carrier", static token => TryParseMultiplier(token, "attribute.reaction-speed:", out _)),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(

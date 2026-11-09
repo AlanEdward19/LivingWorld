@@ -26,17 +26,70 @@ public sealed record PreparedMutation(string Token, Action<ResolutionResult> App
 /// Um token que uma mecânica aceita: <see cref="Head"/> literal (<c>npc.health</c>) ou prefixo
 /// aberto terminado em <c>.</c> ou <c>:</c> (<c>area:radius:</c>); <see cref="Format"/> é o
 /// formato legível para editores; <see cref="Target"/> diz quem sofre (<c>target</c>,
-/// <c>carrier</c>, <c>area</c>, <c>world</c>, <c>household</c>).
+/// <c>carrier</c>, <c>area</c>, <c>world</c>, <c>household</c>). <see cref="Syntax"/> é a regra
+/// sem contexto de mundo (magnitude, sinal, sufixo, formato), declarada junto da mecânica e,
+/// quando possível, o mesmo parser que a invocação usa; estado (saldo, NPC existente) fica na invocação.
 /// </summary>
-public sealed record ExtraordinaryPrimitive(string Head, string Format, bool SignedMagnitude, string Target)
+public sealed record ExtraordinaryPrimitive(
+    string Head, string Format, bool SignedMagnitude, string Target, Func<string, bool> Syntax)
 {
     public bool Matches(string token)
     {
         if (!token.StartsWith(Head, StringComparison.Ordinal))
             return false;
         char last = Head[^1];
-        return last is '.' or ':' || token.Length == Head.Length || token[Head.Length] == ':';
+        bool headOk = last is '.' or ':' || token.Length == Head.Length || token[Head.Length] == ':';
+        return headOk && Syntax(token);
     }
+}
+
+/// <summary>Regras de sintaxe reutilizáveis para <see cref="ExtraordinaryPrimitive.Syntax"/>.</summary>
+public static class PrimitiveSyntax
+{
+    /// <summary>Token exato, sem argumentos.</summary>
+    public static Func<string, bool> Flag(string token) =>
+        candidate => string.Equals(candidate, token, StringComparison.Ordinal);
+
+    /// <summary><c>chave:n</c> com magnitude não zero (positiva se não assinada); aceita a forma
+    /// tipada <c>chave:tipo:n</c> que o motor reduz antes de resolver.</summary>
+    public static Func<string, bool> Amount(string key, bool signed) =>
+        AmountWith(candidate => string.Equals(candidate, key, StringComparison.Ordinal), signed);
+
+    public static Func<string, bool> AmountWith(Func<string, bool> keyOk, bool signed) =>
+        token =>
+        {
+            var parsed = ExtraordinaryMechanicSupport.ParseAmount(token, "Effects", signed);
+            if (!parsed.IsSuccess) return false;
+            if (keyOk(parsed.Value.Key)) return true;
+            if (!ExtraordinaryMechanicSupport.TrySplitTypedMagnitude(token, out string stripped, out _))
+                return false;
+            var typed = ExtraordinaryMechanicSupport.ParseAmount(stripped, "Effects", signed);
+            return typed.IsSuccess && keyOk(typed.Value.Key);
+        };
+
+    /// <summary><c>chave:n</c> sem forma tipada.</summary>
+    public static Func<string, bool> AmountExact(string key, bool signed) =>
+        token =>
+        {
+            var parsed = ExtraordinaryMechanicSupport.ParseAmount(token, "Effects", signed);
+            return parsed.IsSuccess && string.Equals(parsed.Value.Key, key, StringComparison.Ordinal);
+        };
+
+    /// <summary><c>chave:x</c> com x decimal positivo (cultura invariante).</summary>
+    public static Func<string, bool> PositiveNumber(string key) =>
+        token =>
+        {
+            string prefix = key + ":";
+            return token.StartsWith(prefix, StringComparison.Ordinal)
+                && double.TryParse(token[prefix.Length..], System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out double value)
+                && value > 0 && double.IsFinite(value);
+        };
+
+    /// <summary>Prefixo seguido de argumento não vazio.</summary>
+    public static Func<string, bool> NonEmptyArgument(string prefix) =>
+        token => token.StartsWith(prefix, StringComparison.Ordinal)
+            && !string.IsNullOrWhiteSpace(token[prefix.Length..]);
 }
 
 public interface IExtraordinaryMechanic

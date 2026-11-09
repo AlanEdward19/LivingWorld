@@ -10,7 +10,7 @@ public sealed class ForceActionMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("npc.force-action", "npc.force-action:<ActionType>", false, "target"),
+        new("npc.force-action", "npc.force-action:<ActionType>", false, "target", ValidForcedAction),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(
@@ -24,5 +24,12 @@ public sealed class ForceActionMechanic : ExtraordinaryMechanic
         var target = ctx.Target;
         return Result<PreparedMutation?>.Ok(new PreparedMutation(
             declaration, _ => target.SetCurrentAction(action, ctx.Tick.CurrentTick)));
+    }
+
+    private static bool ValidForcedAction(string token)
+    {
+        var parsed = ExtraordinaryMechanicSupport.ParseAmount(token, "Effects", allowSigned: false);
+        return parsed.IsSuccess && parsed.Value.Key == "npc.force-action"
+            && Enum.IsDefined(typeof(ActionType), parsed.Value.Amount);
     }
 }

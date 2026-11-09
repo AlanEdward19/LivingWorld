@@ -21,8 +21,12 @@ public sealed class BondMechanic : ExtraordinaryMechanic
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
         NpcStatAccessors.All
             .Select(stat => new ExtraordinaryPrimitive(
-                SharePrefix + stat.Key, $"{SharePrefix}{stat.Key}[:<proporção 1..100>]", false, "carrier"))
-            .Append(new ExtraordinaryPrimitive(OathPrefix, "bond.oath:<token de efeito>", false, "carrier"))
+                SharePrefix + stat.Key, $"{SharePrefix}{stat.Key}[:<proporção 1..100>]", false, "carrier",
+                static token => TryParseShare(token, out _, out _)))
+            .Append(new ExtraordinaryPrimitive(
+                OathPrefix, "bond.oath:<token de efeito>", false, "carrier",
+                static token => token.Length > OathPrefix.Length
+                    && ExtraordinaryMechanicRegistry.Default.Resolve(token[OathPrefix.Length..]) is not null))
             .ToList();
 
     internal static bool HasOathEffect(PowerDescriptor descriptor)

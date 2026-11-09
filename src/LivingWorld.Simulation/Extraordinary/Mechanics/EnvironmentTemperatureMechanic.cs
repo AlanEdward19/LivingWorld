@@ -20,7 +20,7 @@ public sealed class EnvironmentTemperatureMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("environment.temperature:", "environment.temperature:<região>:<delta>:<ticks>", true, "world"),
+        new("environment.temperature:", "environment.temperature:<região>:<delta>:<ticks>", true, "world", static token => TryParse(token, out _, out _, out _)),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(

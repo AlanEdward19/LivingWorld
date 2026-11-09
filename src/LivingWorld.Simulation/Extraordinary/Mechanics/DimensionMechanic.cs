@@ -21,8 +21,8 @@ public sealed class DimensionMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("dimension.pocket-store", "dimension.pocket-store[:<n>]", false, "carrier"),
-        new("dimension.portal:", "dimension.portal:<xA>:<yA>:<xB>:<yB>", false, "world"),
+        new("dimension.pocket-store", "dimension.pocket-store[:<n>]", false, "carrier", ValidPocketStore),
+        new("dimension.portal:", "dimension.portal:<xA>:<yA>:<xB>:<yB>", false, "world", static token => TryParsePortalCells(token, out var a, out var b) && a != b),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(
@@ -201,6 +201,11 @@ public sealed class DimensionMechanic : ExtraordinaryMechanic
     private static bool TryParseInt(string token, out int value) =>
         int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out value)
         && token.Equals(value.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+
+    private static bool ValidPocketStore(string token) =>
+        token == PocketStoreToken
+        || token.StartsWith(PocketStoreToken + ":", StringComparison.Ordinal)
+        && TryParseInt(token[(PocketStoreToken.Length + 1)..], out int quantity) && quantity > 0;
 }
 
 /// <summary>Detecta NPCs nas células do portal a cada hora e reusa o teleporte existente.</summary>

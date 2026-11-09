@@ -10,8 +10,8 @@ public sealed class AreaSelectorMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("area:radius:", "area:radius:<n>", false, "area"),
-        new("area:region:", "area:region:<id>", false, "area"),
+        new("area:radius:", "area:radius:<n>", false, "area", AreaTargetResolver.IsWellFormedSelector),
+        new("area:region:", "area:region:<id>", false, "area", AreaTargetResolver.IsWellFormedSelector),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(

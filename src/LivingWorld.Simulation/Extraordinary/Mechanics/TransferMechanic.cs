@@ -19,18 +19,28 @@ public sealed class TransferMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
         NpcStatAccessors.All
-            .Select(stat => new ExtraordinaryPrimitive(
-                KeyPrefix + stat.Key, $"{KeyPrefix}{stat.Key}:<n>[:from-target]", false, "target"))
-            .Append(new ExtraordinaryPrimitive(
-                KeyPrefix + "lifespan-years", "transfer.lifespan-years:<anos>[:from-target]", false, "target"))
+            .Select(stat => Primitive(KeyPrefix + stat.Key, $"{KeyPrefix}{stat.Key}:<n>[:from-target]"))
+            .Append(Primitive(KeyPrefix + "lifespan-years", "transfer.lifespan-years:<anos>[:from-target]"))
             .ToList();
+
+    private const string FromTargetSuffix = ":from-target";
+
+    private static ExtraordinaryPrimitive Primitive(string key, string format)
+    {
+        var plain = PrimitiveSyntax.Amount(key, signed: false);
+        var exact = PrimitiveSyntax.AmountExact(key, signed: false);
+        return new ExtraordinaryPrimitive(key, format, false, "target", token =>
+            token.EndsWith(FromTargetSuffix, StringComparison.Ordinal)
+                ? exact(token[..^FromTargetSuffix.Length])
+                : plain(token));
+    }
 
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        bool fromTarget = declaration.EndsWith(":from-target", StringComparison.Ordinal);
+        bool fromTarget = declaration.EndsWith(FromTargetSuffix, StringComparison.Ordinal);
         string token = fromTarget
-            ? declaration[..^":from-target".Length]
+            ? declaration[..^FromTargetSuffix.Length]
             : declaration;
         var parsed = ExtraordinaryMechanicSupport.ParseAmount(token, "Effects", allowSigned: false);
         if (!parsed.IsSuccess) return Result<PreparedMutation?>.Fail(parsed.Error!);

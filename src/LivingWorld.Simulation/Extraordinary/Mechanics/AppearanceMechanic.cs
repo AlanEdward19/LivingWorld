@@ -19,7 +19,7 @@ public sealed class AppearanceMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("appearance.impersonate:", "appearance.impersonate:<npcId>", false, "carrier"),
+        new("appearance.impersonate:", "appearance.impersonate:<npcId>", false, "carrier", static token => long.TryParse(token["appearance.impersonate:".Length..], out long id) && id > 0),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(

@@ -20,7 +20,7 @@ public sealed class SoulMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("soul.persist-as-ghost", "soul.persist-as-ghost", false, "carrier"),
+        new("soul.persist-as-ghost", "soul.persist-as-ghost", false, "carrier", PrimitiveSyntax.Flag("soul.persist-as-ghost")),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(

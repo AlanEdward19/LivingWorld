@@ -19,8 +19,8 @@ public sealed class LuckMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("luck.capacity-bonus:", "luck.capacity-bonus:<n>", false, "carrier"),
-        new("luck.curse:", "luck.curse:<n>[:<ticks>]", false, "target"),
+        new("luck.capacity-bonus:", "luck.capacity-bonus:<n>", false, "carrier", static token => TryParseCapacityBonus(token, out _)),
+        new("luck.curse:", "luck.curse:<n>[:<ticks>]", false, "target", static token => TryParseCurse(token, out _, out _)),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(

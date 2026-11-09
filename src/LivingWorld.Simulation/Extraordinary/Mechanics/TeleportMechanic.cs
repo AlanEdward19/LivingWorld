@@ -12,7 +12,7 @@ public sealed class TeleportMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("npc.teleport", "npc.teleport:<alcance>", false, "target"),
+        new("npc.teleport", "npc.teleport:<alcance>", false, "target", PrimitiveSyntax.Amount("npc.teleport", false)),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(

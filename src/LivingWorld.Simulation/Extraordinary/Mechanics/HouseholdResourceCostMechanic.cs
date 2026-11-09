@@ -9,7 +9,7 @@ public sealed class HouseholdResourceCostMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("household.resource.", "household.resource.<id>:<n>", false, "household"),
+        new("household.resource.", "household.resource.<id>:<n>", false, "household", PrimitiveSyntax.AmountWith(static key => ExtraordinaryMechanicSupport.TryResource(key, out _), false)),
     ];
 
     public override Result<long> CostAvailable(ExtraordinaryMechanicContext ctx, string key)

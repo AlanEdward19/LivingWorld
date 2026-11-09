@@ -18,6 +18,9 @@ public static class AreaTargetResolver
         token.StartsWith("area:radius:", StringComparison.Ordinal)
         || token.StartsWith("area:region:", StringComparison.Ordinal);
 
+    /// <summary>Sintaxe do seletor sem contexto de mundo (mesmo parser da resolução).</summary>
+    public static bool IsWellFormedSelector(string token) => ParseSelector(token).IsSuccess;
+
     public static Result<IReadOnlyList<NpcId>> Resolve(
         WorldState world, Npc carrier, IReadOnlyList<string> effects)
     {

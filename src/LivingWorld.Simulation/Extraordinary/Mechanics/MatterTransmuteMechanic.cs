@@ -15,18 +15,13 @@ public sealed class MatterTransmuteMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("matter.transmute", "matter.transmute:<origem>:<destino>:<taxa>", false, "household"),
+        new("matter.transmute", "matter.transmute:<origem>:<destino>:<taxa>", false, "household", static token => TryParse(token, out _, out _, out _)),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        var parts = declaration.Split(':', StringSplitOptions.TrimEntries);
-        if (parts.Length != 4
-            || !string.Equals(parts[0], Prefix, StringComparison.Ordinal)
-            || !int.TryParse(parts[1], out int originId) || originId < 0
-            || !int.TryParse(parts[2], out int destId) || destId < 0
-            || !int.TryParse(parts[3], out int rate) || rate <= 0)
+        if (!TryParse(declaration, out int originId, out int destId, out int rate))
             return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
 
         var home = ctx.Carrier.Household is { } householdId
@@ -55,5 +50,16 @@ public sealed class MatterTransmuteMechanic : ExtraordinaryMechanic
                 WorldEventKind.Minted, $"{dest.Id}|{credit}",
                 sourceSystem: "MatterTransmuteMechanic", causeEventId: destroyedId);
         }));
+    }
+
+    private static bool TryParse(string declaration, out int originId, out int destId, out int rate)
+    {
+        originId = destId = rate = 0;
+        var parts = declaration.Split(':', StringSplitOptions.TrimEntries);
+        return parts.Length == 4
+            && string.Equals(parts[0], "matter.transmute", StringComparison.Ordinal)
+            && int.TryParse(parts[1], out originId) && originId >= 0
+            && int.TryParse(parts[2], out destId) && destId >= 0
+            && int.TryParse(parts[3], out rate) && rate > 0;
     }
 }

@@ -30,8 +30,8 @@ public sealed class ControlMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("control.possess", "control.possess[:<ActionType>...]", false, "target"),
-        new("control.body-swap", "control.body-swap", false, "target"),
+        new("control.possess", "control.possess[:<ActionType>...]", false, "target", static token => TryParsePossess(token, out _)),
+        new("control.body-swap", "control.body-swap", false, "target", PrimitiveSyntax.Flag("control.body-swap")),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(

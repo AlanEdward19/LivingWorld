@@ -38,7 +38,7 @@ public sealed class ForesightMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("foresight.preview:", "foresight.preview:<evento>", false, "target"),
+        new("foresight.preview:", "foresight.preview:<evento>", false, "target", PrimitiveSyntax.NonEmptyArgument("foresight.preview:")),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(

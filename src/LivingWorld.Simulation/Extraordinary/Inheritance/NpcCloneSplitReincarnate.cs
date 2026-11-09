@@ -97,7 +97,7 @@ public sealed class NpcCloneMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("npc.clone", "npc.clone:<n>", false, "carrier"),
+        new("npc.clone", "npc.clone:<n>", false, "carrier", PrimitiveSyntax.Amount("npc.clone", false)),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(
@@ -125,7 +125,7 @@ public sealed class NpcSplitOnDeathMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("npc.split-on-death", "npc.split-on-death:<n>", false, "carrier"),
+        new("npc.split-on-death", "npc.split-on-death:<n>", false, "carrier", PrimitiveSyntax.Amount("npc.split-on-death", false)),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(
@@ -147,7 +147,7 @@ public sealed class NpcReincarnateMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("npc.reincarnate", "npc.reincarnate:<1..100>", false, "carrier"),
+        new("npc.reincarnate", "npc.reincarnate:<1..100>", false, "carrier", static token => PrimitiveSyntax.Amount("npc.reincarnate", false)(token) && ValidReincarnateRange(token)),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(
@@ -160,4 +160,7 @@ public sealed class NpcReincarnateMechanic : ExtraordinaryMechanic
         // Efeito passivo: fila PendingReincarnation em OnCarrierDeath; aplica no próximo nascimento.
         return Result<PreparedMutation?>.Ok(null);
     }
+
+    private static bool ValidReincarnateRange(string token) =>
+        ExtraordinaryMechanicSupport.ParseAmount(token, "Effects", allowSigned: false).Value.Amount is >= 1 and <= 100;
 }

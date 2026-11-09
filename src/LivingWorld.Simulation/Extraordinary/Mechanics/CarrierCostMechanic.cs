@@ -14,7 +14,8 @@ public sealed class CarrierCostMechanic : ExtraordinaryMechanic
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
         NpcStatAccessors.All
             .Select(stat => new ExtraordinaryPrimitive(
-                KeyPrefix + stat.Key, $"{KeyPrefix}{stat.Key}:<n>", false, "carrier"))
+                KeyPrefix + stat.Key, $"{KeyPrefix}{stat.Key}:<n>", false, "carrier",
+                PrimitiveSyntax.Amount(KeyPrefix + stat.Key, signed: false)))
             .ToList();
 
     public override Result<long> CostAvailable(ExtraordinaryMechanicContext ctx, string key)

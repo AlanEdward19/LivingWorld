@@ -9,10 +9,12 @@ public sealed class NpcStatTableArchitectureTests
 {
     private const string TableFile = "NpcStatAccessors.cs";
 
+    // Literal exato ("health", "carrier.hunger", "bond.share:sleep") ou com argumentos
+    // ("carrier.health:", "npc.thirst:-5"). Prosa com a palavra solta não casa: exige aspas coladas.
     private static Regex AttributeLiteral() => new(
-        "\"(?:(?:npc|carrier|transfer|bond\\.share:)\\.?)?(?:"
+        "\"(?:(?:npc|carrier|transfer)\\.|bond\\.share:)?(?:"
         + string.Join('|', NpcStatAccessors.All.Select(stat => Regex.Escape(stat.Key)))
-        + ")\"",
+        + ")(?::[^\"]*)?\"",
         RegexOptions.CultureInvariant);
 
     [Fact]
@@ -33,6 +35,21 @@ public sealed class NpcStatTableArchitectureTests
 
         Assert.Matches(AttributeLiteral(), mutant);
     }
+
+    [Theory]
+    [InlineData("var key = \"carrier.health:\";")]
+    [InlineData("var key = \"npc.thirst:-5\";")]
+    [InlineData("var key = \"bond.share:sleep\";")]
+    [InlineData("var key = \"transfer.social\";")]
+    public void Scanner_flags_literals_with_colon_arguments(string source) =>
+        Assert.Matches(AttributeLiteral(), source);
+
+    [Theory]
+    [InlineData("var text = $\"hunger={value}\";")]
+    [InlineData("// a saúde (health) do alvo")]
+    [InlineData("var key = \"household.resource.9\";")]
+    public void Scanner_ignores_prose_and_unrelated_literals(string source) =>
+        Assert.DoesNotMatch(AttributeLiteral(), source);
 
     private static IEnumerable<string> Scan(Regex regex)
     {

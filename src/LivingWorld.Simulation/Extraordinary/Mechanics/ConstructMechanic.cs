@@ -12,7 +12,7 @@ public sealed class ConstructMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("construct.create", "construct.create:<L>x<A>:<durabilidade>:<horas>:<aparência>", false, "carrier"),
+        new("construct.create", "construct.create:<L>x<A>:<durabilidade>:<horas>:<aparência>", false, "carrier", static token => TryParse(token, out _, out _, out _, out _, out _)),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(
@@ -22,14 +22,8 @@ public sealed class ConstructMechanic : ExtraordinaryMechanic
         var invocation = ctx.Invocation;
         var target = ctx.Target;
         var tickCtx = ctx.Tick;
-        var parts = declaration.Split(':', StringSplitOptions.TrimEntries);
-        var dimensions = parts.Length == 5 ? parts[1].Split('x', StringSplitOptions.TrimEntries) : [];
-        if (dimensions.Length != 2
-            || !int.TryParse(dimensions[0], out int width) || width is < 1 or > 8
-            || !int.TryParse(dimensions[1], out int height) || height is < 1 or > 8
-            || !int.TryParse(parts[2], out int durability) || durability <= 0
-            || !long.TryParse(parts[3], out long durationHours) || durationHours <= 0
-            || string.IsNullOrWhiteSpace(parts[4]))
+        if (!TryParse(declaration, out int width, out int height, out int durability,
+                out long durationHours, out string appearanceToken))
             return Result<PreparedMutation?>.Fail(
                 "Effects: construct.create exige 'LxA:durabilidade:horas:aparência' válida");
 
@@ -59,11 +53,31 @@ public sealed class ConstructMechanic : ExtraordinaryMechanic
             var construct = new ExtraordinaryConstruct(
                 id, invocation.CarrierId, invocation.PowerId, invocation.InvocationId,
                 origin, footprint, durability, durability,
-                tickCtx.CurrentTick, checked(tickCtx.CurrentTick + durationHours), parts[4]);
+                tickCtx.CurrentTick, checked(tickCtx.CurrentTick + durationHours), appearanceToken);
             world.AddExtraordinaryConstruct(construct);
             tickCtx.LogEvent(
                 WorldEventKind.ExtraordinaryConstructCreated,
                 $"{invocation.CarrierId.Value}|{invocation.InvocationId}|{invocation.PowerId}|{id}", sourceSystem: "ConstructMechanic");
         }));
+    }
+
+    private static bool TryParse(
+        string declaration, out int width, out int height, out int durability,
+        out long durationHours, out string appearance)
+    {
+        width = height = durability = 0;
+        durationHours = 0;
+        appearance = "";
+        var parts = declaration.Split(':', StringSplitOptions.TrimEntries);
+        var dimensions = parts.Length == 5 ? parts[1].Split('x', StringSplitOptions.TrimEntries) : [];
+        if (dimensions.Length != 2
+            || !int.TryParse(dimensions[0], out width) || width is < 1 or > 8
+            || !int.TryParse(dimensions[1], out height) || height is < 1 or > 8
+            || !int.TryParse(parts[2], out durability) || durability <= 0
+            || !long.TryParse(parts[3], out durationHours) || durationHours <= 0
+            || string.IsNullOrWhiteSpace(parts[4]))
+            return false;
+        appearance = parts[4];
+        return true;
     }
 }

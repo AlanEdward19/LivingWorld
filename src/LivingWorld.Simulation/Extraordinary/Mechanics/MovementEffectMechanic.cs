@@ -12,8 +12,8 @@ public sealed class MovementEffectMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("movement.flight", "movement.flight:<n>", false, "carrier"),
-        new("movement.speed-multiplier", "movement.speed-multiplier:<n>", false, "carrier"),
+        new("movement.flight", "movement.flight:<n>", false, "carrier", PrimitiveSyntax.PositiveNumber("movement.flight")),
+        new("movement.speed-multiplier", "movement.speed-multiplier:<n>", false, "carrier", PrimitiveSyntax.PositiveNumber("movement.speed-multiplier")),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(

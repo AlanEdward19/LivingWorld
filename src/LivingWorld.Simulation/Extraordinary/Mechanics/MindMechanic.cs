@@ -23,12 +23,12 @@ public sealed class MindMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("mind.read", "mind.read", false, "target"),
-        new("mind.read-memory", "mind.read-memory", false, "target"),
-        new("mind.commune", "mind.commune", false, "target"),
-        new("mind.erase-memory:", "mind.erase-memory:<memória>", false, "target"),
-        new("mind.implant-memory:", "mind.implant-memory:<memória>", false, "target"),
-        new("mind.alter-trait:", "mind.alter-trait:<traço>:<±n>", true, "target"),
+        new("mind.read", "mind.read", false, "target", PrimitiveSyntax.Flag("mind.read")),
+        new("mind.read-memory", "mind.read-memory", false, "target", PrimitiveSyntax.Flag("mind.read-memory")),
+        new("mind.commune", "mind.commune", false, "target", PrimitiveSyntax.Flag("mind.commune")),
+        new("mind.erase-memory:", "mind.erase-memory:<memória>", false, "target", static token => TryParseFactToken(token, ErasePrefix, out _)),
+        new("mind.implant-memory:", "mind.implant-memory:<memória>", false, "target", static token => TryParseFactToken(token, ImplantPrefix, out _)),
+        new("mind.alter-trait:", "mind.alter-trait:<traço>:<±n>", true, "target", ValidAlterTrait),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(
@@ -291,4 +291,13 @@ public sealed class MindMechanic : ExtraordinaryMechanic
             "risk-aversion" => values with { RiskAversion = value },
             _ => values,
         };
+
+    private static bool ValidAlterTrait(string token)
+    {
+        const string alterPrefix = "mind.alter-trait:";
+        var parsed = ExtraordinaryMechanicSupport.ParseAmount(token, "Effects", allowSigned: true);
+        return parsed.IsSuccess && parsed.Value.Key.Length > alterPrefix.Length
+            && parsed.Value.Key.StartsWith(alterPrefix, StringComparison.Ordinal)
+            && TryCanonicalTrait(parsed.Value.Key[alterPrefix.Length..], out _);
+    }
 }

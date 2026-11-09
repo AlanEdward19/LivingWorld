@@ -14,7 +14,8 @@ public sealed class NpcStatMechanic : ExtraordinaryMechanic
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
         NpcStatAccessors.All
             .Select(stat => new ExtraordinaryPrimitive(
-                KeyPrefix + stat.Key, $"{KeyPrefix}{stat.Key}:<±n>", true, "target"))
+                KeyPrefix + stat.Key, $"{KeyPrefix}{stat.Key}:<±n>", true, "target",
+                PrimitiveSyntax.Amount(KeyPrefix + stat.Key, signed: true)))
             .ToList();
 
     public override Result<PreparedMutation?> PrepareEffect(
