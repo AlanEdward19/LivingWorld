@@ -17,39 +17,46 @@ public sealed class TransferMechanic : ExtraordinaryMechanic
     public override string Prefix => KeyPrefix;
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
-    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
-        NpcStatAccessors.All
-            .Select(stat => Primitive(KeyPrefix + stat.Key, $"{KeyPrefix}{stat.Key}:<n>[:from-target]"))
-            .Append(Primitive(KeyPrefix + "lifespan-years", "transfer.lifespan-years:<anos>[:from-target]"))
-            .ToList();
-
     private const string FromTargetSuffix = ":from-target";
+    private const string LifespanKey = KeyPrefix + "lifespan-years";
 
-    private static ExtraordinaryPrimitive Primitive(string key, string format)
-    {
-        var plain = PrimitiveSyntax.Amount(key, signed: false);
-        var exact = PrimitiveSyntax.AmountExact(key, signed: false);
-        return new ExtraordinaryPrimitive(key, format, false, "target", token =>
-            token.EndsWith(FromTargetSuffix, StringComparison.Ordinal)
-                ? exact(token[..^FromTargetSuffix.Length])
-                : plain(token));
-    }
+    /// <summary>Transferência lida de um token: <see cref="Stat"/> nulo = anos de vida.</summary>
+    public readonly record struct Transfer(NpcStat? Stat, int Amount, bool FromTarget);
+
+    /// <summary>Parser único de <c>transfer.&lt;atributo&gt;:n[:from-target]</c> e <c>transfer.lifespan-years</c>.
+    /// Com o sufixo <c>:from-target</c> a forma tipada <c>chave:tipo:n</c> não vale (o motor não a reduz).</summary>
+    public static readonly ExtraordinaryPrimitive<Transfer> Token = new(
+        KeyPrefix,
+        NpcStatAccessors.All
+            .Select(stat => new PrimitiveListing(
+                KeyPrefix + stat.Key, $"{KeyPrefix}{stat.Key}:<n>[:from-target]", false, "target"))
+            .Append(new PrimitiveListing(
+                LifespanKey, "transfer.lifespan-years:<anos>[:from-target]", false, "target"))
+            .ToList(),
+        static declaration =>
+        {
+            bool fromTarget = declaration.EndsWith(FromTargetSuffix, StringComparison.Ordinal);
+            string token = fromTarget ? declaration[..^FromTargetSuffix.Length] : declaration;
+            var parsed = ExtraordinaryMechanicSupport.ParseAmount(token, "Effects", allowSigned: false);
+            if (!parsed.IsSuccess) return Result<Transfer>.Fail(parsed.Error!);
+            if (parsed.Value.Key == LifespanKey)
+                return Result<Transfer>.Ok(new Transfer(null, parsed.Value.Amount, fromTarget));
+            return NpcStatAccessors.TryGet(parsed.Value.Key, KeyPrefix, out var stat)
+                ? Result<Transfer>.Ok(new Transfer(stat, parsed.Value.Amount, fromTarget))
+                : Result<Transfer>.Fail($"Effects: alvo não suportado '{parsed.Value.Key}'");
+        });
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [Token];
 
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        bool fromTarget = declaration.EndsWith(FromTargetSuffix, StringComparison.Ordinal);
-        string token = fromTarget
-            ? declaration[..^FromTargetSuffix.Length]
-            : declaration;
-        var parsed = ExtraordinaryMechanicSupport.ParseAmount(token, "Effects", allowSigned: false);
+        var parsed = Token.Parse(declaration);
         if (!parsed.IsSuccess) return Result<PreparedMutation?>.Fail(parsed.Error!);
+        bool fromTarget = parsed.Value.FromTarget;
 
-        if (parsed.Value.Key == "transfer.lifespan-years")
+        if (parsed.Value.Stat is not { } stat)
             return PrepareLifespan(ctx, declaration, fromTarget, parsed.Value.Amount);
-
-        if (!NpcStatAccessors.TryGet(parsed.Value.Key, KeyPrefix, out var stat))
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{parsed.Value.Key}'");
 
         var donor = fromTarget ? ctx.Target : ctx.Carrier;
         var recipient = fromTarget ? ctx.Carrier : ctx.Target;

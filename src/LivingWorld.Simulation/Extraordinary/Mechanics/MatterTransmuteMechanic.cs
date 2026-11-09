@@ -13,16 +13,23 @@ public sealed class MatterTransmuteMechanic : ExtraordinaryMechanic
     public override string Prefix => "matter.transmute";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
-    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
-    [
-        new("matter.transmute", "matter.transmute:<origem>:<destino>:<taxa>", false, "household", static token => TryParse(token, out _, out _, out _)),
-    ];
+    /// <summary>Parser único de <c>matter.transmute</c>; a fronteira do head é do parser, que apara o primeiro segmento.</summary>
+    public static readonly ExtraordinaryPrimitive<(int Origin, int Destination, int Rate)> Transmute = new(
+        "matter.transmute", "matter.transmute:<origem>:<destino>:<taxa>", false, "household",
+        static token => TryParse(token, out int origin, out int destination, out int rate)
+            ? Result<(int, int, int)>.Ok((origin, destination, rate))
+            : Result<(int, int, int)>.Fail($"Effects: alvo não suportado '{token}'"),
+        looseHead: true);
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [Transmute];
 
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        if (!TryParse(declaration, out int originId, out int destId, out int rate))
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
+        var parsed = Transmute.Parse(declaration);
+        if (!parsed.IsSuccess)
+            return Result<PreparedMutation?>.Fail(parsed.Error!);
+        var (originId, destId, rate) = parsed.Value;
 
         var home = ctx.Carrier.Household is { } householdId
             ? ctx.World.FindHousehold(householdId)

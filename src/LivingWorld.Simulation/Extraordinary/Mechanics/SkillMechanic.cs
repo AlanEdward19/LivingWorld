@@ -22,11 +22,20 @@ public sealed class SkillMechanic : ExtraordinaryMechanic
     public override string Prefix => "skill.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
-    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
-    [
-        new("skill.copy:", "skill.copy:<skill>", false, "target", static token => TryParseCopy(token, out _)),
-        new("skill.learn-rate:", "skill.learn-rate:<n>", false, "carrier", static token => TryParseLearnRate(token, out _)),
-    ];
+    /// <summary>Parser único de <c>skill.copy:&lt;skillId&gt;</c>.</summary>
+    public static readonly ExtraordinaryPrimitive<int> Copy = new(
+        CopyPrefix, "skill.copy:<skill>", false, "target",
+        PrimitiveSyntax.From<int>(
+            ParseCopy, static token => $"Effects: skill.copy exige um SkillType id inteiro '{token}'"));
+
+    /// <summary>Parser único de <c>skill.learn-rate:&lt;m&gt;</c> (lido também por <see cref="ManifestedLearnRate"/>).</summary>
+    public static readonly ExtraordinaryPrimitive<double> LearnRate = new(
+        LearnRatePrefix, "skill.learn-rate:<n>", false, "carrier",
+        PrimitiveSyntax.From<double>(
+            ParseLearnRate,
+            static token => $"Effects: skill.learn-rate exige um multiplicador não negativo '{token}'"));
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [Copy, LearnRate];
 
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
@@ -53,7 +62,7 @@ public sealed class SkillMechanic : ExtraordinaryMechanic
                      .OrderBy(descriptor => descriptor.Id, StringComparer.Ordinal)
                      .SelectMany(descriptor => descriptor.Effects))
         {
-            if (!TryParseLearnRate(effect, out double multiplier)) continue;
+            if (!LearnRate.TryParse(effect, out double multiplier)) continue;
             rate *= multiplier;
         }
 
@@ -63,8 +72,10 @@ public sealed class SkillMechanic : ExtraordinaryMechanic
     private static Result<PreparedMutation?> PrepareCopy(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        if (!TryParseCopy(declaration, out int skillId))
-            return Result<PreparedMutation?>.Fail($"Effects: skill.copy exige um SkillType id inteiro '{declaration}'");
+        var copy = Copy.Parse(declaration);
+        if (!copy.IsSuccess)
+            return Result<PreparedMutation?>.Fail(copy.Error!);
+        int skillId = copy.Value;
 
         var skillType = new SkillType(skillId);
         var target = ctx.Target;
@@ -82,13 +93,13 @@ public sealed class SkillMechanic : ExtraordinaryMechanic
 
     private static Result<PreparedMutation?> PrepareLearnRate(string declaration)
     {
-        if (!TryParseLearnRate(declaration, out _))
-            return Result<PreparedMutation?>.Fail(
-                $"Effects: skill.learn-rate exige um multiplicador não negativo '{declaration}'");
-        return Result<PreparedMutation?>.Ok(null);
+        var rate = LearnRate.Parse(declaration);
+        return rate.IsSuccess
+            ? Result<PreparedMutation?>.Ok(null)
+            : Result<PreparedMutation?>.Fail(rate.Error!);
     }
 
-    private static bool TryParseLearnRate(string declaration, out double multiplier)
+    private static bool ParseLearnRate(string declaration, out double multiplier)
     {
         multiplier = 0;
         if (!declaration.StartsWith(LearnRatePrefix, StringComparison.Ordinal)) return false;
@@ -100,7 +111,7 @@ public sealed class SkillMechanic : ExtraordinaryMechanic
                && multiplier >= 0;
     }
 
-    private static bool TryParseCopy(string declaration, out int skillId)
+    private static bool ParseCopy(string declaration, out int skillId)
     {
         skillId = 0;
         return declaration.StartsWith(CopyPrefix, StringComparison.Ordinal)

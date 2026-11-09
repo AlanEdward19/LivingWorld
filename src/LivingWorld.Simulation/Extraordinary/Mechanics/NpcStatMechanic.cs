@@ -11,21 +11,30 @@ public sealed class NpcStatMechanic : ExtraordinaryMechanic
     public override string Prefix => KeyPrefix;
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
-    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+    /// <summary>Parser único de <c>npc.&lt;atributo&gt;:±n</c> (carga e invocação).</summary>
+    public static readonly ExtraordinaryPrimitive<(NpcStat Stat, int Amount)> Effect = new(
+        KeyPrefix,
         NpcStatAccessors.All
-            .Select(stat => new ExtraordinaryPrimitive(
-                KeyPrefix + stat.Key, $"{KeyPrefix}{stat.Key}:<±n>", true, "target",
-                PrimitiveSyntax.Amount(KeyPrefix + stat.Key, signed: true)))
-            .ToList();
+            .Select(stat => new PrimitiveListing(
+                KeyPrefix + stat.Key, $"{KeyPrefix}{stat.Key}:<±n>", true, "target"))
+            .ToList(),
+        static token =>
+        {
+            var parsed = ExtraordinaryMechanicSupport.ParseAmount(token, "Effects", allowSigned: true);
+            if (!parsed.IsSuccess) return Result<(NpcStat, int)>.Fail(parsed.Error!);
+            return NpcStatAccessors.TryGet(parsed.Value.Key, KeyPrefix, out var stat)
+                ? Result<(NpcStat, int)>.Ok((stat, parsed.Value.Amount))
+                : Result<(NpcStat, int)>.Fail($"Effects: alvo não suportado '{parsed.Value.Key}'");
+        });
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [Effect];
 
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        var parsed = ExtraordinaryMechanicSupport.ParseAmount(declaration, "Effects", allowSigned: true);
+        var parsed = Effect.Parse(declaration);
         if (!parsed.IsSuccess) return Result<PreparedMutation?>.Fail(parsed.Error!);
-        var (key, amount) = parsed.Value;
-        if (!NpcStatAccessors.TryGet(key, KeyPrefix, out var stat))
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{key}'");
+        var (stat, amount) = parsed.Value;
         var target = ctx.Target;
         var tick = ctx.Tick.CurrentTick;
         return Result<PreparedMutation?>.Ok(new PreparedMutation(declaration, resolution =>

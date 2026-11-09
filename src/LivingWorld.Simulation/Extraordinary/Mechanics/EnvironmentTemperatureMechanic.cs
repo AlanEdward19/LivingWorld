@@ -18,16 +18,22 @@ public sealed class EnvironmentTemperatureMechanic : ExtraordinaryMechanic
     public override string Prefix => "environment.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
-    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
-    [
-        new("environment.temperature:", "environment.temperature:<região>:<delta>:<ticks>", true, "world", static token => TryParse(token, out _, out _, out _)),
-    ];
+    /// <summary>Parser único de <c>environment.temperature:&lt;região&gt;:&lt;delta&gt;:&lt;ticks&gt;</c>.</summary>
+    public static readonly ExtraordinaryPrimitive<(RegionId Region, float Delta, long DurationTicks)> Adjustment = new(
+        TokenPrefix, "environment.temperature:<região>:<delta>:<ticks>", true, "world",
+        static token => ParseAdjustment(token, out var region, out float delta, out long duration)
+            ? Result<(RegionId, float, long)>.Ok((region, delta, duration))
+            : Result<(RegionId, float, long)>.Fail($"Effects: alvo não suportado '{token}'"));
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [Adjustment];
 
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        if (!TryParse(declaration, out var region, out float delta, out long durationTicks))
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
+        var parsed = Adjustment.Parse(declaration);
+        if (!parsed.IsSuccess)
+            return Result<PreparedMutation?>.Fail(parsed.Error!);
+        var (region, delta, durationTicks) = parsed.Value;
 
         if (ctx.World.Map.Regions.All(item => item.Id != region))
             return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
@@ -100,6 +106,14 @@ public sealed class EnvironmentTemperatureMechanic : ExtraordinaryMechanic
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<WorldState, TemperatureField> Fields = new();
 
     internal static bool TryParse(
+        string declaration, out RegionId region, out float delta, out long durationTicks)
+    {
+        bool ok = Adjustment.TryParse(declaration, out var parsed);
+        (region, delta, durationTicks) = parsed;
+        return ok;
+    }
+
+    private static bool ParseAdjustment(
         string declaration, out RegionId region, out float delta, out long durationTicks)
     {
         region = default;

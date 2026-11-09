@@ -23,11 +23,17 @@ public sealed class CombatMechanic : ExtraordinaryMechanic
     public override string Prefix => "combat.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
-    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
-    [
-        new("combat.strike:", "combat.strike:<dano>", false, "target", PrimitiveSyntax.AnyKeyAmount(false), LooseHead: true),
-        new("combat.engage:", "combat.engage:<rounds>", false, "target", PrimitiveSyntax.AnyKeyAmount(false), LooseHead: true),
-    ];
+    /// <summary>Parser único de <c>combat.strike:&lt;dano&gt;</c>; lê só a magnitude, sem conferir a chave.</summary>
+    public static readonly ExtraordinaryPrimitive<(string Key, int Amount)> Strike = new(
+        StrikePrefix, "combat.strike:<dano>", false, "target", PrimitiveSyntax.AnyKeyAmount(false),
+        looseHead: true);
+
+    /// <summary>Parser único de <c>combat.engage:&lt;rounds&gt;</c>; idem.</summary>
+    public static readonly ExtraordinaryPrimitive<(string Key, int Amount)> Engage = new(
+        EngagePrefix, "combat.engage:<rounds>", false, "target", PrimitiveSyntax.AnyKeyAmount(false),
+        looseHead: true);
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [Strike, Engage];
 
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
@@ -42,7 +48,7 @@ public sealed class CombatMechanic : ExtraordinaryMechanic
             return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{key}'");
         }
 
-        var parsed = ExtraordinaryMechanicSupport.ParseAmount(declaration, "Effects", allowSigned: false);
+        var parsed = Strike.Parse(declaration);
         if (!parsed.IsSuccess) return Result<PreparedMutation?>.Fail(parsed.Error!);
 
         int magnitude = parsed.Value.Amount;
@@ -77,7 +83,7 @@ public sealed class CombatMechanic : ExtraordinaryMechanic
     private static Result<PreparedMutation?> PrepareEngage(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        var parsed = ExtraordinaryMechanicSupport.ParseAmount(declaration, "Effects", allowSigned: false);
+        var parsed = Engage.Parse(declaration);
         if (!parsed.IsSuccess) return Result<PreparedMutation?>.Fail(parsed.Error!);
 
         int magnitude = parsed.Value.Amount;

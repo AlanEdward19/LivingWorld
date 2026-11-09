@@ -95,18 +95,17 @@ public sealed class NpcCloneMechanic : ExtraordinaryMechanic
     public override string Prefix => "npc.clone";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
-    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
-    [
-        new("npc.clone", "npc.clone:<n>", false, "carrier", PrimitiveSyntax.Amount("npc.clone", false)),
-    ];
+    /// <summary>Parser único de <c>npc.clone:&lt;n&gt;</c>.</summary>
+    public static readonly ExtraordinaryPrimitive<(string Key, int Amount)> Clone = new(
+        "npc.clone", "npc.clone:<n>", false, "carrier", PrimitiveSyntax.Amount("npc.clone", false));
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [Clone];
 
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        var parsed = ExtraordinaryMechanicSupport.ParseAmount(declaration, "Effects", allowSigned: false);
+        var parsed = Clone.Parse(declaration);
         if (!parsed.IsSuccess) return Result<PreparedMutation?>.Fail(parsed.Error!);
-        if (parsed.Value.Key != Prefix)
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{parsed.Value.Key}'");
 
         int count = parsed.Value.Amount;
         return Result<PreparedMutation?>.Ok(new PreparedMutation(declaration, resolution =>
@@ -123,18 +122,18 @@ public sealed class NpcSplitOnDeathMechanic : ExtraordinaryMechanic
     public override string Prefix => "npc.split-on-death";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
-    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
-    [
-        new("npc.split-on-death", "npc.split-on-death:<n>", false, "carrier", PrimitiveSyntax.Amount("npc.split-on-death", false)),
-    ];
+    /// <summary>Parser único de <c>npc.split-on-death:&lt;n&gt;</c>.</summary>
+    public static readonly ExtraordinaryPrimitive<(string Key, int Amount)> Split = new(
+        "npc.split-on-death", "npc.split-on-death:<n>", false, "carrier",
+        PrimitiveSyntax.Amount("npc.split-on-death", false));
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [Split];
 
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        var parsed = ExtraordinaryMechanicSupport.ParseAmount(declaration, "Effects", allowSigned: false);
+        var parsed = Split.Parse(declaration);
         if (!parsed.IsSuccess) return Result<PreparedMutation?>.Fail(parsed.Error!);
-        if (parsed.Value.Key != Prefix)
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{parsed.Value.Key}'");
         // Efeito passivo: dispara em NpcDeath via NpcInstantiationMechanic.OnCarrierDeath.
         return Result<PreparedMutation?>.Ok(null);
     }
@@ -145,22 +144,29 @@ public sealed class NpcReincarnateMechanic : ExtraordinaryMechanic
     public override string Prefix => "npc.reincarnate";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
-    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
-    [
-        new("npc.reincarnate", "npc.reincarnate:<1..100>", false, "carrier", static token => PrimitiveSyntax.Amount("npc.reincarnate", false)(token) && ValidReincarnateRange(token)),
-    ];
+    private static readonly PrimitiveParser<(string Key, int Amount)> ReincarnateAmount =
+        PrimitiveSyntax.Amount("npc.reincarnate", false);
+
+    /// <summary>Parser único de <c>npc.reincarnate:&lt;1..100&gt;</c>.</summary>
+    public static readonly ExtraordinaryPrimitive<int> Reincarnate = new(
+        "npc.reincarnate", "npc.reincarnate:<1..100>", false, "carrier",
+        static token =>
+        {
+            var parsed = ReincarnateAmount(token);
+            if (!parsed.IsSuccess) return Result<int>.Fail(parsed.Error!);
+            return parsed.Value.Amount is >= 1 and <= 100
+                ? Result<int>.Ok(parsed.Value.Amount)
+                : Result<int>.Fail($"Effects: alvo não suportado '{token}'");
+        });
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [Reincarnate];
 
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        var parsed = ExtraordinaryMechanicSupport.ParseAmount(declaration, "Effects", allowSigned: false);
+        var parsed = Reincarnate.Parse(declaration);
         if (!parsed.IsSuccess) return Result<PreparedMutation?>.Fail(parsed.Error!);
-        if (parsed.Value.Key != Prefix || parsed.Value.Amount is < 1 or > 100)
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
         // Efeito passivo: fila PendingReincarnation em OnCarrierDeath; aplica no próximo nascimento.
         return Result<PreparedMutation?>.Ok(null);
     }
-
-    private static bool ValidReincarnateRange(string token) =>
-        ExtraordinaryMechanicSupport.ParseAmount(token, "Effects", allowSigned: false).Value.Amount is >= 1 and <= 100;
 }

@@ -17,21 +17,23 @@ public sealed class AppearanceMechanic : ExtraordinaryMechanic
     public override string Prefix => "appearance.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
-    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
-    [
-        new("appearance.impersonate:", "appearance.impersonate:<npcId>", false, "carrier", static token => long.TryParse(token["appearance.impersonate:".Length..], out long id) && id > 0),
-    ];
+    /// <summary>Parser único de <c>appearance.impersonate:&lt;npcId&gt;</c>.</summary>
+    public static readonly ExtraordinaryPrimitive<long> Impersonate = new(
+        ImpersonatePrefix, "appearance.impersonate:<npcId>", false, "carrier",
+        static token => long.TryParse(token[ImpersonatePrefix.Length..], out long id) && id > 0
+            ? Result<long>.Ok(id)
+            : Result<long>.Fail($"Effects: alvo não suportado '{token}'"));
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [Impersonate];
 
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        if (!declaration.StartsWith(ImpersonatePrefix, StringComparison.Ordinal))
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
-        if (!long.TryParse(declaration[ImpersonatePrefix.Length..], out long targetValue)
-            || targetValue <= 0)
+        var parsed = Impersonate.Parse(declaration);
+        if (!parsed.IsSuccess)
             return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
 
-        var impersonatedId = new NpcId(targetValue);
+        var impersonatedId = new NpcId(parsed.Value);
         if (ctx.World.FindNpc(impersonatedId) is null)
             return Result<PreparedMutation?>.Fail("Effects: appearance.impersonate exige NPC existente");
 

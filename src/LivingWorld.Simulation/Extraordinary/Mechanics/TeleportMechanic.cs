@@ -10,15 +10,17 @@ public sealed class TeleportMechanic : ExtraordinaryMechanic
     public override string Prefix => "npc.teleport";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
-    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
-    [
-        new("npc.teleport", "npc.teleport:<alcance>", false, "target", PrimitiveSyntax.AnyKeyAmount(false), LooseHead: true),
-    ];
+    /// <summary>Parser único de <c>npc.teleport:&lt;alcance&gt;</c>; lê só a magnitude, sem conferir a chave.</summary>
+    public static readonly ExtraordinaryPrimitive<(string Key, int Amount)> Range = new(
+        "npc.teleport", "npc.teleport:<alcance>", false, "target", PrimitiveSyntax.AnyKeyAmount(false),
+        looseHead: true);
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [Range];
 
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        var parsed = ExtraordinaryMechanicSupport.ParseAmount(declaration, "Effects", allowSigned: false);
+        var parsed = Range.Parse(declaration);
         if (!parsed.IsSuccess) return Result<PreparedMutation?>.Fail(parsed.Error!);
         int maxDistance = parsed.Value.Amount;
         var invocation = ctx.Invocation;

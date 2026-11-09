@@ -14,12 +14,7 @@ public static class AreaTargetResolver
     public static bool HasSelector(IReadOnlyList<string> effects) =>
         effects.Any(IsSelector);
 
-    public static bool IsSelector(string token) =>
-        token.StartsWith("area:radius:", StringComparison.Ordinal)
-        || token.StartsWith("area:region:", StringComparison.Ordinal);
-
-    /// <summary>Sintaxe do seletor sem contexto de mundo (mesmo parser da resolução).</summary>
-    public static bool IsWellFormedSelector(string token) => ParseSelector(token).IsSuccess;
+    public static bool IsSelector(string token) => AreaSelectorMechanic.IsSelector(token);
 
     public static Result<IReadOnlyList<NpcId>> Resolve(
         WorldState world, Npc carrier, IReadOnlyList<string> effects)
@@ -31,7 +26,7 @@ public static class AreaTargetResolver
         IEnumerable<Npc> candidates = world.Npcs.Where(npc => npc.IsAlive);
         foreach (var selector in selectors.OrderBy(item => item, StringComparer.Ordinal))
         {
-            var parsed = ParseSelector(selector);
+            var parsed = AreaSelectorMechanic.Selector.Parse(selector);
             if (!parsed.IsSuccess)
                 return Result<IReadOnlyList<NpcId>>.Fail(parsed.Error!);
             candidates = Filter(candidates, carrier, world, parsed.Value);
@@ -51,18 +46,6 @@ public static class AreaTargetResolver
             _ => npcs,
         };
 
-    private static Result<AreaSelector> ParseSelector(string token)
-    {
-        var parts = token.Split(':', StringSplitOptions.TrimEntries);
-        if (parts.Length != 3 || parts[0] != "area"
-            || parts[1] is not ("radius" or "region")
-            || !int.TryParse(parts[2], out int value) || value < 0)
-            return Result<AreaSelector>.Fail($"Effects: seletor de área inválido '{token}'");
-        return Result<AreaSelector>.Ok(new AreaSelector(parts[1], value));
-    }
-
     private static int Chebyshev(CellCoord a, CellCoord b) =>
         Math.Max(Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y));
-
-    private readonly record struct AreaSelector(string Kind, int Value);
 }

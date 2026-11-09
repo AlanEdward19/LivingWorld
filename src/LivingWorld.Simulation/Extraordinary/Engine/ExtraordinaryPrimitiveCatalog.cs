@@ -22,9 +22,10 @@ public static class ExtraordinaryPrimitiveCatalog
 {
     public static IReadOnlyList<ExtraordinaryPrimitiveInfo> Describe(ExtraordinaryMechanicRegistry registry) =>
         registry.All
-            .SelectMany(mechanic => mechanic.Primitives.Select(primitive => new ExtraordinaryPrimitiveInfo(
-                mechanic.GetType().Name, primitive.Head, primitive.Format, mechanic.Kind,
-                primitive.SignedMagnitude, primitive.Target)))
+            .SelectMany(mechanic => mechanic.Primitives.SelectMany(primitive => primitive.Listing.Select(
+                line => new ExtraordinaryPrimitiveInfo(
+                    mechanic.GetType().Name, line.Head, line.Format, mechanic.Kind,
+                    line.SignedMagnitude, line.Target))))
             .OrderBy(info => info.Head, StringComparer.Ordinal)
             .ToList();
 

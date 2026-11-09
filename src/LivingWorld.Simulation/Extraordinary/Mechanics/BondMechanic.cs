@@ -18,16 +18,34 @@ public sealed class BondMechanic : ExtraordinaryMechanic
     public override string Prefix => "bond.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
-    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
+    /// <summary>Parser único de <c>bond.share:&lt;atributo&gt;[:&lt;proporção&gt;]</c>.</summary>
+    public static readonly ExtraordinaryPrimitive<(NpcStat Stat, int Proportion)> Share = new(
+        SharePrefix,
         NpcStatAccessors.All
-            .Select(stat => new ExtraordinaryPrimitive(
-                SharePrefix + stat.Key, $"{SharePrefix}{stat.Key}[:<proporção 1..100>]", false, "carrier",
-                static token => TryParseShare(token, out _, out _)))
-            .Append(new ExtraordinaryPrimitive(
-                OathPrefix, "bond.oath:<token de efeito>", false, "carrier",
-                static token => token.Length > OathPrefix.Length
-                    && ExtraordinaryMechanicRegistry.Default.Resolve(token[OathPrefix.Length..]) is not null))
-            .ToList();
+            .Select(stat => new PrimitiveListing(
+                SharePrefix + stat.Key, $"{SharePrefix}{stat.Key}[:<proporção 1..100>]", false, "carrier"))
+            .ToList(),
+        static token => TryParseShare(token, out string attribute, out int proportion)
+            && NpcStatAccessors.TryGet(attribute, out var stat)
+                ? Result<(NpcStat, int)>.Ok((stat, proportion))
+                : Result<(NpcStat, int)>.Fail($"Effects: alvo não suportado '{token}'"));
+
+    /// <summary>Parser único de <c>bond.oath:&lt;token de efeito&gt;</c>: consequência não vazia cujo prefixo
+    /// resolve a uma mecânica; o argumento interno só vale na invocação do efeito aninhado.</summary>
+    public static readonly ExtraordinaryPrimitive<(string Consequence, IExtraordinaryMechanic Mechanic)> Oath = new(
+        OathPrefix, "bond.oath:<token de efeito>", false, "carrier",
+        static token =>
+        {
+            string consequence = token[OathPrefix.Length..];
+            if (consequence.Length == 0)
+                return Result<(string, IExtraordinaryMechanic)>.Fail($"Effects: alvo não suportado '{token}'");
+            var inner = ExtraordinaryMechanicRegistry.Default.Resolve(consequence);
+            return inner is null
+                ? Result<(string, IExtraordinaryMechanic)>.Fail($"Effects: alvo não suportado '{consequence}'")
+                : Result<(string, IExtraordinaryMechanic)>.Ok((consequence, inner));
+        });
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [Share, Oath];
 
     internal static bool HasOathEffect(PowerDescriptor descriptor)
     {
@@ -53,9 +71,10 @@ public sealed class BondMechanic : ExtraordinaryMechanic
     private static Result<PreparedMutation?> PrepareShare(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        if (!TryParseShare(declaration, out string attribute, out int proportion))
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
-        _ = NpcStatAccessors.TryGet(attribute, out var stat);
+        var share = Share.Parse(declaration);
+        if (!share.IsSuccess)
+            return Result<PreparedMutation?>.Fail(share.Error!);
+        var (stat, proportion) = share.Value;
 
         var world = ctx.World;
         var carrier = ctx.Carrier;
@@ -84,18 +103,16 @@ public sealed class BondMechanic : ExtraordinaryMechanic
     private static Result<PreparedMutation?> PrepareOath(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        string consequence = declaration[OathPrefix.Length..];
-        if (consequence.Length == 0)
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
+        var oath = Oath.Parse(declaration);
+        if (!oath.IsSuccess)
+            return Result<PreparedMutation?>.Fail(oath.Error!);
+        var (consequence, inner) = oath.Value;
 
         var descriptor = ctx.World.Extraordinary.Descriptors.FirstOrDefault(
             item => string.Equals(item.Id, ctx.Invocation.PowerId, StringComparison.Ordinal));
         if (descriptor is null)
             return Result<PreparedMutation?>.Fail("Extraordinary.Descriptors: poder ausente");
 
-        var inner = ExtraordinaryMechanicRegistry.Default.Resolve(consequence);
-        if (inner is null)
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{consequence}'");
 
         var world = ctx.World;
         var carrier = ctx.Carrier;
