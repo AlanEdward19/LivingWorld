@@ -76,6 +76,22 @@ func test_city_panel_shows_snapshot_fields() -> void:
 	panel.free()
 
 
+func test_city_panel_shows_dash_for_unmeasured_indicators_and_health_as_mean() -> void:
+	var panel := Panels.CityPanel.new()
+
+	panel.show_city({"name": "Alfa", "indicators": {
+		"population": 5, "wealth": 10, "health": 64.2, "inequality": 0.0, "economy": 10, "housing": 4,
+		"security": null, "education": null, "infrastructure": null}})
+
+	check("Saúde (média) 64.2" in panel.text, "saúde é a média, com uma casa decimal")
+	check("Segurança —" in panel.text and "Educação —" in panel.text and "Infraestrutura —" in panel.text, "nulo vira traço")
+	check(not ("Segurança 0" in panel.text), "nulo nunca vira zero")
+	panel.show_city({"name": "Beta", "indicators": {
+		"population": 5, "wealth": 10, "health": 50, "inequality": 0.0, "economy": 10, "housing": 4, "security": 7}})
+	check("Segurança 7" in panel.text and "Educação —" in panel.text, "valor medido aparece; ausente é traço")
+	panel.free()
+
+
 func test_failed_list_shows_error_not_empty() -> void:
 	var transport := FakeTransport.new()
 	transport.on("GET /npcs?", {"status": 500, "body": null})
