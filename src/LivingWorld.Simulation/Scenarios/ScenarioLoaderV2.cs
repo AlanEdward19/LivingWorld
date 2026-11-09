@@ -58,6 +58,13 @@ public static class ScenarioLoaderV2
             definition.Behavior.NeedsRules, definition.Behavior.ActionCatalog,
             ScenarioRunner.DefaultLifeStageRules,
             economyRules: definition.Economy.Rules, economyCatalog: definition.Economy.Catalog,
+            // Mesmos padrões de ScenarioRunner.Create (#112 D): sem eles o mundo carregado por JSON caía em FamilyRules.Disabled
+            // (sem risco de parto nem pisos de concepção), PerfRules.Default implícito e ecologia vazia.
+            familyRules: ScenarioRunner.DefaultFamilyRules, perfRules: ScenarioRunner.DefaultPerfRules,
+            animalSpeciesRules: ScenarioRunner.DefaultAnimalSpeciesRules,
+            plantSpeciesRules: ScenarioRunner.DefaultPlantSpeciesRules,
+            biomeSeasonTemperatureRules: ScenarioRunner.DefaultBiomeSeasonTemperatureRules,
+            diseaseRules: definition.Disease, climateRules: definition.Climate, theftRules: definition.Theft,
             // Include deaths from deprivation (0.414375) as well as ordinary deaths (0.49725).
             historyRules: HistoryRules.Default with { SkeletonSignificanceThreshold = 0.4 },
             cityRules: definition.City.Rules, cityCatalog: definition.City.Catalog,

@@ -31,7 +31,10 @@ public sealed record PeriodDefinition(
     LivingWorld.Domain.Emergence.EmergenceRules Emergence,
     LivingWorld.Domain.Ontogeny.OntogenyRules Ontogeny,
     LivingWorld.Domain.Population.AppearanceRules? Appearance = null,
-    LivingWorld.Domain.Objects.ObjectCatalog? Objects = null);
+    LivingWorld.Domain.Objects.ObjectCatalog? Objects = null,
+    LivingWorld.Domain.Health.DiseaseRules? Disease = null,
+    LivingWorld.Domain.Climate.ClimateRules? Climate = null,
+    LivingWorld.Domain.Crime.TheftRules? Theft = null);
 
 /// <summary>Orquestra a validação de um <c>periodDefinition</c>: encadeia
 /// <see cref="MapScenarioLoader"/>, <see cref="PopulationScenarioLoader"/>,
@@ -101,6 +104,16 @@ public static class PeriodDefinitionValidator
         if (!objectsResult.IsSuccess)
             return Result<PeriodDefinition>.Fail(objectsResult.Error!);
 
+        var diseaseResult = LivingWorld.Simulation.Scenarios.WorldRulesScenarioLoader.LoadDisease(json);
+        if (!diseaseResult.IsSuccess)
+            return Result<PeriodDefinition>.Fail(diseaseResult.Error!);
+        var climateResult = LivingWorld.Simulation.Scenarios.WorldRulesScenarioLoader.LoadClimate(json);
+        if (!climateResult.IsSuccess)
+            return Result<PeriodDefinition>.Fail(climateResult.Error!);
+        var theftResult = LivingWorld.Simulation.Scenarios.WorldRulesScenarioLoader.LoadTheft(json);
+        if (!theftResult.IsSuccess)
+            return Result<PeriodDefinition>.Fail(theftResult.Error!);
+
         var population = populationResult.Value!;
         var dynamics = dynamicsResult.Value!;
 
@@ -111,7 +124,8 @@ public static class PeriodDefinitionValidator
         return Result<PeriodDefinition>.Ok(new PeriodDefinition(
             mapResult.Value!, population, behaviorResult.Value!, economyResult.Value!, cityResult.Value!, dynamics,
             descriptorsResult.Value!, resourcesResult.Value!.Catalog, resourcesResult.Value!.Recipes,
-            extraordinaryResult.Value!, emergenceResult.Value!, ontogenyResult.Value!, appearanceResult.Value, objectsResult.Value));
+            extraordinaryResult.Value!, emergenceResult.Value!, ontogenyResult.Value!, appearanceResult.Value, objectsResult.Value,
+            diseaseResult.Value, climateResult.Value, theftResult.Value));
     }
 
     private static Result<LivingWorld.Domain.Population.AppearanceRules?> ParseAppearance(string json) =>
