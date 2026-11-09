@@ -20,7 +20,12 @@ Escopo: só código de teste. Mesmas seeds, mesmos anos, mesmos asserts, mesmas 
 - `tests/LivingWorld.Tests.Shared/Parallelism/ParallelSeeds.cs`: `Map`/`ForEach` por faixa de seeds, grau único
   `Math.Clamp(ProcessorCount,1,8)`; captura a exceção por seed e relança a de menor seed como
   `InvalidOperationException("seed N falhou: ...")` com o original em `InnerException` (sem `AggregateException`).
-  Resultados em ordem de seed: a agregação pós-loop continua determinística.
+  Resultados em ordem de seed: a agregação pós-loop continua determinística. Aceita faixa (vazia se last < first) ou
+  lista explícita de seeds, para a seed citada na falha ser sempre a seed real do mundo (ex.: 1001).
+- `tests/LivingWorld.Tests.Unit/Shared/ParallelSeedsTests.cs` (rápidos, fora de Scenario): ordem, grau, falha nomeia a
+  seed, `InnerException`, menor seed, lista explícita, faixa vazia. Cada um confirmado com sua mutação (engolir falha,
+  rotacionar ordem, varrer de trás, grau x2, tirar o guard da faixa vazia). Limite: remover só o `MaxDegreeOfParallelism`
+  não é detectável em máquina de até 8 cores, onde o padrão do `Parallel.For` já coincide com o grau.
 - `TechDiscoveryTests`: 20 anos x 10 seeds; 30 anos (6 corridas = 3 pares); divergência de 2 anos x 10 seeds.
 - `OntogenyDebtsTests.Orphan_care...`: 20 seeds, paralelo entre seeds; soma depois, em ordem.
 - `DiseaseTests` (8 seeds) e `PositionalSnapshotTests.Codec...` (já paralelo; agora com grau limitado e seed nomeada).

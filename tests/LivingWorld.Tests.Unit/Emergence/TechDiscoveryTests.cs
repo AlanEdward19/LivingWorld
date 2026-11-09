@@ -251,7 +251,7 @@ public class TechDiscoveryTests
         }
 
         // Cada vila (seed e seed+1000) é independente: as 6 corridas rodam em paralelo, a comparação vem depois.
-        var runs = ParallelSeeds.Map(1, 6, i => Technologies(i <= 3 ? i : i - 3 + 1000));
+        var runs = ParallelSeeds.Map([1UL, 2, 3, 1001, 1002, 1003], Technologies);
         int different = Enumerable.Range(0, 3).Count(i => runs[i] != runs[i + 3]);
 
         Assert.True(different >= 2, $"só {different}/3 pares divergiram em 30 anos");
