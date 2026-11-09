@@ -332,6 +332,27 @@ public class CivilizationObserverValueTests
         Assert.Equal(20, root["summary"]!["final"]!["population_materialized"]!["mean"]!.GetValue<double>(), 9); // só a seed com anos entra
     }
 
+    [Fact]
+    public void Gini_uses_the_fractional_mean_wealth_of_the_pool()
+    {
+        var (world, _, observer) = Fresh();
+        var person = Alive(world)[0];
+        var city = new City(world.NextCityId(), new CellCoord(8, 8), 0, null, new AggregatePopulationPool(3, 100, 0), name: "G");
+        world.AddCity(city);
+        person.JoinCity(city.Id);
+        Assert.Equal(50, person.Wallet.Amount); // pré-condição: carteira do NPC (todos começam com 50)
+
+        var sample = observer.Sample(world);
+
+        Assert.Equal(3, world.FindCity(city.Id)!.AggregatePool.Count); // pré-condição: pool não vazio no fim do ano
+        Assert.NotEqual(0, world.FindCity(city.Id)!.AggregatePool.WealthSum % world.FindCity(city.Id)!.AggregatePool.Count);
+        // Blocos por valor: pool = 3 pessoas a 100/3 (33,33...) e o NPC a 50. Pessoas 4, riqueza 100 + 50 = 150.
+        // Lorenz: bloco 1 vai a 3/4 da população e 100/150 = 2/3 da riqueza, área 0,75·(0 + 2/3) = 1/2;
+        // bloco 2 vai a 1 e 1, área 0,25·(2/3 + 1) = 5/12. Área 11/12; gini = 1 − 11/12 = 1/12.
+        // Com divisão inteira (100/3 = 33) daria 0,0856: a parte fracionária da média muda o resultado.
+        Assert.Equal(1.0 / 12, sample.Cities.Single(c => c.Id == city.Id.ToString()).Metrics["gini"], 9);
+    }
+
     [Theory]
     [InlineData(0, 1)]
     [InlineData(-1, 1)]
