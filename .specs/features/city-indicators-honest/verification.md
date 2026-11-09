@@ -69,3 +69,30 @@
 ### Não verificado
 - FPS do cliente (não remedido). Hash fora do test host (o CLI de hash parou na rodada 1).
 - LongRunning não rodado com o mutante P5 (só Unit --all e Integration).
+
+## Rodada 3 (escopo restrito)
+- **Veredito: PASS.** Alvo: `1ca99c52`, comparado a `8c8c31b0`. Verifier independente, 2026-11-09, load 5 a 18.
+- **Por que restrito:** a rodada 2 aprovou todos os critérios e reprovou só por P5, e a produção não mudou
+  desde então. Os itens 2 a 6 acima valem por herança; aqui só P5, o teste novo e o gate.
+- **Diff:** `--stat` toca só `CityProjectorTests.cs` (+19) e este arquivo; `git diff -- src/ client/`: 0 bytes.
+- **Mutantes** (cópia `git archive` no scratchpad; revertidos com `diff` limpo; `CityProjectorTests`, 21 testes):
+
+| Mutante em `CityProjector.cs:136` | Resultado | Valor obtido |
+|---|---|---|
+| sem mutação (linha de base) | 21 ok | 64,2 |
+| P5 `Math.Floor` | morto, 1 falha, só o teste novo | 64 |
+| `Math.Round` | morto, 1 falha, só o teste novo | 64 |
+| extra `Math.Ceiling` | morto, 1 falha | 65 |
+| extra na consulta: pool fora do numerador | morto, 1 falha nesta classe | 24,2 |
+
+- **Conta à mão:** vivos 70 + 51 = 121; pool (`Count` 3, `WealthSum` 0, `HealthSum` 200); 321 / 5 = **64,2**.
+  Floor e Round dão 64, e a parte fracionária 0,2 distingue os dois da média real.
+- **Revisão do teste:** não é vácuo. Chama `CityProjector.Build`, e a linha 133 é o único `new CityIndicators`
+  em `src/`. O mundo tem só 2 NPCs, ambos vivos e postos na cidade; `SetHealth` não satura em 70 e 51. O valor
+  esperado é literal, não sai da própria consulta, e os mutantes acima provam a dependência de cada termo.
+- **Gate:** `verify.sh --full` exit 0: Unit 3753 (3 skip; a rodada 2 tinha 3752), Scenario 23 (1 skip),
+  Integration 451, LongRunning 146 (8 skip), `verify: OK`. Nenhum teste de custo falhou, sem repetição.
+  `client-test.sh` exit 0: **288 passed, 0 failed**. `check-docs.sh`: OK.
+- **Observações:** S4 da rodada 2 segue sem teste (só metadado; não reprova). Nenhum sobrevivente novo.
+- **Não verificado:** FPS do cliente; JSON na API real nesta rodada (produção idêntica à da rodada 2);
+  LongRunning e Integration com mutante (só a classe do projetor, com falha já na Unit).
