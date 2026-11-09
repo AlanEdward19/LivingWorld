@@ -69,6 +69,18 @@ public class CivilizationReportTests
         [new CitySample($"city-{seed}", new Dictionary<string, double> { ["bar"] = f * 2, ["population"] = f })])).ToList());
 
     [Fact]
+    public void Summary_does_not_depend_on_the_input_order_of_the_runs()
+    {
+        // F8: a soma de ponto flutuante não é associativa; com 1e16, -1e16 e 1 a média muda conforme a ordem de soma.
+        var runs = new[] { Known(1, 1e16), Known(2, -1e16), Known(3, 1) };
+
+        string forward = CivilizationReport.ToJson("c.json", runs);
+        string reversed = CivilizationReport.ToJson("c.json", runs.Reverse().ToArray());
+
+        Assert.Equal(forward, reversed);
+    }
+
+    [Fact]
     public void Report_values_match_a_known_set_of_runs_field_by_field()
     {
         // Seeds fora de ordem e com tamanhos diferentes: 3 anos (seed 4), 2 anos (seeds 6 e 9). O último ano de cada uma é o que entra em `final`.

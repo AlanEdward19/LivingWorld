@@ -52,14 +52,15 @@ public static class CivilizationReport
         return Encoding.UTF8.GetString(stream.ToArray()) + "\n";
     }
 
-    /// <summary>Resumo: mínimo, média e máximo de cada métrica do mundo no último ano, entre as seeds.</summary>
+    /// <summary>Resumo: mínimo, média e máximo de cada métrica do mundo no último ano, entre as seeds. Somas em ordem de
+    /// seed: a soma de double não é associativa, então a média não pode depender da ordem de entrada.</summary>
     private static void WriteSummary(Utf8JsonWriter w, IReadOnlyList<SeedRun> runs)
     {
         w.WriteStartObject("summary");
         w.WriteNumber("seeds", runs.Count);
         w.WriteNumber("years", runs.Count == 0 ? 0 : runs.Min(r => r.Years.Count));
         w.WriteStartObject("final");
-        var finals = runs.Where(r => r.Years.Count > 0).Select(r => r.Years[^1].World).ToList();
+        var finals = runs.Where(r => r.Years.Count > 0).OrderBy(r => r.Seed).Select(r => r.Years[^1].World).ToList();
         foreach (var key in finals.SelectMany(f => f.Keys).Distinct().Order(StringComparer.Ordinal))
         {
             var values = finals.Where(f => f.ContainsKey(key)).Select(f => f[key]).ToList();
