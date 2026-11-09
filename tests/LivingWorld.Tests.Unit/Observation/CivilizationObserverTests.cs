@@ -25,6 +25,37 @@ public class CivilizationObserverTests
     }
 
     [Fact]
+    public void The_default_age_band_is_five_years_and_the_runner_computes_life_expectancy_with_it()
+    {
+        Assert.Equal(5, YearEventTally.DefaultAgeBandYears);
+        var root = JsonNode.Parse(ObservatoryFixture.DefaultScenarioJson())!.AsObject();
+        root["Seed"] = 2UL;
+        Assert.Equal(5, new YearEventTally(ScenarioLoaderV2.LoadWorld(root.ToJsonString()).Value.World).AgeBandYears);
+
+        long previousTick = 0;
+        int yearsWithDeaths = 0;
+        CivilizationRunner.Run(root.ToJsonString(), 2, 6, afterYear: (world, sample) =>
+        {
+            var alive = world.Npcs.Where(n => n.IsAlive).Select(n => n.AgeYears(world.CurrentDate)).ToList();
+            var deathAges = world.Npcs.Where(n => n.DeathDate is { } d && d.TotalHours > previousTick && d.TotalHours <= sample.Tick)
+                .Select(n => n.AgeYears(world.CurrentDate)).ToList();
+            previousTick = sample.Tick;
+            if (deathAges.Count == 0) return;
+
+            yearsWithDeaths++;
+            // Largura 5 literal: o resultado não pode depender da constante do código.
+            int count = Math.Max(alive.Max() / 5, deathAges.Max() / 5) + 1;
+            var bands = Enumerable.Range(0, count).Select(i =>
+            {
+                long deaths = deathAges.Count(a => a / 5 == i);
+                return new AgeBand(5, deaths, alive.Count(a => a / 5 == i) + deaths / 2.0);
+            }).ToList();
+            Assert.Equal(LifeTable.LifeExpectancyAtBirth(bands), sample.World["life_expectancy_at_birth"], 9);
+        });
+        Assert.True(yearsWithDeaths > 0, "nenhum ano com mortes: o teste não mediu nada");
+    }
+
+    [Fact]
     public void Samples_are_numbered_by_year_and_stamped_with_the_tick_at_the_end_of_that_year()
     {
         var run = ObservatoryFixture.Observed.Value.Run;
@@ -116,6 +147,14 @@ public class CivilizationObserverTests
     {
         Assert.Equal(0.0, WealthInequality.Gini([(10, 1), (10, 1), (10, 1)]), 9);
         Assert.Equal(0.75, WealthInequality.Gini([(0, 1), (0, 1), (0, 1), (100, 1)]), 9);
+    }
+
+    [Fact]
+    public void Gini_of_a_weighted_block_with_wealth_matches_the_pairwise_formula_by_hand()
+    {
+        // Três pessoas com 10 e uma com 30: Σ|xi − xj| sobre pares ordenados = 2·3·20 = 120; G = 120 / (2·4²·15) = 0,25.
+        Assert.Equal(0.25, WealthInequality.Gini([(10, 3), (30, 1)]), 12);
+        Assert.Equal(0.25, WealthInequality.Gini([(10, 1), (10, 1), (10, 1), (30, 1)]), 12);
     }
 
     [Fact]

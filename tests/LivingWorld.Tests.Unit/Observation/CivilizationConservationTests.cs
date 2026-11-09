@@ -65,6 +65,23 @@ public class CivilizationConservationTests
     }
 
     [Fact]
+    public void With_births_and_no_emigration_net_migration_is_still_zero_and_the_change_is_births_minus_deaths()
+    {
+        var arm = Observe(seed: 2, Years, emigrationRate: 0, pool: 0);
+
+        Assert.True(arm.Run.Years.Sum(y => y.World["births"]) > 0, "a seed não teve nascimentos: o teste não mediu nada");
+        long previous = arm.InitialPopulation;
+        for (int i = 0; i < Years; i++)
+        {
+            var w = arm.Run.Years[i].World;
+            Assert.Equal(arm.Population[i] - previous, w["population_delta"]);
+            Assert.Equal(w["births"] - w["deaths"], w["population_delta"]);
+            Assert.Equal(0, w["net_migration"]);
+            previous = arm.Population[i];
+        }
+    }
+
+    [Fact]
     public void With_real_emigration_net_migration_is_minus_the_people_who_left_the_pool()
     {
         var arm = Observe(seed: 1, Years, emigrationRate: 5.0, pool: 50);
