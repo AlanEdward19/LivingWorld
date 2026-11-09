@@ -121,9 +121,7 @@ public sealed class ExtraordinaryPrimitiveCatalogTests
     [InlineData("matter.transmute:1:2")]
     [InlineData("foresight.preview:")]
     [InlineData("appearance.impersonate:0")]
-    [InlineData("movement.flight")]
     [InlineData("gravity.self:abc")]
-    [InlineData("attribute.strength:abc")]
     [InlineData("fauna.dominate:-2")]
     [InlineData("flora.growth-rate:-1")]
     public void Malformed_effect_arguments_are_refused_on_load(string effect)
@@ -200,14 +198,16 @@ public sealed class ExtraordinaryPrimitiveCatalogTests
         ["npc.teleport"] = ("npc.teleport:5", "npc.teleport:abc"),
         ["npc.force-action"] = ("npc.force-action:1", "npc.force-action:99"),
         ["construct.create"] = ("construct.create:1x1:10:5:stone", "construct.create:1x1"),
-        ["movement.flight"] = ("movement.flight:1", "movement.flight:abc"),
-        ["movement.speed-multiplier"] = ("movement.speed-multiplier:3", "movement.speed-multiplier:0"),
+        // A invocação aceita qualquer `movement.*`/valor de `attribute.*` sem efeito (ADR-0040): o malformado
+        // que a carga recusa é o que nenhuma mecânica resolve.
+        ["movement.flight"] = ("movement.flight:1", "movement"),
+        ["movement.speed-multiplier"] = ("movement.speed-multiplier:3", "movement"),
         ["gravity.self"] = ("gravity.self:0.5", "gravity.self:abc"),
         ["gravity.target"] = ("gravity.target:2", "gravity.target:-1"),
-        ["attribute.fertility"] = ("attribute.fertility:2.5", "attribute.fertility:abc"),
-        ["attribute.strength"] = ("attribute.strength:2", "attribute.strength:-1"),
-        ["attribute.perception"] = ("attribute.perception:3", "attribute.perception:abc"),
-        ["attribute.reaction-speed"] = ("attribute.reaction-speed:2", "attribute.reaction-speed:abc"),
+        ["attribute.fertility"] = ("attribute.fertility:2.5", "attribute.fertilityx:2"),
+        ["attribute.strength"] = ("attribute.strength:2", "attribute.strengthx:2"),
+        ["attribute.perception"] = ("attribute.perception:3", "attribute.perceptionx:3"),
+        ["attribute.reaction-speed"] = ("attribute.reaction-speed:2", "attribute.reaction-speedx:2"),
         ["area:radius:"] = ("area:radius:3", "area:radius:abc"),
         ["area:region:"] = ("area:region:2", "area:region:x"),
         ["transfer.lifespan-years"] = ("transfer.lifespan-years:2", "transfer.lifespan-years:abc"),
