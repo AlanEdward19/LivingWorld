@@ -1,4 +1,4 @@
-# ADR-0042: Blocos `Disease`, `Climate` e `Theft` no cenário JSON
+# ADR-0043: Blocos `Disease`, `Climate` e `Theft` no cenário JSON
 
 - **Status**: aceito
 - **Data**: 2026-11-09

@@ -6,7 +6,7 @@ using LivingWorld.Domain.Shared;
 
 namespace LivingWorld.Simulation.Scenarios;
 
-/// <summary>Blocos opcionais <c>Disease</c>, <c>Climate</c> e <c>Theft</c> do cenário (ADR-0042). Bloco ausente devolve o
+/// <summary>Blocos opcionais <c>Disease</c>, <c>Climate</c> e <c>Theft</c> do cenário (ADR-0043). Bloco ausente devolve o
 /// <c>Disabled</c> da regra: o mundo e o hash ficam como antes. Bloco presente exige <c>Enabled</c>; os demais campos
 /// de <c>Climate</c> e <c>Theft</c> usam o valor de <c>Disabled</c> quando faltam. <c>Disease</c> exige as doenças
 /// quando ligado (o motor não tem doença nomeada). Campo inválido falha apontando o caminho.</summary>

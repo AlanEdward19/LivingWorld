@@ -10,7 +10,7 @@ using LivingWorld.Tests.Unit.Observation;
 namespace LivingWorld.Tests.Unit.Periods;
 
 /// <summary>#112 fatia D: o mundo carregado por JSON recebe as mesmas regras de <c>ScenarioRunner.Create</c> (antes caía em
-/// <c>FamilyRules.Disabled</c> e sem ecologia), e os blocos <c>Disease</c>/<c>Climate</c>/<c>Theft</c> (ADR-0042) carregam.</summary>
+/// <c>FamilyRules.Disabled</c> e sem ecologia), e os blocos <c>Disease</c>/<c>Climate</c>/<c>Theft</c> (ADR-0043) carregam.</summary>
 public class WorldRulesWiringTests
 {
     private static JsonObject Default() =>

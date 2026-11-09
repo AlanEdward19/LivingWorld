@@ -481,7 +481,7 @@
     ],
     "TransformationRules": []
   },
-  "_comment": "Cenario de referencia de seculos (#112 fatia D): 100 NPCs, 3 regioes habitaveis com recursos desiguais, 300 anos no noturno. Nomes so aqui (AD-023): tipo 1=lavoura, 3=oficina de ferramentas, 4=pedreira; recurso 1=comida, 2=agua, 3=ferramenta, 5=pedra. Doenca, clima e furto ligados pelos blocos Disease/Climate/Theft (ADR-0042); furto sem guarda (nenhuma profissao de guarda no cenario).",
+  "_comment": "Cenario de referencia de seculos (#112 fatia D): 100 NPCs, 3 regioes habitaveis com recursos desiguais, 300 anos no noturno. Nomes so aqui (AD-023): tipo 1=lavoura, 3=oficina de ferramentas, 4=pedreira; recurso 1=comida, 2=agua, 3=ferramenta, 5=pedra. Doenca, clima e furto ligados pelos blocos Disease/Climate/Theft (ADR-0043); furto sem guarda (nenhuma profissao de guarda no cenario).",
   "Appearance": {
     "Heritability": 0.6
   },

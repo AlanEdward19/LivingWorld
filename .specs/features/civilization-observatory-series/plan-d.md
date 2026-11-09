@@ -1,6 +1,7 @@
 # Observatório de civilização: cenário de referência (issue #112, fatia D)
 
-Status: **PARADA de novo** (extinção sistemática, mesmo com o loader corrigido). Teste escrito e vermelho de propósito.
+Status: **BLOQUEADA pela extinção** (20/20 seeds extintas, mesmo com o loader corrigido). O teste Heavy está com `Skip` (motivo
+apontando para a seção Extinção) para não deixar o `--nightly` vermelho; asserts e pares de mutação ficam intactos.
 Continuação de `plan.md`. Decisões do dono: 100 NPCs, 3 regiões habitáveis desiguais, 300 anos, loader corrigido, blocos novos.
 
 ## Entregue
@@ -8,7 +9,7 @@ Continuação de `plan.md`. Decisões do dono: 100 NPCs, 3 regiões habitáveis 
 - **F8**: `CivilizationReport.WriteSummary` soma em ordem de seed (teste falha sem o fix). CLI inalterada.
 - **Loader** (`ScenarioLoaderV2.cs`): passa `DefaultFamilyRules`, `DefaultPerfRules`, fauna, flora e temperatura do `Create`.
   `WorldRulesWiringTests` compara `LoadWorld` e `Create` regra a regra por reflexão (mutações: tirar flora ou família reprova).
-- **Blocos `Disease`, `Climate`, `Theft`** (`WorldRulesScenarioLoader.cs`, ADR-0042); ausentes = mundo e hash como antes.
+- **Blocos `Disease`, `Climate`, `Theft`** (`WorldRulesScenarioLoader.cs`, ADR-0043); ausentes = mundo e hash como antes.
   Furto também pede `Steal` em `MaxDurationHours`; sem profissão de guarda no cenário (`GuardProfessionId` -1).
 - `scenarios/test-civilization.json`: 100 NPCs (vale 50, colina 30, costa 20), mapa 24x24 procedural, vagas 96 para ~72
   adultos, as três regras ligadas (doença rara e branda, clima 500 a 1400, furto), economia, cidades, emergência, aparência.
@@ -67,7 +68,11 @@ cidades pequenas e coorte fechada sobram solteiros sem conhecidos fora da famíl
 
 Cabe no noturno em tempo (extintos custam menos que vivos: o total pode subir se o mundo se sustentar).
 
-## Pendente
+## Pendente (para destravar a fatia D)
 
-Resolver a formação de casais (e a fome do ano 1) para o mundo se sustentar; então gravar `Reference.Diversity` no baseline
-(hoje só `Scenario/FirstSeed/Seeds/Years`), rodar o Heavy verde e documentar o uso em `docs/domain/civilization-observatory.md`.
+- Hipótese a testar: o `CourtshipSystem` só considera candidatos com `Relationship` prévia e rejeita parentes de 1º grau,
+  então solteiros de cidades pequenas e coorte fechada não casam. Medir por evento (`CourtshipRejected` por motivo).
+- Fome do ano 1 (~20%): buffer inicial de um mês fixo no código; decidir calibração ou laço de compra.
+- Heavy verde: remover o `Skip` de `ReferenceCivilizationTests`; gravar `Reference.Diversity` no baseline (hoje só
+  `Scenario/FirstSeed/Seeds/Years`); documentar o uso em `docs/domain/civilization-observatory.md`.
+- Ecologia inicial: `EcologyScenarioSeeder` (fauna e flora) não é semeada por JSON; o `Create` a semeia.

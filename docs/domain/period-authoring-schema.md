@@ -93,7 +93,7 @@ Sem o bloco, valem os marcos humanos e a ontogenia fica ligada. `Axis` é um de 
 `SelfCare`, `SocialCognition`, `Abstraction`. Cada eixo precisa de ao menos um marco e o último deve ter `Threshold` 1.
 `Threshold` 0 em `Requirements` = sempre elegível (o recém-nascido só chora, mama e dorme).
 
-## Doença, clima e furto (opcionais, ADR-0042)
+## Doença, clima e furto (opcionais, ADR-0043)
 
 Blocos `Disease`, `Climate` e `Theft` (cada um exige `Enabled`; ausente = desligado). Campos e limites no
-[ADR-0042](../adr/ADR-0042-blocos-de-doenca-clima-e-furto-no-cenario.md); furto também pede `Steal` em `MaxDurationHours`.
+[ADR-0043](../adr/ADR-0043-blocos-de-doenca-clima-e-furto-no-cenario.md); furto também pede `Steal` em `MaxDurationHours`.
