@@ -18,6 +18,35 @@ public sealed class BondMechanic : ExtraordinaryMechanic
     public override string Prefix => "bond.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    /// <summary>Parser único de <c>bond.share:&lt;atributo&gt;[:&lt;proporção&gt;]</c>.</summary>
+    public static readonly ExtraordinaryPrimitive<(NpcStat Stat, int Proportion)> Share = new(
+        SharePrefix,
+        NpcStatAccessors.All
+            .Select(stat => new PrimitiveListing(
+                SharePrefix + stat.Key, $"{SharePrefix}{stat.Key}[:<proporção 1..100>]", false, "carrier"))
+            .ToList(),
+        static token => TryParseShare(token, out string attribute, out int proportion)
+            && NpcStatAccessors.TryGet(attribute, out var stat)
+                ? Result<(NpcStat, int)>.Ok((stat, proportion))
+                : Result<(NpcStat, int)>.Fail($"Effects: alvo não suportado '{token}'"));
+
+    /// <summary>Parser único de <c>bond.oath:&lt;token de efeito&gt;</c>: consequência não vazia cujo prefixo
+    /// resolve a uma mecânica; o argumento interno só vale na invocação do efeito aninhado.</summary>
+    public static readonly ExtraordinaryPrimitive<(string Consequence, IExtraordinaryMechanic Mechanic)> Oath = new(
+        OathPrefix, "bond.oath:<token de efeito>", false, "carrier",
+        static token =>
+        {
+            string consequence = token[OathPrefix.Length..];
+            if (consequence.Length == 0)
+                return Result<(string, IExtraordinaryMechanic)>.Fail($"Effects: alvo não suportado '{token}'");
+            var inner = ExtraordinaryMechanicRegistry.Default.Resolve(consequence);
+            return inner is null
+                ? Result<(string, IExtraordinaryMechanic)>.Fail($"Effects: alvo não suportado '{consequence}'")
+                : Result<(string, IExtraordinaryMechanic)>.Ok((consequence, inner));
+        });
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [Share, Oath];
+
     internal static bool HasOathEffect(PowerDescriptor descriptor)
     {
         foreach (var effect in descriptor.Effects)
@@ -42,8 +71,10 @@ public sealed class BondMechanic : ExtraordinaryMechanic
     private static Result<PreparedMutation?> PrepareShare(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        if (!TryParseShare(declaration, out string attribute, out int proportion))
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
+        var share = Share.Parse(declaration);
+        if (!share.IsSuccess)
+            return Result<PreparedMutation?>.Fail(share.Error!);
+        var (stat, proportion) = share.Value;
 
         var world = ctx.World;
         var carrier = ctx.Carrier;
@@ -57,33 +88,31 @@ public sealed class BondMechanic : ExtraordinaryMechanic
                 return;
             }
 
-            long carrierValue = Read(carrier, attribute, tick);
-            long partnerValue = Read(partner, attribute, tick);
+            long carrierValue = stat.Read(carrier, tick);
+            long partnerValue = stat.Read(partner, tick);
             long gap = Math.Abs(carrierValue - partnerValue);
             int reflected = (int)(gap * proportion / 100);
             if (reflected == 0) return;
             if (carrierValue < partnerValue)
-                Write(partner, attribute, partnerValue - reflected, tick);
+                stat.Write(partner, stat.Clamp(partnerValue - reflected), tick);
             else
-                Write(carrier, attribute, carrierValue - reflected, tick);
+                stat.Write(carrier, stat.Clamp(carrierValue - reflected), tick);
         }));
     }
 
     private static Result<PreparedMutation?> PrepareOath(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        string consequence = declaration[OathPrefix.Length..];
-        if (consequence.Length == 0)
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
+        var oath = Oath.Parse(declaration);
+        if (!oath.IsSuccess)
+            return Result<PreparedMutation?>.Fail(oath.Error!);
+        var (consequence, inner) = oath.Value;
 
         var descriptor = ctx.World.Extraordinary.Descriptors.FirstOrDefault(
             item => string.Equals(item.Id, ctx.Invocation.PowerId, StringComparison.Ordinal));
         if (descriptor is null)
             return Result<PreparedMutation?>.Fail("Extraordinary.Descriptors: poder ausente");
 
-        var inner = ExtraordinaryMechanicRegistry.Default.Resolve(consequence);
-        if (inner is null)
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{consequence}'");
 
         var world = ctx.World;
         var carrier = ctx.Carrier;
@@ -142,7 +171,7 @@ public sealed class BondMechanic : ExtraordinaryMechanic
             attribute = spec;
         }
 
-        return attribute is "health" or "hunger" or "thirst" or "sleep" or "social";
+        return NpcStatAccessors.TryGet(attribute, out _);
     }
 
     private static bool TryLivingPartner(
@@ -169,28 +198,5 @@ public sealed class BondMechanic : ExtraordinaryMechanic
         var partnerState = CarrierState(world, id);
         if (partnerState is not null)
             world.UpsertExtraordinaryCarrier(partnerState with { BondPartnerId = null });
-    }
-
-    private static long Read(Npc npc, string attribute, long tick) => attribute switch
-    {
-        "health" => npc.Health,
-        "hunger" => npc.HungerAt(tick),
-        "thirst" => npc.ThirstAt(tick),
-        "sleep" => npc.SleepAt(tick),
-        "social" => npc.SocialAt(tick),
-        _ => 0,
-    };
-
-    private static void Write(Npc npc, string attribute, long value, long tick)
-    {
-        int clamped = ExtraordinaryMechanicSupport.ClampNeed(value);
-        switch (attribute)
-        {
-            case "health": npc.SetHealth(clamped); break;
-            case "hunger": npc.SetHunger(clamped, tick); break;
-            case "thirst": npc.SetThirst(clamped, tick); break;
-            case "sleep": npc.SetSleep(clamped, tick); break;
-            case "social": npc.SetSocial(clamped, tick); break;
-        }
     }
 }

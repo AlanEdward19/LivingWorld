@@ -1,11 +1,14 @@
 # Fase 16 — Potência
 
-**Status**: parcial — arquitetura concluída (spec/design/tasks e validação em `.specs/features/phase-16-powers/`); efeitos e custos seguem switch C# fechado, reabertura abaixo.
+**Status**: parcial — arquitetura concluída (`.specs/features/phase-16-powers/`); motor dinâmico entregue pela issue #64 (`.specs/features/power-primitives-registry/plan.md`), faltam as decisões abaixo.
 
-> **Reabertura pendente (2026-08-24)**: validação PASS cobriu arquitetura, mas `effects`/`costs`
-> ainda são switch C# fechado (`ExtraordinaryInvocationEngine` / `ExtraordinaryLocomotion` —
-> 8 chaves). Motor dinâmico + catálogo web ficam para reabrir depois. Detalhe:
-> `project_phase16_powers_reopen.md`.
+> **Estado real (2026-11-08, issue #64)**: efeitos/custos são tokens de dados resolvidos por
+> `IExtraordinaryMechanic`; os atributos do NPC vivem numa tabela única (`NpcStatAccessors`), sem
+> `switch` por nome em `Simulation/Extraordinary/` (teste de arquitetura). Cada mecânica declara
+> seus `Primitives`; o catálogo (`ExtraordinaryPrimitiveCatalog`) é derivado do registro e o
+> `ExtraordinaryScenarioLoader` recusa na carga token que nenhuma mecânica aceite.
+> **Falta (decisão do dono)**: rota `GET /authoring/extraordinary/primitives` (contrato novo, #46-5);
+> fechar a fase no `ROADMAP.md`; medir o sensor de escala (≤103%/102%) e rodar o Verifier independente.
 
 **Objetivo**: mutante/mago/artefato/implantado viram **um modificador declarado** sobre sistemas
 existentes (fonte, efeito, custo, probabilidade, falha, consequência social), conservando

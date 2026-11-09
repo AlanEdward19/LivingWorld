@@ -18,16 +18,26 @@ public sealed class FloraMechanic : ExtraordinaryMechanic
     public override string Prefix => "flora.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    /// <summary>Parser único de <c>flora.growth-rate:&lt;multiplicador&gt;</c>.</summary>
+    public static readonly ExtraordinaryPrimitive<double> GrowthRate = new(
+        GrowthRatePrefix, "flora.growth-rate:<multiplicador>", false, "area",
+        PrimitiveSyntax.From<double>(ParseGrowthRate, static _ => "Effects: flora.growth-rate exige um multiplicador >= 0"));
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [GrowthRate];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        if (!TryParseGrowthRate(declaration, out _))
-            return Result<PreparedMutation?>.Fail(
-                "Effects: flora.growth-rate exige um multiplicador >= 0");
-        return Result<PreparedMutation?>.Ok(null);
+        var parsed = GrowthRate.Parse(declaration);
+        return parsed.IsSuccess
+            ? Result<PreparedMutation?>.Ok(null)
+            : Result<PreparedMutation?>.Fail(parsed.Error!);
     }
 
-    internal static bool TryParseGrowthRate(string declaration, out double multiplier)
+    internal static bool TryParseGrowthRate(string declaration, out double multiplier) =>
+        GrowthRate.TryParse(declaration, out multiplier);
+
+    private static bool ParseGrowthRate(string declaration, out double multiplier)
     {
         multiplier = 1;
         if (!declaration.StartsWith(GrowthRatePrefix, StringComparison.Ordinal)) return false;
@@ -81,10 +91,11 @@ public sealed class FloraMechanic : ExtraordinaryMechanic
         bool included = true;
         foreach (var selector in selectors.OrderBy(item => item, StringComparer.Ordinal))
         {
-            var parts = selector.Split(':', StringSplitOptions.TrimEntries);
-            if (parts.Length != 3 || parts[0] != "area" || !int.TryParse(parts[2], out int value) || value < 0)
+            var parsed = AreaSelectorMechanic.Selector.Parse(selector);
+            if (!parsed.IsSuccess)
                 return false;
-            included = parts[1] switch
+            int value = parsed.Value.Value;
+            included = parsed.Value.Kind switch
             {
                 "radius" => included && FaunaMechanic.Chebyshev(plant.Position, carrier.CurrentLocation) <= value,
                 "region" => included && world.Map.TryGetCell(plant.Position, out _)

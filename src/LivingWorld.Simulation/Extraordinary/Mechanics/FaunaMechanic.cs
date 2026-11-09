@@ -20,26 +20,46 @@ public sealed class FaunaMechanic : ExtraordinaryMechanic
     public override string Prefix => "fauna.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    /// <summary>Parser único de <c>fauna.dominate:&lt;raio|animal-N&gt;</c>.</summary>
+    public static readonly ExtraordinaryPrimitive<(int? Radius, AnimalId? Animal)> Dominate = new(
+        DominatePrefix, "fauna.dominate:<raio|animal-N>", false, "area",
+        static token => ParseDominate(token, out int? radius, out AnimalId? animal)
+            ? Result<(int?, AnimalId?)>.Ok((radius, animal))
+            : Result<(int?, AnimalId?)>.Fail("Effects: fauna.dominate exige raio >= 0 ou id 'animal-N'"));
+
+    /// <summary>Parser único de <c>fauna.infect-vector:&lt;doença&gt;</c>.</summary>
+    public static readonly ExtraordinaryPrimitive<string> Infect = new(
+        InfectPrefix, "fauna.infect-vector:<doença>", false, "area",
+        static token => ParseInfect(token, out string disease)
+            ? Result<string>.Ok(disease)
+            : Result<string>.Fail("Effects: fauna.infect-vector exige uma doença"));
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [Dominate, Infect];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
         if (declaration.StartsWith(DominatePrefix, StringComparison.Ordinal))
         {
-            if (!TryParseDominate(declaration, out _, out _))
-                return Result<PreparedMutation?>.Fail(
-                    "Effects: fauna.dominate exige raio >= 0 ou id 'animal-N'");
-            return Result<PreparedMutation?>.Ok(null);
+            var dominate = Dominate.Parse(declaration);
+            return dominate.IsSuccess
+                ? Result<PreparedMutation?>.Ok(null)
+                : Result<PreparedMutation?>.Fail(dominate.Error!);
         }
 
         if (!declaration.StartsWith(InfectPrefix, StringComparison.Ordinal))
             return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
 
-        if (!TryParseInfect(declaration, out _))
-            return Result<PreparedMutation?>.Fail("Effects: fauna.infect-vector exige uma doença");
-        return Result<PreparedMutation?>.Ok(null);
+        var infect = Infect.Parse(declaration);
+        return infect.IsSuccess
+            ? Result<PreparedMutation?>.Ok(null)
+            : Result<PreparedMutation?>.Fail(infect.Error!);
     }
 
-    internal static bool TryParseInfect(string declaration, out string disease)
+    internal static bool TryParseInfect(string declaration, out string disease) =>
+        Infect.TryParse(declaration, out disease);
+
+    private static bool ParseInfect(string declaration, out string disease)
     {
         disease = "";
         if (!declaration.StartsWith(InfectPrefix, StringComparison.Ordinal)) return false;
@@ -48,6 +68,13 @@ public sealed class FaunaMechanic : ExtraordinaryMechanic
     }
 
     internal static bool TryParseDominate(string declaration, out int? radius, out AnimalId? animalId)
+    {
+        bool ok = Dominate.TryParse(declaration, out var parsed);
+        (radius, animalId) = parsed;
+        return ok;
+    }
+
+    private static bool ParseDominate(string declaration, out int? radius, out AnimalId? animalId)
     {
         radius = null;
         animalId = null;

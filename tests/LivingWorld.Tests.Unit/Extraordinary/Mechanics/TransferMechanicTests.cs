@@ -91,11 +91,24 @@ public sealed class TransferMechanicTests
         Assert.Equal(controlTarget.Health + 20, target.Health);
     }
 
+    [Fact]
+    public void Partial_success_moves_half_of_the_declared_amount()
+    {
+        var (world, carrier, target, _) = WorldWithPower(["transfer.health:20"], [], "ResolutionCheck");
+
+        var result = ExtraordinaryInvocationEngine.Invoke(
+            world, new TickContext(world, world.Rng, world.Scheduler),
+            new ExtraordinaryInvocation(94, carrier.Id, "test-power", target.Id, ResolutionResult.PartialSuccess));
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Equal((90, 60), (carrier.Health, target.Health));
+    }
+
     private static (WorldState World, Npc Carrier, Npc Target, Household Home) WorldWithPower(
-        IReadOnlyList<string> effects, IReadOnlyList<string> costs)
+        IReadOnlyList<string> effects, IReadOnlyList<string> costs, string reliability = "Guaranteed")
     {
         var descriptor = new PowerDescriptor(
-            "test-power", "test-source", effects, "Active", costs, "Guaranteed",
+            "test-power", "test-source", effects, "Active", costs, reliability,
             [], [], [], []);
         var state = new ExtraordinaryCarrierState(
             new NpcId(1), [descriptor.Id], true, "active",

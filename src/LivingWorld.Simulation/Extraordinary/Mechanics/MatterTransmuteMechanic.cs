@@ -13,16 +13,23 @@ public sealed class MatterTransmuteMechanic : ExtraordinaryMechanic
     public override string Prefix => "matter.transmute";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    /// <summary>Parser único de <c>matter.transmute</c>; a fronteira do head é do parser, que apara o primeiro segmento.</summary>
+    public static readonly ExtraordinaryPrimitive<(int Origin, int Destination, int Rate)> Transmute = new(
+        "matter.transmute", "matter.transmute:<origem>:<destino>:<taxa>", false, "household",
+        static token => TryParse(token, out int origin, out int destination, out int rate)
+            ? Result<(int, int, int)>.Ok((origin, destination, rate))
+            : Result<(int, int, int)>.Fail($"Effects: alvo não suportado '{token}'"),
+        looseHead: true);
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [Transmute];
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        var parts = declaration.Split(':', StringSplitOptions.TrimEntries);
-        if (parts.Length != 4
-            || !string.Equals(parts[0], Prefix, StringComparison.Ordinal)
-            || !int.TryParse(parts[1], out int originId) || originId < 0
-            || !int.TryParse(parts[2], out int destId) || destId < 0
-            || !int.TryParse(parts[3], out int rate) || rate <= 0)
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
+        var parsed = Transmute.Parse(declaration);
+        if (!parsed.IsSuccess)
+            return Result<PreparedMutation?>.Fail(parsed.Error!);
+        var (originId, destId, rate) = parsed.Value;
 
         var home = ctx.Carrier.Household is { } householdId
             ? ctx.World.FindHousehold(householdId)
@@ -50,5 +57,16 @@ public sealed class MatterTransmuteMechanic : ExtraordinaryMechanic
                 WorldEventKind.Minted, $"{dest.Id}|{credit}",
                 sourceSystem: "MatterTransmuteMechanic", causeEventId: destroyedId);
         }));
+    }
+
+    private static bool TryParse(string declaration, out int originId, out int destId, out int rate)
+    {
+        originId = destId = rate = 0;
+        var parts = declaration.Split(':', StringSplitOptions.TrimEntries);
+        return parts.Length == 4
+            && string.Equals(parts[0], "matter.transmute", StringComparison.Ordinal)
+            && int.TryParse(parts[1], out originId) && originId >= 0
+            && int.TryParse(parts[2], out destId) && destId >= 0
+            && int.TryParse(parts[3], out rate) && rate > 0;
     }
 }

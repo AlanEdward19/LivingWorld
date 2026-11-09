@@ -28,10 +28,22 @@ public sealed class ControlMechanic : ExtraordinaryMechanic
     public override string Prefix => "control.";
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
+    /// <summary>Parser único de <c>control.possess[:&lt;ActionType&gt;...]</c>.</summary>
+    public static readonly ExtraordinaryPrimitive<IReadOnlyList<ActionType>> Possess = new(
+        "control.possess", "control.possess[:<ActionType>...]", false, "target",
+        PrimitiveSyntax.From<IReadOnlyList<ActionType>>(ParsePossess, NotSupported));
+
+    public static readonly ExtraordinaryPrimitive<bool> BodySwap = new(
+        "control.body-swap", "control.body-swap", false, "target", PrimitiveSyntax.Flag(BodySwapToken));
+
+    public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [BodySwap, Possess];
+
+    private static string NotSupported(string token) => $"Effects: alvo não suportado '{token}'";
+
     public override Result<PreparedMutation?> PrepareEffect(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        if (declaration == BodySwapToken)
+        if (BodySwap.Accepts(declaration))
             return PrepareBodySwap(ctx, declaration);
         if (declaration == PossessToken || declaration.StartsWith(PossessPrefix, StringComparison.Ordinal))
             return PreparePossess(ctx, declaration);
@@ -151,8 +163,9 @@ public sealed class ControlMechanic : ExtraordinaryMechanic
     private static Result<PreparedMutation?> PreparePossess(
         ExtraordinaryMechanicContext ctx, string declaration)
     {
-        if (!TryParsePossess(declaration, out _))
-            return Result<PreparedMutation?>.Fail($"Effects: alvo não suportado '{declaration}'");
+        var possess = Possess.Parse(declaration);
+        if (!possess.IsSuccess)
+            return Result<PreparedMutation?>.Fail(possess.Error!);
         if (ctx.Target.Id == ctx.Carrier.Id)
             return Result<PreparedMutation?>.Fail("Effects: control.possess exige alvo distinto");
 
@@ -198,7 +211,10 @@ public sealed class ControlMechanic : ExtraordinaryMechanic
         }));
     }
 
-    internal static bool TryParsePossess(string declaration, out IReadOnlyList<ActionType> sequence)
+    internal static bool TryParsePossess(string declaration, out IReadOnlyList<ActionType> sequence) =>
+        Possess.TryParse(declaration, out sequence);
+
+    private static bool ParsePossess(string declaration, out IReadOnlyList<ActionType> sequence)
     {
         sequence = [];
         if (declaration == PossessToken) return true;

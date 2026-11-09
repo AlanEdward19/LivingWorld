@@ -185,7 +185,7 @@ public sealed class ExtraordinaryIntegrationTests
         "Descriptors": [{
           "Id": "conditional-metabolism",
           "Source": "scenario-source",
-          "Effects": ["movement:speed"],
+          "Effects": ["movement.speed-multiplier:2"],
           "Mode": "Conditional",
           "Reliability": "Guaranteed",
           "Appearance": { "ScaleMultiplier": 1.35, "SkinTint": "pallor", "MovementTrail": "mist" },

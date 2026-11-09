@@ -47,7 +47,7 @@ public sealed class ExtraordinaryScenarioLoaderTests
         var descriptor = Assert.Single(result.Value!.Descriptors);
         Assert.Equal(
             ("will-shaped-artifact", "responsive-artifact", "Active", "ResolutionCheck",
-                "movement:construct", "fatigue:2", "loss-of-control", "source-disruption",
+                "movement.flight:1", "carrier.hunger:2", "loss-of-control", "source-disruption",
                 "visible-energy-form", "item-bond"),
             (descriptor.Id, descriptor.Source, descriptor.Mode, descriptor.Reliability,
                 Assert.Single(descriptor.Effects), Assert.Single(descriptor.Costs),
@@ -244,9 +244,9 @@ public sealed class ExtraordinaryScenarioLoaderTests
           {
             "Id": "will-shaped-artifact",
             "Source": "responsive-artifact",
-            "Effects": ["movement:construct"],
+            "Effects": ["movement.flight:1"],
             "Mode": "Active",
-            "Costs": ["fatigue:2"],
+            "Costs": ["carrier.hunger:2"],
             "Reliability": "ResolutionCheck",
             "FailureModes": ["loss-of-control"],
             "IntrinsicVulnerabilities": ["source-disruption"],
