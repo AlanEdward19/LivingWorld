@@ -72,8 +72,10 @@ public class EconomyDepthScenarioTests
 
         new WagePaymentSystem().Tick(world, new TickContext(world, world.Rng, world.Scheduler));
 
-        long tax = world.FindCity(sawmill.City) is null ? 0 : (long)Math.Floor(95 * world.EconomyRules.WageTaxRate); // a cidade retém a alíquota (AD-098)
-        Assert.Equal(before + 95 - tax, worker.Wallet.Amount);
+        // o salário vale o da profissão × peso da criação (FamilyRules real no mundo carregado por JSON, AD-125)
+        long wage = (long)Math.Round(world.FamilyRules.ApplyUpbringingWeight(95, worker.Upbringing));
+        long tax = world.FindCity(sawmill.City) is null ? 0 : (long)Math.Floor(wage * world.EconomyRules.WageTaxRate); // a cidade retém a alíquota (AD-098)
+        Assert.Equal(before + wage - tax, worker.Wallet.Amount);
         var lumberjack = new LivingWorld.Domain.Population.ProfessionType(3);
         Assert.Equal(ActionType.Work, world.ActionCatalog.RoutineOf(lumberjack, LifeStage.Adult, hour: 9));
         Assert.NotEqual(ActionType.Work, world.ActionCatalog.RoutineOf(lumberjack, LifeStage.Adult, hour: 20));
