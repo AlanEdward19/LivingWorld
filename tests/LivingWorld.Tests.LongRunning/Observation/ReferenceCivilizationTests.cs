@@ -5,7 +5,6 @@ using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Observation;
 using LivingWorld.Simulation.Scenarios;
-using LivingWorld.Workers;
 
 namespace LivingWorld.Tests.LongRunning.Observation;
 
