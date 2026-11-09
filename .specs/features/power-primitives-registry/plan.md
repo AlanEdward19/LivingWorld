@@ -1,6 +1,6 @@
 # Registro de primitivas do extraordinário (issue #64)
 
-**Status**: implementado na branch `worktree-agent-a23e4ef1c39710db9`; falta medição de escala e Verifier independente (ambos do orquestrador). Rota pública fora do escopo.
+**Status**: parser único implementado (ADR-0040) na branch `worktree-agent-a23e4ef1c39710db9`; falta medição de escala e novo Verifier independente (ambos do orquestrador). Rota pública fora do escopo.
 
 ## Problem
 
@@ -10,7 +10,7 @@ Efeitos e custos já são tokens de dados, mas o vocabulário de atributo do NPC
 
 1. `NpcStatAccessors` (novo): tabela única chave → leitura no tick, escrita bruta no tick, faixa. Lookup por `Dictionary.AlternateLookup<ReadOnlySpan<char>>`, delegates `static`: a busca na tabela não aloca. A chave do modo de falha `carrier.health` é pré-computada (`HealthFailureKey`), sem concatenar por invocação.
 2. As cinco mecânicas usam a tabela e **mantêm o clamp de cada uma**: `npc.*` e crédito de `transfer.*` limitam (`AddClamped`); `carrier.*`, débito de `transfer.*` e locomoção subtraem sem clamp próprio (`SubtractRaw`, o setter do NPC limita); `bond.share` limita (`Clamp`).
-3. `IExtraordinaryMechanic.Primitives` (novo): cada mecânica declara seus tokens (`Head`, `Format`, sinal, alvo) e a `Syntax` dos argumentos (magnitude e sinal, sufixo proibido em token exato, formatos abertos), sem contexto de mundo. Reutiliza os mesmos parsers da invocação (`TryParseShare`, `TryParseCurse`, `TryParse` de construct/matter/environment, `AreaTargetResolver.IsWellFormedSelector`...). Estado (saldo, NPC existente, `mind.commune` com fantasma) fica só na invocação. As que dependem de atributo derivam da tabela.
+3. `IExtraordinaryMechanic.Primitives` (novo): cada mecânica declara `ExtraordinaryPrimitive<T>` com UM parser tipado e sem efeito (`Parse(token): Result<T>`), usado pela carga (`Matches`) e pela invocação (`Prepare*`, leitores de efeito, `AreaTargetResolver`). Estado (saldo, NPC existente, Fact, `mind.commune` com fantasma) fica só na invocação. `Listing` é o que o catálogo mostra; parser sem listagem é token tolerado (ADR-0040). As que dependem de atributo derivam da tabela.
 4. `ExtraordinaryPrimitiveCatalog.Describe(registry)` enumera o registro por reflexão (`GetType()` + `Primitives`); sem lista paralela. `Validate` aceita o token só se o prefixo resolve a uma mecânica do tipo certo (efeito/custo) e algum `Primitive` casa.
 5. `ExtraordinaryScenarioLoader` chama `Validate` para `Effects` e `Costs` (depois das demais validações, para não mudar a precedência de erros). `FailureModes` seguem texto livre.
 
@@ -49,8 +49,7 @@ Dono decide: rota de primitivas, fechar a Fase 16 no `ROADMAP.md`. Orquestrador:
 ## Decisões de risco (para o dono)
 
 - Fixtures de teste com tokens narrativos (`movement:construct`, `fatigue:2`, `movement:speed`) em `ExtraordinaryScenarioLoaderTests` e `ExtraordinaryIntegrationTests` foram trocados por tokens reais: o loader agora os recusaria. Nenhum arquivo de `scenarios/` tem bloco `Extraordinary`, então nenhum cenário foi afetado.
-- Regra: a carga aceita todo token com efeito real na invocação (inclusive forma tipada `chave:tipo:n`, `dimension.pocket-store:<qualquer>` e mecânicas que não conferem a chave, como `npc.teleportx:5`) e recusa o que a invocação recusa sem depender do mundo. A invocação não foi alterada.
-- Pendência para o dono: `attribute.*` malformado, `area:radius` sem valor e `movement.*` fora de `flight`/`speed-multiplier` continuam recusados na carga (sem efeito de consumidor). `MovementEffectMechanic` os aceita na invocação, e `ExtraordinaryLocomotion.cs:102` usa qualquer efeito `movement.*` para ativar os custos de movimento, então não é no-op silencioso. Os dois tokens do catálogo cobrem os perfis de locomoção (`GravityMechanic.ResolveProfile` só lê `movement.flight` e `movement.speed-multiplier`), mas um poder com perfil vindo só de `gravity.self` e outro `movement.*` como ativador de custos seria recusado. Decidir: aceitar `movement.*` aberto ou manter.
+- Regra (ADR-0040, decisão do dono): carga e invocação compartilham o parser; a carga aceita exatamente o que a invocação aceita sintaticamente. A única redução fora do parser é a forma tipada `chave:tipo:n` (`AllowTyped = false` para seletor de área, lido cru). Lixo que a invocação aceita sem efeito (`movement.*`, valor de `attribute.*`, `area:<não seletor>`, `dimension.pocket-store:<qualquer>`) passa na carga e está listado no ADR. Fecha F1 e F2 da rodada 3; F3 coberto por `PrimitiveParserValueTests` e testes de comportamento.
 - `bond.oath:<token>` exige consequência não vazia cujo prefixo resolve a uma mecânica; o argumento interno continua validado só na invocação.
 - `GET /periods/{id}/catalog` de template salvo que não valida mais devolve 400 com o erro (antes seria exceção); sem mudança de contrato.
 - AD-124 em `docs/decisions-log.md`.
