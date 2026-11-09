@@ -106,12 +106,17 @@ public class DeterminismTwoProcessTests
         try
         {
             string a = Path.Combine(dir, "a.json"), b = Path.Combine(dir, "b.json"), c = Path.Combine(dir, "c.json");
-            RunCommand($"civ-report \"{scenario}\" 3 2 2 \"{a}\"");
-            RunCommand($"civ-report \"{scenario}\" 3 2 2 \"{b}\"");
-            RunCommand($"civ-report \"{scenario}\" 4 2 2 \"{c}\"");
+            RunCommand($"civ-report \"{scenario}\" 5 3 2 \"{a}\"");
+            RunCommand($"civ-report \"{scenario}\" 5 3 2 \"{b}\"");
+            RunCommand($"civ-report \"{scenario}\" 6 3 2 \"{c}\"");
 
             Assert.Equal(File.ReadAllBytes(a), File.ReadAllBytes(b));
             Assert.NotEqual(File.ReadAllBytes(a), File.ReadAllBytes(c));
+
+            // Argumentos distintos (seed inicial 5, 3 seeds, 2 anos): trocar a ordem dos argumentos no modo muda o que o arquivo traz.
+            var seeds = System.Text.Json.JsonDocument.Parse(File.ReadAllText(a)).RootElement.GetProperty("seeds");
+            Assert.Equal([5, 6, 7], seeds.EnumerateArray().Select(x => x.GetProperty("seed").GetInt32()));
+            Assert.All(seeds.EnumerateArray(), x => Assert.Equal(2, x.GetProperty("years").GetArrayLength()));
         }
         finally
         {

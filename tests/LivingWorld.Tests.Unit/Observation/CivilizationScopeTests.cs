@@ -23,10 +23,10 @@ public class CivilizationScopeTests
     private static City Biggest(WorldState world, CityId? except) => world.ActiveCities().Where(c => c.Id != except)
         .OrderByDescending(c => world.Npcs.Count(n => n.IsAlive && n.City == c.Id)).ThenBy(c => c.Id.Value).First();
 
-    private static Synth Build(int ageBandYears = 5)
+    private static Synth Build(int ageBandYears = 5, ulong seed = 2)
     {
         var root = JsonNode.Parse(ObservatoryFixture.DefaultScenarioJson())!.AsObject();
-        root["Seed"] = 2UL;
+        root["Seed"] = seed;
         var (world, clock) = ScenarioLoaderV2.LoadWorld(root.ToJsonString()).Value;
         clock.Run(world, world.Calendar.HoursPerYear * 3);
 
@@ -104,6 +104,28 @@ public class CivilizationScopeTests
         var people = s.World.Npcs.Where(n => n.IsAlive).ToList();
         Assert.Contains(people, n => s.World.LifeStageRules.LifeStageOf(n.AgeYears(s.World.CurrentDate)) == LifeStage.Child);
         Assert.Contains(people, n => n.Employer is not null);
+    }
+
+    [Fact]
+    public void Unemployed_elders_stay_out_of_the_unemployment_rate_denominator()
+    {
+        // Procura (em ordem de seed) um mundo com idoso vivo; a taxa só conta adultos, então o idoso sem emprego não entra.
+        foreach (ulong seed in new ulong[] { 2, 1, 3, 4, 5, 6, 7, 8 })
+        {
+            var s = Build(seed: seed);
+            var elders = s.World.Npcs.Where(n => n.IsAlive && s.World.LifeStageRules.LifeStageOf(n.AgeYears(s.World.CurrentDate)) == LifeStage.Elder).ToList();
+            if (elders.Count == 0) continue;
+
+            foreach (var elder in elders) elder.Fire();
+            var sample = s.Observer.Sample(s.World);
+            var active = s.World.ActiveCities().OrderBy(c => c.Id.Value).ToList();
+
+            AssertScope(s.World, sample.World, active);
+            foreach (var city in active) AssertScope(s.World, sample.Cities.Single(c => c.Id == city.Id.ToString()).Metrics, [city]);
+            return;
+        }
+
+        Assert.Fail("nenhuma das seeds tem idoso vivo no ano 3: o teste não mediu nada");
     }
 
     [Fact]

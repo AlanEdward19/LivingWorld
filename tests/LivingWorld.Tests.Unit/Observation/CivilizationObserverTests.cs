@@ -88,6 +88,30 @@ public class CivilizationObserverTests
     }
 
     [Fact]
+    public void Life_table_caps_the_death_probability_at_one_when_the_rate_is_too_high_for_the_band()
+    {
+        // m = 5/10, n·m = 5, q = 5/(1 + 2,5) = 1,43 truncado em 1: ninguém passa da primeira faixa, L0 = 10·(1 + 0)/2, e₀ = 5.
+        double e0 = LifeTable.LifeExpectancyAtBirth([new AgeBand(10, 5, 10), new AgeBand(10, 0, 50)]);
+        Assert.Equal(5.0, e0, 9);
+    }
+
+    [Fact]
+    public void Life_table_handles_empty_input_and_a_band_without_exposure_without_dividing_by_zero()
+    {
+        Assert.Equal(0.0, LifeTable.LifeExpectancyAtBirth([]));
+        // Faixa do meio sem exposição: taxa 0, todos passam; L0 = 10, última aberta com m = 0,02 → 1/0,02 = 50.
+        Assert.Equal(60.0, LifeTable.LifeExpectancyAtBirth([new AgeBand(10, 0, 0), new AgeBand(10, 2, 100)]), 9);
+    }
+
+    [Fact]
+    public void Gini_without_any_wealth_or_people_is_zero_instead_of_not_a_number()
+    {
+        Assert.Equal(0.0, WealthInequality.Gini([(0, 1), (0, 3)]));
+        Assert.Equal(0.0, WealthInequality.Gini([]));
+        Assert.Equal(0.0, WealthInequality.Gini([(100, 0)]));
+    }
+
+    [Fact]
     public void Gini_of_equal_wealth_is_zero_and_of_one_holder_among_four_is_three_quarters()
     {
         Assert.Equal(0.0, WealthInequality.Gini([(10, 1), (10, 1), (10, 1)]), 9);

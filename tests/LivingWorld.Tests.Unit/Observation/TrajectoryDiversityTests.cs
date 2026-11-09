@@ -93,6 +93,19 @@ public class TrajectoryDiversityTests
     }
 
     [Fact]
+    public void An_extinct_world_has_zero_treasury_per_capita_instead_of_a_division_by_zero()
+    {
+        var extinct = new SeedRun(1, [new WorldYearSample(1, 100, new Dictionary<string, double>
+        {
+            ["population"] = 0, ["cities_active"] = 0, ["gini"] = 0, ["treasury"] = 500, ["technologies"] = 0,
+        }, [])]);
+        var result = TrajectoryDiversity.Compute([extinct, extinct with { Seed = 2 }]);
+
+        Assert.Equal(0.0, result.ByMetric["treasury_per_capita"]);
+        Assert.True(double.IsFinite(result.Index));
+    }
+
+    [Fact]
     public void Fewer_than_two_seeds_have_zero_diversity()
     {
         Assert.Equal(0.0, TrajectoryDiversity.Compute([Run(1, Curve)]).Index);

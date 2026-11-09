@@ -86,5 +86,9 @@ governo e crime entram como chaves novas quando as sub-issues existirem.
 reatribuição de fusão; Gini sem pool e com peso 1; `population_pool` zerado; exposição `alive + deaths`; oficinas e
 prédios do mundo inteiro; filtro de adultos; tecnologias (mundo, cidade e chaves da diversidade); `population_unassigned`
 zerado; `age_mean` zerado; tesouro do mundo; `cities_active`; ano não incrementado; nascimentos não somados na fusão.
-Testes novos: `CivilizationScopeTests` (mundo de 3 anos com cidade B, pool, prédios, oficina, tecnologias, empregos,
+Rodada seguinte: mais 23 mutações reprovadas (teto de `q` na tábua de vida, guardas de exposição e de faixa aberta,
+idoso fora do denominador, guardas de Gini e de tesouro per capita, e todo campo de `CivilizationReport` e de
+`summary`: cenário só com nome do arquivo, `tick`, `final` min/média/máx e último ano, ordem das seeds, números não
+finitos, `seeds`/`years`, seed inicial, criação do diretório, guardas de argumento, e a ordem dos argumentos do modo
+`civ-report` no `Program.cs`). Testes novos: `CivilizationScopeTests` (mundo de 3 anos com cidade B, pool, prédios, oficina, tecnologias, empregos,
 fusão, NPC fora de cidade ativa) e casos por métrica em `TrajectoryDiversityTests`.
