@@ -4,6 +4,7 @@ using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Simulation.Snapshot;
+using LivingWorld.Tests.Shared;
 
 namespace LivingWorld.Tests.Unit.Snapshot;
 
@@ -36,9 +37,9 @@ public class PositionalSnapshotTests
     [Trait("Category", "Scenario")]
     public void Codec_round_trips_twenty_seeds_after_ten_years()
     {
-        Parallel.For(1, 21, seed =>
+        ParallelSeeds.ForEach(1, 20, seed =>
         {
-            var (world, clock) = ScenarioRunner.Create(seed: (ulong)seed, initialPopulation: 12);
+            var (world, clock) = ScenarioRunner.Create(seed: seed, initialPopulation: 12);
             clock.Run(world, 10 * 12 * 30 * 24);
 
             var restored = PositionalSnapshot.DecodeFull(PositionalSnapshot.EncodeFull(world, out _));
