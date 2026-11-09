@@ -226,14 +226,15 @@ public class TechDiscoveryTests
             return world.Technologies.FirstOrDefault(t => !t.IsVariation)?.Vector.Key ?? "";
         }
 
-        // Seeds independentes (mundo e RNG por instância): rodam em paralelo; a contagem é feita depois, em ordem.
-        var diverged = ParallelSeeds.Map(1, 10, seed =>
+        // Os 20 mundos (seeds 1..10 e 1001..1010) são independentes: rodam em paralelo, cada um citado pela sua seed real.
+        ulong[] worlds = [.. Enumerable.Range(1, 10).Select(i => (ulong)i), .. Enumerable.Range(1, 10).Select(i => (ulong)(1000 + i))];
+        var firsts = ParallelSeeds.Map(worlds, seed =>
         {
-            string a = First(seed), b = First(seed + 1000);
-            Assert.NotEqual("", a);
-            return a != b;
+            string first = First(seed);
+            if (seed <= 10) Assert.NotEqual("", first);
+            return first;
         });
-        int different = diverged.Count(d => d);
+        int different = Enumerable.Range(0, 10).Count(i => firsts[i] != firsts[i + 10]);
 
         Assert.True(different >= 5, $"só {different}/10 seeds divergiram");
     }
