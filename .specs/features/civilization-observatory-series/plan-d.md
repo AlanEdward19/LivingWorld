@@ -22,8 +22,10 @@ Continuação de `plan.md`. Decisões do dono: 100 NPCs, 3 regiões habitáveis 
 
 | Fiação | mortes ano 1 | nascidos 10 anos | vivos ano 10 |
 | --- | --- | --- | --- |
-| nenhuma / só perf / só fauna / só flora / só temperatura | 39, 45, 54 | 19, 17, 10 | 37, 36, 36 |
-| só `FamilyRules` (= todas) | 38, 39, 75 | 21, 23, 3 | 67, 51, 20 |
+| nenhuma / só perf / só fauna / só flora / só temperatura (primeira medida, cenário de 55 vagas) | 39, 45, 54 | 19, 17, 10 | 37, 36, 36 |
+| só `FamilyRules` (= todas, primeira medida) | 38, 39, 75 | 21, 23, 3 | 67, 51, 20 |
+| cenário final, íntegro = só família (verifier, seeds 1 a 3) | | | 90, 97, 79 |
+| cenário final, sem as cinco = sem família (verifier) | | | 71, 78, 62 |
 
 Só a família move a população; as outras quatro têm efeito zero aqui (a ecologia inicial do `Create` não é semeada no JSON).
 

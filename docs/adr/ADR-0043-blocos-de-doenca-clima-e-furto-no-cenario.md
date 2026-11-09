@@ -17,8 +17,8 @@ bloco ausente devolve o `Disabled` da regra (mundo e hash como antes); bloco pre
   `{ Id, ContagionPerContactDay [0,1], Lethality [0,1], DurationDays >= 1, ImmunityDays >= 0 }`, ids únicos e
   ao menos uma doença quando ligado. Doença é vetor de eixos, sem nome no código (ADR-0013).
 - `Climate`: `MinMilli` (>= 0) e `MaxMilli` (>= `MinMilli`); 1000 = ano médio. Padrão `Disabled` (1000/1000).
-- `Theft`: `DesperateBelow` [0,100], `PersonalityThreshold`, `BaseSuccess`, `DiscoveryChance`, `MaxLootFraction`,
-  `GuardEffect` em [0,1], `GuardProfessionId` (-1 = sem guarda). Campo ausente usa o valor de `TheftRules.Disabled`.
+- `Theft`: `DesperateBelow` [0,100]; `BaseSuccess`, `DiscoveryChance`, `MaxLootFraction` e `GuardEffect` em [0,1];
+  `PersonalityThreshold` sem limite validado (padrão 1,1); `GuardProfessionId` (-1 = sem guarda). Campo ausente usa o valor de `TheftRules.Disabled`.
   O furto só acontece se o catálogo de ações do cenário também declara `"Steal"` em `MaxDurationHours`.
 
 Os sistemas continuam registrados sempre e checam `Enabled`, como no `Create`. Erro de campo vira `Result.Fail`
