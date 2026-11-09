@@ -118,7 +118,6 @@ public sealed class ExtraordinaryPrimitiveCatalogTests
     [InlineData("skill.copy:x")]
     [InlineData("environment.temperature:1")]
     [InlineData("dimension.portal:1:1:1:1")]
-    [InlineData("dimension.pocket-store:abc")]
     [InlineData("matter.transmute:1:2")]
     [InlineData("foresight.preview:")]
     [InlineData("appearance.impersonate:0")]
@@ -167,6 +166,15 @@ public sealed class ExtraordinaryPrimitiveCatalogTests
         "bond.share:health", "bond.share:social:50", "bond.oath:npc.health:-5", "soul.persist-as-ghost",
         "control.possess", "control.possess:Sleep", "control.body-swap", "appearance.impersonate:5",
         "foresight.preview:death",
+        // Forma tipada: o motor reduz `chave:tipo:n` para toda mecânica antes de resolver.
+        "npc.force-action:fire:1", "gravity.target:fire:2", "luck.curse:fire:10",
+        "mind.alter-trait:agreeableness:fire:-5", "bond.share:health:fire:1", "npc.teleport:fire:5",
+        "combat.strike:fire:8", "transfer.health:fire:20",
+        // A invocação move estoque mesmo com argumento inválido (quantidade 1).
+        "dimension.pocket-store:abc", "dimension.pocket-store:0", "dimension.pocket-store:-1",
+        // Mecânicas que só leem a magnitude e não conferem a chave.
+        "npc.teleportx:5", "construct.create :1x1:10:5:stone", "combat.strike:8:1",
+        "combat.engage:8:1", "npc.force-actionx:1",
     ];
 
     private static readonly string[] ValidCosts =
@@ -184,6 +192,106 @@ public sealed class ExtraordinaryPrimitiveCatalogTests
         var covered = ValidEffects.Concat(ValidCosts).Select(registry.Resolve).Select(item => item!.GetType()).ToHashSet();
         var uncovered = MechanicTypesByReflection().Where(type => !covered.Contains(type)).Select(type => type.Name);
         Assert.Empty(uncovered);
+    }
+
+    // Um caso válido e um malformado por Primitive; falta de caso para algum Head do catálogo reprova.
+    private static readonly Dictionary<string, (string Valid, string Invalid)> Cases = new()
+    {
+        ["npc.teleport"] = ("npc.teleport:5", "npc.teleport:abc"),
+        ["npc.force-action"] = ("npc.force-action:1", "npc.force-action:99"),
+        ["construct.create"] = ("construct.create:1x1:10:5:stone", "construct.create:1x1"),
+        ["movement.flight"] = ("movement.flight:1", "movement.flight:abc"),
+        ["movement.speed-multiplier"] = ("movement.speed-multiplier:3", "movement.speed-multiplier:0"),
+        ["gravity.self"] = ("gravity.self:0.5", "gravity.self:abc"),
+        ["gravity.target"] = ("gravity.target:2", "gravity.target:-1"),
+        ["attribute.fertility"] = ("attribute.fertility:2.5", "attribute.fertility:abc"),
+        ["attribute.strength"] = ("attribute.strength:2", "attribute.strength:-1"),
+        ["attribute.perception"] = ("attribute.perception:3", "attribute.perception:abc"),
+        ["attribute.reaction-speed"] = ("attribute.reaction-speed:2", "attribute.reaction-speed:abc"),
+        ["area:radius:"] = ("area:radius:3", "area:radius:abc"),
+        ["area:region:"] = ("area:region:2", "area:region:x"),
+        ["transfer.lifespan-years"] = ("transfer.lifespan-years:2", "transfer.lifespan-years:abc"),
+        ["mind.read"] = ("mind.read", "mind.read:x"),
+        ["mind.read-memory"] = ("mind.read-memory", "mind.read-memory:1"),
+        ["mind.commune"] = ("mind.commune", "mind.commune:1"),
+        ["mind.erase-memory:"] = ("mind.erase-memory:5", "mind.erase-memory:abc"),
+        ["mind.implant-memory:"] = ("mind.implant-memory:5", "mind.implant-memory:abc"),
+        ["mind.alter-trait:"] = ("mind.alter-trait:agreeableness:-5", "mind.alter-trait:mana:-5"),
+        ["luck.capacity-bonus:"] = ("luck.capacity-bonus:10", "luck.capacity-bonus:0"),
+        ["luck.curse:"] = ("luck.curse:10", "luck.curse:0"),
+        ["household.resource."] = ("household.resource.9:2", "household.resource.abc:2"),
+        ["matter.transmute"] = ("matter.transmute:1:2:3", "matter.transmute:1:2"),
+        ["skill.copy:"] = ("skill.copy:1", "skill.copy:x"),
+        ["skill.learn-rate:"] = ("skill.learn-rate:2", "skill.learn-rate:-1"),
+        ["environment.temperature:"] = ("environment.temperature:0:-5:10", "environment.temperature:1"),
+        ["dimension.pocket-store"] = ("dimension.pocket-store", "dimension.pocket-store.x"),
+        ["dimension.portal:"] = ("dimension.portal:0:0:3:3", "dimension.portal:1:1:1:1"),
+        ["fauna.dominate:"] = ("fauna.dominate:3", "fauna.dominate:-2"),
+        ["fauna.infect-vector:"] = ("fauna.infect-vector:plague", "fauna.infect-vector:"),
+        ["flora.growth-rate:"] = ("flora.growth-rate:5", "flora.growth-rate:-1"),
+        ["combat.strike:"] = ("combat.strike:8", "combat.strike:abc"),
+        ["combat.engage:"] = ("combat.engage:3", "combat.engage:abc"),
+        ["npc.clone"] = ("npc.clone:1", "npc.clone:abc"),
+        ["npc.split-on-death"] = ("npc.split-on-death:2", "npc.split-on-death:abc"),
+        ["npc.reincarnate"] = ("npc.reincarnate:50", "npc.reincarnate:101"),
+        ["soul.persist-as-ghost"] = ("soul.persist-as-ghost", "soul.persist-as-ghost:1"),
+        ["control.possess"] = ("control.possess:Sleep", "control.possess:NotAnAction"),
+        ["control.body-swap"] = ("control.body-swap", "control.body-swap:1"),
+        ["appearance.impersonate:"] = ("appearance.impersonate:5", "appearance.impersonate:0"),
+        ["foresight.preview:"] = ("foresight.preview:death", "foresight.preview:"),
+        ["bond.oath:"] = ("bond.oath:npc.health:-5", "bond.oath:"),
+    };
+
+    private static (string Valid, string Invalid) CaseFor(string head)
+    {
+        if (Cases.TryGetValue(head, out var explicitCase)) return explicitCase;
+        foreach (var stat in NpcStatAccessors.All)
+        {
+            string k = stat.Key;
+            if (head == $"npc.{k}") return ($"npc.{k}:5", $"npc.{k}:0");
+            if (head == $"carrier.{k}") return ($"carrier.{k}:2", $"carrier.{k}:-2");
+            if (head == $"transfer.{k}") return ($"transfer.{k}:5", $"transfer.{k}:-1");
+            if (head == $"bond.share:{k}") return ($"bond.share:{k}:50", $"bond.share:{k}:abc");
+        }
+        throw new Xunit.Sdk.XunitException($"Head sem caso de teste: {head}");
+    }
+
+    [Fact]
+    public void Every_catalog_head_has_a_valid_and_a_malformed_case_that_the_validation_tells_apart()
+    {
+        var registry = ExtraordinaryMechanicRegistry.Default;
+        var catalog = ExtraordinaryPrimitiveCatalog.Describe(registry);
+        foreach (var info in catalog)
+        {
+            var (valid, invalid) = CaseFor(info.Head);
+            Assert.True(ExtraordinaryPrimitiveCatalog.Validate(registry, valid, info.Kind).IsSuccess, valid);
+            Assert.False(ExtraordinaryPrimitiveCatalog.Validate(registry, invalid, info.Kind).IsSuccess, invalid);
+        }
+
+        var heads = catalog.Select(info => info.Head).ToHashSet();
+        Assert.All(Cases.Keys, head => Assert.Contains(head, heads));
+    }
+
+    [Theory]
+    [InlineData("npc.healthy:5")]
+    [InlineData("transfer.health:fire:5:from-target")]
+    [InlineData("bond.share:healthy")]
+    [InlineData("carrier.hunger:abc:5x")]
+    public void Boundary_and_exact_key_rules_still_refuse_look_alike_tokens(string effect)
+    {
+        var registry = ExtraordinaryMechanicRegistry.Default;
+        var kind = effect.StartsWith("carrier.", StringComparison.Ordinal)
+            ? ExtraordinaryMechanicKind.Cost : ExtraordinaryMechanicKind.Effect;
+
+        Assert.False(ExtraordinaryPrimitiveCatalog.Validate(registry, effect, kind).IsSuccess, effect);
+    }
+
+    [Fact]
+    public void Transfer_with_from_target_suffix_is_accepted()
+    {
+        Assert.True(ExtraordinaryPrimitiveCatalog.Validate(
+            ExtraordinaryMechanicRegistry.Default, "transfer.health:5:from-target",
+            ExtraordinaryMechanicKind.Effect).IsSuccess);
     }
 
     [Fact]

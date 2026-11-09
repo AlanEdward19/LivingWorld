@@ -31,14 +31,21 @@ public sealed record PreparedMutation(string Token, Action<ResolutionResult> App
 /// quando possível, o mesmo parser que a invocação usa; estado (saldo, NPC existente) fica na invocação.
 /// </summary>
 public sealed record ExtraordinaryPrimitive(
-    string Head, string Format, bool SignedMagnitude, string Target, Func<string, bool> Syntax)
+    string Head, string Format, bool SignedMagnitude, string Target, Func<string, bool> Syntax,
+    bool LooseHead = false)
 {
-    public bool Matches(string token)
+    /// <summary>Aceita o token como a invocação o veria: direto, ou reduzido da forma tipada
+    /// <c>chave:tipo:n</c> para <c>chave:n</c> (o motor faz essa redução para toda mecânica).</summary>
+    public bool Matches(string token) =>
+        Check(token)
+        || ExtraordinaryMechanicSupport.TrySplitTypedMagnitude(token, out string stripped, out _) && Check(stripped);
+
+    private bool Check(string token)
     {
         if (!token.StartsWith(Head, StringComparison.Ordinal))
             return false;
         char last = Head[^1];
-        bool headOk = last is '.' or ':' || token.Length == Head.Length || token[Head.Length] == ':';
+        bool headOk = LooseHead || last is '.' or ':' || token.Length == Head.Length || token[Head.Length] == ':';
         return headOk && Syntax(token);
     }
 }
@@ -50,8 +57,8 @@ public static class PrimitiveSyntax
     public static Func<string, bool> Flag(string token) =>
         candidate => string.Equals(candidate, token, StringComparison.Ordinal);
 
-    /// <summary><c>chave:n</c> com magnitude não zero (positiva se não assinada); aceita a forma
-    /// tipada <c>chave:tipo:n</c> que o motor reduz antes de resolver.</summary>
+    /// <summary><c>chave:n</c> com magnitude não zero (positiva se não assinada). A forma tipada
+    /// <c>chave:tipo:n</c> é reduzida em <see cref="ExtraordinaryPrimitive.Matches"/>.</summary>
     public static Func<string, bool> Amount(string key, bool signed) =>
         AmountWith(candidate => string.Equals(candidate, key, StringComparison.Ordinal), signed);
 
@@ -59,13 +66,12 @@ public static class PrimitiveSyntax
         token =>
         {
             var parsed = ExtraordinaryMechanicSupport.ParseAmount(token, "Effects", signed);
-            if (!parsed.IsSuccess) return false;
-            if (keyOk(parsed.Value.Key)) return true;
-            if (!ExtraordinaryMechanicSupport.TrySplitTypedMagnitude(token, out string stripped, out _))
-                return false;
-            var typed = ExtraordinaryMechanicSupport.ParseAmount(stripped, "Effects", signed);
-            return typed.IsSuccess && keyOk(typed.Value.Key);
+            return parsed.IsSuccess && keyOk(parsed.Value.Key);
         };
+
+    /// <summary>Mecânicas que só leem a magnitude (<c>ParseAmount</c>) e não conferem a chave.</summary>
+    public static Func<string, bool> AnyKeyAmount(bool signed) =>
+        token => ExtraordinaryMechanicSupport.ParseAmount(token, "Effects", signed).IsSuccess;
 
     /// <summary><c>chave:n</c> sem forma tipada.</summary>
     public static Func<string, bool> AmountExact(string key, bool signed) =>

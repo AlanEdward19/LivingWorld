@@ -49,7 +49,8 @@ Dono decide: rota de primitivas, fechar a Fase 16 no `ROADMAP.md`. Orquestrador:
 ## Decisões de risco (para o dono)
 
 - Fixtures de teste com tokens narrativos (`movement:construct`, `fatigue:2`, `movement:speed`) em `ExtraordinaryScenarioLoaderTests` e `ExtraordinaryIntegrationTests` foram trocados por tokens reais: o loader agora os recusaria. Nenhum arquivo de `scenarios/` tem bloco `Extraordinary`, então nenhum cenário foi afetado.
-- `MovementEffectMechanic` aceitava qualquer `movement.*`; o catálogo declara só `movement.flight` e `movement.speed-multiplier` (os únicos que algum código consome). Os demais eram no-op silencioso.
+- Regra: a carga aceita todo token com efeito real na invocação (inclusive forma tipada `chave:tipo:n`, `dimension.pocket-store:<qualquer>` e mecânicas que não conferem a chave, como `npc.teleportx:5`) e recusa o que a invocação recusa sem depender do mundo. A invocação não foi alterada.
+- Pendência para o dono: `attribute.*` malformado, `area:radius` sem valor e `movement.*` fora de `flight`/`speed-multiplier` continuam recusados na carga (sem efeito de consumidor). `MovementEffectMechanic` os aceita na invocação, e `ExtraordinaryLocomotion.cs:102` usa qualquer efeito `movement.*` para ativar os custos de movimento, então não é no-op silencioso. Os dois tokens do catálogo cobrem os perfis de locomoção (`GravityMechanic.ResolveProfile` só lê `movement.flight` e `movement.speed-multiplier`), mas um poder com perfil vindo só de `gravity.self` e outro `movement.*` como ativador de custos seria recusado. Decidir: aceitar `movement.*` aberto ou manter.
 - `bond.oath:<token>` exige consequência não vazia cujo prefixo resolve a uma mecânica; o argumento interno continua validado só na invocação.
 - `GET /periods/{id}/catalog` de template salvo que não valida mais devolve 400 com o erro (antes seria exceção); sem mudança de contrato.
 - AD-124 em `docs/decisions-log.md`.

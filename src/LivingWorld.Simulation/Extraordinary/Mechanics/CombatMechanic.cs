@@ -25,8 +25,8 @@ public sealed class CombatMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("combat.strike:", "combat.strike:<dano>", false, "target", PrimitiveSyntax.Amount("combat.strike", false)),
-        new("combat.engage:", "combat.engage:<rounds>", false, "target", PrimitiveSyntax.Amount("combat.engage", false)),
+        new("combat.strike:", "combat.strike:<dano>", false, "target", PrimitiveSyntax.AnyKeyAmount(false), LooseHead: true),
+        new("combat.engage:", "combat.engage:<rounds>", false, "target", PrimitiveSyntax.AnyKeyAmount(false), LooseHead: true),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(

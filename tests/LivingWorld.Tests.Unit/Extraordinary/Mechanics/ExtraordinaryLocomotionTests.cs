@@ -181,6 +181,27 @@ public sealed class ExtraordinaryLocomotionTests
             (result.Moved, npc.HungerAt(0), npc.ThirstAt(0), npc.SleepAt(0), npc.SocialAt(0), npc.Health));
     }
 
+    [Theory]
+    [InlineData(2, true, 3L)]
+    [InlineData(6, false, 5L)]
+    public void Movement_cost_in_household_stock_is_debited_only_when_the_stock_covers_it(
+        int cost, bool moves, long stockAfter)
+    {
+        var (world, npc) = WorldWith(
+            "movement.speed-multiplier:3", new CellCoord(0, 0), FlatMap(),
+            costs: [$"household.resource.9:{cost}"]);
+        var household = new Household(
+            new HouseholdId(1), new CellCoord(0, 0), npc.Id, [npc.Id],
+            new Dictionary<ResourceType, long> { [new ResourceType(9)] = 5 });
+        npc.JoinHousehold(household.Id);
+        world.AddHousehold(household);
+
+        var result = ExtraordinaryLocomotion.Advance(
+            world, npc, new CellCoord(5, 0), tick: 0, [], ExtraordinaryLocomotion.Resolve(world, npc));
+
+        Assert.Equal((moves, stockAfter), (result.Moved, household.Stock[new ResourceType(9)]));
+    }
+
     private static (WorldState World, Npc Npc) WorldWith(
         string effect, CellCoord origin, WorldMap? map = null, bool manifested = true,
         IReadOnlyList<string>? costs = null)

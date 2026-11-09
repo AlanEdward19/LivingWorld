@@ -12,7 +12,7 @@ public sealed class ConstructMechanic : ExtraordinaryMechanic
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } =
     [
-        new("construct.create", "construct.create:<L>x<A>:<durabilidade>:<horas>:<aparência>", false, "carrier", static token => TryParse(token, out _, out _, out _, out _, out _)),
+        new("construct.create", "construct.create:<L>x<A>:<durabilidade>:<horas>:<aparência>", false, "carrier", static token => TryParse(token, out _, out _, out _, out _, out _), LooseHead: true),
     ];
 
     public override Result<PreparedMutation?> PrepareEffect(

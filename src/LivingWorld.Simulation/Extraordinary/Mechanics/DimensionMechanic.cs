@@ -203,9 +203,7 @@ public sealed class DimensionMechanic : ExtraordinaryMechanic
         && token.Equals(value.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal);
 
     private static bool ValidPocketStore(string token) =>
-        token == PocketStoreToken
-        || token.StartsWith(PocketStoreToken + ":", StringComparison.Ordinal)
-        && TryParseInt(token[(PocketStoreToken.Length + 1)..], out int quantity) && quantity > 0;
+        token == PocketStoreToken || token.StartsWith(PocketStoreToken + ":", StringComparison.Ordinal);
 }
 
 /// <summary>Detecta NPCs nas células do portal a cada hora e reusa o teleporte existente.</summary>
