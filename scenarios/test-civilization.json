@@ -109,7 +109,8 @@
     "Travel": 4,
     "Idle": 2,
     "Buy": 2,
-    "UsePower": 1
+    "UsePower": 1,
+    "Steal": 1
   },
   "RoutineSlots": [
     {
@@ -244,7 +245,7 @@
         "2": 8
       },
       "RequiresCellResource": null,
-      "MaxWorkersPerCycle": 16
+      "MaxWorkersPerCycle": 30
     },
     "3": {
       "Inputs": {},
@@ -252,7 +253,7 @@
         "3": 6
       },
       "RequiresCellResource": null,
-      "MaxWorkersPerCycle": 6
+      "MaxWorkersPerCycle": 10
     },
     "4": {
       "Inputs": {},
@@ -260,7 +261,7 @@
         "5": 4
       },
       "RequiresCellResource": null,
-      "MaxWorkersPerCycle": 6
+      "MaxWorkersPerCycle": 10
     }
   },
   "MarketLocationTypeIds": [
@@ -279,7 +280,7 @@
       "LocationTypeId": 1,
       "X": 4,
       "Y": 5,
-      "MaxVacancies": 16,
+      "MaxVacancies": 30,
       "Treasury": 500000,
       "Stock": {},
       "Prices": {
@@ -291,7 +292,7 @@
       "LocationTypeId": 3,
       "X": 6,
       "Y": 5,
-      "MaxVacancies": 3,
+      "MaxVacancies": 6,
       "Treasury": 100000,
       "Stock": {
         "3": 10
@@ -304,7 +305,7 @@
       "LocationTypeId": 4,
       "X": 5,
       "Y": 6,
-      "MaxVacancies": 3,
+      "MaxVacancies": 4,
       "Treasury": 100000,
       "Stock": {
         "5": 10
@@ -317,7 +318,7 @@
       "LocationTypeId": 1,
       "X": 14,
       "Y": 5,
-      "MaxVacancies": 5,
+      "MaxVacancies": 12,
       "Treasury": 200000,
       "Stock": {},
       "Prices": {
@@ -329,7 +330,7 @@
       "LocationTypeId": 3,
       "X": 16,
       "Y": 5,
-      "MaxVacancies": 8,
+      "MaxVacancies": 10,
       "Treasury": 300000,
       "Stock": {
         "3": 40
@@ -342,7 +343,7 @@
       "LocationTypeId": 4,
       "X": 15,
       "Y": 6,
-      "MaxVacancies": 8,
+      "MaxVacancies": 10,
       "Treasury": 300000,
       "Stock": {
         "5": 30
@@ -355,7 +356,7 @@
       "LocationTypeId": 1,
       "X": 4,
       "Y": 16,
-      "MaxVacancies": 8,
+      "MaxVacancies": 18,
       "Treasury": 250000,
       "Stock": {},
       "Prices": {
@@ -367,7 +368,7 @@
       "LocationTypeId": 3,
       "X": 6,
       "Y": 16,
-      "MaxVacancies": 4,
+      "MaxVacancies": 6,
       "Treasury": 150000,
       "Stock": {
         "3": 20
@@ -480,8 +481,37 @@
     ],
     "TransformationRules": []
   },
-  "_comment": "Cenario de referencia de seculos (#112 fatia D): 100 NPCs, 3 regioes habitaveis com recursos desiguais, 300 anos no noturno. Nomes so aqui (AD-023): tipo 1=lavoura, 3=oficina de ferramentas, 4=pedreira; recurso 1=comida, 2=agua, 3=ferramenta, 5=pedra. Doenca, clima e furto ainda nao tem bloco de cenario (so ScenarioRunner.Create).",
+  "_comment": "Cenario de referencia de seculos (#112 fatia D): 100 NPCs, 3 regioes habitaveis com recursos desiguais, 300 anos no noturno. Nomes so aqui (AD-023): tipo 1=lavoura, 3=oficina de ferramentas, 4=pedreira; recurso 1=comida, 2=agua, 3=ferramenta, 5=pedra. Doenca, clima e furto ligados pelos blocos Disease/Climate/Theft (ADR-0042); furto sem guarda (nenhuma profissao de guarda no cenario).",
   "Appearance": {
     "Heritability": 0.6
+  },
+  "Disease": {
+    "Enabled": true,
+    "OutbreakPopulationThreshold": 20,
+    "OutbreakDailyChance": 0.002,
+    "Diseases": [
+      {
+        "Id": 1,
+        "ContagionPerContactDay": 0.05,
+        "Lethality": 0.05,
+        "DurationDays": 6,
+        "ImmunityDays": 180
+      }
+    ]
+  },
+  "Climate": {
+    "Enabled": true,
+    "MinMilli": 500,
+    "MaxMilli": 1400
+  },
+  "Theft": {
+    "Enabled": true,
+    "DesperateBelow": 25,
+    "PersonalityThreshold": 0.9,
+    "BaseSuccess": 0.6,
+    "DiscoveryChance": 0.5,
+    "MaxLootFraction": 0.5,
+    "GuardProfessionId": -1,
+    "GuardEffect": 0.25
   }
 }

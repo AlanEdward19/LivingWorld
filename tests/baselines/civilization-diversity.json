@@ -4,13 +4,19 @@
   "Seeds": 20,
   "GateYears": 10,
   "Gate": {
-    "Index": 0.26875306511675806,
+    "Index": 0.2544838349350684,
     "ByMetric": {
-      "cities_active": 0.5136842105263161,
-      "gini": 0.2179178047211054,
-      "population": 0.29276199347927334,
+      "cities_active": 0.5040445424939601,
+      "gini": 0.24546372385287382,
+      "population": 0.25563909774436083,
       "technologies": 0,
-      "treasury_per_capita": 0.31940131685709555
+      "treasury_per_capita": 0.26727181058414706
     }
+  },
+  "Reference": {
+    "Scenario": "test-civilization.json",
+    "FirstSeed": 1,
+    "Seeds": 20,
+    "Years": 300
   }
 }
