@@ -1,5 +1,46 @@
 # Verificação independente: loader, blocos de cenário e F8 (#112, fatia D)
 
+## Rodada 2 (vigente): **PASS**
+
+Alvo: `3940b612`, contém a `main` `a567c164`. Extinção do cenário de referência e fatia D incompleta seguem conhecidas e não contam.
+
+**Escopo restrito, e por quê:** a rodada 1 verificou todos os itens em `ec709800` e reprovou só pelas cinco guardas sem
+teste. Depois disso só mudaram testes e docs, mais o merge da `main`. Esta rodada confere esse delta, a correção e a
+integração; não repete F8, fiação, Heavy nem o custo do caminho JSON, que ficam valendo da rodada 1.
+
+| # | Item | Resultado |
+| --- | --- | --- |
+| 1 | Delta | PASS: `git diff 38d64fd8 1e8e8ac1 -- src/` vazio; só `WorldRulesWiringTests.cs`, `plan-d.md` e ADR-0043 |
+| 2 | Cinco guardas | PASS: 7 de 7 mutantes reprovados |
+| 3 | ADR-0043 | PASS: `PersonalityThreshold` "sem limite validado", como o loader (linha 77 lê, linhas 84-86 não limitam) |
+| 4 | Integração | PASS |
+| 5 | Gate | PASS: `verify.sh --full` sai 0 na primeira execução; `check-docs` OK |
+
+**Item 2.** Cada mutante aplicado sozinho em `WorldRulesScenarioLoader`, com `WorldRulesWiringTests` (íntegro: 22 de 22).
+Em todos, exatamente 1 caso de `Invalid_blocks_fail_pointing_at_the_field` reprova (21 passam), com `Assert.False`
+(o loader passa a aceitar a entrada) e o `expected` do campo removido. Loader revertido ao fim, `git status` limpo:
+
+| Removido | `expected` do caso que reprova |
+| --- | --- |
+| `threshold < 1` | `OutbreakPopulationThreshold` |
+| `contagion > 1` / `contagion < 0` | `ContagionPerContactDay` (1,5 / -0,1) |
+| `lethality > 1` / `lethality < 0` | `Lethality` (1,5 / -0,1) |
+| `immunity < 0` | `ImmunityDays` |
+| `min < 0` | `MinMilli` |
+
+**Item 4.** Em `git diff main...HEAD`, o único arquivo em golden, baseline ou contrato é `civilization-diversity.json`:
+muda o bloco `Gate` (autorizado, AD-125) e entra o bloco `Reference`, novo, que só `ReferenceCivilizationTests` lê e não
+altera pin. Fora dele, o único assert com valor mudado é `Lumberjack_is_paid` (autorizado). Testes após o merge:
+`Absent_blocks_leave_the_rules_disabled` e `Disease_off_block_matches_no_block_hash` passam; `CivilizationDiversityBaselineTests`
+3 de 3; `GoldenHashesTests` 4 passam e 1 pulado (o gravador de hashes, `Skip` próprio).
+
+**Números do `--full`.** Unit 3776 passam, 3 pulados; Scenario 23, 1 pulado; Integration 451; LongRunning 149, 8 pulados. Nenhuma repetição.
+
+**Não verificado nesta rodada:** mutantes de fronteira nas guardas (por exemplo `immunity <= 0`), fora do pedido; `verify.sh --nightly`;
+e os itens abertos da rodada 1, abaixo. Nenhum mutante novo fora das cinco guardas foi rodado, logo não há observação desse tipo.
+
+## Rodada 1: FAIL (histórico)
+
 **Veredito: FAIL**, por um único motivo: lacuna de teste nos guardas do loader (item 4).
 Alvo: `ec709800` (`worktree-agent-a3f0908d9332b03cc`), contém a `main` `b49a35d6`. Extinção e fatia D incompleta não contam.
 
@@ -20,18 +61,7 @@ teste temporário confirmou que as cinco entradas passam a carregar com sucesso,
 seguem verdes. Não são mutantes equivalentes. O comportamento atual está certo; falta teste. Correção: cinco `InlineData` em
 `Invalid_blocks_fail_pointing_at_the_field`.
 
-## Resultado por item
-
-| # | Item | Resultado |
-| --- | --- | --- |
-| 1 | F8 | PASS |
-| 2 | Fiação do loader | PASS, com ressalva na tabela do `plan-d.md` |
-| 3 | Pins | PASS |
-| 4 | Blocos | **FAIL** (teste); comportamento PASS |
-| 5 | Heavy | PASS |
-| 6 | `verify.sh --full` | PASS |
-| 7 | Custo | PASS |
-| 8 | Docs | PASS em linhas; uma incoerência no ADR-0043 |
+## Resultado por item (só o item 4 reprovou)
 
 1. **F8.** Sem o `OrderBy` do `WriteSummary`, só `Summary_does_not_depend_on_the_input_order_of_the_runs` reprova. CLI
    `default.json` 20×10 com e sem o `OrderBy`: bytes idênticos (sha256 `1ace5a39…`). `TrajectoryDiversity` já ordena por seed.
