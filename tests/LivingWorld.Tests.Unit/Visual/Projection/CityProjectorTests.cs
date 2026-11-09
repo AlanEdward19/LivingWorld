@@ -152,6 +152,25 @@ public class CityProjectorTests
     }
 
     [Fact]
+    public void Build_projects_health_as_the_unrounded_mean_when_it_is_fractional()
+    {
+        // Conta à mão: vivos 70 e 51 + pool (3 pessoas, soma 200) = 321 / 5 = 64,2.
+        // Floor daria 64 e Round também 64; o projetor não pode arredondar.
+        var world = ScenarioRunner.Create(seed: 51, initialPopulation: 2).World;
+        var city = new City(world.NextCityId(), new CellCoord(1, 1), 0, null, new AggregatePopulationPool(3, 0, 200));
+        world.AddCity(city);
+        var npcs = world.Npcs.ToList();
+        npcs[0].JoinCity(city.Id);
+        npcs[0].SetHealth(70);
+        npcs[1].JoinCity(city.Id);
+        npcs[1].SetHealth(51);
+
+        var indicators = CityProjector.Build(world, city.Id).Value!.Indicators;
+
+        Assert.Equal(64.2, indicators.Health, 9);
+    }
+
+    [Fact]
     public void Build_does_not_change_the_canonical_hash_by_projecting_city_indicators()
     {
         var (world, city, _) = MakeWorldWithCity();
