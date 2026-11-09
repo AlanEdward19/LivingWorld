@@ -37,7 +37,7 @@ public sealed record LodgingMarker(int Units, int Occupied, long RentPerMonth, l
 /// <see cref="CityIndicatorSources"/> (um teste por reflexão reprova o que não tiver). Medidos vêm de
 /// <see cref="CityPopulationQuery"/>, a única fonte; nenhum é recomputado aqui. <c>Health</c> é a MÉDIA
 /// por morador vivo (materializados + pool). <c>Security</c>, <c>Education</c> e <c>Infrastructure</c>
-/// são sempre <c>null</c> ("não medido") até #118, #122 e #124 darem fonte real (AD-121).</summary>
+/// são sempre <c>null</c> ("não medido") até #118, #122 e #124 darem fonte real (AD-123).</summary>
 public sealed record CityIndicators(
     long Population, long Wealth, double Health, double Inequality, long Economy, long Housing,
     long? Security = null, long? Education = null, long? Infrastructure = null);

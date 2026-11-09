@@ -256,7 +256,7 @@ public class ApiContractTests
         ["shape.interior-delta.json"] = [("action", () => "number")],
         ["shape.visual-delta.json"] = [("currentAction", () => "number")],
         ["shape.city-subscribe.json"] = [("lodging", () => new JsonObject { ["nightlyRate"] = "number", ["occupied"] = "number", ["rentPerMonth"] = "number", ["units"] = "number" }),
-            // Indicadores sem fonte (AD-121): sempre nulos hoje; quando #118/#122/#124 derem fonte viram número.
+            // Indicadores sem fonte (AD-123): sempre nulos hoje; quando #118/#122/#124 derem fonte viram número.
             ("security", () => "number"), ("education", () => "number"), ("infrastructure", () => "number")],
     };
 

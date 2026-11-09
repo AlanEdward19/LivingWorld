@@ -32,7 +32,7 @@ public static class CityPopulationQuery
     /// <summary>Saúde MÉDIA por morador vivo: (saúde dos materializados + <c>HealthSum</c> do pool)
     /// dividida por <see cref="Population"/> (materializados + pool, a mesma massa de
     /// <see cref="Population"/>), em divisão real (sem truncar). Cidade sem nenhum vivo: 0 (não há
-    /// quem medir; mesma convenção de <see cref="Inequality"/>). Contrato: AD-121.</summary>
+    /// quem medir; mesma convenção de <see cref="Inequality"/>). Contrato: AD-123.</summary>
     public static double Health(WorldState world, CityId city)
     {
         long population = Population(world, city);
@@ -70,7 +70,7 @@ public static class CityPopulationQuery
             .Sum(b => world.CityCatalog.BuildingRecipes.TryGetValue(b.BuildingTypeId, out var recipe) ? recipe.HousingCapacityProvided : 0);
 
     // Segurança, Educação e Infraestrutura NÃO têm fonte: a contagem de prédios que ocupava o lugar
-    // fingia medir o que não mede (AD-121). Voltam quando #118, #122 e #124 derem fonte real; até lá o
+    // fingia medir o que não mede (AD-123). Voltam quando #118, #122 e #124 derem fonte real; até lá o
     // cliente recebe nulo ("não medido"), declarado em CityIndicatorSources (Api).
 
     public static bool HasFullCosmeticDetail(WorldState world, Npc npc) =>

@@ -4,7 +4,7 @@ namespace LivingWorld.Api.Visual.Projection;
 
 /// <summary>De onde vem cada indicador de <see cref="CityIndicators"/>. Indicador sem entrada aqui não
 /// pode existir: <c>CityIndicatorSourcesTests</c> reprova por reflexão o campo sem fonte declarada, o que
-/// impede de voltar a exibir um número que não mede o que o nome diz (AD-121).</summary>
+/// impede de voltar a exibir um número que não mede o que o nome diz (AD-123).</summary>
 public static class CityIndicatorSources
 {
     /// <summary>Medido: <see cref="Query"/> é o método de <see cref="CityPopulationQuery"/> que o computa.

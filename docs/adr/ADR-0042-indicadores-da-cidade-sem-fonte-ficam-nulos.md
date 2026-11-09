@@ -1,4 +1,4 @@
-# ADR-0040: Indicadores da cidade: saúde é média; o que não tem fonte fica nulo
+# ADR-0042: Indicadores da cidade: saúde é média; o que não tem fonte fica nulo
 
 - **Status**: aceito
 - **Data**: 2026-11-09

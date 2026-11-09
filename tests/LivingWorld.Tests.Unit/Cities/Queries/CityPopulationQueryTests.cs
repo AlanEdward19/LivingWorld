@@ -121,6 +121,24 @@ public class CityPopulationQueryTests
     }
 
     [Fact]
+    public void Health_leaves_a_dead_resident_out_of_both_the_sum_and_the_headcount()
+    {
+        // Conta à mão: vivos 70 e 51 + pool (3, soma 200) = 321 / 5 = 64,2. O morto (saúde 100, ainda em
+        // world.Npcs e na mesma cidade) não pode entrar: no numerador daria 421 / 5 = 84,2; só no
+        // denominador, 321 / 6 = 53,5.
+        var world = ScenarioRunner.Create(seed: 25, initialPopulation: 3).World;
+        var city = CityWithHealth(world, [70, 51, 100], new AggregatePopulationPool(3, 0, 200));
+        var dead = world.Npcs.Single(n => n.Health == 100 && n.City == city.Id);
+        dead.Die(world.CurrentDate);
+
+        Assert.Contains(dead, world.Npcs);
+        Assert.False(dead.IsAlive);
+        Assert.Equal(5, CityPopulationQuery.Population(world, city.Id));
+        Assert.Equal(321, CityPopulationQuery.HealthSum(world, city.Id));
+        Assert.Equal(64.2, CityPopulationQuery.Health(world, city.Id), precision: 9);
+    }
+
+    [Fact]
     public void Health_is_zero_for_a_city_with_no_living_residents()
     {
         var world = ScenarioRunner.Create(seed: 24, initialPopulation: 1).World;

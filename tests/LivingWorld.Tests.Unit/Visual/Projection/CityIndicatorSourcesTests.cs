@@ -8,7 +8,7 @@ using LivingWorld.Simulation.Scenarios;
 
 namespace LivingWorld.Tests.Unit.Visual.Projection;
 
-/// <summary>AD-121: todo indicador de <see cref="CityIndicators"/> declara de onde vem. A lista de fontes
+/// <summary>AD-123: todo indicador de <see cref="CityIndicators"/> declara de onde vem. A lista de fontes
 /// mora em <see cref="CityIndicatorSources"/> (produção); este teste só confere a lista contra o tipo.</summary>
 public class CityIndicatorSourcesTests
 {
