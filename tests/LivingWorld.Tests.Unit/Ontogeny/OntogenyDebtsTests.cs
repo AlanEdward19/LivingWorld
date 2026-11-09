@@ -16,6 +16,7 @@ using LivingWorld.Simulation.Ontogeny;
 using LivingWorld.Simulation.Population.Family;
 using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Simulation.Scheduling;
+using LivingWorld.Tests.Shared;
 
 namespace LivingWorld.Tests.Unit.Ontogeny;
 
@@ -149,10 +150,10 @@ public class OntogenyDebtsTests
     public void Orphan_care_leaves_no_child_without_an_available_adult_and_lowers_child_deaths()
     {
         int controlDeaths = 0, treatedDeaths = 0, treatedOrphanMonths = 0, worse = 0, fewer = 0, hashesChanged = 0;
-        for (ulong seed = 1; seed <= Seeds; seed++)
+        // Seeds independentes: rodam em paralelo; a soma é feita depois, em ordem de seed.
+        var runs = ParallelSeeds.Map(1, Seeds, seed => (With: RunVillage(seed, true), Without: RunVillage(seed, false)));
+        foreach (var (with, without) in runs)
         {
-            var with = RunVillage(seed, true);
-            var without = RunVillage(seed, false);
             treatedOrphanMonths += with.OrphanMonths;
             treatedDeaths += with.Deaths;
             controlDeaths += without.Deaths;

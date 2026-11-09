@@ -1,0 +1,16 @@
+{
+  "Scenario": "default.json",
+  "FirstSeed": 1,
+  "Seeds": 20,
+  "GateYears": 10,
+  "Gate": {
+    "Index": 0.26875306511675806,
+    "ByMetric": {
+      "cities_active": 0.5136842105263161,
+      "gini": 0.2179178047211054,
+      "population": 0.29276199347927334,
+      "technologies": 0,
+      "treasury_per_capita": 0.31940131685709555
+    }
+  }
+}

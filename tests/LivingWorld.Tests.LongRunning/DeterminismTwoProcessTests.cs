@@ -99,6 +99,32 @@ public class DeterminismTwoProcessTests
     }
 
     [Fact]
+    public void Civ_report_writes_a_byte_identical_json_for_the_same_seeds_across_two_separate_processes()
+    {
+        string scenario = Path.Combine(FindRepoRoot(), "scenarios", "default.json");
+        string dir = Directory.CreateTempSubdirectory("civ-report").FullName;
+        try
+        {
+            string a = Path.Combine(dir, "a.json"), b = Path.Combine(dir, "b.json"), c = Path.Combine(dir, "c.json");
+            RunCommand($"civ-report \"{scenario}\" 5 3 2 \"{a}\"");
+            RunCommand($"civ-report \"{scenario}\" 5 3 2 \"{b}\"");
+            RunCommand($"civ-report \"{scenario}\" 6 3 2 \"{c}\"");
+
+            Assert.Equal(File.ReadAllBytes(a), File.ReadAllBytes(b));
+            Assert.NotEqual(File.ReadAllBytes(a), File.ReadAllBytes(c));
+
+            // Argumentos distintos (seed inicial 5, 3 seeds, 2 anos): trocar a ordem dos argumentos no modo muda o que o arquivo traz.
+            var seeds = System.Text.Json.JsonDocument.Parse(File.ReadAllText(a)).RootElement.GetProperty("seeds");
+            Assert.Equal([5, 6, 7], seeds.EnumerateArray().Select(x => x.GetProperty("seed").GetInt32()));
+            Assert.All(seeds.EnumerateArray(), x => Assert.Equal(2, x.GetProperty("years").GetArrayLength()));
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Same_seed_writes_the_same_thefts_across_two_separate_processes()
     {
         string a = RunCommand("theft-hash 5 8640");
