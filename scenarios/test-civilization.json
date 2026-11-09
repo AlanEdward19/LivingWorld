@@ -1,0 +1,487 @@
+{
+  "Width": 24,
+  "Height": 24,
+  "Seed": 1,
+  "RegionSize": 5,
+  "TerrainIds": [
+    1,
+    2,
+    3
+  ],
+  "BiomeIds": [
+    1
+  ],
+  "ResourceIds": [],
+  "CostWeights": {
+    "Base": 0.3,
+    "AltitudeWeight": 0.05,
+    "TerrainWeight": {
+      "1": 1.0,
+      "2": 1.5,
+      "3": 3.0
+    }
+  },
+  "Settlements": [
+    {
+      "Name": "vale",
+      "X": 5,
+      "Y": 5
+    },
+    {
+      "Name": "colina",
+      "X": 15,
+      "Y": 5
+    },
+    {
+      "Name": "costa",
+      "X": 5,
+      "Y": 16
+    }
+  ],
+  "InitialPopulation": 100,
+  "Culture": 1,
+  "VillageX": 5,
+  "VillageY": 5,
+  "CultureIds": [
+    1
+  ],
+  "ProfessionIds": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "LocationTypeIds": [],
+  "MaxLongevityYears": 90,
+  "LifeTableBrackets": [
+    {
+      "MinAgeYears": 0,
+      "MaxAgeYears": 1,
+      "BaseAnnualMortality": 0.08
+    },
+    {
+      "MinAgeYears": 2,
+      "MaxAgeYears": 14,
+      "BaseAnnualMortality": 0.01
+    },
+    {
+      "MinAgeYears": 15,
+      "MaxAgeYears": 39,
+      "BaseAnnualMortality": 0.004
+    },
+    {
+      "MinAgeYears": 40,
+      "MaxAgeYears": 59,
+      "BaseAnnualMortality": 0.01
+    },
+    {
+      "MinAgeYears": 60,
+      "MaxAgeYears": 79,
+      "BaseAnnualMortality": 0.04
+    },
+    {
+      "MinAgeYears": 80,
+      "MaxAgeYears": 89,
+      "BaseAnnualMortality": 0.15
+    }
+  ],
+  "FertilityMinAge": 16,
+  "FertilityMaxAge": 45,
+  "AnnualConceptionChance": 0.25,
+  "GestationDays": 270,
+  "ConditionalInitialMortality": true,
+  "MaxBytesPerNpcPerYear": 80000,
+  "_professionComment": "1 = lavrador, 2 = ferreiro — nome só neste comentário, o motor só vê o id (AD-023/AD-025)",
+  "HungerDecayPerHour": 2.0,
+  "ThirstDecayPerHour": 3.0,
+  "SleepDecayPerHour": 1.5,
+  "SocialDecayPerHour": 1.0,
+  "UrgencyThreshold": 70,
+  "MaxActionSelectionSteps": 10,
+  "HysteresisEnabled": true,
+  "ContinuityBonus": 5.0,
+  "HomelessSleepEfficiency": 0.5,
+  "MaxDurationHours": {
+    "Eat": 2,
+    "Sleep": 8,
+    "Work": 8,
+    "Socialize": 3,
+    "Travel": 4,
+    "Idle": 2,
+    "Buy": 2,
+    "UsePower": 1
+  },
+  "RoutineSlots": [
+    {
+      "ProfessionId": 1,
+      "Stage": "Adult",
+      "HourStart": 6,
+      "HourEnd": 14,
+      "Action": "Work"
+    },
+    {
+      "ProfessionId": 2,
+      "Stage": "Adult",
+      "HourStart": 7,
+      "HourEnd": 15,
+      "Action": "Work"
+    },
+    {
+      "ProfessionId": 3,
+      "Stage": "Adult",
+      "HourStart": 7,
+      "HourEnd": 15,
+      "Action": "Work"
+    },
+    {
+      "ProfessionId": 4,
+      "Stage": "Adult",
+      "HourStart": 8,
+      "HourEnd": 16,
+      "Action": "Work"
+    },
+    {
+      "ProfessionId": null,
+      "Stage": "Adult",
+      "HourStart": 8,
+      "HourEnd": 16,
+      "Action": "Work"
+    },
+    {
+      "ProfessionId": null,
+      "Stage": "Adult",
+      "HourStart": 18,
+      "HourEnd": 20,
+      "Action": "Socialize"
+    },
+    {
+      "ProfessionId": null,
+      "Stage": "Adult",
+      "HourStart": 22,
+      "HourEnd": 23,
+      "Action": "Sleep"
+    },
+    {
+      "ProfessionId": null,
+      "Stage": "Adult",
+      "HourStart": 0,
+      "HourEnd": 5,
+      "Action": "Sleep"
+    },
+    {
+      "ProfessionId": null,
+      "Stage": "Child",
+      "HourStart": 20,
+      "HourEnd": 23,
+      "Action": "Sleep"
+    },
+    {
+      "ProfessionId": null,
+      "Stage": "Child",
+      "HourStart": 0,
+      "HourEnd": 6,
+      "Action": "Sleep"
+    },
+    {
+      "ProfessionId": null,
+      "Stage": "Elder",
+      "HourStart": 21,
+      "HourEnd": 23,
+      "Action": "Sleep"
+    },
+    {
+      "ProfessionId": null,
+      "Stage": "Elder",
+      "HourStart": 0,
+      "HourEnd": 6,
+      "Action": "Sleep"
+    }
+  ],
+  "DefaultAction": "Idle",
+  "EconomyEnabled": true,
+  "FoodResourceId": 1,
+  "WaterResourceId": 2,
+  "PriceSensitivity": 0.2,
+  "WageTaxRate": 0.05,
+  "CapacityByResourceLocation": {
+    "1,1": 1000,
+    "2,1": 1000,
+    "3,3": 1000,
+    "5,4": 1000
+  },
+  "SpoilagePerDayByResource": {
+    "1": 0.01
+  },
+  "WageByProfession": {
+    "1": 90,
+    "2": 110,
+    "3": 95,
+    "4": 100
+  },
+  "PriceFloor": {
+    "1": 1,
+    "2": 1,
+    "3": 1,
+    "5": 1
+  },
+  "PriceCeiling": {
+    "1": 20,
+    "2": 15,
+    "3": 40,
+    "5": 60
+  },
+  "DemandBaselinePerNpc": {
+    "1": 0.5,
+    "2": 0.3,
+    "3": 0.3,
+    "5": 0.15
+  },
+  "Recipes": {
+    "1": {
+      "Inputs": {},
+      "Outputs": {
+        "1": 10,
+        "2": 8
+      },
+      "RequiresCellResource": null,
+      "MaxWorkersPerCycle": 16
+    },
+    "3": {
+      "Inputs": {},
+      "Outputs": {
+        "3": 6
+      },
+      "RequiresCellResource": null,
+      "MaxWorkersPerCycle": 6
+    },
+    "4": {
+      "Inputs": {},
+      "Outputs": {
+        "5": 4
+      },
+      "RequiresCellResource": null,
+      "MaxWorkersPerCycle": 6
+    }
+  },
+  "MarketLocationTypeIds": [
+    1,
+    3,
+    4
+  ],
+  "LocationTypeByProfession": {
+    "1": 1,
+    "2": 1,
+    "3": 3,
+    "4": 4
+  },
+  "Workplaces": [
+    {
+      "LocationTypeId": 1,
+      "X": 4,
+      "Y": 5,
+      "MaxVacancies": 16,
+      "Treasury": 500000,
+      "Stock": {},
+      "Prices": {
+        "1": 5,
+        "2": 5
+      }
+    },
+    {
+      "LocationTypeId": 3,
+      "X": 6,
+      "Y": 5,
+      "MaxVacancies": 3,
+      "Treasury": 100000,
+      "Stock": {
+        "3": 10
+      },
+      "Prices": {
+        "3": 5
+      }
+    },
+    {
+      "LocationTypeId": 4,
+      "X": 5,
+      "Y": 6,
+      "MaxVacancies": 3,
+      "Treasury": 100000,
+      "Stock": {
+        "5": 10
+      },
+      "Prices": {
+        "5": 5
+      }
+    },
+    {
+      "LocationTypeId": 1,
+      "X": 14,
+      "Y": 5,
+      "MaxVacancies": 5,
+      "Treasury": 200000,
+      "Stock": {},
+      "Prices": {
+        "1": 7,
+        "2": 5
+      }
+    },
+    {
+      "LocationTypeId": 3,
+      "X": 16,
+      "Y": 5,
+      "MaxVacancies": 8,
+      "Treasury": 300000,
+      "Stock": {
+        "3": 40
+      },
+      "Prices": {
+        "3": 5
+      }
+    },
+    {
+      "LocationTypeId": 4,
+      "X": 15,
+      "Y": 6,
+      "MaxVacancies": 8,
+      "Treasury": 300000,
+      "Stock": {
+        "5": 30
+      },
+      "Prices": {
+        "5": 5
+      }
+    },
+    {
+      "LocationTypeId": 1,
+      "X": 4,
+      "Y": 16,
+      "MaxVacancies": 8,
+      "Treasury": 250000,
+      "Stock": {},
+      "Prices": {
+        "1": 6,
+        "2": 5
+      }
+    },
+    {
+      "LocationTypeId": 3,
+      "X": 6,
+      "Y": 16,
+      "MaxVacancies": 4,
+      "Treasury": 150000,
+      "Stock": {
+        "3": 20
+      },
+      "Prices": {
+        "3": 5
+      }
+    }
+  ],
+  "CitiesEnabled": true,
+  "FoodShortageThreshold": 0.1,
+  "HousingShortageThreshold": 0.1,
+  "SecurityShortageThreshold": 0.1,
+  "EmigrationRatePerDeficitUnit": 0.1,
+  "MigrationEmploymentWeight": 0.1,
+  "MigrationFoodWeight": 0.1,
+  "MigrationSecurityWeight": 0.1,
+  "MigrationFamilyTiesWeight": 0.1,
+  "FoundingConcentrationThreshold": 0.1,
+  "FoundingResourceThreshold": 0.1,
+  "FoundingRouteThreshold": 0.1,
+  "FoundingDefensibilityThreshold": 0.1,
+  "FoundingLeadershipThreshold": 0.1,
+  "OrganizationTicks": 1,
+  "MaterializationIdleTicksBeforeEligible": 1,
+  "BuildingRecipes": {
+    "10": {
+      "Inputs": {
+        "3": 20,
+        "5": 10
+      },
+      "TicksToBuild": 48,
+      "HousingCapacityProvided": 4
+    },
+    "11": {
+      "Inputs": {
+        "3": 30,
+        "5": 20
+      },
+      "TicksToBuild": 72,
+      "HousingCapacityProvided": 0,
+      "Workplace": {
+        "LocationTypeId": 1,
+        "MaxVacancies": 10
+      }
+    }
+  },
+  "Emergence": {
+    "Enabled": true
+  },
+  "Cities": [
+    {
+      "Name": "vale",
+      "X": 5,
+      "Y": 5,
+      "FoundedAtTick": 0,
+      "Treasury": 20000,
+      "InitialPopulation": 50,
+      "AggregatePool": {
+        "Count": 0,
+        "WealthSum": 0,
+        "HealthSum": 0
+      }
+    },
+    {
+      "Name": "colina",
+      "X": 15,
+      "Y": 5,
+      "FoundedAtTick": 0,
+      "Treasury": 20000,
+      "InitialPopulation": 30,
+      "AggregatePool": {
+        "Count": 0,
+        "WealthSum": 0,
+        "HealthSum": 0
+      }
+    },
+    {
+      "Name": "costa",
+      "X": 5,
+      "Y": 16,
+      "FoundedAtTick": 0,
+      "Treasury": 20000,
+      "InitialPopulation": 20,
+      "AggregatePool": {
+        "Count": 0,
+        "WealthSum": 0,
+        "HealthSum": 0
+      }
+    }
+  ],
+  "Dynamics": {
+    "ProfessionBiases": [
+      {
+        "ProfessionId": 1,
+        "Weight": 1.0
+      },
+      {
+        "ProfessionId": 2,
+        "Weight": 1.0
+      },
+      {
+        "ProfessionId": 3,
+        "Weight": 0.5
+      },
+      {
+        "ProfessionId": 4,
+        "Weight": 0.5
+      }
+    ],
+    "TransformationRules": []
+  },
+  "_comment": "Cenario de referencia de seculos (#112 fatia D): 100 NPCs, 3 regioes habitaveis com recursos desiguais, 300 anos no noturno. Nomes so aqui (AD-023): tipo 1=lavoura, 3=oficina de ferramentas, 4=pedreira; recurso 1=comida, 2=agua, 3=ferramenta, 5=pedra. Doenca, clima e furto ainda nao tem bloco de cenario (so ScenarioRunner.Create).",
+  "Appearance": {
+    "Heritability": 0.6
+  }
+}

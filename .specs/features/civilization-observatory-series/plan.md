@@ -1,5 +1,6 @@
 # Observatório de civilização: série anual (issue #112, fatia A)
 
+Fatia D (parada, achado do motor): ver `plan-d.md`.
 Status: implementado (fatia A); verificação independente fica com o orquestrador.
 
 ## Problem
