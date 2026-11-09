@@ -218,6 +218,40 @@ public class CivilizationObserverValueTests
         Assert.Equal(55.5, mine["life_expectancy_at_birth"], 9);
     }
 
+    [Fact]
+    public void A_city_with_nobody_alive_at_year_end_still_has_life_expectancy_from_its_deaths()
+    {
+        var (world, tally, observer) = Fresh();
+        var people = Alive(world);
+        var home = people[0].City;
+        var elsewhere = new City(world.NextCityId(), new CellCoord(8, 8), 0, null, AggregatePopulationPool.Empty, name: "P");
+        world.AddCity(elsewhere);
+        Assert.Equal(59, people[2].AgeYears(world.CurrentDate));
+        tally.Record(Event(world, WorldEventKind.Death, people[2], YearEventTally.DeathSource));
+        foreach (var p in people) p.JoinCity(elsewhere.Id);
+        Assert.DoesNotContain(world.Npcs, n => n.IsAlive && n.City == home); // pré-condição: zero vivos na cidade
+
+        var sample = observer.Sample(world);
+
+        // Sem vivos, só a morte define as faixas: faixa 11 (55-59): 1 morte, exposição 0 + 1/2 = 0,5, m = 2. Faixas 0-10 sem mortes
+        // (taxa 0, q = 0): 11·5 = 55; a aberta dá L = l/m = 1/2 = 0,5. e0 = 55,5 (cidade vazia não pode virar 0).
+        Assert.Equal(55.5, sample.Cities.Single(c => c.Id == home.ToString()).Metrics["life_expectancy_at_birth"], 9);
+    }
+
+    [Fact]
+    public void A_world_with_nobody_alive_at_year_end_still_has_life_expectancy_from_the_deaths_of_the_year()
+    {
+        var (world, tally, observer) = Fresh();
+        var people = Alive(world);
+        Assert.Equal(59, people[2].AgeYears(world.CurrentDate));
+        tally.Record(Event(world, WorldEventKind.Death, people[2], YearEventTally.DeathSource));
+        foreach (var p in people) p.Die(world.CurrentDate);
+        Assert.DoesNotContain(world.Npcs, n => n.IsAlive); // pré-condição: extinção
+
+        // Mesma conta da cidade vazia: 1 morte na faixa 11, exposição 0,5, e0 = 55 + 0,5 = 55,5.
+        Assert.Equal(55.5, observer.Sample(world).World["life_expectancy_at_birth"], 9);
+    }
+
     [Theory]
     [InlineData(0, 1)]
     [InlineData(-1, 1)]
