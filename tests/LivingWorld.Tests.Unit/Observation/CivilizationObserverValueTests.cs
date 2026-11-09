@@ -252,6 +252,86 @@ public class CivilizationObserverValueTests
         Assert.Equal(55.5, observer.Sample(world).World["life_expectancy_at_birth"], 9);
     }
 
+    [Fact]
+    public void A_city_founded_on_the_last_tick_of_a_year_counts_in_that_year_and_not_in_the_next()
+    {
+        var (world, _, observer) = Fresh();
+        long start = world.CurrentDate.TotalHours;
+        var founded = new City(world.NextCityId(), new CellCoord(8, 8), start + 100, null, AggregatePopulationPool.Empty, name: "F");
+        world.AddCity(founded);
+
+        // Ano 1 termina no tick start+100: a janela é (start, start+100] e a cidade está exatamente no limite superior.
+        world.CurrentDate = world.CurrentDate.AddHours(100);
+        long first = (long)observer.Sample(world).World["cities_founded"];
+        // Ano 2 termina em start+200: janela (start+100, start+200], o limite inferior é aberto, então não conta de novo.
+        world.CurrentDate = world.CurrentDate.AddHours(100);
+        long second = (long)observer.Sample(world).World["cities_founded"];
+
+        // As cidades do cenário nascem no tick start (fora da janela do ano 1, limite inferior aberto): só a nova conta.
+        Assert.Equal(1, first);
+        Assert.Equal(0, second);
+    }
+
+    [Fact]
+    public void Age_mean_is_zero_in_a_scope_without_living_people_and_the_report_summary_uses_that_zero()
+    {
+        var (aliveWorld, _, aliveObserver) = Fresh();
+        var aliveSample = aliveObserver.Sample(aliveWorld);
+        var (extinctWorld, _, extinctObserver) = Fresh();
+        var empty = new City(extinctWorld.NextCityId(), new CellCoord(8, 8), 0, null, AggregatePopulationPool.Empty, name: "E");
+        extinctWorld.AddCity(empty);
+        foreach (var npc in Alive(extinctWorld)) npc.Die(extinctWorld.CurrentDate);
+        Assert.DoesNotContain(extinctWorld.Npcs, n => n.IsAlive); // pré-condição: nenhum vivo no mundo nem na cidade vazia
+        var extinctSample = extinctObserver.Sample(extinctWorld);
+
+        Assert.Equal(0, extinctSample.World["age_mean"]);
+        Assert.Equal(0, extinctSample.Cities.Single(c => c.Id == empty.Id.ToString()).Metrics["age_mean"]);
+
+        // Idades dos 20 vivos do seed 2: 21+9+59+41+4+4+27+50+59+34+59+14+33+38+53+41+17+15+37+39 = 654; média 654/20 = 32,7.
+        Assert.Equal(32.7, aliveSample.World["age_mean"], 9);
+        string json = CivilizationReport.ToJson("x.json", [new SeedRun(1, [aliveSample]), new SeedRun(2, [extinctSample])]);
+        var mean = System.Text.Json.Nodes.JsonNode.Parse(json)!["summary"]!["final"]!["age_mean"]!;
+
+        // Seeds com 32,7 e 0: min 0, média (32,7 + 0)/2 = 16,35, máx 32,7. Com NaN no 0, o resumo todo viraria 0.
+        Assert.Equal(0, mean["min"]!.GetValue<double>(), 9);
+        Assert.Equal(16.35, mean["mean"]!.GetValue<double>(), 9);
+        Assert.Equal(32.7, mean["max"]!.GetValue<double>(), 9);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public void The_year_tally_rejects_a_non_positive_age_band_width(int width)
+    {
+        var (world, _, _) = Fresh();
+        Assert.Throws<ArgumentOutOfRangeException>(() => new YearEventTally(world, width));
+    }
+
+    [Fact]
+    public void Diversity_is_zero_with_no_metrics_and_with_runs_that_have_no_years()
+    {
+        var (world, _, observer) = Fresh();
+        var sample = observer.Sample(world);
+        SeedRun[] two = [new(1, [sample]), new(2, [sample])];
+        SeedRun[] noYears = [new(1, []), new(2, [])];
+
+        // Sem métricas não há o que tirar a média: 0 (não 0/0). Sem anos, nada a comparar: 0 (não NaN).
+        Assert.Equal(0, TrajectoryDiversity.Compute(two, []).Index);
+        Assert.Equal(0, TrajectoryDiversity.Compute(noYears).Index);
+    }
+
+    [Fact]
+    public void The_report_summary_skips_a_seed_without_years_instead_of_failing()
+    {
+        var (world, _, observer) = Fresh();
+        var sample = observer.Sample(world);
+
+        var root = System.Text.Json.Nodes.JsonNode.Parse(CivilizationReport.ToJson("x.json", [new SeedRun(1, [sample]), new SeedRun(2, [])]))!;
+
+        Assert.Equal(0, root["summary"]!["years"]!.GetValue<int>()); // menor série: a seed vazia
+        Assert.Equal(20, root["summary"]!["final"]!["population_materialized"]!["mean"]!.GetValue<double>(), 9); // só a seed com anos entra
+    }
+
     [Theory]
     [InlineData(0, 1)]
     [InlineData(-1, 1)]
