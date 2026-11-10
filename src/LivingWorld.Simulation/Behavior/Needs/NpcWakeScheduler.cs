@@ -61,34 +61,43 @@ public static class NpcWakeScheduler
         long? eventDrivenWakeTick = null, long? travelArrivalTick = null, LifeStage? lifeStage = null)
     {
         long next = long.MaxValue;
+        var cause = WakeCause.Fallback;
         // Comer, comprar (ou ir comprar) atendem fome e sede; dormir (ou ir para a cama) atende o sono.
         var current = npc.CurrentAction;
         var purpose = current == ActionType.Travel ? npc.TravelPurpose : current;
         bool feeding = purpose is ActionType.Eat or ActionType.Buy;
         bool resting = purpose == ActionType.Sleep;
-        next = Math.Min(next, NextNeedWake(npc.HungerNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: feeding));
-        next = Math.Min(next, NextNeedWake(npc.ThirstNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: feeding));
-        next = Math.Min(next, NextNeedWake(npc.SleepNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: resting));
-        next = Math.Min(next, NextSocialWake(npc.SocialNeed, now, needsRules.UrgencyThreshold));
+        Consider(ref next, ref cause, NextNeedWake(npc.HungerNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: feeding), WakeCause.NeedCrossing);
+        Consider(ref next, ref cause, NextNeedWake(npc.ThirstNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: feeding), WakeCause.NeedCrossing);
+        Consider(ref next, ref cause, NextNeedWake(npc.SleepNeed, now, needsRules.UrgencyThreshold, servedByCurrentAction: resting), WakeCause.NeedCrossing);
+        Consider(ref next, ref cause, NextSocialWake(npc.SocialNeed, now, needsRules.UrgencyThreshold), WakeCause.NeedCrossing);
 
-        if (npc.CurrentAction is { } action)
+        // Viagem com chegada conhecida termina na chegada, não na duração máxima de Travel: depois dessa duração o
+        // "fim de ação" já vencido acordava o viajante de hora em hora até chegar, sem nada para concluir (#152).
+        bool arrivalPending = travelArrivalTick is { } pendingArrival && pendingArrival > now;
+        if (npc.CurrentAction is { } action && !arrivalPending)
         {
             long actionEnd = npc.ActionStartedAtTick + LivingWorld.Simulation.Objects.ObjectUse.DurationHours(world, npc, action, catalog);
-            next = Math.Min(next, actionEnd);
+            Consider(ref next, ref cause, actionEnd, WakeCause.ActionEnd);
         }
 
-        next = Math.Min(next, NextRoutineBoundaryWake(npc, catalog, now, world, lifeStage));
+        Consider(ref next, ref cause, NextRoutineBoundaryWake(npc, catalog, now, world, lifeStage), WakeCause.RoutineBoundary);
 
         // Quem está a caminho acorda ao chegar, não ao fim da duração máxima da ação: sem isso toda viagem
         // de 1–2 h só terminava às 4 h, e o trajeto comia o dia.
         if (travelArrivalTick is { } arrival)
-            next = Math.Min(next, arrival);
+            Consider(ref next, ref cause, arrival, WakeCause.TravelArrival);
 
         if (eventDrivenWakeTick is { } attentionTick)
-            next = Math.Min(next, attentionTick);
+            Consider(ref next, ref cause, attentionTick, WakeCause.Attention);
 
         if (next == long.MaxValue) next = now + 1;
-        if (next <= now) next = now + 1;
+        if (next <= now)
+        {
+            next = now + 1;
+            cause = cause == WakeCause.NeedCrossing ? WakeCause.NeedAlreadyUrgent : WakeCause.Overdue;
+        }
+        world.WakeCounters.RecordScheduled(cause, npc.CurrentAction);
 
         double reaction = AttributeMechanic.ReactionSpeedMultiplier(world, npc);
         if (reaction > 1)
@@ -98,6 +107,14 @@ public static class NpcWakeScheduler
         }
 
         return next;
+    }
+
+    /// <summary>Mesmo resultado de <c>Math.Min</c> em cadeia, guardando quem deu o mínimo (empate: o primeiro).</summary>
+    private static void Consider(ref long next, ref WakeCause cause, long candidate, WakeCause candidateCause)
+    {
+        if (candidate >= next) return;
+        next = candidate;
+        cause = candidateCause;
     }
 
     /// <summary>Próxima fronteira da rotina (troca de ação), menos o tempo de deslocamento quando a nova
@@ -113,7 +130,10 @@ public static class NpcWakeScheduler
 
         int untilChange = RoutineBoundaries.HoursUntilChange(catalog, profession, stage, hour, hoursPerDay);
         var upcoming = RoutineBoundaries.RoutineAt(catalog, profession, stage, (hour + untilChange) % hoursPerDay, hoursPerDay);
-        long lead = BehaviorDecisionSystem.CommuteLeadHours(world, npc, upcoming);
+        // Quem já está a caminho da próxima ação da rotina não precisa sair mais cedo de novo: sem isto, um trajeto
+        // maior que o tempo até a fronteira acordava o NPC a cada hora só para confirmar a mesma viagem (#152).
+        bool alreadyHeadingThere = npc.CurrentAction == ActionType.Travel && npc.TravelPurpose == upcoming;
+        long lead = alreadyHeadingThere ? 0 : BehaviorDecisionSystem.CommuteLeadHours(world, npc, upcoming);
         return now + Math.Max(1, untilChange - lead);
     }
 

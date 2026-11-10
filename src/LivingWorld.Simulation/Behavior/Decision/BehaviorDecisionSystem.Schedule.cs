@@ -114,9 +114,15 @@ public sealed partial class BehaviorDecisionSystem
     private static long CheapestEssentialPrice(EconomyRules economy, Workplace market)
     {
         long cheapest = long.MaxValue;
-        foreach (int id in new[] { economy.FoodResourceId, economy.WaterResourceId })
-            if (market.Prices.TryGetValue(new ResourceType(id), out var price) && price > 0 && price < cheapest) cheapest = price;
+        ConsiderPrice(market, economy.FoodResourceId, ref cheapest);
+        ConsiderPrice(market, economy.WaterResourceId, ref cheapest);
         return cheapest == long.MaxValue ? 0 : cheapest;
+    }
+
+    private static void ConsiderPrice(Workplace market, int resourceId, ref long cheapest)
+    {
+        if (market.Prices.TryGetValue(new ResourceType(resourceId), out var price) && price > 0 && price < cheapest)
+            cheapest = price;
     }
 
     private static bool IsUrgent(int need, NeedsRules rules) => need == 0 || 100 - need > rules.UrgencyThreshold;

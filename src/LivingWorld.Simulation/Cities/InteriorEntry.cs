@@ -1,4 +1,3 @@
-using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Geography.Spatial;
 using LivingWorld.Domain.Population;
@@ -13,15 +12,15 @@ public static class InteriorEntry
 {
     public static Result<Unit> TryEnter(WorldState world, Npc npc, BuildingId buildingId, FloorLevel floor, CellCoord localCell)
     {
-        var building = world.Buildings.FirstOrDefault(b => b.Id == buildingId);
+        var building = world.FindBuilding(buildingId);
         if (building is null) return Result<Unit>.Fail($"prédio {buildingId} não encontrado");
 
-        var layout = BuildingLayoutGenerator.Generate(building);
-        if (floor.Value < 0 || floor.Value >= layout.Floors)
-            return Result<Unit>.Fail($"andar {floor.Value} fora de [0, {layout.Floors - 1}]");
+        var cached = BuildingLayoutCache.Of(building);
+        int floors = cached.Layout.Floors;
+        if (floor.Value < 0 || floor.Value >= floors)
+            return Result<Unit>.Fail($"andar {floor.Value} fora de [0, {floors - 1}]");
 
-        var cell = layout.FloorLayouts[floor.Value].Cells.FirstOrDefault(c => c.Cell == localCell);
-        if (cell is null || !InteriorWalkability.IsWalkable(cell.Material))
+        if (!cached.IsWalkable(floor.Value, localCell))
             return Result<Unit>.Fail($"célula {localCell} não caminhável no andar {floor.Value}");
 
         npc.EnterBuilding(buildingId, floor, localCell);

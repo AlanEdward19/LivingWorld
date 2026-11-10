@@ -67,7 +67,8 @@ public class CivilizationConservationTests
     [Fact]
     public void With_births_and_no_emigration_net_migration_is_still_zero_and_the_change_is_births_minus_deaths()
     {
-        var arm = Observe(seed: 2, Years, emigrationRate: 0, pool: 0);
+        // Seed 5 tem nascimentos nos 3 anos (a 2 deixou de ter com o ritmo de despertar da AD-126).
+        var arm = Observe(seed: 5, Years, emigrationRate: 0, pool: 0);
 
         Assert.True(arm.Run.Years.Sum(y => y.World["births"]) > 0, "a seed não teve nascimentos: o teste não mediu nada");
         long previous = arm.InitialPopulation;

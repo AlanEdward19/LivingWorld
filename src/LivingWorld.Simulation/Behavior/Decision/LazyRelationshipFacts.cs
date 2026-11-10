@@ -37,12 +37,12 @@ internal sealed class LazyRelationshipFacts(WorldState world, NpcId owner) : IRe
         if (world.Relationships.Count == 0) return false;
         var targets = world.RelationshipTargetsOf(owner);
 
-        // A resposta só depende dos eixos das relações do dono e de quais elas são: enquanto nenhum eixo
-        // de nenhuma relação mudou (AxesVersion) e o dono tem os mesmos alvos, vale a última resposta.
-        // As relações mudam em lote no tick diário, então a maioria dos despertares do dia reaproveita.
+        // A resposta só depende dos eixos das relações do dono e de quais elas são: enquanto a versão das
+        // relações dele (carimbo por dono, do próprio mundo) não mudou e ele tem os mesmos alvos, vale a
+        // última resposta. A compra ou o furto de outro NPC não invalida a deste.
         var memo = Memos.GetOrCreateValue(world);
         var key = (owner, minimum);
-        long version = Relationship.AxesVersion;
+        long version = world.RelationshipAxesVersionOf(owner);
         if (memo.TryGetValue(key, out var known) && known.Version == version && known.Targets == targets.Count)
             return known.Result;
 

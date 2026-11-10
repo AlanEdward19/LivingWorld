@@ -33,8 +33,8 @@ public class OptimizationEquivalenceTests
     // --- Hashes do mundo preservados ---
 
     [Theory]
-    [InlineData(1UL, "0bf28f628df8fff0fef1cb819327676691f2ed28b7ffa1445e120240eb834564", "8854d1b32925fd62a86d67c365cec4b51a2f8d2cadb6222b39d86dfa642336c3")]
-    [InlineData(2UL, "9731839aea2ac497b0936f8acfdbc5bda5f4623e4207645ef8e47b918f13b262", "c11e02469215730dd02e2c75dc8e2f445d53a7fda166ee9a537741c174ba1dc4")]
+    [InlineData(1UL, "081b0d84ecbb67aa422f95c6c32753edda00e38a1b31acf9795a42d79a66fa19", "4a22b523e38a7094a2684fe29099f644c2837998cb36d12147b0ec17d4f75b1f")]
+    [InlineData(2UL, "a1f37a85db61419fabe15f2c5556231267c42a8ede007e8d45e06546cd4d5fc9", "5d8cd4452a25e83d31660b95d7cd14c41a8154c37eeab560783b941f99f89e7d")]
     public void Default_scenario_ninety_days_keeps_the_recorded_hashes(
         ulong seed, string canonical, string volatileHash)
     {
@@ -372,6 +372,39 @@ public class OptimizationEquivalenceTests
         Assert.False(Probe(ids[3]));
         eventRel.ApplyEvent(type, rules);
         Assert.True(Probe(ids[3]));
+    }
+
+    [Fact]
+    public void Bond_probe_version_of_an_owner_ignores_other_owners_and_other_worlds()
+    {
+        var (world, _) = ScenarioRunner.Create(7);
+        var (other, _) = ScenarioRunner.Create(7);
+        var ids = world.Npcs.Select(n => n.Id).Take(4).ToList();
+        var owner = ids[0];
+        world.GetOrCreateRelationship(new RelationshipKey(owner, ids[1]), 0).CopyAxesFrom(Relationship.FromAxes(70, 0, 0, 0, 0));
+        Assert.True(new LazyRelationshipFacts(world, owner).AnyBondAtLeast(60));
+        long before = world.RelationshipAxesVersionOf(owner);
+
+        // outro dono no mesmo mundo, e o mesmo dono em outro mundo do processo
+        world.GetOrCreateRelationship(new RelationshipKey(ids[2], ids[3]), 0).CopyAxesFrom(Relationship.FromAxes(90, 90, 0, 0, 0));
+        other.GetOrCreateRelationship(new RelationshipKey(owner, ids[1]), 0).CopyAxesFrom(Relationship.FromAxes(5, 5, 0, 0, 0));
+
+        Assert.Equal(before, world.RelationshipAxesVersionOf(owner));
+    }
+
+    [Fact]
+    public void Bond_probe_version_survives_snapshot_round_trip_as_a_live_stamp()
+    {
+        var (world, _) = ScenarioRunner.Create(7);
+        var ids = world.Npcs.Select(n => n.Id).Take(2).ToList();
+        world.GetOrCreateRelationship(new RelationshipKey(ids[0], ids[1]), 0).CopyAxesFrom(Relationship.FromAxes(10, 0, 0, 0, 0));
+        var restored = WorldSnapshot.Deserialize(WorldSnapshot.Serialize(world));
+        Assert.False(new LazyRelationshipFacts(restored, ids[0]).AnyBondAtLeast(60));
+
+        // mundo reidratado: a relação lida do snapshot tem de avisar o cache quando muda
+        restored.Relationships[new RelationshipKey(ids[0], ids[1])].CopyAxesFrom(Relationship.FromAxes(80, 0, 0, 0, 0));
+
+        Assert.True(new LazyRelationshipFacts(restored, ids[0]).AnyBondAtLeast(60));
     }
 
     // --- Busca em anel sem lista ---

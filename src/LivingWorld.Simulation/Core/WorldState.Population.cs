@@ -21,6 +21,7 @@ public sealed partial class WorldState
             relationship = Relationship.Initial(now);
             _relationships[key] = relationship;
             IndexRelationshipTarget(key);
+            AttachRelationshipStamp(key, relationship);
         }
         return relationship;
     }
@@ -42,8 +43,23 @@ public sealed partial class WorldState
         targets.Insert(lo, key.To);
     }
 
+    /// <summary>Liga a relação ao carimbo do dono e o avança (o conjunto de relações dele mudou).</summary>
+    private void AttachRelationshipStamp(RelationshipKey key, Relationship relationship)
+    {
+        if (!_relationshipStampByFrom.TryGetValue(key.From, out var stamp))
+            _relationshipStampByFrom[key.From] = stamp = new RelationshipAxesStamp();
+        relationship.OwnerStamp = stamp;
+        stamp.Touch();
+    }
+
+    /// <summary>Versão das relações de <paramref name="from"/>: igual à da última consulta = nenhuma relação dele foi
+    /// criada, removida nem teve eixo alterado.</summary>
+    internal long RelationshipAxesVersionOf(NpcId from) =>
+        _relationshipStampByFrom.TryGetValue(from, out var stamp) ? stamp.Version : 0;
+
     private void UnindexRelationshipTarget(RelationshipKey key)
     {
+        if (_relationshipStampByFrom.TryGetValue(key.From, out var stamp)) stamp.Touch();
         if (!_relationshipTargetsByFrom.TryGetValue(key.From, out var targets)) return;
         targets.Remove(key.To);
         if (targets.Count == 0) _relationshipTargetsByFrom.Remove(key.From);

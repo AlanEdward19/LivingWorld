@@ -13,6 +13,7 @@ dá saída 0/1 estável para os eval gates.
 | `client-stress.sh` | Três rodadas gráficas de 500 NPCs, API local já iniciada | `[caminho-do-cliente]` |
 | `compare-simulation-cost.sh` | Três pares alternados do MeasureHarness; tetos +3% CPU / +2% alocação | `<checkout-base> [saída]` |
 | `compare-creation-cost.sh` | Mede 6.000 NPCs em três pares de processos alternados; falha acima de +5% | `<checkout-base> [saída]` |
+| `profile.sh` | Perfil por sistema do tick (#158): tempo e bytes por sistema, despertares sem efeito e causa de cada agendamento; não é gate | `[--pop N] [--ticks N]` |
 | `civ-report.sh` | Observatório de civilização (#112): N seeds × X anos em paralelo, sem persistência, série anual em JSON (`docs/domain/civilization-observatory.md`) | `[cenário] [seed-inicial] [seeds] [anos] [saída]` |
 | `refresh-world-hashes.sh` | Regrava explicitamente goldens e pins após mudança de comportamento registrada em AD/ADR | — |
 | `verify.sh` | **Gate**: check-docs + build + lint + test rápido | `--full` (+ cenários pesados) |
