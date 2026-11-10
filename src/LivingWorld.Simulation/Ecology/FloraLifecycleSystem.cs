@@ -182,13 +182,16 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
             if (delta == 0)
                 continue;
 
-            int nextStage = plant.GrowthStage + delta;
-            if (nextStage < 0)
+            // Em long: multiplicador enorme satura o delta em int.MaxValue e a soma em int viraria "morte".
+            long advanced = (long)plant.GrowthStage + delta;
+            if (advanced < 0)
             {
                 Kill(world, ctx, plant);
                 removed++;
                 continue;
             }
+
+            int nextStage = SaturateStage(advanced);
 
             world.ReplacePlantAt(i - removed, plant with { GrowthStage = nextStage });
             if (plant.GrowthStage < rules.MaturityStage && nextStage >= rules.MaturityStage)
@@ -201,6 +204,9 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
             }
         }
     }
+
+    /// <summary>Teto do estágio: crescimento além de <see cref="int.MaxValue"/> para ali, nunca dá a volta.</summary>
+    internal static int SaturateStage(long stage) => stage > int.MaxValue ? int.MaxValue : (int)stage;
 
     /// <summary>Planta madura com espaço livre compatível brota nova planta
     /// (RNG semeado por stream).</summary>

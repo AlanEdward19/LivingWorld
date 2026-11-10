@@ -72,7 +72,7 @@ public sealed class FloraLifecycleAdvanceTests
     {
         var rules = WheatRules(min: 0, max: 40, maturity: 20);
         var baseline = WorldWithPlant("wheat", stage: 0, rules, tempDelta: 0, enabledExtraordinary: false);
-        var powered = WorldWithGrowthPower("wheat", stage: 0, rules, multiplier: 5, radius: 10);
+        var powered = WorldWithGrowthPower("wheat", stage: 0, rules, multiplier: "5", radius: 10);
         var plant = baseline.World.FindPlant(baseline.PlantId)!;
         double baseRate = FloraLifecycleSystem.BaseGrowthRate(
             baseline.World, plant, rules, baseline.World.CurrentDate.TotalHours);
@@ -116,6 +116,75 @@ public sealed class FloraLifecycleAdvanceTests
         Assert.Equal(FloraLifecycleSystem.SystemName, matured.SourceSystem);
     }
 
+    [Theory]
+    [InlineData("Infinity")]
+    [InlineData("1e308")]
+    public void Huge_growth_rate_saturates_the_stage_instead_of_killing_the_plant(string multiplier)
+    {
+        var rules = WheatRules(min: 0, max: 40, maturity: 20);
+        var (world, plantId) = WorldWithGrowthPower("wheat", stage: 0, rules, multiplier, radius: 10);
+        var clock = new WorldClock([new FloraLifecycleSystem()]);
+
+        clock.Tick(world);
+        clock.Tick(world);
+        clock.Tick(world);
+
+        Assert.Equal(int.MaxValue, world.FindPlant(plantId)?.GrowthStage);
+    }
+
+    [Fact]
+    public void Growth_rate_below_saturation_still_saturates_when_the_sum_overflows()
+    {
+        var rules = WheatRules(min: 0, max: 40, maturity: 20);
+        var (world, plantId) = WorldWithGrowthPower("wheat", stage: int.MaxValue - 1, rules, "5", radius: 10);
+
+        new WorldClock([new FloraLifecycleSystem()]).Tick(world);
+
+        Assert.Equal(int.MaxValue, world.FindPlant(plantId)?.GrowthStage);
+    }
+
+    [Fact]
+    public void Huge_growth_rate_logs_maturity_once_and_no_death()
+    {
+        var rules = WheatRules(min: 0, max: 40, maturity: 20);
+        var sink = new RecordingSink();
+        var (world, _) = WorldWithGrowthPower("wheat", stage: 0, rules, "Infinity", radius: 10);
+        var clock = new WorldClock([new FloraLifecycleSystem()], sink: sink);
+
+        clock.Tick(world);
+        clock.Tick(world);
+        clock.Tick(world);
+
+        Assert.Equal(
+            [WorldEventKind.PlantMatured],
+            sink.Events.Where(e => e.SourceSystem == FloraLifecycleSystem.SystemName).Select(e => e.Kind));
+    }
+
+    [Fact]
+    public void Huge_growth_rate_outside_tolerance_still_kills_the_plant()
+    {
+        var rules = WheatRules(min: 50, max: 60, maturity: 20);
+        var (world, plantId) = WorldWithGrowthPower("wheat", stage: int.MaxValue, rules, "Infinity", radius: 10);
+
+        new WorldClock([new FloraLifecycleSystem()]).Tick(world);
+
+        Assert.Null(world.FindPlant(plantId));
+    }
+
+    [Fact]
+    public void Deferred_advance_saturates_the_stage_like_the_normal_path()
+    {
+        var rules = WheatRules(min: 0, max: 40, maturity: 5);
+        var (world, plantId) = WorldWithPlant("wheat", stage: int.MaxValue - 1, rules, tempDelta: 0);
+        var clock = new WorldClock([new FloraLifecycleSystem()]);
+
+        clock.Tick(world);
+        clock.Tick(world);
+        clock.Tick(world);
+
+        Assert.Equal(int.MaxValue, world.FindPlant(plantId)?.GrowthStage);
+    }
+
     private static PlantSpeciesRules WheatRules(float min, float max, int maturity) =>
         new("wheat", min, max, maturity, CropResourceId: 1, YieldPerMaturePlant: 10,
             ReproduceRadius: 2, ReproduceProbability: 0);
@@ -140,7 +209,7 @@ public sealed class FloraLifecycleAdvanceTests
     }
 
     private static (WorldState World, Domain.Flora.PlantId PlantId) WorldWithGrowthPower(
-        string species, int stage, PlantSpeciesRules rules, int multiplier, int radius)
+        string species, int stage, PlantSpeciesRules rules, string multiplier, int radius)
     {
         var plant = new Plant(new PlantId(1), species, new CellCoord(0, 0), stage);
         var descriptor = new PowerDescriptor(
