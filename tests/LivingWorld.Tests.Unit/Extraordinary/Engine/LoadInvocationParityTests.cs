@@ -46,6 +46,7 @@ public sealed class LoadInvocationParityTests
         "construct.create:1x1:10:5:stone", "construct.create :1x1:10:5:stone", "construct.create:1x1:10:5: ",
         "construct.create:9x1:10:5:stone", "construct.create:1x1:10:5:stone:extra",
         "gravity.self:0.5", "gravity.self:abc", "gravity.target:2", "gravity.target:-1", "gravity.target:fire:2",
+        "gravity.self:Infinity", "gravity.target:Infinity", "environment.temperature:0:Infinity:10", "skill.learn-rate:Infinity",
         "transfer.health:20", "transfer.thirst:5:from-target", "transfer.health:-1", "transfer.health:fire:5:from-target",
         "transfer.health:fire:20", "transfer.lifespan-years:2", "transfer.mana:3",
         "mind.read", "mind.read:x", "mind.read-memory", "mind.commune", "mind.erase-memory:5", "mind.erase-memory:abc",
@@ -69,7 +70,7 @@ public sealed class LoadInvocationParityTests
 
     private static readonly string[] Costs =
     [
-        "carrier.hunger:2", "carrier.hunger", "carrier.hunger:abc", "carrier.hunger:-2", "carrier.hunger:0",
+        "carrier.hunger:2", "carrier.hunger:fire:2", "carrier.hunger", "carrier.hunger:abc","carrier.hunger:-2", "carrier.hunger:0",
         "carrier.health:1", "carrier.sleep:sunlight:3", "carrier.mana:3", "household.resource.9:2",
         "household.resource.abc:1", "household.resource.9", "household.resource.9:-2",
     ];

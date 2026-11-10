@@ -128,7 +128,8 @@ public sealed class EnvironmentTemperatureMechanic : ExtraordinaryMechanic
         if (!int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out int regionValue)
             || !parts[0].Equals(regionValue.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal))
             return false;
-        if (!float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out delta))
+        // O delta vai para o estado canônico: infinito, NaN e estouro de float (1e39) ficam de fora (ADR-0040).
+        if (!float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out delta) || !float.IsFinite(delta))
             return false;
         if (!long.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out durationTicks)
             || durationTicks <= 0

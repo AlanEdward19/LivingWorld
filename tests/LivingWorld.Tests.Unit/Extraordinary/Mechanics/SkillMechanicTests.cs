@@ -8,6 +8,7 @@ using LivingWorld.Domain.Population.Skills;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Extraordinary.Engine;
+using LivingWorld.Simulation.Extraordinary.Mechanics;
 using LivingWorld.Simulation.Extraordinary.Systems;
 using LivingWorld.Simulation.Population.Skills;
 using LivingWorld.Simulation.Scenarios;
@@ -117,6 +118,23 @@ public sealed class SkillMechanicTests
         Assert.Equal(
             afterBoost + PracticeRules.Gain(afterBoost, SkillGainSource.Practice, 1.0),
             treated.Worker.Skills.Get(skill));
+    }
+
+    [Theory]
+    [InlineData("skill.learn-rate:1e308", "skill.learn-rate:1e308")]
+    [InlineData("skill.learn-rate:1e308", "skill.learn-rate:1e308", "skill.learn-rate:0")]
+    public void Learn_rate_product_overflow_stays_finite_when_practice_reaches_the_cap(params string[] effects)
+    {
+        var treated = PracticeWorld(effects, manifested: true, new RateGene(1.0));
+        var system = new SkillPracticeSystem(PracticeRules);
+
+        // Primeiro tick leva ao teto; no segundo o ganho é 0 e 0 × infinito viraria NaN gravado na habilidade.
+        system.Tick(treated.World, treated.Ctx);
+        system.Tick(treated.World, treated.Ctx);
+
+        Assert.True(double.IsFinite(treated.Worker.Skills.Get(new SkillType(0))));
+        Assert.True(double.IsFinite(SkillMechanic.ManifestedLearnRate(treated.World, treated.Worker)));
+        Assert.NotEmpty(WorldSnapshot.CanonicalHash(treated.World));
     }
 
     private static (WorldState World, Npc Carrier, Npc Target) WorldWithPower(

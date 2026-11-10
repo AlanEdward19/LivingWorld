@@ -7,6 +7,7 @@ using LivingWorld.Domain.Population;
 using LivingWorld.Simulation.Cities.Construction;
 using LivingWorld.Simulation.Cities.Queries;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Engine;
 using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Extraordinary.Mechanics;
@@ -105,48 +106,67 @@ public static class ExtraordinaryLocomotion
             .ToList();
         if (declarations.Count == 0) return true;
 
-        var parsed = new List<(string Token, string Key, int Amount)>();
+        var parsed = new List<MovementCost>(declarations.Count);
         foreach (var declaration in declarations)
         {
-            int separator = declaration.LastIndexOf(':');
-            if (separator <= 0 || !int.TryParse(declaration[(separator + 1)..], out int amount) || amount <= 0)
-                return false;
-            parsed.Add((declaration, declaration[..separator], amount));
+            if (!TryParseCost(world, npc, declaration, out var cost)) return false;
+            parsed.Add(cost);
         }
         var household = npc.Household is { } householdId ? world.FindHousehold(householdId) : null;
         foreach (var group in parsed.GroupBy(item => item.Key, StringComparer.Ordinal))
         {
             long required = group.Sum(item => (long)item.Amount);
-            long available = NpcStatAccessors.TryGet(group.Key, CarrierCostMechanic.KeyPrefix, out var stat)
+            var first = group.First();
+            long available = first.Stat is { } stat
                 ? stat.Read(npc, tick)
-                : TryHouseholdResource(group.Key, out var resource) && household is not null
-                    ? household.Stock.GetValueOrDefault(resource)
+                : household is not null
+                    ? household.Stock.GetValueOrDefault(first.Resource)
                     : -1;
             if (available < required) return false;
         }
-        foreach (var (token, key, amount) in parsed)
+        foreach (var cost in parsed)
         {
-            if (NpcStatAccessors.TryGet(key, CarrierCostMechanic.KeyPrefix, out var stat))
-            {
-                stat.SubtractRaw(npc, amount, tick);
-            }
+            if (cost.Stat is { } stat)
+                stat.SubtractRaw(npc, cost.Amount, tick);
             else
-            {
-                _ = TryHouseholdResource(key, out var resource);
-                household!.Withdraw(resource, amount);
-            }
-            ctx?.LogEvent(WorldEventKind.ExtraordinaryCostPaid, $"{npc.Id.Value}|movement|{token}", sourceSystem: "ExtraordinaryLocomotion");
+                household!.Withdraw(cost.Resource, cost.Amount);
+            ctx?.LogEvent(WorldEventKind.ExtraordinaryCostPaid, $"{npc.Id.Value}|movement|{cost.Token}", sourceSystem: "ExtraordinaryLocomotion");
         }
         return true;
     }
 
-    private static bool TryHouseholdResource(string key, out ResourceType resource)
+    /// <summary><see cref="Stat"/> nulo = custo em estoque da casa (<see cref="Resource"/>).</summary>
+    private readonly record struct MovementCost(string Token, string Key, NpcStat? Stat, ResourceType Resource, int Amount);
+
+    /// <summary>Lê o custo pelos parsers únicos (ADR-0040), depois da mesma redução da forma tipada que o motor faz.</summary>
+    private static bool TryParseCost(WorldState world, Npc npc, string declaration, out MovementCost cost)
     {
-        const string prefix = "household.resource.";
-        bool valid = key.StartsWith(prefix, StringComparison.Ordinal)
-            && int.TryParse(key[prefix.Length..], out int id) && id >= 0;
-        resource = new ResourceType(valid ? int.Parse(key[prefix.Length..]) : 0);
-        return valid;
+        string token = ReduceTypedCost(world, npc, declaration);
+        string key = token.LastIndexOf(':') is > 0 and var separator ? token[..separator] : token;
+        if (CarrierCostMechanic.Cost.TryParse(token, out var carrierCost))
+        {
+            cost = new(token, key, carrierCost.Stat, default, carrierCost.Amount);
+            return true;
+        }
+        if (HouseholdResourceCostMechanic.Cost.TryParse(token, out var householdCost))
+        {
+            cost = new(token, key, null, householdCost.Resource, householdCost.Amount);
+            return true;
+        }
+        cost = default;
+        return false;
+    }
+
+    /// <summary><c>chave:tipo:n</c> vira <c>chave:n×vulnerabilidade</c>, como em <c>ScaleTypedMagnitude</c>; o resto passa intacto.</summary>
+    private static string ReduceTypedCost(WorldState world, Npc npc, string declaration)
+    {
+        if (!ExtraordinaryMechanicSupport.TrySplitTypedMagnitude(declaration, out string stripped, out string type)
+            || !CarrierCostMechanic.Cost.Accepts(stripped) && !HouseholdResourceCostMechanic.Cost.Accepts(stripped))
+            return declaration;
+
+        var parsed = ExtraordinaryMechanicSupport.ParseAmount(stripped, "Costs", allowSigned: false).Value;
+        int factor = ExtraordinaryInvocationEngine.ResolveVulnerabilityFactor(world, npc, type);
+        return $"{parsed.Key}:{ExtraordinaryMechanicSupport.ApplyVulnerabilityFactor(parsed.Amount, factor)}";
     }
 
     private static IReadOnlyList<CellCoord> StraightLine(CellCoord start, CellCoord goal)

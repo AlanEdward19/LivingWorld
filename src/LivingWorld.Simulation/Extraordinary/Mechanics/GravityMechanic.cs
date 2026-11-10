@@ -24,17 +24,18 @@ public sealed class GravityMechanic : ExtraordinaryMechanic
     public override ExtraordinaryMechanicKind Kind => ExtraordinaryMechanicKind.Effect;
 
     /// <summary>Parser único de <c>gravity.self:&lt;m&gt;</c> (lido também por <c>ComposeWeight</c>).</summary>
-    public static readonly ExtraordinaryPrimitive<double> Self = Multiplier("gravity.self", "carrier");
+    public static readonly ExtraordinaryPrimitive<double> Self = Multiplier("gravity.self", "carrier", finiteOnly: false);
 
-    /// <summary>Parser único de <c>gravity.target:&lt;m&gt;</c>.</summary>
-    public static readonly ExtraordinaryPrimitive<double> TargetToken = Multiplier("gravity.target", "target");
+    /// <summary>Parser único de <c>gravity.target:&lt;m&gt;</c>. O valor vai para o estado canônico, então só finito (ADR-0040).</summary>
+    public static readonly ExtraordinaryPrimitive<double> TargetToken = Multiplier("gravity.target", "target", finiteOnly: true);
 
     public override IReadOnlyList<ExtraordinaryPrimitive> Primitives { get; } = [Self, TargetToken];
 
-    private static ExtraordinaryPrimitive<double> Multiplier(string key, string target) => new(
+    private static ExtraordinaryPrimitive<double> Multiplier(string key, string target, bool finiteOnly) => new(
         key, $"{key}:<multiplicador>", false, target,
         PrimitiveSyntax.From<double>(
-            (string token, out double multiplier) => TryKeyMultiplier(token, key, out multiplier) && multiplier >= 0,
+            (string token, out double multiplier) => TryKeyMultiplier(token, key, out multiplier) && multiplier >= 0
+                && (!finiteOnly || double.IsFinite(multiplier)),
             static token => $"Effects: alvo não suportado '{token}'"));
 
     public override Result<PreparedMutation?> PrepareEffect(

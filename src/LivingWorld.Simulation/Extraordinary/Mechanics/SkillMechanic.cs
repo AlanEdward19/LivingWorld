@@ -63,7 +63,8 @@ public sealed class SkillMechanic : ExtraordinaryMechanic
                      .SelectMany(descriptor => descriptor.Effects))
         {
             if (!LearnRate.TryParse(effect, out double multiplier)) continue;
-            rate *= multiplier;
+            // Satura a cada passo: fatores finitos não podem estourar em infinito, e 0 × infinito gravaria NaN na habilidade.
+            rate = Math.Min(rate * multiplier, double.MaxValue);
         }
 
         return rate;
@@ -108,7 +109,8 @@ public sealed class SkillMechanic : ExtraordinaryMechanic
                    NumberStyles.Float,
                    CultureInfo.InvariantCulture,
                    out multiplier)
-               && multiplier >= 0;
+               && multiplier >= 0
+               && double.IsFinite(multiplier);
     }
 
     private static bool ParseCopy(string declaration, out int skillId)
