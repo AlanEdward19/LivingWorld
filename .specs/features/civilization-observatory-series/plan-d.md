@@ -70,11 +70,25 @@ cidades pequenas e coorte fechada sobram solteiros sem conhecidos fora da famíl
 
 Cabe no noturno em tempo (extintos custam menos que vivos: o total pode subir se o mundo se sustentar).
 
-## Pendente (para destravar a fatia D)
+## Causa medida (contrafactuais em checkout descartável, 4 a 6 seeds × 200 anos)
 
-- Hipótese a testar: o `CourtshipSystem` só considera candidatos com `Relationship` prévia e rejeita parentes de 1º grau,
-  então solteiros de cidades pequenas e coorte fechada não casam. Medir por evento (`CourtshipRejected` por motivo).
-- Fome do ano 1 (~20%): buffer inicial de um mês fixo no código; decidir calibração ou laço de compra.
+Duas travas, e só as duas juntas explicam: (1) casais: os conhecidos são parentes ou fora da faixa (rejeição por incesto
+sobe de 1,5 para 48/ano), enquanto ~7,5 solteiros/ano têm par elegível desconhecido na própria cidade; (2) comida: casa sem
+estoque com adulto presente (fome/sede ~1/ano e ~metade das mortes infantis; também trava a concepção pelo piso de estoque).
+
+| Contrafactual | Resultado |
+| --- | --- |
+| casar com desconhecido da cidade / do mundo | extinta antes do ano 142 (6 de 6) |
+| sem morte por fome | ~100 por 50 anos, depois cai (concepção bloqueada pelo estoque) |
+| casa sempre abastecida, casais como hoje | extinta entre 150 e 200 (4 de 4) |
+| cofre das cidades devolvido + casar na cidade | extinta entre 75 e 150 (fome segue) |
+| casa sempre abastecida + casar na cidade | 4 de 4 vivas no 200, crescendo (263 a 778; sem teto) |
+
+## Pendente (para destravar a fatia D; acompanhado na issue #141)
+
+- Decisão do dono: candidatos a casamento por convívio na cidade (rever AD-061) e acesso doméstico à comida/água (laço de
+  compra ou reabastecimento da casa). O crescimento sem teto do último contrafactual pede um freio (terra, moradia).
+- Fome do ano 1 (~20%): buffer inicial de um mês fixo no código; mesma raiz do acesso doméstico à comida.
 - Heavy verde: remover o `Skip` de `ReferenceCivilizationTests`; gravar `Reference.Diversity` no baseline (hoje só
   `Scenario/FirstSeed/Seeds/Years`); documentar o uso em `docs/domain/civilization-observatory.md`.
 - Ecologia inicial: `EcologyScenarioSeeder` (fauna e flora) não é semeada por JSON; o `Create` a semeia.
