@@ -1,6 +1,7 @@
 using LivingWorld.Domain.Fauna;
 using LivingWorld.Domain.Flora;
 using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Ecology;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
 using LivingWorld.Simulation.Snapshot;
 
@@ -25,7 +26,7 @@ public sealed partial class WorldState
         {
             if (deltas[i] == 0) continue;
             var plant = _flora[i];
-            var advanced = plant with { GrowthStage = unchecked(plant.GrowthStage + deltas[i] * ticks) };
+            var advanced = plant with { GrowthStage = FloraLifecycleSystem.SaturateStage(plant.GrowthStage + (long)deltas[i] * ticks) };
             _flora[i] = advanced;
             _floraById[advanced.Id] = advanced;
         }
