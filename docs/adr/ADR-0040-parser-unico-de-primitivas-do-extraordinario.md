@@ -24,6 +24,7 @@ Regra: **nenhum valor não finito entra em estado canônico**. JSON não represe
   e `skill.learn-rate` (no teto o ganho é 0 e `0 × infinito` grava `NaN` na habilidade). É mudança do que a carga aceita, feita de propósito: esses tokens quebravam o hash do mundo, então nenhum cenário funcional dependia deles.
 - **Saturado no leitor**: o produto de `skill.learn-rate` para em `double.MaxValue` a cada passo, porque fatores finitos (`1e308 × 1e308`) também estouram. Não há token a recusar nesse caso.
 - **Seguem aceitos** porque só alimentam valor volátil ou inteiro, nunca estado canônico: `movement.flight|speed-multiplier:Infinity`, `gravity.self:Infinity`, `flora.growth-rate:Infinity`, `attribute.*:Infinity`.
+- **Saturado na projeção da API**: o perfil volátil pode dar velocidade não finita (também por fatores finitos, como `gravity.self:1e-320`). `ExtraordinaryNpcVisualProjector` expõe infinito como `double.MaxValue` e NaN como `0`, que é o que o motor faz com eles (sem limite; não anda). O motor e o hash não mudam.
 - Recusar foi preferido a saturar no parser: saturar inventaria um significado para "infinito" (`1,8e308` guardado) em vez de avisar o autor na carga.
 
 `ExtraordinaryLocomotion` paga custos de movimento pelos mesmos parsers de custo e aplica a mesma redução tipada do motor (`carrier.hunger:fire:5` debita `5 × vulnerabilidade`).

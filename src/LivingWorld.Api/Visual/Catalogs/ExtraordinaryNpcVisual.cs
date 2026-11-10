@@ -38,6 +38,13 @@ public static class ExtraordinaryNpcVisualProjector
         return new ExtraordinaryNpcVisual(
             carrier.PowerIds, carrier.IsManifested, carrier.ManifestationState,
             carrier.Appearance.ScaleMultiplier, carrier.Appearance.SkinTint, carrier.Appearance.MovementTrail,
-            need, carrier.SenescenceRateMultiplier, locomotion.CanFly, locomotion.SpeedMultiplier);
+            need, carrier.SenescenceRateMultiplier, locomotion.CanFly, WireSpeed(locomotion.SpeedMultiplier));
     }
+
+    /// <summary>
+    /// JSON não representa infinito nem NaN (ADR-0040). Espelha o motor: infinito é orçamento sem limite
+    /// (satura no maior finito, preservando a ordem) e NaN é orçamento 0 (o NPC não anda).
+    /// </summary>
+    private static double WireSpeed(double speed) =>
+        double.IsNaN(speed) ? 0 : Math.Clamp(speed, 0, double.MaxValue);
 }

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using LivingWorld.Api.Visual.Projection;
 using LivingWorld.Api.Visual.Scope;
 using LivingWorld.Domain.Cities;
@@ -37,6 +38,24 @@ public sealed class ExtraordinaryVisualProjectionTests
         Assert.Equal(npc.Id, liveMarker.Id);
     }
 
+    [Theory]
+    [InlineData("movement.speed-multiplier:Infinity", 1d, double.MaxValue)]
+    [InlineData("movement.flight:Infinity", 1d, double.MaxValue)]
+    [InlineData("gravity.self:1e-320", 1d, double.MaxValue)] // fator finito: 1 / 1e-320 estoura
+    [InlineData("gravity.self:Infinity", 0d, 0d)] // infinito x 0 = NaN no peso; o motor não anda
+    public void Non_finite_speed_multiplier_reaches_the_api_json_as_the_saturated_number(
+        string effect, double gravityTargetMultiplier, double expected)
+    {
+        var (world, city, _) = WorldWithCarrier(
+            isManifested: true, locomotionEffect: effect, gravityTargetMultiplier: gravityTargetMultiplier);
+        var marker = Assert.Single(CityProjector.Build(world, city.Id).Value!.Residents);
+
+        // Mesmas opções do transporte (RealtimeEndpoints.WireOptions e o JSON padrão do ASP.NET).
+        string json = JsonSerializer.Serialize(marker.Extraordinary, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.Equal(expected, JsonDocument.Parse(json).RootElement.GetProperty("speedMultiplier").GetDouble());
+    }
+
     [Fact]
     public void Npc_without_carrier_keeps_the_optional_extraordinary_projection_absent()
     {
@@ -66,18 +85,19 @@ public sealed class ExtraordinaryVisualProjectionTests
     }
 
     private static (WorldState World, City City, Npc Npc) WorldWithCarrier(
-        bool isManifested, bool withConstruct = false)
+        bool isManifested, bool withConstruct = false, string? locomotionEffect = null, double gravityTargetMultiplier = 1)
     {
         var carrier = new ExtraordinaryCarrierState(
             new NpcId(1), ["power-a", "power-b"], isManifested, "conditional-active",
             new ExtraordinaryAppearanceState(1.4, "tint-token", "trail-token"),
-            new NeedSubstitutionDescriptor("hunger", new ResourceType(9), 3), 0.25);
+            new NeedSubstitutionDescriptor("hunger", new ResourceType(9), 3), 0.25,
+            GravityTargetMultiplier: gravityTargetMultiplier);
         var descriptors = new[]
         {
             new PowerDescriptor(
-                "power-a", "test", ["movement.flight:1"], "Passive", [], "Guaranteed", [], [], [], []),
+                "power-a", "test", locomotionEffect is null ? ["movement.flight:1"] : [], "Passive", [], "Guaranteed", [], [], [], []),
             new PowerDescriptor(
-                "power-b", "test", ["movement.speed-multiplier:3"], "Passive", [], "Guaranteed", [], [], [], []),
+                "power-b", "test", [locomotionEffect ?? "movement.speed-multiplier:3"], "Passive", [], "Guaranteed", [], [], [], []),
         };
         var origin = ScenarioRunner.DefaultVillageLocation;
         var constructs = withConstruct
