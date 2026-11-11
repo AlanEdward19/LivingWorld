@@ -32,6 +32,25 @@ public static class DeterministicMath
         return exponent * Ln2 + 2.0 * s * sum;
     }
 
+    /// <summary>Exponencial natural para |x| ≤ 700: reduz a x = k·ln2 + r com |r| ≤ ln2/2 e soma Taylor em r; o fator 2^k é
+    /// montado nos bits do expoente (exato). Fora da faixa satura em 0 ou +∞. Erro relativo abaixo de 1e-15.</summary>
+    public static double Exp(double x)
+    {
+        if (double.IsNaN(x)) return x;
+        if (x < -700) return 0.0;
+        if (x > 700) return double.PositiveInfinity;
+
+        double k = Math.Round(x / Ln2);
+        double r = x - k * Ln2, sum = 1.0, term = 1.0;
+        for (int n = 1; n <= 20; n++)
+        {
+            term *= r / n;
+            sum += term;
+        }
+
+        return sum * BitConverter.Int64BitsToDouble((long)((int)k + 1023) << 52);
+    }
+
     /// <summary>Cosseno de 2π·<paramref name="turns"/> (o argumento é uma fração de volta, não radianos): reduz por simetria,
     /// só com subtrações exatas, a [0, 1/4] de volta e aplica Taylor.</summary>
     public static double CosTurns(double turns)

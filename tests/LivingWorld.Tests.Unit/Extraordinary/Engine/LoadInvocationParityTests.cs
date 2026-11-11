@@ -26,8 +26,7 @@ public sealed class LoadInvocationParityTests
         ["mind.commune"] = "alvo precisa ser fantasma",
         ["mind.implant-memory:5"] = "Fact 5 precisa existir",
         ["mind.implant-memory:fire:5"] = "Fact 5 precisa existir",
-        ["transfer.lifespan-years:2"] = "precisa de morte por idade agendada",
-        ["transfer.lifespan-years:2:from-target"] = "precisa de morte por idade agendada",
+        ["transfer.lifespan-years:2:from-target"] = "o doador é o alvo do mundo de teste (AD-130: sem morte agendada, só o estado dele decide)",
     };
 
     // Casos F1/F2 e tolerados do ADR-0040, na mesma lista do critério da rodada 3.

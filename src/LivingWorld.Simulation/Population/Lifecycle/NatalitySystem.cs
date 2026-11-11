@@ -14,62 +14,97 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Population.Lifecycle;
 
-/// <summary>Concepção anual entre cônjuges casados — agenda parto com riqueza
-/// capturada na concepção; risco de parto e hereditariedade no <see cref="HandleEvent"/>.</summary>
+/// <summary>Concepção por ciclo entre cônjuges (AD-130): uma vez por mês cada mulher casada, fora da gravidez e do intervalo
+/// pós-parto, concebe com a fecundabilidade da idade dela (zero depois de estéril) vezes a fertilidade do marido pela idade
+/// dele, num dia qualquer do ciclo. Na concepção ficam decididos o sexo de cada feto (gêmeos raros), a duração da gestação
+/// (a termo ou prematuro) ou a perda precoce. No fim, <see cref="HandleEvent"/> resolve perda, morte materna e natimorto
+/// pelo risco da idade, saúde e paridade da mãe, e os nascimentos.</summary>
 [LivingCapability("BIRTH", Events = [WorldEventKind.Birth, WorldEventKind.MaternalDeath, WorldEventKind.StillBirth], Consumers = ["timeline.birth"])]
 [RunsAfter(typeof(CourtshipSystem))]
 public sealed class NatalitySystem : ISimulationSystem
 {
     public const string SystemName = "population-natality";
 
+    /// <summary>Terceiro campo do payload de <see cref="WorldEventKind.StillBirth"/> quando a gestação terminou cedo.</summary>
+    public const string MiscarriageMarker = "miscarriage";
+
     public string Name => SystemName;
-    public TickFrequency Frequency => TickFrequency.Yearly;
+    public TickFrequency Frequency => TickFrequency.Monthly;
 
     public void Tick(WorldState world, TickContext ctx)
     {
         var populationRules = world.PopulationRules;
+        var fertility = populationRules.Fertility;
         var familyRules = world.FamilyRules;
-        var now = world.CurrentDate;
+        long now = ctx.CurrentTick;
+        long hoursPerYear = world.Calendar.HoursPerYear;
+        var alive = world.AliveNpcIndex.Alive; // em ordem de id; a concepção não muda a lista
 
-        foreach (var mother in world.Npcs
-                     .Where(n => n is { IsAlive: true, Sex: Sex.Female, PregnantUntil: null })
-                     .OrderBy(n => n.Id.Value))
+        for (int i = 0; i < alive.Count; i++)
         {
-            if (!populationRules.IsFertileAge(mother.AgeYears(now)))
-                continue;
+            var mother = alive[i];
+            if (mother.Sex != Sex.Female || mother.PregnantUntil is not null) continue;
+            if (mother.Reproduction is { } history && history.InfecundUntilTick > now) continue;
 
             var father = FindLivingSpouse(world, mother);
-            if (father is null)
-                continue;
+            if (father is null) continue;
 
             // Mesmo teto de população viva usado por split-on-death (fase 16.4).
-            int alive = world.AliveNpcIndex.Alive.Count;
-            if (world.PopulationRules.RemainingAliveSlots(alive) <= 0)
-                continue;
+            if (populationRules.RemainingAliveSlots(alive.Count) <= 0) return;
 
-            if (!MeetsConceptionFloors(world, mother, father, familyRules))
-                continue;
+            if (!MeetsConceptionFloors(world, mother, father, familyRules)) continue;
 
-            double roll = ctx.OneShot($"natality-{mother.Id.Value}-{now.TotalHours}").NextDouble();
-            double effectiveChance = populationRules.AnnualConceptionChance
+            double motherAge = (now - mother.BirthDate.TotalHours) / (double)hoursPerYear;
+            double fatherAge = (now - father.BirthDate.TotalHours) / (double)hoursPerYear;
+            double chance = fertility.FemaleCycleFecundability(motherAge, SterilityDraw(ctx, mother))
+                * fertility.MaleFertility.At(fatherAge)
                 * AttributeMechanic.FertilityMultiplier(world, mother)
                 * AttributeMechanic.FertilityMultiplier(world, father);
-            if (roll >= effectiveChance)
-                continue;
+            if (chance <= 0) continue;
+
+            var rng = ctx.StreamFor("conception", unchecked(mother.Id.Value * 1_000_003L + now));
+            if (rng.NextDouble() >= chance) continue;
 
             var household = mother.Household is { } householdId ? world.FindHousehold(householdId) : null;
-            if (household is null)
-                continue;
+            if (household is null) continue;
 
-            long conceptionStock = household.Stock.Values.Sum();
-            var dueDate = now.AddDays(populationRules.GestationDays);
-            mother.BecomePregnant(dueDate);
-            ctx.ScheduleEvent(
-                dueDate.TotalHours,
-                SystemName,
-                $"{mother.Id.Value}|{father.Id.Value}|{household.Id.Value}|{conceptionStock}");
+            Conceive(world, ctx, mother, father, household, motherAge, rng);
         }
     }
+
+    /// <summary>Sorteio fixo da mulher contra a fração estéril por idade: a mesma em toda chamada (inclui a menopausa).</summary>
+    public static double SterilityDraw(TickContext ctx, Npc woman) => ctx.StreamFor("sterility", woman.Id.Value).NextDouble();
+
+    private static void Conceive(
+        WorldState world, TickContext ctx, Npc mother, Npc father, Household household, double motherAge, WorldRng rng)
+    {
+        var fertility = world.PopulationRules.Fertility;
+        long now = ctx.CurrentTick;
+        long hoursPerDay = world.Calendar.HoursPerDay;
+        long conceived = now + (long)(rng.NextDouble() * world.Calendar.HoursPerMonth);
+        string sexes = RollSex(rng, fertility).ToString();
+        if (rng.NextDouble() < fertility.TwinRate)
+            sexes += rng.NextDouble() < fertility.MonozygoticTwinShare ? sexes : RollSex(rng, fertility).ToString();
+
+        double lossRisk = Math.Min(0.95, fertility.MiscarriageRiskByAge.At(motherAge) * ReproductionRules.HealthFactor(mother.Health));
+        bool loss = rng.NextDouble() < lossRisk;
+        int days = loss
+            ? fertility.MiscarriageMinDays + (int)(rng.NextDouble() * (fertility.MiscarriageMaxDays - fertility.MiscarriageMinDays + 1))
+            : fertility.RollGestation(rng).Days;
+        long endTick = Math.Max(now + 1, conceived + days * hoursPerDay);
+
+        long conceptionStock = household.Stock.Values.Sum();
+        mother.BecomePregnant(world.CurrentDate.AddHours(endTick - now));
+        mother.SetReproduction((mother.Reproduction ?? new ReproductiveState()) with
+        {
+            LastConceptionTick = conceived,
+            Pregnancy = new PregnancyState(conceived, endTick, father.Id.Value, sexes, days, loss),
+        });
+        ctx.ScheduleEvent(endTick, SystemName, $"{mother.Id.Value}|{father.Id.Value}|{household.Id.Value}|{conceptionStock}");
+    }
+
+    private static char RollSex(WorldRng rng, ReproductionRules fertility) =>
+        rng.NextDouble() < fertility.MaleBirthShare ? 'M' : 'F';
 
     public void HandleEvent(WorldState world, TickContext ctx, ScheduledEvent evt)
     {
@@ -82,31 +117,69 @@ public sealed class NatalitySystem : ISimulationSystem
         var mother = world.FindNpc(motherId);
         var household = world.FindHousehold(householdId);
         mother?.ClearPregnancy();
+        var history = mother?.Reproduction ?? new ReproductiveState();
+        var pregnancy = history.Pregnancy;
+        history = history with { Pregnancy = null };
+        if (mother is not null && pregnancy is not null) mother.SetReproduction(history);
         if (mother is not { IsAlive: true } || household is null)
             return;
 
         var father = world.FindNpc(fatherId);
         var familyRules = world.FamilyRules;
+        var fertility = world.PopulationRules.Fertility;
+        long now = ctx.CurrentTick;
+        long lossInfecundUntil = now + fertility.PregnancyLossInfecundDays * world.Calendar.HoursPerDay;
 
-        if (ctx.OneShot($"natality-maternal-{motherId.Value}-{evt.Id}").NextDouble() < familyRules.MaternalDeathRisk)
+        if (pregnancy is { EndsInLoss: true })
+        {
+            mother.SetReproduction(history with { InfecundUntilTick = lossInfecundUntil });
+            ctx.LogEvent(
+                WorldEventKind.StillBirth, $"{motherId.Value}|{fatherId.Value}|{MiscarriageMarker}", sourceSystem: "NatalitySystem");
+            return;
+        }
+
+        // risco obstétrico pela idade, partos anteriores e saúde da mãe, sobre as taxas-base do cenário
+        double risk = fertility.ObstetricRiskMultiplier(mother.AgeYears(world.CurrentDate), history.Parity, mother.Health);
+        if (ctx.OneShot($"natality-maternal-{motherId.Value}-{evt.Id}").NextDouble() < familyRules.MaternalDeathRisk * risk)
         {
             NpcDeath.Apply(world, ctx, mother, WorldEventKind.MaternalDeath);
             return;
         }
 
-        if (ctx.OneShot($"natality-infant-{motherId.Value}-{evt.Id}").NextDouble() < familyRules.InfantDeathRisk)
+        var delivered = history with { Parity = history.Parity + 1, LastBirthTick = now };
+        if (ctx.OneShot($"natality-infant-{motherId.Value}-{evt.Id}").NextDouble() < familyRules.InfantDeathRisk * risk)
         {
+            mother.SetReproduction(delivered with { InfecundUntilTick = lossInfecundUntil });
             ctx.LogEvent(
                 WorldEventKind.StillBirth, $"{motherId.Value}|{fatherId.Value}",
                 sourceSystem: "NatalitySystem");
             return;
         }
 
-        // Teto de população viva (compartilhado com split-on-death).
-        if (world.PopulationRules.RemainingAliveSlots(world.AliveNpcIndex.Alive.Count) <= 0)
-            return;
+        int postpartumDays = fertility.RollPostpartumInfecundDays(
+            ctx.StreamFor("postpartum", unchecked(motherId.Value * 1_000_003L + now)));
+        mother.SetReproduction(delivered with { InfecundUntilTick = now + postpartumDays * world.Calendar.HoursPerDay });
 
-        var sex = ctx.OneShot($"natality-sex-{motherId.Value}-{evt.Id}").NextDouble() < 0.5 ? Sex.Female : Sex.Male;
+        // Gravidez anterior ao AD-130 (snapshot antigo) não guardou sexo nem duração: sorteia o sexo no parto, a termo.
+        string sexes = pregnancy?.Sexes
+            ?? (ctx.OneShot($"natality-sex-{motherId.Value}-{evt.Id}").NextDouble() < fertility.MaleBirthShare ? "M" : "F");
+        int gestationDays = pregnancy?.GestationDays ?? fertility.TermMeanDays;
+        for (int i = 0; i < sexes.Length; i++)
+        {
+            // Teto de população viva (compartilhado com split-on-death).
+            if (world.PopulationRules.RemainingAliveSlots(world.AliveNpcIndex.Alive.Count) <= 0)
+                return;
+            Deliver(world, ctx, evt, mother, father, fatherId, household, sexes[i] == 'M' ? Sex.Male : Sex.Female,
+                gestationDays, conceptionStock, i == 0 ? "" : $"-{i + 1}");
+        }
+    }
+
+    private static void Deliver(
+        WorldState world, TickContext ctx, ScheduledEvent evt, Npc mother, Npc? father, NpcId fatherId, Household household,
+        Sex sex, int gestationDays, long conceptionStock, string nameSuffix)
+    {
+        var motherId = mother.Id;
+        var familyRules = world.FamilyRules;
         var babyId = world.NextNpcIdAndAdvance();
 
         // a personalidade mistura a dos pais com sorteio próprio, no peso do cenário (personality-heredity)
@@ -131,12 +204,13 @@ public sealed class NatalitySystem : ISimulationSystem
         double muscleMass = BodyGeneration.RollMuscleMass(ctx.StreamFor("musclemass", babyId.Value), body);
 
         var baby = new Npc(
-            babyId, $"npc-{mother.Culture.Id}-child-{evt.Id}", sex, world.CurrentDate,
+            babyId, $"npc-{mother.Culture.Id}-child-{evt.Id}{nameSuffix}", sex, world.CurrentDate,
             mother.Culture, household.Location, motherId, father is { IsAlive: true } ? fatherId : null,
             household.Id, health: 100,
             personality: personality, profession: profession, currentLocation: household.Location,
             rateGene: rateGene, vitality: vitality, upbringing: upbringing,
             height: height, weight: weight, muscleMass: muscleMass, appearance: appearance);
+        baby.SetGestationAtBirth(gestationDays);
 
         baby.JoinCity(mother.City);
         world.AddNpc(baby);
@@ -150,7 +224,7 @@ public sealed class NatalitySystem : ISimulationSystem
             sourceSystem: "NatalitySystem");
         TryApplyPowerInheritance(world, ctx, baby, motherId, fatherId, birthEventId);
         NpcInstantiationMechanic.ApplyPendingReincarnation(world, ctx, baby);
-        MortalitySystem.SchedulePlannedDeath(world, ctx, baby);
+        MortalitySystem.CoverUntilNextSweep(world, ctx, baby);
         NpcWakeScheduler.ScheduleWake(world, ctx, baby.Id.Value, world.CurrentDate.TotalHours + 1);
     }
 

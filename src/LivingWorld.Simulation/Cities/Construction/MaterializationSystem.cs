@@ -141,7 +141,9 @@ public sealed class MaterializationSystem : ISimulationSystem
         var sex = ctx.OneShot($"materialize-sex-{id.Value}").NextDouble() < 0.5 ? Sex.Female : Sex.Male;
         int maxAge = Math.Max(19, world.PopulationRules.LifeTable.MaxLongevityYears - 1);
         int ageYears = 18 + (int)(ctx.OneShot($"materialize-age-{id.Value}").NextDouble() * (maxAge - 18));
-        var birthDate = world.CurrentDate.AddYears(-ageYears);
+        // aniversário num dia qualquer do ano (AD-130)
+        var birthDate = world.CurrentDate.AddYears(-ageYears).AddHours(
+            -(long)(ctx.OneShot($"materialize-birthday-{id.Value}").NextDouble() * world.Calendar.HoursPerYear));
         var personality = Personality.RollFrom(ctx.OneShot($"materialize-personality-{id.Value}"));
         var profession = world.PopulationCatalog.RollProfession(ctx.OneShot($"materialize-profession-{id.Value}"));
         var culture = world.PopulationCatalog.CultureIds.Count > 0

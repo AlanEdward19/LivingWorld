@@ -1,8 +1,6 @@
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
-using LivingWorld.Simulation.Population.Lifecycle;
-using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Extraordinary.Mechanics;
 
@@ -75,46 +73,32 @@ public sealed class TransferMechanic : ExtraordinaryMechanic
         }));
     }
 
+    /// <summary>Anos de vida (AD-130): com a morte como risco contínuo não há data marcada para mover; o doador envelhece
+    /// biologicamente <paramref name="years"/> anos e o receptor rejuvenesce o mesmo tanto (<see cref="Npc.LifespanOffsetHours"/>).
+    /// O doador precisa ter esses anos antes do teto de longevidade.</summary>
     private static Result<PreparedMutation?> PrepareLifespan(
         ExtraordinaryMechanicContext ctx, string declaration, bool fromTarget, int years)
     {
         var donor = fromTarget ? ctx.Target : ctx.Carrier;
         var recipient = fromTarget ? ctx.Carrier : ctx.Target;
-        var donorDeath = FindAgeDeath(ctx.World, donor);
-        var recipientDeath = FindAgeDeath(ctx.World, recipient);
-        if (donorDeath is null || recipientDeath is null || !donor.IsAlive || !recipient.IsAlive)
+        if (donor is not { IsAlive: true } || recipient is not { IsAlive: true })
             return Result<PreparedMutation?>.Fail("Effects: NPC ausente ou morto");
 
         long hoursPerYear = ctx.World.Calendar.HoursPerYear;
         long current = ctx.Tick.CurrentTick;
-        if (donorDeath.TargetTick - current < years * hoursPerYear)
+        if (RemainingLifespanHours(ctx.World, donor, current) < years * hoursPerYear)
             return Result<PreparedMutation?>.Fail($"Effects: saldo insuficiente para '{declaration}'");
 
         return Result<PreparedMutation?>.Ok(new PreparedMutation(declaration, resolution =>
         {
             long moved = ExtraordinaryMechanicSupport.ScaledAmount(years, resolution) * hoursPerYear;
-            RescheduleAgeDeath(ctx.Tick, donorDeath, donorDeath.TargetTick - moved, current);
-            RescheduleAgeDeath(ctx.Tick, recipientDeath, recipientDeath.TargetTick + moved, current);
+            donor.ShiftLifespanOffset(moved);
+            recipient.ShiftLifespanOffset(-moved);
         }));
     }
 
-    private static ScheduledEvent? FindAgeDeath(WorldState world, Npc npc)
-    {
-        string payload = npc.Id.Value.ToString();
-        foreach (var evt in world.PendingEvents)
-        {
-            if (evt.SystemName == MortalitySystem.SystemName && evt.Payload == payload)
-                return evt;
-        }
-
-        return null;
-    }
-
-    private static void RescheduleAgeDeath(TickContext ctx, ScheduledEvent original, long tick, long current)
-    {
-        ctx.CancelEvent(original.Id);
-        if (tick <= current)
-            tick = current + 1;
-        ctx.ScheduleEvent(tick, MortalitySystem.SystemName, original.Payload);
-    }
+    /// <summary>Horas até o teto de longevidade da tábua, na idade biológica atual.</summary>
+    internal static long RemainingLifespanHours(WorldState world, Npc npc, long tick) =>
+        world.PopulationRules.LifeTable.MaxLongevityYears * world.Calendar.HoursPerYear
+        - (tick - npc.BirthDate.TotalHours + npc.LifespanOffsetHours);
 }

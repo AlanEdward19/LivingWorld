@@ -44,9 +44,12 @@ public static class PopulationGenerator
         {
             int ageYears = RollAge(rng, lifeTable.MaxLongevityYears);
             var sex = rng.NextDouble() < 0.5 ? Sex.Female : Sex.Male;
-            var birthDate = now.AddYears(-ageYears);
-            int health = ageYears >= 60 ? Math.Clamp(100 - (ageYears - 59) * 2, 40, 100) : 100;
             var npcId = new NpcId(nextNpcId++);
+            // aniversário num dia e hora qualquer do ano (AD-130): sem isso todos nasciam no mesmo dia do calendário
+            long birthdayOffset = (long)(rng.Derive(WorldRngRegistry.StableHash($"birthday-{npcId.Value}")).NextDouble()
+                * now.Calendar.HoursPerYear);
+            var birthDate = now.AddYears(-ageYears).AddHours(-birthdayOffset);
+            int health = ageYears >= 60 ? Math.Clamp(100 - (ageYears - 59) * 2, 40, 100) : 100;
 
             // Streams próprios por NPC — derivados do stream "population-init"
             // já recebido em rng, nunca um novo WorldRng raiz. WorldRngRegistry.StableHash garante
@@ -130,7 +133,10 @@ public static class PopulationGenerator
                     : person.Appearance ?? Appearance.RollFrom(rng.Derive(WorldRngRegistry.StableHash($"appearance-{npcId.Value}")));
 
                 var npc = new Npc(
-                    npcId, person.Name, person.Sex, now.AddYears(-person.AgeYears), culture, villageLocation,
+                    npcId, person.Name, person.Sex,
+                    now.AddYears(-person.AgeYears).AddHours(-(long)(rng.Derive(WorldRngRegistry.StableHash($"birthday-{npcId.Value}"))
+                        .NextDouble() * now.Calendar.HoursPerYear)),
+                    culture, villageLocation,
                     motherId: person.Mother is int m ? new NpcId(firstId + m) : null,
                     fatherId: person.Father is int f ? new NpcId(firstId + f) : null,
                     household: null, health,

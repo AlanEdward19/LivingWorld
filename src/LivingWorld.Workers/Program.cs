@@ -19,6 +19,10 @@ using Microsoft.EntityFrameworkCore;
 if (args.Length == 6 && args[0] == "civ-report")
     return CivilizationReportCommand.Run(args[1], ulong.Parse(args[2]), int.Parse(args[3]), int.Parse(args[4]), args[5]);
 
+// Demografia do cenário padrão de código (AD-130): `dotnet <dll> demography-report <seed-inicial> <seeds> <anos> <aquecimento>`.
+if (args.Length == 5 && args[0] == "demography-report")
+    return DemographyReportCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]), int.Parse(args[4]));
+
 // Sensor da issue #91: usa o mesmo carregador dos mundos criados pelo menu.
 if (args.Length == 3 && args[0] == "catalog-history-hash")
 {

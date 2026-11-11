@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Population;
@@ -88,6 +89,27 @@ public static class PopulationScenarioLoader
             conditionalInitialMortality);
         if (!rulesResult.IsSuccess)
             return Result<PopulationScenarioData>.Fail(rulesResult.Error!);
+
+        // Opcional (AD-130): sem o campo o cenário herda ReproductionRules.Default (fecundidade natural de época).
+        if (root["Reproduction"] is JsonObject reproductionNode)
+        {
+            ReproductionRules? reproduction;
+            try
+            {
+                reproduction = reproductionNode.Deserialize<ReproductionRules>();
+            }
+            catch (System.Text.Json.JsonException ex)
+            {
+                return Result<PopulationScenarioData>.Fail($"Reproduction: {ex.Message}");
+            }
+
+            if (reproduction is null)
+                return Result<PopulationScenarioData>.Fail("Reproduction: objeto vazio");
+            var valid = reproduction.Validate();
+            if (!valid.IsSuccess)
+                return Result<PopulationScenarioData>.Fail($"Reproduction.{valid.Error}");
+            rulesResult = Result<PopulationRules>.Ok(rulesResult.Value! with { Reproduction = valid.Value });
+        }
 
         if (root["MaxBytesPerNpcPerYear"] is not JsonValue maxBytesNode || !maxBytesNode.TryGetValue<long>(out var maxBytesPerNpcPerYear))
             return Result<PopulationScenarioData>.Fail("MaxBytesPerNpcPerYear: campo obrigatório ausente ou inválido");

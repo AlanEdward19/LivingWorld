@@ -71,7 +71,7 @@ public static class PopulationSeeder
         var ctx = new TickContext(world, world.Rng, world.Scheduler);
         foreach (var npc in generated.Npcs)
         {
-            MortalitySystem.SchedulePlannedDeath(world, ctx, npc);
+            MortalitySystem.CoverUntilNextSweep(world, ctx, npc);
             NpcWakeScheduler.ScheduleWake(world, ctx, npc.Id.Value, world.CurrentDate.TotalHours + 1);
         }
     }

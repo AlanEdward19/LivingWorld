@@ -174,8 +174,10 @@ public class SocialAndSurvivalRealismTests
     public void A_home_with_nothing_gets_alms_from_the_city_and_no_coin_is_created()
     {
         var (world, home, _, _) = DestituteHome(needChild: false);
+        // o tesouro vinha cheio do espólio de quem morria na 1ª hora (morte planejada no passado); com o risco contínuo
+        // (AD-130) ninguém morre no 1º dia, então o teste abastece a cidade de propósito
+        world.Cities.OrderBy(c => c.Id.Value).First().CreditTreasury(new Money(1000));
         long treasuryBefore = world.Cities.Sum(c => c.Treasury.Amount);
-        Assert.True(treasuryBefore > 0);
 
         new WorldClock([new MutualAidSystem()]).Run(world, 24);
 
