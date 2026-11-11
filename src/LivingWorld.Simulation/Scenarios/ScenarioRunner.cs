@@ -49,19 +49,8 @@ public static partial class ScenarioRunner
     public static readonly PopulationCatalog DefaultPopulationCatalog = new(
         CultureIds: new HashSet<int> { 1 }, ProfessionIds: new HashSet<int> { 1, 2 }, LocationTypeIds: new HashSet<int>());
 
-    // Mortalidade infantil alta e longevidade máxima explícita: quem sobrevive à
-    // infância tem risco baixo até a velhice, onde sobe de novo.
-    private static readonly LifeTable DefaultLifeTable = LifeTable.Create(
-        maxLongevityYears: 90,
-        brackets:
-        [
-            new LifeTableBracket(0, 1, 0.08),
-            new LifeTableBracket(2, 14, 0.01),
-            new LifeTableBracket(15, 39, 0.004),
-            new LifeTableBracket(40, 59, 0.01),
-            new LifeTableBracket(60, 79, 0.04),
-            new LifeTableBracket(80, 89, 0.15),
-        ]).Value ?? throw new InvalidOperationException("life table default inválida — bug no cenário, não no gerador");
+    // Tábua de época (AD-130): dado em LifeTable.PreIndustrial.
+    private static readonly LifeTable DefaultLifeTable = LifeTable.PreIndustrial;
 
     public static readonly PopulationRules DefaultPopulationRules = PopulationRules.Create(
         DefaultLifeTable, fertilityMinAge: 16, fertilityMaxAge: 45, annualConceptionChance: 0.25, gestationDays: 270,

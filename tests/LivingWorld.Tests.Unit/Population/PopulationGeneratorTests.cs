@@ -39,6 +39,17 @@ public class PopulationGeneratorTests
     }
 
     [Fact]
+    public void Initial_birthdays_are_spread_through_the_year_instead_of_one_calendar_day()
+    {
+        var now = WorldDate.Epoch(Calendar).AddYears(200);
+        var generated = PopulationGenerator.GenerateInitial(
+            new WorldRng(3), now, count: 100, new CultureId(1), new CellCoord(5, 5), Table, EmptyCatalog);
+
+        var months = generated.Npcs.Select(n => n.BirthDate.Month).Distinct().Count();
+        Assert.Equal(Calendar.MonthsPerYear, months); // antes (AD-130) todos nasciam no mesmo dia do ano
+    }
+
+    [Fact]
     public void Both_sexes_are_represented()
     {
         var now = WorldDate.Epoch(Calendar).AddYears(200);

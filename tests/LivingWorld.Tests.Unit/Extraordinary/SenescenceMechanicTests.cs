@@ -12,16 +12,18 @@ namespace LivingWorld.Tests.Unit.Extraordinary;
 
 public sealed class SenescenceMechanicTests
 {
+    // AD-130: a morte por idade é risco mensal; o NPC tem 99 anos e saúde 0, então sem poder o risco do mês é 1.
+    private static void RollMonth(WorldState world, TickContext ctx, Npc npc) =>
+        MortalitySystem.RollWindow(world, ctx, npc, world.CurrentDate.TotalHours, world.Calendar.HoursPerMonth);
+
     [Fact]
     public void Unit_manifested_zero_senescence_does_not_schedule_age_death()
     {
         var (world, npc, ctx) = WorldWithCarrier(seed: 42, npcId: 1, manifested: true, senescence: 0);
 
-        MortalitySystem.SchedulePlannedDeath(world, ctx, npc);
+        RollMonth(world, ctx, npc);
 
-        Assert.DoesNotContain(
-            world.PendingEvents,
-            evt => evt.SystemName == MortalitySystem.SystemName && evt.Payload == npc.Id.Value.ToString());
+        Assert.DoesNotContain(world.PendingEvents, evt => evt.SystemName == MortalitySystem.SystemName);
     }
 
     [Fact]
@@ -29,31 +31,22 @@ public sealed class SenescenceMechanicTests
     {
         var (world, npc, ctx) = WorldWithCarrier(seed: 42, npcId: 1, manifested: false, senescence: 1, includeCarrier: false);
 
-        MortalitySystem.SchedulePlannedDeath(world, ctx, npc);
+        RollMonth(world, ctx, npc);
 
-        Assert.Contains(
-            world.PendingEvents,
-            evt => evt.SystemName == MortalitySystem.SystemName && evt.Payload == npc.Id.Value.ToString());
+        Assert.Contains(world.PendingEvents, evt => evt.SystemName == MortalitySystem.SystemName);
     }
 
     [Fact]
-    public void Unit_half_senescence_schedules_later_death_than_full_rate_for_same_seed()
+    public void Unit_half_senescence_gives_lower_age_death_risk_than_full_rate()
     {
-        // Infant mortality can kill both at calendar year 0 for a single unlucky seed;
-        // each pair still shares seed/health, and slower biological aging must delay the
-        // scheduled tick in aggregate (PWR-20).
-        long fullSum = 0, halfSum = 0;
-        for (ulong seed = 1; seed <= 80; seed++)
-        {
-            var (fullWorld, fullNpc, fullCtx) = WorldWithCarrier(seed, npcId: 1, manifested: true, senescence: 1.0);
-            var (halfWorld, halfNpc, halfCtx) = WorldWithCarrier(seed, npcId: 1, manifested: true, senescence: 0.5);
-            MortalitySystem.SchedulePlannedDeath(fullWorld, fullCtx, fullNpc);
-            MortalitySystem.SchedulePlannedDeath(halfWorld, halfCtx, halfNpc);
-            fullSum += fullWorld.PendingEvents.Single(evt => evt.SystemName == MortalitySystem.SystemName).TargetTick;
-            halfSum += halfWorld.PendingEvents.Single(evt => evt.SystemName == MortalitySystem.SystemName).TargetTick;
-        }
+        // Mesma idade de calendário: com metade da senescência a idade biológica é metade, e o risco do mês cai (PWR-20).
+        var (fullWorld, fullNpc, _) = WorldWithCarrier(seed: 1, npcId: 1, manifested: true, senescence: 1.0);
+        var (halfWorld, halfNpc, _) = WorldWithCarrier(seed: 1, npcId: 1, manifested: true, senescence: 0.5);
 
-        Assert.True(halfSum > fullSum);
+        double full = MortalitySystem.WindowRisk(fullWorld, fullNpc, fullWorld.CurrentDate.TotalHours, fullWorld.Calendar.HoursPerMonth);
+        double half = MortalitySystem.WindowRisk(halfWorld, halfNpc, halfWorld.CurrentDate.TotalHours, halfWorld.Calendar.HoursPerMonth);
+
+        Assert.True(half < full);
     }
 
     [Fact]
@@ -84,11 +77,11 @@ public sealed class SenescenceMechanicTests
     public void Unit_already_scheduled_age_death_is_not_rewritten_when_senescence_later_becomes_zero()
     {
         var (world, npc, ctx) = WorldWithCarrier(seed: 42, npcId: 1, manifested: true, senescence: 1.0);
-        MortalitySystem.SchedulePlannedDeath(world, ctx, npc);
+        RollMonth(world, ctx, npc);
         var scheduled = Assert.Single(world.PendingEvents, evt => evt.SystemName == MortalitySystem.SystemName);
 
         world.UpsertExtraordinaryCarrier(Carrier(npc.Id, manifested: true, senescence: 0));
-        MortalitySystem.SchedulePlannedDeath(world, ctx, npc);
+        RollMonth(world, ctx, npc);
 
         var still = Assert.Single(world.PendingEvents, evt => evt.SystemName == MortalitySystem.SystemName);
         Assert.Equal((scheduled.Id, scheduled.TargetTick), (still.Id, still.TargetTick));
@@ -117,6 +110,8 @@ public sealed class SenescenceMechanicTests
             personality: Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!,
             profession: ProfessionType.None, currentLocation: new CellCoord(0, 0));
         world.AddNpc(npc);
+        npc.SetHealth(0);
+        world.CurrentDate = WorldDate.Epoch(ScenarioRunner.DefaultCalendar).AddYears(99);
         return (world, npc, new TickContext(world, world.Rng, world.Scheduler));
     }
 

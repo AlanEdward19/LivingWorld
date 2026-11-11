@@ -1,6 +1,5 @@
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Population;
-using LivingWorld.Domain.Population.Body;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
@@ -10,10 +9,9 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Tests.Unit.Population.Lifecycle;
 
-/// <summary>Fase 7, T9 (FAM-21): <see cref="MortalitySystem.SchedulePlannedDeath"/> passa o
-/// multiplicador de <c>Vitality</c> (<see cref="FamilyRules.EffectiveVitalityMultiplier"/>) para
-/// <see cref="MortalityPlanner.RollDeathAge"/> — NPCs com <c>Vitality</c> diferente (mesma
-/// idade/saúde) devem ter distribuição de idade de morte diferente.</summary>
+/// <summary>Fase 7, T9 (FAM-21) e AD-130: a morte por idade é risco contínuo pelo estado atual. <c>Vitality</c>
+/// (<see cref="FamilyRules.EffectiveVitalityMultiplier"/>), saúde e prematuridade mudam o risco do mês; nenhuma data de morte
+/// é decidida no nascimento.</summary>
 public class MortalitySystemTests
 {
     private static readonly WorldCalendar Calendar = new(24, 30, 12);
@@ -66,29 +64,76 @@ public class MortalitySystemTests
         personality: SomePersonality, profession: new ProfessionType(1), currentLocation: new CellCoord(0, 0),
         vitality: vitality);
 
-    private static long ScheduledDeathTick(WorldState world, TickContext ctx, Npc npc)
+    private static double MonthRisk(WorldState world, Npc npc) =>
+        MortalitySystem.WindowRisk(world, npc, world.CurrentDate.TotalHours, world.Calendar.HoursPerMonth);
+
+    [Fact]
+    public void Higher_vitality_gives_lower_monthly_death_risk_than_lower_vitality_at_the_same_age()
     {
-        MortalitySystem.SchedulePlannedDeath(world, ctx, npc);
-        return world.PendingEvents.Single(e => e.Payload == npc.Id.Value.ToString()).TargetTick;
+        var world = BuildWorld(1);
+        world.CurrentDate = WorldDate.Epoch(Calendar).AddYears(50);
+
+        Assert.True(MonthRisk(world, MakeNpc(world, vitality: 100)) < MonthRisk(world, MakeNpc(world, vitality: 0)));
     }
 
     [Fact]
-    public void Higher_vitality_produces_later_average_scheduled_death_than_lower_vitality_across_seeds()
+    public void Poor_current_health_raises_the_monthly_death_risk()
     {
-        long highVitalitySum = 0, lowVitalitySum = 0;
+        var world = BuildWorld(2);
+        world.CurrentDate = WorldDate.Epoch(Calendar).AddYears(30);
+        var healthy = MakeNpc(world, vitality: 50);
+        var sick = MakeNpc(world, vitality: 50);
+        sick.SetHealth(20);
 
-        for (ulong seed = 1; seed <= 200; seed++)
-        {
-            var world = BuildWorld(seed);
-            var ctx = new TickContext(world, world.Rng, world.Scheduler);
+        Assert.True(MonthRisk(world, sick) > MonthRisk(world, healthy));
+    }
 
-            var highVitality = MakeNpc(world, vitality: 100);
-            var lowVitality = MakeNpc(world, vitality: 0);
+    [Fact]
+    public void Twelve_monthly_risks_compound_to_the_annual_table_value()
+    {
+        var table = ScenarioRunner.DefaultPopulationRules.LifeTable;
+        double monthly = table.PeriodMortality(40, 100, 1.0, 1.0 / 12);
+        double survival = 1.0;
+        for (int m = 0; m < 12; m++) survival *= 1 - monthly;
 
-            highVitalitySum += ScheduledDeathTick(world, ctx, highVitality);
-            lowVitalitySum += ScheduledDeathTick(world, ctx, lowVitality);
-        }
+        Assert.Equal(table.AnnualMortality(40, 100), 1 - survival, 12);
+    }
 
-        Assert.True(highVitalitySum >= lowVitalitySum);
+    [Fact]
+    public void Creating_the_village_does_not_plan_a_death_date_for_every_npc()
+    {
+        var (world, _) = ScenarioRunner.Create(seed: 42);
+        int planned = world.PendingEvents.Count(e => e.SystemName == MortalitySystem.SystemName);
+
+        // antes (AD-130) cada NPC nascia com um evento de morte marcado: planned == população
+        Assert.True(planned * 10 < world.AliveNpcIndex.Alive.Count, $"{planned} mortes marcadas para {world.AliveNpcIndex.Alive.Count} vivos");
+    }
+
+    [Fact]
+    public void Preterm_newborn_has_higher_first_year_risk_than_a_term_newborn()
+    {
+        var world = BuildWorld(3);
+        var term = MakeNpc(world, vitality: 50);
+        var preterm = MakeNpc(world, vitality: 50);
+        term.SetGestationAtBirth(268);
+        preterm.SetGestationAtBirth(200);
+
+        Assert.True(MonthRisk(world, preterm) > MonthRisk(world, term));
+    }
+
+    [Fact]
+    public void A_death_drawn_for_the_month_is_scheduled_at_an_hour_inside_that_month()
+    {
+        var world = BuildWorld(4);
+        world.CurrentDate = WorldDate.Epoch(Calendar).AddYears(99).AddHours(5 * 24);
+        var ancient = MakeNpc(world, vitality: 0); // aos 99 e sem saúde o risco do mês é 1
+        ancient.SetHealth(0);
+        world.AddNpc(ancient);
+        var ctx = new TickContext(world, world.Rng, world.Scheduler);
+
+        MortalitySystem.RollWindow(world, ctx, ancient, world.CurrentDate.TotalHours, world.Calendar.HoursPerMonth);
+
+        var death = Assert.Single(world.PendingEvents, e => e.SystemName == MortalitySystem.SystemName);
+        Assert.InRange(death.TargetTick, world.CurrentDate.TotalHours + 1, world.CurrentDate.TotalHours + world.Calendar.HoursPerMonth);
     }
 }

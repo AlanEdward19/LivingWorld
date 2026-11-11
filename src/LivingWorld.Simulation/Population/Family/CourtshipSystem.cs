@@ -355,7 +355,8 @@ public sealed class CourtshipSystem : ISimulationSystem
         if (a.Sex == b.Sex)
             return false;
 
-        return rules.IsFertileAge(a.AgeYears(now)) && rules.IsFertileAge(b.AgeYears(now));
+        // idade de casar por sexo (AD-130): a mulher na janela fértil; o homem sem teto
+        return rules.IsMarriageableAge(a.Sex, a.AgeYears(now)) && rules.IsMarriageableAge(b.Sex, b.AgeYears(now));
     }
 
     private static double NormalizeFactor(
@@ -387,22 +388,21 @@ public sealed class CourtshipSystem : ISimulationSystem
 
     private static double PairAgeFactor(Npc a, Npc b, PopulationRules rules, WorldDate now)
     {
-        double fa = IndividualAgeFactor(a.AgeYears(now), rules);
-        double fb = IndividualAgeFactor(b.AgeYears(now), rules);
+        double fa = IndividualAgeFactor(a, rules, now);
+        double fb = IndividualAgeFactor(b, rules, now);
         return (fa + fb) / 2.0;
     }
 
-    private static double IndividualAgeFactor(int ageYears, PopulationRules rules)
+    /// <summary>Atração pela idade = fertilidade relativa da idade, por sexo (AD-130): a da mulher cai depois dos 30 e
+    /// zera na menopausa; a do homem fica alta até os 40 e cai devagar na velhice.</summary>
+    private static double IndividualAgeFactor(Npc npc, PopulationRules rules, WorldDate now)
     {
-        if (!rules.IsFertileAge(ageYears))
+        int ageYears = npc.AgeYears(now);
+        if (!rules.IsMarriageableAge(npc.Sex, ageYears))
             return 0.0;
 
-        int min = rules.FertilityMinAge;
-        int max = rules.FertilityMaxAge;
-        int mid = (min + max) / 2;
-        int halfSpan = Math.Max(1, (max - min) / 2);
-        double distance = Math.Abs(ageYears - mid);
-        return Math.Clamp(1.0 - distance / halfSpan, 0.0, 1.0);
+        double exactAge = (now.TotalHours - npc.BirthDate.TotalHours) / (double)now.Calendar.HoursPerYear;
+        return rules.Fertility.RelativeFertility(npc.Sex, exactAge);
     }
 
     private static double StatusFactor(Npc npc)

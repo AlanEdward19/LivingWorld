@@ -22,8 +22,8 @@ Cada escala é uma frequência de execução; um tick maior acontece "por cima" 
 | Hourly | 1 hora | Deslocamento, trabalho, sono, alimentação, eventos imediatos |
 | Daily | 1 dia (hora 0) | Necessidades, consumo, relações, saúde |
 | Midshift | 1 dia (hora `HoursPerDay*10/24`, meio do turno) | Produção, colheita, prática/ensino de habilidade, endurecimento por trabalho, obra — sistemas que dependem de **quem está trabalhando agora**; à meia-noite ninguém está no posto |
-| Monthly | 1 mês | Salários, preços, migração, empregos, gravidez, comércio, criminalidade |
-| Yearly | 1 ano | Envelhecimento, nascimento, morte, educação, evolução de atributos, política, tecnologia |
+| Monthly | 1 mês | Salários, preços, migração, empregos, concepção e risco de morte (AD-130), comércio, criminalidade |
+| Yearly | 1 ano | Educação, evolução de atributos, política, tecnologia |
 | Historic | décadas/séculos | Só agregado: dinastias, ascensão e queda, deslocamentos de povos |
 
 **Nem todo sistema roda em todo tick.** Cada sistema se registra na frequência mais barata
@@ -40,7 +40,7 @@ gravidez inicia  -> agenda NascimentoEvent(alvo = WorldDate + ~9 meses)
 tick(WorldDate)  -> processa fila[WorldDate]
 ```
 
-Isso troca **O(população) por O(eventos)**. Vale para parto, colheita, morte agendada,
+Isso troca **O(população) por O(eventos)**. Vale para parto, colheita, a morte já sorteada no mês,
 chegada de caravana, fim de contrato. A fila é indexada por tick alvo; ticks vazios custam
 zero.
 

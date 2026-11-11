@@ -33,8 +33,8 @@ public class OptimizationEquivalenceTests
     // --- Hashes do mundo preservados ---
 
     [Theory]
-    [InlineData(1UL, "ef390b67ee2a8ce004190a5019af94e8de3f268255ff392a06d42879ba65ad7a", "77007048416baacc11348b34bba4a359a19dbea43a18e3bd8b94536773ef00c5")]
-    [InlineData(2UL, "45575126f8741a8348b2ec97cfb393bb9235438db8915ff756a6153514237540", "eb93416749ff89cb342231aeb4b878fb466e4b5664b52296d122e361272d479e")]
+    [InlineData(1UL, "6b4819cd9ee0620ffe2406220024a7c94da4397d8b0db9c734c1e8545389fce9", "ee51ebe6e298c219025fb3a4d69725bcab6f8b7f3a4b8345afead8f3aad6e276")]
+    [InlineData(2UL, "32e4b78585e652c29f100fa2433aac4d37d5afaf426a0f10a6ea52e48639adaa", "d894169d1229d02ed16a245e3fb7aa2f472b5fe2172f22f41e558d053ded4ecc")]
     public void Default_scenario_ninety_days_keeps_the_recorded_hashes(
         ulong seed, string canonical, string volatileHash)
     {
@@ -90,10 +90,10 @@ public class OptimizationEquivalenceTests
         Assert.DoesNotContain(world.RngStreams, s => s.Key.StartsWith("ambient-", StringComparison.Ordinal));
     }
 
-    // --- Mortalidade condicional da população inicial (flag, desligada por padrão) ---
+    // --- Mortalidade da população inicial ---
 
     [Fact]
-    public void Conditional_initial_mortality_keeps_the_seeded_population_from_dying_in_the_first_hour()
+    public void Seeded_population_does_not_die_in_its_first_days_whatever_the_legacy_conditional_flag()
     {
         int AliveAfterTwoDays(bool conditional)
         {
@@ -103,12 +103,9 @@ public class OptimizationEquivalenceTests
             return world.Npcs.Count(n => n.IsAlive);
         }
 
-        int legacy = AliveAfterTwoDays(conditional: false);
-        int conditional = AliveAfterTwoDays(conditional: true);
-
-        // Legado: quem recebe idade de morte menor que a atual morre 1 hora depois (~30% da vila).
-        Assert.True(legacy <= 80, $"esperava mortes imediatas no comportamento legado (vivos: {legacy})");
-        Assert.True(conditional >= 95, $"flag ligada não deveria matar a população inicial (vivos: {conditional})");
+        // AD-130: a morte é risco contínuo a partir da idade atual, então a flag ficou sem efeito; antes, sem ela, quem
+        // recebia idade de morte menor que a atual morria 1 hora depois (~30% da vila).
+        Assert.True(AliveAfterTwoDays(conditional: false) >= 95 && AliveAfterTwoDays(conditional: true) >= 95);
     }
 
     // --- Índice espacial de NPCs vivos ---

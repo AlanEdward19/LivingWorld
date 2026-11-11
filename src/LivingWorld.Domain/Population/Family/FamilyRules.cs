@@ -157,7 +157,7 @@ public sealed record FamilyRules(
 
     /// <summary>Multiplicador de mortalidade a partir de <c>Vitality</c> — <c>Vitality</c> acima
     /// do meio da escala reduz o multiplicador, abaixo aumenta; nunca produz saída negativa
-    /// (Error Handling do design). Chamado por <c>MortalityPlanner</c>/<c>MortalitySystem</c>
+    /// (Error Handling do design). Chamado por <c>MortalitySystem</c>
     /// quando <see cref="VitalityMortalitySelectionEnabled"/> é verdadeiro; com a flag
     /// desligada, <c>MortalitySystem</c> passa <c>1.0</c> direto sem chamar este método (split
     /// de <see cref="NeutralDriftEnabled"/>, que hoje controla só escolha de parceiro).</summary>

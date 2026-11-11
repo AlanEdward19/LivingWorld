@@ -123,6 +123,39 @@ public sealed class Npc
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Appearance? Appearance { get; private set; }
 
+    /// <summary>Histórico reprodutivo e gravidez em curso (AD-130). Nulo = nunca concebeu: omitido do snapshot.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ReproductiveState? Reproduction { get; private set; }
+
+    /// <summary>Duração da gestação de que nasceu, em dias desde a concepção (AD-130); nulo na população inicial. Lido pela
+    /// mortalidade do 1º ano (prematuridade).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? GestationAtBirthDays { get; private set; }
+
+    /// <summary>Horas somadas à idade biológica na mortalidade (transferência de anos de vida por poder); 0 = nenhuma.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public long LifespanOffsetHours { get; private set; }
+
+    public void SetReproduction(ReproductiveState? state)
+    {
+        if (Reproduction == state) return;
+        Reproduction = state;
+        TouchCanonical();
+    }
+
+    public void SetGestationAtBirth(int days)
+    {
+        GestationAtBirthDays = days;
+        TouchCanonical();
+    }
+
+    public void ShiftLifespanOffset(long hours)
+    {
+        if (hours == 0) return;
+        LifespanOffsetHours += hours;
+        TouchCanonical();
+    }
+
     public void SetNativeLanguage(CultureId? culture)
     {
         if (NativeLanguage == culture) return;
@@ -256,7 +289,8 @@ public sealed class Npc
         string? intentTarget = null, IntentStatus? intentStatus = null, ActionType? travelPurpose = null,
         long lastJobChangeTick = 0,
         string? controllerId = null, ActionType? controlledAction = null, long? disappearedAtTick = null,
-        DevelopmentState? development = null, CultureId? nativeLanguage = null, Appearance? appearance = null)
+        DevelopmentState? development = null, CultureId? nativeLanguage = null, Appearance? appearance = null,
+        ReproductiveState? reproduction = null, int? gestationAtBirthDays = null, long lifespanOffsetHours = 0)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -297,6 +331,9 @@ public sealed class Npc
         Development = development;
         NativeLanguage = nativeLanguage;
         Appearance = appearance;
+        Reproduction = reproduction;
+        GestationAtBirthDays = gestationAtBirthDays;
+        LifespanOffsetHours = lifespanOffsetHours;
         IsGhost = isGhost;
         HomelessSince = homelessSince;
         PregnantUntil = pregnantUntil;

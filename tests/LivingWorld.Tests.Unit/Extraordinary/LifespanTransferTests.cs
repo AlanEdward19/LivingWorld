@@ -13,41 +13,48 @@ namespace LivingWorld.Tests.Unit.Extraordinary;
 
 public sealed class LifespanTransferTests
 {
+    // AD-130: sem data de morte marcada, transferir anos de vida desloca a idade biológica que entra no risco de morte.
     [Fact]
-    public void Transfer_lifespan_years_reschedules_donor_earlier_and_recipient_later()
+    public void Transfer_lifespan_years_ages_the_donor_and_rejuvenates_the_recipient()
     {
         var (world, carrier, target, ctx) = WorldWithScheduledDeaths(["transfer.lifespan-years:10"]);
         long yearHours = world.Calendar.HoursPerYear;
-        long donorBefore = AgeDeathTick(world, carrier);
-        long recipientBefore = AgeDeathTick(world, target);
 
         var result = ExtraordinaryInvocationEngine.Invoke(
             world, ctx, new ExtraordinaryInvocation(90, carrier.Id, "test-power", target.Id));
 
         Assert.True(result.IsSuccess, result.Error);
-        Assert.Equal(donorBefore - 10 * yearHours, AgeDeathTick(world, carrier));
-        Assert.Equal(recipientBefore + 10 * yearHours, AgeDeathTick(world, target));
+        Assert.Equal((10 * yearHours, -10 * yearHours), (carrier.LifespanOffsetHours, target.LifespanOffsetHours));
+    }
+
+    [Fact]
+    public void Transfer_lifespan_years_raises_the_donor_death_risk_and_lowers_the_recipient_one()
+    {
+        var (world, carrier, target, ctx) = WorldWithScheduledDeaths(["transfer.lifespan-years:10"]);
+        world.CurrentDate = world.CurrentDate.AddYears(60);
+        long now = world.CurrentDate.TotalHours, month = world.Calendar.HoursPerMonth;
+        double donorBefore = MortalitySystem.WindowRisk(world, carrier, now, month);
+        double recipientBefore = MortalitySystem.WindowRisk(world, target, now, month);
+
+        ExtraordinaryInvocationEngine.Invoke(world, ctx, new ExtraordinaryInvocation(93, carrier.Id, "test-power", target.Id));
+
+        Assert.True(MortalitySystem.WindowRisk(world, carrier, now, month) > donorBefore
+            && MortalitySystem.WindowRisk(world, target, now, month) < recipientBefore);
     }
 
     [Fact]
     public void Transfer_lifespan_years_fails_when_donor_lacks_remaining_years()
     {
         var (world, carrier, target, ctx) = WorldWithScheduledDeaths(["transfer.lifespan-years:10"]);
-        long yearHours = world.Calendar.HoursPerYear;
-        var donorDeath = AgeDeath(world, carrier);
-        ctx.CancelEvent(donorDeath.Id);
-        ctx.ScheduleEvent(
-            ctx.CurrentTick + 5 * yearHours, MortalitySystem.SystemName, carrier.Id.Value.ToString());
-        long donorBefore = AgeDeathTick(world, carrier);
-        long recipientBefore = AgeDeathTick(world, target);
+        // a 5 anos do teto de longevidade da tábua, o doador não tem 10 anos para dar
+        world.CurrentDate = world.CurrentDate.AddYears(world.PopulationRules.LifeTable.MaxLongevityYears - 5);
 
         var result = ExtraordinaryInvocationEngine.Invoke(
             world, ctx, new ExtraordinaryInvocation(91, carrier.Id, "test-power", target.Id));
 
         Assert.False(result.IsSuccess);
         Assert.Contains("insuficiente", result.Error, StringComparison.Ordinal);
-        Assert.Equal(donorBefore, AgeDeathTick(world, carrier));
-        Assert.Equal(recipientBefore, AgeDeathTick(world, target));
+        Assert.Equal((0L, 0L), (carrier.LifespanOffsetHours, target.LifespanOffsetHours));
     }
 
     [Fact]
@@ -86,16 +93,8 @@ public sealed class LifespanTransferTests
         world.AddNpc(target);
         world.AddHousehold(home);
         var ctx = new TickContext(world, world.Rng, world.Scheduler);
-        MortalitySystem.SchedulePlannedDeath(world, ctx, carrier);
-        MortalitySystem.SchedulePlannedDeath(world, ctx, target);
         return (world, carrier, target, ctx);
     }
-
-    private static ScheduledEvent AgeDeath(WorldState world, Npc npc) =>
-        world.PendingEvents.Single(e =>
-            e.SystemName == MortalitySystem.SystemName && e.Payload == npc.Id.Value.ToString());
-
-    private static long AgeDeathTick(WorldState world, Npc npc) => AgeDeath(world, npc).TargetTick;
 
     private static Npc Npc(NpcId id, string name) => new(
         id, name, Sex.Male, WorldDate.Epoch(ScenarioRunner.DefaultCalendar),

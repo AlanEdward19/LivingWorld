@@ -77,14 +77,12 @@ public static class HouseholdCounterfactualHarness
 
     /// <summary>T29/T30 (FAM-34/35): carreira até a morte (ou fim do horizonte) — reusa
     /// <see cref="FamilyRules.EffectiveVitalityMultiplier"/>/<see cref="LifeTable.AnnualMortality"/>
-    /// (mesmo cálculo de <see cref="MortalitySystem.SchedulePlannedDeath"/>) para decidir quantos
+    /// (mesma tábua de <see cref="MortalitySystem"/>, ano a ano) para decidir quantos
     /// meses de salário o sujeito recebe antes de morrer — só assim o canal genético (Vitality→
     /// mortalidade) e o ambiental (Upbringing→salário) competem no mesmo resultado mensurável
     /// (patrimônio), em vez de o harness de wage-only nunca deixar ninguém morrer (AD-059).
     ///
-    /// Rola a morte a partir dos <see cref="SubjectStartAgeYears"/> (30), não dos 0 —
-    /// <see cref="MortalityPlanner.RollDeathAge"/> sempre parte do nascimento (certo para
-    /// <c>NatalitySystem</c>), mas incoerente aqui: o sujeito já existe como adulto por
+    /// Rola a morte a partir dos <see cref="SubjectStartAgeYears"/> (30), não dos 0 — o sujeito já existe como adulto por
     /// construção (<see cref="CreateEmployedAdultWorld"/>), então rolar desde o nascimento
     /// produziria "mortes na infância" que nunca poderiam ter acontecido (ele já sobreviveu até
     /// os 30), contaminando a distribuição com zeros artificiais.</summary>

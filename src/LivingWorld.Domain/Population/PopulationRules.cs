@@ -5,7 +5,9 @@ namespace LivingWorld.Domain.Population;
 
 /// <summary>Regras demográficas do cenário: tabela de
 /// vida e janela de fertilidade. Reprodução aqui é regra do cenário, não escolha do NPC — a
-/// janela varia por espécie/cultura, por isso é dado, nunca constante de código.</summary>
+/// janela varia por espécie/cultura, por isso é dado, nunca constante de código. Desde AD-130 a concepção usa
+/// <see cref="Fertility"/> (fecundabilidade por ciclo e idade) e a morte é risco contínuo: <see cref="AnnualConceptionChance"/>
+/// e <see cref="ConditionalInitialMortality"/> ficam só por compatibilidade de cenário e snapshot, sem efeito.</summary>
 public sealed record PopulationRules(
     LifeTable LifeTable,
     int FertilityMinAge,
@@ -20,8 +22,16 @@ public sealed record PopulationRules(
     /// (default, comportamento legado) o sorteio parte da idade 0 e um adulto pode receber idade de
     /// morte menor que a atual — e morre uma hora depois.</summary>
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
-    bool ConditionalInitialMortality = false)
+    bool ConditionalInitialMortality = false,
+    /// <summary>Reprodução de época (AD-130). Nulo = <see cref="ReproductionRules.Default"/>: cenário JSON e snapshot antigo
+    /// herdam o padrão sem declarar o campo.</summary>
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    ReproductionRules? Reproduction = null)
 {
+    /// <summary>Regras de reprodução em vigor.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public ReproductionRules Fertility => Reproduction ?? ReproductionRules.Default;
+
     public static Result<PopulationRules> Create(
         LifeTable lifeTable,
         int fertilityMinAge,
@@ -47,6 +57,11 @@ public sealed record PopulationRules(
     }
 
     public bool IsFertileAge(int ageYears) => ageYears >= FertilityMinAge && ageYears <= FertilityMaxAge;
+
+    /// <summary>Idade de casar por sexo (AD-130): a mulher na janela <see cref="FertilityMinAge"/>..<see cref="FertilityMaxAge"/>;
+    /// o homem a partir de <see cref="FertilityMinAge"/>, sem teto (segue fértil na velhice, com queda leve).</summary>
+    public bool IsMarriageableAge(Sex sex, int ageYears) =>
+        sex == Sex.Female ? IsFertileAge(ageYears) : ageYears >= FertilityMinAge;
 
     /// <summary>Quantos novos vivos ainda cabem sob o teto, dado o número atual de vivos.</summary>
     public int RemainingAliveSlots(int currentAlive) => Math.Max(0, MaxAliveNpcs - currentAlive);

@@ -124,7 +124,6 @@ public class FamilyPairedScenarioTests
 
         var npcById = world.Npcs.ToDictionary(n => n.Id);
         var rules = world.PopulationRules;
-        int gestationDays = rules.GestationDays;
 
         foreach (var evt in sink.Events.Where(IsNpcBirth))
         {
@@ -133,7 +132,8 @@ public class FamilyPairedScenarioTests
             var child = npcById[childId];
             Assert.NotNull(child.MotherId);
 
-            var conceptionDate = child.BirthDate.AddDays(-gestationDays);
+            // AD-130: a gestação de cada um fica gravada no bebê (prematuro ou a termo)
+            var conceptionDate = child.BirthDate.AddDays(-(child.GestationAtBirthDays ?? rules.Fertility.TermMeanDays));
             AssertMotherAndFather(child, npcById, conceptionDate, rules);
         }
     }
@@ -151,8 +151,10 @@ public class FamilyPairedScenarioTests
     /// Wake esparso (PERF-08) pode reduzir concepções observadas vs. grid horário cheio; com a população
     /// sobrevivendo (B1) o total observado passa de 2x o esperado bruto. Depois que a vila passou a
     /// comer (salário proporcional, ajuda mútua, compra de casa), o default mede ~40 nascimentos em
-    /// 10 anos com ~90 pessoas: natalidade bruta ~45‰, dentro da faixa pré-industrial (35–50‰); daí 150%.</summary>
-    private const double BirthCountToleranceFraction = 1.5;
+    /// 10 anos com ~90 pessoas: natalidade bruta ~45‰, dentro da faixa pré-industrial (35–50‰); daí 150%.
+    /// AD-130: com fecundidade natural por ciclo, a 1ª década (casais da pirâmide inicial, ninguém ainda no intervalo pós-parto)
+    /// mede ~54 nascimentos (~50‰, topo da faixa; em 100 anos a média cai para ~37‰); daí 250%.</summary>
+    private const double BirthCountToleranceFraction = 2.5;
 
     [Fact]
     [Trait("Category", "Scenario")]
@@ -316,7 +318,9 @@ public class FamilyPairedScenarioTests
     public void Household_wealth_distance_is_at_least_as_large_as_genome_distance()
     {
         const int samplesPerGroup = 200;
-        const int horizonYears = 60;
+        // AD-130: carreira dos 30 aos 60 (vida de trabalho). Com a tábua de época, o horizonte antigo até os 90 media quase só
+        // quem sobrevive à velhice — o canal genético via mortalidade — e não a riqueza acumulada no trabalho.
+        const int horizonYears = 30;
         var rules = ScenarioRunner.DefaultFamilyRules;
 
         // Mesmo genoma (Vitality=60), Upbringing variando em [40,60] — nunca satura o fator de
@@ -470,7 +474,9 @@ public class FamilyPairedScenarioTests
         // morreu ela devolveria a idade no óbito e não na concepção.
         int motherAgeAtConception = (int)(
             (conceptionDate.TotalHours - mother.BirthDate.TotalHours) / mother.BirthDate.Calendar.HoursPerYear);
-        Assert.InRange(motherAgeAtConception, rules.FertilityMinAge, rules.FertilityMaxAge);
+        // AD-130: casa a partir de FertilityMinAge e concebe enquanto a curva de fecundabilidade for positiva (menopausa)
+        Assert.True(motherAgeAtConception >= rules.FertilityMinAge
+            && rules.Fertility.FemaleMonthlyFecundability.At(motherAgeAtConception) > 0, $"mãe concebeu com {motherAgeAtConception}");
 
         if (child.FatherId is { } fatherId)
         {

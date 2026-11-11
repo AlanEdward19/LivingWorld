@@ -75,7 +75,7 @@ public sealed class City
     public IReadOnlyList<ReportState> CanonSlots => _canonSlots;
 
     // SPEC_DEVIATION: SettlementFoundingSystem agenda um evento único (mesmo padrão
-    // de MortalitySystem.SchedulePlannedDeath) e não pode agendar duas vezes pra mesma cidade
+    // de um evento agendado) e não pode agendar duas vezes pra mesma cidade
     // enquanto o primeiro ainda não disparou — sem um marcador, o Monthly Tick reagendaria todo
     // mês enquanto os limiares continuarem batidos.
 
