@@ -51,3 +51,4 @@ conteúdo de ADR para dentro dele.
 | [0040](ADR-0040-parser-unico-de-primitivas-do-extraordinario.md) | Parser único por primitiva do extraordinário: a carga aceita o que a invocação aceita | aceito |
 | [0042](ADR-0042-indicadores-da-cidade-sem-fonte-ficam-nulos.md) | Indicadores da cidade: saúde é média; sem fonte fica nulo | aceito |
 | [0043](ADR-0043-blocos-de-doenca-clima-e-furto-no-cenario.md) | Blocos Disease, Climate e Theft no cenário JSON | aceito |
+| [0044](ADR-0044-corrida-compartilhada-entre-testes.md) | Uma corrida de simulação compartilhada entre testes (revoga a proibição da phase-16) | aceito |

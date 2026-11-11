@@ -185,14 +185,8 @@ public class FamilyPairedScenarioTests
     [Trait("Category", "Scenario")]
     public void Final_population_over_the_seed_set_stays_alive_and_near_committed_average_baseline()
     {
-        // Cada seed é um mundo independente: roda em paralelo, resultado indexado pela seed.
-        var counts = new int[SeedCount];
-        Parallel.For(1, SeedCount + 1, seed =>
-        {
-            var (world, clock) = ScenarioRunner.Create((ulong)seed);
-            clock.Run(world, HorizonHours);
-            counts[seed - 1] = world.Npcs.Count(n => n.IsAlive);
-        });
+        // A vila padrão das seeds 1..10 no ano 10 é a corrida compartilhada do século (ADR-0044): mesmo mundo, mesma contagem.
+        var counts = DefaultVillageCentury.Runs.Take(SeedCount).Select(r => r.Alive[HorizonYears]).ToArray();
 
         for (int seed = 1; seed <= SeedCount; seed++)
             Assert.True(counts[seed - 1] > 0, $"seed {seed}: extinção total — Fase 7 não pode apagar a vila");

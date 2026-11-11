@@ -1,7 +1,4 @@
 using System.Text.Json;
-using LivingWorld.Domain.History;
-using LivingWorld.Simulation.Core;
-using LivingWorld.Simulation.Scenarios;
 
 namespace LivingWorld.Tests.LongRunning.Population;
 
@@ -10,29 +7,12 @@ namespace LivingWorld.Tests.LongRunning.Population;
 /// somavam 373) e ninguem troca de emprego mais que 0,5 vez por ano em media.</summary>
 public class LaborAllocationVillageTests
 {
-    private const long OneYearInHours = 12 * 30 * 24;
-
-    private sealed class SwitchCounter : IWorldEventSink
-    {
-        public int Moves { get; private set; }
-
-        public void Record(WorldEvent evt)
-        {
-            if (evt.Kind == WorldEventKind.Fired && evt.SourceSystem == "LaborAllocation") Moves++;
-        }
-    }
-
     [Fact]
     public void Gate_village_population_at_year_ten_stays_within_90_percent_of_the_floor()
     {
         var baseline = JsonSerializer.Deserialize<int[]>(File.ReadAllText(RepoPath("tests", "baselines", "gate-village-population.json")))!;
-        int total = 0;
-        for (int seed = 1; seed <= baseline.Length; seed++)
-        {
-            var (world, _) = ScenarioRunner.Create((ulong)seed);
-            new WorldClock(ScenarioRunner.DefaultSystems()).Run(world, 10 * OneYearInHours);
-            total += world.Npcs.Count(n => n.IsAlive);
-        }
+        // Vila padrão das seeds 1..N no ano 10: lida da corrida compartilhada do século (ADR-0044).
+        int total = DefaultVillageCentury.Runs.Take(baseline.Length).Sum(r => r.Alive[10]);
 
         Assert.True(total >= 0.9 * baseline.Sum(), $"populacao do ano 10 somada {total} < 90% de {baseline.Sum()}");
     }
@@ -40,19 +20,12 @@ public class LaborAllocationVillageTests
     [Fact]
     public void Job_moves_stay_under_half_a_move_per_npc_per_year_in_the_gate_village()
     {
+        // Seeds 1..5, anos 1..3: as trocas (Fired de LaborAllocation) e os vivos de cada fim de ano vêm da corrida compartilhada.
         double moves = 0, npcYears = 0;
-        for (int seed = 1; seed <= 5; seed++)
+        foreach (var run in DefaultVillageCentury.Runs.Take(5))
         {
-            var (world, _) = ScenarioRunner.Create((ulong)seed);
-            var counter = new SwitchCounter();
-            var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: counter);
-            for (int year = 0; year < 3; year++)
-            {
-                clock.Run(world, OneYearInHours);
-                npcYears += world.Npcs.Count(n => n.IsAlive);
-            }
-
-            moves += counter.Moves;
+            for (int year = 1; year <= 3; year++) npcYears += run.Alive[year];
+            moves += run.LaborMoves[3];
         }
 
         Assert.True(moves / npcYears <= 0.5, $"{moves / npcYears:F3} trocas por NPC por ano");

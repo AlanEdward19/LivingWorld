@@ -1,5 +1,6 @@
 using System.Text.Json;
 using LivingWorld.Simulation.Scenarios;
+using LivingWorld.Tests.Shared;
 using LivingWorld.Tests.Shared.Population;
 
 namespace LivingWorld.Tests.LongRunning.Population;
@@ -11,8 +12,11 @@ public class FamilyDiversityCalibrationTests
     public sealed record Calibration(int Seeds, int GateYears, int CenturyYears, double ConfidenceZ, Sample[] Samples);
     private static string Root => FindRoot();
     private static string BaselinePath => Path.Combine(Root, "tests/baselines/family-diversity.json");
-    private static readonly Lazy<Sample[]> Current = new(() => Measure(10, 20));
-    private static readonly Lazy<Sample[]> Century = new(() => Measure(100, 20, paired: false));
+    // O braço real dos 10 anos é o prefixo do século: os dois saem da mesma corrida compartilhada (ADR-0044).
+    private static readonly Lazy<Sample[]> Current = new(() => DefaultVillageCentury.Runs.Select(r => new Sample((int)r.Seed,
+        r.GateVitalityDifference, r.GateOpennessDifference, DefaultVillageCentury.MinimumCv(r, 10), DefaultVillageCentury.MinimumAlive(r, 10), r.Alive[10])).ToArray());
+    private static readonly Lazy<Sample[]> Century = new(() => DefaultVillageCentury.Runs.Select(r => new Sample((int)r.Seed,
+        r.CenturySelfDifference, r.CenturyOpennessSelfDifference, DefaultVillageCentury.MinimumCv(r, 100), DefaultVillageCentury.MinimumAlive(r, 100), r.Alive[100])).ToArray());
 
     [Fact, Trait("Category", "Scenario")]
     public void Record_explicit_family_diversity_baseline()
@@ -40,13 +44,17 @@ public class FamilyDiversityCalibrationTests
             $"Controle negativo: diferença média {differences.Average()}, EP {StandardError(differences)}");
     }
 
-    [Fact, Trait("Category", "Scenario")]
-    public void Strong_selection_is_rejected_by_the_same_band()
+    /// <summary>Classe própria: a seleção forte (20 seeds × 10 anos, pareada) roda em paralelo com o século em vez de esperar por ele.</summary>
+    public class StrongSelection
     {
-        var baseline = Baseline();
-        var strong = Measure(baseline.GateYears, baseline.Seeds, mortalityWeight: 20);
-        Assert.False(InBand(strong.Select(s => s.VitalityDifference), baseline.Samples.Select(s => s.VitalityDifference), out string detail), detail);
-        Assert.True(InBand(Current.Value.Select(s => s.VitalityDifference), baseline.Samples.Select(s => s.VitalityDifference), out detail), detail);
+        [Fact, Trait("Category", "Scenario")]
+        public void Strong_selection_is_rejected_by_the_same_band()
+        {
+            var baseline = Baseline();
+            var strong = Measure(baseline.GateYears, baseline.Seeds, mortalityWeight: 20);
+            Assert.False(InBand(strong.Select(s => s.VitalityDifference), baseline.Samples.Select(s => s.VitalityDifference), out string detail), detail);
+            Assert.True(InBand(Current.Value.Select(s => s.VitalityDifference), baseline.Samples.Select(s => s.VitalityDifference), out detail), detail);
+        }
     }
 
     [Fact, Trait("Category", "Scenario")]
@@ -99,11 +107,12 @@ public class FamilyDiversityCalibrationTests
         double mean = all.Average();
         return Math.Sqrt(all.Sum(v => Math.Pow(v - mean, 2)) / all.Length) / mean;
     }
-    private static Sample[] Measure(int years, int count, double? mortalityWeight = null, bool paired = true)
+    internal static Sample[] Measure(int years, int count, double? mortalityWeight = null, bool paired = true)
     {
         var samples = new Sample[count];
-        Parallel.For(1, count + 1, new ParallelOptions { MaxDegreeOfParallelism = 4 }, seed =>
+        ParallelSeeds.ForEach(1, (ulong)count, s =>
         {
+            int seed = (int)s;
             var rules = ScenarioRunner.DefaultFamilyRules;
             if (mortalityWeight is { } weight) rules = rules with { VitalityMortalityWeight = weight };
             var (real, clock) = ScenarioRunner.Create((ulong)seed, familyRules: rules);
