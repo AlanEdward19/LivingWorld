@@ -5,7 +5,6 @@ using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Decision;
-using LivingWorld.Simulation.Behavior.Needs;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Simulation.Scheduling;
@@ -106,8 +105,7 @@ public class TravelPurposeTests
         SimulationWakeTestHelper.Wake(world, npc);
         new BehaviorDecisionSystem().Tick(world, new TickContext(world, world.Rng, world.Scheduler));
 
-        bool WakesAt(long tick) => world.Scheduler.PeekDue(tick)
-            .Any(e => e.SystemName == NpcWakeScheduler.SystemName && e.Payload == npc.Id.Value.ToString());
+        bool WakesAt(long tick) => world.PeekDueNpcWakes(tick).Contains(npc.Id.Value);
         Assert.True(WakesAt(ticks), $"devia acordar na chegada (tick {ticks})");
         Assert.False(WakesAt(maxDuration), "não devia esperar a duração máxima da ação");
     }

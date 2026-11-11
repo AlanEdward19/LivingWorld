@@ -27,6 +27,7 @@ using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Body;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Behavior.Needs;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
 using LivingWorld.Simulation.Scheduling;
 using LivingWorld.Simulation.Serialization;
@@ -103,6 +104,10 @@ public static class WorldSnapshot
         var lifeStageRules = node["LifeStageRules"].Deserialize<LifeStageRules>(JsonOptions)!;
         var rngStreams = node["RngStreams"].Deserialize<List<RngStreamState>>(JsonOptions)!;
         var pendingEvents = node["PendingEvents"].Deserialize<List<ScheduledEvent>>(JsonOptions)!;
+        var npcWakes = node.TryGetPropertyValue("PendingNpcWakes", out var npcWakesNode) && npcWakesNode is not null
+            ? npcWakesNode.Deserialize<List<PendingNpcWake>>(JsonOptions)!
+            : [];
+        pendingEvents = ExtractLegacyNpcWakes(pendingEvents, npcWakes);
         var nextEventId = node["NextEventId"]!.Deserialize<long>();
         var nextHistoryEventId = node.TryGetPropertyValue("NextHistoryEventId", out var nextHistoryNode)
             && nextHistoryNode is not null
@@ -323,7 +328,24 @@ public static class WorldSnapshot
             animalSpeciesRules, plantSpeciesRules, biomeSeasonTemperatureRules,
             nextHistoryEventId, combatEncounters, nextCombatEncounterId, combatRules, tradeLedger, treasuryLedger, diseaseRules, infections, immunities, climateRules, climateYears, theftRules, emergenceRules, ontogenyRules, technologies, appearanceRules, objectCatalog);
         rehydrated.AssignPeriod(periodId);
+        rehydrated.RestoreNpcWakes(npcWakes);
         return rehydrated;
+    }
+
+    /// <summary>Snapshot anterior ao AD-129 guarda os despertares como <see cref="ScheduledEvent"/> de
+    /// <see cref="NpcWakeScheduler.SystemName"/> (payload = id do NPC). Eles viram <see cref="PendingNpcWake"/> com a
+    /// mesma sequência (o id do evento) e saem do scheduler; payload ilegível era ignorado ao vencer e é descartado.</summary>
+    private static List<ScheduledEvent> ExtractLegacyNpcWakes(List<ScheduledEvent> pendingEvents, List<PendingNpcWake> npcWakes)
+    {
+        if (!pendingEvents.Exists(static e => e.SystemName == NpcWakeScheduler.SystemName)) return pendingEvents;
+
+        var others = new List<ScheduledEvent>(pendingEvents.Count);
+        foreach (var evt in pendingEvents)
+        {
+            if (evt.SystemName != NpcWakeScheduler.SystemName) others.Add(evt);
+            else if (long.TryParse(evt.Payload, out var npcId)) npcWakes.Add(new PendingNpcWake(npcId, evt.TargetTick, evt.Id));
+        }
+        return others;
     }
 
     private static JsonObject BuildJson(WorldState world, Func<PropertyInfo, bool> filter)

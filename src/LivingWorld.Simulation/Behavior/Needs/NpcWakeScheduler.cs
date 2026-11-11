@@ -1,7 +1,6 @@
 using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Body;
-using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Decision;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
@@ -14,28 +13,20 @@ namespace LivingWorld.Simulation.Behavior.Needs;
 /// <see cref="AttentionRouter"/>.</summary>
 public static class NpcWakeScheduler
 {
+    /// <summary>Nome do sistema dos despertares quando eram eventos do <see cref="EventScheduler"/>: só a leitura de
+    /// snapshot antigo ainda o procura em <c>PendingEvents</c> (AD-129).</summary>
     public const string SystemName = "npc-wake";
 
-    public static void PrepareWakeBatch(WorldState world, long tick)
-    {
-        world.ClearNpcWakeBatch();
-        var due = world.Scheduler.PeekDue(tick);
-        for (int i = due.Count - 1; i >= 0; i--)
-        {
-            var evt = due[i];
-            if (evt.SystemName != SystemName) continue;
-            world.Scheduler.Cancel(evt.Id);
-            if (long.TryParse(evt.Payload, out var idValue)
-                && world.FindNpc(new NpcId(idValue)) is { IsAlive: true } npc)
-            {
-                world.ClearNpcWakeEvent(idValue);
-                world.AddNpcWake(npc);
-            }
-        }
-    }
+    /// <summary>Monta o lote de quem acorda neste tick a partir da fila de despertar do mundo (AD-129).</summary>
+    public static void PrepareWakeBatch(WorldState world, long tick) => world.PrepareNpcWakeBatch(tick);
 
-    public static void ScheduleWake(WorldState world, TickContext ctx, long npcId, long targetTick) =>
-        world.ReplaceNpcWake(ctx, npcId, targetTick);
+    /// <summary><paramref name="ctx"/> fica na assinatura por simetria com os outros agendamentos do tick; a fila de
+    /// despertar é do <see cref="WorldState"/> e não passa pelo <see cref="EventScheduler"/>.</summary>
+    public static void ScheduleWake(WorldState world, TickContext ctx, long npcId, long targetTick)
+    {
+        _ = ctx;
+        world.ReplaceNpcWake(npcId, targetTick);
+    }
 
     /// <summary>Agenda wake imediato (próximo tick) para NPCs roteados pelo AttentionRouter
     /// que tenham Intent Active — dedupe via <see cref="WorldState.ReplaceNpcWake"/>.</summary>

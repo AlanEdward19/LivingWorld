@@ -311,7 +311,12 @@ public sealed partial class WorldState
     [Volatile, Ephemeral] public HistoryIndex HistoryIndex { get; private set; }
 
     private readonly List<Npc> _npcWakeBatch = [];
-    private readonly Dictionary<long, long> _npcWakeEventIdByNpc = [];
+    private readonly NpcWakeQueue _npcWakes = new();
+    private readonly List<long> _dueNpcWakeIds = [];
+
+    /// <summary>Despertar pendente de cada NPC, em ordem de id (AD-129): fila própria, fora de
+    /// <see cref="PendingEvents"/>. Decide quem acorda e quando, por isso é canônico.</summary>
+    [Canonical] public IReadOnlyList<PendingNpcWake> PendingNpcWakes => _npcWakes.Snapshot();
 
     /// <summary>NPCs que acordam neste tick — derivado, fora do hash canônico.</summary>
     [Volatile, Ephemeral] public IReadOnlyList<Npc> NpcWakeBatch => _npcWakeBatch;

@@ -25,7 +25,7 @@ namespace LivingWorld.Tests.Unit.Performance;
 /// é comparada com a definição direta que ela substitui, e o conjunto é preso a hashes do mundo.
 /// Os hashes foram gravados no código anterior às otimizações (equivalência provada) e regravados
 /// quando o comportamento mudou de propósito (mortalidade condicional, Midshift, custo de célula
-/// 0.05, urgência de sobrevivência, abastecimento, rotina com deslocamento antecipado — AD-077/AD-078; folga mínima e água no posicionamento de prédios — AD-104; campos de aluguel no domicílio — AD-105; log/cosseno determinísticos em vez da libm da plataforma — AD-108; hash VOLÁTIL regravado ao ganhar `WorldState.PeriodId` — ADR-0027, com o canônico idêntico). ontogenia ligada por padrão, `Npc.Development` e `OntogenyRules` canônicos, acolhimento de órfãos — AD-115..118; convivência no turno e cidade dos descendentes — AD-119 / ADR-0036. Mudar a simulação de propósito exige atualizá-los; qualquer outra quebra é regressão.</summary>
+/// 0.05, urgência de sobrevivência, abastecimento, rotina com deslocamento antecipado — AD-077/AD-078; folga mínima e água no posicionamento de prédios — AD-104; campos de aluguel no domicílio — AD-105; log/cosseno determinísticos em vez da libm da plataforma — AD-108; hash VOLÁTIL regravado ao ganhar `WorldState.PeriodId` — ADR-0027, com o canônico idêntico). ontogenia ligada por padrão, `Npc.Development` e `OntogenyRules` canônicos, acolhimento de órfãos — AD-115..118; convivência no turno e cidade dos descendentes — AD-119 / ADR-0036. Fila de despertar fora do <c>PendingEvents</c> — AD-129: canônico regravado só pela forma do snapshot, volátil e lote de despertar idênticos. Mudar a simulação de propósito exige atualizá-los; qualquer outra quebra é regressão.</summary>
 public class OptimizationEquivalenceTests
 {
     private const long OneYearInHours = 360L * 24;
@@ -33,8 +33,8 @@ public class OptimizationEquivalenceTests
     // --- Hashes do mundo preservados ---
 
     [Theory]
-    [InlineData(1UL, "ef390b67ee2a8ce004190a5019af94e8de3f268255ff392a06d42879ba65ad7a", "77007048416baacc11348b34bba4a359a19dbea43a18e3bd8b94536773ef00c5")]
-    [InlineData(2UL, "45575126f8741a8348b2ec97cfb393bb9235438db8915ff756a6153514237540", "eb93416749ff89cb342231aeb4b878fb466e4b5664b52296d122e361272d479e")]
+    [InlineData(1UL, "8fcb569d41d4112c661ee40c93bd1227442b8f44b4326c15611d3c88255f3d9f", "77007048416baacc11348b34bba4a359a19dbea43a18e3bd8b94536773ef00c5")]
+    [InlineData(2UL, "dac2a994585ce6237f7c0eebbe5f835a165177cd8f64985f8af042b109597133", "eb93416749ff89cb342231aeb4b878fb466e4b5664b52296d122e361272d479e")]
     public void Default_scenario_ninety_days_keeps_the_recorded_hashes(
         ulong seed, string canonical, string volatileHash)
     {

@@ -81,20 +81,31 @@ public sealed partial class WorldState
         }
     }
 
-    internal void ClearNpcWakeBatch() => _npcWakeBatch.Clear();
-
     internal void AddNpcWake(Npc npc) => _npcWakeBatch.Add(npc);
 
-    internal void ReplaceNpcWake(TickContext ctx, long npcId, long targetTick)
-    {
-        if (_npcWakeEventIdByNpc.TryGetValue(npcId, out var oldId))
-            _scheduler.Cancel(oldId);
+    /// <summary>Agenda (ou move) o despertar do NPC. A sequência sai do contador de <see cref="NextEventId"/>, como
+    /// quando o despertar era um <see cref="ScheduledEvent"/>: os ids dos outros eventos e a ordem do lote ficam iguais.</summary>
+    internal void ReplaceNpcWake(long npcId, long targetTick) =>
+        _npcWakes.Schedule(npcId, targetTick, NextEventIdAndAdvance());
 
-        var evt = ctx.ScheduleEvent(targetTick, NpcWakeScheduler.SystemName, npcId.ToString());
-        _npcWakeEventIdByNpc[npcId] = evt.Id;
+    /// <summary>Monta <see cref="NpcWakeBatch"/> com os despertares que vencem em <paramref name="tick"/>: vivos, por
+    /// sequência decrescente. O despertar de quem morreu ou saiu do mundo é consumido sem acordar ninguém.</summary>
+    internal void PrepareNpcWakeBatch(long tick)
+    {
+        _npcWakeBatch.Clear();
+        _npcWakes.TakeDue(tick, _dueNpcWakeIds);
+        foreach (var npcId in _dueNpcWakeIds)
+            if (FindNpc(new NpcId(npcId)) is { IsAlive: true } npc)
+                _npcWakeBatch.Add(npc);
     }
 
-    internal void ClearNpcWakeEvent(long npcId) => _npcWakeEventIdByNpc.Remove(npcId);
+    /// <summary>Quem acordaria em <paramref name="tick"/>, na ordem do lote, sem consumir — para testes e inspeção.</summary>
+    internal IReadOnlyList<long> PeekDueNpcWakes(long tick) => _npcWakes.PeekDue(tick);
+
+    /// <summary>Tick do despertar pendente do NPC, ou nulo se não houver.</summary>
+    internal long? PendingWakeTickOf(long npcId) => _npcWakes.TickOf(npcId);
+
+    internal void RestoreNpcWakes(IEnumerable<PendingNpcWake> wakes) => _npcWakes.Restore(wakes);
 
     internal NpcId NextNpcIdAndAdvance() => new(_nextNpcId++);
     internal HouseholdId NextHouseholdIdAndAdvance() => new(_nextHouseholdId++);

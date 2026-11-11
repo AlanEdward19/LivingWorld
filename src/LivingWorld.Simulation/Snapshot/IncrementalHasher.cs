@@ -15,6 +15,7 @@ public static class IncrementalHasher
     {
         nameof(WorldState.CurrentDate),
         nameof(WorldState.PendingEvents),
+        nameof(WorldState.PendingNpcWakes),
         nameof(WorldState.RngStreams),
         nameof(WorldState.NextEventId),
         nameof(WorldState.NextHistoryEventId),
