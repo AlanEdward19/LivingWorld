@@ -316,6 +316,10 @@ public sealed partial class WorldState
     /// <summary>NPCs que acordam neste tick — derivado, fora do hash canônico.</summary>
     [Volatile, Ephemeral] public IReadOnlyList<Npc> NpcWakeBatch => _npcWakeBatch;
 
+    /// <summary>Contadores de despertar (quantos, quantos sem efeito, agendados por quê) — só sensores e perfil leem.
+    /// Interno e sem classificação de propósito: não é estado do mundo, não entra em snapshot nem em hash algum.</summary>
+    internal NpcWakeCounters WakeCounters { get; } = new();
+
     [Volatile] public ColdTierArchive ColdArchive { get; private set; }
 
     /// <summary>Rastro de decisão por NPC — side-store não-canônico.</summary>
@@ -341,6 +345,9 @@ public sealed partial class WorldState
     // Índice derivado de _relationships: alvos (To) de cada From, ordenados por To. Permite ler as
     // relações de um NPC em O(grau) em vez de varrer o dicionário inteiro (crescia ~O(n²) com os anos).
     private readonly Dictionary<NpcId, List<NpcId>> _relationshipTargetsByFrom = [];
+
+    // Carimbo de versão das relações de cada dono (derivado): invalida só os caches daquele dono.
+    private readonly Dictionary<NpcId, RelationshipAxesStamp> _relationshipStampByFrom = [];
 
     private readonly List<Npc> _npcs;
     private readonly Dictionary<NpcId, Npc> _npcById;
@@ -700,8 +707,11 @@ public sealed partial class WorldState
         FamilyRules = (familyRules ?? FamilyRules.Disabled).WithAppearanceAttraction(appearanceRules?.AttractionWeight ?? 0);
         BodyRules = bodyRules ?? BodyRules.Default;
         _relationships = relationships is null ? [] : new Dictionary<RelationshipKey, Relationship>(relationships);
-        foreach (var key in _relationships.Keys)
+        foreach (var (key, relationship) in _relationships)
+        {
             IndexRelationshipTarget(key);
+            AttachRelationshipStamp(key, relationship);
+        }
         _cities = (cities ?? []).ToList();
         _cityById = ToLookup(_cities, c => c.Id);
         _buildings = (buildings ?? []).ToList();

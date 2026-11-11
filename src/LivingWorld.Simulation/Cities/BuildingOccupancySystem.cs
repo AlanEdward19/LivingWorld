@@ -71,24 +71,11 @@ public sealed class BuildingOccupancySystem : ISimulationSystem
     /// estável de <c>(NpcId, BuildingId)</c>.</summary>
     internal static (BuildingId Building, FloorLevel Floor, CellCoord Cell) Place(NpcId npc, Building building, bool groundOnly)
     {
-        var walkableByFloor = WalkableCellsOf(building);
+        var walkableByFloor = BuildingLayoutCache.Of(building).WalkableByFloor;
         ulong hash = StableHash.Mix(npc.Value ^ (building.Id.Value << 20));
         int floorIndex = groundOnly ? 0 : (int)(hash % (ulong)walkableByFloor.Length);
         var walkable = walkableByFloor[floorIndex];
         var chosen = walkable[(int)(StableHash.Mix((long)hash) % (ulong)walkable.Length)];
         return (building.Id, new FloorLevel(floorIndex), chosen.Cell);
     }
-
-    /// <summary>Células caminháveis por andar, calculadas uma vez por prédio: o prédio nunca muda de planta (id, tipo e
-    /// orientação são fixos), e gerar a planta e filtrá-la a cada entrada de NPC alocava arrays na cadência da hora.</summary>
-    private static FootprintCell[][] WalkableCellsOf(Building building) =>
-        WalkableCache.GetValue(building, static b =>
-        {
-            var layout = BuildingLayoutGenerator.Generate(b);
-            return layout.FloorLayouts
-                .Select(floor => floor.Cells.Where(c => InteriorWalkability.IsWalkable(c.Material)).ToArray())
-                .ToArray();
-        });
-
-    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Building, FootprintCell[][]> WalkableCache = new();
 }

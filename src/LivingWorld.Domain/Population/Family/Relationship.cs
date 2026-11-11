@@ -13,15 +13,14 @@ public sealed class Relationship
     private const double AxisMin = 0.0;
     private const double AxisMax = 100.0;
 
-    private static long s_axesVersion;
-
-    /// <summary>Contador monotônico, de todo o processo, incrementado em toda criação ou mudança de eixo de
-    /// qualquer relação. Serve só para invalidar caches derivados (<c>"alguém tem vínculo forte?"</c>):
-    /// se não mudou desde a última consulta, nenhum eixo de nenhuma relação mudou.</summary>
+    /// <summary>Carimbo do dono (<c>From</c>) desta relação, compartilhado por todas as relações dele e ligado pelo mundo
+    /// que a guarda. Toda mudança de eixo o avança; serve só para invalidar caches derivados do próprio dono
+    /// (<c>"tem vínculo forte?"</c>). Era um contador estático do processo: a compra de um NPC invalidava a resposta
+    /// de todos os outros, e de todos os outros mundos do processo (#153).</summary>
     [JsonIgnore]
-    public static long AxesVersion => Volatile.Read(ref s_axesVersion);
+    public RelationshipAxesStamp? OwnerStamp { get; set; }
 
-    private static void TouchAxes() => Interlocked.Increment(ref s_axesVersion);
+    private void TouchAxes() => OwnerStamp?.Touch();
 
     public double Trust { get; private set; }
     public double Affection { get; private set; }
@@ -41,7 +40,6 @@ public sealed class Relationship
         Respect = respect;
         Debt = debt;
         LastContactTick = lastContactTick;
-        TouchAxes();
     }
 
     /// <summary>Relação recém-criada por um primeiro encontro — todos os eixos no piso mínimo da
@@ -130,4 +128,13 @@ public sealed class Relationship
         Respect = source.Respect;
         Debt = source.Debt;
     }
+}
+
+/// <summary>Versão monotônica das relações de um dono: avança em toda criação, remoção ou mudança de eixo de uma relação
+/// dele. Derivada, nunca persistida. O tick é serial por mundo, então o incremento não precisa ser atômico.</summary>
+public sealed class RelationshipAxesStamp
+{
+    public long Version { get; private set; }
+
+    public void Touch() => Version++;
 }

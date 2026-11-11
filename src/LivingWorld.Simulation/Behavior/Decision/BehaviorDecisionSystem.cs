@@ -64,6 +64,10 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
     // com a posição de todos os NPCs vivos era 5% dos bytes alocados por tick a 10.000 NPCs.
     private readonly HashSet<CellCoord> _occupancy = [];
 
+    // Mesmo reaproveitamento para os caches por cidade: valem só dentro do tick e são esvaziados no início dele.
+    private readonly Dictionary<CityId, long> _cityPopulationCache = [];
+    private readonly Dictionary<CityId, CityBounds> _cityBoundsCache = [];
+
     public BehaviorDecisionSystem(SkillsRules? skillsRules = null) => _skillsRules = skillsRules;
 
     public string Name => SystemName;
@@ -97,8 +101,10 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
         // chamada a cada NPC dentro de MoveOneAmbientStep. A contagem não muda dentro do próprio
         // tick por causa de passeio ambiente (só afeta CurrentLocation, não City), então o
         // resultado é idêntico ao recalculado por chamada.
-        var cityPopulationCache = new Dictionary<CityId, long>();
-        var cityBoundsCache = new Dictionary<CityId, CityBounds>();
+        var cityPopulationCache = _cityPopulationCache;
+        var cityBoundsCache = _cityBoundsCache;
+        cityPopulationCache.Clear();
+        cityBoundsCache.Clear();
 
         foreach (var npc in targets)
         {
@@ -107,6 +113,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
             if (!possessed)
                 EvaluateProfessionSwitch(world, ctx, npc, laborIndex, stage);
 
+            long startedBefore = npc.ActionStartedAtTick;
             bool justCompleted = TryCompleteAction(
                 world, npc, rules, catalog, now, marketIndex, ctx, occupancy,
                 cityPopulationCache, cityBoundsCache, theftIndex);
@@ -127,8 +134,6 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
             else
             {
                 var continuityAction = justCompleted ? null : npc.CurrentAction;
-
-                var routineAction = RoutineWithCommuteLead(world, npc, catalog, stage);
 
                 PendingPowerInvocation? pendingPower = null;
                 ActionType candidate;
@@ -159,7 +164,9 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 else
                 {
                     // despensa baixa para a distância do mercado: quem tem dinheiro vai repor sem esperar a sede (à noite dorme)
-                    candidate = NonUrgentCandidate(world, npc, routineAction, stage, marketIndex);
+                    // a rotina só é consultada aqui: quem decide por urgência ou por controlador não a lê
+                    candidate = NonUrgentCandidate(
+                        world, npc, RoutineWithCommuteLead(world, npc, catalog, stage), stage, marketIndex);
                 }
 
                 candidate = ApplyPerception(world, npc, candidate);
@@ -184,6 +191,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
 
             if (npc.CurrentAction == ActionType.Travel)
                 npc.SetTravelPurpose(travelPurpose);
+            world.WakeCounters.RecordWake(withoutEffect: !justCompleted && npc.ActionStartedAtTick == startedBefore);
             NpcWakeScheduler.RescheduleAfterHour(
                 world, ctx, npc, rules, catalog, now, TravelArrivalTick(world, npc, marketIndex), stage);
         }

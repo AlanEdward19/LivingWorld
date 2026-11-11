@@ -57,4 +57,34 @@ public class InteriorEntryTests
         Assert.True(InteriorEntry.TryEnter(world, npc, building.Id, FloorLevel.Ground, door).IsSuccess);
         Assert.Equal(building.Id, npc.Interior!.Building);
     }
+
+    [Fact]
+    public void Entry_accepts_exactly_the_walkable_cells_of_a_freshly_generated_layout()
+    {
+        var (world, building, npc) = Setup();
+        var layout = BuildingLayoutGenerator.Generate(building);
+        var mismatches = new List<string>();
+
+        // duas passadas: a segunda lê a planta já guardada e tem de responder igual à gerada do zero
+        for (int pass = 0; pass < 2; pass++)
+            foreach (var floor in layout.FloorLayouts)
+                foreach (var cell in floor.Cells)
+                {
+                    bool expected = InteriorWalkability.IsWalkable(cell.Material);
+                    bool entered = InteriorEntry.TryEnter(world, npc, building.Id, new FloorLevel(floor.Level), cell.Cell).IsSuccess;
+                    if (entered != expected) mismatches.Add($"passada {pass} andar {floor.Level} célula {cell.Cell}");
+                }
+
+        Assert.Empty(mismatches);
+    }
+
+    [Fact]
+    public void Entry_into_a_cell_outside_the_layout_fails()
+    {
+        var (world, building, npc) = Setup();
+
+        var result = InteriorEntry.TryEnter(world, npc, building.Id, new FloorLevel(0), new CellCoord(9999, 9999));
+
+        Assert.False(result.IsSuccess);
+    }
 }
