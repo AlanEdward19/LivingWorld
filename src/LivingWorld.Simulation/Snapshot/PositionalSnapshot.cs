@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.IO.Compression;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using LivingWorld.Simulation.Core;
 
@@ -9,9 +10,9 @@ namespace LivingWorld.Simulation.Snapshot;
 /// são calculados. Quem persiste a guarda em memória entre uma gravação e outra.</summary>
 public sealed class SnapshotBase
 {
-    internal SnapshotBase(JsonObject tree, long tick, WorldState world)
+    internal SnapshotBase(SnapshotFingerprint fingerprint, long tick, WorldState world)
     {
-        Fingerprint = SnapshotFingerprint.Of(tree);
+        Fingerprint = fingerprint;
         Tick = tick;
         World = new WeakReference<WorldState>(world);
     }
@@ -25,6 +26,10 @@ public sealed class SnapshotBase
     public bool Fits(WorldState world) =>
         World.TryGetTarget(out var w) && ReferenceEquals(w, world) && world.CurrentDate.TotalHours > Tick;
 }
+
+/// <summary>Uma gravação inteira: o bloco (completo ou diff), os dois hashes do mundo e, se o bloco é completo, a base
+/// nova para os diffs seguintes.</summary>
+public sealed record SnapshotWrite(byte[] Block, string CanonicalHash, string VolatileHash, SnapshotBase? NewBase);
 
 /// <summary>Formato binário posicional v2 do snapshot (door 1): <c>LWSNAP2\0</c>, um byte de tipo (0 base completa,
 /// 1 diff sobre uma base) e o corpo do <see cref="PositionalTreeCodec"/>. O hash canônico do mundo não depende do
@@ -45,16 +50,49 @@ public static class PositionalSnapshot
 
     public static byte[] EncodeFull(WorldState world, out SnapshotBase snapshotBase)
     {
-        var tree = WorldSnapshot.BuildPersistentTree(world);
-        snapshotBase = new SnapshotBase(tree, world.CurrentDate.TotalHours, world);
-        return Wrap(KindFull, PositionalTreeCodec.Encode(tree));
+        using var capture = WorldJsonCapture.Of(world);
+        return EncodeFull(capture, out snapshotBase);
     }
 
     /// <summary>Diff do mundo atual sobre <paramref name="snapshotBase"/>; <paramref name="dirtyNpcIds"/>, quando dado,
     /// restringe a comparação de NPCs aos sujos (NPCs novos entram sempre).</summary>
-    public static byte[] EncodeDelta(WorldState world, SnapshotBase snapshotBase, IReadOnlySet<long>? dirtyNpcIds = null) =>
-        Wrap(KindDelta, PositionalTreeCodec.Encode(
-            SnapshotTreeDiff.Diff(WorldSnapshot.BuildPersistentTree(world), snapshotBase.Fingerprint, dirtyNpcIds)));
+    public static byte[] EncodeDelta(WorldState world, SnapshotBase snapshotBase, IReadOnlySet<long>? dirtyNpcIds = null)
+    {
+        using var capture = WorldJsonCapture.Of(world);
+        return EncodeDelta(capture, snapshotBase, dirtyNpcIds);
+    }
+
+    /// <summary>Bloco e hashes de uma gravação com o mundo serializado uma vez só: completo quando
+    /// <paramref name="deltaBase"/> é nulo, diff sobre ela senão. Mesmos bytes e hashes que <see cref="EncodeFull"/>,
+    /// <see cref="EncodeDelta"/>, <see cref="WorldSnapshot.CanonicalHash"/> e <see cref="WorldSnapshot.VolatileHash"/>
+    /// chamados um a um (#156).</summary>
+    public static SnapshotWrite Write(WorldState world, SnapshotBase? deltaBase)
+    {
+        using var capture = WorldJsonCapture.Of(world);
+        SnapshotBase? fresh = null;
+        var block = deltaBase is null ? EncodeFull(capture, out fresh) : EncodeDelta(capture, deltaBase, null);
+        return new SnapshotWrite(block, capture.CanonicalHash(), capture.VolatileHash(), fresh);
+    }
+
+    private static byte[] EncodeFull(WorldJsonCapture capture, out SnapshotBase snapshotBase)
+    {
+        var root = capture.Properties;
+        snapshotBase = new SnapshotBase(
+            SnapshotFingerprint.Of(root, capture.Artifacts), capture.World.CurrentDate.TotalHours, capture.World);
+        using var body = new PooledBufferWriter(1 << 20);
+        PositionalTreeCodec.EncodeTo(root, body, capture.Artifacts);
+        return Wrap(KindFull, body.WrittenSpan);
+    }
+
+    private static byte[] EncodeDelta(WorldJsonCapture capture, SnapshotBase snapshotBase, IReadOnlySet<long>? dirtyNpcIds)
+    {
+        using var deltaJson = new PooledBufferWriter();
+        SnapshotTreeDiff.Diff(capture.Properties, snapshotBase.Fingerprint, dirtyNpcIds, deltaJson, capture.Artifacts);
+        using var delta = JsonDocument.Parse(deltaJson.WrittenMemory);
+        using var body = new PooledBufferWriter();
+        PositionalTreeCodec.EncodeTo(delta.RootElement, body);
+        return Wrap(KindDelta, body.WrittenSpan);
+    }
 
     /// <summary>Reconstrói o mundo de uma linha gravada: bloco completo, ou diff sobre a base que <paramref name="loadBase"/>
     /// entrega pelo tick. Devolve também a base em memória, para o próximo diff continuar a cadeia.</summary>
@@ -65,7 +103,7 @@ public static class PositionalSnapshot
         {
             var tree = DecodeTree(data, KindFull);
             var full = WorldSnapshot.FromNode(tree);
-            snapshotBase = new SnapshotBase(tree, tick, full);
+            snapshotBase = new SnapshotBase(SnapshotFingerprint.Of(tree), tick, full);
             return full;
         }
 
@@ -73,7 +111,7 @@ public static class PositionalSnapshot
             ?? throw new InvalidDataException($"base do snapshot no tick {baseTick} não encontrada");
         var baseTree = DecodeTree(baseData, KindFull);
         var world = WorldSnapshot.FromNode(SnapshotTreeDiff.Apply(baseTree, DecodeTree(data, KindDelta)));
-        snapshotBase = new SnapshotBase(baseTree, baseTick.Value, world);
+        snapshotBase = new SnapshotBase(SnapshotFingerprint.Of(baseTree), baseTick.Value, world);
         return world;
     }
 
@@ -99,7 +137,7 @@ public static class PositionalSnapshot
         return ((kind & CompressedFlag) != 0 ? PositionalTreeCodec.Decode(Decompress(body)) : PositionalTreeCodec.Decode(body))!.AsObject();
     }
 
-    private static byte[] Wrap(byte kind, byte[] body)
+    private static byte[] Wrap(byte kind, ReadOnlySpan<byte> body)
     {
         int header = Magic.Length + 1;
         byte[] buffer = ArrayPool<byte>.Shared.Rent(header + BrotliEncoder.GetMaxCompressedLength(body.Length));

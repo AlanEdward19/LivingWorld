@@ -2,7 +2,7 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Nodes;
+using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 
@@ -50,10 +50,19 @@ public static class IncrementalHasher
     private static bool IsHotProperty(string propertyName) =>
         HotProperties.Contains(propertyName) || propertyName.StartsWith("Next", StringComparison.Ordinal);
 
-    private static PropertyInfo[] CanonicalProperties { get; } =
+    /// <summary>Propriedade canônica cujos bytes ficam no cache até alguém a marcar suja (regras, catálogos, mapa).</summary>
+    internal static bool IsCacheable(string propertyName) =>
+        !IsHotProperty(propertyName) && propertyName != nameof(WorldState.Npcs);
+
+    private sealed record Canonical(PropertyInfo Property, byte[] HashPrefix, bool OmitsNull, bool Cacheable, bool IsNpcs);
+
+    private static Canonical[] CanonicalProperties { get; } =
         typeof(WorldState).GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(p => p.GetCustomAttribute<CanonicalAttribute>() is not null)
             .OrderBy(p => p.Name, StringComparer.Ordinal)
+            .Select(p => new Canonical(
+                p, Encoding.UTF8.GetBytes($"\"{p.Name}\":"), WorldSnapshot.OmitsNull(p), IsCacheable(p.Name),
+                p.Name == nameof(WorldState.Npcs)))
             .ToArray();
 
     public static string CombineIncremental(IReadOnlyDictionary<long, string> perEntityHash)
@@ -63,82 +72,74 @@ public static class IncrementalHasher
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(payload)));
     }
 
-    /// <summary>Hash canônico de produção — usa cache de fragmentos quando
-    /// <paramref name="useCache"/> é verdadeiro.</summary>
-    public static string Compute(WorldState world, bool useCache = true) =>
-        HashJson(BuildCanonicalJson(world, useCache));
+    /// <summary>Hash canônico de produção: SHA-256 do objeto <c>{"Nome":valor,...}</c> das propriedades canônicas em ordem de
+    /// nome, com o JSON compacto do serializador. Com <paramref name="useCache"/>, propriedade fria e NPC limpo saem dos
+    /// bytes guardados em vez de serializados de novo; o texto é o mesmo, então o hash também.</summary>
+    public static string Compute(WorldState world, bool useCache = true)
+    {
+        var cache = world.CanonicalHashCache;
+        using var scratch = new PooledBufferWriter();
+        using var writer = new Utf8JsonWriter(scratch, WorldJsonCapture.WriterOptions);
+        using var sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        sha.AppendData("{"u8);
+        bool first = true;
+        foreach (var prop in CanonicalProperties)
+        {
+            var value = prop.Property.GetValue(world);
+            if (prop.OmitsNull && value is null) continue;
+            if (!first) sha.AppendData(","u8);
+            first = false;
+            sha.AppendData(prop.HashPrefix);
+
+            if (prop.IsNpcs) AppendNpcs(sha, world, useCache, scratch, writer);
+            else if (useCache && prop.Cacheable && cache.TryGetPropertyBytes(prop.Property.Name, out var cached))
+                sha.AppendData(cached);
+            else
+            {
+                var bytes = Serialize(scratch, writer, value, prop.Property.PropertyType);
+                sha.AppendData(bytes);
+                if (useCache && prop.Cacheable) cache.StorePropertyBytes(prop.Property.Name, bytes.ToArray());
+            }
+        }
+
+        sha.AppendData("}"u8);
+        return Convert.ToHexStringLower(sha.GetHashAndReset());
+    }
 
     /// <summary>Verifica equivalência incremental vs hash recomputado do zero.</summary>
     public static bool MatchesCanonical(WorldState world) =>
         Compute(world, useCache: false) == Compute(world, useCache: true);
 
-    internal static JsonObject BuildCanonicalJson(WorldState world, bool useCache)
+    private static ReadOnlySpan<byte> Serialize(PooledBufferWriter scratch, Utf8JsonWriter writer, object? value, Type type)
+    {
+        scratch.Clear();
+        writer.Reset(scratch);
+        JsonSerializer.Serialize(writer, value, type, WorldSnapshot.SnapshotJsonOptions);
+        writer.Flush();
+        return scratch.WrittenSpan;
+    }
+
+    private static void AppendNpcs(IncrementalHash sha, WorldState world, bool useCache, PooledBufferWriter scratch, Utf8JsonWriter writer)
     {
         var cache = world.CanonicalHashCache;
-        var obj = new JsonObject();
-        foreach (var prop in CanonicalProperties)
+        sha.AppendData("["u8);
+        bool first = true;
+        foreach (var npc in world.Npcs)
         {
-            if (WorldSnapshot.OmitsNull(prop) && prop.GetValue(world) is null) continue;
-            obj[prop.Name] = prop.Name == nameof(WorldState.Npcs)
-                ? BuildNpcsNode(world, useCache)
-                : GetPropertyNode(world, prop, useCache);
-        }
-
-        return obj;
-    }
-
-    private static JsonNode? GetPropertyNode(WorldState world, PropertyInfo prop, bool useCache)
-    {
-        if (IsHotProperty(prop.Name))
-            return SerializeProperty(world, prop);
-
-        var cache = world.CanonicalHashCache;
-        if (useCache && cache.TryGetPropertyNode(prop.Name, out var cached))
-            return cached?.DeepClone();
-
-        var node = SerializeProperty(world, prop);
-        if (useCache)
-            cache.StorePropertyNode(prop.Name, node?.DeepClone());
-        return node;
-    }
-
-    private static JsonNode? SerializeProperty(WorldState world, PropertyInfo prop)
-    {
-        var value = prop.GetValue(world);
-        return JsonSerializer.SerializeToNode(value, prop.PropertyType, WorldSnapshot.SnapshotJsonOptions);
-    }
-
-    private static JsonNode BuildNpcsNode(WorldState world, bool useCache)
-    {
-        var cache = world.CanonicalHashCache;
-        var npcs = world.Npcs;
-        if (useCache && cache.TryGetNpcsArray(npcs.Count, out var cachedArray))
-            return cachedArray!.DeepClone();
-
-        var array = new JsonArray();
-        foreach (var npc in npcs)
-        {
-            var id = npc.Id.Value;
-            if (useCache && cache.TryGetNpcNode(id, out var cachedNpc))
+            if (!first) sha.AppendData(","u8);
+            first = false;
+            long id = npc.Id.Value;
+            if (useCache && cache.TryGetNpcBytes(id, out var cached))
             {
-                array.Add(cachedNpc!.DeepClone());
+                sha.AppendData(cached);
                 continue;
             }
 
-            var node = JsonSerializer.SerializeToNode(npc, WorldSnapshot.SnapshotJsonOptions)!;
-            array.Add(node);
-            if (useCache)
-                cache.StoreNpcNode(id, node.DeepClone());
+            var bytes = Serialize(scratch, writer, npc, typeof(Npc));
+            sha.AppendData(bytes);
+            if (useCache) cache.StoreNpcBytes(id, bytes.ToArray());
         }
 
-        if (useCache)
-            cache.StoreNpcsArray(npcs.Count, array.DeepClone());
-        return array;
-    }
-
-    private static string HashJson(JsonObject json)
-    {
-        var bytes = Encoding.UTF8.GetBytes(json.ToJsonString(WorldSnapshot.SnapshotJsonOptions));
-        return Convert.ToHexStringLower(SHA256.HashData(bytes));
+        sha.AppendData("]"u8);
     }
 }

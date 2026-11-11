@@ -1,6 +1,4 @@
 using System.Reflection;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
@@ -77,8 +75,8 @@ public static class WorldSnapshot
     internal static string CanonicalHashFromEntityParts(WorldState world) =>
         Snapshot.IncrementalHasher.Compute(world, useCache: true);
 
-    public static string VolatileHash(WorldState world) =>
-        Hash(BuildJson(world, static p => p.GetCustomAttribute<VolatileAttribute>() is not null));
+    /// <summary>SHA-256 do objeto <c>{"Nome":valor,...}</c> das propriedades voláteis em ordem de nome (efêmeras inclusive).</summary>
+    public static string VolatileHash(WorldState world) => WorldJsonCapture.VolatileHashOf(world);
 
     public static WorldState Deserialize(string json) => FromNode(JsonNode.Parse(json)!.AsObject());
 
@@ -365,12 +363,6 @@ public static class WorldSnapshot
     internal static bool OmitsNull(PropertyInfo prop) =>
         prop.GetCustomAttribute<System.Text.Json.Serialization.JsonIgnoreAttribute>()?.Condition
             == System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
-
-    private static string Hash(JsonObject json)
-    {
-        var bytes = Encoding.UTF8.GetBytes(json.ToJsonString(JsonOptions));
-        return Convert.ToHexStringLower(SHA256.HashData(bytes));
-    }
 
     /// <summary>Exposto para os testes de cobertura/classificação por reflexão.</summary>
     public static IReadOnlyList<PropertyInfo> ReflectedProperties => Properties;
