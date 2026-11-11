@@ -50,7 +50,7 @@ public sealed class Workplace
         WorkplaceId id, LocationType locationType, CellCoord location, int maxVacancies,
         IReadOnlyList<NpcId> employees, IReadOnlyDictionary<ResourceType, long> stock, Money treasury,
         IReadOnlyDictionary<ResourceType, long> prices, CityId city = default, BuildingId? building = null,
-        NpcId? owner = null)
+        NpcId? owner = null, bool payrollFailed = false)
     {
         Id = id;
         LocationType = locationType;
@@ -63,7 +63,14 @@ public sealed class Workplace
         City = city;
         Building = building;
         Owner = owner;
+        PayrollFailed = payrollFailed;
     }
+
+    /// <summary>A última folha não fechou (AD-128): enquanto for verdade, quem trabalha aqui procura outro emprego e ninguém
+    /// novo entra. Oficina recém-aberta nasce sem a marca, então contrata mesmo sem caixa: só perde gente se não pagar.</summary>
+    public bool PayrollFailed { get; private set; }
+
+    public void SetPayrollFailed(bool failed) => PayrollFailed = failed;
 
     /// <summary>Falha quando <see cref="Employees"/> já está no teto de
     /// <see cref="MaxVacancies"/> — nunca aceita além da vaga declarada.</summary>

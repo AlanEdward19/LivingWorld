@@ -32,7 +32,7 @@ internal static class TheftResolver
         if (!rules.Enabled || (index is null ? FindVictim(world, thief) : index.FindVictim(thief)) is not { } victim) return;
 
         double success = rules.BaseSuccess * Math.Max(0.0, 1.0 - (index?.GuardsIn(thief.City) ?? GuardsIn(world, thief.City, rules)) * rules.GuardEffect);
-        var rng = ctx.Rng($"theft-{thief.Id.Value}-{tick}");
+        var rng = ctx.OneShot($"theft-{thief.Id.Value}-{tick}");
         bool took = rng.NextDouble() < success;
         // quem falha é pego em flagrante; quem leva só é descoberto às vezes
         bool discovered = !took || rng.NextDouble() < rules.DiscoveryChance;

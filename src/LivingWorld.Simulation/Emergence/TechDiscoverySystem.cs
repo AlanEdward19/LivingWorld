@@ -59,7 +59,7 @@ public sealed class TechDiscoverySystem : ISimulationSystem
                 world.RecordResourceConsumed(resource, rules.PrototypeResourceCost);
             }
 
-            var vector = Compose(rules, pressure.MeanTicks, bestSkill, stock, ctx.Rng($"emergence-{city.Id.Value}-{year}"));
+            var vector = Compose(rules, pressure.MeanTicks, bestSkill, stock, ctx.OneShot($"emergence-{city.Id.Value}-{year}"));
             var culture = people[0].Culture;
             ctx.ScheduleEvent(
                 ctx.CurrentTick + rules.PrototypeTicks, SystemName,

@@ -132,7 +132,7 @@ public sealed class CourtshipSystem : ISimulationSystem
             if (factor == AttractionFactor.Appearance && (a.Appearance is null || b.Appearance is null))
                 continue;
 
-            double normalized = NormalizeFactor(factor, a, b, aToB, bToA, populationRules, now);
+            double normalized = NormalizeFactor(factor, a, b, aToB, bToA, populationRules, now, rules.Bonds is not null);
             weightedSum += weight * normalized;
             totalWeight += weight;
         }
@@ -167,7 +167,7 @@ public sealed class CourtshipSystem : ISimulationSystem
         if (eligible.Count == 0)
             return;
 
-        int index = (int)(ctx.Rng($"courtship-drift-{seeker.Id.Value}-{now.TotalHours}").NextDouble() * eligible.Count);
+        int index = (int)(ctx.OneShot($"courtship-drift-{seeker.Id.Value}-{now.TotalHours}").NextDouble() * eligible.Count);
         if (index >= eligible.Count)
             index = eligible.Count - 1;
 
@@ -265,6 +265,13 @@ public sealed class CourtshipSystem : ISimulationSystem
         Dictionary<NpcId, HashSet<NpcId>> acquaintances)
     {
         var result = new List<Npc>();
+        if (world.FamilyRules.Bonds is { } bonds)
+        {
+            foreach (var partnerId in ProspectsOf(world, seekerId, bonds, acquaintances).OrderBy(id => id.Value))
+                if (world.FindNpc(partnerId) is { } prospect && IsCandidateEligible(prospect, world, lifeStageRules, now)) result.Add(prospect);
+            return result;
+        }
+
         if (!acquaintances.TryGetValue(seekerId, out var known)) return result;
         foreach (var partnerId in known.OrderBy(id => id.Value))
         {
@@ -272,6 +279,48 @@ public sealed class CourtshipSystem : ISimulationSystem
             if (candidate is not null && IsCandidateEligible(candidate, world, lifeStageRules, now)) result.Add(candidate);
         }
         return result;
+    }
+
+    /// <summary>De quem um solteiro sabe (AD-128): quem ele conhece, quem os parentes e os amigos dele conhecem (é assim que
+    /// se é apresentado) e, numa comunidade em que todo mundo se conhece de vista, todos os moradores.</summary>
+    private static HashSet<NpcId> ProspectsOf(
+        WorldState world, NpcId seekerId, SocialBondRules bonds, Dictionary<NpcId, HashSet<NpcId>> acquaintances)
+    {
+        var prospects = new HashSet<NpcId>();
+        if (world.FindNpc(seekerId) is not { } seeker) return prospects;
+
+        acquaintances.TryGetValue(seekerId, out var known);
+        if (known is not null) prospects.UnionWith(known);
+
+        void Introduce(NpcId? through)
+        {
+            if (through is { } id && acquaintances.TryGetValue(id, out var theirs)) prospects.UnionWith(theirs);
+        }
+
+        Introduce(seeker.MotherId);
+        Introduce(seeker.FatherId);
+        if (known is not null)
+            foreach (var friendId in known)
+                if (world.Relationships.TryGetValue(new RelationshipKey(seekerId, friendId), out var tie) && tie.Affection >= bonds.IntroductionAffection)
+                    Introduce(friendId);
+
+        var neighbors = CommunityOf(world, seeker.City, bonds.CommunitySize);
+        if (neighbors is not null) prospects.UnionWith(neighbors);
+        prospects.Remove(seekerId);
+        return prospects;
+    }
+
+    /// <summary>Vivos da cidade, ou <c>null</c> se ela passa do tamanho em que todos se conhecem. Memo do último pedido.</summary>
+    private static List<NpcId>? CommunityOf(WorldState world, CityId city, int communitySize)
+    {
+        var members = new List<NpcId>();
+        foreach (var npc in world.AliveNpcIndex.Alive)
+        {
+            if (npc.City != city) continue;
+            if (members.Count >= communitySize) return null;
+            members.Add(npc.Id);
+        }
+        return members;
     }
 
     private static bool IsSeekerEligible(Npc npc, WorldState world, LifeStageRules lifeStageRules, WorldDate now) =>
@@ -316,7 +365,8 @@ public sealed class CourtshipSystem : ISimulationSystem
         Relationship? aToB,
         Relationship? bToA,
         PopulationRules populationRules,
-        WorldDate now)
+        WorldDate now,
+        bool bondsByFamiliarity)
     {
         return factor switch
         {
@@ -325,7 +375,7 @@ public sealed class CourtshipSystem : ISimulationSystem
             AttractionFactor.Status => (StatusFactor(a) + StatusFactor(b)) / 2.0,
             AttractionFactor.Skill => (SkillFactor(a) + SkillFactor(b)) / 2.0,
             AttractionFactor.CulturalAffinity => CulturalAffinityOf(a, b),
-            AttractionFactor.ExistingRelationship => ExistingRelationshipFactor(aToB, bToA),
+            AttractionFactor.ExistingRelationship => ExistingRelationshipFactor(aToB, bToA, bondsByFamiliarity),
             AttractionFactor.Appearance => Appearance.Similarity(a.Appearance!, b.Appearance!),
             _ => 0.0,
         };
@@ -380,12 +430,17 @@ public sealed class CourtshipSystem : ISimulationSystem
         return sum / KnownSkillTypesForScoring.Length;
     }
 
-    private static double ExistingRelationshipFactor(Relationship? aToB, Relationship? bToA)
+    /// <summary>Com <see cref="FamilyRules.Bonds"/> (AD-128) confiança e afeto deixam de saturar em 100 para qualquer colega.
+    /// Quem é da mesma comunidade ou foi apresentado vale o que o par saturado valia antes (0,5: conhecido de vista e de
+    /// fama), e a amizade de verdade soma até o dobro. O cortejo começa pela atração; o vínculo se faz durante ele.</summary>
+    private static double ExistingRelationshipFactor(Relationship? aToB, Relationship? bToA, bool bondsByFamiliarity)
     {
-        static double SideAverage(Relationship? rel)
+        double SideAverage(Relationship? rel)
         {
             if (rel is null)
-                return 0.0;
+                return bondsByFamiliarity ? 0.5 : 0.0;
+            if (bondsByFamiliarity)
+                return 0.5 + 0.5 * Math.Min(1.0, (rel.Trust + rel.Affection) / (2 * HundredScale));
 
             double sum = 0;
             foreach (var axis in RelationshipAxes)

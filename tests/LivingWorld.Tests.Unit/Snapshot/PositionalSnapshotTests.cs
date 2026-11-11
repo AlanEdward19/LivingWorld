@@ -28,9 +28,28 @@ public class PositionalSnapshotTests
             Assert.Equal(WorldSnapshot.CanonicalHash(world), WorldSnapshot.CanonicalHash(restored));
             Assert.Equal(
                 WorldSnapshot.VolatileHash(WorldSnapshot.Deserialize(WorldSnapshot.Serialize(world))), WorldSnapshot.VolatileHash(restored));
-            var body = bytes.AsSpan(9);
-            Assert.Equal(body.ToArray(), PositionalTreeCodec.Encode(PositionalTreeCodec.Decode(body))); // a recodificação não muda um byte
+            var body = PositionalSnapshot.Body(bytes);
+            Assert.Equal(body, PositionalTreeCodec.Encode(PositionalTreeCodec.Decode(body))); // a recodificação não muda um byte
         }
+    }
+
+    [Fact]
+    public void Block_written_before_compression_still_decodes_to_the_same_world()
+    {
+        var (world, clock) = ScenarioRunner.Create(seed: 3, initialPopulation: 12);
+        clock.Run(world, TwoYears / 4);
+        var compressed = PositionalSnapshot.EncodeFull(world, out _);
+
+        // formato anterior: magic, tipo sem o bit de compressão, corpo cru
+        var body = PositionalSnapshot.Body(compressed);
+        var legacy = new byte[9 + body.Length];
+        compressed.AsSpan(0, 8).CopyTo(legacy);
+        legacy[8] = 0;
+        body.CopyTo(legacy, 9);
+
+        Assert.True(compressed.Length < legacy.Length);
+        Assert.Equal(WorldSnapshot.CanonicalHash(world), WorldSnapshot.CanonicalHash(PositionalSnapshot.DecodeFull(legacy)));
+        Assert.Equal(WorldSnapshot.CanonicalHash(world), WorldSnapshot.CanonicalHash(PositionalSnapshot.DecodeFull(compressed)));
     }
 
     [Fact]

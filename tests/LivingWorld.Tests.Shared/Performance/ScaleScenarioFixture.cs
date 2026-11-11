@@ -61,7 +61,7 @@ public static class ScaleScenarioFixture
         relationshipDeltas: ScenarioRunner.DefaultFamilyRules.RelationshipDeltas,
         decayPerDay: 0.25,
         contactLossThresholdDays: 30,
-        neutralAxisValue: 50,
+        neutralAxisValue: 0,
         attractionWeights: Enum.GetValues<AttractionFactor>().ToDictionary(f => f, _ => 1.0),
         courtshipThreshold: 0.55,
         courtshipDurationDays: 90,
@@ -85,7 +85,9 @@ public static class ScaleScenarioFixture
         // timings.md, fase 16 T5). 30 é "círculo social" plausível (mais que qualquer household,
         // bem menos que centenas de colegas) — não afeta nenhum household/workplace pequeno
         // (default de outros cenários nem declara este campo, cai no int.MaxValue sem teto).
-        maxCohabitationGroupSize: 30).Value
+        maxCohabitationGroupSize: 30,
+        // mesmo modelo social do cenário padrão (AD-128): no trabalho cada um convive com poucos por dia
+        bonds: SocialBondRules.Default).Value
         ?? throw new InvalidOperationException("scale family rules inválida");
 
     /// <summary>Reprodução/predação desligadas — sensor mede custo O(n) de entidades em massa;

@@ -74,7 +74,8 @@ public static partial class ScenarioRunner
     public static readonly NeedsRules DefaultNeedsRules = NeedsRules.Create(
         hungerDecayPerHour: 2.0, thirstDecayPerHour: 3.0, sleepDecayPerHour: 1.5, socialDecayPerHour: 1.0,
         urgencyThreshold: 70, maxActionSelectionSteps: 10, hysteresisEnabled: true,
-        continuityBonus: 5.0, homelessSleepEfficiency: 0.5)
+        continuityBonus: 5.0, homelessSleepEfficiency: 0.5,
+        starvationSurvivalHours: NeedsRules.DefaultStarvationSurvivalHours)
         .Value ?? throw new InvalidOperationException("needs rules default inválida — bug no cenário, não no gerador");
 
     // Criança até 14 (mesmo corte de fertilidade mínima não se aplica ainda), adulto até 64,
@@ -106,7 +107,8 @@ public static partial class ScenarioRunner
         relationshipDeltas: BuildDefaultRelationshipDeltas(),
         decayPerDay: 0.25,
         contactLossThresholdDays: 30,
-        neutralAxisValue: 50,
+        // 0 = desconhecido: sem contato o vínculo esfria até ser esquecido, em vez de subir para o meio da escala (AD-128)
+        neutralAxisValue: 0,
         // Appearance fica de fora: o peso só entra com AppearanceRules (WithAppearanceAttraction), senão o hash mudaria
         attractionWeights: Enum.GetValues<AttractionFactor>().Where(f => f != AttractionFactor.Appearance).ToDictionary(f => f, _ => 1.0),
         courtshipThreshold: 0.55,
@@ -125,7 +127,8 @@ public static partial class ScenarioRunner
         environmentalWealthChannelEnabled: true,
         neutralDriftEnabled: false,
         vitalityMortalitySelectionEnabled: true,
-        personalityHeritability: 0.7).Value
+        personalityHeritability: 0.7,
+        bonds: SocialBondRules.Default).Value
         ?? throw new InvalidOperationException("family rules default inválida — bug no cenário, não no gerador");
 
     private static Dictionary<(RelationshipEventType, RelationshipAxis), double> BuildDefaultRelationshipDeltas()

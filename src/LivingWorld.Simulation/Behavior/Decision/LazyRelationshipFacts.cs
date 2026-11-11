@@ -1,5 +1,4 @@
 using System.Collections;
-using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 
@@ -34,8 +33,7 @@ internal sealed class LazyRelationshipFacts(WorldState world, NpcId owner) : IRe
             return false;
         }
 
-        if (world.Relationships.Count == 0) return false;
-        var targets = world.RelationshipTargetsOf(owner);
+        if (world.RelationshipsFrom(owner) is not { } owned) return false;
 
         // A resposta só depende dos eixos das relações do dono e de quais elas são: enquanto a versão das
         // relações dele (carimbo por dono, do próprio mundo) não mudou e ele tem os mesmos alvos, vale a
@@ -43,13 +41,12 @@ internal sealed class LazyRelationshipFacts(WorldState world, NpcId owner) : IRe
         var memo = Memos.GetOrCreateValue(world);
         var key = (owner, minimum);
         long version = world.RelationshipAxesVersionOf(owner);
-        if (memo.TryGetValue(key, out var known) && known.Version == version && known.Targets == targets.Count)
+        if (memo.TryGetValue(key, out var known) && known.Version == version && known.Targets == owned.Count)
             return known.Result;
 
         bool result = false;
-        foreach (var to in targets)
+        foreach (var rel in owned)
         {
-            var rel = world.Relationships[new RelationshipKey(owner, to)];
             if ((int)Math.Round(rel.Trust) >= minimum || (int)Math.Round(rel.Affection) >= minimum)
             {
                 result = true;
@@ -57,7 +54,7 @@ internal sealed class LazyRelationshipFacts(WorldState world, NpcId owner) : IRe
             }
         }
 
-        memo[key] = new BondMemo(version, targets.Count, result);
+        memo[key] = new BondMemo(version, owned.Count, result);
         return result;
     }
 

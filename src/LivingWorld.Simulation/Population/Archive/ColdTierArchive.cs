@@ -36,6 +36,7 @@ public sealed class ColdTierArchive
         }
 
         _byId[deadNpc.Id.Value] = NpcSummary.From(deadNpc);
+        world.RemoveRelationshipsOf(deadNpc.Id); // quem saiu do mundo não deixa par pendurado (AD-127)
         world.RemoveNpc(deadNpc.Id);
         return true;
     }

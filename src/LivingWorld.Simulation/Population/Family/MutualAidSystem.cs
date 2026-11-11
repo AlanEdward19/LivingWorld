@@ -58,12 +58,62 @@ public sealed class MutualAidSystem : ISimulationSystem
             long count = members.Count;
             bool scarce = household.Stock.GetValueOrDefault(food) < count * NeedyStockDays
                           || household.Stock.GetValueOrDefault(water) < count * NeedyStockDays;
+            if (!scarce) continue;
+
+            // Quem faz as compras da casa: o chefe se for adulto ou idoso, senão o primeiro adulto ou idoso, senão o chefe.
+            var head = members.FirstOrDefault(m => m.Id == household.Head) ?? members[0];
+            var recipient = IsGrown(world, head) ? head : members.FirstOrDefault(m => IsGrown(world, m)) ?? head;
+            ShareWithinHousehold(world, members, recipient, count * dailyCostPerPerson * RelieveDays, dailyCostPerPerson);
+
             long wallets = members.Sum(m => m.Wallet.Amount);
-            if (!scarce || wallets >= count * dailyCostPerPerson * NeedyWalletDays) continue;
+            if (wallets >= count * dailyCostPerPerson * NeedyWalletDays) continue;
 
             long deficit = count * dailyCostPerPerson * RelieveDays - wallets;
-            var recipient = members.FirstOrDefault(m => m.Id == household.Head) ?? members[0];
             RelieveHousehold(world, ctx, household, members, recipient, deficit, dailyCostPerPerson, day);
+        }
+    }
+
+    /// <summary>Quem dá a esmola: a cidade da casa se tiver caixa; senão a cidade do mercado mais próximo, que é onde a casa
+    /// compra. Povoado recém-fundado nasce sem tesouro e continua na órbita da vila de onde saiu.</summary>
+    private static LivingWorld.Domain.Cities.City? AlmsGiver(WorldState world, Household household)
+    {
+        if (world.FindCity(household.City) is { } own && own.Treasury.Amount > 0) return own;
+
+        LivingWorld.Domain.Cities.City? best = null;
+        long bestDistance = long.MaxValue, bestId = long.MaxValue;
+        foreach (var market in world.Workplaces)
+        {
+            if (market.Prices.Count == 0 || world.FindCity(market.City) is not { } city || city.Treasury.Amount <= 0) continue;
+            long distance = Math.Abs(market.Location.X - household.Location.X) + Math.Abs(market.Location.Y - household.Location.Y);
+            if (distance < bestDistance || (distance == bestDistance && market.Id.Value < bestId))
+            {
+                bestDistance = distance;
+                bestId = market.Id.Value;
+                best = city;
+            }
+        }
+        return best;
+    }
+
+    private static bool IsGrown(WorldState world, Npc npc) =>
+        world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate)) != LivingWorld.Domain.Population.Body.LifeStage.Child;
+
+    /// <summary>Com a despensa vazia, o dinheiro da casa vai para quem compra (AD-128): cada morador passa o que excede a
+    /// própria reserva de poucos dias (a criança passa tudo) até cobrir a semana da casa. Antes cada carteira era só de
+    /// quem a tinha, e um adulto morria de fome ao lado de um filho com moedas que não sabia gastar.</summary>
+    private static void ShareWithinHousehold(
+        WorldState world, List<Npc> members, Npc recipient, long target, long dailyCostPerPerson)
+    {
+        foreach (var donor in members.OrderBy(m => m.Id.Value))
+        {
+            long missing = target - recipient.Wallet.Amount;
+            if (missing <= 0) return;
+            if (donor.Id == recipient.Id) continue;
+
+            long keep = IsGrown(world, donor) ? dailyCostPerPerson * NeedyWalletDays : 0;
+            long give = Math.Min(missing, donor.Wallet.Amount - keep);
+            if (give <= 0 || !donor.TryDebitWallet(new Money(give)).IsSuccess) continue;
+            recipient.CreditWallet(new Money(give));
         }
     }
 
@@ -115,6 +165,25 @@ public sealed class MutualAidSystem : ISimulationSystem
             gratitude.MarkContact(ctx.CurrentTick);
             ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{recipient.Id.Value}|{give}", sourceSystem: SystemName);
         }
+
+        GiveAlms(world, ctx, household, members, recipient, deficit, dailyCostPerPerson);
+    }
+
+    /// <summary>Esmola da cidade (AD-128): a casa que continua sem um dia de compra na carteira depois de parentes e amigos
+    /// recebe do tesouro da cidade o bastante para a semana. É o socorro aos pobres de qualquer vila, e devolve à circulação
+    /// o imposto que o tesouro só acumulava. A moeda só muda de dono; tesouro vazio, não há esmola.</summary>
+    private static void GiveAlms(
+        WorldState world, TickContext ctx, Household household, List<Npc> members, Npc recipient, long deficit, long dailyCostPerPerson)
+    {
+        if (deficit <= 0 || members.Sum(m => m.Wallet.Amount) >= members.Count * dailyCostPerPerson) return;
+        if (AlmsGiver(world, household) is not { } city) return;
+
+        long give = Math.Min(deficit, city.Treasury.Amount);
+        if (give <= 0 || !city.TryDebitTreasury(new Money(give)).IsSuccess) return;
+
+        recipient.CreditWallet(new Money(give));
+        world.RecordTreasury(city.Id, ctx.CurrentTick, revenue: 0, spending: give);
+        ctx.LogEvent(WorldEventKind.AidGiven, $"city-{city.Id.Value}|{recipient.Id.Value}|{give}", sourceSystem: SystemName);
     }
 
     /// <summary>1 para parente; senão afeto (0–1) a partir do mínimo; 0 se não há laço que chame à ajuda.</summary>

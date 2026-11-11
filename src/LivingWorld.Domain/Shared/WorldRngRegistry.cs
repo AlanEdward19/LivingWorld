@@ -28,6 +28,10 @@ public sealed class WorldRngRegistry
         return derived;
     }
 
+    /// <summary>Mesma derivação de <see cref="Stream"/> para uma chave nova, sem guardar o stream: para chaves que nunca
+    /// se repetem (trazem o tick, o dia ou o id do evento), em que guardar só fazia o snapshot crescer com a idade do mundo.</summary>
+    public WorldRng OneShot(string uniqueKey) => _root.Derive(StableHash(uniqueKey));
+
     /// <summary>Stream de rolagem única derivado de <c>(seed, purpose, id)</c> sem persistir no
     /// snapshot — mesma sequência inicial que <see cref="Stream"/> produziria.</summary>
     public WorldRng StreamFor(string purpose, long id) =>

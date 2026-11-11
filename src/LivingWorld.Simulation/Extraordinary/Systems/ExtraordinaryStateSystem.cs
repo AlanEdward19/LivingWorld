@@ -185,7 +185,7 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
     {
         if (!TryParseRateRule(rule, out double baseRate, out _)) return true;
         double chance = Math.Clamp(baseRate * npc.RateGene.Value, 0, 1);
-        return ctx.Rng($"extraordinary-acquisition-{npc.Id.Value}-{powerId}-{eventId}").NextDouble() < chance;
+        return ctx.OneShot($"extraordinary-acquisition-{npc.Id.Value}-{powerId}-{eventId}").NextDouble() < chance;
     }
 
     private static bool TryParseRateRule(string rule, out double rate, out string trigger)

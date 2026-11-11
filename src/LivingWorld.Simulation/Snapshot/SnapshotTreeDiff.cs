@@ -11,7 +11,7 @@ namespace LivingWorld.Simulation.Snapshot;
 /// Aplicar o diff à base devolve exatamente a árvore atual.</summary>
 internal static class SnapshotTreeDiff
 {
-    private const string EntitiesKey = "Entities", KeysKey = "Keys", RemovedKey = "Removed", PropsKey = "Props", OrderKey = "Order";
+    private const string EntitiesKey = "Entities", KeysKey = "Keys", RemovedKey = "Removed", PropsKey = "Props", OrderKey = "Order", MovedKey = "Moved";
 
     public static JsonObject Diff(JsonObject current, SnapshotFingerprint baseline, IReadOnlySet<long>? dirtyNpcIds)
     {
@@ -20,18 +20,21 @@ internal static class SnapshotTreeDiff
         var removed = new JsonObject();
         var props = new JsonObject();
         var order = new JsonObject();
+        var moved = new JsonObject();
 
         foreach (var (name, value) in current)
         {
             if (value is JsonArray ca && baseline.Entities.TryGetValue(name, out var baseEntities) && TryIndex(ca, out var curIds))
                 DiffEntities(name, ca, curIds, baseEntities, name == "Npcs" ? dirtyNpcIds : null, entities, removed, order);
             else if (value is JsonObject co && baseline.Keys.TryGetValue(name, out var baseKeys))
-                DiffKeys(name, co, baseKeys, keys, removed);
+                DiffKeys(name, co, baseKeys, keys, removed, moved);
             else if (!baseline.Props.TryGetValue(name, out var print) || print != SnapshotFingerprint.Print(value))
                 props[name] = value?.DeepClone();
         }
 
-        return new JsonObject { [EntitiesKey] = entities, [KeysKey] = keys, [RemovedKey] = removed, [PropsKey] = props, [OrderKey] = order };
+        var delta = new JsonObject { [EntitiesKey] = entities, [KeysKey] = keys, [RemovedKey] = removed, [PropsKey] = props, [OrderKey] = order };
+        if (moved.Count > 0) delta[MovedKey] = moved; // só existe quando alguma chave saiu e voltou: diff antigo não tem a seção
+        return delta;
     }
 
     public static JsonObject Apply(JsonObject baseTree, JsonObject delta)
@@ -41,6 +44,12 @@ internal static class SnapshotTreeDiff
 
         foreach (var (name, value) in delta[PropsKey]!.AsObject())
             merged[name] = value?.DeepClone();
+
+        // Chave que saiu e voltou desde a base vai para o fim, como no mundo: tira antes de reaplicar.
+        if (delta[MovedKey] is JsonObject movedSections)
+            foreach (var (name, movedKeys) in movedSections)
+                if (merged[name] is JsonObject dict)
+                    foreach (var key in movedKeys!.AsArray()) dict.Remove(key!.GetValue<string>());
 
         foreach (var (name, changed) in delta[KeysKey]!.AsObject())
         {
@@ -132,17 +141,23 @@ internal static class SnapshotTreeDiff
             order[name] = new JsonArray(currentOrder.Select(id => (JsonNode)JsonValue.Create(id)).ToArray());
     }
 
-    private static void DiffKeys(string name, JsonObject cur, Dictionary<string, ulong> baseKeys, JsonObject keys, JsonObject removed)
+    private static void DiffKeys(
+        string name, JsonObject cur, Dictionary<string, ulong> baseKeys, JsonObject keys, JsonObject removed, JsonObject moved)
     {
+        var movedKeys = MovedKeysOf(cur, baseKeys);
+
         JsonObject? changed = null;
         foreach (var (key, value) in cur)
         {
-            if (baseKeys.TryGetValue(key, out var print) && print == SnapshotFingerprint.Print(value)) continue;
+            if (baseKeys.TryGetValue(key, out var print) && print == SnapshotFingerprint.Print(value)
+                && (movedKeys is null || !movedKeys.Contains(key))) continue;
             changed ??= new JsonObject();
             changed[key] = value?.DeepClone();
         }
 
         if (changed is not null) keys[name] = changed;
+        if (movedKeys is { Count: > 0 })
+            moved[name] = new JsonArray(movedKeys.OrderBy(k => k, StringComparer.Ordinal).Select(k => (JsonNode)JsonValue.Create(k)!).ToArray());
 
         JsonArray? gone = null;
         foreach (var key in baseKeys.Keys)
@@ -153,6 +168,46 @@ internal static class SnapshotTreeDiff
         }
 
         if (gone is not null) removed[name] = gone;
+    }
+
+    /// <summary>Chaves da base que, na árvore atual, não estão mais onde aplicar o diff as deixaria (saíram e voltaram, e
+    /// por isso foram para o fim). Aplicar o diff mantém as chaves da base na ordem da base e acrescenta as novas no fim;
+    /// qualquer chave da base que apareça depois de uma chave nova, ou fora da ordem da base, foi movida. <c>null</c> no
+    /// caso comum (nenhuma), decidido numa passada sem alocar o índice.</summary>
+    private static HashSet<string>? MovedKeysOf(JsonObject cur, Dictionary<string, ulong> baseKeys)
+    {
+        bool inPlace = true, sawNew = false;
+        using (var expected = baseKeys.Keys.GetEnumerator())
+        {
+            foreach (var (key, _) in cur)
+            {
+                if (!baseKeys.ContainsKey(key)) { sawNew = true; continue; }
+                if (sawNew) { inPlace = false; break; }
+
+                string? next = null;
+                while (expected.MoveNext())
+                    if (cur.ContainsKey(expected.Current)) { next = expected.Current; break; }
+                if (!string.Equals(next, key, StringComparison.Ordinal)) { inPlace = false; break; }
+            }
+        }
+
+        if (inPlace) return null;
+
+        var baseIndex = new Dictionary<string, int>(baseKeys.Count, StringComparer.Ordinal);
+        foreach (var key in baseKeys.Keys) baseIndex[key] = baseIndex.Count;
+
+        var result = new HashSet<string>(StringComparer.Ordinal);
+        bool pastStable = false;
+        int last = -1;
+        foreach (var (key, _) in cur)
+        {
+            if (!baseIndex.TryGetValue(key, out int at)) { pastStable = true; continue; }
+            if (!pastStable && at > last) { last = at; continue; }
+            pastStable = true;
+            result.Add(key);
+        }
+
+        return result;
     }
 
     /// <summary>Índice id→posição de um array de entidades; falso se algum elemento não tem <c>Id.Value</c>.</summary>
@@ -233,10 +288,40 @@ internal sealed class SnapshotFingerprint
         return prints;
     }
 
+    [ThreadStatic] private static System.Buffers.ArrayBufferWriter<byte>? t_buffer;
+    [ThreadStatic] private static System.Text.Json.Utf8JsonWriter? t_writer;
+    private const int KeepBufferBelow = 1 << 20;
+
+    /// <summary>Impressão do JSON compacto do nó. Escrever o nó num buffer reusado não materializa o dicionário de cada
+    /// objeto filho (a árvore vem do serializador e guarda o texto original): percorrer campo a campo materializava um
+    /// dicionário por relação e era metade do custo de gravar um diff (#156).</summary>
     public static ulong Print(JsonNode? node)
     {
+        if (node is null) return 1;
+
+        var buffer = t_buffer ??= new System.Buffers.ArrayBufferWriter<byte>(512);
+        buffer.ResetWrittenCount();
+        var writer = t_writer ??= new System.Text.Json.Utf8JsonWriter(buffer, new System.Text.Json.JsonWriterOptions { SkipValidation = true });
+        writer.Reset(buffer);
+        node.WriteTo(writer);
+        writer.Flush();
+
+        ulong h = HashBytes(buffer.WrittenSpan);
+        if (buffer.Capacity > KeepBufferBelow) { t_buffer = null; t_writer = null; }
+        return h;
+    }
+
+    private static ulong HashBytes(ReadOnlySpan<byte> bytes)
+    {
         ulong h = 14695981039346656037UL;
-        Mix(node, ref h);
+        int i = 0;
+        for (; i + 8 <= bytes.Length; i += 8)
+            Step(ref h, System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(bytes[i..]));
+        ulong tail = 0;
+        for (int shift = 0; i < bytes.Length; i++, shift += 8)
+            tail |= (ulong)bytes[i] << shift;
+        Step(ref h, tail);
+        Step(ref h, (ulong)bytes.Length);
         return h;
     }
 
@@ -244,63 +329,5 @@ internal sealed class SnapshotFingerprint
     {
         h = (h ^ x) * 0x9E3779B97F4A7C15UL;
         h ^= h >> 32;
-    }
-
-    private static void MixString(string s, ref ulong h)
-    {
-        foreach (char c in s) Step(ref h, c);
-        Step(ref h, (ulong)s.Length);
-    }
-
-    private static void Mix(JsonNode? node, ref ulong h)
-    {
-        switch (node)
-        {
-            case null:
-                Step(ref h, 1);
-                break;
-            case JsonObject obj:
-                Step(ref h, 2);
-                foreach (var (key, value) in obj)
-                {
-                    MixString(key, ref h);
-                    Mix(value, ref h);
-                }
-
-                Step(ref h, 3);
-                break;
-            case JsonArray arr:
-                Step(ref h, 4);
-                foreach (var item in arr) Mix(item, ref h);
-                Step(ref h, 5);
-                break;
-            case JsonValue v:
-                switch (v.GetValueKind())
-                {
-                    case System.Text.Json.JsonValueKind.String:
-                        Step(ref h, 6);
-                        MixString(v.GetValue<string>(), ref h);
-                        break;
-                    case System.Text.Json.JsonValueKind.Number:
-                        Step(ref h, 7);
-                        MixNumber(v, ref h);
-                        break;
-                    case System.Text.Json.JsonValueKind.True: Step(ref h, 8); break;
-                    case System.Text.Json.JsonValueKind.False: Step(ref h, 9); break;
-                    default: Step(ref h, 1); break;
-                }
-
-                break;
-        }
-    }
-
-    private static void MixNumber(JsonValue v, ref ulong h)
-    {
-        if (v.TryGetValue(out long l)) { Step(ref h, (ulong)l); return; }
-        if (v.TryGetValue(out ulong u)) { Step(ref h, u); return; }
-        if (v.TryGetValue(out int i)) { Step(ref h, (ulong)(long)i); return; }
-        double d = v.TryGetValue(out double dd) ? dd : v.TryGetValue(out float ff) ? ff : double.Parse(v.ToJsonString(), System.Globalization.CultureInfo.InvariantCulture);
-        if (d == Math.Floor(d) && Math.Abs(d) < 9e15) Step(ref h, (ulong)(long)d);
-        else Step(ref h, (ulong)BitConverter.DoubleToInt64Bits(d));
     }
 }

@@ -33,6 +33,7 @@ public sealed partial class BehaviorDecisionSystem
                 break;
             case ActionType.Socialize:
                 npc.SetSocial(100, tick);
+                SocializeWithSomeoneNearby(world, npc, tick, ctx);
                 break;
             case ActionType.Buy:
                 ApplyFoodPlan(world, npc, marketIndex, tick, primary: ActionType.Buy);
@@ -281,6 +282,84 @@ public sealed partial class BehaviorDecisionSystem
         world.RecordTrade(well.Id, water, world.CurrentDate.TotalHours / world.CurrentDate.Calendar.HoursPerDay, quantity, 0);
         return true;
     }
+
+    /// <summary>Quem socializa conversa com alguém que está por perto (AD-128): entre os vizinhos, o de quem mais gosta ou com
+    /// quem mais combina. É assim que gente de oficinas e casas diferentes passa a se conhecer. Ninguém por perto: nada.</summary>
+    private static void SocializeWithSomeoneNearby(WorldState world, Npc npc, long tick, TickContext ctx)
+    {
+        if (world.FamilyRules.Bonds is not { } bonds) return;
+
+        ulong salt = (ulong)(ctx.StreamFor("socialize", unchecked(npc.Id.Value * 1_000_003L + tick)).NextDouble() * (1UL << 53));
+        int radius = bonds.SocializeRadius;
+
+        // Desconhecidos: uma amostra pequena de quem está por perto, escolhida pelo menor hash (não depende da ordem dos
+        // baldes do índice espacial, que muda ao reidratar). Numa multidão ninguém avalia a multidão inteira.
+        Span<long> sampleIds = stackalloc long[StrangersConsidered];
+        Span<ulong> sampleKeys = stackalloc ulong[StrangersConsidered];
+        int sampled = 0;
+        for (int dy = -radius; dy <= radius; dy++)
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                var bucket = world.AliveNpcIndex.At(new CellCoord(npc.CurrentLocation.X + dx, npc.CurrentLocation.Y + dy));
+                for (int i = 0; i < bucket.Count; i++)
+                {
+                    var other = bucket[i];
+                    if (other.Id == npc.Id || other.City != npc.City) continue;
+                    ulong key = LivingWorld.Domain.Cities.Spatial.StableHash.Mix(other.Id.Value ^ (long)salt);
+                    if (sampled < StrangersConsidered)
+                    {
+                        sampleIds[sampled] = other.Id.Value;
+                        sampleKeys[sampled++] = key;
+                        continue;
+                    }
+
+                    int worst = 0;
+                    for (int k = 1; k < sampled; k++)
+                        if (sampleKeys[k] > sampleKeys[worst] || (sampleKeys[k] == sampleKeys[worst] && sampleIds[k] > sampleIds[worst])) worst = k;
+                    if (key < sampleKeys[worst] || (key == sampleKeys[worst] && other.Id.Value < sampleIds[worst]))
+                    {
+                        sampleIds[worst] = other.Id.Value;
+                        sampleKeys[worst] = key;
+                    }
+                }
+            }
+
+        Npc? best = null;
+        double bestAppeal = double.NegativeInfinity;
+        void Consider(Npc other, double affection)
+        {
+            double chance = (LivingWorld.Domain.Cities.Spatial.StableHash.Mix(other.Id.Value ^ (long)salt) >> 11) * (1.0 / (1UL << 53));
+            double appeal = affection
+                + 50.0 * LivingWorld.Domain.Population.Family.SocialBondRules.Likability(npc.Personality, other.Personality)
+                + 20.0 * chance;
+            if (appeal > bestAppeal || (appeal == bestAppeal && best is not null && other.Id.Value < best.Id.Value))
+            {
+                bestAppeal = appeal;
+                best = other;
+            }
+        }
+
+        for (int k = 0; k < sampled; k++)
+            if (world.FindNpc(new NpcId(sampleIds[k])) is { } stranger)
+                Consider(stranger, world.Relationships.TryGetValue(
+                    new LivingWorld.Domain.Population.Family.RelationshipKey(npc.Id, stranger.Id), out var known) ? known.Affection : 0.0);
+
+        // Conhecidos que estão por perto entram sempre: quem tem amigo ao lado conversa com o amigo.
+        var targets = world.RelationshipTargetsOf(npc.Id);
+        var owned = world.RelationshipsFrom(npc.Id);
+        for (int i = 0; i < targets.Count; i++)
+            if (world.FindNpc(targets[i]) is { IsAlive: true } friend && friend.City == npc.City
+                && Math.Abs(friend.CurrentLocation.X - npc.CurrentLocation.X) <= radius
+                && Math.Abs(friend.CurrentLocation.Y - npc.CurrentLocation.Y) <= radius)
+                Consider(friend, owned![i].Affection);
+
+        if (best is null) return;
+        var type = LivingWorld.Domain.Population.Family.RelationshipEventType.Conversation;
+        LivingWorld.Simulation.Population.Family.RelationshipSystem.Bond(world, world.FamilyRules, bonds, tick, npc, best, sameHousehold: false, type);
+        LivingWorld.Simulation.Population.Family.RelationshipSystem.Bond(world, world.FamilyRules, bonds, tick, best, npc, sameHousehold: false, type);
+    }
+
+    private const int StrangersConsidered = 8;
 
     /// <summary>Registra a compra que fechou: soma ao agregado do dia da oficina, e o comprador passa a ter relação de
     /// negócio com quem atende (Trade). O primeiro contato do par vira evento, na hora seguinte, pelo

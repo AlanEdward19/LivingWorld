@@ -33,8 +33,8 @@ public class OptimizationEquivalenceTests
     // --- Hashes do mundo preservados ---
 
     [Theory]
-    [InlineData(1UL, "081b0d84ecbb67aa422f95c6c32753edda00e38a1b31acf9795a42d79a66fa19", "4a22b523e38a7094a2684fe29099f644c2837998cb36d12147b0ec17d4f75b1f")]
-    [InlineData(2UL, "a1f37a85db61419fabe15f2c5556231267c42a8ede007e8d45e06546cd4d5fc9", "5d8cd4452a25e83d31660b95d7cd14c41a8154c37eeab560783b941f99f89e7d")]
+    [InlineData(1UL, "ef390b67ee2a8ce004190a5019af94e8de3f268255ff392a06d42879ba65ad7a", "77007048416baacc11348b34bba4a359a19dbea43a18e3bd8b94536773ef00c5")]
+    [InlineData(2UL, "45575126f8741a8348b2ec97cfb393bb9235438db8915ff756a6153514237540", "eb93416749ff89cb342231aeb4b878fb466e4b5664b52296d122e361272d479e")]
     public void Default_scenario_ninety_days_keeps_the_recorded_hashes(
         ulong seed, string canonical, string volatileHash)
     {
@@ -60,6 +60,34 @@ public class OptimizationEquivalenceTests
                 Assert.Equal(named.NextDouble(), direct.NextDouble());
                 Assert.Equal(named.NextDouble(), direct.NextDouble());
             }
+    }
+
+    [Fact]
+    public void One_shot_stream_draws_what_the_named_stream_would_and_leaves_nothing_in_the_snapshot()
+    {
+        foreach (var key in new[] { "natality-12-345", "contagion-1-2-90", "climate-3-17", "", "ação-ç-7" })
+        {
+            var registry = new WorldRngRegistry(77);
+            var oneShot = registry.OneShot(key);
+            Assert.Empty(registry.Snapshot());
+
+            var named = new WorldRngRegistry(77).Stream(key);
+            Assert.Equal(named.NextDouble(), oneShot.NextDouble());
+            Assert.Equal(named.NextDouble(), oneShot.NextDouble());
+        }
+    }
+
+    [Fact]
+    public void Rng_streams_do_not_grow_with_the_age_of_the_world()
+    {
+        var (world, clock) = ScenarioRunner.Create(5);
+        clock.Run(world, OneYearInHours);
+        int afterOneYear = world.RngStreams.Count;
+        clock.Run(world, 2 * OneYearInHours);
+
+        // Antes: um stream por (ação, NPC) do passeio ambiente e um por nascimento, contágio, clima e cortejo, para sempre.
+        Assert.Equal(afterOneYear, world.RngStreams.Count);
+        Assert.DoesNotContain(world.RngStreams, s => s.Key.StartsWith("ambient-", StringComparison.Ordinal));
     }
 
     // --- Mortalidade condicional da população inicial (flag, desligada por padrão) ---
@@ -138,6 +166,43 @@ public class OptimizationEquivalenceTests
         AssertRelationshipIndexMatchesDictionary(world);
     }
 
+    [Theory]
+    [InlineData(1UL)]
+    [InlineData(5UL)]
+    public void No_relationship_points_to_someone_who_left_the_world_through_the_cold_archive(ulong seed)
+    {
+        var perf = LivingWorld.Domain.Performance.PerfRules.Create(1.0, 100, 2000, coldArchiveAfterYears: 1).Value!;
+        var (world, clock) = ScenarioRunner.Create(seed, perfRules: perf);
+        clock.Run(world, 6 * OneYearInHours);
+
+        Assert.True(world.ColdArchive.AllNpcSummaries.Count > 0, "ninguém foi arquivado: o teste não mediu nada");
+        Assert.All(world.Relationships.Keys, key =>
+        {
+            Assert.NotNull(world.FindNpc(key.From));
+            Assert.NotNull(world.FindNpc(key.To));
+        });
+        AssertRelationshipIndexMatchesDictionary(world);
+    }
+
+    [Fact]
+    public void Removing_every_relationship_of_an_npc_leaves_no_pair_in_either_direction_and_keeps_the_index_in_sync()
+    {
+        var (world, clock) = ScenarioRunner.Create(3);
+        clock.Run(world, OneYearInHours);
+        var gone = world.Relationships.Keys.GroupBy(k => k.From).OrderByDescending(g => g.Count()).First().Key;
+        int expected = world.Relationships.Keys.Count(k => k.From == gone || k.To == gone);
+        int others = world.Relationships.Count - expected;
+        Assert.True(expected > 2);
+
+        Assert.Equal(expected, world.RemoveRelationshipsOf(gone));
+
+        Assert.Equal(others, world.Relationships.Count);
+        Assert.DoesNotContain(world.Relationships.Keys, k => k.From == gone || k.To == gone);
+        Assert.Null(world.RelationshipsFrom(gone));
+        AssertRelationshipIndexMatchesDictionary(world);
+        Assert.Equal(0, world.RemoveRelationshipsOf(gone));
+    }
+
     private static void AssertRelationshipIndexMatchesDictionary(WorldState world)
     {
         foreach (var npc in world.Npcs)
@@ -148,6 +213,12 @@ public class OptimizationEquivalenceTests
                 .OrderBy(v => v)
                 .ToList();
             Assert.Equal(expected, world.RelationshipTargetsOf(npc.Id).Select(t => t.Value));
+
+            // A lista paralela guarda a própria relação de cada alvo, na mesma posição (ou não existe, sem relação nenhuma).
+            var owned = world.RelationshipsFrom(npc.Id);
+            Assert.Equal(expected.Count, owned?.Count ?? 0);
+            for (int i = 0; i < expected.Count; i++)
+                Assert.Same(world.Relationships[new RelationshipKey(npc.Id, new NpcId(expected[i]))], owned![i]);
         }
     }
 

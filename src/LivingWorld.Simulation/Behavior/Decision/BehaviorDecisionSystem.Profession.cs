@@ -44,7 +44,10 @@ public sealed partial class BehaviorDecisionSystem
         if (catalog.LocationTypeByProfession.Count == 0) return;
 
         var current = npc.Employer is { } employerId ? world.FindWorkplace(employerId) : null;
-        double currentValue = current is null ? 0 : PersonalValue(npc, rules, catalog, labor, current);
+        // emprego que não paga não vale nada para quem trabalha: é o que faz o trabalhador sair da oficina falida
+        double currentValue = current is null || !LivingWorld.Simulation.Economy.Labor.Payroll.CanPay(world, current, npc.Profession)
+            ? 0
+            : PersonalValue(npc, rules, catalog, labor, current);
 
         Workplace? best = null;
         double bestValue = 0;
@@ -53,7 +56,8 @@ public sealed partial class BehaviorDecisionSystem
         {
             var workplace = candidates[i];
             if (workplace == current || workplace.Employees.Count >= workplace.MaxVacancies) continue;
-            if (ProfessionFor(catalog, labor, workplace.LocationType.Id, npc.Profession) is null) continue;
+            if (ProfessionFor(catalog, labor, workplace.LocationType.Id, npc.Profession) is not { } offered) continue;
+            if (!LivingWorld.Simulation.Economy.Labor.Payroll.CanPay(world, workplace, offered)) continue;
 
             double value = PersonalValue(npc, rules, catalog, labor, workplace);
             if (value > bestValue)
@@ -82,9 +86,9 @@ public sealed partial class BehaviorDecisionSystem
     {
         if (from is not null)
         {
+            // Quem troca de emprego saiu, não foi demitido: o evento de contratação no destino já conta a troca (AD-128).
             from.Fire(npc.Id);
             npc.Fire();
-            ctx.LogEvent(WorldEventKind.Fired, $"{npc.Id.Value}|{from.Id.Value}", sourceSystem: "LaborAllocation");
         }
 
         to.Hire(npc.Id);

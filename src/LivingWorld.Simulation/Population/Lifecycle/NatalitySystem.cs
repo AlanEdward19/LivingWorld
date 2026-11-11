@@ -50,7 +50,7 @@ public sealed class NatalitySystem : ISimulationSystem
             if (!MeetsConceptionFloors(world, mother, father, familyRules))
                 continue;
 
-            double roll = ctx.Rng($"natality-{mother.Id.Value}-{now.TotalHours}").NextDouble();
+            double roll = ctx.OneShot($"natality-{mother.Id.Value}-{now.TotalHours}").NextDouble();
             double effectiveChance = populationRules.AnnualConceptionChance
                 * AttributeMechanic.FertilityMultiplier(world, mother)
                 * AttributeMechanic.FertilityMultiplier(world, father);
@@ -88,13 +88,13 @@ public sealed class NatalitySystem : ISimulationSystem
         var father = world.FindNpc(fatherId);
         var familyRules = world.FamilyRules;
 
-        if (ctx.Rng($"natality-maternal-{motherId.Value}-{evt.Id}").NextDouble() < familyRules.MaternalDeathRisk)
+        if (ctx.OneShot($"natality-maternal-{motherId.Value}-{evt.Id}").NextDouble() < familyRules.MaternalDeathRisk)
         {
             NpcDeath.Apply(world, ctx, mother, WorldEventKind.MaternalDeath);
             return;
         }
 
-        if (ctx.Rng($"natality-infant-{motherId.Value}-{evt.Id}").NextDouble() < familyRules.InfantDeathRisk)
+        if (ctx.OneShot($"natality-infant-{motherId.Value}-{evt.Id}").NextDouble() < familyRules.InfantDeathRisk)
         {
             ctx.LogEvent(
                 WorldEventKind.StillBirth, $"{motherId.Value}|{fatherId.Value}",
@@ -106,7 +106,7 @@ public sealed class NatalitySystem : ISimulationSystem
         if (world.PopulationRules.RemainingAliveSlots(world.AliveNpcIndex.Alive.Count) <= 0)
             return;
 
-        var sex = ctx.Rng($"natality-sex-{motherId.Value}-{evt.Id}").NextDouble() < 0.5 ? Sex.Female : Sex.Male;
+        var sex = ctx.OneShot($"natality-sex-{motherId.Value}-{evt.Id}").NextDouble() < 0.5 ? Sex.Female : Sex.Male;
         var babyId = world.NextNpcIdAndAdvance();
 
         // a personalidade mistura a dos pais com sorteio próprio, no peso do cenário (personality-heredity)

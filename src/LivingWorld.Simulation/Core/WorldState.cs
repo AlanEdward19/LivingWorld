@@ -340,7 +340,10 @@ public sealed partial class WorldState
     /// coleção canônica, sem lista paralela: não há iteração ordenada por id sequencial fazendo
     /// sentido para um par (quem precisar de determinismo ordena por
     /// <c>(From.Value, To.Value)</c> na hora, ex. <c>RelationshipSystem</c>/hash).</summary>
-    [Canonical] public IReadOnlyDictionary<RelationshipKey, Relationship> Relationships => _relationships;
+    [Canonical] public IReadOnlyDictionary<RelationshipKey, Relationship> Relationships => _relationshipOrder;
+
+    // Ordem de criação das relações, estável a remoções: é a ordem do snapshot e do hash (ver OrderedRelationships).
+    private readonly OrderedRelationships _relationshipOrder = new();
 
     // Índice derivado de _relationships: alvos (To) de cada From, ordenados por To. Permite ler as
     // relações de um NPC em O(grau) em vez de varrer o dicionário inteiro (crescia ~O(n²) com os anos).
@@ -348,6 +351,9 @@ public sealed partial class WorldState
 
     // Carimbo de versão das relações de cada dono (derivado): invalida só os caches daquele dono.
     private readonly Dictionary<NpcId, RelationshipAxesStamp> _relationshipStampByFrom = [];
+
+    // Paralelo a _relationshipTargetsByFrom (mesmo índice = mesma relação). Derivado, fora do snapshot e dos hashes.
+    private readonly Dictionary<NpcId, List<Relationship>> _relationshipsByFrom = [];
 
     private readonly List<Npc> _npcs;
     private readonly Dictionary<NpcId, Npc> _npcById;
@@ -567,6 +573,7 @@ public sealed partial class WorldState
         _workplaces = [];
         _workplaceById = [];
         _relationships = [];
+        _relationshipOrder.Map = _relationships;
         _cities = [];
         _cityById = [];
         _buildings = [];
@@ -707,9 +714,11 @@ public sealed partial class WorldState
         FamilyRules = (familyRules ?? FamilyRules.Disabled).WithAppearanceAttraction(appearanceRules?.AttractionWeight ?? 0);
         BodyRules = bodyRules ?? BodyRules.Default;
         _relationships = relationships is null ? [] : new Dictionary<RelationshipKey, Relationship>(relationships);
+        _relationshipOrder.Map = _relationships;
         foreach (var (key, relationship) in _relationships)
         {
-            IndexRelationshipTarget(key);
+            _relationshipOrder.Append(key, relationship);
+            IndexRelationshipTarget(key, relationship);
             AttachRelationshipStamp(key, relationship);
         }
         _cities = (cities ?? []).ToList();

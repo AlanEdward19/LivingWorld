@@ -22,6 +22,10 @@ public sealed class Relationship
 
     private void TouchAxes() => OwnerStamp?.Touch();
 
+    /// <summary>Posição desta relação na ordem de criação que o mundo mantém (derivada, nunca persistida).</summary>
+    [JsonIgnore]
+    public int OrderSlot { get; set; }
+
     public double Trust { get; private set; }
     public double Affection { get; private set; }
     public double Respect { get; private set; }
@@ -114,6 +118,54 @@ public sealed class Relationship
                 Set(axis, Math.Min(current + rules.DecayPerDay, neutral));
         }
     }
+
+    /// <summary>Convivência com rendimento decrescente (AD-128): confiança e afeto sobem cada vez menos conforme chegam ao
+    /// teto do par e nunca o passam; quem já está acima do teto (vínculo herdado de outro tempo) não perde por conviver. Os
+    /// outros eixos e os deltas negativos seguem lineares, como em <see cref="ApplyEvent"/>.</summary>
+    public void ApplyBondingEvent(RelationshipEventType type, FamilyRules rules, double trustCeiling, double affectionCeiling)
+    {
+        foreach (var axis in Axes)
+        {
+            double delta = rules.RelationshipEventDelta(type, axis);
+            if (delta == 0) continue;
+
+            double current = Get(axis);
+            if (delta > 0 && axis is RelationshipAxis.Trust or RelationshipAxis.Affection)
+            {
+                double ceiling = axis == RelationshipAxis.Trust ? trustCeiling : affectionCeiling;
+                if (ceiling <= 0 || current >= ceiling) continue;
+                delta = Math.Min(delta * (1.0 - current / ceiling), ceiling - current);
+            }
+
+            Set(axis, current + delta);
+        }
+    }
+
+    /// <summary>Esfriamento proporcional de <paramref name="days"/> dias sem contato (AD-128): cada eixo perde a mesma fração
+    /// da distância até o neutro, então vínculo forte dura anos e conhecido de vista some em meses. Confiança e afeto que
+    /// estão no piso de parentesco ou acima dele não descem abaixo dele (<paramref name="kinFloor"/> 0 = sem piso).</summary>
+    public void Fade(FamilyRules rules, int days, double kinFloor)
+    {
+        // potência inteira por multiplicação: o mundo não usa a matemática transcendental da plataforma
+        double daily = Math.Max(0.0, 1.0 - rules.DecayPerDay / 100.0), keep = 1.0;
+        for (int i = 0; i < days; i++) keep *= daily;
+        double neutral = rules.NeutralAxisValue;
+        foreach (var axis in Axes)
+        {
+            double current = Get(axis);
+            if (current == neutral) continue;
+
+            double faded = neutral + (current - neutral) * keep;
+            if (kinFloor > 0 && axis is RelationshipAxis.Trust or RelationshipAxis.Affection && current >= kinFloor)
+                faded = Math.Max(faded, kinFloor);
+            if (faded != current) Set(axis, faded);
+        }
+    }
+
+    /// <summary>Todos os eixos a menos de <see cref="SocialBondRules.ForgottenBelow"/> do neutro: não sobrou nada do vínculo.</summary>
+    public bool IsFaded(double neutral) =>
+        Math.Abs(Trust - neutral) < SocialBondRules.ForgottenBelow && Math.Abs(Affection - neutral) < SocialBondRules.ForgottenBelow
+        && Math.Abs(Respect - neutral) < SocialBondRules.ForgottenBelow && Math.Abs(Debt - neutral) < SocialBondRules.ForgottenBelow;
 
     public void MarkContact(long tick) => LastContactTick = tick;
 

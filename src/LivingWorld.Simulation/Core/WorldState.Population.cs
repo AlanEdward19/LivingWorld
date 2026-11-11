@@ -20,7 +20,8 @@ public sealed partial class WorldState
         {
             relationship = Relationship.Initial(now);
             _relationships[key] = relationship;
-            IndexRelationshipTarget(key);
+            _relationshipOrder.Append(key, relationship);
+            IndexRelationshipTarget(key, relationship);
             AttachRelationshipStamp(key, relationship);
         }
         return relationship;
@@ -30,10 +31,17 @@ public sealed partial class WorldState
     internal IReadOnlyList<NpcId> RelationshipTargetsOf(NpcId from) =>
         _relationshipTargetsByFrom.TryGetValue(from, out var targets) ? targets : [];
 
-    private void IndexRelationshipTarget(RelationshipKey key)
+    /// <summary>As relações de <paramref name="from"/> na mesma ordem de <see cref="RelationshipTargetsOf"/>, sem busca por
+    /// chave: quem só precisa varrer os eixos do dono (<c>"tem vínculo forte?"</c>) não paga um hash por relação.</summary>
+    internal List<Relationship>? RelationshipsFrom(NpcId from) => _relationshipsByFrom.GetValueOrDefault(from);
+
+    private void IndexRelationshipTarget(RelationshipKey key, Relationship relationship)
     {
         if (!_relationshipTargetsByFrom.TryGetValue(key.From, out var targets))
+        {
             _relationshipTargetsByFrom[key.From] = targets = [];
+            _relationshipsByFrom[key.From] = [];
+        }
         int lo = 0, hi = targets.Count;
         while (lo < hi)
         {
@@ -41,6 +49,7 @@ public sealed partial class WorldState
             if (targets[mid].Value < key.To.Value) lo = mid + 1; else hi = mid;
         }
         targets.Insert(lo, key.To);
+        _relationshipsByFrom[key.From].Insert(lo, relationship);
     }
 
     /// <summary>Liga a relação ao carimbo do dono e o avança (o conjunto de relações dele mudou).</summary>
@@ -61,8 +70,15 @@ public sealed partial class WorldState
     {
         if (_relationshipStampByFrom.TryGetValue(key.From, out var stamp)) stamp.Touch();
         if (!_relationshipTargetsByFrom.TryGetValue(key.From, out var targets)) return;
-        targets.Remove(key.To);
-        if (targets.Count == 0) _relationshipTargetsByFrom.Remove(key.From);
+        int index = targets.IndexOf(key.To);
+        if (index < 0) return;
+        targets.RemoveAt(index);
+        _relationshipsByFrom[key.From].RemoveAt(index);
+        if (targets.Count == 0)
+        {
+            _relationshipTargetsByFrom.Remove(key.From);
+            _relationshipsByFrom.Remove(key.From);
+        }
     }
 
     internal void ClearNpcWakeBatch() => _npcWakeBatch.Clear();
@@ -159,13 +175,46 @@ public sealed partial class WorldState
     internal Npc? FindNpc(NpcId id) => _npcById.GetValueOrDefault(id);
     internal Household? FindHousehold(HouseholdId id) => _householdById.GetValueOrDefault(id);
 
+    /// <summary>Remove toda relação de e para <paramref name="id"/>: usado quando o NPC deixa de existir no mundo (arquivo
+    /// frio). Sem isso o par ficava para sempre apontando para quem já não está em <see cref="Npcs"/>, e a seção crescia
+    /// com a idade do mundo, não com a população (#155, #157).</summary>
+    internal int RemoveRelationshipsOf(NpcId id)
+    {
+        int removed = 0;
+        if (_relationshipTargetsByFrom.TryGetValue(id, out var targets))
+            foreach (var to in targets.ToArray())
+            {
+                var key = new RelationshipKey(id, to);
+                if (RemoveRelationship(key)) removed++;
+            }
+
+        // Quem tinha relação com ele: a ordem não importa (cada remoção só mexe no próprio par), mas vai ordenada por Id.
+        var owners = _relationshipTargetsByFrom.Keys.ToArray();
+        Array.Sort(owners, (a, b) => a.Value.CompareTo(b.Value));
+        foreach (var from in owners)
+        {
+            var key = new RelationshipKey(from, id);
+            if (RemoveRelationship(key)) removed++;
+        }
+        return removed;
+    }
+
+    /// <summary>Remove um par orientado (o vínculo esquecido de A por B não apaga o de B por A).</summary>
+    internal bool RemoveRelationship(RelationshipKey key)
+    {
+        if (!_relationships.Remove(key, out var removed)) return false;
+        _relationshipOrder.Remove(removed);
+        UnindexRelationshipTarget(key);
+        return true;
+    }
+
     internal int RemoveRelationshipsBetween(NpcId first, NpcId second)
     {
         int removed = 0;
         var forward = new RelationshipKey(first, second);
         var backward = new RelationshipKey(second, first);
-        if (_relationships.Remove(forward)) { removed++; UnindexRelationshipTarget(forward); }
-        if (_relationships.Remove(backward)) { removed++; UnindexRelationshipTarget(backward); }
+        if (RemoveRelationship(forward)) removed++;
+        if (RemoveRelationship(backward)) removed++;
         return removed;
     }
 

@@ -25,7 +25,7 @@ public sealed class ClimateYearSystem : ISimulationSystem
         long year = world.ClimateYearOf(ctx.CurrentTick);
         foreach (var region in world.Map.Regions.OrderBy(r => r.Id.Value))
         {
-            double roll = ctx.Rng($"climate-{region.Id.Value}-{year}").NextDouble();
+            double roll = ctx.OneShot($"climate-{region.Id.Value}-{year}").NextDouble();
             world.SetClimateYear(region.Id, year, min + (int)Math.Round(roll * (max - min)));
         }
 

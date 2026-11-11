@@ -19,6 +19,14 @@ public sealed partial class BehaviorDecisionSystem
         occupancy.Add(destination);
     }
 
+    private static string AmbientPurpose(ActionType action) => action switch
+    {
+        ActionType.Idle => "ambient-Idle",
+        ActionType.Socialize => "ambient-Socialize",
+        ActionType.Work => "ambient-Work",
+        _ => "ambient",
+    };
+
     private static void MoveOneAmbientStep(
         WorldState world, Npc npc, TickContext ctx, long tick, ActionType action, HashSet<CellCoord> occupancy,
         Dictionary<CityId, long> cityPopulationCache, Dictionary<CityId, CityBounds> cityBoundsCache)
@@ -67,7 +75,9 @@ public sealed partial class BehaviorDecisionSystem
         var candidates = freeCount > 0 ? free[..freeCount] : neighbors[..count];
         if (candidates.Length == 0) return;
 
-        var rng = ctx.Rng($"ambient-{action}-{npc.Id.Value}");
+        // Sorteio derivado de (ação, NPC, tick), sem stream guardado: o stream por NPC ficava no snapshot para sempre,
+        // inclusive o de quem já morreu, e a chave em texto era montada a cada passo (#157, AD-127).
+        var rng = ctx.StreamFor(AmbientPurpose(action), unchecked(npc.Id.Value * 1_000_003L + tick));
         int index = Math.Min((int)(rng.NextDouble() * candidates.Length), candidates.Length - 1);
         MoveTracked(npc, candidates[index], tick, occupancy);
     }

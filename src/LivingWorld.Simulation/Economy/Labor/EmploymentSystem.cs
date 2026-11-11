@@ -25,6 +25,7 @@ public sealed class EmploymentSystem : ISimulationSystem
     {
         if (!world.EconomyRules.Enabled) return;
 
+        ReleaseTheDead(world, ctx);
         var vacancyIndex = VacancyIndex.BuildForTick(world);
 
         // Desliga primeiro quem ficou órfão (Workplace sumiu ou o próprio NPC morreu) — nunca um
@@ -43,16 +44,40 @@ public sealed class EmploymentSystem : ISimulationSystem
         var catalog = world.EconomyCatalog;
         foreach (var npc in world.AliveNpcIndex.Alive)
         {
-            if (npc.Employer is not null) continue;
+            if (npc.Employer is not null || !npc.IsAlive) continue;
             if (world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate)) != LifeStage.Adult) continue;
             if (!catalog.LocationTypeByProfession.TryGetValue(npc.Profession.Id, out var locationTypeId)) continue;
 
             var workplace = vacancyIndex.FirstWorkplaceWithVacancy(locationTypeId, npc.City);
-            if (workplace is null) continue;
+            if (workplace is null || !Payroll.CanPay(world, workplace, npc.Profession)) continue;
 
             if (!workplace.Hire(npc.Id).IsSuccess) continue;
             npc.Hire(workplace.Id);
             ctx.LogEvent(WorldEventKind.Hired, $"{npc.Id.Value}|{workplace.Id.Value}", sourceSystem: "EmploymentSystem");
+        }
+    }
+
+    /// <summary>Quem morreu deixa a vaga (AD-128). O laço acima só percorre os vivos, então o morto ficava na folha da oficina
+    /// para sempre: a vaga nunca abria, a geração seguinte crescia sem emprego e sem salário, e o morto nem ia para o
+    /// arquivo frio (continuava "referenciado"). Varre as folhas uma vez por dia, em ordem de id.</summary>
+    private static void ReleaseTheDead(WorldState world, TickContext ctx)
+    {
+        List<NpcId>? gone = null;
+        foreach (var workplace in world.Workplaces.OrderBy(w => w.Id.Value))
+        {
+            gone?.Clear();
+            foreach (var employeeId in workplace.Employees)
+                if (world.FindNpc(employeeId) is not { IsAlive: true })
+                    (gone ??= []).Add(employeeId);
+            if (gone is null || gone.Count == 0) continue;
+
+            gone.Sort((a, b) => a.Value.CompareTo(b.Value));
+            foreach (var employeeId in gone)
+            {
+                workplace.Fire(employeeId);
+                world.FindNpc(employeeId)?.Fire();
+                ctx.LogEvent(WorldEventKind.Fired, $"{employeeId.Value}|{workplace.Id.Value}", sourceSystem: "EmploymentSystem");
+            }
         }
     }
 }

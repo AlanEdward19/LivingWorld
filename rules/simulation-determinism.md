@@ -10,6 +10,8 @@
 - Toda aleatoriedade sai do RNG do mundo, derivado por stream: `ctx.Rng(NpcId)`,
   `ctx.Rng(SystemId)`. Streams separados por sistema/entidade — assim adicionar um
   sistema novo não desloca a sequência dos outros.
+- **Stream guardado só se a chave se repete.** `ctx.Rng(chave)` fica no snapshot para sempre. Chave com tick, dia
+  ou id de evento usa `ctx.OneShot(chave)`; sorteio por entidade e tick usa `ctx.StreamFor(propósito, id)` (AD-127).
 - Tempo vem do relógio do mundo (`WorldDate`), nunca do relógio da máquina.
 - **Iteração ordenada.** Nunca itere `Dictionary`/`HashSet` para produzir efeito no mundo:
   ordene por ID. Ordem de hash muda entre runs e quebra a reprodutibilidade.

@@ -16,6 +16,12 @@ relação emerge de encontros repetidos, sobre eixos numéricos que evoluem com 
 | Respeito | competência, feito público, cargo | fracasso visível, humilhação |
 | Dívida | empréstimo, favor recebido | pagamento, retribuição |
 
+Como a convivência vira vínculo (AD-128): em casa todos convivem; no trabalho cada um passa o dia com os
+poucos de quem mais gosta dentro da própria turma; quem socializa conversa com alguém por perto. Afeto e
+confiança têm um teto por par (temperamentos parecidos, o quanto o outro é agradável e leal), sobem cada
+vez menos perto dele e esfriam aos poucos sem contato, até o par ser esquecido. Parentes não se esquecem.
+O resultado é um punhado de vínculos fortes e muitos fracos por pessoa, não afeto máximo por todo colega.
+
 ## Reprodução
 
 Depende de idade, fertilidade, saúde, relação, cultura, recursos, condições sociais,

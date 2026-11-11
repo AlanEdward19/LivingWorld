@@ -1,5 +1,4 @@
 using System.Buffers.Binary;
-using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -17,8 +16,18 @@ internal static class PositionalTreeCodec
 
     public static byte[] Encode(JsonNode? root)
     {
+        // A árvore vai a texto compacto (cópia direta onde o nó ainda guarda o texto do serializador) e é lida como
+        // documento: percorrer JsonNode materializava um dicionário por objeto, centenas de MB por gravação (#156).
+        var buffer = new System.Buffers.ArrayBufferWriter<byte>(1 << 16);
+        using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { SkipValidation = true }))
+        {
+            if (root is null) writer.WriteNullValue();
+            else root.WriteTo(writer);
+        }
+
+        using var document = JsonDocument.Parse(buffer.WrittenMemory);
         var encoder = new Encoder();
-        encoder.WriteNode(root);
+        encoder.WriteNode(document.RootElement);
         return encoder.Finish();
     }
 
@@ -67,98 +76,95 @@ internal static class PositionalTreeCodec
             return i;
         }
 
-        public void WriteNode(JsonNode? node)
+        public void WriteNode(JsonElement node)
         {
-            switch (node)
+            switch (node.ValueKind)
             {
-                case null:
+                case JsonValueKind.Null or JsonValueKind.Undefined:
                     _tree.WriteByte(TagNull);
                     return;
-                case JsonObject obj:
+                case JsonValueKind.Object:
                     _tree.WriteByte(TagObject);
-                    WriteVar(_tree, obj.Count);
-                    foreach (var (key, value) in obj)
+                    int properties = 0;
+                    foreach (var _ in node.EnumerateObject()) properties++;
+                    WriteVar(_tree, properties);
+                    foreach (var property in node.EnumerateObject())
                     {
-                        WriteVar(_tree, Intern(key));
-                        WriteNode(value);
+                        WriteVar(_tree, Intern(property.Name));
+                        WriteNode(property.Value);
                     }
 
                     return;
-                case JsonArray arr:
-                    if (IsTable(arr)) WriteTable(arr);
+                case JsonValueKind.Array:
+                    if (IsTable(node)) WriteTable(node);
                     else
                     {
                         _tree.WriteByte(TagArray);
-                        WriteVar(_tree, arr.Count);
-                        foreach (var item in arr) WriteNode(item);
+                        WriteVar(_tree, node.GetArrayLength());
+                        foreach (var item in node.EnumerateArray()) WriteNode(item);
                     }
 
                     return;
-                case JsonValue value:
-                    WriteValue(value);
+                case JsonValueKind.True: _tree.WriteByte(TagTrue); return;
+                case JsonValueKind.False: _tree.WriteByte(TagFalse); return;
+                case JsonValueKind.String:
+                    _tree.WriteByte(TagString);
+                    WriteVar(_tree, Intern(node.GetString()!));
                     return;
+                case JsonValueKind.Number:
+                    WriteNumber(node);
+                    return;
+                default:
+                    throw new InvalidDataException($"valor JSON inesperado: {node.ValueKind}");
             }
         }
 
-        private static bool IsTable(JsonArray arr)
+        /// <summary>Tabela: dois ou mais objetos com as mesmas chaves na mesma ordem.</summary>
+        private static bool IsTable(JsonElement arr)
         {
-            if (arr.Count < 2 || arr[0] is not JsonObject first) return false;
-            for (int i = 1; i < arr.Count; i++)
+            if (arr.GetArrayLength() < 2) return false;
+            JsonElement first = default;
+            bool hasFirst = false;
+            foreach (var row in arr.EnumerateArray())
             {
-                if (arr[i] is not JsonObject row || row.Count != first.Count) return false;
-                using var a = first.GetEnumerator();
-                using var b = row.GetEnumerator();
-                while (a.MoveNext() && b.MoveNext())
-                    if (!string.Equals(a.Current.Key, b.Current.Key, StringComparison.Ordinal)) return false;
+                if (row.ValueKind != JsonValueKind.Object) return false;
+                if (!hasFirst) { first = row; hasFirst = true; continue; }
+
+                using var a = first.EnumerateObject().GetEnumerator();
+                using var b = row.EnumerateObject().GetEnumerator();
+                while (true)
+                {
+                    bool moreA = a.MoveNext(), moreB = b.MoveNext();
+                    if (moreA != moreB) return false;
+                    if (!moreA) break;
+                    if (!b.Current.NameEquals(a.Current.Name)) return false;
+                }
             }
 
             return true;
         }
 
-        private void WriteTable(JsonArray arr)
+        private void WriteTable(JsonElement arr)
         {
-            var first = (JsonObject)arr[0]!;
+            JsonElement first = default;
+            foreach (var row in arr.EnumerateArray()) { first = row; break; }
+            int columns = 0;
+            foreach (var _ in first.EnumerateObject()) columns++;
+
             _tree.WriteByte(TagTable);
-            WriteVar(_tree, arr.Count);
-            WriteVar(_tree, first.Count);
-            foreach (var (key, _) in first) WriteVar(_tree, Intern(key));
-            foreach (var item in arr)
-                foreach (var (_, value) in (JsonObject)item!)
-                    WriteNode(value);
+            WriteVar(_tree, arr.GetArrayLength());
+            WriteVar(_tree, columns);
+            foreach (var property in first.EnumerateObject()) WriteVar(_tree, Intern(property.Name));
+            foreach (var item in arr.EnumerateArray())
+                foreach (var property in item.EnumerateObject())
+                    WriteNode(property.Value);
         }
 
-        private void WriteValue(JsonValue value)
+        private void WriteNumber(JsonElement value)
         {
-            switch (value.GetValueKind())
-            {
-                case JsonValueKind.True: _tree.WriteByte(TagTrue); return;
-                case JsonValueKind.False: _tree.WriteByte(TagFalse); return;
-                case JsonValueKind.Null: _tree.WriteByte(TagNull); return;
-                case JsonValueKind.String:
-                    _tree.WriteByte(TagString);
-                    WriteVar(_tree, Intern(value.GetValue<string>()));
-                    return;
-                case JsonValueKind.Number:
-                    WriteNumber(value);
-                    return;
-                default:
-                    throw new InvalidDataException($"valor JSON inesperado: {value.GetValueKind()}");
-            }
-        }
-
-        private void WriteNumber(JsonValue value)
-        {
-            if (value.TryGetValue(out long l)) { WriteInt(l); return; }
-            if (value.TryGetValue(out ulong u)) { _tree.WriteByte(TagUInt); WriteVar(_tree, u); return; }
-            if (value.TryGetValue(out int i)) { WriteInt(i); return; }
-            if (value.TryGetValue(out double d)) { WriteDouble(d); return; }
-            if (value.TryGetValue(out float f)) { WriteDouble(f); return; }
-
-            // último recurso: o texto do próprio JSON
-            var text = value.ToJsonString();
-            if (long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out l)) WriteInt(l);
-            else if (ulong.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out u)) { _tree.WriteByte(TagUInt); WriteVar(_tree, u); }
-            else WriteDouble(double.Parse(text, CultureInfo.InvariantCulture));
+            if (value.TryGetInt64(out long l)) { WriteInt(l); return; }
+            if (value.TryGetUInt64(out ulong u)) { _tree.WriteByte(TagUInt); WriteVar(_tree, u); return; }
+            WriteDouble(value.GetDouble());
         }
 
         private void WriteInt(long l)

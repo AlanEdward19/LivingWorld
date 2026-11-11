@@ -298,6 +298,7 @@ public class TheftTests
     {
         var harsh = new TheftRules(true, 90, 0.9, 0.6, 0.5, 0.5, -1, 0.25);
         var (world, _) = ScenarioRunner.Create(2, theftRules: harsh);
+        WithoutPoorRelief(world);
         var sink = new CountingSink();
         var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink);
         long Total() => world.Npcs.Sum(n => n.Wallet.Amount) + world.Workplaces.Sum(w => w.Treasury.Amount) + world.Cities.Sum(c => c.Treasury.Amount);
@@ -311,6 +312,17 @@ public class TheftTests
 
         Assert.True(world.Npcs.Any(n => n.IsAlive), "a vila se extinguiu");
         Assert.True(sink.Thefts > 0, "nenhum furto descoberto em um ano");
+    }
+
+    /// <summary>Vila dura de verdade (AD-128): a cidade sem caixa para a esmola, as despensas vazias e metade das pessoas sem
+    /// uma moeda. Na vila padrão quem fica sem nada é socorrido pela casa, pelos parentes e pela cidade antes de precisar
+    /// furtar; o furto por desespero é do lugar onde esse socorro não chega a tempo.</summary>
+    private static void WithoutPoorRelief(WorldState world)
+    {
+        foreach (var city in world.Cities) city.TryDebitTreasury(city.Treasury);
+        foreach (var household in world.Households)
+            foreach (var resource in household.Stock.Keys.ToList()) household.Withdraw(resource, household.Stock[resource]);
+        foreach (var npc in world.Npcs.Where(n => n.Id.Value % 2 == 1)) npc.TryDebitWallet(npc.Wallet);
     }
 
     private sealed class OutcomeSink : IWorldEventSink
@@ -333,6 +345,7 @@ public class TheftTests
         {
             var rules = new TheftRules(true, 90, 0.9, 0.6, 1.0, 0.5, guardProfessionId, 0.25);
             var (world, _) = ScenarioRunner.Create(2, theftRules: rules);
+            WithoutPoorRelief(world);
             var sink = new OutcomeSink();
             new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink).Run(world, 12 * 30 * 24);
             return (sink.Succeeded, sink.Failed);

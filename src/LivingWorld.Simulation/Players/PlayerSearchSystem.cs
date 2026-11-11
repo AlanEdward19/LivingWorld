@@ -54,7 +54,7 @@ public sealed class PlayerSearchSystem : ISimulationSystem
         {
             if (world.FindNpc(searcherId) is not { IsAlive: true } searcher || searcher.City != missing.City) continue;
 
-            double roll = ctx.Rng($"player-search-{missing.Id.Value}-{searcherId.Value}-{day}").NextDouble();
+            double roll = ctx.OneShot($"player-search-{missing.Id.Value}-{searcherId.Value}-{day}").NextDouble();
             if (roll >= DailyFindChanceAtFullBond * strength / 100.0) continue;
 
             Found(world, ctx, missing, searcher, day);

@@ -1,3 +1,5 @@
+using System.Buffers;
+using System.IO.Compression;
 using System.Text.Json.Nodes;
 using LivingWorld.Simulation.Core;
 
@@ -32,9 +34,14 @@ public static class PositionalSnapshot
     private static readonly byte[] Magic = "LWSNAP2\0"u8.ToArray();
     private const byte KindFull = 0, KindDelta = 1;
 
+    /// <summary>Bit do byte de tipo que marca corpo comprimido (Brotli). Bloco gravado antes da compressão não o tem e
+    /// continua legível: a leitura decide pelo bit, nunca pela versão de quem gravou (AD-127).</summary>
+    private const byte CompressedFlag = 0x80;
+    private const int BrotliQuality = 4, BrotliWindow = 22;
+
     public static bool IsPositional(ReadOnlySpan<byte> data) => data.Length > Magic.Length && data[..Magic.Length].SequenceEqual(Magic);
 
-    public static bool IsDelta(ReadOnlySpan<byte> data) => IsPositional(data) && data[Magic.Length] == KindDelta;
+    public static bool IsDelta(ReadOnlySpan<byte> data) => IsPositional(data) && (data[Magic.Length] & ~CompressedFlag) == KindDelta;
 
     public static byte[] EncodeFull(WorldState world, out SnapshotBase snapshotBase)
     {
@@ -75,19 +82,47 @@ public static class PositionalSnapshot
     public static WorldState DecodeDelta(byte[] data, byte[] baseData) =>
         WorldSnapshot.FromNode(SnapshotTreeDiff.Apply(DecodeTree(baseData, KindFull), DecodeTree(data, KindDelta)));
 
+    /// <summary>Corpo do bloco (a árvore no codec posicional), já descomprimido se for o caso.</summary>
+    internal static byte[] Body(byte[] data)
+    {
+        if (!IsPositional(data)) throw new InvalidDataException("magic inválido");
+        var body = data.AsSpan(Magic.Length + 1);
+        return (data[Magic.Length] & CompressedFlag) != 0 ? Decompress(body) : body.ToArray();
+    }
+
     private static JsonObject DecodeTree(byte[] data, byte expectedKind)
     {
         if (!IsPositional(data)) throw new InvalidDataException("magic inválido");
-        if (data[Magic.Length] != expectedKind) throw new InvalidDataException("tipo de snapshot inesperado");
-        return PositionalTreeCodec.Decode(data.AsSpan(Magic.Length + 1))!.AsObject();
+        byte kind = data[Magic.Length];
+        if ((kind & ~CompressedFlag) != expectedKind) throw new InvalidDataException("tipo de snapshot inesperado");
+        var body = data.AsSpan(Magic.Length + 1);
+        return ((kind & CompressedFlag) != 0 ? PositionalTreeCodec.Decode(Decompress(body)) : PositionalTreeCodec.Decode(body))!.AsObject();
     }
 
     private static byte[] Wrap(byte kind, byte[] body)
     {
-        var result = new byte[Magic.Length + 1 + body.Length];
-        Magic.CopyTo(result, 0);
-        result[Magic.Length] = kind;
-        body.CopyTo(result, Magic.Length + 1);
-        return result;
+        int header = Magic.Length + 1;
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(header + BrotliEncoder.GetMaxCompressedLength(body.Length));
+        try
+        {
+            if (!BrotliEncoder.TryCompress(body, buffer.AsSpan(header), out int written, BrotliQuality, BrotliWindow))
+                throw new InvalidOperationException("compressão do snapshot falhou");
+            Magic.CopyTo(buffer, 0);
+            buffer[Magic.Length] = (byte)(kind | CompressedFlag);
+            return buffer.AsSpan(0, header + written).ToArray();
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+
+    private static byte[] Decompress(ReadOnlySpan<byte> compressed)
+    {
+        using var input = new MemoryStream(compressed.ToArray(), writable: false);
+        using var brotli = new BrotliStream(input, CompressionMode.Decompress);
+        using var output = new MemoryStream(compressed.Length * 4);
+        brotli.CopyTo(output);
+        return output.ToArray();
     }
 }

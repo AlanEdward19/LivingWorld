@@ -138,12 +138,12 @@ public sealed class MaterializationSystem : ISimulationSystem
         var materialized = city.Materialize(id, wealthPerHead, healthPerHead);
         if (!materialized.IsSuccess) return Result<Npc>.Fail(materialized.Error!);
 
-        var sex = ctx.Rng($"materialize-sex-{id.Value}").NextDouble() < 0.5 ? Sex.Female : Sex.Male;
+        var sex = ctx.OneShot($"materialize-sex-{id.Value}").NextDouble() < 0.5 ? Sex.Female : Sex.Male;
         int maxAge = Math.Max(19, world.PopulationRules.LifeTable.MaxLongevityYears - 1);
-        int ageYears = 18 + (int)(ctx.Rng($"materialize-age-{id.Value}").NextDouble() * (maxAge - 18));
+        int ageYears = 18 + (int)(ctx.OneShot($"materialize-age-{id.Value}").NextDouble() * (maxAge - 18));
         var birthDate = world.CurrentDate.AddYears(-ageYears);
-        var personality = Personality.RollFrom(ctx.Rng($"materialize-personality-{id.Value}"));
-        var profession = world.PopulationCatalog.RollProfession(ctx.Rng($"materialize-profession-{id.Value}"));
+        var personality = Personality.RollFrom(ctx.OneShot($"materialize-personality-{id.Value}"));
+        var profession = world.PopulationCatalog.RollProfession(ctx.OneShot($"materialize-profession-{id.Value}"));
         var culture = world.PopulationCatalog.CultureIds.Count > 0
             ? new CultureId(world.PopulationCatalog.CultureIds.Order().First())
             : default;

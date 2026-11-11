@@ -195,7 +195,7 @@ public class LaborAllocationTests
     }
 
     [Fact]
-    public void Move_is_atomic_one_fired_and_one_hired_in_the_same_tick()
+    public void Move_is_atomic_and_logs_the_hiring_only_because_who_changes_jobs_was_not_fired()
     {
         var (world, a, b) = Build(priceA: 5, priceB: 50);
         var npc = AddAdult(world, a, profession: 1);
@@ -203,10 +203,13 @@ public class LaborAllocationTests
 
         var events = Evaluate(world).Where(e => e.SourceSystem == "LaborAllocation").ToList();
 
-        Assert.Equal([WorldEventKind.Fired, WorldEventKind.Hired], events.Select(e => e.Kind));
-        Assert.Equal($"{npc.Id.Value}|{a.Id.Value}", events[0].Payload);
-        Assert.Equal($"{npc.Id.Value}|{b.Id.Value}", events[1].Payload);
-        Assert.Equal(events[0].Tick, events[1].Tick);
+        // AD-128: a troca voluntária não é demissão; a contratação no destino já conta a mudança.
+        var hired = Assert.Single(events);
+        Assert.Equal(WorldEventKind.Hired, hired.Kind);
+        Assert.Equal($"{npc.Id.Value}|{b.Id.Value}", hired.Payload);
+        Assert.DoesNotContain(npc.Id, a.Employees);
+        Assert.Contains(npc.Id, b.Employees);
+        Assert.Equal(b.Id, npc.Employer);
     }
 
     [Fact]

@@ -26,7 +26,7 @@ public class BinarySnapshotWriterDiffTests
     {
         var data = ms.ToArray();
         Assert.True(PositionalSnapshot.IsDelta(data));
-        return PositionalTreeCodec.Decode(data.AsSpan(9))!.AsObject();
+        return PositionalTreeCodec.Decode(PositionalSnapshot.Body(data))!.AsObject();
     }
 
     private static JsonArray DeltaNpcs(MemoryStream ms) => ReadDelta(ms)["Entities"]!["Npcs"]!.AsArray();
@@ -145,7 +145,8 @@ public class BinarySnapshotWriterDiffTests
 
         var data = ms.ToArray();
         Assert.Equal("LWSNAP2\0"u8.ToArray(), data[..8]);
-        Assert.Equal(1, data[8]);
+        Assert.Equal(0x81, data[8]); // tipo 1 (diff) com o bit de corpo comprimido
+        Assert.True(PositionalSnapshot.IsDelta(data));
     }
 
     [Fact]

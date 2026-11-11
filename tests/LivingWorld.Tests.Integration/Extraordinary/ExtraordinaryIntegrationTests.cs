@@ -146,7 +146,8 @@ public sealed class ExtraordinaryIntegrationTests
         world.AddNpc(npc);
         var sink = new RecordingSink();
 
-        new WorldClock([new NeedsDecaySystem()], sink: sink).Run(world, 101);
+        // a fome mata no prazo que o cenário declara (três semanas no padrão, AD-128), não mais em 50 h
+        new WorldClock([new NeedsDecaySystem()], sink: sink).Run(world, world.NeedsRules.StarvationTicks + 2);
 
         Assert.False(npc.IsAlive);
         Assert.Contains(sink.Events, evt =>

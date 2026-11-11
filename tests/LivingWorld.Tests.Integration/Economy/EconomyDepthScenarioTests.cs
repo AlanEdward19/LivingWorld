@@ -158,18 +158,20 @@ public class EconomyDepthScenarioTests
         Assert.True(staffed >= 18, $"serraria e pedreira com gente em so {staffed}/20 seeds");
     }
 
-    /// <summary>Quebra de poço: a água por trabalhador cai a zero. A água encarece e o trabalho na fazenda passa a valer
-    /// mais que no controle, então a fatia da população que trabalha lá é maior (fatia, não contagem: sem água morre
-    /// gente, e uma população menor confundiria a comparação).</summary>
+    /// <summary>Poço fraco: a água por trabalhador cai de 8 para 3. A água encarece e o trabalho na fazenda passa a valer
+    /// mais que no controle, então a fatia da população que trabalha lá é maior (fatia, não contagem: com menos água morre
+    /// gente, e uma população menor confundiria a comparação). Com o poço seco de vez (0) a vila inteira morre de sede em
+    /// cem dias; o teste antigo passava porque os mortos continuavam na folha da fazenda e contavam como empregados
+    /// (AD-128). O efeito real é mais fraco que o artefato: 16 de 20 seeds, limiar em 15 (acaso: 2%).</summary>
     [Fact]
-    public void A_dry_well_raises_the_share_of_people_working_the_farm_above_the_control()
+    public void A_weak_well_raises_the_share_of_people_working_the_farm_above_the_control()
     {
         int more = 0;
         for (int seed = 1; seed <= 20; seed++)
         {
             var (control, controlClock) = LoadWith(seed, population: 40);
             var (dry, dryClock) = LoadWith(seed, population: 40, node =>
-                node["Recipes"]!["1"]!["Outputs"] = new JsonObject { ["1"] = 10, ["2"] = 0 });
+                node["Recipes"]!["1"]!["Outputs"] = new JsonObject { ["1"] = 10, ["2"] = 3 });
             double controlShare = 0, dryShare = 0;
             for (int day = 0; day < 300; day++)
             {
@@ -183,7 +185,7 @@ public class EconomyDepthScenarioTests
             if (dryShare > controlShare) more++;
         }
 
-        Assert.True(more >= 18, $"fatia maior na fazenda so em {more}/20 seeds");
+        Assert.True(more >= 15, $"fatia maior na fazenda so em {more}/20 seeds");
     }
 
     private static string FindRepoRoot()

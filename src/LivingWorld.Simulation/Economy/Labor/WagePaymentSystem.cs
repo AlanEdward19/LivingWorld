@@ -41,6 +41,10 @@ public sealed class WagePaymentSystem : ISimulationSystem
             }
 
             long totalDue = due.Sum(d => d.Wage.Amount);
+            // Folha que não fecha marca o empregador; a marca cai quando o caixa volta a cobrir a folha (ou, sem ninguém na
+            // folha, quando há caixa para um salário: é o que deixa a oficina falida recontratar depois de se recuperar).
+            long needed = totalDue > 0 ? totalDue : rules.WageByProfession.Count == 0 ? 0 : rules.WageByProfession.Values.Min();
+            workplace.SetPayrollFailed(workplace.PayrollFailed ? workplace.Treasury.Amount < needed : totalDue > 0 && workplace.Treasury.Amount < totalDue);
             if (totalDue <= 0) continue;
 
             // Caixa curto: todos recebem a mesma fração do que lhes é devido (empregador que não fecha a folha

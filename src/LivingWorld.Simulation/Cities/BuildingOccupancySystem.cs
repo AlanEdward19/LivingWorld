@@ -26,8 +26,13 @@ public sealed class BuildingOccupancySystem : ISimulationSystem
 
     public void Tick(WorldState world, TickContext ctx)
     {
-        foreach (var npc in world.Npcs)
+        var npcs = world.Npcs;
+        for (int i = 0; i < npcs.Count; i++)
         {
+            var npc = npcs[i];
+            // Só dormir e trabalhar põem alguém dentro: quem está fora fazendo outra coisa não tem o que resolver.
+            if (npc.Interior is null && npc.CurrentAction is not (ActionType.Sleep or ActionType.Work)) continue;
+
             var target = TargetBuilding(world, npc);
             if (target is null)
             {

@@ -44,7 +44,7 @@ public sealed class OutbreakSystem : ISimulationSystem
             var profile = rules.Diseases.FirstOrDefault(d => d.Id == infection.Disease);
             if (profile is null || world.FindNpc(infection.Npc) is not { IsAlive: true } npc) continue;
 
-            double roll = ctx.Rng($"disease-outcome-{infection.Npc.Value}-{infection.Disease}-{infection.EndTick}").NextDouble();
+            double roll = ctx.OneShot($"disease-outcome-{infection.Npc.Value}-{infection.Disease}-{infection.EndTick}").NextDouble();
             if (roll < profile.Lethality)
             {
                 ctx.LogEvent(WorldEventKind.Disease, $"{npc.Id.Value}|{profile.Id}", sourceSystem: SystemName);
@@ -77,7 +77,7 @@ public sealed class OutbreakSystem : ISimulationSystem
                 if (other.Id == source.Id || world.IsInfected(other.Id, profile.Id) || world.IsImmune(other.Id, profile.Id)) continue;
                 if (caught.Any(c => c.Npc == other.Id && c.Profile.Id == profile.Id)) continue;
 
-                double roll = ctx.Rng($"contagion-{source.Id.Value}-{other.Id.Value}-{day}").NextDouble();
+                double roll = ctx.OneShot($"contagion-{source.Id.Value}-{other.Id.Value}-{day}").NextDouble();
                 if (roll < profile.ContagionPerContactDay) caught.Add((other.Id, profile));
             }
         }
@@ -91,7 +91,7 @@ public sealed class OutbreakSystem : ISimulationSystem
         foreach (var profile in rules.Diseases.OrderBy(d => d.Id))
         {
             if (world.Infections.Any(i => i.Disease == profile.Id)) continue;
-            if (!(ctx.Rng($"outbreak-{profile.Id}-{day}").NextDouble() < rules.OutbreakDailyChance)) continue; // negado: NaN nunca dispara
+            if (!(ctx.OneShot($"outbreak-{profile.Id}-{day}").NextDouble() < rules.OutbreakDailyChance)) continue; // negado: NaN nunca dispara
 
             // a maior cidade acima do limiar (empate: menor id de cidade), e nela o paciente zero é sorteado entre os vivos
             var crowded = world.Npcs.Where(n => n.IsAlive).GroupBy(n => n.City)
@@ -101,7 +101,7 @@ public sealed class OutbreakSystem : ISimulationSystem
                 .FirstOrDefault();
             if (crowded.Members is null) continue;
 
-            int pick = (int)(ctx.Rng($"outbreak-zero-{profile.Id}-{day}").NextDouble() * crowded.Members.Count);
+            int pick = (int)(ctx.OneShot($"outbreak-zero-{profile.Id}-{day}").NextDouble() * crowded.Members.Count);
             var patientZero = crowded.Members[Math.Min(pick, crowded.Members.Count - 1)];
             if (world.IsImmune(patientZero.Id, profile.Id)) continue;
 

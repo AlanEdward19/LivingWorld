@@ -40,6 +40,7 @@ public sealed class TradeLedgerSystem : ISimulationSystem
         int hoursPerDay = world.CurrentDate.Calendar.HoursPerDay;
         if (ctx.CurrentTick % hoursPerDay == 0)
             world.CompactTradeLedger(ctx.CurrentTick / hoursPerDay);
+        world.CompactTreasuryLedger(ctx.CurrentTick / hoursPerDay);
     }
 
     /// <summary>Quem atende a oficina na hora: o empregado vivo de menor id que está no local dela. Sem ninguém, a

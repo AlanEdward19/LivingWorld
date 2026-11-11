@@ -18,8 +18,15 @@ namespace LivingWorld.Simulation.Cities.Queries;
 /// nenhum campo é cacheado, então não existe divergência incremental-vs-recompute possível.</summary>
 public static class CityPopulationQuery
 {
-    public static long Population(WorldState world, CityId city) =>
-        MaterializedAlive(world, city).LongCount() + PoolOf(world, city).Count;
+    public static long Population(WorldState world, CityId city)
+    {
+        // Mesmo filtro de MaterializedAlive, em laço direto: o passeio ambiente pede esta contagem todo tick.
+        long alive = 0;
+        var npcs = world.Npcs;
+        for (int i = 0; i < npcs.Count; i++)
+            if (npcs[i].IsAlive && npcs[i].City == city) alive++;
+        return alive + PoolOf(world, city).Count;
+    }
 
     public static long Wealth(WorldState world, CityId city) =>
         MaterializedAlive(world, city).Sum(n => n.Wallet.Amount) + PoolOf(world, city).WealthSum;
