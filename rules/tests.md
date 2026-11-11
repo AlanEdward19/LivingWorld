@@ -31,6 +31,12 @@ after 100 years with seed 42:
 ```
 Valor exato muda a cada ajuste de regra e gera teste que só sabe reclamar.
 
+## Corrida compartilhada (ADR-0044)
+A mesma simulação (cenário, seed, regras, horizonte) pode servir vários testes: simule uma vez num `Lazy` estático e
+entregue **valores observados**, nunca o mundo vivo. Teste que muta o mundo roda num mundo próprio. Toda corrida
+compartilhada tem teste de equivalência (hash canônico igual ao da corrida isolada). Sem disco, sem cortar horizonte,
+seeds ou asserção; a repetição de um teste de determinismo continua sendo uma simulação nova.
+
 ## Nunca
 - Testar contra LLM real no gate. Provider real fica atrás de flag, fora do `verify.sh`.
 - `Assert.True(true)` disfarçado: teste que passaria com o código deletado.

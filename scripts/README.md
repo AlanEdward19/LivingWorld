@@ -5,7 +5,7 @@ dá saída 0/1 estável para os eval gates.
 
 | Script | Faz | Flags |
 |---|---|---|
-| `test.sh` | `dotnet test` Release, Unit sem `Category=Scenario` (~1 min) | `--watch`, `--filter <padrão>`, `--scenarios`, `--all`, `--project integration\|longrunning` |
+| `test.sh` | `dotnet test` Release, Unit sem `Category=Scenario` (~1 min) | `--watch`, `--filter <padrão>`, `--scenarios`, `--all`, `--project integration\|longrunning`, `--heavy`, `--no-build` |
 | `lint.sh` | `dotnet format` | `--fix` (aplica) |
 | `build.sh` | `dotnet build -c Release -warnaserror` (sem web) | — |
 | `check-docs.sh` | Falha se algum `.md` passar de 100 linhas | — |
@@ -16,7 +16,7 @@ dá saída 0/1 estável para os eval gates.
 | `profile.sh` | Perfil por sistema do tick (#158): tempo e bytes por sistema, despertares sem efeito e causa de cada agendamento; não é gate | `[--pop N] [--ticks N]` |
 | `civ-report.sh` | Observatório de civilização (#112): N seeds × X anos em paralelo, sem persistência, série anual em JSON (`docs/domain/civilization-observatory.md`) | `[cenário] [seed-inicial] [seeds] [anos] [saída]` |
 | `refresh-world-hashes.sh` | Regrava explicitamente goldens e pins após mudança de comportamento registrada em AD/ADR | — |
-| `verify.sh` | **Gate**: check-docs + build + lint + test rápido | `--full` (+ cenários pesados) |
+| `verify.sh` | **Gate**: check-docs + build (uma vez) + lint e test rápido em paralelo; `--full` roda Unit, Integration e LongRunning em paralelo (logs por suíte) e o `LongRunning.Performance` sozinho no fim | `--full`, `--nightly` (+ Heavy) |
 
 Rode via `bash scripts/<x>.sh` (Git Bash no Windows).
 Cenários pesados ficam fora do gate: `bash scripts/test.sh --scenarios` (Unit) ou `--project longrunning`.
