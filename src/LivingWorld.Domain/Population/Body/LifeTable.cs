@@ -91,7 +91,7 @@ public sealed class LifeTable
     [
         new LifeTableBracket(0, 0, 0.20),
         new LifeTableBracket(1, 4, 0.05),
-        new LifeTableBracket(5, 9, 0.016),
+        new LifeTableBracket(5, 9, 0.010), // 0,016 passava até da Coale-Demeny Oeste de e0 = 25 (conferência AD-132)
         new LifeTableBracket(10, 14, 0.008),
         new LifeTableBracket(15, 19, 0.009),
         new LifeTableBracket(20, 29, 0.011),

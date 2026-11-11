@@ -133,7 +133,7 @@ public class SocialAndSurvivalRealismTests
     {
         var legacy = NeedsRules.Create(2.0, 3.0, 1.5, 1.0, 70, 10, true, 5.0, 0.5).Value!;
         Assert.Equal(50, legacy.StarvationTicks);
-        Assert.Equal(21 * 24, ScenarioRunner.DefaultNeedsRules.StarvationTicks);
+        Assert.Equal(45 * 24, ScenarioRunner.DefaultNeedsRules.StarvationTicks); // jejum total: seis semanas a dois meses
     }
 
     private static (WorldState World, Household Home, Npc Grown, Npc? Child) DestituteHome(bool needChild)

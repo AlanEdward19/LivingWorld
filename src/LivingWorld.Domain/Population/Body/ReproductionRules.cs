@@ -47,16 +47,17 @@ public sealed record ReproductionRules(
         TermMeanDays: 268, TermStdDevDays: 9, TermMinDays: 245, TermMaxDays: 295,
         PretermBands:
         [
-            new PretermBand(0.005, 154, 181, NeonatalDeathRisk: 0.90, InfantHazardMultiplier: 3.0), // < 28 semanas
-            new PretermBand(0.012, 182, 209, NeonatalDeathRisk: 0.50, InfantHazardMultiplier: 2.5), // 28–31
-            new PretermBand(0.058, 210, 244, NeonatalDeathRisk: 0.12, InfantHazardMultiplier: 1.6), // 32–36
+            new PretermBand(0.004, 154, 181, NeonatalDeathRisk: 0.90, InfantHazardMultiplier: 3.0), // < 28 semanas
+            new PretermBand(0.0075, 182, 209, NeonatalDeathRisk: 0.50, InfantHazardMultiplier: 2.5), // 28–31
+            new PretermBand(0.0635, 210, 244, NeonatalDeathRisk: 0.12, InfantHazardMultiplier: 1.6), // 32–36 (12%: sem fonte)
         ],
-        // amenorreia da lactação ~16 meses (desmame aos 18–24): intervalo entre partos de 2 a 3 anos
-        PostpartumInfecundMeanDays: 480, PostpartumInfecundStdDevDays: 150, PostpartumInfecundMinDays: 60,
+        // amenorreia da lactação ~12 meses: com ~18,5 meses de espera, gestação e perdas (Bongaarts), o intervalo entre
+        // partos fica perto dos ~30 meses da Inglaterra pré-industrial. 480 dias davam média de 41 (conferência AD-132).
+        PostpartumInfecundMeanDays: 365, PostpartumInfecundStdDevDays: 120, PostpartumInfecundMinDays: 60,
         PregnancyLossInfecundDays: 45,
-        // perda de gestação reconhecida (Nybo Andersen, aprox.): ~10% aos 20–29, 25% aos 35–39, mais da metade depois dos 42
-        MiscarriageRiskByAge: AgeCurve.Of((13, 0.20), (18, 0.11), (20, 0.10), (29, 0.11), (33, 0.14), (37, 0.22), (40, 0.33),
-            (45, 0.55), (50, 0.70)),
+        // perda de gestação reconhecida (Nybo Andersen 2000): ~10% aos 20–29, 25% aos 35–39, 54,5% aos 42, 74,7% aos 45+
+        MiscarriageRiskByAge: AgeCurve.Of((13, 0.20), (18, 0.11), (20, 0.10), (29, 0.11), (33, 0.14), (37, 0.22), (40, 0.40),
+            (42, 0.55), (45, 0.75), (50, 0.85)),
         MiscarriageMinDays: 40, MiscarriageMaxDays: 140,
         MaternalAgeRiskFactor: AgeCurve.Of((12, 3.0), (15, 2.0), (18, 1.2), (20, 1.0), (30, 1.0), (35, 1.4), (40, 2.0), (45, 3.0)),
         ParityRiskFactor: AgeCurve.Of((0, 1.3), (1, 1.0), (3, 1.0), (5, 1.2), (8, 1.6), (12, 2.0)));

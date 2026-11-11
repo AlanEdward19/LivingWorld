@@ -106,7 +106,8 @@ public static partial class ScenarioRunner
         conceptionHealthFloor: 30,
         conceptionRelationshipFloor: 20,
         conceptionResourceFloor: new Dictionary<int, long> { [1] = 5, [2] = 5 },
-        maternalDeathRisk: 0.01,
+        // base 0,7%: com os fatores de idade e paridade o efetivo fica perto dos ~10 por mil partos da Inglaterra 1650–1800
+        maternalDeathRisk: 0.007,
         infantDeathRisk: 0.03,
         vitalityMotherWeight: 0.5,
         vitalityFatherWeight: 0.5,

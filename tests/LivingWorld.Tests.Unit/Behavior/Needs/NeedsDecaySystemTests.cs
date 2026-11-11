@@ -190,7 +190,7 @@ public class NeedsDecaySystemTests
     }
 
     [Fact]
-    public void Sleep_deprivation_drains_health_then_kills_with_exhaustion_and_rest_stops_it()
+    public void Sleep_deprivation_drains_health_down_to_a_floor_without_killing_and_rest_stops_it()
     {
         var rules = MakeRules(sleepDecay: 10);
         var (world, _, npc) = BuildWorld(seed: 1, rules);
@@ -208,9 +208,11 @@ public class NeedsDecaySystemTests
         Assert.Equal(healthAfterRest, npc.Health);
 
         npc.SetSleep(0, world.CurrentDate.TotalHours);
-        clock.Run(world, ticks: 80);
-        Assert.False(npc.IsAlive);
-        Assert.Single(sink.Events, e => e.Kind == WorldEventKind.Exhaustion);
+        clock.Run(world, ticks: 400);
+        // AD-132: não há registro de morte humana só por falta de sono; a privação debilita até um piso e não mata.
+        Assert.True(npc.IsAlive);
+        Assert.Equal(NeedsDecaySystem.ExhaustionHealthFloor, npc.Health);
+        Assert.DoesNotContain(sink.Events, e => e.Kind == WorldEventKind.Exhaustion);
     }
 
     [Fact]

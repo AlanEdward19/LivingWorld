@@ -24,7 +24,8 @@ public sealed record NeedsRules(
         StarvationSurvivalHours > 0 ? (long)Math.Ceiling(StarvationSurvivalHours)
         : HungerDecayPerHour > 0 ? (long)Math.Ceiling(100.0 / HungerDecayPerHour) : long.MaxValue;
 
-    public const double DefaultStarvationSurvivalHours = 21 * 24;
+    /// <summary>45 dias: jejum total leva de seis semanas a dois meses para matar (grevistas de fome: 45 a 61 dias).</summary>
+    public const double DefaultStarvationSurvivalHours = 45 * 24;
 
     public static Result<NeedsRules> Create(
         double hungerDecayPerHour, double thirstDecayPerHour, double sleepDecayPerHour, double socialDecayPerHour,
