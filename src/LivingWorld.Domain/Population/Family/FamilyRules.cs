@@ -41,6 +41,10 @@ public sealed record FamilyRules(
     /// (mesmo espírito de <see cref="RateGene"/>.Spread).</summary>
     private const double MidpointValue = 50.0;
 
+    /// <summary>Vida conjugal (AD-136): desgaste, traição, separação, luto e tabu de parentesco. Padrão: <see
+    /// cref="UnionRules.Medieval"/>; snapshot sem o campo abre com ele.</summary>
+    public UnionRules Unions { get; init; } = UnionRules.Medieval;
+
     public static Result<FamilyRules> Create(
         IReadOnlyDictionary<(RelationshipEventType Type, RelationshipAxis Axis), double> relationshipDeltas,
         double decayPerDay,
@@ -212,5 +216,8 @@ public sealed record FamilyRules(
         UpbringingWealthWeight: 0.0,
         EnvironmentalWealthChannelEnabled: false,
         NeutralDriftEnabled: false,
-        VitalityMortalitySelectionEnabled: true);
+        VitalityMortalitySelectionEnabled: true)
+    {
+        Unions = UnionRules.Disabled,
+    };
 }

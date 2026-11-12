@@ -43,6 +43,9 @@ public sealed record SkillsRules(
     /// cref="SkillLearningRules.Ageless"/> reproduz o modelo sem idade.</summary>
     public SkillLearningRules Learning { get; init; } = SkillLearningRules.Default;
 
+    /// <summary>Como o ofício nasce e quanto combinar com ele pesa (AD-136). Padrão: <see cref="VocationRules.Medieval"/>.</summary>
+    public VocationRules Vocation { get; init; } = VocationRules.Medieval;
+
     /// <summary>Habilidades de ofício: as praticadas por alguma profissão, em ordem de id (sem a de ensino).</summary>
     public SkillType[] WorkSkills() => SkillByProfession.Values
         .Where(s => s != TeachingSkill).Distinct().OrderBy(s => s.Id).ToArray();

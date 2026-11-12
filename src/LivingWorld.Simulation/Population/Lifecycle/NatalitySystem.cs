@@ -68,7 +68,7 @@ public sealed class NatalitySystem : ISimulationSystem
             var household = mother.Household is { } householdId ? world.FindHousehold(householdId) : null;
             if (household is null) continue;
 
-            Conceive(world, ctx, mother, father, household, motherAge, rng);
+            Conceive(world, ctx, mother, UnionSystem.BiologicalFather(world, ctx, mother, father), household, motherAge, rng); // AD-136: filho do amante
         }
     }
 
@@ -191,7 +191,7 @@ public sealed class NatalitySystem : ISimulationSystem
             ? Appearance.Inherit(motherLook, father?.Appearance ?? motherLook, ctx.StreamFor("appearance", babyId.Value),
                 appearanceRules.Heritability)
             : null;
-        var profession = world.PopulationCatalog.RollProfession(ctx.StreamFor("profession", babyId.Value));
+        var profession = ProfessionType.None; // ninguém nasce com ofício: escolhe na juventude (AD-136, VocationMechanic)
         var rateGene = RateGene.Inherit(
             mother.RateGene, father?.RateGene ?? mother.RateGene, ctx.StreamFor("rategene", babyId.Value));
         double vitality = HeredityService.InheritVitality(

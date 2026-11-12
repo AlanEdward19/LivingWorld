@@ -19,7 +19,7 @@ namespace LivingWorld.Simulation.Population.Skills;
 /// (escalonado por id) a habilidade sem uso e a manual da velhice perdem um pouco, e a criança registra quem a está
 /// criando; ao virar adulta, a personalidade recebe o ambiente compartilhado desses cuidadores (<see cref="RearingRules"/>).
 /// <c>Midshift</c>, mesma posição de <see cref="SkillPracticeSystem"/> (antes de <see cref="ProductionSystem"/>).</summary>
-[LivingCapability("SKILLS")]
+[LivingCapability("SKILLS", Events = [LivingWorld.Domain.History.WorldEventKind.VocationChosen])]
 [RunsAfter(typeof(EmploymentSystem))]
 public sealed class SkillTeachingSystem : ISimulationSystem
 {
@@ -77,6 +77,16 @@ public sealed class SkillTeachingSystem : ISimulationSystem
                 SampleRearing(world, npc);
             else if (stage != LifeStage.Child && npc.Rearing is { } record)
                 npc.ConcludeRearing(_rearing.Apply(npc.Personality, record, world.FamilyRules.PersonalityHeritability));
+
+            var vocation = _rules.Vocation;
+            if (vocation.Enabled)
+            {
+                // gosto por ofício cedo na vida (ainda com os pais por perto) e escolha do ofício na juventude (AD-136)
+                if (npc.Vocation is null && Due(day, npc, learning.MaintenanceEveryDays))
+                    npc.SetVocation(VocationMechanic.NewTaste(world, ctx, npc, vocation, chosen: stage != LifeStage.Child));
+                if (stage == LifeStage.Child && age >= learning.ApprenticeAgeYears && npc.Vocation is not { Chosen: true })
+                    VocationMechanic.Choose(world, ctx, npc, _rules, _lifeStageRules);
+            }
 
             double aptitude = learning.Aptitude(age);
             if (aptitude > 0)
@@ -157,6 +167,9 @@ public sealed class SkillTeachingSystem : ISimulationSystem
 
     private SkillType? Inclination(Npc youth)
     {
+        // quem já escolheu o ofício (AD-136) aprende o dele; antes da escolha, o que mais sabe
+        if (youth.Vocation is { Chosen: true } && _rules.SkillByProfession.TryGetValue(youth.Profession.Id, out var chosen))
+            return chosen;
         SkillType? best = null;
         double bestLevel = 0;
         foreach (var skill in _workSkills)
@@ -201,7 +214,9 @@ public sealed class SkillTeachingSystem : ISimulationSystem
     /// nem vaga (o cenário que não tem escola declara taxa 0).</summary>
     private void GainFromSchool(Npc npc, double aptitude)
     {
-        if (!_rules.SkillByProfession.TryGetValue(npc.Profession.Id, out var skillType)) return;
+        // sem ofício ainda (AD-136), a escola ensina aquilo para que a criança pende
+        SkillType? target = _rules.SkillByProfession.TryGetValue(npc.Profession.Id, out var own) ? own : Inclination(npc);
+        if (target is not { } skillType) return;
         double gain = _rules.Gain(npc.Skills.Get(skillType), SkillGainSource.School, npc.RateGene.Value) * aptitude;
         if (gain > 0) _pending.Add((skillType, gain));
     }

@@ -28,8 +28,12 @@ public sealed class DemographyTally(WorldState world) : IWorldEventSink
     public Dictionary<long, (long BirthTick, long? DeathAgeHours)> Babies { get; } = [];
     public Dictionary<long, List<long>> BirthTicksByMother { get; } = [];
 
+    /// <summary>Vida familiar da mesma rodada (AD-136), medida desde o início.</summary>
+    public FamilyLifeTally Family { get; } = new(world);
+
     public void Record(WorldEvent evt)
     {
+        Family.Record(evt);
         if (evt.Tick < MeasureFromTick) return;
         switch (evt.Kind)
         {
@@ -104,6 +108,7 @@ public static class DemographyReport
         for (int m = 0; m < months; m++)
         {
             clock.Run(world, world.Calendar.HoursPerMonth);
+            tally.Family.SampleMonth();
             if (m >= warmupYears * world.Calendar.MonthsPerYear) tally.SampleMonth();
             minAlive = Math.Min(minAlive, world.AliveNpcIndex.Alive.Count);
             if (world.AliveNpcIndex.Alive.Count == 0) break;
@@ -180,6 +185,7 @@ public static class DemographyReport
         }
 
         sb.AppendLine();
+        sb.Append(FamilyLifeTally.Summarize(runs.Select(r => r.Tally.Family).ToList()));
         sb.Append("seeds(final)=").AppendLine(string.Join(",", runs.Select(r => r.FinalAlive)));
         return sb.ToString();
     }

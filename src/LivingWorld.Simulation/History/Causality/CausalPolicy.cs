@@ -32,6 +32,7 @@ public static class CausalPolicy
         // Família
         WorldEventKind.CourtshipSucceeded, WorldEventKind.Marriage, WorldEventKind.OrphanTakenIn,
         WorldEventKind.PowerInherited, WorldEventKind.MilestoneRegressed,
+        WorldEventKind.UnionEnded, WorldEventKind.AffairDiscovered,
         // Cidade, saúde e tecnologia
         WorldEventKind.SettlementFounded, WorldEventKind.CityMerged, WorldEventKind.OutbreakStarted,
         WorldEventKind.TechnologyDiscovered, WorldEventKind.TechnologyAdopted,
@@ -53,6 +54,7 @@ public static class CausalPolicy
     [
         WorldEventKind.Birth, WorldEventKind.StillBirth, WorldEventKind.PlantMatured,
         WorldEventKind.CourtshipStarted, WorldEventKind.CourtshipRejected,
+        WorldEventKind.AffairStarted, WorldEventKind.VocationChosen,
         WorldEventKind.ResourceLost, WorldEventKind.Minted, WorldEventKind.Destroyed,
         WorldEventKind.Trade, WorldEventKind.BookLost,
         WorldEventKind.ExtraordinaryUseAttempted, WorldEventKind.ExtraordinaryAcquired,

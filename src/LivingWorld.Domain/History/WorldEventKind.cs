@@ -202,4 +202,17 @@ public enum WorldEventKind
 
     /// <summary>Um local de trabalho autorado foi fundado no mundo em andamento — payload: <c>localId|cidadeId|tipo|x|y</c>.</summary>
     AuthoredWorkplaceFounded,
+
+    /// <summary>Uma união acabou em vida (AD-136) — payload: <c>quemSaiuId|quemFicouId|modo|domicilioNovoId</c> (modo: separacao,
+    /// abandono, anulacao, divorcio).</summary>
+    UnionEnded,
+
+    /// <summary>Um casado começou um caso (AD-136) — payload: <c>infielId|amanteId</c>.</summary>
+    AffairStarted,
+
+    /// <summary>O traído soube do caso (AD-136) — payload: <c>traidoId|infielId|amanteId|desfecho</c> (perdao, separacao, violencia).</summary>
+    AffairDiscovered,
+
+    /// <summary>Um jovem escolheu o ofício (AD-136) — payload: <c>npcId|profissao|profissaoDaCasa|pressionado(0/1)|pressao</c>.</summary>
+    VocationChosen,
 }

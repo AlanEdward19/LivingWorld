@@ -96,14 +96,17 @@ public class MarriageSystemTests
     }
 
     [Fact]
-    public void Marry_creates_new_household_with_marriage_initial_stock()
+    public void Marry_creates_new_household_with_what_the_spouses_bring_from_home()
     {
+        // AD-136 (achado 18): o casamento não cria comida; o casal leva o que cada um tinha em casa
         var rules = RulesWithMarriageStock(foodAmount: 150);
         var world = BuildWorld(rules);
         var sink = new EventSink();
         var ctx = new TickContext(world, world.Rng, world.Scheduler, sink);
         var a = MakeNpc(world, Sex.Male);
         var b = MakeNpc(world, Sex.Female);
+        SoloHousehold(world, a).Deposit(new ResourceType(1), 90);
+        SoloHousehold(world, b).Deposit(new ResourceType(1), 60);
 
         MarriageSystem.Marry(world, ctx, a, b);
 
