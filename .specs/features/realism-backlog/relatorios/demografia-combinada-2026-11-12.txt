@@ -1,0 +1,42 @@
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:03.91
+seeds=20 anos=100 aquecimento=10
+pop_final media=151.1 min=86 max=262 extintas=0 pop_min_media=83.0
+natalidade_bruta=40.8/mil mortalidade_bruta=37.0/mil nascimentos=11224 mortes=10177 natimortos=2882 mortes_maternas=110
+1q0_coorte=266/mil (n=11117) 1q0_periodo=260/mil l15_coorte=0.501 (n=9853) e0=26.7 TFR=5.50
+intervalo_partos_meses media=32.3 mediana=27.3 n=9004
+razao_sexo_nascer=103.3 meninos/100 meninas
+nascimentos_por_mes=7.1,7.9,7.9,8.9,12.6,10.8,9.2,8.0,7.0,7.1,6.7,6.9 (%)
+maior_dia_do_ano_por_seed=1.2% dos nascimentos  mortes_no_aniversario=0.6%
+ASFR(5a)=15-19:0.104 20-24:0.250 25-29:0.264 30-34:0.242 35-39:0.170 40-44:0.063 45-49:0.007 
+unioes casamentos=3573 recasamentos=1214 (34.0%) terminadas=2844 por_morte=87.4% modos: abandono=164 anulacao=24 morte=2487 separacao=169 duracao_media_anos=16.2
+casos iniciados=1772 descobertos=1222 desfechos: perdao=902 separacao=182 violencia=112 violencia_separacao=26 filhos_de_outro_pai=23 (0.2% dos nascidos de casadas)
+criancas acompanhadas=12349 em_mais_de_uma_casa=17.7% com_padrasto_ou_madrasta=14.5% pares_de_irmaos=14524 criados_separados(>=12m)=197 (1.4%) meios_irmaos=1862
+oficio segue_o_da_casa=84.1% (n=4365) pressao_alta=84.9% (n=3302) pressao_baixa=81.5% (n=1063) escolhas=6115 sob_pressao=861
+casal correlacao_idade=0.52 correlacao_criacao=0.27 idade_media_marido=29.0 esposa=22.5
+seeds(final)=131,167,143,160,132,119,145,170,262,86,126,144,147,156,130,180,151,153,137,182
+corpo_homens 0a:0.62m/6.0kg 1a:0.81m/11.1kg 5a:1.11m/18.8kg 10a:1.36m/29.8kg 15a:1.64m/50.5kg 20a:1.71m/59.9kg 40a:1.71m/64.5kg 70a:1.67m/60.5kg 
+corpo_mulheres 0a:0.61m/5.7kg 1a:0.79m/10.5kg 5a:1.09m/18.1kg 10a:1.35m/29.7kg 15a:1.57m/47.7kg 20a:1.59m/50.9kg 40a:1.59m/56.0kg 70a:1.55m/53.4kg 
+saude_vivos 0-19:1.6% 20-39:0.5% 40-59:1.5% 60-79:8.1% 80-100:88.3%
+desnutricao_media_vivos=0.066 lactentes_sem_leite=2.4% (n=17473)
+mortes_1o_ano_por_causa Death:2757 Starvation:232
+mortes_por_causa Death:9291(91.3%) Dehydration:29(0.3%) MaternalDeath:110(1.1%) Starvation:747(7.3%)
+variancia_por_geracao (vitalidade | gene_taxa | estatura_adulta_dentro_do_sexo, n) g0:302|0.0298|39.7cm²(n=1873) g1:323|0.0308|44.1cm²(n=2723) g2:288|0.0312|41.0cm²(n=3722) g3:285|0.0291|44.1cm²(n=3681) g4:293|0.0279|32.8cm²(n=1864) g5:309|0.0357|0.0cm²(n=196) 
+sobrevivencia_1o_ano mae_morta_antes_6m=0.322 (n=152) demais=0.740 (n=10965)
+comida ano tipico (media por seed-ano, meses 0..11):
+  producao=0,0,0,0,0,0,58486,19371,4985,0,0,0
+  consumo=3593,3590,3590,3583,3583,3583,3777,3773,3719,3660,3624,3609
+  estoque_fim_mes=115144,110007,104939,99946,95019,90160,143658,157317,156459,132311,126872,121557
+  mortes_fome_por_mes_do_ano=54,66,58,49,118,100,49,24,37,26,82,84
+consumo_por_pessoa_ano=286 producao/consumo=1.896 producao_por_lavrador_ano=1141
+rendimento_por_semente=4.51 (colhido=149115189 semeado=33062600)
+anos_de_quebra=31 em 1800 seed-anos; por ano de quebra: fome=6.61 furtos=0.00 ajudas=583.3 esmolas=268.4; por ano normal: fome=0.30 furtos=0.00 ajudas=505.8 esmolas=111.5
+mortes_fome_por_decada(soma seeds)=100,114,45,50,34,58,149,113,131,53,0
+mortes_sede_por_decada(soma seeds)=22,7,3,1,3,3,5,5,2,0,0
+coelhos_por_decada=178,182,182,182,182,182,182,182,182,182,0
+lobos_por_decada=0,0,0,0,0,0,0,0,0,0,0
+plantas_por_decada=800,800,800,800,800,800,800,800,800,800,0
