@@ -92,12 +92,12 @@ public static partial class ScenarioRunner
         cap: 100,
         baseRateBySource: new Dictionary<SkillGainSource, double>
         {
-            [SkillGainSource.Practice] = 0.3,
-            [SkillGainSource.DeliberateTraining] = 0.4,
-            [SkillGainSource.School] = 0.2,
-            [SkillGainSource.Parental] = 0.15,
-            [SkillGainSource.Observation] = 0.05,
-            [SkillGainSource.Tutoring] = 0.25,
+            [SkillGainSource.Practice] = 0.02, // AD-132: maestria em anos de prática, não meses
+            [SkillGainSource.DeliberateTraining] = 0.03,
+            [SkillGainSource.School] = 0.0, // vila medieval sem escola
+            [SkillGainSource.Parental] = 0.025, // o que a casa ensina, até metade do que os adultos dela sabem
+            [SkillGainSource.Observation] = 0.004,
+            [SkillGainSource.Tutoring] = 0.012,
         },
         skillByProfession: new Dictionary<int, SkillType> { [1] = new SkillType(0), [2] = new SkillType(7) },
         teachingSkill: new SkillType(6))

@@ -151,8 +151,10 @@ public class FamilyPairedScenarioTests
     /// Wake esparso (PERF-08) pode reduzir concepções observadas vs. grid horário cheio; com a população
     /// sobrevivendo (B1) o total observado passa de 2x o esperado bruto. Depois que a vila passou a
     /// comer (salário proporcional, ajuda mútua, compra de casa), o default mede ~40 nascimentos em
-    /// 10 anos com ~90 pessoas: natalidade bruta ~45‰, dentro da faixa pré-industrial (35–50‰); daí 150%.</summary>
-    private const double BirthCountToleranceFraction = 1.5;
+    /// 10 anos com ~90 pessoas: natalidade bruta ~45‰, dentro da faixa pré-industrial (35–50‰); daí 150%.
+    /// AD-132 (habilidade por idade) mudou a economia da vila e a seed padrão passou a 44 nascimentos (~49‰, ainda dentro
+    /// de 35–50‰), um acima do teto de 150% (41); 175% (teto 45) cobre o topo da faixa pré-industrial, não mais.</summary>
+    private const double BirthCountToleranceFraction = 1.75;
 
     [Fact]
     [Trait("Category", "Scenario")]

@@ -2,6 +2,7 @@ using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Skills;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Needs;
 using LivingWorld.Simulation.Cities;
@@ -57,6 +58,7 @@ public static class PopulationSeeder
             npc.ConfigureNeedDecay(world.NeedsRules, world.CurrentDate.TotalHours);
             world.AddNpc(npc);
             LivingWorld.Simulation.Ontogeny.OntogenyMechanic.Initialize(world, npc);
+            SeedPracticedSkill(world, npc);
         }
         for (int i = 0; i < generated.Households.Count; i++)
         {
@@ -74,6 +76,20 @@ public static class PopulationSeeder
             MortalitySystem.SchedulePlannedDeath(world, ctx, npc);
             NpcWakeScheduler.ScheduleWake(world, ctx, npc.Id.Value, world.CurrentDate.TotalHours + 1);
         }
+    }
+
+    /// <summary>Quem já existe quando o mundo começa não teve a infância nem os anos de ofício simulados (AD-132): recebe, no
+    /// ofício da própria profissão, a habilidade esperada de quem o praticou desde criança sob as regras de aprendizado do
+    /// cenário (<see cref="SkillLearningRules.ExpectedPracticedSkill"/>). Habilidade autorada vence.</summary>
+    private static void SeedPracticedSkill(WorldState world, Npc npc)
+    {
+        var rules = LivingWorld.Simulation.Scenarios.ScenarioRunner.DefaultSkillsRules;
+        if (npc.Skills.Values.Count > 0 || !rules.SkillByProfession.TryGetValue(npc.Profession.Id, out var skill)) return;
+        var calendar = world.CurrentDate.Calendar;
+        double age = (double)(world.CurrentDate.TotalHours - npc.BirthDate.TotalHours) / calendar.HoursPerYear;
+        double level = rules.Learning.ExpectedPracticedSkill(
+            age, rules.BaseRateBySource.GetValueOrDefault(SkillGainSource.Practice), rules.Cap, calendar.DaysPerMonth, calendar.MonthsPerYear);
+        if (level > 0) npc.GainSkill(skill, level, rules.Cap);
     }
 
     private static City ResolvePlacementCity(WorldState world, CityId requestedCity, CellCoord villageLocation)

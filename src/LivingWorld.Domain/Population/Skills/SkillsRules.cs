@@ -21,7 +21,8 @@ public sealed record SkillsRules(
         IReadOnlyDictionary<SkillGainSource, double> baseRateBySource,
         IReadOnlyDictionary<int, SkillType> skillByProfession,
         SkillType teachingSkill,
-        bool enabled = true)
+        bool enabled = true,
+        SkillLearningRules? learning = null)
     {
         if (cap <= 0) return Result<SkillsRules>.Fail("Cap: deve ser > 0");
 
@@ -32,8 +33,23 @@ public sealed record SkillsRules(
         if (skillByProfession.Count == 0)
             return Result<SkillsRules>.Fail("SkillByProfession: não pode ser vazio");
 
-        return Result<SkillsRules>.Ok(new SkillsRules(enabled, cap, baseRateBySource, skillByProfession, teachingSkill));
+        return Result<SkillsRules>.Ok(new SkillsRules(enabled, cap, baseRateBySource, skillByProfession, teachingSkill)
+        {
+            Learning = learning ?? SkillLearningRules.Default,
+        });
     }
+
+    /// <summary>Idade, casa e uso (AD-132). Padrão: <see cref="SkillLearningRules.Default"/>; <see
+    /// cref="SkillLearningRules.Ageless"/> reproduz o modelo sem idade.</summary>
+    public SkillLearningRules Learning { get; init; } = SkillLearningRules.Default;
+
+    /// <summary>Habilidades de ofício: as praticadas por alguma profissão, em ordem de id (sem a de ensino).</summary>
+    public SkillType[] WorkSkills() => SkillByProfession.Values
+        .Where(s => s != TeachingSkill).Distinct().OrderBy(s => s.Id).ToArray();
+
+    /// <summary>Habilidade manual (cai com a velhice): a lista declarada ou, sem ela, toda habilidade de ofício.</summary>
+    public bool IsPhysical(SkillType skill) =>
+        Learning.PhysicalSkillIds is { } ids ? ids.Contains(skill.Id) : skill != TeachingSkill && SkillByProfession.Values.Contains(skill);
 
     /// <summary>Ganho de habilidade para a fonte <paramref name="source"/>, combinando a curva
     /// pura de retornos decrescentes com o multiplicador de taxa genético — gene multiplica

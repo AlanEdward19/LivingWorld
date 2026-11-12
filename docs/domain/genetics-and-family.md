@@ -42,7 +42,9 @@ A mutação garante variação; o termo ambiental garante que o mundo pese. Sepa
 | Parte do potencial cognitivo | Cultura, idioma, valores |
 | Temperamento básico | Habilidades, conhecimento, traumas |
 
-**Habilidade nunca é herdada** — é a oficina que faz o ferreiro, não o sangue.
+**Habilidade nunca é herdada** — é a oficina que faz o ferreiro, não o sangue. Quem cria importa (AD-132): o
+órfão criado por tios aprende o ofício deles, e o adotado se parece com os pais biológicos no herdado e com os
+adotivos no criado.
 
 ## Algoritmo genético emergente
 

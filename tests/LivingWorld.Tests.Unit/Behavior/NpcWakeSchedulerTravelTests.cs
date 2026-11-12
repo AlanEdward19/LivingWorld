@@ -83,6 +83,7 @@ public class NpcWakeSchedulerTravelTests
             from candidate in world.Npcs
             where candidate.IsAlive && candidate.Employer is not null
                 && world.LifeStageRules.LifeStageOf(candidate.AgeYears(world.CurrentDate)) == LivingWorld.Domain.Population.Body.LifeStage.Adult
+                && NextRoutineIsWork(world, candidate)
             from cell in away
             where cell != candidate.CurrentLocation
             select (candidate, cell)).First(pair =>
@@ -108,5 +109,14 @@ public class NpcWakeSchedulerTravelTests
         }
 
         Assert.Equal((now + Math.Max(1, untilWork - lead), now + untilWork), (Wake(null), Wake(ActionType.Work)));
+    }
+
+    /// <summary>Às 3 h a próxima ação da rotina deste ofício é Work (o lavrador entra às 6 h; o ferreiro às 7 h, depois de
+    /// uma hora de Idle): só nesse caso o trajeto até o trabalho antecipa o despertar.</summary>
+    private static bool NextRoutineIsWork(WorldState world, Npc npc)
+    {
+        const LivingWorld.Domain.Population.Body.LifeStage adult = LivingWorld.Domain.Population.Body.LifeStage.Adult;
+        int until = RoutineBoundaries.HoursUntilChange(world.ActionCatalog, npc.Profession, adult, hour: 3, hoursPerDay: 24);
+        return RoutineBoundaries.RoutineAt(world.ActionCatalog, npc.Profession, adult, (3 + until) % 24, 24) == ActionType.Work;
     }
 }

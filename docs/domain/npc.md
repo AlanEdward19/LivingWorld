@@ -31,7 +31,8 @@ social, agressividade, empatia — governam aprendizado, decisão e vida social.
 ## Personalidade (0–100)
 
 Extroversão, amabilidade, conscienciosidade, estabilidade emocional, abertura, ambição,
-lealdade, altruísmo, impulsividade, aversão ao risco.
+lealdade, altruísmo, impulsividade, aversão ao risco. Herdada no nascimento e, ao virar adulto,
+acrescida do ambiente compartilhado de quem de fato criou a criança (AD-132, `RearingRules`).
 
 Não é enfeite de ficha: a personalidade **modula** profissão, relações, decisão momento a
 momento, reprodução, conflito, ritmo de aprendizado, migração e tom de diálogo. Sempre como
@@ -51,14 +52,17 @@ Agricultura, caça, comércio, construção, medicina, combate, ensino, artesana
 liderança, pesquisa, tecnologia, magia. Crescem por prática, treinamento, educação, observação, tutoria, predisposição genética,
 cultura e acesso a recursos. A curva tem **retornos decrescentes**: de 10 para 20 é fácil;
 de 80 para 90 exige anos, mestre e material — mestria rara faz linhagem e instituição
-importarem.
+importarem. Desde AD-132 a idade pesa: bebê não aprende ofício; a criança ajuda em casa a partir dos ~5 anos e
+aprende dos adultos com quem mora (pais, avós, tios, quem a acolheu) até metade do que eles sabem; dos 12 anos o
+aprendiz ganha um mestre; vendo, só se aprende o que o outro sabe. A habilidade fora de uso cai ~4%/ano e a manual
+cai depois dos 55. Na vila padrão: ~6 aos 10 anos, ~28 aos 15, ~48 aos 20, ~77 aos 30, ~93 aos 50.
 
 ## Ciclo de vida
 
 | Estágio | O que muda |
 |---|---|
-| Criança | Não produz; aprende dos pais e do ambiente; atributos ainda se formando |
-| Aprendiz | Entra em ofício ou escola; habilidades sobem rápido; começa a formar relações |
+| Criança | Não produz; dos ~5 anos aprende o ofício de quem a cria; valores de quem a cria entram na personalidade |
+| Aprendiz | Dos 12 anos, com um mestre; habilidade sobe por anos, com retorno decrescente |
 | Adulto | Produtivo, reprodutivo, politicamente ativo; auge físico e de renda |
 | Idoso | Físico decai, prestígio e conhecimento sobem; ensina, lidera, transmite herança |
 

@@ -3,6 +3,7 @@ using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Population.Skills;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
@@ -59,6 +60,10 @@ public class SkillTeachingSystemTests
     }
 
     private static TickContext Ctx(WorldState world) => new(world, world.Rng, world.Scheduler);
+
+    /// <summary>Domicílio real no mundo (a casa ensina quem está em <c>Household.Members</c>); o primeiro membro é o chefe.</summary>
+    private static void Join(WorldState world, HouseholdId household, params Npc[] members) =>
+        world.AddHousehold(new Household(household, members[0].CurrentLocation, members[0].Id, members.Select(m => m.Id).ToList()));
 
     // --- DeliberateTraining (SKILL-04) ---
 
@@ -141,16 +146,20 @@ public class SkillTeachingSystemTests
 
     // --- Parental (SKILL-06) ---
 
+    // AD-132: a casa ensina o que o adulto sabe (habilidade dele), a partir da idade em que a criança já ajuda (aptidão > 0);
+    // antes bastava o pai estar empregado e a criança de 5 anos (aptidão 0 hoje) já aprendia do nada.
     [Fact]
     public void Parental_child_living_with_employed_parent_gains_skill()
     {
         var world = BuildWorld();
-        var household = new HouseholdId(1);
         var location = new CellCoord(1, 1);
+        var household = world.NextHouseholdIdAndAdvance();
         var parent = MakeNpc(
             world, 30, new ProfessionType(1), location, ActionType.Work,
             household: household, employer: new WorkplaceId(1));
-        var child = MakeNpc(world, 5, ProfessionType.None, location, ActionType.Idle, motherId: parent.Id, household: household);
+        parent.GainSkill(new SkillType(0), 60, Rules.Cap);
+        var child = MakeNpc(world, 8, ProfessionType.None, location, ActionType.Idle, motherId: parent.Id, household: household);
+        Join(world, household, parent, child);
 
         new SkillTeachingSystem(Rules, ScenarioRunner.DefaultLifeStageRules).Tick(world, Ctx(world));
 
@@ -163,11 +172,16 @@ public class SkillTeachingSystemTests
         var world = BuildWorld();
         // Locais diferentes: sem isso o pai trabalhando perto contaria como Observação (SKILL-07,
         // fonte distinta) e mascararia a ausência de ganho Parental que este teste verifica.
+        var home = world.NextHouseholdIdAndAdvance();
+        var away = world.NextHouseholdIdAndAdvance();
         var parent = MakeNpc(
             world, 30, new ProfessionType(1), new CellCoord(1, 1), ActionType.Work,
-            household: new HouseholdId(1), employer: new WorkplaceId(1));
+            household: home, employer: new WorkplaceId(1));
+        parent.GainSkill(new SkillType(0), 60, Rules.Cap);
         var child = MakeNpc(
-            world, 5, ProfessionType.None, new CellCoord(9, 9), ActionType.Idle, motherId: parent.Id, household: new HouseholdId(2));
+            world, 8, ProfessionType.None, new CellCoord(9, 9), ActionType.Idle, motherId: parent.Id, household: away);
+        Join(world, home, parent);
+        Join(world, away, child);
 
         new SkillTeachingSystem(Rules, ScenarioRunner.DefaultLifeStageRules).Tick(world, Ctx(world));
 
@@ -183,6 +197,7 @@ public class SkillTeachingSystemTests
 
         var observationWorld = BuildWorld();
         var worker = MakeNpc(observationWorld, 30, new ProfessionType(1), location, ActionType.Work);
+        worker.GainSkill(new SkillType(0), 50, Rules.Cap); // AD-132: vendo, só se aprende o que o outro sabe
         var observer = MakeNpc(observationWorld, 30, ProfessionType.None, location, ActionType.Idle);
         new SkillTeachingSystem(Rules, ScenarioRunner.DefaultLifeStageRules).Tick(observationWorld, Ctx(observationWorld));
         double observationGain = observer.Skills.Get(new SkillType(0));

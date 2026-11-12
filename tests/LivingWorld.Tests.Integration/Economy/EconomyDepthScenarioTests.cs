@@ -158,11 +158,14 @@ public class EconomyDepthScenarioTests
         Assert.True(staffed >= 18, $"serraria e pedreira com gente em so {staffed}/20 seeds");
     }
 
-    /// <summary>Poço fraco: a água por trabalhador cai de 8 para 3. A água encarece e o trabalho na fazenda passa a valer
+    /// <summary>Poço fraco: a água por trabalhador cai de 8 para 2. A água encarece e o trabalho na fazenda passa a valer
     /// mais que no controle, então a fatia da população que trabalha lá é maior (fatia, não contagem: com menos água morre
     /// gente, e uma população menor confundiria a comparação). Com o poço seco de vez (0) a vila inteira morre de sede em
     /// cem dias; o teste antigo passava porque os mortos continuavam na folha da fazenda e contavam como empregados
-    /// (AD-128). O efeito real é mais fraco que o artefato: 16 de 20 seeds, limiar em 15 (acaso: 2%).</summary>
+    /// (AD-128). O efeito real é mais fraco que o artefato: 16 de 20 seeds, limiar em 15 (acaso: 2%).
+    /// AD-132: o poço fraco passou de 3 para 2 de água por trabalhador. Com habilidade por idade e uso, o lavrador do
+    /// início sabe ~50–70 (não ~100 em um ano), a fazenda do controle já não enche o estoque de água e o preço mal se
+    /// distingue com 3 (5/20 seeds); o ofício também prende quem sabe outra coisa. Com 2 o sinal volta a mover gente.</summary>
     [Fact]
     public void A_weak_well_raises_the_share_of_people_working_the_farm_above_the_control()
     {
@@ -171,7 +174,7 @@ public class EconomyDepthScenarioTests
         {
             var (control, controlClock) = LoadWith(seed, population: 40);
             var (dry, dryClock) = LoadWith(seed, population: 40, node =>
-                node["Recipes"]!["1"]!["Outputs"] = new JsonObject { ["1"] = 10, ["2"] = 3 });
+                node["Recipes"]!["1"]!["Outputs"] = new JsonObject { ["1"] = 10, ["2"] = 2 }); // AD-132: era 3
             double controlShare = 0, dryShare = 0;
             for (int day = 0; day < 300; day++)
             {

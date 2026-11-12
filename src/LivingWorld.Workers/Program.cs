@@ -99,8 +99,9 @@ if (args.Length == 3 && args[0] == "player-hash")
     players.Act(world, "alan", LivingWorld.Domain.Behavior.ActionType.Idle);
     clock.Run(world, 48);
     players.Logout(world, "alan");
+    long? disappeared = npc.DisappearedAtTick; // depois alguém pode reencontrá-lo (PlayerSearchSystem): o tick fica o da saída
     clock.Run(world, long.Parse(args[2]));
-    Console.WriteLine($"{WorldSnapshot.CanonicalHash(world)};{npc.DisappearedAtTick}");
+    Console.WriteLine($"{WorldSnapshot.CanonicalHash(world)};{disappeared}");
     return 0;
 }
 
