@@ -36,7 +36,8 @@ public sealed partial class BehaviorDecisionSystem
         WakeReason wakeReason = WakeReason.UrgentNeed,
         ActionType? previousIntent = null,
         bool captureTrace = true,
-        ActionEligibility eligibility = default)
+        ActionEligibility eligibility = default,
+        UtilityTerm? knockout = null)
     {
         var utilityRules = PowerUtilityRules.Resolve(powerRules);
         var foresight = ctx.ForesightPreviews ?? ForesightMechanic.EmptyPreviews;
@@ -45,6 +46,7 @@ public sealed partial class BehaviorDecisionSystem
         PendingPowerInvocation? bestPending = null;
         // O rastro só é montado para quem é gravado no log de cognição; sem ele, nada de lista, fecho nem delegate por decisão
         var scored = captureTrace ? new List<(ActionType Action, double Score)>(AllActions.Length + ctx.PowerOpportunities.Count) : null;
+        var terms = captureTrace ? new List<UtilityContribution>(AllActions.Length * 4) : null;
 
         foreach (var action in AllActions)
         {
@@ -52,12 +54,7 @@ public sealed partial class BehaviorDecisionSystem
             if (!eligibility.Allows(action))
                 continue;
 
-            double score = UtilityBaseOf(ctx, action, economy, eligibility) * PersonalityWeighting.WeightOf(ctx.Personality, action)
-                + ContextFactorBonus(ctx, action, economy);
-            if (foresight.TryGetValue(action, out var preview))
-                score *= ForesightUtilityFactor(preview);
-            if (rules.HysteresisEnabled && continuityAction == action)
-                score += rules.ContinuityBonus;
+            double score = ScoreOf(ctx, action, rules, economy, continuityAction, eligibility, foresight, terms, knockout);
 
             scored?.Add((action, score));
             if (score > bestScore)
@@ -98,7 +95,7 @@ public sealed partial class BehaviorDecisionSystem
         if (scored is null)
             return new UtilityDecision(best, bestPending, NoTrace);
 
-        return TracedDecision(ctx, wakeReason, previousIntent, best, bestScore, scored, bestPending);
+        return TracedDecision(ctx, wakeReason, previousIntent, best, bestScore, scored, terms!, bestPending);
     }
 
     private static readonly Func<DecisionTrace> NoTrace = static () =>
@@ -107,21 +104,23 @@ public sealed partial class BehaviorDecisionSystem
     /// <summary>Em método próprio: o compilador aloca o fecho no início do método que o declara.</summary>
     private static UtilityDecision TracedDecision(
         DecisionContext ctx, WakeReason wakeReason, ActionType? previousIntent, ActionType best, double bestScore,
-        List<(ActionType Action, double Score)> scored, PendingPowerInvocation? bestPending) =>
-        new(best, bestPending, () => BuildDecisionTrace(ctx, wakeReason, previousIntent, best, bestScore, scored));
+        List<(ActionType Action, double Score)> scored, List<UtilityContribution> terms, PendingPowerInvocation? bestPending) =>
+        new(best, bestPending, () => BuildDecisionTrace(ctx, wakeReason, previousIntent, best, bestScore, scored, terms));
 
+    /// <summary>Rastro feito só do que decidiu (AD-138, achado 11): as pressões e os fatores são os termos da utilidade da ação
+    /// vencedora, com o peso que tiveram; os negativos são os termos que tiraram dela e as alternativas com a nota que tiveram.
+    /// Nada que não entrou na soma aparece.</summary>
     private static DecisionTrace BuildDecisionTrace(
         DecisionContext ctx,
         WakeReason wakeReason,
         ActionType? previousIntent,
         ActionType winner,
         double winningUtility,
-        List<(ActionType Action, double Score)> scored)
+        List<(ActionType Action, double Score)> scored,
+        List<UtilityContribution> terms)
     {
-        var pressures = PressureModel.DerivePressures(ctx);
-        var opportunities = OpportunityModel.DeriveOpportunities(ctx);
-
-        var topPressures = pressures
+        var winnerTerms = terms.Where(t => t.Action == winner).ToList();
+        var topPressures = PressureModel.FromTerms(winnerTerms)
             .OrderByDescending(p => p.Intensity)
             .ThenBy(p => p.Kind, StringComparer.Ordinal)
             .Take(3)
@@ -140,28 +139,34 @@ public sealed partial class BehaviorDecisionSystem
             .Select(s => s.Action)
             .ToList();
 
-        var positives = new List<string>();
-        foreach (var pressure in topPressures)
-        {
-            positives.Add($"{pressure.Kind}:{pressure.Intensity:0.#}");
-            foreach (var factor in pressure.Factors.Take(2))
-                positives.Add(factor);
-        }
+        var positives = winnerTerms
+            .Where(t => t.Value > 0)
+            .OrderByDescending(t => t.Value)
+            .ThenBy(t => t.Term)
+            .Select(t => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{t.Term}:{t.Value:+0.#;-0.#}"))
+            .ToList();
 
-        foreach (var opp in opportunities.Take(2))
-            positives.Add(opp.Kind);
-
-        var negatives = new List<string>();
+        var negatives = winnerTerms
+            .Where(t => t.Value < 0)
+            .OrderBy(t => t.Value)
+            .ThenBy(t => t.Term)
+            .Select(t => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{t.Term}:{t.Value:+0.#;-0.#}"))
+            .ToList();
         var blocking = new List<string>();
         foreach (var alt in ordered.Where(s => s.Action != winner).Take(3))
         {
-            negatives.Add($"{alt.Action}:{alt.Score:0.#}");
+            negatives.Add(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"vs {alt.Action}:{alt.Score:0.#}"));
             if (alt.Score < 0 || alt.Score + 25 < winningUtility)
                 blocking.Add($"{alt.Action}:outscored");
         }
 
-        if (ctx.Household is null && winner is ActionType.Eat or ActionType.Buy)
-            blocking.Add("NoHousehold");
+        // só as oportunidades que concorreram (candidatos de poder pontuados); o resto do que o NPC sabe não entrou na escolha
+        var opportunities = winner == ActionType.UsePower || scored.Any(s => s.Action == ActionType.UsePower)
+            ? ctx.PowerOpportunities.Take(2)
+                .Select(o => new Opportunity(OpportunityModel.ExtraordinaryCapability,
+                    scored.Where(s => s.Action == ActionType.UsePower).Select(s => s.Score).DefaultIfEmpty(0).Max(), o.MechanicToken))
+                .ToList()
+            : (IReadOnlyList<Opportunity>)[];
 
         return new DecisionTrace(
             WakeReason: wakeReason,
@@ -226,18 +231,18 @@ public sealed partial class BehaviorDecisionSystem
     };
 
     /// <summary>Bônus só quando memória/crença/relação estão presentes —
-    /// listas vazias → 0, comportamento idêntico ao pré-DecisionContext (golden preservado).</summary>
-    private static double ContextFactorBonus(DecisionContext ctx, ActionType action, EconomyRules economy)
+    /// listas vazias → 0, comportamento idêntico ao pré-DecisionContext (golden preservado). Devolve o termo nomeado.</summary>
+    private static (UtilityTerm Term, double Bonus) ContextFactorBonus(DecisionContext ctx, ActionType action, EconomyRules economy)
     {
         const double factorBonus = 40.0;
         return action switch
         {
             ActionType.Travel when ctx.RelevantMemories.Any(m =>
-                ContainsAny(m.Content, "traído", "traido", "betray", "threat", "perigo", "danger")) => factorBonus,
+                ContainsAny(m.Content, "traído", "traido", "betray", "threat", "perigo", "danger")) => (UtilityTerm.ThreatMemory, factorBonus),
             ActionType.Buy when CanActOnScarcityBelief(ctx, economy) && ctx.RelevantBeliefs.Any(b =>
-                ContainsAny(b, "scarcity", "escassez", "fome", "hunger", "food")) => factorBonus,
-            ActionType.Socialize when HasStrongBond(ctx.KnownRelationships) => factorBonus,
-            _ => 0.0,
+                ContainsAny(b, "scarcity", "escassez", "fome", "hunger", "food")) => (UtilityTerm.ScarcityBelief, factorBonus),
+            ActionType.Socialize when HasStrongBond(ctx.KnownRelationships) => (UtilityTerm.StrongBond, factorBonus),
+            _ => (UtilityTerm.Baseline, 0.0),
         };
     }
 

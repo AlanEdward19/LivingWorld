@@ -48,7 +48,18 @@ public static class DecisionContextBuilder
             ForesightPreviews: ForesightMechanic.PreviewsFor(world, npc.Id, tick),
             WalletAmount: npc.Wallet.Amount,
             ProvisionTargetDays: provisionTargetDays,
-            Comfort: LivingWorld.Simulation.Objects.ObjectUse.ComfortOf(world, npc));
+            Comfort: LivingWorld.Simulation.Objects.ObjectUse.ComfortOf(world, npc),
+            Inner: BuildInnerLife(world, npc, tick));
+    }
+
+    /// <summary>Emoções e lembrança de fome do NPC; nulo quando não há nada que pese (sem alocar).</summary>
+    internal static InnerLifeSnapshot? BuildInnerLife(WorldState world, Npc npc, long tick)
+    {
+        if (npc.Psyche is null) return null;
+        var mood = LivingWorld.Simulation.Cognition.PsycheMechanic.AffectOf(world, npc, tick);
+        double famine = LivingWorld.Simulation.Cognition.PsycheMechanic.Strongest(
+            world, npc, LivingWorld.Domain.Cognition.LifeEventKind.Famine, tick);
+        return mood.IsCalm && famine <= 0 ? null : new InnerLifeSnapshot(mood, famine);
     }
 
     internal static BodySnapshot BuildBodySlice(WorldState world, Npc npc) =>

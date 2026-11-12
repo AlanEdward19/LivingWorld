@@ -164,12 +164,15 @@ public sealed class RelationshipSystem : ISimulationSystem
                 }
             }
 
-            // Atração do dia: o afeto que já existe, a afinidade de temperamento e um pouco de acaso.
+            // Atração do dia: o afeto que já existe, a afinidade de temperamento, um pouco de acaso e a vida interior (AD-138:
+            // evita quem lhe fez mal, com medo evita estranhos). O apelo fica em [0, ∞): negativo é a marca de "já escolhido".
+            var leaning = LivingWorld.Simulation.Cognition.SocialLeaning.Of(world, self, now);
             for (int k = 0; k < count; k++)
             {
                 var other = present[met[k]];
                 double affection = world.Relationships.TryGetValue(new RelationshipKey(self.Id, other.Id), out var known) ? known.Affection : 0.0;
                 appeal[k] = affection + 50.0 * SocialBondRules.Likability(self.Personality, other.Personality) + 20.0 * rng.NextDouble();
+                if (!leaning.IsInert) appeal[k] = Math.Max(0, appeal[k] + leaning.AppealToward(world, self, other, affection, now));
             }
 
             for (int c = 0; c < contacts; c++)
@@ -199,6 +202,10 @@ public sealed class RelationshipSystem : ISimulationSystem
         // mágoa com o cônjuge baixa o que a convivência consegue refazer (AD-136)
         if (from.Spouse == to.Id && from.Union is { Grievance: > 0 } union)
             (affectionCeiling, trustCeiling) = UnionSystem.MaritalCeilings(affectionCeiling, trustCeiling, union.Grievance);
+        // AD-138: quem foi traído, roubado ou abandonado confia menos em todos; em quem lhe fez mal, menos ainda e gosta menos
+        if (from.Psyche is { Memories.Count: > 0 })
+            (affectionCeiling, trustCeiling) = LivingWorld.Simulation.Cognition.PsycheMechanic.BondCeilings(
+                world, from, to, now, affectionCeiling, trustCeiling);
         relationship.ApplyBondingEvent(type, rules, trustCeiling, affectionCeiling);
         relationship.MarkContact(now);
     }

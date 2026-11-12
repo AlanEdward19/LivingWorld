@@ -1,128 +1,84 @@
-using LivingWorld.Domain.Geography;
-using LivingWorld.Domain.Llm;
-using LivingWorld.Domain.Population;
-using LivingWorld.Domain.Shared;
+using LivingWorld.Domain.Behavior;
 using LivingWorld.Simulation.Behavior.Decision;
 
 namespace LivingWorld.Tests.Unit.Behavior.Decision;
 
-/// <summary>Fase 16.3 T31 (COH-51/52): <see cref="PressureModel.DerivePressures"/>.</summary>
+/// <summary>AD-138 (achado 11): as pressões do rastro são os termos da utilidade da ação vencedora, agrupados — antes eram
+/// derivadas ao lado da escolha (<c>ProtectHousehold</c>, <c>EarnIncome</c> por ambição) sem pesar em nada. Os testes antigos
+/// verificavam essas pressões inventadas; foram reescritos para a mesma intenção (pressão nomeada com fatores) sobre os termos
+/// que decidem.</summary>
 public class PressureModelTests
 {
-    private static readonly Personality Neutral =
-        Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!;
-
-    private static readonly Personality Loyal =
-        Personality.Create(50, 50, 50, 50, 50, 50, loyalty: 80, altruism: 70, impulsivity: 50, riskAversion: 50).Value!;
-
-    private static DecisionContext Ctx(
-        int hunger = 100,
-        int thirst = 100,
-        int sleep = 100,
-        int social = 100,
-        HouseholdSnapshot? household = null,
-        IReadOnlyList<NpcMemory>? memories = null,
-        IReadOnlyList<string>? beliefs = null,
-        IReadOnlyList<RelationshipFact>? relationships = null,
-        Personality? personality = null,
-        BodySnapshot? body = null) =>
-        new(
-            new NpcId(1),
-            Tick: 10,
-            new NeedsSnapshot(hunger, thirst, sleep, social),
-            body ?? new BodySnapshot(1.75, 70, 30, 1.0, 1.0),
-            household,
-            memories ?? [],
-            beliefs ?? [],
-            relationships ?? [],
-            PowerOpportunities: [],
-            personality ?? Neutral,
-            CurrentAction: null);
-
     [Fact]
-    public void High_hunger_derives_AcquireFood_pressure()
+    public void Hunger_term_becomes_AcquireFood_with_its_weight()
     {
-        var pressures = PressureModel.DerivePressures(Ctx(hunger: 20));
+        var pressures = PressureModel.FromTerms(
+        [
+            new UtilityContribution(ActionType.Eat, UtilityTerm.Hunger, 80),
+            new UtilityContribution(ActionType.Eat, UtilityTerm.Comfort, 8),
+        ]);
 
         var food = Assert.Single(pressures, p => p.Kind == PressureModel.AcquireFood);
         Assert.Equal(80, food.Intensity);
         Assert.Contains("Hunger", food.Factors);
+        Assert.Contains(pressures, p => p.Kind == "Comfort" && p.Intensity == 8);
     }
 
     [Fact]
-    public void ProtectHousehold_combines_at_least_three_factors()
+    public void Negative_terms_never_become_pressures()
     {
-        var household = new HouseholdSnapshot(
-            new HouseholdId(1),
-            new Dictionary<ResourceType, long>(),
-            [new NpcId(1), new NpcId(2), new NpcId(3)]);
+        var pressures = PressureModel.FromTerms(
+        [
+            new UtilityContribution(ActionType.Work, UtilityTerm.Baseline, 50),
+            new UtilityContribution(ActionType.Work, UtilityTerm.Grief, -30),
+        ]);
 
-        var memory = new NpcMemory(
-            1, new NpcId(1), MemoryCategory.Social,
-            "perigo na estrada perto de casa", 80, 1,
-            [new NpcId(1)], new CellCoord(0, 0));
-
-        var pressures = PressureModel.DerivePressures(Ctx(
-            hunger: 100,
-            household: household,
-            memories: [memory],
-            relationships: [new RelationshipFact(new NpcId(2), Trust: 70, Affection: 65, Respect: 60, Familiarity: 40)],
-            personality: Loyal,
-            body: new BodySnapshot(1.7, 65, 18, 0.9, 1.0)));
-
-        var protect = Assert.Single(pressures, p => p.Kind == PressureModel.ProtectHousehold);
-        Assert.True(protect.Factors.Count >= 3,
-            $"expected ≥3 factors, got [{string.Join(", ", protect.Factors)}]");
-        Assert.Contains("Dependents", protect.Factors);
-        Assert.Contains("RelationshipStrength", protect.Factors);
-        Assert.Contains("Threat", protect.Factors);
-        Assert.True(protect.Intensity > 0);
+        Assert.DoesNotContain(pressures, p => p.Kind == "Grief");
+        Assert.Contains(pressures, p => p.Kind == "Baseline" && p.Intensity == 50);
     }
 
     [Fact]
-    public void No_household_omits_ProtectHousehold()
+    public void Income_need_becomes_EarnIncome()
     {
-        var pressures = PressureModel.DerivePressures(Ctx(hunger: 50, household: null));
-
-        Assert.DoesNotContain(pressures, p => p.Kind == PressureModel.ProtectHousehold);
-        Assert.Contains(pressures, p => p.Kind == PressureModel.AcquireFood);
-    }
-
-    [Fact]
-    public void Ambition_and_empty_stock_derive_EarnIncome()
-    {
-        var ambitious = Personality.Create(50, 50, 50, 50, 50, ambition: 80, 50, 50, 50, 50).Value!;
-        var household = new HouseholdSnapshot(
-            new HouseholdId(1),
-            new Dictionary<ResourceType, long>(),
-            [new NpcId(1)]);
-
-        var pressures = PressureModel.DerivePressures(Ctx(
-            hunger: 100, household: household, personality: ambitious));
+        var pressures = PressureModel.FromTerms(
+        [
+            new UtilityContribution(ActionType.Work, UtilityTerm.Baseline, 50),
+            new UtilityContribution(ActionType.Work, UtilityTerm.IncomeNeed, 25),
+        ]);
 
         var earn = Assert.Single(pressures, p => p.Kind == PressureModel.EarnIncome);
-        Assert.Contains("Ambition", earn.Factors);
-        Assert.Contains("EmptyHouseholdStock", earn.Factors);
+        Assert.Equal(25, earn.Intensity);
+        Assert.Equal(["IncomeNeed"], earn.Factors);
     }
 
     [Fact]
-    public void DerivePressures_is_deterministic()
+    public void Terms_of_the_same_pressure_are_summed_largest_first()
     {
-        var household = new HouseholdSnapshot(
-            new HouseholdId(1),
-            new Dictionary<ResourceType, long> { [new ResourceType(1)] = 2 },
-            [new NpcId(1), new NpcId(2)]);
-        var ctx = Ctx(hunger: 40, sleep: 30, social: 50, household: household, personality: Loyal);
+        var pressures = PressureModel.FromTerms(
+        [
+            new UtilityContribution(ActionType.Buy, UtilityTerm.Provision, 90),
+            new UtilityContribution(ActionType.Buy, UtilityTerm.FamineMemory, 12),
+        ]);
 
-        var a = PressureModel.DerivePressures(ctx);
-        var b = PressureModel.DerivePressures(ctx);
+        var food = Assert.Single(pressures);
+        Assert.Equal(102, food.Intensity);
+        Assert.Equal(["Provision", "FamineMemory"], food.Factors);
+    }
 
-        Assert.Equal(a.Count, b.Count);
-        for (int i = 0; i < a.Count; i++)
-        {
-            Assert.Equal(a[i].Kind, b[i].Kind);
-            Assert.Equal(a[i].Intensity, b[i].Intensity);
-            Assert.Equal(a[i].Factors, b[i].Factors);
-        }
+    [Fact]
+    public void FromTerms_is_deterministic()
+    {
+        UtilityContribution[] terms =
+        [
+            new(ActionType.Sleep, UtilityTerm.Sleep, 70),
+            new(ActionType.Sleep, UtilityTerm.Personality, 4),
+            new(ActionType.Sleep, UtilityTerm.Continuity, 10),
+        ];
+
+        var a = PressureModel.FromTerms(terms);
+        var b = PressureModel.FromTerms(terms);
+
+        Assert.Equal(a.Select(p => (p.Kind, p.Intensity)), b.Select(p => (p.Kind, p.Intensity)));
+        Assert.Equal(a.SelectMany(p => p.Factors), b.SelectMany(p => p.Factors));
     }
 }

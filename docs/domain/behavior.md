@@ -32,6 +32,9 @@ impulsivo alto    -> peso maior em Diversão
 altruísta alto    -> peso maior em Ajudar
 ```
 
+A vida interior entra como termos somados à nota (AD-138, [inner-life.md](inner-life.md)): luto,
+medo, vergonha, alegria, solidão, lembrança de fome e falta de renda; o rastro mostra cada termo.
+
 Peso não é trava: com fome 95, até o mais disciplinado come. Daí sai objetivo e plano —
 raso de propósito, replanejado no tick seguinte se um passo falhar:
 

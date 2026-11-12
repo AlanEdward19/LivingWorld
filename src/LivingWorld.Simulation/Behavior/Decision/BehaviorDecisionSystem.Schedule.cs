@@ -5,10 +5,12 @@ using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Body;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Needs;
+using LivingWorld.Simulation.Cognition;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Economy.Market;
 using LivingWorld.Simulation.Emergence;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Behavior.Decision;
 
@@ -53,12 +55,21 @@ public sealed partial class BehaviorDecisionSystem
             household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId)),
             household.Stock.GetValueOrDefault(new ResourceType(economy.WaterResourceId)));
         int members = Math.Max(1, household.Members.Count);
-        if (scarcest >= (long)members * MaxProvisionDays) return false; // despensa cheia mesmo para o mercado mais longe
+        double hoard = -1;
+        if (scarcest >= (long)members * MaxProvisionDays) // despensa cheia mesmo para o mercado mais longe
+        {
+            if (npc.Psyche is null) return false;
+            hoard = PsycheMechanic.HoardFactor(world, npc, world.CurrentDate.TotalHours);
+            if (scarcest >= members * MaxProvisionDays * hoard) return false;
+        }
 
         var market = NearestProvisionMarket(world, household, marketIndex);
         if (market is null || npc.Wallet.Amount < CheapestEssentialPrice(economy, market)) return false;
 
-        return (double)scarcest / members < ProvisionTargetAt(world, household, market) * RestockShortfall;
+        // AD-138: quem passou fome quer a despensa mais cheia
+        if (hoard < 0) hoard = PsycheMechanic.HoardFactor(world, npc, world.CurrentDate.TotalHours);
+        double target = ProvisionTargetAt(world, household, market) * hoard;
+        return (double)scarcest / members < target * RestockShortfall;
     }
 
     /// <summary>Ação de quem não tem necessidade urgente: a da rotina, ou comprar quando a despensa baixa para a distância do mercado
@@ -68,6 +79,24 @@ public sealed partial class BehaviorDecisionSystem
         routineAction == ActionType.Sleep
             ? CaregiverHearsCry(world, npc, stage) ? ActionType.Buy : routineAction // só aqui o choro muda algo: fora do sono a despensa vazia já manda comprar
             : NeedsRestocking(world, npc, marketIndex) ? ActionType.Buy : routineAction;
+
+    /// <summary>A rotina passa pelo humor (AD-138): no dia em que o luto ou a vergonha pesam, a pessoa não vai trabalhar ou não
+    /// sai para conversar e fica onde está (em casa, quase sempre). Um sorteio por pessoa e por dia contra o recolhimento do
+    /// momento, então o dia é inteiro (não foge do trabalho uma hora sim, outra não) e a falta cai com o luto. Calmo: nada.</summary>
+    internal static ActionType MoodShapesRoutine(WorldState world, TickContext ctx, Npc npc, ActionType routine, long now)
+    {
+        if (routine is not (ActionType.Work or ActionType.Socialize)) return routine;
+        if (npc.Psyche is not { } psyche || now >= psyche.CalmFromTick) return routine;
+        double withdrawal = routine == ActionType.Work
+            ? PsycheMechanic.WorkWithdrawal(world, npc, now)
+            : PsycheMechanic.SocialWithdrawal(world, npc, now);
+        if (withdrawal <= 0) return routine;
+        long day = now / world.Calendar.HoursPerDay;
+        string purpose = routine == ActionType.Work ? "mood-workday" : "mood-socialday";
+        return ctx.StreamFor(purpose, unchecked(npc.Id.Value * 1_000_003L + day)).NextDouble() < withdrawal
+            ? ActionType.Idle
+            : routine;
+    }
 
     /// <summary>Choro atendido (dívida da Fase 21): um adulto que está na mesma célula de uma criança do domicílio que chora — porque a despensa
     /// não tem comida ou água para ela — levanta e vai comprar, mesmo na hora de dormir. Só vale com carteira para pagar.</summary>

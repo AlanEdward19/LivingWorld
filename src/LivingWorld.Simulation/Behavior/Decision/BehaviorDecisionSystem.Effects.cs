@@ -32,8 +32,7 @@ public sealed partial class BehaviorDecisionSystem
                 ApplySleep(world, npc, tick);
                 break;
             case ActionType.Socialize:
-                npc.SetSocial(100, tick);
-                SocializeWithSomeoneNearby(world, npc, tick, ctx);
+                ApplySocialize(world, npc, tick, ctx);
                 break;
             case ActionType.Buy:
                 ApplyFoodPlan(world, npc, marketIndex, tick, primary: ActionType.Buy);
@@ -262,6 +261,8 @@ public sealed partial class BehaviorDecisionSystem
             int purchaseDays = PurchaseDaysFor(
                 Mobility.Apply(TravelTicksCache.Between(world.Map, household.Location, market.Location), Mobility.BonusPct(world, household.City)),
                 world.CurrentDate.Calendar.HoursPerDay);
+            // AD-138: quem passou fome compra para mais dias
+            purchaseDays = (int)Math.Ceiling(purchaseDays * LivingWorld.Simulation.Cognition.PsycheMechanic.HoardFactor(world, npc, world.CurrentDate.TotalHours));
             long quantity = Math.Max(MinimumPurchaseQuantity, household.Members.Count * purchaseDays);
             quantity = Math.Max(1, Math.Min(quantity, npc.Wallet.Amount / unitPrice));
             var ctx = new TransactionContext(
@@ -309,11 +310,30 @@ public sealed partial class BehaviorDecisionSystem
         return true;
     }
 
+    /// <summary>Conversar só mata a vontade de convívio com alguém (AD-138): sem ninguém por perto, a necessidade social continua
+    /// e a solidão sobe (pesa no humor e na esperança de achar alguém da próxima vez); com alguém, ela se alivia. Mundo sem regras
+    /// de vínculo (ninguém é avaliado) ou com a regra desligada mantém o efeito antigo.</summary>
+    internal static void ApplySocialize(WorldState world, Npc npc, long tick, TickContext ctx)
+    {
+        var psyche = world.NeedsRules.Psyche;
+        bool? company = SocializeWithSomeoneNearby(world, npc, tick, ctx);
+        if (company != false || !psyche.SocializeNeedsCompany)
+            npc.SetSocial(100, tick);
+        if (!psyche.Enabled || company is null) return;
+        if (company == true)
+        {
+            if (npc.Psyche is { Loneliness: > 0 } p && tick < p.CalmFromTick)
+                LivingWorld.Simulation.Cognition.PsycheMechanic.Feel(world, npc, tick, default, loneliness: -psyche.LonelinessReliefPerContact);
+        }
+        else
+            LivingWorld.Simulation.Cognition.PsycheMechanic.Feel(world, npc, tick, default, loneliness: psyche.LonelinessPerSolitude);
+    }
+
     /// <summary>Quem socializa conversa com alguém que está por perto (AD-128): entre os vizinhos, o de quem mais gosta ou com
     /// quem mais combina. É assim que gente de oficinas e casas diferentes passa a se conhecer. Ninguém por perto: nada.</summary>
-    private static void SocializeWithSomeoneNearby(WorldState world, Npc npc, long tick, TickContext ctx)
+    private static bool? SocializeWithSomeoneNearby(WorldState world, Npc npc, long tick, TickContext ctx)
     {
-        if (world.FamilyRules.Bonds is not { } bonds) return;
+        if (world.FamilyRules.Bonds is not { } bonds) return null;
 
         ulong salt = (ulong)(ctx.StreamFor("socialize", unchecked(npc.Id.Value * 1_000_003L + tick)).NextDouble() * (1UL << 53));
         int radius = bonds.SocializeRadius;
@@ -352,12 +372,14 @@ public sealed partial class BehaviorDecisionSystem
 
         Npc? best = null;
         double bestAppeal = double.NegativeInfinity;
+        var leaning = LivingWorld.Simulation.Cognition.SocialLeaning.Of(world, npc, tick);
         void Consider(Npc other, double affection)
         {
             double chance = (LivingWorld.Domain.Cities.Spatial.StableHash.Mix(other.Id.Value ^ (long)salt) >> 11) * (1.0 / (1UL << 53));
             double appeal = affection
                 + 50.0 * LivingWorld.Domain.Population.Family.SocialBondRules.Likability(npc.Personality, other.Personality)
-                + 20.0 * chance;
+                + 20.0 * chance
+                + leaning.AppealToward(world, npc, other, affection, tick);
             if (appeal > bestAppeal || (appeal == bestAppeal && best is not null && other.Id.Value < best.Id.Value))
             {
                 bestAppeal = appeal;
@@ -379,10 +401,11 @@ public sealed partial class BehaviorDecisionSystem
                 && Math.Abs(friend.CurrentLocation.Y - npc.CurrentLocation.Y) <= radius)
                 Consider(friend, owned![i].Affection);
 
-        if (best is null) return;
+        if (best is null) return false;
         var type = LivingWorld.Domain.Population.Family.RelationshipEventType.Conversation;
         LivingWorld.Simulation.Population.Family.RelationshipSystem.Bond(world, world.FamilyRules, bonds, tick, npc, best, sameHousehold: false, type);
         LivingWorld.Simulation.Population.Family.RelationshipSystem.Bond(world, world.FamilyRules, bonds, tick, best, npc, sameHousehold: false, type);
+        return true;
     }
 
     private const int StrangersConsidered = 8;

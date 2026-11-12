@@ -28,6 +28,9 @@ public sealed class TickContext(WorldState world, WorldRngRegistry rng, EventSch
             SignificanceCalculator.TryRecord(
                 new WorldEvent(CurrentTick, kind, payload, eventId, causeEventId, sourceSystem), world, world.HistoryRules);
         sink?.Record(new WorldEvent(CurrentTick, kind, payload, eventId, causeEventId, sourceSystem));
+        // AD-138: quem viveu o evento lembra e sente (consumidor do log, no mesmo instante; eventos sem vivência saem cedo)
+        if (world.NeedsRules.Psyche.Enabled)
+            LivingWorld.Simulation.Cognition.LifeEventIntake.OnEvent(world, kind, payload, sourceSystem, CurrentTick);
         return eventId;
     }
 
