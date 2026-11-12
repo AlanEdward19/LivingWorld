@@ -43,6 +43,14 @@ Pedido:
 - **Depois**: novas uniões, padrastos, meios-irmãos, filhos em casas diferentes; medir irmãos criados separados no mundo rodando.
 - Tabu de parentesco além do primeiro grau e o casamento que cria comida do nada, se couber.
 
+## 4. Doença de época como causa de morte (AD-137), disparada em 2026-11-12
+
+Branch: `worktree-agent-a748c4f038095be74`, sobre `c497e57c`. Pedido em [06](06-violencia-poderes-e-restantes.md), seção "Doença de época": perfis de doença como dado de cenário, contágio pela convivência real, doente acamado que precisa de cuidado, e a doença como causa das mortes que a tábua já prevê (recalibrar a mortalidade-base).
+
+## 5. Memória, emoção e pensamento real (AD-138), disparada em 2026-11-12
+
+Branch: `worktree-agent-a79d82224d8995144`, sobre `c497e57c`. Pedido em [03](03-cognicao-e-cerebro.md), parte 1: memória episódica, emoção e luto, emoção e memória mudando a ação, rastro cognitivo como motivo real (teste de intervenção), `Socialize` só com alguém. Rede neural fora do escopo.
+
 ## Ao juntar
 
 Conflitos esperados: `Npc.cs` e `NatalitySystem.cs` (fatias 1 e 3), `ScenarioRunner.cs`, goldens e baselines (todas). As três mudam o equilíbrio da vila: juntar uma de cada vez e medir a demografia de 100 anos na árvore combinada.
