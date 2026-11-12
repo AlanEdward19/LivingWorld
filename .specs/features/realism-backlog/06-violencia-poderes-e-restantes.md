@@ -33,6 +33,17 @@ Hoje: `TheftResolver` furta por desespero (carteira vazia, fome ou sede, tempera
 5. **Herança realista** (achado 30): partilha entre cônjuge e filhos conforme a norma do cenário; disputa de herança como fonte de conflito.
 6. Medir em 20 seeds × 100 anos: taxa de homicídio (ordem de dezenas por 100 mil por ano na Europa medieval; conferir em fonte), furtos por ano e o que os causou, ferimentos, punições, vinganças.
 
+## Crime contra bens e contra pessoas (pedido do dono em 2026-11-12; NÃO INICIAR ainda)
+
+Palavras dele, sobre "furto de comida não existe, então fome não gera furto": "deveria existir. E não só de comida, de tudo, até sequestro (inclusive pedofilia, estupro); são temas chatos e complicados, mas envolvem o realismo."
+
+1. **Furto e roubo de qualquer bem**: comida, moeda, ferramenta, animal, estoque de loja e de celeiro; por fome, por oportunidade e por temperamento. A fome da quebra de safra (AD-135) tem de aparecer como furto de comida.
+2. **Sequestro**: de adulto ou de criança, com motivo que emerge do estado (resgate, vingança, posse), busca pela família, desfecho (volta, fuga, morte).
+3. **Violência sexual, inclusive contra criança**: existe como fato do mundo, por temperamento, oportunidade e impunidade. Modelar como evento abstrato e suas consequências, sem cena nem descrição: trauma e medo duradouros na vítima (memória e emoção do AD-138), gravidez possível em vítima fértil, marca na família, reputação do agressor, denúncia ou silêncio.
+4. **Consequência social e justiça**: descoberta, vingança da família, punição conforme a época, expulsão. Liga com o item de justiça desta página.
+5. Nada escrito à mão: taxas e pesos como dado de cenário; medir em 20 seeds × 100 anos e conferir ordens de grandeza em fonte.
+6. Antes de implementar: decidir com o dono o que o cliente mostra desses eventos (o motor registra; a apresentação é decisão à parte).
+
 ## Poderes por genética (a fazer; desenho proposto na seção 3 do relatório)
 
 Hoje: o filho só herda se os dois pais forem portadores, com chance 1,0, e num dos caminhos recebe todos os poderes dos dois, que se acumulam a cada geração.
