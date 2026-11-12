@@ -37,7 +37,7 @@ public sealed class SkillPracticeSystem : ISimulationSystem
     {
         if (!_rules.Enabled) return; // flag de teste desliga o sistema
 
-        foreach (var npc in world.Npcs.OrderBy(n => n.Id.Value))
+        foreach (var npc in world.AliveNpcIndex.Alive) // vivos em ordem de id, sem lista nova por dia
         {
             if (!npc.IsAlive) continue;
             if (npc.Employer is not { } employerId) continue;
@@ -46,7 +46,9 @@ public sealed class SkillPracticeSystem : ISimulationSystem
             if (npc.CurrentLocation != workplace.Location) continue;
             if (!_rules.SkillByProfession.TryGetValue(npc.Profession.Id, out var skillType)) continue;
 
+            double age = (double)(world.CurrentDate.TotalHours - npc.BirthDate.TotalHours) / world.CurrentDate.Calendar.HoursPerYear;
             double gain = _rules.Gain(npc.Skills.Get(skillType), SkillGainSource.Practice, npc.RateGene.Value)
+                * _rules.Learning.Aptitude(age) // plasticidade da idade (AD-132)
                 * SkillMechanic.ManifestedLearnRate(world, npc);
             npc.GainSkill(skillType, gain, _rules.Cap);
         }

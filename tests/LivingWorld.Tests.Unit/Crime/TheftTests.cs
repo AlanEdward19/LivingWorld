@@ -297,7 +297,9 @@ public class TheftTests
     public void A_harsh_village_conserves_money_every_day_for_a_year_and_the_thefts_are_discovered()
     {
         var harsh = new TheftRules(true, 90, 0.9, 0.6, 0.5, 0.5, -1, 0.25);
-        var (world, _) = ScenarioRunner.Create(2, theftRules: harsh);
+        // AD-132 mudou a vila (habilidade por idade): a seed 2 passou a não ter furto descoberto no ano (0 contra 2 a 58
+        // nas outras 9 de 10 seeds medidas); a seed 3 é a de mais furtos. A conservação diária vale para qualquer seed.
+        var (world, _) = ScenarioRunner.Create(3, theftRules: harsh);
         WithoutPoorRelief(world);
         var sink = new CountingSink();
         var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink);

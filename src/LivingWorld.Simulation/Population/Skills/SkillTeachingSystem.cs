@@ -1,6 +1,7 @@
 using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Population.Skills;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Decision;
@@ -11,37 +12,44 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Population.Skills;
 
-/// <summary>As 5 fontes "sociais" de ganho de habilidade: treino
-/// deliberado, escola, aprendizado parental, observação, tutoria mestre-&gt;aprendiz. Um único
-/// <c>Tick</c> com 5 métodos privados coesos — design.md justifica não splitar em 5 classes
-/// (multiplicaria a passada Daily sobre a população sem ganho real). <c>Daily</c>, mesma posição
-/// de <see cref="SkillPracticeSystem"/> na ordem (roda logo depois, ainda antes de <see
-/// cref="ProductionSystem"/>).
-///
-/// SPEC_DEVIATION: nem spec.md nem design.md fixam o gatilho exato de DeliberateTraining/School
-/// — não há <see cref="ActionType"/> novo nem prédio de escola modelado (Out
-/// of Scope). Gatilho mínimo e determinístico escolhido aqui: DeliberateTraining = adulto em
-/// tempo livre (<see cref="ActionType.Idle"/>) com saldo suficiente pro custo nominal (paga pela
-/// própria profissão); School = criança com profissão mapeada, sem custo nem teto de vaga (Out
-/// of Scope já cobre "sem prédio nem capacidade").</summary>
+/// <summary>Aprendizado social e criação (AD-132), uma passada por dia sobre os vivos: treino deliberado, escola, o que a
+/// criança aprende com os adultos da casa onde vive, observação e tutoria mestre-&gt;aprendiz, todas escaladas pela aptidão
+/// da idade (<see cref="SkillLearningRules.Aptitude"/>: bebê não aprende ofício). A casa ensina até uma fração do que os
+/// adultos dela sabem; do marco de aprendiz em diante o jovem ganha um mestre na cidade. Uma vez por mês por pessoa
+/// (escalonado por id) a habilidade sem uso e a manual da velhice perdem um pouco, e a criança registra quem a está
+/// criando; ao virar adulta, a personalidade recebe o ambiente compartilhado desses cuidadores (<see cref="RearingRules"/>).
+/// <c>Midshift</c>, mesma posição de <see cref="SkillPracticeSystem"/> (antes de <see cref="ProductionSystem"/>).</summary>
 [LivingCapability("SKILLS")]
 [RunsAfter(typeof(EmploymentSystem))]
 public sealed class SkillTeachingSystem : ISimulationSystem
 {
     public const string SystemName = "population-skill-teaching";
 
-    /// <summary>Custo nominal de treino deliberado — nenhum cenário desta fase declara um valor
-    /// pra isso; constante de algoritmo mínima (mesmo espírito de <c>NonNeedBaselineUtility</c>
-    /// em <see cref="BehaviorDecisionSystem"/>).</summary>
+    /// <summary>Custo nominal de treino deliberado — nenhum cenário declara um valor pra isso; constante de algoritmo mínima
+    /// (mesmo espírito de <c>NonNeedBaselineUtility</c> em <see cref="BehaviorDecisionSystem"/>).</summary>
     private const long DeliberateTrainingCost = 1;
+
+    /// <summary>Menor distância de habilidade (fração do teto) para alguém virar mestre de outro.</summary>
+    private const double MentorMinGapOfCap = 0.15;
 
     private readonly SkillsRules _rules;
     private readonly LifeStageRules _lifeStageRules;
+    private readonly RearingRules _rearing;
+    private readonly SkillType[] _workSkills;
+    private readonly List<Personality> _caregivers = [];
 
-    public SkillTeachingSystem(SkillsRules rules, LifeStageRules lifeStageRules)
+    /// <summary>Ganhos do dia da pessoa em processamento, aplicados numa única troca de <see cref="Npc.Skills"/>.</summary>
+    private readonly List<(SkillType, double)> _pending = [];
+
+    /// <summary>Mestres que já ensinaram hoje: o ensino treina uma vez por dia, não uma vez por aprendiz.</summary>
+    private readonly HashSet<long> _taughtToday = [];
+
+    public SkillTeachingSystem(SkillsRules rules, LifeStageRules lifeStageRules, RearingRules? rearing = null)
     {
         _rules = rules;
         _lifeStageRules = lifeStageRules;
+        _rearing = rearing ?? RearingRules.Default;
+        _workSkills = rules.WorkSkills();
     }
 
     public string Name => SystemName;
@@ -51,32 +59,59 @@ public sealed class SkillTeachingSystem : ISimulationSystem
     {
         if (!_rules.Enabled) return; // flag de teste desliga o sistema
 
-        var living = world.Npcs.Where(n => n.IsAlive).OrderBy(n => n.Id.Value).ToList();
+        var living = world.AliveNpcIndex.Alive; // vivos em ordem de id; aqui ninguém nasce nem morre
+        var calendar = world.CurrentDate.Calendar;
+        long day = ctx.CurrentTick / calendar.HoursPerDay;
         AssignMentors(world, living);
+        AssignApprenticeMasters(world, living);
+        _taughtToday.Clear();
 
-        foreach (var npc in living)
+        var learning = _rules.Learning;
+        for (int i = 0; i < living.Count; i++)
         {
-            GainFromDeliberateTraining(world, npc);
-            GainFromSchool(world, npc);
-            GainFromParental(world, npc);
-            GainFromObservation(world, npc);
-            GainFromTutoring(world, npc);
+            var npc = living[i];
+            if (!npc.IsAlive) continue; // o índice só sabe da morte registrada no mundo
+            double age = (double)(world.CurrentDate.TotalHours - npc.BirthDate.TotalHours) / calendar.HoursPerYear;
+            var stage = _lifeStageRules.LifeStageOf((int)age);
+            if (stage == LifeStage.Child && _rearing.Enabled && Due(day, npc, _rearing.SampleEveryDays))
+                SampleRearing(world, npc);
+            else if (stage != LifeStage.Child && npc.Rearing is { } record)
+                npc.ConcludeRearing(_rearing.Apply(npc.Personality, record, world.FamilyRules.PersonalityHeritability));
+
+            double aptitude = learning.Aptitude(age);
+            if (aptitude > 0)
+            {
+                if (stage == LifeStage.Adult) GainFromDeliberateTraining(world, npc, aptitude);
+                if (stage == LifeStage.Child)
+                {
+                    GainFromSchool(npc, aptitude);
+                    GainFromHousehold(world, npc, aptitude);
+                }
+                GainFromObservation(world, npc, aptitude);
+                GainFromTutoring(world, npc, aptitude);
+            }
+            if (stage != LifeStage.Child && Due(day, npc, learning.MaintenanceEveryDays))
+                Maintain(npc, age, calendar.DaysPerMonth * calendar.MonthsPerYear);
+            npc.GainSkills(_pending, _rules.Cap);
+            _pending.Clear();
         }
     }
 
-    /// <summary>Menor distância de habilidade (fração do teto) para um colega virar mestre de outro.</summary>
-    private const double MentorMinGapOfCap = 0.15;
+    private static bool Due(long day, Npc npc, int everyDays) => (day + npc.Id.Value) % everyDays == 0;
 
-    /// <summary>Em cada oficina, o empregado mais habilidoso na própria profissão vira mestre dos colegas da
-    /// mesma profissão que estão ao menos <see cref="MentorMinGapOfCap"/> do teto abaixo dele e ainda sem
-    /// mestre. Uma passada pela população; só adultos empregados participam. Escolha determinística: maior
-    /// habilidade, desempate pelo menor Id.</summary>
-    private void AssignMentors(WorldState world, List<Npc> living)
+    private LifeStage StageOf(WorldState world, Npc npc) => _lifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
+
+    private bool IsCaregiverAge(WorldState world, Npc npc) => StageOf(world, npc) is LifeStage.Adult or LifeStage.Elder;
+
+    /// <summary>Em cada oficina, o empregado mais habilidoso na própria profissão vira mestre dos colegas adultos da mesma
+    /// profissão que estão ao menos <see cref="MentorMinGapOfCap"/> do teto abaixo dele e ainda sem mestre. Escolha
+    /// determinística: maior habilidade, desempate pelo menor Id.</summary>
+    private void AssignMentors(WorldState world, IReadOnlyList<Npc> living)
     {
         Dictionary<(WorkplaceId, int), Npc>? masters = null;
         foreach (var npc in living)
         {
-            if (npc.Employer is not { } employer || npc.Mentor is not null) continue;
+            if (!npc.IsAlive || npc.Employer is not { } employer || npc.Mentor is not null) continue;
             if (!_rules.SkillByProfession.TryGetValue(npc.Profession.Id, out var skill)) continue;
             if (StageOf(world, npc) != LifeStage.Adult) continue;
             masters ??= BestPerWorkplace(world, living);
@@ -86,12 +121,12 @@ public sealed class SkillTeachingSystem : ISimulationSystem
         }
     }
 
-    private Dictionary<(WorkplaceId, int), Npc> BestPerWorkplace(WorldState world, List<Npc> living)
+    private Dictionary<(WorkplaceId, int), Npc> BestPerWorkplace(WorldState world, IReadOnlyList<Npc> living)
     {
         var best = new Dictionary<(WorkplaceId, int), Npc>();
         foreach (var npc in living)
         {
-            if (npc.Employer is not { } employer) continue;
+            if (!npc.IsAlive || npc.Employer is not { } employer) continue;
             if (!_rules.SkillByProfession.TryGetValue(npc.Profession.Id, out var skill)) continue;
             if (StageOf(world, npc) != LifeStage.Adult) continue;
             var key = (employer, npc.Profession.Id);
@@ -101,81 +136,105 @@ public sealed class SkillTeachingSystem : ISimulationSystem
         return best;
     }
 
-    private LifeStage StageOf(WorldState world, Npc npc) => _lifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
-
-    /// <summary>Adulto dedica tempo livre (Idle) e dinheiro (saldo debitado) pra
-    /// treinar a habilidade da própria profissão, taxa própria de <see
-    /// cref="SkillGainSource.DeliberateTraining"/>. Sem saldo ou sem profissão mapeada —
-    /// sem-op.</summary>
-    private void GainFromDeliberateTraining(WorldState world, Npc npc)
+    /// <summary>Do marco de aprendiz (<see cref="SkillLearningRules.ApprenticeAgeYears"/>) até virar adulto, o jovem sem
+    /// mestre vai aprender o ofício que mais sabe (o que trouxe de casa; sem nada, o da própria profissão) com o adulto
+    /// empregado mais habilidoso nele na própria cidade, se este estiver ao menos <see cref="MentorMinGapOfCap"/> do teto
+    /// acima. O índice por (cidade, habilidade) só é montado no dia em que há aprendiz sem mestre.</summary>
+    private void AssignApprenticeMasters(WorldState world, IReadOnlyList<Npc> living)
     {
-        if (StageOf(world, npc) != LifeStage.Adult) return;
+        Dictionary<(CityId, int), Npc>? masters = null;
+        foreach (var youth in living)
+        {
+            if (!youth.IsAlive || youth.Mentor is not null || StageOf(world, youth) != LifeStage.Child) continue;
+            if (youth.AgeYears(world.CurrentDate) < _rules.Learning.ApprenticeAgeYears) continue;
+            if (Inclination(youth) is not { } skill) continue;
+            masters ??= BestPerCity(world, living);
+            if (!masters.TryGetValue((youth.City, skill.Id), out var master)) continue;
+            if (master.Skills.Get(skill) - youth.Skills.Get(skill) < MentorMinGapOfCap * _rules.Cap) continue;
+            youth.AssignMentor(master.Id);
+        }
+    }
+
+    private SkillType? Inclination(Npc youth)
+    {
+        SkillType? best = null;
+        double bestLevel = 0;
+        foreach (var skill in _workSkills)
+        {
+            double level = youth.Skills.Get(skill);
+            if (level > bestLevel) (best, bestLevel) = (skill, level);
+        }
+        if (best is not null) return best;
+        return _rules.SkillByProfession.TryGetValue(youth.Profession.Id, out var own) ? own : null;
+    }
+
+    private Dictionary<(CityId, int), Npc> BestPerCity(WorldState world, IReadOnlyList<Npc> living)
+    {
+        var best = new Dictionary<(CityId, int), Npc>();
+        foreach (var npc in living)
+        {
+            if (!npc.IsAlive || npc.Employer is null || StageOf(world, npc) != LifeStage.Adult) continue;
+            if (!_rules.SkillByProfession.TryGetValue(npc.Profession.Id, out var skill)) continue;
+            var key = (npc.City, skill.Id);
+            if (!best.TryGetValue(key, out var current) || npc.Skills.Get(skill) > current.Skills.Get(skill))
+                best[key] = npc;
+        }
+        return best;
+    }
+
+    /// <summary>Adulto dedica tempo livre (Idle) e dinheiro (pago ao Treasury do próprio empregador, sem cunhar nem destruir
+    /// dinheiro) pra treinar a habilidade da própria profissão. Sem saldo, sem emprego ou sem profissão mapeada — sem-op.</summary>
+    private void GainFromDeliberateTraining(WorldState world, Npc npc, double aptitude)
+    {
         if (npc.CurrentAction != ActionType.Idle) return;
         if (!_rules.SkillByProfession.TryGetValue(npc.Profession.Id, out var skillType)) return;
-        // Sem professor/instituição modelada (deferido) — o custo do
-        // treino vai pro Treasury do próprio empregador (sentido inverso de WagePaymentSystem:
-        // lá Treasury paga Wallet, aqui Wallet paga Treasury), nunca cunha/destrói dinheiro
-        // e nunca some em silêncio. Sem emprego, sem pra onde o custo ir — sem-op,
-        // mesmo padrão de "sem trabalhador presente, produção 0" do ProductionSystem.
         if (npc.Employer is not { } employerId) return;
         if (world.FindWorkplace(employerId) is not { } workplace) return;
         if (!npc.TryDebitWallet(new Money(DeliberateTrainingCost)).IsSuccess) return;
         workplace.CreditTreasury(new Money(DeliberateTrainingCost));
 
-        double gain = _rules.Gain(npc.Skills.Get(skillType), SkillGainSource.DeliberateTraining, npc.RateGene.Value);
-        npc.GainSkill(skillType, gain, _rules.Cap);
+        double gain = _rules.Gain(npc.Skills.Get(skillType), SkillGainSource.DeliberateTraining, npc.RateGene.Value) * aptitude;
+        _pending.Add((skillType, gain));
     }
 
-    /// <summary>Criança com profissão mapeada ganha habilidade por escola, taxa
-    /// própria de <see cref="SkillGainSource.School"/> — sem prédio nem vaga limitada (Out of
-    /// Scope), então o único requisito é a própria criança existir e ter mapeamento.</summary>
-    private void GainFromSchool(WorldState world, Npc npc)
+    /// <summary>Criança com profissão mapeada ganha pela escola, taxa de <see cref="SkillGainSource.School"/> — sem prédio
+    /// nem vaga (o cenário que não tem escola declara taxa 0).</summary>
+    private void GainFromSchool(Npc npc, double aptitude)
     {
-        if (StageOf(world, npc) != LifeStage.Child) return;
         if (!_rules.SkillByProfession.TryGetValue(npc.Profession.Id, out var skillType)) return;
-
-        double gain = _rules.Gain(npc.Skills.Get(skillType), SkillGainSource.School, npc.RateGene.Value);
-        npc.GainSkill(skillType, gain, _rules.Cap);
+        double gain = _rules.Gain(npc.Skills.Get(skillType), SkillGainSource.School, npc.RateGene.Value) * aptitude;
+        if (gain > 0) _pending.Add((skillType, gain));
     }
 
-    /// <summary>Criança que convive (mesmo Household) com um dos pais empregado
-    /// (pratica a profissão de fato) ganha a habilidade correspondente, taxa própria de <see
-    /// cref="SkillGainSource.Parental"/>. Mãe e pai são checados independentemente — os dois
-    /// podem contribuir no mesmo tick, mesmo requisito ("um dos pais") não exclui o outro.</summary>
-    private void GainFromParental(WorldState world, Npc npc)
+    /// <summary>A criança aprende o que os adultos da casa onde vive sabem (pais biológicos, adotivos, avós, tios, quem a
+    /// acolheu), taxa de <see cref="SkillGainSource.Parental"/>: para cada ofício, com quem mais sabe dele na casa, até
+    /// <see cref="SkillLearningRules.HouseholdCeilingFraction"/> do que essa pessoa sabe. Morar junto é o requisito; o
+    /// tempo de convívio é o número de dias em que isso acontece.</summary>
+    private void GainFromHousehold(WorldState world, Npc child, double aptitude)
     {
-        if (StageOf(world, npc) != LifeStage.Child) return;
-        if (npc.Household is not { } childHousehold) return;
-
-        GainFromParent(world, npc, npc.MotherId, childHousehold);
-        GainFromParent(world, npc, npc.FatherId, childHousehold);
+        if (child.Household is not { } householdId || world.FindHousehold(householdId) is not { } home) return;
+        foreach (var skill in _workSkills)
+        {
+            double teacher = 0;
+            foreach (var memberId in home.Members)
+            {
+                if (memberId == child.Id || world.FindNpc(memberId) is not { IsAlive: true } adult) continue;
+                double level = adult.Skills.Get(skill);
+                if (level > teacher && IsCaregiverAge(world, adult)) teacher = level;
+            }
+            double ceiling = teacher * _rules.Learning.HouseholdCeilingFraction;
+            if (ceiling <= child.Skills.Get(skill)) continue;
+            double rate = _rules.BaseRateBySource.GetValueOrDefault(SkillGainSource.Parental);
+            double gain = SkillCurve.Gain(child.Skills.Get(skill), ceiling, rate) * child.RateGene.Value * aptitude;
+            if (gain > 0) _pending.Add((skill, gain));
+        }
     }
 
-    private void GainFromParent(WorldState world, Npc child, NpcId? parentId, HouseholdId childHousehold)
+    /// <summary>Quem está na mesma célula de alguém trabalhando (que não seja o próprio mestre) ganha a habilidade que o
+    /// observado pratica, taxa de <see cref="SkillGainSource.Observation"/>, até o que o observado sabe; no máximo um
+    /// observado por dia, o de menor Id.</summary>
+    private void GainFromObservation(WorldState world, Npc observer, double aptitude)
     {
-        if (parentId is not { } id) return;
-        if (world.FindNpc(id) is not { IsAlive: true } parent) return;
-        if (parent.Household != childHousehold) return; // "convive" — mesmo household
-        if (parent.Employer is null) return; // "pratica uma profissão" — precisa estar de fato empregado
-        if (!_rules.SkillByProfession.TryGetValue(parent.Profession.Id, out var skillType)) return;
-
-        double gain = _rules.Gain(child.Skills.Get(skillType), SkillGainSource.Parental, child.RateGene.Value);
-        child.GainSkill(skillType, gain, _rules.Cap);
-    }
-
-    /// <summary>NPC fisicamente próximo (mesmo <see cref="Npc.CurrentLocation"/>) de
-    /// outro NPC trabalhando, que não seja o próprio mestre (isso é tutoria, não observação),
-    /// ganha a habilidade que o observado pratica, taxa própria de <see
-    /// cref="SkillGainSource.Observation"/> (menor que <see cref="SkillGainSource.Tutoring"/> por
-    /// configuração de cenário). Ganha de no máximo um observado por tick (o primeiro em ordem
-    /// determinística), não soma todos os presentes.
-    /// <c>ponytail:</c> varredura O(n²) por local — aceitável na escala atual da população;
-    /// revisitar (indexar por <see cref="Npc.CurrentLocation"/>) se a população crescer o
-    /// bastante pra pesar no perfil.</summary>
-    private void GainFromObservation(WorldState world, Npc observer)
-    {
-        // Só quem está na mesma célula importa: o índice espacial evita varrer a população inteira por
-        // observador. O primeiro por Id (a ordem original da varredura) é o de menor Id entre os candidatos.
         Npc? observed = null;
         foreach (var other in world.AliveNpcIndex.At(observer.CurrentLocation))
         {
@@ -188,17 +247,17 @@ public sealed class SkillTeachingSystem : ISimulationSystem
         if (observed is null) return;
         if (!_rules.SkillByProfession.TryGetValue(observed.Profession.Id, out var skillType)) return;
 
-        double gain = _rules.Gain(observer.Skills.Get(skillType), SkillGainSource.Observation, observer.RateGene.Value);
-        observer.GainSkill(skillType, gain, _rules.Cap);
+        // Vendo, só se aprende o que o outro sabe: a curva tem teto na habilidade do observado.
+        double known = Math.Min(observed.Skills.Get(skillType), _rules.Cap);
+        if (observer.Skills.Get(skillType) >= known) return;
+        double rate = _rules.BaseRateBySource.GetValueOrDefault(SkillGainSource.Observation);
+        double gain = SkillCurve.Gain(observer.Skills.Get(skillType), known, rate) * observer.RateGene.Value * aptitude;
+        if (gain > 0) _pending.Add((skillType, gain));
     }
 
-    /// <summary>Aprendiz (<see cref="Npc.Mentor"/> aponta pro mestre) ganha a
-    /// habilidade que o mestre pratica; a taxa depende de <c>min(habilidade do mestre, cap)</c> e
-    /// da habilidade declarada em <see cref="SkillsRules.TeachingSkill"/> do mestre — mestre
-    /// melhor (nas duas dimensões) produz ganho maior, mesma seed. Mestre morto ou
-    /// removido: <see cref="Npc.ClearMentor"/> é chamado no próprio tick, sem exceção (Edge Case
-    /// da spec) e sem ganho nesse tick.</summary>
-    private void GainFromTutoring(WorldState world, Npc apprentice)
+    /// <summary>Aprendiz (<see cref="Npc.Mentor"/>) ganha a habilidade que o mestre pratica; mestre melhor (no ofício e no
+    /// ensino) ensina mais. Mestre morto: o vínculo se encerra sem ganho. Alcançou o mestre: formado.</summary>
+    private void GainFromTutoring(WorldState world, Npc apprentice, double aptitude)
     {
         if (apprentice.Mentor is not { } mentorId) return;
 
@@ -222,10 +281,47 @@ public sealed class SkillTeachingSystem : ISimulationSystem
         double masterFactor = (masterSkill / _rules.Cap) * (1.0 + masterTeaching / _rules.Cap);
 
         double baseGain = _rules.Gain(apprentice.Skills.Get(skillType), SkillGainSource.Tutoring, apprentice.RateGene.Value);
-        apprentice.GainSkill(skillType, baseGain * masterFactor, _rules.Cap);
+        _pending.Add((skillType, baseGain * masterFactor * aptitude));
 
-        // Ensinar também treina o ensino: o mestre ganha em TeachingSkill pela taxa de prática.
+        // Ensinar também treina o ensino: o mestre ganha em TeachingSkill pela taxa de prática, uma vez por dia de ensino.
+        if (!_taughtToday.Add(master.Id.Value)) return;
         double teachGain = _rules.Gain(masterTeaching, SkillGainSource.Practice, master.RateGene.Value);
         master.GainSkill(_rules.TeachingSkill, teachGain, _rules.Cap);
+    }
+
+    /// <summary>Um período de manutenção (<see cref="SkillLearningRules.MaintenanceEveryDays"/> dias): o ofício que a pessoa
+    /// exerce (empregada na profissão que o pratica) não cai por desuso; os outros caem; a habilidade manual cai também com
+    /// a velhice.</summary>
+    private void Maintain(Npc npc, double age, int daysPerYear)
+    {
+        var learning = _rules.Learning;
+        SkillType? practiced = npc.Employer is not null && _rules.SkillByProfession.TryGetValue(npc.Profession.Id, out var own)
+            ? own
+            : null;
+        foreach (var skill in _workSkills)
+        {
+            double level = npc.Skills.Get(skill);
+            if (level <= 0) continue;
+            double loss = level * learning.LossFraction(
+                age, practiced == skill, _rules.IsPhysical(skill), learning.MaintenanceEveryDays, daysPerYear);
+            if (loss > 0) _pending.Add((skill, -loss));
+        }
+    }
+
+    /// <summary>Uma amostra da criação: os adultos e idosos vivos da casa onde a criança mora hoje, em ordem de id.</summary>
+    private void SampleRearing(WorldState world, Npc child)
+    {
+        if (child.Household is not { } householdId || world.FindHousehold(householdId) is not { } home) return;
+        _caregivers.Clear();
+        int biological = 0;
+        foreach (var memberId in home.Members.OrderBy(m => m.Value))
+        {
+            if (memberId == child.Id || world.FindNpc(memberId) is not { IsAlive: true } adult) continue;
+            if (!IsCaregiverAge(world, adult)) continue;
+            _caregivers.Add(adult.Personality);
+            if (memberId == child.MotherId || memberId == child.FatherId) biological++;
+        }
+        if (_caregivers.Count == 0) return;
+        child.SetRearing((child.Rearing ?? RearingRecord.Empty).Add(_caregivers, biological));
     }
 }

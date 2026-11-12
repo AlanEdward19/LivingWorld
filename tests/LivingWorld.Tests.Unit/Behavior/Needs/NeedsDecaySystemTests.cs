@@ -209,7 +209,7 @@ public class NeedsDecaySystemTests
 
         npc.SetSleep(0, world.CurrentDate.TotalHours);
         clock.Run(world, ticks: 400);
-        // AD-132: não há registro de morte humana só por falta de sono; a privação debilita até um piso e não mata.
+        // AD-133: não há registro de morte humana só por falta de sono; a privação debilita até um piso e não mata.
         Assert.True(npc.IsAlive);
         Assert.Equal(NeedsDecaySystem.ExhaustionHealthFloor, npc.Health);
         Assert.DoesNotContain(sink.Events, e => e.Kind == WorldEventKind.Exhaustion);

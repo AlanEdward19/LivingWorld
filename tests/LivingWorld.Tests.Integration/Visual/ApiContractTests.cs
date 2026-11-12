@@ -113,6 +113,8 @@ public class ApiContractTests
         Optional(shape, "actionTarget", new JsonObject { ["id"] = "string", ["kind"] = "string" });
         Optional(shape, "rest", new JsonObject { ["blocked"] = "boolean", ["kind"] = "number", ["location"] = new JsonObject { ["x"] = "number", ["y"] = "number" }, ["quality"] = "number", ["remainingHours"] = "number" });
         Optional(shape, "food", new JsonObject { ["blocked"] = "boolean", ["preparation"] = "number", ["remainingHours"] = "number", ["resourceId"] = "number" });
+        // `skills.values` é um mapa id → nível: as chaves são dado, não forma (AD-132: quem existe no início já tem ofício).
+        if (shape["skills"] is JsonObject skills) skills["values"] = new JsonObject();
         var scope = shape["currentScope"]!;
         Optional(scope, "cityId", new JsonObject { ["value"] = "string" }); // CityId serializa o Guid como texto
         return shape;

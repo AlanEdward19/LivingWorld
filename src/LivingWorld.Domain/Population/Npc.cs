@@ -156,6 +156,27 @@ public sealed class Npc
         TouchCanonical();
     }
 
+    /// <summary>Quem criou a pessoa, acumulado durante a infância (AD-132); nulo fora dela, com <c>null</c> explícito no
+    /// snapshot como <see cref="Development"/> (o delta binário só carrega campos presentes e a criança que vira adulta passa
+    /// de objeto a nulo). Snapshot antigo, sem o campo, abre com nulo. Só <c>SkillTeachingSystem</c> grava.</summary>
+    public RearingRecord? Rearing { get; private set; }
+
+    public void SetRearing(RearingRecord? record)
+    {
+        if (ReferenceEquals(Rearing, record)) return;
+        Rearing = record;
+        TouchCanonical();
+    }
+
+    /// <summary>Fim da infância (AD-132): a personalidade adulta passa a incluir o ambiente de quem criou e o registro da
+    /// criação se encerra. Única mudança de personalidade de um sistema ordinário, uma vez na vida.</summary>
+    public void ConcludeRearing(Personality adult)
+    {
+        Personality = adult;
+        Rearing = null;
+        TouchCanonical();
+    }
+
     public void SetNativeLanguage(CultureId? culture)
     {
         if (NativeLanguage == culture) return;
@@ -290,7 +311,8 @@ public sealed class Npc
         long lastJobChangeTick = 0,
         string? controllerId = null, ActionType? controlledAction = null, long? disappearedAtTick = null,
         DevelopmentState? development = null, CultureId? nativeLanguage = null, Appearance? appearance = null,
-        ReproductiveState? reproduction = null, int? gestationAtBirthDays = null, long lifespanOffsetHours = 0)
+        ReproductiveState? reproduction = null, int? gestationAtBirthDays = null, long lifespanOffsetHours = 0,
+        RearingRecord? rearing = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -334,6 +356,7 @@ public sealed class Npc
         Reproduction = reproduction;
         GestationAtBirthDays = gestationAtBirthDays;
         LifespanOffsetHours = lifespanOffsetHours;
+        Rearing = rearing;
         IsGhost = isGhost;
         HomelessSince = homelessSince;
         PregnantUntil = pregnantUntil;
@@ -678,6 +701,14 @@ public sealed class Npc
     public void GainSkill(SkillType type, double delta, double cap)
     {
         Skills = Skills.WithGain(type, delta, cap);
+        TouchCanonical();
+    }
+
+    /// <summary>Vários ganhos (ou perdas) de habilidade numa única troca de <see cref="Skills"/>; vazio não muda nada.</summary>
+    public void GainSkills(IReadOnlyList<(SkillType Type, double Delta)> deltas, double cap)
+    {
+        if (deltas.Count == 0) return;
+        Skills = Skills.WithGains(deltas, cap);
         TouchCanonical();
     }
 

@@ -23,6 +23,7 @@ public class NpcLivingInspectorTests
         var (world, npc) = Subject();
         npc.JoinHousehold(new HouseholdId(41));
         npc.Hire(new WorkplaceId(52));
+        double seeded = npc.Skills.Get(new SkillType(7)); // AD-132: quem existe no início já traz o ofício da idade
         npc.GainSkill(new SkillType(7), 12.5, 100);
         npc.SetHunger(63, world.CurrentDate.TotalHours);
         npc.SetThirst(72, world.CurrentDate.TotalHours);
@@ -36,7 +37,7 @@ public class NpcLivingInspectorTests
         Assert.Equal((63, 72, 81, 54), (dto.Hunger, dto.Thirst, dto.Sleep, dto.Social));
         Assert.Equal(npc.Health, dto.Health);
         Assert.Equal(new WorkplaceId(52), dto.Employer);
-        Assert.Equal(12.5, dto.Skills.Get(new SkillType(7)));
+        Assert.Equal(seeded + 12.5, dto.Skills.Get(new SkillType(7)));
     }
 
     [Fact]

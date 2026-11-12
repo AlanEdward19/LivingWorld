@@ -32,4 +32,15 @@ public sealed class SkillSet
         var copy = new Dictionary<int, double>(Values) { [type.Id] = newValue };
         return new SkillSet(copy);
     }
+
+    /// <summary>Vários ganhos de uma vez, uma única cópia (cada um clampado em <c>[0, cap]</c>, aplicados na ordem dada).
+    /// Mesmo resultado de encadear <see cref="WithGain"/>; existe para o aprendizado diário não alocar um dicionário por
+    /// fonte.</summary>
+    public SkillSet WithGains(IReadOnlyList<(SkillType Type, double Delta)> deltas, double cap)
+    {
+        var copy = new Dictionary<int, double>(Values);
+        foreach (var (type, delta) in deltas)
+            copy[type.Id] = Math.Clamp(copy.GetValueOrDefault(type.Id, 0.0) + delta, 0.0, cap);
+        return new SkillSet(copy);
+    }
 }

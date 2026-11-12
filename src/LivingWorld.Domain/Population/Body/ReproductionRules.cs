@@ -52,7 +52,7 @@ public sealed record ReproductionRules(
             new PretermBand(0.0635, 210, 244, NeonatalDeathRisk: 0.12, InfantHazardMultiplier: 1.6), // 32–36 (12%: sem fonte)
         ],
         // amenorreia da lactação ~12 meses: com ~18,5 meses de espera, gestação e perdas (Bongaarts), o intervalo entre
-        // partos fica perto dos ~30 meses da Inglaterra pré-industrial. 480 dias davam média de 41 (conferência AD-132).
+        // partos fica perto dos ~30 meses da Inglaterra pré-industrial. 480 dias davam média de 41 (conferência AD-133).
         PostpartumInfecundMeanDays: 365, PostpartumInfecundStdDevDays: 120, PostpartumInfecundMinDays: 60,
         PregnancyLossInfecundDays: 45,
         // perda de gestação reconhecida (Nybo Andersen 2000): ~10% aos 20–29, 25% aos 35–39, 54,5% aos 42, 74,7% aos 45+

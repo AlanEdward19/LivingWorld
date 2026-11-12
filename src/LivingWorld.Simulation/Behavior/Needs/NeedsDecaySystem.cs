@@ -64,7 +64,7 @@ public sealed class NeedsDecaySystem : ISimulationSystem
         if (npc.SleepNeed.TicksAtZero(now) < graceTicks) return;
 
         // Não há registro de gente morta só por falta de sono: a privação debilita (e a saúde baixa pesa no risco mensal
-        // de morte), mas não mata por si. Antes a saúde ia a zero em ~5 dias (conferência AD-132).
+        // de morte), mas não mata por si. Antes a saúde ia a zero em ~5 dias (conferência AD-133).
         if (npc.Health > ExhaustionHealthFloor)
             npc.SetHealth(Math.Max(ExhaustionHealthFloor, npc.Health - 2));
     }
