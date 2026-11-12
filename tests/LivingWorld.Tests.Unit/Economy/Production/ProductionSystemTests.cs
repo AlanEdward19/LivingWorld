@@ -39,7 +39,7 @@ public class ProductionSystemTests
         return new WorldState(
             Calendar, 1, map, ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
             ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules,
-            economyRules: rules ?? MakeRules(), economyCatalog: catalog, climateRules: climate);
+            bodyRules: LivingWorld.Domain.Population.Body.BodyRules.Default with { Growth = LivingWorld.Domain.Population.Body.GrowthRules.Static }, economyRules: rules ?? MakeRules(), economyCatalog: catalog, climateRules: climate);
     }
 
     private static Npc MakeWorker(WorldState world, CellCoord location)

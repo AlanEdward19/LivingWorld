@@ -25,15 +25,19 @@ public sealed class WorkHardeningSystem : ISimulationSystem
     {
         if (!world.BodyRules.Enabled) return;
 
-        foreach (var npc in world.Npcs.OrderBy(n => n.Id.Value))
+        bool growth = world.BodyRules.Growth.Enabled;
+        var alive = world.AliveNpcIndex.Alive; // em ordem de id, só vivos
+        for (int i = 0; i < alive.Count; i++)
         {
-            if (!npc.IsAlive) continue;
+            var npc = alive[i];
             if (npc.Employer is not { } employerId) continue;
             if (npc.CurrentAction != ActionType.Work) continue;
             if (world.FindWorkplace(employerId) is not { } workplace) continue;
             if (npc.CurrentLocation != workplace.Location) continue;
 
-            BodyMechanic.ApplyWorkHardening(world, npc);
+            // AD-134: o dia de trabalho braçal conta para o músculo do mês (GrowthSystem); sem crescimento, o ganho antigo
+            if (growth) npc.AddPhysicalWorkDay();
+            else BodyMechanic.ApplyWorkHardening(world, npc);
         }
     }
 }

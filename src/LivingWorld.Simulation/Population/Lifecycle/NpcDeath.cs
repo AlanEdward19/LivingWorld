@@ -27,6 +27,7 @@ public static class NpcDeath
         world.AliveNpcIndex.OnDied(npc);
         ctx.LogEvent(kind, npc.Id.Value.ToString(), sourceSystem: "NpcDeath");
         FactToReportConversionScheduler.OnWitnessDied(npc.Id, world, ctx);
+        LivingWorld.Simulation.Health.Lactation.OnDeath(world, npc, ctx.CurrentTick);
 
         if (npc.Household is not { } householdId) return;
 

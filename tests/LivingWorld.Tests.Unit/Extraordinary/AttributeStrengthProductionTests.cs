@@ -131,7 +131,7 @@ public sealed class AttributeStrengthProductionTests
             ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
             ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules,
-            economyRules: rules, economyCatalog: catalog,
+            bodyRules: LivingWorld.Domain.Population.Body.BodyRules.Default with { Growth = LivingWorld.Domain.Population.Body.GrowthRules.Static }, economyRules: rules, economyCatalog: catalog,
             extraordinary: new ExtraordinaryScenarioData(true, [descriptor]),
             extraordinaryCarriers: [state]);
         var workplace = new Workplace(

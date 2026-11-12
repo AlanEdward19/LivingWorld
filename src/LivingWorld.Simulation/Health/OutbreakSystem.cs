@@ -36,6 +36,18 @@ public sealed class OutbreakSystem : ISimulationSystem
         StartOutbreaks(world, ctx, rules, now, day);
     }
 
+    /// <summary>Quanto a doença em curso tira do teto de saúde do NPC (lido pela fisiologia diária).</summary>
+    public static double HealthPenalty(WorldState world, Npc npc, double ageYears)
+    {
+        _ = ageYears;
+        if (world.Infections.Count == 0) return 0;
+        var rules = world.DiseaseRules;
+        double penalty = 0;
+        foreach (var profile in rules.Diseases)
+            if (world.IsInfected(npc.Id, profile.Id)) penalty = Math.Max(penalty, profile.HealthPenalty);
+        return penalty;
+    }
+
     private static void ResolveEndedInfections(WorldState world, TickContext ctx, DiseaseRules rules, long now)
     {
         foreach (var infection in world.Infections.Where(i => i.EndTick <= now).ToList())
@@ -45,7 +57,8 @@ public sealed class OutbreakSystem : ISimulationSystem
             if (profile is null || world.FindNpc(infection.Npc) is not { IsAlive: true } npc) continue;
 
             double roll = ctx.OneShot($"disease-outcome-{infection.Npc.Value}-{infection.Disease}-{infection.EndTick}").NextDouble();
-            if (roll < profile.Lethality)
+            double age = Math.Max(0, now - npc.BirthDate.TotalHours) / (double)world.CurrentDate.Calendar.HoursPerYear;
+            if (roll < profile.LethalityFor(age, npc.Undernutrition))
             {
                 ctx.LogEvent(WorldEventKind.Disease, $"{npc.Id.Value}|{profile.Id}", sourceSystem: SystemName);
                 NpcDeath.Apply(world, ctx, npc, WorldEventKind.Disease);

@@ -87,13 +87,20 @@ public sealed class MortalitySystem : ISimulationSystem
         long calendarAgeHours = Math.Max(0, startTick - npc.BirthDate.TotalHours);
         long biologicalHours = Math.Max(0, (long)(calendarAgeHours * senescence) + npc.LifespanOffsetHours);
         int biologicalAge = (int)(biologicalHours / hoursPerYear);
-        double multiplier = StateMultiplier(world, npc, calendarAgeHours < hoursPerYear);
+        double multiplier = StateMultiplier(world, npc, calendarAgeHours < hoursPerYear, startTick);
+        // a tábua já conta a senescência: a saúde entra relativa ao teto da idade (AD-134), sem contar a velhice duas vezes
+        int health = world.NeedsRules.Physiology.RelativeHealth(biologicalAge, npc.Health);
         return world.PopulationRules.LifeTable.PeriodMortality(
-            biologicalAge, npc.Health, multiplier, hours / (double)hoursPerYear);
+            biologicalAge, health, multiplier, hours / (double)hoursPerYear);
     }
 
     /// <summary>Multiplicador do estado do NPC sobre a tábua (a saúde já entra na própria tábua).</summary>
-    public static double StateMultiplier(WorldState world, Npc npc, bool firstYear)
+    public static double StateMultiplier(WorldState world, Npc npc, bool firstYear) =>
+        StateMultiplier(world, npc, firstYear, world.CurrentDate.TotalHours);
+
+    /// <summary>Multiplicador do estado em <paramref name="tick"/>: vitalidade, prematuridade, desnutrição acumulada e, no
+    /// lactente sem leite recente, o risco da papa pela idade (AD-134).</summary>
+    public static double StateMultiplier(WorldState world, Npc npc, bool firstYear, long tick)
     {
         double multiplier = world.FamilyRules.VitalityMortalitySelectionEnabled
             ? world.FamilyRules.EffectiveVitalityMultiplier(npc.Vitality)
@@ -101,6 +108,16 @@ public sealed class MortalitySystem : ISimulationSystem
         if (firstYear && npc.GestationAtBirthDays is { } days
             && world.PopulationRules.Fertility.PretermBandOf(days) is { } band)
             multiplier *= band.InfantHazardMultiplier;
+        var physiology = world.NeedsRules.Physiology;
+        if (!physiology.Enabled) return multiplier;
+        double ageYears = Math.Max(0, tick - npc.BirthDate.TotalHours) / (double)world.Calendar.HoursPerYear;
+        multiplier *= physiology.MalnutritionMultiplier(ageYears, npc.Undernutrition);
+        var lactation = physiology.Lactation;
+        double ageDays = Math.Max(0, tick - npc.BirthDate.TotalHours) / (double)world.Calendar.HoursPerDay;
+        // quem já existia quando o mundo começou (sem gestação registrada) não teve a amamentação simulada
+        if (lactation.Enabled && npc.GestationAtBirthDays is not null && ageDays < lactation.WeaningEndDays
+            && (npc.LastNursedTick is not { } nursed || tick - nursed > lactation.NursedRecentlyDays * world.Calendar.HoursPerDay))
+            multiplier *= lactation.UnnursedHazardByAgeMonths.At(ageYears * world.Calendar.MonthsPerYear);
         return multiplier;
     }
 

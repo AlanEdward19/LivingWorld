@@ -140,19 +140,26 @@ public sealed class NatalitySystem : ISimulationSystem
 
         // risco obstétrico pela idade, partos anteriores e saúde da mãe, sobre as taxas-base do cenário
         double risk = fertility.ObstetricRiskMultiplier(mother.AgeYears(world.CurrentDate), history.Parity, mother.Health);
-        if (ctx.OneShot($"natality-maternal-{motherId.Value}-{evt.Id}").NextDouble() < familyRules.MaternalDeathRisk * risk)
+        bool maternalDeath = ctx.OneShot($"natality-maternal-{motherId.Value}-{evt.Id}").NextDouble() < familyRules.MaternalDeathRisk * risk;
+        var physiology = world.NeedsRules.Physiology;
+        // AD-134: a mãe que morre no parto ainda dá à luz (o filho nasce vivo em parte desses partos); antes não havia bebê
+        bool birthDespiteDeath = maternalDeath && physiology.Enabled && physiology.Lactation.Enabled;
+        if (maternalDeath && !birthDespiteDeath)
         {
             NpcDeath.Apply(world, ctx, mother, WorldEventKind.MaternalDeath);
             return;
         }
 
         var delivered = history with { Parity = history.Parity + 1, LastBirthTick = now };
-        if (ctx.OneShot($"natality-infant-{motherId.Value}-{evt.Id}").NextDouble() < familyRules.InfantDeathRisk * risk)
+        double stillbirthRisk = birthDespiteDeath ? physiology.Lactation.StillbirthRiskWhenMotherDies : familyRules.InfantDeathRisk * risk;
+        if (ctx.OneShot($"natality-infant-{motherId.Value}-{evt.Id}").NextDouble() < stillbirthRisk)
         {
             mother.SetReproduction(delivered with { InfecundUntilTick = lossInfecundUntil });
             ctx.LogEvent(
                 WorldEventKind.StillBirth, $"{motherId.Value}|{fatherId.Value}",
                 sourceSystem: "NatalitySystem");
+            if (birthDespiteDeath) NpcDeath.Apply(world, ctx, mother, WorldEventKind.MaternalDeath);
+            else ApplyDeliveryStrain(mother, physiology, risk);
             return;
         }
 
@@ -168,10 +175,26 @@ public sealed class NatalitySystem : ISimulationSystem
         {
             // Teto de população viva (compartilhado com split-on-death).
             if (world.PopulationRules.RemainingAliveSlots(world.AliveNpcIndex.Alive.Count) <= 0)
-                return;
+                break;
             Deliver(world, ctx, evt, mother, father, fatherId, household, sexes[i] == 'M' ? Sex.Male : Sex.Female,
                 gestationDays, conceptionStock, i == 0 ? "" : $"-{i + 1}");
         }
+
+        if (birthDespiteDeath)
+        {
+            NpcDeath.Apply(world, ctx, mother, WorldEventKind.MaternalDeath);
+            return;
+        }
+
+        ApplyDeliveryStrain(mother, physiology, risk);
+        LivingWorld.Simulation.Health.Lactation.RefreshHousehold(world, mother, now);
+    }
+
+    /// <summary>O parto gasta reserva (hemorragia, anemia) na proporção do risco obstétrico; a fisiologia diária recupera.</summary>
+    private static void ApplyDeliveryStrain(Npc mother, LivingWorld.Domain.Health.PhysiologyRules physiology, double risk)
+    {
+        if (!physiology.Enabled || physiology.DeliveryHealthLoss <= 0) return;
+        mother.SetHealth(Math.Max(physiology.HealthFloor, mother.Health - (int)Math.Round(physiology.DeliveryHealthLoss * risk)));
     }
 
     private static void Deliver(
@@ -192,10 +215,11 @@ public sealed class NatalitySystem : ISimulationSystem
                 appearanceRules.Heritability)
             : null;
         var profession = world.PopulationCatalog.RollProfession(ctx.StreamFor("profession", babyId.Value));
+        var genetics = world.BodyRules.Genetics;
         var rateGene = RateGene.Inherit(
-            mother.RateGene, father?.RateGene ?? mother.RateGene, ctx.StreamFor("rategene", babyId.Value));
+            mother.RateGene, father?.RateGene ?? mother.RateGene, ctx.StreamFor("rategene", babyId.Value), genetics);
         double vitality = HeredityService.InheritVitality(
-            mother.Vitality, father?.Vitality ?? mother.Vitality, familyRules,
+            mother.Vitality, father?.Vitality ?? mother.Vitality, familyRules, genetics,
             ctx.StreamFor("vitality", babyId.Value));
         double upbringing = HeredityService.DeriveUpbringingFromConceptionStock(conceptionStock, familyRules);
         var body = world.BodyRules;
@@ -211,6 +235,8 @@ public sealed class NatalitySystem : ISimulationSystem
             rateGene: rateGene, vitality: vitality, upbringing: upbringing,
             height: height, weight: weight, muscleMass: muscleMass, appearance: appearance);
         baby.SetGestationAtBirth(gestationDays);
+        // AD-134: tamanho de recém-nascido (menor se prematuro) e estatura herdada dos dois pais
+        LivingWorld.Simulation.Population.Body.BodyGrowth.InitializeNewborn(world, baby, mother, father);
 
         baby.JoinCity(mother.City);
         world.AddNpc(baby);
@@ -218,6 +244,7 @@ public sealed class NatalitySystem : ISimulationSystem
             baby.SetDevelopment(LivingWorld.Domain.Ontogeny.DevelopmentState.Newborn);
         baby.ConfigureNeedDecay(world.NeedsRules, world.CurrentDate.TotalHours);
         household.AddMember(baby.Id);
+        LivingWorld.Simulation.Health.Lactation.TryNurse(world, baby, ctx.CurrentTick); // primeira mamada
         long birthEventId = ctx.LogEvent(
             WorldEventKind.Birth,
             $"{baby.Id.Value}|{motherId.Value}|{fatherId.Value}|{household.Id.Value}",

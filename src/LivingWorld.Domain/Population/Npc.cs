@@ -255,14 +255,103 @@ public sealed class Npc
     public NpcId? Spouse { get; private set; }
     public NpcId? CourtingWith { get; private set; }
 
-    // Corpo mínimo causal — Height/Weight imutáveis após nascimento;
-    // MuscleMass pode crescer lentamente com trabalho pesado (BodyMechanic).
-    /// <summary>Altura em metros, gerada via RNG semeado (<see cref="BodyGeneration"/>).</summary>
-    public double Height { get; }
-    /// <summary>Peso em kg, gerado via RNG semeado.</summary>
-    public double Weight { get; }
-    /// <summary>Massa muscular em kg — pode aumentar com trabalho pesado sustentado.</summary>
+    // Corpo causal (AD-134): altura, peso e músculo mudam com a idade, a comida e o trabalho (GrowthSystem, mensal).
+    /// <summary>Altura em metros na idade atual.</summary>
+    public double Height { get; private set; }
+    /// <summary>Peso em kg na idade atual.</summary>
+    public double Weight { get; private set; }
+    /// <summary>Massa muscular em kg — sobe com trabalho braçal, cai sem ele, com a idade e na fome.</summary>
     public double MuscleMass { get; private set; }
+
+    /// <summary>Valor genético aditivo da estatura, em desvios-padrão do sexo (AD-134): herdado com segregação; 0 = médio.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public double StatureGene { get; private set; }
+
+    /// <summary>Estatura adulta que o corpo ainda pode alcançar (m), já descontado o nanismo da desnutrição na infância; 0 =
+    /// snapshot anterior ao AD-134 (o crescimento a deriva da altura atual).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public double AdultHeight { get; private set; }
+
+    /// <summary>Desnutrição acumulada em [0,1] (média móvel diária, 0 = bem nutrido). Lida pela mortalidade, pelo peso, pelo
+    /// nanismo e pela saúde.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public double Undernutrition { get; private set; }
+
+    /// <summary>Último tick em que mamou (lactente). Nulo = nunca mamou.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? LastNursedTick { get; private set; }
+
+    /// <summary>Último tick em que deu de mamar (lactante). Nulo = nunca.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? LastLactationTick { get; private set; }
+
+    /// <summary>Dias com trabalho braçal no mês corrente; o crescimento mensal lê e zera.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public int PhysicalWorkDays { get; private set; }
+
+    public void SetBody(double height, double weight, double muscleMass)
+    {
+        if (Height == height && Weight == weight && MuscleMass == muscleMass) return;
+        Height = height;
+        Weight = weight;
+        MuscleMass = muscleMass;
+        TouchCanonical();
+    }
+
+    public void SetStature(double statureGene, double adultHeight)
+    {
+        StatureGene = statureGene;
+        AdultHeight = adultHeight;
+        TouchCanonical();
+    }
+
+    public void SetAdultHeight(double adultHeight)
+    {
+        if (AdultHeight == adultHeight) return;
+        AdultHeight = adultHeight;
+        TouchCanonical();
+    }
+
+    public void SetUndernutrition(double value)
+    {
+        value = Math.Clamp(value, 0.0, 1.0);
+        if (Undernutrition == value) return;
+        Undernutrition = value;
+        TouchCanonical();
+    }
+
+    public void MarkNursed(long tick)
+    {
+        LastNursedTick = tick;
+        TouchCanonical();
+    }
+
+    public void MarkLactation(long tick)
+    {
+        LastLactationTick = tick;
+        TouchCanonical();
+    }
+
+    public void AddPhysicalWorkDay()
+    {
+        PhysicalWorkDays++;
+        TouchCanonical();
+    }
+
+    public void ResetPhysicalWorkDays()
+    {
+        if (PhysicalWorkDays == 0) return;
+        PhysicalWorkDays = 0;
+        TouchCanonical();
+    }
+
+    /// <summary>Troca a taxa de decaimento da fome (lactação gasta mais comida) a partir de <paramref name="tick"/>.</summary>
+    public void SetHungerDecayRate(double ratePerHour, long tick)
+    {
+        if (HungerNeed.DecayRatePerTick == ratePerHour) return;
+        HungerNeed = HungerNeed.WithDecayRate(ratePerHour, tick);
+        TouchCanonical();
+    }
 
     /// <summary>Cidade onde o NPC vive — nunca "sem cidade"
     /// (todo NPC vivo tem exatamente uma). Mutável só por <see cref="JoinCity"/>.</summary>
@@ -312,7 +401,9 @@ public sealed class Npc
         string? controllerId = null, ActionType? controlledAction = null, long? disappearedAtTick = null,
         DevelopmentState? development = null, CultureId? nativeLanguage = null, Appearance? appearance = null,
         ReproductiveState? reproduction = null, int? gestationAtBirthDays = null, long lifespanOffsetHours = 0,
-        RearingRecord? rearing = null)
+        RearingRecord? rearing = null,
+        double statureGene = 0, double adultHeight = 0, double undernutrition = 0, long? lastNursedTick = null,
+        long? lastLactationTick = null, int physicalWorkDays = 0)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -379,6 +470,12 @@ public sealed class Npc
         Height = height;
         Weight = weight;
         MuscleMass = muscleMass;
+        StatureGene = statureGene;
+        AdultHeight = adultHeight;
+        Undernutrition = Math.Clamp(undernutrition, 0.0, 1.0);
+        LastNursedTick = lastNursedTick;
+        LastLactationTick = lastLactationTick;
+        PhysicalWorkDays = physicalWorkDays;
     }
 
     public Npc(

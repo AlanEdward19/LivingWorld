@@ -111,7 +111,9 @@ public sealed class SenescenceMechanicTests
             profession: ProfessionType.None, currentLocation: new CellCoord(0, 0));
         world.AddNpc(npc);
         npc.SetHealth(0);
-        world.CurrentDate = WorldDate.Epoch(ScenarioRunner.DefaultCalendar).AddYears(99);
+        // AD-134: a saúde entra relativa ao teto da idade, então aos 99 com saúde 0 o risco do mês não é mais 1; no teto da
+        // tábua (100 anos) continua certo, que é o que estes testes precisam
+        world.CurrentDate = WorldDate.Epoch(ScenarioRunner.DefaultCalendar).AddYears(100);
         return (world, npc, new TickContext(world, world.Rng, world.Scheduler));
     }
 

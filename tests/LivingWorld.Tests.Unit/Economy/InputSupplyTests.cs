@@ -60,7 +60,7 @@ public class InputSupplyTests
         var world = new WorldState(
             Calendar, 1, ScenarioRunner.DefaultMap(1), ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
-            ScenarioRunner.DefaultLifeStageRules, economyRules: Rules(), economyCatalog: ForgeCatalog(),
+            ScenarioRunner.DefaultLifeStageRules, bodyRules: LivingWorld.Domain.Population.Body.BodyRules.Default with { Growth = LivingWorld.Domain.Population.Body.GrowthRules.Static }, economyRules: Rules(), economyCatalog: ForgeCatalog(),
             cityRules: CityRulesOn(), cityCatalog: cityCatalog ?? CityCatalog.Empty);
         var city = new City(
             world.NextCityId(), Spot, 0, null, AggregatePopulationPool.Empty, treasury: new Money(cityTreasury));

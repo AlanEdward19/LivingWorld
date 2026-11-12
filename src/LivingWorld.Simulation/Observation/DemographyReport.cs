@@ -28,8 +28,12 @@ public sealed class DemographyTally(WorldState world) : IWorldEventSink
     public Dictionary<long, (long BirthTick, long? DeathAgeHours)> Babies { get; } = [];
     public Dictionary<long, List<long>> BirthTicksByMother { get; } = [];
 
+    /// <summary>Corpo, saúde e causas de morte (AD-134).</summary>
+    public BodyHealthTally Body { get; } = new(world);
+
     public void Record(WorldEvent evt)
     {
+        Body.OnEvent(evt);
         if (evt.Tick < MeasureFromTick) return;
         switch (evt.Kind)
         {
@@ -98,6 +102,7 @@ public static class DemographyReport
     {
         var (world, baseClock) = ScenarioRunner.Create(seed);
         var tally = new DemographyTally(world) { MeasureFromTick = warmupYears * world.Calendar.HoursPerYear };
+        tally.Body.MeasureFromTick = tally.MeasureFromTick;
         var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, tally);
         int months = years * world.Calendar.MonthsPerYear;
         int minAlive = int.MaxValue;
@@ -105,6 +110,7 @@ public static class DemographyReport
         {
             clock.Run(world, world.Calendar.HoursPerMonth);
             if (m >= warmupYears * world.Calendar.MonthsPerYear) tally.SampleMonth();
+            if ((m + 1) % world.Calendar.MonthsPerYear == 0) tally.Body.SampleYear();
             minAlive = Math.Min(minAlive, world.AliveNpcIndex.Alive.Count);
             if (world.AliveNpcIndex.Alive.Count == 0) break;
         }
@@ -181,6 +187,7 @@ public static class DemographyReport
 
         sb.AppendLine();
         sb.Append("seeds(final)=").AppendLine(string.Join(",", runs.Select(r => r.FinalAlive)));
+        sb.Append(BodyHealthTally.Summarize(runs.Select(r => (r.Tally.Body, followUpEnd)).ToList()));
         return sb.ToString();
     }
 

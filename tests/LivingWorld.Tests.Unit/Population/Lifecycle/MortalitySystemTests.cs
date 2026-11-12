@@ -117,6 +117,9 @@ public class MortalitySystemTests
         var preterm = MakeNpc(world, vitality: 50);
         term.SetGestationAtBirth(268);
         preterm.SetGestationAtBirth(200);
+        // os dois mamando (AD-134): sem leite o risco do lactente bate no teto e esconderia a diferença da prematuridade
+        term.MarkNursed(world.CurrentDate.TotalHours);
+        preterm.MarkNursed(world.CurrentDate.TotalHours);
 
         Assert.True(MonthRisk(world, preterm) > MonthRisk(world, term));
     }
