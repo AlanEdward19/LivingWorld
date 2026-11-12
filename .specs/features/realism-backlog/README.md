@@ -35,6 +35,7 @@ Branch de trabalho: `perf/decision-scan-costs`, sem push, sem PR. Último commit
 | Invenção emergente: tecnologia, veículos, robôs, aparência e animação | não começado | [05](05-invencao-emergente.md) |
 | Violência, furto, poderes por genética, achados restantes da auditoria | não começado | [06](06-violencia-poderes-e-restantes.md) |
 | Desempenho e tempo dos testes | parcial | [07](07-desempenho-e-testes.md) |
+| Pontos em aberto a investigar (afrouxamentos, números sem fonte, efeitos sem explicação) | aberto | [08](08-a-investigar.md) |
 
 ## Como trabalhar uma fatia
 
