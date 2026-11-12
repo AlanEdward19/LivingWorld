@@ -29,7 +29,7 @@ Branch de trabalho: `perf/decision-scan-costs`, sem push, sem PR. Último commit
 | Doença de época ligada por padrão (item 5 da fatia de corpo) | não começado | [06](06-violencia-poderes-e-restantes.md) |
 | Agricultura, estações, água de beber (AD-135) | em worktree | [01](01-em-andamento.md) |
 | Vocação que emerge, traição, separação, novas uniões, tabu de parentesco (AD-136) | juntado | `docs/decisions-log.md` |
-| Hormônios, ciclo menstrual, adolescência, doença genética, contracepção | não começado | [02](02-biologia-e-hormonios.md) |
+| Hormônios, ciclo menstrual, adolescência, doença genética, contracepção (AD-139) | em worktree, sobre `70adcd30`, disparada em 2026-11-12 | [02](02-biologia-e-hormonios.md) |
 | Cognição parte 1: memória da própria vida, emoção, pensamento que é o motivo (AD-138) | juntado | `docs/domain/inner-life.md`, [01](01-em-andamento.md) |
 | Cognição parte 2: cérebro neural legível | não começado | [03](03-cognicao-e-cerebro.md) |
 | Empreendedorismo, crédito, preço e salário | não começado | [04](04-economia-e-empreendedorismo.md) |
