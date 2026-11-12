@@ -73,7 +73,7 @@ public sealed class LaborValueIndex
         var byCityLists = new Dictionary<CityId, List<Workplace>>();
         var rules = world.EconomyRules;
         var catalog = world.EconomyCatalog;
-        bool plantsFeedFood = world.ProcessRecipes.Any(item => item.Kind == ProcessKind.Plant);
+        bool plantsFeedFood = LivingWorld.Simulation.Economy.Production.CropSystem.FieldsFeedFood(world);
 
         foreach (var workplace in world.Workplaces.OrderBy(w => w.Id.Value))
         {

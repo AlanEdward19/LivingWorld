@@ -49,7 +49,8 @@ public static class ScaleScenarioFixture
             [(2, 1)] = 50_000,
             [(4, 2)] = 50_000,
         },
-        spoilagePerDayByResource: new Dictionary<int, double> { [1] = 0.005 },
+        // AD-135: a despensa da casa passou a estragar na mesma taxa; 0,5%/dia (84%/ano) comia a reserva anual do fixture
+        spoilagePerDayByResource: new Dictionary<int, double> { [1] = 0.00045 },
         wageByProfession: new Dictionary<int, long> { [1] = 150, [2] = 180 },
         priceFloor: new Dictionary<int, long> { [1] = 1, [2] = 1, [4] = 1 },
         priceCeiling: new Dictionary<int, long> { [1] = 25, [2] = 20, [4] = 100 },

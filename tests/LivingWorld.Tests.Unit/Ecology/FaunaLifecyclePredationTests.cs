@@ -34,7 +34,7 @@ public sealed class FaunaLifecyclePredationTests
         double energyBefore = world.FindAnimal(new AnimalId(1))!.Energy.ValueAt(0);
         var clock = new WorldClock([new FaunaLifecycleSystem()], sink: sink);
 
-        clock.Tick(world);
+        clock.Run(world, 24); // AD-135: fauna é diária
 
         Assert.False(world.FindAnimal(new AnimalId(2))!.IsAlive);
         Assert.True(world.FindAnimal(new AnimalId(1))!.IsAlive);
@@ -65,7 +65,7 @@ public sealed class FaunaLifecyclePredationTests
             ],
             animalSpeciesRules: [rabbitRules]);
 
-        new WorldClock([new FaunaLifecycleSystem()]).Tick(world);
+        new WorldClock([new FaunaLifecycleSystem()]).Run(world, 24); // AD-135: fauna é diária
 
         Assert.All(world.Fauna, a => Assert.True(a.IsAlive));
     }
@@ -102,7 +102,7 @@ public sealed class FaunaLifecyclePredationTests
         Assert.False(world.Extraordinary.Enabled);
         int startAlive = world.Fauna.Count(a => a.IsAlive);
 
-        new WorldClock([new FaunaLifecycleSystem()]).Run(world, ticks: 80);
+        new WorldClock([new FaunaLifecycleSystem()]).Run(world, ticks: 80 * 24);
 
         int endAlive = world.Fauna.Count(a => a.IsAlive);
         int births = world.Fauna.Count(a => a.Id.Value >= 7);

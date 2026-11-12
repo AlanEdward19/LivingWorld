@@ -172,9 +172,15 @@ public class EconomyDepthScenarioTests
         int more = 0;
         for (int seed = 1; seed <= 20; seed++)
         {
-            var (control, controlClock) = LoadWith(seed, population: 40);
+            // AD-135: sem rio nem fonte nos dois braços; com água de graça perto de casa ninguém compra água e o preço do poço
+            // fraco deixa de mover gente (o que este teste mede é o sinal de preço chegando ao trabalho)
+            static void Dry(JsonObject node) => node["NaturalWater"] = new JsonObject { ["Enabled"] = false };
+            var (control, controlClock) = LoadWith(seed, population: 40, Dry);
             var (dry, dryClock) = LoadWith(seed, population: 40, node =>
-                node["Recipes"]!["1"]!["Outputs"] = new JsonObject { ["1"] = 10, ["2"] = 2 }); // AD-132: era 3
+            {
+                Dry(node);
+                node["Recipes"]!["1"]!["Outputs"] = new JsonObject { ["1"] = 10, ["2"] = 2 }; // AD-132: era 3
+            });
             double controlShare = 0, dryShare = 0;
             for (int day = 0; day < 300; day++)
             {

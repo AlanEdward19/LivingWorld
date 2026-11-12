@@ -60,6 +60,7 @@ public static partial class ScenarioRunner
         {
         new PeriodEvolutionSystem(periodTransformationRules ?? []),
         new ClimateYearSystem(),
+        new NaturalWaterSystem(), // antes da natalidade: a despensa de água já cheia no dia
         new MortalitySystem(),
         new OutbreakSystem(),
         new TechDiscoverySystem(),
@@ -86,7 +87,7 @@ public static partial class ScenarioRunner
         new FaunaLifecycleSystem(),
         new FloraLifecycleSystem(),
         new TemperatureSeasonSystem(),
-        new CropSystem(),
+        new CropSystem(DefaultSkillsRules),
         new MarketPricingSystem(),
         new WagePaymentSystem(),
         new LodgingSystem(),

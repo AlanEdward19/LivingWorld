@@ -29,7 +29,7 @@ public sealed class FaunaLifecycleReproduceTests
         var world = WorldWithPair(rules, seed: 7);
         var clock = new WorldClock([new FaunaLifecycleSystem()], sink: sink);
 
-        clock.Tick(world);
+        clock.Run(world, 24); // AD-135: fauna é diária
 
         Assert.Equal(3, world.Fauna.Count(a => a.IsAlive));
         var child = world.Fauna.Single(a => a.Id.Value == 3);
@@ -79,14 +79,14 @@ public sealed class FaunaLifecycleReproduceTests
             "rabbit", HungerDecayPerTick: 0, ReproduceEnergyThreshold: 50, ReproduceRadius: 2,
             ReproduceProbability: 1.0, PredatorOf: null, PredationProbability: 0);
         var world = WorldWithPair(rules, seed);
-        new WorldClock([new FaunaLifecycleSystem()]).Run(world, ticks: 3);
+        new WorldClock([new FaunaLifecycleSystem()]).Run(world, ticks: 3 * 24);
         return world.Fauna.OrderBy(a => a.Id.Value).ToList();
     }
 
     private static int CountAliveAfter(AnimalSpeciesRules rules, ulong seed)
     {
         var world = WorldWithPair(rules, seed);
-        new WorldClock([new FaunaLifecycleSystem()]).Run(world, ticks: 5);
+        new WorldClock([new FaunaLifecycleSystem()]).Run(world, ticks: 5 * 24);
         return world.Fauna.Count(a => a.IsAlive);
     }
 

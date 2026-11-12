@@ -282,6 +282,14 @@ public static class WorldSnapshot
             node.TryGetPropertyValue("ClimateRules", out var climateRulesNode) && climateRulesNode is not null
                 ? climateRulesNode.Deserialize<ClimateRules>(JsonOptions)!
                 : ClimateRules.Disabled;
+        var agricultureRules =
+            node.TryGetPropertyValue("AgricultureRules", out var agricultureNode) && agricultureNode is not null
+                ? agricultureNode.Deserialize<LivingWorld.Domain.Economy.AgricultureRules>(JsonOptions)!
+                : LivingWorld.Domain.Economy.AgricultureRules.Disabled;
+        var naturalWaterRules =
+            node.TryGetPropertyValue("NaturalWaterRules", out var naturalWaterNode) && naturalWaterNode is not null
+                ? naturalWaterNode.Deserialize<LivingWorld.Domain.Economy.NaturalWaterRules>(JsonOptions)!
+                : LivingWorld.Domain.Economy.NaturalWaterRules.Disabled;
         var theftRules =
             node.TryGetPropertyValue("TheftRules", out var theftRulesNode) && theftRulesNode is not null
                 ? theftRulesNode.Deserialize<TheftRules>(JsonOptions)!
@@ -324,7 +332,7 @@ public static class WorldSnapshot
             extraordinaryConstructs, nextExtraordinaryConstructId,
             fauna, nextAnimalId, flora, nextPlantId, environmentTemperatureAdjustments,
             animalSpeciesRules, plantSpeciesRules, biomeSeasonTemperatureRules,
-            nextHistoryEventId, combatEncounters, nextCombatEncounterId, combatRules, tradeLedger, treasuryLedger, diseaseRules, infections, immunities, climateRules, climateYears, theftRules, emergenceRules, ontogenyRules, technologies, appearanceRules, objectCatalog);
+            nextHistoryEventId, combatEncounters, nextCombatEncounterId, combatRules, tradeLedger, treasuryLedger, diseaseRules, infections, immunities, climateRules, climateYears, theftRules, emergenceRules, ontogenyRules, technologies, appearanceRules, objectCatalog, agricultureRules, naturalWaterRules);
         rehydrated.AssignPeriod(periodId);
         rehydrated.RestoreNpcWakes(npcWakes);
         return rehydrated;

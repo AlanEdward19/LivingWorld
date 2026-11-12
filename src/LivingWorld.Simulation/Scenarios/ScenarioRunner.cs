@@ -203,10 +203,10 @@ public static partial class ScenarioRunner
             [(2, 1)] = 1000, // água na fazenda (poço da propriedade)
             [(4, 2)] = 1000, // ferro na ferraria
         },
-        spoilagePerDayByResource: new Dictionary<int, double> { [1] = 0.01 }, // só trigo estraga
-                                                                              // Salário mensal precisa cobrir consumo diário (Eat gasta ~1 trigo + 1 água por vez,
-                                                                              // aproximadamente 1x/dia por necessidade) a preço de mercado — ~60/mês de custo a preço 1-2,
-                                                                              // wage bem acima disso dá folga real, não só sobrevivência no fio da navalha.
+        spoilagePerDayByResource: new Dictionary<int, double> { [1] = 0.00045 }, // só trigo estraga: ~15%/ano (AD-135)
+                                                                                 // Salário mensal precisa cobrir consumo diário (Eat gasta ~1 trigo + 1 água por vez,
+                                                                                 // aproximadamente 1x/dia por necessidade) a preço de mercado — ~60/mês de custo a preço 1-2,
+                                                                                 // wage bem acima disso dá folga real, não só sobrevivência no fio da navalha.
         wageByProfession: new Dictionary<int, long> { [1] = 90, [2] = 110 },
         priceFloor: new Dictionary<int, long> { [1] = 1, [2] = 1, [4] = 1 },
         priceCeiling: new Dictionary<int, long> { [1] = 20, [2] = 15, [4] = 80 },
@@ -247,18 +247,17 @@ public static partial class ScenarioRunner
     /// futura <c>FaunaLifecycleSystem</c>.</summary>
     public static readonly IReadOnlyList<AnimalSpeciesRules> DefaultAnimalSpeciesRules =
     [
-        new("wolf", HungerDecayPerTick: 0.5, ReproduceEnergyThreshold: 60, ReproduceRadius: 3,
-            ReproduceProbability: 0.12, PredatorOf: "rabbit", PredationProbability: 0.25),
-        new("rabbit", HungerDecayPerTick: 0.35, ReproduceEnergyThreshold: 50, ReproduceRadius: 2,
-            ReproduceProbability: 0.18, PredatorOf: null, PredationProbability: 0),
+        // AD-135: chances por dia; uma ninhada de lobo por ano (fim do inverno), coelho em ninhadas de ~30 dias na primavera e verão
+        new("wolf", HungerDecayPerTick: 0.5, ReproduceEnergyThreshold: 60, ReproduceRadius: 3, ReproduceProbability: 0.05, PredatorOf: "rabbit", PredationProbability: 0.25, BreedStartMonth: 1, BreedEndMonth: 2, GestationDays: 300, LitterSize: 2, AnnualMortality: 0.25, HuntsOnlyWhenHungry: true, WandersWhenHungry: true),
+        new("rabbit", HungerDecayPerTick: 0.35, ReproduceEnergyThreshold: 50, ReproduceRadius: 2, ReproduceProbability: 0.1, PredatorOf: null, PredationProbability: 0, Diet: AnimalSpeciesRules.FloraDiet, ForageRadius: 2, MealEnergy: 25, GrazeStageCost: 500, BreedStartMonth: 2, BreedEndMonth: 8, GestationDays: 30, LitterSize: 3, AnnualMortality: 0.6, WandersWhenHungry: true),
     ];
 
     /// <summary>Espécies vegetais do cenário medieval default — trigo alinhado ao
     /// recurso alimentício <see cref="DefaultEconomyRules.FoodResourceId"/>.</summary>
     public static readonly IReadOnlyList<PlantSpeciesRules> DefaultPlantSpeciesRules =
     [
-        new("crop1", MinToleratedTemp: 5, MaxToleratedTemp: 35, MaturityStage: 3,
-            CropResourceId: 1, YieldPerMaturePlant: 10, ReproduceRadius: 2, ReproduceProbability: 0.2),
+        // AD-135: pasto silvestre (perene, cresce devagar no frio): ~2 semanas de verão para amadurecer, brota ~5%/dia, não vai ao celeiro
+        new("crop1", MinToleratedTemp: -5, MaxToleratedTemp: 35, MaturityStage: 720, CropResourceId: 1, YieldPerMaturePlant: 0, ReproduceRadius: 2, ReproduceProbability: 0.002),
     ];
 
     /// <summary>Delta sazonal por bioma (4 estações) — bioma 1 do default tem amplitude
@@ -305,7 +304,8 @@ public static partial class ScenarioRunner
         LivingWorld.Domain.Emergence.EmergenceRules? emergenceRules = null,
         LivingWorld.Domain.Ontogeny.OntogenyRules? ontogenyRules = null,
         LivingWorld.Domain.Population.AppearanceRules? appearanceRules = null,
-        LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null)
+        LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null,
+        AgricultureRules? agricultureRules = null, NaturalWaterRules? naturalWaterRules = null)
     {
         var rules = economyRules ?? DefaultEconomyRules;
         var family = familyRules ?? DefaultFamilyRules;
@@ -320,9 +320,10 @@ public static partial class ScenarioRunner
             historyRules: history, processRecipes: DefaultProcessRecipes,
             animalSpeciesRules: animalSpeciesRules ?? DefaultAnimalSpeciesRules,
             plantSpeciesRules: plantSpeciesRules ?? DefaultPlantSpeciesRules,
-            biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules, diseaseRules: diseaseRules, climateRules: climateRules, theftRules: theftRules, emergenceRules: emergenceRules,
+            biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules, diseaseRules: diseaseRules, climateRules: climateRules ?? LivingWorld.Domain.Climate.ClimateRules.Default, theftRules: theftRules, emergenceRules: emergenceRules,
             ontogenyRules: ontogenyRules ?? LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human,
-            appearanceRules: appearanceRules, objectCatalog: objectCatalog);
+            appearanceRules: appearanceRules, objectCatalog: objectCatalog, agricultureRules: agricultureRules ?? AgricultureRules.Default,
+            naturalWaterRules: naturalWaterRules ?? NaturalWaterRules.Default);
         var initialCity = new City(
             world.NextCityId(), DefaultVillageLocation, world.CurrentDate.TotalHours,
             foundedFromCityId: null, AggregatePopulationPool.Empty);

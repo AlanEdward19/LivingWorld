@@ -23,19 +23,20 @@ public sealed class FaunaLifecycleHungerTests
     public void Animal_energy_decays_per_species_hunger_rate_each_tick()
     {
         var rules = new AnimalSpeciesRules(
-            "rabbit", HungerDecayPerTick: 10, ReproduceEnergyThreshold: 50, ReproduceRadius: 2,
+            "rabbit", HungerDecayPerTick: 1, ReproduceEnergyThreshold: 50, ReproduceRadius: 2,
             ReproduceProbability: 0, PredatorOf: null, PredationProbability: 0);
         // DecayRate 0 no animal — ApplyHunger aplica a taxa da espécie (REALISM-01).
         var (world, _) = WorldWithAnimal(
             "rabbit", LazyNeed.Initial(100, 0, 0), rules, enabledExtraordinary: false);
         var clock = new WorldClock([new FaunaLifecycleSystem()]);
 
-        clock.Tick(world);
+        // AD-135: o sistema roda uma vez por dia; a energia continua decaindo por hora (taxa por tick)
+        clock.Run(world, 24);
         Assert.Equal(100, world.Fauna.Single().Energy.ValueAt(world.CurrentDate.TotalHours));
-        Assert.Equal(10, world.Fauna.Single().Energy.DecayRatePerTick);
+        Assert.Equal(1, world.Fauna.Single().Energy.DecayRatePerTick);
 
-        clock.Tick(world);
-        Assert.Equal(90, world.Fauna.Single().Energy.ValueAt(world.CurrentDate.TotalHours));
+        clock.Run(world, 24);
+        Assert.Equal(76, world.Fauna.Single().Energy.ValueAt(world.CurrentDate.TotalHours));
         Assert.True(world.Fauna.Single().IsAlive);
     }
 
@@ -50,7 +51,7 @@ public sealed class FaunaLifecycleHungerTests
             "rabbit", LazyNeed.Initial(100, 0, rules.HungerDecayPerTick), rules, enabledExtraordinary: false);
         var clock = new WorldClock([new FaunaLifecycleSystem()], sink: sink);
 
-        clock.Run(world, ticks: 3);
+        clock.Run(world, ticks: 3 * 24);
 
         Assert.False(world.FindAnimal(animalId)!.IsAlive);
         var death = Assert.Single(sink.Events, e => e.Kind == WorldEventKind.Starvation);
@@ -68,7 +69,7 @@ public sealed class FaunaLifecycleHungerTests
             "wolf", LazyNeed.Initial(100, 0, rules.HungerDecayPerTick), rules, enabledExtraordinary: false);
         Assert.False(world.Extraordinary.Enabled);
 
-        new WorldClock([new FaunaLifecycleSystem()]).Tick(world);
+        new WorldClock([new FaunaLifecycleSystem()]).Run(world, 24); // AD-135: fauna é diária
 
         Assert.False(world.FindAnimal(animalId)!.IsAlive);
         Assert.Equal(0, world.FindAnimal(animalId)!.Energy.ValueAt(world.CurrentDate.TotalHours));

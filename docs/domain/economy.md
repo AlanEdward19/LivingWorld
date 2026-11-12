@@ -61,6 +61,14 @@ motor, e é ela que impede a inflação-fantasma que quebra economias emergentes
 **Cenário MVP (medieval):** trigo, madeira, ferro, água, moedas. Suficiente para fechar a
 cadeia produção → consumo → preço → migração sem inventar um mundo inteiro antes da hora.
 
+## Ano agrícola, celeiro e água (AD-135)
+Uma safra de trigo de inverno por ano (`AgricultureRules`): semeadura no outono pelos lavradores presentes, crescimento
+por grau-dia da célula (inverno quase parado), colheita à mão numa janela curta de verão, com perda do que fica em pé.
+A colheita repõe primeiro a semente do ano seguinte; o resto vai ao celeiro do campo, que perde ~15%/ano e abastece a
+venda da fazenda até a próxima safra. Rendimento = semente × grãos por semente × habilidade de quem semeou × ano de
+clima (AR(1) regional, `ClimateRules.Default`). Fome sazonal e de quebra de safra saem disso, não de regra escrita.
+Casa a até 1 h de rio, lago ou fonte bebe dali (`NaturalWaterSystem`); a água do mercado é só para quem mora longe.
+
 ## Ver também
 - [cities.md](cities.md) — onde a produção e o estoque ficam
 - [npc.md](npc.md) — necessidades que viram consumo

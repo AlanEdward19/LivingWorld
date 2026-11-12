@@ -3,6 +3,7 @@ using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Population.Family;
+using LivingWorld.Domain.Population.Skills;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Economy.Labor;
@@ -11,11 +12,17 @@ using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Economy.Production;
 
-/// <summary>Cultivo estagiado <c>plant→water→mature→harvest</c>.
-/// Substitui o trigo instantâneo da fazenda default; colheita antecipada é rejeitada.</summary>
-[LivingCapability("CROPS", Consumers = ["map.crop"])]
-public sealed class CropSystem : ISimulationSystem
+/// <summary>Cultivo da fazenda. Com <see cref="WorldState.AgricultureRules"/> ligado (AD-135, padrão dos cenários) é o ano
+/// agrícola em <see cref="CropSystem"/> (parcial <c>Seasonal</c>): semeadura no outono, grau-dia, colheita de verão,
+/// semente separada e celeiro que abastece a venda até a próxima safra. Desligado, vale o lote diário antigo
+/// <c>plant→water→mature→harvest</c>.</summary>
+[LivingCapability("CROPS", Consumers = ["map.crop", "economy.market-stock", "behavior.eat"])]
+public sealed partial class CropSystem : ISimulationSystem
 {
+    private readonly SkillsRules? _skillsRules;
+
+    public CropSystem(SkillsRules? skillsRules = null) => _skillsRules = skillsRules;
+
     public const string SystemName = "crop-lifecycle";
     public const int DefaultFarmLocationTypeId = 1;
     public const long DefaultMatureDelayTicks = 24;
@@ -27,6 +34,11 @@ public sealed class CropSystem : ISimulationSystem
     public void Tick(WorldState world, TickContext ctx)
     {
         if (!world.EconomyRules.Enabled) return;
+        if (world.AgricultureRules.Enabled)
+        {
+            TickSeasonal(world, ctx, _skillsRules);
+            return;
+        }
 
         // Só lotes não colhidos podem amadurecer; cada um é independente, então a ordem não importa.
         foreach (var crop in world.ActiveCropBatches)
@@ -146,6 +158,15 @@ public sealed class CropSystem : ISimulationSystem
         var crop = world.FindCropAt(actor.CurrentLocation);
         if (crop is null || !crop.IsHarvestable(process.CompletesAtTick))
             return;
+
+        if (world.AgricultureRules.Enabled)
+        {
+            // campo sazonal: a foice tira do grão em pé, o campo continua (celeiro e semente)
+            long reaped = crop.Reap(process.OutputQuantity);
+            household.Deposit(process.Output, reaped);
+            world.RecordResourceProduced(process.Output, reaped);
+            return;
+        }
 
         household.Deposit(process.Output, process.OutputQuantity);
         world.RecordResourceProduced(process.Output, process.OutputQuantity);

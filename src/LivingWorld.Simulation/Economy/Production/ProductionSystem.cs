@@ -54,6 +54,25 @@ public sealed class ProductionSystem : ISimulationSystem
             // um sem produção declarada (mercado, guarda, etc).
             ApplySpoilage(workplace, rules, ctx);
         }
+
+        // a despensa da casa também estraga (AD-135), na mesma taxa do recurso, cobrada uma vez por mês (30 dias de perda)
+        if (rules.SpoilagePerDayByResource.Count > 0 && world.CurrentDate.Day == 0)
+            foreach (var household in world.Households.OrderBy(h => h.Id.Value))
+                SpoilHousehold(household, rules, ctx, world.CurrentDate.Calendar.DaysPerMonth);
+    }
+
+    private void SpoilHousehold(LivingWorld.Domain.Population.Family.Household household, EconomyRules rules, TickContext ctx, int days)
+    {
+        _stockBuffer.Clear();
+        _stockBuffer.AddRange(household.Stock);
+        foreach (var (resource, amount) in _stockBuffer)
+        {
+            if (!rules.SpoilagePerDayByResource.TryGetValue(resource.Id, out var rate) || rate <= 0 || amount <= 0) continue;
+            double monthly = 1 - DeterministicMath.Exp(days * DeterministicMath.Log(1 - Math.Min(rate, 0.999999)));
+            long spoiled = Math.Min(amount, CropSystem.RoundStochastic(amount * monthly, ctx, "household-spoilage", household.Id.Value * 64 + resource.Id, ctx.CurrentTick));
+            if (spoiled <= 0 || !household.Withdraw(resource, spoiled).IsSuccess) continue;
+            ctx.LogEvent(WorldEventKind.ResourceLost, $"{household.Id.Value}|{resource.Id}|{spoiled}", sourceSystem: "ProductionSystem");
+        }
     }
 
     private static void Produce(
@@ -92,8 +111,7 @@ public sealed class ProductionSystem : ISimulationSystem
 
         foreach (var (resourceId, perWorker) in recipe.Outputs)
         {
-            if (resourceId == rules.FoodResourceId
-                && world.ProcessRecipes.Any(item => item.Kind == ProcessKind.Plant))
+            if (resourceId == rules.FoodResourceId && CropSystem.FieldsFeedFood(world))
                 continue;
 
             var resource = new ResourceType(resourceId);
@@ -165,7 +183,8 @@ public sealed class ProductionSystem : ISimulationSystem
         foreach (var (resource, amount) in _stockBuffer)
         {
             if (!rules.SpoilagePerDayByResource.TryGetValue(resource.Id, out var rate) || rate <= 0) continue;
-            long spoiled = (long)(amount * rate);
+            // arredondamento sem viés: com taxa anual realista (fração de unidade por dia) o estoque pequeno também perde
+            long spoiled = CropSystem.RoundStochastic(amount * rate, ctx, "spoilage", workplace.Id.Value * 64 + resource.Id, ctx.CurrentTick);
             if (spoiled <= 0) continue;
 
             workplace.Withdraw(resource, Math.Min(spoiled, amount));

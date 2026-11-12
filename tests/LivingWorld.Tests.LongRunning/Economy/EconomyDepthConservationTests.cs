@@ -45,7 +45,9 @@ public class EconomyDepthConservationTests
     private static long Stocked(WorldState world, ResourceType resource) =>
         world.Workplaces.Sum(w => w.Stock.GetValueOrDefault(resource))
         + world.Households.Sum(h => h.Stock.GetValueOrDefault(resource))
-        + world.Cities.Sum(c => c.Stock.GetValueOrDefault(resource));
+        + world.Cities.Sum(c => c.Stock.GetValueOrDefault(resource))
+        // AD-135: o celeiro e a semente guardada do campo sazonal também são estoque do alimento
+        + world.CropBatches.Where(c => c.CropResourceId == resource.Id).Sum(c => c.Barn + c.SeedReserve);
 
     [Theory]
     [InlineData(1)]
