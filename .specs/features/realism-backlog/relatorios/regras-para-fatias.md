@@ -28,3 +28,7 @@ Diretriz do dono (palavras dele): "toda a existência de um npc e tudo que ele f
 
 ## Relatório final (até 30 linhas, em português)
 Branch e hash; o que mudou por arquivo; os números adotados e quais precisam de conferência; as medições pedidas, antes e depois; onde o efeito é consumido; demografia de 20 seeds × 100 anos antes e depois; custo por NPC-tick antes e depois; testes novos, reescritos e afrouxados; o que não fechou. Se o gate completo não ficou verde, diga isso primeiro, com a saída.
+
+## Um comando pesado por vez (regra do dono, 2026-11-12)
+- Gate, testes, relatórios de 20 seeds, perfil e regravação de goldens rodam por uma fila de uma vaga, entre todos os agentes: `bash <pasta>/lw-um-por-vez.sh <comando> [args...]` (cópia do script nesta pasta). `build.sh` e `lint.sh` ficam fora.
+- Nunca dois comandos pesados em paralelo, nem do mesmo agente. Rodar em segundo plano e esperar a notificação.
