@@ -51,6 +51,21 @@ Branch: `worktree-agent-a748c4f038095be74`, sobre `c497e57c`. Pedido em [06](06-
 
 Branch: `worktree-agent-a79d82224d8995144`, sobre `c497e57c`. Pedido em [03](03-cognicao-e-cerebro.md), parte 1: memória episódica, emoção e luto, emoção e memória mudando a ação, rastro cognitivo como motivo real (teste de intervenção), `Socialize` só com alguém. Rede neural fora do escopo.
 
+## Pausa de 2026-11-12 (o dono desligou o computador)
+
+As fatias 2, 4 e 5 foram interrompidas no meio: **nenhuma tem commit, nenhuma foi validada nem juntada**. O trabalho ficou em dois lugares:
+
+- nos arquivos do worktree (`.claude/worktrees/agent-<id>`), sem commit;
+- numa cópia de segurança em `refs/wip/<id>` (inclui arquivos novos). Recuperar num worktree limpo do commit-base: `git stash apply refs/wip/<id>`.
+
+| Fatia | id | Base | Tamanho na pausa | Onde parou |
+|---|---|---|---|---|
+| 2 Agricultura (AD-135) | `a9907ed034b4f0ede` | `ee6f0416` | 49 arquivos | esperando comando pesado na fila (validação) |
+| 4 Doença (AD-137) | `a748c4f038095be74` | `c497e57c` | 34 arquivos | esperando comando pesado na fila (validação) |
+| 5 Cognição (AD-138) | `a79d82224d8995144` | `c497e57c` | 31 arquivos | esperando a fila pela primeira vez |
+
+Para retomar: continuar cada fatia a partir do worktree (ou do `refs/wip`), rodar o gate dela pela fila, e só então juntar. A fatia 2 parte de um commit mais antigo: vai conflitar com AD-134 e AD-136. Os scripts de junção que estavam em pasta temporária foram copiados para `relatorios/` (`junta-e-valida.sh`, `record-and-verify.sh`); os caminhos dentro deles apontam para a pasta temporária antiga e precisam ser ajustados.
+
 ## Ao juntar
 
 Conflitos esperados: `Npc.cs` e `NatalitySystem.cs` (fatias 1 e 3), `ScenarioRunner.cs`, goldens e baselines (todas). As três mudam o equilíbrio da vila: juntar uma de cada vez e medir a demografia de 100 anos na árvore combinada.
