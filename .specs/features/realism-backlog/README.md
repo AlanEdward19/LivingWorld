@@ -27,7 +27,7 @@ Branch de trabalho: `perf/decision-scan-costs`, sem push, sem PR. Último commit
 | Gate em paralelo, mundo compartilhado (ADR-0044) | juntado | `docs/adr/` |
 | Corpo que cresce, variância genética, saúde dinâmica, amamentação (AD-134) | juntado | `docs/decisions-log.md` |
 | Doença de época ligada por padrão (item 5 da fatia de corpo) | não começado | [06](06-violencia-poderes-e-restantes.md) |
-| Agricultura, estações, água de beber (AD-135) | em worktree | [01](01-em-andamento.md) |
+| Agricultura, estações, água de beber, fauna que come (AD-135) | juntado | `docs/decisions-log.md`, [01](01-em-andamento.md) |
 | Vocação que emerge, traição, separação, novas uniões, tabu de parentesco (AD-136) | juntado | `docs/decisions-log.md` |
 | Hormônios, ciclo menstrual, adolescência, doença genética, contracepção (AD-139) | em worktree, sobre `70adcd30`, disparada em 2026-11-12 | [02](02-biologia-e-hormonios.md) |
 | Cognição parte 1: memória da própria vida, emoção, pensamento que é o motivo (AD-138) | juntado | `docs/domain/inner-life.md`, [01](01-em-andamento.md) |

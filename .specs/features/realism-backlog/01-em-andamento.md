@@ -15,7 +15,9 @@ Branch: `worktree-agent-af9846256807e40c5`. Achados da auditoria: 8, 12, 14, 3, 
 - **Amamentação.** O recém-nascido hoje come trigo. Pedido: mama na mãe ou em outra lactante da casa, com custo de comida para ela; sem lactante corre risco alto; desmame gradual; a morte do bebê encurta a amenorreia; se a mãe morre no parto o bebê pode nascer e sobreviver com risco maior.
 - **Doença de época ligada por padrão**, com contágio por convivência, mais grave em crianças, velhos e desnutridos, imunidade e surtos. Tem de ser causa das mortes que a tábua já prevê, não mortalidade a mais. Se não couber, fica pendente.
 
-## 2. Agricultura, estações e água (AD-135)
+## 2. Agricultura, estações e água (AD-135): JUNTADO em 2026-11-12
+
+Ficou de fora: população mínima 112 em 20 seeds × 100 anos (a meta era 126; a concepção depende da despensa); lobos se extinguem na primeira década; furto de comida não existe (furto é só de moeda e vem desligado), então fome não gera furto; o celeiro carrega sobra de anos; preço de mercado só reage com a loja quase vazia; sem caça, sem frio de inverno, rotina não muda por estação; cenário JSON só tem clima se declarar. Na junção apareceu um defeito latente do diff de snapshot (campo que some não era apagado), corrigido em `SnapshotTreeDiff.cs`.
 
 Branch: `worktree-agent-a9907ed034b4f0ede`. Achados: 6, 19, 21, 22, mais dois conhecidos fora da auditoria.
 

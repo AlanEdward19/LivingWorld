@@ -38,3 +38,7 @@
 22. **Cognição: lembranças dominadas por ajuda** (54% das vagas): avaliar baixar a saliência de ajuda dada e recebida.
 23. **Cognição: teste de intervenção roda em grade sintética**, não em mundo simulado; `CivilizationScopeTests` passou a exigir 2 vivos por faixa em vez de 3.
 24. **Bytes por NPC-tick oscilam entre execuções da mesma DLL** (141 B e 174 B na mesma base): a medição só vale lado a lado na mesma janela.
+25. **Agricultura (AD-135), números sem conferência**: ~4 grãos por semente, perda de 15% ao ano, 1300 graus-dia (trigo real ~2000, calibrado ao mapa), CV de safra 20%, ceifa de 100 por pessoa-dia, coelho (gestação 30 d, 60%/ano de mortalidade), lobo com uma ninhada por ano.
+26. **Agricultura: população mínima 112 e fecundidade presa à despensa** (piso de concepção de 5 de comida); mais malthusiano que a base. Lobos extintos; celeiro com sobra de anos; fome sem furto de comida.
+27. **Contrato `shape.world/city-subscribe` regravado** (lista `processes` agora traz o campo da lavoura): o cliente Godot precisa ser avisado.
+28. **Diff de snapshot**: entidade com forma diferente da primeira linha vai inteira em todo delta; medir quanto isso pesa no disco agora que mais campos são omitidos quando valem o padrão (sensor de escala subiu 0,1% a 0,4%).

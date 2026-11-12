@@ -99,7 +99,12 @@ public sealed class DemographyTally(WorldState world) : IWorldEventSink
 /// <summary>Resumo de N seeds × A anos do cenário padrão de código (<see cref="ScenarioRunner.Create"/>).</summary>
 public static class DemographyReport
 {
-    public sealed record SeedResult(ulong Seed, int FinalAlive, int MinAlive, DemographyTally Tally);
+    public sealed record SeedResult(ulong Seed, int FinalAlive, int MinAlive, DemographyTally Tally, FoodTally? Food = null);
+
+    private sealed class BothSinks(IWorldEventSink a, IWorldEventSink b) : IWorldEventSink
+    {
+        public void Record(WorldEvent evt) { a.Record(evt); b.Record(evt); }
+    }
 
     /// <summary>Roda uma seed; as taxas contam a partir de <paramref name="warmupYears"/> (a pirâmide inicial é sintética).</summary>
     public static SeedResult Run(ulong seed, int years, int warmupYears)
@@ -107,7 +112,8 @@ public static class DemographyReport
         var (world, baseClock) = ScenarioRunner.Create(seed);
         var tally = new DemographyTally(world) { MeasureFromTick = warmupYears * world.Calendar.HoursPerYear };
         tally.Body.MeasureFromTick = tally.MeasureFromTick;
-        var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, tally);
+        var food = new FoodTally(world);
+        var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, new BothSinks(tally, food));
         int months = years * world.Calendar.MonthsPerYear;
         int minAlive = int.MaxValue;
         for (int m = 0; m < months; m++)
@@ -116,11 +122,12 @@ public static class DemographyReport
             tally.Family.SampleMonth();
             if (m >= warmupYears * world.Calendar.MonthsPerYear) tally.SampleMonth();
             if ((m + 1) % world.Calendar.MonthsPerYear == 0) tally.Body.SampleYear();
+            food.SampleMonth();
             minAlive = Math.Min(minAlive, world.AliveNpcIndex.Alive.Count);
             if (world.AliveNpcIndex.Alive.Count == 0) break;
         }
 
-        return new SeedResult(seed, world.AliveNpcIndex.Alive.Count, minAlive, tally);
+        return new SeedResult(seed, world.AliveNpcIndex.Alive.Count, minAlive, tally, food);
     }
 
     public static string Summarize(IReadOnlyList<SeedResult> runs, int years, int warmupYears, long hoursPerYear)
@@ -194,6 +201,8 @@ public static class DemographyReport
         sb.Append(FamilyLifeTally.Summarize(runs.Select(r => r.Tally.Family).ToList()));
         sb.Append("seeds(final)=").AppendLine(string.Join(",", runs.Select(r => r.FinalAlive)));
         sb.Append(BodyHealthTally.Summarize(runs.Select(r => (r.Tally.Body, followUpEnd)).ToList()));
+        var foods = runs.Where(r => r.Food is not null).Select(r => r.Food!).ToList();
+        if (foods.Count > 0) sb.Append(FoodTally.Summarize(foods, warmupYears, 12));
         return sb.ToString();
     }
 

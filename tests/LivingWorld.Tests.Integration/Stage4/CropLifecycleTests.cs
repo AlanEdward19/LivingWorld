@@ -216,7 +216,9 @@ public class CropLifecycleTests
     [Fact]
     public void Harvested_batches_do_not_accumulate_in_the_world_over_a_year()
     {
-        var (world, clock) = ScenarioRunner.Create(seed: 5);
+        // AD-135: o padrão passou ao campo sazonal persistente (um lote por fazenda, sem retirar); a retirada de lote colhido
+        // continua valendo no cultivo por lote diário, que é o que este teste cobre
+        var (world, clock) = ScenarioRunner.Create(seed: 5, agricultureRules: LivingWorld.Domain.Economy.AgricultureRules.Disabled);
         clock.Run(world, 365L * 24);
 
         Assert.DoesNotContain(world.CropBatches, crop => crop.Status == CropStatus.Harvested);

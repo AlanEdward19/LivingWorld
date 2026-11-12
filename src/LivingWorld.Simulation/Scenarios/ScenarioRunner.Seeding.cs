@@ -102,5 +102,6 @@ public static partial class ScenarioRunner
 
         foreach (var npc in world.Npcs)
             npc.CreditWallet(new Money(50));
+        CropSystem.SeedFirstAgriculturalYear(world); // AD-135: trigo semeado no outono anterior e celeiro até a safra
     }
 }

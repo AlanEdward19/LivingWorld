@@ -75,7 +75,10 @@ public static class ScenarioLoaderV2
             emergenceRules: definition.Emergence,
             ontogenyRules: definition.Ontogeny,
             appearanceRules: definition.Appearance,
-            objectCatalog: definition.Objects);
+            objectCatalog: definition.Objects, agricultureRules: LivingWorld.Domain.Economy.AgricultureRules.Default,
+            // AD-135: água de rio e fonte ligada por padrão; o bloco opcional {"NaturalWater": {"Enabled": false}} desliga
+            naturalWaterRules: System.Text.Json.Nodes.JsonNode.Parse(json)?["NaturalWater"]?["Enabled"]?.GetValue<bool>() == false
+                ? LivingWorld.Domain.Economy.NaturalWaterRules.Disabled : LivingWorld.Domain.Economy.NaturalWaterRules.Default);
 
         var createdCityIds = new List<CityId>(definition.City.Cities.Count);
         foreach (var city in definition.City.Cities)

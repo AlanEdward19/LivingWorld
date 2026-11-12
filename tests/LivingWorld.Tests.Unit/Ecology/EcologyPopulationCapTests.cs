@@ -33,7 +33,7 @@ public sealed class EcologyPopulationCapTests
             animalSpeciesRules: [rules],
             nextAnimalId: FaunaLifecycleSystem.MaxAliveFauna + 1);
 
-        new WorldClock([new FaunaLifecycleSystem()]).Tick(world);
+        new WorldClock([new FaunaLifecycleSystem()]).Run(world, 24); // AD-135: fauna é diária
 
         Assert.Equal(FaunaLifecycleSystem.MaxAliveFauna, world.Fauna.Count(a => a.IsAlive));
         Assert.True(world.Fauna.Count <= FaunaLifecycleSystem.MaxAliveFauna);

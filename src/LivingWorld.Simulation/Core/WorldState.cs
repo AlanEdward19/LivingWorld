@@ -242,6 +242,12 @@ public sealed partial class WorldState
     /// <summary>Regras de clima do cenário (weather-drought); desligado por padrão (todo ano vale 1000).</summary>
     [Canonical] public ClimateRules ClimateRules { get; }
 
+    /// <summary>Ano agrícola (AD-135); desligado por padrão em mundo montado à mão (lote diário antigo).</summary>
+    [Canonical] public LivingWorld.Domain.Economy.AgricultureRules AgricultureRules { get; }
+
+    /// <summary>Água de rio, lago ou fonte perto de casa (AD-135); desligado por padrão em mundo montado à mão.</summary>
+    [Canonical] public LivingWorld.Domain.Economy.NaturalWaterRules NaturalWaterRules { get; }
+
     /// <summary>Anos de safra recentes por região, ordenados por região e ano (os antigos saem sozinhos).</summary>
     [Canonical] public IReadOnlyList<ClimateYear> ClimateYears => _climateYears;
     private readonly List<ClimateYear> _climateYears;
@@ -511,7 +517,9 @@ public sealed partial class WorldState
         LivingWorld.Domain.Ontogeny.OntogenyRules? ontogenyRules = null,
         IReadOnlyList<Technology>? technologies = null,
         LivingWorld.Domain.Population.AppearanceRules? appearanceRules = null,
-        LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null)
+        LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null,
+        LivingWorld.Domain.Economy.AgricultureRules? agricultureRules = null,
+        LivingWorld.Domain.Economy.NaturalWaterRules? naturalWaterRules = null)
     {
         Calendar = calendar;
         CurrentDate = WorldDate.Epoch(calendar);
@@ -556,6 +564,8 @@ public sealed partial class WorldState
         _infections = (infections ?? []).ToList();
         _immunities = (immunities ?? []).ToList();
         ClimateRules = climateRules ?? ClimateRules.Disabled;
+        AgricultureRules = agricultureRules ?? LivingWorld.Domain.Economy.AgricultureRules.Disabled;
+        NaturalWaterRules = naturalWaterRules ?? LivingWorld.Domain.Economy.NaturalWaterRules.Disabled;
         TheftRules = theftRules ?? TheftRules.Disabled;
         EmergenceRules = emergenceRules ?? EmergenceRules.Disabled;
         OntogenyRules = ontogenyRules ?? LivingWorld.Domain.Ontogeny.OntogenyRules.Disabled;
@@ -684,7 +694,9 @@ public sealed partial class WorldState
         LivingWorld.Domain.Ontogeny.OntogenyRules? ontogenyRules = null,
         IReadOnlyList<Technology>? technologies = null,
         LivingWorld.Domain.Population.AppearanceRules? appearanceRules = null,
-        LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null)
+        LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null,
+        LivingWorld.Domain.Economy.AgricultureRules? agricultureRules = null,
+        LivingWorld.Domain.Economy.NaturalWaterRules? naturalWaterRules = null)
     {
         Calendar = calendar;
         CurrentDate = currentDate;
@@ -769,6 +781,8 @@ public sealed partial class WorldState
         _infections = (infections ?? []).ToList();
         _immunities = (immunities ?? []).ToList();
         ClimateRules = climateRules ?? ClimateRules.Disabled;
+        AgricultureRules = agricultureRules ?? LivingWorld.Domain.Economy.AgricultureRules.Disabled;
+        NaturalWaterRules = naturalWaterRules ?? LivingWorld.Domain.Economy.NaturalWaterRules.Disabled;
         TheftRules = theftRules ?? TheftRules.Disabled;
         EmergenceRules = emergenceRules ?? EmergenceRules.Disabled;
         OntogenyRules = ontogenyRules ?? LivingWorld.Domain.Ontogeny.OntogenyRules.Disabled;

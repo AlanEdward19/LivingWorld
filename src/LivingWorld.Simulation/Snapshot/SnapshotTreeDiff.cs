@@ -14,6 +14,7 @@ namespace LivingWorld.Simulation.Snapshot;
 internal static class SnapshotTreeDiff
 {
     private const string EntitiesKey = "Entities", KeysKey = "Keys", RemovedKey = "Removed", PropsKey = "Props", OrderKey = "Order", MovedKey = "Moved";
+    private const string FullKey = "$full";
 
     /// <summary>Escreve em <paramref name="output"/> o JSON do diff de <paramref name="current"/> (a árvore persistível já
     /// em texto) sobre <paramref name="baseline"/>. Percorre o documento sem materializar nó: o que entra no diff é copiado
@@ -93,7 +94,14 @@ internal static class SnapshotTreeDiff
             {
                 var obj = entry!.AsObject();
                 long id = obj["Id"]!["Value"]!.GetValue<long>();
-                if (byId.TryGetValue(id, out int at))
+                if (obj.ContainsKey(FullKey))
+                {
+                    var whole = obj.DeepClone().AsObject();
+                    whole.Remove(FullKey);
+                    if (byId.TryGetValue(id, out int slot)) target[slot] = whole;
+                    else target.Add(whole);
+                }
+                else if (byId.TryGetValue(id, out int at))
                 {
                     var targetObj = target[at]!.AsObject();
                     foreach (var (field, value) in obj) targetObj[field] = value?.DeepClone();
@@ -143,9 +151,33 @@ internal static class SnapshotTreeDiff
             bool started = false;
             int f = 0;
             bool sameShape = prints is not null && entry.GetPropertyCount() == baseEntities.Fields.Length;
+            if (sameShape)
+            {
+                int n = 0;
+                foreach (var field in entry.EnumerateObject())
+                    if (!field.NameEquals(baseEntities.Fields[n++])) { sameShape = false; break; }
+            }
+
+            // Forma diferente da base: algum campo pode ter sumido (campo omitido quando volta ao padrão). O diff campo a
+            // campo deixaria o valor antigo na base, então a entidade vai inteira, marcada para substituir.
+            if (!sameShape)
+            {
+                changed.WriteStartObject();
+                changed.WriteBoolean(FullKey, true);
+                foreach (var field in entry.EnumerateObject())
+                {
+                    WriteName(changed, field);
+                    WriteRaw(changed, field.Value);
+                }
+
+                changed.WriteEndObject();
+                changedCount++;
+                continue;
+            }
+
             foreach (var field in entry.EnumerateObject())
             {
-                if (sameShape && field.NameEquals(baseEntities.Fields[f]) && prints![f] == SnapshotFingerprint.Print(field.Value))
+                if (prints![f] == SnapshotFingerprint.Print(field.Value))
                 {
                     f++;
                     continue;

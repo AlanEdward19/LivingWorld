@@ -27,6 +27,14 @@ if (args.Length == 5 && args[0] == "demography-report")
 if (args.Length == 4 && args[0] == "cognition-report")
     return CognitionReportCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]));
 
+// Mortes de fome e sede de um cenário JSON (AD-135): `dotnet <dll> scenario-deaths <cenario.json> <seed-inicial> <seeds> <anos>`.
+if (args.Length == 5 && args[0] == "scenario-deaths")
+    return ScenarioDeathsCommand.Run(args[1], ulong.Parse(args[2]), int.Parse(args[3]), int.Parse(args[4]));
+
+// Traço mensal da comida do cenário padrão (AD-135): `dotnet <dll> food-trace <seed> <anos>`.
+if (args.Length is 3 or 4 && args[0] == "food-trace")
+    return FoodTraceCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]), args.Length == 4 ? args[3] : null);
+
 // Sensor da issue #91: usa o mesmo carregador dos mundos criados pelo menu.
 if (args.Length == 3 && args[0] == "catalog-history-hash")
 {
@@ -139,7 +147,9 @@ if (args.Length == 3 && args[0] == "climate-hash")
 // mesmo hash. `dotnet <dll> theft-hash <seed> <ticks>`.
 if (args.Length == 3 && args[0] == "theft-hash")
 {
-    var (world, _) = ScenarioRunner.Create(ulong.Parse(args[1]), theftRules: new LivingWorld.Domain.Crime.TheftRules(true, 90, 0.9, 0.6, 0.5, 0.5, -1, 0.25));
+    // AD-135: vila dura sem rio por perto (a água de graça tiraria o desespero que leva ao furto)
+    var (world, _) = ScenarioRunner.Create(ulong.Parse(args[1]), theftRules: new LivingWorld.Domain.Crime.TheftRules(true, 90, 0.9, 0.6, 0.5, 0.5, -1, 0.25),
+        naturalWaterRules: LivingWorld.Domain.Economy.NaturalWaterRules.Disabled);
     int thefts = 0;
     var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: new TheftCounter(() => thefts++));
     clock.Run(world, long.Parse(args[2]));

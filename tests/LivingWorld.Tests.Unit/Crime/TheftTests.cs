@@ -299,7 +299,8 @@ public class TheftTests
         var harsh = new TheftRules(true, 90, 0.9, 0.6, 0.5, 0.5, -1, 0.25);
         // AD-132 mudou a vila (habilidade por idade): a seed 2 passou a não ter furto descoberto no ano (0 contra 2 a 58
         // nas outras 9 de 10 seeds medidas); a seed 3 é a de mais furtos. A conservação diária vale para qualquer seed.
-        var (world, _) = ScenarioRunner.Create(3, theftRules: harsh);
+        // AD-135: a vila dura também não tem rio nem fonte por perto (senão a água de graça tira o desespero da sede)
+        var (world, _) = ScenarioRunner.Create(3, theftRules: harsh, naturalWaterRules: LivingWorld.Domain.Economy.NaturalWaterRules.Disabled);
         WithoutPoorRelief(world);
         var sink = new CountingSink();
         var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink);
@@ -346,7 +347,7 @@ public class TheftTests
         (int Succeeded, int Failed) Year(int guardProfessionId)
         {
             var rules = new TheftRules(true, 90, 0.9, 0.6, 1.0, 0.5, guardProfessionId, 0.25);
-            var (world, _) = ScenarioRunner.Create(2, theftRules: rules);
+            var (world, _) = ScenarioRunner.Create(2, theftRules: rules, naturalWaterRules: LivingWorld.Domain.Economy.NaturalWaterRules.Disabled);
             WithoutPoorRelief(world);
             var sink = new OutcomeSink();
             new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink).Run(world, 12 * 30 * 24);

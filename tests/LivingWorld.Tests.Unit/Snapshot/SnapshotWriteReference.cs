@@ -156,10 +156,20 @@ internal static class SnapshotWriteReference
                     if (dirty is not null && !dirty.Contains(id)) continue;
                     JsonObject? fieldDiff = null;
                     int f = 0;
-                    bool sameShape = prints is not null && entry.Count == be.Fields.Length;
+                    bool sameShape = prints is not null && entry.Count == be.Fields.Length
+                        && entry.Select(kv => kv.Key).SequenceEqual(be.Fields);
+                    if (!sameShape)
+                    {
+                        // Forma diferente da base: a entidade vai inteira e substitui a anterior (um campo pode ter sumido).
+                        var whole = new JsonObject { ["$full"] = true };
+                        foreach (var (field, child) in entry) whole[field] = child?.DeepClone();
+                        changed.Add(whole);
+                        continue;
+                    }
+
                     foreach (var (field, child) in entry)
                     {
-                        if (sameShape && field == be.Fields[f] && prints![f] == Print(child)) { f++; continue; }
+                        if (prints![f] == Print(child)) { f++; continue; }
                         f++;
                         if (field == "Id") continue;
                         fieldDiff ??= new JsonObject { ["Id"] = entry["Id"]!.DeepClone() };

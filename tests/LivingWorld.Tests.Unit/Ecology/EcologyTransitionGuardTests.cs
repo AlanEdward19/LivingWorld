@@ -35,7 +35,7 @@ public sealed class EcologyTransitionGuardTests
             animalSpeciesRules: [rules],
             nextAnimalId: 3);
 
-        new WorldClock([new FaunaLifecycleSystem()]).Tick(world);
+        new WorldClock([new FaunaLifecycleSystem()]).Run(world, 24); // AD-135: fauna é diária
 
         Assert.Equal(2, world.Fauna.Count);
         Assert.DoesNotContain(world.Fauna, animal => animal.Id.Value >= 3);
@@ -66,7 +66,7 @@ public sealed class EcologyTransitionGuardTests
             fauna: [deadWolf, rabbit],
             animalSpeciesRules: [wolfRules, rabbitRules]);
 
-        new WorldClock([new FaunaLifecycleSystem()]).Tick(world);
+        new WorldClock([new FaunaLifecycleSystem()]).Run(world, 24); // AD-135: fauna é diária
 
         Assert.True(world.FindAnimal(rabbit.Id)!.IsAlive);
         Assert.False(world.FindAnimal(deadWolf.Id)!.IsAlive);

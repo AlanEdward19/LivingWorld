@@ -147,7 +147,23 @@
           "relocationDestination": "null"
         }
       ],
-      "processes": "[]"
+      "processes": [
+        {
+          "appearanceToken": "null",
+          "descriptorKey": "string",
+          "footprint": "null",
+          "id": "number",
+          "kind": "string",
+          "location": {
+            "x": "number",
+            "y": "number"
+          },
+          "progress": "number",
+          "quality": "null",
+          "remainingHours": "number",
+          "targetId": "number"
+        }
+      ]
     },
     "portals": "[]",
     "width": "number"

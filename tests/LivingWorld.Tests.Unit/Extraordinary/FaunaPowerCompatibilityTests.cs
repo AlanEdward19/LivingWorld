@@ -18,7 +18,7 @@ public sealed class FaunaPowerCompatibilityTests
     public void Dominate_active_does_not_stop_base_hunger_decay()
     {
         var rules = new AnimalSpeciesRules(
-            "wolf", HungerDecayPerTick: 10, ReproduceEnergyThreshold: 99, ReproduceRadius: 3,
+            "wolf", HungerDecayPerTick: 1, ReproduceEnergyThreshold: 99, ReproduceRadius: 3,
             ReproduceProbability: 0, PredatorOf: null, PredationProbability: 0);
         var animal = new Animal(
             new AnimalId(1), "wolf", new CellCoord(2, 2), true, null, LazyNeed.Initial(100, 0, 0));
@@ -46,13 +46,13 @@ public sealed class FaunaPowerCompatibilityTests
         world.AddNpc(carrier);
 
         var clock = new WorldClock([new FaunaLifecycleSystem(), new FaunaDominateSystem()]);
-        clock.Tick(world);
-        clock.Tick(world);
+        clock.Run(world, 24); // AD-135: a fauna roda uma vez por dia; a energia decai por hora
+        clock.Run(world, 24);
 
         var after = world.FindAnimal(animal.Id)!;
         Assert.True(after.IsAlive);
-        Assert.Equal(10, after.Energy.DecayRatePerTick);
-        Assert.Equal(90, after.Energy.ValueAt(world.CurrentDate.TotalHours));
+        Assert.Equal(1, after.Energy.DecayRatePerTick);
+        Assert.Equal(76, after.Energy.ValueAt(world.CurrentDate.TotalHours));
         Assert.NotEqual(new CellCoord(2, 2), after.Position);
     }
 
@@ -60,7 +60,7 @@ public sealed class FaunaPowerCompatibilityTests
     public void Infect_vector_active_does_not_stop_base_hunger_reproduce_or_predation()
     {
         var deerRules = new AnimalSpeciesRules(
-            "deer", HungerDecayPerTick: 10, ReproduceEnergyThreshold: 99, ReproduceRadius: 3,
+            "deer", HungerDecayPerTick: 1, ReproduceEnergyThreshold: 99, ReproduceRadius: 3,
             ReproduceProbability: 0, PredatorOf: null, PredationProbability: 0);
         var wolfRules = new AnimalSpeciesRules(
             "wolf", HungerDecayPerTick: 1, ReproduceEnergyThreshold: 50, ReproduceRadius: 3,
@@ -101,14 +101,14 @@ public sealed class FaunaPowerCompatibilityTests
         world.AddNpc(carrier);
 
         var clock = new WorldClock([new FaunaLifecycleSystem(), new FaunaDominateSystem()]);
-        clock.Tick(world);
-        clock.Tick(world);
+        clock.Run(world, 24); // AD-135: a fauna roda uma vez por dia; a energia decai por hora
+        clock.Run(world, 24);
 
         long tick = world.CurrentDate.TotalHours;
         var infectedDeer = world.FindAnimal(deer.Id)!;
         Assert.Equal("plague", infectedDeer.VectorDisease);
-        Assert.Equal(10, infectedDeer.Energy.DecayRatePerTick);
-        Assert.Equal(90, infectedDeer.Energy.ValueAt(tick));
+        Assert.Equal(1, infectedDeer.Energy.DecayRatePerTick);
+        Assert.Equal(76, infectedDeer.Energy.ValueAt(tick));
         Assert.Contains(world.Fauna, a => a.Species == "wolf" && a.IsAlive && a.Id.Value >= 5);
         Assert.False(world.FindAnimal(rabbit.Id)!.IsAlive);
     }

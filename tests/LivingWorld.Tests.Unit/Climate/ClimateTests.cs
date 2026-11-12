@@ -15,8 +15,9 @@ public class ClimateTests
 {
     private const long YearHours = 12L * 30 * 24;
 
+    // AD-135: o cenário padrão passou a ter clima; "sem clima" aqui é o desligado explícito
     private static WorldState NewWorld(ClimateRules? climate = null, ulong seed = 1) =>
-        ScenarioRunner.Create(seed, initialPopulation: 5, climateRules: climate).World;
+        ScenarioRunner.Create(seed, initialPopulation: 5, climateRules: climate ?? ClimateRules.Disabled).World;
 
     private static void Draw(WorldState world, long year)
     {
@@ -119,7 +120,8 @@ public class ClimateTests
     public void A_drought_year_cuts_the_plant_harvest_in_proportion_and_an_abundant_year_adds_to_it()
     {
         var world = NewWorld(new ClimateRules(true, 300, 1500));
-        var wheat = ScenarioRunner.DefaultPlantSpeciesRules[0];
+        // AD-135: o pasto padrão não vai mais ao celeiro (rendimento 0); a regra de clima continua valendo para planta que rende
+        var wheat = ScenarioRunner.DefaultPlantSpeciesRules[0] with { YieldPerMaturePlant = 10 };
         var farm = world.Workplaces.First(w => w.LocationType.Id == 1);
         var plant = new Plant(new PlantId(900), wheat.Species, farm.Location, GrowthStage: 3);
         var ctx = new TickContext(world, world.Rng, world.Scheduler);
@@ -172,7 +174,8 @@ public class ClimateTests
         long FoodPrice(WorldState w) => w.Workplaces.Where(x => x.Prices.ContainsKey(new ResourceType(w.EconomyRules.FoodResourceId)))
             .Max(x => x.Prices[new ResourceType(w.EconomyRules.FoodResourceId)]);
         long controlPeak = 0, dryPeak = 0;
-        for (int day = 0; day < YearHours / 2 / 24; day++) // o preço do alimento no pico do semestre
+        // AD-135: a colheita é no verão e o celeiro curto aparece depois dela, então a janela é o ano inteiro
+        for (int day = 0; day < YearHours / 24; day++) // o preço do alimento no pico do ano
         {
             controlClock.Run(control, 24);
             dryClock.Run(dry, 24);
@@ -184,7 +187,7 @@ public class ClimateTests
         Assert.True(dryHarvest < 0.6 * controlHarvest, $"colheita com seca {dryHarvest} contra controle {controlHarvest}");
         Assert.True(dryPeak > controlPeak, $"pico de preço com seca {dryPeak} contra controle {controlPeak}");
 
-        dryClock.Run(dry, 15 * YearHours - YearHours / 2);
+        dryClock.Run(dry, 14 * YearHours);
         Assert.True(dry.Npcs.Count(n => n.IsAlive) > 0, "a vila se extinguiu depois da seca");
     }
 }
