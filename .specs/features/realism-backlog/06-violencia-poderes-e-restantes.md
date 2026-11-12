@@ -62,6 +62,20 @@ Hoje: o filho só herda se os dois pais forem portadores, com chance 1,0, e num 
 
 Ligar a doença por padrão: contágio por convivência (casa, turma de trabalho, mercado), mais grave em crianças, velhos e desnutridos, imunidade, surtos, incubação, doente acamado que não trabalha. Tem de ser causa das mortes que a tábua já prevê: descontar da mortalidade-base a parte atribuída à doença e recalibrar para manter e0 e a mortalidade infantil. Ganchos prontos: `DiseaseProfile.HealthPenalty`, `LethalityByAge`, `MalnutritionLethalityFactor`, `MortalitySystem.StateMultiplier`. Meta: a maioria das mortes com causa explícita (hoje ~2%).
 
+## Doença dinâmica: surgir sozinha e ser criada à mão (pedido do dono em 2026-11-12; a fazer)
+
+Palavras dele: "sobre doenças, ok você criar algumas de preset, mas elas devem ser dinâmicas como todo o restante. Uma nova doença deve poder aparecer, como também eu poder criar uma manualmente e simular no mundo."
+
+1. **Preset é só ponto de partida.** Os sete perfis do AD-137 continuam como dado de cenário, mas a lista de doenças passa a ser estado do mundo, que cresce e muda.
+2. **Doença nova emerge**: por mutação de uma existente (via, letalidade, incubação, duração e imunidade cruzada derivam do perfil de origem com variação semeada) e por salto de animal para gente onde há convívio com fauna e rebanho. Nome, sintomas e gravidade saem dos parâmetros, nada escrito à mão. Pode se extinguir, virar endêmica ou voltar em ondas.
+3. **Evolução depois de surgir**: pressão por transmissão e por letalidade (o que mata rápido demais se espalha menos); imunidade da população muda o que circula.
+4. **Criar à mão e soltar no mundo**: comando de console/modo deus (fase 26) e bloco de cenário JSON para definir um perfil e introduzir em uma pessoa, cidade ou região; entrada registrada como evento, reproduzível (mesma seed + mesma intervenção = mesmo mundo). Poder rodar "e se" numa cópia do mundo.
+5. **Cenário JSON lê todos os campos do perfil** (pendência já anotada no AD-137).
+6. **Resposta do mundo emerge também**: medo, fuga, quarentena, cuidado e, quando inventada, medicina (liga com invenção emergente, arquivo 05, e com `CareLevel`).
+7. Medir: quantas doenças surgem e somem em 20 seeds × 100 anos, sem a vila se extinguir; custo por NPC-tick sem regressão.
+
+Depende de a doença (AD-137) estar juntada, o que hoje espera a recalibração da mortalidade ([01](01-em-andamento.md), fatia 4).
+
 ## Lacunas conhecidas fora da auditoria
 
 - Cidades-filhas fundadas com 1 ou 2 moradores (`SpatialSettlementFoundingSystem`); contornado na esmola, não corrigido.
