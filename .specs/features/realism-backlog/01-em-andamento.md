@@ -1,0 +1,44 @@
+# Fatias em andamento (worktrees, 2026-11-12)
+
+> Cada uma roda num subagente Opus, em worktree próprio, sobre o commit `ee6f0416`. Nenhuma foi juntada ainda.
+> Se a sessão cair, o trabalho está no branch do worktree: `git worktree list` e `git log <branch>` mostram o que existe.
+
+## 1. Corpo, crescimento e saúde (AD-134)
+
+Branch: `worktree-agent-af9846256807e40c5`. Achados da auditoria: 8, 12, 14, 3, 5, 15, 16, 20.
+
+- **Corpo que cresce.** Hoje o bebê nasce com 1,70 m e 68 kg e o corpo não muda. Pedido: tamanho de recém-nascido (menor se prematuro), curva de crescimento por idade e sexo, estirão na puberdade (mais cedo nas meninas), perda de estatura e massa na velhice, dimorfismo sexual, estatura herdada dos dois pais com regressão à média, e adulto mais baixo se passou fome enquanto crescia. Músculo sobe com trabalho e cai com desuso e idade.
+- **Genética quantitativa.** Traço herdado por média simples perde metade da variância a cada geração; corrigir com o termo de segregação e medir a variância de vitalidade, gene de taxa e estatura por geração.
+- **Saúde dinâmica.** Hoje quase nada reduz a saúde e nada a recupera. Pedido: cai com fome, sede, doença, ferimento, parto difícil e velhice; recupera com descanso e comida, mais devagar nos velhos; fraco trabalha menos e anda mais devagar; entra no risco mensal de morte pelo gancho `StateMultiplier`.
+- **Amamentação.** O recém-nascido hoje come trigo. Pedido: mama na mãe ou em outra lactante da casa, com custo de comida para ela; sem lactante corre risco alto; desmame gradual; a morte do bebê encurta a amenorreia; se a mãe morre no parto o bebê pode nascer e sobreviver com risco maior.
+- **Doença de época ligada por padrão**, com contágio por convivência, mais grave em crianças, velhos e desnutridos, imunidade e surtos. Tem de ser causa das mortes que a tábua já prevê, não mortalidade a mais. Se não couber, fica pendente.
+
+## 2. Agricultura, estações e água (AD-135)
+
+Branch: `worktree-agent-a9907ed034b4f0ede`. Achados: 6, 19, 21, 22, mais dois conhecidos fora da auditoria.
+
+- **Ano agrícola.** Hoje o trigo amadurece em 24 h e é colhido todo dia, o ano inteiro. Pedido: plantio na estação, crescimento por meses dependente de temperatura e água, colheita em janela curta, nada no inverno, rendimento pré-industrial, anos bons e ruins, quebra de safra ocasional, e a habilidade do lavrador no rendimento (hoje a colheita não lê habilidade).
+- **Estoque e perda.** Celeiro, estrago e pragas, reserva de semente. Fome sazonal e de quebra de safra passam a existir, e é aí que esmola, ajuda mútua e furto devem aparecer.
+- **Estações e clima com efeito**, ligando o que já existe.
+- **Água de beber.** Hoje só existe como mercadoria de mercado, e quem mora a mais de um dia do mercado morre de sede. Pedido: quem mora perto de rio, lago ou poço bebe dali.
+- **Fauna e flora.** Animal precisa comer e se reproduz em meses, não de hora em hora.
+- Risco principal: a vila continuar se alimentando com colheita anual. Calibrar rendimento e área, não fisiologia.
+
+## 3. Vocação e família (AD-136)
+
+Branch: `worktree-agent-a19180fe4c086826f`. Achados: 13, 18, 24, 27. Veio de duas reclamações do dono:
+
+- "A profissão nem sempre vai para a pessoa. Meu pai é farmacêutico, minha mãe é enfermeira, minha irmã é designer e tráfego, e eu sou arquiteto de software, e desde pequeno gostei de tecnologia; nem sempre a pessoa pega dos pais, claro que alguns pais podem forçar o filho e isso influencia."
+- "'Irmãos criados em casas diferentes não acontecem na simulação', isso também fere a simulação, e divórcio deveria poder ocorrer. Também traição que causa divórcio, ou talvez falta de amor."
+
+Pedido:
+- **Ninguém nasce com ofício** (hoje é sorteado no nascimento). Emerge na juventude de: inclinação própria (temperamento, corpo e um componente do indivíduo, em parte herdável), exposição em casa e com o mestre, oportunidade (vaga, salário pago) e pressão de quem criou. A força da pressão é dado de cenário e cultura: alta na vila medieval, baixa em cenário moderno. Quem trabalha no que combina rende e aprende mais; quem foi forçado rende menos e larga quando pode.
+- **Falta de amor**: o vínculo do casal cai com ausência, brigas de temperamento, penúria, morte de filho.
+- **Traição**: depende de impulsividade, lealdade, vínculo fraco e oportunidade; pode gerar filho de outro pai; pode ser descoberta ou não; leva a separação, violência ou perdão.
+- **Separação conforme a época**: mecanismo geral (casa, filhos, bens, quem sai). Medieval: abandono e separação de fato, divórcio formal raro. Moderno: divórcio comum.
+- **Depois**: novas uniões, padrastos, meios-irmãos, filhos em casas diferentes; medir irmãos criados separados no mundo rodando.
+- Tabu de parentesco além do primeiro grau e o casamento que cria comida do nada, se couber.
+
+## Ao juntar
+
+Conflitos esperados: `Npc.cs` e `NatalitySystem.cs` (fatias 1 e 3), `ScenarioRunner.cs`, goldens e baselines (todas). As três mudam o equilíbrio da vila: juntar uma de cada vez e medir a demografia de 100 anos na árvore combinada.
