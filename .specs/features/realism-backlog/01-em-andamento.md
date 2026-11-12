@@ -45,7 +45,14 @@ Pedido:
 - **Depois**: novas uniões, padrastos, meios-irmãos, filhos em casas diferentes; medir irmãos criados separados no mundo rodando.
 - Tabu de parentesco além do primeiro grau e o casamento que cria comida do nada, se couber.
 
-## 4. Doença de época como causa de morte (AD-137), disparada em 2026-11-12
+## 4. Doença de época como causa de morte (AD-137): PRONTA NO BRANCH, NÃO JUNTADA
+
+Commit `e4351b38` em `worktree-agent-a748c4f038095be74` (sobre `c497e57c`), gate verde lá. A junção sobre a árvore combinada (com agricultura e cognição) foi tentada em 2026-11-12 e **reprovou no gate**, então foi desfeita:
+- `VillageSurvivesGenerationsTests` seed 42: só 57 vivos no ano 60.
+- `FamilyDiversityCalibrationTests.Vitality_does_not_collapse_at_century_checkpoints`: 19 de 20 seeds abaixo do piso, com vilas de 16 a 17 vivos.
+- `OntogenyModelTests.No_npc_acts_above_its_development_across_ten_years`: 1 violação (suspeita: criança escolhida como cuidadora ou ação de doente; conferir `SickBehavior`).
+
+Causa provável: a árvore combinada já mata demais (item 20 de [08](08-a-investigar.md)) e a doença soma. **Recalibrar a mortalidade da árvore combinada antes de juntar.** Conflitos da junção são simples: `DemographyReport.cs` (unir os tallies), `ScenarioRunner.cs` (`diseaseRules ?? DiseasePresets.PreIndustrial` na linha do HEAD), pins e baselines `--ours`. Ao juntar, ligar o gancho da cognição: em `OutbreakSystem`, depois do `ReplaceInfection` do sintoma, `if (bedridden) LifeEventIntake.OnFellIll(world, npc, now);`. Em aberto na própria fatia: fome subiu de 1,0% para 6,8% das mortes sem causa achada; números de época sem fonte; +6% de tempo por NPC-tick numa medição só.
 
 Branch: `worktree-agent-a748c4f038095be74`, sobre `c497e57c`. Pedido em [06](06-violencia-poderes-e-restantes.md), seção "Doença de época": perfis de doença como dado de cenário, contágio pela convivência real, doente acamado que precisa de cuidado, e a doença como causa das mortes que a tábua já prevê (recalibrar a mortalidade-base).
 

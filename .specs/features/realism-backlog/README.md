@@ -26,7 +26,7 @@ Branch de trabalho: `perf/decision-scan-costs`, sem push, sem PR. Último commit
 | Aprendizado por idade e criação (AD-132) | juntado | idem |
 | Gate em paralelo, mundo compartilhado (ADR-0044) | juntado | `docs/adr/` |
 | Corpo que cresce, variância genética, saúde dinâmica, amamentação (AD-134) | juntado | `docs/decisions-log.md` |
-| Doença de época ligada por padrão (AD-137) | em worktree, sobre `c497e57c` | [06](06-violencia-poderes-e-restantes.md) |
+| Doença de época ligada por padrão (AD-137) | pronta no branch, NÃO juntada: reprovou no gate da árvore combinada | [06](06-violencia-poderes-e-restantes.md) |
 | Agricultura, estações, água de beber, fauna que come (AD-135) | juntado | `docs/decisions-log.md`, [01](01-em-andamento.md) |
 | Vocação que emerge, traição, separação, novas uniões, tabu de parentesco (AD-136) | juntado | `docs/decisions-log.md` |
 | Hormônios, ciclo menstrual, adolescência, doença genética, contracepção (AD-139) | em worktree, sobre `70adcd30`, disparada em 2026-11-12 | [02](02-biologia-e-hormonios.md) |
