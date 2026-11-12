@@ -77,6 +77,14 @@ As fatias 2, 4 e 5 foram interrompidas no meio e retomadas no mesmo dia; a 5 já
 
 Para retomar: continuar cada fatia a partir do worktree (ou do `refs/wip`), rodar o gate dela pela fila, e só então juntar. A fatia 2 parte de um commit mais antigo: vai conflitar com AD-134 e AD-136. Os scripts de junção que estavam em pasta temporária foram copiados para `relatorios/` (`junta-e-valida.sh`, `record-and-verify.sh`); os caminhos dentro deles apontam para a pasta temporária antiga e precisam ser ajustados.
 
+## Segunda pausa de 2026-11-12 (o dono desligou o computador de novo)
+
+Estado do branch `perf/decision-scan-costs` na pausa: juntadas e com gate verde as fatias 1, 2, 3 e 5; a 4 (doença) pronta no branch dela, não juntada (ver acima).
+
+**Hormônios, ciclo menstrual, adolescência, doença genética e contracepção (AD-139)**: interrompida no meio da validação. Worktree `.claude/worktrees/agent-ae04b3952ab6b2914`, branch `worktree-agent-ae04b3952ab6b2914`, sobre `70adcd30` (antes da agricultura): 37 arquivos alterados, **sem commit, sem gate**. Cópia de segurança em `refs/wip/ae04b3952ab6b2914` (`git stash apply` num worktree limpo de `70adcd30`). Pedido em [02](02-biologia-e-hormonios.md).
+
+Ordem sugerida na volta: (1) recalibrar a mortalidade da árvore combinada (item 20 de [08](08-a-investigar.md)); (2) juntar a doença; (3) terminar e juntar hormônios; depois seguir a tabela do [README](README.md). O dono pediu pausa depois dessas: não disparar fatia nova sem ele dizer.
+
 ## Ao juntar
 
 Conflitos esperados: `Npc.cs` e `NatalitySystem.cs` (fatias 1 e 3), `ScenarioRunner.cs`, goldens e baselines (todas). As três mudam o equilíbrio da vila: juntar uma de cada vez e medir a demografia de 100 anos na árvore combinada.
