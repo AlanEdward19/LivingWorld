@@ -403,7 +403,8 @@ public sealed class Npc
         ReproductiveState? reproduction = null, int? gestationAtBirthDays = null, long lifespanOffsetHours = 0,
         RearingRecord? rearing = null,
         double statureGene = 0, double adultHeight = 0, double undernutrition = 0, long? lastNursedTick = null,
-        long? lastLactationTick = null, int physicalWorkDays = 0)
+        long? lastLactationTick = null, int physicalWorkDays = 0,
+        VocationState? vocation = null, UnionState? union = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -448,6 +449,8 @@ public sealed class Npc
         GestationAtBirthDays = gestationAtBirthDays;
         LifespanOffsetHours = lifespanOffsetHours;
         Rearing = rearing;
+        Vocation = vocation;
+        Union = union;
         IsGhost = isGhost;
         HomelessSince = homelessSince;
         PregnantUntil = pregnantUntil;
@@ -908,6 +911,38 @@ public sealed class Npc
     public void ExitBuilding()
     {
         Interior = null;
+        TouchCanonical();
+    }
+
+    /// <summary>Vocação (AD-136): gosto próprio por ofício e como o ofício foi escolhido. Nulo até a primeira amostra de
+    /// criação (ou da manutenção, para quem já era adulto): omitido do snapshot, snapshot antigo abre com nulo.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public VocationState? Vocation { get; private set; }
+
+    /// <summary>Estado conjugal (AD-136): mágoa com o cônjuge, caso em curso e o fim da última união. Nulo = nunca casou.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public UnionState? Union { get; private set; }
+
+    public void SetVocation(VocationState? state)
+    {
+        if (ReferenceEquals(Vocation, state)) return;
+        Vocation = state;
+        TouchCanonical();
+    }
+
+    public void SetUnion(UnionState? state)
+    {
+        if (ReferenceEquals(Union, state)) return;
+        Union = state;
+        TouchCanonical();
+    }
+
+    /// <summary>Fim da união em vida (AD-136): o vínculo de cônjuge se desfaz deste lado. A viuvez continua sem mutador (o
+    /// cônjuge morto segue em <see cref="Spouse"/>); quem chama desfaz os dois lados.</summary>
+    public void EndMarriage()
+    {
+        if (Spouse is null) return;
+        Spouse = null;
         TouchCanonical();
     }
 }

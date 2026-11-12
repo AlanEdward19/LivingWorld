@@ -40,7 +40,7 @@ Planta de prédio em cache; versão de eixos por dono; despertares de viagem; RN
 7. **Relações em formato numérico no snapshot**: a 5.000 NPCs são 8,5 dos 12 MB do diff de 30 dias; muda o formato em disco (ADR, versão, leitura do antigo). Estimativa: 2x no diff.
 8. **Catraca de desempenho** (#158 itens 3 a 6): baseline por sistema, teto que só desce, sensor de snapshot no gate.
 9. **Núcleo nativo (Rust)**, #159: só como experimento; o custo hoje é de algoritmo e estrutura de dados, não de linguagem.
-10. **Asserts de tempo frágeis**: `RuntimeHistoryCost` (≤1,03) e `ScaleScenarioSensor` dependem de a máquina estar livre.
+10. **Asserts de tempo frágeis**: `RuntimeHistoryCost` (≤1,03) reprovou com 1,045 dentro do gate em 2 de 3 rodadas de 2026-11-12 e deu 1,00 a 1,02 sozinho; ou sai do gate como medição, ou ganha margem estatística. `ScaleScenarioSensor` tem o mesmo risco.
 
 ## Regras que valem para qualquer otimização
 

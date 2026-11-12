@@ -156,14 +156,15 @@ public class NatalitySystemTests
     }
 
     [Fact]
-    public void Baby_born_at_runtime_gets_a_profession_valid_for_the_scenario_catalog()
+    public void Baby_born_at_runtime_has_no_profession_even_when_the_scenario_has_crafts()
     {
+        // AD-136: ninguém nasce com ofício; ele é escolhido na juventude (VocationMechanic)
         var catalog = new PopulationCatalog(new HashSet<int>(), new HashSet<int> { 5, 6, 7 }, new HashSet<int>());
         var (world, ctx, mother, father, household) = BuildWorldWithMarriedCouple(catalog, seed: 7);
 
         var baby = TriggerBirth(world, ctx, mother.Id, father.Id, household.Id);
 
-        Assert.True(catalog.IsValidProfession(baby.Profession));
+        Assert.Equal(ProfessionType.None, baby.Profession);
     }
 
     [Fact]

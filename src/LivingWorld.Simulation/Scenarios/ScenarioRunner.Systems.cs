@@ -67,6 +67,7 @@ public static partial class ScenarioRunner
         new BookRediscoverySystem(),
         new ColdArchiveSystem(),
         new CourtshipSystem(),
+        new UnionSystem(),
         new NatalitySystem(),
         new LivingWorld.Simulation.Ontogeny.MilestoneProgressSystem(),
         new OrphanCareSystem(),

@@ -121,12 +121,13 @@ public sealed class ProductionSystem : ISimulationSystem
         foreach (var npc in presentWorkers)
         {
             if (!skillsRules.SkillByProfession.TryGetValue(npc.Profession.Id, out var skillType)) continue;
-            sum += npc.Skills.Get(skillType);
+            // quem trabalha no que combina com ele rende mais (AD-136)
+            sum += (1.0 + npc.Skills.Get(skillType) / skillsRules.Cap) * VocationMechanic.OutputFit(skillsRules, npc);
             mapped++;
         }
         if (mapped == 0) return 1.0;
 
-        return 1.0 + (sum / mapped) / skillsRules.Cap;
+        return sum / mapped;
     }
 
     /// <summary>Segundo multiplicador de <c>attribute.strength</c> sobre a taxa de

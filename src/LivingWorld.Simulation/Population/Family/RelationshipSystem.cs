@@ -194,8 +194,12 @@ public sealed class RelationshipSystem : ISimulationSystem
         RelationshipEventType type = RelationshipEventType.Cohabitation)
     {
         var relationship = world.GetOrCreateRelationship(new RelationshipKey(from.Id, to.Id), now);
-        relationship.ApplyBondingEvent(
-            type, rules, bonds.TrustCeiling(to.Personality), bonds.AffectionCeiling(from.Personality, to.Personality, sameHousehold));
+        double trustCeiling = bonds.TrustCeiling(to.Personality);
+        double affectionCeiling = bonds.AffectionCeiling(from.Personality, to.Personality, sameHousehold);
+        // mágoa com o cônjuge baixa o que a convivência consegue refazer (AD-136)
+        if (from.Spouse == to.Id && from.Union is { Grievance: > 0 } union)
+            (affectionCeiling, trustCeiling) = UnionSystem.MaritalCeilings(affectionCeiling, trustCeiling, union.Grievance);
+        relationship.ApplyBondingEvent(type, rules, trustCeiling, affectionCeiling);
         relationship.MarkContact(now);
     }
 

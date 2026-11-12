@@ -28,7 +28,7 @@ Branch de trabalho: `perf/decision-scan-costs`, sem push, sem PR. Último commit
 | Corpo que cresce, variância genética, saúde dinâmica, amamentação (AD-134) | juntado | `docs/decisions-log.md` |
 | Doença de época ligada por padrão (item 5 da fatia de corpo) | não começado | [06](06-violencia-poderes-e-restantes.md) |
 | Agricultura, estações, água de beber (AD-135) | em worktree | [01](01-em-andamento.md) |
-| Vocação, traição, separação, novas uniões (AD-136) | em worktree | [01](01-em-andamento.md) |
+| Vocação que emerge, traição, separação, novas uniões, tabu de parentesco (AD-136) | juntado | `docs/decisions-log.md` |
 | Hormônios, ciclo menstrual, adolescência, doença genética, contracepção | não começado | [02](02-biologia-e-hormonios.md) |
 | Cognição: memória, emoção, pensamento real; cérebro neural | não começado | [03](03-cognicao-e-cerebro.md) |
 | Empreendedorismo, crédito, preço e salário | não começado | [04](04-economia-e-empreendedorismo.md) |

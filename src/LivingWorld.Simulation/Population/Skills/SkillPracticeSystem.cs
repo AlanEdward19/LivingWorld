@@ -49,7 +49,8 @@ public sealed class SkillPracticeSystem : ISimulationSystem
             double age = (double)(world.CurrentDate.TotalHours - npc.BirthDate.TotalHours) / world.CurrentDate.Calendar.HoursPerYear;
             double gain = _rules.Gain(npc.Skills.Get(skillType), SkillGainSource.Practice, npc.RateGene.Value)
                 * _rules.Learning.Aptitude(age) // plasticidade da idade (AD-132)
-                * SkillMechanic.ManifestedLearnRate(world, npc);
+                * SkillMechanic.ManifestedLearnRate(world, npc)
+                * VocationMechanic.LearningFit(_rules, npc); // aprende mais no que combina com ele (AD-136)
             npc.GainSkill(skillType, gain, _rules.Cap);
         }
     }

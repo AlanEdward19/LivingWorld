@@ -19,6 +19,7 @@ public static class EstateSystem
 
     public static void Settle(WorldState world, TickContext ctx, Npc dead)
     {
+        LivingWorld.Simulation.Population.Family.UnionSystem.OnDeath(world, dead); // luto de filho afasta o casal (AD-136)
         long wallet = dead.Wallet.Amount;
         var owned = OwnedWorkplaces(world, dead);
         var household = dead.Household is { } householdId ? world.FindHousehold(householdId) : null;

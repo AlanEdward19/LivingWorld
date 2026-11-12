@@ -20,7 +20,19 @@ Como a convivência vira vínculo (AD-128): em casa todos convivem; no trabalho 
 poucos de quem mais gosta dentro da própria turma; quem socializa conversa com alguém por perto. Afeto e
 confiança têm um teto por par (temperamentos parecidos, o quanto o outro é agradável e leal), sobem cada
 vez menos perto dele e esfriam aos poucos sem contato, até o par ser esquecido. Parentes não se esquecem.
-O resultado é um punhado de vínculos fortes e muitos fracos por pessoa, não afeto máximo por todo colega.
+O resultado é um punhado de vínculos fortes e muitos fracos por pessoa.
+
+## União e fim da união (AD-136)
+
+Cada um escolhe o par pelo que o outro tem e só namoram se os dois se quiserem; união com parente de r ≥ 1/8
+(primo-irmão, meio-irmão, tio) é tabu. O casal leva o que tinha em casa: nada é criado no casamento. A mágoa sobe
+com briga de temperamento, penúria, distância, luto de filho e traição, é perdoada aos poucos e baixa o teto do
+afeto: o amor esfria de verdade. Quem tem propensão e oportunidade pode ter um caso, que pode dar filho do amante
+e ser descoberto pelo boato que corre pelos vínculos (perdão, separação ou violência). Quem deixou de amar pode
+sair no ritmo da norma da época (`UnionRules`: na vila medieval quase sem divórcio, com abandono e separação de
+fato; no moderno, divórcio). Filho pequeno fica com a mãe, os maiores se dividem; quem sai volta para os pais ou
+abre casa, e só se une de novo depois do tempo da norma; viúvo espera o luto. Assim surgem padrastos,
+meios-irmãos e irmãos criados em casas diferentes.
 
 ## Reprodução
 

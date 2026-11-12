@@ -31,9 +31,13 @@ public sealed class DemographyTally(WorldState world) : IWorldEventSink
     /// <summary>Corpo, saúde e causas de morte (AD-134).</summary>
     public BodyHealthTally Body { get; } = new(world);
 
+    /// <summary>Vida familiar da mesma rodada (AD-136), medida desde o início.</summary>
+    public FamilyLifeTally Family { get; } = new(world);
+
     public void Record(WorldEvent evt)
     {
         Body.OnEvent(evt);
+        Family.Record(evt);
         if (evt.Tick < MeasureFromTick) return;
         switch (evt.Kind)
         {
@@ -109,6 +113,7 @@ public static class DemographyReport
         for (int m = 0; m < months; m++)
         {
             clock.Run(world, world.Calendar.HoursPerMonth);
+            tally.Family.SampleMonth();
             if (m >= warmupYears * world.Calendar.MonthsPerYear) tally.SampleMonth();
             if ((m + 1) % world.Calendar.MonthsPerYear == 0) tally.Body.SampleYear();
             minAlive = Math.Min(minAlive, world.AliveNpcIndex.Alive.Count);
@@ -186,6 +191,7 @@ public static class DemographyReport
         }
 
         sb.AppendLine();
+        sb.Append(FamilyLifeTally.Summarize(runs.Select(r => r.Tally.Family).ToList()));
         sb.Append("seeds(final)=").AppendLine(string.Join(",", runs.Select(r => r.FinalAlive)));
         sb.Append(BodyHealthTally.Summarize(runs.Select(r => (r.Tally.Body, followUpEnd)).ToList()));
         return sb.ToString();

@@ -169,6 +169,14 @@ public sealed class Relationship
 
     public void MarkContact(long tick) => LastContactTick = tick;
 
+    /// <summary>O amor que esfria (AD-136): afeto e confiança acima do que a relação hoje sustenta descem até esse teto.
+    /// Nunca sobe nada.</summary>
+    public void CoolTo(double affectionCeiling, double trustCeiling)
+    {
+        if (Affection > affectionCeiling) Set(RelationshipAxis.Affection, affectionCeiling);
+        if (Trust > trustCeiling) Set(RelationshipAxis.Trust, trustCeiling);
+    }
+
     /// <summary>Copia os 4 eixos de <paramref name="source"/> (transferência de
     /// vínculos em clone/split) — não altera <see cref="LastContactTick"/> (o chamador marca
     /// contato no tick atual).</summary>

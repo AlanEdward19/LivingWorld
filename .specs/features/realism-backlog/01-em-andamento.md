@@ -26,7 +26,9 @@ Branch: `worktree-agent-a9907ed034b4f0ede`. Achados: 6, 19, 21, 22, mais dois co
 - **Fauna e flora.** Animal precisa comer e se reproduz em meses, não de hora em hora.
 - Risco principal: a vila continuar se alimentando com colheita anual. Calibrar rendimento e área, não fisiologia.
 
-## 3. Vocação e família (AD-136)
+## 3. Vocação e família (AD-136): JUNTADO em 2026-11-12
+
+Pendências deixadas: irmãos criados separados seguem raros (1,7%; falta criadagem e aprendizagem fora de casa); a pressão da casa pesa pouco na medida (78% contra 69% seguem o ofício de quem criou); população subiu 17% sem explicação; paternidade fora do casamento em 0,2% (lembrança da literatura: ~1% por geração); taxas de caso, descoberta, violência e mágoa sem fonte; não existe "pai social" (o filho de outro pai herda do biológico); sem penalidade de vitalidade por endogamia; o abandono só leva a outro povoado se houver mais de uma cidade.
 
 Branch: `worktree-agent-a19180fe4c086826f`. Achados: 13, 18, 24, 27. Veio de duas reclamações do dono:
 

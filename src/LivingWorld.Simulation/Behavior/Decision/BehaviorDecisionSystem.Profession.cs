@@ -105,7 +105,9 @@ public sealed partial class BehaviorDecisionSystem
         double skillWeight = profession is { } p && rules.SkillByProfession.TryGetValue(p.Id, out var skillType)
             ? 1.0 + npc.Skills.Get(skillType) / rules.Cap
             : 1.0;
-        return labor.ValueOf(workplace) * skillWeight;
+        // o ofício que combina com a pessoa vale mais para ela (AD-136): quem foi empurrado para o que não combina troca quando pode
+        double fit = profession is { } offered ? Population.Skills.VocationMechanic.JobValueFit(rules, npc, offered) : 1.0;
+        return labor.ValueOf(workplace) * skillWeight * fit;
     }
 
     /// <summary>Ofício que trabalha num tipo de local: o atual se já mapeia para ele, senão o de menor id que mapeia.</summary>

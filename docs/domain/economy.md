@@ -48,6 +48,11 @@ Dependem do período e do nível tecnológico da sociedade — são conteúdo, n
 
 Desemprego é um estado legítimo e comum, não um erro: vagas são finitas.
 
+Ninguém nasce com ofício (AD-136): ele se escolhe na juventude pelo gosto próprio (herdado em parte), pelo
+temperamento e corpo, pelo que se aprendeu em casa, pela vaga que paga e pela pressão de quem criou — forte numa
+vila medieval, fraca hoje, e só no tanto em que o filho é obediente. Quem trabalha no que combina rende e aprende
+mais e valoriza mais o emprego; quem foi empurrado troca quando surge vaga.
+
 ## Mercado, estoque e moeda
 
 Cada cidade tem seu mercado local, com formação de preço própria. Estoque não é abstrato —
