@@ -34,10 +34,14 @@ public sealed class DemographyTally(WorldState world) : IWorldEventSink
     /// <summary>Vida familiar da mesma rodada (AD-136), medida desde o início.</summary>
     public FamilyLifeTally Family { get; } = new(world);
 
+    /// <summary>Causas de morte, anos de surto e dias perdidos por doença (AD-137).</summary>
+    public DiseaseTally Disease { get; } = new(world);
+
     public void Record(WorldEvent evt)
     {
         Body.OnEvent(evt);
         Family.Record(evt);
+        Disease.OnEvent(evt);
         if (evt.Tick < MeasureFromTick) return;
         switch (evt.Kind)
         {
@@ -66,6 +70,7 @@ public sealed class DemographyTally(WorldState world) : IWorldEventSink
                 return;
             case WorldEventKind.Death or WorldEventKind.Starvation or WorldEventKind.Dehydration
                 or WorldEventKind.Exhaustion or WorldEventKind.Disease or WorldEventKind.MaternalDeath
+                or WorldEventKind.Accident or WorldEventKind.OldAge
                 when evt.SourceSystem == YearEventTally.DeathSource:
                 int cut = evt.Payload.IndexOf('|');
                 string first = cut < 0 ? evt.Payload : evt.Payload[..cut];
@@ -107,13 +112,20 @@ public static class DemographyReport
         var (world, baseClock) = ScenarioRunner.Create(seed);
         var tally = new DemographyTally(world) { MeasureFromTick = warmupYears * world.Calendar.HoursPerYear };
         tally.Body.MeasureFromTick = tally.MeasureFromTick;
+        tally.Disease.MeasureFromTick = tally.MeasureFromTick;
         var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, tally);
         int months = years * world.Calendar.MonthsPerYear;
         int minAlive = int.MaxValue;
         for (int m = 0; m < months; m++)
         {
-            clock.Run(world, world.Calendar.HoursPerMonth);
+            for (int d = 0; d < world.Calendar.DaysPerMonth; d++)
+            {
+                clock.Run(world, world.Calendar.HoursPerDay);
+                tally.Disease.SampleDay();
+            }
+
             tally.Family.SampleMonth();
+            tally.Disease.SampleMonth();
             if (m >= warmupYears * world.Calendar.MonthsPerYear) tally.SampleMonth();
             if ((m + 1) % world.Calendar.MonthsPerYear == 0) tally.Body.SampleYear();
             minAlive = Math.Min(minAlive, world.AliveNpcIndex.Alive.Count);
@@ -194,6 +206,7 @@ public static class DemographyReport
         sb.Append(FamilyLifeTally.Summarize(runs.Select(r => r.Tally.Family).ToList()));
         sb.Append("seeds(final)=").AppendLine(string.Join(",", runs.Select(r => r.FinalAlive)));
         sb.Append(BodyHealthTally.Summarize(runs.Select(r => (r.Tally.Body, followUpEnd)).ToList()));
+        sb.Append(DiseaseTally.Summarize(runs.Select(r => r.Tally.Disease).ToList()));
         return sb.ToString();
     }
 

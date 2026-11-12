@@ -173,6 +173,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 candidate = ConstrainByDevelopment(world, npc, candidate);
                 if (urgent && npc.ControlledAction is null && world.TheftRules.Enabled && TheftResolver.Wants(world, npc, now, theftIndex))
                     candidate = ActionType.Steal; // desespero + temperamento + alguém com moeda ao lado
+                candidate = LivingWorld.Simulation.Health.SickBehavior.Constrain(world, npc, candidate, now); // de cama ou cuidando (AD-137)
 
                 chosen = ResolveWithStepCap(npc.Id.Value, candidate, world, npc, marketIndex, rules.MaxActionSelectionSteps);
                 travelPurpose = chosen == ActionType.Travel && candidate is ActionType.Work or ActionType.Sleep or ActionType.Buy
