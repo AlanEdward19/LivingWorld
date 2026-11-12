@@ -176,6 +176,15 @@ public sealed partial class BehaviorDecisionSystem
             return true;
         }
 
+        // AD-134: o lactente mama; no desmame, parte das refeições já é papa da despensa. Sem leite, só a papa (com risco).
+        bool nursed = LivingWorld.Simulation.Health.Lactation.TryNurse(world, npc, tick);
+        if (nursed && TakesMilkThisFeed(world, npc, tick))
+        {
+            npc.SetHunger(100, tick);
+            npc.SetThirst(100, tick);
+            return true;
+        }
+
         var household = npc.Household is { } householdId ? world.FindHousehold(householdId) : null;
         bool fed = false;
         var meal = household is null ? new ResourceType(econ.FoodResourceId) : FoodResolver.ResolveMeal(world, household);
@@ -194,7 +203,24 @@ public sealed partial class BehaviorDecisionSystem
             fed = true;
         }
 
+        if (nursed && !fed)
+        {
+            // sem papa na despensa, o peito ainda cobre a refeição
+            npc.SetHunger(100, tick);
+            npc.SetThirst(100, tick);
+            fed = true;
+        }
+
         return fed;
+    }
+
+    /// <summary>No exclusivo toda mamada alimenta; no desmame, a parte do leite cai com a idade (sorteio por bebê e tick).</summary>
+    private static bool TakesMilkThisFeed(WorldState world, Npc baby, long tick)
+    {
+        double share = LivingWorld.Simulation.Health.Lactation.MilkShare(world, baby, tick);
+        if (share >= 1.0) return true;
+        if (share <= 0.0) return false;
+        return world.Rng.StreamFor("weaning", unchecked(baby.Id.Value * 1_000_003L + tick)).NextDouble() < share;
     }
 
     /// <summary>Ração do empregador: quem está no próprio local de trabalho e a despensa de casa não tem o que comer ou

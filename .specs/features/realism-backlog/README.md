@@ -16,7 +16,7 @@
 
 ## Estado
 
-Branch de trabalho: `perf/decision-scan-costs`, sem push, sem PR. Último commit conhecido: `ee6f0416`.
+Branch de trabalho: `perf/decision-scan-costs`, sem push, sem PR. Último commit conhecido: ver `git log` (a junção do AD-134 veio depois de `d28d31ee`).
 
 | Área | Estado | Arquivo |
 |---|---|---|
@@ -25,7 +25,8 @@ Branch de trabalho: `perf/decision-scan-costs`, sem push, sem PR. Último commit
 | Demografia de época (AD-130), números conferidos (AD-133) | juntado | idem |
 | Aprendizado por idade e criação (AD-132) | juntado | idem |
 | Gate em paralelo, mundo compartilhado (ADR-0044) | juntado | `docs/adr/` |
-| Corpo, crescimento, saúde, amamentação, doença (AD-134) | em worktree | [01](01-em-andamento.md) |
+| Corpo que cresce, variância genética, saúde dinâmica, amamentação (AD-134) | juntado | `docs/decisions-log.md` |
+| Doença de época ligada por padrão (item 5 da fatia de corpo) | não começado | [06](06-violencia-poderes-e-restantes.md) |
 | Agricultura, estações, água de beber (AD-135) | em worktree | [01](01-em-andamento.md) |
 | Vocação, traição, separação, novas uniões (AD-136) | em worktree | [01](01-em-andamento.md) |
 | Hormônios, ciclo menstrual, adolescência, doença genética, contracepção | não começado | [02](02-biologia-e-hormonios.md) |

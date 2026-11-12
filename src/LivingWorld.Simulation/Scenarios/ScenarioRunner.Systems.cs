@@ -71,6 +71,8 @@ public static partial class ScenarioRunner
         new LivingWorld.Simulation.Ontogeny.MilestoneProgressSystem(),
         new OrphanCareSystem(),
         new NeedsDecaySystem(),
+        new PhysiologySystem(),
+        new LivingWorld.Simulation.Population.Body.GrowthSystem(),
         new BehaviorDecisionSystem(DefaultSkillsRules),
         new TradeLedgerSystem(),
         new BuildingOccupancySystem(),

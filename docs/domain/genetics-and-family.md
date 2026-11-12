@@ -41,7 +41,10 @@ A morte por idade é risco mensal da tábua de época pelo estado atual, nunca d
 atributoFilho = atributoPai*pesoPai + atributoMãe*pesoMãe + mutação + influênciaAmbiental
 ```
 
-A mutação garante variação; o termo ambiental garante que o mundo pese. Separação dura:
+A mutação garante variação; o termo ambiental garante que o mundo pese. Traço contínuo (vitalidade, gene de taxa,
+estatura) segue o modelo infinitesimal (AD-134): filho = média dos pais + segregação mendeliana com metade da variância
+aditiva da população, o que mantém a variância estável entre gerações (média simples a cortava pela metade). A
+estatura herdada (h² ≈ 0,8) ainda perde centímetros com fome na infância. Separação dura:
 
 | Genético (predisposição) | Ambiental (adquirido) |
 |---|---|

@@ -90,7 +90,17 @@ public sealed class NeedsDecaySystem : ISimulationSystem
 
         if (rules.HungerDecayPerHour <= 0) return;
 
-        if (now - npc.HungerZeroSinceTick.Value >= rules.StarvationTicks)
+        if (now - npc.HungerZeroSinceTick.Value >= StarvationTicksFor(world, npc, rules, now))
             NpcDeath.Apply(world, ctx, npc, WorldEventKind.Starvation);
+    }
+
+    /// <summary>Jejum que mata: o do cenário vezes o fator da idade (AD-134: criança e idoso aguentam menos). Só calculado
+    /// com a fome já em zero.</summary>
+    public static long StarvationTicksFor(WorldState world, Npc npc, NeedsRules rules, long now)
+    {
+        long ticks = rules.StarvationTicks;
+        if (!rules.Physiology.Enabled || ticks == long.MaxValue) return ticks;
+        double age = Math.Max(0, now - npc.BirthDate.TotalHours) / (double)world.Calendar.HoursPerYear;
+        return Math.Max(1, (long)(ticks * rules.Physiology.StarvationSurvivalFactorByAge.At(age)));
     }
 }

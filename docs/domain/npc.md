@@ -25,6 +25,13 @@ pronto.
 **Físicos:** força, resistência, agilidade, saúde, fertilidade, longevidade, aparência,
 percepção — governam trabalho braçal, combate, doença e reprodução.
 
+**Corpo (AD-134):** nasce com tamanho de recém-nascido (~50 cm, ~3,3 kg; menor se prematuro), cresce pela curva de
+idade e sexo com estirão na puberdade (antes nas meninas) até ~1,71 m (homem) e ~1,59 m (mulher), encolhe e perde
+músculo na velhice. O músculo sobe com trabalho braçal, cai sem uso e na fome. A saúde é uma reserva: cai com fome, sede,
+doença, parto difícil e velhice; volta com comida e sono, devagar no velho. Quem está fraco trabalha menos e anda mais
+devagar; a desnutrição pesa no risco de morte, sobretudo da criança. O bebê mama na mãe (ou noutra lactante da casa) até
+o desmame, entre 6 meses e 2 anos; sem leite, come papa com risco alto.
+
 **Cognitivos:** inteligência, memória, criatividade, disciplina, curiosidade, capacidade
 social, agressividade, empatia — governam aprendizado, decisão e vida social.
 

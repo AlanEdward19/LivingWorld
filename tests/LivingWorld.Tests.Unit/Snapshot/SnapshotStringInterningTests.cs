@@ -93,7 +93,9 @@ public class SnapshotStringInterningTests
     public void Interned_SystemName_values_are_numeric_not_literal_strings()
     {
         var (world, clock) = ScenarioRunner.Create(seed: 99);
-        clock.Run(world, 150);
+        // AD-134: com a saúde relativa ao teto da idade, os 150 primeiros ticks podem passar sem nenhuma morte agendada;
+        // depois da primeira varredura mensal sempre há evento pendente
+        clock.Run(world, 750);
         Assert.NotEmpty(world.PendingEvents);
 
         var json = JsonNode.Parse(WorldSnapshot.Serialize(world))!.AsObject();

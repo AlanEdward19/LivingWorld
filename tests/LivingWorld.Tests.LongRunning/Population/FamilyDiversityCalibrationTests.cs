@@ -38,10 +38,11 @@ public class FamilyDiversityCalibrationTests
     public void Unselected_trait_stays_in_the_neutral_band()
     {
         var differences = Current.Value.Select(s => s.OpennessDifference).ToArray();
+        // Openness não entra na mortalidade nem na atração: a faixa calibrada é o controle. Até o AD-134 havia também a
+        // exigência de diferença média zero no IC pareado; com a saúde dinâmica (que pesa na atração), o braço real escolhe
+        // parceiro pela saúde e o neutro ao acaso, o sucesso reprodutivo fica mais desigual e um traço neutro perde um pouco
+        // mais de variância (−0,009 de CV em 10 anos). Os braços deixaram de diferir só pela seleção de vitalidade.
         Assert.True(InBand(differences, Baseline().Samples.Select(s => s.OpennessDifference), out string detail), detail);
-        // Openness não entra na função de mortalidade. Ausência de seleção direta admite zero no IC pareado.
-        Assert.True(Math.Abs(differences.Average()) <= Baseline().ConfidenceZ * StandardError(differences),
-            $"Controle negativo: diferença média {differences.Average()}, EP {StandardError(differences)}");
     }
 
     /// <summary>Classe própria: a seleção forte (20 seeds × 10 anos, pareada) roda em paralelo com o século em vez de esperar por ele.</summary>

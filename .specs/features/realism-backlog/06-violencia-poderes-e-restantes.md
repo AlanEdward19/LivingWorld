@@ -47,6 +47,10 @@ Hoje: o filho só herda se os dois pais forem portadores, com chance 1,0, e num 
 8. Mesmo motor para as doenças genéticas (02).
 9. Testes: filhos de heterozigoto dominante com não portador manifestam em 50% ± 5%; filhos de dois heterozigotos recessivos, em 25% ± 5%; o número médio de poderes por portador não cresce entre gerações (20 seeds × 150 anos).
 
+## Doença de época (a fazer; sobrou da fatia de corpo e saúde)
+
+Ligar a doença por padrão: contágio por convivência (casa, turma de trabalho, mercado), mais grave em crianças, velhos e desnutridos, imunidade, surtos, incubação, doente acamado que não trabalha. Tem de ser causa das mortes que a tábua já prevê: descontar da mortalidade-base a parte atribuída à doença e recalibrar para manter e0 e a mortalidade infantil. Ganchos prontos: `DiseaseProfile.HealthPenalty`, `LethalityByAge`, `MalnutritionLethalityFactor`, `MortalitySystem.StateMultiplier`. Meta: a maioria das mortes com causa explícita (hoje ~2%).
+
 ## Lacunas conhecidas fora da auditoria
 
 - Cidades-filhas fundadas com 1 ou 2 moradores (`SpatialSettlementFoundingSystem`); contornado na esmola, não corrigido.

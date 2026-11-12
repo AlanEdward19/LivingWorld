@@ -3,7 +3,9 @@
 > Cada uma roda num subagente Opus, em worktree próprio, sobre o commit `ee6f0416`. Nenhuma foi juntada ainda.
 > Se a sessão cair, o trabalho está no branch do worktree: `git worktree list` e `git log <branch>` mostram o que existe.
 
-## 1. Corpo, crescimento e saúde (AD-134)
+## 1. Corpo, crescimento e saúde (AD-134): JUNTADO em 2026-11-12, itens 1 a 4
+
+Ficou pendente o item de doença (só ganchos em `DiseaseProfile`), o contágio por mercado e turma, e o doente acamado. Medido depois: e0 30,3 e 1º ano 244‰ (abaixo da referência anterior, ainda na faixa pré-industrial); só ~2% das mortes têm causa explícita. Um teste de traço neutro foi afrouxado (ver relatório do AD-134 no log de decisões). Números sem fonte: 30% de natimorto quando a mãe morre no parto; desgaste do parto.
 
 Branch: `worktree-agent-af9846256807e40c5`. Achados da auditoria: 8, 12, 14, 3, 5, 15, 16, 20.
 

@@ -78,13 +78,13 @@ public class NatalitySystemTests
 
     private (WorldState World, TickContext Ctx, Npc Mother, Npc Father, Household Household) BuildWorldWithMarriedCouple(
         PopulationCatalog catalog, ulong seed, FamilyRules? familyRules = null, ReproductionRules? reproduction = null,
-        int motherAgeYears = 20, int fatherAgeYears = 22, IWorldEventSink? sink = null)
+        int motherAgeYears = 20, int fatherAgeYears = 22, IWorldEventSink? sink = null, LivingWorld.Domain.Behavior.NeedsRules? needsRules = null)
     {
         var map = ScenarioRunner.DefaultMap(seed);
         var family = familyRules ?? PermissiveFamilyRules();
         var world = new WorldState(
             Calendar, seed, map, catalog, Rules with { Reproduction = reproduction ?? Certain },
-            ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
+            needsRules ?? ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules, familyRules: family);
         var location = new CellCoord(1, 1);
 
@@ -236,17 +236,28 @@ public class NatalitySystemTests
     }
 
     [Fact]
-    public void Baby_born_at_runtime_gets_body_fields_within_BodyRules_range()
+    public void Baby_born_at_runtime_has_the_size_of_a_newborn_not_of_an_adult()
     {
+        // AD-134: antes o recém-nascido saía com corpo de adulto (1,70 m, 68 kg); a intenção (corpo plausível) continua
         var catalog = new PopulationCatalog(new HashSet<int>(), new HashSet<int>(), new HashSet<int>());
         var (world, ctx, mother, father, household) = BuildWorldWithMarriedCouple(catalog, seed: 13);
-        var rules = world.BodyRules;
 
         var baby = TriggerBirth(world, ctx, mother.Id, father.Id, household.Id);
 
-        Assert.InRange(baby.Height, rules.HeightMin, rules.HeightMax);
-        Assert.InRange(baby.Weight, rules.WeightMin, rules.WeightMax);
-        Assert.InRange(baby.MuscleMass, rules.MuscleMassMin, rules.MuscleMassMax);
+        Assert.True(baby.Height is > 0.40 and < 0.60 && baby.Weight is > 2.0 and < 5.0 && baby.MuscleMass < 1.5,
+            $"{baby.Height} m, {baby.Weight} kg, {baby.MuscleMass} kg");
+    }
+
+    [Fact]
+    public void A_preterm_baby_is_born_smaller_than_a_term_baby()
+    {
+        var growth = Domain.Population.Body.GrowthRules.Default;
+        double term = growth.HeightAt(Sex.Female, 0, 1.59, 268);
+        double preterm = growth.HeightAt(Sex.Female, 0, 1.59, 200);
+        double termWeight = growth.WeightAt(Sex.Female, 0, term, 1.0, 0, 268);
+        double pretermWeight = growth.WeightAt(Sex.Female, 0, preterm, 1.0, 0, 200);
+
+        Assert.True(preterm < term && pretermWeight < termWeight * 0.6, $"{preterm}/{term} m, {pretermWeight}/{termWeight} kg");
     }
 
     [Fact]
@@ -320,11 +331,13 @@ public class NatalitySystemTests
     }
 
     [Fact]
-    public void HandleEvent_maternal_death_risk_kills_mother_without_creating_baby()
+    public void HandleEvent_maternal_death_risk_kills_mother_without_creating_baby_when_physiology_is_static()
     {
+        // o modelo de antes (sem fisiologia): a morte materna não deixa bebê
         var rules = PermissiveFamilyRules() with { MaternalDeathRisk = 1.0 };
         var (world, ctx, mother, father, household) = BuildWorldWithMarriedCouple(
-            ScenarioRunner.DefaultPopulationCatalog, seed: 6, familyRules: rules);
+            ScenarioRunner.DefaultPopulationCatalog, seed: 6, familyRules: rules,
+            needsRules: ScenarioRunner.DefaultNeedsRules with { Physiology = Domain.Health.PhysiologyRules.Static });
         int npcsBefore = world.Npcs.Count;
 
         var evt = ctx.ScheduleEvent(world.CurrentDate.TotalHours, NatalitySystem.SystemName,
@@ -333,6 +346,26 @@ public class NatalitySystemTests
 
         Assert.Equal(npcsBefore, world.Npcs.Count);
         Assert.False(mother.IsAlive);
+    }
+
+    [Fact]
+    public void A_mother_who_dies_in_childbirth_still_delivers_a_living_baby()
+    {
+        var rules = PermissiveFamilyRules() with { MaternalDeathRisk = 1.0 };
+        var physiology = Domain.Health.PhysiologyRules.Default;
+        var needs = ScenarioRunner.DefaultNeedsRules with
+        {
+            Physiology = physiology with { Lactation = physiology.Lactation with { StillbirthRiskWhenMotherDies = 0 } },
+        };
+        var (world, ctx, mother, father, household) = BuildWorldWithMarriedCouple(
+            ScenarioRunner.DefaultPopulationCatalog, seed: 6, familyRules: rules, needsRules: needs);
+        int npcsBefore = world.Npcs.Count;
+
+        var evt = ctx.ScheduleEvent(world.CurrentDate.TotalHours, NatalitySystem.SystemName,
+            $"{mother.Id.Value}|{father.Id.Value}|{household.Id.Value}|100");
+        new NatalitySystem().HandleEvent(world, ctx, evt);
+
+        Assert.True(world.Npcs.Count == npcsBefore + 1 && world.Npcs[^1].IsAlive && !mother.IsAlive);
     }
 
     [Fact]
