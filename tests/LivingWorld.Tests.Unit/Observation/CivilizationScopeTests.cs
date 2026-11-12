@@ -212,11 +212,13 @@ public class CivilizationScopeTests
         var s = Build();
         int width = s.Tally.AgeBandYears;
         int Age(Npc n) => n.AgeYears(s.World.CurrentDate);
-        // Morte numa faixa com 3 ou mais vivos e fora da última (aberta): q fica abaixo de 1 e a exposição pesa no resultado.
+        // Morte numa faixa com 2 ou mais vivos e fora da última (aberta): q fica abaixo de 1 e a exposição pesa no resultado.
+        // (AD-138: eram 3; a vila de 20 pessoas deste cenário mudou de trajetória e nenhuma cidade tinha 3 numa faixa. Com 2 a
+        // faixa continua tendo sobrevivente, que é o que a conta precisa.)
         var (city, dead) = s.World.ActiveCities().Where(c => c.Id != s.B.Id).OrderBy(c => c.Id.Value).Select(c =>
         {
             var local = s.World.Npcs.Where(n => n.IsAlive && n.City == c.Id).ToList();
-            var pick = local.Where(n => local.Count(o => Age(o) / width == Age(n) / width) >= 3 && Age(n) / width < local.Max(Age) / width)
+            var pick = local.Where(n => local.Count(o => Age(o) / width == Age(n) / width) >= 2 && Age(n) / width < local.Max(Age) / width)
                 .OrderBy(n => n.Id.Value).FirstOrDefault();
             return (c, pick);
         }).First(x => x.pick is not null);

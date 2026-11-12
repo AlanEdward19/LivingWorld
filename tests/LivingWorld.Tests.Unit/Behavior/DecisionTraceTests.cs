@@ -64,7 +64,8 @@ public class DecisionTraceTests
         Assert.True(trace.WinningUtility > double.NegativeInfinity);
         Assert.NotEmpty(trace.TopPressures);
         Assert.Contains(trace.TopPressures, p => p.Kind == PressureModel.AcquireFood);
-        Assert.Contains(trace.KnownOpportunities, o => o.Kind == OpportunityModel.FoodAtMarket);
+        // AD-138: o que o NPC sabe e não entrou na escolha (a crença de mercado com comida, sem pesar em nenhuma nota) saiu do rastro
+        Assert.DoesNotContain(trace.KnownOpportunities, o => o.Kind == OpportunityModel.FoodAtMarket);
         Assert.NotEmpty(trace.TopPositiveFactors);
         Assert.NotEmpty(trace.TopNegativeFactors);
         Assert.NotEmpty(trace.KnownAlternatives);

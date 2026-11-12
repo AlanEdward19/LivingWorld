@@ -47,13 +47,15 @@ Pedido:
 
 Branch: `worktree-agent-a748c4f038095be74`, sobre `c497e57c`. Pedido em [06](06-violencia-poderes-e-restantes.md), seção "Doença de época": perfis de doença como dado de cenário, contágio pela convivência real, doente acamado que precisa de cuidado, e a doença como causa das mortes que a tábua já prevê (recalibrar a mortalidade-base).
 
-## 5. Memória, emoção e pensamento real (AD-138), disparada em 2026-11-12
+## 5. Memória, emoção e pensamento real (AD-138): JUNTADO em 2026-11-12
+
+Ficou de fora: necessidades de segurança, pertencimento e descanso; maturação da personalidade com a idade; raiva só leva a evitar, não a confrontar; memórias de jogador, LLM e crença ainda entram no rastro por busca de texto; gancho `OnFellIll` sem chamador (ligar na junção da doença). Ajuda dada e recebida ocupam 54% das 12 vagas de lembrança.
 
 Branch: `worktree-agent-a79d82224d8995144`, sobre `c497e57c`. Pedido em [03](03-cognicao-e-cerebro.md), parte 1: memória episódica, emoção e luto, emoção e memória mudando a ação, rastro cognitivo como motivo real (teste de intervenção), `Socialize` só com alguém. Rede neural fora do escopo.
 
 ## Pausa de 2026-11-12 (o dono desligou o computador)
 
-As fatias 2, 4 e 5 foram interrompidas no meio: **nenhuma tem commit, nenhuma foi validada nem juntada**. O trabalho ficou em dois lugares:
+As fatias 2, 4 e 5 foram interrompidas no meio e retomadas no mesmo dia; a 5 já foi juntada. Na hora da pausa nenhuma tinha commit. O trabalho ficou em dois lugares:
 
 - nos arquivos do worktree (`.claude/worktrees/agent-<id>`), sem commit;
 - numa cópia de segurança em `refs/wip/<id>` (inclui arquivos novos). Recuperar num worktree limpo do commit-base: `git stash apply refs/wip/<id>`.

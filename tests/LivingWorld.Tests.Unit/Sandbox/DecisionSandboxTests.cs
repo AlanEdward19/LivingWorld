@@ -129,12 +129,16 @@ public sealed class DecisionSandboxTests
             [new NpcId(1)]);
 
     [Fact]
-    public void Beliefs_surface_in_trace_opportunities_without_world_access()
+    public void Beliefs_enter_the_trace_only_as_the_terms_they_weighed_without_world_access()
     {
+        // AD-138 (achado 11): antes a crença virava "oportunidade" no rastro sem pesar em nota nenhuma; agora o rastro só mostra
+        // termos que entraram na soma — a crença de comida aparece como ScarcityBelief quando pesou em Buy, e nunca como oportunidade.
         var ctx = HungryCtx(beliefs: ["the market has food stock today"]);
         var result = DecisionSandbox.Decide(ctx, UrgentRules(), EnabledEconomy());
 
-        Assert.Contains(result.Trace.KnownOpportunities, o => o.Kind == OpportunityModel.FoodAtMarket);
+        Assert.DoesNotContain(result.Trace.KnownOpportunities, o => o.Kind == OpportunityModel.FoodAtMarket);
+        if (result.Trace.TopPositiveFactors.Any(f => f.StartsWith("ScarcityBelief", StringComparison.Ordinal)))
+            Assert.Equal(ActionType.Buy, result.Trace.Winner);
     }
 
     [Fact]

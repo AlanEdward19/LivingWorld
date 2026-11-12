@@ -177,6 +177,15 @@ public sealed class Npc
         TouchCanonical();
     }
 
+    /// <summary>Marca de um grande acontecimento na personalidade (AD-138): luto por filho ou cônjuge e traição baixam um pouco a
+    /// estabilidade emocional para sempre; casar a sobe. Só <c>PsycheMechanic</c> chama, no instante do evento.</summary>
+    public void ImprintPersonality(Personality changed)
+    {
+        if (changed == Personality) return;
+        Personality = changed;
+        TouchCanonical();
+    }
+
     public void SetNativeLanguage(CultureId? culture)
     {
         if (NativeLanguage == culture) return;
@@ -404,7 +413,8 @@ public sealed class Npc
         RearingRecord? rearing = null,
         double statureGene = 0, double adultHeight = 0, double undernutrition = 0, long? lastNursedTick = null,
         long? lastLactationTick = null, int physicalWorkDays = 0,
-        VocationState? vocation = null, UnionState? union = null)
+        VocationState? vocation = null, UnionState? union = null,
+        LivingWorld.Domain.Cognition.PsycheState? psyche = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -451,6 +461,7 @@ public sealed class Npc
         Rearing = rearing;
         Vocation = vocation;
         Union = union;
+        Psyche = psyche;
         IsGhost = isGhost;
         HomelessSince = homelessSince;
         PregnantUntil = pregnantUntil;
@@ -927,6 +938,18 @@ public sealed class Npc
     {
         if (ReferenceEquals(Vocation, state)) return;
         Vocation = state;
+        TouchCanonical();
+    }
+
+    /// <summary>Vida interior (AD-138): lembranças da própria vida e emoções com duração. Nulo = nada vivido ainda: omitido do
+    /// snapshot, snapshot antigo abre com nulo. Só o motor grava (<c>PsycheMechanic</c>); a LLM nunca.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public LivingWorld.Domain.Cognition.PsycheState? Psyche { get; private set; }
+
+    public void SetPsyche(LivingWorld.Domain.Cognition.PsycheState? state)
+    {
+        if (ReferenceEquals(Psyche, state)) return;
+        Psyche = state;
         TouchCanonical();
     }
 

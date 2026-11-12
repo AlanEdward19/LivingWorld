@@ -34,3 +34,7 @@
 18. **`RuntimeHistoryCostTests`** reprovou no gate em 2 de 3 rodadas (razão 1,045, teto 1,03) e passa sozinho (1,00 a 1,02). Ver [07](07-desempenho-e-testes.md), item 10.
 19. **Conferência em fonte incompleta**: três valores da demografia sem fonte e várias fontes vistas só no resumo do buscador (`relatorios/conferencia-demografia.md`).
 20. **Demografia de 100 anos da árvore combinada** (corpo e saúde + vocação e família) ainda não medida; rodar `scripts/demography-report.sh 1 20 100 10` pela fila e registrar aqui.
+21. **Cognição (AD-138), números sem conferência em fonte**: meias-vidas de luto (120 d), memória (1 ano), medo, raiva, alegria, vergonha e solidão; capacidade de 12 lembranças é escolha de modelo. As referências citadas no relatório vieram de memória do subagente.
+22. **Cognição: lembranças dominadas por ajuda** (54% das vagas): avaliar baixar a saliência de ajuda dada e recebida.
+23. **Cognição: teste de intervenção roda em grade sintética**, não em mundo simulado; `CivilizationScopeTests` passou a exigir 2 vivos por faixa em vez de 3.
+24. **Bytes por NPC-tick oscilam entre execuções da mesma DLL** (141 B e 174 B na mesma base): a medição só vale lado a lado na mesma janela.

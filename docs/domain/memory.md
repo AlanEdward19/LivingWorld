@@ -17,6 +17,8 @@ importância vira registro. Cinco tipos:
 | **Cultural** | Valores compartilhados | "a magia é proibida", "estrangeiros não são confiáveis" |
 
 A operacional é lixo em horas; a cultural dura séculos e é compartilhada por uma cidade.
+A episódica da própria vida (morte de filho, fome, traição, ajuda) é gravada pelo motor a
+partir do log de eventos, tipada e com força que decai: [inner-life.md](inner-life.md) (AD-138).
 
 ## Estrutura e recuperação
 

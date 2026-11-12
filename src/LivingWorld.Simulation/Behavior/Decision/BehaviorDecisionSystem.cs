@@ -10,6 +10,7 @@ using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Behavior.Needs;
 using LivingWorld.Simulation.Cities.Construction;
 using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Cognition;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Economy.Labor;
 using LivingWorld.Simulation.Economy.Market;
@@ -147,7 +148,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 {
                     bool recordTrace = ShouldRecordCognitionTrace(world, npc);
                     var decision = SelectByUtility(
-                        DecisionContextBuilder.Build(world, npc, now, provisionTargetDays: ProvisionTargetFor(world, npc, marketIndex)),
+                        DecisionContextBuilder.Build(world, npc, now, provisionTargetDays: ProvisionTargetFor(world, npc, marketIndex) * PsycheMechanic.HoardFactor(world, npc, now)),
                         rules,
                         world.EconomyRules,
                         continuityAction,
@@ -167,6 +168,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                     // a rotina só é consultada aqui: quem decide por urgência ou por controlador não a lê
                     candidate = NonUrgentCandidate(
                         world, npc, RoutineWithCommuteLead(world, npc, catalog, stage), stage, marketIndex);
+                    candidate = MoodShapesRoutine(world, ctx, npc, candidate, now); // AD-138: luto e vergonha recolhem
                 }
 
                 candidate = ApplyPerception(world, npc, candidate);

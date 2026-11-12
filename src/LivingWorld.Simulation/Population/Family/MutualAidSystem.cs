@@ -150,6 +150,9 @@ public sealed class MutualAidSystem : ISimulationSystem
 
             double altruism = helper.Personality.Altruism / 100.0;
             double chance = altruism * (0.4 + 0.6 * closeness);
+            // AD-138: quem foi ajudado retribui mais (a esta casa, sobretudo) — a lembrança da ajuda é o consumidor
+            chance *= 1 + world.NeedsRules.Psyche.ReciprocityGain
+                * LivingWorld.Simulation.Cognition.PsycheMechanic.Gratitude(world, helper, members, ctx.CurrentTick);
             // Uma rolagem por (ajudante, dia): o mesmo fluxo atende, em ordem de id, as casas que precisam.
             var rng = ctx.StreamFor("mutual-aid", helper.Id.Value * 1_000_003L + day);
             if (rng.NextDouble() >= chance) continue;

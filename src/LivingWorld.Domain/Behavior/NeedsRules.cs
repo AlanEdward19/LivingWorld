@@ -22,6 +22,10 @@ public sealed record NeedsRules(
     /// <see cref="LivingWorld.Domain.Health.PhysiologyRules.Static"/> volta à saúde estática.</summary>
     public LivingWorld.Domain.Health.PhysiologyRules Physiology { get; init; } = LivingWorld.Domain.Health.PhysiologyRules.Default;
 
+    /// <summary>Memória da própria vida, emoção e humor (AD-138). Snapshot ou cenário sem o campo herda o padrão;
+    /// <see cref="LivingWorld.Domain.Cognition.PsycheRules.Disabled"/> desliga.</summary>
+    public LivingWorld.Domain.Cognition.PsycheRules Psyche { get; init; } = LivingWorld.Domain.Cognition.PsycheRules.Default;
+
     /// <summary>Horas com a fome em zero até a morte. 0 = regra antiga (o tempo que a fome leva de 100 a 0, uns dois dias): o
     /// corpo aguenta semanas sem comer, e o cenário declara quantas (AD-128). A sede continua matando em dias.</summary>
     public long StarvationTicks =>

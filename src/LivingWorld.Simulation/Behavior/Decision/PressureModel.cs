@@ -2,173 +2,41 @@ using LivingWorld.Domain.Cognition;
 
 namespace LivingWorld.Simulation.Behavior.Decision;
 
-/// <summary>Deriva pressões ativas a partir do snapshot de decisão já construído.</summary>
+/// <summary>Pressões do rastro cognitivo, agrupando os termos da utilidade da ação vencedora (AD-138). Antes as pressões eram
+/// inventadas ao lado da escolha (renda e proteger a casa apareciam sem pesar em nada, achado 11); agora cada pressão é a soma
+/// dos termos que de fato entraram na nota, e o que não entrou não aparece.</summary>
 public static class PressureModel
 {
     public const string AcquireFood = "AcquireFood";
     public const string EarnIncome = "EarnIncome";
-    public const string ProtectHousehold = "ProtectHousehold";
     public const string SeekRest = "SeekRest";
     public const string SeekSocial = "SeekSocial";
 
-    /// <summary>Função pura: needs/household/relações/ameaças/personalidade → lista de
-    /// <see cref="Pressure"/>. Intensidade 0..100; fatores nomeados para Decision Trace.</summary>
-    public static IReadOnlyList<Pressure> DerivePressures(DecisionContext ctx)
+    /// <summary>Pressão a que um termo pertence: comida e água, descanso, convívio, renda; os demais (vida interior,
+    /// personalidade, continuidade) aparecem com o próprio nome.</summary>
+    public static string KindOf(UtilityTerm term) => term switch
     {
-        ArgumentNullException.ThrowIfNull(ctx);
+        UtilityTerm.Hunger or UtilityTerm.Thirst or UtilityTerm.Provision or UtilityTerm.EmptyPantry
+            or UtilityTerm.FamineMemory or UtilityTerm.ScarcityBelief or UtilityTerm.Cry => AcquireFood,
+        UtilityTerm.Sleep => SeekRest,
+        UtilityTerm.Social or UtilityTerm.StrongBond => SeekSocial,
+        UtilityTerm.IncomeNeed => EarnIncome,
+        _ => term.ToString(),
+    };
 
-        var result = new List<Pressure>(5);
-
-        int hungerDeficit = Deficit(ctx.Needs.Hunger);
-        if (hungerDeficit > 0)
-            result.Add(new Pressure(AcquireFood, hungerDeficit, ["Hunger"]));
-
-        int sleepDeficit = Deficit(ctx.Needs.Sleep);
-        if (sleepDeficit > 0)
-            result.Add(new Pressure(SeekRest, sleepDeficit, ["Sleep"]));
-
-        int socialDeficit = Deficit(ctx.Needs.Social);
-        if (socialDeficit > 0)
-            result.Add(new Pressure(SeekSocial, socialDeficit, ["Social"]));
-
-        if (TryEarnIncome(ctx, hungerDeficit, out var earn))
-            result.Add(earn);
-
-        if (TryProtectHousehold(ctx, out var protect))
-            result.Add(protect);
-
-        return result;
-    }
-
-    private static bool TryEarnIncome(DecisionContext ctx, int hungerDeficit, out Pressure pressure)
+    /// <summary>Função pura: termos positivos da ação vencedora → pressões (intensidade = soma dos pesos, fatores = nomes dos
+    /// termos, do maior para o menor).</summary>
+    public static IReadOnlyList<Pressure> FromTerms(IEnumerable<UtilityContribution> winnerTerms)
     {
-        var factors = new List<string>(3);
-        double intensity = 0;
-
-        if (ctx.Personality.Ambition >= 60)
-        {
-            factors.Add("Ambition");
-            intensity += ctx.Personality.Ambition * 0.35;
-        }
-
-        if (ctx.Household is { } household)
-        {
-            long totalStock = 0;
-            foreach (var qty in household.Stock.Values)
-                totalStock += qty;
-            if (totalStock < 1)
-            {
-                factors.Add("EmptyHouseholdStock");
-                intensity += 40;
-            }
-        }
-        else if (hungerDeficit >= 40)
-        {
-            factors.Add("NoHouseholdHunger");
-            intensity += hungerDeficit * 0.4;
-        }
-
-        if (factors.Count == 0)
-        {
-            pressure = null!;
-            return false;
-        }
-
-        pressure = new Pressure(EarnIncome, Math.Clamp(intensity, 0, 100), factors);
-        return true;
+        ArgumentNullException.ThrowIfNull(winnerTerms);
+        return winnerTerms
+            .Where(t => t.Value > 0)
+            .GroupBy(t => KindOf(t.Term))
+            .Select(g => new Pressure(
+                g.Key,
+                g.Sum(t => t.Value),
+                g.OrderByDescending(t => t.Value).ThenBy(t => t.Term).Select(t => t.Term.ToString()).ToList()))
+            .OrderBy(p => p.Kind, StringComparer.Ordinal)
+            .ToList();
     }
-
-    /// <summary>ProtectHousehold combina ≥3 eixos quando presentes (doc#34): dependentes,
-    /// força de relação, ameaça, recursos, personalidade, capacidade física.</summary>
-    private static bool TryProtectHousehold(DecisionContext ctx, out Pressure pressure)
-    {
-        if (ctx.Household is not { } household)
-        {
-            pressure = null!;
-            return false;
-        }
-
-        var factors = new List<string>(6);
-        double intensity = 0;
-
-        if (household.Members.Count > 1)
-        {
-            factors.Add("Dependents");
-            intensity += Math.Min(40, (household.Members.Count - 1) * 15);
-        }
-
-        if (ctx.KnownRelationships.Any(r => r.Affection >= 50 || r.Trust >= 50 || r.Respect >= 50))
-        {
-            factors.Add("RelationshipStrength");
-            var best = ctx.KnownRelationships.Max(r =>
-                Math.Max(r.Affection, Math.Max(r.Trust, r.Respect)));
-            intensity += best * 0.25;
-        }
-
-        if (HasThreatSignal(ctx))
-        {
-            factors.Add("Threat");
-            intensity += 35;
-        }
-
-        long stockUnits = 0;
-        foreach (var qty in household.Stock.Values)
-            stockUnits += qty;
-        if (stockUnits < 1)
-        {
-            factors.Add("HouseholdResources");
-            intensity += 20;
-        }
-
-        if (ctx.Personality.Loyalty >= 55 || ctx.Personality.Altruism >= 55)
-        {
-            factors.Add("Personality");
-            intensity += Math.Max(ctx.Personality.Loyalty, ctx.Personality.Altruism) * 0.2;
-        }
-
-        if (ctx.Body.MuscleMass < 25 || ctx.Body.WorkCapacityMultiplier < 0.95)
-        {
-            factors.Add("PhysicalCapacity");
-            intensity += 15;
-        }
-
-        if (factors.Count == 0)
-        {
-            pressure = null!;
-            return false;
-        }
-
-        pressure = new Pressure(ProtectHousehold, Math.Clamp(intensity, 0, 100), factors);
-        return true;
-    }
-
-    private static bool HasThreatSignal(DecisionContext ctx)
-    {
-        foreach (var memory in ctx.RelevantMemories)
-        {
-            if (ContainsAny(memory.Content, "traído", "traido", "betray", "threat", "perigo", "danger", "ameaça", "ameaca"))
-                return true;
-        }
-
-        foreach (var belief in ctx.RelevantBeliefs)
-        {
-            if (ContainsAny(belief, "threat", "perigo", "danger", "ameaça", "ameaca", "raid", "attack"))
-                return true;
-        }
-
-        return false;
-    }
-
-    private static bool ContainsAny(string text, params string[] tokens)
-    {
-        foreach (var token in tokens)
-        {
-            if (text.Contains(token, StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
-
-        return false;
-    }
-
-    private static int Deficit(int need) => Math.Max(0, 100 - need);
 }

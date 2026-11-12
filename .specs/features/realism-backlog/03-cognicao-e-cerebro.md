@@ -1,4 +1,4 @@
-# Cognição, pensamento e cérebro do NPC (não começado)
+# Cognição, pensamento e cérebro do NPC (parte 1 juntada em AD-138; parte 2 não começada)
 
 > Achados 9 e 11 da auditoria (`relatorios/relatorio-realismo.md`). Issues relacionadas: #143 (índice de vivacidade),
 > #145 (memória da própria vida), #146 (humor e luto), #147 (necessidades além da sobrevivência), #148 (aspirações),

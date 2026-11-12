@@ -5,16 +5,21 @@ cada decisão relevante grava o que pesou, para um painel visual e um sandbox de
 
 ## O rastro
 
-Uma decisão de `behavior.md` já calcula `nota = utilidadeBase(necessidade, contexto) *
-pesoPersonalidade` por ação candidata. O rastro grava, por decisão tomada:
+A nota de cada ação é uma soma de termos nomeados (`UtilityTerm`, AD-138): base (a necessidade
+que domina, a despensa ou o valor de referência), conforto, personalidade, contexto (memória de
+ameaça, crença de escassez, vínculo forte), vida interior (luto, medo, alegria, vergonha,
+solidão, lembrança de fome, falta de renda — ver [inner-life.md](inner-life.md)), antevisão e
+continuidade. O rastro é feito **só** desses termos, com o peso que tiveram:
 
 | Campo | Exemplo |
 |---|---|
-| Necessidade dominante | fome 90 |
-| Traço aplicado | disciplinado alto → peso +0,3 em Trabalhar |
-| Memória consultada | "mercado ficou sem pão semana passada" |
-| Opção vencedora | Comer (95) |
-| Opção descartada e por quê | Trabalhar (72) — nota menor |
+| Pressões (termos positivos da vencedora, agrupados) | `AcquireFood` 92 ← Hunger, Comfort |
+| Fatores positivos / negativos da vencedora | `Hunger:+80`, `Personality:+4`, `Grief:-12` |
+| Alternativas e nota | `vs Work:52` |
+
+Antes as pressões de renda e de proteger a casa e as oportunidades conhecidas apareciam sem pesar
+em nada (achado 11); saíram. Teste de intervenção (`ThoughtIsMotiveTests`): tirar um termo do
+rastro mexe na nota da vencedora no sentido do sinal e, se ele era decisivo, muda a escolha.
 
 Log estruturado (campos tipados, não texto livre), sob o mesmo teto de bytes/NPC da Fase 9 —
 e só grava quando o NPC está no escopo observado (`observational-lod.md` task 13): ninguém

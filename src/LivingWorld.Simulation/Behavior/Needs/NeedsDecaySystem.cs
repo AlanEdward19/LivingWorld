@@ -77,8 +77,11 @@ public sealed class NeedsDecaySystem : ISimulationSystem
     {
         if (npc.HungerAt(now) > 0)
         {
-            if (npc.HungerZeroSinceTick is not null)
+            if (npc.HungerZeroSinceTick is { } since)
+            {
                 npc.ClearHungerZeroSince();
+                LivingWorld.Simulation.Cognition.LifeEventIntake.OnHungerEpisodeEnded(world, npc, since, now); // AD-138: fome passada
+            }
             return;
         }
 
