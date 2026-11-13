@@ -33,7 +33,7 @@ Hoje: `TheftResolver` furta por desespero (carteira vazia, fome ou sede, tempera
 5. **Herança realista** (achado 30): partilha entre cônjuge e filhos conforme a norma do cenário; disputa de herança como fonte de conflito.
 6. Medir em 20 seeds × 100 anos: taxa de homicídio (ordem de dezenas por 100 mil por ano na Europa medieval; conferir em fonte), furtos por ano e o que os causou, ferimentos, punições, vinganças.
 
-## Crime contra bens e contra pessoas (pedido do dono em 2026-11-12; NÃO INICIAR ainda)
+## Crime contra bens e contra pessoas (pedido do dono em 2026-11-12; liberado para iniciar em 2026-11-13)
 
 Palavras dele, sobre "furto de comida não existe, então fome não gera furto": "deveria existir. E não só de comida, de tudo, até sequestro (inclusive pedofilia, estupro); são temas chatos e complicados, mas envolvem o realismo."
 
@@ -42,7 +42,10 @@ Palavras dele, sobre "furto de comida não existe, então fome não gera furto":
 3. **Violência sexual, inclusive contra criança**: existe como fato do mundo, por temperamento, oportunidade e impunidade. Modelar como evento abstrato e suas consequências, sem cena nem descrição: trauma e medo duradouros na vítima (memória e emoção do AD-138), gravidez possível em vítima fértil, marca na família, reputação do agressor, denúncia ou silêncio.
 4. **Consequência social e justiça**: descoberta, vingança da família, punição conforme a época, expulsão. Liga com o item de justiça desta página.
 5. Nada escrito à mão: taxas e pesos como dado de cenário; medir em 20 seeds × 100 anos e conferir ordens de grandeza em fonte.
-6. Antes de implementar: decidir com o dono o que o cliente mostra desses eventos (o motor registra; a apresentação é decisão à parte).
+6. O que o cliente mostra (dono, 2026-11-13): "totalmente explícito, pois prezamos realismo". Furto, roubo, sequestro e
+   violência física aparecem no cliente como acontecem, com nome, autor, vítima e desfecho. Violência sexual aparece
+   nomeada sem eufemismo, com autor, vítima e consequências, mas sem cena, animação nem descrição do ato (limite de quem
+   implementa, avisado ao dono); contra criança, só o registro do fato e das consequências.
 
 ## Poderes por genética (a fazer; desenho proposto na seção 3 do relatório)
 

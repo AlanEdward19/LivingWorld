@@ -135,6 +135,11 @@ public sealed partial class BehaviorDecisionSystem
 
         if (primaryOk)
         {
+            // AD-146: comprar não é beber. Quem fechou a compra com sede ou fome crítica bebe e come do que a casa tem; antes a
+            // compra que dava certo (a água que completa a meta, um ou dois por ida) encerrava o plano e a pessoa sem moeda para a
+            // comida voltava a comprar de duas em duas horas, até morrer de sede com água em casa.
+            if (primary == ActionType.Buy && HasCriticalSurvivalNeed(npc, tick))
+                TryApplyEat(world, npc, tick);
             if (npc.IntentStatus == IntentStatus.Active)
                 npc.CompleteIntent();
             return npc.IntentStatus;
@@ -155,6 +160,10 @@ public sealed partial class BehaviorDecisionSystem
             npc.InvalidateIntent();
         return npc.IntentStatus;
     }
+
+    /// <summary>Fome ou sede além do déficit crítico (<see cref="CriticalDeficit"/>): o corpo não espera a próxima decisão.</summary>
+    private static bool HasCriticalSurvivalNeed(Npc npc, long tick) =>
+        100 - npc.ThirstAt(tick) > CriticalDeficit || 100 - npc.HungerAt(tick) > CriticalDeficit;
 
     private static void EnsureFoodIntent(Npc npc, ActionType foodAction, long tick)
     {

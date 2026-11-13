@@ -16,7 +16,7 @@
 
 ## Estado
 
-Branch de trabalho: `perf/decision-scan-costs`, sem push, sem PR. Último commit conhecido: ver `git log` (a junção do AD-134 veio depois de `d28d31ee`).
+Branch de trabalho: `perf/decision-scan-costs`, no GitHub desde 2026-11-13 (dono: "faz push sempre que finalizar algo"), sem PR. Mudanças de contrato público pedidas até 2026-11-13 estão aprovadas (ids a partir de 1, troca de `/cultures/{id}/technologies`, cérebro na API). Último commit conhecido: ver `git log` (a junção do AD-134 veio depois de `d28d31ee`).
 
 | Área | Estado | Arquivo |
 |---|---|---|
@@ -29,14 +29,14 @@ Branch de trabalho: `perf/decision-scan-costs`, sem push, sem PR. Último commit
 | Doença de época ligada por padrão (AD-137) | juntada e recalibrada em 2026-11-13 (`95e9cdc2`, AD-140): e0 28,2, 1º ano 228‰ | [06](06-violencia-poderes-e-restantes.md) |
 | Agricultura, estações, água de beber, fauna que come (AD-135) | juntado | `docs/decisions-log.md`, [01](01-em-andamento.md) |
 | Vocação que emerge, traição, separação, novas uniões, tabu de parentesco (AD-136) | juntado | `docs/decisions-log.md` |
-| Hormônios, ciclo menstrual, adolescência, doença genética, contracepção (AD-139) | juntada em 2026-11-13 (`95e9cdc2`); com ela a e0 cai a 26,8 e a fome vai a 15,3%: freio preventivo (AD-145) juntado desligado em 2026-11-13: ligado dá 7 extinções e 13,4% de sede, ver `08` itens 37 a 43 | [02](02-biologia-e-hormonios.md) |
+| Hormônios, ciclo menstrual, adolescência, doença genética, contracepção (AD-139) | juntada em 2026-11-13 (`95e9cdc2`); com ela a e0 cai a 26,8 e a fome vai a 15,3%: freio preventivo (AD-145) juntado desligado em 2026-11-13: sede corrigida (AD-146, juntado em 2026-11-13): ligado dá sede 0,5%, mas 3 extinções e fome 11,9%, segue desligado, ver `08` itens 38 a 47 | [02](02-biologia-e-hormonios.md) |
 | Cognição parte 1: memória da própria vida, emoção, pensamento que é o motivo (AD-138) | juntado | `docs/domain/inner-life.md`, [01](01-em-andamento.md) |
 | Cognição parte 2: cérebro neural legível | experimento juntado em 2026-11-13 (AD-142), flag desligada; veredito: não ligar ainda (custo, bytes e demografia), ver `03` | `.specs/features/neural-brain/design.md` |
 | Empreendedorismo, crédito, preço e salário | fatias 1 a 3 (AD-144) devolvidas ao worktree em 2026-11-13: 2 testes falhando sem causa e nada medido depois | [04](04-economia-e-empreendedorismo.md) |
 | Invenção emergente: tecnologia, veículos, robôs, aparência e animação | desenho aprovado em 2026-11-12 (ADR-0045); fatia 1 (transporte sobre água, AD-141) juntada em 2026-11-13 (`2b34fb64`); fatia 2 (AD-143: carga, venda, pesca, cópia) juntada em 2026-11-13; faltam 2a a 7a e as fatias 8 a 12, ver `05` | `.specs/features/emergent-invention/design.md` |
 | Violência, furto, poderes por genética, achados restantes da auditoria | não começado | [06](06-violencia-poderes-e-restantes.md) |
 | Doença dinâmica: doença nova que surge e evolui, e doença criada à mão e solta no mundo (pedido em 2026-11-12) | não começado; depois de juntar o AD-137 | [06](06-violencia-poderes-e-restantes.md) |
-| Crime contra bens e pessoas: furto de tudo, sequestro, violência sexual (pedido em 2026-11-12) | anotado, o dono pediu para NÃO iniciar ainda | [06](06-violencia-poderes-e-restantes.md) |
+| Crime contra bens e pessoas: furto de tudo, sequestro, violência sexual (pedido em 2026-11-12) | liberado pelo dono em 2026-11-13; entra na fila depois de violência e justiça | [06](06-violencia-poderes-e-restantes.md) |
 | Refatoração completa do cliente visual (Godot) e, depois, a fatia do jogador (pedido em 2026-11-12) | não começado; ÚLTIMOS da fila, só depois de tudo acima | [09](09-cliente-visual-e-jogador.md) |
 | Desempenho e tempo dos testes | parcial | [07](07-desempenho-e-testes.md) |
 | Pontos em aberto a investigar (afrouxamentos, números sem fonte, efeitos sem explicação) | aberto | [08](08-a-investigar.md) |

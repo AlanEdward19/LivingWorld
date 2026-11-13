@@ -682,7 +682,9 @@ public class BehaviorDecisionSystemTests
 
         var status = BehaviorDecisionSystem.ResolveFoodPlan(world, npc, markets, tick: 1, ActionType.Buy);
 
-        Assert.Equal(10, household.Stock.GetValueOrDefault(food));
+        // comprou 10; com a fome crítica (0) come uma já na volta da compra (AD-146)
+        Assert.Equal(9, household.Stock.GetValueOrDefault(food));
+        Assert.True(npc.HungerAt(1) > 0);
         Assert.Equal(IntentStatus.Completed, status);
         Assert.Equal(IntentStatus.Completed, npc.IntentStatus);
     }

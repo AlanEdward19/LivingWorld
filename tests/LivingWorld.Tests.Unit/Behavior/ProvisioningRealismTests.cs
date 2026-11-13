@@ -299,6 +299,39 @@ public class ProvisioningRealismTests
     }
 
     [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void A_purchase_that_succeeds_still_lets_a_critically_thirsty_buyer_drink_from_home(bool topUp)
+    {
+        // AD-146: carteira abaixo do preço da comida (4), só paga uma água (3); a compra dá certo e antes encerrava o plano sem beber,
+        // e a pessoa voltava a comprar de duas em duas horas até morrer de sede com água em casa
+        var (world, _, buyer, home) = Build(npcAt: Market, homeAt: new CellCoord(5, 5), wallet: 3, pantry: 0, topUp: topUp);
+        home.Deposit(Water, 2);
+        buyer.SetThirst(0, 0);
+        buyer.SetHunger(0, 0);
+
+        Buy(world, buyer);
+
+        Assert.Equal(0, buyer.Wallet.Amount); // a compra aconteceu
+        Assert.True(buyer.ThirstAt(0) > 0, $"sede {buyer.ThirstAt(0)} depois de comprar com água em casa");
+        Assert.Equal(2, home.Stock.GetValueOrDefault(Water)); // 2 + 1 comprada − 1 bebida
+    }
+
+    [Fact]
+    public void A_purchase_without_critical_need_does_not_consume_the_pantry()
+    {
+        var (world, _, buyer, home) = Build(npcAt: Market, homeAt: new CellCoord(5, 5), wallet: 3, pantry: 0);
+        home.Deposit(Water, 2);
+        buyer.SetThirst(60, 0);
+        buyer.SetHunger(60, 0);
+
+        Buy(world, buyer);
+
+        Assert.Equal(3, home.Stock.GetValueOrDefault(Water));
+        Assert.Equal(60, buyer.ThirstAt(0));
+    }
+
+    [Theory]
     [InlineData(1, true)]   // 1 dia por pessoa, longe do mercado: abaixo da metade da meta
     [InlineData(2, false)]  // metade da meta (~3-4 dias) já está coberta
     [InlineData(14, false)] // despensa cheia para o mercado mais longe

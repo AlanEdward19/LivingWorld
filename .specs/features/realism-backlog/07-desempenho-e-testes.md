@@ -54,6 +54,13 @@ Planta de prédio em cache; versão de eixos por dono; despertares de viagem; RN
   novo teto). A regravação de `family-diversity` dentro do `--full` ainda não rodou: validar no primeiro diário.
 - Como medir: `LW_TEST_TRX_DIR=<dir> bash scripts/verify.sh --full` (um `.trx` por suíte; tempo por suíte no resumo).
 
+## Próxima fatia: custo dos testes (pedido do dono, 2026-11-13; logo depois de AD-144 e AD-146)
+
+"Precisamos de testes tão longos assim (vários), ou conseguimos reorganizar para manter a qualidade do sistema consumindo
+menos (processamento e tempo)". Auditar teste a teste pelos `.trx`: o que cada teste longo protege, quais repetem a mesma
+simulação, quais cabem num mundo compartilhado ou num horizonte menor sem perder a asserção, quais são redundantes.
+Entregar tabela antes/depois por suíte e a lista do que foi fundido, encurtado ou removido, com o motivo de cada um.
+
 ## Regras que valem para qualquer otimização
 
 - Medir antes e depois na mesma máquina, em pares alternados; alocação é exata, tempo não.
