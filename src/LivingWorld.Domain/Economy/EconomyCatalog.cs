@@ -68,9 +68,17 @@ public sealed record EconomyCatalog(
     public static readonly EconomyCatalog Empty = new(
         new Dictionary<int, ProductionRecipe>(), [], new Dictionary<int, int>());
 
-    /// <summary>Recurso que alguma receita usa como ferramenta (feito por encomenda).</summary>
+    /// <summary>Recurso que alguma receita usa como ferramenta (feito por encomenda). No dicionário concreto percorre sem
+    /// alocar enumerador (é chamado em caminho quente: produção e valor do trabalho).</summary>
     public bool IsTool(int resourceId)
     {
+        if (Recipes is Dictionary<int, ProductionRecipe> concrete)
+        {
+            foreach (var recipe in concrete.Values)
+                if (recipe.Tool?.ResourceId == resourceId) return true;
+            return false;
+        }
+
         foreach (var recipe in Recipes.Values)
             if (recipe.Tool?.ResourceId == resourceId) return true;
         return false;

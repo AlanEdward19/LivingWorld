@@ -38,8 +38,10 @@ internal static class ToolMechanic
     public static long OrderBook(WorldState world, CityId city, int resourceId)
     {
         long book = 0;
-        foreach (var workplace in world.Workplaces)
+        var workplaces = world.Workplaces;
+        for (int i = 0; i < workplaces.Count; i++) // por índice: sem enumerador alocado (chamado em cada avaliação de emprego)
         {
+            var workplace = workplaces[i];
             if (workplace.City != city || !world.EconomyCatalog.Recipes.TryGetValue(workplace.LocationType.Id, out var recipe)) continue;
             if (recipe.Tool is not { } tool || tool.ResourceId != resourceId) continue;
             int workers = workplace.Employees.Count;
@@ -72,8 +74,9 @@ internal static class ToolMechanic
     public static int WorkingHands(WorldState world, Workplace workplace)
     {
         int hands = 0;
-        foreach (var id in workplace.Employees)
-            if (world.FindNpc(id) is { IsAlive: true } npc
+        var employees = workplace.Employees;
+        for (int i = 0; i < employees.Count; i++)
+            if (world.FindNpc(employees[i]) is { IsAlive: true } npc
                 && world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate)) == LivingWorld.Domain.Population.Body.LifeStage.Adult)
                 hands++;
         return hands;
