@@ -1,4 +1,4 @@
-# Cognição, pensamento e cérebro do NPC (parte 1 juntada em AD-138; parte 2 não começada)
+# Cognição, pensamento e cérebro do NPC (parte 1 juntada em AD-138; parte 2: experimento feito em AD-142, flag desligada)
 
 > Achados 9 e 11 da auditoria (`relatorios/relatorio-realismo.md`). Issues relacionadas: #143 (índice de vivacidade),
 > #145 (memória da própria vida), #146 (humor e luto), #147 (necessidades além da sobrevivência), #148 (aspirações),
@@ -39,7 +39,9 @@ Pontos em aberto, que pedem ADR e experimento antes de implementar:
 - **Legibilidade.** Hoje "ler o pensamento" é um rastro de utilidades. Com rede, é preciso definir o que o inspetor mostra (ativações, quais entradas pesaram).
 - **Tamanho do estado.** Pesos por NPC no snapshot multiplicam o armazenamento.
 
-Experimento proposto: rede mínima por NPC (entradas = necessidades, emoção, percepção, memória relevante; saída = preferência por ação), pesos herdados e plásticos, comparada com a utilidade atual em custo por despertar, bytes por NPC e realismo do comportamento (índice de vivacidade, #143). Só depois decidir se substitui, complementa ou fica só para NPCs observados.
+**Experimento feito (AD-142, ADR-0046, juntado em 2026-11-13, `e66a38b6`), flag desligada por padrão.** Cada NPC tem ganhos `ação × grupo` (10 × 8) herdados, puxados pela criação e ajustados pela surpresa de recompensa; doc em `docs/domain/brain.md`. Desligado, o mundo é byte a byte o mesmo. **Veredito: não ligar ainda.** Ligado: CPU +7,0% a 5.000 NPCs (teto +3%), snapshot +3,3% por vivo, disco +6,8% por NPC-ano, diversidade de dias 0,796 → 0,773 (não sobe), e a demografia piora (população 149,3 → 140,9, fome 670 → 782, sede 29 → 103). Rede 28-16-10 (opção a) custa +96% por decisão, só no sandbox.
+
+Antes de tentar ligar: consolidar os ganhos por trimestre (bytes), não guardar a participação a cada decisão (CPU), achar por que a sede piora, expor a leitura na API e no `brain_panel.gd` (contrato público: perguntar ao dono), teste de mundo de 100 anos com a flag ligada.
 
 ## Critérios mensuráveis
 

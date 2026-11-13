@@ -31,7 +31,7 @@ Branch de trabalho: `perf/decision-scan-costs`, sem push, sem PR. Último commit
 | Vocação que emerge, traição, separação, novas uniões, tabu de parentesco (AD-136) | juntado | `docs/decisions-log.md` |
 | Hormônios, ciclo menstrual, adolescência, doença genética, contracepção (AD-139) | pronta no branch (`3587730b`, gate verde lá); a junção na árvore combinada está com o AD-140 | [02](02-biologia-e-hormonios.md) |
 | Cognição parte 1: memória da própria vida, emoção, pensamento que é o motivo (AD-138) | juntado | `docs/domain/inner-life.md`, [01](01-em-andamento.md) |
-| Cognição parte 2: cérebro neural legível | desenho aprovado em 2026-11-12 (ADR-0046); experimento a disparar depois dos hormônios | `.specs/features/neural-brain/design.md` |
+| Cognição parte 2: cérebro neural legível | experimento juntado em 2026-11-13 (AD-142), flag desligada; veredito: não ligar ainda (custo, bytes e demografia), ver `03` | `.specs/features/neural-brain/design.md` |
 | Empreendedorismo, crédito, preço e salário | não começado | [04](04-economia-e-empreendedorismo.md) |
 | Invenção emergente: tecnologia, veículos, robôs, aparência e animação | desenho aprovado em 2026-11-12 (ADR-0045); fatia 1 (transporte sobre água, AD-141) juntada em 2026-11-13 (`2b34fb64`); faltam as demais, ver `05` | `.specs/features/emergent-invention/design.md` |
 | Violência, furto, poderes por genética, achados restantes da auditoria | não começado | [06](06-violencia-poderes-e-restantes.md) |
