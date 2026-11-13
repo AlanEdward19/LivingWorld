@@ -33,6 +33,15 @@
 - Mesmo mundo, mesma seed: mesma história de invenções.
 - O cliente desenha um artefato nunca visto só com os dados da composição.
 
-## Próximo passo
+## Estado (2026-11-13)
 
-Escrever o desenho (skill `technical-design-doc-creator` ou `tlc-spec-driven`), com um experimento pequeno: um domínio só (por exemplo transporte sobre água) do começo ao fim. O dono aprova antes de alguém implementar. Mudar o `ROADMAP.md` para incluir esta fase é decisão dele.
+Desenho aprovado (ADR-0045, `.specs/features/emergent-invention/design.md`). **Fatia 1 juntada (AD-141, `2b34fb64`)**: materiais brutos, `Design` como composição de partes, avaliador físico só com inteiros, NPC que inventa por frustração de vau, ensino, cópia, lápide, `GET /designs`, malha no Godot. Doc em `docs/domain/invention.md`. Em 20 seeds × 100 anos: 24 invenções (todas as seeds), 40% das travessias de água feitas na embarcação, 0% de sobreposição de designs entre seeds.
+
+## Falta fazer
+
+1. Sonda de terra (rolar e deslizar com eixo) e, depois, de ar.
+2. Substituir o `TechDiscoverySystem`: adoção por cidade derivada de `KnownDesign`, migrar `/cultures/{id}/technologies`, o painel do cliente e as métricas de civilização, remover o bloco `Emergence`.
+3. Carga por viagem, venda da embarcação no mercado, material tirado de estoque, pesca.
+4. Contracepção e remédio como invenção; robô em ADR próprio.
+5. Animação por junção e pose de uso no cliente; cópia disparada por evento.
+6. Frase proposta para o critério da Fase 24 do `ROADMAP.md` (o dono decide): "Nenhum pré-requisito tecnológico é declarado: uma invenção só existe se o avaliador físico do motor mostrar que a composição de partes e materiais cumpre a função, e o que vem antes emerge do que a física deixa funcionar com os materiais e o saber presentes no mundo."
