@@ -149,7 +149,7 @@ public sealed class LaborValueIndex
         if (perWorker <= 0) return 0;
         double dailyOrders = (double)LivingWorld.Simulation.Economy.Production.ToolMechanic.OrderBook(world, workplace.City, resourceId)
             / world.CurrentDate.Calendar.DaysPerMonth;
-        return Math.Clamp((dailyOrders - workplace.Employees.Count * perWorker) / perWorker, 0, 1);
+        return Math.Clamp((dailyOrders - LivingWorld.Simulation.Economy.Production.ToolMechanic.WorkingHands(world, workplace) * perWorker) / perWorker, 0, 1);
     }
 
     private static double PriceOf(EconomyRules rules, Workplace workplace, int resourceId) =>

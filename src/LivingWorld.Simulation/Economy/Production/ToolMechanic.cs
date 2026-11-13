@@ -61,9 +61,21 @@ internal static class ToolMechanic
             if (!world.EconomyCatalog.IsTool(resourceId) || perWorker <= 0) continue;
             makesTools = true;
             double dailyOrders = (double)OrderBook(world, workplace.City, resourceId) / world.CurrentDate.Calendar.DaysPerMonth;
-            if (dailyOrders > workplace.Employees.Count * perWorker) return true;
+            if (dailyOrders > WorkingHands(world, workplace) * perWorker) return true;
         }
 
         return !makesTools;
+    }
+
+    /// <summary>Quem da folha ainda trabalha (adulto): o velho continua empregado mas não vai à oficina pela rotina. Contá-lo
+    /// como mão fazia a forja de um ferreiro idoso não produzir nem contratar por décadas, e a fazenda ficava sem ferramenta.</summary>
+    public static int WorkingHands(WorldState world, Workplace workplace)
+    {
+        int hands = 0;
+        foreach (var id in workplace.Employees)
+            if (world.FindNpc(id) is { IsAlive: true } npc
+                && world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate)) == LivingWorld.Domain.Population.Body.LifeStage.Adult)
+                hands++;
+        return hands;
     }
 }

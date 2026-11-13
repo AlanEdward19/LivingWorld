@@ -135,7 +135,7 @@ public sealed class ToolDemandTests
         foreach (var npc in world.Npcs.Where(n => n.IsAlive).Take(10)) farm.Hire(npc.Id);
         var labor = LivingWorld.Simulation.Economy.Labor.LaborValueIndex.BuildForTick(world);
         double first = labor.ValueOf(forge);
-        forge.Hire(world.Npcs.Last(n => n.IsAlive).Id);
+        forge.Hire(world.Npcs.Last(n => n.IsAlive && world.LifeStageRules.LifeStageOf(n.AgeYears(world.CurrentDate)) == LivingWorld.Domain.Population.Body.LifeStage.Adult).Id);
         double second = labor.ValueOf(forge);
 
         Assert.True(first > 1 && second == 0, $"{first} / {second}");
