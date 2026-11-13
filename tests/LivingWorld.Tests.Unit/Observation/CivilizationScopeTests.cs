@@ -238,7 +238,7 @@ public class CivilizationScopeTests
         double Expected(IReadOnlyCollection<Npc> scope)
         {
             var ages = scope.Select(Age).ToList();
-            int deathBand = Age(dead) / width;
+            int deathBand = Age(dead!) / width;
             int count = Math.Max(ages.Max() / width, deathBand) + 1;
             var bands = Enumerable.Range(0, count).Select(i =>
             {

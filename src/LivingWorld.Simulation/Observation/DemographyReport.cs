@@ -36,12 +36,15 @@ public sealed class DemographyTally(WorldState world) : IWorldEventSink
 
     /// <summary>Causas de morte, anos de surto e dias perdidos por doença (AD-137).</summary>
     public DiseaseTally Disease { get; } = new(world);
+    /// <summary>Vida reprodutiva (AD-139): fora de união, prematuros, idade da mãe no 1º parto.</summary>
+    public ReproductiveLifeTally Reproduction { get; } = new(world);
 
     public void Record(WorldEvent evt)
     {
         Body.OnEvent(evt);
         Family.Record(evt);
         Disease.OnEvent(evt);
+        Reproduction.Record(evt);
         if (evt.Tick < MeasureFromTick) return;
         switch (evt.Kind)
         {
@@ -121,6 +124,7 @@ public static class DemographyReport
         var tally = new DemographyTally(world) { MeasureFromTick = warmupYears * world.Calendar.HoursPerYear };
         tally.Body.MeasureFromTick = tally.MeasureFromTick;
         tally.Disease.MeasureFromTick = tally.MeasureFromTick;
+        tally.Reproduction.MeasureFromTick = tally.MeasureFromTick;
         var food = new FoodTally(world);
         var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, new BothSinks(tally, food));
         int months = years * world.Calendar.MonthsPerYear;
@@ -135,6 +139,7 @@ public static class DemographyReport
 
             tally.Family.SampleMonth();
             tally.Disease.SampleMonth();
+            tally.Reproduction.SampleMonth();
             if (m >= warmupYears * world.Calendar.MonthsPerYear) tally.SampleMonth();
             if ((m + 1) % world.Calendar.MonthsPerYear == 0) tally.Body.SampleYear();
             food.SampleMonth();
@@ -142,6 +147,7 @@ public static class DemographyReport
             if (world.AliveNpcIndex.Alive.Count == 0) break;
         }
 
+        tally.Reproduction.SampleGenetics();
         return new SeedResult(seed, world.AliveNpcIndex.Alive.Count, minAlive, tally, food);
     }
 
@@ -214,6 +220,7 @@ public static class DemographyReport
 
         sb.AppendLine();
         sb.Append(FamilyLifeTally.Summarize(runs.Select(r => r.Tally.Family).ToList()));
+        sb.Append(ReproductiveLifeTally.Summarize(runs.Select(r => r.Tally.Reproduction).ToList()));
         sb.Append("seeds(final)=").AppendLine(string.Join(",", runs.Select(r => r.FinalAlive)));
         sb.Append(BodyHealthTally.Summarize(runs.Select(r => (r.Tally.Body, followUpEnd)).ToList()));
         sb.Append(DiseaseTally.Summarize(runs.Select(r => r.Tally.Disease).ToList()));

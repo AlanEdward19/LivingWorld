@@ -97,6 +97,9 @@ public sealed record UnionRules
     public double PreferredAgeGapYears { get; init; } = 3;
     public double AgeToleranceYears { get; init; } = 15;
 
+    /// <summary>Sexo fora da união e a reação a ele (AD-139).</summary>
+    public IntimacyRules Intimacy { get; init; } = IntimacyRules.Medieval;
+
     public static UnionRules Medieval { get; } = new();
 
     /// <summary>Cenário moderno: divórcio comum e formal, guarda quase sempre com a mãe, sem espera longa.</summary>
@@ -116,6 +119,7 @@ public sealed record UnionRules
         AdulterySeparation = 0.5,
         ViolenceChance = 0.03,
         ForbiddenRelatedness = 0.25,
+        Intimacy = IntimacyRules.Modern,
     };
 
     /// <summary>União para a vida (o modelo de antes): sem desgaste, caso nem separação; o tabu volta a ser só de 1º grau
@@ -126,6 +130,7 @@ public sealed record UnionRules
         ForbiddenRelatedness = 0.5,
         WidowerMourningMonths = 0,
         WidowMourningMonths = 0,
+        Intimacy = IntimacyRules.Disabled,
     };
 
     public int RemarryYears(UnionEndMode mode) => mode switch
@@ -149,6 +154,7 @@ public sealed record UnionRules
         if (ForbiddenRelatedness is <= 0 or > 1) return "Unions.ForbiddenRelatedness: fora de (0,1]";
         if (KinshipDepth < 1) return "Unions.KinshipDepth: deve ser >= 1";
         if (AffairPaternityShare is < 0 or > 1) return "Unions.AffairPaternityShare: fora de [0,1]";
+        if (Intimacy.Validate() is { } intimacy) return intimacy;
         return null;
     }
 }

@@ -86,16 +86,39 @@ public sealed partial class BehaviorDecisionSystem
     internal static ActionType MoodShapesRoutine(WorldState world, TickContext ctx, Npc npc, ActionType routine, long now)
     {
         if (routine is not (ActionType.Work or ActionType.Socialize)) return routine;
+        long day = now / world.Calendar.HoursPerDay;
+        if (routine == ActionType.Work)
+        {
+            routine = HormonesShapeWorkday(world, ctx, npc, now, day);
+            if (routine != ActionType.Work) return routine;
+        }
         if (npc.Psyche is not { } psyche || now >= psyche.CalmFromTick) return routine;
         double withdrawal = routine == ActionType.Work
             ? PsycheMechanic.WorkWithdrawal(world, npc, now)
             : PsycheMechanic.SocialWithdrawal(world, npc, now);
         if (withdrawal <= 0) return routine;
-        long day = now / world.Calendar.HoursPerDay;
         string purpose = routine == ActionType.Work ? "mood-workday" : "mood-socialday";
         return ctx.StreamFor(purpose, unchecked(npc.Id.Value * 1_000_003L + day)).NextDouble() < withdrawal
             ? ActionType.Idle
             : routine;
+    }
+
+    /// <summary>O corpo na rotina (AD-139): no dia de cólica forte ela fica em casa (parte das mulheres, nos primeiros dias da
+    /// menstruação) e o jovem no pico do impulso às vezes deixa o trabalho pelos pares. Um sorteio por pessoa e dia.</summary>
+    private static ActionType HormonesShapeWorkday(WorldState world, TickContext ctx, Npc npc, long now, long day)
+    {
+        var rules = LivingWorld.Simulation.Population.Body.Endocrine.Rules(world);
+        if (!rules.Enabled) return ActionType.Work;
+        double age = (now - npc.BirthDate.TotalHours) / (double)world.Calendar.HoursPerYear;
+        if (age < rules.PubertyMinYears) return ActionType.Work;
+        double cramps = npc.Sex == Sex.Female && age < 55 ? LivingWorld.Simulation.Population.Body.Endocrine.CrampWithdrawal(world, npc, now) : 0;
+        double truancy = age < rules.MaturityAgeYears
+            ? rules.TruancyShare * LivingWorld.Simulation.Population.Body.Endocrine.AdolescentDrive(world, npc, now)
+            : 0;
+        if (cramps <= 0 && truancy <= 0) return ActionType.Work;
+        double u = ctx.StreamFor("body-workday", unchecked(npc.Id.Value * 1_000_003L + day)).NextDouble();
+        if (u < cramps) return ActionType.Idle;
+        return u < cramps + truancy ? ActionType.Socialize : ActionType.Work;
     }
 
     /// <summary>Choro atendido (dívida da Fase 21): um adulto que está na mesma célula de uma criança do domicílio que chora — porque a despensa

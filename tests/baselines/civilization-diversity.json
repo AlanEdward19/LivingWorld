@@ -4,13 +4,13 @@
   "Seeds": 20,
   "GateYears": 10,
   "Gate": {
-    "Index": 0.3517391316281254,
+    "Index": 0.37578861213334125,
     "ByMetric": {
-      "cities_active": 0.625943096082174,
-      "gini": 0.2848170557887893,
-      "population": 0.2932310533418567,
+      "cities_active": 0.6330720418066434,
+      "gini": 0.29203491569160117,
+      "population": 0.32182223099258556,
       "technologies": 0,
-      "treasury_per_capita": 0.554704452927807
+      "treasury_per_capita": 0.6320138721758761
     }
   },
   "Reference": {

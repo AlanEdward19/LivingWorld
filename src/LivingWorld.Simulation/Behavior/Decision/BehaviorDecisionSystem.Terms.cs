@@ -32,6 +32,8 @@ public enum UtilityTerm : byte
     Solitude,
     Foresight,
     Continuity,
+    Menstruation,
+    Adolescence,
 }
 
 /// <summary>Quanto um termo somou (ou tirou) da utilidade de uma ação.</summary>
@@ -75,11 +77,21 @@ public sealed partial class BehaviorDecisionSystem
         }
 
         score += InnerLifeTerms(ctx, action, rules.Psyche, economy, baseValue, sink, knockout);
+        score += HormoneTerms(ctx, action, baseValue, sink, knockout);
 
+        // AD-139: o jovem no pico do impulso desconta parte das consequências que a antevisão mostra e muda de ideia mais rápido
+        var hormones = knockout == UtilityTerm.Adolescence ? default : ctx.Hormones;
         if (foresight.TryGetValue(action, out var preview) && knockout != UtilityTerm.Foresight)
         {
-            double factored = score * ForesightUtilityFactor(preview);
+            double factor = ForesightUtilityFactor(preview);
+            double factored = score * factor;
             Note(sink, action, UtilityTerm.Foresight, factored - score);
+            if (hormones.ForesightDiscount > 0)
+            {
+                double discounted = score * (factor + (1 - factor) * hormones.ForesightDiscount);
+                Note(sink, action, UtilityTerm.Adolescence, discounted - factored);
+                factored = discounted;
+            }
             score = factored;
         }
 
@@ -87,6 +99,11 @@ public sealed partial class BehaviorDecisionSystem
         {
             score += rules.ContinuityBonus;
             Note(sink, action, UtilityTerm.Continuity, rules.ContinuityBonus);
+            if (hormones.Fickleness > 0)
+            {
+                score -= rules.ContinuityBonus * hormones.Fickleness;
+                Note(sink, action, UtilityTerm.Adolescence, -rules.ContinuityBonus * hormones.Fickleness);
+            }
         }
 
         return score;
@@ -181,6 +198,34 @@ public sealed partial class BehaviorDecisionSystem
                 break;
         }
 
+        return sum;
+    }
+
+    /// <summary>Hormônios na escolha (AD-139), pelo mesmo caminho da vida interior: a cólica tira do trabalho e puxa para o
+    /// descanso, a irritação pré-menstrual afasta do convívio e o jovem no pico do impulso procura os pares.</summary>
+    private static double HormoneTerms(
+        DecisionContext ctx, ActionType action, double baseValue, List<UtilityContribution>? sink, UtilityTerm? knockout)
+    {
+        var h = ctx.Hormones;
+        double menstruation = action switch
+        {
+            ActionType.Work => -h.CrampWork,
+            ActionType.Idle => h.CrampIdle,
+            ActionType.Socialize => -h.IrritableSocial,
+            _ => 0,
+        };
+        double adolescence = action == ActionType.Socialize ? h.PeerSocial * baseValue : 0; // reforça a vontade social, não a cria
+        double sum = 0;
+        if (menstruation != 0 && knockout != UtilityTerm.Menstruation)
+        {
+            sum += menstruation;
+            Note(sink, action, UtilityTerm.Menstruation, menstruation);
+        }
+        if (adolescence != 0 && knockout != UtilityTerm.Adolescence)
+        {
+            sum += adolescence;
+            Note(sink, action, UtilityTerm.Adolescence, adolescence);
+        }
         return sum;
     }
 

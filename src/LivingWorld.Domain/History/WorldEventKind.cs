@@ -224,4 +224,8 @@ public enum WorldEventKind
 
     /// <summary>Um surto importado ficou sem caso (AD-137) — payload: <c>doençaId|cidadeId|tickDoInício</c>.</summary>
     OutbreakEnded,
+
+    /// <summary>A gravidez de uma mulher sem união apareceu (AD-139) — payload: <c>maeId|paiId|desfecho</c> (casamento: o pai
+    /// foi levado a casar; abandono: ele não casou; sem_pai: ele morreu).</summary>
+    UnwedPregnancy,
 }

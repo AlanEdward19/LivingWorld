@@ -9,6 +9,7 @@ using LivingWorld.Simulation.Behavior.Needs;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Extraordinary.Inheritance;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Population.Body;
 using LivingWorld.Simulation.Population.Family;
 using LivingWorld.Simulation.Scheduling;
 
@@ -19,7 +20,7 @@ namespace LivingWorld.Simulation.Population.Lifecycle;
 /// dele, num dia qualquer do ciclo. Na concepção ficam decididos o sexo de cada feto (gêmeos raros), a duração da gestação
 /// (a termo ou prematuro) ou a perda precoce. No fim, <see cref="HandleEvent"/> resolve perda, morte materna e natimorto
 /// pelo risco da idade, saúde e paridade da mãe, e os nascimentos.</summary>
-[LivingCapability("BIRTH", Events = [WorldEventKind.Birth, WorldEventKind.MaternalDeath, WorldEventKind.StillBirth], Consumers = ["timeline.birth"])]
+[LivingCapability("BIRTH", Events = [WorldEventKind.Birth, WorldEventKind.MaternalDeath, WorldEventKind.StillBirth, WorldEventKind.UnwedPregnancy], Consumers = ["timeline.birth"])]
 [RunsAfter(typeof(CourtshipSystem))]
 public sealed class NatalitySystem : ISimulationSystem
 {
@@ -36,8 +37,12 @@ public sealed class NatalitySystem : ISimulationSystem
         var populationRules = world.PopulationRules;
         var fertility = populationRules.Fertility;
         var familyRules = world.FamilyRules;
+        var intimacy = familyRules.Unions.Enabled ? familyRules.Unions.Intimacy : IntimacyRules.Disabled;
+        bool hormones = fertility.Endocrine.Enabled;
         long now = ctx.CurrentTick;
         long hoursPerYear = world.Calendar.HoursPerYear;
+        long month = world.Calendar.HoursPerMonth;
+        Span<long> ovulations = stackalloc long[2];
         var alive = world.AliveNpcIndex.Alive; // em ordem de id; a concepção não muda a lista
 
         for (int i = 0; i < alive.Count; i++)
@@ -46,42 +51,133 @@ public sealed class NatalitySystem : ISimulationSystem
             if (mother.Sex != Sex.Female || mother.PregnantUntil is not null) continue;
             if (mother.Reproduction is { } history && history.InfecundUntilTick > now) continue;
 
-            var father = FindLivingSpouse(world, mother);
-            if (father is null) continue;
+            // AD-139: casada concebe pelo ciclo (sexo regular); quem não é casada, só no mês em que houve sexo
+            var spouse = FindLivingSpouse(world, mother);
+            double sexChance = 1.0;
+            var partner = spouse ?? (intimacy.Enabled ? NonMaritalPartner(world, mother, intimacy, now, out sexChance) : null);
+            if (partner is null) continue;
 
             // Mesmo teto de população viva usado por split-on-death (fase 16.4).
             if (populationRules.RemainingAliveSlots(alive.Count) <= 0) return;
 
-            if (!MeetsConceptionFloors(world, mother, father, familyRules)) continue;
+            if (spouse is not null ? !MeetsConceptionFloors(world, mother, spouse, familyRules)
+                : mother.Health < familyRules.ConceptionHealthFloor || partner.Health < familyRules.ConceptionHealthFloor)
+                continue;
 
             double motherAge = (now - mother.BirthDate.TotalHours) / (double)hoursPerYear;
-            double fatherAge = (now - father.BirthDate.TotalHours) / (double)hoursPerYear;
-            double chance = fertility.FemaleCycleFecundability(motherAge, SterilityDraw(ctx, mother))
+            double fatherAge = (now - partner.BirthDate.TotalHours) / (double)hoursPerYear;
+            double chance = fertility.FemaleCycleFecundability(motherAge, SterilityDraw(world, mother))
                 * fertility.MaleFertility.At(fatherAge)
                 * AttributeMechanic.FertilityMultiplier(world, mother)
-                * AttributeMechanic.FertilityMultiplier(world, father);
+                * AttributeMechanic.FertilityMultiplier(world, partner);
+            if (chance > 0 && hormones)
+                chance *= (Endocrine.IsPubertal(world, partner, now) ? 1.0 : 0.0)
+                    * Genome.FertilityMultiplier(world, mother) * Genome.FertilityMultiplier(world, partner)
+                    * (1 - ContraceptiveProtection(world, mother));
             if (chance <= 0) continue;
 
             var rng = ctx.StreamFor("conception", unchecked(mother.Id.Value * 1_000_003L + now));
-            if (rng.NextDouble() >= chance) continue;
+            if (spouse is null && rng.NextDouble() >= sexChance) continue;
+            long conceived = -1;
+            if (hormones)
+            {
+                // AD-139: a concepção cai na ovulação (janela fértil do ciclo dela), um sorteio por ovulação do mês
+                int count = Endocrine.Ovulations(world, mother, now, month, ovulations);
+                for (int k = 0; k < count && conceived < 0; k++)
+                    if (rng.NextDouble() < chance) conceived = ovulations[k];
+                if (conceived < 0) continue;
+            }
+            else if (rng.NextDouble() >= chance) continue;
 
             var household = mother.Household is { } householdId ? world.FindHousehold(householdId) : null;
             if (household is null) continue;
 
-            Conceive(world, ctx, mother, UnionSystem.BiologicalFather(world, ctx, mother, father), household, motherAge, rng); // AD-136: filho do amante
+            var father = spouse is not null ? UnionSystem.BiologicalFather(world, ctx, mother, spouse) : partner; // AD-136: filho do amante
+            Conceive(world, ctx, mother, father, household, motherAge, rng, conceived, outOfUnion: spouse is null);
         }
+    }
+
+    /// <summary>Com quem uma mulher sem cônjuge pode ter sexo neste mês (AD-139) e a chance de ter: o namorado, o amante
+    /// (caso com um casado) ou alguém de quem ela gosta e que gosta dela; a chance da norma vezes o temperamento dos dois
+    /// (impulsividade e aversão a risco, já com o impulso da adolescência).</summary>
+    internal static Npc? NonMaritalPartner(WorldState world, Npc woman, IntimacyRules rules, long now, out double chance)
+    {
+        chance = 0;
+        if (!Endocrine.IsPubertal(world, woman, now)) return null;
+        Npc? partner;
+        double basis;
+        if (woman.CourtingWith is { } c && world.FindNpc(c) is { IsAlive: true, Sex: Sex.Male } suitor && suitor.CourtingWith == woman.Id)
+            (partner, basis) = (suitor, rules.CourtingPerMonth);
+        else if (woman.Union?.AffairWith is { } l && world.FindNpc(new NpcId(l)) is { IsAlive: true, Sex: Sex.Male } lover
+                 && lover.Union?.AffairWith == woman.Id.Value)
+            (partner, basis) = (lover, rules.LoverPerMonth);
+        else
+            (partner, basis) = (CasualPartner(world, woman, rules), rules.CasualPerMonth);
+        if (partner is null || basis <= 0 || !Endocrine.IsPubertal(world, partner, now)) return null;
+        chance = Math.Clamp(basis * Temperament(world, woman, now) * Temperament(world, partner, now), 0, 1);
+        return partner;
+    }
+
+    /// <summary>Disposição a arriscar (≈ 1 no temperamento médio): impulsividade e pouca aversão a risco, com o impulso da
+    /// adolescência somado.</summary>
+    public static double Temperament(WorldState world, Npc npc, long now)
+    {
+        var rules = Endocrine.Rules(world);
+        double drive = Endocrine.AdolescentDrive(world, npc, now);
+        return Endocrine.EffectiveImpulsivity(rules, npc.Personality, drive) / 50.0
+            * (1.5 - Endocrine.EffectiveRiskAversion(rules, npc.Personality, drive) / 100.0);
+    }
+
+    /// <summary>Entre quem ela conhece na cidade: o homem de quem ela mais gosta, com afeto mútuo acima do mínimo, sem tabu.</summary>
+    private static Npc? CasualPartner(WorldState world, Npc woman, IntimacyRules rules)
+    {
+        var targets = world.RelationshipTargetsOf(woman.Id);
+        var relations = world.RelationshipsFrom(woman.Id);
+        if (relations is null) return null;
+        Npc? best = null;
+        double bestAffection = rules.CasualAffectionMin;
+        for (int i = 0; i < targets.Count && i < relations.Count; i++)
+        {
+            if (relations[i].Affection < bestAffection) continue;
+            if (world.FindNpc(targets[i]) is not { IsAlive: true, Sex: Sex.Male } man || man.City != woman.City) continue;
+            if (!world.Relationships.TryGetValue(new RelationshipKey(man.Id, woman.Id), out var back) || back.Affection < rules.CasualAffectionMin) continue;
+            if (Kinship.IsTaboo(world, woman, man)) continue;
+            (best, bestAffection) = (man, relations[i].Affection);
+        }
+        return best;
+    }
+
+    /// <summary>Proteção da contracepção (AD-139): só se a cidade dela adotou uma tecnologia da categoria do cenário (alguém
+    /// a inventou), ela é usuária (sorteio fixo contra a norma) e já tem os filhos que quer. Sem tecnologia: 0, sem custo.</summary>
+    public static double ContraceptiveProtection(WorldState world, Npc woman)
+    {
+        if (world.Technologies.Count == 0) return 0;
+        var rules = world.PopulationRules.Fertility.Contraception;
+        if ((woman.Reproduction?.Parity ?? 0) < rules.DesiredChildren) return 0;
+        double best = 0;
+        foreach (var tech in world.Technologies)
+        {
+            if (tech.Category != rules.Category || tech.Culture != woman.Culture || !tech.AdoptedBy.Contains(woman.City)) continue;
+            double axes = tech.Vector.Axes.Length == 0 ? 0 : tech.Vector.Axes.Average();
+            best = Math.Max(best, Math.Clamp(axes / Math.Max(1, world.EmergenceRules.AxisMax), 0, 1) * rules.MaxEfficacy);
+        }
+        if (best <= 0) return 0;
+        return world.Rng.StreamFor("contraception-user", woman.Id.Value).NextDouble() < rules.UseShare ? best : 0;
     }
 
     /// <summary>Sorteio fixo da mulher contra a fração estéril por idade: a mesma em toda chamada (inclui a menopausa).</summary>
     public static double SterilityDraw(TickContext ctx, Npc woman) => ctx.StreamFor("sterility", woman.Id.Value).NextDouble();
 
+    private static double SterilityDraw(WorldState world, Npc woman) => Endocrine.SterilityDraw(world, woman);
+
     private static void Conceive(
-        WorldState world, TickContext ctx, Npc mother, Npc father, Household household, double motherAge, WorldRng rng)
+        WorldState world, TickContext ctx, Npc mother, Npc father, Household household, double motherAge, WorldRng rng,
+        long conceivedAt, bool outOfUnion)
     {
         var fertility = world.PopulationRules.Fertility;
         long now = ctx.CurrentTick;
         long hoursPerDay = world.Calendar.HoursPerDay;
-        long conceived = now + (long)(rng.NextDouble() * world.Calendar.HoursPerMonth);
+        long conceived = conceivedAt >= 0 ? conceivedAt : now + (long)(rng.NextDouble() * world.Calendar.HoursPerMonth);
         string sexes = RollSex(rng, fertility).ToString();
         if (rng.NextDouble() < fertility.TwinRate)
             sexes += rng.NextDouble() < fertility.MonozygoticTwinShare ? sexes : RollSex(rng, fertility).ToString();
@@ -90,7 +186,7 @@ public sealed class NatalitySystem : ISimulationSystem
         bool loss = rng.NextDouble() < lossRisk;
         int days = loss
             ? fertility.MiscarriageMinDays + (int)(rng.NextDouble() * (fertility.MiscarriageMaxDays - fertility.MiscarriageMinDays + 1))
-            : fertility.RollGestation(rng).Days;
+            : fertility.RollGestation(rng, PretermRisk(fertility.Endocrine, mother, motherAge, twins: sexes.Length > 1)).Days;
         long endTick = Math.Max(now + 1, conceived + days * hoursPerDay);
 
         long conceptionStock = household.Stock.Values.Sum();
@@ -101,6 +197,24 @@ public sealed class NatalitySystem : ISimulationSystem
             Pregnancy = new PregnancyState(conceived, endTick, father.Id.Value, sexes, days, loss),
         });
         ctx.ScheduleEvent(endTick, SystemName, $"{mother.Id.Value}|{father.Id.Value}|{household.Id.Value}|{conceptionStock}");
+
+        // AD-139: grávida sem união — quando a barriga aparece, a família e a vila reagem
+        long shows = conceived + world.FamilyRules.Unions.Intimacy.ShowsAfterDays * hoursPerDay;
+        if (outOfUnion && shows < endTick)
+            ctx.ScheduleEvent(shows, SystemName, $"{ShowsPrefix}{mother.Id.Value}|{father.Id.Value}");
+    }
+
+    /// <summary>Prefixo do evento em que a gravidez fora da união aparece (AD-139).</summary>
+    public const string ShowsPrefix = "show|";
+
+    /// <summary>Gravidez de risco (AD-139): gêmeos, mãe abaixo de 18 anos e desnutrição multiplicam a chance de prematuro.</summary>
+    public static double PretermRisk(EndocrineRules rules, Npc mother, double motherAge, bool twins)
+    {
+        if (!rules.Enabled) return 1.0;
+        double risk = 1.0 + rules.PretermUndernutritionGain * mother.Undernutrition;
+        if (twins) risk *= rules.PretermTwinMultiplier;
+        if (motherAge < 18) risk *= rules.PretermTeenMultiplier;
+        return risk;
     }
 
     private static char RollSex(WorldRng rng, ReproductionRules fertility) =>
@@ -108,6 +222,12 @@ public sealed class NatalitySystem : ISimulationSystem
 
     public void HandleEvent(WorldState world, TickContext ctx, ScheduledEvent evt)
     {
+        if (evt.Payload!.StartsWith(ShowsPrefix, StringComparison.Ordinal))
+        {
+            PregnancyShows(world, ctx, evt);
+            return;
+        }
+
         var parts = evt.Payload!.Split('|');
         var motherId = new NpcId(long.Parse(parts[0]));
         var fatherId = new NpcId(long.Parse(parts[1]));
@@ -115,7 +235,9 @@ public sealed class NatalitySystem : ISimulationSystem
         long conceptionStock = long.Parse(parts[3]);
 
         var mother = world.FindNpc(motherId);
-        var household = world.FindHousehold(householdId);
+        // o bebê nasce onde a mãe mora agora (ela pode ter casado, ou se separado, durante a gravidez)
+        var household = mother?.Household is { } currentHome && world.FindHousehold(currentHome) is { } home
+            ? home : world.FindHousehold(householdId);
         mother?.ClearPregnancy();
         var history = mother?.Reproduction ?? new ReproductiveState();
         var pregnancy = history.Pregnancy;
@@ -187,7 +309,51 @@ public sealed class NatalitySystem : ISimulationSystem
         }
 
         ApplyDeliveryStrain(mother, physiology, risk);
+        PostpartumMood(world, ctx, mother, now);
         LivingWorld.Simulation.Health.Lactation.RefreshHousehold(world, mother, now);
+    }
+
+    /// <summary>Tristeza pós-parto (AD-139): parte das mães, pela queda hormonal do parto, fica abatida por meses; pesa como
+    /// luto na rotina e na decisão (recolhe do trabalho e do convívio).</summary>
+    private static void PostpartumMood(WorldState world, TickContext ctx, Npc mother, long now)
+    {
+        var rules = world.PopulationRules.Fertility.Endocrine;
+        if (!rules.Enabled || rules.PostpartumDepressionShare <= 0 || !world.NeedsRules.Psyche.Enabled) return;
+        if (ctx.StreamFor("postpartum-mood", unchecked(mother.Id.Value * 1_000_003L + now)).NextDouble() >= rules.PostpartumDepressionShare)
+            return;
+        LivingWorld.Simulation.Cognition.PsycheMechanic.Feel(
+            world, mother, now, new LivingWorld.Domain.Cognition.LifeEventImpact(0, Grief: rules.PostpartumLowMood), loneliness: 0.3);
+    }
+
+    /// <summary>A gravidez fora da união apareceu (AD-139). Se ela casou nesse meio tempo, nada; senão o pai solteiro é levado
+    /// a casar na chance da norma (mais se é leal), ou ela é deixada; a mãe e os pais dela sentem a vergonha da vila.</summary>
+    private static void PregnancyShows(WorldState world, TickContext ctx, ScheduledEvent evt)
+    {
+        var parts = evt.Payload!.Split('|');
+        var mother = world.FindNpc(new NpcId(long.Parse(parts[1])));
+        long fatherId = long.Parse(parts[2]);
+        if (mother is not { IsAlive: true } || mother.Reproduction?.Pregnancy is not { } pregnancy || pregnancy.FatherId != fatherId)
+            return;
+        if (FindLivingSpouse(world, mother) is not null) return;
+
+        var rules = world.FamilyRules.Unions.Intimacy;
+        var father = world.FindNpc(new NpcId(fatherId));
+        string outcome = "sem_pai";
+        if (father is { IsAlive: true })
+        {
+            outcome = "abandono";
+            bool free = FindLivingSpouse(world, father) is null && (father.Union?.CourtFromTick ?? 0) <= ctx.CurrentTick
+                && (father.CourtingWith is null || father.CourtingWith == mother.Id) && !Kinship.IsTaboo(world, mother, father);
+            double accept = rules.ForcedMarriageShare * (0.5 + father.Personality.Loyalty / 100.0);
+            if (free && ctx.OneShot($"natality-shows-{mother.Id.Value}-{evt.Id}").NextDouble() < accept)
+            {
+                mother.EndCourtship();
+                father.EndCourtship();
+                MarriageSystem.Marry(world, ctx, mother, father);
+                outcome = "casamento";
+            }
+        }
+        ctx.LogEvent(WorldEventKind.UnwedPregnancy, $"{mother.Id.Value}|{fatherId}|{outcome}", sourceSystem: SystemName);
     }
 
     /// <summary>O parto gasta reserva (hemorragia, anemia) na proporção do risco obstétrico; a fisiologia diária recupera.</summary>
@@ -235,6 +401,8 @@ public sealed class NatalitySystem : ISimulationSystem
             rateGene: rateGene, vitality: vitality, upbringing: upbringing,
             height: height, weight: weight, muscleMass: muscleMass, appearance: appearance);
         baby.SetGestationAtBirth(gestationDays);
+        if (world.BodyRules.Disorders.Enabled) // AD-139: um alelo de cada pai, com mutação nova rara
+            baby.SetGenome(Genome.Inherit(world, mother, father, ctx.StreamFor("genome", babyId.Value)));
         // AD-134: tamanho de recém-nascido (menor se prematuro) e estatura herdada dos dois pais
         LivingWorld.Simulation.Population.Body.BodyGrowth.InitializeNewborn(world, baby, mother, father);
 
