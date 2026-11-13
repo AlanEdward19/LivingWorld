@@ -37,32 +37,29 @@ public sealed partial class BehaviorDecisionSystem
         ActionType? previousIntent = null,
         bool captureTrace = true,
         ActionEligibility eligibility = default,
-        UtilityTerm? knockout = null)
+        UtilityTerm? knockout = null,
+        short[]? brainGains = null,
+        double[]? brainGroups = null)
     {
         var utilityRules = PowerUtilityRules.Resolve(powerRules);
         var foresight = ctx.ForesightPreviews ?? ForesightMechanic.EmptyPreviews;
-        var best = ActionType.Eat;
-        double bestScore = double.NegativeInfinity;
         PendingPowerInvocation? bestPending = null;
         // O rastro só é montado para quem é gravado no log de cognição; sem ele, nada de lista, fecho nem delegate por decisão
         var scored = captureTrace ? new List<(ActionType Action, double Score)>(AllActions.Length + ctx.PowerOpportunities.Count) : null;
         var terms = captureTrace ? new List<UtilityContribution>(AllActions.Length * 4) : null;
 
-        foreach (var action in AllActions)
+        ActionType best;
+        double bestScore;
+        if (brainGains is null)
         {
-            // Fase 21: quem ainda não alcançou o marco da ação nem a considera (filtro antes da pontuação, não nota zero).
-            if (!eligibility.Allows(action))
-                continue;
-
-            double score = ScoreOf(ctx, action, rules, economy, continuityAction, eligibility, foresight, terms, knockout);
-
-            scored?.Add((action, score));
-            if (score > bestScore)
-            {
-                bestScore = score;
-                best = action;
-                bestPending = null;
-            }
+            var none = default(NoBrain);
+            (best, bestScore) = ScoreActions(ctx, rules, economy, continuityAction, eligibility, foresight, terms, knockout, scored, ref none, null);
+        }
+        else
+        {
+            // AD-142: brainGroups[0..8) = grupos da ação em conta, [8..16) = os da vencedora (para o NPC aprender na conclusão)
+            var lens = new WithBrain(brainGains, brainGroups, 0);
+            (best, bestScore) = ScoreActions(ctx, rules, economy, continuityAction, eligibility, foresight, terms, knockout, scored, ref lens, brainGroups);
         }
 
         foreach (var opp in ctx.PowerOpportunities)
@@ -89,6 +86,7 @@ public sealed partial class BehaviorDecisionSystem
                 best = ActionType.UsePower;
                 bestPending = new PendingPowerInvocation(
                     opp.PowerId, opp.MechanicToken, opp.SuggestedTarget);
+                if (brainGroups is not null) Array.Clear(brainGroups, BrainState.Groups, BrainState.Groups); // poder não passa pelos grupos
             }
         }
 
@@ -96,6 +94,36 @@ public sealed partial class BehaviorDecisionSystem
             return new UtilityDecision(best, bestPending, NoTrace);
 
         return TracedDecision(ctx, wakeReason, previousIntent, best, bestScore, scored, terms!, bestPending);
+    }
+
+    /// <summary>As ações fixas, pela utilidade, especializada pelo jeito de ver o cérebro (sem cérebro, o laço de antes).</summary>
+    private static (ActionType Best, double BestScore) ScoreActions<TLens>(
+        DecisionContext ctx, NeedsRules rules, EconomyRules economy, ActionType? continuityAction, ActionEligibility eligibility,
+        IReadOnlyDictionary<ActionType, ResolutionResult> foresight, List<UtilityContribution>? terms, UtilityTerm? knockout,
+        List<(ActionType Action, double Score)>? scored, ref TLens lens, double[]? groups)
+        where TLens : struct, IBrainLens
+    {
+        var best = ActionType.Eat;
+        double bestScore = double.NegativeInfinity;
+        if (groups is not null) Array.Clear(groups, BrainState.Groups, BrainState.Groups);
+        foreach (var action in AllActions)
+        {
+            // Fase 21: quem ainda não alcançou o marco da ação nem a considera (filtro antes da pontuação, não nota zero).
+            if (!eligibility.Allows(action))
+                continue;
+
+            double score = ScoreOf(ctx, action, rules, economy, continuityAction, eligibility, foresight, terms, knockout, ref lens);
+
+            scored?.Add((action, score));
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = action;
+                if (groups is not null) Array.Copy(groups, 0, groups, BrainState.Groups, BrainState.Groups);
+            }
+        }
+
+        return (best, bestScore);
     }
 
     private static readonly Func<DecisionTrace> NoTrace = static () =>

@@ -339,6 +339,9 @@ public static class WorldSnapshot
                 ? inventionRulesNode.Deserialize<LivingWorld.Domain.Invention.InventionRules>(JsonOptions) : null,
             node.TryGetPropertyValue("Invention", out var inventionNode) && inventionNode is not null
                 ? inventionNode.Deserialize<LivingWorld.Simulation.Invention.InventionLedger>(JsonOptions) : null);
+        rehydrated.UseBrain( // AD-142: ausente = experimento desligado
+            node.TryGetPropertyValue("BrainRules", out var brainRulesNode) && brainRulesNode is not null
+                ? brainRulesNode.Deserialize<LivingWorld.Domain.Cognition.BrainRules>(JsonOptions) : null);
         rehydrated.RestoreNpcWakes(npcWakes);
         return rehydrated;
     }

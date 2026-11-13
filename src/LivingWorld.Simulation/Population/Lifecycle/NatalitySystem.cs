@@ -235,6 +235,10 @@ public sealed class NatalitySystem : ISimulationSystem
             rateGene: rateGene, vitality: vitality, upbringing: upbringing,
             height: height, weight: weight, muscleMass: muscleMass, appearance: appearance);
         baby.SetGestationAtBirth(gestationDays);
+        // AD-142: ganhos sinápticos herdados (só com o cérebro ligado; desligado o stream nem é aberto)
+        if (world.BrainRules is { Enabled: true } brainRules)
+            baby.SetBrain(LivingWorld.Simulation.Cognition.BrainMechanic.Inherit(
+                brainRules, mother.Brain, father?.Brain, ctx.StreamFor("brain", babyId.Value), familyRules.PersonalityHeritability));
         // AD-134: tamanho de recém-nascido (menor se prematuro) e estatura herdada dos dois pais
         LivingWorld.Simulation.Population.Body.BodyGrowth.InitializeNewborn(world, baby, mother, father);
 

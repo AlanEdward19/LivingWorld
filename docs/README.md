@@ -22,6 +22,7 @@ sistemas implementam. O `AGENTS.md` só aponta para cá.
 | Montagem de contexto, prompt, DTO de saída, validação | [llm-contract.md](domain/llm-contract.md) |
 | Cultura, conhecimento, tecnologia, política | [society.md](domain/society.md) |
 | Invenção por composição física: materiais, design, avaliador, difusão | [invention.md](domain/invention.md) |
+| Cérebro legível com ganhos herdados e aprendidos (experimento atrás de flag) | [brain.md](domain/brain.md) |
 
 ### Escopo extra — spec, bloqueado até a Fase 8 fechar
 | Você vai mexer em… | Leia |

@@ -82,6 +82,9 @@ public static class ScenarioLoaderV2
         // AD-141: invenção ligada por padrão; o bloco opcional {"Invention": {"Enabled": false}} desliga
         world.UseInvention(System.Text.Json.Nodes.JsonNode.Parse(json)?["Invention"]?["Enabled"]?.GetValue<bool>() == false
             ? null : LivingWorld.Domain.Invention.InventionRules.Default);
+        // AD-142: cérebro com ganhos aprendidos é experimento, desligado por padrão; {"Brain": {"Enabled": true}} liga
+        if (System.Text.Json.Nodes.JsonNode.Parse(json)?["Brain"]?["Enabled"]?.GetValue<bool>() == true)
+            world.UseBrain(LivingWorld.Domain.Cognition.BrainRules.Default);
 
         var createdCityIds = new List<CityId>(definition.City.Cities.Count);
         foreach (var city in definition.City.Cities)

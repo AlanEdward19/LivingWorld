@@ -414,7 +414,8 @@ public sealed class Npc
         double statureGene = 0, double adultHeight = 0, double undernutrition = 0, long? lastNursedTick = null,
         long? lastLactationTick = null, int physicalWorkDays = 0,
         VocationState? vocation = null, UnionState? union = null,
-        LivingWorld.Domain.Cognition.PsycheState? psyche = null)
+        LivingWorld.Domain.Cognition.PsycheState? psyche = null,
+        LivingWorld.Domain.Cognition.BrainState? brain = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -462,6 +463,7 @@ public sealed class Npc
         Vocation = vocation;
         Union = union;
         Psyche = psyche;
+        Brain = brain;
         IsGhost = isGhost;
         HomelessSince = homelessSince;
         PregnantUntil = pregnantUntil;
@@ -952,6 +954,20 @@ public sealed class Npc
         Psyche = state;
         TouchCanonical();
     }
+
+    /// <summary>Ganhos sinápticos herdados e aprendidos (ADR-0046, AD-142). Nulo = cérebro desligado ou ainda não usado:
+    /// omitido do snapshot, snapshot antigo abre com nulo. Só o motor grava (<c>BrainMechanic</c>); a LLM nunca.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public LivingWorld.Domain.Cognition.BrainState? Brain { get; private set; }
+
+    public void SetBrain(LivingWorld.Domain.Cognition.BrainState? state)
+    {
+        Brain = state;
+        TouchCanonical();
+    }
+
+    /// <summary>O cérebro foi mutado no lugar (ganho aprendido, participação guardada): o hash do NPC precisa ser refeito.</summary>
+    public void TouchBrain() => TouchCanonical();
 
     public void SetUnion(UnionState? state)
     {

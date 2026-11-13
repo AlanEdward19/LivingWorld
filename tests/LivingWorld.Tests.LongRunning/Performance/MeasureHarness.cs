@@ -38,15 +38,28 @@ public class MeasureHarness
         return LivingWorld.Simulation.Objects.ObjectCatalogScenarioLoader.Load(root).Value;
     }
 
+    /// <summary>LW_MEASURE_BRAIN=1 liga o cérebro com ganhos aprendidos (AD-142) em todos os mundos medidos; sem ele, como sempre.</summary>
+    private static bool Brain => Environment.GetEnvironmentVariable("LW_MEASURE_BRAIN") == "1";
+
+    private static void MaybeBrain(WorldState world)
+    {
+        if (Brain) world.UseBrain(LivingWorld.Domain.Cognition.BrainRules.Default);
+    }
+
+    /// <summary>LW_MEASURE_POP muda a população da medida de escala (padrão 1000); LW_MEASURE_SCALE_ONLY=1 pula vila e mundo ao vivo.</summary>
+    private static int Population => int.TryParse(Environment.GetEnvironmentVariable("LW_MEASURE_POP"), out int pop) && pop > 0 ? pop : 1000;
+
     [Fact]
     public void Measure()
     {
         var sb = new StringBuilder();
         // Perf: 1000 NPCs, 30 dias, melhor de 3 (ruído de máquina).
         double bestMicros = double.MaxValue, alloc = 0;
+        int population = Population;
         for (int run = 0; run < 3; run++)
         {
-            var (world, clock) = ScaleScenarioFixture.CreateWorld(42, 1000, objectCatalog: MeasuredCatalog());
+            var (world, clock) = ScaleScenarioFixture.CreateWorld(42, population, objectCatalog: MeasuredCatalog());
+            MaybeBrain(world);
             GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
             long alive = 0, before = GC.GetTotalAllocatedBytes(true);
             var sw = Stopwatch.StartNew();
@@ -55,14 +68,20 @@ public class MeasureHarness
             bestMicros = Math.Min(bestMicros, sw.Elapsed.TotalMicroseconds / Math.Max(1, alive));
             alloc = (GC.GetTotalAllocatedBytes(true) - before) / 720.0;
             if (run == 2)
-                sb.AppendLine($"scale1000 snapshotBytesPerAlive={Encoding.UTF8.GetByteCount(WorldSnapshot.Serialize(world)) / Math.Max(1, world.Npcs.Count(n => n.IsAlive))} alive={world.Npcs.Count(n => n.IsAlive)}");
+                sb.AppendLine($"scale{population} snapshotBytesPerAlive={Encoding.UTF8.GetByteCount(WorldSnapshot.Serialize(world)) / Math.Max(1, world.Npcs.Count(n => n.IsAlive))} alive={world.Npcs.Count(n => n.IsAlive)}");
         }
-        sb.AppendLine($"scale1000 microsPerNpcTick={bestMicros:F3} allocPerTick={alloc:F0}");
+        sb.AppendLine($"scale{population} microsPerNpcTick={bestMicros:F3} allocPerTick={alloc:F0}");
+        if (Environment.GetEnvironmentVariable("LW_MEASURE_SCALE_ONLY") == "1")
+        {
+            File.WriteAllText(Environment.GetEnvironmentVariable("LW_MEASURE_OUT") ?? Path.Combine(Path.GetTempPath(), "lw-measure.txt"), sb.ToString());
+            return;
+        }
 
         // Vila padrão: 100 NPCs, 10 anos.
         for (ulong seed = 1; seed <= 5; seed++)
         {
             var (world, _) = ScenarioRunner.Create(seed);
+            MaybeBrain(world);
             var sink = new CountingSink();
             var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink);
             var marks = new List<int>();
@@ -89,6 +108,7 @@ public class MeasureHarness
             var loaded = ScenarioLoaderV2.LoadWorld(node.ToJsonString());
             Assert.True(loaded.IsSuccess, loaded.Error);
             var (world, clock) = loaded.Value;
+            MaybeBrain(world);
             var marks = new List<int>();
             var sw = Stopwatch.StartNew();
             for (int year = 1; year <= 10; year++)

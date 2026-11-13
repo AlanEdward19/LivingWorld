@@ -107,9 +107,10 @@ public static class DemographyReport
     }
 
     /// <summary>Roda uma seed; as taxas contam a partir de <paramref name="warmupYears"/> (a pirâmide inicial é sintética).</summary>
-    public static SeedResult Run(ulong seed, int years, int warmupYears)
+    public static SeedResult Run(ulong seed, int years, int warmupYears, LivingWorld.Domain.Cognition.BrainRules? brain = null)
     {
         var (world, baseClock) = ScenarioRunner.Create(seed);
+        world.UseBrain(brain); // AD-142: experimento (nulo = desligado)
         var tally = new DemographyTally(world) { MeasureFromTick = warmupYears * world.Calendar.HoursPerYear };
         tally.Body.MeasureFromTick = tally.MeasureFromTick;
         var food = new FoodTally(world);

@@ -72,6 +72,7 @@ public class PositionalSnapshotTests
     {
         var (world, _) = ScenarioRunner.Create(seed: 7, initialPopulation: 8, appearanceRules: new AppearanceRules(0.6),
             objectCatalog: LivingWorld.Tests.Unit.Objects.ObjectCatalogTests.SampleCatalog());
+        world.UseBrain(LivingWorld.Domain.Cognition.BrainRules.Default); // AD-142: experimento desligado por padrão some do snapshot
         var tree = WorldSnapshot.BuildPersistentTree(world);
 
         var expected = WorldSnapshot.ReflectedProperties
