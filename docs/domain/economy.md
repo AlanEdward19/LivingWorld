@@ -75,12 +75,20 @@ clima (AR(1) regional, `ClimateRules.Default`). Fome sazonal e de quebra de safr
 Casa a até 1 h de rio, lago ou fonte bebe dali (`NaturalWaterSystem`); a água do mercado é só para quem mora longe.
 O celeiro solta por dia o que dura até a colheita esperada; a lavoura ainda em pé antes do mês esperado conta até ele.
 
-## Dízimo e esmola (AD-140)
-O caixa do empregador acima de `WorkingCapitalPayrollMonths` (12) meses de folha paga por mês `SurplusLevyShare` (5% no
-cenário de código; 0 = desligado, padrão de JSON e snapshot antigo) ao tesouro da cidade, que paga a esmola da casa sem
-comida e sem dinheiro (`MutualAidSystem`). Sem isso a sobra da venda de comida e água ficava parada na fazenda e a moeda
-das casas secava em décadas: fome com o celeiro cheio. A moeda só muda de dono.
-A esmola é racionada pelos dias até a virada do mês e vem depois da família de origem (AD-145, [population-pressure.md](population-pressure.md)).
+## Dono, lucro e ferramenta (AD-144)
+**Dono.** A oficina de ofício (ferraria) é do mestre: o adulto do ofício mais hábil na cidade (`WorkplaceOwnership`). A
+terra da fazenda, a obra da cidade e o espólio sem herdeiro ficam sem dono. JSON: `Owner` e `CraftLocationTypeIds`.
+**Lucro.** Todo mês, depois da folha, o caixa acima de 12 meses (`WorkingCapitalPayrollMonths`) da folha possível (a atual
+ou a dos adultos da cidade até as vagas) sai na fração `SurplusDrawShare` (1 no cenário de código; 0 = desligado, padrão de JSON e snapshot antigo; nome serializado antigo
+`SurplusLevyShare`): à carteira do dono, ou ao tesouro da cidade, que paga a esmola (`OwnerDrawSystem`, evento
+`ProfitDrawn`). Absorve o dízimo provisório da AD-140. Sem dono, a cidade também cobre a falta até a reserva (a fazenda
+comum dá prejuízo no salário fixo). A moeda só muda de dono. A esmola é racionada pelos dias até a virada do mês e vem
+depois da família de origem (AD-145, [population-pressure.md](population-pressure.md)).
+**Ferramenta.** A receita pode declarar `Tool`: cada trabalhador precisa de um jogo (3 kg de ferro no lavrador), cada dia
+trabalhado gasta (2 kg/ano) e sem ferramenta o trabalho rende 60% (lavrar, ceifar, tirar água). A fazenda compra o jogo
+da ferraria; a ferraria trabalha por encomenda (não faz além do que falta aos clientes mais um mês de desgaste), vende a
+preço de encomenda fixo (20; preço que reage fica para a fatia 8). Mais uma mão ali vale só a encomenda que a lotação
+atual não cobre (produto marginal): o mestre não toma quem não precisa, e o ferreiro ocioso vai à lavoura.
 
 ## Ver também
 - [cities.md](cities.md) — onde a produção e o estoque ficam

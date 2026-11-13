@@ -1,12 +1,14 @@
 using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 
 namespace LivingWorld.Simulation.Economy.Labor;
 
 /// <summary>Valor do trabalho de um trabalhador em cada oficina, uma vez por dia: o que a receita rende por
-/// trabalhador (saída × preço local, menos o insumo ao preço-piso), mínimo 1. É o que atrai gente para uma oficina:
+/// trabalhador (saída × preço local, menos o insumo ao preço-piso), mínimo 1; na oficina por encomenda, só a encomenda que a
+/// lotação atual não cobre, sem piso (AD-144). É o que atrai gente para uma oficina:
 /// bem escasso → preço sobe → o trabalho dele vale mais. Oficina sem receita vale o mínimo.
 /// A saída de comida de plantas não conta como trabalho de oficina (a produção a ignora quando há processo vegetal).</summary>
 public sealed class LaborValueIndex
@@ -20,11 +22,21 @@ public sealed class LaborValueIndex
 
     private LaborValueIndex(WorldState world) => _world = world;
 
-    public double ValueOf(Workplace workplace)
+    /// <param name="self">Quem avalia o próprio emprego: a mão dele não conta contra ele (o que ele faz é o valor dele).</param>
+    public double ValueOf(Workplace workplace, Npc? self = null)
     {
         Build();
-        return _valueByWorkplace!.GetValueOrDefault(workplace.Id, MinimumValue);
+        double value = _valueByWorkplace!.GetValueOrDefault(workplace.Id, MinimumValue);
+        // ferramenta por encomenda (AD-144): a parte dela é calculada ao vivo, com a lotação do momento, para que a mesma vaga
+        // não pareça boa a todos no mesmo dia
+        // sem encomenda a cobrir, mais uma mão ali não vale nada (sem o piso): senão o ofício do artesão o prendia à forja ociosa
+        if (_toolOutputs is not null && _toolOutputs.TryGetValue(workplace.Id, out var outputs))
+            foreach (var (resourceId, perWorker, price) in outputs)
+                value += perWorker * price * MarginalOrderedShare(_world, workplace, resourceId, perWorker, self);
+        return value;
     }
+
+    private Dictionary<WorkplaceId, List<(int ResourceId, long PerWorker, double Price)>>? _toolOutputs;
 
     /// <summary>Oficinas da cidade em ordem de id (a ordem decide empates); a vaga é conferida por quem usa,
     /// ao vivo, porque o preenchimento muda dentro do tick.</summary>
@@ -84,6 +96,14 @@ public sealed class LaborValueIndex
                 foreach (var (resourceId, perWorker) in recipe.Outputs)
                 {
                     if (plantsFeedFood && resourceId == rules.FoodResourceId) continue;
+                    if (catalog.IsTool(resourceId))
+                    {
+                        _toolOutputs ??= [];
+                        if (!_toolOutputs.TryGetValue(workplace.Id, out var tools)) _toolOutputs[workplace.Id] = tools = [];
+                        tools.Add((resourceId, perWorker, PriceOf(rules, workplace, resourceId)));
+                        continue;
+                    }
+
                     produced += perWorker * PriceOf(rules, workplace, resourceId) * SellableShare(rules, workplace, resourceId);
                 }
 
@@ -91,7 +111,7 @@ public sealed class LaborValueIndex
                 foreach (var (resourceId, perWorker) in recipe.Inputs)
                     inputs += perWorker * rules.PriceFloor.GetValueOrDefault(resourceId, 1);
 
-                value = Math.Max(MinimumValue, produced - inputs);
+                value = _toolOutputs?.ContainsKey(workplace.Id) == true ? Math.Max(0, produced - inputs) : Math.Max(MinimumValue, produced - inputs);
             }
 
             values[workplace.Id] = value;
@@ -122,6 +142,21 @@ public sealed class LaborValueIndex
     }
 
     private const double MinimumSellableShare = 0.05;
+
+    /// <summary>Ferramenta se faz por encomenda (AD-144): mais um artesão vale só a parte da encomenda diária da cidade que quem
+    /// já está lá não dá conta de fazer (produto marginal). Um ferreiro faz num dia o desgaste de semanas da vila: o segundo
+    /// quase nada acrescenta. Sem isso o preço de encomenda fazia a forja valer 20× a lavoura e a vila ia toda para a forja.</summary>
+    private static double MarginalOrderedShare(WorldState world, Workplace workplace, int resourceId, long perWorker, Npc? self)
+    {
+        if (perWorker <= 0) return 0;
+        double dailyOrders = (double)LivingWorld.Simulation.Economy.Production.ToolMechanic.OrderBook(world, workplace.City, resourceId)
+            / world.CurrentDate.Calendar.DaysPerMonth;
+        int hands = LivingWorld.Simulation.Economy.Production.ToolMechanic.WorkingHands(world, workplace);
+        // histerese (AD-144): quem já está lá vale o que ele mesmo faz; sem isso o ferreiro único se via sem valor, saía em
+        // 30 dias e outro entrava no lugar, e a forja vivia de aprendizes de passagem
+        if (self is not null && workplace.Employees.Contains(self.Id) && hands > 0) hands--;
+        return Math.Clamp((dailyOrders - hands * perWorker) / perWorker, 0, 1);
+    }
 
     private static double PriceOf(EconomyRules rules, Workplace workplace, int resourceId) =>
         workplace.Prices.TryGetValue(new ResourceType(resourceId), out var price)

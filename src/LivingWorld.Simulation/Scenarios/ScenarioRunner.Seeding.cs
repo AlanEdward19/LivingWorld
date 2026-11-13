@@ -45,6 +45,11 @@ public static partial class ScenarioRunner
     /// cref="MarketPricingSystem"/> é multiplicativo — arredondado pra inteiro, preço 1 nunca sai
     /// do lugar de verdade (fator 0.8 ou 1.2 sobre 1 arredonda de volta pra 1), escondendo
     /// qualquer sinal de escassez/fartura (achado escrevendo o teste causal).</summary>
+    /// <summary>Preço de encomenda do ferro de ferramenta (AD-144): ~20× o piso do trigo, a ordem da razão entre ferramenta
+    /// pronta e grão por quilo na Inglaterra do séc. XIV (estimativa sem fonte firme). Fixo: o ferro não tem consumo-base, e
+    /// preço que reage a custo e demanda é a fatia 8. A 5 (o valor antigo) o desgaste da vila não pagava nem um ferreiro.</summary>
+    public const long ForgeToolPrice = 20;
+
     private static void SeedDefaultWorkplaces(WorldState world, City city, int vacancyMultiplier = 1)
     {
         int mult = Math.Max(1, vacancyMultiplier);
@@ -62,7 +67,7 @@ public static partial class ScenarioRunner
         world.AddWorkplace(new Workplace(
             world.NextWorkplaceIdAndAdvance(), new LocationType(2), forgeLocation, maxVacancies: 40 * mult,
             employees: [], stock: new Dictionary<ResourceType, long>(), treasury: new Money(500_000),
-            prices: new Dictionary<ResourceType, long> { [new ResourceType(4)] = 5 }, city: city.Id,
+            prices: new Dictionary<ResourceType, long> { [new ResourceType(4)] = ForgeToolPrice }, city: city.Id,
             building: forgeBuilding));
     }
 

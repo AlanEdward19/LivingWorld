@@ -110,7 +110,7 @@ public sealed class DemographyTally(WorldState world) : IWorldEventSink
 /// <summary>Resumo de N seeds × A anos do cenário padrão de código (<see cref="ScenarioRunner.Create"/>).</summary>
 public static class DemographyReport
 {
-    public sealed record SeedResult(ulong Seed, int FinalAlive, int MinAlive, DemographyTally Tally, FoodTally? Food = null, InventionSummary? Invention = null);
+    public sealed record SeedResult(ulong Seed, int FinalAlive, int MinAlive, DemographyTally Tally, FoodTally? Food = null, InventionSummary? Invention = null, EconomyTally? Economy = null);
 
     private sealed class BothSinks(IWorldEventSink a, IWorldEventSink b) : IWorldEventSink
     {
@@ -129,11 +129,13 @@ public static class DemographyReport
         tally.Disease.MeasureFromTick = tally.MeasureFromTick;
         tally.Reproduction.MeasureFromTick = tally.MeasureFromTick;
         var food = new FoodTally(world);
+        var economy = new EconomyTally(world);
         var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, new BothSinks(tally, food));
         int months = years * world.Calendar.MonthsPerYear;
         int minAlive = int.MaxValue;
         for (int m = 0; m < months; m++)
         {
+            if (m % world.Calendar.MonthsPerYear == 0) economy.SampleYear(m / world.Calendar.MonthsPerYear);
             for (int d = 0; d < world.Calendar.DaysPerMonth; d++)
             {
                 clock.Run(world, world.Calendar.HoursPerDay);
@@ -151,7 +153,8 @@ public static class DemographyReport
         }
 
         tally.Reproduction.SampleGenetics();
-        return new SeedResult(seed, world.AliveNpcIndex.Alive.Count, minAlive, tally, food, InventionSummary.Of(world));
+        economy.SampleYear(years);
+        return new SeedResult(seed, world.AliveNpcIndex.Alive.Count, minAlive, tally, food, InventionSummary.Of(world), economy);
     }
 
     public static string Summarize(IReadOnlyList<SeedResult> runs, int years, int warmupYears, long hoursPerYear)
@@ -229,6 +232,8 @@ public static class DemographyReport
         sb.Append(DiseaseTally.Summarize(runs.Select(r => r.Tally.Disease).ToList()));
         var foods = runs.Where(r => r.Food is not null).Select(r => r.Food!).ToList();
         if (foods.Count > 0) sb.Append(FoodTally.Summarize(foods, warmupYears, 12));
+        var economies = runs.Where(r => r.Economy is not null).Select(r => r.Economy!).ToList();
+        if (economies.Count > 0) sb.Append(EconomyTally.Summarize(economies));
         sb.Append(InventionSummary.Summarize(runs.Where(r => r.Invention is not null).Select(r => r.Invention!).ToList()));
         return sb.ToString();
     }

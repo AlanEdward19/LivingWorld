@@ -83,6 +83,9 @@ public sealed class ProductionSystem : ISimulationSystem
         SkillsRules? skillsRules, VacancyIndex vacancyIndex)
     {
         var presentWorkers = vacancyIndex.PresentWorkersAt(workplace);
+        // encomenda (AD-144): o artesão da folha faz a peça encomendada em alguma hora do dia, não só se estiver parado na
+        // oficina na hora da produção; a sonda da seed 7 achou ferreiros na folha e 14 de 720 dias com alguém na forja
+        if (presentWorkers.Count == 0 && ToolMechanic.MakesToOrder(world, recipe)) presentWorkers = ToolMechanic.Hands(world, workplace);
         if (presentWorkers.Count == 0) return;
 
         if (recipe.RequiresCellResource is { } requiredResource
@@ -90,6 +93,8 @@ public sealed class ProductionSystem : ISimulationSystem
             return;
 
         int effectiveWorkers = Math.Min(presentWorkers.Count, recipe.MaxWorkersPerCycle);
+        double toolFactor = ToolMechanic.OutputFactor(workplace, recipe, effectiveWorkers);
+        ToolMechanic.Wear(world, ctx, workplace, recipe, effectiveWorkers);
 
         // Escala pra baixo pelo insumo mais escasso — nunca debita além do que o próprio
         // estoque do Workplace tem.
@@ -122,7 +127,13 @@ public sealed class ProductionSystem : ISimulationSystem
             double climate = resourceId == rules.FoodResourceId
                 ? world.ClimateFactorAt(workplace.Location, ctx.CurrentTick) / 1000.0
                 : 1.0;
-            long produced = (long)(perWorker * scale * skillMultiplier * strengthMultiplier * workCapacityMultiplier * climate);
+            long produced = (long)(perWorker * scale * skillMultiplier * strengthMultiplier * workCapacityMultiplier * climate * toolFactor);
+            // ferramenta se faz por encomenda (AD-144): a oficina não enche o depósito além do que os clientes usam
+            if (world.EconomyCatalog.IsTool(resourceId))
+            {
+                produced = Math.Min(produced, Math.Max(0, ToolMechanic.OrderBook(world, workplace.City, resourceId) - workplace.Stock.GetValueOrDefault(resource)));
+                if (produced <= 0) continue;
+            }
             world.RecordResourceProduced(resource, produced); // conta o bruto, antes do clamp de capacidade
             long lost = workplace.Deposit(resource, produced, rules);
             if (lost > 0)

@@ -61,7 +61,8 @@ public sealed partial class CropSystem : ISimulationSystem
             {
                 // o ano de safra da região multiplica a colheita (weather-drought): seca corta, fartura soma; sem clima vale 1000
                 long yield = (long)Math.Floor(
-                    DefaultHarvestPerWorker * workers.Count * world.ClimateFactorAt(workplace.Location, ctx.CurrentTick) / 1000.0);
+                    DefaultHarvestPerWorker * workers.Count * world.ClimateFactorAt(workplace.Location, ctx.CurrentTick) / 1000.0
+                    * ToolMechanic.OutputFactor(world, workplace, workers.Count));
                 long lost = workplace.Deposit(new ResourceType(harvestable.CropResourceId), yield, world.EconomyRules);
                 if (lost > 0)
                     ctx.LogEvent(
