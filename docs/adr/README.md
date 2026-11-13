@@ -52,3 +52,5 @@ conteúdo de ADR para dentro dele.
 | [0042](ADR-0042-indicadores-da-cidade-sem-fonte-ficam-nulos.md) | Indicadores da cidade: saúde é média; sem fonte fica nulo | aceito |
 | [0043](ADR-0043-blocos-de-doenca-clima-e-furto-no-cenario.md) | Blocos Disease, Climate e Theft no cenário JSON | aceito |
 | [0044](ADR-0044-corrida-compartilhada-entre-testes.md) | Uma corrida de simulação compartilhada entre testes (revoga a proibição da phase-16) | aceito |
+| [0045](ADR-0045-invencao-por-composicao-fisica.md) | Invenção por composição física, concebida pelo NPC (substitui o vetor de eixos da cidade) | proposto |
+| [0046](ADR-0046-cerebro-com-ganhos-sinapticos-aprendidos.md) | Cérebro legível com ganhos sinápticos herdados e aprendidos sobre a utilidade | proposto |
