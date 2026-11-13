@@ -35,14 +35,30 @@ internal static class Payroll
         return due;
     }
 
-    /// <summary>Reserva de giro (AD-140/AD-144): <see cref="EconomyRules.WorkingCapitalPayrollMonths"/> meses da folha atual,
-    /// nunca menos que um salário do ofício mais barato (a oficina vazia guarda o bastante para recontratar).</summary>
+    /// <summary>Reserva de giro (AD-140/AD-144): <see cref="EconomyRules.WorkingCapitalPayrollMonths"/> meses da folha que o
+    /// local pode ter de pagar: a maior entre a folha atual e a lotação possível (os adultos da cidade, até as vagas, ao salário
+    /// do ofício do local), nunca menos que um salário. Só a folha do dia deixava a oficina que estava vazia no fim do mês com
+    /// um salário de reserva: a gente voltava, a folha não fechava e todos fugiam dela (achado na vila de 30, AD-144).</summary>
     public static long WorkingReserve(WorldState world, Workplace workplace)
     {
         var rules = world.EconomyRules;
         long payroll = 0;
         foreach (var (_, wage) in Due(world, workplace)) payroll += wage.Amount;
+
+        long tradeWage = 0;
+        foreach (var (profession, type) in world.EconomyCatalog.LocationTypeByProfession)
+            if (type == workplace.LocationType.Id && rules.WageByProfession.TryGetValue(profession, out var wage))
+                tradeWage = Math.Max(tradeWage, wage);
+
+        long staff = 0;
+        if (tradeWage > 0)
+            foreach (var npc in world.AliveNpcIndex.Alive)
+            {
+                if (staff >= workplace.MaxVacancies) break;
+                if (npc.City == workplace.City && npc.AgeYears(world.CurrentDate) >= 15) staff++;
+            }
+
         long minWage = rules.WageByProfession.Count == 0 ? 0 : rules.WageByProfession.Values.Min();
-        return (long)Math.Ceiling(Math.Max(payroll, minWage) * Math.Max(0, rules.WorkingCapitalPayrollMonths));
+        return (long)Math.Ceiling(Math.Max(Math.Max(payroll, staff * tradeWage), minWage) * Math.Max(0, rules.WorkingCapitalPayrollMonths));
     }
 }

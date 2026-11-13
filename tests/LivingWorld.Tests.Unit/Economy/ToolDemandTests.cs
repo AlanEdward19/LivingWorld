@@ -55,7 +55,8 @@ public sealed class ToolDemandTests
     [Fact]
     public void The_forge_works_to_order_instead_of_filling_its_store()
     {
-        Assert.True(Tooled.Value.ForgeStock <= Tooled.Value.OrderBook, $"{Tooled.Value.ForgeStock} > {Tooled.Value.OrderBook}");
+        // sem encomenda a forja enchia o depósito (1000); por encomenda guarda menos que o jogo da vila
+        Assert.True(Tooled.Value.ForgeStock < Tooled.Value.FarmKit && Untooled.Value.ForgeStock >= 1000, $"{Tooled.Value.ForgeStock} / {Untooled.Value.ForgeStock}");
     }
 
     [Fact]
@@ -99,5 +100,44 @@ public sealed class ToolDemandTests
 
         var orphans = world.EconomyCatalog.Recipes.Values.SelectMany(r => r.Outputs.Keys).Where(r => !consumed.Contains(r)).Distinct();
         Assert.Empty(orphans);
+    }
+
+    /// <summary>Regressão (vila de 30 e seed 8): o trabalho na forja vale só a encomenda que a lotação atual não cobre. Sem encomenda (a
+    /// fazenda ainda sem gente), não vale nada; antes valia saída × preço cheio e a vila inteira ia para a forja.</summary>
+    [Fact]
+    public void Forge_work_without_orders_is_worth_nothing()
+    {
+        var (world, _) = ScenarioRunner.Create(seed: 5, initialPopulation: 30);
+        var forge = world.Workplaces.First(w => w.LocationType.Id == 2);
+
+        Assert.Equal(0, LivingWorld.Simulation.Economy.Labor.LaborValueIndex.BuildForTick(world).ValueOf(forge));
+    }
+
+    /// <summary>Regressão (vila de 30): a oficina vazia no fim do mês guarda a reserva da lotação possível (adultos da cidade
+    /// ao salário do ofício), não a de um salário só; senão a retirada a deixava sem caixa para quem voltasse.</summary>
+    [Fact]
+    public void An_empty_farm_keeps_the_reserve_of_the_staff_it_can_take()
+    {
+        var (world, _) = ScenarioRunner.Create(seed: 5, initialPopulation: 30);
+        var farm = world.Workplaces.First(w => w.LocationType.Id == 1);
+        long adults = world.Npcs.Count(n => n.IsAlive && n.AgeYears(world.CurrentDate) >= 15);
+
+        Assert.Equal(adults * 90 * 12, LivingWorld.Simulation.Economy.Labor.Payroll.WorkingReserve(world, farm));
+    }
+
+    /// <summary>Produto marginal: com encomenda que um ferreiro dá conta, o primeiro vale a encomenda e o segundo, nada.</summary>
+    [Fact]
+    public void A_second_smith_adds_nothing_when_one_covers_the_orders()
+    {
+        var (world, _) = ScenarioRunner.Create(seed: 5, initialPopulation: 30);
+        var farm = world.Workplaces.First(w => w.LocationType.Id == 1);
+        var forge = world.Workplaces.First(w => w.LocationType.Id == 2);
+        foreach (var npc in world.Npcs.Where(n => n.IsAlive).Take(10)) farm.Hire(npc.Id);
+        var labor = LivingWorld.Simulation.Economy.Labor.LaborValueIndex.BuildForTick(world);
+        double first = labor.ValueOf(forge);
+        forge.Hire(world.Npcs.Last(n => n.IsAlive).Id);
+        double second = labor.ValueOf(forge);
+
+        Assert.True(first > 1 && second == 0, $"{first} / {second}");
     }
 }

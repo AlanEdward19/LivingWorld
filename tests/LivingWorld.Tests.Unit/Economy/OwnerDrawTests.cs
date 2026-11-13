@@ -107,4 +107,20 @@ public sealed class OwnerDrawTests
             Assert.Equal(initial + world.MoneyMinted.Amount - world.MoneyDestroyed.Amount, Total());
         }
     }
+
+    /// <summary>A fazenda sem dono é da cidade também no prejuízo: abaixo da reserva, o tesouro a recompõe no fim do mês.</summary>
+    [Fact]
+    public void The_city_tops_up_its_ownerless_farm_to_the_reserve()
+    {
+        var (world, clock) = ScenarioRunner.Create(seed: 9, initialPopulation: 30);
+        var farm = world.Workplaces.First(w => w.LocationType.Id == 1);
+        var city = world.Cities.First(c => c.Id == farm.City);
+        long moved = farm.Treasury.Amount;
+        farm.TryDebitTreasury(new LivingWorld.Domain.Shared.Money(moved));
+        city.CreditTreasury(new LivingWorld.Domain.Shared.Money(moved));
+
+        clock.Run(world, OneMonth + 1);
+
+        Assert.Equal(LivingWorld.Simulation.Economy.Labor.Payroll.WorkingReserve(world, farm), farm.Treasury.Amount);
+    }
 }

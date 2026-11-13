@@ -49,4 +49,21 @@ internal static class ToolMechanic
 
         return book;
     }
+
+    /// <summary>O artesão por encomenda só toma mais uma mão se a encomenda do dia passa do que a lotação atual faz (AD-144). O
+    /// mestre não contrata quarenta ferreiros para o desgaste de semanas que um faz num dia; local que não faz ferramenta: sim.</summary>
+    public static bool NeedsHands(WorldState world, Workplace workplace)
+    {
+        if (!world.EconomyCatalog.Recipes.TryGetValue(workplace.LocationType.Id, out var recipe)) return true;
+        bool makesTools = false;
+        foreach (var (resourceId, perWorker) in recipe.Outputs)
+        {
+            if (!world.EconomyCatalog.IsTool(resourceId) || perWorker <= 0) continue;
+            makesTools = true;
+            double dailyOrders = (double)OrderBook(world, workplace.City, resourceId) / world.CurrentDate.Calendar.DaysPerMonth;
+            if (dailyOrders > workplace.Employees.Count * perWorker) return true;
+        }
+
+        return !makesTools;
+    }
 }

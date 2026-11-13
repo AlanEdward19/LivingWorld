@@ -76,17 +76,19 @@ Casa a até 1 h de rio, lago ou fonte bebe dali (`NaturalWaterSystem`); a água 
 O celeiro solta por dia o que dura até a colheita esperada; a lavoura ainda em pé antes do mês esperado conta até ele.
 
 ## Dono, lucro e ferramenta (AD-144)
-**Dono.** A oficina de ofício (ferraria) é do mestre do ofício na fundação: o adulto da profissão com mais habilidade na
-cidade (`WorkplaceOwnership`). A terra da fazenda é comum (senhorio/comuna): sem dono. Obra da cidade também. Na morte, a
-oficina passa ao herdeiro; sem herdeiro, fica sem dono. Cenário JSON pode declarar `Owner` e `CraftLocationTypeIds`.
-**Lucro.** Todo mês, depois da folha, o caixa acima de `WorkingCapitalPayrollMonths` (12) meses de folha sai na fração
+**Dono.** A oficina de ofício (ferraria) é do mestre: o adulto do ofício mais hábil na cidade (`WorkplaceOwnership`). A
+terra da fazenda, a obra da cidade e o espólio sem herdeiro ficam sem dono. JSON: `Owner` e `CraftLocationTypeIds`.
+**Lucro.** Todo mês, depois da folha, o caixa acima de `WorkingCapitalPayrollMonths` (12) meses da folha possível (a
+atual ou a dos adultos da cidade até as vagas, o que for maior) sai na fração
 `SurplusDrawShare` (1 no cenário de código; 0 = desligado, padrão de JSON e snapshot antigo; nome serializado antigo
 `SurplusLevyShare`): à carteira do dono, ou ao tesouro da cidade, que paga a esmola (`OwnerDrawSystem`, evento
-`ProfitDrawn`). Absorve o dízimo provisório da AD-140. A moeda só muda de dono; a reserva protege a folha seguinte.
+`ProfitDrawn`). Absorve o dízimo provisório da AD-140. Sem dono, a cidade também cobre a falta até a reserva (a fazenda
+comum dá prejuízo no salário fixo). A moeda só muda de dono; a reserva protege a folha seguinte.
 **Ferramenta.** A receita pode declarar `Tool`: cada trabalhador precisa de um jogo (3 kg de ferro no lavrador), cada dia
 trabalhado gasta (2 kg/ano) e sem ferramenta o trabalho rende 60% (lavrar, ceifar, tirar água). A fazenda compra o jogo
-da ferraria; a ferraria trabalha por encomenda (não faz além do que falta aos clientes mais um mês de desgaste) e vende a
-preço de encomenda fixo (preço que reage a custo e demanda fica para a fatia 8).
+da ferraria; a ferraria trabalha por encomenda (não faz além do que falta aos clientes mais um mês de desgaste), vende a
+preço de encomenda fixo (20; preço que reage fica para a fatia 8). Mais uma mão ali vale só a encomenda que a lotação
+atual não cobre (produto marginal): o mestre não toma quem não precisa, e o ferreiro ocioso vai à lavoura.
 
 ## Ver também
 - [cities.md](cities.md) — onde a produção e o estoque ficam
