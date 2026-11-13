@@ -52,10 +52,10 @@ public static class LifeEventIntake
             case WorldEventKind.AidGiven:
                 {
                     string helper = Field(payload, 0);
-                    long helperId = helper.StartsWith("city-", StringComparison.Ordinal) ? 0 : IdAt(payload, 0);
+                    long helperId = helper.StartsWith("city-", StringComparison.Ordinal) ? Nobody : IdAt(payload, 0);
                     long recipient = IdAt(payload, 1);
-                    Experience(world, recipient, LifeEventKind.AidReceived, helperId, tick);
-                    if (helperId != 0) Experience(world, helperId, LifeEventKind.AidGiven, recipient, tick);
+                    Experience(world, recipient, LifeEventKind.AidReceived, Math.Max(0, helperId), tick);
+                    if (helperId != Nobody) Experience(world, helperId, LifeEventKind.AidGiven, recipient, tick);
                     return;
                 }
             case WorldEventKind.TheftDiscovered:
@@ -169,7 +169,8 @@ public static class LifeEventIntake
     private static void Experience(WorldState world, long npcId, LifeEventKind kind, long other, long tick, double scale = 1.0,
         LifeEventImpact? impact = null)
     {
-        if (npcId <= 0 || !world.NeedsRules.Psyche.Enabled) return;
+        // AD-143: a pessoa 0 existe (os ids começam em 0); "ninguém" é campo ausente ou ilegível (Nobody = -1)
+        if (npcId < 0 || !world.NeedsRules.Psyche.Enabled) return;
         if (world.FindNpc(new NpcId(npcId)) is { IsAlive: true } npc)
             PsycheMechanic.Experience(world, npc, kind, other, tick, scale, impact);
     }
@@ -177,11 +178,14 @@ public static class LifeEventIntake
     private static Npc? FindAt(WorldState world, string payload, int index)
     {
         long id = IdAt(payload, index);
-        return id > 0 ? world.FindNpc(new NpcId(id)) : null;
+        return id >= 0 ? world.FindNpc(new NpcId(id)) : null;
     }
 
+    /// <summary>"Ninguém" no payload: campo ausente ou que não é número (antes era 0, e a pessoa 0 ficava sem lembrança).</summary>
+    private const long Nobody = -1;
+
     private static long IdAt(string payload, int index) =>
-        long.TryParse(Field(payload, index), NumberStyles.Integer, CultureInfo.InvariantCulture, out long id) ? id : 0;
+        long.TryParse(Field(payload, index), NumberStyles.Integer, CultureInfo.InvariantCulture, out long id) && id >= 0 ? id : Nobody;
 
     private static string Field(string payload, int index)
     {

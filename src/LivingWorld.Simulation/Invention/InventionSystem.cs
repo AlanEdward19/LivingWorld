@@ -15,9 +15,13 @@ namespace LivingWorld.Simulation.Invention;
 /// de abertura, tempo livre e habilidade: copia um item visto na cidade ou concebe 8 variantes a partir do que conhece, julga com
 /// a própria crença (propriedades com erro pela inabilidade) e constrói a melhor; a conclusão é agendada pelas horas que o design
 /// pede ao tempo livre da pessoa. Na conclusão, o avaliador real decide sobre a peça como saiu das mãos dela. Quem sabe ensina a
-/// casa e os amigos (com perda) e constrói a sua quando não tem. Itens gastam com o tempo.</summary>
-[LivingCapability("INVENTION", Events = [WorldEventKind.DesignPrototyped, WorldEventKind.PrototypeFailed, WorldEventKind.DesignLearned],
-    Consumers = ["behavior.travel", "economy.purchase", "cognition.memory"])]
+/// casa e os amigos (com perda) e constrói a sua quando não tem. Itens gastam com o tempo.
+/// AD-143: quem sabe também faz para vender quando a cidade procura mais do que há exposto (a encomenda anda na
+/// <c>ProductionSystem</c>), o preço das peças expostas anda com oferta e procura, a cópia nasce de ter visto a peça em uso e a casa
+/// que tem a peça pesca.</summary>
+[LivingCapability("INVENTION", Events = [WorldEventKind.DesignPrototyped, WorldEventKind.PrototypeFailed, WorldEventKind.DesignLearned,
+        WorldEventKind.DesignSold],
+    Consumers = ["behavior.travel", "economy.purchase", "economy.production", "cognition.memory", "needs.food"])]
 public sealed class InventionSystem : ISimulationSystem
 {
     public const string SystemName = "invention";
@@ -30,8 +34,10 @@ public sealed class InventionSystem : ISimulationSystem
         if (!world.InventionOn) return;
         long now = ctx.CurrentTick;
         ExpireItems(world, now);
+        InventionMarket.CloseMonth(world);
         Minds(world, ctx, now);
         Knowers(world, ctx, now);
+        Fishing.Month(world, ctx);
     }
 
     public void HandleEvent(WorldState world, TickContext ctx, ScheduledEvent evt)
@@ -59,6 +65,8 @@ public sealed class InventionSystem : ISimulationSystem
     {
         var rules = world.InventionRules!;
         var ledger = world.Invention!;
+        var rumors = new HashSet<CityId>();
+        foreach (var t in ledger.Tombstones) if (t.Accounts > 0) rumors.Add(t.City);
         foreach (var mind in ledger.Minds.ToList())
         {
             if (world.FindNpc(new NpcId(mind.NpcId)) is not { IsAlive: true } npc)
@@ -75,7 +83,7 @@ public sealed class InventionSystem : ISimulationSystem
                 ledger.Minds.RemoveAt(ledger.MindIndex(mind.NpcId)); // passou: quem nunca tentou não guarda nada
                 continue;
             }
-            if (mind.BusyUntilTick > now || frustration < rules.FrustrationThresholdMinutes) continue;
+            if (mind.BusyUntilTick > now || frustration < rules.FrustrationThresholdMinutes || ledger.OrderIndex(mind.NpcId) >= 0) continue;
             if (npc.AgeYears(world.CurrentDate) < rules.MinInventorAgeYears || npc.Household is not { } home) continue;
             if (ledger.BestCraftSpeed(home.Value, rules) > 0) continue;
 
@@ -86,12 +94,15 @@ public sealed class InventionSystem : ISimulationSystem
                 * (0.5 + npc.Personality.Openness / 100.0)
                 * FreeHours(npc, rules) / 4.0
                 * (0.5 + skill / 100.0);
+            // relato vivo de que alguém da cidade já fez funcionar (e se perdeu): sabe-se que dá
+            if (rumors.Contains(npc.City)) { chance *= 1 + rules.RumorAttemptBoostPm / 1000.0; world.InventionTally.RumorBoosts++; }
             if (rng.NextDouble() >= chance) continue;
 
             if (ledger.KnownBy(npc.Id.Value).FirstOrDefault() is { DesignId: > 0 } known)
-                StartBuild(world, ctx, npc, known, current, now);
-            else if (SeenInUse(world, npc) is { } item && rng.NextDouble() < rules.CopyPreferencePm / 1000.0)
-                StartCopy(world, ctx, npc, item, current, skill, rng, now);
+                StartBuild(world, npc, known, current, now);
+            else if (current.SeenDesignId > 0 && ledger.FindDesign(current.SeenDesignId) is { } seen
+                     && rng.NextDouble() < rules.CopyPreferencePm / 1000.0)
+                StartCopy(world, ctx, npc, seen, current, skill, rng, now);
             else
                 StartInvention(world, ctx, npc, current, skill, rng, now);
         }
@@ -136,28 +147,27 @@ public sealed class InventionSystem : ISimulationSystem
         Schedule(world, ctx, npc, next, best, DesignOrigin.Invented, 0, 0, now);
     }
 
-    /// <summary>Copia um item visto em uso na cidade (engenharia reversa se ninguém vivo sabe o design): com perda e mutação.</summary>
-    private static void StartCopy(WorldState world, TickContext ctx, Npc npc, CraftedItem item, InventionMind mind, double skill, WorldRng rng, long now)
+    /// <summary>Copia a peça que viu em uso (engenharia reversa se ninguém vivo sabe o design): com perda e mutação.</summary>
+    private static void StartCopy(WorldState world, TickContext ctx, Npc npc, Design design, InventionMind mind, double skill, WorldRng rng, long now)
     {
         var rules = world.InventionRules!;
         var ledger = world.Invention!;
-        if (ledger.FindDesign(item.DesignId) is not { } design) return;
+        world.InventionTally.CopiesFromSight++;
         bool anyoneKnows = ledger.Known.Any(k => k.DesignId == design.Id && world.FindNpc(new NpcId(k.NpcId)) is { IsAlive: true });
         int fidelity = (int)(rules.CopyFidelityPm * (0.6 + 0.4 * skill / 100.0));
         var parts = Mutated(design.Parts, fidelity, rules, rng);
-        Schedule(world, ctx, npc, mind with { Attempts = mind.Attempts + 1 }, parts,
+        Schedule(world, ctx, npc, mind with { Attempts = mind.Attempts + 1, SeenDesignId = 0 }, parts,
             anyoneKnows ? DesignOrigin.Copied : DesignOrigin.ReverseEngineered, design.Id, 0, now);
     }
 
-    private static void StartBuild(WorldState world, TickContext ctx, Npc npc, KnownDesign known, InventionMind mind, long now)
+    /// <summary>Quem sabe faz a sua (ou uma para vender, com <paramref name="marketId"/>): encomenda na oficina com a receita do
+    /// design; a pessoa fica ocupada até o fim estimado pelas horas no tempo livre.</summary>
+    private static void StartBuild(WorldState world, Npc npc, KnownDesign known, InventionMind mind, long now, long? marketId = null)
     {
-        var rules = world.InventionRules!;
         if (world.Invention!.FindDesign(known.DesignId) is not { } design) return;
-        var perf = PhysicsEvaluator.Evaluate(design.Parts, rules, RiderKg(npc, rules));
-        long hours = Math.Max(1, perf.BuildMinutes / 60);
-        long until = now + DurationTicks(world, npc, hours);
+        long minutes = DesignWorkshop.Open(world, npc, design, known.FidelityPm, marketId, now);
+        long until = now + DurationTicks(world, npc, Math.Max(1, minutes / 60));
         world.Invention.PutMind(mind with { BusyUntilTick = until });
-        ctx.ScheduleEvent(until, SystemName, $"B|{npc.Id.Value}|{design.Id}|{known.FidelityPm}");
     }
 
     private static void Schedule(WorldState world, TickContext ctx, Npc npc, InventionMind mind, IReadOnlyList<DesignPart> parts,
@@ -199,6 +209,7 @@ public sealed class InventionSystem : ISimulationSystem
             string.Create(CultureInfo.InvariantCulture, $"{npc.Id.Value}|{design.Id}|{(int)origin}|{parent}|{secondParent}"), SystemName);
     }
 
+    /// <summary>Construção agendada pela fatia 1 (evento "B" de snapshot antigo): conclui como antes.</summary>
     private static void CompleteBuild(WorldState world, TickContext ctx, Npc npc, Design design, int fidelity)
     {
         var rules = world.InventionRules!;
@@ -226,7 +237,7 @@ public sealed class InventionSystem : ISimulationSystem
 
     /// <summary>A falha vira lembrança (pela vida interior) e aprendizado: o protótipo fica de ponto de partida e, se quebrou ou
     /// afundou por causa do material, a pessoa passa a desconfiar dele.</summary>
-    private static void Fail(WorldState world, TickContext ctx, Npc npc, InventionMind mind, FailureMode mode, IReadOnlyList<DesignPart>? tried, long now, bool build)
+    internal static void Fail(WorldState world, TickContext ctx, Npc npc, InventionMind mind, FailureMode mode, IReadOnlyList<DesignPart>? tried, long now, bool build)
     {
         var rules = world.InventionRules!;
         var tally = world.InventionTally;
@@ -263,7 +274,13 @@ public sealed class InventionSystem : ISimulationSystem
         var ledger = world.Invention!;
         if (ledger.Known.Count == 0) return;
         var lessons = new List<(long Learner, long Teacher, KnownDesign From)>();
-        var builders = new List<(Npc Npc, KnownDesign Known)>();
+        var builders = new List<(Npc Npc, KnownDesign Known, long? Market)>();
+        // procura por cidade que ainda não tem peça exposta nem encomenda para vender (o vendedor lê a demanda do mês passado)
+        var open = new Dictionary<CityId, int>();
+        foreach (var d in ledger.Demand) open[d.City] = d.Households;
+        foreach (var item in ledger.Items) if (item.ForSale && open.ContainsKey(item.City)) open[item.City]--;
+        foreach (var order in ledger.Orders)
+            if (order.MarketId is not null && world.FindNpc(new NpcId(order.NpcId)) is { } maker && open.ContainsKey(maker.City)) open[maker.City]--;
         long last = -1;
         foreach (var known in ledger.Known.ToList())
         {
@@ -274,10 +291,17 @@ public sealed class InventionSystem : ISimulationSystem
             if (rng.NextDouble() < rules.TeachChancePm / 1000.0 && PickLearner(world, teacher, known.DesignId, rng) is { } learner)
                 lessons.Add((learner.Id.Value, teacher.Id.Value, known));
             int mindIndex = ledger.MindIndex(teacher.Id.Value);
-            bool busy = mindIndex >= 0 && ledger.Minds[mindIndex].BusyUntilTick > now;
+            bool busy = (mindIndex >= 0 && ledger.Minds[mindIndex].BusyUntilTick > now) || ledger.OrderIndex(teacher.Id.Value) >= 0;
             bool needs = mindIndex >= 0 && ledger.Minds[mindIndex].FrustrationMinutes > 0;
-            if (!busy && needs && ledger.BestCraftSpeed(home.Value, rules) == 0 && rng.NextDouble() < rules.BuildChancePm / 1000.0)
-                builders.Add((teacher, known));
+            if (busy || teacher.AgeYears(world.CurrentDate) < rules.MinInventorAgeYears) continue;
+            if (needs && ledger.BestCraftSpeed(home.Value, rules) == 0 && rng.NextDouble() < rules.BuildChancePm / 1000.0)
+                builders.Add((teacher, known, null));
+            else if (open.GetValueOrDefault(teacher.City) > 0 && rng.NextDouble() < rules.BuildChancePm / 1000.0
+                     && InventionMarket.MarketFor(world, teacher) is { } market)
+            {
+                builders.Add((teacher, known, market.Id.Value)); // a cidade procura: faz para vender
+                open[teacher.City]--;
+            }
         }
 
         foreach (var (learnerId, teacherId, from) in lessons)
@@ -292,10 +316,11 @@ public sealed class InventionSystem : ISimulationSystem
                 string.Create(CultureInfo.InvariantCulture, $"{learnerId}|{teacherId}|{learnedId}|{(int)DesignOrigin.Taught}|{fidelity}"), SystemName);
         }
 
-        foreach (var (npc, known) in builders)
+        foreach (var (npc, known, market) in builders)
         {
             int index = ledger.MindIndex(npc.Id.Value);
-            if (index >= 0) StartBuild(world, ctx, npc, known, ledger.Minds[index], now);
+            var mind = index >= 0 ? ledger.Minds[index] : new InventionMind(npc.Id.Value, 0, 0, 0, 0, FailureMode.None, null, 0);
+            StartBuild(world, npc, known, mind, now, market);
         }
     }
 
@@ -321,14 +346,6 @@ public sealed class InventionSystem : ISimulationSystem
         return candidates.Count == 0 ? null : candidates[(int)(rng.NextDouble() * candidates.Count)];
     }
 
-    /// <summary>Item visto em uso na cidade, de outra casa (o mais antigo primeiro).</summary>
-    private static CraftedItem? SeenInUse(WorldState world, Npc npc)
-    {
-        foreach (var item in world.Invention!.Items)
-            if (item.City == npc.City && item.HouseholdId != npc.Household?.Value) return item;
-        return null;
-    }
-
     /// <summary>O que se perde ao aprender sem ter feito: com fidelidade abaixo de 1000, chance de uma medida sair errada.</summary>
     private static IReadOnlyList<DesignPart> Mutated(IReadOnlyList<DesignPart> parts, int fidelityPm, InventionRules rules, WorldRng rng)
     {
@@ -336,17 +353,22 @@ public sealed class InventionSystem : ISimulationSystem
         return DesignSearch.AsBuilt(parts, rules.Materials, 1000 - fidelityPm, rng);
     }
 
-    private static void AddItem(WorldState world, Npc npc, Design design, double skill, long now)
+    internal static void AddItem(WorldState world, Npc npc, Design design, double skill, long now)
+    {
+        if (npc.Household is null) return;
+        world.Invention!.Items.Add(NewItem(world, npc, design, skill, now));
+        world.Invention.Touch();
+    }
+
+    /// <summary>A peça feita por <paramref name="npc"/>: dura a vida do material mais curto × a qualidade (que sai da habilidade).</summary>
+    internal static CraftedItem NewItem(WorldState world, Npc npc, Design design, double skill, long now)
     {
         var rules = world.InventionRules!;
-        var ledger = world.Invention!;
-        if (npc.Household is not { } home) return;
         int months = int.MaxValue;
         foreach (var p in design.Parts) if (rules.Material(p.Material) is { } m) months = Math.Min(months, m.LifetimeMonths);
         short quality = (short)Math.Clamp(600 + 4 * (int)skill, 600, 1000);
         long expires = now + (long)months * world.Calendar.HoursPerMonth * quality / 1000;
-        ledger.Items.Add(new CraftedItem(ledger.NextItemId++, design.Id, home.Value, npc.City, now, expires, quality));
-        ledger.Touch();
+        return new CraftedItem(world.Invention!.NextItemId++, design.Id, npc.Household?.Value ?? 0, npc.City, now, expires, quality);
     }
 
     /// <summary>Crença da pessoa sobre os materiais: densidade e resistência com erro que cai com a habilidade.</summary>
@@ -378,7 +400,7 @@ public sealed class InventionSystem : ISimulationSystem
         _ => 0,
     };
 
-    private static double Skill(Npc npc, InventionRules rules)
+    internal static double Skill(Npc npc, InventionRules rules)
     {
         double craft = npc.Skills.Get(new SkillType(rules.CraftSkillId));
         double best = 0;
@@ -388,7 +410,7 @@ public sealed class InventionSystem : ISimulationSystem
 
     private static int FreeHours(Npc npc, InventionRules rules) => npc.Employer is null ? rules.FreeHoursIdle : rules.FreeHoursEmployed;
 
-    private static int RiderKg(Npc npc, InventionRules rules) => npc.Weight > 0 ? (int)Math.Round(npc.Weight) : rules.ReferenceRiderKg;
+    internal static int RiderKg(Npc npc, InventionRules rules) => npc.Weight > 0 ? (int)Math.Round(npc.Weight) : rules.ReferenceRiderKg;
 
     /// <summary>As horas de trabalho espalhadas pelo tempo livre da pessoa, em dias de calendário.</summary>
     private static long DurationTicks(WorldState world, Npc npc, long hours)

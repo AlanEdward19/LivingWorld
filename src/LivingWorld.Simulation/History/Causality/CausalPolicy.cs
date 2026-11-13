@@ -57,7 +57,7 @@ public static class CausalPolicy
         WorldEventKind.CourtshipStarted, WorldEventKind.CourtshipRejected,
         WorldEventKind.AffairStarted, WorldEventKind.VocationChosen,
         WorldEventKind.ResourceLost, WorldEventKind.Minted, WorldEventKind.Destroyed,
-        WorldEventKind.Trade, WorldEventKind.BookLost,
+        WorldEventKind.Trade, WorldEventKind.BookLost, WorldEventKind.DesignSold,
         WorldEventKind.ExtraordinaryUseAttempted, WorldEventKind.ExtraordinaryAcquired,
         WorldEventKind.ExtraordinaryAcquisitionFailed, WorldEventKind.ExtraordinaryRevoked,
         WorldEventKind.CombatEncounterStarted,

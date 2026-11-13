@@ -226,4 +226,7 @@ public enum WorldEventKind
 
     /// <summary>Alguém aprendeu um design com quem sabia (AD-141) — payload: <c>aprendizId|mestreId|designId|origem|fidelidade‰</c>.</summary>
     DesignLearned,
+
+    /// <summary>Alguém comprou no mercado uma peça feita por outro (AD-143) — payload: <c>compradorId|vendedorId|designId|preço</c>.</summary>
+    DesignSold,
 }

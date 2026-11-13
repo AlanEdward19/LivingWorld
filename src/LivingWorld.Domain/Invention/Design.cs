@@ -95,8 +95,34 @@ public sealed record Design(
 /// <summary>O que alguém sabe de um design: fidelidade 0..1000 (o quanto da concepção está certa na cabeça) e como aprendeu.</summary>
 public readonly record struct KnownDesign(long NpcId, int DesignId, short FidelityPm, DesignOrigin Origin, long SinceTick);
 
-/// <summary>Instância produzida (a embarcação de verdade), de um domicílio, até gastar.</summary>
-public readonly record struct CraftedItem(long Id, int DesignId, long HouseholdId, CityId City, long BuiltTick, long ExpiresTick, short QualityPm);
+/// <summary>Instância produzida, de um domicílio, até gastar. À venda (AD-143): <see cref="MarketId"/> não nulo é o mercado onde está
+/// exposta, <see cref="SellerId"/> quem a fez e recebe e <see cref="Price"/> o preço pedido agora (moedas); a casa de quem vendeu não a
+/// usa enquanto está exposta.</summary>
+public readonly record struct CraftedItem(long Id, int DesignId, long HouseholdId, CityId City, long BuiltTick, long ExpiresTick, short QualityPm,
+    long SellerId = 0, long? MarketId = null, long Price = 0)
+{
+    public bool ForSale => MarketId is not null;
+}
 
-/// <summary>Lápide pequena (decisão 5 do ADR-0045): design que ninguém sabe e de que não sobrou instância.</summary>
-public readonly record struct DesignTombstone(int DesignId, long InventorId, long InventedTick, long LostTick, int PartCount);
+/// <summary>Lápide pequena (decisão 5 do ADR-0045): design que ninguém sabe e de que não sobrou instância. <see cref="City"/> é onde
+/// nasceu; <see cref="Accounts"/>, quantos fatos e relatos da história ainda falam dele quando se perdeu (AD-143): os relatos
+/// apontam para a lápide pelo id do design.</summary>
+public readonly record struct DesignTombstone(int DesignId, long InventorId, long InventedTick, long LostTick, int PartCount,
+    CityId City = default, int Accounts = 0);
+
+/// <summary>Material bruto guardado numa casa (g): sobra de uma construção que falhou ou o que veio de fora (AD-143).</summary>
+public readonly record struct HouseholdMaterial(long HouseholdId, int MaterialId, long Grams);
+
+/// <summary>Encomenda em andamento na oficina de quem sabe (AD-143): faltam <see cref="MinutesLeft"/> de trabalho; <see cref="MarketId"/>
+/// não nulo = para vender lá, nulo = para a própria casa. A fidelidade de quem faz vira erro de fabricação na conclusão; <see cref="Coins"/>
+/// é o que se pagou no mercado pelo material (entra no preço pedido).</summary>
+public readonly record struct DesignOrder(long NpcId, int DesignId, long MinutesLeft, long? MarketId, short FidelityPm, long StartTick, long Coins = 0);
+
+/// <summary>Casa que foi ao mercado precisando atravessar água sem ter com quê, no mês corrente (AD-143); <see cref="Bought"/> = levou.</summary>
+public readonly record struct DesignWant(long HouseholdId, CityId City, bool Bought);
+
+/// <summary>Casas distintas que quiseram no mês passado, por cidade: a demanda que o vendedor e o preço leem (AD-143).</summary>
+public readonly record struct DesignDemand(CityId City, int Households);
+
+/// <summary>Peixe na água perto de uma cidade (g): cresce sozinho até a capacidade da água e cai com o que se pesca (AD-143).</summary>
+public readonly record struct FishStock(CityId City, long Grams);

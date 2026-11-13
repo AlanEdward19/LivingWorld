@@ -55,6 +55,9 @@ public sealed class ProductionSystem : ISimulationSystem
             ApplySpoilage(workplace, rules, ctx);
         }
 
+        // AD-143: quem sabe um design trabalha na encomenda (a receita gerada do design) com as horas livres do dia
+        LivingWorld.Simulation.Invention.DesignWorkshop.Advance(world, ctx);
+
         // a despensa da casa também estraga (AD-135), na mesma taxa do recurso, cobrada uma vez por mês (30 dias de perda)
         if (rules.SpoilagePerDayByResource.Count > 0 && world.CurrentDate.Day == 0)
             foreach (var household in world.Households.OrderBy(h => h.Id.Value))

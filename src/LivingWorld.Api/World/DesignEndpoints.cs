@@ -15,5 +15,11 @@ public static class DesignEndpoints
             var result = DesignQuery.Of(host.Current, id);
             return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound();
         });
+        // AD-143: o fato (e os relatos que nasceram dele) aponta para o design, vivo ou lápide
+        app.MapGet("/designs/by-fact/{factId:long}", (long factId) =>
+        {
+            var result = DesignQuery.OfFact(host.Current, new LivingWorld.Domain.Shared.FactId(factId));
+            return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound();
+        });
     }
 }

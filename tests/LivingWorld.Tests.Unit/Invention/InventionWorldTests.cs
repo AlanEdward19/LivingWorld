@@ -183,7 +183,7 @@ public class InventionWorldTests
     }
 
     /// <summary>Um trajeto do mapa cuja reta atravessa água.</summary>
-    private static (CellCoord From, CellCoord To) WaterTrip(WorldState world)
+    internal static (CellCoord From, CellCoord To) WaterTrip(WorldState world)
     {
         var cells = world.Map.Cells.Where(c => !c.HasWater).Select(c => c.Coord).OrderBy(c => c.Y).ThenBy(c => c.X).ToList();
         foreach (var a in cells.Take(200))
@@ -193,7 +193,7 @@ public class InventionWorldTests
     }
 
     /// <summary>Uma embarcação que funciona, composta pelos operadores de busca a partir da peça natural que boia, na casa do NPC.</summary>
-    private static Design GiveCraft(WorldState world, Npc npc)
+    internal static Design GiveCraft(WorldState world, Npc npc)
     {
         var rules = world.InventionRules!;
         var wood = rules.Materials.First(m => !m.CoatingOnly && m.FloatsIn(rules.WaterDensityKgM3) && m.MaxThicknessMm >= 400);
