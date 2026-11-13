@@ -42,3 +42,5 @@
 26. **Agricultura: população mínima 112 e fecundidade presa à despensa** (piso de concepção de 5 de comida); mais malthusiano que a base. Lobos extintos; celeiro com sobra de anos; fome sem furto de comida.
 27. **Contrato `shape.world/city-subscribe` regravado** (lista `processes` agora traz o campo da lavoura): o cliente Godot precisa ser avisado.
 28. **Diff de snapshot**: entidade com forma diferente da primeira linha vai inteira em todo delta; medir quanto isso pesa no disco agora que mais campos são omitidos quando valem o padrão (sensor de escala subiu 0,1% a 0,4%).
+29. **Hormônios (AD-139), números todos de memória**: menarca ~15, dismenorreia 15%, TPM ~20%, depressão pós-parto 12%, concepção pré-nupcial 20 a 35%, janela fértil de 6 dias, portador de doença recessiva ~1/25. Chances de sexo fora da união são calibração do subagente.
+30. **Hormônios: mortes por fome triplicaram na base dele** (76 → 244), atribuídas a pais jovens que descontam consequências; +3 a 4% de tempo e bytes por NPC-tick a 5.000 NPCs; razão de sexo ao nascer 107,7 (alvo 105); gêmeos idênticos sem o mesmo genótipo; tristeza pós-parto não afeta o cuidado do bebê.
