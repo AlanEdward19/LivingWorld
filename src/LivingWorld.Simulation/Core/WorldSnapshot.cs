@@ -334,6 +334,11 @@ public static class WorldSnapshot
             animalSpeciesRules, plantSpeciesRules, biomeSeasonTemperatureRules,
             nextHistoryEventId, combatEncounters, nextCombatEncounterId, combatRules, tradeLedger, treasuryLedger, diseaseRules, infections, immunities, climateRules, climateYears, theftRules, emergenceRules, ontogenyRules, technologies, appearanceRules, objectCatalog, agricultureRules, naturalWaterRules);
         rehydrated.AssignPeriod(periodId);
+        rehydrated.UseInvention(
+            node.TryGetPropertyValue("InventionRules", out var inventionRulesNode) && inventionRulesNode is not null
+                ? inventionRulesNode.Deserialize<LivingWorld.Domain.Invention.InventionRules>(JsonOptions) : null,
+            node.TryGetPropertyValue("Invention", out var inventionNode) && inventionNode is not null
+                ? inventionNode.Deserialize<LivingWorld.Simulation.Invention.InventionLedger>(JsonOptions) : null);
         rehydrated.RestoreNpcWakes(npcWakes);
         return rehydrated;
     }

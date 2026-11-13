@@ -99,7 +99,7 @@ public sealed class DemographyTally(WorldState world) : IWorldEventSink
 /// <summary>Resumo de N seeds × A anos do cenário padrão de código (<see cref="ScenarioRunner.Create"/>).</summary>
 public static class DemographyReport
 {
-    public sealed record SeedResult(ulong Seed, int FinalAlive, int MinAlive, DemographyTally Tally, FoodTally? Food = null);
+    public sealed record SeedResult(ulong Seed, int FinalAlive, int MinAlive, DemographyTally Tally, FoodTally? Food = null, InventionSummary? Invention = null);
 
     private sealed class BothSinks(IWorldEventSink a, IWorldEventSink b) : IWorldEventSink
     {
@@ -127,7 +127,7 @@ public static class DemographyReport
             if (world.AliveNpcIndex.Alive.Count == 0) break;
         }
 
-        return new SeedResult(seed, world.AliveNpcIndex.Alive.Count, minAlive, tally, food);
+        return new SeedResult(seed, world.AliveNpcIndex.Alive.Count, minAlive, tally, food, InventionSummary.Of(world));
     }
 
     public static string Summarize(IReadOnlyList<SeedResult> runs, int years, int warmupYears, long hoursPerYear)
@@ -203,6 +203,7 @@ public static class DemographyReport
         sb.Append(BodyHealthTally.Summarize(runs.Select(r => (r.Tally.Body, followUpEnd)).ToList()));
         var foods = runs.Where(r => r.Food is not null).Select(r => r.Food!).ToList();
         if (foods.Count > 0) sb.Append(FoodTally.Summarize(foods, warmupYears, 12));
+        sb.Append(InventionSummary.Summarize(runs.Where(r => r.Invention is not null).Select(r => r.Invention!).ToList()));
         return sb.ToString();
     }
 

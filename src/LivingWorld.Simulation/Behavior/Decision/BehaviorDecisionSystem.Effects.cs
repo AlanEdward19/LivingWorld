@@ -259,7 +259,7 @@ public sealed partial class BehaviorDecisionSystem
             // Compra de domicílio, como uma ida real ao mercado: cobre ~4 dias de cada membro
             // (mínimo 10) e, com o mercado longe de casa, a ida e a volta; limitada ao que a carteira paga.
             int purchaseDays = PurchaseDaysFor(
-                Mobility.Apply(TravelTicksCache.Between(world.Map, household.Location, market.Location), Mobility.BonusPct(world, household.City)),
+                Mobility.HouseholdTicks(world, household, household.Location, market.Location),
                 world.CurrentDate.Calendar.HoursPerDay);
             // AD-138: quem passou fome compra para mais dias
             purchaseDays = (int)Math.Ceiling(purchaseDays * LivingWorld.Simulation.Cognition.PsycheMechanic.HoardFactor(world, npc, world.CurrentDate.TotalHours));

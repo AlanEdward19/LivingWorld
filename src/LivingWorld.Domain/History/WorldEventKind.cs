@@ -215,4 +215,15 @@ public enum WorldEventKind
 
     /// <summary>Um jovem escolheu o ofício (AD-136) — payload: <c>npcId|profissao|profissaoDaCasa|pressionado(0/1)|pressao</c>.</summary>
     VocationChosen,
+
+    /// <summary>Um protótipo funcionou (AD-141) — payload: <c>npcId|designId|origem|designPai|segundoPai</c> (origem: 0 inventou,
+    /// 1 aprendeu, 2 copiou, 3 engenharia reversa).</summary>
+    DesignPrototyped,
+
+    /// <summary>Um protótipo ou uma construção falhou (AD-141) — payload: <c>npcId|modo|construção(0/1)</c> (modo: 1 inválido,
+    /// 2 afundou, 3 virou, 4 quebrou, 5 não andou).</summary>
+    PrototypeFailed,
+
+    /// <summary>Alguém aprendeu um design com quem sabia (AD-141) — payload: <c>aprendizId|mestreId|designId|origem|fidelidade‰</c>.</summary>
+    DesignLearned,
 }

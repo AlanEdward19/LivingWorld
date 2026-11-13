@@ -136,11 +136,12 @@ public static class PsycheMechanic
     }
 
     /// <summary>Grava uma lembrança e desperta as emoções do acontecimento (escala por proximidade do vínculo).</summary>
-    public static void Experience(WorldState world, Npc npc, LifeEventKind kind, long other, long tick, double scale = 1.0)
+    public static void Experience(WorldState world, Npc npc, LifeEventKind kind, long other, long tick, double scale = 1.0,
+        LifeEventImpact? impactOverride = null)
     {
         var rules = world.NeedsRules.Psyche;
         if (!rules.Enabled || !npc.IsAlive) return;
-        var impact = rules.ImpactOf(kind);
+        var impact = impactOverride ?? rules.ImpactOf(kind);
         int salience = (int)Math.Round(Math.Clamp(impact.Salience * scale, 0, 100));
         Remember(world, npc, kind, other, tick, salience);
         Feel(world, npc, tick, impact, scale);

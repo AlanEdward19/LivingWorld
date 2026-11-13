@@ -36,6 +36,7 @@ public static class CausalPolicy
         // Cidade, saúde e tecnologia
         WorldEventKind.SettlementFounded, WorldEventKind.CityMerged, WorldEventKind.OutbreakStarted,
         WorldEventKind.TechnologyDiscovered, WorldEventKind.TechnologyAdopted,
+        WorldEventKind.DesignPrototyped, WorldEventKind.PrototypeFailed, WorldEventKind.DesignLearned,
         // Extraordinário e combate (cadeia pela invocação)
         WorldEventKind.ExtraordinaryCostPaid, WorldEventKind.ExtraordinaryEffectApplied,
         WorldEventKind.ExtraordinaryUseFailed, WorldEventKind.ExtraordinaryFailureApplied,

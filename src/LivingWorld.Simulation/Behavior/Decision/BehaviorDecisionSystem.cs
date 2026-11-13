@@ -243,6 +243,8 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
             if (now - npc.ActionStartedAtTick < ticksNeeded) return false;
             if (world.IsExtraordinaryConstructCell(destination)) return false;
 
+            // AD-141: quem atravessou água a pé sente o tempo perdido; quem foi na embarcação da casa, não
+            if (world.InventionOn) LivingWorld.Simulation.Invention.InventionIntake.OnTravelArrived(world, npc, npc.CurrentLocation, destination, now);
             MoveTracked(npc, destination, now, occupancy);
             return true;
         }

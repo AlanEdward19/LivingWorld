@@ -134,8 +134,7 @@ public sealed partial class BehaviorDecisionSystem
     {
         if (market is null) return ProvisionTargetDays;
 
-        long ticks = Mobility.Apply(
-            TravelTicksCache.Between(world.Map, household.Location, market.Location), Mobility.BonusPct(world, household.City));
+        long ticks = Mobility.HouseholdTicks(world, household, household.Location, market.Location);
         return Math.Min(MaxProvisionDays, ProvisionTargetDays + 2.0 * ticks / world.CurrentDate.Calendar.HoursPerDay);
     }
 

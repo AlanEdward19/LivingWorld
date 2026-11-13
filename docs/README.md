@@ -21,6 +21,7 @@ sistemas implementam. O `AGENTS.md` só aponta para cá.
 | Degradação do passado, relatos, livros, mito, cânone limitado | [historical-memory.md](domain/historical-memory.md) |
 | Montagem de contexto, prompt, DTO de saída, validação | [llm-contract.md](domain/llm-contract.md) |
 | Cultura, conhecimento, tecnologia, política | [society.md](domain/society.md) |
+| Invenção por composição física: materiais, design, avaliador, difusão | [invention.md](domain/invention.md) |
 
 ### Escopo extra — spec, bloqueado até a Fase 8 fechar
 | Você vai mexer em… | Leia |
