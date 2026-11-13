@@ -215,4 +215,8 @@ public enum WorldEventKind
 
     /// <summary>Um jovem escolheu o ofício (AD-136) — payload: <c>npcId|profissao|profissaoDaCasa|pressionado(0/1)|pressao</c>.</summary>
     VocationChosen,
+
+    /// <summary>A gravidez de uma mulher sem união apareceu (AD-139) — payload: <c>maeId|paiId|desfecho</c> (casamento: o pai
+    /// foi levado a casar; abandono: ele não casou; sem_pai: ele morreu).</summary>
+    UnwedPregnancy,
 }

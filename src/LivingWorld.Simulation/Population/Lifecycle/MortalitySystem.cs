@@ -112,6 +112,7 @@ public sealed class MortalitySystem : ISimulationSystem
         if (!physiology.Enabled) return multiplier;
         double ageYears = Math.Max(0, tick - npc.BirthDate.TotalHours) / (double)world.Calendar.HoursPerYear;
         multiplier *= physiology.MalnutritionMultiplier(ageYears, npc.Undernutrition);
+        multiplier *= LivingWorld.Simulation.Population.Body.Genome.HazardMultiplier(world, npc, ageYears); // AD-139
         var lactation = physiology.Lactation;
         double ageDays = Math.Max(0, tick - npc.BirthDate.TotalHours) / (double)world.Calendar.HoursPerDay;
         // quem já existia quando o mundo começou (sem gestação registrada) não teve a amamentação simulada

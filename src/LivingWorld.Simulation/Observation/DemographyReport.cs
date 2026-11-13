@@ -34,10 +34,14 @@ public sealed class DemographyTally(WorldState world) : IWorldEventSink
     /// <summary>Vida familiar da mesma rodada (AD-136), medida desde o início.</summary>
     public FamilyLifeTally Family { get; } = new(world);
 
+    /// <summary>Vida reprodutiva (AD-139): fora de união, prematuros, idade da mãe no 1º parto.</summary>
+    public ReproductiveLifeTally Reproduction { get; } = new(world);
+
     public void Record(WorldEvent evt)
     {
         Body.OnEvent(evt);
         Family.Record(evt);
+        Reproduction.Record(evt);
         if (evt.Tick < MeasureFromTick) return;
         switch (evt.Kind)
         {
@@ -107,6 +111,7 @@ public static class DemographyReport
         var (world, baseClock) = ScenarioRunner.Create(seed);
         var tally = new DemographyTally(world) { MeasureFromTick = warmupYears * world.Calendar.HoursPerYear };
         tally.Body.MeasureFromTick = tally.MeasureFromTick;
+        tally.Reproduction.MeasureFromTick = tally.MeasureFromTick;
         var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, tally);
         int months = years * world.Calendar.MonthsPerYear;
         int minAlive = int.MaxValue;
@@ -114,12 +119,14 @@ public static class DemographyReport
         {
             clock.Run(world, world.Calendar.HoursPerMonth);
             tally.Family.SampleMonth();
+            tally.Reproduction.SampleMonth();
             if (m >= warmupYears * world.Calendar.MonthsPerYear) tally.SampleMonth();
             if ((m + 1) % world.Calendar.MonthsPerYear == 0) tally.Body.SampleYear();
             minAlive = Math.Min(minAlive, world.AliveNpcIndex.Alive.Count);
             if (world.AliveNpcIndex.Alive.Count == 0) break;
         }
 
+        tally.Reproduction.SampleGenetics();
         return new SeedResult(seed, world.AliveNpcIndex.Alive.Count, minAlive, tally);
     }
 
@@ -192,6 +199,7 @@ public static class DemographyReport
 
         sb.AppendLine();
         sb.Append(FamilyLifeTally.Summarize(runs.Select(r => r.Tally.Family).ToList()));
+        sb.Append(ReproductiveLifeTally.Summarize(runs.Select(r => r.Tally.Reproduction).ToList()));
         sb.Append("seeds(final)=").AppendLine(string.Join(",", runs.Select(r => r.FinalAlive)));
         sb.Append(BodyHealthTally.Summarize(runs.Select(r => (r.Tally.Body, followUpEnd)).ToList()));
         return sb.ToString();

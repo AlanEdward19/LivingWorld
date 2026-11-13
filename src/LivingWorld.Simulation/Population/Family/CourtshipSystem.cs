@@ -5,6 +5,7 @@ using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Population.Skills;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Population.Body;
 using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Population.Family;
@@ -241,7 +242,7 @@ public sealed class CourtshipSystem : ISimulationSystem
         // cada um tem de querer o outro (AD-136)
         double wants = Preference(seeker, candidate, aToB, familyRules, populationRules, now);
         double wanted = Preference(candidate, seeker, bToA, familyRules, populationRules, now);
-        if (Math.Min(wants, wanted) < familyRules.CourtshipThreshold)
+        if (wants < ThresholdOf(world, seeker) || wanted < ThresholdOf(world, candidate))
         {
             ctx.LogEvent(
                 WorldEventKind.CourtshipRejected,
@@ -250,6 +251,16 @@ public sealed class CourtshipSystem : ISimulationSystem
         }
 
         StartCourtship(world, ctx, seeker, candidate, familyRules);
+    }
+
+    /// <summary>Exigência para aceitar um par (AD-139): a do cenário, menor no jovem no pico do impulso da adolescência
+    /// (escolha precipitada).</summary>
+    internal static double ThresholdOf(WorldState world, Npc npc)
+    {
+        double threshold = world.FamilyRules.CourtshipThreshold;
+        var rules = Endocrine.Rules(world);
+        if (!rules.Enabled || rules.PrecipitousCourtship <= 0) return threshold;
+        return threshold * (1 - rules.PrecipitousCourtship * Endocrine.AdolescentDrive(world, npc, world.CurrentDate.TotalHours));
     }
 
     private static void StartCourtship(WorldState world, TickContext ctx, Npc a, Npc b, FamilyRules familyRules)
@@ -288,7 +299,7 @@ public sealed class CourtshipSystem : ISimulationSystem
             var bToA = world.Relationships.GetValueOrDefault(new RelationshipKey(candidate.Id, seeker.Id));
             double score = Preference(seeker, candidate, aToB, familyRules, populationRules, now);
             if (score > bestScore) (bestScore, best) = (score, candidate);
-            if (Preference(candidate, seeker, bToA, familyRules, populationRules, now) >= familyRules.CourtshipThreshold
+            if (Preference(candidate, seeker, bToA, familyRules, populationRules, now) >= ThresholdOf(world, candidate)
                 && score > bestAcceptingScore)
                 (bestAcceptingScore, bestAccepting) = (score, candidate);
         }

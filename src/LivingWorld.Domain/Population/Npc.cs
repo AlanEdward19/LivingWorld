@@ -143,6 +143,30 @@ public sealed class Npc
         TouchCanonical();
     }
 
+    /// <summary>Tick da puberdade (menarca nela, gonadarca nele; AD-139). Nulo = ainda não chegou, ou snapshot anterior (a
+    /// leitura cai na idade individual sem atraso). Gravado uma vez pelo crescimento mensal.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? PubertyTick { get; private set; }
+
+    /// <summary>Alelos de doença genética (AD-139): 2 bits por locus (0, 1 ou 2 cópias). 0 = nenhum alelo, ou fundador cujo
+    /// genótipo é sorteio fixo da semente (lido por <c>Genome.Of</c>).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public uint Genome { get; private set; }
+
+    public void SetPuberty(long tick)
+    {
+        if (PubertyTick == tick) return;
+        PubertyTick = tick;
+        TouchCanonical();
+    }
+
+    public void SetGenome(uint genome)
+    {
+        if (Genome == genome) return;
+        Genome = genome;
+        TouchCanonical();
+    }
+
     public void SetGestationAtBirth(int days)
     {
         GestationAtBirthDays = days;
@@ -414,7 +438,8 @@ public sealed class Npc
         double statureGene = 0, double adultHeight = 0, double undernutrition = 0, long? lastNursedTick = null,
         long? lastLactationTick = null, int physicalWorkDays = 0,
         VocationState? vocation = null, UnionState? union = null,
-        LivingWorld.Domain.Cognition.PsycheState? psyche = null)
+        LivingWorld.Domain.Cognition.PsycheState? psyche = null,
+        long? pubertyTick = null, uint genome = 0)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -462,6 +487,8 @@ public sealed class Npc
         Vocation = vocation;
         Union = union;
         Psyche = psyche;
+        PubertyTick = pubertyTick;
+        Genome = genome;
         IsGhost = isGhost;
         HomelessSince = homelessSince;
         PregnantUntil = pregnantUntil;

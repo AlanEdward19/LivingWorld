@@ -31,6 +31,7 @@ public static class LivingEventPresentationCatalog
             [WorldEventKind.AffairStarted] = "Um casado começou um caso",
             [WorldEventKind.AffairDiscovered] = "Uma traição foi descoberta",
             [WorldEventKind.VocationChosen] = "Um jovem escolheu o seu ofício",
+            [WorldEventKind.UnwedPregnancy] = "Uma moça solteira apareceu grávida",
             [WorldEventKind.MilestoneRegressed] = "Uma criança perdeu parte do que já sabia fazer por causa de uma doença",
             [WorldEventKind.TechnologyAdopted] = "Uma cidade passou a usar uma técnica de deslocamento",
             [WorldEventKind.RentUnpaid] = "Um aluguel ficou em atraso",

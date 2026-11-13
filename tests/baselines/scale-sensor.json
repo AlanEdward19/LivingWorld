@@ -2,11 +2,11 @@
   "1000": {
     "MicrosPerAliveNpcTick": 0.95,
     "BytesAllocPerTick": 259367.7888888889,
-    "BytesPerAliveNpcPerYear": 7304.072072072072
+    "BytesPerAliveNpcPerYear": 7341.102204408818
   },
   "5000": {
     "MicrosPerAliveNpcTick": 1.67,
     "BytesAllocPerTick": 1298546.5,
-    "BytesPerAliveNpcPerYear": 6734.699219531719
+    "BytesPerAliveNpcPerYear": 6752.580348208925
   }
 }

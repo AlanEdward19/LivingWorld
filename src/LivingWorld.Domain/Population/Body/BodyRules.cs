@@ -35,6 +35,9 @@ public sealed record BodyRules(
     /// <summary>Herança de vitalidade, gene de taxa e estatura com segregação mendeliana (AD-134).</summary>
     public QuantitativeGeneticsRules Genetics { get; init; } = QuantitativeGeneticsRules.Default;
 
+    /// <summary>Doenças genéticas mendelianas (AD-139); <see cref="HeritableDisorderRules.None"/> desliga.</summary>
+    public HeritableDisorderRules Disorders { get; init; } = HeritableDisorderRules.Default;
+
     /// <summary>Faixa derivada de clamp para Height (mean ± 4σ, piso fisiológico 0.5 m) —
     /// BodyRules não declara HeightMin/Max explícitos; geração usa estes limites.</summary>
     public double HeightMin => Math.Max(0.5, HeightMean - 4.0 * HeightStdDev);

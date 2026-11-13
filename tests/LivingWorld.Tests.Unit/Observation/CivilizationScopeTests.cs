@@ -215,19 +215,27 @@ public class CivilizationScopeTests
         // Morte numa faixa com 2 ou mais vivos e fora da última (aberta): q fica abaixo de 1 e a exposição pesa no resultado.
         // (AD-138: eram 3; a vila de 20 pessoas deste cenário mudou de trajetória e nenhuma cidade tinha 3 numa faixa. Com 2 a
         // faixa continua tendo sobrevivente, que é o que a conta precisa.)
-        var (city, dead) = s.World.ActiveCities().Where(c => c.Id != s.B.Id).OrderBy(c => c.Id.Value).Select(c =>
+        // AD-139: a vila mudou de trajetória e, no primeiro candidato, cidade e mundo davam a mesma e0 por coincidência; o morto
+        // escolhido agora é o primeiro cuja e0 de cidade difere da do mundo (o que o teste precisa para separar os escopos).
+        var activeIds0 = s.World.ActiveCities().Select(c => c.Id).ToHashSet();
+        Npc? dead = null;
+        var (city, _) = s.World.ActiveCities().Where(c => c.Id != s.B.Id).OrderBy(c => c.Id.Value).SelectMany(c =>
         {
             var local = s.World.Npcs.Where(n => n.IsAlive && n.City == c.Id).ToList();
-            var pick = local.Where(n => local.Count(o => Age(o) / width == Age(n) / width) >= 2 && Age(n) / width < local.Max(Age) / width)
-                .OrderBy(n => n.Id.Value).FirstOrDefault();
-            return (c, pick);
-        }).First(x => x.pick is not null);
+            return local.Where(n => local.Count(o => Age(o) / width == Age(n) / width) >= 2 && Age(n) / width < local.Max(Age) / width)
+                .OrderBy(n => n.Id.Value).Select(pick => (c, pick));
+        }).First(x =>
+        {
+            dead = x.pick;
+            return Expected(s.World.Npcs.Where(n => n.IsAlive && n.City == x.c.Id).ToList())
+                != Expected(s.World.Npcs.Where(n => n.IsAlive && activeIds0.Contains(n.City)).ToList());
+        });
         s.Tally.Record(new WorldEvent(1, WorldEventKind.Death, dead!.Id.Value.ToString(), SourceSystem: YearEventTally.DeathSource));
 
         double Expected(IReadOnlyCollection<Npc> scope)
         {
             var ages = scope.Select(Age).ToList();
-            int deathBand = Age(dead) / width;
+            int deathBand = Age(dead!) / width;
             int count = Math.Max(ages.Max() / width, deathBand) + 1;
             var bands = Enumerable.Range(0, count).Select(i =>
             {
