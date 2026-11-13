@@ -85,9 +85,14 @@ public static class EconomyScenarioLoader
         if (root["WageTaxRate"] is { } taxNode && !(taxNode is JsonValue taxValue && taxValue.TryGetValue<double>(out taxRate)))
             return Result<EconomyRules>.Fail("WageTaxRate: deve ser um número");
 
-        return EconomyRules.Create(
+        double levy = 0.0; // dízimo do caixa acima da reserva (AD-140); ausente = desligado, como antes
+        if (root["SurplusLevyShare"] is { } levyNode && !(levyNode is JsonValue levyValue && levyValue.TryGetValue<double>(out levy) && levy is >= 0 and <= 1))
+            return Result<EconomyRules>.Fail("SurplusLevyShare: deve ser um número entre 0 e 1");
+
+        var created = EconomyRules.Create(
             enabled, foodResourceId, waterResourceId, capacity, spoilage, wage, priceFloor, priceCeiling,
             priceSensitivity, demand, taxRate);
+        return created.IsSuccess && levy > 0 ? Result<EconomyRules>.Ok(created.Value! with { SurplusLevyShare = levy }) : created;
     }
 
     private static Result<EconomyCatalog> ParseCatalog(JsonObject root)

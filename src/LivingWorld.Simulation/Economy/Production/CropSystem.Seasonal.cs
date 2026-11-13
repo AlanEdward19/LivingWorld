@@ -227,12 +227,16 @@ public sealed partial class CropSystem
             farm.Deposit(food, taken, econ);
     }
 
-    /// <summary>Dias até a próxima colheita esperada: o meio do mês esperado da colheita; com a lavoura madura ou amadurecendo, meio mês.</summary>
+    /// <summary>Dias até a próxima colheita esperada: o meio do mês esperado da colheita; com a lavoura madura, ou ainda em pé
+    /// depois do mês esperado (atrasada), meio mês. A lavoura que só pode amadurecer (mês do dia longo) mas ainda não chegou ao
+    /// mês esperado conta até o meio dele (AD-140): antes contava meio mês e soltava o celeiro três vezes mais rápido em julho,
+    /// esvaziando-o antes da ceifa de agosto.</summary>
     internal static long DaysToNextHarvest(WorldState world, AgricultureRules ag, CropBatch field)
     {
         var cal = world.CurrentDate.Calendar;
         int month = world.CurrentDate.Month;
-        if (field.Status == CropStatus.Mature || (field.Status == CropStatus.Growing && field.LastSeedSown > 0 && month >= ag.EarliestRipeningMonth && month < ag.FailMonth))
+        bool standing = field.Status == CropStatus.Growing && field.LastSeedSown > 0 && month < ag.FailMonth;
+        if (field.Status == CropStatus.Mature || (standing && month >= Math.Max(ag.EarliestRipeningMonth, ag.ExpectedHarvestMonth)))
             return cal.DaysPerMonth / 2;
         int months = (ag.ExpectedHarvestMonth - month + cal.MonthsPerYear) % cal.MonthsPerYear;
         if (months == 0) months = cal.MonthsPerYear;

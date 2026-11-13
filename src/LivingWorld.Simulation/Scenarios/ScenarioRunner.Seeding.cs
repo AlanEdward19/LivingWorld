@@ -54,7 +54,7 @@ public static partial class ScenarioRunner
         // acompanhar, gerando WageUnpaid em cascata e, por tabela, fome real generalizada.
         var (farmLocation, farmBuilding) = PlaceDefaultWorkplaceBuilding(world, city, buildingTypeId: 1);
         world.AddWorkplace(new Workplace(
-            world.NextWorkplaceIdAndAdvance(), new LocationType(1), farmLocation, maxVacancies: 80 * mult,
+            world.NextWorkplaceIdAndAdvance(), new LocationType(1), farmLocation, maxVacancies: 160 * mult, // AD-140: todo adulto lavra; 80 deixava dezenas sem trabalho
             employees: [], stock: new Dictionary<ResourceType, long>(), treasury: new Money(500_000),
             prices: new Dictionary<ResourceType, long> { [new ResourceType(1)] = 5, [new ResourceType(2)] = 5 },
             city: city.Id, building: farmBuilding));

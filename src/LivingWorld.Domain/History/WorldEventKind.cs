@@ -215,4 +215,13 @@ public enum WorldEventKind
 
     /// <summary>Um jovem escolheu o ofício (AD-136) — payload: <c>npcId|profissao|profissaoDaCasa|pressionado(0/1)|pressao</c>.</summary>
     VocationChosen,
+
+    /// <summary>Morte por acidente (queda, afogamento, fogo, coice), nomeada na sobra da tábua (AD-137) — payload: <c>npcId</c>.</summary>
+    Accident,
+
+    /// <summary>Morte por velhice, nomeada na sobra da tábua (AD-137) — payload: <c>npcId</c>.</summary>
+    OldAge,
+
+    /// <summary>Um surto importado ficou sem caso (AD-137) — payload: <c>doençaId|cidadeId|tickDoInício</c>.</summary>
+    OutbreakEnded,
 }

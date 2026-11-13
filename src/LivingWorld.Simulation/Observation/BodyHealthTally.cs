@@ -53,7 +53,8 @@ public sealed class BodyHealthTally(WorldState world)
         if (world.FindNpc(new NpcId(deadId)) is { } deceased && evt.Tick - deceased.BirthDate.TotalHours < world.Calendar.HoursPerYear)
             InfantDeathsByCause[evt.Kind] = InfantDeathsByCause.GetValueOrDefault(evt.Kind) + 1;
         if (evt.Kind is WorldEventKind.Death or WorldEventKind.Starvation or WorldEventKind.Dehydration
-            or WorldEventKind.Exhaustion or WorldEventKind.Disease or WorldEventKind.MaternalDeath)
+            or WorldEventKind.Exhaustion or WorldEventKind.Disease or WorldEventKind.MaternalDeath
+                or WorldEventKind.Accident or WorldEventKind.OldAge)
             DeathsByCause[evt.Kind] = DeathsByCause.GetValueOrDefault(evt.Kind) + 1;
         else if (evt.Kind.ToString().Contains("Death", StringComparison.Ordinal) || evt.Kind.ToString().Contains("Kill", StringComparison.Ordinal))
             DeathsByCause[evt.Kind] = DeathsByCause.GetValueOrDefault(evt.Kind) + 1;

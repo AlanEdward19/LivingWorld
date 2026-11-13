@@ -114,6 +114,21 @@ public sealed class AgriculturalYearTests
     }
 
     [Fact]
+    public void A_crop_still_ripening_before_the_expected_month_does_not_open_the_barn_as_if_harvest_were_days_away()
+    {
+        // AD-140: em julho a lavoura em pé contava meio mês e o celeiro saía três vezes mais rápido, esvaziando antes da ceifa
+        var (world, clock) = ScenarioRunner.Create(23);
+        var rules = world.AgricultureRules;
+        clock.Run(world, (long)rules.EarliestRipeningMonth * HoursPerMonth);
+        var field = world.CropBatches.Single(c => c.Status != CropStatus.Harvested);
+        Assert.Equal(rules.EarliestRipeningMonth, world.CurrentDate.Month);
+        Assert.True(rules.ExpectedHarvestMonth > rules.EarliestRipeningMonth);
+        Assert.Equal(CropStatus.Growing, field.Status);
+
+        Assert.InRange(CropSystem.DaysToNextHarvest(world, rules, field), 40, 50);
+    }
+
+    [Fact]
     public void Monthly_barn_loss_compounds_to_the_annual_rate()
     {
         double monthly = CropSystem.MonthlyRate(0.15);

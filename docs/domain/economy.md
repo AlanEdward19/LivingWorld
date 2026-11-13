@@ -73,6 +73,13 @@ A colheita repõe primeiro a semente do ano seguinte; o resto vai ao celeiro do 
 venda da fazenda até a próxima safra. Rendimento = semente × grãos por semente × habilidade de quem semeou × ano de
 clima (AR(1) regional, `ClimateRules.Default`). Fome sazonal e de quebra de safra saem disso, não de regra escrita.
 Casa a até 1 h de rio, lago ou fonte bebe dali (`NaturalWaterSystem`); a água do mercado é só para quem mora longe.
+O celeiro solta por dia o que dura até a colheita esperada; a lavoura ainda em pé antes do mês esperado conta até ele.
+
+## Dízimo e esmola (AD-140)
+O caixa do empregador acima de `WorkingCapitalPayrollMonths` (12) meses de folha paga por mês `SurplusLevyShare` (5% no
+cenário de código; 0 = desligado, padrão de JSON e snapshot antigo) ao tesouro da cidade, que paga a esmola da casa sem
+comida e sem dinheiro (`MutualAidSystem`). Sem isso a sobra da venda de comida e água ficava parada na fazenda e a moeda
+das casas secava em décadas: fome com o celeiro cheio. A moeda só muda de dono.
 
 ## Ver também
 - [cities.md](cities.md) — onde a produção e o estoque ficam

@@ -12,6 +12,7 @@ sistemas implementam. O `AGENTS.md` só aponta para cá.
 | Quanto detalhe simular por região, agregação, materialização de NPC | [simulation-lod.md](domain/simulation-lod.md) |
 | Identidade, atributos, personalidade, necessidades, habilidades | [npc.md](domain/npc.md) |
 | Decisão do NPC no dia a dia (utility AI, rotina, objetivos) | [behavior.md](domain/behavior.md) |
+| Doença de época, contágio, doente de cama, causas de morte | [disease.md](domain/disease.md) |
 | Relações, casamento, reprodução, hereditariedade, genoma | [genetics-and-family.md](domain/genetics-and-family.md) |
 | Memória operacional/episódica/semântica/social, compactação, crenças | [memory.md](domain/memory.md) |
 | Recursos, produção, empregos, salários, preços, comércio | [economy.md](domain/economy.md) |

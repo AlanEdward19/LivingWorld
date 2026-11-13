@@ -73,6 +73,22 @@ public sealed class WagePaymentSystem : ISimulationSystem
 
                 npc.CreditWallet(new Money(pay.Amount - tax));
             }
+
+            Levy(world, rules, workplace, totalDue, ctx.CurrentTick);
         }
+    }
+
+    /// <summary>Dízimo do caixa acima da reserva de giro (AD-140): a parte do mês vai ao tesouro da cidade do empregador. A moeda
+    /// só muda de dono; o consumidor é a esmola (<c>MutualAidSystem</c>), que devolve à casa sem dinheiro o que a venda tirou.</summary>
+    private static void Levy(WorldState world, EconomyRules rules, LivingWorld.Domain.Economy.Workplace workplace, long payroll, long tick)
+    {
+        if (rules.SurplusLevyShare <= 0 || world.FindCity(workplace.City) is not { } city) return;
+        long minWage = rules.WageByProfession.Count == 0 ? 0 : rules.WageByProfession.Values.Min();
+        long reserve = (long)Math.Ceiling(Math.Max(payroll, minWage) * Math.Max(0, rules.WorkingCapitalPayrollMonths));
+        long excess = workplace.Treasury.Amount - reserve;
+        long levy = (long)Math.Floor(excess * Math.Min(1.0, rules.SurplusLevyShare));
+        if (levy <= 0 || !workplace.TryDebitTreasury(new Money(levy)).IsSuccess) return;
+        city.CreditTreasury(new Money(levy));
+        world.RecordTreasury(city.Id, tick, revenue: levy, spending: 0);
     }
 }

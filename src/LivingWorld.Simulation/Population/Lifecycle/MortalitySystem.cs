@@ -10,7 +10,7 @@ namespace LivingWorld.Simulation.Population.Lifecycle;
 /// tábua de vida, modulado pelo estado atual (saúde, vitalidade, prematuridade no 1º ano, senescência de poder). Quem
 /// sorteia a morte recebe um único evento numa hora qualquer do mês — nenhuma varredura por tick e nenhuma data decidida
 /// no nascimento.</summary>
-[LivingCapability("DEATH", Events = [WorldEventKind.Death, WorldEventKind.Starvation, WorldEventKind.Dehydration, WorldEventKind.Exhaustion, WorldEventKind.EstateSettled, WorldEventKind.Disease], Consumers = ["timeline.death"])]
+[LivingCapability("DEATH", Events = [WorldEventKind.Death, WorldEventKind.Starvation, WorldEventKind.Dehydration, WorldEventKind.Exhaustion, WorldEventKind.EstateSettled, WorldEventKind.Disease, WorldEventKind.Accident, WorldEventKind.OldAge], Consumers = ["timeline.death"])]
 public sealed class MortalitySystem : ISimulationSystem
 {
     public const string SystemName = "population-mortality";
@@ -34,10 +34,19 @@ public sealed class MortalitySystem : ISimulationSystem
     public void HandleEvent(WorldState world, TickContext ctx, ScheduledEvent evt)
     {
         if (evt.Payload is not { } payload || !payload.StartsWith(DeathPayloadPrefix, StringComparison.Ordinal)) return;
-        var npc = world.FindNpc(new NpcId(long.Parse(payload.AsSpan(DeathPayloadPrefix.Length))));
+        var rest = payload.AsSpan(DeathPayloadPrefix.Length);
+        int bar = rest.IndexOf('|');
+        var npc = world.FindNpc(new NpcId(long.Parse(bar < 0 ? rest : rest[..bar])));
         if (npc is null || !npc.IsAlive) return; // já morreu de outra causa: sem-op
 
-        NpcDeath.Apply(world, ctx, npc, WorldEventKind.Death);
+        // causa nomeada da sobra da tábua (AD-137): A = acidente, O = velhice; sem marca, sem causa (snapshot antigo também)
+        var kind = bar < 0 ? WorldEventKind.Death : rest[(bar + 1)..] switch
+        {
+            "A" => WorldEventKind.Accident,
+            "O" => WorldEventKind.OldAge,
+            _ => WorldEventKind.Death,
+        };
+        NpcDeath.Apply(world, ctx, npc, kind);
     }
 
     /// <summary>Cobre o NPC recém-criado (nascimento, população inicial, clone) até a próxima varredura mensal e, se nasceu
@@ -53,7 +62,7 @@ public sealed class MortalitySystem : ISimulationSystem
             && rng.NextDouble() < band.NeonatalDeathRisk)
         {
             long neonatalHours = world.Calendar.HoursPerDay * (long)world.Calendar.DaysPerMonth;
-            ScheduleDeath(ctx, npc, now + 1 + (long)(rng.NextDouble() * neonatalHours));
+            ScheduleDeath(ctx, npc, now + 1 + (long)(rng.NextDouble() * neonatalHours), "");
             return;
         }
 
@@ -68,7 +77,20 @@ public sealed class MortalitySystem : ISimulationSystem
         if (risk <= 0) return;
         var rng = ctx.StreamFor("mortality", unchecked(npc.Id.Value * 1_000_003L + startTick));
         if (rng.NextDouble() >= risk) return;
-        ScheduleDeath(ctx, npc, startTick + 1 + Math.Min(hours - 1, (long)(rng.NextDouble() * hours)));
+        long tick = startTick + 1 + Math.Min(hours - 1, (long)(rng.NextDouble() * hours));
+        ScheduleDeath(ctx, npc, tick, CauseMark(world, npc, startTick, rng.NextDouble()));
+    }
+
+    /// <summary>Nome da morte sorteada (AD-137): acidente pela taxa anual da idade e do sexo sobre o risco que sobrou, velhice
+    /// pela parte da sobra que a idade nomeia; o resto fica sem causa. Só rotula: não muda quem morre nem quando.</summary>
+    private static string CauseMark(WorldState world, Npc npc, long startTick, double roll)
+    {
+        var causes = world.NeedsRules.Physiology.DeathCauses;
+        double age = Math.Max(0, startTick - npc.BirthDate.TotalHours) / (double)world.Calendar.HoursPerYear;
+        double residual = world.PopulationRules.LifeTable.BaseAnnualMortality((int)age) * (1 - world.DiseaseRules.BaselineShare(age));
+        double accident = causes.AccidentShare(age, npc.Sex == Sex.Male, residual);
+        if (roll < accident) return "|A";
+        return roll < accident + (1 - accident) * Math.Clamp(causes.OldAgeShareByAge.At(age), 0, 1) ? "|O" : "";
     }
 
     /// <summary>Risco de morte por idade no intervalo, pelo estado atual do NPC. Ganchos de estado: saúde (na tábua),
@@ -87,7 +109,9 @@ public sealed class MortalitySystem : ISimulationSystem
         long calendarAgeHours = Math.Max(0, startTick - npc.BirthDate.TotalHours);
         long biologicalHours = Math.Max(0, (long)(calendarAgeHours * senescence) + npc.LifespanOffsetHours);
         int biologicalAge = (int)(biologicalHours / hoursPerYear);
-        double multiplier = StateMultiplier(world, npc, calendarAgeHours < hoursPerYear, startTick);
+        double multiplier = StateMultiplier(world, npc, calendarAgeHours < hoursPerYear, startTick)
+            // doença como causa (AD-137): a parte da tábua que as infecções explicam sai do risco-base
+            * (1 - world.DiseaseRules.BaselineShare(calendarAgeHours / (double)hoursPerYear));
         // a tábua já conta a senescência: a saúde entra relativa ao teto da idade (AD-134), sem contar a velhice duas vezes
         int health = world.NeedsRules.Physiology.RelativeHealth(biologicalAge, npc.Health);
         return world.PopulationRules.LifeTable.PeriodMortality(
@@ -121,6 +145,6 @@ public sealed class MortalitySystem : ISimulationSystem
         return multiplier;
     }
 
-    private static void ScheduleDeath(TickContext ctx, Npc npc, long tick) =>
-        ctx.ScheduleEvent(tick, SystemName, DeathPayloadPrefix + npc.Id.Value);
+    private static void ScheduleDeath(TickContext ctx, Npc npc, long tick, string cause) =>
+        ctx.ScheduleEvent(tick, SystemName, DeathPayloadPrefix + npc.Id.Value + cause);
 }

@@ -45,7 +45,10 @@ Pedido:
 - **Depois**: novas uniões, padrastos, meios-irmãos, filhos em casas diferentes; medir irmãos criados separados no mundo rodando.
 - Tabu de parentesco além do primeiro grau e o casamento que cria comida do nada, se couber.
 
-## 4. Doença de época como causa de morte (AD-137): PRONTA NO BRANCH, NÃO JUNTADA
+## 4. Doença de época como causa de morte (AD-137): JUNTADA em 2026-11-13 com a recalibração AD-140
+
+Ver AD-140 em `docs/decisions-log.md` (causa da fome: moeda parada no caixa da fazenda; celeiro aberto cedo em julho; 80 vagas; semeadura sem margem). O histórico abaixo fica como registro.
+
 
 Commit `e4351b38` em `worktree-agent-a748c4f038095be74` (sobre `c497e57c`), gate verde lá. A junção sobre a árvore combinada (com agricultura e cognição) foi tentada em 2026-11-12 e **reprovou no gate**, então foi desfeita:
 - `VillageSurvivesGenerationsTests` seed 42: só 57 vivos no ano 60.

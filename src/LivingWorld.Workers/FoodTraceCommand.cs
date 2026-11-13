@@ -16,7 +16,7 @@ public static class FoodTraceCommand
         var tally = new FoodTally(world);
         var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, tally);
         var food = new ResourceType(world.EconomyRules.FoodResourceId);
-        Console.WriteLine("ano mes vivos lavr status desenv celeiro semente pe venda casas prod cons fome clima coelhos lobos plantas");
+        Console.WriteLine("ano mes vivos lavr status desenv celeiro semente pe venda casas prod cons fome clima coelhos lobos plantas preco_trigo/agua dinheiro");
         for (int m = 0; m < years * 12; m++)
         {
             clock.Run(world, world.Calendar.HoursPerMonth);
@@ -29,7 +29,8 @@ public static class FoodTraceCommand
             Console.WriteLine(
                 $"{m / 12} {m % 12} {world.AliveNpcIndex.Alive.Count}/{farms} {farm.Employees.Count} {field?.Status} {field?.Development:F0} {field?.Barn} {field?.SeedReserve} {field?.Standing} " +
                 $"{farm.Stock.GetValueOrDefault(food)} {homes} {tally.ProducedByMonth[i]} {tally.ConsumedByMonth[i]} {tally.StarvationByMonth[i]} {world.ClimateFactorAt(farm.Location, world.CurrentDate.TotalHours - 1)} " +
-                $"{world.Fauna.Count(a => a.IsAlive && a.Species == "rabbit")} {world.Fauna.Count(a => a.IsAlive && a.Species == "wolf")} {world.Flora.Count}");
+                $"{world.Fauna.Count(a => a.IsAlive && a.Species == "rabbit")} {world.Fauna.Count(a => a.IsAlive && a.Species == "wolf")} {world.Flora.Count} " +
+                $"preco={farm.Prices.GetValueOrDefault(food)}/{farm.Prices.GetValueOrDefault(new ResourceType(world.EconomyRules.WaterResourceId))} {MoneyTrace.Line(world)}");
             if (world.AliveNpcIndex.Alive.Count == 0) break;
         }
 

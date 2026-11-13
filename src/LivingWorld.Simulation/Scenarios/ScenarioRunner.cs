@@ -195,7 +195,7 @@ public static partial class ScenarioRunner
     // na fazenda, profissão 2 (ferreiro) na ferraria, mesmo par já usado pela rotina.
     // Sem recurso de célula exigido: DefaultCatalog (Geografia) não declara recurso
     // natural nenhum (ResourceIds vazio) — exigir um aqui travaria toda produção em silêncio.
-    public static readonly EconomyRules DefaultEconomyRules = EconomyRules.Create(
+    public static readonly EconomyRules DefaultEconomyRules = (EconomyRules.Create(
         enabled: true, foodResourceId: 1, waterResourceId: 2,
         capacityByResourceLocation: new Dictionary<(int ResourceId, int LocationTypeId), long>
         {
@@ -213,7 +213,9 @@ public static partial class ScenarioRunner
         priceSensitivity: 0.2,
         demandBaselinePerNpc: new Dictionary<int, double> { [1] = 0.5, [2] = 0.3 },
         wageTaxRate: 0.05) // a cidade retém 5% do salário
-        .Value ?? throw new InvalidOperationException("economy rules default inválida — bug no cenário, não no gerador");
+        .Value ?? throw new InvalidOperationException("economy rules default inválida — bug no cenário, não no gerador"))
+        with
+    { SurplusLevyShare = 0.05 }; // dízimo do caixa acima de 12 meses de folha (AD-140)
 
     public static readonly EconomyCatalog DefaultEconomyCatalog = new(
         Recipes: new Dictionary<int, ProductionRecipe>
@@ -320,7 +322,7 @@ public static partial class ScenarioRunner
             historyRules: history, processRecipes: DefaultProcessRecipes,
             animalSpeciesRules: animalSpeciesRules ?? DefaultAnimalSpeciesRules,
             plantSpeciesRules: plantSpeciesRules ?? DefaultPlantSpeciesRules,
-            biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules, diseaseRules: diseaseRules, climateRules: climateRules ?? LivingWorld.Domain.Climate.ClimateRules.Default, theftRules: theftRules, emergenceRules: emergenceRules,
+            biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules, diseaseRules: diseaseRules ?? LivingWorld.Domain.Health.DiseasePresets.PreIndustrial, climateRules: climateRules ?? LivingWorld.Domain.Climate.ClimateRules.Default, theftRules: theftRules, emergenceRules: emergenceRules,
             ontogenyRules: ontogenyRules ?? LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human,
             appearanceRules: appearanceRules, objectCatalog: objectCatalog, agricultureRules: agricultureRules ?? AgricultureRules.Default,
             naturalWaterRules: naturalWaterRules ?? NaturalWaterRules.Default);

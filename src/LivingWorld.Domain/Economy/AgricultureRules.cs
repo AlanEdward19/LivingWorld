@@ -21,7 +21,7 @@ public sealed record AgricultureRules(
     double MinFieldWorkTemperature = 2,
     double YieldPerSeed = 4.0,
     double SkillYieldWeight = 0.3,
-    long SeedPerResident = 120,
+    long SeedPerResident = 150, // AD-140: 120 x (3,75 - 1) x 0,85 ~ 280 = consumo, sem margem para ano ruim e crescimento
     long MaxSeedPerWorker = 500,
     long SowPerWorkerDay = 30,
     long ReapPerWorkerDay = 100,
