@@ -37,6 +37,7 @@ public sealed class SkillTeachingSystem : ISimulationSystem
     private readonly RearingRules _rearing;
     private readonly SkillType[] _workSkills;
     private readonly List<Personality> _caregivers = [];
+    private readonly List<Npc> _caregiverNpcs = [];
 
     /// <summary>Ganhos do dia da pessoa em processamento, aplicados numa única troca de <see cref="Npc.Skills"/>.</summary>
     private readonly List<(SkillType, double)> _pending = [];
@@ -328,15 +329,20 @@ public sealed class SkillTeachingSystem : ISimulationSystem
     {
         if (child.Household is not { } householdId || world.FindHousehold(householdId) is not { } home) return;
         _caregivers.Clear();
+        _caregiverNpcs.Clear();
         int biological = 0;
         foreach (var memberId in home.Members.OrderBy(m => m.Value))
         {
             if (memberId == child.Id || world.FindNpc(memberId) is not { IsAlive: true } adult) continue;
             if (!IsCaregiverAge(world, adult)) continue;
             _caregivers.Add(adult.Personality);
+            _caregiverNpcs.Add(adult);
             if (memberId == child.MotherId || memberId == child.FatherId) biological++;
         }
         if (_caregivers.Count == 0) return;
         child.SetRearing((child.Rearing ?? RearingRecord.Empty).Add(_caregivers, biological));
+        // AD-142: o que a criança aprende a valorizar puxa para o que os cuidadores valorizam
+        if (world.BrainRules is { Enabled: true } brainRules)
+            LivingWorld.Simulation.Cognition.BrainMechanic.Rear(brainRules, child, _caregiverNpcs);
     }
 }

@@ -124,6 +124,8 @@ public class WorldSnapshotTests
         invention.Designs.Add(design);
         invention.Known.Add(new LivingWorld.Domain.Invention.KnownDesign(world.Npcs[0].Id.Value, design.Id, 1000, LivingWorld.Domain.Invention.DesignOrigin.Invented, 1));
         world.UseInvention(LivingWorld.Domain.Invention.InventionRules.Default, invention);
+        // AD-142: cérebro ligado (experimento), para o mutador ter folha em BrainRules.
+        world.UseBrain(LivingWorld.Domain.Cognition.BrainRules.Default);
         // taxes-treasury: livro do tesouro vazio não tem folha primitiva pro mutador genérico perturbar.
         world.RecordTreasury(city.Id, tick: 5, revenue: 3, spending: 1);
         // disease-epidemics: infecções e imunidades vazias não têm folha primitiva pro mutador genérico.

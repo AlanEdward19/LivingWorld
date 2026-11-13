@@ -11,7 +11,7 @@ dá saída 0/1 estável para os eval gates.
 | `check-docs.sh` | Falha se algum `.md` passar de 100 linhas | — |
 | `close-issues-from-pr.sh` | Fecha as issues citadas (`Closes #N, #M`) no corpo de um PR; o workflow `close-issues.yml` o chama ao mergear em `main` (o GitHub não fecha sozinho listas como `Closes #1, #2`) | `--list` (só imprime os números) |
 | `client-stress.sh` | Três rodadas gráficas de 500 NPCs, API local já iniciada | `[caminho-do-cliente]` |
-| `compare-simulation-cost.sh` | Três pares alternados do MeasureHarness; tetos +3% CPU / +2% alocação | `<checkout-base> [saída]` |
+| `compare-simulation-cost.sh` | Três pares alternados do MeasureHarness; tetos +3% CPU / +2% alocação | `<checkout-base> [saída]`; env `LW_AFTER_ENV` (só no braço novo), `LW_MEASURE_POP`, `LW_MEASURE_SCALE_ONLY=1`, `LW_MEASURE_BRAIN=1` |
 | `compare-creation-cost.sh` | Mede 6.000 NPCs em três pares de processos alternados; falha acima de +5% | `<checkout-base> [saída]` |
 | `profile.sh` | Perfil por sistema do tick (#158): tempo e bytes por sistema, despertares sem efeito e causa de cada agendamento; não é gate | `[--pop N] [--ticks N]` |
 | `demography-report.sh` | Demografia de época (AD-130): N seeds × A anos de `ScenarioRunner.Create`; natalidade, mortalidade, 1q0, e0, TFR, intervalo entre partos, razão de sexo e nascimentos por mês; não é gate | `[seed-inicial] [seeds] [anos] [aquecimento]` |

@@ -69,6 +69,9 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
     private readonly Dictionary<CityId, long> _cityPopulationCache = [];
     private readonly Dictionary<CityId, CityBounds> _cityBoundsCache = [];
 
+    // AD-142: grupos da ação em conta e da vencedora, reaproveitados (o tick é serial)
+    private readonly double[] _brainGroups = new double[2 * BrainState.Groups];
+
     public BehaviorDecisionSystem(SkillsRules? skillsRules = null) => _skillsRules = skillsRules;
 
     public string Name => SystemName;
@@ -106,6 +109,10 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
         var cityBoundsCache = _cityBoundsCache;
         cityPopulationCache.Clear();
         cityBoundsCache.Clear();
+
+        // AD-142: cérebro (experimento atrás de flag); desligado, nada abaixo lê ou escreve estado novo
+        bool brainOn = world.BrainOn;
+        var brainGroups = _brainGroups;
 
         foreach (var npc in targets)
         {
@@ -155,9 +162,13 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                         wakeReason: justCompleted ? WakeReason.ActionCompleted : WakeReason.UrgentNeed,
                         previousIntent: npc.CurrentIntent,
                         captureTrace: recordTrace,
-                        eligibility: LivingWorld.Simulation.Ontogeny.OntogenyMechanic.EligibilityFor(world.OntogenyRules, npc.Development));
+                        eligibility: LivingWorld.Simulation.Ontogeny.OntogenyMechanic.EligibilityFor(world.OntogenyRules, npc.Development),
+                        brainGains: brainOn ? BrainMechanic.GainsOf(npc) : null,
+                        brainGroups: brainOn ? brainGroups : null);
                     candidate = decision.Action;
                     pendingPower = decision.PendingPower;
+                    if (brainOn)
+                        BrainMechanic.Remember(npc, candidate, brainGroups.AsSpan(BrainState.Groups, BrainState.Groups));
 
                     if (recordTrace)
                         world.CognitionLog.Record(npc.Id, now, decision.Trace);
@@ -256,9 +267,17 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
         if (action is ActionType.Idle or ActionType.Socialize || (action == ActionType.Work && npc.Employer is not null))
             MoveOneAmbientStep(world, npc, ctx, now, action, occupancy, cityPopulationCache, cityBoundsCache);
 
+        // AD-142: a ação que a utilidade escolheu e o cérebro guardou ensina pelo alívio que deu
+        bool learn = world.BrainOn && npc.Brain?.PendingAction == action;
+        var felt = learn ? FeltNow(world, npc, now) : default;
         ApplyActionEffect(world, npc, action, marketIndex, now, ctx, theftIndex);
+        if (learn)
+            BrainMechanic.Learn(world, npc, action, BrainMechanic.Reward(felt, FeltNow(world, npc, now), ProvisionTargetDays));
         return true;
     }
+
+    private static BrainMechanic.Felt FeltNow(WorldState world, Npc npc, long now) =>
+        BrainMechanic.Feel(world, npc, now, world.EconomyRules.FoodResourceId, world.EconomyRules.WaterResourceId);
 
     /// <summary>Move e mantém `occupancy` coerente com a posição real dentro do mesmo tick — sem
     /// isso, um NPC que já andou nesta rodada continuaria "fantasma" na célula antiga pros

@@ -37,21 +37,98 @@ public enum UtilityTerm : byte
 /// <summary>Quanto um termo somou (ou tirou) da utilidade de uma ação.</summary>
 public readonly record struct UtilityContribution(ActionType Action, UtilityTerm Term, double Value);
 
+/// <summary>Grupo de termos da utilidade (AD-142): a camada do meio da rede legível termo → grupo → ação. Cada grupo de cada
+/// ação tem um ganho sináptico por NPC (<see cref="BrainState"/>). A ordem é o índice no vetor de ganhos.</summary>
+public enum UtilityGroup : byte
+{
+    Base,
+    Comfort,
+    Personality,
+    Context,
+    Affect,
+    Pressure,
+    Foresight,
+    Continuity,
+}
+
 // Parte de BehaviorDecisionSystem — a utilidade de cada ação como soma de termos nomeados.
 public sealed partial class BehaviorDecisionSystem
 {
     /// <summary>Utilidade de <paramref name="action"/>: <c>(base × (1 + conforto) × peso de personalidade + contexto + vida
     /// interior) × antevisão + continuidade</c>, termo a termo. Com <paramref name="sink"/> nulo (caminho quente) só soma; com
     /// sink, cada termo diferente de zero entra nele. <paramref name="knockout"/> zera um termo (teste de intervenção): o
-    /// termo multiplicativo vira fator neutro.</summary>
+    /// termo multiplicativo vira fator neutro. Com <paramref name="gains"/> (cérebro, AD-142) cada grupo de termos entra
+    /// multiplicado pelo ganho que o NPC herdou e aprendeu, <c>Σ grupo × (1 + g/1000)</c>, e o rastro mostra o valor com ganho;
+    /// <paramref name="groups"/> (8 posições, opcional) recebe quanto cada <see cref="UtilityGroup"/> somou, já com ganho.</summary>
     internal static double ScoreOf(
         DecisionContext ctx, ActionType action, NeedsRules rules, EconomyRules economy, ActionType? continuityAction,
         ActionEligibility eligibility, IReadOnlyDictionary<ActionType, ResolutionResult> foresight,
-        List<UtilityContribution>? sink = null, UtilityTerm? knockout = null)
+        List<UtilityContribution>? sink = null, UtilityTerm? knockout = null, short[]? gains = null, double[]? groups = null)
     {
+        if (gains is null)
+        {
+            var none = default(NoBrain);
+            return ScoreOf(ctx, action, rules, economy, continuityAction, eligibility, foresight, sink, knockout, ref none);
+        }
+
+        var lens = new WithBrain(gains, groups, 0);
+        return ScoreOf(ctx, action, rules, economy, continuityAction, eligibility, foresight, sink, knockout, ref lens);
+    }
+
+    /// <summary>Como o cérebro enxerga a soma (AD-142). Especializado por tipo: com <see cref="NoBrain"/> o JIT apaga tudo e a
+    /// conta é a de antes, na mesma ordem de operações e sem custo; com <see cref="WithBrain"/> cada grupo soma com o seu ganho.</summary>
+    internal interface IBrainLens
+    {
+        void Begin(ActionType action);
+        double Factor(UtilityGroup group);
+        void Credit(UtilityGroup group, double value);
+        double Total { get; }
+    }
+
+    internal struct NoBrain : IBrainLens
+    {
+        public readonly void Begin(ActionType action) { }
+        public readonly double Factor(UtilityGroup group) => 1.0;
+        public readonly void Credit(UtilityGroup group, double value) { }
+        public readonly double Total => 0;
+    }
+
+    /// <summary>Ganhos da linha da ação; <c>groups[offset..offset+8]</c> (opcional) recebe a contribuição de cada grupo.</summary>
+    internal struct WithBrain(short[] gains, double[]? groups, int offset) : IBrainLens
+    {
+        private int _row;
+        private double _total;
+
+        public void Begin(ActionType action)
+        {
+            _row = (int)action * BrainState.Groups;
+            _total = 0;
+            if (groups is not null) Array.Clear(groups, offset, BrainState.Groups);
+        }
+
+        public readonly double Factor(UtilityGroup group) => 1.0 + gains[_row + (int)group] * 0.001;
+
+        public void Credit(UtilityGroup group, double value)
+        {
+            double v = value * Factor(group);
+            _total += v;
+            if (groups is not null) groups[offset + (int)group] += v;
+        }
+
+        public readonly double Total => _total;
+    }
+
+    private static double ScoreOf<TLens>(
+        DecisionContext ctx, ActionType action, NeedsRules rules, EconomyRules economy, ActionType? continuityAction,
+        ActionEligibility eligibility, IReadOnlyDictionary<ActionType, ResolutionResult> foresight,
+        List<UtilityContribution>? sink, UtilityTerm? knockout, ref TLens lens)
+        where TLens : struct, IBrainLens
+    {
+        lens.Begin(action);
         double baseValue = BaseTermOf(ctx, action, economy, eligibility, sink is not null || knockout is not null, out var baseTerm);
         if (knockout is { } k && k == baseTerm) baseValue = 0;
-        Note(sink, action, baseTerm, baseValue);
+        lens.Credit(UtilityGroup.Base, baseValue);
+        Note(sink, action, baseTerm, baseValue, lens.Factor(UtilityGroup.Base));
 
         double comfortFactor = action switch
         {
@@ -61,40 +138,46 @@ public sealed partial class BehaviorDecisionSystem
         };
         if (knockout == UtilityTerm.Comfort) comfortFactor = 0;
         double comforted = baseValue * (1.0 + comfortFactor);
-        Note(sink, action, UtilityTerm.Comfort, comforted - baseValue);
+        lens.Credit(UtilityGroup.Comfort, comforted - baseValue);
+        Note(sink, action, UtilityTerm.Comfort, comforted - baseValue, lens.Factor(UtilityGroup.Comfort));
 
         double weight = knockout == UtilityTerm.Personality ? 1.0 : PersonalityWeighting.WeightOf(ctx.Personality, action);
         double score = comforted * weight;
-        Note(sink, action, UtilityTerm.Personality, score - comforted);
+        lens.Credit(UtilityGroup.Personality, score - comforted);
+        Note(sink, action, UtilityTerm.Personality, score - comforted, lens.Factor(UtilityGroup.Personality));
 
         var (contextTerm, contextBonus) = ContextFactorBonus(ctx, action, economy);
         if (contextBonus != 0 && knockout != contextTerm)
         {
             score += contextBonus;
-            Note(sink, action, contextTerm, contextBonus);
+            lens.Credit(UtilityGroup.Context, contextBonus);
+            Note(sink, action, contextTerm, contextBonus, lens.Factor(UtilityGroup.Context));
         }
 
-        score += InnerLifeTerms(ctx, action, rules.Psyche, economy, baseValue, sink, knockout);
+        score += InnerLifeTerms(ctx, action, rules.Psyche, economy, baseValue, sink, knockout, ref lens);
 
         if (foresight.TryGetValue(action, out var preview) && knockout != UtilityTerm.Foresight)
         {
             double factored = score * ForesightUtilityFactor(preview);
-            Note(sink, action, UtilityTerm.Foresight, factored - score);
+            lens.Credit(UtilityGroup.Foresight, factored - score);
+            Note(sink, action, UtilityTerm.Foresight, factored - score, lens.Factor(UtilityGroup.Foresight));
             score = factored;
         }
 
         if (rules.HysteresisEnabled && continuityAction == action && knockout != UtilityTerm.Continuity)
         {
             score += rules.ContinuityBonus;
-            Note(sink, action, UtilityTerm.Continuity, rules.ContinuityBonus);
+            lens.Credit(UtilityGroup.Continuity, rules.ContinuityBonus);
+            Note(sink, action, UtilityTerm.Continuity, rules.ContinuityBonus, lens.Factor(UtilityGroup.Continuity));
         }
 
-        return score;
+        return typeof(TLens) == typeof(NoBrain) ? score : lens.Total;
     }
 
-    private static void Note(List<UtilityContribution>? sink, ActionType action, UtilityTerm term, double value)
+    /// <summary>O rastro guarda o valor que de fato somou: o termo vezes o fator do grupo (1 sem cérebro, x × 1 = x).</summary>
+    private static void Note(List<UtilityContribution>? sink, ActionType action, UtilityTerm term, double value, double factor = 1.0)
     {
-        if (sink is not null && value != 0) sink.Add(new UtilityContribution(action, term, value));
+        if (sink is not null && value != 0) sink.Add(new UtilityContribution(action, term, value * factor));
     }
 
     /// <summary>Base da ação e o nome do que a move (a necessidade que domina, a despensa, ou o valor de referência).</summary>
@@ -143,45 +226,52 @@ public sealed partial class BehaviorDecisionSystem
     /// <summary>Vida interior na escolha (AD-138): luto tira do trabalho e do convívio e puxa para casa, vergonha recolhe,
     /// alegria aproxima, medo segura em casa, a solidão recente desconta a esperança de achar alguém, e quem não tem moeda com a
     /// despensa baixa pesa ganhar o pão; quem passou fome reforça a ida ao mercado.</summary>
-    private static double InnerLifeTerms(
+    private static double InnerLifeTerms<TLens>(
         DecisionContext ctx, ActionType action, PsycheRules psyche, EconomyRules economy, double baseValue,
-        List<UtilityContribution>? sink, UtilityTerm? knockout)
+        List<UtilityContribution>? sink, UtilityTerm? knockout, ref TLens lens)
+        where TLens : struct, IBrainLens
     {
         if (!psyche.Enabled) return 0;
         var mood = ctx.Mood;
         double sum = 0;
-        void Add(UtilityTerm term, double value)
-        {
-            if (value == 0 || knockout == term) return;
-            sum += value;
-            Note(sink, action, term, value);
-        }
-
         switch (action)
         {
             case ActionType.Work:
-                Add(UtilityTerm.IncomeNeed, IncomeNeedOf(ctx, economy, psyche));
-                Add(UtilityTerm.Grief, -psyche.GriefWorkPenalty * mood.Grief);
-                Add(UtilityTerm.Shame, -psyche.GriefWorkPenalty * psyche.ShameWithdrawal * mood.Shame);
+                AddInner(ref sum, ref lens, sink, action, knockout, UtilityTerm.IncomeNeed, IncomeNeedOf(ctx, economy, psyche));
+                AddInner(ref sum, ref lens, sink, action, knockout, UtilityTerm.Grief, -psyche.GriefWorkPenalty * mood.Grief);
+                AddInner(ref sum, ref lens, sink, action, knockout, UtilityTerm.Shame, -psyche.GriefWorkPenalty * psyche.ShameWithdrawal * mood.Shame);
                 break;
             case ActionType.Idle:
-                Add(UtilityTerm.Grief, psyche.GriefIdleBonus * mood.Grief);
+                AddInner(ref sum, ref lens, sink, action, knockout, UtilityTerm.Grief, psyche.GriefIdleBonus * mood.Grief);
                 break;
             case ActionType.Socialize:
-                Add(UtilityTerm.Grief, -psyche.GriefSocialPenalty * mood.Grief);
-                Add(UtilityTerm.Shame, -psyche.ShameSocialPenalty * mood.Shame);
-                Add(UtilityTerm.Joy, psyche.JoySocialBonus * mood.Joy);
-                Add(UtilityTerm.Solitude, -psyche.SolitudeDiscount * baseValue * mood.Loneliness);
+                AddInner(ref sum, ref lens, sink, action, knockout, UtilityTerm.Grief, -psyche.GriefSocialPenalty * mood.Grief);
+                AddInner(ref sum, ref lens, sink, action, knockout, UtilityTerm.Shame, -psyche.ShameSocialPenalty * mood.Shame);
+                AddInner(ref sum, ref lens, sink, action, knockout, UtilityTerm.Joy, psyche.JoySocialBonus * mood.Joy);
+                AddInner(ref sum, ref lens, sink, action, knockout, UtilityTerm.Solitude, -psyche.SolitudeDiscount * baseValue * mood.Loneliness);
                 break;
             case ActionType.Travel:
-                Add(UtilityTerm.Fear, -psyche.FearTravelPenalty * mood.Fear);
+                AddInner(ref sum, ref lens, sink, action, knockout, UtilityTerm.Fear, -psyche.FearTravelPenalty * mood.Fear);
                 break;
             case ActionType.Buy when ctx.FamineMemory > 0 && ctx.WalletAmount >= 1 && PantryShortfall(ctx, economy) > 0:
-                Add(UtilityTerm.FamineMemory, psyche.FamineProvisionBonus * ctx.FamineMemory / 100.0);
+                AddInner(ref sum, ref lens, sink, action, knockout, UtilityTerm.FamineMemory, psyche.FamineProvisionBonus * ctx.FamineMemory / 100.0);
                 break;
         }
 
         return sum;
+    }
+
+    /// <summary>Um termo da vida interior: entra na soma de sempre, na ordem de sempre, e no grupo (Affect ou Pressure).</summary>
+    private static void AddInner<TLens>(
+        ref double sum, ref TLens lens, List<UtilityContribution>? sink, ActionType action, UtilityTerm? knockout,
+        UtilityTerm term, double value)
+        where TLens : struct, IBrainLens
+    {
+        if (value == 0 || knockout == term) return;
+        sum += value;
+        var group = term is UtilityTerm.IncomeNeed or UtilityTerm.FamineMemory ? UtilityGroup.Pressure : UtilityGroup.Affect;
+        lens.Credit(group, value);
+        Note(sink, action, term, value, lens.Factor(group));
     }
 
     /// <summary>Sem moeda nenhuma e com a despensa da casa abaixo da meta, trabalhar é o caminho para comer: até
