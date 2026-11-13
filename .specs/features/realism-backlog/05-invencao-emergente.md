@@ -37,11 +37,21 @@
 
 Desenho aprovado (ADR-0045, `.specs/features/emergent-invention/design.md`). **Fatia 1 juntada (AD-141, `2b34fb64`)**: materiais brutos, `Design` como composição de partes, avaliador físico só com inteiros, NPC que inventa por frustração de vau, ensino, cópia, lápide, `GET /designs`, malha no Godot. Doc em `docs/domain/invention.md`. Em 20 seeds × 100 anos: 24 invenções (todas as seeds), 40% das travessias de água feitas na embarcação, 0% de sobreposição de designs entre seeds.
 
-## Falta fazer
+## Falta fazer (tudo que a fatia 1 deixou de fora está aqui; nada some)
 
-1. Sonda de terra (rolar e deslizar com eixo) e, depois, de ar.
-2. Substituir o `TechDiscoverySystem`: adoção por cidade derivada de `KnownDesign`, migrar `/cultures/{id}/technologies`, o painel do cliente e as métricas de civilização, remover o bloco `Emergence`.
-3. Carga por viagem, venda da embarcação no mercado, material tirado de estoque, pesca.
-4. Contracepção e remédio como invenção; robô em ADR próprio.
-5. Animação por junção e pose de uso no cliente; cópia disparada por evento.
-6. Frase proposta para o critério da Fase 24 do `ROADMAP.md` (o dono decide): "Nenhum pré-requisito tecnológico é declarado: uma invenção só existe se o avaliador físico do motor mostrar que a composição de partes e materiais cumpre a função, e o que vem antes emerge do que a física deixa funcionar com os materiais e o saber presentes no mundo."
+Fatia 2 (em worktree desde 2026-11-13):
+1. Carga por viagem: o tamanho da compra usa a capacidade da embarcação.
+2. Venda da embarcação no mercado e a receita gerada (`PhysicsEvaluator.Recipe`) entrando na `ProductionSystem`.
+3. Material tirado de estoque, não só coletado da natureza.
+4. Pesca como uso da embarcação.
+5. Cópia disparada por evento (hoje é "item na mesma cidade", checado na passada mensal).
+6. Lápide de design apontada pelos relatos que ainda falam dele.
+7. NPC de id 0 passa a receber lembrança (convenção antiga de `LifeEventIntake`).
+
+Fatias seguintes:
+8. Sonda de terra (rolar e deslizar com eixo: trenó, carroça) e, depois, de ar.
+9. Substituir o `TechDiscoverySystem`: adoção por cidade derivada de `KnownDesign`, migrar `/cultures/{id}/technologies`, o painel do cliente (`test_technologies.gd`) e as métricas de civilização, remover o bloco `Emergence`, regravar goldens.
+10. Contracepção e remédio como invenção; robô em ADR próprio.
+11. Animação por junção e pose de uso no cliente Godot.
+
+Critério da Fase 24 editado em 2026-11-13 com a frase aprovada pelo dono (`docs/roadmap/phase-24-emergence.md`).

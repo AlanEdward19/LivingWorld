@@ -41,7 +41,7 @@ Pontos em aberto, que pedem ADR e experimento antes de implementar:
 
 **Experimento feito (AD-142, ADR-0046, juntado em 2026-11-13, `e66a38b6`), flag desligada por padrão.** Cada NPC tem ganhos `ação × grupo` (10 × 8) herdados, puxados pela criação e ajustados pela surpresa de recompensa; doc em `docs/domain/brain.md`. Desligado, o mundo é byte a byte o mesmo. **Veredito: não ligar ainda.** Ligado: CPU +7,0% a 5.000 NPCs (teto +3%), snapshot +3,3% por vivo, disco +6,8% por NPC-ano, diversidade de dias 0,796 → 0,773 (não sobe), e a demografia piora (população 149,3 → 140,9, fome 670 → 782, sede 29 → 103). Rede 28-16-10 (opção a) custa +96% por decisão, só no sandbox.
 
-Antes de tentar ligar: consolidar os ganhos por trimestre (bytes), não guardar a participação a cada decisão (CPU), achar por que a sede piora, expor a leitura na API e no `brain_panel.gd` (contrato público: perguntar ao dono), teste de mundo de 100 anos com a flag ligada.
+Antes de tentar ligar: consolidar os ganhos por trimestre (bytes), não guardar a participação a cada decisão (CPU), achar por que a sede piora, expor a leitura na API e no `brain_panel.gd` (contrato público: perguntar ao dono), teste de mundo de 100 anos com a flag ligada, plasticidade na rede da opção (a), pesos de personalidade aprendidos (fora pelo ADR-0046; reabrir se o dono quiser), separar no +7% de CPU o que é mecanismo, medir disco a 1.000 e 5.000.
 
 ## Critérios mensuráveis
 
