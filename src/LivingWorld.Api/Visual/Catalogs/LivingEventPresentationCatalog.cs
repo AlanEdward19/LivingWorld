@@ -38,6 +38,7 @@ public static class LivingEventPresentationCatalog
             [WorldEventKind.PrototypeFailed] = "Uma tentativa de construir algo falhou",
             [WorldEventKind.DesignLearned] = "Alguém aprendeu a fazer o que outro sabia",
             [WorldEventKind.UnwedPregnancy] = "Uma moça solteira apareceu grávida",
+            [WorldEventKind.Emigrated] = "Alguém sem trabalho foi embora buscar a vida",
             [WorldEventKind.MilestoneRegressed] = "Uma criança perdeu parte do que já sabia fazer por causa de uma doença",
             [WorldEventKind.TechnologyAdopted] = "Uma cidade passou a usar uma técnica de deslocamento",
             [WorldEventKind.RentUnpaid] = "Um aluguel ficou em atraso",

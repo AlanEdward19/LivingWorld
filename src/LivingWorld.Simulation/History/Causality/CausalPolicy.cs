@@ -28,7 +28,7 @@ public static class CausalPolicy
         WorldEventKind.Accident, WorldEventKind.OldAge,
         // Trabalho, renda e moradia
         WorldEventKind.Hired, WorldEventKind.Fired, WorldEventKind.WageUnpaid,
-        WorldEventKind.RentUnpaid, WorldEventKind.Evicted, WorldEventKind.EstateSettled,
+        WorldEventKind.RentUnpaid, WorldEventKind.Evicted, WorldEventKind.EstateSettled, WorldEventKind.Emigrated,
         WorldEventKind.AidGiven, WorldEventKind.TheftDiscovered,
         // Família
         WorldEventKind.CourtshipSucceeded, WorldEventKind.Marriage, WorldEventKind.OrphanTakenIn,

@@ -45,6 +45,10 @@ public sealed record FamilyRules(
     /// cref="UnionRules.Medieval"/>; snapshot sem o campo abre com ele.</summary>
     public UnionRules Unions { get; init; } = UnionRules.Medieval;
 
+    /// <summary>Freios preventivos da pressão da população (AD-145). Nulo = desligado (padrão; omitido do snapshot e do hash).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public PopulationPressureRules? Pressure { get; init; }
+
     public static Result<FamilyRules> Create(
         IReadOnlyDictionary<(RelationshipEventType Type, RelationshipAxis Axis), double> relationshipDeltas,
         double decayPerDay,

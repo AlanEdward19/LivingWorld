@@ -38,6 +38,7 @@ public static class SignificanceCalculator
             [WorldEventKind.AidGiven] = 0.40,
             [WorldEventKind.Hired] = 0.35,
             [WorldEventKind.Fired] = 0.40,
+            [WorldEventKind.Emigrated] = 0.55,
             [WorldEventKind.WageUnpaid] = 0.45,
             [WorldEventKind.Minted] = 0.30,
             [WorldEventKind.Destroyed] = 0.30,

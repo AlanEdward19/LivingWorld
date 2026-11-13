@@ -263,7 +263,11 @@ public sealed partial class BehaviorDecisionSystem
                 world.CurrentDate.Calendar.HoursPerDay);
             // AD-138: quem passou fome compra para mais dias
             purchaseDays = (int)Math.Ceiling(purchaseDays * LivingWorld.Simulation.Cognition.PsycheMechanic.HoardFactor(world, npc, world.CurrentDate.TotalHours));
+            // AD-145: compra o que falta para a meta, não a meta inteira por cima do que já há. Antes cada ida ao mercado por
+            // comida trazia a água da meta de novo, e a casa ao lado do rio (que já bebe de graça) juntava milhares de água.
             long quantity = Math.Max(MinimumPurchaseQuantity, household.Members.Count * purchaseDays);
+            if (world.FamilyRules.Pressure?.TopUpPurchases == true) quantity -= household.Stock.GetValueOrDefault(resource);
+            if (quantity <= 0) continue;
             quantity = Math.Max(1, Math.Min(quantity, npc.Wallet.Amount / unitPrice));
             var ctx = new TransactionContext(
                 npc.Wallet, market.Treasury, market.Stock.GetValueOrDefault(resource),

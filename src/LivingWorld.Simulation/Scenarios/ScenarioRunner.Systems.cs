@@ -99,6 +99,7 @@ public static partial class ScenarioRunner
         new ConstructionDemandSystem(),
         new ConstructionSystem(),
         new MigrationSystem(),
+        new EmigrationSystem(), // AD-145: quem não tem lugar vai embora
         new RelocationArrivalSystem(),
         new MaterializationSystem(),
         new SettlementFoundingSystem(),

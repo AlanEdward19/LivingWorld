@@ -74,6 +74,10 @@ public sealed class NatalitySystem : ISimulationSystem
                 chance *= (Endocrine.IsPubertal(world, partner, now) ? 1.0 : 0.0)
                     * Genome.FertilityMultiplier(world, mother) * Genome.FertilityMultiplier(world, partner)
                     * (1 - ContraceptiveProtection(world, mother));
+            // AD-145: o casal sem trabalho e sem despensa adia o primeiro filho, no tanto em que é prudente
+            if (chance > 0 && spouse is not null && (mother.Reproduction?.Parity ?? 0) == 0)
+                chance *= HouseholdMeans.FirstBirthReadiness(
+                    world, mother, spouse, mother.Household is { } home ? world.FindHousehold(home) : null);
             if (chance <= 0) continue;
 
             var rng = ctx.StreamFor("conception", unchecked(mother.Id.Value * 1_000_003L + now));
