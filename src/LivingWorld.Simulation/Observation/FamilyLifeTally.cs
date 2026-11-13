@@ -37,6 +37,21 @@ public sealed class FamilyLifeTally(WorldState world)
     public long FollowCompared, Followed, HighPressureCompared, HighPressureFollowed, LowPressureCompared, LowPressureFollowed;
     public long VocationChoices, VocationChoicesPressured;
 
+    /// <summary>Idade no primeiro casamento de quem nasceu no mundo (AD-145), por sexo, a partir de <see cref="MeasureFromTick"/>.</summary>
+    public List<double> FirstMarriageAgeWomen { get; } = [];
+    public List<double> FirstMarriageAgeMen { get; } = [];
+
+    /// <summary>Mulheres nascidas no mundo que chegaram aos <see cref="CelibacyAge"/> anos, e quantas nunca casaram (AD-145).</summary>
+    public long WomenAtCelibacyAge, WomenNeverMarried, MenAtCelibacyAge, MenNeverMarried;
+    public const int CelibacyAge = 50;
+    private readonly HashSet<long> _celibacyCounted = [];
+
+    /// <summary>Emigrantes (AD-145): para fora do mundo e para outra cidade, e a idade na partida.</summary>
+    public long EmigratedOut, EmigratedToCity;
+    public List<double> EmigrantAges { get; } = [];
+
+    public long MeasureFromTick { get; set; }
+
     /// <summary>Pressão do ofício da casa acima da qual o jovem conta como "pressão alta" na medida.</summary>
     public double HighPressureCut { get; init; } = 0.7;
 
@@ -48,6 +63,8 @@ public sealed class FamilyLifeTally(WorldState world)
             case WorldEventKind.Marriage:
                 long a = Id(p[0]), b = Id(p[1]);
                 Marriages++;
+                FirstMarriage(a, evt.Tick);
+                FirstMarriage(b, evt.Tick);
                 if (_everMarried.Contains(a) || _everMarried.Contains(b)) Remarriages++;
                 _everMarried.Add(a);
                 _everMarried.Add(b);
@@ -58,6 +75,12 @@ public sealed class FamilyLifeTally(WorldState world)
                     SpouseAges.Add((h.AgeYears(world.CurrentDate), w.AgeYears(world.CurrentDate)));
                     SpouseUpbringing.Add((h.Upbringing, w.Upbringing));
                 }
+                return;
+            case WorldEventKind.Emigrated:
+                if (evt.Tick < MeasureFromTick) return;
+                if (p.Length > 1 && p[1] == "fora") EmigratedOut++; else EmigratedToCity++;
+                if (world.FindNpc(new NpcId(Id(p[0])))?.BirthDate is { } born)
+                    EmigrantAges.Add((evt.Tick - born.TotalHours) / (double)world.Calendar.HoursPerYear);
                 return;
             case WorldEventKind.UnionEnded:
                 Close(Key(Id(p[0]), Id(p[1])), evt.Tick, p[2]);
@@ -92,6 +115,15 @@ public sealed class FamilyLifeTally(WorldState world)
         }
     }
 
+    /// <summary>Casamento de quem nasceu no mundo e nunca tinha casado: idade na data (AD-145).</summary>
+    private void FirstMarriage(long id, long tick)
+    {
+        if (tick < MeasureFromTick || _everMarried.Contains(id) || world.FindNpc(new NpcId(id)) is not { } npc) return;
+        if (npc.BirthDate.TotalHours < 0 || (npc.Union?.Unions ?? 0) > 1) return; // a união de agora já está contada
+        double age = (tick - npc.BirthDate.TotalHours) / (double)world.Calendar.HoursPerYear;
+        (npc.Sex == Sex.Female ? FirstMarriageAgeWomen : FirstMarriageAgeMen).Add(age);
+    }
+
     private void Close((long, long) key, long tick, string mode)
     {
         if (!_openUnions.Remove(key, out long since)) return;
@@ -111,6 +143,12 @@ public sealed class FamilyLifeTally(WorldState world)
         foreach (var npc in world.AliveNpcIndex.Alive)
         {
             int age = npc.AgeYears(now);
+            if (age == CelibacyAge && npc.BirthDate.TotalHours >= 0 && _celibacyCounted.Add(npc.Id.Value))
+            {
+                bool never = npc.Spouse is null && !_everMarried.Contains(npc.Id.Value) && (npc.Union?.Unions ?? 0) == 0;
+                if (npc.Sex == Sex.Female) { WomenAtCelibacyAge++; if (never) WomenNeverMarried++; }
+                else { MenAtCelibacyAge++; if (never) MenNeverMarried++; }
+            }
             if (age == CompareAge && _rearer.TryGetValue(npc.Id.Value, out var house) && _compared.Add(npc.Id.Value))
                 Compare(npc, house);
             if (age > childMax || npc.Household is not { } homeId) continue;
@@ -204,6 +242,12 @@ public sealed class FamilyLifeTally(WorldState world)
         sb.AppendLine(inv, $"oficio segue_o_da_casa={Pct(Sum(t => t.Followed), Sum(t => t.FollowCompared))} (n={Sum(t => t.FollowCompared)}) pressao_alta={Pct(Sum(t => t.HighPressureFollowed), Sum(t => t.HighPressureCompared))} (n={Sum(t => t.HighPressureCompared)}) pressao_baixa={Pct(Sum(t => t.LowPressureFollowed), Sum(t => t.LowPressureCompared))} (n={Sum(t => t.LowPressureCompared)}) escolhas={Sum(t => t.VocationChoices)} sob_pressao={Sum(t => t.VocationChoicesPressured)}");
         var ages = tallies.SelectMany(t => t.SpouseAges).ToList();
         var upbringing = tallies.SelectMany(t => t.SpouseUpbringing).ToList();
+        var women = tallies.SelectMany(t => t.FirstMarriageAgeWomen).OrderBy(x => x).ToList();
+        var men = tallies.SelectMany(t => t.FirstMarriageAgeMen).OrderBy(x => x).ToList();
+        string Median(List<double> xs) => (xs.Count > 0 ? xs[xs.Count / 2] : 0).ToString("F1", inv);
+        sb.AppendLine(inv, $"primeiro_casamento mulher media={(women.Count > 0 ? women.Average() : 0):F1} mediana={Median(women)} (n={women.Count}) homem media={(men.Count > 0 ? men.Average() : 0):F1} mediana={Median(men)} (n={men.Count}) nunca_casados_aos_{CelibacyAge} mulheres={Pct(Sum(t => t.WomenNeverMarried), Sum(t => t.WomenAtCelibacyAge))} (n={Sum(t => t.WomenAtCelibacyAge)}) homens={Pct(Sum(t => t.MenNeverMarried), Sum(t => t.MenAtCelibacyAge))} (n={Sum(t => t.MenAtCelibacyAge)})");
+        var emigrantAges = tallies.SelectMany(t => t.EmigrantAges).ToList();
+        sb.AppendLine(inv, $"emigrantes para_fora={Sum(t => t.EmigratedOut)} para_outra_cidade={Sum(t => t.EmigratedToCity)} idade_media={(emigrantAges.Count > 0 ? emigrantAges.Average() : 0):F1}");
         sb.AppendLine(inv, $"casal correlacao_idade={Pearson(ages):F2} correlacao_criacao={Pearson(upbringing):F2} idade_media_marido={(ages.Count > 0 ? ages.Average(x => x.Husband) : 0):F1} esposa={(ages.Count > 0 ? ages.Average(x => x.Wife) : 0):F1}");
         return sb.ToString();
     }

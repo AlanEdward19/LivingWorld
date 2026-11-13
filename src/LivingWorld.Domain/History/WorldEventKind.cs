@@ -242,4 +242,8 @@ public enum WorldEventKind
 
     /// <summary>Alguém comprou no mercado uma peça feita por outro (AD-143) — payload: <c>compradorId|vendedorId|designId|preço</c>.</summary>
     DesignSold,
+
+    /// <summary>Um adulto sem trabalho nem vaga foi embora (AD-145) — payload: <c>npcId|destino</c> (destino: id da cidade do
+    /// mundo para onde foi, ou <c>fora</c> quando saiu do mundo simulado).</summary>
+    Emigrated,
 }
