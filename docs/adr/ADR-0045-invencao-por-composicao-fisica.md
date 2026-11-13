@@ -1,6 +1,6 @@
 # ADR-0045: Invenção por composição física, concebida pelo NPC
 
-- **Status**: proposto
+- **Status**: aceito (aprovado pelo dono em 2026-11-12, com as opções recomendadas)
 - **Data**: 2026-11-12
 - **Decisores**: dono do projeto (Alan), pendente; rascunho por agente
 

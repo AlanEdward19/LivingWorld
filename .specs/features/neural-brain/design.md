@@ -66,7 +66,7 @@ termo → grupo → ação com espessura = contribuição e cor = ganho aprendid
    ofício sobe (critério de `03-cognicao-e-cerebro.md`); demografia na faixa de referência; irmãos
    criados juntos ficam mais parecidos em g do que irmãos criados separados.
 
-## Decisões que são do dono
+## Decisões do dono (aprovadas em 2026-11-12: a opção em negrito de cada item)
 1. Adotar (c) com (b) como visual? **Sim** | só (b) | (a) por inteiro.
 2. Plasticidade aprende por recompensa de alívio vivido? **Sim** | só herança, sem aprender.
 3. Ganho limitado (não pode apagar fome nem sede)? **Sim, [−500, +1000]** | sem limite.

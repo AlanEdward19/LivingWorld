@@ -87,7 +87,7 @@ a peça que não aguenta calor e pressão, não porque uma tabela diz.
   de propulsão (`.specs/features/emergent-vehicles/spec.md:19`). O `TechDiscoverySystem` fica atrás
   da flag até o domínio água/terra cobrir mobilidade; depois sai, com goldens regravados.
 
-## Decisões que são do dono
+## Decisões do dono (aprovadas em 2026-11-12: a opção em negrito de cada item)
 1. Leis físicas escritas no motor (artefatos nunca) é aceitável como "nada escrito"? **Sim** | não.
 2. Primeira fatia: transporte sobre água de ponta a ponta? **Sim** | terra | ferramenta de trabalho.
 3. `TechDiscoverySystem` é substituído (goldens regravados)? **Substituir após a fatia 1** | manter os dois.
