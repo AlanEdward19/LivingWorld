@@ -16,7 +16,7 @@
 
 ## Estado
 
-Branch de trabalho: `perf/decision-scan-costs`, sem push, sem PR. Último commit conhecido: ver `git log` (a junção do AD-134 veio depois de `d28d31ee`).
+Branch de trabalho: `perf/decision-scan-costs`, no GitHub desde 2026-11-13 (dono: "faz push sempre que finalizar algo"), sem PR. Mudanças de contrato público pedidas até 2026-11-13 estão aprovadas (ids a partir de 1, troca de `/cultures/{id}/technologies`, cérebro na API). Último commit conhecido: ver `git log` (a junção do AD-134 veio depois de `d28d31ee`).
 
 | Área | Estado | Arquivo |
 |---|---|---|
@@ -36,7 +36,7 @@ Branch de trabalho: `perf/decision-scan-costs`, sem push, sem PR. Último commit
 | Invenção emergente: tecnologia, veículos, robôs, aparência e animação | desenho aprovado em 2026-11-12 (ADR-0045); fatia 1 (transporte sobre água, AD-141) juntada em 2026-11-13 (`2b34fb64`); fatia 2 (AD-143: carga, venda, pesca, cópia) juntada em 2026-11-13; faltam 2a a 7a e as fatias 8 a 12, ver `05` | `.specs/features/emergent-invention/design.md` |
 | Violência, furto, poderes por genética, achados restantes da auditoria | não começado | [06](06-violencia-poderes-e-restantes.md) |
 | Doença dinâmica: doença nova que surge e evolui, e doença criada à mão e solta no mundo (pedido em 2026-11-12) | não começado; depois de juntar o AD-137 | [06](06-violencia-poderes-e-restantes.md) |
-| Crime contra bens e pessoas: furto de tudo, sequestro, violência sexual (pedido em 2026-11-12) | anotado, o dono pediu para NÃO iniciar ainda | [06](06-violencia-poderes-e-restantes.md) |
+| Crime contra bens e pessoas: furto de tudo, sequestro, violência sexual (pedido em 2026-11-12) | liberado pelo dono em 2026-11-13; entra na fila depois de violência e justiça | [06](06-violencia-poderes-e-restantes.md) |
 | Refatoração completa do cliente visual (Godot) e, depois, a fatia do jogador (pedido em 2026-11-12) | não começado; ÚLTIMOS da fila, só depois de tudo acima | [09](09-cliente-visual-e-jogador.md) |
 | Desempenho e tempo dos testes | parcial | [07](07-desempenho-e-testes.md) |
 | Pontos em aberto a investigar (afrouxamentos, números sem fonte, efeitos sem explicação) | aberto | [08](08-a-investigar.md) |
