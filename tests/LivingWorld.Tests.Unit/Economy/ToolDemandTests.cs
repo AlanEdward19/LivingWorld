@@ -140,4 +140,52 @@ public sealed class ToolDemandTests
 
         Assert.True(first > 1 && second == 0, $"{first} / {second}");
     }
+
+    /// <summary>Histerese (AD-144): o ferreiro único vale o que ele mesmo faz, enquanto para quem está de fora a vaga não vale
+    /// nada. Regressão da seed 7: o único se via sem valor, saía em 30 dias e outro moço entrava no lugar.</summary>
+    [Fact]
+    public void The_lone_smith_values_his_own_work_while_outsiders_see_no_opening()
+    {
+        var (world, _) = ScenarioRunner.Create(seed: 5, initialPopulation: 30);
+        var farm = world.Workplaces.First(w => w.LocationType.Id == 1);
+        var forge = world.Workplaces.First(w => w.LocationType.Id == 2);
+        foreach (var npc in world.Npcs.Where(n => n.IsAlive).Take(10)) farm.Hire(npc.Id);
+        var smith = world.Npcs.Last(n => n.IsAlive && world.LifeStageRules.LifeStageOf(n.AgeYears(world.CurrentDate)) == LivingWorld.Domain.Population.Body.LifeStage.Adult);
+        forge.Hire(smith.Id);
+        var labor = LivingWorld.Simulation.Economy.Labor.LaborValueIndex.BuildForTick(world);
+
+        Assert.True(labor.ValueOf(forge, smith) > 1 && labor.ValueOf(forge) == 0, $"{labor.ValueOf(forge, smith)} / {labor.ValueOf(forge)}");
+    }
+
+    /// <summary>Sucessão (AD-144): sem herdeiro, a oficina passa ao oficial mais hábil que trabalha nela.</summary>
+    [Fact]
+    public void Without_heirs_the_most_skilled_worker_of_the_forge_takes_it_over()
+    {
+        var (world, _) = ScenarioRunner.Create(seed: 5, initialPopulation: 30);
+        var forge = world.Workplaces.First(w => w.LocationType.Id == 2);
+        var skill = ScenarioRunner.DefaultSkillsRules.SkillByProfession[2];
+        var adults = world.Npcs.Where(n => n.IsAlive && n.AgeYears(world.CurrentDate) >= 20).Take(3).ToList();
+        foreach (var npc in adults) { forge.Hire(npc.Id); npc.SwitchProfession(new LivingWorld.Domain.Population.ProfessionType(2)); }
+        var expected = adults.OrderByDescending(n => n.Skills.Get(skill)).ThenBy(n => n.BirthDate.TotalHours).ThenBy(n => n.Id.Value).First();
+
+        Assert.Equal(expected.Id, LivingWorld.Simulation.Population.Lifecycle.EstateSystem.Journeyman(world, forge)!.Id);
+    }
+
+    /// <summary>Regressão da seed 7: o ferreiro da folha faz a encomenda mesmo fora da forja na hora da produção (na falta,
+    /// ele passava a hora na fila do mercado e a forja ficava dois anos sem fazer nada).</summary>
+    [Fact]
+    public void An_employed_smith_away_from_the_forge_still_makes_the_order()
+    {
+        var (world, _) = ScenarioRunner.Create(seed: 5, initialPopulation: 30);
+        var farm = world.Workplaces.First(w => w.LocationType.Id == 1);
+        var forge = world.Workplaces.First(w => w.LocationType.Id == 2);
+        foreach (var npc in world.Npcs.Where(n => n.IsAlive).Take(10)) farm.Hire(npc.Id);
+        var smith = world.Npcs.Last(n => n.IsAlive && n.CurrentLocation != forge.Location
+            && world.LifeStageRules.LifeStageOf(n.AgeYears(world.CurrentDate)) == LivingWorld.Domain.Population.Body.LifeStage.Adult);
+        forge.Hire(smith.Id);
+
+        new ProductionSystem(ScenarioRunner.DefaultSkillsRules).Tick(world, new LivingWorld.Simulation.Scheduling.TickContext(world, world.Rng, world.Scheduler));
+
+        Assert.True(forge.Stock.GetValueOrDefault(Iron) > 0);
+    }
 }

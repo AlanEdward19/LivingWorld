@@ -78,4 +78,23 @@ internal static class ToolMechanic
                 hands++;
         return hands;
     }
+
+    /// <summary>A receita faz alguma ferramenta (trabalho por encomenda).</summary>
+    public static bool MakesToOrder(WorldState world, ProductionRecipe recipe)
+    {
+        foreach (var resourceId in recipe.Outputs.Keys)
+            if (world.EconomyCatalog.IsTool(resourceId)) return true;
+        return false;
+    }
+
+    /// <summary>Os adultos vivos da folha, em ordem de id.</summary>
+    public static IReadOnlyList<LivingWorld.Domain.Population.Npc> Hands(WorldState world, Workplace workplace)
+    {
+        var hands = new List<LivingWorld.Domain.Population.Npc>();
+        foreach (var id in workplace.Employees.OrderBy(e => e.Value))
+            if (world.FindNpc(id) is { IsAlive: true } npc
+                && world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate)) == LivingWorld.Domain.Population.Body.LifeStage.Adult)
+                hands.Add(npc);
+        return hands;
+    }
 }

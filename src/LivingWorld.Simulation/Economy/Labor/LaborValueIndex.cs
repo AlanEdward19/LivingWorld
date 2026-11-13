@@ -1,3 +1,4 @@
+using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Shared;
@@ -21,7 +22,8 @@ public sealed class LaborValueIndex
 
     private LaborValueIndex(WorldState world) => _world = world;
 
-    public double ValueOf(Workplace workplace)
+    /// <param name="self">Quem avalia o próprio emprego: a mão dele não conta contra ele (o que ele faz é o valor dele).</param>
+    public double ValueOf(Workplace workplace, Npc? self = null)
     {
         Build();
         double value = _valueByWorkplace!.GetValueOrDefault(workplace.Id, MinimumValue);
@@ -30,7 +32,7 @@ public sealed class LaborValueIndex
         // sem encomenda a cobrir, mais uma mão ali não vale nada (sem o piso): senão o ofício do artesão o prendia à forja ociosa
         if (_toolOutputs is not null && _toolOutputs.TryGetValue(workplace.Id, out var outputs))
             foreach (var (resourceId, perWorker, price) in outputs)
-                value += perWorker * price * MarginalOrderedShare(_world, workplace, resourceId, perWorker);
+                value += perWorker * price * MarginalOrderedShare(_world, workplace, resourceId, perWorker, self);
         return value;
     }
 
@@ -144,12 +146,16 @@ public sealed class LaborValueIndex
     /// <summary>Ferramenta se faz por encomenda (AD-144): mais um artesão vale só a parte da encomenda diária da cidade que quem
     /// já está lá não dá conta de fazer (produto marginal). Um ferreiro faz num dia o desgaste de semanas da vila: o segundo
     /// quase nada acrescenta. Sem isso o preço de encomenda fazia a forja valer 20× a lavoura e a vila ia toda para a forja.</summary>
-    private static double MarginalOrderedShare(WorldState world, Workplace workplace, int resourceId, long perWorker)
+    private static double MarginalOrderedShare(WorldState world, Workplace workplace, int resourceId, long perWorker, Npc? self)
     {
         if (perWorker <= 0) return 0;
         double dailyOrders = (double)LivingWorld.Simulation.Economy.Production.ToolMechanic.OrderBook(world, workplace.City, resourceId)
             / world.CurrentDate.Calendar.DaysPerMonth;
-        return Math.Clamp((dailyOrders - LivingWorld.Simulation.Economy.Production.ToolMechanic.WorkingHands(world, workplace) * perWorker) / perWorker, 0, 1);
+        int hands = LivingWorld.Simulation.Economy.Production.ToolMechanic.WorkingHands(world, workplace);
+        // histerese (AD-144): quem já está lá vale o que ele mesmo faz; sem isso o ferreiro único se via sem valor, saía em
+        // 30 dias e outro entrava no lugar, e a forja vivia de aprendizes de passagem
+        if (self is not null && workplace.Employees.Contains(self.Id) && hands > 0) hands--;
+        return Math.Clamp((dailyOrders - hands * perWorker) / perWorker, 0, 1);
     }
 
     private static double PriceOf(EconomyRules rules, Workplace workplace, int resourceId) =>

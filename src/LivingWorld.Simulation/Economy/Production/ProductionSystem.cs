@@ -83,6 +83,9 @@ public sealed class ProductionSystem : ISimulationSystem
         SkillsRules? skillsRules, VacancyIndex vacancyIndex)
     {
         var presentWorkers = vacancyIndex.PresentWorkersAt(workplace);
+        // encomenda (AD-144): o artesão da folha faz a peça encomendada em alguma hora do dia, não só se estiver parado na
+        // oficina na hora da produção; a sonda da seed 7 achou ferreiros na folha e 14 de 720 dias com alguém na forja
+        if (presentWorkers.Count == 0 && ToolMechanic.MakesToOrder(world, recipe)) presentWorkers = ToolMechanic.Hands(world, workplace);
         if (presentWorkers.Count == 0) return;
 
         if (recipe.RequiresCellResource is { } requiredResource
