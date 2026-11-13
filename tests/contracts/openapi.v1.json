@@ -1405,6 +1405,42 @@
         ]
       }
     },
+    "/designs": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
+    "/designs/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
     "/history/beliefs": {
       "get": {
         "parameters": [

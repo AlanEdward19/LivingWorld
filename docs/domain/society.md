@@ -49,6 +49,10 @@ Sociedades podem perder conhecimento, rejeitar uma tecnologia por motivo cultura
 religioso, avançar em áreas completamente diferentes de suas vizinhas, estagnar por
 décadas, ou colapsar e regredir. A árvore tecnológica é uma restrição, não um trilho.
 
+**Como é feito hoje (AD-141, ADR-0045):** quem inventa é a pessoa, não a cidade; a invenção é uma composição de partes
+físicas que o avaliador mede, e o pré-requisito emerge da física. Ver [invention.md](invention.md). O vetor de eixos por
+cidade (`TechDiscoverySystem`) ainda convive, atrás do bloco `Emergence`.
+
 ## Política
 
 Formas de governo suportadas: tribo, conselho, monarquia, império, república, democracia,

@@ -64,6 +64,7 @@ public static partial class ScenarioRunner
         new MortalitySystem(),
         new OutbreakSystem(),
         new TechDiscoverySystem(),
+        new LivingWorld.Simulation.Invention.InventionSystem(),
         new FactToReportConversionScheduler(),
         new BookRediscoverySystem(),
         new ColdArchiveSystem(),

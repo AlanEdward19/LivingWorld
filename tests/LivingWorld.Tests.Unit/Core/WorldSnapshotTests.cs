@@ -117,6 +117,13 @@ public class WorldSnapshotTests
         // acima (coleção vazia não tem folha primitiva pro mutador genérico perturbar).
         var city = world.ActiveCities().Single();
         world.AddBuilding(new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingTypeId: 1, completedAtTick: 0));
+        // AD-141: invenção ligada com um design e quem o sabe, para o mutador ter folha em Invention e InventionRules.
+        var invention = new LivingWorld.Simulation.Invention.InventionLedger();
+        var piece = LivingWorld.Simulation.Invention.DesignSearch.NaturalPiece(LivingWorld.Domain.Invention.InventionRules.Default.Materials[0]);
+        var design = LivingWorld.Domain.Invention.Design.Create([piece], world.Npcs[0].Id.Value, 1, 0, 0, LivingWorld.Domain.Invention.DesignOrigin.Invented);
+        invention.Designs.Add(design);
+        invention.Known.Add(new LivingWorld.Domain.Invention.KnownDesign(world.Npcs[0].Id.Value, design.Id, 1000, LivingWorld.Domain.Invention.DesignOrigin.Invented, 1));
+        world.UseInvention(LivingWorld.Domain.Invention.InventionRules.Default, invention);
         // taxes-treasury: livro do tesouro vazio não tem folha primitiva pro mutador genérico perturbar.
         world.RecordTreasury(city.Id, tick: 5, revenue: 3, spending: 1);
         // disease-epidemics: infecções e imunidades vazias não têm folha primitiva pro mutador genérico.

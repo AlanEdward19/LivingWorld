@@ -31,6 +31,8 @@ public sealed class TickContext(WorldState world, WorldRngRegistry rng, EventSch
         // AD-138: quem viveu o evento lembra e sente (consumidor do log, no mesmo instante; eventos sem vivência saem cedo)
         if (world.NeedsRules.Psyche.Enabled)
             LivingWorld.Simulation.Cognition.LifeEventIntake.OnEvent(world, kind, payload, sourceSystem, CurrentTick);
+        // AD-141: quem morreu leva o que sabia (o último que sabia leva o design)
+        if (world.InventionOn) LivingWorld.Simulation.Invention.InventionIntake.OnEvent(world, kind, payload, sourceSystem, CurrentTick);
         return eventId;
     }
 

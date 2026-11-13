@@ -224,6 +224,7 @@ app.MapSavedWorldEndpoints(worldHost, savedWorlds, simulationHost, restored => n
     ScenarioRunner.DefaultSystems(conversationSessions: sessions, chronicles: chronicles, extraordinary: restored.Extraordinary), sink: worldSink));
 app.MapWorldPreviewEndpoints();
 app.MapCultureTechnologyEndpoints(worldHost);
+app.MapDesignEndpoints(worldHost);
 app.MapSimulationControlEndpoints();
 app.MapRealtimeEndpoints();
 app.MapActionLabelEndpoints();

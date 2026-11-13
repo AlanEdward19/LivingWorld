@@ -93,6 +93,12 @@ public static class LifeEventIntake
             case WorldEventKind.OrphanTakenIn:
                 Experience(world, IdAt(payload, 0), LifeEventKind.TakenIn, IdAt(payload, 1), tick);
                 return;
+            case WorldEventKind.DesignPrototyped when world.InventionRules is { } invention && Field(payload, 2) is "0" or "3":
+                Experience(world, IdAt(payload, 0), LifeEventKind.InventionWorked, 0, tick, 1.0, invention.SuccessImpact);
+                return;
+            case WorldEventKind.PrototypeFailed when world.InventionRules is { } invention:
+                Experience(world, IdAt(payload, 0), LifeEventKind.InventionFailed, 0, tick, Field(payload, 2) == "1" ? 0.6 : 1.0, invention.FailureImpact);
+                return;
         }
     }
 
@@ -160,11 +166,12 @@ public static class LifeEventIntake
                 PsycheMechanic.Experience(world, mourner, kind, deadId, tick, scale);
     }
 
-    private static void Experience(WorldState world, long npcId, LifeEventKind kind, long other, long tick, double scale = 1.0)
+    private static void Experience(WorldState world, long npcId, LifeEventKind kind, long other, long tick, double scale = 1.0,
+        LifeEventImpact? impact = null)
     {
         if (npcId <= 0 || !world.NeedsRules.Psyche.Enabled) return;
         if (world.FindNpc(new NpcId(npcId)) is { IsAlive: true } npc)
-            PsycheMechanic.Experience(world, npc, kind, other, tick, scale);
+            PsycheMechanic.Experience(world, npc, kind, other, tick, scale, impact);
     }
 
     private static Npc? FindAt(WorldState world, string payload, int index)

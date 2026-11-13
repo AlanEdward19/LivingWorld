@@ -79,6 +79,9 @@ public static class ScenarioLoaderV2
             // AD-135: água de rio e fonte ligada por padrão; o bloco opcional {"NaturalWater": {"Enabled": false}} desliga
             naturalWaterRules: System.Text.Json.Nodes.JsonNode.Parse(json)?["NaturalWater"]?["Enabled"]?.GetValue<bool>() == false
                 ? LivingWorld.Domain.Economy.NaturalWaterRules.Disabled : LivingWorld.Domain.Economy.NaturalWaterRules.Default);
+        // AD-141: invenção ligada por padrão; o bloco opcional {"Invention": {"Enabled": false}} desliga
+        world.UseInvention(System.Text.Json.Nodes.JsonNode.Parse(json)?["Invention"]?["Enabled"]?.GetValue<bool>() == false
+            ? null : LivingWorld.Domain.Invention.InventionRules.Default);
 
         var createdCityIds = new List<CityId>(definition.City.Cities.Count);
         foreach (var city in definition.City.Cities)
