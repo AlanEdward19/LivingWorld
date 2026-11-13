@@ -15,7 +15,7 @@ namespace LivingWorld.Simulation.Behavior.Decision;
 /// <see cref="WorldState"/>. Coleções são listas vazias quando sem fatores, nunca <c>null</c>.
 /// <see cref="ForesightPreviews"/> é volátil por tick; omitido/
 /// <c>null</c> ≡ <see cref="ForesightMechanic.EmptyPreviews"/> (sem alocação no caminho comum). <see cref="Inner"/> traz a vida
-/// interior (AD-138); nulo = calmo, sem lembrança de fome.</summary>
+/// interior (AD-138); nulo = calmo, sem lembrança de fome e sem hormônio que pese (AD-139).</summary>
 public sealed record DecisionContext(
     NpcId NpcId,
     long Tick,
@@ -39,11 +39,16 @@ public sealed record DecisionContext(
 
     /// <summary>Força (0..100) da lembrança de fome; 0 sem ela.</summary>
     public double FamineMemory => Inner?.FamineMemory ?? 0;
+
+    /// <summary>Hormônios que pesam (AD-139): ciclo e adolescência; nenhum efeito sem vida interior.</summary>
+    public LivingWorld.Simulation.Population.Body.HormonalSnapshot Hormones => Inner?.Hormones ?? default;
 }
 
 /// <summary>Vida interior que pesa na decisão (AD-138). Nulo no contexto quando o NPC está calmo e sem lembrança de fome — o
 /// caso comum —, para não aumentar a alocação de cada decisão.</summary>
-public sealed record InnerLifeSnapshot(LivingWorld.Domain.Cognition.Affect Mood, double FamineMemory);
+public sealed record InnerLifeSnapshot(
+    LivingWorld.Domain.Cognition.Affect Mood, double FamineMemory,
+    LivingWorld.Simulation.Population.Body.HormonalSnapshot Hormones = default);
 
 public readonly record struct NeedsSnapshot(int Hunger, int Thirst, int Sleep, int Social);
 

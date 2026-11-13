@@ -226,4 +226,17 @@ public enum WorldEventKind
 
     /// <summary>Alguém aprendeu um design com quem sabia (AD-141) — payload: <c>aprendizId|mestreId|designId|origem|fidelidade‰</c>.</summary>
     DesignLearned,
+
+    /// <summary>Morte por acidente (queda, afogamento, fogo, coice), nomeada na sobra da tábua (AD-137) — payload: <c>npcId</c>.</summary>
+    Accident,
+
+    /// <summary>Morte por velhice, nomeada na sobra da tábua (AD-137) — payload: <c>npcId</c>.</summary>
+    OldAge,
+
+    /// <summary>Um surto importado ficou sem caso (AD-137) — payload: <c>doençaId|cidadeId|tickDoInício</c>.</summary>
+    OutbreakEnded,
+
+    /// <summary>A gravidez de uma mulher sem união apareceu (AD-139) — payload: <c>maeId|paiId|desfecho</c> (casamento: o pai
+    /// foi levado a casar; abandono: ele não casou; sem_pai: ele morreu).</summary>
+    UnwedPregnancy,
 }

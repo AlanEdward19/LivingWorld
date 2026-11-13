@@ -43,7 +43,7 @@ public sealed class MilestoneProgressSystem : ISimulationSystem
     {
         int? disease = null;
         foreach (var infection in world.Infections)
-            if (infection.Npc == npc.Id && (disease is null || infection.Disease < disease)) disease = infection.Disease;
+            if (infection.Npc == npc.Id && infection.Symptomatic && (disease is null || infection.Disease < disease)) disease = infection.Disease;
         return disease;
     }
 

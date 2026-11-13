@@ -20,7 +20,7 @@ public sealed class DemographyTally(WorldState world) : IWorldEventSink
     public double[] FemaleExposureByAge { get; } = new double[MaxAge + 1];
     public long[] BirthsByMonth { get; } = new long[12];
     public Dictionary<int, long> BirthsByDayOfYear { get; } = [];
-    public long Births, Deaths, MaleBirths, DeathsOnBirthday, StillBirths, MaternalDeaths;
+    public long Births, Deaths, MaleBirths, DeathsOnBirthday, StillBirths, Miscarriages, MaternalDeaths;
     public double PersonYears;
     public long MeasureFromTick;
 
@@ -34,15 +34,25 @@ public sealed class DemographyTally(WorldState world) : IWorldEventSink
     /// <summary>Vida familiar da mesma rodada (AD-136), medida desde o início.</summary>
     public FamilyLifeTally Family { get; } = new(world);
 
+    /// <summary>Causas de morte, anos de surto e dias perdidos por doença (AD-137).</summary>
+    public DiseaseTally Disease { get; } = new(world);
+    /// <summary>Vida reprodutiva (AD-139): fora de união, prematuros, idade da mãe no 1º parto.</summary>
+    public ReproductiveLifeTally Reproduction { get; } = new(world);
+
     public void Record(WorldEvent evt)
     {
         Body.OnEvent(evt);
         Family.Record(evt);
+        Disease.OnEvent(evt);
+        Reproduction.Record(evt);
         if (evt.Tick < MeasureFromTick) return;
         switch (evt.Kind)
         {
             case WorldEventKind.StillBirth when evt.SourceSystem == YearEventTally.BirthSource:
-                StillBirths++;
+                // perda gestacional (aborto espontâneo) e natimorto a termo saem no mesmo evento; o marcador separa (AD-140)
+                if (evt.Payload.EndsWith(LivingWorld.Simulation.Population.Lifecycle.NatalitySystem.MiscarriageMarker, StringComparison.Ordinal))
+                    Miscarriages++;
+                else StillBirths++;
                 return;
             case WorldEventKind.Birth when evt.SourceSystem == YearEventTally.BirthSource:
                 var parts = evt.Payload.Split('|');
@@ -66,6 +76,7 @@ public sealed class DemographyTally(WorldState world) : IWorldEventSink
                 return;
             case WorldEventKind.Death or WorldEventKind.Starvation or WorldEventKind.Dehydration
                 or WorldEventKind.Exhaustion or WorldEventKind.Disease or WorldEventKind.MaternalDeath
+                or WorldEventKind.Accident or WorldEventKind.OldAge
                 when evt.SourceSystem == YearEventTally.DeathSource:
                 int cut = evt.Payload.IndexOf('|');
                 string first = cut < 0 ? evt.Payload : evt.Payload[..cut];
@@ -113,14 +124,23 @@ public static class DemographyReport
         world.UseBrain(brain); // AD-142: experimento (nulo = desligado)
         var tally = new DemographyTally(world) { MeasureFromTick = warmupYears * world.Calendar.HoursPerYear };
         tally.Body.MeasureFromTick = tally.MeasureFromTick;
+        tally.Disease.MeasureFromTick = tally.MeasureFromTick;
+        tally.Reproduction.MeasureFromTick = tally.MeasureFromTick;
         var food = new FoodTally(world);
         var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, new BothSinks(tally, food));
         int months = years * world.Calendar.MonthsPerYear;
         int minAlive = int.MaxValue;
         for (int m = 0; m < months; m++)
         {
-            clock.Run(world, world.Calendar.HoursPerMonth);
+            for (int d = 0; d < world.Calendar.DaysPerMonth; d++)
+            {
+                clock.Run(world, world.Calendar.HoursPerDay);
+                tally.Disease.SampleDay();
+            }
+
             tally.Family.SampleMonth();
+            tally.Disease.SampleMonth();
+            tally.Reproduction.SampleMonth();
             if (m >= warmupYears * world.Calendar.MonthsPerYear) tally.SampleMonth();
             if ((m + 1) % world.Calendar.MonthsPerYear == 0) tally.Body.SampleYear();
             food.SampleMonth();
@@ -128,6 +148,7 @@ public static class DemographyReport
             if (world.AliveNpcIndex.Alive.Count == 0) break;
         }
 
+        tally.Reproduction.SampleGenetics();
         return new SeedResult(seed, world.AliveNpcIndex.Alive.Count, minAlive, tally, food, InventionSummary.Of(world));
     }
 
@@ -138,7 +159,7 @@ public static class DemographyReport
         var asfrBirths = new double[DemographyTally.MaxAge + 1];
         var femaleExposure = new double[DemographyTally.MaxAge + 1];
         var months = new long[12];
-        double births = 0, dead = 0, py = 0, males = 0, onBirthday = 0, still = 0, maternal = 0;
+        double births = 0, dead = 0, py = 0, males = 0, onBirthday = 0, still = 0, lost = 0, maternal = 0;
         long cohort = 0, infantDeaths = 0, cohort15 = 0, survived15 = 0, maxDayBirths = 0;
         var intervals = new List<double>();
         long followUpEnd = years * hoursPerYear;
@@ -153,7 +174,7 @@ public static class DemographyReport
 
             for (int m = 0; m < 12; m++) months[m] += t.BirthsByMonth[m];
             births += t.Births; dead += t.Deaths; py += t.PersonYears; males += t.MaleBirths;
-            onBirthday += t.DeathsOnBirthday; still += t.StillBirths; maternal += t.MaternalDeaths;
+            onBirthday += t.DeathsOnBirthday; still += t.StillBirths; lost += t.Miscarriages; maternal += t.MaternalDeaths;
             if (t.BirthsByDayOfYear.Count > 0) maxDayBirths += t.BirthsByDayOfYear.Values.Max();
             foreach (var (_, (birthTick, deathAge)) in t.Babies.OrderBy(kv => kv.Key))
             {
@@ -184,7 +205,7 @@ public static class DemographyReport
         var sb = new StringBuilder();
         sb.AppendLine(inv, $"seeds={runs.Count} anos={years} aquecimento={warmupYears}");
         sb.AppendLine(inv, $"pop_final media={runs.Average(r => r.FinalAlive):F1} min={runs.Min(r => r.FinalAlive)} max={runs.Max(r => r.FinalAlive)} extintas={runs.Count(r => r.FinalAlive == 0)} pop_min_media={runs.Average(r => r.MinAlive):F1}");
-        sb.AppendLine(inv, $"natalidade_bruta={1000 * births / py:F1}/mil mortalidade_bruta={1000 * dead / py:F1}/mil nascimentos={births} mortes={dead} natimortos={still} mortes_maternas={maternal}");
+        sb.AppendLine(inv, $"natalidade_bruta={1000 * births / py:F1}/mil mortalidade_bruta={1000 * dead / py:F1}/mil nascimentos={births} mortes={dead} natimortos={still} ({1000 * still / Math.Max(1, births + still):F0}/mil partos) perdas_gestacionais={lost} mortes_maternas={maternal} ({1000 * maternal / Math.Max(1, births + still):F1}/mil partos)");
         sb.AppendLine(inv, $"1q0_coorte={1000.0 * infantDeaths / Math.Max(1, cohort):F0}/mil (n={cohort}) 1q0_periodo={1000 * q0Period:F0}/mil l15_coorte={(double)survived15 / Math.Max(1, cohort15):F3} (n={cohort15}) e0={e0:F1} TFR={tfr:F2}");
         sb.AppendLine(inv, $"intervalo_partos_meses media={(intervals.Count > 0 ? intervals.Average() : 0):F1} mediana={(intervals.Count > 0 ? intervals[intervals.Count / 2] : 0):F1} n={intervals.Count}");
         sb.AppendLine(inv, $"razao_sexo_nascer={100 * males / Math.Max(1, births - males):F1} meninos/100 meninas");
@@ -200,8 +221,10 @@ public static class DemographyReport
 
         sb.AppendLine();
         sb.Append(FamilyLifeTally.Summarize(runs.Select(r => r.Tally.Family).ToList()));
+        sb.Append(ReproductiveLifeTally.Summarize(runs.Select(r => r.Tally.Reproduction).ToList()));
         sb.Append("seeds(final)=").AppendLine(string.Join(",", runs.Select(r => r.FinalAlive)));
         sb.Append(BodyHealthTally.Summarize(runs.Select(r => (r.Tally.Body, followUpEnd)).ToList()));
+        sb.Append(DiseaseTally.Summarize(runs.Select(r => r.Tally.Disease).ToList()));
         var foods = runs.Where(r => r.Food is not null).Select(r => r.Food!).ToList();
         if (foods.Count > 0) sb.Append(FoodTally.Summarize(foods, warmupYears, 12));
         sb.Append(InventionSummary.Summarize(runs.Where(r => r.Invention is not null).Select(r => r.Invention!).ToList()));

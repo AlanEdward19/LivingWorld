@@ -38,9 +38,9 @@ meios-irmãos e irmãos criados em casas diferentes.
 
 Depende de idade, fertilidade, saúde, relação, cultura, recursos, condições sociais,
 mortalidade e eventos históricos — guerra e fome derrubam natalidade sem regra especial.
-Fecundidade natural de época (AD-130, `ReproductionRules`): todo mês a mulher casada pode conceber
-num dia qualquer, com chance que sobe na adolescência, culmina aos 20–29, cai depois dos 35 e zera
-na menopausa; o homem segue fértil na velhice e pode casar depois dos 45. Não há concepção na gravidez
+Fecundidade natural de época (AD-130, `ReproductionRules`): a mulher depois da menarca concebe na
+ovulação do ciclo (AD-139, [hormônios](hormones-and-reproduction.md); fora da união só no mês com
+sexo), com chance por ciclo que culmina aos 20–29, cai depois dos 35 e zera na menopausa; o homem segue fértil na velhice e pode casar depois dos 45. Não há concepção na gravidez
 nem no intervalo da lactação, o que dá partos a cada 2 a 3 anos. Na concepção ficam decididos o sexo
 (~105 meninos por 100 meninas, gêmeos raros), a duração (~38 semanas, com prematuros) ou a perda
 precoce; aborto, natimorto e morte materna crescem na adolescência precoce, depois dos 35, com

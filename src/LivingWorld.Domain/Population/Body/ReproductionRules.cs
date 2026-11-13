@@ -33,6 +33,12 @@ public sealed record ReproductionRules(
     AgeCurve MaternalAgeRiskFactor,
     AgeCurve ParityRiskFactor)
 {
+    /// <summary>Hormônios: puberdade, adolescência, testosterona, ciclo e pós-parto (AD-139).</summary>
+    public EndocrineRules Endocrine { get; init; } = EndocrineRules.Default;
+
+    /// <summary>Gancho da contracepção: só age se uma tecnologia da categoria existir no mundo (AD-139).</summary>
+    public ContraceptionRules Contraception { get; init; } = ContraceptionRules.Default;
+
     public static ReproductionRules Default { get; } = new(
         // pico ~0,2 por ciclo aos 20–29 (Bongaarts: fecundabilidade efetiva ~0,2), subfecundidade na adolescência
         FemaleMonthlyFecundability: AgeCurve.Of((12, 0), (14, 0.03), (16, 0.09), (18, 0.15), (20, 0.19), (25, 0.20), (30, 0.18),
@@ -81,13 +87,15 @@ public sealed record ReproductionRules(
 
     public static double HealthFactor(int health) => 1.0 + (100 - Math.Clamp(health, 0, 100)) / 100.0;
 
-    /// <summary>Duração da gestação em dias e a faixa prematura sorteada (nula = a termo).</summary>
-    public (int Days, PretermBand? Band) RollGestation(WorldRng rng)
+    /// <summary>Duração da gestação em dias e a faixa prematura sorteada (nula = a termo). <paramref name="pretermRisk"/>
+    /// multiplica a chance de cada faixa (gravidez de risco: gêmeos, mãe muito jovem, desnutrição; AD-139).</summary>
+    public (int Days, PretermBand? Band) RollGestation(WorldRng rng, double pretermRisk = 1.0)
     {
         double u = rng.NextDouble(), cumulative = 0;
+        double scale = Math.Min(pretermRisk, 1.0 / Math.Max(1e-9, PretermBands.Sum(b => b.Probability)));
         foreach (var band in PretermBands)
         {
-            cumulative += band.Probability;
+            cumulative += band.Probability * scale;
             if (u < cumulative)
                 return (band.MinDays + (int)(rng.NextDouble() * (band.MaxDays - band.MinDays + 1)), band);
         }
@@ -126,6 +134,7 @@ public sealed record ReproductionRules(
             return Result<ReproductionRules>.Fail("PretermBands: chances somam mais que 1 ou faixa inválida");
         if (MiscarriageMinDays <= 0 || MiscarriageMaxDays < MiscarriageMinDays || PostpartumInfecundMinDays < 0)
             return Result<ReproductionRules>.Fail("MiscarriageMinDays/MaxDays/PostpartumInfecundMinDays: faixa inválida");
+        if (Endocrine.Validate() is { } endocrine) return Result<ReproductionRules>.Fail(endocrine);
         return Result<ReproductionRules>.Ok(this);
     }
 }

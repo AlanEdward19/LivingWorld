@@ -24,13 +24,15 @@ public sealed class GrowthSystem : ISimulationSystem
         long now = ctx.CurrentTick;
         bool growth = BodyGrowth.Enabled(world);
         bool lactation = Lactation.Enabled(world);
-        if (!growth && !lactation) return;
+        bool hormones = Endocrine.Enabled(world);
+        if (!growth && !lactation && !hormones) return;
         long window = (Lactation.Rules(world).WeaningEndDays + world.Calendar.DaysPerMonth) * world.Calendar.HoursPerDay;
         var alive = world.AliveNpcIndex.Alive; // em ordem de id
         for (int i = 0; i < alive.Count; i++)
         {
             var npc = alive[i];
             if (growth) BodyGrowth.MonthlyUpdate(world, npc, now);
+            if (hormones) Endocrine.MonthlyUpkeep(world, npc, now); // AD-139: puberdade e anemia da menstruação
             if (lactation && npc.Sex == Sex.Female && npc.Reproduction?.LastBirthTick is { } birth && now - birth < window)
                 Lactation.RefreshHungerCost(world, npc, now);
         }

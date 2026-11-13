@@ -30,6 +30,8 @@ public enum LifeEventKind : byte
     HouseholdMemberIll = 24,
     InventionFailed = 25,
     InventionWorked = 26,
+    UnwedPregnancy = 27,
+    ChildUnwedPregnancy = 28,
 }
 
 /// <summary>Uma lembrança episódica: o que aconteceu (<see cref="Kind"/>), com quem (<see cref="Other"/>, 0 = ninguém),

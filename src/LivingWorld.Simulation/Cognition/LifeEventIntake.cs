@@ -90,6 +90,20 @@ public static class LifeEventIntake
                         Experience(world, member.Value, LifeEventKind.Evicted, 0, tick);
                     return;
                 }
+            case WorldEventKind.UnwedPregnancy:
+                {
+                    // AD-139: a vergonha da vila na mãe solteira e nos pais dela; deixada pelo pai, também o abandono
+                    long motherId = IdAt(payload, 0), fatherId = IdAt(payload, 1);
+                    string outcome = Field(payload, 2);
+                    bool married = outcome == "casamento";
+                    Experience(world, motherId, LifeEventKind.UnwedPregnancy, fatherId, tick, married ? 0.3 : 1.0);
+                    if (outcome == "abandono") Experience(world, motherId, LifeEventKind.Abandoned, fatherId, tick, 0.8);
+                    if (world.FindNpc(new NpcId(motherId)) is not { } mother) return;
+                    double parents = world.FamilyRules.Unions.Intimacy.ParentShameScale * (married ? 0.4 : 1.0);
+                    if (mother.MotherId is { } gm) Experience(world, gm.Value, LifeEventKind.ChildUnwedPregnancy, motherId, tick, parents);
+                    if (mother.FatherId is { } gf) Experience(world, gf.Value, LifeEventKind.ChildUnwedPregnancy, motherId, tick, parents);
+                    return;
+                }
             case WorldEventKind.OrphanTakenIn:
                 Experience(world, IdAt(payload, 0), LifeEventKind.TakenIn, IdAt(payload, 1), tick);
                 return;

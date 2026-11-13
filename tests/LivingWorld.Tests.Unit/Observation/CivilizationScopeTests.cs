@@ -209,25 +209,36 @@ public class CivilizationScopeTests
     [Fact]
     public void Life_expectancy_uses_only_the_deaths_and_ages_of_its_own_scope()
     {
-        var s = Build();
-        int width = s.Tally.AgeBandYears;
+        // Morte numa faixa com 3 ou mais vivos e fora da última (aberta): q fica abaixo de 1 e a exposição pesa no resultado.
+        // (AD-140: com 2 vivos, faixa de 5 anos e 1 morte, q = 5m/(1 + 2,5m) com m = 1/2,5 dá exatamente 1, e0 = 2,5 em qualquer
+        // escopo, e o teste deixava de distinguir cidade de mundo; o AD-138 tinha baixado para 2. A vila de 20 pessoas muda de
+        // trajetória a cada fatia, então o teste usa a primeira seed que tem essa faixa, em vez de uma seed fixa.)
+        Synth s = null!;
+        City city = null!;
+        Npc? dead = null;
+        int width = 0;
         int Age(Npc n) => n.AgeYears(s.World.CurrentDate);
-        // Morte numa faixa com 2 ou mais vivos e fora da última (aberta): q fica abaixo de 1 e a exposição pesa no resultado.
-        // (AD-138: eram 3; a vila de 20 pessoas deste cenário mudou de trajetória e nenhuma cidade tinha 3 numa faixa. Com 2 a
-        // faixa continua tendo sobrevivente, que é o que a conta precisa.)
-        var (city, dead) = s.World.ActiveCities().Where(c => c.Id != s.B.Id).OrderBy(c => c.Id.Value).Select(c =>
+        foreach (ulong seed in new ulong[] { 2, 3, 4, 5, 6, 7 })
         {
-            var local = s.World.Npcs.Where(n => n.IsAlive && n.City == c.Id).ToList();
-            var pick = local.Where(n => local.Count(o => Age(o) / width == Age(n) / width) >= 2 && Age(n) / width < local.Max(Age) / width)
-                .OrderBy(n => n.Id.Value).FirstOrDefault();
-            return (c, pick);
-        }).First(x => x.pick is not null);
+            s = Build(seed: seed);
+            width = s.Tally.AgeBandYears;
+            (city, dead) = s.World.ActiveCities().Where(c => c.Id != s.B.Id).OrderBy(c => c.Id.Value).Select(c =>
+            {
+                var local = s.World.Npcs.Where(n => n.IsAlive && n.City == c.Id).ToList();
+                var pick = local.Where(n => local.Count(o => Age(o) / width == Age(n) / width) >= 3 && Age(n) / width < local.Max(Age) / width)
+                    .OrderBy(n => n.Id.Value).FirstOrDefault();
+                return (c, pick);
+            }).FirstOrDefault(x => x.pick is not null);
+            if (dead is not null) break;
+        }
+
+        Assert.NotNull(dead);
         s.Tally.Record(new WorldEvent(1, WorldEventKind.Death, dead!.Id.Value.ToString(), SourceSystem: YearEventTally.DeathSource));
 
         double Expected(IReadOnlyCollection<Npc> scope)
         {
             var ages = scope.Select(Age).ToList();
-            int deathBand = Age(dead) / width;
+            int deathBand = Age(dead!) / width;
             int count = Math.Max(ages.Max() / width, deathBand) + 1;
             var bands = Enumerable.Range(0, count).Select(i =>
             {

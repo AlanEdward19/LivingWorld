@@ -55,11 +55,14 @@ public static class DecisionContextBuilder
     /// <summary>Emoções e lembrança de fome do NPC; nulo quando não há nada que pese (sem alocar).</summary>
     internal static InnerLifeSnapshot? BuildInnerLife(WorldState world, Npc npc, long tick)
     {
-        if (npc.Psyche is null) return null;
+        // AD-139: os hormônios entram pelo mesmo caminho; nada a pesar, nada alocado
+        var hormones = LivingWorld.Simulation.Population.Body.Endocrine.SnapshotOf(world, npc, tick);
+        bool neutral = hormones == default;
+        if (npc.Psyche is null) return neutral ? null : new InnerLifeSnapshot(default, 0, hormones);
         var mood = LivingWorld.Simulation.Cognition.PsycheMechanic.AffectOf(world, npc, tick);
         double famine = LivingWorld.Simulation.Cognition.PsycheMechanic.Strongest(
             world, npc, LivingWorld.Domain.Cognition.LifeEventKind.Famine, tick);
-        return mood.IsCalm && famine <= 0 ? null : new InnerLifeSnapshot(mood, famine);
+        return mood.IsCalm && famine <= 0 && neutral ? null : new InnerLifeSnapshot(mood, famine, hormones);
     }
 
     internal static BodySnapshot BuildBodySlice(WorldState world, Npc npc) =>

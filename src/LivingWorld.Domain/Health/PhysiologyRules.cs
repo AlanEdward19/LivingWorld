@@ -28,6 +28,9 @@ public sealed record PhysiologyRules(
     double DeliveryHealthLoss,
     LactationRules Lactation)
 {
+    /// <summary>Nome das mortes que sobram da tábua (acidente, velhice), AD-137; só rotula, não muda o risco.</summary>
+    public DeathCauseRules DeathCauses { get; init; } = DeathCauseRules.PreIndustrial;
+
     public static PhysiologyRules Default { get; } = new(
         Enabled: true,
         UndernutritionTimeConstantDays: 30,

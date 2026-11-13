@@ -21,6 +21,14 @@ public sealed record EconomyRules(
     IReadOnlyDictionary<int, double> DemandBaselinePerNpc,
     double WageTaxRate = 0.0)
 {
+    /// <summary>Fração mensal do caixa do empregador acima da reserva de giro que vai ao tesouro da cidade (dízimo e renda da
+    /// terra, AD-140). 0 = o caixa só acumula (o modelo de antes). O tesouro paga a esmola de quem passa fome sem dinheiro: sem
+    /// isso a sobra da venda de comida e água ficava parada no caixa da fazenda e a moeda das casas secava em décadas.</summary>
+    public double SurplusLevyShare { get; init; }
+
+    /// <summary>Reserva de giro que o empregador guarda antes do dízimo, em meses da folha (mínimo de um salário).</summary>
+    public double WorkingCapitalPayrollMonths { get; init; } = 12;
+
     public static Result<EconomyRules> Create(
         bool enabled, int foodResourceId, int waterResourceId,
         IReadOnlyDictionary<(int ResourceId, int LocationTypeId), long> capacityByResourceLocation,

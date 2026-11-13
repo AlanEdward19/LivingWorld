@@ -37,6 +37,11 @@ public sealed class WorldRngRegistry
     public WorldRng StreamFor(string purpose, long id) =>
         _root.Derive(StableHashOfPurposeAndId(purpose, id));
 
+    /// <summary>Estado inicial do mesmo stream de <see cref="StreamFor"/>, sem alocar (sorteio fixo lido no caminho quente);
+    /// avance com <see cref="WorldRng.NextDouble(ref ulong)"/>.</summary>
+    public ulong StreamStateFor(string purpose, long id) =>
+        _root.DeriveState(StableHashOfPurposeAndId(purpose, id));
+
     /// <summary>Mesmo valor de <c>StableHash($"{purpose}-{id}")</c>, sem montar a string nem o array de bytes
     /// (chamado por rolagem, em laços quentes). Só o caso ASCII com id não negativo é acelerado; o resto
     /// cai na definição original, que depende da cultura corrente para o sinal.</summary>

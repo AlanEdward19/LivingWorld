@@ -186,6 +186,14 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 candidate = ConstrainByDevelopment(world, npc, candidate);
                 if (urgent && npc.ControlledAction is null && world.TheftRules.Enabled && TheftResolver.Wants(world, npc, now, theftIndex))
                     candidate = ActionType.Steal; // desespero + temperamento + alguém com moeda ao lado
+                var sickAware = LivingWorld.Simulation.Health.SickBehavior.Constrain(world, npc, candidate, now); // de cama ou cuidando (AD-137)
+                // a cama troca a ação (comer, comprar) depois do marco: a troca também passa pelo desenvolvimento (AD-140). A
+                // criança de cama que não pode ir comprar come (o plano de comida usa a despensa e a compra assistida), em vez
+                // de ficar parada e morrer de sede com água em casa
+                candidate = sickAware == candidate ? candidate
+                    : sickAware == ActionType.Buy && ConstrainByDevelopment(world, npc, ActionType.Buy) != ActionType.Buy
+                        ? ConstrainByDevelopment(world, npc, ActionType.Eat)
+                        : ConstrainByDevelopment(world, npc, sickAware);
 
                 chosen = ResolveWithStepCap(npc.Id.Value, candidate, world, npc, marketIndex, rules.MaxActionSelectionSteps);
                 travelPurpose = chosen == ActionType.Travel && candidate is ActionType.Work or ActionType.Sleep or ActionType.Buy

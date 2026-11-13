@@ -25,6 +25,7 @@ public static class CausalPolicy
         // Mortes e perdas de vida
         WorldEventKind.Death, WorldEventKind.Starvation, WorldEventKind.Dehydration,
         WorldEventKind.Exhaustion, WorldEventKind.Disease, WorldEventKind.MaternalDeath,
+        WorldEventKind.Accident, WorldEventKind.OldAge,
         // Trabalho, renda e moradia
         WorldEventKind.Hired, WorldEventKind.Fired, WorldEventKind.WageUnpaid,
         WorldEventKind.RentUnpaid, WorldEventKind.Evicted, WorldEventKind.EstateSettled,
@@ -35,6 +36,7 @@ public static class CausalPolicy
         WorldEventKind.UnionEnded, WorldEventKind.AffairDiscovered,
         // Cidade, saúde e tecnologia
         WorldEventKind.SettlementFounded, WorldEventKind.CityMerged, WorldEventKind.OutbreakStarted,
+        WorldEventKind.OutbreakEnded,
         WorldEventKind.TechnologyDiscovered, WorldEventKind.TechnologyAdopted,
         WorldEventKind.DesignPrototyped, WorldEventKind.PrototypeFailed, WorldEventKind.DesignLearned,
         // Extraordinário e combate (cadeia pela invocação)
@@ -55,7 +57,7 @@ public static class CausalPolicy
     [
         WorldEventKind.Birth, WorldEventKind.StillBirth, WorldEventKind.PlantMatured,
         WorldEventKind.CourtshipStarted, WorldEventKind.CourtshipRejected,
-        WorldEventKind.AffairStarted, WorldEventKind.VocationChosen,
+        WorldEventKind.AffairStarted, WorldEventKind.VocationChosen, WorldEventKind.UnwedPregnancy,
         WorldEventKind.ResourceLost, WorldEventKind.Minted, WorldEventKind.Destroyed,
         WorldEventKind.Trade, WorldEventKind.BookLost,
         WorldEventKind.ExtraordinaryUseAttempted, WorldEventKind.ExtraordinaryAcquired,

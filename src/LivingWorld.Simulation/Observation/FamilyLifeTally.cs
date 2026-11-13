@@ -83,6 +83,7 @@ public sealed class FamilyLifeTally(WorldState world)
                 return;
             case WorldEventKind.Death or WorldEventKind.Starvation or WorldEventKind.Dehydration
                 or WorldEventKind.Exhaustion or WorldEventKind.Disease or WorldEventKind.MaternalDeath
+                or WorldEventKind.Accident or WorldEventKind.OldAge
                 when evt.SourceSystem == YearEventTally.DeathSource:
                 if (!long.TryParse(p[0], CultureInfo.InvariantCulture, out long dead)) return;
                 if (world.FindNpc(new NpcId(dead))?.Spouse is { } spouse)

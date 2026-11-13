@@ -227,7 +227,8 @@ public sealed class UnionSystem : ISimulationSystem
         Cool(world, betrayed, unfaithful);
 
         var b = betrayed.Personality;
-        double temper = (b.Impulsivity / 50.0) * ((Scale - b.Agreeableness) / 50.0) * (0.5 + (Scale - b.EmotionalStability) / Scale);
+        double temper = (b.Impulsivity / 50.0) * ((Scale - b.Agreeableness) / 50.0) * (0.5 + (Scale - b.EmotionalStability) / Scale)
+            * LivingWorld.Simulation.Population.Body.Endocrine.AggressionFactor(world, betrayed, now); // AD-139: testosterona
         bool violence = rng.NextDouble() < Math.Clamp(rules.ViolenceChance * temper, 0, 1);
         if (violence) unfaithful.SetHealth(Math.Max(1, unfaithful.Health - rules.ViolenceHarm));
 

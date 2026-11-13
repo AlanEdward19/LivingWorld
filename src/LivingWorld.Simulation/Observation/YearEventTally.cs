@@ -32,6 +32,7 @@ public sealed class YearEventTally(WorldState world, int ageBandYears = 5) : IWo
                 return;
             case WorldEventKind.Death or WorldEventKind.Starvation or WorldEventKind.Dehydration
                 or WorldEventKind.Exhaustion or WorldEventKind.Disease or WorldEventKind.MaternalDeath
+                or WorldEventKind.Accident or WorldEventKind.OldAge
                 when evt.SourceSystem == DeathSource:
                 if (NpcOf(evt.Payload) is not { } dead) return;
                 var tally = Of(dead.City);
@@ -49,7 +50,7 @@ public sealed class YearEventTally(WorldState world, int ageBandYears = 5) : IWo
     {
         WorldEventKind.Starvation or WorldEventKind.Dehydration => "hunger_thirst",
         WorldEventKind.Disease => "disease",
-        WorldEventKind.Death => "age",
+        WorldEventKind.Death or WorldEventKind.OldAge => "age",
         _ => "other",
     };
 

@@ -28,6 +28,7 @@ public static class NpcDeath
         ctx.LogEvent(kind, npc.Id.Value.ToString(), sourceSystem: "NpcDeath");
         FactToReportConversionScheduler.OnWitnessDied(npc.Id, world, ctx);
         LivingWorld.Simulation.Health.Lactation.OnDeath(world, npc, ctx.CurrentTick);
+        world.ForgetHealthOf(npc.Id); // infecção e imunidade do morto saem dos livros (AD-137)
 
         if (npc.Household is not { } householdId) return;
 

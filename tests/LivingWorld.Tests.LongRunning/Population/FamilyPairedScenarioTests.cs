@@ -153,8 +153,9 @@ public class FamilyPairedScenarioTests
     /// comer (salário proporcional, ajuda mútua, compra de casa), o default mede ~40 nascimentos em
     /// 10 anos com ~90 pessoas: natalidade bruta ~45‰, dentro da faixa pré-industrial (35–50‰); daí 150%.
     /// AD-130: com fecundidade natural por ciclo, a 1ª década (casais da pirâmide inicial, ninguém ainda no intervalo pós-parto)
-    /// mede ~54 nascimentos (~50‰, topo da faixa; em 100 anos a média cai para ~37‰); daí 250%.</summary>
-    private const double BirthCountToleranceFraction = 2.5;
+    /// mede ~54 nascimentos (~50‰, topo da faixa; em 100 anos a média cai para ~37‰); daí 250%.
+    /// AD-137: com a doença de época, o bebê que morre encerra a amenorreia e a seed 42 mede 60 (~55‰); daí 270%.</summary>
+    private const double BirthCountToleranceFraction = 2.7;
 
     [Fact]
     [Trait("Category", "Scenario")]
@@ -468,8 +469,11 @@ public class FamilyPairedScenarioTests
         // morreu ela devolveria a idade no óbito e não na concepção.
         int motherAgeAtConception = (int)(
             (conceptionDate.TotalHours - mother.BirthDate.TotalHours) / mother.BirthDate.Calendar.HoursPerYear);
-        // AD-130: casa a partir de FertilityMinAge e concebe enquanto a curva de fecundabilidade for positiva (menopausa)
-        Assert.True(motherAgeAtConception >= rules.FertilityMinAge
+        // AD-130: casa a partir de FertilityMinAge e concebe enquanto a curva de fecundabilidade for positiva (menopausa).
+        // AD-139/AD-140: com hormônios a fertilidade começa na menarca dela (média ~15, dp 1,2), dentro ou fora de união; a
+        // concepção vale a partir da própria puberdade, ou de FertilityMinAge para quem não tem a puberdade marcada.
+        bool pastPuberty = mother.PubertyTick is { } puberty && puberty <= conceptionDate.TotalHours;
+        Assert.True((motherAgeAtConception >= rules.FertilityMinAge || pastPuberty)
             && rules.Fertility.FemaleMonthlyFecundability.At(motherAgeAtConception) > 0, $"mãe concebeu com {motherAgeAtConception}");
 
         if (child.FatherId is { } fatherId)
@@ -481,8 +485,10 @@ public class FamilyPairedScenarioTests
 
     /// <summary>Proxy de idade média de primeiro parto a partir das regras demográficas do cenário
     /// default (campo dedicado no JSON fica para quando o loader expuser — hoje só há janela).</summary>
+    /// <summary>Meio da janela fértil. AD-139/AD-140: com hormônios a janela abre na menarca média, não em FertilityMinAge.</summary>
     private static double MeanAgeAtFirstBirthYears(PopulationRules rules) =>
-        (rules.FertilityMinAge + rules.FertilityMaxAge) / 2.0;
+        (Math.Min(rules.FertilityMinAge, rules.Fertility.Endocrine.Enabled ? rules.Fertility.Endocrine.FemalePubertyMeanYears : rules.FertilityMinAge)
+         + rules.FertilityMaxAge) / 2.0;
 
     private sealed class RecordingSink : IWorldEventSink
     {

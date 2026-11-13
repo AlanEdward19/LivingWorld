@@ -32,6 +32,8 @@ public enum UtilityTerm : byte
     Solitude,
     Foresight,
     Continuity,
+    Menstruation,
+    Adolescence,
 }
 
 /// <summary>Quanto um termo somou (ou tirou) da utilidade de uma ação.</summary>
@@ -155,12 +157,23 @@ public sealed partial class BehaviorDecisionSystem
         }
 
         score += InnerLifeTerms(ctx, action, rules.Psyche, economy, baseValue, sink, knockout, ref lens);
+        score += HormoneTerms(ctx, action, baseValue, sink, knockout, ref lens);
 
+        // AD-139: o jovem no pico do impulso desconta parte das consequências que a antevisão mostra e muda de ideia mais rápido
+        var hormones = knockout == UtilityTerm.Adolescence ? default : ctx.Hormones;
         if (foresight.TryGetValue(action, out var preview) && knockout != UtilityTerm.Foresight)
         {
-            double factored = score * ForesightUtilityFactor(preview);
+            double factor = ForesightUtilityFactor(preview);
+            double factored = score * factor;
             lens.Credit(UtilityGroup.Foresight, factored - score);
             Note(sink, action, UtilityTerm.Foresight, factored - score, lens.Factor(UtilityGroup.Foresight));
+            if (hormones.ForesightDiscount > 0)
+            {
+                double discounted = score * (factor + (1 - factor) * hormones.ForesightDiscount);
+                lens.Credit(UtilityGroup.Foresight, discounted - factored);
+                Note(sink, action, UtilityTerm.Adolescence, discounted - factored, lens.Factor(UtilityGroup.Foresight));
+                factored = discounted;
+            }
             score = factored;
         }
 
@@ -169,6 +182,13 @@ public sealed partial class BehaviorDecisionSystem
             score += rules.ContinuityBonus;
             lens.Credit(UtilityGroup.Continuity, rules.ContinuityBonus);
             Note(sink, action, UtilityTerm.Continuity, rules.ContinuityBonus, lens.Factor(UtilityGroup.Continuity));
+            if (hormones.Fickleness > 0)
+            {
+                double fickle = -rules.ContinuityBonus * hormones.Fickleness;
+                score += fickle;
+                lens.Credit(UtilityGroup.Continuity, fickle);
+                Note(sink, action, UtilityTerm.Adolescence, fickle, lens.Factor(UtilityGroup.Continuity));
+            }
         }
 
         return typeof(TLens) == typeof(NoBrain) ? score : lens.Total;
@@ -272,6 +292,28 @@ public sealed partial class BehaviorDecisionSystem
         var group = term is UtilityTerm.IncomeNeed or UtilityTerm.FamineMemory ? UtilityGroup.Pressure : UtilityGroup.Affect;
         lens.Credit(group, value);
         Note(sink, action, term, value, lens.Factor(group));
+    }
+
+    /// <summary>Hormônios na escolha (AD-139), pelo mesmo caminho da vida interior: a cólica tira do trabalho e puxa para o
+    /// descanso, a irritação pré-menstrual afasta do convívio e o jovem no pico do impulso procura os pares.</summary>
+    private static double HormoneTerms<TLens>(
+        DecisionContext ctx, ActionType action, double baseValue, List<UtilityContribution>? sink, UtilityTerm? knockout,
+        ref TLens lens)
+        where TLens : struct, IBrainLens
+    {
+        var h = ctx.Hormones;
+        double menstruation = action switch
+        {
+            ActionType.Work => -h.CrampWork,
+            ActionType.Idle => h.CrampIdle,
+            ActionType.Socialize => -h.IrritableSocial,
+            _ => 0,
+        };
+        double adolescence = action == ActionType.Socialize ? h.PeerSocial * baseValue : 0; // reforça a vontade social, não a cria
+        double sum = 0;
+        AddInner(ref sum, ref lens, sink, action, knockout, UtilityTerm.Menstruation, menstruation);
+        AddInner(ref sum, ref lens, sink, action, knockout, UtilityTerm.Adolescence, adolescence);
+        return sum;
     }
 
     /// <summary>Sem moeda nenhuma e com a despensa da casa abaixo da meta, trabalhar é o caminho para comer: até

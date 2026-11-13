@@ -165,8 +165,13 @@ public class ClimateTests
         long droughtYear = 5;
         controlClock.Run(control, droughtYear * YearHours - 1);
         dryClock.Run(dry, droughtYear * YearHours - 1);
-        // o sorteio do ano 5 acontece no primeiro tick dele; gravar antes, o sistema não reescreve um ano já sorteado
-        foreach (var region in dry.Map.Regions) dry.SetClimateYear(region.Id, droughtYear, 300); // seca em toda região
+        // o sorteio do ano 5 acontece no primeiro tick dele; gravar antes, o sistema não reescreve um ano já sorteado. AD-140: dois
+        // anos de seca seguidos (5 e 6): com margem na semeadura o celeiro carrega sobra e um ano só já não esvazia a venda
+        foreach (var region in dry.Map.Regions)
+        {
+            dry.SetClimateYear(region.Id, droughtYear, 300); // seca em toda região
+            dry.SetClimateYear(region.Id, droughtYear + 1, 300);
+        }
         controlClock.Run(control, 1);
         dryClock.Run(dry, 1);
         long ProducedBefore(WorldState w) => w.ResourceProduced.GetValueOrDefault(new ResourceType(w.EconomyRules.FoodResourceId));
@@ -175,7 +180,7 @@ public class ClimateTests
             .Max(x => x.Prices[new ResourceType(w.EconomyRules.FoodResourceId)]);
         long controlPeak = 0, dryPeak = 0;
         // AD-135: a colheita é no verão e o celeiro curto aparece depois dela, então a janela é o ano inteiro
-        for (int day = 0; day < YearHours / 24; day++) // o preço do alimento no pico do ano
+        for (int day = 0; day < 2 * YearHours / 24; day++) // o preço do alimento no pico dos dois anos
         {
             controlClock.Run(control, 24);
             dryClock.Run(dry, 24);
@@ -187,7 +192,7 @@ public class ClimateTests
         Assert.True(dryHarvest < 0.6 * controlHarvest, $"colheita com seca {dryHarvest} contra controle {controlHarvest}");
         Assert.True(dryPeak > controlPeak, $"pico de preço com seca {dryPeak} contra controle {controlPeak}");
 
-        dryClock.Run(dry, 14 * YearHours);
+        dryClock.Run(dry, 13 * YearHours);
         Assert.True(dry.Npcs.Count(n => n.IsAlive) > 0, "a vila se extinguiu depois da seca");
     }
 }
