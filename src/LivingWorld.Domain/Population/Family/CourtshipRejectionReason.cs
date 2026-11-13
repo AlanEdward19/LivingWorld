@@ -10,4 +10,7 @@ public enum CourtshipRejectionReason
     Incesto,
     ForaDaFaixaEtaria,
     SemAfinidade,
+
+    /// <summary>Quer o outro, mas sem trabalho nem economias o casal não tem como montar casa e a prudência adia (AD-145).</summary>
+    SemMeios,
 }

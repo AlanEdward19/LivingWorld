@@ -242,11 +242,22 @@ public sealed class CourtshipSystem : ISimulationSystem
         // cada um tem de querer o outro (AD-136)
         double wants = Preference(seeker, candidate, aToB, familyRules, populationRules, now);
         double wanted = Preference(candidate, seeker, bToA, familyRules, populationRules, now);
-        if (wants < ThresholdOf(world, seeker) || wanted < ThresholdOf(world, candidate))
+        double seekerThreshold = ThresholdOf(world, seeker), candidateThreshold = ThresholdOf(world, candidate);
+        if (wants < seekerThreshold || wanted < candidateThreshold)
         {
             ctx.LogEvent(
                 WorldEventKind.CourtshipRejected,
                 $"{CourtshipRejectionReason.SemAfinidade}|{seeker.Id.Value}|{candidate.Id.Value}", sourceSystem: "CourtshipSystem");
+            return;
+        }
+
+        // AD-145: os dois se querem, mas cada um pesa se o casal tem com o que montar casa (trabalho, economias)
+        if (wants * HouseholdMeans.MarriageReadiness(world, seeker, candidate) < seekerThreshold
+            || wanted * HouseholdMeans.MarriageReadiness(world, candidate, seeker) < candidateThreshold)
+        {
+            ctx.LogEvent(
+                WorldEventKind.CourtshipRejected,
+                $"{CourtshipRejectionReason.SemMeios}|{seeker.Id.Value}|{candidate.Id.Value}", sourceSystem: "CourtshipSystem");
             return;
         }
 
@@ -299,9 +310,12 @@ public sealed class CourtshipSystem : ISimulationSystem
             var bToA = world.Relationships.GetValueOrDefault(new RelationshipKey(candidate.Id, seeker.Id));
             double score = Preference(seeker, candidate, aToB, familyRules, populationRules, now);
             if (score > bestScore) (bestScore, best) = (score, candidate);
-            if (Preference(candidate, seeker, bToA, familyRules, populationRules, now) >= ThresholdOf(world, candidate)
-                && score > bestAcceptingScore)
-                (bestAcceptingScore, bestAccepting) = (score, candidate);
+            // AD-145: entre os que o aceitariam, o melhor com os meios do casal pesados pelos dois
+            double ready = score * HouseholdMeans.MarriageReadiness(world, seeker, candidate);
+            if (Preference(candidate, seeker, bToA, familyRules, populationRules, now) * HouseholdMeans.MarriageReadiness(world, candidate, seeker)
+                    >= ThresholdOf(world, candidate)
+                && ready > bestAcceptingScore)
+                (bestAcceptingScore, bestAccepting) = (ready, candidate);
         }
 
         // Sem alternativa válida, preserva a rejeição nomeada observável do primeiro candidato vetado.

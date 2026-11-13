@@ -43,25 +43,47 @@ afunda, vira, quebra, lento. A receita de construção (material por id e horas)
 
 ## Difusão, produção e perda
 Quem sabe ensina por mês alguém da casa ou amigo próximo (segredo se ambicioso e pouco altruísta), com
-perda de fidelidade e chance de uma medida sair errada (vira outro design, de pai conhecido). Quem sabe
-e não tem embarcação em casa constrói a sua. Itens gastam (vida do material mais curto × qualidade). Na
-morte, o saber vai junto; design sem quem saiba e sem item vira lápide (`DesignTombstone`). Item que
-sobrou pode ser copiado de novo (engenharia reversa).
+perda de fidelidade. Itens gastam (vida do material mais curto × qualidade). Na morte, o saber vai junto;
+design sem quem saiba e sem item vira lápide (`DesignTombstone`). Item que sobrou pode ser copiado de novo.
+
+## A peça na economia e na vida (fatia 2, AD-143)
+- **Produção** (`DesignWorkshop`): quem sabe faz a sua ou, se a cidade procurou no mês passado mais do
+  que há exposto, uma para vender. A receita sai do design (`PhysicsEvaluator.Recipe`, `BuildMinutes`);
+  a encomenda anda uma vez por dia dentro da `ProductionSystem`, com as horas livres × força × capacidade.
+- **Material de estoque**: abrir a encomenda tira primeiro o material guardado na casa (sobra de
+  construção que falhou: `SalvagePm`) e, se o material circula na economia (`MaterialSpec.ResourceId`),
+  a despensa e o mercado (pagando); o que já estava guardado não é colhido (`GatherMinutes`).
+- **Venda** (`InventionMarket`): a peça fica exposta no mercado de comida da cidade com preço = horas ×
+  preço da hora de quem fez (+ material pago). Quem chega ao mercado precisando atravessar água sem ter
+  com quê compra a mais barata se ela valer (horas perdidas por mês × preço da sua hora × meses que a
+  peça dura) e sobrar para a comida; não precisa saber fazer. Moeda vai a quem fez (ou herdeiro, ou caixa
+  do mercado). O preço anda por mês com a regra do mercado de recursos: 1 + sensibilidade × (1 − oferta/procura).
+- **Carga por viagem**: com água entre a casa e o mercado, a compra (e a água do poço) corta no que cabe:
+  `FootCarryKg` a pé, a carga útil medida da peça da casa (`UnitGrams` dá o peso de cada recurso).
+- **Pesca** (`Fishing`, mensal): casa com peça que funciona e água perto pesca no tempo livre de quem tem
+  mais; rendimento = g/h × alcance (velocidade/passo, 0,5..2) × firmeza (GM/(3×mínimo), 0,2..1) × peixe
+  que resta/capacidade, limitado pela carga útil por saída; estoque de peixe por cidade, logístico. Vira
+  comida na despensa até o que a casa come no mês.
+- **Cópia por evento**: quem chega remando mostra a peça; quem está perto, de outra casa e com o problema
+  da água, guarda o design (`InventionMind.SeenDesignId`) e copia dele na próxima tentativa.
+- **Lápide e relatos**: ao virar lápide, conta-se quantos fatos da história (e relatos deles) falam do
+  design (`Accounts`); `GET /designs/by-fact/{id}` leva do fato à lápide. Relato vivo na cidade aumenta a
+  vontade de tentar (`RumorAttemptBoostPm`). Sem história ligada, nenhum relato.
+- **Pessoa 0**: `LifeEventIntake` lê "ninguém" como campo ausente ou ilegível (-1), não como 0: a pessoa 0
+  passa a lembrar do que vive. Na lembrança, `Other` = 0 ainda é "ninguém" (backlog 7a).
 
 ## Consumidor causal
-`Mobility.TravelTicks` e `Mobility.HouseholdTicks`: cada célula d'água na reta custa o vau a pé; com
-embarcação na casa, custa remar na velocidade medida mais pôr e tirar (o menor dos dois). Isso muda o
-trajeto de todo deslocamento, a meta de despensa e o tamanho da compra no mercado.
+`Mobility.TravelTicks` e `HouseholdTicks` (vau ou remo), tamanho da compra (carga), despensa (pesca),
+carteira de quem compra e de quem vende, `ProductionSystem` (encomendas), vontade de tentar (relatos).
 
 ## Contrato com o cliente
-`GET /designs` e `GET /designs/{id}`: partes (forma, tamanho em m, offset, eixo, parede, junção, mãe,
-material) e materiais (cor, acabamento, grão, condutividade); `object_factory.gd::build_design` monta
-uma malha por parte, albedo = cor, rugosidade = 1 − acabamento, metálico = condutividade alta.
+`GET /designs`, `GET /designs/{id}` (lápide traz `accounts` e `lostTick`) e `GET /designs/by-fact/{id}`:
+partes e materiais; `object_factory.gd::build_design` monta uma malha por parte.
 
 ## Ainda não
-Animação por junção, pose de uso, carga por viagem, venda no mercado, terra e ar, química (remédio e
-contracepção, decisão 6), robôs (decisão 4). Substituir o `TechDiscoverySystem`: ver AD-141.
+Animação por junção, pose de uso, terra e ar, química (remédio e contracepção), robôs, substituir o
+`TechDiscoverySystem` (backlog `05-invencao-emergente.md`, fatias seguintes).
 
 ## Números
 Padrão em `InventionRules` (Domain); `InventionRules.Disabled` = mundo de antes. Valores e marcas
-"precisa de conferência" no registro AD-141 de `docs/decisions-log.md`.
+"precisa de conferência" nos registros AD-141 e AD-143 de `docs/decisions-log.md`.

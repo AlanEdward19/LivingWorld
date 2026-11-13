@@ -136,6 +136,42 @@ public sealed record InventionRules
     /// <summary>Chance por mês (‰) de quem sabe e não tem a sua construir uma.</summary>
     public int BuildChancePm { get; init; } = 200;
 
+    // --- carga, mercado, estoque, pesca, cópia e lápide (AD-143) ---
+
+    /// <summary>O que uma pessoa carrega a pé atravessando água (kg), quando não tem com quê.</summary>
+    public int FootCarryKg { get; init; } = 30;
+
+    /// <summary>Massa de uma unidade de recurso da economia (g), por id de recurso; o que não estiver aqui pesa
+    /// <see cref="DefaultUnitGrams"/>. Padrão: comida (1) ≈ ração de grão de um dia; água (2) ≈ 2 litros.</summary>
+    public IReadOnlyDictionary<int, int> UnitGrams { get; init; } = new Dictionary<int, int> { [1] = 700, [2] = 2000 };
+
+    public int DefaultUnitGrams { get; init; } = 1000;
+
+    /// <summary>Horas de trabalho por mês que o salário paga: o preço da hora de quem faz para vender.</summary>
+    public int WorkHoursPerMonth { get; init; } = 240;
+
+    /// <summary>Parte (‰) do material de uma construção que falhou que volta para o estoque da casa.</summary>
+    public int SalvagePm { get; init; } = 500;
+
+    /// <summary>Peixe que a água de uma célula sustenta (kg) e quanto o estoque cresce por mês (‰, logístico).</summary>
+    public int FishKgPerWaterCell { get; init; } = 200;
+    public int FishRegrowthPm { get; init; } = 50;
+
+    /// <summary>Peixe por hora (g) de quem pesca da margem com as mãos, com a água cheia; a peça multiplica pelo que mede.</summary>
+    public int FishGramsPerHour { get; init; } = 1000;
+
+    /// <summary>Dias por mês que quem tem com que pescar sai à água no tempo livre.</summary>
+    public int FishingDaysPerMonth { get; init; } = 8;
+
+    /// <summary>Até onde (células) alguém vê de perto a peça de outra casa em uso, e quantos olhares contam por chegada.</summary>
+    public int SightRadius { get; init; } = 1;
+    public int MaxWatchersPerSighting { get; init; } = 16;
+
+    /// <summary>Quanto (‰) relato vivo de algo que já funcionou e se perdeu aumenta a vontade de tentar de quem o ouviu na cidade.</summary>
+    public int RumorAttemptBoostPm { get; init; } = 500;
+
+    public int UnitGramsOf(int resourceId) => UnitGrams.TryGetValue(resourceId, out int g) && g > 0 ? g : DefaultUnitGrams;
+
     public static IReadOnlyList<MaterialSpec> DefaultMaterials { get; } =
     [
         // madeira (média de folhosa e conífera secas): 600 kg/m³, tração 40 MPa de projeto, tronco 6 m × 0,5 m

@@ -19,12 +19,14 @@ public static class InventionIntake
         if (water == 0) return;
         var rules = world.InventionRules!;
         var ledger = world.Invention!;
-        int craft = npc.Household is { } h ? ledger.BestCraftSpeed(h.Value, rules) : 0;
+        var best = npc.Household is { } h ? ledger.BestCraft(h.Value, rules) : default;
+        int craft = best.SpeedMmS;
         var (foot, byCraft) = WaterCrossing.Hours(world, water, craft);
         if (craft > 0 && byCraft < foot)
         {
             world.InventionTally.CraftWaterTrips++;
             world.InventionTally.HoursSavedX10 += (long)Math.Round(10 * (foot - byCraft));
+            Sighted(world, npc, destination, best.DesignId);
             return;
         }
 
@@ -35,6 +37,32 @@ public static class InventionIntake
         int index = ledger.MindIndex(npc.Id.Value);
         var mind = index >= 0 ? ledger.Minds[index] : new InventionMind(npc.Id.Value, 0, 0, 0, 0, Domain.Invention.FailureMode.None, null, 0);
         ledger.PutMind(mind with { FrustrationMinutes = (int)Math.Min(int.MaxValue / 2, (long)mind.FrustrationMinutes + minutes) });
+    }
+
+    /// <summary>A peça chega com alguém (AD-143): quem está perto da chegada, é de outra casa da mesma cidade e já tem o problema da
+    /// água (uma mente) vê a peça em uso e guarda o design para copiar. Evento, não varredura: só os baldes de células em volta.</summary>
+    internal static void Sighted(WorldState world, Npc rower, CellCoord at, int designId)
+    {
+        if (designId <= 0) return;
+        var rules = world.InventionRules!;
+        var ledger = world.Invention!;
+        if (ledger.Minds.Count == 0) return;
+        int r = rules.SightRadius, looked = 0;
+        for (int dy = -r; dy <= r && looked < rules.MaxWatchersPerSighting; dy++)
+            for (int dx = -r; dx <= r && looked < rules.MaxWatchersPerSighting; dx++)
+            {
+                var bucket = world.AliveNpcIndex.At(new CellCoord(at.X + dx, at.Y + dy));
+                for (int i = 0; i < bucket.Count && looked < rules.MaxWatchersPerSighting; i++)
+                {
+                    var other = bucket[i];
+                    if (other.Household == rower.Household || other.City != rower.City) continue;
+                    looked++;
+                    int index = ledger.MindIndex(other.Id.Value);
+                    if (index < 0 || ledger.Minds[index].SeenDesignId != 0) continue; // guarda a primeira que viu até copiá-la
+                    ledger.PutMind(ledger.Minds[index] with { SeenDesignId = designId });
+                    world.InventionTally.Sightings++;
+                }
+            }
     }
 
     public static void OnEvent(WorldState world, WorldEventKind kind, string payload, string sourceSystem, long tick)
@@ -72,8 +100,40 @@ public static class InventionIntake
         if (ledger.FindDesign(designId) is not { } design) return;
         ledger.Designs.Remove(design);
         ledger.Known.RemoveAll(k => k.DesignId == designId);
-        ledger.Tombstones.Add(new Domain.Invention.DesignTombstone(design.Id, design.InventorId, design.Tick, tick, design.Parts.Count));
+        var city = world.FindNpc(new NpcId(design.InventorId))?.City ?? default;
+        int accounts = Accounts(world, design.Id);
+        ledger.Tombstones.Add(new Domain.Invention.DesignTombstone(design.Id, design.InventorId, design.Tick, tick, design.Parts.Count, city, accounts));
         ledger.Touch();
         world.InventionTally.Lost++;
+        if (accounts > 0) world.InventionTally.TombstonesWithAccounts++;
+    }
+
+    /// <summary>Fatos da história que falam do design (funcionou, alguém aprendeu, alguém comprou) e os relatos que nasceram deles:
+    /// os que ainda apontam para ele quando se perde (AD-143). Sem história ligada, nenhum.</summary>
+    internal static int Accounts(WorldState world, int designId)
+    {
+        if (world.Facts.Count == 0) return 0;
+        var facts = new HashSet<FactId>();
+        foreach (var fact in world.Facts)
+            if (DesignIdOf(fact.Kind, fact.Payload) == designId) facts.Add(fact.Id);
+        if (facts.Count == 0) return 0;
+        int reports = 0;
+        foreach (var report in world.Reports) if (facts.Contains(report.OriginFactId)) reports++;
+        return facts.Count + reports;
+    }
+
+    /// <summary>O design de que um fato fala, pelo campo do payload do evento; 0 = nenhum.</summary>
+    public static int DesignIdOf(WorldEventKind kind, string payload)
+    {
+        int field = kind switch
+        {
+            WorldEventKind.DesignPrototyped => 1,
+            WorldEventKind.DesignLearned or WorldEventKind.DesignSold => 2,
+            _ => -1,
+        };
+        if (field < 0) return 0;
+        var parts = payload.Split('|');
+        return parts.Length > field && int.TryParse(parts[field], System.Globalization.NumberStyles.Integer,
+            System.Globalization.CultureInfo.InvariantCulture, out int id) ? id : 0;
     }
 }

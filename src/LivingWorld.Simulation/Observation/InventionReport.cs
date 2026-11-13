@@ -46,6 +46,12 @@ public sealed record InventionSummary(
         sb.AppendLine(inv, $"invencao final designs_vivos={runs.Sum(r => r.LiveDesigns)} lapides={runs.Sum(r => r.Tombstones)} quem_sabe={runs.Sum(r => r.Knowers)} itens={runs.Sum(r => r.Items)}");
         long foot = Sum(t => t.FootWaterTrips), craft = Sum(t => t.CraftWaterTrips);
         sb.AppendLine(inv, $"invencao viagens_por_agua a_pe={foot} na_embarcacao={craft} ({100.0 * craft / Math.Max(1, foot + craft):F1}%) horas_poupadas={Sum(t => t.HoursSavedX10) / 10.0:F0}");
+        // AD-143
+        sb.AppendLine(inv, $"invencao carga compras_cortadas_a_pe={Sum(t => t.FootCargoCapped)} unidades_cortadas={Sum(t => t.CargoUnitsCut)} idas_com_carga_da_peca={Sum(t => t.CraftCargoTrips)}");
+        sb.AppendLine(inv, $"invencao mercado expostas={Sum(t => t.Listed)} vendas={Sum(t => t.Sales)} moedas={Sum(t => t.SaleCoins)} preco_medio={(double)Sum(t => t.SaleCoins) / Math.Max(1, Sum(t => t.Sales)):F1} reprecificacoes={Sum(t => t.Repriced)} falhas_de_quem_fazia_para_vender={Sum(t => t.SaleBuildFailures)}");
+        sb.AppendLine(inv, $"invencao material kg_do_estoque={Sum(t => t.StockGramsUsed) / 1000} kg_do_mercado={Sum(t => t.MarketGramsBought) / 1000} kg_reaproveitados={Sum(t => t.SalvagedGrams) / 1000} horas_de_coleta_poupadas={Sum(t => t.GatherMinutesSaved) / 60}");
+        sb.AppendLine(inv, $"invencao pesca meses_de_pesca={Sum(t => t.FishingMonths)} kg_de_peixe={Sum(t => t.FishGrams) / 1000} unidades_de_comida_da_agua={Sum(t => t.FishFoodUnits)}");
+        sb.AppendLine(inv, $"invencao copia_por_evento vistas={Sum(t => t.Sightings)} copias_do_que_viu={Sum(t => t.CopiesFromSight)} lapides_com_relatos={Sum(t => t.TombstonesWithAccounts)} gatilhos_com_rumor={Sum(t => t.RumorBoosts)}");
         double overlap = 0; int pairs = 0;
         for (int i = 0; i + 1 < runs.Count; i++)
         {

@@ -1417,6 +1417,30 @@
         ]
       }
     },
+    "/designs/by-fact/{factId}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "factId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
     "/designs/{id}": {
       "get": {
         "parameters": [

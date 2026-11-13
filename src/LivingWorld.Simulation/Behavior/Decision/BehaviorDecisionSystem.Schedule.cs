@@ -51,9 +51,9 @@ public sealed partial class BehaviorDecisionSystem
         if (!economy.Enabled || npc.Wallet.Amount < 1) return false;
         if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household) return false;
 
-        long scarcest = Math.Min(
-            household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId)),
-            household.Stock.GetValueOrDefault(new ResourceType(economy.WaterResourceId)));
+        long foodStock = household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId));
+        long waterStock = household.Stock.GetValueOrDefault(new ResourceType(economy.WaterResourceId));
+        long scarcest = Math.Min(foodStock, waterStock);
         int members = Math.Max(1, household.Members.Count);
         double hoard = -1;
         if (scarcest >= (long)members * MaxProvisionDays) // despensa cheia mesmo para o mercado mais longe
@@ -69,8 +69,17 @@ public sealed partial class BehaviorDecisionSystem
         // AD-138: quem passou fome quer a despensa mais cheia
         if (hoard < 0) hoard = PsycheMechanic.HoardFactor(world, npc, world.CurrentDate.TotalHours);
         double target = ProvisionTargetAt(world, household, market) * hoard;
-        return (double)scarcest / members < target * RestockShortfall;
+        if ((double)scarcest / members >= target * RestockShortfall) return false;
+        if (world.FamilyRules.Pressure?.TopUpPurchases != true) return true;
+        // AD-145: só vai se pode pagar o que está faltando. A compra completa a meta (não soma por cima), então com a água
+        // cheia e a comida cara demais a ida não traz nada, e a pessoa ficava indo ao mercado sem parar em vez de viver.
+        return Affords(npc, market, economy.FoodResourceId, foodStock, members, target)
+            || Affords(npc, market, economy.WaterResourceId, waterStock, members, target);
     }
+
+    private static bool Affords(Npc npc, Workplace market, int resourceId, long stock, int members, double target) =>
+        (double)stock / members < target * RestockShortfall
+        && market.Prices.TryGetValue(new ResourceType(resourceId), out var price) && price > 0 && npc.Wallet.Amount >= price;
 
     /// <summary>Ação de quem não tem necessidade urgente: a da rotina, ou comprar quando a despensa baixa para a distância do mercado
     /// (à noite dorme) ou quando o choro de uma criança da casa não pode esperar (aí levanta mesmo de madrugada).</summary>

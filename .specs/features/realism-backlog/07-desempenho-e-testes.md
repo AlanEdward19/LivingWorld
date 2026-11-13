@@ -42,6 +42,16 @@ Planta de prédio em cache; versão de eixos por dono; despertares de viagem; RN
 9. **Núcleo nativo (Rust)**, #159: só como experimento; o custo hoje é de algoritmo e estrutura de dados, não de linguagem.
 10. **Asserts de tempo frágeis**: `RuntimeHistoryCost` (≤1,03) reprovou com 1,045 dentro do gate em 2 de 3 rodadas de 2026-11-12 e deu 1,00 a 1,02 sozinho; ou sai do gate como medição, ou ganha margem estatística. `ScaleScenarioSensor` tem o mesmo risco.
 
+## Tempo do gate, cronometrado em 2026-11-13 (lote AD-143 + AD-145, 51 min)
+
+- Regravar `family-diversity` sozinho: 19 min, e o gate refaz a mesma conta depois. Demais regravações: 1 min.
+- `verify --full`: 31 min. LongRunning 28 min, Unit 12 min, Integration 2,5 min, lint 1,7 min, Performance 3 min.
+- LongRunning é dominado por 6 testes de 20 seeds × 100 anos (21 a 28 min cada, lado a lado): `FamilyLifeScenario`,
+  `FamilyPairedScenario`, `LaborAllocationVillage`, `DefaultVillageCentury`, `FamilyDiversityCalibration` (2).
+- Unit: 10 testes somam 64% do tempo (`VillageSurvivesGenerations` 637 s e 375 s, `TechDiscovery` 532 s e 372 s,
+  `DiseaseTests` 343 s).
+- Como medir: `LW_TEST_TRX_DIR=<dir> bash scripts/verify.sh --full` (um `.trx` por suíte; tempo por suíte no resumo).
+
 ## Regras que valem para qualquer otimização
 
 - Medir antes e depois na mesma máquina, em pares alternados; alocação é exata, tempo não.

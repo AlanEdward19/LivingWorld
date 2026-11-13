@@ -80,6 +80,7 @@ O caixa do empregador acima de `WorkingCapitalPayrollMonths` (12) meses de folha
 cenário de código; 0 = desligado, padrão de JSON e snapshot antigo) ao tesouro da cidade, que paga a esmola da casa sem
 comida e sem dinheiro (`MutualAidSystem`). Sem isso a sobra da venda de comida e água ficava parada na fazenda e a moeda
 das casas secava em décadas: fome com o celeiro cheio. A moeda só muda de dono.
+A esmola é racionada pelos dias até a virada do mês e vem depois da família de origem (AD-145, [population-pressure.md](population-pressure.md)).
 
 ## Ver também
 - [cities.md](cities.md) — onde a produção e o estoque ficam

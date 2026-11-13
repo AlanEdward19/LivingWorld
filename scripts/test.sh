@@ -51,6 +51,8 @@ else COMBINED="$FILTER"; fi
 ARGS=(-c Release --nologo)
 [ "$NOBUILD" = 1 ] && [ "$WATCH" = 0 ] && ARGS+=(--no-build)
 [ -n "$COMBINED" ] && ARGS+=(--filter "$COMBINED")
+# LW_TEST_TRX_DIR: grava um .trx por suíte (duração de cada teste), para cronometrar o gate.
+[ -n "${LW_TEST_TRX_DIR:-}" ] && ARGS+=(--logger "trx;LogFileName=$PROJECT-$MODE-$$.trx" --results-directory "$LW_TEST_TRX_DIR")
 if [ "$WATCH" = 1 ]; then
   exec dotnet watch --project "$PROJ" test "${ARGS[@]}"
 fi
