@@ -239,4 +239,8 @@ public enum WorldEventKind
     /// <summary>A gravidez de uma mulher sem união apareceu (AD-139) — payload: <c>maeId|paiId|desfecho</c> (casamento: o pai
     /// foi levado a casar; abandono: ele não casou; sem_pai: ele morreu).</summary>
     UnwedPregnancy,
+
+    /// <summary>Lucro retirado do caixa acima da reserva de giro (AD-144) — payload: <c>oficinaId|donoId|valor</c>, ou
+    /// <c>oficinaId|city-cidadeId|valor</c> quando a oficina não tem dono e o excedente vai ao tesouro da cidade.</summary>
+    ProfitDrawn,
 }

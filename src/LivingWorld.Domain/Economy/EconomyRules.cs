@@ -21,12 +21,14 @@ public sealed record EconomyRules(
     IReadOnlyDictionary<int, double> DemandBaselinePerNpc,
     double WageTaxRate = 0.0)
 {
-    /// <summary>Fração mensal do caixa do empregador acima da reserva de giro que vai ao tesouro da cidade (dízimo e renda da
-    /// terra, AD-140). 0 = o caixa só acumula (o modelo de antes). O tesouro paga a esmola de quem passa fome sem dinheiro: sem
-    /// isso a sobra da venda de comida e água ficava parada no caixa da fazenda e a moeda das casas secava em décadas.</summary>
-    public double SurplusLevyShare { get; init; }
+    /// <summary>Fração mensal do caixa do empregador acima da reserva de giro que sai como lucro (AD-144, absorve o dízimo
+    /// provisório da AD-140): vai à carteira do dono vivo (<see cref="Workplace.Owner"/>) ou, na oficina sem dono (terra comum,
+    /// obra da cidade, espólio sem herdeiro), ao tesouro da cidade, que paga a esmola. 0 = o caixa só acumula (o modelo de
+    /// antes). O nome serializado continua o antigo para cenário JSON e snapshot gravados antes da troca.</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("SurplusLevyShare")]
+    public double SurplusDrawShare { get; init; }
 
-    /// <summary>Reserva de giro que o empregador guarda antes do dízimo, em meses da folha (mínimo de um salário).</summary>
+    /// <summary>Reserva de giro que o empregador guarda antes da retirada, em meses da folha (mínimo de um salário).</summary>
     public double WorkingCapitalPayrollMonths { get; init; } = 12;
 
     public static Result<EconomyRules> Create(

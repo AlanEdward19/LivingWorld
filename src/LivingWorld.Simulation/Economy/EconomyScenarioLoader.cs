@@ -15,14 +15,22 @@ namespace LivingWorld.Simulation.Economy;
 /// quem consome chama <see cref="WorldState.NextWorkplaceIdAndAdvance"/> ao adicionar cada um,
 /// mesmo padrão de <see cref="PopulationScenarioLoader"/> pra NPC).</summary>
 public sealed record EconomyScenarioData(
-    EconomyRules Rules, EconomyCatalog Catalog, IReadOnlyList<InitialWorkplace> Workplaces);
+    EconomyRules Rules, EconomyCatalog Catalog, IReadOnlyList<InitialWorkplace> Workplaces)
+{
+    /// <summary>Tipos de local que são oficina de ofício, do mestre na fundação (AD-144); vazio = ninguém é dono.</summary>
+    public IReadOnlyList<int> CraftLocationTypeIds { get; init; } = [];
+}
 
 /// <summary>Um <see cref="Workplace"/> ainda sem <see cref="WorkplaceId"/> — o cenário declara o
 /// conteúdo, o mundo atribui o id na hora de adicionar (mesma disciplina de
 /// <see cref="WorldState.AddNpc"/>/<see cref="WorldState.AddHousehold"/>).</summary>
 public sealed record InitialWorkplace(
     LocationType LocationType, CellCoord Location, int MaxVacancies,
-    IReadOnlyDictionary<ResourceType, long> Stock, Money Treasury, IReadOnlyDictionary<ResourceType, long> Prices);
+    IReadOnlyDictionary<ResourceType, long> Stock, Money Treasury, IReadOnlyDictionary<ResourceType, long> Prices)
+{
+    /// <summary>Dono declarado (id de NPC do cenário, AD-144); <c>null</c> = a regra do mundo decide.</summary>
+    public NpcId? Owner { get; init; }
+}
 
 /// <summary>Carrega <see cref="EconomyRules"/>/<see cref="EconomyCatalog"/>/<see
 /// cref="Workplace"/> iniciais de um cenário: nenhum parâmetro econômico
@@ -54,7 +62,21 @@ public static class EconomyScenarioLoader
         if (!workplacesResult.IsSuccess)
             return Result<EconomyScenarioData>.Fail(workplacesResult.Error!);
 
-        return Result<EconomyScenarioData>.Ok(new EconomyScenarioData(rulesResult.Value!, catalogResult.Value!, workplacesResult.Value!));
+        var crafts = new List<int>();
+        if (root["CraftLocationTypeIds"] is { } craftNode)
+        {
+            if (craftNode is not JsonArray craftArray) return Result<EconomyScenarioData>.Fail("CraftLocationTypeIds: deve ser uma lista de inteiros");
+            foreach (var item in craftArray)
+            {
+                if (item is not JsonValue v || !v.TryGetValue<int>(out var id)) return Result<EconomyScenarioData>.Fail("CraftLocationTypeIds: valor inválido");
+                crafts.Add(id);
+            }
+        }
+
+        return Result<EconomyScenarioData>.Ok(new EconomyScenarioData(rulesResult.Value!, catalogResult.Value!, workplacesResult.Value!)
+        {
+            CraftLocationTypeIds = crafts,
+        });
     }
 
     private static Result<EconomyRules> ParseRules(JsonObject root)
@@ -85,14 +107,20 @@ public static class EconomyScenarioLoader
         if (root["WageTaxRate"] is { } taxNode && !(taxNode is JsonValue taxValue && taxValue.TryGetValue<double>(out taxRate)))
             return Result<EconomyRules>.Fail("WageTaxRate: deve ser um número");
 
-        double levy = 0.0; // dízimo do caixa acima da reserva (AD-140); ausente = desligado, como antes
-        if (root["SurplusLevyShare"] is { } levyNode && !(levyNode is JsonValue levyValue && levyValue.TryGetValue<double>(out levy) && levy is >= 0 and <= 1))
-            return Result<EconomyRules>.Fail("SurplusLevyShare: deve ser um número entre 0 e 1");
+        // retirada do lucro acima da reserva (AD-144); "SurplusLevyShare" é o nome antigo (dízimo da AD-140); ausente = desligado
+        double levy = 0.0;
+        foreach (var field in new[] { "SurplusDrawShare", "SurplusLevyShare" })
+        {
+            if (root[field] is not { } levyNode) continue;
+            if (!(levyNode is JsonValue levyValue && levyValue.TryGetValue<double>(out levy) && levy is >= 0 and <= 1))
+                return Result<EconomyRules>.Fail($"{field}: deve ser um número entre 0 e 1");
+            break;
+        }
 
         var created = EconomyRules.Create(
             enabled, foodResourceId, waterResourceId, capacity, spoilage, wage, priceFloor, priceCeiling,
             priceSensitivity, demand, taxRate);
-        return created.IsSuccess && levy > 0 ? Result<EconomyRules>.Ok(created.Value! with { SurplusLevyShare = levy }) : created;
+        return created.IsSuccess && levy > 0 ? Result<EconomyRules>.Ok(created.Value! with { SurplusDrawShare = levy }) : created;
     }
 
     private static Result<EconomyCatalog> ParseCatalog(JsonObject root)
@@ -123,7 +151,19 @@ public static class EconomyScenarioLoader
             if (!recipeResult.IsSuccess)
                 return Result<EconomyCatalog>.Fail($"Recipes[{key}]: {recipeResult.Error}");
 
-            recipes[locationTypeId] = recipeResult.Value!;
+            var recipe = recipeResult.Value!;
+            if (recipeNode["Tool"] is { } toolNode) // ferramenta de ofício (AD-144), opcional
+            {
+                if (toolNode is not JsonObject tool || !TryGetInt(tool, "ResourceId", out var toolResource)
+                    || !TryGetDouble(tool, "KitPerWorker", out var kit) || !TryGetDouble(tool, "WearPerWorkerYear", out var wear)
+                    || !TryGetDouble(tool, "UntooledOutput", out var untooled))
+                    return Result<EconomyCatalog>.Fail($"Recipes[{key}].Tool: ResourceId, KitPerWorker, WearPerWorkerYear e UntooledOutput são obrigatórios");
+                var toolResult = ToolUse.Create(toolResource, kit, wear, untooled);
+                if (!toolResult.IsSuccess) return Result<EconomyCatalog>.Fail($"Recipes[{key}].{toolResult.Error}");
+                recipe = recipe with { Tool = toolResult.Value };
+            }
+
+            recipes[locationTypeId] = recipe;
         }
 
         if (root["MarketLocationTypeIds"] is not JsonArray marketNode)
@@ -166,8 +206,17 @@ public static class EconomyScenarioLoader
         if (!TryGetResourceLongMap(wp, "Prices", out var prices))
             return Result<InitialWorkplace>.Fail("Workplaces[].Prices: campo obrigatório ausente ou inválido");
 
+        NpcId? owner = null; // dono declarado (AD-144), opcional
+        if (wp["Owner"] is { } ownerNode)
+        {
+            if (ownerNode is not JsonValue ownerValue || !ownerValue.TryGetValue<long>(out var ownerId) || ownerId <= 0)
+                return Result<InitialWorkplace>.Fail("Workplaces[].Owner: deve ser o id (positivo) de um NPC");
+            owner = new NpcId(ownerId);
+        }
+
         return Result<InitialWorkplace>.Ok(new InitialWorkplace(
-            new LocationType(locationTypeId), new CellCoord(x, y), maxVacancies, stock, new Money(treasury), prices));
+            new LocationType(locationTypeId), new CellCoord(x, y), maxVacancies, stock, new Money(treasury), prices)
+        { Owner = owner });
     }
 
     private static Result<IReadOnlyList<InitialWorkplace>> ParseWorkplaces(JsonObject root)

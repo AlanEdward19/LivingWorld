@@ -23,7 +23,7 @@ public static class WorkplacePlacer
             // em vez de inventar uma cidade que o JSON não declarou.
             var legacy = new Workplace(
                 world.NextWorkplaceIdAndAdvance(), workplace.LocationType, workplace.Location,
-                workplace.MaxVacancies, employees: [], workplace.Stock, workplace.Treasury, workplace.Prices);
+                workplace.MaxVacancies, employees: [], workplace.Stock, workplace.Treasury, workplace.Prices, owner: workplace.Owner);
             world.AddWorkplace(legacy);
             return Result<Workplace>.Ok(legacy);
         }
@@ -62,7 +62,7 @@ public static class WorkplacePlacer
         world.AddBuilding(building);
         var placed = new Workplace(
             world.NextWorkplaceIdAndAdvance(), workplace.LocationType, position, workplace.MaxVacancies,
-            employees: [], workplace.Stock, workplace.Treasury, workplace.Prices, city.Id, building: building.Id);
+            employees: [], workplace.Stock, workplace.Treasury, workplace.Prices, city.Id, building: building.Id, owner: workplace.Owner);
         world.AddWorkplace(placed);
         return Result<Workplace>.Ok(placed);
     }

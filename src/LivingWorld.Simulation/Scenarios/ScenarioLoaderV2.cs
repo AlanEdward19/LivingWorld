@@ -213,6 +213,12 @@ public static class ScenarioLoaderV2
         if (world.EconomyRules.Enabled && (population.InitialPopulation > 0 || authoredResult.Value!.Count > 0))
             ScenarioRunner.SeedInitialEconomyBuffer(world);
 
+        // dono declarado precisa existir; o resto das oficinas de ofício vai ao mestre da cidade (AD-144)
+        foreach (var workplace in world.Workplaces)
+            if (workplace.Owner is { } owner && world.FindNpc(owner) is null)
+                return Result<(WorldState, WorldClock)>.Fail($"Workplaces[].Owner: NPC {owner.Value} não existe no cenário");
+        LivingWorld.Simulation.Economy.WorkplaceOwnership.AssignFoundingMasters(world, definition.Economy.CraftLocationTypeIds);
+
         ExtraordinaryPrevalenceSeeder.Seed(world);
 
         // Portal é dado descritivo — resolve RefIndex autorado pro RefId real

@@ -215,7 +215,16 @@ public static partial class ScenarioRunner
         wageTaxRate: 0.05) // a cidade retém 5% do salário
         .Value ?? throw new InvalidOperationException("economy rules default inválida — bug no cenário, não no gerador"))
         with
-    { SurplusLevyShare = 0.05 }; // dízimo do caixa acima de 12 meses de folha (AD-140)
+    { SurplusDrawShare = 1.0 }; // o lucro acima de 12 meses de folha sai todo mês: ao dono, ou à cidade sem dono (AD-144)
+
+    /// <summary>Tipos de local que são oficina de ofício (AD-144): a ferraria é do mestre ferreiro; a fazenda, terra comum,
+    /// fica sem dono (o excedente vai à cidade). Ver <see cref="WorkplaceOwnership"/>.</summary>
+    public static readonly IReadOnlyList<int> DefaultCraftLocationTypeIds = [2];
+
+    /// <summary>Ferramenta do lavrador (AD-144): ~3 kg de ferro por pessoa (relha e sega repartidas, foice, enxada, pá), ~2 kg
+    /// gastos por ano de uso (afiar, recalçar a relha, perder e quebrar); sem ferro, pau e pedra rendem ~60%. Estimativas
+    /// sem fonte firme, na ordem de grandeza do consumo de ferro per capita da Europa medieval.</summary>
+    public static readonly ToolUse DefaultFarmTool = new(ResourceId: 4, KitPerWorker: 3, WearPerWorkerYear: 2, UntooledOutput: 0.6);
 
     public static readonly EconomyCatalog DefaultEconomyCatalog = new(
         Recipes: new Dictionary<int, ProductionRecipe>
@@ -228,10 +237,11 @@ public static partial class ScenarioRunner
             // real, um gargalo artificial que a vila inteira sentiria (visto na prática: 100
             // NPCs, só 15 vagas, população inteira morrendo de fome com celeiro cheio e sem
             // vender nada).
-            [1] = ProductionRecipe.Create(
+            [1] = (ProductionRecipe.Create(
                 inputs: new Dictionary<int, long>(), outputs: new Dictionary<int, long> { [1] = 10, [2] = 8 },
                 requiresCellResource: null, maxWorkersPerCycle: 80)
-                .Value ?? throw new InvalidOperationException("recipe fazenda inválida"),
+                .Value ?? throw new InvalidOperationException("recipe fazenda inválida")) with
+            { Tool = DefaultFarmTool },
             [2] = ProductionRecipe.Create(
                 inputs: new Dictionary<int, long>(), outputs: new Dictionary<int, long> { [4] = 5 },
                 requiresCellResource: null, maxWorkersPerCycle: 40)
@@ -276,10 +286,11 @@ public static partial class ScenarioRunner
         return new EconomyCatalog(
             Recipes: new Dictionary<int, ProductionRecipe>
             {
-                [1] = ProductionRecipe.Create(
+                [1] = (ProductionRecipe.Create(
                     inputs: new Dictionary<int, long>(), outputs: new Dictionary<int, long> { [1] = 10, [2] = 8 },
                     requiresCellResource: null, maxWorkersPerCycle: 80 * mult)
-                    .Value ?? throw new InvalidOperationException("recipe fazenda inválida"),
+                    .Value ?? throw new InvalidOperationException("recipe fazenda inválida")) with
+                { Tool = DefaultFarmTool },
                 [2] = ProductionRecipe.Create(
                     inputs: new Dictionary<int, long>(), outputs: new Dictionary<int, long> { [4] = 5 },
                     requiresCellResource: null, maxWorkersPerCycle: 40 * mult)
@@ -341,6 +352,7 @@ public static partial class ScenarioRunner
             PopulationSeeder.SeedInitial(
                 world, initialPopulation, DefaultCulture, DefaultVillageLocation, initialCity.Id);
             SeedInitialEconomyBuffer(world);
+            LivingWorld.Simulation.Economy.WorkplaceOwnership.AssignFoundingMasters(world, DefaultCraftLocationTypeIds);
             if (initialPopulation == DefaultInitialPopulation)
                 EcologyScenarioSeeder.SeedDefault(world);
         }

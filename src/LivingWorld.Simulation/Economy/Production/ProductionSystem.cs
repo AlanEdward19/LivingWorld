@@ -87,6 +87,8 @@ public sealed class ProductionSystem : ISimulationSystem
             return;
 
         int effectiveWorkers = Math.Min(presentWorkers.Count, recipe.MaxWorkersPerCycle);
+        double toolFactor = ToolMechanic.OutputFactor(workplace, recipe, effectiveWorkers);
+        ToolMechanic.Wear(world, ctx, workplace, recipe, effectiveWorkers);
 
         // Escala pra baixo pelo insumo mais escasso — nunca debita além do que o próprio
         // estoque do Workplace tem.
@@ -119,7 +121,13 @@ public sealed class ProductionSystem : ISimulationSystem
             double climate = resourceId == rules.FoodResourceId
                 ? world.ClimateFactorAt(workplace.Location, ctx.CurrentTick) / 1000.0
                 : 1.0;
-            long produced = (long)(perWorker * scale * skillMultiplier * strengthMultiplier * workCapacityMultiplier * climate);
+            long produced = (long)(perWorker * scale * skillMultiplier * strengthMultiplier * workCapacityMultiplier * climate * toolFactor);
+            // ferramenta se faz por encomenda (AD-144): a oficina não enche o depósito além do que os clientes usam
+            if (world.EconomyCatalog.IsTool(resourceId))
+            {
+                produced = Math.Min(produced, Math.Max(0, ToolMechanic.OrderBook(world, workplace.City, resourceId) - workplace.Stock.GetValueOrDefault(resource)));
+                if (produced <= 0) continue;
+            }
             world.RecordResourceProduced(resource, produced); // conta o bruto, antes do clamp de capacidade
             long lost = workplace.Deposit(resource, produced, rules);
             if (lost > 0)
