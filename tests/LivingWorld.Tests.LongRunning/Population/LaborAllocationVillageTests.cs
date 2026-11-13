@@ -5,6 +5,7 @@ namespace LivingWorld.Tests.LongRunning.Population;
 /// <summary>labor-allocation sobre a vila do gate (100 NPCs): a populacao do ano 10 nao cai abaixo de 90% do piso
 /// gravado em <c>tests/baselines/gate-village-population.json</c> (medido depois da feature; antes dela as 5 seeds
 /// somavam 373) e ninguem troca de emprego mais que 0,5 vez por ano em media.</summary>
+[Trait("Category", "Century")] // 20 seeds × 100 anos: fora do gate de lote, roda no --full diário
 public class LaborAllocationVillageTests
 {
     [Fact]

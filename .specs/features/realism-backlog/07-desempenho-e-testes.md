@@ -50,11 +50,15 @@ Planta de prédio em cache; versão de eixos por dono; despertares de viagem; RN
   `FamilyPairedScenario`, `LaborAllocationVillage`, `DefaultVillageCentury`, `FamilyDiversityCalibration` (2).
 - Unit: 10 testes somam 64% do tempo (`VillageSurvivesGenerations` 637 s e 375 s, `TechDiscovery` 532 s e 372 s,
   `DiseaseTests` 343 s).
+- Depois do corte (mesma árvore, 2026-11-13): junção com `verify.sh --lote` em 12 min 48 s (gate 11 min 19 s; Unit 8 min é o
+  novo teto). A regravação de `family-diversity` dentro do `--full` ainda não rodou: validar no primeiro diário.
 - Como medir: `LW_TEST_TRX_DIR=<dir> bash scripts/verify.sh --full` (um `.trx` por suíte; tempo por suíte no resumo).
 
 ## Regras que valem para qualquer otimização
 
 - Medir antes e depois na mesma máquina, em pares alternados; alocação é exata, tempo não.
 - Otimização que não muda o mundo tem de manter goldens e baselines sem regravar.
-- Não reduzir horizonte, seeds nem asserção; não mover para o noturno.
+- Não reduzir horizonte, seeds nem asserção. Exceção decidida pelo dono em 2026-11-13 ("Sim, uma vez por dia"): os testes
+  `Category=Century` (20 seeds × 100 anos) saem do gate de cada lote (`verify.sh --lote`) e rodam no `--full` uma vez por dia.
+  Quebra demográfica de longo prazo aparece só no diário: achar o lote culpado é trabalho de quem junta.
 - Vários gates ao mesmo tempo na mesma máquina distorcem tempos e os asserts de tempo.

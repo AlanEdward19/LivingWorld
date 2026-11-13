@@ -6,6 +6,7 @@ namespace LivingWorld.Tests.LongRunning.Population;
 /// <summary>ADR-0044: a corrida compartilhada tem de ser a mesma simulação que cada teste fazia sozinho. O sink que conta trocas,
 /// o braço de controle ao lado e a leitura anual não podem mudar o mundo: o hash canônico do ano 10 é igual ao de uma
 /// corrida isolada, sem sink, com o relógio do próprio <c>ScenarioRunner.Create</c>.</summary>
+[Trait("Category", "Century")] // 20 seeds × 100 anos: fora do gate de lote, roda no --full diário
 public class DefaultVillageCenturyTests
 {
     [Fact]

@@ -6,6 +6,7 @@ using LivingWorld.Tests.Shared.Population;
 namespace LivingWorld.Tests.LongRunning.Population;
 
 /// <summary>FAM-32: faixa observada, controle negativo e piso empírico, ADR-0036.</summary>
+[Trait("Category", "Century")] // 20 seeds × 100 anos: fora do gate de lote, roda no --full diário
 public class FamilyDiversityCalibrationTests
 {
     public sealed record Sample(int Seed, double VitalityDifference, double OpennessDifference, double MinimumVitalityCv, int MinimumAlive, int FinalAlive);
@@ -18,16 +19,20 @@ public class FamilyDiversityCalibrationTests
     private static readonly Lazy<Sample[]> Century = new(() => DefaultVillageCentury.Runs.Select(r => new Sample((int)r.Seed,
         r.CenturySelfDifference, r.CenturyOpennessSelfDifference, DefaultVillageCentury.MinimumCv(r, 100), DefaultVillageCentury.MinimumAlive(r, 100), r.Alive[100])).ToArray());
 
+    /// <summary>Com <c>LW_RECORD_FAMILY_DIVERSITY=1</c> a baseline é regravada antes da primeira leitura, no mesmo processo
+    /// que a verifica: o século compartilhado roda uma vez só para gravar e para conferir.</summary>
     [Fact, Trait("Category", "Scenario")]
-    public void Record_explicit_family_diversity_baseline()
+    public void Record_explicit_family_diversity_baseline() => Assert.Equal(20, Baseline().Seeds);
+
+    private static Calibration Record()
     {
-        if (Environment.GetEnvironmentVariable("LW_RECORD_FAMILY_DIVERSITY") != "1") return;
         var samples = Measure(10, 20);
         var century = Century.Value;
         samples = samples.Select((s, i) => s with { MinimumVitalityCv = century[i].MinimumVitalityCv, MinimumAlive = century[i].MinimumAlive, FinalAlive = century[i].FinalAlive }).ToArray();
         Assert.All(samples, s => Assert.True(s.MinimumVitalityCv > 0 && s.MinimumAlive > 1, $"seed={s.Seed}: CV mínimo={s.MinimumVitalityCv}, população mínima={s.MinimumAlive}"));
-        File.WriteAllText(BaselinePath, JsonSerializer.Serialize(new Calibration(20, 10, 100, 1.959963984540054, samples),
-            new JsonSerializerOptions { WriteIndented = true }));
+        var recorded = new Calibration(20, 10, 100, 1.959963984540054, samples);
+        File.WriteAllText(BaselinePath, JsonSerializer.Serialize(recorded, new JsonSerializerOptions { WriteIndented = true }));
+        return recorded;
     }
 
     [Fact, Trait("Category", "Scenario")]
@@ -46,6 +51,7 @@ public class FamilyDiversityCalibrationTests
     }
 
     /// <summary>Classe própria: a seleção forte (20 seeds × 10 anos, pareada) roda em paralelo com o século em vez de esperar por ele.</summary>
+    [Trait("Category", "Century")] // 20 seeds × 100 anos: fora do gate de lote, roda no --full diário
     public class StrongSelection
     {
         [Fact, Trait("Category", "Scenario")]
@@ -91,7 +97,9 @@ public class FamilyDiversityCalibrationTests
 
     internal static void AssertVitalityBand() => new FamilyDiversityCalibrationTests().Real_vitality_difference_stays_in_the_calibrated_band();
 
-    private static Calibration Baseline() => JsonSerializer.Deserialize<Calibration>(File.ReadAllText(BaselinePath))!;
+    private static readonly Lazy<Calibration> Loaded = new(() => Environment.GetEnvironmentVariable("LW_RECORD_FAMILY_DIVERSITY") == "1"
+        ? Record() : JsonSerializer.Deserialize<Calibration>(File.ReadAllText(BaselinePath))!);
+    private static Calibration Baseline() => Loaded.Value;
     private static bool InBand(IEnumerable<double> actual, IEnumerable<double> reference, out string detail)
     {
         double[] expected = reference.ToArray();

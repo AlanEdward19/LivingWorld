@@ -14,6 +14,7 @@ namespace LivingWorld.Tests.LongRunning.Population;
 
 /// <summary>Fase 7, T23–T26: cenários pareados/estatísticos de família — fora do gate padrão via
 /// <c>[Trait("Category","Scenario")]</c> (mesmo padrão de <see cref="PairedScenarioTests"/>).</summary>
+[Trait("Category", "Century")] // 20 seeds × 100 anos: fora do gate de lote, roda no --full diário
 public class FamilyPairedScenarioTests
 {
     private const int HorizonYears = 10;

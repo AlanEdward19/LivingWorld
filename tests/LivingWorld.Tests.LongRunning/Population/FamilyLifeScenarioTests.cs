@@ -9,6 +9,7 @@ namespace LivingWorld.Tests.LongRunning.Population;
 
 /// <summary>AD-136 no mundo rodando (cenário padrão, poucas seeds × 60 anos, um teste só): uniões acabam em
 /// vida, irmãos chegam a ser criados em casas diferentes, ninguém se casa dentro do tabu de parentesco e a vila segue viva.</summary>
+[Trait("Category", "Century")] // 20 seeds × 100 anos: fora do gate de lote, roda no --full diário
 public class FamilyLifeScenarioTests
 {
     private const int Seeds = 4, Years = 60;
