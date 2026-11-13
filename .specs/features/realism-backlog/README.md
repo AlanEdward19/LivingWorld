@@ -26,13 +26,13 @@ Branch de trabalho: `perf/decision-scan-costs`, sem push, sem PR. Último commit
 | Aprendizado por idade e criação (AD-132) | juntado | idem |
 | Gate em paralelo, mundo compartilhado (ADR-0044) | juntado | `docs/adr/` |
 | Corpo que cresce, variância genética, saúde dinâmica, amamentação (AD-134) | juntado | `docs/decisions-log.md` |
-| Doença de época ligada por padrão (AD-137) | pronta no branch; junção e recalibração da mortalidade em andamento (AD-140) | [06](06-violencia-poderes-e-restantes.md) |
+| Doença de época ligada por padrão (AD-137) | juntada e recalibrada em 2026-11-13 (`95e9cdc2`, AD-140): e0 28,2, 1º ano 228‰ | [06](06-violencia-poderes-e-restantes.md) |
 | Agricultura, estações, água de beber, fauna que come (AD-135) | juntado | `docs/decisions-log.md`, [01](01-em-andamento.md) |
 | Vocação que emerge, traição, separação, novas uniões, tabu de parentesco (AD-136) | juntado | `docs/decisions-log.md` |
-| Hormônios, ciclo menstrual, adolescência, doença genética, contracepção (AD-139) | pronta no branch (`3587730b`, gate verde lá); a junção na árvore combinada está com o AD-140 | [02](02-biologia-e-hormonios.md) |
+| Hormônios, ciclo menstrual, adolescência, doença genética, contracepção (AD-139) | juntada em 2026-11-13 (`95e9cdc2`); com ela a e0 cai a 26,8 e a fome vai a 15,3%: falta o freio preventivo, em worktree com a economia (AD-144) | [02](02-biologia-e-hormonios.md) |
 | Cognição parte 1: memória da própria vida, emoção, pensamento que é o motivo (AD-138) | juntado | `docs/domain/inner-life.md`, [01](01-em-andamento.md) |
 | Cognição parte 2: cérebro neural legível | experimento juntado em 2026-11-13 (AD-142), flag desligada; veredito: não ligar ainda (custo, bytes e demografia), ver `03` | `.specs/features/neural-brain/design.md` |
-| Empreendedorismo, crédito, preço e salário | não começado | [04](04-economia-e-empreendedorismo.md) |
+| Empreendedorismo, crédito, preço e salário | fatia 1 em worktree desde 2026-11-13 (AD-144) | [04](04-economia-e-empreendedorismo.md) |
 | Invenção emergente: tecnologia, veículos, robôs, aparência e animação | desenho aprovado em 2026-11-12 (ADR-0045); fatia 1 (transporte sobre água, AD-141) juntada em 2026-11-13 (`2b34fb64`); faltam as demais, ver `05` | `.specs/features/emergent-invention/design.md` |
 | Violência, furto, poderes por genética, achados restantes da auditoria | não começado | [06](06-violencia-poderes-e-restantes.md) |
 | Doença dinâmica: doença nova que surge e evolui, e doença criada à mão e solta no mundo (pedido em 2026-11-12) | não começado; depois de juntar o AD-137 | [06](06-violencia-poderes-e-restantes.md) |
