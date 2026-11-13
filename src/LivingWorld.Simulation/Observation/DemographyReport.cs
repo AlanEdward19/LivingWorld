@@ -124,6 +124,7 @@ public static class DemographyReport
         world.UseBrain(brain); // AD-142: experimento (nulo = desligado)
         var tally = new DemographyTally(world) { MeasureFromTick = warmupYears * world.Calendar.HoursPerYear };
         tally.Body.MeasureFromTick = tally.MeasureFromTick;
+        tally.Family.MeasureFromTick = tally.MeasureFromTick;
         tally.Disease.MeasureFromTick = tally.MeasureFromTick;
         tally.Reproduction.MeasureFromTick = tally.MeasureFromTick;
         var food = new FoodTally(world);
@@ -207,7 +208,7 @@ public static class DemographyReport
         var inv = CultureInfo.InvariantCulture;
         var sb = new StringBuilder();
         sb.AppendLine(inv, $"seeds={runs.Count} anos={years} aquecimento={warmupYears}");
-        sb.AppendLine(inv, $"pop_final media={runs.Average(r => r.FinalAlive):F1} min={runs.Min(r => r.FinalAlive)} max={runs.Max(r => r.FinalAlive)} extintas={runs.Count(r => r.FinalAlive == 0)} pop_min_media={runs.Average(r => r.MinAlive):F1}");
+        sb.AppendLine(inv, $"pop_final media={runs.Average(r => r.FinalAlive):F1} min={runs.Min(r => r.FinalAlive)} max={runs.Max(r => r.FinalAlive)} extintas={runs.Count(r => r.FinalAlive == 0)} pop_min_media={runs.Average(r => r.MinAlive):F1} pop_min_min={runs.Min(r => r.MinAlive)}");
         sb.AppendLine(inv, $"natalidade_bruta={1000 * births / py:F1}/mil mortalidade_bruta={1000 * dead / py:F1}/mil nascimentos={births} mortes={dead} natimortos={still} ({1000 * still / Math.Max(1, births + still):F0}/mil partos) perdas_gestacionais={lost} mortes_maternas={maternal} ({1000 * maternal / Math.Max(1, births + still):F1}/mil partos)");
         sb.AppendLine(inv, $"1q0_coorte={1000.0 * infantDeaths / Math.Max(1, cohort):F0}/mil (n={cohort}) 1q0_periodo={1000 * q0Period:F0}/mil l15_coorte={(double)survived15 / Math.Max(1, cohort15):F3} (n={cohort15}) e0={e0:F1} TFR={tfr:F2}");
         sb.AppendLine(inv, $"intervalo_partos_meses media={(intervals.Count > 0 ? intervals.Average() : 0):F1} mediana={(intervals.Count > 0 ? intervals[intervals.Count / 2] : 0):F1} n={intervals.Count}");

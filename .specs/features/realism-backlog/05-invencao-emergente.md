@@ -39,19 +39,30 @@ Desenho aprovado (ADR-0045, `.specs/features/emergent-invention/design.md`). **F
 
 ## Falta fazer (tudo que a fatia 1 deixou de fora está aqui; nada some)
 
-Fatia 2 (em worktree desde 2026-11-13):
-1. Carga por viagem: o tamanho da compra usa a capacidade da embarcação.
-2. Venda da embarcação no mercado e a receita gerada (`PhysicsEvaluator.Recipe`) entrando na `ProductionSystem`.
-3. Material tirado de estoque, não só coletado da natureza.
-4. Pesca como uso da embarcação.
-5. Cópia disparada por evento (hoje é "item na mesma cidade", checado na passada mensal).
-6. Lápide de design apontada pelos relatos que ainda falam dele.
-7. NPC de id 0 passa a receber lembrança (convenção antiga de `LifeEventIntake`).
+Fatia 2 (AD-143, branch próprio, 2026-11-13): os 7 itens entraram (carga, venda + produção pela receita na
+`ProductionSystem`, material de estoque, pesca, cópia por evento, lápide com relatos, pessoa 0). Sobrou desta fatia:
+- 2a. A carga a pé corta a compra de quem mora do outro lado da água e a fome sobe (20×100: mortes de fome
+  670 → 1131; sem o corte, 858). Ninguém da casa ajuda a carregar nem a compra se divide em várias idas
+  pensadas: decidir se é realismo aceito ou se a casa deve mandar mais gente/ir mais vezes.
+- 3a. Nenhum material do cenário padrão circula na economia (não há recurso madeira): o caminho
+  "despensa/mercado" (`MaterialSpec.ResourceId`) só roda em cenário que declare o vínculo.
+- 4a. Peixe entra como o recurso de comida (estraga como grão) e as horas de pesca não tiram tempo da rotina.
+- 5a. Só a chegada remando mostra a peça; a peça exposta no mercado e a pesca não são vistas.
+- 6a. Sem história ligada (padrão) não há fato nem relato: a lápide fica com 0 relatos e o rumor não age;
+  a lembrança da pessoa (`EpisodicMemory.Other` é pessoa) ainda não aponta para o design.
+- 7a. Raiz não trocada: os ids seguem começando em 0 (numerar a partir de 1 colidia com testes que criam pessoas
+  com id 1 e 2 à mão e mudava `/npcs/0`). A pessoa 0 já lembra (intake lê "ninguém" como -1), mas como `Other` de
+  uma lembrança 0 ainda quer dizer "ninguém": rancor e reforço com a pessoa 0 não funcionam.
 
 Fatias seguintes:
 8. Sonda de terra (rolar e deslizar com eixo: trenó, carroça) e, depois, de ar.
 9. Substituir o `TechDiscoverySystem`: adoção por cidade derivada de `KnownDesign`, migrar `/cultures/{id}/technologies`, o painel do cliente (`test_technologies.gd`) e as métricas de civilização, remover o bloco `Emergence`, regravar goldens.
 10. Contracepção e remédio como invenção; robô em ADR próprio.
 11. Animação por junção e pose de uso no cliente Godot.
+12. **O que a pessoa leva consigo** (pedido do dono, 2026-11-13): "se a pessoa pudesse carregar coisas com ela (tipo
+    um inventário), levar lanche, água em garrafa/cantil caso fosse inventado. uma mochila, bolsos, etc". Carga pessoal
+    com teto de peso e volume: de mão nua quase nada; recipiente (cantil, cesto, bolsa, mochila) é `Design` avaliado
+    pela física (estanque, volume, peso), inventado e copiado como o resto. A pessoa bebe e come do que leva, e decide
+    o que levar ao sair. Liga com 2a (carga por viagem) e com a sede do AD-145 ([08](08-a-investigar.md), item 37).
 
 Critério da Fase 24 editado em 2026-11-13 com a frase aprovada pelo dono (`docs/roadmap/phase-24-emergence.md`).

@@ -29,6 +29,10 @@ public static class SignificanceCalculator
             [WorldEventKind.TheftDiscovered] = 0.4,
             [WorldEventKind.TechnologyDiscovered] = 0.6,
             [WorldEventKind.TechnologyAdopted] = 0.3,
+            // AD-143: fazer funcionar uma coisa nova pesa como descobrir uma técnica; aprender e comprar, como adotar
+            [WorldEventKind.DesignPrototyped] = 0.6,
+            [WorldEventKind.DesignLearned] = 0.3,
+            [WorldEventKind.DesignSold] = 0.3,
             [WorldEventKind.RentUnpaid] = 0.35,
             [WorldEventKind.Evicted] = 0.65,
             [WorldEventKind.Marriage] = 0.80,
@@ -38,6 +42,7 @@ public static class SignificanceCalculator
             [WorldEventKind.AidGiven] = 0.40,
             [WorldEventKind.Hired] = 0.35,
             [WorldEventKind.Fired] = 0.40,
+            [WorldEventKind.Emigrated] = 0.55,
             [WorldEventKind.WageUnpaid] = 0.45,
             [WorldEventKind.ProfitDrawn] = 0.10, // retirada mensal de rotina (AD-144)
             [WorldEventKind.Minted] = 0.30,

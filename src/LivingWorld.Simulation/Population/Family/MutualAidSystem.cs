@@ -45,6 +45,7 @@ public sealed class MutualAidSystem : ISimulationSystem
         var food = new ResourceType(economy.FoodResourceId);
         var water = new ResourceType(economy.WaterResourceId);
         long day = ctx.CurrentTick / world.CurrentDate.Calendar.HoursPerDay;
+        _alms.Clear();
 
         foreach (var household in world.Households.OrderBy(h => h.Id.Value))
         {
@@ -69,9 +70,14 @@ public sealed class MutualAidSystem : ISimulationSystem
             if (wallets >= count * dailyCostPerPerson * NeedyWalletDays) continue;
 
             long deficit = count * dailyCostPerPerson * RelieveDays - wallets;
-            RelieveHousehold(world, ctx, household, members, recipient, deficit, dailyCostPerPerson, day);
+            RelieveHousehold(world, ctx, household, members, recipient, deficit, dailyCostPerPerson, unitPrice, day, food);
         }
+
+        GiveRationedAlms(world, ctx);
     }
+
+    /// <summary>Pedidos de esmola do dia (quem recebe, quanto falta, cidade que dá), em ordem de casa. Só vive dentro do tick.</summary>
+    private readonly List<(Npc Recipient, long Deficit, LivingWorld.Domain.Cities.City City)> _alms = [];
 
     /// <summary>Quem dá a esmola: a cidade da casa se tiver caixa; senão a cidade do mercado mais próximo, que é onde a casa
     /// compra. Povoado recém-fundado nasce sem tesouro e continua na órbita da vila de onde saiu.</summary>
@@ -117,36 +123,45 @@ public sealed class MutualAidSystem : ISimulationSystem
         }
     }
 
-    private static void RelieveHousehold(
+    private void RelieveHousehold(
         WorldState world, TickContext ctx, Household household, List<Npc> members, Npc recipient,
-        long deficit, long dailyCostPerPerson, long day)
+        long deficit, long dailyCostPerPerson, long unitPrice, long day, ResourceType food)
     {
+        bool kinAid = world.FamilyRules.Pressure?.KinFoodAid == true;
         var memberIds = members.Select(m => m.Id).ToHashSet();
         var candidates = new SortedSet<NpcId>(Comparer<NpcId>.Create((a, b) => a.Value.CompareTo(b.Value)));
         foreach (var member in members)
         {
-            if (member.MotherId is { } mother) candidates.Add(mother);
-            if (member.FatherId is { } father) candidates.Add(father);
+            if (member.MotherId is { } mother) { candidates.Add(mother); if (kinAid) AddParentsOf(world, mother, candidates); }
+            if (member.FatherId is { } father) { candidates.Add(father); if (kinAid) AddParentsOf(world, father, candidates); }
             if (member.Spouse is { } spouse) candidates.Add(spouse);
             foreach (var contact in world.RelationshipTargetsOf(member.Id))
                 candidates.Add(contact);
         }
 
+        // AD-145: a comida que falta para a semana; a família de origem manda da própria despensa o que passa da reserva dela
+        long foodNeed = Math.Max(0, members.Count * (long)RelieveDays - household.Stock.GetValueOrDefault(food));
+        var fedFrom = new HashSet<HouseholdId>();
         int considered = 0;
         foreach (var helperId in candidates)
         {
             if (deficit <= 0 || considered >= MaxCandidatesPerHousehold) break;
             if (memberIds.Contains(helperId)) continue;
             if (world.FindNpc(helperId) is not { IsAlive: true } helper) continue;
-            if (world.LifeStageRules.LifeStageOf(helper.AgeYears(world.CurrentDate)) != LivingWorld.Domain.Population.Body.LifeStage.Adult)
+            var stage = world.LifeStageRules.LifeStageOf(helper.AgeYears(world.CurrentDate));
+            bool kin = kinAid ? IsKinOf(world, helper, members) : ClosenessTo(world, helper, members) >= 1.0;
+            // parente idoso (avô, avó) também socorre a casa dos seus; quem não é parente, só o adulto
+            if (stage == LivingWorld.Domain.Population.Body.LifeStage.Child
+                || (stage == LivingWorld.Domain.Population.Body.LifeStage.Elder && !(kin && kinAid)))
                 continue;
 
-            double closeness = ClosenessTo(world, helper, members);
+            double closeness = kin ? 1.0 : ClosenessTo(world, helper, members);
             if (closeness <= 0) continue;
             considered++;
 
             long surplus = helper.Wallet.Amount - HelperReserve(world, helper, dailyCostPerPerson);
-            if (surplus < dailyCostPerPerson) continue;
+            long spareFood = kinAid && kin && foodNeed > 0 ? SpareFood(world, helper, household, fedFrom, food) : 0;
+            if (surplus < dailyCostPerPerson && spareFood <= 0) continue;
 
             double altruism = helper.Personality.Altruism / 100.0;
             double chance = altruism * (0.4 + 0.6 * closeness);
@@ -157,36 +172,98 @@ public sealed class MutualAidSystem : ISimulationSystem
             var rng = ctx.StreamFor("mutual-aid", helper.Id.Value * 1_000_003L + day);
             if (rng.NextDouble() >= chance) continue;
 
+            if (spareFood > 0 && world.FindHousehold(helper.Household!.Value) is { } origin)
+            {
+                long sent = Math.Min(foodNeed, (long)Math.Ceiling(spareFood * (0.3 + 0.5 * altruism)));
+                if (sent > 0 && origin.Withdraw(food, sent).IsSuccess)
+                {
+                    household.Deposit(food, sent);
+                    fedFrom.Add(origin.Id);
+                    foodNeed -= sent;
+                    deficit -= sent * unitPrice; // a comida que chegou é a que não precisa ser comprada
+                    Thank(world, ctx, recipient, helper);
+                    ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{recipient.Id.Value}|{sent}|food", sourceSystem: SystemName);
+                }
+                if (deficit <= 0) break;
+            }
+
+            if (surplus < dailyCostPerPerson) continue;
             long give = Math.Min(deficit, (long)Math.Floor(surplus * (0.15 + 0.35 * altruism)));
             if (give <= 0) continue;
             if (!helper.TryDebitWallet(new Money(give)).IsSuccess) continue;
 
             recipient.CreditWallet(new Money(give));
             deficit -= give;
-            var gratitude = world.GetOrCreateRelationship(new RelationshipKey(recipient.Id, helper.Id), ctx.CurrentTick);
-            gratitude.ApplyEvent(RelationshipEventType.Help, world.FamilyRules);
-            gratitude.MarkContact(ctx.CurrentTick);
+            Thank(world, ctx, recipient, helper);
             ctx.LogEvent(WorldEventKind.AidGiven, $"{helper.Id.Value}|{recipient.Id.Value}|{give}", sourceSystem: SystemName);
         }
 
-        GiveAlms(world, ctx, household, members, recipient, deficit, dailyCostPerPerson);
-    }
-
-    /// <summary>Esmola da cidade (AD-128): a casa que continua sem um dia de compra na carteira depois de parentes e amigos
-    /// recebe do tesouro da cidade o bastante para a semana. É o socorro aos pobres de qualquer vila, e devolve à circulação
-    /// o imposto que o tesouro só acumulava. A moeda só muda de dono; tesouro vazio, não há esmola.</summary>
-    private static void GiveAlms(
-        WorldState world, TickContext ctx, Household household, List<Npc> members, Npc recipient, long deficit, long dailyCostPerPerson)
-    {
         if (deficit <= 0 || members.Sum(m => m.Wallet.Amount) >= members.Count * dailyCostPerPerson) return;
         if (AlmsGiver(world, household) is not { } city) return;
+        if (world.FamilyRules.Pressure?.RationedAlms == true) _alms.Add((recipient, deficit, city));
+        else GiveAlms(world, ctx, city, recipient, deficit);
+    }
 
+    private static void Thank(WorldState world, TickContext ctx, Npc recipient, Npc helper)
+    {
+        var gratitude = world.GetOrCreateRelationship(new RelationshipKey(recipient.Id, helper.Id), ctx.CurrentTick);
+        gratitude.ApplyEvent(RelationshipEventType.Help, world.FamilyRules);
+        gratitude.MarkContact(ctx.CurrentTick);
+    }
+
+    /// <summary>Pais de <paramref name="parentId"/> (os avós de quem pede) entram na lista de quem pode socorrer (AD-145).</summary>
+    private static void AddParentsOf(WorldState world, NpcId parentId, SortedSet<NpcId> into)
+    {
+        if (world.FindNpc(parentId) is not { } parent) return;
+        if (parent.MotherId is { } m) into.Add(m);
+        if (parent.FatherId is { } f) into.Add(f);
+    }
+
+    /// <summary>Comida que a casa do parente pode mandar hoje (AD-145): o que passa de <see cref="HelperReserveDays"/> dias dos
+    /// moradores dela. Uma remessa por casa de origem por dia; a própria casa necessitada não conta.</summary>
+    private static long SpareFood(WorldState world, Npc helper, Household needy, HashSet<HouseholdId> fedFrom, ResourceType food)
+    {
+        if (helper.Household is not { } id || id == needy.Id || fedFrom.Contains(id) || world.FindHousehold(id) is not { } origin) return 0;
+        return origin.Stock.GetValueOrDefault(food) - Math.Max(1, origin.Members.Count) * (long)HelperReserveDays;
+    }
+
+    /// <summary>Esmola da cidade (AD-128), racionada (AD-145): a casa que continua sem um dia de compra na carteira depois de
+    /// parentes e amigos pede ao tesouro o que falta para a semana. O tesouro só se enche na virada do mês (imposto e dízimo), então
+    /// a cidade reparte o caixa pelos dias que faltam até lá: cada pedido do dia leva a mesma fração do que falta, até a cota do
+    /// dia. Antes a primeira casa a pedir levava a semana inteira e o tesouro secava no meio do mês. A moeda só muda de dono;
+    /// tesouro vazio, não há esmola.</summary>
+    /// <summary>Esmola de antes do AD-145: a casa leva do tesouro o que falta para a semana, até o caixa acabar.</summary>
+    private static void GiveAlms(WorldState world, TickContext ctx, LivingWorld.Domain.Cities.City city, Npc recipient, long deficit)
+    {
         long give = Math.Min(deficit, city.Treasury.Amount);
         if (give <= 0 || !city.TryDebitTreasury(new Money(give)).IsSuccess) return;
-
         recipient.CreditWallet(new Money(give));
         world.RecordTreasury(city.Id, ctx.CurrentTick, revenue: 0, spending: give);
         ctx.LogEvent(WorldEventKind.AidGiven, $"city-{city.Id.Value}|{recipient.Id.Value}|{give}", sourceSystem: SystemName);
+    }
+
+    private void GiveRationedAlms(WorldState world, TickContext ctx)
+    {
+        if (_alms.Count == 0) return;
+        long daysLeft = Math.Max(1, world.CurrentDate.Calendar.DaysPerMonth - world.CurrentDate.Day);
+        foreach (var city in _alms.Select(a => a.City).DistinctBy(c => c.Id).OrderBy(c => c.Id.Value).ToList())
+        {
+            long asked = 0;
+            foreach (var request in _alms)
+                if (request.City.Id == city.Id) asked += request.Deficit;
+            long budget = Math.Min(asked, (city.Treasury.Amount + daysLeft - 1) / daysLeft);
+            if (budget <= 0) continue;
+            foreach (var (recipient, deficit, giver) in _alms)
+            {
+                if (giver.Id != city.Id) continue;
+                long give = Math.Min(city.Treasury.Amount, (long)Math.Ceiling(deficit * (double)budget / asked));
+                if (give <= 0 || !city.TryDebitTreasury(new Money(give)).IsSuccess) continue;
+                recipient.CreditWallet(new Money(give));
+                world.RecordTreasury(city.Id, ctx.CurrentTick, revenue: 0, spending: give);
+                ctx.LogEvent(WorldEventKind.AidGiven, $"city-{city.Id.Value}|{recipient.Id.Value}|{give}", sourceSystem: SystemName);
+            }
+        }
+        _alms.Clear();
     }
 
     /// <summary>1 para parente; senão afeto (0–1) a partir do mínimo; 0 se não há laço que chame à ajuda.</summary>
@@ -201,6 +278,22 @@ public sealed class MutualAidSystem : ISimulationSystem
                 best = Math.Max(best, relation.Affection / 100.0);
         }
         return best;
+    }
+
+    /// <summary>Parente de algum morador: pais, filhos, cônjuge, irmãos e, pela genealogia, avós e netos (AD-145).</summary>
+    private static bool IsKinOf(WorldState world, Npc helper, List<Npc> members)
+    {
+        foreach (var member in members)
+            if (IsKin(helper, member) || IsGrandparent(world, helper, member) || IsGrandparent(world, member, helper)) return true;
+        return false;
+    }
+
+    private static bool IsGrandparent(WorldState world, Npc elder, Npc young)
+    {
+        foreach (var parentId in new[] { young.MotherId, young.FatherId })
+            if (parentId is { } id && world.FindNpc(id) is { } parent && (parent.MotherId == elder.Id || parent.FatherId == elder.Id))
+                return true;
+        return false;
     }
 
     private static bool IsKin(Npc a, Npc b) =>

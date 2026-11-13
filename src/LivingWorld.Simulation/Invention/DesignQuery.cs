@@ -17,11 +17,13 @@ public sealed record DesignListing(int Id, bool Lost, bool Works, int Knowers, i
 /// rugosidade, metálico e textura daqui; nenhum nome, nenhum modelo.</summary>
 public sealed record MaterialLookView(int Id, string Color, double Finish, double Grain, double Conductivity);
 
-/// <summary>Contrato de <c>GET /designs/{id}</c> (AD-141): partes, materiais e o que o avaliador mediu; lápide = só a proveniência.</summary>
+/// <summary>Contrato de <c>GET /designs/{id}</c> (AD-141): partes, materiais e o que o avaliador mediu; lápide = só a proveniência e
+/// (AD-143) <c>Accounts</c>, quantos fatos e relatos da história falavam dele quando se perdeu, e <c>LostTick</c>.</summary>
 public sealed record DesignView(
     int Id, bool Lost, long InventorId, long Tick, int ParentId, int SecondParentId, string Origin,
     IReadOnlyList<DesignPartView> Parts, IReadOnlyList<MaterialLookView> Materials,
-    bool Works, string Failure, int SpeedMmS, long PayloadKg, int DraftMm, int MetacentricMm, int Knowers, int Items);
+    bool Works, string Failure, int SpeedMmS, long PayloadKg, int DraftMm, int MetacentricMm, int Knowers, int Items,
+    int Accounts = 0, long LostTick = 0);
 
 public static class DesignQuery
 {
@@ -45,7 +47,8 @@ public static class DesignQuery
         {
             foreach (var t in ledger.Tombstones)
                 if (t.DesignId == id)
-                    return Result<DesignView>.Ok(new DesignView(id, true, t.InventorId, t.InventedTick, 0, 0, "", [], [], false, "", 0, 0, 0, 0, 0, 0));
+                    return Result<DesignView>.Ok(new DesignView(id, true, t.InventorId, t.InventedTick, 0, 0, "", [], [], false, "", 0, 0, 0, 0, 0, 0,
+                        t.Accounts, t.LostTick));
             return Result<DesignView>.Fail(Unknown);
         }
 
@@ -62,6 +65,14 @@ public static class DesignQuery
             design.Id, false, design.InventorId, design.Tick, design.ParentId, design.SecondParentId, design.Origin.ToString(),
             parts, materials, perf.Works, perf.Failure.ToString(), perf.SpeedMmS, perf.PayloadG / 1000, perf.DraftMm, perf.MetacentricMm,
             knowers, items));
+    }
+
+    /// <summary>O design de que um fato da história fala (vivo ou lápide): é por aqui que um relato aponta para a lápide (AD-143).</summary>
+    public static Result<DesignView> OfFact(WorldState world, LivingWorld.Domain.Shared.FactId factId)
+    {
+        if (world.FindFact(factId) is not { } fact) return Result<DesignView>.Fail(Unknown);
+        int id = InventionIntake.DesignIdOf(fact.Kind, fact.Payload);
+        return id > 0 ? Of(world, id) : Result<DesignView>.Fail(Unknown);
     }
 
     /// <summary>Converte mm do motor (X comprido, Z para cima, base em Z) para metros do cliente (Y para cima, centro).</summary>

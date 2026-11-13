@@ -440,7 +440,7 @@ public sealed class Npc
         VocationState? vocation = null, UnionState? union = null,
         LivingWorld.Domain.Cognition.PsycheState? psyche = null,
         LivingWorld.Domain.Cognition.BrainState? brain = null,
-        long? pubertyTick = null, uint genome = 0)
+        long? pubertyTick = null, uint genome = 0, bool emigrated = false)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -491,6 +491,7 @@ public sealed class Npc
         Brain = brain;
         PubertyTick = pubertyTick;
         Genome = genome;
+        Emigrated = emigrated;
         IsGhost = isGhost;
         HomelessSince = homelessSince;
         PregnantUntil = pregnantUntil;
@@ -608,6 +609,19 @@ public sealed class Npc
         if (deathDate < BirthDate)
             throw new ArgumentOutOfRangeException(nameof(deathDate), deathDate, "DeathDate não pode ser anterior a BirthDate");
         DeathDate = deathDate;
+        TouchCanonical();
+    }
+
+    /// <summary>Saiu do mundo simulado como emigrante (AD-145): <see cref="DeathDate"/> marca o dia da partida e a pessoa deixa de
+    /// ser simulada como qualquer ausente, mas não morreu. Omitido do snapshot enquanto falso.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Emigrated { get; private set; }
+
+    /// <summary>Partida para fora do mundo simulado (AD-145). Só <c>EmigrationSystem</c> chama.</summary>
+    public void LeaveWorld(WorldDate date)
+    {
+        Die(date);
+        Emigrated = true;
         TouchCanonical();
     }
 

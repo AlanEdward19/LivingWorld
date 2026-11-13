@@ -28,7 +28,7 @@ public static class CausalPolicy
         WorldEventKind.Accident, WorldEventKind.OldAge,
         // Trabalho, renda e moradia
         WorldEventKind.Hired, WorldEventKind.Fired, WorldEventKind.WageUnpaid,
-        WorldEventKind.RentUnpaid, WorldEventKind.Evicted, WorldEventKind.EstateSettled,
+        WorldEventKind.RentUnpaid, WorldEventKind.Evicted, WorldEventKind.EstateSettled, WorldEventKind.Emigrated,
         WorldEventKind.AidGiven, WorldEventKind.TheftDiscovered,
         // Família
         WorldEventKind.CourtshipSucceeded, WorldEventKind.Marriage, WorldEventKind.OrphanTakenIn,
@@ -59,7 +59,7 @@ public static class CausalPolicy
         WorldEventKind.CourtshipStarted, WorldEventKind.CourtshipRejected,
         WorldEventKind.AffairStarted, WorldEventKind.VocationChosen, WorldEventKind.UnwedPregnancy,
         WorldEventKind.ResourceLost, WorldEventKind.Minted, WorldEventKind.Destroyed,
-        WorldEventKind.Trade, WorldEventKind.BookLost, WorldEventKind.ProfitDrawn,
+        WorldEventKind.Trade, WorldEventKind.BookLost, WorldEventKind.DesignSold, WorldEventKind.ProfitDrawn,
         WorldEventKind.ExtraordinaryUseAttempted, WorldEventKind.ExtraordinaryAcquired,
         WorldEventKind.ExtraordinaryAcquisitionFailed, WorldEventKind.ExtraordinaryRevoked,
         WorldEventKind.CombatEncounterStarted,

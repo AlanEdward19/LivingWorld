@@ -15,6 +15,8 @@ public class SystemProfileHarness
         int population = ReadInt("LW_PROFILE_POP", 1000);
         int ticks = ReadInt("LW_PROFILE_TICKS", 720);
         var (world, clock) = ScaleScenarioFixture.CreateWorld(42, population);
+        // LW_MEASURE_NO_INVENTION=1 desliga a invenção (AD-143), para comparar o perfil com e sem ela na mesma árvore
+        if (Environment.GetEnvironmentVariable("LW_MEASURE_NO_INVENTION") == "1") world.UseInvention(null);
 
         var report = SystemProfiler.Measure(world, clock, warmupTicks: 240, ticks);
 

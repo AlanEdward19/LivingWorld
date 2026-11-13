@@ -44,6 +44,8 @@ public class MeasureHarness
     private static void MaybeBrain(WorldState world)
     {
         if (Brain) world.UseBrain(LivingWorld.Domain.Cognition.BrainRules.Default);
+        // LW_MEASURE_NO_INVENTION=1 desliga a invenção (AD-143): mede o custo dela na mesma árvore, com o mesmo código
+        if (Environment.GetEnvironmentVariable("LW_MEASURE_NO_INVENTION") == "1") world.UseInvention(null);
     }
 
     /// <summary>LW_MEASURE_POP muda a população da medida de escala (padrão 1000); LW_MEASURE_SCALE_ONLY=1 pula vila e mundo ao vivo.</summary>

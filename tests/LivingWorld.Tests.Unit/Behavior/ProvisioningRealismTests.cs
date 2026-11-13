@@ -30,12 +30,14 @@ public class ProvisioningRealismTests
         priceSensitivity: 0, demandBaselinePerNpc: new Dictionary<int, double>()).Value!;
 
     private static (WorldState World, Workplace Shop, Npc Buyer, Household Home) Build(
-        CellCoord npcAt, CellCoord homeAt, long wallet, long pantry = 0, int extraMembers = 0, bool shopProducesWater = true)
+        CellCoord npcAt, CellCoord homeAt, long wallet, long pantry = 0, int extraMembers = 0, bool shopProducesWater = true,
+        bool topUp = false)
     {
         var world = new WorldState(
             Calendar, 1, ScenarioRunner.DefaultMap(1), ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
-            ScenarioRunner.DefaultLifeStageRules, economyRules: Economy(), familyRules: ScenarioRunner.DefaultFamilyRules,
+            ScenarioRunner.DefaultLifeStageRules, economyRules: Economy(),
+            familyRules: topUp ? ScenarioRunner.DefaultFamilyRules with { Pressure = PopulationPressureRules.Measured } : ScenarioRunner.DefaultFamilyRules,
             economyCatalog: new EconomyCatalog(
                 shopProducesWater
                     ? new Dictionary<int, ProductionRecipe>
@@ -270,6 +272,30 @@ public class ProvisioningRealismTests
         Assert.Equal(0, buyer.Wallet.Amount);
         Assert.Equal(1, home.Stock.GetValueOrDefault(Water));
         Assert.Equal(0, home.Stock.GetValueOrDefault(Wheat));
+    }
+
+    [Fact]
+    public void A_purchase_tops_the_pantry_up_to_the_target_instead_of_piling_on_top_of_it()
+    {
+        // AD-145: a casa ao lado do rio já tem água; ir comprar comida não traz mais água, e a comida só completa a meta
+        var (world, _, buyer, home) = Build(npcAt: Market, homeAt: Market, wallet: 500, pantry: 0, topUp: true);
+        home.Deposit(Water, 300);
+        home.Deposit(Wheat, 3);
+
+        Buy(world, buyer);
+
+        Assert.Equal(300, home.Stock.GetValueOrDefault(Water));
+        Assert.Equal(10, home.Stock.GetValueOrDefault(Wheat)); // meta mínima de compra (10), não 3 + 10
+    }
+
+    [Fact]
+    public void Nobody_heads_to_market_for_what_they_cannot_pay_when_the_rest_of_the_pantry_is_full()
+    {
+        // AD-145: água cheia (o rio enche), comida acabando e carteira abaixo do preço da comida (4): a ida não traria nada
+        var (world, _, buyer, home) = Build(npcAt: Far, homeAt: Far, wallet: 3, pantry: 0, topUp: true);
+        home.Deposit(Water, 300);
+
+        Assert.False(BehaviorDecisionSystem.NeedsRestocking(world, buyer, MarketIndex.BuildForTick(world)));
     }
 
     [Theory]
