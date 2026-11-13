@@ -217,7 +217,14 @@ public class SocialAndSurvivalRealismTests
     [Fact]
     public void Workers_leave_an_employer_that_cannot_pay_and_nobody_is_hired_by_it()
     {
-        var (world, clock) = ScenarioRunner.Create(3);
+        // AD-144: sem ferramenta (a forja passaria a vender e fechar a folha) e sem retirada (a cidade recompõe a fazenda comum):
+        // é o empregador sem receita nem dono que cubra a falta que este teste precisa
+        var noTools = ScenarioRunner.DefaultEconomyCatalog with
+        {
+            Recipes = ScenarioRunner.DefaultEconomyCatalog.Recipes.ToDictionary(kv => kv.Key, kv => kv.Value with { Tool = null }),
+        };
+        var (world, clock) = ScenarioRunner.Create(3, economyCatalog: noTools,
+            economyRules: ScenarioRunner.DefaultEconomyRules with { SurplusDrawShare = 0 });
         clock.Run(world, 30 * 24);
         var broke = world.Workplaces.Where(w => w.Employees.Count > 0).OrderBy(w => w.Employees.Count).First(); // a menor: há vaga na outra
         broke.TryDebitTreasury(broke.Treasury);
