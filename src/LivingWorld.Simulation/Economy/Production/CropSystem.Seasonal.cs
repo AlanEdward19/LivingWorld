@@ -109,7 +109,9 @@ public sealed partial class CropSystem
         WorldState world, AgricultureRules ag, Workplace farm, CropBatch field, List<(Workplace Farm, CropBatch Field)> farms,
         IReadOnlyList<Npc> workers, SkillsRules? skills, Dictionary<CityId, long> residents, Dictionary<CityId, int> farmsPerCity)
     {
-        long wanted = Math.Min(SeedTarget(ag, farm, residents, farmsPerCity) - field.LastSeedSown, workers.Count * ag.SowPerWorkerDay);
+        // sem relha de ferro o arado de pau lavra menos terra por dia (AD-144)
+        long sowCapacity = (long)Math.Floor(workers.Count * ag.SowPerWorkerDay * ToolMechanic.OutputFactor(world, farm, workers.Count));
+        long wanted = Math.Min(SeedTarget(ag, farm, residents, farmsPerCity) - field.LastSeedSown, sowCapacity);
         if (wanted <= 0) return;
 
         // semente guardada primeiro, depois o grão do próprio celeiro, depois o que sobra nas outras fazendas da cidade
@@ -157,6 +159,7 @@ public sealed partial class CropSystem
         double labor = 0;
         foreach (var npc in workers)
             labor += AttributeMechanic.StrengthMultiplier(world, npc) * BodyMechanic.WorkCapacityMultiplier(world, npc);
+        labor *= ToolMechanic.OutputFactor(world, farm, workers.Count); // sem foice e sega a ceifa anda devagar (AD-144)
         long reaped = field.Reap((long)Math.Floor(labor * ag.ReapPerWorkerDay));
         if (reaped > 0)
         {

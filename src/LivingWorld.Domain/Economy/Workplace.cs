@@ -27,8 +27,9 @@ public sealed class Workplace
     /// <see cref="Location"/> é a origem do footprint desse prédio.</summary>
     public BuildingId? Building { get; private set; }
 
-    /// <summary>Dono da oficina (estate-inheritance): quem herda o espólio dele herda também a oficina. Só entra por
-    /// autoria do cenário ou por herança; <c>null</c> é oficina sem dono (comum, da cidade).</summary>
+    /// <summary>Dono da oficina (estate-inheritance, AD-144): recebe o lucro acima da reserva de giro, e quem herda o espólio
+    /// dele herda também a oficina. Entra pela regra de fundação (o mestre do ofício), por autoria do cenário ou por herança;
+    /// <c>null</c> é oficina sem dono (terra comum, obra da cidade), cujo excedente vai ao tesouro da cidade.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public NpcId? Owner { get; private set; }
 

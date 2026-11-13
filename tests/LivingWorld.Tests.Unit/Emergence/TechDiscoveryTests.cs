@@ -24,7 +24,12 @@ public class TechDiscoveryTests
 
     private static (WorldState World, WorldClock Clock) Village(ulong seed, EmergenceRules rules)
     {
-        var (world, clock) = ScenarioRunner.Create(seed, emergenceRules: rules);
+        // sem ferramenta de lavrador (AD-144): o desgaste do ferro da fazenda também conta como consumido e mistura a conta
+        var noTools = ScenarioRunner.DefaultEconomyCatalog with
+        {
+            Recipes = ScenarioRunner.DefaultEconomyCatalog.Recipes.ToDictionary(kv => kv.Key, kv => kv.Value with { Tool = null }),
+        };
+        var (world, clock) = ScenarioRunner.Create(seed, emergenceRules: rules, economyCatalog: noTools);
         world.ActiveCities().First().DepositStock(Iron, 5000);
         return (world, clock);
     }

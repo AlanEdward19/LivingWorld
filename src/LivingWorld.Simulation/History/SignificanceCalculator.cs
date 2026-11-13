@@ -44,6 +44,7 @@ public static class SignificanceCalculator
             [WorldEventKind.Fired] = 0.40,
             [WorldEventKind.Emigrated] = 0.55,
             [WorldEventKind.WageUnpaid] = 0.45,
+            [WorldEventKind.ProfitDrawn] = 0.10, // retirada mensal de rotina (AD-144)
             [WorldEventKind.Minted] = 0.30,
             [WorldEventKind.Destroyed] = 0.30,
             [WorldEventKind.ResourceLost] = 0.25,

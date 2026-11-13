@@ -155,7 +155,7 @@ if (args.Length == 3 && args[0] == "theft-hash")
     // financia a esmola e tiraria o desespero do primeiro ano
     var (world, _) = ScenarioRunner.Create(ulong.Parse(args[1]), theftRules: new LivingWorld.Domain.Crime.TheftRules(true, 90, 0.9, 0.6, 0.5, 0.5, -1, 0.25),
         naturalWaterRules: LivingWorld.Domain.Economy.NaturalWaterRules.Disabled,
-        economyRules: ScenarioRunner.DefaultEconomyRules with { SurplusLevyShare = 0 });
+        economyRules: ScenarioRunner.DefaultEconomyRules with { SurplusDrawShare = 0 });
     int thefts = 0;
     var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: new TheftCounter(() => thefts++));
     clock.Run(world, long.Parse(args[2]));

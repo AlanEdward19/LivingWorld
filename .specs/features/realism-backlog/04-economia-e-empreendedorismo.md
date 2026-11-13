@@ -47,3 +47,28 @@
 ## Já feito nesta trilha
 
 Trabalhador não fica em quem não paga; morto libera a vaga; troca de emprego não gera evento de demissão; esmola do tesouro da cidade; dinheiro compartilhado dentro da casa (AD-128).
+
+## Estado (2026-11-13): fatias 1 a 3 juntadas (AD-144)
+
+Dono lido do cenário e retirada de lucro (`OwnerDrawSystem`), oficina sem dono rende à cidade, ferramenta que desgasta na
+fazenda e ferraria que faz por encomenda, sucessão do oficial quando o mestre morre sem herdeiro. 20 seeds × 100 anos
+contra a base: 0 extinções, fome 14,3% → 6,7% das mortes, e0 27,0 → 30,1, ferraria viva 0/20 → 19/20 aos 50 e aos 100.
+Custo a 1000 NPCs: CPU +1,3%, alocação +5,2%.
+
+## Ficou de fora das fatias 1 a 3 (nada some)
+
+- E1. Presença na hora da produção: a fazenda é creditada por quem está na fila do mercado (o mercado é a fazenda); contar
+  só trabalho feito pede recalibrar a lavoura. O defeito existe em todo o motor; na forja foi contornado pela folha.
+- E2. Fila do mercado: as casas vivem abaixo de um dia de comida e passam o turno tentando comprar (liga com `08` item 46).
+- E3. Alocação +5,2% a 1000 NPCs sem fonte achada (não perfilada); custo a 5000 NPCs não medido.
+- E4. Prejuízo estrutural da fazenda comum: hoje a cidade recompõe.
+- E5. Mina ou ferro bruto; consumo de ferro pelas casas; obra pública como destino da moeda da cidade.
+- E6. `Tool` e `CraftLocationTypeIds` nos cenários JSON; lista dos bens sem consumidor nesses cenários.
+- E7. Caixa inicial das oficinas: igualar à reserva piorou a fome; pede outro desenho. Gera a herança de ~490 mil do
+  mestre e o Gini de 0,81 a 0,88 nos anos 10 a 30.
+- E8. Mobilidade social não medida. Seed 4 termina com 24 vivos (não extinta): vigiar.
+- E9. Números sem fonte firme: 3 kg, 2 kg por ano, 60%, preço 20, reserva de 12 meses.
+- E10. Não verificado: determinismo em dois processos, ida e volta de snapshot com dono e ferramenta, compactação do evento
+  de retirada (`ProfitDrawn`), hash do mundo antes e depois do refactor de alocação (`5720255e`).
+- E11. Preço e salário que reagem, demissão: é a fatia 8, já listada acima. Próximas: fatias 4 a 8.
+

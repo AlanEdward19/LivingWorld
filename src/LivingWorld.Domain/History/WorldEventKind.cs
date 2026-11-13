@@ -246,4 +246,8 @@ public enum WorldEventKind
     /// <summary>Um adulto sem trabalho nem vaga foi embora (AD-145) — payload: <c>npcId|destino</c> (destino: id da cidade do
     /// mundo para onde foi, ou <c>fora</c> quando saiu do mundo simulado).</summary>
     Emigrated,
+
+    /// <summary>Lucro retirado do caixa acima da reserva de giro (AD-144) — payload: <c>oficinaId|donoId|valor</c>, ou
+    /// <c>oficinaId|city-cidadeId|valor</c> quando a oficina não tem dono e o excedente vai ao tesouro da cidade.</summary>
+    ProfitDrawn,
 }

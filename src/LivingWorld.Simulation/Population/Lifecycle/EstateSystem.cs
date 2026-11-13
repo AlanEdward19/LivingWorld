@@ -112,10 +112,33 @@ public static class EstateSystem
     {
         foreach (var workplace in owned)
         {
-            var heir = heirs.FirstOrDefault(h => h.CurrentLocation == workplace.Location) ?? heirs.FirstOrDefault();
+            var heir = heirs.FirstOrDefault(h => h.CurrentLocation == workplace.Location) ?? heirs.FirstOrDefault()
+                ?? Journeyman(world, workplace);
             workplace.AssignOwner(heir?.Id);
         }
 
         return heirs.Count > 0 ? owned.Count : 0;
+    }
+
+    /// <summary>Sem herdeiro, a oficina passa ao oficial mais hábil que trabalha nela (AD-144), como o mestre que deixa a
+    /// oficina ao melhor aprendiz; ninguém lá, fica sem dono (da cidade). Empate: o mais velho, depois o menor id.</summary>
+    internal static Npc? Journeyman(WorldState world, Workplace workplace)
+    {
+        var skills = LivingWorld.Simulation.Scenarios.ScenarioRunner.DefaultSkillsRules;
+        Npc? best = null;
+        double bestSkill = -1;
+        foreach (var id in workplace.Employees.OrderBy(e => e.Value))
+        {
+            if (world.FindNpc(id) is not { IsAlive: true } npc) continue;
+            if (world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate)) == LivingWorld.Domain.Population.Body.LifeStage.Child) continue;
+            double skill = skills.SkillByProfession.TryGetValue(npc.Profession.Id, out var type) ? npc.Skills.Get(type) : 0;
+            if (skill > bestSkill || (skill == bestSkill && best is not null && npc.BirthDate.TotalHours < best.BirthDate.TotalHours))
+            {
+                best = npc;
+                bestSkill = skill;
+            }
+        }
+
+        return best;
     }
 }

@@ -50,6 +50,8 @@ public sealed class EmploymentSystem : ISimulationSystem
 
             var workplace = vacancyIndex.FirstWorkplaceWithVacancy(locationTypeId, npc.City);
             if (workplace is null || !Payroll.CanPay(world, workplace, npc.Profession)) continue;
+            // quem trabalha por encomenda só toma a mão que a encomenda pede (AD-144)
+            if (!LivingWorld.Simulation.Economy.Production.ToolMechanic.NeedsHands(world, workplace)) continue;
 
             if (!workplace.Hire(npc.Id).IsSuccess) continue;
             npc.Hire(workplace.Id);
