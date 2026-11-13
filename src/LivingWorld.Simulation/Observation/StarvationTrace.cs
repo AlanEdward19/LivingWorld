@@ -40,6 +40,6 @@ public sealed class StarvationTrace(WorldState world, ulong seed, List<string> l
             lines.Add(string.Create(CultureInfo.InvariantCulture,
                 $"{seed} {evt.Kind.ToString()[..5]} {now / world.Calendar.HoursPerYear} {world.CurrentDate.Month} age={age:F1} sex={npc.Sex} emp={(npc.Employer is null ? 0 : 1)} " +
                 $"hh={(npc.Household is null ? "none" : size.ToString(CultureInfo.InvariantCulture))} grown={grown} hhEmp={employed} stock={stock} wallets={wallets} " +
-                $"mother={(motherAlive ? motherHome ? "home" : "away" : "dead")} market={market} treasury={treasury} sick={sick} alive={world.AliveNpcIndex.Alive.Count} act={npc.CurrentAction} dev={npc.Development?.ToString() ?? "-"}"));
+                $"mother={(motherAlive ? motherHome ? "home" : "away" : "dead")} market={market} treasury={treasury} sick={sick} alive={world.AliveNpcIndex.Alive.Count} act={npc.CurrentAction} for={now - npc.ActionStartedAtTick} purpose={npc.TravelPurpose?.ToString() ?? "-"} intent={npc.CurrentIntent?.ToString() ?? "-"}/{npc.IntentStatus?.ToString() ?? "-"} wallet={npc.Wallet.Amount} atHome={(npc.Household is { } h2 && world.FindHousehold(h2) is { } hh2 ? (hh2.Location == npc.CurrentLocation ? 1 : 0) : -1)} dev={npc.Development?.ToString() ?? "-"}"));
     }
 }

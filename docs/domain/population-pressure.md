@@ -6,8 +6,9 @@ embora. No motor nada disso é teto escrito nem taxa fixa: sai da decisão de ca
 
 > **Estado (AD-145): tudo desligado por padrão** (`FamilyRules.Pressure` nulo: hash e snapshot iguais aos de antes).
 > Ligado (`PopulationPressureRules.Measured`), 20 seeds × 100 anos
-> deram 7 extinções e 13% das mortes por sede (contra 0,1% na base), com causa não isolada. Os mecanismos e os testes
-> ficam; ligar por padrão espera a investigação (backlog 08, itens 37 a 43).
+> deram 7 extinções e 13% das mortes por sede (contra 0,1% na base). A sede foi isolada e corrigida no AD-146 (abaixo);
+> ligado de novo: 3 extinções, sede 0,5%, fome 11,9%. Ainda não liga por padrão (backlog 08, itens 38 a 47).
+> Medir ligado: `LW_PRESSURE=all bash scripts/demography-report.sh` (ou uma lista de chaves: `topup,kin,alms,means,first,emig`).
 
 ## Casar depende de meios
 Todas as chaves estão em `PopulationPressureRules` (`FamilyRules.Pressure`).
@@ -50,6 +51,11 @@ empurram, aversão a risco segura) e menos os laços (pais vivos na cidade, o ma
 ## Água e compra
 Origem medida da água aos milhares: cada ida ao mercado por comida trazia a meta inteira de água por cima do estoque
 (comida cara, idas repetidas). Com `TopUpPurchases` a compra completa a meta e só se vai pelo que se pode pagar.
+
+**Sede com água em casa (AD-146)**: era o `TopUpPurchases` sozinho. Sem moeda para a comida, a pessoa ficava no mercado
+comprando a água que completava a meta (uma ou duas por ida); a compra "dava certo", o plano de comida terminava sem
+beber, e de duas em duas horas ela comprava de novo até morrer de sede. Corrigido na raiz, valendo com ou sem os freios:
+quem fecha a compra com fome ou sede crítica come e bebe do que a casa tem.
 
 ## Números
 Sem fonte própria (calibração do modelo): peso dos meios 0,9, economias de 24 meses, 40% dos meios no trabalho, peso do

@@ -33,8 +33,9 @@ public class OptimizationEquivalenceTests
     // --- Hashes do mundo preservados ---
 
     [Theory]
-    [InlineData(1UL, "a142aa122329fd51853a35d5407c3e038405f581dfb192368ba5cf21416ef522", "1e59afe2f532502fe6c7f1c6f7a34723631c42d3c36537abb3c80030568a2e98")]
-    [InlineData(2UL, "de9e4e362a3cea67073e0acf78718f2ffeee0ebe8d4328534b7ca680fe9f0d54", "38132508e010a76b471513c252fb3efb19dbb415058d131ed3e93d3c9e316bf9")]
+    // AD-146: regravados (quem fecha a compra com fome ou sede crítica come e bebe do que a casa tem)
+    [InlineData(1UL, "563d8659172139a8057d8563c2fca0a6634ddd84ed1cec2610323cdc66d4bb3a", "10fcf713eb7d28aff826e57fa90103a2d9c56ac86ac9ea6e8d59206c95aee889")]
+    [InlineData(2UL, "fa10adb2e4a681d621766565572a7455ea459f62a5fa72f4e8c3694e9caa78d6", "d93cb7ac50189e6f362860b4a63112da6dd7f19fb6290c9794e363293a4bc0aa")]
     public void Default_scenario_ninety_days_keeps_the_recorded_hashes(
         ulong seed, string canonical, string volatileHash)
     {
