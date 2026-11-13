@@ -59,5 +59,10 @@ Fatias seguintes:
 9. Substituir o `TechDiscoverySystem`: adoção por cidade derivada de `KnownDesign`, migrar `/cultures/{id}/technologies`, o painel do cliente (`test_technologies.gd`) e as métricas de civilização, remover o bloco `Emergence`, regravar goldens.
 10. Contracepção e remédio como invenção; robô em ADR próprio.
 11. Animação por junção e pose de uso no cliente Godot.
+12. **O que a pessoa leva consigo** (pedido do dono, 2026-11-13): "se a pessoa pudesse carregar coisas com ela (tipo
+    um inventário), levar lanche, água em garrafa/cantil caso fosse inventado. uma mochila, bolsos, etc". Carga pessoal
+    com teto de peso e volume: de mão nua quase nada; recipiente (cantil, cesto, bolsa, mochila) é `Design` avaliado
+    pela física (estanque, volume, peso), inventado e copiado como o resto. A pessoa bebe e come do que leva, e decide
+    o que levar ao sair. Liga com 2a (carga por viagem) e com a sede do AD-145 ([08](08-a-investigar.md), item 37).
 
 Critério da Fase 24 editado em 2026-11-13 com a frase aprovada pelo dono (`docs/roadmap/phase-24-emergence.md`).
