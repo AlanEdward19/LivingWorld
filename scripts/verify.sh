@@ -22,14 +22,14 @@ PIDS=(); NAMES=()
 trap 'for p in "${PIDS[@]:-}"; do [ -n "$p" ] && pkill -P "$p" 2>/dev/null; kill "$p" 2>/dev/null; done' INT TERM
 start() { # start <nome> <script> [args...]: roda em segundo plano, saída em $LOGS/<nome>.log
   local name="$1"; shift
-  bash "$@" > "$LOGS/$name.log" 2>&1 &
+  ( t=$SECONDS; bash "$@"; rc=$?; echo "verify-tempo: $name $((SECONDS - t))s"; exit $rc ) > "$LOGS/$name.log" 2>&1 &
   PIDS+=($!); NAMES+=("$name")
 }
 wait_all() { # espera todos; imprime o resumo de cada um e o log inteiro de quem reprovou
   local fail=0 i
   for i in "${!PIDS[@]}"; do
     if wait "${PIDS[$i]}"; then
-      echo "verify: ${NAMES[$i]} OK $(grep -E '(Passed|Failed)!' "$LOGS/${NAMES[$i]}.log" | tail -1 | cut -c1-100)"
+      echo "verify: ${NAMES[$i]} OK ($(grep -E '^verify-tempo:' "$LOGS/${NAMES[$i]}.log" | tail -1 | cut -d' ' -f3)) $(grep -E '(Passed|Failed)!' "$LOGS/${NAMES[$i]}.log" | tail -1 | cut -c1-100)"
     else
       cat "$LOGS/${NAMES[$i]}.log" >&2
       echo "verify: ${NAMES[$i]} REPROVOU (log: $LOGS/${NAMES[$i]}.log)" >&2

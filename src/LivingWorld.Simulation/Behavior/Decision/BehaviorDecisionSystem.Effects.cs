@@ -26,7 +26,7 @@ public sealed partial class BehaviorDecisionSystem
         switch (action)
         {
             case ActionType.Eat:
-                ApplyFoodPlan(world, npc, marketIndex, tick, primary: ActionType.Eat);
+                ApplyFoodPlan(world, npc, marketIndex, tick, primary: ActionType.Eat, ctx);
                 break;
             case ActionType.Sleep:
                 ApplySleep(world, npc, tick);
@@ -35,7 +35,7 @@ public sealed partial class BehaviorDecisionSystem
                 ApplySocialize(world, npc, tick, ctx);
                 break;
             case ActionType.Buy:
-                ApplyFoodPlan(world, npc, marketIndex, tick, primary: ActionType.Buy);
+                ApplyFoodPlan(world, npc, marketIndex, tick, primary: ActionType.Buy, ctx);
                 break;
             case ActionType.UsePower:
                 ApplyUsePower(world, npc, tick, ctx);
@@ -119,18 +119,18 @@ public sealed partial class BehaviorDecisionSystem
     /// <summary>Falha local tenta alternativa (Buy↔Eat/estoque) antes de
     /// <see cref="IntentStatus.Invalidated"/>.</summary>
     private static void ApplyFoodPlan(
-        WorldState world, Npc npc, MarketIndex marketIndex, long tick, ActionType primary) =>
-        ResolveFoodPlan(world, npc, marketIndex, tick, primary);
+        WorldState world, Npc npc, MarketIndex marketIndex, long tick, ActionType primary, TickContext ctx) =>
+        ResolveFoodPlan(world, npc, marketIndex, tick, primary, ctx);
 
     /// <summary>Resolve Buy/Eat com alternativas; retorna o status final do Intent quando
     /// um plano alimentar estava em curso (para testes).</summary>
     internal static IntentStatus? ResolveFoodPlan(
-        WorldState world, Npc npc, MarketIndex marketIndex, long tick, ActionType primary)
+        WorldState world, Npc npc, MarketIndex marketIndex, long tick, ActionType primary, TickContext? ctx = null)
     {
         EnsureFoodIntent(npc, primary, tick);
 
         bool primaryOk = primary == ActionType.Buy
-            ? TryApplyBuy(world, npc, marketIndex)
+            ? TryApplyBuy(world, npc, marketIndex, ctx)
             : TryApplyEat(world, npc, tick);
 
         if (primaryOk)
@@ -142,7 +142,7 @@ public sealed partial class BehaviorDecisionSystem
 
         bool alternativeOk = primary == ActionType.Buy
             ? TryApplyEat(world, npc, tick)
-            : TryApplyBuy(world, npc, marketIndex);
+            : TryApplyBuy(world, npc, marketIndex, ctx);
 
         if (alternativeOk)
         {
@@ -232,7 +232,7 @@ public sealed partial class BehaviorDecisionSystem
         return workplace.Withdraw(resource, 1).IsSuccess;
     }
 
-    private static bool TryApplyBuy(WorldState world, Npc npc, MarketIndex marketIndex)
+    private static bool TryApplyBuy(WorldState world, Npc npc, MarketIndex marketIndex, TickContext? ctx)
     {
         if (!world.EconomyRules.Enabled) return false;
         var market = NearestEssentialsMarket(world, npc, marketIndex);
@@ -243,6 +243,10 @@ public sealed partial class BehaviorDecisionSystem
 
         var econ = world.EconomyRules;
         bool bought = false;
+        // AD-143: com água entre a casa e o mercado, leva-se só o que cabe (a pé ou na peça da casa); e quem precisa de com que
+        // atravessar olha o que está exposto
+        long cargo = LivingWorld.Simulation.Invention.InventionMarket.CargoGrams(world, household, market.Location);
+        if (world.InventionOn) LivingWorld.Simulation.Invention.InventionMarket.AtMarket(world, ctx ?? new TickContext(world, world.Rng, world.Scheduler), npc, household, market);
         foreach (var resourceId in new[] { econ.FoodResourceId, econ.WaterResourceId })
         {
             var resource = new ResourceType(resourceId);
@@ -252,7 +256,7 @@ public sealed partial class BehaviorDecisionSystem
             // tira da terra), em vez de morrer de sede ao lado dela. Comida continua paga.
             if (resourceId == econ.WaterResourceId && npc.Wallet.Amount < unitPrice)
             {
-                bought |= DrawFromWell(world, market, household, resource);
+                bought |= DrawFromWell(world, market, household, resource, ref cargo);
                 continue;
             }
 
@@ -265,11 +269,13 @@ public sealed partial class BehaviorDecisionSystem
             purchaseDays = (int)Math.Ceiling(purchaseDays * LivingWorld.Simulation.Cognition.PsycheMechanic.HoardFactor(world, npc, world.CurrentDate.TotalHours));
             long quantity = Math.Max(MinimumPurchaseQuantity, household.Members.Count * purchaseDays);
             quantity = Math.Max(1, Math.Min(quantity, npc.Wallet.Amount / unitPrice));
-            var ctx = new TransactionContext(
+            quantity = LivingWorld.Simulation.Invention.InventionMarket.Fit(world, resourceId, quantity, ref cargo);
+            if (quantity <= 0) continue;
+            var tx = new TransactionContext(
                 npc.Wallet, market.Treasury, market.Stock.GetValueOrDefault(resource),
                 household.Stock.GetValueOrDefault(resource), resource, unitPrice, quantity);
 
-            if (!MarketTransaction.Execute(ctx).IsSuccess) continue;
+            if (!MarketTransaction.Execute(tx).IsSuccess) continue;
 
             var price = new Money(unitPrice * quantity);
             npc.TryDebitWallet(price);
@@ -295,7 +301,7 @@ public sealed partial class BehaviorDecisionSystem
     /// uma oficina cuja receita produz água (um mercado qualquer não dá água). O estoque muda de lugar (oficina para despensa),
     /// nada some nem nasce, e a retirada entra no livro de trocas com valor 0 (não é venda, mas é movimento).</summary>
     private static bool DrawFromWell(
-        WorldState world, Workplace well, LivingWorld.Domain.Population.Family.Household household, ResourceType water)
+        WorldState world, Workplace well, LivingWorld.Domain.Population.Family.Household household, ResourceType water, ref long cargo)
     {
         if (!world.EconomyCatalog.Recipes.TryGetValue(well.LocationType.Id, out var recipe) || !recipe.Outputs.ContainsKey(water.Id))
             return false;
@@ -303,6 +309,7 @@ public sealed partial class BehaviorDecisionSystem
         // só enche o que falta: casa com a água dos próximos dias não esvazia o estoque do dono do poço
         long wanted = Math.Max(WellMinimumDraw, household.Members.Count * WellDaysOfSupply) - household.Stock.GetValueOrDefault(water);
         long quantity = Math.Min(well.Stock.GetValueOrDefault(water), wanted);
+        if (quantity > 0) quantity = LivingWorld.Simulation.Invention.InventionMarket.Fit(world, water.Id, quantity, ref cargo);
         if (quantity <= 0 || !well.Withdraw(water, quantity).IsSuccess) return false;
 
         household.Deposit(water, quantity);

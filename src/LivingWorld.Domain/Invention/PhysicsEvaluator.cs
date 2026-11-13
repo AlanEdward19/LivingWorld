@@ -100,6 +100,22 @@ public static class PhysicsEvaluator
         return grams.Select(kv => (kv.Key, kv.Value)).ToList();
     }
 
+    /// <summary>Minutos de coleta que a construção gasta por material (a parte de <see cref="Performance.BuildMinutes"/> que vem de
+    /// ir buscar a matéria na natureza), na ordem do id: o que o estoque da casa poupa quando já tem o material (AD-143).</summary>
+    public static IReadOnlyList<(int MaterialId, long Minutes)> GatherMinutes(IReadOnlyList<DesignPart> parts, InventionRules rules)
+    {
+        var minutes = new SortedDictionary<int, long>();
+        foreach (var p in parts)
+        {
+            if (rules.Material(p.Material) is not { } m) continue;
+            long materialG = (OuterVolume(p) - (p.IsHollow ? CavityVolume(p) : 0)) * m.DensityKgM3 / Million;
+            minutes[m.Id] = minutes.GetValueOrDefault(m.Id) + materialG * m.GatherMinutesPerKg / 1000;
+            if (p.Coating > 0 && rules.Material(p.Coating) is { } c)
+                minutes[c.Id] = minutes.GetValueOrDefault(c.Id) + Surface(p) * rules.CoatingMm * c.DensityKgM3 / Million * c.GatherMinutesPerKg / 1000;
+        }
+        return minutes.Select(kv => (kv.Key, kv.Value)).ToList();
+    }
+
     /// <summary>A natureza dá a peça? Medidas positivas, material que existe, dentro do tamanho natural (tronco, feixe, lâmina),
     /// parede possível; mãe sempre antes da filha.</summary>
     public static bool IsBuildable(IReadOnlyList<DesignPart> parts, IReadOnlyList<MaterialSpec> materials)

@@ -239,4 +239,7 @@ public enum WorldEventKind
     /// <summary>A gravidez de uma mulher sem união apareceu (AD-139) — payload: <c>maeId|paiId|desfecho</c> (casamento: o pai
     /// foi levado a casar; abandono: ele não casou; sem_pai: ele morreu).</summary>
     UnwedPregnancy,
+
+    /// <summary>Alguém comprou no mercado uma peça feita por outro (AD-143) — payload: <c>compradorId|vendedorId|designId|preço</c>.</summary>
+    DesignSold,
 }
