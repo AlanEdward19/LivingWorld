@@ -140,8 +140,16 @@ public class JusticeTests
     public void A_flogged_or_beaten_neighbour_never_drops_to_the_danger_floor_that_makes_everyone_flee()
     {
         // antes: o açoite levava a saúde a 0 sem matar, e quem estava perto fugia (Travel) sem parar até morrer de sede
-        var world = New(Sure, Rules(new JusticeRules { WitnessSeeChance = 1, MisidentifyChance = 0, ReportChance = 1, FearSilence = 0,
-            ConvictBase = 1, PettyTheftValue = 0, CorporalHarm = 50 }));
+        var world = New(Sure, Rules(new JusticeRules
+        {
+            WitnessSeeChance = 1,
+            MisidentifyChance = 0,
+            ReportChance = 1,
+            FearSilence = 0,
+            ConvictBase = 1,
+            PettyTheftValue = 0,
+            CorporalHarm = 50
+        }));
         var thief = Add(world, Criminal);
         var victim = Add(world, Honest, wallet: 40);
         var neighbour = Add(world, Honest);
