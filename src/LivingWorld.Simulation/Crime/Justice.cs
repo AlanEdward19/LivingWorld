@@ -313,7 +313,7 @@ internal static class Justice
         }
 
         bool grave = crime.Kind == CrimeKind.Theft && crime.Value >= rules.GraveTheftValue;
-        if (record.Convictions >= rules.BanishAfterConvictions && (grave || crime.Kind == CrimeKind.Assault))
+        if (record.Convictions >= rules.BanishAfterConvictions && grave) // só o ladrão grave reincidente; o briguento paga ou apanha
             return ("banimento", paid);
         if (grave || paid < owed)
         {
