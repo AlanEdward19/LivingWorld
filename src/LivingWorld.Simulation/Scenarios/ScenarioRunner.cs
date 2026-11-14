@@ -216,7 +216,11 @@ public static partial class ScenarioRunner
         wageTaxRate: 0.05) // a cidade retém 5% do salário
         .Value ?? throw new InvalidOperationException("economy rules default inválida — bug no cenário, não no gerador"))
         with
-    { SurplusDrawShare = 1.0 }; // o lucro acima de 12 meses de folha sai todo mês: ao dono, ou à cidade sem dono (AD-144)
+    { SurplusDrawShare = 1.0, PresenceNeedsWork = true }; // AD-144: o lucro acima de 12 folhas sai todo mês; AD-149: só lavra quem trabalha (E1)
+
+    /// <summary>Invenção dos cenários (código e JSON), num lugar só. A carga pessoal (`PantryNeedsPresence`) segue desligada: no
+    /// AD-149, ligada com a terra finita, 20×100 deu fome 4,6% (base 4,1%) e +19% de CPU por NPC-tick.</summary>
+    public static readonly LivingWorld.Domain.Invention.InventionRules DefaultInventionRules = LivingWorld.Domain.Invention.InventionRules.Default;
 
     /// <summary>Tipos de local que são oficina de ofício (AD-144): a ferraria é do mestre ferreiro; a fazenda, terra comum,
     /// fica sem dono (o excedente vai à cidade). Ver <see cref="WorkplaceOwnership"/>.</summary>
@@ -339,7 +343,7 @@ public static partial class ScenarioRunner
             ontogenyRules: ontogenyRules ?? LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human,
             appearanceRules: appearanceRules, objectCatalog: objectCatalog, agricultureRules: agricultureRules ?? AgricultureRules.Default,
             naturalWaterRules: naturalWaterRules ?? NaturalWaterRules.Default);
-        world.UseInvention(inventionRules ?? LivingWorld.Domain.Invention.InventionRules.Default); // AD-141
+        world.UseInvention(inventionRules ?? DefaultInventionRules); // AD-141
         var initialCity = new City(
             world.NextCityId(), DefaultVillageLocation, world.CurrentDate.TotalHours,
             foundedFromCityId: null, AggregatePopulationPool.Empty);

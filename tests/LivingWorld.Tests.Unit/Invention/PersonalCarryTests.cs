@@ -292,6 +292,32 @@ public class PersonalCarryTests
         Assert.True(!boatBuyerTook && !ledger.Items[0].ForSale && ledger.Items[0].HouseholdId == buyer.Household!.Value.Value);
     }
 
+    /// <summary>AD-149 (backlog 05 item 12b): a casa com um oco na mão que ainda tem a compra cortada melhora o recipiente até
+    /// prendê-lo ao corpo. Antes parava no primeiro que servia e nenhuma das 20 seeds chegou a uma peça com tira.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void A_household_with_a_hand_held_container_still_short_of_room_comes_to_tie_it_to_the_body(bool improve)
+    {
+        var eager = Rules with { BaseAttemptChancePm = 1000, FrustrationThresholdMinutes = 30, ManufacturingNoisePm = 0, ImproveCarrier = improve };
+        var (world, clock) = ScenarioRunner.Create(1, inventionRules: eager);
+        var npc = Adults(world)[0];
+        var home = npc.Household!.Value.Value;
+        GiveContainer(world, npc, Container(Formable, 4000, strap: false));
+        Assert.False(world.Invention!.BestCarrier(home, eager).Worn);
+
+        for (int month = 0; month < 36 && !world.Invention.BestCarrier(home, eager).Worn; month++)
+        {
+            var ledger = world.Invention;
+            int i = ledger.CarryMindIndex(npc.Id.Value);
+            var mind = i >= 0 ? ledger.CarryMinds[i] : new InventionMind(npc.Id.Value, 0, 0, 0, 0, FailureMode.None, null, 0);
+            ledger.PutCarryMind(mind with { FrustrationMinutes = 100_000, NeedMl = 4000 }); // a compra segue cortada todo mês
+            clock.Run(world, world.Calendar.HoursPerMonth);
+        }
+
+        Assert.Equal(improve, world.Invention.BestCarrier(home, eager).Worn);
+    }
+
     [Fact]
     public void A_person_who_could_not_carry_comes_to_make_something_that_holds_it_from_the_materials_they_know()
     {

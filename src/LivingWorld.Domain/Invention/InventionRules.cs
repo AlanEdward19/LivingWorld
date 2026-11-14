@@ -186,9 +186,13 @@ public sealed record InventionRules
     public IReadOnlyList<int> LiquidResourceIds { get; init; } = [2];
 
     /// <summary>A despensa serve quem está em casa: quem está a mais de uma hora de caminho come e bebe do que leva, ou volta.
-    /// **Desligado por padrão** (AD-147): ligado, 2 seeds × 70 anos deram ~7% das mortes por sede longe de casa (contra 0 na base),
-    /// gente presa no mercado vazio; falso = a despensa alcança qualquer lugar, como antes, e ninguém arruma carga ao sair.</summary>
+    /// **Desligado por padrão**: AD-147 sede 6,4%; AD-148 fome 3,5% → 5,7% (ração da oficina comida da venda); AD-149, com a terra
+    /// finita, 20×100 fome 4,6% (base 4,1%) e +19% de CPU. Falso = a despensa alcança qualquer lugar e ninguém arruma carga.</summary>
     public bool PantryNeedsPresence { get; init; }
+
+    /// <summary>A casa que já tem recipiente e ainda tem a compra cortada tenta um melhor (AD-149, backlog 05 item 12b): a ideia
+    /// parte do recipiente dela e só vai ao protótipo se resolver mais. Falso = para no primeiro que serve (AD-147).</summary>
+    public bool ImproveCarrier { get; init; } = true;
 
     public int UnitGramsOf(int resourceId) => UnitGrams.TryGetValue(resourceId, out int g) && g > 0 ? g : DefaultUnitGrams;
 
