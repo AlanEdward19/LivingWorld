@@ -14,6 +14,7 @@ json.dump(d,open(b,'w'),indent=2,ensure_ascii=False); open(b,'a').write('\n')
 PY
 LW_RECORD_HISTORY_COLLAPSE=1 bash scripts/test.sh --scenarios --filter "FullyQualifiedName~Record_history_collapse_when_explicitly_requested" 2>&1 | grep -E "Passed!|Failed!"
 echo "tempo: passo terminou aos ${SECONDS}s: LW_RECORD_HISTORY_COLLAPSE=1 bash scripts/test.sh --scenarios --filter"
+LW_RECORD_ACTION_SWITCHES=1 bash scripts/test.sh --project longrunning --filter "FullyQualifiedName~Record_action_switches_baseline_when_explicitly_requested" 2>&1 | grep -E "Passed!|Failed!"
 LW_RECORD_SCALE_STORAGE=1 bash scripts/test.sh --project longrunning --heavy --filter "FullyQualifiedName~Record_scale_storage_baseline" 2>&1 | grep -E "Passed!|Failed!"
 echo "tempo: passo terminou aos ${SECONDS}s: LW_RECORD_SCALE_STORAGE=1 bash scripts/test.sh --project longrunning -"
 bash scripts/lint.sh --fix >/dev/null 2>&1
