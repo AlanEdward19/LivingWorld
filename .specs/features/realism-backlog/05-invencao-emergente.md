@@ -68,7 +68,10 @@ Fatias seguintes:
     **Feito (AD-147, `docs/domain/invention.md`)**: sonda de conter, recipiente inventado pela compra cortada, ensinado,
     copiado, vendido; amplia a compra a pé; carga pessoal, arrumar ao sair, comer do que leva, devolver (atrás de
     `PantryNeedsPresence`). 20×100: recipiente inventado nas 20 seeds (31), 8.545 vendas. Ficou de fora:
-    - 12a. AD-149: segue desligado. Com a terra finita, 6×100 deu fome 3,4% (base 3,7%), mas 20×100 com E1 e tudo ligado deu
+    - 12a. AD-151: segue desligado; a ração virou refeição paga (08 item 58), mas 20×100 com a carga deu fome 4,5–5,3% (base 4,1%;
+      ruído de bloco ~±20%, 08 itens 62–63). Ciclo com a carga ligada (seeds 1–20): recipiente nas 20 seeds (1.669 invenções),
+      tira em 18 (35 designs, 295 peças), 4,5 mi idas a pé com recipiente, 4,8 mi bebidas e 428 mil refeições do que levavam,
+      fome longe 21, sede longe 0. AD-149: segue desligado. Com a terra finita, 6×100 deu fome 3,4% (base 3,7%), mas 20×100 com E1 e tudo ligado deu
       4,6% (base 4,1%) e +19% de CPU; causa medida: a ração da oficina, comida do estoque à venda (~20% do consumo). Era: `PantryNeedsPresence` desligado: ligado, sede 6,4% (presos no mercado da fazenda vazio, empate fome × sede). AD-148,
       com o mercado consertado: sede 0,0% → 0,1%, mas fome 3,5% → 5,7% e pop 559 → 463 (6×100); segue desligado.
     - 12b. ~~resolvido no AD-149~~: a casa com recipiente que segue cortada tenta superá-lo e a lâmina pode ir amarrada; 20×100 com a carga

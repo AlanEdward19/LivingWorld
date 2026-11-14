@@ -17,6 +17,9 @@ public class SystemProfileHarness
         var (world, clock) = ScaleScenarioFixture.CreateWorld(42, population);
         // LW_MEASURE_NO_INVENTION=1 desliga a invenção (AD-143), para comparar o perfil com e sem ela na mesma árvore
         if (Environment.GetEnvironmentVariable("LW_MEASURE_NO_INVENTION") == "1") world.UseInvention(null);
+        // LW_MEASURE_CARRY=0/1 desliga/liga a carga pessoal (AD-151), para medir o custo dela na mesma árvore
+        else if (Environment.GetEnvironmentVariable("LW_MEASURE_CARRY") is "0" or "1" && world.InventionRules is { } inv)
+            world.UseInvention(inv with { PantryNeedsPresence = Environment.GetEnvironmentVariable("LW_MEASURE_CARRY") == "1" });
 
         var report = SystemProfiler.Measure(world, clock, warmupTicks: 240, ticks);
 

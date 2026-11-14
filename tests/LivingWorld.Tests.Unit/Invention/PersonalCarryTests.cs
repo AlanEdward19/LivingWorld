@@ -18,7 +18,7 @@ namespace LivingWorld.Tests.Unit.Invention;
 /// longe, come do que leva; em casa, devolve. As peças saem da natureza do cenário (material e o volume que faltou), nunca de literais.</summary>
 public class PersonalCarryTests
 {
-    /// <summary>Com a despensa em casa ligada (desligada por padrão no AD-147 até a sede longe de casa fechar).</summary>
+    /// <summary>Com a despensa em casa ligada (desligada por padrão: AD-147 a AD-151).</summary>
     private static readonly InventionRules Rules = InventionRules.Default with { PantryNeedsPresence = true };
 
     private static MaterialSpec Formable => Rules.Materials.First(m => m.Formable && !m.CoatingOnly);
@@ -151,6 +151,22 @@ public class PersonalCarryTests
         Assert.False(world.Invention!.CarriesAnything(npc.Id.Value));
     }
 
+    /// <summary>AD-151: só a saída para longe da despensa arruma a carga (antes, toda saída fazia a conta e a ida ao vizinho com estada
+    /// longa levava comida que voltava sem uso).</summary>
+    [Fact]
+    public void Only_a_trip_beyond_the_pantry_reach_is_packed()
+    {
+        var (world, _) = NewWorld();
+        var npc = Adults(world)[0];
+        var home = HomeOf(world, npc);
+
+        Assert.False(PersonalCarry.LeavesPantryBehind(world, npc, home, home.Location));
+        var near = world.Map.Cells.Select(c => c.Coord).OrderBy(c => c.Y).ThenBy(c => c.X)
+            .First(c => c != home.Location && LivingWorld.Simulation.Emergence.Mobility.TravelTicks(world, npc, home.Location, c, 1.0) <= 1);
+        Assert.False(PersonalCarry.LeavesPantryBehind(world, npc, home, near));
+        Assert.True(PersonalCarry.LeavesPantryBehind(world, npc, home, FarFrom(world, npc, home)));
+    }
+
     [Fact]
     public void Far_from_home_eating_uses_what_is_carried_and_not_the_pantry()
     {
@@ -192,7 +208,7 @@ public class PersonalCarryTests
     [Fact]
     public void The_pantry_reaches_anywhere_by_default()
     {
-        Assert.False(InventionRules.Default.PantryNeedsPresence);
+        Assert.False(InventionRules.Default.PantryNeedsPresence); // AD-151: segue desligada (fome acima da base em 20×100)
     }
 
     [Fact]

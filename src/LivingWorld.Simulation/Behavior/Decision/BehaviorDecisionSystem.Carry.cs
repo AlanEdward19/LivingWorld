@@ -33,6 +33,7 @@ public sealed partial class BehaviorDecisionSystem
         if (npc.Household is not { } h || world.FindHousehold(h) is not { } home) return;
         if (npc.TravelPurpose == ActionType.Eat || PersonalCarry.PantryOutOfReach(world, npc, home)) return; // só sai de casa quem está nela
         if (TravelDestinationOf(world, npc, marketIndex) is not { } destination || destination == npc.CurrentLocation) return;
+        if (!PersonalCarry.LeavesPantryBehind(world, npc, home, destination)) return; // AD-151: perto de casa não arruma nada
         long leg = Mobility.TravelTicks(world, npc, npc.CurrentLocation, destination, BodyMechanic.MovementCostMultiplier(world, npc));
         long stay = npc.TravelPurpose is { } purpose
             ? Objects.ObjectUse.DurationHours(world, npc, purpose, world.ActionCatalog)
@@ -44,7 +45,8 @@ public sealed partial class BehaviorDecisionSystem
     /// oficina dá a ração), a pessoa volta para comer. Devolve a casa quando é preciso voltar.</summary>
     private static CellCoord? EatDestinationOf(WorldState world, Npc npc)
     {
-        if (!world.InventionOn || npc.Household is not { } h || world.FindHousehold(h) is not { } home) return null;
+        if (!world.InventionOn || !world.InventionRules!.PantryNeedsPresence) return null; // sem despensa em casa, come onde está
+        if (npc.Household is not { } h || world.FindHousehold(h) is not { } home) return null;
         long now = world.CurrentDate.TotalHours;
         if (PersonalCarry.PackServes(world, npc, now, world.NeedsRules.UrgencyThreshold)) return null;
         if (npc.Employer is { } employer && world.FindWorkplace(employer) is { } work && work.Location == npc.CurrentLocation)
@@ -53,8 +55,9 @@ public sealed partial class BehaviorDecisionSystem
             var econ = world.EconomyRules;
             bool thirsty = 100 - npc.ThirstAt(now) > urgency, hungry = 100 - npc.HungerAt(now) > urgency;
             if ((thirsty && work.Stock.GetValueOrDefault(new ResourceType(econ.WaterResourceId)) > 0)
-                || (hungry && work.Stock.GetValueOrDefault(new ResourceType(econ.FoodResourceId)) > 0))
-                return null; // a oficina dá a ração
+                || (hungry && work.Stock.GetValueOrDefault(new ResourceType(econ.FoodResourceId)) > 0
+                    && !econ.NoWorkMeal && (econ.FreeWorkRation || Economy.Labor.Payroll.BoardCharge(world, work, npc, new ResourceType(econ.FoodResourceId)) >= 0)))
+                return null; // a oficina dá a refeição (a comida, por conta do salário: AD-151)
         }
         return PersonalCarry.PantryOutOfReach(world, npc, home) ? home.Location : null;
     }

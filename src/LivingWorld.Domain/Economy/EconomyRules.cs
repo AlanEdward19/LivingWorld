@@ -36,6 +36,18 @@ public sealed record EconomyRules(
     /// lavradores às 10 h, mas ligar isto levou a fome de 3,5% a 9,2% (6 seeds × 100 anos): pede recalibrar a lavoura.</summary>
     public bool PresenceNeedsWork { get; init; }
 
+    /// <summary>AD-151: a refeição que o empregador dá do estoque do local (a "ração da oficina") é parte do pagamento, como o
+    /// salário "com comida" da vila pré-industrial: cada unidade de comida vai à caderneta (<see cref="Workplace.Board"/>) ao preço
+    /// da venda e sai do líquido do próximo salário, até esta fração dele; o resto a oficina paga em espécie. Ofício sem salário não
+    /// tem refeição. A água do poço da propriedade segue livre, como o poço da aldeia.</summary>
+    public double BoardMaxWageShare { get; init; } = 1.0;
+
+    /// <summary>Só para medir (AD-151): a ração de antes, comida do estoque à venda sem ninguém pagar.</summary>
+    public bool FreeWorkRation { get; init; }
+
+    /// <summary>AD-151: sem refeição do empregador: longe de casa a comida é a que a pessoa leva ou compra (a água do poço segue).</summary>
+    public bool NoWorkMeal { get; init; }
+
     public static Result<EconomyRules> Create(
         bool enabled, int foodResourceId, int waterResourceId,
         IReadOnlyDictionary<(int ResourceId, int LocationTypeId), long> capacityByResourceLocation,

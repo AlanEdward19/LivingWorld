@@ -260,13 +260,26 @@ public sealed partial class BehaviorDecisionSystem
 
     /// <summary>Ração do empregador: quem está no próprio local de trabalho e a despensa de casa não tem o que comer ou
     /// beber retira uma unidade do estoque da oficina (o poço e o celeiro da propriedade). Sem isso o lavrador morria de
-    /// sede ao lado de mil de água por estar sem moeda no bolso. Só serve quem está lá e só o que a oficina tem.</summary>
+    /// sede ao lado de mil de água por estar sem moeda no bolso. Só serve quem está lá e só o que a oficina tem.
+    /// AD-151: a comida é parte do pagamento (salário "com comida"): vai à caderneta do local ao preço da venda e sai do próximo
+    /// salário (<see cref="Economy.Labor.WagePaymentSystem"/>); sem salário no ofício ou com a caderneta no teto, não há refeição. A
+    /// água do poço da propriedade segue livre, como o poço da aldeia (<c>DrawFromWell</c>).</summary>
     private static bool TryRation(WorldState world, Npc npc, ResourceType resource)
     {
         if (npc.Employer is not { } employerId || world.FindWorkplace(employerId) is not { } workplace) return false;
         if (workplace.Location != npc.CurrentLocation) return false;
+        var econ = world.EconomyRules;
+        bool isFood = resource.Id == econ.FoodResourceId;
+        if (isFood && econ.NoWorkMeal) return false;
+        long charge = isFood && !econ.FreeWorkRation ? Economy.Labor.Payroll.BoardCharge(world, workplace, npc, resource) : 0;
+        if (charge < 0) { world.PurchaseTally.BoardRefused++; return false; }
         if (!workplace.Withdraw(resource, 1).IsSuccess) return false;
-        if (resource.Id == world.EconomyRules.FoodResourceId) world.PurchaseTally.FoodRations++; else world.PurchaseTally.WaterRations++;
+        if (charge > 0)
+        {
+            workplace.AddBoard(npc.Id, charge);
+            world.PurchaseTally.BoardCharged += charge;
+        }
+        if (isFood) world.PurchaseTally.FoodRations++; else world.PurchaseTally.WaterRations++;
         return true;
     }
 

@@ -6,7 +6,7 @@ namespace LivingWorld.Workers;
 
 /// <summary>Medição da lavoura (AD-149), só para os relatórios: <c>LW_AG</c> com vírgulas. <c>noland</c> = terra sem limite;
 /// <c>noreap</c> = sem a ceifa da vila toda; <c>presence</c> liga <c>EconomyRules.PresenceNeedsWork</c> (E1), <c>nopresence</c>
-/// desliga; <c>land=x</c>, <c>gain=x</c>, <c>reap=n</c>, <c>keep=n</c>, <c>seed=n</c>, <c>yield=x</c> trocam o número.</summary>
+/// desliga; <c>freeration</c> volta à ração da oficina de graça e <c>nomeal</c> tira a refeição do empregador (AD-151); <c>land=x</c>, <c>gain=x</c>, <c>reap=n</c>, <c>keep=n</c>, <c>seed=n</c>, <c>yield=x</c> trocam o número.</summary>
 public static class AgricultureSwitch
 {
     private static HashSet<string> Keys() =>
@@ -35,8 +35,12 @@ public static class AgricultureSwitch
     public static EconomyRules? EconomyRules()
     {
         var keys = Keys();
-        if (keys.Contains("presence")) return ScenarioRunner.DefaultEconomyRules with { PresenceNeedsWork = true };
-        if (keys.Contains("nopresence")) return ScenarioRunner.DefaultEconomyRules with { PresenceNeedsWork = false };
-        return null;
+        var econ = ScenarioRunner.DefaultEconomyRules;
+        bool changed = false;
+        if (keys.Contains("presence")) { econ = econ with { PresenceNeedsWork = true }; changed = true; }
+        if (keys.Contains("nopresence")) { econ = econ with { PresenceNeedsWork = false }; changed = true; }
+        if (keys.Contains("freeration")) { econ = econ with { FreeWorkRation = true }; changed = true; } // AD-151: a ração de antes
+        if (keys.Contains("nomeal")) { econ = econ with { NoWorkMeal = true }; changed = true; } // AD-151: sem refeição do empregador
+        return changed ? econ : null;
     }
 }
