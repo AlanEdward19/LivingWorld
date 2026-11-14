@@ -41,7 +41,8 @@ Desenho aprovado (ADR-0045, `.specs/features/emergent-invention/design.md`). **F
 
 Fatia 2 (AD-143, branch próprio, 2026-11-13): os 7 itens entraram (carga, venda + produção pela receita na
 `ProductionSystem`, material de estoque, pesca, cópia por evento, lápide com relatos, pessoa 0). Sobrou desta fatia:
-- 2a. A carga a pé corta a compra de quem mora do outro lado da água e a fome sobe (20×100: mortes de fome
+- 2a. ~~Decidido no AD-149~~: a casa vai mais vezes (a reposição volta a disparar), não manda mais gente; o corte é ~0,1% da
+  comida ([household-provisioning](../../../docs/domain/household-provisioning.md)). Original: A carga a pé corta a compra de quem mora do outro lado da água e a fome sobe (20×100: mortes de fome
   670 → 1131; sem o corte, 858). Ninguém da casa ajuda a carregar nem a compra se divide em várias idas
   pensadas. Dono (2026-11-13): "faz o que achar mais realista", depois do inventário pessoal (item 12).
 - 3a. Nenhum material do cenário padrão circula na economia (não há recurso madeira): o caminho
@@ -67,13 +68,17 @@ Fatias seguintes:
     **Feito (AD-147, `docs/domain/invention.md`)**: sonda de conter, recipiente inventado pela compra cortada, ensinado,
     copiado, vendido; amplia a compra a pé; carga pessoal, arrumar ao sair, comer do que leva, devolver (atrás de
     `PantryNeedsPresence`). 20×100: recipiente inventado nas 20 seeds (31), 8.545 vendas. Ficou de fora:
-    - 12a. `PantryNeedsPresence` desligado: ligado, sede 6,4% (presos no mercado da fazenda vazio, empate fome × sede). AD-148,
+    - 12a. AD-149: segue desligado. Com a terra finita, 6×100 deu fome 3,4% (base 3,7%), mas 20×100 com E1 e tudo ligado deu
+      4,6% (base 4,1%) e +19% de CPU; causa medida: a ração da oficina, comida do estoque à venda (~20% do consumo). Era: `PantryNeedsPresence` desligado: ligado, sede 6,4% (presos no mercado da fazenda vazio, empate fome × sede). AD-148,
       com o mercado consertado: sede 0,0% → 0,1%, mas fome 3,5% → 5,7% e pop 559 → 463 (6×100); segue desligado.
-    - 12b. Nenhum recipiente com tira apareceu (0 kg a mais na compra): na mão leva o máximo de 30 kg e de mais.
+    - 12b. ~~resolvido no AD-149~~: a casa com recipiente que segue cortada tenta superá-lo e a lâmina pode ir amarrada; 20×100 com a carga
+      ligada: tira em 18 de 20 seeds (29 designs, 536 peças); com ela desligada (padrão) a frustração é pouca e não há tira (13a). Original: Nenhum recipiente com tira apareceu (0 kg a mais na compra): na mão leva o máximo de 30 kg e de mais.
     - 12c. A carga não é da pessoa e sim do melhor recipiente da casa; ninguém leva o item (vários saem com o mesmo).
     - 12d. Sem tampa: estanque basta para levar água; derramar ao andar não existe.
     - 12e. Só a compra cortada gera o problema por padrão (voltar para comer só com a despensa em casa).
     - 12f. Carga em `/npcs/{id}` não exposta (só `GET /designs/{id}`: `function`, `holds`).
+    - 13a. (AD-149) Com a carga pessoal desligada, o recipiente com tira não nasce: só a compra cortada frustra (9 recipientes em
+      20×100, 4 seeds). Liga com 12a.
     - 12g. `Npc.CarriedResourceId` (transporte do processo de recursos) segue à parte; juntar com `Carried`.
 
 Critério da Fase 24 editado em 2026-11-13 com a frase aprovada pelo dono (`docs/roadmap/phase-24-emergence.md`).

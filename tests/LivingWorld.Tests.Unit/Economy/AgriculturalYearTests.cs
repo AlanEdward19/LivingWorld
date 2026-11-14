@@ -156,4 +156,72 @@ public sealed class AgriculturalYearTests
 
         Assert.InRange(household.Stock.GetValueOrDefault(food), 70_000, 90_000);
     }
+
+    /// <summary>AD-149: a terra é finita. A vila demarcada na fundação semeia até a terra que tem, por mais bocas que haja.</summary>
+    [Fact]
+    public void A_field_is_never_sown_beyond_its_land()
+    {
+        var (world, clock) = ScenarioRunner.Create(7);
+        var field = world.CropBatches.Single(c => c.Status != CropStatus.Harvested);
+        Assert.True(field.ArableSeed > 0);
+        field.SetArable(2_000);
+
+        clock.Run(world, 11L * HoursPerMonth); // passa a semeadura de outono
+
+        Assert.InRange(field.LastSeedSown, 1, 2_000);
+    }
+
+    [Fact]
+    public void The_land_takes_hands_while_each_one_still_reaps_its_bread()
+    {
+        var ag = AgricultureRules.Default;
+        long land = 30_000; // 60 braços semeiam tudo
+
+        Assert.True(ag.LandTakesAnotherHand(land, 10));
+        Assert.True(ag.LandTakesAnotherHand(land, 60)); // a capina ainda paga o pão
+        Assert.False(ag.LandTakesAnotherHand(land, 200));
+        Assert.True(ag.LandTakesAnotherHand(0, 10_000)); // sem limite de terra (antigo): sempre
+        double first = ag.LandIntensity(land, 90) - ag.LandIntensity(land, 60);
+        double second = ag.LandIntensity(land, 120) - ag.LandIntensity(land, 90);
+        Assert.True(first > second && second > 0); // retorno decrescente
+        Assert.True(ag.LandIntensity(land, 100_000) < 1 + ag.HandIntensityGain);
+    }
+
+    [Fact]
+    public void A_farm_with_little_land_does_not_hire_hands_it_cannot_feed()
+    {
+        var (world, clock) = ScenarioRunner.Create(7);
+        world.CropBatches.Single(c => c.Status != CropStatus.Harvested).SetArable(500); // um braço semeia tudo
+        var farm = world.Workplaces.Single(w => w.LocationType.Id == CropSystem.DefaultFarmLocationTypeId);
+
+        clock.Run(world, 3L * 24);
+
+        Assert.Single(farm.Employees);
+    }
+
+    /// <summary>AD-149 (backlog 08 item 41): na ceifa a vila toda vai ao campo — a fazenda toma os adultos do ofício sem trabalho
+    /// enquanto a lavoura está madura e, passada a ceifa, solta quem a terra não paga. Sem a regra, ceifa só a lotação do ano.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void At_harvest_the_whole_village_reaps_and_goes_home_after(bool wholeVillage)
+    {
+        var (world, clock) = ScenarioRunner.Create(7, agricultureRules: AgricultureRules.Default with { WholeVillageReaps = wholeVillage });
+        var field = world.CropBatches.Single(c => c.Status != CropStatus.Harvested);
+        field.SetArable(5_000); // dez braços semeiam tudo; a capina paga até 13
+        var farm = world.Workplaces.Single(w => w.LocationType.Id == CropSystem.DefaultFarmLocationTypeId);
+        int yearRound = 0, atHarvest = 0, after = -1;
+        bool harvested = false;
+        for (int day = 0; day < 400 && after < 0; day++)
+        {
+            clock.Run(world, 24);
+            if (field.Status == CropStatus.Mature) { harvested = true; atHarvest = Math.Max(atHarvest, farm.Employees.Count); }
+            else if (harvested && day % 5 == 0) after = farm.Employees.Count;
+            else if (!harvested) yearRound = Math.Max(yearRound, farm.Employees.Count);
+        }
+
+        Assert.True(harvested && yearRound <= 13, $"{yearRound}");
+        if (wholeVillage) Assert.True(atHarvest > yearRound + 10 && after <= 13, $"{yearRound} {atHarvest} {after}");
+        else Assert.True(atHarvest <= 13, $"{atHarvest}");
+    }
 }

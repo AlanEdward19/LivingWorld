@@ -32,8 +32,42 @@ public sealed record AgricultureRules(
     double InitialDevelopment = 500,
     long InitialProvisionPerPerson = 260,
     double ReaperShare = 0.5,
-    long HomeStorePerMember = 10)
+    long HomeStorePerMember = 10,
+    double SownHectaresPerFounder = 1.4,
+    double SeedPerHectare = 220,
+    double HandIntensityGain = 0.25,
+    long HandKeepPerYear = 320,
+    bool WholeVillageReaps = true)
 {
+    // AD-149, ceifa (backlog 08 item 41): com a lavoura madura a fazenda toma todo adulto do ofício sem trabalho na cidade
+    // (WholeVillageReaps), cada um ceifa ReapPerWorkerDay por dia de foice; passada a ceifa, solta quem a terra não paga.
+
+    // AD-149, terra finita (backlog 08 item 49). SownHectaresPerFounder: hectares semeados por ano que a vila tem por morador
+    // fundador (0 = terra sem limite, o antigo); o cenário de código dá 1,4, o dobro do que os fundadores semeiam (150 de
+    // semente ÷ 220 por hectare ≈ 0,68 ha). SeedPerHectare: ~135 kg de trigo por hectare, a ração ≈ 0,6 kg. Com a terra toda
+    // semeada, mais braços só capinam, estercam e lavram de novo: o rendimento por semente sobe até HandIntensityGain, com
+    // retorno decrescente (1 − braços necessários ÷ braços). A fazenda só toma mais uma mão se ela colhe ao menos o que come
+    // num ano (HandKeepPerYear). Números sem fonte firme, precisam de conferência.
+
+    /// <summary>Braços que a terra pede para ser toda semeada (<see cref="MaxSeedPerWorker"/> por braço).</summary>
+    public double HandsForLand(long arableSeed) => arableSeed / (double)Math.Max(1, MaxSeedPerWorker);
+
+    /// <summary>Rendimento a mais por semente quando há mais braços que a terra pede (capina, esterco, lavra repetida).</summary>
+    public double LandIntensity(long arableSeed, int hands)
+    {
+        if (arableSeed <= 0 || HandIntensityGain <= 0) return 1.0;
+        double need = HandsForLand(arableSeed);
+        return hands <= need ? 1.0 : 1.0 + HandIntensityGain * (1.0 - need / hands);
+    }
+
+    /// <summary>Colheita esperada do ano com <paramref name="hands"/> braços na terra (sem clima nem habilidade).</summary>
+    public double ExpectedHarvest(long arableSeed, int hands) =>
+        YieldPerSeed * Math.Min(arableSeed, (double)hands * MaxSeedPerWorker) * LandIntensity(arableSeed, hands);
+
+    /// <summary>A terra ainda paga mais uma mão: o que ela acrescenta à colheita ≥ o que ela come no ano. Sem limite de terra, sim.</summary>
+    public bool LandTakesAnotherHand(long arableSeed, int hands) =>
+        arableSeed <= 0 || ExpectedHarvest(arableSeed, hands + 1) - ExpectedHarvest(arableSeed, hands) >= HandKeepPerYear;
+
     /// <summary>Lote diário antigo (trigo em 24 h): padrão de mundo construído à mão e de snapshot antigo.</summary>
     public static AgricultureRules Disabled { get; } = new(false);
 

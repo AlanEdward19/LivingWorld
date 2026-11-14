@@ -73,15 +73,15 @@ design sem quem saiba e sem item vira lápide (`DesignTombstone`). Item que sobr
   passa a lembrar do que vive. Na lembrança, `Other` = 0 ainda é "ninguém" (backlog 7a).
 
 ## O que a pessoa leva consigo (AD-147)
-- **Despensa em casa** (`PantryNeedsPresence`, **desligada por padrão**: ligada, morria-se de sede preso no mercado vazio): a mais
+- **Despensa em casa** (`PantryNeedsPresence`, **desligada por padrão**: ver household-provisioning, AD-147–149): a mais
   de uma hora de caminho, come e bebe do que leva, da ração da oficina, ou volta para comer. **Carga** (`InventionLedger.Carried`): peso = `FootCarryKg`; mãos nuas `HandsVolumeMl` (uma
   ração, nada de `LiquidResourceIds`); `UnitMl` é o volume de cada recurso. Ao sair, leva o que sede e fome pedem até voltar (ida +
   estada + volta), deixando uma unidade por dia de cada outro morador; longe e crítico, consome antes de decidir; em casa, devolve.
 - **Recipiente é design** (`PhysicsEvaluator.Contain`): oco (ml) e a parte estanque, massa, carga que a mesma viga aguenta até o
   oco cheio d'água e o teto da pessoa, e tira (parte chata e fina, junção flexível) que prende ao corpo. Falhas `TooHeavy`, `TooSmall`.
-- **Problema de carregar** (`CarryMinds`): compra cortada pelo que cabe e voltar para comer viram frustração com o volume que faltou;
-  a ideia parte de um oco desse tamanho em cada material conhecido; o resto (crença, protótipo, ensino, cópia no mercado,
-  encomenda, venda com procura por função) é o da travessia. A função fica com o design (`CarryDesigns`). O recipiente da casa amplia
+- **Problema de carregar** (`CarryMinds`): compra cortada e voltar para comer viram frustração com o volume que faltou; a ideia
+  parte de um oco desse tamanho em cada material conhecido, e a casa que já tem um e segue cortada tenta superá-lo (AD-149,
+  `ImproveCarrier`; a lâmina também se prende amarrada); o resto (crença, protótipo, ensino, cópia, encomenda, venda) é o da travessia. A função fica com o design (`CarryDesigns`). O recipiente da casa amplia
   a carga pessoal e a compra a pé (preso ao corpo soma aos braços). `GET /designs/{id}`: `function` e `holds`.
 
 ## Consumidor causal

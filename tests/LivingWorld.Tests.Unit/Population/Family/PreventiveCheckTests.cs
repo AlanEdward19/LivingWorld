@@ -46,7 +46,8 @@ public class PreventiveCheckTests
         var world = new WorldState(
             Calendar, 3, ScenarioRunner.DefaultMap(1), ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
-            ScenarioRunner.DefaultLifeStageRules, economyRules: Economy(), familyRules: family ?? Measured);
+            ScenarioRunner.DefaultLifeStageRules, economyRules: Economy(), economyCatalog: ScenarioRunner.DefaultEconomyCatalog,
+            familyRules: family ?? Measured);
         world.CurrentDate = WorldDate.Epoch(Calendar).AddYears(40);
         return world;
     }
@@ -229,6 +230,19 @@ public class PreventiveCheckTests
 
         Assert.DoesNotContain(RunMonths(world, 120), e => e.Kind == WorldEventKind.Emigrated);
         Assert.True(youth.IsAlive);
+    }
+
+    /// <summary>AD-149: a vaga que segura é a que o contrataria. Antes qualquer vaga aberta da cidade segurava — a forja de 40
+    /// vagas (outro ofício, contrata só pela encomenda) segurava todo lavrador sem trabalho, e a emigração nunca disparava.</summary>
+    [Fact]
+    public void An_open_slot_in_another_trade_does_not_hold_a_young_farmer_without_work()
+    {
+        var (world, youth, _, _) = EmigrationScene(openSlots: 0);
+        world.AddWorkplace(new Workplace(
+            world.NextWorkplaceIdAndAdvance(), new LocationType(2), Home, 40, employees: [],
+            stock: new Dictionary<ResourceType, long>(), treasury: new Money(1000), prices: new Dictionary<ResourceType, long>()));
+
+        Assert.Contains(RunMonths(world, 120), e => e.Kind == WorldEventKind.Emigrated && e.Payload.StartsWith($"{youth.Id.Value}|", StringComparison.Ordinal));
     }
 
     [Fact]

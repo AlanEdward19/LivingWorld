@@ -20,6 +20,9 @@ public sealed class PurchaseTally
     // AD-148: idas de reposição que a casa não fez (outra pessoa da casa já foi; no turno, com despensa para ele)
     public long SkippedHouseholdCovered, SkippedDuringWork;
 
+    // AD-149: comida e água tiradas do estoque da oficina como ração (o lavrador come da venda da fazenda), longe de casa ou não
+    public long FoodRations, WaterRations, FoodRationsAway;
+
     // Diagnóstico da hora de trabalho (só a sonda liga): o empregado na hora da rotina de trabalho, o que a decisão fez dela
     public static bool Diagnose;
     public long[] UrgentAtWork = new long[16];

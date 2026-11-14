@@ -8,6 +8,8 @@ embora. No motor nada disso é teto escrito nem taxa fixa: sai da decisão de ca
 > JSON sem o bloco segue desligado. No AD-145 ligado deu 7 extinções (sede), no AD-146 3 extinções e fome 11,9%; a causa era
 > o trabalho e a compra da casa ([household-provisioning.md](household-provisioning.md)). Medir desligado:
 > `LW_PRESSURE=off`; só algumas chaves: `LW_PRESSURE=topup,kin,alms,means,first,emig`.
+> **AD-149**: a terra é finita e a emigração passou a disparar ([land-and-harvest.md](land-and-harvest.md)): antes qualquer vaga
+> aberta da cidade (a forja de 40 vagas) segurava o jovem, e 20 × 100 anos tiveram 0 emigrantes.
 
 ## Casar depende de meios
 Todas as chaves estão em `PopulationPressureRules` (`FamilyRules.Pressure`).
@@ -38,8 +40,8 @@ pedidos do dia, até o caixa dividido pelos dias que faltam para o mês virar. A
 e o tesouro secava no meio do mês, que é quando o recém-nascido de casal sem trabalho morria.
 
 ## Quem não tem lugar vai embora
-`EmigrationSystem` (mensal): o adulto de 16 a 35 anos, solteiro, sem filho, sem gravidez, sem trabalho e **sem nenhuma vaga
-paga na cidade** decide partir com a chance de `EmigrationRules.DecisionPerYear` (`Pressure.Emigration`), vezes o temperamento (abertura e ambição
+`EmigrationSystem` (mensal): o adulto de 16 a 35 anos, solteiro, sem filho, sem gravidez, sem trabalho e **sem vaga que o
+contrataria na cidade** (ofício dele, folha paga, encomenda ou terra pedindo a mão; AD-149) decide partir com a chance de `EmigrationRules.DecisionPerYear` (`Pressure.Emigration`), vezes o temperamento (abertura e ambição
 empurram, aversão a risco segura) e menos os laços (pais vivos na cidade, o maior afeto por alguém dela).
 - Com cidades ligadas e outra cidade com vaga paga, vai para lá (viagem da migração, `RelocationArrivalSystem`).
 - Sem nenhuma, **sai do mundo simulado**: deixa o dinheiro com um adulto da casa (ou o herdeiro), a casa perde o morador,

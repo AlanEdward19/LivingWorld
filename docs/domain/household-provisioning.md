@@ -44,8 +44,16 @@ reposição, humor, desenvolvimento, doença) e o motivo de cada compra cortada 
 ## Ligado junto (AD-148)
 - `FamilyRules.Pressure = Measured` no cenário de código (freios preventivos do AD-145, [population-pressure.md](population-pressure.md)).
 - `PsycheRules.CriticalBodyOverridesLeisure` (backlog 08 item 47).
-- Desligados, com o número que impediu: `EconomyRules.PresenceNeedsWork` (E1: fome 3,5% → 9,2%, pede recalibrar a lavoura)
-  e `InventionRules.PantryNeedsPresence` (carga pessoal: fome 3,5% → 5,7%).
+- AD-149, com a lavoura da terra finita ([land-and-harvest.md](land-and-harvest.md)): **ligado** `EconomyRules.PresenceNeedsWork`
+  (E1: só lavra quem está trabalhando). A carga pessoal (`PantryNeedsPresence`) **segue desligada**: 20×100 com tudo ligado deu
+  fome 4,6% (base 4,1%) e +19% de CPU. A fome que ela sobe vem da **ração da oficina**: longe de casa o lavrador come do estoque
+  à venda da fazenda (sonda `provision-trace`, seed 4, anos 20–35: ~6.500 rações por ano, ~20% do consumo; 0 sem a carga).
+
+## Compra a pé do outro lado da água (backlog 05 item 2a, AD-149)
+Decidido com a medida: a casa **vai mais vezes**, não manda mais gente. A compra cortada pelo que cabe deixa a despensa abaixo da
+meta e a reposição volta a disparar (`NeedsRestocking`). O corte é pequeno: 20 × 100 da base, 29.516 compras cortadas e 210.810
+unidades em 90 anos (~0,1% da comida comida); e o recipiente inventado leva o resto. Mandar duas pessoas brigaria com
+`OneShopperPerHousehold` sem ganho medido.
 
 ## Ver também
 - [behavior.md](behavior.md) — a decisão que leva ao mercado

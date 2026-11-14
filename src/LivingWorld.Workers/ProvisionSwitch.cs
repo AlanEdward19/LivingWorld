@@ -9,10 +9,13 @@ namespace LivingWorld.Workers;
 public static class ProvisionSwitch
 {
     /// <summary><c>+carry</c> em <c>LW_PROVISION</c> liga <c>InventionRules.PantryNeedsPresence</c> (carga pessoal, AD-147).</summary>
-    public static LivingWorld.Domain.Invention.InventionRules? InventionRules() =>
-        (Environment.GetEnvironmentVariable("LW_PROVISION") ?? "").Contains("+carry", StringComparison.Ordinal)
-            ? LivingWorld.Domain.Invention.InventionRules.Default with { PantryNeedsPresence = true }
-            : null;
+    /// AD-149: a carga pessoal é padrão do cenário de código; <c>-carry</c> a desliga para medir.
+    public static LivingWorld.Domain.Invention.InventionRules? InventionRules()
+    {
+        var raw = Environment.GetEnvironmentVariable("LW_PROVISION") ?? "";
+        if (raw.Contains("-carry", StringComparison.Ordinal)) return LivingWorld.Domain.Invention.InventionRules.Default with { PantryNeedsPresence = false };
+        return raw.Contains("+carry", StringComparison.Ordinal) ? LivingWorld.Domain.Invention.InventionRules.Default with { PantryNeedsPresence = true } : null;
+    }
 
     public static NeedsRules? NeedsRules()
     {

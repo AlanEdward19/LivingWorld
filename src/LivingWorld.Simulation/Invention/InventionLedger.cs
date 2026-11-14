@@ -104,6 +104,9 @@ public sealed class InventionLedger
     }
 
     /// <summary>O melhor recipiente em uso do domicílio (a maior carga); padrão = nenhum. Item exposto à venda não conta.</summary>
+    private static long Reach(long capacityG, bool worn, InventionRules rules) =>
+        capacityG + (worn ? (long)rules.HandsVolumeMl * rules.WaterDensityKgM3 / 1000 : 0);
+
     internal Carrier BestCarrier(long householdId, InventionRules rules)
     {
         if (Items.Count == 0) return default;
@@ -115,7 +118,9 @@ public sealed class InventionLedger
                 if (item.ForSale || FindDesign(item.DesignId) is not { } design || FunctionOf(design.Id) != 1) continue;
                 var c = ContainmentOf(design, rules);
                 long capacity = c.CapacityG * item.QualityPm / 1000;
-                if (capacity > _bestCarrierByHousehold.GetValueOrDefault(item.HouseholdId).CapacityG)
+                // AD-149: a peça presa ao corpo vale também as mãos livres (o que elas ainda levam), como na pontuação da ideia
+                var held = _bestCarrierByHousehold.GetValueOrDefault(item.HouseholdId);
+                if (Reach(capacity, c.Worn, rules) > Reach(held.CapacityG, held.Worn, rules))
                     _bestCarrierByHousehold[item.HouseholdId] = new Carrier(capacity, c.InnerMl, c.WatertightMl, c.MassG, c.Worn, design.Id);
             }
         }

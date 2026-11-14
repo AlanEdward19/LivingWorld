@@ -10,7 +10,8 @@ namespace LivingWorld.Simulation.Observation;
 /// <summary>Medida da invenção numa rodada (AD-141): contagem do sistema (tentativas, falhas por modo, invenções, ensino, cópia,
 /// perda, viagens por água a pé e na embarcação) e o estado final (designs vivos, lápides, quem sabe, itens). Só lê o mundo.</summary>
 public sealed record InventionSummary(
-    ulong Seed, InventionTally Tally, int LiveDesigns, int Tombstones, int Knowers, int Items, IReadOnlyList<int> DesignIds, string FirstInvention)
+    ulong Seed, InventionTally Tally, int LiveDesigns, int Tombstones, int Knowers, int Items, IReadOnlyList<int> DesignIds, string FirstInvention,
+    int CarryDesigns = 0, int WornCarryDesigns = 0, int WornCarryItems = 0)
 {
     public static InventionSummary? Of(WorldState world)
     {
@@ -21,7 +22,11 @@ public sealed record InventionSummary(
             $"npc {first.InventorId} ano {first.Tick / world.Calendar.HoursPerYear}: {Describe(first, world.InventionRules!)}");
         int knowers = ledger.Known.Select(k => k.NpcId).Distinct().Count(id => world.FindNpc(new NpcId(id)) is { IsAlive: true });
         var ids = ledger.Designs.Select(d => d.Id).Concat(ledger.Tombstones.Select(t => t.DesignId)).Distinct().Order().ToList();
-        return new InventionSummary(world.Seed, world.InventionTally, ledger.Designs.Count, ledger.Tombstones.Count, knowers, ledger.Items.Count, ids, firstText);
+        // AD-149: recipientes vivos e quantos se prendem ao corpo (tira), e as peças desses em uso
+        var carry = ledger.Designs.Where(d => ledger.FunctionOf(d.Id) == CarryInvention.Function).ToList();
+        var worn = carry.Where(d => PhysicsEvaluator.Contain(d.Parts, world.InventionRules!).Worn).Select(d => d.Id).ToHashSet();
+        return new InventionSummary(world.Seed, world.InventionTally, ledger.Designs.Count, ledger.Tombstones.Count, knowers, ledger.Items.Count, ids, firstText,
+            carry.Count, worn.Count, ledger.Items.Count(i => worn.Contains(i.DesignId)));
     }
 
     /// <summary>Partes em texto curto (forma, medidas, material, parede, revestimento, junção) e o desempenho medido.</summary>
@@ -53,6 +58,7 @@ public sealed record InventionSummary(
         sb.AppendLine(inv, $"invencao pesca meses_de_pesca={Sum(t => t.FishingMonths)} kg_de_peixe={Sum(t => t.FishGrams) / 1000} unidades_de_comida_da_agua={Sum(t => t.FishFoodUnits)}");
         sb.AppendLine(inv, $"invencao copia_por_evento vistas={Sum(t => t.Sightings)} copias_do_que_viu={Sum(t => t.CopiesFromSight)} lapides_com_relatos={Sum(t => t.TombstonesWithAccounts)} gatilhos_com_rumor={Sum(t => t.RumorBoosts)}");
         // AD-147
+        sb.AppendLine(inv, $"invencao recipientes_vivos={runs.Sum(r => r.CarryDesigns)} com_tira={runs.Sum(r => r.WornCarryDesigns)} pecas_com_tira={runs.Sum(r => r.WornCarryItems)} seeds_com_tira={runs.Count(r => r.WornCarryDesigns > 0)}");
         sb.AppendLine(inv, $"invencao carregar seeds_com_recipiente={runs.Count(r => r.Tally.CarryInventions > 0)} invencoes={Sum(t => t.CarryInventions)} tentativas={Sum(t => t.CarryAttempts)} falhas={Sum(t => t.CarryPrototypeFailures)} descartes={Sum(t => t.CarryIdeasDiscarded)} copias={Sum(t => t.CarryCopies)} ensinados={Sum(t => t.CarryTaught)} encomendas={Sum(t => t.CarryBuilt)} vendas={Sum(t => t.CarrySales)} frustracoes_carga={Sum(t => t.CargoFrustrations)} frustracoes_longe={Sum(t => t.AwayFrustrations)}");
         sb.AppendLine(inv, $"invencao levar saidas_com_carga={Sum(t => t.PackTrips)} unidades_levadas={Sum(t => t.PackUnits)} comidas={Sum(t => t.PackEaten)} bebidas={Sum(t => t.PackDrunk)} devolvidas={Sum(t => t.PackReturned)} voltas_para_comer={Sum(t => t.HomeForMeal)} comer_longe_sem_nada={Sum(t => t.CriticalAwayFromPack)} idas_com_recipiente={Sum(t => t.CarrierCargoTrips)} kg_a_mais_por_recipiente={Sum(t => t.CarrierCargoGrams) / 1000} mortes_fome_longe={Sum(t => t.StarvedAway)} mortes_sede_longe={Sum(t => t.DehydratedAway)}");
         double overlap = 0; int pairs = 0;

@@ -21,7 +21,8 @@ public static class ProvisionTraceCommand
     {
         var inv = CultureInfo.InvariantCulture;
         PurchaseTally.Diagnose = true;
-        var (world, baseClock) = ScenarioRunner.Create(seed, familyRules: PressureSwitch.FamilyRules(), needsRules: ProvisionSwitch.NeedsRules(), inventionRules: ProvisionSwitch.InventionRules());
+        var (world, baseClock) = ScenarioRunner.Create(seed, familyRules: PressureSwitch.FamilyRules(), needsRules: ProvisionSwitch.NeedsRules(), inventionRules: ProvisionSwitch.InventionRules(),
+            agricultureRules: AgricultureSwitch.AgricultureRules(), economyRules: AgricultureSwitch.EconomyRules());
         var food = new FoodTally(world);
         var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, food);
         var foodType = new ResourceType(world.EconomyRules.FoodResourceId);
@@ -151,7 +152,7 @@ public static class ProvisionTraceCommand
                 $"{t.FoodStockShort - b.FoodStockShort}({(t.MarketFoodAtShort - b.MarketFoodAtShort) / (double)Math.Max(1, t.FoodStockShort - b.FoodStockShort):F1}) " +
                 $"{foodBuys} {(t.FoodUnits - b.FoodUnits) / (double)Math.Max(1, foodBuys):F1} {(t.FoodWantedUnits - b.FoodWantedUnits) / (double)Math.Max(1, foodTried):F1} " +
                 $"{(t.FoodPantryUnitsBefore - b.FoodPantryUnitsBefore) / (double)Math.Max(1, t.FoodPantryMembers - b.FoodPantryMembers):F2} | " +
-                $"{t.WaterFromWell - b.WaterFromWell} {t.WaterBought - b.WaterBought} | {100 * poorAdults / Math.Max(1, adultSamples):F0}% {adultSamples / (mpy * dpm):F0} | {starv} {dehyd} consumo/pessoa/dia={perDay:F2}"));
+                $"{t.WaterFromWell - b.WaterFromWell} {t.WaterBought - b.WaterBought} | {100 * poorAdults / Math.Max(1, adultSamples):F0}% {adultSamples / (mpy * dpm):F0} | {starv} {dehyd} consumo/pessoa/dia={perDay:F2} racao_oficina comida={t.FoodRations - b.FoodRations} longe={t.FoodRationsAway - b.FoodRationsAway} agua={t.WaterRations - b.WaterRations}"));
             string acts = string.Join(" ", farmerActs.Select(kv => kv.Key + "=" + (100.0 * kv.Value / Math.Max(1, farmN)).ToString("F0", inv) + "%"));
             double F(long v) => 100.0 * v / Math.Max(1, farmN);
             {
