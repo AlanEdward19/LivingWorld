@@ -41,13 +41,17 @@ public sealed class CropBatch
     public double Development { get; private set; }
     /// <summary>Grão maduro ainda em pé, à espera da foice.</summary>
     public long Standing { get; private set; }
+    /// <summary>Terra arável do campo (AD-149), medida na semente que ela recebe num ano: além disso não há onde semear. 0 =
+    /// sem limite (mundo e snapshot antigos, cenário JSON).</summary>
+    public long ArableSeed { get; private set; }
 
     public CropBatch(
         CropBatchId id, int cropResourceId, CellCoord plot, long plantedAtTick, long matureAtTick,
         long waterRequired, long waterDelivered = 0, CropStatus status = CropStatus.Growing,
         long barn = 0, long seedReserve = 0, long lastSeedSown = 0, long lastHarvest = 0,
-        long cropSeed = 0, long effectiveSeedMilli = 0, double development = 0, long standing = 0)
+        long cropSeed = 0, long effectiveSeedMilli = 0, double development = 0, long standing = 0, long arableSeed = 0)
     {
+        ArableSeed = Math.Max(0, arableSeed);
         CropSeed = cropSeed;
         EffectiveSeedMilli = effectiveSeedMilli;
         Development = development;
@@ -88,6 +92,9 @@ public sealed class CropBatch
     }
 
     public void MarkMature() => Status = CropStatus.Mature;
+
+    /// <summary>Demarca a terra do campo (AD-149), estado declarado do mundo novo.</summary>
+    public void SetArable(long seed) => ArableSeed = Math.Max(0, seed);
 
     /// <summary>Começa o ano agrícola: lavoura nova, ainda sem semente na terra.</summary>
     public void StartSeason()

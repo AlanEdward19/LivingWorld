@@ -16,6 +16,7 @@ sistemas implementam. O `AGENTS.md` só aponta para cá.
 | Relações, casamento, reprodução, hereditariedade, genoma | [genetics-and-family.md](domain/genetics-and-family.md) |
 | Hormônios, puberdade, ciclo, sexo fora da união, doença genética, contracepção | [hormones-and-reproduction.md](domain/hormones-and-reproduction.md) |
 | Freio preventivo: casar e 1º filho por meios, ajuda da família, esmola racionada, emigração | [population-pressure.md](domain/population-pressure.md) |
+| Terra finita, braços que a terra paga, ceifa da vila toda | [land-and-harvest.md](domain/land-and-harvest.md) |
 | Memória operacional/episódica/semântica/social, compactação, crenças | [memory.md](domain/memory.md) |
 | Recursos, produção, empregos, salários, preços, comércio | [economy.md](domain/economy.md) |
 | Cidades, edifícios, crescimento, migração, fundação de assentamentos | [cities.md](domain/cities.md) |

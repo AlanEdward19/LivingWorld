@@ -81,7 +81,7 @@ public static class ScenarioLoaderV2
                 ? LivingWorld.Domain.Economy.NaturalWaterRules.Disabled : LivingWorld.Domain.Economy.NaturalWaterRules.Default);
         // AD-141: invenção ligada por padrão; o bloco opcional {"Invention": {"Enabled": false}} desliga
         world.UseInvention(System.Text.Json.Nodes.JsonNode.Parse(json)?["Invention"]?["Enabled"]?.GetValue<bool>() == false
-            ? null : LivingWorld.Domain.Invention.InventionRules.Default);
+            ? null : ScenarioRunner.DefaultInventionRules); // AD-149: mesma invenção do cenário de código
         // AD-142: cérebro com ganhos aprendidos é experimento, desligado por padrão; {"Brain": {"Enabled": true}} liga
         if (System.Text.Json.Nodes.JsonNode.Parse(json)?["Brain"]?["Enabled"]?.GetValue<bool>() == true)
             world.UseBrain(LivingWorld.Domain.Cognition.BrainRules.Default);

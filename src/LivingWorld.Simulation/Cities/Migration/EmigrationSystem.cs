@@ -34,12 +34,14 @@ public sealed class EmigrationSystem : ISimulationSystem
 
         var now = world.CurrentDate;
         List<Npc>? leaving = null;
-        Dictionary<CityId, bool>? openByCity = null;
+        VacancyIndex? vacancies = null;
         foreach (var npc in world.AliveNpcIndex.Alive)
         {
             if (!MayLeave(world, rules, npc, now)) continue;
-            openByCity ??= OpenCities(world);
-            if (openByCity.GetValueOrDefault(npc.City)) continue; // há vaga paga na cidade: a vida está aqui
+            vacancies ??= VacancyIndex.BuildForTick(world);
+            // AD-149: só conta a vaga que o contrataria (ofício dele, folha paga, a encomenda ou a terra pedem a mão); antes
+            // qualquer vaga aberta segurava, e a forja de 40 vagas que só contrata pela encomenda segurava todo mundo
+            if (EmploymentSystem.WorkplaceThatHires(world, vacancies, npc) is not null) continue; // há lugar: a vida está aqui
             double chance = rules.DecisionPerYear / now.Calendar.MonthsPerYear * Drive(world, rules, npc);
             if (ctx.StreamFor("emigration", unchecked(npc.Id.Value * 1_000_003L + ctx.CurrentTick)).NextDouble() >= chance) continue;
             (leaving ??= []).Add(npc);
@@ -48,7 +50,7 @@ public sealed class EmigrationSystem : ISimulationSystem
         if (leaving is null) return;
         foreach (var npc in leaving)
         {
-            var destination = DestinationFor(world, npc, openByCity!);
+            var destination = DestinationFor(world, npc, vacancies!);
             if (destination is { } city) MoveTo(world, ctx, npc, city);
             else LeaveWorld(world, ctx, npc);
         }
@@ -94,25 +96,12 @@ public sealed class EmigrationSystem : ISimulationSystem
         return push * (1 - rules.TiesHold * Math.Clamp(ties, 0, 1));
     }
 
-    /// <summary>Cidades com alguma vaga paga (para qualquer ofício que a oficina emprega).</summary>
-    private static Dictionary<CityId, bool> OpenCities(WorldState world)
-    {
-        var open = new Dictionary<CityId, bool>();
-        foreach (var workplace in world.Workplaces)
-        {
-            if (open.GetValueOrDefault(workplace.City)) continue;
-            if (workplace.Employees.Count >= workplace.MaxVacancies || workplace.PayrollFailed) continue;
-            open[workplace.City] = true;
-        }
-        return open;
-    }
-
-    /// <summary>A cidade ativa de menor id, que não seja a dele, com vaga paga; só com cidades ligadas.</summary>
-    private static CityId? DestinationFor(WorldState world, Npc npc, Dictionary<CityId, bool> open)
+    /// <summary>A cidade ativa de menor id, que não seja a dele, onde uma oficina do ofício dele o contrataria; só com cidades ligadas.</summary>
+    private static CityId? DestinationFor(WorldState world, Npc npc, VacancyIndex vacancies)
     {
         if (!world.CityRules.Enabled) return null;
         foreach (var city in world.ActiveCities().OrderBy(c => c.Id.Value))
-            if (city.Id != npc.City && open.GetValueOrDefault(city.Id)) return city.Id;
+            if (city.Id != npc.City && EmploymentSystem.WorkplaceThatHires(world, vacancies, npc, city.Id) is not null) return city.Id;
         return null;
     }
 

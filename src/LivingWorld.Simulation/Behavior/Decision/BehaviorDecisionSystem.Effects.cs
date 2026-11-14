@@ -205,6 +205,7 @@ public sealed partial class BehaviorDecisionSystem
                 var ration = new ResourceType(econ.FoodResourceId);
                 if (TryRation(world, npc, ration))
                 {
+                    world.PurchaseTally.FoodRationsAway++;
                     npc.SetHunger(Math.Max(npc.HungerAt(tick), ObjectUse.ConsumeLevel(world, ration, ObjectEffectTargets.Hunger)), tick);
                     world.RecordResourceConsumed(ration, 1);
                     rationed = true;
@@ -264,7 +265,9 @@ public sealed partial class BehaviorDecisionSystem
     {
         if (npc.Employer is not { } employerId || world.FindWorkplace(employerId) is not { } workplace) return false;
         if (workplace.Location != npc.CurrentLocation) return false;
-        return workplace.Withdraw(resource, 1).IsSuccess;
+        if (!workplace.Withdraw(resource, 1).IsSuccess) return false;
+        if (resource.Id == world.EconomyRules.FoodResourceId) world.PurchaseTally.FoodRations++; else world.PurchaseTally.WaterRations++;
+        return true;
     }
 
     private static bool TryApplyBuy(WorldState world, Npc npc, MarketIndex marketIndex, TickContext? ctx)

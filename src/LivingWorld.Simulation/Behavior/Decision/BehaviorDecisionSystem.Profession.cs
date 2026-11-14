@@ -58,6 +58,8 @@ public sealed partial class BehaviorDecisionSystem
             if (workplace == current || workplace.Employees.Count >= workplace.MaxVacancies) continue;
             if (ProfessionFor(catalog, labor, workplace.LocationType.Id, npc.Profession) is not { } offered) continue;
             if (!LivingWorld.Simulation.Economy.Labor.Payroll.CanPay(world, workplace, offered)) continue;
+            // AD-149: a terra cheia não toma mais uma mão que não paga o que come (a mesma regra da contratação)
+            if (!LivingWorld.Simulation.Economy.Production.CropSystem.LandNeedsHands(world, workplace)) continue;
 
             double value = PersonalValue(npc, rules, catalog, labor, workplace);
             if (value > bestValue)
