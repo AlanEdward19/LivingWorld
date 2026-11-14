@@ -68,6 +68,7 @@ else
 fi
 if [ "$MODE" = "--nightly" ]; then
   start heavy test.sh --project longrunning --no-build --heavy --filter "Category=Heavy"
+  start report test.sh --project longrunning --no-build --filter "Category=Report"
   wait_all
 fi
 echo "verify: OK"

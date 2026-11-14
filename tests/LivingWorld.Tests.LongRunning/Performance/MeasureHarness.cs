@@ -13,6 +13,7 @@ namespace LivingWorld.Tests.LongRunning.Performance;
 // Determinístico (sem tempo de relógio): fora da coleção serial "Scale performance", roda em paralelo no verify.sh.
 [Trait("Category", "Scenario")]
 [Trait("Category", "Measure")]
+[Trait("Category", "Report")] // sem asserção: fora do gate (scripts/test.sh), roda no --nightly e quando pedido no --filter
 public class MeasureHarness
 {
     private sealed class CountingSink : IWorldEventSink

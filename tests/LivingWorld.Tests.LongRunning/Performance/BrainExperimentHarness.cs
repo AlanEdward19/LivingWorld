@@ -13,6 +13,7 @@ namespace LivingWorld.Tests.LongRunning.Performance;
 /// o tamanho dos ganhos e a correlação pais → filho.</summary>
 [Trait("Category", "Scenario")]
 [Trait("Category", "Measure")]
+[Trait("Category", "Report")] // sem asserção: fora do gate (scripts/test.sh), roda no --nightly e quando pedido no --filter
 public class BrainExperimentHarness
 {
     private static int Env(string name, int fallback) =>

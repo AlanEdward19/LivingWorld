@@ -46,6 +46,12 @@ esac
 if [ "$PROJECT" = longrunning ] && [ "$HEAVY" = 0 ]; then
   if [ -n "$TRAIT" ]; then TRAIT="($TRAIT)&Category!=Heavy"; else TRAIT='Category!=Heavy'; fi
 fi
+# Medições sem asserção (`Category=Report`: MeasureHarness, BrainExperimentHarness) só rodam quando pedidas no --filter.
+case "$FILTER" in *MeasureHarness*|*BrainExperiment*|*Report*) ;; *)
+  if [ "$PROJECT" = longrunning ]; then
+    if [ -n "$TRAIT" ]; then TRAIT="($TRAIT)&Category!=Report"; else TRAIT='Category!=Report'; fi
+  fi;;
+esac
 if [ "$NOCENTURY" = 1 ]; then
   if [ -n "$TRAIT" ]; then TRAIT="($TRAIT)&Category!=Century"; else TRAIT='Category!=Century'; fi
 fi

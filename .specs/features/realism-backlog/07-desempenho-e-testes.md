@@ -80,8 +80,8 @@ seed ou horizonte cortado; goldens e baselines intactos. `verify.sh --lote`, mes
 ### O que impede os 5 minutos (decisões do dono, nada aplicado)
 
 11. Limite agora é CPU (~2.890 s em 8 núcleos, piso ~6 min) e cadeias de uma seed (TechDiscovery 30 a, seeds 7 e 42).
-12. `MeasureHarness` e `BrainExperimentHarness` não asseveram nada (o próprio código diz "não é gate") e custam ~300 s de
-    parede na fase paralela: proposta de tirá-los do gate (`Category=Measure` só no `--nightly` e nos scripts de medida).
+12. Feito em 2026-11-13 (dono: "Sim, tira"): `Category=Report` (`MeasureHarness`, `BrainExperimentHarness`) fora do lote e
+    do `--full`; roda no `--nightly` e quando pedido no `--filter` (`compare-simulation-cost.sh` segue igual).
 13. `VillageSurvives` seed 7 cabe no século (seed 7 está em 1..20) se o dono aceitar levá-la ao `--full` diário.
 14. Candidatos a encurtar, precisam de decisão: `Zeroing_the_pace_bonus` (10 anos para provar "muda alguma coisa"),
     `OptimizationEquivalence` arquivo frio (6 anos × 2, fora de `Scenario`), seca de `ClimateTests` (os dois braços são
