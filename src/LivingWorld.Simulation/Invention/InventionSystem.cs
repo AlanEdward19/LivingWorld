@@ -37,6 +37,7 @@ public sealed class InventionSystem : ISimulationSystem
         InventionMarket.CloseMonth(world);
         Minds(world, ctx, now);
         Knowers(world, ctx, now);
+        CarryInvention.Month(world, ctx, now); // AD-147: o problema de carregar
         Fishing.Month(world, ctx);
     }
 
@@ -47,6 +48,8 @@ public sealed class InventionSystem : ISimulationSystem
         if (f.Length < 2 || world.FindNpc(new NpcId(Long(f[1]))) is not { IsAlive: true } npc) return;
         if (f[0] == "P" && f.Length == 7 && Design.Decode(f[6]) is { } intended)
             CompletePrototype(world, ctx, npc, intended, (DesignOrigin)Int(f[2]), Int(f[3]), Int(f[4]));
+        else if (f[0] == "C" && f.Length == 7 && Design.Decode(f[6]) is { } container)
+            CarryInvention.CompletePrototype(world, ctx, npc, container, (DesignOrigin)Int(f[2]), Int(f[3]));
         else if (f[0] == "B" && f.Length == 4 && world.Invention!.FindDesign(Int(f[2])) is { } design)
             CompleteBuild(world, ctx, npc, design, Int(f[3]));
     }
@@ -98,7 +101,7 @@ public sealed class InventionSystem : ISimulationSystem
             if (rumors.Contains(npc.City)) { chance *= 1 + rules.RumorAttemptBoostPm / 1000.0; world.InventionTally.RumorBoosts++; }
             if (rng.NextDouble() >= chance) continue;
 
-            if (ledger.KnownBy(npc.Id.Value).FirstOrDefault() is { DesignId: > 0 } known)
+            if (ledger.KnownBy(npc.Id.Value).FirstOrDefault(k => ledger.FunctionOf(k.DesignId) == 0) is { DesignId: > 0 } known)
                 StartBuild(world, npc, known, current, now);
             else if (current.SeenDesignId > 0 && ledger.FindDesign(current.SeenDesignId) is { } seen
                      && rng.NextDouble() < rules.CopyPreferencePm / 1000.0)
@@ -162,12 +165,14 @@ public sealed class InventionSystem : ISimulationSystem
 
     /// <summary>Quem sabe faz a sua (ou uma para vender, com <paramref name="marketId"/>): encomenda na oficina com a receita do
     /// design; a pessoa fica ocupada até o fim estimado pelas horas no tempo livre.</summary>
-    private static void StartBuild(WorldState world, Npc npc, KnownDesign known, InventionMind mind, long now, long? marketId = null)
+    internal static void StartBuild(WorldState world, Npc npc, KnownDesign known, InventionMind mind, long now, long? marketId = null,
+        bool onCarryMind = false)
     {
         if (world.Invention!.FindDesign(known.DesignId) is not { } design) return;
         long minutes = DesignWorkshop.Open(world, npc, design, known.FidelityPm, marketId, now);
         long until = now + DurationTicks(world, npc, Math.Max(1, minutes / 60));
-        world.Invention.PutMind(mind with { BusyUntilTick = until });
+        if (onCarryMind) world.Invention.PutCarryMind(mind with { BusyUntilTick = until });
+        else world.Invention.PutMind(mind with { BusyUntilTick = until });
     }
 
     private static void Schedule(WorldState world, TickContext ctx, Npc npc, InventionMind mind, IReadOnlyList<DesignPart> parts,
@@ -277,14 +282,15 @@ public sealed class InventionSystem : ISimulationSystem
         var builders = new List<(Npc Npc, KnownDesign Known, long? Market)>();
         // procura por cidade que ainda não tem peça exposta nem encomenda para vender (o vendedor lê a demanda do mês passado)
         var open = new Dictionary<CityId, int>();
-        foreach (var d in ledger.Demand) open[d.City] = d.Households;
-        foreach (var item in ledger.Items) if (item.ForSale && open.ContainsKey(item.City)) open[item.City]--;
+        foreach (var d in ledger.Demand) if (d.Function == 0) open[d.City] = d.Households;
+        foreach (var item in ledger.Items) if (item.ForSale && open.ContainsKey(item.City) && ledger.FunctionOf(item.DesignId) == 0) open[item.City]--;
         foreach (var order in ledger.Orders)
-            if (order.MarketId is not null && world.FindNpc(new NpcId(order.NpcId)) is { } maker && open.ContainsKey(maker.City)) open[maker.City]--;
+            if (order.MarketId is not null && ledger.FunctionOf(order.DesignId) == 0
+                && world.FindNpc(new NpcId(order.NpcId)) is { } maker && open.ContainsKey(maker.City)) open[maker.City]--;
         long last = -1;
         foreach (var known in ledger.Known.ToList())
         {
-            if (known.NpcId == last) continue; // uma vez por pessoa por mês: ensina e constrói o primeiro que sabe
+            if (known.NpcId == last || ledger.FunctionOf(known.DesignId) == CarryInvention.Function) continue; // uma vez por pessoa por mês: ensina e constrói o primeiro que sabe (recipiente tem o seu caminho, AD-147)
             last = known.NpcId;
             if (world.FindNpc(new NpcId(known.NpcId)) is not { IsAlive: true } teacher || teacher.Household is not { } home) continue;
             var rng = ctx.OneShot($"teach-{teacher.Id.Value}-{now}");
@@ -324,7 +330,7 @@ public sealed class InventionSystem : ISimulationSystem
         }
     }
 
-    private static Npc? PickLearner(WorldState world, Npc teacher, int designId, WorldRng rng)
+    internal static Npc? PickLearner(WorldState world, Npc teacher, int designId, WorldRng rng)
     {
         var rules = world.InventionRules!;
         var ledger = world.Invention!;
@@ -347,7 +353,7 @@ public sealed class InventionSystem : ISimulationSystem
     }
 
     /// <summary>O que se perde ao aprender sem ter feito: com fidelidade abaixo de 1000, chance de uma medida sair errada.</summary>
-    private static IReadOnlyList<DesignPart> Mutated(IReadOnlyList<DesignPart> parts, int fidelityPm, InventionRules rules, WorldRng rng)
+    internal static IReadOnlyList<DesignPart> Mutated(IReadOnlyList<DesignPart> parts, int fidelityPm, InventionRules rules, WorldRng rng)
     {
         if (rng.NextDouble() * 1000 >= 1000 - fidelityPm) return parts;
         return DesignSearch.AsBuilt(parts, rules.Materials, 1000 - fidelityPm, rng);
@@ -372,7 +378,7 @@ public sealed class InventionSystem : ISimulationSystem
     }
 
     /// <summary>Crença da pessoa sobre os materiais: densidade e resistência com erro que cai com a habilidade.</summary>
-    private static List<MaterialSpec> Belief(InventionRules rules, IReadOnlyList<MaterialSpec> usable, double skill, WorldRng rng)
+    internal static List<MaterialSpec> Belief(InventionRules rules, IReadOnlyList<MaterialSpec> usable, double skill, WorldRng rng)
     {
         double noise = rules.JudgmentNoisePm / 1000.0 * (100 - skill) / 100.0;
         var belief = new List<MaterialSpec>(rules.Materials.Count);
@@ -388,7 +394,7 @@ public sealed class InventionSystem : ISimulationSystem
         return belief;
     }
 
-    private const long WorksScore = 1_000_000;
+    internal const long WorksScore = 1_000_000;
 
     private static long Score(Performance perf) => perf.Failure switch
     {
@@ -408,18 +414,18 @@ public sealed class InventionSystem : ISimulationSystem
         return Math.Clamp(Math.Max(craft, best / 2), 0, 100);
     }
 
-    private static int FreeHours(Npc npc, InventionRules rules) => npc.Employer is null ? rules.FreeHoursIdle : rules.FreeHoursEmployed;
+    internal static int FreeHours(Npc npc, InventionRules rules) => npc.Employer is null ? rules.FreeHoursIdle : rules.FreeHoursEmployed;
 
     internal static int RiderKg(Npc npc, InventionRules rules) => npc.Weight > 0 ? (int)Math.Round(npc.Weight) : rules.ReferenceRiderKg;
 
     /// <summary>As horas de trabalho espalhadas pelo tempo livre da pessoa, em dias de calendário.</summary>
-    private static long DurationTicks(WorldState world, Npc npc, long hours)
+    internal static long DurationTicks(WorldState world, Npc npc, long hours)
     {
         int free = Math.Max(1, FreeHours(npc, world.InventionRules!));
         return (hours + free - 1) / free * world.Calendar.HoursPerDay;
     }
 
-    private static bool NearWater(WorldState world, Npc npc)
+    internal static bool NearWater(WorldState world, Npc npc)
     {
         var at = npc.Household is { } h && world.FindHousehold(h) is { } home ? home.Location : npc.CurrentLocation;
         int r = world.InventionRules!.WaterObservationRadius;

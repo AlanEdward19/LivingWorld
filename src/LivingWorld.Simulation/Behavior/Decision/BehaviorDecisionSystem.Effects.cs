@@ -139,7 +139,7 @@ public sealed partial class BehaviorDecisionSystem
             // compra que dava certo (a água que completa a meta, um ou dois por ida) encerrava o plano e a pessoa sem moeda para a
             // comida voltava a comprar de duas em duas horas, até morrer de sede com água em casa.
             if (primary == ActionType.Buy && HasCriticalSurvivalNeed(npc, tick))
-                TryApplyEat(world, npc, tick);
+                TryApplyEat(world, npc, tick, justBought: true);
             if (npc.IntentStatus == IntentStatus.Active)
                 npc.CompleteIntent();
             return npc.IntentStatus;
@@ -174,7 +174,8 @@ public sealed partial class BehaviorDecisionSystem
         npc.SetIntent(foodAction, tick);
     }
 
-    private static bool TryApplyEat(WorldState world, Npc npc, long tick)
+    /// <summary><paramref name="justBought"/>: quem acabou de comprar come do que comprou, mesmo longe de casa (AD-147).</summary>
+    private static bool TryApplyEat(WorldState world, Npc npc, long tick, bool justBought = false)
     {
         var econ = world.EconomyRules;
         if (!econ.Enabled)
@@ -194,6 +195,31 @@ public sealed partial class BehaviorDecisionSystem
         }
 
         var household = npc.Household is { } householdId ? world.FindHousehold(householdId) : null;
+        // AD-147: a despensa fica em casa. Longe dela, come e bebe do que leva; sem isso, só a ração da oficina onde trabalha
+        if (household is not null && !justBought && LivingWorld.Simulation.Invention.PersonalCarry.PantryOutOfReach(world, npc, household))
+        {
+            bool packed = LivingWorld.Simulation.Invention.PersonalCarry.ConsumeFromPack(world, npc, tick, world.NeedsRules.UrgencyThreshold);
+            bool rationed = false;
+            if (!packed)
+            {
+                var ration = new ResourceType(econ.FoodResourceId);
+                if (TryRation(world, npc, ration))
+                {
+                    npc.SetHunger(Math.Max(npc.HungerAt(tick), ObjectUse.ConsumeLevel(world, ration, ObjectEffectTargets.Hunger)), tick);
+                    world.RecordResourceConsumed(ration, 1);
+                    rationed = true;
+                }
+                var drink = new ResourceType(econ.WaterResourceId);
+                if (TryRation(world, npc, drink))
+                {
+                    npc.SetThirst(Math.Max(npc.ThirstAt(tick), ObjectUse.ConsumeLevel(world, drink, ObjectEffectTargets.Thirst)), tick);
+                    world.RecordResourceConsumed(drink, 1);
+                    rationed = true;
+                }
+            }
+            if (!packed && !rationed) world.InventionTally.CriticalAwayFromPack++;
+            return packed || rationed;
+        }
         bool fed = false;
         var meal = household is null ? new ResourceType(econ.FoodResourceId) : FoodResolver.ResolveMeal(world, household);
         if (meal.Id > 0 && (household?.Withdraw(meal, 1).IsSuccess == true || TryRation(world, npc, meal)))
@@ -255,6 +281,7 @@ public sealed partial class BehaviorDecisionSystem
         // AD-143: com água entre a casa e o mercado, leva-se só o que cabe (a pé ou na peça da casa); e quem precisa de com que
         // atravessar olha o que está exposto
         long cargo = LivingWorld.Simulation.Invention.InventionMarket.CargoGrams(world, household, market.Location);
+        long cargoStart = cargo, cut = 0;
         if (world.InventionOn) LivingWorld.Simulation.Invention.InventionMarket.AtMarket(world, ctx ?? new TickContext(world, world.Rng, world.Scheduler), npc, household, market);
         foreach (var resourceId in new[] { econ.FoodResourceId, econ.WaterResourceId })
         {
@@ -265,7 +292,7 @@ public sealed partial class BehaviorDecisionSystem
             // tira da terra), em vez de morrer de sede ao lado dela. Comida continua paga.
             if (resourceId == econ.WaterResourceId && npc.Wallet.Amount < unitPrice)
             {
-                bought |= DrawFromWell(world, market, household, resource, ref cargo);
+                bought |= DrawFromWell(world, market, household, resource, ref cargo, ref cut);
                 continue;
             }
 
@@ -282,7 +309,7 @@ public sealed partial class BehaviorDecisionSystem
             if (world.FamilyRules.Pressure?.TopUpPurchases == true) quantity -= household.Stock.GetValueOrDefault(resource);
             if (quantity <= 0) continue;
             quantity = Math.Max(1, Math.Min(quantity, npc.Wallet.Amount / unitPrice));
-            quantity = LivingWorld.Simulation.Invention.InventionMarket.Fit(world, resourceId, quantity, ref cargo);
+            quantity = LivingWorld.Simulation.Invention.InventionMarket.Fit(world, resourceId, quantity, ref cargo, ref cut);
             if (quantity <= 0) continue;
             var tx = new TransactionContext(
                 npc.Wallet, market.Treasury, market.Stock.GetValueOrDefault(resource),
@@ -299,6 +326,13 @@ public sealed partial class BehaviorDecisionSystem
             NoteTrade(world, npc, market, resource, quantity, price.Amount);
         }
 
+        // AD-147: o que ficou no mercado por não caber é frustração de carregar; o recipiente de quem compra é visto por quem está ali
+        if (world.InventionOn)
+        {
+            if (cut > 0) LivingWorld.Simulation.Invention.PersonalCarry.FeltCargoCut(world, npc, household, market.Location, cut, cargoStart - cargo);
+            if (world.Invention!.CarryMinds.Count > 0 && world.Invention.BestCarrier(household.Id.Value, world.InventionRules!) is { Exists: true } carrier)
+                LivingWorld.Simulation.Invention.InventionIntake.SightedCarrier(world, npc, market.Location, carrier.DesignId);
+        }
         return bought;
     }
 
@@ -314,7 +348,7 @@ public sealed partial class BehaviorDecisionSystem
     /// uma oficina cuja receita produz água (um mercado qualquer não dá água). O estoque muda de lugar (oficina para despensa),
     /// nada some nem nasce, e a retirada entra no livro de trocas com valor 0 (não é venda, mas é movimento).</summary>
     private static bool DrawFromWell(
-        WorldState world, Workplace well, LivingWorld.Domain.Population.Family.Household household, ResourceType water, ref long cargo)
+        WorldState world, Workplace well, LivingWorld.Domain.Population.Family.Household household, ResourceType water, ref long cargo, ref long cut)
     {
         if (!world.EconomyCatalog.Recipes.TryGetValue(well.LocationType.Id, out var recipe) || !recipe.Outputs.ContainsKey(water.Id))
             return false;
@@ -322,7 +356,7 @@ public sealed partial class BehaviorDecisionSystem
         // só enche o que falta: casa com a água dos próximos dias não esvazia o estoque do dono do poço
         long wanted = Math.Max(WellMinimumDraw, household.Members.Count * WellDaysOfSupply) - household.Stock.GetValueOrDefault(water);
         long quantity = Math.Min(well.Stock.GetValueOrDefault(water), wanted);
-        if (quantity > 0) quantity = LivingWorld.Simulation.Invention.InventionMarket.Fit(world, water.Id, quantity, ref cargo);
+        if (quantity > 0) quantity = LivingWorld.Simulation.Invention.InventionMarket.Fit(world, water.Id, quantity, ref cargo, ref cut);
         if (quantity <= 0 || !well.Withdraw(water, quantity).IsSuccess) return false;
 
         household.Deposit(water, quantity);
@@ -456,6 +490,7 @@ public sealed partial class BehaviorDecisionSystem
         ActionType.Sleep when SleepDestinationOf(world, npc) is { } dest && dest != npc.CurrentLocation => ActionType.Travel,
         ActionType.Work when WorkDestinationOf(world, npc) is { } dest && dest != npc.CurrentLocation => ActionType.Travel,
         ActionType.Buy when BuyDestinationOf(world, npc, marketIndex) is { } dest && dest != npc.CurrentLocation => ActionType.Travel,
+        ActionType.Eat when EatDestinationOf(world, npc) is { } dest && dest != npc.CurrentLocation => ActionType.Travel, // AD-147
         _ when RelocationDestinationOf(world, npc) is { } relocation && relocation != npc.CurrentLocation => ActionType.Travel,
         _ => candidate,
     };

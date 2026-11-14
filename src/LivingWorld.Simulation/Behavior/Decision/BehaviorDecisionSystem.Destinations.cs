@@ -51,6 +51,7 @@ public sealed partial class BehaviorDecisionSystem
             ActionType.Buy => BuyDestinationOf(world, npc, marketIndex),
             ActionType.Work => WorkDestinationOf(world, npc),
             ActionType.Sleep => SleepDestinationOf(world, npc),
+            ActionType.Eat => EatDestinationOf(world, npc),
             _ => null,
         };
         return destination is { } cell && cell != npc.CurrentLocation ? cell : null;

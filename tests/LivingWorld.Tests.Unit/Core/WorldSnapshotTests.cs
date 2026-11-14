@@ -123,6 +123,11 @@ public class WorldSnapshotTests
         var design = LivingWorld.Domain.Invention.Design.Create([piece], world.Npcs[0].Id.Value, 1, 0, 0, LivingWorld.Domain.Invention.DesignOrigin.Invented);
         invention.Designs.Add(design);
         invention.Known.Add(new LivingWorld.Domain.Invention.KnownDesign(world.Npcs[0].Id.Value, design.Id, 1000, LivingWorld.Domain.Invention.DesignOrigin.Invented, 1));
+        // AD-147: o que alguém leva, o problema de carregar e um design de carregar, para o mutador ter folha nas listas novas.
+        invention.Carried.Add(new LivingWorld.Domain.Invention.CarriedLoad(world.Npcs[0].Id.Value, 2, 1));
+        invention.CarryMinds.Add(new LivingWorld.Simulation.Invention.InventionMind(world.Npcs[0].Id.Value, 100, 0, 0, 0,
+            LivingWorld.Domain.Invention.FailureMode.None, null, 0, NeedMl: 2000));
+        invention.CarryDesigns.Add(design.Id);
         world.UseInvention(LivingWorld.Domain.Invention.InventionRules.Default, invention);
         // AD-142: cérebro ligado (experimento), para o mutador ter folha em BrainRules.
         world.UseBrain(LivingWorld.Domain.Cognition.BrainRules.Default);

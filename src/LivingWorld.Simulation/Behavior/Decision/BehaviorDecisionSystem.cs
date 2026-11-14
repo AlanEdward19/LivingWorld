@@ -125,9 +125,11 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
             bool justCompleted = TryCompleteAction(
                 world, npc, rules, catalog, now, marketIndex, ctx, occupancy,
                 cityPopulationCache, cityBoundsCache, theftIndex);
+            SettleCarried(world, npc, now); // AD-147: devolve em casa; longe, bebe do que leva se a sede é crítica
 
             ActionType chosen;
             ActionType? travelPurpose = null;
+            bool departing = false;
             if (possessed && ControlMechanic.TryDelegatedAction(world, npc, justCompleted, out var delegated))
             {
                 chosen = delegated;
@@ -196,12 +198,14 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                         : ConstrainByDevelopment(world, npc, sickAware);
 
                 chosen = ResolveWithStepCap(npc.Id.Value, candidate, world, npc, marketIndex, rules.MaxActionSelectionSteps);
-                travelPurpose = chosen == ActionType.Travel && candidate is ActionType.Work or ActionType.Sleep or ActionType.Buy
+                travelPurpose = chosen == ActionType.Travel && candidate is ActionType.Work or ActionType.Sleep or ActionType.Buy or ActionType.Eat
                     ? candidate
                     : null;
 
                 if (justCompleted || chosen != npc.CurrentAction)
                 {
+                    departing = chosen == ActionType.Travel;
+                    if (departing && candidate == ActionType.Eat) FeltHomeForMeal(world, npc); // AD-147: longe da despensa
                     npc.SetCurrentAction(chosen, now);
                     if (chosen == ActionType.UsePower && pendingPower is not null)
                         npc.PendingPowerInvocation = pendingPower;
@@ -212,6 +216,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
 
             if (npc.CurrentAction == ActionType.Travel)
                 npc.SetTravelPurpose(travelPurpose);
+            if (departing) PackOnDeparture(world, npc, marketIndex, now); // AD-147: ao sair de casa, leva o que a viagem vai pedir
             world.WakeCounters.RecordWake(withoutEffect: !justCompleted && npc.ActionStartedAtTick == startedBefore);
             NpcWakeScheduler.RescheduleAfterHour(
                 world, ctx, npc, rules, catalog, now, TravelArrivalTick(world, npc, marketIndex), stage);

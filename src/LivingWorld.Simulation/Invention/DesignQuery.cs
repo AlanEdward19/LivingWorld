@@ -10,8 +10,8 @@ namespace LivingWorld.Simulation.Invention;
 /// <c>Axis</c> "x": cilindro e cápsula deitados ao longo do comprimento (o cliente gira a malha, que nasce em pé).</summary>
 public sealed record DesignPartView(string Shape, IReadOnlyList<double> Size, IReadOnlyList<double> Offset, string Axis, double WallM, string Joint, int Parent, int Material, int Coating);
 
-/// <summary>Linha de <c>GET /designs</c>.</summary>
-public sealed record DesignListing(int Id, bool Lost, bool Works, int Knowers, int Items);
+/// <summary>Linha de <c>GET /designs</c>. <c>Function</c> (AD-147): "crossing" (atravessar água) ou "carry" (levar consigo).</summary>
+public sealed record DesignListing(int Id, bool Lost, bool Works, int Knowers, int Items, string Function = "crossing");
 
 /// <summary>Aparência de um material: cor, acabamento (0..1), grão (0..1), condutividade (0..1). O cliente deriva albedo,
 /// rugosidade, metálico e textura daqui; nenhum nome, nenhum modelo.</summary>
@@ -23,7 +23,11 @@ public sealed record DesignView(
     int Id, bool Lost, long InventorId, long Tick, int ParentId, int SecondParentId, string Origin,
     IReadOnlyList<DesignPartView> Parts, IReadOnlyList<MaterialLookView> Materials,
     bool Works, string Failure, int SpeedMmS, long PayloadKg, int DraftMm, int MetacentricMm, int Knowers, int Items,
-    int Accounts = 0, long LostTick = 0);
+    int Accounts = 0, long LostTick = 0, string Function = "crossing", HoldsView? Holds = null);
+
+/// <summary>O que um design de carregar mede (AD-147): volume oco e a parte estanque (ml), massa própria e carga que aguenta (g), e
+/// se se prende ao corpo. Nulo nos designs de travessia.</summary>
+public sealed record HoldsView(long InnerMl, long WatertightMl, long MassG, long CapacityG, bool Worn);
 
 public static class DesignQuery
 {
@@ -33,9 +37,10 @@ public static class DesignQuery
     public static IReadOnlyList<DesignListing> All(WorldState world)
     {
         if (world.Invention is not { } ledger || world.InventionRules is not { } rules) return [];
-        return ledger.Designs.Select(d => new DesignListing(d.Id, false, ledger.PerformanceOf(d, rules).Works,
+        return ledger.Designs.Select(d => new DesignListing(d.Id, false,
+                ledger.FunctionOf(d.Id) == CarryInvention.Function ? ledger.ContainmentOf(d, rules).Works : ledger.PerformanceOf(d, rules).Works,
                 ledger.Known.Count(k => k.DesignId == d.Id && world.FindNpc(new NpcId(k.NpcId)) is { IsAlive: true }),
-                ledger.Items.Count(i => i.DesignId == d.Id)))
+                ledger.Items.Count(i => i.DesignId == d.Id), FunctionName(ledger.FunctionOf(d.Id))))
             .Concat(ledger.Tombstones.Select(t => new DesignListing(t.DesignId, true, false, 0, 0)))
             .OrderBy(l => l.Id).ToList();
     }
@@ -61,11 +66,16 @@ public static class DesignQuery
             .ToList();
         int knowers = ledger.Known.Count(k => k.DesignId == id && world.FindNpc(new NpcId(k.NpcId)) is { IsAlive: true });
         int items = ledger.Items.Count(i => i.DesignId == id);
+        bool carry = ledger.FunctionOf(id) == CarryInvention.Function;
+        var held = carry ? ledger.ContainmentOf(design, rules) : default;
         return Result<DesignView>.Ok(new DesignView(
             design.Id, false, design.InventorId, design.Tick, design.ParentId, design.SecondParentId, design.Origin.ToString(),
-            parts, materials, perf.Works, perf.Failure.ToString(), perf.SpeedMmS, perf.PayloadG / 1000, perf.DraftMm, perf.MetacentricMm,
-            knowers, items));
+            parts, materials, carry ? held.Works : perf.Works, (carry ? held.Failure : perf.Failure).ToString(), perf.SpeedMmS, perf.PayloadG / 1000,
+            perf.DraftMm, perf.MetacentricMm, knowers, items, Function: FunctionName(ledger.FunctionOf(id)),
+            Holds: carry ? new HoldsView(held.InnerMl, held.WatertightMl, held.MassG, held.CapacityG, held.Worn) : null));
     }
+
+    private static string FunctionName(byte function) => function == CarryInvention.Function ? "carry" : "crossing";
 
     /// <summary>O design de que um fato da história fala (vivo ou lápide): é por aqui que um relato aponta para a lápide (AD-143).</summary>
     public static Result<DesignView> OfFact(WorldState world, LivingWorld.Domain.Shared.FactId factId)

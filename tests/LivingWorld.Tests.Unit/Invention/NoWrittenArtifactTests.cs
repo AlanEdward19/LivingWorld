@@ -8,7 +8,9 @@ namespace LivingWorld.Tests.Unit.Invention;
 public class NoWrittenArtifactTests
 {
     private static readonly Regex ArtifactWord = new(
-        @"\b(boat|canoe|raft|kayak|dugout|ship|vessel|barco|canoa|jangada|bote|navio|coracle|paddle|remo|oar|sail|vela)s?\b",
+        @"\b(boat|canoe|raft|kayak|dugout|ship|vessel|barco|canoa|jangada|bote|navio|coracle|paddle|remo|oar|sail|vela"
+        // AD-147: o que se leva também é design, nunca nome
+        + @"|bottle|canteen|flask|waterskin|backpack|rucksack|knapsack|basket|satchel|cantil|odre|cesto|cesta|mochila|garrafa|balde|cabaça|alforje|bornal)s?\b",
         RegexOptions.IgnoreCase);
 
     private static readonly Regex LiteralPart = new(@"new\s+DesignPart\s*\(\s*PartShape\.\w+\s*,\s*(\(short\)\s*)?\d");
