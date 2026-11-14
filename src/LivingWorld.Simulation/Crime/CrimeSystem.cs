@@ -126,6 +126,9 @@ public sealed class CrimeSystem : ISimulationSystem
     {
         resource = -1;
         if (npc.Household is not { } id || world.FindHousehold(id) is not { } home) return -1;
+        var economy = world.EconomyRules;
+        if (home.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId)) >= 1
+            && home.Stock.GetValueOrDefault(new ResourceType(economy.WaterResourceId)) >= 1) return -1; // nada falta: sem olhar ninguém
         double worst = -1;
         foreach (var memberId in home.Members)
         {
