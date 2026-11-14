@@ -36,7 +36,8 @@ public sealed class FoodTally(WorldState world) : IWorldEventSink
         {
             case WorldEventKind.Starvation when evt.SourceSystem == YearEventTally.DeathSource: _starv++; return;
             case WorldEventKind.Dehydration when evt.SourceSystem == YearEventTally.DeathSource: _dehyd++; return;
-            case WorldEventKind.TheftDiscovered: _theft++; return;
+            // AD-150: furto de comida (visto ou não); antes contava o furto descoberto, que era só de moeda
+            case WorldEventKind.TheftCommitted when evt.Payload.Split('|').ElementAtOrDefault(4) == "comida": _theft++; return;
             case WorldEventKind.AidGiven:
                 if (evt.Payload.StartsWith("city-", StringComparison.Ordinal)) _alms++; else _aid++;
                 return;

@@ -324,7 +324,8 @@ public static partial class ScenarioRunner
         LivingWorld.Domain.Population.AppearanceRules? appearanceRules = null,
         LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null,
         AgricultureRules? agricultureRules = null, NaturalWaterRules? naturalWaterRules = null,
-        LivingWorld.Domain.Invention.InventionRules? inventionRules = null, NeedsRules? needsRules = null)
+        LivingWorld.Domain.Invention.InventionRules? inventionRules = null, NeedsRules? needsRules = null,
+        LivingWorld.Domain.Crime.CrimeRules? crimeRules = null)
     {
         var rules = economyRules ?? DefaultEconomyRules;
         var family = familyRules ?? DefaultFamilyRules;
@@ -339,11 +340,12 @@ public static partial class ScenarioRunner
             historyRules: history, processRecipes: DefaultProcessRecipes,
             animalSpeciesRules: animalSpeciesRules ?? DefaultAnimalSpeciesRules,
             plantSpeciesRules: plantSpeciesRules ?? DefaultPlantSpeciesRules,
-            biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules, diseaseRules: diseaseRules ?? LivingWorld.Domain.Health.DiseasePresets.PreIndustrial, climateRules: climateRules ?? LivingWorld.Domain.Climate.ClimateRules.Default, theftRules: theftRules, emergenceRules: emergenceRules,
+            biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules, diseaseRules: diseaseRules ?? LivingWorld.Domain.Health.DiseasePresets.PreIndustrial, climateRules: climateRules ?? LivingWorld.Domain.Climate.ClimateRules.Default, theftRules: theftRules ?? LivingWorld.Domain.Crime.TheftRules.Default, emergenceRules: emergenceRules,
             ontogenyRules: ontogenyRules ?? LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human,
             appearanceRules: appearanceRules, objectCatalog: objectCatalog, agricultureRules: agricultureRules ?? AgricultureRules.Default,
             naturalWaterRules: naturalWaterRules ?? NaturalWaterRules.Default);
         world.UseInvention(inventionRules ?? DefaultInventionRules); // AD-141
+        world.UseCrime(crimeRules ?? LivingWorld.Domain.Crime.CrimeRules.Default); // AD-150
         var initialCity = new City(
             world.NextCityId(), DefaultVillageLocation, world.CurrentDate.TotalHours,
             foundedFromCityId: null, AggregatePopulationPool.Empty);

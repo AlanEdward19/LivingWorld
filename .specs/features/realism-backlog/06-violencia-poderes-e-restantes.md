@@ -1,4 +1,4 @@
-# Violência, furto, poderes por genética e achados restantes (não começado)
+# Violência, furto, poderes por genética e achados restantes (furto, violência e justiça: AD-150)
 
 > Números de achado referem-se à tabela de `relatorios/relatorio-realismo.md` (30 achados, feita no commit `baea58fd`).
 
@@ -19,27 +19,37 @@
 | 9, 11, 28 | Memória, rastro de pensamento, personalidade fixa e uniforme | não começado (03) |
 | 10 | Herança de poder não é genética | não começado (abaixo) |
 | 17 | Preço preso no piso, demanda fixa, salário sem ligação com habilidade | não começado (04) |
-| 26 | Testemunha lembra com fidelidade total; sem boato de pessoa a pessoa | não começado (03 e abaixo) |
-| 30 | Cônjuge herda 100%; furto desligado e sem justiça | não começado (abaixo) |
+| 26 | Testemunha lembra com fidelidade total; sem boato de pessoa a pessoa | feito para o crime (AD-150); a história (`HistoryRules`) segue igual: item V8 |
+| 30 | Cônjuge herda 100%; furto desligado e sem justiça | feito (AD-150) |
 
-## Violência e crime (a fazer)
+## Violência e crime (AD-150: itens 1, 2, 4, 5 e 6 feitos; ver `docs/domain/crime-and-justice.md`)
 
-Hoje: `TheftResolver` furta por desespero (carteira vazia, fome ou sede, temperamento, vítima com moeda ao lado), com guardas reduzindo o sucesso; é desligado por padrão. Combate só existe na pasta de poderes. Não há briga, agressão doméstica, homicídio, punição nem justiça.
+1. Furto ligado por padrão, por fome, miséria e oportunidade, de moeda, comida, banca, celeiro, caixa e ferramenta. **Feito.**
+2. Violência entre pessoas (ofensa, ciúme, traição, herança, denúncia, vingança, flagrante), ferimento, homicídio, mágoa. **Feito.**
+3. **Violência doméstica** e seu efeito em separação, em fuga e nas crianças criadas na casa. **A fazer (fatia seguinte, aprovada).**
+4. Justiça: testemunha imperfeita, boato com distorção, denúncia ou silêncio, corte, multa, castigo, banimento, forca, dissuasão. **Feito.**
+5. Herança pela norma (terça da viúva, filhos, oficina ao primogênito) e disputa. **Feito.**
+6. Medição de 20 seeds × 100 anos: no registro AD-150. **Feito.**
 
-1. **Furto ligado por padrão e realista**: por necessidade e por oportunidade e temperamento (não só desespero); furto de comida, não só de moeda; o que foi roubado faz falta à vítima.
-2. **Violência entre pessoas**: briga por ofensa, ciúme, dívida, traição descoberta (liga com 01) e bebida; mais provável em homens jovens (liga com 02), com impulsividade alta e estabilidade emocional baixa; resultado em ferimento (saúde dinâmica), morte ocasional, inimizade duradoura e vingança de parentes.
-3. **Violência doméstica** e seu efeito em separação, em fuga e nas crianças criadas na casa.
-4. **Justiça e punição conforme a época**: denúncia, testemunha, julgamento local, multa, castigo, banimento; guarda e senhor como dados de cenário; impunidade quando ninguém viu. A reputação corre por boato de pessoa a pessoa (achado 26), com distorção.
-5. **Herança realista** (achado 30): partilha entre cônjuge e filhos conforme a norma do cenário; disputa de herança como fonte de conflito.
-6. Medir em 20 seeds × 100 anos: taxa de homicídio (ordem de dezenas por 100 mil por ano na Europa medieval; conferir em fonte), furtos por ano e o que os causou, ferimentos, punições, vinganças.
+O que ficou de fora do AD-150 (nada some; cada item é fatia ou linha futura):
+- V1. Bebida (não existe no mundo) como motivo de briga; entra quando houver taverna e bebida.
+- V2. Dívida em dinheiro (o mundo não tem empréstimo; a `Debt` da relação é favor) como motivo de briga.
+- V3. Furto de animal de criação (não há rebanho) e de peça inventada (fatia da invenção, outro agente).
+- V4. Guarda profissional e senhor como pessoas do mundo (hoje dado de cenário: profissão de guarda e `Authority`).
+- V5. Má fama pesando em contratação, casamento e ajuda (hoje pesa em suspeita, condenação, medo e confiança).
+- V6. Prisão, fiança, apelação, perdão do senhor, asilo em igreja; outlaw que volta.
+- V7. Furto planejado com deslocamento real do ladrão até o alvo (hoje o ato é abstrato, na hora sorteada).
+- V8. Boato e testemunha imperfeita também para a história (`HistoryRules`, `WitnessedAccount`).
+- V9. Luto por morte de `Accident` e `OldAge` (o `LifeEventIntake` não as consome; achado ao ligar o homicídio).
+- V10. Sede: resolvida (o crime deixava gente viva com saúde ≤ 1, e a percepção faz a vizinhança fugir). A regra da percepção (ferido = perigo) segue: vale rever fora do crime.
 
 ## Crime contra bens e contra pessoas (pedido do dono em 2026-11-12; liberado para iniciar em 2026-11-13)
 
 Palavras dele, sobre "furto de comida não existe, então fome não gera furto": "deveria existir. E não só de comida, de tudo, até sequestro (inclusive pedofilia, estupro); são temas chatos e complicados, mas envolvem o realismo."
 
-1. **Furto e roubo de qualquer bem**: comida, moeda, ferramenta, animal, estoque de loja e de celeiro; por fome, por oportunidade e por temperamento. A fome da quebra de safra (AD-135) tem de aparecer como furto de comida.
-2. **Sequestro**: de adulto ou de criança, com motivo que emerge do estado (resgate, vingança, posse), busca pela família, desfecho (volta, fuga, morte).
-3. **Violência sexual, inclusive contra criança**: existe como fato do mundo, por temperamento, oportunidade e impunidade. Modelar como evento abstrato e suas consequências, sem cena nem descrição: trauma e medo duradouros na vítima (memória e emoção do AD-138), gravidez possível em vítima fértil, marca na família, reputação do agressor, denúncia ou silêncio.
+1. **Furto e roubo de qualquer bem**: comida, moeda, ferramenta, animal, estoque de loja e de celeiro; por fome, por oportunidade e por temperamento. A fome da quebra de safra (AD-135) tem de aparecer como furto de comida. **Feito (AD-150), fora animal e peça inventada: V3.**
+2. **Sequestro** (a fazer, fatia seguinte aprovada): de adulto ou de criança, com motivo que emerge do estado (resgate, vingança, posse), busca pela família, desfecho (volta, fuga, morte).
+3. **Violência sexual, inclusive contra criança** (a fazer, fatia seguinte aprovada): existe como fato do mundo, por temperamento, oportunidade e impunidade. Modelar como evento abstrato e suas consequências, sem cena nem descrição: trauma e medo duradouros na vítima (memória e emoção do AD-138), gravidez possível em vítima fértil, marca na família, reputação do agressor, denúncia ou silêncio.
 4. **Consequência social e justiça**: descoberta, vingança da família, punição conforme a época, expulsão. Liga com o item de justiça desta página.
 5. Nada escrito à mão: taxas e pesos como dado de cenário; medir em 20 seeds × 100 anos e conferir ordens de grandeza em fonte.
 6. O que o cliente mostra (dono, 2026-11-13): "totalmente explícito, pois prezamos realismo". Furto, roubo, sequestro e

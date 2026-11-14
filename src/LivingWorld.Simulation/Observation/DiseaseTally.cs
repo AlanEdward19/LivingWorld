@@ -150,5 +150,5 @@ public static class DemographyDeath
 {
     public static bool IsNpcDeath(WorldEventKind kind) => kind is WorldEventKind.Death or WorldEventKind.Starvation
         or WorldEventKind.Dehydration or WorldEventKind.Exhaustion or WorldEventKind.Disease or WorldEventKind.MaternalDeath
-        or WorldEventKind.Accident or WorldEventKind.OldAge;
+        or WorldEventKind.Accident or WorldEventKind.OldAge or WorldEventKind.Homicide or WorldEventKind.Executed;
 }

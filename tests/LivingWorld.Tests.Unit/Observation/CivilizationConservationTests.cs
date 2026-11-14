@@ -19,6 +19,7 @@ public class CivilizationConservationTests
     {
         var root = JsonNode.Parse(ObservatoryFixture.DefaultScenarioJson())!.AsObject();
         root["EmigrationRatePerDeficitUnit"] = emigrationRate;
+        root["Crime"] = new JsonObject { ["Enabled"] = false }; // AD-150: o banimento também tira gente; aqui só a emigração conta
         root["Cities"]![0]!["AggregatePool"] = new JsonObject { ["Count"] = pool, ["WealthSum"] = pool * 100, ["HealthSum"] = pool * 100 };
 
         long initial = 0, initialCities = 0;

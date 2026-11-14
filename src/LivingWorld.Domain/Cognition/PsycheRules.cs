@@ -142,6 +142,9 @@ public sealed record PsycheRules
             [LifeEventKind.HouseholdMemberIll] = new(35, Fear: 0.3),
             [LifeEventKind.UnwedPregnancy] = new(80, Fear: 0.5, Shame: 0.8),
             [LifeEventKind.ChildUnwedPregnancy] = new(60, Anger: 0.5, Shame: 0.7),
+            [LifeEventKind.Punished] = new(75, Fear: 0.7, Anger: 0.3, Shame: 0.8),
+            [LifeEventKind.KinMurdered] = new(90, Grief: 0.5, Anger: 1.0),
+            [LifeEventKind.WronglyPunished] = new(80, Fear: 0.4, Anger: 0.9, Shame: 0.4),
         };
 
     public static PsycheRules Default { get; } = new();

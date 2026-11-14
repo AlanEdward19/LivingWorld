@@ -15,6 +15,7 @@ tocar quem emite e sem varredura por tick:
 | casamento, separação, abandono | os dois |
 | caso descoberto (e violência) | traído, infiel |
 | furto descoberto | vítima, ladrão |
+| furto sofrido sem saber quem; agressão; parente assassinado; punido (AD-150) | vítima; quem apanhou; o parente; o condenado |
 | ajuda mútua, esmola | quem recebeu, quem deu |
 | contratação, demissão, despejo, acolhimento de órfão | a pessoa (a casa, no despejo) |
 | jejum ≥ 24 h que terminou (`NeedsDecaySystem`) | quem passou fome |

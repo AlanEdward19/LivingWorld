@@ -32,6 +32,15 @@ public enum LifeEventKind : byte
     InventionWorked = 26,
     UnwedPregnancy = 27,
     ChildUnwedPregnancy = 28,
+
+    /// <summary>AD-150: condenado e punido pela justiça (multa, castigo); a lembrança dissuade de repetir.</summary>
+    Punished = 29,
+
+    /// <summary>AD-150: um parente foi morto por alguém (raiva que pede vingança).</summary>
+    KinMurdered = 30,
+
+    /// <summary>AD-150: acusado e condenado sem ter feito.</summary>
+    WronglyPunished = 31,
 }
 
 /// <summary>Uma lembrança episódica: o que aconteceu (<see cref="Kind"/>), com quem (<see cref="Other"/>, 0 = ninguém),

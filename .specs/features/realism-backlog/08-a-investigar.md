@@ -96,3 +96,4 @@
 66. **Caderneta de quem morre** é perdida pela oficina (não vai ao espólio; o espólio é do AD-150). ~0,3% do lançado.
 67. **Quem tem refeição no trabalho ainda leva comida de casa** (com a carga ligada a saída não sabe que a oficina alimenta): a
     comida volta na devolução, mas sai da despensa durante o turno.
+67a. **AD-150, população**: 20×100 final 280 → 260, menor seed 141 → 114; parte do açoite e dos 0,43 banimentos/ano não isolada seed a seed. CPU total com a fila livre não medida (A/B crime ligado/desligado dentro do ruído).

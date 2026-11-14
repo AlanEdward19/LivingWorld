@@ -23,7 +23,7 @@ internal static class ObservatoryFixture
                 world.Npcs.LongCount(n => n.IsAlive),
                 world.ActiveCities().Sum(c => c.AggregatePool.Count),
                 world.Npcs.LongCount(n => n.BirthDate.TotalHours > previousTick && n.BirthDate.TotalHours <= sample.Tick),
-                world.Npcs.LongCount(n => n.DeathDate is { } d && d.TotalHours > previousTick && d.TotalHours <= sample.Tick)));
+                world.Npcs.LongCount(n => !n.Emigrated && n.DeathDate is { } d && d.TotalHours > previousTick && d.TotalHours <= sample.Tick))); // quem saiu do mundo (emigrou, foi banido) não morreu
             previousTick = sample.Tick;
             hash = WorldSnapshot.CanonicalHash(world);
         });
