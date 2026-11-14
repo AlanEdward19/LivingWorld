@@ -19,7 +19,8 @@ public static class DecisionContextBuilder
     public const int DefaultMemoryRecallCount = 5;
 
     public static DecisionContext Build(
-        WorldState world, Npc npc, long tick, LlmRules? llmRules = null, double provisionTargetDays = 2.0)
+        WorldState world, Npc npc, long tick, LlmRules? llmRules = null, double provisionTargetDays = 2.0,
+        long foodUnitPrice = 0, bool shopperOut = false, bool foodStallKnownEmpty = false)
     {
         var needs = new NeedsSnapshot(
             npc.HungerAt(tick),
@@ -49,7 +50,10 @@ public static class DecisionContextBuilder
             WalletAmount: npc.Wallet.Amount,
             ProvisionTargetDays: provisionTargetDays,
             Comfort: LivingWorld.Simulation.Objects.ObjectUse.ComfortOf(world, npc),
-            Inner: BuildInnerLife(world, npc, tick));
+            Inner: BuildInnerLife(world, npc, tick),
+            FoodUnitPrice: foodUnitPrice,
+            ShopperOut: shopperOut,
+            FoodStallKnownEmpty: foodStallKnownEmpty);
     }
 
     /// <summary>Emoções e lembrança de fome do NPC; nulo quando não há nada que pese (sem alocar).</summary>

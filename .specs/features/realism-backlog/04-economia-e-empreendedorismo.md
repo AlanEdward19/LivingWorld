@@ -57,9 +57,12 @@ Custo a 1000 NPCs: CPU +1,3%, alocação +5,2%.
 
 ## Ficou de fora das fatias 1 a 3 (nada some)
 
-- E1. Presença na hora da produção: a fazenda é creditada por quem está na fila do mercado (o mercado é a fazenda); contar
-  só trabalho feito pede recalibrar a lavoura. O defeito existe em todo o motor; na forja foi contornado pela folha.
-- E2. Fila do mercado: as casas vivem abaixo de um dia de comida e passam o turno tentando comprar (liga com `08` item 46).
+- E1. Presença na hora da produção: a fazenda é creditada por quem está na fila do mercado (o mercado é a fazenda). AD-148: a
+  causa era o lavrador não poder trabalhar (motor fino 1,0); consertado, às 10 h trabalhando 9,7% → 57,8% e comprando 34,3% →
+  1,4% (20×100). Contar só quem trabalha (`EconomyRules.PresenceNeedsWork`) está pronto e **desligado**: fome 3,5% → 9,2% em
+  6×100; pede recalibrar a lavoura (semeadura e ceifa por lavrador, `08` item 41). Proposta: ligar junto da ceifa pela casa toda.
+- E2. ~~Fila do mercado~~ resolvido no AD-148 ([household-provisioning](../../../docs/domain/household-provisioning.md)): h de
+  compra por adulto/dia 4,05 → 0,30; casas sem comida na seed 7 até 77% → 1–3%.
 - E3. Alocação +5,2% a 1000 NPCs sem fonte achada (não perfilada); custo a 5000 NPCs não medido.
 - E4. Prejuízo estrutural da fazenda comum: hoje a cidade recompõe.
 - E5. Mina ou ferro bruto; consumo de ferro pelas casas; obra pública como destino da moeda da cidade.

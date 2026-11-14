@@ -53,10 +53,13 @@ public static class NpcDecisionSandbox
 
     /// <summary>O contexto que o motor montaria agora para o NPC, com a mesma meta de provisão (que depende do mercado mais
     /// próximo) usada em <see cref="BehaviorDecisionSystem"/>: o "E se…?" decide como o NPC decidiria de verdade.</summary>
-    internal static DecisionContext BuildContext(WorldState world, Npc npc) =>
-        DecisionContextBuilder.Build(
+    internal static DecisionContext BuildContext(WorldState world, Npc npc)
+    {
+        var view = BehaviorDecisionSystem.ProvisionViewFor(world, npc, MarketIndex.BuildForTick(world)); // AD-148: preço e quem já foi
+        return DecisionContextBuilder.Build(
             world, npc, world.CurrentDate.TotalHours,
-            provisionTargetDays: BehaviorDecisionSystem.ProvisionTargetFor(world, npc, MarketIndex.BuildForTick(world)));
+            provisionTargetDays: view.TargetDays, foodUnitPrice: view.FoodPrice, shopperOut: view.ShopperOut, foodStallKnownEmpty: view.FoodStallEmpty);
+    }
 
     private static Result<Personality> ApplyPersonality(Personality current, IReadOnlyDictionary<string, int>? values)
     {

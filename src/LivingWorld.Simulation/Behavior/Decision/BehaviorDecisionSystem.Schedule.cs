@@ -45,15 +45,18 @@ public sealed partial class BehaviorDecisionSystem
     /// dias (que cresce com a distância até o mercado) vai repor já, sem esperar a sede apertar: com o mercado a dias de
     /// caminho, esperar a sede urgente para só então partir era morrer na estrada. Rejeita barato quando a despensa está
     /// cheia. Sem estado: só lê o mundo, então reabrir o mundo no meio do dia decide igual à execução contínua.</summary>
-    internal static bool NeedsRestocking(WorldState world, Npc npc, MarketIndex marketIndex)
+    internal static bool NeedsRestocking(WorldState world, Npc npc, MarketIndex marketIndex, bool duringWork = false)
     {
         var economy = world.EconomyRules;
         if (!economy.Enabled || npc.Wallet.Amount < 1) return false;
         if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household) return false;
+        var provisioning = world.NeedsRules.Provisioning;
 
         long foodStock = household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId));
         long waterStock = household.Stock.GetValueOrDefault(new ResourceType(economy.WaterResourceId));
-        long scarcest = Math.Min(foodStock, waterStock);
+        // AD-148: com a banca de comida vazia há pouco, só a água pode levar ao mercado até a hora de voltar
+        bool foodBlocked = FoodStallKnownEmpty(world, household);
+        long scarcest = foodBlocked ? waterStock : Math.Min(foodStock, waterStock);
         int members = Math.Max(1, household.Members.Count);
         double hoard = -1;
         if (scarcest >= (long)members * MaxProvisionDays) // despensa cheia mesmo para o mercado mais longe
@@ -70,10 +73,21 @@ public sealed partial class BehaviorDecisionSystem
         if (hoard < 0) hoard = PsycheMechanic.HoardFactor(world, npc, world.CurrentDate.TotalHours);
         double target = ProvisionTargetAt(world, household, market) * hoard;
         if ((double)scarcest / members >= target * RestockShortfall) return false;
-        if (world.FamilyRules.Pressure?.TopUpPurchases != true) return true;
+        // AD-148: no turno a compra espera o fim dele, a menos que a despensa não dure até lá; e uma pessoa da casa vai por todos
+        if (duringWork && provisioning.RestockDuringWorkBelowDays >= 0 && (double)scarcest / members >= provisioning.RestockDuringWorkBelowDays)
+        {
+            world.PurchaseTally.SkippedDuringWork++;
+            return false;
+        }
+        if (provisioning.OneShopperPerHousehold && HouseholdShopperOut(world, npc, household))
+        {
+            world.PurchaseTally.SkippedHouseholdCovered++;
+            return false;
+        }
+        if (world.FamilyRules.Pressure?.TopUpPurchases != true && !provisioning.TopUp) return true;
         // AD-145: só vai se pode pagar o que está faltando. A compra completa a meta (não soma por cima), então com a água
         // cheia e a comida cara demais a ida não traz nada, e a pessoa ficava indo ao mercado sem parar em vez de viver.
-        return Affords(npc, market, economy.FoodResourceId, foodStock, members, target)
+        return (!foodBlocked && Affords(npc, market, economy.FoodResourceId, foodStock, members, target))
             || Affords(npc, market, economy.WaterResourceId, waterStock, members, target);
     }
 
@@ -87,7 +101,36 @@ public sealed partial class BehaviorDecisionSystem
         WorldState world, Npc npc, ActionType routineAction, LifeStage stage, MarketIndex marketIndex) =>
         routineAction == ActionType.Sleep
             ? CaregiverHearsCry(world, npc, stage) ? ActionType.Buy : routineAction // só aqui o choro muda algo: fora do sono a despensa vazia já manda comprar
-            : NeedsRestocking(world, npc, marketIndex) ? ActionType.Buy : routineAction;
+            : NeedsRestocking(world, npc, marketIndex, duringWork: routineAction == ActionType.Work) ? ActionType.Buy : routineAction;
+
+    /// <summary>Alguém da casa (fora o próprio) está no mercado ou a caminho dele para comprar (AD-148).</summary>
+    internal static bool HouseholdShopperOut(WorldState world, Npc npc, LivingWorld.Domain.Population.Family.Household household)
+    {
+        var members = household.Members; // índice, não foreach: o enumerador pela interface alocava a cada decisão
+        for (int i = 0; i < members.Count; i++)
+            if (members[i] is var memberId && memberId != npc.Id && world.FindNpc(memberId) is { IsAlive: true } member
+                && (member.CurrentAction == ActionType.Buy || member.CurrentAction == ActionType.Travel && member.TravelPurpose == ActionType.Buy))
+                return true;
+        return false;
+    }
+
+    /// <summary>O que a decisão por urgência precisa saber da compra (AD-148): meta de dias da casa, preço de uma unidade de comida
+    /// no mercado mais perto (0 com a regra desligada) e se alguém da casa já foi comprar.</summary>
+    internal static (double TargetDays, long FoodPrice, bool ShopperOut, bool FoodStallEmpty) ProvisionViewFor(WorldState world, Npc npc, MarketIndex marketIndex)
+    {
+        if (npc.Household is not { } householdId || world.FindHousehold(householdId) is not { } household)
+            return (ProvisionTargetDays, 0, false, false);
+        var provisioning = world.NeedsRules.Provisioning;
+        var market = NearestProvisionMarket(world, household, marketIndex);
+        long price = provisioning.OnlyIfCanPay && market is not null
+            && market.Prices.TryGetValue(new ResourceType(world.EconomyRules.FoodResourceId), out var p) ? p : 0;
+        bool shopperOut = provisioning.OneShopperPerHousehold && HouseholdShopperOut(world, npc, household);
+        return (ProvisionTargetAt(world, household, market), price, shopperOut, FoodStallKnownEmpty(world, household));
+    }
+
+    /// <summary>A casa achou a banca de comida vazia há pouco e ainda espera para voltar (AD-148).</summary>
+    private static bool FoodStallKnownEmpty(WorldState world, LivingWorld.Domain.Population.Family.Household household) =>
+        world.NeedsRules.Provisioning.FoodStallRetryHours > 0 && world.CurrentDate.TotalHours < household.FoodStallRetryTick;
 
     /// <summary>A rotina passa pelo humor (AD-138): no dia em que o luto ou a vergonha pesam, a pessoa não vai trabalhar ou não
     /// sai para conversar e fica onde está (em casa, quase sempre). Um sorteio por pessoa e por dia contra o recolhimento do

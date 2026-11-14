@@ -26,6 +26,10 @@ public sealed record NeedsRules(
     /// <see cref="LivingWorld.Domain.Cognition.PsycheRules.Disabled"/> desliga.</summary>
     public LivingWorld.Domain.Cognition.PsycheRules Psyche { get; init; } = LivingWorld.Domain.Cognition.PsycheRules.Default;
 
+    /// <summary>Como a casa se abastece no mercado (AD-148). Snapshot ou cenário sem o campo herda o padrão;
+    /// <see cref="ProvisioningRules.Legacy"/> volta ao jeito antigo.</summary>
+    public ProvisioningRules Provisioning { get; init; } = ProvisioningRules.Default;
+
     /// <summary>Horas com a fome em zero até a morte. 0 = regra antiga (o tempo que a fome leva de 100 a 0, uns dois dias): o
     /// corpo aguenta semanas sem comer, e o cenário declara quantas (AD-128). A sede continua matando em dias.</summary>
     public long StarvationTicks =>

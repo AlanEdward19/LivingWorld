@@ -278,6 +278,8 @@ public sealed partial class BehaviorDecisionSystem
 
         var econ = world.EconomyRules;
         bool bought = false;
+        var tally = world.PurchaseTally;
+        tally.Attempts++;
         // AD-143: com água entre a casa e o mercado, leva-se só o que cabe (a pé ou na peça da casa); e quem precisa de com que
         // atravessar olha o que está exposto
         long cargo = LivingWorld.Simulation.Invention.InventionMarket.CargoGrams(world, household, market.Location);
@@ -292,8 +294,17 @@ public sealed partial class BehaviorDecisionSystem
             // tira da terra), em vez de morrer de sede ao lado dela. Comida continua paga.
             if (resourceId == econ.WaterResourceId && npc.Wallet.Amount < unitPrice)
             {
-                bought |= DrawFromWell(world, market, household, resource, ref cargo, ref cut);
+                bool drew = DrawFromWell(world, market, household, resource, ref cargo, ref cut);
+                if (drew) tally.WaterFromWell++;
+                bought |= drew;
                 continue;
+            }
+            bool isFood = resourceId == econ.FoodResourceId;
+            if (isFood)
+            {
+                tally.FoodPantryUnitsBefore += household.Stock.GetValueOrDefault(resource);
+                tally.FoodPantryMembers += household.Members.Count;
+                if (npc.Wallet.Amount < unitPrice) tally.FoodNoMoney++;
             }
 
             // Compra de domicílio, como uma ida real ao mercado: cobre ~4 dias de cada membro
@@ -306,16 +317,43 @@ public sealed partial class BehaviorDecisionSystem
             // AD-145: compra o que falta para a meta, não a meta inteira por cima do que já há. Antes cada ida ao mercado por
             // comida trazia a água da meta de novo, e a casa ao lado do rio (que já bebe de graça) juntava milhares de água.
             long quantity = Math.Max(MinimumPurchaseQuantity, household.Members.Count * purchaseDays);
-            if (world.FamilyRules.Pressure?.TopUpPurchases == true) quantity -= household.Stock.GetValueOrDefault(resource);
-            if (quantity <= 0) continue;
+            var provisioning = world.NeedsRules.Provisioning;
+            if (provisioning.TopUp || world.FamilyRules.Pressure?.TopUpPurchases == true) quantity -= household.Stock.GetValueOrDefault(resource);
+            if (quantity <= 0) { if (isFood) tally.FoodTargetMet++; continue; }
+            if (isFood) tally.FoodWantedUnits += quantity;
+            long wanted = quantity;
             quantity = Math.Max(1, Math.Min(quantity, npc.Wallet.Amount / unitPrice));
+            if (isFood && quantity < wanted) tally.FoodWalletCapped++;
+            // AD-148: a banca com menos que a compra vende o que tem (antes a transação falhava inteira e a pessoa voltava sem nada)
+            if (provisioning.BuyWhatIsThere && market.Stock.GetValueOrDefault(resource) < quantity)
+            {
+                if (isFood) { tally.FoodStockShort++; tally.MarketFoodAtShort += market.Stock.GetValueOrDefault(resource); }
+                else tally.WaterStockShort++;
+                quantity = market.Stock.GetValueOrDefault(resource);
+            }
+            // AD-148: banca de comida vazia para quem podia pagar: a casa não volta de hora em hora
+            if (isFood && market.Stock.GetValueOrDefault(resource) <= 0 && npc.Wallet.Amount >= unitPrice && provisioning.FoodStallRetryHours > 0)
+                household.FoundFoodStallEmpty(world.CurrentDate.TotalHours, provisioning.FoodStallRetryHours, provisioning.FoodStallMaxRetryHours);
+            if (quantity <= 0) continue;
+            long beforeFit = quantity;
             quantity = LivingWorld.Simulation.Invention.InventionMarket.Fit(world, resourceId, quantity, ref cargo, ref cut);
+            if (isFood && quantity < beforeFit) tally.FoodCargoCut++;
             if (quantity <= 0) continue;
             var tx = new TransactionContext(
                 npc.Wallet, market.Treasury, market.Stock.GetValueOrDefault(resource),
                 household.Stock.GetValueOrDefault(resource), resource, unitPrice, quantity);
 
-            if (!MarketTransaction.Execute(tx).IsSuccess) continue;
+            if (!MarketTransaction.Execute(tx).IsSuccess)
+            {
+                if (market.Stock.GetValueOrDefault(resource) < quantity)
+                {
+                    if (isFood) { tally.FoodStockShort++; tally.MarketFoodAtShort += market.Stock.GetValueOrDefault(resource); }
+                    else tally.WaterStockShort++;
+                }
+                continue;
+            }
+            if (isFood) { tally.FoodBought++; tally.FoodUnits += quantity; household.BoughtFood(); }
+            else { tally.WaterBought++; tally.WaterUnits += quantity; }
 
             var price = new Money(unitPrice * quantity);
             npc.TryDebitWallet(price);
@@ -326,6 +364,7 @@ public sealed partial class BehaviorDecisionSystem
             NoteTrade(world, npc, market, resource, quantity, price.Amount);
         }
 
+        if (!bought) tally.AttemptsNothingBought++;
         // AD-147: o que ficou no mercado por não caber é frustração de carregar; o recipiente de quem compra é visto por quem está ali
         if (world.InventionOn)
         {

@@ -278,7 +278,7 @@ public sealed partial class BehaviorDecisionSystem
     /// da meta. Sem isso a crença tirava do trabalho (e da renda) quem não comprava nada, e a população do mundo ao vivo caía.</summary>
     private static bool CanActOnScarcityBelief(DecisionContext ctx, EconomyRules economy)
     {
-        if (ctx.WalletAmount < 1) return false;
+        if (ctx.WalletAmount < 1 || !ctx.CanPayFood || ctx.ShopperOut) return false; // AD-148: sem pagar ou com alguém da casa já indo
         if (!economy.Enabled || ctx.Household is not { } household) return true;
         long scarcest = Math.Min(
             household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId)),
@@ -347,12 +347,15 @@ public sealed partial class BehaviorDecisionSystem
 
         long food = household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId));
         long water = household.Stock.GetValueOrDefault(new ResourceType(economy.WaterResourceId));
-        bool needsFood = food < 1;
+        // AD-148 (item 46): sem moeda para uma unidade de comida a fome não leva ao mercado; a água sem moeda ainda sai do poço
+        bool needsFood = food < 1 && ctx.CanPayFood;
         bool needsWater = water < 1;
-        double provision = ProvisionPressureOf(ctx, household, Math.Min(food, water));
+        double provision = ctx.ShopperOut ? 0 : ProvisionPressureOf(ctx, household, ctx.CanPayFood ? Math.Min(food, water) : water);
         if (!needsFood && !needsWater) return Math.Max(NonNeedBaselineUtility, provision);
 
         double own = Math.Max(needsFood ? SurvivalDeficit(ctx.Needs.Hunger) : 0, needsWater ? SurvivalDeficit(ctx.Needs.Thirst) : 0);
+        // AD-148: alguém da casa já foi comprar; só a própria necessidade crítica não espera por ele
+        if (ctx.ShopperOut && own <= CriticalDeficit) own = 0;
         return Math.Max(own, provision);
     }
 
