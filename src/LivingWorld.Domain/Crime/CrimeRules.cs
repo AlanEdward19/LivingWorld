@@ -4,7 +4,7 @@ namespace LivingWorld.Domain.Crime;
 /// regra própria do mundo). <see cref="Disabled"/> = mundo antigo: sem briga, sem justiça, herança toda ao cônjuge.</summary>
 public sealed record CrimeRules(bool Enabled, ViolenceRules Violence, JusticeRules Justice, InheritanceRules Inheritance)
 {
-    public static CrimeRules Default { get; } = new(true, new ViolenceRules(), new JusticeRules(), InheritanceRules.SpouseTakesAll);
+    public static CrimeRules Default { get; } = new(true, new ViolenceRules(), new JusticeRules(), new InheritanceRules());
 
     public static CrimeRules Disabled { get; } = new(false, new ViolenceRules { Enabled = false },
         new JusticeRules { Enabled = false }, InheritanceRules.SpouseTakesAll);
