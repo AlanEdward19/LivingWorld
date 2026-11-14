@@ -17,7 +17,7 @@ dá saída 0/1 estável para os eval gates.
 | `demography-report.sh` | Demografia de época (AD-130): N seeds × A anos de `ScenarioRunner.Create`; natalidade, mortalidade, 1q0, e0, TFR, intervalo entre partos, razão de sexo e nascimentos por mês; não é gate | `[seed-inicial] [seeds] [anos] [aquecimento]` |
 | `civ-report.sh` | Observatório de civilização (#112): N seeds × X anos em paralelo, sem persistência, série anual em JSON (`docs/domain/civilization-observatory.md`) | `[cenário] [seed-inicial] [seeds] [anos] [saída]` |
 | `refresh-world-hashes.sh` | Regrava explicitamente goldens e pins após mudança de comportamento registrada em AD/ADR | — |
-| `verify.sh` | **Gate**: check-docs + build (uma vez) + lint e test rápido em paralelo; `--full` roda Unit, Integration e LongRunning em paralelo (logs por suíte) e o `LongRunning.Performance` sozinho no fim | `--full`, `--nightly` (+ Heavy) |
+| `verify.sh` | **Gate**: check-docs + build (uma vez) + lint e test rápido em paralelo; `--full` roda Unit, Integration e LongRunning em paralelo (logs por suíte) e os testes `Category=Timing` (tempo de relógio) sozinhos no fim | `--full`, `--nightly` (+ Heavy) |
 
 Rode via `bash scripts/<x>.sh` (Git Bash no Windows).
 Cenários pesados ficam fora do gate: `bash scripts/test.sh --scenarios` (Unit) ou `--project longrunning`.

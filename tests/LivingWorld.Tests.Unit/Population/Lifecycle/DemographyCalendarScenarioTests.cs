@@ -7,8 +7,9 @@ namespace LivingWorld.Tests.Unit.Population.Lifecycle;
 [Trait("Category", "Scenario")]
 public class DemographyCalendarScenarioTests
 {
+    // Seeds 1..3 × 10 anos de DemographyReport.Run, lidas da corrida compartilhada da vila padrão (ADR-0044): mesmo mundo e mesmo laço.
     private static readonly Lazy<DemographyReport.SeedResult[]> Runs = new(() =>
-        Enumerable.Range(1, 3).AsParallel().AsOrdered().Select(seed => DemographyReport.Run((ulong)seed, years: 10, warmupYears: 0)).ToArray());
+        DefaultVillageDecade.Runs.Take(DefaultVillageDecade.DemographySeeds).Select(r => r.Demography!).ToArray());
 
     [Fact]
     public void Births_fall_in_every_month_and_no_month_holds_a_quarter_of_them()

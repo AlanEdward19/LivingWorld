@@ -28,8 +28,8 @@ public class SkillByAgeScenarioTests
     [Fact, Trait("Category", "Scenario")]
     public void Small_children_know_no_trade_and_a_fifteen_year_old_is_well_below_a_thirty_year_old()
     {
-        var curves = new Curve[5];
-        Parallel.For(1, 6, new ParallelOptions { MaxDegreeOfParallelism = 4 }, seed => curves[seed - 1] = Measure((ulong)seed));
+        // Grau único dos cenários (ParallelSeeds, até 8): as 5 seeds numa onda só; com grau 4 a 5ª esperava uma corrida de 35 anos.
+        var curves = LivingWorld.Tests.Shared.ParallelSeeds.Map(1, 5, Measure);
         double homeCeiling = ScenarioRunner.DefaultSkillsRules.Learning.HouseholdCeilingFraction * ScenarioRunner.DefaultSkillsRules.Cap;
 
         Assert.All(curves, c => Assert.True(c.Under5 == 0 && c.At15 < homeCeiling && c.At15 < c.At30 / 2,

@@ -1,5 +1,6 @@
 using LivingWorld.Domain.History;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Observation;
 using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Tests.Shared;
 using LivingWorld.Tests.Shared.Population;
@@ -9,7 +10,8 @@ namespace LivingWorld.Tests.LongRunning.Population;
 /// <summary>Uma corrida compartilhada (ADR-0044): a vila padrão (<c>ScenarioRunner.Create(seed)</c>, regras de família padrão)
 /// nas seeds 1..20 por 100 anos, simulada uma vez por processo e lida por vários testes que antes a recomputavam:
 /// o século e o braço real de 10 anos de <see cref="FamilyDiversityCalibrationTests"/>, a população do ano 10 de
-/// <see cref="FamilyPairedScenarioTests"/> e de <see cref="LaborAllocationVillageTests"/>, e as trocas de emprego dos anos 1–3.
+/// <see cref="FamilyPairedScenarioTests"/> e de <see cref="LaborAllocationVillageTests"/>, as trocas de emprego dos anos 1–3 e,
+/// nas seeds 1..4 e 60 anos, a observação de famílias de <see cref="FamilyLifeScenarioTests"/> (amostra mensal).
 /// Ninguém recebe o mundo: a corrida guarda só valores observados no fim de cada ano, então nenhum teste altera o que outro lê.
 /// O braço de controle (deriva neutra) dos 10 primeiros anos corre ao lado, como antes, num mundo próprio.
 /// Equivalência com a corrida isolada: <see cref="DefaultVillageCenturyTests"/>.</summary>
@@ -22,7 +24,8 @@ public static class DefaultVillageCentury
     /// <summary>Índice = ano (0 = criação). <paramref name="LaborMoves"/> é acumulado (Fired de LaborAllocation).</summary>
     public sealed record Run(
         ulong Seed, int[] Alive, double[] VitalityCv, int[] LaborMoves,
-        double GateVitalityDifference, double GateOpennessDifference, string GateHash, double CenturySelfDifference, double CenturyOpennessSelfDifference);
+        double GateVitalityDifference, double GateOpennessDifference, string GateHash, double CenturySelfDifference, double CenturyOpennessSelfDifference,
+        FamilyLifeScenarioTests.Observed? FamilyLife);
 
     private static readonly Lazy<Run[]> All = new(SimulateAll);
 
@@ -69,11 +72,21 @@ public static class DefaultVillageCentury
         }
     }
 
+    private sealed class BothSinks(IWorldEventSink a, IWorldEventSink b) : IWorldEventSink
+    {
+        public void Record(WorldEvent evt) { a.Record(evt); b.Record(evt); }
+    }
+
     private static Run Simulate(ulong seed)
     {
         var (real, _) = ScenarioRunner.Create(seed);
         var counter = new LaborMoveCounter();
-        var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: counter);
+        // Seeds 1..4: a observação de FamilyLifeScenarioTests (sink de famílias e amostra mensal) nos 60 primeiros anos.
+        bool family = seed <= FamilyLifeScenarioTests.Seeds;
+        var tally = family ? new FamilyLifeTally(real) : null;
+        var familySink = tally is null ? null : new FamilyLifeScenarioTests.Sink(real, tally);
+        FamilyLifeScenarioTests.Observed? familyLife = null;
+        var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: familySink is null ? counter : new BothSinks(counter, familySink));
         var control = NeutralDriftScenarioHarness.Create(seed, true);
         var alive = new int[CenturyYears + 1];
         var cv = new double[CenturyYears + 1];
@@ -84,7 +97,16 @@ public static class DefaultVillageCentury
         string gateHash = "";
         for (int year = 1; year <= CenturyYears; year++)
         {
-            clock.Run(real, real.Calendar.HoursPerYear);
+            if (tally is not null && year <= FamilyLifeScenarioTests.Years)
+            {
+                for (int m = 0; m < real.Calendar.MonthsPerYear; m++)
+                {
+                    clock.Run(real, real.Calendar.HoursPerMonth);
+                    tally.SampleMonth();
+                }
+                if (year == FamilyLifeScenarioTests.Years) familyLife = FamilyLifeScenarioTests.Collect(real, tally, familySink!);
+            }
+            else clock.Run(real, real.Calendar.HoursPerYear);
             if (year <= GateYears) control.Clock.Run(control.World, control.World.Calendar.HoursPerYear);
             alive[year] = real.Npcs.Count(n => n.IsAlive);
             cv[year] = Cv(real.Npcs.Where(n => n.IsAlive).Select(n => n.Vitality));
@@ -100,7 +122,7 @@ public static class DefaultVillageCentury
         var last = real.Npcs.Where(n => n.IsAlive).ToArray();
         return new Run(seed, alive, cv, moves, gateVitality, gateOpenness, gateHash,
             Cv(last.Select(n => n.Vitality)) - Cv(last.Select(n => n.Vitality)),
-            Cv(last.Select(n => (double)n.Personality.Openness)) - Cv(last.Select(n => (double)n.Personality.Openness)));
+            Cv(last.Select(n => (double)n.Personality.Openness)) - Cv(last.Select(n => (double)n.Personality.Openness)), familyLife);
     }
 
     /// <summary>Mínimo acumulado até <paramref name="years"/> (inclusive o ano 0), na mesma ordem de dobra de antes.</summary>

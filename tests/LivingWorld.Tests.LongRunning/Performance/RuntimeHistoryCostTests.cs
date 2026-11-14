@@ -6,6 +6,7 @@ using Xunit.Abstractions;
 namespace LivingWorld.Tests.LongRunning.Performance;
 
 [Collection(ScalePerformanceCollection.Name)]
+[Trait("Category", "Timing")] // assert de tempo de relógio: fase quieta do verify.sh
 public class RuntimeHistoryCostTests(ITestOutputHelper output)
 {
     [Fact]
