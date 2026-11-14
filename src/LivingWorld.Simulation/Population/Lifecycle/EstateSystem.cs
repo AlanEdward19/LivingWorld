@@ -31,7 +31,7 @@ public static class EstateSystem
         long toCity = 0;
         if (wallet > 0)
         {
-            if (heirs.Count > 0) PayHeirs(dead, heirs, wallet);
+            if (heirs.Count > 0) PayHeirs(dead, heirs, wallet, noteInheritance: world.EconomyRules.Venture is not null);
             else toCity = PayCity(world, dead, wallet);
         }
 
@@ -70,13 +70,16 @@ public static class EstateSystem
             .OrderBy(n => n.Id.Value).ToList();
     }
 
-    private static void PayHeirs(Npc dead, List<Npc> heirs, long wallet)
+    private static void PayHeirs(Npc dead, List<Npc> heirs, long wallet, bool noteInheritance)
     {
         _ = dead.TryDebitWallet(new Money(wallet));
         long share = wallet / heirs.Count;
         long remainder = wallet - share * heirs.Count;
         for (int i = 0; i < heirs.Count; i++)
+        {
             heirs[i].CreditWallet(new Money(share + (i == 0 ? remainder : 0)));
+            if (noteInheritance) heirs[i].NoteInheritance(share + (i == 0 ? remainder : 0)); // AD-152: origem do capital
+        }
     }
 
     private static long PayCity(WorldState world, Npc dead, long wallet)

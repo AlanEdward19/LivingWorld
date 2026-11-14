@@ -216,7 +216,11 @@ public static partial class ScenarioRunner
         wageTaxRate: 0.05) // a cidade retém 5% do salário
         .Value ?? throw new InvalidOperationException("economy rules default inválida — bug no cenário, não no gerador"))
         with
-    { SurplusDrawShare = 1.0, PresenceNeedsWork = true }; // AD-144: o lucro acima de 12 folhas sai todo mês; AD-149: só lavra quem trabalha (E1)
+    {
+        SurplusDrawShare = 1.0,
+        PresenceNeedsWork = true, // AD-144: o lucro acima de 12 folhas sai todo mês; AD-149: só lavra quem trabalha (E1)
+        Venture = VentureRules.Default with { LocationTypeIds = [2], EquipmentResourceId = 4, EquipmentUnits = 40 }, // AD-152: o ferreiro abre a forja dele
+    };
 
     /// <summary>Invenção dos cenários (código e JSON), num lugar só. A carga pessoal (`PantryNeedsPresence`) segue desligada (AD-151:
     /// 20×100 com ela, fome 4,5–5,3% contra 4,1% da base).</summary>

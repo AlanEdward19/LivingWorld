@@ -440,7 +440,7 @@ public sealed class Npc
         VocationState? vocation = null, UnionState? union = null,
         LivingWorld.Domain.Cognition.PsycheState? psyche = null,
         LivingWorld.Domain.Cognition.BrainState? brain = null,
-        long? pubertyTick = null, uint genome = 0, bool emigrated = false)
+        long? pubertyTick = null, uint genome = 0, bool emigrated = false, long inheritance = 0)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -492,6 +492,7 @@ public sealed class Npc
         PubertyTick = pubertyTick;
         Genome = genome;
         Emigrated = emigrated;
+        Inheritance = Math.Max(0, inheritance);
         IsGhost = isGhost;
         HomelessSince = homelessSince;
         PregnantUntil = pregnantUntil;
@@ -616,6 +617,26 @@ public sealed class Npc
     /// ser simulada como qualquer ausente, mas não morreu. Omitido do snapshot enquanto falso.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool Emigrated { get; private set; }
+
+    /// <summary>Moeda recebida de herança que ainda não foi posta num negócio (AD-152): diz de onde veio o capital de quem abre a
+    /// própria oficina. Só conta: a moeda mesma está na <see cref="Wallet"/>. Omitido do snapshot enquanto zero.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public long Inheritance { get; private set; }
+
+    public void NoteInheritance(long amount)
+    {
+        if (amount <= 0) return;
+        Inheritance += amount;
+        TouchCanonical();
+    }
+
+    /// <summary>A parte herdada que foi para um negócio; nunca abaixo de zero.</summary>
+    public void SpendInheritance(long amount)
+    {
+        if (amount <= 0 || Inheritance == 0) return;
+        Inheritance = Math.Max(0, Inheritance - amount);
+        TouchCanonical();
+    }
 
     /// <summary>Partida para fora do mundo simulado (AD-145). Só <c>EmigrationSystem</c> chama.</summary>
     public void LeaveWorld(WorldDate date)

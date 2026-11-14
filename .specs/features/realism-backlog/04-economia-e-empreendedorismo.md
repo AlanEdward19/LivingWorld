@@ -1,4 +1,4 @@
-# Economia, empreendedorismo e crédito (não começado)
+# Economia, empreendedorismo e crédito (fatias 1 a 5 feitas)
 
 > Detalhe e evidência arquivo:linha em `relatorios/relatorio-empreendedorismo.md`. Achados 17 e 23 da auditoria de realismo.
 
@@ -75,4 +75,26 @@ Custo a 1000 NPCs: CPU +1,3%, alocação +5,2%.
 - E10. Não verificado: determinismo em dois processos, ida e volta de snapshot com dono e ferramenta, compactação do evento
   de retirada (`ProfitDrawn`), hash do mundo antes e depois do refactor de alocação (`5720255e`).
 - E11. Preço e salário que reagem, demissão: é a fatia 8, já listada acima. Próximas: fatias 4 a 8.
+
+## Estado (2026-11-14): fatias 4 e 5 (AD-152, [venture](../../../docs/domain/venture.md))
+
+`VentureSystem` mensal: o adulto que sabe o ofício faz a conta (venda dividida com quem já vende, menos 10% de preço, contra a
+folha), decide pela ambição e pela aversão ao risco, junta o capital (casal acima da reserva, herança contada, sócios parentes
+ou amigos de confiança com cota) e paga foro, obra, equipamento e giro com moeda que existe; a oficina nasce dele. O dono de
+oficina parada reabre a dele. A cidade não ergue mais oficina de ofício quando a regra está ligada. 20 seeds × 100 anos contra a
+base `5107335c`: 0 extinções; fome 627 (5,0%) → 641 (4,9%) mortes; sede 1 → 1; e0 31,0 → 30,4; pop final 273,9 → 274,6;
+32 negócios em 19/20 seeds (poupança 20, herança 7, sociedade 5) e 6 reaberturas; vivos aos 5 anos 26/32, aos 10 22/32.
+
+## Ficou de fora das fatias 4 e 5 (nada some)
+
+- E12. Empréstimo (fatia 6): encaixe em `VentureCapital.Raise`, depois dos sócios.
+- E13. Obra instantânea: o prédio sai no mês da decisão; com `CityRules` ligado devia ir pela fila da cidade, com material e prazo.
+- E14. A obra da cidade (`ConstructionSystem`) continua de graça: pagar quem trabalha nela pede o salário de obra por turno.
+- E15. Terra não se compra nem se arrenda: a fazenda fica fora de `Venture.LocationTypeIds` (só a forja no cenário de código).
+- E16. `Venture` não está nos cenários JSON (lá a cidade segue abrindo tudo e ninguém empreende), como `Tool` em E6.
+- E17. Preço fixo depois de aberto: só o recém-chegado baixa (10%); preço que reage é a fatia 8.
+- E18. Reabertura sem sócio novo; cota sem herdeiro volta ao dono; herança da cota lida na retirada, não no espólio (AD-150, fatia 7).
+- E19. A oficina parada não fecha nem se vende (fatia 7): fica com o dono até ele reabrir ou morrer.
+- E20. Dono não fica preso à própria oficina: se outra paga 25% mais, ele sai e ela para (não medido quantas pararam assim).
+- E21. Não verificado: determinismo em 2 processos, goldens/LongRunning, `verify --full`, custo a 5.000 NPCs, seeds 21–40.
 

@@ -1,0 +1,180 @@
+using LivingWorld.Domain.Cities.Buildings;
+using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
+using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
+using LivingWorld.Domain.Shared;
+using LivingWorld.Simulation.Cities;
+using LivingWorld.Simulation.Cities.Construction;
+using LivingWorld.Simulation.Cities.Queries;
+using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Economy.Supply;
+using LivingWorld.Simulation.Scheduling;
+
+namespace LivingWorld.Simulation.Economy.Venture;
+
+/// <summary>A abertura em si (AD-152). Custo, todo pago com moeda que já existe: foro do lote ao tesouro da cidade; obra aos braços
+/// sem trabalho da cidade (depois aos adultos da casa do fundador; sem ninguém, ele levanta sozinho e não paga obra); equipamento
+/// comprado de quem o faz na cidade, que sai do estoque à venda e vira capital fixo (o que a cidade não tem pronto vem de fora pelo
+/// mercado dela, ao preço de teto, e a moeda vai ao tesouro); insumo inicial das oficinas que usam insumo; e o capital de giro, que
+/// é o caixa com que a oficina nasce. A oficina nasce com dono (o fundador), sócios com cota, o fundador trabalhando nela, e o
+/// preço da conta (<see cref="VenturePlan"/>). Sem lote livre ou sem capital, nada muda.</summary>
+internal static class VentureFounding
+{
+    public static Workplace? TryFound(WorldState world, TickContext ctx, VentureRules rules, VentureTrade trade, VenturePlan plan, Npc founder)
+    {
+        if (world.FindCity(founder.City) is not { } city || BuildingTypeOf(world, trade.LocationTypeId) is not { } buildingType) return null;
+
+        var calendar = world.CurrentDate.Calendar;
+        long minWage = world.EconomyRules.WageByProfession.Count == 0 ? 0 : world.EconomyRules.WageByProfession.Values.Min();
+        long plotFee = (long)Math.Ceiling(rules.PlotFeeWageMonths * trade.Wage);
+        var builders = Builders(world, rules, founder);
+        long buildCost = builders.Count == 0 ? 0 : rules.BuildPersonDays * Math.Max(1, minWage / calendar.DaysPerMonth);
+        var sellers = world.Workplaces.Where(w => w.City == city.Id).OrderBy(w => w.Id.Value).ToList();
+        var equipment = Quote(world, sellers, rules.EquipmentResourceId, rules.EquipmentUnits);
+        long imported = rules.EquipmentResourceId == 0 ? 0 : rules.EquipmentUnits - equipment.Sum(q => q.Units);
+        long importCost = imported * Math.Max(1, world.EconomyRules.PriceCeiling.GetValueOrDefault(rules.EquipmentResourceId,
+            world.EconomyRules.PriceFloor.GetValueOrDefault(rules.EquipmentResourceId, 1)));
+        var supplies = new List<(Workplace Seller, ResourceType Resource, long Units, long Price)>();
+        foreach (var (resourceId, perWorker) in trade.Recipe.Inputs.OrderBy(i => i.Key))
+            supplies.AddRange(Quote(world, sellers, resourceId, perWorker * Math.Max(1, rules.StartCrew) * InputSupplySystem.TargetDays));
+        long workingCapital = (long)Math.Ceiling(rules.WorkingCapitalMonths * plan.MonthlyPayroll);
+        long needed = plotFee + buildCost + equipment.Sum(q => q.Units * q.Price) + importCost
+            + supplies.Sum(q => q.Units * q.Price) + workingCapital;
+
+        if (needed <= 0 || VentureCapital.Raise(world, rules, founder, needed) is not { } capital) return null;
+        if (Place(world, city, buildingType) is not { } site) return null;
+
+        long inherited = capital.Take();
+        city.CreditTreasury(new Money(plotFee + importCost));
+        world.RecordTreasury(city.Id, ctx.CurrentTick, revenue: plotFee + importCost, spending: 0);
+        PayBuilders(builders, buildCost);
+        long spent = plotFee + importCost + buildCost;
+        foreach (var (seller, resource, units, price) in equipment)
+        {
+            if (!seller.Withdraw(resource, units).IsSuccess) continue; // o que não veio fica no caixa da oficina
+            seller.CreditTreasury(new Money(units * price));
+            world.RecordResourceConsumed(resource, units); // vira bigorna e ferramenta da oficina: sai do que se vende
+            spent += units * price;
+        }
+
+        var building = new Building(world.NextBuildingIdAndAdvance(), city.Id, buildingType, ctx.CurrentTick, site.Position, site.Orientation);
+        world.AddBuilding(building);
+        var stakes = capital.Partners.Select(p => new WorkplaceStake(p.Npc.Id, (int)(p.Amount * (long)WorkplaceStake.Whole / needed))).ToList();
+        var workplace = new Workplace(
+            world.NextWorkplaceIdAndAdvance(), new LocationType(trade.LocationTypeId), site.Position, rules.MaxVacancies,
+            employees: [], stock: new Dictionary<ResourceType, long>(), treasury: Money.Zero, prices: plan.Prices,
+            city: city.Id, building: building.Id, owner: founder.Id, partners: stakes);
+        world.AddWorkplace(workplace);
+        foreach (var (seller, resource, units, price) in supplies)
+        {
+            if (!seller.Withdraw(resource, units).IsSuccess) continue;
+            seller.CreditTreasury(new Money(units * price));
+            workplace.Deposit(resource, units, world.EconomyRules);
+            spent += units * price;
+        }
+
+        workplace.CreditTreasury(new Money(needed - spent)); // capital de giro: o que sobrou do capital posto
+        Employ(world, ctx, workplace, trade, founder);
+        string origin = capital.FromPartners > 0 ? "sociedade" : inherited * 2 >= capital.Own && inherited > 0 ? "heranca" : "poupanca";
+        string partners = capital.Partners.Count == 0 ? "-" : string.Join(',', capital.Partners.Select(p => $"{p.Npc.Id.Value}:{p.Amount}"));
+        ctx.LogEvent(WorldEventKind.VentureFounded,
+            $"{workplace.Id.Value}|{founder.Id.Value}|{origin}|{needed}|{capital.Own}|{inherited}|{partners}", sourceSystem: VentureSystem.SystemName);
+        return workplace;
+    }
+
+    /// <summary>O dono de uma oficina parada (a folha não fechou, ou ninguém trabalha nela) reabre a dele: põe o capital de giro
+    /// do casal no caixa, cobra o preço da conta e volta a trabalhar nela. Sem sócio novo (as cotas são da abertura).</summary>
+    public static Workplace? TryReopen(WorldState world, TickContext ctx, VentureRules rules, VentureTrade trade, VenturePlan plan, Npc owner, Workplace shop)
+    {
+        long needed = (long)Math.Ceiling(rules.WorkingCapitalMonths * plan.MonthlyPayroll);
+        if (needed <= 0 || VentureCapital.Raise(world, rules, owner, needed, allowPartners: false) is not { } capital) return null;
+
+        long inherited = capital.Take();
+        shop.CreditTreasury(new Money(needed));
+        shop.SetPayrollFailed(false);
+        foreach (var (resource, price) in plan.Prices.OrderBy(p => p.Key.Id)) shop.SetPrice(resource, price);
+        if (owner.Employer != shop.Id) Employ(world, ctx, shop, trade, owner);
+        string origin = inherited * 2 >= capital.Own && inherited > 0 ? "heranca" : "poupanca";
+        ctx.LogEvent(WorldEventKind.VentureFounded,
+            $"{shop.Id.Value}|{owner.Id.Value}|{origin}|{needed}|{capital.Own}|{inherited}|-|reaberta", sourceSystem: VentureSystem.SystemName);
+        return shop;
+    }
+
+    /// <summary>Tipo de prédio da oficina: o de uma que já existe no mundo, senão a receita de obra do catálogo da cidade.</summary>
+    private static int? BuildingTypeOf(WorldState world, int locationTypeId)
+    {
+        foreach (var workplace in world.Workplaces.OrderBy(w => w.Id.Value))
+            if (workplace.LocationType.Id == locationTypeId && workplace.Building is { } id && world.FindBuilding(id) is { } b)
+                return b.BuildingTypeId;
+        return world.CityCatalog.BuildingRecipes.Where(r => r.Value.Workplace?.LocationTypeId == locationTypeId)
+            .OrderBy(r => r.Key).Select(r => (int?)r.Key).FirstOrDefault();
+    }
+
+    private static (CellCoord Position, int Orientation)? Place(WorldState world, LivingWorld.Domain.Cities.City city, int buildingType)
+    {
+        var candidate = new Building(new BuildingId(world.NextBuildingId), city.Id, buildingType, world.CurrentDate.TotalHours);
+        var bounds = CityOccupancy.ResolveGrownBounds(world, city, CityPopulationQuery.Population(world, city.Id)).Bounds;
+        return BuildingPlacementResolver.Resolve(candidate, city, world, bounds) is { } r ? (r.Position, r.Orientation) : null;
+    }
+
+    /// <summary>Quem levanta a oficina: adultos sem trabalho da cidade, por id; sem eles, os adultos da casa do fundador.</summary>
+    private static List<Npc> Builders(WorldState world, VentureRules rules, Npc founder)
+    {
+        var idle = new List<Npc>();
+        var house = new List<Npc>();
+        foreach (var npc in world.AliveNpcIndex.Alive)
+        {
+            if (npc.City != founder.City || npc.Id == founder.Id) continue;
+            if (world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate)) != LifeStage.Adult) continue;
+            if (npc.Employer is null) idle.Add(npc);
+            else if (npc.Household == founder.Household && founder.Household is not null) house.Add(npc);
+        }
+
+        var crew = idle.Count > 0 ? idle : house;
+        crew.Sort((a, b) => a.Id.Value.CompareTo(b.Id.Value));
+        return crew.Take(Math.Max(0, rules.BuildCrew)).ToList();
+    }
+
+    private static void PayBuilders(List<Npc> builders, long cost)
+    {
+        if (builders.Count == 0 || cost <= 0) return;
+        long share = cost / builders.Count;
+        for (int i = 0; i < builders.Count; i++)
+            builders[i].CreditWallet(new Money(share + (i == 0 ? cost - share * builders.Count : 0)));
+    }
+
+    /// <summary>Compra de <paramref name="units"/> de quem faz o bem, do mais barato com estoque (desempate pelo menor id), até o que houver.</summary>
+    private static List<(Workplace Seller, ResourceType Resource, long Units, long Price)> Quote(
+        WorldState world, List<Workplace> sellers, int resourceId, long units)
+    {
+        var lines = new List<(Workplace, ResourceType, long, long)>();
+        if (resourceId == 0 || units <= 0) return lines;
+        var resource = new ResourceType(resourceId);
+        long floor = Math.Max(1, world.EconomyRules.PriceFloor.GetValueOrDefault(resourceId, 1));
+        // só vende quem faz o bem: a ferramenta da fazenda está em uso, não à venda
+        foreach (var seller in sellers.Where(s => s.Stock.GetValueOrDefault(resource) > 0
+                         && world.EconomyCatalog.Recipes.TryGetValue(s.LocationType.Id, out var r) && r.Outputs.GetValueOrDefault(resourceId) > 0)
+                     .OrderBy(s => Math.Max(floor, s.Prices.GetValueOrDefault(resource, floor))).ThenBy(s => s.Id.Value))
+        {
+            if (units <= 0) break;
+            long take = Math.Min(units, seller.Stock[resource]);
+            lines.Add((seller, resource, take, Math.Max(floor, seller.Prices.GetValueOrDefault(resource, floor))));
+            units -= take;
+        }
+
+        return lines;
+    }
+
+    private static void Employ(WorldState world, TickContext ctx, Workplace workplace, VentureTrade trade, Npc founder)
+    {
+        if (founder.Employer is { } old) world.FindWorkplace(old)?.Fire(founder.Id);
+        founder.Fire();
+        workplace.Hire(founder.Id);
+        founder.Hire(workplace.Id);
+        if (founder.Profession != trade.Profession) founder.SwitchProfession(trade.Profession);
+        founder.MarkJobChange(ctx.CurrentTick);
+        ctx.LogEvent(WorldEventKind.Hired, $"{founder.Id.Value}|{workplace.Id.Value}", sourceSystem: VentureSystem.SystemName);
+    }
+}

@@ -53,6 +53,8 @@ public sealed class ConstructionDemandSystem : ISimulationSystem
 
         foreach (var locationTypeId in LocationTypesNeedingWorkplace(world, city.Id, vacancyIndex).OrderBy(id => id))
         {
+            // AD-152: oficina de ofício quem abre é quem empreende; a cidade (senhor/comuna) só ergue o que é dela (terra, moradia)
+            if (world.EconomyRules.Venture?.LocationTypeIds.Contains(locationTypeId) == true) continue;
             if (HasPendingProject(world, city, recipe => recipe.Workplace?.LocationTypeId == locationTypeId)) continue;
 
             int? buildingTypeId = PickBuildingType(world, recipe => recipe.Workplace?.LocationTypeId == locationTypeId);
