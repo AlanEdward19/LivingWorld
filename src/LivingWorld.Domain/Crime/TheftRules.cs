@@ -8,6 +8,7 @@ namespace LivingWorld.Domain.Crime;
 /// (<c>PersonalityWeighting</c>): abaixo de <see cref="MoralFloor"/> ninguém furta por oportunidade; a fome a rebaixa em até
 /// <see cref="NeedMoralRelief"/>. Cada guarda da cidade tira <see cref="GuardEffect"/> do sucesso. Quem pensa em furtar pesa
 /// o medo da punição (<c>JusticeRules</c>): dissuasão da cidade e a própria lembrança de ter sido punido.
+/// Quem tem gente com fome em casa e nada para dar sai a buscar comida (<see cref="FamilyHungerPerDay"/>): o pai que furta para o filho.
 /// Números sem fonte firme ("precisa de conferência", AD-150).</summary>
 public sealed record TheftRules(
     bool Enabled,
@@ -30,7 +31,8 @@ public sealed record TheftRules(
     long GoodsUnitsTaken = 3,
     double FenceShare = 0.5,
     long MaxCoinTaken = 60,
-    double CaughtFightChance = 0.15)
+    double CaughtFightChance = 0.15,
+    double FamilyHungerPerDay = 0.3)
 {
     /// <summary>Furto desligado (cenários e testes antigos que pedem explicitamente).</summary>
     public static TheftRules Disabled { get; } = new(false, 25, 1.1, 0.6, 0.5, 0.5, -1, 0.25);

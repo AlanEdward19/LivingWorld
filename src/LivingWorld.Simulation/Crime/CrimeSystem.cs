@@ -55,7 +55,9 @@ public sealed class CrimeSystem : ISimulationSystem
             if (theft.Enabled && age >= theft.MinAgeYears)
             {
                 double u = rng.NextDouble();
-                if (u < theftCeiling) PlanTheft(world, ctx, npc, Deterrence(world, npc, now, guards), daysPerYear, u, rng);
+                double hunger = FamilyHunger(world, npc, now);
+                if (hunger >= 0) PlanFoodForFamily(world, ctx, npc, hunger, Deterrence(world, npc, now, guards), u, rng);
+                else if (u < theftCeiling) PlanTheft(world, ctx, npc, Deterrence(world, npc, now, guards), daysPerYear, u, rng);
             }
             if (fights && age >= violence!.MinAgeYears)
             {
@@ -113,6 +115,29 @@ public sealed class CrimeSystem : ISimulationSystem
         var motive = poor ? TheftMotive.Poverty : TheftMotive.Opportunity;
         long at = ctx.CurrentTick + 1 + (long)(rng.NextDouble() * (world.Calendar.HoursPerDay - 1));
         ctx.ScheduleEvent(at, SystemName, $"T|{npc.Id.Value}|{(int)motive}");
+    }
+
+    /// <summary>Fome da casa (0..1, o pior de quem mora junto; -1 = não há): sem comida nem água em casa, sem como comprar e
+    /// alguém da casa no limite do desespero. A checagem barata (despensa) vem primeiro.</summary>
+    internal static double FamilyHunger(WorldState world, Npc npc, long now)
+    {
+        if (npc.Household is not { } id || world.FindHousehold(id) is not { } home || Theft.HasFoodAtHome(world, npc)) return -1;
+        double worst = -1;
+        foreach (var memberId in home.Members)
+            if (world.FindNpc(memberId) is { IsAlive: true } member)
+                worst = Math.Max(worst, Theft.NeedOf(world.TheftRules, member, now));
+        return worst < 0 || Theft.CanBuyFood(world, npc) ? -1 : worst;
+    }
+
+    /// <summary>Quem tem fome em casa (filho, cônjuge ou a si) e nada para dar vai buscar comida onde houver: a chance do dia
+    /// sai do temperamento contra a barreira que a fome rebaixa.</summary>
+    private static void PlanFoodForFamily(WorldState world, TickContext ctx, Npc npc, double hunger, double det, double u, WorldRng rng)
+    {
+        var rules = world.TheftRules;
+        double inclination = rules.Inclination(PersonalityWeighting.WeightOf(npc.Personality, ActionType.Steal), rules.NeedBarrier(hunger, det));
+        if (u >= rules.FamilyHungerPerDay * Math.Min(1.0, inclination)) return;
+        long at = ctx.CurrentTick + 1 + (long)(rng.NextDouble() * (world.Calendar.HoursPerDay - 1));
+        ctx.ScheduleEvent(at, SystemName, $"T|{npc.Id.Value}|{(int)TheftMotive.Hunger}");
     }
 
     /// <summary>Chance por ano de planejar um furto: inclinação além da barreira moral e da dissuasão, vezes o corpo (idade e
@@ -204,7 +229,7 @@ public sealed class CrimeSystem : ISimulationSystem
         {
             if (Find(world, parts[1]) is not { IsAlive: true } thief) return;
             var motive = (TheftMotive)int.Parse(parts[2], CultureInfo.InvariantCulture);
-            if (Theft.FindTarget(world, thief, motive, rng: rng) is { } target && !Watched(world, thief, target, rng))
+            if (Theft.FindTarget(world, thief, motive, rng: rng) is { } target && (motive == TheftMotive.Hunger || !Watched(world, thief, target, rng)))
                 Theft.Commit(world, ctx, thief, motive, target, rng);
         }
         else if (parts[0] == "F" && parts.Length >= 4 && world.CrimeOn && world.CrimeRules!.Violence.Enabled)
@@ -215,7 +240,7 @@ public sealed class CrimeSystem : ISimulationSystem
         }
     }
 
-    /// <summary>Quem planejou o furto desiste se há gente acordada olhando o lugar: cada uma pesa pela aversão a risco do
+    /// <summary>Quem planejou o furto (fora a fome, que não espera) desiste se há gente acordada olhando: cada uma pesa pela aversão a risco do
     /// ladrão (o ousado arrisca, o cauteloso espera outra vez). A vítima do batedor de carteira não conta.</summary>
     private static bool Watched(WorldState world, Npc thief, TheftTarget target, WorldRng rng)
     {

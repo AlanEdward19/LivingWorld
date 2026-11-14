@@ -75,6 +75,24 @@ public class TheftTests
     }
 
     [Fact]
+    public void A_fed_parent_with_a_starving_child_and_an_empty_pantry_goes_to_steal_food_for_the_family()
+    {
+        var world = New(Rules());
+        var parent = Add(world, Average);
+        var child = Add(world, Average, age: 6);
+        var home = Home(world, Here, parent, child);
+        var neighbour = Add(world, Honest, at: new CellCoord(3, 1));
+        Home(world, new CellCoord(3, 1), neighbour).Deposit(new ResourceType(world.EconomyRules.FoodResourceId), 30);
+        Assert.Equal(-1, CrimeSystem.FamilyHunger(world, parent, 0)); // ninguém com fome ainda
+        child.SetHunger(5, 0);
+        Assert.True(CrimeSystem.FamilyHunger(world, parent, 0) > 0.5);
+
+        new CrimeSystem().HandleEvent(world, Ctx(world), new LivingWorld.Simulation.Scheduling.ScheduledEvent(1, 1, CrimeSystem.SystemName,
+            $"T|{parent.Id.Value}|{(int)TheftMotive.Hunger}"));
+        Assert.True(home.Stock.GetValueOrDefault(new ResourceType(world.EconomyRules.FoodResourceId)) > 0, "o pai não trouxe comida");
+    }
+
+    [Fact]
     public void Hunger_lowers_the_moral_barrier_and_food_at_home_or_money_for_the_stall_removes_the_motive()
     {
         var mild = Personality.Create(50, 50, 60, 50, 50, 50, 50, 60, 40, 60).Value!; // peso de Furtar 0,6
