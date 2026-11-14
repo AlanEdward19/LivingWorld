@@ -45,9 +45,22 @@ reposição, humor, desenvolvimento, doença) e o motivo de cada compra cortada 
 - `FamilyRules.Pressure = Measured` no cenário de código (freios preventivos do AD-145, [population-pressure.md](population-pressure.md)).
 - `PsycheRules.CriticalBodyOverridesLeisure` (backlog 08 item 47).
 - AD-149, com a lavoura da terra finita ([land-and-harvest.md](land-and-harvest.md)): **ligado** `EconomyRules.PresenceNeedsWork`
-  (E1: só lavra quem está trabalhando). A carga pessoal (`PantryNeedsPresence`) **segue desligada**: 20×100 com tudo ligado deu
-  fome 4,6% (base 4,1%) e +19% de CPU. A fome que ela sobe vem da **ração da oficina**: longe de casa o lavrador come do estoque
-  à venda da fazenda (sonda `provision-trace`, seed 4, anos 20–35: ~6.500 rações por ano, ~20% do consumo; 0 sem a carga).
+  (E1: só lavra quem está trabalhando).
+- AD-151: a carga pessoal (`PantryNeedsPresence`, [invention.md](invention.md)) **segue desligada**: com a refeição paga, 20×100
+  deu fome 4,5% (teto no salário) e 5,3% (excesso em espécie), base 4,1%; sem refeição nenhuma, 6,9% e uma seed com 3 vivos.
+  A diferença de seeds 1–20 para 21–40 (abaixo) mostra que o ruído de um bloco de 20 seeds é dessa ordem.
+
+## A refeição do empregador (AD-151)
+Longe de casa o lavrador comia do estoque à venda da fazenda sem ninguém pagar (a "ração da oficina": sonda `provision-trace`,
+seed 4, anos 20–35, com a carga ligada: 4.700–6.900 rações por ano, todas longe de casa; ~12–17% do consumo). Agora a comida é
+**parte do pagamento**, como o salário "com comida" da vila pré-industrial: cada refeição vai à caderneta do local
+(`Workplace.Board`) ao preço da venda e sai do líquido do próximo salário (`WagePaymentSystem`; o valor fica no caixa, onde a
+comida já saiu), até o líquido inteiro (`EconomyRules.BoardMaxWageShare` 1,0); o que passa disso — na carestia o trigo chega a
+20 e o salário é 90 — a oficina paga em espécie, como o empregador que alimenta o trabalhador na fome. Ofício sem salário não
+ganha refeição. Quem saiu da folha paga da carteira o que deve; o resto o empregador perde (morte, saída sem moeda; contado). A água do
+poço da propriedade segue livre, como o poço da aldeia. `LW_AG=freeration` volta ao antigo e `LW_AG=nomeal` tira a refeição (só
+para medir). 20×100 (carga desligada), base → caderneta: seeds 1–20 fome 517 → 627 mortes; seeds 21–40 619 → 495 (40 seeds:
+1.136 → 1.122); ~0,1% do consumo vem da refeição; da caderneta, 52% sai do salário, 48% em espécie e 0,3% se perde.
 
 ## Compra a pé do outro lado da água (backlog 05 item 2a, AD-149)
 Decidido com a medida: a casa **vai mais vezes**, não manda mais gente. A compra cortada pelo que cabe deixa a despensa abaixo da

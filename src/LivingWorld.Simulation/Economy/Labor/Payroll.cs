@@ -1,4 +1,5 @@
 using LivingWorld.Domain.Economy;
+using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
@@ -33,6 +34,17 @@ internal static class Payroll
         }
 
         return due;
+    }
+
+    /// <summary>Preço de uma refeição do empregador na caderneta (AD-151), ou −1 sem contrato que a inclua (ofício sem salário). O
+    /// preço é o da venda do local (o piso do recurso fora do mercado), nunca menos de 1. Não há teto aqui: o que o salário do mês
+    /// não cobre a oficina paga em espécie (<see cref="WagePaymentSystem"/>), como o empregador que alimenta na carestia.</summary>
+    public static long BoardCharge(WorldState world, Workplace workplace, Npc npc, ResourceType resource)
+    {
+        var rules = world.EconomyRules;
+        if (!rules.WageByProfession.ContainsKey(npc.Profession.Id)) return -1;
+        return workplace.Prices.TryGetValue(resource, out var p) && p > 0 ? p
+            : rules.PriceFloor.TryGetValue(resource.Id, out var floor) && floor > 0 ? floor : 1;
     }
 
     /// <summary>Reserva de giro (AD-140/AD-144): <see cref="EconomyRules.WorkingCapitalPayrollMonths"/> meses da folha que o

@@ -47,7 +47,7 @@ public class CivilizationScopeTests
             var adults = world.Npcs.Where(n => n.IsAlive && n.City == city
                 && world.LifeStageRules.LifeStageOf(n.AgeYears(world.CurrentDate)) == LifeStage.Adult).OrderBy(n => n.Id.Value).ToList();
             foreach (var adult in adults) adult.Fire();
-            adults[0].Hire(new WorkplaceId(9999));
+            if (adults.Count > 0) adults[0].Hire(new WorkplaceId(9999)); // AD-151: seed sem adulto na cidade (a busca de seed do e0)
         }
 
         var culture = world.Npcs.First().Culture;
@@ -218,14 +218,18 @@ public class CivilizationScopeTests
         Npc? dead = null;
         int width = 0;
         int Age(Npc n) => n.AgeYears(s.World.CurrentDate);
-        foreach (ulong seed in new ulong[] { 2, 3, 4, 5, 6, 7 })
+        foreach (ulong seed in new ulong[] { 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 })
         {
             s = Build(seed: seed);
             width = s.Tally.AgeBandYears;
             (city, dead) = s.World.ActiveCities().Where(c => c.Id != s.B.Id).OrderBy(c => c.Id.Value).Select(c =>
             {
                 var local = s.World.Npcs.Where(n => n.IsAlive && n.City == c.Id).ToList();
-                var pick = local.Where(n => local.Count(o => Age(o) / width == Age(n) / width) >= 3 && Age(n) / width < local.Max(Age) / width)
+                // AD-151: e com vivos de outra cidade ativa na mesma faixa (só a faixa da morte tem q > 0; sem eles o e0 da cidade é o
+                // do mundo, como na seed 2 com a carga pessoal)
+                var others = s.World.Npcs.Where(n => n.IsAlive && n.City != c.Id && s.World.ActiveCities().Any(a => a.Id == n.City)).ToList();
+                var pick = local.Where(n => local.Count(o => Age(o) / width == Age(n) / width) >= 3 && Age(n) / width < local.Max(Age) / width
+                        && others.Any(o => Age(o) / width == Age(n) / width))
                     .OrderBy(n => n.Id.Value).FirstOrDefault();
                 return (c, pick);
             }).FirstOrDefault(x => x.pick is not null);

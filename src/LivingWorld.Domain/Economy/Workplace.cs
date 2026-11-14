@@ -51,8 +51,9 @@ public sealed class Workplace
         WorkplaceId id, LocationType locationType, CellCoord location, int maxVacancies,
         IReadOnlyList<NpcId> employees, IReadOnlyDictionary<ResourceType, long> stock, Money treasury,
         IReadOnlyDictionary<ResourceType, long> prices, CityId city = default, BuildingId? building = null,
-        NpcId? owner = null, bool payrollFailed = false)
+        NpcId? owner = null, bool payrollFailed = false, IReadOnlyList<BoardDebt>? board = null)
     {
+        _board = board is null ? [] : board.Where(d => d.Owed > 0).OrderBy(d => d.Npc.Value).ToList();
         Id = id;
         LocationType = locationType;
         Location = location;
@@ -72,6 +73,47 @@ public sealed class Workplace
     public bool PayrollFailed { get; private set; }
 
     public void SetPayrollFailed(bool failed) => PayrollFailed = failed;
+
+    private readonly List<BoardDebt> _board;
+
+    /// <summary>Caderneta das refeições dadas pelo empregador (AD-151): o que cada pessoa comeu do estoque daqui e ainda não foi
+    /// descontado do salário, em moeda, em ordem de id. Nulo quando vazia (snapshot de antes fica igual).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<BoardDebt>? Board => _board.Count == 0 ? null : _board;
+
+    public long BoardOwedBy(NpcId npc)
+    {
+        int i = BoardIndex(npc);
+        return i >= 0 ? _board[i].Owed : 0;
+    }
+
+    /// <summary>Soma (ou, negativo, abate) o que <paramref name="npc"/> deve de refeições; zero sai da caderneta.</summary>
+    public void AddBoard(NpcId npc, long amount)
+    {
+        if (amount == 0) return;
+        int i = BoardIndex(npc);
+        long owed = (i >= 0 ? _board[i].Owed : 0) + amount;
+        if (owed < 0) throw new InvalidOperationException("Board: abatimento maior que a dívida");
+        if (i >= 0)
+        {
+            if (owed == 0) _board.RemoveAt(i);
+            else _board[i] = new BoardDebt(npc, owed);
+        }
+        else if (owed > 0) _board.Insert(~i, new BoardDebt(npc, owed));
+    }
+
+    private int BoardIndex(NpcId npc)
+    {
+        int lo = 0, hi = _board.Count - 1;
+        while (lo <= hi)
+        {
+            int mid = (lo + hi) >>> 1;
+            long v = _board[mid].Npc.Value;
+            if (v == npc.Value) return mid;
+            if (v < npc.Value) lo = mid + 1; else hi = mid - 1;
+        }
+        return ~lo;
+    }
 
     /// <summary>Falha quando <see cref="Employees"/> já está no teto de
     /// <see cref="MaxVacancies"/> — nunca aceita além da vaga declarada.</summary>
@@ -116,3 +158,6 @@ public sealed class Workplace
         return result;
     }
 }
+
+/// <summary>Uma linha da caderneta de refeições (AD-151): quem comeu e quanto deve, em moeda.</summary>
+public readonly record struct BoardDebt(NpcId Npc, long Owed);

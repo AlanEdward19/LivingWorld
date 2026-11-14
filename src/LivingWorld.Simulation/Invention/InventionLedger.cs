@@ -46,6 +46,9 @@ public sealed class InventionLedger
     private Dictionary<long, int>? _listingsByMarket;
     private Dictionary<long, Carrier>? _bestCarrierByHousehold;
 
+    /// <summary>AD-151: memória volátil de <see cref="PersonalCarry.PantryOutOfReach"/> por (casa, cidade, célula).</summary>
+    [JsonIgnore] internal Dictionary<(long Household, CityId City, LivingWorld.Domain.Geography.CellCoord From), (long Hour, long Touches, int Techs, bool Out)> ReachMemo { get; } = [];
+
     /// <summary>A melhor peça que funciona de uma casa: velocidade (com a qualidade), carga útil com a pessoa de referência,
     /// estabilidade e o design (volátil, derivado dos itens).</summary>
     internal readonly record struct Craft(int SpeedMmS, long PayloadG, int MetacentricMm, int DesignId);
@@ -61,9 +64,14 @@ public sealed class InventionLedger
 
     [JsonIgnore] internal long Version { get; private set; }
 
+    /// <summary>Quantas vezes os derivados das peças (embarcação, recipiente) foram invalidados: muda quando o trajeto da casa pode
+    /// mudar; não muda com o que a pessoa leva (AD-151, memória do alcance da despensa).</summary>
+    [JsonIgnore] internal long Touches { get; private set; }
+
     internal void Touch()
     {
         Version++;
+        Touches++;
         _designById = null;
         _bestCraftByHousehold = null;
         _listingsByMarket = null;

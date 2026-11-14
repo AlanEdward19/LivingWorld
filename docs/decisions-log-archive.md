@@ -1,4 +1,4 @@
-# docs/decisions-log-archive.md — decisões de processo antigas (AD-001 a AD-060)
+# docs/decisions-log-archive.md — decisões de processo antigas (AD-001 a AD-061)
 
 Arquivo do `decisions-log.md` (teto de 100 linhas). IDs e textos preservados.
 
@@ -64,3 +64,4 @@ Arquivo do `decisions-log.md` (teto de 100 linhas). IDs e textos preservados.
 | AD-058 | 2026-07-27 | Risco de parto (mãe/criança) da Fase 7 é probabilidade fixa por cenário (`FamilyRules.MaternalDeathRisk`/`InfantDeathRisk`), resolvida no evento de nascimento já agendado, sem modelo médico | Task 5 pede "parto tem risco para mãe e criança" sem especificar mecanismo; reusa o padrão de probabilidade declarada já validado em `LifeTable.AnnualMortality`. |
 | AD-059 | 2026-07-27 | Cenário de deriva neutra e cenário contrafactual de household (Fase 7) são variações de configuração do harness de teste (flags em `FamilyRules`/parâmetro opcional em `ScenarioRunner.Create`), não sistemas de produção novos | Mesmo raciocínio de T25/T26 da Fase 5 (AD-047): os cenários existem só para comparação estatística, são composição diferente de regras já existentes, não comportamento de jogo novo. |
 | AD-060 | 2026-07-27 | Casamento da Fase 7 é monogâmico (um cônjuge por vez); não existe ação de "divórcio" — só viuvez libera novo cortejo | Roadmap não pede poligamia nem divórcio; monogamia é a forma mais simples que ainda produz "casais formam família" sem abrir uma dimensão de regra social não pedida. |
+| AD-061 | 2026-07-27 | `CourtshipSystem` (Fase 7, Design) só considera candidatos para quem já existe uma entrada de `Relationship` (A3/AD-052, qualquer direção) — nunca varre todo NPC elegível do cenário | O substrato de relação (FAM-01/02) já é a prova formal de "se encontraram"; reusar esse dicionário como filtro de candidatos evita duplicar a mesma regra ("nunca se encontrar = nunca se conhecer") como uma segunda checagem em código separado, e mantém o critério de incesto negativo (FAM-30) e positivo (FAM-31) auditável no mesmo lugar. |
