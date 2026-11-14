@@ -10,7 +10,7 @@ namespace LivingWorld.Tests.LongRunning.Performance;
 /// <summary>Medição antes/depois de mudanças de comportamento (não é gate). Rode com
 /// <c>LW_MEASURE_OUT=arquivo dotnet test ... --filter MeasureHarness</c>: escreve µs/NPC-tick,
 /// alocação, bytes de snapshot por NPC e a estabilidade da vila padrão (10 anos, 5 seeds).</summary>
-[Collection(ScalePerformanceCollection.Name)]
+// Determinístico (sem tempo de relógio): fora da coleção serial "Scale performance", roda em paralelo no verify.sh.
 [Trait("Category", "Scenario")]
 [Trait("Category", "Measure")]
 public class MeasureHarness

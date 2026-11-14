@@ -54,12 +54,41 @@ Planta de prédio em cache; versão de eixos por dono; despertares de viagem; RN
   novo teto). A regravação de `family-diversity` dentro do `--full` ainda não rodou: validar no primeiro diário.
 - Como medir: `LW_TEST_TRX_DIR=<dir> bash scripts/verify.sh --full` (um `.trx` por suíte; tempo por suíte no resumo).
 
-## Próxima fatia: custo dos testes (pedido do dono, 2026-11-13; logo depois de AD-144 e AD-146)
+## Fatia custo dos testes (pedido do dono, 2026-11-13): feito, meta de 5 min não atingida
 
-"Precisamos de testes tão longos assim (vários), ou conseguimos reorganizar para manter a qualidade do sistema consumindo
-menos (processamento e tempo)". Auditar teste a teste pelos `.trx`: o que cada teste longo protege, quais repetem a mesma
-simulação, quais cabem num mundo compartilhado ou num horizonte menor sem perder a asserção, quais são redundantes.
-Entregar tabela antes/depois por suíte e a lista do que foi fundido, encurtado ou removido, com o motivo de cada um.
+"Precisamos de testes tão longos assim (vários), ou conseguimos reorganizar...". Nenhum teste removido, nenhuma asserção,
+seed ou horizonte cortado; goldens e baselines intactos. `verify.sh --lote`, mesma máquina, base `6bb834c0`:
+
+| Suíte (s) | LongRunning | Unit | Integration | lint | fase quieta | gate (parede) | CPU (user+sys) |
+|---|---|---|---|---|---|---|---|
+| antes | 234 | 488 | 146 | 79 | 182 | 682 (11 min 22 s) | 2.958 |
+| depois | 426 | 435 | 121 | 86 | 32 | 470 (7 min 50 s) | 2.891 |
+
+- **Fase quieta só com tempo de relógio** (`Category=Timing`: RuntimeHistoryCost, ObservationalLod, ScaleScenarioSensor,
+  WorldCreationCost, BrainDecisionCost). O resto do namespace Performance é determinístico e foi para a fase paralela
+  (BrainExperimentHarness rodava ao lado dos asserts de tempo: provável causa do `RuntimeHistoryCost` instável, item 10).
+- **Ordem de partida**: `ScenarioFirstCollectionOrderer` começa as coleções com `Category=Scenario` antes das rápidas.
+- **Corridas compartilhadas novas (ADR-0044)**: `DefaultVillageSeed42` (LongRunning; seed 42, 10 anos hora a hora e até o
+  ano 60/100) serve invariantes de 1 e 10 anos, cidade de todo NPC, varredura referencial de 1 e 10 anos, braço com
+  natalidade, livro de trocas, tabela de vida, `VillageSurvives` seed 42 e os 4 testes seed 42 × 10 anos de
+  `FamilyPairedScenario`; equivalência pelo hash do ano 1. `DefaultVillageDecade` (Unit) passou a rodar pelo laço de
+  `DemographyReport.Run` (ganchos só de observação) e serve também o braço com acolhimento de `Orphan_care` e o calendário
+  demográfico; equivalência pelo hash do ano 10 e pela observação de órfãos da seed 1. `DefaultVillageCentury` serve a
+  observação de famílias de `FamilyLifeScenario` (4 seeds × 60 anos, antes em série) no `--full`.
+- **Suíte certa**: `VillageSurvives` (60 anos) foi do Unit para o LongRunning. **Cadeias**: braços independentes lado a lado.
+
+### O que impede os 5 minutos (decisões do dono, nada aplicado)
+
+11. Limite agora é CPU (~2.890 s em 8 núcleos, piso ~6 min) e cadeias de uma seed (TechDiscovery 30 a, seeds 7 e 42).
+12. `MeasureHarness` e `BrainExperimentHarness` não asseveram nada (o próprio código diz "não é gate") e custam ~300 s de
+    parede na fase paralela: proposta de tirá-los do gate (`Category=Measure` só no `--nightly` e nos scripts de medida).
+13. `VillageSurvives` seed 7 cabe no século (seed 7 está em 1..20) se o dono aceitar levá-la ao `--full` diário.
+14. Candidatos a encurtar, precisam de decisão: `Zeroing_the_pace_bonus` (10 anos para provar "muda alguma coisa"),
+    `OptimizationEquivalence` arquivo frio (6 anos × 2, fora de `Scenario`), seca de `ClimateTests` (os dois braços são
+    iguais nos 5 primeiros anos: daria para clonar o mundo pelo snapshot em memória). Os prefixos estritos (invariantes e
+    varredura de 1 ano) ficam: já não custam nada, lidos da corrida compartilhada.
+15. `--full` (verde, 2026-11-13): 29 min 36 s, 10.088 s de CPU; o século compartilhado (20 seeds × 100 anos) é o caminho
+    crítico, ~28 min sozinho. Sem cortar seeds ou anos, só cai com motor mais rápido (itens 4 a 6).
 
 ## Regras que valem para qualquer otimização
 

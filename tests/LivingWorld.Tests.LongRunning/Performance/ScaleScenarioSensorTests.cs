@@ -23,6 +23,7 @@ public sealed class ScalePerformanceCollection
 /// <summary>PERF-02: sensor de escala no gate — 1 mês-sim, população pequena.
 /// População grande (5k) fica em Category=Scenario.</summary>
 [Collection(ScalePerformanceCollection.Name)]
+[Trait("Category", "Timing")] // assert de tempo de relógio: fase quieta do verify.sh
 public class ScaleScenarioSensorTests
 {
     private const long OneMonthTicks = 30 * 24;

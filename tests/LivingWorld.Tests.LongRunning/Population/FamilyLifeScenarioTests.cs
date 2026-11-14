@@ -3,7 +3,6 @@ using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Observation;
 using LivingWorld.Simulation.Population.Family;
-using LivingWorld.Simulation.Scenarios;
 
 namespace LivingWorld.Tests.LongRunning.Population;
 
@@ -12,11 +11,18 @@ namespace LivingWorld.Tests.LongRunning.Population;
 [Trait("Category", "Century")] // 20 seeds × 100 anos: fora do gate de lote, roda no --full diário
 public class FamilyLifeScenarioTests
 {
-    private const int Seeds = 4, Years = 60;
+    internal const int Seeds = 4, Years = 60;
 
-    private sealed record Observed(int SeparationsOrAbandonments, int SiblingPairsApart, int TabooMarriages, int Extinct, int Remarriages);
+    /// <summary>Por seed: o que o teste soma. A vila padrão das seeds 1..4 por 60 anos é a corrida compartilhada do século
+    /// (<see cref="DefaultVillageCentury"/>, ADR-0044), que liga este sink e amostra o tally todo mês nesses 60 anos.</summary>
+    public sealed record Observed(int SeparationsOrAbandonments, int SiblingPairsApart, int TabooMarriages, int Extinct, int Remarriages);
 
-    private sealed class Sink(WorldState world, FamilyLifeTally tally) : IWorldEventSink
+    internal static Observed Collect(WorldState world, FamilyLifeTally tally, Sink sink) => new(
+        (int)(tally.EndedByMode.GetValueOrDefault("separacao") + tally.EndedByMode.GetValueOrDefault("abandono")
+            + tally.EndedByMode.GetValueOrDefault("anulacao")),
+        tally.SiblingPairsApart, sink.Taboo, world.AliveNpcIndex.Alive.Count == 0 ? 1 : 0, (int)tally.Remarriages);
+
+    internal sealed class Sink(WorldState world, FamilyLifeTally tally) : IWorldEventSink
     {
         public int Taboo;
 
@@ -33,26 +39,9 @@ public class FamilyLifeScenarioTests
 
     private static readonly Lazy<Observed> Run = new(() =>
     {
-        int ended = 0, apart = 0, taboo = 0, extinct = 0, remarriages = 0;
-        for (ulong seed = 1; seed <= Seeds; seed++)
-        {
-            var (world, baseClock) = ScenarioRunner.Create(seed);
-            var tally = new FamilyLifeTally(world);
-            var sink = new Sink(world, tally);
-            var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, sink);
-            for (int m = 0; m < Years * world.Calendar.MonthsPerYear; m++)
-            {
-                clock.Run(world, world.Calendar.HoursPerMonth);
-                tally.SampleMonth();
-            }
-            ended += (int)(tally.EndedByMode.GetValueOrDefault("separacao") + tally.EndedByMode.GetValueOrDefault("abandono")
-                + tally.EndedByMode.GetValueOrDefault("anulacao"));
-            apart += tally.SiblingPairsApart;
-            taboo += sink.Taboo;
-            remarriages += (int)tally.Remarriages;
-            if (world.AliveNpcIndex.Alive.Count == 0) extinct++;
-        }
-        return new Observed(ended, apart, taboo, extinct, remarriages);
+        var perSeed = DefaultVillageCentury.Runs.Take(Seeds).Select(r => r.FamilyLife!).ToArray();
+        return new Observed(perSeed.Sum(o => o.SeparationsOrAbandonments), perSeed.Sum(o => o.SiblingPairsApart),
+            perSeed.Sum(o => o.TabooMarriages), perSeed.Sum(o => o.Extinct), perSeed.Sum(o => o.Remarriages));
     });
 
     [Fact]

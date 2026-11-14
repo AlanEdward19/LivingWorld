@@ -33,11 +33,15 @@ public class FamilyPairedScenarioTests
     [Trait("Category", "Scenario")]
     public void Ten_years_default_scenario_has_zero_marriages_between_first_degree_relatives()
     {
-        var sink = new RecordingSink();
-        var (world, _) = ScenarioRunner.Create(DefaultSeed);
-        var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink);
-        clock.Run(world, HorizonHours);
+        // A vila padrão da seed 42 por 10 anos é a corrida compartilhada DefaultVillageSeed42 (ADR-0044): ela roda esta checagem
+        // no ano 10 sobre os eventos que gravou e guarda a falha (ou nulo).
+        Assert.Equal(DefaultSeed, (int)DefaultVillageSeed42.Seed);
+        Assert.Null(DefaultVillageSeed42.Value.FirstDegreeMarriageFailure);
+    }
 
+    /// <summary>Corpo do teste acima, sobre o mundo no ano 10 e os eventos gravados até ali.</summary>
+    internal static void AssertNoFirstDegreeMarriages(WorldState world, RecordingSink sink)
+    {
         var npcById = world.Npcs.ToDictionary(n => n.Id);
         var populationRules = world.PopulationRules;
         var now = world.CurrentDate;
@@ -118,11 +122,13 @@ public class FamilyPairedScenarioTests
     [Trait("Category", "Scenario")]
     public void Every_birth_in_horizon_has_valid_parents_alive_at_conception_and_fertile_mother_age()
     {
-        var sink = new RecordingSink();
-        var (world, _) = ScenarioRunner.Create(DefaultSeed);
-        var clock = new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink);
-        clock.Run(world, HorizonHours);
+        // Seed 42 × 10 anos: checado dentro da corrida compartilhada DefaultVillageSeed42 (ADR-0044).
+        Assert.Null(DefaultVillageSeed42.Value.BirthParentsFailure);
+    }
 
+    /// <summary>Corpo do teste acima, sobre o mundo no ano 10 e os eventos gravados até ali.</summary>
+    internal static void AssertBirthParents(WorldState world, RecordingSink sink)
+    {
         var npcById = world.Npcs.ToDictionary(n => n.Id);
         var rules = world.PopulationRules;
 
@@ -141,7 +147,7 @@ public class FamilyPairedScenarioTests
 
     /// <summary>Flora e fauna também emitem <see cref="WorldEventKind.Birth"/>; só o do
     /// <c>NatalitySystem</c> é nascimento de NPC (carga: filho|mãe|pai|household).</summary>
-    private static bool IsNpcBirth((WorldEventKind Kind, string? Payload, string SourceSystem) e) =>
+    internal static bool IsNpcBirth((WorldEventKind Kind, string? Payload, string SourceSystem) e) =>
         e.Kind == WorldEventKind.Birth && e.SourceSystem == "NatalitySystem";
 
     // --- T25 (FAM-26) ---
@@ -162,11 +168,8 @@ public class FamilyPairedScenarioTests
     [Trait("Category", "Scenario")]
     public void Birth_count_over_horizon_is_compatible_with_scenario_derived_expectation()
     {
-        var sink = new RecordingSink();
-        var (world, _) = ScenarioRunner.Create(DefaultSeed);
-        new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink).Run(world, HorizonHours);
-
-        int births = sink.Events.Count(IsNpcBirth);
+        // Nascimentos de NPC da seed 42 em 10 anos, contados na corrida compartilhada DefaultVillageSeed42 (ADR-0044).
+        int births = DefaultVillageSeed42.Value.NpcBirthsYear10;
         var populationRules = ScenarioRunner.DefaultPopulationRules;
         double meanAgeAtFirstBirth = MeanAgeAtFirstBirthYears(populationRules);
         double expected = HorizonYears / meanAgeAtFirstBirth;
@@ -447,13 +450,13 @@ public class FamilyPairedScenarioTests
             EnvironmentalWealthChannelEnabled = false,
         };
 
-        var (worldOn, clockOn) = ScenarioRunner.Create(DefaultSeed);
-        clockOn.Run(worldOn, HorizonHours);
+        // Braço ligado: a vila padrão da seed 42 no ano 10, da corrida compartilhada DefaultVillageSeed42 (ADR-0044).
+        string hashOn = DefaultVillageSeed42.Value.HashYear10;
 
         var (worldOff, clockOff) = ScenarioRunner.Create(DefaultSeed, familyRules: phase7OffRules);
         clockOff.Run(worldOff, HorizonHours);
 
-        Assert.NotEqual(WorldSnapshot.CanonicalHash(worldOn), WorldSnapshot.CanonicalHash(worldOff));
+        Assert.NotEqual(hashOn, WorldSnapshot.CanonicalHash(worldOff));
     }
 
     private static void AssertMotherAndFather(
@@ -491,11 +494,22 @@ public class FamilyPairedScenarioTests
         (Math.Min(rules.FertilityMinAge, rules.Fertility.Endocrine.Enabled ? rules.Fertility.Endocrine.FemalePubertyMeanYears : rules.FertilityMinAge)
          + rules.FertilityMaxAge) / 2.0;
 
-    private sealed class RecordingSink : IWorldEventSink
+    /// <summary>Grava os eventos enquanto <see cref="Recording"/>; com <see cref="OnlyMarriagesAndBirths"/>, só o que os testes
+    /// de 10 anos leem (a corrida compartilhada segue por 60 anos e não precisa guardar o resto).</summary>
+    internal sealed class RecordingSink : IWorldEventSink
     {
         public List<(WorldEventKind Kind, string? Payload, string SourceSystem)> Events { get; } = [];
 
-        public void Record(WorldEvent evt) => Events.Add((evt.Kind, evt.Payload, evt.SourceSystem));
+        public bool Recording { get; set; } = true;
+
+        public bool OnlyMarriagesAndBirths { get; init; }
+
+        public void Record(WorldEvent evt)
+        {
+            if (!Recording) return;
+            if (OnlyMarriagesAndBirths && !(evt.Kind == WorldEventKind.Marriage || IsNpcBirth((evt.Kind, evt.Payload, evt.SourceSystem)))) return;
+            Events.Add((evt.Kind, evt.Payload, evt.SourceSystem));
+        }
     }
 
     private static string FindRepoRoot()

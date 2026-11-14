@@ -102,10 +102,12 @@ public class TechDiscoveryTests
             return Keys(world);
         }
 
-        string a = Run(4);
+        // As seeds 4 e 5 aos 2 anos vêm da corrida compartilhada (ADR-0044); a repetição da seed 4 continua sendo uma
+        // simulação nova e independente: é ela que prova o determinismo.
+        string a = Pressure(4).Keys2;
         Assert.NotEmpty(a);
         Assert.Equal(a, Run(4));
-        Assert.NotEqual(a, Run(5));
+        Assert.NotEqual(a, Pressure(5).Keys2);
     }
 
     [Fact]
@@ -243,7 +245,7 @@ public class TechDiscoveryTests
     /// <summary>Observações de uma vila sob pressão (<see cref="Pressured"/>) nos anos 2, 20 e 30. Uma corrida por seed,
     /// compartilhada pelos três cenários abaixo (ADR-0044): cada um lê o ano de que precisa e ninguém recebe o mundo.
     /// Horizonte por seed = o maior que algum leitor pede (1–3 e 1001–1003: 30 anos; 4–10: 20; 1004–1010: 2).</summary>
-    internal sealed record PressuredRun(string FirstKey, string? Keys20, string? Hash20, int? Count20, int? Count30, string? Set30);
+    internal sealed record PressuredRun(string FirstKey, string Keys2, string? Keys20, string? Hash20, int? Count20, int? Count30, string? Set30);
 
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<ulong, Lazy<PressuredRun>> PressuredRuns = new();
 
@@ -255,13 +257,14 @@ public class TechDiscoveryTests
         var (world, clock) = Village(seed, Pressured);
         clock.Run(world, world.Calendar.HoursPerYear * 2);
         string first = world.Technologies.FirstOrDefault(t => !t.IsVariation)?.Vector.Key ?? "";
-        if (horizon < 20) return new PressuredRun(first, null, null, null, null, null);
+        string keys2 = Keys(world);
+        if (horizon < 20) return new PressuredRun(first, keys2, null, null, null, null, null);
         clock.Run(world, world.Calendar.HoursPerYear * 18);
         string keys20 = Keys(world), hash20 = WorldSnapshot.CanonicalHash(world);
         int count20 = world.Technologies.Count;
-        if (horizon < 30) return new PressuredRun(first, keys20, hash20, count20, null, null);
+        if (horizon < 30) return new PressuredRun(first, keys2, keys20, hash20, count20, null, null);
         clock.Run(world, world.Calendar.HoursPerYear * 10);
-        return new PressuredRun(first, keys20, hash20, count20, world.Technologies.Count,
+        return new PressuredRun(first, keys2, keys20, hash20, count20, world.Technologies.Count,
             string.Join(";", world.Technologies.Where(t => !t.IsVariation).Select(t => t.Vector.Key)));
     }
 
@@ -317,10 +320,11 @@ public class TechDiscoveryTests
         {
             ParallelSeeds.ForEach(1, 10, seed =>
             {
-                var world = Pressure(seed);
-                // A repetição continua sendo uma simulação nova e independente: é ela que prova o determinismo.
+                // A repetição continua sendo uma simulação nova e independente: é ela que prova o determinismo. Roda ao lado da
+                // corrida compartilhada (que pode ainda estar sendo simulada), não depois dela.
+                PressuredRun world = null!;
                 var (again, clockAgain) = Village(seed, Pressured);
-                clockAgain.Run(again, again.Calendar.HoursPerYear * 20);
+                Parallel.Invoke(() => world = Pressure(seed), () => clockAgain.Run(again, again.Calendar.HoursPerYear * 20));
 
                 Assert.True(world.Count20 > 0);
                 Assert.Equal(world.Keys20, Keys(again));
