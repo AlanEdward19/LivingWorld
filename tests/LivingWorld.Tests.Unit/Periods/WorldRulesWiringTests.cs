@@ -62,15 +62,15 @@ public class WorldRulesWiringTests
     }
 
     [Fact]
-    public void Absent_blocks_leave_the_rules_disabled()
+    public void Absent_blocks_leave_disease_and_climate_disabled_and_theft_on_by_default()
     {
         var world = Load(Default());
         Assert.False(world.DiseaseRules.Enabled);
         Assert.False(world.ClimateRules.Enabled);
-        Assert.False(world.TheftRules.Enabled);
+        Assert.True(world.TheftRules.Enabled); // AD-150: o furto existe sem o cenário declarar
         Assert.Equal(DiseaseRules.Disabled, world.DiseaseRules);
         Assert.Equal(ClimateRules.Disabled, world.ClimateRules);
-        Assert.Equal(TheftRules.Disabled, world.TheftRules);
+        Assert.Equal(TheftRules.Default, world.TheftRules);
     }
 
     [Fact]
@@ -93,7 +93,7 @@ public class WorldRulesWiringTests
         Assert.Equal(0.7, world.TheftRules.BaseSuccess);
         Assert.Equal(4, world.TheftRules.GuardProfessionId);
         Assert.Equal(0.3, world.TheftRules.GuardEffect);
-        Assert.Equal(TheftRules.Disabled.DiscoveryChance, world.TheftRules.DiscoveryChance); // campo ausente usa o padrão
+        Assert.Equal(TheftRules.Default.DiscoveryChance, world.TheftRules.DiscoveryChance); // campo ausente usa o padrão
     }
 
     [Theory]
@@ -130,7 +130,7 @@ public class WorldRulesWiringTests
         var off = Default();
         off["Disease"] = JsonNode.Parse("""{"Enabled":false}""");
         off["Climate"] = JsonNode.Parse("""{"Enabled":false}""");
-        off["Theft"] = JsonNode.Parse("""{"Enabled":false}""");
+        off["Theft"] = JsonNode.Parse("""{"Enabled":true}"""); // AD-150: sem bloco, o furto é o padrão (ligado)
         var (a, clockA) = ScenarioLoaderV2.LoadWorld(plain.ToJsonString()).Value;
         var (b, clockB) = ScenarioLoaderV2.LoadWorld(off.ToJsonString()).Value;
         clockA.Run(a, 24 * 30);

@@ -131,6 +131,10 @@ public class WorldSnapshotTests
         world.UseInvention(LivingWorld.Domain.Invention.InventionRules.Default, invention);
         // AD-142: cérebro ligado (experimento), para o mutador ter folha em BrainRules.
         world.UseBrain(LivingWorld.Domain.Cognition.BrainRules.Default);
+        // AD-150: crime ligado com uma mágoa, para o mutador ter folha em Crime e CrimeRules.
+        var crime = new LivingWorld.Simulation.Crime.CrimeLedger();
+        crime.InsertGrudge(new LivingWorld.Simulation.Crime.Grudge { Holder = 1, Target = 2, Motive = "ofensa", Intensity = 40, Tick = 3 });
+        world.UseCrime(LivingWorld.Domain.Crime.CrimeRules.Default, crime);
         // taxes-treasury: livro do tesouro vazio não tem folha primitiva pro mutador genérico perturbar.
         world.RecordTreasury(city.Id, tick: 5, revenue: 3, spending: 1);
         // disease-epidemics: infecções e imunidades vazias não têm folha primitiva pro mutador genérico.

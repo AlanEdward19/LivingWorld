@@ -27,6 +27,15 @@ public static class SignificanceCalculator
             [WorldEventKind.Accident] = 0.8,
             [WorldEventKind.OldAge] = 0.85,
             [WorldEventKind.TheftDiscovered] = 0.4,
+            // AD-150: crime e justiça; a morte pesa como as outras mortes
+            [WorldEventKind.TheftCommitted] = 0.3,
+            [WorldEventKind.Assault] = 0.5,
+            [WorldEventKind.Homicide] = 0.9,
+            [WorldEventKind.CrimeReported] = 0.35,
+            [WorldEventKind.Verdict] = 0.55,
+            [WorldEventKind.Executed] = 0.9,
+            [WorldEventKind.Banished] = 0.65,
+            [WorldEventKind.InheritanceDisputed] = 0.4,
             [WorldEventKind.TechnologyDiscovered] = 0.6,
             [WorldEventKind.TechnologyAdopted] = 0.3,
             // AD-143: fazer funcionar uma coisa nova pesa como descobrir uma técnica; aprender e comprar, como adotar

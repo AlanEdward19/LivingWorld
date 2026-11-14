@@ -84,7 +84,6 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
         long now = ctx.CurrentTick;
         var marketIndex = MarketIndex.BuildForTick(world);
         var laborIndex = LaborValueIndex.BuildForTick(world);
-        var theftIndex = TheftIndex.BuildForTick(world);
         var targets = TargetsForTick(world);
 
         // Índice de ocupação construído uma vez por tick (O(população)), não por NPC — a versão
@@ -124,7 +123,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
             long startedBefore = npc.ActionStartedAtTick;
             bool justCompleted = TryCompleteAction(
                 world, npc, rules, catalog, now, marketIndex, ctx, occupancy,
-                cityPopulationCache, cityBoundsCache, theftIndex);
+                cityPopulationCache, cityBoundsCache);
             SettleCarried(world, npc, now); // AD-147: devolve em casa; longe, bebe do que leva se a sede é crítica
 
             ActionType chosen;
@@ -202,8 +201,8 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 beforeSteps = candidate;
                 candidate = ConstrainByDevelopment(world, npc, candidate);
                 if (workHour && !urgent && candidate != beforeSteps) diag.DevelopmentAtWork++;
-                if (urgent && npc.ControlledAction is null && world.TheftRules.Enabled && TheftResolver.Wants(world, npc, now, theftIndex))
-                    candidate = ActionType.Steal; // desespero + temperamento + alguém com moeda ao lado
+                if (urgent && npc.ControlledAction is null && world.TheftRules.Enabled && TheftResolver.Wants(world, npc, now))
+                    candidate = ActionType.Steal; // fome sem comida nem como comprar + temperamento + algo a levar (AD-150)
                 var sickAware = LivingWorld.Simulation.Health.SickBehavior.Constrain(world, npc, candidate, now); // de cama ou cuidando (AD-137)
                 if (workHour && !urgent && sickAware != candidate) { if (sickAware == ActionType.Idle) diag.CareAtWork++; else diag.SickAtWork++; }
                 // a cama troca a ação (comer, comprar) depois do marco: a troca também passa pelo desenvolvimento (AD-140). A
@@ -268,8 +267,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
     private static bool TryCompleteAction(
         WorldState world, Npc npc, NeedsRules rules, ActionCatalog catalog, long now,
         MarketIndex marketIndex, TickContext ctx, HashSet<CellCoord> occupancy,
-        Dictionary<CityId, long> cityPopulationCache, Dictionary<CityId, CityBounds> cityBoundsCache,
-        TheftIndex? theftIndex)
+        Dictionary<CityId, long> cityPopulationCache, Dictionary<CityId, CityBounds> cityBoundsCache)
     {
         if (npc.CurrentAction is not { } action) return false;
 
@@ -305,7 +303,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
         // AD-142: a ação que a utilidade escolheu e o cérebro guardou ensina pelo alívio que deu
         bool learn = world.BrainOn && npc.Brain?.PendingAction == action;
         var felt = learn ? FeltNow(world, npc, now) : default;
-        ApplyActionEffect(world, npc, action, marketIndex, now, ctx, theftIndex);
+        ApplyActionEffect(world, npc, action, marketIndex, now, ctx);
         if (learn)
             BrainMechanic.Learn(world, npc, action, BrainMechanic.Reward(felt, FeltNow(world, npc, now), ProvisionTargetDays));
         return true;

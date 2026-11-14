@@ -22,8 +22,13 @@ public static class LifeEventIntake
         switch (kind)
         {
             case WorldEventKind.Death or WorldEventKind.Starvation or WorldEventKind.Dehydration or WorldEventKind.Exhaustion
-                or WorldEventKind.Disease or WorldEventKind.MaternalDeath when sourceSystem == DeathSource:
+                or WorldEventKind.Disease or WorldEventKind.MaternalDeath or WorldEventKind.Homicide or WorldEventKind.Executed
+                when sourceSystem == DeathSource:
                 if (FindAt(world, payload, 0) is { } dead) Mourn(world, dead, tick);
+                return;
+            case WorldEventKind.TheftCommitted when Field(payload, 7) == "levou":
+                // AD-150: a vítima sente a perda mesmo sem saber quem foi (quem foi, se souber, vem no TheftDiscovered)
+                Experience(world, IdAt(payload, 1), LifeEventKind.Robbed, 0, tick, 0.7);
                 return;
             case WorldEventKind.Birth when sourceSystem == BirthSource:
                 {
