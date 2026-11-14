@@ -32,7 +32,7 @@ public sealed record TheftRules(
     double FenceShare = 0.5,
     long MaxCoinTaken = 60,
     double CaughtFightChance = 0.15,
-    double FamilyHungerPerDay = 0.08)
+    double FamilyHungerPerDay = 0.02)
 {
     /// <summary>Furto desligado (cenários e testes antigos que pedem explicitamente).</summary>
     public static TheftRules Disabled { get; } = new(false, 25, 1.1, 0.6, 0.5, 0.5, -1, 0.25);

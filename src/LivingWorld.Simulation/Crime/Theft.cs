@@ -54,31 +54,39 @@ internal static class Theft
         _ => "oportunidade",
     };
 
-    /// <summary>Quanto a fome aperta (0 no limite do desespero, 1 com a fome em zero); negativo = não está desesperado. Só a
-    /// fome: a água da casa vem do poço, do rio e da fonte, e furtar comida não mata a sede.</summary>
+    /// <summary>Quanto a necessidade aperta (0 no limite do desespero, 1 com a fome ou a sede em zero); negativo = não está
+    /// desesperado.</summary>
     public static double NeedOf(TheftRules rules, Npc npc, long now)
     {
-        int worst = npc.HungerAt(now);
+        int worst = Math.Min(npc.HungerAt(now), npc.ThirstAt(now));
         if (worst > rules.DesperateBelow) return -1;
         return rules.DesperateBelow <= 0 ? 1.0 : 1.0 - worst / (double)rules.DesperateBelow;
     }
 
-    public static bool HasFoodAtHome(WorldState world, Npc npc)
+    /// <summary>O que falta em casa para a necessidade desesperada (comida para a fome, água para a sede; a pior primeiro);
+    /// -1 = nada falta (o que precisa está em casa: vai comer ou beber) ou não está desesperado.</summary>
+    public static int MissingAtHome(WorldState world, Npc npc, long now)
     {
-        if (npc.Household is not { } id || world.FindHousehold(id) is not { } household) return false;
+        var rules = world.TheftRules;
         var economy = world.EconomyRules;
-        return household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId)) >= 1; // a água em casa não mata a fome
+        int hunger = npc.HungerAt(now), thirst = npc.ThirstAt(now);
+        var home = npc.Household is { } id ? world.FindHousehold(id) : null;
+        bool Lacks(int resource) => home is null || home.Stock.GetValueOrDefault(new ResourceType(resource)) < 1;
+        bool hungry = hunger <= rules.DesperateBelow && Lacks(economy.FoodResourceId);
+        bool thirsty = thirst <= rules.DesperateBelow && Lacks(economy.WaterResourceId);
+        if (hungry && (!thirsty || hunger <= thirst)) return economy.FoodResourceId;
+        return thirsty ? economy.WaterResourceId : -1;
     }
 
-    /// <summary>Pode comprar comida agora: tem moeda para o preço mais barato de uma banca da cidade que ainda tem comida.</summary>
-    public static bool CanBuyFood(WorldState world, Npc npc)
+    /// <summary>Pode comprar o recurso agora: tem moeda para o preço de uma banca da cidade que ainda o tem.</summary>
+    public static bool CanBuy(WorldState world, Npc npc, int resourceId)
     {
         if (npc.Wallet.Amount < 1) return false;
-        var food = new ResourceType(world.EconomyRules.FoodResourceId);
+        var resource = new ResourceType(resourceId);
         foreach (var shop in world.Workplaces)
         {
-            if (shop.City != npc.City || shop.Stock.GetValueOrDefault(food) < 1) continue;
-            if (npc.Wallet.Amount >= Math.Max(1, shop.Prices.GetValueOrDefault(food))) return true;
+            if (shop.City != npc.City || shop.Stock.GetValueOrDefault(resource) < 1) continue;
+            if (npc.Wallet.Amount >= Math.Max(1, shop.Prices.GetValueOrDefault(resource))) return true;
         }
         return false;
     }
@@ -100,17 +108,18 @@ internal static class Theft
     /// <summary>Alvo do furto conforme o motivo. Fome: comida da banca ou de outra casa (a mais perto), senão a moeda de quem
     /// está ao lado. Miséria: a moeda (de quem está ao lado ou guardada na casa mais rica e perto), senão comida. Oportunidade:
     /// o que valer mais, descontada a distância (casa, caixa de oficina, estoque de oficina).</summary>
-    public static TheftTarget? FindTarget(WorldState world, Npc thief, TheftMotive motive, bool foodOnly = false, WorldRng? rng = null)
+    public static TheftTarget? FindTarget(WorldState world, Npc thief, TheftMotive motive, bool foodOnly = false, WorldRng? rng = null, int resourceId = -1)
     {
         var pocket = Pocket(world, thief);
         if (motive == TheftMotive.Hunger)
         {
-            if (thief.Household is not null && (Food(world, thief) is { } food)) return food;
+            int needed = resourceId >= 0 ? resourceId : world.EconomyRules.FoodResourceId;
+            if (thief.Household is not null && (Food(world, thief, needed) is { } food)) return food;
             return foodOnly ? null : pocket;
         }
 
         if (motive == TheftMotive.Poverty)
-            return pocket ?? Purse(world, thief) ?? (thief.Household is not null ? Food(world, thief) : null);
+            return pocket ?? Purse(world, thief) ?? (thief.Household is not null ? Food(world, thief, world.EconomyRules.FoodResourceId) : null);
 
         // oportunidade: o que estiver à mão e valer a pena, na chance do valor descontada a distância (sem sorteio, o maior)
         Span<double> scores = stackalloc double[4];
@@ -167,10 +176,9 @@ internal static class Theft
     }
 
     /// <summary>Comida: a banca da cidade com comida (menor id), senão a casa com comida mais perto da do ladrão.</summary>
-    private static TheftTarget? Food(WorldState world, Npc thief)
+    private static TheftTarget? Food(WorldState world, Npc thief, int foodId)
     {
         var rules = world.TheftRules;
-        int foodId = world.EconomyRules.FoodResourceId;
         var food = new ResourceType(foodId);
         long want = rules.FoodDaysTaken * (long)Math.Max(1, HomeSize(world, thief));
         long price = PriceOf(world, thief.City, foodId);

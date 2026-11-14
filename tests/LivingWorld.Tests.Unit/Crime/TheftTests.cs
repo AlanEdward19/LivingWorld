@@ -92,6 +92,22 @@ public class TheftTests
     }
 
     [Fact]
+    public void Thirst_without_water_at_home_steals_water_and_water_at_home_sends_the_thirsty_to_drink()
+    {
+        var world = New(Rules());
+        var thief = Add(world, Average);
+        var home = Home(world, Here, thief);
+        var neighbour = Add(world, Honest, at: new CellCoord(3, 1));
+        Home(world, new CellCoord(3, 1), neighbour).Deposit(new ResourceType(world.EconomyRules.WaterResourceId), 20);
+        thief.SetThirst(3, 0);
+
+        Assert.True(TheftResolver.Wants(world, thief, 0));
+        TheftResolver.Resolve(world, thief, 0, Ctx(world));
+        Assert.True(home.Stock.GetValueOrDefault(new ResourceType(world.EconomyRules.WaterResourceId)) > 0);
+        Assert.False(TheftResolver.Wants(world, thief, 0)); // agora tem água em casa: vai beber
+    }
+
+    [Fact]
     public void Hunger_lowers_the_moral_barrier_and_food_at_home_or_money_for_the_stall_removes_the_motive()
     {
         var mild = Personality.Create(50, 50, 60, 50, 50, 50, 50, 60, 40, 60).Value!; // peso de Furtar 0,6

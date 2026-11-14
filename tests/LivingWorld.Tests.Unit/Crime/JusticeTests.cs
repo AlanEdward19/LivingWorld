@@ -94,7 +94,7 @@ public class JusticeTests
     [Fact]
     public void The_victim_reports_and_the_court_fines_the_thief_with_restitution_and_coin_is_conserved()
     {
-        var world = New(Sure, Rules(new JusticeRules { WitnessSeeChance = 1, MisidentifyChance = 0, ReportChance = 1, FearSilence = 0, ConvictBase = 1 }));
+        var world = New(Sure, Rules(new JusticeRules { WitnessSeeChance = 1, MisidentifyChance = 0, ReportChance = 1, FearSilence = 0, ConvictBase = 1, PettyTheftValue = 0 }));
         var thief = Add(world, Criminal, wallet: 200);
         var victim = Add(world, Honest, wallet: 40);
         var sink = new Sink();
