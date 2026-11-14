@@ -117,19 +117,24 @@ public static class DemographyReport
         public void Record(WorldEvent evt) { a.Record(evt); b.Record(evt); }
     }
 
-    /// <summary>Roda uma seed; as taxas contam a partir de <paramref name="warmupYears"/> (a pirâmide inicial é sintética).</summary>
+    /// <summary>Roda uma seed; as taxas contam a partir de <paramref name="warmupYears"/> (a pirâmide inicial é sintética).
+    /// <paramref name="observe"/> e <paramref name="afterMonth"/> só observam (corrida compartilhada dos testes, ADR-0044):
+    /// o primeiro recebe o mundo recém-criado e devolve um sink extra; o segundo roda no fim de cada mês (índice 0-based).</summary>
     public static SeedResult Run(ulong seed, int years, int warmupYears, LivingWorld.Domain.Cognition.BrainRules? brain = null,
-        LivingWorld.Domain.Population.Family.FamilyRules? familyRules = null)
+        LivingWorld.Domain.Population.Family.FamilyRules? familyRules = null,
+        Func<WorldState, IWorldEventSink?>? observe = null, Action<WorldState, int>? afterMonth = null)
     {
         var (world, baseClock) = ScenarioRunner.Create(seed, familyRules: familyRules);
         world.UseBrain(brain); // AD-142: experimento (nulo = desligado)
+        var extra = observe?.Invoke(world);
         var tally = new DemographyTally(world) { MeasureFromTick = warmupYears * world.Calendar.HoursPerYear };
         tally.Body.MeasureFromTick = tally.MeasureFromTick;
         tally.Family.MeasureFromTick = tally.MeasureFromTick;
         tally.Disease.MeasureFromTick = tally.MeasureFromTick;
         tally.Reproduction.MeasureFromTick = tally.MeasureFromTick;
         var food = new FoodTally(world);
-        var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, new BothSinks(tally, food));
+        IWorldEventSink sinks = extra is null ? new BothSinks(tally, food) : new BothSinks(new BothSinks(tally, food), extra);
+        var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, sinks);
         int months = years * world.Calendar.MonthsPerYear;
         int minAlive = int.MaxValue;
         for (int m = 0; m < months; m++)
@@ -146,6 +151,7 @@ public static class DemographyReport
             if (m >= warmupYears * world.Calendar.MonthsPerYear) tally.SampleMonth();
             if ((m + 1) % world.Calendar.MonthsPerYear == 0) tally.Body.SampleYear();
             food.SampleMonth();
+            afterMonth?.Invoke(world, m);
             minAlive = Math.Min(minAlive, world.AliveNpcIndex.Alive.Count);
             if (world.AliveNpcIndex.Alive.Count == 0) break;
         }

@@ -23,9 +23,12 @@ public class BrainExperimentHarness
     {
         int seeds = Env("LW_BRAIN_SEEDS", 5), years = Env("LW_BRAIN_YEARS", 10);
         var sb = new StringBuilder();
-        for (ulong seed = 1; seed <= (ulong)seeds; seed++)
-            foreach (bool brain in new[] { false, true })
-                sb.AppendLine(Run(seed, years, brain));
+        // Cada (seed, braço) é um mundo independente: em paralelo, com as linhas na mesma ordem de antes (seed, sem e com cérebro).
+        var arms = Enumerable.Range(1, seeds).SelectMany(s => new[] { ((ulong)s, false), ((ulong)s, true) }).ToArray();
+        var lines = new string[arms.Length];
+        Parallel.For(0, arms.Length, new ParallelOptions { MaxDegreeOfParallelism = LivingWorld.Tests.Shared.ParallelSeeds.Degree },
+            i => lines[i] = Run(arms[i].Item1, years, arms[i].Item2));
+        foreach (var line in lines) sb.AppendLine(line);
         File.WriteAllText(Environment.GetEnvironmentVariable("LW_BRAIN_OUT") ?? Path.Combine(Path.GetTempPath(), "lw-brain.txt"), sb.ToString());
     }
 

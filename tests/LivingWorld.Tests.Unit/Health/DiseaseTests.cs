@@ -395,12 +395,11 @@ public class DiseaseTests
         long control = 0, sick = 0, outbreaks = 0;
         var perSeed = ParallelSeeds.Map(1, 8, seed =>
         {
-            // controle: a vila padrão no ano 5, lida da corrida compartilhada (ADR-0044)
-            long plainAlive = LivingWorld.Tests.Unit.Population.DefaultVillageDecade.Runs[(int)seed - 1].Alive[5];
-
             var (ill, _) = ScenarioRunner.Create(seed, diseaseRules: disease);
             var counter = new RecordingSink();
             new WorldClock(ScenarioRunner.DefaultSystems(), sink: counter).Run(ill, 5 * 12 * 30 * 24);
+            // controle: a vila padrão no ano 5, lida da corrida compartilhada (ADR-0044) depois do braço doente, que não espera por ela
+            long plainAlive = LivingWorld.Tests.Unit.Population.DefaultVillageDecade.Runs[(int)seed - 1].Alive[5];
             return (Control: plainAlive,
                 Outbreaks: (long)counter.Events.Count(e => e.Kind == WorldEventKind.OutbreakStarted),
                 Sick: (long)ill.Npcs.Count(n => n.IsAlive));

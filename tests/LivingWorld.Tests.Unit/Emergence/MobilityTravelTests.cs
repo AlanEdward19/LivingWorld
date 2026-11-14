@@ -78,8 +78,8 @@ public class MobilityTravelTests
         var (off, clockOff) = ScenarioRunner.Create(5, emergenceRules: Rules with { PaceBonusPctPerPoint = 0 });
         ForceAdoption(on);
         ForceAdoption(off);
-        clockOn.Run(on, on.Calendar.HoursPerYear * 10);
-        clockOff.Run(off, off.Calendar.HoursPerYear * 10);
+        // Dois mundos independentes: lado a lado em vez de um depois do outro.
+        Parallel.Invoke(() => clockOn.Run(on, on.Calendar.HoursPerYear * 10), () => clockOff.Run(off, off.Calendar.HoursPerYear * 10));
 
         Assert.NotEqual(Trace(on), Trace(off));
         Assert.NotEqual(WorldSnapshot.CanonicalHash(on), WorldSnapshot.CanonicalHash(off));

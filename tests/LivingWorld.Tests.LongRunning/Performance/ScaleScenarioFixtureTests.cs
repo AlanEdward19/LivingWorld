@@ -2,7 +2,7 @@ using LivingWorld.Tests.Shared.Performance;
 
 namespace LivingWorld.Tests.LongRunning.Performance;
 
-[Collection(ScalePerformanceCollection.Name)]
+// Determinístico (sem tempo de relógio): fora da coleção serial "Scale performance", roda em paralelo no verify.sh.
 public class ScaleScenarioFixtureTests
 {
     private const long OneMonthTicks = 30 * 24;

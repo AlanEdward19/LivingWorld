@@ -106,44 +106,24 @@ public class OntogenyDebtsTests
 
     /// <summary>Mortes de crianças por privação e meses-criança <b>seguidos</b> sem adulto no domicílio (com adulto disponível na cidade), em 6 anos de vila.
     /// A morte dos pais dispara depois do sistema mensal no último tick, então uma virada de mês descoberta é esperada; duas seguidas, não.</summary>
-    private static (int Deaths, int OrphanMonths, string Hash) RunVillage(ulong seed, bool withOrphanCare)
+    /// <remarks>O braço com acolhimento é a vila padrão (regras de ontogenia padrão, 100 NPCs) e vem da corrida compartilhada
+    /// <see cref="Population.DefaultVillageDecade"/> (ADR-0044), com a mesma observação (<see cref="OrphanWatch"/>).</remarks>
+    internal static (int Deaths, int OrphanMonths, string Hash) RunVillage(ulong seed, bool withOrphanCare)
     {
         var ontogeny = withOrphanCare ? OntogenyDefaults.Human : OntogenyRules.Create(true, OntogenyDefaults.HumanMilestones, OntogenyDefaults.HumanRequirements, orphanCare: false).Value!;
         var (world, _) = ScenarioRunner.Create(seed, initialPopulation: 100, ontogenyRules: ontogeny);
-        var systems = ScenarioRunner.DefaultSystems();
-        int deaths = 0, orphanMonths = 0;
-        var uncoveredBefore = new HashSet<NpcId>();
-        var clock = new WorldClock(systems, 1000, new DeathSink(() => world, () => deaths++));
-        var rules = world.LifeStageRules;
-        for (int month = 0; month < 6 * 12; month++)
+        var watch = new OrphanWatch();
+        var clock = new WorldClock(ScenarioRunner.DefaultSystems(), 1000, watch.Sink(world));
+        for (int month = 0; month < OrphanWatch.Months; month++)
         {
             clock.Run(world, Month);
-            var now = world.CurrentDate;
-            var uncoveredNow = new HashSet<NpcId>();
-            foreach (var kid in world.Npcs)
-            {
-                if (!kid.IsAlive || rules.LifeStageOf(kid.AgeYears(now)) != LifeStage.Child) continue;
-                bool covered = kid.Household is { } id && world.FindHousehold(id) is { } home && HouseholdRedistribution.HasLivingAdultOrElder(world, home, rules, now);
-                if (covered) continue;
-                bool adultAvailable = world.Npcs.Any(n => n.IsAlive && n.Household is not null && n.City == kid.City && rules.LifeStageOf(n.AgeYears(now)) is LifeStage.Adult or LifeStage.Elder);
-                if (!adultAvailable) continue;
-                uncoveredNow.Add(kid.Id);
-                if (uncoveredBefore.Contains(kid.Id)) orphanMonths++;
-            }
-            uncoveredBefore = uncoveredNow;
+            watch.AfterMonth(world);
         }
-        return (deaths, orphanMonths, WorldSnapshot.CanonicalHash(world));
+        return (watch.Deaths, watch.OrphanMonths, WorldSnapshot.CanonicalHash(world));
     }
 
-    private sealed class DeathSink(Func<WorldState> world, Action onChildDeath) : IWorldEventSink
-    {
-        public void Record(WorldEvent e)
-        {
-            if (e.Kind is not (WorldEventKind.Starvation or WorldEventKind.Dehydration or WorldEventKind.Exhaustion)) return;
-            var w = world();
-            if (w.FindNpc(new NpcId(long.Parse(e.Payload.Split('|')[0]))) is { } npc && npc.AgeYears(w.CurrentDate) < 14) onChildDeath();
-        }
-    }
+    private static (int Deaths, int OrphanMonths, string Hash) SharedWithOrphanCare(ulong seed) =>
+        Population.DefaultVillageDecade.Runs[(int)seed - 1].Orphans;
 
     [Fact]
     [Trait("Category", "Scenario")]
@@ -151,7 +131,12 @@ public class OntogenyDebtsTests
     {
         int controlDeaths = 0, treatedDeaths = 0, treatedOrphanMonths = 0, worse = 0, fewer = 0, hashesChanged = 0;
         // Seeds independentes: rodam em paralelo; a soma é feita depois, em ordem de seed.
-        var runs = ParallelSeeds.Map(1, Seeds, seed => (With: RunVillage(seed, true), Without: RunVillage(seed, false)));
+        var runs = ParallelSeeds.Map(1, Seeds, seed =>
+        {
+            // O braço sem acolhimento roda primeiro: enquanto isso a corrida compartilhada termina em outras threads.
+            var without = RunVillage(seed, false);
+            return (With: SharedWithOrphanCare(seed), Without: without);
+        });
         foreach (var (with, without) in runs)
         {
             treatedOrphanMonths += with.OrphanMonths;

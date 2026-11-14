@@ -6,8 +6,7 @@
 #              Antes de fechar fase / abrir PR grande.
 #   --nightly  --full + `Category=Heavy` (10 mil NPCs, 100x, sensor de 5 mil).
 # Um build só (build.sh); os `dotnet test` rodam com --no-build. As suítes independentes rodam em paralelo, cada uma
-# com o seu log; o namespace `LongRunning.Performance` (asserts de tempo e alocação) roda depois, sozinho na máquina,
-# como antes. Qualquer suíte reprovada derruba o gate e tem o log impresso. Logs: $LW_VERIFY_LOGS (padrão: dir temporário).
+# com o seu log; os testes `Category=Timing` (asserts e medidas de tempo de relógio) rodam depois, sozinhos na máquina. Qualquer suíte reprovada derruba o gate e tem o log impresso. Logs: $LW_VERIFY_LOGS (padrão: dir temporário).
 # O cliente web foi aposentado do gate (migração para Godot): build/test/tipos TS não rodam mais aqui.
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -41,8 +40,10 @@ wait_all() { # espera todos; imprime o resumo de cada um e o log inteiro de quem
   return $fail
 }
 
-PERF='FullyQualifiedName~LivingWorld.Tests.LongRunning.Performance.'
-NOT_PERF='FullyQualifiedName!~LivingWorld.Tests.LongRunning.Performance.'
+# Fase quieta: só o que mede tempo de relógio (`Category=Timing`). O resto do namespace Performance (bytes, alocação,
+# população, hash, harnesses sem assert de tempo) é determinístico e roda junto com as outras suítes.
+PERF='Category=Timing'
+NOT_PERF='Category!=Timing'
 if [ -z "$MODE" ]; then
   start lint lint.sh
   start unit test.sh --no-build
