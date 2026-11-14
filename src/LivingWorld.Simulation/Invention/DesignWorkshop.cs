@@ -125,10 +125,22 @@ public static class DesignWorkshop
         var rng = ctx.OneShot($"build-{npc.Id.Value}-{now}");
         int noise = (int)(rules.ManufacturingNoisePm * (100 - skill) / 100 + (1000 - order.FidelityPm) / 4);
         var built = DesignSearch.AsBuilt(design.Parts, rules.Materials, noise, rng);
-        var perf = PhysicsEvaluator.Evaluate(built, rules, InventionSystem.RiderKg(npc, rules));
-        int index = ledger.MindIndex(npc.Id.Value);
-        var mind = index >= 0 ? ledger.Minds[index] : new InventionMind(npc.Id.Value, 0, 0, 0, 0, FailureMode.None, null, 0);
-        if (!perf.Works)
+        bool carry = ledger.FunctionOf(design.Id) == CarryInvention.Function; // AD-147: recipiente passa pela sonda de conter
+        var perf = carry ? default : PhysicsEvaluator.Evaluate(built, rules, InventionSystem.RiderKg(npc, rules));
+        var held = carry ? PhysicsEvaluator.Contain(built, rules) : default;
+        bool works = carry ? held.Works : perf.Works;
+        if (carry && !works)
+        {
+            world.InventionTally.BuildFailures++;
+            if (order.MarketId is not null) world.InventionTally.SaleBuildFailures++;
+            Salvage(world, npc, design);
+            CarryInvention.BuildFailed(world, ctx, npc, held.Failure, now);
+            return;
+        }
+        int index = carry ? ledger.CarryMindIndex(npc.Id.Value) : ledger.MindIndex(npc.Id.Value);
+        var mind = index >= 0 ? (carry ? ledger.CarryMinds[index] : ledger.Minds[index])
+            : new InventionMind(npc.Id.Value, 0, 0, 0, 0, FailureMode.None, null, 0);
+        if (!works)
         {
             world.InventionTally.BuildFailures++;
             if (order.MarketId is not null) world.InventionTally.SaleBuildFailures++;
@@ -149,11 +161,13 @@ public static class DesignWorkshop
             ledger.Items.Add(item with { HouseholdId = home.Value, SellerId = npc.Id.Value, MarketId = market.Id.Value, Price = ask });
             ledger.Touch();
             world.InventionTally.Listed++;
-            ledger.PutMind(mind with { BusyUntilTick = now });
+            if (carry) ledger.PutCarryMind(mind with { BusyUntilTick = now });
+            else ledger.PutMind(mind with { BusyUntilTick = now });
             return;
         }
         InventionSystem.AddItem(world, npc, design, skill, now);
-        ledger.PutMind(mind with { FrustrationMinutes = 0, BusyUntilTick = now });
+        if (carry) ledger.PutCarryMind(mind with { FrustrationMinutes = 0, BusyUntilTick = now });
+        else ledger.PutMind(mind with { FrustrationMinutes = 0, BusyUntilTick = now });
     }
 
     /// <summary>Construção que falhou: parte do material volta ao estoque da casa (o resto foi cavaco e quebra).</summary>

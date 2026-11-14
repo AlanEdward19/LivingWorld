@@ -58,6 +58,8 @@ internal static class DesignSearch
             FailureMode.Capsizes => [Op.Duplicate, Op.Recombine, Op.Scale, Op.AddFlat],
             FailureMode.Breaks => [Op.Scale, Op.Joint, Op.SwapMaterial, Op.Duplicate],
             FailureMode.TooSlow => [Op.AddFlat, Op.Reshape, Op.Remove, Op.Scale],
+            FailureMode.TooHeavy => [Op.Scale, Op.SwapMaterial, Op.Remove, Op.Hollow], // AD-147: pesa demais para levar
+            FailureMode.TooSmall => [Op.Scale, Op.Hollow, Op.Duplicate],
             _ => All,
         };
         return rng.NextDouble() < 0.7 ? favored[(int)(rng.NextDouble() * favored.Length)] : All[(int)(rng.NextDouble() * All.Length)];

@@ -72,18 +72,29 @@ design sem quem saiba e sem item vira lápide (`DesignTombstone`). Item que sobr
 - **Pessoa 0**: `LifeEventIntake` lê "ninguém" como campo ausente ou ilegível (-1), não como 0: a pessoa 0
   passa a lembrar do que vive. Na lembrança, `Other` = 0 ainda é "ninguém" (backlog 7a).
 
+## O que a pessoa leva consigo (AD-147)
+- **Despensa em casa** (`PantryNeedsPresence`, **desligada por padrão**: ligada, morria-se de sede preso no mercado vazio): a mais
+  de uma hora de caminho, come e bebe do que leva, da ração da oficina, ou volta para comer. **Carga** (`InventionLedger.Carried`): peso = `FootCarryKg`; mãos nuas `HandsVolumeMl` (uma
+  ração, nada de `LiquidResourceIds`); `UnitMl` é o volume de cada recurso. Ao sair, leva o que sede e fome pedem até voltar (ida +
+  estada + volta), deixando uma unidade por dia de cada outro morador; longe e crítico, consome antes de decidir; em casa, devolve.
+- **Recipiente é design** (`PhysicsEvaluator.Contain`): oco (ml) e a parte estanque, massa, carga que a mesma viga aguenta até o
+  oco cheio d'água e o teto da pessoa, e tira (parte chata e fina, junção flexível) que prende ao corpo. Falhas `TooHeavy`, `TooSmall`.
+- **Problema de carregar** (`CarryMinds`): compra cortada pelo que cabe e voltar para comer viram frustração com o volume que faltou;
+  a ideia parte de um oco desse tamanho em cada material conhecido; o resto (crença, protótipo, ensino, cópia no mercado,
+  encomenda, venda com procura por função) é o da travessia. A função fica com o design (`CarryDesigns`). O recipiente da casa amplia
+  a carga pessoal e a compra a pé (preso ao corpo soma aos braços). `GET /designs/{id}`: `function` e `holds`.
+
 ## Consumidor causal
-`Mobility.TravelTicks` e `HouseholdTicks` (vau ou remo), tamanho da compra (carga), despensa (pesca),
-carteira de quem compra e de quem vende, `ProductionSystem` (encomendas), vontade de tentar (relatos).
+`Mobility.TravelTicks` e `HouseholdTicks` (vau ou remo), tamanho da compra (carga, recipiente), despensa (pesca), sede e fome
+longe de casa (carga pessoal), carteiras, `ProductionSystem` (encomendas), vontade de tentar (relatos).
 
 ## Contrato com o cliente
 `GET /designs`, `GET /designs/{id}` (lápide traz `accounts` e `lostTick`) e `GET /designs/by-fact/{id}`:
 partes e materiais; `object_factory.gd::build_design` monta uma malha por parte.
 
 ## Ainda não
-Animação por junção, pose de uso, terra e ar, química (remédio e contracepção), robôs, substituir o
-`TechDiscoverySystem` (backlog `05-invencao-emergente.md`, fatias seguintes).
+Animação, pose de uso, terra e ar, química, robôs, substituir o `TechDiscoverySystem` (backlog `05-invencao-emergente.md`).
 
 ## Números
-Padrão em `InventionRules` (Domain); `InventionRules.Disabled` = mundo de antes. Valores e marcas
-"precisa de conferência" nos registros AD-141 e AD-143 de `docs/decisions-log.md`.
+Padrão em `InventionRules` (Domain); `InventionRules.Disabled` = mundo de antes. Valores e marcas "precisa de conferência"
+nos registros AD-141, AD-143 e AD-147 de `docs/decisions-log.md`.

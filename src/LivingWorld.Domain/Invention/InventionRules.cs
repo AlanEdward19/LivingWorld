@@ -170,7 +170,43 @@ public sealed record InventionRules
     /// <summary>Quanto (‰) relato vivo de algo que já funcionou e se perdeu aumenta a vontade de tentar de quem o ouviu na cidade.</summary>
     public int RumorAttemptBoostPm { get; init; } = 500;
 
+    // --- o que a pessoa leva consigo (AD-147) ---
+
+    /// <summary>Volume (ml) que cabe nas mãos e na roupa de quem não tem recipiente: um pão, um punhado. Líquido não viaja sem
+    /// parede estanque. O peso que a pessoa leva é o mesmo teto da carga a pé (<see cref="FootCarryKg"/>).</summary>
+    public int HandsVolumeMl { get; init; } = 1500;
+
+    /// <summary>Volume de uma unidade de recurso (ml), por id; o resto ocupa <see cref="DefaultUnitMl"/>. Padrão: comida (1) ≈ a
+    /// ração de grão de um dia (700 g a ~0,74 kg/l); água (2) = 2 litros.</summary>
+    public IReadOnlyDictionary<int, int> UnitMl { get; init; } = new Dictionary<int, int> { [1] = 950, [2] = 2000 };
+
+    public int DefaultUnitMl { get; init; } = 1000;
+
+    /// <summary>Recursos que escorrem: só viajam no volume estanque de um recipiente.</summary>
+    public IReadOnlyList<int> LiquidResourceIds { get; init; } = [2];
+
+    /// <summary>A despensa serve quem está em casa: quem está a mais de uma hora de caminho come e bebe do que leva, ou volta.
+    /// **Desligado por padrão** (AD-147): ligado, 2 seeds × 70 anos deram ~7% das mortes por sede longe de casa (contra 0 na base),
+    /// gente presa no mercado vazio; falso = a despensa alcança qualquer lugar, como antes, e ninguém arruma carga ao sair.</summary>
+    public bool PantryNeedsPresence { get; init; }
+
     public int UnitGramsOf(int resourceId) => UnitGrams.TryGetValue(resourceId, out int g) && g > 0 ? g : DefaultUnitGrams;
+
+    public int UnitMlOf(int resourceId) => UnitMl.TryGetValue(resourceId, out int ml) && ml > 0 ? ml : DefaultUnitMl;
+
+    public bool IsLiquid(int resourceId)
+    {
+        foreach (int id in LiquidResourceIds) if (id == resourceId) return true;
+        return false;
+    }
+
+    /// <summary>O menor volume de uma unidade de qualquer recurso: abaixo dele um oco não guarda nada que sirva.</summary>
+    public int SmallestUnitMl()
+    {
+        int min = DefaultUnitMl;
+        foreach (var ml in UnitMl.Values) if (ml > 0 && ml < min) min = ml;
+        return min;
+    }
 
     public static IReadOnlyList<MaterialSpec> DefaultMaterials { get; } =
     [
@@ -203,6 +239,7 @@ public sealed record InventionRules
         if (WaterDensityKgM3 <= 0 || GravityMmS2 <= 0 || HumanPowerW <= 0 || WalkPaceMmS <= 0) return "natureza ou corpo inválidos";
         if (JointEfficiencyPm.Count != 5 || JointMinutes.Count != 5) return "JointEfficiencyPm/JointMinutes: 5 valores";
         if (VariantsPerAttempt <= 0 || FrustrationThresholdMinutes <= 0) return "busca ou limiar inválidos";
+        if (HandsVolumeMl < 0 || DefaultUnitMl <= 0) return "HandsVolumeMl/DefaultUnitMl inválidos";
         return null;
     }
 }

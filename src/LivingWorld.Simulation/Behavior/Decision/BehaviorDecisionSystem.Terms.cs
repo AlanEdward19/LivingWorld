@@ -34,6 +34,9 @@ public enum UtilityTerm : byte
     Continuity,
     Menstruation,
     Adolescence,
+
+    /// <summary>AD-147: fome ou sede crítica tira o lazer da frente (o teto de Conversar e Ficar à toa).</summary>
+    BodyOverride,
 }
 
 /// <summary>Quanto um termo somou (ou tirou) da utilidade de uma ação.</summary>
@@ -189,6 +192,23 @@ public sealed partial class BehaviorDecisionSystem
                 lens.Credit(UtilityGroup.Continuity, fickle);
                 Note(sink, action, UtilityTerm.Adolescence, fickle, lens.Factor(UtilityGroup.Continuity));
             }
+        }
+
+        // AD-147 (backlog 08, item 47): o lazer não passa na frente do corpo. Com fome ou sede crítica, Conversar e Ficar à toa
+        // param no déficit crítico, abaixo de qualquer Comer que a despensa sirva. Antes o peso de personalidade (até 3×) e o vínculo
+        // levavam Conversar a ~300 contra 160 de Comer com a sede no zero, e quem estava sozinho em casa (sem ninguém para aliviar a
+        // solidão) conversava de hora em hora até morrer de sede com água na despensa.
+        // Só quando a despensa serve a necessidade crítica (Comer passa do déficit crítico): sem o que comer em casa, o teto mudava
+        // a escolha de quem não tinha saída e a fome subia (seeds 1–2 × 100 anos: 4,4% → 7,7%). Estendê-lo a Trabalhar e Comprar
+        // (tentativa 3) levou a fome de 6,4% a 11,7% em 20 × 100.
+        if (rules.Psyche.CriticalBodyOverridesLeisure && action is ActionType.Socialize or ActionType.Idle
+            && knockout != UtilityTerm.BodyOverride && score > CriticalDeficit
+            && EatUtilityOf(ctx, economy) > CriticalDeficit)
+        {
+            double cut = CriticalDeficit - score;
+            score = CriticalDeficit;
+            lens.Credit(UtilityGroup.Base, cut / lens.Factor(UtilityGroup.Base));
+            Note(sink, action, UtilityTerm.BodyOverride, cut);
         }
 
         return typeof(TLens) == typeof(NoBrain) ? score : lens.Total;

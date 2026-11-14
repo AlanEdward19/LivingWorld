@@ -64,5 +64,15 @@ Fatias seguintes:
     com teto de peso e volume: de mão nua quase nada; recipiente (cantil, cesto, bolsa, mochila) é `Design` avaliado
     pela física (estanque, volume, peso), inventado e copiado como o resto. A pessoa bebe e come do que leva, e decide
     o que levar ao sair. Liga com 2a (carga por viagem) e com a sede do AD-145 ([08](08-a-investigar.md), item 37).
+    **Feito (AD-147, `docs/domain/invention.md`)**: sonda de conter, recipiente inventado pela compra cortada, ensinado,
+    copiado, vendido; amplia a compra a pé; carga pessoal, arrumar ao sair, comer do que leva, devolver (atrás de
+    `PantryNeedsPresence`). 20×100: recipiente inventado nas 20 seeds (31), 8.545 vendas. Ficou de fora:
+    - 12a. `PantryNeedsPresence` desligado: ligado, sede 6,4% (presos no mercado da fazenda vazio, empate fome × sede).
+    - 12b. Nenhum recipiente com tira apareceu (0 kg a mais na compra): na mão leva o máximo de 30 kg e de mais.
+    - 12c. A carga não é da pessoa e sim do melhor recipiente da casa; ninguém leva o item (vários saem com o mesmo).
+    - 12d. Sem tampa: estanque basta para levar água; derramar ao andar não existe.
+    - 12e. Só a compra cortada gera o problema por padrão (voltar para comer só com a despensa em casa).
+    - 12f. Carga em `/npcs/{id}` não exposta (só `GET /designs/{id}`: `function`, `holds`).
+    - 12g. `Npc.CarriedResourceId` (transporte do processo de recursos) segue à parte; juntar com `Carried`.
 
 Critério da Fase 24 editado em 2026-11-13 com a frase aprovada pelo dono (`docs/roadmap/phase-24-emergence.md`).

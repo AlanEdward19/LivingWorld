@@ -45,6 +45,11 @@ public sealed record PsycheRules
     /// <summary><c>Socialize</c> só satisfaz a necessidade social com alguém por perto.</summary>
     public bool SocializeNeedsCompany { get; init; } = true;
 
+    /// <summary>AD-147 (backlog 08, item 47): com fome ou sede crítica que a despensa serve, Conversar e Ficar à toa param no déficit
+    /// crítico e Comer vence. **Desligado por padrão**: a causa está confirmada (sozinho em casa a solidão nunca alivia e o peso de
+    /// personalidade, até 3×, punha Conversar acima da sede no zero), mas a medição não fechou neutra para a fome.</summary>
+    public bool CriticalBodyOverridesLeisure { get; init; }
+
     /// <summary>Fome em zero por pelo menos tantas horas vira lembrança de fome.</summary>
     public int FamineMinHours { get; init; } = 24;
 
