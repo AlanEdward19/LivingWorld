@@ -317,7 +317,8 @@ internal static class Justice
             return ("banimento", paid);
         if (grave || paid < owed)
         {
-            convict.SetHealth(convict.Health - rules.CorporalHarm); // pelourinho, açoite
+            // pelourinho, açoite: fere, mas o castigo não mata nem deixa no piso de perigo (≤ 1), de onde a vizinhança fugiria
+            convict.SetHealth(Math.Max(Math.Min(convict.Health, AliveNpcIndex.EndangeredHealth + 1), convict.Health - rules.CorporalHarm));
             return (paid > 0 ? "multa_castigo" : "castigo", paid);
         }
         return ("multa", paid);

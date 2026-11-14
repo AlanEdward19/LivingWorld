@@ -72,7 +72,9 @@ internal static class Violence
         long now = ctx.CurrentTick;
         double strength = Math.Clamp((aggressor.MuscleMass + 5) / Math.Max(5.0, victim.MuscleMass + 5), 0.4, 2.5);
         int harm = Math.Max(1, (int)Math.Round(rules.HarmMean * strength * (1 + rules.HarmSpread * (2 * rng.NextDouble() - 1))));
-        bool lethal = rng.NextDouble() < rules.LethalChance * strength || victim.Health - harm <= 0;
+        // o golpe que deixaria a saúde no piso de "perigo observável" (≤ 1) mata: ferido vivo nunca fica ali, onde quem está
+        // perto foge sem parar (AD-150: a vila fugia de um ferido até morrer de sede com água em casa)
+        bool lethal = rng.NextDouble() < rules.LethalChance * strength || victim.Health - harm <= AliveNpcIndex.EndangeredHealth;
         var where = victim.CurrentLocation;
         var outcome = Justice.OnCrime(world, ctx, lethal ? CrimeKind.Homicide : CrimeKind.Assault, aggressor, victim,
             victim.Id.Value, where, harm, "corpo", motive, caught: false, rng);
