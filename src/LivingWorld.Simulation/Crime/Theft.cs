@@ -72,6 +72,7 @@ internal static class Theft
         int hunger = npc.HungerAt(now), thirst = npc.ThirstAt(now);
         var home = npc.Household is { } id ? world.FindHousehold(id) : null;
         bool Lacks(int resource) => home is null || home.Stock.GetValueOrDefault(new ResourceType(resource)) < 1;
+        if (thirst <= rules.DesperateBelow && !Lacks(economy.WaterResourceId)) return -1; // com sede e água em casa, beber vem antes
         bool hungry = hunger <= rules.DesperateBelow && Lacks(economy.FoodResourceId);
         bool thirsty = thirst <= rules.DesperateBelow && Lacks(economy.WaterResourceId);
         if (hungry && (!thirsty || hunger <= thirst)) return economy.FoodResourceId;
@@ -115,7 +116,8 @@ internal static class Theft
         {
             int needed = resourceId >= 0 ? resourceId : world.EconomyRules.FoodResourceId;
             if (thief.Household is not null && (Food(world, thief, needed) is { } food)) return food;
-            return foodOnly ? null : pocket;
+            // a moeda de quem está ao lado só serve se há onde comprar o que falta (na fome sem nada à venda, não)
+            return foodOnly || !OnSale(world, thief.City, needed) ? null : pocket;
         }
 
         if (motive == TheftMotive.Poverty)
@@ -140,6 +142,14 @@ internal static class Theft
         int best = 0;
         for (int i = 1; i < candidates.Length; i++) if (scores[i] > scores[best]) best = i;
         return candidates[best];
+    }
+
+    private static bool OnSale(WorldState world, CityId city, int resourceId)
+    {
+        var resource = new ResourceType(resourceId);
+        foreach (var shop in world.Workplaces)
+            if (shop.City == city && shop.Stock.GetValueOrDefault(resource) >= 1) return true;
+        return false;
     }
 
     private static int Distance(CellCoord a, CellCoord b) => Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);

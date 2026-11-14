@@ -21,6 +21,12 @@ public class TheftTests
     private static TheftRules Rules(double success = 1.0, double discovery = 1.0, double guardEffect = 0.25, int guard = -1) =>
         TheftRules.Default with { BaseSuccess = success, DiscoveryChance = discovery, GuardEffect = guardEffect, GuardProfessionId = guard };
 
+    private static void Pickpocket(WorldState world, Npc thief, long tick, LivingWorld.Simulation.Scheduling.TickContext ctx)
+    {
+        if (Theft.FindTarget(world, thief, TheftMotive.Poverty) is { } target)
+            Theft.Commit(world, ctx, thief, TheftMotive.Poverty, target, world.Rng.OneShot($"pp-{thief.Id.Value}-{tick}"));
+    }
+
     private static void Starve(Npc npc, int level = 10)
     {
         npc.SetHunger(level, 0); // só a fome: com sede, a pessoa vai beber antes de furtar
@@ -113,7 +119,9 @@ public class TheftTests
         var mild = Personality.Create(50, 50, 60, 50, 50, 50, 50, 60, 40, 60).Value!; // peso de Furtar 0,6
         var world = New(Rules());
         var thief = Add(world, mild);
-        Add(world, Honest, wallet: 50); // alguém com moeda ao lado
+        Home(world, Here, thief);
+        var neighbour = Add(world, Honest, at: new CellCoord(3, 1));
+        Home(world, new CellCoord(3, 1), neighbour).Deposit(new ResourceType(world.EconomyRules.FoodResourceId), 20);
         Starve(thief, 24); // no limite do desespero: a barreira é 1,1
         Assert.False(TheftResolver.Wants(world, thief, 0));
         Starve(thief, 2); // fome extrema: a barreira cai a ~0,55
@@ -137,9 +145,8 @@ public class TheftTests
         for (int i = 0; i < 25; i++) bond.ApplyEvent(RelationshipEventType.Help, world.FamilyRules); // confiança 50
         long before = Coin(world);
         var sink = new Sink();
-        Starve(thief);
 
-        TheftResolver.Resolve(world, thief, 5, Ctx(world, sink));
+        Pickpocket(world, thief, 5, Ctx(world, sink));
 
         Assert.Equal(before, Coin(world));
         Assert.Equal(50, thief.Wallet.Amount);
@@ -201,7 +208,7 @@ public class TheftTests
             var thief = Add(world, Criminal);
             Add(world, Honest, wallet: 1000);
             Starve(thief);
-            for (long tick = 1; tick <= 40; tick++) TheftResolver.Resolve(world, thief, tick, Ctx(world));
+            for (long tick = 1; tick <= 40; tick++) Pickpocket(world, thief, tick, Ctx(world));
             return world.Npcs.Select(n => n.Wallet.Amount).ToList();
         }
 
@@ -229,8 +236,8 @@ public class TheftTests
                 richA.CreditWallet(new Money(1_000_000 - richA.Wallet.Amount));
                 richB.CreditWallet(new Money(1_000_000 - richB.Wallet.Amount));
                 long beforeA = a.Wallet.Amount, beforeB = b.Wallet.Amount;
-                TheftResolver.Resolve(plain, a, tick, Ctx(plain));
-                TheftResolver.Resolve(watched, b, tick, Ctx(watched));
+                Pickpocket(plain, a, tick, Ctx(plain));
+                Pickpocket(watched, b, tick, Ctx(watched));
                 if (a.Wallet.Amount > beforeA) open++;
                 if (b.Wallet.Amount > beforeB) guarded++;
             }

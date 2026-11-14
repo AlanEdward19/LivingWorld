@@ -165,7 +165,8 @@ public class JusticeTests
         Home(world, Here, borderline);
         double before = CrimeSystem.PlannedTheftPerYear(world, borderline, CrimeSystem.DeterrenceOf(world, borderline, 0), 0, out _);
         borderline.SetHunger(20, 0);
-        Add(world, Honest, wallet: 50);
+        var neighbour = Add(world, Honest, at: new CellCoord(3, 1));
+        Home(world, new CellCoord(3, 1), neighbour).Deposit(new ResourceType(world.EconomyRules.FoodResourceId), 20);
         Assert.True(TheftResolver.Wants(world, borderline, 0));
 
         // três condenações na cidade: o exemplo pesa
