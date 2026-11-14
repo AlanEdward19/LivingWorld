@@ -51,8 +51,10 @@ public sealed class Workplace
         WorkplaceId id, LocationType locationType, CellCoord location, int maxVacancies,
         IReadOnlyList<NpcId> employees, IReadOnlyDictionary<ResourceType, long> stock, Money treasury,
         IReadOnlyDictionary<ResourceType, long> prices, CityId city = default, BuildingId? building = null,
-        NpcId? owner = null, bool payrollFailed = false, IReadOnlyList<BoardDebt>? board = null)
+        NpcId? owner = null, bool payrollFailed = false, IReadOnlyList<BoardDebt>? board = null,
+        IReadOnlyList<WorkplaceStake>? partners = null)
     {
+        _partners = partners is null ? [] : partners.Where(p => p.Basis > 0).OrderBy(p => p.Npc.Value).ToList();
         _board = board is null ? [] : board.Where(d => d.Owed > 0).OrderBy(d => d.Npc.Value).ToList();
         Id = id;
         LocationType = locationType;
@@ -133,6 +135,25 @@ public sealed class Workplace
 
     public void AssignOwner(NpcId? owner) => Owner = owner;
 
+    private readonly List<WorkplaceStake> _partners;
+
+    /// <summary>Sócios que puseram dinheiro na abertura (AD-152) e a cota de cada um no lucro, em décimos de milésimo
+    /// (<see cref="WorkplaceStake.Whole"/> = tudo); o dono leva o resto. Nulo quando não há sócio (snapshot de antes fica igual).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<WorkplaceStake>? Partners => _partners.Count == 0 ? null : _partners;
+
+    /// <summary>Troca as cotas inteiras (abertura, ou a cota de um sócio morto que passa aos herdeiros): soma por pessoa, ordem de id,
+    /// cota zero sai. Recusa somar mais que o todo.</summary>
+    public void SetPartners(IEnumerable<WorkplaceStake> stakes)
+    {
+        var merged = stakes.Where(s => s.Basis > 0).GroupBy(s => s.Npc.Value)
+            .Select(g => new WorkplaceStake(g.First().Npc, g.Sum(s => s.Basis))).OrderBy(s => s.Npc.Value).ToList();
+        if (merged.Sum(s => (long)s.Basis) > WorkplaceStake.Whole)
+            throw new InvalidOperationException("Partners: cotas somam mais que o todo");
+        _partners.Clear();
+        _partners.AddRange(merged);
+    }
+
     /// <summary>Soma até o limite de <see cref="EconomyRules.CapacityOf"/>; devolve as unidades
     /// perdidas por excesso de capacidade — nunca descartadas em silêncio, o chamador
     /// é quem decide registrar a perda como evento.</summary>
@@ -157,6 +178,12 @@ public sealed class Workplace
             Treasury = result.Value;
         return result;
     }
+}
+
+/// <summary>Cota de um sócio no lucro de uma oficina (AD-152), em décimos de milésimo do todo.</summary>
+public readonly record struct WorkplaceStake(NpcId Npc, int Basis)
+{
+    public const int Whole = 10_000;
 }
 
 /// <summary>Uma linha da caderneta de refeições (AD-151): quem comeu e quanto deve, em moeda.</summary>

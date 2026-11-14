@@ -48,6 +48,10 @@ public sealed record EconomyRules(
     /// <summary>AD-151: sem refeição do empregador: longe de casa a comida é a que a pessoa leva ou compra (a água do poço segue).</summary>
     public bool NoWorkMeal { get; init; }
 
+    /// <summary>AD-152: o NPC abre o próprio negócio com o próprio dinheiro (<see cref="VentureRules"/>). Nulo: ninguém empreende.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public VentureRules? Venture { get; init; }
+
     public static Result<EconomyRules> Create(
         bool enabled, int foodResourceId, int waterResourceId,
         IReadOnlyDictionary<(int ResourceId, int LocationTypeId), long> capacityByResourceLocation,

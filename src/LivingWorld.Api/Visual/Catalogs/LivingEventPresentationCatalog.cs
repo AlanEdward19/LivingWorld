@@ -48,6 +48,7 @@ public static class LivingEventPresentationCatalog
             [WorldEventKind.Fired] = "Um vínculo de trabalho terminou",
             [WorldEventKind.WageUnpaid] = "Um pagamento de salário ficou pendente",
             [WorldEventKind.ProfitDrawn] = "O lucro de uma oficina saiu do caixa para o dono ou para a cidade",
+            [WorldEventKind.VentureFounded] = "Alguém abriu o próprio negócio com o dinheiro que juntou",
             [WorldEventKind.ResourceLost] = "Recursos foram perdidos",
             [WorldEventKind.Minted] = "Novas moedas entraram em circulação",
             [WorldEventKind.Destroyed] = "Moedas saíram de circulação",
