@@ -117,7 +117,7 @@ public sealed class CrimeSystem : ISimulationSystem
         ctx.ScheduleEvent(at, SystemName, $"T|{npc.Id.Value}|{(int)motive}");
     }
 
-    /// <summary>Fome da casa (0..1, o pior de quem mora junto; -1 = não há): sem comida nem água em casa, sem como comprar e
+    /// <summary>Fome da casa (0..1, o pior de quem mora junto; -1 = não há): sem comida em casa, sem como comprar e
     /// alguém da casa no limite do desespero. A checagem barata (despensa) vem primeiro.</summary>
     internal static double FamilyHunger(WorldState world, Npc npc, long now)
     {

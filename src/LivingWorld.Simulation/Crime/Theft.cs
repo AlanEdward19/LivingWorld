@@ -54,10 +54,11 @@ internal static class Theft
         _ => "oportunidade",
     };
 
-    /// <summary>Quanto a fome aperta (0 no limite do desespero, 1 com fome ou sede em zero); negativo = não está desesperado.</summary>
+    /// <summary>Quanto a fome aperta (0 no limite do desespero, 1 com a fome em zero); negativo = não está desesperado. Só a
+    /// fome: a água da casa vem do poço, do rio e da fonte, e furtar comida não mata a sede.</summary>
     public static double NeedOf(TheftRules rules, Npc npc, long now)
     {
-        int worst = Math.Min(npc.HungerAt(now), npc.ThirstAt(now));
+        int worst = npc.HungerAt(now);
         if (worst > rules.DesperateBelow) return -1;
         return rules.DesperateBelow <= 0 ? 1.0 : 1.0 - worst / (double)rules.DesperateBelow;
     }
@@ -66,8 +67,7 @@ internal static class Theft
     {
         if (npc.Household is not { } id || world.FindHousehold(id) is not { } household) return false;
         var economy = world.EconomyRules;
-        return household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId)) >= 1
-            || household.Stock.GetValueOrDefault(new ResourceType(economy.WaterResourceId)) >= 1;
+        return household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId)) >= 1; // a água em casa não mata a fome
     }
 
     /// <summary>Pode comprar comida agora: tem moeda para o preço mais barato de uma banca da cidade que ainda tem comida.</summary>

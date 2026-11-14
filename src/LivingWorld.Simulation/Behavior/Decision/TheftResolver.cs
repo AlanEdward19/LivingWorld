@@ -7,7 +7,7 @@ using LivingWorld.Simulation.Scheduling;
 namespace LivingWorld.Simulation.Behavior.Decision;
 
 /// <summary>Furto por fome (AD-150), decidido na hora pela ação Furtar. <see cref="Wants"/>: quem passa do limite do desespero
-/// (fome ou sede), sem comida nem água em casa e sem como comprar (sem moeda ou a banca vazia), e cujo temperamento passa a
+/// (fome), sem comida em casa e sem como comprar (sem moeda ou a banca vazia), e cujo temperamento passa a
 /// barreira moral, que a fome rebaixa e o medo da punição sobe, e tem algo a levar (comida de banca ou casa, ou a moeda de quem
 /// está ao lado). <see cref="Resolve"/> executa ao fim da ação pelo mesmo caminho do furto planejado (<see cref="Theft"/>).
 /// As checagens baratas vêm primeiro: o caminho comum (alguém com comida ou com moeda) não procura alvo nem aloca.</summary>
