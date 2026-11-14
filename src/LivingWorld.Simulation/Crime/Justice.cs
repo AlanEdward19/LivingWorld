@@ -237,7 +237,8 @@ internal static class Justice
         double affection = world.Relationships.TryGetValue(new RelationshipKey(who.Id, accused.Id), out var bond) ? bond.Affection : 0;
         if (kin || affection >= rules.SilenceAffection) { crime.Closed = true; return; } // silêncio de quem é chegado
         double fear = Math.Max(PsycheMechanic.EmotionOf(world, who, Emotion.Fear, now), InfamyOf(world, accused.Id.Value, now).Violent / 100.0);
-        if (rng.NextDouble() >= rules.ReportChance * (1 - rules.FearSilence * fear)) return; // hoje não (pode amanhã)
+        double petty = crime.Kind == CrimeKind.Theft && crime.Value < rules.PettyTheftValue ? rules.PettyReportFactor : 1.0;
+        if (rng.NextDouble() >= rules.ReportChance * petty * (1 - rules.FearSilence * fear)) return; // hoje não (pode amanhã)
 
         crime.ReportedBy = who.Id.Value;
         ctx.LogEvent(WorldEventKind.CrimeReported,

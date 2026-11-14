@@ -23,8 +23,7 @@ public class TheftTests
 
     private static void Starve(Npc npc, int level = 10)
     {
-        npc.SetHunger(level, 0);
-        npc.SetThirst(level, 0);
+        npc.SetHunger(level, 0); // só a fome: com sede, a pessoa vai beber antes de furtar
     }
 
     [Fact]

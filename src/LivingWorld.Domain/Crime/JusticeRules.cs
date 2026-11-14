@@ -31,6 +31,10 @@ public sealed record JusticeRules
     public double ReportChance { get; init; } = 0.7;
     public double SilenceAffection { get; init; } = 70;
 
+    /// <summary>Furto miúdo (valor abaixo deste) quase não vai à corte: a denúncia sai com esta fração da chance.</summary>
+    public long PettyTheftValue { get; init; } = 10;
+    public double PettyReportFactor { get; init; } = 0.25;
+
     /// <summary>Quanto o medo (0..1) e a má fama violenta do acusado (0..1) cortam a denúncia.</summary>
     public double FearSilence { get; init; } = 0.6;
 

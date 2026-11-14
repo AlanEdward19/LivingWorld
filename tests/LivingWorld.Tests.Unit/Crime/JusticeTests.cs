@@ -164,7 +164,7 @@ public class JusticeTests
         var borderline = Add(world, Personality.Create(50, 50, 40, 50, 50, 50, 50, 40, 60, 40).Value!); // peso 1,4
         Home(world, Here, borderline);
         double before = CrimeSystem.PlannedTheftPerYear(world, borderline, CrimeSystem.DeterrenceOf(world, borderline, 0), 0, out _);
-        borderline.SetHunger(20, 0); borderline.SetThirst(20, 0);
+        borderline.SetHunger(20, 0);
         Add(world, Honest, wallet: 50);
         Assert.True(TheftResolver.Wants(world, borderline, 0));
 

@@ -19,6 +19,7 @@ internal static class TheftResolver
         if (!rules.Enabled) return false;
         double need = Theft.NeedOf(rules, npc, now);
         if (need < 0 || npc.AgeYears(world.CurrentDate) < rules.MinAgeYears) return false;
+        if (npc.ThirstAt(now) <= rules.DesperateBelow) return false; // com sede, beber vem antes (a água da casa e do rio)
         if (Theft.HasFoodAtHome(world, npc) || Theft.CanBuyFood(world, npc)) return false;
         double barrier = rules.NeedBarrier(need, Theft.Deterrence(world, npc, now));
         if (PersonalityWeighting.WeightOf(npc.Personality, ActionType.Steal) < barrier) return false;
