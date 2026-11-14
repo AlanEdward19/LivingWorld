@@ -35,8 +35,25 @@ public static class PersonalCarry
     {
         if (!world.InventionOn || !world.InventionRules!.PantryNeedsPresence || home.IsHomeless || npc.CurrentLocation == home.Location)
             return false;
-        return Mobility.TravelTicks(world, npc, npc.CurrentLocation, home.Location, 1.0) > 1;
+        // AD-151: a mesma pergunta volta várias vezes na hora (ao acordar, ao comer, ao escolher onde comer): guarda a resposta da
+        // casa naquela célula até a hora, as peças da casa ou as tecnologias mudarem. Só memória: não entra no snapshot nem no hash.
+        var memo = world.Invention!.ReachMemo;
+        long hour = world.CurrentDate.TotalHours, touches = world.Invention.Touches;
+        int techs = world.Technologies.Count;
+        var key = (home.Id.Value, npc.City, npc.CurrentLocation);
+        if (memo.TryGetValue(key, out var known) && known.Hour == hour && known.Touches == touches && known.Techs == techs)
+            return known.Out;
+        if (memo.Count >= 4096) memo.Clear();
+        bool far = Mobility.TravelTicks(world, npc, npc.CurrentLocation, home.Location, 1.0) > 1;
+        memo[key] = (hour, touches, techs, far);
+        return far;
     }
+
+    /// <summary>AD-151: a saída deixa a despensa para trás quando o destino fica a mais de uma hora de casa (a medida de
+    /// <see cref="PantryOutOfReach"/>). Perto, a pessoa come em casa; arrumar a carga só tiraria da despensa para devolver na volta
+    /// (e custava a conta da carga em toda saída).</summary>
+    public static bool LeavesPantryBehind(WorldState world, Npc npc, Household home, CellCoord destination) =>
+        !home.IsHomeless && destination != home.Location && Mobility.TravelTicks(world, npc, home.Location, destination, 1.0) > 1;
 
     /// <summary>Unidades para manter a necessidade acima da linha de urgência por <paramref name="hours"/>: cada unidade a leva ao
     /// nível que ela dá e dura até cair de novo à linha.</summary>

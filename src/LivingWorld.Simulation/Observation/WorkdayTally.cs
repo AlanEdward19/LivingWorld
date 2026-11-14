@@ -15,6 +15,9 @@ public sealed class WorkdayTally(WorldState world)
     public double AdultHours, WorkHours, BuyHours;
     public long FarmerDays, FarmerWork, FarmerBuy;
 
+    /// <summary>AD-151: ração e caderneta do empregador do mundo (contagem de toda a corrida).</summary>
+    public PurchaseTally Purchases => world.PurchaseTally;
+
     public void SampleHour()
     {
         long now = world.CurrentDate.TotalHours;
@@ -49,6 +52,8 @@ public sealed class WorkdayTally(WorldState world)
         var sb = new StringBuilder();
         sb.AppendLine(inv, $"dia_do_adulto h_trabalho/adulto/dia={runs.Sum(r => r.WorkHours) / Math.Max(1, adultDays):F2} h_compra/adulto/dia={runs.Sum(r => r.BuyHours) / Math.Max(1, adultDays):F2}");
         sb.AppendLine(inv, $"lavrador_10h dias={farmer} work={work} ({100.0 * work / Math.Max(1, farmer):F1}%) buy={buy} ({100.0 * buy / Math.Max(1, farmer):F1}%)");
+        long P(Func<PurchaseTally, long> f) => runs.Sum(r => f(r.Purchases));
+        sb.AppendLine(inv, $"racao_oficina comida={P(t => t.FoodRations)} longe={P(t => t.FoodRationsAway)} agua={P(t => t.WaterRations)} caderneta lancada={P(t => t.BoardCharged)} descontada={P(t => t.BoardWithheld)} em_especie={P(t => t.BoardInKind)} cobrada={P(t => t.BoardCollected)} perdoada={P(t => t.BoardForgiven)} negadas={P(t => t.BoardRefused)}");
         return sb.ToString();
     }
 }

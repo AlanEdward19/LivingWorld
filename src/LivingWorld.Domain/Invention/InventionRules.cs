@@ -186,8 +186,9 @@ public sealed record InventionRules
     public IReadOnlyList<int> LiquidResourceIds { get; init; } = [2];
 
     /// <summary>A despensa serve quem está em casa: quem está a mais de uma hora de caminho come e bebe do que leva, ou volta.
-    /// **Desligado por padrão**: AD-147 sede 6,4%; AD-148 fome 3,5% → 5,7% (ração da oficina comida da venda); AD-149, com a terra
-    /// finita, 20×100 fome 4,6% (base 4,1%) e +19% de CPU. Falso = a despensa alcança qualquer lugar e ninguém arruma carga.</summary>
+    /// **Desligado por padrão**: AD-147 sede 6,4%; AD-148 fome 3,5% → 5,7%; AD-149 fome 4,6% e +19% de CPU; AD-151, com a refeição
+    /// do empregador paga, 20×100 fome 4,5% (teto no salário) e 5,3% (excesso em espécie) contra 4,1% da base, e sem refeição 6,9%.
+    /// Falso = a despensa alcança qualquer lugar e ninguém arruma carga.</summary>
     public bool PantryNeedsPresence { get; init; }
 
     /// <summary>A casa que já tem recipiente e ainda tem a compra cortada tenta um melhor (AD-149, backlog 05 item 12b): a ideia

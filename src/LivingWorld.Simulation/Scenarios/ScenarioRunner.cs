@@ -218,8 +218,8 @@ public static partial class ScenarioRunner
         with
     { SurplusDrawShare = 1.0, PresenceNeedsWork = true }; // AD-144: o lucro acima de 12 folhas sai todo mês; AD-149: só lavra quem trabalha (E1)
 
-    /// <summary>Invenção dos cenários (código e JSON), num lugar só. A carga pessoal (`PantryNeedsPresence`) segue desligada: no
-    /// AD-149, ligada com a terra finita, 20×100 deu fome 4,6% (base 4,1%) e +19% de CPU por NPC-tick.</summary>
+    /// <summary>Invenção dos cenários (código e JSON), num lugar só. A carga pessoal (`PantryNeedsPresence`) segue desligada (AD-151:
+    /// 20×100 com ela, fome 4,5–5,3% contra 4,1% da base).</summary>
     public static readonly LivingWorld.Domain.Invention.InventionRules DefaultInventionRules = LivingWorld.Domain.Invention.InventionRules.Default;
 
     /// <summary>Tipos de local que são oficina de ofício (AD-144): a ferraria é do mestre ferreiro; a fazenda, terra comum,

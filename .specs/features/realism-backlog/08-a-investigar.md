@@ -81,7 +81,18 @@
 55. **Terra só no cenário de código e só na fundação**: cenário JSON fica sem limite; fazenda construída depois nasce sem terra; o tamanho (1,4 ha por fundador) é dado, não sai do mapa.
 56. **Horas de trabalho por adulto 2% menores** (7,02 → 6,88) com a terra cheia (adultos sem lugar ficam à toa): falta trabalho de diarista, criadagem, respiga e ofícios fora da lavoura.
 57. **Ceifa da vila**: só adultos do ofício de lavrador; adolescentes (12–14 anos), mulheres de outros ofícios e velhos não ceifam; janela de 40 dias igual; a soltura depois da ceifa é das últimas contratadas.
-58. **Ração da oficina de graça**: longe de casa o lavrador come do estoque à venda (~20% do consumo com a carga ligada). Decidir se é parte do salário (desconto) ou comida da casa levada.
+58. ~~**Ração da oficina de graça**~~ resolvido no AD-151: a refeição do empregador vai à caderneta (`Workplace.Board`) ao preço da venda, sai do líquido do salário e o resto a oficina paga em espécie; ofício sem salário não tem refeição; água do poço livre. Original: longe de casa o lavrador come do estoque à venda (~20% do consumo com a carga ligada). Decidir se é parte do salário (desconto) ou comida da casa levada.
 59. **Casa inteira sem trabalho não emigra** (item 42): com a terra cheia a fome fica nas famílias sem ganha-pão.
 60. **Números sem fonte do AD-149**: 220 de semente por hectare (~135 kg/ha), 1,4 ha semeados por fundador, ganho de 25% da capina, a mão que paga 320 (o que come no ano).
 61. **Não medido no AD-149**: goldens, pins de 90 dias e baselines do LongRunning (na junção); `verify --full`; custo a 5.000 NPCs.
+62. **Carga pessoal segue desligada (AD-151)**: com a refeição paga, 20×100 seeds 1–20 deu fome 4,5% (teto no salário) e 5,3%
+    (excesso em espécie), base 4,1%; sem refeição, 6,9%. Mas a caderneta sozinha deu 517 → 627 nas seeds 1–20 e 619 → 495 nas
+    21–40: o ruído de um bloco de 20 seeds é ~±20%. Decidir o critério (40 seeds, ou fome por década) e medir a carga de novo.
+63. **CPU da carga ligada**: no perfil a 1.000 NPCs `behavior-decision` sobe 0–40% e os bytes por NPC-tick variam 189–204 entre
+    rodadas da mesma árvore (só com a carga ligada; desligada, 189–192 estável). Medido por trecho: arrumar na saída ~0,7 µs por
+    saída, `PantryOutOfReach` ~0,7 µs por chamada (memória por casa e célula na hora, AD-151). Falta achar a fonte da variação.
+64. **Números sem fonte do AD-151**: refeição ao preço da venda do local; desconto até o líquido inteiro (`BoardMaxWageShare` 1,0).
+65. **Não medido no AD-151**: goldens, pins de 90 dias e baselines do LongRunning (na junção); `verify --full`; custo a 5.000 NPCs.
+66. **Caderneta de quem morre** é perdida pela oficina (não vai ao espólio; o espólio é do AD-150). ~0,3% do lançado.
+67. **Quem tem refeição no trabalho ainda leva comida de casa** (com a carga ligada a saída não sabe que a oficina alimenta): a
+    comida volta na devolução, mas sai da despensa durante o turno.

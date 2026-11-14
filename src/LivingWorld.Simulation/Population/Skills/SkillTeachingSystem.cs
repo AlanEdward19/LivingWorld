@@ -44,6 +44,7 @@ public sealed class SkillTeachingSystem : ISimulationSystem
 
     /// <summary>Mestres que já ensinaram hoje: o ensino treina uma vez por dia, não uma vez por aprendiz.</summary>
     private readonly HashSet<long> _taughtToday = [];
+    private readonly Dictionary<LivingWorld.Domain.Geography.CellCoord, Npc?[]> _workersByCell = [];
 
     public SkillTeachingSystem(SkillsRules rules, LifeStageRules lifeStageRules, RearingRules? rearing = null)
     {
@@ -66,6 +67,7 @@ public sealed class SkillTeachingSystem : ISimulationSystem
         AssignMentors(world, living);
         AssignApprenticeMasters(world, living);
         _taughtToday.Clear();
+        _workersByCell.Clear();
 
         var learning = _rules.Learning;
         for (int i = 0; i < living.Count; i++)
@@ -252,12 +254,12 @@ public sealed class SkillTeachingSystem : ISimulationSystem
     private void GainFromObservation(WorldState world, Npc observer, double aptitude)
     {
         Npc? observed = null;
-        foreach (var other in world.AliveNpcIndex.At(observer.CurrentLocation))
+        foreach (var other in WorkersAt(world, observer.CurrentLocation))
         {
-            if (other.Id == observer.Id || other.Id == observer.Mentor || other.CurrentAction != ActionType.Work)
-                continue;
-            if (observed is null || other.Id.Value < observed.Id.Value)
-                observed = other;
+            if (other is null) break;
+            if (other.Id == observer.Id || other.Id == observer.Mentor) continue;
+            observed = other;
+            break;
         }
 
         if (observed is null) return;
@@ -269,6 +271,28 @@ public sealed class SkillTeachingSystem : ISimulationSystem
         double rate = _rules.BaseRateBySource.GetValueOrDefault(SkillGainSource.Observation);
         double gain = SkillCurve.Gain(observer.Skills.Get(skillType), known, rate) * observer.RateGene.Value * aptitude;
         if (gain > 0) _pending.Add((skillType, gain));
+    }
+
+    /// <summary>AD-151: os três trabalhando de menor Id em cada célula, calculados uma vez por passada (a varredura da célula por
+    /// observador era quadrática: com a vila toda na fazenda, 2× o custo do sistema). Ninguém muda de lugar nem de ação dentro da
+    /// passada, então a escolha é a mesma: o primeiro que não é o próprio observador nem o mestre dele.</summary>
+    private Npc?[] WorkersAt(WorldState world, LivingWorld.Domain.Geography.CellCoord cell)
+    {
+        if (_workersByCell.TryGetValue(cell, out var known)) return known;
+        var lowest = new Npc?[3];
+        foreach (var other in world.AliveNpcIndex.At(cell))
+        {
+            if (other.CurrentAction != ActionType.Work) continue;
+            for (int k = 0; k < lowest.Length; k++)
+            {
+                if (lowest[k] is { } held && held.Id.Value <= other.Id.Value) continue;
+                for (int j = lowest.Length - 1; j > k; j--) lowest[j] = lowest[j - 1];
+                lowest[k] = other;
+                break;
+            }
+        }
+        _workersByCell[cell] = lowest;
+        return lowest;
     }
 
     /// <summary>Aprendiz (<see cref="Npc.Mentor"/>) ganha a habilidade que o mestre pratica; mestre melhor (no ofício e no
