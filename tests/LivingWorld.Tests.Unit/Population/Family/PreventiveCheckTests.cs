@@ -99,7 +99,7 @@ public class PreventiveCheckTests
     [Fact]
     public void Without_the_rule_means_do_not_matter()
     {
-        var world = World(ScenarioRunner.DefaultFamilyRules); // padrão do cenário: desligado
+        var world = World(ScenarioRunner.DefaultFamilyRules with { Pressure = null }); // desligado (o cenário de código liga desde o AD-148)
         var him = Person(world, Sex.Male, 28, Prudent);
         var her = Person(world, Sex.Female, 24, Prudent);
 

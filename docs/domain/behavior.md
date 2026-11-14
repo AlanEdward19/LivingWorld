@@ -70,4 +70,5 @@ A LLM pode **narrar** essa trajetória; o cálculo é do motor e a narração nu
 - [time-and-ticks.md](time-and-ticks.md) — em que escala a decisão roda
 - [memory.md](memory.md) — crenças que enviesam a nota
 - [economy.md](economy.md) — trabalho e preço como contexto
+- [household-provisioning.md](household-provisioning.md) — quem da casa vai comprar, quando e quanto (AD-148)
 - [llm-contract.md](llm-contract.md) — por que a LLM não escreve decisão

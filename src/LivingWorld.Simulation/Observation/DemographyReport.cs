@@ -110,7 +110,7 @@ public sealed class DemographyTally(WorldState world) : IWorldEventSink
 /// <summary>Resumo de N seeds × A anos do cenário padrão de código (<see cref="ScenarioRunner.Create"/>).</summary>
 public static class DemographyReport
 {
-    public sealed record SeedResult(ulong Seed, int FinalAlive, int MinAlive, DemographyTally Tally, FoodTally? Food = null, InventionSummary? Invention = null, EconomyTally? Economy = null);
+    public sealed record SeedResult(ulong Seed, int FinalAlive, int MinAlive, DemographyTally Tally, FoodTally? Food = null, InventionSummary? Invention = null, EconomyTally? Economy = null, WorkdayTally? Workday = null);
 
     private sealed class BothSinks(IWorldEventSink a, IWorldEventSink b) : IWorldEventSink
     {
@@ -122,9 +122,10 @@ public static class DemographyReport
     /// o primeiro recebe o mundo recém-criado e devolve um sink extra; o segundo roda no fim de cada mês (índice 0-based).</summary>
     public static SeedResult Run(ulong seed, int years, int warmupYears, LivingWorld.Domain.Cognition.BrainRules? brain = null,
         LivingWorld.Domain.Population.Family.FamilyRules? familyRules = null,
-        Func<WorldState, IWorldEventSink?>? observe = null, Action<WorldState, int>? afterMonth = null)
+        Func<WorldState, IWorldEventSink?>? observe = null, Action<WorldState, int>? afterMonth = null,
+        LivingWorld.Domain.Behavior.NeedsRules? needsRules = null, LivingWorld.Domain.Invention.InventionRules? inventionRules = null)
     {
-        var (world, baseClock) = ScenarioRunner.Create(seed, familyRules: familyRules);
+        var (world, baseClock) = ScenarioRunner.Create(seed, familyRules: familyRules, needsRules: needsRules, inventionRules: inventionRules);
         world.UseBrain(brain); // AD-142: experimento (nulo = desligado)
         var extra = observe?.Invoke(world);
         var tally = new DemographyTally(world) { MeasureFromTick = warmupYears * world.Calendar.HoursPerYear };
@@ -134,6 +135,7 @@ public static class DemographyReport
         tally.Reproduction.MeasureFromTick = tally.MeasureFromTick;
         var food = new FoodTally(world);
         var economy = new EconomyTally(world);
+        var workday = new WorkdayTally(world) { MeasureFromTick = tally.MeasureFromTick };
         IWorldEventSink sinks = extra is null ? new BothSinks(tally, food) : new BothSinks(new BothSinks(tally, food), extra);
         var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, sinks);
         int months = years * world.Calendar.MonthsPerYear;
@@ -143,7 +145,11 @@ public static class DemographyReport
             if (m % world.Calendar.MonthsPerYear == 0) economy.SampleYear(m / world.Calendar.MonthsPerYear);
             for (int d = 0; d < world.Calendar.DaysPerMonth; d++)
             {
-                clock.Run(world, world.Calendar.HoursPerDay);
+                for (int h = 0; h < world.Calendar.HoursPerDay; h++)
+                {
+                    clock.Run(world, 1);
+                    workday.SampleHour(); // AD-148: o dia do adulto
+                }
                 tally.Disease.SampleDay();
             }
 
@@ -160,7 +166,7 @@ public static class DemographyReport
 
         tally.Reproduction.SampleGenetics();
         economy.SampleYear(years);
-        return new SeedResult(seed, world.AliveNpcIndex.Alive.Count, minAlive, tally, food, InventionSummary.Of(world), economy);
+        return new SeedResult(seed, world.AliveNpcIndex.Alive.Count, minAlive, tally, food, InventionSummary.Of(world), economy, workday);
     }
 
     public static string Summarize(IReadOnlyList<SeedResult> runs, int years, int warmupYears, long hoursPerYear)
@@ -240,6 +246,8 @@ public static class DemographyReport
         if (foods.Count > 0) sb.Append(FoodTally.Summarize(foods, warmupYears, 12));
         var economies = runs.Where(r => r.Economy is not null).Select(r => r.Economy!).ToList();
         if (economies.Count > 0) sb.Append(EconomyTally.Summarize(economies));
+        var workdays = runs.Where(r => r.Workday is not null).Select(r => r.Workday!).ToList();
+        if (workdays.Count > 0) sb.Append(WorkdayTally.Summarize(workdays));
         sb.Append(InventionSummary.Summarize(runs.Where(r => r.Invention is not null).Select(r => r.Invention!).ToList()));
         return sb.ToString();
     }

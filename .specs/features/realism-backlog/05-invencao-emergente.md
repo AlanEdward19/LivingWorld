@@ -67,7 +67,8 @@ Fatias seguintes:
     **Feito (AD-147, `docs/domain/invention.md`)**: sonda de conter, recipiente inventado pela compra cortada, ensinado,
     copiado, vendido; amplia a compra a pé; carga pessoal, arrumar ao sair, comer do que leva, devolver (atrás de
     `PantryNeedsPresence`). 20×100: recipiente inventado nas 20 seeds (31), 8.545 vendas. Ficou de fora:
-    - 12a. `PantryNeedsPresence` desligado: ligado, sede 6,4% (presos no mercado da fazenda vazio, empate fome × sede).
+    - 12a. `PantryNeedsPresence` desligado: ligado, sede 6,4% (presos no mercado da fazenda vazio, empate fome × sede). AD-148,
+      com o mercado consertado: sede 0,0% → 0,1%, mas fome 3,5% → 5,7% e pop 559 → 463 (6×100); segue desligado.
     - 12b. Nenhum recipiente com tira apareceu (0 kg a mais na compra): na mão leva o máximo de 30 kg e de mais.
     - 12c. A carga não é da pessoa e sim do melhor recipiente da casa; ninguém leva o item (vários saem com o mesmo).
     - 12d. Sem tampa: estanque basta para levar água; derramar ao andar não existe.
