@@ -123,7 +123,9 @@ internal static class DesignSearch
                     short thick = (short)Math.Max(mat.MinWallMm, Math.Min(mat.MaxThicknessMm, Math.Max(1, p.SpanY / 8)));
                     short length = (short)Math.Clamp(p.LengthMm / (2 + (int)(rng.NextDouble() * 3)), 10, mat.MaxPieceMm);
                     short width = (short)Math.Clamp(Math.Max(thick * 8, p.SpanY / 2), thick, Math.Max(thick, Math.Min(mat.MaxPieceMm, (int)length)));
-                    var joint = rng.NextDouble() < 0.5 ? JointKind.Hinge : JointKind.Fixed;
+                    // a lâmina se prende pregada, por dobradiça ou amarrada (AD-149: a amarra faltava, e nenhuma tira nascia)
+                    double pick = rng.NextDouble();
+                    var joint = pick < 1 / 3.0 ? JointKind.Hinge : pick < 2 / 3.0 ? JointKind.Fixed : JointKind.Flexible;
                     parts.Add(new DesignPart(PartShape.Box, length, width, thick, 0, (short)mat.Id, 0, joint, (sbyte)i,
                         p.OffsetXMm, Clamp16(p.OffsetYMm + (rng.NextDouble() < 0.5 ? 1 : -1) * (p.SpanY / 2 + width / 2)), Clamp16(p.Top)));
                     break;

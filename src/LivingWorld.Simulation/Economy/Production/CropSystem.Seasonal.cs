@@ -99,11 +99,47 @@ public sealed partial class CropSystem
     }
 
     /// <summary>Semente que o campo quer: o bastante para as bocas do mundo repartidas entre as fazendas (povoado sem fazenda
-    /// compra da vila), até a terra que os empregados da fazenda dão conta de lavrar.</summary>
-    internal static long SeedTarget(AgricultureRules ag, Workplace farm, Dictionary<CityId, long> residents, Dictionary<CityId, int> farmsPerCity) =>
-        Math.Min(
+    /// compra da vila), até a terra que os empregados da fazenda dão conta de lavrar e até a terra que o campo tem (AD-149).</summary>
+    internal static long SeedTarget(AgricultureRules ag, Workplace farm, CropBatch field, Dictionary<CityId, long> residents, Dictionary<CityId, int> farmsPerCity)
+    {
+        long target = Math.Min(
             residents.Values.Sum() / Math.Max(1, farmsPerCity.Values.Sum()) * ag.SeedPerResident,
             Math.Max(1, farm.Employees.Count) * ag.MaxSeedPerWorker);
+        return field.ArableSeed > 0 ? Math.Min(target, field.ArableSeed) : target;
+    }
+
+    /// <summary>A fazenda toma mais uma mão só se a terra dela ainda paga o que essa mão come (AD-149): com a terra toda
+    /// semeada, o braço a mais só aumenta o rendimento com retorno decrescente. Fazenda sem limite de terra: sempre.</summary>
+    public static bool LandNeedsHands(WorldState world, Workplace workplace)
+    {
+        if (!world.AgricultureRules.Enabled || workplace.LocationType.Id != DefaultFarmLocationTypeId) return true;
+        if (world.FindCropAt(workplace.Location) is not { ArableSeed: > 0 } field) return true;
+        if (field.Status == CropStatus.Mature && world.AgricultureRules.WholeVillageReaps) return true; // a ceifa chama todos
+        // a folha inteira é teto das mãos que trabalham e o ganho de mais uma cai com as mãos: se paga com a folha toda, paga
+        // (caminho barato; consultado em cada avaliação de emprego)
+        if (world.AgricultureRules.LandTakesAnotherHand(field.ArableSeed, workplace.Employees.Count)) return true;
+        return world.AgricultureRules.LandTakesAnotherHand(field.ArableSeed, ToolMechanic.WorkingHands(world, workplace));
+    }
+
+    /// <summary>Passada a ceifa (AD-149), a fazenda solta as mãos que a terra não paga, das contratadas por último (as da
+    /// ceifa) para as mais antigas. Devolve quem saiu, em ordem. Fora da ceifa e sem limite de terra, ninguém.</summary>
+    public static List<Npc>? HandsPastTheHarvest(WorldState world, Workplace workplace)
+    {
+        var ag = world.AgricultureRules;
+        if (!ag.Enabled || !ag.WholeVillageReaps || workplace.LocationType.Id != DefaultFarmLocationTypeId) return null;
+        if (world.FindCropAt(workplace.Location) is not { ArableSeed: > 0 } field || field.Status == CropStatus.Mature) return null;
+        int hands = ToolMechanic.WorkingHands(world, workplace);
+        List<Npc>? released = null;
+        for (int i = workplace.Employees.Count - 1; i >= 0 && hands > 0 && !ag.LandTakesAnotherHand(field.ArableSeed, hands - 1); i--)
+        {
+            if (world.FindNpc(workplace.Employees[i]) is not { IsAlive: true } npc
+                || world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate)) != LivingWorld.Domain.Population.Body.LifeStage.Adult) continue;
+            (released ??= []).Add(npc);
+            hands--;
+        }
+
+        return released;
+    }
 
     private static void Sow(
         WorldState world, AgricultureRules ag, Workplace farm, CropBatch field, List<(Workplace Farm, CropBatch Field)> farms,
@@ -111,7 +147,7 @@ public sealed partial class CropSystem
     {
         // sem relha de ferro o arado de pau lavra menos terra por dia (AD-144)
         long sowCapacity = (long)Math.Floor(workers.Count * ag.SowPerWorkerDay * ToolMechanic.OutputFactor(world, farm, workers.Count));
-        long wanted = Math.Min(SeedTarget(ag, farm, residents, farmsPerCity) - field.LastSeedSown, sowCapacity);
+        long wanted = Math.Min(SeedTarget(ag, farm, field, residents, farmsPerCity) - field.LastSeedSown, sowCapacity);
         if (wanted <= 0) return;
 
         // semente guardada primeiro, depois o grão do próprio celeiro, depois o que sobra nas outras fazendas da cidade
@@ -121,13 +157,14 @@ public sealed partial class CropSystem
         {
             if (seed >= wanted) break;
             if (other.Id == farm.Id || other.City != farm.City) continue;
-            long spare = Math.Max(0, otherField.SeedReserve - Math.Max(0, SeedTarget(ag, other, residents, farmsPerCity) - otherField.LastSeedSown));
+            long spare = Math.Max(0, otherField.SeedReserve - Math.Max(0, SeedTarget(ag, other, otherField, residents, farmsPerCity) - otherField.LastSeedSown));
             seed += otherField.TakeSeed(Math.Min(spare, wanted - seed));
             seed += otherField.TakeBarn(wanted - seed);
         }
 
         if (seed <= 0) return;
         double skill = 1.0 + ag.SkillYieldWeight * AverageSkill(workers, skills);
+        skill *= ag.LandIntensity(field.ArableSeed, ToolMechanic.WorkingHands(world, farm)); // AD-149: braços a mais na terra cheia
         field.Sow(seed, (long)Math.Round(seed * 1000.0 * skill));
         world.RecordResourceConsumed(new ResourceType(world.EconomyRules.FoodResourceId), seed); // a semente sai do estoque para a terra
     }
@@ -164,9 +201,12 @@ public sealed partial class CropSystem
         if (reaped > 0)
         {
             world.RecordResourceProduced(food, reaped);
-            long toSeed = Math.Min(reaped, Math.Max(0, SeedTarget(ag, farm, residents, farmsPerCity) - field.SeedReserve));
+            long toSeed = Math.Min(reaped, Math.Max(0, SeedTarget(ag, farm, field, residents, farmsPerCity) - field.SeedReserve));
             field.StoreSeed(toSeed);
-            long toHomes = ShareWithReapers(world, ag, workers, food, (long)Math.Floor((reaped - toSeed) * ag.ReaperShare));
+            // AD-149: com a vila toda na ceifa, a parte em espécie vai às casas da turma inteira da ceifa (quem a fazenda tomou),
+            // não só às de quem estava com a foice na mão na hora da passada do dia
+            var gang = ag.WholeVillageReaps ? ToolMechanic.Hands(world, farm) : workers;
+            long toHomes = ShareWithReapers(world, ag, gang, food, (long)Math.Floor((reaped - toSeed) * ag.ReaperShare));
             field.StoreBarn(reaped - toSeed - toHomes);
         }
 
@@ -302,6 +342,8 @@ public sealed partial class CropSystem
                 var field = FieldOf(world, farm);
                 if (field.Status != CropStatus.Fallow || field.Barn > 0) continue;
                 long seed = residents / count * ag.SeedPerResident;
+                if (ag.SownHectaresPerFounder > 0) // AD-149: a terra da vila, demarcada na fundação
+                    field.SetArable((long)Math.Round(residents / (double)count * ag.SownHectaresPerFounder * ag.SeedPerHectare));
                 field.StartSeason();
                 field.Sow(seed, seed * 1000);
                 field.Develop(ag.InitialDevelopment);

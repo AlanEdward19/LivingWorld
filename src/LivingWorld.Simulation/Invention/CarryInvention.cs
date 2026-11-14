@@ -51,7 +51,11 @@ internal static class CarryInvention
             }
             if (mind.BusyUntilTick > now || frustration < rules.FrustrationThresholdMinutes || ledger.OrderIndex(mind.NpcId) >= 0) continue;
             if (npc.AgeYears(world.CurrentDate) < rules.MinInventorAgeYears || npc.Household is not { } home) continue;
-            if (ledger.BestCarrier(home.Value, rules).Exists) continue;
+            // AD-149 (backlog 05 item 12b): a casa que já tem recipiente e ainda sente a compra cortada tenta melhorá-lo — antes
+            // parava no primeiro oco que servia e nenhuma seed chegava a uma peça presa ao corpo
+            var carrier = ledger.BestCarrier(home.Value, rules);
+            if (carrier.Exists && (carrier.Worn || !rules.ImproveCarrier)) continue;
+            int improveOn = carrier.Exists ? carrier.DesignId : 0;
 
             var rng = ctx.OneShot($"invent-carry-{npc.Id.Value}-{now}");
             double skill = InventionSystem.Skill(npc, rules);
@@ -62,7 +66,9 @@ internal static class CarryInvention
                 * (0.5 + skill / 100.0);
             if (rng.NextDouble() >= chance) continue;
 
-            if (FirstKnown(world, npc.Id.Value) is { } known)
+            if (improveOn > 0)
+                StartInvention(world, ctx, npc, current, skill, rng, now, improveOn);
+            else if (FirstKnown(world, npc.Id.Value) is { } known)
                 InventionSystem.StartBuild(world, npc, known, current, now, onCarryMind: true);
             else if (current.SeenDesignId > 0 && ledger.FindDesign(current.SeenDesignId) is { } seen
                      && rng.NextDouble() < rules.CopyPreferencePm / 1000.0)
@@ -82,7 +88,9 @@ internal static class CarryInvention
 
     /// <summary>A ideia nasce do que faltou levar: um oco do tamanho disso, de cada material que a pessoa conhece (parede mínima
     /// que o material dá), mais o protótipo que falhou e os recipientes que ela já sabe; os mesmos operadores genéricos da busca.</summary>
-    private static void StartInvention(WorldState world, TickContext ctx, Npc npc, InventionMind mind, double skill, WorldRng rng, long now)
+    /// <paramref name="improveOn"/>: o recipiente da casa que a ideia precisa superar (parte dele e só fica se resolver mais).
+    private static void StartInvention(WorldState world, TickContext ctx, Npc npc, InventionMind mind, double skill, WorldRng rng, long now,
+        int improveOn = 0)
     {
         var rules = world.InventionRules!;
         var ledger = world.Invention!;
@@ -92,6 +100,12 @@ internal static class CarryInvention
             .Select(k => ledger.FindDesign(k.DesignId)?.Parts).OfType<IReadOnlyList<DesignPart>>().ToList();
         var seeds = new List<IReadOnlyList<DesignPart>>();
         if (mind.LastTried is { } tried && Design.Decode(tried) is { } failed) seeds.Add(failed);
+        long bar = InventionSystem.WorksScore;
+        if (improveOn > 0 && ledger.FindDesign(improveOn) is { } current)
+        {
+            seeds.Add(current.Parts);
+            bar = Math.Max(bar, Score(PhysicsEvaluator.Contain(current.Parts, rules), mind, rules) + 1);
+        }
         seeds.AddRange(known);
         int needMl = Math.Max(rules.SmallestUnitMl(), mind.NeedMl);
         foreach (var m in usable)
@@ -110,7 +124,7 @@ internal static class CarryInvention
         }
 
         var next = mind with { Attempts = mind.Attempts + 1 };
-        if (best is null || bestScore < InventionSystem.WorksScore)
+        if (best is null || bestScore < bar)
         {
             world.InventionTally.CarryIdeasDiscarded++;
             ledger.PutCarryMind(next);
