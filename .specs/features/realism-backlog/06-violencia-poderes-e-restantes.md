@@ -41,7 +41,7 @@ O que ficou de fora do AD-150 (nada some; cada item é fatia ou linha futura):
 - V7. Furto planejado com deslocamento real do ladrão até o alvo (hoje o ato é abstrato, na hora sorteada).
 - V8. Boato e testemunha imperfeita também para a história (`HistoryRules`, `WitnessedAccount`).
 - V9. Luto por morte de `Accident` e `OldAge` (o `LifeEventIntake` não as consome; achado ao ligar o homicídio).
-- V10. Sede: com o furto, 2,1% das mortes por sede em 20×100 (base 0,0%; fome caiu de 4,1% a 1,2%): causa não isolada.
+- V10. Sede: resolvida (o crime deixava gente viva com saúde ≤ 1, e a percepção faz a vizinhança fugir). A regra da percepção (ferido = perigo) segue: vale rever fora do crime.
 
 ## Crime contra bens e contra pessoas (pedido do dono em 2026-11-12; liberado para iniciar em 2026-11-13)
 
