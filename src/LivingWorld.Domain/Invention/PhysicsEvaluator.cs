@@ -1,11 +1,21 @@
 namespace LivingWorld.Domain.Invention;
 
-/// <summary>Por que um design não cumpre a sonda de travessia: inválido (a natureza não dá a peça), afunda, vira, quebra ou não anda.</summary>
-public enum FailureMode : byte { None = 0, Invalid = 1, Sinks = 2, Capsizes = 3, Breaks = 4, TooSlow = 5 }
+/// <summary>Por que um design não cumpre a sonda: inválido (a natureza não dá a peça), afunda, vira, quebra ou não anda (travessia);
+/// pesado demais para levar ou oco pequeno demais para guardar uma unidade de nada (conter e carregar, AD-147).</summary>
+public enum FailureMode : byte { None = 0, Invalid = 1, Sinks = 2, Capsizes = 3, Breaks = 4, TooSlow = 5, TooHeavy = 6, TooSmall = 7 }
 
 /// <summary>O que o avaliador mediu de um design com uma pessoa a bordo (volátil: recomputável do design).</summary>
 public readonly record struct Performance(
     FailureMode Failure, long MassG, long PayloadG, int DraftMm, int MetacentricMm, int SpeedMmS, int BuildMinutes)
+{
+    public bool Works => Failure == FailureMode.None;
+}
+
+/// <summary>O que o avaliador mediu de um design como coisa que se leva consigo (AD-147, volátil): volume oco (ml), a parte dele
+/// que segura líquido, massa própria, a carga que aguenta levar (g, limitada pela resistência e pelo que a pessoa carrega) e se
+/// se prende ao corpo (tira de amarração: as mãos ficam livres).</summary>
+public readonly record struct Containment(
+    FailureMode Failure, long InnerMl, long WatertightMl, long MassG, long CapacityG, bool Worn, int BuildMinutes)
 {
     public bool Works => Failure == FailureMode.None;
 }
@@ -83,6 +93,67 @@ public static class PhysicsEvaluator
         int speed = Speed(parts, materials, rules, waterline);
         var failure = speed < rules.MinUsefulPaceMmS ? FailureMode.TooSlow : FailureMode.None;
         return new Performance(failure, structureG, payloadG, waterline - zMin, gm, speed, buildMinutes);
+    }
+
+    public static Containment Contain(IReadOnlyList<DesignPart> parts, InventionRules rules) => Contain(parts, rules, rules.Materials);
+
+    /// <summary>Sonda "conter e carregar" (AD-147), só inteiros: o oco das partes ocas é o volume que guarda (o de parede estanque,
+    /// por material ou revestimento, segura líquido); a carga que aguenta é a maior massa de conteúdo (até o oco cheio d'água) que a
+    /// mesma viga do avaliador sustenta com a carga no meio; a pessoa leva no máximo <see cref="InventionRules.FootCarryKg"/>, peça
+    /// incluída. Parte chata e fina presa por junção flexível é tira: a coisa se prende ao corpo e as mãos ficam livres.
+    /// <paramref name="materials"/> permite julgar com a crença.</summary>
+    public static Containment Contain(IReadOnlyList<DesignPart> parts, InventionRules rules, IReadOnlyList<MaterialSpec> materials)
+    {
+        if (!IsBuildable(parts, materials)) return new Containment(FailureMode.Invalid, 0, 0, 0, 0, false, 0);
+        long cavityMm3 = 0, tightMm3 = 0, massG = 0;
+        int buildMinutes = 0;
+        bool worn = false;
+        for (int i = 0; i < parts.Count; i++)
+        {
+            var p = parts[i];
+            var m = Find(materials, p.Material)!;
+            var coat = p.Coating > 0 ? Find(materials, p.Coating) : null;
+            long outer = OuterVolume(p);
+            long cavity = p.IsHollow ? CavityVolume(p) : 0;
+            long materialVol = outer - cavity;
+            long coatVol = coat is null ? 0 : Surface(p) * rules.CoatingMm;
+            massG += materialVol * m.DensityKgM3 / Million + (coat is null ? 0 : coatVol * coat.DensityKgM3 / Million);
+            buildMinutes += (int)Math.Min(int.MaxValue / 4, (materialVol * m.DensityKgM3 / Million) * (m.GatherMinutesPerKg + m.WorkMinutesPerKg) / 1000
+                + cavity * m.DensityKgM3 / Million * m.WorkMinutesPerKg / 1000
+                + (coat is null ? 0 : coatVol * coat.DensityKgM3 / Million * (coat.GatherMinutesPerKg + coat.WorkMinutesPerKg) / 1000)
+                + (i == 0 ? 0 : rules.JointMinutes[(int)p.Joint]));
+            cavityMm3 += cavity;
+            if (cavity > 0 && (m.ImpermeabilityPm >= rules.WatertightPm || (coat?.ImpermeabilityPm ?? 0) >= rules.WatertightPm))
+                tightMm3 += cavity;
+            if (IsStrap(parts, i)) worn = true;
+        }
+
+        long innerMl = cavityMm3 / 1000, tightMl = tightMm3 / 1000;
+        // a tira puxa, não faz viga: a resistência é a do corpo do recipiente (as partes que não são tira)
+        var body = new List<DesignPart>(parts.Count);
+        for (int i = 0; i < parts.Count; i++)
+            if (!IsStrap(parts, i)) body.Add(parts[i]);
+        long carryG = rules.FootCarryKg * 1000L;
+        if (innerMl < rules.SmallestUnitMl()) return new Containment(FailureMode.TooSmall, innerMl, tightMl, massG, 0, worn, buildMinutes);
+        if (massG >= carryG) return new Containment(FailureMode.TooHeavy, innerMl, tightMl, massG, 0, worn, buildMinutes);
+
+        long fullG = Math.Min(innerMl * rules.WaterDensityKgM3 / 1000, carryG - massG);
+        long lo = 0, hi = fullG;
+        for (int step = 0; step < 24 && lo < hi; step++)
+        {
+            long mid = lo + (hi - lo + 1) / 2;
+            if (Strong(body, materials, rules, mid)) lo = mid; else hi = mid - 1;
+        }
+        var failure = lo * 1000 < (long)rules.SmallestUnitMl() * rules.WaterDensityKgM3 ? FailureMode.Breaks : FailureMode.None;
+        return new Containment(failure, innerMl, tightMl, massG, lo, worn, buildMinutes);
+    }
+
+    /// <summary>Tira: parte chata e fina, maciça, presa à mãe por junção flexível (amarração).</summary>
+    private static bool IsStrap(IReadOnlyList<DesignPart> parts, int i)
+    {
+        var p = parts[i];
+        return i > 0 && p.Joint == JointKind.Flexible && p.Shape == PartShape.Box && !p.IsHollow
+            && 8 * Math.Min(p.WidthMm, p.HeightMm) <= Math.Max(p.LengthMm, Math.Max(p.WidthMm, p.HeightMm));
     }
 
     /// <summary>Material bruto por id que a construção consome (g): a receita gerada do design, sem tabela.</summary>
@@ -315,7 +386,7 @@ public static class PhysicsEvaluator
         return lo;
     }
 
-    internal static long ICbrt(Int128 value)
+    public static long ICbrt(Int128 value)
     {
         if (value <= 0) return 0;
         long lo = 0, hi = 2_000_000;

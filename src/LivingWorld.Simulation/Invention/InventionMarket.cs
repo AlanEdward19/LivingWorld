@@ -27,17 +27,33 @@ public static class InventionMarket
         int water = WaterCrossing.CellsBetween(world.Map, household.Location, market);
         if (water == 0) return long.MaxValue;
         var rules = world.InventionRules!;
+        long foot = rules.FootCarryKg * 1000L;
+        // AD-147: o recipiente da casa: preso ao corpo soma ao que os braços levam; na mão, leva o que ele aguenta
+        var carrier = world.Invention!.BestCarrier(household.Id.Value, rules);
+        if (carrier.Exists)
+        {
+            foot = carrier.Worn ? foot + carrier.CapacityG : Math.Max(foot, carrier.CapacityG);
+            world.InventionTally.CarrierCargoTrips++;
+            world.InventionTally.CarrierCargoGrams += foot - rules.FootCarryKg * 1000L;
+        }
         var craft = world.Invention!.BestCraft(household.Id.Value, rules);
         if (craft.SpeedMmS > 0 && WaterCrossing.ExtraCost(world.Map, rules, water, craft.SpeedMmS) < WaterCrossing.ExtraCost(world.Map, rules, water, 0))
         {
             world.InventionTally.CraftCargoTrips++;
-            return Math.Max(rules.FootCarryKg * 1000L, craft.PayloadG);
+            return Math.Max(foot, craft.PayloadG);
         }
-        return rules.FootCarryKg * 1000L;
+        return foot;
     }
 
     /// <summary>Corta a quantidade ao que cabe na carga que sobra e desconta o que foi levado.</summary>
     public static long Fit(WorldState world, int resourceId, long quantity, ref long cargoGrams)
+    {
+        long cut = 0;
+        return Fit(world, resourceId, quantity, ref cargoGrams, ref cut);
+    }
+
+    /// <summary>Como <see cref="Fit(WorldState, int, long, ref long)"/>, somando em <paramref name="cutGrams"/> o que ficou (AD-147).</summary>
+    public static long Fit(WorldState world, int resourceId, long quantity, ref long cargoGrams, ref long cutGrams)
     {
         if (cargoGrams == long.MaxValue) return quantity;
         int unit = world.InventionRules!.UnitGramsOf(resourceId);
@@ -46,6 +62,7 @@ public static class InventionMarket
         {
             world.InventionTally.FootCargoCapped++;
             world.InventionTally.CargoUnitsCut += quantity - fits;
+            cutGrams += (quantity - fits) * unit;
         }
         cargoGrams -= fits * unit;
         return fits;
@@ -57,22 +74,33 @@ public static class InventionMarket
     {
         var rules = world.InventionRules!;
         var ledger = world.Invention!;
-        if (ledger.Minds.Count == 0 || ledger.BestCraftSpeed(household.Id.Value, rules) > 0) return;
+        if (ledger.Minds.Count > 0 && ledger.BestCraftSpeed(household.Id.Value, rules) == 0)
+            Shop(world, ctx, buyer, household, market, ledger.Minds, 0);
+        // AD-147: quem tem o problema de carregar e nenhum recipiente em casa olha os que estão expostos
+        if (ledger.CarryMinds.Count > 0 && !ledger.BestCarrier(household.Id.Value, rules).Exists)
+            Shop(world, ctx, buyer, household, market, ledger.CarryMinds, CarryInvention.Function);
+    }
+
+    private static void Shop(WorldState world, TickContext ctx, Npc buyer, Household household, Workplace market,
+        List<InventionMind> minds, byte function)
+    {
+        var rules = world.InventionRules!;
+        var ledger = world.Invention!;
         int frustration = 0;
         var members = household.Members;
         for (int m = 0; m < members.Count; m++) // índice, não foreach: a compra é caminho quente e a interface alocaria
         {
-            int i = ledger.MindIndex(members[m].Value);
-            if (i >= 0) frustration = Math.Max(frustration, ledger.Minds[i].FrustrationMinutes);
+            int i = function == 0 ? ledger.MindIndex(members[m].Value) : ledger.CarryMindIndex(members[m].Value);
+            if (i >= 0) frustration = Math.Max(frustration, minds[i].FrustrationMinutes);
         }
         if (frustration < rules.FrustrationThresholdMinutes) return;
-        if (ledger.ListingsAt(market.Id.Value) == 0) { ledger.Want(household.Id.Value, household.City, false); return; }
+        if (ledger.ListingsAt(market.Id.Value, function) == 0) { ledger.Want(household.Id.Value, household.City, false, function); return; }
 
         int best = -1;
         for (int i = 0; i < ledger.Items.Count; i++)
         {
             var item = ledger.Items[i];
-            if (item.MarketId != market.Id.Value) continue;
+            if (item.MarketId != market.Id.Value || ledger.FunctionOf(item.DesignId) != function) continue;
             if (best < 0 || item.Price < ledger.Items[best].Price) best = i;
         }
         var listing = ledger.Items[best];
@@ -85,15 +113,16 @@ public static class InventionMarket
         long foodReserve = household.Members.Count * 10L
             * Math.Max(1, market.Prices.GetValueOrDefault(new ResourceType(world.EconomyRules.FoodResourceId)));
         bool affordable = buyer.Wallet.Amount - listing.Price >= foodReserve;
-        if (worth < listing.Price || !affordable) { ledger.Want(household.Id.Value, household.City, false); return; }
+        if (worth < listing.Price || !affordable) { ledger.Want(household.Id.Value, household.City, false, function); return; }
 
         var price = new Money(listing.Price);
         if (!buyer.TryDebitWallet(price).IsSuccess) return;
         PaySeller(world, listing, market, price);
         ledger.Items[best] = listing with { HouseholdId = household.Id.Value, City = household.City, SellerId = 0, MarketId = null, Price = 0 };
         ledger.Touch();
-        ledger.Want(household.Id.Value, household.City, true);
+        ledger.Want(household.Id.Value, household.City, true, function);
         world.InventionTally.Sales++;
+        if (function == CarryInvention.Function) world.InventionTally.CarrySales++;
         world.InventionTally.SaleCoins += listing.Price;
         ctx.LogEvent(WorldEventKind.DesignSold, string.Create(CultureInfo.InvariantCulture,
             $"{buyer.Id.Value}|{listing.SellerId}|{listing.DesignId}|{listing.Price}"), SourceSystem);
@@ -114,7 +143,8 @@ public static class InventionMarket
     internal static void CloseMonth(WorldState world)
     {
         var ledger = world.Invention!;
-        var demand = ledger.Wants.GroupBy(w => w.City).Select(g => new DesignDemand(g.Key, g.Count())).OrderBy(d => d.City.Value).ToList();
+        var demand = ledger.Wants.GroupBy(w => (w.City, w.Function)).Select(g => new DesignDemand(g.Key.City, g.Count(), g.Key.Function))
+            .OrderBy(d => d.City.Value).ThenBy(d => d.Function).ToList();
         bool changed = demand.Count != ledger.Demand.Count || !demand.SequenceEqual(ledger.Demand) || ledger.Wants.Count > 0;
         ledger.Demand.Clear();
         ledger.Demand.AddRange(demand);
@@ -123,14 +153,16 @@ public static class InventionMarket
         if (ledger.Items.Count == 0 || !world.EconomyRules.Enabled) return;
 
         double sensitivity = world.EconomyRules.PriceSensitivity;
-        var supply = new Dictionary<CityId, int>();
-        foreach (var item in ledger.Items) if (item.ForSale) supply[item.City] = supply.GetValueOrDefault(item.City) + 1;
+        var supply = new Dictionary<(CityId, byte), int>();
+        foreach (var item in ledger.Items)
+            if (item.ForSale) supply[(item.City, ledger.FunctionOf(item.DesignId))] = supply.GetValueOrDefault((item.City, ledger.FunctionOf(item.DesignId))) + 1;
         if (supply.Count == 0) return;
         for (int i = 0; i < ledger.Items.Count; i++)
         {
             var item = ledger.Items[i];
             if (!item.ForSale) continue;
-            double ratio = Math.Clamp(supply[item.City] / Math.Max(ledger.DemandIn(item.City), 0.0001), 0, 2);
+            byte function = ledger.FunctionOf(item.DesignId);
+            double ratio = Math.Clamp(supply[(item.City, function)] / Math.Max(ledger.DemandIn(item.City, function), 0.0001), 0, 2);
             double factor = 1 + sensitivity * (1 - ratio);
             long price = Math.Max(1, factor > 1 ? (long)Math.Ceiling(item.Price * factor) : (long)Math.Round(item.Price * factor));
             if (price == item.Price) continue;

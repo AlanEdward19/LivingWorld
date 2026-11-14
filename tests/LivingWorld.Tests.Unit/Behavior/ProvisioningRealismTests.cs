@@ -187,6 +187,30 @@ public class ProvisioningRealismTests
         Assert.Equal(ActionType.Buy, decision.Action);
     }
 
+    /// <summary>AD-147 (backlog 08, item 47): o solteiro sozinho em casa, muito sociável e com a solidão no máximo, conversava de hora
+    /// em hora (peso de personalidade até 3× e o vínculo) contra a sede no zero, com água na despensa, até morrer.</summary>
+    [Fact]
+    public void Critical_thirst_with_water_at_home_beats_the_wish_to_talk_of_a_very_sociable_lonely_person()
+    {
+        var (world, _, npc, home) = Build(npcAt: new CellCoord(5, 5), homeAt: new CellCoord(5, 5), wallet: 0, pantry: 10);
+        npc.SetThirst(5, 0);
+        npc.SetHunger(60, 0);
+        npc.SetSocial(0, 0);
+        var sociable = new Personality(100, 100, 50, 50, 100, 50, 50, 100, 50, 50);
+        var context = DecisionContextBuilder.Build(world, npc, 0) with { Personality = sociable };
+
+        var before = BehaviorDecisionSystem.SelectByUtility(context, world.NeedsRules, world.EconomyRules, continuityAction: ActionType.Socialize);
+        var rules = world.NeedsRules with { Psyche = world.NeedsRules.Psyche with { CriticalBodyOverridesLeisure = true } };
+        var thirsty = BehaviorDecisionSystem.SelectByUtility(context, rules, world.EconomyRules, continuityAction: ActionType.Socialize);
+        npc.SetThirst(60, 0);
+        var calm = BehaviorDecisionSystem.SelectByUtility(DecisionContextBuilder.Build(world, npc, 0) with { Personality = sociable },
+            rules, world.EconomyRules, continuityAction: ActionType.Socialize);
+
+        Assert.Equal(ActionType.Socialize, before.Action); // a causa: desligado (padrão), conversa contra a sede no zero
+        Assert.Equal(ActionType.Eat, thirsty.Action);
+        Assert.Equal(ActionType.Socialize, calm.Action); // sem emergência do corpo, a personalidade decide como antes
+    }
+
     [Fact]
     public void Restocking_needs_at_least_the_price_of_one_unit_in_the_wallet()
     {

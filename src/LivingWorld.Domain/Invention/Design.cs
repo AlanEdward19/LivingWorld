@@ -118,11 +118,15 @@ public readonly record struct HouseholdMaterial(long HouseholdId, int MaterialId
 /// é o que se pagou no mercado pelo material (entra no preço pedido).</summary>
 public readonly record struct DesignOrder(long NpcId, int DesignId, long MinutesLeft, long? MarketId, short FidelityPm, long StartTick, long Coins = 0);
 
-/// <summary>Casa que foi ao mercado precisando atravessar água sem ter com quê, no mês corrente (AD-143); <see cref="Bought"/> = levou.</summary>
-public readonly record struct DesignWant(long HouseholdId, CityId City, bool Bought);
+/// <summary>Casa que foi ao mercado precisando atravessar água sem ter com quê, no mês corrente (AD-143); <see cref="Bought"/> = levou.
+/// <see cref="Function"/>: o que ela queria resolver (0 = atravessar água, 1 = carregar, AD-147).</summary>
+public readonly record struct DesignWant(long HouseholdId, CityId City, bool Bought, byte Function = 0);
 
-/// <summary>Casas distintas que quiseram no mês passado, por cidade: a demanda que o vendedor e o preço leem (AD-143).</summary>
-public readonly record struct DesignDemand(CityId City, int Households);
+/// <summary>Casas distintas que quiseram no mês passado, por cidade e função: a demanda que o vendedor e o preço leem (AD-143).</summary>
+public readonly record struct DesignDemand(CityId City, int Households, byte Function = 0);
+
+/// <summary>O que uma pessoa leva consigo (AD-147): quantas unidades de um recurso, tiradas da despensa ao sair; o que sobra volta.</summary>
+public readonly record struct CarriedLoad(long NpcId, int ResourceId, int Quantity);
 
 /// <summary>Peixe na água perto de uma cidade (g): cresce sozinho até a capacidade da água e cai com o que se pesca (AD-143).</summary>
 public readonly record struct FishStock(CityId City, long Grams);

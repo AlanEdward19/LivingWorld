@@ -65,6 +65,31 @@ public static class InventionIntake
             }
     }
 
+    /// <summary>O recipiente aparece no mercado com quem foi às compras (AD-147): quem está perto, é de outra casa da mesma cidade e
+    /// já tem o problema de carregar guarda o design para copiar. Evento, não varredura.</summary>
+    internal static void SightedCarrier(WorldState world, Npc carrier, CellCoord at, int designId)
+    {
+        var rules = world.InventionRules!;
+        var ledger = world.Invention!;
+        if (designId <= 0 || ledger.CarryMinds.Count == 0) return;
+        int r = rules.SightRadius, looked = 0;
+        for (int dy = -r; dy <= r && looked < rules.MaxWatchersPerSighting; dy++)
+            for (int dx = -r; dx <= r && looked < rules.MaxWatchersPerSighting; dx++)
+            {
+                var bucket = world.AliveNpcIndex.At(new CellCoord(at.X + dx, at.Y + dy));
+                for (int i = 0; i < bucket.Count && looked < rules.MaxWatchersPerSighting; i++)
+                {
+                    var other = bucket[i];
+                    if (other.Household == carrier.Household || other.City != carrier.City) continue;
+                    looked++;
+                    int index = ledger.CarryMindIndex(other.Id.Value);
+                    if (index < 0 || ledger.CarryMinds[index].SeenDesignId != 0) continue;
+                    ledger.PutCarryMind(ledger.CarryMinds[index] with { SeenDesignId = designId });
+                    world.InventionTally.Sightings++;
+                }
+            }
+    }
+
     public static void OnEvent(WorldState world, WorldEventKind kind, string payload, string sourceSystem, long tick)
     {
         if (sourceSystem != DeathSource || kind is not (WorldEventKind.Death or WorldEventKind.Starvation or WorldEventKind.Dehydration
@@ -72,7 +97,13 @@ public static class InventionIntake
         int bar = payload.IndexOf('|');
         if (!long.TryParse(bar < 0 ? payload : payload[..bar], System.Globalization.NumberStyles.Integer,
                 System.Globalization.CultureInfo.InvariantCulture, out long dead)) return;
+        if (kind is WorldEventKind.Starvation or WorldEventKind.Dehydration && world.FindNpc(new NpcId(dead)) is { Household: { } h } npc
+            && world.FindHousehold(h) is { } home && PersonalCarry.PantryOutOfReach(world, npc, home))
+        {
+            if (kind == WorldEventKind.Starvation) world.InventionTally.StarvedAway++; else world.InventionTally.DehydratedAway++;
+        }
         Forget(world, dead, tick);
+        PersonalCarry.Forget(world, dead); // AD-147: o que levava fica com a casa
     }
 
     /// <summary>Quem morreu deixa de saber; um design sem ninguém que saiba e sem instância vira lápide.</summary>
