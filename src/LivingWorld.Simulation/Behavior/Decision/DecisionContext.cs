@@ -32,8 +32,15 @@ public sealed record DecisionContext(
     long WalletAmount = 0,
     double ProvisionTargetDays = 2.0,
     LivingWorld.Simulation.Objects.ObjectComfort Comfort = default,
-    InnerLifeSnapshot? Inner = null)
+    InnerLifeSnapshot? Inner = null,
+    long FoodUnitPrice = 0,
+    bool ShopperOut = false,
+    bool FoodStallKnownEmpty = false)
 {
+    /// <summary>AD-148: ir comprar comida adianta: a carteira paga uma unidade no mercado mais perto (preço desconhecido = paga,
+    /// como antes) e a casa não acabou de achar a banca vazia.</summary>
+    public bool CanPayFood => (FoodUnitPrice <= 0 || WalletAmount >= FoodUnitPrice) && !FoodStallKnownEmpty;
+
     /// <summary>Emoções atuais; calmo sem vida interior.</summary>
     public LivingWorld.Domain.Cognition.Affect Mood => Inner?.Mood ?? default;
 

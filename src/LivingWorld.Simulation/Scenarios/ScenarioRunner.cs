@@ -118,8 +118,9 @@ public static partial class ScenarioRunner
         neutralDriftEnabled: false,
         vitalityMortalitySelectionEnabled: true,
         personalityHeritability: 0.7,
-        bonds: SocialBondRules.Default).Value
-        ?? throw new InvalidOperationException("family rules default inválida — bug no cenário, não no gerador");
+        bonds: SocialBondRules.Default).Value is { } familyDefaults
+        ? familyDefaults with { Pressure = PopulationPressureRules.Measured } // AD-148: freios preventivos ligados (backlog 08, item 38)
+        : throw new InvalidOperationException("family rules default inválida — bug no cenário, não no gerador");
 
     private static Dictionary<(RelationshipEventType, RelationshipAxis), double> BuildDefaultRelationshipDeltas()
     {
@@ -319,7 +320,7 @@ public static partial class ScenarioRunner
         LivingWorld.Domain.Population.AppearanceRules? appearanceRules = null,
         LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null,
         AgricultureRules? agricultureRules = null, NaturalWaterRules? naturalWaterRules = null,
-        LivingWorld.Domain.Invention.InventionRules? inventionRules = null)
+        LivingWorld.Domain.Invention.InventionRules? inventionRules = null, NeedsRules? needsRules = null)
     {
         var rules = economyRules ?? DefaultEconomyRules;
         var family = familyRules ?? DefaultFamilyRules;
@@ -329,7 +330,7 @@ public static partial class ScenarioRunner
         var history = historyRules ?? HistoryRules.Disabled;
         var world = new WorldState(
             DefaultCalendar, seed, InitialMap(seed, initialPopulation), DefaultPopulationCatalog, population,
-            DefaultNeedsRules, DefaultActionCatalog, DefaultLifeStageRules,
+            needsRules ?? DefaultNeedsRules, DefaultActionCatalog, DefaultLifeStageRules,
             economyRules: rules, economyCatalog: catalog, familyRules: family, perfRules: perf,
             historyRules: history, processRecipes: DefaultProcessRecipes,
             animalSpeciesRules: animalSpeciesRules ?? DefaultAnimalSpeciesRules,

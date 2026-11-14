@@ -147,7 +147,11 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
 
                 PendingPowerInvocation? pendingPower = null;
                 ActionType candidate;
+                int buySource = 0; // AD-148, só contagem: 1 utilidade, 2 rotina (despensa baixa ou choro)
                 bool urgent = HasUrgentNeedForDecision(npc, rules, now);
+                bool workHour = LivingWorld.Simulation.Observation.PurchaseTally.Diagnose && npc.Employer is not null
+                    && RoutineWithCommuteLead(world, npc, catalog, stage) == ActionType.Work;
+                var diag = world.PurchaseTally;
                 if (npc.ControlledAction is { } playerAction)
                 {
                     // Controlador externo: troca só a escolha. A resolução abaixo (percepção, passos, viagem) é a de qualquer NPC.
@@ -156,8 +160,10 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 else if (urgent)
                 {
                     bool recordTrace = ShouldRecordCognitionTrace(world, npc);
+                    var provision = ProvisionViewFor(world, npc, marketIndex); // AD-148
                     var decision = SelectByUtility(
-                        DecisionContextBuilder.Build(world, npc, now, provisionTargetDays: ProvisionTargetFor(world, npc, marketIndex) * PsycheMechanic.HoardFactor(world, npc, now)),
+                        DecisionContextBuilder.Build(world, npc, now, provisionTargetDays: provision.TargetDays * PsycheMechanic.HoardFactor(world, npc, now),
+                            foodUnitPrice: provision.FoodPrice, shopperOut: provision.ShopperOut, foodStallKnownEmpty: provision.FoodStallEmpty),
                         rules,
                         world.EconomyRules,
                         continuityAction,
@@ -169,6 +175,8 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                         brainGroups: brainOn ? brainGroups : null);
                     candidate = decision.Action;
                     pendingPower = decision.PendingPower;
+                    buySource = 1;
+                    if (workHour) diag.UrgentAtWork[Math.Min(15, (int)candidate)]++;
                     if (brainOn)
                         BrainMechanic.Remember(npc, candidate, brainGroups.AsSpan(BrainState.Groups, BrainState.Groups));
 
@@ -181,14 +189,23 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                     // a rotina só é consultada aqui: quem decide por urgência ou por controlador não a lê
                     candidate = NonUrgentCandidate(
                         world, npc, RoutineWithCommuteLead(world, npc, catalog, stage), stage, marketIndex);
+                    buySource = 2;
+                    if (workHour) { diag.NonUrgentAtWork++; if (candidate == ActionType.Buy) diag.RestockAtWork++; }
+                    var beforeMood = candidate;
                     candidate = MoodShapesRoutine(world, ctx, npc, candidate, now); // AD-138: luto e vergonha recolhem
+                    if (workHour && candidate != beforeMood) diag.MoodAtWork++;
                 }
 
+                var beforeSteps = candidate;
                 candidate = ApplyPerception(world, npc, candidate);
+                if (workHour && !urgent && candidate != beforeSteps) diag.PerceptionAtWork++;
+                beforeSteps = candidate;
                 candidate = ConstrainByDevelopment(world, npc, candidate);
+                if (workHour && !urgent && candidate != beforeSteps) diag.DevelopmentAtWork++;
                 if (urgent && npc.ControlledAction is null && world.TheftRules.Enabled && TheftResolver.Wants(world, npc, now, theftIndex))
                     candidate = ActionType.Steal; // desespero + temperamento + alguém com moeda ao lado
                 var sickAware = LivingWorld.Simulation.Health.SickBehavior.Constrain(world, npc, candidate, now); // de cama ou cuidando (AD-137)
+                if (workHour && !urgent && sickAware != candidate) { if (sickAware == ActionType.Idle) diag.CareAtWork++; else diag.SickAtWork++; }
                 // a cama troca a ação (comer, comprar) depois do marco: a troca também passa pelo desenvolvimento (AD-140). A
                 // criança de cama que não pode ir comprar come (o plano de comida usa a despensa e a compra assistida), em vez
                 // de ficar parada e morrer de sede com água em casa
@@ -206,6 +223,11 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                 {
                     departing = chosen == ActionType.Travel;
                     if (departing && candidate == ActionType.Eat) FeltHomeForMeal(world, npc); // AD-147: longe da despensa
+                    if (candidate == ActionType.Buy && (departing || npc.CurrentAction != ActionType.Travel))
+                    {
+                        if (buySource == 1) world.PurchaseTally.BuyByUtility++;
+                        else world.PurchaseTally.BuyByRestock++;
+                    }
                     npc.SetCurrentAction(chosen, now);
                     if (chosen == ActionType.UsePower && pendingPower is not null)
                         npc.PendingPowerInvocation = pendingPower;

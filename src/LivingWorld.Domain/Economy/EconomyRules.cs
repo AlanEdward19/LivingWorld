@@ -31,6 +31,11 @@ public sealed record EconomyRules(
     /// <summary>Reserva de giro que o empregador guarda antes da retirada, em meses da folha (mínimo de um salário).</summary>
     public double WorkingCapitalPayrollMonths { get; init; } = 12;
 
+    /// <summary>AD-148 (backlog 04, E1): a produção conta só quem está trabalhando no local, não quem está lá por outro motivo
+    /// (na fila do mercado que fica na fazenda). **Desligado por padrão**: com o trabalho consertado a fila caiu a 1,5% dos
+    /// lavradores às 10 h, mas ligar isto levou a fome de 3,5% a 9,2% (6 seeds × 100 anos): pede recalibrar a lavoura.</summary>
+    public bool PresenceNeedsWork { get; init; }
+
     public static Result<EconomyRules> Create(
         bool enabled, int foodResourceId, int waterResourceId,
         IReadOnlyDictionary<(int ResourceId, int LocationTypeId), long> capacityByResourceLocation,

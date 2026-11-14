@@ -20,6 +20,9 @@ public sealed partial class WorldState
     /// <summary>Contagem do relatório de invenção; nenhum sistema decide por ela.</summary>
     [Volatile, Ephemeral] public InventionTally InventionTally { get; } = new();
 
+    /// <summary>Contagem da compra de comida e água para a sonda (AD-148); nenhum sistema decide por ela.</summary>
+    [Volatile, Ephemeral] public LivingWorld.Simulation.Observation.PurchaseTally PurchaseTally { get; } = new();
+
     /// <summary>Invenção ligada neste mundo.</summary>
     internal bool InventionOn => InventionRules is { Enabled: true } && Invention is not null;
 

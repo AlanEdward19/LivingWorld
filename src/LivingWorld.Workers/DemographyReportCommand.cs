@@ -16,7 +16,7 @@ public static class DemographyReportCommand
             : int.TryParse(Environment.GetEnvironmentVariable("LW_BRAIN_BASE_FLOOR"), out int floor)
                 ? LivingWorld.Domain.Cognition.BrainRules.Default with { BaseMinGain = floor }
                 : LivingWorld.Domain.Cognition.BrainRules.Default;
-        Parallel.For(0, seeds, i => runs[i] = DemographyReport.Run(firstSeed + (ulong)i, years, warmupYears, brain, PressureSwitch.FamilyRules()));
+        Parallel.For(0, seeds, i => runs[i] = DemographyReport.Run(firstSeed + (ulong)i, years, warmupYears, brain, PressureSwitch.FamilyRules(), needsRules: ProvisionSwitch.NeedsRules(), inventionRules: ProvisionSwitch.InventionRules()));
         Console.Write(DemographyReport.Summarize(runs, years, warmupYears, ScenarioRunner.DefaultCalendar.HoursPerYear));
         return 0;
     }

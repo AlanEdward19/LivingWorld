@@ -46,7 +46,10 @@ public static class OntogenyDefaults
             [ActionType.Travel] = new(DevelopmentAxis.GrossMotor, 0.6),
             [ActionType.Socialize] = new(DevelopmentAxis.SocialCognition, 0.5),
             [ActionType.Buy] = new(DevelopmentAxis.Abstraction, 0.7),
-            [ActionType.Work] = new(DevelopmentAxis.FineMotor, 1.0),
+            // AD-148: trabalhar pede usar ferramenta (marco "tools"), não a mão hábil completa. Com 1,0, quem perdeu a janela da
+            // mão hábil (teto abaixo de 1 pela doença ou falta de cuidado na infância) nunca trabalhava: 55% dos adultos da seed 7
+            // aos 30 anos, empregados que passavam o turno parados, e a fazenda só produzia com a fila do mercado contando como presença
+            [ActionType.Work] = new(DevelopmentAxis.FineMotor, 0.7),
             [ActionType.UsePower] = new(DevelopmentAxis.Abstraction, 0.7),
             [ActionType.Steal] = new(DevelopmentAxis.SocialCognition, 0.8),
         };

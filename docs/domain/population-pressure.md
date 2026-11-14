@@ -4,11 +4,10 @@ Uma vila pré-industrial não para de crescer só pela fome (o freio positivo de
 **freio preventivo**: casava-se tarde, ou não se casava, porque não havia com o que montar casa; e quem não tinha lugar ia
 embora. No motor nada disso é teto escrito nem taxa fixa: sai da decisão de cada pessoa sobre o que ela tem.
 
-> **Estado (AD-145): tudo desligado por padrão** (`FamilyRules.Pressure` nulo: hash e snapshot iguais aos de antes).
-> Ligado (`PopulationPressureRules.Measured`), 20 seeds × 100 anos
-> deram 7 extinções e 13% das mortes por sede (contra 0,1% na base). A sede foi isolada e corrigida no AD-146 (abaixo);
-> ligado de novo: 3 extinções, sede 0,5%, fome 11,9%. Ainda não liga por padrão (backlog 08, itens 38 a 47).
-> Medir ligado: `LW_PRESSURE=all bash scripts/demography-report.sh` (ou uma lista de chaves: `topup,kin,alms,means,first,emig`).
+> **Estado (AD-148): ligado no cenário de código** (`ScenarioRunner.DefaultFamilyRules`, `Pressure = Measured`); cenário
+> JSON sem o bloco segue desligado. No AD-145 ligado deu 7 extinções (sede), no AD-146 3 extinções e fome 11,9%; a causa era
+> o trabalho e a compra da casa ([household-provisioning.md](household-provisioning.md)). Medir desligado:
+> `LW_PRESSURE=off`; só algumas chaves: `LW_PRESSURE=topup,kin,alms,means,first,emig`.
 
 ## Casar depende de meios
 Todas as chaves estão em `PopulationPressureRules` (`FamilyRules.Pressure`).

@@ -199,14 +199,15 @@ public class ProvisioningRealismTests
         var sociable = new Personality(100, 100, 50, 50, 100, 50, 50, 100, 50, 50);
         var context = DecisionContextBuilder.Build(world, npc, 0) with { Personality = sociable };
 
-        var before = BehaviorDecisionSystem.SelectByUtility(context, world.NeedsRules, world.EconomyRules, continuityAction: ActionType.Socialize);
-        var rules = world.NeedsRules with { Psyche = world.NeedsRules.Psyche with { CriticalBodyOverridesLeisure = true } };
+        var off = world.NeedsRules with { Psyche = world.NeedsRules.Psyche with { CriticalBodyOverridesLeisure = false } };
+        var before = BehaviorDecisionSystem.SelectByUtility(context, off, world.EconomyRules, continuityAction: ActionType.Socialize);
+        var rules = world.NeedsRules; // AD-148: ligado por padrão
         var thirsty = BehaviorDecisionSystem.SelectByUtility(context, rules, world.EconomyRules, continuityAction: ActionType.Socialize);
         npc.SetThirst(60, 0);
         var calm = BehaviorDecisionSystem.SelectByUtility(DecisionContextBuilder.Build(world, npc, 0) with { Personality = sociable },
             rules, world.EconomyRules, continuityAction: ActionType.Socialize);
 
-        Assert.Equal(ActionType.Socialize, before.Action); // a causa: desligado (padrão), conversa contra a sede no zero
+        Assert.Equal(ActionType.Socialize, before.Action); // a causa: desligado, conversa contra a sede no zero
         Assert.Equal(ActionType.Eat, thirsty.Action);
         Assert.Equal(ActionType.Socialize, calm.Action); // sem emergência do corpo, a personalidade decide como antes
     }
