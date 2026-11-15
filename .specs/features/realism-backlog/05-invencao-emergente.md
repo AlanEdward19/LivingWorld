@@ -56,7 +56,16 @@ Fatia 2 (AD-143, branch próprio, 2026-11-13): os 7 itens entraram (carga, venda
   uma lembrança 0 ainda quer dizer "ninguém": rancor e reforço com a pessoa 0 não funcionam.
 
 Fatias seguintes:
-8. Sonda de terra (rolar e deslizar com eixo: trenó, carroça) e, depois, de ar.
+8. Sonda de terra (rolar e deslizar com eixo: trenó, carroça) e, depois, de ar. **Terra feita (AD-153,
+   [invention-land](../../../docs/domain/invention-land.md))**: `PhysicsEvaluator.Haul`, veículo pelo problema de carregar, compra
+   por terra corta no que se leva. 20×100: veículo em 12 seeds (52 invenções, 2.214 peças; seeds 21–40: 12), 0% de sobreposição, 46.574 idas
+   com veículo levando 324 t além do corpo (arrasto, patim e roda), fome 4,9% → 6,0% (seeds 21–40: 4,3% → 3,8%; 40 seeds +6%). Ficou de fora:
+   - 8a. Tração animal (não há rebanho): só gente puxa. 8b. Terreno (`TerrainType`) e estrada não entram na resistência.
+   - 8c. Puxar não muda a velocidade de caminhada. 8d. Outros consumidores: parte do ceifeiro e celeiro, estoque de obra da
+     cidade e frete entre oficinas (`InputSupplySystem` move sem viagem), material da invenção, `Npc.CarriedResourceId`.
+   - 8e. Estabilidade: carrinho de mão (uma roda equilibrada pela pessoa) tomba; rampa. 8f. Dividir a carga com quem vai junto.
+   - 8g. Campos da sonda (modo, carga, atrito, força) fora da API: pedem aprovação. 8h. Sonda de ar.
+   - 8i. O veículo vadeia como quem anda (o mapa não tem profundidade). 8j. Gasta só pelo tempo, não pelo uso.
 9. Substituir o `TechDiscoverySystem`: adoção por cidade derivada de `KnownDesign`, migrar `/cultures/{id}/technologies`, o painel do cliente (`test_technologies.gd`) e as métricas de civilização, remover o bloco `Emergence`, regravar goldens.
 10. Contracepção e remédio como invenção; robô em ADR próprio.
 11. Animação por junção e pose de uso no cliente Godot.

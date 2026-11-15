@@ -10,7 +10,8 @@ namespace LivingWorld.Simulation.Invention;
 /// <c>Axis</c> "x": cilindro e cápsula deitados ao longo do comprimento (o cliente gira a malha, que nasce em pé).</summary>
 public sealed record DesignPartView(string Shape, IReadOnlyList<double> Size, IReadOnlyList<double> Offset, string Axis, double WallM, string Joint, int Parent, int Material, int Coating);
 
-/// <summary>Linha de <c>GET /designs</c>. <c>Function</c> (AD-147): "crossing" (atravessar água) ou "carry" (levar consigo).</summary>
+/// <summary>Linha de <c>GET /designs</c>. <c>Function</c> (AD-147): "crossing" (atravessar água) ou "carry" (levar consigo); AD-153:
+/// "haul" (levar por terra, puxado).</summary>
 public sealed record DesignListing(int Id, bool Lost, bool Works, int Knowers, int Items, string Function = "crossing");
 
 /// <summary>Aparência de um material: cor, acabamento (0..1), grão (0..1), condutividade (0..1). O cliente deriva albedo,
@@ -38,7 +39,7 @@ public static class DesignQuery
     {
         if (world.Invention is not { } ledger || world.InventionRules is not { } rules) return [];
         return ledger.Designs.Select(d => new DesignListing(d.Id, false,
-                ledger.FunctionOf(d.Id) == CarryInvention.Function ? ledger.ContainmentOf(d, rules).Works : ledger.PerformanceOf(d, rules).Works,
+                Works(ledger, d, rules),
                 ledger.Known.Count(k => k.DesignId == d.Id && world.FindNpc(new NpcId(k.NpcId)) is { IsAlive: true }),
                 ledger.Items.Count(i => i.DesignId == d.Id), FunctionName(ledger.FunctionOf(d.Id))))
             .Concat(ledger.Tombstones.Select(t => new DesignListing(t.DesignId, true, false, 0, 0)))
@@ -67,15 +68,26 @@ public static class DesignQuery
         int knowers = ledger.Known.Count(k => k.DesignId == id && world.FindNpc(new NpcId(k.NpcId)) is { IsAlive: true });
         int items = ledger.Items.Count(i => i.DesignId == id);
         bool carry = ledger.FunctionOf(id) == CarryInvention.Function;
+        bool haul = ledger.FunctionOf(id) == HaulInvention.Function;
         var held = carry ? ledger.ContainmentOf(design, rules) : default;
+        var failure = haul ? ledger.HaulageOf(design, rules).Failure : carry ? held.Failure : perf.Failure;
         return Result<DesignView>.Ok(new DesignView(
             design.Id, false, design.InventorId, design.Tick, design.ParentId, design.SecondParentId, design.Origin.ToString(),
-            parts, materials, carry ? held.Works : perf.Works, (carry ? held.Failure : perf.Failure).ToString(), perf.SpeedMmS, perf.PayloadG / 1000,
+            parts, materials, Works(ledger, design, rules), failure.ToString(), perf.SpeedMmS, perf.PayloadG / 1000,
             perf.DraftMm, perf.MetacentricMm, knowers, items, Function: FunctionName(ledger.FunctionOf(id)),
             Holds: carry ? new HoldsView(held.InnerMl, held.WatertightMl, held.MassG, held.CapacityG, held.Worn) : null));
     }
 
-    private static string FunctionName(byte function) => function == CarryInvention.Function ? "carry" : "crossing";
+    private static string FunctionName(byte function) =>
+        function == HaulInvention.Function ? "haul" : function == CarryInvention.Function ? "carry" : "crossing";
+
+    /// <summary>Funciona pela sonda da sua função: travessia, conter (AD-147) ou terra (AD-153).</summary>
+    private static bool Works(InventionLedger ledger, Design design, InventionRules rules) => ledger.FunctionOf(design.Id) switch
+    {
+        HaulInvention.Function => ledger.HaulageOf(design, rules).Works,
+        CarryInvention.Function => ledger.ContainmentOf(design, rules).Works,
+        _ => ledger.PerformanceOf(design, rules).Works,
+    };
 
     /// <summary>O design de que um fato da história fala (vivo ou lápide): é por aqui que um relato aponta para a lápide (AD-143).</summary>
     public static Result<DesignView> OfFact(WorldState world, LivingWorld.Domain.Shared.FactId factId)

@@ -39,7 +39,7 @@ Branch de trabalho: `perf/decision-scan-costs`, no GitHub desde 2026-11-13 (dono
 | Crime contra bens e pessoas: furto de tudo, sequestro, violência sexual, violência doméstica (pedido em 2026-11-12) | furto no AD-150; doméstica, sequestro e sexual no AD-154 (branch do subagente, a juntar); sobras V11–V18 | [06b](06b-crime-contra-pessoas.md) |
 | Refatoração completa do cliente visual (Godot) e, depois, a fatia do jogador (pedido em 2026-11-12) | não começado; ÚLTIMOS da fila, só depois de tudo acima | [09](09-cliente-visual-e-jogador.md) |
 | Desempenho e tempo dos testes | parcial | [07](07-desempenho-e-testes.md) |
-| Pontos em aberto a investigar (afrouxamentos, números sem fonte, efeitos sem explicação) | aberto | [08](08-a-investigar.md), [08b](08b-a-investigar-crime-pessoa.md) |
+| Pontos em aberto a investigar (afrouxamentos, números sem fonte, efeitos sem explicação) | aberto | [08](08-a-investigar.md), [08b](08b-a-investigar.md) |
 
 ## Como trabalhar uma fatia
 
