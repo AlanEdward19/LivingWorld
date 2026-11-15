@@ -17,7 +17,7 @@ public static class DemographyReportCommand
                 ? LivingWorld.Domain.Cognition.BrainRules.Default with { BaseMinGain = floor }
                 : LivingWorld.Domain.Cognition.BrainRules.Default;
         Parallel.For(0, seeds, i => runs[i] = DemographyReport.Run(firstSeed + (ulong)i, years, warmupYears, brain, PressureSwitch.FamilyRules(), needsRules: ProvisionSwitch.NeedsRules(), inventionRules: ProvisionSwitch.InventionRules(),
-            agricultureRules: AgricultureSwitch.AgricultureRules(), economyRules: AgricultureSwitch.EconomyRules()));
+            agricultureRules: AgricultureSwitch.AgricultureRules(), economyRules: AgricultureSwitch.EconomyRules(), crimeRules: CrimeSwitch.CrimeRules()));
         Console.Write(DemographyReport.Summarize(runs, years, warmupYears, ScenarioRunner.DefaultCalendar.HoursPerYear));
         return 0;
     }
