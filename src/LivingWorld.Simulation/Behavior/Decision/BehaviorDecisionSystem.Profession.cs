@@ -49,7 +49,7 @@ public sealed partial class BehaviorDecisionSystem
             ? 0
             : PersonalValue(npc, rules, catalog, labor, current);
         // E20 (AD-155): o dono não larga a própria oficina enquanto ela paga: a oficina é dele, não um emprego a trocar
-        if (currentValue > 0 && current!.Owner == npc.Id && world.EconomyRules.Venture is not null) return;
+        if (currentValue > 0 && current!.Owner == npc.Id && world.EconomyRules.Venture is { OwnerKeepsShop: true }) return;
 
         Workplace? best = null;
         double bestValue = 0;

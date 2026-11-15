@@ -41,6 +41,9 @@ public static class AgricultureSwitch
         if (keys.Contains("nopresence")) { econ = econ with { PresenceNeedsWork = false }; changed = true; }
         if (keys.Contains("freeration")) { econ = econ with { FreeWorkRation = true }; changed = true; } // AD-151: a ração de antes
         if (keys.Contains("nomeal")) { econ = econ with { NoWorkMeal = true }; changed = true; } // AD-151: sem refeição do empregador
+        // AD-155: só para medir: E20 desligado (o dono larga a oficina como no AD-152) e o crédito todo desligado
+        if (keys.Contains("noownerkeeps")) { econ = econ with { Venture = econ.Venture! with { OwnerKeepsShop = false } }; changed = true; }
+        if (keys.Contains("nocredit")) { econ = econ with { Credit = null }; changed = true; }
         return changed ? econ : null;
     }
 }

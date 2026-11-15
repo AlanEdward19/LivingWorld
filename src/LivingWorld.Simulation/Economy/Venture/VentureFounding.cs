@@ -43,7 +43,7 @@ internal static class VentureFounding
         long needed = plotFee + buildCost + equipment.Sum(q => q.Units * q.Price) + importCost
             + supplies.Sum(q => q.Units * q.Price) + workingCapital;
 
-        if (needed <= 0 || VentureCapital.Raise(world, rules, founder, needed, plan: plan) is not { } capital) return null;
+        if (needed <= 0 || VentureCapital.Raise(world, rules, founder, needed, plan: plan, tradeSkill: trade.Skill) is not { } capital) return null;
         if (Place(world, city, buildingType) is not { } site) return null;
 
         long inherited = capital.Take(world, ctx);
@@ -121,7 +121,7 @@ internal static class VentureFounding
         long price = Credit.Debts.ShopValue(world, shop);
         long workingCapital = (long)Math.Ceiling(rules.WorkingCapitalMonths * plan.MonthlyPayroll);
         long needed = price + workingCapital;
-        if (VentureCapital.Raise(world, rules, founder, needed, plan: plan, purpose: Credit.LoanPurpose.Reopening) is not { } capital) return null;
+        if (VentureCapital.Raise(world, rules, founder, needed, plan: plan, purpose: Credit.LoanPurpose.Reopening, tradeSkill: trade.Skill) is not { } capital) return null;
 
         long inherited = capital.Take(world, ctx, Credit.LoanPurpose.Reopening);
         if (shop.Owner is { } sellerId && world.FindNpc(sellerId) is { IsAlive: true } seller) seller.CreditWallet(new Money(price));
@@ -142,7 +142,7 @@ internal static class VentureFounding
         Pledge(world, ctx, capital, shop);
         string partners = capital.Partners.Count == 0 ? "-" : string.Join(',', capital.Partners.Select(p => $"{p.Npc.Id.Value}:{p.Amount}"));
         ctx.LogEvent(WorldEventKind.VentureFounded,
-            $"{shop.Id.Value}|{founder.Id.Value}|{OriginOf(capital, inherited)}|{needed}|{capital.Own}|{inherited}|{partners}", sourceSystem: VentureSystem.SystemName);
+            $"{shop.Id.Value}|{founder.Id.Value}|{OriginOf(capital, inherited)}|{needed}|{capital.Own}|{inherited}|{partners}|comprada", sourceSystem: VentureSystem.SystemName);
         return shop;
     }
 

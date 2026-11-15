@@ -30,6 +30,9 @@ public sealed class CreditTally(WorldState world) : IWorldEventSink
     public int StillIdle { get; private set; }
     public int Gone { get; private set; }
     public long MaxDrift { get; private set; }
+
+    /// <summary>Empréstimos de comida por tomador (para ver se é a mesma casa rolando dívida).</summary>
+    public Dictionary<long, int> FoodBorrowers { get; } = [];
     private long? _initialMoney;
     private readonly List<(long Npc, long Tick)> _watch = [];
 
@@ -44,6 +47,8 @@ public sealed class CreditTally(WorldState world) : IWorldEventSink
                 if (kind >= 0) Granted[decade, kind]++;
                 int purpose = Array.IndexOf(Purposes, p[4]);
                 if (purpose >= 0) ByPurpose[purpose]++;
+                long who = long.Parse(p[3], CultureInfo.InvariantCulture);
+                if (p[4] == "comida") FoodBorrowers[who] = FoodBorrowers.GetValueOrDefault(who) + 1;
                 Principal += long.Parse(p[5], CultureInfo.InvariantCulture);
                 break;
             case WorldEventKind.LoanRepaid when p.Length >= 4:
@@ -100,6 +105,8 @@ public sealed class CreditTally(WorldState world) : IWorldEventSink
         for (int d = 0; d < Decades; d++)
             sb.Append(inv, $" {d * 10}:{string.Join('/', Enumerable.Range(0, Kinds.Length).Select(k => runs.Sum(r => r.Granted[d, k])))}");
         sb.AppendLine();
+        var food = runs.SelectMany(r => r.FoodBorrowers.Values).OrderBy(x => x).ToList();
+        sb.AppendLine(inv, $"  comida: tomadores_distintos={food.Count} emprestimos_por_tomador media={(food.Count > 0 ? food.Average() : 0):F1} mediana={(food.Count > 0 ? food[food.Count / 2] : 0)} p90={(food.Count > 0 ? food[food.Count * 9 / 10] : 0)} max={(food.Count > 0 ? food[^1] : 0)}");
         sb.AppendLine(inv, $"  moeda_total desvio_maximo={runs.Max(r => r.MaxDrift)} (0 = conservada)");
         return sb.ToString();
     }

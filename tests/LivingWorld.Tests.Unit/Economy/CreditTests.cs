@@ -49,12 +49,12 @@ public sealed class CreditTests
     private static long Coin(WorldState w) =>
         w.Npcs.Sum(n => n.Wallet.Amount) + w.Workplaces.Sum(x => x.Treasury.Amount) + w.Cities.Sum(c => c.Treasury.Amount);
 
-    private static Npc Person(WorldState world, string name, int ageYears, double riskAversion = 50, Npc? parent = null)
+    private static Npc Person(WorldState world, string name, int ageYears, double riskAversion = 50, Npc? parent = null, int ambition = 50)
     {
         var anyone = world.Npcs.First(n => n.IsAlive);
         var npc = new Npc(world.NextNpcIdAndAdvance(), name, Sex.Male, world.CurrentDate.AddYears(-ageYears), ScenarioRunner.DefaultCulture,
             anyone.CurrentLocation, motherId: parent is { Sex: Sex.Female } ? parent.Id : null, fatherId: parent is { Sex: Sex.Male } ? parent.Id : null,
-            household: null, health: 100, personality: Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, (int)riskAversion).Value!,
+            household: null, health: 100, personality: Personality.Create(50, 50, 50, 50, 50, ambition, 50, 50, 50, (int)riskAversion).Value!,
             profession: new ProfessionType(2), currentLocation: anyone.CurrentLocation, city: anyone.City);
         world.AddNpc(npc);
         return npc;
@@ -151,6 +151,72 @@ public sealed class CreditTests
 
         var fromFather = v2.World.Credit!.Loans.Single();
         Assert.Equal((father.Id.Value, fromFather.Principal, LoanPurpose.Working), (fromFather.Lender, fromFather.Balance, fromFather.Purpose));
+    }
+
+    /// <summary>Fundador com 70% do capital e um pai com dinheiro de sobra, com a aversão ao risco dada.</summary>
+    private static (Village V, Npc Son, Npc Father) SonAndFather(int fatherRiskAversion)
+    {
+        long needed = Needed();
+        var v = Make();
+        var father = Person(v.World, "pai", 55, fatherRiskAversion);
+        father.CreditWallet(new Money(1_000_000));
+        var son = Smith(v, Person(v.World, "filho", 30, parent: father), 0);
+        son.CreditWallet(new Money(VentureCapital.ReserveOf(v.World, v.Rules, son) + needed * 7 / 10));
+        return (v, son, father);
+    }
+
+    [Fact]
+    public void A_father_who_fears_risk_and_does_not_know_the_trade_lends_instead_of_becoming_a_partner()
+    {
+        var (v, son, father) = SonAndFather(fatherRiskAversion: 90);
+
+        var shop = Found(v, son)!;
+
+        Assert.Null(shop.Partners);
+        var loan = Assert.Single(v.World.Credit!.Loans);
+        Assert.Equal((father.Id.Value, loan.Principal, shop.Id.Value), (loan.Lender, loan.Balance, loan.Workplace));
+        Assert.Equal("emprestimo", v.Log.All.Single(e => e.Kind == WorldEventKind.VentureFounded).Payload.Split('|')[2]);
+    }
+
+    [Fact]
+    public void A_father_who_takes_risks_becomes_a_partner_instead_of_lending()
+    {
+        var (v, son, father) = SonAndFather(fatherRiskAversion: 10);
+
+        var shop = Found(v, son)!;
+
+        Assert.Equal(father.Id, Assert.Single(shop.Partners!).Npc);
+        Assert.Null(v.World.Credit);
+    }
+
+    [Fact]
+    public void An_ambitious_founder_with_savings_borrows_part_and_keeps_part_of_his_savings()
+    {
+        long needed = Needed();
+        var v = Make();
+        var founder = Smith(v, Person(v.World, "ousado", 30, riskAversion: 20, ambition: 80), 0);
+        long reserve = VentureCapital.ReserveOf(v.World, v.Rules, founder);
+        founder.CreditWallet(new Money(reserve + needed));
+        Person(v.World, "rico", 50).CreditWallet(new Money(1_000_000));
+
+        Found(v, founder);
+
+        var loan = Assert.Single(v.World.Credit!.Loans);
+        Assert.True(loan.Principal > 0 && founder.Wallet.Amount > reserve, $"{loan.Principal} {founder.Wallet.Amount}");
+        Assert.Equal("emprestimo", v.Log.All.Single(e => e.Kind == WorldEventKind.VentureFounded).Payload.Split('|')[2]);
+    }
+
+    [Fact]
+    public void A_cautious_founder_with_savings_puts_in_his_own_money_and_borrows_nothing()
+    {
+        long needed = Needed();
+        var v = Make();
+        var founder = Smith(v, Person(v.World, "cauteloso", 30, riskAversion: 70, ambition: 40), 0);
+        founder.CreditWallet(new Money(VentureCapital.ReserveOf(v.World, v.Rules, founder) + needed));
+        Person(v.World, "rico", 50).CreditWallet(new Money(1_000_000));
+
+        Assert.NotNull(Found(v, founder));
+        Assert.Null(v.World.Credit);
     }
 
     [Fact]

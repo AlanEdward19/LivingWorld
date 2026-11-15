@@ -31,41 +31,71 @@ internal sealed record VentureCapital(
     }
 
     public static VentureCapital? Raise(WorldState world, VentureRules rules, Npc founder, long needed, bool allowPartners = true,
-        VenturePlan? plan = null, Credit.LoanPurpose purpose = Credit.LoanPurpose.Founding)
+        VenturePlan? plan = null, Credit.LoanPurpose purpose = Credit.LoanPurpose.Founding,
+        LivingWorld.Domain.Population.Skills.SkillType? tradeSkill = null)
     {
-        var household = new List<(Npc, long)>();
         var spouse = founder.Spouse is { } spouseId && world.FindNpc(spouseId) is { IsAlive: true } s ? s : null;
         long free = Math.Max(0, founder.Wallet.Amount + (spouse?.Wallet.Amount ?? 0) - ReserveOf(world, rules, founder));
         long own = Math.Min(free, needed);
+        var credit = world.CreditOn ? world.EconomyRules.Credit : null;
+        // AD-155 (E22): o fundador ambicioso e pouco medroso não imobiliza toda a poupança: guarda uma parte
+        // (<c>(Ambição − Aversão)/100</c>, até a parte que se financia) e pede essa parte emprestada; sem credor, põe tudo
+        long kept = 0;
+        if (credit is not null && plan is not null && purpose == Credit.LoanPurpose.Founding)
+        {
+            double leverage = Math.Clamp((founder.Personality.Ambition - founder.Personality.RiskAversion) / 100.0, 0, credit.MaxLoanShare);
+            kept = (long)Math.Floor(own * leverage);
+            own -= kept;
+        }
+
+        var partners = new List<(Npc, long)>();
+        long missing = needed - own;
+        // quem tem moeda escolhe entre virar sócio (risco e parte do lucro) e emprestar (retorno fixo, a oficina em garantia);
+        // primeiro entram os que preferem a sociedade (só na falta de verdade, não na parte que o fundador guardou), depois tenta o
+        // empréstimo, e só então o fundador põe o que guardou e os outros viram sócios
+        var financiers = missing > 0 && allowPartners ? PartnersOf(world, rules, founder).ToList() : [];
+        var later = new List<Npc>();
+        foreach (var f in financiers)
+            if (credit is null || plan is null || PrefersPartnership(rules, founder, f, tradeSkill)) TakePartner(f, missing - kept); else later.Add(f);
+
+        Credit.LoanOffer? loan = TryLoan();
+        if (loan is null && missing > 0)
+        {
+            long back = Math.Min(kept, missing);
+            own += back;
+            missing -= back;
+            foreach (var f in later) TakePartner(f, missing);
+            loan = TryLoan();
+        }
+
+        var household = new List<(Npc, long)>();
         long fromFounder = Math.Min(own, founder.Wallet.Amount);
         if (fromFounder > 0) household.Add((founder, fromFounder));
         if (own - fromFounder > 0 && spouse is not null) household.Add((spouse, own - fromFounder));
 
-        var partners = new List<(Npc, long)>();
-        long missing = needed - own;
-        if (missing > 0 && allowPartners)
-            foreach (var partner in PartnersOf(world, rules, founder))
-            {
-                if (partners.Count >= rules.MaxPartners || missing <= 0) break;
-                long offer = (long)Math.Floor(Math.Max(0, partner.Wallet.Amount - ReserveOf(world, rules, partner))
-                    * (1 - partner.Personality.RiskAversion / 100.0));
-                long put = Math.Min(offer, missing);
-                if (put <= 0) continue;
-                partners.Add((partner, put));
-                missing -= put;
-            }
-
-        // AD-155: o que falta, se não passa da parte que se financia (menos para quem tem medo do risco), pede emprestado com a
-        // oficina em garantia; a parcela tem de caber no ganho que a conta promete
-        Credit.LoanOffer? loan = null;
-        if (missing > 0 && plan is not null && world.CreditOn)
+        void TakePartner(Npc partner, long cap)
         {
-            var credit = world.EconomyRules.Credit!;
+            if (partners.Count >= rules.MaxPartners || missing <= 0 || cap <= 0) return;
+            long offer = (long)Math.Floor(Math.Max(0, partner.Wallet.Amount - ReserveOf(world, rules, partner))
+                * (1 - partner.Personality.RiskAversion / 100.0));
+            long put = Math.Min(offer, Math.Min(missing, cap));
+            if (put <= 0) return;
+            partners.Add((partner, put));
+            missing -= put;
+        }
+
+        // o que falta, se não passa da parte que se financia (menos para quem tem medo do risco), pede emprestado com a oficina em
+        // garantia; a parcela tem de caber no ganho que a conta promete
+        Credit.LoanOffer? TryLoan()
+        {
+            if (missing <= 0 || plan is null || credit is null) return null;
             long maxLoan = (long)Math.Floor(needed * credit.MaxLoanShare * Math.Clamp(1.5 - founder.Personality.RiskAversion / 100.0, 0, 1));
             int term = purpose == Credit.LoanPurpose.Founding ? credit.FoundingTermMonths : credit.WorkingTermMonths;
-            if (missing <= maxLoan)
-                loan = Credit.Lending.Find(world, founder, missing, term, collateral: true, plan.MonthlySales - plan.MonthlyPayroll);
-            if (loan is not null) missing = 0;
+            var found = missing <= maxLoan
+                ? Credit.Lending.Find(world, founder, missing, term, collateral: true, plan.MonthlySales - plan.MonthlyPayroll)
+                : null;
+            if (found is not null) missing = 0;
+            return found;
         }
 
         return missing > 0 ? null : new VentureCapital(needed, founder, household, partners, loan);
@@ -97,6 +127,18 @@ internal sealed record VentureCapital(
         }
 
         return inherited;
+    }
+
+    /// <summary>Sociedade ou empréstimo (AD-155, E22)? Quem financia quer ser sócio quanto menos teme o risco e se sabe o ofício (pode
+    /// trabalhar e vigiar o negócio); o fundador ambicioso não quer dividir o lucro. Sociedade se
+    /// <c>(1 − Aversão do financiador) + 0,25 se ele sabe o ofício − Ambição do fundador / 200</c> chega a
+    /// <see cref="VentureRules.PartnershipAppeal"/>; senão ele prefere emprestar.</summary>
+    internal static bool PrefersPartnership(VentureRules rules, Npc founder, Npc financier,
+        LivingWorld.Domain.Population.Skills.SkillType? tradeSkill)
+    {
+        double appeal = 1 - financier.Personality.RiskAversion / 100.0 - founder.Personality.Ambition / 200.0;
+        if (tradeSkill is { } skill && financier.Skills.Get(skill) >= rules.MinSkill) appeal += 0.25;
+        return appeal >= rules.PartnershipAppeal;
     }
 
     /// <summary>Parentes vivos e crescidos (pais, filhos, irmãos; o cônjuge já conta no casal) por id, depois amigos por id:
