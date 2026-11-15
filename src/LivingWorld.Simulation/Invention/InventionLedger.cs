@@ -41,10 +41,16 @@ public sealed class InventionLedger
     /// <summary>Designs concebidos para carregar (ordenados): a função de um design é o problema de quem o concebeu (AD-147).</summary>
     public List<int> CarryDesigns { get; init; } = [];
 
+    /// <summary>Designs concebidos para levar por terra (AD-153, ordenados): a sonda de terra mostrou que puxam mais que os braços.
+    /// Nulo enquanto vazio: o snapshot só ganha o campo quando alguém inventa.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<int>? HaulDesigns { get; set; }
+
     private Dictionary<int, Design>? _designById;
     private Dictionary<long, Craft>? _bestCraftByHousehold;
     private Dictionary<long, int>? _listingsByMarket;
     private Dictionary<long, Carrier>? _bestCarrierByHousehold;
+    private Dictionary<long, Hauler>? _bestHaulerByHousehold;
 
     /// <summary>AD-151: memória volátil de <see cref="PersonalCarry.PantryOutOfReach"/> por (casa, cidade, célula).</summary>
     [JsonIgnore] internal Dictionary<(long Household, CityId City, LivingWorld.Domain.Geography.CellCoord From), (long Hour, long Touches, int Techs, bool Out)> ReachMemo { get; } = [];
@@ -54,6 +60,14 @@ public sealed class InventionLedger
     internal readonly record struct Craft(int SpeedMmS, long PayloadG, int MetacentricMm, int DesignId);
     private readonly Dictionary<int, Performance> _performance = [];
     private readonly Dictionary<int, Containment> _containment = [];
+    private readonly Dictionary<int, Haulage> _haulage = [];
+
+    /// <summary>O melhor veículo de terra que funciona de uma casa (AD-153): carga que uma pessoa puxa nele (com a qualidade), como toca
+    /// o chão e o design (volátil, derivado dos itens).</summary>
+    internal readonly record struct Hauler(long CapacityG, GroundMode Mode, int DesignId)
+    {
+        public bool Exists => DesignId != 0;
+    }
 
     /// <summary>O melhor recipiente que funciona de uma casa (AD-147): carga que aguenta (com a qualidade), volume oco, a parte
     /// estanque, massa própria, se se prende ao corpo e o design (volátil, derivado dos itens).</summary>
@@ -76,6 +90,7 @@ public sealed class InventionLedger
         _bestCraftByHousehold = null;
         _listingsByMarket = null;
         _bestCarrierByHousehold = null;
+        _bestHaulerByHousehold = null;
     }
 
     public Design? FindDesign(int id)
@@ -100,8 +115,50 @@ public sealed class InventionLedger
         return c;
     }
 
-    /// <summary>Para que o design serve (AD-147): 1 = carregar (concebido para isso), 0 = o resto (a travessia de antes).</summary>
-    internal byte FunctionOf(int designId) => CarryDesigns.Count > 0 && CarryDesigns.BinarySearch(designId) >= 0 ? (byte)1 : (byte)0;
+    /// <summary>Por terra, medido com a natureza, memorizado por id (AD-153, volátil: recomputável).</summary>
+    internal Haulage HaulageOf(Design design, InventionRules rules)
+    {
+        if (!_haulage.TryGetValue(design.Id, out var h))
+            _haulage[design.Id] = h = PhysicsEvaluator.Haul(design.Parts, rules);
+        return h;
+    }
+
+    /// <summary>Para que o design serve (AD-147): 1 = carregar (concebido para isso), 2 = levar por terra (AD-153), 0 = o resto (a
+    /// travessia de antes).</summary>
+    internal byte FunctionOf(int designId)
+    {
+        if (HaulDesigns is { Count: > 0 } haul && haul.BinarySearch(designId) >= 0) return 2;
+        return CarryDesigns.Count > 0 && CarryDesigns.BinarySearch(designId) >= 0 ? (byte)1 : (byte)0;
+    }
+
+    internal void MarkHaulDesign(int designId)
+    {
+        HaulDesigns ??= [];
+        int i = HaulDesigns.BinarySearch(designId);
+        if (i >= 0) return;
+        HaulDesigns.Insert(~i, designId);
+        Touch();
+    }
+
+    /// <summary>O melhor veículo de terra em uso do domicílio (a maior carga); padrão = nenhum. Item exposto à venda não conta.</summary>
+    internal Hauler BestHauler(long householdId, InventionRules rules)
+    {
+        if (Items.Count == 0 || HaulDesigns is not { Count: > 0 }) return default;
+        if (_bestHaulerByHousehold is null)
+        {
+            _bestHaulerByHousehold = [];
+            foreach (var item in Items)
+            {
+                if (item.ForSale || FunctionOf(item.DesignId) != 2 || FindDesign(item.DesignId) is not { } design) continue;
+                var h = HaulageOf(design, rules);
+                if (!h.Works) continue;
+                long capacity = h.CapacityG * item.QualityPm / 1000;
+                if (capacity > _bestHaulerByHousehold.GetValueOrDefault(item.HouseholdId).CapacityG)
+                    _bestHaulerByHousehold[item.HouseholdId] = new Hauler(capacity, h.Mode, design.Id);
+            }
+        }
+        return _bestHaulerByHousehold.GetValueOrDefault(householdId);
+    }
 
     internal void MarkCarryDesign(int designId)
     {
@@ -159,7 +216,7 @@ public sealed class InventionLedger
     }
 
     /// <summary>Peças expostas à venda num mercado (derivado). Com recipientes no mundo (AD-147), por função: a chave junta o mercado
-    /// e a função (0 = travessia, 1 = carregar).</summary>
+    /// e a função (0 = travessia, 1 = carregar, 2 = levar por terra).</summary>
     internal int ListingsAt(long marketId, byte function = 0)
     {
         if (_listingsByMarket is null)
@@ -168,11 +225,11 @@ public sealed class InventionLedger
             foreach (var item in Items)
                 if (item.MarketId is { } m)
                 {
-                    long key = m * 2 + FunctionOf(item.DesignId);
+                    long key = m * 4 + FunctionOf(item.DesignId);
                     _listingsByMarket[key] = _listingsByMarket.GetValueOrDefault(key) + 1;
                 }
         }
-        return _listingsByMarket.GetValueOrDefault(marketId * 2 + function);
+        return _listingsByMarket.GetValueOrDefault(marketId * 4 + function);
     }
 
     internal long StoredGrams(long householdId, int materialId)
@@ -408,4 +465,7 @@ public sealed class InventionTally
     public long CarryAttempts, CarryInventions, CarryPrototypeFailures, CarryIdeasDiscarded, CarryCopies, CarryTaught, CarryBuilt, CarrySales;
     public long PackTrips, PackUnits, PackEaten, PackDrunk, PackReturned, CriticalAwayFromPack;
     public long HomeForMeal, CarrierCargoTrips, CarrierCargoGrams, CargoFrustrations, AwayFrustrations, StarvedAway, DehydratedAway;
+    // AD-153: levar por terra
+    public long LandCargoCapped, LandCargoGramsCut, HaulAttempts, HaulInventions, HaulPrototypeFailures, HaulTaught, HaulBuilt, HaulSales;
+    public long HaulTrips, HaulGramsBeyondBody, HaulDrag, HaulSkid, HaulRoll;
 }

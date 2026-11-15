@@ -10,11 +10,17 @@ public static class ProvisionSwitch
 {
     /// <summary><c>+carry</c> em <c>LW_PROVISION</c> liga <c>InventionRules.PantryNeedsPresence</c> (carga pessoal, AD-147).</summary>
     /// AD-149: a carga pessoal é padrão do cenário de código; <c>-carry</c> a desliga para medir.
+    /// AD-153: <c>-landcargo</c> desliga o corte da compra por terra e <c>-haul</c> as ideias de levar por terra.
     public static LivingWorld.Domain.Invention.InventionRules? InventionRules()
     {
         var raw = Environment.GetEnvironmentVariable("LW_PROVISION") ?? "";
-        if (raw.Contains("-carry", StringComparison.Ordinal)) return LivingWorld.Domain.Invention.InventionRules.Default with { PantryNeedsPresence = false };
-        return raw.Contains("+carry", StringComparison.Ordinal) ? LivingWorld.Domain.Invention.InventionRules.Default with { PantryNeedsPresence = true } : null;
+        var rules = LivingWorld.Domain.Invention.InventionRules.Default;
+        bool changed = false;
+        if (raw.Contains("-carry", StringComparison.Ordinal)) { rules = rules with { PantryNeedsPresence = false }; changed = true; }
+        else if (raw.Contains("+carry", StringComparison.Ordinal)) { rules = rules with { PantryNeedsPresence = true }; changed = true; }
+        if (raw.Contains("-landcargo", StringComparison.Ordinal)) { rules = rules with { LandCargo = false }; changed = true; }
+        if (raw.Contains("-haul", StringComparison.Ordinal)) { rules = rules with { LandVehicles = false }; changed = true; }
+        return changed ? rules : null;
     }
 
     public static NeedsRules? NeedsRules()

@@ -20,13 +20,15 @@ public static class InventionMarket
 {
     public const string SourceSystem = "invention-market";
 
-    /// <summary>Carga (g) que a casa leva numa ida ao mercado; <see cref="long.MaxValue"/> quando não há água no caminho (nada muda).</summary>
+    /// <summary>Carga (g) que a casa leva numa ida ao mercado; <see cref="long.MaxValue"/> quando nada corta: sem água no caminho e
+    /// com <see cref="InventionRules.LandCargo"/> desligado, ou com o mercado na porta de casa. AD-153: por terra também se leva só o
+    /// que cabe nos braços, no recipiente ou no veículo de terra da casa (puxado por quem foi; ele vadeia como quem anda).</summary>
     public static long CargoGrams(WorldState world, Household household, CellCoord market)
     {
         if (!world.InventionOn) return long.MaxValue;
-        int water = WaterCrossing.CellsBetween(world.Map, household.Location, market);
-        if (water == 0) return long.MaxValue;
         var rules = world.InventionRules!;
+        int water = WaterCrossing.CellsBetween(world.Map, household.Location, market);
+        if (water == 0 && (!rules.LandCargo || household.Location == market)) return long.MaxValue;
         long foot = rules.FootCarryKg * 1000L;
         // AD-147: o recipiente da casa: preso ao corpo soma ao que os braços levam; na mão, leva o que ele aguenta
         var carrier = world.Invention!.BestCarrier(household.Id.Value, rules);
@@ -36,6 +38,9 @@ public static class InventionMarket
             world.InventionTally.CarrierCargoTrips++;
             world.InventionTally.CarrierCargoGrams += foot - rules.FootCarryKg * 1000L;
         }
+        if (rules.LandVehicles && world.Invention.BestHauler(household.Id.Value, rules) is { Exists: true } hauler && hauler.CapacityG > foot)
+            foot = hauler.CapacityG;
+        if (water == 0) return foot;
         var craft = world.Invention!.BestCraft(household.Id.Value, rules);
         if (craft.SpeedMmS > 0 && WaterCrossing.ExtraCost(world.Map, rules, water, craft.SpeedMmS) < WaterCrossing.ExtraCost(world.Map, rules, water, 0))
         {
@@ -68,6 +73,30 @@ public static class InventionMarket
         return fits;
     }
 
+    /// <summary>Depois da compra (AD-153): conta o corte por terra e o que o veículo de terra da casa levou além do que o corpo leva
+    /// (braços e recipiente preso a ele). Só medida: nenhuma decisão lê isto.</summary>
+    public static void NoteTrip(WorldState world, Household household, CellCoord market, long cargoStart, long cargoLeft, long cutG)
+    {
+        if (!world.InventionOn || cargoStart == long.MaxValue) return;
+        var rules = world.InventionRules!;
+        var tally = world.InventionTally;
+        if (cutG > 0 && WaterCrossing.CellsBetween(world.Map, household.Location, market) == 0)
+        {
+            tally.LandCargoCapped++;
+            tally.LandCargoGramsCut += cutG;
+        }
+        if (world.Invention!.BestHauler(household.Id.Value, rules) is not { Exists: true } hauler) return;
+        var carrier = world.Invention.BestCarrier(household.Id.Value, rules);
+        long body = rules.FootCarryKg * 1000L + (carrier.Exists && carrier.Worn ? carrier.CapacityG : 0);
+        long carried = cargoStart - cargoLeft;
+        if (carried <= body) return;
+        tally.HaulTrips++;
+        tally.HaulGramsBeyondBody += carried - body;
+        if (hauler.Mode == GroundMode.Roll) tally.HaulRoll++;
+        else if (hauler.Mode == GroundMode.Skid) tally.HaulSkid++;
+        else tally.HaulDrag++;
+    }
+
     /// <summary>Quem está no mercado: se a casa precisa atravessar água e não tem com quê, conta na procura do mês e, havendo peça
     /// exposta aqui que valha o preço e caiba no bolso (sobrando para a comida), compra a mais barata.</summary>
     public static void AtMarket(WorldState world, TickContext ctx, Npc buyer, Household household, Workplace market)
@@ -79,6 +108,9 @@ public static class InventionMarket
         // AD-147: quem tem o problema de carregar e nenhum recipiente em casa olha os que estão expostos
         if (ledger.CarryMinds.Count > 0 && !ledger.BestCarrier(household.Id.Value, rules).Exists)
             Shop(world, ctx, buyer, household, market, ledger.CarryMinds, CarryInvention.Function);
+        // AD-153: e quem segue cortado sem veículo de terra olha os que estão expostos
+        if (rules.LandVehicles && ledger.CarryMinds.Count > 0 && ledger.HaulDesigns is { Count: > 0 } && !ledger.BestHauler(household.Id.Value, rules).Exists)
+            Shop(world, ctx, buyer, household, market, ledger.CarryMinds, HaulInvention.Function);
     }
 
     private static void Shop(WorldState world, TickContext ctx, Npc buyer, Household household, Workplace market,
@@ -123,6 +155,7 @@ public static class InventionMarket
         ledger.Want(household.Id.Value, household.City, true, function);
         world.InventionTally.Sales++;
         if (function == CarryInvention.Function) world.InventionTally.CarrySales++;
+        if (function == HaulInvention.Function) world.InventionTally.HaulSales++;
         world.InventionTally.SaleCoins += listing.Price;
         ctx.LogEvent(WorldEventKind.DesignSold, string.Create(CultureInfo.InvariantCulture,
             $"{buyer.Id.Value}|{listing.SellerId}|{listing.DesignId}|{listing.Price}"), SourceSystem);

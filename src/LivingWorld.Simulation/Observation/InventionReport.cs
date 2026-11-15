@@ -11,7 +11,7 @@ namespace LivingWorld.Simulation.Observation;
 /// perda, viagens por água a pé e na embarcação) e o estado final (designs vivos, lápides, quem sabe, itens). Só lê o mundo.</summary>
 public sealed record InventionSummary(
     ulong Seed, InventionTally Tally, int LiveDesigns, int Tombstones, int Knowers, int Items, IReadOnlyList<int> DesignIds, string FirstInvention,
-    int CarryDesigns = 0, int WornCarryDesigns = 0, int WornCarryItems = 0)
+    int CarryDesigns = 0, int WornCarryDesigns = 0, int WornCarryItems = 0, IReadOnlyList<int>? HaulDesignIds = null, int HaulItems = 0, string FirstHaul = "-")
 {
     public static InventionSummary? Of(WorldState world)
     {
@@ -25,8 +25,24 @@ public sealed record InventionSummary(
         // AD-149: recipientes vivos e quantos se prendem ao corpo (tira), e as peças desses em uso
         var carry = ledger.Designs.Where(d => ledger.FunctionOf(d.Id) == CarryInvention.Function).ToList();
         var worn = carry.Where(d => PhysicsEvaluator.Contain(d.Parts, world.InventionRules!).Worn).Select(d => d.Id).ToHashSet();
+        // AD-153: veículos de terra (vivos e lápides que foram) e o primeiro inventado
+        var haul = ledger.HaulDesigns ?? [];
+        var firstHaul = ledger.Designs.Where(d => d.Origin == DesignOrigin.Invented && ledger.FunctionOf(d.Id) == HaulInvention.Function).OrderBy(d => d.Tick).FirstOrDefault();
+        string firstHaulText = firstHaul is null ? "-" : string.Create(inv,
+            $"npc {firstHaul.InventorId} ano {firstHaul.Tick / world.Calendar.HoursPerYear}: {DescribeHaul(firstHaul, world.InventionRules!)}");
         return new InventionSummary(world.Seed, world.InventionTally, ledger.Designs.Count, ledger.Tombstones.Count, knowers, ledger.Items.Count, ids, firstText,
-            carry.Count, worn.Count, ledger.Items.Count(i => worn.Contains(i.DesignId)));
+            carry.Count, worn.Count, ledger.Items.Count(i => worn.Contains(i.DesignId)), haul.ToList(),
+            ledger.Items.Count(i => ledger.FunctionOf(i.DesignId) == HaulInvention.Function), firstHaulText);
+    }
+
+    /// <summary>Partes e o que a sonda de terra mediu (AD-153).</summary>
+    public static string DescribeHaul(Design design, InventionRules rules)
+    {
+        var inv = CultureInfo.InvariantCulture;
+        var h = PhysicsEvaluator.Haul(design.Parts, rules);
+        var parts = design.Parts.Select(p => string.Create(inv, $"{p.Shape} {p.LengthMm}x{p.WidthMm}x{p.HeightMm} m{p.Material} {p.Joint}@z{p.OffsetZMm}"));
+        return string.Create(inv,
+            $"[{string.Join("; ", parts)}] modo={h.Mode} massa={h.MassG / 1000}kg carga={h.CapacityG / 1000}kg atrito={h.ResistancePm}‰ vazio={h.EmptyPullN}N horas={h.BuildMinutes / 60}");
     }
 
     /// <summary>Partes em texto curto (forma, medidas, material, parede, revestimento, junção) e o desempenho medido.</summary>
@@ -61,6 +77,21 @@ public sealed record InventionSummary(
         sb.AppendLine(inv, $"invencao recipientes_vivos={runs.Sum(r => r.CarryDesigns)} com_tira={runs.Sum(r => r.WornCarryDesigns)} pecas_com_tira={runs.Sum(r => r.WornCarryItems)} seeds_com_tira={runs.Count(r => r.WornCarryDesigns > 0)}");
         sb.AppendLine(inv, $"invencao carregar seeds_com_recipiente={runs.Count(r => r.Tally.CarryInventions > 0)} invencoes={Sum(t => t.CarryInventions)} tentativas={Sum(t => t.CarryAttempts)} falhas={Sum(t => t.CarryPrototypeFailures)} descartes={Sum(t => t.CarryIdeasDiscarded)} copias={Sum(t => t.CarryCopies)} ensinados={Sum(t => t.CarryTaught)} encomendas={Sum(t => t.CarryBuilt)} vendas={Sum(t => t.CarrySales)} frustracoes_carga={Sum(t => t.CargoFrustrations)} frustracoes_longe={Sum(t => t.AwayFrustrations)}");
         sb.AppendLine(inv, $"invencao levar saidas_com_carga={Sum(t => t.PackTrips)} unidades_levadas={Sum(t => t.PackUnits)} comidas={Sum(t => t.PackEaten)} bebidas={Sum(t => t.PackDrunk)} devolvidas={Sum(t => t.PackReturned)} voltas_para_comer={Sum(t => t.HomeForMeal)} comer_longe_sem_nada={Sum(t => t.CriticalAwayFromPack)} idas_com_recipiente={Sum(t => t.CarrierCargoTrips)} kg_a_mais_por_recipiente={Sum(t => t.CarrierCargoGrams) / 1000} mortes_fome_longe={Sum(t => t.StarvedAway)} mortes_sede_longe={Sum(t => t.DehydratedAway)}");
+        // AD-153
+        sb.AppendLine(inv, $"invencao terra seeds_com_veiculo={runs.Count(r => r.Tally.HaulInventions > 0)} invencoes={Sum(t => t.HaulInventions)} prototipos={Sum(t => t.HaulAttempts)} falhas={Sum(t => t.HaulPrototypeFailures)} ensinados={Sum(t => t.HaulTaught)} encomendas={Sum(t => t.HaulBuilt)} vendas={Sum(t => t.HaulSales)} designs_vivos_ou_idos={runs.Sum(r => r.HaulDesignIds?.Count ?? 0)} pecas={runs.Sum(r => r.HaulItems)}");
+        sb.AppendLine(inv, $"invencao terra compras_cortadas_por_terra={Sum(t => t.LandCargoCapped)} kg_cortados_por_terra={Sum(t => t.LandCargoGramsCut) / 1000} idas_com_veiculo={Sum(t => t.HaulTrips)} kg_alem_do_corpo={Sum(t => t.HaulGramsBeyondBody) / 1000} (arrasto={Sum(t => t.HaulDrag)} patim={Sum(t => t.HaulSkid)} roda={Sum(t => t.HaulRoll)})");
+        double hOverlap = 0; int hPairs = 0;
+        for (int i = 0; i < runs.Count; i++)
+            for (int j = i + 1; j < runs.Count; j++)
+            {
+                var a = (runs[i].HaulDesignIds ?? []).ToHashSet();
+                var b = runs[j].HaulDesignIds ?? [];
+                if (a.Count == 0 || b.Count == 0) continue;
+                hOverlap += (double)b.Count(a.Contains) / Math.Min(a.Count, b.Count);
+                hPairs++;
+            }
+        sb.AppendLine(inv, $"invencao terra sobreposicao_entre_seeds={(hPairs == 0 ? 0 : 100 * hOverlap / hPairs):F1}% (pares={hPairs})");
+        foreach (var r in runs.Where(r => r.FirstHaul != "-").Take(3)) sb.AppendLine(inv, $"invencao terra primeira seed={r.Seed}: {r.FirstHaul}");
         double overlap = 0; int pairs = 0;
         for (int i = 0; i + 1 < runs.Count; i++)
         {
