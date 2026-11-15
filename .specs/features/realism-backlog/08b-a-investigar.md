@@ -62,3 +62,21 @@
 95. **Ordem dos credores na falência** (salário atrasado antes dos empréstimos com garantia): é a ordem moderna; a medieval
     variava por costume local. **Precisa de conferência.**
 96. **Valor do prédio tomado em pagamento** = foro + obra + equipamento da abertura (custo de reposição, sem desconto de leilão).
+
+## Dos poderes por genética (AD-156, [powers-genetics](../../../docs/domain/powers-genetics.md))
+100. **Penetrância padrão 0,9** e **expressividade** com desvio 0,15, +0,25 no homozigoto dominante e +0,25 por ponto acima do
+     limiar no poligênico. Escolhas sem fonte (doenças mendelianas reais vão de ~0,3 a 1). Precisa de conferência.
+101. **Idade de início N(13; 1,5) anos** (lembrança da idade da puberdade). Precisa de conferência.
+102. **Mutação nova 1e-5 por locus por gameta** (o relatório citava 1e-5 a 1e-4; taxas por gene em humanos lembradas entre 1e-6
+     e 1e-5). Precisa de conferência.
+103. **Custo do poder manifesto**: fome e sede ×1,1, fertilidade ×0,9, vitalidade ×1,0. Escolhas sem fonte (o poder é fictício):
+     calibrar pela seleção que se quer ver.
+104. **Poligênico**: 4 loci, q = 0,25 nos fundadores, limiar 5 cópias, desvio do ambiente 0,5. Escolhas sem fonte.
+105. **Prevalência do cenário de medida 8%** (2% por poder). Escolha sem fonte.
+106. **Feito no AD-156 (índice de vivos, fontes de flora por hora, salto adiado; mesmo hash). Sobra: a fauna e o `PowerOpportunityProvider` ainda olham portadores por NPC; não medidos.** Mundo com poderes ligados ~10× mais lento (achado no AD-156, causa da base). Perfil a 1.000 NPCs, 720 h, poderes
+     ligados: `flora-lifecycle` 33% do tempo e 82% da alocação (1,6 GB). Com `Extraordinary.Enabled` o sistema desliga o
+     salto lazy (`TrySkip`/`Rebuild`) e chama `FloraMechanic.GrowthRateMultiplier` por planta por hora, que percorre todos os
+     portadores (mortos inclusive, que nunca saem de `ExtraordinaryCarriers`) com LINQ e `OrderBy`. As varreduras horárias de
+     `ExtraordinaryStateSystem`, `ExtraordinaryPowerStageSystem` e da fauna também passam pelos mortos. Conserto: índice dos
+     portadores vivos com efeito de flora/fauna, recalculado só quando um portador muda, e o salto lazy mantido quando nenhum
+     poder vivo mexe na flora. O AD-156 só trocou o `UpsertExtraordinaryCarrier` (antes remover + ordenar a lista inteira).

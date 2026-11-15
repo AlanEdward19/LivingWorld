@@ -19,11 +19,9 @@ public sealed class ExtraordinaryPowerStageSystem : ISimulationSystem
 
     public void Tick(WorldState world, TickContext ctx)
     {
-        foreach (var carrier in world.ExtraordinaryCarriers
-                     .OrderBy(item => item.CarrierId.Value)
-                     .ToList())
+        foreach (var (carrier, npc) in world.LivingCarriers().ToList()) // AD-156: só vivos, ordem de id
         {
-            if (world.FindNpc(carrier.CarrierId) is not { IsAlive: true } npc) continue;
+            if (!npc.IsAlive) continue;
 
             int stageIndex = ResolveCarrierStageIndex(world, npc, carrier);
             if (stageIndex == carrier.CurrentStageIndex) continue;

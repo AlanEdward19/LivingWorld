@@ -17,7 +17,7 @@
 | 7, 25 | Aprendizado desde o nascimento, habilidade que não se esquece | feito (AD-132) |
 | 13, 18, 23, 24, 27 | Tabu de parentesco, casamento que cria comida, profissão sorteada, atração como média do casal, viuvez e divórcio | em andamento (01) |
 | 9, 11, 28 | Memória, rastro de pensamento, personalidade fixa e uniforme | não começado (03) |
-| 10 | Herança de poder não é genética | não começado (abaixo) |
+| 10 | Herança de poder não é genética | feito (AD-156); sobras P1–P7 abaixo |
 | 17 | Preço preso no piso, demanda fixa, salário sem ligação com habilidade | não começado (04) |
 | 26 | Testemunha lembra com fidelidade total; sem boato de pessoa a pessoa | feito para o crime (AD-150); a história (`HistoryRules`) segue igual: item V8 |
 | 30 | Cônjuge herda 100%; furto desligado e sem justiça | feito (AD-150) |
@@ -47,19 +47,7 @@ O que ficou de fora do AD-150 (nada some; cada item é fatia ou linha futura):
 
 Furto (AD-150), sequestro, violência sexual e consequência social (AD-154), com estado e sobras V11 em diante: [06b](06b-crime-contra-pessoas.md).
 
-## Poderes por genética (a fazer; desenho proposto na seção 3 do relatório)
-
-Hoje: o filho só herda se os dois pais forem portadores, com chance 1,0, e num dos caminhos recebe todos os poderes dos dois, que se acumulam a cada geração.
-
-1. **Genótipo**: um locus por poder, dois alelos por NPC (materno e paterno); cada pai transmite um dos dois com 50%; loci independentes ou ligados.
-2. **Modo de herança por poder**: dominante, recessivo, ligado ao X ou poligênico com limiar. Portador heterozigoto de traço recessivo transmite sem manifestar.
-3. **Penetrância e expressividade**: chance de manifestar dado o genótipo e intensidade contínua.
-4. **Idade e gatilho de manifestação**: curva de início (puberdade) combinada com o gatilho ambiental que já existe.
-5. **Mutação nova**: taxa baixa por locus por gameta, no lugar do sorteio de prevalência; prevalência inicial pelo equilíbrio de Hardy-Weinberg.
-6. **Custo metabólico**: poder manifesto aumenta o gasto de fome e sede mesmo sem uso; o mesmo alelo pode reduzir fertilidade ou vitalidade, para a seleção natural operar.
-7. **Fim do acúmulo**: o filho só tem o que os alelos herdados dão.
-8. Mesmo motor para as doenças genéticas (02).
-9. Testes: filhos de heterozigoto dominante com não portador manifestam em 50% ± 5%; filhos de dois heterozigotos recessivos, em 25% ± 5%; o número médio de poderes por portador não cresce entre gerações (20 seeds × 150 anos).
+## Poderes por genética (AD-156: itens 1–7 e 9 feitos; detalhe e sobras P1–P7 em [06b](06b-poderes-por-genetica.md))
 
 ## Doença de época (a fazer; sobrou da fatia de corpo e saúde)
 

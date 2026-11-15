@@ -63,7 +63,7 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
                 || world.FloraMutationVersion != _floraVersion
                 || world.TemperatureAdjustmentsVersion != _temperatureVersion
                 || tick < _validFrom || tick >= _validUntil
-                || world.Extraordinary.Enabled
+                || FloraMechanic.PowersCanTouchFlora(world)
                 || !ReproductionIsNoOp(world))
                 return false;
 
@@ -90,7 +90,7 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
         public void Rebuild(WorldState world, long tick)
         {
             _valid = false;
-            if (world.Extraordinary.Enabled || !ReproductionIsNoOp(world))
+            if (FloraMechanic.PowersCanTouchFlora(world) || !ReproductionIsNoOp(world))
                 return;
 
             var rulesBySpecies = IndexRules(world);
@@ -156,7 +156,8 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
         string? lastSpecies = null;
         PlantSpeciesRules? lastRules = null;
 
-        bool powersActive = world.Extraordinary.Enabled;
+        // AD-156: as fontes de poder da hora uma vez por tick (antes: todos os portadores, mortos inclusive, por planta)
+        var sources = FloraMechanic.PowersCanTouchFlora(world) ? FloraMechanic.ActiveSources(world) : null;
         var snapshot = world.Flora.ToArray();
         int removed = 0;
 
@@ -177,7 +178,7 @@ public sealed class FloraLifecycleSystem : ISimulationSystem
                 continue;
 
             double baseRate = BaseGrowthRate(temperature.At(plant.Position), rules);
-            double multiplier = powersActive ? FloraMechanic.GrowthRateMultiplier(world, plant) : 1;
+            double multiplier = sources is null ? 1 : FloraMechanic.Multiplier(sources, world, plant);
             int delta = (int)Math.Floor(baseRate * multiplier);
             if (delta == 0)
                 continue;

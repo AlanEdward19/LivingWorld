@@ -16,9 +16,17 @@ public static class DemographyReportCommand
             : int.TryParse(Environment.GetEnvironmentVariable("LW_BRAIN_BASE_FLOOR"), out int floor)
                 ? LivingWorld.Domain.Cognition.BrainRules.Default with { BaseMinGain = floor }
                 : LivingWorld.Domain.Cognition.BrainRules.Default;
+        // AD-156: LW_POWERS=1 liga os poderes do cenário de referência e imprime a herança por geração
+        var powers = Environment.GetEnvironmentVariable("LW_POWERS") == "1" ? PowerGeneticsReport.ReferenceScenario : (Func<LivingWorld.Domain.Extraordinary.ExtraordinaryScenarioData>?)null;
+        var powerTallies = new PowerGeneticsReport.Tally?[seeds];
         Parallel.For(0, seeds, i => runs[i] = DemographyReport.Run(firstSeed + (ulong)i, years, warmupYears, brain, PressureSwitch.FamilyRules(), needsRules: ProvisionSwitch.NeedsRules(), inventionRules: ProvisionSwitch.InventionRules(),
-            agricultureRules: AgricultureSwitch.AgricultureRules(), economyRules: AgricultureSwitch.EconomyRules(), crimeRules: CrimeSwitch.CrimeRules()));
+            agricultureRules: AgricultureSwitch.AgricultureRules(), economyRules: AgricultureSwitch.EconomyRules(), crimeRules: CrimeSwitch.CrimeRules(),
+            extraordinary: powers?.Invoke(),
+            observe: powers is null ? null : world => { powerTallies[i] = new PowerGeneticsReport.Tally(world); return null; },
+            afterMonth: powers is null ? null : (_, m) => powerTallies[i]!.SampleMonth(m)));
         Console.Write(DemographyReport.Summarize(runs, years, warmupYears, ScenarioRunner.DefaultCalendar.HoursPerYear));
+        if (powers is not null)
+            Console.Write(PowerGeneticsReport.Summarize(powerTallies.Select(t => t!).ToList(), powers().Descriptors.Select(d => d.Id).ToList()));
         return 0;
     }
 }
