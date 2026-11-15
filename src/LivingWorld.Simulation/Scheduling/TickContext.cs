@@ -33,6 +33,8 @@ public sealed class TickContext(WorldState world, WorldRngRegistry rng, EventSch
             LivingWorld.Simulation.Cognition.LifeEventIntake.OnEvent(world, kind, payload, sourceSystem, CurrentTick);
         // AD-141: quem morreu leva o que sabia (o último que sabia leva o design)
         if (world.InventionOn) LivingWorld.Simulation.Invention.InventionIntake.OnEvent(world, kind, payload, sourceSystem, CurrentTick);
+        // AD-150: o traído guarda ciúme do amante (mágoa que pode virar briga)
+        if (kind == WorldEventKind.AffairDiscovered && world.CrimeOn) LivingWorld.Simulation.Crime.CrimeSystem.OnEvent(world, kind, payload, CurrentTick);
         return eventId;
     }
 

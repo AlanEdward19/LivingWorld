@@ -30,6 +30,9 @@ public static class CausalPolicy
         WorldEventKind.Hired, WorldEventKind.Fired, WorldEventKind.WageUnpaid,
         WorldEventKind.RentUnpaid, WorldEventKind.Evicted, WorldEventKind.EstateSettled, WorldEventKind.Emigrated,
         WorldEventKind.AidGiven, WorldEventKind.TheftDiscovered,
+        // Crime e justiça (AD-150)
+        WorldEventKind.TheftCommitted, WorldEventKind.Assault, WorldEventKind.Homicide, WorldEventKind.CrimeReported,
+        WorldEventKind.Verdict, WorldEventKind.Executed, WorldEventKind.Banished, WorldEventKind.InheritanceDisputed,
         // Família
         WorldEventKind.CourtshipSucceeded, WorldEventKind.Marriage, WorldEventKind.OrphanTakenIn,
         WorldEventKind.PowerInherited, WorldEventKind.MilestoneRegressed,

@@ -237,7 +237,7 @@ public static class LivingScopeProjector
         var loggedEvents = (events ?? [])
             .OrderBy(evt => evt.Tick).ThenBy(evt => evt.Kind).ThenBy(evt => evt.Payload, StringComparer.Ordinal)
             .Select(evt => new NotableVisualEvent(
-                evt.Tick, evt.Kind, LivingEventPresentationCatalog.Describe(evt.Kind), LocationOf(world, evt)));
+                evt.Tick, evt.Kind, CrimeEventNarrator.Describe(world, evt) ?? LivingEventPresentationCatalog.Describe(evt.Kind), LocationOf(world, evt)));
         var foundingEvents = world.ActiveCities()
             .Where(city => city.FoundedFromCityId is not null)
             .Select(city => new NotableVisualEvent(

@@ -255,4 +255,31 @@ public enum WorldEventKind
     /// origem é <c>poupanca</c>, <c>heranca</c> ou <c>sociedade</c>; sócios é <c>id:valor,...</c> ou <c>-</c>; um 8º campo <c>reaberta</c>
     /// marca o dono que reabriu a oficina parada dele.</summary>
     VentureFounded,
+
+    /// <summary>Um furto aconteceu, visto ou não (AD-150) — payload: <c>autorId|vitimaId|alvo|motivo|bem|quantidade|valor|desfecho|testemunhas|casoId</c>
+    /// (alvo: pessoa, casa, banca, caixa; motivo: fome, miseria, oportunidade; desfecho: levou, falhou; vítima -1 = da cidade).</summary>
+    TheftCommitted,
+
+    /// <summary>Uma agressão (AD-150) — payload: <c>agressorId|vitimaId|motivo|dano|desfecho|testemunhas|casoId</c> (motivo: ofensa,
+    /// ciume, traicao, heranca, denuncia, vinganca, flagrante; desfecho: ferido, morto).</summary>
+    Assault,
+
+    /// <summary>Morte por agressão (AD-150), pelo mesmo caminho das outras mortes — payload: <c>npcId</c>.</summary>
+    Homicide,
+
+    /// <summary>Alguém denunciou (AD-150) — payload: <c>denuncianteId|acusadoId|casoId|crime|culpadoDeVerdade(1/0)</c>.</summary>
+    CrimeReported,
+
+    /// <summary>Julgamento (AD-150) — payload: <c>acusadoId|vitimaId|casoId|crime|veredito|punicao|valor|culpadoDeVerdade(1/0)</c>
+    /// (veredito: culpado, inocentado; punição: multa, castigo, banimento, forca, nenhuma).</summary>
+    Verdict,
+
+    /// <summary>Morte na forca por sentença (AD-150) — payload: <c>npcId</c>.</summary>
+    Executed,
+
+    /// <summary>Saiu do mundo pela justiça (AD-150) — payload: <c>npcId|casoId|crime|modo</c> (modo: sentenca, fuga).</summary>
+    Banished,
+
+    /// <summary>Herdeiros brigaram pela partilha (AD-150) — payload: <c>herdeiroId|outroHerdeiroId|mortoId|valor</c>.</summary>
+    InheritanceDisputed,
 }

@@ -102,6 +102,7 @@ public static partial class ScenarioRunner
         new ConstructionSystem(),
         new MigrationSystem(),
         new EmigrationSystem(), // AD-145: quem não tem lugar vai embora
+        new LivingWorld.Simulation.Crime.CrimeSystem(), // AD-150: furto planejado, briga, boato, denúncia e corte
         new RelocationArrivalSystem(),
         new MaterializationSystem(),
         new SettlementFoundingSystem(),

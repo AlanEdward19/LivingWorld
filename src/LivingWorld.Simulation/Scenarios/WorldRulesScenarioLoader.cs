@@ -7,8 +7,8 @@ using LivingWorld.Domain.Shared;
 namespace LivingWorld.Simulation.Scenarios;
 
 /// <summary>Blocos opcionais <c>Disease</c>, <c>Climate</c> e <c>Theft</c> do cenário (ADR-0043). Bloco ausente devolve o
-/// <c>Disabled</c> da regra: o mundo e o hash ficam como antes. Bloco presente exige <c>Enabled</c>; os demais campos
-/// de <c>Climate</c> e <c>Theft</c> usam o valor de <c>Disabled</c> quando faltam. <c>Disease</c> exige as doenças
+/// <c>Disabled</c> da regra (o <c>Theft</c>, desde o AD-150, devolve o <c>Default</c>, ligado). Bloco presente exige
+/// <c>Enabled</c>; os demais campos de <c>Climate</c> usam o de <c>Disabled</c> e os de <c>Theft</c>, o de <c>Default</c>. <c>Disease</c> exige as doenças
 /// quando ligado (o motor não tem doença nomeada). Campo inválido falha apontando o caminho.</summary>
 public static class WorldRulesScenarioLoader
 {
@@ -69,10 +69,10 @@ public static class WorldRulesScenarioLoader
     {
         var block = Block(json, "Theft", out var error);
         if (error is not null) return Result<TheftRules>.Fail(error);
-        if (block is null) return Result<TheftRules>.Ok(TheftRules.Disabled);
+        if (block is null) return Result<TheftRules>.Ok(TheftRules.Default); // AD-150: sem bloco, o padrão (ligado)
         if (!Bool(block, "Enabled", out bool enabled)) return Result<TheftRules>.Fail("Theft.Enabled: campo obrigatório ausente ou inválido");
 
-        var d = TheftRules.Disabled;
+        var d = TheftRules.Default;
         if (!Int(block, "DesperateBelow", d.DesperateBelow, out int desperate)
             || !Dbl(block, "PersonalityThreshold", d.PersonalityThreshold, out double personality)
             || !Dbl(block, "BaseSuccess", d.BaseSuccess, out double success)
@@ -84,7 +84,7 @@ public static class WorldRulesScenarioLoader
         if (desperate is < 0 or > 100) return Result<TheftRules>.Fail("Theft.DesperateBelow: fora de [0,100]");
         foreach (var (name, value) in new[] { ("BaseSuccess", success), ("DiscoveryChance", discovery), ("MaxLootFraction", loot), ("GuardEffect", guardEffect) })
             if (value is < 0 or > 1) return Result<TheftRules>.Fail($"Theft.{name}: fora de [0,1]");
-        return Result<TheftRules>.Ok(new TheftRules(enabled, desperate, personality, success, discovery, loot, guard, guardEffect));
+        return Result<TheftRules>.Ok(d with { Enabled = enabled, DesperateBelow = desperate, PersonalityThreshold = personality, BaseSuccess = success, DiscoveryChance = discovery, MaxLootFraction = loot, GuardProfessionId = guard, GuardEffect = guardEffect });
     }
 
     private static JsonObject? Block(string json, string name, out string? error)
