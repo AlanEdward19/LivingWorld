@@ -96,4 +96,5 @@
 71. **Equipamento de fora a preço de teto** (80 o kg de ferro) quando a forja da vila não tem pronto: a moeda vai ao tesouro.
 72. **Não medido no AD-152**: goldens, pins de 90 dias e baselines do LongRunning (na junção); `verify --full`; custo a 5.000 NPCs;
     seeds 21–40 (fome 641 contra 627 mortes, 4,9% contra 5,0%: dentro do ruído de ±20%).
-67a. **AD-150, população**: 20×100 final 280 → 260, menor seed 141 → 114; parte do açoite e dos 0,43 banimentos/ano não isolada seed a seed. CPU total com a fila livre não medida (A/B crime ligado/desligado dentro do ruído). Teste do poço fraco roda sem furto e crime (com eles o sinal de preço cai de 18 para 10 de 20 seeds; causa provável, furto de água na banca, não confirmada evento a evento).
+
+Itens 73 em diante: [08b-a-investigar.md](08b-a-investigar.md).

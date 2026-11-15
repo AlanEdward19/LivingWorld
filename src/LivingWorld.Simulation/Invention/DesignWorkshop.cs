@@ -125,16 +125,18 @@ public static class DesignWorkshop
         var rng = ctx.OneShot($"build-{npc.Id.Value}-{now}");
         int noise = (int)(rules.ManufacturingNoisePm * (100 - skill) / 100 + (1000 - order.FidelityPm) / 4);
         var built = DesignSearch.AsBuilt(design.Parts, rules.Materials, noise, rng);
-        bool carry = ledger.FunctionOf(design.Id) == CarryInvention.Function; // AD-147: recipiente passa pela sonda de conter
+        byte function = ledger.FunctionOf(design.Id);
+        bool carry = CarryInvention.IsCarryFamily(function); // AD-147: recipiente passa pela sonda de conter; AD-153: veículo, pela de terra
         var perf = carry ? default : PhysicsEvaluator.Evaluate(built, rules, InventionSystem.RiderKg(npc, rules));
-        var held = carry ? PhysicsEvaluator.Contain(built, rules) : default;
-        bool works = carry ? held.Works : perf.Works;
+        var held = function == CarryInvention.Function ? PhysicsEvaluator.Contain(built, rules) : default;
+        var hauled = function == HaulInvention.Function ? PhysicsEvaluator.Haul(built, rules) : default;
+        bool works = function == HaulInvention.Function ? hauled.Works : carry ? held.Works : perf.Works;
         if (carry && !works)
         {
             world.InventionTally.BuildFailures++;
             if (order.MarketId is not null) world.InventionTally.SaleBuildFailures++;
             Salvage(world, npc, design);
-            CarryInvention.BuildFailed(world, ctx, npc, held.Failure, now);
+            CarryInvention.BuildFailed(world, ctx, npc, function == HaulInvention.Function ? hauled.Failure : held.Failure, now);
             return;
         }
         int index = carry ? ledger.CarryMindIndex(npc.Id.Value) : ledger.MindIndex(npc.Id.Value);

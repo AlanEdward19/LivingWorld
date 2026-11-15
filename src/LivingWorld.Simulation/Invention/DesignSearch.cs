@@ -9,9 +9,11 @@ namespace LivingWorld.Simulation.Invention;
 /// anterior puxa os operadores que a corrigiriam. Nenhum design pronto: toda parte nasce de um material ou de outra parte.</summary>
 internal static class DesignSearch
 {
-    private enum Op { Scale, Duplicate, Hollow, Seal, SwapMaterial, AddFlat, Recombine, Remove, Joint, Reshape }
+    private enum Op { Scale, Duplicate, Hollow, Seal, SwapMaterial, AddFlat, Recombine, Remove, Joint, Reshape, Support }
 
-    private static readonly Op[] All = Enum.GetValues<Op>();
+    // AD-153: "pôr algo por baixo" só entra na busca de quem precisa levar por terra; a travessia e o recipiente sem isso seguem iguais
+    private static readonly Op[] All = Enum.GetValues<Op>().Where(o => o != Op.Support).ToArray();
+    private static readonly Op[] Ground = Enum.GetValues<Op>();
 
     /// <summary>Peça natural de um material: o tronco, o feixe, a lâmina, o bloco, do tamanho que a natureza dá.</summary>
     internal static DesignPart NaturalPiece(MaterialSpec m)
@@ -26,13 +28,14 @@ internal static class DesignSearch
     }
 
     /// <summary>Uma variante: a semente com 1 a 3 operadores sorteados (pesados pela última falha).</summary>
+    /// <paramref name="ground"/> (AD-153): a busca também põe peças por baixo (apoio, patim, rolo, roda) para levar por terra.
     internal static List<DesignPart> Variant(
         IReadOnlyList<DesignPart> seed, IReadOnlyList<IReadOnlyList<DesignPart>> known, IReadOnlyList<MaterialSpec> usable,
-        FailureMode lastFailure, WorldRng rng)
+        FailureMode lastFailure, WorldRng rng, bool ground = false)
     {
         var parts = seed.ToList();
         int ops = 1 + (int)(rng.NextDouble() * 3);
-        for (int k = 0; k < ops; k++) Apply(parts, Pick(lastFailure, rng), known, usable, rng);
+        for (int k = 0; k < ops; k++) Apply(parts, Pick(lastFailure, rng, ground), known, usable, rng);
         return parts;
     }
 
@@ -50,19 +53,22 @@ internal static class DesignSearch
         return built;
     }
 
-    private static Op Pick(FailureMode failure, WorldRng rng)
+    private static Op Pick(FailureMode failure, WorldRng rng, bool ground = false)
     {
-        Op[] favored = failure switch
-        {
-            FailureMode.Sinks => [Op.Scale, Op.Duplicate, Op.Hollow, Op.Seal, Op.SwapMaterial],
-            FailureMode.Capsizes => [Op.Duplicate, Op.Recombine, Op.Scale, Op.AddFlat],
-            FailureMode.Breaks => [Op.Scale, Op.Joint, Op.SwapMaterial, Op.Duplicate],
-            FailureMode.TooSlow => [Op.AddFlat, Op.Reshape, Op.Remove, Op.Scale],
-            FailureMode.TooHeavy => [Op.Scale, Op.SwapMaterial, Op.Remove, Op.Hollow], // AD-147: pesa demais para levar
-            FailureMode.TooSmall => [Op.Scale, Op.Hollow, Op.Duplicate],
-            _ => All,
-        };
-        return rng.NextDouble() < 0.7 ? favored[(int)(rng.NextDouble() * favored.Length)] : All[(int)(rng.NextDouble() * All.Length)];
+        var all = ground ? Ground : All;
+        Op[] favored = ground && failure is FailureMode.TooHeavy or FailureMode.TooSmall or FailureMode.None
+            ? [Op.Support, Op.Scale, Op.Joint, Op.Reshape, Op.Duplicate] // AD-153: puxar pesa demais ou não cabe: por baixo, maior, eixo
+            : failure switch
+            {
+                FailureMode.Sinks => [Op.Scale, Op.Duplicate, Op.Hollow, Op.Seal, Op.SwapMaterial],
+                FailureMode.Capsizes => [Op.Duplicate, Op.Recombine, Op.Scale, Op.AddFlat],
+                FailureMode.Breaks => [Op.Scale, Op.Joint, Op.SwapMaterial, Op.Duplicate],
+                FailureMode.TooSlow => [Op.AddFlat, Op.Reshape, Op.Remove, Op.Scale],
+                FailureMode.TooHeavy => [Op.Scale, Op.SwapMaterial, Op.Remove, Op.Hollow], // AD-147: pesa demais para levar
+                FailureMode.TooSmall => [Op.Scale, Op.Hollow, Op.Duplicate],
+                _ => all,
+            };
+        return rng.NextDouble() < 0.7 ? favored[(int)(rng.NextDouble() * favored.Length)] : all[(int)(rng.NextDouble() * all.Length)];
     }
 
     private static void Apply(List<DesignPart> parts, Op op, IReadOnlyList<IReadOnlyList<DesignPart>> known, IReadOnlyList<MaterialSpec> usable, WorldRng rng)
@@ -161,6 +167,9 @@ internal static class DesignSearch
             case Op.Joint when i > 0:
                 parts[i] = p with { Joint = (JointKind)(int)(rng.NextDouble() * 5) };
                 break;
+            case Op.Support when parts.Count < Design.MaxParts:
+                Support(parts, i, usable, rng);
+                break;
             case Op.Reshape:
                 {
                     var shape = (PartShape)(int)(rng.NextDouble() * 4);
@@ -168,6 +177,46 @@ internal static class DesignSearch
                     break;
                 }
         }
+    }
+
+    /// <summary>Põe por baixo da parte uma peça (ou um par simétrico) de um material conhecido: redonda (cilindro deitado ao longo de
+    /// X, ou esfera) ou esguia (caixa comprida), presa por eixo, fixa, amarrada ou em corrediça (AD-153). Nenhuma roda escrita: a peça
+    /// redonda com eixo só rola porque a sonda de terra assim mede.</summary>
+    private static void Support(List<DesignPart> parts, int i, IReadOnlyList<MaterialSpec> usable, WorldRng rng)
+    {
+        var p = parts[i];
+        var structural = usable.Where(s => !s.CoatingOnly).ToList();
+        if (structural.Count == 0) return;
+        var mat = structural[(int)(rng.NextDouble() * structural.Count)];
+        double kind = rng.NextDouble();
+        bool pair = rng.NextDouble() < 0.6 && parts.Count + 2 <= Design.MaxParts;
+        DesignPart under;
+        if (kind < 0.5)
+        {
+            bool round = kind < 0.45;
+            short d = (short)Within(Round10((int)(p.SpanY * (0.2 + 0.6 * rng.NextDouble()))), 20, mat.MaxThicknessMm);
+            short length = (short)Within(Round10((int)(p.LengthMm * (0.05 + 0.95 * rng.NextDouble()))), 10, mat.MaxPieceMm);
+            var joint = rng.NextDouble() < 0.5 ? JointKind.Axle : (JointKind)(int)(rng.NextDouble() * 5);
+            under = round
+                ? new DesignPart(PartShape.Cylinder, length, d, d, 0, (short)mat.Id, 0, joint, (sbyte)i, p.OffsetXMm, p.OffsetYMm, 0)
+                : new DesignPart(PartShape.Sphere, d, d, d, 0, (short)mat.Id, 0, joint, (sbyte)i, p.OffsetXMm, p.OffsetYMm, 0);
+            if (pair) under = under with { OffsetXMm = Clamp16(p.OffsetXMm + p.LengthMm / 2 - under.LengthMm / 2) };
+        }
+        else
+        {
+            short height = (short)Within(Round10((int)(p.SpanY * (0.03 + 0.1 * rng.NextDouble()))), 10, mat.MaxThicknessMm);
+            short width = (short)Within(Round10((int)(p.SpanY * (0.05 + 0.15 * rng.NextDouble()))), 10, mat.MaxThicknessMm);
+            short length = (short)Within(p.LengthMm, 10, mat.MaxPieceMm);
+            var joint = rng.NextDouble() < 0.5 ? JointKind.Fixed : (JointKind)(int)(rng.NextDouble() * 5);
+            under = new DesignPart(PartShape.Box, length, width, height, 0, (short)mat.Id, 0, joint, (sbyte)i, p.OffsetXMm, p.OffsetYMm, 0);
+            if (pair) under = under with { OffsetYMm = Clamp16(p.OffsetYMm + p.SpanY / 2 - width / 2) };
+        }
+        under = under with { OffsetZMm = Clamp16(p.OffsetZMm - under.SpanZ) };
+        parts.Add(under);
+        if (!pair) return;
+        parts.Add(under.Shape == PartShape.Box
+            ? under with { OffsetYMm = Clamp16(2 * p.OffsetYMm - under.OffsetYMm) }
+            : under with { OffsetXMm = Clamp16(2 * p.OffsetXMm - under.OffsetXMm) });
     }
 
     /// <summary>Medidas cortadas ao que o novo material dá na natureza.</summary>
@@ -187,6 +236,9 @@ internal static class DesignSearch
     private static short Scale(short value, double factor) => (short)Math.Clamp(Round10((int)(value * factor)), 1, short.MaxValue);
 
     private static int Round10(int value) => value >= 20 ? (value + 5) / 10 * 10 : Math.Max(1, value);
+
+    /// <summary>Entre o mínimo e o máximo que a natureza dá; se o material é mais fino que o mínimo, o máximo dele.</summary>
+    private static int Within(int value, int min, int max) => Math.Clamp(value, Math.Min(min, max), max);
 
     private static short Clamp16(int value) => (short)Math.Clamp(value, short.MinValue, short.MaxValue);
 

@@ -315,7 +315,8 @@ public class PersonalCarryTests
     [InlineData(false)]
     public void A_household_with_a_hand_held_container_still_short_of_room_comes_to_tie_it_to_the_body(bool improve)
     {
-        var eager = Rules with { BaseAttemptChancePm = 1000, FrustrationThresholdMinutes = 30, ManufacturingNoisePm = 0, ImproveCarrier = improve };
+        // AD-153: só recipientes (com o veículo de terra a casa pode superar o oco puxando a carga em vez de amarrá-lo ao corpo)
+        var eager = Rules with { BaseAttemptChancePm = 1000, FrustrationThresholdMinutes = 30, ManufacturingNoisePm = 0, ImproveCarrier = improve, LandVehicles = false };
         var (world, clock) = ScenarioRunner.Create(1, inventionRules: eager);
         var npc = Adults(world)[0];
         var home = npc.Household!.Value.Value;

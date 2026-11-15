@@ -54,8 +54,11 @@ internal static class CarryInvention
             // AD-149 (backlog 05 item 12b): a casa que já tem recipiente e ainda sente a compra cortada tenta melhorá-lo — antes
             // parava no primeiro oco que servia e nenhuma seed chegava a uma peça presa ao corpo
             var carrier = ledger.BestCarrier(home.Value, rules);
-            if (carrier.Exists && (carrier.Worn || !rules.ImproveCarrier)) continue;
-            int improveOn = carrier.Exists ? carrier.DesignId : 0;
+            // AD-153: com o que se puxa por terra, a casa que já tem um veículo (ou o recipiente preso ao corpo) e segue cortada tenta
+            // superá-lo; sem isso, para no recipiente preso ao corpo como antes
+            var hauler = rules.LandVehicles ? ledger.BestHauler(home.Value, rules) : default;
+            if (hauler.Exists ? !rules.ImproveCarrier : carrier.Exists && ((carrier.Worn && !rules.LandVehicles) || !rules.ImproveCarrier)) continue;
+            int improveOn = hauler.Exists ? hauler.DesignId : carrier.Exists ? carrier.DesignId : 0;
 
             var rng = ctx.OneShot($"invent-carry-{npc.Id.Value}-{now}");
             double skill = InventionSystem.Skill(npc, rules);
@@ -68,7 +71,7 @@ internal static class CarryInvention
 
             if (improveOn > 0)
                 StartInvention(world, ctx, npc, current, skill, rng, now, improveOn);
-            else if (FirstKnown(world, npc.Id.Value) is { } known)
+            else if (FirstKnown(world, npc.Id.Value, rules) is { } known)
                 InventionSystem.StartBuild(world, npc, known, current, now, onCarryMind: true);
             else if (current.SeenDesignId > 0 && ledger.FindDesign(current.SeenDesignId) is { } seen
                      && rng.NextDouble() < rules.CopyPreferencePm / 1000.0)
@@ -78,13 +81,22 @@ internal static class CarryInvention
         }
     }
 
-    private static KnownDesign? FirstKnown(WorldState world, long npcId)
+    /// <summary>O que a pessoa já sabe fazer para levar: o veículo de terra primeiro (resolve mais, AD-153), senão o recipiente.</summary>
+    private static KnownDesign? FirstKnown(WorldState world, long npcId, InventionRules rules)
     {
         var ledger = world.Invention!;
+        KnownDesign? carrier = null;
         foreach (var k in ledger.KnownBy(npcId))
-            if (ledger.FunctionOf(k.DesignId) == Function) return k;
-        return null;
+        {
+            byte f = ledger.FunctionOf(k.DesignId);
+            if (f == HaulInvention.Function && rules.LandVehicles) return k;
+            if (f == Function) carrier ??= k;
+        }
+        return carrier;
     }
+
+    /// <summary>Design para levar (recipiente ou veículo de terra, AD-153).</summary>
+    internal static bool IsCarryFamily(byte function) => function is Function or HaulInvention.Function;
 
     /// <summary>A ideia nasce do que faltou levar: um oco do tamanho disso, de cada material que a pessoa conhece (parede mínima
     /// que o material dá), mais o protótipo que falhou e os recipientes que ela já sabe; os mesmos operadores genéricos da busca.</summary>
@@ -96,7 +108,7 @@ internal static class CarryInvention
         var ledger = world.Invention!;
         bool nearWater = InventionSystem.NearWater(world, npc);
         var usable = rules.Materials.Where(m => (nearWater || !m.NeedsWaterNearby) && m.Id != mind.DistrustedMaterial).ToList();
-        var known = ledger.KnownBy(npc.Id.Value).Where(k => ledger.FunctionOf(k.DesignId) == Function)
+        var known = ledger.KnownBy(npc.Id.Value).Where(k => IsCarryFamily(ledger.FunctionOf(k.DesignId)))
             .Select(k => ledger.FindDesign(k.DesignId)?.Parts).OfType<IReadOnlyList<DesignPart>>().ToList();
         var seeds = new List<IReadOnlyList<DesignPart>>();
         if (mind.LastTried is { } tried && Design.Decode(tried) is { } failed) seeds.Add(failed);
@@ -104,12 +116,16 @@ internal static class CarryInvention
         if (improveOn > 0 && ledger.FindDesign(improveOn) is { } current)
         {
             seeds.Add(current.Parts);
-            bar = Math.Max(bar, Score(PhysicsEvaluator.Contain(current.Parts, rules), mind, rules) + 1);
+            bar = Math.Max(bar, HaulInvention.Judge(current.Parts, mind, rules, rules.Materials).Score + 1);
         }
         seeds.AddRange(known);
         int needMl = Math.Max(rules.SmallestUnitMl(), mind.NeedMl);
         foreach (var m in usable)
             if (!m.CoatingOnly && NeedSized(m, needMl) is { } piece) seeds.Add([piece]);
+        // AD-153: o que não cabe nos braços pode ir no chão: um tabuleiro do tamanho da carga, de cada material que conhece
+        if (rules.LandVehicles)
+            foreach (var m in usable)
+                if (!m.CoatingOnly && HaulInvention.NeedDeck(m, needMl, rules) is { } deck) seeds.Add([deck]);
         if (seeds.Count == 0) { ledger.PutCarryMind(mind with { Attempts = mind.Attempts + 1 }); return; }
 
         var belief = InventionSystem.Belief(rules, usable, skill, rng);
@@ -118,8 +134,8 @@ internal static class CarryInvention
         for (int v = 0; v < rules.VariantsPerAttempt; v++)
         {
             var seed = seeds[v == 0 && mind.LastTried is not null ? 0 : (int)(rng.NextDouble() * seeds.Count)];
-            var variant = DesignSearch.Variant(seed, known, usable, mind.LastFailure, rng);
-            long score = Score(PhysicsEvaluator.Contain(variant, rules, belief), mind, rules);
+            var variant = DesignSearch.Variant(seed, known, usable, mind.LastFailure, rng, ground: rules.LandVehicles);
+            long score = HaulInvention.Judge(variant, mind, rules, belief).Score;
             if (score > bestScore) { bestScore = score; best = variant; }
         }
 
@@ -177,23 +193,31 @@ internal static class CarryInvention
         double skill = InventionSystem.Skill(npc, rules);
         var rng = ctx.OneShot($"prototype-carry-{npc.Id.Value}-{now}");
         var built = DesignSearch.AsBuilt(intended, rules.Materials, (int)(rules.ManufacturingNoisePm * (100 - skill) / 100), rng);
-        var perf = PhysicsEvaluator.Contain(built, rules);
         int index = ledger.CarryMindIndex(npc.Id.Value);
         var mind = index >= 0 ? ledger.CarryMinds[index] : new InventionMind(npc.Id.Value, 0, 0, 0, 0, FailureMode.None, null, 0);
-        if (!perf.Works)
+        var judged = HaulInvention.Judge(built, mind, rules, rules.Materials);
+        bool haul = judged.Function == HaulInvention.Function;
+        if (haul) world.InventionTally.HaulAttempts++;
+        if (!judged.Works)
         {
-            Fail(world, ctx, npc, mind, perf.Failure, built);
+            if (haul) world.InventionTally.HaulPrototypeFailures++;
+            Fail(world, ctx, npc, mind, judged.Failure, built);
             return;
         }
 
         var design = Design.Create(built, npc.Id.Value, now, parent, 0, origin);
         bool isNew = ledger.FindDesign(design.Id) is null;
         ledger.AddDesign(design);
-        ledger.MarkCarryDesign(design.Id);
+        if (haul && ledger.FunctionOf(design.Id) != Function) ledger.MarkHaulDesign(design.Id);
+        else if (ledger.FunctionOf(design.Id) != HaulInvention.Function) ledger.MarkCarryDesign(design.Id);
         ledger.Learn(new KnownDesign(npc.Id.Value, design.Id, 1000, origin, now));
         InventionSystem.AddItem(world, npc, design, skill, now);
         ledger.PutCarryMind(mind with { FrustrationMinutes = 0, LastTried = null, LastFailure = FailureMode.None });
-        if (isNew && origin == DesignOrigin.Invented) world.InventionTally.CarryInventions++;
+        if (isNew && origin == DesignOrigin.Invented)
+        {
+            if (haul) world.InventionTally.HaulInventions++;
+            else world.InventionTally.CarryInventions++;
+        }
         ctx.LogEvent(WorldEventKind.DesignPrototyped,
             string.Create(CultureInfo.InvariantCulture, $"{npc.Id.Value}|{design.Id}|{(int)origin}|{parent}|0"), InventionSystem.SystemName);
     }
@@ -256,20 +280,22 @@ internal static class CarryInvention
         var rules = world.InventionRules!;
         var ledger = world.Invention!;
         if (ledger.Known.Count == 0) return;
-        var open = new Dictionary<CityId, int>();
-        foreach (var d in ledger.Demand) if (d.Function == Function) open[d.City] = d.Households;
+        // procura por cidade e função (recipiente, veículo de terra) ainda sem peça exposta nem encomenda para vender
+        var open = new Dictionary<(CityId, byte), int>();
+        foreach (var d in ledger.Demand) if (IsCarryFamily(d.Function)) open[(d.City, d.Function)] = d.Households;
         foreach (var item in ledger.Items)
-            if (item.ForSale && open.ContainsKey(item.City) && ledger.FunctionOf(item.DesignId) == Function) open[item.City]--;
+            if (item.ForSale && open.ContainsKey((item.City, ledger.FunctionOf(item.DesignId)))) open[(item.City, ledger.FunctionOf(item.DesignId))]--;
         foreach (var order in ledger.Orders)
-            if (order.MarketId is not null && ledger.FunctionOf(order.DesignId) == Function
-                && world.FindNpc(new NpcId(order.NpcId)) is { } maker && open.ContainsKey(maker.City)) open[maker.City]--;
+            if (order.MarketId is not null && world.FindNpc(new NpcId(order.NpcId)) is { } maker
+                && open.ContainsKey((maker.City, ledger.FunctionOf(order.DesignId)))) open[(maker.City, ledger.FunctionOf(order.DesignId))]--;
 
         var lessons = new List<(long Learner, long Teacher, KnownDesign From)>();
         var builders = new List<(Npc Npc, KnownDesign Known, long? Market)>();
         long last = -1;
         foreach (var known in ledger.Known.ToList())
         {
-            if (known.NpcId == last || ledger.FunctionOf(known.DesignId) != Function) continue;
+            byte function = ledger.FunctionOf(known.DesignId);
+            if (known.NpcId == last || !IsCarryFamily(function)) continue;
             last = known.NpcId;
             if (world.FindNpc(new NpcId(known.NpcId)) is not { IsAlive: true } teacher || teacher.Household is not { } home) continue;
             var rng = ctx.OneShot($"teach-carry-{teacher.Id.Value}-{now}");
@@ -281,13 +307,14 @@ internal static class CarryInvention
                 || (boatMind >= 0 && ledger.Minds[boatMind].BusyUntilTick > now) || ledger.OrderIndex(teacher.Id.Value) >= 0;
             bool needs = mindIndex >= 0 && ledger.CarryMinds[mindIndex].FrustrationMinutes > 0;
             if (busy || teacher.AgeYears(world.CurrentDate) < rules.MinInventorAgeYears) continue;
-            if (needs && !ledger.BestCarrier(home.Value, rules).Exists && rng.NextDouble() < rules.BuildChancePm / 1000.0)
+            bool hasOne = function == HaulInvention.Function ? ledger.BestHauler(home.Value, rules).Exists : ledger.BestCarrier(home.Value, rules).Exists;
+            if (needs && !hasOne && rng.NextDouble() < rules.BuildChancePm / 1000.0)
                 builders.Add((teacher, known, null));
-            else if (open.GetValueOrDefault(teacher.City) > 0 && rng.NextDouble() < rules.BuildChancePm / 1000.0
+            else if (open.GetValueOrDefault((teacher.City, function)) > 0 && rng.NextDouble() < rules.BuildChancePm / 1000.0
                      && InventionMarket.MarketFor(world, teacher) is { } market)
             {
                 builders.Add((teacher, known, market.Id.Value));
-                open[teacher.City]--;
+                open[(teacher.City, function)]--;
             }
         }
 
@@ -296,7 +323,8 @@ internal static class CarryInvention
             if (world.FindNpc(new NpcId(learnerId)) is not { } learner || ledger.FindDesign(from.DesignId) is not { } design) continue;
             int fidelity = (int)Math.Clamp((long)from.FidelityPm * rules.TeachFidelityPm / 1000 * (700 + 3 * (int)InventionSystem.Skill(learner, rules)) / 1000, 100, 1000);
             ledger.Learn(new KnownDesign(learnerId, design.Id, (short)fidelity, DesignOrigin.Taught, now));
-            world.InventionTally.CarryTaught++;
+            if (ledger.FunctionOf(design.Id) == HaulInvention.Function) world.InventionTally.HaulTaught++;
+            else world.InventionTally.CarryTaught++;
             ctx.LogEvent(WorldEventKind.DesignLearned,
                 string.Create(CultureInfo.InvariantCulture, $"{learnerId}|{teacherId}|{design.Id}|{(int)DesignOrigin.Taught}|{fidelity}"), InventionSystem.SystemName);
         }
@@ -306,7 +334,8 @@ internal static class CarryInvention
             int index = ledger.CarryMindIndex(npc.Id.Value);
             var mind = index >= 0 ? ledger.CarryMinds[index] : new InventionMind(npc.Id.Value, 0, 0, 0, 0, FailureMode.None, null, 0);
             InventionSystem.StartBuild(world, npc, known, mind, now, market, onCarryMind: true);
-            world.InventionTally.CarryBuilt++;
+            if (ledger.FunctionOf(known.DesignId) == HaulInvention.Function) world.InventionTally.HaulBuilt++;
+            else world.InventionTally.CarryBuilt++;
         }
     }
 }
