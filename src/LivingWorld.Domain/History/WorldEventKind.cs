@@ -283,6 +283,22 @@ public enum WorldEventKind
     /// <summary>Herdeiros brigaram pela partilha (AD-150) — payload: <c>herdeiroId|outroHerdeiroId|mortoId|valor</c>.</summary>
     InheritanceDisputed,
 
+    /// <summary>Agressão dentro de casa (AD-154) — payload: <c>agressorId|vitimaId|vinculo|motivo|dano|desfecho|testemunhas|casoId</c>
+    /// (vínculo: conjuge, filho, pai, outro; motivo: temperamento, fome, miseria, desemprego, ciume; desfecho: ferido, morto).</summary>
+    DomesticViolence,
+
+    /// <summary>Sequestro (AD-154) — payload: <c>autorId|vitimaId|motivo|categoria|resgate|testemunhas|casoId</c> (motivo: resgate,
+    /// vinganca, posse; categoria: adulto, crianca; resgate: moeda pedida, 0 sem pedido).</summary>
+    Kidnapped,
+
+    /// <summary>Fim do cativeiro (AD-154) — payload: <c>vitimaId|autorId|desfecho|dias|valorPago|casoId</c> (desfecho: resgate, soltura,
+    /// fuga, achada, morte, autor_saiu).</summary>
+    KidnappingEnded,
+
+    /// <summary>Violência sexual (AD-154), evento abstrato do motor, sem detalhe do ato — payload:
+    /// <c>autorId|vitimaId|categoria|testemunhas|casoId|concepcao</c> (categoria: adulto, crianca; concepção: 1/0).</summary>
+    SexualAssault,
+
     /// <summary>Empréstimo concedido em moeda que existe (AD-155) — payload:
     /// <c>emprestimoId|credor|tipoCredor|tomadorId|finalidade|principal|devido|parcela|prazoMeses|oficinaGarantia</c> (credor: <c>npc-ID</c> ou
     /// <c>city-ID</c>; tipo: parente, conhecido, rico, cidade; finalidade: abertura, giro, reabertura; oficina 0 = sem garantia).</summary>

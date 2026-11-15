@@ -35,6 +35,7 @@ public static class CausalPolicy
         // Crime e justiça (AD-150)
         WorldEventKind.TheftCommitted, WorldEventKind.Assault, WorldEventKind.Homicide, WorldEventKind.CrimeReported,
         WorldEventKind.Verdict, WorldEventKind.Executed, WorldEventKind.Banished, WorldEventKind.InheritanceDisputed,
+        WorldEventKind.DomesticViolence, WorldEventKind.Kidnapped, WorldEventKind.KidnappingEnded, WorldEventKind.SexualAssault,
         // Família
         WorldEventKind.CourtshipSucceeded, WorldEventKind.Marriage, WorldEventKind.OrphanTakenIn,
         WorldEventKind.PowerInherited, WorldEventKind.MilestoneRegressed,

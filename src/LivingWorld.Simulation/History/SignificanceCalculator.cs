@@ -36,6 +36,10 @@ public static class SignificanceCalculator
             [WorldEventKind.Executed] = 0.9,
             [WorldEventKind.Banished] = 0.65,
             [WorldEventKind.InheritanceDisputed] = 0.4,
+            [WorldEventKind.DomesticViolence] = 0.5,
+            [WorldEventKind.Kidnapped] = 0.8,
+            [WorldEventKind.KidnappingEnded] = 0.7,
+            [WorldEventKind.SexualAssault] = 0.85,
             [WorldEventKind.TechnologyDiscovered] = 0.6,
             [WorldEventKind.TechnologyAdopted] = 0.3,
             // AD-143: fazer funcionar uma coisa nova pesa como descobrir uma técnica; aprender e comprar, como adotar

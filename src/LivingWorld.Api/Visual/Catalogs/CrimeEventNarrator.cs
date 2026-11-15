@@ -30,6 +30,14 @@ public static class CrimeEventNarrator
             WorldEventKind.Homicide => $"{Who(0)} foi morto numa agressão",
             WorldEventKind.InheritanceDisputed => $"{Who(0)} e {Who(1)} brigaram pela herança de {Who(2)} ({At(3)} moedas)",
             WorldEventKind.TheftDiscovered => $"{Who(1)} soube que {Who(0)} o furtou",
+            WorldEventKind.DomesticViolence =>
+                $"{Who(0)} agrediu em casa {Bond(At(2))} {Who(1)} ({Motive(At(3))}): {(At(5) == "morto" ? "morreu" : $"ferido, perdeu {At(4)} de saúde")}",
+            WorldEventKind.Kidnapped => $"{Who(0)} sequestrou {Who(1)} ({Motive(At(2))}){(At(4) is "" or "0" ? "" : $", pediu {At(4)} moedas de resgate")}; {Seen(At(5))}",
+            WorldEventKind.KidnappingEnded => Freed(At, Who),
+            // limite da fatia (AD-154): só o nome do crime, autor e vítima; nenhum detalhe do ato
+            WorldEventKind.SexualAssault => At(2) == "crianca"
+                ? $"{Who(0)} cometeu estupro de vulnerável contra a criança {Who(1)}"
+                : $"{Who(0)} estuprou {Who(1)}",
             _ => null,
         };
     }
@@ -65,8 +73,32 @@ public static class CrimeEventNarrator
         return $"{who(0)} foi condenado por {at(3)}: {sentence}{truth}";
     }
 
+    private static string Bond(string bond) => bond switch
+    {
+        "conjuge" => "o cônjuge",
+        "filho" => "o filho",
+        "pai" => "o pai ou a mãe",
+        _ => "outro morador,",
+    };
+
+    private static string Freed(Func<int, string> at, Func<int, string> who) => at(2) switch
+    {
+        "resgate" => $"{who(0)} voltou para casa depois de {at(3)} dias: a família pagou {at(4)} moedas a {who(1)}",
+        "fuga" => $"{who(0)} fugiu do cativeiro de {who(1)} depois de {at(3)} dias",
+        "achada" => $"{who(0)} foi achado pela família no cativeiro de {who(1)} depois de {at(3)} dias",
+        "morte" => $"{who(0)} morreu no cativeiro de {who(1)}",
+        "autor_saiu" => $"{who(0)} saiu do cativeiro: {who(1)} não está mais na vila",
+        _ => $"{who(1)} soltou {who(0)} depois de {at(3)} dias",
+    };
+
     private static string Motive(string motive) => motive switch
     {
+        "temperamento" => "por temperamento",
+        "desemprego" => "sem trabalho",
+        "resgate" => "por resgate",
+        "posse" => "para ficar com a pessoa",
+        "sequestro" => "por ter sido sequestrado",
+        "violencia_sexual" => "por ter sido estuprado",
         "fome" => "por fome",
         "miseria" => "por miséria",
         "oportunidade" => "por oportunidade",
