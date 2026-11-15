@@ -58,3 +58,10 @@
      calibrar pela seleção que se quer ver.
 104. **Poligênico**: 4 loci, q = 0,25 nos fundadores, limiar 5 cópias, desvio do ambiente 0,5. Escolhas sem fonte.
 105. **Prevalência do cenário de medida 8%** (2% por poder). Escolha sem fonte.
+106. **Mundo com poderes ligados ~10× mais lento (achado no AD-156, causa da base).** Perfil a 1.000 NPCs, 720 h, poderes
+     ligados: `flora-lifecycle` 33% do tempo e 82% da alocação (1,6 GB). Com `Extraordinary.Enabled` o sistema desliga o
+     salto lazy (`TrySkip`/`Rebuild`) e chama `FloraMechanic.GrowthRateMultiplier` por planta por hora, que percorre todos os
+     portadores (mortos inclusive, que nunca saem de `ExtraordinaryCarriers`) com LINQ e `OrderBy`. As varreduras horárias de
+     `ExtraordinaryStateSystem`, `ExtraordinaryPowerStageSystem` e da fauna também passam pelos mortos. Conserto: índice dos
+     portadores vivos com efeito de flora/fauna, recalculado só quando um portador muda, e o salto lazy mantido quando nenhum
+     poder vivo mexe na flora. O AD-156 só trocou o `UpsertExtraordinaryCarrier` (antes remover + ordenar a lista inteira).
