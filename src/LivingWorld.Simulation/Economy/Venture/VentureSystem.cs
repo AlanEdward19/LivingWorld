@@ -19,7 +19,7 @@ namespace LivingWorld.Simulation.Economy.Venture;
 /// caixa da oficina, que nasce dele. Quem é dono de uma oficina do ofício parada reabre a dele (só o capital de giro). Uma
 /// abertura por ofício por cidade por mês. Consumidores: a oficina nova contrata, vende
 /// (a fazenda compra a ferramenta dela), paga salário e rende o lucro ao dono e aos sócios (<see cref="OwnerDrawSystem"/>).</summary>
-[LivingCapability("VENTURE", Events = [WorldEventKind.VentureFounded, WorldEventKind.Hired], Consumers = ["timeline.wages", "inspector.employment"])]
+[LivingCapability("VENTURE", Events = [WorldEventKind.VentureFounded], Consumers = ["timeline.wages", "inspector.employment"])]
 [RunsAfter(typeof(OwnerDrawSystem))]
 public sealed class VentureSystem(SkillsRules skillsRules) : ISimulationSystem
 {
