@@ -24,9 +24,11 @@ crédito de aldeia pequeno, curto e com juro escondido; Concílio de Latrão III
 dos judeus ingleses (2 dinheiros por libra por semana, ~43% ao ano) como o caro de fora; os montes de piedade (~5–10%) do XV.
 
 ## Quem toma e para quê
-- **Abrir** (`VentureCapital.Raise`, depois do casal e dos sócios): só a falta, e se não passa de metade do capital vezes
-  `1 − Aversão/100` (quem tem medo do risco pede menos ou desiste). Prazo 36 meses; a oficina nova é a garantia.
-  Origem contada `emprestimo` (`sociedade` se também houve sócio).
+- **Abrir** (`VentureCapital.Raise`): quem financia escolhe ser sócio ou credor (sócio se `1 − Aversão` + 0,25 se sabe o
+  ofício − Ambição do fundador/200 ≥ 0,5); os que preferem sociedade entram primeiro, depois o empréstimo, depois os outros
+  como sócios. O fundador ambicioso e pouco medroso guarda `(Ambição − Aversão)/100` da poupança (até a metade) e pede essa
+  parte. O empréstimo não passa de metade do capital × `1,5 − Aversão/100`. Prazo 36 meses; a oficina nova é a garantia.
+  Origem `emprestimo` (`sociedade` se também houve sócio).
 - **Reabrir** a oficina parada, ou **comprar uma fechada** (`VentureFounding.TryBuyClosed`, pelo foro + obra + equipamento,
   a quem ficou com ela) em vez de levantar outra. Prazo 12 meses.
 - **Capital de giro** (`WorkingCapitalSystem`, mensal, antes da folha): na oficina de dono cujo caixa não cobre a folha, o dono
