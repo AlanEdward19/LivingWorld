@@ -14,7 +14,10 @@ public class SystemProfileHarness
     {
         int population = ReadInt("LW_PROFILE_POP", 1000);
         int ticks = ReadInt("LW_PROFILE_TICKS", 720);
-        var (world, clock) = ScaleScenarioFixture.CreateWorld(42, population);
+        // LW_PROFILE_POWERS=1 liga os poderes do cenário de referência (AD-156), para medir o custo da herança genética
+        var (world, clock) = ScaleScenarioFixture.CreateWorld(42, population,
+            extraordinary: Environment.GetEnvironmentVariable("LW_PROFILE_POWERS") == "1"
+                ? LivingWorld.Simulation.Observation.PowerGeneticsReport.ReferenceScenario() : null);
         // LW_MEASURE_NO_INVENTION=1 desliga a invenção (AD-143), para comparar o perfil com e sem ela na mesma árvore
         if (Environment.GetEnvironmentVariable("LW_MEASURE_NO_INVENTION") == "1") world.UseInvention(null);
         // LW_MEASURE_CARRY=0/1 desliga/liga a carga pessoal (AD-151), para medir o custo dela na mesma árvore

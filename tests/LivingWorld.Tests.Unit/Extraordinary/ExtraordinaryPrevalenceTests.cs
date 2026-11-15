@@ -6,6 +6,7 @@ using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Extraordinary.Culture;
+using LivingWorld.Simulation.Extraordinary.Inheritance;
 using LivingWorld.Simulation.Scenarios;
 
 namespace LivingWorld.Tests.Unit.Extraordinary;
@@ -58,33 +59,22 @@ public sealed class ExtraordinaryPrevalenceTests
     }
 
     [Fact]
-    public void Descriptor_selection_uses_authored_order_and_preserves_the_exact_pool_ids()
+    public void Each_power_has_its_own_locus_and_founders_carry_exactly_what_their_alleles_give()
     {
+        // AD-156: no lugar do sorteio de um descritor por portador, cada poder tem a sua frequência (prevalência repartida)
         var descriptors = new[] { Descriptor("first"), Descriptor("second") };
         var setup = World(prevalence: 1, descriptors);
-        var control = World(prevalence: 1, descriptors);
         var poolBefore = setup.City.PoolNpcIds.ToArray();
-        var candidates = control.World.Npcs
-            .Where(npc => npc.IsAlive && npc.City == control.City.Id)
-            .Select(npc => npc.Id)
-            .Concat(control.City.PoolNpcIds)
-            .Distinct()
-            .OrderBy(id => id.Value)
-            .ToArray();
-        var rng = control.World.Rng.Stream($"extraordinary-prevalence-{control.City.Id}");
-        var expected = candidates.Select(id =>
-        {
-            _ = rng.NextDouble();
-            int index = Math.Min(descriptors.Length - 1, (int)(rng.NextDouble() * descriptors.Length));
-            return (Id: id, PowerId: descriptors[index].Id);
-        }).ToArray();
+        var layout = PowerGenome.Layout(setup.World.Extraordinary);
+        var expected = setup.World.Npcs.Select(n => (n.Id, Genome: PowerGenome.Founder(setup.World, n.Id, n.Sex)))
+            .Concat(setup.City.PoolNpcIds.Select(id => (Id: id, Genome: PowerGenome.Founder(setup.World, id, null))))
+            .Select(x => (x.Id, Powers: string.Join(',', layout.Where(l => PowerGenome.Copies(x.Genome, l.FirstLocus) > 0).Select(l => l.PowerId))))
+            .Where(x => x.Powers.Length > 0).OrderBy(x => x.Id.Value).ToArray();
 
         ExtraordinaryPrevalenceSeeder.Seed(setup.World);
 
         Assert.Equal(poolBefore, setup.City.PoolNpcIds);
-        Assert.Equal(expected,
-            setup.World.ExtraordinaryCarriers.Select(carrier =>
-                (Id: carrier.CarrierId, PowerId: Assert.Single(carrier.PowerIds))).ToArray());
+        Assert.Equal(expected, setup.World.ExtraordinaryCarriers.Select(c => (c.CarrierId, Powers: string.Join(',', c.PowerIds))).ToArray());
     }
 
     private static (WorldState World, Domain.Cities.City City) World(
@@ -96,7 +86,8 @@ public sealed class ExtraordinaryPrevalenceTests
             ScenarioRunner.DefaultPopulationCatalog, ScenarioRunner.DefaultPopulationRules,
             ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules,
-            extraordinary: new ExtraordinaryScenarioData(true, descriptors, prevalence: prevalence));
+            extraordinary: new ExtraordinaryScenarioData(true, descriptors, prevalence: prevalence,
+                inheritanceRules: new PowerInheritanceRules(new PowerGenetics(Penetrance: 1, OnsetAgeMeanYears: 0, OnsetAgeStdDevYears: 0))));
         var poolIds = world.ReserveNpcIdBlock(3);
         var city = new City(
             world.NextCityId(), new CellCoord(2, 2), 0, null,

@@ -6,115 +6,145 @@ using LivingWorld.Domain.Population.Body;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Extraordinary.Inheritance;
+using LivingWorld.Simulation.Extraordinary.Systems;
 using LivingWorld.Simulation.Population.Lifecycle;
 using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Tests.Unit.Extraordinary;
 
-/// <summary>T11 / EVO-10: hook de herança no NatalitySystem + auditoria PowerInherited.</summary>
+/// <summary>AD-156: o nascimento herda alelos (não poderes prontos), o poder chega na idade de início e custa fome e sede.</summary>
 public sealed class PowerInheritanceNatalityTests
 {
     private static readonly WorldCalendar Calendar = new(24, 30, 12);
+    private static readonly PowerGenetics Certain = new(Penetrance: 1, MutationRate: 0);
 
     [Fact]
-    public void Birth_with_both_parents_carriers_logs_power_inherited_and_assigns_carrier()
+    public void Birth_from_a_homozygous_dominant_mother_inherits_the_allele_and_schedules_the_onset_without_granting_the_power()
     {
-        var powerA = Descriptor("power-a", ["npc.health:1"]);
-        var powerB = Descriptor("power-b", ["npc.health:2"]);
-        var scene = CoupleWithPowers(
-            powerA, powerB,
-            PowerInheritanceRules.Create(1.0, bothWeight: 1, oneOfWeight: 0, mixedWeight: 0).Value!);
+        var scene = Couple(motherGenome: 2, fatherGenome: 0);
 
         var baby = TriggerBirth(scene);
 
-        Assert.Contains(scene.Sink.Events, e => e.Kind == WorldEventKind.Birth);
         var inherited = Assert.Single(scene.Sink.Events, e => e.Kind == WorldEventKind.PowerInherited);
-        Assert.Equal(
-            $"{baby.Id.Value}|{scene.Mother.Id.Value}|{scene.Father.Id.Value}|Both|power-a,power-b",
-            inherited.Payload);
-
-        var carrier = Assert.Single(
-            scene.World.ExtraordinaryCarriers, c => c.CarrierId == baby.Id);
-        Assert.Equal(["power-a", "power-b"], carrier.PowerIds.OrderBy(id => id).ToArray());
+        var onset = Assert.Single(scene.World.Scheduler.Snapshot(), e => e.Payload == $"onset|{baby.Id.Value}|power-a");
+        double onsetYears = (onset.TargetTick - baby.BirthDate.TotalHours) / (double)Calendar.HoursPerYear;
+        Assert.Equal((1, $"{baby.Id.Value}|1|2|genetic|power-a", false),
+            (PowerGenome.Copies(baby.PowerGenome, 0), inherited.Payload, scene.World.CarrierOf(baby.Id) is not null));
+        Assert.InRange(onsetYears, 13 - 3.5 * 1.5, 13 + 3.5 * 1.5);
     }
 
     [Fact]
-    public void Birth_without_both_parents_carriers_does_not_log_power_inherited()
+    public void Onset_event_grants_the_power_as_a_genetic_acquisition_and_raises_hunger_and_thirst()
     {
-        var powerA = Descriptor("power-a", ["npc.health:1"]);
-        var scene = CoupleWithPowers(
-            powerA, parentBPower: null,
-            PowerInheritanceRules.Create(1.0, 1, 0, 0).Value!);
+        var scene = Couple(motherGenome: 2, fatherGenome: 0);
+        var baby = TriggerBirth(scene);
+        var onset = Assert.Single(scene.World.Scheduler.Snapshot(), e => e.Payload!.StartsWith("onset|"));
+
+        new ExtraordinaryStateSystem().HandleEvent(scene.World, scene.Ctx, onset);
+
+        var acquired = Assert.Single(scene.Sink.Events, e => e.Kind == WorldEventKind.ExtraordinaryAcquired);
+        var needs = scene.World.NeedsRules;
+        Assert.Equal(($"{baby.Id.Value}|power-a|genetic:onset", needs.ThirstDecayPerHour * Certain.ThirstMultiplier),
+            (acquired.Payload, baby.ThirstNeed.DecayRatePerTick));
+        Assert.Equal(needs.HungerDecayPerHour * Certain.HungerMultiplier, baby.HungerNeed.DecayRatePerTick, 12);
+    }
+
+    [Fact]
+    public void Powers_acquired_by_event_are_not_inherited_only_alleles_are()
+    {
+        var scene = Couple(motherGenome: 0, fatherGenome: 0);
+        scene.World.UpsertExtraordinaryCarrier(Carrier(scene.Mother.Id));
+        scene.World.UpsertExtraordinaryCarrier(Carrier(scene.Father.Id));
 
         var baby = TriggerBirth(scene);
 
-        Assert.Contains(scene.Sink.Events, e => e.Kind == WorldEventKind.Birth);
-        Assert.DoesNotContain(scene.Sink.Events, e => e.Kind == WorldEventKind.PowerInherited);
-        Assert.DoesNotContain(scene.World.ExtraordinaryCarriers, c => c.CarrierId == baby.Id);
+        Assert.Equal((0UL, false), (baby.PowerGenome, scene.Sink.Events.Any(e => e.Kind == WorldEventKind.PowerInherited)));
     }
 
     [Fact]
-    public void Birth_inheritance_is_deterministic_for_same_seed()
+    public void Same_seed_gives_the_same_genotype_and_record()
     {
-        var powerA = Descriptor("power-a", ["npc.health:1"]);
-        var powerB = Descriptor("power-b", ["npc.health:2"]);
-        var rules = PowerInheritanceRules.Create(1.0, 0, 1, 0).Value!;
+        var first = Couple(motherGenome: 1, fatherGenome: 1, seed: 77);
+        var second = Couple(motherGenome: 1, fatherGenome: 1, seed: 77);
 
-        var scene1 = CoupleWithPowers(powerA, powerB, rules, seed: 77);
-        var scene2 = CoupleWithPowers(powerA, powerB, rules, seed: 77);
-        var baby1 = TriggerBirth(scene1);
-        var baby2 = TriggerBirth(scene2);
+        var a = TriggerBirth(first);
+        var b = TriggerBirth(second);
 
-        var evt1 = Assert.Single(scene1.Sink.Events, e => e.Kind == WorldEventKind.PowerInherited);
-        var evt2 = Assert.Single(scene2.Sink.Events, e => e.Kind == WorldEventKind.PowerInherited);
-        Assert.Equal(baby1.Id, baby2.Id);
-        Assert.Equal(evt1.Payload, evt2.Payload);
+        Assert.Equal(a.PowerGenome, b.PowerGenome);
+        Assert.Equal(WorldSnapshot.CanonicalHash(first.World), WorldSnapshot.CanonicalHash(second.World));
     }
 
-    private static PowerDescriptor Descriptor(string id, IReadOnlyList<string> effects) =>
-        new(id, "test-source", effects, "Active", [], "Guaranteed", [], [], [], []);
-
-    private static CoupleScene CoupleWithPowers(
-        PowerDescriptor parentAPower,
-        PowerDescriptor? parentBPower,
-        PowerInheritanceRules rules,
-        ulong seed = 42)
+    [Fact]
+    public void Manifested_power_lowers_fertility_by_the_declared_factor()
     {
-        var descriptors = parentBPower is null
-            ? new List<PowerDescriptor> { parentAPower }
-            : [parentAPower, parentBPower];
+        var scene = Couple(motherGenome: 0, fatherGenome: 0);
+        scene.World.UpsertExtraordinaryCarrier(Carrier(scene.Mother.Id));
 
-        var carriers = new List<ExtraordinaryCarrierState>
-        {
-            Carrier(new NpcId(1), [parentAPower.Id]),
-        };
-        if (parentBPower is not null)
-            carriers.Add(Carrier(new NpcId(2), [parentBPower.Id]));
+        Assert.Equal((Certain.FertilityMultiplier, 1.0),
+            (PowerGeneticsMechanic.FertilityMultiplier(scene.World, scene.Mother), PowerGeneticsMechanic.FertilityMultiplier(scene.World, scene.Father)));
+    }
 
-        var mother = Adult(new NpcId(1), Sex.Female, "mother");
-        var father = Adult(new NpcId(2), Sex.Male, "father");
+    [Fact]
+    public void Birth_without_powers_in_the_world_draws_no_genotype()
+    {
+        var scene = Couple(motherGenome: 2, fatherGenome: 2, enabled: false);
+
+        var baby = TriggerBirth(scene);
+
+        Assert.Equal((0UL, 0), (baby.PowerGenome, scene.World.Scheduler.Snapshot().Count(e => e.Payload?.StartsWith("onset|") == true)));
+    }
+
+    [Fact]
+    public void Snapshot_round_trip_keeps_the_genotype_and_the_declared_genetics_and_the_world_goes_on_the_same()
+    {
+        var scene = Couple(motherGenome: 2, fatherGenome: 1);
+        var baby = TriggerBirth(scene);
+        var restored = WorldSnapshot.Deserialize(WorldSnapshot.Serialize(scene.World));
+        var onset = Assert.Single(scene.World.Scheduler.Snapshot(), e => e.Payload!.StartsWith("onset|"));
+
+        new ExtraordinaryStateSystem().HandleEvent(scene.World, scene.Ctx, onset);
+        new ExtraordinaryStateSystem().HandleEvent(restored, new TickContext(restored, restored.Rng, restored.Scheduler),
+            Assert.Single(restored.Scheduler.Snapshot(), e => e.Payload == onset.Payload));
+
+        Assert.Equal((baby.PowerGenome, PowerInheritanceMode.Dominant, true),
+            (restored.FindNpc(baby.Id)!.PowerGenome, restored.Extraordinary.InheritanceRules!.For("power-a").Mode,
+                restored.CarrierOf(baby.Id) is not null));
+        Assert.Equal(WorldSnapshot.CanonicalHash(scene.World), WorldSnapshot.CanonicalHash(restored));
+    }
+
+    internal static Npc BornAdult(NpcId id, Sex sex, ulong genome)
+    {
+        var npc = new Npc(
+            id, $"npc-{id.Value}", sex, WorldDate.Epoch(Calendar).AddYears(-20),
+            ScenarioRunner.DefaultCulture, new CellCoord(0, 0), motherId: null, fatherId: null,
+            household: new HouseholdId(1), health: 100,
+            personality: Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!,
+            profession: ProfessionType.None, currentLocation: new CellCoord(0, 0));
+        npc.SetGestationAtBirth(280); // nascido no mundo: o genótipo guardado vale (não o sorteio de fundador)
+        npc.SetPowerGenome(genome);
+        return npc;
+    }
+
+    private static CoupleScene Couple(ulong motherGenome, ulong fatherGenome, ulong seed = 42, bool enabled = true)
+    {
+        var mother = BornAdult(new NpcId(1), Sex.Female, motherGenome);
+        var father = BornAdult(new NpcId(2), Sex.Male, fatherGenome);
         mother.Marry(father.Id);
         father.Marry(mother.Id);
-        var household = new Household(
-            new HouseholdId(1), new CellCoord(0, 0), mother.Id, [mother.Id, father.Id],
+        var household = new Household(new HouseholdId(1), new CellCoord(0, 0), mother.Id, [mother.Id, father.Id],
             new Dictionary<ResourceType, long>());
-
         var table = LifeTable.Create(90, [new LifeTableBracket(0, 89, 0.01)]).Value!;
-        var conception = PopulationRules.Create(
-            table, fertilityMinAge: 16, fertilityMaxAge: 45, annualConceptionChance: 1.0,
+        var conception = PopulationRules.Create(table, fertilityMinAge: 16, fertilityMaxAge: 45, annualConceptionChance: 1.0,
             gestationDays: 10).Value!;
-
+        var power = new PowerDescriptor("power-a", "genetica", ["npc.health:1"], "Active", [], "Guaranteed", [], [], [], []);
         var world = new WorldState(
-            Calendar, seed, ScenarioRunner.DefaultMap(seed),
-            ScenarioRunner.DefaultPopulationCatalog, conception,
-            ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
-            ScenarioRunner.DefaultLifeStageRules,
+            Calendar, seed, ScenarioRunner.DefaultMap(seed), ScenarioRunner.DefaultPopulationCatalog, conception,
+            ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules,
             familyRules: PermissiveFamilyRules(),
-            extraordinary: new ExtraordinaryScenarioData(
-                true, descriptors, inheritanceRules: rules),
-            extraordinaryCarriers: carriers);
-
+            extraordinary: new ExtraordinaryScenarioData(enabled, [power], inheritanceRules: new PowerInheritanceRules(Certain,
+                new Dictionary<string, PowerGenetics> { ["power-a"] = Certain })));
         world.AddNpc(mother);
         world.AddNpc(father);
         world.AddHousehold(household);
@@ -122,67 +152,38 @@ public sealed class PowerInheritanceNatalityTests
         world.AdvanceHouseholdIdTo(2);
         world.CurrentDate = WorldDate.Epoch(Calendar).AddYears(20);
         var sink = new RecordingSink();
-        return new CoupleScene(
-            world, new TickContext(world, world.Rng, world.Scheduler, sink),
-            mother, father, household, sink);
+        return new CoupleScene(world, new TickContext(world, world.Rng, world.Scheduler, sink), mother, father, household, sink);
     }
 
     private static Npc TriggerBirth(CoupleScene scene)
     {
-        var evt = scene.Ctx.ScheduleEvent(
-            scene.World.CurrentDate.TotalHours, NatalitySystem.SystemName,
+        var evt = scene.Ctx.ScheduleEvent(scene.World.CurrentDate.TotalHours, NatalitySystem.SystemName,
             $"{scene.Mother.Id.Value}|{scene.Father.Id.Value}|{scene.Household.Id.Value}|100");
         new NatalitySystem().HandleEvent(scene.World, scene.Ctx, evt);
-        return Assert.Single(
-            scene.World.Npcs, n => n.Id != scene.Mother.Id && n.Id != scene.Father.Id);
+        scene.World.Scheduler.Cancel(evt.Id);
+        return Assert.Single(scene.World.Npcs, n => n.Id != scene.Mother.Id && n.Id != scene.Father.Id);
     }
 
-    private static ExtraordinaryCarrierState Carrier(NpcId id, IReadOnlyList<string> powerIds) =>
-        new(id, powerIds, true, "active", new ExtraordinaryAppearanceState(1, "", ""), null, 1);
-
-    private static Npc Adult(NpcId id, Sex sex, string name) => new(
-        id, name, sex, WorldDate.Epoch(Calendar).AddYears(-20),
-        ScenarioRunner.DefaultCulture, new CellCoord(0, 0), motherId: null, fatherId: null,
-        household: new HouseholdId(1), health: 100,
-        personality: Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!,
-        profession: ProfessionType.None, currentLocation: new CellCoord(0, 0));
-
-    private static FamilyRules PermissiveFamilyRules() =>
-        FamilyRules.Create(
-            relationshipDeltas: ZeroDeltas(),
-            decayPerDay: 0,
-            contactLossThresholdDays: 30,
-            neutralAxisValue: 50,
-            attractionWeights: new Dictionary<AttractionFactor, double>(),
-            courtshipThreshold: 0.5,
-            courtshipDurationDays: 10,
-            marriageInitialStock: new Dictionary<int, long>(),
-            conceptionHealthFloor: 0,
-            conceptionRelationshipFloor: 0,
-            conceptionResourceFloor: new Dictionary<int, long>(),
-            maternalDeathRisk: 0,
-            infantDeathRisk: 0,
-            vitalityMotherWeight: 0.5,
-            vitalityFatherWeight: 0.5,
-            vitalityMutationStdDev: 0,
-            vitalityMortalityWeight: 0,
-            upbringingWealthWeight: 0.2,
-            environmentalWealthChannelEnabled: false,
-            neutralDriftEnabled: false,
-            vitalityMortalitySelectionEnabled: true).Value!;
-
-    private static Dictionary<(RelationshipEventType, RelationshipAxis), double> ZeroDeltas()
+    private static FamilyRules PermissiveFamilyRules()
     {
         var deltas = new Dictionary<(RelationshipEventType, RelationshipAxis), double>();
         foreach (var type in Enum.GetValues<RelationshipEventType>())
             foreach (var axis in Enum.GetValues<RelationshipAxis>())
                 deltas[(type, axis)] = 0;
-        return deltas;
+        return FamilyRules.Create(
+            relationshipDeltas: deltas, decayPerDay: 0, contactLossThresholdDays: 30, neutralAxisValue: 50,
+            attractionWeights: new Dictionary<AttractionFactor, double>(), courtshipThreshold: 0.5, courtshipDurationDays: 10,
+            marriageInitialStock: new Dictionary<int, long>(), conceptionHealthFloor: 0, conceptionRelationshipFloor: 0,
+            conceptionResourceFloor: new Dictionary<int, long>(), maternalDeathRisk: 0, infantDeathRisk: 0,
+            vitalityMotherWeight: 0.5, vitalityFatherWeight: 0.5, vitalityMutationStdDev: 0, vitalityMortalityWeight: 0,
+            upbringingWealthWeight: 0.2, environmentalWealthChannelEnabled: false, neutralDriftEnabled: false,
+            vitalityMortalitySelectionEnabled: true).Value!;
     }
 
-    private sealed record CoupleScene(
-        WorldState World, TickContext Ctx, Npc Mother, Npc Father, Household Household,
-        RecordingSink Sink);
+    private static ExtraordinaryCarrierState Carrier(NpcId id) =>
+        new(id, ["power-a"], true, "active", new ExtraordinaryAppearanceState(1, "", ""), null, 1);
+
+    private sealed record CoupleScene(WorldState World, TickContext Ctx, Npc Mother, Npc Father, Household Household, RecordingSink Sink);
 
     private sealed class RecordingSink : IWorldEventSink
     {

@@ -167,6 +167,26 @@ public sealed class Npc
         TouchCanonical();
     }
 
+    /// <summary>Alelos de poder (AD-156): 2 bits por locus, guardados só por quem nasceu no mundo. 0 = nenhum alelo, ou fundador
+    /// cujo genótipo é sorteio fixo da semente (lido por <c>PowerGenome.Of</c>). Ausente do snapshot quando 0.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public ulong PowerGenome { get; private set; }
+
+    public void SetPowerGenome(ulong genome)
+    {
+        if (PowerGenome == genome) return;
+        PowerGenome = genome;
+        TouchCanonical();
+    }
+
+    /// <summary>Troca a taxa de decaimento da sede (custo basal de poder manifesto, AD-156) a partir de <paramref name="tick"/>.</summary>
+    public void SetThirstDecayRate(double ratePerHour, long tick)
+    {
+        if (ThirstNeed.DecayRatePerTick == ratePerHour) return;
+        ThirstNeed = ThirstNeed.WithDecayRate(ratePerHour, tick);
+        TouchCanonical();
+    }
+
     public void SetGestationAtBirth(int days)
     {
         GestationAtBirthDays = days;
@@ -440,7 +460,7 @@ public sealed class Npc
         VocationState? vocation = null, UnionState? union = null,
         LivingWorld.Domain.Cognition.PsycheState? psyche = null,
         LivingWorld.Domain.Cognition.BrainState? brain = null,
-        long? pubertyTick = null, uint genome = 0, bool emigrated = false, long inheritance = 0)
+        long? pubertyTick = null, uint genome = 0, bool emigrated = false, long inheritance = 0, ulong powerGenome = 0)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name não pode ser vazio", nameof(name));
@@ -491,6 +511,7 @@ public sealed class Npc
         Brain = brain;
         PubertyTick = pubertyTick;
         Genome = genome;
+        PowerGenome = powerGenome;
         Emigrated = emigrated;
         Inheritance = Math.Max(0, inheritance);
         IsGhost = isGhost;

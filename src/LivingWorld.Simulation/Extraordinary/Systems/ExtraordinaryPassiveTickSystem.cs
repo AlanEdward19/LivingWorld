@@ -21,10 +21,10 @@ public sealed class ExtraordinaryPassiveTickSystem : ISimulationSystem
     {
         if (!world.Extraordinary.Enabled) return;
 
-        foreach (var carrierState in world.ExtraordinaryCarriers.OrderBy(item => item.CarrierId.Value).ToList())
+        foreach (var (carrierState, npc) in world.LivingCarriers().ToList()) // AD-156: só vivos, ordem de id
         {
             if (!carrierState.IsManifested) continue;
-            if (world.FindNpc(carrierState.CarrierId) is not { IsAlive: true } npc) continue;
+            if (!npc.IsAlive) continue;
 
             foreach (var powerId in carrierState.PowerIds.OrderBy(id => id, StringComparer.Ordinal))
             {

@@ -365,7 +365,8 @@ public static class ExtraordinaryInvocationEngine
         int capacity = LuckMechanic.AdjustCapacity(
             world, carrier, ctx.CurrentTick,
             (int)Math.Clamp(
-                Math.Round(carrier.Vitality / 10d + carrier.RateGene.Value * 5d), 0, 20));
+                Math.Round((carrier.Vitality / 10d + carrier.RateGene.Value * 5d)
+                    * LivingWorld.Simulation.Extraordinary.Inheritance.PowerGeneticsMechanic.Intensity(world, carrier, descriptor.Id)), 0, 20));
         capacity = Math.Max(0, capacity + LuckMechanic.ManifestedCapacityBonus(world, target));
         string stream = $"extraordinary-resolution-{carrier.Id.Value}-{descriptor.Id}-{invocation.InvocationId}";
         return Result<ResolutionResult>.Ok(Resolver.Resolve(
