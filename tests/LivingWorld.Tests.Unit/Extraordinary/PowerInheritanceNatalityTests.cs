@@ -96,6 +96,24 @@ public sealed class PowerInheritanceNatalityTests
         Assert.Equal((0UL, 0), (baby.PowerGenome, scene.World.Scheduler.Snapshot().Count(e => e.Payload?.StartsWith("onset|") == true)));
     }
 
+    [Fact]
+    public void Snapshot_round_trip_keeps_the_genotype_and_the_declared_genetics_and_the_world_goes_on_the_same()
+    {
+        var scene = Couple(motherGenome: 2, fatherGenome: 1);
+        var baby = TriggerBirth(scene);
+        var restored = WorldSnapshot.Deserialize(WorldSnapshot.Serialize(scene.World));
+        var onset = Assert.Single(scene.World.Scheduler.Snapshot(), e => e.Payload!.StartsWith("onset|"));
+
+        new ExtraordinaryStateSystem().HandleEvent(scene.World, scene.Ctx, onset);
+        new ExtraordinaryStateSystem().HandleEvent(restored, new TickContext(restored, restored.Rng, restored.Scheduler),
+            Assert.Single(restored.Scheduler.Snapshot(), e => e.Payload == onset.Payload));
+
+        Assert.Equal((baby.PowerGenome, PowerInheritanceMode.Dominant, true),
+            (restored.FindNpc(baby.Id)!.PowerGenome, restored.Extraordinary.InheritanceRules!.For("power-a").Mode,
+                restored.CarrierOf(baby.Id) is not null));
+        Assert.Equal(WorldSnapshot.CanonicalHash(scene.World), WorldSnapshot.CanonicalHash(restored));
+    }
+
     internal static Npc BornAdult(NpcId id, Sex sex, ulong genome)
     {
         var npc = new Npc(
@@ -125,7 +143,8 @@ public sealed class PowerInheritanceNatalityTests
             Calendar, seed, ScenarioRunner.DefaultMap(seed), ScenarioRunner.DefaultPopulationCatalog, conception,
             ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog, ScenarioRunner.DefaultLifeStageRules,
             familyRules: PermissiveFamilyRules(),
-            extraordinary: new ExtraordinaryScenarioData(enabled, [power], inheritanceRules: new PowerInheritanceRules(Certain)));
+            extraordinary: new ExtraordinaryScenarioData(enabled, [power], inheritanceRules: new PowerInheritanceRules(Certain,
+                new Dictionary<string, PowerGenetics> { ["power-a"] = Certain })));
         world.AddNpc(mother);
         world.AddNpc(father);
         world.AddHousehold(household);
