@@ -95,6 +95,7 @@ public static partial class ScenarioRunner
         new MarketPricingSystem(),
         new WagePaymentSystem(),
         new OwnerDrawSystem(),
+        new LivingWorld.Simulation.Economy.Venture.VentureSystem(DefaultSkillsRules), // AD-152: quem abre o próprio negócio
         new LodgingSystem(),
         new CityGrowthSystem(),
         new ConstructionDemandSystem(),

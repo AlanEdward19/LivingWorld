@@ -76,7 +76,7 @@ Casa a até 1 h de rio, lago ou fonte bebe dali (`NaturalWaterSystem`); a água 
 O celeiro solta por dia o que dura até a colheita esperada; a lavoura ainda em pé antes do mês esperado conta até ele.
 
 ## Dono, lucro e ferramenta (AD-144)
-**Dono.** A oficina de ofício (ferraria) é do mestre: o adulto do ofício mais hábil na cidade (`WorkplaceOwnership`). A
+**Dono.** A oficina de ofício (ferraria) é do mestre: o adulto do ofício mais hábil na cidade (`WorkplaceOwnership`), ou de quem a abriu (AD-152). A
 terra da fazenda, a obra da cidade e o espólio sem herdeiro ficam sem dono. JSON: `Owner` e `CraftLocationTypeIds`.
 **Lucro.** Todo mês, depois da folha, o caixa acima de 12 meses (`WorkingCapitalPayrollMonths`) da folha possível (a atual
 ou a dos adultos da cidade até as vagas) sai na fração `SurplusDrawShare` (1 no cenário de código; 0 = desligado, padrão de JSON e snapshot antigo; nome serializado antigo
@@ -96,5 +96,5 @@ atual não cobre (produto marginal): o mestre não toma quem não precisa, e o f
 - [behavior.md](behavior.md) — como o NPC escolhe trabalhar, comprar ou roubar
 - [society.md](society.md) — tecnologia e cultura definindo o que é produzível
 - [simulation-lod.md](simulation-lod.md) — economia agregada fora do detalhe
-- [time-and-ticks.md](time-and-ticks.md) — salário mensal, consumo diário
-- [history.md](history.md) — crises econômicas viram registro
+- [time-and-ticks.md](time-and-ticks.md) — salário mensal, consumo diário · [history.md](history.md) — crises viram registro
+- [venture.md](venture.md) — quem abre o próprio negócio e com que dinheiro (AD-152)

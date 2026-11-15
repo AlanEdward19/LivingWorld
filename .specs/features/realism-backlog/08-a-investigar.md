@@ -4,7 +4,6 @@
 > Cada item diz o que se sabe, o que é hipótese e como investigar. Riscar quando resolvido, com o commit.
 
 ## Da fatia de corpo, saúde e amamentação (AD-134)
-
 1. **Quase todas as mortes sem causa explícita.** Cerca de 98% das mortes ainda são "idade, pela tábua"; só ~2% têm causa nomeada (parto 1,3%, fome 0,5%, sede 0,3%). A doença ficou só com ganchos. Em andamento como fatia própria (AD-137, ver [01](01-em-andamento.md)); depois dela, medir de novo a fração com causa.
 2. **Teste de traço neutro afrouxado.** `Unselected_trait_stays_in_the_neutral_band` (calibração de família) perdeu a exigência de diferença média zero no intervalo de confiança pareado; ficou só a faixa calibrada. A diferença medida foi −0,009 (2,8 erros-padrão). Hipótese do subagente, não provada: o braço real escolhe parceiro pela saúde, que agora varia, e o braço neutro escolhe ao acaso; com sucesso reprodutivo mais desigual um traço neutro perde mais variância. Investigar: (a) rodar com a escolha de parceiro sem o fator saúde e ver se a diferença some; (b) rodar mais seeds para saber se −0,009 é efeito ou acaso; (c) se for efeito real, decidir se é seleção indireta legítima (carona genética) e reescrever o teste para medi-la, em vez de deixá-lo afrouxado; (d) se for defeito, corrigir e devolver a exigência.
 3. **Dois números sem fonte.** 30% de natimorto quando a mãe morre no parto, e o desgaste de saúde do parto (12 × o risco obstétrico). Procurar em literatura de obstetrícia histórica; se não houver fonte, declarar como suposição do modelo no doc de domínio.
@@ -13,7 +12,6 @@
 6. **Sobrevivência do bebê sem mãe.** Razão medida de 0,39 (30% contra 76%), abaixo do alvo de 0,5 da auditoria. Conferir em fonte (Knodel e outros sobre órfãos de mãe) e recalibrar.
 
 ## Da fatia de vocação e família (AD-136)
-
 7. **População subiu 17% sem explicação** (177 → 207 de média final), com natalidade e mortalidade quase iguais. Achar a causa: mais uniões por causa do cortejo com preferência individual? recasamento? menos mulheres sem par? Comparar número de uniões, idade ao casar e mulheres-ano casadas antes e depois.
 8. **Pressão dos pais pesa pouco na medida.** Seguem o ofício de quem criou 78% com pressão alta e 69% com baixa; e numa medição de 8 seeds × 60 anos o código antigo (sorteio ao nascer) já dava 78%. Entender quanto do número vem do mercado de trabalho da vila (poucas oficinas, quase todo mundo lavrador) e medir num cenário com mais ofícios.
 9. **Irmãos criados separados seguem raros** (1,7%). Falta criadagem e aprendizagem fora de casa, que na época separavam muitos irmãos.
@@ -24,13 +22,11 @@
 14. **Piso de variância de vitalidade caiu** ao regravar o baseline (seed 4: 0,097 contra piso anterior de 0,129). Confirmar que não é perda de diversidade genética por causa das uniões.
 
 ## Da fatia de aprendizado (AD-132)
-
 15. **Números sem conferência**: aptidão por idade, teto de 50% do que a casa ensina, peso da criação (0,3), perda por desuso (4% ao ano).
 16. **Tolerância de nascimentos da primeira década** foi alargada duas vezes (150% → 250% na demografia; o aprendizado propôs 175%). Ficou 250%. Rever se o teste ainda verifica algo.
 17. **Teste do poço fraco** (`A_weak_well_raises_the_share...`): efeito fraco e não monótono; a água por trabalhador já foi trocada de 0 para 3 e depois para 2, e o limiar de 18 para 15 de 20 seeds. Decidir se a afirmação que ele testa é verdadeira ou se o teste deve ser reescrito ou removido.
 
 ## Gerais
-
 18. **`RuntimeHistoryCostTests`** reprovou no gate em 2 de 3 rodadas (razão 1,045, teto 1,03) e passa sozinho (1,00 a 1,02). Ver [07](07-desempenho-e-testes.md), item 10.
 19. **Conferência em fonte incompleta**: três valores da demografia sem fonte e várias fontes vistas só no resumo do buscador (`relatorios/conferencia-demografia.md`).
 20. ~~**Demografia de 100 anos da árvore combinada**~~ resolvido no AD-140 (e0 28,2, 1º ano 228‰); sobra teto malthusiano e seed 18 (17 vivos). Original: Com corpo/saúde, vocação/família, cognição e agricultura juntos (commit `edff9923`), 20 seeds × 100 anos: população final 151,1 (mín 86, sem extinção), natalidade 40,8‰, mortalidade 37,0‰, e0 26,7 (referência ~31 a 33), mortes no 1º ano 266‰ (referência ~212 a 234), TFR 5,50, natimortos 2.882 para 11.224 nascidos vivos (conferir se essa proporção é plausível), fome 7,3% das mortes, sede 0,3%. Cada fatia sozinha ficava na faixa; juntas não. Suspeita a confirmar: a fome sazonal da agricultura soma com a desnutrição do AD-134 (multiplicador de mortalidade e teto de saúde). Recalibrar antes de novas fatias que mexam em mortalidade. Saída bruta em `relatorios/demografia-combinada-2026-11-12.txt`.
@@ -52,7 +48,6 @@
 36. ~~**Demografia de 20 × 100 da árvore final (`95e9cdc2`) não medida**~~ medida no AD-145 (`902075dd`: pop 264,9, e0 27,0, 1º ano 236‰, fome 11,4%).: os números do AD-140 são sem a invenção.
 
 ## Do freio preventivo (AD-145), tudo desligado por padrão
-
 37. ~~**Sede com água em casa**~~ resolvido no AD-146 (commit deste item): era só o `TopUpPurchases` (seeds 1,2,7,8 × 50 anos: sede 4 → 220 com ele sozinho; as outras chaves 4–7). Sem moeda para a comida, a compra da água que completa a meta "dava certo" e o plano terminava sem beber, de 2 em 2 horas. Agora quem fecha a compra com fome ou sede crítica come e bebe da casa. Original: 13,4% das mortes por sede, adultos empregados na ação de comprar, carteira quase vazia, comida a 20.
 38. ~~**Ligar por padrão** `FamilyRules.Pressure`~~ ligado no cenário de código no AD-148 (20×100: 0 extinções, fome 4,1%, e0 31,0, 1º ano 205‰, mín 421). Cenário JSON sem o bloco segue desligado (item 48). Original: `FamilyRules.Pressure` (`PopulationPressureRules.Measured`: meios para casar, primeiro filho, emigração, ajuda da família, esmola racionada, compra que completa a meta) depois do 37, e medir 20 × 100 contra os alvos (sem extinção, mín ≥ 50, e0 28–35, 1º ano 200–250‰, fome ≤ 5%).
 39. **Idade ao casar não chega a 23–26** nem com os meios (19,0 ligado; base 17,2): falta um nicho de verdade (arrendamento, oficina, casa que só vaga com morte ou velhice) e criadagem para guardar economias; a moeda fica parada no caixa da fazenda e no tesouro (centenas de milhares), então economia de jovem não se forma.
@@ -66,7 +61,6 @@
 47. ~~**Sede residual da base**~~ ligado no AD-148 (`CriticalBodyOverridesLeisure`; 6×100: sede 0,2% → 0,0%, fome 3,7% → 3,5%; 20×100 final sede 0,04%). Original: **Sede residual da base**: causa confirmada no AD-147 (`thirst-trace`, 10 de 11 mortes): sozinho em casa, Conversar não alivia a solidão e o peso de personalidade (até 3×) e o vínculo o põem acima de Comer com a sede no zero; o agendador acorda de hora em hora (não é ele). Correção pronta e testada atrás de `PsycheRules.CriticalBodyOverridesLeisure` (desligada: a versão larga subiu a fome a 11,7% em 20×100; a estreita não foi medida em 20 seeds). Falta medir e ligar.
 
 ## Do abastecimento das casas (AD-148)
-
 48. **Freios só no cenário de código**: `ScenarioRunner.DefaultFamilyRules` liga `Pressure`; cenário JSON sem o bloco segue desligado (ligar no padrão da classe muda o snapshot antigo que gravou nulo omitido). Decidir.
 49. ~~**Vila maior**~~ causa medida no AD-149 (`DecadeTally`): fronteira com terra sem fim (150 de semente por morador, só as 160 vagas escritas paravam) e emigração presa pela forja; décadas 0–60 cresciam 1–2,4%/ano (TFR 7,7–8,7, casamento aos 17–18), e só nas décadas 70–90, com a fazenda cheia, o freio preventivo agia (casamento 19,9 → 25,2, TFR 3,9). Agora terra finita + emigração: 20×100 cresce 0,5/0,45/−0,13/0,28%/ano nas décadas 60–90 (pop final 280). Natalidade segue alta (item 54). Original: **Vila maior**: pop final 279,6 → 517,0, natalidade 42,9 → 46,2‰, TFR 6,50, fome concentrada nas décadas 8–10 (194/157/148 mortes); emigração 0 (todo adulto tem vaga paga, a regra nunca dispara). Conferir contra a referência pré-industrial (natalidade ~34‰).
 50. **Motor fino não pesa no rendimento**: o adulto com 0,7 trabalha como o de 1,0; o atraso devia baixar a produção ou a habilidade, não só liberar ou barrar o trabalho.
@@ -74,9 +68,7 @@
 52. **Não medido no AD-148**: goldens, pins de 90 dias e baselines do LongRunning (na junção); `verify --full`; custo a 5.000 NPCs; seeds acima de 20.
 53. **Números sem fonte do AD-148**: meio dia de despensa no turno, espera de 6 h dobrando até 48 h na banca vazia, limiar de trabalho 0,7 (marco "tools").
 
-
 ## Da terra finita e da ceifa (AD-149)
-
 54. **Natalidade ~48–50‰ e TFR ~7,8** com a terra finita (referência ~34–40‰): a mulher casa aos ~18 e a válvula é a emigração dos solteiros (~16% dos nascidos partem aos ~18). Falta o nicho (item 39): com terra demarcada, a posse/arrendamento que só vaga com morte é a peça natural para casar tarde.
 55. **Terra só no cenário de código e só na fundação**: cenário JSON fica sem limite; fazenda construída depois nasce sem terra; o tamanho (1,4 ha por fundador) é dado, não sai do mapa.
 56. **Horas de trabalho por adulto 2% menores** (7,02 → 6,88) com a terra cheia (adultos sem lugar ficam à toa): falta trabalho de diarista, criadagem, respiga e ofícios fora da lavoura.
@@ -85,14 +77,22 @@
 59. **Casa inteira sem trabalho não emigra** (item 42): com a terra cheia a fome fica nas famílias sem ganha-pão.
 60. **Números sem fonte do AD-149**: 220 de semente por hectare (~135 kg/ha), 1,4 ha semeados por fundador, ganho de 25% da capina, a mão que paga 320 (o que come no ano).
 61. **Não medido no AD-149**: goldens, pins de 90 dias e baselines do LongRunning (na junção); `verify --full`; custo a 5.000 NPCs.
-62. **Carga pessoal segue desligada (AD-151)**: com a refeição paga, 20×100 seeds 1–20 deu fome 4,5% (teto no salário) e 5,3%
-    (excesso em espécie), base 4,1%; sem refeição, 6,9%. Mas a caderneta sozinha deu 517 → 627 nas seeds 1–20 e 619 → 495 nas
-    21–40: o ruído de um bloco de 20 seeds é ~±20%. Decidir o critério (40 seeds, ou fome por década) e medir a carga de novo.
-63. **CPU da carga ligada**: no perfil a 1.000 NPCs `behavior-decision` sobe 0–40% e os bytes por NPC-tick variam 189–204 entre
-    rodadas da mesma árvore (só com a carga ligada; desligada, 189–192 estável). Medido por trecho: arrumar na saída ~0,7 µs por
-    saída, `PantryOutOfReach` ~0,7 µs por chamada (memória por casa e célula na hora, AD-151). Falta achar a fonte da variação.
+62. **Carga pessoal segue desligada (AD-151)**: 20×100 com a refeição paga, fome 4,5–5,3% contra 4,1%; ruído de um bloco de 20 seeds
+    ~±20% (517 → 627 nas seeds 1–20, 619 → 495 nas 21–40). Decidir o critério (40 seeds, ou fome por década) e medir de novo.
+63. **CPU da carga ligada**: `behavior-decision` +0–40% e bytes 189–204 por NPC-tick entre rodadas (desligada, 189–192); trechos
+    medidos ~0,7 µs (arrumar na saída, `PantryOutOfReach`). Falta achar a fonte da variação.
 64. **Números sem fonte do AD-151**: refeição ao preço da venda do local; desconto até o líquido inteiro (`BoardMaxWageShare` 1,0).
 65. **Não medido no AD-151**: goldens, pins de 90 dias e baselines do LongRunning (na junção); `verify --full`; custo a 5.000 NPCs.
 66. **Caderneta de quem morre** é perdida pela oficina (não vai ao espólio; o espólio é do AD-150). ~0,3% do lançado.
 67. **Quem tem refeição no trabalho ainda leva comida de casa** (com a carga ligada a saída não sabe que a oficina alimenta): a
     comida volta na devolução, mas sai da despensa durante o turno.
+
+## Do empreendedorismo (AD-152, [venture](../../../docs/domain/venture.md))
+68. **Números sem fonte do AD-152**: mestre aos 21 anos; habilidade mínima 30; chance 0,25 ao mês; 10% abaixo do concorrente; foro
+    de 6 meses do salário; obra de 60 dias-homem; 40 kg de ferro de equipamento; giro de 6 meses; reserva de 6 meses × (0,5 + aversão).
+69. **Confiança mínima do sócio (60) e até dois sócios**: sem base; ver contratos de *compagnia* e sociedade familiar medievais.
+70. **Vila só sustenta ~1 ferreiro**: o recém-chegado conta com a parte dele da encomenda; 32 negócios em 20 seeds × 100 anos,
+    quase todos quando o mestre parou. Conferir quantos ferreiros por habitante tinha uma aldeia inglesa (~1 por 200–400?).
+71. **Equipamento de fora a preço de teto** (80 o kg de ferro) quando a forja da vila não tem pronto: a moeda vai ao tesouro.
+72. **Não medido no AD-152**: goldens, pins de 90 dias e baselines do LongRunning (na junção); `verify --full`; custo a 5.000 NPCs;
+    seeds 21–40 (fome 641 contra 627 mortes, 4,9% contra 5,0%: dentro do ruído de ±20%).

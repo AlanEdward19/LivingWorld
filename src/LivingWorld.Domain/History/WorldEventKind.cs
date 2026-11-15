@@ -250,4 +250,9 @@ public enum WorldEventKind
     /// <summary>Lucro retirado do caixa acima da reserva de giro (AD-144) — payload: <c>oficinaId|donoId|valor</c>, ou
     /// <c>oficinaId|city-cidadeId|valor</c> quando a oficina não tem dono e o excedente vai ao tesouro da cidade.</summary>
     ProfitDrawn,
+
+    /// <summary>Um NPC abriu o próprio negócio (AD-152) — payload: <c>oficinaId|fundadorId|origem|capital|doCasal|herdado|sócios</c>;
+    /// origem é <c>poupanca</c>, <c>heranca</c> ou <c>sociedade</c>; sócios é <c>id:valor,...</c> ou <c>-</c>; um 8º campo <c>reaberta</c>
+    /// marca o dono que reabriu a oficina parada dele.</summary>
+    VentureFounded,
 }

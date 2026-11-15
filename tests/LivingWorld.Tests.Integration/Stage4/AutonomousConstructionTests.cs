@@ -150,6 +150,26 @@ public class AutonomousConstructionTests
         Assert.Equal(2, workplace.MaxVacancies);
     }
 
+    /// <summary>AD-152: oficina de ofício quem abre é quem empreende; a cidade não a ergue mesmo com o desempregado do ofício.</summary>
+    [Fact]
+    public void City_does_not_build_a_trade_that_its_people_open_themselves()
+    {
+        var economy = EnabledEconomy() with { Venture = VentureRules.Default with { LocationTypeIds = [1] } };
+        var world = MakeWorld(WorkplaceCatalog(), economy, FarmerCatalog());
+        var city = MakeCity(world);
+        world.AddCity(city);
+        city.DepositStock(Timber, 20);
+        world.AddNpc(new Npc(
+            world.NextNpcIdAndAdvance(), "farmer", Sex.Male, world.CurrentDate.AddYears(-30), ScenarioRunner.DefaultCulture,
+            city.Location, motherId: null, fatherId: null, household: null, health: 100,
+            personality: Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!,
+            profession: new ProfessionType(1), currentLocation: city.Location, city: city.Id));
+
+        new ConstructionDemandSystem().Tick(world, Ctx(world));
+
+        Assert.Empty(city.ConstructionQueue);
+    }
+
     [Fact]
     public void Unemployed_npc_stays_blocked_until_workplace_exists_then_can_be_hired()
     {
