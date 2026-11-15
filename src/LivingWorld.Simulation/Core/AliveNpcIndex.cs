@@ -20,6 +20,10 @@ public sealed class AliveNpcIndex
 
     public IReadOnlyList<Npc> Alive => _alive;
 
+    /// <summary>Muda a cada entrada ou saída de vivo: chave dos caches derivados dos vivos (AD-156, portadores vivos).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public long Version { get; private set; }
+
     /// <summary>Vivos com saúde ≤ <see cref="EndangeredHealth"/> (perigo observável). Mantido por
     /// <see cref="Npc.HealthObserver"/>: zero na imensa maioria dos ticks, e então nenhuma varredura de
     /// vizinhança pode encontrar ameaça.</summary>
@@ -46,6 +50,7 @@ public sealed class AliveNpcIndex
         {
             _alive.Insert(~i, npc);
             Track(npc);
+            Version++;
         }
     }
 
@@ -57,6 +62,7 @@ public sealed class AliveNpcIndex
             {
                 _alive.RemoveAt(i);
                 Untrack(npc);
+                Version++;
                 return;
             }
         }

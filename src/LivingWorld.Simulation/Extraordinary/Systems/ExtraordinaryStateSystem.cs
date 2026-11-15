@@ -36,9 +36,9 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
 
         ControlMechanic.ApplyPossessionResistance(world, ctx);
 
-        foreach (var carrier in world.ExtraordinaryCarriers.OrderBy(item => item.CarrierId.Value).ToList())
+        foreach (var (carrier, npc) in world.LivingCarriers().ToList()) // AD-156: só vivos, ordem de id
         {
-            if (world.FindNpc(carrier.CarrierId) is not { IsAlive: true } npc) continue;
+            if (!npc.IsAlive) continue;
             var resolved = Resolve(world, npc, carrier.PowerIds);
             if (carrier.IsManifested && !resolved.IsManifested)
             {

@@ -46,19 +46,39 @@ public sealed class FloraMechanic : ExtraordinaryMechanic
                && multiplier >= 0;
     }
 
-    /// <summary>Multiplicador de <c>flora.growth-rate</c> sobre a taxa de base.
-    /// Sem poder ativo (ou extraordinário desligado) retorna 1 — nunca substitui o cálculo
-    /// de temperatura/estação.</summary>
-    internal static double GrowthRateMultiplier(WorldState world, Plant plant)
-    {
-        if (!world.Extraordinary.Enabled)
-            return 1;
+    /// <summary>Um portador vivo e manifesto cujo poder mexe na flora nesta hora: os efeitos (para a área) e os multiplicadores
+    /// de <c>flora.growth-rate</c> na ordem declarada.</summary>
+    internal sealed record FloraSource(Npc Carrier, IReadOnlyList<string> Effects, double[] Multipliers);
 
-        double rate = 1;
-        foreach (var carrierState in world.ExtraordinaryCarriers.OrderBy(item => item.CarrierId.Value))
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<IReadOnlyList<Domain.Extraordinary.PowerDescriptor>, object>
+        FloraDescriptorCache = new();
+
+    /// <summary>Algum portador vivo tem poder que mexe na flora? Sem isso a flora roda como com poderes desligados (inclusive
+    /// o salto adiado de <c>FloraLifecycleSystem</c>), porque o multiplicador seria 1 em toda planta (AD-156, 08b item 106).
+    /// Volta a falso quando o último desses portadores morre.</summary>
+    internal static bool PowersCanTouchFlora(WorldState world)
+    {
+        if (!world.Extraordinary.Enabled) return false;
+        var floraPowers = (HashSet<string>)FloraDescriptorCache.GetValue(world.Extraordinary.Descriptors, static list =>
+            list.Where(d => d.Effects.Any(e => TryParseGrowthRate(e, out _))).Select(d => d.Id).ToHashSet(StringComparer.Ordinal));
+        if (floraPowers.Count == 0) return false;
+        foreach (var (state, npc) in world.LivingCarriers())
+            if (npc.IsAlive)
+                foreach (string id in state.PowerIds)
+                    if (floraPowers.Contains(id)) return true;
+        return false;
+    }
+
+    /// <summary>Fontes da hora, uma vez por tick em vez de uma vez por planta: mesma ordem (portador por id, descritor por id,
+    /// efeito na ordem declarada) e mesmas condições do cálculo por planta. Nula quando nenhuma fonte age.</summary>
+    internal static List<FloraSource>? ActiveSources(WorldState world)
+    {
+        if (!world.Extraordinary.Enabled) return null;
+        List<FloraSource>? sources = null;
+        foreach (var (carrierState, carrier) in world.LivingCarriers()) // só vivos, ordem de id
         {
             if (carrierState is not { IsManifested: true }) continue;
-            if (world.FindNpc(carrierState.CarrierId) is not { IsAlive: true } carrier) continue;
+            if (!carrier.IsAlive) continue;
 
             foreach (var descriptor in world.Extraordinary.Descriptors
                          .Where(item => carrierState.PowerIds.Contains(item.Id, StringComparer.Ordinal))
@@ -66,16 +86,33 @@ public sealed class FloraMechanic : ExtraordinaryMechanic
             {
                 if (!ExtraordinaryManifestationCondition.IsMet(descriptor.ManifestationCondition, world, carrier))
                     continue;
-                if (!PlantInArea(world, carrier, descriptor.Effects, plant)) continue;
-
+                var multipliers = new List<double>();
                 foreach (var effect in descriptor.Effects)
-                {
                     if (TryParseGrowthRate(effect, out double multiplier))
-                        rate *= multiplier;
-                }
+                        multipliers.Add(multiplier);
+                if (multipliers.Count == 0) continue;
+                (sources ??= []).Add(new FloraSource(carrier, descriptor.Effects, multipliers.ToArray()));
             }
         }
+        return sources;
+    }
 
+    /// <summary>Multiplicador de <c>flora.growth-rate</c> sobre a taxa de base.
+    /// Sem poder ativo (ou extraordinário desligado) retorna 1 — nunca substitui o cálculo
+    /// de temperatura/estação.</summary>
+    internal static double GrowthRateMultiplier(WorldState world, Plant plant) =>
+        Multiplier(ActiveSources(world), world, plant);
+
+    internal static double Multiplier(List<FloraSource>? sources, WorldState world, Plant plant)
+    {
+        double rate = 1;
+        if (sources is null) return rate;
+        foreach (var source in sources)
+        {
+            if (!PlantInArea(world, source.Carrier, source.Effects, plant)) continue;
+            foreach (double multiplier in source.Multipliers)
+                rate *= multiplier;
+        }
         return rate;
     }
 
