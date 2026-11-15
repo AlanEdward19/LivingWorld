@@ -32,14 +32,15 @@ Branch de trabalho: `perf/decision-scan-costs`, no GitHub desde 2026-11-13 (dono
 | Hormônios, ciclo menstrual, adolescência, doença genética, contracepção (AD-139) | juntada em 2026-11-13 (`95e9cdc2`); com ela a e0 cai a 26,8 e a fome vai a 15,3%: freio preventivo (AD-145) juntado desligado em 2026-11-13: freio LIGADO por padrão em 2026-11-14 com o abastecimento das casas (AD-148): 0 extinções, fome 6,5% → 4,1%, terra finita, ceifa da vila e emigração corrigida (AD-149, 2026-11-14): população final 280, crescimento 1,04%/ano, 3121 emigrantes; natalidade ~50‰ ainda alta, ver `08` itens 48 a 61 | [02](02-biologia-e-hormonios.md) |
 | Cognição parte 1: memória da própria vida, emoção, pensamento que é o motivo (AD-138) | juntado | `docs/domain/inner-life.md`, [01](01-em-andamento.md) |
 | Cognição parte 2: cérebro neural legível | experimento juntado em 2026-11-13 (AD-142), flag desligada; veredito: não ligar ainda (custo, bytes e demografia), ver `03` | `.specs/features/neural-brain/design.md` |
-| Empreendedorismo, crédito, preço e salário | fatias 1 a 3 (AD-144), 4 e 5 (AD-152); 6 e 7 (AD-155: empréstimo, giro, falência) feitas em 2026-11-15 no branch da fatia, falta juntar; falta a fatia 8 e as sobras de `04a`/`04b` | [04](04-economia-e-empreendedorismo.md) |
+| Empreendedorismo, crédito, preço e salário | fatias 1 a 7 juntadas (AD-144, AD-152, AD-155); empréstimo de abertura em andamento (AD-159); fatia 8 e sobras nas issues #168–#172 | [04](04-economia-e-empreendedorismo.md) |
 | Invenção emergente: tecnologia, veículos, robôs, aparência e animação | desenho aprovado em 2026-11-12 (ADR-0045); fatia 1 (transporte sobre água, AD-141) juntada em 2026-11-13 (`2b34fb64`); fatia 2 (AD-143: carga, venda, pesca, cópia) juntada em 2026-11-13; inventário pessoal (AD-147) juntado em 2026-11-14 com a carga pessoal e a sede crítica DESLIGADAS (ligadas pioram fome ou sede); faltam 2a a 7a, 12a a 12g e as fatias 8 a 11, ver `05` | `.specs/features/emergent-invention/design.md` |
-| Violência, furto, poderes por genética, achados restantes da auditoria | não começado | [06](06-violencia-poderes-e-restantes.md) |
-| Doença dinâmica: doença nova que surge e evolui, e doença criada à mão e solta no mundo (pedido em 2026-11-12) | não começado; depois de juntar o AD-137 | [06](06-violencia-poderes-e-restantes.md) |
-| Crime contra bens e pessoas: furto de tudo, sequestro, violência sexual, violência doméstica (pedido em 2026-11-12) | furto no AD-150; doméstica, sequestro e sexual no AD-154 (branch do subagente, a juntar); sobras V11–V18 | [06b](06b-crime-contra-pessoas.md) |
-| Refatoração completa do cliente visual (Godot) e, depois, a fatia do jogador (pedido em 2026-11-12) | não começado; ÚLTIMOS da fila, só depois de tudo acima | [09](09-cliente-visual-e-jogador.md) |
+| Violência, furto, poderes por genética, achados restantes da auditoria | furto, violência e justiça (AD-150), crime contra a pessoa (AD-154) e poderes por genética (AD-156) juntados; sobras nas issues #164, #165, #180 | [06](06-violencia-poderes-e-restantes.md), [10](10-issues-no-github.md) |
+| Doença dinâmica (pedido em 2026-11-12) | não começado; virou a issue #166 | [10](10-issues-no-github.md) |
+| Crime contra bens e pessoas (pedido em 2026-11-12) | juntado (AD-150, AD-154); sobras V1–V18 nas issues #164 e #165 | [06b](06b-crime-contra-pessoas.md) |
+| Refatoração do cliente visual (Godot) e fatia do jogador | últimos desta trilha, feitos aqui (dono, 2026-11-15); ADR do cliente a aprovar | [09](09-cliente-visual-e-jogador.md) |
 | Desempenho e tempo dos testes | parcial | [07](07-desempenho-e-testes.md) |
 | Pontos em aberto a investigar (afrouxamentos, números sem fonte, efeitos sem explicação) | aberto | [08](08-a-investigar.md), [08b](08b-a-investigar.md) |
+| O que saiu do backlog e virou issue no GitHub (2026-11-15) | 21 issues novas com a label `prioridade`, 36 reescritas, #114 fechada | [10](10-issues-no-github.md) |
 
 ## Como trabalhar uma fatia
 
