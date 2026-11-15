@@ -156,7 +156,7 @@ if (args.Length == 3 && args[0] == "climate-hash")
 }
 
 // Hash canônico de uma vila com furto ligado (desespero, temperamento, sorteio, descoberta): o teste de dois processos exige o
-// mesmo hash. `dotnet <dll> theft-hash <seed> <ticks>`.
+// mesmo hash e os mesmos furtos (contados todos, vistos ou não). `dotnet <dll> theft-hash <seed> <ticks>`.
 if (args.Length == 3 && args[0] == "theft-hash")
 {
     // AD-135: vila dura sem rio por perto (a água de graça tiraria o desespero que leva ao furto); AD-140: e sem dízimo, que
@@ -353,6 +353,6 @@ internal sealed class TheftCounter(Action onTheft) : LivingWorld.Simulation.Core
 {
     public void Record(LivingWorld.Simulation.Core.WorldEvent evt)
     {
-        if (evt.Kind == LivingWorld.Domain.History.WorldEventKind.TheftDiscovered) onTheft();
+        if (evt.Kind == LivingWorld.Domain.History.WorldEventKind.TheftCommitted) onTheft(); // AD-150: todo furto (o descoberto é raro: precisa de quem viu)
     }
 }

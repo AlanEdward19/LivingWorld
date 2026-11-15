@@ -174,7 +174,16 @@ public class EconomyDepthScenarioTests
         {
             // AD-135: sem rio nem fonte nos dois braços; com água de graça perto de casa ninguém compra água e o preço do poço
             // fraco deixa de mover gente (o que este teste mede é o sinal de preço chegando ao trabalho)
-            static void Dry(JsonObject node) => node["NaturalWater"] = new JsonObject { ["Enabled"] = false };
+            // AD-150: sem furto nem justiça nos dois braços. Com a sede do poço fraco, o pobre furta água da banca da fazenda
+            // (o que também mexe no estoque que forma o preço), é pego pelos colegas e açoitado ou banido: um segundo canal
+            // que compete com o sinal de preço. Medido (20 seeds): com crime 10/20; sem furto e sem crime 18/20; só sem furto
+            // 19/20; só sem violência, justiça e herança 17/20.
+            static void Dry(JsonObject node)
+            {
+                node["NaturalWater"] = new JsonObject { ["Enabled"] = false };
+                node["Theft"] = new JsonObject { ["Enabled"] = false };
+                node["Crime"] = new JsonObject { ["Enabled"] = false };
+            }
             var (control, controlClock) = LoadWith(seed, population: 40, Dry);
             var (dry, dryClock) = LoadWith(seed, population: 40, node =>
             {

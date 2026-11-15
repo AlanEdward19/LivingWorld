@@ -38,9 +38,12 @@ public sealed class DemographyTally(WorldState world) : IWorldEventSink
     public DiseaseTally Disease { get; } = new(world);
     /// <summary>Vida reprodutiva (AD-139): fora de união, prematuros, idade da mãe no 1º parto.</summary>
     public ReproductiveLifeTally Reproduction { get; } = new(world);
+    /// <summary>Crime, violência e justiça (AD-150).</summary>
+    public CrimeTally Crime { get; } = new();
 
     public void Record(WorldEvent evt)
     {
+        Crime.Record(evt);
         Body.OnEvent(evt);
         Family.Record(evt);
         Disease.OnEvent(evt);
@@ -76,7 +79,7 @@ public sealed class DemographyTally(WorldState world) : IWorldEventSink
                 return;
             case WorldEventKind.Death or WorldEventKind.Starvation or WorldEventKind.Dehydration
                 or WorldEventKind.Exhaustion or WorldEventKind.Disease or WorldEventKind.MaternalDeath
-                or WorldEventKind.Accident or WorldEventKind.OldAge
+                or WorldEventKind.Accident or WorldEventKind.OldAge or WorldEventKind.Homicide or WorldEventKind.Executed
                 when evt.SourceSystem == YearEventTally.DeathSource:
                 int cut = evt.Payload.IndexOf('|');
                 string first = cut < 0 ? evt.Payload : evt.Payload[..cut];
@@ -135,6 +138,7 @@ public static class DemographyReport
         tally.Family.MeasureFromTick = tally.MeasureFromTick;
         tally.Disease.MeasureFromTick = tally.MeasureFromTick;
         tally.Reproduction.MeasureFromTick = tally.MeasureFromTick;
+        tally.Crime.MeasureFromTick = tally.MeasureFromTick;
         var food = new FoodTally(world);
         var economy = new EconomyTally(world);
         var workday = new WorkdayTally(world) { MeasureFromTick = tally.MeasureFromTick };
@@ -249,6 +253,7 @@ public static class DemographyReport
         sb.Append("seeds(final)=").AppendLine(string.Join(",", runs.Select(r => r.FinalAlive)));
         sb.Append(BodyHealthTally.Summarize(runs.Select(r => (r.Tally.Body, followUpEnd)).ToList()));
         sb.Append(DiseaseTally.Summarize(runs.Select(r => r.Tally.Disease).ToList()));
+        sb.Append(CrimeTally.Summarize(runs.Select(r => (r.Tally.Crime, r.Tally.PersonYears, r.Tally.PersonYears > 0 ? (double)(years - warmupYears) : 0.0)).ToList()));
         var foods = runs.Where(r => r.Food is not null).Select(r => r.Food!).ToList();
         if (foods.Count > 0) sb.Append(FoodTally.Summarize(foods, warmupYears, 12));
         var economies = runs.Where(r => r.Economy is not null).Select(r => r.Economy!).ToList();

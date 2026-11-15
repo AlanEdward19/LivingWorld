@@ -32,7 +32,7 @@ public sealed class YearEventTally(WorldState world, int ageBandYears = 5) : IWo
                 return;
             case WorldEventKind.Death or WorldEventKind.Starvation or WorldEventKind.Dehydration
                 or WorldEventKind.Exhaustion or WorldEventKind.Disease or WorldEventKind.MaternalDeath
-                or WorldEventKind.Accident or WorldEventKind.OldAge
+                or WorldEventKind.Accident or WorldEventKind.OldAge or WorldEventKind.Homicide or WorldEventKind.Executed
                 when evt.SourceSystem == DeathSource:
                 if (NpcOf(evt.Payload) is not { } dead) return;
                 var tally = Of(dead.City);
