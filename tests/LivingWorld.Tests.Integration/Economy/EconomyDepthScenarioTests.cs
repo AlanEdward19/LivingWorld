@@ -203,7 +203,7 @@ public class EconomyDepthScenarioTests
             if (dryShare > controlShare) more++;
         }
 
-                Assert.True(more >= 15, $"fatia maior na fazenda so em {more}/20 seeds");
+        Assert.True(more >= 15, $"fatia maior na fazenda so em {more}/20 seeds");
     }
 
     private static string FindRepoRoot()
