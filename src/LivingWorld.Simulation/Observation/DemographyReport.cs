@@ -128,10 +128,10 @@ public static class DemographyReport
         Func<WorldState, IWorldEventSink?>? observe = null, Action<WorldState, int>? afterMonth = null,
         LivingWorld.Domain.Behavior.NeedsRules? needsRules = null, LivingWorld.Domain.Invention.InventionRules? inventionRules = null,
         LivingWorld.Domain.Economy.AgricultureRules? agricultureRules = null, LivingWorld.Domain.Economy.EconomyRules? economyRules = null,
-        LivingWorld.Domain.Extraordinary.ExtraordinaryScenarioData? extraordinary = null)
+        LivingWorld.Domain.Crime.CrimeRules? crimeRules = null, LivingWorld.Domain.Extraordinary.ExtraordinaryScenarioData? extraordinary = null)
     {
         var (world, baseClock) = ScenarioRunner.Create(seed, familyRules: familyRules, needsRules: needsRules, inventionRules: inventionRules,
-            agricultureRules: agricultureRules, economyRules: economyRules, extraordinary: extraordinary);
+            agricultureRules: agricultureRules, economyRules: economyRules, crimeRules: crimeRules, extraordinary: extraordinary);
         world.UseBrain(brain); // AD-142: experimento (nulo = desligado)
         var extra = observe?.Invoke(world);
         var tally = new DemographyTally(world) { MeasureFromTick = warmupYears * world.Calendar.HoursPerYear };

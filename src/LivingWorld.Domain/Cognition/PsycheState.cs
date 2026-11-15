@@ -41,6 +41,15 @@ public enum LifeEventKind : byte
 
     /// <summary>AD-150: acusado e condenado sem ter feito.</summary>
     WronglyPunished = 31,
+
+    /// <summary>AD-154: vítima de violência sexual (trauma e medo duradouros; registro abstrato, sem detalhe).</summary>
+    SexualAssault = 32,
+
+    /// <summary>AD-154: foi sequestrado e mantido preso.</summary>
+    Kidnapped = 33,
+
+    /// <summary>AD-154: soube que um parente próximo sofreu violência sexual ou foi sequestrado.</summary>
+    KinAssaulted = 34,
 }
 
 /// <summary>Uma lembrança episódica: o que aconteceu (<see cref="Kind"/>), com quem (<see cref="Other"/>, 0 = ninguém),

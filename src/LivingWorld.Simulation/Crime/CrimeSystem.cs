@@ -18,7 +18,8 @@ namespace LivingWorld.Simulation.Crime;
 /// Furtar (<c>TheftResolver</c>).</summary>
 [LivingCapability("CRIME", Events = [WorldEventKind.TheftCommitted, WorldEventKind.Assault, WorldEventKind.Homicide,
     WorldEventKind.CrimeReported, WorldEventKind.Verdict, WorldEventKind.Executed, WorldEventKind.Banished,
-    WorldEventKind.InheritanceDisputed], Consumers = ["timeline.crime"])]
+    WorldEventKind.InheritanceDisputed, WorldEventKind.DomesticViolence, WorldEventKind.Kidnapped, WorldEventKind.KidnappingEnded,
+    WorldEventKind.SexualAssault], Consumers = ["timeline.crime"])]
 public sealed class CrimeSystem : ISimulationSystem
 {
     public const string SystemName = "crime";
@@ -46,11 +47,28 @@ public sealed class CrimeSystem : ISimulationSystem
         double theftCeiling = theft.OpportunityPerYear * Math.Max(1.0, theft.PovertyFactor) * MaxInclination(theft) * Pow(body, theft.SexAgeExponent) / daysPerYear;
         double quarrelCeiling = fights
             ? violence!.QuarrelPerYear * Pow(body, violence.SexAgeExponent) * 1.5 * 1.5 * (1 + violence.AngerGain) / daysPerYear : 0;
+        // AD-154: crimes contra a pessoa, cada um com chave própria e stream próprio (desligados, o resto do dia não muda)
+        var person = crime ? world.CrimeRules! : null;
+        var domestic = person is { DomesticOn: true } ? person.Domestic : null;
+        var kidnap = person is { KidnappingOn: true } ? person.Kidnapping : null;
+        var sexual = person is { SexualViolenceOn: true } ? person.SexualViolence : null;
+        var prng = domestic is not null || kidnap is not null || sexual is not null ? ctx.OneShot($"crime-person-day-{day}") : null;
+        double bodyPow = person is null ? 1 : Pow(body, person.Violence.SexAgeExponent);
+        double domesticCeiling = domestic is null ? 0 : DomesticViolence.CeilingPerYear(domestic, bodyPow) / daysPerYear;
+        double kidnapCeiling = kidnap is null ? 0 : Kidnapping.CeilingPerYear(kidnap, bodyPow) / daysPerYear;
+        double sexualCeiling = sexual is null ? 0 : SexualViolence.CeilingPerYear(sexual, bodyPow) / daysPerYear;
+        int personMinAge = Math.Min(domestic?.MinAgeYears ?? int.MaxValue, Math.Min(kidnap?.MinAgeYears ?? int.MaxValue, sexual?.MinAgeYears ?? int.MaxValue));
+        bool anyHeld = world.Crime?.Captives is not null;
+
         var alive = world.AliveNpcIndex.Alive;
         for (int i = 0; i < alive.Count; i++)
         {
             var npc = alive[i];
+            if (anyHeld && world.Crime!.CaptivityOf(npc.Id.Value) is not null) continue; // preso não planeja nada
             int age = npc.AgeYears(world.CurrentDate);
+            if (prng is not null && age >= personMinAge)
+                PlanAgainstPersons(world, ctx, npc, age, domestic, kidnap, sexual, domesticCeiling, kidnapCeiling, sexualCeiling,
+                    daysPerYear, guards, prng);
             if (age < Math.Min(theft.MinAgeYears, fights ? violence!.MinAgeYears : int.MaxValue)) continue;
             if (theft.Enabled && age >= theft.MinAgeYears)
             {
@@ -67,8 +85,49 @@ public sealed class CrimeSystem : ISimulationSystem
         }
 
         if (fights) GrudgeFights(world, ctx, violence!, daysPerYear, guards, rng);
+        if (kidnap is not null || world.Crime?.Captives is not null) Kidnapping.Daily(world, ctx, day);
         if (crime && world.CrimeRules!.Justice.Enabled) Justice.Daily(world, ctx, day);
     }
+
+    /// <summary>AD-154: um sorteio por pessoa e crime contra a pessoa (doméstica, sequestro, sexual); a conta (temperamento,
+    /// estresse, motivo, dissuasão) só para quem o sorteio cai abaixo do teto da chance. O ato vai a uma hora do dia.</summary>
+    private static void PlanAgainstPersons(WorldState world, TickContext ctx, Npc npc, int age,
+        LivingWorld.Domain.Crime.DomesticViolenceRules? domestic, LivingWorld.Domain.Crime.KidnappingRules? kidnap,
+        LivingWorld.Domain.Crime.SexualViolenceRules? sexual, double domesticCeiling, double kidnapCeiling, double sexualCeiling,
+        double daysPerYear, Dictionary<Guid, int>? guards, WorldRng rng)
+    {
+        long now = ctx.CurrentTick;
+        var violence = world.CrimeRules!.Violence;
+        int hpd = world.Calendar.HoursPerDay;
+        if (domestic is not null && age >= domestic.MinAgeYears)
+        {
+            double u = rng.NextDouble();
+            if (u < domesticCeiling && npc.Household is not null
+                && u < DomesticViolence.ChancePerYear(world, domestic, violence, npc, now, Deterrence(world, npc, now, guards), out string motive) / daysPerYear
+                && DomesticViolence.Target(world, domestic, npc, motive) is { } victim)
+                ctx.ScheduleEvent(now + hpd * 17 / 24 + (long)(rng.NextDouble() * (hpd * 6 / 24)), SystemName,
+                    $"D|{npc.Id.Value}|{victim.Id.Value}|{motive}");
+        }
+        if (kidnap is not null && age >= kidnap.MinAgeYears)
+        {
+            double u = rng.NextDouble();
+            if (u < kidnapCeiling && npc.Household is not null
+                && u < Kidnapping.ChancePerYear(world, kidnap, violence, npc, now, Deterrence(world, npc, now, guards),
+                    out string motive, out var victim, out long ransom) / daysPerYear && victim is not null)
+                ctx.ScheduleEvent(now + 1 + (long)(rng.NextDouble() * (hpd - 1)), SystemName,
+                    $"K|{npc.Id.Value}|{victim.Id.Value}|{motive}|{ransom}");
+        }
+        if (sexual is not null && age >= sexual.MinAgeYears)
+        {
+            double u = rng.NextDouble();
+            if (u < sexualCeiling
+                && u < SexualViolence.ChancePerYear(world, sexual, violence, npc, now, Deterrence(world, npc, now, guards)) / daysPerYear
+                && SexualViolence.Target(world, sexual, npc, rng) is { } victim)
+                ctx.ScheduleEvent(now + 1 + (long)(rng.NextDouble() * (hpd - 1)), SystemName, $"S|{npc.Id.Value}|{victim.Id.Value}");
+        }
+    }
+
+    private static bool Held(WorldState world, Npc npc) => world.Crime?.CaptivityOf(npc.Id.Value) is not null;
 
     /// <summary>Maior agressividade do corpo que o cenário permite (testosterona plena); 1 sem hormônios.</summary>
     private static double MaxBody(WorldState world)
@@ -248,8 +307,31 @@ public sealed class CrimeSystem : ISimulationSystem
         else if (parts[0] == "F" && parts.Length >= 4 && world.CrimeOn && world.CrimeRules!.Violence.Enabled)
         {
             if (Find(world, parts[1]) is not { IsAlive: true } aggressor || Find(world, parts[2]) is not { IsAlive: true } victim) return;
-            if (aggressor.City != victim.City || Violence.Domestic(aggressor, victim)) return;
+            if (aggressor.City != victim.City || Violence.Domestic(aggressor, victim) || Held(world, aggressor) || Held(world, victim)) return;
             Violence.Fight(world, ctx, aggressor, victim, parts[3], rng);
+        }
+        else if (world.CrimeOn)
+            HandlePersonCrime(world, ctx, parts, rng);
+    }
+
+    /// <summary>AD-154: o ato agendado de um crime contra a pessoa, se ainda cabe (os dois vivos, ninguém preso, a mesma casa na
+    /// doméstica, sem ninguém olhando na violência sexual).</summary>
+    private static void HandlePersonCrime(WorldState world, TickContext ctx, string[] parts, WorldRng rng)
+    {
+        var rules = world.CrimeRules!;
+        if (Find(world, parts[1]) is not { IsAlive: true } offender || Find(world, parts[2]) is not { IsAlive: true } victim) return;
+        if (Held(world, offender) || Held(world, victim)) return;
+        switch (parts[0])
+        {
+            case "D" when rules.DomesticOn && Violence.Domestic(offender, victim) && offender.Household == victim.Household:
+                DomesticViolence.Assault(world, ctx, offender, victim, parts[3], rng);
+                return;
+            case "K" when rules.KidnappingOn && parts.Length >= 5:
+                Kidnapping.Abduct(world, ctx, offender, victim, parts[3], long.Parse(parts[4], CultureInfo.InvariantCulture), rng);
+                return;
+            case "S" when rules.SexualViolenceOn && offender.City == victim.City && !SexualViolence.Watched(world, offender, victim):
+                SexualViolence.Commit(world, ctx, offender, victim, rng);
+                return;
         }
     }
 

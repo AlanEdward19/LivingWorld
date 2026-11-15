@@ -122,6 +122,34 @@ public sealed class NatalitySystem : ISimulationSystem
         return partner;
     }
 
+    /// <summary>Concepção num ato isolado fora da vontade dela (AD-154, violência sexual): as mesmas regras do ciclo (idade,
+    /// esterilidade, fertilidade dele, puberdade, genoma, piso de saúde, teto de população), vezes a fração do ciclo que um ato
+    /// só tem. Só para mulher adulta, sem gravidez nem intervalo pós-parto. Sem casamento forçado nem reação de vergonha da
+    /// vila (a gravidez não passa pelo caminho da mãe solteira).</summary>
+    internal static bool TryConceiveByAssault(WorldState world, TickContext ctx, Npc mother, Npc father, double singleActShare, WorldRng rng)
+    {
+        long now = ctx.CurrentTick;
+        if (mother.Sex != Sex.Female || father.Sex != Sex.Male || mother.PregnantUntil is not null || singleActShare <= 0) return false;
+        if (mother.Reproduction is { } history && history.InfecundUntilTick > now) return false;
+        if (world.LifeStageRules.LifeStageOf(mother.AgeYears(world.CurrentDate)) == LifeStage.Child) return false;
+        var populationRules = world.PopulationRules;
+        var fertility = populationRules.Fertility;
+        if (populationRules.RemainingAliveSlots(world.AliveNpcIndex.Alive.Count) <= 0) return false;
+        if (mother.Health < world.FamilyRules.ConceptionHealthFloor) return false;
+        long hoursPerYear = world.Calendar.HoursPerYear;
+        double motherAge = (now - mother.BirthDate.TotalHours) / (double)hoursPerYear;
+        double fatherAge = (now - father.BirthDate.TotalHours) / (double)hoursPerYear;
+        double chance = fertility.FemaleCycleFecundability(motherAge, SterilityDraw(world, mother)) * fertility.MaleFertility.At(fatherAge)
+            * AttributeMechanic.FertilityMultiplier(world, mother) * AttributeMechanic.FertilityMultiplier(world, father) * singleActShare;
+        if (chance > 0 && fertility.Endocrine.Enabled)
+            chance *= (Endocrine.IsPubertal(world, mother, now) && Endocrine.IsPubertal(world, father, now) ? 1.0 : 0.0)
+                * Genome.FertilityMultiplier(world, mother) * Genome.FertilityMultiplier(world, father);
+        if (chance <= 0 || rng.NextDouble() >= chance) return false;
+        if (mother.Household is not { } householdId || world.FindHousehold(householdId) is not { } household) return false;
+        Conceive(world, ctx, mother, father, household, motherAge, rng, now, outOfUnion: false);
+        return true;
+    }
+
     /// <summary>Disposição a arriscar (≈ 1 no temperamento médio): impulsividade e pouca aversão a risco, com o impulso da
     /// adolescência somado.</summary>
     public static double Temperament(WorldState world, Npc npc, long now)

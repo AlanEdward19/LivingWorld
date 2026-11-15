@@ -22,11 +22,11 @@
 | 26 | Testemunha lembra com fidelidade total; sem boato de pessoa a pessoa | feito para o crime (AD-150); a história (`HistoryRules`) segue igual: item V8 |
 | 30 | Cônjuge herda 100%; furto desligado e sem justiça | feito (AD-150) |
 
-## Violência e crime (AD-150: itens 1, 2, 4, 5 e 6 feitos; ver `docs/domain/crime-and-justice.md`)
+## Violência e crime (AD-150: itens 1, 2, 4, 5 e 6; AD-154: item 3; ver `docs/domain/crime-and-justice.md`)
 
 1. Furto ligado por padrão, por fome, miséria e oportunidade, de moeda, comida, banca, celeiro, caixa e ferramenta. **Feito.**
 2. Violência entre pessoas (ofensa, ciúme, traição, herança, denúncia, vingança, flagrante), ferimento, homicídio, mágoa. **Feito.**
-3. **Violência doméstica** e seu efeito em separação, em fuga e nas crianças criadas na casa. **A fazer (fatia seguinte, aprovada).**
+3. **Violência doméstica** e seu efeito em separação, em fuga e nas crianças criadas na casa. **Feito (AD-154)**, fora a fuga de quem não é cônjuge: V11 em [06b](06b-crime-contra-pessoas.md).
 4. Justiça: testemunha imperfeita, boato com distorção, denúncia ou silêncio, corte, multa, castigo, banimento, forca, dissuasão. **Feito.**
 5. Herança pela norma (terça da viúva, filhos, oficina ao primogênito) e disputa. **Feito.**
 6. Medição de 20 seeds × 100 anos: no registro AD-150. **Feito.**
@@ -43,19 +43,9 @@ O que ficou de fora do AD-150 (nada some; cada item é fatia ou linha futura):
 - V9. Luto por morte de `Accident` e `OldAge` (o `LifeEventIntake` não as consome; achado ao ligar o homicídio).
 - V10. Sede: resolvida (o crime deixava gente viva com saúde ≤ 1, e a percepção faz a vizinhança fugir). A regra da percepção (ferido = perigo) segue: vale rever fora do crime.
 
-## Crime contra bens e contra pessoas (pedido do dono em 2026-11-12; liberado para iniciar em 2026-11-13)
+## Crime contra bens e contra pessoas (pedido do dono em 2026-11-12)
 
-Palavras dele, sobre "furto de comida não existe, então fome não gera furto": "deveria existir. E não só de comida, de tudo, até sequestro (inclusive pedofilia, estupro); são temas chatos e complicados, mas envolvem o realismo."
-
-1. **Furto e roubo de qualquer bem**: comida, moeda, ferramenta, animal, estoque de loja e de celeiro; por fome, por oportunidade e por temperamento. A fome da quebra de safra (AD-135) tem de aparecer como furto de comida. **Feito (AD-150), fora animal e peça inventada: V3.**
-2. **Sequestro** (a fazer, fatia seguinte aprovada): de adulto ou de criança, com motivo que emerge do estado (resgate, vingança, posse), busca pela família, desfecho (volta, fuga, morte).
-3. **Violência sexual, inclusive contra criança** (a fazer, fatia seguinte aprovada): existe como fato do mundo, por temperamento, oportunidade e impunidade. Modelar como evento abstrato e suas consequências, sem cena nem descrição: trauma e medo duradouros na vítima (memória e emoção do AD-138), gravidez possível em vítima fértil, marca na família, reputação do agressor, denúncia ou silêncio.
-4. **Consequência social e justiça**: descoberta, vingança da família, punição conforme a época, expulsão. Liga com o item de justiça desta página.
-5. Nada escrito à mão: taxas e pesos como dado de cenário; medir em 20 seeds × 100 anos e conferir ordens de grandeza em fonte.
-6. O que o cliente mostra (dono, 2026-11-13): "totalmente explícito, pois prezamos realismo". Furto, roubo, sequestro e
-   violência física aparecem no cliente como acontecem, com nome, autor, vítima e desfecho. Violência sexual aparece
-   nomeada sem eufemismo, com autor, vítima e consequências, mas sem cena, animação nem descrição do ato (limite de quem
-   implementa, avisado ao dono); contra criança, só o registro do fato e das consequências.
+Furto (AD-150), sequestro, violência sexual e consequência social (AD-154), com estado e sobras V11 em diante: [06b](06b-crime-contra-pessoas.md).
 
 ## Poderes por genética (AD-156: itens 1–7 e 9 feitos; detalhe e sobras P1–P7 em [06b](06b-poderes-por-genetica.md))
 
