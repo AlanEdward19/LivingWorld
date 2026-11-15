@@ -96,3 +96,5 @@
 71. **Equipamento de fora a preço de teto** (80 o kg de ferro) quando a forja da vila não tem pronto: a moeda vai ao tesouro.
 72. **Não medido no AD-152**: goldens, pins de 90 dias e baselines do LongRunning (na junção); `verify --full`; custo a 5.000 NPCs;
     seeds 21–40 (fome 641 contra 627 mortes, 4,9% contra 5,0%: dentro do ruído de ±20%).
+
+Itens 73 em diante: [08b-a-investigar.md](08b-a-investigar.md).

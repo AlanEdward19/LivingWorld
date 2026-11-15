@@ -24,7 +24,7 @@ public readonly record struct Containment(
 /// iguais em toda CPU (AD-108). Nenhum artefato aqui: só massa, empuxo (Arquimedes), estabilidade (altura metacêntrica
 /// KB + BM − KG), resistência (viga com carga no meio, M = P·L/8, contra módulo de seção × tensão admissível), arrasto
 /// (pressão ½ρCdAv² + atrito de superfície) e propulsão humana (v³ = 2·P·η / (ρ·CdA)). Ordem fixa: partes na ordem do design.</summary>
-public static class PhysicsEvaluator
+public static partial class PhysicsEvaluator
 {
     private const long Million = 1_000_000;
 
@@ -374,7 +374,7 @@ public static class PhysicsEvaluator
         return null;
     }
 
-    internal static long ISqrt(long value)
+    public static long ISqrt(long value)
     {
         if (value <= 0) return 0;
         long lo = 0, hi = Math.Min(value, 3_037_000_499);
