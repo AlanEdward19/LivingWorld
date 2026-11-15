@@ -116,6 +116,12 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
         foreach (var npc in targets)
         {
             var stage = world.LifeStageRules.LifeStageOf(npc.AgeYears(world.CurrentDate));
+            // AD-154: quem está preso num sequestro fica fora da rotina, no cativeiro (come do que o sequestrador tem)
+            if (world.Crime?.Captives is not null && LivingWorld.Simulation.Crime.Kidnapping.Hold(world, npc, now))
+            {
+                NpcWakeScheduler.RescheduleAfterHour(world, ctx, npc, rules, catalog, now, null, stage);
+                continue;
+            }
             bool possessed = ControlMechanic.IsPossessed(world, npc);
             if (!possessed)
                 EvaluateProfessionSwitch(world, ctx, npc, laborIndex, stage);

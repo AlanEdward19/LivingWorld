@@ -32,8 +32,8 @@ pode narrar, nunca criar um crime nem um veredito (`rules/llm-boundary.md`).
 - Desfecho: dano pela força relativa (músculo); a saúde dinâmica (AD-134) cuida da recuperação e do risco de
   morrer depois; golpe mortal raro = homicídio (`Homicide`, pelo caminho das mortes: luto, herança).
   Parentes do morto (e do muito ferido) guardam mágoa de vingança.
-- Fora desta fatia: violência doméstica (ninguém briga com quem mora junto nem com o cônjuge), sequestro e
-  violência sexual. Bebida e dívida em dinheiro não existem no mundo.
+- A briga daqui é fora de casa; violência doméstica, sequestro e violência sexual estão em
+  [crime-against-persons.md](crime-against-persons.md) (AD-154). Bebida e dívida em dinheiro não existem no mundo.
 
 ## Justiça (`CrimeRules.Justice`)
 1. **Testemunha**: quem está no lugar na hora vê (acordado bem mais que dormindo) e às vezes aponta a pessoa

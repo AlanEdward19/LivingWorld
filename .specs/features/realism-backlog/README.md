@@ -36,10 +36,10 @@ Branch de trabalho: `perf/decision-scan-costs`, no GitHub desde 2026-11-13 (dono
 | Invenção emergente: tecnologia, veículos, robôs, aparência e animação | desenho aprovado em 2026-11-12 (ADR-0045); fatia 1 (transporte sobre água, AD-141) juntada em 2026-11-13 (`2b34fb64`); fatia 2 (AD-143: carga, venda, pesca, cópia) juntada em 2026-11-13; inventário pessoal (AD-147) juntado em 2026-11-14 com a carga pessoal e a sede crítica DESLIGADAS (ligadas pioram fome ou sede); faltam 2a a 7a, 12a a 12g e as fatias 8 a 11, ver `05` | `.specs/features/emergent-invention/design.md` |
 | Violência, furto, poderes por genética, achados restantes da auditoria | não começado | [06](06-violencia-poderes-e-restantes.md) |
 | Doença dinâmica: doença nova que surge e evolui, e doença criada à mão e solta no mundo (pedido em 2026-11-12) | não começado; depois de juntar o AD-137 | [06](06-violencia-poderes-e-restantes.md) |
-| Crime contra bens e pessoas: furto de tudo, sequestro, violência sexual (pedido em 2026-11-12) | liberado pelo dono em 2026-11-13; entra na fila depois de violência e justiça | [06](06-violencia-poderes-e-restantes.md) |
+| Crime contra bens e pessoas: furto de tudo, sequestro, violência sexual, violência doméstica (pedido em 2026-11-12) | furto no AD-150; doméstica, sequestro e sexual no AD-154 (branch do subagente, a juntar); sobras V11–V18 | [06b](06b-crime-contra-pessoas.md) |
 | Refatoração completa do cliente visual (Godot) e, depois, a fatia do jogador (pedido em 2026-11-12) | não começado; ÚLTIMOS da fila, só depois de tudo acima | [09](09-cliente-visual-e-jogador.md) |
 | Desempenho e tempo dos testes | parcial | [07](07-desempenho-e-testes.md) |
-| Pontos em aberto a investigar (afrouxamentos, números sem fonte, efeitos sem explicação) | aberto | [08](08-a-investigar.md) |
+| Pontos em aberto a investigar (afrouxamentos, números sem fonte, efeitos sem explicação) | aberto | [08](08-a-investigar.md), [08b](08b-a-investigar-crime-pessoa.md) |
 
 ## Como trabalhar uma fatia
 
