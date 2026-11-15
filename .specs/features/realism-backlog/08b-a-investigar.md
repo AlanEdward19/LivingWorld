@@ -80,3 +80,4 @@
      `ExtraordinaryStateSystem`, `ExtraordinaryPowerStageSystem` e da fauna também passam pelos mortos. Conserto: índice dos
      portadores vivos com efeito de flora/fauna, recalculado só quando um portador muda, e o salto lazy mantido quando nenhum
      poder vivo mexe na flora. O AD-156 só trocou o `UpsertExtraordinaryCarrier` (antes remover + ordenar a lista inteira).
+107. **Equivalência do conserto dos poderes ligados (AD-156) foi prova de uma vez só**: o teste `PowerCostEquivalenceTests` comparava o hash com o do código antigo (já apagado), nas seeds 1 e 2, e passou antes da junção com o crédito (AD-155). Como qualquer fatia que muda o mundo troca esse hash e o caminho antigo não existe mais para regravar, o teste saiu na junção (custava 8–16 min no gate). Ficam `LivingCarrierIndexTests` e o golden de poderes desligados; falta um teste barato que compare o índice de vivos com a varredura completa no mesmo mundo.
