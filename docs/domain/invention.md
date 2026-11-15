@@ -86,14 +86,14 @@ design sem quem saiba e sem item vira lápide (`DesignTombstone`). Item que sobr
 
 ## Consumidor causal
 `Mobility.TravelTicks` e `HouseholdTicks` (vau ou remo), tamanho da compra (carga, recipiente), despensa (pesca), sede e fome
-longe de casa (carga pessoal), carteiras, `ProductionSystem` (encomendas), vontade de tentar (relatos).
+longe de casa (carga pessoal), carteiras, `ProductionSystem` (encomendas), vontade de tentar (relatos), carga por terra (AD-153).
 
 ## Contrato com o cliente
 `GET /designs`, `GET /designs/{id}` (lápide traz `accounts` e `lostTick`) e `GET /designs/by-fact/{id}`:
 partes e materiais; `object_factory.gd::build_design` monta uma malha por parte.
 
 ## Ainda não
-Animação, pose de uso, terra e ar, química, robôs, substituir o `TechDiscoverySystem` (backlog `05-invencao-emergente.md`).
+Animação, pose de uso, ar, química, robôs, substituir o `TechDiscoverySystem` (backlog 05). Terra: [invention-land](invention-land.md) (AD-153).
 
 ## Números
 Padrão em `InventionRules` (Domain); `InventionRules.Disabled` = mundo de antes. Valores e marcas "precisa de conferência"

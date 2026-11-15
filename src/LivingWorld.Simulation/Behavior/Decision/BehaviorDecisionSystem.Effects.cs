@@ -384,8 +384,12 @@ public sealed partial class BehaviorDecisionSystem
         if (world.InventionOn)
         {
             if (cut > 0) LivingWorld.Simulation.Invention.PersonalCarry.FeltCargoCut(world, npc, household, market.Location, cut, cargoStart - cargo);
-            if (world.Invention!.CarryMinds.Count > 0 && world.Invention.BestCarrier(household.Id.Value, world.InventionRules!) is { Exists: true } carrier)
-                LivingWorld.Simulation.Invention.InventionIntake.SightedCarrier(world, npc, market.Location, carrier.DesignId);
+            LivingWorld.Simulation.Invention.InventionMarket.NoteTrip(world, household, market.Location, cargoStart, cargo, cut); // AD-153
+            // o veículo de terra (AD-153) chama mais a atenção que o recipiente
+            if (world.Invention!.CarryMinds.Count > 0
+                && (world.Invention.BestHauler(household.Id.Value, world.InventionRules!) is { Exists: true } hauler ? hauler.DesignId
+                    : world.Invention.BestCarrier(household.Id.Value, world.InventionRules!) is { Exists: true } carrier ? carrier.DesignId : 0) is > 0 and var seen)
+                LivingWorld.Simulation.Invention.InventionIntake.SightedCarrier(world, npc, market.Location, seen);
         }
         return bought;
     }

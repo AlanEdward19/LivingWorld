@@ -5,7 +5,7 @@ namespace LivingWorld.Domain.Invention;
 /// (frustração, gatilho, busca, ensino, cópia). Nenhum artefato: o cenário nunca declara design, só matéria. Os números do mundo
 /// real vêm do meio das faixas que lembramos e precisam de conferência (lista no registro AD-141). <see cref="Disabled"/> = mundo
 /// de antes byte a byte (nada de travessia de água, nada de design).</summary>
-public sealed record InventionRules
+public sealed partial record InventionRules
 {
     public bool Enabled { get; init; } = true;
 

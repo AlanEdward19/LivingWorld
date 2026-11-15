@@ -177,13 +177,16 @@ public static class PersonalCarry
         world.InventionTally.AwayFrustrations++;
     }
 
-    /// <summary>A compra cortada pelo que cabe (AD-143): o que ficou no mercado custa outra ida e volta, na proporção do cortado.</summary>
+    /// <summary>A compra cortada pelo que cabe (AD-143): o que ficou no mercado custa outra ida e volta, na proporção do cortado.
+    /// AD-153 (<see cref="Domain.Invention.InventionRules.WholeTripsForCut"/>): uma ida e volta inteira para cada carga que ficou.</summary>
     public static void FeltCargoCut(WorldState world, Npc npc, Household home, CellCoord market, long cutG, long carriedG)
     {
         var rules = world.InventionRules!;
         if (cutG <= 0 || npc.AgeYears(world.CurrentDate) < rules.MinInventorAgeYears) return;
         long trip = 2 * Mobility.HouseholdTicks(world, home, home.Location, market) * 60;
-        long minutes = trip * cutG / Math.Max(1, carriedG + cutG);
+        long minutes = rules.WholeTripsForCut
+            ? trip * ((cutG + Math.Max(1, carriedG) - 1) / Math.Max(1, carriedG))
+            : trip * cutG / Math.Max(1, carriedG + cutG);
         if (minutes <= 0) return;
         Frustrate(world, npc, (int)Math.Min(int.MaxValue / 4, minutes), (int)Math.Min(int.MaxValue / 4, cutG * 1000 / rules.WaterDensityKgM3), false);
         world.InventionTally.CargoFrustrations++;
