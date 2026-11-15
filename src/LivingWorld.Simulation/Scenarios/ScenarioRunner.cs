@@ -329,7 +329,7 @@ public static partial class ScenarioRunner
         LivingWorld.Domain.Objects.ObjectCatalog? objectCatalog = null,
         AgricultureRules? agricultureRules = null, NaturalWaterRules? naturalWaterRules = null,
         LivingWorld.Domain.Invention.InventionRules? inventionRules = null, NeedsRules? needsRules = null,
-        LivingWorld.Domain.Crime.CrimeRules? crimeRules = null)
+        LivingWorld.Domain.Crime.CrimeRules? crimeRules = null, LivingWorld.Domain.Extraordinary.ExtraordinaryScenarioData? extraordinary = null)
     {
         var rules = economyRules ?? DefaultEconomyRules;
         var family = familyRules ?? DefaultFamilyRules;
@@ -347,7 +347,7 @@ public static partial class ScenarioRunner
             biomeSeasonTemperatureRules: DefaultBiomeSeasonTemperatureRules, diseaseRules: diseaseRules ?? LivingWorld.Domain.Health.DiseasePresets.PreIndustrial, climateRules: climateRules ?? LivingWorld.Domain.Climate.ClimateRules.Default, theftRules: theftRules ?? LivingWorld.Domain.Crime.TheftRules.Default, emergenceRules: emergenceRules,
             ontogenyRules: ontogenyRules ?? LivingWorld.Domain.Ontogeny.OntogenyDefaults.Human,
             appearanceRules: appearanceRules, objectCatalog: objectCatalog, agricultureRules: agricultureRules ?? AgricultureRules.Default,
-            naturalWaterRules: naturalWaterRules ?? NaturalWaterRules.Default);
+            naturalWaterRules: naturalWaterRules ?? NaturalWaterRules.Default, extraordinary: extraordinary);
         world.UseInvention(inventionRules ?? DefaultInventionRules); // AD-141
         world.UseCrime(crimeRules ?? LivingWorld.Domain.Crime.CrimeRules.Default); // AD-150
         var initialCity = new City(
@@ -368,7 +368,8 @@ public static partial class ScenarioRunner
                 EcologyScenarioSeeder.SeedDefault(world);
         }
 
-        return (world, new WorldClock(DefaultSystems(), maxIterationsPerTick));
+        LivingWorld.Simulation.Extraordinary.Culture.ExtraordinaryPrevalenceSeeder.Seed(world); // AD-156: no-op com poderes desligados
+        return (world, new WorldClock(DefaultSystems(extraordinary: extraordinary), maxIterationsPerTick));
     }
 
     public static (string CanonicalHash, string VolatileHash) RunAndHash(ulong seed, long ticks)

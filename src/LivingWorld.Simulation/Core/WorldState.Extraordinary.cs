@@ -10,9 +10,24 @@ public sealed partial class WorldState
 {
     internal void UpsertExtraordinaryCarrier(ExtraordinaryCarrierState carrier)
     {
-        _extraordinaryCarriers.RemoveAll(existing => existing.CarrierId == carrier.CarrierId);
-        _extraordinaryCarriers.Add(carrier);
-        _extraordinaryCarriers.Sort((left, right) => left.CarrierId.Value.CompareTo(right.CarrierId.Value));
+        // a lista fica ordenada por id: substitui no lugar ou insere na posição (antes, remover + ordenar tudo a cada
+        // atualização horária de cada portador era quadrático no número de portadores; AD-156, com a herança genética
+        // os portadores deixam de se extinguir)
+        int low = 0, high = _extraordinaryCarriers.Count - 1;
+        long id = carrier.CarrierId.Value;
+        while (low <= high)
+        {
+            int mid = (low + high) >> 1;
+            long value = _extraordinaryCarriers[mid].CarrierId.Value;
+            if (value == id)
+            {
+                _extraordinaryCarriers[mid] = carrier;
+                return;
+            }
+            if (value < id) low = mid + 1;
+            else high = mid - 1;
+        }
+        _extraordinaryCarriers.Insert(low, carrier);
     }
 
     internal bool RemoveExtraordinaryCarrier(NpcId carrierId) =>

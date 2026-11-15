@@ -58,8 +58,12 @@ public static class ExtraordinaryScenarioLoader
         if (!culturalResponses.IsSuccess)
             return Result<ExtraordinaryScenarioData>.Fail(culturalResponses.Error!);
 
+        var genetics = PowerGeneticsLoader.Load(block, descriptorsNode); // AD-156: opcional
+        if (!genetics.IsSuccess)
+            return Result<ExtraordinaryScenarioData>.Fail(genetics.Error!);
+
         return Result<ExtraordinaryScenarioData>.Ok(
-            new ExtraordinaryScenarioData(enabled, descriptors, culturalResponses.Value, prevalence));
+            new ExtraordinaryScenarioData(enabled, descriptors, culturalResponses.Value, prevalence, genetics.Value));
     }
 
     private static Result<IReadOnlyList<ExtraordinaryCulturalResponseRule>> ParseCulturalResponses(JsonObject block)

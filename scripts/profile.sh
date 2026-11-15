@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Perfil por sistema do tick (#158): onde vão o tempo e os bytes, e os contadores de despertar.
 # Uso: bash scripts/profile.sh [--pop N] [--ticks N]   (padrão: 1000 NPCs, 720 ticks, fixture de escala, seed 42)
+# LW_PROFILE_POWERS=1 liga os poderes do cenário de referência (AD-156).
 # Não é gate. Para comparar antes/depois com mediana use scripts/compare-simulation-cost.sh.
 set -euo pipefail
 cd "$(dirname "$0")/.."

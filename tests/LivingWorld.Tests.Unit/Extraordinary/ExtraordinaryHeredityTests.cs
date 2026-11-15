@@ -38,11 +38,11 @@ public sealed class ExtraordinaryHeredityTests
     }
 
     [Fact]
-    public void Birth_inherits_parent_rate_gene_even_when_power_inheritance_is_disabled()
+    public void Birth_inherits_parent_rate_gene_but_not_powers_acquired_by_event()
     {
-        // 16.1: RateGene continua herdando no Natality. 16.2: herança de poder é opt-in via
-        // PowerInheritanceRules — com chance 0 o filho não ganha carrier (EVO-10 roll 1).
-        var world = World(7, PowerInheritanceRules.Create(0, 1, 1, 1).Value!);
+        // 16.1: RateGene continua herdando no Natality. AD-156: poder adquirido por evento não passa ao filho — só alelos
+        // passam, e os pais (fundadores num cenário de prevalência 0) não têm o alelo.
+        var world = World(7);
         var location = new CellCoord(1, 1);
         var mother = AddNpc(world, 1, new RateGene(2), Sex.Female, location);
         var father = AddNpc(world, 2, new RateGene(2), Sex.Male, location);

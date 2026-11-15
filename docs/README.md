@@ -33,6 +33,7 @@ sistemas implementam. O `AGENTS.md` só aponta para cá.
 | Você vai mexer em… | Leia |
 |---|---|
 | Mutantes, magos, poderes, custo e falha de potência | [powers.md](domain/powers.md) |
+| Herança dos poderes (genótipo, Mendel, penetrância, custo) | [powers-genetics.md](domain/powers-genetics.md) |
 | Deuses, culto, economia de crença, cisma | [divinity-and-belief.md](domain/divinity-and-belief.md) |
 | Viagem no tempo, ramificação, âncora e colapso de branch | [timelines.md](domain/timelines.md) |
 | Sistema estelar, órbitas, contato alienígena, colônias | [cosmos.md](domain/cosmos.md) |

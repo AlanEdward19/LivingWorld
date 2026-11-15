@@ -84,7 +84,9 @@ public static class Lactation
         if (!woman.IsAlive || woman.Sex != Sex.Female) return;
         double baseRate = world.NeedsRules.HungerDecayPerHour;
         double load = Enabled(world) ? NursingLoad(world, woman, tick) : 0;
-        woman.SetHungerDecayRate(baseRate * (1 + Rules(world).HungerDecayExtraPerNursling * load), tick);
+        // AD-156: o poder manifesto gasta mais comida mesmo sem uso (1 exato sem poderes)
+        woman.SetHungerDecayRate(baseRate * (1 + Rules(world).HungerDecayExtraPerNursling * load)
+            * LivingWorld.Simulation.Extraordinary.Inheritance.PowerGeneticsMechanic.HungerMultiplier(world, woman), tick);
     }
 
     /// <summary>Atualiza o custo de todas as mulheres da casa (nascimento, morte, mudança de quem amamenta).</summary>

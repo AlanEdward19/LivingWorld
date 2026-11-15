@@ -1,4 +1,3 @@
-using LivingWorld.Domain.Extraordinary;
 using LivingWorld.Domain.Geography;
 using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population;
@@ -73,6 +72,7 @@ public sealed class NatalitySystem : ISimulationSystem
             if (chance > 0 && hormones)
                 chance *= (Endocrine.IsPubertal(world, partner, now) ? 1.0 : 0.0)
                     * Genome.FertilityMultiplier(world, mother) * Genome.FertilityMultiplier(world, partner)
+                    * PowerGeneticsMechanic.FertilityMultiplier(world, mother) * PowerGeneticsMechanic.FertilityMultiplier(world, partner)
                     * (1 - ContraceptiveProtection(world, mother));
             // AD-145: o casal sem trabalho e sem despensa adia o primeiro filho, no tanto em que é prudente
             if (chance > 0 && spouse is not null && (mother.Reproduction?.Parity ?? 0) == 0)
@@ -425,50 +425,11 @@ public sealed class NatalitySystem : ISimulationSystem
             WorldEventKind.Birth,
             $"{baby.Id.Value}|{motherId.Value}|{fatherId.Value}|{household.Id.Value}",
             sourceSystem: "NatalitySystem");
-        TryApplyPowerInheritance(world, ctx, baby, motherId, fatherId, birthEventId);
+        if (world.Extraordinary.Enabled) // AD-156: um alelo de cada pai por poder; o início vem na puberdade
+            LivingWorld.Simulation.Extraordinary.Inheritance.PowerGeneticsMechanic.OnBirth(world, ctx, baby, mother, father, birthEventId);
         NpcInstantiationMechanic.ApplyPendingReincarnation(world, ctx, baby);
         MortalitySystem.CoverUntilNextSweep(world, ctx, baby);
         NpcWakeScheduler.ScheduleWake(world, ctx, baby.Id.Value, world.CurrentDate.TotalHours + 1);
-    }
-
-    /// <summary>Se ambos os pais são portadores, resolve herança e audita
-    /// <see cref="WorldEventKind.PowerInherited"/>. Sem dois portadores — no-op O(1).</summary>
-    internal static void TryApplyPowerInheritance(
-        WorldState world, TickContext ctx, Npc baby, NpcId motherId, NpcId fatherId,
-        long? causeEventId = null)
-    {
-        if (!PowerInheritanceResolver.IsPowerCarrier(world, motherId)
-            || !PowerInheritanceResolver.IsPowerCarrier(world, fatherId))
-            return;
-
-        var decision = PowerInheritanceResolver.Decide(
-            world, baby.Id, motherId, fatherId, world.Extraordinary.InheritanceRules);
-        if (!decision.Occurred || decision.Outcome is null)
-            return;
-
-        var descriptors = PowerInheritanceResolver.ResolveDescriptors(
-            world, baby.Id, motherId, fatherId, world.Extraordinary.InheritanceRules);
-        foreach (var descriptor in descriptors)
-            world.Extraordinary.EnsureDescriptor(descriptor);
-
-        if (descriptors.Count > 0)
-        {
-            world.UpsertExtraordinaryCarrier(new ExtraordinaryCarrierState(
-                baby.Id,
-                descriptors.Select(d => d.Id).OrderBy(id => id, StringComparer.Ordinal).ToList(),
-                IsManifested: false,
-                ManifestationState: "dormant",
-                Appearance: new ExtraordinaryAppearanceState(1, "", ""),
-                NeedSubstitution: null,
-                SenescenceRateMultiplier: 1));
-        }
-
-        string idsCsv = string.Join(",", descriptors.Select(d => d.Id));
-        ctx.LogEvent(
-            WorldEventKind.PowerInherited,
-            $"{baby.Id.Value}|{motherId.Value}|{fatherId.Value}|{decision.Outcome}|{idsCsv}",
-            sourceSystem: "NatalitySystem",
-            causeEventId: causeEventId);
     }
 
     internal static bool MeetsConceptionFloors(
