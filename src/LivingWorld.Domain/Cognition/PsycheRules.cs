@@ -145,6 +145,9 @@ public sealed record PsycheRules
             [LifeEventKind.Punished] = new(75, Fear: 0.7, Anger: 0.3, Shame: 0.8),
             [LifeEventKind.KinMurdered] = new(90, Grief: 0.5, Anger: 1.0),
             [LifeEventKind.WronglyPunished] = new(80, Fear: 0.4, Anger: 0.9, Shame: 0.4),
+            [LifeEventKind.SexualAssault] = new(95, Grief: 0.4, Fear: 1.0, Anger: 0.4, Shame: 0.7),
+            [LifeEventKind.Kidnapped] = new(90, Fear: 0.9, Anger: 0.4),
+            [LifeEventKind.KinAssaulted] = new(75, Grief: 0.3, Fear: 0.3, Anger: 0.9),
         };
 
     public static PsycheRules Default { get; } = new();

@@ -5,6 +5,23 @@ public enum CrimeKind : byte
     Theft = 1,
     Assault = 2,
     Homicide = 3,
+    DomesticAssault = 4,
+    Kidnapping = 5,
+    SexualAssault = 6,
+}
+
+/// <summary>Um cativeiro em curso (AD-154): quem está preso, por quem, por quê, desde quando, onde (a casa do sequestrador
+/// na hora do sequestro), o resgate pedido e o caso aberto (-1 = ninguém viu ainda).</summary>
+public sealed class Captivity
+{
+    public long Victim { get; set; }
+    public long Offender { get; set; }
+    public string Motive { get; set; } = "";
+    public long StartTick { get; set; }
+    public int HoldX { get; set; }
+    public int HoldY { get; set; }
+    public long Ransom { get; set; }
+    public long CaseId { get; set; } = -1;
 }
 
 /// <summary>Mágoa de <see cref="Holder"/> contra <see cref="Target"/> (AD-150): inimizade duradoura com motivo, intensidade
@@ -77,6 +94,32 @@ public sealed class CrimeLedger
     public List<CriminalRecord> Records { get; init; } = [];
     public List<CityDeterrence> Deterrence { get; init; } = [];
     public long NextCaseId { get; set; } = 1;
+
+    /// <summary>Cativeiros em curso (AD-154), em ordem de vítima. Nulo quando não há nenhum: fora do snapshot e do hash.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public List<Captivity>? Captives { get; set; }
+
+    public Captivity? CaptivityOf(long victim)
+    {
+        if (Captives is null) return null;
+        foreach (var c in Captives) if (c.Victim == victim) return c;
+        return null;
+    }
+
+    public void AddCaptivity(Captivity captivity)
+    {
+        Captives ??= [];
+        int i = 0;
+        while (i < Captives.Count && Captives[i].Victim < captivity.Victim) i++;
+        Captives.Insert(i, captivity);
+    }
+
+    public void RemoveCaptivity(Captivity captivity)
+    {
+        if (Captives is null) return;
+        Captives.Remove(captivity);
+        if (Captives.Count == 0) Captives = null;
+    }
 
     public CriminalRecord? RecordOf(long npc)
     {

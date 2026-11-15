@@ -13,7 +13,7 @@ namespace LivingWorld.Simulation.Crime;
 
 /// <summary>Violência entre pessoas (AD-150): propensão, mágoa e briga. A briga fere (a saúde dinâmica do AD-134 cuida da
 /// recuperação e do risco de morte depois), às vezes mata na hora, deixa mágoa em quem apanhou e chama a vingança dos
-/// parentes. Violência doméstica fica fora (fatia seguinte): ninguém briga com quem mora na mesma casa nem com o cônjuge.</summary>
+/// parentes. A briga daqui é fora de casa; a violência doméstica tem caminho próprio (<see cref="DomesticViolence"/>, AD-154).</summary>
 internal static class Violence
 {
     /// <summary>Propensão à violência (pessoa comum ≈ 1): agressividade do corpo (testosterona por idade e sexo, AD-139) na
@@ -27,7 +27,7 @@ internal static class Violence
         return pow * (0.5 + p.Impulsivity / 100.0) * (1.5 - p.EmotionalStability / 100.0);
     }
 
-    /// <summary>Duas pessoas que não brigam entre si nesta fatia: o casal e quem mora junto (doméstica fica para a próxima).</summary>
+    /// <summary>O casal e quem mora junto: não brigam na rua; a agressão entre eles é a doméstica (AD-154).</summary>
     public static bool Domestic(Npc a, Npc b) =>
         a.Spouse == b.Id || b.Spouse == a.Id || (a.Household is { } home && b.Household == home);
 
