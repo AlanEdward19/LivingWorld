@@ -13,7 +13,7 @@ namespace LivingWorld.Tests.Unit.Crime;
 
 /// <summary>Violência entre pessoas (AD-150): propensão pelo corpo (homem jovem), impulsividade e instabilidade; a briga fere
 /// (saúde) ou mata (homicídio pelo caminho das mortes), deixa mágoa em quem apanhou e pede vingança dos parentes; o ciúme do
-/// traído vira mágoa contra o amante; a mágoa decai; a doméstica fica fora desta fatia. Antes do AD-150 nada disso existia.</summary>
+/// traído vira mágoa contra o amante; a mágoa decai; a briga de rua não entra em casa (a doméstica é outro caminho, AD-154). Antes do AD-150 nada disso existia.</summary>
 public class ViolenceTests
 {
     private static CrimeRules Rules(double lethal = 0.0) => CrimeRules.Default with
@@ -94,7 +94,7 @@ public class ViolenceTests
         husband.Marry(wife.Id);
         wife.Marry(husband.Id);
         new CrimeSystem().HandleEvent(world, Ctx(world), new ScheduledEvent(1, 1, CrimeSystem.SystemName, $"F|{husband.Id.Value}|{wife.Id.Value}|ofensa"));
-        Assert.Equal(100, wife.Health); // violência doméstica é da fatia seguinte
+        Assert.Equal(100, wife.Health); // a briga de rua não vale entre cônjuges: a doméstica é o DomesticViolence (AD-154)
     }
 
     [Fact]

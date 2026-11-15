@@ -4,7 +4,29 @@ namespace LivingWorld.Domain.Crime;
 /// regra própria do mundo). <see cref="Disabled"/> = mundo antigo: sem briga, sem justiça, herança toda ao cônjuge.</summary>
 public sealed record CrimeRules(bool Enabled, ViolenceRules Violence, JusticeRules Justice, InheritanceRules Inheritance)
 {
-    public static CrimeRules Default { get; } = new(true, new ViolenceRules(), new JusticeRules(), new InheritanceRules());
+    /// <summary>Crimes contra a pessoa (AD-154), cada um com chave própria. Nulo = mundo de antes (snapshot do AD-150): não existe.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public DomesticViolenceRules? Domestic { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public KidnappingRules? Kidnapping { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public SexualViolenceRules? SexualViolence { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool DomesticOn => Domestic is { Enabled: true } && Violence.Enabled;
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool KidnappingOn => Kidnapping is { Enabled: true };
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool SexualViolenceOn => SexualViolence is { Enabled: true };
+
+    public static CrimeRules Default { get; } = new(true, new ViolenceRules(), new JusticeRules(), new InheritanceRules())
+    {
+        Domestic = new DomesticViolenceRules(),
+        Kidnapping = new KidnappingRules(),
+        SexualViolence = new SexualViolenceRules(),
+    };
 
     public static CrimeRules Disabled { get; } = new(false, new ViolenceRules { Enabled = false },
         new JusticeRules { Enabled = false }, InheritanceRules.SpouseTakesAll);

@@ -58,7 +58,7 @@ internal static class Justice
     /// sem ninguém, a vítima suspeita de quem tem má fama; sem acusado, impunidade. Com acusado, o caso abre, o boato começa
     /// com quem viu e a má fama do apontado sobe.</summary>
     public static CrimeOutcome OnCrime(WorldState world, TickContext ctx, CrimeKind kind, Npc offender, Npc? victim, long victimId,
-        CellCoord where, long value, string good, string motive, bool caught, WorldRng rng)
+        CellCoord where, long value, string good, string motive, bool caught, WorldRng rng, bool victimKnows = false)
     {
         if (!world.CrimeOn || !world.CrimeRules!.Justice.Enabled) return new CrimeOutcome(-1, 0, -1);
         var rules = world.CrimeRules.Justice;
@@ -71,6 +71,7 @@ internal static class Justice
         {
             bool awake = witness.CurrentAction != ActionType.Sleep;
             bool isVictim = victim is not null && witness.Id == victim.Id;
+            if (victimKnows && isVictim) continue; // a vítima que conhece o autor entra abaixo, sem confundir quem foi
             bool sees = (caught && (isVictim || seers == 0)) || rng.NextDouble() < (awake ? rules.WitnessSeeChance : rules.SleepingSeeChance);
             if (!sees) continue;
             seers++;
@@ -80,11 +81,16 @@ internal static class Justice
             named[pointed] = named.GetValueOrDefault(pointed) + 1;
             knowers.Add(new CaseKnower { Npc = witness.Id.Value, Accused = pointed, Value = value });
         }
+        // AD-154: no crime contra a pessoa a vítima viva sabe quem foi (o agressor é quem a prendeu, a feriu em casa, a violentou)
+        bool victimNames = victimKnows && victim is { IsAlive: true };
+        if (victimNames && !knowers.Exists(k => k.Npc == victim!.Id.Value))
+            knowers.Add(new CaseKnower { Npc = victim!.Id.Value, Accused = offender.Id.Value, Value = value });
 
         long accused = -1;
         int confirm = 0;
         foreach (var (id, count) in named)
             if (count > confirm || (count == confirm && id == offender.Id.Value)) { accused = id; confirm = count; }
+        if (victimNames) (accused, confirm) = (offender.Id.Value, named.GetValueOrDefault(offender.Id.Value)); // a vítima sabe quem foi
 
         // sem testemunha: a vítima (ou, na morte, a família) desconfia de quem tem má fama
         var suspector = victim is { IsAlive: true } ? victim : kind == CrimeKind.Homicide && victim is not null ? Violence.KinOf(world, victim).FirstOrDefault() : null;
@@ -117,7 +123,8 @@ internal static class Justice
             Knowers = knowers,
         };
         ledger.Cases.Add(crime);
-        AddInfamy(world, accused, rules.InfamyPerCrime, kind != CrimeKind.Theft, now);
+        // AD-154: o crime de dentro de casa ou às escondidas só mancha a fama quando alguém de fora viu ou quando é denunciado
+        if (!IsPersonal(kind) || seers > 0) AddInfamy(world, accused, rules.InfamyPerCrime, kind != CrimeKind.Theft, now);
         return new CrimeOutcome(crime.Id, seers, accused);
     }
 
@@ -167,7 +174,9 @@ internal static class Justice
         foreach (var crime in ledger.Cases.ToList())
         {
             if (crime.Closed || now - crime.Tick > maxAge) continue;
-            if (now - crime.Tick <= (long)rules.RumorLifeDays * world.Calendar.HoursPerDay) Spread(world, ctx, crime, rng);
+            // AD-154: o que aconteceu em casa ou às escondidas não corre de boca em boca enquanto ninguém denuncia
+            bool quiet = IsPersonal(crime.Kind) && crime.ReportedBy < 0 && crime.Witnesses == 0;
+            if (!quiet && now - crime.Tick <= (long)rules.RumorLifeDays * world.Calendar.HoursPerDay) Spread(world, ctx, crime, rng);
             if (crime.ReportedBy < 0) TryReport(world, ctx, crime, rng);
             else if (courtDay) Try(world, ctx, crime, rng);
         }
@@ -213,12 +222,14 @@ internal static class Justice
         var rules = world.CrimeRules!.Justice;
         long now = ctx.CurrentTick;
         CaseKnower? reporter = null;
-        bool victimGone = crime.Victim < 0 || world.FindNpc(new NpcId(crime.Victim)) is not { IsAlive: true };
+        // AD-154: a criança não vai à corte; quem sabe por ela (o pai, a mãe) denuncia
+        bool victimGone = crime.Victim < 0 || world.FindNpc(new NpcId(crime.Victim)) is not { IsAlive: true } v
+            || (IsPersonal(crime.Kind) && v.AgeYears(world.CurrentDate) < world.CrimeRules!.Violence.MinAgeYears);
         foreach (var k in crime.Knowers)
         {
             if (k.Npc == crime.Victim && !victimGone) { reporter = k; break; }
             // vítima morta ou sem dono (a oficina da cidade): denuncia quem sabe, o primeiro vivo
-            if (victimGone && reporter is null && k.Npc != crime.Victim && world.FindNpc(new NpcId(k.Npc)) is { IsAlive: true }) reporter = k;
+            if (victimGone && reporter is null && k.Npc != crime.Victim && k.Npc != crime.Offender && world.FindNpc(new NpcId(k.Npc)) is { IsAlive: true }) reporter = k;
         }
         if (reporter is null || reporter.Accused < 0) return;
         if (world.FindNpc(new NpcId(reporter.Npc)) is not { IsAlive: true } who || world.FindNpc(new NpcId(reporter.Accused)) is not { } accused)
@@ -233,14 +244,21 @@ internal static class Justice
             return;
         }
 
-        bool kin = Violence.KinOf(world, accused).Exists(n => n.Id == who.Id);
+        // a vítima de dentro de casa não cala por ser da família (a norma e a dependência já cortam a chance, abaixo)
+        bool kin = (!IsPersonal(crime.Kind) || who.Id.Value != crime.Victim) && Violence.KinOf(world, accused).Exists(n => n.Id == who.Id);
         double affection = world.Relationships.TryGetValue(new RelationshipKey(who.Id, accused.Id), out var bond) ? bond.Affection : 0;
         if (kin || affection >= rules.SilenceAffection) { crime.Closed = true; return; } // silêncio de quem é chegado
         double fear = Math.Max(PsycheMechanic.EmotionOf(world, who, Emotion.Fear, now), InfamyOf(world, accused.Id.Value, now).Violent / 100.0);
         double petty = crime.Kind == CrimeKind.Theft && crime.Value < rules.PettyTheftValue ? rules.PettyReportFactor : 1.0;
-        if (rng.NextDouble() >= rules.ReportChance * petty * (1 - rules.FearSilence * fear)) return; // hoje não (pode amanhã)
+        petty *= ReportFactor(world.CrimeRules, crime.Kind);
+        if (rng.NextDouble() >= rules.ReportChance * petty * (1 - rules.FearSilence * fear))
+        {
+            if (IsPersonal(crime.Kind)) crime.Closed = true; // AD-154: quem decide calar sobre o que sofreu cala de vez
+            return; // hoje não (pode amanhã)
+        }
 
         crime.ReportedBy = who.Id.Value;
+        if (IsPersonal(crime.Kind)) AddInfamy(world, accused.Id.Value, rules.InfamyPerCrime, true, now);
         ctx.LogEvent(WorldEventKind.CrimeReported,
             $"{who.Id.Value}|{accused.Id.Value}|{crime.Id}|{KindName(crime.Kind)}|{(accused.Id.Value == crime.Offender ? 1 : 0)}",
             Theft.SourceName);
@@ -260,8 +278,9 @@ internal static class Justice
         crime.Closed = true;
         if (world.FindNpc(new NpcId(crime.Accused)) is not { IsAlive: true } accused) return;
         double infamy = InfamyOf(world, accused.Id.Value, now).All / 100.0;
-        double p = rules.ConvictBase + rules.ConvictPerWitness * crime.Witnesses + (crime.Caught ? rules.ConvictCaught : 0)
-            + rules.ConvictInfamy * infamy;
+        double p = (rules.ConvictBase + rules.ConvictPerWitness * crime.Witnesses + (crime.Caught ? rules.ConvictCaught : 0)
+            + rules.ConvictInfamy * infamy + (IsPersonal(crime.Kind) ? rules.ConvictPerWitness / 2 : 0)) // a palavra da vítima
+            * ConvictFactor(world.CrimeRules, crime.Kind);
         bool guilty = rng.NextDouble() < Math.Clamp(p, 0, 1);
         bool truly = accused.Id.Value == crime.Offender;
         string punishment = "nenhuma";
@@ -294,8 +313,18 @@ internal static class Justice
 
         if (crime.Kind == CrimeKind.Homicide)
             return (rng.NextDouble() < rules.ExecutionShare ? "forca" : "banimento", 0);
+        if (crime.Kind == CrimeKind.Kidnapping)
+            return (rng.NextDouble() < world.CrimeRules.Kidnapping!.ExecutionShare ? "forca" : "banimento", 0);
+        if (crime.Kind == CrimeKind.SexualAssault)
+        {
+            var sexual = world.CrimeRules.SexualViolence!;
+            double roll = rng.NextDouble();
+            if (roll < sexual.ExecutionShare) return ("forca", 0);
+            if (roll < sexual.ExecutionShare + sexual.BanishShare || crime.Good == "crianca") return ("banimento", 0);
+        }
 
-        long owed = crime.Kind == CrimeKind.Theft ? crime.Value + (long)(rules.FineMultiple * crime.Value) : rules.AssaultFine;
+        long owed = crime.Kind == CrimeKind.Theft ? crime.Value + (long)(rules.FineMultiple * crime.Value)
+            : crime.Kind == CrimeKind.SexualAssault ? world.CrimeRules.SexualViolence!.Fine : rules.AssaultFine;
         long paid = Math.Min(owed, convict.Wallet.Amount);
         if (paid > 0 && convict.TryDebitWallet(new Money(paid)).IsSuccess)
         {
@@ -359,6 +388,26 @@ internal static class Justice
     {
         CrimeKind.Theft => "furto",
         CrimeKind.Assault => "agressao",
+        CrimeKind.DomesticAssault => "violencia_domestica",
+        CrimeKind.Kidnapping => "sequestro",
+        CrimeKind.SexualAssault => "violencia_sexual",
         _ => "homicidio",
+    };
+
+    /// <summary>Crime contra a pessoa em que a vítima conhece o autor e decide ela mesma (ou quem fala por ela) se denuncia.</summary>
+    public static bool IsPersonal(CrimeKind kind) => kind is CrimeKind.DomesticAssault or CrimeKind.Kidnapping or CrimeKind.SexualAssault;
+
+    private static double ReportFactor(CrimeRules rules, CrimeKind kind) => kind switch
+    {
+        CrimeKind.DomesticAssault => rules.Domestic?.ReportFactor ?? 1.0,
+        CrimeKind.SexualAssault => rules.SexualViolence?.ReportFactor ?? 1.0,
+        _ => 1.0,
+    };
+
+    private static double ConvictFactor(CrimeRules rules, CrimeKind kind) => kind switch
+    {
+        CrimeKind.DomesticAssault => rules.Domestic?.ConvictFactor ?? 1.0,
+        CrimeKind.SexualAssault => rules.SexualViolence?.ConvictFactor ?? 1.0,
+        _ => 1.0,
     };
 }
