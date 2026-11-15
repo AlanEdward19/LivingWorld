@@ -61,12 +61,12 @@ public class LaborAllocationTests
         },
         MarketLocationTypeIds: [1, 2], LocationTypeByProfession: new Dictionary<int, int> { [1] = 1, [2] = 2 });
 
-    private static (WorldState World, Workplace A, Workplace B) Build(long priceA, long priceB, int vacanciesB = 5)
+    private static (WorldState World, Workplace A, Workplace B) Build(long priceA, long priceB, int vacanciesB = 5, EconomyRules? economy = null)
     {
         var world = new WorldState(
             Calendar, 1, ScenarioRunner.DefaultMap(1), ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, Needs, Actions, Stages,
-            economyRules: Economy(), economyCatalog: Catalog());
+            economyRules: economy ?? Economy(), economyCatalog: Catalog());
         var a = AddWorkplace(world, locationType: 1, resource: 7, price: priceA, vacancies: 5);
         var b = AddWorkplace(world, locationType: 2, resource: 8, price: priceB, vacancies: vacanciesB);
         return (world, a, b);
@@ -146,6 +146,19 @@ public class LaborAllocationTests
         Assert.Equal(world.CurrentDate.TotalHours, npc.LastJobChangeTick);
         Assert.DoesNotContain(npc.Id, a.Employees);
         Assert.Contains(npc.Id, b.Employees);
+    }
+
+    [Fact]
+    public void An_owner_does_not_leave_his_own_paying_shop_for_a_better_job()
+    {
+        var (world, a, b) = Build(priceA: 10, priceB: 30, economy: Economy() with { Venture = VentureRules.Default }); // E20, AD-155
+        var npc = AddAdult(world, a, profession: 1);
+        a.AssignOwner(npc.Id);
+        AlignToReviewHour(world, npc);
+
+        Evaluate(world);
+
+        Assert.Equal(a.Id, npc.Employer);
     }
 
     [Fact]

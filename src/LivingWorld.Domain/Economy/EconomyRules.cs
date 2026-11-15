@@ -52,6 +52,10 @@ public sealed record EconomyRules(
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public VentureRules? Venture { get; init; }
 
+    /// <summary>AD-155: empréstimo, capital de giro e falência (<see cref="CreditRules"/>). Nulo: ninguém empresta, nada fecha.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public CreditRules? Credit { get; init; }
+
     public static Result<EconomyRules> Create(
         bool enabled, int foodResourceId, int waterResourceId,
         IReadOnlyDictionary<(int ResourceId, int LocationTypeId), long> capacityByResourceLocation,

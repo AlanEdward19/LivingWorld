@@ -4,6 +4,7 @@ using LivingWorld.Domain.Population.Body;
 using LivingWorld.Domain.Population.Family;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
+using LivingWorld.Simulation.Scheduling;
 
 namespace LivingWorld.Simulation.Economy.Venture;
 
@@ -14,10 +15,14 @@ namespace LivingWorld.Simulation.Economy.Venture;
 /// Não fecha a conta: não abre (empréstimo é a fatia 6 e entra aqui, depois dos sócios). Só calcula; quem debita é
 /// <see cref="Take"/>.</summary>
 internal sealed record VentureCapital(
-    long Needed, List<(Npc Npc, long Amount)> Household, List<(Npc Npc, long Amount)> Partners)
+    long Needed, Npc Founder, List<(Npc Npc, long Amount)> Household, List<(Npc Npc, long Amount)> Partners, Credit.LoanOffer? Loan = null)
 {
     public long Own => Household.Sum(c => c.Amount);
     public long FromPartners => Partners.Sum(c => c.Amount);
+    public long Borrowed => Loan?.Amount ?? 0;
+
+    /// <summary>O contrato do empréstimo, depois de <see cref="Take"/> (a oficina em garantia entra quando nasce).</summary>
+    public Credit.Loan? Granted { get; private set; }
 
     public static long ReserveOf(WorldState world, VentureRules rules, Npc npc)
     {
@@ -25,7 +30,8 @@ internal sealed record VentureCapital(
         return (long)Math.Ceiling(rules.ReserveWageMonths * minWage * (0.5 + npc.Personality.RiskAversion / 100.0));
     }
 
-    public static VentureCapital? Raise(WorldState world, VentureRules rules, Npc founder, long needed, bool allowPartners = true)
+    public static VentureCapital? Raise(WorldState world, VentureRules rules, Npc founder, long needed, bool allowPartners = true,
+        VenturePlan? plan = null, Credit.LoanPurpose purpose = Credit.LoanPurpose.Founding)
     {
         var household = new List<(Npc, long)>();
         var spouse = founder.Spouse is { } spouseId && world.FindNpc(spouseId) is { IsAlive: true } s ? s : null;
@@ -49,13 +55,34 @@ internal sealed record VentureCapital(
                 missing -= put;
             }
 
-        return missing > 0 ? null : new VentureCapital(needed, household, partners);
+        // AD-155: o que falta, se não passa da parte que se financia (menos para quem tem medo do risco), pede emprestado com a
+        // oficina em garantia; a parcela tem de caber no ganho que a conta promete
+        Credit.LoanOffer? loan = null;
+        if (missing > 0 && plan is not null && world.CreditOn)
+        {
+            var credit = world.EconomyRules.Credit!;
+            long maxLoan = (long)Math.Floor(needed * credit.MaxLoanShare * Math.Clamp(1.5 - founder.Personality.RiskAversion / 100.0, 0, 1));
+            int term = purpose == Credit.LoanPurpose.Founding ? credit.FoundingTermMonths : credit.WorkingTermMonths;
+            if (missing <= maxLoan)
+                loan = Credit.Lending.Find(world, founder, missing, term, collateral: true, plan.MonthlySales - plan.MonthlyPayroll);
+            if (loan is not null) missing = 0;
+        }
+
+        return missing > 0 ? null : new VentureCapital(needed, founder, household, partners, loan);
     }
 
-    /// <summary>Debita cada parte da carteira de quem a pôs; devolve quanto da parte do casal era herança (e a baixa no contador).</summary>
-    public long Take()
+    /// <summary>Debita cada parte da carteira de quem a pôs (o empréstimo passa pela carteira do fundador); devolve quanto da parte do
+    /// casal era herança (e a baixa no contador).</summary>
+    public long Take(WorldState world, TickContext ctx, Credit.LoanPurpose purpose = Credit.LoanPurpose.Founding)
     {
         long inherited = 0;
+        if (Loan is { } offer)
+        {
+            Granted = Credit.Lending.Grant(world, ctx, offer, Founder, purpose, workplace: 0, log: false);
+            if (!Founder.TryDebitWallet(new Money(offer.Amount)).IsSuccess)
+                throw new InvalidOperationException("VentureCapital: empréstimo não chegou à carteira");
+        }
+
         foreach (var (npc, amount) in Household.Concat(Partners))
         {
             if (!npc.TryDebitWallet(new Money(amount)).IsSuccess)

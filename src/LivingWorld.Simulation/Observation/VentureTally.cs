@@ -13,7 +13,7 @@ namespace LivingWorld.Simulation.Observation;
 public sealed class VentureTally(WorldState world) : IWorldEventSink
 {
     public const int Decades = 10;
-    public static readonly string[] Origins = ["poupanca", "heranca", "sociedade"];
+    public static readonly string[] Origins = ["poupanca", "heranca", "sociedade", "emprestimo"];
 
     public sealed record Venture(long Tick, long WorkplaceId, string Origin, long Capital, bool Reopened = false)
     {
@@ -58,7 +58,7 @@ public sealed class VentureTally(WorldState world) : IWorldEventSink
         var five = all.Where(v => v.Alive5 is not null).ToList();
         var ten = all.Where(v => v.Alive10 is not null).ToList();
         sb.AppendLine(inv, $"  sobrevivencia: 5_anos={five.Count(v => v.Alive5 == true)}/{five.Count} 10_anos={ten.Count(v => v.Alive10 == true)}/{ten.Count}");
-        sb.Append("  por decada (poupanca/heranca/sociedade):");
+        sb.Append("  por decada (poupanca/heranca/sociedade/emprestimo):");
         for (int d = 0; d < Decades; d++)
         {
             var inDecade = all.Where(v => Math.Clamp((int)(v.Tick / hoursPerYear / 10), 0, Decades - 1) == d).ToList();

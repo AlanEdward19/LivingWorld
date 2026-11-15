@@ -30,6 +30,8 @@ public static class CausalPolicy
         WorldEventKind.Hired, WorldEventKind.Fired, WorldEventKind.WageUnpaid,
         WorldEventKind.RentUnpaid, WorldEventKind.Evicted, WorldEventKind.EstateSettled, WorldEventKind.Emigrated,
         WorldEventKind.AidGiven, WorldEventKind.TheftDiscovered,
+        // Crédito (AD-155): a quitação, o calote e a falência vêm de um empréstimo ou de uma folha que não fechou
+        WorldEventKind.LoanRepaid, WorldEventKind.LoanDefaulted, WorldEventKind.WorkplaceBankrupt,
         // Crime e justiça (AD-150)
         WorldEventKind.TheftCommitted, WorldEventKind.Assault, WorldEventKind.Homicide, WorldEventKind.CrimeReported,
         WorldEventKind.Verdict, WorldEventKind.Executed, WorldEventKind.Banished, WorldEventKind.InheritanceDisputed,
@@ -63,6 +65,7 @@ public static class CausalPolicy
         WorldEventKind.AffairStarted, WorldEventKind.VocationChosen, WorldEventKind.UnwedPregnancy,
         WorldEventKind.ResourceLost, WorldEventKind.Minted, WorldEventKind.Destroyed,
         WorldEventKind.Trade, WorldEventKind.BookLost, WorldEventKind.DesignSold, WorldEventKind.ProfitDrawn, WorldEventKind.VentureFounded,
+        WorldEventKind.LoanGranted,
         WorldEventKind.ExtraordinaryUseAttempted, WorldEventKind.ExtraordinaryAcquired,
         WorldEventKind.ExtraordinaryAcquisitionFailed, WorldEventKind.ExtraordinaryRevoked,
         WorldEventKind.CombatEncounterStarted,

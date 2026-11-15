@@ -113,7 +113,7 @@ public sealed class DemographyTally(WorldState world) : IWorldEventSink
 /// <summary>Resumo de N seeds × A anos do cenário padrão de código (<see cref="ScenarioRunner.Create"/>).</summary>
 public static class DemographyReport
 {
-    public sealed record SeedResult(ulong Seed, int FinalAlive, int MinAlive, DemographyTally Tally, FoodTally? Food = null, InventionSummary? Invention = null, EconomyTally? Economy = null, WorkdayTally? Workday = null, DecadeTally? Decades = null, VentureTally? Ventures = null);
+    public sealed record SeedResult(ulong Seed, int FinalAlive, int MinAlive, DemographyTally Tally, FoodTally? Food = null, InventionSummary? Invention = null, EconomyTally? Economy = null, WorkdayTally? Workday = null, DecadeTally? Decades = null, VentureTally? Ventures = null, CreditTally? Credit = null);
 
     private sealed class BothSinks(IWorldEventSink a, IWorldEventSink b) : IWorldEventSink
     {
@@ -144,7 +144,8 @@ public static class DemographyReport
         var workday = new WorkdayTally(world) { MeasureFromTick = tally.MeasureFromTick };
         var decades = new DecadeTally(world);
         var ventures = new VentureTally(world); // AD-152
-        IWorldEventSink sinks = new BothSinks(new BothSinks(new BothSinks(tally, food), decades), ventures);
+        var credit = new CreditTally(world); // AD-155
+        IWorldEventSink sinks = new BothSinks(new BothSinks(new BothSinks(new BothSinks(tally, food), decades), ventures), credit);
         if (extra is not null) sinks = new BothSinks(sinks, extra);
         var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, sinks);
         int months = years * world.Calendar.MonthsPerYear;
@@ -170,6 +171,7 @@ public static class DemographyReport
             food.SampleMonth();
             decades.SampleMonth(world.CurrentDate.TotalHours);
             ventures.SampleMonth();
+            credit.SampleMonth();
             afterMonth?.Invoke(world, m);
             minAlive = Math.Min(minAlive, world.AliveNpcIndex.Alive.Count);
             if (world.AliveNpcIndex.Alive.Count == 0) break;
@@ -177,7 +179,7 @@ public static class DemographyReport
 
         tally.Reproduction.SampleGenetics();
         economy.SampleYear(years);
-        return new SeedResult(seed, world.AliveNpcIndex.Alive.Count, minAlive, tally, food, InventionSummary.Of(world), economy, workday, decades, ventures);
+        return new SeedResult(seed, world.AliveNpcIndex.Alive.Count, minAlive, tally, food, InventionSummary.Of(world), economy, workday, decades, ventures, credit);
     }
 
     public static string Summarize(IReadOnlyList<SeedResult> runs, int years, int warmupYears, long hoursPerYear)
@@ -264,6 +266,8 @@ public static class DemographyReport
         if (decadeRuns.Count > 0) sb.Append(DecadeTally.Summarize(decadeRuns));
         var ventureRuns = runs.Where(r => r.Ventures is not null).Select(r => r.Ventures!).ToList();
         if (ventureRuns.Count > 0) sb.Append(VentureTally.Summarize(ventureRuns, hoursPerYear));
+        var creditRuns = runs.Where(r => r.Credit is not null).Select(r => r.Credit!).ToList();
+        if (creditRuns.Count > 0) sb.Append(CreditTally.Summarize(creditRuns));
         sb.Append(InventionSummary.Summarize(runs.Where(r => r.Invention is not null).Select(r => r.Invention!).ToList()));
         return sb.ToString();
     }
