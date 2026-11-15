@@ -33,3 +33,11 @@ Branch e hash; o que mudou por arquivo; os números adotados e quais precisam de
 - Gate, testes, relatórios de 20 seeds, perfil e regravação de goldens rodam sozinhos, um por vez entre todos os agentes: `bash /Users/aoliveira/Desktop/Projects/LivingWorld/.specs/features/realism-backlog/relatorios/lw-um-por-vez.sh <comando> [args...]` (sempre este caminho, não a cópia do worktree). `build.sh` e `lint.sh` ficam fora.
 - Comando leve (até ~2 núcleos: sonda ou relatório de uma seed, `starvation-trace`, testes filtrados de uma área) entra com `--leve` antes do comando: rodam dois por vez, nunca junto com um pesado, e esperam se há pesado na fila. Na dúvida, é pesado.
 - Nunca dois comandos pesados em paralelo, nem do mesmo agente. Rodar em segundo plano e esperar a notificação.
+
+## Medição curta (dono pediu para acelerar, 2026-11-15; vale sobre o que está acima)
+- Intermediárias: 6 seeds × 50 anos. Topo final: 20 seeds × 100 anos **uma vez**. A base **não** se mede de novo quando já
+  existe medição do mesmo commit (a junção anterior deixa o arquivo no scratchpad; o orquestrador informa o caminho).
+- Seeds 21–40 só a pedido do orquestrador. Mortes de fome em 20 seeds variam mais de ±20% por ruído de trajetória
+  (`08b`, item 86): não persiga diferença menor; o critério firme é 0 extinções, sede, população e custo.
+- Nenhum comando de fatia segura a fila por mais de 40 minutos. Passou disso, pare e reduza (menos seeds ou anos).
+- Gate do subagente: só `verify.sh` rápido. O orquestrador roda `--lote` em cada junção e `--full` uma vez por dia.
