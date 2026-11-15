@@ -220,6 +220,7 @@ public static partial class ScenarioRunner
         SurplusDrawShare = 1.0,
         PresenceNeedsWork = true, // AD-144: o lucro acima de 12 folhas sai todo mês; AD-149: só lavra quem trabalha (E1)
         Venture = VentureRules.Default with { LocationTypeIds = [2], EquipmentResourceId = 4, EquipmentUnits = 40 }, // AD-152: o ferreiro abre a forja dele
+        Credit = CreditRules.Default, // AD-155: empréstimo em moeda que existe, capital de giro e falência
     };
 
     /// <summary>Invenção dos cenários (código e JSON), num lugar só. A carga pessoal (`PantryNeedsPresence`) segue desligada (AD-151:

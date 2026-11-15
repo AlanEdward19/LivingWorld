@@ -50,5 +50,11 @@ public sealed record VentureRules
     public double MinPartnerTrust { get; init; } = 60;
     public int MaxPartners { get; init; } = 2;
 
+    /// <summary>AD-155 (E22): limiar da escolha entre sociedade e empréstimo de quem financia (ver <c>VentureCapital.PrefersPartnership</c>).</summary>
+    public double PartnershipAppeal { get; init; } = 0.5;
+
+    /// <summary>AD-155 (E20): o dono não troca a própria oficina que paga por um emprego melhor. Falso: o modelo do AD-152.</summary>
+    public bool OwnerKeepsShop { get; init; } = true;
+
     public static VentureRules Default { get; } = new();
 }

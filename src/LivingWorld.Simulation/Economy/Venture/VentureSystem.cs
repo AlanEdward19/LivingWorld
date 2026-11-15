@@ -53,7 +53,7 @@ public sealed class VentureSystem(SkillsRules skillsRules) : ISimulationSystem
                     double chance = ChanceOf(world, rules, trade, plan, npc);
                     if (chance <= 0 || ctx.StreamFor("venture", npc.Id.Value * 1_000_003L + month).NextDouble() >= chance) continue;
                     var opened = owned is null
-                        ? VentureFounding.TryFound(world, ctx, rules, trade, plan, npc)
+                        ? VentureFounding.TryBuyClosed(world, ctx, rules, trade, plan, npc) ?? VentureFounding.TryFound(world, ctx, rules, trade, plan, npc)
                         : VentureFounding.TryReopen(world, ctx, rules, trade, plan, npc, owned);
                     if (opened is not null) break; // um por ofício e cidade no mês
                 }
