@@ -59,6 +59,10 @@ public static class SignificanceCalculator
             [WorldEventKind.WageUnpaid] = 0.45,
             [WorldEventKind.ProfitDrawn] = 0.10, // retirada mensal de rotina (AD-144)
             [WorldEventKind.VentureFounded] = 0.60, // alguém abriu o próprio negócio (AD-152)
+            [WorldEventKind.LoanGranted] = 0.20, // AD-155: empréstimo (o de comida é rotina)
+            [WorldEventKind.LoanRepaid] = 0.15,
+            [WorldEventKind.LoanDefaulted] = 0.45,
+            [WorldEventKind.WorkplaceBankrupt] = 0.60,
             [WorldEventKind.Minted] = 0.30,
             [WorldEventKind.Destroyed] = 0.30,
             [WorldEventKind.ResourceLost] = 0.25,

@@ -344,6 +344,9 @@ public static class WorldSnapshot
                 ? crimeRulesNode.Deserialize<LivingWorld.Domain.Crime.CrimeRules>(JsonOptions) : null,
             node.TryGetPropertyValue("Crime", out var crimeNode) && crimeNode is not null
                 ? crimeNode.Deserialize<LivingWorld.Simulation.Crime.CrimeLedger>(JsonOptions) : null);
+        rehydrated.RestoreCredit( // AD-155: ausente = nunca houve crédito
+            node.TryGetPropertyValue("Credit", out var creditNode) && creditNode is not null
+                ? creditNode.Deserialize<LivingWorld.Simulation.Economy.Credit.CreditLedger>(JsonOptions) : null);
         rehydrated.UseBrain( // AD-142: ausente = experimento desligado
             node.TryGetPropertyValue("BrainRules", out var brainRulesNode) && brainRulesNode is not null
                 ? brainRulesNode.Deserialize<LivingWorld.Domain.Cognition.BrainRules>(JsonOptions) : null);

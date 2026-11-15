@@ -48,6 +48,21 @@
 ## Da medição (2026-11-15)
 86. **O critério "fome ≤ base em 20 seeds" não discrimina**: nas mesmas seeds 1–20, desligar um crime raro (sequestro, 0,02 por seed-ano) move as mortes de fome de 339 para 462; o ruído de trajetória passa de ±20%. Falta uma medida que aguente (mais seeds, pares com trajetória comum, ou taxa por pessoa-ano com intervalo) antes de aceitar ou recusar fatia por fome. AD-153 (+6% em 40 seeds) e AD-154 (+10,6%) foram aceitos sem causa isolada.
 
+## Do crédito e da falência (AD-155, [credit](../../../docs/domain/credit.md))
+90. **Usura**: acréscimo de 10% ao ano do prazo, multa de 5% da parcela atrasada, teto de 20% ao ano; parente a 0%. Lembrança, **precisa
+    de conferência**: Briggs, *Credit and Village Society in Fourteenth-Century England* (2009); Latrão III (1179), Lyon II (1274);
+    teto dos judeus ingleses (2 d por libra por semana, ~43%/ano); montes de piedade do século XV (~5–10%).
+91. **Prazos** de 36 meses (abertura) e 12 (giro, reabertura, comida); **6 meses** de atraso até o calote; **10 anos** de memória
+    do calote; **6 meses** de folha que não fecha até a falência. Sem fonte.
+92. **Quanto se financia**: até metade do capital (× `1,5 − Aversão/100`), parcela até metade do ganho prometido (ou do salário,
+    na comida). Sem fonte; conferir prática de *commenda* e de crédito rural (penhor de colheita).
+93. **Confiança**: mínimo 40, +40 parente, +40 garantia de oficina, + eixo Dívida do credor; má fama acima de 30 fecha a porta.
+94. **Tesouro empresta até 25%** do que tem; **3 meses** de folha no empréstimo de giro; **7 dias** de comida por pessoa como
+    gatilho do empréstimo para comer; penhora deixa **1 mês** do menor salário. Sem fonte.
+95. **Ordem dos credores na falência** (salário atrasado antes dos empréstimos com garantia): é a ordem moderna; a medieval
+    variava por costume local. **Precisa de conferência.**
+96. **Valor do prédio tomado em pagamento** = foro + obra + equipamento da abertura (custo de reposição, sem desconto de leilão).
+
 ## Dos poderes por genética (AD-156, [powers-genetics](../../../docs/domain/powers-genetics.md))
 100. **Penetrância padrão 0,9** e **expressividade** com desvio 0,15, +0,25 no homozigoto dominante e +0,25 por ponto acima do
      limiar no poligênico. Escolhas sem fonte (doenças mendelianas reais vão de ~0,3 a 1). Precisa de conferência.

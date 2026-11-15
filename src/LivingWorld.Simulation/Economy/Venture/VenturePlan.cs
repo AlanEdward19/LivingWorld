@@ -13,10 +13,11 @@ namespace LivingWorld.Simulation.Economy.Venture;
 /// no mês (a encomenda da cidade, para ferramenta; a procura-base por pessoa, para bem de mercado; dividida entre ele e quem já
 /// vende; nunca mais do que a oficina nova faz) e a folha que pagaria. A vila que só sustenta um ferreiro não chama o segundo
 /// enquanto o primeiro trabalha. <see cref="Margin"/> = (venda − folha) ÷ venda, entre 0 e 1: é a oportunidade percebida.
-/// Bem que ninguém compra não tem margem: ninguém abre o que não vende.</summary>
+/// Bem que ninguém compra não tem margem: ninguém abre o que não vende. <c>self</c> (AD-155): a conta da oficina que já existe,
+/// sem contar ela mesma como concorrente (é o que ela promete para pedir giro).</summary>
 internal sealed record VenturePlan(double Margin, long MonthlySales, long MonthlyPayroll, IReadOnlyDictionary<ResourceType, long> Prices)
 {
-    public static VenturePlan For(WorldState world, VentureRules rules, VentureTrade trade, CityId city)
+    public static VenturePlan For(WorldState world, VentureRules rules, VentureTrade trade, CityId city, Workplace? self = null)
     {
         var economy = world.EconomyRules;
         var calendar = world.CurrentDate.Calendar;
@@ -26,7 +27,7 @@ internal sealed record VenturePlan(double Margin, long MonthlySales, long Monthl
         {
             if (workplace.LocationType.Id != trade.LocationTypeId) continue;
             reference ??= workplace;
-            if (workplace.City == city && Operating(world, workplace)) operating.Add(workplace);
+            if (workplace.City == city && workplace != self && Operating(world, workplace)) operating.Add(workplace);
         }
 
         var prices = new Dictionary<ResourceType, long>(reference?.Prices ?? new Dictionary<ResourceType, long>());

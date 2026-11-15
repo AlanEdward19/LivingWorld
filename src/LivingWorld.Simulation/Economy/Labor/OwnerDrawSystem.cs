@@ -15,6 +15,7 @@ namespace LivingWorld.Simulation.Economy.Labor;
 /// de quem abriu a oficina com eles levam a cota deles antes do dono (AD-152).</summary>
 [LivingCapability("WAGES", Events = [WorldEventKind.ProfitDrawn], Consumers = ["timeline.wages"])]
 [RunsAfter(typeof(WagePaymentSystem))]
+[RunsAfter(typeof(LivingWorld.Simulation.Economy.Credit.CreditSystem))] // AD-155: a parcela vem antes do lucro
 public sealed class OwnerDrawSystem : ISimulationSystem
 {
     public const string SystemName = "economy-owner-draw";
@@ -29,6 +30,7 @@ public sealed class OwnerDrawSystem : ISimulationSystem
 
         foreach (var workplace in world.Workplaces.OrderBy(w => w.Id.Value))
         {
+            if (workplace.Closed) continue; // AD-155: fechada por falência: sem lucro e sem a cidade cobrindo
             long excess = workplace.Treasury.Amount - Payroll.WorkingReserve(world, workplace);
             if (excess < 0 && workplace.Owner is null)
             {
