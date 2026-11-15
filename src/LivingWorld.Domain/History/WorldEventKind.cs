@@ -298,4 +298,20 @@ public enum WorldEventKind
     /// <summary>Violência sexual (AD-154), evento abstrato do motor, sem detalhe do ato — payload:
     /// <c>autorId|vitimaId|categoria|testemunhas|casoId|concepcao</c> (categoria: adulto, crianca; concepção: 1/0).</summary>
     SexualAssault,
+
+    /// <summary>Empréstimo concedido em moeda que existe (AD-155) — payload:
+    /// <c>emprestimoId|credor|tipoCredor|tomadorId|finalidade|principal|devido|parcela|prazoMeses|oficinaGarantia</c> (credor: <c>npc-ID</c> ou
+    /// <c>city-ID</c>; tipo: parente, conhecido, rico, cidade; finalidade: abertura, giro, reabertura; oficina 0 = sem garantia).</summary>
+    LoanGranted,
+
+    /// <summary>Empréstimo quitado (AD-155) — payload: <c>emprestimoId|tomadorId|credor|pagoNoTotal</c>.</summary>
+    LoanRepaid,
+
+    /// <summary>Calote (AD-155) — payload: <c>emprestimoId|tomadorId|credor|saldoPerdido|penhorado|garantia</c> (garantia: oficina,
+    /// penhora).</summary>
+    LoanDefaulted,
+
+    /// <summary>Oficina fechada por falência (AD-155) — payload:
+    /// <c>oficinaId|donoId|caixaEVenda|aosCredores|dividaQueFica|empregadosLiberados|ficaCom</c> (ficaCom: <c>npc-ID</c>, <c>city-ID</c>).</summary>
+    WorkplaceBankrupt,
 }

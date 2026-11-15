@@ -24,9 +24,11 @@ dele, com o dinheiro que tem, e a oficina nasce dele. Nada é lista escrita: sai
 2. **Sócios:** parentes crescidos (pais, filhos, irmãos) por id, depois amigos com confiança ≥ 60 nos dois sentidos. Cada um
    entra com até `1 − Aversão/100` do que tem acima da própria reserva, no máximo dois. A cota (`Workplace.Partners`, em
    décimos de milésimo) é a parte que ele pôs do capital.
-3. **Empréstimo:** não existe ainda (fatia 6). O encaixe é depois dos sócios em `VentureCapital.Raise`.
-Sem fechar a conta, não abre e nada muda. Origem contada: `sociedade` se houve sócio; `heranca` se metade ou mais do que o
-casal pôs era herança; senão `poupanca`.
+3. **Empréstimo** (AD-155, [credit](credit.md)): a falta, até metade do capital × `1 − Aversão/100`, de parente, conhecido,
+   o rico da vila ou o tesouro, com a oficina em garantia.
+Sem fechar a conta, não abre e nada muda. Origem contada: `sociedade` se houve sócio; `emprestimo` se houve credor; `heranca`
+se metade ou mais do que o casal pôs era herança; senão `poupanca`. Uma oficina fechada do ofício na cidade é comprada de quem
+ficou com ela em vez de levantar outra (AD-155).
 
 ## O custo (`VentureFounding`), todo com moeda que existe
 | Parte | Para quem vai | Padrão |
@@ -56,7 +58,7 @@ seguem como antes (a cidade abre tudo, ninguém empreende).
 5 e aos 10 anos (gente trabalhando e folha paga) e a contagem por década (`VentureTally`, só lê eventos e o fim do mês).
 
 ## Limites conhecidos (backlog 04, itens E12 a E21)
-Sem empréstimo; obra instantânea (o prédio sai no mês da decisão); preço fixo depois de aberto (só o recém-chegado
+Empréstimo e falência em [credit](credit.md) (AD-155); obra instantânea (o prédio sai no mês da decisão); preço fixo depois de aberto (só o recém-chegado
 baixa); a terra não se compra nem se arrenda; a obra da cidade continua de graça; `Venture` não está nos cenários JSON;
 nenhum número tem fonte firme (`08`, itens 68 a 72).
 

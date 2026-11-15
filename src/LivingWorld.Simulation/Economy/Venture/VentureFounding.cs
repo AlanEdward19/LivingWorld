@@ -43,10 +43,10 @@ internal static class VentureFounding
         long needed = plotFee + buildCost + equipment.Sum(q => q.Units * q.Price) + importCost
             + supplies.Sum(q => q.Units * q.Price) + workingCapital;
 
-        if (needed <= 0 || VentureCapital.Raise(world, rules, founder, needed) is not { } capital) return null;
+        if (needed <= 0 || VentureCapital.Raise(world, rules, founder, needed, plan: plan, tradeSkill: trade.Skill) is not { } capital) return null;
         if (Place(world, city, buildingType) is not { } site) return null;
 
-        long inherited = capital.Take();
+        long inherited = capital.Take(world, ctx);
         city.CreditTreasury(new Money(plotFee + importCost));
         world.RecordTreasury(city.Id, ctx.CurrentTick, revenue: plotFee + importCost, spending: 0);
         PayBuilders(builders, buildCost);
@@ -77,7 +77,8 @@ internal static class VentureFounding
 
         workplace.CreditTreasury(new Money(needed - spent)); // capital de giro: o que sobrou do capital posto
         Employ(world, ctx, workplace, trade, founder);
-        string origin = capital.FromPartners > 0 ? "sociedade" : inherited * 2 >= capital.Own && inherited > 0 ? "heranca" : "poupanca";
+        Pledge(world, ctx, capital, workplace);
+        string origin = OriginOf(capital, inherited);
         string partners = capital.Partners.Count == 0 ? "-" : string.Join(',', capital.Partners.Select(p => $"{p.Npc.Id.Value}:{p.Amount}"));
         ctx.LogEvent(WorldEventKind.VentureFounded,
             $"{workplace.Id.Value}|{founder.Id.Value}|{origin}|{needed}|{capital.Own}|{inherited}|{partners}", sourceSystem: VentureSystem.SystemName);
@@ -89,18 +90,77 @@ internal static class VentureFounding
     public static Workplace? TryReopen(WorldState world, TickContext ctx, VentureRules rules, VentureTrade trade, VenturePlan plan, Npc owner, Workplace shop)
     {
         long needed = (long)Math.Ceiling(rules.WorkingCapitalMonths * plan.MonthlyPayroll);
-        if (needed <= 0 || VentureCapital.Raise(world, rules, owner, needed, allowPartners: false) is not { } capital) return null;
+        if (needed <= 0 || VentureCapital.Raise(world, rules, owner, needed, allowPartners: false, plan,
+                Credit.LoanPurpose.Reopening) is not { } capital) return null;
 
-        long inherited = capital.Take();
+        long inherited = capital.Take(world, ctx, Credit.LoanPurpose.Reopening);
         shop.CreditTreasury(new Money(needed));
+        shop.SetClosed(false);
         shop.SetPayrollFailed(false);
         foreach (var (resource, price) in plan.Prices.OrderBy(p => p.Key.Id)) shop.SetPrice(resource, price);
         if (owner.Employer != shop.Id) Employ(world, ctx, shop, trade, owner);
-        string origin = inherited * 2 >= capital.Own && inherited > 0 ? "heranca" : "poupanca";
+        Pledge(world, ctx, capital, shop);
+        string origin = OriginOf(capital, inherited);
         ctx.LogEvent(WorldEventKind.VentureFounded,
             $"{shop.Id.Value}|{owner.Id.Value}|{origin}|{needed}|{capital.Own}|{inherited}|-|reaberta", sourceSystem: VentureSystem.SystemName);
         return shop;
     }
+
+    /// <summary>AD-155: quem quer abrir e acha na cidade uma oficina do ofício fechada (falida, tomada por um credor, ou largada) compra
+    /// o prédio de quem ficou com ele, pelo que ele vale (foro, obra e equipamento), em vez de levantar outro; a moeda vai ao dono (ou
+    /// ao tesouro, se é da cidade). Põe o capital de giro, os sócios entram com cota, e ela reabre com o dono novo.</summary>
+    public static Workplace? TryBuyClosed(WorldState world, TickContext ctx, VentureRules rules, VentureTrade trade, VenturePlan plan, Npc founder)
+    {
+        if (!world.CreditOn) return null;
+        Workplace? shop = null;
+        foreach (var w in world.Workplaces)
+            if (w.Closed && w.City == founder.City && w.LocationType.Id == trade.LocationTypeId && w.Owner != founder.Id
+                && (shop is null || w.Id.Value < shop.Id.Value)) shop = w;
+        if (shop is null) return null;
+
+        long price = Credit.Debts.ShopValue(world, shop);
+        long workingCapital = (long)Math.Ceiling(rules.WorkingCapitalMonths * plan.MonthlyPayroll);
+        long needed = price + workingCapital;
+        if (VentureCapital.Raise(world, rules, founder, needed, plan: plan, purpose: Credit.LoanPurpose.Reopening, tradeSkill: trade.Skill) is not { } capital) return null;
+
+        long inherited = capital.Take(world, ctx, Credit.LoanPurpose.Reopening);
+        if (shop.Owner is { } sellerId && world.FindNpc(sellerId) is { IsAlive: true } seller) seller.CreditWallet(new Money(price));
+        else if (world.FindCity(shop.City) is { } city)
+        {
+            city.CreditTreasury(new Money(price));
+            world.RecordTreasury(city.Id, ctx.CurrentTick, revenue: price, spending: 0);
+        }
+        else shop.CreditTreasury(new Money(price));
+
+        shop.AssignOwner(founder.Id);
+        shop.SetPartners(capital.Partners.Select(p => new WorkplaceStake(p.Npc.Id, (int)(p.Amount * (long)WorkplaceStake.Whole / needed))));
+        shop.CreditTreasury(new Money(workingCapital));
+        shop.SetClosed(false);
+        shop.SetPayrollFailed(false);
+        foreach (var (resource, p) in plan.Prices.OrderBy(x => x.Key.Id)) shop.SetPrice(resource, p);
+        Employ(world, ctx, shop, trade, founder);
+        Pledge(world, ctx, capital, shop);
+        string partners = capital.Partners.Count == 0 ? "-" : string.Join(',', capital.Partners.Select(p => $"{p.Npc.Id.Value}:{p.Amount}"));
+        ctx.LogEvent(WorldEventKind.VentureFounded,
+            $"{shop.Id.Value}|{founder.Id.Value}|{OriginOf(capital, inherited)}|{needed}|{capital.Own}|{inherited}|{partners}|comprada", sourceSystem: VentureSystem.SystemName);
+        return shop;
+    }
+
+    /// <summary>A oficina entra como garantia do empréstimo da abertura, e o contrato é anunciado.</summary>
+    private static void Pledge(WorldState world, TickContext ctx, VentureCapital capital, Workplace shop)
+    {
+        if (capital.Granted is not { } loan) return;
+        loan.Workplace = shop.Id.Value;
+        var credit = world.EconomyRules.Credit!;
+        Credit.Lending.LogGrant(ctx, loan, loan.Purpose == Credit.LoanPurpose.Founding ? credit.FoundingTermMonths : credit.WorkingTermMonths,
+            capital.Loan!.Kind);
+    }
+
+    /// <summary>Origem contada: sociedade se houve sócio; empréstimo se houve credor; herança se metade ou mais do casal era herança.</summary>
+    private static string OriginOf(VentureCapital capital, long inherited) =>
+        capital.FromPartners > 0 ? "sociedade"
+        : capital.Borrowed > 0 ? "emprestimo"
+        : inherited * 2 >= capital.Own && inherited > 0 ? "heranca" : "poupanca";
 
     /// <summary>Tipo de prédio da oficina: o de uma que já existe no mundo, senão a receita de obra do catálogo da cidade.</summary>
     private static int? BuildingTypeOf(WorldState world, int locationTypeId)

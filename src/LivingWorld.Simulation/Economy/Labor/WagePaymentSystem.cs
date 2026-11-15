@@ -13,6 +13,7 @@ namespace LivingWorld.Simulation.Economy.Labor;
 /// cref="EconomyRules.Enabled"/>.</summary>
 [LivingCapability("WAGES", Events = [WorldEventKind.WageUnpaid], Consumers = ["timeline.wages"])]
 [RunsAfter(typeof(MarketPricingSystem))]
+[RunsAfter(typeof(LivingWorld.Simulation.Economy.Credit.WorkingCapitalSystem))] // AD-155: o dono acha o giro antes da folha
 public sealed class WagePaymentSystem : ISimulationSystem
 {
     public const string SystemName = "economy-wage-payment";
@@ -26,8 +27,10 @@ public sealed class WagePaymentSystem : ISimulationSystem
 
         var rules = world.EconomyRules;
 
+        bool arrears = world.CreditOn;
         foreach (var workplace in world.Workplaces.OrderBy(w => w.Id.Value))
         {
+            if (workplace.Closed) { workplace.SetPayrollFailed(true); continue; } // AD-155: fechada por falência
             // Salários devidos neste mês, em ordem de id (determinístico).
             var due = Payroll.Due(world, workplace);
             long totalDue = due.Sum(d => d.Wage.Amount);
@@ -44,7 +47,11 @@ public sealed class WagePaymentSystem : ISimulationSystem
             {
                 var pay = fraction >= 1.0 ? wage : new Money((long)Math.Floor(wage.Amount * fraction));
                 if (pay.Amount < wage.Amount)
+                {
                     ctx.LogEvent(WorldEventKind.WageUnpaid, $"{npc.Id.Value}|{workplace.Id.Value}|{wage.Amount - pay.Amount}", sourceSystem: "WagePaymentSystem");
+                    // AD-155: na oficina de dono o salário que faltou fica devido (atraso), pago quando o caixa volta ou na falência
+                    if (arrears && workplace.Owner is not null) world.CreditBook.AddArrear(workplace.Id.Value, npc.Id.Value, wage.Amount - pay.Amount);
+                }
                 if (pay.Amount <= 0) continue;
 
                 // A cidade do empregador retém a alíquota do que o empregador pagou: o líquido vai ao empregado e o resto ao

@@ -52,8 +52,9 @@ public sealed class Workplace
         IReadOnlyList<NpcId> employees, IReadOnlyDictionary<ResourceType, long> stock, Money treasury,
         IReadOnlyDictionary<ResourceType, long> prices, CityId city = default, BuildingId? building = null,
         NpcId? owner = null, bool payrollFailed = false, IReadOnlyList<BoardDebt>? board = null,
-        IReadOnlyList<WorkplaceStake>? partners = null)
+        IReadOnlyList<WorkplaceStake>? partners = null, bool closed = false)
     {
+        Closed = closed;
         _partners = partners is null ? [] : partners.Where(p => p.Basis > 0).OrderBy(p => p.Npc.Value).ToList();
         _board = board is null ? [] : board.Where(d => d.Owed > 0).OrderBy(d => d.Npc.Value).ToList();
         Id = id;
@@ -75,6 +76,18 @@ public sealed class Workplace
     public bool PayrollFailed { get; private set; }
 
     public void SetPayrollFailed(bool failed) => PayrollFailed = failed;
+
+    /// <summary>Fechada por falência (AD-155): o estoque foi vendido, o caixa foi aos credores e a gente saiu. Não contrata, não
+    /// paga folha e a cidade não a cobre; o prédio segue de quem ficou com ele (o dono, ou o credor que tinha a garantia), que
+    /// pode reabrir com capital novo. Falso fica fora do snapshot (o de antes fica igual).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Closed { get; private set; }
+
+    public void SetClosed(bool closed)
+    {
+        Closed = closed;
+        if (closed) PayrollFailed = true;
+    }
 
     private readonly List<BoardDebt> _board;
 
