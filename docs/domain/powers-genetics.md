@@ -55,7 +55,9 @@ e de sede (`ThirstMultiplier`, 1,1); a fertilidade na concepção (`FertilityMul
 
 `LW_POWERS=1 bash scripts/demography-report.sh` (cenário de referência: dominante, recessivo, ligado ao X e poligênico, 8%
 de prevalência) imprime manifestos por mil, poderes por portador e frequência do alelo a cada 25 anos;
-`LW_PROFILE_POWERS=1 bash scripts/profile.sh` mede o custo. Números do AD-156 em [decisions-log](../decisions-log.md).
+`LW_PROFILE_POWERS=1 bash scripts/profile.sh` mede o custo. AD-156, 6×50: 0 extinções; q estável no dominante e no recessivo,
+em queda no ligado ao X e no poligênico (custo); 1,02 poder por portador. As varreduras de poder passam só pelos portadores
+vivos (`WorldState.LivingCarriers`) e a flora calcula as fontes uma vez por hora. Detalhe em [decisions-log](../decisions-log.md).
 
 ## Fora (backlog 06, sobras P1–P6)
 
