@@ -38,7 +38,9 @@
     natalidade 5% menor (a casada separada para de conceber pelo ciclo). Recalibrado para 0,012 e +20; conferir se o
     efeito na natalidade tem paralelo em fonte e se a separação por violência era possível na norma da época (a igreja
     concedia separação "de mesa e leito" por crueldade, precisa de conferência).
-85. **Fome um pouco acima da base nos dois blocos de 20 seeds.** Mortes de fome 309 → 339 (seeds 1–20) e 325 → 362
-    (21–40): +10,6% em 40 seeds, dentro do ruído declarado (±20% por bloco), mas com o mesmo sinal nos dois. População e
-    e0 iguais. Hipótese não testada: o medo duradouro da vítima (doméstica, sexual) corta viagem (`FearTravelPenalty`) e
-    compra; ou o ferimento tira capacidade de trabalho. Investigar com 20 seeds de doméstica desligada contra ligada.
+85. **Fome acima da base nos dois blocos: efeito difuso, sem chave que o concentre.** Mortes de fome 309 → 339 (seeds 1–20)
+    e 325 → 362 (21–40). Com uma chave nula por vez (seeds 1–20, mesmo código do topo, `LW_CRIME_OFF`): sem doméstica 394,
+    sem sequestro 462, sem violência sexual 336; todas ≥ o topo. O sequestro (0,02/seed-ano, nenhum preso morreu no
+    cativeiro) não pode causar 120 mortes: é a divergência caótica das trajetórias, maior que a diferença base × topo.
+    Nenhum mecanismo achado (o medo só pesa em `Travel`, não em Comprar). Falta: mais seeds por configuração para
+    estreitar o ruído.
