@@ -61,14 +61,17 @@ public sealed partial class BehaviorDecisionSystem
             // deles; ela é recontada uma vez com os grupos, em vez de cada ação escrevê-los (311 → ~280 ns por decisão)
             var lens = new WithBrain(brainGains, null, 0);
             (best, bestScore) = ScoreActions(ctx, rules, economy, continuityAction, eligibility, foresight, terms, knockout, scored, ref lens, null);
-            if (brainGroups is not null)
+        }
+
+        // AD-160b: os grupos da vencedora vão para o aprendizado mesmo quando os ganhos não pesaram (corpo decidindo, ganhos todos
+        // zero): a conta é a da utilidade pura e só a vencedora é recontada
+        if (brainGroups is not null)
+        {
+            Array.Clear(brainGroups, BrainState.Groups, BrainState.Groups);
+            if (!double.IsNegativeInfinity(bestScore))
             {
-                Array.Clear(brainGroups, BrainState.Groups, BrainState.Groups);
-                if (!double.IsNegativeInfinity(bestScore))
-                {
-                    var winner = new WithBrain(brainGains, brainGroups, BrainState.Groups);
-                    ScoreOf(ctx, best, rules, economy, continuityAction, eligibility, foresight, null, knockout, ref winner);
-                }
+                var winner = new WithBrain(brainGains ?? NoGains, brainGroups, BrainState.Groups);
+                ScoreOf(ctx, best, rules, economy, continuityAction, eligibility, foresight, null, knockout, ref winner);
             }
         }
 

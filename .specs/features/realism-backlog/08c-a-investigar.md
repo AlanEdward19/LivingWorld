@@ -40,3 +40,13 @@
      critério de +2% de CPU pede contador de instruções ou máquina parada, não relógio de parede.
 142. **Participação guardada com 1/127 de resolução** (byte por grupo): escolha de engenharia para bytes; o efeito no
      aprendizado (arredondamento) não foi medido além da demografia de 6 seeds.
+
+## Do cérebro ligado (AD-160b, [verdict](../neural-brain/verdict-ad160b.md))
+143. **Valor do estado**: 20 pontos por dia de comida e água na despensa, 10 por dia de comida em moedas, até 4 dias; salário
+     ÷ 270 h por hora trabalhada. Escolhidos para a despensa valer mais que a moeda (é preciso ir comprar); sem fonte.
+144. **Corpo decide com fome ou sede ≤ 30** (o limiar de urgência) e o tempo livre só desvia da rotina com ≥ 50: sem fonte.
+145. **Degraus** (ganho 20‰, expectativa 16 pontos) e **aprendizado 0,05**: escolhidos por bytes de snapshot, não por
+     dado de aprendizagem humana.
+146. **Passeio à toa anda mais que conversar** (um passo por ação concluída; à toa dura 2 h, conversar 3 h): artefato do
+     modelo de movimento que levava quem trocava conversar por à toa para longe da água. Investigar no movimento, não no cérebro.
+

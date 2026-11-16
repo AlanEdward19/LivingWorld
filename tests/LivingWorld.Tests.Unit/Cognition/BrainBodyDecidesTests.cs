@@ -27,9 +27,9 @@ public class BrainBodyDecidesTests
     }
 
     [Theory]
-    [InlineData(20, 90, true)]
+    [InlineData(30, 90, true)]
     [InlineData(90, 5, true)]
-    [InlineData(21, 21, false)]
+    [InlineData(31, 31, false)] // AD-160b: o corpo decide com fome ou sede urgente (30)
     public void Critical_hunger_or_thirst_hands_the_choice_to_the_body(int hunger, int thirst, bool bodyDecides)
     {
         Assert.Equal(bodyDecides, BrainRules.Default.BodyDecides(hunger, thirst));
@@ -43,7 +43,7 @@ public class BrainBodyDecidesTests
         npc.SetHunger(90, now);
         npc.SetThirst(5, now);
 
-        Assert.All(BrainMechanic.GainsFor(world.BrainRules!, npc, now), g => Assert.Equal(0, g));
+        Assert.Null(BrainMechanic.GainsFor(world.BrainRules!, npc, now)); // AD-160b: nulo = a conta da utilidade pura
     }
 
     [Fact]

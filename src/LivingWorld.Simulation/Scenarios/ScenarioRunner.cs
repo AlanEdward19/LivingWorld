@@ -351,6 +351,7 @@ public static partial class ScenarioRunner
             naturalWaterRules: naturalWaterRules ?? NaturalWaterRules.Default, extraordinary: extraordinary);
         world.UseInvention(inventionRules ?? DefaultInventionRules); // AD-141
         world.UseCrime(crimeRules ?? LivingWorld.Domain.Crime.CrimeRules.Default); // AD-150
+        world.UseBrain(LivingWorld.Domain.Cognition.BrainRules.Default); // AD-160b: cérebro ligado no cenário de código
         var initialCity = new City(
             world.NextCityId(), DefaultVillageLocation, world.CurrentDate.TotalHours,
             foundedFromCityId: null, AggregatePopulationPool.Empty);

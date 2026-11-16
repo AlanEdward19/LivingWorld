@@ -16,7 +16,7 @@ public class BrainWorldTests
     private static (WorldState World, WorldClock Clock) World(ulong seed, bool brain)
     {
         var (world, clock) = ScenarioRunner.Create(seed);
-        if (brain) world.UseBrain(BrainRules.Default);
+        world.UseBrain(brain ? BrainRules.Default : null); // AD-160b: o cenário liga; o braço sem cérebro desliga
         return (world, clock);
     }
 
