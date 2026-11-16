@@ -32,7 +32,7 @@ public sealed class PowerInheritanceNatalityTests
         double onsetYears = (onset.TargetTick - baby.BirthDate.TotalHours) / (double)Calendar.HoursPerYear;
         Assert.Equal((1, $"{baby.Id.Value}|1|2|genetic|power-a", false),
             (PowerGenome.Copies(baby.PowerGenome, 0), inherited.Payload, scene.World.CarrierOf(baby.Id) is not null));
-        Assert.InRange(onsetYears, 13 - 3.5 * 1.5, 13 + 3.5 * 1.5);
+        Assert.InRange(onsetYears, 10.5, 19); // AD-162: na puberdade prevista do bebê (menarca 15 ± 1,8, entre 10,5 e 19)
     }
 
     [Fact]
@@ -41,6 +41,7 @@ public sealed class PowerInheritanceNatalityTests
         var scene = Couple(motherGenome: 2, fatherGenome: 0);
         var baby = TriggerBirth(scene);
         var onset = Assert.Single(scene.World.Scheduler.Snapshot(), e => e.Payload!.StartsWith("onset|"));
+        scene.World.CurrentDate = baby.BirthDate.AddYears(25); // AD-162: o início espera a puberdade; aos 25 ela já veio
 
         new ExtraordinaryStateSystem().HandleEvent(scene.World, scene.Ctx, onset);
 
@@ -101,6 +102,7 @@ public sealed class PowerInheritanceNatalityTests
     {
         var scene = Couple(motherGenome: 2, fatherGenome: 1);
         var baby = TriggerBirth(scene);
+        scene.World.CurrentDate = baby.BirthDate.AddYears(25); // AD-162: o início espera a puberdade; aos 25 ela já veio
         var restored = WorldSnapshot.Deserialize(WorldSnapshot.Serialize(scene.World));
         var onset = Assert.Single(scene.World.Scheduler.Snapshot(), e => e.Payload!.StartsWith("onset|"));
 

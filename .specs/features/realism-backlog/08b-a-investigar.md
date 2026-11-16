@@ -6,7 +6,7 @@
 ## Da sonda de terra (AD-153, [invention-land](../../../docs/domain/invention-land.md))
 73. **Força humana sustentada puxando: 250 N** (lembrança de ergonomia de tração por horas, ~200–300 N; pico bem acima). Precisa
     de conferência. (AD-161: não conferido — a tabela de Snook & Ciriello 1991 não abriu; lembrança de ~150–200 N para horas.)
-74. ~~**Atritos**~~ (AD-161, [invenção](relatorios/conferencia-invencao-e-fisica.md)): arrastar 0,55 confere; patim 0,10 só vale em neve (piso ~0,2 em terra, em correções).
+74. ~~**Atritos**~~ (AD-161, [invenção](relatorios/conferencia-invencao-e-fisica.md)): arrastar 0,55 confere; patim 0,10 só vale em neve (piso ~0,2 em terra, em correções). **AD-162:** piso 0,22 (`SkidFinishGainPm` 80).
 75. ~~**Rolamento**~~ (AD-161): Crr ≈ 0,05 confere (solo médio duro 0,04–0,08); eixo 0,15 sem fonte direta, plausível.
 76. ~~**Carga a granel**~~ (AD-161): 800 kg/m³ confere (trigo ~750–800); pilha, patim e tombo são escolha de modelo.
 77. **Uma ida e volta inteira por carga que ficou**: o código só põe a ida e volta na frustração (`PersonalCarry.FeltCargoCut`, AD-161);
@@ -23,7 +23,7 @@
 82. ~~**Sequestro sem taxa histórica**~~ (AD-161): nenhuma taxa achada; escolha de modelo (o *raptus* das fontes é mais rapto para casar, #164).
 83. ~~**Violência sexual sem fonte firme**~~ (AD-161): gravidez de 5% por estupro confere (Holmes 1996); Hanawalt não conferido; resto escolha.
 84. ~~**Separação a mais pela doméstica**~~ (AD-161): separação "de mesa e leito" por crueldade existia, mas rara e com prova de
-    violência excessiva; deixar rara (correções). Efeito na natalidade sem fonte.
+    violência excessiva; deixar rara (correções). Efeito na natalidade sem fonte. **AD-162:** agressão leve e isolada soma 1/4 da mágoa; grave ou repetida, inteira.
 85. **Fome acima da base nos dois blocos: efeito difuso, sem chave que o concentre.** Mortes de fome 309 → 339 (seeds 1–20)
     e 325 → 362 (21–40). Com uma chave nula por vez (seeds 1–20, mesmo código do topo, `LW_CRIME_OFF`): sem doméstica 394,
     sem sequestro 462, sem violência sexual 336; todas ≥ o topo. O sequestro (0,02/seed-ano, nenhum preso morreu no
@@ -36,16 +36,16 @@
 
 ## Do crédito e da falência (AD-155, [credit](../../../docs/domain/credit.md))
 90. ~~**Usura**~~ (AD-161, [economia](relatorios/conferencia-economia-e-credito.md)): 10%/ano e teto de 20% conferem (montes ~5%, judeus 43,3%, penhoristas 20–30%).
-91. ~~**Prazos**~~ (AD-161): 12 meses confere (Briggs: um dia a um ano); 36 meses fora da faixa (sugerido ≤ 12); calote, memória e falência escolha.
+91. ~~**Prazos**~~ (AD-161): 12 meses confere (Briggs: um dia a um ano); 36 meses fora da faixa (sugerido ≤ 12); calote, memória e falência escolha. **AD-162:** abertura 12 meses (até 24 com o prédio).
 92. ~~**Quanto se financia**~~ (AD-161): sem fonte para empréstimo; a *commenda* (sociedade) financiava ⅔ a 100%. Escolha de modelo.
 93. ~~**Confiança**~~ (AD-161): escolha de modelo.
 94. ~~**Tesouro empresta até 25%**, giro, gatilho e penhora~~ (AD-161): escolha de modelo.
-95. ~~**Ordem dos credores na falência**~~ (AD-161): fora da faixa, anacrônica; 1543 trouxe o rateio *pari passu*; sugerido penhor + rateio (correções).
+95. ~~**Ordem dos credores na falência**~~ (AD-161): fora da faixa, anacrônica; 1543 trouxe o rateio *pari passu*; sugerido penhor + rateio (correções). **AD-162:** aplicado.
 96. ~~**Valor do prédio tomado em pagamento**~~ (AD-161): sem fonte; escolha de modelo.
 
 ## Dos poderes por genética (AD-156, [powers-genetics](../../../docs/domain/powers-genetics.md))
 100. ~~**Penetrância 0,9**~~ (AD-161, [biologia](relatorios/conferencia-biologia-e-genetica.md)): dentro da faixa real; expressividade escolha.
-101. ~~**Idade de início N(13; 1,5)**~~ (AD-161): fora da faixa do próprio mundo (puberdade 15/15,5); atrelar ao `PubertyTick` (correções).
+101. ~~**Idade de início N(13; 1,5)**~~ (AD-161): fora da faixa do próprio mundo (puberdade 15/15,5); atrelar ao `PubertyTick` (correções). **AD-162:** início na puberdade do próprio NPC.
 102. ~~**Mutação 1e-5 por locus por gameta**~~ (AD-161): confere (genes de doença 10⁻⁶ a 10⁻⁴; acondroplasia ~10⁻⁵).
 103. ~~**Custo do poder manifesto**~~ (AD-161): poder fictício, escolha de modelo.
 104. ~~**Poligênico**~~ (AD-161): forma de limiar (Falconer) confere; valores escolha de modelo.
@@ -55,6 +55,6 @@
      AD-161). Medir o custo com poderes ligados ([a-medir](relatorios/a-medir.md) grupo 2). Achado original: mundo com poderes ligados
      ~10× mais lento, `flora-lifecycle` 33% do tempo e 82% da alocação a 1.000 NPCs, 720 h.
 107. ~~**Equivalência do conserto dos poderes ligados**~~ confirmado (AD-161): `LivingCarrierIndexTests` não compara com a varredura
-     completa; o teste barato está em correções.
+     completa; o teste barato está em correções. **AD-162:** teste escrito (24 meses, mês a mês).
 
 Itens 120 em diante: [08c-a-investigar.md](08c-a-investigar.md).

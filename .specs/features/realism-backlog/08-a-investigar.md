@@ -18,15 +18,15 @@
 7. ~~**População subiu 17% sem explicação**~~ superado: causa do crescimento medida no AD-149 (terra sem fim, emigração presa) e nupcialidade no AD-158.
 8. **Pressão dos pais pesa pouco na medida.** Seguem o ofício de quem criou 78% com pressão alta e 69% com baixa; e numa medição de 8 seeds × 60 anos o código antigo (sorteio ao nascer) já dava 78%. Entender quanto do número vem do mercado de trabalho da vila (poucas oficinas, quase todo mundo lavrador) e medir num cenário com mais ofícios.
 9. ~~**Irmãos criados separados seguem raros**~~ issue #173 (criados fora de casa).
-10. ~~**Paternidade fora do casamento em 0,2%**~~ conferido (AD-161): fora da faixa, alvo ~1% (Larmuseau 2019); em [correções](relatorios/correcoes-sugeridas.md).
+10. ~~**Paternidade fora do casamento em 0,2%**~~ conferido (AD-161): fora da faixa, alvo ~1% (Larmuseau 2019); em [correções](relatorios/correcoes-sugeridas.md). **AD-162:** descoberta mais lenta: 0,4→0,6% em 20×100 (mais casos dava 0,9% mas derrubava a população).
 11. ~~**Taxas sem fonte**~~ (AD-161): sem taxa histórica de caso, descoberta ou briga; escolha de modelo, calibrar pela paternidade do 10.
 12. ~~**Sem "pai social"**~~ issue #173.
 13. ~~**Sem penalidade de vitalidade por endogamia**~~ issue #173.
 14. **Piso de variância de vitalidade caiu** ao regravar o baseline (seed 4: 0,097 contra piso anterior de 0,129). Confirmar que não é perda de diversidade genética por causa das uniões.
 
 ## Da fatia de aprendizado (AD-132)
-15. ~~**Números sem conferência**~~ (AD-161, [biologia](relatorios/conferencia-biologia-e-genetica.md)): aptidão, teto de 50% e desuso são escolha de modelo; peso da criação 0,3 fora da faixa (ambiente compartilhado ~0).
-16. ~~**Tolerância de nascimentos da primeira década**~~ respondido (AD-161): hoje 270%, limite inferior negativo, só o teto verifica; reescrever ([respostas](relatorios/respostas-de-codigo.md)).
+15. ~~**Números sem conferência**~~ (AD-161, [biologia](relatorios/conferencia-biologia-e-genetica.md)): aptidão, teto de 50% e desuso são escolha de modelo; peso da criação 0,3 fora da faixa (ambiente compartilhado ~0). **AD-162:** peso da criação 0,3→0,1.
+16. ~~**Tolerância de nascimentos da primeira década**~~ respondido (AD-161): hoje 270%, limite inferior negativo, só o teto verifica; reescrever ([respostas](relatorios/respostas-de-codigo.md)). **AD-162:** reescrito como faixa de natalidade da década (25–60‰).
 17. ~~**Teste do poço fraco**~~ respondido (AD-161): teste de sinal ≥ 15/20 (p ≈ 0,02), sem furto e crime; afirmação testada com poder razoável.
 
 ## Gerais
@@ -41,7 +41,7 @@
 26. ~~**Agricultura: população mínima 112 e fecundidade presa à despensa**~~ freio no AD-145/158, furto no AD-150; lobos e celeiro na #167.
 27. ~~**Contrato `shape.world/city-subscribe` regravado**~~ respondido (AD-161): o cliente Godot não lê o campo; nada a avisar.
 28. ~~**Diff de snapshot**~~ issues #155 e #156.
-29. ~~**Hormônios (AD-139), números de memória**~~ (AD-161, [família](relatorios/conferencia-familia-e-nupcialidade.md)): conferem menarca, dismenorreia, pós-parto e pré-nupcial; dp da menarca baixo.
+29. ~~**Hormônios (AD-139), números de memória**~~ (AD-161, [família](relatorios/conferencia-familia-e-nupcialidade.md)): conferem menarca, dismenorreia, pós-parto e pré-nupcial; dp da menarca baixo. **AD-162:** dp da menarca 1,2→1,8 (p10–p90 13,4–16,5 → 12,7–17,1).
 30. ~~**Hormônios: efeitos colaterais**~~ fome superada no AD-148; gêmeos e tristeza pós-parto na #161; razão de sexo 107,7 em [a-medir](relatorios/a-medir.md) grupo 1.
 31. ~~**Invenção (AD-141), números físicos de memória**~~ (AD-161, [invenção](relatorios/conferencia-invencao-e-fisica.md)): madeira e pedra conferem; junco, margens e vau são escolha de modelo.
 32. **Invenção: custo a 1000 NPCs inconclusivo** (1,98 → 2,19 µs/NPC-tick em três pares, ruído da mesma ordem, máquina ocupada); a 5000 NPCs e em alocação não houve regressão. Medir de novo com a máquina livre. Mortes no 1º ano 266 → 281‰ sem causa investigada. 49.446 construções falhas para 74.625 boas: conferir se a taxa é plausível.
@@ -56,7 +56,7 @@
 39. ~~**Idade ao casar não chega a 23–26**~~ nicho feito no AD-158 (posse de terra, ofício ou casa própria para casar; homem 24–27, mulher ~21; sobra no 08b, item 120). Original: nem com os meios (19,0 ligado; base 17,2): falta um nicho de verdade (arrendamento, oficina, casa que só vaga com morte ou velhice) e criadagem para guardar economias; a moeda fica parada no caixa da fazenda e no tesouro (centenas de milhares), então economia de jovem não se forma.
 40. ~~**Água aos milhares**~~ resolvido no AD-148: a compra completa a meta por padrão (`ProvisioningRules.TopUp`); seed 7, anos 30–50: água das casas 7 por morador (antes até 8.900).
 41. ~~**Ceifa perde 22–26%**~~ resolvido no AD-149 ([land-and-harvest](../../../docs/domain/land-and-harvest.md)): com a lavoura madura a fazenda toma todo adulto do ofício sem trabalho e a parte em espécie vai à turma inteira; rendimento por semente 4,34 → 4,59 (20×100).
-42. ~~**Emigração** sem saudade, sem casa inteira, `MoveTo` sem teste~~ confirmado no código (AD-161, [respostas](relatorios/respostas-de-codigo.md)); lacunas na #173, teste em correções.
+42. ~~**Emigração** sem saudade, sem casa inteira, `MoveTo` sem teste~~ confirmado no código (AD-161, [respostas](relatorios/respostas-de-codigo.md)); lacunas na #173, teste em correções. **AD-162:** teste de `MoveTo` com vaga do ofício em outra cidade.
 43. **Custo do AD-145 não medido** (pares a 1.000 e 5.000 NPCs). Goldens e linhas novas do relatório: feitos (AD-161, [respostas](relatorios/respostas-de-codigo.md)).
 44. ~~**Invenção fatia 2 (AD-143)**~~ (AD-161): 30 kg a pé fora da faixa (sugerido 20), 700 g confere, peixe e rumor escolha de modelo; contrato sem consumidor no Godot; CPU da grade em [a-medir](relatorios/a-medir.md) grupo 2.
 45. ~~**Freios ligados depois do AD-146**~~ causa achada no AD-148: 55% dos adultos não podiam trabalhar (motor fino 1,0) e a casa ia ao mercado sem poder pagar; com os consertos, freios ligados: 0 extinções em 20×100.

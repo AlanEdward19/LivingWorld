@@ -45,8 +45,16 @@ public static class PowerGeneticsMechanic
             && PowerGenome.IsAffected(locus, PowerGenome.Of(world, npc), npc.Sex, phenotype.EnvironmentZ);
     }
 
+    /// <summary>Idade de início: a da puberdade do próprio NPC (a marcada, ou a prevista pelo desvio dele e pela fome de agora) quando
+    /// o cenário não fixa uma média (AD-162); senão N(média; desvio).</summary>
     public static double OnsetAgeYears(WorldState world, Npc npc, PowerLocus locus) =>
-        Math.Max(0, locus.Genetics.OnsetAgeMeanYears + locus.Genetics.OnsetAgeStdDevYears * Draw(world, npc.Id, locus).OnsetZ);
+        locus.Genetics.OnsetAgeMeanYears is { } mean
+            ? Math.Max(0, mean + locus.Genetics.OnsetAgeStdDevYears * Draw(world, npc.Id, locus).OnsetZ)
+            : Math.Max(0, LivingWorld.Simulation.Population.Body.Endocrine.PubertyAgeYears(world, npc));
+
+    /// <summary>O início atrelado à puberdade chegou e a puberdade ainda não (a fome a adiou): falta esperar (AD-162).</summary>
+    public static bool AwaitsPuberty(WorldState world, Npc npc, PowerLocus locus, long tick) =>
+        locus.Genetics.OnsetAgeMeanYears is null && !LivingWorld.Simulation.Population.Body.Endocrine.IsPubertal(world, npc, tick);
 
     public static long OnsetTick(WorldState world, Npc npc, PowerLocus locus) =>
         npc.BirthDate.TotalHours + (long)(OnsetAgeYears(world, npc, locus) * world.Calendar.HoursPerYear);

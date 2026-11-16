@@ -7,10 +7,12 @@ using LivingWorld.Simulation.Scheduling;
 namespace LivingWorld.Simulation.Economy.Credit;
 
 /// <summary>A falência de uma oficina de dono (AD-155, sobra E19): fecha de verdade. A gente fica livre; o estoque é vendido a quem usa
-/// ou vende o bem na cidade, ao preço de piso, até o caixa de cada comprador; o caixa paga os credores na ordem (salário atrasado em
-/// rateio, depois os empréstimos com a oficina em garantia, por id); a sobra vai ao dono e aos sócios pela cota; o primeiro credor com
-/// saldo fica com o prédio (o valor dele abate a dívida); o que ainda se deve fica com o dono e os sócios na proporção das cotas, como
-/// dívida pessoal. A oficina fica fechada (<see cref="Workplace.Closed"/>) até quem ficou com ela reabrir ou vendê-la a quem abre.</summary>
+/// ou vende o bem na cidade, ao preço de piso, até o caixa de cada comprador. AD-162: o credor com penhor leva o bem penhorado (o
+/// primeiro empréstimo com a oficina em garantia, por id, fica com o prédio e o valor dele abate a dívida); o caixa é dividido em
+/// rateio proporcional ao devido entre todos os credores que sobram, salário atrasado junto, sem preferência (estatuto inglês de 1543,
+/// <i>pari passu</i>; a preferência do salário é do século XIX); a sobra vai ao dono e aos sócios pela cota; o que ainda se deve fica
+/// com o dono e os sócios na proporção das cotas, como dívida pessoal. A oficina fica fechada (<see cref="Workplace.Closed"/>) até
+/// quem ficou com ela reabrir ou vendê-la a quem abre.</summary>
 internal static class Bankruptcy
 {
     public static void Liquidate(WorldState world, TickContext ctx, Workplace shop)
@@ -31,19 +33,9 @@ internal static class Bankruptcy
 
         SellStock(world, shop);
         long assets = shop.Treasury.Amount;
-        long toCreditors = PayArrears(world, shop);
+        long toCreditors = 0;
 
         var secured = book.Loans.Where(l => l.Workplace == shop.Id.Value).OrderBy(l => l.Id).ToList();
-        foreach (var loan in secured)
-        {
-            long pay = Math.Min(shop.Treasury.Amount, Math.Max(0, loan.Balance));
-            if (pay <= 0 || !shop.TryDebitTreasury(new Money(pay)).IsSuccess) continue;
-            Debts.PayLender(world, ctx, loan, pay);
-            toCreditors += pay;
-        }
-
-        ShareLeftover(world, ctx, shop, ownerId, partners);
-
         string keeper = ownerId < 0 ? $"city-{shop.City.Value}" : $"npc-{ownerId}";
         if (secured.FirstOrDefault(l => l.Balance > 0) is { } first)
         {
@@ -52,6 +44,9 @@ internal static class Bankruptcy
             if (ownerId >= 0) book.MarkDefault(ownerId, first.Lender, ctx.CurrentTick,
                 ctx.CurrentTick - (long)world.EconomyRules.Credit!.DefaultMemoryYears * world.Calendar.HoursPerYear);
         }
+
+        toCreditors += ShareProRata(world, ctx, shop, secured);
+        ShareLeftover(world, ctx, shop, ownerId, partners);
 
         long remaining = 0;
         foreach (var loan in secured)
@@ -70,24 +65,37 @@ internal static class Bankruptcy
             $"{shop.Id.Value}|{ownerId}|{assets}|{toCreditors}|{remaining}|{freed}|{keeper}", sourceSystem: CreditSystem.SystemName);
     }
 
-    /// <summary>Salário atrasado desta oficina, em rateio do caixa; quem morreu não recebe (a parte fica no caixa). O que não coube se perde.</summary>
-    private static long PayArrears(WorldState world, Workplace shop)
+    /// <summary>O caixa em rateio proporcional ao devido (AD-162): salário atrasado desta oficina e saldo dos empréstimos com ela em
+    /// garantia, depois do prédio, todos na mesma fila. Quem morreu não recebe salário (a parte fica no caixa e volta ao dono); o salário
+    /// que não coube se perde, o saldo do empréstimo segue como dívida.</summary>
+    private static long ShareProRata(WorldState world, TickContext ctx, Workplace shop, List<Loan> secured)
     {
         var book = world.CreditBook;
         var owed = book.Arrears.Where(a => a.Workplace == shop.Id.Value).ToList();
-        long total = owed.Sum(a => a.Owed);
+        var workers = owed.Select(a => world.FindNpc(new NpcId(a.Npc)) is { IsAlive: true } w ? w : null).ToList();
+        long total = 0;
+        for (int i = 0; i < owed.Count; i++) if (workers[i] is not null) total += owed[i].Owed;
+        foreach (var loan in secured) total += Math.Max(0, loan.Balance);
         long cash = Math.Min(shop.Treasury.Amount, total);
         long paid = 0;
-        foreach (var a in owed)
+        for (int i = 0; i < owed.Count; i++)
         {
-            long part = total == 0 ? 0 : a.Owed * cash / total;
-            if (part > 0 && world.FindNpc(new NpcId(a.Npc)) is { IsAlive: true } worker && shop.TryDebitTreasury(new Money(part)).IsSuccess)
+            long part = total == 0 || workers[i] is null ? 0 : owed[i].Owed * cash / total;
+            if (part > 0 && shop.TryDebitTreasury(new Money(part)).IsSuccess)
             {
-                worker.CreditWallet(new Money(part));
+                workers[i]!.CreditWallet(new Money(part));
                 paid += part;
             }
 
-            book.Arrears.Remove(a);
+            book.Arrears.Remove(owed[i]);
+        }
+
+        foreach (var loan in secured)
+        {
+            long part = total == 0 ? 0 : Math.Max(0, loan.Balance) * cash / total;
+            if (part <= 0 || !shop.TryDebitTreasury(new Money(part)).IsSuccess) continue;
+            Debts.PayLender(world, ctx, loan, part);
+            paid += part;
         }
 
         return paid;

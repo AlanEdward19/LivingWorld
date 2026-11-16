@@ -69,7 +69,12 @@ public sealed class ExtraordinaryStateSystem : ISimulationSystem
         {
             if (world.FindNpc(new NpcId(heir)) is { IsAlive: true } npc && PowerGenome.Find(world, parts[2]) is { } locus
                 && PowerGeneticsMechanic.Expresses(world, npc, locus))
-                AcquireGenetic(world, ctx, npc, parts[2], causeEventId: null);
+            {
+                // AD-162: a puberdade atrasou pela fome; o poder espera por ela, revisto a cada mês
+                if (PowerGeneticsMechanic.AwaitsPuberty(world, npc, locus, ctx.CurrentTick))
+                    ctx.ScheduleEvent(ctx.CurrentTick + world.Calendar.HoursPerMonth, SystemName, evt.Payload);
+                else AcquireGenetic(world, ctx, npc, parts[2], causeEventId: null);
+            }
             return;
         }
         if (parts.Length != 4 || parts[0] != "acquire" || !long.TryParse(parts[1], out long npcValue))

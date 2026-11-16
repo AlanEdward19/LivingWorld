@@ -19,8 +19,9 @@ public sealed record CreditRules
     public double LatePenaltyShare { get; init; } = 0.05;
     public double MaxAnnualCharge { get; init; } = 0.20;
 
-    /// <summary>Prazo em meses: o da abertura (equipamento, obra) e o do capital de giro (a folha de alguns meses).</summary>
-    public int FoundingTermMonths { get; init; } = 36;
+    /// <summary>Prazo em meses: o da abertura (equipamento, obra) e o do capital de giro (a folha de alguns meses). AD-162: o crédito
+    /// de aldeia ia de um dia a um ano (Briggs 2009, p. 71, 13 casos com as duas datas; grau [B]): 12 meses.</summary>
+    public int FoundingTermMonths { get; init; } = 12;
     public int WorkingTermMonths { get; init; } = 12;
 
     /// <summary>AD-159: carência da abertura e da reabertura, em meses: a oficina nova monta estoque e freguesia antes da primeira
@@ -28,8 +29,9 @@ public sealed record CreditRules
     public int FoundingGraceMonths { get; init; } = 6;
 
     /// <summary>AD-159: o prazo da abertura cresce de 12 em 12 meses até este teto quando a parcela do prazo curto não cabe no ganho
-    /// (o credor de aldeia aceitava mais safras em vez de perder o negócio; o acréscimo cresce com o prazo).</summary>
-    public int MaxFoundingTermMonths { get; init; } = 60;
+    /// (o credor de aldeia aceitava mais safras em vez de perder o negócio; o acréscimo cresce com o prazo). AD-162: só até 24, porque
+    /// a abertura sempre dá o prédio da oficina em garantia (prazo além de um ano só com terra ou prédio penhorado).</summary>
+    public int MaxFoundingTermMonths { get; init; } = 24;
 
     /// <summary>AD-159: o ganho de quem abre, para a parcela, inclui o salário dele mesmo na folha da oficina (vai para a casa dele):
     /// a parte deste salário que conta. 0 = só o lucro (venda − folha), o modelo do AD-155; a sonda mostrou que só o lucro negava 4 de

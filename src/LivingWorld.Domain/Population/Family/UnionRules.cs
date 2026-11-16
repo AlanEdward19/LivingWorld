@@ -52,9 +52,12 @@ public sealed record UnionRules
     public double AffairPaternityShare { get; init; } = 0.5;
 
     /// <summary>Chance por mês de o cônjuge descobrir sozinho; cada confidente dele que conhece o casal do caso soma
-    /// <see cref="GossipPerConfidant"/> (o boato corre pelos vínculos de afeto, até <see cref="MaxConfidants"/>).</summary>
-    public double DiscoveryPerMonth { get; init; } = 0.04;
-    public double GossipPerConfidant { get; init; } = 0.03;
+    /// <see cref="GossipPerConfidant"/> (o boato corre pelos vínculos de afeto, até <see cref="MaxConfidants"/>).
+    /// AD-162: metade do que era (0,04 e 0,03): o caso dura mais antes de ser descoberto, e a paternidade fora do casamento fica
+    /// perto de 1% dos nascidos de casadas (Larmuseau et al. 2019, grau [B]). Subir os casos (0,05→0,12/ano) também chegava lá,
+    /// mas dobrava as separações em vida e derrubava a população (seeds 11–20: 186→164, uma seed em 75).</summary>
+    public double DiscoveryPerMonth { get; init; } = 0.02;
+    public double GossipPerConfidant { get; init; } = 0.015;
     public int MaxConfidants { get; init; } = 5;
     public double ConfidantAffection { get; init; } = 40;
 

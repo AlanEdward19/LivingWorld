@@ -85,7 +85,7 @@ public class PersonCrimeTests
         DomesticViolence.Assault(world, Ctx(world, sink), husband, wife, "ciume", world.Rng.OneShot("d"));
 
         Assert.True(wife.Health < 100 && wife.IsAlive);
-        Assert.True(wife.Union!.Grievance >= world.CrimeRules!.Domestic!.SpouseGrievance);
+        Assert.True(wife.Union!.Grievance > 0);
         Assert.Contains(wife.Psyche!.Memories, m => m.Kind == LifeEventKind.Violence && m.Other == husband.Id.Value);
         Assert.Contains(kid.Psyche!.Memories, m => m.Kind == LifeEventKind.Violence && m.Other == husband.Id.Value);
         var parts = Assert.Single(sink.Of(WorldEventKind.DomesticViolence)).Payload.Split('|');
@@ -93,6 +93,51 @@ public class PersonCrimeTests
         var crime = Assert.Single(world.Crime!.Cases);
         Assert.Equal((CrimeKind.DomesticAssault, husband.Id.Value), (crime.Kind, crime.Accused));
         Assert.Contains(crime.Knowers, k => k.Npc == wife.Id.Value);
+    }
+
+    /// <summary>AD-162: casal com o marido esquentado; <paramref name="severeHarm"/> é o dano a partir do qual a agressão é grave.</summary>
+    private static (WorldState World, Npc Husband, Npc Wife, TickContext Ctx) BeatenWife(int severeHarm)
+    {
+        var world = New(crime: Rules() with { Domestic = CrimeRules.Default.Domestic! with { SevereHarm = severeHarm } });
+        var husband = Add(world, Hot);
+        var wife = Add(world, Average, sex: Sex.Female);
+        Wed(husband, wife);
+        Home(world, Here, husband, wife);
+        return (world, husband, wife, Ctx(world, new Sink()));
+    }
+
+    [Fact]
+    public void A_first_moderate_blow_adds_only_the_tolerated_share_of_the_marital_grievance()
+    {
+        var (world, husband, wife, ctx) = BeatenWife(severeHarm: int.MaxValue);
+        var rules = world.CrimeRules!.Domestic!;
+
+        DomesticViolence.Assault(world, ctx, husband, wife, "ciume", world.Rng.OneShot("d1"));
+
+        Assert.Equal(rules.SpouseGrievance * rules.ToleratedGrievanceShare, wife.Union!.Grievance, 6);
+    }
+
+    [Fact]
+    public void A_repeated_blow_weighs_in_full_on_the_marital_grievance()
+    {
+        var (world, husband, wife, ctx) = BeatenWife(severeHarm: int.MaxValue);
+        var rules = world.CrimeRules!.Domestic!;
+        DomesticViolence.Assault(world, ctx, husband, wife, "ciume", world.Rng.OneShot("d1"));
+        double first = wife.Union!.Grievance;
+
+        DomesticViolence.Assault(world, ctx, husband, wife, "ciume", world.Rng.OneShot("d2"));
+
+        Assert.Equal(first + rules.SpouseGrievance, wife.Union!.Grievance, 6);
+    }
+
+    [Fact]
+    public void A_severe_blow_weighs_in_full_on_the_marital_grievance_at_once()
+    {
+        var (world, husband, wife, ctx) = BeatenWife(severeHarm: 1);
+
+        DomesticViolence.Assault(world, ctx, husband, wife, "ciume", world.Rng.OneShot("d1"));
+
+        Assert.Equal(world.CrimeRules!.Domestic!.SpouseGrievance, wife.Union!.Grievance, 6);
     }
 
     [Fact]

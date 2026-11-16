@@ -31,6 +31,10 @@ public sealed class DecadeTally(WorldState world) : IWorldEventSink
         public readonly List<double> LastBirthAge = [];
         public long WomenAt45, WomenNeverMarried45, MenAt45, MenNeverMarried45, BirthsWithoutSpouse, MaritalBirths;
         public double MarriedWomen20to49Years;
+        /// <summary>AD-162: anos de casada e partos de casada por idade da mãe, para a TMFR padronizada (5 × soma das taxas
+        /// conjugais de cada faixa de 5 anos, como na reconstituição de paróquias); a de cima pesa mais as idades em que há mais casadas.</summary>
+        public readonly double[] MarriedExposure = new double[50];
+        public readonly long[] MaritalBirthsByAge = new long[50];
         /// <summary>Diagnóstico do freio (AD-158): recusas por falta de meios, casamentos com o noivo empregado e os meios do
         /// casal na data.</summary>
         public long RejectedNoMeans, FirstMarriages, GroomEmployed;
@@ -59,7 +63,11 @@ public sealed class DecadeTally(WorldState world) : IWorldEventSink
                     int age = mother.AgeYears(world.CurrentDate);
                     if (age is >= 0 and < 50) d.AsfrBirths[age]++;
                     if (mother.Spouse is null || world.FindNpc(mother.Spouse.Value) is not { IsAlive: true }) d.BirthsWithoutSpouse++;
-                    else d.MaritalBirths++;
+                    else
+                    {
+                        d.MaritalBirths++;
+                        if (age is >= 0 and < 50) d.MaritalBirthsByAge[age]++;
+                    }
                     if (_lastBirth.TryGetValue(mother.Id.Value, out long prev))
                         d.BirthIntervalMonths.Add((evt.Tick - prev) / (double)world.Calendar.HoursPerMonth);
                     _lastBirth[mother.Id.Value] = evt.Tick;
@@ -115,8 +123,11 @@ public sealed class DecadeTally(WorldState world) : IWorldEventSink
             d.PersonYears += share;
             int age = npc.AgeYears(now);
             if (npc.Sex == Sex.Female && age is >= 0 and < 50) d.FemaleExposure[age] += share;
-            if (npc.Sex == Sex.Female && age is >= 20 and < 50 && npc.Spouse is { } sp && world.FindNpc(sp) is { IsAlive: true })
-                d.MarriedWomen20to49Years += share;
+            if (npc.Sex == Sex.Female && age is >= 15 and < 50 && npc.Spouse is { } sp && world.FindNpc(sp) is { IsAlive: true })
+            {
+                d.MarriedExposure[age] += share;
+                if (age >= 20) d.MarriedWomen20to49Years += share;
+            }
             if (age == NeverMarriedAge && npc.BirthDate.TotalHours >= 0 && _counted45.Add(npc.Id.Value))
             {
                 bool never = npc.Spouse is null && !_everMarried.Contains(npc.Id.Value) && (npc.Union?.Unions ?? 0) == 0;
@@ -185,7 +196,7 @@ public sealed class DecadeTally(WorldState world) : IWorldEventSink
                 $"  {i * 10}: {1000 * ds.Sum(d => d.Births) / py:F1} {1000 * ds.Sum(d => d.Deaths) / py:F1} {tfr:F2} {(women.Count > 0 ? women.Average() : 0):F1}(n={women.Count}) {growth:F2} {ds.Average(d => d.PopStart):F0}→{ds.Average(d => d.PopEnd):F0} {ds.Sum(d => d.Starved)} {ds.Sum(d => d.FoodProduced) / py:F0} {ds.Sum(d => d.FarmWorkerMonths) / months:F0}/{ds.Sum(d => d.FarmSlotMonths) / months:F0} {100 * ds.Sum(d => d.EmployedAdultMonths) / Math.Max(1, ds.Sum(d => d.AdultMonths)):F0}% {ds.Sum(d => d.YoungIdleMonths) / months:F1}({ds.Sum(d => d.YoungIdleSingleMonths) / months:F1}) {100 * ds.Sum(d => d.OpenMonths) / months:F0}% {ds.Sum(d => d.Emigrants)} {ds.Sum(d => d.ArableSeedMonths) / 12.0 / py:F0}");
         }
 
-        sb.AppendLine("por_decada_nupcialidade dec: 1o_casamento_mulher(mediana) homem(mediana) nunca_casou_aos_45_mulher homem intervalo_partos_meses(mediana) idade_ultimo_parto(n) partos_sem_conjuge% TFR_conjugal_20_49 mulheres_20_49_casadas% recusas_sem_meios noivo_empregado% meios_no_casamento terra_em_posses(vagas)");
+        sb.AppendLine("por_decada_nupcialidade dec: 1o_casamento_mulher(mediana) homem(mediana) nunca_casou_aos_45_mulher homem intervalo_partos_meses(mediana) idade_ultimo_parto(n) partos_sem_conjuge% TFR_conjugal_20_49 TMFR_padronizada_20_49 mulheres_20_49_casadas% recusas_sem_meios noivo_empregado% meios_no_casamento terra_em_posses(vagas)");
         for (int i = 0; i < Decades; i++)
         {
             var ds = runs.Select(r => r.Data[i]).Where(d => d.Months > 0).ToList();
@@ -201,13 +212,34 @@ public sealed class DecadeTally(WorldState world) : IWorldEventSink
             // TFR conjugal 20–49 ≈ 30 × partos de casadas 20–49 ÷ anos de casadas (partos de casadas ≈ partos 20–49 × parte conjugal)
             double maritalShare = ds.Sum(d => d.MaritalBirths) / (double)Math.Max(1, ds.Sum(d => d.MaritalBirths + d.BirthsWithoutSpouse));
             double mtfr = married > 0 ? 30 * b2049 * maritalShare / married : 0;
+            double tmfr = 0;
+            for (int a0 = 20; a0 < 50; a0 += 5)
+            {
+                double eg = 0, bg = 0;
+                for (int a = a0; a < a0 + 5; a++) { eg += ds.Sum(d => d.MarriedExposure[a]); bg += ds.Sum(d => d.MaritalBirthsByAge[a]); }
+                if (eg > 0) tmfr += 5 * bg / eg;
+            }
             static string Med(List<double> xs) => xs.Count == 0 ? "-" : xs[xs.Count / 2].ToString("F1", CultureInfo.InvariantCulture);
             static string Avg(List<double> xs) => xs.Count == 0 ? "-" : xs.Average().ToString("F1", CultureInfo.InvariantCulture);
             static string Frac(long a, long b) => b == 0 ? "-" : (100.0 * a / b).ToString("F0", CultureInfo.InvariantCulture) + "%(n=" + b + ")";
             sb.AppendLine(inv,
-                $"  {i * 10}: {Avg(w)}({Med(w)}) {Avg(m)}({Med(m)}) {Frac(ds.Sum(d => d.WomenNeverMarried45), ds.Sum(d => d.WomenAt45))} {Frac(ds.Sum(d => d.MenNeverMarried45), ds.Sum(d => d.MenAt45))} {Avg(iv)}({Med(iv)}) {Avg(last)}(n={last.Count}) {100.0 * ds.Sum(d => d.BirthsWithoutSpouse) / Math.Max(1, births):F1}% {mtfr:F2} {100 * married / Math.Max(1e-9, exp2049):F0}% {ds.Sum(d => d.RejectedNoMeans)} {100.0 * ds.Sum(d => d.GroomEmployed) / Math.Max(1, ds.Sum(d => d.FirstMarriages)):F0}% {ds.Sum(d => d.MeansAtMarriage) / Math.Max(1, ds.Sum(d => d.FirstMarriages)):F2} {ds.Sum(d => d.DwellingMonths) / ds.Sum(d => d.Months):F0}({ds.Sum(d => d.VacantMonths) / ds.Sum(d => d.Months):F1})");
+                $"  {i * 10}: {Avg(w)}({Med(w)}) {Avg(m)}({Med(m)}) {Frac(ds.Sum(d => d.WomenNeverMarried45), ds.Sum(d => d.WomenAt45))} {Frac(ds.Sum(d => d.MenNeverMarried45), ds.Sum(d => d.MenAt45))} {Avg(iv)}({Med(iv)}) {Avg(last)}(n={last.Count}) {100.0 * ds.Sum(d => d.BirthsWithoutSpouse) / Math.Max(1, births):F1}% {mtfr:F2} {tmfr:F2} {100 * married / Math.Max(1e-9, exp2049):F0}% {ds.Sum(d => d.RejectedNoMeans)} {100.0 * ds.Sum(d => d.GroomEmployed) / Math.Max(1, ds.Sum(d => d.FirstMarriages)):F0}% {ds.Sum(d => d.MeansAtMarriage) / Math.Max(1, ds.Sum(d => d.FirstMarriages)):F2} {ds.Sum(d => d.DwellingMonths) / ds.Sum(d => d.Months):F0}({ds.Sum(d => d.VacantMonths) / ds.Sum(d => d.Months):F1})");
         }
 
+        // AD-162: taxa conjugal por faixa de idade, todas as décadas depois da primeira (a pirâmide inicial é sintética)
+        var later = runs.SelectMany(r => r.Data.Skip(1)).Where(d => d.Months > 0).ToList();
+        sb.Append("fecundidade_conjugal_por_idade(decadas>=10)");
+        double total = 0;
+        for (int a0 = 15; a0 < 50; a0 += 5)
+        {
+            double eg = 0, bg = 0;
+            for (int a = a0; a < a0 + 5; a++) { eg += later.Sum(d => d.MarriedExposure[a]); bg += later.Sum(d => d.MaritalBirthsByAge[a]); }
+            double rate = eg > 0 ? bg / eg : 0;
+            if (a0 >= 20) total += 5 * rate;
+            sb.Append(inv, $" {a0}-{a0 + 4}:{rate:F3}");
+        }
+
+        sb.AppendLine(inv, $" TMFR_20_49={total:F2}");
         return sb.ToString();
     }
 }

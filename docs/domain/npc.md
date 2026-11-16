@@ -40,7 +40,8 @@ social, agressividade, empatia — governam aprendizado, decisão e vida social.
 
 Extroversão, amabilidade, conscienciosidade, estabilidade emocional, abertura, ambição,
 lealdade, altruísmo, impulsividade, aversão ao risco. Herdada no nascimento e, ao virar adulto,
-acrescida do ambiente compartilhado de quem de fato criou a criança (AD-132, `RearingRules`).
+acrescida do ambiente compartilhado de quem de fato criou a criança (AD-132, `RearingRules`; peso 0,1 desde o AD-162:
+o ambiente compartilhado quase não pesa na personalidade, Plomin e Daniels 1987).
 
 Não é enfeite de ficha: a personalidade **modula** profissão, relações, decisão momento a
 momento, reprodução, conflito, ritmo de aprendizado, migração e tom de diálogo. Sempre como
