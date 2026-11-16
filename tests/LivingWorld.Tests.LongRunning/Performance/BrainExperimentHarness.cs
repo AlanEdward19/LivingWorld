@@ -45,6 +45,10 @@ public class BrainExperimentHarness
         clock.Run(world, (years - 1) * world.Calendar.HoursPerYear);
 
         long bytes = PositionalSnapshot.EncodeFull(world, out var snapshotBase).Length;
+        // AD-160b: os mesmos snapshots do mesmo mundo sem o estado do cérebro (tirado e devolvido): a diferença é o custo do cérebro
+        // em bytes sem o ruído de comparar mundos que divergiram
+        SnapshotBase? bareBase = null;
+        long bareBytes = brain ? WithoutBrains(world, () => PositionalSnapshot.EncodeFull(world, out bareBase).Length) : 0;
         // AD-160b: o que do cérebro muda entre a base do ano e o fim (cada campo mudado entra em todo delta seguinte)
         var startBrains = world.Npcs.Where(n => n.IsAlive && n.Brain is not null)
             .ToDictionary(n => n.Id.Value, n => (Gains: (short[])n.Brain!.Gains.Clone(), Means: (short[])n.Brain.ActionMeans.Clone(),
@@ -69,13 +73,15 @@ public class BrainExperimentHarness
                 }
             aliveSum += world.Npcs.Count(n => n.IsAlive);
             bytes += PositionalSnapshot.EncodeDelta(world, snapshotBase).Length;
+            if (brain) bareBytes += WithoutBrains(world, () => PositionalSnapshot.EncodeDelta(world, bareBase!).Length);
         }
 
         var alive = world.Npcs.Where(n => n.IsAlive).ToList();
         int json = Encoding.UTF8.GetByteCount(WorldSnapshot.Serialize(world));
         string line = $"seed={seed} brain={(brain ? 1 : 0)} alive={alive.Count} "
             + $"dayDiversity={DayDiversity(profiles):F4} jsonPerAlive={json / Math.Max(1, alive.Count)} "
-            + $"bytesPerNpcYear={bytes / Math.Max(1.0, aliveSum / 12):F0}";
+            + $"bytesPerNpcYear={bytes / Math.Max(1.0, aliveSum / 12):F0}"
+            + (brain ? $" brainBytesShare={100.0 * (bytes - bareBytes) / Math.Max(1, bareBytes):F2}%" : "");
         if (!brain) return line;
         int same = 0, gainsChanged = 0, gainCells = 0, meansChanged = 0, pendingChanged = 0;
         long brainJson = 0;
@@ -99,6 +105,15 @@ public class BrainExperimentHarness
         double saturated = gains.Count == 0 ? 0 : gains.Count(g => g <= brainRules.MinGain || g >= brainRules.MaxGain) / (double)gains.Count;
         return line + $" withBrain={alive.Count(n => n.Brain is not null)} meanAbsGain={meanAbs:F1} saturated={saturated:P2} "
             + $"parentChildCorr={ParentChildCorrelation(world):F3}";
+    }
+
+    /// <summary>Roda <paramref name="encode"/> com o cérebro de todos os NPCs tirado e o devolve igual depois (só medida).</summary>
+    private static long WithoutBrains(WorldState world, Func<long> encode)
+    {
+        var saved = world.Npcs.Where(n => n.Brain is not null).Select(n => (Npc: n, Brain: n.Brain)).ToList();
+        foreach (var (npc, _) in saved) npc.SetBrain(null);
+        try { return encode(); }
+        finally { foreach (var (npc, brain) in saved) npc.SetBrain(brain); }
     }
 
     /// <summary>Média, por ofício, da distância L1 entre os perfis normalizados (hora do dia × ação) de cada par de adultos.</summary>
