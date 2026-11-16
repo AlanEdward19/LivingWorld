@@ -127,8 +127,9 @@ internal static class BrainMechanic
 
     /// <summary>Conclusão da ação guardada: cada grupo que a escolheu muda o ganho em <c>taxa(idade) × surpresa ×
     /// participação</c>; a surpresa é a recompensa menos o que esta ação costuma dar ao NPC, que então se atualiza.</summary>
-    internal static void Learn(WorldState world, Npc npc, ActionType action, double reward, WorldRng? rng = null)
+    internal static void Learn(WorldState world, Npc npc, ActionType action, double reward, bool stepped = false)
     {
+        ulong draw = stepped ? DrawState(world, "brain-learn", npc, world.CurrentDate.TotalHours) : 0;
         var rules = world.BrainRules!;
         var brain = npc.Brain!;
         int a = (int)action;
@@ -143,7 +144,7 @@ internal static class BrainMechanic
             int share = brain.ShareOf(i);
             if (share == 0) continue;
             // AD-160b: em degraus (a média aprendida é a mesma; o ganho cabe num byte no snapshot)
-            double delta = Stepped(rules, rate * surprise * share / 1000.0, rng);
+            double delta = Stepped(rules, rate * surprise * share / 1000.0, ref draw, stepped);
             if (delta == 0) continue;
             brain.Gains[row + i] = rules.Clamp(brain.Gains[row + i] + delta, i);
         }
@@ -158,12 +159,17 @@ internal static class BrainMechanic
 
     /// <summary>AD-160b: uma mudança de ganho em degraus de <see cref="BrainRules.GainStep"/>; o que sobra de um degrau move com
     /// chance proporcional (sem viés). Sem sorteio (ou degrau 1), a mudança como veio.</summary>
-    internal static double Stepped(BrainRules rules, double delta, WorldRng? rng)
+    internal static double Stepped(BrainRules rules, double delta, ref ulong draw, bool drawn = true)
     {
-        if (rules.GainStep <= 1 || rng is null) return delta;
+        if (rules.GainStep <= 1 || !drawn) return delta;
         double steps = delta / rules.GainStep, whole = Math.Floor(steps);
-        return (whole + (rng.NextDouble() < steps - whole ? 1 : 0)) * rules.GainStep;
+        return (whole + (WorldRng.NextDouble(ref draw) < steps - whole ? 1 : 0)) * rules.GainStep;
     }
+
+    /// <summary>Sorteio do degrau (AD-160b): stream do mundo por (propósito, NPC, tick), sem alocar. O tick entra na chave: o stream
+    /// por NPC sozinho daria o mesmo primeiro número a cada vez.</summary>
+    internal static ulong DrawState(WorldState world, string purpose, Npc npc, long tick) =>
+        world.Rng.StreamStateFor(purpose, (npc.Id.Value << 24) ^ (tick & 0xFFFFFF));
 
     /// <summary>Nascimento: <c>h × média dos pais + √(1 − h²) × segregação</c> por ganho, como a personalidade
     /// (<see cref="Personality.Inherit"/>), com o stream próprio do bebê. Pais sem cérebro valem neutro.</summary>
@@ -194,7 +200,7 @@ internal static class BrainMechanic
 
     /// <summary>Uma amostra da criação: os ganhos da criança andam <see cref="BrainRules.RearingPullPerSample"/> na direção da
     /// média dos cuidadores (quem passa mais tempo junto puxa mais, por somar mais amostras).</summary>
-    internal static void Rear(BrainRules rules, Npc child, IReadOnlyList<Npc> caregivers, WorldRng? rng = null)
+    internal static void Rear(BrainRules rules, Npc child, IReadOnlyList<Npc> caregivers, WorldState? world = null)
     {
         if (caregivers.Count == 0) return;
         var brain = child.Brain;
@@ -204,12 +210,13 @@ internal static class BrainMechanic
             child.SetBrain(brain);
         }
 
+        ulong draw = world is null ? 0 : DrawState(world, "brain-rear", child, world.CurrentDate.TotalHours);
         for (int i = 0; i < brain.Gains.Length; i++)
         {
             double sum = 0;
             for (int c = 0; c < caregivers.Count; c++) sum += caregivers[c].Brain?.Gains[i] ?? 0;
             double target = sum / caregivers.Count;
-            double pull = Stepped(rules, (target - brain.Gains[i]) * rules.RearingPullPerSample, rng);
+            double pull = Stepped(rules, (target - brain.Gains[i]) * rules.RearingPullPerSample, ref draw, world is not null);
             if (pull != 0) brain.Gains[i] = rules.Clamp(brain.Gains[i] + pull, i % BrainState.Groups);
         }
 

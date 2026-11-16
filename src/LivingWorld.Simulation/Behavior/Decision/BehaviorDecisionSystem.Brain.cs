@@ -47,7 +47,7 @@ public sealed partial class BehaviorDecisionSystem
             reward = BrainMechanic.Reward(feltBefore, FeltNow(world, npc, now), ProvisionTargetDays);
         }
 
-        BrainMechanic.Learn(world, npc, action, reward, rules.GainStep > 1 ? ctx.StreamFor("brain-learn", npc.Id.Value) : null);
+        BrainMechanic.Learn(world, npc, action, reward, stepped: rules.GainStep > 1);
     }
 
     /// <summary>Depois de uma escolha pela utilidade: guarda a participação dos grupos e o valor do estado no começo. AD-160b: só a
