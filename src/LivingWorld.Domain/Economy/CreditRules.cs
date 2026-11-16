@@ -23,6 +23,19 @@ public sealed record CreditRules
     public int FoundingTermMonths { get; init; } = 36;
     public int WorkingTermMonths { get; init; } = 12;
 
+    /// <summary>AD-159: carência da abertura e da reabertura, em meses: a oficina nova monta estoque e freguesia antes da primeira
+    /// parcela (o prazo conta dali). Contratos de aldeia davam o primeiro pagamento na colheita ou na feira seguinte.</summary>
+    public int FoundingGraceMonths { get; init; } = 6;
+
+    /// <summary>AD-159: o prazo da abertura cresce de 12 em 12 meses até este teto quando a parcela do prazo curto não cabe no ganho
+    /// (o credor de aldeia aceitava mais safras em vez de perder o negócio; o acréscimo cresce com o prazo).</summary>
+    public int MaxFoundingTermMonths { get; init; } = 60;
+
+    /// <summary>AD-159: o ganho de quem abre, para a parcela, inclui o salário dele mesmo na folha da oficina (vai para a casa dele):
+    /// a parte deste salário que conta. 0 = só o lucro (venda − folha), o modelo do AD-155; a sonda mostrou que só o lucro negava 4 de
+    /// 5 pedidos de abertura pela parcela.</summary>
+    public double OwnWageInCapacityShare { get; init; } = 1.0;
+
     /// <summary>Quem abre põe ao menos a metade: o credor não financia mais que esta parte do capital, e quem tem muito medo do
     /// risco pede menos (vezes <c>1,5 − Aversão/100</c>, até 1: aversão 50 pede até a metade, 95 até ~28%).</summary>
     public double MaxLoanShare { get; init; } = 0.5;

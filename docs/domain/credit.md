@@ -28,7 +28,10 @@ dos judeus ingleses (2 dinheiros por libra por semana, ~43% ao ano) como o caro 
   ofício − Ambição do fundador/200 ≥ 0,5); os que preferem sociedade entram primeiro, depois o empréstimo, depois os outros
   como sócios. O fundador ambicioso e pouco medroso guarda `(Ambição − Aversão)/100` da poupança (até a metade) e pede essa
   parte. O empréstimo não passa de metade do capital × `1,5 − Aversão/100`. Prazo 36 meses; a oficina nova é a garantia.
-  Origem `emprestimo` (`sociedade` se também houve sócio).
+  Origem `emprestimo` (`sociedade` se também houve sócio). **AD-159:** o ganho que paga a parcela é o que a oficina rende à
+  casa (lucro + o salário do próprio fundador na folha, `OwnWageInCapacityShare`); se a parcela de 36 meses não cabe, o prazo
+  cresce de 12 em 12 até 60 (`MaxFoundingTermMonths`; o acréscimo cresce junto); **carência** de 6 meses
+  (`FoundingGraceMonths`, `Loan.FirstDueTick`) enquanto a oficina monta freguesia, sem parcela nem atraso.
 - **Reabrir** a oficina parada, ou **comprar uma fechada** (`VentureFounding.TryBuyClosed`, pelo foro + obra + equipamento,
   a quem ficou com ela) em vez de levantar outra. Prazo 12 meses.
 - **Capital de giro** (`WorkingCapitalSystem`, mensal, antes da folha): na oficina de dono cujo caixa não cobre a folha, o dono
@@ -74,5 +77,5 @@ os credores perderam, como), falências, liberados e demitidos por falta de caix
 da moeda total (0 = conservada). O Gini segue na linha `moeda por decada` (`CreditTally`, `EconomyTally`; só leem).
 
 ## Limites (backlog 04b, itens E22 a E29)
-Empréstimo de abertura não acontece na prática (o parente entra de sócio); calote baixo; os demitidos ficam sem trabalho;
+Aberturas poucas (a vila só sustenta um ferreiro, AD-159); a forja vende o mês todo, sem safra para amarrar a parcela; calote baixo; os demitidos ficam sem trabalho;
 casa e terra não servem de garantia; o credor não leva o devedor à corte; números sem fonte firme (`08b`, itens 90 a 96).

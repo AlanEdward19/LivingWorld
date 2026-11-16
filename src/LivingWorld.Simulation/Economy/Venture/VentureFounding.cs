@@ -44,7 +44,11 @@ internal static class VentureFounding
             + supplies.Sum(q => q.Units * q.Price) + workingCapital;
 
         if (needed <= 0 || VentureCapital.Raise(world, rules, founder, needed, plan: plan, tradeSkill: trade.Skill) is not { } capital) return null;
-        if (Place(world, city, buildingType) is not { } site) return null;
+        if (Place(world, city, buildingType) is not { } site)
+        {
+            world.VentureProbe?.Mark("sem_lote");
+            return null;
+        }
 
         long inherited = capital.Take(world, ctx);
         city.CreditTreasury(new Money(plotFee + importCost));
@@ -151,9 +155,7 @@ internal static class VentureFounding
     {
         if (capital.Granted is not { } loan) return;
         loan.Workplace = shop.Id.Value;
-        var credit = world.EconomyRules.Credit!;
-        Credit.Lending.LogGrant(ctx, loan, loan.Purpose == Credit.LoanPurpose.Founding ? credit.FoundingTermMonths : credit.WorkingTermMonths,
-            capital.Loan!.Kind);
+        Credit.Lending.LogGrant(ctx, loan, capital.Loan!.TermMonths, capital.Loan.Kind);
     }
 
     /// <summary>Origem contada: sociedade se houve sócio; empréstimo se houve credor; herança se metade ou mais do casal era herança.</summary>

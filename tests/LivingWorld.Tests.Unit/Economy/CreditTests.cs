@@ -26,9 +26,10 @@ public sealed class CreditTests
 
     private sealed record Village(WorldState World, VentureRules Rules, CreditRules Credit, VentureTrade Trade, Events Log, TickContext Ctx);
 
-    private static Village Make(ulong seed = 7)
+    private static Village Make(ulong seed = 7, CreditRules? credit = null)
     {
-        var (world, _) = ScenarioRunner.Create(seed, initialPopulation: 30);
+        var economy = credit is null ? null : ScenarioRunner.DefaultEconomyRules with { Credit = credit };
+        var (world, _) = ScenarioRunner.Create(seed, initialPopulation: 30, economyRules: economy);
         var log = new Events();
         var trade = VentureTrade.Of(world, ScenarioRunner.DefaultSkillsRules, Forge)!;
         var v = new Village(world, world.EconomyRules.Venture!, world.EconomyRules.Credit!, trade, log,
@@ -253,12 +254,79 @@ public sealed class CreditTests
         var (v, founder, rich, _) = ShortFounder();
         var shop = Found(v, founder)!;
         var loan = v.World.Credit!.Loans.Single();
+        loan.FirstDueTick = 0; // AD-159: passada a carência
         long richBefore = rich.Wallet.Amount, cash = shop.Treasury.Amount, balance = loan.Balance, before = Coin(v.World);
 
         new CreditSystem().Tick(v.World, v.Ctx);
 
         Assert.Equal((richBefore + loan.Installment, cash - loan.Installment, balance - loan.Installment, before),
             (rich.Wallet.Amount, shop.Treasury.Amount, loan.Balance, Coin(v.World)));
+    }
+
+    [Fact]
+    public void A_new_shop_pays_no_installment_during_the_grace_months_and_is_not_counted_late()
+    {
+        var (v, founder, rich, _) = ShortFounder();
+        var shop = Found(v, founder)!;
+        var loan = v.World.Credit!.Loans.Single();
+        var cal = v.World.CurrentDate.Calendar;
+        Assert.Equal(v.Ctx.CurrentTick + (long)v.Credit.FoundingGraceMonths * cal.HoursPerDay * cal.DaysPerMonth, loan.FirstDueTick);
+        long richBefore = rich.Wallet.Amount, cash = shop.Treasury.Amount, balance = loan.Balance;
+
+        new CreditSystem().Tick(v.World, v.Ctx);
+
+        Assert.Equal((richBefore, cash, balance, 0), (rich.Wallet.Amount, shop.Treasury.Amount, loan.Balance, loan.Missed));
+    }
+
+    /// <summary>Fundador com metade do capital acima da reserva e um rico da vila; devolve se abriu e o empréstimo.</summary>
+    private static (bool Opened, Loan? Loan, VenturePlan Plan) HalfFounder(CreditRules credit)
+    {
+        long needed = Needed();
+        var v = Make(credit: credit);
+        // fazenda pequena: pouca encomenda de ferramenta, o lucro sozinho não paga a parcela do prazo curto
+        var farm = v.World.Workplaces.First(w => w.LocationType.Id == 1);
+        foreach (var id in farm.Employees.Skip(2).ToList())
+        {
+            farm.Fire(id);
+            v.World.FindNpc(id)!.Fire();
+        }
+        var founder = Smith(v, Person(v.World, "fundador", 30, riskAversion: 50), 0);
+        founder.CreditWallet(new Money(VentureCapital.ReserveOf(v.World, v.Rules, founder) + needed / 2));
+        Person(v.World, "rico", 50).CreditWallet(new Money(1_000_000));
+        var plan = Plan(v, founder);
+        bool opened = Found(v, founder) is not null;
+        return (opened, v.World.Credit?.Loans.SingleOrDefault(), plan);
+    }
+
+    [Fact]
+    public void The_lender_counts_the_founders_own_wage_and_stretches_the_term_so_the_installment_fits()
+    {
+        var old = CreditRules.Default with { OwnWageInCapacityShare = 0, MaxFoundingTermMonths = CreditRules.Default.FoundingTermMonths };
+        var before = HalfFounder(old);
+        var now = HalfFounder(CreditRules.Default);
+
+        Assert.False(before.Opened, $"venda {before.Plan.MonthlySales} folha {before.Plan.MonthlyPayroll}");
+        Assert.True(now.Opened);
+        Assert.True(now.Loan!.Installment <= 0.5 * now.Plan.MonthlySales, $"{now.Loan.Installment} vs {now.Plan.MonthlySales}");
+    }
+
+    [Fact]
+    public void The_probe_tells_why_a_founder_did_not_get_the_loan()
+    {
+        var (v, founder, rich, _) = ShortFounder();
+        rich.TryDebitWallet(rich.Wallet);
+        rich.CreditWallet(new Money(VentureCapital.ReserveOf(v.World, v.Rules, rich)));
+        var probe = new LivingWorld.Simulation.Observation.VentureProbe(v.World);
+        v.World.VentureProbe = probe;
+
+        probe.Begin(founder.Id.Value);
+        bool opened = Found(v, founder) is not null;
+        probe.End(opened);
+
+        int Step(string s) => probe.StepCount[0, Array.IndexOf(LivingWorld.Simulation.Observation.VentureProbe.Steps, s)];
+        Assert.False(opened);
+        Assert.Equal((1, 1, 0, 1), (Step("pediram_credito"), Step("sem_capital"), Step("credito_concedido"), Step("decidiram")));
+        Assert.Equal(1, probe.RefusalCount[0, LendRefusal.NoMoney]);
     }
 
     [Fact]
@@ -314,6 +382,7 @@ public sealed class CreditTests
         worker.Hire(shop.Id);
         var loan = v.World.Credit!.Loans.Single();
         loan.Missed = v.Credit.DefaultAfterMissedMonths - 1;
+        loan.FirstDueTick = 0; // AD-159: passada a carência
         shop.TryDebitTreasury(shop.Treasury);
         shop.CreditTreasury(new Money(10));
         founder.TryDebitWallet(founder.Wallet);
