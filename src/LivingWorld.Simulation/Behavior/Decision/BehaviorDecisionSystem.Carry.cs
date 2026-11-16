@@ -92,6 +92,11 @@ public sealed partial class BehaviorDecisionSystem
     {
         if (npc.Household is not { } h || world.FindHousehold(h) is not { } home) return;
         world.InventionTally.HomeForMeal++;
+        // só medida (AD-157b): de onde sai a volta para comer
+        var t = world.InventionTally;
+        if (npc.Employer is { } e && world.FindWorkplace(e) is { } w && w.Location == npc.CurrentLocation) t.HomeForMealFromWork++;
+        else if (world.Workplaces.Any(x => x.Location == npc.CurrentLocation)) t.HomeForMealFromOtherPlace++;
+        if (100 - npc.ThirstAt(world.CurrentDate.TotalHours) > world.NeedsRules.UrgencyThreshold) t.HomeForMealThirsty++;
         PersonalCarry.FeltAway(world, npc, Mobility.TravelTicks(world, npc, npc.CurrentLocation, home.Location, 1.0));
     }
 }

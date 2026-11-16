@@ -66,6 +66,35 @@ public static class PersonalCarry
         return far;
     }
 
+    /// <summary>AD-157b: o passo do passeio (ócio e conversa; andar no trabalho fica como está) com a despensa em casa. O sorteado vale se fica ao
+    /// alcance da despensa; se sairia dele, a pessoa não dá o passo; quem já está fora volta um passo para perto de casa. Antes, o
+    /// passeio ao acaso levava gente para longe sem nada (85% das voltas para comer saíam de célula sem local nenhum).</summary>
+    internal static CellCoord? StrollStep(WorldState world, Npc npc, LivingWorld.Domain.Behavior.ActionType action, ReadOnlySpan<CellCoord> candidates, int index)
+    {
+        var picked = candidates[index];
+        if (action == LivingWorld.Domain.Behavior.ActionType.Work || !world.InventionOn || !world.InventionRules!.PantryNeedsPresence || npc.Household is not { } h
+            || world.FindHousehold(h) is not { IsHomeless: false } home || picked == home.Location)
+            return picked;
+        bool fromOutside = npc.CurrentLocation != home.Location && FarFromHome(world, npc, home, npc.CurrentLocation, outbound: false);
+        if (!fromOutside)
+            return FarFromHome(world, npc, home, picked, outbound: false) ? null : picked;
+        long best = long.MaxValue;
+        CellCoord? closer = null;
+        long here = Distance2(npc.CurrentLocation, home.Location);
+        foreach (var c in candidates)
+        {
+            long d = Distance2(c, home.Location);
+            if (d < here && d < best) { best = d; closer = c; }
+        }
+        return closer;
+    }
+
+    private static long Distance2(CellCoord a, CellCoord b)
+    {
+        long dx = a.X - b.X, dy = a.Y - b.Y;
+        return dx * dx + dy * dy;
+    }
+
     /// <summary>AD-151: a saída deixa a despensa para trás quando o destino fica a mais de uma hora de casa (a medida de
     /// <see cref="PantryOutOfReach"/>). Perto, a pessoa come em casa; arrumar a carga só tiraria da despensa para devolver na volta
     /// (e custava a conta da carga em toda saída).</summary>
