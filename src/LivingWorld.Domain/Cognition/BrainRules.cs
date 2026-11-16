@@ -39,17 +39,18 @@ public sealed record BrainRules(
     /// <summary>Ligado, com os números do desenho (`.specs/features/neural-brain/design.md`).</summary>
     public static BrainRules Default { get; } = new(
         Enabled: true, MinGain: -500, MaxGain: 1000,
-        LearningPerPoint: 0.1, AdultLearningFloor: 0.25, LearningFullUntilYears: 20, LearningFloorFromYears: 60,
-        MeanWindow: 8, InheritedNoiseMilli: 0, RearingPullPerSample: 0.01, CriticalNeed: 30,
+        LearningPerPoint: 0.05, AdultLearningFloor: 0.25, LearningFullUntilYears: 20, LearningFloorFromYears: 60,
+        MeanWindow: 32, InheritedNoiseMilli: 0, RearingPullPerSample: 0.01, CriticalNeed: 30,
         FirstExperienceSetsExpectation: true,
-        BaseMinGain: 0, BaseMaxGain: 0, GainStep: 10,
+        BaseMinGain: 0, BaseMaxGain: 0, GainStep: 20,
         PantryDayValue: 20, MoneyDayValue: 10, ValueHorizonDays: 4, WageHoursPerMonth: 270,
-        InheritExpectation: true, WeighsLeisure: true, LeisureNeedFloor: 50, MeanStep: 4);
+        InheritExpectation: true, WeighsLeisure: true, LeisureNeedFloor: 50, MeanStep: 16, LeisureMayIdle: false);
 
     /// <summary>O experimento como juntado no AD-142 (para comparar): sem nada do AD-160 nem do AD-160b.</summary>
     public static BrainRules Ad142 { get; } = Default with
     {
         CriticalNeed = 0, FirstExperienceSetsExpectation = false, InheritedNoiseMilli = 100, BaseMinGain = -500, BaseMaxGain = 1000, GainStep = 1,
+        LearningPerPoint = 0.1, MeanWindow = 8, MeanStep = 1,
         PantryDayValue = 0, MoneyDayValue = 0, ValueHorizonDays = 0, WageHoursPerMonth = 0, InheritExpectation = false,
         WeighsLeisure = false,
     };

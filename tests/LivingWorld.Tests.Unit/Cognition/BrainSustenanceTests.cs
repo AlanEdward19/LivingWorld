@@ -90,7 +90,7 @@ public class BrainSustenanceTests
         for (int i = 0; i < 20000; i++)
         {
             double d = BrainMechanic.Stepped(rules, 2.5, ref draw);
-            Assert.True(d is 0 or 10);
+            Assert.True(d == 0 || d == rules.GainStep);
             sum += d;
         }
 
