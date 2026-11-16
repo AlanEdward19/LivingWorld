@@ -28,7 +28,8 @@ public sealed class BrainState
         Pending = pending;
     }
 
-    [JsonConverter(typeof(GainsJsonConverter))]
+    /// <summary>Em lista (AD-160b): sem ruído de herança os ganhos são quase todos zero e só ~3 mudam por ano; em lista o delta do
+    /// snapshot leva só as células mudadas (em base64 levava o texto inteiro).</summary>
     public short[] Gains { get; }
     public short[] ActionMeans { get; }
 

@@ -98,7 +98,7 @@ public class BrainSustenanceTests
     }
 
     [Fact]
-    public void Inherited_gains_land_on_steps_and_fit_the_compact_snapshot()
+    public void Inherited_gains_land_on_steps_and_round_trip_the_snapshot()
     {
         var child = BrainMechanic.Inherit(BrainRules.Default, null, null, new WorldRng(4), heritability: 0.5);
 
@@ -106,6 +106,5 @@ public class BrainSustenanceTests
         string json = System.Text.Json.JsonSerializer.Serialize(child);
         var back = System.Text.Json.JsonSerializer.Deserialize<BrainState>(json)!;
         Assert.Equal(child.Gains, back.Gains);
-        Assert.DoesNotContain("\"Gains\":[", json, StringComparison.Ordinal);
     }
 }
