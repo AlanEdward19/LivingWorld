@@ -20,6 +20,11 @@ Gravidez como estado com sexo e duração decididos na concepção; gestação d
 - O sexo do bebê é definido pelo cromossomo do pai (X ou Y) na concepção, não por hormônio. Os hormônios entram no desenvolvimento do corpo e na puberdade.
 - A fecundidade é menor logo depois da menarca e só chega ao pico perto dos 20. Mais filhos na adolescência vêm de comportamento (impulso, pouca avaliação de consequência, falta de contracepção), não de fertilidade maior.
 
+## Natalidade e nupcialidade de época (AD-158)
+Medida na árvore de hoje: natalidade 51‰, TFR 7,8, mulher casa aos 17,8 e ninguém fica solteiro. Faltava o nicho: agora só
+casa quem tem do que viver (posse de terra vaga, ofício ou casa própria; [population-pressure](../../../docs/domain/population-pressure.md)).
+Sobras no 08b, itens 120–123 (mulher ainda casa cedo, TFR conjugal, posse sem herança, concepção pré-nupcial).
+
 ## A fazer
 
 1. **Ciclo menstrual.** Menarca em idade variável (mais tardia com desnutrição), ciclo de ~28 dias com variação individual, janela fértil dentro do ciclo (a concepção deixa de ser risco uniforme no mês), cólica e sintomas que afetam humor, energia e disposição para trabalhar em parte das mulheres, perda de ferro e anemia em quem come mal, amenorreia por fome extrema, irregularidade antes da menopausa. Custo: por evento agendado, nunca por tick.

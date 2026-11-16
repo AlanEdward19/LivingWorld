@@ -82,10 +82,4 @@
      poder vivo mexe na flora. O AD-156 só trocou o `UpsertExtraordinaryCarrier` (antes remover + ordenar a lista inteira).
 107. **Equivalência do conserto dos poderes ligados (AD-156) foi prova de uma vez só**: o teste `PowerCostEquivalenceTests` comparava o hash com o do código antigo (já apagado), nas seeds 1 e 2, e passou antes da junção com o crédito (AD-155). Como qualquer fatia que muda o mundo troca esse hash e o caminho antigo não existe mais para regravar, o teste saiu na junção (custava 8–16 min no gate). Ficam `LivingCarrierIndexTests` e o golden de poderes desligados; falta um teste barato que compare o índice de vivos com a varredura completa no mesmo mundo.
 
-## Do crédito de abertura (AD-159, [credit](../../../docs/domain/credit.md))
-130. **Carência de 6 meses na abertura** (`FoundingGraceMonths`): lembrança de contratos de aldeia com o 1º pagamento na
-     colheita ou feira seguinte (Briggs, *Credit and Village Society*, 2009). Precisa de conferência.
-131. **Prazo da abertura até 60 meses** (`MaxFoundingTermMonths`): crédito rural medieval era curto (meses a poucos anos); 5
-     anos é o teto que lembro para dívida de equipamento com garantia. Precisa de conferência.
-132. **O salário do próprio fundador conta inteiro no ganho que paga a parcela** (`OwnWageInCapacityShare` = 1) e a parcela
-     segue até a metade dele (`MaxInstallmentShare`): sem fonte; escolhido porque a sonda mostrou 4 de 5 negativas pela parcela.
+Itens 120 em diante: [08c-a-investigar.md](08c-a-investigar.md).

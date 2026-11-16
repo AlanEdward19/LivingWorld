@@ -36,9 +36,11 @@ public static class HouseholdMeans
     }
 
     /// <summary>Quanto da vontade de casar com <paramref name="partner"/> sobra a <paramref name="evaluator"/> depois de pesar os
-    /// meios do casal (1 = nada tira).</summary>
-    public static double MarriageReadiness(WorldState world, Npc evaluator, Npc partner)
+    /// meios do casal (1 = nada tira). Sem do que viver (posse de terra vaga, ofício fora da lavoura ou casa própria, AD-158) não sobra nada.</summary>
+    public static double MarriageReadiness(WorldState world, Npc evaluator, Npc partner,
+        Dictionary<LivingWorld.Domain.Shared.CityId, int>? vacantMemo = null)
     {
+        if (!Holdings.HasLivelihood(world, evaluator, partner, vacantMemo)) return 0;
         double weight = world.FamilyRules.Pressure?.MarriageMeansWeight ?? 0;
         if (weight <= 0 || !world.EconomyRules.Enabled) return 1;
         double means = OfCouple(world, evaluator, partner);
