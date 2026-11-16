@@ -79,9 +79,11 @@ public sealed partial class BehaviorDecisionSystem
             return routine;
         }
 
-        // AD-160b: decide na fronteira (ao entrar no tempo livre ou ao concluir o que escolheu), não a cada despertar: quem já
-        // está conversando ou à toa no tempo livre segue até concluir (era o maior custo do cérebro por NPC-tick)
-        if (!justCompleted && npc.CurrentAction is ActionType.Socialize or ActionType.Idle) return npc.CurrentAction.Value;
+        // AD-160b: decide na fronteira da rotina (ao entrar no tempo livre ou quando a rotina muda de faixa), não a cada despertar
+        // nem a cada ação concluída: quem escolheu conversar ou ficar à toa segue nisso até a faixa acabar (era o maior custo do
+        // cérebro por NPC-tick)
+        if (npc.CurrentAction is ActionType.Socialize or ActionType.Idle && !RoutineSlotStarts(world, npc, catalog, stage))
+            return npc.CurrentAction.Value;
 
         var gains = npc.Brain?.Gains ?? NoGains;
         double continuity = world.NeedsRules.ContinuityBonus;
@@ -127,6 +129,15 @@ public sealed partial class BehaviorDecisionSystem
 
     /// <summary>Fome e sede mínimas para ficar além do turno (AD-160b).</summary>
     private const int StayAwayNeedFloor = 50;
+
+    /// <summary>Esta hora começa uma faixa nova da rotina do NPC (a ação da rotina difere da hora anterior).</summary>
+    private static bool RoutineSlotStarts(WorldState world, Npc npc, ActionCatalog catalog, LifeStage stage)
+    {
+        var profession = NoneIfSentinel(npc.Profession);
+        int hpd = world.Calendar.HoursPerDay, hour = world.CurrentDate.Hour;
+        return Needs.RoutineBoundaries.RoutineAt(catalog, profession, stage, hour, hpd)
+            != Needs.RoutineBoundaries.RoutineAt(catalog, profession, stage, (hour + hpd - 1) % hpd, hpd);
+    }
 
     /// <summary>A rotina do NPC manda dormir em até <paramref name="hours"/> horas.</summary>
     private static bool BedtimeWithin(WorldState world, Npc npc, ActionCatalog catalog, LifeStage stage, int hours)
