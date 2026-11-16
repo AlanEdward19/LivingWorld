@@ -86,7 +86,8 @@ public sealed partial class BehaviorDecisionSystem
         // AD-160b: decide na fronteira da rotina (ao entrar no tempo livre ou quando a rotina muda de faixa), não a cada despertar
         // nem a cada ação concluída: quem escolheu conversar ou ficar à toa segue nisso até a faixa acabar (era o maior custo do
         // cérebro por NPC-tick)
-        if (npc.CurrentAction is ActionType.Socialize or ActionType.Idle && !RoutineSlotStarts(world, npc, catalog, stage))
+        if (rules.LeisureKeepsChoice && npc.CurrentAction is ActionType.Socialize or ActionType.Idle
+            && !RoutineSlotStarts(world, npc, catalog, stage))
             return npc.CurrentAction.Value;
 
         var gains = npc.Brain?.Gains ?? NoGains;
