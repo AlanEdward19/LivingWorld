@@ -36,7 +36,11 @@ public class BrainExperimentHarness
     private static string Run(ulong seed, int years, bool brain)
     {
         var (world, _) = ScenarioRunner.Create(seed);
-        if (brain) world.UseBrain(LivingWorld.Domain.Cognition.BrainRules.Default);
+        // AD-160: LW_BRAIN_VARIANT=frozen liga o mecanismo com ganhos presos em zero (separa os bytes do que muda a cada decisão)
+        var rules = Environment.GetEnvironmentVariable("LW_BRAIN_VARIANT") == "frozen"
+            ? LivingWorld.Domain.Cognition.BrainRules.Default with { LearningPerPoint = 0, InheritedNoiseMilli = 0, RearingPullPerSample = 0 }
+            : LivingWorld.Domain.Cognition.BrainRules.Default;
+        if (brain) world.UseBrain(rules);
         var clock = new WorldClock(ScenarioRunner.DefaultSystems());
         int hoursPerDay = world.Calendar.HoursPerDay, month = 30 * hoursPerDay;
         clock.Run(world, (years - 1) * world.Calendar.HoursPerYear);
@@ -72,9 +76,9 @@ public class BrainExperimentHarness
         if (!brain) return line;
 
         var gains = alive.Where(n => n.Brain is not null).SelectMany(n => n.Brain!.Gains).ToList();
-        var rules = world.BrainRules!;
+        var brainRules = world.BrainRules!;
         double meanAbs = gains.Count == 0 ? 0 : gains.Average(g => Math.Abs((double)g));
-        double saturated = gains.Count == 0 ? 0 : gains.Count(g => g <= rules.MinGain || g >= rules.MaxGain) / (double)gains.Count;
+        double saturated = gains.Count == 0 ? 0 : gains.Count(g => g <= brainRules.MinGain || g >= brainRules.MaxGain) / (double)gains.Count;
         return line + $" withBrain={alive.Count(n => n.Brain is not null)} meanAbsGain={meanAbs:F1} saturated={saturated:P2} "
             + $"parentChildCorr={ParentChildCorrelation(world):F3}";
     }
