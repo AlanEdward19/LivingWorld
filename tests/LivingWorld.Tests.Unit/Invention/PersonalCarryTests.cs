@@ -208,7 +208,7 @@ public class PersonalCarryTests
     [Fact]
     public void The_pantry_reaches_anywhere_by_default()
     {
-        Assert.False(InventionRules.Default.PantryNeedsPresence); // AD-151: segue desligada (fome acima da base em 20×100)
+        Assert.False(InventionRules.Default.PantryNeedsPresence); // AD-157: segue desligada (fome crítica 3× a base, medida pareada)
     }
 
     [Fact]

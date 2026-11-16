@@ -16,18 +16,21 @@ namespace LivingWorld.Simulation.Invention;
 /// antes de tudo; em casa, o que sobrou volta para a despensa. Tudo por evento (saída, chegada, decisão): nenhuma varredura.</summary>
 public static class PersonalCarry
 {
-    /// <summary>Espaço para levar: peso de conteúdo (g), volume seco (ml) e a parte estanque dele (ml).</summary>
-    internal readonly record struct Room(long WeightG, long DryMl, long WetMl);
+    /// <summary>Espaço para levar: peso de conteúdo (g), volume seco (ml), a parte estanque dele (ml) e o recipiente (item; 0 = mãos).</summary>
+    internal readonly record struct Room(long WeightG, long DryMl, long WetMl, long ItemId = 0);
 
+    /// <summary>AD-157 (backlog 05 item 12c): o recipiente é de quem o leva. Quem está fora usa o que levou; quem está em casa, o
+    /// melhor que ninguém da casa levou (vários saindo, cada um com o seu, e o último de mãos nuas).</summary>
     internal static Room RoomOf(WorldState world, Npc npc)
     {
         var rules = world.InventionRules!;
         long body = rules.FootCarryKg * 1000L;
-        var carrier = npc.Household is { } h ? world.Invention!.BestCarrier(h.Value, rules) : default;
+        long itemId = 0;
+        var carrier = npc.Household is { } h ? world.Invention!.CarrierFor(npc.Id.Value, h.Value, rules, out itemId) : default;
         if (!carrier.Exists) return new Room(body, rules.HandsVolumeMl, 0);
         long hands = carrier.Worn ? rules.HandsVolumeMl : 0; // segurar o recipiente ocupa as mãos
         long weight = Math.Min(body - carrier.MassG, carrier.CapacityG + hands * rules.WaterDensityKgM3 / 1000);
-        return new Room(Math.Max(0, weight), hands + carrier.InnerMl, carrier.WatertightMl);
+        return new Room(Math.Max(0, weight), hands + carrier.InnerMl, carrier.WatertightMl, itemId);
     }
 
     /// <summary>A despensa não alcança: a casa (não sem-teto) fica a mais de uma hora de caminho de onde a pessoa está.</summary>
@@ -35,17 +38,31 @@ public static class PersonalCarry
     {
         if (!world.InventionOn || !world.InventionRules!.PantryNeedsPresence || home.IsHomeless || npc.CurrentLocation == home.Location)
             return false;
-        // AD-151: a mesma pergunta volta várias vezes na hora (ao acordar, ao comer, ao escolher onde comer): guarda a resposta da
-        // casa naquela célula até a hora, as peças da casa ou as tecnologias mudarem. Só memória: não entra no snapshot nem no hash.
+        return FarFromHome(world, npc, home, npc.CurrentLocation, outbound: false);
+    }
+
+    /// <summary>Mais de uma hora entre a casa e <paramref name="cell"/> (de lá para casa, ou de casa para lá se
+    /// <paramref name="outbound"/>). AD-151/157: a mesma pergunta volta várias vezes (ao acordar, ao comer, ao escolher onde comer,
+    /// ao sair); a resposta só muda com o lugar da casa, as peças da casa (embarcação) ou a tecnologia de caminho da cidade, e fica
+    /// guardada até um deles mudar (antes, só na hora: 30% das perguntas refaziam a conta). Chave inteira (casa, célula, sentido).
+    /// Só memória: não entra no snapshot nem no hash.</summary>
+    private static bool FarFromHome(WorldState world, Npc npc, Household home, CellCoord cell, bool outbound)
+    {
         var memo = world.Invention!.ReachMemo;
-        long hour = world.CurrentDate.TotalHours, touches = world.Invention.Touches;
-        int techs = world.Technologies.Count;
-        var key = (home.Id.Value, npc.City, npc.CurrentLocation);
-        if (memo.TryGetValue(key, out var known) && known.Hour == hour && known.Touches == touches && known.Techs == techs)
+        long touches = world.Invention.Touches;
+        int bonus = Mobility.BonusPct(world, npc.City);
+        long id = home.Id.Value;
+        bool keyed = id is >= 0 and < (1L << 29);
+        long key = ((outbound ? 1L : 0L) << 61) | (id << 32) | ((long)(ushort)cell.X << 16) | (ushort)cell.Y;
+        if (keyed && memo.TryGetValue(key, out var known) && known.Home == home.Location && known.City == npc.City
+            && known.Touches == touches && known.Bonus == bonus)
             return known.Out;
-        if (memo.Count >= 4096) memo.Clear();
-        bool far = Mobility.TravelTicks(world, npc, npc.CurrentLocation, home.Location, 1.0) > 1;
-        memo[key] = (hour, touches, techs, far);
+        bool far = (outbound
+            ? Mobility.TravelTicks(world, npc, home.Location, cell, 1.0)
+            : Mobility.TravelTicks(world, npc, cell, home.Location, 1.0)) > 1;
+        if (!keyed) return far;
+        if (memo.Count >= 8192) memo.Clear();
+        memo[key] = new ReachKnown(home.Location, npc.City, touches, bonus, far);
         return far;
     }
 
@@ -53,7 +70,7 @@ public static class PersonalCarry
     /// <see cref="PantryOutOfReach"/>). Perto, a pessoa come em casa; arrumar a carga só tiraria da despensa para devolver na volta
     /// (e custava a conta da carga em toda saída).</summary>
     public static bool LeavesPantryBehind(WorldState world, Npc npc, Household home, CellCoord destination) =>
-        !home.IsHomeless && destination != home.Location && Mobility.TravelTicks(world, npc, home.Location, destination, 1.0) > 1;
+        !home.IsHomeless && destination != home.Location && FarFromHome(world, npc, home, destination, outbound: true);
 
     /// <summary>Unidades para manter a necessidade acima da linha de urgência por <paramref name="hours"/>: cada unidade a leva ao
     /// nível que ela dá e dura até cair de novo à linha.</summary>
@@ -65,11 +82,17 @@ public static class PersonalCarry
         return (int)Math.Ceiling((hours - untilLine) / perUnit);
     }
 
-    /// <summary>Ao sair de casa: leva a água e a comida que a sede e a fome vão pedir até voltar (<paramref name="hoursAway"/>), no
-    /// que couber (água só no volume estanque, primeiro, porque mata antes) e sem tirar da casa uma unidade por dia fora de cada
-    /// outro morador.</summary>
-    public static void PackForTrip(WorldState world, Npc npc, Household home, long hoursAway, long now)
+    /// <summary>Ao sair de casa: leva a água e a comida que a sede e a fome vão pedir até voltar (<paramref name="hoursAway"/>).</summary>
+    public static void PackForTrip(WorldState world, Npc npc, Household home, long hoursAway, long now) =>
+        PackForTrip(world, npc, home, hoursAway, hoursAway, now);
+
+    /// <summary>Ao sair de casa: leva a água para <paramref name="waterHours"/> e a comida para <paramref name="foodHours"/> (AD-157: quem
+    /// tem a refeição no trabalho leva só para o caminho), no que couber (água só no volume estanque, primeiro, porque mata antes).
+    /// Quem fica come primeiro: a casa guarda, de cada outro morador, o que ele vai comer e beber enquanto a pessoa está fora (pelo
+    /// menos uma unidade por dia). Levando algo, o recipiente sai com a pessoa e fica dela até voltar (backlog 05 item 12c).</summary>
+    public static void PackForTrip(WorldState world, Npc npc, Household home, long waterHours, long foodHours, long now)
     {
+        long hoursAway = Math.Max(waterHours, foodHours);
         if (hoursAway <= 0 || home.IsHomeless) return;
         var needs = world.NeedsRules;
         var econ = world.EconomyRules;
@@ -77,26 +100,32 @@ public static class PersonalCarry
         int line = 100 - needs.UrgencyThreshold;
         var water = new ResourceType(econ.WaterResourceId);
         var food = new ResourceType(econ.FoodResourceId);
-        int wantWater = UnitsFor(npc.ThirstAt(now), needs.ThirstDecayPerHour, hoursAway, line,
-            ObjectUse.ConsumeLevel(world, water, ObjectEffectTargets.Thirst));
-        int wantFood = UnitsFor(npc.HungerAt(now), needs.HungerDecayPerHour, hoursAway, line,
-            ObjectUse.ConsumeLevel(world, food, ObjectEffectTargets.Hunger));
+        int waterLevel = ObjectUse.ConsumeLevel(world, water, ObjectEffectTargets.Thirst);
+        int foodLevel = ObjectUse.ConsumeLevel(world, food, ObjectEffectTargets.Hunger);
+        int wantWater = UnitsFor(npc.ThirstAt(now), needs.ThirstDecayPerHour, waterHours, line, waterLevel);
+        int wantFood = UnitsFor(npc.HungerAt(now), needs.HungerDecayPerHour, foodHours, line, foodLevel);
         if (wantWater == 0 && wantFood == 0) return;
 
         var ledger = world.Invention!;
         wantWater -= ledger.CarriedQuantity(npc.Id.Value, water.Id);
         wantFood -= ledger.CarriedQuantity(npc.Id.Value, food.Id);
-        int others = Math.Max(0, home.Members.Count - 1);
+        if (wantWater <= 0 && wantFood <= 0) return;
         long days = Math.Max(1, (hoursAway + world.Calendar.HoursPerDay - 1) / world.Calendar.HoursPerDay);
-        long reserve = others * days;
+        long keepWater = 0, keepFood = 0;
+        foreach (var memberId in home.Members)
+        {
+            if (memberId == npc.Id || world.FindNpc(memberId) is not { IsAlive: true } other) continue;
+            keepWater += Math.Max(days, UnitsFor(other.ThirstAt(now), needs.ThirstDecayPerHour, hoursAway, line, waterLevel));
+            keepFood += Math.Max(days, UnitsFor(other.HungerAt(now), needs.HungerDecayPerHour, hoursAway, line, foodLevel));
+        }
         var room = RoomOf(world, npc);
         long weight = room.WeightG, dry = room.DryMl, wet = room.WetMl;
 
-        int Take(ResourceType resource, int want, long volume)
+        int Take(ResourceType resource, int want, long volume, long keep)
         {
             if (want <= 0) return 0;
             long unitMl = rules.UnitMlOf(resource.Id), unitG = rules.UnitGramsOf(resource.Id);
-            long spare = home.Stock.GetValueOrDefault(resource) - reserve;
+            long spare = home.Stock.GetValueOrDefault(resource) - keep;
             long n = Math.Min(Math.Min(want, spare), Math.Min(volume / unitMl, weight / unitG));
             if (n <= 0 || !home.Withdraw(resource, n).IsSuccess) return 0;
             ledger.Carry(npc.Id.Value, resource.Id, (int)n);
@@ -106,17 +135,19 @@ public static class PersonalCarry
             return (int)n;
         }
 
-        int took = Take(water, wantWater, rules.IsLiquid(water.Id) ? wet : dry);
-        took += Take(food, wantFood, rules.IsLiquid(food.Id) ? wet : dry);
+        int took = Take(water, wantWater, rules.IsLiquid(water.Id) ? wet : dry, keepWater);
+        took += Take(food, wantFood, rules.IsLiquid(food.Id) ? wet : dry, keepFood);
         if (took == 0) return;
+        if (room.ItemId != 0 && ledger.HeldBy(npc.Id.Value) != room.ItemId) ledger.Hold(npc.Id.Value, room.ItemId);
         world.InventionTally.PackTrips++;
         world.InventionTally.PackUnits += took;
     }
 
-    /// <summary>Em casa: o que sobrou do que levou volta para a despensa.</summary>
+    /// <summary>Em casa: o que sobrou do que levou volta para a despensa, e o recipiente volta para a casa.</summary>
     public static void Unpack(WorldState world, Npc npc, Household home)
     {
         var ledger = world.Invention!;
+        ledger.Hold(npc.Id.Value, 0);
         int i = ledger.CarriedIndex(npc.Id.Value, int.MinValue);
         i = i >= 0 ? i : ~i;
         while (i < ledger.Carried.Count && ledger.Carried[i].NpcId == npc.Id.Value)
@@ -211,6 +242,7 @@ public static class PersonalCarry
         var ledger = world.Invention!;
         int mind = ledger.CarryMindIndex(npcId);
         if (mind >= 0) ledger.RemoveCarryMind(mind);
+        ledger.Hold(npcId, 0); // o recipiente fica com a casa
         if (!ledger.CarriesAnything(npcId)) return;
         var home = world.FindNpc(new LivingWorld.Domain.Shared.NpcId(npcId)) is { Household: { } h } ? world.FindHousehold(h) : null;
         int i = ledger.CarriedIndex(npcId, int.MinValue);

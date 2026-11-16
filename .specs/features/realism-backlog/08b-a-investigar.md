@@ -32,7 +32,7 @@
     estreitar o ruído.
 
 ## Da medição (2026-11-15)
-86. **O critério "fome ≤ base em 20 seeds" não discrimina**: nas mesmas seeds 1–20, desligar um crime raro (sequestro, 0,02 por seed-ano) move as mortes de fome de 339 para 462; o ruído de trajetória passa de ±20%. Falta uma medida que aguente (mais seeds, pares com trajetória comum, ou taxa por pessoa-ano com intervalo) antes de aceitar ou recusar fatia por fome. AD-153 (+6% em 40 seeds) e AD-154 (+10,6%) foram aceitos sem causa isolada. (AD-161: desenho proposto em [a-medir](relatorios/a-medir.md): taxa por 1.000 pessoas-ano, pares de seed, bootstrap de seeds, aceite por não inferioridade com margem 1,25, piloto de 40 pares para dimensionar.)
+86. ~~**Falta uma medida de fome que aguente o ruído**~~ medida criada no AD-157 (`NeedDistressTally`: horas com fome/sede crítica por pessoa-ano, pareado em 40 seeds × 15 anos; 08c item 108). Desenho para 20×100 em [a-medir](relatorios/a-medir.md).
 
 ## Do crédito e da falência (AD-155, [credit](../../../docs/domain/credit.md))
 90. ~~**Usura**~~ (AD-161, [economia](relatorios/conferencia-economia-e-credito.md)): 10%/ano e teto de 20% conferem (montes ~5%, judeus 43,3%, penhoristas 20–30%).

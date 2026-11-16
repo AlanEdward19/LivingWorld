@@ -80,13 +80,12 @@
 59. ~~**Casa inteira sem trabalho não emigra**~~ confirmado no código (AD-161, `EmigrationSystem.cs:67`); issue #173.
 60. ~~**Números sem fonte do AD-149**~~ (AD-161): 220/ha e 320 por ano conferem; 1,4 ha por fundador fora da faixa (sugerido 0,7–1,0); capina escolha.
 61. **Custo do AD-149 a 5.000 NPCs** não medido; goldens, pins e baselines feitos na junção (AD-161).
-62. **Carga pessoal segue desligada (AD-151)**: 20×100 com a refeição paga, fome 4,5–5,3% contra 4,1%; ruído ~±20% por bloco de 20 seeds. Decidir pelo desenho do item 86 ([a-medir](relatorios/a-medir.md) grupo 1).
-63. **CPU da carga ligada**: `behavior-decision` +0–40% e bytes 189–204 por NPC-tick entre rodadas (desligada, 189–192); trechos
-    medidos ~0,7 µs (arrumar na saída, `PantryOutOfReach`). Falta achar a fonte da variação.
+62. ~~**Carga pessoal segue desligada**~~ decidido com medida que discrimina no AD-157 (fome crítica 3× a base com ela ligada, 38 de 40 seeds; 08c item 108–110).
+63. ~~**CPU da carga ligada**~~ fonte achada no AD-157: ~1/3 no código da carga, o resto em decisões urgentes de quem tem mais fome (+14–35%); 08c item 110.
 64. ~~**Números sem fonte do AD-151**~~ (AD-161): refeição ~¼–⅓ do salário de ofício (estatuto de 1446) e desconto inteiro no lavrador conferem.
 65. **Custo do AD-151 a 5.000 NPCs** não medido; goldens, pins e baselines feitos na junção (AD-161).
 66. ~~**Caderneta de quem morre**~~ confirmada no código (perdoada, `WagePaymentSystem.cs:94-106`); issue #171 (credor no espólio).
-67. ~~**Quem tem refeição no trabalho ainda leva comida de casa**~~ confirmado no código (AD-161); correção pequena em correções.
+67. ~~**Quem tem refeição no trabalho ainda leva comida de casa**~~ resolvido no AD-157 (leva só para o caminho; vale com a carga ligada).
 
 ## Do empreendedorismo (AD-152, [venture](../../../docs/domain/venture.md))
 68. ~~**Números sem fonte do AD-152**~~ (AD-161): mestre aos 21 plausível (7 anos de aprendizagem); o resto escolha de modelo.

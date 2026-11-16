@@ -38,6 +38,11 @@ public sealed class InventionLedger
     public List<CarriedLoad> Carried { get; init; } = [];
     public List<InventionMind> CarryMinds { get; init; } = [];
 
+    /// <summary>O recipiente que cada pessoa levou consigo (AD-157, ordenado por pessoa): é dela até voltar para casa. Nulo enquanto
+    /// ninguém levou nada: o snapshot antigo abre igual e o mundo com a carga desligada não ganha o campo.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<HeldItem>? Held { get; set; }
+
     /// <summary>Designs concebidos para carregar (ordenados): a função de um design é o problema de quem o concebeu (AD-147).</summary>
     public List<int> CarryDesigns { get; init; } = [];
 
@@ -50,10 +55,11 @@ public sealed class InventionLedger
     private Dictionary<long, Craft>? _bestCraftByHousehold;
     private Dictionary<long, int>? _listingsByMarket;
     private Dictionary<long, Carrier>? _bestCarrierByHousehold;
+    private Dictionary<long, List<(long ItemId, Carrier Carrier)>>? _carriersByHousehold;
     private Dictionary<long, Hauler>? _bestHaulerByHousehold;
 
     /// <summary>AD-151: memória volátil de <see cref="PersonalCarry.PantryOutOfReach"/> por (casa, cidade, célula).</summary>
-    [JsonIgnore] internal Dictionary<(long Household, CityId City, LivingWorld.Domain.Geography.CellCoord From), (long Hour, long Touches, int Techs, bool Out)> ReachMemo { get; } = [];
+    [JsonIgnore] internal Dictionary<long, ReachKnown> ReachMemo { get; } = [];
 
     /// <summary>A melhor peça que funciona de uma casa: velocidade (com a qualidade), carga útil com a pessoa de referência,
     /// estabilidade e o design (volátil, derivado dos itens).</summary>
@@ -90,6 +96,7 @@ public sealed class InventionLedger
         _bestCraftByHousehold = null;
         _listingsByMarket = null;
         _bestCarrierByHousehold = null;
+        _carriersByHousehold = null;
         _bestHaulerByHousehold = null;
     }
 
@@ -175,21 +182,94 @@ public sealed class InventionLedger
     internal Carrier BestCarrier(long householdId, InventionRules rules)
     {
         if (Items.Count == 0) return default;
-        if (_bestCarrierByHousehold is null)
+        if (_bestCarrierByHousehold is null) BuildCarriers(rules);
+        return _bestCarrierByHousehold!.GetValueOrDefault(householdId);
+    }
+
+    private void BuildCarriers(InventionRules rules)
+    {
+        _bestCarrierByHousehold = [];
+        _carriersByHousehold = [];
+        foreach (var item in Items)
         {
-            _bestCarrierByHousehold = [];
-            foreach (var item in Items)
-            {
-                if (item.ForSale || FindDesign(item.DesignId) is not { } design || FunctionOf(design.Id) != 1) continue;
-                var c = ContainmentOf(design, rules);
-                long capacity = c.CapacityG * item.QualityPm / 1000;
-                // AD-149: a peça presa ao corpo vale também as mãos livres (o que elas ainda levam), como na pontuação da ideia
-                var held = _bestCarrierByHousehold.GetValueOrDefault(item.HouseholdId);
-                if (Reach(capacity, c.Worn, rules) > Reach(held.CapacityG, held.Worn, rules))
-                    _bestCarrierByHousehold[item.HouseholdId] = new Carrier(capacity, c.InnerMl, c.WatertightMl, c.MassG, c.Worn, design.Id);
-            }
+            if (item.ForSale || FindDesign(item.DesignId) is not { } design || FunctionOf(design.Id) != 1) continue;
+            var c = ContainmentOf(design, rules);
+            long capacity = c.CapacityG * item.QualityPm / 1000;
+            var carrier = new Carrier(capacity, c.InnerMl, c.WatertightMl, c.MassG, c.Worn, design.Id);
+            // AD-149: a peça presa ao corpo vale também as mãos livres (o que elas ainda levam), como na pontuação da ideia
+            var held = _bestCarrierByHousehold.GetValueOrDefault(item.HouseholdId);
+            if (Reach(capacity, c.Worn, rules) > Reach(held.CapacityG, held.Worn, rules))
+                _bestCarrierByHousehold[item.HouseholdId] = carrier;
+            if (!_carriersByHousehold.TryGetValue(item.HouseholdId, out var list)) _carriersByHousehold[item.HouseholdId] = list = [];
+            list.Add((item.Id, carrier));
         }
-        return _bestCarrierByHousehold.GetValueOrDefault(householdId);
+        // a melhor primeiro (empate: o item mais antigo), para quem sai pegar a melhor que ainda está em casa
+        foreach (var list in _carriersByHousehold.Values)
+            list.Sort((a, b) =>
+            {
+                int cmp = Reach(b.Carrier.CapacityG, b.Carrier.Worn, rules).CompareTo(Reach(a.Carrier.CapacityG, a.Carrier.Worn, rules));
+                return cmp != 0 ? cmp : a.ItemId.CompareTo(b.ItemId);
+            });
+    }
+
+    /// <summary>O recipiente de uma pessoa (AD-157): o que ela levou de casa ou, em casa, o melhor que ninguém da casa levou; padrão =
+    /// nenhum (mãos nuas). <paramref name="itemId"/> é o item, para quem vai sair com ele.</summary>
+    internal Carrier CarrierFor(long npcId, long householdId, InventionRules rules, out long itemId)
+    {
+        itemId = 0;
+        if (Items.Count == 0) return default;
+        if (_carriersByHousehold is null) BuildCarriers(rules);
+        if (!_carriersByHousehold!.TryGetValue(householdId, out var list)) return default;
+        long mine = HeldBy(npcId);
+        if (mine != 0)
+        {
+            foreach (var (id, c) in list) if (id == mine) { itemId = id; return c; }
+            return default; // o que levou não é desta casa (mudou de casa) ou gastou
+        }
+        foreach (var (id, c) in list)
+            if (!IsHeld(id)) { itemId = id; return c; }
+        return default;
+    }
+
+    /// <summary>O item que a pessoa levou; 0 = nenhum.</summary>
+    internal long HeldBy(long npcId)
+    {
+        if (Held is not { Count: > 0 } held) return 0;
+        int i = HeldIndex(held, npcId);
+        return i >= 0 ? held[i].ItemId : 0;
+    }
+
+    private bool IsHeld(long itemId)
+    {
+        if (Held is not { Count: > 0 } held) return false;
+        foreach (var h in held) if (h.ItemId == itemId) return true; // poucos fora de casa ao mesmo tempo
+        return false;
+    }
+
+    /// <summary>A pessoa sai com o item (<paramref name="itemId"/> &gt; 0) ou o devolve à casa (0).</summary>
+    internal void Hold(long npcId, long itemId)
+    {
+        if (itemId == 0 && Held is not { Count: > 0 }) return;
+        Held ??= [];
+        int i = HeldIndex(Held, npcId);
+        if (itemId == 0) { if (i >= 0) Held.RemoveAt(i); }
+        else if (i >= 0) Held[i] = new HeldItem(npcId, itemId);
+        else Held.Insert(~i, new HeldItem(npcId, itemId));
+        if (Held.Count == 0) Held = null;
+        Version++;
+    }
+
+    private static int HeldIndex(List<HeldItem> held, long npcId)
+    {
+        int lo = 0, hi = held.Count - 1;
+        while (lo <= hi)
+        {
+            int mid = (lo + hi) >> 1;
+            long id = held[mid].NpcId;
+            if (id == npcId) return mid;
+            if (id < npcId) lo = mid + 1; else hi = mid - 1;
+        }
+        return ~lo;
     }
 
     /// <summary>Velocidade (mm/s) da melhor peça que funciona do domicílio; 0 = nenhuma.</summary>
@@ -440,6 +520,9 @@ public sealed class InventionLedger
         Touch();
     }
 }
+
+/// <summary>Uma resposta guardada do alcance da despensa (AD-157): onde a casa estava, a cidade, as peças e a tecnologia de então.</summary>
+internal readonly record struct ReachKnown(LivingWorld.Domain.Geography.CellCoord Home, CityId City, long Touches, int Bonus, bool Out);
 
 /// <summary>Contagem de medição (volátil e efêmera: só o relatório lê, nenhum sistema decide por ela).</summary>
 public sealed class InventionTally

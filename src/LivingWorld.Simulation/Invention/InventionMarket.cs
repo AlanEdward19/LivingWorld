@@ -23,7 +23,8 @@ public static class InventionMarket
     /// <summary>Carga (g) que a casa leva numa ida ao mercado; <see cref="long.MaxValue"/> quando nada corta: sem água no caminho e
     /// com <see cref="InventionRules.LandCargo"/> desligado, ou com o mercado na porta de casa. AD-153: por terra também se leva só o
     /// que cabe nos braços, no recipiente ou no veículo de terra da casa (puxado por quem foi; ele vadeia como quem anda).</summary>
-    public static long CargoGrams(WorldState world, Household household, CellCoord market)
+    /// AD-157: com <paramref name="buyer"/>, o recipiente é o de quem foi (o que levou, ou o que ninguém da casa levou).
+    public static long CargoGrams(WorldState world, Household household, CellCoord market, Npc? buyer = null)
     {
         if (!world.InventionOn) return long.MaxValue;
         var rules = world.InventionRules!;
@@ -31,7 +32,9 @@ public static class InventionMarket
         if (water == 0 && (!rules.LandCargo || household.Location == market)) return long.MaxValue;
         long foot = rules.FootCarryKg * 1000L;
         // AD-147: o recipiente da casa: preso ao corpo soma ao que os braços levam; na mão, leva o que ele aguenta
-        var carrier = world.Invention!.BestCarrier(household.Id.Value, rules);
+        var carrier = buyer is null
+            ? world.Invention!.BestCarrier(household.Id.Value, rules)
+            : world.Invention!.CarrierFor(buyer.Id.Value, household.Id.Value, rules, out _);
         if (carrier.Exists)
         {
             foot = carrier.Worn ? foot + carrier.CapacityG : Math.Max(foot, carrier.CapacityG);
