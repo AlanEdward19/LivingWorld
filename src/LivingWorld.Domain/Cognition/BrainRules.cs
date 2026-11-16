@@ -46,6 +46,9 @@ public sealed record BrainRules(
         PantryDayValue: 20, MoneyDayValue: 10, ValueHorizonDays: 4, WageHoursPerMonth: 270,
         InheritExpectation: true, WeighsLeisure: true, LeisureNeedFloor: 50, MeanStep: 16, LeisureMayIdle: false);
 
+    /// <summary>Desligado (AD-160b: o cenário de código liga por padrão; isto é o braço "sem cérebro" das comparações).</summary>
+    public static BrainRules Off { get; } = Default with { Enabled = false };
+
     /// <summary>O experimento como juntado no AD-142 (para comparar): sem nada do AD-160 nem do AD-160b.</summary>
     public static BrainRules Ad142 { get; } = Default with
     {
@@ -60,6 +63,7 @@ public sealed record BrainRules(
     public static BrainRules? Variant(string? name) => name switch
     {
         null or "" or "1" or "default" => Default,
+        "0" or "off" => Off,
         "frozen" => Default with { LearningPerPoint = 0, InheritedNoiseMilli = 0, RearingPullPerSample = 0 },
         "ad142" => Ad142,
         "ad160" => Ad142 with { CriticalNeed = 20, FirstExperienceSetsExpectation = true },

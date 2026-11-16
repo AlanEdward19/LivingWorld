@@ -39,7 +39,7 @@ public class BrainExperimentHarness
         // AD-160: LW_BRAIN_VARIANT=frozen liga o mecanismo com ganhos presos em zero (separa os bytes do que muda a cada decisão)
         var rules = LivingWorld.Domain.Cognition.BrainRules.Variant(Environment.GetEnvironmentVariable("LW_BRAIN_VARIANT"))
             ?? LivingWorld.Domain.Cognition.BrainRules.Default;
-        if (brain) world.UseBrain(rules);
+        world.UseBrain(brain ? rules : null); // AD-160b: o cenário liga; o braço sem cérebro desliga
         var clock = new WorldClock(ScenarioRunner.DefaultSystems());
         int hoursPerDay = world.Calendar.HoursPerDay, month = 30 * hoursPerDay;
         clock.Run(world, (years - 1) * world.Calendar.HoursPerYear);

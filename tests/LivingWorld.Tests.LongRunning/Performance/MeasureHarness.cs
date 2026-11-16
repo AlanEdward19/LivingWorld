@@ -49,6 +49,7 @@ public class MeasureHarness
 
     private static void MaybeBrain(WorldState world)
     {
+        // AD-160b: o cenário liga o cérebro; LW_MEASURE_BRAIN=0 (ou off) mede sem, uma variante mede com ela
         if (Brain is { } brain) world.UseBrain(brain);
         // LW_MEASURE_NO_INVENTION=1 desliga a invenção (AD-143): mede o custo dela na mesma árvore, com o mesmo código
         if (Environment.GetEnvironmentVariable("LW_MEASURE_NO_INVENTION") == "1") world.UseInvention(null);
