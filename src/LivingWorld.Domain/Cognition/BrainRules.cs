@@ -52,9 +52,20 @@ public sealed record BrainRules(
     /// <summary>O experimento como juntado no AD-142 (para comparar): sem nada do AD-160 nem do AD-160b.</summary>
     public static BrainRules Ad142 { get; } = Default with
     {
-        CriticalNeed = 0, FirstExperienceSetsExpectation = false, InheritedNoiseMilli = 100, BaseMinGain = -500, BaseMaxGain = 1000, GainStep = 1,
-        LearningPerPoint = 0.1, MeanWindow = 8, MeanStep = 1,
-        PantryDayValue = 0, MoneyDayValue = 0, ValueHorizonDays = 0, WageHoursPerMonth = 0, InheritExpectation = false,
+        CriticalNeed = 0,
+        FirstExperienceSetsExpectation = false,
+        InheritedNoiseMilli = 100,
+        BaseMinGain = -500,
+        BaseMaxGain = 1000,
+        GainStep = 1,
+        LearningPerPoint = 0.1,
+        MeanWindow = 8,
+        MeanStep = 1,
+        PantryDayValue = 0,
+        MoneyDayValue = 0,
+        ValueHorizonDays = 0,
+        WageHoursPerMonth = 0,
+        InheritExpectation = false,
         WeighsLeisure = false,
     };
 
