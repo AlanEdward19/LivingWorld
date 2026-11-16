@@ -33,7 +33,7 @@ public sealed record BrainRules(
     public static BrainRules Default { get; } = new(
         Enabled: true, MinGain: -500, MaxGain: 1000,
         LearningPerPoint: 0.1, AdultLearningFloor: 0.25, LearningFullUntilYears: 20, LearningFloorFromYears: 60,
-        MeanWindow: 8, InheritedNoiseMilli: 100, RearingPullPerSample: 0.01, CriticalNeed: 20,
+        MeanWindow: 8, InheritedNoiseMilli: 100, RearingPullPerSample: 0.01, CriticalNeed: 30,
         FirstExperienceSetsExpectation: true,
         BaseMinGain: 0, BaseMaxGain: 0, GainStep: 10,
         PantryDayValue: 20, MoneyDayValue: 10, ValueHorizonDays: 4, WageHoursPerMonth: 270,
@@ -55,8 +55,10 @@ public sealed record BrainRules(
         "frozen" => Default with { LearningPerPoint = 0, InheritedNoiseMilli = 0, RearingPullPerSample = 0 },
         "ad142" => Ad142,
         "ad160" => Ad142 with { CriticalNeed = 20, FirstExperienceSetsExpectation = true },
+        "body20" => Default with { CriticalNeed = 20 },
         "noleisure" => Default with { WeighsLeisure = false },
-        "body40" => Default with { CriticalNeed = 40 },
+        "nolearn" => Default with { LearningPerPoint = 0 },
+        "slow" => Default with { LearningPerPoint = 0.02 },
         _ => null,
     };
 
