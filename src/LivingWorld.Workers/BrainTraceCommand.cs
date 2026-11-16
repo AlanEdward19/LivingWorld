@@ -52,12 +52,7 @@ public static class BrainTraceCommand
 public static class BrainVariant
 {
     public static LivingWorld.Domain.Cognition.BrainRules? FromEnvironment() =>
-        Environment.GetEnvironmentVariable("LW_BRAIN_VARIANT") switch
-        {
-            "frozen" => LivingWorld.Domain.Cognition.BrainRules.Default with { LearningPerPoint = 0, InheritedNoiseMilli = 0, RearingPullPerSample = 0 },
-            "ad142" => LivingWorld.Domain.Cognition.BrainRules.Default with { CriticalNeed = 0, FirstExperienceSetsExpectation = false },
-            "body" => LivingWorld.Domain.Cognition.BrainRules.Default with { FirstExperienceSetsExpectation = false }, // só o corpo decide
-            "body40" => LivingWorld.Domain.Cognition.BrainRules.Default with { CriticalNeed = 40 }, // AD-160, 3ª tentativa: o corpo decide mais cedo // o experimento como foi juntado
-            _ => null,
-        };
+        Environment.GetEnvironmentVariable("LW_BRAIN_VARIANT") is { Length: > 0 } name
+            ? LivingWorld.Domain.Cognition.BrainRules.Variant(name)
+            : null;
 }

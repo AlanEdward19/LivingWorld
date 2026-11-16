@@ -37,9 +37,8 @@ public class BrainExperimentHarness
     {
         var (world, _) = ScenarioRunner.Create(seed);
         // AD-160: LW_BRAIN_VARIANT=frozen liga o mecanismo com ganhos presos em zero (separa os bytes do que muda a cada decisão)
-        var rules = Environment.GetEnvironmentVariable("LW_BRAIN_VARIANT") == "frozen"
-            ? LivingWorld.Domain.Cognition.BrainRules.Default with { LearningPerPoint = 0, InheritedNoiseMilli = 0, RearingPullPerSample = 0 }
-            : LivingWorld.Domain.Cognition.BrainRules.Default;
+        var rules = LivingWorld.Domain.Cognition.BrainRules.Variant(Environment.GetEnvironmentVariable("LW_BRAIN_VARIANT"))
+            ?? LivingWorld.Domain.Cognition.BrainRules.Default;
         if (brain) world.UseBrain(rules);
         var clock = new WorldClock(ScenarioRunner.DefaultSystems());
         int hoursPerDay = world.Calendar.HoursPerDay, month = 30 * hoursPerDay;

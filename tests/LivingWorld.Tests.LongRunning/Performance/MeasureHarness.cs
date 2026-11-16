@@ -42,13 +42,10 @@ public class MeasureHarness
     /// <summary>LW_MEASURE_BRAIN=1 liga o cérebro com ganhos aprendidos (AD-142) em todos os mundos medidos; sem ele, como sempre.
     /// AD-160: <c>frozen</c> liga o mecanismo inteiro com ganhos presos em zero (escolhe igual à utilidade: separa o custo do mecanismo
     /// do efeito no mundo); <c>ad142</c> é o experimento como foi juntado (sem o corpo decidir na necessidade crítica).</summary>
-    private static LivingWorld.Domain.Cognition.BrainRules? Brain => Environment.GetEnvironmentVariable("LW_MEASURE_BRAIN") switch
-    {
-        "1" => LivingWorld.Domain.Cognition.BrainRules.Default,
-        "frozen" => LivingWorld.Domain.Cognition.BrainRules.Default with { LearningPerPoint = 0, InheritedNoiseMilli = 0, RearingPullPerSample = 0 },
-        "ad142" => LivingWorld.Domain.Cognition.BrainRules.Default with { CriticalNeed = 0, FirstExperienceSetsExpectation = false },
-        _ => null,
-    };
+    private static LivingWorld.Domain.Cognition.BrainRules? Brain =>
+        Environment.GetEnvironmentVariable("LW_MEASURE_BRAIN") is { Length: > 0 } name
+            ? LivingWorld.Domain.Cognition.BrainRules.Variant(name)
+            : null;
 
     private static void MaybeBrain(WorldState world)
     {

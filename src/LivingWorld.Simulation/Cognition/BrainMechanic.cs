@@ -29,7 +29,7 @@ internal static class BrainMechanic
 
     /// <summary>Depois de uma escolha pela utilidade: guarda a participação (milésimos, com sinal) de cada grupo na nota da
     /// vencedora. Nota sem nenhum grupo (poder, furto) não deixa nada para aprender.</summary>
-    internal static void Remember(Npc npc, ActionType action, ReadOnlySpan<double> groups)
+    internal static void Remember(Npc npc, ActionType action, ReadOnlySpan<double> groups, double valueNow = 0)
     {
         double total = 0;
         foreach (double g in groups) total += Math.Abs(g);
@@ -51,8 +51,50 @@ internal static class BrainMechanic
             npc.SetBrain(brain);
         }
 
-        brain.Remember(action, shares);
+        brain.Remember(action, shares, valueNow);
         npc.TouchBrain();
+    }
+
+    /// <summary>Preço de referência de uma unidade de comida: o piso do cenário (nunca menos de 1). Fixo, para a moeda valer o
+    /// mesmo em toda medida e a conta não depender de achar o mercado.</summary>
+    internal static long FoodReferencePrice(WorldState world) =>
+        Math.Max(1, world.EconomyRules.PriceFloor.GetValueOrDefault(world.EconomyRules.FoodResourceId));
+
+    /// <summary>AD-160b: o estado do NPC agora em pontos (<see cref="BrainRules.ValuesSustenance"/>).</summary>
+    internal static BrainValue ValueOf(WorldState world, Npc npc, long tick)
+    {
+        var rules = world.BrainRules ?? BrainRules.Default;
+        double body = npc.HungerAt(tick) + npc.ThirstAt(tick) + npc.SleepAt(tick) + npc.SocialAt(tick);
+        double mood = npc.Psyche is null ? 0 : 100 * PsycheMechanic.AffectOf(world, npc, tick).Valence;
+        double pantryDays = 0;
+        int members = 1;
+        if (npc.Household is { } id && world.FindHousehold(id) is { } home)
+        {
+            members = Math.Max(1, home.Members.Count);
+            var economy = world.EconomyRules;
+            long scarcest = Math.Min(
+                home.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId)),
+                home.Stock.GetValueOrDefault(new ResourceType(economy.WaterResourceId)));
+            pantryDays = (double)scarcest / members;
+        }
+
+        double moneyDays = (double)npc.Wallet.Amount / (FoodReferencePrice(world) * members);
+        double horizon = rules.ValueHorizonDays;
+        return new BrainValue(body, rules.PantryDayValue * Math.Min(pantryDays, horizon),
+            rules.MoneyDayValue * Math.Min(moneyDays, horizon), mood);
+    }
+
+    /// <summary>AD-160b: o salário que uma jornada de <paramref name="hours"/> horas rende ao NPC, em pontos (dias de comida que ele
+    /// compra × <see cref="BrainRules.MoneyDayValue"/>, até o horizonte). O salário cai no fim do mês; a parte desta jornada é
+    /// creditada ao trabalho feito, no fim dele.</summary>
+    internal static double WageCredit(WorldState world, Npc npc, double hours)
+    {
+        var rules = world.BrainRules!;
+        if (rules.WageHoursPerMonth <= 0 || npc.Employer is null) return 0;
+        if (!world.EconomyRules.WageByProfession.TryGetValue(npc.Profession.Id, out long wage) || wage <= 0) return 0;
+        int members = npc.Household is { } id && world.FindHousehold(id) is { } home ? Math.Max(1, home.Members.Count) : 1;
+        double days = wage * hours / rules.WageHoursPerMonth / (FoodReferencePrice(world) * members);
+        return rules.MoneyDayValue * Math.Min(days, rules.ValueHorizonDays);
     }
 
     /// <summary>Estado sentido: soma das quatro necessidades, valência do humor, dias de despensa por morador e o maior déficit
@@ -85,7 +127,7 @@ internal static class BrainMechanic
 
     /// <summary>Conclusão da ação guardada: cada grupo que a escolheu muda o ganho em <c>taxa(idade) × surpresa ×
     /// participação</c>; a surpresa é a recompensa menos o que esta ação costuma dar ao NPC, que então se atualiza.</summary>
-    internal static void Learn(WorldState world, Npc npc, ActionType action, double reward)
+    internal static void Learn(WorldState world, Npc npc, ActionType action, double reward, WorldRng? rng = null)
     {
         var rules = world.BrainRules!;
         var brain = npc.Brain!;
@@ -100,7 +142,16 @@ internal static class BrainMechanic
         {
             int share = brain.ShareOf(i);
             if (share == 0) continue;
-            brain.Gains[row + i] = rules.Clamp(brain.Gains[row + i] + rate * surprise * share / 1000.0, i);
+            double delta = rate * surprise * share / 1000.0;
+            // AD-160b: o ganho anda em degraus de GainStep; o que sobra de um degrau move com chance proporcional (sem viés),
+            // então experiência pequena raramente reescreve o ganho (menos bytes no snapshot) e a média aprendida é a mesma
+            if (rules.GainStep > 1 && rng is not null)
+            {
+                double steps = delta / rules.GainStep, whole = Math.Floor(steps);
+                delta = (whole + (rng.NextDouble() < steps - whole ? 1 : 0)) * rules.GainStep;
+                if (delta == 0) continue;
+            }
+            brain.Gains[row + i] = rules.Clamp(brain.Gains[row + i] + delta, i);
         }
 
         short mean = (short)Math.Clamp(
@@ -121,8 +172,17 @@ internal static class BrainMechanic
         {
             double noise = (rng.NextDouble() * 2 - 1) * rules.InheritedNoiseMilli;
             double parents = ((mother?.Gains[i] ?? 0) + (father?.Gains[i] ?? 0)) / 2.0;
-            child.Gains[i] = rules.Clamp(h * parents + independent * noise);
+            child.Gains[i] = rules.Clamp(h * parents + independent * noise, i % BrainState.Groups);
         }
+
+        // AD-160b: o filho já sabe pelo que viu em casa o que cada ação costuma render (média do que os pais esperam)
+        if (rules.InheritExpectation)
+            for (int a = 0; a < child.ActionMeans.Length; a++)
+            {
+                int m = mother?.ActionMeans[a] ?? 0, f = father?.ActionMeans[a] ?? 0;
+                int known = (m != BrainState.Unknown ? 1 : 0) + (f != BrainState.Unknown ? 1 : 0);
+                if (known > 0) child.ActionMeans[a] = (short)Math.Round((m + f) / (double)known, MidpointRounding.AwayFromZero) is var e and not 0 ? e : (short)1;
+            }
 
         return child;
     }
@@ -144,7 +204,7 @@ internal static class BrainMechanic
             double sum = 0;
             for (int c = 0; c < caregivers.Count; c++) sum += caregivers[c].Brain?.Gains[i] ?? 0;
             double target = sum / caregivers.Count;
-            brain.Gains[i] = rules.Clamp(brain.Gains[i] + (target - brain.Gains[i]) * rules.RearingPullPerSample);
+            brain.Gains[i] = rules.Clamp(brain.Gains[i] + (target - brain.Gains[i]) * rules.RearingPullPerSample, i % BrainState.Groups);
         }
 
         child.TouchBrain();

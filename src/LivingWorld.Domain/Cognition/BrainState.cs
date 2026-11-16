@@ -19,7 +19,7 @@ public sealed class BrainState
     public const short Unknown = 0;
 
     [JsonConstructor]
-    public BrainState(short[] gains, short[] actionMeans, ActionType? pendingAction = null, long pendingShareBytes = 0)
+    public BrainState(short[] gains, short[] actionMeans, ActionType? pendingAction = null, long pendingShareBytes = 0, short pendingValue = 0)
     {
         if (gains.Length != Actions * Groups) throw new ArgumentException($"Gains: {Actions * Groups} valores", nameof(gains));
         if (actionMeans.Length != Actions) throw new ArgumentException($"ActionMeans: {Actions} valores", nameof(actionMeans));
@@ -27,6 +27,7 @@ public sealed class BrainState
         ActionMeans = actionMeans;
         PendingAction = pendingAction;
         PendingShareBytes = pendingAction is null ? 0 : pendingShareBytes;
+        PendingValue = pendingAction is null ? (short)0 : pendingValue;
     }
 
     public short[] Gains { get; }
@@ -41,6 +42,11 @@ public sealed class BrainState
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public long PendingShareBytes { get; private set; }
 
+    /// <summary>AD-160b: o valor que o NPC dava ao próprio estado quando escolheu a ação guardada (pontos; ver
+    /// <c>BrainRules.ValuesSustenance</c>): a recompensa é a variação até o fim dela, medida uma vez só, no fim.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public short PendingValue { get; private set; }
+
     /// <summary>Participação (milésimos, com sinal) do grupo na nota da ação guardada.</summary>
     public int ShareOf(int group) => (int)Math.Round((sbyte)(PendingShareBytes >> (8 * group)) * 1000.0 / 127, MidpointRounding.AwayFromZero);
 
@@ -48,8 +54,9 @@ public sealed class BrainState
 
     public short GainOf(ActionType action, int group) => Gains[(int)action * Groups + group];
 
-    public void Remember(ActionType action, ReadOnlySpan<short> shares)
+    public void Remember(ActionType action, ReadOnlySpan<short> shares, double value = 0)
     {
+        PendingValue = (short)Math.Clamp(Math.Round(value, MidpointRounding.AwayFromZero), short.MinValue, short.MaxValue);
         long packed = 0;
         for (int g = 0; g < Groups; g++)
         {
@@ -64,5 +71,6 @@ public sealed class BrainState
     {
         PendingAction = null;
         PendingShareBytes = 0;
+        PendingValue = 0;
     }
 }

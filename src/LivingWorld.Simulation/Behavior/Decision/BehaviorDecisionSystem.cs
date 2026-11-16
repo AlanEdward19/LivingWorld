@@ -184,7 +184,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                     if (workHour) diag.UrgentAtWork[Math.Min(15, (int)candidate)]++;
                     if (brainOn)
                     {
-                        BrainMechanic.Remember(npc, candidate, brainGroups.AsSpan(BrainState.Groups, BrainState.Groups));
+                        BrainRemember(world, npc, candidate, brainGroups.AsSpan(BrainState.Groups, BrainState.Groups), now);
                         if (LivingWorld.Simulation.Observation.BrainDecisionTally.Diagnose) // AD-160: sonda, só o brain-trace liga
                             ProbeBrain(npc, DecisionContextBuilder.Build(world, npc, now, provisionTargetDays: provision.TargetDays * PsycheMechanic.HoardFactor(world, npc, now),
                                 foodUnitPrice: provision.FoodPrice, shopperOut: provision.ShopperOut, foodStallKnownEmpty: provision.FoodStallEmpty),
@@ -206,6 +206,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                     var beforeMood = candidate;
                     candidate = MoodShapesRoutine(world, ctx, npc, candidate, now); // AD-138: luto e vergonha recolhem
                     if (workHour && candidate != beforeMood) diag.MoodAtWork++;
+                    if (brainOn) candidate = BrainWeighsRoutine(world, npc, candidate, now, justCompleted); // AD-160b: tempo livre
                 }
 
                 var beforeSteps = candidate;
@@ -316,10 +317,10 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
 
         // AD-142: a ação que a utilidade escolheu e o cérebro guardou ensina pelo alívio que deu
         bool learn = world.BrainOn && npc.Brain?.PendingAction == action;
-        var felt = learn ? FeltNow(world, npc, now) : default;
+        var felt = learn && !world.BrainRules!.ValuesSustenance ? FeltNow(world, npc, now) : default; // AD-160b: mede só no fim
+        long startedAt = npc.ActionStartedAtTick;
         ApplyActionEffect(world, npc, action, marketIndex, now, ctx);
-        if (learn)
-            BrainMechanic.Learn(world, npc, action, BrainMechanic.Reward(felt, FeltNow(world, npc, now), ProvisionTargetDays));
+        if (learn) BrainLearnOnCompletion(world, npc, action, felt, startedAt, now, ctx);
         return true;
     }
 
