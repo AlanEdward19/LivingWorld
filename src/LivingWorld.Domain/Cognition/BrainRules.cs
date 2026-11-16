@@ -66,6 +66,8 @@ public sealed record BrainRules(
         "nolearn" => Default with { LearningPerPoint = 0 },
         "nobed" => Default with { LeisureEarlyBed = false },
         "nofloor" => Default with { LeisureNeedFloor = 0 },
+        "floor70" => Default with { LeisureNeedFloor = 70 },
+        "floor85" => Default with { LeisureNeedFloor = 85 },
         "meanstep1" => Default with { MeanStep = 1 },
         "nokeep" => Default with { LeisureKeepsChoice = false },
         "still" => Default with { LearningPerPoint = 0, MeanWindow = 30000 },
