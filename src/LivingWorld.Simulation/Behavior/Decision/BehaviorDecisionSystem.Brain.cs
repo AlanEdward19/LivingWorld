@@ -79,6 +79,10 @@ public sealed partial class BehaviorDecisionSystem
             return routine;
         }
 
+        // AD-160b: decide na fronteira (ao entrar no tempo livre ou ao concluir o que escolheu), não a cada despertar: quem já
+        // está conversando ou à toa no tempo livre segue até concluir (era o maior custo do cérebro por NPC-tick)
+        if (!justCompleted && npc.CurrentAction is ActionType.Socialize or ActionType.Idle) return npc.CurrentAction.Value;
+
         var gains = npc.Brain?.Gains ?? NoGains;
         double continuity = world.NeedsRules.ContinuityBonus;
         var best = routine;
