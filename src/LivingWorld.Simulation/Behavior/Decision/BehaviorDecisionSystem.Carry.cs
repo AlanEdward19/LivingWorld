@@ -93,6 +93,26 @@ public sealed partial class BehaviorDecisionSystem
         && world.FindHousehold(h) is { } home && PersonalCarry.PantryOutOfReach(world, npc, home)
         && SleepDestinationOf(world, npc) is { } bed && bed == home.Location;
 
+    /// <summary>AD-157b: a ceia. Com a despensa em casa, quem vai dormir em casa e passaria a noite até a fome ou a sede urgente
+    /// come antes, se a despensa tem com quê (como o desjejum antes de sair): sem isso acordava com fome crítica.</summary>
+    private static bool SupperBeforeSleep(WorldState world, Npc npc, ActionCatalog catalog, long now)
+    {
+        if (!world.InventionOn || !world.InventionRules!.PantryNeedsPresence || npc.Household is not { } h
+            || world.FindHousehold(h) is not { IsHomeless: false } home || npc.CurrentLocation != home.Location)
+            return false;
+        var needs = world.NeedsRules;
+        var econ = world.EconomyRules;
+        int line = 100 - needs.UrgencyThreshold;
+        long night = Objects.ObjectUse.DurationHours(world, npc, ActionType.Sleep, catalog);
+        bool hungry = npc.HungerAt(now) - needs.HungerDecayPerHour * night < line
+            && home.Stock.GetValueOrDefault(new ResourceType(econ.FoodResourceId)) > 0;
+        bool thirsty = npc.ThirstAt(now) - needs.ThirstDecayPerHour * night < line
+            && home.Stock.GetValueOrDefault(new ResourceType(econ.WaterResourceId)) > 0;
+        if (!hungry && !thirsty) return false;
+        world.InventionTally.SupperBeforeSleep++;
+        return true;
+    }
+
     /// <summary>Voltar para comer é o tempo perdido que o problema de carregar sente.</summary>
     private static void FeltHomeForMeal(WorldState world, Npc npc)
     {
