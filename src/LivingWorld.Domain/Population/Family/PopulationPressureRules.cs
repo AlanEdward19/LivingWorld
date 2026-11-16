@@ -30,6 +30,9 @@ public sealed record PopulationPressureRules
     /// <summary>A compra completa a meta da despensa em vez de somar a meta por cima, e só se vai ao mercado pelo que se paga.</summary>
     public bool TopUpPurchases { get; init; } = true;
 
+    /// <summary>Só casa quem tem do que viver: posse de terra vaga, ofício fora da lavoura ou casa própria (AD-158). Nulo desliga.</summary>
+    public HoldingRules? Holdings { get; init; } = HoldingRules.Default;
+
     /// <summary>Saída de quem não tem lugar.</summary>
     public EmigrationRules Emigration { get; init; } = EmigrationRules.Default;
 
@@ -40,6 +43,6 @@ public sealed record PopulationPressureRules
     {
         if (MarriageMeansWeight is < 0 or > 1 || FirstBirthMeansWeight is < 0 or > 1) return "Pressure: peso dos meios fora de [0,1]";
         if (MarriageSavingsMonths <= 0 || MarriageEarnerShare is < 0 or > 1) return "Pressure: economias devem ser > 0 e trabalho em [0,1]";
-        return Emigration.Validate();
+        return Holdings?.Validate() ?? Emigration.Validate();
     }
 }

@@ -28,6 +28,9 @@ public sealed class CourtshipSystem : ISimulationSystem
     /// <summary>Ascendência por pessoa, só durante um tick (derivada): o tabu de parentesco a consulta para cada par.</summary>
     private readonly Dictionary<long, HashSet<long>> _lineage = [];
 
+    /// <summary>Posses vagas por cidade nesta rodada (AD-158): nada casa durante o <see cref="Tick"/>, só no fim do namoro.</summary>
+    private readonly Dictionary<CityId, int> _vacant = [];
+
     public void Tick(WorldState world, TickContext ctx)
     {
         var familyRules = world.FamilyRules;
@@ -36,6 +39,7 @@ public sealed class CourtshipSystem : ISimulationSystem
         var now = world.CurrentDate;
         Dictionary<NpcId, HashSet<NpcId>>? acquaintances = null;
         _lineage.Clear();
+        _vacant.Clear();
 
         foreach (var seeker in world.Npcs
                      .Where(n => IsSeekerEligible(n, world, lifeStageRules, now))
@@ -54,11 +58,11 @@ public sealed class CourtshipSystem : ISimulationSystem
                 continue;
             }
 
-            var best = PickBestByAttraction(world, seeker, candidates, familyRules, populationRules, now, _lineage);
+            var best = PickBestByAttraction(world, seeker, candidates, familyRules, populationRules, now, _lineage, _vacant);
             if (best is null)
                 continue;
 
-            TryStartOrReject(world, ctx, seeker, best, populationRules, now, familyRules, _lineage);
+            TryStartOrReject(world, ctx, seeker, best, populationRules, now, familyRules, _lineage, _vacant);
         }
     }
 
@@ -93,6 +97,16 @@ public sealed class CourtshipSystem : ISimulationSystem
 
         if (!IsSingle(a, world) || !IsSingle(b, world))
         {
+            a.EndCourtship();
+            b.EndCourtship();
+            return;
+        }
+
+        // AD-158: no fim do namoro a posse vaga pode ter ido a outro casal; sem do que viver, não casam
+        if (!Holdings.HasLivelihood(world, a, b))
+        {
+            ctx.LogEvent(WorldEventKind.CourtshipRejected,
+                $"{CourtshipRejectionReason.SemMeios}|{a.Id.Value}|{b.Id.Value}", sourceSystem: "CourtshipSystem");
             a.EndCourtship();
             b.EndCourtship();
             return;
@@ -226,7 +240,8 @@ public sealed class CourtshipSystem : ISimulationSystem
         PopulationRules populationRules,
         WorldDate now,
         FamilyRules familyRules,
-        Dictionary<long, HashSet<long>> lineage)
+        Dictionary<long, HashSet<long>> lineage,
+        Dictionary<CityId, int> vacant)
     {
         var reject = Reject(world, seeker, candidate, now, populationRules, lineage);
         if (reject is { } reason)
@@ -252,8 +267,8 @@ public sealed class CourtshipSystem : ISimulationSystem
         }
 
         // AD-145: os dois se querem, mas cada um pesa se o casal tem com o que montar casa (trabalho, economias)
-        if (wants * HouseholdMeans.MarriageReadiness(world, seeker, candidate) < seekerThreshold
-            || wanted * HouseholdMeans.MarriageReadiness(world, candidate, seeker) < candidateThreshold)
+        if (wants * HouseholdMeans.MarriageReadiness(world, seeker, candidate, vacant) < seekerThreshold
+            || wanted * HouseholdMeans.MarriageReadiness(world, candidate, seeker, vacant) < candidateThreshold)
         {
             ctx.LogEvent(
                 WorldEventKind.CourtshipRejected,
@@ -293,7 +308,8 @@ public sealed class CourtshipSystem : ISimulationSystem
         FamilyRules familyRules,
         PopulationRules populationRules,
         WorldDate now,
-        Dictionary<long, HashSet<long>> lineage)
+        Dictionary<long, HashSet<long>> lineage,
+        Dictionary<CityId, int> vacant)
     {
         Npc? best = null, bestAccepting = null;
         double bestScore = double.NegativeInfinity, bestAcceptingScore = double.NegativeInfinity;
@@ -311,8 +327,8 @@ public sealed class CourtshipSystem : ISimulationSystem
             double score = Preference(seeker, candidate, aToB, familyRules, populationRules, now);
             if (score > bestScore) (bestScore, best) = (score, candidate);
             // AD-145: entre os que o aceitariam, o melhor com os meios do casal pesados pelos dois
-            double ready = score * HouseholdMeans.MarriageReadiness(world, seeker, candidate);
-            if (Preference(candidate, seeker, bToA, familyRules, populationRules, now) * HouseholdMeans.MarriageReadiness(world, candidate, seeker)
+            double ready = score * HouseholdMeans.MarriageReadiness(world, seeker, candidate, vacant);
+            if (Preference(candidate, seeker, bToA, familyRules, populationRules, now) * HouseholdMeans.MarriageReadiness(world, candidate, seeker, vacant)
                     >= ThresholdOf(world, candidate)
                 && ready > bestAcceptingScore)
                 (bestAcceptingScore, bestAccepting) = (ready, candidate);
