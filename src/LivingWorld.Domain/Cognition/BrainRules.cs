@@ -27,7 +27,9 @@ public sealed record BrainRules(
     double ValueHorizonDays = 0,
     double WageHoursPerMonth = 0,
     bool InheritExpectation = false,
-    bool WeighsLeisure = false)
+    bool WeighsLeisure = false,
+    bool LeisureEarlyBed = true,
+    bool LeisureStaysAtWork = true)
 {
     /// <summary>Ligado, com os números do desenho (`.specs/features/neural-brain/design.md`).</summary>
     public static BrainRules Default { get; } = new(
@@ -58,6 +60,9 @@ public sealed record BrainRules(
         "body20" => Default with { CriticalNeed = 20 },
         "noleisure" => Default with { WeighsLeisure = false },
         "nolearn" => Default with { LearningPerPoint = 0 },
+        "nobed" => Default with { LeisureEarlyBed = false },
+        "nostay" => Default with { LeisureStaysAtWork = false },
+        "onlychat" => Default with { LeisureEarlyBed = false, LeisureStaysAtWork = false },
         "slow" => Default with { LearningPerPoint = 0.02 },
         "noise" => Default with { InheritedNoiseMilli = 100 },
         _ => null,

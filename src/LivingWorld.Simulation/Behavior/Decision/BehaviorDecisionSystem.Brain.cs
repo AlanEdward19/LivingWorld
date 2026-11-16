@@ -90,9 +90,9 @@ public sealed partial class BehaviorDecisionSystem
         var best = routine;
         double bestScore = double.NegativeInfinity;
         Span<double> bestGroups = stackalloc double[BrainState.Groups];
-        bool bedSoon = BedtimeWithin(world, npc, catalog, stage, EarlyBedHours);
+        bool bedSoon = rules.LeisureEarlyBed && BedtimeWithin(world, npc, catalog, stage, EarlyBedHours);
         // fica mais no trabalho só quem não está com fome nem sede (longe da despensa a sede chega ao crítico antes de voltar)
-        bool atWork = npc.CurrentAction == ActionType.Work && npc.Employer is not null
+        bool atWork = rules.LeisureStaysAtWork && npc.CurrentAction == ActionType.Work && npc.Employer is not null
             && npc.HungerAt(now) >= StayAwayNeedFloor && npc.ThirstAt(now) >= StayAwayNeedFloor;
         foreach (var action in LeisureChoices)
         {
