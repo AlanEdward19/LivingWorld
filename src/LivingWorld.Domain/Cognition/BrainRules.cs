@@ -33,7 +33,7 @@ public sealed record BrainRules(
     public static BrainRules Default { get; } = new(
         Enabled: true, MinGain: -500, MaxGain: 1000,
         LearningPerPoint: 0.1, AdultLearningFloor: 0.25, LearningFullUntilYears: 20, LearningFloorFromYears: 60,
-        MeanWindow: 8, InheritedNoiseMilli: 100, RearingPullPerSample: 0.01, CriticalNeed: 30,
+        MeanWindow: 8, InheritedNoiseMilli: 0, RearingPullPerSample: 0.01, CriticalNeed: 30,
         FirstExperienceSetsExpectation: true,
         BaseMinGain: 0, BaseMaxGain: 0, GainStep: 10,
         PantryDayValue: 20, MoneyDayValue: 10, ValueHorizonDays: 4, WageHoursPerMonth: 270,
@@ -42,7 +42,7 @@ public sealed record BrainRules(
     /// <summary>O experimento como juntado no AD-142 (para comparar): sem nada do AD-160 nem do AD-160b.</summary>
     public static BrainRules Ad142 { get; } = Default with
     {
-        CriticalNeed = 0, FirstExperienceSetsExpectation = false, BaseMinGain = -500, BaseMaxGain = 1000, GainStep = 1,
+        CriticalNeed = 0, FirstExperienceSetsExpectation = false, InheritedNoiseMilli = 100, BaseMinGain = -500, BaseMaxGain = 1000, GainStep = 1,
         PantryDayValue = 0, MoneyDayValue = 0, ValueHorizonDays = 0, WageHoursPerMonth = 0, InheritExpectation = false,
         WeighsLeisure = false,
     };
@@ -59,7 +59,7 @@ public sealed record BrainRules(
         "noleisure" => Default with { WeighsLeisure = false },
         "nolearn" => Default with { LearningPerPoint = 0 },
         "slow" => Default with { LearningPerPoint = 0.02 },
-        "nonoise" => Default with { InheritedNoiseMilli = 0 },
+        "noise" => Default with { InheritedNoiseMilli = 100 },
         _ => null,
     };
 
