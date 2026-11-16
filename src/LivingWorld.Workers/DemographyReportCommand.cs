@@ -13,7 +13,10 @@ public static class DemographyReportCommand
         var runs = new DemographyReport.SeedResult[seeds];
         // AD-142: LW_BRAIN=1 liga o cérebro; LW_BRAIN_BASE_FLOOR=n muda o piso do grupo base (variante do experimento)
         // AD-160: LW_BRAIN_VARIANT escolhe a variante medida (ver BrainVariant)
-        var brain = Environment.GetEnvironmentVariable("LW_BRAIN") != "1" ? null
+        // AD-160b: o cenário liga o cérebro; LW_BRAIN=0 desliga (braço de comparação), LW_BRAIN=1 + LW_BRAIN_VARIANT escolhe a variante
+        string? brainEnv = Environment.GetEnvironmentVariable("LW_BRAIN");
+        var brain = brainEnv == "0" ? LivingWorld.Domain.Cognition.BrainRules.Off
+            : brainEnv != "1" ? null
             : BrainVariant.FromEnvironment() is { } variant ? variant
             : int.TryParse(Environment.GetEnvironmentVariable("LW_BRAIN_BASE_FLOOR"), out int floor)
                 ? LivingWorld.Domain.Cognition.BrainRules.Default with { BaseMinGain = floor }

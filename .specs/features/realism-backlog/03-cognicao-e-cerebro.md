@@ -1,4 +1,4 @@
-# Cognição, pensamento e cérebro do NPC (parte 1 juntada em AD-138; parte 2: experimento AD-142, revisto no AD-160: não ligar)
+# Cognição, pensamento e cérebro do NPC (parte 1 juntada em AD-138; parte 2: AD-142, AD-160 e ligado por padrão no AD-160b)
 
 > Achados 9 e 11 da auditoria (`relatorios/relatorio-realismo.md`). Issues relacionadas: #143 (índice de vivacidade),
 > #145 (memória da própria vida), #146 (humor e luto), #147 (necessidades além da sobrevivência), #148 (aspirações),
@@ -48,6 +48,11 @@ guardada num número. Fica: custo do motor +4,5% só pelo mecanismo (+7% ligado)
 furta e morre mais de fome (12 → 38 mortes em 6 × 50), e a recompensa só vê alívio imediato (não aprende o valor adiado de trabalhar ou comprar) e só
 pesa decisões urgentes (a rotina não passa pelo cérebro, a variedade dos dias não sobe). Números e o que falta:
 [`neural-brain/verdict-ad160.md`](../neural-brain/verdict-ad160.md); o trabalho restante virou texto de issue.
+
+**AD-160b (2026-11-16): ligado por padrão.** Recompensa = variação do valor do estado (corpo, despensa, moeda, humor, salário
+da jornada); impulso do corpo fora do aprendizado; expectativa herdada; tempo livre pesado pelo cérebro. Fome e sede crítica e
+furto por fome iguais ou melhores que a base, variedade de dias +3,9% (3,5 EP), bytes no limite (3,1%), **custo +5,5% em
+aberto**. Detalhe: [`neural-brain/verdict-ad160b.md`](../neural-brain/verdict-ad160b.md).
 
 ## Critérios mensuráveis
 

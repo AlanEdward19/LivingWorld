@@ -85,9 +85,9 @@ public static class ScenarioLoaderV2
         // AD-150: violência, justiça e herança ligadas por padrão; o bloco opcional {"Crime": {"Enabled": false}} desliga
         world.UseCrime(System.Text.Json.Nodes.JsonNode.Parse(json)?["Crime"]?["Enabled"]?.GetValue<bool>() == false
             ? null : LivingWorld.Domain.Crime.CrimeRules.Default);
-        // AD-142: cérebro com ganhos aprendidos é experimento, desligado por padrão; {"Brain": {"Enabled": true}} liga
-        if (System.Text.Json.Nodes.JsonNode.Parse(json)?["Brain"]?["Enabled"]?.GetValue<bool>() == true)
-            world.UseBrain(LivingWorld.Domain.Cognition.BrainRules.Default);
+        // AD-160b: cérebro ligado por padrão, como o cenário de código (ScenarioRunner.Create); {"Brain": {"Enabled": false}} desliga
+        world.UseBrain(System.Text.Json.Nodes.JsonNode.Parse(json)?["Brain"]?["Enabled"]?.GetValue<bool>() == false
+            ? null : LivingWorld.Domain.Cognition.BrainRules.Default);
 
         var createdCityIds = new List<CityId>(definition.City.Cities.Count);
         foreach (var city in definition.City.Cities)

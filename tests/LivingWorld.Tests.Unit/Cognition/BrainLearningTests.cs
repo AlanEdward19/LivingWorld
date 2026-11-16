@@ -37,12 +37,13 @@ public class BrainLearningTests
     public void Relief_above_what_the_action_usually_gives_strengthens_the_groups_that_chose_it()
     {
         var (world, npc) = Adult();
-        Choose(npc, ActionType.Buy, UtilityGroup.Base);
+        Choose(npc, ActionType.Buy, UtilityGroup.Pressure); // AD-160b: o impulso do corpo (Base) não aprende
         BrainMechanic.Learn(world, npc, ActionType.Buy, reward: 20); // AD-160: a primeira vez forma a expectativa
-        Choose(npc, ActionType.Buy, UtilityGroup.Base);
+        Choose(npc, ActionType.Buy, UtilityGroup.Pressure);
         BrainMechanic.Learn(world, npc, ActionType.Buy, reward: 120);
 
-        Assert.True(Gain(npc, ActionType.Buy, UtilityGroup.Base) > 0);
+        Assert.True(Gain(npc, ActionType.Buy, UtilityGroup.Pressure) > 0);
+        Assert.Equal(0, Gain(npc, ActionType.Buy, UtilityGroup.Base));
     }
 
     /// <summary>AD-160: sem expectativa não há surpresa. Antes a expectativa começava em zero e toda ação que alivia parecia melhor
@@ -62,7 +63,7 @@ public class BrainLearningTests
     public void Without_the_rule_the_ad142_expectation_starts_at_zero_and_relief_always_looks_better()
     {
         var (world, _) = ScenarioRunner.Create(7);
-        world.UseBrain(Rules with { FirstExperienceSetsExpectation = false });
+        world.UseBrain(BrainRules.Ad142);
         var npc = world.Npcs.Where(n => n.IsAlive).OrderBy(n => n.Id.Value).First();
         Choose(npc, ActionType.Eat, UtilityGroup.Base);
         BrainMechanic.Learn(world, npc, ActionType.Eat, reward: 90);
@@ -76,14 +77,14 @@ public class BrainLearningTests
         var (world, npc) = Adult();
         for (int i = 0; i < 20; i++)
         {
-            Choose(npc, ActionType.Eat, UtilityGroup.Base);
+            Choose(npc, ActionType.Eat, UtilityGroup.Comfort);
             BrainMechanic.Learn(world, npc, ActionType.Eat, reward: 60); // a expectativa sobe até ~60
         }
-        short before = Gain(npc, ActionType.Eat, UtilityGroup.Base);
-        Choose(npc, ActionType.Eat, UtilityGroup.Base);
+        short before = Gain(npc, ActionType.Eat, UtilityGroup.Comfort);
+        Choose(npc, ActionType.Eat, UtilityGroup.Comfort);
         BrainMechanic.Learn(world, npc, ActionType.Eat, reward: 0);
 
-        Assert.True(Gain(npc, ActionType.Eat, UtilityGroup.Base) < before);
+        Assert.True(Gain(npc, ActionType.Eat, UtilityGroup.Comfort) < before);
     }
 
     [Fact]
@@ -97,6 +98,25 @@ public class BrainLearningTests
         }
 
         Assert.All(npc.Brain!.Gains, g => Assert.InRange(g, Rules.MinGain, Rules.MaxGain));
+    }
+
+    /// <summary>AD-160b: o corpo é o corpo. No AD-142 o ganho de Comer e Comprar na base derivava com a experiência (a vila comia
+    /// mais; no AD-160, comprava menos e morria mais de fome).</summary>
+    [Fact]
+    public void The_body_drive_never_learns_and_never_inherits()
+    {
+        var (world, npc) = Adult();
+        for (int i = 0; i < 50; i++)
+        {
+            Choose(npc, ActionType.Eat, UtilityGroup.Base);
+            BrainMechanic.Learn(world, npc, ActionType.Eat, reward: i * 40);
+        }
+        var parent = BrainState.Neutral();
+        System.Array.Fill(parent.Gains, (short)400);
+        var child = BrainMechanic.Inherit(Rules, parent, parent, new WorldRng(3), heritability: 0.9);
+
+        Assert.All(Enumerable.Range(0, BrainState.Actions), a => Assert.Equal(0, npc.Brain!.GainOf((ActionType)a, (int)UtilityGroup.Base)));
+        Assert.All(Enumerable.Range(0, BrainState.Actions), a => Assert.Equal(0, child.GainOf((ActionType)a, (int)UtilityGroup.Base)));
     }
 
     [Fact]
@@ -127,16 +147,16 @@ public class BrainLearningTests
         foreach (var who in new[] { npc, sibling })
             for (int i = 0; i < 5; i++)
             {
-                Choose(who, ActionType.Buy, UtilityGroup.Base);
+                Choose(who, ActionType.Buy, UtilityGroup.Pressure);
                 BrainMechanic.Learn(world, who, ActionType.Buy, BrainMechanic.Reward(fed, fed with { PantryDays = 4 }, 2));
             }
         for (int i = 0; i < 5; i++)
         {
-            Choose(npc, ActionType.Buy, UtilityGroup.Base);
+            Choose(npc, ActionType.Buy, UtilityGroup.Pressure);
             BrainMechanic.Learn(world, npc, ActionType.Buy, BrainMechanic.Reward(hungry, hungry with { PantryDays = 4 }, 2));
         }
 
-        Assert.True(Gain(npc, ActionType.Buy, UtilityGroup.Base) > sibling.Brain!.GainOf(ActionType.Buy, (int)UtilityGroup.Base));
+        Assert.True(Gain(npc, ActionType.Buy, UtilityGroup.Pressure) > sibling.Brain!.GainOf(ActionType.Buy, (int)UtilityGroup.Pressure));
     }
 
     [Fact]
@@ -166,8 +186,9 @@ public class BrainLearningTests
                 father.Gains[i] = (short)((rng.NextDouble() * 2 - 1) * 400);
             }
             var child = BrainMechanic.Inherit(Rules, mother, father, rng, heritability: 0.5);
-            double parents = (mother.Gains[0] + father.Gains[0]) / 2.0;
-            sxy += parents * child.Gains[0]; sxx += parents * parents; syy += (double)child.Gains[0] * child.Gains[0];
+            const int g = (int)UtilityGroup.Personality; // AD-160b: o grupo Base fica em zero
+            double parents = (mother.Gains[g] + father.Gains[g]) / 2.0;
+            sxy += parents * child.Gains[g]; sxx += parents * parents; syy += (double)child.Gains[g] * child.Gains[g];
         }
 
         Assert.True(sxy / Math.Sqrt(sxx * syy) > 0.3);

@@ -134,7 +134,7 @@ public static class DemographyReport
     {
         var (world, baseClock) = ScenarioRunner.Create(seed, familyRules: familyRules, needsRules: needsRules, inventionRules: inventionRules,
             agricultureRules: agricultureRules, economyRules: economyRules, crimeRules: crimeRules, extraordinary: extraordinary, ontogenyRules: ontogenyRules);
-        world.UseBrain(brain); // AD-142: experimento (nulo = desligado)
+        if (brain is not null) world.UseBrain(brain); // AD-160b: nulo = o do cenário (ligado); BrainRules.Off desliga
         var extra = observe?.Invoke(world);
         var tally = new DemographyTally(world) { MeasureFromTick = warmupYears * world.Calendar.HoursPerYear };
         tally.Body.MeasureFromTick = tally.MeasureFromTick;
