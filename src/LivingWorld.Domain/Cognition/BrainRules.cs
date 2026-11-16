@@ -59,6 +59,7 @@ public sealed record BrainRules(
         "noleisure" => Default with { WeighsLeisure = false },
         "nolearn" => Default with { LearningPerPoint = 0 },
         "slow" => Default with { LearningPerPoint = 0.02 },
+        "nonoise" => Default with { InheritedNoiseMilli = 0 },
         _ => null,
     };
 
