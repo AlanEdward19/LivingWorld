@@ -62,7 +62,7 @@ public class MeasureHarness
     {
         var sb = new StringBuilder();
         // Perf: 1000 NPCs, 30 dias, melhor de 3 (ruído de máquina).
-        double bestMicros = double.MaxValue, alloc = 0;
+        double bestMicros = double.MaxValue, bestCpu = double.MaxValue, alloc = 0;
         int population = Population;
         for (int run = 0; run < 3; run++)
         {
@@ -70,15 +70,17 @@ public class MeasureHarness
             MaybeBrain(world);
             GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
             long alive = 0, before = GC.GetTotalAllocatedBytes(true);
+            var cpuBefore = Process.GetCurrentProcess().TotalProcessorTime; // AD-160b: CPU do processo, menos sensível à máquina cheia
             var sw = Stopwatch.StartNew();
             for (int t = 0; t < 720; t++) { alive += world.Npcs.Count(n => n.IsAlive); clock.Tick(world); }
             sw.Stop();
+            bestCpu = Math.Min(bestCpu, (Process.GetCurrentProcess().TotalProcessorTime - cpuBefore).TotalMicroseconds / Math.Max(1, alive));
             bestMicros = Math.Min(bestMicros, sw.Elapsed.TotalMicroseconds / Math.Max(1, alive));
             alloc = (GC.GetTotalAllocatedBytes(true) - before) / 720.0;
             if (run == 2)
                 sb.AppendLine($"scale{population} snapshotBytesPerAlive={Encoding.UTF8.GetByteCount(WorldSnapshot.Serialize(world)) / Math.Max(1, world.Npcs.Count(n => n.IsAlive))} alive={world.Npcs.Count(n => n.IsAlive)}");
         }
-        sb.AppendLine($"scale{population} microsPerNpcTick={bestMicros:F3} allocPerTick={alloc:F0}");
+        sb.AppendLine($"scale{population} microsPerNpcTick={bestMicros:F3} allocPerTick={alloc:F0} cpuMicrosPerNpcTick={bestCpu:F3}");
         if (Environment.GetEnvironmentVariable("LW_MEASURE_SCALE_ONLY") == "1")
         {
             File.WriteAllText(Environment.GetEnvironmentVariable("LW_MEASURE_OUT") ?? Path.Combine(Path.GetTempPath(), "lw-measure.txt"), sb.ToString());
