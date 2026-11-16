@@ -20,6 +20,9 @@ public sealed partial class WorldState
     /// <summary>Crédito ligado: economia, quem empreende e as regras do crédito.</summary>
     internal bool CreditOn => EconomyRules is { Enabled: true, Credit: not null, Venture: not null };
 
+    /// <summary>AD-159: sonda das decisões de abrir, só nos relatórios. Não é estado do mundo: fora do snapshot e do hash.</summary>
+    internal Observation.VentureProbe? VentureProbe { get; set; }
+
     /// <summary>Restaura o livro guardado no snapshot (ausente = nunca houve crédito).</summary>
     public void RestoreCredit(CreditLedger? ledger)
     {

@@ -37,7 +37,10 @@ public sealed class CreditSystem : ISimulationSystem
             {
                 if (!book.Loans.Contains(loan)) continue; // saiu numa falência deste mês
                 Debts.ReassignClaim(world, loan);
-                if (world.FindNpc(new NpcId(loan.Borrower)) is { IsAlive: true } borrower) Collect(world, ctx, rules, loan, borrower);
+                if (world.FindNpc(new NpcId(loan.Borrower)) is { IsAlive: true } borrower)
+                {
+                    if (ctx.CurrentTick >= loan.FirstDueTick) Collect(world, ctx, rules, loan, borrower); // na carência não se cobra
+                }
                 else BorrowerGone(world, ctx, loan);
             }
         }

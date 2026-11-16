@@ -38,6 +38,9 @@ public sealed class Loan
     public long Paid { get; set; }
     public long StartTick { get; set; }
 
+    /// <summary>AD-159: tick da primeira parcela (carência da abertura); 0 = cobra desde o mês seguinte (snapshot antigo).</summary>
+    public long FirstDueTick { get; set; }
+
     /// <summary>Meses seguidos sem a parcela inteira.</summary>
     public int Missed { get; set; }
 

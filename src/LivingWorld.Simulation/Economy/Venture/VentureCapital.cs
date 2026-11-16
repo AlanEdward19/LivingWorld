@@ -37,6 +37,8 @@ internal sealed record VentureCapital(
         var spouse = founder.Spouse is { } spouseId && world.FindNpc(spouseId) is { IsAlive: true } s ? s : null;
         long free = Math.Max(0, founder.Wallet.Amount + (spouse?.Wallet.Amount ?? 0) - ReserveOf(world, rules, founder));
         long own = Math.Min(free, needed);
+        var probe = world.VentureProbe;
+        if (free >= needed) probe?.Mark("capital_no_casal");
         var credit = world.CreditOn ? world.EconomyRules.Credit : null;
         // AD-155 (E22): o fundador ambicioso e pouco medroso não imobiliza toda a poupança: guarda uma parte
         // (<c>(Ambição − Aversão)/100</c>, até a parte que se financia) e pede essa parte emprestada; sem credor, põe tudo
@@ -54,6 +56,7 @@ internal sealed record VentureCapital(
         // primeiro entram os que preferem a sociedade (só na falta de verdade, não na parte que o fundador guardou), depois tenta o
         // empréstimo, e só então o fundador põe o que guardou e os outros viram sócios
         var financiers = missing > 0 && allowPartners ? PartnersOf(world, rules, founder).ToList() : [];
+        if (financiers.Count > 0) probe?.Mark("procuraram_socio");
         var later = new List<Npc>();
         foreach (var f in financiers)
             if (credit is null || plan is null || PrefersPartnership(rules, founder, f, tradeSkill)) TakePartner(f, missing - kept); else later.Add(f);
@@ -91,13 +94,23 @@ internal sealed record VentureCapital(
             if (missing <= 0 || plan is null || credit is null) return null;
             long maxLoan = (long)Math.Floor(needed * credit.MaxLoanShare * Math.Clamp(1.5 - founder.Personality.RiskAversion / 100.0, 0, 1));
             int term = purpose == Credit.LoanPurpose.Founding ? credit.FoundingTermMonths : credit.WorkingTermMonths;
-            var found = missing <= maxLoan
-                ? Credit.Lending.Find(world, founder, missing, term, collateral: true, plan.MonthlySales - plan.MonthlyPayroll)
-                : null;
-            if (found is not null) missing = 0;
+            probe?.Mark("pediram_credito");
+            if (missing > maxLoan) { probe?.Refuse(Credit.LendRefusal.Ceiling); return null; }
+            var why = probe is null ? null : new Credit.LendRefusal();
+            // AD-159: o que a oficina rende à casa de quem abre é o lucro mais o salário dele mesmo na folha; e o prazo da abertura
+            // cresce até o teto se a parcela do prazo curto não cabe
+            long ownWage = (long)Math.Floor(plan.MonthlyPayroll / (double)Math.Max(1, rules.StartCrew) * credit.OwnWageInCapacityShare);
+            long capacity = plan.MonthlySales - plan.MonthlyPayroll + ownWage;
+            int maxTerm = purpose == Credit.LoanPurpose.Founding ? Math.Max(term, credit.MaxFoundingTermMonths) : term;
+            Credit.LoanOffer? found = null;
+            for (int t = term; found is null && t <= maxTerm; t += 12)
+                found = Credit.Lending.Find(world, founder, missing, t, collateral: true, capacity, why);
+            if (found is not null) { missing = 0; probe?.Mark("credito_concedido"); }
+            else if (why is not null) probe!.Refuse(why.Stage);
             return found;
         }
 
+        if (partners.Count > 0) probe?.Mark("tiveram_socio");
         return missing > 0 ? null : new VentureCapital(needed, founder, household, partners, loan);
     }
 
@@ -109,6 +122,9 @@ internal sealed record VentureCapital(
         if (Loan is { } offer)
         {
             Granted = Credit.Lending.Grant(world, ctx, offer, Founder, purpose, workplace: 0, log: false);
+            int grace = world.EconomyRules.Credit?.FoundingGraceMonths ?? 0; // AD-159: a oficina monta estoque antes da 1ª parcela
+            var cal = world.CurrentDate.Calendar;
+            Granted.FirstDueTick = ctx.CurrentTick + (long)Math.Max(0, grace) * cal.HoursPerDay * cal.DaysPerMonth;
             if (!Founder.TryDebitWallet(new Money(offer.Amount)).IsSuccess)
                 throw new InvalidOperationException("VentureCapital: empréstimo não chegou à carteira");
         }

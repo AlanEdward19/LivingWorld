@@ -25,9 +25,19 @@ internal sealed record LoanOffer(Npc? Lender, City? City, long Amount, double An
 /// tomador, depois o rico da cidade e por fim o tesouro da cidade, estes dois só com a oficina em garantia. Cada um empresta até
 /// <c>1 − Aversão/100</c> do que tem acima da reserva e só se a confiança (mais parentesco, garantia e o favor que deve ao tomador,
 /// o eixo Dívida) passa do mínimo, se a parcela cabe no ganho que a conta promete e se o tomador não tem calote recente nem má fama.</summary>
+/// <summary>AD-159, só para a sonda: o motivo do credor que chegou mais perto de emprestar (índice em
+/// <see cref="Observation.VentureProbe.Refusals"/>).</summary>
+internal sealed class LendRefusal
+{
+    public const int NoLender = 0, Infamy = 1, NoMoney = 2, Aversion = 3, Distrust = 4, Installment = 5, Ceiling = 6;
+    public int Stage { get; private set; }
+    public void Reach(int stage) { if (stage > Stage) Stage = stage; }
+}
+
 internal static class Lending
 {
-    public static LoanOffer? Find(WorldState world, Npc borrower, long amount, int termMonths, bool collateral, long monthlyCapacity)
+    public static LoanOffer? Find(WorldState world, Npc borrower, long amount, int termMonths, bool collateral, long monthlyCapacity,
+        LendRefusal? why = null)
     {
         if (!world.CreditOn || amount <= 0 || termMonths <= 0 || monthlyCapacity <= 0) return null;
         var rules = world.EconomyRules.Credit!;
@@ -41,15 +51,18 @@ internal static class Lending
 
         LoanOffer? From(Npc lender, bool kin, string kind)
         {
-            if (badDebtor && !(kin && book?.DefaultedSince(borrower.Id.Value, memory, exceptAgainst: lender.Id.Value) == false)) return null;
-            if (infamous && !kin) return null;
+            if (badDebtor && !(kin && book?.DefaultedSince(borrower.Id.Value, memory, exceptAgainst: lender.Id.Value) == false)) { why?.Reach(LendRefusal.Infamy); return null; }
+            if (infamous && !kin) { why?.Reach(LendRefusal.Infamy); return null; }
             long free = lender.Wallet.Amount - VentureCapital.ReserveOf(world, venture, lender);
-            if (free <= 0 || Math.Floor(free * (1 - lender.Personality.RiskAversion / 100.0)) < amount) return null;
+            if (free < amount) { why?.Reach(LendRefusal.NoMoney); return null; }
+            if (Math.Floor(free * (1 - lender.Personality.RiskAversion / 100.0)) < amount) { why?.Reach(LendRefusal.Aversion); return null; }
             double trust = (kin ? rules.KinTrust : 0) + (collateral ? rules.CollateralTrust : 0);
             if (world.Relationships.TryGetValue(new RelationshipKey(lender.Id, borrower.Id), out var bond)) trust += bond.Trust + bond.Debt;
-            if (trust < rules.MinLenderTrust) return null;
+            if (trust < rules.MinLenderTrust) { why?.Reach(LendRefusal.Distrust); return null; }
             var offer = Offer(rules, lender, null, amount, kin ? rules.KinAnnualCharge : rules.AnnualCharge, termMonths) with { Kind = kind };
-            return offer.Installment <= maxInstallment ? offer : null;
+            if (offer.Installment <= maxInstallment) return offer;
+            why?.Reach(LendRefusal.Installment);
+            return null;
         }
 
         var kin = Kin(world, borrower);
@@ -65,7 +78,7 @@ internal static class Lending
         foreach (var lender in known)
             if (From(lender, kin: false, "conhecido") is { } offer) return offer;
 
-        if (!collateral || badDebtor || infamous) return null;
+        if (!collateral || badDebtor || infamous) { why?.Reach(badDebtor || infamous ? LendRefusal.Infamy : LendRefusal.NoLender); return null; }
         var rich = new List<Npc>();
         foreach (var npc in world.AliveNpcIndex.Alive)
             if (npc.City == borrower.City && npc.Wallet.Amount > amount && Eligible(world, borrower, npc) && !kin.Contains(npc) && !known.Contains(npc))
@@ -78,7 +91,9 @@ internal static class Lending
         {
             var offer = Offer(rules, null, city, amount, rules.AnnualCharge, termMonths);
             if (offer.Installment <= maxInstallment) return offer;
+            why?.Reach(LendRefusal.Installment);
         }
+        else why?.Reach(LendRefusal.NoMoney);
 
         return null;
     }

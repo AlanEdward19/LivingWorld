@@ -145,6 +145,7 @@ public static class DemographyReport
         var workday = new WorkdayTally(world) { MeasureFromTick = tally.MeasureFromTick };
         var decades = new DecadeTally(world);
         var ventures = new VentureTally(world); // AD-152
+        world.VentureProbe = ventures.Decisions; // AD-159: só observa
         var credit = new CreditTally(world); // AD-155
         IWorldEventSink sinks = new BothSinks(new BothSinks(new BothSinks(new BothSinks(tally, food), decades), ventures), credit);
         if (extra is not null) sinks = new BothSinks(sinks, extra);

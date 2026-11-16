@@ -15,13 +15,17 @@ public sealed class VentureTally(WorldState world) : IWorldEventSink
     public const int Decades = 10;
     public static readonly string[] Origins = ["poupanca", "heranca", "sociedade", "emprestimo"];
 
-    public sealed record Venture(long Tick, long WorkplaceId, string Origin, long Capital, bool Reopened = false, bool Bought = false)
+    public sealed record Venture(long Tick, long WorkplaceId, string Origin, long Capital, bool Reopened = false, bool Bought = false,
+        string Largest = "poupanca")
     {
         public bool? Alive5 { get; set; }
         public bool? Alive10 { get; set; }
     }
 
     public List<Venture> Opened { get; } = [];
+
+    /// <summary>AD-159: a sonda das decisões de abrir (o relatório a pendura em <see cref="WorldState.VentureProbe"/>).</summary>
+    public VentureProbe Decisions { get; } = new(world);
 
     /// <summary>AD-155: meses-oficina em que uma forja de dono ficou parada (sem gente trabalhando ou folha que não fechou), por
     /// década; a fechada por falência conta à parte.</summary>
@@ -33,8 +37,21 @@ public sealed class VentureTally(WorldState world) : IWorldEventSink
         if (evt.Kind != WorldEventKind.VentureFounded) return;
         var parts = evt.Payload.Split('|');
         if (parts.Length < 4) return;
+        long capital = long.Parse(parts[3], CultureInfo.InvariantCulture);
         Opened.Add(new Venture(evt.Tick, long.Parse(parts[0], CultureInfo.InvariantCulture), parts[2],
-            long.Parse(parts[3], CultureInfo.InvariantCulture), parts.Length > 7 && parts[7] == "reaberta", parts.Length > 7 && parts[7] == "comprada"));
+            capital, parts.Length > 7 && parts[7] == "reaberta", parts.Length > 7 && parts[7] == "comprada", LargestSource(parts, capital)));
+    }
+
+    /// <summary>AD-159: a maior parte do capital (poupança do casal, herança, sócios ou empréstimo = o que falta das outras), lida do
+    /// evento: a origem contada marca o empréstimo mesmo quando ele é a menor parte.</summary>
+    private static string LargestSource(string[] parts, long capital)
+    {
+        if (parts.Length < 7) return "poupanca";
+        long own = long.Parse(parts[4], CultureInfo.InvariantCulture), inherited = long.Parse(parts[5], CultureInfo.InvariantCulture);
+        long partners = parts[6] == "-" ? 0 : parts[6].Split(',').Sum(x => long.Parse(x.Split(':')[1], CultureInfo.InvariantCulture));
+        long borrowed = Math.Max(0, capital - own - partners);
+        (string Name, long Amount)[] sources = [("poupanca", own - inherited), ("heranca", inherited), ("sociedade", partners), ("emprestimo", borrowed)];
+        return sources.OrderByDescending(x => x.Amount).First().Name;
     }
 
     /// <summary>No fim de cada mês: quem completou 5 ou 10 anos de aberto ganha a marca de vivo ou não.</summary>
@@ -68,6 +85,7 @@ public sealed class VentureTally(WorldState world) : IWorldEventSink
         var sb = new StringBuilder();
         string origins = string.Join(' ', Origins.Select(o => $"{o}={all.Count(v => v.Origin == o)}"));
         sb.AppendLine(inv, $"negocios abertos por NPC: total={all.Count} seeds_com_algum={runs.Count(r => r.Opened.Count > 0)}/{runs.Count} capital_medio={(all.Count > 0 ? all.Average(v => v.Capital) : 0):F0} {origins} reabertas={reopened} compradas_fechadas={all.Count(v => v.Bought)} seeds_com_emprestimo={runs.Count(r => r.Opened.Any(v => v.Origin == "emprestimo"))}");
+        sb.AppendLine(inv, $"  maior_parte_do_capital: {string.Join(' ', Origins.Select(o => $"{o}={all.Count(v => v.Largest == o)}"))}");
         sb.AppendLine(inv, $"  forjas_de_dono_paradas (meses-oficina, soma das seeds) por decada:{string.Concat(Enumerable.Range(0, Decades).Select(d => $" {d * 10}:{runs.Sum(r => r.StoppedMonths[d])}"))} fechadas:{string.Concat(Enumerable.Range(0, Decades).Select(d => $" {d * 10}:{runs.Sum(r => r.ClosedMonths[d])}"))}");
         var five = all.Where(v => v.Alive5 is not null).ToList();
         var ten = all.Where(v => v.Alive10 is not null).ToList();
@@ -79,6 +97,8 @@ public sealed class VentureTally(WorldState world) : IWorldEventSink
             sb.Append(inv, $" {d * 10}:{string.Join('/', Origins.Select(o => inDecade.Count(v => v.Origin == o)))}");
         }
 
-        return sb.AppendLine().ToString();
+        sb.AppendLine();
+        sb.Append(VentureProbe.Summarize(runs.Select(r => r.Decisions).ToList()));
+        return sb.ToString();
     }
 }
