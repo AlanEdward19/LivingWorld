@@ -44,7 +44,9 @@ public sealed record AgricultureRules(
 
     // AD-149, terra finita (backlog 08 item 49). SownHectaresPerFounder: hectares semeados por ano que a vila tem por morador
     // fundador (0 = terra sem limite, o antigo); o cenário de código dá 1,4, o dobro do que os fundadores semeiam (150 de
-    // semente ÷ 220 por hectare ≈ 0,68 ha). SeedPerHectare: ~135 kg de trigo por hectare, a ração ≈ 0,6 kg. Com a terra toda
+    // semente ÷ 220 por hectare ≈ 0,68 ha). A fonte pede 0,7–1,0 (correções #8); AD-163 mediu 1,0 (vila de 131 em 50 anos,
+    // natalidade −8%, mortalidade igual) mas o custo por NPC-tick a 1.000 sobe 3–8% (gente sem lugar procurando trabalho):
+    // fica 1,4 até o custo do desemprego cair. SeedPerHectare: ~135 kg de trigo por hectare, a ração ≈ 0,6 kg. Com a terra toda
     // semeada, mais braços só capinam, estercam e lavram de novo: o rendimento por semente sobe até HandIntensityGain, com
     // retorno decrescente (1 − braços necessários ÷ braços). A fazenda só toma mais uma mão se ela colhe ao menos o que come
     // num ano (HandKeepPerYear). Números sem fonte firme, precisam de conferência.

@@ -28,7 +28,11 @@ tem moeda não fica indo à banca. Todos os números em `ProvisioningRules` (`Ne
 `OntogenyDefaults.HumanRequirements[Work]` passou de mão hábil completa (motor fino 1,0) a uso de ferramenta (0,7). Com 1,0,
 o adulto que perdeu a janela da mão hábil na infância (teto abaixo de 1 pela doença ou falta de cuidado) nunca trabalhava:
 55% dos adultos da seed 7 aos 30 anos, contratados e parados no turno. Era a raiz da fila: a fazenda só produzia porque o
-mercado fica nela e a fila contava como presença (backlog 04, E1).
+mercado fica nela e a fila contava como presença (backlog 04, E1). AD-163: `OntogenyRules.FineMotorScalesWork` faz a produção,
+a ceifa e a prática escalarem pelo motor fino entre 0,7 e 1,0; **desligado** com o número (6×50: mortalidade +5,4%, IC90
++3,6–7,5%; 1º ano 195 → 220‰; e0 32,6 → 31,3). Volta da compra cortada pela carga (`ReferenceTally`, 40×100): a ida
+seguinte da casa vem em 120 h (mediana) contra 79 h depois de uma ida normal, 5,6% em 24 h contra 33,5% — a casa não volta
+pelo que ficou (0,6% das idas são cortadas).
 
 ## Medido (sonda `provision-trace <seed> <ano-inicial> <ano-final>`, seed 7, anos 30–50)
 | | antes | depois |
