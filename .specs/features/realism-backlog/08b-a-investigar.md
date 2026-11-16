@@ -9,13 +9,14 @@
 74. ~~**Atritos**~~ (AD-161, [invenção](relatorios/conferencia-invencao-e-fisica.md)): arrastar 0,55 confere; patim 0,10 só vale em neve (piso ~0,2 em terra, em correções). **AD-162:** piso 0,22 (`SkidFinishGainPm` 80).
 75. ~~**Rolamento**~~ (AD-161): Crr ≈ 0,05 confere (solo médio duro 0,04–0,08); eixo 0,15 sem fonte direta, plausível.
 76. ~~**Carga a granel**~~ (AD-161): 800 kg/m³ confere (trigo ~750–800); pilha, patim e tombo são escolha de modelo.
-77. **Uma ida e volta inteira por carga que ficou**: o código só põe a ida e volta na frustração (`PersonalCarry.FeltCargoCut`, AD-161);
-    medir se a casa de fato volta (a reposição dispara de novo, AD-149).
+77. **Uma ida e volta inteira por carga que ficou** — AD-163, medido (40×100, sonda `TripProbe`): 0,6% das idas são cortadas pela
+    carga; a ida seguinte da casa vem em 120 h (mediana) contra 79 h depois de uma ida normal, 5,6% em 24 h contra 33,5%. A casa
+    **não volta** pelo que ficou: defeito — a reposição precisa saber o que faltou (fatia da carga pessoal).
 78. ~~**Carregador de 30 kg**~~ (AD-161): fora da faixa — água na cabeça ~20 kg (Limpopo, UEA); sugerido 20 em correções.
 79. **Custo do AD-153 a 5.000 NPCs** não medido; goldens, pins e baselines feitos na junção (AD-161).
 
 ## Da violência e justiça (AD-150)
-80. **AD-150, população**: 20×100 final 280 → 260, menor seed 141 → 114; parte do açoite e dos 0,43 banimentos/ano não isolada seed a seed. CPU total com a fila livre não medida (A/B crime ligado/desligado dentro do ruído). Teste do poço fraco roda sem furto e crime (com eles o sinal de preço cai de 18 para 10 de 20 seeds; causa provável, furto de água na banca, não confirmada evento a evento).
+80. **AD-150, população**: 20×100 final 280 → 260, menor seed 141 → 114; parte do açoite e dos 0,43 banimentos/ano não isolada seed a seed. **AD-163** (20 pares × 100, `LW_CRIME_OFF=flog,banish`): população 184,7 → 183,4, mortalidade 0,995× (IC90 0,97–1,03): açoite e banimento não pesam na população (banidos hoje 0,01/ano). Fome 0,81× sem eles (0,66–1,01): inconclusivo com 20; δ = 25% pede ~36 pares. CPU total com a fila livre não medida (A/B crime ligado/desligado dentro do ruído). Teste do poço fraco roda sem furto e crime (com eles o sinal de preço cai de 18 para 10 de 20 seeds; causa provável, furto de água na banca, não confirmada evento a evento).
 
 ## Do crime contra a pessoa (AD-154, [crime-against-persons](../../../docs/domain/crime-against-persons.md))
 81. ~~**Violência doméstica sem fonte firme**~~ (AD-161, [crime](relatorios/conferencia-crime-e-justica.md)): OMS 13%/ano confere como
@@ -28,8 +29,9 @@
     e 325 → 362 (21–40). Com uma chave nula por vez (seeds 1–20, mesmo código do topo, `LW_CRIME_OFF`): sem doméstica 394,
     sem sequestro 462, sem violência sexual 336; todas ≥ o topo. O sequestro (0,02/seed-ano, nenhum preso morreu no
     cativeiro) não pode causar 120 mortes: é a divergência caótica das trajetórias, maior que a diferença base × topo.
-    Nenhum mecanismo achado (o medo só pesa em `Travel`, não em Comprar). Falta: mais seeds por configuração para
-    estreitar o ruído.
+    Nenhum mecanismo achado (o medo só pesa em `Travel`, não em Comprar). **AD-163**, 40 pares × 100 anos, taxa por pessoas-ano
+    (`scripts/paired-rates.py`): desligar os três dá fome 0,83× (IC90 0,67–1,01), horas com fome crítica 1,07× (0,90–1,26).
+    Inconclusivo com 40: o ligado fica entre 0,99× e 1,49× do desligado; δ = 25% pede ~48 pares (CV 0,53, ρ 0,14), δ = 20% ~75.
 
 ## Da medição (2026-11-15)
 86. ~~**Falta uma medida de fome que aguente o ruído**~~ medida criada no AD-157 (`NeedDistressTally`: horas com fome/sede crítica por pessoa-ano, pareado em 40 seeds × 15 anos; 08c item 108). Desenho para 20×100 em [a-medir](relatorios/a-medir.md).

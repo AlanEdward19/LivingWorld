@@ -23,6 +23,10 @@ public sealed partial class WorldState
     /// <summary>Contagem da compra de comida e água para a sonda (AD-148); nenhum sistema decide por ela.</summary>
     [Volatile, Ephemeral] public LivingWorld.Simulation.Observation.PurchaseTally PurchaseTally { get; } = new();
 
+    /// <summary>AD-163 (backlog 08b item 77): sonda das idas ao mercado (casa, gramas que ficaram), só nos relatórios. Não é
+    /// estado do mundo: fora do snapshot e do hash.</summary>
+    internal Action<long, long>? TripProbe { get; set; }
+
     /// <summary>Invenção ligada neste mundo.</summary>
     internal bool InventionOn => InventionRules is { Enabled: true } && Invention is not null;
 

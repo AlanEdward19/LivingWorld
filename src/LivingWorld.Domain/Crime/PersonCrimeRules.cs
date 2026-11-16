@@ -8,7 +8,9 @@ public sealed record DomesticViolenceRules
 {
     public bool Enabled { get; init; } = true;
 
-    /// <summary>Chance por ano de um adulto de propensão 1, sem estresse, agredir alguém da casa.</summary>
+    /// <summary>Chance por ano de um adulto de propensão 1, sem estresse, agredir alguém da casa. Dá 3,0% das esposas agredidas
+    /// por ano (AD-163, 40×100); a fonte pede 10–20% (OMS 2018 / Sardinha 2022: 13%, moderno [B]). 0,036 dá ~10% mas a fome
+    /// crítica sobe 28% e a fome dos menores de 5 dobra (20×100): fica 0,012 até se achar o caminho da agressão à fome.</summary>
     public double PerYear { get; init; } = 0.012;
 
     /// <summary>Quanto cada estresse multiplica a chance (soma: 1 + fome + miséria + desemprego).</summary>

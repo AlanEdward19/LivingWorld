@@ -50,7 +50,8 @@ public sealed class SkillPracticeSystem : ISimulationSystem
             double gain = _rules.Gain(npc.Skills.Get(skillType), SkillGainSource.Practice, npc.RateGene.Value)
                 * _rules.Learning.Aptitude(age) // plasticidade da idade (AD-132)
                 * SkillMechanic.ManifestedLearnRate(world, npc)
-                * VocationMechanic.LearningFit(_rules, npc); // aprende mais no que combina com ele (AD-136)
+                * VocationMechanic.LearningFit(_rules, npc) // aprende mais no que combina com ele (AD-136)
+                * world.OntogenyRules.FineMotorWorkFactor(npc.Development); // AD-163: a mão inábil pratica menos
             npc.GainSkill(skillType, gain, _rules.Cap);
         }
     }
