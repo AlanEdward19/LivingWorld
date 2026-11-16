@@ -79,6 +79,10 @@ public sealed partial class BehaviorDecisionSystem
             return routine;
         }
 
+        // o corpo antes do gosto: com fome ou sede abaixo do piso o tempo livre é o da rotina (quem escolhia conversar ou passear
+        // com sede saía de perto da água: +34 h de sede crítica longe de casa por pessoa-ano, AD-160b)
+        if (npc.HungerAt(now) < rules.LeisureNeedFloor || npc.ThirstAt(now) < rules.LeisureNeedFloor) return routine;
+
         // AD-160b: decide na fronteira da rotina (ao entrar no tempo livre ou quando a rotina muda de faixa), não a cada despertar
         // nem a cada ação concluída: quem escolheu conversar ou ficar à toa segue nisso até a faixa acabar (era o maior custo do
         // cérebro por NPC-tick)
