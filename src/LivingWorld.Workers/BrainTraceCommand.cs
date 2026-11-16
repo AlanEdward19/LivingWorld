@@ -1,3 +1,4 @@
+using LivingWorld.Simulation.Scenarios;
 using System.Globalization;
 using LivingWorld.Domain.Behavior;
 using LivingWorld.Simulation.Observation;
@@ -12,6 +13,7 @@ public static class BrainTraceCommand
 {
     public static int Run(ulong firstSeed, int seeds, int years)
     {
+        if (Environment.GetEnvironmentVariable("LW_TRACE_AWAY") == "1") return Away(firstSeed, seeds, years);
         var inv = CultureInfo.InvariantCulture;
         BrainDecisionTally.Diagnose = true;
         var rules = BrainVariant.FromEnvironment() ?? LivingWorld.Domain.Cognition.BrainRules.Default;
@@ -42,6 +44,42 @@ public static class BrainTraceCommand
             outputs[i] = w.ToString();
         });
         foreach (var o in outputs) Console.Write(o);
+        return 0;
+    }
+
+    /// <summary>AD-160b: quem está com sede ou fome crítica longe de casa, o que está fazendo (ação, propósito da viagem, faixa de
+    /// idade, empregado), com o cérebro desligado e ligado, mesmas seeds. Horas-pessoa somadas.</summary>
+    private static int Away(ulong firstSeed, int seeds, int years)
+    {
+        var rules = BrainVariant.FromEnvironment() ?? LivingWorld.Domain.Cognition.BrainRules.Default;
+        var lines = new string[seeds * 2];
+        Parallel.For(0, seeds * 2, k =>
+        {
+            ulong seed = firstSeed + (ulong)(k / 2);
+            bool on = k % 2 == 1;
+            var (world, clock) = on ? BrainDecisionTally.CreateWorld(seed, rules) : ScenarioRunner.Create(seed);
+            var counts = new SortedDictionary<string, long>(StringComparer.Ordinal);
+            long hours = (long)years * world.Calendar.HoursPerYear;
+            for (long h = 0; h < hours && world.AliveNpcIndex.Alive.Count > 0; h++)
+            {
+                clock.Run(world, 1);
+                long now = world.CurrentDate.TotalHours;
+                foreach (var npc in world.AliveNpcIndex.Alive)
+                {
+                    if (npc.ThirstAt(now) >= 20 && npc.HungerAt(now) >= 20) continue;
+                    var home = npc.Household is { } hid ? world.Households.FirstOrDefault(x => x.Id == hid) : null;
+                    if (home is null || home.IsHomeless || npc.CurrentLocation == home.Location) continue;
+                    int age = npc.AgeYears(world.CurrentDate);
+                    string purpose = npc.TravelPurpose is { } tp ? tp.ToString() : "-";
+                    string stage = age < 16 ? "crianca" : age < 65 ? "adulto" : "velho";
+                    string key = npc.CurrentAction + "/" + purpose + "/" + stage + "/" + (npc.Employer is null ? "sem" : "emp");
+                    counts[key] = counts.GetValueOrDefault(key) + 1;
+                }
+            }
+            lines[k] = "seed=" + seed + " cerebro=" + (on ? 1 : 0) + " total=" + counts.Values.Sum() + " "
+                + string.Join(" ", counts.OrderByDescending(c => c.Value).Take(10).Select(c => c.Key + "=" + c.Value));
+        });
+        foreach (var l in lines) Console.WriteLine(l);
         return 0;
     }
 
