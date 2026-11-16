@@ -48,6 +48,7 @@ var _touched: Dictionary = {} ## sliders que o usuário mexeu ("hunger", "ambiti
 var _sandbox_column: ScrollContainer
 var _sandbox_note: Label
 var _title: Label
+var _brain_label: Label ## AD-160b: o valor do estado e o que o NPC aprendeu a valorizar (GET /npcs/{id}/brain)
 var _empty: Label
 var _flow_root: Control
 var _columns: HBoxContainer
@@ -101,6 +102,10 @@ func _init() -> void:
 	close_button.text = "Fechar (B)"
 	close_button.pressed.connect(func(): close())
 	header.add_child(close_button)
+	_brain_label = Label.new()
+	_brain_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_brain_label.visible = false
+	box.add_child(_brain_label)
 	var body := HBoxContainer.new()
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(body)
@@ -143,7 +148,52 @@ func open(id: int) -> void:
 	_follow_latest = true
 	_touched = {}
 	sandbox_trace = {}
+	_brain_label.visible = false
 	await refresh(true)
+	await load_brain()
+
+
+const GROUPS := ["impulso", "conforto", "temperamento", "contexto", "humor", "pressão", "antevisão", "hábito"]
+
+## AD-160b: lê o cérebro uma vez ao abrir (a linha do tempo segue pelo GET /npcs/{id} de cada hora). Desligado ou sem
+## leitura, a linha some.
+func load_brain() -> void:
+	var id := npc_id
+	var response: Dictionary = await api.npc_brain(id)
+	if id != npc_id or not is_open:
+		return
+	var body = response.body
+	if not response.ok or not (body is Dictionary) or not body.has("synapses") or not bool(body.get("enabled", false)):
+		_brain_label.visible = false
+		return
+	_brain_label.text = brain_summary(body)
+	_brain_label.visible = true
+
+
+## Texto da leitura: as parcelas do valor do estado e os três ganhos aprendidos mais fortes (ação · grupo ±%).
+func brain_summary(body: Dictionary) -> String:
+	var text := ""
+	var value = body.get("value")
+	if value is Dictionary:
+		text = "Vale para ele agora: corpo %d · despensa %d · moeda %d · humor %d" % [
+			int(value.get("body", 0)), int(value.get("pantry", 0)), int(value.get("money", 0)), int(value.get("mood", 0))]
+	var seen := {}
+	var gains: Array = []
+	for synapse in body.get("synapses", []):
+		var gain := int(synapse.get("gainMilli", 0))
+		var key := "%d/%d" % [int(synapse.get("action", 0)), int(synapse.get("group", 0))]
+		if gain == 0 or seen.has(key):
+			continue
+		seen[key] = true
+		gains.append([absi(gain), gain, int(synapse.get("action", 0)), int(synapse.get("group", 0))])
+	gains.sort_custom(func(a, b): return a[0] > b[0])
+	var learned: PackedStringArray = []
+	for g in gains.slice(0, 3):
+		var group: String = GROUPS[g[3]] if g[3] < GROUPS.size() else str(g[3])
+		learned.append("%s · %s %+d%%" % [labels.label_for(g[2]) if labels != null else str(g[2]), group, int(round(g[1] / 10.0))])
+	if not learned.is_empty():
+		text += ("\n" if text != "" else "") + "Aprendeu a pesar: " + ", ".join(learned)
+	return text
 
 
 func close() -> void:

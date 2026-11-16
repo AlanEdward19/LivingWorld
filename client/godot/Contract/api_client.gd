@@ -84,6 +84,13 @@ func observation_scope(source_id: String, scope: Dictionary) -> Dictionary:
 	return {"ok": response.status == 200, "status": response.status, "body": response.body}
 
 
+## Leitura do cérebro (AD-160b): a rede termo → grupo → ação de agora, os ganhos que o NPC aprendeu e o valor que ele dá ao
+## próprio estado. Projeção do servidor; nada é gravado.
+func npc_brain(id: int) -> Dictionary:
+	var response: Dictionary = await transport.request("GET", "/npcs/%d/brain" % id)
+	return {"ok": response.status == 200, "status": response.status, "body": response.body}
+
+
 ## "E se…?" do painel Cérebro: o servidor roda a decisão do NPC com estímulos sobrepostos; nada é gravado.
 func decision_sandbox(id: int, overrides: Dictionary) -> Dictionary:
 	var response: Dictionary = await transport.request("POST", "/npcs/%d/decision-sandbox" % id, overrides)
