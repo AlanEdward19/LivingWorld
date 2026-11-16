@@ -85,7 +85,7 @@ internal static class BrainMechanic
     }
 
     /// <summary>AD-160b: o salário que uma jornada de <paramref name="hours"/> horas rende ao NPC, em pontos (dias de comida que ele
-    /// compra × <see cref="BrainRules.MoneyDayValue"/>, até o horizonte). O salário cai no fim do mês; a parte desta jornada é
+    /// compra × <see cref="BrainRules.MoneyDayValue"/>). O salário cai no fim do mês; a parte desta jornada é
     /// creditada ao trabalho feito, no fim dele.</summary>
     internal static double WageCredit(WorldState world, Npc npc, double hours)
     {
@@ -94,7 +94,7 @@ internal static class BrainMechanic
         if (!world.EconomyRules.WageByProfession.TryGetValue(npc.Profession.Id, out long wage) || wage <= 0) return 0;
         int members = npc.Household is { } id && world.FindHousehold(id) is { } home ? Math.Max(1, home.Members.Count) : 1;
         double days = wage * hours / rules.WageHoursPerMonth / (FoodReferencePrice(world) * members);
-        return rules.MoneyDayValue * Math.Min(days, rules.ValueHorizonDays);
+        return rules.MoneyDayValue * days; // fluxo, não estoque: sem o teto do horizonte
     }
 
     /// <summary>Estado sentido: soma das quatro necessidades, valência do humor, dias de despensa por morador e o maior déficit

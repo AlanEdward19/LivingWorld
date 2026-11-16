@@ -27,9 +27,9 @@ public class BrainBodyDecidesTests
     }
 
     [Theory]
-    [InlineData(20, 90, true)]
+    [InlineData(30, 90, true)]
     [InlineData(90, 5, true)]
-    [InlineData(21, 21, false)]
+    [InlineData(31, 31, false)] // AD-160b: o corpo decide com fome ou sede urgente (30)
     public void Critical_hunger_or_thirst_hands_the_choice_to_the_body(int hunger, int thirst, bool bodyDecides)
     {
         Assert.Equal(bodyDecides, BrainRules.Default.BodyDecides(hunger, thirst));

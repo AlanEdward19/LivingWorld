@@ -53,7 +53,9 @@ public class BrainSustenanceTests
     [Fact]
     public void A_working_day_is_credited_with_the_wage_it_earns()
     {
-        var (world, _) = Adult();
+        var (world, clock) = ScenarioRunner.Create(7);
+        world.UseBrain(BrainRules.Default);
+        clock.Run(world, 3 * world.Calendar.HoursPerDay); // as vagas se preenchem nos primeiros dias
         var worker = world.Npcs.First(n => n.IsAlive && n.Employer is not null
             && world.EconomyRules.WageByProfession.GetValueOrDefault(n.Profession.Id) > 0);
         var idle = world.Npcs.First(n => n.IsAlive && n.Employer is null);
