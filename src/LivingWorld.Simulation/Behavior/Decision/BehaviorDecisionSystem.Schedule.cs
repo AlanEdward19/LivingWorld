@@ -59,6 +59,9 @@ public sealed partial class BehaviorDecisionSystem
         long scarcest = foodBlocked ? waterStock : Math.Min(foodStock, waterStock);
         int members = Math.Max(1, household.Members.Count);
         double hoard = -1;
+        // AD-157b (backlog 08b item 77): a compra passada ficou pela metade na banca (a carga cortou): volta pelo resto
+        bool owed = world.InventionOn && world.Invention!.IsLeftAtMarket(household.Id.Value);
+        if (owed) return ReturnForWhatWasLeft(world, npc, household, marketIndex, duringWork);
         if (scarcest >= (long)members * MaxProvisionDays) // despensa cheia mesmo para o mercado mais longe
         {
             if (npc.Psyche is null) return false;
@@ -89,6 +92,24 @@ public sealed partial class BehaviorDecisionSystem
         // cheia e a comida cara demais a ida não traz nada, e a pessoa ficava indo ao mercado sem parar em vez de viver.
         return (!foodBlocked && Affords(npc, market, economy.FoodResourceId, foodStock, members, target))
             || Affords(npc, market, economy.WaterResourceId, waterStock, members, target);
+    }
+
+    /// <summary>AD-157b: a volta pelo que a carga deixou na banca. Vai quem pode pagar uma unidade, fora do turno (a menos que a
+    /// despensa não dure até o fim dele) e se ninguém da casa já foi.</summary>
+    private static bool ReturnForWhatWasLeft(WorldState world, Npc npc, LivingWorld.Domain.Population.Family.Household household,
+        MarketIndex marketIndex, bool duringWork)
+    {
+        var economy = world.EconomyRules;
+        var provisioning = world.NeedsRules.Provisioning;
+        var market = NearestProvisionMarket(world, household, marketIndex);
+        if (market is null || npc.Wallet.Amount < CheapestEssentialPrice(economy, market)) return false;
+        if (duringWork && provisioning.RestockDuringWorkBelowDays >= 0)
+        {
+            long food = household.Stock.GetValueOrDefault(new ResourceType(economy.FoodResourceId));
+            long water = household.Stock.GetValueOrDefault(new ResourceType(economy.WaterResourceId));
+            if ((double)Math.Min(food, water) / Math.Max(1, household.Members.Count) >= provisioning.RestockDuringWorkBelowDays) return false;
+        }
+        return !(provisioning.OneShopperPerHousehold && HouseholdShopperOut(world, npc, household));
     }
 
     private static bool Affords(Npc npc, Workplace market, int resourceId, long stock, int members, double target) =>

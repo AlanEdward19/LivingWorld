@@ -93,8 +93,8 @@ public sealed partial class BehaviorDecisionSystem
         && world.FindHousehold(h) is { } home && PersonalCarry.PantryOutOfReach(world, npc, home)
         && SleepDestinationOf(world, npc) is { } bed && bed == home.Location;
 
-    /// <summary>AD-157b: a ceia. Com a despensa em casa, quem vai dormir em casa e passaria a noite até a fome ou a sede urgente
-    /// come antes, se a despensa tem com quê (como o desjejum antes de sair): sem isso acordava com fome crítica.</summary>
+    /// <summary>AD-157b: a ceia. Com a despensa em casa, quem vai dormir em casa e chegaria à fome crítica na noite come antes; quem
+    /// só chegaria à sede urgente bebe um copo (como o desjejum antes de sair): sem isso acordava com fome e sede.</summary>
     private static bool SupperBeforeSleep(WorldState world, Npc npc, ActionCatalog catalog, long now)
     {
         if (!world.InventionOn || !world.InventionRules!.PantryNeedsPresence || npc.Household is not { } h
@@ -108,9 +108,19 @@ public sealed partial class BehaviorDecisionSystem
             && home.Stock.GetValueOrDefault(new ResourceType(econ.FoodResourceId)) > 0;
         bool thirsty = npc.ThirstAt(now) - needs.ThirstDecayPerHour * night < line
             && home.Stock.GetValueOrDefault(new ResourceType(econ.WaterResourceId)) > 0;
-        if (!hungry && !thirsty) return false;
-        world.InventionTally.SupperBeforeSleep++;
-        return true;
+        if (hungry)
+        {
+            world.InventionTally.SupperBeforeSleep++;
+            return true; // a ceia: comer (e beber) antes de deitar
+        }
+        if (!thirsty) return false;
+        // só a sede: bebe um copo antes de deitar, sem gastar a ração do dia (a comida comida sem fome esvaziava a despensa)
+        var water = new ResourceType(econ.WaterResourceId);
+        if (!home.Withdraw(water, 1).IsSuccess) return false;
+        npc.SetThirst(Math.Max(npc.ThirstAt(now), Objects.ObjectUse.ConsumeLevel(world, water, LivingWorld.Domain.Objects.ObjectEffectTargets.Thirst)), now);
+        world.RecordResourceConsumed(water, 1);
+        world.InventionTally.DrankBeforeSleep++;
+        return false;
     }
 
     /// <summary>Voltar para comer é o tempo perdido que o problema de carregar sente.</summary>
