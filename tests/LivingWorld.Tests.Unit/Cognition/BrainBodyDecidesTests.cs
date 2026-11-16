@@ -43,7 +43,7 @@ public class BrainBodyDecidesTests
         npc.SetHunger(90, now);
         npc.SetThirst(5, now);
 
-        Assert.All(BrainMechanic.GainsFor(world.BrainRules!, npc, now), g => Assert.Equal(0, g));
+        Assert.Null(BrainMechanic.GainsFor(world.BrainRules!, npc, now)); // AD-160b: nulo = a conta da utilidade pura
     }
 
     [Fact]

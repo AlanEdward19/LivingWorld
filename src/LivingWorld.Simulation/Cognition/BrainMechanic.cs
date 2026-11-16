@@ -23,9 +23,14 @@ internal static class BrainMechanic
     internal static short[] GainsOf(Npc npc) => npc.Brain?.Gains ?? NeutralGains;
 
     /// <summary>Ganhos para uma decisão agora (AD-160): com fome ou sede crítica o corpo decide (neutros, a escolha é a da utilidade
-    /// pura e os grupos ainda são guardados para aprender); fora disso, os do NPC.</summary>
-    internal static short[] GainsFor(BrainRules rules, Npc npc, long tick) =>
-        npc.Brain is null || rules.BodyDecides(npc.HungerAt(tick), npc.ThirstAt(tick)) ? NeutralGains : npc.Brain.Gains;
+    /// pura e os grupos ainda são guardados para aprender); fora disso, os do NPC.
+    /// AD-160b: nulo quando não pesariam (corpo decidindo, sem cérebro ou todos zero): a decisão usa a conta da utilidade pura, sem
+    /// o custo da lente.</summary>
+    internal static short[]? GainsFor(BrainRules rules, Npc npc, long tick) =>
+        npc.Brain is not { } brain || rules.BodyDecides(npc.HungerAt(tick), npc.ThirstAt(tick))
+            || brain.Gains.AsSpan().IndexOfAnyExcept((short)0) < 0
+            ? null
+            : brain.Gains;
 
     /// <summary>Depois de uma escolha pela utilidade: guarda a participação (milésimos, com sinal) de cada grupo na nota da
     /// vencedora. Nota sem nenhum grupo (poder, furto) não deixa nada para aprender.</summary>
