@@ -108,19 +108,23 @@ public sealed partial class BehaviorDecisionSystem
             && home.Stock.GetValueOrDefault(new ResourceType(econ.FoodResourceId)) > 0;
         bool thirsty = npc.ThirstAt(now) - needs.ThirstDecayPerHour * night < line
             && home.Stock.GetValueOrDefault(new ResourceType(econ.WaterResourceId)) > 0;
-        if (hungry)
-        {
-            world.InventionTally.SupperBeforeSleep++;
-            return true; // a ceia: comer (e beber) antes de deitar
-        }
-        if (!thirsty) return false;
-        // só a sede: bebe um copo antes de deitar, sem gastar a ração do dia (a comida comida sem fome esvaziava a despensa)
-        var water = new ResourceType(econ.WaterResourceId);
-        if (!home.Withdraw(water, 1).IsSuccess) return false;
-        npc.SetThirst(Math.Max(npc.ThirstAt(now), Objects.ObjectUse.ConsumeLevel(world, water, LivingWorld.Domain.Objects.ObjectEffectTargets.Thirst)), now);
-        world.RecordResourceConsumed(water, 1);
-        world.InventionTally.DrankBeforeSleep++;
-        return false;
+        if (!hungry && !thirsty) return false;
+        world.InventionTally.SupperBeforeSleep++;
+        return true; // a ceia: comer e beber antes de deitar (beber sozinho deixava a fome sozinha, que perde para o resto até a crítica)
+    }
+
+    /// <summary>AD-157b: a hora da refeição em casa. Com a despensa em casa, quem está em casa sem urgência e com a fome perto da
+    /// urgência (<see cref="PersonalCarry.MealTimeDeficit"/>) come agora, com a casa tendo comida: a fome sozinha só vencia o resto
+    /// da escolha já crítica (a refeição de duas horas era passada com fome crítica).</summary>
+    private static bool MealTimeAtHome(WorldState world, Npc npc, long now)
+    {
+        if (!world.InventionOn || !world.InventionRules!.PantryNeedsPresence || npc.Household is not { } h
+            || world.FindHousehold(h) is not { IsHomeless: false } home || npc.CurrentLocation != home.Location)
+            return false;
+        if (100 - npc.HungerAt(now) < PersonalCarry.MealTimeDeficit) return false;
+        if (home.Stock.GetValueOrDefault(new ResourceType(world.EconomyRules.FoodResourceId)) <= 0) return false;
+        world.InventionTally.MealTimeAtHome++;
+        return true;
     }
 
     /// <summary>Voltar para comer é o tempo perdido que o problema de carregar sente.</summary>

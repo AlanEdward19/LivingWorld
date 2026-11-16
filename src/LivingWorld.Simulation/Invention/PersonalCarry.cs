@@ -23,6 +23,10 @@ public static class PersonalCarry
     /// a água, mais barata (o poço é de todos), já na urgência.</summary>
     internal const int MealAheadDeficit = 80;
 
+    /// <summary>AD-157b: em casa, sem urgência, come quem tem a fome a partir deste déficit (a hora da refeição, um pouco antes da
+    /// urgência de 70 do cenário). Escolha sem fonte.</summary>
+    internal const int MealTimeDeficit = 60;
+
     /// <summary>AD-157 (backlog 05 item 12c): o recipiente é de quem o leva. Quem está fora usa o que levou; quem está em casa, o
     /// melhor que ninguém da casa levou (vários saindo, cada um com o seu, e o último de mãos nuas).</summary>
     internal static Room RoomOf(WorldState world, Npc npc)
