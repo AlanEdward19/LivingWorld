@@ -25,7 +25,8 @@ dele, com o dinheiro que tem, e a oficina nasce dele. Nada é lista escrita: sai
    entra com até `1 − Aversão/100` do que tem acima da própria reserva, no máximo dois. A cota (`Workplace.Partners`, em
    décimos de milésimo) é a parte que ele pôs do capital.
 3. **Empréstimo** (AD-155, [credit](credit.md)): a falta, até metade do capital × `1 − Aversão/100`, de parente, conhecido,
-   o rico da vila ou o tesouro, com a oficina em garantia.
+   o rico da vila ou o tesouro, com a oficina em garantia. AD-159: carência, prazo até 60 meses e o salário do próprio
+   fundador no ganho que paga a parcela ([credit](credit.md)).
 Sem fechar a conta, não abre e nada muda. Origem contada: `sociedade` se houve sócio; `emprestimo` se houve credor; `heranca`
 se metade ou mais do que o casal pôs era herança; senão `poupanca`. Uma oficina fechada do ofício na cidade é comprada de quem
 ficou com ela em vez de levantar outra (AD-155).
@@ -55,7 +56,15 @@ seguem como antes (a cidade abre tudo, ninguém empreende).
 
 ## Medir
 `DemographyReport` imprime `negocios abertos por NPC` (total, seeds com algum, capital médio, origem), sobrevivência aos
-5 e aos 10 anos (gente trabalhando e folha paga) e a contagem por década (`VentureTally`, só lê eventos e o fim do mês).
+5 e aos 10 anos (gente trabalhando e folha paga) e a contagem por década (`VentureTally`, só lê eventos e o fim do mês),
+a maior parte do capital (poupança, herança, sócio, empréstimo) e a **sonda** (AD-159, `VentureProbe`, pendurada em
+`WorldState.VentureProbe` só no relatório, fora do snapshot): por década, quem passou pela conta com margem, quem decidiu,
+quem tinha o capital no casal, procurou sócio, pediu crédito e por que o crédito foi negado (credor que chegou mais perto).
+
+## Que ofícios (AD-159)
+No cenário de código só há dois tipos de local com receita: a fazenda (trigo e água; terra comum, que não se compra nem se
+arrenda, E15) e a forja (ferro, comprado pela fazenda como ferramenta). Não há moinho, padaria, tecelagem nem taverna com
+receita e comprador; criar um seria recurso sem consumidor. A forja segue sendo o único ofício que se abre.
 
 ## Limites conhecidos (backlog 04, itens E12 a E21)
 Empréstimo e falência em [credit](credit.md) (AD-155); obra instantânea (o prédio sai no mês da decisão); preço fixo depois de aberto (só o recém-chegado

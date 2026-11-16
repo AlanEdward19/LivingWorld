@@ -33,6 +33,14 @@ public sealed class CreditTally(WorldState world) : IWorldEventSink
 
     /// <summary>Empréstimos de comida por tomador (para ver se é a mesma casa rolando dívida).</summary>
     public Dictionary<long, int> FoodBorrowers { get; } = [];
+    /// <summary>AD-159: empréstimos de abertura (e de reabertura ou compra) encerrados: quitados e calotes, e as seeds com algum.</summary>
+    public int FoundingRepaid { get; private set; }
+    public int FoundingDefaulted { get; private set; }
+    public int FoundingOpen => _foundingLoans.Count;
+    /// <summary>AD-159 (E24): demitidos por falta de caixa que depois abriram ou compraram oficina por conta própria.</summary>
+    public int LaidOffFounded { get; private set; }
+    private readonly HashSet<long> _laidOff = [];
+    private readonly HashSet<string> _foundingLoans = new(StringComparer.Ordinal);
     private long? _initialMoney;
     private readonly List<(long Npc, long Tick)> _watch = [];
 
@@ -49,21 +57,28 @@ public sealed class CreditTally(WorldState world) : IWorldEventSink
                 if (purpose >= 0) ByPurpose[purpose]++;
                 long who = long.Parse(p[3], CultureInfo.InvariantCulture);
                 if (p[4] == "comida") FoodBorrowers[who] = FoodBorrowers.GetValueOrDefault(who) + 1;
+                if (p[4] is "abertura" or "reabertura") _foundingLoans.Add(p[0]);
                 Principal += long.Parse(p[5], CultureInfo.InvariantCulture);
                 break;
             case WorldEventKind.LoanRepaid when p.Length >= 4:
                 Repaid++;
+                if (_foundingLoans.Remove(p[0])) FoundingRepaid++;
                 break;
             case WorldEventKind.LoanDefaulted when p.Length >= 6:
                 Defaulted++;
+                if (_foundingLoans.Remove(p[0])) FoundingDefaulted++;
                 Lost += long.Parse(p[3], CultureInfo.InvariantCulture);
                 DefaultHow[p[5]] = DefaultHow.GetValueOrDefault(p[5]) + 1;
+                break;
+            case WorldEventKind.VentureFounded when p.Length >= 2:
+                if (_laidOff.Remove(long.Parse(p[1], CultureInfo.InvariantCulture))) LaidOffFounded++;
                 break;
             case WorldEventKind.WorkplaceBankrupt:
                 Bankruptcies++;
                 break;
             case WorldEventKind.Fired when p.Length >= 2 && evt.SourceSystem is "economy-credit" or "economy-working-capital":
                 if (evt.SourceSystem == "economy-credit") Freed++; else LaidOff++;
+                if (evt.SourceSystem != "economy-credit") _laidOff.Add(long.Parse(p[0], CultureInfo.InvariantCulture));
                 _watch.Add((long.Parse(p[0], CultureInfo.InvariantCulture), evt.Tick));
                 break;
         }
@@ -100,13 +115,14 @@ public sealed class CreditTally(WorldState world) : IWorldEventSink
         int closed = runs.Sum(r => r.Repaid + r.Defaulted);
         sb.AppendLine(inv, $"credito emprestimos={granted} seeds_com_algum={seedsWith}/{runs.Count} principal_medio={(granted > 0 ? runs.Sum(r => r.Principal) / (double)granted : 0):F0} finalidade[{string.Join(' ', Purposes.Select((p, i) => $"{p}={runs.Sum(r => r.ByPurpose[i])}"))}]");
         sb.AppendLine(inv, $"  quitados={runs.Sum(r => r.Repaid)} calotes={runs.Sum(r => r.Defaulted)} (taxa={(closed > 0 ? 100.0 * runs.Sum(r => r.Defaulted) / closed : 0):F1}% dos encerrados) perdido_pelos_credores={runs.Sum(r => r.Lost)} como[{string.Join(' ', runs.SelectMany(r => r.DefaultHow).GroupBy(k => k.Key).OrderBy(g => g.Key).Select(g => $"{g.Key}={g.Sum(x => x.Value)}"))}]");
-        sb.AppendLine(inv, $"  falencias={runs.Sum(r => r.Bankruptcies)} empregados_liberados={runs.Sum(r => r.Freed)} demitidos_por_caixa={runs.Sum(r => r.LaidOff)} um_ano_depois: trabalhando={runs.Sum(r => r.Reabsorbed)} sem_trabalho={runs.Sum(r => r.StillIdle)} partiram_ou_morreram={runs.Sum(r => r.Gone)}");
+        sb.AppendLine(inv, $"  falencias={runs.Sum(r => r.Bankruptcies)} empregados_liberados={runs.Sum(r => r.Freed)} demitidos_por_caixa={runs.Sum(r => r.LaidOff)} um_ano_depois: trabalhando={runs.Sum(r => r.Reabsorbed)} sem_trabalho={runs.Sum(r => r.StillIdle)} partiram_ou_morreram={runs.Sum(r => r.Gone)} demitidos_que_abriram={runs.Sum(r => r.LaidOffFounded)}");
         sb.Append("  por decada (parente/conhecido/rico/cidade):");
         for (int d = 0; d < Decades; d++)
             sb.Append(inv, $" {d * 10}:{string.Join('/', Enumerable.Range(0, Kinds.Length).Select(k => runs.Sum(r => r.Granted[d, k])))}");
         sb.AppendLine();
         var food = runs.SelectMany(r => r.FoodBorrowers.Values).OrderBy(x => x).ToList();
         sb.AppendLine(inv, $"  comida: tomadores_distintos={food.Count} emprestimos_por_tomador media={(food.Count > 0 ? food.Average() : 0):F1} mediana={(food.Count > 0 ? food[food.Count / 2] : 0)} p90={(food.Count > 0 ? food[food.Count * 9 / 10] : 0)} max={(food.Count > 0 ? food[^1] : 0)}");
+        sb.AppendLine(inv, $"  abertura/reabertura: seeds_com_algum={runs.Count(r => r.ByPurpose[0] + r.ByPurpose[2] > 0)}/{runs.Count} quitados={runs.Sum(r => r.FoundingRepaid)} calotes={runs.Sum(r => r.FoundingDefaulted)} em_aberto_no_fim={runs.Sum(r => r.FoundingOpen)}");
         sb.AppendLine(inv, $"  moeda_total desvio_maximo={runs.Max(r => r.MaxDrift)} (0 = conservada)");
         return sb.ToString();
     }

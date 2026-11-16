@@ -1,7 +1,7 @@
 # Economia: empréstimo, capital de giro e falência (fatias 6 e 7, AD-155)
 
 > Parte de [04](04-economia-e-empreendedorismo.md). Fatias anteriores e sobras E1 a E21 em [04a](04a-economia-fatias-1-a-5.md).
-> Domínio: [credit](../../../docs/domain/credit.md). Números sem fonte: [08b](08b-a-investigar.md), itens 90 a 96.
+> Domínio: [credit](../../../docs/domain/credit.md). Números sem fonte: [08b](08b-a-investigar.md), itens 90 a 96 e 130 a 132.
 
 ## Estado (2026-11-15): fatias 6 e 7 feitas, ligadas no cenário de código
 
@@ -45,14 +45,23 @@ NPC-tick: dentro do ruído (médias 2,36 → 2,31 µs; 197 → 197 B). Os sistem
 
 ## Ficou de fora das fatias 6 e 7 (nada some)
 
-- E22. **Empréstimo de abertura raro** (3 em 20 seeds, era 0). Feito: quem financia escolhe entre sócio e credor (aversão ao
-  risco, se sabe o ofício, ambição do fundador) e o fundador ambicioso e pouco medroso guarda parte da poupança e pede essa
-  parte. Ainda raro porque as aberturas são poucas (25 em 20 seeds, E25) e a parcela tem de caber na metade do ganho que a
-  conta promete. Meta "maioria das seeds" **não fechou**. Não medido: quantas decisões de abrir falham por capital (sonda não rodou).
+- ~~E22. Empréstimo de abertura raro~~ **feito no AD-159.** A sonda (`VentureProbe`) mostrou que quem decide abrir tem o
+  capital no casal (19 de 33 tentativas em 20×100) e que o empréstimo era negado **pela parcela** (6×50: 4 de 5), porque o
+  ganho contado era só o lucro. Agora conta o salário do próprio fundador, o prazo cresce até 60 meses e há 6 meses de
+  carência. 20×100: empréstimo em **15/20 seeds** (era 3), aberturas 26 (poupança 3, herança 1, sociedade 6, empréstimo 16;
+  maior parte do capital: poupança 11, herança 9, sociedade 4, empréstimo 2), 17 contratos de abertura, **0 calotes**.
+- E30. **Calote de abertura zero** (0 de 17): carência e forja que vive (24/25 vivas aos 5 anos). Sem número de referência.
+- E31. **"Põe ao menos a metade" barra o pobre**: 9 pedidos negados pelo teto (o fundador pedia mais que a parte que se
+  financia), 7 decisões sem capital, quase todas na década 90. Mantido (o credor de aldeia não financiava tudo).
+- E32. **Só a forja se abre**: o cenário de código não tem outro ofício com receita e comprador (a fazenda é terra comum, E15).
+  Mais ofícios pedem receita, recurso e consumidor novos (moinho, padaria...) e são fatia de conteúdo, não de crédito.
+- E33. **Sem safra para a parcela**: a forja vende o desgaste de ferramenta o mês todo; a parcela segue mensal. Liga quando
+  houver ofício de ganho sazonal.
 - E23. **Calote baixo (1,2%)** e quase todo por morte ou partida; a penhora é rara porque a parcela de comida cabe no salário.
   Sem número de referência firme (`08b` item 90).
 - E24. **Quem é demitido por falta de caixa fica sem trabalho** (129 de 190 um ano depois): o desemprego estrutural da vila
-  (jovens sem trabalho, `08` itens 48 a 61) não absorve. Medido, não tratado.
+  (jovens sem trabalho, `08` itens 48 a 61) não absorve. AD-159: 349 demitidos em 20×100, 216 sem trabalho um ano depois e
+  **nenhum abriu oficina**: com a forja de quem os demitiu ainda trabalhando a vila não tem margem para outra (só um ferreiro).
 - E25. **Aberturas 47 → 25 e reaberturas 32 → 0**: causa medida acima (o giro segura a forja; E20 não pesa). Mais realista,
   mas a vila tem menos rotação de mestres. Ferraria viva em 19/20 no ano 100.
 - E26. **Gini sobe ~0,02** e a moeda segue indo ao tesouro da cidade (59,8% no ano 100): o empréstimo de comida faz a moeda
