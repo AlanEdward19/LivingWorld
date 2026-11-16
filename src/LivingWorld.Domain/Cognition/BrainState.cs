@@ -30,6 +30,7 @@ public sealed class BrainState
         PendingValue = pendingAction is null ? (short)0 : pendingValue;
     }
 
+    [JsonConverter(typeof(GainsJsonConverter))]
     public short[] Gains { get; }
     public short[] ActionMeans { get; }
 

@@ -206,7 +206,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                     var beforeMood = candidate;
                     candidate = MoodShapesRoutine(world, ctx, npc, candidate, now); // AD-138: luto e vergonha recolhem
                     if (workHour && candidate != beforeMood) diag.MoodAtWork++;
-                    if (brainOn) candidate = BrainWeighsRoutine(world, npc, candidate, now, justCompleted); // AD-160b: tempo livre
+                    if (brainOn) candidate = BrainWeighsRoutine(world, npc, candidate, now, justCompleted, catalog, stage); // AD-160b: tempo livre
                 }
 
                 var beforeSteps = candidate;

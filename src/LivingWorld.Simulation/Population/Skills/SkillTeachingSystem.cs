@@ -77,7 +77,7 @@ public sealed class SkillTeachingSystem : ISimulationSystem
             double age = (double)(world.CurrentDate.TotalHours - npc.BirthDate.TotalHours) / calendar.HoursPerYear;
             var stage = _lifeStageRules.LifeStageOf((int)age);
             if (stage == LifeStage.Child && _rearing.Enabled && Due(day, npc, _rearing.SampleEveryDays))
-                SampleRearing(world, npc);
+                SampleRearing(world, npc, ctx);
             else if (stage != LifeStage.Child && npc.Rearing is { } record)
                 npc.ConcludeRearing(_rearing.Apply(npc.Personality, record, world.FamilyRules.PersonalityHeritability));
 
@@ -349,7 +349,7 @@ public sealed class SkillTeachingSystem : ISimulationSystem
     }
 
     /// <summary>Uma amostra da criação: os adultos e idosos vivos da casa onde a criança mora hoje, em ordem de id.</summary>
-    private void SampleRearing(WorldState world, Npc child)
+    private void SampleRearing(WorldState world, Npc child, TickContext ctx)
     {
         if (child.Household is not { } householdId || world.FindHousehold(householdId) is not { } home) return;
         _caregivers.Clear();
@@ -367,6 +367,6 @@ public sealed class SkillTeachingSystem : ISimulationSystem
         child.SetRearing((child.Rearing ?? RearingRecord.Empty).Add(_caregivers, biological));
         // AD-142: o que a criança aprende a valorizar puxa para o que os cuidadores valorizam
         if (world.BrainRules is { Enabled: true } brainRules)
-            LivingWorld.Simulation.Cognition.BrainMechanic.Rear(brainRules, child, _caregiverNpcs);
+            LivingWorld.Simulation.Cognition.BrainMechanic.Rear(brainRules, child, _caregiverNpcs, ctx.StreamFor("brain-rear", child.Id.Value));
     }
 }

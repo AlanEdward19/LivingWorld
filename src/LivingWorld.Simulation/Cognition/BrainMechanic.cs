@@ -142,15 +142,9 @@ internal static class BrainMechanic
         {
             int share = brain.ShareOf(i);
             if (share == 0) continue;
-            double delta = rate * surprise * share / 1000.0;
-            // AD-160b: o ganho anda em degraus de GainStep; o que sobra de um degrau move com chance proporcional (sem viés),
-            // então experiência pequena raramente reescreve o ganho (menos bytes no snapshot) e a média aprendida é a mesma
-            if (rules.GainStep > 1 && rng is not null)
-            {
-                double steps = delta / rules.GainStep, whole = Math.Floor(steps);
-                delta = (whole + (rng.NextDouble() < steps - whole ? 1 : 0)) * rules.GainStep;
-                if (delta == 0) continue;
-            }
+            // AD-160b: em degraus (a média aprendida é a mesma; o ganho cabe num byte no snapshot)
+            double delta = Stepped(rules, rate * surprise * share / 1000.0, rng);
+            if (delta == 0) continue;
             brain.Gains[row + i] = rules.Clamp(brain.Gains[row + i] + delta, i);
         }
 
@@ -160,6 +154,15 @@ internal static class BrainMechanic
         brain.ActionMeans[a] = mean;
         brain.Forget();
         npc.TouchBrain();
+    }
+
+    /// <summary>AD-160b: uma mudança de ganho em degraus de <see cref="BrainRules.GainStep"/>; o que sobra de um degrau move com
+    /// chance proporcional (sem viés). Sem sorteio (ou degrau 1), a mudança como veio.</summary>
+    internal static double Stepped(BrainRules rules, double delta, WorldRng? rng)
+    {
+        if (rules.GainStep <= 1 || rng is null) return delta;
+        double steps = delta / rules.GainStep, whole = Math.Floor(steps);
+        return (whole + (rng.NextDouble() < steps - whole ? 1 : 0)) * rules.GainStep;
     }
 
     /// <summary>Nascimento: <c>h × média dos pais + √(1 − h²) × segregação</c> por ganho, como a personalidade
@@ -172,7 +175,9 @@ internal static class BrainMechanic
         {
             double noise = (rng.NextDouble() * 2 - 1) * rules.InheritedNoiseMilli;
             double parents = ((mother?.Gains[i] ?? 0) + (father?.Gains[i] ?? 0)) / 2.0;
-            child.Gains[i] = rules.Clamp(h * parents + independent * noise, i % BrainState.Groups);
+            double inherited = h * parents + independent * noise;
+            if (rules.GainStep > 1) inherited = Math.Round(inherited / rules.GainStep, MidpointRounding.AwayFromZero) * rules.GainStep;
+            child.Gains[i] = rules.Clamp(inherited, i % BrainState.Groups);
         }
 
         // AD-160b: o filho já sabe pelo que viu em casa o que cada ação costuma render (média do que os pais esperam)
@@ -189,7 +194,7 @@ internal static class BrainMechanic
 
     /// <summary>Uma amostra da criação: os ganhos da criança andam <see cref="BrainRules.RearingPullPerSample"/> na direção da
     /// média dos cuidadores (quem passa mais tempo junto puxa mais, por somar mais amostras).</summary>
-    internal static void Rear(BrainRules rules, Npc child, IReadOnlyList<Npc> caregivers)
+    internal static void Rear(BrainRules rules, Npc child, IReadOnlyList<Npc> caregivers, WorldRng? rng = null)
     {
         if (caregivers.Count == 0) return;
         var brain = child.Brain;
@@ -204,7 +209,8 @@ internal static class BrainMechanic
             double sum = 0;
             for (int c = 0; c < caregivers.Count; c++) sum += caregivers[c].Brain?.Gains[i] ?? 0;
             double target = sum / caregivers.Count;
-            brain.Gains[i] = rules.Clamp(brain.Gains[i] + (target - brain.Gains[i]) * rules.RearingPullPerSample, i % BrainState.Groups);
+            double pull = Stepped(rules, (target - brain.Gains[i]) * rules.RearingPullPerSample, rng);
+            if (pull != 0) brain.Gains[i] = rules.Clamp(brain.Gains[i] + pull, i % BrainState.Groups);
         }
 
         child.TouchBrain();

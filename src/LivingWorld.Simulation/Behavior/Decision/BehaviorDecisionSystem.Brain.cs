@@ -1,6 +1,7 @@
 using LivingWorld.Domain.Behavior;
 using LivingWorld.Domain.Cognition;
 using LivingWorld.Domain.Population;
+using LivingWorld.Domain.Population.Body;
 using LivingWorld.Simulation.Cognition;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Scheduling;
@@ -10,7 +11,7 @@ namespace LivingWorld.Simulation.Behavior.Decision;
 // Parte de BehaviorDecisionSystem — o cérebro fora da escolha urgente (AD-160b): o que a ação concluída ensinou e o tempo livre.
 public sealed partial class BehaviorDecisionSystem
 {
-    private static readonly ActionType[] LeisureChoices = [ActionType.Socialize, ActionType.Idle];
+    private static readonly ActionType[] LeisureChoices = [ActionType.Socialize, ActionType.Idle, ActionType.Sleep, ActionType.Work];
     private static readonly short[] NoGains = new short[BrainState.Actions * BrainState.Groups];
 
     /// <summary>Último valor do estado medido (AD-160b): o fim de uma ação é o começo da próxima, então o valor medido ao concluir
@@ -59,11 +60,13 @@ public sealed partial class BehaviorDecisionSystem
         BrainMechanic.Remember(npc, chosen, groups, world.BrainRules!.ValuesSustenance ? BrainValueAt(world, npc, now) : 0);
     }
 
-    /// <summary>Tempo livre pesado pelo cérebro (AD-160b): na hora em que a rotina diz Conversar ou Ficar à toa, o NPC faz das duas
-    /// a que mais vale para ele, com a mesma forma da utilidade (necessidade × temperamento + hábito da rotina), cada grupo com o
-    /// ganho que ele herdou e aprendeu. Com fome ou sede crítica não chega aqui (é urgência); o corpo vem antes. Uma escolha que
+    /// <summary>Tempo livre pesado pelo cérebro (AD-160b): na hora em que a rotina diz Conversar ou Ficar à toa, o NPC escolhe entre
+    /// conversar, ficar à toa, deitar mais cedo (se a rotina manda dormir nas próximas <see cref="EarlyBedHours"/> horas) e ficar
+    /// mais no trabalho (se ainda está nele), com a mesma forma da utilidade (necessidade × temperamento + hábito da rotina), cada
+    /// grupo com o ganho que ele herdou e aprendeu: dois vizinhos do mesmo ofício passam a ter tardes diferentes. Com fome ou sede crítica não chega aqui (é urgência); o corpo vem antes. Uma escolha que
     /// muda a ação fica guardada para ensinar pelo que rendeu; a rotina que não passa pelo cérebro esquece a escolha anterior.</summary>
-    private static ActionType BrainWeighsRoutine(WorldState world, Npc npc, ActionType routine, long now, bool justCompleted)
+    private static ActionType BrainWeighsRoutine(
+        WorldState world, Npc npc, ActionType routine, long now, bool justCompleted, ActionCatalog catalog, LifeStage stage)
     {
         var rules = world.BrainRules!;
         if (!rules.WeighsLeisure || routine is not (ActionType.Idle or ActionType.Socialize))
@@ -81,9 +84,17 @@ public sealed partial class BehaviorDecisionSystem
         var best = routine;
         double bestScore = double.NegativeInfinity;
         Span<double> bestGroups = stackalloc double[BrainState.Groups];
+        bool bedSoon = BedtimeWithin(world, npc, catalog, stage, EarlyBedHours);
+        bool atWork = npc.CurrentAction == ActionType.Work && npc.Employer is not null;
         foreach (var action in LeisureChoices)
         {
-            double baseValue = action == ActionType.Socialize ? Deficit(npc.SocialAt(now)) : NonNeedBaselineUtility;
+            if (action == ActionType.Sleep && !bedSoon || action == ActionType.Work && !atWork) continue;
+            double baseValue = action switch
+            {
+                ActionType.Socialize => Deficit(npc.SocialAt(now)),
+                ActionType.Sleep => SurvivalDeficit(npc.SleepAt(now)),
+                _ => NonNeedBaselineUtility,
+            };
             double temperament = baseValue * (LivingWorld.Domain.Behavior.PersonalityWeighting.WeightOf(npc.Personality, action) - 1);
             double habit = action == routine ? continuity : 0;
             int row = (int)action * BrainState.Groups;
@@ -103,5 +114,18 @@ public sealed partial class BehaviorDecisionSystem
         if (justCompleted || best != npc.CurrentAction)
             BrainRemember(world, npc, best, bestGroups, now, justCompleted);
         return best;
+    }
+
+    /// <summary>Quantas horas antes da hora de dormir da rotina o NPC pode escolher deitar (AD-160b).</summary>
+    private const int EarlyBedHours = 2;
+
+    /// <summary>A rotina do NPC manda dormir em até <paramref name="hours"/> horas.</summary>
+    private static bool BedtimeWithin(WorldState world, Npc npc, ActionCatalog catalog, LifeStage stage, int hours)
+    {
+        var profession = NoneIfSentinel(npc.Profession);
+        int hpd = world.Calendar.HoursPerDay, hour = world.CurrentDate.Hour;
+        for (int k = 1; k <= hours; k++)
+            if (Needs.RoutineBoundaries.RoutineAt(catalog, profession, stage, (hour + k) % hpd, hpd) == ActionType.Sleep) return true;
+        return false;
     }
 }
