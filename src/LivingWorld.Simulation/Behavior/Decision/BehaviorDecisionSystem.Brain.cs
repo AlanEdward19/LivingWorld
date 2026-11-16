@@ -124,8 +124,15 @@ public sealed partial class BehaviorDecisionSystem
             bestGroups[(int)UtilityGroup.Continuity] = h;
         }
 
-        if (justCompleted || best != npc.CurrentAction)
+        // o tempo livre pesa o que o NPC aprendeu nas escolhas de verdade (as urgentes); guardar e aprender de cada faixa de lazer
+        // custava ~4% de CPU e bytes de snapshot para pouca diferença (AD-160b, LeisureLearns)
+        if (rules.LeisureLearns && (justCompleted || best != npc.CurrentAction))
             BrainRemember(world, npc, best, bestGroups, now, justCompleted);
+        else if (npc.Brain?.PendingAction is not null && best != npc.Brain.PendingAction)
+        {
+            npc.Brain.Forget(); // a escolha anterior não ensina pelo desfecho desta
+            npc.TouchBrain();
+        }
         return best;
     }
 

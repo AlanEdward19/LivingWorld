@@ -32,7 +32,8 @@ public sealed record BrainRules(
     bool LeisureStaysAtWork = true,
     int LeisureNeedFloor = 0,
     int MeanStep = 1,
-    bool LeisureKeepsChoice = true)
+    bool LeisureKeepsChoice = true,
+    bool LeisureLearns = false)
 {
     /// <summary>Ligado, com os números do desenho (`.specs/features/neural-brain/design.md`).</summary>
     public static BrainRules Default { get; } = new(
@@ -68,6 +69,7 @@ public sealed record BrainRules(
         "meanstep1" => Default with { MeanStep = 1 },
         "nokeep" => Default with { LeisureKeepsChoice = false },
         "still" => Default with { LearningPerPoint = 0, MeanWindow = 30000 },
+        "leisurelearns" => Default with { LeisureLearns = true },
         "mean16" => Default with { MeanStep = 16 },
         "mean16w32" => Default with { MeanStep = 16, MeanWindow = 32 },
         "nostay" => Default with { LeisureStaysAtWork = false },
