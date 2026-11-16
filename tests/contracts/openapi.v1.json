@@ -1708,6 +1708,30 @@
         ]
       }
     },
+    "/npcs/{id}/brain": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "LivingWorld.Api"
+        ]
+      }
+    },
     "/npcs/{id}/decision-sandbox": {
       "post": {
         "parameters": [
