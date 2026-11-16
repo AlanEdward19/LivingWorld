@@ -7,7 +7,9 @@ crescia ~2% ao ano como uma fronteira de colonização e só freava quando as va
 ## A terra é finita
 - **Demarcada na fundação** (`CropSystem.SeedFirstAgriculturalYear`): o campo recebe `CropBatch.ArableSeed`, a semente
   que a terra toma num ano = fundadores × `SownHectaresPerFounder` (1,4 ha semeados por fundador, o dobro do que eles
-  semeiam) × `SeedPerHectare` (220). Estado do mundo (snapshot); 0 = sem limite (mundo antigo, cenário JSON).
+  semeiam) × `SeedPerHectare` (220). A fonte pede 0,7–1,0 (Inglaterra c.1300 ≈ 0,6 ha por pessoa); AD-163 mediu 1,0
+  (20×100: pop final 185 → 131, natalidade −6%, mulher casa ~2 anos mais tarde) e deixou de fora pelo custo (+3–8% por
+  NPC-tick a 1.000: quem fica sem lugar na terra procura trabalho); 0,7 encolhe a vila abaixo dos 100 fundadores. Estado do mundo (snapshot); 0 = sem limite (mundo antigo, cenário JSON).
 - A semeadura nunca passa dela (`SeedTarget`), por mais bocas que haja.
 - **Rendimento decrescente por braço**: com a terra toda semeada (`HandsForLand` = terra ÷ 500 por braço), braço a mais só
   capina, esterca e lavra de novo — o rendimento por semente sobe até `HandIntensityGain` (25%), cada vez menos

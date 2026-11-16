@@ -113,7 +113,7 @@ public sealed class DemographyTally(WorldState world) : IWorldEventSink
 /// <summary>Resumo de N seeds × A anos do cenário padrão de código (<see cref="ScenarioRunner.Create"/>).</summary>
 public static class DemographyReport
 {
-    public sealed record SeedResult(ulong Seed, int FinalAlive, int MinAlive, DemographyTally Tally, FoodTally? Food = null, InventionSummary? Invention = null, EconomyTally? Economy = null, WorkdayTally? Workday = null, DecadeTally? Decades = null, VentureTally? Ventures = null, CreditTally? Credit = null, NeedDistressTally? Distress = null);
+    public sealed record SeedResult(ulong Seed, int FinalAlive, int MinAlive, DemographyTally Tally, FoodTally? Food = null, InventionSummary? Invention = null, EconomyTally? Economy = null, WorkdayTally? Workday = null, DecadeTally? Decades = null, VentureTally? Ventures = null, CreditTally? Credit = null, NeedDistressTally? Distress = null, ReferenceTally? Reference = null);
 
     private sealed class BothSinks(IWorldEventSink a, IWorldEventSink b) : IWorldEventSink
     {
@@ -128,10 +128,12 @@ public static class DemographyReport
         Func<WorldState, IWorldEventSink?>? observe = null, Action<WorldState, int>? afterMonth = null,
         LivingWorld.Domain.Behavior.NeedsRules? needsRules = null, LivingWorld.Domain.Invention.InventionRules? inventionRules = null,
         LivingWorld.Domain.Economy.AgricultureRules? agricultureRules = null, LivingWorld.Domain.Economy.EconomyRules? economyRules = null,
-        LivingWorld.Domain.Crime.CrimeRules? crimeRules = null, LivingWorld.Domain.Extraordinary.ExtraordinaryScenarioData? extraordinary = null)
+        LivingWorld.Domain.Crime.CrimeRules? crimeRules = null, LivingWorld.Domain.Extraordinary.ExtraordinaryScenarioData? extraordinary = null,
+        Func<LivingWorld.Simulation.Scheduling.ISimulationSystem, LivingWorld.Simulation.Scheduling.ISimulationSystem>? swapSystem = null,
+        LivingWorld.Domain.Ontogeny.OntogenyRules? ontogenyRules = null)
     {
         var (world, baseClock) = ScenarioRunner.Create(seed, familyRules: familyRules, needsRules: needsRules, inventionRules: inventionRules,
-            agricultureRules: agricultureRules, economyRules: economyRules, crimeRules: crimeRules, extraordinary: extraordinary);
+            agricultureRules: agricultureRules, economyRules: economyRules, crimeRules: crimeRules, extraordinary: extraordinary, ontogenyRules: ontogenyRules);
         world.UseBrain(brain); // AD-142: experimento (nulo = desligado)
         var extra = observe?.Invoke(world);
         var tally = new DemographyTally(world) { MeasureFromTick = warmupYears * world.Calendar.HoursPerYear };
@@ -148,9 +150,13 @@ public static class DemographyReport
         world.VentureProbe = ventures.Decisions; // AD-159: só observa
         var credit = new CreditTally(world); // AD-155
         var distress = new NeedDistressTally(world) { MeasureFromTick = tally.MeasureFromTick }; // AD-157
-        IWorldEventSink sinks = new BothSinks(new BothSinks(new BothSinks(new BothSinks(new BothSinks(tally, food), decades), ventures), credit), distress);
+        var reference = new ReferenceTally(world) { MeasureFromTick = tally.MeasureFromTick }; // AD-163
+        reference.Attach();
+        IWorldEventSink sinks = new BothSinks(new BothSinks(new BothSinks(new BothSinks(new BothSinks(new BothSinks(tally, food), decades), ventures), credit), distress), reference);
         if (extra is not null) sinks = new BothSinks(sinks, extra);
-        var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, sinks);
+        // AD-163: só para medir (item 8): troca um sistema do relógio por outro com regras diferentes
+        var systems = swapSystem is null ? baseClock.Systems : baseClock.Systems.Select(swapSystem).ToList();
+        var clock = new WorldClock(systems, baseClock.MaxIterationsPerTick, sinks);
         int months = years * world.Calendar.MonthsPerYear;
         int minAlive = int.MaxValue;
         for (int m = 0; m < months; m++)
@@ -176,6 +182,8 @@ public static class DemographyReport
             decades.SampleMonth(world.CurrentDate.TotalHours);
             ventures.SampleMonth();
             credit.SampleMonth();
+            reference.SampleMonth();
+            if ((m + 1) % world.Calendar.MonthsPerYear == 0) reference.SampleYear();
             afterMonth?.Invoke(world, m);
             minAlive = Math.Min(minAlive, world.AliveNpcIndex.Alive.Count);
             if (world.AliveNpcIndex.Alive.Count == 0) break;
@@ -183,7 +191,8 @@ public static class DemographyReport
 
         tally.Reproduction.SampleGenetics();
         economy.SampleYear(years);
-        return new SeedResult(seed, world.AliveNpcIndex.Alive.Count, minAlive, tally, food, InventionSummary.Of(world), economy, workday, decades, ventures, credit, distress);
+        reference.Finish();
+        return new SeedResult(seed, world.AliveNpcIndex.Alive.Count, minAlive, tally, food, InventionSummary.Of(world), economy, workday, decades, ventures, credit, distress, reference);
     }
 
     public static string Summarize(IReadOnlyList<SeedResult> runs, int years, int warmupYears, long hoursPerYear)
@@ -274,6 +283,55 @@ public static class DemographyReport
         if (creditRuns.Count > 0) sb.Append(CreditTally.Summarize(creditRuns));
         sb.Append(InventionSummary.Summarize(runs.Where(r => r.Invention is not null).Select(r => r.Invention!).ToList()));
         sb.Append(NeedDistressTally.Summarize(runs.Where(r => r.Distress is not null).Select(r => (r.Seed, r.Distress!)).ToList(), hoursPerYear));
+        foreach (var r in runs) sb.AppendLine(MeasureLine(r, hoursPerYear, followUpEnd));
+        return sb.ToString();
+    }
+
+    /// <summary>AD-163: uma linha `medida seed=...` por seed, só `chave=valor`, para o script que pareia dois braços
+    /// (`scripts/paired-rates.py`): pessoas-ano e mortes por causa nas faixas de <see cref="DiseaseTally.BandNames"/> (desde o
+    /// aquecimento), mortes, fome e pessoas-ano por década (desde o ano 0), nascidos por sexo, natimortos, 1º ano da coorte,
+    /// construções, ofício seguido e os contadores de <see cref="ReferenceTally"/>.</summary>
+    public static string MeasureLine(SeedResult r, long hoursPerYear, long followUpEnd)
+    {
+        var inv = CultureInfo.InvariantCulture;
+        var t = r.Tally;
+        var bands = DiseaseTally.BandStarts;
+        var pa = new double[bands.Length];
+        for (int a = 0; a <= DemographyTally.MaxAge; a++)
+        {
+            int b = bands.Length - 1;
+            while (b > 0 && a < bands[b]) b--;
+            pa[b] += t.ExposureByAge[a];
+        }
+        var byCause = new SortedDictionary<string, long[]>(StringComparer.Ordinal);
+        foreach (var (cause, row) in t.Disease.DeathsByCauseAndBand)
+        {
+            string key = cause.StartsWith("Disease:", StringComparison.Ordinal) ? "Disease" : cause;
+            if (!byCause.TryGetValue(key, out var acc)) byCause[key] = acc = new long[bands.Length];
+            for (int i = 0; i < row.Length; i++) acc[i] += row[i];
+        }
+        long cohort = 0, infant = 0;
+        foreach (var (_, (birthTick, deathAge)) in t.Babies)
+            if (birthTick + hoursPerYear <= followUpEnd)
+            {
+                cohort++;
+                if (deathAge is { } d && d < hoursPerYear) infant++;
+            }
+        var sb = new StringBuilder();
+        sb.Append(inv, $"medida seed={r.Seed} pop_final={r.FinalAlive} pop_min={r.MinAlive} pa={string.Join('/', pa.Select(x => x.ToString("F1", inv)))}");
+        foreach (var (cause, row) in byCause) sb.Append(inv, $" d.{cause}={string.Join('/', row)}");
+        sb.Append(inv, $" nasc={t.Births} nasc_m={t.MaleBirths} nasc_f={t.Births - t.MaleBirths} natimortos={t.StillBirths} perdas={t.Miscarriages} coorte1={cohort} mortes1={infant}");
+        if (r.Decades is { } dec)
+        {
+            sb.Append(" pa_dec=").Append(string.Join('/', dec.Data.Select(d => d.PersonYears.ToString("F1", inv))));
+            sb.Append(" mortes_dec=").Append(string.Join('/', dec.Data.Select(d => d.Deaths)));
+            sb.Append(" fome_dec=").Append(string.Join('/', dec.Data.Select(d => d.Starved)));
+            sb.Append(" nasc_dec=").Append(string.Join('/', dec.Data.Select(d => d.Births)));
+        }
+        if (r.Invention is { } invention) sb.Append(inv, $" constr_boas={invention.Tally.Built} constr_falhas={invention.Tally.BuildFailures}");
+        var fam = t.Family;
+        sb.Append(inv, $" oficio_n={fam.FollowCompared} oficio_segue={fam.Followed} oficio_acaso={fam.FollowByChance:F2} oficio_alta_n={fam.HighPressureCompared} oficio_alta={fam.HighPressureFollowed} oficio_baixa_n={fam.LowPressureCompared} oficio_baixa={fam.LowPressureFollowed}");
+        r.Reference?.Append(sb);
         return sb.ToString();
     }
 

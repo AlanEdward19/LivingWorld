@@ -80,6 +80,7 @@ public static class InventionMarket
     /// (braços e recipiente preso a ele). Só medida: nenhuma decisão lê isto.</summary>
     public static void NoteTrip(WorldState world, Household household, CellCoord market, long cargoStart, long cargoLeft, long cutG)
     {
+        world.TripProbe?.Invoke(household.Id.Value, cutG); // AD-163: só observa
         if (!world.InventionOn || cargoStart == long.MaxValue) return;
         var rules = world.InventionRules!;
         var tally = world.InventionTally;

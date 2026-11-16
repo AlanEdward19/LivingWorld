@@ -31,6 +31,19 @@ public sealed record OntogenyRules
     /// <summary>Se a criança sem adulto é acolhida (na orfandade e no sweep mensal). Desligar devolve o comportamento anterior à issue #93: só parente próximo, senão domicílio unitário.</summary>
     public bool OrphanCare { get; }
 
+    /// <summary>AD-163 (backlog 08 item 50): o motor fino pesa no rendimento e na prática do ofício entre o marco que deixa
+    /// trabalhar (<see cref="Requirements"/> de Trabalhar, 0,7) e a mão hábil completa (1,0): o fator é o próprio motor fino,
+    /// limitado a esse intervalo. Falso = o motor fino só barra o trabalho abaixo do marco.</summary>
+    public bool FineMotorScalesWork { get; init; }
+
+    /// <summary>Fator do motor fino no trabalho de quem tem <paramref name="state"/> (nulo = desenvolvimento completo).</summary>
+    public double FineMotorWorkFactor(DevelopmentState? state)
+    {
+        if (!Enabled || !FineMotorScalesWork || state is null) return 1.0;
+        double gate = Requirements.TryGetValue(ActionType.Work, out var r) && r.Axis == DevelopmentAxis.FineMotor ? r.Threshold : 0;
+        return Math.Clamp(state.FineMotor, gate, 1.0);
+    }
+
     private readonly Dictionary<DevelopmentAxis, (double Age, double Progress)[]> _curves;
 
     /// <summary>Idade (anos, já escalada pela taxa) a partir da qual o desenvolvimento está completo em todos os eixos.</summary>

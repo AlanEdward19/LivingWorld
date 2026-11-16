@@ -184,7 +184,7 @@ public sealed class ProductionSystem : ISimulationSystem
 
         double sum = 0;
         for (int i = 0; i < count; i++)
-            sum += BodyMechanic.WorkCapacityMultiplier(world, presentWorkers[i]);
+            sum += BodyMechanic.WorkCapacityMultiplier(world, presentWorkers[i]) * world.OntogenyRules.FineMotorWorkFactor(presentWorkers[i].Development); // AD-163
         return sum / count;
     }
 
