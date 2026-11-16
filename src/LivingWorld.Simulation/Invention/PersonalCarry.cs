@@ -19,6 +19,13 @@ public static class PersonalCarry
     /// <summary>Espaço para levar: peso de conteúdo (g), volume seco (ml), a parte estanque dele (ml) e o recipiente (item; 0 = mãos).</summary>
     internal readonly record struct Room(long WeightG, long DryMl, long WetMl, long ItemId = 0);
 
+    /// <summary>AD-157b: a comida comida antes da hora (desjejum, ceia) só quando a fome chegaria a este déficit (o crítico da decisão);
+    /// a água, mais barata (o poço é de todos), já na urgência.</summary>
+    internal const int MealAheadDeficit = 80;
+
+    /// <summary>AD-157b: com a despensa em casa, a refeição de quem só foi beber leva comida só a partir desta fome (déficit).</summary>
+    internal const int AppetiteDeficit = 50;
+
     /// <summary>AD-157 (backlog 05 item 12c): o recipiente é de quem o leva. Quem está fora usa o que levou; quem está em casa, o
     /// melhor que ninguém da casa levou (vários saindo, cada um com o seu, e o último de mãos nuas).</summary>
     internal static Room RoomOf(WorldState world, Npc npc)
@@ -157,7 +164,9 @@ public static class PersonalCarry
             wantWater = UnitsFor(npc.ThirstAt(now), needs.ThirstDecayPerHour, waterHours, line, waterLevel) - ledger.CarriedQuantity(npc.Id.Value, water.Id);
         }
         var meal = LivingWorld.Simulation.Behavior.Resolvers.FoodResolver.ResolveMeal(world, home);
-        if (wantFood > 0 && meal.Id > 0 && home.Stock.GetValueOrDefault(meal) > (meal == food ? keepFood : 0) && npc.HungerAt(now) < foodLevel
+        // a comida é cara: só come antes quem chegaria à fome crítica fora (a unidade inteira gasta antes da hora esvaziava a despensa)
+        bool foodCritical = npc.HungerAt(now) - needs.HungerDecayPerHour * foodHours < 100 - MealAheadDeficit;
+        if (wantFood > 0 && foodCritical && meal.Id > 0 && home.Stock.GetValueOrDefault(meal) > (meal == food ? keepFood : 0) && npc.HungerAt(now) < foodLevel
             && home.Withdraw(meal, 1).IsSuccess)
         {
             npc.SetHunger(Math.Max(npc.HungerAt(now), ObjectUse.ConsumeLevel(world, meal, ObjectEffectTargets.Hunger)), now);

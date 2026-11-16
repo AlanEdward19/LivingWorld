@@ -104,7 +104,7 @@ public sealed partial class BehaviorDecisionSystem
         var econ = world.EconomyRules;
         int line = 100 - needs.UrgencyThreshold;
         long night = Objects.ObjectUse.DurationHours(world, npc, ActionType.Sleep, catalog);
-        bool hungry = npc.HungerAt(now) - needs.HungerDecayPerHour * night < line
+        bool hungry = npc.HungerAt(now) - needs.HungerDecayPerHour * night < 100 - PersonalCarry.MealAheadDeficit
             && home.Stock.GetValueOrDefault(new ResourceType(econ.FoodResourceId)) > 0;
         bool thirsty = npc.ThirstAt(now) - needs.ThirstDecayPerHour * night < line
             && home.Stock.GetValueOrDefault(new ResourceType(econ.WaterResourceId)) > 0;
