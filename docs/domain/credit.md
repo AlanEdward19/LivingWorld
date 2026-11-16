@@ -27,10 +27,12 @@ dos judeus ingleses (2 dinheiros por libra por semana, ~43% ao ano) como o caro 
 - **Abrir** (`VentureCapital.Raise`): quem financia escolhe ser sócio ou credor (sócio se `1 − Aversão` + 0,25 se sabe o
   ofício − Ambição do fundador/200 ≥ 0,5); os que preferem sociedade entram primeiro, depois o empréstimo, depois os outros
   como sócios. O fundador ambicioso e pouco medroso guarda `(Ambição − Aversão)/100` da poupança (até a metade) e pede essa
-  parte. O empréstimo não passa de metade do capital × `1,5 − Aversão/100`. Prazo 36 meses; a oficina nova é a garantia.
+  parte. O empréstimo não passa de metade do capital × `1,5 − Aversão/100`. Prazo 12 meses; a oficina nova é a garantia.
   Origem `emprestimo` (`sociedade` se também houve sócio). **AD-159:** o ganho que paga a parcela é o que a oficina rende à
-  casa (lucro + o salário do próprio fundador na folha, `OwnWageInCapacityShare`); se a parcela de 36 meses não cabe, o prazo
-  cresce de 12 em 12 até 60 (`MaxFoundingTermMonths`; o acréscimo cresce junto); **carência** de 6 meses
+  casa (lucro + o salário do próprio fundador na folha, `OwnWageInCapacityShare`); se a parcela de 12 meses não cabe, o prazo
+  cresce para 24 (`MaxFoundingTermMonths`; o acréscimo cresce junto). **AD-162:** era 36 até 60; o crédito de aldeia ia de um
+  dia a um ano (Briggs 2009, grau [B]) e só o prédio em garantia sustenta o 2º ano. Em 6×50, empréstimos de abertura 4→2, as
+  mesmas 5 aberturas (pela poupança). **Carência** de 6 meses
   (`FoundingGraceMonths`, `Loan.FirstDueTick`) enquanto a oficina monta freguesia, sem parcela nem atraso.
 - **Reabrir** a oficina parada, ou **comprar uma fechada** (`VentureFounding.TryBuyClosed`, pelo foro + obra + equipamento,
   a quem ficou com ela) em vez de levantar outra. Prazo 12 meses.
@@ -54,10 +56,12 @@ dos judeus ingleses (2 dinheiros por libra por semana, ~43% ao ano) como o caro 
 A oficina de dono cuja folha não fecha **6 meses seguidos** (ou cujo empréstimo com garantia caloteou) fecha de verdade:
 1. a gente fica livre (evento `Fired`) e procura trabalho pelo caminho de sempre;
 2. o estoque é vendido, ao piso, a quem usa ou vende o bem na cidade, até o caixa de cada um;
-3. os credores recebem na ordem: **salário atrasado** (rateio; o atraso da oficina de dono fica devido e é pago quando o caixa
-   volta), depois os **empréstimos com a oficina em garantia**, por id;
-4. a sobra vai ao dono e aos sócios pela cota;
-5. o primeiro credor com saldo **fica com o prédio** (o valor dele abate a dívida); sem credor, o prédio segue do dono;
+3. **AD-162:** o credor com penhor leva o bem penhorado: o primeiro empréstimo com a oficina em garantia (por id) **fica com o
+   prédio** (o valor dele abate a dívida); sem credor, o prédio segue do dono;
+4. o caixa vai em **rateio proporcional ao devido** entre todos os que sobram: salário atrasado (o atraso da oficina de dono fica
+   devido e é pago quando o caixa volta) e o saldo dos empréstimos, sem preferência do salário (estatuto inglês de 1543,
+   *pari passu*; a preferência do salário é do séc. XIX; grau [B]). Antes o salário vinha primeiro;
+5. a sobra vai ao dono e aos sócios pela cota;
 6. o que ainda se deve vira dívida pessoal do dono e dos sócios **na proporção das cotas**.
 A oficina fica `Workplace.Closed`: não contrata, não paga folha, a cidade não a cobre. Quem ficou com ela reabre (se sabe o
 ofício) ou a vende a quem quer abrir.

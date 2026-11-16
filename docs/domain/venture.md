@@ -25,7 +25,7 @@ dele, com o dinheiro que tem, e a oficina nasce dele. Nada é lista escrita: sai
    entra com até `1 − Aversão/100` do que tem acima da própria reserva, no máximo dois. A cota (`Workplace.Partners`, em
    décimos de milésimo) é a parte que ele pôs do capital.
 3. **Empréstimo** (AD-155, [credit](credit.md)): a falta, até metade do capital × `1 − Aversão/100`, de parente, conhecido,
-   o rico da vila ou o tesouro, com a oficina em garantia. AD-159: carência, prazo até 60 meses e o salário do próprio
+   o rico da vila ou o tesouro, com a oficina em garantia. AD-159: carência, prazo mais longo (até 24 meses desde o AD-162) e o salário do próprio
    fundador no ganho que paga a parcela ([credit](credit.md)).
 Sem fechar a conta, não abre e nada muda. Origem contada: `sociedade` se houve sócio; `emprestimo` se houve credor; `heranca`
 se metade ou mais do que o casal pôs era herança; senão `poupanca`. Uma oficina fechada do ofício na cidade é comprada de quem

@@ -8,7 +8,9 @@ public sealed record DomesticViolenceRules
 {
     public bool Enabled { get; init; } = true;
 
-    /// <summary>Chance por ano de um adulto de propensão 1, sem estresse, agredir alguém da casa.</summary>
+    /// <summary>Chance por ano de um adulto de propensão 1, sem estresse, agredir alguém da casa. Dá 3,0% das esposas agredidas
+    /// por ano (AD-163, 40×100); a fonte pede 10–20% (OMS 2018 / Sardinha 2022: 13%, moderno [B]). 0,036 dá ~10% mas a fome
+    /// crítica sobe 28% e a fome dos menores de 5 dobra (20×100): fica 0,012 até se achar o caminho da agressão à fome.</summary>
     public double PerYear { get; init; } = 0.012;
 
     /// <summary>Quanto cada estresse multiplica a chance (soma: 1 + fome + miséria + desemprego).</summary>
@@ -31,6 +33,14 @@ public sealed record DomesticViolenceRules
 
     /// <summary>Mágoa conjugal (0..100) que cada agressão soma no cônjuge agredido (pesa na separação).</summary>
     public double SpouseGrievance { get; init; } = 20;
+
+    /// <summary>AD-162: a norma tolerava o "castigo moderado" e a separação de mesa e leito exigia crueldade excessiva provada, rara
+    /// nas cortes da Igreja (Helmholz 1974, citado; grau [B]). A agressão leve e isolada soma só esta parte de
+    /// <see cref="SpouseGrievance"/>; a grave (dano a partir de <see cref="SevereHarm"/>) ou a repetida (a vítima ainda guarda do
+    /// mesmo agressor mágoa de ao menos <see cref="RepeatGrudgeMin"/>) soma a mágoa inteira.</summary>
+    public double ToleratedGrievanceShare { get; init; } = 0.25;
+    public int SevereHarm { get; init; } = 25;
+    public int RepeatGrudgeMin { get; init; } = 10;
 
     /// <summary>Peso da criança que vê a agressão em casa: fração do impacto de violência na lembrança dela.</summary>
     public double WitnessChildImpact { get; init; } = 0.5;

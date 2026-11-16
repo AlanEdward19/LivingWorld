@@ -47,6 +47,17 @@ public class LandProbeTests
     }
 
     [Fact]
+    public void A_runner_with_the_smoothest_coating_still_rubs_like_wood_on_earth()
+    {
+        // AD-162: 0,10 é madeira encerada em neve; em terra o patim mais liso fica perto de madeira sobre madeira (~0,22)
+        var coat = Rules.Materials.Where(m => m.CoatingOnly).MaxBy(m => m.FinishPm)!;
+        var skid = PhysicsEvaluator.Haul(WithPair(Deck(Wood), Runner(Wood) with { Coating = (short)coat.Id }), Rules);
+
+        Assert.Equal(GroundMode.Skid, skid.Mode);
+        Assert.InRange(skid.ResistancePm, 220, 250);
+    }
+
+    [Fact]
     public void A_round_part_without_an_axle_does_not_roll()
     {
         var fixedWheel = PhysicsEvaluator.Haul(WithPair(Deck(Wood), Wheel(Wood, JointKind.Fixed)), Rules);

@@ -4,6 +4,7 @@ using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Extraordinary.Inheritance;
 using LivingWorld.Simulation.Extraordinary.Systems;
+using LivingWorld.Simulation.Population.Body;
 using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Simulation.Scheduling;
 
@@ -62,6 +63,37 @@ public sealed class PowerGeneticsPhenotypeTests
 
         Assert.InRange(ages.Average(), 12.9, 13.1); // erro-padrão 1,5/√4000 ≈ 0,024
         Assert.InRange(ages.Min(), 13 - 3.5 * 1.5, 13);
+    }
+
+    [Fact]
+    public void Onset_by_default_comes_at_each_npcs_own_puberty()
+    {
+        // AD-162: sem média declarada, o poder aparece na puberdade do próprio NPC (menarca média 15 no mundo, não 13)
+        var world = World(new PowerGenetics());
+        var locus = PowerGenome.Layout(world.Extraordinary)[0];
+        var npcs = Enumerable.Range(1, 2000).Select(i => Born(i, 1)).ToList();
+
+        Assert.All(npcs, n => Assert.Equal(Endocrine.PubertyAgeYears(world, n), PowerGeneticsMechanic.OnsetAgeYears(world, n, locus)));
+        Assert.InRange(npcs.Average(n => PowerGeneticsMechanic.OnsetAgeYears(world, n, locus)), 14.8, 15.2);
+    }
+
+    [Fact]
+    public void A_power_tied_to_puberty_waits_while_the_npc_has_not_reached_it()
+    {
+        var world = World(new PowerGenetics(Penetrance: 1));
+        var child = new Npc(new NpcId(1), "crianca", Sex.Female, WorldDate.Epoch(ScenarioRunner.DefaultCalendar).AddYears(-8),
+            ScenarioRunner.DefaultCulture, new LivingWorld.Domain.Geography.CellCoord(0, 0), motherId: null, fatherId: null,
+            household: new HouseholdId(1), health: 100, personality: Personality.Create(50, 50, 50, 50, 50, 50, 50, 50, 50, 50).Value!,
+            profession: ProfessionType.None, currentLocation: new LivingWorld.Domain.Geography.CellCoord(0, 0));
+        child.SetGestationAtBirth(280);
+        child.SetPowerGenome(1);
+        world.AddNpc(child);
+        var ctx = new TickContext(world, world.Rng, world.Scheduler);
+
+        new ExtraordinaryStateSystem().HandleEvent(world, ctx,
+            ctx.ScheduleEvent(1, ExtraordinaryStateSystem.SystemName, $"{PowerGeneticsMechanic.OnsetPrefix}|1|p"));
+
+        Assert.Null(world.CarrierOf(child.Id));
     }
 
     [Fact]

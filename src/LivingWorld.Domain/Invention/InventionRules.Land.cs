@@ -12,9 +12,10 @@ public sealed partial record InventionRules
     public int DragFrictionPm { get; init; } = 550;
 
     /// <summary>Atrito (‰) de deslizar sobre patim (peça esguia no sentido do movimento) de acabamento áspero; o acabamento liso
-    /// do material (ou do revestimento) tira até <see cref="SkidFinishGainPm"/>.</summary>
+    /// do material (ou do revestimento) tira até <see cref="SkidFinishGainPm"/>. AD-162: o piso é o de madeira lisa sobre terra, 0,22
+    /// (madeira/madeira 0,25–0,5; os 0,10–0,14 da madeira encerada valem só em neve, que o mundo não tem; Engineering ToolBox, [L]).</summary>
     public int SkidFrictionPm { get; init; } = 300;
-    public int SkidFinishGainPm { get; init; } = 100;
+    public int SkidFinishGainPm { get; init; } = 80;
 
     /// <summary>Quantas vezes mais comprida que larga uma peça de contato precisa ser para deslizar como patim.</summary>
     public int RunnerSlenderness { get; init; } = 4;

@@ -23,6 +23,10 @@ if (args.Length == 6 && args[0] == "civ-report")
 if (args.Length == 5 && args[0] == "demography-report")
     return DemographyReportCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]), int.Parse(args[4]));
 
+// Traço neutro (AD-163, 08 item 2): `dotnet <dll> trait-drift <seed-inicial> <seeds> <anos>`.
+if (args.Length == 4 && args[0] == "trait-drift")
+    return TraitDriftCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]));
+
 // Vida interior (AD-138): `dotnet <dll> cognition-report <seed-inicial> <seeds> <anos>`.
 if (args.Length == 4 && args[0] == "cognition-report")
     return CognitionReportCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]));
