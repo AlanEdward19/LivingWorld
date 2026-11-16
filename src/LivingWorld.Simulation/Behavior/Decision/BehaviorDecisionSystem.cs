@@ -176,14 +176,21 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                         previousIntent: npc.CurrentIntent,
                         captureTrace: recordTrace,
                         eligibility: LivingWorld.Simulation.Ontogeny.OntogenyMechanic.EligibilityFor(world.OntogenyRules, npc.Development),
-                        brainGains: brainOn ? BrainMechanic.GainsOf(npc) : null,
+                        brainGains: brainOn ? BrainMechanic.GainsFor(world.BrainRules!, npc, now) : null,
                         brainGroups: brainOn ? brainGroups : null);
                     candidate = decision.Action;
                     pendingPower = decision.PendingPower;
                     buySource = 1;
                     if (workHour) diag.UrgentAtWork[Math.Min(15, (int)candidate)]++;
                     if (brainOn)
+                    {
                         BrainMechanic.Remember(npc, candidate, brainGroups.AsSpan(BrainState.Groups, BrainState.Groups));
+                        if (LivingWorld.Simulation.Observation.BrainDecisionTally.Diagnose) // AD-160: sonda, só o brain-trace liga
+                            ProbeBrain(npc, DecisionContextBuilder.Build(world, npc, now, provisionTargetDays: provision.TargetDays * PsycheMechanic.HoardFactor(world, npc, now),
+                                foodUnitPrice: provision.FoodPrice, shopperOut: provision.ShopperOut, foodStallKnownEmpty: provision.FoodStallEmpty),
+                                rules, world.EconomyRules, continuityAction,
+                                LivingWorld.Simulation.Ontogeny.OntogenyMechanic.EligibilityFor(world.OntogenyRules, npc.Development), candidate, now);
+                    }
 
                     if (recordTrace)
                         world.CognitionLog.Record(npc.Id, now, decision.Trace);

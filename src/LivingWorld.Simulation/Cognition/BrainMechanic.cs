@@ -22,6 +22,11 @@ internal static class BrainMechanic
     /// <summary>Ganhos para a decisão: os do NPC, ou neutros (todos zero) se ele ainda não tem cérebro. Só leitura.</summary>
     internal static short[] GainsOf(Npc npc) => npc.Brain?.Gains ?? NeutralGains;
 
+    /// <summary>Ganhos para uma decisão agora (AD-160): com fome ou sede crítica o corpo decide (neutros, a escolha é a da utilidade
+    /// pura e os grupos ainda são guardados para aprender); fora disso, os do NPC.</summary>
+    internal static short[] GainsFor(BrainRules rules, Npc npc, long tick) =>
+        npc.Brain is null || rules.BodyDecides(npc.HungerAt(tick), npc.ThirstAt(tick)) ? NeutralGains : npc.Brain.Gains;
+
     /// <summary>Depois de uma escolha pela utilidade: guarda a participação (milésimos, com sinal) de cada grupo na nota da
     /// vencedora. Nota sem nenhum grupo (poder, furto) não deixa nada para aprender.</summary>
     internal static void Remember(Npc npc, ActionType action, ReadOnlySpan<double> groups)
@@ -85,18 +90,23 @@ internal static class BrainMechanic
         var rules = world.BrainRules!;
         var brain = npc.Brain!;
         int a = (int)action;
-        double surprise = reward - brain.ActionMeans[a];
+        short known = brain.ActionMeans[a];
+        // AD-160: sem expectativa ainda, a primeira vez só a forma (surpresa zero); no AD-142 a expectativa começava em zero
+        double expected = known == BrainState.Unknown && rules.FirstExperienceSetsExpectation ? reward : known;
+        double surprise = reward - expected;
         double rate = rules.LearningRate(npc.AgeYears(world.CurrentDate)) * rules.LearningPerPoint;
-        var shares = brain.PendingShares!;
         int row = a * BrainState.Groups;
         for (int i = 0; i < BrainState.Groups; i++)
         {
-            if (shares[i] == 0) continue;
-            brain.Gains[row + i] = rules.Clamp(brain.Gains[row + i] + rate * surprise * shares[i] / 1000.0, i);
+            int share = brain.ShareOf(i);
+            if (share == 0) continue;
+            brain.Gains[row + i] = rules.Clamp(brain.Gains[row + i] + rate * surprise * share / 1000.0, i);
         }
 
-        brain.ActionMeans[a] = (short)Math.Clamp(
-            Math.Round(brain.ActionMeans[a] + surprise / rules.MeanWindow, MidpointRounding.AwayFromZero), short.MinValue, short.MaxValue);
+        short mean = (short)Math.Clamp(
+            Math.Round(expected + surprise / rules.MeanWindow, MidpointRounding.AwayFromZero), short.MinValue, short.MaxValue);
+        if (mean == BrainState.Unknown && rules.FirstExperienceSetsExpectation) mean = (short)(expected >= 0 ? 1 : -1); // vivida
+        brain.ActionMeans[a] = mean;
         brain.Forget();
         npc.TouchBrain();
     }

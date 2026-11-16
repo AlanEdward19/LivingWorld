@@ -89,3 +89,12 @@
      anos é o teto que lembro para dívida de equipamento com garantia. Precisa de conferência.
 132. **O salário do próprio fundador conta inteiro no ganho que paga a parcela** (`OwnWageInCapacityShare` = 1) e a parcela
      segue até a metade dele (`MaxInstallmentShare`): sem fonte; escolhido porque a sonda mostrou 4 de 5 negativas pela parcela.
+
+## Do cérebro neural (AD-160, [verdict](../neural-brain/verdict-ad160.md))
+140. **O corpo decide com fome ou sede ≤ 20** (`BrainRules.CriticalNeed`): reaproveita o déficit crítico 80 que já põe o corpo
+     à frente do lazer (AD-147); sem fonte empírica de onde o hábito deixa de pesar diante da necessidade.
+141. **Ruído das medidas do cérebro**: variedade de dias com 6 seeds oscila ±0,03 entre corridas quase iguais; o tempo por
+     NPC-tick no `MeasureHarness` oscila ±10% na máquina compartilhada (mesmo código desligado: 0,889 e 0,998 µs a 5.000). Um
+     critério de +2% de CPU pede contador de instruções ou máquina parada, não relógio de parede.
+142. **Participação guardada com 1/127 de resolução** (byte por grupo): escolha de engenharia para bytes; o efeito no
+     aprendizado (arredondamento) não foi medido além da demografia de 6 seeds.
