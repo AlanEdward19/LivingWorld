@@ -184,7 +184,7 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                     if (workHour) diag.UrgentAtWork[Math.Min(15, (int)candidate)]++;
                     if (brainOn)
                     {
-                        BrainRemember(world, npc, candidate, brainGroups.AsSpan(BrainState.Groups, BrainState.Groups), now);
+                        BrainRemember(world, npc, candidate, brainGroups.AsSpan(BrainState.Groups, BrainState.Groups), now, justCompleted);
                         if (LivingWorld.Simulation.Observation.BrainDecisionTally.Diagnose) // AD-160: sonda, só o brain-trace liga
                             ProbeBrain(npc, DecisionContextBuilder.Build(world, npc, now, provisionTargetDays: provision.TargetDays * PsycheMechanic.HoardFactor(world, npc, now),
                                 foodUnitPrice: provision.FoodPrice, shopperOut: provision.ShopperOut, foodStallKnownEmpty: provision.FoodStallEmpty),

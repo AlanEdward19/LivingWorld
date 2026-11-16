@@ -49,9 +49,15 @@ public sealed partial class BehaviorDecisionSystem
         BrainMechanic.Learn(world, npc, action, reward, rules.GainStep > 1 ? ctx.StreamFor("brain-learn", npc.Id.Value) : null);
     }
 
-    /// <summary>Depois de uma escolha pela utilidade: guarda a participação dos grupos e o valor do estado no começo.</summary>
-    private static void BrainRemember(WorldState world, Npc npc, ActionType chosen, ReadOnlySpan<double> groups, long now) =>
+    /// <summary>Depois de uma escolha pela utilidade: guarda a participação dos grupos e o valor do estado no começo. AD-160b: só a
+    /// escolha cujo desfecho vai ensinar — a que começa uma ação; quem decide continuar o que já faz mantém a que a começou (e não
+    /// mede o estado de novo).</summary>
+    private static void BrainRemember(
+        WorldState world, Npc npc, ActionType chosen, ReadOnlySpan<double> groups, long now, bool justCompleted)
+    {
+        if (!justCompleted && chosen == npc.CurrentAction && npc.Brain?.PendingAction == chosen) return;
         BrainMechanic.Remember(npc, chosen, groups, world.BrainRules!.ValuesSustenance ? BrainValueAt(world, npc, now) : 0);
+    }
 
     /// <summary>Tempo livre pesado pelo cérebro (AD-160b): na hora em que a rotina diz Conversar ou Ficar à toa, o NPC faz das duas
     /// a que mais vale para ele, com a mesma forma da utilidade (necessidade × temperamento + hábito da rotina), cada grupo com o
@@ -95,7 +101,7 @@ public sealed partial class BehaviorDecisionSystem
         }
 
         if (justCompleted || best != npc.CurrentAction)
-            BrainRemember(world, npc, best, bestGroups, now);
+            BrainRemember(world, npc, best, bestGroups, now, justCompleted);
         return best;
     }
 }
