@@ -378,15 +378,29 @@ public class DiseaseTests
 
     [Fact]
     [Trait("Category", "Scenario")]
-    public void No_death_of_the_default_village_leaves_without_a_cause_in_ten_years()
+    public void No_death_of_the_default_village_leaves_without_a_cause_and_the_name_changes_nobody_who_dies()
     {
-        var (world, _) = ScenarioRunner.Create(3);
-        var sink = new RecordingSink();
-        new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink).Run(world, 10L * world.Calendar.HoursPerYear);
+        static List<WorldEvent> Deaths(NeedsRules? needs)
+        {
+            var (world, _) = ScenarioRunner.Create(3, needsRules: needs);
+            var sink = new RecordingSink();
+            new WorldClock(ScenarioRunner.DefaultSystems(), sink: sink).Run(world, 10L * world.Calendar.HoursPerYear);
+            return sink.Events.Where(e => e.SourceSystem == "NpcDeath" && DemographyDeath.IsNpcDeath(e.Kind)).ToList();
+        }
 
-        var deaths = sink.Events.Where(e => e.SourceSystem == "NpcDeath" && DemographyDeath.IsNpcDeath(e.Kind)).ToList();
-        Assert.True(deaths.Count > 20, $"só {deaths.Count} mortes: o teste não mediu nada");
-        Assert.DoesNotContain(deaths, e => e.Kind == WorldEventKind.Death && !e.Payload.Contains('|'));
+        var basis = ScenarioRunner.DefaultNeedsRules;
+        var unnamed = basis with
+        {
+            Physiology = basis.Physiology with { DeathCauses = basis.Physiology.DeathCauses with { ResidualByAge = [] } },
+        };
+        var named = Deaths(null);
+        var before = Deaths(unnamed);
+
+        Assert.True(named.Count > 20, $"só {named.Count} mortes: o teste não mediu nada");
+        Assert.DoesNotContain(named, e => e.Kind == WorldEventKind.Death && !e.Payload.Contains('|'));
+        Assert.Contains(before, e => e.Kind == WorldEventKind.Death && !e.Payload.Contains('|')); // o braço de antes tinha sobra
+        // só rótulo: as mesmas pessoas morrem na mesma hora e do mesmo tipo
+        Assert.Equal(before.Select(e => (e.Tick, e.Kind, e.Payload.Split('|')[0])), named.Select(e => (e.Tick, e.Kind, e.Payload.Split('|')[0])));
     }
 
     [Fact]
