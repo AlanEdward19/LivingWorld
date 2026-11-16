@@ -87,6 +87,12 @@ public sealed partial class BehaviorDecisionSystem
         return home.Location;
     }
 
+    /// <summary>AD-157b: à toa ou conversando longe da despensa (o turno acabou longe de casa): a viagem leva para a cama da casa.</summary>
+    private static bool OffShiftFarFromPantry(WorldState world, Npc npc) =>
+        world.InventionOn && world.InventionRules!.PantryNeedsPresence && npc.Household is { } h
+        && world.FindHousehold(h) is { } home && PersonalCarry.PantryOutOfReach(world, npc, home)
+        && SleepDestinationOf(world, npc) is { } bed && bed == home.Location;
+
     /// <summary>Voltar para comer é o tempo perdido que o problema de carregar sente.</summary>
     private static void FeltHomeForMeal(WorldState world, Npc npc)
     {
@@ -96,6 +102,10 @@ public sealed partial class BehaviorDecisionSystem
         var t = world.InventionTally;
         if (npc.Employer is { } e && world.FindWorkplace(e) is { } w && w.Location == npc.CurrentLocation) t.HomeForMealFromWork++;
         else if (world.Workplaces.Any(x => x.Location == npc.CurrentLocation)) t.HomeForMealFromOtherPlace++;
+        else if (world.Households.Any(x => x.Location == npc.CurrentLocation)) t.HomeForMealFromOtherHome++;
+        if (npc.CurrentAction == ActionType.Socialize) t.HomeForMealSocial++;
+        else if (npc.CurrentAction == ActionType.Idle) t.HomeForMealIdle++;
+        else if (npc.CurrentAction == ActionType.Travel) t.HomeForMealTravel++;
         if (100 - npc.ThirstAt(world.CurrentDate.TotalHours) > world.NeedsRules.UrgencyThreshold) t.HomeForMealThirsty++;
         PersonalCarry.FeltAway(world, npc, Mobility.TravelTicks(world, npc, npc.CurrentLocation, home.Location, 1.0));
     }

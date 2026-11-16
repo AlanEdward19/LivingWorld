@@ -548,7 +548,7 @@ public sealed class InventionTally
     public long CarryAttempts, CarryInventions, CarryPrototypeFailures, CarryIdeasDiscarded, CarryCopies, CarryTaught, CarryBuilt, CarrySales;
     public long PackTrips, PackUnits, PackEaten, PackDrunk, PackReturned, CriticalAwayFromPack;
     public long AteBeforeLeaving, DrankBeforeLeaving; // AD-157b: o desjejum
-    public long HomeForMealFromWork, HomeForMealFromOtherPlace, HomeForMealThirsty; // AD-157b: só diagnóstico
+    public long HomeForMealFromWork, HomeForMealFromOtherPlace, HomeForMealThirsty, HomeForMealFromOtherHome, HomeForMealSocial, HomeForMealIdle, HomeForMealTravel; // AD-157b: só diagnóstico
     public long HomeForMeal, CarrierCargoTrips, CarrierCargoGrams, CargoFrustrations, AwayFrustrations, StarvedAway, DehydratedAway;
     // AD-153: levar por terra
     public long LandCargoCapped, LandCargoGramsCut, HaulAttempts, HaulInventions, HaulPrototypeFailures, HaulTaught, HaulBuilt, HaulSales;
