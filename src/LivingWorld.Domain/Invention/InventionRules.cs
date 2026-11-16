@@ -188,8 +188,20 @@ public sealed partial record InventionRules
     /// <summary>A despensa serve quem está em casa: quem está a mais de uma hora de caminho come e bebe do que leva, ou volta.
     /// **Desligado por padrão**: AD-147 sede 6,4%; AD-148 fome 3,5% → 5,7%; AD-149 fome 4,6% e +19% de CPU; AD-151, com a refeição
     /// do empregador paga, 20×100 fome 4,5% (teto no salário) e 5,3% (excesso em espécie) contra 4,1% da base, e sem refeição 6,9%.
-    /// Falso = a despensa alcança qualquer lugar e ninguém arruma carga.</summary>
+    /// AD-157, pela medida pareada da aflição (40 × 15): ligada, a fome crítica triplica (10,9 → 35,3 h por pessoa-ano) e a decisão
+    /// custa +14–35%. Falso = a despensa alcança qualquer lugar e ninguém arruma carga.</summary>
     public bool PantryNeedsPresence { get; init; }
+
+    /// <summary>AD-157: ao sair, leva também para esta folga além da conta da viagem (a estada se alonga, uma compra ou uma visita
+    /// no caminho): o lanche de quem sai para o dia. Escolha sem fonte, meio dia. Nulo = o padrão; nulo não entra no snapshot (o
+    /// mundo com a carga desligada guarda o mesmo hash).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? PackMarginHoursOverride { get; init; }
+
+    public const int DefaultPackMarginHours = 12;
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int PackMarginHours => PackMarginHoursOverride ?? DefaultPackMarginHours;
 
     /// <summary>A casa que já tem recipiente e ainda tem a compra cortada tenta um melhor (AD-149, backlog 05 item 12b): a ideia
     /// parte do recipiente dela e só vai ao protótipo se resolver mais. Falso = para no primeiro que serve (AD-147).</summary>

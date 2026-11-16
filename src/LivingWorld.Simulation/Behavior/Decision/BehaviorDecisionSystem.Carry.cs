@@ -16,18 +16,22 @@ public sealed partial class BehaviorDecisionSystem
     /// que leva antes de qualquer outra coisa (o corpo não espera a próxima escolha).</summary>
     private static void SettleCarried(WorldState world, Npc npc, long now)
     {
-        if (!world.InventionOn || world.Invention!.Carried.Count == 0 || !world.Invention.CarriesAnything(npc.Id.Value)) return;
+        if (!world.InventionOn) return;
+        var ledger = world.Invention!;
+        if (ledger.Carried.Count == 0 && ledger.Held is null) return;
+        bool carries = ledger.Carried.Count > 0 && ledger.CarriesAnything(npc.Id.Value);
+        if (!carries && ledger.HeldBy(npc.Id.Value) == 0) return; // AD-157: quem só leva o recipiente vazio também o devolve
         if (npc.Household is { } h && world.FindHousehold(h) is { } home && !PersonalCarry.PantryOutOfReach(world, npc, home))
         {
             PersonalCarry.Unpack(world, npc, home); // em casa (a despensa ao alcance da hora)
             return;
         }
-        PersonalCarry.ConsumeFromPack(world, npc, now, CriticalDeficit);
+        if (carries) PersonalCarry.ConsumeFromPack(world, npc, now, world.NeedsRules.UrgencyThreshold); // AD-157: come o lanche com fome, não só à beira do fim
     }
 
     /// <summary>Ao sair de casa (a viagem começa na porta): estima quanto tempo fica fora (ida, o que vai fazer lá e volta) e leva o
     /// que a sede e a fome vão pedir. Quem saiu para comer em casa (estava longe) não arruma nada.</summary>
-    private static void PackOnDeparture(WorldState world, Npc npc, MarketIndex marketIndex, long now)
+    internal static void PackOnDeparture(WorldState world, Npc npc, MarketIndex marketIndex, long now)
     {
         if (!world.InventionOn || !world.InventionRules!.PantryNeedsPresence) return; // sem despensa em casa, levar não muda nada
         if (npc.Household is not { } h || world.FindHousehold(h) is not { } home) return;
@@ -38,7 +42,29 @@ public sealed partial class BehaviorDecisionSystem
         long stay = npc.TravelPurpose is { } purpose
             ? Objects.ObjectUse.DurationHours(world, npc, purpose, world.ActionCatalog)
             : 0;
-        PersonalCarry.PackForTrip(world, npc, home, 2 * leg + stay, now);
+        // AD-157 (backlog 08 item 67): quem vai ao próprio trabalho e lá ganha a refeição (e a água do poço) leva só para o caminho
+        long margin = world.InventionRules.PackMarginHours; // AD-157: a folga do lanche
+        long waterHours = 2 * leg + stay + margin, foodHours = waterHours;
+        if (npc.TravelPurpose == ActionType.Work && npc.Employer is { } employer && world.FindWorkplace(employer) is { } work
+            && work.Location == destination)
+        {
+            var (water, food) = WorkFeeds(world, npc, work);
+            if (water) waterHours = 2 * leg + margin;
+            if (food) foodHours = 2 * leg + margin;
+        }
+        PersonalCarry.PackForTrip(world, npc, home, waterHours, foodHours, now);
+    }
+
+    /// <summary>O que o local de trabalho dá a quem trabalha lá (AD-151): a água do poço da propriedade e a refeição por conta do
+    /// salário, enquanto há no estoque e o salário a cobre.</summary>
+    private static (bool Water, bool Food) WorkFeeds(WorldState world, Npc npc, LivingWorld.Domain.Economy.Workplace work)
+    {
+        var econ = world.EconomyRules;
+        var foodType = new ResourceType(econ.FoodResourceId);
+        bool water = work.Stock.GetValueOrDefault(new ResourceType(econ.WaterResourceId)) > 0;
+        bool food = work.Stock.GetValueOrDefault(foodType) > 0 && !econ.NoWorkMeal
+            && (econ.FreeWorkRation || Economy.Labor.Payroll.BoardCharge(world, work, npc, foodType) >= 0);
+        return (water, food);
     }
 
     /// <summary>Comer precisa da despensa: longe de casa, sem nada no que leva que sirva e fora do próprio local de trabalho (onde a
@@ -47,19 +73,18 @@ public sealed partial class BehaviorDecisionSystem
     {
         if (!world.InventionOn || !world.InventionRules!.PantryNeedsPresence) return null; // sem despensa em casa, come onde está
         if (npc.Household is not { } h || world.FindHousehold(h) is not { } home) return null;
+        if (!PersonalCarry.PantryOutOfReach(world, npc, home)) return null; // a despensa está ao alcance (o caso comum)
         long now = world.CurrentDate.TotalHours;
         if (PersonalCarry.PackServes(world, npc, now, world.NeedsRules.UrgencyThreshold)) return null;
         if (npc.Employer is { } employer && world.FindWorkplace(employer) is { } work && work.Location == npc.CurrentLocation)
         {
             int urgency = world.NeedsRules.UrgencyThreshold;
-            var econ = world.EconomyRules;
             bool thirsty = 100 - npc.ThirstAt(now) > urgency, hungry = 100 - npc.HungerAt(now) > urgency;
-            if ((thirsty && work.Stock.GetValueOrDefault(new ResourceType(econ.WaterResourceId)) > 0)
-                || (hungry && work.Stock.GetValueOrDefault(new ResourceType(econ.FoodResourceId)) > 0
-                    && !econ.NoWorkMeal && (econ.FreeWorkRation || Economy.Labor.Payroll.BoardCharge(world, work, npc, new ResourceType(econ.FoodResourceId)) >= 0)))
+            var (water, food) = WorkFeeds(world, npc, work);
+            if ((thirsty && water) || (hungry && food))
                 return null; // a oficina dá a refeição (a comida, por conta do salário: AD-151)
         }
-        return PersonalCarry.PantryOutOfReach(world, npc, home) ? home.Location : null;
+        return home.Location;
     }
 
     /// <summary>Voltar para comer é o tempo perdido que o problema de carregar sente.</summary>

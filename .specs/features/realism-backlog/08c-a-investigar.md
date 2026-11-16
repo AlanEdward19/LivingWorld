@@ -18,3 +18,16 @@
 131. ~~**Prazo da abertura até 60 meses**~~ (AD-161): fora da faixa — crédito de aldeia de um dia a um ano (Briggs 2009, p. 71);
      sugerido ≤ 24 com garantia (correções).
 132. ~~**O salário do próprio fundador conta inteiro**~~ (AD-161): sem fonte; escolha de modelo.
+
+## Da carga pessoal (AD-157, [household-provisioning](../../../docs/domain/household-provisioning.md))
+108. **Medida da aflição** (`aflicao seed=` no `demography-report`): pareie a mesma seed, 40 × 15 (~6 min). Ruído medido uma vez
+     (sequestro desligado); falta o ruído em 20 × 100 e o limiar "crítico" 80 é escolha (a sede passa disso ~6% do tempo na base).
+109. **Fome do caminho com a carga ligada**: 34 mil voltas para comer e 48 mil refeições da oficina por seed em 15 anos; a fome
+     crítica triplica (10,9 → 35,3 h/pa), metade dela em casa (quem chega com fome e come no fim da refeição). Medir de onde saem
+     as voltas (sair de lugar que não é a casa não arruma carga; despensa no limite da reserva) antes de ligar.
+110. **Custo da carga ligada** ainda +14–35% na decisão: as decisões urgentes de quem está com fome custam mais (mesmo número);
+     sair (`PackOnDeparture`) refaz o destino e dois trajetos. Fechar com 109 (menos fome, menos decisão urgente).
+111. **Quem vai ao mercado não marca o recipiente** quando não arruma carga (perto de casa): outro pode sair com ele no meio da compra.
+112. **Números sem fonte do AD-157**: folga de 12 h ao arrumar a carga; dependente = abaixo de 12 ou 65+ anos na medida.
+113. **Não medido no AD-157**: 20 × 100 com ela ligada e a medida nova; custo a 5.000 NPCs; o ciclo do recipiente com tira levado
+     (12b/13a) com os consertos (a 40 × 15 o recipiente já é levado e bebido: 36 mil bebidas e 10 mil refeições do que levavam por seed).

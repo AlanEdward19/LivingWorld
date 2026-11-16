@@ -297,7 +297,7 @@ public sealed partial class BehaviorDecisionSystem
         tally.Attempts++;
         // AD-143: com água entre a casa e o mercado, leva-se só o que cabe (a pé ou na peça da casa); e quem precisa de com que
         // atravessar olha o que está exposto
-        long cargo = LivingWorld.Simulation.Invention.InventionMarket.CargoGrams(world, household, market.Location);
+        long cargo = LivingWorld.Simulation.Invention.InventionMarket.CargoGrams(world, household, market.Location, npc);
         long cargoStart = cargo, cut = 0;
         if (world.InventionOn) LivingWorld.Simulation.Invention.InventionMarket.AtMarket(world, ctx ?? new TickContext(world, world.Rng, world.Scheduler), npc, household, market);
         foreach (var resourceId in new[] { econ.FoodResourceId, econ.WaterResourceId })

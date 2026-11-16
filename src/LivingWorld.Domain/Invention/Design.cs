@@ -128,5 +128,9 @@ public readonly record struct DesignDemand(CityId City, int Households, byte Fun
 /// <summary>O que uma pessoa leva consigo (AD-147): quantas unidades de um recurso, tiradas da despensa ao sair; o que sobra volta.</summary>
 public readonly record struct CarriedLoad(long NpcId, int ResourceId, int Quantity);
 
+/// <summary>O recipiente que uma pessoa levou de casa (AD-157): sai da casa com ela e volta quando ela volta; enquanto isso, quem
+/// fica não o tem.</summary>
+public readonly record struct HeldItem(long NpcId, long ItemId);
+
 /// <summary>Peixe na água perto de uma cidade (g): cresce sozinho até a capacidade da água e cai com o que se pesca (AD-143).</summary>
 public readonly record struct FishStock(CityId City, long Grams);
