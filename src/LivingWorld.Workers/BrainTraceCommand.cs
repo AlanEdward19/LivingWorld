@@ -38,6 +38,15 @@ public static class BrainTraceCommand
                     for (int b = 0; b < tally.Matrix.GetLength(1); b++)
                         if (a != b && tally.Matrix[a, b] > 0) pairs.Add((tally.Matrix[a, b], $"{(ActionType)a}->{(ActionType)b}"));
                 w.WriteLine("  trocas: " + string.Join(" ", pairs.OrderByDescending(p => p.N).Take(8).Select(p => $"{p.Pair}={p.N}")));
+                // AD-160b: ganho médio por (ação, grupo) entre os vivos, os maiores em módulo (viés sistemático aparece aqui)
+                var brains = world.Npcs.Where(n => n.IsAlive && n.Brain is not null).Select(n => n.Brain!).ToList();
+                if (brains.Count > 0)
+                {
+                    var means = Enumerable.Range(0, LivingWorld.Domain.Cognition.BrainState.Actions * LivingWorld.Domain.Cognition.BrainState.Groups)
+                        .Select(i => (I: i, M: brains.Average(b => (double)b.Gains[i]))).OrderByDescending(x => Math.Abs(x.M)).Take(8);
+                    w.WriteLine("  ganhos_medios: " + string.Join(" ", means.Select(x =>
+                        $"{(ActionType)(x.I / LivingWorld.Domain.Cognition.BrainState.Groups)}.{(LivingWorld.Simulation.Behavior.Decision.UtilityGroup)(x.I % LivingWorld.Domain.Cognition.BrainState.Groups)}={x.M:F1}")));
+                }
                 foreach (var s in tally.Samples) w.WriteLine("  caso " + s);
             }
 
