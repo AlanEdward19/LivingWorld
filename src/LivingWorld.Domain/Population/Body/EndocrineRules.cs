@@ -11,10 +11,12 @@ public sealed record EndocrineRules
 
     // --- puberdade (menarca nelas, gonadarca neles) ---
 
-    /// <summary>Idade média da menarca bem nutrida e o desvio individual; a de época é mais tardia que a atual (~12,5).</summary>
+    /// <summary>Idade média da menarca bem nutrida e o desvio individual; a de época é mais tardia que a atual (~12,5). AD-162: o
+    /// desvio histórico passava de 2,5 anos (França, meados do séc. XIX; PubMed 20954458, grau [B]), parte dele vinda da fome, que
+    /// aqui já atrasa por <see cref="UndernutritionPubertyDelayYears"/>: 1,8 no desvio bem nutrido (era 1,2, o de hoje ~1).</summary>
     public double FemalePubertyMeanYears { get; init; } = 15.0;
     public double MalePubertyMeanYears { get; init; } = 15.5;
-    public double PubertyStdDevYears { get; init; } = 1.2;
+    public double PubertyStdDevYears { get; init; } = 1.8;
     public double PubertyMinYears { get; init; } = 10.5;
     public double PubertyMaxYears { get; init; } = 19.0;
 

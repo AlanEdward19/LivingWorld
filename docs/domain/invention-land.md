@@ -10,8 +10,9 @@ animal de tiro no mundo: quem puxa é a pessoa que foi ao mercado.
   - **rola**: peça redonda no plano do movimento (cilindro e cápsula têm o eixo em X e rolam em Y; esfera rola em qualquer
     um) **presa à mãe por junção de eixo**. Resistência = braço de rolamento ÷ raio + atrito do eixo × raio do pino ÷ raio.
     Redonda sem eixo, ou caixa com eixo, não rola: arrasta;
-  - **desliza**: peça esguia no sentido (comprimento ≥ `RunnerSlenderness` × largura): atrito do patim, menor quanto mais
-    liso o acabamento do material ou do revestimento (o mesmo `FinishPm` que dá a aparência);
+  - **desliza**: peça esguia no sentido (comprimento ≥ `RunnerSlenderness` × largura): atrito do patim, 0,30 áspero, menor
+    quanto mais liso o acabamento do material ou do revestimento (o mesmo `FinishPm` que dá a aparência), com piso de 0,22 em
+    terra (AD-162: madeira sobre madeira 0,25–0,5; os 0,10 da madeira encerada só valem em neve, que o mundo não tem);
   - **arrasta**: o resto, atrito de arrasto;
   - **tomba**: se as partes de contato cobrem, de lado, menos da metade da largura da coisa, ela deita e arrasta (um patim
     fino ou uma roda só sob um tabuleiro largo não seguram; o carrinho de mão equilibrado pela pessoa fica no backlog 8e).

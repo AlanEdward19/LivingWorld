@@ -5,12 +5,12 @@ namespace LivingWorld.Domain.Population.Family;
 /// <summary>Criação (AD-132): o ambiente compartilhado de quem de fato criou a criança entra na personalidade adulta. A cada
 /// <see cref="SampleEveryDays"/> dias da infância grava-se quem eram os adultos da casa; na passagem para a vida adulta a
 /// personalidade herdada recebe a parte <see cref="SharedEnvironmentWeight"/> da média desses cuidadores, de forma que a
-/// variância da população fique a mesma. Peso aproximado, a conferir: estudos de gêmeos e adoção dão herdabilidade de
-/// personalidade na ordem de 40–50% e ambiente compartilhado pequeno (0–10% da variância); 0,3 aqui dá ~4,5% da variância
-/// com dois cuidadores e ~9% com um.</summary>
+/// variância da população fique a mesma. AD-162: estudos de gêmeos e adoção dão herdabilidade de personalidade de 40–50% e
+/// ambiente compartilhado perto de zero (Plomin &amp; Daniels 1987; irmãos adotivos quase não se parecem; grau [B]); 0,1 aqui dá
+/// ~0,5% da variância com dois cuidadores e ~1% com um (era 0,3: ~4,5% e ~9%).</summary>
 public sealed record RearingRules(double SharedEnvironmentWeight, int SampleEveryDays)
 {
-    public static RearingRules Default { get; } = new(SharedEnvironmentWeight: 0.3, SampleEveryDays: 30);
+    public static RearingRules Default { get; } = new(SharedEnvironmentWeight: 0.1, SampleEveryDays: 30);
 
     /// <summary>Sem ambiente compartilhado: a personalidade é só a herdada (o comportamento de antes).</summary>
     public static RearingRules Disabled { get; } = new(SharedEnvironmentWeight: 0, SampleEveryDays: 30);

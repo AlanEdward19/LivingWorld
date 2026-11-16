@@ -301,13 +301,24 @@ public sealed class CreditTests
     [Fact]
     public void The_lender_counts_the_founders_own_wage_and_stretches_the_term_so_the_installment_fits()
     {
-        var old = CreditRules.Default with { OwnWageInCapacityShare = 0, MaxFoundingTermMonths = CreditRules.Default.FoundingTermMonths };
+        // o mecanismo do AD-159 com os prazos dele (36 até 60 meses); o AD-162 encurtou o prazo padrão (teste abaixo)
+        var stretch = CreditRules.Default with { FoundingTermMonths = 36, MaxFoundingTermMonths = 60 };
+        var old = stretch with { OwnWageInCapacityShare = 0, MaxFoundingTermMonths = stretch.FoundingTermMonths };
         var before = HalfFounder(old);
-        var now = HalfFounder(CreditRules.Default);
+        var now = HalfFounder(stretch);
 
         Assert.False(before.Opened, $"venda {before.Plan.MonthlySales} folha {before.Plan.MonthlyPayroll}");
         Assert.True(now.Opened);
         Assert.True(now.Loan!.Installment <= 0.5 * now.Plan.MonthlySales, $"{now.Loan.Installment} vs {now.Plan.MonthlySales}");
+    }
+
+    [Fact]
+    public void With_village_terms_of_at_most_two_years_the_founder_whose_installment_only_fits_in_five_does_not_get_the_loan()
+    {
+        // AD-162: crédito de aldeia de um dia a um ano (Briggs 2009); até 24 meses só com o prédio em garantia
+        var (opened, loan, _) = HalfFounder(CreditRules.Default);
+
+        Assert.Equal((false, (Loan?)null), (opened, loan));
     }
 
     [Fact]
@@ -400,8 +411,9 @@ public sealed class CreditTests
     }
 
     [Fact]
-    public void In_bankruptcy_unpaid_wages_come_before_the_lenders_and_partners_carry_their_share_of_the_debt()
+    public void In_bankruptcy_the_pledgee_takes_the_building_and_the_cash_is_shared_pro_rata_with_the_unpaid_wages()
     {
+        // AD-162: credor com penhor leva o prédio; o caixa vai em rateio proporcional ao devido, salário atrasado sem preferência
         var v = Make();
         var owner = Smith(v, Person(v.World, "dono", 35), 50_000);
         var partner = Person(v.World, "socio", 40);
@@ -416,9 +428,11 @@ public sealed class CreditTests
         shop.TryDebitTreasury(shop.Treasury);
         shop.CreditTreasury(new Money(500));
 
+        long afterBuilding = loan.Balance - Math.Min(loan.Balance, Debts.ShopValue(v.World, shop));
+
         Bankruptcy.Liquidate(v.World, v.Ctx, shop);
 
-        Assert.Equal(300, worker.Wallet.Amount);
+        Assert.Equal(300 * 500 / (300 + afterBuilding), worker.Wallet.Amount);
         Assert.Equal(lender.Id, shop.Owner);
         var debts = v.World.Credit!.Loans.Where(l => l.Lender == lender.Id.Value).ToList();
         long partnerDebt = debts.Single(l => l.Borrower == partner.Id.Value).Balance;

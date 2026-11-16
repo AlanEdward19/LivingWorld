@@ -33,6 +33,10 @@ public sealed class FamilyLifeTally(WorldState world)
     public long UnionsEnded;
     public Dictionary<string, long> EndedByMode { get; } = [];
     public long Affairs, AffairsDiscovered;
+
+    /// <summary>Casais em que um bateu no outro (AD-162) e quantos deles se separaram em vida depois da agressão.</summary>
+    public long AssaultedCouples, EndedAfterAssault;
+    private readonly HashSet<(long, long)> _assaulted = [];
     public Dictionary<string, long> AffairOutcomes { get; } = [];
     public long FollowCompared, Followed, HighPressureCompared, HighPressureFollowed, LowPressureCompared, LowPressureFollowed;
     public long VocationChoices, VocationChoicesPressured;
@@ -83,7 +87,12 @@ public sealed class FamilyLifeTally(WorldState world)
                     EmigrantAges.Add((evt.Tick - born.TotalHours) / (double)world.Calendar.HoursPerYear);
                 return;
             case WorldEventKind.UnionEnded:
+                if (p[2] != "morte" && _openUnions.ContainsKey(Key(Id(p[0]), Id(p[1]))) && _assaulted.Contains(Key(Id(p[0]), Id(p[1]))))
+                    EndedAfterAssault++;
                 Close(Key(Id(p[0]), Id(p[1])), evt.Tick, p[2]);
+                return;
+            case WorldEventKind.DomesticViolence when p.Length > 2 && p[2] == "conjuge":
+                if (_assaulted.Add(Key(Id(p[0]), Id(p[1])))) AssaultedCouples++;
                 return;
             case WorldEventKind.AffairStarted:
                 Affairs++;
@@ -237,7 +246,7 @@ public sealed class FamilyLifeTally(WorldState world)
         double ended = Sum(t => t.UnionsEnded), death = Sum(t => t.EndedByDeath);
         var sb = new StringBuilder();
         sb.AppendLine(inv, $"unioes casamentos={Sum(t => t.Marriages)} recasamentos={Sum(t => t.Remarriages)} ({Pct(Sum(t => t.Remarriages), Sum(t => t.Marriages))}) terminadas={ended} por_morte={Pct(death, ended)} modos: {string.Join(' ', modes)} duracao_media_anos={(ended > 0 ? Sum(t => t.UnionYearsEnded) / ended : 0):F1}");
-        sb.AppendLine(inv, $"casos iniciados={Sum(t => t.Affairs)} descobertos={Sum(t => t.AffairsDiscovered)} desfechos: {string.Join(' ', outcomes)} filhos_de_outro_pai={Sum(t => t.OtherFatherBirths)} ({Pct(Sum(t => t.OtherFatherBirths), Sum(t => t.BirthsToMarried))} dos nascidos de casadas)");
+        sb.AppendLine(inv, $"casos iniciados={Sum(t => t.Affairs)} descobertos={Sum(t => t.AffairsDiscovered)} desfechos: {string.Join(' ', outcomes)} filhos_de_outro_pai={Sum(t => t.OtherFatherBirths)} ({Pct(Sum(t => t.OtherFatherBirths), Sum(t => t.BirthsToMarried))} dos nascidos de casadas) casais_com_agressao={Sum(t => t.AssaultedCouples)} separados_depois={Sum(t => t.EndedAfterAssault)} ({Pct(Sum(t => t.EndedAfterAssault), Sum(t => t.AssaultedCouples))})");
         sb.AppendLine(inv, $"criancas acompanhadas={Sum(t => t.ChildrenTracked)} em_mais_de_uma_casa={Pct(Sum(t => t.ChildrenInSeveralHomes), Sum(t => t.ChildrenTracked))} com_padrasto_ou_madrasta={Pct(Sum(t => t.Stepchildren), Sum(t => t.ChildrenTracked))} pares_de_irmaos={Sum(t => t.SiblingPairs)} criados_separados(>={ApartMonths}m)={Sum(t => t.SiblingPairsApart)} ({Pct(Sum(t => t.SiblingPairsApart), Sum(t => t.SiblingPairs))}) meios_irmaos={Sum(t => t.HalfSiblingPairs)}");
         sb.AppendLine(inv, $"oficio segue_o_da_casa={Pct(Sum(t => t.Followed), Sum(t => t.FollowCompared))} (n={Sum(t => t.FollowCompared)}) pressao_alta={Pct(Sum(t => t.HighPressureFollowed), Sum(t => t.HighPressureCompared))} (n={Sum(t => t.HighPressureCompared)}) pressao_baixa={Pct(Sum(t => t.LowPressureFollowed), Sum(t => t.LowPressureCompared))} (n={Sum(t => t.LowPressureCompared)}) escolhas={Sum(t => t.VocationChoices)} sob_pressao={Sum(t => t.VocationChoicesPressured)}");
         var ages = tallies.SelectMany(t => t.SpouseAges).ToList();

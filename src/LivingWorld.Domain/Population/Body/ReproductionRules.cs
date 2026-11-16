@@ -57,9 +57,11 @@ public sealed record ReproductionRules(
             new PretermBand(0.0075, 182, 209, NeonatalDeathRisk: 0.50, InfantHazardMultiplier: 2.5), // 28–31
             new PretermBand(0.0635, 210, 244, NeonatalDeathRisk: 0.12, InfantHazardMultiplier: 1.6), // 32–36 (12%: sem fonte)
         ],
-        // amenorreia da lactação ~12 meses: com ~18,5 meses de espera, gestação e perdas (Bongaarts), o intervalo entre
-        // partos fica perto dos ~30 meses da Inglaterra pré-industrial. 480 dias davam média de 41 (conferência AD-133).
-        PostpartumInfecundMeanDays: 365, PostpartumInfecundStdDevDays: 120, PostpartumInfecundMinDays: 60,
+        // amenorreia da lactação ~16 meses (AD-162): a amamentação vai até o desmame aos 24 meses (exclusiva até 6), e a relação de
+        // Bongaarts e Potter (1983) entre duração da amamentação e amenorreia dá ~13,5 meses para 20 de amamentação e ~17 para
+        // 24 [M]. Com 365 dias o intervalo médio entre partos era 28 meses e a TMFR 20–49 padronizada 7,8, acima dos ~6,7 das 26
+        // paróquias inglesas (Alter, Newton e Oeppen 2020, [L]); com 480, 31 meses e 7,0 (6 seeds × 50 anos).
+        PostpartumInfecundMeanDays: 480, PostpartumInfecundStdDevDays: 120, PostpartumInfecundMinDays: 60,
         PregnancyLossInfecundDays: 45,
         // perda de gestação reconhecida (Nybo Andersen 2000): ~10% aos 20–29, 25% aos 35–39, 54,5% aos 42, 74,7% aos 45+
         MiscarriageRiskByAge: AgeCurve.Of((13, 0.20), (18, 0.11), (20, 0.10), (29, 0.11), (33, 0.14), (37, 0.22), (40, 0.40),

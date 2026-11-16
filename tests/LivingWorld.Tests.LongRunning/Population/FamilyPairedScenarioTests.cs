@@ -152,36 +152,21 @@ public class FamilyPairedScenarioTests
 
     // --- T25 (FAM-26) ---
 
-    /// <summary>Tolerância ampla: o critério do roadmap usa ordem de grandeza
-    /// (<c>esperado = anos / idadeMédiaPrimeiroParto</c>), não contagem exata — reprodução depende
-    /// reprodução depende de casamento, recursos e mortalidade além da fertilidade bruta.
-    /// Wake esparso (PERF-08) pode reduzir concepções observadas vs. grid horário cheio; com a população
-    /// sobrevivendo (B1) o total observado passa de 2x o esperado bruto. Depois que a vila passou a
-    /// comer (salário proporcional, ajuda mútua, compra de casa), o default mede ~40 nascimentos em
-    /// 10 anos com ~90 pessoas: natalidade bruta ~45‰, dentro da faixa pré-industrial (35–50‰); daí 150%.
-    /// AD-130: com fecundidade natural por ciclo, a 1ª década (casais da pirâmide inicial, ninguém ainda no intervalo pós-parto)
-    /// mede ~54 nascimentos (~50‰, topo da faixa; em 100 anos a média cai para ~37‰); daí 250%.
-    /// AD-137: com a doença de época, o bebê que morre encerra a amenorreia e a seed 42 mede 60 (~55‰); daí 270%.</summary>
-    private const double BirthCountToleranceFraction = 2.7;
+    /// <summary>Faixa da natalidade bruta da 1ª década (AD-162, item 16): a de uma vila pré-industrial vai de ~30‰ a ~50‰ (faixa
+    /// clássica do estágio 1 da transição; os anos da pirâmide inicial, sem ninguém no intervalo pós-parto, ficam no alto dela). O
+    /// teste antigo comparava com <c>anos / idade do 1º parto</c> e uma tolerância de 270%, cujo limite inferior era negativo
+    /// (zero nascimentos passava); a faixa abaixo é a que o raciocínio dele já usava, com folga para uma seed só.</summary>
+    private const double MinBirthRatePerMille = 25, MaxBirthRatePerMille = 60;
 
     [Fact]
     [Trait("Category", "Scenario")]
-    public void Birth_count_over_horizon_is_compatible_with_scenario_derived_expectation()
+    public void Birth_rate_of_the_first_decade_stays_in_the_preindustrial_band()
     {
-        // Nascimentos de NPC da seed 42 em 10 anos, contados na corrida compartilhada DefaultVillageSeed42 (ADR-0044).
-        int births = DefaultVillageSeed42.Value.NpcBirthsYear10;
-        var populationRules = ScenarioRunner.DefaultPopulationRules;
-        double meanAgeAtFirstBirth = MeanAgeAtFirstBirthYears(populationRules);
-        double expected = HorizonYears / meanAgeAtFirstBirth;
-        double lower = expected * (1 - BirthCountToleranceFraction);
-        double upper = expected * (1 + BirthCountToleranceFraction);
+        // Nascimentos de NPC e pessoas-ano da seed 42 em 10 anos, da corrida compartilhada DefaultVillageSeed42 (ADR-0044).
+        var observed = DefaultVillageSeed42.Value;
+        double perMille = 1000.0 * observed.NpcBirthsYear10 / observed.PersonYearsYear10;
 
-        // Escala pelo tamanho inicial: o critério fala em linhagens numa vila, não uma única família.
-        int initial = ScenarioRunner.DefaultInitialPopulation;
-        lower *= initial / 2.0;
-        upper *= initial / 2.0;
-
-        Assert.InRange(births, (int)Math.Floor(lower), (int)Math.Ceiling(Math.Max(upper, 1)));
+        Assert.InRange(perMille, MinBirthRatePerMille, MaxBirthRatePerMille);
     }
 
     // --- T26 (FAM-27) ---
@@ -486,13 +471,6 @@ public class FamilyPairedScenarioTests
             Assert.True(father.DeathDate is null || father.DeathDate.Value.TotalHours > conceptionDate.TotalHours);
         }
     }
-
-    /// <summary>Proxy de idade média de primeiro parto a partir das regras demográficas do cenário
-    /// default (campo dedicado no JSON fica para quando o loader expuser — hoje só há janela).</summary>
-    /// <summary>Meio da janela fértil. AD-139/AD-140: com hormônios a janela abre na menarca média, não em FertilityMinAge.</summary>
-    private static double MeanAgeAtFirstBirthYears(PopulationRules rules) =>
-        (Math.Min(rules.FertilityMinAge, rules.Fertility.Endocrine.Enabled ? rules.Fertility.Endocrine.FemalePubertyMeanYears : rules.FertilityMinAge)
-         + rules.FertilityMaxAge) / 2.0;
 
     /// <summary>Grava os eventos enquanto <see cref="Recording"/>; com <see cref="OnlyMarriagesAndBirths"/>, só o que os testes
     /// de 10 anos leem (a corrida compartilhada segue por 60 anos e não precisa guardar o resto).</summary>
