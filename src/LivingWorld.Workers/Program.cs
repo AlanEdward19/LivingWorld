@@ -39,6 +39,10 @@ if (args.Length == 4 && args[0] == "starvation-trace")
 if (args.Length == 3 && args[0] == "thirst-trace")
     return ThirstTraceCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]));
 
+// Sonda do cérebro (AD-160): `dotnet <dll> brain-trace <seed-inicial> <seeds> <anos>`.
+if (args.Length == 4 && args[0] == "brain-trace")
+    return BrainTraceCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]));
+
 // Sonda do abastecimento das casas (AD-148): `dotnet <dll> provision-trace <seed> <ano-inicial> <ano-final>`.
 if (args.Length == 4 && args[0] == "provision-trace")
     return ProvisionTraceCommand.Run(ulong.Parse(args[1]), int.Parse(args[2]), int.Parse(args[3]));

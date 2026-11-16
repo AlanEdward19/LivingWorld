@@ -57,9 +57,19 @@ public sealed partial class BehaviorDecisionSystem
         }
         else
         {
-            // AD-142: brainGroups[0..8) = grupos da ação em conta, [8..16) = os da vencedora (para o NPC aprender na conclusão)
-            var lens = new WithBrain(brainGains, brainGroups, 0);
-            (best, bestScore) = ScoreActions(ctx, rules, economy, continuityAction, eligibility, foresight, terms, knockout, scored, ref lens, brainGroups);
+            // AD-142: brainGroups[8..16) = os grupos da vencedora (para o NPC aprender na conclusão). AD-160: só a vencedora precisa
+            // deles; ela é recontada uma vez com os grupos, em vez de cada ação escrevê-los (311 → ~280 ns por decisão)
+            var lens = new WithBrain(brainGains, null, 0);
+            (best, bestScore) = ScoreActions(ctx, rules, economy, continuityAction, eligibility, foresight, terms, knockout, scored, ref lens, null);
+            if (brainGroups is not null)
+            {
+                Array.Clear(brainGroups, BrainState.Groups, BrainState.Groups);
+                if (!double.IsNegativeInfinity(bestScore))
+                {
+                    var winner = new WithBrain(brainGains, brainGroups, BrainState.Groups);
+                    ScoreOf(ctx, best, rules, economy, continuityAction, eligibility, foresight, null, knockout, ref winner);
+                }
+            }
         }
 
         foreach (var opp in ctx.PowerOpportunities)
@@ -119,7 +129,8 @@ public sealed partial class BehaviorDecisionSystem
             {
                 bestScore = score;
                 best = action;
-                if (groups is not null) Array.Copy(groups, 0, groups, BrainState.Groups, BrainState.Groups);
+                if (groups is not null)
+                    for (int i = 0; i < BrainState.Groups; i++) groups[BrainState.Groups + i] = groups[i];
             }
         }
 

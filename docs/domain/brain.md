@@ -22,6 +22,10 @@
    despensa que encheu valendo a fome ou sede que sentia (até 2 dias) + 100 × mudança de valência. A surpresa é
    recompensa − o que essa ação costuma lhe dar (`ActionMeans`, média móvel 1/8). Cada grupo muda
    `taxa(idade) × 0,1 × surpresa × participação`; taxa 1 até 20 anos, cai em linha reta até 0,25 aos 60.
+   AD-160: a primeira vez que o NPC conclui uma ação só forma a expectativa (sem expectativa não há surpresa); a participação
+   guardada é um byte com sinal por grupo num só número, zerado ao esquecer.
+4. **O corpo decide na necessidade crítica** (AD-160, `BrainRules.CriticalNeed` = 20): com fome ou sede ≤ 20 a escolha é a da
+   utilidade pura (o ganho não pesa); o cérebro pesa o resto e continua aprendendo com a escolha.
 
 ## Exemplo concreto
 Adulta de 25 anos, despensa vazia, fome 10 (déficit 90). A utilidade escolhe Comprar; 85% da nota veio de Base
@@ -48,8 +52,10 @@ de uma ação é a nota dela. Ainda não exposta na API nem no `brain_panel.gd` 
 - Experimento (vila, com e sem): `LW_BRAIN_OUT=f LW_BRAIN_SEEDS=5 LW_BRAIN_YEARS=10 ... --filter BrainExperimentHarness`.
 - Motor: `LW_AFTER_ENV=LW_MEASURE_BRAIN=1 LW_MEASURE_SCALE_ONLY=1 bash scripts/compare-simulation-cost.sh .`
 
-## Resultado do experimento (AD-142, 2026-11-13)
+## Resultado do experimento (AD-142, 2026-11-13; revisto no AD-160)
 Não aprovado para ligar por padrão. Custo do motor dentro do teto a 1.000 NPCs (+0,6%), fora a 5.000 (+7,0%); bytes
 fora (+3,3% JSON por vivo, +6,8% positional por NPC-ano); diversidade de dias no mesmo ofício não sobe; 20 seeds ×
 100 anos: população final 149,3 → 140,9 e mais mortes por fome e sede. Herança funciona (pais → filho 0,55), ganhos
 pequenos (|g| médio 1,4%). Números completos em `docs/decisions-log.md` (AD-142).
+AD-160 (2026-11-16): continua desligado. Sonda `brain-trace` (escolha com ganhos × utilidade pura no mesmo estado) e
+veredito com números em `.specs/features/neural-brain/verdict-ad160.md`.

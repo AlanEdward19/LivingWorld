@@ -38,9 +38,36 @@ public class BrainLearningTests
     {
         var (world, npc) = Adult();
         Choose(npc, ActionType.Buy, UtilityGroup.Base);
+        BrainMechanic.Learn(world, npc, ActionType.Buy, reward: 20); // AD-160: a primeira vez forma a expectativa
+        Choose(npc, ActionType.Buy, UtilityGroup.Base);
         BrainMechanic.Learn(world, npc, ActionType.Buy, reward: 120);
 
         Assert.True(Gain(npc, ActionType.Buy, UtilityGroup.Base) > 0);
+    }
+
+    /// <summary>AD-160: sem expectativa não há surpresa. Antes a expectativa começava em zero e toda ação que alivia parecia melhor
+    /// do que o esperado: o ganho de Comer subia em todo NPC (sonda `brain-trace`).</summary>
+    [Fact]
+    public void The_first_time_an_action_is_lived_only_forms_the_expectation()
+    {
+        var (world, npc) = Adult();
+        Choose(npc, ActionType.Eat, UtilityGroup.Base);
+        BrainMechanic.Learn(world, npc, ActionType.Eat, reward: 90);
+
+        Assert.All(npc.Brain!.Gains, g => Assert.Equal(0, g));
+        Assert.Equal(90, npc.Brain.ActionMeans[(int)ActionType.Eat]);
+    }
+
+    [Fact]
+    public void Without_the_rule_the_ad142_expectation_starts_at_zero_and_relief_always_looks_better()
+    {
+        var (world, _) = ScenarioRunner.Create(7);
+        world.UseBrain(Rules with { FirstExperienceSetsExpectation = false });
+        var npc = world.Npcs.Where(n => n.IsAlive).OrderBy(n => n.Id.Value).First();
+        Choose(npc, ActionType.Eat, UtilityGroup.Base);
+        BrainMechanic.Learn(world, npc, ActionType.Eat, reward: 90);
+
+        Assert.True(Gain(npc, ActionType.Eat, UtilityGroup.Base) > 0);
     }
 
     [Fact]
@@ -95,6 +122,14 @@ public class BrainLearningTests
         var sibling = world.Npcs.Where(n => n.IsAlive && n.Id != npc.Id).OrderBy(n => n.Id.Value).First();
         sibling.SetBrain(BrainState.Neutral());
         var hungry = new BrainMechanic.Felt(Needs: 150, Valence: 0, PantryDays: 0, SurvivalDeficit: 95);
+        var fed = hungry with { SurvivalDeficit = 10 };
+        // AD-160: os dois compravam de barriga cheia (a expectativa de Comprar é baixa); só ele passou fome e comprou
+        foreach (var who in new[] { npc, sibling })
+            for (int i = 0; i < 5; i++)
+            {
+                Choose(who, ActionType.Buy, UtilityGroup.Base);
+                BrainMechanic.Learn(world, who, ActionType.Buy, BrainMechanic.Reward(fed, fed with { PantryDays = 4 }, 2));
+            }
         for (int i = 0; i < 5; i++)
         {
             Choose(npc, ActionType.Buy, UtilityGroup.Base);
@@ -113,7 +148,7 @@ public class BrainLearningTests
         BrainMechanic.Remember(npc, ActionType.Work, groups);
 
         Assert.Equal(ActionType.Work, npc.Brain!.PendingAction);
-        Assert.InRange(npc.Brain.PendingShares!.Sum(s => Math.Abs(s)), 999, 1001);
+        Assert.InRange(Enumerable.Range(0, BrainState.Groups).Sum(g => Math.Abs(npc.Brain.ShareOf(g))), 990, 1010); // AD-160: byte por grupo
     }
 
     [Fact]
