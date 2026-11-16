@@ -89,7 +89,9 @@ public sealed partial class BehaviorDecisionSystem
         double bestScore = double.NegativeInfinity;
         Span<double> bestGroups = stackalloc double[BrainState.Groups];
         bool bedSoon = BedtimeWithin(world, npc, catalog, stage, EarlyBedHours);
-        bool atWork = npc.CurrentAction == ActionType.Work && npc.Employer is not null;
+        // fica mais no trabalho só quem não está com fome nem sede (longe da despensa a sede chega ao crítico antes de voltar)
+        bool atWork = npc.CurrentAction == ActionType.Work && npc.Employer is not null
+            && npc.HungerAt(now) >= StayAwayNeedFloor && npc.ThirstAt(now) >= StayAwayNeedFloor;
         foreach (var action in LeisureChoices)
         {
             if (action == ActionType.Sleep && !bedSoon || action == ActionType.Work && !atWork) continue;
@@ -122,6 +124,9 @@ public sealed partial class BehaviorDecisionSystem
 
     /// <summary>Quantas horas antes da hora de dormir da rotina o NPC pode escolher deitar (AD-160b).</summary>
     private const int EarlyBedHours = 2;
+
+    /// <summary>Fome e sede mínimas para ficar além do turno (AD-160b).</summary>
+    private const int StayAwayNeedFloor = 50;
 
     /// <summary>A rotina do NPC manda dormir em até <paramref name="hours"/> horas.</summary>
     private static bool BedtimeWithin(WorldState world, Npc npc, ActionCatalog catalog, LifeStage stage, int hours)
