@@ -18,13 +18,15 @@ public enum PowerInheritanceMode
 }
 
 /// <summary>Genética de um poder (AD-156), dado de cenário. Números padrão de memória, sem fonte: precisam de conferência.
-/// <see cref="AlleleFrequency"/> nula = derivada da prevalência do cenário pelo equilíbrio de Hardy-Weinberg.</summary>
+/// <see cref="AlleleFrequency"/> nula = derivada da prevalência do cenário pelo equilíbrio de Hardy-Weinberg.
+/// <see cref="OnsetAgeMeanYears"/> nulo (AD-162) = o poder aparece na puberdade do próprio NPC (a fome que a atrasa atrasa o poder);
+/// com valor, a idade de início é N(média; <see cref="OnsetAgeStdDevYears"/>), o modelo do AD-156.</summary>
 public sealed record PowerGenetics(
     PowerInheritanceMode Mode = PowerInheritanceMode.Dominant,
     double? AlleleFrequency = null,
     double Penetrance = 0.9,
     double ExpressivityStdDev = 0.15,
-    double OnsetAgeMeanYears = 13,
+    double? OnsetAgeMeanYears = null,
     double OnsetAgeStdDevYears = 1.5,
     double MutationRate = 1e-5,
     int PolygenicLoci = 4,

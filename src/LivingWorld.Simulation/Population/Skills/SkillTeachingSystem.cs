@@ -367,6 +367,6 @@ public sealed class SkillTeachingSystem : ISimulationSystem
         child.SetRearing((child.Rearing ?? RearingRecord.Empty).Add(_caregivers, biological));
         // AD-142: o que a criança aprende a valorizar puxa para o que os cuidadores valorizam
         if (world.BrainRules is { Enabled: true } brainRules)
-            LivingWorld.Simulation.Cognition.BrainMechanic.Rear(brainRules, child, _caregiverNpcs);
+            LivingWorld.Simulation.Cognition.BrainMechanic.Rear(brainRules, child, _caregiverNpcs, world);
     }
 }

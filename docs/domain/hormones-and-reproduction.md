@@ -7,7 +7,7 @@ gravidez e por sorteios fixos da pessoa (semente + id). Regras em `EndocrineRule
 `HeritableDisorderRules` (`BodyRules.Disorders`) e `ContraceptionRules`.
 
 ## Puberdade e adolescência
-- Idade individual (menarca ~15 nelas, ~15,5 neles, dp 1,2); a desnutrição do mês em que
+- Idade individual (menarca ~15 nelas, ~15,5 neles, dp 1,8, AD-162: o histórico passava de 2,5); a desnutrição do mês em que
   viria a adia (até 3 anos com fome plena). Antes dela não há ovulação nem fertilidade.
 - **Impulso da adolescência** (sistemas duais): zero antes da puberdade, pico 2 anos depois,
   cai em linha até os 25. Soma impulsividade, tira aversão a risco.

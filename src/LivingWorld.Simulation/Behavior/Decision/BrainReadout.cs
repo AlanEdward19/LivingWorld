@@ -11,8 +11,12 @@ namespace LivingWorld.Simulation.Behavior.Decision;
 /// valor que de fato somou e o ganho (milésimos) que o NPC tem nesse grupo dessa ação.</summary>
 public readonly record struct BrainSynapse(ActionType Action, UtilityTerm Term, UtilityGroup Group, double Value, int GainMilli);
 
-/// <summary>A rede de uma decisão, termo → grupo → ação: as sinapses e a nota de cada ação (a soma delas).</summary>
-public sealed record BrainReading(IReadOnlyList<BrainSynapse> Synapses, IReadOnlyDictionary<ActionType, double> Scores);
+/// <summary>A rede de uma decisão, termo → grupo → ação: as sinapses e a nota de cada ação (a soma delas).
+/// <see cref="Value"/> (AD-160b): o valor que o NPC dá ao próprio estado agora, parcela por parcela (a recompensa que ensina é a
+/// variação dele); nulo fora de um NPC real.</summary>
+public sealed record BrainReading(
+    IReadOnlyList<BrainSynapse> Synapses, IReadOnlyDictionary<ActionType, double> Scores,
+    LivingWorld.Simulation.Cognition.BrainValue? Value = null);
 
 /// <summary>"Ver o cérebro" (ADR-0046, opção b como visualização da c): projeção volátil (ADR-0014), recomputável do canônico,
 /// que só existe quando alguém lê; não entra no tick. Usa a mesma <c>ScoreOf</c> do motor, então a soma das sinapses de uma
@@ -51,7 +55,10 @@ public static class BrainReadout
         var ctx = NpcDecisionSandbox.BuildContext(world, npc);
         var eligibility = LivingWorld.Simulation.Ontogeny.OntogenyMechanic.EligibilityFor(world.OntogenyRules, npc.Development);
         var gains = world.BrainOn ? LivingWorld.Simulation.Cognition.BrainMechanic.GainsOf(npc) : null;
-        return Result<BrainReading>.Ok(Read(ctx, world.NeedsRules, world.EconomyRules, gains, npc.CurrentAction, eligibility));
+        var reading = Read(ctx, world.NeedsRules, world.EconomyRules, gains, npc.CurrentAction, eligibility);
+        return Result<BrainReading>.Ok(world.BrainOn
+            ? reading with { Value = LivingWorld.Simulation.Cognition.BrainMechanic.ValueOf(world, npc, world.CurrentDate.TotalHours) }
+            : reading);
     }
 
     /// <summary>Em que grupo da fórmula cada termo entra (a camada do meio da rede).</summary>

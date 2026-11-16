@@ -12,11 +12,18 @@ do dia não muda (stream próprio `crime-person-day-N`).
   consequências; a criança nunca engravida (a concepção exige mulher adulta fértil).
 
 ## Violência doméstica (`DomesticViolenceRules`)
-- Chance/ano = taxa × propensão da violência (corpo³ × impulsividade × instabilidade) × (1 + fome + miséria + desemprego)
+- Chance/ano = taxa (0,012) × propensão da violência (corpo³ × impulsividade × instabilidade) × (1 + fome + miséria + desemprego)
   × (1 + ciúme: mágoa conjugal) × (1 + histórico: lembrança de violência sofrida, inclusive na infância) × (1 − dissuasão).
 - Alvo: o morador que a pessoa menos estima (idade mínima 3); no ciúme, o cônjuge. Ato no fim da tarde.
 - Desfecho: dano menor que o da rua, golpe mortal raro (homicídio pelo caminho das mortes). Medo e mágoa na vítima,
-  mágoa conjugal (+20) que leva à separação do AD-136, e lembrança de violência nas crianças da casa (o ciclo).
+  mágoa conjugal que leva à separação do AD-136, e lembrança de violência nas crianças da casa (o ciclo). AD-162: a norma
+  tolerava o "castigo moderado" e a separação por crueldade era rara (exigia violência excessiva provada): a agressão leve e
+  isolada soma só 1/4 dos +20 (`ToleratedGrievanceShare`); a grave (dano ≥ 25) ou repetida (a vítima ainda guarda mágoa ≥ 10 do
+  mesmo agressor) soma os +20.
+- AD-163, medida pela grandeza da fonte: **esposas agredidas no ano ÷ anos de esposa** (`ReferenceTally`): 3,0% (40×100),
+  abaixo de 10–20% (OMS 2018 / Sardinha 2022: 13% no último ano, moderno [B]). 0,036 dá 9,5–10,2% com separações 12 → 16 e
+  natalidade igual, mas (20×100, pareado) horas de fome crítica 1,28× (IC90 1,01–1,67), fome dos menores de 5 2,0× (1,25–3,6),
+  homicídios 1,28×: **não aplicado**; falta achar por que a agressão leva à fome (dano e trabalho? separação?).
 - Justiça: a vítima sabe quem foi, mas a denúncia é rara (fração 0,15, uma decisão só) e a corte condena menos (0,5).
 
 ## Sequestro (`KidnappingRules`)

@@ -16,14 +16,14 @@ public class BrainWorldTests
     private static (WorldState World, WorldClock Clock) World(ulong seed, bool brain)
     {
         var (world, clock) = ScenarioRunner.Create(seed);
-        if (brain) world.UseBrain(BrainRules.Default);
+        world.UseBrain(brain ? BrainRules.Default : null); // AD-160b: o cenário liga; o braço sem cérebro desliga
         return (world, clock);
     }
 
-    private static Observed Run(ulong seed, bool brain)
+    private static Observed Run(ulong seed, bool brain, int days = Days)
     {
         var (world, clock) = World(seed, brain);
-        clock.Run(world, Days * world.Calendar.HoursPerDay);
+        clock.Run(world, days * world.Calendar.HoursPerDay);
         var brains = world.Npcs.Where(n => n.IsAlive && n.Brain is not null).Select(n => n.Brain!).ToList();
         var gains = brains.SelectMany(b => b.Gains).Select(g => (double)g).ToList();
         double mean = gains.Count == 0 ? 0 : gains.Average();
@@ -69,10 +69,15 @@ public class BrainWorldTests
         Assert.NotEqual(Shared.Value.Off.Hash, Shared.Value.On.Hash);
     }
 
+    /// <summary>AD-160b: sem ruído de herança todo NPC nasce com ganho zero e o aprendizado (0,05, degraus de 20 com sorteio) leva
+    /// mais que 120 dias para mover um degrau na maioria (43 de 98 em 120 dias). A diferença entre NPCs vem da vida que eles
+    /// têm, então o teste olha depois de anos de vida, não de meses.</summary>
+    private const int YearsToDiffer = 2;
+
     [Fact]
     public void Npcs_come_to_differ_in_what_they_value()
     {
-        var on = Shared.Value.On;
+        var on = Run(3, brain: true, days: YearsToDiffer * 360);
 
         Assert.True(on.WithLearnedGain > on.WithBrain / 2, $"{on.WithLearnedGain} de {on.WithBrain}");
         Assert.True(on.GainSpread > 1, $"desvio dos ganhos {on.GainSpread}");

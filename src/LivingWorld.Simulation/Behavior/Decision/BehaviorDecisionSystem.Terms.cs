@@ -108,7 +108,8 @@ public sealed partial class BehaviorDecisionSystem
         {
             _row = (int)action * BrainState.Groups;
             _total = 0;
-            if (groups is not null) Array.Clear(groups, offset, BrainState.Groups);
+            if (groups is not null)
+                for (int i = 0; i < BrainState.Groups; i++) groups[offset + i] = 0; // AD-160: sem a chamada do Array.Clear por ação
         }
 
         public readonly double Factor(UtilityGroup group) => 1.0 + gains[_row + (int)group] * 0.001;
@@ -133,7 +134,7 @@ public sealed partial class BehaviorDecisionSystem
         double baseValue = BaseTermOf(ctx, action, economy, eligibility, sink is not null || knockout is not null, out var baseTerm);
         if (knockout is { } k && k == baseTerm) baseValue = 0;
         lens.Credit(UtilityGroup.Base, baseValue);
-        Note(sink, action, baseTerm, baseValue, lens.Factor(UtilityGroup.Base));
+        Note(sink, action, baseTerm, baseValue, ref lens, UtilityGroup.Base);
 
         double comfortFactor = action switch
         {
@@ -144,19 +145,19 @@ public sealed partial class BehaviorDecisionSystem
         if (knockout == UtilityTerm.Comfort) comfortFactor = 0;
         double comforted = baseValue * (1.0 + comfortFactor);
         lens.Credit(UtilityGroup.Comfort, comforted - baseValue);
-        Note(sink, action, UtilityTerm.Comfort, comforted - baseValue, lens.Factor(UtilityGroup.Comfort));
+        Note(sink, action, UtilityTerm.Comfort, comforted - baseValue, ref lens, UtilityGroup.Comfort);
 
         double weight = knockout == UtilityTerm.Personality ? 1.0 : PersonalityWeighting.WeightOf(ctx.Personality, action);
         double score = comforted * weight;
         lens.Credit(UtilityGroup.Personality, score - comforted);
-        Note(sink, action, UtilityTerm.Personality, score - comforted, lens.Factor(UtilityGroup.Personality));
+        Note(sink, action, UtilityTerm.Personality, score - comforted, ref lens, UtilityGroup.Personality);
 
         var (contextTerm, contextBonus) = ContextFactorBonus(ctx, action, economy);
         if (contextBonus != 0 && knockout != contextTerm)
         {
             score += contextBonus;
             lens.Credit(UtilityGroup.Context, contextBonus);
-            Note(sink, action, contextTerm, contextBonus, lens.Factor(UtilityGroup.Context));
+            Note(sink, action, contextTerm, contextBonus, ref lens, UtilityGroup.Context);
         }
 
         score += InnerLifeTerms(ctx, action, rules.Psyche, economy, baseValue, sink, knockout, ref lens);
@@ -169,12 +170,12 @@ public sealed partial class BehaviorDecisionSystem
             double factor = ForesightUtilityFactor(preview);
             double factored = score * factor;
             lens.Credit(UtilityGroup.Foresight, factored - score);
-            Note(sink, action, UtilityTerm.Foresight, factored - score, lens.Factor(UtilityGroup.Foresight));
+            Note(sink, action, UtilityTerm.Foresight, factored - score, ref lens, UtilityGroup.Foresight);
             if (hormones.ForesightDiscount > 0)
             {
                 double discounted = score * (factor + (1 - factor) * hormones.ForesightDiscount);
                 lens.Credit(UtilityGroup.Foresight, discounted - factored);
-                Note(sink, action, UtilityTerm.Adolescence, discounted - factored, lens.Factor(UtilityGroup.Foresight));
+                Note(sink, action, UtilityTerm.Adolescence, discounted - factored, ref lens, UtilityGroup.Foresight);
                 factored = discounted;
             }
             score = factored;
@@ -184,13 +185,13 @@ public sealed partial class BehaviorDecisionSystem
         {
             score += rules.ContinuityBonus;
             lens.Credit(UtilityGroup.Continuity, rules.ContinuityBonus);
-            Note(sink, action, UtilityTerm.Continuity, rules.ContinuityBonus, lens.Factor(UtilityGroup.Continuity));
+            Note(sink, action, UtilityTerm.Continuity, rules.ContinuityBonus, ref lens, UtilityGroup.Continuity);
             if (hormones.Fickleness > 0)
             {
                 double fickle = -rules.ContinuityBonus * hormones.Fickleness;
                 score += fickle;
                 lens.Credit(UtilityGroup.Continuity, fickle);
-                Note(sink, action, UtilityTerm.Adolescence, fickle, lens.Factor(UtilityGroup.Continuity));
+                Note(sink, action, UtilityTerm.Adolescence, fickle, ref lens, UtilityGroup.Continuity);
             }
         }
 
@@ -218,6 +219,15 @@ public sealed partial class BehaviorDecisionSystem
     private static void Note(List<UtilityContribution>? sink, ActionType action, UtilityTerm term, double value, double factor = 1.0)
     {
         if (sink is not null && value != 0) sink.Add(new UtilityContribution(action, term, value * factor));
+    }
+
+    /// <summary>AD-160: o fator do grupo só é lido quando há rastro; no caminho quente com cérebro ele era lido duas vezes por
+    /// termo (aqui e no <c>Credit</c>), e o JIT não apaga a leitura do vetor de ganhos.</summary>
+    private static void Note<TLens>(
+        List<UtilityContribution>? sink, ActionType action, UtilityTerm term, double value, ref TLens lens, UtilityGroup group)
+        where TLens : struct, IBrainLens
+    {
+        if (sink is not null && value != 0) sink.Add(new UtilityContribution(action, term, value * lens.Factor(group)));
     }
 
     /// <summary>Base da ação e o nome do que a move (a necessidade que domina, a despensa, ou o valor de referência).</summary>
@@ -311,7 +321,7 @@ public sealed partial class BehaviorDecisionSystem
         sum += value;
         var group = term is UtilityTerm.IncomeNeed or UtilityTerm.FamineMemory ? UtilityGroup.Pressure : UtilityGroup.Affect;
         lens.Credit(group, value);
-        Note(sink, action, term, value, lens.Factor(group));
+        Note(sink, action, term, value, ref lens, group);
     }
 
     /// <summary>Hormônios na escolha (AD-139), pelo mesmo caminho da vida interior: a cólica tira do trabalho e puxa para o

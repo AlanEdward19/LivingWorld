@@ -195,7 +195,8 @@ public sealed partial class CropSystem
 
         double labor = 0;
         foreach (var npc in workers)
-            labor += AttributeMechanic.StrengthMultiplier(world, npc) * BodyMechanic.WorkCapacityMultiplier(world, npc);
+            labor += AttributeMechanic.StrengthMultiplier(world, npc) * BodyMechanic.WorkCapacityMultiplier(world, npc)
+                * world.OntogenyRules.FineMotorWorkFactor(npc.Development); // AD-163: a mão ainda inábil ceifa menos
         labor *= ToolMechanic.OutputFactor(world, farm, workers.Count); // sem foice e sega a ceifa anda devagar (AD-144)
         long reaped = field.Reap((long)Math.Floor(labor * ag.ReapPerWorkerDay));
         if (reaped > 0)

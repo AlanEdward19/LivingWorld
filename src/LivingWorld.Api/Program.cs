@@ -236,6 +236,7 @@ app.MapVisualInputEndpoints();
 app.MapAuthoringEndpoints();
 app.MapWatchlistEndpoints(worldHost);
 app.MapDecisionSandboxEndpoints(worldHost);
+app.MapBrainEndpoints(worldHost); // AD-160b: ler o cérebro
 app.MapObservationScopeEndpoints(worldHost);
 app.MapAdminEndpoints(worldHost, simulationHost);
 simulationHost.OnPauseExpired = pause =>

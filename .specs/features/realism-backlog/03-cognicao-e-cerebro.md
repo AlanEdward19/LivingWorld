@@ -1,4 +1,4 @@
-# Cognição, pensamento e cérebro do NPC (parte 1 juntada em AD-138; parte 2: experimento feito em AD-142, flag desligada)
+# Cognição, pensamento e cérebro do NPC (parte 1 juntada em AD-138; parte 2: AD-142, AD-160 e ligado por padrão no AD-160b)
 
 > Achados 9 e 11 da auditoria (`relatorios/relatorio-realismo.md`). Issues relacionadas: #143 (índice de vivacidade),
 > #145 (memória da própria vida), #146 (humor e luto), #147 (necessidades além da sobrevivência), #148 (aspirações),
@@ -41,7 +41,18 @@ Pontos em aberto, que pedem ADR e experimento antes de implementar:
 
 **Experimento feito (AD-142, ADR-0046, juntado em 2026-11-13, `e66a38b6`), flag desligada por padrão.** Cada NPC tem ganhos `ação × grupo` (10 × 8) herdados, puxados pela criação e ajustados pela surpresa de recompensa; doc em `docs/domain/brain.md`. Desligado, o mundo é byte a byte o mesmo. **Veredito: não ligar ainda.** Ligado: CPU +7,0% a 5.000 NPCs (teto +3%), snapshot +3,3% por vivo, disco +6,8% por NPC-ano, diversidade de dias 0,796 → 0,773 (não sobe), e a demografia piora (população 149,3 → 140,9, fome 670 → 782, sede 29 → 103). Rede 28-16-10 (opção a) custa +96% por decisão, só no sandbox.
 
-Antes de tentar ligar: consolidar os ganhos por trimestre (bytes), não guardar a participação a cada decisão (CPU), achar por que a sede piora, expor a leitura na API e no `brain_panel.gd` (contrato público: perguntar ao dono), teste de mundo de 100 anos com a flag ligada, plasticidade na rede da opção (a), pesos de personalidade aprendidos (fora pelo ADR-0046; reabrir se o dono quiser), separar no +7% de CPU o que é mecanismo, medir disco a 1.000 e 5.000.
+**Revisto no AD-160 (2026-11-16), veredito: não ligar.** Na árvore de hoje (6 seeds × 50 anos) o cérebro como juntado
+ainda trocava 10–20% das decisões com fome ou sede crítica (sede 1 → 8 mortes) e fazia a vila comer mais (expectativa começando
+em zero). Fechado com teste: o corpo decide na necessidade crítica, a 1ª experiência só forma a expectativa, participação
+guardada num número. Fica: custo do motor +4,5% só pelo mecanismo (+7% ligado), bytes por NPC-ano +9%, e o NPC compra menos,
+furta e morre mais de fome (12 → 38 mortes em 6 × 50), e a recompensa só vê alívio imediato (não aprende o valor adiado de trabalhar ou comprar) e só
+pesa decisões urgentes (a rotina não passa pelo cérebro, a variedade dos dias não sobe). Números e o que falta:
+[`neural-brain/verdict-ad160.md`](../neural-brain/verdict-ad160.md); o trabalho restante virou texto de issue.
+
+**AD-160b (2026-11-16): ligado por padrão.** Recompensa = variação do valor do estado (corpo, despensa, moeda, humor, salário
+da jornada); impulso do corpo fora do aprendizado; expectativa herdada; tempo livre pesado pelo cérebro. Fome e sede crítica e
+furto por fome iguais ou melhores que a base, variedade de dias +3,9% (3,5 EP), bytes no limite (3,1%), **custo +5,5% em
+aberto**. Detalhe: [`neural-brain/verdict-ad160b.md`](../neural-brain/verdict-ad160b.md).
 
 ## Critérios mensuráveis
 

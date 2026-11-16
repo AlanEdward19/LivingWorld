@@ -1,55 +1,52 @@
-# Cérebro legível com ganhos aprendidos (experimento, AD-142)
+# Cérebro legível com ganhos aprendidos (AD-142, ligado por padrão no AD-160b)
 
-> Decisão: [ADR-0046](../adr/ADR-0046-cerebro-com-ganhos-sinapticos-aprendidos.md). Desenho e contas:
-> `.specs/features/neural-brain/`. **Desligado por padrão**; liga com `{"Brain":{"Enabled":true}}` no cenário
-> ou `world.UseBrain(BrainRules.Default)`. Desligado, o hash, os goldens e o snapshot são os de antes.
+> Decisão: [ADR-0046](../adr/ADR-0046-cerebro-com-ganhos-sinapticos-aprendidos.md). Desenho, contas e vereditos:
+> `.specs/features/neural-brain/` (`verdict-ad160b.md` é o atual). **Ligado por padrão** no cenário de código e nos mundos
+> JSON; `{"Brain":{"Enabled":false}}` ou `world.UseBrain(null)` desliga (`BrainRules.Off`, `LW_BRAIN=0` nos relatórios).
 
 ## A rede
 - **Entrada**: os 22 `UtilityTerm` (fome, sede, despensa, luto, medo, memória de fome...).
-- **Camada do meio**: 8 `UtilityGroup` que a fórmula já tinha: Base, Comfort, Personality, Context, Affect
-  (luto, medo, alegria, vergonha, solidão), Pressure (renda, memória de fome), Foresight, Continuity.
-- **Saída**: as 10 `ActionType`; vence a maior nota, como antes.
-- **Sinapse**: grupo da ação × `1 + g/1000`, com `g` inteiro (milésimos) por NPC em `Npc.Brain`
-  (`BrainState.Gains`, 80 int16), preso a [−500, +1000]: nenhum grupo cai abaixo de metade (a fome não some).
+- **Camada do meio**: 8 `UtilityGroup`: Base, Comfort, Personality, Context, Affect, Pressure, Foresight, Continuity.
+- **Saída**: as 10 `ActionType`; vence a maior nota.
+- **Sinapse**: grupo da ação × `1 + g/1000`, `g` inteiro (milésimos) por NPC em `Npc.Brain` (`BrainState.Gains`, 80
+  int16), em degraus de 20, preso a [−500, +1000]. **O grupo Base (o impulso do corpo) fica em 0**: não aprende nem herda.
 
 ## De onde vem o ganho (nada escrito por nome de ação)
-1. **Nascimento** (`NatalitySystem`): `h × média dos pais + √(1−h²) × segregação` (±100 milésimos, stream
-   `brain` do bebê), `h` = herdabilidade de personalidade do cenário. Fundadores nascem neutros (zero).
-2. **Criação** (`SkillTeachingSystem.SampleRearing`, a cada 30 dias da infância): 1% na direção da média dos
-   cuidadores da casa; quem convive mais puxa mais.
-3. **Experiência** (`BrainMechanic`): na escolha pela utilidade o NPC guarda a participação de cada grupo na nota da
-   vencedora (`PendingShares`); na conclusão daquela ação mede a recompensa vivida = necessidades que subiram +
-   despensa que encheu valendo a fome ou sede que sentia (até 2 dias) + 100 × mudança de valência. A surpresa é
-   recompensa − o que essa ação costuma lhe dar (`ActionMeans`, média móvel 1/8). Cada grupo muda
-   `taxa(idade) × 0,1 × surpresa × participação`; taxa 1 até 20 anos, cai em linha reta até 0,25 aos 60.
+1. **Nascimento** (`NatalitySystem`): `h × média dos pais` (sem ruído no padrão); o filho herda também a média do que os
+   pais esperam de cada ação (`ActionMeans`). Fundadores nascem neutros.
+2. **Criação** (`SkillTeachingSystem.SampleRearing`, a cada 30 dias da infância): 1% na direção dos cuidadores.
+3. **Experiência** (`BrainMechanic.Learn`): ao escolher, o NPC guarda num número (`BrainState.Pending`) a ação, a
+   participação de cada grupo na nota e o **valor que dava ao próprio estado** (`BrainValue`: corpo + 20 por dia de comida e
+   água na despensa por morador + 10 por dia de comida que a moeda compra, ambos até 4 dias, + 100 × humor). Ao concluir,
+   recompensa = valor agora − valor no começo (+ o salário que a jornada rende, se foi trabalho). Surpresa = recompensa − o
+   que a ação costuma render; cada grupo muda `taxa(idade) × 0,05 × surpresa × participação`, em degraus de 20 com
+   sorteio sem viés (stream do mundo por NPC e tick). A 1ª vez só forma a expectativa; a expectativa anda em degraus de 16.
+
+## Onde o cérebro decide
+- **Urgência** (`SelectByUtility(brainGains:)`): com fome ou sede ≤ 30 o corpo decide pela utilidade pura; fora disso os
+  ganhos pesam. Sem ganhos que pesem, a conta é a da utilidade (sem lente) e só a vencedora é recontada para aprender.
+- **Tempo livre** (`BehaviorDecisionSystem.Brain.cs`): no começo da faixa de conversar/ficar à toa, escolhe entre conversar,
+  deitar mais cedo (2 h antes da cama) e ficar além do turno (sem fome nem sede), pela forma da utilidade com os ganhos de
+  temperamento e hábito. Com fome ou sede < 50 segue a rotina; não troca conversar por ficar à toa (o passeio à toa levava
+  para longe da água). Não guarda essa escolha para aprender (`LeisureLearns`: custo e bytes).
 
 ## Exemplo concreto
-Adulta de 25 anos, despensa vazia, fome 10 (déficit 90). A utilidade escolhe Comprar; 85% da nota veio de Base
-(fome), 15% de Pressure (memória de fome). Ela compra 4 dias de comida: recompensa ≈ 90 (perspectiva de saciar a
-fome), Comprar costumava lhe dar ≈ 20, surpresa +70: `g[Comprar, Base] += 0,1 × 70 × 0,85 ≈ +6`. Da próxima
-vez, com fome, Comprar pesa 0,6% a mais para ela; para a irmã que nunca passou fome, não.
+Lavrador de 30 anos, despensa com 1 dia, 2 dias de comida em moedas. Compra 3 dias: despensa +40, moeda −20, a ida custou
+5 de necessidades: recompensa +15 contra uma expectativa de +5. Os grupos que o levaram a comprar (pressão da memória de
+fome, antevisão) sobem um degrau com chance proporcional; o impulso da fome, não.
 
-## Consumidor causal
-`BehaviorDecisionSystem.SelectByUtility(brainGains:)` (os ganhos do NPC, como a elegibilidade, fora do
-`DecisionContext` para não pesar a alocação desligado): o ganho muda a nota e a escolha urgente. Desligado, a conta é
-especializada por tipo (`NoBrain`) e o JIT a reduz à de antes.
-O AD-138 continua valendo: o rastro mostra cada termo com o valor que somou (já com ganho).
-
-## Ver o cérebro (opção b)
-`BrainReadout.Read(world, npcId)`: projeção volátil termo → grupo → ação, com valor e ganho; a soma das sinapses
-de uma ação é a nota dela. Ainda não exposta na API nem no `brain_panel.gd` (mudança de contrato público).
-
-## Rede por NPC (opção a), só no sandbox
-`NeuralPolicySandbox`: 28-16-10 em int16 com acumulador int32. Nenhum sistema a chama; existe para medir custo
-(`BrainDecisionCostHarness`).
+## Ver o cérebro
+`BrainReadout.Read(world, npcId)`: termo → grupo → ação com valor e ganho (a soma das sinapses é a nota) e o valor do
+estado por parcela. API: `GET /npcs/{id}/brain`. Cliente: linha do painel Cérebro (`brain_panel.gd`).
 
 ## Medir
-- Custo por decisão: `LW_BRAIN_COST_OUT=f bash scripts/test.sh --project longrunning --filter BrainDecisionCostHarness`.
-- Experimento (vila, com e sem): `LW_BRAIN_OUT=f LW_BRAIN_SEEDS=5 LW_BRAIN_YEARS=10 ... --filter BrainExperimentHarness`.
-- Motor: `LW_AFTER_ENV=LW_MEASURE_BRAIN=1 LW_MEASURE_SCALE_ONLY=1 bash scripts/compare-simulation-cost.sh .`
+- Sonda: `dotnet <dll> brain-trace <seed> <seeds> <anos>` (troca neural × utilidade, ganhos médios); `LW_TRACE_AWAY=1`
+  mostra quem tem sede crítica longe de casa e o que faz.
+- Vila com e sem: `LW_BRAIN_OUT=f LW_BRAIN_SEEDS=n LW_BRAIN_YEARS=a [LW_BRAIN_VARIANT=v] ... --filter BrainExperimentHarness`
+  (variedade de dias, bytes, e `brainBytesShare`: bytes do cérebro no mesmo mundo).
+- Aflição: `demography-report` com `LW_BRAIN=0` (sem) e sem a variável (com); variantes em `BrainRules.Variant`.
+- Motor: `MeasureHarness` com `LW_MEASURE_BRAIN=off|1|<variante>`.
 
-## Resultado do experimento (AD-142, 2026-11-13)
-Não aprovado para ligar por padrão. Custo do motor dentro do teto a 1.000 NPCs (+0,6%), fora a 5.000 (+7,0%); bytes
-fora (+3,3% JSON por vivo, +6,8% positional por NPC-ano); diversidade de dias no mesmo ofício não sobe; 20 seeds ×
-100 anos: população final 149,3 → 140,9 e mais mortes por fome e sede. Herança funciona (pais → filho 0,55), ganhos
-pequenos (|g| médio 1,4%). Números completos em `docs/decisions-log.md` (AD-142).
+## Histórico
+AD-142 (não ligar: custo, bytes, demografia), AD-160 (não ligar: corpo crítico, viés de comer; ver `verdict-ad160.md`),
+AD-160b (ligado; custo +5,5% em aberto; ver `verdict-ad160b.md`).

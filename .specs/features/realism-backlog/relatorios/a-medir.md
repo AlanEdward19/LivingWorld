@@ -6,19 +6,24 @@
 
 ## 1. Rodada de referência com medida de fome que aguenta o ruído (itens 86, 85, 62, 80, 34, 30, 32, 14, 22)
 
+> **AD-163 rodou** (40 × 100, árvore `0dcd3ad3`; contadores na linha `medida seed=` do `demography-report`, razão pareada com
+> IC90 por bootstrap em `scripts/paired-rates.py`). Fechados: 14, 22, 30, 32 (riscados abaixo); 34 virou correção de rótulo;
+> 85 e 80 inconclusivos com 40 e 20 pares (números no [08b](../08b-a-investigar.md)); 62 é da fatia da carga. Piloto do item 86:
+> CV da taxa de fome entre seeds **0,53** (não 0,9), ρ entre braços 0,14–0,37: ~40–50 pares detectam δ = 25%, ~300 δ = 10%.
+
 Uma rodada 40 seeds × 100 anos da árvore de hoje, **em dois braços pareados** quando há uma chave em julgamento, com estes
 contadores por seed e por década: mortes por causa e por faixa de idade; **pessoa-anos** por faixa de idade; nascidos vivos por
 sexo; natimortos; construções boas e falhas; CV mínimo de vitalidade; lembranças por tipo. Responde:
 
 - **86, 85, 62, 80**: se fome sobe com a doméstica/sequestro/violência sexual (85), com a carga pessoal ligada (62) e com o açoite e o
   banimento (80), pelo desenho estatístico abaixo, em vez da contagem bruta em 20 seeds.
-- **34**: fração de mortes ainda sem causa (era 34,7%), doença de 1 a 4 anos contra a tábua, e se alguma seed ainda cai a dezenas de
+- **34** (AD-163: 36,1% sem causa é a sobra da tábua sem rótulo; nenhuma seed abaixo de 51): fração de mortes ainda sem causa (era 34,7%), doença de 1 a 4 anos contra a tábua, e se alguma seed ainda cai a dezenas de
   vivos (a seed 18 do AD-140).
-- **30**: razão de sexo ao nascer com intervalo (o 107,7 do AD-139 é ruído do sorteio 105:100? com ~11 mil nascidos o erro-padrão
+- ~~**30**~~ (AD-163: 103,2, IC90 101,1–105,4): razão de sexo ao nascer com intervalo (o 107,7 do AD-139 é ruído do sorteio 105:100? com ~11 mil nascidos o erro-padrão
   da razão é ~2 pontos [C], então 107,7 fica a ~1,3 erro-padrão de 105).
-- **32**: mortes no 1º ano e a taxa de construções falhas/boas (49 mil/75 mil no AD-141).
-- **14**: piso do CV de vitalidade (0,097 contra 0,129) com as uniões de hoje.
-- **22**: fração das vagas de lembrança ocupadas por ajuda (era 54%).
+- ~~**32**~~ (AD-163: 203‰; 0,48 falha por boa): mortes no 1º ano e a taxa de construções falhas/boas (49 mil/75 mil no AD-141).
+- ~~**14**~~ (AD-163: mínimo 0,257): piso do CV de vitalidade (0,097 contra 0,129) com as uniões de hoje.
+- ~~**22**~~ (AD-163: 5,2%): fração das vagas de lembrança ocupadas por ajuda (era 54%).
 
 ### Desenho da medida de fome (item 86)
 
@@ -56,9 +61,9 @@ o gate em paralelo e ver se o teto de 1,03 mede o código ou a carga da máquina
 
 ## 3. Experimentos de causa, cada um com uma chave (itens 2, 8, 77)
 
-- **2** (traço neutro): braço real com a escolha de parceiro **sem** o fator saúde; se a diferença −0,009 some, é carona genética
+- ~~**2**~~ (AD-163: diferença +0,005 ± 0,005 em 40 seeds; sem a saúde, igual) (traço neutro): braço real com a escolha de parceiro **sem** o fator saúde; se a diferença −0,009 some, é carona genética
   legítima e o teste deve medi-la; se não some, rodar mais seeds (pelo bootstrap do grupo 1) antes de decidir.
-- **8** (pressão dos pais): cenário com mais ofícios com vaga paga, pressão alta × baixa; o 78% × 69% de hoje pode ser só o mercado
+- ~~**8**~~ (AD-163: 94% seguiriam por acaso; pressão 0,15 não muda) (pressão dos pais): cenário com mais ofícios com vaga paga, pressão alta × baixa; o 78% × 69% de hoje pode ser só o mercado
   de trabalho da vila (quase todos lavradores).
-- **77** (casa volta pela carga que ficou): traço `provision-trace` contando compras cortadas e a compra seguinte da mesma casa; o
+- ~~**77**~~ (AD-163: não volta — 120 h contra 79 h; defeito, fatia da carga) (casa volta pela carga que ficou): traço `provision-trace` contando compras cortadas e a compra seguinte da mesma casa; o
   código só garante a frustração (`PersonalCarry.FeltCargoCut`), não a volta.

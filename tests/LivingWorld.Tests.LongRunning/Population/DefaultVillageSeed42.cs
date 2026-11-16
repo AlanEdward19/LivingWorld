@@ -26,7 +26,7 @@ public static class DefaultVillageSeed42
         IReadOnlyList<string> ReferentialYear1, IReadOnlyList<string> ReferentialYear10,
         string HashYear1, string HashYear10,
         long LedgerMaxCount, int LedgerMarkets, IReadOnlyList<TradeAggregate> LedgerYear3,
-        string? FirstDegreeMarriageFailure, string? BirthParentsFailure, int NpcBirthsYear10);
+        string? FirstDegreeMarriageFailure, string? BirthParentsFailure, int NpcBirthsYear10, double PersonYearsYear10);
 
     /// <summary>Do ano 10 em diante: a tabela de vida e o ano 60.</summary>
     public sealed record ObservedLong(int MaxAgeReached, int LifeTableThreshold, int AliveYear60, int ChildrenYear60, int EmployedYear60);
@@ -56,6 +56,9 @@ public static class DefaultVillageSeed42
         long ledgerMax = 0;
         int markets = 0;
         IReadOnlyList<TradeAggregate> ledger3 = [];
+        // pessoas-ano dos 10 anos (trapézio entre as contagens de vivos de cada virada de ano), para a natalidade da década
+        int aliveBefore = world.AliveNpcIndex.Alive.Count;
+        double personYears = 0;
         for (long tick = 1; tick <= 10 * Year; tick++)
         {
             clock.Tick(world);
@@ -68,6 +71,9 @@ public static class DefaultVillageSeed42
             if (tick <= Year && tick % 24 == 0 && city1 is null) city1 = EveryNpcHasACityTests.CityFailure(world, tick);
             if (tick % Year != 0) continue;
             long year = tick / Year;
+            int aliveNow = world.AliveNpcIndex.Alive.Count;
+            personYears += (aliveBefore + aliveNow) / 2.0;
+            aliveBefore = aliveNow;
             if (year <= 3) ledgerMax = Math.Max(ledgerMax, world.TradeLedger.Count);
             if (year == 1)
             {
@@ -87,7 +93,7 @@ public static class DefaultVillageSeed42
         string? births = Failure(() => FamilyPairedScenarioTests.AssertBirthParents(world, events));
         int npcBirths = events.Events.Count(FamilyPairedScenarioTests.IsNpcBirth);
         return new Decade(new Observed(invariant1, invariant10, city1, referential1, referential10, hash1, hash10, ledgerMax, markets, ledger3,
-            marriages, births, npcBirths), world, clock);
+            marriages, births, npcBirths, personYears), world, clock);
     }
 
     /// <summary>A checagem de um teste como valor observado: nulo se passa, senão a mensagem da falha.</summary>
