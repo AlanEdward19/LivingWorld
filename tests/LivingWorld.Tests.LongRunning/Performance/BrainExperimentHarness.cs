@@ -45,6 +45,10 @@ public class BrainExperimentHarness
         clock.Run(world, (years - 1) * world.Calendar.HoursPerYear);
 
         long bytes = PositionalSnapshot.EncodeFull(world, out var snapshotBase).Length;
+        // AD-160b: o que do cérebro muda entre a base do ano e o fim (cada campo mudado entra em todo delta seguinte)
+        var startBrains = world.Npcs.Where(n => n.IsAlive && n.Brain is not null)
+            .ToDictionary(n => n.Id.Value, n => (Gains: (short[])n.Brain!.Gains.Clone(), Means: (short[])n.Brain.ActionMeans.Clone(),
+                Pending: n.Brain.Pending));
         double aliveSum = 0;
         var profiles = new Dictionary<long, (ProfessionType Profession, int[] Counts)>();
         for (int m = 0; m < 12; m++)
@@ -73,6 +77,21 @@ public class BrainExperimentHarness
             + $"dayDiversity={DayDiversity(profiles):F4} jsonPerAlive={json / Math.Max(1, alive.Count)} "
             + $"bytesPerNpcYear={bytes / Math.Max(1.0, aliveSum / 12):F0}";
         if (!brain) return line;
+        int same = 0, gainsChanged = 0, gainCells = 0, meansChanged = 0, pendingChanged = 0;
+        long brainJson = 0;
+        foreach (var n in alive.Where(n => n.Brain is not null))
+        {
+            brainJson += System.Text.Json.JsonSerializer.Serialize(n.Brain).Length;
+            if (!startBrains.TryGetValue(n.Id.Value, out var b0)) continue;
+            same++;
+            int cells = n.Brain!.Gains.Where((g, i) => g != b0.Gains[i]).Count();
+            gainCells += cells;
+            if (cells > 0) gainsChanged++;
+            if (!n.Brain.ActionMeans.SequenceEqual(b0.Means)) meansChanged++;
+            if (n.Brain.Pending != b0.Pending) pendingChanged++;
+        }
+        line += $" brainJsonPerNpc={brainJson / Math.Max(1, alive.Count(n => n.Brain is not null))} yearChanged[gains={gainsChanged / (double)Math.Max(1, same):F2}"
+            + $" cells={gainCells / (double)Math.Max(1, same):F1} means={meansChanged / (double)Math.Max(1, same):F2} pending={pendingChanged / (double)Math.Max(1, same):F2}]";
 
         var gains = alive.Where(n => n.Brain is not null).SelectMany(n => n.Brain!.Gains).ToList();
         var brainRules = world.BrainRules!;

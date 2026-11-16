@@ -19,37 +19,42 @@ public sealed class BrainState
     public const short Unknown = 0;
 
     [JsonConstructor]
-    public BrainState(short[] gains, short[] actionMeans, ActionType? pendingAction = null, long pendingShareBytes = 0, short pendingValue = 0)
+    public BrainState(short[] gains, short[] actionMeans, long pending = 0)
     {
         if (gains.Length != Actions * Groups) throw new ArgumentException($"Gains: {Actions * Groups} valores", nameof(gains));
         if (actionMeans.Length != Actions) throw new ArgumentException($"ActionMeans: {Actions} valores", nameof(actionMeans));
         Gains = gains;
         ActionMeans = actionMeans;
-        PendingAction = pendingAction;
-        PendingShareBytes = pendingAction is null ? 0 : pendingShareBytes;
-        PendingValue = pendingAction is null ? (short)0 : pendingValue;
+        Pending = pending;
     }
 
     [JsonConverter(typeof(GainsJsonConverter))]
     public short[] Gains { get; }
     public short[] ActionMeans { get; }
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public ActionType? PendingAction { get; private set; }
-
-    /// <summary>AD-160: a participação de cada grupo na nota da ação guardada, um byte com sinal por grupo (±127 = ±100%) num só
-    /// número. No AD-142 eram 8 int16 numa lista, que ficava no NPC mesmo depois de esquecida e mudava 8 folhas do snapshot a cada
-    /// decisão. Esquecer zera. Leia por <see cref="ShareOf"/>. Snapshot do AD-142 abre sem a ação guardada (perde um passo).</summary>
+    /// <summary>AD-160b: a escolha guardada num só número (uma folha do snapshot em vez de três, e zero = nada guardado, omitido):
+    /// bits 0–47 = participação de cada grupo na nota, 6 bits com sinal por grupo (±31 = ±100%); bits 48–51 = ação + 1; bits
+    /// 52–61 = valor do estado no começo + <see cref="ValueOffset"/> (0–1023 pontos). Leia por <see cref="PendingAction"/>,
+    /// <see cref="ShareOf"/> e <see cref="PendingValue"/>. Snapshot do AD-160 (três campos) abre sem a escolha guardada.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public long PendingShareBytes { get; private set; }
+    public long Pending { get; private set; }
 
-    /// <summary>AD-160b: o valor que o NPC dava ao próprio estado quando escolheu a ação guardada (pontos; ver
-    /// <c>BrainRules.ValuesSustenance</c>): a recompensa é a variação até o fim dela, medida uma vez só, no fim.</summary>
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public short PendingValue { get; private set; }
+    private const int ShareBits = 6, ShareMax = (1 << (ShareBits - 1)) - 1, ValueOffset = 128;
+
+    [JsonIgnore]
+    public ActionType? PendingAction => Pending == 0 ? null : (ActionType)((int)((Pending >> 48) & 0xF) - 1);
+
+    /// <summary>O valor que o NPC dava ao próprio estado quando escolheu a ação guardada (pontos).</summary>
+    [JsonIgnore]
+    public short PendingValue => Pending == 0 ? (short)0 : (short)(((Pending >> 52) & 0x3FF) - ValueOffset);
 
     /// <summary>Participação (milésimos, com sinal) do grupo na nota da ação guardada.</summary>
-    public int ShareOf(int group) => (int)Math.Round((sbyte)(PendingShareBytes >> (8 * group)) * 1000.0 / 127, MidpointRounding.AwayFromZero);
+    public int ShareOf(int group)
+    {
+        int raw = (int)((Pending >> (ShareBits * group)) & ((1 << ShareBits) - 1));
+        if (raw > ShareMax) raw -= 1 << ShareBits;
+        return (int)Math.Round(raw * 1000.0 / ShareMax, MidpointRounding.AwayFromZero);
+    }
 
     public static BrainState Neutral() => new(new short[Actions * Groups], new short[Actions]);
 
@@ -57,21 +62,15 @@ public sealed class BrainState
 
     public void Remember(ActionType action, ReadOnlySpan<short> shares, double value = 0)
     {
-        PendingValue = (short)Math.Clamp(Math.Round(value, MidpointRounding.AwayFromZero), short.MinValue, short.MaxValue);
         long packed = 0;
         for (int g = 0; g < Groups; g++)
         {
-            int b = (int)Math.Round(Math.Clamp((int)shares[g], -1000, 1000) * 127 / 1000.0, MidpointRounding.AwayFromZero);
-            packed |= (long)(byte)(sbyte)b << (8 * g);
+            int b = (int)Math.Round(Math.Clamp((int)shares[g], -1000, 1000) * ShareMax / 1000.0, MidpointRounding.AwayFromZero);
+            packed |= (long)(b & ((1 << ShareBits) - 1)) << (ShareBits * g);
         }
-        PendingShareBytes = packed;
-        PendingAction = action;
+        long v = Math.Clamp((long)Math.Round(value, MidpointRounding.AwayFromZero) + ValueOffset, 0, 0x3FF);
+        Pending = packed | ((long)((int)action + 1) << 48) | (v << 52);
     }
 
-    public void Forget()
-    {
-        PendingAction = null;
-        PendingShareBytes = 0;
-        PendingValue = 0;
-    }
+    public void Forget() => Pending = 0;
 }

@@ -4,7 +4,7 @@ using LivingWorld.Domain.Cognition;
 
 namespace LivingWorld.Tests.Unit.Cognition;
 
-/// <summary>AD-160: a participação guardada vai ao snapshot num só número (byte por grupo), volta igual, some quando esquecida,
+/// <summary>AD-160b: a escolha guardada vai ao snapshot num só número (6 bits por grupo, a ação e o valor do estado), volta igual, some quando esquecida,
 /// e o snapshot do AD-142 (lista de 8 int16) ainda abre.</summary>
 public class BrainStateJsonTests
 {
@@ -16,7 +16,7 @@ public class BrainStateJsonTests
 
         var back = JsonSerializer.Deserialize<BrainState>(JsonSerializer.Serialize(brain))!;
         Assert.Equal(ActionType.Buy, back.PendingAction);
-        Assert.Equal([504, -252, 252, 0], Enumerable.Range(0, 4).Select(back.ShareOf));
+        Assert.Equal([516, -258, 258, 0], Enumerable.Range(0, 4).Select(back.ShareOf));
 
         brain.Forget();
         string forgotten = JsonSerializer.Serialize(brain);
