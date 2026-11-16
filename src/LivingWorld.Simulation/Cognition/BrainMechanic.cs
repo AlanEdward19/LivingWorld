@@ -154,8 +154,13 @@ internal static class BrainMechanic
             brain.Gains[row + i] = rules.Clamp(brain.Gains[row + i] + delta, i);
         }
 
-        short mean = (short)Math.Clamp(
-            Math.Round(expected + surprise / rules.MeanWindow, MidpointRounding.AwayFromZero), short.MinValue, short.MaxValue);
+        // AD-160b: a expectativa também anda em degraus (MeanStep pontos, sorteio sem viés): o que muda pouco não reescreve o snapshot
+        double moved = expected + (rules.MeanStep > 1 && stepped
+            ? Math.Floor(surprise / rules.MeanWindow / rules.MeanStep) * rules.MeanStep
+              + (WorldRng.NextDouble(ref draw) < surprise / rules.MeanWindow / rules.MeanStep - Math.Floor(surprise / rules.MeanWindow / rules.MeanStep) ? rules.MeanStep : 0)
+            : surprise / rules.MeanWindow);
+        if (rules.MeanStep > 1 && stepped && known == BrainState.Unknown) moved = Math.Round(moved / rules.MeanStep) * rules.MeanStep;
+        short mean = (short)Math.Clamp(Math.Round(moved, MidpointRounding.AwayFromZero), short.MinValue, short.MaxValue);
         if (mean == BrainState.Unknown && rules.FirstExperienceSetsExpectation) mean = (short)(expected >= 0 ? 1 : -1); // vivida
         brain.ActionMeans[a] = mean;
         brain.Forget();

@@ -30,7 +30,8 @@ public sealed record BrainRules(
     bool WeighsLeisure = false,
     bool LeisureEarlyBed = true,
     bool LeisureStaysAtWork = true,
-    int LeisureNeedFloor = 0)
+    int LeisureNeedFloor = 0,
+    int MeanStep = 1)
 {
     /// <summary>Ligado, com os números do desenho (`.specs/features/neural-brain/design.md`).</summary>
     public static BrainRules Default { get; } = new(
@@ -40,7 +41,7 @@ public sealed record BrainRules(
         FirstExperienceSetsExpectation: true,
         BaseMinGain: 0, BaseMaxGain: 0, GainStep: 10,
         PantryDayValue: 20, MoneyDayValue: 10, ValueHorizonDays: 4, WageHoursPerMonth: 270,
-        InheritExpectation: true, WeighsLeisure: true, LeisureNeedFloor: 50);
+        InheritExpectation: true, WeighsLeisure: true, LeisureNeedFloor: 50, MeanStep: 4);
 
     /// <summary>O experimento como juntado no AD-142 (para comparar): sem nada do AD-160 nem do AD-160b.</summary>
     public static BrainRules Ad142 { get; } = Default with
@@ -63,6 +64,7 @@ public sealed record BrainRules(
         "nolearn" => Default with { LearningPerPoint = 0 },
         "nobed" => Default with { LeisureEarlyBed = false },
         "nofloor" => Default with { LeisureNeedFloor = 0 },
+        "meanstep1" => Default with { MeanStep = 1 },
         "nostay" => Default with { LeisureStaysAtWork = false },
         "onlychat" => Default with { LeisureEarlyBed = false, LeisureStaysAtWork = false },
         "slow" => Default with { LearningPerPoint = 0.02 },
