@@ -113,7 +113,7 @@ public sealed class DemographyTally(WorldState world) : IWorldEventSink
 /// <summary>Resumo de N seeds × A anos do cenário padrão de código (<see cref="ScenarioRunner.Create"/>).</summary>
 public static class DemographyReport
 {
-    public sealed record SeedResult(ulong Seed, int FinalAlive, int MinAlive, DemographyTally Tally, FoodTally? Food = null, InventionSummary? Invention = null, EconomyTally? Economy = null, WorkdayTally? Workday = null, DecadeTally? Decades = null, VentureTally? Ventures = null, CreditTally? Credit = null);
+    public sealed record SeedResult(ulong Seed, int FinalAlive, int MinAlive, DemographyTally Tally, FoodTally? Food = null, InventionSummary? Invention = null, EconomyTally? Economy = null, WorkdayTally? Workday = null, DecadeTally? Decades = null, VentureTally? Ventures = null, CreditTally? Credit = null, NeedDistressTally? Distress = null);
 
     private sealed class BothSinks(IWorldEventSink a, IWorldEventSink b) : IWorldEventSink
     {
@@ -146,7 +146,8 @@ public static class DemographyReport
         var decades = new DecadeTally(world);
         var ventures = new VentureTally(world); // AD-152
         var credit = new CreditTally(world); // AD-155
-        IWorldEventSink sinks = new BothSinks(new BothSinks(new BothSinks(new BothSinks(tally, food), decades), ventures), credit);
+        var distress = new NeedDistressTally(world) { MeasureFromTick = tally.MeasureFromTick }; // AD-157
+        IWorldEventSink sinks = new BothSinks(new BothSinks(new BothSinks(new BothSinks(new BothSinks(tally, food), decades), ventures), credit), distress);
         if (extra is not null) sinks = new BothSinks(sinks, extra);
         var clock = new WorldClock(baseClock.Systems, baseClock.MaxIterationsPerTick, sinks);
         int months = years * world.Calendar.MonthsPerYear;
@@ -160,6 +161,7 @@ public static class DemographyReport
                 {
                     clock.Run(world, 1);
                     workday.SampleHour(); // AD-148: o dia do adulto
+                    distress.SampleHour(); // AD-157: horas com fome ou sede crítica
                 }
                 tally.Disease.SampleDay();
             }
@@ -180,7 +182,7 @@ public static class DemographyReport
 
         tally.Reproduction.SampleGenetics();
         economy.SampleYear(years);
-        return new SeedResult(seed, world.AliveNpcIndex.Alive.Count, minAlive, tally, food, InventionSummary.Of(world), economy, workday, decades, ventures, credit);
+        return new SeedResult(seed, world.AliveNpcIndex.Alive.Count, minAlive, tally, food, InventionSummary.Of(world), economy, workday, decades, ventures, credit, distress);
     }
 
     public static string Summarize(IReadOnlyList<SeedResult> runs, int years, int warmupYears, long hoursPerYear)
@@ -270,6 +272,7 @@ public static class DemographyReport
         var creditRuns = runs.Where(r => r.Credit is not null).Select(r => r.Credit!).ToList();
         if (creditRuns.Count > 0) sb.Append(CreditTally.Summarize(creditRuns));
         sb.Append(InventionSummary.Summarize(runs.Where(r => r.Invention is not null).Select(r => r.Invention!).ToList()));
+        sb.Append(NeedDistressTally.Summarize(runs.Where(r => r.Distress is not null).Select(r => (r.Seed, r.Distress!)).ToList(), hoursPerYear));
         return sb.ToString();
     }
 

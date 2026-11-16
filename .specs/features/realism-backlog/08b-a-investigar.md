@@ -46,7 +46,7 @@
     estreitar o ruído.
 
 ## Da medição (2026-11-15)
-86. **O critério "fome ≤ base em 20 seeds" não discrimina**: nas mesmas seeds 1–20, desligar um crime raro (sequestro, 0,02 por seed-ano) move as mortes de fome de 339 para 462; o ruído de trajetória passa de ±20%. Falta uma medida que aguente (mais seeds, pares com trajetória comum, ou taxa por pessoa-ano com intervalo) antes de aceitar ou recusar fatia por fome. AD-153 (+6% em 40 seeds) e AD-154 (+10,6%) foram aceitos sem causa isolada.
+86. ~~medida criada no AD-157~~ (`NeedDistressTally`, item 108). **O critério "fome ≤ base em 20 seeds" não discrimina**: nas mesmas seeds 1–20, desligar um crime raro (sequestro, 0,02 por seed-ano) move as mortes de fome de 339 para 462; o ruído de trajetória passa de ±20%. Falta uma medida que aguente (mais seeds, pares com trajetória comum, ou taxa por pessoa-ano com intervalo) antes de aceitar ou recusar fatia por fome. AD-153 (+6% em 40 seeds) e AD-154 (+10,6%) foram aceitos sem causa isolada.
 
 ## Do crédito e da falência (AD-155, [credit](../../../docs/domain/credit.md))
 90. **Usura**: acréscimo de 10% ao ano do prazo, multa de 5% da parcela atrasada, teto de 20% ao ano; parente a 0%. Lembrança, **precisa
@@ -81,3 +81,16 @@
      portadores vivos com efeito de flora/fauna, recalculado só quando um portador muda, e o salto lazy mantido quando nenhum
      poder vivo mexe na flora. O AD-156 só trocou o `UpsertExtraordinaryCarrier` (antes remover + ordenar a lista inteira).
 107. **Equivalência do conserto dos poderes ligados (AD-156) foi prova de uma vez só**: o teste `PowerCostEquivalenceTests` comparava o hash com o do código antigo (já apagado), nas seeds 1 e 2, e passou antes da junção com o crédito (AD-155). Como qualquer fatia que muda o mundo troca esse hash e o caminho antigo não existe mais para regravar, o teste saiu na junção (custava 8–16 min no gate). Ficam `LivingCarrierIndexTests` e o golden de poderes desligados; falta um teste barato que compare o índice de vivos com a varredura completa no mesmo mundo.
+
+## Da carga pessoal (AD-157, [household-provisioning](../../../docs/domain/household-provisioning.md))
+108. **Medida da aflição** (`aflicao seed=` no `demography-report`): pareie a mesma seed, 40 × 15 (~6 min). Ruído medido uma vez
+     (sequestro desligado); falta o ruído em 20 × 100 e o limiar "crítico" 80 é escolha (a sede passa disso ~6% do tempo na base).
+109. **Fome do caminho com a carga ligada**: 34 mil voltas para comer e 48 mil refeições da oficina por seed em 15 anos; a fome
+     crítica triplica (10,9 → 35,3 h/pa), metade dela em casa (quem chega com fome e come no fim da refeição). Medir de onde saem
+     as voltas (sair de lugar que não é a casa não arruma carga; despensa no limite da reserva) antes de ligar.
+110. **Custo da carga ligada** ainda +14–35% na decisão: as decisões urgentes de quem está com fome custam mais (mesmo número);
+     sair (`PackOnDeparture`) refaz o destino e dois trajetos. Fechar com 109 (menos fome, menos decisão urgente).
+111. **Quem vai ao mercado não marca o recipiente** quando não arruma carga (perto de casa): outro pode sair com ele no meio da compra.
+112. **Números sem fonte do AD-157**: folga de 12 h ao arrumar a carga; dependente = abaixo de 12 ou 65+ anos na medida.
+113. **Não medido no AD-157**: 20 × 100 com ela ligada e a medida nova; custo a 5.000 NPCs; o ciclo do recipiente com tira levado
+     (12b/13a) com os consertos (a 40 × 15 o recipiente já é levado e bebido: 36 mil bebidas e 10 mil refeições do que levavam por seed).

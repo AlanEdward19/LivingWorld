@@ -77,7 +77,8 @@ Fatias seguintes:
     **Feito (AD-147, `docs/domain/invention.md`)**: sonda de conter, recipiente inventado pela compra cortada, ensinado,
     copiado, vendido; amplia a compra a pé; carga pessoal, arrumar ao sair, comer do que leva, devolver (atrás de
     `PantryNeedsPresence`). 20×100: recipiente inventado nas 20 seeds (31), 8.545 vendas. Ficou de fora:
-    - 12a. AD-151: segue desligado; a ração virou refeição paga (08 item 58), mas 20×100 com a carga deu fome 4,5–5,3% (base 4,1%;
+    - 12a. AD-157: segue desligado, pela medida nova (horas com fome crítica por pessoa-ano, 40×15 pareado): ligada, fome
+      10,9 → 35,3 (ruído ±2,5), sede 518 → 481, trabalho igual; decisão +14–35%. Liga com 08b itens 108–110. AD-151: segue desligado; a ração virou refeição paga (08 item 58), mas 20×100 com a carga deu fome 4,5–5,3% (base 4,1%;
       ruído de bloco ~±20%, 08 itens 62–63). Ciclo com a carga ligada (seeds 1–20): recipiente nas 20 seeds (1.669 invenções),
       tira em 18 (35 designs, 295 peças), 4,5 mi idas a pé com recipiente, 4,8 mi bebidas e 428 mil refeições do que levavam,
       fome longe 21, sede longe 0. AD-149: segue desligado. Com a terra finita, 6×100 deu fome 3,4% (base 3,7%), mas 20×100 com E1 e tudo ligado deu
@@ -85,10 +86,11 @@ Fatias seguintes:
       com o mercado consertado: sede 0,0% → 0,1%, mas fome 3,5% → 5,7% e pop 559 → 463 (6×100); segue desligado.
     - 12b. ~~resolvido no AD-149~~: a casa com recipiente que segue cortada tenta superá-lo e a lâmina pode ir amarrada; 20×100 com a carga
       ligada: tira em 18 de 20 seeds (29 designs, 536 peças); com ela desligada (padrão) a frustração é pouca e não há tira (13a). Original: Nenhum recipiente com tira apareceu (0 kg a mais na compra): na mão leva o máximo de 30 kg e de mais.
-    - 12c. A carga não é da pessoa e sim do melhor recipiente da casa; ninguém leva o item (vários saem com o mesmo).
+    - 12c. ~~resolvido no AD-157~~: o recipiente sai com quem arrumou a carga (`InventionLedger.Held`) e volta com ela; quem sai depois
+      leva o que ficou. Original: a carga era do melhor recipiente da casa e vários saíam com o mesmo.
     - 12d. Sem tampa: estanque basta para levar água; derramar ao andar não existe.
     - 12e. Só a compra cortada gera o problema por padrão (voltar para comer só com a despensa em casa).
-    - 12f. Carga em `/npcs/{id}` não exposta (só `GET /designs/{id}`: `function`, `holds`).
+    - 12f. Carga em `/npcs/{id}` não exposta (só `GET /designs/{id}`: `function`, `holds`); AD-157: nem o recipiente que a pessoa leva.
     - 13a. (AD-149) Com a carga pessoal desligada, o recipiente com tira não nasce: só a compra cortada frustra (9 recipientes em
       20×100, 4 seeds). Liga com 12a.
     - 12g. `Npc.CarriedResourceId` (transporte do processo de recursos) segue à parte; juntar com `Carried`.

@@ -77,14 +77,14 @@
 59. **Casa inteira sem trabalho não emigra** (item 42): com a terra cheia a fome fica nas famílias sem ganha-pão.
 60. **Números sem fonte do AD-149**: 220 de semente por hectare (~135 kg/ha), 1,4 ha semeados por fundador, ganho de 25% da capina, a mão que paga 320 (o que come no ano).
 61. **Não medido no AD-149**: goldens, pins de 90 dias e baselines do LongRunning (na junção); `verify --full`; custo a 5.000 NPCs.
-62. **Carga pessoal segue desligada (AD-151)**: 20×100 com a refeição paga, fome 4,5–5,3% contra 4,1%; ruído de um bloco de 20 seeds
+62. ~~critério decidido no AD-157~~ (horas com fome/sede crítica por pessoa-ano, pareado; ver 08b 108). **Carga pessoal segue desligada (AD-151)**: 20×100 com a refeição paga, fome 4,5–5,3% contra 4,1%; ruído de um bloco de 20 seeds
     ~±20% (517 → 627 nas seeds 1–20, 619 → 495 nas 21–40). Decidir o critério (40 seeds, ou fome por década) e medir de novo.
-63. **CPU da carga ligada**: `behavior-decision` +0–40% e bytes 189–204 por NPC-tick entre rodadas (desligada, 189–192); trechos
+63. **Fonte achada no AD-157** (código da carga ~1/3; decisões urgentes de quem tem fome, o resto; 08b 110). **CPU da carga ligada**: `behavior-decision` +0–40% e bytes 189–204 por NPC-tick entre rodadas (desligada, 189–192); trechos
     medidos ~0,7 µs (arrumar na saída, `PantryOutOfReach`). Falta achar a fonte da variação.
 64. **Números sem fonte do AD-151**: refeição ao preço da venda do local; desconto até o líquido inteiro (`BoardMaxWageShare` 1,0).
 65. **Não medido no AD-151**: goldens, pins de 90 dias e baselines do LongRunning (na junção); `verify --full`; custo a 5.000 NPCs.
 66. **Caderneta de quem morre** é perdida pela oficina (não vai ao espólio; o espólio é do AD-150). ~0,3% do lançado.
-67. **Quem tem refeição no trabalho ainda leva comida de casa** (com a carga ligada a saída não sabe que a oficina alimenta): a
+67. ~~resolvido no AD-157~~ (leva só para o caminho). **Quem tem refeição no trabalho ainda leva comida de casa** (com a carga ligada a saída não sabe que a oficina alimenta): a
     comida volta na devolução, mas sai da despensa durante o turno.
 
 ## Do empreendedorismo (AD-152, [venture](../../../docs/domain/venture.md))

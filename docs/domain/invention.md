@@ -73,10 +73,13 @@ design sem quem saiba e sem item vira lápide (`DesignTombstone`). Item que sobr
   passa a lembrar do que vive. Na lembrança, `Other` = 0 ainda é "ninguém" (backlog 7a).
 
 ## O que a pessoa leva consigo (AD-147)
-- **Despensa em casa** (`PantryNeedsPresence`, **desligada por padrão**, AD-147–151; ver household-provisioning): a mais de uma
+- **Despensa em casa** (`PantryNeedsPresence`, **desligada por padrão**, AD-147–157; ver household-provisioning): a mais de uma
   hora de caminho, come e bebe do que leva, da refeição do empregador (por conta do salário), ou volta. **Carga** (`InventionLedger.Carried`): peso = `FootCarryKg`; mãos nuas `HandsVolumeMl` (uma
   ração, nada de `LiquidResourceIds`); `UnitMl` é o volume de cada recurso. Na saída para além de uma hora de casa (AD-151), leva o
-  que sede e fome pedem até voltar (ida, estada, volta), deixando um por dia de cada morador; longe e crítico, consome; em casa, devolve.
+  que sede e fome pedem até voltar (ida, estada, volta e `PackMarginHours` de folga) e, para o trabalho que dá a refeição, só o
+  caminho (AD-157); a casa guarda antes o que cada morador vai comer e beber na ausência; com fome, come do que leva; em casa, devolve.
+- **O recipiente é de quem leva** (AD-157, `InventionLedger.Held`): sai da casa com a pessoa que arrumou a carga e volta com ela;
+  quem sai depois leva o melhor que ficou ou vai de mãos nuas, e na compra vale o de quem foi (`CarrierFor`).
 - **Recipiente é design** (`PhysicsEvaluator.Contain`): oco (ml) e a parte estanque, massa, carga que a mesma viga aguenta até o
   oco cheio d'água e o teto da pessoa, e tira (parte chata e fina, junção flexível) que prende ao corpo. Falhas `TooHeavy`, `TooSmall`.
 - **Problema de carregar** (`CarryMinds`): compra cortada e voltar para comer viram frustração com o volume que faltou; a ideia
@@ -89,12 +92,9 @@ design sem quem saiba e sem item vira lápide (`DesignTombstone`). Item que sobr
 longe de casa (carga pessoal), carteiras, `ProductionSystem` (encomendas), vontade de tentar (relatos), carga por terra (AD-153).
 
 ## Contrato com o cliente
-`GET /designs`, `GET /designs/{id}` (lápide traz `accounts` e `lostTick`) e `GET /designs/by-fact/{id}`:
-partes e materiais; `object_factory.gd::build_design` monta uma malha por parte.
+`GET /designs`, `GET /designs/{id}` (lápide traz `accounts` e `lostTick`) e `GET /designs/by-fact/{id}`: partes e materiais; `object_factory.gd::build_design` monta uma malha por parte.
 
-## Ainda não
+## Ainda não e números
 Animação, pose de uso, ar, química, robôs, substituir o `TechDiscoverySystem` (backlog 05). Terra: [invention-land](invention-land.md) (AD-153).
-
-## Números
 Padrão em `InventionRules` (Domain); `InventionRules.Disabled` = mundo de antes. Valores e marcas "precisa de conferência"
-nos registros AD-141, AD-143 e AD-147 de `docs/decisions-log.md`.
+nos registros AD-141, AD-143, AD-147 e AD-157 de `docs/decisions-log.md`.
