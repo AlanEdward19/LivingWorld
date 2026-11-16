@@ -46,7 +46,9 @@ public sealed class DiseaseTally(WorldState world)
         int cut = evt.Payload.IndexOf('|');
         if (!long.TryParse(cut < 0 ? evt.Payload : evt.Payload[..cut], CultureInfo.InvariantCulture, out long id)) return;
         if (world.FindNpc(new NpcId(id)) is not { } dead) return;
-        string cause = evt.Kind == WorldEventKind.Disease && _diseaseOf.TryGetValue(id, out int d) ? "Disease:" + NameOf(d) : evt.Kind.ToString();
+        string cause = evt.Kind == WorldEventKind.Disease && _diseaseOf.TryGetValue(id, out int d) ? "Disease:" + NameOf(d)
+            : evt.Kind == WorldEventKind.Death && cut >= 0 ? "Death:" + evt.Payload[(cut + 1)..] // sobra nomeada (AD-164)
+            : evt.Kind.ToString();
         int age = (int)((evt.Tick - dead.BirthDate.TotalHours) / world.Calendar.HoursPerYear);
         int band = BandStarts.Length - 1;
         while (band > 0 && age < BandStarts[band]) band--;
@@ -92,7 +94,7 @@ public sealed class DiseaseTally(WorldState world)
 
         long total = Math.Max(1, table.Values.Sum(r => r.Sum()));
         long unknown = table.TryGetValue(nameof(WorldEventKind.Death), out var u) ? u.Sum() : 0;
-        sb.AppendLine(inv, $"causa_explicita={100.0 * (total - unknown) / total:F1}% (mortes={total}; Death = sem causa)");
+        sb.AppendLine(inv, $"causa_explicita={100.0 * (total - unknown) / total:F1}% (mortes={total}; Death sem nome = sem causa)");
         sb.AppendLine("mortes_causa_por_idade " + string.Join(" ", BandNames));
         foreach (var (cause, row) in table)
             sb.AppendLine(inv, $"  {cause}: {string.Join(" ", row)} ({100.0 * row.Sum() / total:F1}%)");

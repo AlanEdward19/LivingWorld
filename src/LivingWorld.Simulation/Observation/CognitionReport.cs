@@ -25,7 +25,8 @@ public sealed partial class CognitionTally(WorldState world, int months) : IWorl
         if (evt.SourceSystem != "NpcDeath" || evt.Kind is not (WorldEventKind.Death or WorldEventKind.Starvation
                 or WorldEventKind.Dehydration or WorldEventKind.Exhaustion or WorldEventKind.Disease or WorldEventKind.MaternalDeath))
             return;
-        if (!long.TryParse(evt.Payload, NumberStyles.Integer, CultureInfo.InvariantCulture, out long id)) return;
+        int bar = evt.Payload.IndexOf('|'); // Death leva a causa depois do id (AD-164)
+        if (!long.TryParse(bar < 0 ? evt.Payload : evt.Payload[..bar], NumberStyles.Integer, CultureInfo.InvariantCulture, out long id)) return;
         if (world.FindNpc(new NpcId(id)) is not { } dead) return;
         int month = (int)(evt.Tick / world.Calendar.HoursPerMonth);
         if (dead.Spouse is { } s && world.FindNpc(s) is { IsAlive: true } spouse && spouse.Spouse == dead.Id && IsAdult(spouse))

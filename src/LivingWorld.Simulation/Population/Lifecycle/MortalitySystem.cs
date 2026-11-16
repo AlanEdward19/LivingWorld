@@ -39,15 +39,21 @@ public sealed class MortalitySystem : ISimulationSystem
         var npc = world.FindNpc(new NpcId(long.Parse(bar < 0 ? rest : rest[..bar])));
         if (npc is null || !npc.IsAlive) return; // já morreu de outra causa: sem-op
 
-        // causa nomeada da sobra da tábua (AD-137): A = acidente, O = velhice; sem marca, sem causa (snapshot antigo também)
+        // causa nomeada da sobra da tábua (AD-137): A = acidente, O = velhice; o resto (sem marca, neonatal e snapshot antigo
+        // também) leva o nome da idade no payload do Death (AD-164)
         var kind = bar < 0 ? WorldEventKind.Death : rest[(bar + 1)..] switch
         {
             "A" => WorldEventKind.Accident,
             "O" => WorldEventKind.OldAge,
             _ => WorldEventKind.Death,
         };
-        NpcDeath.Apply(world, ctx, npc, kind);
+        NpcDeath.Apply(world, ctx, npc, kind, kind == WorldEventKind.Death ? ResidualLabel(world, npc, ctx.CurrentTick) : "");
     }
+
+    /// <summary>Nome da sobra da tábua pela idade na hora da morte (AD-164). Só rotula.</summary>
+    public static string ResidualLabel(WorldState world, Npc npc, long tick) =>
+        world.NeedsRules.Physiology.DeathCauses.ResidualLabel(
+            Math.Max(0, tick - npc.BirthDate.TotalHours) / (double)world.Calendar.HoursPerYear);
 
     /// <summary>Cobre o NPC recém-criado (nascimento, população inicial, clone) até a próxima varredura mensal e, se nasceu
     /// prematuro, sorteia a morte neonatal da faixa.</summary>
@@ -82,7 +88,8 @@ public sealed class MortalitySystem : ISimulationSystem
     }
 
     /// <summary>Nome da morte sorteada (AD-137): acidente pela taxa anual da idade e do sexo sobre o risco que sobrou, velhice
-    /// pela parte da sobra que a idade nomeia; o resto fica sem causa. Só rotula: não muda quem morre nem quando.</summary>
+    /// pela parte da sobra que a idade nomeia; o resto leva o nome da idade ao morrer (AD-164). Só rotula: não muda quem morre
+    /// nem quando.</summary>
     private static string CauseMark(WorldState world, Npc npc, long startTick, double roll)
     {
         var causes = world.NeedsRules.Physiology.DeathCauses;
