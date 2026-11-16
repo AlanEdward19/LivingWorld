@@ -102,6 +102,9 @@ public sealed partial class BehaviorDecisionSystem
         foreach (var action in LeisureChoices)
         {
             if (action == ActionType.Sleep && !bedSoon || action == ActionType.Work && !atWork) continue;
+            // trocar o convívio da rotina por ficar à toa: o passeio à toa anda mais (um passo a cada 2 h contra 3 h) e leva para
+            // longe da água (AD-160b, LeisureMayIdle)
+            if (action == ActionType.Idle && routine != ActionType.Idle && !rules.LeisureMayIdle) continue;
             double baseValue = action switch
             {
                 ActionType.Socialize => Deficit(npc.SocialAt(now)),
