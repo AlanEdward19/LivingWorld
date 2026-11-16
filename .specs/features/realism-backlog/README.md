@@ -39,7 +39,7 @@ Branch de trabalho: `perf/decision-scan-costs`, no GitHub desde 2026-11-13 (dono
 | Crime contra bens e pessoas (pedido em 2026-11-12) | juntado (AD-150, AD-154); sobras V1–V18 nas issues #164 e #165 | [06b](06b-crime-contra-pessoas.md) |
 | Refatoração do cliente visual (Godot) e fatia do jogador | últimos desta trilha, feitos aqui (dono, 2026-11-15); ADR do cliente a aprovar | [09](09-cliente-visual-e-jogador.md) |
 | Desempenho e tempo dos testes | parcial | [07](07-desempenho-e-testes.md) |
-| Pontos em aberto a investigar (afrouxamentos, números sem fonte, efeitos sem explicação) | aberto | [08](08-a-investigar.md), [08b](08b-a-investigar.md) |
+| Pontos em aberto a investigar (afrouxamentos, números sem fonte, efeitos sem explicação) | AD-161 (2026-11-16): 95 itens classificados, fontes conferidas, sobra só medição ([a-medir](relatorios/a-medir.md)) e 5 sem conferir | [08](08-a-investigar.md), [08b](08b-a-investigar.md), [08c](08c-a-investigar.md), [classificação](relatorios/classificacao-a-investigar.md) |
 | O que saiu do backlog e virou issue no GitHub (2026-11-15) | 21 issues novas com a label `prioridade`, 36 reescritas, #114 fechada | [10](10-issues-no-github.md) |
 
 ## Como trabalhar uma fatia
