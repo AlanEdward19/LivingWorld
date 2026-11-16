@@ -23,9 +23,6 @@ public static class PersonalCarry
     /// a água, mais barata (o poço é de todos), já na urgência.</summary>
     internal const int MealAheadDeficit = 80;
 
-    /// <summary>AD-157b: com a despensa em casa, a refeição de quem só foi beber leva comida só a partir desta fome (déficit).</summary>
-    internal const int AppetiteDeficit = 50;
-
     /// <summary>AD-157 (backlog 05 item 12c): o recipiente é de quem o leva. Quem está fora usa o que levou; quem está em casa, o
     /// melhor que ninguém da casa levou (vários saindo, cada um com o seu, e o último de mãos nuas).</summary>
     internal static Room RoomOf(WorldState world, Npc npc)
