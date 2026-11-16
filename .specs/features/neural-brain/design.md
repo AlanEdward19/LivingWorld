@@ -2,7 +2,7 @@
 
 > Pedido: `.specs/features/realism-backlog/03-cognicao-e-cerebro.md` (parte 2). Opção (c) implementada atrás de flag (AD-142).
 > Contas de custo e bytes: [cost-estimates.md](cost-estimates.md). **Estado e veredito (AD-160, não ligar):**
-> [verdict-ad160.md](verdict-ad160.md): corpo decide na necessidade crítica, 1ª experiência forma a expectativa; falta o resto.
+> [verdict-ad160.md](verdict-ad160.md); **ligado por padrão no AD-160b:** [verdict-ad160b.md](verdict-ad160b.md) (custo +5,5% em aberto).
 
 ## Como é hoje (visto no código)
 - A nota de cada ação é uma soma de termos nomeados: 22 `UtilityTerm`
