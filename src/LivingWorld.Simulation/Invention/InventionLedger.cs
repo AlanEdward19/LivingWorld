@@ -547,6 +547,7 @@ public sealed class InventionTally
     // AD-147: o que a pessoa leva
     public long CarryAttempts, CarryInventions, CarryPrototypeFailures, CarryIdeasDiscarded, CarryCopies, CarryTaught, CarryBuilt, CarrySales;
     public long PackTrips, PackUnits, PackEaten, PackDrunk, PackReturned, CriticalAwayFromPack;
+    public long AteBeforeLeaving, DrankBeforeLeaving; // AD-157b: o desjejum
     public long HomeForMeal, CarrierCargoTrips, CarrierCargoGrams, CargoFrustrations, AwayFrustrations, StarvedAway, DehydratedAway;
     // AD-153: levar por terra
     public long LandCargoCapped, LandCargoGramsCut, HaulAttempts, HaulInventions, HaulPrototypeFailures, HaulTaught, HaulBuilt, HaulSales;

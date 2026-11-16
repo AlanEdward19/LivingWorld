@@ -118,6 +118,25 @@ public static class PersonalCarry
             keepWater += Math.Max(days, UnitsFor(other.ThirstAt(now), needs.ThirstDecayPerHour, hoursAway, line, waterLevel));
             keepFood += Math.Max(days, UnitsFor(other.HungerAt(now), needs.HungerDecayPerHour, hoursAway, line, foodLevel));
         }
+        // AD-157b: o desjejum. Quem vai ficar fora mais do que a fome e a sede esperam come e bebe em casa antes de sair (do que
+        // sobra depois da reserva dos outros), em vez de partir e voltar com fome; leva só o que ainda faltar.
+        if (wantWater > 0 && home.Stock.GetValueOrDefault(water) > keepWater && npc.ThirstAt(now) < waterLevel && home.Withdraw(water, 1).IsSuccess)
+        {
+            npc.SetThirst(waterLevel, now);
+            world.RecordResourceConsumed(water, 1);
+            world.InventionTally.DrankBeforeLeaving++;
+            wantWater = UnitsFor(npc.ThirstAt(now), needs.ThirstDecayPerHour, waterHours, line, waterLevel) - ledger.CarriedQuantity(npc.Id.Value, water.Id);
+        }
+        var meal = LivingWorld.Simulation.Behavior.Resolvers.FoodResolver.ResolveMeal(world, home);
+        if (wantFood > 0 && meal.Id > 0 && home.Stock.GetValueOrDefault(meal) > (meal == food ? keepFood : 0) && npc.HungerAt(now) < foodLevel
+            && home.Withdraw(meal, 1).IsSuccess)
+        {
+            npc.SetHunger(Math.Max(npc.HungerAt(now), ObjectUse.ConsumeLevel(world, meal, ObjectEffectTargets.Hunger)), now);
+            world.RecordResourceConsumed(meal, 1);
+            world.InventionTally.AteBeforeLeaving++;
+            wantFood = UnitsFor(npc.HungerAt(now), needs.HungerDecayPerHour, foodHours, line, foodLevel) - ledger.CarriedQuantity(npc.Id.Value, food.Id);
+        }
+        if (wantWater <= 0 && wantFood <= 0) return;
         var room = RoomOf(world, npc);
         long weight = room.WeightG, dry = room.DryMl, wet = room.WetMl;
 
