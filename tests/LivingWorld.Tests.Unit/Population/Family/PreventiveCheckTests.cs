@@ -41,13 +41,13 @@ public class PreventiveCheckTests
     /// <summary>A configuração medida no AD-145 (o padrão do cenário deixa tudo desligado).</summary>
     private static readonly FamilyRules Measured = ScenarioRunner.DefaultFamilyRules with { Pressure = PopulationPressureRules.Measured };
 
-    private static WorldState World(FamilyRules? family = null)
+    private static WorldState World(FamilyRules? family = null, CityRules? cities = null)
     {
         var world = new WorldState(
             Calendar, 3, ScenarioRunner.DefaultMap(1), ScenarioRunner.DefaultPopulationCatalog,
             ScenarioRunner.DefaultPopulationRules, ScenarioRunner.DefaultNeedsRules, ScenarioRunner.DefaultActionCatalog,
             ScenarioRunner.DefaultLifeStageRules, economyRules: Economy(), economyCatalog: ScenarioRunner.DefaultEconomyCatalog,
-            familyRules: family ?? Measured);
+            familyRules: family ?? Measured, cityRules: cities);
         world.CurrentDate = WorldDate.Epoch(Calendar).AddYears(40);
         return world;
     }
@@ -243,6 +243,45 @@ public class PreventiveCheckTests
             stock: new Dictionary<ResourceType, long>(), treasury: new Money(1000), prices: new Dictionary<ResourceType, long>()));
 
         Assert.Contains(RunMonths(world, 120), e => e.Kind == WorldEventKind.Emigrated && e.Payload.StartsWith($"{youth.Id.Value}|", StringComparison.Ordinal));
+    }
+
+    /// <summary>AD-162 (08b item 42c): a ida para outra cidade existia (<c>EmigrationSystem.MoveTo</c>) mas só sair do mundo e ficar
+    /// tinham teste.</summary>
+    [Fact]
+    public void Without_a_vacancy_at_home_a_young_adult_travels_to_the_other_city_where_a_workshop_of_his_trade_would_hire_him()
+    {
+        var cities = CityRules.Create(
+            enabled: true, foodShortageThreshold: 100, housingShortageThreshold: 100, securityShortageThreshold: 100,
+            emigrationRatePerDeficitUnit: 0, migrationEmploymentWeight: 1, migrationFoodWeight: 1,
+            migrationSecurityWeight: 1, migrationFamilyTiesWeight: 1, foundingConcentrationThreshold: 1,
+            foundingResourceThreshold: 1, foundingRouteThreshold: 1, foundingDefensibilityThreshold: 1,
+            foundingLeadershipThreshold: 1, organizationTicks: 10, materializationIdleTicksBeforeEligible: 5).Value!;
+        var world = World(cities: cities);
+        var home = new City(world.NextCityId(), Home, 0, foundedFromCityId: null, AggregatePopulationPool.Empty);
+        var other = new City(world.NextCityId(), new CellCoord(8, 8), 0, foundedFromCityId: null, AggregatePopulationPool.Empty);
+        world.AddCity(home);
+        world.AddCity(other);
+        var mother = Person(world, Sex.Female, 45, Prudent, wallet: 100);
+        var youth = Person(world, Sex.Male, 20, Restless, wallet: 37, mother: mother.Id);
+        mother.JoinCity(home.Id);
+        youth.JoinCity(home.Id);
+        var house = House(world, mother, youth);
+        house.JoinCity(home.Id);
+        var full = new Workplace(world.NextWorkplaceIdAndAdvance(), new LocationType(1), Home, 1, employees: [mother.Id],
+            stock: new Dictionary<ResourceType, long>(), treasury: new Money(1000), prices: new Dictionary<ResourceType, long>(), city: home.Id);
+        world.AddWorkplace(full);
+        mother.Hire(full.Id);
+        world.AddWorkplace(new Workplace(world.NextWorkplaceIdAndAdvance(), new LocationType(1), new CellCoord(8, 8), 3, employees: [],
+            stock: new Dictionary<ResourceType, long>(), treasury: new Money(1000), prices: new Dictionary<ResourceType, long>(), city: other.Id));
+
+        // só o sistema da emigração roda aqui: a chegada (RelocationArrivalSystem) não conclui a viagem, então vale a primeira partida
+        var gone = RunMonths(world, 120).First(e => e.Kind == WorldEventKind.Emigrated);
+
+        var newHome = world.FindHousehold(youth.Household!.Value)!;
+        Assert.Equal($"{youth.Id.Value}|{other.Id.Value}", gone.Payload);
+        Assert.True(youth.IsAlive && !youth.Emigrated);
+        Assert.Equal((other.Id, 1, 37L), (newHome.PendingRelocationCity!.Value, newHome.Members.Count, youth.Wallet.Amount));
+        Assert.DoesNotContain(youth.Id, house.Members);
     }
 
     [Fact]

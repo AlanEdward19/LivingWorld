@@ -111,9 +111,15 @@ internal static class DomesticViolence
         var tie = world.GetOrCreateRelationship(new RelationshipKey(victim.Id, aggressor.Id), now);
         tie.ApplyEvent(RelationshipEventType.Betrayal, world.FamilyRules);
         tie.MarkContact(now);
+        // AD-162: só a agressão grave ou repetida pesa inteira na mágoa conjugal (a que leva à separação)
+        bool repeated = world.Crime!.GrudgeOf(victim.Id.Value, aggressor.Id.Value) is { } before
+            && Violence.Intensity(violence, before, now, world.Calendar.HoursPerDay) >= rules.RepeatGrudgeMin;
         Violence.AddGrudge(world, victim.Id.Value, aggressor.Id.Value, "agressao", violence.AssaultGrudge / 2, now);
         if (bond == "conjuge" && victim.Union is { } union)
-            victim.SetUnion(union with { Grievance = Math.Min(100, union.Grievance + rules.SpouseGrievance) });
+        {
+            double grievance = rules.SpouseGrievance * (harm >= rules.SevereHarm || repeated ? 1.0 : rules.ToleratedGrievanceShare);
+            victim.SetUnion(union with { Grievance = Math.Min(100, union.Grievance + grievance) });
+        }
         if (!world.NeedsRules.Psyche.Enabled) return;
         PsycheMechanic.Experience(world, victim, LifeEventKind.Violence, aggressor.Id.Value, now);
         foreach (var child in children)

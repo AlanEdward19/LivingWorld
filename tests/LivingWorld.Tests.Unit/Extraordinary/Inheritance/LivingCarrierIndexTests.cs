@@ -4,6 +4,7 @@ using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Core;
 using LivingWorld.Simulation.Extraordinary.Mechanics;
+using LivingWorld.Simulation.Observation;
 using LivingWorld.Simulation.Population.Lifecycle;
 using LivingWorld.Simulation.Scenarios;
 using LivingWorld.Simulation.Scheduling;
@@ -54,5 +55,25 @@ public sealed class LivingCarrierIndexTests
         NpcDeath.Apply(world, ctx, green, WorldEventKind.Death);
 
         Assert.Equal((true, false), (before, FloraMechanic.PowersCanTouchFlora(world)));
+    }
+
+    [Fact]
+    public void The_living_index_matches_a_full_scan_of_the_carriers_every_month_of_a_village_with_deaths_and_births()
+    {
+        // AD-162 (08b item 107): o índice guardado contra a varredura completa filtrada por vivos, no mesmo mundo, mês a mês
+        var (world, clock) = ScenarioRunner.Create(7, extraordinary: PowerGeneticsReport.ReferenceScenario());
+        var mismatches = new List<string>();
+        for (int month = 1; month <= 24; month++)
+        {
+            clock.Run(world, world.Calendar.HoursPerMonth);
+            string index = string.Join(',', world.LivingCarriers().Select(c => c.Npc.Id.Value));
+            string scan = string.Join(',', world.ExtraordinaryCarriers.Where(c => world.FindNpc(c.CarrierId) is { IsAlive: true })
+                .Select(c => c.CarrierId.Value));
+            if (index != scan) mismatches.Add($"mes {month}: indice [{index}] varredura [{scan}]");
+        }
+
+        int deadCarriers = world.ExtraordinaryCarriers.Count(c => world.FindNpc(c.CarrierId) is not { IsAlive: true });
+        Assert.True(deadCarriers > 0, "nenhum portador morreu: o teste não exercitou a saída do índice");
+        Assert.Empty(mismatches);
     }
 }

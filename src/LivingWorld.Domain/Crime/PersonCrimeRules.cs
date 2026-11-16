@@ -32,6 +32,14 @@ public sealed record DomesticViolenceRules
     /// <summary>Mágoa conjugal (0..100) que cada agressão soma no cônjuge agredido (pesa na separação).</summary>
     public double SpouseGrievance { get; init; } = 20;
 
+    /// <summary>AD-162: a norma tolerava o "castigo moderado" e a separação de mesa e leito exigia crueldade excessiva provada, rara
+    /// nas cortes da Igreja (Helmholz 1974, citado; grau [B]). A agressão leve e isolada soma só esta parte de
+    /// <see cref="SpouseGrievance"/>; a grave (dano a partir de <see cref="SevereHarm"/>) ou a repetida (a vítima ainda guarda do
+    /// mesmo agressor mágoa de ao menos <see cref="RepeatGrudgeMin"/>) soma a mágoa inteira.</summary>
+    public double ToleratedGrievanceShare { get; init; } = 0.25;
+    public int SevereHarm { get; init; } = 25;
+    public int RepeatGrudgeMin { get; init; } = 10;
+
     /// <summary>Peso da criança que vê a agressão em casa: fração do impacto de violência na lembrança dela.</summary>
     public double WitnessChildImpact { get; init; } = 0.5;
 

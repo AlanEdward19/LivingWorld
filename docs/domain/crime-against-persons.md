@@ -16,7 +16,10 @@ do dia não muda (stream próprio `crime-person-day-N`).
   × (1 + ciúme: mágoa conjugal) × (1 + histórico: lembrança de violência sofrida, inclusive na infância) × (1 − dissuasão).
 - Alvo: o morador que a pessoa menos estima (idade mínima 3); no ciúme, o cônjuge. Ato no fim da tarde.
 - Desfecho: dano menor que o da rua, golpe mortal raro (homicídio pelo caminho das mortes). Medo e mágoa na vítima,
-  mágoa conjugal (+20) que leva à separação do AD-136, e lembrança de violência nas crianças da casa (o ciclo).
+  mágoa conjugal que leva à separação do AD-136, e lembrança de violência nas crianças da casa (o ciclo). AD-162: a norma
+  tolerava o "castigo moderado" e a separação por crueldade era rara (exigia violência excessiva provada): a agressão leve e
+  isolada soma só 1/4 dos +20 (`ToleratedGrievanceShare`); a grave (dano ≥ 25) ou repetida (a vítima ainda guarda mágoa ≥ 10 do
+  mesmo agressor) soma os +20.
 - Justiça: a vítima sabe quem foi, mas a denúncia é rara (fração 0,15, uma decisão só) e a corte condena menos (0,5).
 
 ## Sequestro (`KidnappingRules`)

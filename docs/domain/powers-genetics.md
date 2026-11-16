@@ -32,8 +32,10 @@ existissem. Índice: [powers.md](powers.md) (o modelo do poder) → este arquivo
 - **Expressividade**: intensidade contínua, 1 + dose a mais (homozigoto dominante 1,25; poligênico 0,25 por ponto acima do
   limiar) + desvio N(0; `ExpressivityStdDev`), entre 0,25 e 2. Consumida na rolagem do poder (`ResolutionCheck`): multiplica a
   capacidade do portador. Poder sem genótipo fica em 1.
-- **Idade de início**: curva da puberdade, N(13; 1,5) anos por padrão, sorteio fixo. O nascimento agenda o evento `onset`
-  (`ExtraordinaryStateSystem`); nada é varrido por tick. O fundador que já passou da idade manifesta na carga.
+- **Idade de início** (AD-162): por padrão, a **puberdade do próprio NPC** (`OnsetAgeMeanYears` nulo; a prevista pelo desvio
+  dele; se a fome a atrasa, o evento espera e é revisto a cada mês). Com média declarada, N(média; `OnsetAgeStdDevYears`), sorteio
+  fixo (o modelo de antes, N(13; 1,5)). O nascimento agenda o evento `onset` (`ExtraordinaryStateSystem`); nada é varrido por
+  tick. O fundador que já passou da idade manifesta na carga.
 - **Gatilho do ambiente**: as regras de aquisição por evento continuam; com `TriggerRequiresGenotype` o gatilho só desperta
   quem tem o genótipo (inclusive quem a penetrância deixou dormente).
 
