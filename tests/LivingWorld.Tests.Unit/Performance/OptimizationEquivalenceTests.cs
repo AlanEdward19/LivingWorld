@@ -34,8 +34,8 @@ public class OptimizationEquivalenceTests
 
     [Theory]
     // AD-146: regravados (quem fecha a compra com fome ou sede crítica come e bebe do que a casa tem)
-    [InlineData(1UL, "567971b385d202332ad2a18167f6321df52c2fe5466e7eb8a3704466e55b061a", "6a892c08df5f9e68aecac014dcd2ab8775563973932aa6c9637990ac015d178d")]
-    [InlineData(2UL, "6e4dba353ca9f8c54b16f46b2446063b4f6c73bc244a6a2efc8a42157c0d0e49", "27450bd265f8e3b1cddd50912e6f178eb1da051309fa47f75a4758773d5d7757")]
+    [InlineData(1UL, "9866c349995572919d2bdb3d0deb7016e6d9894ac44db5fb3ac68ebb992fee95", "6a892c08df5f9e68aecac014dcd2ab8775563973932aa6c9637990ac015d178d")]
+    [InlineData(2UL, "577c78cdd8619b740ff2abec326542ee8040f366785866edd4482717f9d873a5", "27450bd265f8e3b1cddd50912e6f178eb1da051309fa47f75a4758773d5d7757")]
     public void Default_scenario_ninety_days_keeps_the_recorded_hashes(
         ulong seed, string canonical, string volatileHash)
     {
