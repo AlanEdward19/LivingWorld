@@ -23,6 +23,24 @@ Todas as chaves estão em `PopulationPressureRules` (`FamilyRules.Pressure`).
 - Consequência medida: idade ao primeiro casamento e parte de quem nunca casa sobem quando faltam vagas
   (`demography-report`, linha `primeiro_casamento`).
 
+## Só casa quem tem do que viver (AD-158)
+Os meios acima quase nunca seguravam (moeda farta nas carteiras, ~90% dos noivos empregados): a mulher casava aos ~17,8 e
+quase ninguém ficava solteiro. A peça que faltava era o **nicho**: na aldeia o casal só montava casa com uma posse de terra,
+um ofício ou a casa de quem morreu (`HoldingRules`, `Pressure.Holdings`; `Holdings` no motor; nenhum estado novo).
+- Terra demarcada (`CropBatch.ArableSeed`, AD-149) menos a **terra em uso**: cada morador de família que vive da terra
+  (ninguém dela em ofício fora da lavoura) come `PersonSownHectares` (0,7 ha semeados); a família com casal em idade fértil
+  guarda uma posse inteira (`HoldingSownHectares`, 3,5 ha: os filhos que virão). Sobrando uma posse, há **posse vaga**. A
+  casa de velhos ou de viúva que encolhe devolve a terra; a que se desfaz, toda.
+- O casal tem sustento se um dos dois tem **ofício fora da lavoura com salário**, ou **chefia a própria casa** e sai dela
+  levando só os filhos, ou há posse vaga. Sem nenhum dos três, nem o impulsivo casa (`MarriageReadiness` = 0); no fim do
+  namoro a vaga pode ter ido a outro casal e o namoro acaba (`CourtshipRejected|SemMeios`). A união forçada pela gravidez
+  passa por cima e vive apertada.
+- Consequência: com a terra cheia o casamento espera a morte dos velhos, e quem não tem trabalho parte (emigração).
+- Tentativas descartadas (6 seeds): casa vaga ou construída com as economias não mudou nada (o casal sempre tinha a
+  moeda); posse fixa por família (contagem) fazia a vila encolher (viúva sozinha segurava uma posse inteira).
+- Sobra medida: a mulher casa aos ~21 com o homem de ~28 (cortejo aceita o primeiro par aceitável; quem tem posse escolhe
+  menina nova) e quase nenhuma mulher fica solteira; o celibato cai nos homens. Medir sem a regra: `LW_PRESSURE=nohouse`.
+
 ## O primeiro filho também
 O casal sem ninguém trabalhando e com a despensa curta concebe menos o primeiro filho, na média da prudência dos dois
 (`FirstBirthMeansWeight`). Depois do primeiro parto, fecundidade natural: o controle dentro do casamento era
@@ -61,4 +79,5 @@ quem fecha a compra com fome ou sede crítica come e bebe do que a casa tem.
 ## Números
 Sem fonte própria (calibração do modelo): peso dos meios 0,9, economias de 24 meses, 40% dos meios no trabalho, peso do
 primeiro filho 0,5, chance de partir 35%/ano, laços seguram até 50%. Referência de checagem (Hajnal 1965; Wrigley e
-Schofield): mulher casa pela 1ª vez a ~23–26 anos, 10–20% nunca casam. Medidas em `docs/decisions-log.md` (AD-145).
+Schofield): mulher casa pela 1ª vez a ~23–26 anos, 10–20% nunca casam. Posse de 3,5 ha e 0,7 ha por pessoa: calibração
+do modelo (meia virgata inglesa ~6 ha, 2/3 semeados, precisa de conferência). Medidas em `docs/decisions-log.md` (AD-145, AD-158).
