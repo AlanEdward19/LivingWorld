@@ -37,6 +37,13 @@ public sealed class WorldRngRegistry
     public WorldRng StreamFor(string purpose, long id) =>
         _root.Derive(StableHashOfPurposeAndId(purpose, id));
 
+    /// <summary>O primeiro sorteio do stream de <see cref="StreamFor"/>, sem criar o objeto (AD-167: sorteio único no caminho quente).</summary>
+    public double DrawFor(string purpose, long id)
+    {
+        ulong state = StreamStateFor(purpose, id);
+        return WorldRng.NextDouble(ref state);
+    }
+
     /// <summary>Estado inicial do mesmo stream de <see cref="StreamFor"/>, sem alocar (sorteio fixo lido no caminho quente);
     /// avance com <see cref="WorldRng.NextDouble(ref ulong)"/>.</summary>
     public ulong StreamStateFor(string purpose, long id) =>

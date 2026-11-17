@@ -52,7 +52,7 @@ public sealed class VentureSystem(SkillsRules skillsRules) : ISimulationSystem
                     if (owned is not null && (owned.City != city.Id || owned.LocationType.Id != type || VenturePlan.Operating(world, owned))) continue;
                     world.VentureProbe?.Consider(npc.Id.Value);
                     double chance = ChanceOf(world, rules, trade, plan, npc);
-                    if (chance <= 0 || ctx.StreamFor("venture", npc.Id.Value * 1_000_003L + month).NextDouble() >= chance) continue;
+                    if (chance <= 0 || ctx.DrawFor("venture", npc.Id.Value * 1_000_003L + month) >= chance) continue;
                     world.VentureProbe?.Begin(npc.Id.Value);
                     var opened = owned is null
                         ? VentureFounding.TryBuyClosed(world, ctx, rules, trade, plan, npc) ?? VentureFounding.TryFound(world, ctx, rules, trade, plan, npc)

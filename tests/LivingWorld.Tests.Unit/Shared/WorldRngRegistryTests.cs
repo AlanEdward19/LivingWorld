@@ -64,4 +64,12 @@ public class WorldRngRegistryTests
         var restored = new WorldRngRegistry(seed: 42, snapshot);
         Assert.Equal(registry.Stream("alpha").NextDouble(), restored.Stream("alpha").NextDouble());
     }
+
+    [Fact]
+    public void DrawFor_gives_the_first_draw_of_the_same_stream_without_allocating_it()
+    {
+        var registry = new WorldRngRegistry(seed: 42);
+
+        Assert.Equal(registry.StreamFor("ambient-Idle", 1_000_003L * 7 + 99).NextDouble(), registry.DrawFor("ambient-Idle", 1_000_003L * 7 + 99));
+    }
 }

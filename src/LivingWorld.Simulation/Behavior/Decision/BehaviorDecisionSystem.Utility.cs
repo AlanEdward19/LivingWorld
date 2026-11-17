@@ -20,11 +20,30 @@ public sealed partial class BehaviorDecisionSystem
     /// <see cref="NpcCognitionLog"/>, e derivar pressões/oportunidades custava mais que a
     /// própria escolha da ação.</summary>
     internal readonly struct UtilityDecision(
-        ActionType action, PendingPowerInvocation? pendingPower, Func<DecisionTrace> trace)
+        ActionType action, PendingPowerInvocation? pendingPower, Func<DecisionTrace> trace, WinnerRecount? recount = null)
     {
         public ActionType Action { get; } = action;
         public PendingPowerInvocation? PendingPower { get; } = pendingPower;
         public DecisionTrace Trace => trace();
+
+        /// <summary>AD-167: o que recontar a vencedora com os grupos precisa (só com o cérebro ligado).</summary>
+        public WinnerRecount? Recount { get; } = recount;
+    }
+
+    /// <summary>Os dados para recontar a vencedora com os grupos do cérebro depois da escolha, só se ela for guardada (AD-167).</summary>
+    internal readonly record struct WinnerRecount(
+        DecisionContext Ctx, NeedsRules Rules, EconomyRules Economy, ActionType? ContinuityAction, ActionEligibility Eligibility,
+        UtilityTerm? Knockout, short[]? Gains, double BestScore);
+
+    /// <summary>Os grupos da vencedora em <c>groups[8..16)</c>: a mesma conta que a escolha fazia logo depois de pontuar (AD-160b), agora
+    /// só quando a escolha vai ser guardada. Poder (não passa pelos grupos) ou nenhuma ação: zeros.</summary>
+    private static void FillWinnerGroups(UtilityDecision decision, double[] groups)
+    {
+        Array.Clear(groups, BrainState.Groups, BrainState.Groups);
+        if (decision.Recount is not { } r || double.IsNegativeInfinity(r.BestScore) || decision.Action == ActionType.UsePower) return;
+        var foresight = r.Ctx.ForesightPreviews ?? ForesightMechanic.EmptyPreviews;
+        var winner = new WithBrain(r.Gains ?? NoGains, groups, BrainState.Groups);
+        ScoreOf(r.Ctx, decision.Action, r.Rules, r.Economy, r.ContinuityAction, r.Eligibility, foresight, null, r.Knockout, ref winner);
     }
 
     /// <summary>Escolhe ação por utility e expõe <see cref="DecisionTrace"/> volátil.
@@ -39,7 +58,8 @@ public sealed partial class BehaviorDecisionSystem
         ActionEligibility eligibility = default,
         UtilityTerm? knockout = null,
         short[]? brainGains = null,
-        double[]? brainGroups = null)
+        double[]? brainGroups = null,
+        bool recountWinner = false)
     {
         var utilityRules = PowerUtilityRules.Resolve(powerRules);
         var foresight = ctx.ForesightPreviews ?? ForesightMechanic.EmptyPreviews;
@@ -62,6 +82,10 @@ public sealed partial class BehaviorDecisionSystem
             var lens = new WithBrain(brainGains, null, 0);
             (best, bestScore) = ScoreActions(ctx, rules, economy, continuityAction, eligibility, foresight, terms, knockout, scored, ref lens, null);
         }
+
+        WinnerRecount? recount = recountWinner
+            ? new WinnerRecount(ctx, rules, economy, continuityAction, eligibility, knockout, brainGains, bestScore)
+            : null;
 
         // AD-160b: os grupos da vencedora vão para o aprendizado mesmo quando os ganhos não pesaram (corpo decidindo, ganhos todos
         // zero): a conta é a da utilidade pura e só a vencedora é recontada
@@ -104,9 +128,9 @@ public sealed partial class BehaviorDecisionSystem
         }
 
         if (scored is null)
-            return new UtilityDecision(best, bestPending, NoTrace);
+            return new UtilityDecision(best, bestPending, NoTrace, recount);
 
-        return TracedDecision(ctx, wakeReason, previousIntent, best, bestScore, scored, terms!, bestPending);
+        return TracedDecision(ctx, wakeReason, previousIntent, best, bestScore, scored, terms!, bestPending, recount);
     }
 
     /// <summary>As ações fixas, pela utilidade, especializada pelo jeito de ver o cérebro (sem cérebro, o laço de antes).</summary>
@@ -146,8 +170,9 @@ public sealed partial class BehaviorDecisionSystem
     /// <summary>Em método próprio: o compilador aloca o fecho no início do método que o declara.</summary>
     private static UtilityDecision TracedDecision(
         DecisionContext ctx, WakeReason wakeReason, ActionType? previousIntent, ActionType best, double bestScore,
-        List<(ActionType Action, double Score)> scored, List<UtilityContribution> terms, PendingPowerInvocation? bestPending) =>
-        new(best, bestPending, () => BuildDecisionTrace(ctx, wakeReason, previousIntent, best, bestScore, scored, terms));
+        List<(ActionType Action, double Score)> scored, List<UtilityContribution> terms, PendingPowerInvocation? bestPending,
+        WinnerRecount? recount = null) =>
+        new(best, bestPending, () => BuildDecisionTrace(ctx, wakeReason, previousIntent, best, bestScore, scored, terms), recount);
 
     /// <summary>Rastro feito só do que decidiu (AD-138, achado 11): as pressões e os fatores são os termos da utilidade da ação
     /// vencedora, com o peso que tiveram; os negativos são os termos que tiraram dela e as alternativas com a nota que tiveram.

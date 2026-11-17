@@ -19,7 +19,7 @@ public sealed partial class BehaviorDecisionSystem
         if (!world.InventionOn) return;
         var ledger = world.Invention!;
         if (world.InventionRules!.PantryNeedsPresence && npc.CurrentAction == ActionType.Work) WorkBreakMeal(world, npc, now);
-        if (ledger.Carried.Count == 0 && ledger.Held is null) return;
+        if (!ledger.CarriesOrHolds(npc.Id.Value)) return; // AD-167: uma consulta no lugar de duas buscas (o caso comum: nada)
         bool carries = ledger.Carried.Count > 0 && ledger.CarriesAnything(npc.Id.Value);
         if (!carries && ledger.HeldBy(npc.Id.Value) == 0) return; // AD-157: quem só leva o recipiente vazio também o devolve
         if (npc.Household is { } h && world.FindHousehold(h) is { } home && !PersonalCarry.PantryOutOfReach(world, npc, home))

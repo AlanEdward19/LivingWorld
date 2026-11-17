@@ -12,6 +12,10 @@ set -euo pipefail
 cd "$(dirname "$0")"
 MODE="${1:-}"
 case "$MODE" in ""|--lote|--full|--nightly) ;; *) echo "uso: verify.sh [--lote|--full|--nightly]" >&2; exit 2;; esac
+# AD-167: coletor de servidor nas suítes do gate (um heap por núcleo, coleta em paralelo). Só o coletor muda, nunca o mundo
+# (hashes e goldens iguais). Medido no --full: 17 min 44 s → 15 min 02 s, pico de ~6 GB de RSS somando os processos, sem swap.
+# Perfil e medidas de custo (profile.sh, compare-simulation-cost.sh) seguem com o coletor padrão. Quem já definiu a variável manda.
+export DOTNET_gcServer="${DOTNET_gcServer:-1}"
 LOGS="${LW_VERIFY_LOGS:-$(mktemp -d "${TMPDIR:-/tmp}/lw-verify.XXXXXX")}"
 mkdir -p "$LOGS"
 

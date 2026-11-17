@@ -72,22 +72,38 @@ public class MoneyConservationTests
         AssertMoneyConserved(100 * OneYearInHours);
     }
 
-    private static void AssertMoneyConserved(long ticks)
+    /// <summary>AD-167 (ADR-0044): os quatro horizontes (1 mês, 1, 10 e 100 anos) eram prefixos da mesma vila (seed 42, 20 pessoas),
+    /// cada um simulado de novo. Agora uma corrida em duas etapas (até o ano 10, depois até o 100, para quem lê o mês não esperar o
+    /// século) amostra igual (todo dia; os horizontes caem em fim de dia) e guarda a primeira falha; cada teste falha se ela cai
+    /// dentro do seu horizonte. Ninguém recebe o mundo.</summary>
+    private sealed record Stage(WorldState World, WorldClock Clock, long Initial, long Ticks, (long Tick, string Message)? Failure);
+
+    private static readonly Lazy<Stage> Decade = new(() =>
     {
         var (world, clock) = ScenarioRunner.Create(seed: 42, initialPopulation: 20);
-        long initial = TotalMoney(world);
+        return Advance(new Stage(world, clock, TotalMoney(world), 0, null), TenYearsInHours);
+    });
 
-        for (long tick = 0; tick < ticks; tick++)
+    private static readonly Lazy<Stage> Century = new(() => Advance(Decade.Value, 100 * OneYearInHours));
+
+    private static Stage Advance(Stage stage, long until)
+    {
+        var (world, clock, initial, done, failure) = stage;
+        for (long tick = done; tick < until; tick++)
         {
             clock.Tick(world);
-
-            if ((tick + 1) % SampleEveryHours != 0 && tick + 1 != ticks)
-                continue;
-
+            if (failure is not null || (tick + 1) % SampleEveryHours != 0) continue;
             long expected = initial + world.MoneyMinted.Amount - world.MoneyDestroyed.Amount;
             long actual = TotalMoney(world);
-            Assert.True(expected == actual,
-                $"tick {world.CurrentDate.TotalHours}: total de dinheiro {actual} != esperado {expected} (inicial {initial} + cunhado {world.MoneyMinted.Amount} - destruído {world.MoneyDestroyed.Amount})");
+            if (expected != actual)
+                failure = (tick + 1, $"tick {world.CurrentDate.TotalHours}: total de dinheiro {actual} != esperado {expected} (inicial {initial} + cunhado {world.MoneyMinted.Amount} - destruído {world.MoneyDestroyed.Amount})");
         }
+        return new Stage(world, clock, initial, until, failure);
+    }
+
+    private static void AssertMoneyConserved(long ticks)
+    {
+        var stage = ticks <= TenYearsInHours ? Decade.Value : Century.Value;
+        Assert.True(stage.Failure is not { } f || f.Tick > ticks, stage.Failure?.Message);
     }
 }

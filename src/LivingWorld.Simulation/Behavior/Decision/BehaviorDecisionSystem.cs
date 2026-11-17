@@ -177,13 +177,16 @@ public sealed partial class BehaviorDecisionSystem : ISimulationSystem
                         captureTrace: recordTrace,
                         eligibility: LivingWorld.Simulation.Ontogeny.OntogenyMechanic.EligibilityFor(world.OntogenyRules, npc.Development),
                         brainGains: brainOn ? BrainMechanic.GainsFor(world.BrainRules!, npc, now) : null,
-                        brainGroups: brainOn ? brainGroups : null);
+                        recountWinner: brainOn);
                     candidate = decision.Action;
                     pendingPower = decision.PendingPower;
                     buySource = 1;
                     if (workHour) diag.UrgentAtWork[Math.Min(15, (int)candidate)]++;
                     if (brainOn)
                     {
+                        // AD-167: os grupos da vencedora só são recontados quando a escolha vai ser guardada (quem segue no que faz não guarda)
+                        if (BrainRememberStores(npc, candidate, justCompleted))
+                            FillWinnerGroups(decision, brainGroups);
                         BrainRemember(world, npc, candidate, brainGroups.AsSpan(BrainState.Groups, BrainState.Groups), now, justCompleted);
                         if (LivingWorld.Simulation.Observation.BrainDecisionTally.Diagnose) // AD-160: sonda, só o brain-trace liga
                             ProbeBrain(npc, DecisionContextBuilder.Build(world, npc, now, provisionTargetDays: provision.TargetDays * PsycheMechanic.HoardFactor(world, npc, now),
