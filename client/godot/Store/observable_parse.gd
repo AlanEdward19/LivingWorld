@@ -161,3 +161,23 @@ static func event(raw: Dictionary, fallback_id: int) -> Dictionary:
 		"kind": int(raw.get("kind", 0)), "tick": int(raw.get("tick", 0)), "cell": cell_of(location),
 		"has_cell": location is Dictionary, "involved": involved,
 		"record_only": raw_involved is Dictionary and bool(raw_involved.get("recordOnly", false))}
+
+
+## AD-172: `rest` e `food` com tempo restante não são reenviados quando só andaram no relógio; o cliente faz a mesma conta
+## do servidor (`ProcessAdvance`) para todo processo conhecido que não veio no delta. Devolve true se algum mudou.
+static func advance_processes(processes: Dictionary, dt: int, skip: Dictionary = {}) -> bool:
+	var changed := false
+	for id in processes:
+		var process: Dictionary = processes[id]
+		if skip.has(id) or not String(process.kind) in ["rest", "food"] or process.remaining == null:
+			continue
+		var remaining := float(process.remaining)
+		var progress := float(process.progress)
+		if remaining <= 0.0 or progress >= 1.0:
+			continue
+		var duration := roundf(remaining / (1.0 - progress))
+		remaining = maxf(0.0, remaining - dt)
+		process.remaining = remaining
+		process.progress = clampf(1.0 - remaining / duration, 0.0, 1.0) if duration > 0.0 else 1.0
+		changed = true
+	return changed

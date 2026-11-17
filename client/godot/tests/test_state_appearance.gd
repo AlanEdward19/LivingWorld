@@ -41,7 +41,7 @@ func test_delta_without_observable_keeps_the_body_and_a_change_is_announced() ->
 	eq(store.npcs[7].obs.pregnancy, 0.6, "observable omitido = não mudou (o NPC só andou)")
 	eq(observed, [], "andar não refaz o corpo")
 	store.apply_delta(O.delta({"npcUpserts": [{"id": {"value": 7}, "location": {"x": 4, "y": 4}, "currentAction": 3,
-		"actionTarget": {"kind": "npc", "id": "8"}, "observable": O.observable("Ana", {"illness": {"diseaseId": 2, "symptomatic": true,
+		"actionStartedAtTick": 11, "actionTarget": {"kind": "npc", "id": "8"}, "observable": O.observable("Ana", {"illness": {"diseaseId": 2, "symptomatic": true,
 		"bedridden": true}})}]}))
 	eq(observed, [7], "sinal visível novo avisa a cena")
 	eq(store.npcs[7].obs.bedridden, true)
@@ -130,8 +130,8 @@ func test_city_bodies_come_from_the_scope_for_everyone() -> void:
 	eq(beto.spec.cloth, Look.MOURNING_CLOTH, "Beto de luto")
 	check(beto._sack != null, "Beto carrega trigo")
 	app.stream.delta_applied.emit(O.delta({"npcUpserts": [{"id": {"value": 7}, "location": {"x": 3, "y": 3}, "currentAction": 3,
-		"actionTarget": {"kind": "npc", "id": "8"}}, {"id": {"value": 8}, "location": {"x": 4, "y": 3}, "currentAction": 3,
-		"actionTarget": {"kind": "npc", "id": "7"}}]}))
+		"actionStartedAtTick": 11, "actionTarget": {"kind": "npc", "id": "8"}}, {"id": {"value": 8}, "location": {"x": 4, "y": 3}, "currentAction": 3,
+		"actionStartedAtTick": 11, "actionTarget": {"kind": "npc", "id": "7"}}]}))
 	app.world_view.npcs.refresh_links()
 	eq(app.world_view.npcs.link_pairs, [[7, 8]], "linha discreta entre quem conversa")
 	check(ana.face_point.distance_to(beto.position) < 0.01, "vira para quem conversa")

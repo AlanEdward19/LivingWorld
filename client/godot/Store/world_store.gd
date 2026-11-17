@@ -41,6 +41,7 @@ var fauna_groups: Dictionary = {} ## "espécie:região" -> bando (escopo Mundo)
 var leavings: Dictionary = {} ## id -> espólio no chão
 var objects: Dictionary = {} ## id -> peça inventada
 var climate: Dictionary = {} ## estação e clima do escopo (Parse.climate); vazio = não modelado
+var last_tick := -1 ## tick do último snapshot ou delta aplicado (AD-172: processos rest/food avançam sozinhos)
 var climate_regions: Array = [] ## camada Climate do mundo: [{regionId, center, temperatureC, drought}]
 
 
@@ -66,6 +67,8 @@ static func rect_of(value: Dictionary) -> Rect2i:
 
 func apply_snapshot(envelope: Dictionary) -> void:
 	kind = scope_name(envelope.scope.kind)
+	var cursor = envelope.get("cursor")
+	last_tick = int(cursor.get("tick", -1)) if cursor is Dictionary else -1
 	var payload = envelope.get("payload")
 	if payload == null:
 		npcs.clear()
@@ -195,10 +198,17 @@ func _observe(npc: Dictionary, visual: Dictionary, previous: Variant = null) -> 
 	var before: Dictionary = previous.get("obs", {}) if previous is Dictionary else {}
 	var before_target: Dictionary = previous.get("target", {}) if previous is Dictionary else {}
 	npc.obs = Parse.observable(visual.get("observable")) if visual.get("observable") is Dictionary else before
-	npc.target = Parse.target(visual.get("actionTarget"))
-	npc.intent = int(visual.intent) if visual.get("intent") != null else -1
-	npc.intent_target = String(visual.intentTarget) if visual.get("intentTarget") != null else ""
-	npc.started = int(visual.actionStartedAtTick) if visual.get("actionStartedAtTick") != null else -1
+	if previous is Dictionary and visual.get("actionStartedAtTick") == null:
+		# AD-172: sem `actionStartedAtTick` o grupo (início, alvo, intenção) é o de antes
+		npc.target = previous.get("target", {})
+		npc.intent = int(previous.get("intent", -1))
+		npc.intent_target = String(previous.get("intent_target", ""))
+		npc.started = int(previous.get("started", -1))
+	else: # grupo inteiro novo: ausência de alvo/intenção = nulo
+		npc.target = Parse.target(visual.get("actionTarget"))
+		npc.intent = int(visual.intent) if visual.get("intent") != null else -1
+		npc.intent_target = String(visual.intentTarget) if visual.get("intentTarget") != null else ""
+		npc.started = int(visual.actionStartedAtTick) if visual.get("actionStartedAtTick") != null else -1
 	if npc.obs.has("name") and String(npc.obs.name) != "":
 		names[int(npc.id)] = String(npc.obs.name)
 	return npc.obs != before or npc.target != before_target
@@ -261,8 +271,9 @@ func apply_delta(envelope: Dictionary) -> void:
 		var previous = npcs.get(id)
 		var from_cell: Vector2i = previous.cell if previous != null else cell
 		var city_id: String = String(id_of(visual.city)) if visual.get("city") is Dictionary else (previous.city if previous != null else "")
-		npcs[id] = _npc(id, cell, action, city_id, previous.look if previous != null else look_of(visual.get("appearance")),
-			visual.get("relocationDestination"))
+		# AD-172 (delta enxuto): `city: null` = mesma cidade; `appearance` ausente = a anterior
+		var look: Dictionary = look_of(visual.appearance) if visual.get("appearance") is Dictionary else (previous.look if previous != null else {})
+		npcs[id] = _npc(id, cell, action, city_id, look, visual.get("relocationDestination"))
 		var observed := _observe(npcs[id], visual, previous)
 		upserted[id] = true
 		npc_changed.emit(id, from_cell, cell, action)
@@ -307,12 +318,20 @@ func apply_delta(envelope: Dictionary) -> void:
 			pending_footprints.erase(id)
 			building_removed.emit(id)
 	var processes_touched := false
+	var sent := {}
 	for visual in delta.get("processUpserts", []):
 		var process := _process(visual)
 		processes[process.id] = process
+		sent[process.id] = true
 		processes_touched = true
 	for removed in delta.get("processRemoved", []):
+		sent[int(id_of(removed))] = true
 		processes_touched = processes.erase(int(id_of(removed))) or processes_touched
+	var tick_now := int(delta.get("tick", -1))
+	if last_tick >= 0 and tick_now > last_tick:
+		processes_touched = Parse.advance_processes(processes, tick_now - last_tick, sent) or processes_touched
+	if tick_now >= 0:
+		last_tick = tick_now
 	if processes_touched:
 		processes_changed.emit()
 	_apply_observable_delta(delta)

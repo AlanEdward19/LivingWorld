@@ -52,7 +52,7 @@ Formas geradas por código (sem pacote de assets), a partir da projeção do obs
 - **Mapa-múndi vivo**: um ponto por morador na rua, na cor da ação; a placa diz quantos estão na rua, no pool, o que fazem e a temperatura.
 - **LOD em três níveis**: mundo (densidade, bandos, eventos) · cidade (corpos, prédios, lavoura, animais, objetos) · perto (ferramenta, objeto em uso, rosto). Lavoura, fauna, itens, densidade e linhas de conversa são MultiMesh por tipo; peças do corpo têm malha e material compartilhados e não projetam sombra.
 
-Nomes vêm do escopo (`observable.name`): a paginação periódica de `GET /npcs` saiu; prédio novo chega com a planta no delta (sem reler o retrato da cidade). Resposta fora do contrato vira uma faixa no topo com o primeiro campo divergente (antes ficava em "Conectando…").
+Delta enxuto (AD-172): num NPC já conhecido, `city: null` = mesma cidade, `appearance` ausente = a anterior, `actionStartedAtTick` ausente = início, alvo e intenção de antes (presente = grupo novo), `observable` ausente = não mudou; `rest`/`food` não reenviados avançam pelo tick do delta (`Store/observable_parse.gd` `advance_processes`). Nomes vêm do escopo (`observable.name`): a paginação periódica de `GET /npcs` saiu; prédio novo chega com a planta no delta (sem reler o retrato da cidade). Resposta fora do contrato vira uma faixa no topo com o primeiro campo divergente (antes ficava em "Conectando…").
 
 ## Estrutura
 
@@ -106,4 +106,4 @@ Depois (AD-169, mesma máquina e comando, vsync confirmado desligado `vsync=0`):
 - `stress:500` (com vsync): antes 72,3 / 73,2 / 72,7 FPS; depois 71,9 / 71,5 / 71,9 (média 72,7 → 71,8).
 - `bench:500` (sem vsync, cidade real): antes 75,6 / 77,2 / 78,3 FPS, p95 14,22 / 13,99 / 13,88 ms; depois 76,3 / 75,9 / 75,9, p95 14,09 / 14,28 / 14,26 (média 77,0 → 76,0; p95 14,03 → 14,21 ms).
 - `benchbig:500`: antes 67,2 / 67,2 / 66,8 FPS, p95 16,00 / 16,06 / 16,17 ms; depois 66,5 / 66,7 / 66,1, p95 16,58 / 16,28 / 16,16 (média 67,1 → 66,4; p95 16,08 → 16,34 ms).
-Diferenças dentro do ruído histórico (±3 FPS) e muito acima do piso de 50. Uma rodada antes de fundir chapéu e saco numa malha só deu 75,4 e 65,7. O mundo do `bench.sh` nasce pausado: com o mundo rodando, ver a lacuna das formas do contrato (backlog 09, 1b). `client-test.sh`: 304 → 321 testes, 0 falhas.
+Diferenças dentro do ruído histórico (±3 FPS) e muito acima do piso de 50. Uma rodada antes de fundir chapéu e saco numa malha só deu 75,4 e 65,7. O mundo do `bench.sh` nasce pausado: com o mundo rodando, ver a lacuna das formas do contrato (backlog 09, 1b). `client-test.sh`: 304 → 324 testes, 0 falhas.
