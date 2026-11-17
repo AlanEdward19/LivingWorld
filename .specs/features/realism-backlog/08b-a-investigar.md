@@ -6,6 +6,8 @@
 ## Da sonda de terra (AD-153, [invention-land](../../../docs/domain/invention-land.md))
 73. **Força humana sustentada puxando: 250 N** (lembrança de ergonomia de tração por horas, ~200–300 N; pico bem acima). Precisa
     de conferência. (AD-161: não conferido — a tabela de Snook & Ciriello 1991 não abriu; lembrança de ~150–200 N para horas.)
+    **AD-164:** guia industrial de 24 lb ≈ 107 N sustentado (Ergoweb [L]); Snook segue ilegível. Acima da faixa provável:
+    correções #13 (150–200 N), não aplicado (mexe no trenó e no arrasto; medir antes).
 74. ~~**Atritos**~~ (AD-161, [invenção](relatorios/conferencia-invencao-e-fisica.md)): arrastar 0,55 confere; patim 0,10 só vale em neve (piso ~0,2 em terra, em correções). **AD-162:** piso 0,22 (`SkidFinishGainPm` 80).
 75. ~~**Rolamento**~~ (AD-161): Crr ≈ 0,05 confere (solo médio duro 0,04–0,08); eixo 0,15 sem fonte direta, plausível.
 76. ~~**Carga a granel**~~ (AD-161): 800 kg/m³ confere (trigo ~750–800); pilha, patim e tombo são escolha de modelo.
@@ -32,6 +34,9 @@
     Nenhum mecanismo achado (o medo só pesa em `Travel`, não em Comprar). **AD-163**, 40 pares × 100 anos, taxa por pessoas-ano
     (`scripts/paired-rates.py`): desligar os três dá fome 0,83× (IC90 0,67–1,01), horas com fome crítica 1,07× (0,90–1,26).
     Inconclusivo com 40: o ligado fica entre 0,99× e 1,49× do desligado; δ = 25% pede ~48 pares (CV 0,53, ρ 0,14), δ = 20% ~75.
+    **AD-164** (sonda da doméstica, 12 pares × 50, doméstica ×3): mecanismo local achado só para parte — separação depois da
+    agressão (3× a fome da aldeia, 10× nos <5) e a vítima no ano seguinte (1,75×, sem trabalhar menos); ~60% do excesso segue
+    difuso. A 50 anos o CV da fome entre seeds é 0,95 e ρ 0,09: δ = 25% pede ~160 pares. Segue inconclusivo (custo > 40 min).
 
 ## Da medição (2026-11-15)
 86. ~~**Falta uma medida de fome que aguente o ruído**~~ medida criada no AD-157 (`NeedDistressTally`: horas com fome/sede crítica por pessoa-ano, pareado em 40 seeds × 15 anos; 08c item 108). Desenho para 20×100 em [a-medir](relatorios/a-medir.md).

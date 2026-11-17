@@ -12,7 +12,7 @@
 3. ~~**Dois números sem fonte**~~ conferidos (AD-161, [família](relatorios/conferencia-familia-e-nupcialidade.md)): natimorto de 30% com a mãe morta confere (RR 9,48, Saleem 2014); desgaste 12× é escolha de modelo.
 4. **Tempo por NPC-tick não comparável.** O "antes" e o "depois" da fatia foram medidos com cargas diferentes na máquina; só a alocação é confiável (141 bytes, igual). Medir pela fila de uma vaga, em pares alternados, o tick a 1.000 e 5.000 NPCs no commit anterior à fatia (`ee6f0416`) e no posterior (`bce8e56c`).
 5. ~~**Demografia saiu da referência calibrada**~~ resolvido no AD-148 (e0 31,0, 1º ano 205‰, dentro dos alvos).
-6. **Sobrevivência do bebê sem mãe.** Razão medida de 0,39 (30% contra 76%), abaixo do alvo de 0,5 da auditoria. Conferir em fonte (Knodel e outros sobre órfãos de mãe) e recalibrar. (AD-161: não conferido — os estudos confirmam a direção, nenhum número lido; o alvo 0,5 também não tem fonte.)
+6. **Sobrevivência do bebê sem mãe.** Razão medida de 0,39 (30% contra 76%), abaixo do alvo de 0,5 da auditoria. Conferir em fonte (Knodel e outros sobre órfãos de mãe) e recalibrar. (AD-161: não conferido — os estudos confirmam a direção, nenhum número lido; o alvo 0,5 também não tem fonte. AD-164: Estônia e Knodel seguem ilegíveis; Espanha rural ~40% dos órfãos de mãe no 1º ano chegam aos 15 [B], sem braço com mãe.)
 
 ## Da fatia de vocação e família (AD-136)
 7. ~~**População subiu 17% sem explicação**~~ superado: causa do crescimento medida no AD-149 (terra sem fim, emigração presa) e nupcialidade no AD-158.
@@ -91,7 +91,7 @@
 68. ~~**Números sem fonte do AD-152**~~ (AD-161): mestre aos 21 plausível (7 anos de aprendizagem); o resto escolha de modelo.
 69. ~~**Confiança mínima do sócio (60) e até dois sócios**~~ (AD-161): escolha de modelo (*commenda* ⅔/⅓, companhias com vários sócios).
 70. **Vila só sustenta ~1 ferreiro**: 32 negócios em 20 seeds × 100 anos, quase todos quando o mestre parou. Conferir ferreiros por
-    habitante numa aldeia inglesa (AD-161: não achado; contar nas listas da poll tax de 1379/1381).
+    habitante numa aldeia inglesa (AD-161: não achado; contar nas listas da poll tax de 1379/1381). AD-164: de novo sem razão pronta; contar à mão.
 71. ~~**Equipamento de fora a preço de teto**~~ confirmado no código (`VentureFounding.cs:36-54`); issue #168.
 72. **Custo do AD-152 a 5.000 NPCs** e seeds 21–40 não medidos; goldens, pins e baselines feitos na junção (AD-161).
 
