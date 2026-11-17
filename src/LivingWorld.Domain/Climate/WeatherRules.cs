@@ -64,9 +64,9 @@ public sealed record WeatherRules
     public int HeavyMudAbovePm { get; init; } = 750;
 
     /// <summary>Passo no chão de terra: molhado, lama, lamaçal (multiplica o tempo da parte sem calçamento da rota).</summary>
-    public double WetTravelFactor { get; init; } = 1.1;
-    public double MudTravelFactor { get; init; } = 1.35;
-    public double HeavyMudTravelFactor { get; init; } = 1.6;
+    public double WetTravelFactor { get; init; } = 1.05;
+    public double MudTravelFactor { get; init; } = 1.2;
+    public double HeavyMudTravelFactor { get; init; } = 1.35;
 
     /// <summary>Neve no chão (cm) atrasa a rota inteira, calçada ou não, até <see cref="MaxSnowTravelFactor"/>.</summary>
     public double SnowTravelPerCm { get; init; } = 0.03;
@@ -99,8 +99,10 @@ public sealed record WeatherRules
     public double CropLateFrostWeight { get; init; } = 0.04;
     public double CropWinterKillWeight { get; init; } = 0.04;
     public double CropIndexMean { get; init; } = -0.2495;
-    public double CropIndexSd { get; init; } = 0.4151;
+    public double CropIndexSd { get; init; } = 0.36;
     public int CropFactorMonth { get; init; } = 6;
+    public double CropLowTailShrink { get; init; } = 0.5;
+    public double CropFactorMeanShift { get; init; } = -16;
 
     // corpo: excesso de risco de morte pela anomalia fria/quente do mês e o relento
     public double ColdHazardPerC { get; init; } = 0.03;

@@ -86,7 +86,7 @@ public sealed class EnvironmentTemperatureMechanic : ExtraordinaryMechanic
             // ajustes, na ordem das regiões; refeito quando o dia muda (a versão sobe)
             if (world.WeatherOn && world.Weather is { } weather)
             {
-                float reference = (float)world.ClimateRules.Weather!.ReferenceBaseC;
+                float reference = weather.ReferenceCenti != int.MinValue ? weather.ReferenceCenti / 100f : (float)world.ClimateRules.Weather!.ReferenceBaseC;
                 foreach (var row in weather.Regions)
                     _deltas[new RegionId(row.Region)] = row.MeanCenti / 100f - reference;
             }

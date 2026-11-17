@@ -64,7 +64,7 @@ public static class WeatherDiagCommand
             for (int i = 1; i < regimes.Count; i++) ra += (regimes[i] - rm) * (regimes[i - 1] - rm);
             Console.WriteLine(string.Create(inv, $"indice_cru media={mean:F4} dp={sd:F4} corr_regime={rc / raw.Count / (sd * rsd):F2} regime_dp={rsd:F2} regime_autocorr={ra / (regimes.Count - 1) / (rsd * rsd):F2}"));
             Console.WriteLine(string.Create(inv,
-                $"fator media={fm:F0} dp={fsd:F0} autocorr1={ac:F2} seca(<600)={factors.Count(f => f < ClimateRules.DroughtBelowMilli) / (double)factors.Count:P1} min={factors.Min()} max={factors.Max()}"));
+                $"fator media={fm:F0} dp={fsd:F0} autocorr1={ac:F2} seca(<600)={factors.Count(f => f < ClimateRules.DroughtBelowMilli) / (double)factors.Count:P1} min={factors.Min()} max={factors.Max()} p<400={factors.Count(f => f < 400) / (double)factors.Count:P1} p<500={factors.Count(f => f < 500) / (double)factors.Count:P1} p1={factors.OrderBy(f => f).ElementAt(factors.Count / 100)}"));
             Console.WriteLine("chuva_dias/mes=" + string.Join(" ", rainDays.Select(x => (x / years).ToString("F1", inv))));
             Console.WriteLine("neve_dias/mes=" + string.Join(" ", snowDays.Select(x => (x / years).ToString("F1", inv))));
             return 0;

@@ -120,6 +120,16 @@ public sealed class WeatherTests
     }
 
     [Fact]
+    public void The_village_cell_reads_the_climatology_of_the_place()
+    {
+        var (world, clock) = NewWorld(4);
+        clock.Run(world, 100 * DayHours);
+        var cell = world.ActiveCities().First().Location;
+
+        Assert.Equal(Village(world).MeanCenti / 100f, EnvironmentTemperatureMechanic.EffectiveTemperature(world, cell, world.CurrentDate.TotalHours), 2);
+    }
+
+    [Fact]
     public void Temperature_field_reads_the_daily_weather_instead_of_the_quarter_step()
     {
         var (world, clock) = NewWorld(4);
@@ -128,7 +138,7 @@ public sealed class WeatherTests
         world.Map.TryGetBaseClimate(cell, out float baseC, out _);
         var row = Village(world);
 
-        Assert.Equal(baseC + row.MeanCenti / 100f - (float)WeatherRules.Default.ReferenceBaseC,
+        Assert.Equal(baseC + row.MeanCenti / 100f - world.Weather!.ReferenceCenti / 100f,
             EnvironmentTemperatureMechanic.EffectiveTemperature(world, cell, world.CurrentDate.TotalHours), 3);
     }
 

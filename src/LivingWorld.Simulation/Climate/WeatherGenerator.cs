@@ -135,7 +135,9 @@ public static class WeatherGenerator
         double mean = climate.StdDevMilli > 0 ? climate.MeanMilli : (min + max) / 2.0;
         double sd = climate.StdDevMilli > 0 ? climate.StdDevMilli : (max - min) / Math.Sqrt(12.0);
         double z = (index - r.CropIndexMean) / Math.Max(1e-6, r.CropIndexSd);
-        return (int)Math.Round(Math.Clamp(mean + sd * z, min, max));
+        // a cauda de baixo encolhe: o ano chuvoso de verdade tira 40–50% da safra (1315, 1556), não 75%
+        if (z < -1) z = -1 + (z + 1) * r.CropLowTailShrink;
+        return (int)Math.Round(Math.Clamp(r.CropFactorMeanShift + mean + sd * z, min, max));
     }
 
     /// <summary>Começo do ano: o regime novo (AR(1) com a persistência e a parte comum do clima) e a estação da safra zerada.</summary>

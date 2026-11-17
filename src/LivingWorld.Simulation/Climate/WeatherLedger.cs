@@ -65,6 +65,10 @@ public sealed class WeatherLedger
     /// <summary>Dia (desde o início do mundo) do tempo guardado; −1 antes do primeiro.</summary>
     public long Day { get; set; } = -1;
 
+    /// <summary>Temperatura-base (°C × 100) da célula onde a climatologia vale: a da primeira cidade do mundo (o lugar da fonte é o
+    /// lugar onde se vive), fixada no primeiro dia; <c>int.MinValue</c> = a da regra.</summary>
+    public int ReferenceCenti { get; set; } = int.MinValue;
+
     /// <summary>Minutos de sol do dia (nascer ao pôr).</summary>
     public int DaylightMinutes { get; set; }
 

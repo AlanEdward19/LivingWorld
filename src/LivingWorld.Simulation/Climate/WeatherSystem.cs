@@ -37,6 +37,10 @@ public sealed class WeatherSystem : ISimulationSystem
 
         bool first = ledger.Day < 0;
         EnsureRegions(world, ledger);
+        if (ledger.ReferenceCenti == int.MinValue)
+            ledger.ReferenceCenti = world.Cities.OrderBy(c => c.FoundedAtTick).ThenBy(c => c.Id.Value).FirstOrDefault() is { } oldest
+                && world.Map.TryGetBaseClimate(oldest.Location, out float baseC, out _)
+                    ? (int)Math.Round(baseC * 100) : (int)Math.Round(rules.ReferenceBaseC * 100);
         int month = world.CurrentDate.Month, dom = world.CurrentDate.Day;
         long year = world.ClimateYearOf(ctx.CurrentTick);
         double doy = month * cal.DaysPerMonth + dom + 0.5;
