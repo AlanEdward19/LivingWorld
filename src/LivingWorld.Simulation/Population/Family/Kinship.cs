@@ -42,6 +42,14 @@ public static class Kinship
         return Relatedness(world, a, b, rules.KinshipDepth) >= rules.ForbiddenRelatedness - 1e-9;
     }
 
+    /// <summary>A genealogia guardada acha um ascendente comum (ou um é ascendente do outro) até a profundidade do tabu.</summary>
+    public static bool SharesKnownAncestor(WorldState world, Npc a, Npc b, Dictionary<long, HashSet<long>>? lineage = null)
+    {
+        lineage ??= [];
+        int depth = world.FamilyRules.Unions.KinshipDepth;
+        return LineageOf(world, a, depth, lineage).Overlaps(LineageOf(world, b, depth, lineage));
+    }
+
     private static HashSet<long> LineageOf(WorldState world, Npc npc, int depth, Dictionary<long, HashSet<long>> cache)
     {
         if (cache.TryGetValue(npc.Id.Value, out var known)) return known;

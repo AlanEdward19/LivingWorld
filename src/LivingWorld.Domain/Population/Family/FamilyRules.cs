@@ -45,6 +45,10 @@ public sealed record FamilyRules(
     /// cref="UnionRules.Medieval"/>; snapshot sem o campo abre com ele.</summary>
     public UnionRules Unions { get; init; } = UnionRules.Medieval;
 
+    /// <summary>O que o nome faz (AD-178): xará e linhagem na ajuda, no luto, no legado, no namoro e na fama. Padrão ligado;
+    /// snapshot sem o campo abre com ele.</summary>
+    public NameBondRules Names { get; init; } = NameBondRules.Default;
+
     /// <summary>Freios preventivos da pressão da população (AD-145). Nulo = desligado (padrão; omitido do snapshot e do hash).</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public PopulationPressureRules? Pressure { get; init; }
@@ -223,5 +227,6 @@ public sealed record FamilyRules(
         VitalityMortalitySelectionEnabled: true)
     {
         Unions = UnionRules.Disabled,
+        Names = NameBondRules.Off,
     };
 }

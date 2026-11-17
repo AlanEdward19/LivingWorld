@@ -331,7 +331,7 @@ public sealed class NatalitySystem : ISimulationSystem
             if (world.PopulationRules.RemainingAliveSlots(world.AliveNpcIndex.Alive.Count) <= 0)
                 break;
             Deliver(world, ctx, evt, mother, father, fatherId, household, sexes[i] == 'M' ? Sex.Male : Sex.Female,
-                gestationDays, conceptionStock, i == 0 ? "" : $"-{i + 1}");
+                gestationDays, conceptionStock); // gêmeo vê o irmão na casa: nunca o mesmo nome (AD-178)
         }
 
         if (birthDespiteDeath)
@@ -397,7 +397,7 @@ public sealed class NatalitySystem : ISimulationSystem
 
     private static void Deliver(
         WorldState world, TickContext ctx, ScheduledEvent evt, Npc mother, Npc? father, NpcId fatherId, Household household,
-        Sex sex, int gestationDays, long conceptionStock, string nameSuffix)
+        Sex sex, int gestationDays, long conceptionStock)
     {
         var motherId = mother.Id;
         var familyRules = world.FamilyRules;
@@ -426,7 +426,7 @@ public sealed class NatalitySystem : ISimulationSystem
         double muscleMass = BodyGeneration.RollMuscleMass(ctx.StreamFor("musclemass", babyId.Value), body);
 
         var baby = new Npc(
-            babyId, $"npc-{mother.Culture.Id}-child-{evt.Id}{nameSuffix}", sex, world.CurrentDate,
+            babyId, Naming.PersonNaming.NameNewborn(world, mother, father, babyId, sex, household), sex, world.CurrentDate,
             mother.Culture, household.Location, motherId, father is { IsAlive: true } ? fatherId : null,
             household.Id, health: 100,
             personality: personality, profession: profession, currentLocation: household.Location,

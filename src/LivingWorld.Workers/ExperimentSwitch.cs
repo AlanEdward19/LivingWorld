@@ -20,7 +20,32 @@ public static class ExperimentSwitch
             var r = rules ?? ScenarioRunner.DefaultFamilyRules;
             rules = r with { Unions = r.Unions with { SupportChildUntilAge = age } };
         }
+        if (Names(rules?.Names ?? ScenarioRunner.DefaultFamilyRules.Names) is { } names)
+            rules = (rules ?? ScenarioRunner.DefaultFamilyRules) with { Names = names };
         return rules;
+    }
+
+    /// <summary>AD-178: <c>LW_NAMES=off</c> desliga tudo o que o nome faz; <c>LW_NAMES=-aid,-grief,-legacy,-lineage,-courtship,-infamy</c>
+    /// desliga só os efeitos listados (xará na ajuda, luto do xará, legado ao xará, linhagem na ajuda, nome no namoro, fama
+    /// da linhagem). Vazio = padrão (todos ligados).</summary>
+    public static NameBondRules? Names(NameBondRules baseRules)
+    {
+        var raw = Environment.GetEnvironmentVariable("LW_NAMES");
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        if (raw.Trim() == "off") return NameBondRules.Off;
+        var r = baseRules;
+        foreach (var key in raw.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            r = key switch
+            {
+                "-aid" => r with { NamesakeAidGain = 0 },
+                "-grief" => r with { NamesakeGriefScale = 0 },
+                "-legacy" => r with { NamesakeLegacyShare = 0 },
+                "-lineage" => r with { LineageAidCloseness = 0 },
+                "-courtship" => r with { SameFamilyCourtshipFactor = 1 },
+                "-infamy" => r with { LineageInfamySpill = 0 },
+                _ => throw new ArgumentException($"LW_NAMES: chave desconhecida '{key}'"),
+            };
+        return r;
     }
 
     public static FamilyRules WithoutHealth(FamilyRules rules) => rules with

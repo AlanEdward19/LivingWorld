@@ -335,6 +335,7 @@ public static class DemographyReport
         }
         if (r.Invention is { } invention) sb.Append(inv, $" constr_boas={invention.Tally.Built} constr_falhas={invention.Tally.BuildFailures}");
         var fam = t.Family;
+        sb.Append(inv, $" casamentos={fam.Marriages}"); // AD-178: razão pareada de casamentos
         sb.Append(inv, $" oficio_n={fam.FollowCompared} oficio_segue={fam.Followed} oficio_acaso={fam.FollowByChance:F2} oficio_alta_n={fam.HighPressureCompared} oficio_alta={fam.HighPressureFollowed} oficio_baixa_n={fam.LowPressureCompared} oficio_baixa={fam.LowPressureFollowed}");
         r.Reference?.Append(sb);
         r.DomesticHunger?.Append(sb);

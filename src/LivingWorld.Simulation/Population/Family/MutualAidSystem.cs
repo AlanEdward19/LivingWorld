@@ -162,6 +162,12 @@ public sealed class MutualAidSystem : ISimulationSystem
             foreach (var contact in world.RelationshipTargetsOf(member.Id))
                 candidates.Add(contact);
         }
+        // AD-178: a linhagem (mesmo nome de família na cidade) também é chamada, além do parentesco que a genealogia guarda
+        var names = world.FamilyRules.Names;
+        if (names.LineageAidCloseness > 0)
+            foreach (var other in world.AliveNpcIndex.Alive)
+                if (other.City == household.City && !memberIds.Contains(other.Id) && Naming.NameBonds.LineageOfAny(other, members))
+                    candidates.Add(other.Id);
 
         // AD-145: a comida que falta para a semana; a família de origem manda da própria despensa o que passa da reserva dela
         long foodNeed = Math.Max(0, members.Count * (long)RelieveDays - household.Stock.GetValueOrDefault(food));
@@ -180,6 +186,8 @@ public sealed class MutualAidSystem : ISimulationSystem
                 continue;
 
             double closeness = kin ? 1.0 : ClosenessTo(world, helper, members);
+            if (closeness < names.LineageAidCloseness && Naming.NameBonds.LineageOfAny(helper, members))
+                closeness = names.LineageAidCloseness; // AD-178: "é dos nossos"
             if (closeness <= 0) continue;
             considered++;
 
@@ -192,6 +200,9 @@ public sealed class MutualAidSystem : ISimulationSystem
             // AD-138: quem foi ajudado retribui mais (a esta casa, sobretudo) — a lembrança da ajuda é o consumidor
             chance *= 1 + world.NeedsRules.Psyche.ReciprocityGain
                 * LivingWorld.Simulation.Cognition.PsycheMechanic.Gratitude(world, helper, members, ctx.CurrentTick);
+            // AD-178: o xará socorre a casa do homenageado (e o homenageado a do xará) com mais vontade
+            if (names.NamesakeAidGain > 0 && Naming.NameBonds.NamesakeOfAny(world, helper, members))
+                chance *= 1 + names.NamesakeAidGain;
             // Uma rolagem por (ajudante, dia): o mesmo fluxo atende, em ordem de id, as casas que precisam.
             var rng = ctx.StreamFor("mutual-aid", helper.Id.Value * 1_000_003L + day);
             if (rng.NextDouble() >= chance) continue;

@@ -57,3 +57,12 @@
 182. **Prédio vira obstáculo só na virada do mês** (a rota do mês é fixa); quem constrói em cima da trilha apaga o chão ali.
 183. **Técnica de calçar sem protótipo pago**: diferente da de mobilidade (ferro do estoque), o trecho de teste não gasta recurso.
 184. **Escopo Mundo remonta a lista de ruas a cada tick** (o diff é por conteúdo); guardar como o escopo Cidade se pesar.
+
+## Dos nomes (AD-178)
+185. **Costume de nome não é dado de cenário**: linhagem, adoção do nome no casamento e chance de homenagem saem do RNG da
+     cultura (padrão 70% / 50% / 15–50%); o período não declara. Bloco opcional `Naming` por cultura no cenário, com
+     loader e snapshot, se um período quiser fixar o costume.
+186. ~~**Cidade ainda não fala a língua da cultura**~~ — fechado na AD-178: nome de cidade pela fonologia da cultura que funda.
+187. ~~**Nome sem consequência causal**~~ — fechado na AD-178: xará e linhagem na ajuda, luto, legado, namoro e fama
+     (`NameBondRules`). Aberto dele: honra (feito) não respinga, só vergonha; o nome do fundador na cidade-filha não existe.
+188. **Mundo salvo antes da AD-178** mantém `npc-…` (decisão); renomear na carga mudaria o hash do mundo carregado.
