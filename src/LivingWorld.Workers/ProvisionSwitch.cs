@@ -14,7 +14,7 @@ public static class ProvisionSwitch
     public static LivingWorld.Domain.Invention.InventionRules? InventionRules()
     {
         var raw = Environment.GetEnvironmentVariable("LW_PROVISION") ?? "";
-        var rules = LivingWorld.Domain.Invention.InventionRules.Default;
+        var rules = ScenarioRunner.DefaultInventionRules; // AD-157b: a carga pessoal vem ligada no cenário
         bool changed = false;
         if (raw.Contains("-carry", StringComparison.Ordinal)) { rules = rules with { PantryNeedsPresence = false }; changed = true; }
         else if (raw.Contains("+carry", StringComparison.Ordinal)) { rules = rules with { PantryNeedsPresence = true }; changed = true; }
