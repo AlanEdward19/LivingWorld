@@ -46,3 +46,8 @@
     prédio depois que a ficha dele foi lida (o escopo não traz nome).
 15. **Andar pela rua**: o NPC segue as células que o servidor manda; se o motor andar em linha reta (item 1), o desenho
     também anda.
+
+## Ordens do dono depois da AD-176 (2026-11-18)
+- "Resolva a cidade média sem trilha, tem que funcionar no jogo." (08d item 181) → AD-179.
+- Sobre a lama sem chuva: "implemente todas as estações, e temperatura." → AD-180 (clima completo).
+- Sobre o diarista que recebe sem mudar a agenda: "deve mudar." (08d item 178) → AD-179: obra ocupa o tempo de quem trabalha nela.
