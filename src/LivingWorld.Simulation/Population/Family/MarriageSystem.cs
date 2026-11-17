@@ -16,6 +16,9 @@ public static class MarriageSystem
     {
         var previousA = spouseA.Household;
         var previousB = spouseB.Household;
+        // AD-184: onde cada um morava (a casa e a célula), para o casal morar onde dá até a casa nova ficar pronta
+        var homeA = previousA is { } pa && world.FindHousehold(pa) is { Dwelling: { } da } ha ? (da, ha.Location) : ((BuildingId, CellCoord)?)null;
+        var homeB = previousB is { } pb && world.FindHousehold(pb) is { Dwelling: { } db } hb ? (db, hb.Location) : ((BuildingId, CellCoord)?)null;
         // o que cada um leva de casa (AD-136, achado 18): nada é criado no casamento
         var stock = new Dictionary<ResourceType, long>();
         TakeShare(world, spouseA, stock);
@@ -35,6 +38,8 @@ public static class MarriageSystem
         other.JoinHousehold(householdId);
         BringDependents(world, ctx, previousA, spouseA, household);
         BringDependents(world, ctx, previousB, spouseB, household);
+        SettleWhereTheyCan(world, household, ReferenceEquals(head, spouseA) ? (previousA, homeA) : (previousB, homeB),
+            ReferenceEquals(head, spouseA) ? (previousB, homeB) : (previousA, homeA));
         spouseA.Marry(spouseB.Id);
         spouseB.Marry(spouseA.Id);
         LivingWorld.Simulation.Population.Naming.PersonNaming.OnMarriage(world, spouseA, spouseB); // AD-178: costume do nome
@@ -62,6 +67,28 @@ public static class MarriageSystem
             if (share <= 0 || !home.Withdraw(resource, share).IsSuccess) continue;
             into[resource] = into.GetValueOrDefault(resource) + share;
         }
+    }
+
+    /// <summary>AD-184 (casa nova é obra): o casal mora onde dá até a casa dele ficar pronta. A casa que um deles deixou vazia (morava
+    /// sozinho) fica com o casal; senão eles ficam de favor na casa de onde o chefe saiu (ou o outro), apertados com a família de lá,
+    /// e a obra da casa nova começa (<see cref="LivingWorld.Simulation.Cities.Works.BuildWorks"/>). Sem a regra (ou sem rua de
+    /// verdade), o casal fica na célula onde estava, como antes.</summary>
+    private static void SettleWhereTheyCan(WorldState world, Household household,
+        (HouseholdId? Id, (BuildingId Dwelling, CellCoord Location)? Home) first, (HouseholdId? Id, (BuildingId Dwelling, CellCoord Location)? Home) second)
+    {
+        if (!world.StreetsOn || !world.StreetRules.HouseIsWork) return;
+        foreach (var (id, home) in new[] { first, second })
+            if (home is { } h && (id is not { } left || world.FindHousehold(left) is null or { IsEmpty: true }) && world.FindBuilding(h.Dwelling) is not null)
+            {
+                household.MoveIn(h.Dwelling, h.Location); // a casa ficou vazia: é deles
+                return;
+            }
+        foreach (var (_, home) in new[] { first, second })
+            if (home is { } h && world.FindBuilding(h.Dwelling) is not null)
+            {
+                household.MoveIn(h.Dwelling, h.Location); // de favor com a família de onde saiu
+                return;
+            }
     }
 
     /// <summary>Início da união no estado conjugal da pessoa (AD-136): sem mágoa, sem caso, uma união a mais.</summary>

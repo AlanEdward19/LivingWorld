@@ -3,6 +3,7 @@ using LivingWorld.Domain.Cities;
 using LivingWorld.Domain.Cities.Buildings;
 using LivingWorld.Domain.Economy;
 using LivingWorld.Domain.Geography;
+using LivingWorld.Domain.History;
 using LivingWorld.Domain.Population;
 using LivingWorld.Domain.Shared;
 using LivingWorld.Simulation.Cities.Queries;
@@ -75,7 +76,11 @@ public sealed class ConstructionSystem : ISimulationSystem
 
                     project.Advance();
                     if (crew) project.HoursBanked--;
-                    if (project.TicksRemaining == 0) project.Crew.Clear(); // pronta: a turma se desfaz (o prédio sobe ao achar terra)
+                    if (project.TicksRemaining == 0)
+                    {
+                        project.Crew.Clear(); // pronta: a turma se desfaz (o prédio sobe ao achar terra)
+                        LivingWorld.Simulation.Cities.Streets.SiteWork.Touch(world);
+                    }
                     if (project.TicksRemaining == 0 && CompleteProject(world, city, project, ctx))
                     {
                         city.RemoveConstructionProject(project);
@@ -101,17 +106,31 @@ public sealed class ConstructionSystem : ISimulationSystem
         {
             var candidate = new Building(new BuildingId(world.NextBuildingId), city.Id, project.BuildingTypeId, ctx.CurrentTick);
             var bounds = CityOccupancy.ResolveGrownBounds(world, city, CityPopulationQuery.Population(world, city.Id)).Bounds;
-            var site = BuildingPlacementResolver.ResolveLot(candidate, city, world, bounds, chooseOrientation: true) is { } lot ? lot.Position : city.Location;
+            var lot = BuildingPlacementResolver.ResolveLot(candidate, city, world, bounds, chooseOrientation: true);
+            var site = lot is { } found ? found.Position : city.Location;
             project.SiteX = site.X;
             project.SiteY = site.Y;
             var rules = world.StreetRules;
+            // AD-184: o canteiro ocupa o lote desde já (o prédio sobe ali quando a obra acabar), com id de obra e evento com lugar
+            project.WorkId = world.Ground!.NextWorkId++;
+            project.LastProgressTick = ctx.CurrentTick;
+            if (rules.WageBidding && lot is { } reserved)
+            {
+                var canteiro = new Building(world.NextBuildingIdAndAdvance(), city.Id, project.BuildingTypeId, ctx.CurrentTick,
+                    reserved.Position, reserved.Orientation, croftCells: reserved.Croft) { UnderWork = project.WorkId };
+                world.AddBuilding(canteiro);
+                project.Canteiro = canteiro.Id.Value;
+            }
             long units = recipe.Inputs.Values.Sum();
             long loads = (units + Math.Max(1, rules.BuildUnitsPerLoad) - 1) / Math.Max(1, rules.BuildUnitsPerLoad);
             double trip = LivingWorld.Simulation.Cities.Streets.StreetRoutes.CostOf(world, city.Location, site).Cost
                 * LivingWorld.Simulation.Emergence.Mobility.LoadFactorOfKg(rules, rules.SiteLoadKg)
                 + LivingWorld.Simulation.Cities.Streets.StreetRoutes.CostOf(world, site, city.Location).Cost;
             project.HaulHoursLeft = site == city.Location ? 0 : (long)Math.Ceiling(loads * trip);
+            project.StartEventId = LivingWorld.Simulation.Cities.Works.WorkEvents.Log(ctx, WorldEventKind.BuildWorkStarted, project.WorkId.Value, city.Id.Value,
+                $"predio-{project.BuildingTypeId}", site.X, site.Y, $"cidade|{recipe.TicksToBuild + project.HaulHoursLeft}|{project.Canteiro ?? -1}|0");
         }
+        else ConstructionWorks.CheckStall(world, ctx, city, project);
         LivingWorld.Simulation.Cities.Streets.SiteWork.Staff(world, ctx,
             new LivingWorld.Simulation.Cities.Streets.WorkSite(null, city, project));
         world.CanonicalHashCache.MarkPropertyDirty(nameof(WorldState.Cities));
@@ -131,6 +150,19 @@ public sealed class ConstructionSystem : ISimulationSystem
     private static bool CompleteProject(WorldState world, City city, ConstructionProject project, TickContext ctx)
     {
         if (!world.CityCatalog.BuildingRecipes.TryGetValue(project.BuildingTypeId, out var recipe)) return true;
+        // AD-184: a obra com canteiro termina no lote dela: o prédio passa a existir ali
+        if (project.Canteiro is { } canteiroId && world.FindBuilding(new BuildingId(canteiroId)) is { UnderWork: not null, Position: { } at } built)
+        {
+            built.Complete(ctx.CurrentTick);
+            if (recipe.Workplace is { } provision)
+                world.AddWorkplace(new Workplace(
+                    world.NextWorkplaceIdAndAdvance(), new LocationType(provision.LocationTypeId), at,
+                    provision.MaxVacancies, employees: [], stock: new Dictionary<ResourceType, long>(),
+                    treasury: Money.Zero, prices: CopyPricesFromExisting(world, provision.LocationTypeId),
+                    city: city.Id, building: built.Id));
+            ConstructionWorks.Done(world, ctx, city, project, built);
+            return true;
+        }
 
         if (recipe.Workplace is { } workplaceRecipe)
         {

@@ -11,9 +11,13 @@ namespace LivingWorld.Simulation.Behavior.Decision;
 // Parte de BehaviorDecisionSystem — destino da viagem por motivo (trabalho, sono, compra, mudança).
 public sealed partial class BehaviorDecisionSystem
 {
-    /// <summary>Onde o NPC trabalha: a oficina do emprego; sem emprego, o trecho da obra em que é diarista (AD-179).</summary>
+    /// <summary>Onde o NPC trabalha: a oficina do emprego; sem emprego, a obra em que é diarista (AD-179) ou ajuda; com emprego, a
+    /// obra da casa ou do parente nas horas livres de dia (AD-184).</summary>
     private static CellCoord? WorkDestinationOf(WorldState world, Npc npc) =>
-        npc.Employer is { } workplaceId ? world.FindWorkplace(workplaceId)?.Location
+        npc.Employer is { } workplaceId
+            ? LivingWorld.Simulation.Cities.Streets.SiteWork.HelpingNow(world, npc)
+                ? LivingWorld.Simulation.Cities.Streets.SiteWork.DestinationOf(world, npc)
+                : world.FindWorkplace(workplaceId)?.Location
             : LivingWorld.Simulation.Cities.Streets.SiteWork.DestinationOf(world, npc);
 
     private static CellCoord? SleepDestinationOf(WorldState world, Npc npc)

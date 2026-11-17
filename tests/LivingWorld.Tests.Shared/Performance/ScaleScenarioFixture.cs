@@ -126,9 +126,13 @@ public static class ScaleScenarioFixture
             cityLayout: (Environment.GetEnvironmentVariable("LW_CITY_LAYOUT") == "off", Environment.GetEnvironmentVariable("LW_STREETS") == "off") switch
             {
                 // AD-179: LW_AD179=off tira o chão da história e a carga no passo (separa custo de código de mundo com rua desde o dia 0)
-                (false, false) => Environment.GetEnvironmentVariable("LW_AD179") == "off"
-                    ? LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Default with { HistoryRounds = 0, CarryPmPerKg = 0, SiteLoadKg = 0 } }
-                    : null,
+                (false, false) => (Environment.GetEnvironmentVariable("LW_AD179") == "off", Environment.GetEnvironmentVariable("LW_AD184") == "off") switch
+                {
+                    (true, var off184) => LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = (off184 ? LivingWorld.Domain.Cities.StreetRules.Default.WithoutAd184() : LivingWorld.Domain.Cities.StreetRules.Default) with { HistoryRounds = 0, CarryPmPerKg = 0, SiteLoadKg = 0 } },
+                    // AD-184: LW_AD184=off mede a obra como na AD-179 (casa e oficina sem obra)
+                    (false, true) => LivingWorld.Domain.Cities.CityLayoutRules.Default with { Streets = LivingWorld.Domain.Cities.StreetRules.Default.WithoutAd184() },
+                    _ => null,
+                },
                 (true, false) => LivingWorld.Domain.Cities.CityLayoutRules.Off,
                 (var off, true) => (off ? LivingWorld.Domain.Cities.CityLayoutRules.Off : LivingWorld.Domain.Cities.CityLayoutRules.Default)
                     with

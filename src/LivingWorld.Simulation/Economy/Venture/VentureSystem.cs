@@ -50,6 +50,7 @@ public sealed class VentureSystem(SkillsRules skillsRules) : ISimulationSystem
                     var owned = OwnedBy(world, npc);
                     // quem já tem oficina trabalhando não abre outra; a dele parada (folha que não fechou, ninguém nela) ele reabre
                     if (owned is not null && (owned.City != city.Id || owned.LocationType.Id != type || VenturePlan.Operating(world, owned))) continue;
+                    if (LivingWorld.Simulation.Cities.Works.BuildWorks.HasWorkshop(world, npc)) continue; // AD-184: a dele está em obra
                     world.VentureProbe?.Consider(npc.Id.Value);
                     double chance = ChanceOf(world, rules, trade, plan, npc);
                     if (chance <= 0 || ctx.DrawFor("venture", npc.Id.Value * 1_000_003L + month) >= chance) continue;
@@ -57,8 +58,9 @@ public sealed class VentureSystem(SkillsRules skillsRules) : ISimulationSystem
                     var opened = owned is null
                         ? VentureFounding.TryBuyClosed(world, ctx, rules, trade, plan, npc) ?? VentureFounding.TryFound(world, ctx, rules, trade, plan, npc)
                         : VentureFounding.TryReopen(world, ctx, rules, trade, plan, npc, owned);
-                    world.VentureProbe?.End(opened is not null);
-                    if (opened is not null) break; // um por ofício e cidade no mês
+                    bool started = opened is not null || LivingWorld.Simulation.Cities.Works.BuildWorks.HasWorkshop(world, npc); // AD-184: obra aberta
+                    world.VentureProbe?.End(started);
+                    if (started) break; // um por ofício e cidade no mês
                 }
             }
     }

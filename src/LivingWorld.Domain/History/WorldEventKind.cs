@@ -340,4 +340,24 @@ public enum WorldEventKind
 
     /// <summary>Diarista saiu da obra (AD-179) — payload: <c>npcId|obraId|motivo</c> (motivo: emprego, saiu, morto, sem-pagamento).</summary>
     SiteWorkLeft,
+
+    /// <summary>Obra de prédio aberta (AD-184): casa de família, oficina de quem empreende ou prédio da fila da cidade — payload:
+    /// <c>obraId|cidadeId|tipo|x|y|quem|horas|quintal|gasto</c> (tipo: casa, oficina, predio-N; quem: casa, fundador ou cidade; na
+    /// fila, quintal = id do canteiro).</summary>
+    BuildWorkStarted,
+
+    /// <summary>Obra de prédio pronta (AD-184): o prédio passa a existir — payload:
+    /// <c>obraId|cidadeId|tipo|x|y|predioId|horasTurma|horasAjuda|pago|dias</c>.</summary>
+    BuildWorkDone,
+
+    /// <summary>Obra parada (AD-184): sem nenhuma hora de gente nela há dias — payload: <c>obraId|cidadeId|tipo|x|y|dias</c> (tipo
+    /// também calcamento).</summary>
+    WorkStalled,
+
+    /// <summary>Obra retomada (AD-184): voltou a ter gente — payload: <c>obraId|cidadeId|tipo|x|y|diasParada</c>.</summary>
+    WorkResumed,
+
+    /// <summary>Obra abandonada (AD-184): sem mão por meses, sem dono ou sem cidade; o lote volta a ser livre — payload:
+    /// <c>obraId|cidadeId|tipo|x|y|motivo|feitoPm</c>.</summary>
+    WorkAbandoned,
 }

@@ -116,7 +116,8 @@ public sealed record EventInvolved(
     string? CityId = null,
     long? Amount = null,
     string? Outcome = null,
-    bool RecordOnly = false);
+    bool RecordOnly = false,
+    long? WorkId = null);
 
 /// <summary>Planta e andares de um prédio (pura do id, tipo e orientação): guardada por chave para não regerar todo tick.</summary>
 public sealed record BuildingPlan(int Floors, IReadOnlyList<FootprintCell> GroundFootprint);

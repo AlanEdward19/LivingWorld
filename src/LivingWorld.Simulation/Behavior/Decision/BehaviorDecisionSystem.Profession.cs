@@ -37,6 +37,9 @@ public sealed partial class BehaviorDecisionSystem
         long cooldown = (long)JobChangeCooldownDays * world.CurrentDate.Calendar.HoursPerDay;
         if (npc.LastJobChangeTick > 0 && now - npc.LastJobChangeTick < cooldown) return;
 
+        // AD-184: o diarista que aceitou uma obra fica nela até ela acabar ou ele largar (a obra é o trabalho dele agora)
+        if (npc.Employer is null && world.StreetRules.WageBidding && LivingWorld.Simulation.Cities.Streets.SiteWork.WorkOf(world, npc) is not null) return;
+
         // Quem já tem emprego repensa o ofício a cada 6 h (escalonado por id), não a cada despertar.
         if (npc.Employer is not null && (now + npc.Id.Value) % EmployedReviewEveryHours != 0) return;
 

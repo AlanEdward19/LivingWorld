@@ -97,10 +97,76 @@ public sealed record StreetRules(
     /// ao mercado por pessoa-mês; escolhido o meio por casa.</summary>
     public int HistoryMarketTripsPerMonth { get; init; } = 4;
 
-    /// <summary>AD-179: a casa ou o prédio da fila da cidade só anda pelas horas de uma turma no lote. Desligado por padrão: na vila
-    /// de pleno emprego (cenário <c>default.json</c>) ninguém sem emprego aceita, e a cidade parava de construir; ligar pede antes a
-    /// família e os vizinhos construírem (ajuda mútua) ou o salário da obra disputar a mão (issue no relatório da AD-179).</summary>
-    public bool BuildNeedsCrew { get; init; }
+    /// <summary>AD-179/AD-184: a casa ou o prédio da fila da cidade só anda pelas horas de uma turma no lote. Ligado por padrão desde
+    /// a AD-184: o jornal da obra disputa a mão com o ofício (<see cref="WageBidding"/>), então a cidade de pleno emprego também
+    /// constrói, mais devagar.</summary>
+    public bool BuildNeedsCrew { get; init; } = true;
+
+    /// <summary>AD-184: casa nova é obra. A casa que precisa de moradia (sem casa, ou o casal morando de favor) abre uma obra num lote;
+    /// a casa só existe quando ela termina. Desligado: o casal mora na célula onde estava, como antes.</summary>
+    public bool HouseIsWork { get; init; } = true;
+
+    /// <summary>AD-184: a oficina de quem empreende é obra; o negócio abre quando o prédio fica pronto. Desligado: abre no mês.</summary>
+    public bool VentureIsWork { get; init; } = true;
+
+    /// <summary>AD-184: a família, os parentes e os vizinhos de afeto trabalham na obra da casa nas horas livres, sem jornal.</summary>
+    public bool HelpersBuild { get; init; } = true;
+
+    /// <summary>AD-184: quem encomenda sobe a oferta quando não acha braço, até o que pode pagar; o empregado compara com o salário.</summary>
+    public bool WageBidding { get; init; } = true;
+
+    /// <summary>AD-184: horas-homem de levantar a casa de uma família (madeira, taipa e palha), sem o quintal nem o material.</summary>
+    public int HouseHours { get; init; } = 480;
+
+    /// <summary>AD-184: horas de buscar o material da casa na natureza quando ninguém o vende na cidade.</summary>
+    public int HouseGatherHours { get; init; } = 160;
+
+    /// <summary>AD-184: recurso da economia que é o material da casa (madeira no <c>default.json</c>) e quantas unidades ela leva; se
+    /// alguém o vende na cidade e a casa pode pagar, ela compra e só carrega (sem as horas de buscar na natureza).</summary>
+    public int HouseMaterialResourceId { get; init; } = 3;
+    public int HouseMaterialUnits { get; init; } = 20;
+
+    /// <summary>AD-184: horas de cercar, valar e limpar cada célula de quintal.</summary>
+    public int CroftHoursPerCell { get; init; } = 6;
+
+    /// <summary>AD-184: foro da terra do quintal, em dias de jornal por célula, pago ao tesouro da cidade ao abrir a obra.</summary>
+    public int CroftFeeDaysPerCell { get; init; } = 2;
+
+    /// <summary>AD-184: hora do dia até a qual se trabalha na obra nas horas livres (sem luz, ninguém levanta parede).</summary>
+    public int BuildDaylightEndHour { get; init; } = 18;
+
+    /// <summary>AD-184: ajudantes sem jornal (parentes e vizinhos) numa obra, fora a própria casa.</summary>
+    public int HelpersMax { get; init; } = 6;
+
+    /// <summary>AD-184: afeto (0–100) a partir do qual o vizinho entra no mutirão.</summary>
+    public double MutiraoAffection { get; init; } = 50;
+
+    /// <summary>AD-184: vontade de ajudar (parentesco ou afeto × generosidade × a parte do dia que a ida deixa) a partir da qual ajuda.</summary>
+    public double HelpMin { get; init; } = 0.25;
+
+    /// <summary>AD-184: quanto a oferta sobe (milésimos do jornal) a cada semana sem braço bastante.</summary>
+    public int OfferRaisePm { get; init; } = 100;
+
+    /// <summary>AD-184: teto da oferta, em milésimos do jornal.</summary>
+    public int OfferMaxPm { get; init; } = 3000;
+
+    /// <summary>AD-184: o empregado só larga o ofício pela obra se o jornal dela vale esta razão do salário (a da troca de emprego).</summary>
+    public double QuitMargin { get; init; } = 1.25;
+
+    /// <summary>AD-184: a margem do lavrador na entressafra (fora da semeadura e da ceifa: a ceifa o toma de volta) e no pico.</summary>
+    public double QuitMarginSlack { get; init; } = 1.0;
+    public double QuitMarginPeak { get; init; } = 2.0;
+
+    /// <summary>AD-184: dias sem hora de obra depois dos quais ela conta como parada (evento); volta a contar ao retomar.</summary>
+    public int StallDays { get; init; } = 7;
+
+    /// <summary>AD-184: o trecho de teste que descobre como calçar é obra com turma (horas de gente no trecho, pagas pelo tesouro), não
+    /// um prazo que corre sozinho; <see cref="PrototypeHours"/> horas de trabalho (tentativa e erro numa célula).</summary>
+    public bool PrototypeIsWork { get; init; } = true;
+    public int PrototypeHours { get; init; } = 120;
+
+    /// <summary>AD-184: o casal mora sozinho (casa própria) e não com os pais: costume do noroeste europeu (neolocal).</summary>
+    public bool NeolocalCouples { get; init; } = true;
 
     /// <summary>AD-179: meses sem nenhuma hora de turma depois dos quais a obra de calçamento é desfeita (o material comprado fica
     /// gasto): numa vila sem mão livre ela não fica aberta para sempre, segurando a cidade.</summary>
@@ -110,6 +176,12 @@ public sealed record StreetRules(
     public int BuildUnitsPerLoad { get; init; } = 2;
 
     public static StreetRules Default { get; } = new();
+
+    /// <summary>AD-184 desligada (<c>LW_AD184=off</c>), para medir pareado: a obra da AD-179 como era.</summary>
+    public StreetRules WithoutAd184() => this with
+    {
+        BuildNeedsCrew = false, HouseIsWork = false, VentureIsWork = false, HelpersBuild = false, WageBidding = false, PrototypeIsWork = false,
+    };
 
     /// <summary>A regra de antes do AD-176 (linha reta), para medir pareado.</summary>
     public static StreetRules Off { get; } = new(Enabled: false);

@@ -43,6 +43,32 @@ public sealed class ConstructionProject(
     /// <summary>AD-179: horas de carregar o material do estoque da cidade (o largo) até o lote, ainda por fazer.</summary>
     public long HaulHoursLeft { get; set; }
 
+    /// <summary>AD-184: id da obra (o mesmo contador das obras do chão), dado quando o lote é escolhido; nulo antes.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public long? WorkId { get; set; }
+
+    /// <summary>AD-184: o canteiro (prédio com obra em curso) que ocupa o lote; nulo antes do lote.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public long? Canteiro { get; set; }
+
+    /// <summary>AD-184: oferta de jornal da cidade aos diaristas, em milésimos do jornal (nulo = o jornal do dia).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? OfferPm { get; set; }
+
+    /// <summary>AD-184: último tick em que a oferta subiu e o da última hora de turma (parada e retomada).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public long? LastRaiseTick { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public long? LastProgressTick { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Stalled { get; set; }
+
+    /// <summary>AD-184: o evento que abriu a obra (causa dos eventos de parada, retomada e fim).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public long? StartEventId { get; set; }
+
     // SPEC_DEVIATION: design.md declara Consumed só como dado de construção
     // (imutável). ConstructionSystem precisa registrar consumo tick a tick (AC "consumido ao
     // longo dos ticks") — sem mutador, Consumed nunca sairia de vazio.

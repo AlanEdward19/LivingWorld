@@ -103,9 +103,13 @@ public static class LivingScopeProjector
                     ? recipe.TicksToBuild
                     : Math.Max(1, project.TicksRemaining);
                 double progress = 1.0 - project.TicksRemaining / (double)totalTicks;
-                var site = BuildingPlacementResolver.ResolveQueuedSite(processCity, index);
+                // AD-184: a obra com lote escolhido está no lote dela (antes, o anel fixo de sempre)
+                var site = project.SiteX >= 0 ? new CellCoord(project.SiteX, project.SiteY) : BuildingPlacementResolver.ResolveQueuedSite(processCity, index);
                 processes.Add(new ProcessVisual(index, "construction", project.BuildingTypeId, progress, "construction", Location: site));
             }
+        if (focusedCity is { } worksCity) // AD-184: casa e oficina em obra, no lote, com o id da obra
+            foreach (var work in LivingWorld.Simulation.Cities.Works.WorkView.InCity(world, worksCity))
+                processes.Add(new ProcessVisual(-1_000_000 - work.Id, "build-work", work.Id, work.Progress, work.Kind, Location: work.Location));
 
         foreach (var construct in world.ExtraordinaryConstructs
             .Where(construct => IsCellInScope(construct.Origin, focusedCity, isWorld, cityBounds))
@@ -247,6 +251,7 @@ public static class LivingScopeProjector
                 Lodging = lodging,
                 // AD-173: o lote de verdade (quintal, passagem da porta à rua, rua da frente)
                 Lot = LotOf(world, city, building, resolved.Position, resolved.Croft),
+                Work = LivingWorld.Simulation.Cities.Works.WorkView.Of(world, building), // AD-184: canteiro
             });
         }
 
