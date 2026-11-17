@@ -222,7 +222,11 @@ public sealed partial class BehaviorDecisionSystem
         }
         bool fed = false;
         var meal = household is null ? new ResourceType(econ.FoodResourceId) : FoodResolver.ResolveMeal(world, household);
-        if (meal.Id > 0 && (household?.Withdraw(meal, 1).IsSuccess == true || TryRation(world, npc, meal)))
+        // AD-157b: com a despensa em casa (e a hora da refeição), quem foi só beber não come a ração inteira sem fome; antes a sede,
+        // que vem a cada dia, levava uma ração a cada vez e a despensa das casas pobres esvaziava (fome nas seeds pobres)
+        bool appetite = !(world.InventionOn && world.InventionRules!.PantryNeedsPresence)
+            || 100 - npc.HungerAt(tick) >= LivingWorld.Simulation.Invention.PersonalCarry.AppetiteDeficit;
+        if (appetite && meal.Id > 0 && (household?.Withdraw(meal, 1).IsSuccess == true || TryRation(world, npc, meal)))
         {
             npc.SetHunger(Math.Max(npc.HungerAt(tick), ObjectUse.ConsumeLevel(world, meal, ObjectEffectTargets.Hunger)), tick);
             world.RecordResourceConsumed(meal, 1);

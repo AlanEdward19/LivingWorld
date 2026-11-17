@@ -118,14 +118,14 @@ public sealed partial class BehaviorDecisionSystem
     }
 
     /// <summary>AD-157b: à toa ou conversando longe da despensa (o turno acabou longe de casa): a viagem leva para a cama da casa.</summary>
-    private static bool OffShiftFarFromPantry(WorldState world, Npc npc) =>
+    internal static bool OffShiftFarFromPantry(WorldState world, Npc npc) =>
         world.InventionOn && world.InventionRules!.PantryNeedsPresence && npc.Household is { } h
         && world.FindHousehold(h) is { } home && PersonalCarry.PantryOutOfReach(world, npc, home)
         && SleepDestinationOf(world, npc) is { } bed && bed == home.Location;
 
     /// <summary>AD-157b: a ceia. Com a despensa em casa, quem vai dormir em casa e chegaria à fome crítica na noite come antes; quem
     /// só chegaria à sede urgente bebe um copo (como o desjejum antes de sair): sem isso acordava com fome e sede.</summary>
-    private static bool SupperBeforeSleep(WorldState world, Npc npc, ActionCatalog catalog, long now)
+    internal static bool SupperBeforeSleep(WorldState world, Npc npc, ActionCatalog catalog, long now)
     {
         if (!world.InventionOn || !world.InventionRules!.PantryNeedsPresence || npc.Household is not { } h
             || world.FindHousehold(h) is not { IsHomeless: false } home || npc.CurrentLocation != home.Location)
@@ -146,7 +146,7 @@ public sealed partial class BehaviorDecisionSystem
     /// <summary>AD-157b: a hora da refeição em casa. Com a despensa em casa, quem está em casa sem urgência e com a fome perto da
     /// urgência (<see cref="PersonalCarry.MealTimeDeficit"/>) come agora, com a casa tendo comida: a fome sozinha só vencia o resto
     /// da escolha já crítica (a refeição de duas horas era passada com fome crítica).</summary>
-    private static bool MealTimeAtHome(WorldState world, Npc npc, long now)
+    internal static bool MealTimeAtHome(WorldState world, Npc npc, long now)
     {
         if (!world.InventionOn || !world.InventionRules!.PantryNeedsPresence || npc.Household is not { } h
             || world.FindHousehold(h) is not { IsHomeless: false } home || npc.CurrentLocation != home.Location)
