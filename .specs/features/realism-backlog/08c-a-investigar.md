@@ -77,3 +77,7 @@
 152. **O saber e a carga de toda morte** (AD-166) mudam a mortalidade 1,010× em 40 × 15 (IC90 1,002–1,020) e 1,002× em
      6 × 50: o morto deixava de esquecer designs; os desenhos agora viram lápide mais cedo. Aplicado por correção; medir de novo
      em 20 × 100.
+153. **A carga do morto fica onde ele morreu** (pedido do dono, 2026-11-17): hoje `PersonalCarry.Forget` leva a carga à
+     despensa da casa na hora, esteja o morto onde estiver (ou a dá por consumida se não há casa). Pedido: morreu em casa, fica
+     com a casa; morreu longe, a carga e o recipiente ficam no local, para alguém da casa ir buscar ou para ser furtada por
+     quem passa. Fatia AD-168, depois do bloco de desempenho (muda o mundo; a conservação tem de fechar com a carga no chão).
