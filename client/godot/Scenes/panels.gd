@@ -370,6 +370,7 @@ class ClockPanel extends HBoxContainer:
 	var _command_buttons: Array = []
 	var can_control := true
 	var locked_reason := ""
+	var show_status_text := true ## falso: a linha de estado vai só na dica (barra estreita)
 	signal changed()
 	signal status_changed(status: Dictionary)
 
@@ -434,3 +435,6 @@ class ClockPanel extends HBoxContainer:
 				_speed_buttons[i].button_pressed = is_equal_approx(SPEEDS[i], float(status.ticksPerSecond))
 			status_changed.emit(status)
 		_label.text = status_text
+		_label.visible = show_status_text
+		if not show_status_text:
+			tooltip_text = locked_reason if locked_reason != "" else status_text

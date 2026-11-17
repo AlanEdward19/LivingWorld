@@ -2,6 +2,7 @@ extends "res://tests/test_base.gd"
 
 const WorldEditor := preload("res://Scenes/world_editor.gd")
 const MainMenu := preload("res://Scenes/main_menu.gd")
+const GameSettings := preload("res://Scenes/menu/game_settings.gd")
 const WorldTouchup := preload("res://Scenes/world_touchup.gd")
 const ApiClient := preload("res://Contract/api_client.gd")
 const FakeTransport := preload("res://tests/fake_transport.gd")
@@ -55,20 +56,29 @@ func test_menu_edits_flow_into_the_scenario_sent_on_create() -> void:
 	var transport := _transport()
 	var menu := MainMenu.new()
 	menu.api = ApiClient.new(transport)
+	menu.settings = GameSettings.new()
+	menu.settings.path = "user://test-world-editor-settings.cfg"
 	tree.root.add_child(menu)
 	await menu.show_new_world()
-	menu.population_spin.value = 300
-	menu._add_settlement()
-	menu._change_settlement(1, {"x": 2, "y": 3})
-	var values: Dictionary = WorldEditor.read(menu.draft)
+	var wizard = menu.wizard
+	await wizard.show_customize()
+	var custom = wizard.custom
+	custom.population_spin.value = 300
+	custom.add_settlement()
+	custom.change_settlement(1, {"x": 2, "y": 3})
+	var values: Dictionary = WorldEditor.read(wizard.draft)
 	eq(values.population, 300, "população editada no rascunho")
 	eq(values.settlements.size(), 2, "segundo assentamento")
 	eq(values.settlements[1].x, 2, "posição editada")
-	menu.selected_settlement = 1
-	check(menu.preview_cell_at(menu.preview_rect.size / 2.0).x >= 0, "o centro da prévia é uma célula")
+	custom.selected_settlement = 1
+	custom.preview_rect.size = Vector2(320, 240)
+	check(custom.preview_cell_at(custom.preview_rect.size / 2.0).x >= 0, "o centro da prévia é uma célula")
 	check("POST /worlds/preview" in transport.calls, "a prévia usa o rascunho")
-	await menu._on_create()
-	check(menu.touchup != null, "criar abre os retoques")
+	custom.touchup_check.button_pressed = true
+	await wizard.create()
+	var sent: String = transport.bodies["POST /worlds/create"][0].scenarioJson
+	eq(WorldEditor.read(sent).population, 300, "o cenário enviado leva a edição")
+	check(menu.touchup != null, "com os retoques marcados, criar abre os retoques")
 	menu.free()
 
 
