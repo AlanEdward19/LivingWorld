@@ -131,6 +131,25 @@ public class LeavingsTests
             && !sink.Events.Any(e => e.Kind == WorldEventKind.TheftCommitted), "pegar o que é da própria casa não é furto");
     }
 
+    /// <summary>A busca de verdade, pela decisão do motor: em três dias alguém da casa vai ao lugar e recolhe (a viagem custa o
+    /// caminho; ninguém recolhe na hora porque ninguém da casa estava lá).</summary>
+    [Fact]
+    public void Leavings_the_household_really_travels_to_fetch_within_days()
+    {
+        var (world, clock) = ScenarioRunner.Create(1, inventionRules: ScenarioRunner.DefaultInventionRules);
+        var ctx = new TickContext(world, world.Rng, world.Scheduler);
+        var (dead, _) = Pair(world);
+        var home = HomeOf(world, dead);
+        var far = FarFrom(world, dead, home);
+        DieCarrying(world, ctx, dead, far);
+        bool leftThere = world.Invention!.Leavings is { Count: 1 };
+
+        clock.Run(world, 3 * world.Calendar.HoursPerDay);
+
+        Assert.True(leftThere && world.InventionTally.LeavingsFetches >= 1 && world.InventionTally.LeavingsCollected >= 1,
+            $"idas {world.InventionTally.LeavingsFetches}, recolhidos {world.InventionTally.LeavingsCollected}, furtados {world.InventionTally.LeavingsStolen}");
+    }
+
     /// <summary>Unidades de comida que cabem no que a pessoa leva (peso e volume), sem nada levado.</summary>
     private static long Fits(WorldState world, Npc npc)
     {
