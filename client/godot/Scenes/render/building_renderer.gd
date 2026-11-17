@@ -50,13 +50,27 @@ func upsert(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	var node := make_building(drawn, state)
 	add_child(node)
 	nodes[int(info.id)] = node
+	if xray:
+		_fade(int(info.id), 0.0)
 	return node
 
 
 # --- prédio que cobre fica translúcido (pedido do dono, AD-171 item 14) ---------------------------------------
 
 const FADE := 0.72 ## `GeometryInstance3D.transparency` por instância: sem material novo nem malha duplicada
+const XRAY := 0.88 ## raio-x (AD-177): paredes de todos os prédios translúcidas
+const XRAY_ROOF := 0.96 ## e o telhado quase some
 var faded: Dictionary = {} ## id -> true (translúcidos agora)
+var xray := false
+
+
+## Raio-x: todos os prédios translúcidos (telhado quase sumido) para ver ruas, lotes e quem anda entre as casas.
+func set_xray(on: bool) -> void:
+	if on == xray:
+		return
+	xray = on
+	for id in nodes:
+		_fade(id, FADE if faded.has(id) else 0.0)
 
 
 ## Prédios entre a câmera (direção `view_dir`, ortográfica) e algum dos pontos. `points` = [[ponto, id de prédio a ignorar]]
@@ -94,10 +108,21 @@ func _fade(id: int, amount: float) -> void:
 	if not nodes.has(id):
 		return
 	for child in nodes[id].find_children("*", "GeometryInstance3D", true, false):
-		(child as GeometryInstance3D).transparency = amount
+		var value := amount
+		if xray:
+			value = maxf(amount, XRAY_ROOF if child.name.begins_with("Roof") else XRAY)
+		(child as GeometryInstance3D).transparency = value
+		(child as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if value > 0.0 \
+			else GeometryInstance3D.SHADOW_CASTING_SETTING_ON # aberto não faz sombra sobre a rua
 
 
+## Translúcido agora: coberto pelo foco, empurrado pela alternância (Tab) ou raio-x ligado.
 func is_faded(id: int) -> bool:
+	return xray or faded.has(id)
+
+
+## O mouse atravessa só o que cobre o foco ou foi empurrado (no raio-x o prédio continua clicável).
+func passes_mouse(id: int) -> bool:
 	return faded.has(id)
 
 

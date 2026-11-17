@@ -5,6 +5,8 @@ extends RefCounted
 
 const Registry := preload("res://Store/entity_registry.gd")
 const Look := preload("res://Scenes/npc_look.gd")
+const Grid := preload("res://Scenes/grid.gd")
+const Style := preload("res://Scenes/render/street_style.gd")
 
 const NEAR_PIXELS := 32.0
 
@@ -68,7 +70,11 @@ func hit_at(screen: Vector2) -> Dictionary:
 	var crop = nearest(app.world_view.crops.positions, camera, screen, 22.0)
 	if crop != null:
 		return Registry.ref(Registry.CROP, int(crop))
-	var hit := raycast(screen)
+	return from_hit(raycast(screen))
+
+
+## O acerto do raio (colisor + ponto) como entidade: corpo, prédio, cidade ou o chão (rua/lote pela célula).
+func from_hit(hit: Dictionary) -> Dictionary:
 	if hit.is_empty():
 		return {}
 	var collider: Object = hit.collider
@@ -78,6 +84,8 @@ func hit_at(screen: Vector2) -> Dictionary:
 		return Registry.ref(Registry.BUILDING, int(collider.get_meta("building_id")))
 	if collider.has_meta("city_id"):
 		return Registry.ref(Registry.CITY, String(collider.get_meta("city_id")))
+	if collider.has_meta("ground"): # chão: rua da camada `Roads` ou lote de um prédio (AD-177); terreno comum = nada
+		return app.world_view.ground.entity_at(Grid.to_cell(hit.position))
 	return {}
 
 
@@ -114,7 +122,7 @@ func raycast(screen: Vector2) -> Dictionary:
 	var space := camera.get_world_3d().direct_space_state
 	var hit: Dictionary = space.intersect_ray(query)
 	for _i in 4: # prédio translúcido não segura o mouse: o raio passa para o que está atrás
-		if hit.is_empty() or not hit.collider.has_meta("building_id") or not app.world_view.buildings.is_faded(int(hit.collider.get_meta("building_id"))):
+		if hit.is_empty() or not hit.collider.has_meta("building_id") or not app.world_view.buildings.passes_mouse(int(hit.collider.get_meta("building_id"))):
 			break
 		query.exclude = query.exclude + [hit.rid]
 		hit = space.intersect_ray(query)
@@ -159,7 +167,7 @@ func describe(hit: Dictionary) -> String:
 				text += "\ndono: %s" % app.registry.person_name(int(state.owner_id))
 			if not state.get("residents", []).is_empty():
 				text += " · %d morador(es)" % state.residents.size()
-			return text + _price_lines(building) + "\nclique: ficha · duplo clique: entrar"
+			return text + _price_lines(building) + _lot_hint(building) + "\nclique: ficha · duplo clique: entrar · Tab: o de trás"
 		Registry.CITY:
 			var city = store.cities.get(String(id))
 			if city != null:
@@ -179,7 +187,27 @@ func describe(hit: Dictionary) -> String:
 			return "%s\nclique: ficha" % app.registry.title_of(entity)
 		Registry.OBJECT:
 			return "%s\nclique: ficha do objeto" % app.registry.title_of(entity)
+		Registry.STREET:
+			var road = store.roads.get(Registry.street_cell(String(id)))
+			if road != null:
+				var users := int(road.users)
+				return "%s · %d pessoa%s passa%s por aqui\nclique: ficha da rua" % [Style.title_of(road), users,
+					"" if users == 1 else "s", "" if users == 1 else "m"]
 	return ""
+
+
+## Uma linha curta do lote na dica do prédio (AD-177): quintal, caminho e rua, como o motor disse.
+static func _lot_hint(building) -> String:
+	var parcel: Dictionary = building.get("lot", {}) if building != null else {}
+	if parcel.is_empty():
+		return ""
+	var parts: Array[String] = ["quintal de %d célula%s" % [parcel.croft.size(), "" if parcel.croft.size() == 1 else "s"]
+		if not parcel.croft.is_empty() else "sem quintal"]
+	if not parcel.front_path.is_empty():
+		parts.append("caminho de %d até a rua" % parcel.front_path.size())
+	elif parcel.street != null:
+		parts.append("porta na rua")
+	return "\nlote: " + " · ".join(parts)
 
 
 ## Preço do imóvel como o servidor calculou hoje: hospedagem mostra vagas, aluguel e diária.
@@ -234,7 +262,10 @@ func update_fade(hovered: Dictionary) -> void:
 		return
 	var camera: Camera3D = app.rig.camera
 	var view_dir := -camera.global_transform.basis.z if camera.is_inside_tree() else Vector3(-0.5, -0.7, -0.5).normalized()
-	app.world_view.buildings.set_faded(app.world_view.buildings.occluders(focus_points(hovered), view_dir))
+	var covering: Dictionary = app.world_view.buildings.occluders(focus_points(hovered), view_dir)
+	if app.reading != null:
+		covering.merge(app.reading.pushed) # Tab/Alt+roda: os da frente da pilha sob o cursor abrem
+	app.world_view.buildings.set_faded(covering)
 
 
 func update_hover() -> void:
@@ -242,6 +273,11 @@ func update_hover() -> void:
 		app.tooltip.visible = false
 		return
 	var mouse: Vector2 = app.get_viewport().get_mouse_position()
+	if app.reading != null and app.reading.plan_open():
+		app.reading.plan.update_tooltip(mouse)
+		return
+	if app.reading != null:
+		app.reading.on_hover(mouse)
 	var hit: Dictionary = hit_at(mouse)
 	update_fade(hit)
 	app.hover_text = describe(hit)

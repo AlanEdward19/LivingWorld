@@ -1,5 +1,6 @@
 extends Node3D
-## Terreno (MultiMesh com cor por célula), rios, ruas e quintais da cidade em foco, e a vegetação (Scenery).
+## Terreno (MultiMesh com cor por célula), rios e a vegetação (Scenery). Rua e lote não são terreno: o chão da cidade que
+## o motor expõe (camada `Roads`, `lot` do prédio) é desenhado por cima, em `ground_renderer.gd` (AD-177).
 
 const Grid := preload("res://Scenes/grid.gd")
 const Scenery := preload("res://Scenes/scenery.gd")
@@ -8,14 +9,12 @@ const Season := preload("res://Scenes/render/season_palette.gd")
 const TERRAIN_COLORS: Array[Color] = [
 	Color("6aa84f"), Color("c9b777"), Color("7a8a5a"), Color("8a8f98"), Color("4a7fa8"), Color("a67c52"),
 ]
-const STREET_COLOR := Color("8f8574")
-const YARD_COLOR := Color("6e5c45")
 
 var store
 var terrain_root: Node3D
 var scenery
 var _multi: MultiMesh
-var _base: Array = [] ## [cor, paved, água] por instância: a estação recolore sem refazer a malha
+var _base: Array = [] ## [cor, água] por instância: a estação recolore sem refazer a malha
 var _season_key := "-"
 
 
@@ -43,7 +42,6 @@ func rebuild(p_store) -> void:
 	_base.clear()
 	_multi = multi
 	_season_key = "-"
-	var paved := settlement_cells(store)
 	for cell in store.terrain:
 		var id: int = store.terrain[cell]
 		var bed_drop := -0.13 if store.rivers.has(cell) else 0.0
@@ -52,9 +50,7 @@ func rebuild(p_store) -> void:
 		var color: Color = TERRAIN_COLORS[(id - 1) % TERRAIN_COLORS.size()] * shade
 		if store.rivers.has(cell):
 			color = Color("6d7f5a") * shade # leito sob a água
-		elif paved.has(cell):
-			color = paved[cell] * (0.92 + float((cell.x + cell.y) % 2) * 0.1) # xadrez de pedra: rua e quintal
-		_base.append([color, paved.has(cell), store.rivers.has(cell)])
+		_base.append([color, store.rivers.has(cell)])
 		multi.set_instance_color(index, color)
 		index += 1
 	var instance := MultiMeshInstance3D.new()
@@ -96,38 +92,6 @@ func apply_season(climate: Dictionary) -> void:
 		return
 	_season_key = signature
 	for i in _base.size():
-		_multi.set_instance_color(i, Season.ground(_base[i][0], climate, _base[i][1], _base[i][2]))
+		_multi.set_instance_color(i, Season.ground(_base[i][0], climate, false, _base[i][1]))
 	if scenery != null:
 		scenery.apply_season(climate)
-
-
-## Dentro de um assentamento o chão deixa de ser mato: quintal de terra batida em volta de cada prédio (a planta inteira
-## mais uma célula, sem supor prédios colados: o recuo entre eles vira rua) e rua de pedra no resto dos limites. Quando o
-## mundo traz a camada `Roads` (ruas do motor), só as células dela são rua e o resto é lote livre. Só cor de instância do
-## terreno (custo zero); no mapa-múndi devolve vazio e o chão segue natural.
-const LOT_COLOR := Color("8a9a6a")
-
-
-static func settlement_cells(store) -> Dictionary:
-	var cells := {}
-	if store.kind != "City" or not store.city.has("bounds"):
-		return cells
-	var bounds: Rect2i = store.city.bounds
-	var yard := {}
-	for building in store.buildings.values():
-		for entry in building.footprint:
-			var cell: Vector2i = building.get("cell", Vector2i.ZERO) + entry.cell
-			for dx in [-1, 0, 1]:
-				for dy in [-1, 0, 1]:
-					yard[cell + Vector2i(dx, dy)] = true
-	var roads: Dictionary = store.roads if "roads" in store else {}
-	for x in range(bounds.position.x, bounds.end.x):
-		for y in range(bounds.position.y, bounds.end.y):
-			var cell := Vector2i(x, y)
-			if roads.has(cell):
-				cells[cell] = STREET_COLOR
-			elif yard.has(cell):
-				cells[cell] = YARD_COLOR
-			else:
-				cells[cell] = LOT_COLOR if not roads.is_empty() else STREET_COLOR
-	return cells

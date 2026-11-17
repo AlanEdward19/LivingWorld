@@ -16,7 +16,8 @@ const ANIMAL := "animal"
 const FAUNA := "fauna" ## bando agregado do mapa-múndi (id = "espécie:região")
 const LEAVING := "leaving"
 const ITEM := "item" ## peça inventada (objeto da projeção, id numérico); OBJECT é a mobília do interior (id do catálogo)
-const KINDS := [PERSON, BUILDING, CITY, PROCESS, OBJECT, WORKPLACE, HOUSEHOLD, EVENT, CROP, ANIMAL, FAUNA, LEAVING, ITEM]
+const STREET := "street" ## célula de rua da camada `Roads` (id = "x,y"; AD-177)
+const KINDS := [PERSON, BUILDING, CITY, PROCESS, OBJECT, WORKPLACE, HOUSEHOLD, EVENT, CROP, ANIMAL, FAUNA, LEAVING, ITEM, STREET]
 ## Tipo local -> tipo da rota `GET /entities/{kind}/{id}` (AD-170); ausente = sem rota (evento, processo, mobília, bando).
 const SERVER_KINDS := {PERSON: "npc", BUILDING: "building", CITY: "city", CROP: "crop", ANIMAL: "animal", LEAVING: "leaving",
 	ITEM: "object", WORKPLACE: "workplace", HOUSEHOLD: "household"}
@@ -155,7 +156,16 @@ func title_of(entity: Dictionary) -> String:
 			return "Espólio de %s" % person_name(int(leaving.dead_id)) if leaving != null and int(leaving.dead_id) >= 0 else "Espólio"
 		ITEM:
 			return String(entity_names.get(key(entity), "Objeto nº %d" % int(id)))
+		STREET:
+			var road = store.roads.get(street_cell(String(id))) if store != null else null
+			return preload("res://Scenes/render/street_style.gd").title_of(road) if road != null else "Rua"
 	return str(id)
+
+
+## "x,y" (id de rua) -> célula.
+static func street_cell(id: String) -> Vector2i:
+	var parts := id.split(",")
+	return Vector2i(parts[0].to_int(), parts[1].to_int()) if parts.size() == 2 else Vector2i(-(1 << 20), -(1 << 20))
 
 
 ## Guarda a ficha e aprende os vínculos que ela revela (pais → filhos, casa → moradores, emprego → trabalhadores).

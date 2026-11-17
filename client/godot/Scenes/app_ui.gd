@@ -26,7 +26,7 @@ const PauseMenu := preload("res://Scenes/pause_menu.gd")
 const FirstSteps := preload("res://Scenes/first_steps.gd")
 const LoadingScreen := preload("res://Scenes/menu/loading_screen.gd")
 
-const HELP := "Clique: ver quem é · Botão direito: andar · Roda: zoom · F: seguir · N: próximo acontecimento · V: assistir · ? ou F1: todos os atalhos · Esc: pausa"
+const HELP := "Clique: ver quem é · Botão direito: andar · Roda: zoom · F: seguir · N: próximo acontecimento · V: assistir · X: raio-x · P: planta · ? ou F1: todos os atalhos · Esc: pausa"
 const NO_ADMIN := "Só quem ligou o mundo (o admin) controla o tempo: abra o jogo pelo Jogar.command, que cuida disso sozinho."
 
 

@@ -212,6 +212,11 @@ func interior_snapshot(building_id: int) -> Dictionary:
 	return await _fetch("/visual/subscribe?scope=Interior&refId=%d&mode=Spectator" % building_id, "interior-subscribe")
 
 
+## Retrato do mundo pela rota sem estado (só leitura): a camada `Roads` é relida daqui sem recarregar a cena (AD-177).
+func world_snapshot() -> Dictionary:
+	return await _fetch("/visual/subscribe?scope=World&mode=Spectator", "world-subscribe")
+
+
 func city_snapshot(city_id: String) -> Dictionary:
 	return await _fetch("/visual/subscribe?scope=City&refId=%s&mode=Spectator" % city_id.uri_encode(), "city-subscribe")
 
