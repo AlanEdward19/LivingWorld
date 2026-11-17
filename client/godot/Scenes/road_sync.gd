@@ -50,6 +50,8 @@ func refresh() -> void:
 	_busy = true
 	var response: Dictionary = await app.api.world_snapshot()
 	_busy = false
+	if not response.get("errors", []).is_empty():
+		app._on_contract_error(response.errors) # mesma faixa do topo do stream: divergência nunca fica muda
 	if not response.ok or not response.body is Dictionary or not response.body.get("payload") is Dictionary:
 		return
 	var layers = response.body.payload.get("layers")

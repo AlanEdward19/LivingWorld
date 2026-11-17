@@ -58,8 +58,8 @@ func upsert(info: Dictionary, state: Dictionary = {}) -> Node3D:
 # --- prédio que cobre fica translúcido (pedido do dono, AD-171 item 14) ---------------------------------------
 
 const FADE := 0.72 ## `GeometryInstance3D.transparency` por instância: sem material novo nem malha duplicada
-const XRAY := 0.8 ## raio-x (AD-177): paredes de todos os prédios translúcidas
-const XRAY_ROOF := 0.94 ## e o telhado quase some
+const XRAY := 0.88 ## raio-x (AD-177): paredes de todos os prédios translúcidas
+const XRAY_ROOF := 0.96 ## e o telhado quase some
 var faded: Dictionary = {} ## id -> true (translúcidos agora)
 var xray := false
 
@@ -112,6 +112,8 @@ func _fade(id: int, amount: float) -> void:
 		if xray:
 			value = maxf(amount, XRAY_ROOF if child.name.begins_with("Roof") else XRAY)
 		(child as GeometryInstance3D).transparency = value
+		(child as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if value > 0.0 \
+			else GeometryInstance3D.SHADOW_CASTING_SETTING_ON # aberto não faz sombra sobre a rua
 
 
 ## Translúcido agora: coberto pelo foco, empurrado pela alternância (Tab) ou raio-x ligado.

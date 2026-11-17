@@ -17,6 +17,9 @@ const CROFT_PLAN := Color("7fa65a")
 const FENCE_PLAN := Color("4b3a24")
 const BACKGROUND := Color(0.11, 0.12, 0.11, 0.95)
 const LEGEND_WIDTH := 250.0
+const TOP := 64.0 ## abaixo da barra do topo
+const RIGHT := 320.0 ## a ficha fica à direita, por cima: a planta não se esconde atrás dela
+const DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 
 var app
 var area := Rect2i() ## células desenhadas
@@ -53,9 +56,9 @@ func refresh() -> void:
 
 
 func _layout() -> void:
-	var room := size - Vector2(LEGEND_WIDTH + 40.0, 70.0)
+	var room := (size - Vector2(LEGEND_WIDTH + 30.0 + RIGHT, TOP + 40.0)).max(Vector2(40, 40))
 	cell_px = clampf(minf(room.x / maxf(area.size.x, 1), room.y / maxf(area.size.y, 1)), 1.0, 48.0)
-	origin = Vector2(LEGEND_WIDTH + 20.0, 50.0) + (room - Vector2(area.size) * cell_px) / 2.0
+	origin = Vector2(LEGEND_WIDTH + 20.0, TOP) + (room - Vector2(area.size) * cell_px) / 2.0
 
 
 func cell_rect(cell: Vector2i, inset := 0.0) -> Rect2:
@@ -95,7 +98,16 @@ func _draw() -> void:
 	_fences()
 	for cell in roads:
 		var style := Style.style_of(roads[cell])
-		draw_rect(cell_rect(cell, 0.5 - float(style.width) / 2.0), Color(style.plan))
+		var width := float(style.width)
+		var box := cell_rect(cell, 0.5 - width / 2.0)
+		draw_rect(box, Color(style.plan))
+		for dir in DIRS: # braço até a rua vizinha: a rua se lê como linha contínua, não como pontos
+			if roads.has(cell + dir):
+				var arm := minf(width, float(Style.style_of(roads[cell + dir]).width)) * cell_px
+				var center := box.get_center()
+				var edge := center + Vector2(dir) * cell_px * 0.5
+				draw_rect(Rect2(center.min(edge) - Vector2(absf(dir.y), absf(dir.x)) * arm / 2.0,
+					(edge - center).abs() + Vector2(absf(dir.y), absf(dir.x)) * arm), Color(style.plan))
 		if bool(style.main) and not bool(style.square):
 			draw_rect(cell_rect(cell, 0.42), Color("3b3128"))
 	var font := ThemeDB.fallback_font
@@ -132,7 +144,7 @@ func _fences() -> void:
 
 func _legend(font: Font) -> void:
 	var title := "Planta de %s" % String(app.store.city.get("name", "")) if app.store.kind == "City" else "Planta do mundo"
-	draw_string(font, Vector2(16, 30), title, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color.WHITE)
+	draw_string(font, Vector2(16, TOP + 18), title, HORIZONTAL_ALIGNMENT_LEFT, LEGEND_WIDTH, 18, Color.WHITE)
 	var rows: Array = []
 	for surface in Style.SURFACES:
 		rows.append([Style.SURFACES[surface].plan, "Rua: %s" % Style.SURFACES[surface].name])
@@ -145,7 +157,7 @@ func _legend(font: Font) -> void:
 	rows.append([UNKNOWN_BUILDING, "Prédio sem função conhecida"])
 	rows.append([Color("3b2a20"), "Porta"])
 	rows.append([WATER, "Água"])
-	var y := 56.0
+	var y := TOP + 48.0
 	for row in rows:
 		draw_rect(Rect2(16, y - 12, 16, 16), row[0])
 		draw_string(font, Vector2(40, y + 1), row[1], HORIZONTAL_ALIGNMENT_LEFT, LEGEND_WIDTH - 30, 13, Color(1, 1, 1, 0.9))
