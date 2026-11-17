@@ -25,6 +25,7 @@ const Parse := preload("res://Store/observable_parse.gd")
 var kind := ""
 var map_size := Vector2i.ZERO
 var rivers: Dictionary = {} ## Vector2i -> true
+var roads: Dictionary = {} ## Vector2i -> true (camada `Roads` do mundo quando o motor a modela; vazia hoje)
 var terrain: Dictionary = {} ## Vector2i -> int (id de terreno), vem do mundo e persiste entre escopos
 var names: Dictionary = {} ## npc id -> nome (vem do escopo: `observable.name`)
 var cities: Dictionary = {} ## id (String) -> {id,name,location,population,bounds:Rect2i,density}
@@ -99,6 +100,12 @@ func _load_world(payload: Dictionary) -> void:
 	if river_layer != null and river_layer.get("isModeled", false):
 		for entry in river_layer.payload:
 			rivers[cell_of(entry)] = true
+	var road_layer = payload.get("layers", {}).get("Roads")
+	roads.clear()
+	if road_layer is Dictionary and road_layer.get("isModeled", false) and road_layer.get("payload") is Array:
+		for entry in road_layer.payload:
+			if entry is Dictionary and entry.get("x") != null:
+				roads[cell_of(entry)] = true
 	var climate_layer = payload.get("layers", {}).get("Climate")
 	climate_regions = climate_layer.payload.get("regions", []) if climate_layer is Dictionary and climate_layer.get("isModeled", false) \
 		and climate_layer.get("payload") is Dictionary else []
@@ -233,8 +240,8 @@ func _npc(id: int, cell: Vector2i, action: Variant, city_id: String, look: Dicti
 ## `targetId` (o NPC que age; a lavoura; o tipo de prédio da obra), progresso 0..1 e célula quando o servidor sabe onde.
 static func _process(visual: Dictionary) -> Dictionary:
 	var location = visual.get("location")
-	return {"id": int(visual.id), "kind": String(visual.kind), "target": int(visual.get("targetId", -1)),
-		"progress": clampf(float(visual.get("progress", 0.0)), 0.0, 1.0), "descriptor": String(visual.get("descriptorKey", "")),
+	return {"id": int(visual.id), "kind": Parse._s(visual, "kind", "process"), "target": Parse._i(visual, "targetId", -1),
+		"progress": clampf(Parse._f(visual, "progress", 0.0), 0.0, 1.0), "descriptor": Parse._s(visual, "descriptorKey"),
 		"quality": visual.get("quality"), "remaining": visual.get("remainingHours"),
 		"cell": cell_of(location), "has_cell": location is Dictionary}
 
@@ -252,9 +259,9 @@ func _building(id: int, marker: Dictionary) -> Dictionary:
 	for entry in marker.get("groundFootprint", []) if marker.get("groundFootprint") != null else []:
 		footprint.append({"cell": cell_of(entry.cell), "material": int(entry.material)})
 	return {
-		"id": id, "type": int(marker.buildingTypeId), "cell": cell_of(marker.location),
-		"orientation": int(marker.get("orientation", 0)), "floors": int(marker.get("floors", 1)),
-		"footprint": footprint, "value": int(marker.get("value", 0)), "lodging": marker.get("lodging"),
+		"id": id, "type": Parse._i(marker, "buildingTypeId", -1), "cell": cell_of(marker.get("location")),
+		"orientation": Parse._i(marker, "orientation", 0), "floors": Parse._i(marker, "floors", 1),
+		"footprint": footprint, "value": Parse._i(marker, "value", 0), "lodging": marker.get("lodging"),
 	}
 
 
@@ -266,7 +273,9 @@ func apply_delta(envelope: Dictionary) -> void:
 	var upserted := {}
 	for visual in delta.get("npcUpserts", []):
 		var id: int = id_of(visual.id)
-		var cell := cell_of(visual.location)
+		var previous_known = npcs.get(id)
+		# `location` sempre vem; se faltar (ou vier nula), fica a célula conhecida
+		var cell: Vector2i = cell_of(visual.location) if visual.get("location") is Dictionary else (previous_known.cell if previous_known != null else Vector2i.ZERO)
 		var action: int = NO_ACTION if visual.get("currentAction") == null else int(visual.currentAction)
 		var previous = npcs.get(id)
 		var from_cell: Vector2i = previous.cell if previous != null else cell
@@ -286,6 +295,8 @@ func apply_delta(envelope: Dictionary) -> void:
 		if upserted.has(id) or known == null:
 			continue
 		var from_cell: Vector2i = known.cell
+		if not entry.get("location") is Dictionary:
+			continue
 		known.cell = cell_of(entry.location)
 		if known.cell != from_cell:
 			npc_changed.emit(id, from_cell, known.cell, int(known.action))
@@ -337,20 +348,21 @@ func apply_delta(envelope: Dictionary) -> void:
 	_apply_observable_delta(delta)
 	if kind == "City" and not delta.get("indicators", []).is_empty() and city.has("indicators"):
 		for update in delta.indicators:
-			city.indicators[String(update.key)] = float(update.value)
+			if update.get("key") != null and update.get("value") != null:
+				city.indicators[String(update.key)] = float(update.value)
 		indicators_changed.emit()
 	if not delta.get("events", []).is_empty():
 		events_arrived.emit(delta.events)
-	if delta.get("cityUpserts", []).size() > 0 or delta.get("cityRemoved", []).size() > 0:
-		for upsert in delta.cityUpserts:
+	if not _list(delta, "cityUpserts").is_empty() or not _list(delta, "cityRemoved").is_empty():
+		for upsert in _list(delta, "cityUpserts"):
 			var id: String = id_of(upsert.id)
 			var known_density: Dictionary = cities[id].get("density", {}) if cities.has(id) else {}
 			cities[id] = {
-				"id": id, "name": upsert.name, "location": cell_of(upsert.location),
-				"population": int(upsert.population), "bounds": rect_of(upsert.bounds),
+				"id": id, "name": Parse._s(upsert, "name"), "location": cell_of(upsert.get("location")),
+				"population": Parse._i(upsert, "population", 0), "bounds": rect_of(upsert.bounds),
 				"density": Parse.density(upsert.get("density")) if upsert.get("density") is Dictionary else known_density,
 			}
-		for removed in delta.cityRemoved:
+		for removed in _list(delta, "cityRemoved"):
 			cities.erase(id_of(removed))
 		cities_changed.emit()
 

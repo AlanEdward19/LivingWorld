@@ -27,6 +27,57 @@ var _hovered := -1
 var _links: MultiMeshInstance3D
 var _link_clock := 0.0
 var link_pairs: Array = [] ## [[a, b]] desenhados agora (testável)
+var cell_members: Dictionary = {} ## célula -> [ids] (quem divide a célula se espalha dentro dela)
+const SPREAD_RADIUS := 0.3
+const RING := 8
+
+
+## Lugar de cada um numa célula dividida: sozinho no centro; em grupo, num anel de até 8 vagas iguais (a preferida é id % vagas, conflito
+## vai para a próxima livre, na ordem dos ids: estável enquanto o grupo é o mesmo); acima de 8, um anel interno.
+static func spread_offsets(ids: Array) -> Dictionary:
+	var out := {}
+	if ids.size() <= 1:
+		for id in ids:
+			out[id] = Vector3.ZERO
+		return out
+	var sorted := ids.duplicate()
+	sorted.sort()
+	var taken := {}
+	for i in sorted.size():
+		var id: int = sorted[i]
+		var ring := i / RING
+		var slots := mini(sorted.size() - ring * RING, RING) # vagas iguais no anel: dois ficam em lados opostos
+		var slot := posmod(id, slots)
+		while taken.has(ring * RING + slot):
+			slot = (slot + 1) % slots
+		taken[ring * RING + slot] = true
+		var angle := TAU * float(slot) / slots + ring * PI / RING
+		var radius := SPREAD_RADIUS / float(ring + 1)
+		out[id] = Vector3(cos(angle), 0, sin(angle)) * radius
+	return out
+
+
+func _join(id: int, cell: Vector2i) -> void:
+	var members: Array = cell_members.get_or_add(cell, [])
+	if not members.has(id):
+		members.append(id)
+	_respread(cell)
+
+
+func _leave(id: int, cell: Vector2i) -> void:
+	var members: Array = cell_members.get(cell, [])
+	members.erase(id)
+	if members.is_empty():
+		cell_members.erase(cell)
+	else:
+		_respread(cell)
+
+
+func _respread(cell: Vector2i) -> void:
+	var offsets := spread_offsets(cell_members.get(cell, []))
+	for id in offsets:
+		if nodes.has(id):
+			nodes[id].set_spread(offsets[id])
 
 
 func _init() -> void:
@@ -51,6 +102,7 @@ func rebuild() -> void:
 	for node in nodes.values():
 		_dispose(node)
 	nodes.clear()
+	cell_members.clear()
 	_hovered = -1
 	for id in store.npcs:
 		spawn(store.npcs[id])
@@ -71,6 +123,7 @@ func spawn(info: Dictionary) -> void:
 	if store.names.has(info.id):
 		actor.set_display_name(store.names[info.id])
 	nodes[info.id] = actor
+	_join(int(info.id), info.cell)
 	apply_known_model(int(info.id))
 	apply_observable(int(info.id))
 
@@ -142,13 +195,17 @@ func on_changed(id: int, from_cell: Vector2i, to_cell: Vector2i, action: int) ->
 	if action != actor.action:
 		actor.set_action(action, labels)
 		actor.face_point = target_point(store.npcs[id])
-	if to_cell != from_cell:
+	if to_cell != actor.cell:
+		var old_cell: Vector2i = actor.cell
+		_leave(id, old_cell)
+		_join(id, to_cell) # define o lugar na célula nova antes do passo
 		actor.move_to(to_cell, STEP_SECONDS)
 
 
 func on_removed(id: int) -> void:
 	var actor = nodes.get(id)
 	if actor != null:
+		_leave(id, actor.cell)
 		_dispose(actor)
 		nodes.erase(id)
 

@@ -70,6 +70,8 @@ var _held: MeshInstance3D
 var _face: Node3D
 var _face_expression := "-"
 var _sickbed: Node3D
+var spread := Vector3.ZERO ## lugar dentro da célula quando ela é dividida (só apresentação; a célula é a do servidor)
+const VEER := 0.16 ## desvio lateral no meio do passo: quem se cruza passa pela direita, não por dentro do outro
 
 
 func setup(id: int, p_cell: Vector2i, p_action: int, labels, p_look: Dictionary = {}) -> void:
@@ -521,10 +523,26 @@ func label_text_shown() -> String:
 	return _label.text if _label != null else ""
 
 
+## Novo lugar dentro da mesma célula (outro chegou ou saiu): desliza até lá se está parado.
+func set_spread(offset: Vector3) -> void:
+	if offset.is_equal_approx(spread):
+		return
+	spread = offset
+	if _t >= 1.0:
+		_from = position
+		_to = Grid.to_world(cell) + spread
+		_duration = 0.35
+		_t = 0.0 if not frozen else 1.0
+		if frozen:
+			position = _to
+	else:
+		_to = Grid.to_world(cell) + spread
+
+
 func move_to(new_cell: Vector2i, duration: float) -> void:
 	cell = new_cell
 	_from = position
-	_to = Grid.to_world(new_cell)
+	_to = Grid.to_world(new_cell) + spread
 	_duration = maxf(duration, 0.001)
 	_t = 0.0
 	if frozen: # pausado (passo manual): sem caminhada, o NPC aparece no destino
@@ -556,8 +574,10 @@ func advance_motion(dt: float) -> void:
 		return
 	if _t < 1.0:
 		_t = minf(1.0, _t + dt / _duration)
-		position = _from.lerp(_to, _t)
 		var heading := _to - _from
+		position = _from.lerp(_to, _t)
+		if heading.length() > 0.5: # passo de verdade: desvia para a direita no meio e volta ao lugar no fim
+			position += Vector3(-heading.z, 0, heading.x).normalized() * VEER * sin(PI * _t)
 		if heading.length() > 0.01 and not far_lod:
 			rotation.y = lerp_angle(rotation.y, atan2(heading.x, heading.z), minf(1.0, dt * 10.0))
 

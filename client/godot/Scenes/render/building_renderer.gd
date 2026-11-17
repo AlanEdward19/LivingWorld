@@ -53,8 +53,57 @@ func upsert(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	return node
 
 
+# --- prédio que cobre fica translúcido (pedido do dono, AD-171 item 14) ---------------------------------------
+
+const FADE := 0.72 ## `GeometryInstance3D.transparency` por instância: sem material novo nem malha duplicada
+var faded: Dictionary = {} ## id -> true (translúcidos agora)
+
+
+## Prédios entre a câmera (direção `view_dir`, ortográfica) e algum dos pontos. `points` = [[ponto, id de prédio a ignorar]]
+## (o próprio prédio em foco não cobre a si mesmo).
+func occluders(points: Array, view_dir: Vector3) -> Dictionary:
+	var out := {}
+	for id in nodes:
+		var box: AABB = nodes[id].get_meta("box", AABB())
+		if box.size == Vector3.ZERO:
+			continue
+		box = box.grow(-0.04)
+		for entry in points:
+			var point: Vector3 = entry[0]
+			if int(entry[1]) == int(id) or box.has_point(point):
+				continue
+			if box.intersects_segment(point - view_dir * 200.0, point - view_dir * 0.05):
+				out[id] = true
+				break
+	return out
+
+
+## Aplica a translucidez só no que mudou (volta ao normal ao sair).
+func set_faded(ids: Dictionary) -> void:
+	for id in faded.keys():
+		if not ids.has(id):
+			_fade(id, 0.0)
+			faded.erase(id)
+	for id in ids:
+		if not faded.has(id) and nodes.has(id):
+			_fade(id, FADE)
+			faded[id] = true
+
+
+func _fade(id: int, amount: float) -> void:
+	if not nodes.has(id):
+		return
+	for child in nodes[id].find_children("*", "GeometryInstance3D", true, false):
+		(child as GeometryInstance3D).transparency = amount
+
+
+func is_faded(id: int) -> bool:
+	return faded.has(id)
+
+
 func remove(id: int) -> void:
 	dressed.erase(id)
+	faded.erase(id)
 	if nodes.has(id):
 		_dispose(nodes[id])
 		nodes.erase(id)
@@ -201,6 +250,7 @@ func make_building(info: Dictionary, state: Dictionary = {}) -> Node3D:
 	shape.position = Vector3(min_cell.x + span.x / 2.0, (height + 0.6) / 2.0, min_cell.y + span.y / 2.0)
 	body.add_child(shape)
 	root.add_child(body)
+	root.set_meta("box", AABB(Vector3(min_cell.x, 0, min_cell.y), Vector3(span.x, height + 0.9, span.y)))
 	return root
 
 

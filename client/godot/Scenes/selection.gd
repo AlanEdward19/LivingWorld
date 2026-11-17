@@ -111,7 +111,14 @@ func raycast(screen: Vector2) -> Dictionary:
 	var origin := camera.project_ray_origin(screen)
 	var end := origin + camera.project_ray_normal(screen) * 400.0
 	var query := PhysicsRayQueryParameters3D.create(origin, end)
-	return camera.get_world_3d().direct_space_state.intersect_ray(query)
+	var space := camera.get_world_3d().direct_space_state
+	var hit: Dictionary = space.intersect_ray(query)
+	for _i in 4: # prédio translúcido não segura o mouse: o raio passa para o que está atrás
+		if hit.is_empty() or not hit.collider.has_meta("building_id") or not app.world_view.buildings.is_faded(int(hit.collider.get_meta("building_id"))):
+			break
+		query.exclude = query.exclude + [hit.rid]
+		hit = space.intersect_ray(query)
+	return hit
 
 
 ## Texto da dica para um acerto (testável sem mouse). Aceita também o formato antigo {npc_id|building_id|city_id}.
@@ -190,12 +197,53 @@ static func _price_lines(building) -> String:
 	return ""
 
 
+## Pontos que não podem ficar escondidos atrás de um prédio: o que está sob o mouse, a pessoa selecionada e o alvo seguido.
+## Cada um é [ponto, id do prédio a ignorar] (o próprio prédio em foco não cobre a si mesmo).
+func focus_points(hovered: Dictionary) -> Array:
+	var points: Array = []
+	var entities: Array = [hovered]
+	if app.selected_npc >= 0:
+		entities.append(Registry.ref(Registry.PERSON, app.selected_npc))
+	if app.director.active():
+		entities.append(app.director.target)
+	for entity in entities:
+		if entity.is_empty():
+			continue
+		match String(entity.kind):
+			Registry.PERSON:
+				var node = app.world_view.npc_nodes.get(int(entity.id))
+				if node != null:
+					points.append([node.position + Vector3(0, 0.6 * node.scale.y, 0), -1])
+			Registry.BUILDING:
+				var center: Vector3 = app.world_view.building_center(int(entity.id))
+				if center != Vector3.INF:
+					points.append([center + Vector3(0, 0.5, 0), int(entity.id)])
+			_:
+				var point: Vector3 = app.point_of(entity)
+				if point != Vector3.INF:
+					points.append([point, -1])
+	if app.director.active() and String(app.director.target.get("kind", "")) != Registry.PERSON and app.director.last_point != Vector3.INF:
+		points.append([app.director.last_point + Vector3(0, 0.5, 0), -1])
+	return points
+
+
+## Prédio que cobre o que importa fica translúcido enquanto cobrir (só a cidade; no interior não há prédio na frente).
+func update_fade(hovered: Dictionary) -> void:
+	if app.stage.active or app.store.kind != "City":
+		app.world_view.buildings.set_faded({})
+		return
+	var camera: Camera3D = app.rig.camera
+	var view_dir := -camera.global_transform.basis.z if camera.is_inside_tree() else Vector3(-0.5, -0.7, -0.5).normalized()
+	app.world_view.buildings.set_faded(app.world_view.buildings.occluders(focus_points(hovered), view_dir))
+
+
 func update_hover() -> void:
 	if app.stage == null or not app.rig.camera.is_inside_tree():
 		app.tooltip.visible = false
 		return
 	var mouse: Vector2 = app.get_viewport().get_mouse_position()
 	var hit: Dictionary = hit_at(mouse)
+	update_fade(hit)
 	app.hover_text = describe(hit)
 	app.world_view.hover_npc(int(hit.id) if not hit.is_empty() and hit.kind == Registry.PERSON and not app.stage.active else -1)
 	app.tooltip.visible = app.hover_text != "" and not app.list_panel.get_global_rect().has_point(mouse)

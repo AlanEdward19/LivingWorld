@@ -101,8 +101,13 @@ func apply_season(climate: Dictionary) -> void:
 		scenery.apply_season(climate)
 
 
-## Dentro de um assentamento o chão deixa de ser mato: ruas de pedra e terra batida sob os prédios.
-## Só cor de instância do terreno (custo zero); no mapa-múndi devolve vazio e o chão segue natural.
+## Dentro de um assentamento o chão deixa de ser mato: quintal de terra batida em volta de cada prédio (a planta inteira
+## mais uma célula, sem supor prédios colados: o recuo entre eles vira rua) e rua de pedra no resto dos limites. Quando o
+## mundo traz a camada `Roads` (ruas do motor), só as células dela são rua e o resto é lote livre. Só cor de instância do
+## terreno (custo zero); no mapa-múndi devolve vazio e o chão segue natural.
+const LOT_COLOR := Color("8a9a6a")
+
+
 static func settlement_cells(store) -> Dictionary:
 	var cells := {}
 	if store.kind != "City" or not store.city.has("bounds"):
@@ -111,9 +116,18 @@ static func settlement_cells(store) -> Dictionary:
 	var yard := {}
 	for building in store.buildings.values():
 		for entry in building.footprint:
-			yard[entry.cell] = true
+			var cell: Vector2i = building.get("cell", Vector2i.ZERO) + entry.cell
+			for dx in [-1, 0, 1]:
+				for dy in [-1, 0, 1]:
+					yard[cell + Vector2i(dx, dy)] = true
+	var roads: Dictionary = store.roads if "roads" in store else {}
 	for x in range(bounds.position.x, bounds.end.x):
 		for y in range(bounds.position.y, bounds.end.y):
 			var cell := Vector2i(x, y)
-			cells[cell] = STREET_COLOR if not yard.has(cell) else YARD_COLOR
+			if roads.has(cell):
+				cells[cell] = STREET_COLOR
+			elif yard.has(cell):
+				cells[cell] = YARD_COLOR
+			else:
+				cells[cell] = LOT_COLOR if not roads.is_empty() else STREET_COLOR
 	return cells
