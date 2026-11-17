@@ -93,8 +93,15 @@ func _draw() -> void:
 	for cell in lots:
 		if String(lots[cell].kind) == "croft":
 			draw_rect(cell_rect(cell), CROFT_PLAN)
-		else:
-			draw_rect(cell_rect(cell, 0.3), Style.PATH_COLOR)
+		else: # caminho da porta: liga às células vizinhas do mesmo lote, à casa e à rua
+			var box := cell_rect(cell, 0.33)
+			draw_rect(box, Style.PATH_COLOR)
+			var owner := int(lots[cell].building)
+			for dir in DIRS:
+				var next: Vector2i = cell + dir
+				if int(lots.get(next, {}).get("building", -1)) == owner or int(buildings_at.get(next, -1)) == owner or roads.has(next):
+					var edge := box.get_center() + Vector2(dir) * cell_px * 0.5
+					draw_line(box.get_center(), edge, Style.PATH_COLOR, cell_px * 0.34)
 	_fences()
 	for cell in roads:
 		var style := Style.style_of(roads[cell])
