@@ -44,6 +44,21 @@ internal static class Justice
         return (Decay(record.Infamy, record.InfamyTick, now, half, hpd), Decay(record.ViolentInfamy, record.InfamyTick, now, half, hpd));
     }
 
+    /// <summary>AD-178: a fama como os outros a veem — a própria e, atenuada, a do pior da mesma linhagem (mesmo nome de família)
+    /// na mesma cidade. Lida pela suspeita, pela troca de culpado na memória e pelo crédito; a própria fama é que se grava.</summary>
+    public static double ReputationOf(WorldState world, long npc, long now)
+    {
+        double own = InfamyOf(world, npc, now).All;
+        double spill = world.FamilyRules.Names.LineageInfamySpill;
+        if (spill <= 0 || !world.CrimeOn || world.FindNpc(new NpcId(npc)) is not { } who) return own;
+        double worst = 0;
+        foreach (var record in world.Crime!.Records)
+            if (record.Npc != npc && world.FindNpc(new NpcId(record.Npc)) is { IsAlive: true } other && other.City == who.City
+                && LivingWorld.Simulation.Population.Naming.NameBonds.SameLineage(other, who))
+                worst = Math.Max(worst, InfamyOf(world, record.Npc, now).All);
+        return Math.Min(100, own + spill * worst);
+    }
+
     private static void AddInfamy(WorldState world, long npc, int amount, bool violent, long now)
     {
         if (npc < 0 || amount <= 0) return;
@@ -95,7 +110,7 @@ internal static class Justice
         // sem testemunha: a vítima (ou, na morte, a família) desconfia de quem tem má fama
         var suspector = victim is { IsAlive: true } ? victim : kind == CrimeKind.Homicide && victim is not null ? Violence.KinOf(world, victim).FirstOrDefault() : null;
         if (accused < 0 && suspector is not null && Suspect(world, suspector, offender, now) is { } suspect
-            && rng.NextDouble() < rules.SuspicionPerInfamy * InfamyOf(world, suspect, now).All)
+            && rng.NextDouble() < rules.SuspicionPerInfamy * ReputationOf(world, suspect, now))
         {
             accused = suspect;
             knowers.Add(new CaseKnower { Npc = suspector.Id.Value, Accused = suspect, Value = value });
@@ -136,7 +151,7 @@ internal static class Justice
         foreach (var id in world.RelationshipTargetsOf(witness.Id))
         {
             if (id == offender.Id || world.FindNpc(id) is not { IsAlive: true }) continue;
-            double infamy = InfamyOf(world, id.Value, now).All;
+            double infamy = ReputationOf(world, id.Value, now);
             if (infamy > worst) { worst = infamy; best = id.Value; }
         }
         if (best >= 0) return best;
@@ -152,11 +167,11 @@ internal static class Justice
         foreach (var id in world.RelationshipTargetsOf(suspector.Id))
         {
             if (world.FindNpc(id) is not { IsAlive: true }) continue;
-            double infamy = InfamyOf(world, id.Value, now).All;
+            double infamy = ReputationOf(world, id.Value, now);
             if (infamy > worst) { worst = infamy; best = id.Value; }
         }
         // quem tem má fama e foi mesmo o autor também entra (a fama ajuda a achar o culpado de verdade)
-        double own = InfamyOf(world, offender.Id.Value, now).All;
+        double own = ReputationOf(world, offender.Id.Value, now);
         if (own > worst) best = offender.Id.Value;
         return best;
     }

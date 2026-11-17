@@ -35,6 +35,7 @@ public static class EstateSystem
         var heirs = norm is null ? HeirsOf(world, dead) : NormHeirs(world, dead);
         long toCity = 0;
         long[] shares = [];
+        wallet -= NamesakeLegacy(world, dead, heirs, wallet);
         if (wallet > 0)
         {
             if (heirs.Count > 0) shares = PayHeirs(dead, heirs, wallet, norm, noteInheritance: world.EconomyRules.Venture is not null);
@@ -126,6 +127,24 @@ public static class EstateSystem
             .Where(n => n.IsAlive && n.Id != dead.Id
                 && ((dead.MotherId is { } m && n.MotherId == m) || (dead.FatherId is { } f && n.FatherId == f)))
             .OrderBy(n => n.Id.Value).ToList();
+    }
+
+    /// <summary>AD-178: o homenageado deixa ao xará vivo que não é herdeiro (o neto que leva o seu nome) uma fração da carteira
+    /// antes da partilha; o de menor id, se houver mais de um. A moeda só muda de carteira. Devolve quanto saiu.</summary>
+    private static long NamesakeLegacy(WorldState world, Npc dead, List<Npc> heirs, long wallet)
+    {
+        double share = world.FamilyRules.Names.NamesakeLegacyShare;
+        long legacy = (long)(wallet * Math.Clamp(share, 0, 1));
+        if (legacy <= 0) return 0;
+        Npc? namesake = null;
+        foreach (var other in world.AliveNpcIndex.Alive)
+            if ((namesake is null || other.Id.Value < namesake.Id.Value) && !heirs.Contains(other)
+                && LivingWorld.Simulation.Population.Naming.NameBonds.IsNamesake(world, other, dead))
+                namesake = other;
+        if (namesake is null || !dead.TryDebitWallet(new Money(legacy)).IsSuccess) return 0;
+        namesake.CreditWallet(new Money(legacy));
+        if (world.EconomyRules.Venture is not null) namesake.NoteInheritance(legacy);
+        return legacy;
     }
 
     /// <summary>Partes iguais com o resto ao primeiro; pela norma (AD-150), o cônjuge (primeiro da lista) fica com a sua parte

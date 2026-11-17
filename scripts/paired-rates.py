@@ -57,6 +57,7 @@ def mem(r, kinds=None):
 # (nome, numerador, denominador, escala)
 METRICS = [
     ("natalidade_por_mil_pa", lambda r: g(r, "nasc"), lambda r: g(r, "pa"), 1000),
+    ("casamentos_por_mil_pa", lambda r: g(r, "casamentos"), lambda r: g(r, "pa"), 1000),  # AD-178
     ("mortalidade_por_mil_pa", lambda r: deaths(r), lambda r: g(r, "pa"), 1000),
     ("fome_por_mil_pa", lambda r: g(r, "d.Starvation"), lambda r: g(r, "pa"), 1000),
     ("fome_<5_por_mil_pa", lambda r: g(r, "d.Starvation", [0, 1]), lambda r: g(r, "pa", [0, 1]), 1000),

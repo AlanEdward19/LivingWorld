@@ -356,7 +356,7 @@ public static partial class ScenarioRunner
         world.UseBrain(LivingWorld.Domain.Cognition.BrainRules.Default); // AD-160b: cérebro ligado no cenário de código
         var initialCity = new City(
             world.NextCityId(), DefaultVillageLocation, world.CurrentDate.TotalHours,
-            foundedFromCityId: null, AggregatePopulationPool.Empty);
+            foundedFromCityId: null, AggregatePopulationPool.Empty, name: Cities.CityNameGenerator.Generate(world, DefaultCulture)); // AD-178
         world.AddCity(initialCity);
         // A infraestrutura fundadora ocupa primeiro o núcleo urbano. Com residências físicas,
         // criar milhares de casas antes empurrava fazenda/mercado e forja para a periferia,

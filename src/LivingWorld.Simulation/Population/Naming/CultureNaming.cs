@@ -22,6 +22,12 @@ public sealed record CultureNaming(
     IReadOnlyList<string> Syllables, IReadOnlyList<string> FemaleEndings, IReadOnlyList<string> MaleEndings,
     IReadOnlyList<string> FamilySuffixes, Lineage Lineage, bool SpouseTakesName, double AncestorNameChance)
 {
+    /// <summary>Sufixos de lugar da cultura (nome de cidade); vazio = só sílabas.</summary>
+    public IReadOnlyList<string> PlaceSuffixes { get; init; } = [""];
+
+    /// <summary>Costume: a cidade-filha leva a primeira sílaba do nome da mãe (senão, nome novo).</summary>
+    public bool DaughterTakesMotherName { get; init; }
+
     /// <summary>Quantas sílabas da raiz comum cada cultura usa.</summary>
     public const int SyllablesPerCulture = 9;
 
@@ -29,6 +35,10 @@ public sealed record CultureNaming(
     private static readonly string[] FemalePool = ["a", "ia", "e", "ela", "ina", "is", "eth", "ra", "ena", "ys"];
     private static readonly string[] MalePool = ["o", "an", "er", "us", "im", "or", "ek", "in", "ald", "ur"];
     private static readonly string[] FamilyPool = ["", "en", "ar", "ick", "ow", "ith", "ane", "os"];
+    private static readonly string[] PlacePool = ["", "a", "on", "um", "ast", "ey", "is", "or"];
+
+    /// <summary>Parte das culturas em que a cidade-filha herda a primeira sílaba da mãe.</summary>
+    public const double DaughterTakesMotherNameShare = 0.4;
 
     /// <summary>Padrão declarado: 70% das culturas são patrilineares; metade casa adotando o nome; a chance de homenagem fica
     /// entre 15% e 50%.</summary>
@@ -49,7 +59,13 @@ public sealed record CultureNaming(
         var lineage = rng.NextDouble() < PatrilinealShare ? Lineage.Patrilineal : Lineage.Matrilineal;
         bool spouseTakes = rng.NextDouble() < SpouseTakesNameShare;
         double ancestor = MinAncestorNameChance + rng.NextDouble() * (MaxAncestorNameChance - MinAncestorNameChance);
-        return new CultureNaming(syllables, female, male, family, lineage, spouseTakes, ancestor);
+        // AD-178, lugar: sorteado depois do resto para não mudar o nome das pessoas já sorteado antes
+        var place = Pick(PlacePool, 2, rng);
+        bool daughter = rng.NextDouble() < DaughterTakesMotherNameShare;
+        return new CultureNaming(syllables, female, male, family, lineage, spouseTakes, ancestor)
+        {
+            PlaceSuffixes = place, DaughterTakesMotherName = daughter,
+        };
     }
 
     /// <summary>Nome próprio novo: uma ou duas sílabas da cultura e a terminação do sexo. Uma palavra só.</summary>
@@ -62,6 +78,24 @@ public sealed record CultureNaming(
 
     /// <summary>Nome de família novo: duas sílabas da cultura e um sufixo de família (pode ser vazio). Uma palavra só.</summary>
     public string NewFamilyName(WorldRng rng) => Join(Stem(2, rng), FamilySuffixes[Index(rng, FamilySuffixes.Count)]);
+
+    /// <summary>Nome de lugar: duas ou três sílabas da cultura e um sufixo de lugar; com o costume, a cidade-filha começa pela
+    /// primeira sílaba da mãe (<paramref name="motherName"/>).</summary>
+    public string NewPlaceName(WorldRng rng, string? motherName = null)
+    {
+        string? head = DaughterTakesMotherName && !string.IsNullOrEmpty(motherName) ? FirstSyllable(motherName) : null;
+        int count = 2 + Index(rng, 2);
+        string stem = head is null ? Stem(count, rng) : head + Stem(count - 1, rng).ToLowerInvariant();
+        return Join(stem, PlaceSuffixes[Index(rng, PlaceSuffixes.Count)]);
+    }
+
+    private static string FirstSyllable(string name)
+    {
+        string best = "";
+        foreach (var syllable in CityNameGenerator.Syllables)
+            if (syllable.Length > best.Length && name.StartsWith(syllable, StringComparison.Ordinal)) best = syllable;
+        return best.Length > 0 ? best : name[..Math.Min(3, name.Length)];
+    }
 
     private string Stem(int count, WorldRng rng)
     {

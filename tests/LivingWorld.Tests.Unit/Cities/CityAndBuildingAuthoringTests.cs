@@ -112,7 +112,7 @@ public class CityAndBuildingAuthoringTests
         var (worldA, _) = ScenarioRunner.Create(seed: 88);
         var (worldB, _) = ScenarioRunner.Create(seed: 88);
 
-        Assert.Equal(CityNameGenerator.Generate(worldA), CityNameGenerator.Generate(worldB));
+        Assert.Equal(CityNameGenerator.Generate(worldA, ScenarioRunner.DefaultCulture), CityNameGenerator.Generate(worldB, ScenarioRunner.DefaultCulture));
     }
 
     [Fact]
@@ -122,7 +122,7 @@ public class CityAndBuildingAuthoringTests
         var idBefore = world.NextCityId();
 
         var (worldSameSeed, _) = ScenarioRunner.Create(seed: 89);
-        CityNameGenerator.Generate(worldSameSeed);
+        CityNameGenerator.Generate(worldSameSeed, ScenarioRunner.DefaultCulture);
         var idAfterNaming = worldSameSeed.NextCityId();
 
         Assert.Equal(idBefore, idAfterNaming);

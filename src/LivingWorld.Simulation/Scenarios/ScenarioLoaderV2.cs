@@ -97,7 +97,7 @@ public static class ScenarioLoaderV2
         var createdCityIds = new List<CityId>(definition.City.Cities.Count);
         foreach (var city in definition.City.Cities)
         {
-            string name = string.IsNullOrEmpty(city.Name) ? CityNameGenerator.Generate(world) : city.Name;
+            string name = string.IsNullOrEmpty(city.Name) ? CityNameGenerator.Generate(world, population.Culture) : city.Name;
             // cidade autorada com pool não-vazio reserva um NpcId estável por membro,
             // clicável/materializável individualmente (antes só existia contagem+somas).
             var poolNpcIds = world.ReserveNpcIdBlock(city.AggregatePool.Count);
@@ -148,7 +148,7 @@ public static class ScenarioLoaderV2
             {
                 var homeCity = new City(
                     world.NextCityId(), population.Village, foundedAtTick: 0, foundedFromCityId: null,
-                    new AggregatePopulationPool(0, 0, 0), name: CityNameGenerator.Generate(world));
+                    new AggregatePopulationPool(0, 0, 0), name: CityNameGenerator.Generate(world, population.Culture));
                 world.AddCity(homeCity);
                 homeCityIndex = seedTargets.Count;
                 seedTargets.Add((homeCity.Location, homeCity.Id));

@@ -23,7 +23,7 @@ public static class PopulationSeeder
 
     public static void SeedInitial(WorldState world, int count, CultureId culture, CellCoord villageLocation, CityId city = default)
     {
-        var placementCity = ResolvePlacementCity(world, city, villageLocation);
+        var placementCity = ResolvePlacementCity(world, city, villageLocation, culture);
 
         var rng = world.Rng.Stream("population-init");
         var houseIds = new List<BuildingId>();
@@ -102,7 +102,7 @@ public static class PopulationSeeder
         if (level > 0) npc.GainSkill(skill, level, rules.Cap);
     }
 
-    private static City ResolvePlacementCity(WorldState world, CityId requestedCity, CellCoord villageLocation)
+    private static City ResolvePlacementCity(WorldState world, CityId requestedCity, CellCoord villageLocation, CultureId culture)
     {
         if (requestedCity != default)
             return world.FindActiveCity(requestedCity)
@@ -113,7 +113,7 @@ public static class PopulationSeeder
 
         var created = new City(
             world.NextCityId(), villageLocation, world.CurrentDate.TotalHours,
-            foundedFromCityId: null, AggregatePopulationPool.Empty);
+            foundedFromCityId: null, AggregatePopulationPool.Empty, name: CityNameGenerator.Generate(world, culture)); // AD-178
         world.AddCity(created);
         return created;
     }
