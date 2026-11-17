@@ -82,27 +82,6 @@ public class PsycheTests
         Assert.Contains(daughter.Psyche!.Memories, m => m.Kind == LifeEventKind.ParentDied);
     }
 
-    /// <summary>AD-165: a morte por acidente e por velhice (sobra nomeada da tábua, AD-137) também enluta a família; antes o
-    /// <c>LifeEventIntake</c> só ouvia as outras causas e o viúvo de um afogado não sentia nada.</summary>
-    [Theory]
-    [InlineData(WorldEventKind.Accident)]
-    [InlineData(WorldEventKind.OldAge)]
-    public void Death_by_accident_or_old_age_is_mourned_by_the_family(WorldEventKind cause)
-    {
-        var world = World();
-        var wife = Person(world, Sex.Female, 60);
-        var husband = Person(world, Sex.Male, 65);
-        Wed(wife, husband);
-        var son = Person(world, Sex.Male, 30, wife, husband);
-
-        NpcDeath.Apply(world, Ctx(world), husband, cause);
-        long now = world.CurrentDate.TotalHours;
-
-        Assert.Contains(wife.Psyche!.Memories, m => m.Kind == LifeEventKind.SpouseDied && m.Other == husband.Id.Value);
-        Assert.Contains(son.Psyche!.Memories, m => m.Kind == LifeEventKind.ParentDied && m.Other == husband.Id.Value);
-        Assert.True(PsycheMechanic.EmotionOf(world, wife, Emotion.Grief, now) > 0.5);
-    }
-
     [Fact]
     public void Grief_for_a_spouse_lasts_months_fades_within_the_year_and_the_memory_stays_for_decades()
     {

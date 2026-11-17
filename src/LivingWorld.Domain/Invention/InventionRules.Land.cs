@@ -5,8 +5,11 @@ namespace LivingWorld.Domain.Invention;
 /// faixas que lembramos, todos "precisa de conferência" (registro AD-153 e backlog 08).</summary>
 public sealed partial record InventionRules
 {
-    /// <summary>Força que uma pessoa sustenta puxando por horas, N (tração humana; não há animal de tiro no mundo).</summary>
-    public int HumanPullN { get; init; } = 250;
+    /// <summary>Força que uma pessoa sustenta puxando por horas, N (tração humana; não há animal de tiro no mundo). AD-165: 175, o
+    /// meio da faixa sustentada de 150–200 N (correções #13; guia industrial ~107 N com as duas mãos, Ergoweb [L]; Snook &amp; Ciriello
+    /// 1991 não lido, precisa de conferência). Era 250. 6×50: o único trenó (1 seed) não surge, compras cortadas por terra +23%,
+    /// fome crítica e colheita iguais.</summary>
+    public int HumanPullN { get; init; } = 175;
 
     /// <summary>Coeficiente de atrito (‰) de arrastar no chão: a carga ou a peça larga raspa e afunda na terra.</summary>
     public int DragFrictionPm { get; init; } = 550;
